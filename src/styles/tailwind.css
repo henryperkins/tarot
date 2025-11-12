@@ -1,0 +1,6 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Pull Mystic Tarot custom styles into the generated bundle */
+@import './tarot.css';
