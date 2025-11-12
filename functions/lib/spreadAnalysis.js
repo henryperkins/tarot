@@ -77,8 +77,15 @@ export function getCardElement(cardName, cardNumber) {
  * - Same element amplifies
  */
 export function analyzeElementalDignity(card1, card2) {
-  const e1 = getCardElement(card1.card, card1.number);
-  const e2 = getCardElement(card2.card, card2.number);
+  if (!card1 || !card2) {
+    return {
+      relationship: 'neutral',
+      description: null
+    };
+  }
+
+  const e1 = getCardElement(card1.card || '', card1.number);
+  const e2 = getCardElement(card2.card || '', card2.number);
 
   if (!e1 || !e2) {
     return {
@@ -125,8 +132,11 @@ export function analyzeElementalDignity(card1, card2) {
 /**
  * Analyze themes across entire spread
  * Detects suit dominance, elemental balance, Major density, reversal patterns
+ *
+ * Accepts optional options:
+ * - reversalFrameworkOverride: if provided and valid, forces that framework.
  */
-export function analyzeSpreadThemes(cardsInfo) {
+export function analyzeSpreadThemes(cardsInfo, options = {}) {
   const suitCounts = { Wands: 0, Cups: 0, Swords: 0, Pentacles: 0 };
   const elementCounts = { Fire: 0, Water: 0, Air: 0, Earth: 0 };
   let majorCount = 0;
@@ -181,8 +191,11 @@ export function analyzeSpreadThemes(cardsInfo) {
     ? numbers.reduce((sum, n) => sum + n, 0) / numbers.length
     : null;
 
-  // Select reversal framework
-  const reversalFramework = selectReversalFramework(reversalRatio, cardsInfo);
+  // Select reversal framework (allow explicit override)
+  let reversalFramework = selectReversalFramework(reversalRatio, cardsInfo);
+  if (options.reversalFrameworkOverride && REVERSAL_FRAMEWORKS[options.reversalFrameworkOverride]) {
+    reversalFramework = options.reversalFrameworkOverride;
+  }
 
   return {
     // Suit analysis
@@ -227,7 +240,7 @@ function selectReversalFramework(ratio, cardsInfo) {
 /**
  * Reversal framework definitions
  */
-const REVERSAL_FRAMEWORKS = {
+export const REVERSAL_FRAMEWORKS = {
   none: {
     name: 'All Upright',
     description: 'All cards appear upright, showing energies flowing freely and directly.',

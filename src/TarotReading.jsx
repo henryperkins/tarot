@@ -43,6 +43,7 @@ export default function TarotReading() {
   const [voiceOn, setVoiceOn] = useState(false);
   const [reflections, setReflections] = useState({});
   const [ambienceOn, setAmbienceOn] = useState(false);
+  const [reversalFramework, setReversalFramework] = useState(null);
   const [apiHealthBanner, setApiHealthBanner] = useState(null);
   const [ttsState, setTtsState] = useState(() => getCurrentTTSState());
   const [ttsAnnouncement, setTtsAnnouncement] = useState('');
@@ -493,7 +494,8 @@ export default function TarotReading() {
           spreadInfo: { name: spreadInfo.name },
           cardsInfo,
           userQuestion,
-          reflectionsText
+          reflectionsText,
+          reversalFrameworkOverride: reversalFramework
         })
       });
 
@@ -633,6 +635,8 @@ export default function TarotReading() {
                   includeMinors={includeMinors}
                   setIncludeMinors={setIncludeMinors}
                   minorsToggleDisabled={minorsToggleDisabled}
+                  reversalFramework={reversalFramework}
+                  setReversalFramework={setReversalFramework}
                 />
                 <p className="sr-only">
                   Reader voice uses generated audio when enabled. Table ambience plays soft background sound when enabled.

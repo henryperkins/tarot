@@ -20,6 +20,10 @@ import {
 import {
   buildCelticCrossReading,
   buildThreeCardReading,
+  buildFiveCardReading,
+  buildRelationshipReading,
+  buildDecisionReading,
+  buildSingleCardReading,
   buildEnhancedClaudePrompt,
   buildPositionCardText
 } from '../lib/narrativeBuilder.js';
@@ -36,7 +40,7 @@ export const onRequestGet = async ({ env }) => {
 export const onRequestPost = async ({ request, env }) => {
   try {
     const payload = await readRequestBody(request);
-    const { spreadInfo, cardsInfo, userQuestion, reflectionsText } = payload;
+    const { spreadInfo, cardsInfo, userQuestion, reflectionsText, reversalFrameworkOverride } = payload;
 
     const validationError = validatePayload(payload);
     if (validationError) {
@@ -47,7 +51,9 @@ export const onRequestPost = async ({ request, env }) => {
     }
 
     // STEP 1: Comprehensive spread analysis
-    const analysis = performSpreadAnalysis(spreadInfo, cardsInfo);
+    const analysis = performSpreadAnalysis(spreadInfo, cardsInfo, {
+      reversalFrameworkOverride
+    });
 
     // STEP 2: Generate reading (Claude or local)
     let reading;
@@ -69,6 +75,7 @@ export const onRequestPost = async ({ request, env }) => {
     }
 
     if (!reading) {
+      // Local fallback with validation; never return empty silently
       reading = composeReadingEnhanced({
         spreadInfo,
         cardsInfo,
@@ -76,6 +83,14 @@ export const onRequestPost = async ({ request, env }) => {
         reflectionsText,
         analysis
       });
+
+      if (!reading || !reading.toString().trim()) {
+        console.error('composeReadingEnhanced returned empty reading; returning structured error.');
+        return jsonResponse(
+          { error: 'Analysis failed to produce a narrative. Please retry your reading.' },
+          { status: 500 }
+        );
+      }
     }
 
     return jsonResponse({
@@ -95,20 +110,56 @@ export const onRequestPost = async ({ request, env }) => {
  * Perform comprehensive spread analysis
  * Returns themes, spread-specific relationships, and elemental insights
  */
-function performSpreadAnalysis(spreadInfo, cardsInfo) {
+function performSpreadAnalysis(spreadInfo, cardsInfo, options = {}) {
+  // Guard against malformed input (defensive: validatePayload should have run already)
+  if (!spreadInfo || !Array.isArray(cardsInfo) || cardsInfo.length === 0) {
+    console.warn('performSpreadAnalysis: missing or invalid spreadInfo/cardsInfo, falling back to generic themes only.');
+    return {
+      themes: { suitCounts: {}, elementCounts: {}, reversalCount: 0, reversalFramework: 'contextual', reversalDescription: { name: 'Context-Dependent', description: 'Reversed cards are interpreted individually based on context.', guidance: 'Read each reversal in light of its position and relationships.' } },
+      spreadAnalysis: null,
+      spreadKey: 'general'
+    };
+  }
+
   // Theme analysis (suits, elements, majors, reversals)
-  const themes = analyzeSpreadThemes(cardsInfo);
+  let themes;
+  try {
+    themes = analyzeSpreadThemes(cardsInfo, {
+      reversalFrameworkOverride: options.reversalFrameworkOverride
+    });
+  } catch (err) {
+    console.error('performSpreadAnalysis: analyzeSpreadThemes failed, using minimal fallback themes.', err);
+    themes = {
+      suitCounts: {},
+      elementCounts: {},
+      reversalCount: 0,
+      reversalFramework: 'contextual',
+      reversalDescription: {
+        name: 'Context-Dependent',
+        description: 'Reversed cards are interpreted individually based on context.',
+        guidance: 'Read each reversal by listening to its position and neighboring cards.'
+      }
+    };
+  }
 
   // Spread-specific position-relationship analysis
   let spreadAnalysis = null;
-  const spreadKey = getSpreadKey(spreadInfo.name);
+  let spreadKey = 'general';
 
-  if (spreadKey === 'celtic' && cardsInfo.length === 10) {
-    spreadAnalysis = analyzeCelticCross(cardsInfo);
-  } else if (spreadKey === 'threeCard' && cardsInfo.length === 3) {
-    spreadAnalysis = analyzeThreeCard(cardsInfo);
-  } else if (spreadKey === 'fiveCard' && cardsInfo.length === 5) {
-    spreadAnalysis = analyzeFiveCard(cardsInfo);
+  try {
+    spreadKey = getSpreadKey(spreadInfo.name);
+
+    if (spreadKey === 'celtic' && cardsInfo.length === 10) {
+      spreadAnalysis = analyzeCelticCross(cardsInfo);
+    } else if (spreadKey === 'threeCard' && cardsInfo.length === 3) {
+      spreadAnalysis = analyzeThreeCard(cardsInfo);
+    } else if (spreadKey === 'fiveCard' && cardsInfo.length === 5) {
+      spreadAnalysis = analyzeFiveCard(cardsInfo);
+    }
+  } catch (err) {
+    console.error('performSpreadAnalysis: spread-specific analysis failed, continuing with themes only.', err);
+    spreadAnalysis = null;
+    spreadKey = 'general';
   }
 
   return {
@@ -260,6 +311,43 @@ function composeReadingEnhanced({ spreadInfo, cardsInfo, userQuestion, reflectio
       userQuestion,
       reflectionsText,
       threeCardAnalysis: spreadAnalysis,
+      themes
+    });
+  }
+
+  if (spreadKey === 'fiveCard' && spreadAnalysis) {
+    return buildFiveCardReading({
+      cardsInfo,
+      userQuestion,
+      reflectionsText,
+      fiveCardAnalysis: spreadAnalysis,
+      themes
+    });
+  }
+
+  if (spreadKey === 'relationship') {
+    return buildRelationshipReading({
+      cardsInfo,
+      userQuestion,
+      reflectionsText,
+      themes
+    });
+  }
+
+  if (spreadKey === 'decision') {
+    return buildDecisionReading({
+      cardsInfo,
+      userQuestion,
+      reflectionsText,
+      themes
+    });
+  }
+
+  if (spreadKey === 'single') {
+    return buildSingleCardReading({
+      cardsInfo,
+      userQuestion,
+      reflectionsText,
       themes
     });
   }

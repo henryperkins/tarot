@@ -5,8 +5,10 @@
  * that integrate elemental, thematic, and relationship analysis.
  */
 
-import { getImageryHook, isMajorArcana, getElementalImagery } from './imageryHooks.js';
+import { getImageryHook, isMajorArcana, getElementalImagery, getMinorImageryHook } from './imageryHooks.js';
 import { buildMinorSummary } from './minorMeta.js';
+import { enhanceSection, validateReadingNarrative } from './narrativeSpine.js';
+import { analyzeElementalDignity } from './spreadAnalysis.js';
 
 /**
  * Position-specific language templates
@@ -257,12 +259,22 @@ export function buildPositionCardText(cardInfo, position, options = {}) {
     : '';
 
   if (!template) {
-    // Fallback for unknown positions
+    // Fallback for unknown positions (defensive defaults)
+    const safeCard = cardInfo.card || 'this card';
+    const safeOrientation =
+      typeof cardInfo.orientation === 'string' && cardInfo.orientation.trim()
+        ? ` ${cardInfo.orientation}`
+        : '';
     const meaning = formatMeaningForPosition(cardInfo.meaning || '', position);
-    return `${position}: ${cardInfo.card} ${cardInfo.orientation}. ${meaning}${appendReversalGuidance}`;
+    return `${position}: ${safeCard}${safeOrientation}. ${meaning}${appendReversalGuidance}`;
   }
 
-  const intro = template.intro(cardInfo.card, cardInfo.orientation);
+  const safeCard = cardInfo.card || 'this card';
+  const safeOrientation =
+    typeof cardInfo.orientation === 'string' && cardInfo.orientation.trim()
+      ? cardInfo.orientation
+      : '';
+  const intro = template.intro(safeCard, safeOrientation);
   const meaning = formatMeaningForPosition(cardInfo.meaning || '', position);
 
   // Add imagery hook for Major Arcana if enabled
@@ -274,7 +286,7 @@ export function buildPositionCardText(cardInfo, position, options = {}) {
     }
   }
 
-  // Minor Arcana: suit/rank-aware enrichment (no extra imagery hooks).
+  // Minor Arcana: suit/rank-aware enrichment plus optional light imagery hook.
   let minorContextText = '';
   if (!isMajorArcana(cardInfo.number)) {
     const minorSummary = buildMinorSummary({
@@ -286,6 +298,16 @@ export function buildPositionCardText(cardInfo, position, options = {}) {
     });
     if (minorSummary) {
       minorContextText = ` ${minorSummary}`;
+    }
+
+    const minorHook = getMinorImageryHook({
+      card: cardInfo.card,
+      suit: cardInfo.suit,
+      rank: cardInfo.rank,
+      orientation: cardInfo.orientation
+    });
+    if (minorHook && minorHook.visual) {
+      minorContextText += ` Picture ${minorHook.visual}—this subtly colors how this suit's lesson shows up here.`;
     }
   }
 
@@ -299,7 +321,10 @@ export function buildPositionCardText(cardInfo, position, options = {}) {
     }
   }
 
-  return `${intro} ${meaning}${imagery}${minorContextText} ${template.frame}${elementalImagery}${appendReversalGuidance}`;
+  const safeFrame = template.frame || '';
+  const safeElemental = elementalImagery || '';
+  const safeReversal = appendReversalGuidance || '';
+  return `${intro} ${meaning}${imagery}${minorContextText} ${safeFrame}${safeElemental}${safeReversal}`;
 }
 
 function buildReversalGuidance(reversalDescription) {
@@ -369,19 +394,44 @@ export function buildCelticCrossReading({
   sections.push(buildOpening('Celtic Cross (Classic 10-Card)', userQuestion));
 
   // 1. NUCLEUS - The Heart of the Matter (Cards 1-2)
-  sections.push(buildNucleusSection(celticAnalysis.nucleus, cardsInfo, themes));
+  sections.push(
+    enhanceSection(
+      buildNucleusSection(celticAnalysis.nucleus, cardsInfo, themes),
+      { type: 'nucleus', cards: [cardsInfo[0], cardsInfo[1]], relationships: { elementalRelationship: celticAnalysis.nucleus.elementalDynamic } }
+    ).text
+  );
 
   // 2. TIMELINE - Past, Present, Future (Cards 3-1-4)
-  sections.push(buildTimelineSection(celticAnalysis.timeline, cardsInfo, themes));
+  sections.push(
+    enhanceSection(
+      buildTimelineSection(celticAnalysis.timeline, cardsInfo, themes),
+      { type: 'timeline' }
+    ).text
+  );
 
   // 3. CONSCIOUSNESS - Subconscious, Center, Conscious (Cards 6-1-5)
-  sections.push(buildConsciousnessSection(celticAnalysis.consciousness, cardsInfo, themes));
+  sections.push(
+    enhanceSection(
+      buildConsciousnessSection(celticAnalysis.consciousness, cardsInfo, themes),
+      { type: 'consciousness' }
+    ).text
+  );
 
   // 4. STAFF - Self, External, Hopes/Fears, Outcome (Cards 7-10)
-  sections.push(buildStaffSection(celticAnalysis.staff, cardsInfo, themes));
+  sections.push(
+    enhanceSection(
+      buildStaffSection(celticAnalysis.staff, cardsInfo, themes),
+      { type: 'staff' }
+    ).text
+  );
 
   // 5. CROSS-CHECKS - Key position comparisons
-  sections.push(buildCrossChecksSection(celticAnalysis.crossChecks, themes));
+  sections.push(
+    enhanceSection(
+      buildCrossChecksSection(celticAnalysis.crossChecks, themes),
+      { type: 'relationships' }
+    ).text
+  );
 
   // 6. User Reflections
   if (reflectionsText && reflectionsText.trim()) {
@@ -389,7 +439,18 @@ export function buildCelticCrossReading({
   }
 
   // 7. SYNTHESIS - Actionable integration
-  sections.push(buildSynthesisSection(cardsInfo, themes, celticAnalysis, userQuestion));
+  sections.push(
+    enhanceSection(
+      buildSynthesisSection(cardsInfo, themes, celticAnalysis, userQuestion),
+      { type: 'outcome' }
+    ).text
+  );
+
+  // Final validation log (non-blocking)
+  const validation = validateReadingNarrative(sections.join('\n\n'));
+  if (!validation.isValid) {
+    console.debug('Celtic Cross narrative spine suggestions:', validation.suggestions || validation.sectionAnalyses);
+  }
 
   return sections.filter(Boolean).join('\n\n');
 }
@@ -585,6 +646,383 @@ function buildSynthesisSection(cardsInfo, themes, celticAnalysis, userQuestion) 
 /**
  * Build Three-Card reading with connective flow
  */
+export function buildFiveCardReading({
+  cardsInfo,
+  userQuestion,
+  reflectionsText,
+  fiveCardAnalysis,
+  themes
+}) {
+  const sections = [];
+  const spreadName = 'Five-Card Clarity';
+
+  // Opening
+  sections.push(
+    buildOpening(
+      spreadName,
+      userQuestion ||
+        'This spread clarifies the core issue, the challenge, hidden influences, support, and where things are heading if nothing shifts.'
+    )
+  );
+
+  if (!Array.isArray(cardsInfo) || cardsInfo.length < 5) {
+    return 'This five-card spread is incomplete; please redraw or ensure all five cards are present.';
+  }
+
+  const [core, challenge, hidden, support, direction] = cardsInfo;
+  const positionOptions = getPositionOptions(themes);
+
+  // Core + Challenge section
+  let coreSection = `**FIVE-CARD CLARITY — CORE & CHALLENGE**\n\n`;
+  coreSection += buildPositionCardText(
+    core,
+    core.position || 'Core of the matter',
+    positionOptions
+  );
+  coreSection += '\n\n';
+  coreSection += buildPositionCardText(
+    challenge,
+    challenge.position || 'Challenge or tension',
+    {
+      ...positionOptions,
+      prevElementalRelationship: fiveCardAnalysis?.coreVsChallenge
+    }
+  );
+
+  if (fiveCardAnalysis?.coreVsChallenge?.description) {
+    coreSection += `\n\n${fiveCardAnalysis.coreVsChallenge.description}.`;
+  }
+
+  sections.push(enhanceSection(coreSection, {
+    type: 'nucleus',
+    cards: [core, challenge],
+    relationships: { elementalRelationship: fiveCardAnalysis?.coreVsChallenge }
+  }).text);
+
+  // Hidden influence
+  let hiddenSection = `**HIDDEN INFLUENCE**\n\n`;
+  hiddenSection += buildPositionCardText(
+    hidden,
+    hidden.position || 'Hidden / subconscious influence',
+    positionOptions
+  );
+  sections.push(enhanceSection(hiddenSection, {
+    type: 'subconscious',
+    cards: [hidden]
+  }).text);
+
+  // Support
+  let supportSection = `**SUPPORTING ENERGIES**\n\n`;
+  supportSection += buildPositionCardText(
+    support,
+    support.position || 'Support / helpful energy',
+    positionOptions
+  );
+  sections.push(enhanceSection(supportSection, {
+    type: 'support',
+    cards: [support]
+  }).text);
+
+  // Direction
+  let directionSection = `**DIRECTION ON YOUR CURRENT PATH**\n\n`;
+  directionSection += buildPositionCardText(
+    direction,
+    direction.position || 'Likely direction on current path',
+    {
+      ...positionOptions,
+      prevElementalRelationship: fiveCardAnalysis?.supportVsDirection
+    }
+  );
+
+  if (fiveCardAnalysis?.synthesis) {
+    directionSection += `\n\n${fiveCardAnalysis.synthesis}`;
+  }
+
+  sections.push(enhanceSection(directionSection, {
+    type: 'outcome',
+    cards: [direction],
+    relationships: { elementalRelationship: fiveCardAnalysis?.supportVsDirection }
+  }).text);
+
+  // Reflections
+  if (reflectionsText && reflectionsText.trim()) {
+    sections.push(buildReflectionsSection(reflectionsText));
+  }
+
+  const full = sections.filter(Boolean).join('\n\n');
+  const validation = validateReadingNarrative(full);
+  if (!validation.isValid) {
+    console.debug('Five-Card narrative spine suggestions:', validation.suggestions || validation.sectionAnalyses);
+  }
+
+  return full;
+}
+
+export function buildRelationshipReading({
+  cardsInfo,
+  userQuestion,
+  reflectionsText,
+  themes
+}) {
+  const sections = [];
+  const spreadName = 'Relationship Snapshot';
+
+  sections.push(
+    buildOpening(
+      spreadName,
+      userQuestion ||
+        'This spread explores your energy, their energy, the connection between you, and guidance for relating with agency and care.'
+    )
+  );
+
+  const [youCard, themCard, connectionCard, dynamicsCard, outcomeCard] = Array.isArray(cardsInfo)
+    ? cardsInfo
+    : [];
+  const options = getPositionOptions(themes);
+
+  // YOU AND THEM
+  let youThem = `**YOU AND THEM**\n\n`;
+  youThem += buildPositionCardText(
+    youCard,
+    youCard.position || 'You / your energy',
+    options
+  );
+  youThem += '\n\n';
+  youThem += buildPositionCardText(
+    themCard,
+    themCard.position || 'Them / their energy',
+    options
+  );
+
+  // Elemental relationship between you and them (if both exist)
+  if (youCard && themCard) {
+    const elemental = analyzeElementalDignity(youCard, themCard);
+    if (elemental && elemental.description) {
+      youThem += `\n\n*Elemental interplay between you: ${elemental.description}.*`;
+    }
+  }
+
+  sections.push(
+    enhanceSection(youThem, {
+      type: 'relationship-dyad',
+      cards: [youCard, themCard]
+    }).text
+  );
+
+  // THE CONNECTION
+  if (connectionCard) {
+    let connection = `**THE CONNECTION**\n\n`;
+    connection += buildPositionCardText(
+      connectionCard,
+      connectionCard.position || 'The connection / shared lesson',
+      options
+    );
+    sections.push(
+      enhanceSection(connection, {
+        type: 'connection',
+        cards: [connectionCard]
+      }).text
+    );
+  }
+
+  // GUIDANCE FOR THIS CONNECTION
+  let guidance = `**GUIDANCE FOR THIS CONNECTION**\n\n`;
+  if (dynamicsCard) {
+    guidance += buildPositionCardText(
+      dynamicsCard,
+      dynamicsCard.position || 'Dynamics / guidance',
+      options
+    );
+    guidance += '\n\n';
+  }
+  if (outcomeCard) {
+    guidance += buildPositionCardText(
+      outcomeCard,
+      outcomeCard.position || 'Outcome / what this can become',
+      options
+    );
+    guidance += '\n\n';
+  }
+
+  guidance +=
+    'Emphasize what supports honest communication, mutual respect, and boundaries. Treat these insights as a mirror that helps you choose how to show up; never as a command to stay or leave.';
+
+  sections.push(
+    enhanceSection(guidance, {
+      type: 'relationship-guidance',
+      cards: [dynamicsCard, outcomeCard].filter(Boolean)
+    }).text
+  );
+
+  if (reflectionsText && reflectionsText.trim()) {
+    sections.push(buildReflectionsSection(reflectionsText));
+  }
+
+  const full = sections.filter(Boolean).join('\n\n');
+  const validation = validateReadingNarrative(full);
+  if (!validation.isValid) {
+    console.debug('Relationship narrative spine suggestions:', validation.suggestions || validation.sectionAnalyses);
+  }
+
+  return full;
+}
+
+export function buildDecisionReading({
+  cardsInfo,
+  userQuestion,
+  reflectionsText,
+  themes
+}) {
+  const sections = [];
+  const spreadName = 'Decision / Two-Path';
+
+  sections.push(
+    buildOpening(
+      spreadName,
+      userQuestion ||
+        'This spread illuminates the heart of your decision, two possible paths, clarifying insight, and a reminder of your agency.'
+    )
+  );
+
+  const [heart, pathA, pathB, clarifier, freeWill] = Array.isArray(cardsInfo)
+    ? cardsInfo
+    : [];
+  const options = getPositionOptions(themes);
+
+  // THE CHOICE
+  let choice = `**THE CHOICE**\n\n`;
+  choice += buildPositionCardText(
+    heart,
+    heart.position || 'Heart of the decision',
+    options
+  );
+  sections.push(
+    enhanceSection(choice, {
+      type: 'decision-core',
+      cards: [heart]
+    }).text
+  );
+
+  // PATH A
+  let aSection = `**PATH A**\n\n`;
+  aSection += buildPositionCardText(
+    pathA,
+    pathA.position || 'Path A — energy & likely outcome',
+    options
+  );
+  sections.push(
+    enhanceSection(aSection, {
+      type: 'decision-path',
+      cards: [pathA]
+    }).text
+  );
+
+  // PATH B
+  let bSection = `**PATH B**\n\n`;
+  bSection += buildPositionCardText(
+    pathB,
+    pathB.position || 'Path B — energy & likely outcome',
+    options
+  );
+  sections.push(
+    enhanceSection(bSection, {
+      type: 'decision-path',
+      cards: [pathB]
+    }).text
+  );
+
+  // CLARITY + AGENCY
+  let clarity = `**CLARITY + AGENCY**\n\n`;
+
+  if (clarifier) {
+    clarity += buildPositionCardText(
+      clarifier,
+      clarifier.position || 'What clarifies the best path',
+      options
+    );
+    clarity += '\n\n';
+  }
+
+  if (pathA && pathB) {
+    const elemental = analyzeElementalDignity(pathA, pathB);
+    if (elemental && elemental.description) {
+      clarity += `Comparing the two paths: ${elemental.description}. `;
+    }
+  }
+
+  if (freeWill) {
+    clarity += buildPositionCardText(
+      freeWill,
+      freeWill.position || 'What to remember about your free will',
+      options
+    );
+    clarity += '\n\n';
+  }
+
+  clarity +=
+    'Use these insights to understand how each option feels in your body and life. The cards illuminate possibilities; you remain the one who chooses.';
+
+  sections.push(
+    enhanceSection(clarity, {
+      type: 'decision-clarity',
+      cards: [clarifier, freeWill].filter(Boolean)
+    }).text
+  );
+
+  if (reflectionsText && reflectionsText.trim()) {
+    sections.push(buildReflectionsSection(reflectionsText));
+  }
+
+  const full = sections.filter(Boolean).join('\n\n');
+  const validation = validateReadingNarrative(full);
+  if (!validation.isValid) {
+    console.debug('Decision narrative spine suggestions:', validation.suggestions || validation.sectionAnalyses);
+  }
+
+  return full;
+}
+
+export function buildSingleCardReading({
+  cardsInfo,
+  userQuestion,
+  reflectionsText,
+  themes
+}) {
+  if (!Array.isArray(cardsInfo) || cardsInfo.length === 0 || !cardsInfo[0]) {
+    return '**ONE-CARD INSIGHT**\n\nNo card data was provided. Please draw at least one card to receive a focused message.';
+  }
+
+  const card = cardsInfo[0];
+  const options = getPositionOptions(themes);
+
+  let narrative = `**ONE-CARD INSIGHT**\n\n`;
+
+  if (userQuestion && userQuestion.trim()) {
+    narrative += `Focusing on your question "${userQuestion.trim()}", this card offers a snapshot of guidance in this moment.\n\n`;
+  } else {
+    narrative += 'This single card offers a focused snapshot of the energy around you right now.\n\n';
+  }
+
+  // Core section with WHAT → WHY → WHAT'S NEXT flavor
+  const positionLabel = card.position || 'Theme / Guidance of the Moment';
+  const baseText = buildPositionCardText(card, positionLabel, options);
+
+  narrative += `${baseText}\n\n`;
+  narrative +=
+    "In simple terms: notice what this theme is asking you to acknowledge (WHAT), reflect on why it might be surfacing now (WHY), and choose one small, aligned next step that honors your agency (WHAT'S NEXT). This is a living moment, not a fixed verdict.";
+
+  if (reflectionsText && reflectionsText.trim()) {
+    narrative += `\n\n**Your Reflections**\n\n${reflectionsText.trim()}`;
+  }
+
+  const validation = validateReadingNarrative(narrative);
+  if (!validation.isValid) {
+    console.debug('Single-card narrative spine suggestions:', validation.suggestions || validation.sectionAnalyses);
+  }
+
+  return narrative;
+}
+
 export function buildThreeCardReading({
   cardsInfo,
   userQuestion,
@@ -805,6 +1243,14 @@ function buildUserPrompt(spreadKey, cardsInfo, userQuestion, reflectionsText, th
   // Spread-specific card presentation
   if (spreadKey === 'celtic' && spreadAnalysis) {
     prompt += buildCelticCrossPromptCards(cardsInfo, spreadAnalysis, themes);
+  } else if (spreadKey === 'fiveCard' && spreadAnalysis) {
+    prompt += buildFiveCardPromptCards(cardsInfo, spreadAnalysis, themes);
+  } else if (spreadKey === 'relationship') {
+    prompt += buildRelationshipPromptCards(cardsInfo, themes);
+  } else if (spreadKey === 'decision') {
+    prompt += buildDecisionPromptCards(cardsInfo, themes);
+  } else if (spreadKey === 'single') {
+    prompt += buildSingleCardPrompt(cardsInfo, themes);
   } else {
     prompt += buildStandardPromptCards(cardsInfo, themes);
   }
@@ -894,6 +1340,127 @@ function getElementalImageryText(elementalRelationship) {
   }
 
   return '';
+}
+
+function buildFiveCardPromptCards(cardsInfo, fiveCardAnalysis, themes) {
+  const options = getPositionOptions(themes);
+  const [core, challenge, hidden, support, direction] = cardsInfo;
+
+  let out = `**FIVE-CARD CLARITY STRUCTURE**\n`;
+  out += `- Core of the matter\n- Challenge or tension\n- Hidden / subconscious influence\n- Support / helpful energy\n- Likely direction on current path\n\n`;
+
+  out += buildCardWithImagery(core, core.position || 'Core of the matter', options);
+  out += buildCardWithImagery(challenge, challenge.position || 'Challenge or tension', {
+    ...options,
+    prevElementalRelationship: fiveCardAnalysis?.coreVsChallenge
+  });
+  out += buildCardWithImagery(hidden, hidden.position || 'Hidden / subconscious influence', options);
+  out += buildCardWithImagery(support, support.position || 'Support / helpful energy', options);
+  out += buildCardWithImagery(direction, direction.position || 'Likely direction on current path', {
+    ...options,
+    prevElementalRelationship: fiveCardAnalysis?.supportVsDirection
+  });
+
+  return out;
+}
+
+function buildRelationshipPromptCards(cardsInfo, themes) {
+  const options = getPositionOptions(themes);
+  const [youCard, themCard, connectionCard, dynamicsCard, outcomeCard] = cardsInfo;
+
+  let out = `**RELATIONSHIP SNAPSHOT STRUCTURE**\n`;
+  out += `- You / your energy\n- Them / their energy\n- The connection / shared lesson\n- Dynamics / guidance\n- Outcome / what this can become\n\n`;
+
+  if (youCard) {
+    out += buildCardWithImagery(youCard, youCard.position || 'You / your energy', options);
+  }
+  if (themCard) {
+    out += buildCardWithImagery(themCard, themCard.position || 'Them / their energy', options);
+  }
+  if (connectionCard) {
+    out += buildCardWithImagery(
+      connectionCard,
+      connectionCard.position || 'The connection / shared lesson',
+      options
+    );
+  }
+  if (dynamicsCard) {
+    out += buildCardWithImagery(
+      dynamicsCard,
+      dynamicsCard.position || 'Dynamics / guidance',
+      options
+    );
+  }
+  if (outcomeCard) {
+    out += buildCardWithImagery(
+      outcomeCard,
+      outcomeCard.position || 'Outcome / what this can become',
+      options
+    );
+  }
+
+  return out;
+}
+
+function buildDecisionPromptCards(cardsInfo, themes) {
+  const options = getPositionOptions(themes);
+  const [heart, pathA, pathB, clarifier, freeWill] = cardsInfo;
+
+  let out = `**DECISION / TWO-PATH STRUCTURE**\n`;
+  out += `- Heart of the decision\n- Path A — energy & likely outcome\n- Path B — energy & likely outcome\n- What clarifies the best path\n- What to remember about your free will\n\n`;
+
+  if (heart) {
+    out += buildCardWithImagery(
+      heart,
+      heart.position || 'Heart of the decision',
+      options
+    );
+  }
+  if (pathA) {
+    out += buildCardWithImagery(
+      pathA,
+      pathA.position || 'Path A — energy & likely outcome',
+      options
+    );
+  }
+  if (pathB) {
+    out += buildCardWithImagery(
+      pathB,
+      pathB.position || 'Path B — energy & likely outcome',
+      options
+    );
+  }
+  if (clarifier) {
+    out += buildCardWithImagery(
+      clarifier,
+      clarifier.position || 'What clarifies the best path',
+      options
+    );
+  }
+  if (freeWill) {
+    out += buildCardWithImagery(
+      freeWill,
+      freeWill.position || 'What to remember about your free will',
+      options
+    );
+  }
+
+  return out;
+}
+
+function buildSingleCardPrompt(cardsInfo, themes) {
+  const options = getPositionOptions(themes);
+  const card = cardsInfo[0];
+  if (!card) return '';
+
+  let out = `**ONE-CARD INSIGHT STRUCTURE**\n`;
+  out += `- Theme / Guidance of the Moment\n\n`;
+  out += buildCardWithImagery(
+    card,
+    card.position || 'Theme / Guidance of the Moment',
+    options
+  );
+  return out;
 }
 
 function buildStandardPromptCards(cardsInfo, themes) {

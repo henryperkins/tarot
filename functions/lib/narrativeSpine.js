@@ -110,13 +110,15 @@ export function buildWhyFromElemental(elementalRelationship, card1Name, card2Nam
     return null;
   }
 
+  const safeCard1 = card1Name || 'the first card';
+  const safeCard2 = card2Name || 'the second card';
   const { relationship } = elementalRelationship;
 
   const templates = {
-    supportive: `Because ${card1Name} supports and harmonizes with ${card2Name}, these energies flow together constructively.`,
-    tension: `However, ${card1Name} creates friction with ${card2Name}, requiring skillful navigation to integrate both.`,
-    amplified: `Because both energies share the same elemental quality, ${card1Name} and ${card2Name} intensify this theme significantly.`,
-    neutral: `${card1Name} and ${card2Name} work together with subtle complexity.`
+    supportive: `Because ${safeCard1} supports and harmonizes with ${safeCard2}, these energies flow together constructively.`,
+    tension: `However, ${safeCard1} creates friction with ${safeCard2}, requiring skillful navigation to integrate both.`,
+    amplified: `Because both energies share the same elemental quality, ${safeCard1} and ${safeCard2} intensify this theme significantly.`,
+    neutral: `${safeCard1} and ${safeCard2} work together with subtle complexity.`
   };
 
   return templates[relationship] || templates.neutral;
@@ -144,15 +146,19 @@ export function enhanceSection(section, metadata = {}) {
   }
 
   // Attempt to enhance missing elements
-  let enhanced = section;
+  let enhanced = section || '';
   const enhancements = [];
 
   // If missing "what", try to prepend basic card statement
   if (analysis.missing.includes('what') && metadata.cards) {
     const cardInfo = Array.isArray(metadata.cards) ? metadata.cards[0] : metadata.cards;
     if (cardInfo && cardInfo.card && cardInfo.position) {
-      const whatStatement = `${cardInfo.position}: ${cardInfo.card} ${cardInfo.orientation}.`;
-      enhanced = `${whatStatement} ${enhanced}`;
+      const orientation =
+        typeof cardInfo.orientation === 'string' && cardInfo.orientation.trim()
+          ? ` ${cardInfo.orientation}`
+          : '';
+      const whatStatement = `${cardInfo.position}: ${cardInfo.card}${orientation}.`;
+      enhanced = `${whatStatement} ${enhanced}`.trim();
       enhancements.push('Added card identification');
     }
   }

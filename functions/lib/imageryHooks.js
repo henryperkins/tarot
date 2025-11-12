@@ -10,12 +10,120 @@
  *
  * Minor Arcana currently receive suit/rank-aware narrative enrichment via
  * buildMinorSummary() in [`functions/lib/minorMeta.js`](functions/lib/minorMeta.js:1).
- * Dedicated per-card imagery hooks for Minors can be layered in later as:
  *
- * - a light-weight, optional `getMinorImageryHook({ suit, rank, orientation })`
- * - used ONLY when content is available and feature flag is enabled
- * - keeping Minors fully functional without requiring 56 extra entries
+ * To reduce Major bias and gently surface Minor context, we add a lightweight
+ * imagery layer for Minors focused on:
+ * - Court cards: dynamic, character-like imagery prompts
+ * - Generic suit-level hooks for pips (Aces–Tens) when needed
+ *
+ * This uses a conservative, RWS-consistent vocabulary to avoid hallucinations.
  */
+
+export const MINOR_ARCANA_IMAGERY = {
+  'Page of Wands': {
+    visual: 'Youthful figure holding a sprouting wand in a barren landscape',
+    sensory: 'First spark of curiosity, warm breeze of inspiration',
+    interpretation: 'Early-stage creative messages, exploring desire with playful courage.'
+  },
+  'Knight of Wands': {
+    visual: 'Rider charging forward on a rearing horse with wand raised',
+    sensory: 'Rushing heat, drums of motion, sand kicked up by fast hooves',
+    interpretation: 'Bold, impulsive action; pursuing passion quickly and visibly.'
+  },
+  'Queen of Wands': {
+    visual: 'Throne with lions and sunflowers, black cat at her feet',
+    sensory: 'Confident warmth, steady firelight, magnetic presence',
+    interpretation: 'Confident, charismatic leadership; tending creative fire with assurance.'
+  },
+  'King of Wands': {
+    visual: 'Throne decorated with lions and salamanders, wand flowering',
+    sensory: 'Commanding warmth, steady blaze, visionary gaze',
+    interpretation: 'Visionary direction and decisive will in creative or entrepreneurial realms.'
+  },
+  'Page of Cups': {
+    visual: 'Youthful figure contemplating a cup with a small fish emerging',
+    sensory: 'Soft tide against shore, shy smile, gentle surprise',
+    interpretation: 'Tentative emotional openings, messages of the heart, intuitive nudges.'
+  },
+  'Knight of Cups': {
+    visual: 'Armored figure carrying a cup, horse stepping carefully',
+    sensory: 'Calm river, invitation in motion, poetic sincerity',
+    interpretation: 'Romantic or idealistic pursuit; moving toward emotional or creative offers.'
+  },
+  'Queen of Cups': {
+    visual: 'Throne by the sea, ornate covered cup held with devotion',
+    sensory: 'Quiet waves, deep listening, comforting embrace',
+    interpretation: 'Emotional depth, empathy, intuitive care; holding space with sensitivity.'
+  },
+  'King of Cups': {
+    visual: 'Throne on the water, waves beneath, cup and scepter balanced',
+    sensory: 'Rocking tide, composed breath, storm held kindly',
+    interpretation: 'Emotional maturity and steady leadership amid changing feelings.'
+  },
+  'Page of Swords': {
+    visual: 'Youth with raised sword in shifting winds',
+    sensory: 'Quick gusts, alert stance, restless thoughts',
+    interpretation: 'Curiosity of the mind, questions, watching and learning; messages or ideas emerging.'
+  },
+  'Knight of Swords': {
+    visual: 'Rider charging forward with sword raised, trees bent by wind',
+    sensory: 'Cutting wind, urgent hooves, sharp focus',
+    interpretation: 'Swift, uncompromising communication or decisions; moving fast on convictions.'
+  },
+  'Queen of Swords': {
+    visual: 'Throne in clear air, sword upright, hand extended',
+    sensory: 'Crisp clarity, cool breeze, discerning gaze',
+    interpretation: 'Honest insight, boundaries, compassionate but direct truth-telling.'
+  },
+  'King of Swords': {
+    visual: 'Throne high above, sword held with authority',
+    sensory: 'Still air before a verdict, precise words, mental order',
+    interpretation: 'Strategic thought, clear judgment, accountability through intellect.'
+  },
+  'Page of Pentacles': {
+    visual: 'Youth studying a pentacle in a green field',
+    sensory: 'Fresh soil, focused gaze, new sprout',
+    interpretation: 'Beginnings in study, work, or health; grounding dreams into first practical steps.'
+  },
+  'Knight of Pentacles': {
+    visual: 'Rider on a still horse, pentacle held steady',
+    sensory: 'Slow hoofbeats, patient breath, tilled earth',
+    interpretation: 'Steady, methodical progress; diligence, reliability, and follow-through.'
+  },
+  'Queen of Pentacles': {
+    visual: 'Throne amidst vines and wildlife, pentacle cradled',
+    sensory: 'Warm hearth, fertile garden, soothing touch',
+    interpretation: 'Nurturing practicality; care through tangible support and resourcing.'
+  },
+  'King of Pentacles': {
+    visual: 'Throne adorned with bulls and grapes, city behind',
+    sensory: 'Weight of success, rich textures, secure footing',
+    interpretation: 'Material mastery; stewardship of resources, legacy, and stability.'
+  }
+};
+
+export const MINOR_SUIT_IMAGERY = {
+  Wands: {
+    visual: 'flame, branch, wand, desert heat, campfire glow',
+    sensory: 'crackle of fire, rush of momentum, creative spark',
+    interpretation: 'Action, will, creativity, desire, initiation.'
+  },
+  Cups: {
+    visual: 'chalice, flowing water, moonlit sea, shared cup',
+    sensory: 'cool tides, heart swell, intuitive currents',
+    interpretation: 'Emotions, relationships, intuition, care, receptivity.'
+  },
+  Swords: {
+    visual: 'sword, wind, storm clouds, cut of air',
+    sensory: 'sharp clarity, mental buzz, cool edge',
+    interpretation: 'Mind, truth, decisions, communication, conflict and resolution.'
+  },
+  Pentacles: {
+    visual: 'coin, garden, stone path, roots',
+    sensory: 'solid ground, steady heartbeat, tactile focus',
+    interpretation: 'Body, work, resources, health, tangible commitments.'
+  }
+};
 
 export const MAJOR_ARCANA_IMAGERY = {
   0: { // The Fool
@@ -259,4 +367,53 @@ export function getElementalImagery(element1, element2) {
 
   const key = `${element1}-${element2}`;
   return ELEMENTAL_SENSORY[key] || null;
+}
+
+/**
+ * Lightweight Minor Arcana imagery hook.
+ *
+ * Accepts either:
+ * - a full card object: { card, suit, rank, orientation }
+ * - or compatible fields via input
+ *
+ * Returns a conservative imagery descriptor or null if no suitable hook exists.
+ */
+export function getMinorImageryHook(input) {
+  if (!input) return null;
+
+  const {
+    card,
+    suit,
+    rank,
+    orientation = 'Upright'
+  } = input;
+
+  const name = card || (rank && suit ? `${rank} of ${suit}` : null);
+  const isReversed = String(orientation).toLowerCase() === 'reversed';
+
+  // Prefer specific court card hooks
+  if (name && MINOR_ARCANA_IMAGERY[name]) {
+    const entry = MINOR_ARCANA_IMAGERY[name];
+    return {
+      visual: entry.visual,
+      sensory: entry.sensory,
+      interpretation:
+        entry.interpretation +
+        (isReversed
+          ? ' Read this as energy turned inward, delayed, or asking for recalibration.'
+          : '')
+    };
+  }
+
+  // Fallback: suit-level hook (for pips and any unlisted minors)
+  if (suit && MINOR_SUIT_IMAGERY[suit]) {
+    const suitHook = MINOR_SUIT_IMAGERY[suit];
+    return {
+      visual: suitHook.visual,
+      sensory: suitHook.sensory,
+      interpretation: suitHook.interpretation
+    };
+  }
+
+  return null;
 }
