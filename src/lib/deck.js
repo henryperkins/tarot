@@ -1,6 +1,6 @@
-import { MAJOR_ARCANA } from '../data/majorArcana';
-import { SPREADS } from '../data/spreads';
-import { MINOR_ARCANA } from '../data/minorArcana';
+import { MAJOR_ARCANA } from '../data/majorArcana.js';
+import { SPREADS } from '../data/spreads.js';
+import { MINOR_ARCANA } from '../data/minorArcana.js';
 
 export function hashString(s) {
   let h = 2166136261 >>> 0;
@@ -56,8 +56,15 @@ export function computeSeed({ cutIndex, knockTimes, userQuestion }) {
     .map((t, i, arr) => (i ? t - arr[i - 1] : 0))
     .reduce((sum, value) => sum + value, 0);
 
+  const knockCount = (knockTimes || []).length;
+  
+  // Calculate timing pattern (rapid vs slow knocks)
+  const avgInterval = knockCount > 1 ? intervals / (knockCount - 1) : 0;
+  const timingPattern = avgInterval > 500 ? 'slow' : avgInterval > 200 ? 'medium' : 'rapid';
+  const timingHash = hashString(timingPattern);
+
   const qHash = hashString(userQuestion || '');
-  let seed = (qHash ^ (cutIndex * 2654435761) ^ Math.floor(intervals)) >>> 0;
+  let seed = (qHash ^ (cutIndex * 2654435761) ^ Math.floor(intervals) ^ (knockCount * 1664525) ^ timingHash) >>> 0;
   if (seed === 0) seed = 0x9e3779b9;
   return seed >>> 0;
 }
@@ -71,6 +78,24 @@ export function getDeckPool(includeMinors = false) {
         console.warn('Minor Arcana dataset incomplete; falling back to majors-only.');
         return MAJOR_ARCANA;
       }
+      
+      // Deep validation of Minor Arcana structure
+      const isValidMinor = MINOR_ARCANA.every(card => {
+        return card &&
+               typeof card.name === 'string' &&
+               typeof card.suit === 'string' &&
+               typeof card.rank === 'string' &&
+               typeof card.rankValue === 'number' &&
+               card.rankValue >= 1 && card.rankValue <= 14 &&
+               typeof card.upright === 'string' &&
+               typeof card.reversed === 'string';
+      });
+      
+      if (!isValidMinor) {
+        console.warn('Minor Arcana dataset malformed; falling back to majors-only.');
+        return MAJOR_ARCANA;
+      }
+      
       return [...MAJOR_ARCANA, ...MINOR_ARCANA];
     }
     return MAJOR_ARCANA;
@@ -228,6 +253,42 @@ export function computeRelationships(cards) {
     }
   }
 
+  // Reversal ratio analysis
+  const reversedCards = cards.filter(c => c && c.isReversed);
+  const reversalRatio = reversedCards.length / cards.length;
+  
+  if (reversalRatio >= 0.6) {
+    relationships.push({
+      type: 'reversal-heavy',
+      text: 'A majority of reversed cards suggests significant inner processing, resistance, or timing delays are at play.'
+    });
+  } else if (reversalRatio >= 0.3) {
+    relationships.push({
+      type: 'reversal-moderate',
+      text: 'Several reversals indicate areas where energy is meeting resistance or requiring conscious attention.'
+    });
+  }
+  
+  // Reversed court cards cluster detection
+  const reversedCourts = courtCards.filter(c => c.isReversed);
+  if (reversedCourts.length >= 2) {
+    relationships.push({
+      type: 'reversed-court-cluster',
+      text: 'Multiple reversed court cards suggest challenges in how personalities or approaches are expressing themselves.'
+    });
+  }
+  
+  // Consecutive reversed cards detection
+  for (let i = 1; i < cards.length; i++) {
+    if (cards[i].isReversed && cards[i-1].isReversed) {
+      relationships.push({
+        type: 'consecutive-reversals',
+        text: 'Consecutive reversed cards suggest a persistent theme of inner work or resistance across these positions.'
+      });
+      break;
+    }
+  }
+
   return relationships;
 }
 
@@ -238,6 +299,11 @@ export function drawSpread({ spreadKey, useSeed, seed, includeMinors = false }) 
   const poolSource = getDeckPool(includeMinors);
   const pool = useSeed ? seededShuffle(poolSource, seed) : cryptoShuffle(poolSource);
   const count = spread.count;
+  
+  // Validate deck has enough cards for the spread
+  if (pool.length < count) {
+    throw new Error(`Deck too small for spread: need ${count} cards but only have ${pool.length}. Try enabling Minor Arcana or choosing a smaller spread.`);
+  }
 
   const orientationRand = useSeed ? xorshift32((seed ^ 0xa5a5a5a5) >>> 0) : null;
 

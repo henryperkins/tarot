@@ -178,8 +178,10 @@ export async function speakText({ text, enabled, context = 'default', voice = 'n
       audioDataUri = data.audio;
       provider = data?.provider || null;
 
-      // Cache the audio for future use
-      cacheAudio(cacheKey, audioDataUri, provider);
+      // Cache the audio for future use, but never cache fallback provider
+      if (provider && provider !== 'fallback') {
+        cacheAudio(cacheKey, audioDataUri, provider);
+      }
 
       emitTTSState({
         status: 'loading',
@@ -188,9 +190,7 @@ export async function speakText({ text, enabled, context = 'default', voice = 'n
         cached: false,
         error: null,
         context: narrationContext,
-        message: provider === 'fallback'
-          ? 'Narration service unavailable; playing fallback tone.'
-          : 'Preparing narration...'
+        message: getPreparingMessage(provider, narrationContext)
       });
     }
 
@@ -217,9 +217,7 @@ export async function speakText({ text, enabled, context = 'default', voice = 'n
         provider,
         source,
         context: narrationContext,
-        message: provider === 'fallback'
-          ? 'Voice service unavailable; playing a chime instead.'
-          : 'Playing personal reading narration.'
+        message: getPlayMessage(provider, narrationContext)
       });
     } catch (err) {
       console.error('Error playing TTS audio:', err);
@@ -448,15 +446,23 @@ export function getCurrentTTSState() {
 }
 
 function emitTTSState(update) {
+  const nextStatus = update.status ?? currentTTSState.status;
+  const isResetState = nextStatus === 'loading' || nextStatus === 'idle';
+
   currentTTSState = {
-    status: update.status ?? currentTTSState.status,
-    provider: update.provider ?? currentTTSState.provider ?? null,
-    source: update.source ?? currentTTSState.source ?? null,
-    cached: update.cached ?? currentTTSState.cached ?? false,
-    error: update.status === 'error' ? update.error ?? currentTTSState.error : null,
-    message: update.message ?? (update.status === 'error' ? currentTTSState.message : null),
-    reason: update.reason ?? null,
-    context: update.context ?? currentTTSState.context ?? null
+    status: nextStatus,
+    provider: update.provider ?? (isResetState ? null : currentTTSState.provider) ?? null,
+    source: update.source ?? (isResetState ? null : currentTTSState.source) ?? null,
+    cached: update.cached ?? (isResetState ? false : currentTTSState.cached) ?? false,
+    error: nextStatus === 'error'
+      ? (update.error ?? currentTTSState.error ?? null)
+      : null,
+    message: update.message ??
+      (nextStatus === 'error'
+        ? (currentTTSState.message ?? null)
+        : (isResetState ? null : currentTTSState.message ?? null)),
+    reason: update.reason ?? (isResetState ? null : currentTTSState.reason) ?? null,
+    context: update.context ?? (isResetState ? null : currentTTSState.context) ?? null
   };
 
   for (const listener of ttsListeners) {
@@ -475,9 +481,7 @@ function wireTTSEvents(audio, provider, source, requestId, context) {
       provider,
       source,
       context,
-      message: provider === 'fallback'
-        ? 'Fallback chime finished.'
-        : 'Narration finished.'
+      message: getEndedMessage(provider, context)
     });
     if (ttsAudio === audio) {
       ttsAudio = null;
@@ -494,9 +498,7 @@ function wireTTSEvents(audio, provider, source, requestId, context) {
         provider,
         source,
         context,
-        message: provider === 'fallback'
-          ? 'Fallback chime paused.'
-          : 'Narration paused.'
+        message: getPauseMessage(provider, context)
       });
     }
   });
@@ -514,4 +516,56 @@ function wireTTSEvents(audio, provider, source, requestId, context) {
       activeNarrationId = null;
     }
   });
+}
+
+function getPlayMessage(provider, context) {
+  if (provider === 'fallback') {
+    return 'Voice service unavailable; playing a gentle chime instead of narration.';
+  }
+  if (context === 'card-reveal') {
+    return 'Speaking this card reveal.';
+  }
+  if (context === 'full-reading') {
+    return 'Playing your personal reading narration.';
+  }
+  return 'Playing narration.';
+}
+
+function getPreparingMessage(provider, context) {
+  if (provider === 'fallback') {
+    return 'Preparing fallback chime.';
+  }
+  if (context === 'card-reveal') {
+    return 'Preparing card reveal narration.';
+  }
+  if (context === 'full-reading') {
+    return 'Preparing personal reading narration.';
+  }
+  return 'Preparing narration...';
+}
+
+function getEndedMessage(provider, context) {
+  if (provider === 'fallback') {
+    return 'Fallback chime finished.';
+  }
+  if (context === 'card-reveal') {
+    return 'Card narration finished.';
+  }
+  if (context === 'full-reading') {
+    return 'Personal reading narration finished.';
+  }
+  return 'Narration finished.';
+}
+
+function getPauseMessage(provider, context) {
+  if (provider === 'fallback') {
+    return 'Fallback chime paused.';
+  }
+  if (context === 'card-reveal') {
+    return 'Card narration paused.';
+  }
+  if (context === 'full-reading') {
+    return 'Personal reading narration paused.';
+  }
+  return 'Narration paused.';
 }

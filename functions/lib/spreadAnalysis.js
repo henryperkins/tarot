@@ -1,11 +1,17 @@
 /**
  * Spread Analysis Library
  *
- * Provides authentic tarot reading analysis including:
+ * Canonical server-side analysis engine.
+ *
+ * Responsibilities:
  * - Elemental correspondences and dignities
- * - Position-relationship synthesis
  * - Theme analysis (suits, elements, reversals)
  * - Spread-specific structural analysis
+ * - Relationships and positional notes for UI + narrative consumers
+ *
+ * Output from this module is the single source of truth for:
+ * - AI prompting (narrativeBuilder)
+ * - Frontend Spread Highlights (via /api/tarot-reading spreadAnalysis)
  */
 
 /**
@@ -352,29 +358,153 @@ export function analyzeCelticCross(cardsInfo) {
     return null; // Not a Celtic Cross
   }
 
+  const nucleus = analyzeNucleus(cardsInfo[0], cardsInfo[1]);
+  const timeline = analyzeTimeline(cardsInfo[2], cardsInfo[0], cardsInfo[3]);
+  const consciousness = analyzeConsciousness(cardsInfo[5], cardsInfo[0], cardsInfo[4]);
+  const staff = analyzeStaff(cardsInfo[6], cardsInfo[7], cardsInfo[8], cardsInfo[9]);
+  const crossChecks = {
+    goalVsOutcome: comparePositions(
+      cardsInfo[4], cardsInfo[9],
+      'Conscious Goal (Above)', 'Outcome (Final)'
+    ),
+    adviceVsOutcome: comparePositions(
+      cardsInfo[6], cardsInfo[9],
+      'Self/Advice', 'Outcome'
+    ),
+    subconsciousVsHopesFears: comparePositions(
+      cardsInfo[5], cardsInfo[8],
+      'Subconscious (Below)', 'Hopes & Fears'
+    ),
+    nearFutureVsOutcome: comparePositions(
+      cardsInfo[3], cardsInfo[9],
+      'Near Future', 'Outcome'
+    )
+  };
+
   return {
-    nucleus: analyzeNucleus(cardsInfo[0], cardsInfo[1]),
-    timeline: analyzeTimeline(cardsInfo[2], cardsInfo[0], cardsInfo[3]),
-    consciousness: analyzeConsciousness(cardsInfo[5], cardsInfo[0], cardsInfo[4]),
-    staff: analyzeStaff(cardsInfo[6], cardsInfo[7], cardsInfo[8], cardsInfo[9]),
-    crossChecks: {
-      goalVsOutcome: comparePositions(
-        cardsInfo[4], cardsInfo[9],
-        'Conscious Goal (Above)', 'Outcome (Final)'
-      ),
-      adviceVsOutcome: comparePositions(
-        cardsInfo[6], cardsInfo[9],
-        'Self/Advice', 'Outcome'
-      ),
-      subconsciousVsHopesFears: comparePositions(
-        cardsInfo[5], cardsInfo[8],
-        'Subconscious (Below)', 'Hopes & Fears'
-      ),
-      nearFutureVsOutcome: comparePositions(
-        cardsInfo[3], cardsInfo[9],
-        'Near Future', 'Outcome'
-      )
-    }
+    version: '1.0.0',
+    spreadKey: 'celtic',
+    themes: null, // Filled by performSpreadAnalysis; kept for normalized shape parity
+    relationships: [
+      {
+        type: 'nucleus',
+        summary: nucleus.synthesis,
+        positions: [0, 1],
+        cards: [nucleus.present, nucleus.challenge]
+      },
+      {
+        type: 'timeline',
+        summary: timeline.causality,
+        positions: [2, 0, 3],
+        cards: [
+          { card: timeline.flow.past },
+          { card: timeline.flow.present },
+          { card: timeline.flow.future }
+        ]
+      },
+      {
+        type: 'consciousness-axis',
+        axis: 'Subconscious ↔ Conscious',
+        summary: consciousness.synthesis,
+        positions: [5, 4],
+        cards: [consciousness.subconscious, consciousness.conscious]
+      },
+      {
+        type: 'staff-axis',
+        axis: 'Self/Advice ↔ Outcome',
+        summary: staff.adviceImpact,
+        positions: [6, 9],
+        cards: [staff.self, staff.outcome]
+      },
+      {
+        type: 'cross-check',
+        key: 'goalVsOutcome',
+        summary: crossChecks.goalVsOutcome.synthesis,
+        cards: [crossChecks.goalVsOutcome.position1, crossChecks.goalVsOutcome.position2]
+      },
+      {
+        type: 'cross-check',
+        key: 'adviceVsOutcome',
+        summary: crossChecks.adviceVsOutcome.synthesis,
+        cards: [crossChecks.adviceVsOutcome.position1, crossChecks.adviceVsOutcome.position2]
+      },
+      {
+        type: 'cross-check',
+        key: 'subconsciousVsHopesFears',
+        summary: crossChecks.subconsciousVsHopesFears.synthesis,
+        cards: [
+          crossChecks.subconsciousVsHopesFears.position1,
+          crossChecks.subconsciousVsHopesFears.position2
+        ]
+      },
+      {
+        type: 'cross-check',
+        key: 'nearFutureVsOutcome',
+        summary: crossChecks.nearFutureVsOutcome.synthesis,
+        cards: [
+          crossChecks.nearFutureVsOutcome.position1,
+          crossChecks.nearFutureVsOutcome.position2
+        ]
+      }
+    ],
+    positionNotes: [
+      {
+        index: 0,
+        label: 'Present',
+        notes: ['Core situation; anchor for nucleus and all axes.']
+      },
+      {
+        index: 1,
+        label: 'Challenge',
+        notes: ['Crossing tension; always read as obstacle to integrate.']
+      },
+      {
+        index: 2,
+        label: 'Past',
+        notes: ['Foundation feeding into present in the timeline.']
+      },
+      {
+        index: 3,
+        label: 'Near Future',
+        notes: ['Next chapter, cross-checked against Outcome.']
+      },
+      {
+        index: 4,
+        label: 'Conscious',
+        notes: ['Stated goals; cross-check with Outcome.']
+      },
+      {
+        index: 5,
+        label: 'Subconscious',
+        notes: ['Hidden drivers; cross-check with Hopes & Fears.']
+      },
+      {
+        index: 6,
+        label: 'Self / Advice',
+        notes: ['Active guidance; cross-check with Outcome.']
+      },
+      {
+        index: 7,
+        label: 'External',
+        notes: ['Environment and others; context, not command.']
+      },
+      {
+        index: 8,
+        label: 'Hopes & Fears',
+        notes: ['Mixed desires/anxieties; mirrored with Subconscious.']
+      },
+      {
+        index: 9,
+        label: 'Outcome',
+        notes: ['Trajectory if unchanged; never deterministic.']
+      }
+    ],
+    // Raw components preserved for narrativeBuilder and any future consumers
+    nucleus,
+    timeline,
+    consciousness,
+    staff,
+    crossChecks
   };
 }
 
@@ -575,7 +705,28 @@ export function analyzeThreeCard(cardsInfo) {
   const secondToThird = analyzeElementalDignity(second, third);
   const firstToThird = analyzeElementalDignity(first, third);
 
+  const narrative = buildThreeCardNarrative(first, second, third, firstToSecond, secondToThird);
+
   return {
+    version: '1.0.0',
+    spreadKey: 'threeCard',
+    relationships: [
+      {
+        type: 'sequence',
+        summary: narrative,
+        positions: [0, 1, 2],
+        cards: [
+          { card: first.card, orientation: first.orientation },
+          { card: second.card, orientation: second.orientation },
+          { card: third.card, orientation: third.orientation }
+        ]
+      }
+    ],
+    positionNotes: [
+      { index: 0, label: 'Past', notes: ['Foundation / cause.'] },
+      { index: 1, label: 'Present', notes: ['Current state shaped by past.'] },
+      { index: 2, label: 'Future', notes: ['Trajectory if nothing shifts.'] }
+    ],
     flow: {
       first: first.card,
       second: second.card,
@@ -586,7 +737,7 @@ export function analyzeThreeCard(cardsInfo) {
       secondToThird,
       firstToThird
     },
-    narrative: buildThreeCardNarrative(first, second, third, firstToSecond, secondToThird)
+    narrative
   };
 }
 
@@ -624,10 +775,46 @@ export function analyzeFiveCard(cardsInfo) {
   // Support vs Direction
   const supportVsDirection = analyzeElementalDignity(cardsInfo[3], cardsInfo[4]);
 
+  const synthesis = `The core matter (${cardsInfo[0].card}) faces the challenge of ${cardsInfo[1].card}. Support comes through ${cardsInfo[3].card}, pointing toward ${cardsInfo[4].card} as the likely direction.`;
+
   return {
+    version: '1.0.0',
+    spreadKey: 'fiveCard',
+    relationships: [
+      {
+        type: 'axis',
+        axis: 'Core vs Challenge',
+        summary:
+          coreVsChallenge.description ||
+          'Tension or harmony between core and challenge frames the heart of this spread.',
+        positions: [0, 1],
+        cards: [
+          { card: cardsInfo[0].card, orientation: cardsInfo[0].orientation },
+          { card: cardsInfo[1].card, orientation: cardsInfo[1].orientation }
+        ]
+      },
+      {
+        type: 'axis',
+        axis: 'Support vs Direction',
+        summary:
+          supportVsDirection.description ||
+          'Supportive energies shape how the likely direction can be navigated.',
+        positions: [3, 4],
+        cards: [
+          { card: cardsInfo[3].card, orientation: cardsInfo[3].orientation },
+          { card: cardsInfo[4].card, orientation: cardsInfo[4].orientation }
+        ]
+      }
+    ],
+    positionNotes: [
+      { index: 0, label: 'Core', notes: ['Central issue.'] },
+      { index: 1, label: 'Challenge', notes: ['Obstacle / friction.'] },
+      { index: 2, label: 'Hidden', notes: ['Subconscious / unseen influence.'] },
+      { index: 3, label: 'Support', notes: ['Helpful energy / allies.'] },
+      { index: 4, label: 'Direction', notes: ['Likely direction on current path.'] }
+    ],
     coreVsChallenge,
     supportVsDirection,
-    synthesis: `The core matter (${cardsInfo[0].card}) faces the challenge of ${cardsInfo[1].card}.
-      Support comes through ${cardsInfo[3].card}, pointing toward ${cardsInfo[4].card} as the likely direction.`
+    synthesis
   };
 }

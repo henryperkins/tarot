@@ -48,6 +48,7 @@ export default function TarotReading() {
   const [ttsState, setTtsState] = useState(() => getCurrentTTSState());
   const [ttsAnnouncement, setTtsAnnouncement] = useState('');
   const [journalStatus, setJournalStatus] = useState(null);
+  const [minorsFallbackWarning, setMinorsFallbackWarning] = useState(false);
 
   const knockTimesRef = useRef([]);
   const shuffleTimeoutRef = useRef(null);
@@ -84,23 +85,36 @@ export default function TarotReading() {
   useEffect(() => {
     const unsubscribe = subscribeToTTS(state => {
       setTtsState(state);
-      const isFullReading = state.context === 'full-reading';
-      const announcement = isFullReading
-        ? state.message ||
-          (state.status === 'completed'
-            ? 'Narration finished.'
-            : state.status === 'paused'
-              ? 'Narration paused.'
-              : state.status === 'playing'
-                ? 'Narration playing.'
-                : state.status === 'loading'
-                  ? 'Preparing narration.'
-                  : state.status === 'stopped'
-                    ? 'Narration stopped.'
-                    : state.status === 'error'
-                      ? 'Narration unavailable.'
-                      : '')
-        : '';
+
+      const isAnnounceContext =
+        state.context === 'full-reading' ||
+        state.context === 'card-reveal';
+
+      let baseMessage =
+        state.message ||
+        (state.status === 'completed'
+          ? (state.context === 'card-reveal'
+              ? 'Card narration finished.'
+              : 'Narration finished.')
+          : state.status === 'paused'
+            ? (state.context === 'card-reveal'
+                ? 'Card narration paused.'
+                : 'Narration paused.')
+            : state.status === 'playing'
+              ? (state.context === 'card-reveal'
+                  ? 'Card narration playing.'
+                  : 'Narration playing.')
+              : state.status === 'loading'
+                ? (state.context === 'card-reveal'
+                    ? 'Preparing card narration.'
+                    : 'Preparing narration.')
+                : state.status === 'stopped'
+                  ? 'Narration stopped.'
+                  : state.status === 'error'
+                    ? 'Narration unavailable.'
+                    : '');
+
+      const announcement = isAnnounceContext ? baseMessage : '';
       setTtsAnnouncement(announcement);
     });
     return unsubscribe;
@@ -109,8 +123,8 @@ export default function TarotReading() {
   async function checkApiHealth() {
     try {
       // Check tarot-reading API health
-      const tarotHealth = await fetch('/api/tarot-reading/health').catch(() => null);
-      const ttsHealth = await fetch('/api/tts/health').catch(() => null);
+      const tarotHealth = await fetch('/api/tarot-reading').catch(() => null);
+      const ttsHealth = await fetch('/api/tts').catch(() => null);
       
       const anthropicAvailable = tarotHealth?.ok ?? false;
       const azureAvailable = ttsHealth?.ok ?? false;
@@ -135,8 +149,28 @@ export default function TarotReading() {
     toggleAmbience(ambienceOn);
   }, [ambienceOn]);
 
+  // Stop TTS when voice is toggled off
+  useEffect(() => {
+    if (!voiceOn) {
+      stopNarration();
+    }
+  }, [voiceOn]);
+
   // Active deck size based on toggle (with dataset safety handled in getDeckPool)
-  const deckSize = useMemo(() => getDeckPool(includeMinors).length, [includeMinors]);
+  const { deckSize, minorsDataIncomplete } = useMemo(() => {
+    const pool = getDeckPool(includeMinors);
+
+    return {
+      deckSize: pool.length,
+      minorsDataIncomplete:
+        includeMinors && pool.length === MAJOR_ARCANA.length
+    };
+  }, [includeMinors]);
+
+  // Sync Minor Arcana dataset warning outside render phase
+  useEffect(() => {
+    setMinorsFallbackWarning(minorsDataIncomplete);
+  }, [minorsDataIncomplete]);
 
   // Keep cut index centered on active deck when no reading in progress
   useEffect(() => {
@@ -145,7 +179,19 @@ export default function TarotReading() {
     }
   }, [deckSize, reading]);
 
-  const relationships = useMemo(() => computeRelationships(reading || []), [reading]);
+  // Server-centric spread analysis (Strategy C)
+  const [spreadAnalysis, setSpreadAnalysis] = useState(null);
+  const [themes, setThemes] = useState(null);
+
+  // Local fallback relationships: only used when no spreadAnalysis is available.
+  const relationships = useMemo(() => {
+    if (!reading || !reading.length) return [];
+    if (spreadAnalysis && (Array.isArray(spreadAnalysis.relationships) || spreadAnalysis.themes)) {
+      // When server analysis is present, UI components should derive highlights from it instead.
+      return [];
+    }
+    return computeRelationships(reading || []);
+  }, [reading, spreadAnalysis]);
 
   // Disallow switching deck mode mid-reading/shuffle
   const minorsToggleDisabled =
@@ -376,6 +422,8 @@ export default function TarotReading() {
     setReading(null);
     setRevealedCards(new Set());
     setPersonalReading(null);
+    setThemes(null);
+    setSpreadAnalysis(null);
     setAnalyzingText('');
     setIsGenerating(false);
     setDealIndex(0);
@@ -510,6 +558,10 @@ export default function TarotReading() {
         throw new Error('Empty reading returned');
       }
 
+      // Persist server-side themes and spreadAnalysis as single source of truth when present
+      setThemes(data.themes || null);
+      setSpreadAnalysis(data.spreadAnalysis || null);
+
       // Format reading for both UI display and TTS narration
       const formatted = formatReading(data.reading.trim());
       formatted.isError = false;
@@ -529,6 +581,116 @@ export default function TarotReading() {
       setAnalyzingText('');
     }
   };
+
+  // Derive displayable spread highlights from canonical server analysis when available.
+  const derivedHighlights = useMemo(() => {
+    if (!reading || revealedCards.size !== (reading?.length || 0)) return null;
+
+    if (spreadAnalysis && Array.isArray(spreadAnalysis.relationships)) {
+      const notes = [];
+
+      // Deck scope from themes if provided
+      if (themes) {
+        const deckScope = includeMinors
+          ? 'Full deck (Major + Minor Arcana).'
+          : 'Major Arcana focus (archetypal themes).';
+        notes.push({
+          key: 'deck-scope',
+          icon: '-',
+          title: 'Deck scope:',
+          text: deckScope
+        });
+
+        // Suit / element dominance
+        if (themes.dominantSuit || themes.suitFocus) {
+          notes.push({
+            key: 'suit-dominance',
+            icon: '♠',
+            title: 'Suit Dominance:',
+            text: themes.suitFocus ||
+              `A strong presence of ${themes.dominantSuit} suggests this suit's themes are central to your situation.`
+          });
+        }
+
+        if (themes.elementalBalance) {
+          notes.push({
+            key: 'elemental-balance',
+            icon: '⚡',
+            title: 'Elemental Balance:',
+            text: themes.elementalBalance
+          });
+        }
+
+        // Reversal framework
+        if (themes.reversalDescription) {
+          notes.push({
+            key: 'reversal-framework',
+            icon: '⤴',
+            title: 'Reversal Lens:',
+            text: `${themes.reversalDescription.name} — ${themes.reversalDescription.description}`
+          });
+        }
+      }
+
+      // Relationships from server analysis
+      spreadAnalysis.relationships.forEach((rel, index) => {
+        if (!rel || !rel.summary) return;
+        let title = 'Pattern';
+        let icon = '•';
+
+        if (rel.type === 'sequence') {
+          title = 'Story Flow';
+          icon = '→';
+        } else if (rel.type === 'elemental-run' || rel.type === 'elemental') {
+          title = 'Elemental Pattern';
+          icon = '⚡';
+        } else if (rel.type === 'axis') {
+          title = rel.axis || 'Axis Insight';
+          icon = '⇄';
+        } else if (rel.type === 'nucleus') {
+          title = 'Heart of the Matter';
+          icon = '★';
+        } else if (rel.type === 'timeline') {
+          title = 'Timeline';
+          icon = '⏱';
+        } else if (rel.type === 'consciousness-axis') {
+          title = 'Conscious ↔ Subconscious';
+          icon = '☯';
+        } else if (rel.type === 'staff-axis') {
+          title = 'Advice ↔ Outcome';
+          icon = '⚖';
+        } else if (rel.type === 'cross-check') {
+          title = 'Cross-Check';
+          icon = '✦';
+        }
+
+        notes.push({
+          key: `rel-${index}-${rel.type || 'rel'}`,
+          icon,
+          title,
+          text: rel.summary
+        });
+      });
+
+      // Position notes (e.g., axes / roles) if provided
+      if (Array.isArray(spreadAnalysis.positionNotes)) {
+        spreadAnalysis.positionNotes.forEach((pos, idx) => {
+          if (!pos || !pos.notes || pos.notes.length === 0) return;
+          notes.push({
+            key: `pos-${idx}`,
+            icon: '□',
+            title: `Position ${pos.index + 1} – ${pos.label}:`,
+            text: pos.notes.join(' ')
+          });
+        });
+      }
+
+      return notes;
+    }
+
+    // Fallback: no spreadAnalysis → let legacy computeRelationships drive highlights
+    return null;
+  }, [reading, revealedCards, spreadAnalysis, themes, includeMinors]);
 
   const revealCard = index => {
     if (!reading || !reading[index]) return;
@@ -588,6 +750,22 @@ export default function TarotReading() {
                 <div>• Azure TTS: Using local audio</div>
               )}
               <div className="mt-1">All readings remain fully functional with local fallbacks.</div>
+            </div>
+          </div>
+        )}
+
+        {/* Minors Fallback Warning */}
+        {minorsFallbackWarning && (
+          <div className="mb-6 p-4 bg-rose-900/30 border border-rose-500/50 rounded-lg backdrop-blur">
+            <div className="flex items-center gap-3">
+              <div className="w-3 h-3 rounded-full bg-rose-400 animate-pulse"></div>
+              <div className="text-rose-200 text-xs sm:text-sm">
+                <span className="font-semibold">Deck Data Warning:</span> Minor Arcana data incomplete. Using Major Arcana only.
+              </div>
+            </div>
+            <div className="mt-2 text-rose-300/80 text-xs">
+              <div>• Please check the Minor Arcana dataset for missing or malformed cards</div>
+              <div>• Full deck readings will be available once data is restored</div>
             </div>
           </div>
         )}
@@ -786,8 +964,64 @@ export default function TarotReading() {
                      </div>
                    </div>
                  )}
-                 {relationships.map((relationship, index) => (
-                    <div key={index} className="flex items-start gap-3">
+                 {relationships.filter(r => r.type === 'reversal-heavy').map((relationship, index) => (
+                    <div key={`reversal-heavy-${index}`} className="flex items-start gap-3">
+                      <div className="text-rose-400 mt-1">⚠</div>
+                      <div>
+                        <span className="font-semibold text-rose-300">Reversal Pattern:</span> {relationship.text}
+                      </div>
+                    </div>
+                  ))}
+                 {relationships.filter(r => r.type === 'reversal-moderate').map((relationship, index) => (
+                    <div key={`reversal-moderate-${index}`} className="flex items-start gap-3">
+                      <div className="text-amber-400 mt-1">•</div>
+                      <div>
+                        <span className="font-semibold text-amber-300">Reversal Pattern:</span> {relationship.text}
+                      </div>
+                    </div>
+                  ))}
+                 {relationships.filter(r => r.type === 'reversed-court-cluster').map((relationship, index) => (
+                    <div key={`reversed-court-${index}`} className="flex items-start gap-3">
+                      <div className="text-purple-400 mt-1">👑</div>
+                      <div>
+                        <span className="font-semibold text-purple-300">Court Dynamics:</span> {relationship.text}
+                      </div>
+                    </div>
+                  ))}
+                 {relationships.filter(r => r.type === 'consecutive-reversals').map((relationship, index) => (
+                    <div key={`consecutive-${index}`} className="flex items-start gap-3">
+                      <div className="text-orange-400 mt-1">↔</div>
+                      <div>
+                        <span className="font-semibold text-orange-300">Pattern Flow:</span> {relationship.text}
+                      </div>
+                    </div>
+                  ))}
+                 {relationships.filter(r => r.type === 'suit-dominance').map((relationship, index) => (
+                    <div key={`suit-dom-${index}`} className="flex items-start gap-3">
+                      <div className="text-emerald-400 mt-1">♠</div>
+                      <div>
+                        <span className="font-semibold text-emerald-300">Suit Dominance:</span> {relationship.text}
+                      </div>
+                    </div>
+                  ))}
+                 {relationships.filter(r => r.type === 'suit-run').map((relationship, index) => (
+                    <div key={`suit-run-${index}`} className="flex items-start gap-3">
+                      <div className="text-cyan-400 mt-1">→</div>
+                      <div>
+                        <span className="font-semibold text-cyan-300">Suit Run:</span> {relationship.text}
+                      </div>
+                    </div>
+                  ))}
+                 {relationships.filter(r => r.type === 'court-cluster' || r.type === 'court-pair' || r.type === 'court-suit-focus').map((relationship, index) => (
+                    <div key={`court-${index}`} className="flex items-start gap-3">
+                      <div className="text-indigo-400 mt-1">👥</div>
+                      <div>
+                        <span className="font-semibold text-indigo-300">Court Cards:</span> {relationship.text}
+                      </div>
+                    </div>
+                  ))}
+                 {relationships.filter(r => r.type === 'pairing' || r.type === 'arc').map((relationship, index) => (
+                    <div key={`connection-${index}`} className="flex items-start gap-3">
                       <div className="text-cyan-400 mt-1">{'>'}</div>
                       <div>
                         <span className="font-semibold text-cyan-300">Card Connection:</span> {relationship.text}

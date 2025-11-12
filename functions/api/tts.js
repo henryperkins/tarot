@@ -122,10 +122,11 @@ const INSTRUCTION_TEMPLATES = {
 };
 
 /**
- * Enhanced Azure OpenAI gpt-4o-mini-tts generation with steerable instructions.
+ * Enhanced Azure OpenAI TTS generation with optional steerable instructions.
  *
- * Leverages the model's unique ability to control not just what is said, but HOW it's said,
- * creating context-appropriate narration for tarot readings.
+ * For steerable-capable models (e.g. gpt-4o-mini-tts, audio-preview variants), includes
+ * context-aware instructions. For standard models (tts-1, tts-1-hd), omits unsupported fields.
+ * This keeps behavior model-agnostic while preserving rich narration when available.
  */
 async function generateWithAzureGptMiniTTS(env, { text, context, voice }) {
   // Azure OpenAI gpt-4o-mini-tts endpoint structure:
@@ -191,7 +192,7 @@ async function generateWithAzureGptMiniTTS(env, { text, context, voice }) {
 
   if (!response.ok) {
     const errText = await response.text().catch(() => '');
-    throw new Error(`Azure gpt-4o-mini-tts error ${response.status}: ${errText}`);
+    throw new Error(`Azure TTS error ${response.status}: ${errText}`);
   }
 
   const arrayBuffer = await response.arrayBuffer();

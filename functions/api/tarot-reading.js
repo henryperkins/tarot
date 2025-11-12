@@ -93,9 +93,21 @@ export const onRequestPost = async ({ request, env }) => {
       }
     }
 
+    // STEP 3: Return structured response with server-centric analysis
+    // - spreadAnalysis: canonical source for patterns/highlights
+    // - themes: shared thematic summary
+    // Frontend should trust these when present, and only fall back locally if missing.
     return jsonResponse({
       reading,
-      provider: usedClaude ? 'anthropic-claude-sonnet-4.5' : 'local'
+      provider: usedClaude ? 'anthropic-claude-sonnet-4.5' : 'local',
+      themes: analysis.themes,
+      spreadAnalysis: {
+        // Normalize top-level metadata for all spreads
+        version: '1.0.0',
+        spreadKey: analysis.spreadKey,
+        // For spreads where analyzeX already returns normalized shape, prefer it directly
+        ...(analysis.spreadAnalysis || {})
+      }
     });
   } catch (error) {
     console.error('tarot-reading function error:', error);

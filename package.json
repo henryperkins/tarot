@@ -7,7 +7,8 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "deploy": "wrangler pages deploy dist --project-name=mystic-tarot"
+    "deploy": "wrangler pages deploy dist --project-name=mystic-tarot",
+    "test": "node --test tests/*.test.mjs"
   },
   "dependencies": {
     "lucide-react": "^0.468.0",
