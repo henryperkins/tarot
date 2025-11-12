@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Mystic Tarot</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- Tailwind via CDN for the utility classes used in tarot.jsx -->
+    <script src="https://cdn.tailwindcss.com?plugins=forms,typography"></script>
+    <!-- Lucide React is used in tarot.jsx; for a simple static deploy without bundling,
+         we’ll instead render using plain Lucide icons via CDN + JSX transform.
+         To keep this minimal, we mount a compiled version from /src/main.jsx built by Vite.
+         You will deploy as a Vite app on Cloudflare Pages (recommended). -->
+  </head>
+  <body class="bg-slate-950 text-amber-50">
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>
