@@ -1,7 +1,6 @@
 import React from 'react';
 import { Sparkles } from 'lucide-react';
 import { SPREADS } from '../data/spreads';
-import { MAJOR_ARCANA } from '../data/majorArcana';
 
 export function SpreadSelector({
   selectedSpread,
@@ -16,7 +15,8 @@ export function SpreadSelector({
   setHasKnocked,
   setHasCut,
   setCutIndex,
-  knockTimesRef
+  knockTimesRef,
+  deckSize = 22
 }) {
   return (
     <div className="bg-indigo-900/40 backdrop-blur rounded-lg p-6 mb-8 border border-amber-500/20">
@@ -25,7 +25,7 @@ export function SpreadSelector({
         Choose Your Spread
       </h2>
       <p className="text-amber-100/60 text-xs -mt-1 mb-3">
-        This edition uses the 22 Major Arcana only, focusing on archetypal themes.
+        This edition defaults to the 22 Major Arcana; Minors (beta) can be enabled in settings.
       </p>
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
         {Object.entries(SPREADS).map(([key, spread]) => (
@@ -42,7 +42,7 @@ export function SpreadSelector({
               setReflections({});
               setHasKnocked(false);
               setHasCut(false);
-              setCutIndex(Math.floor(MAJOR_ARCANA.length / 2));
+              setCutIndex(Math.floor(deckSize / 2));
               knockTimesRef.current = [];
             }}
             className={`p-4 rounded-lg border-2 transition-all ${

@@ -1,5 +1,4 @@
 import React from 'react';
-import { MAJOR_ARCANA } from '../data/majorArcana';
 
 export function RitualControls({
   hasKnocked,
@@ -8,7 +7,8 @@ export function RitualControls({
   setCutIndex,
   hasCut,
   applyCut,
-  knocksCount = 0
+  knocksCount = 0,
+  deckSize = 22
 }) {
   return (
     <div className="bg-indigo-900/40 backdrop-blur rounded-lg p-6 mb-6 border border-amber-500/20">
@@ -40,7 +40,7 @@ export function RitualControls({
             <input
               type="range"
               min={0}
-              max={MAJOR_ARCANA.length - 1}
+              max={Math.max(0, (deckSize ?? 22) - 1)}
               value={cutIndex}
               onChange={event => setCutIndex(parseInt(event.target.value, 10))}
               className="w-48"

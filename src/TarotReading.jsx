@@ -8,7 +8,7 @@ import { QuestionInput } from './components/QuestionInput';
 import { SettingsToggles } from './components/SettingsToggles';
 import { RitualControls } from './components/RitualControls';
 import { ReadingGrid } from './components/ReadingGrid';
-import { computeSeed, computeRelationships, drawSpread } from './lib/deck';
+import { getDeckPool, computeSeed, computeRelationships, drawSpread } from './lib/deck';
 import { initAudio, toggleAmbience, playFlip, speakText, cleanupAudio } from './lib/audio';
 import { formatReading, splitIntoParagraphs } from './lib/formatting';
 import './styles/tarot.css';
@@ -18,6 +18,7 @@ export default function TarotReading() {
   const [reading, setReading] = useState(null);
   const [isShuffling, setIsShuffling] = useState(false);
   const [revealedCards, setRevealedCards] = useState(new Set());
+  const [includeMinors, setIncludeMinors] = useState(false);
   // Store both raw markdown and formatted versions for UI and TTS
   const [personalReading, setPersonalReading] = useState(null);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -87,7 +88,21 @@ export default function TarotReading() {
     toggleAmbience(ambienceOn);
   }, [ambienceOn]);
 
+  // Active deck size based on toggle (with dataset safety handled in getDeckPool)
+  const deckSize = useMemo(() => getDeckPool(includeMinors).length, [includeMinors]);
+
+  // Keep cut index centered on active deck when no reading in progress
+  useEffect(() => {
+    if (!reading) {
+      setCutIndex(Math.floor(deckSize / 2));
+    }
+  }, [deckSize, reading]);
+
   const relationships = useMemo(() => computeRelationships(reading || []), [reading]);
+
+  // Disallow switching deck mode mid-reading/shuffle
+  const minorsToggleDisabled =
+    !!reading || isShuffling || (revealedCards && revealedCards.size > 0);
 
   function handleKnock() {
     if (typeof performance === 'undefined') return;
@@ -145,6 +160,8 @@ export default function TarotReading() {
     if (typeof localStorage === 'undefined') return;
 
     const entry = {
+      deckMode: includeMinors ? 'full' : 'majors',
+      deckVersion: '1.0.0',
       ts: new Date().toISOString(),
       spread: SPREADS[selectedSpread].name,
       question: userQuestion || '',
@@ -216,7 +233,8 @@ export default function TarotReading() {
       const cards = drawSpread({
         spreadKey: currentSpread,
         useSeed,
-        seed
+        seed,
+        includeMinors
       });
 
       setReading(cards);
@@ -389,6 +407,7 @@ export default function TarotReading() {
                 setHasCut={setHasCut}
                 setCutIndex={setCutIndex}
                 knockTimesRef={knockTimesRef}
+                deckSize={deckSize}
               />
             </div>
 
@@ -408,6 +427,9 @@ export default function TarotReading() {
                   setVoiceOn={setVoiceOn}
                   ambienceOn={ambienceOn}
                   setAmbienceOn={setAmbienceOn}
+                  includeMinors={includeMinors}
+                  setIncludeMinors={setIncludeMinors}
+                  minorsToggleDisabled={minorsToggleDisabled}
                 />
                 <p className="sr-only">
                   Reader voice uses generated audio when enabled. Table ambience plays soft background sound when enabled.
@@ -423,6 +445,7 @@ export default function TarotReading() {
                   hasCut={hasCut}
                   applyCut={applyCut}
                   knocksCount={Math.min((knockTimesRef.current || []).length, 3)}
+                  deckSize={deckSize}
                 />
               </section>
             </div>
@@ -511,7 +534,9 @@ export default function TarotReading() {
                    <div className="text-amber-300 mt-1">-</div>
                    <div>
                      <span className="font-semibold text-amber-200">Deck scope:</span>{' '}
-                     Major Arcana focus (archetypal themes).
+                     {includeMinors
+                       ? 'Full deck (Major + Minor Arcana).'
+                       : 'Major Arcana focus (archetypal themes).'}
                    </div>
                  </div>
                  {(() => {
