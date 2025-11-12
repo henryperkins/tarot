@@ -77,6 +77,28 @@
   }
 }
 
+@media (max-width: 768px) {
+  .cc-grid {
+    /* Preserve nucleus (center + crossing) as overlapping */
+    grid-template-areas:
+      "present present"
+      "challenge challenge"
+      "past future"
+      "above below"
+      "advice external"
+      "hopesfears outcome";
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+  }
+  
+  .cc-present, .cc-challenge {
+    /* Keep center cards visually connected */
+    background: linear-gradient(135deg, 
+      rgba(99, 102, 241, 0.1), 
+      rgba(168, 85, 247, 0.1));
+  }
+}
+
 /* Focus visibility enhancements for keyboard users */
 button:focus-visible,
 [role='button']:focus-visible,
@@ -89,15 +111,13 @@ textarea:focus-visible {
 /* Authentic tarot card styling inspired by classic decks like Rider–Waite–Smith.
    Uses symbolic backs and richer face layouts while remaining license-safe. */
 
+/* Mobile-first: fluid sizing for cards and fonts */
 .tarot-card-shell {
   position: relative;
-  width: 8rem;
-  height: 12rem;
+  width: clamp(9rem, 45vw, 10rem);  /* Fluid sizing */
+  height: clamp(13.5rem, 67.5vw, 15rem);
   border-radius: 0.9rem;
   border: 1px solid rgba(251, 191, 36, 0.4);
-  box-shadow:
-    0 10px 25px rgba(15, 23, 42, 0.85),
-    0 0 18px rgba(129, 140, 248, 0.18);
   background: radial-gradient(circle at 20% 0%, #facc15 0, transparent 55%),
               radial-gradient(circle at 80% 100%, #38bdf8 0, transparent 55%),
               #020817;
@@ -106,12 +126,50 @@ textarea:focus-visible {
   transition: transform 260ms ease, box-shadow 260ms ease, background 260ms ease;
 }
 
+/* Desktop card sizes */
+@media (min-width: 768px) {
+  .tarot-card-shell {
+    width: 8rem;
+    height: 12rem;
+  }
+}
+
 .tarot-card-shell:hover {
   transform: translateY(-4px) scale(1.03);
-  box-shadow:
-    0 16px 40px rgba(15, 23, 42, 0.95),
-    0 0 26px rgba(251, 191, 36, 0.22);
 }
+
+/* Performance: simplify shadows and backgrounds on mobile */
+@media (max-width: 768px) {
+  .tarot-card-shell {
+    box-shadow: 0 8px 16px rgba(15, 23, 42, 0.7); /* Single shadow */
+  }
+  
+  .tarot-card-back {
+    /* Use simpler background on mobile */
+    background: #0f172a; /* Solid fallback */
+  }
+
+  .tarot-card-shell:hover {
+    box-shadow:
+      0 12px 24px rgba(15, 23, 42, 0.85),
+      0 0 18px rgba(251, 191, 36, 0.18);
+  }
+}
+
+@media (min-width: 768px) {
+  .tarot-card-shell {
+    box-shadow:
+      0 10px 25px rgba(15, 23, 42, 0.85),
+      0 0 18px rgba(129, 140, 248, 0.18);
+  }
+
+  .tarot-card-shell:hover {
+    box-shadow:
+      0 16px 40px rgba(15, 23, 42, 0.95),
+      0 0 26px rgba(251, 191, 36, 0.22);
+  }
+}
+
 
 /* Back: ornate mandala + celestial motif evoking traditional deck backs */
 .tarot-card-back {
@@ -206,7 +264,7 @@ textarea:focus-visible {
   align-items: center;
   justify-content: center;
   gap: 0.25rem;
-  font-size: 0.55rem;
+  font-size: clamp(0.65rem, 2vw, 0.55rem);
   letter-spacing: 0.16em;
   text-transform: uppercase;
   color: rgba(251, 191, 36, 0.95);
@@ -262,7 +320,7 @@ textarea:focus-visible {
 /* Nameplate at bottom like traditional cards */
 .tarot-card-face-name {
   font-family: "Cormorant Garamond", "Times New Roman", serif;
-  font-size: 0.58rem;
+  font-size: clamp(0.7rem, 2.2vw, 0.58rem);
   letter-spacing: 0.09em;
   text-transform: uppercase;
   text-align: center;
@@ -310,4 +368,56 @@ textarea:focus-visible {
 /* Minor pip dots used for numbered Minors */
 .minor-pip {
   box-shadow: 0 0 3px rgba(251, 191, 36, 0.85);
+}
+
+/* --- TOUCH TARGETS & LANDSCAPE --- */
+
+/* Enlarge touch targets for WCAG compliance */
+input[type="checkbox"] {
+  width: 1.5rem;  /* 24px */
+  height: 1.5rem;
+  cursor: pointer;
+}
+
+input[type="range"] {
+  height: 2.75rem; /* 44px */
+  cursor: pointer;
+  -webkit-appearance: none;
+  appearance: none;
+  background: transparent;
+}
+
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 24px;
+  height: 24px;
+  background: #fcd34d; /* amber-300 */
+  border-radius: 999px;
+  border: 2px solid #020817;
+}
+
+input[type="range"]::-moz-range-thumb {
+  width: 24px;
+  height: 24px;
+  background: #fcd34d; /* amber-300 */
+  border-radius: 999px;
+  border: 2px solid #020817;
+}
+
+/* Handle landscape orientation on mobile */
+@media (max-width: 1024px) and (orientation: landscape) {
+  .tarot-card-shell {
+    width: 6rem;
+    height: 9rem; /* Reduce for landscape */
+  }
+  
+  .cc-grid {
+    grid-template-columns: repeat(3, 1fr); /* 3 columns in landscape */
+    grid-template-areas:
+      "past above future"
+      "left present right"
+      "below challenge advice"
+      "external hopesfears outcome";
+  }
 }

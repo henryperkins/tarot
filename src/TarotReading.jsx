@@ -389,8 +389,10 @@ export default function TarotReading() {
           <div className="mb-6 p-4 bg-amber-900/30 border border-amber-500/50 rounded-lg backdrop-blur">
             <div className="flex items-center gap-3">
               <div className="w-3 h-3 rounded-full bg-amber-400 animate-pulse"></div>
-              <div className="text-amber-200 text-sm">
-                <span className="font-semibold">Service Status:</span> {apiHealthBanner.message}
+              <div className="text-amber-200 text-xs sm:text-sm">
+                <span className="font-semibold">Service Status:</span>{' '}
+                <span className="sm:hidden">Local fallbacks active</span>
+                <span className="hidden sm:inline">{apiHealthBanner.message}</span>
               </div>
             </div>
             <div className="mt-2 text-amber-300/80 text-xs">
@@ -614,12 +616,21 @@ export default function TarotReading() {
                 <button
                   onClick={generatePersonalReading}
                   disabled={isGenerating}
-                  className="bg-gradient-to-r from-purple-600 to-purple-500 hover:from-purple-500 hover:to-purple-400 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold px-8 py-4 rounded-lg shadow-lg transition-all flex items-center gap-3 mx-auto text-lg"
+                  className="bg-gradient-to-r from-purple-600 to-purple-500 hover:from-purple-500 hover:to-purple-400 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold px-8 py-4 rounded-lg shadow-lg transition-all flex items-center gap-3 mx-auto text-base sm:text-lg leading-snug"
                 >
                   <Sparkles className={`w-5 h-5 ${isGenerating ? 'motion-safe:animate-pulse' : ''}`} />
-                  {isGenerating
-                    ? 'Weaving your personalized reflection from this spread...'
-                    : 'Get Personalized Reading'}
+                  {isGenerating ? (
+                    <>
+                      <span className="hidden sm:inline">
+                        Weaving your personalized reflection from this spread...
+                      </span>
+                      <span className="sm:hidden">
+                        Generating reading...
+                      </span>
+                    </>
+                  ) : (
+                    'Get Personalized Reading'
+                  )}
                 </button>
                 <p className="text-purple-300/75 text-sm mt-3">
                   Reveal all cards to unlock your personalized narrative. Use it as reflection, not fixed prediction.
@@ -657,15 +668,15 @@ export default function TarotReading() {
                   </div>
                 )}
                 {/* Render normalized text as natural paragraphs */}
-                <div className="text-amber-100/90 leading-relaxed space-y-4">
+                <div className="text-amber-100 leading-relaxed space-y-4 max-w-prose mx-auto">
                   {personalReading.paragraphs && personalReading.paragraphs.length > 0 ? (
                     personalReading.paragraphs.map((para, idx) => (
-                      <p key={idx} className="text-base leading-loose">
+                      <p key={idx} className="text-base md:text-lg leading-loose">
                         {para}
                       </p>
                     ))
                   ) : (
-                    <p className="text-base leading-loose whitespace-pre-line">
+                    <p className="text-base md:text-lg leading-loose whitespace-pre-line">
                       {personalReading.normalized || personalReading.raw || ''}
                     </p>
                   )}

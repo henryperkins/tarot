@@ -27,7 +27,7 @@ export function SpreadSelector({
       <p className="text-amber-100/60 text-xs -mt-1 mb-3">
         This edition defaults to the 22 Major Arcana; Minors (beta) can be enabled in settings.
       </p>
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+      <div className="grid grid-cols-1 xs:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
         {Object.entries(SPREADS).map(([key, spread]) => (
           <button
             key={key}

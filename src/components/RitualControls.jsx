@@ -36,19 +36,19 @@ export function RitualControls({
         {/* Cut */}
         <div className="flex-1">
           <div className="font-serif text-amber-200 mb-2">Cut the deck</div>
-          <div className="flex items-center gap-3">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
             <input
               type="range"
               min={0}
               max={Math.max(0, (deckSize ?? 22) - 1)}
               value={cutIndex}
               onChange={event => setCutIndex(parseInt(event.target.value, 10))}
-              className="w-48"
+              className="w-full sm:w-48"
               aria-label="Cut position"
             />
             <button
               onClick={applyCut}
-              className={`px-3 py-2 rounded-lg border ${
+              className={`w-full sm:w-auto px-3 py-2 rounded-lg border ${
                 hasCut
                   ? 'border-emerald-500/60 bg-emerald-500/15'
                   : 'border-amber-500/40 bg-indigo-950/60 hover:bg-indigo-900/60'

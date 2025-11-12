@@ -1,3 +1,5 @@
+const defaultTheme = require('tailwindcss/defaultTheme')
+
 /**
  * Tailwind configuration for Mystic Tarot (Vite + React + Cloudflare Pages).
  *
@@ -10,6 +12,10 @@ export default {
     "./src/**/*.{js,jsx,ts,tsx}"
   ],
   theme: {
+    screens: {
+      'xs': '375px',
+      ...defaultTheme.screens,
+    },
     extend: {
       colors: {
         // Explicitly ensure the slate/amber/indigo palette used throughout is available.
