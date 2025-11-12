@@ -273,7 +273,7 @@ export default function TarotReading() {
         .join('\n');
 
       const cardNames = cardsInfo.map(card => card.card).join(', ');
-      setAnalyzingText(`Analyzing: ${cardNames}...\n\nChanneling your personalized reading...`);
+      setAnalyzingText(`Analyzing: ${cardNames}...\n\nWeaving your personalized reflection from this spread...`);
 
       const response = await fetch('/api/tarot-reading', {
         method: 'POST',
@@ -422,6 +422,7 @@ export default function TarotReading() {
                   setCutIndex={setCutIndex}
                   hasCut={hasCut}
                   applyCut={applyCut}
+                  knocksCount={Math.min((knockTimesRef.current || []).length, 3)}
                 />
               </section>
             </div>
@@ -506,40 +507,54 @@ export default function TarotReading() {
                   Spread Highlights
                 </h3>
                 <div className="space-y-3 text-amber-100/85 text-sm leading-relaxed">
-                  <div className="flex items-start gap-3">
-                    <div className="text-amber-300 mt-1">-</div>
-                    <div>
-                      <span className="font-semibold text-amber-200">Major Arcana:</span>{' '}
-                      {reading.length} card{reading.length > 1 ? 's' : ''} drawn
-                    </div>
-                  </div>
-                  {reading.filter(card => card.isReversed).length > 0 && (
-                    <div className="flex items-start gap-3">
-                      <div className="text-purple-400 mt-1">-</div>
-                      <div>
-                        <span className="font-semibold text-purple-300">
-                          Reversed Cards ({reading.filter(card => card.isReversed).length}):
-                        </span>{' '}
-                        These suggest internal work, delays, or energies that need to be reconsidered or released.
-                      </div>
-                    </div>
-                  )}
-                  {(() => {
-                    const spreadInfo = SPREADS[selectedSpread];
-                    const startPos = spreadInfo.positions[0] || 'first position';
-                    const endPos = spreadInfo.positions[reading.length - 1] || 'final position';
-                    return (
-                      <div className="flex items-start gap-3">
-                        <div className="text-emerald-400 mt-1">-</div>
-                        <div>
-                          <span className="font-semibold text-emerald-300">Card Sequence:</span>{' '}
-                          Notice how the cards flow from {startPos.toLowerCase()} through to {endPos.toLowerCase()},
-                          creating a narrative arc.
-                        </div>
-                      </div>
-                    );
-                  })()}
-                  {relationships.map((relationship, index) => (
+                 <div className="flex items-start gap-3">
+                   <div className="text-amber-300 mt-1">-</div>
+                   <div>
+                     <span className="font-semibold text-amber-200">Deck scope:</span>{' '}
+                     Major Arcana focus (archetypal themes).
+                   </div>
+                 </div>
+                 {(() => {
+                   const reversedIdx = reading
+                     .map((c, i) => (c.isReversed ? i : -1))
+                     .filter(i => i >= 0);
+                   if (reversedIdx.length === 0) return null;
+
+                   const positions = reversedIdx
+                     .map(i => SPREADS[selectedSpread].positions[i] || `Card ${i + 1}`)
+                     .join(', ');
+
+                   const hasCluster = reversedIdx.some(
+                     (idx, j) => j > 0 && idx === reversedIdx[j - 1] + 1
+                   );
+
+                   return (
+                     <div className="flex items-start gap-3">
+                       <div className="text-purple-400 mt-1">-</div>
+                       <div>
+                         <span className="font-semibold text-purple-300">
+                           Reversed cards ({reversedIdx.length}):
+                         </span>{' '}
+                         {positions}.
+                         <span className="block text-amber-100/70">
+                           These often point to inner processing, timing delays, or tension in the theme.
+                           {hasCluster &&
+                             ' Noticing consecutive reversals suggests the theme persists across positions.'}
+                         </span>
+                       </div>
+                     </div>
+                   );
+                 })()}
+                 {relationships.some(r => r.type === 'sequence') && (
+                   <div className="flex items-start gap-3">
+                     <div className="text-emerald-400 mt-1">-</div>
+                     <div>
+                       <span className="font-semibold text-emerald-300">Sequence:</span>{' '}
+                       Sequential Majors suggest a natural progression through connected themes.
+                     </div>
+                   </div>
+                 )}
+                 {relationships.map((relationship, index) => (
                     <div key={index} className="flex items-start gap-3">
                       <div className="text-cyan-400 mt-1">{'>'}</div>
                       <div>
@@ -552,25 +567,21 @@ export default function TarotReading() {
             )}
 
             {/* Generate Personal Reading Button */}
-            {!personalReading && (
+            {!personalReading && revealedCards.size === reading.length && (
               <div className="text-center">
                 <button
                   onClick={generatePersonalReading}
-                  disabled={isGenerating || revealedCards.size < reading.length}
+                  disabled={isGenerating}
                   className="bg-gradient-to-r from-purple-600 to-purple-500 hover:from-purple-500 hover:to-purple-400 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold px-8 py-4 rounded-lg shadow-lg transition-all flex items-center gap-3 mx-auto text-lg"
                 >
                   <Sparkles className={`w-5 h-5 ${isGenerating ? 'motion-safe:animate-pulse' : ''}`} />
                   {isGenerating
-                    ? 'Channeling Your Reading...'
-                    : revealedCards.size < reading.length
-                    ? 'Reveal All Cards First'
+                    ? 'Weaving your personalized reflection from this spread...'
                     : 'Get Personalized Reading'}
                 </button>
-                {revealedCards.size < reading.length && (
-                  <p className="text-purple-300/70 text-sm mt-3">
-                    Reveal all {reading.length} cards to receive your personalized reading.
-                  </p>
-                )}
+                <p className="text-purple-300/75 text-sm mt-3">
+                  Reveal all cards to unlock your personalized narrative. Use it as reflection, not fixed prediction.
+                </p>
               </div>
             )}
 
@@ -581,6 +592,9 @@ export default function TarotReading() {
                   <div className="text-purple-200/90 text-sm whitespace-pre-line italic" aria-live="polite">
                     {analyzingText}
                   </div>
+                  <p className="text-purple-200/70 text-[11px] mt-2">
+                    This reflection is generated from your spread and question to support insight, not to decide for you.
+                  </p>
                 </div>
               </div>
             )}
@@ -588,10 +602,13 @@ export default function TarotReading() {
             {/* Personal Reading Display */}
             {personalReading && (
               <div className="bg-gradient-to-r from-purple-900/60 to-indigo-900/60 backdrop-blur rounded-lg p-8 border border-amber-500/40 max-w-3xl mx-auto">
-                <h3 className="text-2xl font-serif text-amber-200 mb-4 flex items-center gap-2">
+                <h3 className="text-2xl font-serif text-amber-200 mb-2 flex items-center gap-2">
                   <Sparkles className="w-6 h-6" />
                   Your Personal Reading
                 </h3>
+                <p className="text-amber-200/70 text-xs mb-4">
+                  A narrative mirror for reflection, not a fixed prediction. Let it support your own judgment and agency.
+                </p>
                 {userQuestion && (
                   <div className="bg-indigo-950/60 rounded-lg p-4 mb-4 border border-amber-500/20">
                     <p className="text-amber-300/80 text-sm italic">Question: {userQuestion}</p>

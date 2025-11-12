@@ -20,10 +20,13 @@ export function SpreadSelector({
 }) {
   return (
     <div className="bg-indigo-900/40 backdrop-blur rounded-lg p-6 mb-8 border border-amber-500/20">
-      <h2 className="text-xl font-serif text-amber-200 mb-4 flex items-center gap-2">
+      <h2 className="text-xl font-serif text-amber-200 mb-1 flex items-center gap-2">
         <Sparkles className="w-5 h-5" />
         Choose Your Spread
       </h2>
+      <p className="text-amber-100/60 text-xs -mt-1 mb-3">
+        This edition uses the 22 Major Arcana only, focusing on archetypal themes.
+      </p>
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
         {Object.entries(SPREADS).map(([key, spread]) => (
           <button
