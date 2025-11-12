@@ -8,6 +8,7 @@ export function SpreadSelector({
   setReading,
   setRevealedCards,
   setPersonalReading,
+  setJournalStatus,
   setAnalyzingText,
   setIsGenerating,
   setDealIndex,
@@ -35,7 +36,8 @@ export function SpreadSelector({
               setSelectedSpread(key);
               setReading(null);
               setRevealedCards(new Set());
-              setPersonalReading('');
+              setPersonalReading(null);
+              setJournalStatus?.(null);
               setAnalyzingText('');
               setIsGenerating(false);
               setDealIndex(0);

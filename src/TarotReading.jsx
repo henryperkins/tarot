@@ -46,6 +46,7 @@ export default function TarotReading() {
   const [apiHealthBanner, setApiHealthBanner] = useState(null);
   const [ttsState, setTtsState] = useState(() => getCurrentTTSState());
   const [ttsAnnouncement, setTtsAnnouncement] = useState('');
+  const [journalStatus, setJournalStatus] = useState(null);
 
   const knockTimesRef = useRef([]);
   const shuffleTimeoutRef = useRef(null);
@@ -72,6 +73,12 @@ export default function TarotReading() {
   useEffect(() => {
     checkApiHealth();
   }, []);
+
+  useEffect(() => {
+    if (!journalStatus) return;
+    const timeout = setTimeout(() => setJournalStatus(null), 5000);
+    return () => clearTimeout(timeout);
+  }, [journalStatus]);
 
   useEffect(() => {
     const unsubscribe = subscribeToTTS(state => {
@@ -195,8 +202,27 @@ export default function TarotReading() {
   }
 
   function saveReading() {
-    if (!reading) return;
-    if (typeof localStorage === 'undefined') return;
+    if (!reading) {
+      setJournalStatus({
+        type: 'error',
+        message: 'Draw your cards before saving to the journal.'
+      });
+      return;
+    }
+    if (!personalReading || personalReading.isError) {
+      setJournalStatus({
+        type: 'error',
+        message: 'Generate a personalized narrative before saving to the journal.'
+      });
+      return;
+    }
+    if (typeof localStorage === 'undefined') {
+      setJournalStatus({
+        type: 'error',
+        message: 'This browser does not support journal saving.'
+      });
+      return;
+    }
 
     const entry = {
       deckMode: includeMinors ? 'full' : 'majors',
@@ -219,8 +245,18 @@ export default function TarotReading() {
 
     try {
       const key = 'tarot_journal';
-      const stored = JSON.parse(localStorage.getItem(key) || '[]');
-      const list = Array.isArray(stored) ? stored : [];
+      let list = [];
+      const raw = localStorage.getItem(key);
+      if (raw) {
+        try {
+          const parsed = JSON.parse(raw);
+          if (Array.isArray(parsed)) {
+            list = parsed;
+          }
+        } catch (parseError) {
+          console.warn('Resetting tarot journal cache due to parse error.', parseError);
+        }
+      }
       list.unshift(entry);
       if (list.length > 100) {
         list.length = 100;
@@ -229,12 +265,29 @@ export default function TarotReading() {
       if (typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function') {
         navigator.vibrate(12);
       }
+      setJournalStatus({
+        type: 'success',
+        message: 'Saved to your journal.'
+      });
     } catch (error) {
       console.error('Failed to save tarot reading', error);
+      const quotaError =
+        error?.name === 'QuotaExceededError' ||
+        error?.code === 22 ||
+        error?.code === 1014;
+      setJournalStatus({
+        type: 'error',
+        message: quotaError
+          ? 'Storage is full or unavailable. Clear space or exit private browsing, then try again.'
+          : 'Unable to save to your journal. Please try again.'
+      });
     }
   }
 
-  const fullReadingText = personalReading?.raw || personalReading?.normalized || '';
+  const isPersonalReadingError = Boolean(personalReading?.isError);
+  const fullReadingText = !isPersonalReadingError
+    ? personalReading?.raw || personalReading?.normalized || ''
+    : '';
   const isNarrationAvailable = Boolean(fullReadingText);
   const isPersonalReadingContext = ttsState.context === 'full-reading';
   const personalStatus = isPersonalReadingContext ? ttsState.status : 'idle';
@@ -266,28 +319,32 @@ export default function TarotReading() {
   const showStopButton =
     isPersonalReadingContext && voiceOn && isNarrationAvailable && (isTtsPlaying || isTtsPaused || isTtsLoading);
 
-  const inlineStatusMessage = !voiceOn
-    ? "Turn on 'Reader voice' in Experience settings above to listen to this reading."
-    : !isNarrationAvailable
-      ? null
-      : isTtsError
-        ? personalMessage || 'Unable to play audio right now.'
-        : isTtsFallback
-          ? 'Voice service is unavailable right now, so you will hear a gentle chime instead of narration.'
-          : isTtsLoading
-            ? 'Preparing audio...'
-            : isTtsPaused
-              ? 'Narration paused.'
-              : personalStatus === 'completed'
-                ? 'Narration finished.'
-                : personalStatus === 'stopped'
-                  ? 'Narration stopped.'
-                  : null;
+  const inlineStatusMessage = isPersonalReadingError
+    ? 'Personalized reading unavailable. Generate a new narrative to enable narration and saving.'
+    : !voiceOn
+      ? "Turn on 'Reader voice' in Experience settings above to listen to this reading."
+      : !isNarrationAvailable
+        ? null
+        : isTtsError
+          ? personalMessage || 'Unable to play audio right now.'
+          : isTtsFallback
+            ? 'Voice service is unavailable right now, so you will hear a gentle chime instead of narration.'
+            : isTtsLoading
+              ? 'Preparing audio...'
+              : isTtsPaused
+                ? 'Narration paused.'
+                : personalStatus === 'completed'
+                  ? 'Narration finished.'
+                  : personalStatus === 'stopped'
+                    ? 'Narration stopped.'
+                    : null;
 
   const helperId = inlineStatusMessage ? 'personal-reading-tts-helper' : undefined;
+  const journalStatusId = journalStatus ? 'personal-reading-journal-status' : undefined;
+  const canSaveReading = Boolean(reading && personalReading && !isPersonalReadingError);
 
   const handleNarrationButtonClick = () => {
-    if (!voiceOn || !isNarrationAvailable) return;
+    if (!voiceOn || !isNarrationAvailable || isPersonalReadingError) return;
     if (isTtsLoading && !isTtsPaused && !isTtsPlaying) return;
 
     if (isTtsPlaying) {
@@ -317,13 +374,14 @@ export default function TarotReading() {
     setIsShuffling(true);
     setReading(null);
     setRevealedCards(new Set());
-    setPersonalReading('');
+    setPersonalReading(null);
     setAnalyzingText('');
     setIsGenerating(false);
     setDealIndex(0);
     setReflections({});
     setHasKnocked(false);
     setHasCut(false);
+    setJournalStatus(null);
 
     if (typeof performance !== 'undefined') {
       const now = performance.now();
@@ -368,7 +426,13 @@ export default function TarotReading() {
   const generatePersonalReading = async () => {
     if (!reading || reading.length === 0) {
       const errorMsg = 'Please draw your cards before requesting a personalized reading.';
-      setPersonalReading(formatReading(errorMsg));
+      const formattedError = formatReading(errorMsg);
+      formattedError.isError = true;
+      setPersonalReading(formattedError);
+      setJournalStatus({
+        type: 'error',
+        message: 'Draw and reveal your cards before requesting a personalized narrative.'
+      });
       return;
     }
     if (isGenerating) return;
@@ -376,6 +440,7 @@ export default function TarotReading() {
     setIsGenerating(true);
     setAnalyzingText('');
     setPersonalReading(null);
+    setJournalStatus(null);
 
     try {
       const spreadInfo = SPREADS[selectedSpread];
@@ -445,11 +510,18 @@ export default function TarotReading() {
 
       // Format reading for both UI display and TTS narration
       const formatted = formatReading(data.reading.trim());
+      formatted.isError = false;
       setPersonalReading(formatted);
     } catch (error) {
       console.error('generatePersonalReading error:', error);
       const errorMsg = 'Unable to generate reading at this time. Please try again in a moment.';
-      setPersonalReading(formatReading(errorMsg));
+      const formattedError = formatReading(errorMsg);
+      formattedError.isError = true;
+      setPersonalReading(formattedError);
+      setJournalStatus({
+        type: 'error',
+        message: 'Unable to generate your narrative right now. Please try again shortly.'
+      });
     } finally {
       setIsGenerating(false);
       setAnalyzingText('');
@@ -529,6 +601,7 @@ export default function TarotReading() {
                 setReading={setReading}
                 setRevealedCards={setRevealedCards}
                 setPersonalReading={setPersonalReading}
+                setJournalStatus={setJournalStatus}
                 setAnalyzingText={setAnalyzingText}
                 setIsGenerating={setIsGenerating}
                 setDealIndex={setDealIndex}
@@ -799,42 +872,59 @@ export default function TarotReading() {
                   )}
                 </div>
                 <div className="flex flex-col items-center justify-center gap-3 mt-4">
-                  <div className="flex flex-wrap items-center justify-center gap-3">
-                    <button
-                      type="button"
-                      onClick={handleNarrationButtonClick}
-                      className="px-4 py-2 rounded-lg border border-emerald-400/40 bg-slate-950/85 hover:bg-slate-900/80 disabled:opacity-40 disabled:cursor-not-allowed transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
-                      disabled={playButtonDisabled}
-                      aria-label={playButtonAriaLabel}
-                      aria-describedby={helperId}
-                    >
-                      {playButtonLabel}
-                    </button>
-                    {showStopButton && (
+                  {canSaveReading && (
+                    <div className="flex flex-wrap items-center justify-center gap-3">
                       <button
                         type="button"
-                        onClick={handleNarrationStop}
-                        className="px-3 py-2 rounded-lg border border-emerald-400/40 bg-slate-950/70 hover:bg-slate-900/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 transition disabled:opacity-40 disabled:cursor-not-allowed"
-                        disabled={!isTtsPlaying && !isTtsPaused && !isTtsLoading}
-                        aria-label="Stop personal reading narration"
+                        onClick={handleNarrationButtonClick}
+                        className="px-4 py-2 rounded-lg border border-emerald-400/40 bg-slate-950/85 hover:bg-slate-900/80 disabled:opacity-40 disabled:cursor-not-allowed transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
+                        disabled={playButtonDisabled}
+                        aria-label={playButtonAriaLabel}
+                        aria-describedby={helperId}
                       >
-                        Stop narration
+                        {playButtonLabel}
                       </button>
-                    )}
-                    <button
-                      type="button"
-                      onClick={saveReading}
-                      className="px-4 py-2 rounded-lg bg-emerald-500/15 border border-emerald-400/40 text-emerald-200 text-xs sm:text-sm hover:bg-emerald-500/25 hover:text-emerald-100 transition"
-                    >
-                      Save this narrative to your journal
-                    </button>
-                  </div>
+                      {showStopButton && (
+                        <button
+                          type="button"
+                          onClick={handleNarrationStop}
+                          className="px-3 py-2 rounded-lg border border-emerald-400/40 bg-slate-950/70 hover:bg-slate-900/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 transition disabled:opacity-40 disabled:cursor-not-allowed"
+                          disabled={!isTtsPlaying && !isTtsPaused && !isTtsLoading}
+                          aria-label="Stop personal reading narration"
+                        >
+                          Stop narration
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={saveReading}
+                        className="px-4 py-2 rounded-lg bg-emerald-500/15 border border-emerald-400/40 text-emerald-200 text-xs sm:text-sm hover:bg-emerald-500/25 hover:text-emerald-100 transition"
+                        aria-describedby={journalStatusId}
+                      >
+                        Save this narrative to your journal
+                      </button>
+                    </div>
+                  )}
                   {inlineStatusMessage && (
                     <p
                       id="personal-reading-tts-helper"
                       className="text-amber-200/75 text-xs text-center max-w-sm"
                     >
                       {inlineStatusMessage}
+                    </p>
+                  )}
+                  {journalStatus && (
+                    <p
+                      id={journalStatusId}
+                      role="status"
+                      aria-live="polite"
+                      className={`text-xs text-center max-w-sm ${
+                        journalStatus.type === 'success'
+                          ? 'text-emerald-200'
+                          : 'text-rose-200'
+                      }`}
+                    >
+                      {journalStatus.message}
                     </p>
                   )}
                   <div className="sr-only" role="status" aria-live="polite">
@@ -846,12 +936,15 @@ export default function TarotReading() {
                     This reading considered card combinations, positions, emotional arcs, and your reflections to provide
                     personalized guidance.
                   </p>
-                  <button
-                    onClick={saveReading}
-                    className="mt-2 bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 text-indigo-950 font-semibold px-6 py-3 rounded-lg shadow-lg transition-all"
-                  >
-                    Save to Journal
-                  </button>
+                  {canSaveReading && (
+                    <button
+                      onClick={saveReading}
+                      className="mt-2 bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 text-indigo-950 font-semibold px-6 py-3 rounded-lg shadow-lg transition-all"
+                      aria-describedby={journalStatusId}
+                    >
+                      Save to Journal
+                    </button>
+                  )}
                   <button
                     onClick={shuffle}
                     className="mt-2 bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-500 hover:to-amber-400 text-indigo-950 font-semibold px-6 py-3 rounded-lg shadow-lg transition-all flex items-center gap-2"
