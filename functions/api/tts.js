@@ -183,7 +183,7 @@ async function generateWithAzureGptMiniTTS(env, { text, context, voice, speed })
   // - AZURE_OPENAI_TTS_ENDPOINT (or AZURE_OPENAI_ENDPOINT): https://YOUR-RESOURCE.openai.azure.com
   // - AZURE_OPENAI_TTS_API_KEY (or AZURE_OPENAI_API_KEY): API key for the Azure OpenAI resource
   // - AZURE_OPENAI_GPT_AUDIO_MINI_DEPLOYMENT: deployment name (e.g., "gpt-audio-mini")
-  // - AZURE_OPENAI_API_VERSION: optional, defaults to "preview" for v1 format
+  // - AZURE_OPENAI_API_VERSION: optional, defaults based on format
   // - AZURE_OPENAI_USE_V1_FORMAT: optional, set to "true" to use v1 format (default: false)
   //
   // Note: TTS-specific credentials (AZURE_OPENAI_TTS_*) take precedence, falling back to shared credentials
@@ -194,9 +194,15 @@ async function generateWithAzureGptMiniTTS(env, { text, context, voice, speed })
 
   const endpoint = env.endpoint.replace(/\/+$/, '');
   const deployment = env.deployment;
-  const apiVersion = env.apiVersion || 'preview';
   const format = env.format || 'mp3';
   const useV1Format = env.useV1Format === 'true' || env.useV1Format === true;
+
+  // API version logic:
+  // - v1 format uses "preview"
+  // - deployment format uses dated preview version (e.g., "2025-04-01-preview")
+  const apiVersion = useV1Format
+    ? 'preview'
+    : (env.apiVersion || '2025-04-01-preview');
 
   // Select instruction template based on context
   const instructions = INSTRUCTION_TEMPLATES[context] || INSTRUCTION_TEMPLATES.default;
@@ -273,9 +279,15 @@ async function generateWithAzureGptMiniTTS(env, { text, context, voice, speed })
 async function generateWithAzureGptMiniTTSStream(env, { text, context, voice, speed }) {
   const endpoint = env.endpoint.replace(/\/+$/, '');
   const deployment = env.deployment;
-  const apiVersion = env.apiVersion || 'preview';
   const format = env.format || 'mp3';
   const useV1Format = env.useV1Format === 'true' || env.useV1Format === true;
+
+  // API version logic:
+  // - v1 format uses "preview"
+  // - deployment format uses dated preview version (e.g., "2025-04-01-preview")
+  const apiVersion = useV1Format
+    ? 'preview'
+    : (env.apiVersion || '2025-04-01-preview');
 
   // Select instruction template based on context
   const instructions = INSTRUCTION_TEMPLATES[context] || INSTRUCTION_TEMPLATES.default;

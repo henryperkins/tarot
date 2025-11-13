@@ -1,10 +1,25 @@
 name = "mystic-tarot"
 pages_build_output_dir = "dist"
 
-# Azure OpenAI TTS Configuration
-# Note: AZURE_OPENAI_API_KEY must be set as a secret in Cloudflare Pages environment variables
+# Azure OpenAI Configuration
+# All credentials and endpoints are configured as encrypted secrets via:
+#   wrangler pages secret put <SECRET_NAME> --project-name=mystic-tarot
+#
+# Required secrets (set for both production and preview environments):
+#   - AZURE_OPENAI_ENDPOINT
+#   - AZURE_OPENAI_API_KEY
+#   - AZURE_OPENAI_GPT5_MODEL
+#   - AZURE_OPENAI_TTS_ENDPOINT
+#   - AZURE_OPENAI_TTS_API_KEY
+#   - AZURE_OPENAI_GPT_AUDIO_MINI_DEPLOYMENT
+#
+# Optional environment variables (with defaults in code):
+#   - AZURE_OPENAI_API_VERSION (defaults to "2024-08-01-preview" or "preview")
+#   - AZURE_OPENAI_GPT_AUDIO_MINI_FORMAT (defaults to "mp3")
+#   - AZURE_OPENAI_USE_V1_FORMAT (defaults to false)
+
 [vars]
-AZURE_OPENAI_ENDPOINT = "https://thefoundry.openai.azure.com"
-AZURE_OPENAI_GPT_AUDIO_MINI_DEPLOYMENT = "gpt-4o-mini-tts"
+# Optional configuration variables with safe defaults
+# API version for TTS/Audio API (not used by Responses API which uses v1 path format)
 AZURE_OPENAI_API_VERSION = "2025-04-01-preview"
 AZURE_OPENAI_GPT_AUDIO_MINI_FORMAT = "mp3"
