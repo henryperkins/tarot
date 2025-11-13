@@ -1,2 +1,10 @@
 name = "mystic-tarot"
 pages_build_output_dir = "dist"
+
+# Azure OpenAI TTS Configuration
+# Note: AZURE_OPENAI_API_KEY must be set as a secret in Cloudflare Pages environment variables
+[vars]
+AZURE_OPENAI_ENDPOINT = "https://thefoundry.openai.azure.com"
+AZURE_OPENAI_GPT_AUDIO_MINI_DEPLOYMENT = "gpt-4o-mini-tts"
+AZURE_OPENAI_API_VERSION = "2025-04-01-preview"
+AZURE_OPENAI_GPT_AUDIO_MINI_FORMAT = "mp3"
