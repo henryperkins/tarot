@@ -27,6 +27,7 @@ const POSITION_LANGUAGE = {
     intro: (card, orientation) =>
       `At the heart of this moment stands ${card} ${orientation}.`,
     frame: 'This card represents your current situation, the central energy at play, and the atmosphere surrounding the matter.',
+    connectorToPrev: 'Because of this foundation,',
     useImagery: true
   },
 
@@ -147,7 +148,7 @@ const POSITION_LANGUAGE = {
     intro: (card, orientation) =>
       `Hidden from view, the subconscious influence: ${card} ${orientation}.`,
     frame: 'This card reveals what is operating beneath awareness, unseen forces or unacknowledged feelings.',
-    connectorToPrev: 'Beneath the surface,',
+    connectorToPrev: 'Yet beneath the surface,',
     useImagery: true
   },
 
@@ -155,7 +156,7 @@ const POSITION_LANGUAGE = {
     intro: (card, orientation) =>
       `Support and helpful energy come through: ${card} ${orientation}.`,
     frame: 'This is what aids you, what you can lean on, and where strength or assistance can be found.',
-    connectorToPrev: 'Fortunately,',
+    connectorToPrev: 'Meanwhile,',
     connectorToNext: 'Drawing on this support,',
     useImagery: true
   },
@@ -164,14 +165,14 @@ const POSITION_LANGUAGE = {
     intro: (card, orientation) =>
       `The likely direction, if you continue as you are: ${card} ${orientation}.`,
     frame: 'This shows the trajectory ahead based on current momentum.',
-    connectorToPrev: 'All of this points toward',
+    connectorToPrev: 'Therefore,',
     useImagery: true
   },
 
   // Single card
   'Theme / Guidance of the Moment': {
     intro: (card, orientation) =>
-      `The card speaks: ${card} ${orientation}.`,
+      `This card shows: ${card} ${orientation}.`,
     frame: 'This single card captures the essential energy, message, or guidance for this moment.',
     useImagery: true
   },
@@ -181,7 +182,7 @@ const POSITION_LANGUAGE = {
     intro: (card, orientation) =>
       `Your energy in this dynamic: ${card} ${orientation}.`,
     frame: 'This card shows how you are showing up, your emotional state, and what you bring to the connection.',
-    connectorToNext: 'While you bring this,',
+    connectorToNext: 'And so,',
     useImagery: true
   },
 
@@ -189,7 +190,7 @@ const POSITION_LANGUAGE = {
     intro: (card, orientation) =>
       `Their energy in this dynamic: ${card} ${orientation}.`,
     frame: 'This reflects how they are showing up, their perspective, and what they bring to the connection.',
-    connectorToPrev: 'In response,',
+    connectorToPrev: 'Meanwhile,',
     connectorToNext: 'Together, these energies create',
     useImagery: true
   },
@@ -215,7 +216,7 @@ const POSITION_LANGUAGE = {
     intro: (card, orientation) =>
       `Path A, its energy and likely outcome: ${card} ${orientation}.`,
     frame: 'This shows the character, challenges, and probable results of choosing this path.',
-    connectorToPrev: 'Looking at one option,',
+    connectorToPrev: 'Because this option emerges,',
     useImagery: true
   },
 
@@ -231,7 +232,7 @@ const POSITION_LANGUAGE = {
     intro: (card, orientation) =>
       `What clarifies the best path forward: ${card} ${orientation}.`,
     frame: 'This card offers perspective or insight to help you discern which direction serves your highest good.',
-    connectorToPrev: 'To choose wisely,',
+    connectorToPrev: 'This sets the stage for clarity,',
     useImagery: true
   },
 
@@ -239,7 +240,7 @@ const POSITION_LANGUAGE = {
     intro: (card, orientation) =>
       `Remember about your free will and agency: ${card} ${orientation}.`,
     frame: 'This card reminds you of your power to choose, the nature of your autonomy, and how to honor your own path.',
-    connectorToPrev: 'Most importantly,',
+    connectorToPrev: 'Meanwhile,',
     useImagery: true
   }
 };
@@ -249,14 +250,7 @@ const POSITION_LANGUAGE = {
  */
 export function buildPositionCardText(cardInfo, position, options = {}) {
   const template = POSITION_LANGUAGE[position];
-  const reversalDescription = options.reversalDescription;
-  const isReversed = (cardInfo.orientation || '').toLowerCase() === 'reversed';
-  const withConnectors = options.withConnectors !== false; // Default true
   const prevElementalRelationship = options.prevElementalRelationship; // For elemental imagery
-
-  const appendReversalGuidance = reversalDescription && isReversed
-    ? ` ${buildReversalGuidance(reversalDescription)}`
-    : '';
 
   if (!template) {
     // Fallback for unknown positions (defensive defaults)
@@ -266,7 +260,7 @@ export function buildPositionCardText(cardInfo, position, options = {}) {
         ? ` ${cardInfo.orientation}`
         : '';
     const meaning = formatMeaningForPosition(cardInfo.meaning || '', position);
-    return `${position}: ${safeCard}${safeOrientation}. ${meaning}${appendReversalGuidance}`;
+    return `${position}: ${safeCard}${safeOrientation}. ${meaning}`;
   }
 
   const safeCard = cardInfo.card || 'this card';
@@ -323,8 +317,8 @@ export function buildPositionCardText(cardInfo, position, options = {}) {
 
   const safeFrame = template.frame || '';
   const safeElemental = elementalImagery || '';
-  const safeReversal = appendReversalGuidance || '';
-  return `${intro} ${meaning}${imagery}${minorContextText} ${safeFrame}${safeElemental}${safeReversal}`;
+  const positionLabel = position ? `${position}: ` : '';
+  return `${positionLabel}${intro} ${meaning}${imagery}${minorContextText} ${safeFrame}${safeElemental}`;
 }
 
 function buildReversalGuidance(reversalDescription) {
@@ -447,12 +441,13 @@ export function buildCelticCrossReading({
   );
 
   // Final validation log (non-blocking)
-  const validation = validateReadingNarrative(sections.join('\n\n'));
+  const readingBody = sections.filter(Boolean).join('\n\n');
+  const validation = validateReadingNarrative(readingBody);
   if (!validation.isValid) {
     console.debug('Celtic Cross narrative spine suggestions:', validation.suggestions || validation.sectionAnalyses);
   }
 
-  return sections.filter(Boolean).join('\n\n');
+  return appendReversalReminder(readingBody, cardsInfo, themes);
 }
 
 function buildOpening(spreadName, userQuestion) {
@@ -460,6 +455,21 @@ function buildOpening(spreadName, userQuestion) {
     return `Focusing on the ${spreadName}, I attune to your question: "${userQuestion.trim()}"\n\nThe cards respond with insight that honors both seen and unseen influences.`;
   }
   return `Focusing on the ${spreadName}, the cards speak to the energy most present for you right now.`;
+}
+
+function appendReversalReminder(text, cardsInfo, themes) {
+  if (!text) return text;
+
+  if (!themes?.reversalDescription) {
+    return text;
+  }
+
+  const reminder = `*Reversal lens reminder: ${buildReversalGuidance(themes.reversalDescription)}*`;
+  if (text.includes(reminder)) {
+    return text;
+  }
+
+  return `${text}\n\n${reminder}`;
 }
 
 function buildNucleusSection(nucleus, cardsInfo, themes) {
@@ -571,10 +581,14 @@ function buildStaffSection(staff, cardsInfo, themes) {
 function buildCrossChecksSection(crossChecks, themes) {
   let section = `**KEY RELATIONSHIPS**\n\n`;
 
+  section += 'This overview shows how core positions interact and compare.\n\n';
+
   section += formatCrossCheck('Conscious Goal vs Outcome', crossChecks.goalVsOutcome, themes);
   section += `\n\n${formatCrossCheck('Advice vs Outcome', crossChecks.adviceVsOutcome, themes)}`;
   section += `\n\n${formatCrossCheck('Near Future vs Outcome', crossChecks.nearFutureVsOutcome, themes)}`;
   section += `\n\n${formatCrossCheck('Subconscious vs Hopes & Fears', crossChecks.subconsciousVsHopesFears, themes)}`;
+
+  section += '\n\nTaken together, these cross-checks point toward how to translate the spread\'s insights into your next aligned step.';
 
   return section;
 }
@@ -611,11 +625,13 @@ function formatCrossCheck(label, crossCheck, themes) {
 }
 
 function buildReflectionsSection(reflectionsText) {
-  return `**YOUR REFLECTIONS**\n\n${reflectionsText.trim()}\n\nYour intuitive impressions are valid and add personal meaning to this reading.`;
+  return `**YOUR REFLECTIONS**\n\nThis reflection shows how this reading lands in your lived experience.\n\n${reflectionsText.trim()}\n\nYour intuitive impressions are valid and add personal meaning to this reading.`;
 }
 
 function buildSynthesisSection(cardsInfo, themes, celticAnalysis, userQuestion) {
   let section = `**SYNTHESIS & GUIDANCE**\n\n`;
+
+  section += 'This synthesis shows how the spread integrates into actionable guidance.\n\n';
 
   // Thematic summary
   if (themes.suitFocus) {
@@ -634,7 +650,9 @@ function buildSynthesisSection(cardsInfo, themes, celticAnalysis, userQuestion) 
   const advice = cardsInfo[6];
   const outcome = cardsInfo[9];
 
-  section += `**Your next step**\n${buildPositionCardText(advice, advice.position || 'Self / Advice — how to meet this (Card 7)', options)}\n`;
+  section += `**Your next step**\n`;
+  section += `This step shows where to focus your agency right now.\n`;
+  section += `${buildPositionCardText(advice, advice.position || 'Self / Advice — how to meet this (Card 7)', options)}\n`;
   section += `${celticAnalysis.staff.adviceImpact}\n\n`;
 
   section += `**Trajectory Reminder**\n${buildPositionCardText(outcome, outcome.position || 'Outcome — likely path if unchanged (Card 10)', options)}\n`;
@@ -680,14 +698,18 @@ export function buildFiveCardReading({
     positionOptions
   );
   coreSection += '\n\n';
-  coreSection += buildPositionCardText(
+  const challengePosition = challenge.position || 'Challenge or tension';
+  const challengeConnector = getConnector(challengePosition, 'toPrev');
+  const challengeText = buildPositionCardText(
     challenge,
-    challenge.position || 'Challenge or tension',
+    challengePosition,
     {
       ...positionOptions,
       prevElementalRelationship: fiveCardAnalysis?.coreVsChallenge
     }
   );
+  coreSection += challengeConnector ? `${challengeConnector} ${challengeText}` : challengeText;
+  coreSection += '\n\n';
 
   if (fiveCardAnalysis?.coreVsChallenge?.description) {
     coreSection += `\n\n${fiveCardAnalysis.coreVsChallenge.description}.`;
@@ -701,11 +723,14 @@ export function buildFiveCardReading({
 
   // Hidden influence
   let hiddenSection = `**HIDDEN INFLUENCE**\n\n`;
-  hiddenSection += buildPositionCardText(
+  const hiddenPosition = hidden.position || 'Hidden / subconscious influence';
+  const hiddenConnector = getConnector(hiddenPosition, 'toPrev');
+  const hiddenText = buildPositionCardText(
     hidden,
-    hidden.position || 'Hidden / subconscious influence',
+    hiddenPosition,
     positionOptions
   );
+  hiddenSection += hiddenConnector ? `${hiddenConnector} ${hiddenText}` : hiddenText;
   sections.push(enhanceSection(hiddenSection, {
     type: 'subconscious',
     cards: [hidden]
@@ -713,11 +738,14 @@ export function buildFiveCardReading({
 
   // Support
   let supportSection = `**SUPPORTING ENERGIES**\n\n`;
-  supportSection += buildPositionCardText(
+  const supportPosition = support.position || 'Support / helpful energy';
+  const supportConnector = getConnector(supportPosition, 'toPrev');
+  const supportText = buildPositionCardText(
     support,
-    support.position || 'Support / helpful energy',
+    supportPosition,
     positionOptions
   );
+  supportSection += supportConnector ? `${supportConnector} ${supportText}` : supportText;
   sections.push(enhanceSection(supportSection, {
     type: 'support',
     cards: [support]
@@ -725,14 +753,17 @@ export function buildFiveCardReading({
 
   // Direction
   let directionSection = `**DIRECTION ON YOUR CURRENT PATH**\n\n`;
-  directionSection += buildPositionCardText(
+  const directionPosition = direction.position || 'Likely direction on current path';
+  const directionConnector = getConnector(directionPosition, 'toPrev');
+  const directionText = buildPositionCardText(
     direction,
-    direction.position || 'Likely direction on current path',
+    directionPosition,
     {
       ...positionOptions,
       prevElementalRelationship: fiveCardAnalysis?.supportVsDirection
     }
   );
+  directionSection += directionConnector ? `${directionConnector} ${directionText}` : directionText;
 
   if (fiveCardAnalysis?.synthesis) {
     directionSection += `\n\n${fiveCardAnalysis.synthesis}`;
@@ -755,7 +786,7 @@ export function buildFiveCardReading({
     console.debug('Five-Card narrative spine suggestions:', validation.suggestions || validation.sectionAnalyses);
   }
 
-  return full;
+  return appendReversalReminder(full, cardsInfo, themes);
 }
 
 export function buildRelationshipReading({
@@ -782,17 +813,21 @@ export function buildRelationshipReading({
 
   // YOU AND THEM
   let youThem = `**YOU AND THEM**\n\n`;
+  youThem += 'This section shows how your energy and their energy currently present.\n\n';
   youThem += buildPositionCardText(
     youCard,
     youCard.position || 'You / your energy',
     options
   );
   youThem += '\n\n';
-  youThem += buildPositionCardText(
+  const themPosition = themCard.position || 'Them / their energy';
+  const themConnector = getConnector(themPosition, 'toPrev');
+  const themText = buildPositionCardText(
     themCard,
-    themCard.position || 'Them / their energy',
+    themPosition,
     options
   );
+  youThem += themConnector ? `${themConnector} ${themText}` : themText;
 
   // Elemental relationship between you and them (if both exist)
   if (youCard && themCard) {
@@ -801,6 +836,8 @@ export function buildRelationshipReading({
       youThem += `\n\n*Elemental interplay between you: ${elemental.description}.*`;
     }
   }
+
+  youThem += '\n\nTogether, this pairing suggests the current dynamic between you and points toward how energy is moving in this connection.';
 
   sections.push(
     enhanceSection(youThem, {
@@ -812,11 +849,16 @@ export function buildRelationshipReading({
   // THE CONNECTION
   if (connectionCard) {
     let connection = `**THE CONNECTION**\n\n`;
-    connection += buildPositionCardText(
+    connection += 'This position shows what the bond is asking for right now.\n\n';
+    const connectionPosition = connectionCard.position || 'The connection / shared lesson';
+    const connectionConnector = getConnector(connectionPosition, 'toPrev');
+    const connectionText = buildPositionCardText(
       connectionCard,
-      connectionCard.position || 'The connection / shared lesson',
+      connectionPosition,
       options
     );
+    connection += connectionConnector ? `${connectionConnector} ${connectionText}` : connectionText;
+    connection += '\n\nThis focus invites you to notice what this bond is asking from both of you next.';
     sections.push(
       enhanceSection(connection, {
         type: 'connection',
@@ -827,25 +869,34 @@ export function buildRelationshipReading({
 
   // GUIDANCE FOR THIS CONNECTION
   let guidance = `**GUIDANCE FOR THIS CONNECTION**\n\n`;
+  guidance += 'This guidance shows how to participate with agency, honesty, and care.\n\n';
   if (dynamicsCard) {
-    guidance += buildPositionCardText(
+    const dynamicsPosition = dynamicsCard.position || 'Dynamics / guidance';
+    const dynamicsConnector = getConnector(dynamicsPosition, 'toPrev');
+    const dynamicsText = buildPositionCardText(
       dynamicsCard,
-      dynamicsCard.position || 'Dynamics / guidance',
+      dynamicsPosition,
       options
     );
+    guidance += dynamicsConnector ? `${dynamicsConnector} ${dynamicsText}` : dynamicsText;
     guidance += '\n\n';
   }
   if (outcomeCard) {
-    guidance += buildPositionCardText(
+    const outcomePosition = outcomeCard.position || 'Outcome / what this can become';
+    const outcomeConnector = getConnector(outcomePosition, 'toPrev');
+    const outcomeText = buildPositionCardText(
       outcomeCard,
-      outcomeCard.position || 'Outcome / what this can become',
+      outcomePosition,
       options
     );
+    guidance += outcomeConnector ? `${outcomeConnector} ${outcomeText}` : outcomeText;
     guidance += '\n\n';
   }
 
   guidance +=
-    'Emphasize what supports honest communication, mutual respect, and boundaries. Treat these insights as a mirror that helps you choose how to show up; never as a command to stay or leave.';
+    'Emphasize what supports honest communication, mutual respect, and boundaries. Treat these insights as a mirror that helps you choose how to show up; never as a command to stay or leave. This connection remains a trajectory shaped by your shared choices and agency—no card fixes the outcome.';
+
+  guidance += '\n\nThis guidance invites you to choose the path that best honors honesty, care, and your own boundaries.';
 
   sections.push(
     enhanceSection(guidance, {
@@ -864,7 +915,7 @@ export function buildRelationshipReading({
     console.debug('Relationship narrative spine suggestions:', validation.suggestions || validation.sectionAnalyses);
   }
 
-  return full;
+  return appendReversalReminder(full, cardsInfo, themes);
 }
 
 export function buildDecisionReading({
@@ -896,6 +947,7 @@ export function buildDecisionReading({
     heart.position || 'Heart of the decision',
     options
   );
+  choice += '\n\nThis position stands at the center of your decision and points toward what truly matters as you weigh each path.';
   sections.push(
     enhanceSection(choice, {
       type: 'decision-core',
@@ -905,11 +957,15 @@ export function buildDecisionReading({
 
   // PATH A
   let aSection = `**PATH A**\n\n`;
-  aSection += buildPositionCardText(
+  const pathAPosition = pathA.position || 'Path A — energy & likely outcome';
+  const pathAConnector = getConnector(pathAPosition, 'toPrev');
+  const pathAText = buildPositionCardText(
     pathA,
-    pathA.position || 'Path A — energy & likely outcome',
+    pathAPosition,
     options
   );
+  aSection += pathAConnector ? `${pathAConnector} ${pathAText}` : pathAText;
+  aSection += '\n\nThis path suggests one possible trajectory if you commit to this direction.';
   sections.push(
     enhanceSection(aSection, {
       type: 'decision-path',
@@ -919,11 +975,15 @@ export function buildDecisionReading({
 
   // PATH B
   let bSection = `**PATH B**\n\n`;
-  bSection += buildPositionCardText(
+  const pathBPosition = pathB.position || 'Path B — energy & likely outcome';
+  const pathBConnector = getConnector(pathBPosition, 'toPrev');
+  const pathBText = buildPositionCardText(
     pathB,
-    pathB.position || 'Path B — energy & likely outcome',
+    pathBPosition,
     options
   );
+  bSection += pathBConnector ? `${pathBConnector} ${pathBText}` : pathBText;
+  bSection += '\n\nThis path suggests an alternate trajectory, inviting you to compare how each route aligns with your values.';
   sections.push(
     enhanceSection(bSection, {
       type: 'decision-path',
@@ -935,11 +995,14 @@ export function buildDecisionReading({
   let clarity = `**CLARITY + AGENCY**\n\n`;
 
   if (clarifier) {
-    clarity += buildPositionCardText(
+    const clarifierPosition = clarifier.position || 'What clarifies the best path';
+    const clarifierConnector = getConnector(clarifierPosition, 'toPrev');
+    const clarifierText = buildPositionCardText(
       clarifier,
-      clarifier.position || 'What clarifies the best path',
+      clarifierPosition,
       options
     );
+    clarity += clarifierConnector ? `${clarifierConnector} ${clarifierText}` : clarifierText;
     clarity += '\n\n';
   }
 
@@ -951,16 +1014,19 @@ export function buildDecisionReading({
   }
 
   if (freeWill) {
-    clarity += buildPositionCardText(
+    const freeWillPosition = freeWill.position || 'What to remember about your free will';
+    const freeWillConnector = getConnector(freeWillPosition, 'toPrev');
+    const freeWillText = buildPositionCardText(
       freeWill,
-      freeWill.position || 'What to remember about your free will',
+      freeWillPosition,
       options
     );
+    clarity += freeWillConnector ? `${freeWillConnector} ${freeWillText}` : freeWillText;
     clarity += '\n\n';
   }
 
   clarity +=
-    'Use these insights to understand how each option feels in your body and life. The cards illuminate possibilities; you remain the one who chooses.';
+    'Use these insights to understand how each option feels in your body and life. The cards illuminate possibilities; you remain the one who chooses. Each route is a trajectory shaped by your next intentional steps.';
 
   sections.push(
     enhanceSection(clarity, {
@@ -979,7 +1045,7 @@ export function buildDecisionReading({
     console.debug('Decision narrative spine suggestions:', validation.suggestions || validation.sectionAnalyses);
   }
 
-  return full;
+  return appendReversalReminder(full, cardsInfo, themes);
 }
 
 export function buildSingleCardReading({
@@ -1009,7 +1075,7 @@ export function buildSingleCardReading({
 
   narrative += `${baseText}\n\n`;
   narrative +=
-    "In simple terms: notice what this theme is asking you to acknowledge (WHAT), reflect on why it might be surfacing now (WHY), and choose one small, aligned next step that honors your agency (WHAT'S NEXT). This is a living moment, not a fixed verdict.";
+    "In simple terms: notice what this theme is asking you to acknowledge (WHAT), reflect on why it might be surfacing now (WHY), and choose one small, aligned next step that honors your agency (WHAT'S NEXT). Therefore, treat this insight as a living moment, not a fixed verdict—a trajectory you actively shape.";
 
   if (reflectionsText && reflectionsText.trim()) {
     narrative += `\n\n**Your Reflections**\n\n${reflectionsText.trim()}`;
@@ -1020,7 +1086,7 @@ export function buildSingleCardReading({
     console.debug('Single-card narrative spine suggestions:', validation.suggestions || validation.sectionAnalyses);
   }
 
-  return narrative;
+  return appendReversalReminder(narrative, cardsInfo, themes);
 }
 
 export function buildThreeCardReading({
@@ -1070,7 +1136,8 @@ export function buildThreeCardReading({
 
   sections.push(buildThreeCardSynthesis(cardsInfo, themes, userQuestion));
 
-  return sections.filter(Boolean).join('\n\n');
+  const full = sections.filter(Boolean).join('\n\n');
+  return appendReversalReminder(full, cardsInfo, themes);
 }
 
 function buildThreeCardSynthesis(cardsInfo, themes, userQuestion) {
@@ -1088,6 +1155,8 @@ function buildThreeCardSynthesis(cardsInfo, themes, userQuestion) {
   }
 
   section += ` This is not fixed fate, but the trajectory of current momentum. Your awareness and choices shape what comes next.`;
+
+  section += '\n\nAltogether, these threads suggest your next supportive step and point toward how to walk this path with agency.';
 
   return section;
 }
@@ -1127,104 +1196,36 @@ function getSpreadKeyFromName(name) {
 }
 
 function buildSystemPrompt(spreadKey, themes) {
-  let prompt = `You are an expert tarot reader trained in authentic professional methodology and narrative storytelling.\n\n`;
+  const lines = [
+    'You are an agency-forward professional tarot storyteller.',
+    '',
+    'NARRATIVE GUIDELINES:',
+    '- Story spine every section (WHAT → WHY → WHAT’S NEXT) using connectors like "Because...", "Therefore...", "However...".',
+    '- Cite card names, positions, and elemental dignities; add concise sensory imagery (especially for Major Arcana) to illustrate meaning.',
+    `- Honor the ${themes.reversalDescription.name} reversal lens and Minor suit/rank rules; never invent cards or outcomes.`,
+    '- Keep the tone trauma-informed, empowering, and non-deterministic; avoid medical/legal/financial directives.',
+    '- Deliver 4-6 flowing paragraphs separated by blank lines.'
+  ];
 
-  // Story Spine Guidance (NEW)
-  prompt += `NARRATIVE STORYTELLING PRINCIPLES:
-
-**Story Spine Structure** - Each section should flow as a story with:
-1. WHAT is happening (describe the card/situation)
-2. WHY it's happening (use connectors: "because," "therefore," "however," "so that")
-3. WHAT'S NEXT (trajectory, invitation, guidance)
-
-**Connective Phrases** - Link cards and positions to create causal flow:
-- "Because [card/influence]…" — shows cause
-- "Therefore…" / "And so…" — shows consequence
-- "However…" / "Yet…" — shows contrast or tension
-- "Meanwhile…" — shows parallel dynamics
-- "This sets the stage for…" — bridges to next position
-
-**Imagery Prompts** - For Major Arcana cards, reference visual symbolism:
-- Example: "Notice the Tower's lightning—this visual underscores the sudden shift described here."
-- Example: "Picture the Hermit's lantern piercing darkness—solitude illuminates what crowds obscure."
-- Use imagery to ILLUSTRATE meaning, not replace it
-
-**Elemental Imagery** - Tie elemental relationships to sensory language:
-- Fire + Air (supportive): "Like wind feeding flame, these forces accelerate together."
-- Water + Earth (supportive): "As rain nourishes soil, these energies create fertile ground."
-- Fire + Water (tension): "Steam rises where fire meets water—friction creates obscuring mist."
-- Air + Earth (tension): "Wind scatters earth; grounded stability meets airy ideals in productive friction."
-- Same element (amplified): "Flame upon flame intensifies—doubled energy demands direction."\n\n`;
-
-  // Spread-specific structure
   if (spreadKey === 'celtic') {
-    prompt += `CELTIC CROSS READING STRUCTURE:
-1. NUCLEUS (Cards 1-2): Identify the core tension between present state and challenge
-   - Use "However," to introduce the Challenge crossing the Present
-2. TIMELINE (Cards 3-1-4): Trace how past influences led to present and shape near future
-   - Use "Because of this foundation," to connect Past → Present
-   - Use "Therefore," to connect Present → Future
-3. CONSCIOUSNESS (Cards 6-1-5): Assess alignment between subconscious drivers and conscious goals
-   - Use "Yet beneath the surface," to introduce Subconscious
-4. STAFF (Cards 7-10): Examine self-perception, external forces, hopes/fears, and likely outcome
-   - Use "To navigate this landscape," for Advice
-   - Use "Meanwhile, in the external world," for External Influences
-   - Use "All of this converges toward" for Outcome
-5. CROSS-CHECKS: Compare goal vs outcome, advice vs outcome, subconscious vs hopes/fears
-6. SYNTHESIS: Integrate insights into actionable guidance\n\n`;
+    lines.push(
+      '',
+      'CELTIC CROSS FLOW: Nucleus (1-2) → Timeline (3-1-4) → Consciousness (6-1-5) → Staff (7-10) → Cross-checks → Synthesis. Bridge each segment with the connectors above.'
+    );
   } else if (spreadKey === 'threeCard') {
-    prompt += `THREE-CARD READING STRUCTURE:
-1. Establish the causal flow from past through present to future
-   - Use "Because of this foundation," to connect Past → Present
-   - Use "Therefore," or "This sets the stage for" to connect Present → Future
-2. Note how transitions between positions show support or friction
-   - Reference elemental imagery when cards support or clash
-3. Emphasize the trajectory is shaped by current choices\n\n`;
+    lines.push(
+      '',
+      'THREE-CARD FLOW: Past → Present → Future. Show how each card leads to the next and note elemental support or tension along the way.'
+    );
   }
 
-  // Reversal framework
-  prompt += `REVERSAL FRAMEWORK: ${themes.reversalDescription.name}
-${themes.reversalDescription.description}
-${themes.reversalDescription.guidance}
-**Use this lens consistently for ALL reversed cards in this reading.**\n\n`;
+  lines.push(
+    '',
+    `REVERSAL LENS: ${themes.reversalDescription.name} — ${themes.reversalDescription.description} (${themes.reversalDescription.guidance})`,
+    'ETHICS: Emphasize choice, agency, and trajectory language; forbid deterministic guarantees or fatalism.'
+  );
 
-  // Minor Arcana rules
-  prompt += `MINOR ARCANA INTERPRETATION RULES:
-- Treat Minor Arcana as first-class: always use their actual suit and rank.
-- Suits:
-  - Wands (Fire): action, will, creativity, desire.
-  - Cups (Water): emotions, relationships, intuition, care.
-  - Swords (Air): mind, truth, communication, conflict, clarity.
-  - Pentacles (Earth): body, work, resources, and material stability.
-- Ranks (Aces–Tens): read as a progression from seed/beginning (Aces), through tests and growth, to culmination/legacy (Tens).
-- Court Cards:
-  - Pages: students or messengers of the suit—early expressions, curiosity, signals (often parts of self).
-  - Knights: movement and pursuit—how this energy is actively carried or defended.
-  - Queens: inner, receptive mastery—embodied wisdom and stewardship.
-  - Kings: outer, directive mastery—structure, leadership, accountability.
-- Always ground interpretations in the specific cards and positions provided.
-- Do NOT invent new cards, suits, or attributes beyond the input.\n\n`;
-
-  // Position interpretation rules
-  prompt += `POSITION INTERPRETATION RULES:
-- Each position is a question lens—the same card reads differently based on its position
-- Challenge position: Even "positive" cards become obstacles to integrate or overcome
-- Advice position: Frame as actionable guidance aligned with the card's energy
-- Outcome position: Always include "if current path continues" + emphasize free will
-- Subconscious position: Frame as hidden drivers, beneath awareness
-- External position: Frame as forces beyond querent's direct control\n\n`;
-
-  // Ethical constraints
-  prompt += `ETHICAL CONSTRAINTS:
-- No hallucinated extra cards beyond those provided
-- No fortune-telling guarantees or deterministic predictions
-- No medical, legal, or financial directives
-- Emphasize free will, choice, and personal agency
-- Maintain gentle, trauma-informed, empowering tone
-- Use 4-7 flowing paragraphs separated by blank lines
-- Each paragraph should follow: what → why → what's next structure\n\n`;
-
-  return prompt;
+  return lines.join('\n');
 }
 
 function buildUserPrompt(spreadKey, cardsInfo, userQuestion, reflectionsText, themes, spreadAnalysis) {
@@ -1243,6 +1244,8 @@ function buildUserPrompt(spreadKey, cardsInfo, userQuestion, reflectionsText, th
   // Spread-specific card presentation
   if (spreadKey === 'celtic' && spreadAnalysis) {
     prompt += buildCelticCrossPromptCards(cardsInfo, spreadAnalysis, themes);
+  } else if (spreadKey === 'threeCard' && spreadAnalysis) {
+    prompt += buildThreeCardPromptCards(cardsInfo, spreadAnalysis, themes);
   } else if (spreadKey === 'fiveCard' && spreadAnalysis) {
     prompt += buildFiveCardPromptCards(cardsInfo, spreadAnalysis, themes);
   } else if (spreadKey === 'relationship') {
@@ -1265,7 +1268,10 @@ function buildUserPrompt(spreadKey, cardsInfo, userQuestion, reflectionsText, th
 - References specific cards and positions
 - Integrates the thematic and elemental insights above
 - Offers practical, grounded, empowering guidance
-- Reminds the querent of their agency and free will`;
+- Reminds the querent of their agency and free will
+Apply Minor Arcana interpretation rules to all non-Major cards.`;
+
+  prompt += `\n\nRemember ethical constraints: emphasize agency, avoid guarantees, no medical/legal directives.`;
 
   return prompt;
 }
@@ -1281,7 +1287,28 @@ function buildCelticCrossPromptCards(cardsInfo, analysis, themes) {
 
   cards += `**TIMELINE**:\n`;
   cards += buildCardWithImagery(cardsInfo[2], cardsInfo[2].position || 'Past — what lies behind (Card 3)', options);
-  cards += buildCardWithImagery(cardsInfo[3], cardsInfo[3].position || 'Near Future — what lies before (Card 4)', options);
+
+  const presentPosition = cardsInfo[0].position || 'Present — core situation (Card 1)';
+  cards += buildCardWithImagery(
+    cardsInfo[0],
+    presentPosition,
+    {
+      ...options,
+      prevElementalRelationship: analysis.timeline.pastToPresent
+    },
+    getConnector(presentPosition, 'toPrev')
+  );
+
+  const futurePosition = cardsInfo[3].position || 'Near Future — what lies before (Card 4)';
+  cards += buildCardWithImagery(
+    cardsInfo[3],
+    futurePosition,
+    {
+      ...options,
+      prevElementalRelationship: analysis.timeline.presentToFuture
+    },
+    getConnector(futurePosition, 'toPrev')
+  );
   cards += `Flow insight: ${analysis.timeline.causality}\n`;
   cards += getElementalImageryText(analysis.timeline.pastToPresent) + '\n';
   cards += getElementalImageryText(analysis.timeline.presentToFuture) + '\n\n';
@@ -1306,11 +1333,57 @@ function buildCelticCrossPromptCards(cardsInfo, analysis, themes) {
   return cards;
 }
 
+function buildThreeCardPromptCards(cardsInfo, analysis, themes) {
+  const options = getPositionOptions(themes);
+  const [past, present, future] = cardsInfo;
+
+  let cards = `**THREE-CARD STORY STRUCTURE**\n`;
+  cards += `- Past foundation\n- Present dynamics\n- Future trajectory if nothing shifts\n\n`;
+
+  cards += buildCardWithImagery(
+    past,
+    past.position || 'Past — influences that led here',
+    options
+  );
+
+  const presentPosition = present.position || 'Present — where you stand now';
+  cards += buildCardWithImagery(
+    present,
+    presentPosition,
+    {
+      ...options,
+      prevElementalRelationship: analysis?.transitions?.firstToSecond
+    },
+    getConnector(presentPosition, 'toPrev')
+  );
+
+  const futurePosition = future.position || 'Future — trajectory if nothing shifts';
+  cards += buildCardWithImagery(
+    future,
+    futurePosition,
+    {
+      ...options,
+      prevElementalRelationship: analysis?.transitions?.secondToThird
+    },
+    getConnector(futurePosition, 'toPrev')
+  );
+
+  if (analysis?.narrative) {
+    cards += `\n${analysis.narrative.trim()}\n`;
+  }
+
+  cards += '\nThis future position points toward the most likely trajectory if nothing shifts, inviting you to adjust your path with intention.';
+
+  return cards;
+}
+
 /**
  * Build card text with imagery hook for prompts
  */
-function buildCardWithImagery(cardInfo, position, options) {
-  let text = `${buildPositionCardText(cardInfo, position, options)}\n`;
+function buildCardWithImagery(cardInfo, position, options, prefix = '') {
+  const base = buildPositionCardText(cardInfo, position, options);
+  const lead = prefix ? `${prefix} ${base}` : base;
+  let text = `${lead}\n`;
 
   // Add imagery hook if Major Arcana
   if (isMajorArcana(cardInfo.number)) {
@@ -1488,6 +1561,20 @@ function buildPromptCrossChecks(crossChecks, themes) {
         return `- ${label}: No comparative insight available.`;
       }
 
+      const shortenMeaning = meaning => {
+        if (!meaning || typeof meaning !== 'string') return '';
+        const firstClause = meaning.split(/[.!?]/)[0].trim();
+        if (!firstClause) return '';
+        return firstClause.length > 90 ? `${firstClause.slice(0, 87)}...` : firstClause;
+      };
+
+      const summarizePosition = position => {
+        if (!position) return null;
+        const base = `${position.name}: ${position.card} ${position.orientation}`.trim();
+        const snippet = shortenMeaning(position.meaning);
+        return snippet ? `${base} — ${snippet}` : base;
+      };
+
       const reversalNotes = [
         getCrossCheckReversalNote(value.position1, themes),
         getCrossCheckReversalNote(value.position2, themes)
@@ -1507,18 +1594,17 @@ function buildPromptCrossChecks(crossChecks, themes) {
       }
 
       // Surface position summaries for clarity
-      const positionsText = [
-        value.position1
-          ? `${value.position1.name}: ${value.position1.card} ${value.position1.orientation}`
-          : null,
-        value.position2
-          ? `${value.position2.name}: ${value.position2.card} ${value.position2.orientation}`
-          : null
-      ].filter(Boolean).join(' | ');
+      const positionsText = [summarizePosition(value.position1), summarizePosition(value.position2)]
+        .filter(Boolean)
+        .join(' | ');
 
       const parts = [`- ${label}: ${value.synthesis.trim()}`];
-      if (positionsText) parts.push(`Positions: ${positionsText}`);
-      if (details.length > 0) parts.push(details.join(' '));
+      if (positionsText) {
+        parts.push(`(Positions: ${positionsText})`);
+      }
+      if (details.length > 0) {
+        parts.push(details.join(' '));
+      }
 
       return parts.join(' ');
     })

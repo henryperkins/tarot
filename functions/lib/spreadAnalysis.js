@@ -105,6 +105,7 @@ export function analyzeElementalDignity(card1, card2) {
     return {
       relationship: 'amplified',
       element: e1,
+      elements: [e1, e1],
       description: `Both ${e1} cards reinforce and intensify this elemental energy`
     };
   }
@@ -185,12 +186,14 @@ export function analyzeSpreadThemes(cardsInfo, options = {}) {
   const majorRatio = majorCount / totalCards;
 
   // Find dominant suit
-  const dominantSuitEntry = Object.entries(suitCounts)
-    .sort((a, b) => b[1] - a[1])[0];
+  const sortedSuitEntries = Object.entries(suitCounts)
+    .sort((a, b) => b[1] - a[1]);
+  const dominantSuitEntry = sortedSuitEntries[0] || [null, 0];
+  const secondSuitEntry = sortedSuitEntries[1] || [null, 0];
 
   // Find dominant element
   const dominantElementEntry = Object.entries(elementCounts)
-    .sort((a, b) => b[1] - a[1])[0];
+    .sort((a, b) => b[1] - a[1])[0] || [null, 0];
 
   // Calculate average card number
   const avgNumber = numbers.length > 0
@@ -207,12 +210,19 @@ export function analyzeSpreadThemes(cardsInfo, options = {}) {
     // Suit analysis
     suitCounts,
     dominantSuit: dominantSuitEntry[1] > 0 ? dominantSuitEntry[0] : null,
-    suitFocus: getSuitFocusDescription(dominantSuitEntry),
+    suitFocus: getSuitFocusDescription({
+      top: dominantSuitEntry,
+      second: secondSuitEntry
+    }),
 
     // Elemental analysis
     elementCounts,
     dominantElement: dominantElementEntry[1] > 0 ? dominantElementEntry[0] : null,
-    elementalBalance: getElementalBalanceDescription(elementCounts, totalCards),
+    elementalBalance: getMajorAwareElementalBalanceDescription({
+      elementCounts,
+      totalCards,
+      majorRatio
+    }),
 
     // Major Arcana analysis
     majorCount,
@@ -281,23 +291,37 @@ function getReversalFrameworkDescription(framework) {
 /**
  * Get description of suit focus
  */
-function getSuitFocusDescription(dominantSuitEntry) {
-  const [suit, count] = dominantSuitEntry;
-  if (count === 0 || count < 2) return null;
+function getSuitFocusDescription({ top, second }) {
+  const [topSuit, topCount] = top || [null, 0];
+  const [secondSuit, secondCount] = second || [null, 0];
+
+  if (!topSuit || topCount < 2) return null;
+
+  if (topCount === secondCount && topCount > 1 && secondSuit) {
+    return `Balanced focus between ${topSuit} and ${secondSuit}, each surfacing ${topCount} times.`;
+  }
 
   const descriptions = {
-    Wands: `${count} Wands cards suggest a strong focus on action, creativity, passion, drive, and personal will.`,
-    Cups: `${count} Cups cards indicate emotional matters, relationships, intuition, and heart-centered concerns are central to this reading.`,
-    Swords: `${count} Swords cards point to mental processes, communication, truth-seeking, conflict resolution, and clarity of thought as key themes.`,
-    Pentacles: `${count} Pentacles cards highlight practical matters, material resources, work, physical health, and tangible results.`
+    Wands: `${topCount} Wands cards suggest a strong focus on action, creativity, passion, drive, and personal will.`,
+    Cups: `${topCount} Cups cards indicate emotional matters, relationships, intuition, and heart-centered concerns are central to this reading.`,
+    Swords: `${topCount} Swords cards point to mental processes, communication, truth-seeking, conflict resolution, and clarity of thought as key themes.`,
+    Pentacles: `${topCount} Pentacles cards highlight practical matters, material resources, work, physical health, and tangible results.`
   };
 
-  return descriptions[suit] || null;
+  return descriptions[topSuit] || null;
 }
 
 /**
  * Get description of elemental balance
  */
+function getMajorAwareElementalBalanceDescription({ elementCounts, totalCards, majorRatio }) {
+  if (majorRatio > 0.8) {
+    return 'Archetypal energies dominate, transcending elemental themes.';
+  }
+
+  return getElementalBalanceDescription(elementCounts, totalCards);
+}
+
 function getElementalBalanceDescription(elementCounts, total) {
   const active = Object.entries(elementCounts)
     .filter(([, count]) => count > 0)
@@ -680,8 +704,8 @@ function comparePositions(card1, card2, pos1Name, pos2Name) {
   }
 
   return {
-    position1: { name: pos1Name, card: card1.card, orientation: card1.orientation },
-    position2: { name: pos2Name, card: card2.card, orientation: card2.orientation },
+    position1: { name: pos1Name, card: card1.card, orientation: card1.orientation, meaning: card1.meaning },
+    position2: { name: pos2Name, card: card2.card, orientation: card2.orientation, meaning: card2.meaning },
     elementalRelationship: elemental,
     orientationAlignment: orientationMatch,
     synthesis

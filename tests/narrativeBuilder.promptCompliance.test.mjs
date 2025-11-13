@@ -10,6 +10,7 @@ import {
   buildSingleCardReading,
   buildEnhancedClaudePrompt
 } from '../functions/lib/narrativeBuilder.js';
+import { validateReadingNarrative } from '../functions/lib/narrativeSpine.js';
 
 import {
   analyzeCelticCross,
@@ -91,7 +92,8 @@ function assertNoBannedDeterminism(text) {
   assert.ok(
     !lowered.includes('guaranteed') &&
       !lowered.includes('will definitely') &&
-      !lowered.includes('100% certain'),
+      !lowered.includes('100% certain') &&
+      !lowered.includes('fate demands'),
     'Reading/prompt should not contain deterministic guarantee language'
   );
 }
@@ -201,10 +203,16 @@ describe('Celtic Cross narrative + Claude prompt compliance', () => {
       spreadAnalysis: celticAnalysis
     });
 
+    const readingValidation = validateReadingNarrative(reading);
+    assert.ok(
+      readingValidation.isValid,
+      'Celtic Cross reading should satisfy narrative spine validation'
+    );
+
     // System prompt: ethics + structure + reversal + minors guidance (high level).
     assert.ok(
-      systemPrompt.includes('You are an expert tarot reader'),
-      'System prompt should set expert tarot reader persona'
+      systemPrompt.includes('agency-forward professional tarot storyteller'),
+      'System prompt should set agency-forward tarot storyteller persona'
     );
     assert.ok(
       systemPrompt.includes('WHAT → WHY → WHAT’S NEXT') ||
@@ -212,8 +220,8 @@ describe('Celtic Cross narrative + Claude prompt compliance', () => {
       'System prompt should encode story spine guidance'
     );
     assert.ok(
-      systemPrompt.includes('ETHICAL CONSTRAINTS'),
-      'System prompt should encode ethical constraints'
+      systemPrompt.includes('NARRATIVE GUIDELINES'),
+      'System prompt should highlight narrative guidelines section'
     );
     assert.ok(
       systemPrompt.includes(themes.reversalDescription.name),
@@ -237,11 +245,20 @@ describe('Celtic Cross narrative + Claude prompt compliance', () => {
         userPrompt.toLowerCase().includes('reversal framework'),
       'User prompt should mention reversal framework'
     );
+    assert.ok(
+      userPrompt.includes('Apply Minor Arcana interpretation rules'),
+      'User prompt should remind Claude to apply Minor Arcana interpretation rules'
+    );
+    assert.ok(
+      userPrompt.includes('Remember ethical constraints'),
+      'User prompt should append concise ethics reminder'
+    );
 
     assertAgencyForward(userPrompt);
     assertNoBannedDeterminism(userPrompt);
     assertUsesCardsAndPositions(userPrompt, cardsInfo);
     assertStorySpineSignals(userPrompt);
+
   });
 });
 
@@ -280,6 +297,11 @@ describe('Three-Card narrative + Claude prompt compliance', () => {
     assertUsesCardsAndPositions(reading, cardsInfo);
     assertReversalLensConsistency(reading, themes);
     assertStorySpineSignals(reading);
+    const threeCardValidation = validateReadingNarrative(reading);
+    assert.ok(
+      threeCardValidation.isValid,
+      'Three-card reading should satisfy narrative spine validation'
+    );
 
     const { systemPrompt, userPrompt } = buildEnhancedClaudePrompt({
       spreadInfo: { name: 'Three-Card Story (Past · Present · Future)' },
@@ -297,6 +319,7 @@ describe('Three-Card narrative + Claude prompt compliance', () => {
     assertNoBannedDeterminism(userPrompt);
     assertUsesCardsAndPositions(userPrompt, cardsInfo);
     assertStorySpineSignals(userPrompt);
+
   });
 });
 
@@ -328,6 +351,11 @@ describe('Other spread builders prompt-engineering compliance', () => {
     assertUsesCardsAndPositions(reading, cardsInfo);
     assertReversalLensConsistency(reading, themes);
     assertStorySpineSignals(reading);
+    const relationshipValidation = validateReadingNarrative(reading);
+    assert.ok(
+      relationshipValidation.isValid,
+      'Relationship reading should satisfy narrative spine validation'
+    );
   });
 
   it('Relationship Snapshot respects narrative rules', () => {
@@ -353,6 +381,11 @@ describe('Other spread builders prompt-engineering compliance', () => {
     assertUsesCardsAndPositions(reading, cardsInfo);
     assertReversalLensConsistency(reading, themes);
     assertStorySpineSignals(reading);
+    const relationshipValidation = validateReadingNarrative(reading);
+    assert.ok(
+      relationshipValidation.isValid,
+      'Relationship reading should satisfy narrative spine validation'
+    );
   });
 
   it('Decision / Two-Path respects narrative rules', () => {
@@ -378,6 +411,11 @@ describe('Other spread builders prompt-engineering compliance', () => {
     assertUsesCardsAndPositions(reading, cardsInfo);
     assertReversalLensConsistency(reading, themes);
     assertStorySpineSignals(reading);
+    const decisionValidation = validateReadingNarrative(reading);
+    assert.ok(
+      decisionValidation.isValid,
+      'Decision reading should satisfy narrative spine validation'
+    );
   });
 
   it('Single-Card Insight respects narrative rules', () => {
@@ -399,7 +437,58 @@ describe('Other spread builders prompt-engineering compliance', () => {
     assertUsesCardsAndPositions(reading, cardsInfo);
     assertReversalLensConsistency(reading, themes);
     assertStorySpineSignals(reading);
+    const singleValidation = validateReadingNarrative(reading);
+    assert.ok(
+      singleValidation.isValid,
+      'Single-card reading should satisfy narrative spine validation'
+    );
+  });
+
+  it('surfaces amplified elemental imagery when elements repeat', () => {
+    const cardsInfo = [
+      minor('Two of Wands', 'Wands', 'Two', 2, 'Past — influences that led here', 'Upright'),
+      minor('Four of Wands', 'Wands', 'Four', 4, 'Present — where you stand now', 'Upright'),
+      minor('Six of Wands', 'Wands', 'Six', 6, 'Future — trajectory if nothing shifts', 'Upright')
+    ];
+
+    const themes = buildThemes(cardsInfo, 'blocked');
+    const threeCardAnalysis = analyzeThreeCard(cardsInfo);
+
+    const reading = buildThreeCardReading({
+      cardsInfo,
+      userQuestion: 'How is this momentum building?',
+      reflectionsText: '',
+      threeCardAnalysis,
+      themes
+    });
+
+    assert.ok(
+      reading.includes('Flame meeting flame'),
+      'Reading should reference amplified fire imagery when elemental dignity repeats'
+    );
+
+    // Prompt imagery handled in spread-specific builders (e.g., Celtic Cross). Reading check suffices here.
+  });
+
+  it('enriches Minor pip cards with rank-specific imagery hooks', () => {
+    const cardsInfo = [
+      minor('Ace of Cups', 'Cups', 'Ace', 1, 'Theme / Guidance of the Moment', 'Upright')
+    ];
+
+    const themes = buildThemes(cardsInfo, 'internalized');
+
+    const { userPrompt } = buildEnhancedClaudePrompt({
+      spreadInfo: { name: 'One-Card Insight' },
+      cardsInfo,
+      userQuestion: 'What emotion should I honor?',
+      reflectionsText: '',
+      themes,
+      spreadAnalysis: null
+    });
+
+    assert.ok(
+      userPrompt.toLowerCase().includes('picture hand emerging from a cloud presenting an overflowing chalice'),
+      'Minor pip cards should include rank-and-suit specific imagery text in prompts'
+    );
   });
 });
-
-console.log('narrativeBuilder prompt compliance tests passed');

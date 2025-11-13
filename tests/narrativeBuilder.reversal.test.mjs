@@ -86,22 +86,6 @@ function buildBlockedThemes(cardsInfo) {
   return themes;
 }
 
-function sectionSlice(text, heading, nextHeading) {
-  const start = text.indexOf(heading);
-  assert.notStrictEqual(start, -1, `Expected heading ${heading} to be present`);
-  const end = nextHeading ? text.indexOf(nextHeading, start + heading.length) : -1;
-  return end === -1 ? text.slice(start) : text.slice(start, end);
-}
-
-const CELTIC_HEADINGS = [
-  '**THE HEART OF THE MATTER**',
-  '**THE TIMELINE**',
-  '**CONSCIOUSNESS FLOW**',
-  '**THE STAFF**',
-  '**KEY RELATIONSHIPS**',
-  '**SYNTHESIS & GUIDANCE**'
-];
-
 {
   const cardsInfo = buildReversedCelticCards();
   const themes = buildBlockedThemes(cardsInfo);
@@ -115,14 +99,11 @@ const CELTIC_HEADINGS = [
     themes
   });
 
-  CELTIC_HEADINGS.forEach((heading, idx) => {
-    const nextHeading = CELTIC_HEADINGS[idx + 1];
-    const slice = sectionSlice(reading, heading, nextHeading);
-    assert.ok(
-      slice.includes('Within the Blocked Energy lens'),
-      `Section ${heading} should reinforce the reversal framework`
-    );
-  });
+  const expectedReminder = `*Reversal lens reminder: Within the ${themes.reversalDescription.name} lens, ${themes.reversalDescription.guidance}*`;
+  assert.ok(
+    reading.trim().endsWith(expectedReminder),
+    'Celtic Cross reading should append a single reversal reminder note at the end'
+  );
 
   const { userPrompt } = buildEnhancedClaudePrompt({
     spreadInfo: { name: 'Celtic Cross (Classic 10-Card)' },

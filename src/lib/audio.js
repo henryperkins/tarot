@@ -85,8 +85,10 @@ export function toggleAmbience(on) {
  * @param {boolean} options.enabled - Whether TTS is enabled
  * @param {string} [options.context='default'] - Reading context (card-reveal, full-reading, synthesis, etc.)
  * @param {string} [options.voice='nova'] - Voice selection (nova, shimmer, alloy, echo, fable, onyx)
+ * @param {number} [options.speed] - Playback speed (0.25-4.0, default 0.95 for contemplative pace)
+ * @param {boolean} [options.stream=false] - Use streaming mode for progressive audio playback
  */
-export async function speakText({ text, enabled, context = 'default', voice = 'nova' }) {
+export async function speakText({ text, enabled, context = 'default', voice = 'nova', speed, stream = false }) {
   if (!enabled) {
     emitTTSState({ status: 'idle', reason: 'disabled', message: null });
     return;
@@ -118,7 +120,8 @@ export async function speakText({ text, enabled, context = 'default', voice = 'n
     const ttsText = prepareForTTS(normalizedText);
 
     // Check cache first (using normalized text for consistent keys)
-    const cacheKey = generateCacheKey(ttsText, context, voice);
+    // Include speed in cache key to cache different speeds separately
+    const cacheKey = generateCacheKey(ttsText, context, voice, speed);
     const cachedAudio = getCachedAudio(cacheKey);
 
     let audioDataUri;
@@ -135,15 +138,23 @@ export async function speakText({ text, enabled, context = 'default', voice = 'n
       context: narrationContext
     });
 
-    if (cachedAudio) {
-      // Use cached audio
+    if (cachedAudio && !stream) {
+      // Use cached audio (streaming responses are not cached)
       audioDataUri = cachedAudio.audio;
     } else {
       // Fetch from API with normalized TTS text
-      const response = await fetch('/api/tts', {
+      const url = stream ? '/api/tts?stream=true' : '/api/tts';
+      const requestBody = { text: ttsText, context, voice };
+
+      // Add speed parameter if specified
+      if (speed !== undefined) {
+        requestBody.speed = speed;
+      }
+
+      const response = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: ttsText, context, voice })
+        body: JSON.stringify(requestBody)
       });
 
       if (!response.ok) {
@@ -161,32 +172,42 @@ export async function speakText({ text, enabled, context = 'default', voice = 'n
         return;
       }
 
-      const data = await response.json();
-      if (!data?.audio) {
-        console.error('No audio field in TTS response');
-        emitTTSState({
-          status: 'error',
-          provider: data?.provider || null,
-          source,
-          error: 'No audio field in response.',
-          context: narrationContext,
-          message: 'Unable to prepare audio for this reading.'
-        });
-        return;
-      }
+      if (stream) {
+        // Streaming mode: response body is a ReadableStream of audio chunks
+        // Convert stream to blob for audio playback
+        const audioBlob = await response.blob();
+        audioDataUri = URL.createObjectURL(audioBlob);
+        provider = 'azure-gpt-4o-mini-tts'; // Streaming only works with Azure
+        source = 'stream';
+      } else {
+        // Non-streaming mode: response is JSON with base64 data URI
+        const data = await response.json();
+        if (!data?.audio) {
+          console.error('No audio field in TTS response');
+          emitTTSState({
+            status: 'error',
+            provider: data?.provider || null,
+            source,
+            error: 'No audio field in response.',
+            context: narrationContext,
+            message: 'Unable to prepare audio for this reading.'
+          });
+          return;
+        }
 
-      audioDataUri = data.audio;
-      provider = data?.provider || null;
+        audioDataUri = data.audio;
+        provider = data?.provider || null;
 
-      // Cache the audio for future use, but never cache fallback provider
-      if (provider && provider !== 'fallback') {
-        cacheAudio(cacheKey, audioDataUri, provider);
+        // Cache the audio for future use, but never cache fallback provider
+        if (provider && provider !== 'fallback') {
+          cacheAudio(cacheKey, audioDataUri, provider);
+        }
       }
 
       emitTTSState({
         status: 'loading',
         provider,
-        source,
+        source: stream ? 'stream' : source,
         cached: false,
         error: null,
         context: narrationContext,
@@ -244,11 +265,12 @@ export async function speakText({ text, enabled, context = 'default', voice = 'n
 }
 
 /**
- * Generate a cache key from text, context, and voice.
+ * Generate a cache key from text, context, voice, and speed.
  * Uses simple hash to keep localStorage keys reasonable.
  */
-function generateCacheKey(text, context, voice) {
-  const content = `${text}|${context}|${voice}`;
+function generateCacheKey(text, context, voice, speed) {
+  const speedKey = speed !== undefined ? speed : 'default';
+  const content = `${text}|${context}|${voice}|${speedKey}`;
   let hash = 0;
   for (let i = 0; i < content.length; i++) {
     const char = content.charCodeAt(i);

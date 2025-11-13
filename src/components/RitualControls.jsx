@@ -17,6 +17,7 @@ export function RitualControls({
         <div className="flex-1">
           <div className="font-serif text-amber-200 mb-2">Clear the deck</div>
           <button
+            type="button"
             onClick={handleKnock}
             className={`px-4 py-2 rounded-lg border ${
               hasKnocked
@@ -37,7 +38,11 @@ export function RitualControls({
         <div className="flex-1">
           <div className="font-serif text-amber-200 mb-2">Cut the deck</div>
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+            <label htmlFor="cut-range" className="sr-only">
+              Choose where to cut the deck
+            </label>
             <input
+              id="cut-range"
               type="range"
               min={0}
               max={Math.max(0, (deckSize ?? 22) - 1)}
@@ -47,6 +52,7 @@ export function RitualControls({
               aria-label="Cut position"
             />
             <button
+              type="button"
               onClick={applyCut}
               className={`w-full sm:w-auto px-3 py-2 rounded-lg border ${
                 hasCut

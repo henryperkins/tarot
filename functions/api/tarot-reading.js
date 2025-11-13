@@ -27,6 +27,7 @@ import {
   buildEnhancedClaudePrompt,
   buildPositionCardText
 } from '../lib/narrativeBuilder.js';
+import { enhanceSection } from '../lib/narrativeSpine.js';
 
 export const onRequestGet = async ({ env }) => {
   // Health check endpoint
@@ -300,71 +301,80 @@ async function generateWithClaudeSonnet45Enhanced(env, { spreadInfo, cardsInfo, 
   return content;
 }
 
+const SPREAD_READING_BUILDERS = {
+  celtic: ({ spreadAnalysis, cardsInfo, userQuestion, reflectionsText, themes }) =>
+    spreadAnalysis
+      ? buildCelticCrossReading({
+          cardsInfo,
+          userQuestion,
+          reflectionsText,
+          celticAnalysis: spreadAnalysis,
+          themes
+        })
+      : null,
+  threeCard: ({ spreadAnalysis, cardsInfo, userQuestion, reflectionsText, themes }) =>
+    spreadAnalysis
+      ? buildThreeCardReading({
+          cardsInfo,
+          userQuestion,
+          reflectionsText,
+          threeCardAnalysis: spreadAnalysis,
+          themes
+        })
+      : null,
+  fiveCard: ({ spreadAnalysis, cardsInfo, userQuestion, reflectionsText, themes }) =>
+    spreadAnalysis
+      ? buildFiveCardReading({
+          cardsInfo,
+          userQuestion,
+          reflectionsText,
+          fiveCardAnalysis: spreadAnalysis,
+          themes
+        })
+      : null,
+  relationship: ({ cardsInfo, userQuestion, reflectionsText, themes }) =>
+    buildRelationshipReading({ cardsInfo, userQuestion, reflectionsText, themes }),
+  decision: ({ cardsInfo, userQuestion, reflectionsText, themes }) =>
+    buildDecisionReading({ cardsInfo, userQuestion, reflectionsText, themes }),
+  single: ({ cardsInfo, userQuestion, reflectionsText, themes }) =>
+    buildSingleCardReading({ cardsInfo, userQuestion, reflectionsText, themes })
+};
+
 /**
  * Enhanced local composer with spread-specific narrative construction
  */
 function composeReadingEnhanced({ spreadInfo, cardsInfo, userQuestion, reflectionsText, analysis }) {
   const { themes, spreadAnalysis, spreadKey } = analysis;
 
-  // Use spread-specific builders when available
-  if (spreadKey === 'celtic' && spreadAnalysis) {
-    return buildCelticCrossReading({
+  return generateReadingFromAnalysis({
+    spreadKey,
+    spreadAnalysis,
+    cardsInfo,
+    userQuestion,
+    reflectionsText,
+    themes,
+    spreadInfo
+  });
+}
+
+function generateReadingFromAnalysis({ spreadKey, spreadAnalysis, cardsInfo, userQuestion, reflectionsText, themes, spreadInfo }) {
+  const builder = SPREAD_READING_BUILDERS[spreadKey];
+
+  if (builder) {
+    const result = builder({
+      spreadAnalysis,
       cardsInfo,
       userQuestion,
       reflectionsText,
-      celticAnalysis: spreadAnalysis,
-      themes
+      themes,
+      spreadInfo
     });
+
+    if (typeof result === 'string' && result.trim()) {
+      return result;
+    }
   }
 
-  if (spreadKey === 'threeCard' && spreadAnalysis) {
-    return buildThreeCardReading({
-      cardsInfo,
-      userQuestion,
-      reflectionsText,
-      threeCardAnalysis: spreadAnalysis,
-      themes
-    });
-  }
-
-  if (spreadKey === 'fiveCard' && spreadAnalysis) {
-    return buildFiveCardReading({
-      cardsInfo,
-      userQuestion,
-      reflectionsText,
-      fiveCardAnalysis: spreadAnalysis,
-      themes
-    });
-  }
-
-  if (spreadKey === 'relationship') {
-    return buildRelationshipReading({
-      cardsInfo,
-      userQuestion,
-      reflectionsText,
-      themes
-    });
-  }
-
-  if (spreadKey === 'decision') {
-    return buildDecisionReading({
-      cardsInfo,
-      userQuestion,
-      reflectionsText,
-      themes
-    });
-  }
-
-  if (spreadKey === 'single') {
-    return buildSingleCardReading({
-      cardsInfo,
-      userQuestion,
-      reflectionsText,
-      themes
-    });
-  }
-
-  // Fallback: Generic enhanced composer for other spreads
   return buildGenericReading({
     spreadInfo,
     cardsInfo,
@@ -379,43 +389,55 @@ function composeReadingEnhanced({ spreadInfo, cardsInfo, userQuestion, reflectio
  */
 function buildGenericReading({ spreadInfo, cardsInfo, userQuestion, reflectionsText, themes }) {
   const spreadName = spreadInfo?.name?.trim() || 'your chosen spread';
-  const sections = [];
+  const entries = [];
+  const safeCards = Array.isArray(cardsInfo) ? cardsInfo : [];
 
   // Opening
-  if (userQuestion && userQuestion.trim()) {
-    sections.push(`Focusing on the ${spreadName.toLowerCase()}, I attune to your question: "${userQuestion.trim()}"\n\nThe cards respond with insight that honors both seen and unseen influences.`);
-  } else {
-    sections.push(`Focusing on the ${spreadName.toLowerCase()}, the cards speak to the energy most present for you right now.`);
-  }
+  const openingText = userQuestion && userQuestion.trim()
+    ? `Focusing on the ${spreadName.toLowerCase()}, I attune to your question: "${userQuestion.trim()}"\n\nThe cards respond with insight that honors both seen and unseen influences.`
+    : `Focusing on the ${spreadName.toLowerCase()}, the cards speak to the energy most present for you right now.`;
 
-  // Cards section with reversal framework awareness
-  const reversalNote = themes.reversalFramework !== 'none'
-    ? `\n\n*Reading reversals through the lens of ${themes.reversalDescription.name}: ${themes.reversalDescription.description}*`
-    : '';
+  entries.push({
+    text: openingText,
+    metadata: { type: 'opening', cards: safeCards.length > 0 ? [safeCards[0]] : [] }
+  });
 
-  const cardsSection = buildCardsSection(cardsInfo, themes) + reversalNote;
-  sections.push(cardsSection);
+  // Cards section
+  entries.push({
+    text: buildCardsSection(safeCards),
+    metadata: { type: 'cards', cards: safeCards }
+  });
 
   // Reflections
   if (reflectionsText && reflectionsText.trim()) {
-    sections.push(`**Your Reflections**\n\n${reflectionsText.trim()}\n\nYour intuitive impressions add personal meaning to this reading.`);
+    entries.push({
+      text: `**Your Reflections**\n\n${reflectionsText.trim()}\n\nYour intuitive impressions add personal meaning to this reading.`,
+      metadata: { type: 'reflections' }
+    });
   }
 
   // Synthesis with enhanced themes
-  sections.push(buildEnhancedSynthesis(cardsInfo, themes, userQuestion));
+  const finalCard = safeCards.length > 0 ? safeCards[safeCards.length - 1] : null;
+  entries.push({
+    text: buildEnhancedSynthesis(safeCards, themes, userQuestion),
+    metadata: { type: 'synthesis', cards: finalCard ? [finalCard] : [] }
+  });
 
-  return sections.filter(Boolean).join('\n\n');
+  const sections = entries
+    .map(({ text, metadata }) => enhanceSection(text, metadata).text)
+    .filter(Boolean);
+
+  const readingBody = sections.join('\n\n');
+  return appendGenericReversalReminder(readingBody, safeCards, themes);
 }
 
 /**
  * Build cards section with reversal framework awareness
  */
-function buildCardsSection(cardsInfo, themes) {
-  const options = themes?.reversalDescription ? { reversalDescription: themes.reversalDescription } : {};
-
+function buildCardsSection(cardsInfo) {
   const lines = cardsInfo.map(card => {
     const position = (card.position || '').trim() || `Card ${cardsInfo.indexOf(card) + 1}`;
-    const description = buildPositionCardText(card, position, options);
+    const description = buildPositionCardText(card, position);
     return `**${position}**\n${description}`;
   });
 
@@ -462,6 +484,25 @@ function buildEnhancedSynthesis(cardsInfo, themes, userQuestion) {
   section += `Remember: These cards show a trajectory based on current patterns. Your awareness, choices, and actions shape what unfolds. You are co-creating this path.`;
 
   return section;
+}
+
+function appendGenericReversalReminder(readingText, cardsInfo, themes) {
+  if (!readingText) return readingText;
+
+  const hasReversed = Array.isArray(cardsInfo) && cardsInfo.some(card =>
+    (card?.orientation || '').toLowerCase() === 'reversed'
+  );
+
+  if (!hasReversed || !themes?.reversalDescription) {
+    return readingText;
+  }
+
+  const reminder = `*Reversal lens reminder: Within the ${themes.reversalDescription.name} lens, ${themes.reversalDescription.guidance}*`;
+  if (readingText.includes(reminder)) {
+    return readingText;
+  }
+
+  return `${readingText}\n\n${reminder}`;
 }
 
 function jsonResponse(data, init = {}) {

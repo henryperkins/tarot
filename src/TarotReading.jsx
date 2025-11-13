@@ -40,9 +40,21 @@ export default function TarotReading() {
   const [hasCut, setHasCut] = useState(false);
   const [cutIndex, setCutIndex] = useState(Math.floor(MAJOR_ARCANA.length / 2));
   const [dealIndex, setDealIndex] = useState(0);
-  const [voiceOn, setVoiceOn] = useState(false);
+  const [voiceOn, setVoiceOn] = useState(() => {
+    if (typeof localStorage !== 'undefined') {
+      const saved = localStorage.getItem('tarot-voice-enabled');
+      return saved === 'true';
+    }
+    return false;
+  });
   const [reflections, setReflections] = useState({});
-  const [ambienceOn, setAmbienceOn] = useState(false);
+  const [ambienceOn, setAmbienceOn] = useState(() => {
+    if (typeof localStorage !== 'undefined') {
+      const saved = localStorage.getItem('tarot-ambience-enabled');
+      return saved === 'true';
+    }
+    return false;
+  });
   const [reversalFramework, setReversalFramework] = useState(null);
   const [apiHealthBanner, setApiHealthBanner] = useState(null);
   const [ttsState, setTtsState] = useState(() => getCurrentTTSState());
@@ -70,6 +82,20 @@ export default function TarotReading() {
       cleanupAudio();
     };
   }, []);
+
+  // Persist voice setting to localStorage
+  useEffect(() => {
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem('tarot-voice-enabled', voiceOn.toString());
+    }
+  }, [voiceOn]);
+
+  // Persist ambience setting to localStorage
+  useEffect(() => {
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem('tarot-ambience-enabled', ambienceOn.toString());
+    }
+  }, [ambienceOn]);
 
   // Check API health on mount
   useEffect(() => {
@@ -223,7 +249,9 @@ export default function TarotReading() {
       text,
       enabled: voiceOn,
       context,
-      voice: 'nova' // Can be made dynamic via settings later
+      voice: 'nova' // Default voice for mystical tarot readings
+      // speed: defaults to 0.95 (contemplative pace) in audio.js
+      // stream: defaults to false (complete audio, with caching) in audio.js
     });
   }
 
@@ -715,10 +743,10 @@ export default function TarotReading() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-amber-50">
-      <main className="max-w-6xl mx-auto px-4 sm:px-6 py-8 lg:py-10">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 py-8 lg:py-10">
         {/* Header */}
         <header aria-labelledby="mystic-tarot-heading">
-          <div className="text-center mb-8">
+          <div className="text-center mb-8 mystic-heading-wrap">
             <h1
               id="mystic-tarot-heading"
               className="text-4xl sm:text-5xl font-serif text-amber-200"
@@ -869,10 +897,11 @@ export default function TarotReading() {
               </p>
             )}
 
-            {/* Reveal All */}
+            {/* Reveal All / Reset Reveals */}
             {revealedCards.size < reading.length && (
               <div className="text-center">
                 <button
+                  type="button"
                   onClick={revealAll}
                   className="bg-amber-600/30 hover:bg-amber-600/50 border-2 border-amber-500 text-amber-200 font-semibold px-6 py-3 rounded-lg shadow-lg transition-all flex items-center gap-3 mx-auto"
                 >
@@ -884,6 +913,20 @@ export default function TarotReading() {
                 </p>
               </div>
             )}
+           {revealedCards.size > 0 && (
+             <div className="text-center mt-2">
+               <button
+                 type="button"
+                 onClick={() => {
+                   setRevealedCards(new Set());
+                   setDealIndex(0);
+                 }}
+                 className="text-xs text-amber-300/80 hover:text-amber-200 underline underline-offset-4"
+               >
+                 Reset reveals (keep this spread)
+               </button>
+             </div>
+           )}
 
             {/* Deal next card */}
             {reading && revealedCards.size < reading.length && (

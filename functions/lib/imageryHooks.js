@@ -1,3 +1,5 @@
+import { PIP_NUMEROLOGY, SUIT_THEMES } from './minorMeta.js';
+
 /**
  * Imagery Hooks for Major Arcana
  *
@@ -122,6 +124,232 @@ export const MINOR_SUIT_IMAGERY = {
     visual: 'coin, garden, stone path, roots',
     sensory: 'solid ground, steady heartbeat, tactile focus',
     interpretation: 'Body, work, resources, health, tangible commitments.'
+  }
+};
+
+const PIP_RANK_VALUES = {
+  Ace: 1,
+  Two: 2,
+  Three: 3,
+  Four: 4,
+  Five: 5,
+  Six: 6,
+  Seven: 7,
+  Eight: 8,
+  Nine: 9,
+  Ten: 10
+};
+
+function buildPipInterpretation(suit, rank) {
+  const rankValue = PIP_RANK_VALUES[rank];
+  const numerology = rankValue ? PIP_NUMEROLOGY[rankValue] : null;
+  const suitTheme = SUIT_THEMES[suit] || `${suit.toLowerCase()} matters`;
+  if (!numerology) {
+    return `It deepens the ${suit} story through lived experience.`;
+  }
+  return `It highlights ${numerology} within ${suitTheme}.`;
+}
+
+export const MINOR_PIP_IMAGERY = {
+  'Ace of Wands': {
+    visual: 'Hand emerging from a cloud presenting a sprouting wand above rolling hills and a distant castle',
+    sensory: 'Pulse of heat in the palm, scent of resin and fresh growth on the wind',
+    interpretation: buildPipInterpretation('Wands', 'Ace')
+  },
+  'Two of Wands': {
+    visual: 'Figure standing on castle battlements holding a globe with two wands anchoring the space',
+    sensory: 'Cool stone beneath boots, breeze carrying distant possibilities',
+    interpretation: buildPipInterpretation('Wands', 'Two')
+  },
+  'Three of Wands': {
+    visual: 'Cloaked traveler watching ships depart from a cliff beside three rooted wands',
+    sensory: 'Salt air rising with anticipation, cloak catching a steady breeze',
+    interpretation: buildPipInterpretation('Wands', 'Three')
+  },
+  'Four of Wands': {
+    visual: 'Garland-draped wands forming a ceremonial arch as figures celebrate beyond it',
+    sensory: 'Laughter and music in warm air, scent of flowers and festivity',
+    interpretation: buildPipInterpretation('Wands', 'Four')
+  },
+  'Five of Wands': {
+    visual: 'Band of youths brandishing wands in spirited but chaotic competition',
+    sensory: 'Wooden staffs clacking, breathless shouts, crackle of spirited rivalry',
+    interpretation: buildPipInterpretation('Wands', 'Five')
+  },
+  'Six of Wands': {
+    visual: 'Laureled rider on horseback raising a wand while onlookers hold theirs aloft',
+    sensory: 'Cheer of the crowd, rhythmic hoofbeats, triumph warming the chest',
+    interpretation: buildPipInterpretation('Wands', 'Six')
+  },
+  'Seven of Wands': {
+    visual: 'Guardian braced on a hilltop thrusting a wand against unseen challengers below',
+    sensory: 'Adrenaline-quickened breath, gritty soil underfoot, resistance humming in muscles',
+    interpretation: buildPipInterpretation('Wands', 'Seven')
+  },
+  'Eight of Wands': {
+    visual: 'Eight wands streak diagonally through clear sky above distant meadows',
+    sensory: 'Rush of wind, momentum whistling forward, anticipation crackling',
+    interpretation: buildPipInterpretation('Wands', 'Eight')
+  },
+  'Nine of Wands': {
+    visual: 'Bandaged sentinel gripping a wand while eight others stand like a fence behind',
+    sensory: 'Muscles aching yet alert, heartbeat steadying, smell of earth after effort',
+    interpretation: buildPipInterpretation('Wands', 'Nine')
+  },
+  'Ten of Wands': {
+    visual: 'Figure hunched beneath the weight of ten bundled wands trudging toward town',
+    sensory: 'Strain in shoulders, labored breath, warmth of duty despite fatigue',
+    interpretation: buildPipInterpretation('Wands', 'Ten')
+  },
+  'Ace of Cups': {
+    visual: 'Hand emerging from a cloud presenting an overflowing chalice crowned by a dove',
+    sensory: 'Cool overflow cascading, heart swelling with gentle pulse of grace',
+    interpretation: buildPipInterpretation('Cups', 'Ace')
+  },
+  'Two of Cups': {
+    visual: 'Two figures exchange cups beneath a caduceus and lion-headed emblem',
+    sensory: 'Soft exchange of vows, shared heartbeat, warmth of mutual recognition',
+    interpretation: buildPipInterpretation('Cups', 'Two')
+  },
+  'Three of Cups': {
+    visual: 'Three women dance in a circle, cups raised amid harvest bounty',
+    sensory: 'Clinking cups, joyful laughter, scent of ripe fruit and flowers',
+    interpretation: buildPipInterpretation('Cups', 'Three')
+  },
+  'Four of Cups': {
+    visual: 'Seated figure beneath a tree contemplates three cups as a fourth is offered by a cloud',
+    sensory: 'Still air, muted heartbeat, cool bark pressing against the back during contemplation',
+    interpretation: buildPipInterpretation('Cups', 'Four')
+  },
+  'Five of Cups': {
+    visual: 'Cloaked figure mourns over three spilled cups while two remain standing near a river',
+    sensory: 'Cold mist clinging to skin, heaviness in the chest, distant rush of water not yet heard',
+    interpretation: buildPipInterpretation('Cups', 'Five')
+  },
+  'Six of Cups': {
+    visual: 'Child offers a flower-filled cup to another within a sunlit courtyard',
+    sensory: 'Sweet scent of blossoms, gentle laughter, nostalgia like warm sunlight',
+    interpretation: buildPipInterpretation('Cups', 'Six')
+  },
+  'Seven of Cups': {
+    visual: 'Silhouetted figure gazes at seven floating cups filled with fantastical visions',
+    sensory: 'Dreamlike haze, shimmering possibilities, dizzying mix of desire and uncertainty',
+    interpretation: buildPipInterpretation('Cups', 'Seven')
+  },
+  'Eight of Cups': {
+    visual: 'Traveler climbs away from stacked cups under moonlit sky and distant mountains',
+    sensory: 'Cool night air, crunch of gravel underfoot, pull of inner longing guiding the step',
+    interpretation: buildPipInterpretation('Cups', 'Eight')
+  },
+  'Nine of Cups': {
+    visual: 'Content figure sits before a curved display of nine cups like trophies',
+    sensory: 'Satiated sigh, velvety richness, quiet confidence settling in the belly',
+    interpretation: buildPipInterpretation('Cups', 'Nine')
+  },
+  'Ten of Cups': {
+    visual: 'Family rejoices beneath a rainbow of cups arching over a pastoral home',
+    sensory: 'Children laughing, harmonized heartbeat of loved ones, gentle rain-washed breeze',
+    interpretation: buildPipInterpretation('Cups', 'Ten')
+  },
+  'Ace of Swords': {
+    visual: 'Hand from a cloud raises a crowned sword above jagged mountains',
+    sensory: 'Cool rush of clarity, ozone in the air, mind snapping into focus',
+    interpretation: buildPipInterpretation('Swords', 'Ace')
+  },
+  'Two of Swords': {
+    visual: 'Blindfolded figure sits at the shoreline with crossed swords under a moonlit sky',
+    sensory: 'Still night breeze, tension in shoulders, quiet of suspended decision',
+    interpretation: buildPipInterpretation('Swords', 'Two')
+  },
+  'Three of Swords': {
+    visual: 'Heart pierced by three swords against a storm-laden, rain-filled sky',
+    sensory: 'Sharp sting of heartbreak, chill of rain, echo of thunder inside the chest',
+    interpretation: buildPipInterpretation('Swords', 'Three')
+  },
+  'Four of Swords': {
+    visual: 'Knight rests on a tomb within a chapel, swords hanging on the wall and one beneath',
+    sensory: 'Sacred silence, slow measured breath, cool stone supporting stillness',
+    interpretation: buildPipInterpretation('Swords', 'Four')
+  },
+  'Five of Swords': {
+    visual: 'Figure gathers swords with a sly grin as defeated figures walk away along the beach',
+    sensory: 'Salt wind whipping, hollow victory buzzing in ears, footsteps receding on wet sand',
+    interpretation: buildPipInterpretation('Swords', 'Five')
+  },
+  'Six of Swords': {
+    visual: 'Boat ferries cloaked figures across calm water with swords standing in the bow',
+    sensory: 'Gentle rocking of the boat, soft lapping water, muted conversation of transition',
+    interpretation: buildPipInterpretation('Swords', 'Six')
+  },
+  'Seven of Swords': {
+    visual: 'Sneaking figure tiptoes from a camp carrying five swords, two left behind',
+    sensory: 'Rustle of tents, quickened pulse, careful feet on dewy grass',
+    interpretation: buildPipInterpretation('Swords', 'Seven')
+  },
+  'Eight of Swords': {
+    visual: 'Blindfolded figure stands bound amid eight swords planted in soggy ground',
+    sensory: 'Damp chill around ankles, breath shallow, mind searching for the gap in confinement',
+    interpretation: buildPipInterpretation('Swords', 'Eight')
+  },
+  'Nine of Swords': {
+    visual: 'Person bolts upright in bed with hands covering their face, nine swords etched on the wall',
+    sensory: 'Nightmare echo, rapid heartbeat, darkness pressing against awareness',
+    interpretation: buildPipInterpretation('Swords', 'Nine')
+  },
+  'Ten of Swords': {
+    visual: 'First light dawns behind a figure lying prone with ten swords in their back',
+    sensory: 'Cold shock of finality, stillness before sunrise, awareness of inevitable ending',
+    interpretation: buildPipInterpretation('Swords', 'Ten')
+  },
+  'Ace of Pentacles': {
+    visual: 'Hand extends a pentacle from a cloud above a flowering garden and open archway',
+    sensory: 'Fresh earth scent, solid weight of opportunity in the palm, promise of growth',
+    interpretation: buildPipInterpretation('Pentacles', 'Ace')
+  },
+  'Two of Pentacles': {
+    visual: 'Figure juggles two pentacles linked by an infinity loop with ships pitching on waves behind',
+    sensory: 'Playful sway under shifting ground, salty breeze, balancing heartbeat keeping time',
+    interpretation: buildPipInterpretation('Pentacles', 'Two')
+  },
+  'Three of Pentacles': {
+    visual: 'Craftsman discusses cathedral plans with monk and noble as pentacles decorate the arch',
+    sensory: 'Chisel tapping stone, collaborative murmurs, dust motes lit by stained glass',
+    interpretation: buildPipInterpretation('Pentacles', 'Three')
+  },
+  'Four of Pentacles': {
+    visual: 'Figure sits guarding pentacles with a cityscape beyond',
+    sensory: 'Grip tightening around coin, sturdy seat beneath, city hum muted by guarded focus',
+    interpretation: buildPipInterpretation('Pentacles', 'Four')
+  },
+  'Five of Pentacles': {
+    visual: 'Two figures hobble through snow past a stained-glass window filled with pentacles',
+    sensory: 'Biting cold on skin, crunch of snow, faint glow of sanctuary just out of reach',
+    interpretation: buildPipInterpretation('Pentacles', 'Five')
+  },
+  'Six of Pentacles': {
+    visual: 'Merchant balances scales while giving coins to two kneeling figures',
+    sensory: 'Clink of coins, warm generosity flowing, gratitude mingling with need',
+    interpretation: buildPipInterpretation('Pentacles', 'Six')
+  },
+  'Seven of Pentacles': {
+    visual: 'Gardener pauses to assess pentacles growing on a vine by his side',
+    sensory: 'Earth under boots, patient breath, smell of greenery in slow maturation',
+    interpretation: buildPipInterpretation('Pentacles', 'Seven')
+  },
+  'Eight of Pentacles': {
+    visual: 'Craftsman carves pentacles along a workbench with a town in the distance',
+    sensory: 'Steady rhythm of hammer and chisel, focused gaze, calloused hands warm with effort',
+    interpretation: buildPipInterpretation('Pentacles', 'Eight')
+  },
+  'Nine of Pentacles': {
+    visual: 'Elegant figure in a vineyard holds a falcon with pentacles arrayed behind',
+    sensory: 'Silk brushing skin, bird\'s steady heartbeat, sunlit abundance settling calmly',
+    interpretation: buildPipInterpretation('Pentacles', 'Nine')
+  },
+  'Ten of Pentacles': {
+    visual: 'Generational scene beneath an archway adorned with pentacles, dogs at an elder\'s feet',
+    sensory: 'Home\'s hearth-warmth, gentle murmur of family, legacy felt in every touch',
+    interpretation: buildPipInterpretation('Pentacles', 'Ten')
   }
 };
 
@@ -390,6 +618,7 @@ export function getMinorImageryHook(input) {
 
   const name = card || (rank && suit ? `${rank} of ${suit}` : null);
   const isReversed = String(orientation).toLowerCase() === 'reversed';
+  const isCourt = ['Page', 'Knight', 'Queen', 'King'].includes(rank);
 
   // Prefer specific court card hooks
   if (name && MINOR_ARCANA_IMAGERY[name]) {
@@ -401,6 +630,19 @@ export function getMinorImageryHook(input) {
         entry.interpretation +
         (isReversed
           ? ' Read this as energy turned inward, delayed, or asking for recalibration.'
+          : '')
+    };
+  }
+
+  if (!isCourt && name && MINOR_PIP_IMAGERY[name]) {
+    const pipEntry = MINOR_PIP_IMAGERY[name];
+    return {
+      visual: pipEntry.visual,
+      sensory: pipEntry.sensory,
+      interpretation:
+        pipEntry.interpretation +
+        (isReversed
+          ? ' When reversed, notice where this flow turns inward or requests recalibration.'
           : '')
     };
   }
