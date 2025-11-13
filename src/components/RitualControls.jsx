@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useState } from 'react';
+import { ChevronDown, ChevronUp } from 'lucide-react';
 
 export function RitualControls({
   hasKnocked,
@@ -10,8 +11,27 @@ export function RitualControls({
   knocksCount = 0,
   deckSize = 22
 }) {
+  const [isExpanded, setIsExpanded] = useState(false);
+
   return (
-    <div className="modern-surface p-6 mb-6">
+    <div className="modern-surface p-4 sm:p-6 mb-6">
+      {/* Mobile: Collapsible header */}
+      <button
+        type="button"
+        onClick={() => setIsExpanded(!isExpanded)}
+        className="md:hidden w-full flex items-center justify-between mb-3 p-3 bg-slate-900/40 rounded-lg border border-emerald-400/20 hover:bg-slate-900/60 transition"
+        aria-expanded={isExpanded}
+        aria-controls="ritual-content"
+      >
+        <span className="text-amber-200 font-serif text-sm">Ritual (optional)</span>
+        {isExpanded ? <ChevronUp className="w-4 h-4 text-amber-300" /> : <ChevronDown className="w-4 h-4 text-amber-300" />}
+      </button>
+
+      {/* Ritual content - always visible on desktop, collapsible on mobile */}
+      <div
+        id="ritual-content"
+        className={`${isExpanded ? 'block' : 'hidden md:block'}`}
+      >
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         {/* Knock / Clear */}
         <div className="flex-1">
@@ -30,7 +50,7 @@ export function RitualControls({
             {hasKnocked ? 'Cleared ✓' : 'Knock 3x'}
           </button>
           <div className="text-amber-100/60 text-xs mt-2">
-            Knocks: {knocksCount}/3 • Knocking influences the shuffle seed.
+            Knocks: {knocksCount}/3 • Your rhythm influences the cards drawn.
           </div>
         </div>
 
@@ -65,14 +85,15 @@ export function RitualControls({
             </button>
           </div>
           <div className="text-xs text-amber-100/60 mt-1">
-            Cut at: {cutIndex} • Cut selection also influences the shuffle seed.
+            Cut at: {cutIndex} • Where you cut shapes which cards appear.
           </div>
         </div>
       </div>
 
       {/* Subtle helper line */}
-      <div className="text-amber-100/60 text-xs mt-4">
-        Ritual actions are optional but mirror real-table practice and shape how the deck shuffles.
+      <div className="text-amber-100/60 text-xs mt-4 mobile-hide">
+        Ritual actions add intention, mirroring real readings where your energy guides the cards.
+      </div>
       </div>
     </div>
   );

@@ -38,6 +38,9 @@ export default {
           900: "#581c87"
         }
       },
+      fontSize: {
+        'xs-plus': '0.8125rem', // 13px - improved mobile readability
+      },
       fontFamily: {
         serif: ["serif"],
         sans: ["system-ui", "sans-serif"]

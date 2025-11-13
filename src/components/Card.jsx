@@ -108,12 +108,12 @@ export function Card({
       className="modern-surface border border-emerald-400/22 overflow-hidden"
     >
       {/* Position Label */}
-      <div className="bg-slate-950/80 p-3 border-b border-emerald-400/18">
-        <h3 className="text-amber-300 font-serif text-center font-semibold">{position}</h3>
+      <div className="bg-slate-950/80 p-2 sm:p-3 border-b border-emerald-400/18">
+        <h3 className="text-amber-300 font-serif text-center font-semibold text-sm sm:text-base">{position}</h3>
       </div>
 
       {/* Card */}
-      <div className="p-4 sm:p-6" style={{ perspective: '1000px' }}>
+      <div className="p-3 sm:p-4 md:p-6" style={{ perspective: '1000px' }}>
         <div
           onClick={() => !isRevealed && onReveal(index)}
           onKeyDown={event => {
@@ -229,7 +229,7 @@ export function Card({
               </div>
 
               <div className="bg-slate-950/85 rounded p-4 border border-emerald-400/16">
-                <p className="text-amber-100/90 text-sm leading-relaxed">
+                <p className="text-amber-100/90 text-sm sm:text-base leading-relaxed">
                   {(() => {
                     const allCards = [...MAJOR_ARCANA, ...MINOR_ARCANA];
                     const originalCard =
@@ -239,14 +239,14 @@ export function Card({
                 </p>
               </div>
               <div className="mt-3">
-                <label className="text-amber-100/70 text-xs block mb-1">What resonates for you?</label>
+                <label className="text-amber-100/70 text-xs sm:text-xs-plus block mb-1">What resonates for you?</label>
                 <textarea
                   value={reflections[index] || ''}
                   onChange={event =>
                     setReflections(prev => ({ ...prev, [index]: event.target.value }))
                   }
                   rows={2}
-                  className="w-full bg-slate-950/85 border border-emerald-400/22 rounded p-2 text-amber-100/90 text-sm focus:outline-none focus:ring-1 focus:ring-emerald-400/55"
+                  className="w-full bg-slate-950/85 border border-emerald-400/22 rounded p-2 text-amber-100/90 text-sm sm:text-base focus:outline-none focus:ring-1 focus:ring-emerald-400/55"
                   placeholder="Write a sentence or two..."
                 />
               </div>

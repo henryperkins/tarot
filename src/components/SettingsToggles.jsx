@@ -1,5 +1,5 @@
-import React from 'react';
-import { Volume2, VolumeX } from 'lucide-react';
+import React, { useState } from 'react';
+import { Volume2, VolumeX, ChevronDown, ChevronUp } from 'lucide-react';
 import { Tooltip } from './Tooltip';
 
 export function SettingsToggles({
@@ -7,14 +7,30 @@ export function SettingsToggles({
   setVoiceOn,
   ambienceOn,
   setAmbienceOn,
-  includeMinors,
-  setIncludeMinors,
-  minorsToggleDisabled,
   reversalFramework,
   setReversalFramework
 }) {
+  const [isExpanded, setIsExpanded] = useState(false);
+
   return (
     <div className="space-y-3">
+      {/* Mobile: Collapsible header */}
+      <button
+        type="button"
+        onClick={() => setIsExpanded(!isExpanded)}
+        className="md:hidden w-full flex items-center justify-between p-3 bg-slate-900/60 rounded-lg border border-amber-500/30 hover:bg-slate-900/80 transition"
+        aria-expanded={isExpanded}
+        aria-controls="settings-content"
+      >
+        <span className="text-amber-200 font-serif text-sm">Experience Settings</span>
+        {isExpanded ? <ChevronUp className="w-4 h-4 text-amber-300" /> : <ChevronDown className="w-4 h-4 text-amber-300" />}
+      </button>
+
+      {/* Settings content - always visible on desktop, collapsible on mobile */}
+      <div
+        id="settings-content"
+        className={`space-y-3 ${isExpanded ? 'block' : 'hidden md:block'}`}
+      >
       <div className="flex flex-wrap items-center gap-4">
       {/* Voice Toggle */}
       <div className="flex items-center gap-2">
@@ -24,7 +40,6 @@ export function SettingsToggles({
           checked={voiceOn}
           onChange={event => setVoiceOn(event.target.checked)}
           aria-describedby="voice-description"
-          className="w-6 h-6 accent-amber-500 cursor-pointer"
         />
         <label htmlFor="voice-toggle" className="text-amber-100/80 text-sm cursor-pointer select-none">
           Reader voice
@@ -54,7 +69,6 @@ export function SettingsToggles({
           checked={ambienceOn}
           onChange={event => setAmbienceOn(event.target.checked)}
           aria-describedby="ambience-description"
-          className="w-6 h-6 accent-amber-500 cursor-pointer"
         />
         <label htmlFor="ambience-toggle" className="text-amber-100/80 text-sm cursor-pointer select-none">
           Table ambience
@@ -64,32 +78,6 @@ export function SettingsToggles({
         </span>
       </div>
 
-      {/* Minors Toggle */}
-      <div className="flex items-center gap-2">
-        <input
-          id="minors-toggle"
-          type="checkbox"
-          checked={includeMinors}
-          onChange={e => setIncludeMinors(e.target.checked)}
-          disabled={minorsToggleDisabled}
-          aria-describedby="minors-description"
-          className={`w-6 h-6 accent-amber-500 ${
-            minorsToggleDisabled ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'
-          }`}
-        />
-        <label
-          htmlFor="minors-toggle"
-          className={`text-amber-100/80 text-sm select-none ${
-            minorsToggleDisabled ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'
-          }`}
-        >
-          Minors (beta)
-        </label>
-        <span id="minors-description" className="sr-only">
-          Include all 56 Minor Arcana cards for fuller 78-card deck readings
-          {minorsToggleDisabled && '. Clear current reading to change deck mode'}
-        </span>
-      </div>
       {/* Reversal Framework Selector */}
       <div className="flex items-center gap-2 text-amber-100/80 text-xs sm:text-sm">
         <div className="flex items-center gap-1">
@@ -148,13 +136,7 @@ export function SettingsToggles({
           )}
         </div>
       )}
-
-      {/* Contextual Helper Text */}
-      {minorsToggleDisabled && (
-        <p className="text-amber-300/70 text-xs italic">
-          Clear your current reading to change deck settings
-        </p>
-      )}
+      </div>
     </div>
   );
 }
