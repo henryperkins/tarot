@@ -143,7 +143,7 @@ export function analyzeElementalDignity(card1, card2) {
  * Accepts optional options:
  * - reversalFrameworkOverride: if provided and valid, forces that framework.
  */
-export function analyzeSpreadThemes(cardsInfo, options = {}) {
+export async function analyzeSpreadThemes(cardsInfo, options = {}) {
   const suitCounts = { Wands: 0, Cups: 0, Swords: 0, Pentacles: 0 };
   const elementCounts = { Fire: 0, Water: 0, Air: 0, Earth: 0 };
   let majorCount = 0;
@@ -170,8 +170,9 @@ export function analyzeSpreadThemes(cardsInfo, options = {}) {
       elementCounts[element]++;
     }
 
-    // Count reversals
-    if (card.orientation === 'Reversed') {
+    // Count reversals (normalized to handle any casing/variants)
+    const orientation = String(card.orientation || '').toLowerCase();
+    if (orientation === 'reversed') {
       reversalCount++;
     }
 
@@ -206,7 +207,7 @@ export function analyzeSpreadThemes(cardsInfo, options = {}) {
     reversalFramework = options.reversalFrameworkOverride;
   }
 
-  return {
+  const themes = {
     // Suit analysis
     suitCounts,
     dominantSuit: dominantSuitEntry[1] > 0 ? dominantSuitEntry[0] : null,
@@ -238,8 +239,21 @@ export function analyzeSpreadThemes(cardsInfo, options = {}) {
 
     // Lifecycle/numerology
     averageNumber: avgNumber,
-    lifecycleStage: getLifecycleStage(avgNumber)
+    lifecycleStage: getLifecycleStage(avgNumber),
+
+    // Timing profile (set below)
+    timingProfile: null
   };
+
+  // Soft timing profile (non-deterministic pacing hint)
+  try {
+    const { getSpreadTimingProfile } = await import('./timingMeta.js');
+    themes.timingProfile = getSpreadTimingProfile({ cardsInfo, themes });
+  } catch {
+    themes.timingProfile = null;
+  }
+
+  return themes;
 }
 
 /**

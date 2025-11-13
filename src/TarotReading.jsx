@@ -1329,6 +1329,10 @@ export default function TarotReading() {
                   Notice how the cards speak to one another. Consider themes, repetitions, contrasts, and where your
                   attention is drawn. Trust your intuition as much as any description.
                 </p>
+                <p className="text-amber-200/80 text-[0.7rem] sm:text-xs mt-3 leading-relaxed">
+                  This reading offers reflective guidance only. It is not a substitute for medical, mental health, legal, financial, or safety advice.
+                  If your situation involves health, legal risk, abuse, or crisis, consider reaching out to qualified professionals or trusted support services.
+                </p>
               </div>
             )}
 

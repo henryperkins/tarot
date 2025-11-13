@@ -28,6 +28,7 @@ import {
   buildPositionCardText
 } from '../lib/narrativeBuilder.js';
 import { enhanceSection } from '../lib/narrativeSpine.js';
+import { inferContext } from '../lib/contextDetection.js';
 
 export const onRequestGet = async ({ env }) => {
   // Health check endpoint
@@ -52,9 +53,11 @@ export const onRequestPost = async ({ request, env }) => {
     }
 
     // STEP 1: Comprehensive spread analysis
-    const analysis = performSpreadAnalysis(spreadInfo, cardsInfo, {
+    const analysis = await performSpreadAnalysis(spreadInfo, cardsInfo, {
       reversalFrameworkOverride
     });
+
+    const context = inferContext(userQuestion, analysis.spreadKey);
 
     // STEP 2: Generate reading (Claude or local)
     let reading;
@@ -67,7 +70,8 @@ export const onRequestPost = async ({ request, env }) => {
           cardsInfo,
           userQuestion,
           reflectionsText,
-          analysis
+          analysis,
+          context
         });
         usedClaude = true;
       } catch (err) {
@@ -82,7 +86,8 @@ export const onRequestPost = async ({ request, env }) => {
         cardsInfo,
         userQuestion,
         reflectionsText,
-        analysis
+        analysis,
+        context
       });
 
       if (!reading || !reading.toString().trim()) {
@@ -102,6 +107,7 @@ export const onRequestPost = async ({ request, env }) => {
       reading,
       provider: usedClaude ? 'anthropic-claude-sonnet-4.5' : 'local',
       themes: analysis.themes,
+      context,
       spreadAnalysis: {
         // Normalize top-level metadata for all spreads
         version: '1.0.0',
@@ -123,7 +129,7 @@ export const onRequestPost = async ({ request, env }) => {
  * Perform comprehensive spread analysis
  * Returns themes, spread-specific relationships, and elemental insights
  */
-function performSpreadAnalysis(spreadInfo, cardsInfo, options = {}) {
+async function performSpreadAnalysis(spreadInfo, cardsInfo, options = {}) {
   // Guard against malformed input (defensive: validatePayload should have run already)
   if (!spreadInfo || !Array.isArray(cardsInfo) || cardsInfo.length === 0) {
     console.warn('performSpreadAnalysis: missing or invalid spreadInfo/cardsInfo, falling back to generic themes only.');
@@ -137,7 +143,7 @@ function performSpreadAnalysis(spreadInfo, cardsInfo, options = {}) {
   // Theme analysis (suits, elements, majors, reversals)
   let themes;
   try {
-    themes = analyzeSpreadThemes(cardsInfo, {
+    themes = await analyzeSpreadThemes(cardsInfo, {
       reversalFrameworkOverride: options.reversalFrameworkOverride
     });
   } catch (err) {
@@ -248,7 +254,7 @@ function validatePayload({ spreadInfo, cardsInfo }) {
 /**
  * Enhanced Claude Sonnet 4.5 generation with position-relationship analysis
  */
-async function generateWithClaudeSonnet45Enhanced(env, { spreadInfo, cardsInfo, userQuestion, reflectionsText, analysis }) {
+async function generateWithClaudeSonnet45Enhanced(env, { spreadInfo, cardsInfo, userQuestion, reflectionsText, analysis, context }) {
   const apiKey = env.ANTHROPIC_API_KEY;
   const apiUrl = env.ANTHROPIC_API_URL || 'https://api.anthropic.com/v1/messages';
   const model = 'claude-sonnet-4-5';
@@ -260,7 +266,8 @@ async function generateWithClaudeSonnet45Enhanced(env, { spreadInfo, cardsInfo, 
     userQuestion,
     reflectionsText,
     themes: analysis.themes,
-    spreadAnalysis: analysis.spreadAnalysis
+    spreadAnalysis: analysis.spreadAnalysis,
+    context
   });
 
   const response = await fetch(apiUrl, {
@@ -302,48 +309,51 @@ async function generateWithClaudeSonnet45Enhanced(env, { spreadInfo, cardsInfo, 
 }
 
 const SPREAD_READING_BUILDERS = {
-  celtic: ({ spreadAnalysis, cardsInfo, userQuestion, reflectionsText, themes }) =>
+  celtic: ({ spreadAnalysis, cardsInfo, userQuestion, reflectionsText, themes, context }) =>
     spreadAnalysis
       ? buildCelticCrossReading({
           cardsInfo,
           userQuestion,
           reflectionsText,
           celticAnalysis: spreadAnalysis,
-          themes
+          themes,
+          context
         })
       : null,
-  threeCard: ({ spreadAnalysis, cardsInfo, userQuestion, reflectionsText, themes }) =>
+  threeCard: ({ spreadAnalysis, cardsInfo, userQuestion, reflectionsText, themes, context }) =>
     spreadAnalysis
       ? buildThreeCardReading({
           cardsInfo,
           userQuestion,
           reflectionsText,
           threeCardAnalysis: spreadAnalysis,
-          themes
+          themes,
+          context
         })
       : null,
-  fiveCard: ({ spreadAnalysis, cardsInfo, userQuestion, reflectionsText, themes }) =>
+  fiveCard: ({ spreadAnalysis, cardsInfo, userQuestion, reflectionsText, themes, context }) =>
     spreadAnalysis
       ? buildFiveCardReading({
           cardsInfo,
           userQuestion,
           reflectionsText,
           fiveCardAnalysis: spreadAnalysis,
-          themes
+          themes,
+          context
         })
       : null,
-  relationship: ({ cardsInfo, userQuestion, reflectionsText, themes }) =>
-    buildRelationshipReading({ cardsInfo, userQuestion, reflectionsText, themes }),
-  decision: ({ cardsInfo, userQuestion, reflectionsText, themes }) =>
-    buildDecisionReading({ cardsInfo, userQuestion, reflectionsText, themes }),
-  single: ({ cardsInfo, userQuestion, reflectionsText, themes }) =>
-    buildSingleCardReading({ cardsInfo, userQuestion, reflectionsText, themes })
+  relationship: ({ cardsInfo, userQuestion, reflectionsText, themes, context }) =>
+    buildRelationshipReading({ cardsInfo, userQuestion, reflectionsText, themes, context }),
+  decision: ({ cardsInfo, userQuestion, reflectionsText, themes, context }) =>
+    buildDecisionReading({ cardsInfo, userQuestion, reflectionsText, themes, context }),
+  single: ({ cardsInfo, userQuestion, reflectionsText, themes, context }) =>
+    buildSingleCardReading({ cardsInfo, userQuestion, reflectionsText, themes, context })
 };
 
 /**
  * Enhanced local composer with spread-specific narrative construction
  */
-function composeReadingEnhanced({ spreadInfo, cardsInfo, userQuestion, reflectionsText, analysis }) {
+function composeReadingEnhanced({ spreadInfo, cardsInfo, userQuestion, reflectionsText, analysis, context }) {
   const { themes, spreadAnalysis, spreadKey } = analysis;
 
   return generateReadingFromAnalysis({
@@ -353,11 +363,12 @@ function composeReadingEnhanced({ spreadInfo, cardsInfo, userQuestion, reflectio
     userQuestion,
     reflectionsText,
     themes,
-    spreadInfo
+    spreadInfo,
+    context
   });
 }
 
-function generateReadingFromAnalysis({ spreadKey, spreadAnalysis, cardsInfo, userQuestion, reflectionsText, themes, spreadInfo }) {
+function generateReadingFromAnalysis({ spreadKey, spreadAnalysis, cardsInfo, userQuestion, reflectionsText, themes, spreadInfo, context }) {
   const builder = SPREAD_READING_BUILDERS[spreadKey];
 
   if (builder) {
@@ -367,7 +378,8 @@ function generateReadingFromAnalysis({ spreadKey, spreadAnalysis, cardsInfo, use
       userQuestion,
       reflectionsText,
       themes,
-      spreadInfo
+      spreadInfo,
+      context
     });
 
     if (typeof result === 'string' && result.trim()) {
@@ -380,14 +392,15 @@ function generateReadingFromAnalysis({ spreadKey, spreadAnalysis, cardsInfo, use
     cardsInfo,
     userQuestion,
     reflectionsText,
-    themes
+    themes,
+    context
   });
 }
 
 /**
  * Generic enhanced reading builder (for spreads without specific builders yet)
  */
-function buildGenericReading({ spreadInfo, cardsInfo, userQuestion, reflectionsText, themes }) {
+function buildGenericReading({ spreadInfo, cardsInfo, userQuestion, reflectionsText, themes, context }) {
   const spreadName = spreadInfo?.name?.trim() || 'your chosen spread';
   const entries = [];
   const safeCards = Array.isArray(cardsInfo) ? cardsInfo : [];
@@ -404,7 +417,7 @@ function buildGenericReading({ spreadInfo, cardsInfo, userQuestion, reflectionsT
 
   // Cards section
   entries.push({
-    text: buildCardsSection(safeCards),
+    text: buildCardsSection(safeCards, context),
     metadata: { type: 'cards', cards: safeCards }
   });
 
@@ -419,7 +432,7 @@ function buildGenericReading({ spreadInfo, cardsInfo, userQuestion, reflectionsT
   // Synthesis with enhanced themes
   const finalCard = safeCards.length > 0 ? safeCards[safeCards.length - 1] : null;
   entries.push({
-    text: buildEnhancedSynthesis(safeCards, themes, userQuestion),
+    text: buildEnhancedSynthesis(safeCards, themes, userQuestion, context),
     metadata: { type: 'synthesis', cards: finalCard ? [finalCard] : [] }
   });
 
@@ -434,10 +447,10 @@ function buildGenericReading({ spreadInfo, cardsInfo, userQuestion, reflectionsT
 /**
  * Build cards section with reversal framework awareness
  */
-function buildCardsSection(cardsInfo) {
+function buildCardsSection(cardsInfo, context) {
   const lines = cardsInfo.map(card => {
     const position = (card.position || '').trim() || `Card ${cardsInfo.indexOf(card) + 1}`;
-    const description = buildPositionCardText(card, position);
+    const description = buildPositionCardText(card, position, { context });
     return `**${position}**\n${description}`;
   });
 
@@ -450,12 +463,32 @@ function buildCardsSection(cardsInfo) {
 /**
  * Enhanced synthesis with rich theme analysis
  */
-function buildEnhancedSynthesis(cardsInfo, themes, userQuestion) {
+function buildEnhancedSynthesis(cardsInfo, themes, userQuestion, context) {
   let section = `**Synthesis & Guidance**\n\n`;
+
+  if (context && context !== 'general') {
+    const contextMap = {
+      love: 'relationships and heart-centered experience',
+      career: 'career, vocation, and material pathways',
+      self: 'personal growth and inner landscape',
+      spiritual: 'spiritual practice and meaning-making'
+    };
+    const descriptor = contextMap[context] || 'your life as a whole';
+    section += `Focus: Interpreting the spread through the lens of ${descriptor}.\n\n`;
+  }
 
   // Suit focus
   if (themes.suitFocus) {
     section += `${themes.suitFocus}\n\n`;
+  }
+
+  // Timing profile (soft, non-deterministic)
+  if (themes.timingProfile === 'near-term-tilt') {
+    section += `Pace: These influences are likely to move or clarify in the nearer term, assuming you stay engaged with them.\n\n`;
+  } else if (themes.timingProfile === 'longer-arc-tilt') {
+    section += `Pace: This reading leans toward a slower-burn, structural arc that unfolds over a longer chapter, not overnight.\n\n`;
+  } else if (themes.timingProfile === 'developing-arc') {
+    section += `Pace: Themes here describe an unfolding chapter—neither instant nor distant, but evolving as you work with them.\n\n`;
   }
 
   // Archetype level

@@ -45,8 +45,8 @@ function minor(name, suit, rank, rankValue, position, orientation = 'Upright', m
   };
 }
 
-function buildThemes(cardsInfo, reversalFramework = 'blocked') {
-  const base = analyzeSpreadThemes(cardsInfo);
+async function buildThemes(cardsInfo, reversalFramework = 'blocked') {
+  const base = await analyzeSpreadThemes(cardsInfo);
   // Force a specific, deterministic reversal lens so assertions are stable.
   if (reversalFramework === 'blocked') {
     base.reversalFramework = 'blocked';
@@ -147,7 +147,7 @@ function assertStorySpineSignals(text) {
 // 1. CELTIC CROSS COMPLIANCE
 
 describe('Celtic Cross narrative + Claude prompt compliance', () => {
-  it('buildCelticCrossReading and buildEnhancedClaudePrompt follow narrative guide', () => {
+  it('buildCelticCrossReading and buildEnhancedClaudePrompt follow narrative guide', async () => {
     const cardsInfo = [
       major('The Fool', 0, 'Present — core situation (Card 1)', 'Upright'),
       major('The Magician', 1, 'Challenge — crossing / tension (Card 2)', 'Upright'),
@@ -161,7 +161,7 @@ describe('Celtic Cross narrative + Claude prompt compliance', () => {
       major('The Hermit', 9, 'Outcome — likely path if unchanged (Card 10)', 'Upright')
     ];
 
-    const themes = buildThemes(cardsInfo, 'blocked');
+    const themes = await buildThemes(cardsInfo, 'blocked');
     const celticAnalysis = analyzeCelticCross(cardsInfo);
 
     const reading = buildCelticCrossReading({
@@ -265,14 +265,14 @@ describe('Celtic Cross narrative + Claude prompt compliance', () => {
 // 2. THREE-CARD COMPLIANCE
 
 describe('Three-Card narrative + Claude prompt compliance', () => {
-  it('buildThreeCardReading and prompt respect causal story + ethics', () => {
+  it('buildThreeCardReading and prompt respect causal story + ethics', async () => {
     const cardsInfo = [
       minor('Two of Wands', 'Wands', 'Two', 2, 'Past — influences that led here', 'Upright'),
       minor('Three of Cups', 'Cups', 'Three', 3, 'Present — where you stand now', 'Upright'),
       minor('Six of Swords', 'Swords', 'Six', 6, 'Future — trajectory if nothing shifts', 'Reversed')
     ];
 
-    const themes = buildThemes(cardsInfo, 'internalized');
+    const themes = await buildThemes(cardsInfo, 'internalized');
     const threeCardAnalysis = analyzeThreeCard(cardsInfo);
 
     const reading = buildThreeCardReading({
@@ -326,7 +326,7 @@ describe('Three-Card narrative + Claude prompt compliance', () => {
 // 3. FIVE-CARD / RELATIONSHIP / DECISION / SINGLE-CARD smoke + ethics + spine
 
 describe('Other spread builders prompt-engineering compliance', () => {
-  it('Five-Card Clarity respects narrative rules', () => {
+  it('Five-Card Clarity respects narrative rules', async () => {
     const cardsInfo = [
       major('The Fool', 0, 'Core of the matter', 'Upright'),
       major('The Magician', 1, 'Challenge or tension', 'Reversed'),
@@ -335,7 +335,7 @@ describe('Other spread builders prompt-engineering compliance', () => {
       major('The World', 21, 'Likely direction on current path', 'Upright')
     ];
 
-    const themes = buildThemes(cardsInfo, 'blocked');
+    const themes = await buildThemes(cardsInfo, 'blocked');
     const fiveCardAnalysis = analyzeFiveCard(cardsInfo);
 
     const reading = buildFiveCardReading({
@@ -358,7 +358,7 @@ describe('Other spread builders prompt-engineering compliance', () => {
     );
   });
 
-  it('Relationship Snapshot respects narrative rules', () => {
+  it('Relationship Snapshot respects narrative rules', async () => {
     const cardsInfo = [
       minor('Knight of Cups', 'Cups', 'Knight', 12, 'You / your energy', 'Upright'),
       minor('Queen of Swords', 'Swords', 'Queen', 13, 'Them / their energy', 'Upright'),
@@ -367,7 +367,7 @@ describe('Other spread builders prompt-engineering compliance', () => {
       minor('Ten of Pentacles', 'Pentacles', 'Ten', 10, 'Outcome / what this can become', 'Upright')
     ];
 
-    const themes = buildThemes(cardsInfo, 'internalized');
+    const themes = await buildThemes(cardsInfo, 'internalized');
 
     const reading = buildRelationshipReading({
       cardsInfo,
@@ -388,7 +388,7 @@ describe('Other spread builders prompt-engineering compliance', () => {
     );
   });
 
-  it('Decision / Two-Path respects narrative rules', () => {
+  it('Decision / Two-Path respects narrative rules', async () => {
     const cardsInfo = [
       major('The High Priestess', 2, 'Heart of the decision', 'Upright'),
       major('The Sun', 19, 'Path A — energy & likely outcome', 'Upright'),
@@ -397,7 +397,7 @@ describe('Other spread builders prompt-engineering compliance', () => {
       major('Justice', 11, 'What to remember about your free will', 'Upright')
     ];
 
-    const themes = buildThemes(cardsInfo, 'blocked');
+    const themes = await buildThemes(cardsInfo, 'blocked');
 
     const reading = buildDecisionReading({
       cardsInfo,
@@ -418,12 +418,12 @@ describe('Other spread builders prompt-engineering compliance', () => {
     );
   });
 
-  it('Single-Card Insight respects narrative rules', () => {
+  it('Single-Card Insight respects narrative rules', async () => {
     const cardsInfo = [
       major('The Star', 17, 'Theme / Guidance of the Moment', 'Upright')
     ];
 
-    const themes = buildThemes(cardsInfo, 'internalized');
+    const themes = await buildThemes(cardsInfo, 'internalized');
 
     const reading = buildSingleCardReading({
       cardsInfo,
@@ -444,14 +444,14 @@ describe('Other spread builders prompt-engineering compliance', () => {
     );
   });
 
-  it('surfaces amplified elemental imagery when elements repeat', () => {
+  it('surfaces amplified elemental imagery when elements repeat', async () => {
     const cardsInfo = [
       minor('Two of Wands', 'Wands', 'Two', 2, 'Past — influences that led here', 'Upright'),
       minor('Four of Wands', 'Wands', 'Four', 4, 'Present — where you stand now', 'Upright'),
       minor('Six of Wands', 'Wands', 'Six', 6, 'Future — trajectory if nothing shifts', 'Upright')
     ];
 
-    const themes = buildThemes(cardsInfo, 'blocked');
+    const themes = await buildThemes(cardsInfo, 'blocked');
     const threeCardAnalysis = analyzeThreeCard(cardsInfo);
 
     const reading = buildThreeCardReading({
@@ -470,12 +470,12 @@ describe('Other spread builders prompt-engineering compliance', () => {
     // Prompt imagery handled in spread-specific builders (e.g., Celtic Cross). Reading check suffices here.
   });
 
-  it('enriches Minor pip cards with rank-specific imagery hooks', () => {
+  it('enriches Minor pip cards with rank-specific imagery hooks', async () => {
     const cardsInfo = [
       minor('Ace of Cups', 'Cups', 'Ace', 1, 'Theme / Guidance of the Moment', 'Upright')
     ];
 
-    const themes = buildThemes(cardsInfo, 'internalized');
+    const themes = await buildThemes(cardsInfo, 'internalized');
 
     const { userPrompt } = buildEnhancedClaudePrompt({
       spreadInfo: { name: 'One-Card Insight' },

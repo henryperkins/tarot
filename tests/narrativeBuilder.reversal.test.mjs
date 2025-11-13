@@ -74,8 +74,8 @@ function buildReversedThreeCards() {
   ];
 }
 
-function buildBlockedThemes(cardsInfo) {
-  const themes = analyzeSpreadThemes(cardsInfo);
+async function buildBlockedThemes(cardsInfo) {
+  const themes = await analyzeSpreadThemes(cardsInfo);
   // Force framework to blocked for predictable assertions
   themes.reversalFramework = 'blocked';
   themes.reversalDescription = {
@@ -86,9 +86,9 @@ function buildBlockedThemes(cardsInfo) {
   return themes;
 }
 
-{
+(async () => {
   const cardsInfo = buildReversedCelticCards();
-  const themes = buildBlockedThemes(cardsInfo);
+  const themes = await buildBlockedThemes(cardsInfo);
   const celticAnalysis = analyzeCelticCross(cardsInfo);
 
   const reading = buildCelticCrossReading({
@@ -125,11 +125,11 @@ function buildBlockedThemes(cardsInfo) {
     userPrompt.includes('Within the Blocked Energy lens'),
     'Claude prompt should reinforce the selected reversal framework'
   );
-}
+})();
 
-{
+(async () => {
   const cardsInfo = buildReversedThreeCards();
-  const themes = buildBlockedThemes(cardsInfo);
+  const themes = await buildBlockedThemes(cardsInfo);
   const threeCardAnalysis = null;
 
   const reading = buildThreeCardReading({
@@ -166,6 +166,6 @@ function buildBlockedThemes(cardsInfo) {
     /At this rank, it marks/.test(text),
     'Minor summary should include pip-level numerology for non-court ranks'
   );
-}
+})();
 
 console.log('narrativeBuilder reversal tests passed');
