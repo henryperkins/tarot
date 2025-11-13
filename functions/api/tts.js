@@ -27,8 +27,9 @@
  */
 export const onRequestGet = async ({ env }) => {
   // Health check endpoint
-  const azureEndpoint = resolveEnv(env, 'AZURE_OPENAI_ENDPOINT');
-  const azureKey = resolveEnv(env, 'AZURE_OPENAI_API_KEY');
+  // TTS can use separate credentials (AZURE_OPENAI_TTS_*) or fall back to shared credentials
+  const azureEndpoint = resolveEnv(env, 'AZURE_OPENAI_TTS_ENDPOINT') || resolveEnv(env, 'AZURE_OPENAI_ENDPOINT');
+  const azureKey = resolveEnv(env, 'AZURE_OPENAI_TTS_API_KEY') || resolveEnv(env, 'AZURE_OPENAI_API_KEY');
   const azureDeployment = resolveEnv(env, 'AZURE_OPENAI_GPT_AUDIO_MINI_DEPLOYMENT');
   const hasAzure = !!(azureEndpoint && azureKey && azureDeployment);
   return jsonResponse({
@@ -54,9 +55,10 @@ export const onRequestPost = async ({ request, env }) => {
     }
 
     // Primary: Azure OpenAI gpt-4o-mini-tts with steerable instructions
+    // TTS can use separate credentials (AZURE_OPENAI_TTS_*) or fall back to shared credentials
     const azureConfig = {
-      endpoint: resolveEnv(env, 'AZURE_OPENAI_ENDPOINT'),
-      apiKey: resolveEnv(env, 'AZURE_OPENAI_API_KEY'),
+      endpoint: resolveEnv(env, 'AZURE_OPENAI_TTS_ENDPOINT') || resolveEnv(env, 'AZURE_OPENAI_ENDPOINT'),
+      apiKey: resolveEnv(env, 'AZURE_OPENAI_TTS_API_KEY') || resolveEnv(env, 'AZURE_OPENAI_API_KEY'),
       deployment: resolveEnv(env, 'AZURE_OPENAI_GPT_AUDIO_MINI_DEPLOYMENT'),
       apiVersion: resolveEnv(env, 'AZURE_OPENAI_API_VERSION'),
       format: resolveEnv(env, 'AZURE_OPENAI_GPT_AUDIO_MINI_FORMAT'),
@@ -178,11 +180,13 @@ async function generateWithAzureGptMiniTTS(env, { text, context, voice, speed })
   // Format 2 (deployment-specific): POST {endpoint}/openai/deployments/{deployment}/audio/speech?api-version={version}
   //
   // Required env vars:
-  // - AZURE_OPENAI_ENDPOINT: https://YOUR-RESOURCE.openai.azure.com
-  // - AZURE_OPENAI_API_KEY: API key for the Azure OpenAI resource
-  // - AZURE_OPENAI_GPT_AUDIO_MINI_DEPLOYMENT: deployment name (e.g., "gpt-4o-mini-tts")
+  // - AZURE_OPENAI_TTS_ENDPOINT (or AZURE_OPENAI_ENDPOINT): https://YOUR-RESOURCE.openai.azure.com
+  // - AZURE_OPENAI_TTS_API_KEY (or AZURE_OPENAI_API_KEY): API key for the Azure OpenAI resource
+  // - AZURE_OPENAI_GPT_AUDIO_MINI_DEPLOYMENT: deployment name (e.g., "gpt-audio-mini")
   // - AZURE_OPENAI_API_VERSION: optional, defaults to "preview" for v1 format
   // - AZURE_OPENAI_USE_V1_FORMAT: optional, set to "true" to use v1 format (default: false)
+  //
+  // Note: TTS-specific credentials (AZURE_OPENAI_TTS_*) take precedence, falling back to shared credentials
   //
   // API Reference: https://learn.microsoft.com/en-us/azure/ai-foundry/openai/reference-preview-latest#create-speech
   //

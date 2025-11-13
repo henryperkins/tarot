@@ -4,8 +4,8 @@
  * Enhanced with authentic position-relationship analysis, elemental dignities,
  * and spread-specific narrative construction.
  *
- * Delegates narrative synthesis to Anthropic Claude Sonnet 4.5
- * (model: "claude-sonnet-4.5") when ANTHROPIC_API_KEY is configured.
+ * Delegates narrative synthesis to Azure OpenAI GPT-5 via the Responses API
+ * when AZURE_OPENAI_API_KEY / AZURE_OPENAI_ENDPOINT / AZURE_OPENAI_GPT5_MODEL are configured.
  * Falls back to local deterministic composer with full analysis.
  */
 
@@ -34,7 +34,7 @@ export const onRequestGet = async ({ env }) => {
   // Health check endpoint
   return jsonResponse({
     status: 'ok',
-    provider: env?.ANTHROPIC_API_KEY ? 'anthropic-claude-sonnet-4.5' : 'local',
+    provider: env?.AZURE_OPENAI_GPT5_MODEL ? 'azure-gpt5' : 'local',
     timestamp: new Date().toISOString()
   });
 };
@@ -59,13 +59,13 @@ export const onRequestPost = async ({ request, env }) => {
 
     const context = inferContext(userQuestion, analysis.spreadKey);
 
-    // STEP 2: Generate reading (Claude or local)
+    // STEP 2: Generate reading (Azure GPT-5 via Responses API or local)
     let reading;
-    let usedClaude = false;
+    let usedAzureGPT5 = false;
 
-    if (env && env.ANTHROPIC_API_KEY) {
+    if (env && env.AZURE_OPENAI_API_KEY && env.AZURE_OPENAI_ENDPOINT && env.AZURE_OPENAI_GPT5_MODEL) {
       try {
-        reading = await generateWithClaudeSonnet45Enhanced(env, {
+        reading = await generateWithAzureGPT5Responses(env, {
           spreadInfo,
           cardsInfo,
           userQuestion,
@@ -73,9 +73,9 @@ export const onRequestPost = async ({ request, env }) => {
           analysis,
           context
         });
-        usedClaude = true;
+        usedAzureGPT5 = true;
       } catch (err) {
-        console.error('Anthropic Claude Sonnet 4.5 generation failed, falling back to local composer:', err);
+        console.error('Azure OpenAI GPT-5 Responses API generation failed, falling back to local composer:', err);
       }
     }
 
