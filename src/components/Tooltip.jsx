@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
+import React, { useEffect, useId, useRef, useState } from 'react';
 import { Info } from 'lucide-react';
 
 /**
- * Accessible tooltip component with keyboard navigation support.
+ * Accessible tooltip component with keyboard, mouse, and touch support.
  *
  * @param {Object} props
  * @param {string} props.content - Tooltip text content
@@ -17,6 +17,36 @@ export function Tooltip({
   size = 'sm'
 }) {
   const [isVisible, setIsVisible] = useState(false);
+  const rootRef = useRef(null);
+  const triggerRef = useRef(null);
+  const tooltipRef = useRef(null);
+  const tooltipId = useId();
+
+  useEffect(() => {
+    if (!isVisible || typeof window === 'undefined') {
+      return undefined;
+    }
+
+    const handleKeyDown = event => {
+      if (event.key === 'Escape') {
+        setIsVisible(false);
+      }
+    };
+
+    const handlePointerDown = event => {
+      if (rootRef.current && !rootRef.current.contains(event.target)) {
+        setIsVisible(false);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('pointerdown', handlePointerDown);
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('pointerdown', handlePointerDown);
+    };
+  }, [isVisible]);
 
   const sizeClasses = {
     sm: 'w-3.5 h-3.5',
@@ -38,15 +68,60 @@ export function Tooltip({
     right: 'right-full top-1/2 -translate-y-1/2 border-t-transparent border-b-transparent border-l-transparent border-r-slate-800'
   };
 
+  const handleToggle = event => {
+    event.preventDefault();
+    setIsVisible(previous => !previous);
+  };
+
+  const handleMouseEnter = () => {
+    setIsVisible(true);
+  };
+
+  const handleMouseLeave = () => {
+    if (
+      typeof document !== 'undefined' &&
+      triggerRef.current &&
+      triggerRef.current === document.activeElement
+    ) {
+      return;
+    }
+    setIsVisible(false);
+  };
+
+  const handleFocus = () => {
+    setIsVisible(true);
+  };
+
+  const handleBlur = () => {
+    const schedule =
+      typeof window !== 'undefined' && typeof window.requestAnimationFrame === 'function'
+        ? window.requestAnimationFrame
+        : callback => {
+            setTimeout(callback, 0);
+          };
+
+    schedule(() => {
+      if (typeof document === 'undefined' || !rootRef.current) return;
+      if (!rootRef.current.contains(document.activeElement)) {
+        setIsVisible(false);
+      }
+    });
+  };
+
   return (
-    <div className="relative inline-flex items-center">
+    <div ref={rootRef} className="relative inline-flex items-center">
       <button
         type="button"
-        onMouseEnter={() => setIsVisible(true)}
-        onMouseLeave={() => setIsVisible(false)}
-        onFocus={() => setIsVisible(true)}
-        onBlur={() => setIsVisible(false)}
+        ref={triggerRef}
+        onClick={handleToggle}
+        onMouseEnter={handleMouseEnter}
+        onMouseLeave={handleMouseLeave}
+        onFocus={handleFocus}
+        onBlur={handleBlur}
         aria-label="More information"
+        aria-haspopup="true"
+        aria-expanded={isVisible}
+        aria-controls={isVisible ? tooltipId : undefined}
         className="inline-flex items-center justify-center text-amber-400/60 hover:text-amber-400 transition-colors focus:outline-none focus:ring-2 focus:ring-amber-400/50 rounded-full"
       >
         {children || <Info className={sizeClasses[size]} />}
@@ -56,9 +131,11 @@ export function Tooltip({
       {isVisible && (
         <div
           role="tooltip"
-          className={`absolute z-50 ${positionClasses[position]} pointer-events-none`}
+          id={tooltipId}
+          ref={tooltipRef}
+          className={`absolute z-50 ${positionClasses[position]} max-w-xs`}
         >
-          <div className="relative bg-slate-800 text-amber-50 text-xs rounded-lg px-3 py-2 shadow-xl border border-amber-500/20 max-w-xs whitespace-normal">
+          <div className="relative bg-slate-800 text-amber-50 text-xs rounded-lg px-3 py-2 shadow-xl border border-amber-500/20 whitespace-normal">
             {content}
             {/* Arrow */}
             <div

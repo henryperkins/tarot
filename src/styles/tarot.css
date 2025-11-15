@@ -20,6 +20,19 @@ html {
   }
 }
 
+/* Mobile typography guardrail to maintain legibility */
+@media (max-width: 640px) {
+  .text-xs {
+    font-size: 0.8125rem;
+    line-height: 1.35;
+  }
+
+  .text-xs-plus {
+    font-size: 0.875rem;
+    line-height: 1.4;
+  }
+}
+
 @media (prefers-reduced-motion: no-preference) {
   @keyframes flipCard {
     0% {
@@ -107,14 +120,27 @@ html {
   }
 }
 
-/* Tablet: 3-column Celtic Cross without awkward overlaps */
-@media (min-width: 640px) and (max-width: 1023px) {
+/* Small tablets: balanced 2-column Celtic Cross */
+@media (min-width: 640px) and (max-width: 767px) {
+  .cc-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-areas:
+      "past     present"
+      "future   challenge"
+      "above    below"
+      "advice   external"
+      "hopesfears outcome";
+    gap: 1.25rem;
+  }
+}
+
+/* Large tablets: symmetric 3-column Celtic Cross */
+@media (min-width: 768px) and (max-width: 1023px) {
   .cc-grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
     grid-template-areas:
       "past    present   future"
-      "left    challenge right"
-      "above   below     below"
+      "above   challenge below"
       "advice  external  hopesfears"
       "outcome outcome   outcome";
     gap: 1.4rem;

@@ -53,7 +53,7 @@ export function ReadingGrid({
         return (
           <div
             key={`${card.name}-${index}`}
-            className={`modern-surface border border-emerald-400/18 overflow-hidden ${
+            className={`modern-surface border border-emerald-400/40 overflow-hidden ${
               selectedSpread === 'celtic' ? toAreaClass(position) : ''
             }`}
           >

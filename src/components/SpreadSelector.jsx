@@ -65,12 +65,12 @@ export function SpreadSelector({
               <div className="font-serif font-semibold text-sm sm:text-base flex items-center gap-2">
                 {spread.name}
                 {isActive && (
-                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-500/20 border border-emerald-400/60 text-[9px] uppercase tracking-[0.16em]">
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-500/20 border border-emerald-400/60 text-xs-plus uppercase tracking-[0.16em]">
                     ✓ Selected
                   </span>
                 )}
               </div>
-              <div className="text-[10px] sm:text-xs opacity-80 mt-0.5">
+              <div className="text-xs-plus sm:text-sm opacity-80 mt-0.5">
                 {spread.count} card{spread.count > 1 ? 's' : ''} · {spread.description || 'Guided snapshot for your focus.'}
               </div>
             </button>

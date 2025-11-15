@@ -872,7 +872,7 @@ export default function TarotReading() {
         {/* Step 1–3: Spread + Intention + Rituals */}
         <section className="mb-6 xl:mb-4" aria-label="Reading setup">
           <div className="mb-4 sm:mb-5">
-            <p className="text-[10px] sm:text-xs uppercase tracking-[0.18em] text-emerald-300/85">
+            <p className="text-xs-plus sm:text-sm uppercase tracking-[0.18em] text-emerald-300/85">
               {stepIndicatorLabel}
             </p>
             <p className="mt-1 text-amber-100/80 text-xs sm:text-sm">
@@ -977,7 +977,7 @@ export default function TarotReading() {
               {SPREADS[selectedSpread].name}
             </div>
             {reading.length > 1 && (
-              <p className="text-center text-amber-100/70 text-xs mb-4">
+              <p className="text-center text-amber-100/85 text-xs-plus sm:text-sm mb-4">
                 Reveal in order for a narrative flow, or follow your intuition and reveal randomly.
               </p>
             )}
@@ -1044,7 +1044,7 @@ export default function TarotReading() {
 
             {/* Dynamic Insights */}
             {revealedCards.size === reading.length && (
-              <div className="modern-surface p-4 sm:p-6 border border-emerald-400/22 space-y-4">
+              <div className="modern-surface p-4 sm:p-6 border border-emerald-400/40 space-y-4">
                 <h3 className="text-base sm:text-lg font-serif text-amber-200 mb-3 flex items-center gap-2">
                   <Star className="w-4 h-4 sm:w-5 sm:h-5" />
                   Spread Highlights
@@ -1081,7 +1081,7 @@ export default function TarotReading() {
                            Reversed cards ({reversedIdx.length}):
                          </span>{' '}
                          {positions}.
-                         <span className="block text-amber-100/70">
+                        <span className="block text-amber-100/85">
                            These often point to inner processing, timing delays, or tension in the theme.
                            {hasCluster &&
                              ' Noticing consecutive reversals suggests the theme persists across positions.'}
@@ -1214,7 +1214,7 @@ export default function TarotReading() {
 
             {/* Personal Reading Display */}
             {personalReading && (
-               <div className="bg-gradient-to-r from-slate-900/80 via-slate-950/95 to-slate-900/80 backdrop-blur-xl rounded-2xl p-5 sm:p-8 border border-emerald-400/25 shadow-2xl shadow-emerald-900/40 max-w-3xl mx-auto">
+               <div className="bg-gradient-to-r from-slate-900/80 via-slate-950/95 to-slate-900/80 backdrop-blur-xl rounded-2xl p-5 sm:p-8 border border-emerald-400/40 shadow-2xl shadow-emerald-900/40 max-w-3xl mx-auto">
                 <h3 className="text-xl sm:text-2xl font-serif text-amber-200 mb-2 flex items-center gap-2">
                   <Sparkles className="w-5 h-5 sm:w-6 sm:h-6 text-emerald-300" />
                   Your Personalized Narrative
@@ -1224,7 +1224,7 @@ export default function TarotReading() {
                   Read slowly, notice what resonates, and treat it as a mirror—not a script.
                 </p>
                 {userQuestion && (
-             <div className="bg-slate-950/85 rounded-lg p-4 mb-4 border border-emerald-400/22">
+            <div className="bg-slate-950/85 rounded-lg p-4 mb-4 border border-emerald-400/40">
                <p className="text-amber-300/85 text-xs sm:text-sm italic">
                  Anchor: {userQuestion}
                </p>
@@ -1320,7 +1320,7 @@ export default function TarotReading() {
 
             {/* General Guidance */}
             {!personalReading && !isGenerating && (
-              <div className="bg-gradient-to-r from-slate-900/80 to-slate-950/90 backdrop-blur-xl rounded-2xl p-4 sm:p-6 border border-emerald-400/20 max-w-2xl mx-auto">
+              <div className="bg-gradient-to-r from-slate-900/80 to-slate-950/90 backdrop-blur-xl rounded-2xl p-4 sm:p-6 border border-emerald-400/40 max-w-2xl mx-auto">
                 <h3 className="text-lg sm:text-xl font-serif text-amber-200 mb-2 sm:mb-3 flex items-center gap-2">
                   <Star className="w-4 h-4 sm:w-5 sm:h-5" />
                   Interpretation Guidance

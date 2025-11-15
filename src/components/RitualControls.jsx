@@ -19,7 +19,7 @@ export function RitualControls({
       <button
         type="button"
         onClick={() => setIsExpanded(!isExpanded)}
-        className="md:hidden w-full flex items-center justify-between mb-3 p-3 bg-slate-900/40 rounded-lg border border-emerald-400/20 hover:bg-slate-900/60 transition"
+        className="md:hidden w-full flex items-center justify-between mb-3 p-3 bg-slate-900/40 rounded-lg border border-emerald-400/40 hover:bg-slate-900/60 transition"
         aria-expanded={isExpanded}
         aria-controls="ritual-content"
       >
@@ -49,7 +49,7 @@ export function RitualControls({
           >
             {hasKnocked ? 'Cleared · 3 of 3' : `Knock ${Math.min(knocksCount + 1, 3)} of 3`}
           </button>
-          <div className="text-amber-100/70 text-[10px] sm:text-xs mt-2">
+          <div className="text-amber-100/85 text-xs-plus sm:text-sm mt-2">
             Ritual progress: {knocksCount}/3 knocks registered.
           </div>
         </div>
@@ -84,7 +84,7 @@ export function RitualControls({
               {hasCut ? 'Cut confirmed' : 'Confirm cut'}
             </button>
           </div>
-          <div className="text-[10px] sm:text-xs text-amber-100/70 mt-1">
+          <div className="text-amber-100/85 text-xs-plus sm:text-sm mt-1">
             Cut at <span className="font-semibold">{cutIndex}</span> of {deckSize} · This point influences which cards appear.
             {hasCut && <span className="ml-1 text-emerald-300">Cut locked in.</span>}
           </div>
@@ -92,7 +92,7 @@ export function RitualControls({
       </div>
 
       {/* Subtle helper line */}
-      <div className="text-amber-100/60 text-xs mt-4 mobile-hide">
+      <div className="text-amber-100/85 text-xs-plus sm:text-sm mt-4 mobile-hide">
         Ritual actions add intention, mirroring real readings where your energy guides the cards.
       </div>
       </div>

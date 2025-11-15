@@ -46,12 +46,12 @@ export function SettingsToggles({
         </label>
         {/* Voice Status Indicator */}
         {voiceOn ? (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-400/40 text-emerald-300 text-[10px] font-medium">
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-400/40 text-emerald-300 text-xs-plus font-medium">
             <Volume2 className="w-3 h-3" />
             Enabled
           </span>
         ) : (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-slate-800/50 border border-slate-600/40 text-slate-400 text-[10px] font-medium">
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-slate-800/50 border border-slate-600/40 text-slate-400 text-xs-plus font-medium">
             <VolumeX className="w-3 h-3" />
             Off
           </span>

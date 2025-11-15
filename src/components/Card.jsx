@@ -105,10 +105,10 @@ export function Card({
   return (
     <div
       key={`${card.name}-${index}`}
-      className="modern-surface border border-emerald-400/22 overflow-hidden"
+      className="modern-surface border border-emerald-400/40 overflow-hidden"
     >
       {/* Position Label */}
-      <div className="bg-slate-950/80 p-2 sm:p-3 border-b border-emerald-400/18">
+      <div className="bg-slate-950/80 p-2 sm:p-3 border-b border-emerald-400/40">
         <h3 className="text-amber-300 font-serif text-center font-semibold text-sm sm:text-base">{position}</h3>
       </div>
 
@@ -148,7 +148,7 @@ export function Card({
                   </div>
                 </div>
               </div>
-              <div className="mt-3 text-[10px] font-serif tracking-[0.18em] uppercase text-amber-200/75">
+              <div className="mt-3 text-xs-plus font-serif tracking-[0.18em] uppercase text-amber-200/75">
                 Tap to cut the veil
               </div>
             </div>
@@ -218,7 +218,7 @@ export function Card({
 
               <div className="text-center mb-3">
                 <span
-                  className={`inline-block px-3 py-1 rounded-full text-[10px] font-semibold tracking-wide ${
+                  className={`inline-block px-3 py-1 rounded-full text-xs-plus font-semibold tracking-wide ${
                     card.isReversed
                       ? 'bg-slate-900/90 text-cyan-300 border border-cyan-400/50'
                       : 'bg-emerald-500/10 text-emerald-300 border border-emerald-400/60'
@@ -228,7 +228,7 @@ export function Card({
                 </span>
               </div>
 
-              <div className="bg-slate-950/85 rounded p-4 border border-emerald-400/16">
+              <div className="bg-slate-950/85 rounded p-4 border border-emerald-400/40">
                 <p className="text-amber-100/90 text-sm sm:text-base leading-relaxed">
                   {(() => {
                     const allCards = [...MAJOR_ARCANA, ...MINOR_ARCANA];
@@ -239,14 +239,14 @@ export function Card({
                 </p>
               </div>
               <div className="mt-3">
-                <label className="text-amber-100/70 text-xs sm:text-xs-plus block mb-1">What resonates for you?</label>
+                <label className="text-amber-100/85 text-xs-plus sm:text-sm block mb-1">What resonates for you?</label>
                 <textarea
                   value={reflections[index] || ''}
                   onChange={event =>
                     setReflections(prev => ({ ...prev, [index]: event.target.value }))
                   }
                   rows={2}
-                  className="w-full bg-slate-950/85 border border-emerald-400/22 rounded p-2 text-amber-100/90 text-sm sm:text-base focus:outline-none focus:ring-1 focus:ring-emerald-400/55"
+                  className="w-full bg-slate-950/85 border border-emerald-400/40 rounded p-2 text-amber-100/90 text-sm sm:text-base focus:outline-none focus:ring-1 focus:ring-emerald-400/55"
                   placeholder="Write a sentence or two..."
                 />
               </div>

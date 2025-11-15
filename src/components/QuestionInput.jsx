@@ -12,9 +12,9 @@ export function QuestionInput({ userQuestion, setUserQuestion, placeholderIndex 
         value={userQuestion}
         onChange={event => setUserQuestion(event.target.value)}
         placeholder={EXAMPLE_QUESTIONS[placeholderIndex]}
-        className="w-full bg-slate-950/80 border border-emerald-400/25 rounded-lg px-4 py-3 text-amber-100 placeholder-emerald-200/35 focus:outline-none focus:border-emerald-400 focus:ring-1 focus:ring-emerald-400/70 transition-all"
+        className="w-full bg-slate-950/80 border border-emerald-400/40 rounded-lg px-4 py-3 text-amber-100 placeholder-emerald-200/35 focus:outline-none focus:border-emerald-400 focus:ring-1 focus:ring-emerald-400/70 transition-all"
       />
-      <p className="text-amber-100/60 text-sm mt-2">Focus your intention for a more personalized reading</p>
+      <p className="text-amber-100/85 text-sm mt-2">Focus your intention for a more personalized reading</p>
     </div>
   );
 }
