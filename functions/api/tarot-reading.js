@@ -14,7 +14,9 @@ import {
   analyzeSpreadThemes,
   analyzeCelticCross,
   analyzeThreeCard,
-  analyzeFiveCard
+  analyzeFiveCard,
+  analyzeRelationship,
+  analyzeDecision
 } from '../lib/spreadAnalysis.js';
 
 import {
@@ -29,6 +31,7 @@ import {
 } from '../lib/narrativeBuilder.js';
 import { enhanceSection } from '../lib/narrativeSpine.js';
 import { inferContext } from '../lib/contextDetection.js';
+import { parseMinorName } from '../lib/minorMeta.js';
 
 const SPREAD_NAME_MAP = {
   'Celtic Cross (Classic 10-Card)': { key: 'celtic', count: 10 },
@@ -280,6 +283,14 @@ async function performSpreadAnalysis(spreadInfo, cardsInfo, options = {}, reques
       console.log(`[${requestId}] Performing Five-Card analysis...`);
       spreadAnalysis = analyzeFiveCard(cardsInfo);
       console.log(`[${requestId}] Five-Card analysis complete`);
+    } else if (spreadKey === 'relationship' && cardsInfo.length >= 3) {
+      console.log(`[${requestId}] Performing Relationship analysis...`);
+      spreadAnalysis = analyzeRelationship(cardsInfo);
+      console.log(`[${requestId}] Relationship analysis complete`);
+    } else if (spreadKey === 'decision' && cardsInfo.length === 5) {
+      console.log(`[${requestId}] Performing Decision analysis...`);
+      spreadAnalysis = analyzeDecision(cardsInfo);
+      console.log(`[${requestId}] Decision analysis complete`);
     } else {
       console.log(`[${requestId}] No specific analysis for spreadKey: ${spreadKey} with ${cardsInfo.length} cards`);
     }
@@ -344,6 +355,38 @@ export function validatePayload({ spreadInfo, cardsInfo }) {
 
   if (hasInvalidCard) {
     return 'One or more cards are missing required details.';
+  }
+
+  // Warn (without rejecting) if Minor Arcana cards are missing suit/rank metadata.
+  const minorMetadataIssues = [];
+  cardsInfo.forEach((card, index) => {
+    if (!card || typeof card.card !== 'string') return;
+    const parsed = parseMinorName(card.card);
+    if (!parsed) return; // Not a Minor Arcana title (likely Major)
+
+    const hasSuit = typeof card.suit === 'string' && card.suit.trim().length > 0;
+    const hasRank = typeof card.rank === 'string' && card.rank.trim().length > 0;
+    const hasRankValue = typeof card.rankValue === 'number';
+
+    if (hasSuit && hasRank && hasRankValue) {
+      return;
+    }
+
+    const missing = [];
+    if (!hasSuit) missing.push('suit');
+    if (!hasRank) missing.push('rank');
+    if (!hasRankValue) missing.push('rankValue');
+
+    minorMetadataIssues.push(
+      `${card.card} @ position ${index + 1} missing ${missing.join(', ')}`
+    );
+  });
+
+  if (minorMetadataIssues.length > 0) {
+    console.warn(
+      '[validatePayload] Minor Arcana metadata incomplete; falling back to string parsing which may degrade nuance:',
+      minorMetadataIssues.join(' | ')
+    );
   }
 
   return null;

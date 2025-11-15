@@ -271,12 +271,13 @@ export default function TarotReading() {
   // Server-centric spread analysis (Strategy C)
   const [spreadAnalysis, setSpreadAnalysis] = useState(null);
   const [themes, setThemes] = useState(null);
+  const [analysisContext, setAnalysisContext] = useState(null);
 
-  // Local fallback relationships: only used when no spreadAnalysis is available.
+  // Local fallback relationships: only used when server does not provide canonical relationships.
   const relationships = useMemo(() => {
     if (!reading || !reading.length) return [];
-    if (spreadAnalysis && (Array.isArray(spreadAnalysis.relationships) || spreadAnalysis.themes)) {
-      // When server analysis is present, UI components should derive highlights from it instead.
+    if (spreadAnalysis && Array.isArray(spreadAnalysis.relationships)) {
+      // Canonical server relationships take precedence.
       return [];
     }
     return computeRelationships(reading || []);
@@ -374,7 +375,9 @@ export default function TarotReading() {
       // Save both raw markdown and formatted versions
       personalReading: personalReading?.raw || personalReading?.normalized || '',
       // Keep formatted version for potential future use
-      personalReadingFormatted: personalReading
+      personalReadingFormatted: personalReading,
+      themes: themes || null,
+      context: analysisContext || null
     };
 
     try {
@@ -528,6 +531,7 @@ export default function TarotReading() {
     setPersonalReading(null);
     setThemes(null);
     setSpreadAnalysis(null);
+    setAnalysisContext(null);
     setAnalyzingText('');
     setIsGenerating(false);
     setDealIndex(0);
@@ -665,6 +669,7 @@ export default function TarotReading() {
       // Persist server-side themes and spreadAnalysis as single source of truth when present
       setThemes(data.themes || null);
       setSpreadAnalysis(data.spreadAnalysis || null);
+      setAnalysisContext(data.context || null);
 
       // Format reading for both UI display and TTS narration
       const formatted = formatReading(data.reading.trim());

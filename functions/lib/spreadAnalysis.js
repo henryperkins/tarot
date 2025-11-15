@@ -856,3 +856,217 @@ export function analyzeFiveCard(cardsInfo) {
     synthesis
   };
 }
+
+/**
+ * RELATIONSHIP SNAPSHOT ANALYSIS
+ *
+ * Maps the interplay between You ↔ Them and the shared Connection card.
+ */
+export function analyzeRelationship(cardsInfo) {
+  if (!Array.isArray(cardsInfo) || cardsInfo.length < 3) {
+    return null;
+  }
+
+  const [you, them, connection] = cardsInfo;
+  if (!you || !them || !connection) {
+    return null;
+  }
+
+  const youLabel = you.position || 'You / your energy';
+  const themLabel = them.position || 'Them / their energy';
+  const connectionLabel = connection.position || 'The connection / shared lesson';
+
+  const youVsThem = comparePositions(you, them, youLabel, themLabel);
+  const youBridge = analyzeElementalDignity(connection, you);
+  const themBridge = analyzeElementalDignity(connection, them);
+
+  const connectionSummaryParts = [
+    `${connection.card} ${connection.orientation} anchors the shared lesson between you.`,
+    connection.meaning ? connection.meaning : null,
+    youBridge?.description ? `With your card, ${youBridge.description}.` : null,
+    themBridge?.description ? `With their card, ${themBridge.description}.` : null
+  ].filter(Boolean);
+
+  const relationships = [];
+  if (youVsThem) {
+    relationships.push({
+      type: 'axis',
+      axis: 'You ↔ Them',
+      summary: youVsThem.synthesis,
+      positions: [0, 1],
+      cards: [
+        { card: you.card, orientation: you.orientation },
+        { card: them.card, orientation: them.orientation }
+      ],
+      elementalRelationship: youVsThem.elementalRelationship
+    });
+  }
+
+  relationships.push({
+    type: 'connection',
+    summary:
+      connectionSummaryParts.join(' ') ||
+      `${connection.card} illustrates the shared energy in this connection.`,
+    positions: [2],
+    cards: [{ card: connection.card, orientation: connection.orientation }],
+    bridges: {
+      toYou: youBridge,
+      toThem: themBridge
+    }
+  });
+
+  return {
+    version: '1.0.0',
+    spreadKey: 'relationship',
+    relationships,
+    positionNotes: [
+      { index: 0, label: 'You / your energy', notes: ['How you are currently showing up.'] },
+      { index: 1, label: 'Them / their energy', notes: ['How they are approaching the connection.'] },
+      { index: 2, label: 'The connection / shared lesson', notes: ['The third energy between you—what the bond is asking from both sides.'] }
+    ],
+    dyad: {
+      you: { card: you.card, orientation: you.orientation },
+      them: { card: them.card, orientation: them.orientation },
+      elementalRelationship: youVsThem?.elementalRelationship
+    },
+    connection: {
+      card: connection.card,
+      orientation: connection.orientation,
+      meaning: connection.meaning,
+      bridges: {
+        toYou: youBridge,
+        toThem: themBridge
+      }
+    }
+  };
+}
+
+/**
+ * DECISION / TWO-PATH ANALYSIS
+ *
+ * Compares Path A vs Path B with respect to the heart of the decision
+ * and synthesizes clarifier + free-will guidance.
+ */
+export function analyzeDecision(cardsInfo) {
+  if (!Array.isArray(cardsInfo) || cardsInfo.length !== 5) {
+    return null;
+  }
+
+  const [heart, pathA, pathB, clarifier, freeWill] = cardsInfo;
+  if (!heart || !pathA || !pathB) {
+    return null;
+  }
+
+  const heartLabel = heart.position || 'Heart of the decision';
+  const pathALabel = pathA.position || 'Path A — energy & likely outcome';
+  const pathBLabel = pathB.position || 'Path B — energy & likely outcome';
+  const clarifierLabel = clarifier?.position || 'What clarifies the best path';
+  const freeWillLabel = freeWill?.position || 'What to remember about your free will';
+
+  const heartVsA = comparePositions(heart, pathA, heartLabel, pathALabel);
+  const heartVsB = comparePositions(heart, pathB, heartLabel, pathBLabel);
+  const pathAVsB = comparePositions(pathA, pathB, pathALabel, pathBLabel);
+
+  const relationships = [];
+
+  if (heartVsA) {
+    relationships.push({
+      type: 'axis',
+      axis: 'Heart ↔ Path A',
+      summary: heartVsA.synthesis,
+      positions: [0, 1],
+      cards: [
+        { card: heart.card, orientation: heart.orientation },
+        { card: pathA.card, orientation: pathA.orientation }
+      ],
+      elementalRelationship: heartVsA.elementalRelationship
+    });
+  }
+
+  if (heartVsB) {
+    relationships.push({
+      type: 'axis',
+      axis: 'Heart ↔ Path B',
+      summary: heartVsB.synthesis,
+      positions: [0, 2],
+      cards: [
+        { card: heart.card, orientation: heart.orientation },
+        { card: pathB.card, orientation: pathB.orientation }
+      ],
+      elementalRelationship: heartVsB.elementalRelationship
+    });
+  }
+
+  if (pathAVsB) {
+    relationships.push({
+      type: 'axis',
+      axis: 'Path A ↔ Path B',
+      summary: pathAVsB.synthesis,
+      positions: [1, 2],
+      cards: [
+        { card: pathA.card, orientation: pathA.orientation },
+        { card: pathB.card, orientation: pathB.orientation }
+      ],
+      elementalRelationship: pathAVsB.elementalRelationship
+    });
+  }
+
+  const guidanceSummary = buildDecisionGuidanceSummary(clarifier, clarifierLabel, freeWill, freeWillLabel);
+  if (guidanceSummary) {
+    const guidanceCards = [clarifier, freeWill].filter(Boolean).map(card => ({
+      card: card.card,
+      orientation: card.orientation
+    }));
+    const guidancePositions = [];
+    if (clarifier) guidancePositions.push(3);
+    if (freeWill) guidancePositions.push(4);
+
+    relationships.push({
+      type: 'sequence',
+      summary: guidanceSummary,
+      positions: guidancePositions,
+      cards: guidanceCards
+    });
+  }
+
+  return {
+    version: '1.0.0',
+    spreadKey: 'decision',
+    relationships,
+    positionNotes: [
+      { index: 0, label: 'Heart of the decision', notes: ['Core desire or non-negotiable value.'] },
+      { index: 1, label: 'Path A — energy & likely outcome', notes: ['Trajectory if you commit to Path A.'] },
+      { index: 2, label: 'Path B — energy & likely outcome', notes: ['Trajectory if you commit to Path B.'] },
+      { index: 3, label: 'What clarifies the best path', notes: ['Insight that helps you evaluate the options.'] },
+      { index: 4, label: 'What to remember about your free will', notes: ['Agency reminder; how you shape the outcome.'] }
+    ],
+    comparisons: {
+      heartVsA,
+      heartVsB,
+      pathAVsB
+    },
+    guidance: {
+      clarifier: clarifier ? { card: clarifier.card, orientation: clarifier.orientation } : null,
+      freeWill: freeWill ? { card: freeWill.card, orientation: freeWill.orientation } : null
+    }
+  };
+}
+
+function buildDecisionGuidanceSummary(clarifier, clarifierLabel, freeWill, freeWillLabel) {
+  const parts = [];
+  if (clarifier) {
+    parts.push(
+      `${clarifierLabel}: ${clarifier.card} ${clarifier.orientation} explains what data point or reflection helps you compare the routes.`
+    );
+  }
+  if (freeWill) {
+    parts.push(
+      `${freeWillLabel}: ${freeWill.card} ${freeWill.orientation} reminds you that your agency ultimately shapes how this plays out.`
+    );
+  }
+  if (!parts.length) return null;
+  if (clarifier && freeWill) {
+    parts.push('Together they ask you to pair clear-eyed assessment with empowered choice.');
+  }
+  return parts.join(' ');
+}
