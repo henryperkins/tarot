@@ -10,6 +10,8 @@ import { SettingsToggles } from './components/SettingsToggles';
 import { RitualControls } from './components/RitualControls';
 import { ReadingGrid } from './components/ReadingGrid';
 import { MarkdownRenderer } from './components/MarkdownRenderer';
+import { StepProgress } from './components/StepProgress';
+import { HelperToggle } from './components/HelperToggle';
 import { getDeckPool, computeSeed, computeRelationships, drawSpread } from './lib/deck';
 import {
   initAudio,
@@ -25,6 +27,13 @@ import {
 } from './lib/audio';
 import { formatReading, splitIntoParagraphs } from './lib/formatting';
 import './styles/tarot.css';
+
+const STEP_PROGRESS_STEPS = [
+  { id: 'spread', label: 'Spread' },
+  { id: 'intention', label: 'Intention' },
+  { id: 'ritual', label: 'Ritual' },
+  { id: 'reading', label: 'Reading' }
+];
 
 export default function TarotReading() {
   const [selectedSpread, setSelectedSpread] = useState('single');
@@ -66,8 +75,29 @@ export default function TarotReading() {
 
   const knockTimesRef = useRef([]);
   const shuffleTimeoutRef = useRef(null);
+  const spreadSectionRef = useRef(null);
+  const intentionSectionRef = useRef(null);
+  const ritualSectionRef = useRef(null);
+  const readingSectionRef = useRef(null);
+  const stepSectionRefs = {
+    spread: spreadSectionRef,
+    intention: intentionSectionRef,
+    ritual: ritualSectionRef,
+    reading: readingSectionRef
+  };
 
   const [placeholderIndex, setPlaceholderIndex] = useState(0);
+  const [showAllHighlights, setShowAllHighlights] = useState(false);
+
+  const handleStepNav = stepId => {
+    const target = stepSectionRefs[stepId]?.current;
+    if (target && typeof target.scrollIntoView === 'function') {
+      target.scrollIntoView({
+        behavior: 'smooth',
+        block: 'start'
+      });
+    }
+  };
 
   // Rotate example intention placeholder
   useEffect(() => {
@@ -76,6 +106,10 @@ export default function TarotReading() {
     }, 4000);
     return () => clearInterval(interval);
   }, []);
+
+  useEffect(() => {
+    setShowAllHighlights(false);
+  }, [selectedSpread, reading]);
 
   // Initialize shared audio once on mount and clean up on unmount
   useEffect(() => {
@@ -122,20 +156,20 @@ export default function TarotReading() {
         state.message ||
         (state.status === 'completed'
           ? (state.context === 'card-reveal'
-              ? 'Card narration finished.'
-              : 'Narration finished.')
+            ? 'Card narration finished.'
+            : 'Narration finished.')
           : state.status === 'paused'
             ? (state.context === 'card-reveal'
-                ? 'Card narration paused.'
-                : 'Narration paused.')
+              ? 'Card narration paused.'
+              : 'Narration paused.')
             : state.status === 'playing'
               ? (state.context === 'card-reveal'
-                  ? 'Card narration playing.'
-                  : 'Narration playing.')
+                ? 'Card narration playing.'
+                : 'Narration playing.')
               : state.status === 'loading'
                 ? (state.context === 'card-reveal'
-                    ? 'Preparing card narration.'
-                    : 'Preparing narration.')
+                  ? 'Preparing card narration.'
+                  : 'Preparing narration.')
                 : state.status === 'stopped'
                   ? 'Narration stopped.'
                   : state.status === 'error'
@@ -153,10 +187,10 @@ export default function TarotReading() {
       // Check tarot-reading API health
       const tarotHealth = await fetch('/api/tarot-reading').catch(() => null);
       const ttsHealth = await fetch('/api/tts').catch(() => null);
-      
+
       const anthropicAvailable = tarotHealth?.ok ?? false;
       const azureAvailable = ttsHealth?.ok ?? false;
-      
+
       if (!anthropicAvailable || !azureAvailable) {
         setApiHealthBanner({
           anthropic: anthropicAvailable,
@@ -721,6 +755,88 @@ export default function TarotReading() {
     return null;
   }, [reading, revealedCards, spreadAnalysis, themes, includeMinors]);
 
+  const fallbackHighlights = useMemo(() => {
+    const totalCards = reading?.length ?? 0;
+    if (!reading || totalCards === 0 || revealedCards.size !== totalCards) {
+      return [];
+    }
+
+    const items = [];
+
+    items.push({
+      key: 'deck-scope',
+      icon: '-',
+      title: 'Deck scope:',
+      text: includeMinors
+        ? 'Full deck (Major + Minor Arcana).'
+        : 'Major Arcana focus (archetypal themes).'
+    });
+
+    const reversedIdx = reading
+      .map((card, index) => (card.isReversed ? index : -1))
+      .filter(index => index >= 0);
+
+    if (reversedIdx.length > 0) {
+      const spreadInfo = SPREADS[selectedSpread];
+      const positions = reversedIdx
+        .map(index => spreadInfo.positions[index] || `Card ${index + 1}`)
+        .join(', ');
+      const hasCluster = reversedIdx.some((idx, j) => j > 0 && idx === reversedIdx[j - 1] + 1);
+      let text = `${positions}. These often point to inner processing, timing delays, or tension in the theme.`;
+      if (hasCluster) {
+        text += ' Consecutive reversals suggest the theme persists across positions.';
+      }
+      items.push({
+        key: 'reversal-summary',
+        icon: '⤴',
+        title: `Reversed cards (${reversedIdx.length}):`,
+        text
+      });
+    }
+
+    const relationshipMeta = {
+      sequence: { icon: '→', title: 'Sequence:' },
+      'reversal-heavy': { icon: '⚠', title: 'Reversal Pattern:' },
+      'reversal-moderate': { icon: '•', title: 'Reversal Pattern:' },
+      'reversed-court-cluster': { icon: '👑', title: 'Court Dynamics:' },
+      'consecutive-reversals': { icon: '↔', title: 'Pattern Flow:' },
+      'suit-dominance': { icon: '♠', title: 'Suit Dominance:' },
+      'suit-run': { icon: '→', title: 'Suit Run:' },
+      'court-cluster': { icon: '👥', title: 'Court Cards:' },
+      'court-pair': { icon: '👥', title: 'Court Cards:' },
+      'court-suit-focus': { icon: '👥', title: 'Court Cards:' },
+      pairing: { icon: '>', title: 'Card Connection:' },
+      arc: { icon: '>', title: 'Card Connection:' }
+    };
+
+    relationships.forEach((relationship, index) => {
+      if (!relationship?.text) return;
+      const meta = relationshipMeta[relationship.type] || { icon: '✦', title: 'Pattern:' };
+      items.push({
+        key: `relationship-${relationship.type || 'pattern'}-${index}`,
+        icon: meta.icon,
+        title: meta.title,
+        text: relationship.text
+      });
+    });
+
+    return items;
+  }, [reading, revealedCards, includeMinors, selectedSpread, relationships]);
+
+  const highlightItems =
+    derivedHighlights && derivedHighlights.length > 0 ? derivedHighlights : fallbackHighlights;
+
+  const renderHighlightItem = item => (
+    <div key={item.key} className="flex items-start gap-3">
+      <div className="text-amber-300 mt-1" aria-hidden="true">
+        {item.icon}
+      </div>
+      <div className="text-amber-100/85 text-sm leading-snug">
+        <span className="font-semibold text-amber-200">{item.title}</span> {item.text}
+      </div>
+    </div>
+  );
+
   const revealCard = index => {
     if (!reading || !reading[index]) return;
     if (revealedCards.has(index)) return;
@@ -749,18 +865,20 @@ export default function TarotReading() {
   const hasNarrative = Boolean(personalReading);
   const narrativeInProgress = isGenerating && !personalReading;
 
-  const { stepIndicatorLabel, stepIndicatorHint } = useMemo(() => {
+  const { stepIndicatorLabel, stepIndicatorHint, activeStep } = useMemo(() => {
     if (hasNarrative) {
       return {
-        stepIndicatorLabel: 'Step 5 · Reflect on your narrative',
+        stepIndicatorLabel: 'Step 4 · Reflect on your narrative',
         stepIndicatorHint: 'Read through the personalized guidance and save anything that resonates.',
+        activeStep: 'reading'
       };
     }
 
     if (narrativeInProgress) {
       return {
-        stepIndicatorLabel: 'Step 5 · Weaving your narrative',
+        stepIndicatorLabel: 'Step 4 · Weaving your narrative',
         stepIndicatorHint: 'Hang tight while we compose your personalized reading.',
+        activeStep: 'reading'
       };
     }
 
@@ -769,12 +887,14 @@ export default function TarotReading() {
         return {
           stepIndicatorLabel: 'Step 4 · Explore your spread',
           stepIndicatorHint: 'Review the card insights below or generate a personalized narrative.',
+          activeStep: 'reading'
         };
       }
 
       return {
         stepIndicatorLabel: 'Step 4 · Reveal your cards',
         stepIndicatorHint: 'Flip each card to unfold the story of your spread.',
+        activeStep: 'reading'
       };
     }
 
@@ -782,6 +902,7 @@ export default function TarotReading() {
       return {
         stepIndicatorLabel: 'Step 1 · Choose your spread',
         stepIndicatorHint: 'Tap a spread that matches your focus to begin shaping the reading.',
+        activeStep: 'spread'
       };
     }
 
@@ -789,6 +910,7 @@ export default function TarotReading() {
       return {
         stepIndicatorLabel: 'Step 2 · Set your intention',
         stepIndicatorHint: 'Add a guiding question to focus the reading, or skip if you prefer intuition.',
+        activeStep: 'intention'
       };
     }
 
@@ -796,12 +918,14 @@ export default function TarotReading() {
       return {
         stepIndicatorLabel: 'Step 3 · Optional rituals',
         stepIndicatorHint: 'Knock or cut the deck if that supports your practice, or head straight to the draw.',
+        activeStep: 'ritual'
       };
     }
 
     return {
       stepIndicatorLabel: 'Step 4 · Draw your cards',
       stepIndicatorHint: 'When you feel ready, draw the cards to begin your reading.',
+      activeStep: 'reading'
     };
   }, [
     hasNarrative,
@@ -830,6 +954,24 @@ export default function TarotReading() {
             </p>
           </div>
         </header>
+
+        <div className="sticky top-0 z-30 py-3 sm:py-4 mb-6 bg-slate-950/95 backdrop-blur border-y border-slate-800/70">
+          <StepProgress
+            steps={STEP_PROGRESS_STEPS}
+            activeStep={activeStep}
+            onSelect={handleStepNav}
+          />
+          {isShuffling && (
+            <div
+              className="mt-2 flex items-center gap-2 text-amber-200/80 text-[clamp(0.85rem,2.4vw,0.95rem)] leading-snug"
+              role="status"
+              aria-live="polite"
+            >
+              <RotateCcw className="w-3.5 h-3.5 animate-spin text-amber-300" aria-hidden="true" />
+              <span>Shuffling the deck...</span>
+            </div>
+          )}
+        </div>
 
         {/* API Health Banner */}
         {apiHealthBanner && (
@@ -881,487 +1023,408 @@ export default function TarotReading() {
             </p>
           </div>
 
-          <div className="grid gap-4 sm:gap-6 xl:grid-cols-[minmax(0,2.1fr)_minmax(0,1.6fr)] xl:items-start">
-            {/* Spread selection (primary) */}
-            <div aria-label="Choose your spread">
-              <SpreadSelector
-                selectedSpread={selectedSpread}
-                setSelectedSpread={setSelectedSpread}
-                setReading={setReading}
-                setRevealedCards={setRevealedCards}
-                setPersonalReading={setPersonalReading}
-                setJournalStatus={setJournalStatus}
-                setAnalyzingText={setAnalyzingText}
-                setIsGenerating={setIsGenerating}
-                setDealIndex={setDealIndex}
-                setReflections={setReflections}
-                setHasKnocked={setHasKnocked}
-                setHasCut={setHasCut}
-                setCutIndex={setCutIndex}
-                knockTimesRef={knockTimesRef}
-                deckSize={deckSize}
-                onSpreadConfirm={() => setHasConfirmedSpread(true)}
-              />
-            </div>
-
-            {/* Optional intention and ritual controls */}
-            <div className="space-y-3 sm:space-y-4">
-              <section aria-label="Your question or intention (optional)">
-                <QuestionInput
-                  userQuestion={userQuestion}
-                  setUserQuestion={setUserQuestion}
-                  placeholderIndex={placeholderIndex}
-                />
-              </section>
-
-              <section aria-label="Experience settings">
-                <SettingsToggles
-                  voiceOn={voiceOn}
-                  setVoiceOn={setVoiceOn}
-                  ambienceOn={ambienceOn}
-                  setAmbienceOn={setAmbienceOn}
-                  reversalFramework={reversalFramework}
-                  setReversalFramework={setReversalFramework}
-                />
-                <p className="sr-only">
-                  Reader voice uses generated audio when enabled. Table ambience plays soft background sound when enabled.
-                </p>
-              </section>
-
-              <section aria-label="Ritual (optional)">
-                <RitualControls
-                  hasKnocked={hasKnocked}
-                  handleKnock={handleKnock}
-                  cutIndex={cutIndex}
+          <div className="max-w-5xl mx-auto">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+              {/* Spread selection (primary) */}
+              <div
+                aria-label="Choose your spread"
+                ref={spreadSectionRef}
+                id="step-spread"
+                className="scroll-mt-[6.5rem] sm:scroll-mt-[7.5rem]"
+              >
+                <SpreadSelector
+                  selectedSpread={selectedSpread}
+                  setSelectedSpread={setSelectedSpread}
+                  setReading={setReading}
+                  setRevealedCards={setRevealedCards}
+                  setPersonalReading={setPersonalReading}
+                  setJournalStatus={setJournalStatus}
+                  setAnalyzingText={setAnalyzingText}
+                  setIsGenerating={setIsGenerating}
+                  setDealIndex={setDealIndex}
+                  setReflections={setReflections}
+                  setHasKnocked={setHasKnocked}
+                  setHasCut={setHasCut}
                   setCutIndex={setCutIndex}
-                  hasCut={hasCut}
-                  applyCut={applyCut}
-                  knocksCount={Math.min((knockTimesRef.current || []).length, 3)}
+                  knockTimesRef={knockTimesRef}
                   deckSize={deckSize}
+                  onSpreadConfirm={() => setHasConfirmedSpread(true)}
                 />
-              </section>
+              </div>
+
+              {/* Optional intention and ritual controls */}
+              <div className="space-y-4">
+                <section
+                  aria-label="Your question or intention (optional)"
+                  ref={intentionSectionRef}
+                  id="step-intention"
+                  className="scroll-mt-[6.5rem] sm:scroll-mt-[7.5rem]"
+                >
+                  <QuestionInput
+                    userQuestion={userQuestion}
+                    setUserQuestion={setUserQuestion}
+                    placeholderIndex={placeholderIndex}
+                  />
+                </section>
+
+                <section aria-label="Experience settings">
+                  <SettingsToggles
+                    voiceOn={voiceOn}
+                    setVoiceOn={setVoiceOn}
+                    ambienceOn={ambienceOn}
+                    setAmbienceOn={setAmbienceOn}
+                    reversalFramework={reversalFramework}
+                    setReversalFramework={setReversalFramework}
+                  />
+                  <p className="sr-only">
+                    Reader voice uses generated audio when enabled. Table ambience plays soft background sound when enabled.
+                  </p>
+                </section>
+
+                <section
+                  aria-label="Ritual (optional)"
+                  ref={ritualSectionRef}
+                  id="step-ritual"
+                  className="scroll-mt-[6.5rem] sm:scroll-mt-[7.5rem]"
+                >
+                  <RitualControls
+                    hasKnocked={hasKnocked}
+                    handleKnock={handleKnock}
+                    cutIndex={cutIndex}
+                    setCutIndex={setCutIndex}
+                    hasCut={hasCut}
+                    applyCut={applyCut}
+                    knocksCount={Math.min((knockTimesRef.current || []).length, 3)}
+                    deckSize={deckSize}
+                  />
+                </section>
+              </div>
             </div>
           </div>
         </section>
 
-        {/* Primary CTA: only visible before a spread exists */}
-        {!reading && (
-          <section className="text-center mb-8 sm:mb-10" aria-label="Draw cards">
-            <button
-              onClick={shuffle}
-              disabled={isShuffling}
-              className="bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-500 hover:to-amber-400 disabled:opacity-50 disabled:cursor-not-allowed text-indigo-950 font-semibold px-6 sm:px-8 py-3 sm:py-4 rounded-lg shadow-lg transition-all inline-flex items-center gap-2 sm:gap-3 text-base sm:text-lg"
-            >
-              <RotateCcw className={`w-4 h-4 sm:w-5 sm:h-5 ${isShuffling ? 'motion-safe:animate-spin' : ''}`} />
-              <span>{isShuffling ? 'Shuffling the Cards...' : 'Draw Cards'}</span>
-            </button>
-          </section>
-        )}
-
-        {/* Reading Display */}
-        {reading && (
-          <div className="space-y-8">
-            {/* Intention */}
-            {userQuestion && (
-              <div className="text-center">
-                <p className="text-amber-100/80 text-sm italic">Intention: {userQuestion}</p>
-              </div>
-            )}
-
-            {/* Spread Name + Guidance */}
-            <div className="text-center text-amber-200 font-serif text-2xl mb-2">
-              {SPREADS[selectedSpread].name}
-            </div>
-            {reading.length > 1 && (
-              <p className="text-center text-amber-100/85 text-xs-plus sm:text-sm mb-4">
-                Reveal in order for a narrative flow, or follow your intuition and reveal randomly.
-              </p>
-            )}
-
-            {/* Reveal All / Reset Reveals */}
-            {revealedCards.size < reading.length && (
-              <div className="text-center">
-                <button
-                  type="button"
-                  onClick={revealAll}
-                  className="bg-amber-600/30 hover:bg-amber-600/50 border-2 border-amber-500 text-amber-200 font-semibold px-4 sm:px-6 py-2 sm:py-3 rounded-lg shadow-lg transition-all flex items-center gap-2 sm:gap-3 mx-auto text-sm sm:text-base"
-                >
-                  <Star className="w-4 h-4 sm:w-5 sm:h-5" />
-                  <span>Reveal All Cards</span>
-                </button>
-                <p className="text-amber-300/80 text-xs sm:text-sm mt-2 sm:mt-3">
-                  {revealedCards.size} of {reading.length} cards revealed
-                </p>
-              </div>
-            )}
-           {revealedCards.size > 0 && (
-             <div className="text-center mt-1 sm:mt-2">
-               <button
-                 type="button"
-                 onClick={() => {
-                   setRevealedCards(new Set());
-                   setDealIndex(0);
-                 }}
-                 className="text-xs text-amber-300/80 hover:text-amber-200 underline underline-offset-4 px-2 py-1"
-               >
-                 <span className="hidden xs:inline">Reset reveals (keep this spread)</span>
-                 <span className="xs:hidden">Reset reveals</span>
-               </button>
-             </div>
-           )}
-
-            {/* Deal next card (adaptive CTA copy) */}
-            {reading && revealedCards.size < reading.length && (
-              <div className="text-center">
-                <button
-                  onClick={dealNext}
-                  className="mt-2 bg-amber-600/30 hover:bg-amber-600/50 border-2 border-amber-500 text-amber-200 font-semibold px-4 sm:px-6 py-2 sm:py-3 rounded-lg shadow-lg transition-all text-sm sm:text-base"
-                >
-                  <span>
-                    Reveal Next Card ({Math.min(dealIndex + 1, reading.length)}/{reading.length})
-                  </span>
-                </button>
-              </div>
-            )}
-
-            {/* Cards Grid via canonical ReadingGrid + Card */}
-            <ReadingGrid
-              selectedSpread={selectedSpread}
-              reading={reading}
-              revealedCards={revealedCards}
-              revealCard={revealCard}
-              reflections={reflections}
-              setReflections={setReflections}
-            />
-
-            {/* Dynamic Insights */}
-            {revealedCards.size === reading.length && (
-              <div className="modern-surface p-4 sm:p-6 border border-emerald-400/40 space-y-4">
-                <h3 className="text-base sm:text-lg font-serif text-amber-200 mb-3 flex items-center gap-2">
-                  <Star className="w-4 h-4 sm:w-5 sm:h-5" />
-                  Spread Highlights
-                </h3>
-                <p className="sr-only" id="spread-highlights-scroll-hint">
-                  Additional highlights may be hidden; swipe or scroll within the list to read them all.
-                </p>
-                <div
-                  className="relative"
-                  aria-describedby="spread-highlights-scroll-hint"
-                >
-                  <div className="space-y-2 sm:space-y-3 text-amber-100/85 text-sm leading-relaxed max-h-[56vh] sm:max-h-none overflow-y-auto overscroll-y-contain pr-1">
-                 <div className="flex items-start gap-3">
-                   <div className="text-amber-300 mt-1">-</div>
-                   <div>
-                     <span className="font-semibold text-amber-200">Deck scope:</span>{' '}
-                     {includeMinors
-                       ? 'Full deck (Major + Minor Arcana).'
-                       : 'Major Arcana focus (archetypal themes).'}
-                   </div>
-                 </div>
-                 {(() => {
-                   const reversedIdx = reading
-                     .map((c, i) => (c.isReversed ? i : -1))
-                     .filter(i => i >= 0);
-                   if (reversedIdx.length === 0) return null;
-
-                   const positions = reversedIdx
-                     .map(i => SPREADS[selectedSpread].positions[i] || `Card ${i + 1}`)
-                     .join(', ');
-
-                   const hasCluster = reversedIdx.some(
-                     (idx, j) => j > 0 && idx === reversedIdx[j - 1] + 1
-                   );
-
-                   return (
-                     <div className="flex items-start gap-3">
-                       <div className="text-cyan-400 mt-1">-</div>
-                       <div>
-                         <span className="font-semibold text-cyan-300">
-                           Reversed cards ({reversedIdx.length}):
-                         </span>{' '}
-                         {positions}.
-                        <span className="block text-amber-100/85">
-                           These often point to inner processing, timing delays, or tension in the theme.
-                           {hasCluster &&
-                             ' Noticing consecutive reversals suggests the theme persists across positions.'}
-                         </span>
-                       </div>
-                     </div>
-                   );
-                 })()}
-                 {relationships.some(r => r.type === 'sequence') && (
-                   <div className="flex items-start gap-3">
-                     <div className="text-emerald-400 mt-1">-</div>
-                     <div>
-                       <span className="font-semibold text-emerald-300">Sequence:</span>{' '}
-                       Sequential Majors suggest a natural progression through connected themes.
-                     </div>
-                   </div>
-                 )}
-                 {relationships.filter(r => r.type === 'reversal-heavy').map((relationship, index) => (
-                    <div key={`reversal-heavy-${index}`} className="flex items-start gap-3">
-                      <div className="text-rose-400 mt-1">⚠</div>
-                      <div>
-                        <span className="font-semibold text-rose-300">Reversal Pattern:</span> {relationship.text}
-                      </div>
-                    </div>
-                  ))}
-                 {relationships.filter(r => r.type === 'reversal-moderate').map((relationship, index) => (
-                    <div key={`reversal-moderate-${index}`} className="flex items-start gap-3">
-                      <div className="text-amber-400 mt-1">•</div>
-                      <div>
-                        <span className="font-semibold text-amber-300">Reversal Pattern:</span> {relationship.text}
-                      </div>
-                    </div>
-                  ))}
-                 {relationships.filter(r => r.type === 'reversed-court-cluster').map((relationship, index) => (
-                    <div key={`reversed-court-${index}`} className="flex items-start gap-3">
-                      <div className="text-purple-400 mt-1">👑</div>
-                      <div>
-                        <span className="font-semibold text-purple-300">Court Dynamics:</span> {relationship.text}
-                      </div>
-                    </div>
-                  ))}
-                 {relationships.filter(r => r.type === 'consecutive-reversals').map((relationship, index) => (
-                    <div key={`consecutive-${index}`} className="flex items-start gap-3">
-                      <div className="text-orange-400 mt-1">↔</div>
-                      <div>
-                        <span className="font-semibold text-orange-300">Pattern Flow:</span> {relationship.text}
-                      </div>
-                    </div>
-                  ))}
-                 {relationships.filter(r => r.type === 'suit-dominance').map((relationship, index) => (
-                    <div key={`suit-dom-${index}`} className="flex items-start gap-3">
-                      <div className="text-emerald-400 mt-1">♠</div>
-                      <div>
-                        <span className="font-semibold text-emerald-300">Suit Dominance:</span> {relationship.text}
-                      </div>
-                    </div>
-                  ))}
-                 {relationships.filter(r => r.type === 'suit-run').map((relationship, index) => (
-                    <div key={`suit-run-${index}`} className="flex items-start gap-3">
-                      <div className="text-cyan-400 mt-1">→</div>
-                      <div>
-                        <span className="font-semibold text-cyan-300">Suit Run:</span> {relationship.text}
-                      </div>
-                    </div>
-                  ))}
-                 {relationships.filter(r => r.type === 'court-cluster' || r.type === 'court-pair' || r.type === 'court-suit-focus').map((relationship, index) => (
-                    <div key={`court-${index}`} className="flex items-start gap-3">
-                      <div className="text-indigo-400 mt-1">👥</div>
-                      <div>
-                        <span className="font-semibold text-indigo-300">Court Cards:</span> {relationship.text}
-                      </div>
-                    </div>
-                  ))}
-                 {relationships.filter(r => r.type === 'pairing' || r.type === 'arc').map((relationship, index) => (
-                    <div key={`connection-${index}`} className="flex items-start gap-3">
-                      <div className="text-cyan-400 mt-1">{'>'}</div>
-                      <div>
-                        <span className="font-semibold text-cyan-300">Card Connection:</span> {relationship.text}
-                      </div>
-                    </div>
-                 ))}
-                  </div>
-                  <div
-                    className="pointer-events-none absolute inset-x-0 bottom-0 h-8 bg-gradient-to-t from-slate-950 via-slate-950/85 to-transparent sm:hidden"
-                    aria-hidden="true"
-                  />
-                </div>
-                <p className="text-amber-300/75 text-xs sm:text-sm text-center sm:hidden">
-                  Swipe to explore additional highlights.
-                </p>
-              </div>
-            )}
-
-            {/* Generate Personal Reading Button */}
-            {!personalReading && revealedCards.size === reading.length && (
-               <div className="text-center">
-                 <button
-                   onClick={generatePersonalReading}
-                   disabled={isGenerating}
-                   className="bg-gradient-to-r from-emerald-500 to-cyan-400 hover:from-emerald-400 hover:to-cyan-300 disabled:opacity-50 disabled:cursor-not-allowed text-slate-950 font-semibold px-5 sm:px-8 py-3 sm:py-4 rounded-xl shadow-xl shadow-emerald-900/40 transition-all flex items-center gap-2 sm:gap-3 mx-auto text-sm sm:text-base md:text-lg leading-snug"
-                 >
-                   <Sparkles className={`w-4 h-4 sm:w-5 sm:h-5 ${isGenerating ? 'motion-safe:animate-pulse' : ''}`} />
-                   {isGenerating ? (
-                     <span className="text-sm sm:text-base">
-                       Weaving your personalized reflection from this spread...
-                     </span>
-                   ) : (
-                     <span>Create Personal Narrative</span>
-                   )}
-                 </button>
-                 <p className="text-emerald-300/80 text-xs sm:text-sm mt-2 sm:mt-3 max-w-xl mx-auto mobile-hide sm:block">
-                   Reveal all cards to unlock a tailored reflection that weaves positions, meanings, and your notes into one coherent story.
-                 </p>
-               </div>
-             )}
-
-            {/* Analyzing Preview */}
-            {isGenerating && analyzingText && (
-               <div className="max-w-3xl mx-auto text-center">
-                 <div className="ai-panel-modern">
-                   <div className="ai-panel-text" aria-live="polite">
-                     {analyzingText}
-                   </div>
-                   <p className="ai-panel-hint">
-                     This reflection is generated from your spread and question to support insight, not to decide for you.
-                   </p>
-                 </div>
-               </div>
-             )}
-
-            {/* Personal Reading Display */}
-            {personalReading && (
-               <div className="bg-gradient-to-r from-slate-900/80 via-slate-950/95 to-slate-900/80 backdrop-blur-xl rounded-2xl p-5 sm:p-8 border border-emerald-400/40 shadow-2xl shadow-emerald-900/40 max-w-3xl mx-auto">
-                <h3 className="text-xl sm:text-2xl font-serif text-amber-200 mb-2 flex items-center gap-2">
-                  <Sparkles className="w-5 h-5 sm:w-6 sm:h-6 text-emerald-300" />
-                  Your Personalized Narrative
-                </h3>
-                <p className="text-amber-200/75 text-xs sm:text-sm mb-4 max-w-2xl mx-auto mobile-hide sm:block">
-                  This narrative braids together your spread positions, card meanings, and reflections into a single through-line.
-                  Read slowly, notice what resonates, and treat it as a mirror—not a script.
-                </p>
-                {userQuestion && (
-            <div className="bg-slate-950/85 rounded-lg p-4 mb-4 border border-emerald-400/40">
-               <p className="text-amber-300/85 text-xs sm:text-sm italic">
-                 Anchor: {userQuestion}
-               </p>
-             </div>
-           )}
-                {/* Render Markdown when available, otherwise fall back to normalized paragraphs */}
-                {personalReading.hasMarkdown ? (
-                  <MarkdownRenderer content={personalReading.raw} />
-                ) : (
-                  <div className="text-amber-100 leading-relaxed space-y-2 sm:space-y-3 md:space-y-4 max-w-prose mx-auto text-left">
-                    {personalReading.paragraphs && personalReading.paragraphs.length > 0 ? (
-                      personalReading.paragraphs.map((para, idx) => (
-                        <p
-                          key={idx}
-                          className="text-[0.9rem] sm:text-base md:text-lg leading-relaxed md:leading-loose"
-                        >
-                          {para}
-                        </p>
-                      ))
-                    ) : (
-                      <p className="text-[0.9rem] sm:text-base md:text-lg leading-relaxed md:leading-loose whitespace-pre-line">
-                        {personalReading.normalized || personalReading.raw || ''}
-                      </p>
-                    )}
-                  </div>
-                )}
-                <div className="flex flex-col items-center justify-center gap-2 sm:gap-3 mt-3 sm:mt-4">
-                  {canSaveReading && (
-                    <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-3">
-                      <button
-                        type="button"
-                        onClick={handleNarrationButtonClick}
-                        className="px-3 sm:px-4 py-2 rounded-lg border border-emerald-400/40 bg-slate-950/85 hover:bg-slate-900/80 disabled:opacity-40 disabled:cursor-not-allowed transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 text-xs sm:text-sm"
-                        disabled={playButtonDisabled}
-                        aria-label={playButtonAriaLabel}
-                        aria-describedby={helperId}
-                      >
-                        <span className="hidden xs:inline">{playButtonLabel}</span>
-                        <span className="xs:hidden">{isTtsLoading ? 'Loading...' : isTtsPlaying ? 'Pause' : isTtsPaused ? 'Resume' : 'Play'}</span>
-                      </button>
-                      {showStopButton && (
-                        <button
-                          type="button"
-                          onClick={handleNarrationStop}
-                          className="px-2 sm:px-3 py-2 rounded-lg border border-emerald-400/40 bg-slate-950/70 hover:bg-slate-900/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 transition disabled:opacity-40 disabled:cursor-not-allowed text-xs sm:text-sm"
-                          disabled={!isTtsPlaying && !isTtsPaused && !isTtsLoading}
-                          aria-label="Stop personal reading narration"
-                        >
-                          Stop
-                        </button>
-                      )}
-                      <button
-                        type="button"
-                        onClick={saveReading}
-                        className="px-3 sm:px-4 py-2 rounded-lg bg-emerald-500/15 border border-emerald-400/40 text-emerald-200 text-xs sm:text-sm hover:bg-emerald-500/25 hover:text-emerald-100 transition"
-                        aria-describedby={journalStatusId}
-                      >
-                        <span className="hidden xs:inline">Save this narrative to your journal</span>
-                        <span className="xs:hidden">Save to journal</span>
-                      </button>
-                    </div>
-                  )}
-                  {inlineStatusMessage && (
-                    <p
-                      id="personal-reading-tts-helper"
-                      className="text-amber-200/75 text-xs text-center max-w-sm"
-                    >
-                      {inlineStatusMessage}
-                    </p>
-                  )}
-                  {journalStatus && (
-                    <p
-                      id={journalStatusId}
-                      role="status"
-                      aria-live="polite"
-                      className={`text-xs text-center max-w-sm ${
-                        journalStatus.type === 'success'
-                          ? 'text-emerald-200'
-                          : 'text-rose-200'
-                      }`}
-                    >
-                      {journalStatus.message}
-                    </p>
-                  )}
-                  <div className="sr-only" role="status" aria-live="polite">
-                    {ttsAnnouncement}
-                  </div>
-                </div>
-                <div className="mt-4 sm:mt-6 pt-4 sm:pt-6 border-t border-amber-500/20 flex flex-col gap-2 sm:gap-3 items-center">
-                  <p className="text-amber-200/70 text-xs italic text-center mobile-hide sm:block">
-                    This reading considered card combinations, positions, emotional arcs, and your reflections to provide
-                    personalized guidance.
-                  </p>
-                </div>
-              </div>
-            )}
-
-            {/* General Guidance */}
-            {!personalReading && !isGenerating && (
-              <div className="bg-gradient-to-r from-slate-900/80 to-slate-950/90 backdrop-blur-xl rounded-2xl p-4 sm:p-6 border border-emerald-400/40 max-w-2xl mx-auto">
-                <h3 className="text-lg sm:text-xl font-serif text-amber-200 mb-2 sm:mb-3 flex items-center gap-2">
-                  <Star className="w-4 h-4 sm:w-5 sm:h-5" />
-                  Interpretation Guidance
-                </h3>
-                <p className="text-amber-100/85 text-sm sm:text-base leading-relaxed">
-                  Notice how the cards speak to one another. Consider themes, repetitions, contrasts, and where your
-                  attention is drawn. Trust your intuition as much as any description.
-                </p>
-                <p className="text-amber-200/80 text-[0.7rem] sm:text-xs mt-3 leading-relaxed">
-                  This reading offers reflective guidance only. It is not a substitute for medical, mental health, legal, financial, or safety advice.
-                  If your situation involves health, legal risk, abuse, or crisis, consider reaching out to qualified professionals or trusted support services.
-                </p>
-              </div>
-            )}
-
-            {/* Draw New Reading CTA */}
-            <div className="text-center mt-6 sm:mt-8">
+        <section
+          ref={readingSectionRef}
+          id="step-reading"
+          className="scroll-mt-[6.5rem] sm:scroll-mt-[7.5rem]"
+          aria-label="Draw and explore your reading"
+        >
+          {/* Primary CTA: only visible before a spread exists */}
+          {!reading && (
+            <div className="text-center mb-8 sm:mb-10">
               <button
                 onClick={shuffle}
                 disabled={isShuffling}
                 className="bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-500 hover:to-amber-400 disabled:opacity-50 disabled:cursor-not-allowed text-indigo-950 font-semibold px-6 sm:px-8 py-3 sm:py-4 rounded-lg shadow-lg transition-all inline-flex items-center gap-2 sm:gap-3 text-base sm:text-lg"
               >
                 <RotateCcw className={`w-4 h-4 sm:w-5 sm:h-5 ${isShuffling ? 'motion-safe:animate-spin' : ''}`} />
-                <span className="hidden xs:inline">{isShuffling ? 'Shuffling the Cards...' : 'Draw New Reading'}</span>
-                <span className="xs:hidden">{isShuffling ? 'Shuffling...' : 'New Reading'}</span>
+                <span>{isShuffling ? 'Shuffling the Cards...' : 'Draw Cards'}</span>
               </button>
             </div>
-          </div>
-        )}
+          )}
 
-        {/* Initial State */}
-        {!reading && !isShuffling && (
-          <div className="text-center py-16 px-4">
-            <p className="text-amber-100/80 text-lg font-serif">
-              Focus on your question, then draw your cards when you're ready.
-            </p>
-          </div>
-        )}
+          {/* Reading Display */}
+          {reading && (
+            <div className="space-y-8">
+              {/* Intention */}
+              {userQuestion && (
+                <div className="text-center">
+                  <p className="text-amber-100/80 text-sm italic">Intention: {userQuestion}</p>
+                </div>
+              )}
+
+              {/* Spread Name + Guidance */}
+              <div className="text-center text-amber-200 font-serif text-2xl mb-2">
+                {SPREADS[selectedSpread].name}
+              </div>
+              {reading.length > 1 && (
+                <p className="text-center text-amber-100/85 text-xs-plus sm:text-sm mb-4">
+                  Reveal in order for a narrative flow, or follow your intuition and reveal randomly.
+                </p>
+              )}
+
+              {/* Reveal All / Reset Reveals */}
+              {revealedCards.size < reading.length && (
+                <div className="text-center">
+                  <button
+                    type="button"
+                    onClick={revealAll}
+                    className="bg-gradient-to-r from-amber-500 to-amber-400 hover:from-amber-400 hover:to-amber-300 text-slate-950 font-semibold px-4 sm:px-6 py-2.5 sm:py-3 rounded-full shadow-lg shadow-amber-900/40 transition-all flex items-center gap-2 sm:gap-3 mx-auto text-sm sm:text-base"
+                  >
+                    <Star className="w-4 h-4 sm:w-5 sm:h-5" />
+                    <span>Reveal All Cards</span>
+                  </button>
+                  <p className="text-amber-300/80 text-xs sm:text-sm mt-2 sm:mt-3">
+                    {revealedCards.size} of {reading.length} cards revealed
+                  </p>
+                </div>
+              )}
+              {revealedCards.size > 0 && (
+                <div className="text-center mt-3 sm:mt-4">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setRevealedCards(new Set());
+                      setDealIndex(0);
+                    }}
+                    className="inline-flex items-center justify-center px-4 py-2 rounded-full border border-amber-300/50 text-amber-100/80 text-xs sm:text-sm hover:text-amber-50 hover:border-amber-200/70 transition"
+                  >
+                    <span className="hidden xs:inline">Reset reveals (keep this spread)</span>
+                    <span className="xs:hidden">Reset reveals</span>
+                  </button>
+                </div>
+              )}
+
+              {/* Deal next card (adaptive CTA copy) */}
+              {reading && revealedCards.size < reading.length && (
+                <div className="text-center">
+                  <button
+                    onClick={dealNext}
+                    className="mt-3 inline-flex items-center justify-center bg-gradient-to-r from-amber-500 to-amber-400 hover:from-amber-400 hover:to-amber-300 text-slate-950 font-semibold px-4 sm:px-6 py-2.5 sm:py-3 rounded-full shadow-lg shadow-amber-900/30 transition-all text-sm sm:text-base"
+                  >
+                    <span>
+                      Reveal Next Card ({Math.min(dealIndex + 1, reading.length)}/{reading.length})
+                    </span>
+                  </button>
+                </div>
+              )}
+
+              {/* Cards Grid via canonical ReadingGrid + Card */}
+              <ReadingGrid
+                selectedSpread={selectedSpread}
+                reading={reading}
+                revealedCards={revealedCards}
+                revealCard={revealCard}
+                reflections={reflections}
+                setReflections={setReflections}
+              />
+
+              {/* Dynamic Insights */}
+              {revealedCards.size === reading.length && highlightItems.length > 0 && (
+                <div className="modern-surface p-4 sm:p-6 border border-emerald-400/40 space-y-4">
+                  <h3 className="text-base sm:text-lg font-serif text-amber-200 mb-3 flex items-center gap-2">
+                    <Star className="w-4 h-4 sm:w-5 sm:h-5" />
+                    Spread Highlights
+                  </h3>
+                  <div className="sm:hidden space-y-3">
+                    {highlightItems
+                      .slice(0, showAllHighlights ? highlightItems.length : 3)
+                      .map(renderHighlightItem)}
+                    {highlightItems.length > 3 && (
+                      <button
+                        type="button"
+                        onClick={() => setShowAllHighlights(prev => !prev)}
+                        className="text-emerald-300 text-sm underline underline-offset-4"
+                      >
+                        {showAllHighlights ? 'Hide extra insights' : 'See all insights'}
+                      </button>
+                    )}
+                  </div>
+                  <div className="hidden sm:flex sm:flex-col sm:gap-3">
+                    {highlightItems.map(renderHighlightItem)}
+                  </div>
+                </div>
+              )}
+
+              {/* Generate Personal Reading Button */}
+              {!personalReading && revealedCards.size === reading.length && (
+                <div className="text-center">
+                  <button
+                    onClick={generatePersonalReading}
+                    disabled={isGenerating}
+                    className="bg-gradient-to-r from-emerald-500 to-emerald-400 hover:from-emerald-400 hover:to-emerald-300 disabled:opacity-50 disabled:cursor-not-allowed text-slate-950 font-semibold px-5 sm:px-8 py-3 sm:py-4 rounded-xl shadow-xl shadow-emerald-900/40 transition-all flex items-center gap-2 sm:gap-3 mx-auto text-sm sm:text-base md:text-lg leading-snug"
+                  >
+                    <Sparkles className={`w-4 h-4 sm:w-5 sm:h-5 ${isGenerating ? 'motion-safe:animate-pulse' : ''}`} />
+                    {isGenerating ? (
+                      <span className="text-sm sm:text-base">
+                        Weaving your personalized reflection from this spread...
+                      </span>
+                    ) : (
+                      <span>Create Personal Narrative</span>
+                    )}
+                  </button>
+                  <HelperToggle className="mt-3 max-w-xl mx-auto">
+                    <p>
+                      Reveal all cards to unlock a tailored reflection that weaves positions, meanings, and your notes into
+                      one coherent story.
+                    </p>
+                  </HelperToggle>
+                </div>
+              )}
+
+              {/* Analyzing Preview */}
+              {isGenerating && analyzingText && (
+                <div className="max-w-3xl mx-auto text-center">
+                  <div className="ai-panel-modern">
+                    <div className="ai-panel-text" aria-live="polite">
+                      {analyzingText}
+                    </div>
+                    <HelperToggle className="mt-3">
+                      <p>
+                        This reflection is generated from your spread and question to support insight, not to decide for you.
+                      </p>
+                    </HelperToggle>
+                  </div>
+                </div>
+              )}
+
+            {/* Personal Reading Display */}
+            {personalReading && (
+               <div className="bg-gradient-to-r from-slate-900/80 via-slate-950/95 to-slate-900/80 backdrop-blur-xl rounded-2xl p-5 sm:p-8 border border-emerald-400/40 shadow-2xl shadow-emerald-900/40 max-w-5xl mx-auto">
+                <h3 className="text-xl sm:text-2xl font-serif text-amber-200 mb-2 flex items-center gap-2">
+                  <Sparkles className="w-5 h-5 sm:w-6 sm:h-6 text-emerald-300" />
+                  Your Personalized Narrative
+                  </h3>
+                  <HelperToggle className="mt-3 max-w-2xl mx-auto">
+                    <p>
+                      This narrative braids together your spread positions, card meanings, and reflections into a single through-line.
+                      Read slowly, notice what resonates, and treat it as a mirror—not a script.
+                    </p>
+                  </HelperToggle>
+                  {userQuestion && (
+                    <div className="bg-slate-950/85 rounded-lg p-4 mb-4 border border-emerald-400/40">
+                      <p className="text-amber-300/85 text-xs sm:text-sm italic">
+                        Anchor: {userQuestion}
+                      </p>
+                    </div>
+                  )}
+                {/* Render Markdown when available, otherwise fall back to normalized paragraphs */}
+                {personalReading.hasMarkdown ? (
+                  <MarkdownRenderer content={personalReading.raw} />
+                ) : (
+                  <div className="text-amber-100 leading-relaxed space-y-2 sm:space-y-3 md:space-y-4 max-w-none mx-auto text-left">
+                    {personalReading.paragraphs && personalReading.paragraphs.length > 0 ? (
+                      personalReading.paragraphs.map((para, idx) => (
+                        <p
+                            key={idx}
+                            className="text-[0.9rem] sm:text-base md:text-lg leading-relaxed md:leading-loose"
+                          >
+                            {para}
+                          </p>
+                        ))
+                      ) : (
+                        <p className="text-[0.9rem] sm:text-base md:text-lg leading-relaxed md:leading-loose whitespace-pre-line">
+                          {personalReading.normalized || personalReading.raw || ''}
+                        </p>
+                      )}
+                    </div>
+                  )}
+                  <div className="flex flex-col items-center justify-center gap-2 sm:gap-3 mt-3 sm:mt-4">
+                    {canSaveReading && (
+                      <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-3">
+                        <button
+                          type="button"
+                          onClick={handleNarrationButtonClick}
+                          className="px-3 sm:px-4 py-2 rounded-lg border border-emerald-400/40 bg-slate-950/85 hover:bg-slate-900/80 disabled:opacity-40 disabled:cursor-not-allowed transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 text-xs sm:text-sm"
+                          disabled={playButtonDisabled}
+                          aria-label={playButtonAriaLabel}
+                          aria-describedby={helperId}
+                        >
+                          <span className="hidden xs:inline">{playButtonLabel}</span>
+                          <span className="xs:hidden">{isTtsLoading ? 'Loading...' : isTtsPlaying ? 'Pause' : isTtsPaused ? 'Resume' : 'Play'}</span>
+                        </button>
+                        {showStopButton && (
+                          <button
+                            type="button"
+                            onClick={handleNarrationStop}
+                            className="px-2 sm:px-3 py-2 rounded-lg border border-emerald-400/40 bg-slate-950/70 hover:bg-slate-900/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 transition disabled:opacity-40 disabled:cursor-not-allowed text-xs sm:text-sm"
+                            disabled={!isTtsPlaying && !isTtsPaused && !isTtsLoading}
+                            aria-label="Stop personal reading narration"
+                          >
+                            Stop
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          onClick={saveReading}
+                          className="px-3 sm:px-4 py-2 rounded-lg bg-emerald-500/15 border border-emerald-400/40 text-emerald-200 text-xs sm:text-sm hover:bg-emerald-500/25 hover:text-emerald-100 transition"
+                          aria-describedby={journalStatusId}
+                        >
+                          <span className="hidden xs:inline">Save this narrative to your journal</span>
+                          <span className="xs:hidden">Save to journal</span>
+                        </button>
+                      </div>
+                    )}
+                    {inlineStatusMessage && (
+                      <p
+                        id="personal-reading-tts-helper"
+                        className="text-amber-200/75 text-xs text-center max-w-sm"
+                      >
+                        {inlineStatusMessage}
+                      </p>
+                    )}
+                    {journalStatus && (
+                      <p
+                        id={journalStatusId}
+                        role="status"
+                        aria-live="polite"
+                        className={`text-xs text-center max-w-sm ${journalStatus.type === 'success'
+                            ? 'text-emerald-200'
+                            : 'text-rose-200'
+                          }`}
+                      >
+                        {journalStatus.message}
+                      </p>
+                    )}
+                    <div className="sr-only" role="status" aria-live="polite">
+                      {ttsAnnouncement}
+                    </div>
+                  </div>
+                  <div className="mt-4 sm:mt-6 pt-4 sm:pt-6 border-t border-amber-500/20 flex flex-col gap-2 sm:gap-3 items-center">
+                    <HelperToggle>
+                      <p className="text-center">
+                        This reading considered card combinations, positions, emotional arcs, and your reflections to provide
+                        personalized guidance.
+                      </p>
+                    </HelperToggle>
+                  </div>
+                </div>
+              )}
+
+              {/* General Guidance */}
+              {!personalReading && !isGenerating && (
+                <div className="bg-gradient-to-r from-slate-900/80 to-slate-950/90 backdrop-blur-xl rounded-2xl p-4 sm:p-6 border border-emerald-400/40 max-w-2xl mx-auto">
+                  <h3 className="text-lg sm:text-xl font-serif text-amber-200 mb-2 sm:mb-3 flex items-center gap-2">
+                    <Star className="w-4 h-4 sm:w-5 sm:h-5" />
+                    Interpretation Guidance
+                  </h3>
+                  <HelperToggle className="mt-2">
+                    <p>
+                      Notice how the cards speak to one another. Consider themes, repetitions, contrasts, and where your
+                      attention is drawn. Trust your intuition as much as any description.
+                    </p>
+                    <p className="mt-2">
+                      This reading offers reflective guidance only. It is not a substitute for medical, mental health, legal, financial, or safety advice.
+                      If your situation involves health, legal risk, abuse, or crisis, consider reaching out to qualified professionals or trusted support services.
+                    </p>
+                  </HelperToggle>
+                </div>
+              )}
+
+              {/* Draw New Reading CTA */}
+              <div className="text-center mt-6 sm:mt-8">
+                <button
+                  onClick={shuffle}
+                  disabled={isShuffling}
+                  className="bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-500 hover:to-amber-400 disabled:opacity-50 disabled:cursor-not-allowed text-indigo-950 font-semibold px-6 sm:px-8 py-3 sm:py-4 rounded-lg shadow-lg transition-all inline-flex items-center gap-2 sm:gap-3 text-base sm:text-lg"
+                >
+                  <RotateCcw className={`w-4 h-4 sm:w-5 sm:h-5 ${isShuffling ? 'motion-safe:animate-spin' : ''}`} />
+                  <span className="hidden xs:inline">{isShuffling ? 'Shuffling the Cards...' : 'Draw New Reading'}</span>
+                  <span className="xs:hidden">{isShuffling ? 'Shuffling...' : 'New Reading'}</span>
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Initial State */}
+          {!reading && !isShuffling && (
+            <div className="text-center py-16 px-4">
+              <p className="text-amber-100/80 text-lg font-serif">
+                Focus on your question, then draw your cards when you're ready.
+              </p>
+            </div>
+          )}
+        </section>
       </main>
     </div>
   );

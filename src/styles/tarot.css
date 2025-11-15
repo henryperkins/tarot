@@ -7,6 +7,11 @@ html {
   scroll-behavior: smooth; /* Smooth scrolling for better UX */
 }
 
+.text-xs-plus {
+  font-size: clamp(0.85rem, 2.4vw, 0.95rem);
+  line-height: 1.35;
+}
+
 @media (prefers-reduced-motion: reduce) {
   html {
     scroll-behavior: auto; /* Respect user's motion preferences */
@@ -24,11 +29,6 @@ html {
 @media (max-width: 640px) {
   .text-xs {
     font-size: 0.875rem;
-    line-height: 1.5;
-  }
-
-  .text-xs-plus {
-    font-size: 0.9375rem;
     line-height: 1.5;
   }
 }
@@ -546,8 +546,33 @@ input[type="range"] {
   -webkit-appearance: none;
   appearance: none;
   background: transparent;
+  width: 100%;
 }
 
+input[type="range"]:focus {
+  outline: none;
+}
+
+/* Track */
+input[type="range"]::-webkit-slider-runnable-track {
+  width: 100%;
+  height: 6px;
+  cursor: pointer;
+  background: #0f172a;
+  border-radius: 999px;
+  border: 1px solid rgba(251, 191, 36, 0.4);
+}
+
+input[type="range"]::-moz-range-track {
+  width: 100%;
+  height: 6px;
+  cursor: pointer;
+  background: #0f172a;
+  border-radius: 999px;
+  border: 1px solid rgba(251, 191, 36, 0.4);
+}
+
+/* Thumb */
 input[type="range"]::-webkit-slider-thumb {
   -webkit-appearance: none;
   appearance: none;
@@ -556,6 +581,9 @@ input[type="range"]::-webkit-slider-thumb {
   background: #fcd34d; /* amber-300 */
   border-radius: 999px;
   border: 2px solid #020817;
+  cursor: pointer;
+  margin-top: -9px;
+  transition: transform 0.2s ease;
 }
 
 input[type="range"]::-moz-range-thumb {
@@ -564,6 +592,12 @@ input[type="range"]::-moz-range-thumb {
   background: #fcd34d; /* amber-300 */
   border-radius: 999px;
   border: 2px solid #020817;
+  cursor: pointer;
+}
+
+input[type="range"]:focus::-webkit-slider-thumb {
+  outline: 3px solid rgba(251, 191, 36, 0.5);
+  outline-offset: 2px;
 }
 
 /* Handle landscape orientation on mobile */

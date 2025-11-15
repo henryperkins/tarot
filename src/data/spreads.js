@@ -5,7 +5,8 @@ export const SPREADS = {
     positions: ['Theme / Guidance of the Moment'],
     count: 1,
     description:
-      'A single anchor card capturing the key energy or message surrounding your question or your day.'
+      'A single anchor card capturing the key energy or message surrounding your question or your day.',
+    mobileDescription: 'One card to anchor the energy around your question.'
   },
 
   // Three-card: foundational narrative spread
@@ -18,7 +19,8 @@ export const SPREADS = {
     ],
     count: 3,
     description:
-      'A classic snapshot showing how the situation has unfolded, what is active now, and where it is heading.'
+      'A classic snapshot showing how the situation has unfolded, what is active now, and where it is heading.',
+    mobileDescription: 'Past, present, and future snapshots of your story.'
   },
 
   // Five-card: structured clarity without full deep-dive
@@ -33,7 +35,8 @@ export const SPREADS = {
     ],
     count: 5,
     description:
-      'Adds nuance and reflection space while staying approachable for self-readings and beginners.'
+      'Adds nuance and reflection space while staying approachable for self-readings and beginners.',
+    mobileDescription: 'Five cards to surface core tension, support, and likely direction.'
   },
 
   // Decision / two-path: compare options while honoring agency
@@ -48,7 +51,8 @@ export const SPREADS = {
     ],
     count: 5,
     description:
-      'Compares two routes with context and lesson, emphasizing choice over fixed fate.'
+      'Compares two routes with context and lesson, emphasizing choice over fixed fate.',
+    mobileDescription: 'Contrast two paths plus the wisdom that helps you choose.'
   },
 
   // Relationship: focused dynamic between querent and other
@@ -57,7 +61,8 @@ export const SPREADS = {
     positions: ['You / your energy', 'Them / their energy', 'The connection / shared lesson'],
     count: 3,
     description:
-      'Highlights how each party is showing up and what the bond is asking from you right now.'
+      'Highlights how each party is showing up and what the bond is asking from you right now.',
+    mobileDescription: 'You, them, and the shared lesson in three cards.'
   },
 
   // Celtic Cross: classic full spread for complex questions
@@ -77,6 +82,7 @@ export const SPREADS = {
     ],
     count: 10,
     description:
-      'A traditional map of the heart of the matter, internal landscape, external forces, and probable outcome, ideal for layered questions.'
+      'A traditional map of the heart of the matter, internal landscape, external forces, and probable outcome, ideal for layered questions.',
+    mobileDescription: 'Classic 10-card deep dive for complex, layered questions.'
   }
 };

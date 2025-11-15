@@ -16,50 +16,159 @@
 const SPINE_ELEMENTS = {
   what: {
     name: 'What is happening',
-    keywords: ['stands', 'shows', 'reveals', 'manifests', 'appears', 'presents'],
     required: true
   },
   why: {
     name: 'Why/How (connector)',
-    keywords: ['because', 'therefore', 'however', 'so that', 'this', 'since'],
     required: false // Optional for single-card sections
   },
   whatsNext: {
     name: "What's next",
-    keywords: ['points toward', 'suggests', 'invites', 'calls for', 'trajectory', 'path'],
     required: false // Optional for past-focused positions
   }
 };
 
+const MIN_SENTENCE_WORDS = 5;
+const CARD_HEADER_PATTERN = /^[\w\s]+[:\-–]/;
+const MINOR_ARCANA_PATTERN = /\b(?:ace|two|three|four|five|six|seven|eight|nine|ten|page|knight|queen|king)\s+of\s+(?:wands|cups|swords|pentacles)\b/i;
+const MAJOR_ARCANA_NAMES = [
+  'fool',
+  'magician',
+  'high priestess',
+  'empress',
+  'emperor',
+  'hierophant',
+  'lovers',
+  'chariot',
+  'strength',
+  'hermit',
+  'wheel of fortune',
+  'justice',
+  'hanged man',
+  'death',
+  'temperance',
+  'devil',
+  'tower',
+  'star',
+  'moon',
+  'sun',
+  'judgement',
+  'judgment',
+  'world'
+];
+const MAJOR_ARCANA_PATTERN = new RegExp(`\\b(?:the\\s+)?(?:${MAJOR_ARCANA_NAMES.join('|')})\\b`, 'i');
+const CARD_CONTEXT_PATTERN = /\b(?:card|position|energy|situation|scene|story|thread|theme|anchor|nucleus|timeline|past|present|future|influence|lesson|moment|lens|reflection|reflections|synthesis|guidance|reminder|insight)\b/i;
+const DESCRIPTIVE_VERB_PATTERN = /\b(?:is|are|feels|brings|ushers|marks|signals|casts|delivers|grounds|anchors|establishes|opens|presents|reveals|shows|illustrates|demonstrates|highlights|frames|illuminates|expresses|focuses|rests|sits|holds|carries|offers|spotlights|reminds|echoes|emerges|unfolds)\b/i;
+const WHY_PATTERNS = [
+  /\b(?:because|since|due to|thanks to|as a result|resulting in|which is why|which means)\b/i,
+  /\b(?:therefore|thus|hence|so that|so you can|so you might)\b/i,
+  /\b(?:stems from|rooted in|comes from|arises from|emerges from)\b/i,
+  /\b(?:leads to|creates|sparks|requires|demands)\b/i,
+  /,\s*(?:which|that)\s+(?:allows|invites|pushes|nudges|lets)\b/i,
+  /\bin turn\b/i
+];
+const WHATS_NEXT_PATTERNS = [
+  /\b(?:what's next|next|future|going forward|the road ahead|ahead|from here|on the horizon)\b/i,
+  /\b(?:consider|choose|decide|prepare|plan|commit|focus|lean|move|step)\s+(?:to|into|toward|forward|next)\b/i,
+  /\b(?:invites|encourages|calls|asks|urges|prompts|guides)\b/i,
+  /\b(?:guidance|advice|trajectory|path|action|step|practice)\b/i,
+  /\b(?:you can|you might|you could)\s+(?:now|next|begin|take|start)\b/i
+];
+
+function segmentSentences(text) {
+  if (!text || typeof text !== 'string') return [];
+  return text
+    .split(/(?<=[.!?])\s+|\n+/)
+    .map(sentence => sentence.trim())
+    .filter(Boolean);
+}
+
+function hasCardReference(text) {
+  if (!text) return false;
+  return MINOR_ARCANA_PATTERN.test(text) || MAJOR_ARCANA_PATTERN.test(text);
+}
+
+function detectWhatClause(text, sentences) {
+  if (!text) return false;
+  if (hasCardReference(text)) return true;
+  if (sentences.some(sentence => CARD_HEADER_PATTERN.test(sentence))) {
+    return true;
+  }
+
+  return sentences.some(sentence => {
+    const trimmed = sentence.trim();
+    if (!trimmed) return false;
+    if (trimmed.split(/\s+/).length < MIN_SENTENCE_WORDS) return false;
+    return CARD_CONTEXT_PATTERN.test(trimmed) && DESCRIPTIVE_VERB_PATTERN.test(trimmed);
+  });
+}
+
+function detectWhyClause(text) {
+  if (!text) return false;
+  return WHY_PATTERNS.some(pattern => pattern.test(text));
+}
+
+function detectWhatsNextClause(text) {
+  if (!text) return false;
+  return WHATS_NEXT_PATTERNS.some(pattern => pattern.test(text));
+}
+
+function resolveHint(spineHints = {}, key, detector) {
+  if (Object.prototype.hasOwnProperty.call(spineHints, key) && typeof spineHints[key] === 'boolean') {
+    return spineHints[key];
+  }
+  return detector();
+}
+
+function detectSpineElements(text, spineHints = {}) {
+  const safeText = typeof text === 'string' ? text : '';
+  const sentences = segmentSentences(safeText);
+
+  const what = resolveHint(spineHints, 'what', () => detectWhatClause(safeText, sentences));
+  const why = resolveHint(spineHints, 'why', () => detectWhyClause(safeText));
+  const whatsNext = resolveHint(spineHints, 'whatsNext', () => detectWhatsNextClause(safeText));
+
+  return { what, why, whatsNext };
+}
+
 /**
  * Check if a text section contains spine elements
+ *
+ * @param {string} text - Narrative paragraph to evaluate
+ * @param {Object} [options] - Optional detection overrides
+ * @param {Object} [options.spineHints] - Explicit hints { what, why, whatsNext }
  */
-export function analyzeSpineCompleteness(text) {
+export function analyzeSpineCompleteness(text, options = {}) {
   if (!text || typeof text !== 'string') {
     return {
       isComplete: false,
       missingElements: ['what', 'why', 'whatsNext'],
+      missing: ['what', 'why', 'whatsNext'],
+      missingRequired: ['what'],
+      present: { what: false, why: false, whatsNext: false },
       suggestions: ['Add concrete description of the card/situation', 'Include causal connector', 'Provide forward-looking guidance']
     };
   }
 
-  const lowerText = text.toLowerCase();
-  const present = {};
+  const { spineHints } = options;
+  const present = detectSpineElements(text, spineHints);
   const missing = [];
+  const missingRequired = [];
 
   for (const [key, element] of Object.entries(SPINE_ELEMENTS)) {
-    const hasElement = element.keywords.some(keyword => lowerText.includes(keyword));
-    present[key] = hasElement;
-
-    if (element.required && !hasElement) {
+    if (!present[key]) {
       missing.push(key);
+      if (element.required) {
+        missingRequired.push(key);
+      }
     }
   }
 
   return {
-    isComplete: missing.length === 0,
+    isComplete: missingRequired.length === 0,
     present,
     missing,
+    missingRequired,
     suggestions: missing.map(key => `Consider adding: ${SPINE_ELEMENTS[key].name}`)
   };
 }
@@ -136,22 +245,32 @@ export function buildWhyFromElemental(elementalRelationship, card1Name, card2Nam
  */
 export function enhanceSection(section, metadata = {}) {
   const analysis = analyzeSpineCompleteness(section);
+  const missingKeys = Array.isArray(analysis.missing)
+    ? analysis.missing
+    : Array.isArray(analysis.missingElements)
+      ? analysis.missingElements
+      : [];
 
-  // If section is complete, return as-is
-  if (analysis.isComplete) {
+  if (missingKeys.length === 0) {
     return {
       text: section,
       validation: { ...analysis, enhanced: false }
     };
   }
 
-  // Attempt to enhance missing elements
   let enhanced = section || '';
   const enhancements = [];
+  let detection = analysis.present || detectSpineElements(enhanced);
 
-  // If missing "what", try to prepend basic card statement
-  if (analysis.missing.includes('what') && metadata.cards) {
-    const cardInfo = Array.isArray(metadata.cards) ? metadata.cards[0] : metadata.cards;
+  const cards = Array.isArray(metadata.cards)
+    ? metadata.cards
+    : metadata.cards
+      ? [metadata.cards]
+      : [];
+
+  // Ensure WHAT is anchored by card identification
+  if (!detection.what && cards.length > 0) {
+    const cardInfo = cards[0];
     if (cardInfo && cardInfo.card && cardInfo.position) {
       const orientation =
         typeof cardInfo.orientation === 'string' && cardInfo.orientation.trim()
@@ -160,40 +279,43 @@ export function enhanceSection(section, metadata = {}) {
       const whatStatement = `${cardInfo.position}: ${cardInfo.card}${orientation}.`;
       enhanced = `${whatStatement} ${enhanced}`.trim();
       enhancements.push('Added card identification');
+      detection = detectSpineElements(enhanced);
     }
   }
 
-  // If missing "why" and relationships exist, add causal connector
-  if (analysis.missing.includes('why') && metadata.relationships && metadata.cards) {
-    const cards = Array.isArray(metadata.cards) ? metadata.cards : [metadata.cards];
-    if (cards.length >= 2 && metadata.relationships.elementalRelationship) {
-      const whyStatement = buildWhyFromElemental(
-        metadata.relationships.elementalRelationship,
-        cards[0].card,
-        cards[1].card
-      );
-      if (whyStatement) {
-        enhanced += ` ${whyStatement}`;
-        enhancements.push('Added causal connector');
-      }
+  // Add WHY connector only when it is still missing
+  if (!detection.why && cards.length >= 2 && metadata.relationships?.elementalRelationship) {
+    const whyStatement = buildWhyFromElemental(
+      metadata.relationships.elementalRelationship,
+      cards[0].card,
+      cards[1].card
+    );
+    if (whyStatement) {
+      enhanced = enhanced ? `${enhanced} ${whyStatement}` : whyStatement;
+      enhancements.push('Added causal connector');
+      detection = detectSpineElements(enhanced);
     }
   }
 
-  // If missing "what's next" for forward-looking positions, add guidance prompt
-  if (analysis.missing.includes('whatsNext') && metadata.type) {
+  // Add WHAT'S NEXT guidance for forward-looking sections
+  if (!detection.whatsNext && typeof metadata.type === 'string') {
     const forwardTypes = ['timeline', 'outcome', 'future', 'staff'];
     if (forwardTypes.includes(metadata.type.toLowerCase())) {
       const guidancePrompt = 'Consider what this trajectory invites you to do next.';
-      enhanced += ` ${guidancePrompt}`;
+      enhanced = enhanced ? `${enhanced} ${guidancePrompt}` : guidancePrompt;
       enhancements.push('Added forward-looking guidance');
+      detection = detectSpineElements(enhanced);
     }
   }
+
+  const updatedAnalysis = analyzeSpineCompleteness(enhanced);
+  const didEnhance = enhancements.length > 0;
 
   return {
     text: enhanced,
     validation: {
-      ...analysis,
-      enhanced: true,
+      ...updatedAnalysis,
+      enhanced: didEnhance,
       enhancements
     }
   };
@@ -212,20 +334,25 @@ export function validateReadingNarrative(readingText) {
   }
 
   // Split by major section headers
-  const sectionPattern = /\*\*([^*]+)\*\*/g;
+  const sectionPattern = /(\*\*([^*]+)\*\*)|(^#{2,6}\s+(.+)$)/gm;
   const sections = [];
   let match;
   let lastIndex = 0;
 
   while ((match = sectionPattern.exec(readingText)) !== null) {
-    if (lastIndex > 0) {
-      const prevHeader = sections[sections.length - 1].header;
+    const header = (match[2] || match[4] || '').trim();
+    if (!header) {
+      lastIndex = sectionPattern.lastIndex;
+      continue;
+    }
+
+    if (sections.length > 0) {
       const content = readingText.substring(lastIndex, match.index).trim();
       sections[sections.length - 1].content = content;
     }
 
     sections.push({
-      header: match[1],
+      header,
       start: match.index,
       content: ''
     });
