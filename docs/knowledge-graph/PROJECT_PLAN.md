@@ -174,15 +174,28 @@ Experienced readers naturally recognize these patterns. The Knowledge Graph codi
 
 ### New Components
 
-**1. Core Module: `functions/lib/knowledgeGraph.js`**
+**1. Data Module: `src/data/knowledgeGraphData.js` (new file)**
 ```javascript
-// Data structures
+// Data structures for the Knowledge Graph
 export const FOOLS_JOURNEY = { /* 3 stages */ };
 export const ARCHETYPAL_TRIADS = [ /* 5+ triads */ ];
 export const ARCHETYPAL_DYADS = [ /* 15 dyads */ ];
 export const SUIT_PROGRESSIONS = { /* 4 suits */ };
 export const COURT_PATTERNS = { /* optional */ };
 export const NUMERICAL_HARMONICS = { /* optional */ };
+```
+
+**2. Core Logic Module: `functions/lib/knowledgeGraph.js` (new file)**
+```javascript
+// Import knowledge graph data
+import {
+  FOOLS_JOURNEY,
+  ARCHETYPAL_TRIADS,
+  ARCHETYPAL_DYADS,
+  SUIT_PROGRESSIONS,
+  COURT_PATTERNS,
+  NUMERICAL_HARMONICS
+} from '../../src/data/knowledgeGraphData.js';
 
 // Detection functions
 export function detectFoolsJourneyStage(cards);
@@ -197,7 +210,7 @@ export function detectAllPatterns(cards);
 export function getPriorityPatternNarratives(patterns);
 ```
 
-**2. Integration Points**
+**3. Integration Points**
 
 **`functions/lib/spreadAnalysis.js`** (modify existing):
 ```javascript
@@ -312,9 +325,10 @@ export function SpreadPatterns({ themes }) {
 **Goal:** Create core knowledge graph module with basic pattern detection
 
 **Day 1-2: FOOLS_JOURNEY Implementation**
-- [ ] Create `functions/lib/knowledgeGraph.js`
-- [ ] Implement FOOLS_JOURNEY data structure (3 stages)
-- [ ] Implement `detectFoolsJourneyStage()` function
+- [ ] Create `src/data/knowledgeGraphData.js` for static data
+- [ ] Implement FOOLS_JOURNEY data structure in `knowledgeGraphData.js`
+- [ ] Create `functions/lib/knowledgeGraph.js` for detection logic
+- [ ] Implement `detectFoolsJourneyStage()` function, importing data from `knowledgeGraphData.js`
 - [ ] Write unit tests (10+ test cases)
 - [ ] Validate against documentation examples
 
@@ -340,7 +354,8 @@ export function SpreadPatterns({ themes }) {
 - [ ] Performance check (<50ms for pattern detection)
 
 **Deliverables:**
-- ✅ `functions/lib/knowledgeGraph.js` (FOOLS_JOURNEY + TRIADS)
+- ✅ `src/data/knowledgeGraphData.js` (containing FOOLS_JOURNEY + TRIADS data)
+- ✅ `functions/lib/knowledgeGraph.js` (containing detection logic)
 - ✅ Detection functions working
 - ✅ Unit tests passing (80%+ coverage)
 - ✅ Integration with spreadAnalysis.js complete
@@ -856,7 +871,8 @@ git push origin main
 
 ### Week 1 Milestone: Foundation Complete
 **Exit Criteria:**
-- [ ] knowledgeGraph.js created with FOOLS_JOURNEY + TRIADS
+- [ ] `src/data/knowledgeGraphData.js` created with FOOLS_JOURNEY + TRIADS data
+- [ ] `functions/lib/knowledgeGraph.js` created with detection logic
 - [ ] Detection functions working and tested
 - [ ] Integrated into spreadAnalysis.js
 - [ ] Unit tests passing (80%+ coverage)

@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { ChevronLeft } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { GlobalNav } from './GlobalNav';
 
 const CONTEXT_SUMMARIES = {
   love: 'Relationship lens — center relational reciprocity and communication.',
@@ -54,6 +55,62 @@ function buildThemeInsights(entry) {
   return lines.filter(Boolean);
 }
 
+function JournalEntryCard({ entry }) {
+  const insights = buildThemeInsights(entry);
+  const [showNarrative, setShowNarrative] = useState(false);
+
+  return (
+    <div className="bg-slate-900/80 p-6 rounded-xl border border-emerald-400/40">
+      <h2 className="text-xl font-serif text-amber-200 mb-2">{entry.spread}</h2>
+      <p className="text-sm text-amber-100/70 mb-4">
+        {new Date(entry.ts).toLocaleString()}
+      </p>
+      {entry.question && (
+        <p className="italic text-amber-100/80 mb-4">Question: {entry.question}</p>
+      )}
+      <div className="mb-4">
+        <h3 className="text-sm font-semibold text-amber-200 mb-2">Cards</h3>
+        <ul className="list-disc pl-5 space-y-1 text-amber-100/80">
+          {entry.cards.map((card, idx) => (
+            <li key={idx}>
+              {card.position}: {card.name} ({card.orientation})
+            </li>
+          ))}
+        </ul>
+      </div>
+      {insights.length > 0 && (
+        <div className="mb-4">
+          <h3 className="text-sm font-semibold text-amber-200 mb-2">Saved Insights</h3>
+          <ul className="list-disc pl-5 space-y-1 text-amber-100/80">
+            {insights.map((line, idx) => (
+              <li key={idx}>{line}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+      {entry.personalReading && (
+        <div className="mt-4">
+          <button
+            type="button"
+            onClick={() => setShowNarrative(prev => !prev)}
+            className="mb-2 inline-flex items-center px-3 py-1.5 rounded-full border border-amber-400/60 text-xs sm:text-sm text-amber-100 hover:bg-amber-500/10 transition"
+          >
+            {showNarrative ? 'Hide narrative' : 'View narrative'}
+          </button>
+          {showNarrative && (
+            <div>
+              <h3 className="text-sm font-semibold text-amber-200 mb-2">Narrative</h3>
+              <p className="text-amber-100/80 whitespace-pre-wrap">
+                {entry.personalReading}
+              </p>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function Journal() {
   const [entries, setEntries] = useState([]);
   const navigate = useNavigate();
@@ -87,6 +144,7 @@ export default function Journal() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-amber-50">
       <main className="max-w-5xl mx-auto px-4 sm:px-6 py-8">
+        <GlobalNav />
         <button
           onClick={() => navigate('/')}
           className="mb-6 flex items-center text-amber-200 hover:text-amber-100"
@@ -99,40 +157,9 @@ export default function Journal() {
           <p className="text-amber-100/80">No entries yet. Save a reading to start your journal.</p>
         ) : (
           <div className="space-y-8">
-            {entries.map((entry, index) => {
-              const insights = buildThemeInsights(entry);
-              return (
-                <div key={index} className="bg-slate-900/80 p-6 rounded-xl border border-emerald-400/40">
-                  <h2 className="text-xl font-serif text-amber-200 mb-2">{entry.spread}</h2>
-                  <p className="text-sm text-amber-100/70 mb-4">{new Date(entry.ts).toLocaleString()}</p>
-                  {entry.question && <p className="italic text-amber-100/80 mb-4">Question: {entry.question}</p>}
-                  <div className="mb-4">
-                    <h3 className="text-sm font-semibold text-amber-200 mb-2">Cards</h3>
-                    <ul className="list-disc pl-5 space-y-1 text-amber-100/80">
-                      {entry.cards.map((card, idx) => (
-                        <li key={idx}>{card.position}: {card.name} ({card.orientation})</li>
-                      ))}
-                    </ul>
-                  </div>
-                  {insights.length > 0 && (
-                    <div className="mb-4">
-                      <h3 className="text-sm font-semibold text-amber-200 mb-2">Saved Insights</h3>
-                      <ul className="list-disc pl-5 space-y-1 text-amber-100/80">
-                        {insights.map((line, idx) => (
-                          <li key={idx}>{line}</li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-                  {entry.personalReading && (
-                    <div>
-                      <h3 className="text-sm font-semibold text-amber-200 mb-2">Narrative</h3>
-                      <p className="text-amber-100/80 whitespace-pre-wrap">{entry.personalReading}</p>
-                    </div>
-                  )}
-                </div>
-              );
-            })}
+            {entries.map((entry, index) => (
+              <JournalEntryCard key={index} entry={entry} />
+            ))}
           </div>
         )}
       </main>

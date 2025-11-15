@@ -123,24 +123,26 @@ export function SpreadSelector({
                     : 'bg-slate-900/70 border-slate-700/60 hover:border-emerald-400/50 hover:bg-slate-900/90'
                 } focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/80 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950`}
               >
-                {isActive && (
-                  <span className="absolute top-3 right-3 inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-500/20 border border-emerald-400/60 text-xs uppercase tracking-[0.16em] text-emerald-100">
-                    ✓ Selected
-                  </span>
-                )}
                 <div className="pr-16">
-                  <div className="font-serif font-semibold text-base text-amber-50">{spread.name}</div>
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="font-serif font-semibold text-base text-amber-50">{spread.name}</div>
+                    {spread.tag && (
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-full border border-emerald-400/60 text-[0.65rem] uppercase tracking-[0.18em] text-emerald-200">
+                        {spread.tag}
+                      </span>
+                    )}
+                  </div>
                   <p className="text-[clamp(0.85rem,2.4vw,0.95rem)] leading-snug text-amber-100/80 mt-1">
                     {spread.count} card{spread.count > 1 ? 's' : ''}
                   </p>
                 </div>
                 <p className="hidden sm:block text-sm opacity-90 mt-3 leading-snug text-amber-100/85">
-                  {spread.description || 'Guided snapshot for your focus.'}
+                  {spread.mobileDescription || spread.description || 'Guided snapshot for your focus.'}
                 </p>
                 <div className="sm:hidden mt-3">
                   {isExpanded && (
                     <p className="text-amber-50/90 text-[0.9rem] leading-snug mb-2">
-                      {spread.mobileDescription || spread.description || 'Guided snapshot for your focus.'}
+                      {spread.description || spread.mobileDescription || 'Guided snapshot for your focus.'}
                     </p>
                   )}
                   <button

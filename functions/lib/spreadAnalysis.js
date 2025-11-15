@@ -265,6 +265,26 @@ export async function analyzeSpreadThemes(cardsInfo, options = {}) {
     themes.timingProfile = null;
   }
 
+  // Knowledge Graph pattern detection (archetypal triads, Fool's Journey, dyads)
+  const KG_ENABLED = options.enableKnowledgeGraph !== false
+    && process.env.KNOWLEDGE_GRAPH_ENABLED !== 'false';
+
+  if (KG_ENABLED) {
+    try {
+      const { detectAllPatterns, getPriorityPatternNarratives } = await import('./knowledgeGraph.js');
+      const patterns = detectAllPatterns(cardsInfo);
+      if (patterns) {
+        themes.knowledgeGraph = {
+          patterns,
+          narrativeHighlights: getPriorityPatternNarratives(patterns)
+        };
+      }
+    } catch (err) {
+      console.error('Knowledge graph detection failed:', err);
+      // Graceful degradation: continue without patterns
+    }
+  }
+
   return themes;
 }
 

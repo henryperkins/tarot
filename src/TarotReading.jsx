@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { Sparkles, RotateCcw, Star } from 'lucide-react';
+import { Sparkles, RotateCcw, Star, ChevronDown, ChevronUp } from 'lucide-react';
 import { MAJOR_ARCANA } from './data/majorArcana';
 import { MINOR_ARCANA } from './data/minorArcana';
 import { SPREADS } from './data/spreads';
@@ -12,6 +12,7 @@ import { ReadingGrid } from './components/ReadingGrid';
 import { MarkdownRenderer } from './components/MarkdownRenderer';
 import { StepProgress } from './components/StepProgress';
 import { HelperToggle } from './components/HelperToggle';
+import { GlobalNav } from './components/GlobalNav';
 import { useNavigate } from 'react-router-dom'; // Assuming React Router for navigation, adjust if needed
 import { getDeckPool, computeSeed, computeRelationships, drawSpread } from './lib/deck';
 import {
@@ -31,8 +32,8 @@ import './styles/tarot.css';
 
 const STEP_PROGRESS_STEPS = [
   { id: 'spread', label: 'Spread' },
-  { id: 'intention', label: 'Intention' },
-  { id: 'ritual', label: 'Ritual' },
+  { id: 'intention', label: 'Question' },
+  { id: 'ritual', label: 'Ritual (optional)' },
   { id: 'reading', label: 'Reading' }
 ];
 
@@ -96,6 +97,8 @@ export default function TarotReading() {
 
   const [placeholderIndex, setPlaceholderIndex] = useState(0);
   const [showAllHighlights, setShowAllHighlights] = useState(false);
+  const [isQuestionPanelOpen, setIsQuestionPanelOpen] = useState(true);
+  const [isSettingsPanelOpen, setIsSettingsPanelOpen] = useState(false);
 
   const prefersReducedMotion = () => {
     if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
@@ -947,20 +950,12 @@ export default function TarotReading() {
       if (reading.length > 1) {
         buttons.push({
           key: 'reveal-all',
-          label: 'Reveal All',
+          label: 'Reveal All Cards',
           onClick: revealAll,
           disabled: false,
           variant: 'secondary'
         });
       }
-
-      buttons.push({
-        key: 'new-reading',
-        label: 'New Reading',
-        onClick: shuffle,
-        disabled: false,
-        variant: 'ghost'
-      });
 
       return buttons;
     }
@@ -993,7 +988,7 @@ export default function TarotReading() {
   const { stepIndicatorLabel, stepIndicatorHint, activeStep } = useMemo(() => {
     if (hasNarrative) {
       return {
-        stepIndicatorLabel: 'Step 4 · Reflect on your narrative',
+        stepIndicatorLabel: 'Reflect on your narrative',
         stepIndicatorHint: 'Read through the personalized guidance and save anything that resonates.',
         activeStep: 'reading'
       };
@@ -1001,7 +996,7 @@ export default function TarotReading() {
 
     if (narrativeInProgress) {
       return {
-        stepIndicatorLabel: 'Step 4 · Weaving your narrative',
+        stepIndicatorLabel: 'Weaving your narrative',
         stepIndicatorHint: 'Hang tight while we compose your personalized reading.',
         activeStep: 'reading'
       };
@@ -1010,14 +1005,14 @@ export default function TarotReading() {
     if (hasReading) {
       if (allCardsRevealed) {
         return {
-          stepIndicatorLabel: 'Step 4 · Explore your spread',
+          stepIndicatorLabel: 'Explore your spread',
           stepIndicatorHint: 'Review the card insights below or generate a personalized narrative.',
           activeStep: 'reading'
         };
       }
 
       return {
-        stepIndicatorLabel: 'Step 4 · Reveal your cards',
+        stepIndicatorLabel: 'Reveal your cards',
         stepIndicatorHint: 'Flip each card to unfold the story of your spread.',
         activeStep: 'reading'
       };
@@ -1025,7 +1020,7 @@ export default function TarotReading() {
 
     if (!hasConfirmedSpread) {
       return {
-        stepIndicatorLabel: 'Step 1 · Choose your spread',
+        stepIndicatorLabel: 'Choose your spread',
         stepIndicatorHint: 'Tap a spread that matches your focus to begin shaping the reading.',
         activeStep: 'spread'
       };
@@ -1033,7 +1028,7 @@ export default function TarotReading() {
 
     if (!hasQuestion && !hasRitualProgress) {
       return {
-        stepIndicatorLabel: 'Step 2 · Set your intention',
+        stepIndicatorLabel: 'Question & intention',
         stepIndicatorHint: 'Add a guiding question to focus the reading, or skip if you prefer intuition.',
         activeStep: 'intention'
       };
@@ -1041,14 +1036,14 @@ export default function TarotReading() {
 
     if (!hasRitualProgress) {
       return {
-        stepIndicatorLabel: 'Step 3 · Optional rituals',
+        stepIndicatorLabel: 'Optional rituals',
         stepIndicatorHint: 'Knock or cut the deck if that supports your practice, or head straight to the draw.',
         activeStep: 'ritual'
       };
     }
 
     return {
-      stepIndicatorLabel: 'Step 4 · Draw your cards',
+      stepIndicatorLabel: 'Draw your cards',
       stepIndicatorHint: 'When you feel ready, draw the cards to begin your reading.',
       activeStep: 'reading'
     };
@@ -1084,6 +1079,7 @@ export default function TarotReading() {
         </header>
 
         <div className="sticky top-0 z-30 py-3 sm:py-4 mb-6 bg-slate-950/95 backdrop-blur border-y border-slate-800/70">
+          <GlobalNav />
           <StepProgress
             steps={STEP_PROGRESS_STEPS}
             activeStep={activeStep}
@@ -1160,6 +1156,14 @@ export default function TarotReading() {
                 id="step-spread"
                 className="scroll-mt-[6.5rem] sm:scroll-mt-[7.5rem]"
               >
+                <div className="mb-3 sm:mb-4">
+                  <h2 className="text-xs-plus sm:text-sm uppercase tracking-[0.18em] text-emerald-300/85">
+                    Spread
+                  </h2>
+                  <p className="mt-1 text-amber-100/80 text-xs sm:text-sm">
+                    Choose a spread to shape the depth and focus of your reading.
+                  </p>
+                </div>
                 <SpreadSelector
                   selectedSpread={selectedSpread}
                   setSelectedSpread={setSelectedSpread}
@@ -1180,54 +1184,93 @@ export default function TarotReading() {
                 />
               </div>
 
-              {/* Optional intention and ritual controls */}
-              <div className="space-y-4">
+              {/* Step 2–3 controls: two minimal collapsible panels */}
+              <div className="space-y-3">
+                {/* Panel 1: Question */}
                 <section
                   aria-label="Your question or intention (optional)"
                   ref={intentionSectionRef}
                   id="step-intention"
                   className="scroll-mt-[6.5rem] sm:scroll-mt-[7.5rem]"
                 >
-                  <QuestionInput
-                    userQuestion={userQuestion}
-                    setUserQuestion={setUserQuestion}
-                    placeholderIndex={placeholderIndex}
-                  />
+                  <button
+                    type="button"
+                    onClick={() => setIsQuestionPanelOpen(open => !open)}
+                    className="w-full flex items-center justify-between px-3 py-2.5 rounded-lg bg-slate-900/70 border border-slate-700/70 hover:border-emerald-400/60 transition"
+                    aria-expanded={isQuestionPanelOpen}
+                    aria-controls="question-panel-body"
+                  >
+                    <span className="text-amber-200 font-serif text-sm">
+                      Question & intention (optional)
+                    </span>
+                    {isQuestionPanelOpen ? (
+                      <ChevronUp className="w-4 h-4 text-amber-300" />
+                    ) : (
+                      <ChevronDown className="w-4 h-4 text-amber-300" />
+                    )}
+                  </button>
+                  {isQuestionPanelOpen && (
+                    <div id="question-panel-body" className="mt-3">
+                      <QuestionInput
+                        userQuestion={userQuestion}
+                        setUserQuestion={setUserQuestion}
+                        placeholderIndex={placeholderIndex}
+                      />
+                    </div>
+                  )}
                 </section>
 
-                <section aria-label="Experience settings">
-                  <SettingsToggles
-                    voiceOn={voiceOn}
-                    setVoiceOn={setVoiceOn}
-                    ambienceOn={ambienceOn}
-                    setAmbienceOn={setAmbienceOn}
-                    reversalFramework={reversalFramework}
-                    setReversalFramework={setReversalFramework}
-                    theme={theme}
-                    setTheme={setTheme}
-                  />
-                  <p className="sr-only">
-                    Reader voice uses generated audio when enabled. Table ambience plays soft background sound when enabled.
-                  </p>
-                </section>
-
+                {/* Panel 2: Experience + Ritual */}
                 <section
-                  aria-label="Ritual (optional)"
+                  aria-label="Experience and ritual settings (optional)"
                   ref={ritualSectionRef}
                   id="step-ritual"
                   className="scroll-mt-[6.5rem] sm:scroll-mt-[7.5rem]"
                 >
-                  <RitualControls
-                    hasKnocked={hasKnocked}
-                    handleKnock={handleKnock}
-                    cutIndex={cutIndex}
-                    setCutIndex={setCutIndex}
-                    hasCut={hasCut}
-                    applyCut={applyCut}
-                    knocksCount={Math.min((knockTimesRef.current || []).length, 3)}
-                    deckSize={deckSize}
-                    onSkip={() => shuffle()} // Skip ritual and draw cards
-                  />
+                  <button
+                    type="button"
+                    onClick={() => setIsSettingsPanelOpen(open => !open)}
+                    className="w-full flex items-center justify-between px-3 py-2.5 rounded-lg bg-slate-900/70 border border-slate-700/70 hover:border-emerald-400/60 transition"
+                    aria-expanded={isSettingsPanelOpen}
+                    aria-controls="settings-panel-body"
+                  >
+                    <span className="text-amber-200 font-serif text-sm">
+                      Experience & ritual (optional)
+                    </span>
+                    {isSettingsPanelOpen ? (
+                      <ChevronUp className="w-4 h-4 text-amber-300" />
+                    ) : (
+                      <ChevronDown className="w-4 h-4 text-amber-300" />
+                    )}
+                  </button>
+                  {isSettingsPanelOpen && (
+                    <div id="settings-panel-body" className="mt-3 space-y-4">
+                      <SettingsToggles
+                        voiceOn={voiceOn}
+                        setVoiceOn={setVoiceOn}
+                        ambienceOn={ambienceOn}
+                        setAmbienceOn={setAmbienceOn}
+                        reversalFramework={reversalFramework}
+                        setReversalFramework={setReversalFramework}
+                        theme={theme}
+                        setTheme={setTheme}
+                      />
+                      <p className="sr-only">
+                        Reader voice uses generated audio when enabled. Table ambience plays soft background sound when enabled.
+                      </p>
+                      <RitualControls
+                        hasKnocked={hasKnocked}
+                        handleKnock={handleKnock}
+                        cutIndex={cutIndex}
+                        setCutIndex={setCutIndex}
+                        hasCut={hasCut}
+                        applyCut={applyCut}
+                        knocksCount={Math.min((knockTimesRef.current || []).length, 3)}
+                        deckSize={deckSize}
+                        onSkip={() => shuffle()} // Skip ritual and draw cards
+                      />
+                    </div>
+                  )}
                 </section>
               </div>
             </div>
@@ -1240,9 +1283,17 @@ export default function TarotReading() {
           className="scroll-mt-[6.5rem] sm:scroll-mt-[7.5rem]"
           aria-label="Draw and explore your reading"
         >
+          <div className="mb-4 sm:mb-5">
+            <p className="text-xs-plus sm:text-sm uppercase tracking-[0.18em] text-emerald-300/85">
+              Reading
+            </p>
+            <p className="mt-1 text-amber-100/80 text-xs sm:text-sm">
+              Draw and reveal your cards, explore the spread, and weave your narrative.
+            </p>
+          </div>
           {/* Primary CTA: only visible before a spread exists */}
           {!reading && (
-            <div className="text-center mb-8 sm:mb-10">
+            <div className="hidden sm:block text-center mb-8 sm:mb-10">
               <button
                 onClick={shuffle}
                 disabled={isShuffling}
@@ -1276,7 +1327,7 @@ export default function TarotReading() {
 
               {/* Reveal All / Reset Reveals */}
               {revealedCards.size < reading.length && (
-                <div className="text-center">
+                <div className="hidden sm:block text-center">
                   <button
                     type="button"
                     onClick={revealAll}
@@ -1308,7 +1359,7 @@ export default function TarotReading() {
 
               {/* Deal next card (adaptive CTA copy) */}
               {reading && revealedCards.size < reading.length && (
-                <div className="text-center">
+                <div className="hidden sm:block text-center">
                   <button
                     onClick={dealNext}
                     className="mt-3 inline-flex items-center justify-center bg-gradient-to-r from-amber-500 to-amber-400 hover:from-amber-400 hover:to-amber-300 text-slate-950 font-semibold px-4 sm:px-6 py-2.5 sm:py-3 rounded-full shadow-lg shadow-amber-900/30 transition-all text-sm sm:text-base"
@@ -1468,7 +1519,7 @@ export default function TarotReading() {
                         <button
                           type="button"
                           onClick={saveReading}
-                          className="px-3 sm:px-4 py-2 rounded-lg bg-emerald-500/15 border border-emerald-400/40 text-emerald-200 text-xs sm:text-sm hover:bg-emerald-500/25 hover:text-emerald-100 transition"
+                          className="hidden sm:inline-flex px-3 sm:px-4 py-2 rounded-lg bg-emerald-500/15 border border-emerald-400/40 text-emerald-200 text-xs sm:text-sm hover:bg-emerald-500/25 hover:text-emerald-100 transition"
                           aria-describedby={journalStatusId}
                         >
                           <span className="hidden xs:inline">Save this narrative to your journal</span>
@@ -1537,7 +1588,7 @@ export default function TarotReading() {
               )}
 
               {/* Draw New Reading CTA */}
-              <div className="text-center mt-6 sm:mt-8">
+              <div className="hidden sm:block text-center mt-6 sm:mt-8">
                 <button
                   onClick={shuffle}
                   disabled={isShuffling}
