@@ -7,6 +7,12 @@ body {
   padding-bottom: 1.5rem;
 }
 
+.full-bleed {
+  width: 100vw;
+  margin-left: calc(50% - 50vw);
+  margin-right: calc(50% - 50vw);
+}
+
 @supports (padding: max(0px)) {
   .app-shell {
     padding-bottom: max(1.5rem, env(safe-area-inset-bottom, 1.5rem));

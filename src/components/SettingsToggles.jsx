@@ -11,10 +11,19 @@ export function SettingsToggles({
   reversalFramework,
   setReversalFramework,
   theme,
-  setTheme
+  setTheme,
+  includeMinors = true,
+  setIncludeMinors,
+  deckSize = includeMinors ? 78 : 22,
+  minorsDataIncomplete = false
 }) {
   const tileBaseClass =
     'block rounded-2xl border px-3 py-3 sm:px-4 bg-slate-900/70 cursor-pointer transition focus-within:ring-2 focus-within:ring-emerald-400/70 focus-within:ring-offset-2 focus-within:ring-offset-slate-950 min-h-[44px]';
+  const deckBadgeLabel = minorsDataIncomplete
+    ? `${deckSize} cards · Major Arcana only`
+    : includeMinors
+      ? `${deckSize} cards · Full deck`
+      : `${deckSize} cards · Major Arcana only`;
 
   return (
     <div className="space-y-4">
@@ -104,6 +113,37 @@ export function SettingsToggles({
           </label>
           <span id="theme-description" className="sr-only">
             Toggle between dark and light theme
+          </span>
+        </div>
+
+        <div>
+          <label
+            className={`${tileBaseClass} ${includeMinors ? 'border-emerald-400/50 shadow-inner shadow-emerald-900/30' : 'border-slate-700/60 hover:border-emerald-400/40'}`}
+          >
+            <input
+              id="deck-toggle"
+              type="checkbox"
+              checked={includeMinors}
+              onChange={event => setIncludeMinors?.(event.target.checked)}
+              aria-describedby="deck-description"
+              className="sr-only"
+            />
+            <div className="flex flex-col gap-2">
+              <div className="flex flex-col items-start gap-2 xs:flex-row xs:items-center xs:justify-between">
+                <span className="text-amber-100/90 text-sm font-medium">Deck size</span>
+                <span
+                  className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-xs-plus ${includeMinors ? 'bg-emerald-500/15 border-emerald-400/50 text-emerald-200' : 'bg-slate-800/60 border-slate-600/60 text-slate-300'}`}
+                >
+                  {deckBadgeLabel}
+                </span>
+              </div>
+              <p className="text-[clamp(0.85rem,2.4vw,0.95rem)] leading-snug text-amber-100/70">
+                Turn off to focus on the 22-card Major Arcana journey.
+              </p>
+            </div>
+          </label>
+          <span id="deck-description" className="sr-only">
+            Toggle between the full 78-card deck and the Major Arcana-only deck
           </span>
         </div>
       </div>

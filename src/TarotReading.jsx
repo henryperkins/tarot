@@ -30,6 +30,13 @@ import {
 import { formatReading, splitIntoParagraphs } from './lib/formatting';
 import './styles/tarot.css';
 
+const PREPARE_SECTIONS_STORAGE_KEY = 'tarot-prepare-sections';
+const DEFAULT_PREPARE_SECTIONS = {
+  intention: true,
+  experience: true,
+  ritual: false
+};
+
 const STEP_PROGRESS_STEPS = [
   { id: 'spread', label: 'Spread' },
   { id: 'intention', label: 'Question' },
@@ -49,6 +56,7 @@ export default function TarotReading() {
   const [userQuestion, setUserQuestion] = useState('');
   const [analyzingText, setAnalyzingText] = useState('');
   const [hasKnocked, setHasKnocked] = useState(false);
+  const [knockCount, setKnockCount] = useState(0);
   const [hasCut, setHasCut] = useState(false);
   const [hasConfirmedSpread, setHasConfirmedSpread] = useState(false);
   const [cutIndex, setCutIndex] = useState(Math.floor(MAJOR_ARCANA.length / 2));
@@ -80,25 +88,45 @@ export default function TarotReading() {
   const [ttsAnnouncement, setTtsAnnouncement] = useState('');
   const [journalStatus, setJournalStatus] = useState(null);
   const [minorsFallbackWarning, setMinorsFallbackWarning] = useState(false);
+  const [allowPlaceholderCycle, setAllowPlaceholderCycle] = useState(true);
+  const [showVoicePrompt, setShowVoicePrompt] = useState(false);
+  const [deckAnnouncement, setDeckAnnouncement] = useState('');
+  const [prepareSectionsOpen, setPrepareSectionsOpen] = useState(() => {
+    if (typeof sessionStorage === 'undefined') {
+      return { ...DEFAULT_PREPARE_SECTIONS };
+    }
+    try {
+      const stored = sessionStorage.getItem(PREPARE_SECTIONS_STORAGE_KEY);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        return {
+          ...DEFAULT_PREPARE_SECTIONS,
+          ...parsed
+        };
+      }
+    } catch (error) {
+      console.debug('Unable to load prepare panel state:', error);
+    }
+    return { ...DEFAULT_PREPARE_SECTIONS };
+  });
   const navigate = useNavigate(); // For journal navigation
 
   const knockTimesRef = useRef([]);
   const shuffleTimeoutRef = useRef(null);
   const spreadSectionRef = useRef(null);
-  const intentionSectionRef = useRef(null);
-  const ritualSectionRef = useRef(null);
+  const prepareSectionRef = useRef(null);
   const readingSectionRef = useRef(null);
+  const deckAnnouncementTimeoutRef = useRef(null);
+  const deckSizeInitializedRef = useRef(false);
   const stepSectionRefs = {
     spread: spreadSectionRef,
-    intention: intentionSectionRef,
-    ritual: ritualSectionRef,
+    intention: prepareSectionRef,
+    ritual: prepareSectionRef,
     reading: readingSectionRef
   };
 
   const [placeholderIndex, setPlaceholderIndex] = useState(0);
   const [showAllHighlights, setShowAllHighlights] = useState(false);
-  const [isQuestionPanelOpen, setIsQuestionPanelOpen] = useState(true);
-  const [isSettingsPanelOpen, setIsSettingsPanelOpen] = useState(false);
 
   const prefersReducedMotion = () => {
     if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
@@ -118,17 +146,54 @@ export default function TarotReading() {
     }
   };
 
-  // Rotate example intention placeholder
+  const togglePrepareSection = section => {
+    setPrepareSectionsOpen(prev => ({
+      ...prev,
+      [section]: !prev[section]
+    }));
+  };
+
+  const handleQuestionFocus = () => {
+    setAllowPlaceholderCycle(false);
+  };
+
+  const handleQuestionBlur = () => {
+    if (!userQuestion.trim()) {
+      setAllowPlaceholderCycle(true);
+    }
+  };
+
+  const handlePlaceholderRefresh = () => {
+    setPlaceholderIndex(prev => (prev + 1) % EXAMPLE_QUESTIONS.length);
+  };
+
+  // Rotate example intention placeholder (unless user is interacting)
   useEffect(() => {
+    const trimmedQuestion = userQuestion.trim();
+    if (!allowPlaceholderCycle || trimmedQuestion) {
+      return undefined;
+    }
     const interval = setInterval(() => {
       setPlaceholderIndex(prev => (prev + 1) % EXAMPLE_QUESTIONS.length);
     }, 4000);
     return () => clearInterval(interval);
-  }, []);
+  }, [allowPlaceholderCycle, userQuestion]);
 
   useEffect(() => {
     setShowAllHighlights(false);
   }, [selectedSpread, reading]);
+
+  useEffect(() => {
+    if (typeof sessionStorage === 'undefined') return;
+    try {
+      sessionStorage.setItem(
+        PREPARE_SECTIONS_STORAGE_KEY,
+        JSON.stringify(prepareSectionsOpen)
+      );
+    } catch (error) {
+      console.debug('Unable to persist prepare panel state:', error);
+    }
+  }, [prepareSectionsOpen]);
 
   // Initialize shared audio once on mount and clean up on unmount
   useEffect(() => {
@@ -248,6 +313,12 @@ export default function TarotReading() {
     }
   }, [voiceOn]);
 
+  useEffect(() => {
+    if (voiceOn) {
+      setShowVoicePrompt(false);
+    }
+  }, [voiceOn]);
+
   // Active deck size based on toggle (with dataset safety handled in getDeckPool)
   const { deckSize, minorsDataIncomplete } = useMemo(() => {
     const pool = getDeckPool(includeMinors);
@@ -264,12 +335,35 @@ export default function TarotReading() {
     setMinorsFallbackWarning(minorsDataIncomplete);
   }, [minorsDataIncomplete]);
 
-  // Keep cut index centered on active deck when no reading in progress
+  // Keep cut index centered on active deck and announce deck scope changes
   useEffect(() => {
-    if (!reading) {
-      setCutIndex(Math.floor(deckSize / 2));
+    const nextCutIndex = Math.floor(deckSize / 2);
+    setCutIndex(nextCutIndex);
+
+    if (!deckSizeInitializedRef.current) {
+      deckSizeInitializedRef.current = true;
+      return;
     }
-  }, [deckSize, reading]);
+
+    setHasCut(false);
+    setHasKnocked(false);
+    setKnockCount(0);
+    knockTimesRef.current = [];
+    const announcement = `Deck now ${deckSize} cards. Cut index reset to ${nextCutIndex}.`;
+    setDeckAnnouncement(announcement);
+    if (deckAnnouncementTimeoutRef.current) {
+      clearTimeout(deckAnnouncementTimeoutRef.current);
+    }
+    deckAnnouncementTimeoutRef.current = setTimeout(() => {
+      setDeckAnnouncement('');
+    }, 4000);
+  }, [deckSize]);
+
+  useEffect(() => () => {
+    if (deckAnnouncementTimeoutRef.current) {
+      clearTimeout(deckAnnouncementTimeoutRef.current);
+    }
+  }, []);
 
   // Server-centric spread analysis (Strategy C)
   const [spreadAnalysis, setSpreadAnalysis] = useState(null);
@@ -287,11 +381,13 @@ export default function TarotReading() {
   }, [reading, spreadAnalysis]);
 
   function handleKnock() {
+    if (hasKnocked) return;
     if (typeof performance === 'undefined') return;
     const now = performance.now();
     const recent = knockTimesRef.current.filter(timestamp => now - timestamp < 2000);
     recent.push(now);
     knockTimesRef.current = recent;
+    setKnockCount(Math.min(recent.length, 3));
     if (recent.length >= 3) {
       setHasKnocked(true);
       if (typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function') {
@@ -453,7 +549,6 @@ export default function TarotReading() {
         ? 'Resume personal reading narration'
         : 'Read your personal tarot reading aloud';
   const playButtonDisabled =
-    !voiceOn ||
     !isNarrationAvailable ||
     (isTtsLoading && !isTtsPaused && !isTtsPlaying);
   const showStopButton =
@@ -462,7 +557,7 @@ export default function TarotReading() {
   const inlineStatusMessage = isPersonalReadingError
     ? 'Personalized reading unavailable. Generate a new narrative to enable narration and saving.'
     : !voiceOn
-      ? "Turn on 'Reader voice' in Experience settings above to listen to this reading."
+      ? 'Voice narration is off. Use the prompt below to enable it before listening.'
       : !isNarrationAvailable
         ? null
         : isTtsError
@@ -494,7 +589,11 @@ export default function TarotReading() {
     `${baseMobileActionButtonClass} ${mobileActionButtonVariants[variant] || mobileActionButtonVariants.secondary}`;
 
   const handleNarrationButtonClick = () => {
-    if (!voiceOn || !isNarrationAvailable || isPersonalReadingError) return;
+    if (!voiceOn) {
+      setShowVoicePrompt(true);
+      return;
+    }
+    if (!isNarrationAvailable || isPersonalReadingError) return;
     if (isTtsLoading && !isTtsPaused && !isTtsPlaying) return;
 
     if (isTtsPlaying) {
@@ -512,6 +611,15 @@ export default function TarotReading() {
 
   const handleNarrationStop = () => {
     stopNarration();
+  };
+
+  const handleVoicePromptEnable = () => {
+    setVoiceOn(true);
+    setShowVoicePrompt(false);
+    if (!fullReadingText) return;
+    setTimeout(() => {
+      void speak(fullReadingText, 'full-reading');
+    }, 120);
   };
 
   const handleViewJournal = () => {
@@ -540,6 +648,7 @@ export default function TarotReading() {
     setDealIndex(0);
     setReflections({});
     setHasKnocked(false);
+    setKnockCount(0);
     setHasCut(false);
     setJournalStatus(null);
 
@@ -907,84 +1016,54 @@ export default function TarotReading() {
     setDealIndex(reading.length);
   };
 
+  const deckSummaryLabel = useMemo(
+    () => `${deckSize}${minorsDataIncomplete ? ' (Major Arcana only)' : ''}`,
+    [deckSize, minorsDataIncomplete]
+  );
+
+  const prepareSummaries = useMemo(() => {
+    const trimmedQuestion = userQuestion.trim();
+    const questionSummary = trimmedQuestion
+      ? `Intention: ${trimmedQuestion.length > 60 ? `${trimmedQuestion.slice(0, 57)}…` : trimmedQuestion}`
+      : 'Intention: Blank';
+    const knockSummary = knockCount >= 3 ? 'Knocks ready' : `Knocks ${knockCount}/3`;
+    const cutSummary = hasCut ? `Cut ${cutIndex}` : 'Cut pending';
+    const ritualSummary = knockCount === 0 && !hasCut
+      ? 'Ritual: Skipped'
+      : `Ritual: ${knockSummary} · ${cutSummary}`;
+
+    return {
+      intention: questionSummary,
+      experience: `Voice: ${voiceOn ? 'On' : 'Off'} · Ambience: ${ambienceOn ? 'On' : 'Off'} · Deck: ${deckSummaryLabel}`,
+      ritual: ritualSummary
+    };
+  }, [userQuestion, voiceOn, ambienceOn, deckSummaryLabel, knockCount, hasCut, cutIndex]);
+
+  const experienceSummary = useMemo(
+    () => `Voice ${voiceOn ? 'ON' : 'OFF'} · Ambience ${ambienceOn ? 'ON' : 'OFF'} · Deck ${deckSummaryLabel}`,
+    [voiceOn, ambienceOn, deckSummaryLabel]
+  );
+  const prepareSectionLabels = {
+    intention: {
+      title: 'Intention',
+      helper: 'Optional guiding prompt before you draw.'
+    },
+    experience: {
+      title: 'Experience & preferences',
+      helper: 'Voice, ambience, theme, reversals, and deck scope.'
+    },
+    ritual: {
+      title: 'Ritual (optional)',
+      helper: 'Knock, cut, or skip if that is not part of your practice.'
+    }
+  };
+
   const hasQuestion = Boolean(userQuestion && userQuestion.trim().length > 0);
-  const hasRitualProgress = hasKnocked || hasCut;
+  const hasRitualProgress = hasKnocked || hasCut || knockCount > 0;
   const hasReading = Boolean(reading && reading.length > 0);
   const allCardsRevealed = hasReading && revealedCards.size === reading.length;
   const hasNarrative = Boolean(personalReading);
   const narrativeInProgress = isGenerating && !personalReading;
-  const mobileActionBarButtons = (() => {
-    const buttons = [];
-
-    if (isShuffling) {
-      buttons.push({
-        key: 'shuffling',
-        label: 'Shuffling…',
-        onClick: null,
-        disabled: true,
-        variant: 'primary'
-      });
-      return buttons;
-    }
-
-    if (!reading) {
-      buttons.push({
-        key: 'draw',
-        label: 'Draw Cards',
-        onClick: shuffle,
-        disabled: false,
-        variant: 'primary'
-      });
-      return buttons;
-    }
-
-    if (reading && revealedCards.size < reading.length) {
-      buttons.push({
-        key: 'reveal-next',
-        label: `Reveal Next (${Math.min(dealIndex + 1, reading.length)}/${reading.length})`,
-        onClick: dealNext,
-        disabled: false,
-        variant: 'primary'
-      });
-
-      if (reading.length > 1) {
-        buttons.push({
-          key: 'reveal-all',
-          label: 'Reveal All Cards',
-          onClick: revealAll,
-          disabled: false,
-          variant: 'secondary'
-        });
-      }
-
-      return buttons;
-    }
-
-    if (reading && revealedCards.size === reading.length) {
-      if (canSaveReading) {
-        buttons.push({
-          key: 'save',
-          label: 'Save to Journal',
-          onClick: saveReading,
-          disabled: false,
-          variant: 'primary'
-        });
-      }
-
-      buttons.push({
-        key: 'shuffle-ready',
-        label: 'New Reading',
-        onClick: shuffle,
-        disabled: false,
-        variant: canSaveReading ? 'secondary' : 'primary'
-      });
-
-      return buttons;
-    }
-
-    return buttons;
-  })();
-
   const { stepIndicatorLabel, stepIndicatorHint, activeStep } = useMemo(() => {
     if (hasNarrative) {
       return {
@@ -1026,19 +1105,11 @@ export default function TarotReading() {
       };
     }
 
-    if (!hasQuestion && !hasRitualProgress) {
+    if (!hasQuestion || !hasRitualProgress) {
       return {
-        stepIndicatorLabel: 'Question & intention',
-        stepIndicatorHint: 'Add a guiding question to focus the reading, or skip if you prefer intuition.',
-        activeStep: 'intention'
-      };
-    }
-
-    if (!hasRitualProgress) {
-      return {
-        stepIndicatorLabel: 'Optional rituals',
-        stepIndicatorHint: 'Knock or cut the deck if that supports your practice, or head straight to the draw.',
-        activeStep: 'ritual'
+        stepIndicatorLabel: 'Prepare your reading',
+        stepIndicatorHint: 'Set an intention, tune experience preferences, or complete the optional ritual.',
+        activeStep: !hasQuestion ? 'intention' : 'ritual'
       };
     }
 
@@ -1056,6 +1127,85 @@ export default function TarotReading() {
     hasRitualProgress,
     hasConfirmedSpread
   ]);
+
+  const mobileActionBarButtons = (() => {
+    const buttons = [];
+    const phaseLabel = stepIndicatorLabel;
+
+    if (isShuffling) {
+      buttons.push({
+        key: 'shuffling',
+        label: 'Shuffling…',
+        onClick: null,
+        disabled: true,
+        variant: 'primary',
+        phaseLabel
+      });
+      return buttons;
+    }
+
+    if (!reading) {
+      buttons.push({
+        key: 'draw',
+        label: 'Draw cards',
+        onClick: shuffle,
+        disabled: false,
+        variant: 'primary',
+        phaseLabel
+      });
+      return buttons;
+    }
+
+    if (reading && revealedCards.size < reading.length) {
+      buttons.push({
+        key: 'reveal-next',
+        label: `Reveal next (${Math.min(dealIndex + 1, reading.length)}/${reading.length})`,
+        onClick: dealNext,
+        disabled: false,
+        variant: 'primary',
+        phaseLabel
+      });
+
+      if (reading.length > 1) {
+        buttons.push({
+          key: 'reveal-all',
+          label: 'Reveal all cards',
+          onClick: revealAll,
+          disabled: false,
+          variant: 'secondary',
+          phaseLabel
+        });
+      }
+
+      return buttons;
+    }
+
+    if (reading && revealedCards.size === reading.length) {
+      if (canSaveReading) {
+        buttons.push({
+          key: 'save',
+          label: 'Save to journal',
+          onClick: saveReading,
+          disabled: false,
+          variant: 'primary',
+          phaseLabel
+        });
+      }
+
+      buttons.push({
+        key: 'shuffle-ready',
+        label: 'Start a new reading',
+        onClick: shuffle,
+        disabled: false,
+        variant: canSaveReading ? 'secondary' : 'primary',
+        phaseLabel
+      });
+
+      return buttons;
+    }
+
+    return buttons;
+  })();
 
   return (
     <div className="app-shell min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-amber-50">
@@ -1078,13 +1228,22 @@ export default function TarotReading() {
           </div>
         </header>
 
-        <div className="sticky top-0 z-30 py-3 sm:py-4 mb-6 bg-slate-950/95 backdrop-blur border-y border-slate-800/70">
+        <div className="full-bleed sticky top-0 z-30 py-3 sm:py-4 mb-6 bg-slate-950/95 backdrop-blur border-y border-slate-800/70 px-4 sm:px-5 md:px-6">
           <GlobalNav />
           <StepProgress
             steps={STEP_PROGRESS_STEPS}
             activeStep={activeStep}
             onSelect={handleStepNav}
           />
+          <button
+            type="button"
+            onClick={() => handleStepNav('intention')}
+            className="mt-2 inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-emerald-400/40 bg-slate-900/70 text-[0.7rem] sm:text-xs text-emerald-100 mx-auto"
+            aria-label="Jump to the Prepare panel to adjust intention, experience, or ritual settings"
+          >
+            <span className="uppercase tracking-[0.2em] text-emerald-300 text-[0.55rem] sm:text-[0.6rem]">Prepare</span>
+            <span>{experienceSummary}</span>
+          </button>
           {isShuffling && (
             <div
               className="mt-2 flex items-center gap-2 text-amber-200/80 text-[clamp(0.85rem,2.4vw,0.95rem)] leading-snug"
@@ -1136,7 +1295,7 @@ export default function TarotReading() {
           </div>
         )}
 
-        {/* Step 1–3: Spread + Intention + Rituals */}
+        {/* Step 1–3: Spread + Prepare */}
         <section className="mb-6 xl:mb-4" aria-label="Reading setup">
           <div className="mb-4 sm:mb-5">
             <p className="text-xs-plus sm:text-sm uppercase tracking-[0.18em] text-emerald-300/85">
@@ -1147,133 +1306,131 @@ export default function TarotReading() {
             </p>
           </div>
 
-          <div className="max-w-5xl mx-auto">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-              {/* Spread selection (primary) */}
-              <div
-                aria-label="Choose your spread"
-                ref={spreadSectionRef}
-                id="step-spread"
-                className="scroll-mt-[6.5rem] sm:scroll-mt-[7.5rem]"
-              >
-                <div className="mb-3 sm:mb-4">
-                  <h2 className="text-xs-plus sm:text-sm uppercase tracking-[0.18em] text-emerald-300/85">
-                    Spread
-                  </h2>
-                  <p className="mt-1 text-amber-100/80 text-xs sm:text-sm">
-                    Choose a spread to shape the depth and focus of your reading.
-                  </p>
-                </div>
-                <SpreadSelector
-                  selectedSpread={selectedSpread}
-                  setSelectedSpread={setSelectedSpread}
-                  setReading={setReading}
-                  setRevealedCards={setRevealedCards}
-                  setPersonalReading={setPersonalReading}
-                  setJournalStatus={setJournalStatus}
-                  setAnalyzingText={setAnalyzingText}
-                  setIsGenerating={setIsGenerating}
-                  setDealIndex={setDealIndex}
-                  setReflections={setReflections}
-                  setHasKnocked={setHasKnocked}
-                  setHasCut={setHasCut}
-                  setCutIndex={setCutIndex}
-                  knockTimesRef={knockTimesRef}
-                  deckSize={deckSize}
-                  onSpreadConfirm={() => setHasConfirmedSpread(true)}
-                />
+          <div className="max-w-5xl mx-auto space-y-6">
+            <div
+              aria-label="Choose your spread"
+              ref={spreadSectionRef}
+              id="step-spread"
+              className="scroll-mt-[6.5rem] sm:scroll-mt-[7.5rem]"
+            >
+              <div className="mb-3 sm:mb-4">
+                <h2 className="text-xs-plus sm:text-sm uppercase tracking-[0.18em] text-emerald-300/85">
+                  Spread
+                </h2>
+                <p className="mt-1 text-amber-100/80 text-xs sm:text-sm">
+                  Choose a spread to shape the depth and focus of your reading.
+                </p>
               </div>
-
-              {/* Step 2–3 controls: two minimal collapsible panels */}
-              <div className="space-y-3">
-                {/* Panel 1: Question */}
-                <section
-                  aria-label="Your question or intention (optional)"
-                  ref={intentionSectionRef}
-                  id="step-intention"
-                  className="scroll-mt-[6.5rem] sm:scroll-mt-[7.5rem]"
-                >
-                  <button
-                    type="button"
-                    onClick={() => setIsQuestionPanelOpen(open => !open)}
-                    className="w-full flex items-center justify-between px-3 py-2.5 rounded-lg bg-slate-900/70 border border-slate-700/70 hover:border-emerald-400/60 transition"
-                    aria-expanded={isQuestionPanelOpen}
-                    aria-controls="question-panel-body"
-                  >
-                    <span className="text-amber-200 font-serif text-sm">
-                      Question & intention (optional)
-                    </span>
-                    {isQuestionPanelOpen ? (
-                      <ChevronUp className="w-4 h-4 text-amber-300" />
-                    ) : (
-                      <ChevronDown className="w-4 h-4 text-amber-300" />
-                    )}
-                  </button>
-                  {isQuestionPanelOpen && (
-                    <div id="question-panel-body" className="mt-3">
-                      <QuestionInput
-                        userQuestion={userQuestion}
-                        setUserQuestion={setUserQuestion}
-                        placeholderIndex={placeholderIndex}
-                      />
-                    </div>
-                  )}
-                </section>
-
-                {/* Panel 2: Experience + Ritual */}
-                <section
-                  aria-label="Experience and ritual settings (optional)"
-                  ref={ritualSectionRef}
-                  id="step-ritual"
-                  className="scroll-mt-[6.5rem] sm:scroll-mt-[7.5rem]"
-                >
-                  <button
-                    type="button"
-                    onClick={() => setIsSettingsPanelOpen(open => !open)}
-                    className="w-full flex items-center justify-between px-3 py-2.5 rounded-lg bg-slate-900/70 border border-slate-700/70 hover:border-emerald-400/60 transition"
-                    aria-expanded={isSettingsPanelOpen}
-                    aria-controls="settings-panel-body"
-                  >
-                    <span className="text-amber-200 font-serif text-sm">
-                      Experience & ritual (optional)
-                    </span>
-                    {isSettingsPanelOpen ? (
-                      <ChevronUp className="w-4 h-4 text-amber-300" />
-                    ) : (
-                      <ChevronDown className="w-4 h-4 text-amber-300" />
-                    )}
-                  </button>
-                  {isSettingsPanelOpen && (
-                    <div id="settings-panel-body" className="mt-3 space-y-4">
-                      <SettingsToggles
-                        voiceOn={voiceOn}
-                        setVoiceOn={setVoiceOn}
-                        ambienceOn={ambienceOn}
-                        setAmbienceOn={setAmbienceOn}
-                        reversalFramework={reversalFramework}
-                        setReversalFramework={setReversalFramework}
-                        theme={theme}
-                        setTheme={setTheme}
-                      />
-                      <p className="sr-only">
-                        Reader voice uses generated audio when enabled. Table ambience plays soft background sound when enabled.
-                      </p>
-                      <RitualControls
-                        hasKnocked={hasKnocked}
-                        handleKnock={handleKnock}
-                        cutIndex={cutIndex}
-                        setCutIndex={setCutIndex}
-                        hasCut={hasCut}
-                        applyCut={applyCut}
-                        knocksCount={Math.min((knockTimesRef.current || []).length, 3)}
-                        deckSize={deckSize}
-                        onSkip={() => shuffle()} // Skip ritual and draw cards
-                      />
-                    </div>
-                  )}
-                </section>
-              </div>
+              <SpreadSelector
+                selectedSpread={selectedSpread}
+                setSelectedSpread={setSelectedSpread}
+                setReading={setReading}
+                setRevealedCards={setRevealedCards}
+                setPersonalReading={setPersonalReading}
+                setJournalStatus={setJournalStatus}
+                setAnalyzingText={setAnalyzingText}
+                setIsGenerating={setIsGenerating}
+                setDealIndex={setDealIndex}
+                setReflections={setReflections}
+                setHasKnocked={setHasKnocked}
+                setHasCut={setHasCut}
+                setCutIndex={setCutIndex}
+                knockTimesRef={knockTimesRef}
+                deckSize={deckSize}
+                onSpreadConfirm={() => setHasConfirmedSpread(true)}
+              />
             </div>
+
+            <section
+              aria-label="Prepare your reading"
+              ref={prepareSectionRef}
+              id="step-intention"
+              className="modern-surface p-4 sm:p-6 scroll-mt-[6.5rem] sm:scroll-mt-[7.5rem]"
+            >
+              <header className="mb-4 space-y-1">
+                <h2 className="text-lg font-serif text-amber-200">Prepare your reading</h2>
+                <p className="text-xs text-amber-100/70">
+                  Capture an intention, tune the experience controls, and complete the optional ritual from one panel.
+                </p>
+              </header>
+              <div className="text-[0.75rem] sm:text-xs text-amber-100/80 bg-slate-950/60 border border-slate-800/70 rounded-lg px-3 py-2 flex flex-wrap gap-x-3 gap-y-1">
+                <span>{prepareSummaries.intention}</span>
+                <span className="hidden xs:inline">·</span>
+                <span>{prepareSummaries.experience}</span>
+                <span className="hidden xs:inline">·</span>
+                <span>{prepareSummaries.ritual}</span>
+              </div>
+              <div className="mt-4 space-y-3">
+                {(['intention', 'experience', 'ritual']).map(section => (
+                  <div key={section} className="rounded-xl border border-slate-800/60 bg-slate-950/70 overflow-hidden">
+                    <button
+                      type="button"
+                      onClick={() => togglePrepareSection(section)}
+                      className="w-full flex items-center justify-between px-4 py-3 text-left"
+                      aria-expanded={prepareSectionsOpen[section]}
+                    >
+                      <div>
+                        <p className="text-amber-200 font-serif text-sm">
+                          {prepareSectionLabels[section].title}
+                        </p>
+                        <p className="text-xs text-amber-100/70">
+                          {prepareSummaries[section]}
+                        </p>
+                      </div>
+                      {prepareSectionsOpen[section] ? (
+                        <ChevronUp className="w-4 h-4 text-amber-300" />
+                      ) : (
+                        <ChevronDown className="w-4 h-4 text-amber-300" />
+                      )}
+                    </button>
+                    {prepareSectionsOpen[section] && (
+                      <div className="px-4 pb-4 pt-2">
+                        {section === 'intention' && (
+                          <QuestionInput
+                            userQuestion={userQuestion}
+                            setUserQuestion={setUserQuestion}
+                            placeholderIndex={placeholderIndex}
+                            onFocus={handleQuestionFocus}
+                            onBlur={handleQuestionBlur}
+                            onPlaceholderRefresh={handlePlaceholderRefresh}
+                          />
+                        )}
+                        {section === 'experience' && (
+                          <SettingsToggles
+                            voiceOn={voiceOn}
+                            setVoiceOn={setVoiceOn}
+                            ambienceOn={ambienceOn}
+                            setAmbienceOn={setAmbienceOn}
+                            reversalFramework={reversalFramework}
+                            setReversalFramework={setReversalFramework}
+                            theme={theme}
+                            setTheme={setTheme}
+                            includeMinors={includeMinors}
+                            setIncludeMinors={setIncludeMinors}
+                            deckSize={deckSize}
+                            minorsDataIncomplete={minorsDataIncomplete}
+                          />
+                        )}
+                        {section === 'ritual' && (
+                          <RitualControls
+                            hasKnocked={hasKnocked}
+                            handleKnock={handleKnock}
+                            cutIndex={cutIndex}
+                            setCutIndex={setCutIndex}
+                            hasCut={hasCut}
+                            applyCut={applyCut}
+                            knocksCount={knockCount}
+                            deckSize={deckSize}
+                            onSkip={shuffle}
+                            deckAnnouncement={deckAnnouncement}
+                          />
+                        )}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </section>
           </div>
         </section>
 
@@ -1542,6 +1699,30 @@ export default function TarotReading() {
                         {inlineStatusMessage}
                       </p>
                     )}
+                    {showVoicePrompt && (
+                      <div
+                        className="text-xs text-amber-100/85 bg-slate-900/70 border border-amber-400/30 rounded-lg px-3 py-2 text-center space-y-2"
+                        aria-live="polite"
+                      >
+                        <p>Voice narration is disabled. Turn it on?</p>
+                        <div className="flex flex-wrap items-center justify-center gap-2">
+                          <button
+                            type="button"
+                            onClick={handleVoicePromptEnable}
+                            className="px-3 py-1.5 rounded-full bg-emerald-500/15 border border-emerald-400/40 text-emerald-100 hover:bg-emerald-500/30 text-xs"
+                          >
+                            Enable voice & play
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setShowVoicePrompt(false)}
+                            className="px-3 py-1.5 rounded-full border border-slate-600/50 text-amber-100/80 hover:text-amber-50 text-xs"
+                          >
+                            Maybe later
+                          </button>
+                        </div>
+                      </div>
+                    )}
                     {journalStatus && (
                       <p
                         id={journalStatusId}
@@ -1610,7 +1791,7 @@ export default function TarotReading() {
               </p>
             </div>
           )}
-        </section>
+      </section>
       </main>
       {mobileActionBarButtons.length > 0 && (
         <nav className="mobile-action-bar sm:hidden" aria-label="Primary mobile actions">
@@ -1621,9 +1802,15 @@ export default function TarotReading() {
                 type="button"
                 onClick={button.onClick || undefined}
                 disabled={button.disabled}
-                className={getMobileActionButtonClass(button.variant)}
+                className={`${getMobileActionButtonClass(button.variant)} flex flex-col items-center text-center gap-0.5 py-2`}
+                aria-label={button.ariaLabel || `${button.phaseLabel || stepIndicatorLabel || ''} ${button.label}`.trim()}
               >
-                {button.label}
+                <span className="text-[0.55rem] uppercase tracking-[0.18em] text-amber-100/70">
+                  {button.phaseLabel || stepIndicatorLabel || 'Current step'}
+                </span>
+                <span className="text-sm font-semibold">
+                  {button.label}
+                </span>
               </button>
             ))}
           </div>
