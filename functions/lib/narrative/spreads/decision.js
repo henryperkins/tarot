@@ -10,6 +10,7 @@ import {
   buildWeightNote,
   buildSupportingPositionsSummary,
   buildReflectionsSection,
+  buildPatternSynthesis,
   getConnector
 } from '../helpers.js';
 
@@ -170,6 +171,11 @@ export function buildDecisionReading({
 
   if (reflectionsText && reflectionsText.trim()) {
     sections.push(buildReflectionsSection(reflectionsText));
+  }
+
+  const patternSection = buildPatternSynthesis(themes);
+  if (patternSection) {
+    sections.push(patternSection);
   }
 
   const full = sections.filter(Boolean).join('\n\n');

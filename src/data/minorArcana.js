@@ -5,15 +5,21 @@
 // - rank: "Ace" | "Two" | ... | "Ten" | "Page" | "Knight" | "Queen" | "King"
 // - rankValue: 1–14 (for sequence/suit-run analysis)
 // - upright / reversed: concise, RWS-aligned meanings
+// - image: path to 1909 Rider-Waite card image (public domain)
 
 function makeCard(suit, rank, rankValue, upright, reversed) {
+    // Generate image path based on suit and rankValue
+    const paddedRank = String(rankValue).padStart(2, '0');
+    const image = `/images/cards/RWS1909_-_${suit}_${paddedRank}.jpeg`;
+
     return {
         name: `${rank} of ${suit}`,
         suit,
         rank,
         rankValue,
         upright,
-        reversed
+        reversed,
+        image
     };
 }
 

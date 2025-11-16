@@ -59,24 +59,28 @@ AZURE_OPENAI_USE_V1_FORMAT = "true"
 # - AZURE_OPENAI_GPT_AUDIO_MINI_DEPLOYMENT (TTS deployment name)
 
 # ============================================================================
-# Bindings (Currently None Configured)
+# Bindings
 # ============================================================================
 # Bindings connect your Functions to Cloudflare services.
 # Ref: https://developers.cloudflare.com/pages/functions/bindings/
 #
-# Examples for future use:
+
+# D1 Database (for reading history, analytics):
+[[d1_databases]]
+binding = "DB"
+database_name = "mystic-tarot-db"
+database_id = "ede622bd-5845-4da9-9031-839cb26ae7be"
+
+# ============================================================================
+# Future Bindings (Currently Commented Out)
+# ============================================================================
+# Uncomment and configure as needed:
 #
 # KV Namespace (for caching readings, rate limiting):
 # [[kv_namespaces]]
 # binding = "TAROT_CACHE"
 # id = "your-kv-namespace-id"
 # preview_id = "your-preview-kv-namespace-id"
-#
-# D1 Database (for reading history, analytics):
-# [[d1_databases]]
-# binding = "DB"
-# database_name = "mystic-tarot-db"
-# database_id = "your-database-id"
 #
 # R2 Bucket (for storing audio files):
 # [[r2_buckets]]

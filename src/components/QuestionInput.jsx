@@ -1,5 +1,5 @@
 import React, { useId, useState } from 'react';
-import { RefreshCw } from 'lucide-react';
+import { RefreshCw, Sparkles } from 'lucide-react';
 import { EXAMPLE_QUESTIONS } from '../data/exampleQuestions';
 
 export function QuestionInput({
@@ -8,7 +8,8 @@ export function QuestionInput({
   placeholderIndex,
   onFocus,
   onBlur,
-  onPlaceholderRefresh
+  onPlaceholderRefresh,
+  onLaunchCoach
 }) {
   const helperId = useId();
   const optionalId = useId();
@@ -24,12 +25,30 @@ export function QuestionInput({
     setTimeout(() => setSavedNotice(false), 1800);
   };
 
+  const handleLaunchCoach = () => {
+    if (typeof onLaunchCoach === 'function') {
+      onLaunchCoach();
+    }
+  };
+
   return (
     <div className="space-y-3">
-      <div className="flex items-start justify-between gap-3">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <label className="block text-amber-200 font-serif text-sm sm:text-base" htmlFor="question-input">
           Step 2 · Your question or intention <span className="text-amber-300/80 text-xs font-normal">(optional)</span>
         </label>
+        {typeof onLaunchCoach === 'function' && (
+          <button
+            type="button"
+            onClick={handleLaunchCoach}
+            className="inline-flex items-center gap-1.5 rounded-full border border-emerald-400/50 px-3 py-1.5 text-xs text-emerald-100 transition hover:bg-emerald-500/10"
+            title="Shortcut: Shift+G"
+            aria-label="Open guided coach (Shift+G)"
+          >
+            <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
+            Guided coach
+          </button>
+        )}
         <span id={optionalId} className="sr-only">
           Optional field
         </span>

@@ -361,9 +361,7 @@ describe('Other spread builders prompt-engineering compliance', () => {
     const cardsInfo = [
       minor('Knight of Cups', 'Cups', 'Knight', 12, 'You / your energy', 'Upright'),
       minor('Queen of Swords', 'Swords', 'Queen', 13, 'Them / their energy', 'Upright'),
-      major('The Lovers', 6, 'The connection / shared lesson', 'Upright'),
-      minor('Page of Wands', 'Wands', 'Page', 11, 'Dynamics / guidance', 'Upright'),
-      minor('Ten of Cups', 'Cups', 'Ten', 10, 'Outcome / what this can become', 'Upright')
+      major('The Lovers', 6, 'The connection / shared lesson', 'Upright')
     ];
 
     const themes = await buildThemes(cardsInfo, 'internalized');

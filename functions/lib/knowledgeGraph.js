@@ -5,8 +5,13 @@
 import {
   FOOLS_JOURNEY,
   ARCHETYPAL_TRIADS,
-  ARCHETYPAL_DYADS
+  ARCHETYPAL_DYADS,
+  SUIT_PROGRESSIONS
 } from '../../src/data/knowledgeGraphData.js';
+
+function getCardLabel(card) {
+  return card?.card || card?.name || card?.title || 'Unknown card';
+}
 
 /**
  * Detect which stage of the Fool's Journey dominates this spread
@@ -197,6 +202,91 @@ export function detectArchetypalDyads(cards) {
 }
 
 /**
+ * Detect Minor Arcana suit progressions (three-stage arcs within each suit)
+ *
+ * @param {Array<Object>} cards - Spread cards containing suit and rank metadata
+ * @returns {Array<Object>} Detected suit progressions with dominance + significance
+ */
+export function detectSuitProgressions(cards) {
+  if (!Array.isArray(cards) || cards.length < 2) return [];
+
+  const minorCards = cards.filter(
+    (card) =>
+      card &&
+      card.suit &&
+      typeof card.rankValue === 'number' &&
+      card.rankValue >= 1 &&
+      card.rankValue <= 10
+  );
+
+  if (minorCards.length < 2) return [];
+
+  const groupedBySuit = minorCards.reduce((acc, card) => {
+    if (!acc[card.suit]) acc[card.suit] = [];
+    acc[card.suit].push(card);
+    return acc;
+  }, {});
+
+  const detected = [];
+
+  Object.entries(groupedBySuit).forEach(([suit, suitCards]) => {
+    if (!Array.isArray(suitCards) || suitCards.length < 2) return;
+    const progression = SUIT_PROGRESSIONS[suit];
+    if (!progression) return;
+
+    const stageBuckets = {
+      beginning: [],
+      challenge: [],
+      mastery: []
+    };
+
+    suitCards.forEach((card) => {
+      if (progression.beginning.ranks.includes(card.rankValue)) {
+        stageBuckets.beginning.push(card);
+      } else if (progression.challenge.ranks.includes(card.rankValue)) {
+        stageBuckets.challenge.push(card);
+      } else if (progression.mastery.ranks.includes(card.rankValue)) {
+        stageBuckets.mastery.push(card);
+      }
+    });
+
+    const dominantStageEntry = Object.entries(stageBuckets)
+      .sort((a, b) => b[1].length - a[1].length)
+      .find(([, stageCards]) => stageCards.length >= 2);
+
+    if (!dominantStageEntry) return;
+
+    const [stageKey, stageCards] = dominantStageEntry;
+    const stageData = progression[stageKey];
+    if (!stageData) return;
+
+    detected.push({
+      suit,
+      element: progression.element,
+      domain: progression.domain,
+      stage: stageKey,
+      theme: stageData.theme,
+      narrative: stageData.narrative,
+      readingSignificance: stageData.readingSignificance,
+      cardCount: suitCards.length,
+      stageCardCount: stageCards.length,
+      cards: suitCards,
+      stageCards,
+      ranks: suitCards.map((c) => c.rankValue).sort((a, b) => a - b),
+      stageRanks: stageCards.map((c) => c.rankValue).sort((a, b) => a - b),
+      distribution: {
+        beginning: stageBuckets.beginning.length,
+        challenge: stageBuckets.challenge.length,
+        mastery: stageBuckets.mastery.length
+      },
+      significance: stageCards.length >= 3 ? 'strong-progression' : 'emerging-progression'
+    });
+  });
+
+  return detected;
+}
+
+/**
  * Master function: Detect all archetypal patterns
  *
  * Runs all detection functions and returns comprehensive pattern analysis.
@@ -249,6 +339,17 @@ export function detectAllPatterns(cards) {
     console.error('Dyad detection failed:', err);
   }
 
+  // Detect suit progressions
+  try {
+    const suitProgressions = detectSuitProgressions(cards);
+    if (suitProgressions.length > 0) {
+      patterns.suitProgressions = suitProgressions;
+      hasAnyPattern = true;
+    }
+  } catch (err) {
+    console.error('Suit progression detection failed:', err);
+  }
+
   return hasAnyPattern ? patterns : null;
 }
 
@@ -273,6 +374,11 @@ export function getPriorityPatternNarratives(patterns) {
   if (!patterns) return [];
 
   const narratives = [];
+  const stageDisplay = {
+    beginning: 'Beginning',
+    challenge: 'Challenge',
+    mastery: 'Mastery'
+  };
 
   // Priority 1: Complete triads
   if (patterns.triads) {
@@ -282,7 +388,7 @@ export function getPriorityPatternNarratives(patterns) {
         narratives.push({
           priority: 1,
           type: 'complete-triad',
-          text: `**${triad.theme}:** ${triad.matchedNames.join(', ')} form a complete narrative arc—${triad.narrative}`,
+          text: `**${triad.theme}** ${triad.matchedNames.join(', ')} form a complete narrative arc—${triad.narrative}`,
           cards: triad.matchedCards,
           id: triad.id
         });
@@ -295,10 +401,35 @@ export function getPriorityPatternNarratives(patterns) {
     narratives.push({
       priority: 2,
       type: 'fools-journey',
-      text: `**Fool's Journey — ${journey.stage.charAt(0).toUpperCase() + journey.stage.slice(1)}:** ${journey.cardCount} cards from this stage suggest ${journey.readingSignificance.toLowerCase()}.`,
+      text: `**Fool's Journey — ${journey.stage.charAt(0).toUpperCase() + journey.stage.slice(1)}** ${journey.cardCount} cards from this stage suggest ${journey.readingSignificance.toLowerCase()}.`,
       cards: journey.cards.map((c) => c.number),
       stage: journey.stage
     });
+  }
+
+  // Priority 3: Strong suit progressions (3+ cards in a stage)
+  if (patterns.suitProgressions) {
+    patterns.suitProgressions
+      .filter((p) => p.significance === 'strong-progression')
+      .sort((a, b) => b.stageCardCount - a.stageCardCount)
+      .slice(0, 2)
+      .forEach((prog) => {
+        const label = `${prog.suit} ${stageDisplay[prog.stage] || prog.stage}`;
+        const cardList = prog.stageCards.map((c) => getCardLabel(c)).join(', ');
+        const themeDescriptor = typeof prog.theme === 'string'
+          ? prog.theme.toLowerCase()
+          : 'this stage';
+        const significanceText = prog.readingSignificance ? `${prog.readingSignificance} ` : '';
+        const stageNarrative = prog.narrative || '';
+        narratives.push({
+          priority: 3,
+          type: 'suit-progression',
+          text: `**${label}** ${cardList} highlight the ${themeDescriptor} arc of this suit. ${significanceText}${stageNarrative}`.trim(),
+          cards: prog.stageCards.map((card) => card.number ?? card.rankValue ?? null),
+          suit: prog.suit,
+          stage: prog.stage
+        });
+      });
   }
 
   // Priority 3: High-significance dyads
@@ -308,9 +439,9 @@ export function getPriorityPatternNarratives(patterns) {
       .slice(0, 2) // Max 2 high dyads
       .forEach((dyad) => {
         narratives.push({
-          priority: 3,
+          priority: 4,
           type: 'high-dyad',
-          text: `**${dyad.names.join(' + ')}:** ${dyad.narrative}`,
+          text: `**${dyad.names.join(' + ')}** ${dyad.narrative}`,
           cards: dyad.cards,
           category: dyad.category
         });
@@ -324,11 +455,32 @@ export function getPriorityPatternNarratives(patterns) {
       .slice(0, 1) // Max 1 partial
       .forEach((triad) => {
         narratives.push({
-          priority: 4,
+          priority: 5,
           type: 'partial-triad',
-          text: `**${triad.theme} (partial):** ${triad.matchedNames.join(' + ')}—${triad.narrative}`,
+          text: `**${triad.theme} (partial)** ${triad.matchedNames.join(' + ')}—${triad.narrative}`,
           cards: triad.matchedCards,
           id: triad.id
+        });
+      });
+  }
+
+  // Priority 5/6: Emerging suit progressions (2-card signals)
+  if (narratives.length < 5 && patterns.suitProgressions) {
+    patterns.suitProgressions
+      .filter((p) => p.significance === 'emerging-progression')
+      .sort((a, b) => b.stageCardCount - a.stageCardCount)
+      .slice(0, 1)
+      .forEach((prog) => {
+        const label = `${prog.suit} ${stageDisplay[prog.stage] || prog.stage} (emerging)`;
+        const cardList = prog.stageCards.map((c) => getCardLabel(c)).join(' + ');
+        const insight = prog.readingSignificance || prog.narrative || '';
+        narratives.push({
+          priority: 6,
+          type: 'emerging-suit-progression',
+          text: `**${label}** ${cardList} hint that ${insight}`,
+          cards: prog.stageCards.map((card) => card.number ?? card.rankValue ?? null),
+          suit: prog.suit,
+          stage: prog.stage
         });
       });
   }
@@ -340,9 +492,9 @@ export function getPriorityPatternNarratives(patterns) {
       .slice(0, 1) // Max 1 medium-high
       .forEach((dyad) => {
         narratives.push({
-          priority: 5,
+          priority: 7,
           type: 'medium-high-dyad',
-          text: `**${dyad.names.join(' + ')}:** ${dyad.narrative}`,
+          text: `**${dyad.names.join(' + ')}** ${dyad.narrative}`,
           cards: dyad.cards,
           category: dyad.category
         });

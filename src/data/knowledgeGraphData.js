@@ -364,3 +364,206 @@ export const ARCHETYPAL_DYADS = [
     significance: 'high'
   }
 ];
+
+/**
+ * SUIT PROGRESSIONS
+ * Minor Arcana developmental arcs within each suit (Aces – Tens)
+ * Structured in three stages per suit: beginning, challenge, mastery
+ */
+export const SUIT_PROGRESSIONS = {
+  Wands: {
+    element: 'Fire',
+    domain: 'Creativity, passion, will, enterprise',
+
+    beginning: {
+      ranks: [1, 2, 3],
+      theme: 'Ignition',
+      narrative:
+        'Ace: Pure creative spark → Two: Planning & vision → Three: Confident expansion',
+      readingSignificance:
+        "You're in the ignition phase of a creative or professional endeavor—high enthusiasm, planning, early momentum.",
+      cards: [
+        { rank: 1, name: 'Ace of Wands', role: 'Inspired beginning' },
+        { rank: 2, name: 'Two of Wands', role: 'Strategic planning' },
+        { rank: 3, name: 'Three of Wands', role: 'Confident expansion' }
+      ]
+    },
+
+    challenge: {
+      ranks: [4, 5, 6, 7],
+      theme: 'Testing the Fire',
+      narrative:
+        'Four: Celebration → Five: Competition → Six: Victory → Seven: Defensive perseverance',
+      readingSignificance:
+        "You're in the testing phase—navigating competition, earning recognition, and defending your position.",
+      cards: [
+        { rank: 4, name: 'Four of Wands', role: 'Joyful milestone' },
+        { rank: 5, name: 'Five of Wands', role: 'Conflict & competition' },
+        { rank: 6, name: 'Six of Wands', role: 'Public recognition' },
+        { rank: 7, name: 'Seven of Wands', role: 'Standing your ground' }
+      ]
+    },
+
+    mastery: {
+      ranks: [8, 9, 10],
+      theme: 'Culmination',
+      narrative:
+        'Eight: Swift momentum → Nine: Guarded resilience → Ten: Overburdened completion',
+      readingSignificance:
+        "You're in the culmination phase—things moving fast, resilience tested, burden of success felt. Consider delegating or resting after completion.",
+      cards: [
+        { rank: 8, name: 'Eight of Wands', role: 'Rapid progress' },
+        { rank: 9, name: 'Nine of Wands', role: 'Wounded but standing' },
+        { rank: 10, name: 'Ten of Wands', role: 'Carrying the full weight' }
+      ],
+      shadow: 'Culmination often carries burden or burnout'
+    }
+  },
+
+  Cups: {
+    element: 'Water',
+    domain: 'Emotions, relationships, intuition, love',
+
+    beginning: {
+      ranks: [1, 2, 3],
+      theme: 'Emotional Opening',
+      narrative:
+        'Ace: Overflowing heart → Two: Partnership & reciprocity → Three: Celebration & friendship',
+      readingSignificance:
+        "You're in the emotional opening phase—love, connection, and celebration are abundant.",
+      cards: [
+        { rank: 1, name: 'Ace of Cups', role: 'Overflowing heart' },
+        { rank: 2, name: 'Two of Cups', role: 'Mutual devotion' },
+        { rank: 3, name: 'Three of Cups', role: 'Joyful community' }
+      ]
+    },
+
+    challenge: {
+      ranks: [4, 5, 6, 7],
+      theme: 'Emotional Complexity',
+      narrative:
+        'Four: Apathy → Five: Loss & grief → Six: Nostalgia → Seven: Overwhelming options',
+      readingSignificance:
+        "You're in the emotional complexity phase—processing disappointment, grief, or confusion about desires. Discernment needed.",
+      cards: [
+        { rank: 4, name: 'Four of Cups', role: 'Contemplative withdrawal' },
+        { rank: 5, name: 'Five of Cups', role: 'Mourning what is lost' },
+        { rank: 6, name: 'Six of Cups', role: 'Sweet memory' },
+        { rank: 7, name: 'Seven of Cups', role: 'Fantasy & illusion' }
+      ]
+    },
+
+    mastery: {
+      ranks: [8, 9, 10],
+      theme: 'Emotional Maturity',
+      narrative: 'Eight: Walking away → Nine: Wish fulfillment → Ten: Blessed union',
+      readingSignificance:
+        "You're in the emotional maturity phase—making conscious choices to release or embrace, finding authentic fulfillment.",
+      cards: [
+        { rank: 8, name: 'Eight of Cups', role: 'Conscious release' },
+        { rank: 9, name: 'Nine of Cups', role: 'Contentment achieved' },
+        { rank: 10, name: 'Ten of Cups', role: 'Blessed union' }
+      ],
+      light: 'Culmination is deeply fulfilling when authentic'
+    }
+  },
+
+  Swords: {
+    element: 'Air',
+    domain: 'Thought, communication, truth, conflict',
+
+    beginning: {
+      ranks: [1, 2, 3],
+      theme: 'Mental Clarity',
+      narrative:
+        'Ace: Breakthrough insight → Two: Difficult choice → Three: Heartbreak',
+      readingSignificance:
+        "You're in the mental clarity phase—truth is emerging, choices are hard, and grief may be necessary. Don't bypass the pain.",
+      cards: [
+        { rank: 1, name: 'Ace of Swords', role: 'Cutting truth' },
+        { rank: 2, name: 'Two of Swords', role: 'Stalemate' },
+        { rank: 3, name: 'Three of Swords', role: 'Necessary grief' }
+      ]
+    },
+
+    challenge: {
+      ranks: [4, 5, 6, 7],
+      theme: 'Mental Struggle',
+      narrative:
+        'Four: Rest → Five: Hollow victory → Six: Transition → Seven: Strategy',
+      readingSignificance:
+        "You're in the mental struggle phase—resting, fighting, transitioning, strategizing. Choose peace over hollow victory.",
+      cards: [
+        { rank: 4, name: 'Four of Swords', role: 'Contemplative pause' },
+        { rank: 5, name: 'Five of Swords', role: 'Pyrrhic win' },
+        { rank: 6, name: 'Six of Swords', role: 'Moving toward calm' },
+        { rank: 7, name: 'Seven of Swords', role: 'Cunning or theft' }
+      ]
+    },
+
+    mastery: {
+      ranks: [8, 9, 10],
+      theme: 'Mental Crisis & Liberation',
+      narrative:
+        'Eight: Self-imprisonment → Nine: Anxiety → Ten: Rock bottom (then dawn)',
+      readingSignificance:
+        "You're in the mental crisis phase—feeling trapped, anxious, or hitting bottom. But Swords' culmination promises breakthrough after darkness. The dawn is coming.",
+      cards: [
+        { rank: 8, name: 'Eight of Swords', role: 'Bound by thought' },
+        { rank: 9, name: 'Nine of Swords', role: 'Anguish' },
+        { rank: 10, name: 'Ten of Swords', role: 'Painful ending, daybreak coming' }
+      ],
+      shadow: 'Crisis before breakthrough',
+      light: 'The worst is over; dawn is promised'
+    }
+  },
+
+  Pentacles: {
+    element: 'Earth',
+    domain: 'Material, body, resources, craft, security',
+
+    beginning: {
+      ranks: [1, 2, 3],
+      theme: 'Material Foundation',
+      narrative:
+        'Ace: Seed of prosperity → Two: Juggling resources → Three: Skilled collaboration',
+      readingSignificance:
+        "You're in the material foundation phase—new opportunities, balancing demands, building expertise through collaboration.",
+      cards: [
+        { rank: 1, name: 'Ace of Pentacles', role: 'Seed of prosperity' },
+        { rank: 2, name: 'Two of Pentacles', role: 'Adaptive balance' },
+        { rank: 3, name: 'Three of Pentacles', role: 'Recognized expertise' }
+      ]
+    },
+
+    challenge: {
+      ranks: [4, 5, 6, 7],
+      theme: 'Resource Management',
+      narrative:
+        'Four: Holding tight → Five: Hardship → Six: Generosity → Seven: Patient assessment',
+      readingSignificance:
+        "You're in the resource management phase—navigating scarcity, learning generosity, assessing whether effort is paying off.",
+      cards: [
+        { rank: 4, name: 'Four of Pentacles', role: 'Security or greed' },
+        { rank: 5, name: 'Five of Pentacles', role: 'Material/spiritual poverty' },
+        { rank: 6, name: 'Six of Pentacles', role: 'Balanced giving' },
+        { rank: 7, name: 'Seven of Pentacles', role: 'Evaluating progress' }
+      ]
+    },
+
+    mastery: {
+      ranks: [8, 9, 10],
+      theme: 'Material Mastery',
+      narrative:
+        'Eight: Diligent craftsmanship → Nine: Self-sufficiency → Ten: Lasting legacy',
+      readingSignificance:
+        "You're in the material mastery phase—dedicated practice, self-sufficiency achieved, building legacy.",
+      cards: [
+        { rank: 8, name: 'Eight of Pentacles', role: 'Dedicated practice' },
+        { rank: 9, name: 'Nine of Pentacles', role: 'Refined independence' },
+        { rank: 10, name: 'Ten of Pentacles', role: 'Generational wealth' }
+      ],
+      light: 'Stable, lasting prosperity and legacy'
+    }
+  }
+};

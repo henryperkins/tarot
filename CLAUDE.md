@@ -6,12 +6,14 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Mystic Tarot is a React-based interactive tarot reading web application built with Vite and deployed to Cloudflare Pages.
 
-It is designed to feel like sitting with a practiced reader using a real deck, not a generic “card of the day” widget. The app encodes authentic spreads, visual language, and interpretation frameworks directly into its UX.
+It is designed to feel like sitting with a practiced reader using a real deck, not a generic "card of the day" widget. The app encodes authentic spreads, visual language, and interpretation frameworks directly into its UX.
 
-- Frontend: React + Vite, with ritual controls, spread selector, guided questions, and authentic card rendering.
+- Frontend: React + Vite, with ritual controls, spread selector, guided questions, and authentic 1909 Rider-Waite card imagery.
 - Backend: Cloudflare Pages Function `functions/api/tarot-reading.js` handles narrative composition (Anthropic Claude Sonnet 4.5 when available, otherwise deterministic local logic).
-- Deck: Major Arcana modeled with upright/reversed meanings in `src/data/majorArcana.js`.
-  - Minors (beta): When enabled via the "Minors (beta)" toggle, deck construction uses [`getDeckPool(includeMinors)`](src/lib/deck.js:65) to include `MINOR_ARCANA` only if the dataset is complete (length 56). If not, it safely falls back to Majors-only.
+- Deck: 78 cards total (22 Major + 56 Minor Arcana) with upright/reversed meanings and public domain card images.
+  - Major Arcana: Defined in `src/data/majorArcana.js` with image paths.
+  - Minor Arcana: Defined in `src/data/minorArcana.js` with auto-generated image paths via `makeCard()` helper.
+  - Images: 1909 "Roses & Lilies" edition Rider-Waite cards from Wikimedia Commons (public domain), stored in `public/images/cards/`.
 - Spreads: Real-world formats and position prompts in `src/data/spreads.js`.
 - Audio/TTS: Optional ambient sound and narration wired via `src/lib/audio.js` and `functions/api/tts.js`.
 
@@ -57,7 +59,8 @@ The application has been refactored from a single-component monolith into a modu
 
 **Data Modules** (in `src/data/`):
 
-- `majorArcana.js` — 22 Major Arcana entries with upright/reversed meanings.
+- `majorArcana.js` — 22 Major Arcana entries with upright/reversed meanings and image paths to 1909 Rider-Waite cards.
+- `minorArcana.js` — 56 Minor Arcana entries (4 suits × 14 ranks) with upright/reversed meanings and auto-generated image paths.
 - `spreads.js` — Structured spread definitions:
   - One-Card Insight
   - Three-Card Story (Past · Present · Future)
@@ -162,14 +165,12 @@ Defined in `src/data/spreads.js` as `SPREADS`:
   - Use for: structured option comparison; must emphasize agency.
 
 - `relationship` — Relationship Snapshot
-  - count: 5
+  - count: 3
   - Positions:
     - You / your energy
     - Them / their energy
     - The connection / shared lesson
-    - Dynamics / guidance
-    - Outcome / what this can become
-  - Use for: dynamic overview spanning each person, the bond, and near-term trajectory; avoid deterministic outcomes.
+  - Use for: three-card check-in that centers each person and the shared bond; avoid deterministic outcomes.
 
 - `celtic` — Celtic Cross (Classic 10-Card)
   - count: 10
@@ -218,36 +219,75 @@ Design intent:
 - Preserve the feel of a conscious ritual.
 - Keep reproducibility for the same inputs (good for debugging and “sacred tech” feel).
 
-### 4. Card Visuals — Authentic, License-Safe
+### 4. Card Visuals — Authentic 1909 Rider-Waite Images
 
 Implemented in:
 
 - `src/components/Card.jsx`
-- `src/styles/tarot.css`
+- `src/data/majorArcana.js` — Image paths for 22 Major Arcana
+- `src/data/minorArcana.js` — Image paths for 56 Minor Arcana (auto-generated via `makeCard()`)
+- `public/images/cards/` — 78 JPEG images from 1909 "Roses & Lilies" edition
 
 Key points:
 
-- Unrevealed:
-  - Uses `.tarot-card-shell` + `.tarot-card-back*` classes.
+- **Card Images:**
+  - Source: 1909 Rider-Waite "Roses & Lilies" edition from Wikimedia Commons
+  - License: Public domain (published over 115 years ago)
+  - Format: 78 high-quality JPEG files (~200-380KB each, ~820×1430px)
+  - Naming convention: `RWS1909_-_XX_Name.jpeg` (Major), `RWS1909_-_Suit_XX.jpeg` (Minor)
+
+- **Unrevealed:**
+  - Uses `.tarot-card-shell` + `.tarot-card-back*` classes for card back
   - Back design:
-    - Celestial/mandala motif.
-    - Cross-wand style glyph.
-    - No copyrighted deck art; purely generative geometry.
+    - Celestial/mandala motif
+    - Cross-wand style glyph
+    - Custom geometric design (preserved from original CSS implementation)
 
-- Revealed:
-  - Uses `.tarot-card-face` with:
-    - Header: Roman numeral via `romanize(number)` to evoke real Majors.
-    - Central panel: micro-illustrations (bands, stars) hinting at classic scenic art.
-    - Nameplate: stylized bottom label for the card’s title.
-    - Variants:
-      - `.upright` and `.reversed` introduce subtle color, saturation, and glow differences.
+- **Revealed:**
+  - Displays authentic Rider-Waite card image via `<img src={card.image} />`
+  - Features:
+    - Responsive sizing (max-width: 280px)
+    - Proper rotation for reversed cards (`rotate-180`)
+    - Rounded corners with shadow and amber border
+    - Lazy loading (`loading="lazy"`) for performance
+    - Error handling with fallback placeholder
+    - Descriptive alt text for accessibility
 
-- Orientation chip:
-  - Text like “Upright current” / “Reversed current” to reinforce dynamic expression, not binary good/bad.
+- **Orientation chip:**
+  - Text: "Upright current" / "Reversed current"
+  - Reinforces dynamic expression, not binary good/bad
 
-Constraints:
-- Do NOT import or trace Rider–Waite-Smith or other proprietary art.
-- All visual updates must keep A11y (labels, focus, ARIA) intact.
+**Data Structure:**
+
+Each card object now includes an `image` property:
+
+```javascript
+// Major Arcana example
+{
+  name: 'The Fool',
+  number: 0,
+  upright: '...',
+  reversed: '...',
+  image: '/images/cards/RWS1909_-_00_Fool.jpeg'
+}
+
+// Minor Arcana example (auto-generated)
+{
+  name: 'Ace of Wands',
+  suit: 'Wands',
+  rank: 'Ace',
+  rankValue: 1,
+  upright: '...',
+  reversed: '...',
+  image: '/images/cards/RWS1909_-_Wands_01.jpeg'  // auto-generated from suit + rankValue
+}
+```
+
+**Constraints:**
+- Images are served from `public/images/cards/` (Vite automatically serves from `public/` at root)
+- All visual updates must keep A11y (labels, focus, ARIA) intact
+- Card images are public domain; no licensing concerns
+- Maintain error handling for missing images
 
 ### 5. Interpretation Framework (Upright, Reversed, Context)
 

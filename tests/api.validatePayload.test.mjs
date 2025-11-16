@@ -17,14 +17,12 @@ describe('validatePayload spread count enforcement', () => {
       spreadInfo: { name: 'Relationship Snapshot' },
       cardsInfo: [
         card('You / your energy'),
-        card('Them / their energy'),
-        card('The connection / shared lesson'),
-        card('Dynamics / guidance')
+        card('Them / their energy')
       ]
     };
 
     const err = validatePayload(payload);
-    assert.match(err, /expects 5 cards/);
+    assert.match(err, /expects 3 cards/);
   });
 
   it('rejects insufficient cards for larger spreads', () => {
@@ -47,9 +45,7 @@ describe('validatePayload spread count enforcement', () => {
       cardsInfo: [
         card('You / your energy'),
         card('Them / their energy'),
-        card('The connection / shared lesson'),
-        card('Dynamics / guidance'),
-        card('Outcome / what this can become')
+        card('The connection / shared lesson')
       ]
     };
 

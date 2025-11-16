@@ -9,6 +9,7 @@ import {
   detectFoolsJourneyStage,
   detectArchetypalTriads,
   detectArchetypalDyads,
+  detectSuitProgressions,
   detectAllPatterns,
   getPriorityPatternNarratives
 } from '../knowledgeGraph.js';
@@ -237,6 +238,47 @@ describe('detectArchetypalDyads', () => {
   });
 });
 
+describe('detectSuitProgressions', () => {
+  it('detects strong Wands ignition progression', () => {
+    const cards = [
+      { card: 'Ace of Wands', suit: 'Wands', rank: 'Ace', rankValue: 1 },
+      { card: 'Two of Wands', suit: 'Wands', rank: 'Two', rankValue: 2 },
+      { card: 'Three of Wands', suit: 'Wands', rank: 'Three', rankValue: 3 }
+    ];
+
+    const result = detectSuitProgressions(cards);
+
+    assert.strictEqual(result.length, 1);
+    assert.strictEqual(result[0].suit, 'Wands');
+    assert.strictEqual(result[0].stage, 'beginning');
+    assert.strictEqual(result[0].significance, 'strong-progression');
+  });
+
+  it('detects emerging Cups mastery progression with 2 cards', () => {
+    const cards = [
+      { card: 'Nine of Cups', suit: 'Cups', rank: 'Nine', rankValue: 9 },
+      { card: 'Ten of Cups', suit: 'Cups', rank: 'Ten', rankValue: 10 },
+      { number: 0, name: 'The Fool' }
+    ];
+
+    const result = detectSuitProgressions(cards);
+
+    assert.strictEqual(result.length, 1);
+    assert.strictEqual(result[0].stage, 'mastery');
+    assert.strictEqual(result[0].significance, 'emerging-progression');
+  });
+
+  it('returns empty array when suit metadata missing', () => {
+    const cards = [
+      { number: 13, name: 'Death' },
+      { card: 'Page of Pentacles', suit: 'Pentacles', rank: 'Page', rankValue: 11 }
+    ];
+
+    const result = detectSuitProgressions(cards);
+    assert.strictEqual(result.length, 0);
+  });
+});
+
 describe('detectAllPatterns', () => {
   it('detects all pattern types when present', () => {
     const cards = [
@@ -245,16 +287,20 @@ describe('detectAllPatterns', () => {
       { number: 7, name: 'The Chariot' },   // Journey: initiation, Partial Triad: Mastery Arc
       { number: 13, name: 'Death' },        // Triad: Healing Arc, Dyad: Death+Star
       { number: 14, name: 'Temperance' },   // Triad: Healing Arc
-      { number: 17, name: 'The Star' }      // Triad: Healing Arc, Dyad: Death+Star
+      { number: 17, name: 'The Star' },     // Triad: Healing Arc, Dyad: Death+Star
+      { card: 'Ace of Wands', suit: 'Wands', rank: 'Ace', rankValue: 1 },
+      { card: 'Two of Wands', suit: 'Wands', rank: 'Two', rankValue: 2 }
     ];
     const result = detectAllPatterns(cards);
 
     assert.ok(result.foolsJourney);
     assert.ok(result.triads);
     assert.ok(result.dyads);
+    assert.ok(result.suitProgressions);
     assert.strictEqual(result.foolsJourney.stage, 'departure'); // Stage value for 0-7 range
     assert.strictEqual(result.triads.length, 2); // Healing Arc (complete) + Mastery Arc (partial)
     assert.strictEqual(result.dyads.length, 2); // Fool+Magician + Death+Star
+    assert.strictEqual(result.suitProgressions.length, 1);
   });
 
   it('returns null when no patterns detected', () => {
@@ -336,6 +382,52 @@ describe('getPriorityPatternNarratives', () => {
     assert.ok(result.length > 0);
     assert.strictEqual(result[0].priority, 2);
     assert.strictEqual(result[0].type, 'fools-journey');
+  });
+
+  it('surfaces strong suit progression at priority 3', () => {
+    const patterns = {
+      triads: [
+        {
+          id: 'triad1',
+          theme: 'Arc',
+          isComplete: true,
+          matchedNames: ['Death', 'Temperance', 'The Star'],
+          matchedCards: [13, 14, 17],
+          narrative: 'Healing arc'
+        }
+      ],
+      suitProgressions: [
+        {
+          suit: 'Wands',
+          stage: 'beginning',
+          theme: 'Ignition',
+          readingSignificance: 'Ignition phase energy.',
+          narrative: 'Ace → Two → Three',
+          stageCards: [
+            { card: 'Ace of Wands', rankValue: 1 },
+            { card: 'Two of Wands', rankValue: 2 },
+            { card: 'Three of Wands', rankValue: 3 }
+          ],
+          stageCardCount: 3,
+          significance: 'strong-progression'
+        }
+      ],
+      dyads: [
+        {
+          cards: [0, 1],
+          names: ['The Fool', 'The Magician'],
+          narrative: 'Fresh potential meets skill',
+          significance: 'high',
+          category: 'empowerment'
+        }
+      ]
+    };
+
+    const result = getPriorityPatternNarratives(patterns);
+
+    assert.ok(result.length >= 2);
+    assert.strictEqual(result[1].type, 'suit-progression');
+    assert.strictEqual(result[1].priority, 3);
   });
 
   it('limits output to maximum 5 patterns', () => {

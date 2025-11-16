@@ -12,8 +12,11 @@ import { ReadingGrid } from './components/ReadingGrid';
 import { MarkdownRenderer } from './components/MarkdownRenderer';
 import { StepProgress } from './components/StepProgress';
 import { HelperToggle } from './components/HelperToggle';
+import { SpreadPatterns } from './components/SpreadPatterns';
+import { GuidedIntentionCoach } from './components/GuidedIntentionCoach';
 import { GlobalNav } from './components/GlobalNav';
-import { useNavigate } from 'react-router-dom'; // Assuming React Router for navigation, adjust if needed
+import { useNavigate } from 'react-router-dom';
+import { useJournal } from './hooks/useJournal';
 import { getDeckPool, computeSeed, computeRelationships, drawSpread } from './lib/deck';
 import {
   initAudio,
@@ -25,15 +28,16 @@ import {
   resumeTTS,
   stopTTS as stopNarration,
   subscribeToTTS,
-  getCurrentTTSState
+  getCurrentTTSState,
+  unlockAudio
 } from './lib/audio';
 import { formatReading, splitIntoParagraphs } from './lib/formatting';
 import './styles/tarot.css';
 
 const PREPARE_SECTIONS_STORAGE_KEY = 'tarot-prepare-sections';
 const DEFAULT_PREPARE_SECTIONS = {
-  intention: true,
-  experience: true,
+  intention: false,
+  experience: false,
   ritual: false
 };
 
@@ -91,6 +95,7 @@ export default function TarotReading() {
   const [allowPlaceholderCycle, setAllowPlaceholderCycle] = useState(true);
   const [showVoicePrompt, setShowVoicePrompt] = useState(false);
   const [deckAnnouncement, setDeckAnnouncement] = useState('');
+  const [isIntentionCoachOpen, setIsIntentionCoachOpen] = useState(false);
   const [prepareSectionsOpen, setPrepareSectionsOpen] = useState(() => {
     if (typeof sessionStorage === 'undefined') {
       return { ...DEFAULT_PREPARE_SECTIONS };
@@ -166,6 +171,37 @@ export default function TarotReading() {
   const handlePlaceholderRefresh = () => {
     setPlaceholderIndex(prev => (prev + 1) % EXAMPLE_QUESTIONS.length);
   };
+
+  const handleCoachApply = guidedQuestion => {
+    if (!guidedQuestion) return;
+    setUserQuestion(guidedQuestion);
+    setAllowPlaceholderCycle(false);
+    setIsIntentionCoachOpen(false);
+  };
+
+  useEffect(() => {
+    function handleCoachShortcut(event) {
+      if (event.defaultPrevented) return;
+      if (isIntentionCoachOpen) return;
+      const target = event.target;
+      const tagName = target?.tagName;
+      const isTypingTarget =
+        tagName === 'INPUT' ||
+        tagName === 'TEXTAREA' ||
+        target?.isContentEditable;
+      if (isTypingTarget) return;
+
+      if ((event.key === 'g' || event.key === 'G') && event.shiftKey) {
+        event.preventDefault();
+        setIsIntentionCoachOpen(true);
+      }
+    }
+
+    window.addEventListener('keydown', handleCoachShortcut);
+    return () => {
+      window.removeEventListener('keydown', handleCoachShortcut);
+    };
+  }, [isIntentionCoachOpen]);
 
   // Rotate example intention placeholder (unless user is interacting)
   useEffect(() => {
@@ -423,6 +459,7 @@ export default function TarotReading() {
   function dealNext() {
     if (!reading) return;
     if (dealIndex >= reading.length) return;
+    void unlockAudio();
     const next = dealIndex;
     setRevealedCards(prev => new Set([...prev, next]));
     setDealIndex(next + 1);
@@ -435,7 +472,10 @@ export default function TarotReading() {
     void speak(shortLineForCard(reading[next], position), 'card-reveal');
   }
 
-  function saveReading() {
+  // Use the journal hook for saving
+  const { saveEntry } = useJournal();
+
+  async function saveReading() {
     if (!reading) {
       setJournalStatus({
         type: 'error',
@@ -450,19 +490,10 @@ export default function TarotReading() {
       });
       return;
     }
-    if (typeof localStorage === 'undefined') {
-      setJournalStatus({
-        type: 'error',
-        message: 'This browser does not support journal saving.'
-      });
-      return;
-    }
 
     const entry = {
-      deckMode: includeMinors ? 'full' : 'majors',
-      deckVersion: '1.0.0',
-      ts: new Date().toISOString(),
       spread: SPREADS[selectedSpread].name,
+      spreadKey: selectedSpread,
       question: userQuestion || '',
       cards: reading.map((card, index) => ({
         position: SPREADS[selectedSpread].positions[index] || `Position ${index + 1}`,
@@ -470,52 +501,36 @@ export default function TarotReading() {
         number: card.number,
         orientation: card.isReversed ? 'Reversed' : 'Upright'
       })),
-      reflections,
-      // Save both raw markdown and formatted versions
       personalReading: personalReading?.raw || personalReading?.normalized || '',
-      // Keep formatted version for potential future use
-      personalReadingFormatted: personalReading,
       themes: themes || null,
-      context: analysisContext || null
+      reflections: reflections || {},
+      context: analysisContext || null,
+      provider: personalReading?.provider || 'local',
+      sessionSeed: useSeed ? seedValue : null
     };
 
     try {
-      const key = 'tarot_journal';
-      let list = [];
-      const raw = localStorage.getItem(key);
-      if (raw) {
-        try {
-          const parsed = JSON.parse(raw);
-          if (Array.isArray(parsed)) {
-            list = parsed;
-          }
-        } catch (parseError) {
-          console.warn('Resetting tarot journal cache due to parse error.', parseError);
+      const result = await saveEntry(entry);
+
+      if (result.success) {
+        if (typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function') {
+          navigator.vibrate(12);
         }
+        setJournalStatus({
+          type: 'success',
+          message: 'Saved to your journal.'
+        });
+      } else {
+        setJournalStatus({
+          type: 'error',
+          message: result.error || 'Unable to save to your journal. Please try again.'
+        });
       }
-      list.unshift(entry);
-      if (list.length > 100) {
-        list.length = 100;
-      }
-      localStorage.setItem(key, JSON.stringify(list));
-      if (typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function') {
-        navigator.vibrate(12);
-      }
-      setJournalStatus({
-        type: 'success',
-        message: 'Saved to your journal.'
-      });
     } catch (error) {
       console.error('Failed to save tarot reading', error);
-      const quotaError =
-        error?.name === 'QuotaExceededError' ||
-        error?.code === 22 ||
-        error?.code === 1014;
       setJournalStatus({
         type: 'error',
-        message: quotaError
-          ? 'Storage is full or unavailable. Clear space or exit private browsing, then try again.'
-          : 'Unable to save to your journal. Please try again.'
+        message: 'Unable to save to your journal. Please try again.'
       });
     }
   }
@@ -588,7 +603,7 @@ export default function TarotReading() {
   const getMobileActionButtonClass = variant =>
     `${baseMobileActionButtonClass} ${mobileActionButtonVariants[variant] || mobileActionButtonVariants.secondary}`;
 
-  const handleNarrationButtonClick = () => {
+  const handleNarrationButtonClick = async () => {
     if (!voiceOn) {
       setShowVoicePrompt(true);
       return;
@@ -598,6 +613,11 @@ export default function TarotReading() {
 
     if (isTtsPlaying) {
       pauseTTS();
+      return;
+    }
+
+    const unlocked = await unlockAudio();
+    if (!unlocked) {
       return;
     }
 
@@ -613,10 +633,12 @@ export default function TarotReading() {
     stopNarration();
   };
 
-  const handleVoicePromptEnable = () => {
+  const handleVoicePromptEnable = async () => {
     setVoiceOn(true);
     setShowVoicePrompt(false);
     if (!fullReadingText) return;
+    const unlocked = await unlockAudio();
+    if (!unlocked) return;
     setTimeout(() => {
       void speak(fullReadingText, 'full-reading');
     }, 120);
@@ -998,6 +1020,7 @@ export default function TarotReading() {
   const revealCard = index => {
     if (!reading || !reading[index]) return;
     if (revealedCards.has(index)) return;
+    void unlockAudio();
     setRevealedCards(prev => new Set([...prev, index]));
     setDealIndex(prev => Math.max(prev, index + 1));
     if (typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function') {
@@ -1039,10 +1062,6 @@ export default function TarotReading() {
     };
   }, [userQuestion, voiceOn, ambienceOn, deckSummaryLabel, knockCount, hasCut, cutIndex]);
 
-  const experienceSummary = useMemo(
-    () => `Voice ${voiceOn ? 'ON' : 'OFF'} · Ambience ${ambienceOn ? 'ON' : 'OFF'} · Deck ${deckSummaryLabel}`,
-    [voiceOn, ambienceOn, deckSummaryLabel]
-  );
   const prepareSectionLabels = {
     intention: {
       title: 'Intention',
@@ -1235,15 +1254,6 @@ export default function TarotReading() {
             activeStep={activeStep}
             onSelect={handleStepNav}
           />
-          <button
-            type="button"
-            onClick={() => handleStepNav('intention')}
-            className="mt-2 inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-emerald-400/40 bg-slate-900/70 text-[0.7rem] sm:text-xs text-emerald-100 mx-auto"
-            aria-label="Jump to the Prepare panel to adjust intention, experience, or ritual settings"
-          >
-            <span className="uppercase tracking-[0.2em] text-emerald-300 text-[0.55rem] sm:text-[0.6rem]">Prepare</span>
-            <span>{experienceSummary}</span>
-          </button>
           {isShuffling && (
             <div
               className="mt-2 flex items-center gap-2 text-amber-200/80 text-[clamp(0.85rem,2.4vw,0.95rem)] leading-snug"
@@ -1393,6 +1403,7 @@ export default function TarotReading() {
                             onFocus={handleQuestionFocus}
                             onBlur={handleQuestionBlur}
                             onPlaceholderRefresh={handlePlaceholderRefresh}
+                            onLaunchCoach={() => setIsIntentionCoachOpen(true)}
                           />
                         )}
                         {section === 'experience' && (
@@ -1607,6 +1618,10 @@ export default function TarotReading() {
                 </div>
               )}
 
+            {personalReading && !isPersonalReadingError && themes?.knowledgeGraph?.narrativeHighlights?.length > 0 && (
+              <SpreadPatterns themes={themes} />
+            )}
+
             {/* Personal Reading Display */}
             {personalReading && (
                <div className="bg-gradient-to-r from-slate-900/80 via-slate-950/95 to-slate-900/80 backdrop-blur-xl rounded-2xl p-5 sm:p-8 border border-emerald-400/40 shadow-2xl shadow-emerald-900/40 max-w-5xl mx-auto">
@@ -1816,6 +1831,11 @@ export default function TarotReading() {
           </div>
         </nav>
       )}
+      <GuidedIntentionCoach
+        isOpen={isIntentionCoachOpen}
+        onClose={() => setIsIntentionCoachOpen(false)}
+        onApply={handleCoachApply}
+      />
     </div>
   );
 }

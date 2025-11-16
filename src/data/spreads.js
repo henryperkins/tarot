@@ -66,14 +66,12 @@ export const SPREADS = {
     positions: [
       'You / your energy',
       'Them / their energy',
-      'The connection / shared lesson',
-      'Dynamics / guidance',
-      'Outcome / what this can become'
+      'The connection / shared lesson'
     ],
-    count: 5,
+    count: 3,
     description:
-      'Maps each person’s energy, the shared lesson, how the current dynamics want to move, and what this bond can become.',
-    mobileDescription: 'You, them, the connection, plus guidance + outcome checkpoints.'
+      'Three-card check-in that centers your energy, their energy, and the shared field between you for clear relational guidance.',
+    mobileDescription: 'You, them, and the shared connection with grounded guidance.'
   },
 
   // Celtic Cross: classic full spread for complex questions

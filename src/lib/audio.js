@@ -1,4 +1,5 @@
 import { normalizeReadingText, prepareForTTS } from './formatting.js';
+import { generateFallbackWaveform } from '../../shared/fallbackAudio.js';
 
 let flipAudio = null;
 let ambienceAudio = null;
@@ -172,9 +173,12 @@ export async function speakText({ text, enabled, context = 'default', voice = 'v
     return;
   }
 
+  const narrationContext = context || 'default';
+  const normalizedText = normalizeReadingText(text);
+  const ttsText = prepareForTTS(normalizedText);
+
   const requestId = ++currentNarrationRequestId;
   activeNarrationId = requestId;
-  const narrationContext = context || 'default';
 
   try {
     // Stop any currently playing TTS
@@ -183,11 +187,6 @@ export async function speakText({ text, enabled, context = 'default', voice = 'v
       emitTTSState({ status: 'stopped', reason: 'replaced' });
       ttsAudio = null;
     }
-
-    // Normalize and prepare text for TTS
-    // This removes Markdown markers and adds natural pauses
-    const normalizedText = normalizeReadingText(text);
-    const ttsText = prepareForTTS(normalizedText);
 
     // Check cache first (using normalized text for consistent keys)
     // Include speed in cache key to cache different speeds separately
@@ -347,6 +346,16 @@ export async function speakText({ text, enabled, context = 'default', voice = 'v
     }
   } catch (err) {
     console.error('Error playing TTS audio:', err);
+    const fallbackPlayed = await tryPlayLocalFallback({
+      requestId,
+      context: narrationContext,
+      fallbackText: normalizedText || text
+    });
+
+    if (fallbackPlayed) {
+      return;
+    }
+
     emitTTSState({
       status: 'error',
       context: narrationContext,
@@ -354,6 +363,70 @@ export async function speakText({ text, enabled, context = 'default', voice = 'v
       message: 'Unable to play audio right now.'
     });
     activeNarrationId = null;
+  }
+}
+
+async function tryPlayLocalFallback({ requestId, context, fallbackText }) {
+  try {
+    const safeText = fallbackText && fallbackText.length
+      ? fallbackText
+      : 'The cards rest quietly; here is a gentle chime instead.';
+    const audioDataUri = generateFallbackWaveform(safeText);
+
+    emitTTSState({
+      status: 'loading',
+      provider: 'fallback',
+      source: 'local',
+      cached: false,
+      error: null,
+      context,
+      message: getPreparingMessage('fallback', context)
+    });
+
+    if (requestId <= cancelledUpToRequestId) {
+      emitTTSState({
+        status: 'stopped',
+        reason: 'user',
+        context,
+        message: 'Narration stopped.'
+      });
+      activeNarrationId = null;
+      return true;
+    }
+
+    if (!audioUnlocked) {
+      const unlocked = await unlockAudio();
+      if (!unlocked) {
+        emitTTSState({
+          status: 'error',
+          provider: 'fallback',
+          source: 'local',
+          context,
+          error: 'Audio not unlocked',
+          message: 'Tap anywhere on the page to enable audio, then try again.'
+        });
+        activeNarrationId = null;
+        return true;
+      }
+    }
+
+    const fallbackAudio = new Audio(audioDataUri);
+    ttsAudio = fallbackAudio;
+    wireTTSEvents(fallbackAudio, 'fallback', 'local', requestId, context);
+    await fallbackAudio.play();
+
+    emitTTSState({
+      status: 'playing',
+      provider: 'fallback',
+      source: 'local',
+      context,
+      message: getPlayMessage('fallback', context)
+    });
+
+    return true;
+  } catch (fallbackErr) {
+    console.error('Local fallback audio failed:', fallbackErr);
+    return false;
   }
 }
 

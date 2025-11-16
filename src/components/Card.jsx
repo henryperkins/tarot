@@ -1,5 +1,4 @@
 import React, { useEffect, useRef } from 'react';
-import { Star, Moon } from 'lucide-react';
 import { MAJOR_ARCANA } from '../data/majorArcana';
 import { MINOR_ARCANA } from '../data/minorArcana';
 
@@ -163,66 +162,18 @@ export function Card({
             </div>
           ) : (
             <div className="transition-all">
-              <div className={card.isReversed ? 'rotate-180' : ''}>
-                <div className="tarot-card-shell mx-auto mb-3">
-                  <div
-                    className={`tarot-card-face ${
-                      card.isReversed ? 'reversed' : 'upright'
-                    } ${getMinorAccentClass(card)}`}
-                  >
-                    {/* Header: Majors use roman numerals; Minors use rank + suit glyph */}
-                    <div className="tarot-card-face-header">
-                      {isMinor(card) ? (
-                        <span className="flex items-center justify-center gap-1">
-                          <span>{card.rank}</span>
-                          <span className="text-[11px] opacity-80">
-                            {getMinorSuitGlyph(card)}
-                          </span>
-                        </span>
-                      ) : (
-                        <span>
-                          {typeof card.number === 'number'
-                            ? romanize(card.number)
-                            : card.number}
-                        </span>
-                      )}
-                    </div>
-
-                    {/* Symbolic center: Majors keep existing sigil; Minors show suit-based pips */}
-                    <div className="tarot-card-face-symbol">
-                      {isMinor(card) ? (
-                        <div className="grid grid-cols-5 grid-rows-2 gap-[2px] items-center justify-items-center w-full h-full px-2">
-                          {Array.from({ length: getMinorPipCount(card) }).map((_, i) => (
-                            <div
-                              key={i}
-                              className="w-1.5 h-1.5 rounded-full bg-amber-300/80 minor-pip"
-                            />
-                          ))}
-                        </div>
-                      ) : (
-                        <>
-                          <div className="tarot-card-face-symbol-row">
-                            <div className="tarot-card-face-symbol-pill" />
-                            <div className="tarot-card-face-symbol-star" />
-                          </div>
-                          <div className="tarot-card-face-symbol-row">
-                            <div className="tarot-card-face-symbol-pill" />
-                            <div className="tarot-card-face-symbol-pill" />
-                          </div>
-                          <div className="tarot-card-face-symbol-row">
-                            <div className="tarot-card-face-symbol-star" />
-                            <div className="tarot-card-face-symbol-pill" />
-                          </div>
-                        </>
-                      )}
-                    </div>
-
-                    {/* Name: for Minors this already encodes rank + suit */}
-                    <div className="tarot-card-face-name">
-                      {card.name}
-                    </div>
-                  </div>
-                </div>
+              {/* Rider-Waite Card Image */}
+              <div className={`mx-auto mb-3 max-w-[280px] ${card.isReversed ? 'rotate-180' : ''}`}>
+                <img
+                  src={card.image}
+                  alt={`${card.name}${card.isReversed ? ' (Reversed)' : ''}`}
+                  className="w-full h-auto rounded-lg shadow-lg border-2 border-amber-400/30"
+                  loading="lazy"
+                  onError={(e) => {
+                    console.error(`Failed to load image: ${card.image}`);
+                    e.target.src = '/images/cards/placeholder.jpg';
+                  }}
+                />
               </div>
 
               <div className="text-center mb-3">

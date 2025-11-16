@@ -944,6 +944,26 @@ function decapitalize(text) {
   return text.charAt(0).toLowerCase() + text.slice(1);
 }
 
+function buildPatternSynthesis(themes) {
+  const highlights = themes?.knowledgeGraph?.narrativeHighlights;
+  if (!Array.isArray(highlights) || highlights.length === 0) {
+    return '';
+  }
+
+  const featured = highlights.slice(0, 3);
+  let section = `### Deeper Patterns\n\n`;
+  section += `Beyond the individual positions, your cards reveal larger archetypal movements:\n\n`;
+
+  featured.forEach((highlight) => {
+    const sanitized = typeof highlight.text === 'string'
+      ? highlight.text.replace(/\*\*/g, '')
+      : '';
+    section += `- ${sanitized}\n`;
+  });
+
+  return `${section}\n`.trimEnd();
+}
+
 export {
   DEFAULT_WEIGHT_DETAIL_THRESHOLD,
   SUPPORTING_WEIGHT_THRESHOLD,
@@ -965,5 +985,6 @@ export {
   formatCrossCheck,
   buildReflectionsSection,
   buildGuidanceActionPrompt,
-  buildInlineReversalNote
+  buildInlineReversalNote,
+  buildPatternSynthesis
 };

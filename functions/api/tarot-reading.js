@@ -38,7 +38,7 @@ const SPREAD_NAME_MAP = {
   'Three-Card Story (Past · Present · Future)': { key: 'threeCard', count: 3 },
   'Five-Card Clarity': { key: 'fiveCard', count: 5 },
   'One-Card Insight': { key: 'single', count: 1 },
-  'Relationship Snapshot': { key: 'relationship', count: 5 },
+  'Relationship Snapshot': { key: 'relationship', count: 3 },
   'Decision / Two-Path': { key: 'decision', count: 5 }
 };
 

@@ -133,6 +133,18 @@ function buildSystemPrompt(spreadKey, themes, context) {
   lines.push(
     ...reversalSection,
     '',
+    ...(themes?.knowledgeGraph?.narrativeHighlights?.length
+      ? [
+          '## ARCHETYPAL PATTERNS DETECTED',
+          '',
+          'Multi-card patterns identified:',
+          ...themes.knowledgeGraph.narrativeHighlights.map((h) => `- ${h.text}`),
+          '',
+          'INTEGRATION: Weave these naturally into narrative, not mechanically.',
+          ''
+        ]
+      : []),
+    '',
     'ETHICS: Emphasize choice, agency, and trajectory language; forbid deterministic guarantees or fatalism.',
     'ETHICS: Do NOT provide diagnosis or treatment, or directives about medical, mental health, legal, financial, or abuse-safety matters; instead, when those themes surface, gently suggest consulting qualified professionals or trusted support resources.'
   );

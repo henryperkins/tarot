@@ -8,6 +8,7 @@ import {
   buildWeightNote,
   buildSupportingPositionsSummary,
   buildReflectionsSection,
+  buildPatternSynthesis,
   getConnector,
   getContextDescriptor,
   buildReversalGuidance,
@@ -80,6 +81,11 @@ export function buildThreeCardReading({
 
   if (reflectionsText && reflectionsText.trim()) {
     sections.push(buildReflectionsSection(reflectionsText));
+  }
+
+  const patternSection = buildPatternSynthesis(themes);
+  if (patternSection) {
+    sections.push(patternSection);
   }
 
   const supportingSummary = buildSupportingPositionsSummary(prioritized, 'Three-Card Story');

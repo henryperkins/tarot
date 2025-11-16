@@ -31,9 +31,7 @@ export const POSITION_WEIGHTS = {
   relationship: {
     0: 0.9,   // You / your energy
     1: 0.9,   // Them / their energy
-    2: 1.0,   // The connection / shared lesson
-    3: 0.8,   // Dynamics / guidance for the bond
-    4: 0.85   // Outcome / what this can become
+    2: 1.0    // The connection / shared lesson
   },
   decision: {
     0: 1.0,   // Heart of the decision

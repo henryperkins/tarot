@@ -10,6 +10,7 @@ import {
   buildWeightNote,
   buildSupportingPositionsSummary,
   buildReflectionsSection,
+  buildPatternSynthesis,
   getConnector,
   buildInlineReversalNote,
   buildGuidanceActionPrompt
@@ -36,7 +37,9 @@ export function buildRelationshipReading({
 
   const normalizedCards = Array.isArray(cardsInfo) ? cardsInfo : [];
   const prioritized = sortCardsByImportance(normalizedCards, 'relationship');
-  const [youCard, themCard, connectionCard, dynamicsCard, outcomeCard] = normalizedCards;
+  const [youCard, themCard, connectionCard, ...extraCards] = normalizedCards;
+  const dynamicsCard = extraCards[0];
+  const outcomeCard = extraCards[1];
   const options = getPositionOptions(themes, context);
   let reversalReminderEmbedded = false;
 
@@ -250,6 +253,11 @@ export function buildRelationshipReading({
 
   if (reflectionsText && reflectionsText.trim()) {
     sections.push(buildReflectionsSection(reflectionsText));
+  }
+
+  const patternSection = buildPatternSynthesis(themes);
+  if (patternSection) {
+    sections.push(patternSection);
   }
 
   const full = sections.filter(Boolean).join('\n\n');

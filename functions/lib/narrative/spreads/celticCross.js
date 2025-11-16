@@ -9,6 +9,7 @@ import {
   buildWeightNote,
   getPositionOptions,
   buildReflectionsSection,
+  buildPatternSynthesis,
   getConnector,
   shouldEmphasizePosition,
   formatCrossCheck,
@@ -79,6 +80,11 @@ export function buildCelticCrossReading({
   // 6. User Reflections
   if (reflectionsText && reflectionsText.trim()) {
     sections.push(buildReflectionsSection(reflectionsText));
+  }
+
+  const patternSection = buildPatternSynthesis(themes);
+  if (patternSection) {
+    sections.push(patternSection);
   }
 
   // 7. SYNTHESIS - Actionable integration
