@@ -34,9 +34,11 @@ export function QuestionInput({
   return (
     <div className="space-y-3">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <label className="block text-amber-200 font-serif text-sm sm:text-base" htmlFor="question-input">
-          Step 2 · Your question or intention <span className="text-amber-300/80 text-xs font-normal">(optional)</span>
-        </label>
+        <div className="text-amber-200 font-serif text-sm sm:text-base">
+          <label htmlFor="question-input">
+            Step 2 · Your question or intention <span className="text-amber-300/80 text-xs font-normal">(optional)</span>
+          </label>
+        </div>
         {typeof onLaunchCoach === 'function' && (
           <button
             type="button"

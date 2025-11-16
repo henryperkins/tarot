@@ -34,8 +34,6 @@ export function GuidedIntentionCoach({ isOpen, onClose, onApply }) {
     }
   }, [isOpen]);
 
-  if (!isOpen) return null;
-
   const generatedQuestion = useMemo(
     () => buildGuidedQuestion({ topic, timeframe, depth, customFocus }),
     [topic, timeframe, depth, customFocus]

@@ -14,7 +14,9 @@ export function Tooltip({
   content,
   children,
   position = 'top',
-  size = 'sm'
+  size = 'sm',
+  triggerClassName = '',
+  ariaLabel = 'More information'
 }) {
   const [isVisible, setIsVisible] = useState(false);
   const rootRef = useRef(null);
@@ -70,6 +72,7 @@ export function Tooltip({
 
   const handleToggle = event => {
     event.preventDefault();
+    event.stopPropagation();
     setIsVisible(previous => !previous);
   };
 
@@ -108,6 +111,9 @@ export function Tooltip({
     });
   };
 
+  const triggerBaseClass =
+    'inline-flex items-center justify-center text-amber-400/60 hover:text-amber-400 transition-colors focus:outline-none focus:ring-2 focus:ring-amber-400/50 rounded-full';
+
   return (
     <div ref={rootRef} className="relative inline-flex items-center">
       <button
@@ -118,11 +124,11 @@ export function Tooltip({
         onMouseLeave={handleMouseLeave}
         onFocus={handleFocus}
         onBlur={handleBlur}
-        aria-label="More information"
+        aria-label={ariaLabel}
         aria-haspopup="true"
         aria-expanded={isVisible}
         aria-controls={isVisible ? tooltipId : undefined}
-        className="inline-flex items-center justify-center text-amber-400/60 hover:text-amber-400 transition-colors focus:outline-none focus:ring-2 focus:ring-amber-400/50 rounded-full"
+        className={`${triggerBaseClass} ${triggerClassName}`.trim()}
       >
         {children || <Info className={sizeClasses[size]} />}
       </button>

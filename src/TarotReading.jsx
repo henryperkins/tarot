@@ -62,6 +62,7 @@ export default function TarotReading() {
   const [hasKnocked, setHasKnocked] = useState(false);
   const [knockCount, setKnockCount] = useState(0);
   const [hasCut, setHasCut] = useState(false);
+  const [sessionSeed, setSessionSeed] = useState(null);
   const [hasConfirmedSpread, setHasConfirmedSpread] = useState(false);
   const [cutIndex, setCutIndex] = useState(Math.floor(MAJOR_ARCANA.length / 2));
   const [dealIndex, setDealIndex] = useState(0);
@@ -506,7 +507,7 @@ export default function TarotReading() {
       reflections: reflections || {},
       context: analysisContext || null,
       provider: personalReading?.provider || 'local',
-      sessionSeed: useSeed ? seedValue : null
+      sessionSeed
     };
 
     try {
@@ -673,6 +674,7 @@ export default function TarotReading() {
     setKnockCount(0);
     setHasCut(false);
     setJournalStatus(null);
+    setSessionSeed(null);
 
     if (typeof performance !== 'undefined') {
       const now = performance.now();
@@ -685,23 +687,24 @@ export default function TarotReading() {
       userQuestion
     });
 
-    const useSeed = hasKnocked || hasCut || (userQuestion && userQuestion.trim());
+    const useSeed = Boolean(hasKnocked || hasCut || (userQuestion && userQuestion.trim()));
+    const nextSessionSeed = useSeed ? seed : null;
 
+    const cards = drawSpread({
+      spreadKey: currentSpread,
+      useSeed,
+      seed,
+      includeMinors
+    });
+  
     shuffleTimeoutRef.current = setTimeout(() => {
       if (selectedSpread !== currentSpread) {
         setIsShuffling(false);
         return;
       }
-
-      const cards = drawSpread({
-        spreadKey: currentSpread,
-        useSeed,
-        seed,
-        includeMinors
-      });
-
       setReading(cards);
       setIsShuffling(false);
+      setSessionSeed(nextSessionSeed);
     }, 1200);
   };
 
@@ -1831,11 +1834,13 @@ export default function TarotReading() {
           </div>
         </nav>
       )}
+      {isIntentionCoachOpen && (
       <GuidedIntentionCoach
         isOpen={isIntentionCoachOpen}
         onClose={() => setIsIntentionCoachOpen(false)}
         onApply={handleCoachApply}
       />
+      )}
     </div>
   );
 }
