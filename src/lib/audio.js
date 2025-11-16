@@ -21,6 +21,17 @@ let cancelledUpToRequestId = 0;
 let audioUnlocked = false;
 let audioUnlockPromise = null;
 let unlockListenersRegistered = false;
+const TTS_CACHE_PREFIX = 'tts_cache_';
+const TTS_CACHE_MAX_ENTRIES = 50;
+const TTS_CACHE_PURGE_THRESHOLD = 30;
+const TTS_CACHE_PURGE_TARGET = 20;
+const TTS_CACHE_EVICT_BATCH = 10;
+const TTS_CACHE_SWEEP_INTERVAL_MS = 5 * 60 * 1000;
+const CACHE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
+const trackedObjectUrls = new Set();
+const audioObjectUrlMap = new WeakMap();
+let cleanupListenersRegistered = false;
+let lastCacheSweep = 0;
 
 /**
  * Unlock audio playback by creating and playing a silent audio element.
@@ -30,6 +41,8 @@ let unlockListenersRegistered = false;
 export async function unlockAudio() {
   if (audioUnlocked) return true;
   if (typeof Audio === 'undefined' || typeof window === 'undefined') return false;
+
+  ensureGlobalCleanupListeners();
 
   if (audioUnlockPromise) {
     return audioUnlockPromise;
@@ -41,6 +54,12 @@ export async function unlockAudio() {
     silentAudio.volume = 0.01; // Nearly silent
   } catch (err) {
     console.warn('[Audio] Error creating unlock audio element:', err);
+    emitTTSState({
+      status: 'unlock-failed',
+      reason: 'unsupported',
+      error: err?.message || String(err),
+      message: 'Tap anywhere on the page to enable audio.'
+    });
     return false;
   }
 
@@ -56,6 +75,12 @@ export async function unlockAudio() {
     } catch (err) {
       console.warn('[Audio] Audio unlock failed - user interaction needed', err);
       audioUnlocked = false;
+      emitTTSState({
+        status: 'unlock-failed',
+        reason: 'interaction-required',
+        error: err?.message || String(err),
+        message: 'Tap anywhere on the page to enable audio.'
+      });
       return false;
     } finally {
       try {
@@ -72,6 +97,8 @@ export async function unlockAudio() {
 }
 
 export function initAudio() {
+  ensureGlobalCleanupListeners();
+
   if (typeof Audio === 'undefined') {
     return {
       flipAudio: null,
@@ -160,6 +187,8 @@ export function toggleAmbience(on) {
  * @param {boolean} [options.stream=false] - Use streaming mode for progressive audio playback
  */
 export async function speakText({ text, enabled, context = 'default', voice = 'verse', speed, stream = false }) {
+  ensureGlobalCleanupListeners();
+
   if (!enabled) {
     emitTTSState({ status: 'idle', reason: 'disabled', message: null });
     return;
@@ -183,6 +212,7 @@ export async function speakText({ text, enabled, context = 'default', voice = 'v
   try {
     // Stop any currently playing TTS
     if (ttsAudio) {
+      releaseAudioObjectUrl(ttsAudio);
       ttsAudio.pause();
       emitTTSState({ status: 'stopped', reason: 'replaced' });
       ttsAudio = null;
@@ -196,6 +226,7 @@ export async function speakText({ text, enabled, context = 'default', voice = 'v
     let audioDataUri;
     let provider = cachedAudio?.provider || null;
     let source = cachedAudio ? 'cache' : 'network';
+    let objectUrlForCleanup = null;
 
     emitTTSState({
       status: 'loading',
@@ -245,7 +276,10 @@ export async function speakText({ text, enabled, context = 'default', voice = 'v
         // Streaming mode: response body is a ReadableStream of audio chunks
         // Convert stream to blob for audio playback
         const audioBlob = await response.blob();
-        audioDataUri = URL.createObjectURL(audioBlob);
+        const objectUrl = URL.createObjectURL(audioBlob);
+        trackObjectUrl(objectUrl);
+        audioDataUri = objectUrl;
+        objectUrlForCleanup = objectUrl;
         provider = 'azure-gpt-4o-mini-tts'; // Streaming only works with Azure
         source = 'stream';
       } else {
@@ -300,12 +334,13 @@ export async function speakText({ text, enabled, context = 'default', voice = 'v
       const unlocked = await unlockAudio();
       if (!unlocked) {
         emitTTSState({
-          status: 'error',
+          status: 'unlock-failed',
           provider,
           source,
           context: narrationContext,
           error: 'Audio not unlocked',
-          message: 'Tap anywhere on the page to enable audio, then try again.'
+          message: 'Tap anywhere on the page to enable audio, then try again.',
+          reason: 'interaction-required'
         });
         activeNarrationId = null;
         return;
@@ -314,6 +349,9 @@ export async function speakText({ text, enabled, context = 'default', voice = 'v
 
     // Play the audio
     const audio = new Audio(audioDataUri);
+    if (objectUrlForCleanup) {
+      audioObjectUrlMap.set(audio, objectUrlForCleanup);
+    }
     ttsAudio = audio;
     wireTTSEvents(audio, provider, source, requestId, narrationContext);
 
@@ -398,12 +436,13 @@ async function tryPlayLocalFallback({ requestId, context, fallbackText }) {
       const unlocked = await unlockAudio();
       if (!unlocked) {
         emitTTSState({
-          status: 'error',
+          status: 'unlock-failed',
           provider: 'fallback',
           source: 'local',
           context,
           error: 'Audio not unlocked',
-          message: 'Tap anywhere on the page to enable audio, then try again.'
+          message: 'Tap anywhere on the page to enable audio, then try again.',
+          reason: 'interaction-required'
         });
         activeNarrationId = null;
         return true;
@@ -443,7 +482,7 @@ function generateCacheKey(text, context, voice, speed) {
     hash = ((hash << 5) - hash) + char;
     hash = hash & hash; // Convert to 32bit integer
   }
-  return `tts_cache_${Math.abs(hash).toString(36)}`;
+  return `${TTS_CACHE_PREFIX}${Math.abs(hash).toString(36)}`;
 }
 
 /**
@@ -460,10 +499,9 @@ function getCachedAudio(key) {
     const data = JSON.parse(cached);
     const now = Date.now();
     const cacheAge = now - data.timestamp;
-    const maxAge = 7 * 24 * 60 * 60 * 1000; // 7 days
 
     // Invalidate stale cache
-    if (cacheAge > maxAge) {
+    if (cacheAge > CACHE_MAX_AGE_MS) {
       localStorage.removeItem(key);
       return null;
     }
@@ -488,36 +526,107 @@ function cacheAudio(key, audioDataUri, provider = null) {
       timestamp: Date.now(),
       provider
     };
+    const payload = JSON.stringify(data);
+    let entries = collectCacheEntries();
+    maybeSweepCache(entries.length);
 
-    // Check cache size and evict if needed
-    const cacheKeys = Object.keys(localStorage).filter(k => k.startsWith('tts_cache_'));
-
-    // If we have too many cached items, remove oldest
-    if (cacheKeys.length >= 50) {
-      const entries = cacheKeys.map(k => {
-        try {
-          const item = JSON.parse(localStorage.getItem(k));
-          return { key: k, timestamp: item.timestamp };
-        } catch {
-          return { key: k, timestamp: 0 };
-        }
-      });
-
-      // Sort by timestamp (oldest first)
-      entries.sort((a, b) => a.timestamp - b.timestamp);
-
-      // Remove oldest 10
-      for (let i = 0; i < 10; i++) {
-        localStorage.removeItem(entries[i].key);
-      }
+    if (entries.length >= TTS_CACHE_MAX_ENTRIES) {
+      evictOldestEntries(entries, TTS_CACHE_EVICT_BATCH);
+      entries = entries.slice(TTS_CACHE_EVICT_BATCH);
     }
 
-    // Store new cache entry
-    localStorage.setItem(key, JSON.stringify(data));
+    try {
+      localStorage.setItem(key, payload);
+    } catch (err) {
+      if (isQuotaExceededError(err)) {
+        entries = collectCacheEntries();
+        const removalTarget = Math.max(TTS_CACHE_EVICT_BATCH, entries.length - TTS_CACHE_PURGE_TARGET);
+        if (removalTarget > 0) {
+          evictOldestEntries(entries, removalTarget);
+        } else {
+          clearTTSCache({ keepLatest: TTS_CACHE_PURGE_TARGET });
+        }
+
+        try {
+          localStorage.setItem(key, payload);
+          return;
+        } catch (retryErr) {
+          console.warn('Unable to cache TTS audio after eviction:', retryErr);
+        }
+      } else {
+        console.warn('Unable to cache TTS audio:', err);
+      }
+    }
   } catch (err) {
     // localStorage full or unavailable - just continue without caching
     console.warn('Unable to cache TTS audio:', err);
   }
+}
+
+export function clearTTSCache({ keepLatest = 0 } = {}) {
+  try {
+    if (typeof localStorage === 'undefined') return;
+    const entries = collectCacheEntries();
+    if (!entries.length) return;
+
+    if (keepLatest <= 0) {
+      for (const entry of entries) {
+        localStorage.removeItem(entry.key);
+      }
+      return;
+    }
+
+    if (keepLatest >= entries.length) {
+      return;
+    }
+
+    const removeCount = entries.length - keepLatest;
+    for (let i = 0; i < removeCount; i += 1) {
+      localStorage.removeItem(entries[i].key);
+    }
+  } catch (err) {
+    console.warn('Failed to clear TTS cache:', err);
+  }
+}
+
+function collectCacheEntries() {
+  if (typeof localStorage === 'undefined') return [];
+
+  return Object.keys(localStorage)
+    .filter(key => key.startsWith(TTS_CACHE_PREFIX))
+    .map(key => {
+      try {
+        const value = JSON.parse(localStorage.getItem(key));
+        return { key, timestamp: value?.timestamp || 0 };
+      } catch {
+        return { key, timestamp: 0 };
+      }
+    })
+    .sort((a, b) => a.timestamp - b.timestamp);
+}
+
+function evictOldestEntries(entries, count) {
+  if (typeof localStorage === 'undefined') return;
+  const toRemove = Math.min(count, entries.length);
+  for (let i = 0; i < toRemove; i += 1) {
+    localStorage.removeItem(entries[i].key);
+  }
+}
+
+function maybeSweepCache(entryCount) {
+  if (entryCount < TTS_CACHE_PURGE_THRESHOLD) return;
+  const now = Date.now();
+  if (now - lastCacheSweep < TTS_CACHE_SWEEP_INTERVAL_MS) {
+    return;
+  }
+  lastCacheSweep = now;
+  clearTTSCache({ keepLatest: TTS_CACHE_PURGE_TARGET });
+}
+
+function isQuotaExceededError(err) {
+  if (!err) return false;
+  const name = err.name || '';
+  return name === 'QuotaExceededError' || name === 'NS_ERROR_DOM_QUOTA_REACHED';
 }
 
 /**
@@ -533,6 +642,7 @@ export function stopTTS() {
     activeNarrationId = null;
 
     if (ttsAudio) {
+      releaseAudioObjectUrl(ttsAudio);
       ttsAudio.pause();
       ttsAudio.currentTime = 0;
       ttsAudio = null;
@@ -564,6 +674,7 @@ export function cleanupAudio() {
       ambienceAudio = null;
     }
     if (ttsAudio) {
+      releaseAudioObjectUrl(ttsAudio);
       ttsAudio.pause();
       ttsAudio = null;
     }
@@ -671,6 +782,7 @@ function wireTTSEvents(audio, provider, source, requestId, context) {
       context,
       message: getEndedMessage(provider, context)
     });
+    releaseAudioObjectUrl(audio);
     if (ttsAudio === audio) {
       ttsAudio = null;
     }
@@ -700,6 +812,7 @@ function wireTTSEvents(audio, provider, source, requestId, context) {
       error: 'Audio playback error.',
       message: 'Something went wrong while playing audio.'
     });
+    releaseAudioObjectUrl(audio);
     if (activeNarrationId === requestId) {
       activeNarrationId = null;
     }
@@ -756,4 +869,61 @@ function getPauseMessage(provider, context) {
     return 'Personal reading narration paused.';
   }
   return 'Narration paused.';
+}
+
+function ensureGlobalCleanupListeners() {
+  if (cleanupListenersRegistered || typeof window === 'undefined') {
+    return;
+  }
+  cleanupListenersRegistered = true;
+
+  const handleLifecycleEnd = () => {
+    revokeAllObjectUrls();
+    clearTTSCache();
+  };
+
+  window.addEventListener('beforeunload', handleLifecycleEnd);
+  window.addEventListener('pagehide', handleLifecycleEnd);
+}
+
+function trackObjectUrl(url) {
+  if (!url || typeof URL === 'undefined') {
+    return;
+  }
+  trackedObjectUrls.add(url);
+}
+
+function releaseAudioObjectUrl(audio) {
+  if (!audio) return;
+  const objectUrl = audioObjectUrlMap.get(audio);
+  if (objectUrl) {
+    revokeTrackedObjectUrl(objectUrl);
+    audioObjectUrlMap.delete(audio);
+  }
+}
+
+function revokeTrackedObjectUrl(url) {
+  if (!url || typeof URL === 'undefined') {
+    return;
+  }
+  try {
+    URL.revokeObjectURL(url);
+  } catch {
+    // Ignore browsers that throw on redundant revoke
+  }
+  trackedObjectUrls.delete(url);
+}
+
+function revokeAllObjectUrls() {
+  if (!trackedObjectUrls.size || typeof URL === 'undefined') {
+    return;
+  }
+  for (const url of trackedObjectUrls) {
+    try {
+      URL.revokeObjectURL(url);
+    } catch {
+      // Ignore browsers that throw on redundant revoke
+    }
+  }
+  trackedObjectUrls.clear();
 }

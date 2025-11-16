@@ -8,7 +8,7 @@ export function generateFallbackWaveform(text = '') {
   const words = typeof text === 'string'
     ? text.trim().split(/\s+/).filter(Boolean).length || 1
     : 1;
-  const durationSeconds = Math.min(6, Math.max(1.5, words * 0.55));
+  const durationSeconds = Math.max(1.5, Math.min(12, words * 0.8));
   const totalSamples = Math.floor(sampleRate * durationSeconds);
   const baseFrequency = 200 + Math.min(300, words * 40);
   const sweepFrequency = baseFrequency + Math.min(260, text.length || 0);

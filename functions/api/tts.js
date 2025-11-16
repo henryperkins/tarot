@@ -1,4 +1,5 @@
 import { generateFallbackWaveform } from '../../shared/fallbackAudio.js';
+import { jsonResponse, readJsonBody } from '../lib/utils.js';
 
 /**
  * Cloudflare Pages Function that provides text-to-speech audio as a data URI or streaming response.
@@ -46,7 +47,22 @@ export const onRequestPost = async ({ request, env }) => {
     const url = new URL(request.url);
     const stream = url.searchParams.get('stream') === 'true';
 
-    const { text, context, voice, speed } = await readJson(request);
+    const rateLimitResult = await enforceTtsRateLimit(env, request);
+    if (rateLimitResult?.limited) {
+      return jsonResponse(
+        {
+          error: 'Too many text-to-speech requests. Please wait a few moments and try again.'
+        },
+        {
+          status: 429,
+          headers: {
+            'retry-after': rateLimitResult.retryAfter.toString()
+          }
+        }
+      );
+    }
+
+    const { text, context, voice, speed } = await readJsonBody(request);
     const sanitizedText = sanitizeText(text);
 
     if (!sanitizedText) {
@@ -116,21 +132,6 @@ export const onRequestPost = async ({ request, env }) => {
     );
   }
 };
-
-async function readJson(request) {
-  if (request.headers.get('content-length') === '0') {
-    return {};
-  }
-
-  const text = await request.text();
-  if (!text) return {};
-
-  try {
-    return JSON.parse(text);
-  } catch {
-    throw new Error('Invalid JSON payload.');
-  }
-}
 
 function sanitizeText(text) {
   if (typeof text !== 'string') return '';
@@ -356,16 +357,62 @@ async function generateWithAzureGptMiniTTSStream(env, { text, context, voice, sp
     }
   });
 }
+const DEFAULT_RATE_LIMIT_MAX = 30;
+const DEFAULT_RATE_LIMIT_WINDOW_SECONDS = 60;
+const TTS_RATE_LIMIT_KEY_PREFIX = 'tts-rate';
 
-
-function jsonResponse(data, init = {}) {
-  return new Response(JSON.stringify(data), {
-    ...init,
-    headers: {
-      'content-type': 'application/json; charset=utf-8',
-      ...(init.headers || {})
+async function enforceTtsRateLimit(env, request) {
+  try {
+    const store = env?.RATELIMIT;
+    if (!store) {
+      return { limited: false };
     }
-  });
+
+    const maxRequests = Number(resolveEnv(env, 'TTS_RATE_LIMIT_MAX')) || DEFAULT_RATE_LIMIT_MAX;
+    const windowSeconds = Number(resolveEnv(env, 'TTS_RATE_LIMIT_WINDOW')) || DEFAULT_RATE_LIMIT_WINDOW_SECONDS;
+    const now = Date.now();
+    const windowBucket = Math.floor(now / (windowSeconds * 1000));
+    const clientId = getClientIdentifier(request);
+    const rateLimitKey = `${TTS_RATE_LIMIT_KEY_PREFIX}:${clientId}:${windowBucket}`;
+
+    const existing = await store.get(rateLimitKey);
+    const currentCount = existing ? Number(existing) || 0 : 0;
+
+    if (currentCount >= maxRequests) {
+      const windowBoundary = (windowBucket + 1) * windowSeconds * 1000;
+      const retryAfter = Math.max(1, Math.ceil((windowBoundary - now) / 1000));
+      return { limited: true, retryAfter };
+    }
+
+    await store.put(rateLimitKey, String(currentCount + 1), {
+      expirationTtl: windowSeconds
+    });
+
+    return { limited: false };
+  } catch (error) {
+    console.warn('Rate limit check failed, allowing request:', error);
+    return { limited: false };
+  }
+}
+
+function getClientIdentifier(request) {
+  const headerCandidates = [
+    'cf-connecting-ip',
+    'x-forwarded-for',
+    'x-real-ip'
+  ];
+
+  for (const header of headerCandidates) {
+    const value = request.headers.get(header);
+    if (value) {
+      if (header === 'x-forwarded-for') {
+        return value.split(',')[0].trim();
+      }
+      return value;
+    }
+  }
+
+  return 'anonymous';
 }
 
 function resolveEnv(env, key) {

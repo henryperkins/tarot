@@ -32,6 +32,7 @@ import {
 import { enhanceSection } from '../lib/narrativeSpine.js';
 import { inferContext } from '../lib/contextDetection.js';
 import { parseMinorName } from '../lib/minorMeta.js';
+import { jsonResponse, readJsonBody } from '../lib/utils.js';
 
 const SPREAD_NAME_MAP = {
   'Celtic Cross (Classic 10-Card)': { key: 'celtic', count: 10 },
@@ -78,7 +79,7 @@ export const onRequestPost = async ({ request, env }) => {
 
   try {
     console.log(`[${requestId}] Reading request body...`);
-    const payload = await readRequestBody(request);
+    const payload = await readJsonBody(request);
     const { spreadInfo, cardsInfo, userQuestion, reflectionsText, reversalFrameworkOverride } = payload;
 
     console.log(`[${requestId}] Payload parsed:`, {
@@ -305,26 +306,6 @@ async function performSpreadAnalysis(spreadInfo, cardsInfo, options = {}, reques
     spreadAnalysis,
     spreadKey
   };
-}
-
-/**
- * Reads JSON payload from the incoming request, handling empty or invalid bodies gracefully.
- */
-async function readRequestBody(request) {
-  if (request.headers.get('content-length') === '0') {
-    return {};
-  }
-
-  const text = await request.text();
-  if (!text) {
-    return {};
-  }
-
-  try {
-    return JSON.parse(text);
-  } catch {
-    throw new Error('Invalid JSON payload.');
-  }
 }
 
 /**
@@ -816,14 +797,4 @@ function appendGenericReversalReminder(readingText, cardsInfo, themes) {
   }
 
   return `${readingText}\n\n${reminder}`;
-}
-
-function jsonResponse(data, init = {}) {
-  return new Response(JSON.stringify(data), {
-    ...init,
-    headers: {
-      'content-type': 'application/json; charset=utf-8',
-      ...(init.headers || {})
-    }
-  });
 }

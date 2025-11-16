@@ -71,6 +71,12 @@ binding = "DB"
 database_name = "mystic-tarot-db"
 database_id = "ede622bd-5845-4da9-9031-839cb26ae7be"
 
+# KV namespace for TTS rate limiting (update IDs via `wrangler kv:namespace create`).
+[[kv_namespaces]]
+binding = "RATELIMIT"
+id = "893bd9a5206d4719817c6c5dc0f1a409"
+preview_id = "785db8a0b1824eb092b2a9107f9e48f3"
+
 # ============================================================================
 # Future Bindings (Currently Commented Out)
 # ============================================================================
