@@ -29,12 +29,14 @@ import {
   buildEnhancedClaudePrompt,
   buildPositionCardText
 } from '../lib/narrativeBuilder.js';
-import { enhanceSection } from '../lib/narrativeSpine.js';
+import { enhanceSection, validateReadingNarrative } from '../lib/narrativeSpine.js';
 import { inferContext } from '../lib/contextDetection.js';
 import { parseMinorName } from '../lib/minorMeta.js';
 import { jsonResponse, readJsonBody } from '../lib/utils.js';
 import { canonicalizeCardName, canonicalCardKey } from '../../shared/vision/cardNameMapping.js';
 import { verifyVisionProof } from '../lib/visionProof.js';
+import { MAJOR_ARCANA } from '../../src/data/majorArcana.js';
+import { MINOR_ARCANA } from '../../src/data/minorArcana.js';
 
 const SPREAD_NAME_MAP = {
   'Celtic Cross (Classic 10-Card)': { key: 'celtic', count: 10 },
@@ -44,6 +46,53 @@ const SPREAD_NAME_MAP = {
   'Relationship Snapshot': { key: 'relationship', count: 3 },
   'Decision / Two-Path': { key: 'decision', count: 5 }
 };
+
+function escapeRegex(text = '') {
+  return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function normalizeCardName(value = '') {
+  return value.trim().toLowerCase();
+}
+
+const CARD_NAME_PATTERNS = [...MAJOR_ARCANA, ...MINOR_ARCANA]
+  .map((card) => card.name)
+  .map((name) => ({
+    name,
+    normalized: normalizeCardName(name),
+    pattern: new RegExp(`\\b${escapeRegex(name)}\\b`, 'i')
+  }));
+
+// Card names that are also common vocabulary and prone to false positives
+// when scanning free-form narrative text.
+const AMBIGUOUS_CARD_NORMALIZED = new Set([
+  'justice',
+  'strength',
+  'temperance',
+  'death',
+  'judgement'
+]);
+
+/**
+ * Require explicit "card-like" context around ambiguous names so that phrases like
+ * "restore a sense of justice in how you negotiate" do not count as hallucinated
+ * mentions of the Justice card.
+ */
+function hasExplicitCardContext(text = '', name = '') {
+  if (!text || !name) return false;
+
+  const namePattern = escapeRegex(name);
+
+  const patterns = [
+    // "Justice card", "Death card", etc.
+    new RegExp(`\\b${namePattern}\\s+card\\b`, 'i'),
+    // "Justice (Major Arcana)", "Major Arcana Justice"
+    new RegExp(`\\b${namePattern}\\b[^\\n]{0,40}\\bmajor arcana\\b`, 'i'),
+    new RegExp(`\\bmajor arcana\\b[^\\n]{0,40}\\b${namePattern}\\b`, 'i')
+  ];
+
+  return patterns.some((regex) => regex.test(text));
+}
 
 function getSpreadDefinition(spreadName) {
   return SPREAD_NAME_MAP[spreadName] || null;
@@ -148,6 +197,7 @@ export const onRequestPost = async ({ request, env }) => {
 
     const avgConfidence = sanitizedVisionInsights.reduce((sum, item) => sum + (item.confidence ?? 0), 0) / sanitizedVisionInsights.length;
     const mismatchedDetections = sanitizedVisionInsights.filter((item) => item.matchesDrawnCard === false);
+    const visionMetrics = buildVisionMetrics(sanitizedVisionInsights, avgConfidence, mismatchedDetections.length);
     console.log(`[${requestId}] Vision proof verified: ${sanitizedVisionInsights.length} uploads, avg confidence ${(avgConfidence * 100).toFixed(1)}%.`);
 
     if (mismatchedDetections.length > 0) {
@@ -251,6 +301,18 @@ export const onRequestPost = async ({ request, env }) => {
 
     console.log(`[${requestId}] Request completed successfully in ${totalTime}ms using provider: ${provider}`);
     console.log(`[${requestId}] === TAROT READING REQUEST END ===`);
+
+    const narrativeMetrics = buildNarrativeMetrics(reading, cardsInfo, deckStyle);
+    await persistReadingMetrics(env, {
+      requestId,
+      timestamp: new Date().toISOString(),
+      provider,
+      deckStyle,
+      spreadKey: analysis.spreadKey,
+      context,
+      vision: visionMetrics,
+      narrative: narrativeMetrics
+    });
 
     return jsonResponse({
       reading,
@@ -915,4 +977,132 @@ function appendGenericReversalReminder(readingText, cardsInfo, themes) {
   }
 
   return `${readingText}\n\n${reminder}`;
+}
+
+function buildVisionMetrics(insights, avgConfidence, mismatchCount) {
+  const safeInsights = Array.isArray(insights) ? insights : [];
+  const symbolStats = safeInsights
+    .filter((entry) => entry && entry.symbolVerification)
+    .map((entry) => ({
+      card: entry.predictedCard,
+      matchRate: typeof entry.symbolVerification.matchRate === 'number' ? entry.symbolVerification.matchRate : null,
+      missingSymbols: Array.isArray(entry.symbolVerification.missingSymbols)
+        ? entry.symbolVerification.missingSymbols
+        : [],
+      unexpectedDetections: Array.isArray(entry.symbolVerification.unexpectedDetections)
+        ? entry.symbolVerification.unexpectedDetections
+        : [],
+      expectedCount: entry.symbolVerification.expectedCount ?? null,
+      detectedCount: entry.symbolVerification.detectedCount ?? null
+    }));
+
+  return {
+    uploads: safeInsights.length,
+    avgConfidence: Number.isFinite(avgConfidence) ? avgConfidence : null,
+    mismatchCount,
+    symbolStats
+  };
+}
+
+function buildNarrativeMetrics(readingText, cardsInfo, deckStyle = 'rws-1909') {
+  const text = typeof readingText === 'string' ? readingText : '';
+  const safeCards = Array.isArray(cardsInfo) ? cardsInfo : [];
+  const spine = validateReadingNarrative(text);
+  const coverage = analyzeCardCoverage(text, safeCards);
+  const hallucinatedCards = detectHallucinatedCards(text, safeCards, deckStyle);
+
+  return {
+    spine: {
+      isValid: spine.isValid,
+      totalSections: spine.totalSections || 0,
+      completeSections: spine.completeSections || 0,
+      incompleteSections: spine.incompleteSections || 0,
+      suggestions: spine.suggestions || []
+    },
+    cardCoverage: coverage.coverage,
+    missingCards: coverage.missingCards,
+    hallucinatedCards
+  };
+}
+
+function analyzeCardCoverage(readingText, cardsInfo = []) {
+  if (!Array.isArray(cardsInfo) || cardsInfo.length === 0) {
+    return { coverage: 1, missingCards: [] };
+  }
+
+  const text = typeof readingText === 'string' ? readingText : '';
+  const missingCards = cardsInfo
+    .filter((card) => card && typeof card.card === 'string')
+    .map((card) => card.card)
+    .filter((name) => {
+      if (!name) return true;
+      const pattern = new RegExp(escapeRegex(name), 'i');
+      return !pattern.test(text);
+    });
+
+  const presentCount = cardsInfo.length - missingCards.length;
+  const coverage = cardsInfo.length ? presentCount / cardsInfo.length : 1;
+  return { coverage, missingCards };
+}
+
+function detectHallucinatedCards(readingText, cardsInfo = [], deckStyle = 'rws-1909') {
+  if (!readingText) return [];
+
+  const text = typeof readingText === 'string' ? readingText : '';
+  const safeCards = Array.isArray(cardsInfo) ? cardsInfo : [];
+
+  // Track both canonical deck-aware keys and normalized literal names for drawn cards.
+  const drawnKeys = new Set(
+    safeCards
+      .filter((card) => card && typeof card.card === 'string')
+      .map((card) => {
+        const canonical = canonicalCardKey(card.card, deckStyle);
+        return canonical || normalizeCardName(card.card);
+      })
+      .filter(Boolean)
+  );
+
+  const hallucinated = [];
+
+  CARD_NAME_PATTERNS.forEach(({ name, normalized, pattern }) => {
+    if (!pattern.test(text)) {
+      return;
+    }
+
+    // For names that are also common vocabulary (Justice, Strength, Temperance, Death, Judgement),
+    // only treat them as card mentions when there is explicit card-like context in the text.
+    if (AMBIGUOUS_CARD_NORMALIZED.has(normalized) && !hasExplicitCardContext(text, name)) {
+      return;
+    }
+
+    const canonical = canonicalCardKey(name, deckStyle);
+    const key = canonical || normalized;
+
+    if (!drawnKeys.has(key)) {
+      hallucinated.push(name);
+    }
+  });
+
+  // De-duplicate while preserving insertion order
+  return [...new Set(hallucinated)];
+}
+
+async function persistReadingMetrics(env, payload) {
+  if (!env?.METRICS_DB?.put) {
+    return;
+  }
+
+  try {
+    const key = `reading:${payload.requestId}`;
+    await env.METRICS_DB.put(key, JSON.stringify(payload), {
+      metadata: {
+        provider: payload.provider,
+        spreadKey: payload.spreadKey,
+        deckStyle: payload.deckStyle,
+        timestamp: payload.timestamp
+      }
+    });
+  } catch (err) {
+    console.warn(`[${payload.requestId}] Failed to persist reading metrics: ${err.message}`);
+  }
 }

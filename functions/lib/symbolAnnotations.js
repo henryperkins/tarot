@@ -507,24 +507,753 @@ export const SYMBOL_ANNOTATIONS = {
       { object: 'hand', position: 'from cloud', meaning: 'divine offering' },
       { object: 'chalice', position: 'held', color: 'gold', meaning: 'emotional potential' },
       { object: 'dove', position: 'crowning chalice', color: 'white', meaning: 'peace, spirit' },
-      { object: 'overflowing water', position: 'from chalice', meaning: 'abundance' }
+      { object: 'overflowing water', position: 'from chalice', meaning: 'abundance' },
+      { object: 'lotus blossoms', position: 'on water surface', color: 'white', meaning: 'spiritual awakening, purity' }
     ],
     dominantColors: [
-      { color: 'blue', meaning: 'emotion' },
-      { color: 'gold', meaning: 'divine love' }
+      { color: 'blue', meaning: 'emotion, flow' },
+      { color: 'gold', meaning: 'divine love' },
+      { color: 'white', meaning: 'purity, spiritual love' }
     ],
     composition: 'overflowing-chalice',
     archetype: 'Emotional Source'
   },
-  // ... Continue similarly for all remaining cards. For brevity, I'll outline the pattern.
-  // Each card gets 4-6 symbols with details, 2-3 dominant colors, composition, archetype.
-  // For pips, focus on number symbolism and suit elements.
-  // For courts, emphasize character poses and attributes.
+  33: { // Two of Cups
+    symbols: [
+      { object: 'two figures', position: 'facing each other', meaning: 'partnership, union' },
+      { object: 'cups raised', position: 'in toast', color: 'gold', meaning: 'mutual exchange' },
+      { object: 'caduceus', position: 'above cups', meaning: 'healing, balance' },
+      { object: 'winged lion', position: 'crowning caduceus', color: 'red', meaning: 'passionate commitment' }
+    ],
+    dominantColors: [
+      { color: 'red', meaning: 'passion, commitment' },
+      { color: 'gold', meaning: 'sacred exchange' },
+      { color: 'white', meaning: 'purity of connection' }
+    ],
+    composition: 'mutual-pledge',
+    archetype: 'Sacred Partnership'
+  },
+  34: { // Three of Cups
+    symbols: [
+      { object: 'three maidens', position: 'in circle', meaning: 'community, celebration' },
+      { object: 'raised cups', position: 'in toast', color: 'gold', meaning: 'shared joy' },
+      { object: 'fruits and gourds', position: 'at feet', meaning: 'harvest, abundance' },
+      { object: 'flowing garments', position: 'on figures', color: 'varied', meaning: 'diversity, harmony' }
+    ],
+    dominantColors: [
+      { color: 'orange', meaning: 'celebration, warmth' },
+      { color: 'green', meaning: 'growth, abundance' },
+      { color: 'gold', meaning: 'shared prosperity' }
+    ],
+    composition: 'celebratory-circle',
+    archetype: 'Joyful Community'
+  },
+  35: { // Four of Cups
+    symbols: [
+      { object: 'seated figure', position: 'under tree', meaning: 'contemplation, withdrawal' },
+      { object: 'three cups', position: 'on ground', meaning: 'known options' },
+      { object: 'hand from cloud', position: 'offering fourth cup', meaning: 'new possibility' },
+      { object: 'crossed arms', position: 'on figure', meaning: 'resistance, introspection' }
+    ],
+    dominantColors: [
+      { color: 'green', meaning: 'stagnation, contemplation' },
+      { color: 'gray', meaning: 'apathy, meditation' },
+      { color: 'gold', meaning: 'overlooked opportunity' }
+    ],
+    composition: 'meditative-dissatisfaction',
+    archetype: 'Contemplative Refusal'
+  },
+  36: { // Five of Cups
+    symbols: [
+      { object: 'cloaked figure', position: 'head bowed', meaning: 'grief, loss' },
+      { object: 'three spilled cups', position: 'before figure', color: 'red liquid', meaning: 'what is lost' },
+      { object: 'two standing cups', position: 'behind figure', meaning: 'what remains' },
+      { object: 'bridge', position: 'background', meaning: 'path forward' },
+      { object: 'distant castle', position: 'across water', meaning: 'future hope' }
+    ],
+    dominantColors: [
+      { color: 'black', meaning: 'mourning, sorrow' },
+      { color: 'gray', meaning: 'desolation' },
+      { color: 'blue', meaning: 'emotional depth' }
+    ],
+    composition: 'grieving-over-loss',
+    archetype: 'Mourning Traveler'
+  },
+  37: { // Six of Cups
+    symbols: [
+      { object: 'children', position: 'in courtyard', meaning: 'innocence, nostalgia' },
+      { object: 'cups with flowers', position: 'filled with white blooms', meaning: 'sweet memories' },
+      { object: 'older child giving', position: 'offering cup', meaning: 'generosity, gift' },
+      { object: 'cottages', position: 'background', meaning: 'home, past' }
+    ],
+    dominantColors: [
+      { color: 'yellow', meaning: 'nostalgia, warmth' },
+      { color: 'white', meaning: 'innocence, purity' },
+      { color: 'green', meaning: 'growth, simplicity' }
+    ],
+    composition: 'nostalgic-exchange',
+    archetype: 'Innocent Gift-Giver'
+  },
+  38: { // Seven of Cups
+    symbols: [
+      { object: 'shadowed figure', position: 'silhouette', meaning: 'confusion, choices' },
+      { object: 'seven cups on clouds', position: 'floating', meaning: 'illusions, fantasies' },
+      { object: 'castle', position: 'in one cup', meaning: 'ambition' },
+      { object: 'jewels', position: 'in one cup', meaning: 'wealth, desire' },
+      { object: 'laurel wreath', position: 'in one cup', meaning: 'victory, recognition' },
+      { object: 'dragon', position: 'in one cup', meaning: 'fear, challenge' },
+      { object: 'shrouded figure', position: 'in one cup', meaning: 'mystery' },
+      { object: 'serpent', position: 'in one cup', meaning: 'temptation' }
+    ],
+    dominantColors: [
+      { color: 'blue', meaning: 'dreams, illusion' },
+      { color: 'gray', meaning: 'confusion, fog' },
+      { color: 'gold', meaning: 'desire, fantasy' }
+    ],
+    composition: 'illusory-choices',
+    archetype: 'Bewildered Dreamer'
+  },
+  39: { // Eight of Cups
+    symbols: [
+      { object: 'cloaked figure', position: 'walking away', meaning: 'departure, seeking' },
+      { object: 'eight stacked cups', position: 'left behind', meaning: 'abandoned past' },
+      { object: 'gap in cups', position: 'missing ninth', meaning: 'incompleteness' },
+      { object: 'moon', position: 'overhead', color: 'pale', meaning: 'intuition, night journey' },
+      { object: 'mountains', position: 'ahead', meaning: 'spiritual quest' }
+    ],
+    dominantColors: [
+      { color: 'blue', meaning: 'introspection, journey' },
+      { color: 'gray', meaning: 'twilight, transition' },
+      { color: 'brown', meaning: 'earthly detachment' }
+    ],
+    composition: 'departing-seeker',
+    archetype: 'Spiritual Wanderer'
+  },
+  40: { // Nine of Cups
+    symbols: [
+      { object: 'satisfied figure', position: 'seated, arms crossed', meaning: 'contentment, pride' },
+      { object: 'nine cups', position: 'arranged in arc', color: 'gold', meaning: 'wishes fulfilled' },
+      { object: 'blue draped table', position: 'beneath cups', meaning: 'emotional abundance' },
+      { object: 'smile', position: 'on figure', meaning: 'satisfaction' }
+    ],
+    dominantColors: [
+      { color: 'blue', meaning: 'emotional fulfillment' },
+      { color: 'red', meaning: 'vitality, pleasure' },
+      { color: 'gold', meaning: 'achievement' }
+    ],
+    composition: 'satisfied-abundance',
+    archetype: 'Wish Fulfiller'
+  },
+  41: { // Ten of Cups
+    symbols: [
+      { object: 'family', position: 'embracing', meaning: 'love, harmony' },
+      { object: 'children playing', position: 'foreground', meaning: 'joy, innocence' },
+      { object: 'rainbow', position: 'overhead', meaning: 'blessing, promise' },
+      { object: 'ten cups', position: 'in rainbow arc', color: 'gold', meaning: 'complete emotional fulfillment' },
+      { object: 'cottage', position: 'background', meaning: 'home, security' },
+      { object: 'river', position: 'nearby', meaning: 'flow of life' }
+    ],
+    dominantColors: [
+      { color: 'rainbow', meaning: 'complete spectrum of joy' },
+      { color: 'green', meaning: 'peace, nature' },
+      { color: 'blue', meaning: 'emotional harmony' }
+    ],
+    composition: 'blessed-family',
+    archetype: 'Harmonious Union'
+  },
+  42: { // Page of Cups
+    symbols: [
+      { object: 'youth', position: 'standing', meaning: 'emotional curiosity' },
+      { object: 'cup', position: 'held forth', color: 'gold', meaning: 'creative offering' },
+      { object: 'fish', position: 'emerging from cup', color: 'blue', meaning: 'unexpected message, intuition' },
+      { object: 'blue tunic', position: 'on figure', color: 'flowered', meaning: 'imagination, sensitivity' },
+      { object: 'gentle waves', position: 'at feet', meaning: 'emotional fluidity' }
+    ],
+    dominantColors: [
+      { color: 'blue', meaning: 'imagination, emotion' },
+      { color: 'gold', meaning: 'creative potential' },
+      { color: 'turquoise', meaning: 'intuitive messages' }
+    ],
+    composition: 'curious-messenger',
+    archetype: 'Imaginative Messenger'
+  },
+  43: { // Knight of Cups
+    symbols: [
+      { object: 'armored knight', position: 'on white horse', meaning: 'romantic quest' },
+      { object: 'cup', position: 'offered forward', color: 'gold', meaning: 'emotional offering' },
+      { object: 'winged helmet', position: 'on head', meaning: 'inspired thought' },
+      { object: 'slow-walking horse', position: 'measured pace', color: 'white', meaning: 'dreaminess, idealism' },
+      { object: 'river', position: 'background', meaning: 'emotional journey' }
+    ],
+    dominantColors: [
+      { color: 'blue', meaning: 'romance, idealism' },
+      { color: 'white', meaning: 'purity of intention' },
+      { color: 'silver', meaning: 'reflection, emotion' }
+    ],
+    composition: 'romantic-quester',
+    archetype: 'Romantic Idealist'
+  },
+  44: { // Queen of Cups
+    symbols: [
+      { object: 'enthroned queen', position: 'by water', meaning: 'emotional mastery' },
+      { object: 'ornate cup', position: 'held carefully', color: 'gold with angels', meaning: 'sacred emotion' },
+      { object: 'throne', position: 'on shore', color: 'decorated with sea creatures', meaning: 'subconscious realm' },
+      { object: 'water', position: 'at throne base', meaning: 'deep feeling' },
+      { object: 'pebbled shore', position: 'foreground', meaning: 'boundary of conscious/unconscious' }
+    ],
+    dominantColors: [
+      { color: 'blue', meaning: 'intuition, empathy' },
+      { color: 'white', meaning: 'purity of feeling' },
+      { color: 'silver', meaning: 'lunar wisdom' }
+    ],
+    composition: 'contemplative-sovereign',
+    archetype: 'Empathic Nurturer'
+  },
+  45: { // King of Cups
+    symbols: [
+      { object: 'enthroned king', position: 'on turbulent sea', meaning: 'emotional control' },
+      { object: 'cup', position: 'held steady', color: 'gold', meaning: 'mastered emotion' },
+      { object: 'fish amulet', position: 'around neck', meaning: 'subconscious awareness' },
+      { object: 'ship', position: 'background right', meaning: 'journey through emotion' },
+      { object: 'fish leaping', position: 'background left', meaning: 'creative unconscious' },
+      { object: 'stone throne', position: 'floating', meaning: 'stability amid flux' }
+    ],
+    dominantColors: [
+      { color: 'blue', meaning: 'mastered emotion' },
+      { color: 'green', meaning: 'balanced feeling' },
+      { color: 'gold', meaning: 'mature wisdom' }
+    ],
+    composition: 'sovereign-on-waters',
+    archetype: 'Balanced Emotional Master'
+  },
 
-  // Note: This is a template. In full implementation, expand to all 78 with accurate RWS details.
-  // Sources: Based on Pamela Colman Smith's 1909 illustrations and guide's annotation examples.
+  // SWORDS (46-59)
+  46: { // Ace of Swords
+    symbols: [
+      { object: 'hand', position: 'from cloud', meaning: 'divine clarity' },
+      { object: 'upright sword', position: 'held firm', color: 'steel', meaning: 'truth, mental power' },
+      { object: 'crown', position: 'on sword tip', color: 'gold', meaning: 'victory of mind' },
+      { object: 'laurel and palm', position: 'on crown', meaning: 'triumph, peace' },
+      { object: 'mountains', position: 'background', meaning: 'challenges to overcome' }
+    ],
+    dominantColors: [
+      { color: 'gray', meaning: 'clarity, neutrality' },
+      { color: 'white', meaning: 'purity of thought' },
+      { color: 'gold', meaning: 'crowned truth' }
+    ],
+    composition: 'triumphant-blade',
+    archetype: 'Mental Breakthrough'
+  },
+  47: { // Two of Swords
+    symbols: [
+      { object: 'blindfolded figure', position: 'seated', meaning: 'blocked sight, indecision' },
+      { object: 'crossed swords', position: 'held in balance', meaning: 'stalemate, equilibrium' },
+      { object: 'crescent moon', position: 'overhead', meaning: 'intuition needed' },
+      { object: 'rocks in water', position: 'background', meaning: 'hidden obstacles' },
+      { object: 'white robe', position: 'on figure', meaning: 'purity, neutrality' }
+    ],
+    dominantColors: [
+      { color: 'white', meaning: 'neutrality, purity' },
+      { color: 'blue', meaning: 'calm surface, hidden depth' },
+      { color: 'gray', meaning: 'uncertainty' }
+    ],
+    composition: 'blindfolded-balance',
+    archetype: 'Suspended Decision'
+  },
+  48: { // Three of Swords
+    symbols: [
+      { object: 'heart', position: 'center', color: 'red', meaning: 'emotional core' },
+      { object: 'three swords', position: 'piercing heart', meaning: 'heartbreak, sorrow' },
+      { object: 'rain clouds', position: 'background', color: 'gray', meaning: 'grief, tears' },
+      { object: 'rain', position: 'falling', meaning: 'cleansing sorrow' }
+    ],
+    dominantColors: [
+      { color: 'gray', meaning: 'sorrow, pain' },
+      { color: 'red', meaning: 'wounded heart' },
+      { color: 'silver', meaning: 'piercing truth' }
+    ],
+    composition: 'pierced-heart',
+    archetype: 'Heartbreak'
+  },
+  49: { // Four of Swords
+    symbols: [
+      { object: 'effigy', position: 'lying in repose', meaning: 'rest, meditation' },
+      { object: 'three swords', position: 'on wall', meaning: 'suspended conflict' },
+      { object: 'one sword', position: 'beneath effigy', meaning: 'retained awareness' },
+      { object: 'praying hands', position: 'on effigy', meaning: 'contemplation, prayer' },
+      { object: 'stained glass', position: 'window', meaning: 'sanctuary, sacred space' }
+    ],
+    dominantColors: [
+      { color: 'gold', meaning: 'sacred rest' },
+      { color: 'blue', meaning: 'peace, meditation' },
+      { color: 'gray', meaning: 'stillness' }
+    ],
+    composition: 'resting-warrior',
+    archetype: 'Meditative Retreat'
+  },
+  50: { // Five of Swords
+    symbols: [
+      { object: 'victor', position: 'foreground with smirk', meaning: 'hollow victory' },
+      { object: 'five swords', position: 'three held, two abandoned', meaning: 'conflict, defeat' },
+      { object: 'defeated figures', position: 'walking away', meaning: 'loss, retreat' },
+      { object: 'turbulent sky', position: 'background', meaning: 'discord, unrest' }
+    ],
+    dominantColors: [
+      { color: 'green', meaning: 'envy, discord' },
+      { color: 'gray', meaning: 'conflict, tension' },
+      { color: 'blue', meaning: 'troubled waters' }
+    ],
+    composition: 'pyrrhic-victory',
+    archetype: 'Hollow Victor'
+  },
+  51: { // Six of Swords
+    symbols: [
+      { object: 'boat', position: 'crossing water', meaning: 'transition, passage' },
+      { object: 'ferryman', position: 'poling boat', meaning: 'guidance through difficulty' },
+      { object: 'woman and child', position: 'passengers', meaning: 'vulnerable travelers' },
+      { object: 'six swords', position: 'standing in boat', meaning: 'carried troubles' },
+      { object: 'rough water', position: 'left behind', meaning: 'past turmoil' },
+      { object: 'calm water', position: 'ahead', meaning: 'future peace' }
+    ],
+    dominantColors: [
+      { color: 'blue', meaning: 'emotional journey' },
+      { color: 'gray', meaning: 'somber passage' },
+      { color: 'yellow', meaning: 'hope ahead' }
+    ],
+    composition: 'crossing-waters',
+    archetype: 'Guided Transition'
+  },
+  52: { // Seven of Swords
+    symbols: [
+      { object: 'sneaking figure', position: 'tiptoeing away', meaning: 'stealth, evasion' },
+      { object: 'five swords', position: 'bundled in arms', meaning: 'theft, strategy' },
+      { object: 'two swords', position: 'left behind', meaning: 'incomplete plan' },
+      { object: 'military camp', position: 'background', meaning: 'enemy territory' },
+      { object: 'backwards glance', position: 'on figure', meaning: 'caution, guilt' }
+    ],
+    dominantColors: [
+      { color: 'yellow', meaning: 'caution, deception' },
+      { color: 'red', meaning: 'danger, urgency' },
+      { color: 'orange', meaning: 'cunning' }
+    ],
+    composition: 'stealthy-escape',
+    archetype: 'Cunning Strategist'
+  },
+  53: { // Eight of Swords
+    symbols: [
+      { object: 'bound figure', position: 'standing', meaning: 'restriction, helplessness' },
+      { object: 'blindfold', position: 'on eyes', meaning: 'self-imposed limitation' },
+      { object: 'eight swords', position: 'surrounding loosely', meaning: 'mental prison' },
+      { object: 'muddy ground', position: 'at feet', meaning: 'stuck, unclear' },
+      { object: 'castle', position: 'distant background', meaning: 'freedom within reach' },
+      { object: 'loose bindings', position: 'on figure', meaning: 'escapable situation' }
+    ],
+    dominantColors: [
+      { color: 'gray', meaning: 'imprisonment, confusion' },
+      { color: 'red', meaning: 'bound energy' },
+      { color: 'blue', meaning: 'distant clarity' }
+    ],
+    composition: 'self-imprisoned',
+    archetype: 'Voluntary Captive'
+  },
+  54: { // Nine of Swords
+    symbols: [
+      { object: 'figure', position: 'sitting up in bed', meaning: 'waking nightmare' },
+      { object: 'hands on face', position: 'gesture of despair', meaning: 'anguish, worry' },
+      { object: 'nine swords', position: 'on wall', meaning: 'mental torment' },
+      { object: 'quilt', position: 'on bed', color: 'roses and astrological signs', meaning: 'beauty hidden by fear' },
+      { object: 'darkness', position: 'background', meaning: 'night fears' }
+    ],
+    dominantColors: [
+      { color: 'black', meaning: 'nightmares, anxiety' },
+      { color: 'red', meaning: 'anguish' },
+      { color: 'white', meaning: 'stark clarity of fear' }
+    ],
+    composition: 'anguished-waking',
+    archetype: 'Anxious Mind'
+  },
+  55: { // Ten of Swords
+    symbols: [
+      { object: 'fallen figure', position: 'face-down', meaning: 'defeat, ending' },
+      { object: 'ten swords', position: 'in back', meaning: 'betrayal, rock bottom' },
+      { object: 'black sky', position: 'above', meaning: 'darkest hour' },
+      { object: 'dawn light', position: 'horizon', color: 'yellow', meaning: 'new beginning coming' },
+      { object: 'calm water', position: 'background', meaning: 'peace after storm' },
+      { object: 'red cloak', position: 'on figure', meaning: 'life force, drama' }
+    ],
+    dominantColors: [
+      { color: 'black', meaning: 'ending, finality' },
+      { color: 'yellow', meaning: 'approaching dawn' },
+      { color: 'red', meaning: 'dramatic conclusion' }
+    ],
+    composition: 'dramatic-ending',
+    archetype: 'Complete Defeat / New Dawn'
+  },
+  56: { // Page of Swords
+    symbols: [
+      { object: 'youth', position: 'standing alert', meaning: 'mental vigilance' },
+      { object: 'sword', position: 'raised defensively', color: 'steel', meaning: 'intellectual readiness' },
+      { object: 'turbulent clouds', position: 'background', meaning: 'mental activity' },
+      { object: 'birds', position: 'in flight', meaning: 'thoughts, messages' },
+      { object: 'uneven ground', position: 'beneath', meaning: 'testing ideas' }
+    ],
+    dominantColors: [
+      { color: 'green', meaning: 'growth of ideas' },
+      { color: 'yellow', meaning: 'mental energy' },
+      { color: 'blue', meaning: 'communication' }
+    ],
+    composition: 'alert-student',
+    archetype: 'Curious Investigator'
+  },
+  57: { // Knight of Swords
+    symbols: [
+      { object: 'charging knight', position: 'on galloping horse', meaning: 'swift action' },
+      { object: 'raised sword', position: 'held high', meaning: 'aggressive intellect' },
+      { object: 'white horse', position: 'at full gallop', meaning: 'speed, intensity' },
+      { object: 'windswept clouds', position: 'background', meaning: 'mental storm' },
+      { object: 'birds', position: 'scattered', meaning: 'disrupted thoughts' },
+      { object: 'trees bent', position: 'by wind', meaning: 'force of will' }
+    ],
+    dominantColors: [
+      { color: 'white', meaning: 'clarity, speed' },
+      { color: 'blue', meaning: 'intellectual force' },
+      { color: 'gray', meaning: 'stormy energy' }
+    ],
+    composition: 'charging-warrior',
+    archetype: 'Forceful Intellect'
+  },
+  58: { // Queen of Swords
+    symbols: [
+      { object: 'enthroned queen', position: 'upright', meaning: 'clear judgment' },
+      { object: 'upright sword', position: 'in right hand', meaning: 'discernment, truth' },
+      { object: 'raised left hand', position: 'beckoning', meaning: 'invitation to honesty' },
+      { object: 'butterflies', position: 'on throne', meaning: 'transformation through clarity' },
+      { object: 'clouds', position: 'background', meaning: 'mental realm' },
+      { object: 'bird', position: 'in sky', meaning: 'freedom of thought' }
+    ],
+    dominantColors: [
+      { color: 'blue', meaning: 'clear thought' },
+      { color: 'white', meaning: 'purity of mind' },
+      { color: 'gray', meaning: 'objectivity' }
+    ],
+    composition: 'judicious-sovereign',
+    archetype: 'Clear-Minded Judge'
+  },
+  59: { // King of Swords
+    symbols: [
+      { object: 'enthroned king', position: 'upright', meaning: 'intellectual authority' },
+      { object: 'upright sword', position: 'in right hand', meaning: 'justice, logic' },
+      { object: 'butterflies', position: 'on throne', meaning: 'mental transformation' },
+      { object: 'crescent moons', position: 'on throne', meaning: 'intuitive intellect' },
+      { object: 'trees', position: 'background left', meaning: 'natural wisdom' },
+      { object: 'clouds', position: 'background right', meaning: 'realm of ideas' }
+    ],
+    dominantColors: [
+      { color: 'purple', meaning: 'wisdom, authority' },
+      { color: 'blue', meaning: 'mental mastery' },
+      { color: 'white', meaning: 'objective truth' }
+    ],
+    composition: 'authoritative-judge',
+    archetype: 'Intellectual Master'
+  },
 
-  // PENTACLES, SWORDS, etc. follow the same structure.
+  // PENTACLES (60-73)
+  60: { // Ace of Pentacles
+    symbols: [
+      { object: 'hand', position: 'from cloud', meaning: 'divine gift' },
+      { object: 'pentacle', position: 'held forth', color: 'gold', meaning: 'material opportunity' },
+      { object: 'garden', position: 'below', color: 'lush', meaning: 'fertile ground' },
+      { object: 'archway', position: 'background', meaning: 'entrance to manifestation' },
+      { object: 'mountains', position: 'distant', meaning: 'long-term goals' }
+    ],
+    dominantColors: [
+      { color: 'green', meaning: 'growth, prosperity' },
+      { color: 'gold', meaning: 'wealth, potential' },
+      { color: 'white', meaning: 'pure opportunity' }
+    ],
+    composition: 'offered-abundance',
+    archetype: 'Material Seed'
+  },
+  61: { // Two of Pentacles
+    symbols: [
+      { object: 'juggler', position: 'in motion', meaning: 'balance, adaptability' },
+      { object: 'two pentacles', position: 'in infinity loop', color: 'gold', meaning: 'dynamic balance' },
+      { object: 'infinity symbol', position: 'formed by ribbon', meaning: 'endless cycle' },
+      { object: 'ships on waves', position: 'background', meaning: 'ups and downs' },
+      { object: 'dancing posture', position: 'on figure', meaning: 'graceful adjustment' }
+    ],
+    dominantColors: [
+      { color: 'red', meaning: 'energy, action' },
+      { color: 'blue', meaning: 'flow, adaptation' },
+      { color: 'gold', meaning: 'value in motion' }
+    ],
+    composition: 'dynamic-juggling',
+    archetype: 'Flexible Balancer'
+  },
+  62: { // Three of Pentacles
+    symbols: [
+      { object: 'craftsman', position: 'on bench', meaning: 'skilled work' },
+      { object: 'architect and monk', position: 'consulting', meaning: 'collaboration, expertise' },
+      { object: 'three pentacles', position: 'in archway', color: 'carved', meaning: 'recognized skill' },
+      { object: 'cathedral', position: 'being built', meaning: 'sacred work' },
+      { object: 'plans', position: 'held', meaning: 'design, planning' }
+    ],
+    dominantColors: [
+      { color: 'gray', meaning: 'stone, foundation' },
+      { color: 'gold', meaning: 'valued skill' },
+      { color: 'brown', meaning: 'earthly craft' }
+    ],
+    composition: 'collaborative-craft',
+    archetype: 'Master Craftsperson'
+  },
+  63: { // Four of Pentacles
+    symbols: [
+      { object: 'seated figure', position: 'on cube', meaning: 'stability, control' },
+      { object: 'pentacle on crown', position: 'head', meaning: 'fixation on security' },
+      { object: 'pentacle clasped', position: 'to chest', meaning: 'holding tight' },
+      { object: 'pentacles under feet', position: 'grounded on', meaning: 'possessiveness' },
+      { object: 'city', position: 'background', meaning: 'material world' }
+    ],
+    dominantColors: [
+      { color: 'gray', meaning: 'rigidity, control' },
+      { color: 'gold', meaning: 'hoarded wealth' },
+      { color: 'red', meaning: 'fear of loss' }
+    ],
+    composition: 'guarded-possession',
+    archetype: 'Cautious Hoarder'
+  },
+  64: { // Five of Pentacles
+    symbols: [
+      { object: 'two beggars', position: 'in snow', meaning: 'hardship, poverty' },
+      { object: 'crutches', position: 'supporting one', meaning: 'injury, need' },
+      { object: 'stained glass window', position: 'above', color: 'five pentacles lit', meaning: 'help available' },
+      { object: 'church', position: 'beside them', meaning: 'sanctuary ignored' },
+      { object: 'snow', position: 'falling', meaning: 'cold, isolation' }
+    ],
+    dominantColors: [
+      { color: 'black', meaning: 'hardship, darkness' },
+      { color: 'white', meaning: 'cold, barrenness' },
+      { color: 'gold', meaning: 'unnoticed help' }
+    ],
+    composition: 'passing-sanctuary',
+    archetype: 'Suffering Outsider'
+  },
+  65: { // Six of Pentacles
+    symbols: [
+      { object: 'merchant', position: 'standing', meaning: 'generosity, power' },
+      { object: 'scales', position: 'in left hand', color: 'balanced', meaning: 'fair exchange' },
+      { object: 'coins', position: 'given from right hand', meaning: 'charity, sharing' },
+      { object: 'two beggars', position: 'kneeling', meaning: 'receiving, dependence' },
+      { object: 'six pentacles', position: 'on ground', meaning: 'distributed wealth' }
+    ],
+    dominantColors: [
+      { color: 'purple', meaning: 'wealth, generosity' },
+      { color: 'red', meaning: 'action, giving' },
+      { color: 'gold', meaning: 'prosperity shared' }
+    ],
+    composition: 'generous-exchange',
+    archetype: 'Benevolent Giver'
+  },
+  66: { // Seven of Pentacles
+    symbols: [
+      { object: 'farmer', position: 'leaning on hoe', meaning: 'pause, assessment' },
+      { object: 'seven pentacles', position: 'on vine', color: 'growing', meaning: 'investment bearing fruit' },
+      { object: 'cultivated plants', position: 'foreground', meaning: 'labor, patience' },
+      { object: 'contemplative posture', position: 'on figure', meaning: 'evaluation, waiting' }
+    ],
+    dominantColors: [
+      { color: 'green', meaning: 'growth, patience' },
+      { color: 'gold', meaning: 'developing rewards' },
+      { color: 'brown', meaning: 'earthly effort' }
+    ],
+    composition: 'patient-cultivator',
+    archetype: 'Patient Investor'
+  },
+  67: { // Eight of Pentacles
+    symbols: [
+      { object: 'craftsman', position: 'at bench', meaning: 'dedication, skill' },
+      { object: 'hammer and chisel', position: 'in hands', meaning: 'focused work' },
+      { object: 'eight pentacles', position: 'six completed, one in progress, one waiting', meaning: 'methodical mastery' },
+      { object: 'town', position: 'distant', meaning: 'isolation for focus' },
+      { object: 'apron', position: 'on figure', meaning: 'practical work' }
+    ],
+    dominantColors: [
+      { color: 'gray', meaning: 'discipline, craft' },
+      { color: 'gold', meaning: 'skill developing' },
+      { color: 'red', meaning: 'effort, dedication' }
+    ],
+    composition: 'devoted-artisan',
+    archetype: 'Diligent Apprentice'
+  },
+  68: { // Nine of Pentacles
+    symbols: [
+      { object: 'elegant figure', position: 'in garden', meaning: 'self-sufficiency, luxury' },
+      { object: 'hooded falcon', position: 'on hand', meaning: 'discipline, self-control' },
+      { object: 'nine pentacles', position: 'on grapevines', color: 'abundant', meaning: 'earned prosperity' },
+      { object: 'manor', position: 'background', meaning: 'established wealth' },
+      { object: 'snail', position: 'at base', meaning: 'slow, steady progress' }
+    ],
+    dominantColors: [
+      { color: 'yellow', meaning: 'achievement, satisfaction' },
+      { color: 'green', meaning: 'abundance, nature' },
+      { color: 'gold', meaning: 'refined success' }
+    ],
+    composition: 'self-sufficient-grace',
+    archetype: 'Independent Achiever'
+  },
+  69: { // Ten of Pentacles
+    symbols: [
+      { object: 'elder', position: 'seated', meaning: 'legacy, wisdom' },
+      { object: 'family', position: 'in courtyard', meaning: 'generations, inheritance' },
+      { object: 'child', position: 'with dogs', meaning: 'future, innocence' },
+      { object: 'ten pentacles', position: 'in Tree of Life pattern', meaning: 'complete manifestation' },
+      { object: 'archway', position: 'entrance', meaning: 'established home' },
+      { object: 'coat of arms', position: 'on wall', meaning: 'lineage, tradition' }
+    ],
+    dominantColors: [
+      { color: 'gold', meaning: 'wealth, completion' },
+      { color: 'red', meaning: 'vitality, family' },
+      { color: 'white', meaning: 'purity of legacy' }
+    ],
+    composition: 'generational-prosperity',
+    archetype: 'Legacy Builder'
+  },
+  70: { // Page of Pentacles
+    symbols: [
+      { object: 'youth', position: 'standing in field', meaning: 'practical learning' },
+      { object: 'pentacle', position: 'held aloft', color: 'gold', meaning: 'new opportunity' },
+      { object: 'flowering field', position: 'surrounding', meaning: 'fertile ground' },
+      { object: 'mountains', position: 'distant', meaning: 'future goals' },
+      { object: 'absorbed gaze', position: 'on pentacle', meaning: 'focus, study' }
+    ],
+    dominantColors: [
+      { color: 'green', meaning: 'growth, potential' },
+      { color: 'gold', meaning: 'opportunity, value' },
+      { color: 'brown', meaning: 'grounded learning' }
+    ],
+    composition: 'studious-youth',
+    archetype: 'Eager Student'
+  },
+  71: { // Knight of Pentacles
+    symbols: [
+      { object: 'armored knight', position: 'on heavy horse', meaning: 'methodical progress' },
+      { object: 'pentacle', position: 'held carefully', color: 'gold', meaning: 'cautious responsibility' },
+      { object: 'black horse', position: 'standing still', meaning: 'patience, steadiness' },
+      { object: 'plowed field', position: 'background', meaning: 'prepared ground' },
+      { object: 'solid posture', position: 'on figure', meaning: 'reliability' }
+    ],
+    dominantColors: [
+      { color: 'black', meaning: 'steadiness, solidity' },
+      { color: 'green', meaning: 'practical growth' },
+      { color: 'gold', meaning: 'valued work' }
+    ],
+    composition: 'steady-guardian',
+    archetype: 'Reliable Worker'
+  },
+  72: { // Queen of Pentacles
+    symbols: [
+      { object: 'enthroned queen', position: 'in nature', meaning: 'nurturing abundance' },
+      { object: 'pentacle', position: 'gazed upon in lap', color: 'gold', meaning: 'material wisdom' },
+      { object: 'rabbit', position: 'at feet', meaning: 'fertility, prosperity' },
+      { object: 'roses', position: 'surrounding throne', color: 'red', meaning: 'beauty, sensuality' },
+      { object: 'fruit trees', position: 'background', meaning: 'cultivated abundance' },
+      { object: 'goat', position: 'on throne', meaning: 'Capricorn, earthly mastery' }
+    ],
+    dominantColors: [
+      { color: 'green', meaning: 'nature, nurturing' },
+      { color: 'red', meaning: 'sensual vitality' },
+      { color: 'gold', meaning: 'generous prosperity' }
+    ],
+    composition: 'nurturing-sovereign',
+    archetype: 'Abundant Nurturer'
+  },
+  73: { // King of Pentacles
+    symbols: [
+      { object: 'enthroned king', position: 'in castle', meaning: 'mastered wealth' },
+      { object: 'pentacle', position: 'in right hand', color: 'gold', meaning: 'material success' },
+      { object: 'scepter', position: 'in left hand', meaning: 'authority, control' },
+      { object: 'bull', position: 'on throne', meaning: 'Taurus, earthly power' },
+      { object: 'grapes', position: 'on robe', meaning: 'abundance, luxury' },
+      { object: 'castle', position: 'background', meaning: 'established empire' },
+      { object: 'roses', position: 'at base', color: 'blooming', meaning: 'cultivated success' }
+    ],
+    dominantColors: [
+      { color: 'purple', meaning: 'wealth, royalty' },
+      { color: 'gold', meaning: 'mastered prosperity' },
+      { color: 'green', meaning: 'sustained growth' }
+    ],
+    composition: 'prosperous-sovereign',
+    archetype: 'Material Master'
+  },
+
+  // WANDS COURT CARDS (74-77)
+  74: { // Page of Wands
+    symbols: [
+      { object: 'youth', position: 'standing alert', meaning: 'enthusiasm, exploration' },
+      { object: 'sprouting wand', position: 'held upright', color: 'green leaves', meaning: 'creative potential' },
+      { object: 'pyramids', position: 'background', meaning: 'ancient wisdom, adventure' },
+      { object: 'salamanders', position: 'on tunic', color: 'orange', meaning: 'fire element, transformation' },
+      { object: 'desert', position: 'surrounding', meaning: 'unexplored territory' }
+    ],
+    dominantColors: [
+      { color: 'orange', meaning: 'creative fire' },
+      { color: 'yellow', meaning: 'optimism, exploration' },
+      { color: 'green', meaning: 'fresh growth' }
+    ],
+    composition: 'eager-explorer',
+    archetype: 'Enthusiastic Messenger'
+  },
+  75: { // Knight of Wands
+    symbols: [
+      { object: 'armored knight', position: 'on rearing horse', meaning: 'passionate action' },
+      { object: 'sprouting wand', position: 'held aloft', color: 'green', meaning: 'living energy' },
+      { object: 'yellow horse', position: 'mid-leap', meaning: 'enthusiasm, speed' },
+      { object: 'salamanders', position: 'on armor', color: 'orange', meaning: 'fire spirit' },
+      { object: 'pyramids', position: 'distant', meaning: 'questing spirit' },
+      { object: 'plume', position: 'on helmet', color: 'red', meaning: 'bold confidence' }
+    ],
+    dominantColors: [
+      { color: 'yellow', meaning: 'energy, action' },
+      { color: 'red', meaning: 'passion, courage' },
+      { color: 'orange', meaning: 'creative fire' }
+    ],
+    composition: 'charging-adventurer',
+    archetype: 'Passionate Adventurer'
+  },
+  76: { // Queen of Wands
+    symbols: [
+      { object: 'enthroned queen', position: 'confident', meaning: 'creative leadership' },
+      { object: 'sprouting wand', position: 'in right hand', color: 'green', meaning: 'living inspiration' },
+      { object: 'sunflower', position: 'in left hand', meaning: 'vitality, warmth' },
+      { object: 'black cat', position: 'at feet', meaning: 'independence, intuition' },
+      { object: 'lions', position: 'on throne', meaning: 'courage, strength' },
+      { object: 'pyramids', position: 'background', meaning: 'enduring power' }
+    ],
+    dominantColors: [
+      { color: 'yellow', meaning: 'warmth, vitality' },
+      { color: 'orange', meaning: 'creative fire' },
+      { color: 'red', meaning: 'passionate leadership' }
+    ],
+    composition: 'radiant-sovereign',
+    archetype: 'Charismatic Leader'
+  },
+  77: { // King of Wands
+    symbols: [
+      { object: 'enthroned king', position: 'commanding', meaning: 'visionary leadership' },
+      { object: 'sprouting wand', position: 'held firmly', color: 'green leaves', meaning: 'living vision' },
+      { object: 'lions', position: 'on throne and at feet', meaning: 'courage, dominance' },
+      { object: 'salamanders', position: 'on robe and throne', color: 'orange', meaning: 'fire mastery' },
+      { object: 'crown', position: 'on head', color: 'gold', meaning: 'creative authority' },
+      { object: 'salamander biting tail', position: 'at base', meaning: 'self-sustaining energy' }
+    ],
+    dominantColors: [
+      { color: 'orange', meaning: 'creative mastery' },
+      { color: 'red', meaning: 'bold leadership' },
+      { color: 'gold', meaning: 'visionary authority' }
+    ],
+    composition: 'commanding-sovereign',
+    archetype: 'Visionary Entrepreneur'
+  }
 };
 
 export function getSymbolAnnotation(cardNumber) {

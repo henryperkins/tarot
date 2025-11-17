@@ -10,6 +10,7 @@ import {
   getConnector
 } from './helpers.js';
 import { getDeckProfile } from '../../../shared/vision/deckProfiles.js';
+import { THOTH_MINOR_TITLES, MARSEILLE_NUMERICAL_THEMES } from '../../../src/data/knowledgeGraphData.js';
 
 const DECK_STYLE_TIPS = {
   'thoth-a1': [
@@ -258,6 +259,11 @@ function buildUserPrompt(spreadKey, cardsInfo, userQuestion, reflectionsText, th
     prompt += buildStandardPromptCards(cardsInfo, themes, context);
   }
 
+  const deckSpecificContext = buildDeckSpecificContext(deckStyle, cardsInfo);
+  if (deckSpecificContext) {
+    prompt += deckSpecificContext;
+  }
+
   // Reflections
   if (reflectionsText && reflectionsText.trim()) {
     prompt += `\n**Querent's Reflections**:\n${reflectionsText.trim()}\n\n`;
@@ -458,6 +464,48 @@ function buildCardWithImagery(cardInfo, position, options, prefix = '') {
   }
 
   return text;
+}
+
+function buildDeckSpecificContext(deckStyle, cardsInfo) {
+  if (!Array.isArray(cardsInfo) || cardsInfo.length === 0) {
+    return '';
+  }
+
+  if (deckStyle === 'thoth-a1') {
+    const lines = cardsInfo
+      .map((card) => {
+        const key = (card?.card || card?.name || '').trim();
+        if (!key) return null;
+        const info = THOTH_MINOR_TITLES[key];
+        if (!info) return null;
+        const header = card.position ? `${card.position}` : key;
+        const astrology = info.astrology ? ` (${info.astrology})` : '';
+        return `- ${header}: **${info.title}**${astrology} — ${info.description}`;
+      })
+      .filter(Boolean);
+    if (!lines.length) {
+      return '';
+    }
+    return `\n**Thoth Titles & Decans**:\n${lines.join('\n')}\n\n`;
+  }
+
+  if (deckStyle === 'marseille-classic') {
+    const lines = cardsInfo
+      .map((card) => {
+        const rankValue = typeof card?.rankValue === 'number' ? card.rankValue : null;
+        const theme = rankValue ? MARSEILLE_NUMERICAL_THEMES[rankValue] : null;
+        if (!theme) return null;
+        const header = card.position ? `${card.position}` : (card.card || `Pip ${rankValue}`);
+        return `- ${header}: Pip ${rankValue} (${theme.keyword}) — ${theme.description}`;
+      })
+      .filter(Boolean);
+    if (!lines.length) {
+      return '';
+    }
+    return `\n**Marseille Pip Geometry**:\n${lines.join('\n')}\n\n`;
+  }
+
+  return '';
 }
 
 /**

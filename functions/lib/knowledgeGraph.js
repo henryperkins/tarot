@@ -6,9 +6,12 @@ import {
   FOOLS_JOURNEY,
   ARCHETYPAL_TRIADS,
   ARCHETYPAL_DYADS,
-  SUIT_PROGRESSIONS
+  SUIT_PROGRESSIONS,
+  THOTH_MINOR_TITLES,
+  MARSEILLE_NUMERICAL_THEMES
 } from '../../src/data/knowledgeGraphData.js';
 import { getDeckAlias } from '../../shared/vision/deckAssets.js';
+import { parseMinorName } from './minorMeta.js';
 
 function getCardLabel(card) {
   return card?.card || card?.name || card?.title || 'Unknown card';
@@ -323,6 +326,131 @@ export function detectSuitProgressions(cards, options = {}) {
   return detected;
 }
 
+function detectThothEpithets(cards, options = {}) {
+  const deckStyle = options.deckStyle || 'rws-1909';
+  if (deckStyle !== 'thoth-a1' || !Array.isArray(cards)) {
+    return null;
+  }
+
+  const entries = [];
+  const suitMap = new Map();
+
+  cards.forEach((card) => {
+    const key = (card?.card || card?.name || '').trim();
+    if (!key) return;
+    const info = THOTH_MINOR_TITLES[key];
+    if (!info) return;
+
+    const entry = {
+      card: key,
+      title: info.title,
+      suit: info.suit || card.suit || 'Minor',
+      rank: info.rank || card.rankValue || null,
+      astrology: info.astrology || null,
+      description: info.description || ''
+    };
+    entries.push(entry);
+
+    const suitKey = entry.suit;
+    if (!suitMap.has(suitKey)) {
+      suitMap.set(suitKey, []);
+    }
+    suitMap.get(suitKey).push({
+      entry,
+      originalCard: card
+    });
+  });
+
+  if (entries.length === 0) {
+    return null;
+  }
+
+  const suitHighlights = [];
+  suitMap.forEach((list, suit) => {
+    if (list.length < 2) return;
+    suitHighlights.push({
+      suit,
+      titles: list.map((item) => item.entry.title),
+      description: buildThothSuitNarrative(suit, list.map((item) => item.entry)),
+      cards: list.map((item) => item.originalCard)
+    });
+  });
+
+  return {
+    entries,
+    suitHighlights
+  };
+}
+
+function buildThothSuitNarrative(suit, entries) {
+  const snippets = entries
+    .map((entry) => `${entry.title}${entry.astrology ? ` (${entry.astrology})` : ''}`)
+    .join(' → ');
+  const color = entries
+    .map((entry) => entry.description)
+    .filter(Boolean)
+    .slice(0, 2)
+    .join(' | ');
+  return `${suit} current flows through ${snippets}, pointing to ${color || 'a defined energetic storyline'}.`;
+}
+
+function detectMarseillePipPatterns(cards, options = {}) {
+  const deckStyle = options.deckStyle || 'rws-1909';
+  if (deckStyle !== 'marseille-classic' || !Array.isArray(cards)) {
+    return null;
+  }
+
+  const rankBuckets = new Map();
+  cards.forEach((card) => {
+    const rankValue = normalizeRankValue(card);
+    if (!rankValue || !MARSEILLE_NUMERICAL_THEMES[rankValue]) return;
+    if (!rankBuckets.has(rankValue)) {
+      rankBuckets.set(rankValue, []);
+    }
+    rankBuckets.get(rankValue).push(card);
+  });
+
+  const numerologyClusters = [];
+  rankBuckets.forEach((list, rank) => {
+    if (list.length < 2) return;
+    const theme = MARSEILLE_NUMERICAL_THEMES[rank];
+    numerologyClusters.push({
+      rankValue: rank,
+      keyword: theme.keyword,
+      description: theme.description,
+      geometry: theme.geometry,
+      cards: list
+    });
+  });
+
+  if (!numerologyClusters.length) {
+    return null;
+  }
+
+  return { numerologyClusters };
+}
+
+function normalizeRankValue(card) {
+  if (typeof card?.rankValue === 'number') {
+    return card.rankValue;
+  }
+  const parsed = parseMinorName(card?.card || card?.name || '');
+  if (!parsed) return null;
+  const pipValues = {
+    Ace: 1,
+    Two: 2,
+    Three: 3,
+    Four: 4,
+    Five: 5,
+    Six: 6,
+    Seven: 7,
+    Eight: 8,
+    Nine: 9,
+    Ten: 10
+  };
+  return pipValues[parsed.rank] || null;
+}
+
 /**
  * Master function: Detect all archetypal patterns
  *
@@ -385,6 +513,28 @@ export function detectAllPatterns(cards, options = {}) {
     }
   } catch (err) {
     console.error('Suit progression detection failed:', err);
+  }
+
+  // Deck-specific Thoth epithets
+  try {
+    const thoth = detectThothEpithets(cards, options);
+    if (thoth) {
+      patterns.thothEpithets = thoth;
+      hasAnyPattern = true;
+    }
+  } catch (err) {
+    console.error('Thoth epithet detection failed:', err);
+  }
+
+  // Deck-specific Marseille numerology
+  try {
+    const marseille = detectMarseillePipPatterns(cards, options);
+    if (marseille) {
+      patterns.marseillePip = marseille;
+      hasAnyPattern = true;
+    }
+  } catch (err) {
+    console.error('Marseille pip detection failed:', err);
   }
 
   return hasAnyPattern ? patterns : null;
@@ -475,6 +625,34 @@ export function getPriorityPatternNarratives(patterns, deckStyle = 'rws-1909') {
       });
   }
 
+  // Deck-specific: Thoth suit clusters or epithets
+  if (patterns.thothEpithets?.suitHighlights?.length) {
+    patterns.thothEpithets.suitHighlights
+      .slice(0, 2)
+      .forEach((highlight) => {
+        const cardList = highlight.cards
+          .map((card) => deckAwareName(card, getCardLabel(card), deckStyle))
+          .join(', ');
+        narratives.push({
+          priority: 3,
+          type: 'thoth-suit',
+          text: `**Thoth ${highlight.suit} Titles** ${highlight.description} Cards: ${cardList}.`,
+          cards: highlight.cards.map((card) => card.number ?? card.rankValue ?? null)
+        });
+      });
+  } else if (patterns.thothEpithets?.entries?.length) {
+    patterns.thothEpithets.entries
+      .slice(0, 2)
+      .forEach((entry) => {
+        narratives.push({
+          priority: 4,
+          type: 'thoth-epithet',
+          text: `**${entry.card} → ${entry.title}** ${entry.description}${entry.astrology ? ` (${entry.astrology})` : ''}.`,
+          cards: [entry.rank]
+        });
+      });
+  }
+
   // Priority 3: High-significance dyads
   if (patterns.dyads) {
     patterns.dyads
@@ -527,6 +705,24 @@ export function getPriorityPatternNarratives(patterns, deckStyle = 'rws-1909') {
           cards: prog.stageCards.map((card) => card.number ?? card.rankValue ?? null),
           suit: prog.suit,
           stage: prog.stage
+        });
+      });
+  }
+
+  // Deck-specific: Marseille numerology clusters
+  if (patterns.marseillePip?.numerologyClusters?.length) {
+    patterns.marseillePip.numerologyClusters
+      .sort((a, b) => b.cards.length - a.cards.length)
+      .slice(0, 2)
+      .forEach((cluster) => {
+        const cardList = cluster.cards
+          .map((card) => deckAwareName(card, getCardLabel(card), deckStyle))
+          .join(', ');
+        narratives.push({
+          priority: 6,
+          type: 'marseille-numerology',
+          text: `**Pip ${cluster.rankValue} — ${cluster.keyword}** ${cluster.description} (Geometry: ${cluster.geometry}). Cards: ${cardList}.`,
+          cards: cluster.cards.map((card) => card.rankValue ?? card.number ?? null)
         });
       });
   }

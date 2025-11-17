@@ -83,6 +83,11 @@ binding = "FEEDBACK_KV"
 id = "ff4fb140d62a44e9bb4f5af0630bb154"
 preview_id = "ead919e83f114ec0abd0ac1592d3e9d3"
 
+[[kv_namespaces]]
+binding = "METRICS_DB"
+id = "2510ac5ac91e4a2fac375190a3dfc128"
+preview_id = "8e820de09f9c459ea0e149bf55644c81"
+
 # ============================================================================
 # Future Bindings (Currently Commented Out)
 # ============================================================================

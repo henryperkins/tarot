@@ -1651,6 +1651,11 @@ export default function TarotReading() {
           </div>
 
           <div className="max-w-5xl mx-auto space-y-6">
+            {/* Deck Selection */}
+            <div className="modern-surface p-4 sm:p-6" aria-label="Choose your physical deck">
+              <DeckSelector selectedDeck={deckStyleId} onDeckChange={handleDeckChange} />
+            </div>
+
             <div
               aria-label="Choose your spread"
               ref={spreadSectionRef}
@@ -1808,16 +1813,7 @@ export default function TarotReading() {
           )}
 
 
-          <div className="space-y-6 mb-6">
-            {/* Deck Selection */}
-            <div className="modern-surface p-4 sm:p-6">
-              <DeckSelector
-                selectedDeck={deckStyleId}
-                onDeckChange={handleDeckChange}
-              />
-            </div>
-
-            {/* Vision Validation */}
+          <div className="mb-6">
             <VisionValidationPanel
               deckStyle={deckStyleId}
               onResults={handleVisionResults}

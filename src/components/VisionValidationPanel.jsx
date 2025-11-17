@@ -1,6 +1,8 @@
-import React from 'react';
+import React, { useState, useRef } from 'react';
 import { useVisionValidation } from '../hooks/useVisionValidation';
 import { VisionHeatmapOverlay } from './VisionHeatmapOverlay';
+import { PhotoInputModal } from './PhotoInputModal';
+import { CameraCapture } from './CameraCapture';
 
 export function VisionValidationPanel({
   deckStyle = 'rws-1909',
@@ -11,9 +13,12 @@ export function VisionValidationPanel({
   results = []
 }) {
   const { status, error, validateFiles } = useVisionValidation({ deckStyle });
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isCameraOpen, setIsCameraOpen] = useState(false);
+  const fileInputRef = useRef(null);
   const uploadLimitReached = results.length >= 5;
 
-  const handleChange = async (event) => {
+  const handleFileChange = async (event) => {
     const inputEl = event.target;
     const files = inputEl?.files;
     if (!files || files.length === 0) {
@@ -28,6 +33,29 @@ export function VisionValidationPanel({
       }
     } finally {
       if (inputEl) inputEl.value = '';
+    }
+  };
+
+  const handleChooseFromLibrary = () => {
+    setIsModalOpen(false);
+    fileInputRef.current?.click();
+  };
+
+  const handleTakePhoto = () => {
+    setIsModalOpen(false);
+    setIsCameraOpen(true);
+  };
+
+  const handleCapture = async (files) => {
+    setIsCameraOpen(false);
+    if (!files || files.length === 0) return;
+    try {
+      const analyses = await validateFiles(files);
+      if (analyses.length) {
+        onResults?.(analyses);
+      }
+    } catch (err) {
+      console.error('Error processing captured image:', err);
     }
   };
 
@@ -50,25 +78,42 @@ export function VisionValidationPanel({
               Clear uploads
             </button>
           )}
-          <label className={`inline-flex items-center gap-2 ${uploadLimitReached ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer' }`}>
-            <input
-              type="file"
-              accept="image/*"
-              multiple
-              onChange={handleChange}
-              className="hidden"
-              disabled={uploadLimitReached}
-            />
-            <span className="px-3 py-2 rounded-md border border-emerald-400/40">
-              {uploadLimitReached
-                ? 'Limit reached'
-                : status === 'loading'
-                  ? 'Analyzing…'
-                  : 'Upload photos'}
-            </span>
-          </label>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            multiple
+            onChange={handleFileChange}
+            className="hidden"
+            disabled={uploadLimitReached}
+          />
+          <button
+            type="button"
+            onClick={() => !uploadLimitReached && setIsModalOpen(true)}
+            disabled={uploadLimitReached}
+            className={`px-3 py-2 rounded-md border border-emerald-400/40 ${uploadLimitReached ? 'opacity-60 cursor-not-allowed' : ''}`}
+          >
+            {uploadLimitReached
+              ? 'Limit reached'
+              : status === 'loading'
+                ? 'Analyzing…'
+                : 'Add Photo'}
+          </button>
         </div>
       </div>
+      {isModalOpen && (
+        <PhotoInputModal
+          onTakePhoto={handleTakePhoto}
+          onChooseFromLibrary={handleChooseFromLibrary}
+          onCancel={() => setIsModalOpen(false)}
+        />
+      )}
+      {isCameraOpen && (
+        <CameraCapture
+          onCapture={handleCapture}
+          onCancel={() => setIsCameraOpen(false)}
+        />
+      )}
       {error && <p className="mt-2 text-xs text-rose-300">{error}</p>}
       {conflicts.length > 0 && (
         <div className="mt-3 rounded border border-rose-400/40 bg-rose-900/20 p-3 text-xs text-rose-50">
