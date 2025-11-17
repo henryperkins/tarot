@@ -1,0 +1,1292 @@
+{
+  "updatedAt": "2025-11-17T12:45:56.234Z",
+  "metricsByDeck": {
+    "rws-1909": {
+      "deckStyle": "rws-1909",
+      "generatedAt": "2025-11-17T12:45:56.231Z",
+      "sourceFile": "data/evaluations/vision-confidence.json",
+      "sampleSize": 78,
+      "accuracy": 1,
+      "microPrecision": 1,
+      "microRecall": 1,
+      "microF1": 1,
+      "highConfidenceCoverage": 1,
+      "highConfidenceAccuracy": 1,
+      "symbolCoverageRate": 0.9659935897435895,
+      "symbolDetectionRate": 0.964824120603015,
+      "symbolMissingLeaders": [
+        {
+          "symbol": "storm clouds",
+          "count": 3
+        },
+        {
+          "symbol": "figure in action or exiting scene",
+          "count": 2
+        },
+        {
+          "symbol": "wand",
+          "count": 1
+        },
+        {
+          "symbol": "scepter",
+          "count": 1
+        },
+        {
+          "symbol": "city",
+          "count": 1
+        }
+      ],
+      "symbolBreakdown": [],
+      "perLabelAccuracy": [
+        {
+          "label": "Ace of Cups",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "Ace of Pentacles",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "Ace of Swords",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "Ace of Wands",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "Death",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "Eight of Cups",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "Eight of Pentacles",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "Eight of Swords",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "Eight of Wands",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "Five of Cups",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "Five of Pentacles",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "Five of Swords",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "Five of Wands",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "Four of Cups",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "Four of Pentacles",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "Four of Swords",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "Four of Wands",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "Judgement",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "Justice",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "King of Cups",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "King of Pentacles",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "King of Swords",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "King of Wands",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "Knight of Cups",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "Knight of Pentacles",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "Knight of Swords",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "Knight of Wands",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "Nine of Cups",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "Nine of Pentacles",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "Nine of Swords",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "Nine of Wands",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "Page of Cups",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "Page of Pentacles",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "Page of Swords",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "Page of Wands",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "Queen of Cups",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "Queen of Pentacles",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "Queen of Swords",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "Queen of Wands",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "Seven of Cups",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "Seven of Pentacles",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "Seven of Swords",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "Seven of Wands",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "Six of Cups",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "Six of Pentacles",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "Six of Swords",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "Six of Wands",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "Strength",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "Temperance",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "Ten of Cups",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "Ten of Pentacles",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "Ten of Swords",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "Ten of Wands",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "The Chariot",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "The Devil",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "The Emperor",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "The Empress",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "The Fool",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "The Hanged Man",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "The Hermit",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "The Hierophant",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "The High Priestess",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "The Lovers",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "The Magician",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "The Moon",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "The Star",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "The Sun",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "The Tower",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "The World",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "Three of Cups",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "Three of Pentacles",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "Three of Swords",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "Three of Wands",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "Two of Cups",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "Two of Pentacles",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "Two of Swords",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "Two of Wands",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "Wheel of Fortune",
+          "accuracy": 1,
+          "total": 1
+        }
+      ]
+    },
+    "thoth-a1": {
+      "deckStyle": "thoth-a1",
+      "generatedAt": "2025-11-17T12:45:25.658Z",
+      "sourceFile": "data/evaluations/vision-confidence.thoth.json",
+      "sampleSize": 78,
+      "accuracy": 0.9615384615384616,
+      "microPrecision": 0.9615384615384616,
+      "microRecall": 0.9615384615384616,
+      "microF1": 0.9615384615384616,
+      "highConfidenceCoverage": 1,
+      "highConfidenceAccuracy": 0.9615384615384616,
+      "symbolCoverageRate": 0.9237756410256407,
+      "symbolDetectionRate": 0.9221105527638191,
+      "symbolMissingLeaders": [
+        {
+          "symbol": "storm clouds",
+          "count": 5
+        },
+        {
+          "symbol": "stone archways",
+          "count": 4
+        },
+        {
+          "symbol": "scepter",
+          "count": 2
+        },
+        {
+          "symbol": "mountains",
+          "count": 2
+        },
+        {
+          "symbol": "desert horizon with pyramids and cloudless sky",
+          "count": 2
+        }
+      ],
+      "symbolBreakdown": [],
+      "perLabelAccuracy": [
+        {
+          "label": "Ace of Cups",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "Ace of Pentacles",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "Ace of Swords",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "Ace of Wands",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "Death",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "Eight of Cups",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "Eight of Pentacles",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "Eight of Swords",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "Eight of Wands",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "Five of Cups",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "Five of Pentacles",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "Five of Swords",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "Five of Wands",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "Four of Cups",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "Four of Pentacles",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "Four of Swords",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "Four of Wands",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "Judgement",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "Justice",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "King of Cups",
+          "accuracy": 0,
+          "total": 1
+        },
+        {
+          "label": "King of Pentacles",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "King of Swords",
+          "accuracy": 0,
+          "total": 1
+        },
+        {
+          "label": "King of Wands",
+          "accuracy": 0,
+          "total": 1
+        },
+        {
+          "label": "Knight of Cups",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "Knight of Pentacles",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "Knight of Swords",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "Knight of Wands",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "Nine of Cups",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "Nine of Pentacles",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "Nine of Swords",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "Nine of Wands",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "Page of Cups",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "Page of Pentacles",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "Page of Swords",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "Page of Wands",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "Queen of Cups",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "Queen of Pentacles",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "Queen of Swords",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "Queen of Wands",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "Seven of Cups",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "Seven of Pentacles",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "Seven of Swords",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "Seven of Wands",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "Six of Cups",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "Six of Pentacles",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "Six of Swords",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "Six of Wands",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "Strength",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "Temperance",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "Ten of Cups",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "Ten of Pentacles",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "Ten of Swords",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "Ten of Wands",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "The Chariot",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "The Devil",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "The Emperor",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "The Empress",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "The Fool",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "The Hanged Man",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "The Hermit",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "The Hierophant",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "The High Priestess",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "The Lovers",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "The Magician",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "The Moon",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "The Star",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "The Sun",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "The Tower",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "The World",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "Three of Cups",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "Three of Pentacles",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "Three of Swords",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "Three of Wands",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "Two of Cups",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "Two of Pentacles",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "Two of Swords",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "Two of Wands",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "Wheel of Fortune",
+          "accuracy": 1,
+          "total": 1
+        }
+      ]
+    },
+    "marseille-classic": {
+      "deckStyle": "marseille-classic",
+      "generatedAt": "2025-11-17T12:45:30.664Z",
+      "sourceFile": "data/evaluations/vision-confidence.marseille.json",
+      "sampleSize": 78,
+      "accuracy": 1,
+      "microPrecision": 1,
+      "microRecall": 1,
+      "microF1": 1,
+      "highConfidenceCoverage": 1,
+      "highConfidenceAccuracy": 1,
+      "symbolCoverageRate": 0.6995423076923073,
+      "symbolDetectionRate": 0.7010050251256281,
+      "symbolMissingLeaders": [
+        {
+          "symbol": "stone archways",
+          "count": 14
+        },
+        {
+          "symbol": "storm clouds",
+          "count": 13
+        },
+        {
+          "symbol": "cultivated fields",
+          "count": 11
+        },
+        {
+          "symbol": "flowing streams",
+          "count": 11
+        },
+        {
+          "symbol": "lotus blossoms",
+          "count": 7
+        }
+      ],
+      "symbolBreakdown": [],
+      "perLabelAccuracy": [
+        {
+          "label": "Ace of Cups",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "Ace of Pentacles",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "Ace of Swords",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "Ace of Wands",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "Death",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "Eight of Cups",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "Eight of Pentacles",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "Eight of Swords",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "Eight of Wands",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "Five of Cups",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "Five of Pentacles",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "Five of Swords",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "Five of Wands",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "Four of Cups",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "Four of Pentacles",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "Four of Swords",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "Four of Wands",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "Judgement",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "Justice",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "King of Cups",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "King of Pentacles",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "King of Swords",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "King of Wands",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "Knight of Cups",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "Knight of Pentacles",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "Knight of Swords",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "Knight of Wands",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "Nine of Cups",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "Nine of Pentacles",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "Nine of Swords",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "Nine of Wands",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "Page of Cups",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "Page of Pentacles",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "Page of Swords",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "Page of Wands",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "Queen of Cups",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "Queen of Pentacles",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "Queen of Swords",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "Queen of Wands",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "Seven of Cups",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "Seven of Pentacles",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "Seven of Swords",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "Seven of Wands",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "Six of Cups",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "Six of Pentacles",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "Six of Swords",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "Six of Wands",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "Strength",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "Temperance",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "Ten of Cups",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "Ten of Pentacles",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "Ten of Swords",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "Ten of Wands",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "The Chariot",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "The Devil",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "The Emperor",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "The Empress",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "The Fool",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "The Hanged Man",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "The Hermit",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "The Hierophant",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "The High Priestess",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "The Lovers",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "The Magician",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "The Moon",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "The Star",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "The Sun",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "The Tower",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "The World",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "Three of Cups",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "Three of Pentacles",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "Three of Swords",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "Three of Wands",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "Two of Cups",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "Two of Pentacles",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "Two of Swords",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "Two of Wands",
+          "accuracy": 1,
+          "total": 1
+        },
+        {
+          "label": "Wheel of Fortune",
+          "accuracy": 1,
+          "total": 1
+        }
+      ]
+    }
+  }
+}

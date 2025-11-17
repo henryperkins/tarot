@@ -10,6 +10,7 @@ import {
   shouldSurfaceAstroLens,
   shouldSurfaceQabalahLens
 } from '../esotericMeta.js';
+import { getDeckAlias } from '../../../shared/vision/deckAssets.js';
 
 const CONTEXT_DESCRIPTORS = {
   love: 'relationships and heart-centered experiences',
@@ -80,6 +81,31 @@ const CARD_SPECIFIC_CONTEXT = {
     'temperance': 'In your spiritual path, this celebrates alchemy, ritual balance, and embodied integration.'
   }
 };
+
+function deckAwareCardName(cardInfo, deckStyle = 'rws-1909') {
+  const fallback = cardInfo?.card || cardInfo?.name || 'this card';
+  if (!deckStyle || deckStyle === 'rws-1909') {
+    return fallback;
+  }
+
+  const aliasInput = {
+    number: cardInfo?.number,
+    name: cardInfo?.card || cardInfo?.name,
+    suit: cardInfo?.suit,
+    rank: cardInfo?.rank,
+    rankValue: cardInfo?.rankValue
+  };
+  const alias = getDeckAlias(aliasInput, deckStyle);
+  if (!alias || alias === fallback) {
+    return fallback || alias || 'this card';
+  }
+
+  if (fallback && alias) {
+    return `${alias} (RWS: ${fallback})`;
+  }
+
+  return alias || fallback;
+}
 
 const MINOR_SUITS = ['Wands', 'Cups', 'Swords', 'Pentacles'];
 
@@ -595,7 +621,7 @@ function buildPositionCardText(cardInfo, position, options = {}) {
 
   if (!template) {
     // Fallback for unknown positions (defensive defaults)
-    const safeCard = cardInfo.card || 'this card';
+    const safeCard = deckAwareCardName(cardInfo, options.deckStyle);
     const safeOrientation =
       typeof cardInfo.orientation === 'string' && cardInfo.orientation.trim()
         ? ` ${cardInfo.orientation}`
@@ -604,7 +630,7 @@ function buildPositionCardText(cardInfo, position, options = {}) {
     return `${position}: ${safeCard}${safeOrientation}. ${meaning}`;
   }
 
-  const safeCard = cardInfo.card || 'this card';
+  const safeCard = deckAwareCardName(cardInfo, options.deckStyle);
   const safeOrientation =
     typeof cardInfo.orientation === 'string' && cardInfo.orientation.trim()
       ? cardInfo.orientation
@@ -695,6 +721,9 @@ function getPositionOptions(themes, context) {
   const options = {};
   if (themes && themes.reversalDescription) {
     options.reversalDescription = themes.reversalDescription;
+  }
+  if (themes && themes.deckStyle) {
+    options.deckStyle = themes.deckStyle;
   }
   if (typeof context !== 'undefined') {
     options.context = context;

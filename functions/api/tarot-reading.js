@@ -33,6 +33,8 @@ import { enhanceSection } from '../lib/narrativeSpine.js';
 import { inferContext } from '../lib/contextDetection.js';
 import { parseMinorName } from '../lib/minorMeta.js';
 import { jsonResponse, readJsonBody } from '../lib/utils.js';
+import { canonicalizeCardName, canonicalCardKey } from '../../shared/vision/cardNameMapping.js';
+import { verifyVisionProof } from '../lib/visionProof.js';
 
 const SPREAD_NAME_MAP = {
   'Celtic Cross (Classic 10-Card)': { key: 'celtic', count: 10 },
@@ -80,14 +82,25 @@ export const onRequestPost = async ({ request, env }) => {
   try {
     console.log(`[${requestId}] Reading request body...`);
     const payload = await readJsonBody(request);
-    const { spreadInfo, cardsInfo, userQuestion, reflectionsText, reversalFrameworkOverride } = payload;
+    const {
+      spreadInfo,
+      cardsInfo,
+      userQuestion,
+      reflectionsText,
+      reversalFrameworkOverride,
+      visionProof,
+      deckStyle: requestDeckStyle
+    } = payload;
+    const deckStyle = requestDeckStyle || 'rws-1909';
 
     console.log(`[${requestId}] Payload parsed:`, {
       spreadName: spreadInfo?.name,
       cardCount: cardsInfo?.length,
       hasQuestion: !!userQuestion,
       hasReflections: !!reflectionsText,
-      reversalOverride: reversalFrameworkOverride
+      reversalOverride: reversalFrameworkOverride,
+      deckStyle,
+      hasVisionProof: !!visionProof
     });
 
     const validationError = validatePayload(payload);
@@ -100,12 +113,58 @@ export const onRequestPost = async ({ request, env }) => {
     }
     console.log(`[${requestId}] Payload validation passed`);
 
+    if (!visionProof) {
+      console.warn(`[${requestId}] Vision proof missing; rejecting request.`);
+      return jsonResponse(
+        { error: 'Vision validation proof missing. Please upload and confirm your card photos before requesting a reading.' },
+        { status: 400 }
+      );
+    }
+
+    let verifiedProof;
+    try {
+      verifiedProof = await verifyVisionProof(visionProof, env?.VISION_PROOF_SECRET);
+    } catch (err) {
+      console.warn(`[${requestId}] Vision proof verification failed: ${err.message}`);
+      const status = /expired/i.test(err.message) ? 409 : 400;
+      return jsonResponse(
+        { error: err.message || 'Vision validation proof invalid. Please re-upload your photos.' },
+        { status }
+      );
+    }
+
+    if (verifiedProof.deckStyle && verifiedProof.deckStyle !== deckStyle) {
+      console.warn(`[${requestId}] Vision proof deck mismatch. proof=${verifiedProof.deckStyle}, request=${deckStyle}`);
+    }
+
+    const sanitizedVisionInsights = annotateVisionInsights(verifiedProof.insights, cardsInfo, deckStyle);
+    if (sanitizedVisionInsights.length === 0) {
+      console.warn(`[${requestId}] Vision proof did not contain recognizable cards; rejecting request.`);
+      return jsonResponse(
+        { error: 'Vision validation requires at least one confirmed card photo before requesting a reading.' },
+        { status: 400 }
+      );
+    }
+
+    const avgConfidence = sanitizedVisionInsights.reduce((sum, item) => sum + (item.confidence ?? 0), 0) / sanitizedVisionInsights.length;
+    const mismatchedDetections = sanitizedVisionInsights.filter((item) => item.matchesDrawnCard === false);
+    console.log(`[${requestId}] Vision proof verified: ${sanitizedVisionInsights.length} uploads, avg confidence ${(avgConfidence * 100).toFixed(1)}%.`);
+
+    if (mismatchedDetections.length > 0) {
+      console.warn(`[${requestId}] Vision uploads that do not match selected cards:`, mismatchedDetections.map((item) => ({ label: item.label, predictedCard: item.predictedCard, confidence: item.confidence })));
+      return jsonResponse(
+        { error: 'Vision validation detected mismatched cards. Please confirm your photo uploads before requesting a reading.' },
+        { status: 409 }
+      );
+    }
+
 
     // STEP 1: Comprehensive spread analysis
     console.log(`[${requestId}] Starting spread analysis...`);
     const analysisStart = Date.now();
     const analysis = await performSpreadAnalysis(spreadInfo, cardsInfo, {
-      reversalFrameworkOverride
+      reversalFrameworkOverride,
+      deckStyle
     }, requestId);
     const analysisTime = Date.now() - analysisStart;
     console.log(`[${requestId}] Spread analysis completed in ${analysisTime}ms:`, {
@@ -138,7 +197,8 @@ export const onRequestPost = async ({ request, env }) => {
           userQuestion,
           reflectionsText,
           analysis,
-          context
+          context,
+          visionInsights: sanitizedVisionInsights
         }, requestId);
         const azureTime = Date.now() - azureStart;
         console.log(`[${requestId}] Azure GPT-5 generation successful in ${azureTime}ms, reading length: ${reading?.length || 0}`);
@@ -195,6 +255,7 @@ export const onRequestPost = async ({ request, env }) => {
     return jsonResponse({
       reading,
       provider,
+      requestId,
       themes: analysis.themes,
       context,
       spreadAnalysis: {
@@ -381,7 +442,7 @@ export function validatePayload({ spreadInfo, cardsInfo }) {
  *
  * API Reference: https://learn.microsoft.com/en-us/azure/ai-foundry/openai/how-to/responses
  */
-async function generateWithAzureGPT5Responses(env, { spreadInfo, cardsInfo, userQuestion, reflectionsText, analysis, context }, requestId = 'unknown') {
+async function generateWithAzureGPT5Responses(env, { spreadInfo, cardsInfo, userQuestion, reflectionsText, analysis, context, visionInsights }, requestId = 'unknown') {
   const endpoint = env.AZURE_OPENAI_ENDPOINT.replace(/\/+$/, '');
   const apiKey = env.AZURE_OPENAI_API_KEY;
   const deploymentName = env.AZURE_OPENAI_GPT5_MODEL; // Azure deployment name (often mirrors the base model name)
@@ -398,7 +459,9 @@ async function generateWithAzureGPT5Responses(env, { spreadInfo, cardsInfo, user
     reflectionsText,
     themes: analysis.themes,
     spreadAnalysis: analysis.spreadAnalysis,
-    context
+    context,
+    visionInsights,
+    deckStyle
   });
 
   console.log(`[${requestId}] System prompt length: ${systemPrompt.length}, User prompt length: ${userPrompt.length}`);
@@ -515,7 +578,7 @@ async function generateWithAzureGPT5Responses(env, { spreadInfo, cardsInfo, user
 /**
  * Enhanced Claude Sonnet 4.5 generation with position-relationship analysis
  */
-async function generateWithClaudeSonnet45Enhanced(env, { spreadInfo, cardsInfo, userQuestion, reflectionsText, analysis, context }) {
+async function generateWithClaudeSonnet45Enhanced(env, { spreadInfo, cardsInfo, userQuestion, reflectionsText, analysis, context, visionInsights }) {
   const apiKey = env.ANTHROPIC_API_KEY;
   const apiUrl = env.ANTHROPIC_API_URL || 'https://api.anthropic.com/v1/messages';
   const model = 'claude-sonnet-4-5';
@@ -528,7 +591,8 @@ async function generateWithClaudeSonnet45Enhanced(env, { spreadInfo, cardsInfo, 
     reflectionsText,
     themes: analysis.themes,
     spreadAnalysis: analysis.spreadAnalysis,
-    context
+    context,
+    visionInsights
   });
 
   const response = await fetch(apiUrl, {
@@ -703,6 +767,60 @@ function buildGenericReading({ spreadInfo, cardsInfo, userQuestion, reflectionsT
 
   const readingBody = sections.join('\n\n');
   return appendGenericReversalReminder(readingBody, safeCards, themes);
+}
+
+function annotateVisionInsights(proofInsights, cardsInfo = [], deckStyle = 'rws-1909') {
+  if (!Array.isArray(proofInsights) || proofInsights.length === 0) {
+    return [];
+  }
+
+  const normalizedDeck = deckStyle || 'rws-1909';
+  const drawnNames = new Set(
+    (cardsInfo || [])
+      .map((card) => canonicalCardKey(card?.card || card?.name, normalizedDeck))
+      .filter(Boolean)
+  );
+
+  return proofInsights
+    .filter((entry) => entry && typeof entry === 'object')
+    .map((entry) => {
+      const predictedCard = canonicalizeCardName(entry.predictedCard || entry.card, normalizedDeck);
+      if (!predictedCard) {
+        return null;
+      }
+
+      const predictedKey = canonicalCardKey(predictedCard, normalizedDeck);
+      const matchesDrawnCard = drawnNames.size > 0
+        ? (predictedKey ? drawnNames.has(predictedKey) : null)
+        : null;
+
+      const matches = Array.isArray(entry.matches)
+        ? entry.matches
+            .map((match) => {
+              const card = canonicalizeCardName(match?.card || match?.cardName, normalizedDeck);
+              if (!card) return null;
+              return {
+                ...match,
+                card
+              };
+            })
+            .filter(Boolean)
+            .slice(0, 3)
+        : [];
+
+      return {
+        label: typeof entry.label === 'string' ? entry.label : 'uploaded-image',
+        predictedCard,
+        confidence: typeof entry.confidence === 'number' ? entry.confidence : null,
+        basis: typeof entry.basis === 'string' ? entry.basis : null,
+        matchesDrawnCard,
+        matches,
+        attention: entry.attention || null,
+        symbolVerification: entry.symbolVerification || null
+      };
+    })
+    .filter(Boolean)
+    .slice(0, 10);
 }
 
 /**

@@ -156,6 +156,7 @@ export function analyzeElementalDignity(card1, card2) {
  * - reversalFrameworkOverride: if provided and valid, forces that framework.
  */
 export async function analyzeSpreadThemes(cardsInfo, options = {}) {
+  const deckStyle = options.deckStyle || 'rws-1909';
   const suitCounts = { Wands: 0, Cups: 0, Swords: 0, Pentacles: 0 };
   const elementCounts = { Fire: 0, Water: 0, Air: 0, Earth: 0 };
   let majorCount = 0;
@@ -220,6 +221,7 @@ export async function analyzeSpreadThemes(cardsInfo, options = {}) {
   }
 
   const themes = {
+    deckStyle,
     // Suit analysis
     suitCounts,
     dominantSuit: dominantSuitEntry[1] > 0 ? dominantSuitEntry[0] : null,
@@ -272,11 +274,11 @@ export async function analyzeSpreadThemes(cardsInfo, options = {}) {
   if (KG_ENABLED) {
     try {
       const { detectAllPatterns, getPriorityPatternNarratives } = await import('./knowledgeGraph.js');
-      const patterns = detectAllPatterns(cardsInfo);
+      const patterns = detectAllPatterns(cardsInfo, { deckStyle });
       if (patterns) {
         themes.knowledgeGraph = {
           patterns,
-          narrativeHighlights: getPriorityPatternNarratives(patterns)
+          narrativeHighlights: getPriorityPatternNarratives(patterns, deckStyle)
         };
       }
     } catch (err) {

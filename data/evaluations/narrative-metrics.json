@@ -1,0 +1,164 @@
+{
+  "generatedAt": "2025-11-17T09:46:47.926Z",
+  "sourceFile": "data/evaluations/narrative-samples.json",
+  "totalSamples": 5,
+  "spinePassRate": 0.8,
+  "avgCardCoverage": 1,
+  "deterministicLanguageCount": 0,
+  "missingAgencyCount": 1,
+  "hallucinationCount": 0,
+  "harshToneCount": 2,
+  "missingSupportiveToneCount": 0,
+  "flaggedSampleCount": 4,
+  "avgRubricScores": {
+    "accuracy": 1,
+    "coherence": 0.9,
+    "agency": 0.8,
+    "compassion": 1
+  },
+  "perSample": [
+    {
+      "id": "single-new-role",
+      "spreadKey": "single",
+      "spreadName": "One-Card Insight",
+      "question": "What guiding energy should I bring into this new leadership role?",
+      "spine": {
+        "isValid": false,
+        "totalSections": 2,
+        "completeSections": 1,
+        "incompleteSections": 1
+      },
+      "cardCoverage": 1,
+      "missingCards": [],
+      "deterministicLanguage": false,
+      "hasAgencyLanguage": true,
+      "hallucinatedCards": [],
+      "hasSupportiveTone": true,
+      "hasHarshTone": false,
+      "issueFlags": [
+        "spine-incomplete"
+      ],
+      "issuesPresent": true,
+      "rubric": {
+        "accuracy": 1,
+        "coherence": 0.5,
+        "agency": 1,
+        "compassion": 1
+      }
+    },
+    {
+      "id": "three-card-transition",
+      "spreadKey": "threeCard",
+      "spreadName": "Three-Card Story (Past · Present · Future)",
+      "question": "How can I navigate the transition after leaving my hometown?",
+      "spine": {
+        "isValid": true,
+        "totalSections": 3,
+        "completeSections": 3,
+        "incompleteSections": 0
+      },
+      "cardCoverage": 1,
+      "missingCards": [],
+      "deterministicLanguage": false,
+      "hasAgencyLanguage": true,
+      "hallucinatedCards": [],
+      "hasSupportiveTone": true,
+      "hasHarshTone": true,
+      "issueFlags": [
+        "harsh-tone"
+      ],
+      "issuesPresent": true,
+      "rubric": {
+        "accuracy": 1,
+        "coherence": 1,
+        "agency": 1,
+        "compassion": 1
+      }
+    },
+    {
+      "id": "five-card-creative-project",
+      "spreadKey": "fiveCard",
+      "spreadName": "Five-Card Clarity",
+      "question": "What should I know about launching my creative project this quarter?",
+      "spine": {
+        "isValid": true,
+        "totalSections": 5,
+        "completeSections": 5,
+        "incompleteSections": 0
+      },
+      "cardCoverage": 1,
+      "missingCards": [],
+      "deterministicLanguage": false,
+      "hasAgencyLanguage": false,
+      "hallucinatedCards": [],
+      "hasSupportiveTone": true,
+      "hasHarshTone": false,
+      "issueFlags": [
+        "missing-agency-language"
+      ],
+      "issuesPresent": true,
+      "rubric": {
+        "accuracy": 1,
+        "coherence": 1,
+        "agency": 0,
+        "compassion": 1
+      }
+    },
+    {
+      "id": "relationship-checkin",
+      "spreadKey": "relationship",
+      "spreadName": "Relationship Snapshot",
+      "question": "What should I understand about the energetic exchange between me and Alex?",
+      "spine": {
+        "isValid": true,
+        "totalSections": 4,
+        "completeSections": 4,
+        "incompleteSections": 0
+      },
+      "cardCoverage": 1,
+      "missingCards": [],
+      "deterministicLanguage": false,
+      "hasAgencyLanguage": true,
+      "hallucinatedCards": [],
+      "hasSupportiveTone": true,
+      "hasHarshTone": true,
+      "issueFlags": [
+        "harsh-tone"
+      ],
+      "issuesPresent": true,
+      "rubric": {
+        "accuracy": 1,
+        "coherence": 1,
+        "agency": 1,
+        "compassion": 1
+      }
+    },
+    {
+      "id": "celtic-deep-shift",
+      "spreadKey": "celtic",
+      "spreadName": "Celtic Cross (Classic 10-Card)",
+      "question": "How can I stay centered while everything at home and work restructures at once?",
+      "spine": {
+        "isValid": true,
+        "totalSections": 11,
+        "completeSections": 11,
+        "incompleteSections": 0
+      },
+      "cardCoverage": 1,
+      "missingCards": [],
+      "deterministicLanguage": false,
+      "hasAgencyLanguage": true,
+      "hallucinatedCards": [],
+      "hasSupportiveTone": true,
+      "hasHarshTone": false,
+      "issueFlags": [],
+      "issuesPresent": false,
+      "rubric": {
+        "accuracy": 1,
+        "coherence": 1,
+        "agency": 1,
+        "compassion": 1
+      }
+    }
+  ]
+}

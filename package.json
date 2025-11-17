@@ -8,9 +8,21 @@
     "build": "vite build",
     "preview": "vite preview",
     "deploy": "wrangler pages deploy dist --project-name=mystic-tarot",
-    "test": "node --test tests/*.test.mjs"
+    "test": "node --test tests/*.test.mjs",
+    "vision:prototype": "node scripts/vision/runVisionPrototype.js",
+    "eval:vision": "node scripts/evaluation/runVisionConfidence.js",
+    "eval:vision:rws": "node scripts/evaluation/runVisionConfidence.js --deck-style rws-1909 --out data/evaluations/vision-confidence.rws.json",
+    "eval:vision:thoth": "node scripts/evaluation/runVisionConfidence.js --deck-style thoth-a1 --out data/evaluations/vision-confidence.thoth.json",
+    "eval:vision:marseille": "node scripts/evaluation/runVisionConfidence.js --deck-style marseille-classic --out data/evaluations/vision-confidence.marseille.json",
+    "eval:vision:all": "npm run eval:vision:rws && npm run eval:vision:thoth && npm run eval:vision:marseille",
+    "ci:vision-check": "node scripts/evaluation/computeVisionMetrics.js && node scripts/evaluation/verifyVisionGate.js",
+    "review:vision": "node scripts/evaluation/processVisionReviews.js",
+    "eval:narrative": "node scripts/evaluation/runNarrativeSamples.js && node scripts/evaluation/computeNarrativeMetrics.js",
+    "ci:narrative-check": "node scripts/evaluation/verifyNarrativeGate.js",
+    "review:narrative": "node scripts/evaluation/processNarrativeReviews.js"
   },
   "dependencies": {
+    "@xenova/transformers": "^2.17.2",
     "lucide-react": "^0.468.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",

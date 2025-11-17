@@ -9,6 +9,31 @@ import {
   buildCrossCheckSynthesis,
   getConnector
 } from './helpers.js';
+import { getDeckProfile } from '../../../shared/vision/deckProfiles.js';
+
+const DECK_STYLE_TIPS = {
+  'thoth-a1': [
+    'Use Crowley/Harris titles when they differ from Rider–Waite (Adjustment ↔ Justice, Lust ↔ Strength, Art ↔ Temperance).',
+    'Reference the Minor epithets (Dominion, Peace, Swiftness, etc.) when they clarify the suit story.',
+    'Let the tone lean into prismatic, alchemical imagery when it helps the querent visualize the card.'
+  ],
+  'marseille-classic': [
+    'Refer to the suits as Batons, Cups, Swords, and Coins (instead of Wands/Pentacles).',
+    'Describe Minor Arcana through number patterns, symmetry, and directional cues because pip cards are non-scenic.',
+    'Call out when repeated motifs (flowers, petals, crossed blades) change the energy of a pip card.'
+  ]
+};
+
+function getDeckStyleNotes(deckStyle = 'rws-1909') {
+  const profile = getDeckProfile(deckStyle);
+  if (!profile) return null;
+  return {
+    label: profile.label,
+    cue: profile.promptCue,
+    palette: Array.isArray(profile.palette) ? profile.palette.join(', ') : null,
+    tips: DECK_STYLE_TIPS[deckStyle] || []
+  };
+}
 
 export function buildEnhancedClaudePrompt({
   spreadInfo,
@@ -17,13 +42,15 @@ export function buildEnhancedClaudePrompt({
   reflectionsText,
   themes,
   spreadAnalysis,
-  context
+  context,
+  visionInsights,
+  deckStyle = 'rws-1909'
 }) {
   const spreadKey = getSpreadKeyFromName(spreadInfo.name);
   const normalizedContext = normalizeContext(context);
 
   // Build spread-specific system prompt
-  const systemPrompt = buildSystemPrompt(spreadKey, themes, normalizedContext);
+  const systemPrompt = buildSystemPrompt(spreadKey, themes, normalizedContext, deckStyle);
 
   // Build structured user prompt
   const userPrompt = buildUserPrompt(
@@ -33,7 +60,9 @@ export function buildEnhancedClaudePrompt({
     reflectionsText,
     themes,
     spreadAnalysis,
-    normalizedContext
+    normalizedContext,
+    visionInsights,
+    deckStyle
   );
 
   return { systemPrompt, userPrompt };
@@ -51,7 +80,7 @@ function getSpreadKeyFromName(name) {
   return map[name] || 'general';
 }
 
-function buildSystemPrompt(spreadKey, themes, context) {
+function buildSystemPrompt(spreadKey, themes, context, deckStyle) {
   const lines = [
     'You are an agency-forward professional tarot storyteller.',
     '',
@@ -156,14 +185,39 @@ function buildSystemPrompt(spreadKey, themes, context) {
     );
   }
 
+  const deckNotes = getDeckStyleNotes(deckStyle);
+  if (deckNotes) {
+    lines.push(
+      '',
+      `DECK STYLE: ${deckNotes.label}. ${deckNotes.cue || ''}`.trim(),
+      deckNotes.palette ? `Palette cues: ${deckNotes.palette}.` : ''
+    );
+    if (deckNotes.tips.length > 0) {
+      lines.push('', 'Follow these deck-specific nuances:');
+      deckNotes.tips.forEach((tip) => lines.push(`- ${tip}`));
+    }
+  }
+
   return lines.join('\n');
 }
 
-function buildUserPrompt(spreadKey, cardsInfo, userQuestion, reflectionsText, themes, spreadAnalysis, context) {
+function buildUserPrompt(spreadKey, cardsInfo, userQuestion, reflectionsText, themes, spreadAnalysis, context, visionInsights, deckStyle) {
   let prompt = ``;
 
   // Question
   prompt += `**Question**: ${userQuestion || '(No explicit question; speak to the energy most present for the querent.)'}\n\n`;
+
+  const deckNotes = getDeckStyleNotes(deckStyle);
+  if (deckNotes) {
+    prompt += `**Deck Style**: ${deckNotes.label}\n`;
+    if (deckNotes.cue) {
+      prompt += `- Aesthetic cue: ${deckNotes.cue}\n`;
+    }
+    deckNotes.tips.forEach((tip) => {
+      prompt += `- ${tip}\n`;
+    });
+    prompt += '\n';
+  }
 
   // Thematic context
   const thematicLines = [];
@@ -209,6 +263,11 @@ function buildUserPrompt(spreadKey, cardsInfo, userQuestion, reflectionsText, th
     prompt += `\n**Querent's Reflections**:\n${reflectionsText.trim()}\n\n`;
   }
 
+  const visionSection = buildVisionValidationSection(visionInsights);
+  if (visionSection) {
+    prompt += visionSection;
+  }
+
   // Instructions
   prompt += `\nProvide a cohesive, flowing Markdown-formatted narrative that:
 - Starts each major beat with a Title Case ### heading that is noun-focused (avoid "&" or "↔" in headings)
@@ -229,6 +288,32 @@ Apply Minor Arcana interpretation rules to all non-Major cards.`;
   prompt += `\n\nRemember ethical constraints: emphasize agency, avoid guarantees, no medical/legal directives.`;
 
   return prompt;
+}
+
+function buildVisionValidationSection(visionInsights) {
+  if (!Array.isArray(visionInsights) || visionInsights.length === 0) {
+    return '';
+  }
+
+  const safeEntries = visionInsights.slice(0, 5);
+  const coverage = safeEntries.filter((entry) => entry.matchesDrawnCard !== false).length;
+  const coverageLine = coverage === safeEntries.length
+    ? 'All uploaded cards align with the declared spread.'
+    : `${safeEntries.length - coverage} upload(s) did not match the selected cards—address gently if relevant.`;
+
+  const lines = ['\n**Vision Validation**:', coverageLine];
+
+  safeEntries.forEach((entry) => {
+    const confidenceText = typeof entry.confidence === 'number'
+      ? `${(entry.confidence * 100).toFixed(1)}%`
+      : 'confidence unavailable';
+    const basisText = entry.basis ? ` via ${entry.basis}` : '';
+    const mismatchFlag = entry.matchesDrawnCard === false ? ' [not in drawn spread]' : '';
+    lines.push(`- ${entry.label}: recognized as ${entry.predictedCard}${basisText} (${confidenceText})${mismatchFlag}`);
+  });
+
+  lines.push('');
+  return `${lines.join('\n')}\n`;
 }
 
 function buildCelticCrossPromptCards(cardsInfo, analysis, themes, context) {

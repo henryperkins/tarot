@@ -57,6 +57,7 @@ AZURE_OPENAI_USE_V1_FORMAT = "true"
 # - AZURE_OPENAI_TTS_ENDPOINT (TTS endpoint, can be same as above)
 # - AZURE_OPENAI_TTS_API_KEY (TTS API key, can be same as above)
 # - AZURE_OPENAI_GPT_AUDIO_MINI_DEPLOYMENT (TTS deployment name)
+# - VISION_PROOF_SECRET (HMAC signing secret for /api/vision-proof + /api/tarot-reading)
 
 # ============================================================================
 # Bindings
@@ -76,6 +77,11 @@ database_id = "ede622bd-5845-4da9-9031-839cb26ae7be"
 binding = "RATELIMIT"
 id = "893bd9a5206d4719817c6c5dc0f1a409"
 preview_id = "785db8a0b1824eb092b2a9107f9e48f3"
+
+[[kv_namespaces]]
+binding = "FEEDBACK_KV"
+id = "ff4fb140d62a44e9bb4f5af0630bb154"
+preview_id = "ead919e83f114ec0abd0ac1592d3e9d3"
 
 # ============================================================================
 # Future Bindings (Currently Commented Out)

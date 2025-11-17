@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { Sparkles, RotateCcw, Star, ChevronDown, ChevronUp } from 'lucide-react';
 import { MAJOR_ARCANA } from './data/majorArcana';
 import { MINOR_ARCANA } from './data/minorArcana';
@@ -15,6 +15,9 @@ import { HelperToggle } from './components/HelperToggle';
 import { SpreadPatterns } from './components/SpreadPatterns';
 import { GuidedIntentionCoach } from './components/GuidedIntentionCoach';
 import { GlobalNav } from './components/GlobalNav';
+import { VisionValidationPanel } from './components/VisionValidationPanel';
+import { DeckSelector } from './components/DeckSelector';
+import { FeedbackPanel } from './components/FeedbackPanel';
 import { useNavigate } from 'react-router-dom';
 import { useJournal } from './hooks/useJournal';
 import { getDeckPool, computeSeed, computeRelationships, drawSpread } from './lib/deck';
@@ -33,6 +36,7 @@ import {
 } from './lib/audio';
 import { formatReading, splitIntoParagraphs } from './lib/formatting';
 import './styles/tarot.css';
+import { canonicalCardKey } from '../shared/vision/cardNameMapping.js';
 
 const PREPARE_SECTIONS_STORAGE_KEY = 'tarot-prepare-sections';
 const DEFAULT_PREPARE_SECTIONS = {
@@ -47,6 +51,127 @@ const STEP_PROGRESS_STEPS = [
   { id: 'ritual', label: 'Ritual (optional)' },
   { id: 'reading', label: 'Reading' }
 ];
+
+const MAX_VISION_UPLOADS = 5;
+
+const getVisionConflictsForCards = (cardsInfoList = [], results = [], deckStyle = 'rws-1909') => {
+  if (!Array.isArray(results) || results.length === 0) return [];
+  const normalizedDeck = deckStyle || 'rws-1909';
+  const cardKeys = new Set(
+    cardsInfoList
+      .map(card => canonicalCardKey(card?.card || card?.name, normalizedDeck))
+      .filter(Boolean)
+  );
+  if (cardKeys.size === 0) return [];
+  return results.filter(result => {
+    const candidateKey = canonicalCardKey(
+      result?.predictedCard || result?.topMatch?.cardName || result?.matches?.[0]?.cardName,
+      normalizedDeck
+    );
+    return candidateKey && !cardKeys.has(candidateKey);
+  });
+};
+
+const normalizeAttentionPayload = (attention) => {
+  if (!attention || typeof attention !== 'object') return null;
+  const heatmap = Array.isArray(attention.heatmap)
+    ? attention.heatmap.map((row) =>
+        Array.isArray(row) ? row.map((value) => Number(Number(value).toFixed(4))) : []
+      )
+    : null;
+  const focusRegions = Array.isArray(attention.focusRegions)
+    ? attention.focusRegions.slice(0, 8).map((region) => ({
+        x: region.x,
+        y: region.y,
+        intensity: Number(Number(region.intensity).toFixed(4))
+      }))
+    : null;
+  const symbolAlignment = Array.isArray(attention.symbolAlignment)
+    ? attention.symbolAlignment.map((entry) => ({
+        object: entry.object,
+        position: entry.position,
+        attentionScore: Number(Number(entry.attentionScore).toFixed(4)),
+        isModelFocused: Boolean(entry.isModelFocused)
+      }))
+    : null;
+
+  return {
+    gridSize: attention.gridSize || (heatmap?.length ?? null),
+    heatmap,
+    focusRegions,
+    symbolAlignment,
+    stats: attention.stats || null
+  };
+};
+
+const summarizeVisionInsights = (insights = []) => {
+  if (!Array.isArray(insights) || insights.length === 0) {
+    return null;
+  }
+  const uploads = insights.length;
+  const avgConfidence = insights.reduce((sum, entry) => sum + (entry.confidence ?? 0), 0) / uploads;
+  const focusedSymbols = insights.reduce((sum, entry) => {
+    if (!Array.isArray(entry.attention?.symbolAlignment)) {
+      return sum;
+    }
+    return sum + entry.attention.symbolAlignment.filter((symbol) => symbol.isModelFocused).length;
+  }, 0);
+  const symbolMatchSamples = insights.filter((entry) => typeof entry.symbolVerification?.matchRate === 'number');
+  const avgSymbolMatch = symbolMatchSamples.length > 0
+    ? symbolMatchSamples.reduce((sum, entry) => sum + entry.symbolVerification.matchRate, 0) / symbolMatchSamples.length
+    : null;
+  return {
+    uploads,
+    avgConfidence,
+    focusedSymbols,
+    avgSymbolMatch
+  };
+};
+
+let anonymousVisionLabelCounter = 0;
+
+const deriveVisionLabel = (entry) => {
+  if (entry?.label && entry.label.trim()) {
+    return entry.label.trim();
+  }
+  if (entry?.userFile?.name && entry.userFile.name.trim()) {
+    return entry.userFile.name.trim();
+  }
+  if (entry?.imagePath && typeof entry.imagePath === 'string' && entry.imagePath.trim()) {
+    return entry.imagePath.trim();
+  }
+  if (entry?.topMatch?.cardName) {
+    return `uploaded-${entry.topMatch.cardName}`;
+  }
+  anonymousVisionLabelCounter += 1;
+  return `uploaded-image-${anonymousVisionLabelCounter}`;
+};
+
+const mergeVisionResults = (existing = [], incoming = []) => {
+  if (!Array.isArray(incoming) || incoming.length === 0) {
+    return existing;
+  }
+
+  const map = new Map();
+
+  const addBatch = (batch) => {
+    batch.forEach((item) => {
+      if (!item || typeof item !== 'object') return;
+      const normalizedLabel = deriveVisionLabel(item);
+      const normalized = {
+        ...item,
+        label: normalizedLabel
+      };
+      map.set(normalizedLabel.toLowerCase(), normalized);
+    });
+  };
+
+  addBatch(existing);
+  addBatch(incoming);
+
+  const merged = Array.from(map.values());
+  return merged.slice(0, MAX_VISION_UPLOADS);
+};
 
 export default function TarotReading() {
   const [selectedSpread, setSelectedSpread] = useState('single');
@@ -115,6 +240,15 @@ export default function TarotReading() {
     }
     return { ...DEFAULT_PREPARE_SECTIONS };
   });
+  const [readingMeta, setReadingMeta] = useState({
+    requestId: null,
+    provider: null,
+    spreadKey: null,
+    spreadName: null,
+    deckStyle: null,
+    userQuestion: null
+  });
+  const [lastCardsForFeedback, setLastCardsForFeedback] = useState([]);
   const navigate = useNavigate(); // For journal navigation
 
   const knockTimesRef = useRef([]);
@@ -133,6 +267,41 @@ export default function TarotReading() {
 
   const [placeholderIndex, setPlaceholderIndex] = useState(0);
   const [showAllHighlights, setShowAllHighlights] = useState(false);
+  const [visionResults, setVisionResults] = useState([]);
+  const [visionConflicts, setVisionConflicts] = useState([]);
+  const [visionProof, setVisionProof] = useState(null);
+  const [visionSummarySnapshot, setVisionSummarySnapshot] = useState(null);
+  const [deckStyleId, setDeckStyleId] = useState(() => {
+    if (typeof localStorage !== 'undefined') {
+      const saved = localStorage.getItem('tarot-deck-style');
+      return saved || 'rws-1909';
+    }
+    return 'rws-1909';
+  });
+  const isVisionReady = visionResults.length > 0 && visionConflicts.length === 0;
+  const liveVisionSummary = useMemo(() => {
+    if (!visionResults.length) return null;
+    const uploads = visionResults.length;
+    const avgConfidence = visionResults.reduce((sum, entry) => sum + (entry.confidence ?? 0), 0) / uploads;
+    const focusedSymbols = visionResults.reduce((sum, entry) => {
+      if (!Array.isArray(entry.attention?.symbolAlignment)) {
+        return sum;
+      }
+      const focused = entry.attention.symbolAlignment.filter((symbol) => symbol.isModelFocused).length;
+      return sum + focused;
+    }, 0);
+    const symbolMatchSamples = visionResults.filter((entry) => typeof entry.symbolVerification?.matchRate === 'number');
+    const avgSymbolMatch = symbolMatchSamples.length > 0
+      ? symbolMatchSamples.reduce((sum, entry) => sum + entry.symbolVerification.matchRate, 0) / symbolMatchSamples.length
+      : null;
+    return {
+      uploads,
+      avgConfidence,
+      focusedSymbols,
+      avgSymbolMatch
+    };
+  }, [visionResults]);
+  const feedbackVisionSummary = visionSummarySnapshot || liveVisionSummary;
 
   const prefersReducedMotion = () => {
     if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
@@ -253,6 +422,13 @@ export default function TarotReading() {
       localStorage.setItem('tarot-ambience-enabled', ambienceOn.toString());
     }
   }, [ambienceOn]);
+
+  // Persist deck style to localStorage
+  useEffect(() => {
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem('tarot-deck-style', deckStyleId);
+    }
+  }, [deckStyleId]);
 
   // Sync theme preference with the DOM and localStorage
   useEffect(() => {
@@ -675,6 +851,9 @@ export default function TarotReading() {
     setHasCut(false);
     setJournalStatus(null);
     setSessionSeed(null);
+    setVisionResults([]);
+    setVisionConflicts([]);
+    resetVisionProof();
 
     if (typeof performance !== 'undefined') {
       const now = performance.now();
@@ -717,6 +896,101 @@ export default function TarotReading() {
     []
   );
 
+  const resetVisionProof = useCallback(() => {
+    setVisionProof(null);
+    setVisionSummarySnapshot(null);
+  }, []);
+
+  const handleVisionResults = useCallback((results) => {
+    if (!Array.isArray(results) || results.length === 0) {
+      return;
+    }
+
+    resetVisionProof();
+    setVisionResults((prev) => {
+      const merged = mergeVisionResults(prev, results);
+      if (Array.isArray(reading) && reading.length) {
+        setVisionConflicts(getVisionConflictsForCards(reading, merged, deckStyleId));
+      } else {
+        setVisionConflicts([]);
+      }
+      return merged;
+    });
+  }, [reading, deckStyleId, resetVisionProof]);
+
+  const handleRemoveVisionResult = useCallback((label) => {
+    if (!label) return;
+    resetVisionProof();
+    setVisionResults((prev) => {
+      const filtered = prev.filter((entry) => entry.label?.toLowerCase() !== label.toLowerCase());
+      if (Array.isArray(reading) && reading.length && filtered.length) {
+        setVisionConflicts(getVisionConflictsForCards(reading, filtered, deckStyleId));
+      } else {
+        setVisionConflicts([]);
+      }
+      return filtered;
+    });
+  }, [reading, deckStyleId, resetVisionProof]);
+
+  const handleClearVisionResults = useCallback(() => {
+    resetVisionProof();
+    setVisionResults([]);
+    setVisionConflicts([]);
+  }, [resetVisionProof]);
+
+  const ensureVisionProof = useCallback(async () => {
+    const now = Date.now();
+    if (visionProof?.expiresAt && Date.parse(visionProof.expiresAt) > now + 2000) {
+      return visionProof;
+    }
+    const evidence = visionResults
+      .slice(0, 5)
+      .map((entry) => ({
+        label: entry.label,
+        dataUrl: entry.dataUrl
+      }))
+      .filter((entry) => typeof entry.dataUrl === 'string' && entry.dataUrl.startsWith('data:'));
+
+    if (evidence.length === 0) {
+      throw new Error('Vision uploads missing photo data. Please re-upload the drawn cards.');
+    }
+
+    const response = await fetch('/api/vision-proof', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ deckStyle: deckStyleId, evidence })
+    });
+
+    if (!response.ok) {
+      let message = 'Unable to verify card photos. Please try again.';
+      try {
+        const payload = await response.json();
+        if (payload?.error) {
+          message = payload.error;
+        }
+      } catch (err) {
+        console.debug('vision-proof parse failed:', err);
+      }
+      throw new Error(message);
+    }
+
+    const data = await response.json();
+    if (!data?.proof) {
+      throw new Error('Vision verification response malformed.');
+    }
+    setVisionProof(data.proof);
+    setVisionSummarySnapshot(summarizeVisionInsights(data.proof.insights));
+    return data.proof;
+  }, [deckStyleId, visionProof, visionResults]);
+
+  const handleDeckChange = (newDeckId) => {
+    setDeckStyleId(newDeckId);
+    // Clear vision results when deck changes since embeddings are deck-specific
+    setVisionResults([]);
+    setVisionConflicts([]);
+    resetVisionProof();
+  };
+
   const generatePersonalReading = async () => {
     if (!reading || reading.length === 0) {
       const errorMsg = 'Please draw your cards before requesting a personalized reading.';
@@ -735,6 +1009,8 @@ export default function TarotReading() {
     setAnalyzingText('');
     setPersonalReading(null);
     setJournalStatus(null);
+    setReadingMeta((prev) => ({ ...prev, requestId: null }));
+    setLastCardsForFeedback([]);
 
     try {
       const spreadInfo = SPREADS[selectedSpread];
@@ -780,6 +1056,44 @@ export default function TarotReading() {
       const cardNames = cardsInfo.map(card => card.card).join(', ');
       setAnalyzingText(`Analyzing: ${cardNames}...\n\nWeaving your personalized reflection from this spread...`);
 
+      if (visionResults.length === 0) {
+        setIsGenerating(false);
+        setAnalyzingText('');
+        setJournalStatus({
+          type: 'warning',
+          message: 'Please upload at least one photo of the drawn cards so the vision check can confirm your spread.'
+        });
+        return;
+      }
+
+      if (visionResults.length) {
+        const conflicts = getVisionConflictsForCards(cardsInfo, visionResults, deckStyleId);
+        setVisionConflicts(conflicts);
+        if (conflicts.length > 0) {
+          setIsGenerating(false);
+          setAnalyzingText('');
+          setJournalStatus({
+            type: 'warning',
+            message: 'Vision validation indicates at least one uploaded card differs from your selected spread. Please reconcile before generating a reading.'
+          });
+          return;
+        }
+      }
+
+      let proof;
+      try {
+        setAnalyzingText((prev) => `${prev}\nValidating your card photos...`);
+        proof = await ensureVisionProof();
+      } catch (proofError) {
+        setIsGenerating(false);
+        setAnalyzingText('');
+        setJournalStatus({
+          type: 'warning',
+          message: proofError.message || 'Vision verification failed. Please re-upload your card photos.'
+        });
+        return;
+      }
+
       const response = await fetch('/api/tarot-reading', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -788,7 +1102,9 @@ export default function TarotReading() {
           cardsInfo,
           userQuestion,
           reflectionsText,
-          reversalFrameworkOverride: reversalFramework
+          reversalFrameworkOverride: reversalFramework,
+          deckStyle: deckStyleId,
+          visionProof: proof
         })
       });
 
@@ -812,6 +1128,21 @@ export default function TarotReading() {
       const formatted = formatReading(data.reading.trim());
       formatted.isError = false;
       setPersonalReading(formatted);
+      setLastCardsForFeedback(
+        cardsInfo.map((card) => ({
+          position: card.position,
+          card: card.card,
+          orientation: card.orientation
+        }))
+      );
+      setReadingMeta({
+        requestId: data.requestId || null,
+        provider: data.provider || 'local',
+        spreadKey: selectedSpread,
+        spreadName: spreadInfo.name,
+        deckStyle: deckStyleId,
+        userQuestion
+      });
     } catch (error) {
       console.error('generatePersonalReading error:', error);
       const errorMsg = 'Unable to generate reading at this time. Please try again in a moment.';
@@ -1476,6 +1807,27 @@ export default function TarotReading() {
             </div>
           )}
 
+
+          <div className="space-y-6 mb-6">
+            {/* Deck Selection */}
+            <div className="modern-surface p-4 sm:p-6">
+              <DeckSelector
+                selectedDeck={deckStyleId}
+                onDeckChange={handleDeckChange}
+              />
+            </div>
+
+            {/* Vision Validation */}
+            <VisionValidationPanel
+              deckStyle={deckStyleId}
+              onResults={handleVisionResults}
+              onRemoveResult={handleRemoveVisionResult}
+              onClearResults={handleClearVisionResults}
+              conflicts={visionConflicts}
+              results={visionResults}
+            />
+          </div>
+
           {/* Reading Display */}
           {reading && (
             <div className="space-y-8">
@@ -1584,7 +1936,7 @@ export default function TarotReading() {
                 <div className="text-center">
                   <button
                     onClick={generatePersonalReading}
-                    disabled={isGenerating}
+                    disabled={isGenerating || !isVisionReady}
                     className="bg-gradient-to-r from-emerald-500 to-emerald-400 hover:from-emerald-400 hover:to-emerald-300 disabled:opacity-50 disabled:cursor-not-allowed text-slate-950 font-semibold px-5 sm:px-8 py-3 sm:py-4 rounded-xl shadow-xl shadow-emerald-900/40 transition-all flex items-center gap-2 sm:gap-3 mx-auto text-sm sm:text-base md:text-lg leading-snug"
                   >
                     <Sparkles className={`w-4 h-4 sm:w-5 sm:h-5 ${isGenerating ? 'motion-safe:animate-pulse' : ''}`} />
@@ -1596,10 +1948,15 @@ export default function TarotReading() {
                       <span>Create Personal Narrative</span>
                     )}
                   </button>
+                  {!isVisionReady && (
+                    <p className="mt-3 text-sm text-amber-100/80">
+                      Upload at least one clear photo of the drawn cards and resolve any mismatches to unlock your AI narrative.
+                    </p>
+                  )}
                   <HelperToggle className="mt-3 max-w-xl mx-auto">
                     <p>
-                      Reveal all cards to unlock a tailored reflection that weaves positions, meanings, and your notes into
-                      one coherent story.
+                      Reveal all cards, confirm them via the vision check, and you&apos;ll unlock a tailored reflection that weaves positions,
+                      meanings, and your notes into one coherent story.
                     </p>
                   </HelperToggle>
                 </div>
@@ -1762,6 +2119,18 @@ export default function TarotReading() {
                         personalized guidance.
                       </p>
                     </HelperToggle>
+                  </div>
+                  <div className="mt-6 w-full max-w-2xl">
+                    <FeedbackPanel
+                      requestId={readingMeta.requestId}
+                      spreadKey={readingMeta.spreadKey || selectedSpread}
+                      spreadName={readingMeta.spreadName || SPREADS[selectedSpread]?.name}
+                      deckStyle={readingMeta.deckStyle || deckStyleId}
+                      provider={readingMeta.provider}
+                      userQuestion={readingMeta.userQuestion || userQuestion}
+                      cards={lastCardsForFeedback}
+                      visionSummary={feedbackVisionSummary}
+                    />
                   </div>
                 </div>
               )}

@@ -8,9 +8,32 @@ import {
   ARCHETYPAL_DYADS,
   SUIT_PROGRESSIONS
 } from '../../src/data/knowledgeGraphData.js';
+import { getDeckAlias } from '../../shared/vision/deckAssets.js';
 
 function getCardLabel(card) {
   return card?.card || card?.name || card?.title || 'Unknown card';
+}
+
+function deckAwareSuitLabel(suit, deckStyle = 'rws-1909') {
+  if (deckStyle === 'marseille-classic') {
+    if (suit === 'Pentacles') return 'Coins';
+    if (suit === 'Wands') return 'Batons';
+  }
+  if (deckStyle === 'thoth-a1') {
+    if (suit === 'Pentacles') return 'Disks';
+  }
+  return suit;
+}
+
+function deckAwareName(card, fallback, deckStyle = 'rws-1909') {
+  if (!deckStyle || deckStyle === 'rws-1909') {
+    return fallback;
+  }
+  const alias = getDeckAlias(card, deckStyle);
+  if (!alias || alias === fallback) {
+    return fallback;
+  }
+  return fallback ? `${alias} (RWS: ${fallback})` : alias;
 }
 
 /**
@@ -30,7 +53,8 @@ function getCardLabel(card) {
  * const stage = detectFoolsJourneyStage(cards);
  * // Returns: { stage: 'initiation', cardCount: 3, theme: '...', ... }
  */
-export function detectFoolsJourneyStage(cards) {
+export function detectFoolsJourneyStage(cards, options = {}) {
+  const deckStyle = options.deckStyle || 'rws-1909';
   // Filter to Major Arcana only
   const majorCards = cards.filter(
     (c) => typeof c.number === 'number' && c.number >= 0 && c.number <= 21
@@ -71,7 +95,8 @@ export function detectFoolsJourneyStage(cards) {
     cardCount: stageCards.length,
     cards: stageCards, // Actual cards from spread (not static reference)
     totalMajors: majorCards.length,
-    significance: stageCards.length >= 3 ? 'strong' : 'moderate'
+    significance: stageCards.length >= 3 ? 'strong' : 'moderate',
+    displayNames: stageCards.map((card) => deckAwareName(card, getCardLabel(card), deckStyle))
   };
 }
 
@@ -92,7 +117,8 @@ export function detectFoolsJourneyStage(cards) {
  * const triads = detectArchetypalTriads(cards);
  * // Returns: [{ id: 'death-temperance-star', isComplete: true, ... }]
  */
-export function detectArchetypalTriads(cards) {
+export function detectArchetypalTriads(cards, options = {}) {
+  const deckStyle = options.deckStyle || 'rws-1909';
   // Extract Major Arcana numbers
   const numbers = cards
     .filter((c) => typeof c.number === 'number' && c.number >= 0 && c.number <= 21)
@@ -131,7 +157,9 @@ export function detectArchetypalTriads(cards) {
         matchedCards: matches,
         matchedNames: matches.map((n) => {
           const index = triad.cards.indexOf(n);
-          return triad.names[index];
+          const fallbackName = triad.names[index];
+          const card = cards.find((c) => c.number === n);
+          return deckAwareName(card, fallbackName, deckStyle);
         }),
         completeness: Math.round(completeness * 100),
         isComplete,
@@ -167,7 +195,8 @@ export function detectArchetypalTriads(cards) {
  * const dyads = detectArchetypalDyads(cards);
  * // Returns: [{ cards: [13, 17], theme: 'Transformation clearing into hope', ... }]
  */
-export function detectArchetypalDyads(cards) {
+export function detectArchetypalDyads(cards, options = {}) {
+  const deckStyle = options.deckStyle || 'rws-1909';
   // Extract Major Arcana numbers
   const numbers = cards
     .filter((c) => typeof c.number === 'number' && c.number >= 0 && c.number <= 21)
@@ -180,9 +209,15 @@ export function detectArchetypalDyads(cards) {
   ARCHETYPAL_DYADS.forEach((dyad) => {
     // Check if both cards of this dyad are present
     if (dyad.cards.every((num) => numbers.includes(num))) {
+      const names = dyad.cards.map((num, index) => {
+        const fallback = dyad.names[index];
+        const card = cards.find((c) => c.number === num);
+        return deckAwareName(card, fallback, deckStyle);
+      });
+
       detected.push({
         cards: dyad.cards,
-        names: dyad.names,
+        names,
         theme: dyad.theme,
         category: dyad.category,
         description: dyad.description,
@@ -207,7 +242,8 @@ export function detectArchetypalDyads(cards) {
  * @param {Array<Object>} cards - Spread cards containing suit and rank metadata
  * @returns {Array<Object>} Detected suit progressions with dominance + significance
  */
-export function detectSuitProgressions(cards) {
+export function detectSuitProgressions(cards, options = {}) {
+  const deckStyle = options.deckStyle || 'rws-1909';
   if (!Array.isArray(cards) || cards.length < 2) return [];
 
   const minorCards = cards.filter(
@@ -262,6 +298,7 @@ export function detectSuitProgressions(cards) {
 
     detected.push({
       suit,
+      displaySuit: deckAwareSuitLabel(suit, deckStyle),
       element: progression.element,
       domain: progression.domain,
       stage: stageKey,
@@ -298,7 +335,7 @@ export function detectSuitProgressions(cards) {
  * const patterns = detectAllPatterns(cardsInfo);
  * // Returns: { foolsJourney, triads, dyads }
  */
-export function detectAllPatterns(cards) {
+export function detectAllPatterns(cards, options = {}) {
   if (!cards || !Array.isArray(cards) || cards.length === 0) {
     return null;
   }
@@ -308,7 +345,7 @@ export function detectAllPatterns(cards) {
 
   // Detect Fool's Journey stage
   try {
-    const journey = detectFoolsJourneyStage(cards);
+    const journey = detectFoolsJourneyStage(cards, options);
     if (journey) {
       patterns.foolsJourney = journey;
       hasAnyPattern = true;
@@ -319,7 +356,7 @@ export function detectAllPatterns(cards) {
 
   // Detect triads
   try {
-    const triads = detectArchetypalTriads(cards);
+    const triads = detectArchetypalTriads(cards, options);
     if (triads.length > 0) {
       patterns.triads = triads;
       hasAnyPattern = true;
@@ -330,7 +367,7 @@ export function detectAllPatterns(cards) {
 
   // Detect dyads
   try {
-    const dyads = detectArchetypalDyads(cards);
+    const dyads = detectArchetypalDyads(cards, options);
     if (dyads.length > 0) {
       patterns.dyads = dyads;
       hasAnyPattern = true;
@@ -341,7 +378,7 @@ export function detectAllPatterns(cards) {
 
   // Detect suit progressions
   try {
-    const suitProgressions = detectSuitProgressions(cards);
+    const suitProgressions = detectSuitProgressions(cards, options);
     if (suitProgressions.length > 0) {
       patterns.suitProgressions = suitProgressions;
       hasAnyPattern = true;
@@ -370,7 +407,7 @@ export function detectAllPatterns(cards) {
  * const highlights = getPriorityPatternNarratives(patterns);
  * // Returns: [{ priority: 1, type: 'complete-triad', text: '...', cards: [...] }, ...]
  */
-export function getPriorityPatternNarratives(patterns) {
+export function getPriorityPatternNarratives(patterns, deckStyle = 'rws-1909') {
   if (!patterns) return [];
 
   const narratives = [];
@@ -398,10 +435,13 @@ export function getPriorityPatternNarratives(patterns) {
   // Priority 2: Strong Fool's Journey (3+ cards in one stage)
   if (patterns.foolsJourney && patterns.foolsJourney.significance === 'strong') {
     const journey = patterns.foolsJourney;
+    const journeyNames = Array.isArray(journey.displayNames) && journey.displayNames.length > 0
+      ? ` (${journey.displayNames.join(', ')})`
+      : '';
     narratives.push({
       priority: 2,
       type: 'fools-journey',
-      text: `**Fool's Journey — ${journey.stage.charAt(0).toUpperCase() + journey.stage.slice(1)}** ${journey.cardCount} cards from this stage suggest ${journey.readingSignificance.toLowerCase()}.`,
+      text: `**Fool's Journey — ${journey.stage.charAt(0).toUpperCase() + journey.stage.slice(1)}** ${journey.cardCount} cards from this stage${journeyNames} suggest ${journey.readingSignificance.toLowerCase()}.`,
       cards: journey.cards.map((c) => c.number),
       stage: journey.stage
     });
@@ -414,8 +454,11 @@ export function getPriorityPatternNarratives(patterns) {
       .sort((a, b) => b.stageCardCount - a.stageCardCount)
       .slice(0, 2)
       .forEach((prog) => {
-        const label = `${prog.suit} ${stageDisplay[prog.stage] || prog.stage}`;
-        const cardList = prog.stageCards.map((c) => getCardLabel(c)).join(', ');
+        const suitLabel = prog.displaySuit || prog.suit;
+        const label = `${suitLabel} ${stageDisplay[prog.stage] || prog.stage}`;
+        const cardList = prog.stageCards
+          .map((c) => deckAwareName(c, getCardLabel(c), deckStyle))
+          .join(', ');
         const themeDescriptor = typeof prog.theme === 'string'
           ? prog.theme.toLowerCase()
           : 'this stage';
@@ -471,8 +514,11 @@ export function getPriorityPatternNarratives(patterns) {
       .sort((a, b) => b.stageCardCount - a.stageCardCount)
       .slice(0, 1)
       .forEach((prog) => {
-        const label = `${prog.suit} ${stageDisplay[prog.stage] || prog.stage} (emerging)`;
-        const cardList = prog.stageCards.map((c) => getCardLabel(c)).join(' + ');
+        const suitLabel = prog.displaySuit || prog.suit;
+        const label = `${suitLabel} ${stageDisplay[prog.stage] || prog.stage} (emerging)`;
+        const cardList = prog.stageCards
+          .map((c) => deckAwareName(c, getCardLabel(c), deckStyle))
+          .join(' + ');
         const insight = prog.readingSignificance || prog.narrative || '';
         narratives.push({
           priority: 6,

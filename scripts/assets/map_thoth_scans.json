@@ -1,0 +1,133 @@
+{
+  "confirmed_thoth_cards": [
+    {
+      "source": "thoth_0436_card_01.jpg",
+      "card_name": "The Magus",
+      "card_number": 1,
+      "target": "thoth_major_01_the-magus.png"
+    },
+    {
+      "source": "thoth_0436_card_02.jpg",
+      "card_name": "The Chariot",
+      "card_number": 7,
+      "target": "thoth_major_07_the-chariot.png"
+    },
+    {
+      "source": "thoth_0436_card_03.jpg",
+      "card_name": "Lust",
+      "card_number": 11,
+      "target": "thoth_major_11_lust.png"
+    },
+    {
+      "source": "thoth_0436_card_04.jpg",
+      "card_name": "The Hanged Man",
+      "card_number": 12,
+      "target": "thoth_major_12_the-hanged-man.png",
+      "note": "Partially cut off in photo but identifiable"
+    },
+    {
+      "source": "thoth_0436_card_05.jpg",
+      "card_name": "The Tower",
+      "card_number": 16,
+      "target": "thoth_major_16_the-tower.png"
+    },
+    {
+      "source": "thoth_0437_card_01.jpg",
+      "card_name": "The Emperor",
+      "card_number": 4,
+      "target": "thoth_major_04_the-emperor.png"
+    },
+    {
+      "source": "thoth_0437_card_02.jpg",
+      "card_name": "The Empress",
+      "card_number": 3,
+      "target": "thoth_major_03_the-empress.png"
+    },
+    {
+      "source": "thoth_0437_card_03.jpg",
+      "card_name": "The Hierophant",
+      "card_number": 5,
+      "target": "thoth_major_05_the-hierophant.png"
+    },
+    {
+      "source": "thoth_0437_card_04.jpg",
+      "card_name": "Lovers",
+      "card_number": 6,
+      "target": "thoth_major_06_the-lovers.png",
+      "note": "Card says 'LOVERS' not 'THE LOVERS'"
+    },
+    {
+      "source": "thoth_0437_card_05.jpg",
+      "card_name": "Fortune",
+      "card_number": 10,
+      "target": "thoth_major_10_fortune.png"
+    },
+    {
+      "source": "thoth_0438_card_01.jpg",
+      "card_name": "The Star",
+      "card_number": 17,
+      "target": "thoth_major_17_the-star.png"
+    },
+    {
+      "source": "thoth_0438_card_02.jpg",
+      "card_name": "The Sun",
+      "card_number": 19,
+      "target": "thoth_major_19_the-sun.png"
+    },
+    {
+      "source": "thoth_0438_card_03.jpg",
+      "card_name": "The Universe",
+      "card_number": 21,
+      "target": "thoth_major_21_the-universe.png"
+    },
+    {
+      "source": "thoth_0438_card_04.jpg",
+      "card_name": "The Aeon",
+      "card_number": 20,
+      "target": "thoth_major_20_the-aeon.png"
+    },
+    {
+      "source": "thoth_0438_card_05.jpg",
+      "card_name": "Art",
+      "card_number": 14,
+      "target": "thoth_major_14_art.png"
+    }
+  ],
+  "questionable_cards": [
+    {
+      "source": "thoth_0440_card_01.jpg",
+      "card_label": "THE FOOL",
+      "card_number": 0,
+      "issue": "Artwork style looks Thoth but could be from different deck",
+      "possible_target": "thoth_major_00_the-fool.png"
+    },
+    {
+      "source": "thoth_0440_card_02.jpg",
+      "card_label": "THE HIGH PRIESTESS",
+      "card_number": 2,
+      "issue": "Thoth deck calls this 'THE PRIESTESS' not 'THE HIGH PRIESTESS' - may be RWS or hybrid deck",
+      "possible_target": "thoth_major_02_the-priestess.png"
+    },
+    {
+      "source": "thoth_0440_card_03.jpg",
+      "card_label": "DEATH",
+      "card_number": 13,
+      "issue": "Artwork style questionable - may not be authentic Thoth",
+      "possible_target": "thoth_major_13_death.png"
+    },
+    {
+      "source": "thoth_0440_card_04.jpg",
+      "card_label": "TEMPERANCE",
+      "card_number": 14,
+      "issue": "Thoth deck calls this 'ART' not 'TEMPERANCE' - likely RWS or hybrid deck",
+      "possible_target": null,
+      "conflict": "Conflicts with confirmed Art card from thoth_0438_card_05.jpg"
+    }
+  ],
+  "summary": {
+    "total_scans": 19,
+    "confirmed_thoth": 15,
+    "questionable": 4,
+    "unique_major_arcana": 15
+  }
+}

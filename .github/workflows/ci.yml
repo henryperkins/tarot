@@ -1,0 +1,39 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run unit tests
+        run: npm test
+
+      - name: Generate vision confidence report
+        run: npm run eval:vision
+
+      - name: Enforce vision accuracy gate
+        run: npm run ci:vision-check
+
+      - name: Generate narrative QA report
+        run: npm run eval:narrative
+
+      - name: Enforce narrative QA gate
+        run: npm run ci:narrative-check

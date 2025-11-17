@@ -65,6 +65,13 @@ read -p "Enter your TTS deployment name (e.g., gpt-audio-mini): " tts_deployment
 echo "$tts_deployment" | wrangler pages secret put AZURE_OPENAI_GPT_AUDIO_MINI_DEPLOYMENT --project-name=$PROJECT_NAME
 echo "✅ AZURE_OPENAI_GPT_AUDIO_MINI_DEPLOYMENT set"
 
+# Vision proof signing secret
+echo ""
+read -sp "Enter a random vision proof signing secret (32+ chars): " vision_secret
+echo ""
+echo "$vision_secret" | wrangler pages secret put VISION_PROOF_SECRET --project-name=$PROJECT_NAME
+echo "✅ VISION_PROOF_SECRET set"
+
 echo ""
 echo "=================================================="
 echo "  ✅ All Secrets Successfully Configured!"
@@ -76,8 +83,14 @@ echo ""
 echo "🚀 Next steps:"
 echo "   1. Build your project: npm run build"
 echo "   2. Deploy to Cloudflare: npm run deploy"
-echo "   3. Test deployment: curl https://mystic-tarot.pages.dev/api/tarot-reading"
-echo ""
-echo "📝 Your secrets are now encrypted and stored securely in Cloudflare."
-echo "   You can deploy safely without exposing credentials!"
+echo "   3. Test deployment with the vision proof handshake:"
+echo "      # (a) Create a proof by POSTing base64 photo data"
+echo "      curl -X POST https://mystic-tarot.pages.dev/api/vision-proof \"
+echo "        -H 'Content-Type: application/json' \"
+echo "        -d '{\"deckStyle\":\"rws-1909\",\"evidence\":[{\"label\":\"Card 1\",\"dataUrl\":\"data:image/jpeg;base64,REPLACE_ME\"}]}'"
+echo "      # (b) Use the returned proof when calling /api/tarot-reading"
+echo "      curl -X POST https://mystic-tarot.pages.dev/api/tarot-reading \"
+echo "        -H 'Content-Type: application/json' \"
+echo "        -d '{\"spreadInfo\":{\"name\":\"One-Card Insight\"},\"cardsInfo\":[{\"position\":\"Card 1\",\"card\":\"The Fool\",\"orientation\":\"upright\",\"meaning\":\"New beginnings\"}],\"userQuestion\":\"Test\",\"visionProof\":{...}}'"
+echo "      See docs/VISION_PIPELINE.md for helper scripts to automate this flow."
 echo ""

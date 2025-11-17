@@ -261,6 +261,38 @@ describe('Celtic Cross narrative + Claude prompt compliance', () => {
   });
 });
 
+describe('Vision validation prompt context', () => {
+  it('embeds vision validation summary when insights are provided', async () => {
+    const cardsInfo = [
+      major('The Fool', 0, 'One-Card Insight', 'Upright')
+    ];
+    const themes = await buildThemes(cardsInfo, 'blocked');
+
+    const { userPrompt } = buildEnhancedClaudePrompt({
+      spreadInfo: { name: 'One-Card Insight' },
+      cardsInfo,
+      userQuestion: 'Can I trust this start?',
+      reflectionsText: '',
+      themes,
+      spreadAnalysis: null,
+      context: 'general',
+      visionInsights: [
+        {
+          label: 'IMG_101',
+          predictedCard: 'The Fool',
+          confidence: 0.94,
+          basis: 'image',
+          matchesDrawnCard: true
+        }
+      ]
+    });
+
+    assert.match(userPrompt, /Vision Validation/);
+    assert.match(userPrompt, /IMG_101/);
+    assert.match(userPrompt, /The Fool/);
+  });
+});
+
 // 2. THREE-CARD COMPLIANCE
 
 describe('Three-Card narrative + Claude prompt compliance', () => {
