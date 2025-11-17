@@ -303,6 +303,20 @@ describe('detectAllPatterns', () => {
     assert.strictEqual(result.suitProgressions.length, 1);
   });
 
+  it('detects court lineages with deck-aware suit aliases', () => {
+    const cards = [
+      { card: 'Page of Wands', suit: 'Wands', rank: 'Page', rankValue: 11 },
+      { card: 'Knight of Wands', suit: 'Wands', rank: 'Knight', rankValue: 12 },
+      { card: 'Queen of Wands', suit: 'Wands', rank: 'Queen', rankValue: 13 }
+    ];
+    const result = detectAllPatterns(cards, { deckStyle: 'marseille-classic' });
+
+    assert.ok(result);
+    assert.ok(result.courtLineages);
+    assert.strictEqual(result.courtLineages[0].displaySuit, 'Batons');
+    assert.strictEqual(result.courtLineages[0].significance, 'council');
+  });
+
   it('returns null when no patterns detected', () => {
     const cards = [
       { suit: 'Wands', rank: 'Ace' },
@@ -428,6 +442,19 @@ describe('getPriorityPatternNarratives', () => {
     assert.ok(result.length >= 2);
     assert.strictEqual(result[1].type, 'suit-progression');
     assert.strictEqual(result[1].priority, 3);
+  });
+
+  it('includes court lineage highlights with deck-aware naming', () => {
+    const cards = [
+      { card: 'Page of Wands', suit: 'Wands', rank: 'Page', rankValue: 11 },
+      { card: 'Knight of Wands', suit: 'Wands', rank: 'Knight', rankValue: 12 }
+    ];
+    const patterns = detectAllPatterns(cards, { deckStyle: 'thoth-a1' });
+    const result = getPriorityPatternNarratives(patterns, 'thoth-a1');
+
+    const lineage = result.find((entry) => entry.type === 'court-lineage');
+    assert.ok(lineage, 'Expected a court-lineage narrative');
+    assert.match(lineage.text, /Princess of Wands/);
   });
 
   it('limits output to maximum 5 patterns', () => {

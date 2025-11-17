@@ -101,7 +101,46 @@ export const INTENTION_DEPTH_OPTIONS = [
   }
 ];
 
-export function buildGuidedQuestion({ topic, timeframe, depth, customFocus }) {
+export async function callLlmApi(prompt) {
+  try {
+    const response = await fetch('/api/generate-question', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ prompt })
+    });
+
+    if (!response.ok) {
+      throw new Error('API request failed');
+    }
+
+    const data = await response.json();
+    return data.question;
+  } catch (error) {
+    console.error('LLM API call failed:', error);
+    return null;
+  }
+}
+
+export async function buildCreativeQuestion({ topic, timeframe, depth, customFocus }) {
+  const topicData = INTENTION_TOPIC_OPTIONS.find(option => option.value === topic) || INTENTION_TOPIC_OPTIONS[0];
+  const timeframeData = INTENTION_TIMEFRAME_OPTIONS.find(option => option.value === timeframe) || INTENTION_TIMEFRAME_OPTIONS[0];
+  const depthData = INTENTION_DEPTH_OPTIONS.find(option => option.value === depth) || INTENTION_DEPTH_OPTIONS[0];
+
+  const focus = customFocus?.trim() || topicData.focus;
+  const timeframeText = timeframeData?.phrase ? ` ${timeframeData.phrase}` : '';
+
+  const prompt = `Generate a tarot question about ${focus} for the ${timeframeText}. The desired depth is ${depthData.label}.`;
+
+  const creativeQuestion = await callLlmApi(prompt);
+  return creativeQuestion;
+}
+
+export function buildGuidedQuestion({ topic, timeframe, depth, customFocus, useCreative = false }) {
+  if (useCreative) {
+    return buildCreativeQuestion({ topic, timeframe, depth, customFocus });
+  }
   const topicData = INTENTION_TOPIC_OPTIONS.find(option => option.value === topic) || INTENTION_TOPIC_OPTIONS[0];
   const timeframeData = INTENTION_TIMEFRAME_OPTIONS.find(option => option.value === timeframe) || INTENTION_TIMEFRAME_OPTIONS[0];
   const depthData = INTENTION_DEPTH_OPTIONS.find(option => option.value === depth) || INTENTION_DEPTH_OPTIONS[0];

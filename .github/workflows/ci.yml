@@ -26,14 +26,8 @@ jobs:
       - name: Run unit tests
         run: npm test
 
-      - name: Generate vision confidence report
-        run: npm run eval:vision
-
-      - name: Enforce vision accuracy gate
+      - name: Vision QA gate
         run: npm run ci:vision-check
 
-      - name: Generate narrative QA report
-        run: npm run eval:narrative
-
-      - name: Enforce narrative QA gate
+      - name: Narrative QA gate
         run: npm run ci:narrative-check

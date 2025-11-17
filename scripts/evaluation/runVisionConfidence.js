@@ -2,7 +2,7 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 
-import { TarotVisionPipeline } from '../../shared/vision/tarotVisionPipeline.js';
+import { createVisionBackend } from '../../shared/vision/visionBackends.js';
 import { getDeckProfile } from '../../shared/vision/deckProfiles.js';
 
 function parseArgs(rawArgs) {
@@ -78,14 +78,16 @@ async function main() {
     return;
   }
 
-  const pipeline = new TarotVisionPipeline({
+  const backend = createVisionBackend({
+    backendId: 'clip-default',
     cardScope: options.scope,
     deckStyle: options.deckStyle,
     maxResults: 5
   });
 
   console.log(`Evaluating ${imageInputs.length} images with deck style ${options.deckStyle}...`);
-  const analyses = await pipeline.analyzeImages(imageInputs, {
+  await backend.warmup();
+  const analyses = await backend.analyzeImages(imageInputs, {
     includeAttention: true,
     includeSymbols: true
   });

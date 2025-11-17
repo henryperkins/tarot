@@ -1,3 +1,27 @@
+const SUIT_SYNONYMS = {
+  Batons: 'Wands',
+  Staffs: 'Wands',
+  Staves: 'Wands',
+  Clubs: 'Wands',
+  Coupes: 'Cups',
+  Chalices: 'Cups',
+  Epees: 'Swords',
+  Blades: 'Swords',
+  Coins: 'Pentacles',
+  Disks: 'Pentacles',
+  Discs: 'Pentacles',
+  Deniers: 'Pentacles'
+};
+
+const RANK_SYNONYMS = {
+  Princess: 'Page',
+  Prince: 'Knight',
+  Valet: 'Page',
+  Chevalier: 'Knight',
+  Reine: 'Queen',
+  Roi: 'King'
+};
+
 const SUIT_CONTEXT = {
   Wands: {
     element: 'Fire',
@@ -196,9 +220,12 @@ function interpolate(template, context) {
 }
 
 export function getMinorSymbolAnnotation(card) {
-  if (!card || !card.suit || !card.rank) return null;
-  const suitContext = SUIT_CONTEXT[card.suit];
-  const rankBlueprint = RANK_BLUEPRINTS[card.rank];
+  if (!card) return null;
+  const suitKey = card.suit ? (SUIT_SYNONYMS[card.suit] || card.suit) : null;
+  const rankKey = card.rank ? (RANK_SYNONYMS[card.rank] || card.rank) : null;
+  if (!suitKey || !rankKey) return null;
+  const suitContext = SUIT_CONTEXT[suitKey];
+  const rankBlueprint = RANK_BLUEPRINTS[rankKey];
   if (!suitContext || !rankBlueprint) return null;
 
   const templateContext = {

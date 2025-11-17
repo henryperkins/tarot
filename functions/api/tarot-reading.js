@@ -113,6 +113,37 @@ function requiresHighReasoningEffort(modelName = '') {
   return normalized.includes('gpt-5-pro') || normalized.includes('gpt-5.1');
 }
 
+const NARRATIVE_BACKEND_ORDER = ['azure-gpt5', 'claude-sonnet45', 'local-composer'];
+
+const NARRATIVE_BACKENDS = {
+  'azure-gpt5': {
+    id: 'azure-gpt5',
+    label: 'Azure GPT-5 Responses',
+    isAvailable: (env) => Boolean(env?.AZURE_OPENAI_API_KEY && env?.AZURE_OPENAI_ENDPOINT && env?.AZURE_OPENAI_GPT5_MODEL)
+  },
+  'claude-sonnet45': {
+    id: 'claude-sonnet45',
+    label: 'Claude Sonnet 4.5',
+    isAvailable: (env) => Boolean(env?.ANTHROPIC_API_KEY)
+  },
+  'local-composer': {
+    id: 'local-composer',
+    label: 'Local Narrative Composer',
+    isAvailable: () => true
+  }
+};
+
+function getAvailableNarrativeBackends(env) {
+  return NARRATIVE_BACKEND_ORDER
+    .map((id) => {
+      const backend = NARRATIVE_BACKENDS[id];
+      if (!backend) return null;
+      if (!backend.isAvailable(env)) return null;
+      return backend;
+    })
+    .filter(Boolean);
+}
+
 export const onRequestGet = async ({ env }) => {
   // Health check endpoint
   return jsonResponse({
@@ -162,50 +193,48 @@ export const onRequestPost = async ({ request, env }) => {
     }
     console.log(`[${requestId}] Payload validation passed`);
 
+    // Vision validation is OPTIONAL - used for research/development purposes only
+    let sanitizedVisionInsights = [];
+    let visionMetrics = null;
+
     if (!visionProof) {
-      console.warn(`[${requestId}] Vision proof missing; rejecting request.`);
-      return jsonResponse(
-        { error: 'Vision validation proof missing. Please upload and confirm your card photos before requesting a reading.' },
-        { status: 400 }
-      );
-    }
+      console.log(`[${requestId}] No vision proof provided (research mode disabled). Proceeding with standard reading.`);
+    } else {
+      // Research mode: Verify vision proof and collect telemetry
+      console.log(`[${requestId}] Vision proof provided - validating for research telemetry...`);
 
-    let verifiedProof;
-    try {
-      verifiedProof = await verifyVisionProof(visionProof, env?.VISION_PROOF_SECRET);
-    } catch (err) {
-      console.warn(`[${requestId}] Vision proof verification failed: ${err.message}`);
-      const status = /expired/i.test(err.message) ? 409 : 400;
-      return jsonResponse(
-        { error: err.message || 'Vision validation proof invalid. Please re-upload your photos.' },
-        { status }
-      );
-    }
+      let verifiedProof;
+      try {
+        verifiedProof = await verifyVisionProof(visionProof, env?.VISION_PROOF_SECRET);
+      } catch (err) {
+        console.warn(`[${requestId}] Vision proof verification failed: ${err.message}`);
+        const status = /expired/i.test(err.message) ? 409 : 400;
+        return jsonResponse(
+          { error: err.message || 'Vision validation proof invalid. Please re-upload your photos.' },
+          { status }
+        );
+      }
 
-    if (verifiedProof.deckStyle && verifiedProof.deckStyle !== deckStyle) {
-      console.warn(`[${requestId}] Vision proof deck mismatch. proof=${verifiedProof.deckStyle}, request=${deckStyle}`);
-    }
+      if (verifiedProof.deckStyle && verifiedProof.deckStyle !== deckStyle) {
+        console.warn(`[${requestId}] Vision proof deck mismatch. proof=${verifiedProof.deckStyle}, request=${deckStyle}`);
+      }
 
-    const sanitizedVisionInsights = annotateVisionInsights(verifiedProof.insights, cardsInfo, deckStyle);
-    if (sanitizedVisionInsights.length === 0) {
-      console.warn(`[${requestId}] Vision proof did not contain recognizable cards; rejecting request.`);
-      return jsonResponse(
-        { error: 'Vision validation requires at least one confirmed card photo before requesting a reading.' },
-        { status: 400 }
-      );
-    }
+      sanitizedVisionInsights = annotateVisionInsights(verifiedProof.insights, cardsInfo, deckStyle);
 
-    const avgConfidence = sanitizedVisionInsights.reduce((sum, item) => sum + (item.confidence ?? 0), 0) / sanitizedVisionInsights.length;
-    const mismatchedDetections = sanitizedVisionInsights.filter((item) => item.matchesDrawnCard === false);
-    const visionMetrics = buildVisionMetrics(sanitizedVisionInsights, avgConfidence, mismatchedDetections.length);
-    console.log(`[${requestId}] Vision proof verified: ${sanitizedVisionInsights.length} uploads, avg confidence ${(avgConfidence * 100).toFixed(1)}%.`);
+      if (sanitizedVisionInsights.length === 0) {
+        console.warn(`[${requestId}] Vision proof did not contain recognizable cards. Proceeding without vision data.`);
+      } else {
+        const avgConfidence = sanitizedVisionInsights.reduce((sum, item) => sum + (item.confidence ?? 0), 0) / sanitizedVisionInsights.length;
+        const mismatchedDetections = sanitizedVisionInsights.filter((item) => item.matchesDrawnCard === false);
+        visionMetrics = buildVisionMetrics(sanitizedVisionInsights, avgConfidence, mismatchedDetections.length);
+        console.log(`[${requestId}] Vision proof verified: ${sanitizedVisionInsights.length} uploads, avg confidence ${(avgConfidence * 100).toFixed(1)}%.`);
 
-    if (mismatchedDetections.length > 0) {
-      console.warn(`[${requestId}] Vision uploads that do not match selected cards:`, mismatchedDetections.map((item) => ({ label: item.label, predictedCard: item.predictedCard, confidence: item.confidence })));
-      return jsonResponse(
-        { error: 'Vision validation detected mismatched cards. Please confirm your photo uploads before requesting a reading.' },
-        { status: 409 }
-      );
+        if (mismatchedDetections.length > 0) {
+          console.warn(`[${requestId}] Vision uploads that do not match selected cards:`, mismatchedDetections.map((item) => ({ label: item.label, predictedCard: item.predictedCard, confidence: item.confidence })));
+          // In research mode, log mismatches but don't block the reading
+          console.log(`[${requestId}] Research mode: Continuing despite vision mismatches for data collection.`);
+        }
+      }
     }
 
 
@@ -227,69 +256,48 @@ export const onRequestPost = async ({ request, env }) => {
     const context = inferContext(userQuestion, analysis.spreadKey);
     console.log(`[${requestId}] Context inferred: ${context}`);
 
-    // STEP 2: Generate reading (Azure GPT-5 via Responses API or local)
-    let reading;
-    let usedAzureGPT = false;
+    // STEP 2: Generate reading via configured narrative backends
+    const narrativePayload = {
+      spreadInfo,
+      cardsInfo,
+      userQuestion,
+      reflectionsText,
+      analysis,
+      context,
+      visionInsights: sanitizedVisionInsights,
+      deckStyle
+    };
 
-    if (env && env.AZURE_OPENAI_API_KEY && env.AZURE_OPENAI_ENDPOINT && env.AZURE_OPENAI_GPT5_MODEL) {
-      console.log(`[${requestId}] Azure OpenAI GPT-5 credentials found, attempting generation...`);
-      console.log(`[${requestId}] Azure config:`, {
-        endpoint: env.AZURE_OPENAI_ENDPOINT,
-        model: env.AZURE_OPENAI_GPT5_MODEL,
-        hasApiKey: !!env.AZURE_OPENAI_API_KEY
-      });
+    let reading = null;
+    let provider = 'local-composer';
+    const backendErrors = [];
+    const candidateBackends = getAvailableNarrativeBackends(env);
+    const backendsToTry = candidateBackends.length ? candidateBackends : [NARRATIVE_BACKENDS['local-composer']];
 
-      const azureStart = Date.now();
+    for (const backend of backendsToTry) {
+      const attemptStart = Date.now();
+      console.log(`[${requestId}] Attempting narrative backend ${backend.id} (${backend.label})...`);
       try {
-        reading = await generateWithAzureGPT5Responses(env, {
-          spreadInfo,
-          cardsInfo,
-          userQuestion,
-          reflectionsText,
-          analysis,
-          context,
-          visionInsights: sanitizedVisionInsights
-        }, requestId);
-        const azureTime = Date.now() - azureStart;
-        console.log(`[${requestId}] Azure GPT-5 generation successful in ${azureTime}ms, reading length: ${reading?.length || 0}`);
-        usedAzureGPT = true;
+        const result = await runNarrativeBackend(backend.id, env, narrativePayload, requestId);
+        if (!result || !result.toString().trim()) {
+          throw new Error('Backend returned empty narrative.');
+        }
+        reading = result;
+        provider = backend.id;
+        console.log(`[${requestId}] Backend ${backend.id} succeeded in ${Date.now() - attemptStart}ms, reading length: ${reading.length}`);
+        break;
       } catch (err) {
-        const azureTime = Date.now() - azureStart;
-        console.error(`[${requestId}] Azure OpenAI GPT-5 generation failed after ${azureTime}ms, falling back to local composer:`, {
-          error: err.message,
-          stack: err.stack
-        });
+        backendErrors.push({ backend: backend.id, error: err.message });
+        console.error(`[${requestId}] Backend ${backend.id} failed:`, err.message);
       }
-    } else {
-      console.log(`[${requestId}] Azure OpenAI GPT-5 credentials not configured, using local composer`, {
-        hasApiKey: !!env?.AZURE_OPENAI_API_KEY,
-        hasEndpoint: !!env?.AZURE_OPENAI_ENDPOINT,
-        hasModel: !!env?.AZURE_OPENAI_GPT5_MODEL
-      });
     }
 
     if (!reading) {
-      console.log(`[${requestId}] Generating reading with local composer...`);
-      const localStart = Date.now();
-      // Local fallback with validation; never return empty silently
-      reading = composeReadingEnhanced({
-        spreadInfo,
-        cardsInfo,
-        userQuestion,
-        reflectionsText,
-        analysis,
-        context
-      });
-      const localTime = Date.now() - localStart;
-      console.log(`[${requestId}] Local composer completed in ${localTime}ms, reading length: ${reading?.length || 0}`);
-
-      if (!reading || !reading.toString().trim()) {
-        console.error(`[${requestId}] composeReadingEnhanced returned empty reading; returning structured error.`);
-        return jsonResponse(
-          { error: 'Analysis failed to produce a narrative. Please retry your reading.' },
-          { status: 500 }
-        );
-      }
+      console.error(`[${requestId}] All narrative backends failed.`, backendErrors);
+      return jsonResponse(
+        { error: 'All narrative providers are currently unavailable. Please try again shortly.' },
+        { status: 503 }
+      );
     }
 
     // STEP 3: Return structured response with server-centric analysis
@@ -297,8 +305,6 @@ export const onRequestPost = async ({ request, env }) => {
     // - themes: shared thematic summary
     // Frontend should trust these when present, and only fall back locally if missing.
     const totalTime = Date.now() - startTime;
-    const provider = usedAzureGPT ? 'azure-gpt5' : 'local';
-
     console.log(`[${requestId}] Request completed successfully in ${totalTime}ms using provider: ${provider}`);
     console.log(`[${requestId}] === TAROT READING REQUEST END ===`);
 
@@ -510,6 +516,7 @@ async function generateWithAzureGPT5Responses(env, { spreadInfo, cardsInfo, user
   const deploymentName = env.AZURE_OPENAI_GPT5_MODEL; // Azure deployment name (often mirrors the base model name)
   // Responses API requires v1 path format with 'preview' API version
   const apiVersion = env.AZURE_OPENAI_API_VERSION || 'preview';
+  const deckStyle = spreadInfo?.deckStyle || analysis?.themes?.deckStyle || cardsInfo?.[0]?.deckStyle || 'rws-1909';
 
   console.log(`[${requestId}] Building Azure GPT-5 prompts...`);
 
@@ -644,6 +651,7 @@ async function generateWithClaudeSonnet45Enhanced(env, { spreadInfo, cardsInfo, 
   const apiKey = env.ANTHROPIC_API_KEY;
   const apiUrl = env.ANTHROPIC_API_URL || 'https://api.anthropic.com/v1/messages';
   const model = 'claude-sonnet-4-5';
+  const deckStyle = spreadInfo?.deckStyle || analysis?.themes?.deckStyle || cardsInfo?.[0]?.deckStyle || 'rws-1909';
 
   // Build enhanced prompts using narrative builder
   const { systemPrompt, userPrompt } = buildEnhancedClaudePrompt({
@@ -654,7 +662,8 @@ async function generateWithClaudeSonnet45Enhanced(env, { spreadInfo, cardsInfo, 
     themes: analysis.themes,
     spreadAnalysis: analysis.spreadAnalysis,
     context,
-    visionInsights
+    visionInsights,
+    deckStyle
   });
 
   const response = await fetch(apiUrl, {
@@ -753,6 +762,18 @@ function composeReadingEnhanced({ spreadInfo, cardsInfo, userQuestion, reflectio
     spreadInfo,
     context
   });
+}
+
+async function runNarrativeBackend(backendId, env, payload, requestId) {
+  switch (backendId) {
+    case 'azure-gpt5':
+      return generateWithAzureGPT5Responses(env, payload, requestId);
+    case 'claude-sonnet45':
+      return generateWithClaudeSonnet45Enhanced(env, payload, requestId);
+    case 'local-composer':
+    default:
+      return composeReadingEnhanced(payload);
+  }
 }
 
 function generateReadingFromAnalysis({ spreadKey, spreadAnalysis, cardsInfo, userQuestion, reflectionsText, themes, spreadInfo, context }) {

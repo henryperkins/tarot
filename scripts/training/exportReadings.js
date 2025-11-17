@@ -435,6 +435,8 @@ function mergeReadings(journalEntries, feedbackRecords, metricsRecords) {
     const requestId = entry.requestId || feedback?.requestId || null;
     const metrics = requestId ? metricsByRequest.get(requestId) || null : null;
 
+    const feedbackStats = feedback ? deriveFeedbackStats(feedback.ratings) : null;
+
     return {
       requestId,
       journalId: entry.id,
@@ -446,16 +448,23 @@ function mergeReadings(journalEntries, feedbackRecords, metricsRecords) {
       question: entry.question,
       cards: normalizeCards(entry.cards),
       readingText: entry.readingText,
+      spreadAnalysis: entry.spreadAnalysis || null,
       themes: entry.themes,
       reflections: entry.reflections,
       provider: entry.provider,
       sessionSeed: entry.sessionSeed,
+      visionSummary: feedback?.visionSummary || metrics?.vision?.summary || null,
+      deckVisionMetrics: metrics?.vision || null,
+      feedbackLabel: feedbackStats?.label || null,
+      feedbackAverage: feedbackStats?.average || null,
       feedback: feedback
         ? {
             ratings: feedback.ratings,
             notes: feedback.notes || null,
             submittedAt: feedback.submittedAt,
-            visionSummary: feedback.visionSummary || null
+            visionSummary: feedback.visionSummary || null,
+            label: feedbackStats?.label || null,
+            averageScore: feedbackStats?.average || null
           }
         : null,
       metrics: metrics
@@ -483,6 +492,30 @@ function normalizeCards(cards = []) {
     rank: card.rank || null,
     rankValue: card.rankValue ?? null
   }));
+}
+
+function deriveFeedbackStats(ratings) {
+  if (!ratings || typeof ratings !== 'object') {
+    return null;
+  }
+  const values = Object.values(ratings)
+    .map((value) => Number(value))
+    .filter((value) => Number.isFinite(value));
+  if (!values.length) {
+    return null;
+  }
+  const average = values.reduce((sum, value) => sum + value, 0) / values.length;
+  let label = 'neutral';
+  if (average >= 4.5) {
+    label = 'strong-positive';
+  } else if (average >= 3.5) {
+    label = 'positive';
+  } else if (average <= 2) {
+    label = 'negative';
+  } else if (average <= 3) {
+    label = 'mixed';
+  }
+  return { average, label };
 }
 
 function buildSignature(spreadKey, question, cards = []) {

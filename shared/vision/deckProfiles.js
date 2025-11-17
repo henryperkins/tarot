@@ -1,4 +1,11 @@
-import { getThothAlias, getThothImagePath, getMarseilleAlias, getMarseilleImagePath } from './deckAssets.js';
+import {
+  getThothAlias,
+  getThothImagePath,
+  getMarseilleAlias,
+  getMarseilleImagePath,
+  getDeckSuitAlias,
+  getDeckCourtAlias
+} from './deckAssets.js';
 
 const DECK_PROFILES = {
   'rws-1909': {
@@ -10,7 +17,9 @@ const DECK_PROFILES = {
     texture: 'Hand-painted inks on watercolor paper with a slightly muted finish.',
     aliasResolver: (card) => card?.name || 'Tarot card',
     imageResolver: (card) => card?.image || null,
-    assetScanDir: '.'
+    assetScanDir: '.',
+    suitAliasResolver: (suit) => getDeckSuitAlias(suit, 'rws-1909'),
+    courtAliasResolver: (rank) => getDeckCourtAlias(rank, 'rws-1909')
   },
   'thoth-a1': {
     id: 'thoth-a1',
@@ -21,7 +30,9 @@ const DECK_PROFILES = {
     texture: 'Oil and watercolor washes blended into airbrushed gradients.',
     aliasResolver: getThothAlias,
     imageResolver: getThothImagePath,
-    assetScanDir: 'thoth'
+    assetScanDir: 'thoth',
+    suitAliasResolver: (suit) => getDeckSuitAlias(suit, 'thoth-a1'),
+    courtAliasResolver: (rank) => getDeckCourtAlias(rank, 'thoth-a1')
   },
   'marseille-classic': {
     id: 'marseille-classic',
@@ -31,7 +42,9 @@ const DECK_PROFILES = {
     texture: 'Bold, block-printed textures with minimal shading.',
     aliasResolver: getMarseilleAlias,
     imageResolver: getMarseilleImagePath,
-    assetScanDir: 'marseille'
+    assetScanDir: 'marseille',
+    suitAliasResolver: (suit) => getDeckSuitAlias(suit, 'marseille-classic'),
+    courtAliasResolver: (rank) => getDeckCourtAlias(rank, 'marseille-classic')
   }
 };
 

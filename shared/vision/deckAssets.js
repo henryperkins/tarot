@@ -101,11 +101,50 @@ const THOTH_RANK_LABELS = {
   10: 'Ten'
 };
 
+const MARSEILLE_MAJOR_ALIASES = {
+  0: 'Le Mat',
+  1: 'Le Bateleur',
+  2: 'La Papesse',
+  3: "L'Imperatrice",
+  4: "L'Empereur",
+  5: 'Le Pape',
+  6: "L'Amoureux",
+  7: 'Le Chariot',
+  8: 'La Justice',
+  9: "L'Hermite",
+ 10: 'La Roue de Fortune',
+ 11: 'La Force',
+ 12: 'Le Pendu',
+ 13: 'La Mort',
+ 14: 'Temperance',
+ 15: 'Le Diable',
+ 16: 'La Maison Dieu',
+ 17: "L'Etoile",
+ 18: 'La Lune',
+ 19: 'Le Soleil',
+ 20: 'Le Jugement',
+ 21: 'Le Monde'
+};
+
 const MARSEILLE_SUIT_PREFIX = {
   Wands: 'clubs',
   Cups: 'cups',
   Swords: 'swords',
   Pentacles: 'coins'
+};
+
+const MARSEILLE_SUIT_ALIASES = {
+  Wands: 'Batons',
+  Cups: 'Coupes',
+  Swords: 'Epees',
+  Pentacles: 'Coins'
+};
+
+const MARSEILLE_COURT_ALIASES = {
+  Page: 'Valet',
+  Knight: 'Chevalier',
+  Queen: 'Reine',
+  King: 'Roi'
 };
 
 const slugify = (value = '') =>
@@ -165,6 +204,21 @@ export function getThothImagePath(card) {
 }
 
 export function getMarseilleAlias(card) {
+  if (typeof card?.number === 'number') {
+    const alias = MARSEILLE_MAJOR_ALIASES[card.number];
+    if (alias) {
+      return card?.name && card.name !== alias ? `${alias} (RWS: ${card.name})` : alias;
+    }
+  }
+  if (card?.suit && card?.rank) {
+    const suitAlias = MARSEILLE_SUIT_ALIASES[card.suit] || card.suit;
+    const rankAlias = MARSEILLE_COURT_ALIASES[card.rank] || card.rank;
+    const label = `${rankAlias} of ${suitAlias}`;
+    if (card?.name && card.name !== label) {
+      return `${label} (RWS: ${card.name})`;
+    }
+    return label;
+  }
   return card?.name || 'Tarot de Marseille card';
 }
 
@@ -184,7 +238,10 @@ export function getDeckAlias(card, deckId) {
   if (deckId === 'thoth-a1') {
     return getThothAlias(card);
   }
-  return getMarseilleAlias(card);
+  if (deckId === 'marseille-classic') {
+    return getMarseilleAlias(card);
+  }
+  return card?.name || 'Tarot card';
 }
 
 export function getDeckImagePath(card, deckId) {
@@ -195,4 +252,26 @@ export function getDeckImagePath(card, deckId) {
     return getMarseilleImagePath(card);
   }
   return card?.image || null;
+}
+
+export function getDeckSuitAlias(suit, deckId) {
+  if (!suit) return suit;
+  if (deckId === 'thoth-a1') {
+    return THOTH_SUIT_ALIASES[suit] || suit;
+  }
+  if (deckId === 'marseille-classic') {
+    return MARSEILLE_SUIT_ALIASES[suit] || suit;
+  }
+  return suit;
+}
+
+export function getDeckCourtAlias(rank, deckId) {
+  if (!rank) return rank;
+  if (deckId === 'thoth-a1') {
+    return THOTH_COURT_ALIASES[rank] || rank;
+  }
+  if (deckId === 'marseille-classic') {
+    return MARSEILLE_COURT_ALIASES[rank] || rank;
+  }
+  return rank;
 }

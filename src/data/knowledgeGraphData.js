@@ -569,6 +569,61 @@ export const SUIT_PROGRESSIONS = {
 };
 
 /**
+ * COURT FAMILY PATTERNS
+ * Highlights when multiple court cards from the same suit appear, indicating lineage dynamics.
+ */
+export const COURT_FAMILY_PATTERNS = {
+  Wands: {
+    element: 'Fire',
+    theme: 'Creative lineage and torch-passing leadership',
+    duoNarrative:
+      'Two Wands court cards show creative mentorship—one figure fuels bold action while another shapes direction.',
+    trioNarrative:
+      'Three or more Wands courts form a fire council handing the torch responsibly across experience levels.',
+    deckNotes: {
+      'thoth-a1': 'Princess sparks, Prince mobilizes, Queen magnetizes, Knight broadcasts the final blaze.',
+      'marseille-classic': 'Valet and Chevalier labor in the field while Reine and Roi codify how the flame is used.'
+    }
+  },
+  Cups: {
+    element: 'Water',
+    theme: 'Emotional lineage, family systems, and care work',
+    duoNarrative:
+      'Two Cups court cards reflect emotional mirroring—caregivers trading notes about vulnerability and trust.',
+    trioNarrative:
+      'Three or more Cups courts indicate a full healing lineage tending to ancestral feelings and relationship repair.',
+    deckNotes: {
+      'thoth-a1': 'Princess opens the heart, Prince pursues devotion, Queen holds sanctuary, Knight blesses the waters.',
+      'marseille-classic': 'Valet and Chevalier carry news of the heart while Reine and Roi tend the household bonds.'
+    }
+  },
+  Swords: {
+    element: 'Air',
+    theme: 'Strategic councils, truth-telling, and boundary work',
+    duoNarrative:
+      'Two Swords court cards expose a critical dialogue where intellect meets decisive motion.',
+    trioNarrative:
+      'Three or more Swords courts activate a strategic tribunal balancing honesty, critique, and decisive action.',
+    deckNotes: {
+      'thoth-a1': 'Princess gathers data, Prince advances the plan, Queen shapes discourse, Knight delivers the verdict.',
+      'marseille-classic': 'Valet scouts, Chevalier confronts, Reine deliberates, Roi codifies the law.'
+    }
+  },
+  Pentacles: {
+    element: 'Earth',
+    theme: 'Legacy building, stewardship, and material mentorship',
+    duoNarrative:
+      'Two Pentacles court cards highlight pragmatic mentorship around resources, body wisdom, or business.',
+    trioNarrative:
+      'Three or more Pentacles courts reveal a full stewardship lineage tending to land, labor, and legacy.',
+    deckNotes: {
+      'thoth-a1': 'Princess tends the seed, Prince engineers systems, Queen nourishes, Knight ensures lasting structure.',
+      'marseille-classic': 'Valet and Chevalier manage the craft while Reine and Roi formalize the guild legacy.'
+    }
+  }
+};
+
+/**
  * THOTH MINOR ARCANA TITLES
  * Crowley/Harris epithets for pip cards with decan assignments
  */
@@ -635,5 +690,82 @@ export const MARSEILLE_NUMERICAL_THEMES = {
   7: { keyword: 'Challenge', description: 'Asymmetry appears; invites introspection and faith beyond comfort.', geometry: 'Single emblem misaligned above or below the stable lattice.' },
   8: { keyword: 'Movement', description: 'Loops and crossings accelerate—depicts cycles, diligence, and momentum.', geometry: 'Double loops suggesting infinity symbols within the pip art.' },
   9: { keyword: 'Ripeness', description: 'Dense patternation shows fullness and stewardship of completion.', geometry: 'Three triads stacked, flowers blooming at intersections.' },
- 10: { keyword: 'Threshold', description: 'Pip forms create portals—culmination transitioning into a new cycle.', geometry: 'Four pairs framing a central staff or sword, indicating closure.' }
+10: { keyword: 'Threshold', description: 'Pip forms create portals—culmination transitioning into a new cycle.', geometry: 'Four pairs framing a central staff or sword, indicating closure.' }
+};
+
+const THOTH_MAJOR_TITLES = {
+  0: 'The Fool',
+  1: 'The Magus',
+  2: 'The Priestess',
+  3: 'The Empress',
+  4: 'The Emperor',
+  5: 'The Hierophant',
+  6: 'The Lovers',
+  7: 'The Chariot',
+  8: 'Adjustment',
+  9: 'The Hermit',
+ 10: 'Fortune',
+ 11: 'Lust',
+ 12: 'The Hanged Man',
+ 13: 'Death',
+ 14: 'Art',
+ 15: 'The Devil',
+ 16: 'The Tower',
+ 17: 'The Star',
+ 18: 'The Moon',
+ 19: 'The Sun',
+ 20: 'The Aeon',
+ 21: 'The Universe'
+};
+
+const MARSEILLE_MAJOR_TITLES = {
+  0: 'Le Mat',
+  1: 'Le Bateleur',
+  2: 'La Papesse',
+  3: "L'Imperatrice",
+  4: "L'Empereur",
+  5: 'Le Pape',
+  6: "L'Amoureux",
+  7: 'Le Chariot',
+  8: 'La Justice',
+  9: "L'Hermite",
+ 10: 'La Roue de Fortune',
+ 11: 'La Force',
+ 12: 'Le Pendu',
+ 13: 'La Mort',
+ 14: 'Temperance',
+ 15: 'Le Diable',
+ 16: 'La Maison Dieu',
+ 17: "L'Etoile",
+ 18: 'La Lune',
+ 19: 'Le Soleil',
+ 20: 'Le Jugement',
+ 21: 'Le Monde'
+};
+
+export const DECK_STYLE_OVERRIDES = {
+  'rws-1909': {
+    displayName: 'Rider-Waite-Smith 1909',
+    suitAliases: {},
+    courtAliases: { Page: 'Page', Knight: 'Knight', Queen: 'Queen', King: 'King' },
+    majorAliases: {},
+    numerologyThemes: null
+  },
+  'thoth-a1': {
+    displayName: 'Thoth',
+    suitAliases: { Pentacles: 'Disks' },
+    courtAliases: { Page: 'Princess', Knight: 'Prince', Queen: 'Queen', King: 'Knight' },
+    majorAliases: THOTH_MAJOR_TITLES,
+    minorTitles: THOTH_MINOR_TITLES,
+    courtNotes: 'Princess ignites, Prince mobilizes, Queen magnetizes, Knight radiates the final expression.',
+    numerologyThemes: null
+  },
+  'marseille-classic': {
+    displayName: 'Tarot de Marseille',
+    suitAliases: { Pentacles: 'Coins', Wands: 'Batons' },
+    courtAliases: { Page: 'Valet', Knight: 'Chevalier', Queen: 'Reine', King: 'Roi' },
+    majorAliases: MARSEILLE_MAJOR_TITLES,
+    numerologyThemes: MARSEILLE_NUMERICAL_THEMES,
+    courtNotes: 'Valet carries the message, Chevalier rides into action, Reine and Roi codify the legacy.'
+  }
 };

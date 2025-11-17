@@ -39,17 +39,17 @@ const BASE_PAYLOAD = {
   reflectionsText: ''
 };
 
-describe('vision validation enforcement', () => {
-  it('rejects readings when no vision proof accompanies the request', async () => {
+describe('vision research mode', () => {
+  it('allows readings when no vision proof accompanies the request', async () => {
     const request = makeRequest(BASE_PAYLOAD);
     const response = await onRequestPost({ request, env: { VISION_PROOF_SECRET: TEST_SECRET } });
 
-    assert.equal(response.status, 400);
+    assert.equal(response.status, 200);
     const payload = await response.json();
-    assert.match(payload.error, /Vision validation proof/i);
+    assert.ok(typeof payload.reading === 'string' && payload.reading.length > 0);
   });
 
-  it('rejects readings when unresolved vision conflicts are supplied', async () => {
+  it('collects telemetry without blocking readings when proof cards mismatch', async () => {
     const proof = await createVisionProof({
       insights: [
         { label: 'IMG_001', predictedCard: 'The Magician', confidence: 0.82 }
@@ -61,27 +61,28 @@ describe('vision validation enforcement', () => {
     });
 
     const response = await onRequestPost({ request, env: { VISION_PROOF_SECRET: TEST_SECRET } });
-    assert.equal(response.status, 409, 'API should reject when conflicts remain');
+    assert.equal(response.status, 200, 'Telemetry mismatches should not block readings');
 
     const payload = await response.json();
-    assert.match(payload.error, /Vision validation/i);
+    assert.ok(typeof payload.reading === 'string' && payload.reading.length > 0);
   });
 
-  it('rejects readings when uploaded insights do not match the selected cards', async () => {
+  it('rejects tampered proofs that fail verification', async () => {
     const proof = await createVisionProof({
       insights: [
         { label: 'IMG_002', predictedCard: 'The Magician', confidence: 0.91 }
       ]
     });
+    const tamperedProof = { ...proof, signature: 'invalid-signature' };
     const request = makeRequest({
       ...BASE_PAYLOAD,
-      visionProof: proof
+      visionProof: tamperedProof
     });
 
     const response = await onRequestPost({ request, env: { VISION_PROOF_SECRET: TEST_SECRET } });
-    assert.equal(response.status, 409, 'API should reject mismatched vision insights even without conflicts');
+    assert.equal(response.status, 400);
 
     const payload = await response.json();
-    assert.match(payload.error, /Vision validation/i);
+    assert.match(payload.error, /Vision proof/i);
   });
 });

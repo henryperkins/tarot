@@ -13,6 +13,7 @@ import { SYMBOL_ANNOTATIONS } from '../../functions/lib/symbolAnnotations.js';
 import { getMinorSymbolAnnotation } from './minorSymbolLexicon.js';
 import { getDeckProfile } from './deckProfiles.js';
 import { SymbolDetector } from './symbolDetector.js';
+import { loadFineTunedPrototypes } from './fineTuneCache.js';
 
 const DEFAULT_MODEL = 'Xenova/clip-vit-base-patch32';
 const DEFAULT_SCOPE = 'major';
@@ -94,8 +95,10 @@ function buildPrompt(card, deckProfile, aliasName) {
     .slice(0, 3)
     .join(', ');
 
-  const suitDescriptor = card.suit ? `Suit: ${card.suit}.` : '';
-  const rankDescriptor = card.rank ? `Rank: ${card.rank}.` : '';
+  const displaySuit = card.suit ? (deckProfile?.suitAliasResolver?.(card.suit) || card.suit) : null;
+  const suitDescriptor = displaySuit ? `Suit: ${displaySuit}.` : '';
+  const displayRank = card.rank ? (deckProfile?.courtAliasResolver?.(card.rank) || card.rank) : null;
+  const rankDescriptor = displayRank ? `Rank: ${displayRank}.` : '';
   const keywords = card.upright || card.meaning || '';
 
   const visualNotes = [symbolSnippets, dominantColors]
@@ -135,6 +138,26 @@ function cosineSimilarity(a, b) {
     dot += a[i] * b[i];
   }
   return dot;
+}
+
+function selectBestScore({ imageScore, textScore, adapterScore }) {
+  let bestValue = -Infinity;
+  let basis = 'text';
+  const candidates = [
+    ['adapter', adapterScore],
+    ['image', imageScore],
+    ['text', textScore]
+  ];
+  candidates.forEach(([label, value]) => {
+    if (typeof value === 'number' && Number.isFinite(value) && value > bestValue) {
+      bestValue = value;
+      basis = label;
+    }
+  });
+  if (!Number.isFinite(bestValue)) {
+    return { score: 0, basis: 'text' };
+  }
+  return { score: bestValue, basis };
 }
 
 function toArray(bufferLike) {
@@ -374,6 +397,8 @@ export class TarotVisionPipeline {
     if (!this._cardEmbeddingsPromise) {
       this._cardEmbeddingsPromise = (async () => {
         const embeddings = [];
+        const adapterData = await loadFineTunedPrototypes(this.deckProfile.id);
+        const adapterCards = adapterData?.cards || {};
         for (const card of this.cardLibrary) {
           const textVector = await this._embedPrompt(card.prompt);
           let imageVector = null;
@@ -386,13 +411,19 @@ export class TarotVisionPipeline {
             }
           }
 
+          const canonicalKey = card.canonicalName || card.cardName;
+          const adapterEntry = adapterCards[canonicalKey] || adapterCards[card.cardName];
+          const adapterVector = adapterEntry?.embedding ? normalizeVector(adapterEntry.embedding) : null;
+
           embeddings.push({
             cardId: card.id,
             cardName: card.label,
             canonicalName: card.canonicalName,
             cardMetadata: card.sourceCard,
             textVector,
-            imageVector
+            imageVector,
+            adapterVector,
+            adapterMeta: adapterEntry ? { count: adapterEntry.count || 0 } : null
           });
         }
         return embeddings;
@@ -422,8 +453,8 @@ export class TarotVisionPipeline {
         .map((card) => {
           const imageScore = card.imageVector ? cosineSimilarity(imageVector, card.imageVector) : null;
           const textScore = card.textVector ? cosineSimilarity(imageVector, card.textVector) : null;
-          const score = imageScore !== null ? Math.max(imageScore, textScore ?? -Infinity) : (textScore ?? 0);
-          const basis = imageScore !== null && imageScore >= (textScore ?? -Infinity) ? 'image' : 'text';
+          const adapterScore = card.adapterVector ? cosineSimilarity(imageVector, card.adapterVector) : null;
+          const { score, basis } = selectBestScore({ imageScore, textScore, adapterScore });
           return {
             cardId: card.cardId,
             cardName: card.cardName,
@@ -432,9 +463,11 @@ export class TarotVisionPipeline {
             basis,
             components: {
               imageScore,
-              textScore
+              textScore,
+              adapterScore
             },
-            cardMetadata: card.cardMetadata
+            cardMetadata: card.cardMetadata,
+            adapterMeta: card.adapterMeta || null
           };
         })
         .sort((a, b) => b.score - a.score)

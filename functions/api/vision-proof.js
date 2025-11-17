@@ -1,11 +1,11 @@
 import { jsonResponse, readJsonBody } from '../lib/utils.js';
-import { TarotVisionPipeline } from '../../shared/vision/tarotVisionPipeline.js';
+import { createVisionBackend } from '../../shared/vision/visionBackends.js';
 import { buildVisionProofPayload, signVisionProof } from '../lib/visionProof.js';
 import { canonicalizeCardName } from '../../shared/vision/cardNameMapping.js';
 
 const MAX_EVIDENCE = 5;
 const MAX_DATA_URL_BYTES = 8 * 1024 * 1024; // 8MB per upload
-const pipelineCache = new Map();
+const visionBackendCache = new Map();
 
 function clampConfidence(value) {
   if (typeof value !== 'number' || Number.isNaN(value)) return null;
@@ -113,22 +113,22 @@ function sanitizeSymbolVerification(symbolVerification) {
   };
 }
 
-async function getPipeline(deckStyle) {
-  if (pipelineCache.has(deckStyle)) {
-    return pipelineCache.get(deckStyle);
+async function getVisionBackend(deckStyle) {
+  if (visionBackendCache.has(deckStyle)) {
+    return visionBackendCache.get(deckStyle);
   }
-  const pipelinePromise = (async () => {
-    const pipeline = new TarotVisionPipeline({
+  const backendPromise = (async () => {
+    const backend = createVisionBackend({
+      backendId: 'clip-default',
       cardScope: 'all',
       deckStyle,
       maxResults: 5
     });
-    // Warm up embeddings upfront so subsequent requests reuse them
-    await pipeline._ensureCardEmbeddings();
-    return pipeline;
+    await backend.warmup();
+    return backend;
   })();
-  pipelineCache.set(deckStyle, pipelinePromise);
-  return pipelinePromise;
+  visionBackendCache.set(deckStyle, backendPromise);
+  return backendPromise;
 }
 
 function validateEvidence(evidence) {
@@ -152,8 +152,8 @@ function validateEvidence(evidence) {
 }
 
 async function analyzeEvidence(evidence, deckStyle) {
-  const pipeline = await getPipeline(deckStyle);
-  const analyses = await pipeline.analyzeImages(
+  const backend = await getVisionBackend(deckStyle);
+  const analyses = await backend.analyzeImages(
     evidence.map((entry) => ({
       source: entry.dataUrl,
       label: entry.label

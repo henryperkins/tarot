@@ -242,6 +242,16 @@ function buildUserPrompt(spreadKey, cardsInfo, userQuestion, reflectionsText, th
   thematicLines.push(`- Reversal framework: ${themes.reversalDescription.name}`);
   prompt += `**Thematic Context**:\n${thematicLines.join('\n')}\n\n`;
 
+  if (themes?.knowledgeGraph?.narrativeHighlights?.length) {
+    prompt += '**Archetypal Highlights**:\n';
+    themes.knowledgeGraph.narrativeHighlights.slice(0, 5).forEach((highlight, index) => {
+      const label = highlight?.text || '';
+      if (!label) return;
+      prompt += `- ${label}\n`;
+    });
+    prompt += '\n';
+  }
+
   // Spread-specific card presentation
   if (spreadKey === 'celtic' && spreadAnalysis) {
     prompt += buildCelticCrossPromptCards(cardsInfo, spreadAnalysis, themes, context);
@@ -316,6 +326,35 @@ function buildVisionValidationSection(visionInsights) {
     const basisText = entry.basis ? ` via ${entry.basis}` : '';
     const mismatchFlag = entry.matchesDrawnCard === false ? ' [not in drawn spread]' : '';
     lines.push(`- ${entry.label}: recognized as ${entry.predictedCard}${basisText} (${confidenceText})${mismatchFlag}`);
+
+    if (entry.symbolVerification && typeof entry.symbolVerification === 'object') {
+      const sv = entry.symbolVerification;
+      const matchRate = typeof sv.matchRate === 'number' ? `${(sv.matchRate * 100).toFixed(1)}% symbol alignment` : null;
+      const missingList = Array.isArray(sv.missingSymbols) && sv.missingSymbols.length
+        ? `missing: ${sv.missingSymbols.join(', ')}`
+        : null;
+      const symbolLine = [matchRate, missingList].filter(Boolean).join(' | ');
+      if (symbolLine) {
+        lines.push(`  · Symbol check: ${symbolLine}`);
+      }
+    }
+
+    if (Array.isArray(entry.matches) && entry.matches.length) {
+      const preview = entry.matches
+        .slice(0, 2)
+        .map((match) => {
+          if (!match?.card) return null;
+          if (typeof match.score === 'number') {
+            return `${match.card} ${(match.score * 100).toFixed(1)}%`;
+          }
+          return match.card;
+        })
+        .filter(Boolean)
+        .join('; ');
+      if (preview) {
+        lines.push(`  · Secondary matches: ${preview}`);
+      }
+    }
   });
 
   lines.push('');

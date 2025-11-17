@@ -8,35 +8,121 @@ import {
   ARCHETYPAL_DYADS,
   SUIT_PROGRESSIONS,
   THOTH_MINOR_TITLES,
-  MARSEILLE_NUMERICAL_THEMES
+  MARSEILLE_NUMERICAL_THEMES,
+  COURT_FAMILY_PATTERNS,
+  DECK_STYLE_OVERRIDES
 } from '../../src/data/knowledgeGraphData.js';
 import { getDeckAlias } from '../../shared/vision/deckAssets.js';
 import { parseMinorName } from './minorMeta.js';
+
+const COURT_RANK_LABELS = new Set([
+  'Page',
+  'Knight',
+  'Queen',
+  'King',
+  'Princess',
+  'Prince',
+  'Valet',
+  'Chevalier',
+  'Reine',
+  'Roi'
+]);
+
+function getDeckMeta(deckStyle = 'rws-1909') {
+  return DECK_STYLE_OVERRIDES[deckStyle] || null;
+}
 
 function getCardLabel(card) {
   return card?.card || card?.name || card?.title || 'Unknown card';
 }
 
 function deckAwareSuitLabel(suit, deckStyle = 'rws-1909') {
-  if (deckStyle === 'marseille-classic') {
-    if (suit === 'Pentacles') return 'Coins';
-    if (suit === 'Wands') return 'Batons';
-  }
-  if (deckStyle === 'thoth-a1') {
-    if (suit === 'Pentacles') return 'Disks';
+  const meta = getDeckMeta(deckStyle);
+  if (meta?.suitAliases?.[suit]) {
+    return meta.suitAliases[suit];
   }
   return suit;
 }
 
 function deckAwareName(card, fallback, deckStyle = 'rws-1909') {
+  const baseLabel = fallback || getCardLabel(card);
+  const meta = getDeckMeta(deckStyle);
+
+  if (meta) {
+    if (typeof card?.number === 'number' && meta.majorAliases?.[card.number]) {
+      const alias = meta.majorAliases[card.number];
+      if (!alias) {
+        return baseLabel;
+      }
+      if (deckStyle === 'rws-1909' || alias === baseLabel) {
+        return alias;
+      }
+      return `${alias} (RWS: ${baseLabel})`;
+    }
+
+    if (card?.suit) {
+      const suitAlias = meta.suitAliases?.[card.suit];
+      const rankAlias = card.rank && meta.courtAliases?.[card.rank]
+        ? meta.courtAliases[card.rank]
+        : card.rank;
+
+      if (card.rank && (suitAlias || rankAlias !== card.rank)) {
+        const aliased = `${rankAlias} of ${suitAlias || card.suit}`;
+        if (deckStyle === 'rws-1909' || aliased === baseLabel) {
+          return aliased;
+        }
+        return `${aliased} (RWS: ${baseLabel})`;
+      }
+
+      if (!card.rank && suitAlias && typeof baseLabel === 'string') {
+        const updated = baseLabel.replace(card.suit, suitAlias);
+        if (updated !== baseLabel) {
+          return deckStyle === 'rws-1909' ? updated : `${updated} (RWS: ${baseLabel})`;
+        }
+      }
+    }
+  }
+
   if (!deckStyle || deckStyle === 'rws-1909') {
-    return fallback;
+    return baseLabel;
   }
+
   const alias = getDeckAlias(card, deckStyle);
-  if (!alias || alias === fallback) {
-    return fallback;
+  if (!alias || alias === baseLabel) {
+    return baseLabel;
   }
-  return fallback ? `${alias} (RWS: ${fallback})` : alias;
+  return baseLabel ? `${alias} (RWS: ${baseLabel})` : alias;
+}
+
+function deckAwareCourtRank(card, deckStyle = 'rws-1909') {
+  const rank = (card?.rank || '').trim();
+  if (!rank) return 'Court';
+  const meta = getDeckMeta(deckStyle);
+  if (!meta?.courtAliases) return rank;
+  if (meta.courtAliases[rank]) {
+    return meta.courtAliases[rank];
+  }
+  const alreadyAlias = Object.values(meta.courtAliases).includes(rank);
+  return alreadyAlias ? rank : meta.courtAliases[rank] || rank;
+}
+
+function resolveSuit(card) {
+  if (card?.suit) return card.suit;
+  const parsed = parseMinorName(card?.card || card?.name || '');
+  return parsed?.suit || null;
+}
+
+function isCourtCard(card) {
+  if (!card) return false;
+  if (typeof card.rankValue === 'number' && card.rankValue >= 11 && card.rankValue <= 14) {
+    return true;
+  }
+  const rank = (card.rank || '').trim();
+  if (rank && COURT_RANK_LABELS.has(rank)) {
+    return true;
+  }
+  const parsed = parseMinorName(card.card || card.name || '');
+  return parsed ? COURT_RANK_LABELS.has(parsed.rank) : false;
 }
 
 /**
@@ -326,6 +412,56 @@ export function detectSuitProgressions(cards, options = {}) {
   return detected;
 }
 
+function detectCourtLineages(cards, options = {}) {
+  if (!Array.isArray(cards) || cards.length < 2) {
+    return [];
+  }
+
+  const deckStyle = options.deckStyle || 'rws-1909';
+  const courtCards = cards.filter((card) => isCourtCard(card));
+  if (courtCards.length < 2) {
+    return [];
+  }
+
+  const suitBuckets = new Map();
+  courtCards.forEach((card) => {
+    const suit = resolveSuit(card);
+    if (!suit) return;
+    if (!suitBuckets.has(suit)) {
+      suitBuckets.set(suit, []);
+    }
+    suitBuckets.get(suit).push(card);
+  });
+
+  const patterns = [];
+  suitBuckets.forEach((list, suit) => {
+    if (!Array.isArray(list) || list.length < 2) {
+      return;
+    }
+    const lineage = COURT_FAMILY_PATTERNS[suit] || {};
+    const significance = list.length >= 3 ? 'council' : 'alliance';
+    const stageNarrative = significance === 'council' ? lineage.trioNarrative : lineage.duoNarrative;
+    const deckNote = lineage.deckNotes?.[deckStyle] || getDeckMeta(deckStyle)?.courtNotes || '';
+    const narrative = [stageNarrative, deckNote].filter(Boolean).join(' ').trim();
+    const sorted = list
+      .slice()
+      .sort((a, b) => (a.rankValue ?? Number.MAX_SAFE_INTEGER) - (b.rankValue ?? Number.MAX_SAFE_INTEGER));
+    patterns.push({
+      suit,
+      displaySuit: deckAwareSuitLabel(suit, deckStyle),
+      theme: lineage.theme || `${suit} court lineage`,
+      element: lineage.element || null,
+      significance,
+      count: list.length,
+      cards: sorted,
+      ranks: sorted.map((card) => deckAwareCourtRank(card, deckStyle)),
+      narrative: narrative || `Multiple ${deckAwareSuitLabel(suit, deckStyle)} court cards are collaborating.`
+    });
+  });
+
+  return patterns.sort((a, b) => b.count - a.count);
+}
+
 function detectThothEpithets(cards, options = {}) {
   const deckStyle = options.deckStyle || 'rws-1909';
   if (deckStyle !== 'thoth-a1' || !Array.isArray(cards)) {
@@ -515,6 +651,17 @@ export function detectAllPatterns(cards, options = {}) {
     console.error('Suit progression detection failed:', err);
   }
 
+  // Detect court lineages
+  try {
+    const courtLineages = detectCourtLineages(cards, options);
+    if (courtLineages.length > 0) {
+      patterns.courtLineages = courtLineages;
+      hasAnyPattern = true;
+    }
+  } catch (err) {
+    console.error('Court lineage detection failed:', err);
+  }
+
   // Deck-specific Thoth epithets
   try {
     const thoth = detectThothEpithets(cards, options);
@@ -621,6 +768,26 @@ export function getPriorityPatternNarratives(patterns, deckStyle = 'rws-1909') {
           cards: prog.stageCards.map((card) => card.number ?? card.rankValue ?? null),
           suit: prog.suit,
           stage: prog.stage
+        });
+      });
+  }
+
+  // Court lineages (deck-aware court clusters)
+  if (patterns.courtLineages) {
+    patterns.courtLineages
+      .slice(0, 2)
+      .forEach((lineage) => {
+        const cardList = lineage.cards
+          .map((card) => deckAwareName(card, getCardLabel(card), deckStyle))
+          .join(', ');
+        const heading = lineage.significance === 'council' ? 'court council' : 'court alliance';
+        const summary = lineage.narrative || lineage.theme;
+        narratives.push({
+          priority: lineage.significance === 'council' ? 3 : 4,
+          type: 'court-lineage',
+          text: `**${lineage.displaySuit} ${heading}** ${cardList} — ${summary}`.trim(),
+          cards: lineage.cards.map((card) => card.number ?? card.rankValue ?? null),
+          suit: lineage.suit
         });
       });
   }

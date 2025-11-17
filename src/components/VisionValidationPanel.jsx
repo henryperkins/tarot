@@ -63,9 +63,9 @@ export function VisionValidationPanel({
     <div className="modern-surface border border-amber-400/30 p-4 sm:p-5">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <p className="text-sm text-amber-100 font-semibold">Vision Validation (Beta)</p>
+          <p className="text-sm text-amber-100 font-semibold">Vision Validation (Optional Research Feature)</p>
           <p className="text-xs text-amber-200/70">
-            Upload up to five photos of your drawn cards so the deck can confirm what you pulled before unlocking the AI reading. Validation is required to continue.
+            Help improve our AI by uploading photos of your drawn cards. This optional feature helps us train better card recognition models. Your contribution is appreciated but not required.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2 text-sm font-medium text-emerald-200">
@@ -121,7 +121,7 @@ export function VisionValidationPanel({
           <p>Please confirm the following cards before generating a reading:</p>
           <ul className="mt-1 list-disc list-inside">
             {conflicts.map((conflict) => (
-              <li key={conflict.label || conflict.imagePath}>
+              <li key={conflict.uploadId || conflict.label || conflict.imagePath}>
                 {conflict.label || 'Uploaded image'} was recognized as <strong>{conflict.topMatch?.cardName || 'unknown'}</strong>
               </li>
             ))}
@@ -131,7 +131,7 @@ export function VisionValidationPanel({
       {results.length > 0 && (
         <div className="mt-4 space-y-3">
           {results.map((result) => (
-            <div key={result.label} className="rounded border border-emerald-400/20 p-3">
+            <div key={result.uploadId || result.label} className="rounded border border-emerald-400/20 p-3">
               <div className="flex items-center justify-between text-sm text-emerald-100">
                 <span>{result.label || 'Uploaded image'}</span>
                 <div className="flex items-center gap-3">
@@ -144,7 +144,7 @@ export function VisionValidationPanel({
                   </span>
                   <button
                     type="button"
-                    onClick={() => onRemoveResult?.(result.label)}
+                    onClick={() => onRemoveResult?.(result.uploadId || result.label)}
                     className="text-xs text-rose-200/80 hover:text-rose-100"
                   >
                     Remove

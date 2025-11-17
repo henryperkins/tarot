@@ -1,6 +1,16 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { ImagePreview } from './ImagePreview';
 
+const hasUuidSupport = typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function';
+
+const createCaptureId = () => {
+  if (hasUuidSupport) {
+    return crypto.randomUUID();
+  }
+  const random = Math.random().toString(36).slice(2, 8);
+  return `capture-${Date.now()}-${random}`;
+};
+
 export function CameraCapture({ onCapture, onCancel }) {
   const videoRef = useRef(null);
   const [stream, setStream] = useState(null);
@@ -45,6 +55,9 @@ export function CameraCapture({ onCapture, onCancel }) {
     
     canvas.toBlob(blob => {
       const file = new File([blob], 'capture.jpg', { type: 'image/jpeg' });
+      const captureId = createCaptureId();
+      file.__visionUploadId = captureId;
+      file.__visionLabel = `Camera capture ${new Date().toISOString()}`;
       setCapturedImage(file);
     }, 'image/jpeg');
   };

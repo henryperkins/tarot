@@ -6,7 +6,7 @@
  */
 import path from 'node:path';
 
-import { TarotVisionPipeline } from '../../shared/vision/tarotVisionPipeline.js';
+import { createVisionBackend } from '../../shared/vision/visionBackends.js';
 
 function parseArgs(rawArgs) {
   const args = [];
@@ -53,14 +53,16 @@ async function main() {
     return { source: resolved, label: relativePath };
   });
 
-  const vision = new TarotVisionPipeline({
+  const backend = createVisionBackend({
+    backendId: 'clip-default',
     cardScope: options.scope,
     maxResults: options.maxResults,
     deckStyle: options.deckStyle
   });
 
   console.log('Downloading CLIP model (if not cached) and building card embeddings...');
-  const analyses = await vision.analyzeImages(imageInputs);
+  await backend.warmup();
+  const analyses = await backend.analyzeImages(imageInputs);
 
   analyses.forEach((result) => {
     console.log('\nImage:', result.label || result.imagePath);
