@@ -223,10 +223,33 @@ export function useJournal() {
         return { success: true, migrated: 0 };
       }
 
-      // Upload each entry to the API
+      // Fetch existing cloud entries to check for duplicates
+      const existingResponse = await fetch('/api/journal', {
+        credentials: 'include'
+      });
+
+      const existingSeeds = new Set();
+      if (existingResponse.ok) {
+        const { entries: cloudEntries } = await existingResponse.json();
+        // Build set of existing session_seeds for deduplication
+        cloudEntries.forEach(entry => {
+          if (entry.sessionSeed) {
+            existingSeeds.add(entry.sessionSeed);
+          }
+        });
+      }
+
+      // Upload each entry to the API, skipping duplicates
       let migrated = 0;
+      let skipped = 0;
       for (const entry of localEntries) {
         try {
+          // Skip if this entry already exists (check by session_seed)
+          if (entry.sessionSeed && existingSeeds.has(entry.sessionSeed)) {
+            skipped++;
+            continue;
+          }
+
           const response = await fetch('/api/journal', {
             method: 'POST',
             headers: {
@@ -238,6 +261,10 @@ export function useJournal() {
 
           if (response.ok) {
             migrated++;
+            // Add to set to prevent duplicate uploads in this batch
+            if (entry.sessionSeed) {
+              existingSeeds.add(entry.sessionSeed);
+            }
           }
         } catch (err) {
           console.error('Failed to migrate entry:', err);
@@ -252,7 +279,11 @@ export function useJournal() {
       // Reload entries from API
       await loadEntries();
 
-      return { success: true, migrated };
+      return {
+        success: true,
+        migrated,
+        skipped
+      };
     } catch (err) {
       console.error('Migration failed:', err);
       return { success: false, error: err.message };

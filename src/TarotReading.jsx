@@ -492,6 +492,13 @@ export default function TarotReading() {
     if (typeof localStorage !== 'undefined') {
       localStorage.setItem('tarot-theme', theme);
     }
+    if (typeof window !== 'undefined' && typeof window.dispatchEvent === 'function') {
+      try {
+        window.dispatchEvent(new CustomEvent('tarot-theme-change', { detail: { theme } }));
+      } catch (error) {
+        console.debug('Unable to broadcast theme change', error);
+      }
+    }
   }, [theme]);
 
   // Check API health on mount

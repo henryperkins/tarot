@@ -156,11 +156,11 @@ export function loadCoachRecommendation() {
   }
 }
 
-export function exportJournalEntriesToCsv(entries, filename = 'tarot-journal.csv', scopeOverride) {
+export function exportJournalEntriesToCsv(entries, filename = 'tarot-journal.csv') {
   if (typeof document === 'undefined') return false;
   const csv = buildCsv(entries);
   if (!csv) return false;
-  registerShareToken(entries, scopeOverride || (filename.includes('entry') ? 'entry' : 'journal'));
+  // CSV export is local-only; no share token needed
   const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
