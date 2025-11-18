@@ -349,6 +349,9 @@ export async function speakText({ text, enabled, context = 'default', voice = 'v
 
     // Play the audio
     const audio = new Audio(audioDataUri);
+    // Important: set volume based on ambience setting or default
+    audio.volume = 1.0;
+
     if (objectUrlForCleanup) {
       audioObjectUrlMap.set(audio, objectUrlForCleanup);
     }

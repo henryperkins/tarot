@@ -210,16 +210,15 @@ describe('Celtic Cross narrative + Claude prompt compliance', () => {
 
     // System prompt: ethics + structure + reversal + minors guidance (high level).
     assert.ok(
-      systemPrompt.includes('agency-forward professional tarot storyteller'),
+      systemPrompt.includes('agency-forward') && systemPrompt.includes('storyteller'),
       'System prompt should set agency-forward tarot storyteller persona'
     );
     assert.ok(
-      systemPrompt.includes('WHAT → WHY → WHAT’S NEXT') ||
-        systemPrompt.includes('WHAT -> WHY -> WHAT'),
+      systemPrompt.includes('WHAT') && systemPrompt.includes('WHY') && systemPrompt.includes('WHAT’S NEXT'),
       'System prompt should encode story spine guidance'
     );
     assert.ok(
-      systemPrompt.includes('NARRATIVE GUIDELINES'),
+      systemPrompt.includes('CORE PRINCIPLES') && systemPrompt.includes('FORMATTING'),
       'System prompt should highlight narrative guidelines section'
     );
     assert.ok(

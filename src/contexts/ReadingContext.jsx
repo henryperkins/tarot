@@ -1,0 +1,382 @@
+import React, { createContext, useContext, useState, useCallback, useMemo } from 'react';
+import { useTarotState } from '../hooks/useTarotState';
+import { useVisionAnalysis } from '../hooks/useVisionAnalysis';
+import { useAudioController } from '../hooks/useAudioController';
+import { usePreferences } from './PreferencesContext';
+import { SPREADS } from '../data/spreads';
+import { MAJOR_ARCANA } from '../data/majorArcana';
+import { MINOR_ARCANA } from '../data/minorArcana';
+import { formatReading } from '../lib/formatting';
+import { canonicalCardKey, canonicalizeCardName } from '../../shared/vision/cardNameMapping.js';
+import { computeRelationships } from '../lib/deck';
+
+const ReadingContext = createContext(null);
+
+export function ReadingProvider({ children }) {
+    // 1. Audio Controller
+    const audioController = useAudioController();
+    const { speak } = audioController;
+
+    // 2. Core Tarot State
+    const tarotState = useTarotState(speak);
+    const { reading, selectedSpread, userQuestion, revealedCards, shuffle } = tarotState;
+    const { deckStyleId, includeMinors, reversalFramework } = usePreferences();
+
+    // 3. Vision Analysis
+    const visionAnalysis = useVisionAnalysis(reading);
+    const { visionResults, visionConflicts, resetVisionProof, ensureVisionProof, getVisionConflictsForCards, setVisionConflicts } = visionAnalysis;
+
+    // 4. Reading Generation State
+    const [personalReading, setPersonalReading] = useState(null);
+    const [isGenerating, setIsGenerating] = useState(false);
+    const [analyzingText, setAnalyzingText] = useState('');
+    const [spreadAnalysis, setSpreadAnalysis] = useState(null);
+    const [themes, setThemes] = useState(null);
+    const [analysisContext, setAnalysisContext] = useState(null);
+    const [readingMeta, setReadingMeta] = useState({
+        requestId: null,
+        provider: null,
+        spreadKey: null,
+        spreadName: null,
+        deckStyle: null,
+        userQuestion: null,
+        graphContext: null
+    });
+
+    // 5. UI State
+    const [journalStatus, setJournalStatus] = useState(null);
+    const [reflections, setReflections] = useState({});
+    const [lastCardsForFeedback, setLastCardsForFeedback] = useState([]);
+    const [showAllHighlights, setShowAllHighlights] = useState(false);
+
+    const visionResearchEnabled = import.meta.env?.VITE_ENABLE_VISION_RESEARCH === 'true';
+
+    // Reset analysis state when Shuffle is triggered
+    const handleShuffle = useCallback(() => {
+        shuffle(() => {
+            setPersonalReading(null);
+            setThemes(null);
+            setSpreadAnalysis(null);
+            setAnalysisContext(null);
+            setAnalyzingText('');
+            setIsGenerating(false);
+            setJournalStatus(null);
+            setReflections({});
+            visionAnalysis.setVisionResults([]);
+            visionAnalysis.setVisionConflicts([]);
+            visionAnalysis.resetVisionProof();
+            setShowAllHighlights(false);
+        });
+    }, [shuffle, visionAnalysis]);
+
+    // Generate Personal Reading Logic
+    const generatePersonalReading = async () => {
+        if (!reading || reading.length === 0) {
+            const errorMsg = 'Please draw your cards before requesting a personalized reading.';
+            const formattedError = formatReading(errorMsg);
+            formattedError.isError = true;
+            setPersonalReading(formattedError);
+            setJournalStatus({
+                type: 'error',
+                message: 'Draw and reveal your cards before requesting a personalized narrative.'
+            });
+            return;
+        }
+        if (isGenerating) return;
+
+        setIsGenerating(true);
+        setAnalyzingText('');
+        setPersonalReading(null);
+        setJournalStatus(null);
+        setReadingMeta((prev) => ({ ...prev, requestId: null }));
+        setLastCardsForFeedback([]);
+
+        try {
+            const spreadInfo = SPREADS[selectedSpread];
+            const allCards = [...MAJOR_ARCANA, ...MINOR_ARCANA];
+
+            const cardsInfo = reading.map((card, idx) => {
+                const originalCard = allCards.find(item => item.name === card.name) || card;
+                const meaningText = card.isReversed ? originalCard.reversed : originalCard.upright;
+                const position = spreadInfo.positions[idx] || `Position ${idx + 1}`;
+
+                const suit = originalCard.suit || null;
+                const rank = originalCard.rank || null;
+                const rankValue =
+                    typeof originalCard.rankValue === 'number' ? originalCard.rankValue : null;
+                const canonicalName = canonicalizeCardName(originalCard.name, deckStyleId) || originalCard.name;
+                const canonicalKey = canonicalCardKey(canonicalName || originalCard.name, deckStyleId);
+
+                return {
+                    position,
+                    card: card.name,
+                    canonicalName,
+                    canonicalKey,
+                    aliases: Array.isArray(originalCard.aliases) ? originalCard.aliases : [],
+                    orientation: card.isReversed ? 'Reversed' : 'Upright',
+                    meaning: meaningText,
+                    number: card.number,
+                    suit,
+                    rank,
+                    rankValue
+                };
+            });
+
+            const reflectionsText = Object.entries(reflections)
+                .sort((a, b) => Number(a[0]) - Number(b[0]))
+                .map(([index, text]) => {
+                    if (typeof text !== 'string' || !text.trim()) return '';
+                    const idx = Number(index);
+                    const position = cardsInfo[idx]?.position || `Position ${idx + 1}`;
+                    return `${position}: ${text.trim()}`;
+                })
+                .filter(Boolean)
+                .join('\n');
+
+            const cardNames = cardsInfo.map(card => card.card).join(', ');
+            setAnalyzingText(`Analyzing: ${cardNames}...\n\nWeaving your personalized reflection from this spread...`);
+
+            const shouldAttachVisionProof = visionResearchEnabled && visionResults.length > 0;
+            if (shouldAttachVisionProof) {
+                const conflicts = getVisionConflictsForCards(cardsInfo, visionResults, deckStyleId);
+                setVisionConflicts(conflicts);
+                if (conflicts.length > 0) {
+                    setJournalStatus({
+                        type: 'info',
+                        message: 'Research Telemetry: Vision model detected a mismatch between uploaded image and digital card.'
+                    });
+                }
+            } else if (visionConflicts.length > 0) {
+                setVisionConflicts([]);
+            }
+
+            let proof = null;
+            if (shouldAttachVisionProof) {
+                try {
+                    setAnalyzingText((prev) => `${prev}\nValidating your card photos for research telemetry...`);
+                    proof = await ensureVisionProof();
+                } catch (proofError) {
+                    setJournalStatus({
+                        type: 'warning',
+                        message: proofError.message || 'Vision verification failed. Skipping research telemetry for this reading.'
+                    });
+                }
+            }
+
+            const requestPayload = {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: null
+            };
+
+            const payload = {
+                spreadInfo: { name: spreadInfo.name },
+                cardsInfo,
+                userQuestion,
+                reflectionsText,
+                reversalFrameworkOverride: reversalFramework,
+                deckStyle: deckStyleId
+            };
+            if (proof) {
+                payload.visionProof = proof;
+            }
+            requestPayload.body = JSON.stringify(payload);
+
+            const response = await fetch('/api/tarot-reading', requestPayload);
+
+            if (!response.ok) {
+                const errText = await response.text();
+                console.error('Tarot reading API error:', response.status, errText);
+                throw new Error('Failed to generate reading');
+            }
+
+            const data = await response.json();
+            if (!data?.reading || !data.reading.trim()) {
+                throw new Error('Empty reading returned');
+            }
+
+            setThemes(data.themes || null);
+            setSpreadAnalysis(data.spreadAnalysis || null);
+            setAnalysisContext(data.context || null);
+
+            const formatted = formatReading(data.reading.trim());
+            formatted.isError = false;
+            setPersonalReading(formatted);
+            setLastCardsForFeedback(
+                cardsInfo.map((card) => ({
+                    position: card.position,
+                    card: card.card,
+                    orientation: card.orientation
+                }))
+            );
+            setReadingMeta({
+                requestId: data.requestId || null,
+                provider: data.provider || 'local',
+                spreadKey: selectedSpread,
+                spreadName: spreadInfo.name,
+                deckStyle: deckStyleId,
+                userQuestion,
+                graphContext: data.themes?.knowledgeGraph || null
+            });
+        } catch (error) {
+            console.error('generatePersonalReading error:', error);
+            const errorMsg = 'Unable to generate reading at this time. Please try again in a moment.';
+            const formattedError = formatReading(errorMsg);
+            formattedError.isError = true;
+            setPersonalReading(formattedError);
+            setJournalStatus({
+                type: 'error',
+                message: 'Unable to generate your narrative right now. Please try again shortly.'
+            });
+        } finally {
+            setIsGenerating(false);
+            setAnalyzingText('');
+        }
+    };
+
+    // --- Logic: Analysis Highlights ---
+
+    // Local fallback relationships
+    const relationships = useMemo(() => {
+        if (!reading || !reading.length) return [];
+        if (spreadAnalysis && Array.isArray(spreadAnalysis.relationships)) {
+            return []; // Server analysis takes precedence
+        }
+        return computeRelationships(reading || []);
+    }, [reading, spreadAnalysis]);
+
+    // Highlights Memoization
+    const derivedHighlights = useMemo(() => {
+        if (!reading || revealedCards.size !== (reading?.length || 0)) return null;
+        if (spreadAnalysis && Array.isArray(spreadAnalysis.relationships)) {
+            const notes = [];
+            if (themes) {
+                const deckScope = includeMinors
+                    ? 'Full deck (Major + Minor Arcana).'
+                    : 'Major Arcana focus (archetypal themes).';
+                notes.push({ key: 'deck-scope', icon: '-', title: 'Deck scope:', text: deckScope });
+                if (themes.dominantSuit || themes.suitFocus) {
+                    notes.push({ key: 'suit-dominance', icon: '♠', title: 'Suit Dominance:', text: themes.suitFocus || `A strong presence of ${themes.dominantSuit} suggests this suit's themes are central to your situation.` });
+                }
+                if (themes.elementalBalance) {
+                    notes.push({ key: 'elemental-balance', icon: '⚡', title: 'Elemental Balance:', text: themes.elementalBalance });
+                }
+                if (themes.reversalDescription) {
+                    notes.push({ key: 'reversal-framework', icon: '⤴', title: 'Reversal Lens:', text: `${themes.reversalDescription.name} — ${themes.reversalDescription.description}` });
+                }
+            }
+            spreadAnalysis.relationships.forEach((rel, index) => {
+                if (!rel || !rel.summary) return;
+                let title = 'Pattern';
+                let icon = '•';
+                const typeMap = {
+                    'sequence': { title: 'Story Flow', icon: '→' },
+                    'elemental-run': { title: 'Elemental Pattern', icon: '⚡' },
+                    'elemental': { title: 'Elemental Pattern', icon: '⚡' },
+                    'axis': { title: rel.axis || 'Axis Insight', icon: '⇄' },
+                    'nucleus': { title: 'Heart of the Matter', icon: '★' },
+                    'timeline': { title: 'Timeline', icon: '⏱' },
+                    'consciousness-axis': { title: 'Conscious ↔ Subconscious', icon: '☯' },
+                    'staff-axis': { title: 'Advice ↔ Outcome', icon: '⚖' },
+                    'cross-check': { title: 'Cross-Check', icon: '✦' }
+                };
+                if (typeMap[rel.type]) {
+                    title = typeMap[rel.type].title;
+                    icon = typeMap[rel.type].icon;
+                }
+                notes.push({ key: `rel-${index}-${rel.type || 'rel'}`, icon, title, text: rel.summary });
+            });
+            if (Array.isArray(spreadAnalysis.positionNotes)) {
+                spreadAnalysis.positionNotes.forEach((pos, idx) => {
+                    if (!pos || !pos.notes || pos.notes.length === 0) return;
+                    notes.push({ key: `pos-${idx}`, icon: '□', title: `Position ${pos.index + 1} – ${pos.label}:`, text: pos.notes.join(' ') });
+                });
+            }
+            return notes;
+        }
+        return null;
+    }, [reading, revealedCards, spreadAnalysis, themes, includeMinors]);
+
+    const fallbackHighlights = useMemo(() => {
+        const totalCards = reading?.length ?? 0;
+        if (!reading || totalCards === 0 || revealedCards.size !== totalCards) {
+            return [];
+        }
+        const items = [];
+        items.push({
+            key: 'deck-scope',
+            icon: '-',
+            title: 'Deck scope:',
+            text: includeMinors ? 'Full deck (Major + Minor Arcana).' : 'Major Arcana focus (archetypal themes).'
+        });
+        const reversedIdx = reading.map((card, index) => (card.isReversed ? index : -1)).filter(index => index >= 0);
+        if (reversedIdx.length > 0) {
+            const spreadInfo = SPREADS[selectedSpread];
+            const positions = reversedIdx.map(index => spreadInfo.positions[index] || `Card ${index + 1}`).join(', ');
+            const hasCluster = reversedIdx.some((idx, j) => j > 0 && idx === reversedIdx[j - 1] + 1);
+            let text = `${positions}. These often point to inner processing, timing delays, or tension in the theme.`;
+            if (hasCluster) text += ' Consecutive reversals suggest the theme persists across positions.';
+            items.push({ key: 'reversal-summary', icon: '⤴', title: `Reversed cards (${reversedIdx.length}):`, text });
+        }
+        const relationshipMeta = {
+            sequence: { icon: '→', title: 'Sequence:' },
+            'reversal-heavy': { icon: '⚠', title: 'Reversal Pattern:' },
+            'reversal-moderate': { icon: '•', title: 'Reversal Pattern:' },
+            'reversed-court-cluster': { icon: '👑', title: 'Court Dynamics:' },
+            'consecutive-reversals': { icon: '↔', title: 'Pattern Flow:' },
+            'suit-dominance': { icon: '♠', title: 'Suit Dominance:' },
+            'suit-run': { icon: '→', title: 'Suit Run:' },
+            'court-cluster': { icon: '👥', title: 'Court Cards:' },
+            'court-pair': { icon: '👥', title: 'Court Cards:' },
+            'court-suit-focus': { icon: '👥', title: 'Court Cards:' },
+            pairing: { icon: '>', title: 'Card Connection:' },
+            arc: { icon: '>', title: 'Card Connection:' }
+        };
+        relationships.forEach((relationship, index) => {
+            if (!relationship?.text) return;
+            const meta = relationshipMeta[relationship.type] || { icon: '✦', title: 'Pattern:' };
+            items.push({ key: `relationship-${relationship.type || 'pattern'}-${index}`, icon: meta.icon, title: meta.title, text: relationship.text });
+        });
+        return items;
+    }, [reading, revealedCards, includeMinors, selectedSpread, relationships]);
+
+    const highlightItems = useMemo(() => {
+        if (Array.isArray(derivedHighlights) && derivedHighlights.length > 0) return derivedHighlights;
+        if (Array.isArray(fallbackHighlights) && fallbackHighlights.length > 0) return fallbackHighlights;
+        return [];
+    }, [derivedHighlights, fallbackHighlights]);
+
+    const value = {
+        ...audioController,
+        ...tarotState,
+        ...visionAnalysis,
+        shuffle: handleShuffle,
+        personalReading, setPersonalReading,
+        isGenerating, setIsGenerating,
+        analyzingText, setAnalyzingText,
+        spreadAnalysis, setSpreadAnalysis,
+        themes, setThemes,
+        analysisContext, setAnalysisContext,
+        readingMeta, setReadingMeta,
+        journalStatus, setJournalStatus,
+        reflections, setReflections,
+        lastCardsForFeedback, setLastCardsForFeedback,
+        showAllHighlights, setShowAllHighlights,
+        generatePersonalReading,
+        highlightItems
+    };
+
+    return (
+        <ReadingContext.Provider value={value}>
+            {children}
+        </ReadingContext.Provider>
+    );
+}
+
+export function useReading() {
+    const context = useContext(ReadingContext);
+    if (!context) {
+        throw new Error('useReading must be used within a ReadingProvider');
+    }
+    return context;
+}
