@@ -88,6 +88,7 @@ export const JournalInsightsPanel = React.memo(function JournalInsightsPanel({
     const frequentCards = primaryStats.frequentCards || [];
     const contextBreakdown = primaryStats.contextBreakdown || [];
     const monthlyCadence = primaryStats.monthlyCadence || [];
+    const recentThemes = primaryStats.recentThemes || [];
     const isFilteredView = Boolean(filtersActive && stats);
 
     const [actionMessage, setActionMessage] = useState('');
@@ -201,6 +202,8 @@ export const JournalInsightsPanel = React.memo(function JournalInsightsPanel({
     const topContext = contextBreakdown.slice().sort((a, b) => b.count - a.count)[0];
     const contextSuggestion = topContext && CONTEXT_TO_SPREAD[topContext.name];
     const topCard = frequentCards[0];
+    const topTheme = recentThemes[0];
+
     const coachRecommendation = useMemo(() => {
         if (contextSuggestion) {
             return {
@@ -211,6 +214,18 @@ export const JournalInsightsPanel = React.memo(function JournalInsightsPanel({
                 timeframeValue: 'week',
                 depthValue: 'guided',
                 source: topContext?.name ? `context:${topContext.name}` : 'context'
+            };
+        }
+        if (topTheme) {
+            return {
+                question: `How can I explore the theme of ${topTheme} more deeply?`,
+                spreadName: 'Three-Card Story',
+                spreadKey: 'threeCard',
+                topicValue: 'growth',
+                timeframeValue: 'month',
+                depthValue: 'guided',
+                source: `theme:${topTheme}`,
+                customFocus: topTheme
             };
         }
         if (topCard) {
@@ -226,7 +241,7 @@ export const JournalInsightsPanel = React.memo(function JournalInsightsPanel({
             };
         }
         return null;
-    }, [contextSuggestion, topCard, topContext]);
+    }, [contextSuggestion, topCard, topContext, topTheme]);
 
     const prevCoachRecRef = React.useRef(null);
     useEffect(() => {
@@ -515,8 +530,25 @@ export const JournalInsightsPanel = React.memo(function JournalInsightsPanel({
                     </div>
                 )}
 
+                {/* Recent Themes */}
+                {recentThemes.length > 0 && (
+                    <div className="rounded-3xl border border-emerald-400/20 bg-slate-950/40 p-5">
+                        <h3 className="mb-4 flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-amber-400/80">
+                            <Sparkles className="h-3 w-3" /> Recent Themes
+                        </h3>
+                        <ul className="space-y-2">
+                            {recentThemes.slice(0, 5).map((theme, idx) => (
+                                <li key={idx} className="flex items-center gap-2 text-sm text-amber-100/80">
+                                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-400/40" />
+                                    <span>{theme}</span>
+                                </li>
+                            ))}
+                        </ul>
+                    </div>
+                )}
+
                 {/* Next Steps / Coach */}
-                {(contextSuggestion || topCard) && (
+                {(contextSuggestion || topTheme || topCard) && (
                     <div className="rounded-3xl border border-emerald-400/20 bg-emerald-900/10 p-5">
                         <h3 className="mb-4 flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-emerald-300">
                             <Sparkles className="h-3 w-3" /> Suggested Focus
@@ -525,7 +557,9 @@ export const JournalInsightsPanel = React.memo(function JournalInsightsPanel({
                             {contextSuggestion?.spread || 'Three-Card Story'}
                         </p>
                         <p className="mt-2 text-sm text-emerald-100/70">
-                            {contextSuggestion?.question || (topCard ? `Explore ${topCard.name}'s lessons` : 'Reflect on your journey')}
+                            {contextSuggestion?.question ||
+                                (topTheme ? `Explore the theme of ${topTheme}` :
+                                    (topCard ? `Explore ${topCard.name}'s lessons` : 'Reflect on your journey'))}
                         </p>
                         {coachRecommendation && (
                             <button
