@@ -78,7 +78,7 @@ async function main() {
     return;
   }
 
-  const backend = createVisionBackend({
+  const backend = await createVisionBackend({
     backendId: 'clip-default',
     cardScope: options.scope,
     deckStyle: options.deckStyle,

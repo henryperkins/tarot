@@ -118,7 +118,7 @@ async function getVisionBackend(deckStyle) {
     return visionBackendCache.get(deckStyle);
   }
   const backendPromise = (async () => {
-    const backend = createVisionBackend({
+    const backend = await createVisionBackend({
       backendId: 'clip-default',
       cardScope: 'all',
       deckStyle,

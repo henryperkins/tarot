@@ -3,11 +3,12 @@ import { useAuth } from '../contexts/AuthContext';
 import { persistJournalInsights } from '../lib/journalInsights';
 
 const LOCALSTORAGE_KEY = 'tarot_journal';
+const CACHE_KEY = 'tarot_journal_cache';
 
 /**
  * Journal hook with automatic API/localStorage routing
  *
- * - If user is authenticated: saves to D1 database via API
+ * - If user is authenticated: saves to D1 database via API (with local caching)
  * - If user is not authenticated: saves to localStorage
  *
  * This provides backward compatibility while enabling cloud sync for auth users
@@ -32,20 +33,41 @@ export function useJournal({ autoLoad = true } = {}) {
 
     try {
       if (isAuthenticated) {
-        // Load from API
-        const response = await fetch('/api/journal', {
-          credentials: 'include'
-        });
+        // Try loading from API first
+        try {
+          const response = await fetch('/api/journal', {
+            credentials: 'include'
+          });
 
-        if (!response.ok) {
-          throw new Error('Failed to load journal entries');
-        }
+          if (!response.ok) {
+            throw new Error('Failed to load journal entries');
+          }
 
-        const data = await response.json();
-        const apiEntries = data.entries || [];
-        setEntries(apiEntries);
-        if (typeof window !== 'undefined') {
-          persistJournalInsights(apiEntries);
+          const data = await response.json();
+          const apiEntries = data.entries || [];
+          setEntries(apiEntries);
+
+          // Update cache
+          if (typeof localStorage !== 'undefined') {
+            localStorage.setItem(CACHE_KEY, JSON.stringify(apiEntries));
+            persistJournalInsights(apiEntries);
+          }
+        } catch (apiError) {
+          console.warn('API load failed, falling back to cache:', apiError);
+          // Fallback to cache
+          if (typeof localStorage !== 'undefined') {
+            const cached = localStorage.getItem(CACHE_KEY);
+            if (cached) {
+              const parsedCache = JSON.parse(cached);
+              setEntries(parsedCache);
+              persistJournalInsights(parsedCache);
+              // Don't set error if we have cache, just warn
+            } else {
+              throw apiError;
+            }
+          } else {
+            throw apiError;
+          }
         }
       } else {
         // Load from localStorage
@@ -119,6 +141,7 @@ export function useJournal({ autoLoad = true } = {}) {
           const next = [newEntry, ...prev];
           if (typeof window !== 'undefined') {
             persistJournalInsights(next);
+            localStorage.setItem(CACHE_KEY, JSON.stringify(next));
           }
           return next;
         });
@@ -178,6 +201,7 @@ export function useJournal({ autoLoad = true } = {}) {
           const next = prev.filter(e => e.id !== entryId);
           if (typeof window !== 'undefined') {
             persistJournalInsights(next);
+            localStorage.setItem(CACHE_KEY, JSON.stringify(next));
           }
           return next;
         });

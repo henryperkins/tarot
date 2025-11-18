@@ -1,5 +1,15 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowLeft, ArrowRight, Sparkles, X } from 'lucide-react';
+import {
+  Activity,
+  ArrowLeft,
+  ArrowRight,
+  BookmarkPlus,
+  History,
+  RefreshCw,
+  Sparkles,
+  Wand2,
+  X
+} from 'lucide-react';
 import {
   INTENTION_TOPIC_OPTIONS,
   INTENTION_TIMEFRAME_OPTIONS,
@@ -191,6 +201,7 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply 
   const [questionHistory, setQuestionHistory] = useState([]);
   const [coachStats, setCoachStats] = useState(null);
   const [personalizedSuggestions, setPersonalizedSuggestions] = useState([]);
+  const [isTemplatePanelOpen, setTemplatePanelOpen] = useState(false);
   const modalRef = React.useRef(null);
   const titleId = React.useId();
   const questionRequestRef = useRef(0);
@@ -381,6 +392,7 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply 
     if (!isOpen) {
       setTemplateStatus('');
       setNewTemplateLabel('');
+      setTemplatePanelOpen(false);
     }
   }, [isOpen]);
 
@@ -460,6 +472,32 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply 
 
   const summary = getCoachSummary({ topic, timeframe, depth });
 
+  const questionContextChips = useMemo(() => {
+    const chips = [];
+    if (summary.topicLabel) {
+      chips.push(`Topic: ${summary.topicLabel}`);
+    }
+    if (summary.timeframeLabel) {
+      chips.push(`Timing: ${summary.timeframeLabel}`);
+    }
+    if (summary.depthLabel) {
+      chips.push(`Depth: ${summary.depthLabel}`);
+    }
+    if (customFocus?.trim()) {
+      chips.push(`Detail: ${customFocus.trim()}`);
+    }
+    return chips;
+  }, [summary.topicLabel, summary.timeframeLabel, summary.depthLabel, customFocus]);
+
+  const qualityHelperText = useMemo(() => {
+    if (questionQuality.score >= 85) return 'Ready to anchor into your spread.';
+    if (questionQuality.score >= 65) return 'Add one more detail for extra clarity.';
+    if (questionQuality.score >= 40) return 'Sharpen the focus to strengthen it.';
+    return 'Try reframing it from a curious, open-ended angle.';
+  }, [questionQuality.score]);
+
+  const normalizedQualityScore = Math.min(Math.max(questionQuality.score, 0), 100);
+
   const canGoNext = () => {
     if (step === 0) return Boolean(topic);
     if (step === 1) return Boolean(timeframe);
@@ -503,7 +541,7 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply 
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur"
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 backdrop-blur"
       onClick={(e) => {
         // Close on backdrop click (not on modal content click)
         if (e.target === e.currentTarget) {
@@ -517,18 +555,20 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply 
         aria-modal="true"
         aria-labelledby={titleId}
         tabIndex={-1}
-        className="relative w-full h-full sm:h-auto sm:max-w-3xl sm:mx-4 sm:rounded-3xl border-0 sm:border border-emerald-400/40 bg-slate-950 shadow-2xl focus:outline-none overflow-y-auto sm:overflow-visible"
+        className="relative w-full h-full sm:h-auto sm:max-w-3xl sm:mx-4 sm:rounded-3xl border-0 sm:border border-emerald-400/40 bg-slate-950 shadow-2xl focus:outline-none flex flex-col sm:block"
       >
         <button
           type="button"
           onClick={onClose}
-          className="absolute right-4 top-4 text-amber-200/80 hover:text-amber-50"
+          className="absolute right-4 top-4 text-amber-200/80 hover:text-amber-50 z-10"
           aria-label="Close intention coach"
         >
           <X className="h-5 w-5" />
         </button>
 
-        <div className="flex flex-col gap-6 px-4 pb-safe pt-16 sm:pt-8 sm:px-10 sm:pb-6">
+        {/* Scrollable content area */}
+        <div className="flex-1 overflow-y-auto sm:overflow-visible">
+          <div className="flex flex-col gap-6 px-4 pb-6 pt-16 sm:pt-8 sm:px-10 sm:pb-6">
           <div>
             <div className="flex items-center gap-2 text-emerald-200">
               <Sparkles className="h-4 w-4" />
@@ -543,7 +583,7 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply 
 
           <div className="flex flex-col gap-3">
             {/* Step Progress Indicator */}
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-widest text-amber-200/70 flex-wrap">
                 {STEPS.map((entry, index) => (
                   <React.Fragment key={entry.id}>
@@ -563,8 +603,18 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply 
                   </React.Fragment>
                 ))}
               </div>
-              <div className="text-xs text-emerald-200 font-medium">
-                Step {step + 1} of {STEPS.length}
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
+                <p className="text-xs text-emerald-200 font-medium">
+                  Step {step + 1} of {STEPS.length}
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setTemplatePanelOpen(true)}
+                  className="inline-flex items-center justify-center gap-1 rounded-full border border-emerald-400/40 px-3 py-1.5 text-[0.65rem] uppercase tracking-[0.2em] text-emerald-100 hover:bg-emerald-500/10 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/60"
+                >
+                  <BookmarkPlus className="h-3.5 w-3.5 text-emerald-300" aria-hidden="true" />
+                  Templates
+                </button>
               </div>
             </div>
 
@@ -669,78 +719,115 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply 
                     />
                   </div>
 
-                  <div className="rounded-2xl border border-emerald-400/40 bg-emerald-500/5 p-4 space-y-3">
-                    <div className="flex flex-wrap items-center justify-between gap-3">
-                      <p className="text-xs uppercase tracking-[0.3em] text-emerald-200">Suggested question</p>
-                      <label className="flex items-center gap-2 text-[0.7rem] text-emerald-100 cursor-pointer select-none">
-                        <input
-                          type="checkbox"
-                          className="h-4 w-4 rounded border-emerald-400/60 bg-transparent text-emerald-400 focus:ring-emerald-400"
-                          checked={useCreative}
-                          onChange={event => {
-                            releasePrefill();
-                            setUseCreative(event.target.checked);
+                  <div className="rounded-2xl border border-emerald-400/40 bg-emerald-500/5 p-4 space-y-4">
+                    <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
+                      <div>
+                        <p className="flex items-center gap-2 text-xs uppercase tracking-[0.3em] text-emerald-200">
+                          <Sparkles className="h-3.5 w-3.5 text-emerald-300" aria-hidden="true" />
+                          Question blueprint
+                        </p>
+                        <p className="text-xs text-emerald-100/80">
+                          Adjust the topic, timing, or depth and we’ll re-weave the wording automatically.
+                        </p>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <label className="inline-flex items-center gap-2 rounded-full border border-emerald-400/40 bg-slate-950/50 px-3 py-1.5 text-[0.7rem] text-emerald-100 cursor-pointer select-none">
+                          <input
+                            type="checkbox"
+                            className="h-4 w-4 rounded border-emerald-400/60 bg-transparent text-emerald-400 focus:ring-emerald-400"
+                            checked={useCreative}
+                            onChange={event => {
+                              releasePrefill();
+                              setUseCreative(event.target.checked);
+                              setAutoQuestionEnabled(true);
+                            }}
+                          />
+                          <span className="inline-flex items-center gap-1 font-medium">
+                            <Wand2 className="h-3.5 w-3.5 text-emerald-300" aria-hidden="true" />
+                            Personalize with AI
+                          </span>
+                        </label>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setPrefillSource(null);
                             setAutoQuestionEnabled(true);
+                            setQuestionError('');
                           }}
-                        />
-                        <span>Personalize with AI</span>
-                      </label>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setPrefillSource(null);
-                          setAutoQuestionEnabled(true);
-                          setQuestionError('');
-                        }}
-                        className="rounded-full border border-emerald-300/50 px-3 py-1 text-[0.7rem] text-emerald-100 hover:bg-emerald-500/10"
-                      >
-                        Refresh question
-                      </button>
+                          className="inline-flex items-center gap-1 rounded-full border border-emerald-300/60 bg-transparent px-3 py-1.5 text-[0.7rem] font-semibold text-emerald-100 hover:bg-emerald-500/10 transition"
+                        >
+                          <RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />
+                          Remix
+                        </button>
+                      </div>
                     </div>
                     {prefillSource && (
-                      <p className="text-xs text-emerald-200/70">
-                        Pre-filled from your journal insights.
+                      <p className="text-xs text-emerald-200/80">
+                        <span className="font-semibold text-emerald-100">Auto-filled</span> from your journal insights.
                       </p>
                     )}
                     {questionLoading && (
-                      <p className="text-xs text-amber-200/70">Weaving a personalized prompt…</p>
+                      <p className="text-xs text-amber-200/80 animate-pulse">Weaving a personalized prompt…</p>
                     )}
                     {questionError && (
                       <p className="text-xs text-amber-300/80">{questionError}</p>
                     )}
-                    <p className="font-serif text-lg text-amber-50">
-                      {questionText || guidedQuestion}
-                    </p>
+                    <div className="rounded-2xl border border-emerald-400/30 bg-slate-950/60 p-4 space-y-3">
+                      <div className="flex items-center gap-2 text-[0.65rem] uppercase tracking-[0.3em] text-emerald-200/80">
+                        <Sparkles className="h-4 w-4 text-emerald-300" aria-hidden="true" />
+                        Current draft
+                      </div>
+                      <p className="font-serif text-xl text-amber-50 leading-relaxed">
+                        {questionText || guidedQuestion}
+                      </p>
+                      {questionContextChips.length > 0 && (
+                        <div className="flex flex-wrap gap-2 pt-1">
+                          {questionContextChips.map(chip => (
+                            <span
+                              key={chip}
+                              className="rounded-full border border-emerald-400/40 bg-transparent px-3 py-1 text-[0.65rem] uppercase tracking-[0.2em] text-emerald-100/80"
+                            >
+                              {chip}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
 
                     {/* Question Quality Indicator */}
-                    <div className="flex items-center gap-3 pt-2 border-t border-emerald-400/20">
-                      <div className="flex-1">
-                        <div className="flex items-center justify-between mb-1">
-                          <span className="text-xs text-emerald-200">Question quality</span>
-                          <span className="text-xs font-medium text-emerald-100">
-                            {qualityLevel.emoji} {qualityLevel.label}
-                          </span>
-                        </div>
-                        <div className="h-1.5 bg-slate-800 rounded-full overflow-hidden">
-                          <div
-                            className={`h-full transition-all duration-500 ${
-                              questionQuality.score >= 85
-                                ? 'bg-emerald-500'
-                                : questionQuality.score >= 65
-                                ? 'bg-green-500'
-                                : questionQuality.score >= 40
-                                ? 'bg-amber-500'
-                                : 'bg-orange-500'
-                            }`}
-                            style={{ width: `${questionQuality.score}%` }}
-                          />
-                        </div>
+                    <div className="rounded-2xl border border-emerald-400/30 bg-slate-950/40 p-3 space-y-2">
+                      <div className="flex items-center justify-between text-xs text-emerald-200">
+                        <span className="inline-flex items-center gap-1">
+                          <Activity className="h-4 w-4 text-emerald-300" aria-hidden="true" />
+                          Question quality
+                        </span>
+                        <span className="text-xs font-semibold text-emerald-100">
+                          {qualityLevel.emoji} {qualityLevel.label}
+                        </span>
+                      </div>
+                      <div className="h-2 w-full rounded-full bg-slate-900/80 overflow-hidden">
+                        <div
+                          className={`h-full transition-all duration-500 ${
+                            normalizedQualityScore >= 85
+                              ? 'bg-gradient-to-r from-emerald-400 via-emerald-500 to-emerald-300'
+                              : normalizedQualityScore >= 65
+                              ? 'bg-gradient-to-r from-green-400 via-emerald-400 to-emerald-300'
+                              : normalizedQualityScore >= 40
+                              ? 'bg-gradient-to-r from-amber-400 via-orange-400 to-orange-300'
+                              : 'bg-gradient-to-r from-red-400 via-orange-500 to-amber-300'
+                          }`}
+                          style={{ width: `${normalizedQualityScore}%` }}
+                        />
+                      </div>
+                      <div className="flex flex-col gap-0.5 sm:flex-row sm:items-center sm:justify-between text-[0.7rem] text-emerald-200/80">
+                        <span className="uppercase tracking-[0.2em]">Score {questionQuality.score}/100</span>
+                        <span className="text-emerald-100/80 sm:text-right">{qualityHelperText}</span>
                       </div>
                     </div>
 
                     {/* Quality Feedback */}
                     {questionQuality.feedback.length > 0 && questionQuality.score < 85 && (
-                      <div className="text-xs text-amber-100/70 space-y-1">
+                      <div className="rounded-2xl border border-amber-400/30 bg-amber-500/5 p-3 text-xs text-amber-100/80 space-y-1">
                         {questionQuality.feedback.slice(0, 2).map((tip, i) => (
                           <p key={i} className="flex items-start gap-1">
                             <span className="text-emerald-300 mt-0.5">•</span>
@@ -753,10 +840,9 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply 
                 </div>
               )}
           </div>
-        </div>
 
-        {personalizedSuggestions.length > 0 && (
-          <section className="rounded-3xl border border-emerald-400/30 bg-slate-950/60 p-4 sm:p-5 space-y-3">
+          {personalizedSuggestions.length > 0 && (
+            <section className="rounded-3xl border border-emerald-400/30 bg-slate-950/60 mx-4 sm:mx-10 p-4 sm:p-5 space-y-3">
             <div className="flex items-center justify-between gap-2">
               <p className="text-xs uppercase tracking-[0.3em] text-emerald-200">Personalized suggestions</p>
               <button
@@ -796,100 +882,13 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply 
                 </button>
               ))}
             </div>
-          </section>
-        )}
-
-        <section className="rounded-3xl border border-amber-400/30 bg-slate-950/50 p-4 sm:p-5 space-y-3">
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <p className="text-xs uppercase tracking-[0.3em] text-amber-300/80">Saved templates</p>
-              <p className="text-sm text-amber-100/80">Reuse a favorite setup or save this exact blend.</p>
-            </div>
-            <div className="flex w-full sm:w-auto gap-2">
-              <input
-                type="text"
-                value={newTemplateLabel}
-                onChange={event => setNewTemplateLabel(event.target.value)}
-                placeholder="Template name"
-                className="flex-1 rounded-full border border-slate-700/70 bg-slate-950/70 px-3 py-2 text-sm text-amber-100 focus:outline-none focus:ring-1 focus:ring-emerald-400/60"
-              />
-              <button
-                type="button"
-                onClick={handleSaveTemplate}
-                className="rounded-full border border-emerald-400/60 bg-emerald-500/10 px-4 py-2 text-xs font-semibold text-emerald-100 hover:bg-emerald-500/20 transition"
-              >
-                Save
-              </button>
-            </div>
-          </div>
-          {templateStatus && (
-            <p className="text-xs text-emerald-200/80">{templateStatus}</p>
+            </section>
           )}
-          {templates.length === 0 ? (
-            <p className="text-xs text-amber-100/70">
-              No templates yet. Give your current configuration a name and tap save to keep it handy.
-            </p>
-          ) : (
-            <div className="grid gap-3 md:grid-cols-2">
-              {templates.map(template => (
-                <div
-                  key={template.id}
-                  className="rounded-2xl border border-slate-700/60 bg-slate-950/60 p-3 flex flex-col gap-2"
-                >
-                  <button
-                    type="button"
-                    onClick={() => handleApplyTemplate(template)}
-                    className="text-left"
-                  >
-                    <p className="text-sm font-semibold text-amber-100">{template.label}</p>
-                    <p className="text-xs text-amber-100/70">
-                      {[
-                        getTopicLabel(template.topic),
-                        getTimeframeLabel(template.timeframe),
-                        getDepthLabel(template.depth)
-                      ]
-                        .filter(Boolean)
-                        .join(' · ') || 'Custom mix'}
-                    </p>
-                    {template.customFocus && (
-                      <p className="mt-1 text-xs text-emerald-200/80">{template.customFocus}</p>
-                    )}
-                    {template.savedQuestion && (
-                      <p className="mt-2 text-xs text-amber-100/60">{template.savedQuestion}</p>
-                    )}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleDeleteTemplate(template.id)}
-                    className="self-start text-xs text-red-300 hover:text-red-200 underline decoration-dotted"
-                  >
-                    Remove
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
-        </section>
+        </div>
+        </div>
 
-        {questionHistory.length > 0 && (
-          <section className="rounded-3xl border border-slate-700/60 bg-slate-950/40 p-4 sm:p-5 space-y-2">
-            <p className="text-xs uppercase tracking-[0.3em] text-amber-200/80">Recent questions</p>
-            <div className="space-y-2">
-              {questionHistory.slice(0, 4).map(item => (
-                <button
-                  key={item.id}
-                  type="button"
-                  onClick={() => handleApplyHistoryQuestion(item)}
-                  className="w-full text-left rounded-2xl border border-slate-700/60 bg-slate-900/70 px-4 py-2 text-sm text-amber-100/80 hover:border-emerald-400/50 transition"
-                >
-                  {item.question}
-                </button>
-              ))}
-            </div>
-          </section>
-        )}
-
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sticky bottom-0 sm:static bg-slate-950 sm:bg-transparent pt-4 sm:pt-0 -mx-4 sm:mx-0 px-4 sm:px-0 pb-4 sm:pb-0 border-t sm:border-t-0 border-slate-800/50">
+        {/* Footer - outside scroll area on mobile, inline on desktop */}
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between flex-shrink-0 sm:static bg-slate-950 sm:bg-transparent pt-4 sm:pt-0 px-4 sm:px-10 pb-safe sm:pb-6 border-t sm:border-t-0 border-slate-800/50">
           <div className="text-xs text-amber-100/70 hidden sm:block">
             <p>
               {summary.topicLabel} · {summary.timeframeLabel} · {summary.depthLabel}
@@ -930,6 +929,135 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply 
           </div>
         </div>
       </div>
+      {isTemplatePanelOpen && (
+        <div
+          className="absolute inset-0 z-40 flex items-stretch bg-slate-950/70 backdrop-blur-sm"
+          onClick={() => setTemplatePanelOpen(false)}
+        >
+          <div
+            className="ml-auto h-full w-full sm:w-[26rem] bg-slate-950 border-l border-emerald-400/30 p-5 sm:p-6 overflow-y-auto shadow-[0_0_45px_rgba(0,0,0,0.6)]"
+            onClick={event => event.stopPropagation()}
+          >
+            <div className="flex items-center justify-between gap-2">
+              <div>
+                <p className="flex items-center gap-2 text-xs uppercase tracking-[0.3em] text-emerald-200">
+                  <BookmarkPlus className="h-4 w-4 text-emerald-300" aria-hidden="true" />
+                  Template library
+                </p>
+                <p className="text-sm text-amber-100/70">
+                  Save this configuration or reapply a favorite blend anytime.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setTemplatePanelOpen(false)}
+                className="inline-flex items-center justify-center rounded-full border border-emerald-400/40 p-1 text-emerald-200 hover:bg-emerald-500/10"
+                aria-label="Close template panel"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            <div className="mt-5 space-y-6">
+              <section className="space-y-3">
+                <div className="flex flex-col gap-2">
+                  <p className="text-xs uppercase tracking-[0.3em] text-amber-300/80">Save current setup</p>
+                  <div className="flex flex-col gap-2 sm:flex-row">
+                    <input
+                      type="text"
+                      value={newTemplateLabel}
+                      onChange={event => setNewTemplateLabel(event.target.value)}
+                      placeholder="Template name"
+                      className="flex-1 rounded-full border border-slate-700/70 bg-slate-950/70 px-3 py-2 text-sm text-amber-100 focus:outline-none focus:ring-1 focus:ring-emerald-400/60"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleSaveTemplate}
+                      className="inline-flex items-center justify-center gap-1 rounded-full border border-emerald-400/60 bg-emerald-500/10 px-4 py-2 text-xs font-semibold text-emerald-100 hover:bg-emerald-500/20 transition"
+                    >
+                      <Sparkles className="h-3.5 w-3.5 text-emerald-300" aria-hidden="true" />
+                      Save
+                    </button>
+                  </div>
+                </div>
+                {templateStatus && (
+                  <p className="text-xs text-emerald-200/80">{templateStatus}</p>
+                )}
+              </section>
+
+              <section className="space-y-3">
+                <p className="text-xs uppercase tracking-[0.3em] text-amber-300/80">Saved templates</p>
+                {templates.length === 0 ? (
+                  <p className="text-xs text-amber-100/70">
+                    Nothing saved yet. Create a label above to store this blend for later.
+                  </p>
+                ) : (
+                  <div className="space-y-3">
+                    {templates.map(template => (
+                      <div
+                        key={template.id}
+                        className="rounded-2xl border border-slate-700/60 bg-slate-950/60 p-3 flex flex-col gap-2"
+                      >
+                        <button
+                          type="button"
+                          onClick={() => handleApplyTemplate(template)}
+                          className="text-left"
+                        >
+                          <p className="text-sm font-semibold text-amber-100">{template.label}</p>
+                          <p className="text-xs text-amber-100/70">
+                            {[
+                              getTopicLabel(template.topic),
+                              getTimeframeLabel(template.timeframe),
+                              getDepthLabel(template.depth)
+                            ]
+                              .filter(Boolean)
+                              .join(' · ') || 'Custom mix'}
+                          </p>
+                          {template.customFocus && (
+                            <p className="mt-1 text-xs text-emerald-200/80">{template.customFocus}</p>
+                          )}
+                          {template.savedQuestion && (
+                            <p className="mt-2 text-xs text-amber-100/60">{template.savedQuestion}</p>
+                          )}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteTemplate(template.id)}
+                          className="self-start text-xs text-red-300 hover:text-red-200 underline decoration-dotted"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </section>
+
+              <section className="space-y-3">
+                <p className="flex items-center gap-2 text-xs uppercase tracking-[0.3em] text-amber-200/80">
+                  <History className="h-4 w-4 text-emerald-300" aria-hidden="true" />
+                  Recent questions
+                </p>
+                {questionHistory.length === 0 ? (
+                  <p className="text-xs text-amber-100/70">No recent pulls yet—log a question to see it here.</p>
+                ) : (
+                  <div className="space-y-2">
+                    {questionHistory.slice(0, 6).map(item => (
+                      <button
+                        key={item.id}
+                        type="button"
+                        onClick={() => handleApplyHistoryQuestion(item)}
+                        className="w-full text-left rounded-2xl border border-slate-700/60 bg-slate-900/70 px-4 py-2 text-sm text-amber-100/80 hover:border-emerald-400/50 transition"
+                      >
+                        {item.question}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </section>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

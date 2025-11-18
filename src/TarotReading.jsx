@@ -1135,8 +1135,8 @@ export default function TarotReading() {
         setVisionConflicts(conflicts);
         if (conflicts.length > 0) {
           setJournalStatus({
-            type: 'warning',
-            message: 'Vision validation indicates at least one uploaded card differs from your selected spread. Research telemetry will flag the mismatch, but your reading can continue.'
+            type: 'info',
+            message: 'Research Telemetry: Vision model detected a mismatch between uploaded image and digital card.'
           });
         }
       } else if (visionConflicts.length > 0) {

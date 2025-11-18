@@ -63,9 +63,9 @@ export function VisionValidationPanel({
     <div className="modern-surface border border-amber-400/30 p-4 sm:p-5">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <p className="text-sm text-amber-100 font-semibold">Vision Validation (Optional Research Feature)</p>
+          <p className="text-sm text-amber-100 font-semibold">Vision Research Console</p>
           <p className="text-xs text-amber-200/70">
-            Help improve our AI by uploading photos of your drawn cards. This optional feature helps us train better card recognition models. Your contribution is appreciated but not required.
+            Upload card photos to test the fine-tuned vision model's recognition accuracy and attention mechanisms. This tool compares your uploads against the active deck's embeddings.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2 text-sm font-medium text-emerald-200">

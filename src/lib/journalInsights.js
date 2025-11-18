@@ -50,7 +50,7 @@ export function loadStoredJournalInsights() {
 
 function buildCsv(entries) {
   if (!Array.isArray(entries) || entries.length === 0) return '';
-  const header = ['Timestamp', 'Spread', 'Question', 'Cards', 'Context'];
+  const header = ['Timestamp', 'Spread', 'Question', 'Cards', 'Context', 'Narrative'];
   const rows = entries.map((entry) => {
     const timestamp = entry?.ts ? new Date(entry.ts).toISOString() : '';
     const spread = entry?.spread || entry?.spreadName || '';
@@ -60,7 +60,8 @@ function buildCsv(entries) {
       .join(' | ')
       .replace(/"/g, '""');
     const context = entry?.context || '';
-    return [timestamp, spread, question, cards, context].map(value => `"${value || ''}"`).join(',');
+    const narrative = (entry?.personalReading || '').replace(/"/g, '""');
+    return [timestamp, spread, question, cards, context, narrative].map(value => `"${value || ''}"`).join(',');
   });
   return `${header.join(',')}
 ${rows.join('\n')}`;

@@ -314,6 +314,45 @@ export const DYAD_PASSAGES = {
         tags: ['solitude', 'intuition', 'inner-wisdom', 'silence', 'listening']
       }
     ]
+  },
+
+  '15-6': {  // Devil + Lovers
+    cards: [15, 6],
+    names: ['The Devil', 'The Lovers'],
+    theme: 'Attachment patterns affecting choice',
+    passages: [
+      {
+        source: 'Traditional interpretation',
+        text: 'Devil and Lovers together highlight how shadow bondage influences values-based decisions. Attachments, addictions, or fear of loss can distort freedom of choice, especially in relationships. This pairing asks where you may be choosing from compulsion rather than true values, and invites conscious re-alignment.',
+        tags: ['attachment', 'shadow', 'relationships', 'choice', 'values']
+      }
+    ]
+  },
+
+  '17-20': {  // Star + Judgement
+    cards: [17, 20],
+    names: ['The Star', 'Judgement'],
+    theme: 'Renewed hope calling forth rebirth',
+    passages: [
+      {
+        source: 'Traditional interpretation',
+        text: 'Star and Judgement describe renewed hope calling you into rebirth. The Star restores faith after difficulty; Judgement sounds the call to awaken and respond. Together they suggest that a fresh vision or healing insight is asking you to rise into a higher version of yourself and answer a deeper calling.',
+        tags: ['hope', 'rebirth', 'awakening', 'calling', 'healing']
+      }
+    ]
+  },
+
+  '7-21': {  // Chariot + World
+    cards: [7, 21],
+    names: ['The Chariot', 'The World'],
+    theme: 'Determined action reaching completion',
+    passages: [
+      {
+        source: 'Traditional interpretation',
+        text: 'Chariot and World together mark determined action reaching completion. The Chariot\'s disciplined will drives toward a goal; the World signals integration and fulfillment. This combination points to sustained effort bearing full fruit, major victories, and the closing of a significant life chapter.',
+        tags: ['determination', 'victory', 'completion', 'mastery', 'success']
+      }
+    ]
   }
 };
 
@@ -330,6 +369,16 @@ export const SUIT_PROGRESSION_PASSAGES = {
           source: 'Mary K. Greer, The Tarot Handbook',
           text: 'Wands Ace through Three represent the ignition phase of creative or professional endeavors. The Ace sparks inspiration, the Two plans with vision, the Three expands with confidence. Multiple cards from this range signal high enthusiasm, early momentum, and the exciting (if sometimes chaotic) energy of new ventures taking off.',
           tags: ['creativity', 'ignition', 'enthusiasm', 'new-ventures', 'momentum']
+        }
+      ]
+    },
+    challenge: {
+      title: 'Wands Challenge: Testing the Fire',
+      passages: [
+        {
+          source: 'Traditional interpretation',
+          text: 'Wands Four through Seven show the testing phase of fire: celebration of early milestones (Four), creative friction and competition (Five), public victory and recognition (Six), and defending what you have built (Seven). When several of these appear together, your creative or professional fire is being tested through competition, visibility, and the need to stand your ground.',
+          tags: ['competition', 'recognition', 'defense', 'testing', 'fire']
         }
       ]
     },
@@ -356,6 +405,16 @@ export const SUIT_PROGRESSION_PASSAGES = {
         }
       ]
     },
+    challenge: {
+      title: 'Cups Challenge: Emotional Complexity',
+      passages: [
+        {
+          source: 'Traditional interpretation',
+          text: 'Cups Four through Seven trace emotional complexity: withdrawal or apathy (Four), grief and loss (Five), nostalgia and memory (Six), and the confusion of many options (Seven). When multiple cards from this range appear, feelings are mixed and tender—there is a need to process disappointment, sort through fantasies, and clarify what the heart truly wants.',
+          tags: ['grief', 'nostalgia', 'confusion', 'desire', 'discernment']
+        }
+      ]
+    },
     mastery: {
       title: 'Cups Mastery: Emotional Fulfillment',
       passages: [
@@ -369,6 +428,26 @@ export const SUIT_PROGRESSION_PASSAGES = {
   },
 
   Swords: {
+    beginning: {
+      title: 'Swords Beginning: Mental Clarity',
+      passages: [
+        {
+          source: 'Traditional interpretation',
+          text: 'Swords Ace through Three mark the beginning of mental clarity work: the first piercing insight (Ace), a difficult stalemate of choice (Two), and heartbreak or painful truth (Three). When these cards cluster, the mind is confronting reality, making hard decisions, and acknowledging grief rather than bypassing it.',
+          tags: ['truth', 'decision', 'grief', 'clarity', 'beginning']
+        }
+      ]
+    },
+    challenge: {
+      title: 'Swords Challenge: Mental Struggle',
+      passages: [
+        {
+          source: 'Traditional interpretation',
+          text: 'Swords Four through Seven map mental struggle: enforced rest and recovery (Four), conflict and hollow victory (Five), moving toward calmer waters (Six), and strategy or stealth (Seven). Several of these together signal a cycle of conflict, recovery, and strategic adjustment, inviting you to choose peace and clear thinking over winning at any cost.',
+          tags: ['conflict', 'rest', 'strategy', 'transition', 'struggle']
+        }
+      ]
+    },
     mastery: {
       title: 'Swords Mastery: Mental Crisis & Liberation',
       passages: [
@@ -382,6 +461,26 @@ export const SUIT_PROGRESSION_PASSAGES = {
   },
 
   Pentacles: {
+    beginning: {
+      title: 'Pentacles Beginning: Material Foundation',
+      passages: [
+        {
+          source: 'Traditional interpretation',
+          text: 'Pentacles Ace through Three represent material foundations: the seed of prosperity (Ace), juggling resources and priorities (Two), and skilled collaboration that builds competence (Three). Multiple cards from this range indicate the start of a tangible project, financial opportunity, or embodiment practice where you are laying groundwork and learning to balance demands.',
+          tags: ['resources', 'work', 'foundation', 'collaboration', 'opportunity']
+        }
+      ]
+    },
+    challenge: {
+      title: 'Pentacles Challenge: Resource Management',
+      passages: [
+        {
+          source: 'Traditional interpretation',
+          text: 'Pentacles Four through Seven chart resource management: holding tightly to what you have (Four), experiences of material or spiritual hardship (Five), reciprocity and giving (Six), and patient assessment of results (Seven). When these appear together, money, health, or work themes are under review, inviting more conscious stewardship, generosity, and long-term thinking.',
+          tags: ['scarcity', 'generosity', 'assessment', 'stewardship', 'patience']
+        }
+      ]
+    },
     mastery: {
       title: 'Pentacles Mastery: Material Security',
       passages: [

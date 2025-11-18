@@ -53,7 +53,7 @@ async function main() {
     return { source: resolved, label: relativePath };
   });
 
-  const backend = createVisionBackend({
+  const backend = await createVisionBackend({
     backendId: 'clip-default',
     cardScope: options.scope,
     maxResults: options.maxResults,

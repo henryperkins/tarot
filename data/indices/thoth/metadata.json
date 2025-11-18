@@ -1,0 +1,392 @@
+[
+  {
+    "id": 0,
+    "filename": "thoth_cups_14_knight-cups.png",
+    "card_name": "thoth cups 14 knight cups"
+  },
+  {
+    "id": 1,
+    "filename": "thoth_cups_02_two-cups-love.png",
+    "card_name": "thoth cups 02 two cups love"
+  },
+  {
+    "id": 2,
+    "filename": "thoth_major_13_death.png",
+    "card_name": "thoth major 13 death"
+  },
+  {
+    "id": 3,
+    "filename": "thoth_disks_13_queen-disks.png",
+    "card_name": "thoth disks 13 queen disks"
+  },
+  {
+    "id": 4,
+    "filename": "thoth_cups_12_prince-cups.png",
+    "card_name": "thoth cups 12 prince cups"
+  },
+  {
+    "id": 5,
+    "filename": "thoth_wands_11_princess-wands.png",
+    "card_name": "thoth wands 11 princess wands"
+  },
+  {
+    "id": 6,
+    "filename": "thoth_swords_08_eight-swords-interference.png",
+    "card_name": "thoth swords 08 eight swords interference"
+  },
+  {
+    "id": 7,
+    "filename": "thoth_major_21_the-universe.png",
+    "card_name": "thoth major 21 the universe"
+  },
+  {
+    "id": 8,
+    "filename": "thoth_wands_12_prince-wands.png",
+    "card_name": "thoth wands 12 prince wands"
+  },
+  {
+    "id": 9,
+    "filename": "thoth_major_00_the-fool.png",
+    "card_name": "thoth major 00 the fool"
+  },
+  {
+    "id": 10,
+    "filename": "thoth_cups_01_ace-cups-root-of-water.png",
+    "card_name": "thoth cups 01 ace cups root of water"
+  },
+  {
+    "id": 11,
+    "filename": "thoth_disks_11_princess-disks.png",
+    "card_name": "thoth disks 11 princess disks"
+  },
+  {
+    "id": 12,
+    "filename": "thoth_cups_03_three-cups-abundance.png",
+    "card_name": "thoth cups 03 three cups abundance"
+  },
+  {
+    "id": 13,
+    "filename": "thoth_major_06_the-lovers.png",
+    "card_name": "thoth major 06 the lovers"
+  },
+  {
+    "id": 14,
+    "filename": "thoth_major_10_fortune.png",
+    "card_name": "thoth major 10 fortune"
+  },
+  {
+    "id": 15,
+    "filename": "thoth_major_02_the-priestess.png",
+    "card_name": "thoth major 02 the priestess"
+  },
+  {
+    "id": 16,
+    "filename": "thoth_major_01_the-magus.png",
+    "card_name": "thoth major 01 the magus"
+  },
+  {
+    "id": 17,
+    "filename": "thoth_major_14_art.png",
+    "card_name": "thoth major 14 art"
+  },
+  {
+    "id": 18,
+    "filename": "thoth_major_05_the-hierophant.png",
+    "card_name": "thoth major 05 the hierophant"
+  },
+  {
+    "id": 19,
+    "filename": "thoth_cups_06_six-cups-pleasure.png",
+    "card_name": "thoth cups 06 six cups pleasure"
+  },
+  {
+    "id": 20,
+    "filename": "thoth_disks_10_ten-disks-wealth.png",
+    "card_name": "thoth disks 10 ten disks wealth"
+  },
+  {
+    "id": 21,
+    "filename": "thoth_wands_02_two-wands-dominion.png",
+    "card_name": "thoth wands 02 two wands dominion"
+  },
+  {
+    "id": 22,
+    "filename": "thoth_disks_14_knight-disks.png",
+    "card_name": "thoth disks 14 knight disks"
+  },
+  {
+    "id": 23,
+    "filename": "thoth_disks_02_two-disks-change.png",
+    "card_name": "thoth disks 02 two disks change"
+  },
+  {
+    "id": 24,
+    "filename": "thoth_swords_06_six-swords-science.png",
+    "card_name": "thoth swords 06 six swords science"
+  },
+  {
+    "id": 25,
+    "filename": "thoth_disks_07_seven-disks-failure.png",
+    "card_name": "thoth disks 07 seven disks failure"
+  },
+  {
+    "id": 26,
+    "filename": "thoth_swords_12_prince-swords.png",
+    "card_name": "thoth swords 12 prince swords"
+  },
+  {
+    "id": 27,
+    "filename": "thoth_cups_13_queen-cups.png",
+    "card_name": "thoth cups 13 queen cups"
+  },
+  {
+    "id": 28,
+    "filename": "thoth_disks_12_prince-disks.png",
+    "card_name": "thoth disks 12 prince disks"
+  },
+  {
+    "id": 29,
+    "filename": "thoth_wands_14_knight-wands.png",
+    "card_name": "thoth wands 14 knight wands"
+  },
+  {
+    "id": 30,
+    "filename": "thoth_wands_01_ace-wands-root-of-fire.png",
+    "card_name": "thoth wands 01 ace wands root of fire"
+  },
+  {
+    "id": 31,
+    "filename": "thoth_wands_07_seven-wands-valour.png",
+    "card_name": "thoth wands 07 seven wands valour"
+  },
+  {
+    "id": 32,
+    "filename": "thoth_disks_05_five-disks-worry.png",
+    "card_name": "thoth disks 05 five disks worry"
+  },
+  {
+    "id": 33,
+    "filename": "thoth_cups_11_princess-cups.png",
+    "card_name": "thoth cups 11 princess cups"
+  },
+  {
+    "id": 34,
+    "filename": "thoth_swords_02_two-swords-peace.png",
+    "card_name": "thoth swords 02 two swords peace"
+  },
+  {
+    "id": 35,
+    "filename": "thoth_swords_09_nine-swords-cruelty.png",
+    "card_name": "thoth swords 09 nine swords cruelty"
+  },
+  {
+    "id": 36,
+    "filename": "thoth_swords_07_seven-swords-futility.png",
+    "card_name": "thoth swords 07 seven swords futility"
+  },
+  {
+    "id": 37,
+    "filename": "thoth_wands_10_ten-wands-oppression.png",
+    "card_name": "thoth wands 10 ten wands oppression"
+  },
+  {
+    "id": 38,
+    "filename": "thoth_swords_11_princess-swords.png",
+    "card_name": "thoth swords 11 princess swords"
+  },
+  {
+    "id": 39,
+    "filename": "thoth_major_15_the-devil.png",
+    "card_name": "thoth major 15 the devil"
+  },
+  {
+    "id": 40,
+    "filename": "thoth_disks_04_four-disks-power.png",
+    "card_name": "thoth disks 04 four disks power"
+  },
+  {
+    "id": 41,
+    "filename": "thoth_major_09_the-hermit.png",
+    "card_name": "thoth major 09 the hermit"
+  },
+  {
+    "id": 42,
+    "filename": "thoth_disks_08_eight-disks-prudence.png",
+    "card_name": "thoth disks 08 eight disks prudence"
+  },
+  {
+    "id": 43,
+    "filename": "thoth_major_16_the-tower.png",
+    "card_name": "thoth major 16 the tower"
+  },
+  {
+    "id": 44,
+    "filename": "thoth_swords_01_ace-swords-root-of-air.png",
+    "card_name": "thoth swords 01 ace swords root of air"
+  },
+  {
+    "id": 45,
+    "filename": "thoth_wands_13_queen-wands.png",
+    "card_name": "thoth wands 13 queen wands"
+  },
+  {
+    "id": 46,
+    "filename": "thoth_wands_03_three-wands-virtue.png",
+    "card_name": "thoth wands 03 three wands virtue"
+  },
+  {
+    "id": 47,
+    "filename": "thoth_swords_03_three-swords-sorrow.png",
+    "card_name": "thoth swords 03 three swords sorrow"
+  },
+  {
+    "id": 48,
+    "filename": "thoth_major_19_the-sun.png",
+    "card_name": "thoth major 19 the sun"
+  },
+  {
+    "id": 49,
+    "filename": "thoth_major_07_the-chariot.png",
+    "card_name": "thoth major 07 the chariot"
+  },
+  {
+    "id": 50,
+    "filename": "thoth_major_04_the-emperor.png",
+    "card_name": "thoth major 04 the emperor"
+  },
+  {
+    "id": 51,
+    "filename": "thoth_cups_07_seven-cups-debauch.png",
+    "card_name": "thoth cups 07 seven cups debauch"
+  },
+  {
+    "id": 52,
+    "filename": "thoth_disks_06_six-disks-success.png",
+    "card_name": "thoth disks 06 six disks success"
+  },
+  {
+    "id": 53,
+    "filename": "thoth_disks_09_nine-disks-gain.png",
+    "card_name": "thoth disks 09 nine disks gain"
+  },
+  {
+    "id": 54,
+    "filename": "thoth_major_17_the-star.png",
+    "card_name": "thoth major 17 the star"
+  },
+  {
+    "id": 55,
+    "filename": "thoth_disks_01_ace-disks-root-of-earth.png",
+    "card_name": "thoth disks 01 ace disks root of earth"
+  },
+  {
+    "id": 56,
+    "filename": "thoth_swords_04_four-swords-truce.png",
+    "card_name": "thoth swords 04 four swords truce"
+  },
+  {
+    "id": 57,
+    "filename": "thoth_swords_13_queen-swords.png",
+    "card_name": "thoth swords 13 queen swords"
+  },
+  {
+    "id": 58,
+    "filename": "thoth_swords_14_knight-swords.png",
+    "card_name": "thoth swords 14 knight swords"
+  },
+  {
+    "id": 59,
+    "filename": "thoth_swords_05_five-swords-defeat.png",
+    "card_name": "thoth swords 05 five swords defeat"
+  },
+  {
+    "id": 60,
+    "filename": "thoth_major_20_the-aeon.png",
+    "card_name": "thoth major 20 the aeon"
+  },
+  {
+    "id": 61,
+    "filename": "thoth_wands_08_eight-wands-swiftness.png",
+    "card_name": "thoth wands 08 eight wands swiftness"
+  },
+  {
+    "id": 62,
+    "filename": "thoth_major_03_the-empress.png",
+    "card_name": "thoth major 03 the empress"
+  },
+  {
+    "id": 63,
+    "filename": "thoth_swords_10_ten-swords-ruin.png",
+    "card_name": "thoth swords 10 ten swords ruin"
+  },
+  {
+    "id": 64,
+    "filename": "thoth_wands_05_five-wands-strife.png",
+    "card_name": "thoth wands 05 five wands strife"
+  },
+  {
+    "id": 65,
+    "filename": "thoth_wands_06_six-wands-victory.png",
+    "card_name": "thoth wands 06 six wands victory"
+  },
+  {
+    "id": 66,
+    "filename": "thoth_cups_08_eight-cups-indolence.png",
+    "card_name": "thoth cups 08 eight cups indolence"
+  },
+  {
+    "id": 67,
+    "filename": "thoth_wands_04_four-wands-completion.png",
+    "card_name": "thoth wands 04 four wands completion"
+  },
+  {
+    "id": 68,
+    "filename": "thoth_major_12_the-hanged-man.png",
+    "card_name": "thoth major 12 the hanged man"
+  },
+  {
+    "id": 69,
+    "filename": "thoth_cups_09_nine-cups-happiness.png",
+    "card_name": "thoth cups 09 nine cups happiness"
+  },
+  {
+    "id": 70,
+    "filename": "thoth_wands_09_nine-wands-strength.png",
+    "card_name": "thoth wands 09 nine wands strength"
+  },
+  {
+    "id": 71,
+    "filename": "thoth_major_18_the-moon.png",
+    "card_name": "thoth major 18 the moon"
+  },
+  {
+    "id": 72,
+    "filename": "thoth_cups_04_four-cups-luxury.png",
+    "card_name": "thoth cups 04 four cups luxury"
+  },
+  {
+    "id": 73,
+    "filename": "thoth_cups_10_ten-cups-satiety.png",
+    "card_name": "thoth cups 10 ten cups satiety"
+  },
+  {
+    "id": 74,
+    "filename": "thoth_major_08_adjustment.png",
+    "card_name": "thoth major 08 adjustment"
+  },
+  {
+    "id": 75,
+    "filename": "thoth_cups_05_five-cups-disappointment.png",
+    "card_name": "thoth cups 05 five cups disappointment"
+  },
+  {
+    "id": 76,
+    "filename": "thoth_disks_03_three-disks-works.png",
+    "card_name": "thoth disks 03 three disks works"
+  },
+  {
+    "id": 77,
+    "filename": "thoth_major_11_lust.png",
+    "card_name": "thoth major 11 lust"
+  }
+]

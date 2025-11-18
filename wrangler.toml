@@ -16,7 +16,6 @@ pages_build_output_dir = "dist"
 # Ref: https://developers.cloudflare.com/pages/functions/bindings/#environment-variables
 #
 [vars]
-AZURE_OPENAI_API_VERSION = "preview"
 AZURE_OPENAI_GPT_AUDIO_MINI_FORMAT = "mp3"
 AZURE_OPENAI_USE_V1_FORMAT = "true"
 

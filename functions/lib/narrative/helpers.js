@@ -618,6 +618,7 @@ const POSITION_LANGUAGE = {
 function buildPositionCardText(cardInfo, position, options = {}) {
   const template = POSITION_LANGUAGE[position];
   const prevElementalRelationship = options.prevElementalRelationship; // For elemental imagery
+  const normalizedContext = normalizeContext(options.context);
 
   if (!template) {
     // Fallback for unknown positions (defensive defaults)
@@ -644,23 +645,28 @@ function buildPositionCardText(cardInfo, position, options = {}) {
 
   const contextClause = buildContextualClause(cardInfo, options.context);
 
+  const allowEsoteric =
+    normalizedContext === 'spiritual' ||
+    normalizedContext === 'self' ||
+    normalizedContext === 'general';
+
   let esotericClause = '';
 
-  if (shouldSurfaceAstroLens(cardInfo)) {
+  if (allowEsoteric && shouldSurfaceAstroLens(cardInfo)) {
     const astro = getAstroForCard(cardInfo);
     if (astro?.label && astro?.focus) {
-      esotericClause = `Traditionally linked with ${astro.label}, ${astro.focus}.`;
+      esotericClause = `On a symbolic level, some readers link this card to ${astro.label}, ${astro.focus}; treat that as color, not a command.`;
     }
   }
 
-  if (!esotericClause && shouldSurfaceQabalahLens(cardInfo)) {
+  if (allowEsoteric && !esotericClause && shouldSurfaceQabalahLens(cardInfo)) {
     const qabalah = getQabalahForCard(cardInfo);
     if (qabalah?.label && qabalah?.focus) {
-      esotericClause = `On the Tree of Life, this aligns with ${qabalah.label}, ${qabalah.focus}.`;
+      esotericClause = `On a symbolic level, some readers relate this card to ${qabalah.label}, ${qabalah.focus}; treat that as color, not a command.`;
     }
   }
 
-  const occultFlavor = buildOccultFlavor(cardInfo);
+  const occultFlavor = allowEsoteric ? buildOccultFlavor(cardInfo) : '';
   const enrichedMeaning = [meaning, contextClause, esotericClause, occultFlavor].filter(Boolean).join(' ');
 
   // Add imagery hook for Major Arcana if enabled
@@ -880,17 +886,17 @@ function buildOccultFlavor(cardInfo) {
 
   if (astro?.label) {
     const detail = astro.focus ? `, ${astro.focus}` : '';
-    bits.push(`echoes ${astro.label}${detail}`);
+    bits.push(`${astro.label}${detail}`);
   }
 
   if (qabalah?.label) {
     const detail = qabalah.focus ? `, ${qabalah.focus}` : '';
-    bits.push(`touches ${qabalah.label}${detail}`);
+    bits.push(`${qabalah.label}${detail}`);
   }
 
   if (!bits.length) return '';
 
-  return ` On an occult level, this ${bits.join(', ')}—a symbolic backdrop rather than a fixed rule.`;
+  return ` On a symbolic level, some readers link this card to ${bits.join(' and ')}; treat that as color, not a command.`;
 }
 
 function buildReflectionPrompt(cardInfo, position) {

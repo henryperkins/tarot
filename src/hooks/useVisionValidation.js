@@ -43,7 +43,7 @@ export function useVisionValidation({ deckStyle = 'rws-1909' } = {}) {
   const ensurePipeline = useCallback(async () => {
     if (!pipelineRef.current) {
       const { createVisionBackend } = await import('../../shared/vision/visionBackends.js');
-      const backend = createVisionBackend({
+      const backend = await createVisionBackend({
         backendId: 'clip-default',
         cardScope: 'all',
         deckStyle,

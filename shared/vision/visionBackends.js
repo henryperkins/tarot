@@ -1,10 +1,23 @@
-import { TarotVisionPipeline } from './tarotVisionPipeline.js';
+// Lazy load TarotVisionPipeline to avoid bundling @xenova/transformers at import time
+// This prevents Workers runtime errors when the vision code is loaded but not used
+let TarotVisionPipelineClass = null;
+
+async function getTarotVisionPipeline() {
+  if (!TarotVisionPipelineClass) {
+    const module = await import('./tarotVisionPipeline.js');
+    TarotVisionPipelineClass = module.TarotVisionPipeline;
+  }
+  return TarotVisionPipelineClass;
+}
 
 const VISION_BACKENDS = {
   'clip-default': {
     id: 'clip-default',
     label: 'TarotVision CLIP ViT (default)',
-    create: (options = {}) => new TarotVisionPipeline(options)
+    create: async (options = {}) => {
+      const Pipeline = await getTarotVisionPipeline();
+      return new Pipeline(options);
+    }
   }
 };
 
@@ -15,9 +28,9 @@ function resolveBackendDescriptor(backendId) {
   return VISION_BACKENDS['clip-default'];
 }
 
-export function createVisionBackend(options = {}) {
+export async function createVisionBackend(options = {}) {
   const descriptor = resolveBackendDescriptor(options.backendId);
-  const instance = descriptor.create(options);
+  const instance = await descriptor.create(options);
   return {
     id: descriptor.id,
     label: descriptor.label,

@@ -357,7 +357,10 @@ const JournalInsightsPanel = React.memo(function JournalInsightsPanel({
           setActionMessage(isFilteredAndEmpty ? 'Filters empty, link for full journal ready' : 'Share link ready');
         }
       } catch (error) {
-        setActionMessage(error.message || 'Unable to create share link');
+        console.warn('Share link creation failed, falling back to snapshot', error);
+        const shareStats = isFilteredAndEmpty ? allStats : (summaryStats || allStats || primaryStats);
+        const success = await copyJournalShareSummary(shareStats);
+        setActionMessage(success ? 'Link creation failed, copied snapshot instead' : 'Unable to create share link');
       }
     } else {
       const shareStats = isFilteredAndEmpty ? allStats : (summaryStats || allStats || primaryStats);
@@ -381,29 +384,34 @@ const JournalInsightsPanel = React.memo(function JournalInsightsPanel({
     try {
       let summaryText = '';
       if (isAuthenticated) {
-        const entryIds = summaryEntries
-          .slice(0, 10)
-          .map((entry) => entry?.id)
-          .filter(Boolean);
-        const requestPayload = filtersActive && entryIds.length > 0
-          ? { entryIds, limit: entryIds.length }
-          : { limit: Math.min(summaryEntries.length, 10) };
-        const response = await fetch('/api/journal-summary', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',
-          body: JSON.stringify(requestPayload),
-          signal
-        });
+        try {
+          const entryIds = summaryEntries
+            .slice(0, 10)
+            .map((entry) => entry?.id)
+            .filter(Boolean);
+          const requestPayload = filtersActive && entryIds.length > 0
+            ? { entryIds, limit: entryIds.length }
+            : { limit: Math.min(summaryEntries.length, 10) };
+          const response = await fetch('/api/journal-summary', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify(requestPayload),
+            signal
+          });
 
-        if (signal?.aborted) return;
+          if (signal?.aborted) return;
 
-        if (!response.ok) {
-          const errorData = await response.json().catch(() => ({}));
-          throw new Error(errorData.error || 'Unable to generate summary');
+          if (!response.ok) {
+            throw new Error('API error');
+          }
+          const responseData = await response.json();
+          summaryText = responseData.summary;
+        } catch (err) {
+          if (err.name === 'AbortError') throw err;
+          console.warn('Summary API failed, falling back to heuristic:', err);
+          // Fall through to heuristic generation
         }
-        const responseData = await response.json();
-        summaryText = responseData.summary;
       }
       if (!summaryText) {
         summaryText = buildHeuristicJourneySummary(summaryEntries, summaryStats);

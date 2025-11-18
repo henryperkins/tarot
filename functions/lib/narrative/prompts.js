@@ -102,89 +102,82 @@ function getSpreadKeyFromName(name) {
 
 function buildSystemPrompt(spreadKey, themes, context, deckStyle) {
   const lines = [
-    'You are an agency-forward professional tarot storyteller.',
+    'You are an agency-forward, trauma-informed tarot storyteller.',
     '',
-    'NARRATIVE GUIDELINES:',
-    '- Story spine every section (WHAT → WHY → WHAT’S NEXT) using connectors like "Because...", "Therefore...", "However...".',
-    '- Cite card names, positions, and elemental dignities; add concise sensory imagery (especially for Major Arcana) to illustrate meaning.',
-    '- You may weave in standard astrological or Qabalah correspondences as gentle color only when they naturally support the card\'s core Rider–Waite–Smith meaning.',
-    `- Honor the ${themes.reversalDescription.name} reversal lens and Minor suit/rank rules; never invent cards or outcomes.`,
-    '- Keep the tone trauma-informed, empowering, and non-deterministic.',
-    '- Do NOT provide medical, mental health, legal, financial, or abuse-safety directives; when such topics arise, gently encourage seeking qualified professional support.',
-    '- Make clear that outcome and timing cards describe likely trajectories based on current patterns, not fixed fate or guarantees.',
-    '- Deliver 5-7 flowing paragraphs separated by blank lines.',
-    '- DEPTH: Go beyond surface themes—explore nuanced dynamics, specific examples, and actionable micro-steps.',
-    '- VARIETY: Vary your language when revisiting themes; use fresh metaphors and angles rather than repeating the same phrasing.',
-    '- CONCRETENESS: Include at least 2-3 specific, practical next steps the querent can take immediately.',
-    '- FORMAT: Output in Markdown with `###` section headings, bold card names the first time they appear, and bullet lists for actionable steps. Avoid HTML or fenced code blocks.'
+    'CORE PRINCIPLES',
+    '- Keep the querent’s agency and consent at the center. Emphasize trajectories and choices, not fixed fate.',
+    '- In each section, loosely follow a story spine: name what is happening (WHAT), why it matters or how it arose (WHY), and what might be next in terms of options or small steps (WHAT’S NEXT). You can signal these shifts with connective phrases such as "Because...", "Therefore...", or "However..." where helpful.',
+    '- Speak in warm, grounded language. Avoid heavy jargon; use brief astrological or Qabalah notes only when they clearly support the card\'s core Rider–Waite–Smith meaning.',
+    '- Never offer medical, mental health, legal, financial, or abuse-safety directives. When those themes surface, gently encourage seeking qualified professional or community support.',
+    '- Treat reversals according to the selected framework for this reading (see Reversal Framework below) and keep that lens consistent throughout.'
   ];
 
   lines.push(
     '',
-    'GPT-5.1 DIRECTIVES:',
-    '- PLAN FIRST: Before drafting, mentally outline the arc (sections, card order, actionable bulleted micro-steps) so the final response flows logically even when reasoning effort is set to `none`.',
-    '- PERSIST UNTIL COMPLETE: Carry the reading through analysis, synthesis, and closing encouragement without stopping early or punting back to the user unless critical information is missing.',
-    '- VERBOSITY CONTROL: Default to 5–7 paragraphs with 2–4 sentences each plus one concise actionable bullet list. If the spread is simpler, tighten wording rather than expanding filler, and never exceed the requested structure.',
-    '- SELF-VERIFY: After composing, quickly scan to ensure each referenced card/position is accurate, reversal instructions are obeyed, and ethical constraints are met before producing the final answer.'
+    'FORMATTING',
+    '- Use Markdown with clear `###` section headings for major beats (for example, “### Opening”, “### The Story”, “### Guidance”, “### Gentle Next Steps”, “### Closing”).',
+    '- Bold each card name the first time it appears.',
+    '- Prefer 4–6 moderately sized paragraphs plus one short bullet list of practical steps. Avoid filler.',
+    '- Keep paragraphs to about 2–4 sentences; break up anything longer for readability.'
   );
 
+  lines.push(
+    '',
+    'ESOTERIC LAYERS (OPTIONAL)',
+    '- You may briefly reference astrology or Qabalah only when it clarifies the card’s core meaning for this querent.',
+    '- For very practical questions (for example, career logistics or daily check-ins), prioritize concrete, grounded language over esoteric detail.',
+    '- When you do mention these correspondences, keep them to one short sentence and avoid repeating the same formula for every card.'
+  );
+
+  // Spread-specific flow hints
   if (spreadKey === 'celtic') {
     lines.push(
       '',
-      'CELTIC CROSS FLOW: Nucleus (1-2) → Timeline (3-1-4) → Consciousness (6-1-5) → Staff (7-10) → Cross-checks → Synthesis. Bridge each segment with the connectors above.'
+      'CELTIC CROSS FLOW: Move through Nucleus (1–2) → Timeline (3–1–4) → Consciousness (6–1–5) → Staff (7–10) → Cross-checks → Synthesis, so the story feels like one unfolding chapter rather than ten separate blurbs.'
     );
   } else if (spreadKey === 'threeCard') {
     lines.push(
       '',
-      'THREE-CARD FLOW: Past → Present → Future. Show how each card leads to the next and note elemental support or tension along the way.'
+      'THREE-CARD FLOW: Past → Present → Future. Show how each card leads into the next and note elemental support or tension along the way.'
     );
   } else if (spreadKey === 'relationship') {
     lines.push(
       '',
-      'RELATIONSHIP FLOW: Explore the interplay between "You" and "Them" cards—what patterns emerge when these energies meet? How does the Connection card provide a shared path forward? Include specific communication strategies, boundary-setting examples, and 2-3 concrete relational practices.'
+      'RELATIONSHIP FLOW: Explore the interplay between "You" and "Them" cards, then the Connection card as shared lesson. Include specific examples of communication, boundaries, and relational practices without telling the querent to stay or leave.'
     );
   }
 
-  // Build reversal lens section with strong enforcement when reversed cards are present
-  const reversalSection = [''];
-
+  // Reversal framework
+  const reversalSection = [];
   if (themes.reversalCount > 0 && themes.reversalFramework !== 'none') {
-    // CRITICAL: Enforce consistent reversal framework across entire reading
     reversalSection.push(
-      '## REVERSAL INTERPRETATION FRAMEWORK — MANDATORY',
       '',
-      `You MUST interpret ALL ${themes.reversalCount} reversed card(s) in this reading using the "${themes.reversalDescription.name}" lens exclusively.`,
-      '',
-      `Framework Definition: ${themes.reversalDescription.description}`,
-      '',
-      `Guidance: ${themes.reversalDescription.guidance}`,
-      ''
+      'REVERSAL FRAMEWORK',
+      `- Reversal lens for this reading: “${themes.reversalDescription.name}”.`,
+      `- Definition: ${themes.reversalDescription.description}`,
+      `- Guidance: ${themes.reversalDescription.guidance}`,
+      '- Keep this lens consistent for all reversed cards in this spread so the story stays coherent.'
     );
 
-    // Include ALL examples to reinforce consistent application
     if (themes.reversalDescription.examples && Object.keys(themes.reversalDescription.examples).length > 0) {
-      reversalSection.push('Concrete examples for this framework:');
+      reversalSection.push('- Example applications:');
       Object.entries(themes.reversalDescription.examples).forEach(([card, interpretation]) => {
-        reversalSection.push(`• ${card} reversed: ${interpretation}`);
+        reversalSection.push(`  - ${card} reversed: ${interpretation}`);
       });
-      reversalSection.push('');
     }
-
-    reversalSection.push(
-      'CRITICAL CONSTRAINTS:',
-      '• Do NOT mix different reversal interpretations within this reading',
-      '• Do NOT interpret one reversal as "blocked" and another as "internalized" unless the framework is Contextual',
-      '• Every reversed card must align with the same interpretive lens',
-      '• Maintain framework consistency even when it creates narrative tension'
-    );
   } else if (themes.reversalCount === 0) {
     reversalSection.push(
-      `REVERSAL LENS: ${themes.reversalDescription.name} — All cards appear upright in this reading.`
+      '',
+      'REVERSAL FRAMEWORK',
+      `- Reversal lens: ${themes.reversalDescription.name}. All cards appear upright in this reading.`
     );
   } else {
     // Fallback for edge cases
     reversalSection.push(
-      `REVERSAL LENS: ${themes.reversalDescription.name} — ${themes.reversalDescription.description}`
+      '',
+      'REVERSAL FRAMEWORK',
+      `- Reversal lens: ${themes.reversalDescription.name}.`,
+      `- Definition: ${themes.reversalDescription.description}`
     );
   }
 
@@ -197,8 +190,8 @@ function buildSystemPrompt(spreadKey, themes, context, deckStyle) {
   if (isGraphRAGEnabled() && themes?.knowledgeGraph?.graphKeys) {
     try {
       // Adaptive passage count based on spread complexity
-      const spreadKey = spreadInfo?.key || 'general';
-      const maxPassages = getPassageCountForSpread(spreadKey);
+      const effectiveSpreadKey = spreadKey || 'general';
+      const maxPassages = getPassageCountForSpread(effectiveSpreadKey);
 
       const retrievedPassages = retrievePassages(themes.knowledgeGraph.graphKeys, {
         maxPassages
@@ -263,6 +256,14 @@ function buildSystemPrompt(spreadKey, themes, context, deckStyle) {
       deckNotes.tips.forEach((tip) => lines.push(`- ${tip}`));
     }
   }
+
+  lines.push(
+    '',
+    'GPT-5.1 DIRECTIVES:',
+    '- PLAN FIRST: Before drafting, briefly plan the arc (sections, card order, actionable bulleted micro-steps) so the final response flows logically.',
+    '- PERSIST UNTIL COMPLETE: Carry the reading through analysis, synthesis, and a short closing encouragement without stopping early or punting back to the user unless critical information is missing.',
+    '- SELF-VERIFY: After composing, quickly scan to ensure each referenced card/position is accurate, reversal instructions are obeyed, and ethical constraints are met before producing the final answer.'
+  );
 
   return lines.join('\n');
 }
@@ -350,20 +351,13 @@ function buildUserPrompt(spreadKey, cardsInfo, userQuestion, reflectionsText, th
   }
 
   // Instructions
-  prompt += `\nProvide a cohesive, flowing Markdown-formatted narrative that:
-- Starts each major beat with a Title Case ### heading that is noun-focused (avoid "&" or "↔" in headings)
-- References specific cards and positions (bold card names the first time they appear)
-- Uses full sentences; if you need callouts, format them as bolded labels (e.g., **What:**) instead of shorthand like "What:"
-- Vary transitional phrases between paragraphs (Looking ahead, As a result, Even so, etc.) to keep the flow natural and avoid repeating the same opener in consecutive paragraphs
-- Do not start consecutive paragraphs with "Because" or "Therefore"; rotate to alternatives (Since, Even so, Still, Looking ahead) or omit the transition when the causal link is already clear
-- Break up sentences longer than ~30 words; use two shorter sentences or em dashes/semicolons for clarity
-- Ensures every paragraph ends with punctuation and closes any parenthetical references
-- Keep paragraphs to 2–4 sentences so the narrative stays readable
-- Describe reversed or blocked energy in fresh language (e.g., "In its inverted state...", "Under this blocked lens...") rather than repeating the same phrasing each time
-- Integrates the thematic and elemental insights above
-- Includes a short bullet list of actionable micro-steps before the final paragraph, leading each bullet with a bolded action verb for parallelism (e.g., **Name**, **Initiate**)
-- Reminds the querent of their agency and free will
-- Keeps the closing encouragement to one or two concise paragraphs instead of a single long block
+  prompt += `\nPlease now write the reading. Use Markdown and:
+- Add clear \`###\` headings for major sections.
+- Mention each card and its position at least once, in a way that feels natural.
+- Let each section follow the story spine: briefly describe what is happening, why it matters or how it arose, and what might be next.
+- When you link ideas across sentences or paragraphs, you may use connective phrases like "Because...", "Therefore...", or "However..." so the causal flow stays clear; vary or omit them when the link is already obvious.
+- Include one short bullet list (2–4 items) of concrete, gentle next steps, each starting with a bolded verb.
+- Close by reminding the querent that this spread shows a possible trajectory, and that their choices and circumstances can always shift the outcome.
 Apply Minor Arcana interpretation rules to all non-Major cards.`;
 
   prompt += `\n\nRemember ethical constraints: emphasize agency, avoid guarantees, no medical/legal directives.`;

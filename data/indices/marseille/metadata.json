@@ -1,0 +1,392 @@
+[
+  {
+    "id": 0,
+    "filename": "coins04.jpg",
+    "card_name": "coins04"
+  },
+  {
+    "id": 1,
+    "filename": "major00.jpg",
+    "card_name": "major00"
+  },
+  {
+    "id": 2,
+    "filename": "cups01.jpg",
+    "card_name": "cups01"
+  },
+  {
+    "id": 3,
+    "filename": "clubs13.jpg",
+    "card_name": "clubs13"
+  },
+  {
+    "id": 4,
+    "filename": "swords12.jpg",
+    "card_name": "swords12"
+  },
+  {
+    "id": 5,
+    "filename": "cups14.jpg",
+    "card_name": "cups14"
+  },
+  {
+    "id": 6,
+    "filename": "clubs02.jpg",
+    "card_name": "clubs02"
+  },
+  {
+    "id": 7,
+    "filename": "swords09.jpg",
+    "card_name": "swords09"
+  },
+  {
+    "id": 8,
+    "filename": "major16.jpg",
+    "card_name": "major16"
+  },
+  {
+    "id": 9,
+    "filename": "major21.jpg",
+    "card_name": "major21"
+  },
+  {
+    "id": 10,
+    "filename": "swords02.jpg",
+    "card_name": "swords02"
+  },
+  {
+    "id": 11,
+    "filename": "coins05.jpg",
+    "card_name": "coins05"
+  },
+  {
+    "id": 12,
+    "filename": "cups02.jpg",
+    "card_name": "cups02"
+  },
+  {
+    "id": 13,
+    "filename": "coins13.jpg",
+    "card_name": "coins13"
+  },
+  {
+    "id": 14,
+    "filename": "major04.jpg",
+    "card_name": "major04"
+  },
+  {
+    "id": 15,
+    "filename": "swords05.jpg",
+    "card_name": "swords05"
+  },
+  {
+    "id": 16,
+    "filename": "major13.jpg",
+    "card_name": "major13"
+  },
+  {
+    "id": 17,
+    "filename": "clubs08.jpg",
+    "card_name": "clubs08"
+  },
+  {
+    "id": 18,
+    "filename": "cups09.jpg",
+    "card_name": "cups09"
+  },
+  {
+    "id": 19,
+    "filename": "coins06.jpg",
+    "card_name": "coins06"
+  },
+  {
+    "id": 20,
+    "filename": "coins01.jpg",
+    "card_name": "coins01"
+  },
+  {
+    "id": 21,
+    "filename": "coins11.jpg",
+    "card_name": "coins11"
+  },
+  {
+    "id": 22,
+    "filename": "major17.jpg",
+    "card_name": "major17"
+  },
+  {
+    "id": 23,
+    "filename": "swords07.jpg",
+    "card_name": "swords07"
+  },
+  {
+    "id": 24,
+    "filename": "coins03.jpg",
+    "card_name": "coins03"
+  },
+  {
+    "id": 25,
+    "filename": "clubs01.jpg",
+    "card_name": "clubs01"
+  },
+  {
+    "id": 26,
+    "filename": "major09.jpg",
+    "card_name": "major09"
+  },
+  {
+    "id": 27,
+    "filename": "cups08.jpg",
+    "card_name": "cups08"
+  },
+  {
+    "id": 28,
+    "filename": "clubs03.jpg",
+    "card_name": "clubs03"
+  },
+  {
+    "id": 29,
+    "filename": "coins12.jpg",
+    "card_name": "coins12"
+  },
+  {
+    "id": 30,
+    "filename": "major06.jpg",
+    "card_name": "major06"
+  },
+  {
+    "id": 31,
+    "filename": "cups13.jpg",
+    "card_name": "cups13"
+  },
+  {
+    "id": 32,
+    "filename": "cups04.jpg",
+    "card_name": "cups04"
+  },
+  {
+    "id": 33,
+    "filename": "swords03.jpg",
+    "card_name": "swords03"
+  },
+  {
+    "id": 34,
+    "filename": "coins07.jpg",
+    "card_name": "coins07"
+  },
+  {
+    "id": 35,
+    "filename": "swords01.jpg",
+    "card_name": "swords01"
+  },
+  {
+    "id": 36,
+    "filename": "cups05.jpg",
+    "card_name": "cups05"
+  },
+  {
+    "id": 37,
+    "filename": "clubs05.jpg",
+    "card_name": "clubs05"
+  },
+  {
+    "id": 38,
+    "filename": "clubs10.jpg",
+    "card_name": "clubs10"
+  },
+  {
+    "id": 39,
+    "filename": "clubs12.jpg",
+    "card_name": "clubs12"
+  },
+  {
+    "id": 40,
+    "filename": "swords13.jpg",
+    "card_name": "swords13"
+  },
+  {
+    "id": 41,
+    "filename": "major12.jpg",
+    "card_name": "major12"
+  },
+  {
+    "id": 42,
+    "filename": "clubs04.jpg",
+    "card_name": "clubs04"
+  },
+  {
+    "id": 43,
+    "filename": "cups10.jpg",
+    "card_name": "cups10"
+  },
+  {
+    "id": 44,
+    "filename": "coins09.jpg",
+    "card_name": "coins09"
+  },
+  {
+    "id": 45,
+    "filename": "swords10.jpg",
+    "card_name": "swords10"
+  },
+  {
+    "id": 46,
+    "filename": "cups03.jpg",
+    "card_name": "cups03"
+  },
+  {
+    "id": 47,
+    "filename": "major10.jpg",
+    "card_name": "major10"
+  },
+  {
+    "id": 48,
+    "filename": "swords04.jpg",
+    "card_name": "swords04"
+  },
+  {
+    "id": 49,
+    "filename": "major05.jpg",
+    "card_name": "major05"
+  },
+  {
+    "id": 50,
+    "filename": "major15.jpg",
+    "card_name": "major15"
+  },
+  {
+    "id": 51,
+    "filename": "clubs14.jpg",
+    "card_name": "clubs14"
+  },
+  {
+    "id": 52,
+    "filename": "coins08.jpg",
+    "card_name": "coins08"
+  },
+  {
+    "id": 53,
+    "filename": "cups07.jpg",
+    "card_name": "cups07"
+  },
+  {
+    "id": 54,
+    "filename": "major02.jpg",
+    "card_name": "major02"
+  },
+  {
+    "id": 55,
+    "filename": "coins02.jpg",
+    "card_name": "coins02"
+  },
+  {
+    "id": 56,
+    "filename": "major07.jpg",
+    "card_name": "major07"
+  },
+  {
+    "id": 57,
+    "filename": "swords11.jpg",
+    "card_name": "swords11"
+  },
+  {
+    "id": 58,
+    "filename": "major18.jpg",
+    "card_name": "major18"
+  },
+  {
+    "id": 59,
+    "filename": "cups06.jpg",
+    "card_name": "cups06"
+  },
+  {
+    "id": 60,
+    "filename": "major08.jpg",
+    "card_name": "major08"
+  },
+  {
+    "id": 61,
+    "filename": "swords06.jpg",
+    "card_name": "swords06"
+  },
+  {
+    "id": 62,
+    "filename": "swords14.jpg",
+    "card_name": "swords14"
+  },
+  {
+    "id": 63,
+    "filename": "major11.jpg",
+    "card_name": "major11"
+  },
+  {
+    "id": 64,
+    "filename": "coins10.jpg",
+    "card_name": "coins10"
+  },
+  {
+    "id": 65,
+    "filename": "clubs07.jpg",
+    "card_name": "clubs07"
+  },
+  {
+    "id": 66,
+    "filename": "major14.jpg",
+    "card_name": "major14"
+  },
+  {
+    "id": 67,
+    "filename": "major03.jpg",
+    "card_name": "major03"
+  },
+  {
+    "id": 68,
+    "filename": "clubs06.jpg",
+    "card_name": "clubs06"
+  },
+  {
+    "id": 69,
+    "filename": "coins14.jpg",
+    "card_name": "coins14"
+  },
+  {
+    "id": 70,
+    "filename": "clubs11.jpg",
+    "card_name": "clubs11"
+  },
+  {
+    "id": 71,
+    "filename": "major01.jpg",
+    "card_name": "major01"
+  },
+  {
+    "id": 72,
+    "filename": "major20.jpg",
+    "card_name": "major20"
+  },
+  {
+    "id": 73,
+    "filename": "major19.jpg",
+    "card_name": "major19"
+  },
+  {
+    "id": 74,
+    "filename": "clubs09.jpg",
+    "card_name": "clubs09"
+  },
+  {
+    "id": 75,
+    "filename": "cups12.jpg",
+    "card_name": "cups12"
+  },
+  {
+    "id": 76,
+    "filename": "cups11.jpg",
+    "card_name": "cups11"
+  },
+  {
+    "id": 77,
+    "filename": "swords08.jpg",
+    "card_name": "swords08"
+  }
+]
