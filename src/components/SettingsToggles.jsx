@@ -11,21 +11,25 @@ import {
 } from 'lucide-react';
 import { Tooltip } from './Tooltip';
 import { HelperToggle } from './HelperToggle';
+import { usePreferences } from '../contexts/PreferencesContext';
 
-export function SettingsToggles({
-  voiceOn,
-  setVoiceOn,
-  ambienceOn,
-  setAmbienceOn,
-  reversalFramework,
-  setReversalFramework,
-  theme,
-  setTheme,
-  includeMinors = true,
-  setIncludeMinors,
-  deckSize = includeMinors ? 78 : 22,
-  minorsDataIncomplete = false
-}) {
+export function SettingsToggles() {
+  // Consume preferences directly from context
+  const {
+    voiceOn,
+    setVoiceOn,
+    ambienceOn,
+    setAmbienceOn,
+    reversalFramework,
+    setReversalFramework,
+    theme,
+    setTheme,
+    includeMinors,
+    setIncludeMinors,
+    deckSize,
+    minorsDataIncomplete
+  } = usePreferences();
+
   const controlShellClass =
     'rounded-[1.75rem] border border-emerald-500/40 bg-slate-950/75 p-3 sm:p-4 shadow-[0_0_55px_rgba(16,185,129,0.28)] backdrop-blur-xl';
   const tileBaseClass =
@@ -123,7 +127,7 @@ export function SettingsToggles({
   ];
 
   return (
-    <div className={controlShellClass}>
+    <div className={`${controlShellClass} animate-fade-in`}>
       <div
         className="grid grid-cols-1 gap-2 sm:grid-cols-2 sm:gap-3"
         role="group"
@@ -134,9 +138,8 @@ export function SettingsToggles({
           return (
             <React.Fragment key={item.id}>
               <label
-                className={`${tileBaseClass} ${
-                  item.active ? activeTileClass : inactiveTileClass
-                } cursor-pointer`}
+                className={`${tileBaseClass} ${item.active ? activeTileClass : inactiveTileClass
+                  } cursor-pointer`}
                 htmlFor={item.id}
               >
                 <input
@@ -149,9 +152,8 @@ export function SettingsToggles({
                 />
                 <div className="flex w-full items-center gap-2">
                   <span
-                    className={`${iconWrapperBase} ${
-                      item.active ? activeIconWrapper : inactiveIconWrapper
-                    }`}
+                    className={`${iconWrapperBase} ${item.active ? activeIconWrapper : inactiveIconWrapper
+                      }`}
                     aria-hidden="true"
                   >
                     <ItemIcon className="h-4 w-4" />
@@ -171,22 +173,19 @@ export function SettingsToggles({
                   </div>
                   <div className="flex items-center gap-1.5">
                     <span
-                      className={`${badgeBaseClass} ${
-                        item.active ? activeBadgeClass : inactiveBadgeClass
-                      } ${item.active ? 'animate-pulse' : ''}`}
+                      className={`${badgeBaseClass} ${item.active ? activeBadgeClass : inactiveBadgeClass
+                        } ${item.active ? 'animate-pulse' : ''}`}
                     >
                       {item.statusLabel}
                     </span>
                     <span
                       aria-hidden="true"
-                      className={`${switchTrackBase} ${
-                        item.active ? activeSwitchTrack : inactiveSwitchTrack
-                      }`}
+                      className={`${switchTrackBase} ${item.active ? activeSwitchTrack : inactiveSwitchTrack
+                        }`}
                     >
                       <span
-                        className={`${switchThumbBase} ${
-                          item.active ? activeSwitchThumb : inactiveSwitchThumb
-                        }`}
+                        className={`${switchThumbBase} ${item.active ? activeSwitchThumb : inactiveSwitchThumb
+                          }`}
                       />
                     </span>
                   </div>
@@ -236,9 +235,8 @@ export function SettingsToggles({
                   <option value="contextual">Context-based</option>
                 </select>
                 <span
-                  className={`${badgeBaseClass} ${
-                    reversalFramework ? inactiveBadgeClass : activeBadgeClass
-                  } ${!reversalFramework ? 'animate-pulse' : ''}`}
+                  className={`${badgeBaseClass} ${reversalFramework ? inactiveBadgeClass : activeBadgeClass
+                    } ${!reversalFramework ? 'animate-pulse' : ''}`}
                 >
                   {reversalFramework ? 'Custom' : 'Auto-rec'}
                 </span>

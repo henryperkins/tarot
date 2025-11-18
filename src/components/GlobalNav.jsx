@@ -16,7 +16,7 @@ export function GlobalNav() {
     'bg-slate-900/70 text-amber-100/80 hover:bg-slate-900/90';
 
   return (
-    <nav aria-label="Primary" className="flex justify-center mb-3">
+    <nav aria-label="Primary" className="flex justify-center mb-3 animate-fade-in">
       <div className="inline-flex items-center gap-2 rounded-full bg-slate-950/80 border border-slate-800/70 px-2 py-1">
         <button
           type="button"

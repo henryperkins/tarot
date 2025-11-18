@@ -32,7 +32,7 @@ export function QuestionInput({
   };
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-3 animate-fade-in">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div className="text-amber-200 font-serif text-sm sm:text-base">
           <label htmlFor="question-input">

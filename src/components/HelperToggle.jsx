@@ -22,7 +22,7 @@ export function HelperToggle({ children, label = 'Understand this', className = 
       </button>
       <div
         id={contentId}
-        className={`mt-2 text-[clamp(0.85rem,2.4vw,0.95rem)] leading-snug text-amber-100/85 bg-slate-950/70 border border-emerald-400/25 rounded-lg p-3 ${isOpen ? 'block' : 'hidden'}`}
+        className={`mt-2 text-[clamp(0.85rem,2.4vw,0.95rem)] leading-snug text-amber-100/85 bg-slate-950/70 border border-emerald-400/25 rounded-lg p-3 ${isOpen ? 'block animate-fade-in' : 'hidden'}`}
       >
         {children}
       </div>

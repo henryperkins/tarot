@@ -89,7 +89,7 @@ export function FeedbackPanel({
   };
 
   return (
-    <form onSubmit={handleSubmit} className="modern-surface border border-emerald-400/30 w-full px-4 py-4 sm:px-5 sm:py-5">
+    <form onSubmit={handleSubmit} className="modern-surface border border-emerald-400/30 w-full px-4 py-4 sm:px-5 sm:py-5 animate-fade-in">
       <div className="flex items-center justify-between gap-2">
         <div>
           <p className="text-sm font-semibold text-amber-100">How did this reading land?</p>
@@ -113,11 +113,10 @@ export function FeedbackPanel({
                   type="button"
                   key={`${field.key}-${value}`}
                   onClick={() => handleRating(field.key, value)}
-                  className={`px-3 py-1.5 rounded-full border transition text-xs ${
-                    ratings[field.key] === value
+                  className={`px-3 py-1.5 rounded-full border transition text-xs ${ratings[field.key] === value
                       ? 'border-emerald-400/70 bg-emerald-500/20 text-emerald-100'
                       : 'border-amber-300/30 bg-slate-900/70 text-amber-100/70 hover:border-amber-200/60'
-                  }`}
+                    }`}
                 >
                   {value}
                 </button>

@@ -52,7 +52,7 @@ export function CameraCapture({ onCapture, onCancel }) {
     canvas.height = videoRef.current.videoHeight;
     const context = canvas.getContext('2d');
     context.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
-    
+
     canvas.toBlob(blob => {
       const file = new File([blob], 'capture.jpg', { type: 'image/jpeg' });
       const captureId = createCaptureId();
@@ -77,7 +77,7 @@ export function CameraCapture({ onCapture, onCancel }) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-black">
+    <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-black animate-fade-in">
       {error ? (
         <div className="text-white text-center p-4">
           <p>{error}</p>

@@ -24,7 +24,7 @@ export function JournalFilters({ filters, onChange, contexts = [], spreads = [] 
   };
 
   return (
-    <section className="rounded-3xl border border-emerald-400/30 bg-slate-950/70 p-5 shadow-lg">
+    <section className="rounded-3xl border border-emerald-400/30 bg-slate-950/70 p-5 shadow-lg animate-fade-in">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <p className="text-xs uppercase tracking-[0.3em] text-emerald-300/80">Filters</p>
@@ -60,11 +60,10 @@ export function JournalFilters({ filters, onChange, contexts = [], spreads = [] 
                   key={context.value}
                   type="button"
                   onClick={() => toggleValue('contexts', context.value)}
-                  className={`rounded-full border px-3 py-1 text-xs ${
-                    filters.contexts.includes(context.value)
+                  className={`rounded-full border px-3 py-1 text-xs ${filters.contexts.includes(context.value)
                       ? 'border-emerald-400 bg-emerald-500/10 text-emerald-100'
                       : 'border-slate-700/70 text-amber-100/70 hover:border-emerald-300/50'
-                  }`}
+                    }`}
                 >
                   {context.label}
                 </button>
@@ -82,11 +81,10 @@ export function JournalFilters({ filters, onChange, contexts = [], spreads = [] 
                   key={spread.value}
                   type="button"
                   onClick={() => toggleValue('spreads', spread.value)}
-                  className={`rounded-full border px-3 py-1 text-xs ${
-                    filters.spreads.includes(spread.value)
+                  className={`rounded-full border px-3 py-1 text-xs ${filters.spreads.includes(spread.value)
                       ? 'border-emerald-400 bg-emerald-500/10 text-emerald-100'
                       : 'border-slate-700/70 text-amber-100/70 hover:border-emerald-300/50'
-                  }`}
+                    }`}
                 >
                   {spread.label}
                 </button>
@@ -103,11 +101,10 @@ export function JournalFilters({ filters, onChange, contexts = [], spreads = [] 
                 key={option.value}
                 type="button"
                 onClick={() => onChange({ ...filters, timeframe: option.value })}
-                className={`rounded-full border px-3 py-1 text-xs ${
-                  filters.timeframe === option.value
+                className={`rounded-full border px-3 py-1 text-xs ${filters.timeframe === option.value
                     ? 'border-emerald-400 bg-emerald-500/10 text-emerald-100'
                     : 'border-slate-700/70 text-amber-100/70 hover:border-emerald-300/50'
-                }`}
+                  }`}
               >
                 {option.label}
               </button>

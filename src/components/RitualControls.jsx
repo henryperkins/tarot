@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Info, Sparkles, Scissors } from 'lucide-react';
 import { Tooltip } from './Tooltip';
+import { usePreferences } from '../contexts/PreferencesContext';
 
 export function RitualControls({
   hasKnocked,
@@ -10,10 +11,10 @@ export function RitualControls({
   hasCut,
   applyCut,
   knocksCount = 0,
-  deckSize = 22,
   onSkip,
   deckAnnouncement
 }) {
+  const { deckSize } = usePreferences();
   const [showSkipConfirm, setShowSkipConfirm] = useState(false);
   const skipPromptRef = useRef(null);
   const knockComplete = knocksCount >= 3;
@@ -71,28 +72,36 @@ export function RitualControls({
   }, [showSkipConfirm]);
 
   return (
-    <div className={controlShellClass}>
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+    <div className={`${controlShellClass} animate-fade-in`}>
+      {/* Desktop Header - Hidden on Mobile */}
+      <div className="hidden sm:flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <p className="text-[0.78rem] uppercase tracking-[0.35em] text-emerald-200/80">Ritual (optional)</p>
           <p className="text-sm text-amber-100/80">Light grounding before the draw, or skip anytime.</p>
         </div>
         <span
-          className={`${badgeBaseClass} ${
-            ritualStatus === 'Ready' ? activeBadgeClass : inactiveBadgeClass
-          }`}
+          className={`${badgeBaseClass} ${ritualStatus === 'Ready' ? activeBadgeClass : inactiveBadgeClass
+            }`}
         >
           {ritualStatus}
         </span>
       </div>
 
-      <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+      {/* Mobile Header */}
+      <div className="sm:hidden flex items-center justify-between mb-4">
+        <h3 className="text-lg font-serif text-amber-200">Ritual</h3>
+        <span className={`${badgeBaseClass} ${ritualStatus === 'Ready' ? activeBadgeClass : inactiveBadgeClass}`}>
+          {ritualStatus}
+        </span>
+      </div>
+
+      {/* Desktop Grid - Hidden on Mobile */}
+      <div className="hidden sm:grid grid-cols-1 gap-3 lg:grid-cols-2">
         <div className={`${tileBaseClass} ${knockComplete ? activeTileClass : ''}`}>
           <div className="flex items-center gap-2">
             <span
-              className={`${iconWrapperBase} ${
-                knockComplete ? activeIconWrapper : inactiveIconWrapper
-              }`}
+              className={`${iconWrapperBase} ${knockComplete ? activeIconWrapper : inactiveIconWrapper
+                }`}
               aria-hidden="true"
             >
               <Sparkles className="h-4 w-4" />
@@ -109,9 +118,8 @@ export function RitualControls({
               </Tooltip>
             </div>
             <span
-              className={`${badgeBaseClass} ${
-                knockComplete ? activeBadgeClass : inactiveBadgeClass
-              }`}
+              className={`${badgeBaseClass} ${knockComplete ? activeBadgeClass : inactiveBadgeClass
+                }`}
             >
               {knockComplete ? 'Cleared' : `${knocksCount}/3`}
             </span>
@@ -119,9 +127,8 @@ export function RitualControls({
           <button
             type="button"
             onClick={handleKnock}
-            className={`${primaryButtonBase} ${
-              knockComplete ? primaryButtonActive : primaryButtonIdle
-            }`}
+            className={`${primaryButtonBase} ${knockComplete ? primaryButtonActive : primaryButtonIdle
+              }`}
             aria-pressed={knocksCount > 0}
             title="Knock up to 3 times"
           >
@@ -200,7 +207,38 @@ export function RitualControls({
         </div>
       </div>
 
-      <div className="flex flex-col items-center gap-2 text-center">
+      {/* Mobile Touch Controls */}
+      <div className="sm:hidden grid grid-cols-2 gap-4">
+        {/* Knock Button */}
+        <button
+          type="button"
+          onClick={handleKnock}
+          className={`aspect-square rounded-2xl border flex flex-col items-center justify-center gap-2 transition-all active:scale-95 ${knockComplete
+            ? 'bg-emerald-500/20 border-emerald-400/60 text-emerald-100'
+            : 'bg-slate-900/60 border-slate-700/60 text-amber-100'
+            }`}
+        >
+          <Sparkles className={`w-8 h-8 ${knockComplete ? 'text-emerald-300' : 'text-amber-300'}`} />
+          <span className="text-sm font-semibold">{knockComplete ? 'Cleared' : 'Tap to Knock'}</span>
+          <span className="text-xs opacity-70">{knocksCount}/3</span>
+        </button>
+
+        {/* Cut Button */}
+        <button
+          type="button"
+          onClick={applyCut}
+          className={`aspect-square rounded-2xl border flex flex-col items-center justify-center gap-2 transition-all active:scale-95 ${hasCut
+            ? 'bg-emerald-500/20 border-emerald-400/60 text-emerald-100'
+            : 'bg-slate-900/60 border-slate-700/60 text-amber-100'
+            }`}
+        >
+          <Scissors className={`w-8 h-8 ${hasCut ? 'text-emerald-300' : 'text-amber-300'}`} />
+          <span className="text-sm font-semibold">{hasCut ? 'Locked' : 'Tap to Cut'}</span>
+          <span className="text-xs opacity-70">{hasCut ? `Cut #${cutIndex}` : 'Random Cut'}</span>
+        </button>
+      </div>
+
+      <div className="flex flex-col items-center gap-2 text-center mt-4 sm:mt-0">
         <div className="relative" ref={skipPromptRef}>
           <button
             type="button"

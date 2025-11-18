@@ -114,7 +114,7 @@ export function Card({
   return (
     <div
       key={`${card.name}-${index}`}
-      className="modern-surface border border-emerald-400/40 overflow-hidden"
+      className="modern-surface border border-emerald-400/40 overflow-hidden animate-fade-in"
     >
       {/* Position Label */}
       <div className="bg-slate-950/80 p-2 sm:p-3 border-b border-emerald-400/40">
@@ -138,18 +138,17 @@ export function Card({
               : `Reveal card for ${position}`
           }
           tabIndex={0}
-          className={`cursor-pointer transition-all duration-500 transform ${
-            !isRevealed
-              ? 'hover:bg-slate-900/70 hover:scale-105 focus:outline-none focus:ring-2 focus:ring-emerald-400/50 rounded-lg'
-              : ''
-          }`}
+          className={`cursor-pointer transition-all duration-500 transform ${!isRevealed
+            ? 'hover:bg-slate-900/70 hover:scale-105 focus:outline-none focus:ring-2 focus:ring-emerald-400/50 rounded-lg'
+            : ''
+            }`}
           style={{
             transformStyle: 'preserve-3d',
             animation: isRevealed ? 'flipCard 0.6s ease-out' : 'none'
           }}
         >
           {!isRevealed ? (
-            <div className="text-center py-10">
+            <div className="text-center py-6 sm:py-10">
               <div className="tarot-card-shell mx-auto">
                 <div className="tarot-card-back">
                   <div className="tarot-card-back-symbol">
@@ -164,7 +163,7 @@ export function Card({
           ) : (
             <div className="transition-all">
               {/* Rider-Waite Card Image */}
-              <div className={`mx-auto mb-3 max-w-[280px] ${card.isReversed ? 'rotate-180' : ''}`}>
+              <div className={`mx-auto mb-3 max-w-[65%] sm:max-w-[280px] ${card.isReversed ? 'rotate-180' : ''}`}>
                 <img
                   src={card.image}
                   alt={`${card.name}${card.isReversed ? ' (Reversed)' : ''}`}
@@ -179,11 +178,10 @@ export function Card({
 
               <div className="text-center mb-3">
                 <span
-                  className={`inline-block px-3 py-1 rounded-full text-xs-plus font-semibold tracking-wide ${
-                    card.isReversed
-                      ? 'bg-slate-900/90 text-cyan-300 border border-cyan-400/50'
-                      : 'bg-emerald-500/10 text-emerald-300 border border-emerald-400/60'
-                  }`}
+                  className={`inline-block px-3 py-1 rounded-full text-xs-plus font-semibold tracking-wide ${card.isReversed
+                    ? 'bg-slate-900/90 text-cyan-300 border border-cyan-400/50'
+                    : 'bg-emerald-500/10 text-emerald-300 border border-emerald-400/60'
+                    }`}
                 >
                   {card.isReversed ? 'Reversed current' : 'Upright current'}
                 </span>

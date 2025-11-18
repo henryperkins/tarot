@@ -60,7 +60,7 @@ export function VisionValidationPanel({
   };
 
   return (
-    <div className="modern-surface border border-amber-400/30 p-4 sm:p-5">
+    <div className="modern-surface border border-amber-400/30 p-4 sm:p-5 animate-fade-in">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <p className="text-sm text-amber-100 font-semibold">Vision Research Console</p>

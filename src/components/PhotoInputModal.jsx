@@ -2,8 +2,8 @@ import React from 'react';
 
 export function PhotoInputModal({ onTakePhoto, onChooseFromLibrary, onCancel }) {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-      <div className="bg-gray-800 rounded-lg shadow-lg p-6 w-full max-w-sm">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 animate-fade-in">
+      <div className="bg-gray-800 rounded-lg shadow-lg p-6 w-full max-w-sm animate-pop-in">
         <h3 className="text-lg font-medium text-white mb-4">Add a Photo</h3>
         <div className="space-y-2">
           <button

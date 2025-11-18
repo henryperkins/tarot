@@ -44,9 +44,8 @@ export function CardSymbolInsights({ card, position }) {
       <div
         id={tooltipId}
         role="tooltip"
-        className={`absolute z-20 mt-2 w-72 rounded-2xl border border-emerald-400/40 bg-slate-950/95 p-4 text-left shadow-2xl transition duration-150 ${
-          isOpen ? 'opacity-100' : 'pointer-events-none opacity-0'
-        }`}
+        className={`absolute z-20 mt-2 w-72 rounded-2xl border border-emerald-400/40 bg-slate-950/95 p-4 text-left shadow-2xl transition-all duration-200 origin-top-left ${isOpen ? 'opacity-100 scale-100' : 'pointer-events-none opacity-0 scale-95'
+          }`}
         onMouseEnter={handlePointerEnter}
         onMouseLeave={handlePointerLeave}
       >

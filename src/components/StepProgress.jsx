@@ -5,7 +5,7 @@ const baseButtonClasses =
 
 export function StepProgress({ steps = [], activeStep, onSelect }) {
   return (
-    <nav aria-label="Tarot reading progress" className="w-full">
+    <nav aria-label="Tarot reading progress" className="w-full animate-fade-in">
       <ol className="flex gap-2 sm:gap-3 overflow-x-auto snap-x snap-mandatory pb-1" role="list">
         {steps.map((step, index) => {
           const isActive = step.id === activeStep;
@@ -13,11 +13,10 @@ export function StepProgress({ steps = [], activeStep, onSelect }) {
             <li key={step.id} className="min-w-[5.5rem] flex-1 snap-start">
               <button
                 type="button"
-                className={`${baseButtonClasses} ${
-                  isActive
+                className={`${baseButtonClasses} ${isActive
                     ? 'bg-emerald-500/15 border-emerald-300/80 text-emerald-100 shadow-lg shadow-emerald-900/30'
                     : 'bg-slate-900/70 border-slate-700/70 text-amber-100/80 hover:bg-slate-900/90 hover:border-emerald-400/40'
-                }`}
+                  }`}
                 onClick={() => onSelect?.(step.id)}
                 aria-current={isActive ? 'step' : undefined}
                 aria-label={`Go to ${step.label} section`}

@@ -21,7 +21,7 @@ export function PatternHighlightBanner({ patterns, minimal = false }) {
   if (minimal) {
     return (
       <div className="mb-4 p-3 bg-gradient-to-r from-purple-900/20 to-indigo-900/20
-                      border border-purple-400/20 rounded-lg">
+                      border border-purple-400/20 rounded-lg animate-pop-in">
         <div className="flex items-center gap-2">
           <Sparkles className="w-3.5 h-3.5 text-purple-300 flex-shrink-0" />
           <p className="text-xs text-purple-200/90">
@@ -34,7 +34,7 @@ export function PatternHighlightBanner({ patterns, minimal = false }) {
 
   return (
     <div className="mb-6 p-4 bg-gradient-to-r from-purple-900/30 to-indigo-900/30
-                    border border-purple-400/30 rounded-lg shadow-lg">
+                    border border-purple-400/30 rounded-lg shadow-lg animate-pop-in">
       <div className="flex items-center gap-2 mb-3">
         <Sparkles className="w-4 h-4 text-purple-300 flex-shrink-0" />
         <h3 className="text-sm font-semibold text-purple-200">

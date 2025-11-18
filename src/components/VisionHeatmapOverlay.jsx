@@ -25,7 +25,7 @@ export function VisionHeatmapOverlay({ attention, imageSrc, label }) {
   );
 
   return (
-    <div className="mt-3">
+    <div className="mt-3 animate-fade-in">
       <div className="flex items-center justify-between text-[11px] text-emerald-100/80">
         <div>
           <p className="font-semibold">Interpretability heatmap</p>

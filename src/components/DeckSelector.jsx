@@ -31,7 +31,7 @@ const DECK_OPTIONS = [
 
 export function DeckSelector({ selectedDeck, onDeckChange }) {
   return (
-    <div className="space-y-3">
+    <div className="space-y-3 animate-fade-in">
       <div className="mb-3">
         <h3 className="text-sm font-serif text-amber-200 mb-1">
           Select deck style for vision research
@@ -50,10 +50,9 @@ export function DeckSelector({ selectedDeck, onDeckChange }) {
             className={`
               relative text-left p-4 rounded-xl border-2 transition-all
               focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950
-              ${
-                selectedDeck === deck.id
-                  ? 'border-emerald-400 bg-emerald-500/10'
-                  : 'border-slate-700/60 bg-slate-900/40 hover:border-slate-600/80 hover:bg-slate-900/60'
+              ${selectedDeck === deck.id
+                ? 'border-emerald-400 bg-emerald-500/10'
+                : 'border-slate-700/60 bg-slate-900/40 hover:border-slate-600/80 hover:bg-slate-900/60'
               }
             `}
             aria-pressed={selectedDeck === deck.id}

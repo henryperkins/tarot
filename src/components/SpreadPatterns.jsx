@@ -32,7 +32,7 @@ export function SpreadPatterns({ themes }) {
   }
 
   return (
-    <div className="modern-surface spread-patterns-panel border border-emerald-400/40 p-4 sm:p-6">
+    <div className="modern-surface spread-patterns-panel border border-emerald-400/40 p-4 sm:p-6 animate-fade-in">
       <div className="flex items-center gap-2 mb-3">
         <span className="text-amber-200 text-base sm:text-lg font-serif">Archetypal Patterns</span>
       </div>

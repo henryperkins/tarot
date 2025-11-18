@@ -49,69 +49,76 @@ export function ReadingGrid({
   const spreadInfo = SPREADS[selectedSpread];
 
   return (
-    <div
-      className={
-        selectedSpread === 'celtic'
-          ? 'cc-grid'
-          : `grid gap-8 ${
-              reading.length === 1
-                ? 'grid-cols-1 max-w-md mx-auto'
-                : reading.length <= 4
-                ? 'grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-4'
-                : 'grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3'
+    <>
+      {reading.length > 1 && (
+        <p className="sm:hidden text-center text-xs text-emerald-300/70 mb-2 animate-pulse">
+          Swipe to explore cards &rarr;
+        </p>
+      )}
+      <div
+        className={
+          selectedSpread === 'celtic'
+            ? 'cc-grid animate-fade-in'
+            : `animate-fade-in ${reading.length === 1
+              ? 'grid grid-cols-1 max-w-md mx-auto'
+              : 'flex overflow-x-auto snap-x snap-mandatory gap-4 pb-6 sm:grid sm:gap-8 sm:overflow-visible sm:snap-none sm:pb-0 ' + (reading.length <= 4
+                ? 'sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-4'
+                : 'sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3')
             }`
-      }
-    >
-      {reading.map((card, index) => {
-        const position = spreadInfo.positions[index] || `Position ${index + 1}`;
-        const isRevealed = revealedCards.has(index);
+        }
+      >
+        {reading.map((card, index) => {
+          const position = spreadInfo.positions[index] || `Position ${index + 1}`;
+          const isRevealed = revealedCards.has(index);
 
-        const tooltipContent = isRevealed ? (
-          <div className="space-y-1 text-left leading-snug">
-            <strong className="block text-amber-200 text-sm">
-              {card.name}
-              {card.isReversed ? ' (Reversed)' : ''}
-            </strong>
-            <em className="block text-xs text-amber-100/80">{position}</em>
-            <p className="text-xs-plus text-amber-50/90">{getOrientationMeaning(card)}</p>
-          </div>
-        ) : null;
+          const tooltipContent = isRevealed ? (
+            <div className="space-y-1 text-left leading-snug">
+              <strong className="block text-amber-200 text-sm">
+                {card.name}
+                {card.isReversed ? ' (Reversed)' : ''}
+              </strong>
+              <em className="block text-xs text-amber-100/80">{position}</em>
+              <p className="text-xs-plus text-amber-50/90">{getOrientationMeaning(card)}</p>
+            </div>
+          ) : null;
 
-        const cardElement = (
-          <Card
-            card={card}
-            index={index}
-            isRevealed={isRevealed}
-            onReveal={revealCard}
-            position={position}
-            reflections={reflections}
-            setReflections={setReflections}
-          />
-        );
+          const cardElement = (
+            <Card
+              card={card}
+              index={index}
+              isRevealed={isRevealed}
+              onReveal={revealCard}
+              position={position}
+              reflections={reflections}
+              setReflections={setReflections}
+            />
+          );
 
-        return (
-          <div
-            key={`${card.name}-${index}`}
-            className={`modern-surface border border-emerald-400/40 ${
-              selectedSpread === 'celtic' ? toAreaClass(position) : ''
-            }`}
-          >
-            {isRevealed ? (
-              <Tooltip
-                content={tooltipContent}
-                position="top"
-                asChild
-                enableClick={false}
-                triggerClassName="block h-full"
-              >
-                {cardElement}
-              </Tooltip>
-            ) : (
-              cardElement
-            )}
-          </div>
-        );
-      })}
-    </div>
+          return (
+            <div
+              key={`${card.name}-${index}`}
+              className={`modern-surface border border-emerald-400/40 ${selectedSpread === 'celtic'
+                ? toAreaClass(position)
+                : reading.length > 1 ? 'min-w-[85vw] snap-center sm:min-w-0' : ''
+                }`}
+            >
+              {isRevealed ? (
+                <Tooltip
+                  content={tooltipContent}
+                  position="top"
+                  asChild
+                  enableClick={false}
+                  triggerClassName="block h-full"
+                >
+                  {cardElement}
+                </Tooltip>
+              ) : (
+                cardElement
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </>
   );
 }

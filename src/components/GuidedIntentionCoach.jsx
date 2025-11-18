@@ -541,7 +541,7 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply 
 
   return (
     <div
-      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 backdrop-blur"
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 backdrop-blur animate-fade-in"
       onClick={(e) => {
         // Close on backdrop click (not on modal content click)
         if (e.target === e.currentTarget) {
@@ -555,7 +555,7 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply 
         aria-modal="true"
         aria-labelledby={titleId}
         tabIndex={-1}
-        className="relative w-full h-full sm:h-auto sm:max-w-3xl sm:mx-4 sm:rounded-3xl border-0 sm:border border-emerald-400/40 bg-slate-950 shadow-2xl focus:outline-none flex flex-col sm:block"
+        className="relative w-full h-full sm:h-auto sm:max-w-3xl sm:mx-4 sm:rounded-3xl border-0 sm:border border-emerald-400/40 bg-slate-950 shadow-2xl focus:outline-none flex flex-col sm:block animate-pop-in"
       >
         <button
           type="button"
@@ -569,130 +569,80 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply 
         {/* Scrollable content area */}
         <div className="flex-1 overflow-y-auto sm:overflow-visible">
           <div className="flex flex-col gap-6 px-4 pb-6 pt-16 sm:pt-8 sm:px-10 sm:pb-6">
-          <div>
-            <div className="flex items-center gap-2 text-emerald-200">
-              <Sparkles className="h-4 w-4" />
-              <span className="text-xs uppercase tracking-[0.2em]">Guided Intention Coach</span>
-            </div>
-            <h2 id={titleId} className="mt-2 font-serif text-2xl text-amber-100">Shape a question with clarity</h2>
-            <p className="mt-1 text-sm text-amber-100/70">
-              Answer three quick prompts and we&apos;ll craft an open-ended question you can drop
-              directly into your reading.
-            </p>
-          </div>
-
-          <div className="flex flex-col gap-3">
-            {/* Step Progress Indicator */}
-            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-              <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-widest text-amber-200/70 flex-wrap">
-                {STEPS.map((entry, index) => (
-                  <React.Fragment key={entry.id}>
-                    <button
-                      type="button"
-                      className={`rounded-full px-3 py-1 min-h-[32px] touch-manipulation ${
-                        index === step
-                          ? 'bg-emerald-500/80 text-slate-950'
-                          : 'bg-slate-800/80 text-amber-100/70 hover:bg-slate-700/80'
-                      }`}
-                      onClick={() => setStep(index)}
-                    >
-                      <span className="hidden sm:inline">{entry.label}</span>
-                      <span className="sm:hidden">{index + 1}</span>
-                    </button>
-                    {index < STEPS.length - 1 && <span className="text-amber-100/30">·</span>}
-                  </React.Fragment>
-                ))}
+            <div>
+              <div className="flex items-center gap-2 text-emerald-200">
+                <Sparkles className="h-4 w-4" />
+                <span className="text-xs uppercase tracking-[0.2em]">Guided Intention Coach</span>
               </div>
-              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
-                <p className="text-xs text-emerald-200 font-medium">
-                  Step {step + 1} of {STEPS.length}
-                </p>
-                <button
-                  type="button"
-                  onClick={() => setTemplatePanelOpen(true)}
-                  className="inline-flex items-center justify-center gap-1 rounded-full border border-emerald-400/40 px-3 py-1.5 text-[0.65rem] uppercase tracking-[0.2em] text-emerald-100 hover:bg-emerald-500/10 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/60"
-                >
-                  <BookmarkPlus className="h-3.5 w-3.5 text-emerald-300" aria-hidden="true" />
-                  Templates
-                </button>
-              </div>
+              <h2 id={titleId} className="mt-2 font-serif text-2xl text-amber-100">Shape a question with clarity</h2>
+              <p className="mt-1 text-sm text-amber-100/70">
+                Answer three quick prompts and we&apos;ll craft an open-ended question you can drop
+                directly into your reading.
+              </p>
             </div>
 
-            <div className="rounded-2xl border border-slate-800/80 bg-slate-900/60 p-4 sm:p-5">
-              {step === 0 && (
-                <div className="space-y-4">
-                  <p className="text-sm text-amber-100/80">What area do you want to explore?</p>
-                  {SPREAD_TO_TOPIC_MAP[selectedSpread] && (
-                    <div className="rounded-lg bg-emerald-900/20 border border-emerald-400/30 px-3 py-2">
-                      <p className="text-xs text-emerald-200">
-                        💡 Based on your <span className="font-medium">{SPREAD_NAMES[selectedSpread]}</span> spread, we suggest exploring{' '}
-                        <span className="font-medium text-emerald-100">
-                          {INTENTION_TOPIC_OPTIONS.find(opt => opt.value === SPREAD_TO_TOPIC_MAP[selectedSpread])?.label}
-                        </span>
-                        . Feel free to choose any topic.
-                      </p>
-                    </div>
-                  )}
-                  <div className="grid gap-3 md:grid-cols-2">
-                    {INTENTION_TOPIC_OPTIONS.map(option => (
+            <div className="flex flex-col gap-3">
+              {/* Step Progress Indicator */}
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-widest text-amber-200/70 flex-wrap">
+                  {STEPS.map((entry, index) => (
+                    <React.Fragment key={entry.id}>
                       <button
-                        key={option.value}
                         type="button"
-                        className={`${baseOptionClass} ${option.value === topic ? 'border-emerald-400/60 shadow-lg shadow-emerald-900/20' : 'border-slate-700/60 hover:border-emerald-300/40'}`}
-                        onClick={() => {
-                          if (option.value !== topic) {
-                            releasePrefill();
-                          }
-                          setTopic(option.value);
-                        }}
+                        className={`rounded-full px-3 py-1 min-h-[32px] touch-manipulation ${index === step
+                            ? 'bg-emerald-500/80 text-slate-950'
+                            : 'bg-slate-800/80 text-amber-100/70 hover:bg-slate-700/80'
+                          }`}
+                        onClick={() => setStep(index)}
                       >
-                        <p className="font-medium text-amber-100">{option.label}</p>
-                        <p className="text-sm text-amber-100/70">{option.description}</p>
+                        <span className="hidden sm:inline">{entry.label}</span>
+                        <span className="sm:hidden">{index + 1}</span>
                       </button>
-                    ))}
-                  </div>
+                      {index < STEPS.length - 1 && <span className="text-amber-100/30">·</span>}
+                    </React.Fragment>
+                  ))}
                 </div>
-              )}
-
-              {step === 1 && (
-                <div className="space-y-4">
-                  <p className="text-sm text-amber-100/80">When do you need guidance for?</p>
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    {INTENTION_TIMEFRAME_OPTIONS.map(option => (
-                      <button
-                        key={option.value}
-                        type="button"
-                        className={`${baseOptionClass} ${option.value === timeframe ? 'border-emerald-400/60 shadow-lg shadow-emerald-900/20' : 'border-slate-700/60 hover:border-emerald-300/40'}`}
-                        onClick={() => {
-                          if (option.value !== timeframe) {
-                            releasePrefill();
-                          }
-                          setTimeframe(option.value);
-                        }}
-                      >
-                        <p className="font-medium text-amber-100">{option.label}</p>
-                        <p className="text-sm text-amber-100/70">{option.description}</p>
-                      </button>
-                    ))}
-                  </div>
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
+                  <p className="text-xs text-emerald-200 font-medium">
+                    Step {step + 1} of {STEPS.length}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setTemplatePanelOpen(true)}
+                    className="inline-flex items-center justify-center gap-1 rounded-full border border-emerald-400/40 px-3 py-1.5 text-[0.65rem] uppercase tracking-[0.2em] text-emerald-100 hover:bg-emerald-500/10 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/60"
+                  >
+                    <BookmarkPlus className="h-3.5 w-3.5 text-emerald-300" aria-hidden="true" />
+                    Templates
+                  </button>
                 </div>
-              )}
+              </div>
 
-              {step === 2 && (
-                <div className="space-y-6">
-                  <div>
-                    <p className="text-sm text-amber-100/80">How deep do you want to go?</p>
+              <div className="rounded-2xl border border-slate-800/80 bg-slate-900/60 p-4 sm:p-5">
+                {step === 0 && (
+                  <div className="space-y-4">
+                    <p className="text-sm text-amber-100/80">What area do you want to explore?</p>
+                    {SPREAD_TO_TOPIC_MAP[selectedSpread] && (
+                      <div className="rounded-lg bg-emerald-900/20 border border-emerald-400/30 px-3 py-2">
+                        <p className="text-xs text-emerald-200">
+                          💡 Based on your <span className="font-medium">{SPREAD_NAMES[selectedSpread]}</span> spread, we suggest exploring{' '}
+                          <span className="font-medium text-emerald-100">
+                            {INTENTION_TOPIC_OPTIONS.find(opt => opt.value === SPREAD_TO_TOPIC_MAP[selectedSpread])?.label}
+                          </span>
+                          . Feel free to choose any topic.
+                        </p>
+                      </div>
+                    )}
                     <div className="grid gap-3 md:grid-cols-2">
-                      {INTENTION_DEPTH_OPTIONS.map(option => (
+                      {INTENTION_TOPIC_OPTIONS.map(option => (
                         <button
                           key={option.value}
                           type="button"
-                          className={`${baseOptionClass} ${option.value === depth ? 'border-emerald-400/60 shadow-lg shadow-emerald-900/20' : 'border-slate-700/60 hover:border-emerald-300/40'}`}
+                          className={`${baseOptionClass} ${option.value === topic ? 'border-emerald-400/60 shadow-lg shadow-emerald-900/20' : 'border-slate-700/60 hover:border-emerald-300/40'}`}
                           onClick={() => {
-                            if (option.value !== depth) {
+                            if (option.value !== topic) {
                               releasePrefill();
                             }
-                            setDepth(option.value);
+                            setTopic(option.value);
                           }}
                         >
                           <p className="font-medium text-amber-100">{option.label}</p>
@@ -701,198 +651,246 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply 
                       ))}
                     </div>
                   </div>
+                )}
 
-                  <div className="space-y-2">
-                    <label htmlFor="custom-focus" className="text-sm font-medium text-amber-200">
-                      Add a detail (optional)
-                    </label>
-                    <input
-                      id="custom-focus"
-                      type="text"
-                      value={customFocus}
-                      onChange={event => {
-                        releasePrefill();
-                        setCustomFocus(event.target.value);
-                      }}
-                      placeholder="e.g. a potential move, a creative launch, a new relationship"
-                      className="w-full rounded-xl border border-emerald-400/40 bg-slate-950/80 px-4 py-3 text-amber-100 placeholder:text-emerald-200/40 focus:border-emerald-400 focus:outline-none focus:ring-1 focus:ring-emerald-400/60"
-                    />
-                  </div>
-
-                  <div className="rounded-2xl border border-emerald-400/40 bg-emerald-500/5 p-4 space-y-4">
-                    <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
-                      <div>
-                        <p className="flex items-center gap-2 text-xs uppercase tracking-[0.3em] text-emerald-200">
-                          <Sparkles className="h-3.5 w-3.5 text-emerald-300" aria-hidden="true" />
-                          Question blueprint
-                        </p>
-                        <p className="text-xs text-emerald-100/80">
-                          Adjust the topic, timing, or depth and we’ll re-weave the wording automatically.
-                        </p>
-                      </div>
-                      <div className="flex flex-wrap items-center gap-2">
-                        <label className="inline-flex items-center gap-2 rounded-full border border-emerald-400/40 bg-slate-950/50 px-3 py-1.5 text-[0.7rem] text-emerald-100 cursor-pointer select-none">
-                          <input
-                            type="checkbox"
-                            className="h-4 w-4 rounded border-emerald-400/60 bg-transparent text-emerald-400 focus:ring-emerald-400"
-                            checked={useCreative}
-                            onChange={event => {
-                              releasePrefill();
-                              setUseCreative(event.target.checked);
-                              setAutoQuestionEnabled(true);
-                            }}
-                          />
-                          <span className="inline-flex items-center gap-1 font-medium">
-                            <Wand2 className="h-3.5 w-3.5 text-emerald-300" aria-hidden="true" />
-                            Personalize with AI
-                          </span>
-                        </label>
+                {step === 1 && (
+                  <div className="space-y-4">
+                    <p className="text-sm text-amber-100/80">When do you need guidance for?</p>
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      {INTENTION_TIMEFRAME_OPTIONS.map(option => (
                         <button
+                          key={option.value}
                           type="button"
+                          className={`${baseOptionClass} ${option.value === timeframe ? 'border-emerald-400/60 shadow-lg shadow-emerald-900/20' : 'border-slate-700/60 hover:border-emerald-300/40'}`}
                           onClick={() => {
-                            setPrefillSource(null);
-                            setAutoQuestionEnabled(true);
-                            setQuestionError('');
+                            if (option.value !== timeframe) {
+                              releasePrefill();
+                            }
+                            setTimeframe(option.value);
                           }}
-                          className="inline-flex items-center gap-1 rounded-full border border-emerald-300/60 bg-transparent px-3 py-1.5 text-[0.7rem] font-semibold text-emerald-100 hover:bg-emerald-500/10 transition"
                         >
-                          <RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />
-                          Remix
+                          <p className="font-medium text-amber-100">{option.label}</p>
+                          <p className="text-sm text-amber-100/70">{option.description}</p>
                         </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {step === 2 && (
+                  <div className="space-y-6">
+                    <div>
+                      <p className="text-sm text-amber-100/80">How deep do you want to go?</p>
+                      <div className="grid gap-3 md:grid-cols-2">
+                        {INTENTION_DEPTH_OPTIONS.map(option => (
+                          <button
+                            key={option.value}
+                            type="button"
+                            className={`${baseOptionClass} ${option.value === depth ? 'border-emerald-400/60 shadow-lg shadow-emerald-900/20' : 'border-slate-700/60 hover:border-emerald-300/40'}`}
+                            onClick={() => {
+                              if (option.value !== depth) {
+                                releasePrefill();
+                              }
+                              setDepth(option.value);
+                            }}
+                          >
+                            <p className="font-medium text-amber-100">{option.label}</p>
+                            <p className="text-sm text-amber-100/70">{option.description}</p>
+                          </button>
+                        ))}
                       </div>
                     </div>
-                    {prefillSource && (
-                      <p className="text-xs text-emerald-200/80">
-                        <span className="font-semibold text-emerald-100">Auto-filled</span> from your journal insights.
-                      </p>
-                    )}
-                    {questionLoading && (
-                      <p className="text-xs text-amber-200/80 animate-pulse">Weaving a personalized prompt…</p>
-                    )}
-                    {questionError && (
-                      <p className="text-xs text-amber-300/80">{questionError}</p>
-                    )}
-                    <div className="rounded-2xl border border-emerald-400/30 bg-slate-950/60 p-4 space-y-3">
-                      <div className="flex items-center gap-2 text-[0.65rem] uppercase tracking-[0.3em] text-emerald-200/80">
-                        <Sparkles className="h-4 w-4 text-emerald-300" aria-hidden="true" />
-                        Current draft
-                      </div>
-                      <p className="font-serif text-xl text-amber-50 leading-relaxed">
-                        {questionText || guidedQuestion}
-                      </p>
-                      {questionContextChips.length > 0 && (
-                        <div className="flex flex-wrap gap-2 pt-1">
-                          {questionContextChips.map(chip => (
-                            <span
-                              key={chip}
-                              className="rounded-full border border-emerald-400/40 bg-transparent px-3 py-1 text-[0.65rem] uppercase tracking-[0.2em] text-emerald-100/80"
-                            >
-                              {chip}
+
+                    <div className="space-y-2">
+                      <label htmlFor="custom-focus" className="text-sm font-medium text-amber-200">
+                        Add a detail (optional)
+                      </label>
+                      <input
+                        id="custom-focus"
+                        type="text"
+                        value={customFocus}
+                        onChange={event => {
+                          releasePrefill();
+                          setCustomFocus(event.target.value);
+                        }}
+                        placeholder="e.g. a potential move, a creative launch, a new relationship"
+                        className="w-full rounded-xl border border-emerald-400/40 bg-slate-950/80 px-4 py-3 text-amber-100 placeholder:text-emerald-200/40 focus:border-emerald-400 focus:outline-none focus:ring-1 focus:ring-emerald-400/60"
+                      />
+                    </div>
+
+                    <div className="rounded-2xl border border-emerald-400/40 bg-emerald-500/5 p-4 space-y-4">
+                      <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
+                        <div>
+                          <p className="flex items-center gap-2 text-xs uppercase tracking-[0.3em] text-emerald-200">
+                            <Sparkles className="h-3.5 w-3.5 text-emerald-300" aria-hidden="true" />
+                            Question blueprint
+                          </p>
+                          <p className="text-xs text-emerald-100/80">
+                            Adjust the topic, timing, or depth and we’ll re-weave the wording automatically.
+                          </p>
+                        </div>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <label className="inline-flex items-center gap-2 rounded-full border border-emerald-400/40 bg-slate-950/50 px-3 py-1.5 text-[0.7rem] text-emerald-100 cursor-pointer select-none">
+                            <input
+                              type="checkbox"
+                              className="h-4 w-4 rounded border-emerald-400/60 bg-transparent text-emerald-400 focus:ring-emerald-400"
+                              checked={useCreative}
+                              onChange={event => {
+                                releasePrefill();
+                                setUseCreative(event.target.checked);
+                                setAutoQuestionEnabled(true);
+                              }}
+                            />
+                            <span className="inline-flex items-center gap-1 font-medium">
+                              <Wand2 className="h-3.5 w-3.5 text-emerald-300" aria-hidden="true" />
+                              Personalize with AI
                             </span>
+                          </label>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setPrefillSource(null);
+                              setAutoQuestionEnabled(true);
+                              setQuestionError('');
+                            }}
+                            className="inline-flex items-center gap-1 rounded-full border border-emerald-300/60 bg-transparent px-3 py-1.5 text-[0.7rem] font-semibold text-emerald-100 hover:bg-emerald-500/10 transition"
+                          >
+                            <RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />
+                            Remix
+                          </button>
+                        </div>
+                      </div>
+                      {prefillSource && (
+                        <p className="text-xs text-emerald-200/80">
+                          <span className="font-semibold text-emerald-100">Auto-filled</span> from your journal insights.
+                        </p>
+                      )}
+                      {questionLoading && (
+                        <p className="text-xs text-amber-200/80 animate-pulse">Weaving a personalized prompt…</p>
+                      )}
+                      {questionError && (
+                        <p className="text-xs text-amber-300/80">{questionError}</p>
+                      )}
+                      <div className="rounded-2xl border border-emerald-400/30 bg-slate-950/60 p-4 space-y-3">
+                        <div className="flex items-center gap-2 text-[0.65rem] uppercase tracking-[0.3em] text-emerald-200/80">
+                          <Sparkles className="h-4 w-4 text-emerald-300" aria-hidden="true" />
+                          Current draft
+                        </div>
+                        <p className="font-serif text-xl text-amber-50 leading-relaxed">
+                          {questionText || guidedQuestion}
+                        </p>
+                        {questionContextChips.length > 0 && (
+                          <div className="flex flex-wrap gap-2 pt-1">
+                            {questionContextChips.map(chip => (
+                              <span
+                                key={chip}
+                                className="rounded-full border border-emerald-400/40 bg-transparent px-3 py-1 text-[0.65rem] uppercase tracking-[0.2em] text-emerald-100/80"
+                              >
+                                {chip}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Question Quality Indicator */}
+                      <div className="rounded-2xl border border-emerald-400/30 bg-slate-950/40 p-3 space-y-2">
+                        <div className="flex items-center justify-between text-xs text-emerald-200">
+                          <span className="inline-flex items-center gap-1">
+                            <Activity className="h-4 w-4 text-emerald-300" aria-hidden="true" />
+                            Question quality
+                          </span>
+                          <span className="text-xs font-semibold text-emerald-100">
+                            {qualityLevel.emoji} {qualityLevel.label}
+                          </span>
+                        </div>
+                        <div className="h-2 w-full rounded-full bg-slate-900/80 overflow-hidden">
+                          <div
+                            className={`h-full transition-all duration-500 ${normalizedQualityScore >= 85
+                                ? 'bg-gradient-to-r from-emerald-400 via-emerald-500 to-emerald-300'
+                                : normalizedQualityScore >= 65
+                                  ? 'bg-gradient-to-r from-green-400 via-emerald-400 to-emerald-300'
+                                  : normalizedQualityScore >= 40
+                                    ? 'bg-gradient-to-r from-amber-400 via-orange-400 to-orange-300'
+                                    : 'bg-gradient-to-r from-red-400 via-orange-500 to-amber-300'
+                              }`}
+                            style={{ width: `${normalizedQualityScore}%` }}
+                          />
+                        </div>
+                        <div className="flex flex-col gap-0.5 sm:flex-row sm:items-center sm:justify-between text-[0.7rem] text-emerald-200/80">
+                          <span className="uppercase tracking-[0.2em]">Score {questionQuality.score}/100</span>
+                          <span className="text-emerald-100/80 sm:text-right">{qualityHelperText}</span>
+                        </div>
+                      </div>
+
+                      {/* Quality Feedback */}
+                      {questionQuality.feedback.length > 0 && questionQuality.score < 85 && (
+                        <div className="rounded-2xl border border-amber-400/30 bg-amber-500/5 p-3 text-xs text-amber-100/80 space-y-1">
+                          {questionQuality.feedback.slice(0, 2).map((tip, i) => (
+                            <p key={i} className="flex items-start gap-1">
+                              <span className="text-emerald-300 mt-0.5">•</span>
+                              <span>{tip}</span>
+                            </p>
                           ))}
                         </div>
                       )}
                     </div>
-
-                    {/* Question Quality Indicator */}
-                    <div className="rounded-2xl border border-emerald-400/30 bg-slate-950/40 p-3 space-y-2">
-                      <div className="flex items-center justify-between text-xs text-emerald-200">
-                        <span className="inline-flex items-center gap-1">
-                          <Activity className="h-4 w-4 text-emerald-300" aria-hidden="true" />
-                          Question quality
-                        </span>
-                        <span className="text-xs font-semibold text-emerald-100">
-                          {qualityLevel.emoji} {qualityLevel.label}
-                        </span>
-                      </div>
-                      <div className="h-2 w-full rounded-full bg-slate-900/80 overflow-hidden">
-                        <div
-                          className={`h-full transition-all duration-500 ${
-                            normalizedQualityScore >= 85
-                              ? 'bg-gradient-to-r from-emerald-400 via-emerald-500 to-emerald-300'
-                              : normalizedQualityScore >= 65
-                              ? 'bg-gradient-to-r from-green-400 via-emerald-400 to-emerald-300'
-                              : normalizedQualityScore >= 40
-                              ? 'bg-gradient-to-r from-amber-400 via-orange-400 to-orange-300'
-                              : 'bg-gradient-to-r from-red-400 via-orange-500 to-amber-300'
-                          }`}
-                          style={{ width: `${normalizedQualityScore}%` }}
-                        />
-                      </div>
-                      <div className="flex flex-col gap-0.5 sm:flex-row sm:items-center sm:justify-between text-[0.7rem] text-emerald-200/80">
-                        <span className="uppercase tracking-[0.2em]">Score {questionQuality.score}/100</span>
-                        <span className="text-emerald-100/80 sm:text-right">{qualityHelperText}</span>
-                      </div>
-                    </div>
-
-                    {/* Quality Feedback */}
-                    {questionQuality.feedback.length > 0 && questionQuality.score < 85 && (
-                      <div className="rounded-2xl border border-amber-400/30 bg-amber-500/5 p-3 text-xs text-amber-100/80 space-y-1">
-                        {questionQuality.feedback.slice(0, 2).map((tip, i) => (
-                          <p key={i} className="flex items-start gap-1">
-                            <span className="text-emerald-300 mt-0.5">•</span>
-                            <span>{tip}</span>
-                          </p>
-                        ))}
-                      </div>
-                    )}
                   </div>
-                </div>
+                )}
+              </div>
+
+              {personalizedSuggestions.length > 0 && (
+                <section className="rounded-3xl border border-emerald-400/30 bg-slate-950/60 mx-4 sm:mx-10 p-4 sm:p-5 space-y-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-xs uppercase tracking-[0.3em] text-emerald-200">Personalized suggestions</p>
+                    <button
+                      type="button"
+                      onClick={refreshSuggestions}
+                      className="text-xs text-emerald-200 hover:text-emerald-100 underline decoration-dotted"
+                    >
+                      Refresh
+                    </button>
+                  </div>
+                  <div className="space-y-2">
+                    {personalizedSuggestions.map((suggestion) => (
+                      <button
+                        key={suggestion.id}
+                        type="button"
+                        onClick={() => handleApplySuggestion(suggestion)}
+                        className="w-full text-left rounded-2xl border border-emerald-400/20 bg-slate-900/70 px-4 py-3 hover:border-emerald-300/60 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/60"
+                      >
+                        <div className="flex items-center justify-between gap-3">
+                          <p className="text-sm font-semibold text-amber-100">{suggestion.label}</p>
+                          <span className="text-xs text-emerald-300/80">Apply</span>
+                        </div>
+                        {suggestion.helper && (
+                          <p className="mt-0.5 text-xs text-amber-100/70">{suggestion.helper}</p>
+                        )}
+                        {(suggestion.topic || suggestion.timeframe || suggestion.depth) && (
+                          <p className="mt-2 text-[0.65rem] uppercase tracking-[0.25em] text-emerald-200/80">
+                            {[
+                              getTopicLabel(suggestion.topic),
+                              getTimeframeLabel(suggestion.timeframe),
+                              getDepthLabel(suggestion.depth)
+                            ]
+                              .filter(Boolean)
+                              .join(' · ')}
+                          </p>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                </section>
               )}
+            </div>
           </div>
 
-          {personalizedSuggestions.length > 0 && (
-            <section className="rounded-3xl border border-emerald-400/30 bg-slate-950/60 mx-4 sm:mx-10 p-4 sm:p-5 space-y-3">
-            <div className="flex items-center justify-between gap-2">
-              <p className="text-xs uppercase tracking-[0.3em] text-emerald-200">Personalized suggestions</p>
-              <button
-                type="button"
-                onClick={refreshSuggestions}
-                className="text-xs text-emerald-200 hover:text-emerald-100 underline decoration-dotted"
-              >
-                Refresh
-              </button>
-            </div>
-            <div className="space-y-2">
-              {personalizedSuggestions.map((suggestion) => (
-                <button
-                  key={suggestion.id}
-                  type="button"
-                  onClick={() => handleApplySuggestion(suggestion)}
-                  className="w-full text-left rounded-2xl border border-emerald-400/20 bg-slate-900/70 px-4 py-3 hover:border-emerald-300/60 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/60"
-                >
-                  <div className="flex items-center justify-between gap-3">
-                    <p className="text-sm font-semibold text-amber-100">{suggestion.label}</p>
-                    <span className="text-xs text-emerald-300/80">Apply</span>
-                  </div>
-                  {suggestion.helper && (
-                    <p className="mt-0.5 text-xs text-amber-100/70">{suggestion.helper}</p>
-                  )}
-                  {(suggestion.topic || suggestion.timeframe || suggestion.depth) && (
-                    <p className="mt-2 text-[0.65rem] uppercase tracking-[0.25em] text-emerald-200/80">
-                      {[
-                        getTopicLabel(suggestion.topic),
-                        getTimeframeLabel(suggestion.timeframe),
-                        getDepthLabel(suggestion.depth)
-                      ]
-                        .filter(Boolean)
-                        .join(' · ')}
-                    </p>
-                  )}
-                </button>
-              ))}
-            </div>
-            </section>
-          )}
-        </div>
-        </div>
-
-        {/* Footer - outside scroll area on mobile, inline on desktop */}
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between flex-shrink-0 sm:static bg-slate-950 sm:bg-transparent pt-4 sm:pt-0 px-4 sm:px-10 pb-safe sm:pb-6 border-t sm:border-t-0 border-slate-800/50">
-          <div className="text-xs text-amber-100/70 hidden sm:block">
-            <p>
-              {summary.topicLabel} · {summary.timeframeLabel} · {summary.depthLabel}
-            </p>
+          {/* Footer - outside scroll area on mobile, inline on desktop */}
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between flex-shrink-0 sm:static bg-slate-950 sm:bg-transparent pt-4 sm:pt-0 px-4 sm:px-10 pb-safe sm:pb-6 border-t sm:border-t-0 border-slate-800/50">
+            <div className="text-xs text-amber-100/70 hidden sm:block">
+              <p>
+                {summary.topicLabel} · {summary.timeframeLabel} · {summary.depthLabel}
+              </p>
             </div>
             <div className="flex items-center gap-3 w-full sm:w-auto">
               <button
@@ -931,11 +929,11 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply 
       </div>
       {isTemplatePanelOpen && (
         <div
-          className="absolute inset-0 z-40 flex items-stretch bg-slate-950/70 backdrop-blur-sm"
+          className="absolute inset-0 z-40 flex items-stretch bg-slate-950/70 backdrop-blur-sm animate-fade-in"
           onClick={() => setTemplatePanelOpen(false)}
         >
           <div
-            className="ml-auto h-full w-full sm:w-[26rem] bg-slate-950 border-l border-emerald-400/30 p-5 sm:p-6 overflow-y-auto shadow-[0_0_45px_rgba(0,0,0,0.6)]"
+            className="ml-auto h-full w-full sm:w-[26rem] bg-slate-950 border-l border-emerald-400/30 p-5 sm:p-6 overflow-y-auto shadow-[0_0_45px_rgba(0,0,0,0.6)] animate-slide-in-right"
             onClick={event => event.stopPropagation()}
           >
             <div className="flex items-center justify-between gap-2">

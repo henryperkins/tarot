@@ -1,17 +1,15 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Sparkles, ChevronLeft, ChevronRight } from 'lucide-react';
 import { SPREADS } from '../data/spreads';
-import { MAJOR_ARCANA } from '../data/majorArcana';
-import { MINOR_ARCANA } from '../data/minorArcana';
-
-const DEFAULT_DECK_SIZE =
-  Array.isArray(MINOR_ARCANA) && MINOR_ARCANA.length === 56
-    ? MAJOR_ARCANA.length + MINOR_ARCANA.length
-    : MAJOR_ARCANA.length;
+import { usePreferences } from '../contexts/PreferencesContext';
 
 export function SpreadSelector({
   selectedSpread,
   setSelectedSpread,
+  onSpreadConfirm,
+  knockTimesRef,
+  // The following props are kept to reset parent state, although logic might move inside component over time
+  // or be coordinated via context. For now, relying on parent passing setters is acceptable during this phase.
   setReading,
   setRevealedCards,
   setPersonalReading,
@@ -22,15 +20,13 @@ export function SpreadSelector({
   setReflections,
   setHasKnocked,
   setHasCut,
-  setCutIndex,
-  knockTimesRef,
-  deckSize = DEFAULT_DECK_SIZE,
-  onSpreadConfirm
+  setCutIndex
 }) {
   const [expandedSpread, setExpandedSpread] = useState(null);
   const carouselRef = useRef(null);
   const [canScrollPrev, setCanScrollPrev] = useState(false);
   const [canScrollNext, setCanScrollNext] = useState(false);
+  const { deckSize: activeDeckSize } = usePreferences();
 
   const updateScrollHints = () => {
     const el = carouselRef.current;
@@ -64,20 +60,25 @@ export function SpreadSelector({
 
   const handleSpreadSelection = key => {
     setSelectedSpread(key);
-    setReading(null);
-    setRevealedCards(new Set());
-    setPersonalReading(null);
-    setJournalStatus?.(null);
-    setAnalyzingText('');
-    setIsGenerating(false);
-    setDealIndex(0);
-    setReflections({});
-    setHasKnocked(false);
-    setHasCut(false);
-    setCutIndex(Math.floor(deckSize / 2));
-    knockTimesRef.current = [];
+    // These resets are important for UX continuity when switching spreads
+    if (setReading) setReading(null);
+    if (setRevealedCards) setRevealedCards(new Set());
+    if (setPersonalReading) setPersonalReading(null);
+    if (setJournalStatus) setJournalStatus(null);
+    if (setAnalyzingText) setAnalyzingText('');
+    if (setIsGenerating) setIsGenerating(false);
+    if (setDealIndex) setDealIndex(0);
+    if (setReflections) setReflections({});
+    if (setHasKnocked) setHasKnocked(false);
+    if (setHasCut) setHasCut(false);
+    if (setCutIndex) setCutIndex(Math.floor(activeDeckSize / 2));
+
+    if (knockTimesRef && knockTimesRef.current) {
+      knockTimesRef.current = [];
+    }
+
     setExpandedSpread(null);
-    onSpreadConfirm?.(key);
+    if (onSpreadConfirm) onSpreadConfirm(key);
   };
 
   const handleCardKeyDown = (event, key) => {
@@ -94,7 +95,7 @@ export function SpreadSelector({
   };
 
   return (
-    <div className="modern-surface p-4 sm:p-6 mb-6 sm:mb-8">
+    <div className="modern-surface p-4 sm:p-6 mb-6 sm:mb-8 animate-fade-in">
       <h2 className="text-lg sm:text-xl font-serif text-amber-200 mb-3 flex items-center gap-2">
         <Sparkles className="w-4 h-4 sm:w-5 sm:h-5" />
         Choose Your Spread
@@ -117,11 +118,10 @@ export function SpreadSelector({
                 aria-checked={isActive}
                 onClick={() => handleSpreadSelection(key)}
                 onKeyDown={event => handleCardKeyDown(event, key)}
-                className={`relative flex flex-col justify-between rounded-2xl border px-3 py-3 sm:px-4 cursor-pointer select-none transition basis-[78%] shrink-0 snap-center sm:basis-auto ${
-                  isActive
+                className={`relative flex flex-col justify-between rounded-2xl border px-3 py-3 sm:px-4 cursor-pointer select-none transition basis-[78%] shrink-0 snap-center sm:basis-auto ${isActive
                     ? 'bg-emerald-500/12 border-emerald-300/70 shadow-lg shadow-emerald-900/30'
                     : 'bg-slate-900/70 border-slate-700/60 hover:border-emerald-400/50 hover:bg-slate-900/90'
-                } focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/80 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950`}
+                  } focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/80 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950`}
               >
                 <div className="pr-16">
                   <div className="flex items-center justify-between gap-2">
@@ -141,7 +141,7 @@ export function SpreadSelector({
                 </p>
                 <div className="sm:hidden mt-3">
                   {isExpanded && (
-                    <p className="text-amber-50/90 text-[0.9rem] leading-snug mb-2">
+                    <p className="text-amber-50/90 text-[0.9rem] leading-snug mb-2 animate-slide-up">
                       {spread.description || spread.mobileDescription || 'Guided snapshot for your focus.'}
                     </p>
                   )}
