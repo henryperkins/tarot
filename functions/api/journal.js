@@ -115,7 +115,9 @@ export async function onRequestPost(context) {
       reflections,
       context,
       provider,
-      sessionSeed
+      sessionSeed,
+      // Optional: original timestamp in milliseconds (used for migrations)
+      timestampMs
     } = body;
 
     // Validate required fields
@@ -128,7 +130,25 @@ export async function onRequestPost(context) {
 
     // Create journal entry
     const entryId = crypto.randomUUID();
-    const now = Math.floor(Date.now() / 1000);
+    const nowSeconds = Math.floor(Date.now() / 1000);
+
+    // Derive created_at/updated_at, allowing a **sanitized** client timestamp
+    // for trusted flows like local-to-cloud migration.
+    let createdAt = nowSeconds;
+
+    if (typeof timestampMs === 'number' && Number.isFinite(timestampMs)) {
+      const candidateSeconds = Math.floor(timestampMs / 1000);
+
+      // Basic sanity window: >= 2000-01-01 and not more than 24h in the future
+      const MIN_ALLOWED = 946684800; // 2000-01-01T00:00:00Z
+      const MAX_ALLOWED = nowSeconds + 60 * 60 * 24;
+
+      if (candidateSeconds >= MIN_ALLOWED && candidateSeconds <= MAX_ALLOWED) {
+        createdAt = candidateSeconds;
+      }
+    }
+
+    const updatedAt = createdAt;
 
     await env.DB.prepare(`
       INSERT INTO journal_entries (
@@ -152,8 +172,8 @@ export async function onRequestPost(context) {
       .bind(
         entryId,
         user.id,
-        now,
-        now,
+        createdAt,
+        updatedAt,
         spreadKey,
         spread,
         question || null,
@@ -172,7 +192,7 @@ export async function onRequestPost(context) {
         success: true,
         entry: {
           id: entryId,
-          ts: now * 1000
+          ts: createdAt * 1000
         }
       }),
       {

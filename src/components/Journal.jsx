@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useDeferredValue, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ChevronLeft, LogIn, Upload, Trash2, Copy, ExternalLink, FileText, RefreshCw } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { GlobalNav } from './GlobalNav';
@@ -23,7 +23,8 @@ const CONTEXT_SUMMARIES = {
   love: 'Relationship lens — center relational reciprocity and communication.',
   career: 'Career lens — focus on vocation, impact, and material pathways.',
   self: 'Self lens — emphasize personal growth and inner landscape.',
-  spiritual: 'Spiritual lens — frame insights through devotion, meaning, and practice.'
+  spiritual: 'Spiritual lens — frame insights through devotion, meaning, and practice.',
+  decision: 'Decision lens — weigh the tradeoffs and clarify what aligns before choosing a path.'
 };
 
 const TIMING_SUMMARIES = {
@@ -31,6 +32,9 @@ const TIMING_SUMMARIES = {
   'longer-arc-tilt': 'Timing: this pattern stretches over a longer arc demanding patience.',
   'developing-arc': 'Timing: expect this to develop as an unfolding chapter, not a single moment.'
 };
+
+const VISIBLE_ENTRY_BATCH = 10;
+const FILTERED_SUMMARY_MESSAGE = 'No entries match your filters. Clear filters to regenerate a journey summary.';
 
 const CONTEXT_TO_SPREAD = {
   love: {
@@ -98,7 +102,21 @@ function mapContextToTopic(context) {
   }
 }
 
-function JournalCardListItem({ card }) {
+function formatEntryOptionLabel(entry) {
+  const spreadLabel = entry?.spread || 'Reading';
+  const timestamp = entry?.ts
+    ? entry.ts
+    : entry?.created_at
+      ? entry.created_at * 1000
+      : entry?.updated_at
+        ? entry.updated_at * 1000
+        : null;
+  const dateLabel = timestamp ? new Date(timestamp).toLocaleDateString() : 'Undated';
+  const contextLabel = entry?.context ? ` · ${entry.context}` : '';
+  return `${spreadLabel} · ${dateLabel}${contextLabel}`;
+}
+
+const JournalCardListItem = React.memo(function JournalCardListItem({ card }) {
   const insightCard = buildCardInsightPayload(card);
 
   return (
@@ -116,7 +134,7 @@ function JournalCardListItem({ card }) {
       </div>
     </li>
   );
-}
+});
 
 function parseJourneySummary(text) {
   if (!text) return [];
@@ -139,7 +157,7 @@ function parseJourneySummary(text) {
   return sections;
 }
 
-function JournalInsightsPanel({
+const JournalInsightsPanel = React.memo(function JournalInsightsPanel({
   stats, // Filtered stats for display
   allStats, // Full journal stats for exports/summaries
   entries,
@@ -152,7 +170,14 @@ function JournalInsightsPanel({
   onCreateShareLink,
   onDeleteShareLink
 }) {
-  if (!stats) return null;
+  const primaryStats = stats || allStats;
+  if (!primaryStats) return null;
+
+  const frequentCards = primaryStats.frequentCards || [];
+  const contextBreakdown = primaryStats.contextBreakdown || [];
+  const monthlyCadence = primaryStats.monthlyCadence || [];
+  const recentThemes = primaryStats.recentThemes || [];
+  const isFilteredView = Boolean(filtersActive && stats);
 
   const [actionMessage, setActionMessage] = useState('');
   const [journeySummary, setJourneySummary] = useState('');
@@ -165,8 +190,8 @@ function JournalInsightsPanel({
   const [autoSummarySignature, setAutoSummarySignature] = useState('');
 
   const summaryEntries = useMemo(() => {
-    if (filtersActive && Array.isArray(entries)) {
-      return entries;
+    if (filtersActive) {
+      return Array.isArray(entries) ? entries : [];
     }
     if (Array.isArray(allEntries) && allEntries.length > 0) {
       return allEntries;
@@ -174,42 +199,123 @@ function JournalInsightsPanel({
     return Array.isArray(entries) ? entries : [];
   }, [allEntries, entries, filtersActive]);
 
-  const summaryStats = filtersActive ? stats : (allStats || stats);
+  const summaryStats = useMemo(() => {
+    if (isFilteredView) {
+      return stats;
+    }
+    return allStats || stats || null;
+  }, [allStats, isFilteredView, stats]);
+
+  const usingFilteredEntries = filtersActive && Array.isArray(entries) && entries.length > 0;
+  const svgStats = stats || allStats;
+  const baseEntries = Array.isArray(summaryEntries) ? summaryEntries : [];
+  const isFilteredAndEmpty =
+    filtersActive &&
+    baseEntries.length === 0 &&
+    Array.isArray(allEntries) &&
+    allEntries.length > 0;
+
+  useEffect(() => {
+    if (isFilteredAndEmpty) {
+      if (journeySummary) {
+        setJourneySummary('');
+      }
+      if (summarySections.length > 0) {
+        setSummarySections([]);
+      }
+      if (summaryError !== FILTERED_SUMMARY_MESSAGE) {
+        setSummaryError(FILTERED_SUMMARY_MESSAGE);
+      }
+      return;
+    }
+    if (summaryError === FILTERED_SUMMARY_MESSAGE) {
+      setSummaryError('');
+    }
+  }, [isFilteredAndEmpty, journeySummary, summarySections.length, summaryError]);
+
+  const handleVisualCardDownload = () => {
+    if (!svgStats) {
+      setActionMessage('No entries available for visual card');
+      setTimeout(() => setActionMessage(''), 3500);
+      return;
+    }
+    try {
+      downloadInsightsSvg(svgStats);
+      const label = usingFilteredEntries
+        ? `Visual card: filtered (${summaryEntries.length} entries)`
+        : 'Visual card ready';
+      setActionMessage(label);
+    } catch (error) {
+      console.warn('Unable to download visual card', error);
+      setActionMessage('Unable to create visual card');
+    }
+    setTimeout(() => setActionMessage(''), 3500);
+  };
 
   const entryOptions = useMemo(() => {
     const filteredList = Array.isArray(entries) ? entries : [];
+    const filteredOptions = filteredList
+      .filter((entry) => entry?.id)
+      .map((entry) => ({ id: entry.id, entry, source: 'filtered', label: formatEntryOptionLabel(entry) }));
+
     if (!Array.isArray(allEntries) || allEntries.length === 0) {
-      return filteredList;
+      return {
+        filtered: filteredOptions,
+        journal: [],
+        all: filteredOptions
+      };
     }
-    const seen = new Set(filteredList.map((entry) => entry?.id).filter(Boolean));
-    const merged = [...filteredList];
+
+    const seen = new Set(filteredOptions.map((option) => option.id));
+    const journalOptions = [];
     allEntries.forEach((entry) => {
-      if (entry?.id && seen.has(entry.id)) {
+      if (!entry?.id || seen.has(entry.id)) {
         return;
       }
-      merged.push(entry);
+      journalOptions.push({ id: entry.id, entry, source: 'journal', label: formatEntryOptionLabel(entry) });
     });
-    return merged;
+
+    return {
+      filtered: filteredOptions,
+      journal: journalOptions,
+      all: [...filteredOptions, ...journalOptions]
+    };
   }, [allEntries, entries]);
 
   const handleExport = () => {
-    // Always export full journal, not filtered subset
-    const exportEntries = allEntries || entries;
+    const exportEntries =
+      isFilteredAndEmpty && Array.isArray(allEntries) ? allEntries : summaryEntries;
     const result = exportJournalEntriesToCsv(exportEntries);
+    const usedFilteredEntries = usingFilteredEntries && !isFilteredAndEmpty;
     const message = result
-      ? (filtersActive ? `Exported full journal (${exportEntries.length} entries)` : 'Exported journal.csv')
+      ? isFilteredAndEmpty
+        ? `Filters empty, exported full journal (${exportEntries.length} entries)`
+        : usedFilteredEntries
+          ? `Exported filtered view (${exportEntries.length} entries)`
+          : exportEntries.length > 0
+            ? `Exported journal (${exportEntries.length} entries)`
+            : 'Nothing to export'
       : 'Unable to export right now';
     setActionMessage(message);
     setTimeout(() => setActionMessage(''), 3500);
   };
 
   const handlePdfDownload = () => {
+    const pdfStats = isFilteredAndEmpty && allStats ? allStats : summaryStats;
+    const pdfEntries =
+      isFilteredAndEmpty && Array.isArray(allEntries) ? allEntries : summaryEntries;
+
     try {
-      // Use full journal stats for PDF exports
-      const exportStats = allStats || stats;
-      const exportEntries = allEntries || entries;
-      exportJournalInsightsToPdf(exportStats, exportEntries);
-      setActionMessage(filtersActive ? `PDF: full journal (${exportEntries.length} entries)` : 'PDF downloaded');
+      exportJournalInsightsToPdf(pdfStats, pdfEntries);
+      const usedFilteredEntries = usingFilteredEntries && !isFilteredAndEmpty;
+      const label = isFilteredAndEmpty
+        ? `PDF: full journal (${pdfEntries.length} entries)`
+        : usedFilteredEntries
+          ? `PDF: filtered view (${pdfEntries.length} entries)`
+          : pdfEntries.length > 0
+            ? `PDF: journal (${pdfEntries.length} entries)`
+            : 'PDF downloaded';
+      setActionMessage(label);
     } catch (error) {
       setActionMessage('Unable to create PDF');
     }
@@ -217,31 +323,59 @@ function JournalInsightsPanel({
   };
 
   const handleShare = async () => {
+    if (
+      (!isFilteredAndEmpty && baseEntries.length === 0) ||
+      (isFilteredAndEmpty && (!allEntries || allEntries.length === 0))
+    ) {
+      setActionMessage('No entries to share');
+      setTimeout(() => setActionMessage(''), 3500);
+      return;
+    }
+
     if (isAuthenticated && onCreateShareLink) {
       try {
-        const data = await onCreateShareLink({ scope: 'journal' });
+        const shareFromFilteredView = usingFilteredEntries && !isFilteredAndEmpty;
+        const payload = { scope: 'journal' };
+        if (shareFromFilteredView) {
+          const entryIds = baseEntries
+            .slice(0, 10)
+            .map((entry) => entry?.id)
+            .filter(Boolean);
+          if (entryIds.length > 0) {
+            payload.entryIds = entryIds;
+            payload.limit = entryIds.length;
+          }
+        }
+        const data = await onCreateShareLink(payload);
         const shareUrl = data?.url && typeof window !== 'undefined'
           ? `${window.location.origin}${data.url}`
           : null;
         if (shareUrl && navigator?.clipboard?.writeText) {
           await navigator.clipboard.writeText(shareUrl);
-          setActionMessage('Share link copied');
+          setActionMessage(isFilteredAndEmpty ? 'Filters empty, created link for full journal' : 'Share link copied');
         } else {
-          setActionMessage('Share link ready');
+          setActionMessage(isFilteredAndEmpty ? 'Filters empty, link for full journal ready' : 'Share link ready');
         }
       } catch (error) {
         setActionMessage(error.message || 'Unable to create share link');
       }
     } else {
-      const shareStats = allStats || stats;
+      const shareStats = isFilteredAndEmpty ? allStats : (summaryStats || allStats || primaryStats);
       const success = await copyJournalShareSummary(shareStats);
-      setActionMessage(success ? 'Snapshot copied for sharing' : 'Unable to copy snapshot');
+      setActionMessage(success ? (isFilteredAndEmpty ? 'Filters empty, copied full journal summary' : 'Snapshot copied for sharing') : 'Unable to copy snapshot');
     }
     setTimeout(() => setActionMessage(''), 3500);
   };
 
-  const handleJourneySummary = useCallback(async ({ auto = false } = {}) => {
-    if (!summaryEntries || summaryEntries.length === 0) return;
+  const handleJourneySummary = useCallback(async ({ auto = false, signal = null } = {}) => {
+    if (!summaryEntries || summaryEntries.length === 0) {
+      if (filtersActive) {
+        setSummaryError(FILTERED_SUMMARY_MESSAGE);
+      }
+      return;
+    }
+    if (signal?.aborted) return;
+
     setSummaryStatus('loading');
     setSummaryError('');
     try {
@@ -251,44 +385,57 @@ function JournalInsightsPanel({
           .slice(0, 10)
           .map((entry) => entry?.id)
           .filter(Boolean);
-        const payload = filtersActive && entryIds.length > 0
+        const requestPayload = filtersActive && entryIds.length > 0
           ? { entryIds, limit: entryIds.length }
           : { limit: Math.min(summaryEntries.length, 10) };
         const response = await fetch('/api/journal-summary', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           credentials: 'include',
-          body: JSON.stringify(payload)
+          body: JSON.stringify(requestPayload),
+          signal
         });
+
+        if (signal?.aborted) return;
+
         if (!response.ok) {
-          const payload = await response.json().catch(() => ({}));
-          throw new Error(payload.error || 'Unable to generate summary');
+          const errorData = await response.json().catch(() => ({}));
+          throw new Error(errorData.error || 'Unable to generate summary');
         }
-        const payload = await response.json();
-        summaryText = payload.summary;
+        const responseData = await response.json();
+        summaryText = responseData.summary;
       }
       if (!summaryText) {
         summaryText = buildHeuristicJourneySummary(summaryEntries, summaryStats);
       }
+
+      if (signal?.aborted) return;
+
       setJourneySummary(summaryText);
       setSummarySections(parseJourneySummary(summaryText));
       setSummaryGeneratedAt(Date.now());
     } catch (error) {
+      if (error.name === 'AbortError') {
+        // Request was cancelled, ignore
+        return;
+      }
       if (!auto) {
         setSummaryError(error.message || 'Unable to generate summary');
       }
     } finally {
-      setSummaryStatus('idle');
+      if (!signal?.aborted) {
+        setSummaryStatus('idle');
+      }
     }
   }, [filtersActive, isAuthenticated, summaryEntries, summaryStats]);
 
   useEffect(() => {
     if (shareComposer.entryId) return;
-    const fallbackEntry = entries?.[0] || entryOptions?.[0];
-    if (fallbackEntry?.id) {
-      setShareComposer((prev) => ({ ...prev, entryId: fallbackEntry.id }));
+    const fallbackOption = entryOptions.all[0];
+    if (fallbackOption?.id) {
+      setShareComposer((prev) => ({ ...prev, entryId: fallbackOption.id }));
     }
-  }, [entries, entryOptions, shareComposer.entryId]);
+  }, [entryOptions, shareComposer.entryId]);
 
   const entrySignature = useMemo(() => {
     if (!Array.isArray(summaryEntries) || summaryEntries.length === 0) {
@@ -297,13 +444,27 @@ function JournalInsightsPanel({
     return summaryEntries
       .map((entry) => {
         const idPart = entry?.id ?? entry?.ts ?? 'entry';
-        const tsPart = entry?.ts ?? entry?.updated_at ?? entry?.created_at ?? '';
-        return `${idPart}:${tsPart}`;
+        const tsPart = entry?.updated_at ?? entry?.created_at ?? entry?.ts ?? '';
+        const reflections = entry?.personalReading || (entry?.reflections ? JSON.stringify(entry.reflections) : '');
+        const themesSource = entry?.themes
+          ? JSON.stringify(entry.themes)
+          : typeof entry?.themes_json === 'string'
+            ? entry.themes_json
+            : '';
+        const cardsFingerprint = (Array.isArray(entry?.cards) ? entry.cards : [])
+          .map((card) => `${card?.name || 'card'}:${card?.orientation || (card?.isReversed ? 'reversed' : 'upright')}`)
+          .join(',');
+        const contentHash = [entry?.context || '', entry?.question || '', reflections, themesSource, cardsFingerprint]
+          .map((part) => (typeof part === 'string' ? part : ''))
+          .join('|');
+        return `${idPart}:${tsPart}:${contentHash}`;
       })
       .join('|');
   }, [summaryEntries]);
 
   useEffect(() => {
+    const abortController = new AbortController();
+
     if (!entrySignature) {
       if (autoSummarySignature) {
         setAutoSummarySignature('');
@@ -313,13 +474,27 @@ function JournalInsightsPanel({
     if (autoSummarySignature === entrySignature) {
       return;
     }
-    handleJourneySummary({ auto: true });
-    setAutoSummarySignature(entrySignature);
+
+    // Trigger summary with cancellation support
+    const triggerSummary = async () => {
+      await handleJourneySummary({ auto: true, signal: abortController.signal });
+      // Only update signature if not aborted
+      if (!abortController.signal.aborted) {
+        setAutoSummarySignature(entrySignature);
+      }
+    };
+
+    triggerSummary();
+
+    // Cleanup: cancel pending request if signature changes
+    return () => {
+      abortController.abort();
+    };
   }, [entrySignature, autoSummarySignature, handleJourneySummary]);
 
-  const topContext = stats.contextBreakdown?.slice().sort((a, b) => b.count - a.count)[0];
+  const topContext = contextBreakdown.slice().sort((a, b) => b.count - a.count)[0];
   const contextSuggestion = topContext && CONTEXT_TO_SPREAD[topContext.name];
-  const topCard = stats.frequentCards?.[0];
+  const topCard = frequentCards[0];
   const coachRecommendation = useMemo(() => {
     if (contextSuggestion) {
       return {
@@ -347,8 +522,29 @@ function JournalInsightsPanel({
     return null;
   }, [contextSuggestion, topCard, topContext]);
 
+  // Automatically persist the latest coach recommendation so downstream consumers
+  // (TarotReading, GuidedIntentionCoach) can offer a suggestion based on the
+  // overall journal, without being overwritten by filtered slices.
+  const prevCoachRecRef = useRef(null);
+  useEffect(() => {
+    if (!coachRecommendation) return;
+    if (filtersActive) return;
+
+    // Only save if actually changed to avoid excessive localStorage writes
+    const current = JSON.stringify(coachRecommendation);
+    if (prevCoachRecRef.current === current) return;
+
+    saveCoachRecommendation(coachRecommendation);
+    prevCoachRecRef.current = current;
+  }, [coachRecommendation, filtersActive]);
+
   const handleCoachPrefill = useCallback(async () => {
     if (!coachRecommendation) return;
+    if (filtersActive) {
+      setActionMessage('Clear filters to sync this suggestion');
+      setTimeout(() => setActionMessage(''), 3500);
+      return;
+    }
     try {
       await Promise.resolve(saveCoachRecommendation(coachRecommendation));
       setActionMessage('Sent suggestion to intention coach');
@@ -357,7 +553,7 @@ function JournalInsightsPanel({
       setActionMessage('Unable to sync coach suggestion');
     }
     setTimeout(() => setActionMessage(''), 3500);
-  }, [coachRecommendation]);
+  }, [coachRecommendation, filtersActive]);
 
   const handleComposerSubmit = async (event) => {
     event.preventDefault();
@@ -365,9 +561,15 @@ function JournalInsightsPanel({
     const scope = shareComposer.scope;
     const trimmedTitle = shareComposer.title.trim();
     const parsedLimit = scope === 'journal' ? Number.parseInt(shareComposer.limit, 10) : undefined;
-    const normalizedLimit = Number.isFinite(parsedLimit) ? parsedLimit : undefined;
+    const normalizedLimit = Number.isFinite(parsedLimit)
+      ? Math.min(10, Math.max(1, parsedLimit))
+      : undefined;
     const expiresParsed = shareComposer.expiresInHours ? Number.parseInt(shareComposer.expiresInHours, 10) : undefined;
-    const expiresInHours = Number.isFinite(expiresParsed) ? expiresParsed : undefined;
+    const expiresInHours = Number.isFinite(expiresParsed) && expiresParsed > 0
+      ? Math.floor(expiresParsed)
+      : undefined;
+
+    const selectedEntryValid = entryOptions.all.some((option) => option.id === shareComposer.entryId);
 
     if (scope === 'journal') {
       if (!Number.isFinite(normalizedLimit) || normalizedLimit < 1 || normalizedLimit > 10) {
@@ -375,10 +577,31 @@ function JournalInsightsPanel({
         setTimeout(() => setActionMessage(''), 3500);
         return;
       }
-    } else if (!shareComposer.entryId) {
-      setActionMessage('Pick a journal entry to share');
-      setTimeout(() => setActionMessage(''), 3500);
-      return;
+    } else {
+      if (!shareComposer.entryId) {
+        setActionMessage('Pick a journal entry to share');
+        setTimeout(() => setActionMessage(''), 3500);
+        return;
+      }
+      if (!selectedEntryValid) {
+        setActionMessage('Select an entry from your journal');
+        setTimeout(() => setActionMessage(''), 3500);
+        return;
+      }
+    }
+
+    let entryIdsForJournal;
+    if (scope === 'journal' && filtersActive) {
+      const filteredIds = (Array.isArray(entries) ? entries : [])
+        .map((entry) => entry?.id)
+        .filter(Boolean);
+      if (filteredIds.length === 0) {
+        setActionMessage('No entries match your filters');
+        setTimeout(() => setActionMessage(''), 3500);
+        return;
+      }
+      const limitForFilteredShare = normalizedLimit ?? Math.min(filteredIds.length, 10);
+      entryIdsForJournal = filteredIds.slice(0, limitForFilteredShare);
     }
 
     try {
@@ -387,6 +610,7 @@ function JournalInsightsPanel({
         entryId: scope === 'entry' ? shareComposer.entryId : undefined,
         title: trimmedTitle,
         limit: scope === 'journal' ? normalizedLimit : undefined,
+        entryIds: scope === 'journal' ? entryIdsForJournal : undefined,
         expiresInHours
       });
       const shareUrl = data?.url && typeof window !== 'undefined'
@@ -431,8 +655,9 @@ function JournalInsightsPanel({
           </button>
           <button
             type="button"
-            onClick={() => downloadInsightsSvg(stats)}
-            className="inline-flex items-center gap-1 rounded-full border border-amber-400/50 px-3 py-1 text-xs text-amber-200 hover:bg-amber-500/10"
+            onClick={handleVisualCardDownload}
+            disabled={!svgStats}
+            className={`inline-flex items-center gap-1 rounded-full border border-amber-400/50 px-3 py-1 text-xs ${svgStats ? 'text-amber-200 hover:bg-amber-500/10' : 'text-amber-200/40 cursor-not-allowed'}`}
           >
             <FileText className="h-3.5 w-3.5" /> Visual card
           </button>
@@ -453,18 +678,23 @@ function JournalInsightsPanel({
       </div>
 
       <p className="mt-2 text-sm text-amber-200/70">
-        {filtersActive && allStats ? (
+        {isFilteredView && allStats ? (
           <>
             <span className="font-medium text-emerald-300">Showing: </span>
             {stats.totalReadings} of {allStats.totalReadings} entries · {stats.totalCards} cards · {stats.reversalRate}% reversed
           </>
         ) : (
           <>
-            {stats.totalReadings} entries · {stats.totalCards} cards · {stats.reversalRate}% reversed
+            {primaryStats.totalReadings} entries · {primaryStats.totalCards} cards · {primaryStats.reversalRate}% reversed
           </>
         )}
       </p>
       {actionMessage && <p className="mt-2 text-xs text-emerald-200/70">{actionMessage}</p>}
+      {isFilteredAndEmpty && (
+        <div className="mt-3 rounded-2xl border border-amber-400/20 bg-amber-500/10 p-3 text-xs text-amber-100/80">
+          Clear or adjust your filters to regenerate the journey summary and filtered exports.
+        </div>
+      )}
 
       {shareComposerOpen && (
         <form onSubmit={handleComposerSubmit} className="mt-4 grid gap-3 rounded-2xl border border-emerald-400/30 bg-slate-900/50 p-4">
@@ -526,11 +756,29 @@ function JournalInsightsPanel({
                   onChange={(event) => setShareComposer((prev) => ({ ...prev, entryId: event.target.value }))}
                   className="mt-2 w-full rounded-2xl border border-emerald-400/30 bg-slate-950/70 px-3 py-2 text-sm text-amber-100 focus:outline-none focus:ring-2 focus:ring-emerald-400/50"
                 >
-                  {entryOptions.map((entry) => (
-                    <option key={entry.id} value={entry.id}>
-                      {entry.spread} · {new Date(entry.ts).toLocaleDateString()}
+                  {entryOptions.filtered.length > 0 && (
+                    <optgroup label="Filtered entries">
+                      {entryOptions.filtered.map((option) => (
+                        <option key={option.id} value={option.id}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </optgroup>
+                  )}
+                  {entryOptions.journal.length > 0 && (
+                    <optgroup label={filtersActive ? 'Outside filtered view' : 'All journal entries'}>
+                      {entryOptions.journal.map((option) => (
+                        <option key={option.id} value={option.id}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </optgroup>
+                  )}
+                  {entryOptions.all.length === 0 && (
+                    <option value="" disabled>
+                      No entries available
                     </option>
-                  ))}
+                  )}
                 </select>
               </label>
             )}
@@ -546,14 +794,14 @@ function JournalInsightsPanel({
         </form>
       )}
 
-      {stats.frequentCards.length > 0 && (
+      {frequentCards.length > 0 && (
         <div className="mt-6">
           <div className="flex items-center justify-between gap-2">
             <h3 className="text-sm font-semibold uppercase tracking-[0.3em] text-amber-400/80">Most frequent cards</h3>
-            {filtersActive && <span className="text-[10px] uppercase tracking-[0.2em] text-emerald-200/70">Filtered view</span>}
+            {isFilteredView && <span className="text-[10px] uppercase tracking-[0.2em] text-emerald-200/70">Filtered view</span>}
           </div>
           <ul className="mt-3 space-y-2">
-            {stats.frequentCards.map((card) => (
+            {frequentCards.map((card) => (
               <li key={card.name} className="flex items-center justify-between rounded-2xl bg-slate-900/60 px-4 py-3 text-sm text-amber-100/90">
                 <span>{card.name}</span>
                 <span className="text-amber-300/80">
@@ -565,14 +813,14 @@ function JournalInsightsPanel({
         </div>
       )}
 
-      {stats.contextBreakdown.length > 0 && (
+      {contextBreakdown.length > 0 && (
         <div className="mt-6">
           <div className="flex items-center justify-between gap-2">
             <h3 className="text-sm font-semibold uppercase tracking-[0.3em] text-amber-400/80">Context mix</h3>
-            {filtersActive && <span className="text-[10px] uppercase tracking-[0.2em] text-emerald-200/70">Filtered view</span>}
+            {isFilteredView && <span className="text-[10px] uppercase tracking-[0.2em] text-emerald-200/70">Filtered view</span>}
           </div>
           <div className="mt-3 flex flex-wrap gap-2">
-            {stats.contextBreakdown.map((context) => (
+            {contextBreakdown.map((context) => (
               <span key={context.name} className="rounded-full border border-emerald-400/30 px-3 py-1 text-xs text-emerald-200">
                 {context.name}: {context.count}
               </span>
@@ -581,14 +829,14 @@ function JournalInsightsPanel({
         </div>
       )}
 
-      {stats.monthlyCadence.length > 0 && (
+      {monthlyCadence.length > 0 && (
         <div className="mt-6">
           <div className="flex items-center justify-between gap-2">
             <h3 className="text-sm font-semibold uppercase tracking-[0.3em] text-amber-400/80">Monthly cadence</h3>
-            {filtersActive && <span className="text-[10px] uppercase tracking-[0.2em] text-emerald-200/70">Filtered view</span>}
+            {isFilteredView && <span className="text-[10px] uppercase tracking-[0.2em] text-emerald-200/70">Filtered view</span>}
           </div>
           <div className="mt-3 grid gap-3 sm:grid-cols-3 lg:grid-cols-6">
-            {stats.monthlyCadence.map((month) => (
+            {monthlyCadence.map((month) => (
               <div key={month.label} className="rounded-2xl border border-emerald-400/30 bg-slate-950/60 p-3 text-center">
                 <p className="text-xs text-amber-200/70">{month.label}</p>
                 <p className="text-lg font-semibold text-amber-100">{month.count}</p>
@@ -598,14 +846,14 @@ function JournalInsightsPanel({
         </div>
       )}
 
-      {stats.recentThemes?.length > 0 && (
+      {recentThemes?.length > 0 && (
         <div className="mt-6">
           <div className="flex items-center justify-between gap-2">
             <h3 className="text-sm font-semibold uppercase tracking-[0.3em] text-amber-400/80">Recent themes</h3>
-            {filtersActive && <span className="text-[10px] uppercase tracking-[0.2em] text-emerald-200/70">Filtered view</span>}
+            {isFilteredView && <span className="text-[10px] uppercase tracking-[0.2em] text-emerald-200/70">Filtered view</span>}
           </div>
           <ul className="mt-3 list-disc space-y-1 pl-5 text-xs text-amber-100/80">
-            {stats.recentThemes.map((theme, idx) => (
+            {recentThemes.map((theme, idx) => (
               <li key={`${theme}-${idx}`}>{theme}</li>
             ))}
           </ul>
@@ -628,7 +876,9 @@ function JournalInsightsPanel({
             <button
               type="button"
               onClick={handleCoachPrefill}
-              className="mt-3 inline-flex items-center rounded-full border border-emerald-300/50 px-3 py-1 text-xs text-emerald-100 hover:bg-emerald-500/10"
+              disabled={filtersActive}
+              title={filtersActive ? 'Clear filters to sync this suggestion' : undefined}
+              className={`mt-3 inline-flex items-center rounded-full border border-emerald-300/50 px-3 py-1 text-xs ${filtersActive ? 'text-emerald-100/40 cursor-not-allowed' : 'text-emerald-100 hover:bg-emerald-500/10'}`}
             >
               Pre-fill intention coach
             </button>
@@ -688,7 +938,7 @@ function JournalInsightsPanel({
       )}
     </section>
   );
-}
+});
 
 function buildThemeInsights(entry) {
   const lines = [];
@@ -729,7 +979,7 @@ function buildThemeInsights(entry) {
   return lines.filter(Boolean);
 }
 
-function JournalEntryCard({ entry, onCreateShareLink, isAuthenticated }) {
+const JournalEntryCard = React.memo(function JournalEntryCard({ entry, onCreateShareLink, isAuthenticated }) {
   const insights = buildThemeInsights(entry);
   const [showNarrative, setShowNarrative] = useState(false);
   const [entryActionMessage, setEntryActionMessage] = useState('');
@@ -820,7 +1070,7 @@ function JournalEntryCard({ entry, onCreateShareLink, isAuthenticated }) {
         <div className="mt-4">
           <button
             type="button"
-            onClick={() => setShowNarrative(prev => !prev)}
+            onClick={() => setShowNarrative((prev) => !prev)}
             className="mb-2 inline-flex items-center px-3 py-1.5 rounded-full border border-amber-400/60 text-xs sm:text-sm text-amber-100 hover:bg-amber-500/10 transition"
           >
             {showNarrative ? 'Hide narrative' : 'View narrative'}
@@ -837,16 +1087,28 @@ function JournalEntryCard({ entry, onCreateShareLink, isAuthenticated }) {
       )}
     </div>
   );
-}
+});
 
 export default function Journal() {
   const { isAuthenticated, user, logout } = useAuth();
-  const { entries, loading, deleteEntry, migrateToCloud } = useJournal();
+  const { entries, loading, deleteEntry, migrateToCloud, error: journalError } = useJournal();
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [migrating, setMigrating] = useState(false);
   const [migrateMessage, setMigrateMessage] = useState('');
   const [deleteMessage, setDeleteMessage] = useState('');
   const [filters, setFilters] = useState({ query: '', contexts: [], spreads: [], timeframe: 'all', onlyReversals: false });
+  const deferredQuery = useDeferredValue(filters.query);
+  const filterSignature = useMemo(
+    () =>
+      JSON.stringify({
+        query: filters.query.trim().toLowerCase(),
+        contexts: [...filters.contexts].sort(),
+        spreads: [...filters.spreads].sort(),
+        timeframe: filters.timeframe,
+        onlyReversals: filters.onlyReversals
+      }),
+    [filters]
+  );
   const [shareLinks, setShareLinks] = useState([]);
   const [shareLoading, setShareLoading] = useState(false);
   const [shareError, setShareError] = useState('');
@@ -856,7 +1118,7 @@ export default function Journal() {
     if (!entries || entries.length === 0) {
       return [];
     }
-    const query = filters.query.trim().toLowerCase();
+    const query = deferredQuery.trim().toLowerCase();
     const contextSet = new Set(filters.contexts);
     const spreadSet = new Set(filters.spreads);
     const timeframeCutoff = (() => {
@@ -914,7 +1176,16 @@ export default function Journal() {
       }
       return true;
     });
-  }, [entries, filters]);
+  }, [entries, deferredQuery, filters.contexts, filters.spreads, filters.timeframe, filters.onlyReversals]);
+
+  const [visibleCount, setVisibleCount] = useState(VISIBLE_ENTRY_BATCH);
+
+  useEffect(() => {
+    setVisibleCount(VISIBLE_ENTRY_BATCH);
+  }, [filterSignature, filteredEntries.length]);
+
+  const visibleEntries = useMemo(() => filteredEntries.slice(0, visibleCount), [filteredEntries, visibleCount]);
+  const hasMoreEntries = filteredEntries.length > visibleCount;
 
   // Compute stats for both full journal and filtered view
   const allStats = useMemo(() => computeJournalStats(entries), [entries]);
@@ -950,21 +1221,42 @@ export default function Journal() {
   }, [isAuthenticated, fetchShareLinks]);
 
   const createShareLink = useCallback(
-    async ({ scope = 'journal', entryId, title, limit, expiresInHours } = {}) => {
+    async ({ scope = 'journal', entryId, entryIds, title, limit, expiresInHours } = {}) => {
       if (!isAuthenticated) {
         throw new Error('Sign in to create share links');
       }
       const payload = { scope };
-      if (scope === 'entry' && entryId) {
-        payload.entryIds = [entryId];
-      } else if (Number.isFinite(limit)) {
-        payload.limit = Math.max(1, Math.min(10, Math.floor(limit)));
+      const parsedLimit = Number.parseInt(limit, 10);
+      const sanitizedLimit = Number.isFinite(parsedLimit)
+        ? Math.max(1, Math.min(10, parsedLimit))
+        : undefined;
+      const parsedExpiry = Number.parseInt(expiresInHours, 10);
+      const sanitizedExpiry = Number.isFinite(parsedExpiry) && parsedExpiry > 0
+        ? Math.floor(parsedExpiry)
+        : undefined;
+      const normalizedEntryIds = Array.isArray(entryIds)
+        ? entryIds
+          .map((value) => (typeof value === 'string' ? value.trim() : ''))
+          .filter(Boolean)
+          .slice(0, 10)
+        : [];
+
+      if (scope === 'entry') {
+        if (entryId) {
+          payload.entryIds = [entryId];
+        } else if (normalizedEntryIds.length === 1) {
+          payload.entryIds = normalizedEntryIds;
+        }
+      } else if (normalizedEntryIds.length > 0) {
+        payload.entryIds = normalizedEntryIds;
+      } else if (sanitizedLimit) {
+        payload.limit = sanitizedLimit;
       }
       if (title) {
         payload.title = title;
       }
-      if (Number.isFinite(expiresInHours) && expiresInHours > 0) {
-        payload.expiresInHours = Math.floor(expiresInHours);
+      if (sanitizedExpiry) {
+        payload.expiresInHours = sanitizedExpiry;
       }
       const response = await fetch('/api/share', {
         method: 'POST',
@@ -1058,14 +1350,15 @@ export default function Journal() {
     const result = await deleteEntry(entryId);
 
     if (result.success) {
-      if (isAuthenticated) {
-        setDeleteMessage('Entry deleted');
-        setTimeout(() => setDeleteMessage(''), 4000);
-      }
+      setDeleteMessage('Entry deleted');
     } else {
       setDeleteMessage(`Delete failed: ${result.error || 'Unknown error'}`);
-      setTimeout(() => setDeleteMessage(''), 4000);
     }
+    setTimeout(() => setDeleteMessage(''), 4000);
+  };
+
+  const handleLoadMoreEntries = () => {
+    setVisibleCount((prev) => Math.min(filteredEntries.length, prev + VISIBLE_ENTRY_BATCH));
   };
 
   // Check if we have localStorage entries that can be migrated
@@ -1161,6 +1454,12 @@ export default function Journal() {
             </div>
           )}
 
+          {journalError && (
+            <div className="mb-4 rounded-lg border border-rose-400/40 bg-rose-900/30 p-3 text-sm text-rose-100">
+              {journalError}
+            </div>
+          )}
+
           {/* Delete status message */}
           {deleteMessage && (
             <div className={`mb-4 p-3 rounded-lg ${deleteMessage.includes('failed') ? 'bg-red-900/30 border border-red-400/40 text-red-200' : 'bg-emerald-900/30 border border-emerald-400/40 text-emerald-200'}`}>
@@ -1184,7 +1483,7 @@ export default function Journal() {
                 contexts={CONTEXT_FILTERS}
                 spreads={SPREAD_FILTERS}
               />
-              {filteredStats && (
+              {(allStats || filteredStats) && (
                 <JournalInsightsPanel
                   stats={filteredStats}
                   allStats={allStats}
@@ -1202,24 +1501,40 @@ export default function Journal() {
               {filteredEntries.length === 0 ? (
                 <p className="text-amber-100/80">No entries match your filters.</p>
               ) : (
-                filteredEntries.map((entry) => (
-                  <div key={entry.id} className="relative">
-                    <JournalEntryCard
-                      entry={entry}
-                      isAuthenticated={isAuthenticated}
-                      onCreateShareLink={isAuthenticated ? createShareLink : null}
-                    />
-                    {isAuthenticated && (
+                <>
+                  <p className="text-xs uppercase tracking-[0.2em] text-emerald-200/70">
+                    Showing {visibleEntries.length} of {filteredEntries.length} entries
+                  </p>
+                  {visibleEntries.map((entry) => (
+                    <div key={entry.id} className="relative">
+                      <JournalEntryCard
+                        entry={entry}
+                        isAuthenticated={isAuthenticated}
+                        onCreateShareLink={isAuthenticated ? createShareLink : null}
+                      />
+                      {isAuthenticated && (
+                        <button
+                          onClick={() => handleDelete(entry.id)}
+                          className="absolute top-4 right-4 p-2 text-red-400 hover:text-red-300 hover:bg-red-900/20 rounded-lg transition"
+                          title="Delete entry"
+                        >
+                          <Trash2 className="w-5 h-5" />
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                  {hasMoreEntries && (
+                    <div className="flex justify-center">
                       <button
-                        onClick={() => handleDelete(entry.id)}
-                        className="absolute top-4 right-4 p-2 text-red-400 hover:text-red-300 hover:bg-red-900/20 rounded-lg transition"
-                        title="Delete entry"
+                        type="button"
+                        onClick={handleLoadMoreEntries}
+                        className="rounded-full border border-emerald-400/40 px-4 py-2 text-sm text-emerald-100 hover:bg-emerald-500/10"
                       >
-                        <Trash2 className="w-5 h-5" />
+                        Show {Math.min(VISIBLE_ENTRY_BATCH, filteredEntries.length - visibleEntries.length)} more
                       </button>
-                    )}
-                  </div>
-                ))
+                    </div>
+                  )}
+                </>
               )}
             </div>
           )}

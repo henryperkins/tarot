@@ -12,16 +12,19 @@ const LOCALSTORAGE_KEY = 'tarot_journal';
  *
  * This provides backward compatibility while enabling cloud sync for auth users
  */
-export function useJournal() {
+export function useJournal({ autoLoad = true } = {}) {
   const { isAuthenticated } = useAuth();
   const [entries, setEntries] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(autoLoad);
   const [error, setError] = useState(null);
 
   // Load entries on mount or when auth state changes
   useEffect(() => {
+    if (!autoLoad && isAuthenticated) {
+      return;
+    }
     loadEntries();
-  }, [isAuthenticated]);
+  }, [isAuthenticated, autoLoad]);
 
   const loadEntries = async () => {
     setLoading(true);
@@ -204,23 +207,23 @@ export function useJournal() {
 
   const migrateToCloud = async () => {
     if (!isAuthenticated) {
-      return { success: false, error: 'Not authenticated' };
+      return { success: false, error: 'Not authenticated', skipped: 0 };
     }
 
     if (typeof localStorage === 'undefined') {
-      return { success: false, error: 'localStorage not available' };
+      return { success: false, error: 'localStorage not available', skipped: 0 };
     }
 
     try {
       // Get localStorage entries
       const stored = localStorage.getItem(LOCALSTORAGE_KEY);
       if (!stored) {
-        return { success: true, migrated: 0 };
+        return { success: true, migrated: 0, skipped: 0 };
       }
 
       const localEntries = JSON.parse(stored);
       if (!Array.isArray(localEntries) || localEntries.length === 0) {
-        return { success: true, migrated: 0 };
+        return { success: true, migrated: 0, skipped: 0 };
       }
 
       // Fetch existing cloud entries to check for duplicates
@@ -229,12 +232,23 @@ export function useJournal() {
       });
 
       const existingSeeds = new Set();
+      const existingCompositeKeys = new Set();
       if (existingResponse.ok) {
         const { entries: cloudEntries } = await existingResponse.json();
-        // Build set of existing session_seeds for deduplication
+        // Build sets for deduplication
         cloudEntries.forEach(entry => {
+          // Primary: track by session_seed
           if (entry.sessionSeed) {
             existingSeeds.add(entry.sessionSeed);
+          }
+          // Fallback: track by composite key for entries without sessionSeed
+          const timestamp = entry.ts || entry.created_at * 1000 || entry.updated_at * 1000;
+          if (timestamp) {
+            const cardsFingerprint = (Array.isArray(entry?.cards) ? entry.cards : [])
+              .map((card) => `${card?.name || 'card'}:${card?.orientation || (card?.isReversed ? 'reversed' : 'upright')}`)
+              .join(',');
+            const compositeKey = `${timestamp}_${entry.question || ''}_${entry.spreadKey || ''}_${cardsFingerprint}`;
+            existingCompositeKeys.add(compositeKey);
           }
         });
       }
@@ -244,8 +258,25 @@ export function useJournal() {
       let skipped = 0;
       for (const entry of localEntries) {
         try {
-          // Skip if this entry already exists (check by session_seed)
+          let isDuplicate = false;
+
+          // Primary: Check by session_seed
           if (entry.sessionSeed && existingSeeds.has(entry.sessionSeed)) {
+            isDuplicate = true;
+          }
+
+          // Fallback: Check by composite key (timestamp + question + spread + cards)
+          if (!isDuplicate && !entry.sessionSeed && entry.ts) {
+            const cardsFingerprint = (Array.isArray(entry?.cards) ? entry.cards : [])
+              .map((card) => `${card?.name || 'card'}:${card?.orientation || (card?.isReversed ? 'reversed' : 'upright')}`)
+              .join(',');
+            const compositeKey = `${entry.ts}_${entry.question || ''}_${entry.spreadKey || ''}_${cardsFingerprint}`;
+            if (existingCompositeKeys.has(compositeKey)) {
+              isDuplicate = true;
+            }
+          }
+
+          if (isDuplicate) {
             skipped++;
             continue;
           }
@@ -256,14 +287,26 @@ export function useJournal() {
               'Content-Type': 'application/json'
             },
             credentials: 'include',
-            body: JSON.stringify(entry)
+            body: JSON.stringify({
+              // Preserve the original local timestamp when migrating so the
+              // server can store an accurate created_at for historical entries.
+              ...entry,
+              timestampMs: typeof entry.ts === 'number' ? entry.ts : undefined
+            })
           });
 
           if (response.ok) {
             migrated++;
-            // Add to set to prevent duplicate uploads in this batch
+            // Add to sets to prevent duplicate uploads in this batch
             if (entry.sessionSeed) {
               existingSeeds.add(entry.sessionSeed);
+            }
+            if (entry.ts) {
+              const cardsFingerprint = (Array.isArray(entry?.cards) ? entry.cards : [])
+                .map((card) => `${card?.name || 'card'}:${card?.orientation || (card?.isReversed ? 'reversed' : 'upright')}`)
+                .join(',');
+              const compositeKey = `${entry.ts}_${entry.question || ''}_${entry.spreadKey || ''}_${cardsFingerprint}`;
+              existingCompositeKeys.add(compositeKey);
             }
           }
         } catch (err) {
@@ -271,8 +314,12 @@ export function useJournal() {
         }
       }
 
-      // Clear localStorage after successful migration
-      if (migrated > 0) {
+      // Only clear localStorage when we've either migrated or explicitly
+      // skipped every entry in this batch. If some entries failed to upload
+      // (e.g. due to a flaky network), keep the local copy so the user can
+      // retry the migration later without losing data.
+      const totalLocal = Array.isArray(localEntries) ? localEntries.length : 0;
+      if (totalLocal > 0 && migrated + skipped === totalLocal) {
         localStorage.removeItem(LOCALSTORAGE_KEY);
       }
 

@@ -126,7 +126,8 @@ Key functions:
 - Loading states
 
 **Updated `TarotReading.jsx`**
-- Uses `useJournal().saveEntry()` instead of direct localStorage
+- Uses `useJournal({ autoLoad: false }).saveEntry()` instead of direct localStorage
+- Skips the journal fetch on mount to avoid duplicate network requests
 - Automatic API/localStorage routing
 
 ---
@@ -151,7 +152,8 @@ if (result.success) {
 ```javascript
 import { useJournal } from './hooks/useJournal';
 
-const { saveEntry } = useJournal();
+// Disable the initial fetch if you only need mutation helpers
+const { saveEntry } = useJournal({ autoLoad: false });
 
 const entry = {
   spread: 'Three-Card Story (Past · Present · Future)',

@@ -94,23 +94,23 @@ const normalizeAttentionPayload = (attention) => {
   if (!attention || typeof attention !== 'object') return null;
   const heatmap = Array.isArray(attention.heatmap)
     ? attention.heatmap.map((row) =>
-        Array.isArray(row) ? row.map((value) => Number(Number(value).toFixed(4))) : []
-      )
+      Array.isArray(row) ? row.map((value) => Number(Number(value).toFixed(4))) : []
+    )
     : null;
   const focusRegions = Array.isArray(attention.focusRegions)
     ? attention.focusRegions.slice(0, 8).map((region) => ({
-        x: region.x,
-        y: region.y,
-        intensity: Number(Number(region.intensity).toFixed(4))
-      }))
+      x: region.x,
+      y: region.y,
+      intensity: Number(Number(region.intensity).toFixed(4))
+    }))
     : null;
   const symbolAlignment = Array.isArray(attention.symbolAlignment)
     ? attention.symbolAlignment.map((entry) => ({
-        object: entry.object,
-        position: entry.position,
-        attentionScore: Number(Number(entry.attentionScore).toFixed(4)),
-        isModelFocused: Boolean(entry.isModelFocused)
-      }))
+      object: entry.object,
+      position: entry.position,
+      attentionScore: Number(Number(entry.attentionScore).toFixed(4)),
+      isModelFocused: Boolean(entry.isModelFocused)
+    }))
     : null;
 
   return {
@@ -712,7 +712,7 @@ export default function TarotReading() {
   }
 
   // Use the journal hook for saving
-  const { saveEntry } = useJournal();
+  const { saveEntry } = useJournal({ autoLoad: false });
 
   async function saveReading() {
     if (!reading) {
@@ -2091,16 +2091,16 @@ export default function TarotReading() {
                 </div>
               )}
 
-            {personalReading && !isPersonalReadingError && themes?.knowledgeGraph?.narrativeHighlights?.length > 0 && (
-              <SpreadPatterns themes={themes} />
-            )}
+              {personalReading && !isPersonalReadingError && themes?.knowledgeGraph?.narrativeHighlights?.length > 0 && (
+                <SpreadPatterns themes={themes} />
+              )}
 
-            {/* Personal Reading Display */}
-            {personalReading && (
-               <div className="bg-gradient-to-r from-slate-900/80 via-slate-950/95 to-slate-900/80 backdrop-blur-xl rounded-2xl p-5 sm:p-8 border border-emerald-400/40 shadow-2xl shadow-emerald-900/40 max-w-5xl mx-auto">
-                <h3 className="text-xl sm:text-2xl font-serif text-amber-200 mb-2 flex items-center gap-2">
-                  <Sparkles className="w-5 h-5 sm:w-6 sm:h-6 text-emerald-300" />
-                  Your Personalized Narrative
+              {/* Personal Reading Display */}
+              {personalReading && (
+                <div className="bg-gradient-to-r from-slate-900/80 via-slate-950/95 to-slate-900/80 backdrop-blur-xl rounded-2xl p-5 sm:p-8 border border-emerald-400/40 shadow-2xl shadow-emerald-900/40 max-w-5xl mx-auto">
+                  <h3 className="text-xl sm:text-2xl font-serif text-amber-200 mb-2 flex items-center gap-2">
+                    <Sparkles className="w-5 h-5 sm:w-6 sm:h-6 text-emerald-300" />
+                    Your Personalized Narrative
                   </h3>
                   <HelperToggle className="mt-3 max-w-2xl mx-auto">
                     <p>
@@ -2121,14 +2121,14 @@ export default function TarotReading() {
                     <PatternHighlightBanner patterns={readingMeta.graphContext.narrativeHighlights} />
                   )}
 
-                {/* Render Markdown when available, otherwise fall back to normalized paragraphs */}
-                {personalReading.hasMarkdown ? (
-                  <MarkdownRenderer content={personalReading.raw} />
-                ) : (
-                  <div className="text-amber-100 leading-relaxed space-y-2 sm:space-y-3 md:space-y-4 max-w-none mx-auto text-left">
-                    {personalReading.paragraphs && personalReading.paragraphs.length > 0 ? (
-                      personalReading.paragraphs.map((para, idx) => (
-                        <p
+                  {/* Render Markdown when available, otherwise fall back to normalized paragraphs */}
+                  {personalReading.hasMarkdown ? (
+                    <MarkdownRenderer content={personalReading.raw} />
+                  ) : (
+                    <div className="text-amber-100 leading-relaxed space-y-2 sm:space-y-3 md:space-y-4 max-w-none mx-auto text-left">
+                      {personalReading.paragraphs && personalReading.paragraphs.length > 0 ? (
+                        personalReading.paragraphs.map((para, idx) => (
+                          <p
                             key={idx}
                             className="text-[0.9rem] sm:text-base md:text-lg leading-relaxed md:leading-loose"
                           >
@@ -2223,8 +2223,8 @@ export default function TarotReading() {
                         role="status"
                         aria-live="polite"
                         className={`text-xs text-center max-w-sm ${journalStatus.type === 'success'
-                            ? 'text-emerald-200'
-                            : 'text-rose-200'
+                          ? 'text-emerald-200'
+                          : 'text-rose-200'
                           }`}
                       >
                         {journalStatus.message}
@@ -2297,7 +2297,7 @@ export default function TarotReading() {
               </p>
             </div>
           )}
-      </section>
+        </section>
       </main>
       {mobileActionBarButtons.length > 0 && !isIntentionCoachOpen && (
         <nav className="mobile-action-bar sm:hidden" aria-label="Primary mobile actions">
@@ -2323,12 +2323,12 @@ export default function TarotReading() {
         </nav>
       )}
       {isIntentionCoachOpen && (
-      <GuidedIntentionCoach
-        isOpen={isIntentionCoachOpen}
-        selectedSpread={selectedSpread}
-        onClose={() => setIsIntentionCoachOpen(false)}
-        onApply={handleCoachApply}
-      />
+        <GuidedIntentionCoach
+          isOpen={isIntentionCoachOpen}
+          selectedSpread={selectedSpread}
+          onClose={() => setIsIntentionCoachOpen(false)}
+          onApply={handleCoachApply}
+        />
       )}
     </div>
   );
