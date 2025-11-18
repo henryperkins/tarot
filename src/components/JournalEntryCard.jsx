@@ -1,4 +1,6 @@
 import React, { useState } from 'react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { Share2, Download, Trash2, ChevronDown, ChevronUp, BookOpen } from 'lucide-react';
 import { CardSymbolInsights } from './CardSymbolInsights';
 import { buildCardInsightPayload, exportJournalEntriesToCsv, copyJournalEntrySummary } from '../lib/journalInsights';
@@ -61,8 +63,8 @@ const JournalCardListItem = React.memo(function JournalCardListItem({ card }) {
 
     return (
         <li className="group relative flex flex-col gap-2 rounded-xl border border-emerald-400/20 bg-slate-950/40 p-3 transition-colors hover:bg-slate-950/60 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex items-center gap-3">
-                <span className="flex h-6 w-6 items-center justify-center rounded-full bg-emerald-900/40 text-xs font-medium text-emerald-200">
+            <div className="flex flex-col gap-1 min-w-0">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-200/70 leading-tight">
                     {card.position}
                 </span>
                 <div>
@@ -75,7 +77,7 @@ const JournalCardListItem = React.memo(function JournalCardListItem({ card }) {
                 </div>
             </div>
             {insightCard && (
-                <div className="transition-opacity sm:opacity-0 sm:group-hover:opacity-100">
+                <div className="transition-opacity sm:opacity-0 sm:group-hover:opacity-100 shrink-0">
                     <CardSymbolInsights card={insightCard} position={card.position} />
                 </div>
             )}
@@ -222,8 +224,10 @@ export const JournalEntryCard = React.memo(function JournalEntryCard({ entry, on
 
                             {showNarrative && (
                                 <div className="mt-2 animate-slide-down rounded-xl border border-emerald-400/10 bg-slate-950/20 p-4">
-                                    <div className="prose prose-invert prose-sm max-w-none whitespace-pre-wrap font-serif leading-relaxed text-amber-100/80">
-                                        {entry.personalReading}
+                                    <div className="prose prose-invert prose-sm max-w-none font-serif leading-relaxed text-amber-100/80">
+                                        <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                                            {entry.personalReading}
+                                        </ReactMarkdown>
                                     </div>
                                 </div>
                             )}
