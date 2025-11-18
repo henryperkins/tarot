@@ -1,6 +1,14 @@
 import React from 'react';
 import { SPREADS } from '../data/spreads';
+import { MAJOR_ARCANA } from '../data/majorArcana';
+import { MINOR_ARCANA } from '../data/minorArcana';
 import { Card } from './Card';
+import { Tooltip } from './Tooltip';
+
+const CARD_LOOKUP = [...MAJOR_ARCANA, ...MINOR_ARCANA].reduce((acc, card) => {
+  acc[card.name] = card;
+  return acc;
+}, {});
 
 function toAreaClass(position) {
   // Normalize full Celtic Cross labels (e.g. "Present — core situation (Card 1)")
@@ -19,6 +27,13 @@ function toAreaClass(position) {
     'Outcome': 'outcome'
   };
   return `cc-${map[key] || 'present'}`;
+}
+
+function getOrientationMeaning(card) {
+  const meta = CARD_LOOKUP[card.name] || card;
+  const uprightMeaning = meta.upright || card.upright || '';
+  const reversedMeaning = meta.reversed || card.reversed || '';
+  return card.isReversed ? reversedMeaning || uprightMeaning : uprightMeaning || reversedMeaning;
 }
 
 export function ReadingGrid({
@@ -49,6 +64,30 @@ export function ReadingGrid({
     >
       {reading.map((card, index) => {
         const position = spreadInfo.positions[index] || `Position ${index + 1}`;
+        const isRevealed = revealedCards.has(index);
+
+        const tooltipContent = isRevealed ? (
+          <div className="space-y-1 text-left leading-snug">
+            <strong className="block text-amber-200 text-sm">
+              {card.name}
+              {card.isReversed ? ' (Reversed)' : ''}
+            </strong>
+            <em className="block text-xs text-amber-100/80">{position}</em>
+            <p className="text-xs-plus text-amber-50/90">{getOrientationMeaning(card)}</p>
+          </div>
+        ) : null;
+
+        const cardElement = (
+          <Card
+            card={card}
+            index={index}
+            isRevealed={isRevealed}
+            onReveal={revealCard}
+            position={position}
+            reflections={reflections}
+            setReflections={setReflections}
+          />
+        );
 
         return (
           <div
@@ -57,15 +96,19 @@ export function ReadingGrid({
               selectedSpread === 'celtic' ? toAreaClass(position) : ''
             }`}
           >
-            <Card
-              card={card}
-              index={index}
-              isRevealed={revealedCards.has(index)}
-              onReveal={revealCard}
-              position={position}
-              reflections={reflections}
-              setReflections={setReflections}
-            />
+            {isRevealed ? (
+              <Tooltip
+                content={tooltipContent}
+                position="top"
+                asChild
+                enableClick={false}
+                triggerClassName="block h-full"
+              >
+                {cardElement}
+              </Tooltip>
+            ) : (
+              cardElement
+            )}
           </div>
         );
       })}

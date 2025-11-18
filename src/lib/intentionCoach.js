@@ -1,4 +1,6 @@
 import { EXAMPLE_QUESTIONS } from '../data/exampleQuestions';
+import { loadStoredJournalInsights } from './journalInsights';
+import { loadCoachHistory } from './coachStorage';
 
 const STOP_PHRASES = [' this week', ' this relationship', ' right now', ' with clarity'];
 
@@ -101,14 +103,14 @@ export const INTENTION_DEPTH_OPTIONS = [
   }
 ];
 
-export async function callLlmApi(prompt) {
+export async function callLlmApi(prompt, metadata) {
   try {
     const response = await fetch('/api/generate-question', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify({ prompt })
+      body: JSON.stringify({ prompt, metadata })
     });
 
     if (!response.ok) {
@@ -131,10 +133,56 @@ export async function buildCreativeQuestion({ topic, timeframe, depth, customFoc
   const focus = customFocus?.trim() || topicData.focus;
   const timeframeText = timeframeData?.phrase ? ` ${timeframeData.phrase}` : '';
 
-  const prompt = `Generate a tarot question about ${focus} for the ${timeframeText}. The desired depth is ${depthData.label}.`;
+  const insights = loadStoredJournalInsights();
+  const stats = insights?.stats || null;
+  const recentThemes = stats?.recentThemes || [];
+  const frequentCard = stats?.frequentCards?.[0]?.name || null;
+  const leadingContext = stats?.contextBreakdown?.[0]?.name || null;
+  const reversalRate = typeof stats?.reversalRate === 'number' ? `${stats.reversalRate}% reversals logged` : null;
+  const recentQuestions = loadCoachHistory(3).map(entry => entry.question);
 
-  const creativeQuestion = await callLlmApi(prompt);
-  return creativeQuestion;
+  const personalizationFragments = [];
+  if (recentThemes.length > 0) {
+    personalizationFragments.push(`Recent themes to honor: ${recentThemes.slice(0, 3).join(', ')}`);
+  }
+  if (frequentCard) {
+    personalizationFragments.push(`Recurring card: ${frequentCard}`);
+  }
+  if (leadingContext) {
+    personalizationFragments.push(`Common context: ${leadingContext}`);
+  }
+  if (reversalRate) {
+    personalizationFragments.push(reversalRate);
+  }
+  if (recentQuestions.length > 0) {
+    personalizationFragments.push(`Avoid repeating prior asks like: ${recentQuestions.join('; ')}`);
+  }
+
+  const personalizationNote = personalizationFragments.length > 0
+    ? `Personalization: ${personalizationFragments.join(' | ')}.`
+    : '';
+
+  const prompt = `Generate a tarot question about ${focus} for the${timeframeText || ' current moment'}. The desired depth is ${depthData.label}. ${personalizationNote}`.trim();
+  const metadata = {
+    focus,
+    customFocus: customFocus?.trim() || null,
+    topic: topicData.label,
+    timeframe: timeframeData.label,
+    depth: depthData.label,
+    recentThemes,
+    frequentCard,
+    leadingContext,
+    reversalRate,
+    recentQuestions
+  };
+
+  const creativeQuestion = await callLlmApi(prompt, metadata);
+  if (creativeQuestion) {
+    return creativeQuestion;
+  }
+
+  // Fallback to deterministic guided question if API does not respond
+  return buildGuidedQuestion({ topic, timeframe, depth, customFocus, useCreative: false });
 }
 
 export function buildGuidedQuestion({ topic, timeframe, depth, customFocus, useCreative = false }) {

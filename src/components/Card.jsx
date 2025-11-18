@@ -1,6 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { MAJOR_ARCANA } from '../data/majorArcana';
 import { MINOR_ARCANA } from '../data/minorArcana';
+import { CardSymbolInsights } from './CardSymbolInsights';
 
 function isMinor(card) {
   return !!card.suit && !!card.rank;
@@ -186,6 +187,10 @@ export function Card({
                 >
                   {card.isReversed ? 'Reversed current' : 'Upright current'}
                 </span>
+              </div>
+
+              <div className="mb-4 flex justify-center">
+                <CardSymbolInsights card={card} position={position} />
               </div>
 
               <div

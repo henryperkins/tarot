@@ -14,6 +14,7 @@ import { StepProgress } from './components/StepProgress';
 import { HelperToggle } from './components/HelperToggle';
 import { SpreadPatterns } from './components/SpreadPatterns';
 import { GuidedIntentionCoach } from './components/GuidedIntentionCoach';
+import { loadCoachRecommendation, saveCoachRecommendation } from './lib/journalInsights';
 import { GlobalNav } from './components/GlobalNav';
 import { VisionValidationPanel } from './components/VisionValidationPanel';
 import { DeckSelector } from './components/DeckSelector';
@@ -242,6 +243,7 @@ export default function TarotReading() {
   const [journalStatus, setJournalStatus] = useState(null);
   const [minorsFallbackWarning, setMinorsFallbackWarning] = useState(false);
   const [allowPlaceholderCycle, setAllowPlaceholderCycle] = useState(true);
+  const [coachRecommendation, setCoachRecommendation] = useState(null);
   const [showVoicePrompt, setShowVoicePrompt] = useState(false);
   const [deckAnnouncement, setDeckAnnouncement] = useState('');
   const [isIntentionCoachOpen, setIsIntentionCoachOpen] = useState(false);
@@ -347,12 +349,36 @@ export default function TarotReading() {
     }
   };
 
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const rec = loadCoachRecommendation();
+    if (rec?.question) {
+      setCoachRecommendation(rec);
+    }
+  }, []);
+
   const togglePrepareSection = section => {
     setPrepareSectionsOpen(prev => ({
       ...prev,
       [section]: !prev[section]
     }));
   };
+
+  const applyCoachRecommendation = useCallback(() => {
+    if (!coachRecommendation) return;
+    setUserQuestion(coachRecommendation.question || '');
+    if (coachRecommendation.spreadKey && SPREADS[coachRecommendation.spreadKey]) {
+      setSelectedSpread(coachRecommendation.spreadKey);
+    }
+    setIsIntentionCoachOpen(true);
+    saveCoachRecommendation(null);
+    setCoachRecommendation(null);
+  }, [coachRecommendation]);
+
+  const dismissCoachRecommendation = useCallback(() => {
+    saveCoachRecommendation(null);
+    setCoachRecommendation(null);
+  }, []);
 
   const handleQuestionFocus = () => {
     setAllowPlaceholderCycle(false);
@@ -1798,6 +1824,33 @@ export default function TarotReading() {
                             onLaunchCoach={() => setIsIntentionCoachOpen(true)}
                           />
                         )}
+                        {section === 'intention' && coachRecommendation && (
+                          <div className="mt-3 rounded-xl border border-emerald-400/30 bg-emerald-500/5 p-3">
+                            <p className="text-xs uppercase tracking-[0.3em] text-emerald-200">Journal suggestion</p>
+                            <p className="mt-2 font-serif text-base text-amber-50">{coachRecommendation.question}</p>
+                            {coachRecommendation.spreadName && (
+                              <p className="text-xs text-emerald-200/80 mt-1">
+                                Suggested spread: {coachRecommendation.spreadName}
+                              </p>
+                            )}
+                            <div className="mt-3 flex flex-wrap gap-2 text-xs">
+                              <button
+                                type="button"
+                                onClick={applyCoachRecommendation}
+                                className="rounded-full border border-emerald-400/50 px-3 py-1 text-emerald-100 hover:bg-emerald-500/10"
+                              >
+                                Open in intention coach
+                              </button>
+                              <button
+                                type="button"
+                                onClick={dismissCoachRecommendation}
+                                className="rounded-full border border-amber-400/40 px-3 py-1 text-amber-100 hover:bg-amber-500/10"
+                              >
+                                Dismiss
+                              </button>
+                            </div>
+                          </div>
+                        )}
                         {section === 'experience' && (
                           <SettingsToggles
                             voiceOn={voiceOn}
@@ -2231,7 +2284,7 @@ export default function TarotReading() {
           )}
       </section>
       </main>
-      {mobileActionBarButtons.length > 0 && (
+      {mobileActionBarButtons.length > 0 && !isIntentionCoachOpen && (
         <nav className="mobile-action-bar sm:hidden" aria-label="Primary mobile actions">
           <div className="flex flex-wrap gap-2">
             {mobileActionBarButtons.map(button => (

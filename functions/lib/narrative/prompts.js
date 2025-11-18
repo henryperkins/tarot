@@ -100,6 +100,15 @@ function buildSystemPrompt(spreadKey, themes, context, deckStyle) {
     '- FORMAT: Output in Markdown with `###` section headings, bold card names the first time they appear, and bullet lists for actionable steps. Avoid HTML or fenced code blocks.'
   ];
 
+  lines.push(
+    '',
+    'GPT-5.1 DIRECTIVES:',
+    '- PLAN FIRST: Before drafting, mentally outline the arc (sections, card order, actionable bulleted micro-steps) so the final response flows logically even when reasoning effort is set to `none`.',
+    '- PERSIST UNTIL COMPLETE: Carry the reading through analysis, synthesis, and closing encouragement without stopping early or punting back to the user unless critical information is missing.',
+    '- VERBOSITY CONTROL: Default to 5–7 paragraphs with 2–4 sentences each plus one concise actionable bullet list. If the spread is simpler, tighten wording rather than expanding filler, and never exceed the requested structure.',
+    '- SELF-VERIFY: After composing, quickly scan to ensure each referenced card/position is accurate, reversal instructions are obeyed, and ethical constraints are met before producing the final answer.'
+  );
+
   if (spreadKey === 'celtic') {
     lines.push(
       '',

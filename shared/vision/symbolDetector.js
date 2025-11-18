@@ -1,5 +1,5 @@
 import { pipeline, RawImage } from '@xenova/transformers';
-import { SYMBOL_ANNOTATIONS } from '../../functions/lib/symbolAnnotations.js';
+import { SYMBOL_ANNOTATIONS } from '../symbols/symbolAnnotations.js';
 import { getMinorSymbolAnnotation } from './minorSymbolLexicon.js';
 
 function getEnvValue(key) {

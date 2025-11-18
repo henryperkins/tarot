@@ -7,6 +7,10 @@ body {
   padding-bottom: 1.5rem;
 }
 
+.pb-safe {
+  padding-bottom: 1rem;
+}
+
 .full-bleed {
   width: 100vw;
   margin-left: calc(50% - 50vw);
@@ -16,6 +20,10 @@ body {
 @supports (padding: max(0px)) {
   .app-shell {
     padding-bottom: max(1.5rem, env(safe-area-inset-bottom, 1.5rem));
+  }
+
+  .pb-safe {
+    padding-bottom: max(1rem, env(safe-area-inset-bottom, 1rem));
   }
 }
 

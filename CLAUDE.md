@@ -49,6 +49,7 @@ The application has been refactored from a single-component monolith into a modu
 
 **UI Components** (in `src/components/`):
 
+Core reading experience:
 - `Header.jsx` — Application header and branding.
 - `SpreadSelector.jsx` — Spread type selection UI; wired to curated spreads from `SPREADS`.
 - `QuestionInput.jsx` — Guides users toward open-ended, scope-appropriate questions.
@@ -56,6 +57,35 @@ The application has been refactored from a single-component monolith into a modu
 - `RitualControls.jsx` — Knock and cut deck ritual inputs feeding seeded shuffle.
 - `Card.jsx` — Single card display with authentic visuals and reflection input.
 - `ReadingGrid.jsx` — Grid layout and position labels for the chosen spread.
+- `Tooltip.jsx` — Interactive symbol and card tooltips.
+- `StepProgress.jsx` — Reading workflow progress tracker.
+- `SpreadPatterns.jsx` — Visual spread pattern display.
+
+Intention coaching & refinement:
+- `GuidedIntentionCoach.jsx` — AI-powered question refinement and intention setting.
+
+Reading history & journaling:
+- `Journal.jsx` — Reading history browser with search, tags, and insights.
+- `MarkdownRenderer.jsx` — Renders narrative markdown with proper formatting.
+
+Authentication:
+- `AuthModal.jsx` — User login/registration modal.
+- `GlobalNav.jsx` — Global navigation with auth state.
+
+Deck selection & vision research:
+- `DeckSelector.jsx` — Choose between RWS, Thoth, Marseille decks.
+- `CameraCapture.jsx` — Camera input for physical deck photos.
+- `PhotoInputModal.jsx` — Photo upload workflow modal.
+- `VisionValidationPanel.jsx` — Vision detection research UI.
+- `VisionHeatmapOverlay.jsx` — Visual heatmap overlay for vision detection.
+- `CardSymbolInsights.jsx` — Symbol interpretation panels.
+
+User feedback:
+- `FeedbackPanel.jsx` — User feedback collection component.
+- `ImagePreview.jsx` — Image preview component.
+
+UI utilities:
+- `HelperToggle.jsx` — Show/hide UI helper controls.
 
 **Data Modules** (in `src/data/`):
 
@@ -69,45 +99,206 @@ The application has been refactored from a single-component monolith into a modu
   - Decision / Two-Path
   - Celtic Cross (Classic 10-Card)
 - `exampleQuestions.js` — Suggested, well-phrased questions for different themes.
+- `knowledgeGraphData.js` — Archetypal relationships database (Fool's Journey, dyads, triads, suit progressions).
 
-**Library Utilities** (in `src/lib/`):
+**Contexts** (in `src/contexts/`):
 
-- `deck.js`
+- `AuthContext.jsx` — Global authentication state management (user login/logout, JWT tokens).
+
+**Custom Hooks** (in `src/hooks/`):
+
+- `useJournal.js` — Reading history management (fetch, save, search, tag readings).
+- `useVisionValidation.js` — Vision research mode state and operations.
+
+**Library Utilities** (in `src/lib/` - Client-Side):
+
+> **Note:** This is one of **three separate `lib/` folders** in the codebase:
+> - `src/lib/` — Browser/frontend utilities (uses DOM, window APIs)
+> - `functions/lib/` — Cloudflare Workers/backend utilities (uses env, D1, KV)
+> - `scripts/evaluation/lib/` — Development tooling utilities (Node.js)
+
+- `deck.js` — Core tarot card logic:
   - `hashString()`, `xorshift32()` and `seededShuffle()` for deterministic RNG.
   - `cryptoShuffle()` fallback using `window.crypto` or `Math.random`.
-  - `computeSeed({ cutIndex, knockTimes, userQuestion })`:
-    - Combines ritual timing, cut, and question into a reproducible seed.
-  - `drawSpread({ spreadKey, useSeed, seed })`:
-    - Validates spread key from `SPREADS`.
-    - Shuffles `MAJOR_ARCANA`.
-    - Attaches `isReversed` using deterministic orientation when seeded.
-  - `computeRelationships(cards)`:
-    - Detects sequences, curated pairings (e.g., Death + Star), and growth arcs.
-- `audio.js`
-  - Helpers for ambience and TTS playback toggles.
+  - `computeSeed({ cutIndex, knockTimes, userQuestion })` — combines ritual timing, cut, and question into reproducible seed.
+  - `drawSpread({ spreadKey, useSeed, seed })` — validates spread key, shuffles deck, attaches `isReversed`.
+  - `computeRelationships(cards)` — detects sequences, curated pairings, and growth arcs.
+  - `getDeckPool()` — returns Major/Minor Arcana for selected deck style.
 
-**Serverless Functions** (in `functions/api/`):
+- `audio.js` — Audio and TTS management:
+  - `initAudio()`, `toggleAmbience()` — ambient background music.
+  - `speakText()` — calls `/api/tts` for text-to-speech.
+  - `playFlip()` — card flip sound effect.
 
-- `tarot-reading.js`
-  - `onRequestPost`:
-    - Validates payload: `spreadInfo`, `cardsInfo`, etc.
-    - If `env.ANTHROPIC_API_KEY` is set:
-      - Calls Anthropic Claude Sonnet 4.5 (`generateWithClaudeSonnet45`) with a structured system prompt.
-    - Otherwise:
-      - Uses local deterministic composer (`composeReading`).
-    - Returns `{ reading, provider }`.
-  - Core rules:
-    - No hallucinated cards.
-    - No absolute predictions or medical/legal/financial advice.
-    - Gentle, grounded, trauma-informed, actionable.
-  - Local composer:
-    - `buildQuestionSection(userQuestion)`
-    - `buildCardsSection(cardsInfo)` — position-aware, upright/reversed-aware.
-    - `buildReflectionSection(reflectionsText)`
-    - `buildSynthesisSection(cardsInfo, userQuestion, reflectionsText)` — uses `analyseThemes()` for patterns.
+- `cardInsights.js` — Card meaning lookups and interpretation helpers.
+- `formatting.js` — Text formatting utilities for display.
+- `intentionCoach.js` — Question refinement and intention-setting logic.
+- `journalInsights.js` — Reading pattern analysis and insights for journal feature.
+- `questionQuality.js` — Question validation and quality scoring.
 
-- `tts.js`
-  - Bridges readings to synthesized audio using Azure OpenAI TTS (if configured).
+**Serverless Functions** (in `functions/api/` - Cloudflare Pages Functions):
+
+Core reading endpoints:
+- `tarot-reading.js` — Main reading generation endpoint:
+  - Validates payload: `spreadInfo`, `cardsInfo`, question, reflections.
+  - If `env.ANTHROPIC_API_KEY` is set: calls Claude Sonnet 4.5 via `generateWithClaudeSonnet45`.
+  - Otherwise: uses local deterministic composer (`composeReading`).
+  - Returns `{ reading, provider }`.
+  - Core rules: no hallucinated cards, no absolute predictions, trauma-informed, actionable.
+
+- `tts.js` — Text-to-speech endpoint using Azure OpenAI TTS with rate limiting.
+
+Intention & question refinement:
+- `generate-question.js` — AI-powered question refinement and intention coaching.
+
+Vision research (experimental):
+- `vision-proof.js` — Vision detection proof-of-concept for physical deck recognition.
+
+User feedback:
+- `feedback.js` — Collects user feedback and stores in D1 database.
+
+Authentication (in `functions/api/auth/`):
+- `login.js` — User login with JWT token generation.
+- `logout.js` — User logout and session cleanup.
+- `register.js` — User registration with password hashing.
+- `me.js` — Get current authenticated user info.
+
+Reading history (in `functions/api/journal/`):
+- `journal.js` — Get all readings or create new reading entry.
+- `[id].js` — Get specific reading by ID.
+
+Health checks (in `functions/api/health/`):
+- `tarot-reading.js` — Health check for reading endpoint.
+- `tts.js` — Health check for TTS endpoint.
+
+**Backend Library Utilities** (in `functions/lib/` - Server-Side):
+
+> **Important:** This `lib/` folder is separate from `src/lib/` because it runs in Cloudflare Workers (not the browser) and has access to server-side resources like `env.ANTHROPIC_API_KEY`, D1 database, and KV storage.
+
+Narrative generation:
+- `narrativeBuilder.js` — Re-exports spread-specific narrative builders.
+- `narrativeSpine.js` — Ensures story spine structure (What → Why → What's Next).
+- `narrative/prompts.js` — System prompts for Claude API calls.
+- `narrative/helpers.js` — Prompt composition utilities.
+- `narrative/spreads/` — Spread-specific narrative builders:
+  - `singleCard.js`, `threeCard.js`, `fiveCard.js`
+  - `decision.js`, `relationship.js`, `celticCross.js`
+
+Analysis & interpretation:
+- `spreadAnalysis.js` — Card relationship detection (44KB - core analysis engine).
+- `knowledgeGraph.js` — Archetypal relationships database (29KB).
+- `contextDetection.js` — Theme/context detection from user questions.
+- `positionWeights.js` — Position-specific weights for narrative emphasis.
+
+Metadata & symbolism:
+- `esotericMeta.js` — Esoteric concept mappings (15KB).
+- `minorMeta.js` — Minor Arcana metadata and meanings.
+- `timingMeta.js` — Temporal pattern detection (seasonal, lunar, cyclical themes).
+- `imageryHooks.js` — Symbolic imagery callbacks and visual symbol meanings (32KB).
+- `symbolAnnotations.js` — Symbol annotation re-export (links to `shared/symbols/`).
+
+Vision & authentication:
+- `visionProof.js` — Vision detection utilities for research mode.
+- `auth.js` — JWT authentication helpers (token generation, validation).
+
+General utilities:
+- `utils.js` — Shared utility functions.
+
+Tests:
+- `__tests__/knowledgeGraph.test.js` — Knowledge graph unit tests.
+
+**Shared Utilities** (in `shared/` - Cross-Environment):
+
+> These modules work in both browser and Cloudflare Workers contexts.
+
+Vision pipeline (in `shared/vision/`):
+- `tarotVisionPipeline.js` — Main vision detection pipeline for physical deck recognition.
+- `symbolDetector.js` — Symbol extraction from card images (color, pattern, feature analysis).
+- `deckProfiles.js` — Deck style profiles (RWS, Thoth, Marseille characteristics).
+- `deckAssets.js` — Asset paths for different deck styles.
+- `cardNameMapping.js` — Canonical card name resolution.
+- `minorSymbolLexicon.js` — Symbol-to-card mappings for Minor Arcana.
+- `fineTuneCache.js` — Model cache for vision processing.
+- `visionBackends.js` — Backend selection (TensorFlow, ONNX, etc.).
+
+Symbol system:
+- `shared/symbols/symbolAnnotations.js` — Comprehensive symbol meanings database (62KB).
+- `shared/fallbackAudio.js` — Audio fallback utilities.
+
+**Development Scripts & Tooling** (in `scripts/`):
+
+Azure TTS testing:
+- `check-azure-tts.mjs` — Azure TTS health check.
+- `test-azure-tts.mjs` — Azure TTS integration testing.
+- `test-azure-tts-simple.sh` — Simple TTS test script.
+
+Environment setup:
+- `setup-all-environments.sh` — One-shot environment setup for all services.
+- `setup-cloudflare-env.sh` — Cloudflare-specific configuration.
+- `setup-secrets.sh` / `setup-my-secrets.sh` — Secret management and injection.
+- `fix-and-deploy.sh` — Deploy with automated fixes.
+
+Vision research (in `scripts/vision/`):
+- `runVisionPrototype.js` — Vision detection prototype runner for testing.
+
+Training data (in `scripts/training/`):
+- `exportReadings.js` — Export reading data for ML training datasets.
+- `fineTuneVision.js` — Vision model fine-tuning utilities.
+- `buildMultimodalDataset.js` — Build multimodal training datasets.
+
+Evaluation & metrics (in `scripts/evaluation/`):
+- Vision quality:
+  - `runVisionConfidence.js` — Vision detection accuracy evaluation.
+  - `computeVisionMetrics.js` — Calculate vision performance metrics.
+  - `verifyVisionGate.js` — Quality gate check for vision features.
+  - `processVisionReviews.js` — Vision review workflow automation.
+- Narrative quality:
+  - `runNarrativeSamples.js` — Generate narrative quality samples.
+  - `computeNarrativeMetrics.js` — Calculate narrative quality metrics.
+  - `verifyNarrativeGate.js` — Quality gate check for narrative generation.
+  - `processNarrativeReviews.js` — Narrative review workflow automation.
+- Utilities:
+  - `lib/csv.js` — CSV parsing for evaluation reports.
+
+Asset generation (in `scripts/assets/`):
+- `generate_thoth_placeholders.py` — Generate Thoth deck placeholder images.
+- `generate_thoth_placeholders_enhanced.py` — Enhanced placeholder generation.
+- `splice_card_photos.py` — Physical card photo splicing utility.
+- `splice_card_photos_simple.py` — Simplified photo splicing.
+- `install_thoth_scans.sh` — Install physical Thoth deck scans.
+- `map_thoth_scans.json` — Mapping config for physical deck scans.
+
+**Testing** (in `tests/`):
+
+- `deck.test.mjs` — Deck shuffling, seeding, and drawing logic tests.
+- `narrativeBuilder.reversal.test.mjs` — Card reversal interpretation tests.
+- `narrativeBuilder.promptCompliance.test.mjs` — Prompt compliance and ethics validation.
+- `narrativeSpine.test.mjs` — Narrative structure validation tests.
+- `api.validatePayload.test.mjs` — API payload validation tests.
+- `api.vision.test.mjs` — Vision detection endpoint tests.
+
+**Static Assets** (in `public/`):
+
+Card images:
+- `public/images/cards/RWS1909_-_*.jpeg` — 78 authentic 1909 Rider-Waite cards (public domain).
+- `public/images/cards/marseille/*.jpg` — 78 Marseille deck cards.
+- `public/images/cards/thoth/*.png` — 78 Thoth deck cards (active set).
+- `public/images/cards/thoth-placeholders-backup/*.png` — Thoth deck backup placeholders.
+- `public/images/thoth-scans/*.jpg` — Physical Thoth deck photo documentation.
+- `public/images/IMG_*.JPG` — Physical card photos for research.
+
+Audio:
+- `public/sounds/ambience.mp3` — Ambient background music (481KB).
+- `public/sounds/flip.mp3` — Card flip sound effect (9KB).
+
+Routing:
+- `public/_routes.json` — Cloudflare Pages routing configuration.
+
+**Data & Migrations**:
+
+- `data/evaluations/*.json` — Vision and narrative evaluation results.
+- `data/evaluations/*.csv` — Review queues for vision and narrative quality.
+- `migrations/*.sql` — D1 database schema migrations (initial schema, auth, journals).
 
 ## Authentic Reading Flow (What the Code is Aiming For)
 

@@ -1,0 +1,22 @@
+{
+  "name": "Mystic Tarot",
+  "short_name": "Tarot",
+  "description": "Mystic Tarot blends AI insights, journaling, and ritual tooling for contemplative readings—now with offline access.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#020617",
+  "theme_color": "#022c22",
+  "icons": [
+    {
+      "src": "/icons/icon-192.svg",
+      "sizes": "192x192",
+      "type": "image/svg+xml"
+    },
+    {
+      "src": "/icons/icon-512.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml"
+    }
+  ]
+}

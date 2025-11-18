@@ -6,6 +6,7 @@
 #
 name = "mystic-tarot"
 compatibility_date = "2025-01-13"
+compatibility_flags = ["nodejs_compat"]
 pages_build_output_dir = "dist"
 
 # ============================================================================
@@ -128,6 +129,5 @@ preview_id = "8e820de09f9c459ea0e149bf55644c81"
 # ============================================================================
 # Compatibility Flags
 # ============================================================================
-# Enable Node.js compatibility if needed for imports
-# [compatibility_flags]
-# nodejs_compat = true
+# Enable Node.js compatibility for node:fs/promises and node:path imports
+# Set at the top of the file as part of root configuration

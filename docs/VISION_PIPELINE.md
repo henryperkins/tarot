@@ -6,7 +6,7 @@ Stand up the first iteration of the multimodal pipeline described in `guidetoait
 ## Implementation Overview
 - **Model**: `Xenova/clip-vit-base-patch32` via `@xenova/transformers` (runs locally/in-browser, downloads weights on first use).
 - **Card Library**: Built from `src/data/majorArcana.js` + `src/data/minorArcana.js`. Prompts now combine:
-  - Curated Major Arcana annotations from `functions/lib/symbolAnnotations.js`
+  - Curated Major Arcana annotations from `shared/symbols/symbolAnnotations.js`
   - Programmatic Minor Arcana symbol expansions from `shared/vision/minorSymbolLexicon.js`
   - Deck-style metadata from `shared/vision/deckProfiles.js` (RWS, Thoth, Marseille ready)
   - Physical assets live under `public/images/cards/{rws-1909|thoth|marseille}`. The Marseille folder contains an 18th-century scan set, while `thoth` includes **enhanced abstract placeholders** (v2) with Art Deco gradients, Hebrew letters, astrological symbols, and geometric mandalas that capture the Thoth visual language without reproducing copyrighted artwork (see `docs/THOTH_ENHANCEMENTS.md`).

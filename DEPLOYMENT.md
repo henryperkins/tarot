@@ -165,6 +165,10 @@ npx wrangler pages dev dist
 npm run deploy
 ```
 
+### Debugging Prompt Payloads
+
+Need to inspect the exact prompt sent to GPT-5 or Claude? Add `LOG_LLM_PROMPTS=true` (or `DEBUG_LLM_PROMPTS=true`) to `.dev.vars` or your Pages secret set. When this flag is enabled the Pages Function logs the full `systemPrompt` and `userPrompt` payloads for each request. These logs include user questions and reflections, so leave the flag disabled in production unless absolutely necessary.
+
 ---
 
 ## Deployment

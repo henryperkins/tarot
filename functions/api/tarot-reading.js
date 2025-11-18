@@ -144,6 +144,32 @@ function getAvailableNarrativeBackends(env) {
     .filter(Boolean);
 }
 
+function normalizeBooleanFlag(value) {
+  if (typeof value === 'boolean') return value;
+  if (value === undefined || value === null) return false;
+  return String(value).toLowerCase() === 'true';
+}
+
+function shouldLogLLMPrompts(env) {
+  if (!env) return false;
+  if (env.LOG_LLM_PROMPTS !== undefined) return normalizeBooleanFlag(env.LOG_LLM_PROMPTS);
+  if (env.DEBUG_LLM_PROMPTS !== undefined) return normalizeBooleanFlag(env.DEBUG_LLM_PROMPTS);
+  if (env.DEBUG_PROMPTS !== undefined) return normalizeBooleanFlag(env.DEBUG_PROMPTS);
+  return false;
+}
+
+function maybeLogPromptPayload(env, requestId, backendLabel, systemPrompt, userPrompt) {
+  if (!shouldLogLLMPrompts(env)) return;
+
+  console.log(`[${requestId}] [${backendLabel}] === SYSTEM PROMPT BEGIN ===`);
+  console.log(systemPrompt);
+  console.log(`[${requestId}] [${backendLabel}] === SYSTEM PROMPT END ===`);
+
+  console.log(`[${requestId}] [${backendLabel}] === USER PROMPT BEGIN ===`);
+  console.log(userPrompt);
+  console.log(`[${requestId}] [${backendLabel}] === USER PROMPT END ===`);
+}
+
 export const onRequestGet = async ({ env }) => {
   // Health check endpoint
   return jsonResponse({
@@ -534,6 +560,7 @@ async function generateWithAzureGPT5Responses(env, { spreadInfo, cardsInfo, user
   });
 
   console.log(`[${requestId}] System prompt length: ${systemPrompt.length}, User prompt length: ${userPrompt.length}`);
+  maybeLogPromptPayload(env, requestId, 'azure-gpt5', systemPrompt, userPrompt);
 
   // Azure OpenAI Responses API endpoint format (v1 API):
   // POST {endpoint}/openai/v1/responses?api-version=preview
@@ -647,7 +674,7 @@ async function generateWithAzureGPT5Responses(env, { spreadInfo, cardsInfo, user
 /**
  * Enhanced Claude Sonnet 4.5 generation with position-relationship analysis
  */
-async function generateWithClaudeSonnet45Enhanced(env, { spreadInfo, cardsInfo, userQuestion, reflectionsText, analysis, context, visionInsights }) {
+async function generateWithClaudeSonnet45Enhanced(env, { spreadInfo, cardsInfo, userQuestion, reflectionsText, analysis, context, visionInsights }, requestId = 'unknown') {
   const apiKey = env.ANTHROPIC_API_KEY;
   const apiUrl = env.ANTHROPIC_API_URL || 'https://api.anthropic.com/v1/messages';
   const model = 'claude-sonnet-4-5';
@@ -665,6 +692,8 @@ async function generateWithClaudeSonnet45Enhanced(env, { spreadInfo, cardsInfo, 
     visionInsights,
     deckStyle
   });
+
+  maybeLogPromptPayload(env, requestId, 'claude-sonnet45', systemPrompt, userPrompt);
 
   const response = await fetch(apiUrl, {
     method: 'POST',

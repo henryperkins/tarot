@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import { persistJournalInsights } from '../lib/journalInsights';
 
 const LOCALSTORAGE_KEY = 'tarot_journal';
 
@@ -38,20 +39,34 @@ export function useJournal() {
         }
 
         const data = await response.json();
-        setEntries(data.entries || []);
+        const apiEntries = data.entries || [];
+        setEntries(apiEntries);
+        if (typeof window !== 'undefined') {
+          persistJournalInsights(apiEntries);
+        }
       } else {
         // Load from localStorage
         const stored = localStorage.getItem(LOCALSTORAGE_KEY);
         if (stored) {
           try {
             const parsed = JSON.parse(stored);
-            setEntries(Array.isArray(parsed) ? parsed : []);
+            const safeEntries = Array.isArray(parsed) ? parsed : [];
+            setEntries(safeEntries);
+            if (typeof window !== 'undefined') {
+              persistJournalInsights(safeEntries);
+            }
           } catch (err) {
             console.error('Failed to parse localStorage journal:', err);
             setEntries([]);
+            if (typeof window !== 'undefined') {
+              persistJournalInsights([]);
+            }
           }
         } else {
           setEntries([]);
+          if (typeof window !== 'undefined') {
+            persistJournalInsights([]);
+          }
         }
       }
     } catch (err) {
@@ -90,7 +105,13 @@ export function useJournal() {
           ts: data.entry.ts,
           ...entry
         };
-        setEntries(prev => [newEntry, ...prev]);
+        setEntries(prev => {
+          const next = [newEntry, ...prev];
+          if (typeof window !== 'undefined') {
+            persistJournalInsights(next);
+          }
+          return next;
+        });
 
         return { success: true, entry: newEntry };
       } else {
@@ -110,6 +131,9 @@ export function useJournal() {
 
         localStorage.setItem(LOCALSTORAGE_KEY, JSON.stringify(updated));
         setEntries(updated);
+        if (typeof window !== 'undefined') {
+          persistJournalInsights(updated);
+        }
 
         return { success: true, entry: newEntry };
       }
@@ -136,7 +160,13 @@ export function useJournal() {
         }
 
         // Remove from local state
-        setEntries(prev => prev.filter(e => e.id !== entryId));
+        setEntries(prev => {
+          const next = prev.filter(e => e.id !== entryId);
+          if (typeof window !== 'undefined') {
+            persistJournalInsights(next);
+          }
+          return next;
+        });
 
         return { success: true };
       } else {
@@ -144,6 +174,9 @@ export function useJournal() {
         const updated = entries.filter(e => e.id !== entryId);
         localStorage.setItem(LOCALSTORAGE_KEY, JSON.stringify(updated));
         setEntries(updated);
+        if (typeof window !== 'undefined') {
+          persistJournalInsights(updated);
+        }
 
         return { success: true };
       }

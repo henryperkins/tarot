@@ -9,7 +9,7 @@ import {
 
 import { MAJOR_ARCANA } from '../../src/data/majorArcana.js';
 import { MINOR_ARCANA } from '../../src/data/minorArcana.js';
-import { SYMBOL_ANNOTATIONS } from '../../functions/lib/symbolAnnotations.js';
+import { SYMBOL_ANNOTATIONS } from '../symbols/symbolAnnotations.js';
 import { getMinorSymbolAnnotation } from './minorSymbolLexicon.js';
 import { getDeckProfile } from './deckProfiles.js';
 import { SymbolDetector } from './symbolDetector.js';

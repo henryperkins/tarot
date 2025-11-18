@@ -16,13 +16,33 @@ export function Tooltip({
   position = 'top',
   size = 'sm',
   triggerClassName = '',
-  ariaLabel = 'More information'
+  ariaLabel = 'More information',
+  asChild = false,
+  enableClick = true
 }) {
   const [isVisible, setIsVisible] = useState(false);
   const rootRef = useRef(null);
   const triggerRef = useRef(null);
   const tooltipRef = useRef(null);
   const tooltipId = useId();
+  const touchHideTimeoutRef = useRef(null);
+
+  const clearTouchHideTimeout = () => {
+    if (touchHideTimeoutRef.current) {
+      clearTimeout(touchHideTimeoutRef.current);
+      touchHideTimeoutRef.current = null;
+    }
+  };
+
+  const showTooltip = () => {
+    clearTouchHideTimeout();
+    setIsVisible(true);
+  };
+
+  const hideTooltip = () => {
+    clearTouchHideTimeout();
+    setIsVisible(false);
+  };
 
   useEffect(() => {
     if (!isVisible || typeof window === 'undefined') {
@@ -49,6 +69,8 @@ export function Tooltip({
       window.removeEventListener('pointerdown', handlePointerDown);
     };
   }, [isVisible]);
+
+  useEffect(() => () => clearTouchHideTimeout(), []);
 
   const sizeClasses = {
     sm: 'w-3.5 h-3.5',
@@ -77,10 +99,14 @@ export function Tooltip({
   };
 
   const handleMouseEnter = () => {
-    setIsVisible(true);
+    showTooltip();
   };
 
-  const handleMouseLeave = () => {
+  const handlePointerEnter = () => {
+    showTooltip();
+  };
+
+  const handlePointerLeave = () => {
     if (
       typeof document !== 'undefined' &&
       triggerRef.current &&
@@ -88,11 +114,11 @@ export function Tooltip({
     ) {
       return;
     }
-    setIsVisible(false);
+    hideTooltip();
   };
 
   const handleFocus = () => {
-    setIsVisible(true);
+    showTooltip();
   };
 
   const handleBlur = () => {
@@ -106,32 +132,72 @@ export function Tooltip({
     schedule(() => {
       if (typeof document === 'undefined' || !rootRef.current) return;
       if (!rootRef.current.contains(document.activeElement)) {
-        setIsVisible(false);
+        hideTooltip();
       }
     });
+  };
+
+  const handleTouchStart = event => {
+    if (event.touches.length > 1) return;
+    showTooltip();
+  };
+
+  const handleTouchEnd = () => {
+    clearTouchHideTimeout();
+    touchHideTimeoutRef.current = setTimeout(() => {
+      hideTooltip();
+    }, 1600);
+  };
+
+  const handleTouchCancel = () => {
+    hideTooltip();
   };
 
   const triggerBaseClass =
     'inline-flex items-center justify-center text-amber-400/60 hover:text-amber-400 transition-colors focus:outline-none focus:ring-2 focus:ring-amber-400/50 rounded-full';
 
+  const rootBaseClass = asChild ? 'relative block' : 'relative inline-flex items-center';
+
+  const triggerProps = {
+    ref: triggerRef,
+    onMouseEnter: handleMouseEnter,
+    onMouseLeave: handlePointerLeave,
+    onPointerEnter: handlePointerEnter,
+    onPointerLeave: handlePointerLeave,
+    onPointerDown: handlePointerEnter,
+    onFocus: handleFocus,
+    onBlur: handleBlur,
+    onTouchStart: handleTouchStart,
+    onTouchEnd: handleTouchEnd,
+    onTouchCancel: handleTouchCancel,
+    'aria-haspopup': true,
+    'aria-expanded': isVisible,
+    'aria-controls': isVisible ? tooltipId : undefined
+  };
+
+  if (enableClick) {
+    triggerProps.onClick = handleToggle;
+  }
+
   return (
-    <div ref={rootRef} className="relative inline-flex items-center">
-      <button
-        type="button"
-        ref={triggerRef}
-        onClick={handleToggle}
-        onMouseEnter={handleMouseEnter}
-        onMouseLeave={handleMouseLeave}
-        onFocus={handleFocus}
-        onBlur={handleBlur}
-        aria-label={ariaLabel}
-        aria-haspopup="true"
-        aria-expanded={isVisible}
-        aria-controls={isVisible ? tooltipId : undefined}
-        className={`${triggerBaseClass} ${triggerClassName}`.trim()}
-      >
-        {children || <Info className={sizeClasses[size]} />}
-      </button>
+    <div ref={rootRef} className={rootBaseClass}>
+      {asChild ? (
+        <div
+          {...triggerProps}
+          className={triggerClassName || 'inline-flex'}
+        >
+          {children}
+        </div>
+      ) : (
+        <button
+          type="button"
+          {...triggerProps}
+          aria-label={ariaLabel}
+          className={`${triggerBaseClass} ${triggerClassName}`.trim()}
+        >
+          {children || <Info className={sizeClasses[size]} />}
+        </button>
+      )}
 
       {/* Tooltip Content */}
       {isVisible && (

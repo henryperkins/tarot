@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="192" height="192" viewBox="0 0 192 192" role="img" aria-label="Mystic Tarot Glyph">
+  <defs>
+    <linearGradient id="mist" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#10b981" />
+      <stop offset="60%" stop-color="#34d399" />
+      <stop offset="100%" stop-color="#fde68a" />
+    </linearGradient>
+  </defs>
+  <rect width="192" height="192" rx="48" fill="#020617" />
+  <circle cx="96" cy="96" r="70" fill="url(#mist)" opacity="0.85" />
+  <path d="M96 46 L121 146 L96 126 L71 146 Z" fill="#0f172a" opacity="0.85" />
+  <circle cx="96" cy="86" r="26" fill="#020617" />
+  <path d="M96 62 A24 24 0 1 0 120 86" fill="none" stroke="#fcd34d" stroke-width="4" stroke-linecap="round" />
+  <path d="M96 110 L96 140" stroke="#fcd34d" stroke-width="5" stroke-linecap="round" />
+  <path d="M82 124 L110 124" stroke="#fcd34d" stroke-width="5" stroke-linecap="round" />
+</svg>
