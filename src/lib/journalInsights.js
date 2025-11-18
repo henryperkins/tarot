@@ -311,7 +311,7 @@ export async function copyJournalShareSummary(stats) {
   }
 }
 
-export function copyJournalEntrySummary(entry) {
+export async function copyJournalEntrySummary(entry) {
   if (!entry) return false;
   const lines = [
     `Spread: ${entry.spread || entry.spreadName || 'Reading'}`,
@@ -323,10 +323,12 @@ export function copyJournalEntrySummary(entry) {
   const text = lines.join('\n');
   try {
     if (navigator?.share) {
-      return navigator.share({ text, title: 'Tarot reading snapshot' });
+      await navigator.share({ text, title: 'Tarot reading snapshot' });
+      return true;
     }
     if (navigator?.clipboard?.writeText) {
-      return navigator.clipboard.writeText(text);
+      await navigator.clipboard.writeText(text);
+      return true;
     }
     const textarea = document.createElement('textarea');
     textarea.value = text;

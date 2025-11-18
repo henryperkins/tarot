@@ -126,8 +126,8 @@ export function Tooltip({
       typeof window !== 'undefined' && typeof window.requestAnimationFrame === 'function'
         ? window.requestAnimationFrame
         : callback => {
-            setTimeout(callback, 0);
-          };
+          setTimeout(callback, 0);
+        };
 
     schedule(() => {
       if (typeof document === 'undefined' || !rootRef.current) return;
@@ -164,7 +164,6 @@ export function Tooltip({
     onMouseLeave: handlePointerLeave,
     onPointerEnter: handlePointerEnter,
     onPointerLeave: handlePointerLeave,
-    onPointerDown: handlePointerEnter,
     onFocus: handleFocus,
     onBlur: handleBlur,
     onTouchStart: handleTouchStart,
@@ -184,6 +183,7 @@ export function Tooltip({
       {asChild ? (
         <div
           {...triggerProps}
+          role="button"
           className={triggerClassName || 'inline-flex'}
         >
           {children}

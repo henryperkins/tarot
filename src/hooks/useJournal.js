@@ -13,7 +13,7 @@ const LOCALSTORAGE_KEY = 'tarot_journal';
  * This provides backward compatibility while enabling cloud sync for auth users
  */
 export function useJournal() {
-  const { isAuthenticated, user } = useAuth();
+  const { isAuthenticated } = useAuth();
   const [entries, setEntries] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -46,26 +46,33 @@ export function useJournal() {
         }
       } else {
         // Load from localStorage
-        const stored = localStorage.getItem(LOCALSTORAGE_KEY);
-        if (stored) {
-          try {
-            const parsed = JSON.parse(stored);
-            const safeEntries = Array.isArray(parsed) ? parsed : [];
-            setEntries(safeEntries);
-            if (typeof window !== 'undefined') {
-              persistJournalInsights(safeEntries);
+        if (typeof localStorage === 'undefined') {
+          setEntries([]);
+          if (typeof window !== 'undefined') {
+            persistJournalInsights([]);
+          }
+        } else {
+          const stored = localStorage.getItem(LOCALSTORAGE_KEY);
+          if (stored) {
+            try {
+              const parsed = JSON.parse(stored);
+              const safeEntries = Array.isArray(parsed) ? parsed : [];
+              setEntries(safeEntries);
+              if (typeof window !== 'undefined') {
+                persistJournalInsights(safeEntries);
+              }
+            } catch (err) {
+              console.error('Failed to parse localStorage journal:', err);
+              setEntries([]);
+              if (typeof window !== 'undefined') {
+                persistJournalInsights([]);
+              }
             }
-          } catch (err) {
-            console.error('Failed to parse localStorage journal:', err);
+          } else {
             setEntries([]);
             if (typeof window !== 'undefined') {
               persistJournalInsights([]);
             }
-          }
-        } else {
-          setEntries([]);
-          if (typeof window !== 'undefined') {
-            persistJournalInsights([]);
           }
         }
       }
@@ -116,6 +123,10 @@ export function useJournal() {
         return { success: true, entry: newEntry };
       } else {
         // Save to localStorage
+        if (typeof localStorage === 'undefined') {
+          return { success: false, error: 'localStorage not available' };
+        }
+
         const newEntry = {
           id: crypto.randomUUID?.() || `local_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
           ts: Date.now(),
@@ -171,6 +182,10 @@ export function useJournal() {
         return { success: true };
       } else {
         // Delete from localStorage
+        if (typeof localStorage === 'undefined') {
+          return { success: false, error: 'localStorage not available' };
+        }
+
         const updated = entries.filter(e => e.id !== entryId);
         localStorage.setItem(LOCALSTORAGE_KEY, JSON.stringify(updated));
         setEntries(updated);
@@ -190,6 +205,10 @@ export function useJournal() {
   const migrateToCloud = async () => {
     if (!isAuthenticated) {
       return { success: false, error: 'Not authenticated' };
+    }
+
+    if (typeof localStorage === 'undefined') {
+      return { success: false, error: 'localStorage not available' };
     }
 
     try {

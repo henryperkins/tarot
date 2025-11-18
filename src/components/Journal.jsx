@@ -97,14 +97,22 @@ function JournalCardListItem({ card }) {
   );
 }
 
-function JournalInsightsPanel({ stats, entries }) {
+function JournalInsightsPanel({
+  stats,
+  entries,
+  shareHistory = [],
+  onShareHistoryRefresh,
+  onRevokeShareToken
+}) {
   if (!stats) return null;
 
   const [actionMessage, setActionMessage] = useState('');
-  const [shareHistory, setShareHistory] = useState(() => loadShareTokenHistory());
 
   const handleExport = () => {
     const result = exportJournalEntriesToCsv(entries);
+    if (result) {
+      onShareHistoryRefresh?.();
+    }
     setActionMessage(result ? 'Exported journal.csv' : 'Unable to export right now');
     setTimeout(() => setActionMessage(''), 3500);
   };
@@ -332,8 +340,7 @@ function JournalInsightsPanel({ stats, entries }) {
                   <button
                     type="button"
                     onClick={() => {
-                      const updated = revokeShareToken(record.token);
-                      setShareHistory(updated);
+                      onRevokeShareToken?.(record.token);
                       setActionMessage('Share token revoked');
                       setTimeout(() => setActionMessage(''), 3500);
                     }}
@@ -390,7 +397,7 @@ function buildThemeInsights(entry) {
   return lines.filter(Boolean);
 }
 
-function JournalEntryCard({ entry }) {
+function JournalEntryCard({ entry, onShareHistoryRefresh }) {
   const insights = buildThemeInsights(entry);
   const [showNarrative, setShowNarrative] = useState(false);
   const [entryActionMessage, setEntryActionMessage] = useState('');
@@ -398,6 +405,9 @@ function JournalEntryCard({ entry }) {
   const handleEntryExport = () => {
     const filename = `tarot-entry-${entry.id || entry.ts || 'reading'}.csv`;
     const success = exportJournalEntriesToCsv([entry], filename);
+    if (success) {
+      onShareHistoryRefresh?.();
+    }
     setEntryActionMessage(success ? 'Entry CSV downloaded' : 'Export unavailable');
     setTimeout(() => setEntryActionMessage(''), 3500);
   };
@@ -489,8 +499,17 @@ export default function Journal() {
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [migrating, setMigrating] = useState(false);
   const [migrateMessage, setMigrateMessage] = useState('');
+  const [shareHistory, setShareHistory] = useState(() => loadShareTokenHistory());
   const navigate = useNavigate();
   const journalStats = useMemo(() => computeJournalStats(entries), [entries]);
+
+  const refreshShareHistory = () => {
+    setShareHistory(loadShareTokenHistory());
+  };
+
+  const handleShareTokenRevoke = (token) => {
+    setShareHistory(revokeShareToken(token));
+  };
 
   useEffect(() => {
     const storedTheme = typeof localStorage !== 'undefined' ? localStorage.getItem('tarot-theme') : null;
@@ -628,10 +647,18 @@ export default function Journal() {
             <p className="text-amber-100/80">No entries yet. Save a reading to start your journal.</p>
           ) : (
             <div className="space-y-8">
-              {journalStats && <JournalInsightsPanel stats={journalStats} entries={entries} />}
+              {journalStats && (
+                <JournalInsightsPanel
+                  stats={journalStats}
+                  entries={entries}
+                  shareHistory={shareHistory}
+                  onShareHistoryRefresh={refreshShareHistory}
+                  onRevokeShareToken={handleShareTokenRevoke}
+                />
+              )}
               {entries.map((entry) => (
                 <div key={entry.id} className="relative">
-                  <JournalEntryCard entry={entry} />
+                  <JournalEntryCard entry={entry} onShareHistoryRefresh={refreshShareHistory} />
                   {isAuthenticated && (
                     <button
                       onClick={() => handleDelete(entry.id)}

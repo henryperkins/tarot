@@ -182,13 +182,10 @@ export async function buildCreativeQuestion({ topic, timeframe, depth, customFoc
   }
 
   // Fallback to deterministic guided question if API does not respond
-  return buildGuidedQuestion({ topic, timeframe, depth, customFocus, useCreative: false });
+  return buildGuidedQuestion({ topic, timeframe, depth, customFocus });
 }
 
-export function buildGuidedQuestion({ topic, timeframe, depth, customFocus, useCreative = false }) {
-  if (useCreative) {
-    return buildCreativeQuestion({ topic, timeframe, depth, customFocus });
-  }
+export function buildGuidedQuestion({ topic, timeframe, depth, customFocus }) {
   const topicData = INTENTION_TOPIC_OPTIONS.find(option => option.value === topic) || INTENTION_TOPIC_OPTIONS[0];
   const timeframeData = INTENTION_TIMEFRAME_OPTIONS.find(option => option.value === timeframe) || INTENTION_TIMEFRAME_OPTIONS[0];
   const depthData = INTENTION_DEPTH_OPTIONS.find(option => option.value === depth) || INTENTION_DEPTH_OPTIONS[0];
