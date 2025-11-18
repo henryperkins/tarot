@@ -14,6 +14,7 @@ import { StepProgress } from './components/StepProgress';
 import { HelperToggle } from './components/HelperToggle';
 import { SpreadPatterns } from './components/SpreadPatterns';
 import { GuidedIntentionCoach } from './components/GuidedIntentionCoach';
+import { PatternHighlightBanner } from './components/PatternHighlightBanner';
 import { loadCoachRecommendation, saveCoachRecommendation } from './lib/journalInsights';
 import { GlobalNav } from './components/GlobalNav';
 import { VisionValidationPanel } from './components/VisionValidationPanel';
@@ -1202,7 +1203,8 @@ export default function TarotReading() {
         spreadKey: selectedSpread,
         spreadName: spreadInfo.name,
         deckStyle: deckStyleId,
-        userQuestion
+        userQuestion,
+        graphContext: data.themes?.knowledgeGraph || null
       });
     } catch (error) {
       console.error('generatePersonalReading error:', error);
@@ -2106,6 +2108,12 @@ export default function TarotReading() {
                       </p>
                     </div>
                   )}
+
+                  {/* GraphRAG Pattern Detection Banner */}
+                  {readingMeta?.graphContext?.narrativeHighlights && (
+                    <PatternHighlightBanner patterns={readingMeta.graphContext.narrativeHighlights} />
+                  )}
+
                 {/* Render Markdown when available, otherwise fall back to normalized paragraphs */}
                 {personalReading.hasMarkdown ? (
                   <MarkdownRenderer content={personalReading.raw} />

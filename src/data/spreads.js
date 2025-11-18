@@ -4,6 +4,7 @@ export const SPREADS = {
     name: 'One-Card Insight',
     tag: 'Quick',
     positions: ['Theme / Guidance of the Moment'],
+    roleKeys: ['theme'],
     count: 1,
     description:
       'A single anchor card capturing the key energy or message surrounding your question or your day.',
@@ -19,6 +20,7 @@ export const SPREADS = {
       'Present — where you stand now',
       'Future — trajectory if nothing shifts'
     ],
+    roleKeys: ['past', 'present', 'future'],
     count: 3,
     description:
       'A classic snapshot showing how the situation has unfolded, what is active now, and where it is heading.',
@@ -36,6 +38,7 @@ export const SPREADS = {
       'Support / helpful energy',
       'Likely direction on current path'
     ],
+    roleKeys: ['core', 'challenge', 'subconscious', 'support', 'direction'],
     count: 5,
     description:
       'Adds nuance and reflection space while staying approachable for self-readings and beginners.',
@@ -53,6 +56,7 @@ export const SPREADS = {
       'What clarifies the best path',
       'What to remember about your free will'
     ],
+    roleKeys: ['heart', 'pathA', 'pathB', 'clarifier', 'freeWill'],
     count: 5,
     description:
       'Compares two routes with context and lesson, emphasizing choice over fixed fate.',
@@ -68,6 +72,7 @@ export const SPREADS = {
       'Them / their energy',
       'The connection / shared lesson'
     ],
+    roleKeys: ['you', 'them', 'connection'],
     count: 3,
     description:
       'Three-card check-in that centers your energy, their energy, and the shared field between you for clear relational guidance.',
@@ -89,6 +94,19 @@ export const SPREADS = {
       'External Influences — people & environment (Card 8)',
       'Hopes & Fears — deepest wishes & worries (Card 9)',
       'Outcome — likely path if unchanged (Card 10)'
+    ],
+    // Canonical position roles aligned with AI Tarot Master guide §10 + Appendix A
+    roleKeys: [
+      'present',       // 1
+      'challenge',     // 2
+      'past',          // 3
+      'near_future',   // 4
+      'conscious',     // 5
+      'subconscious',  // 6
+      'self_advice',   // 7
+      'external',      // 8
+      'hopes_fears',   // 9
+      'outcome'        // 10
     ],
     count: 10,
     description:

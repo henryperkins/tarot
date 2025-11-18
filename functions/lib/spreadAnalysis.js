@@ -268,18 +268,16 @@ export async function analyzeSpreadThemes(cardsInfo, options = {}) {
   }
 
   // Knowledge Graph pattern detection (archetypal triads, Fool's Journey, dyads)
-  const KG_ENABLED = options.enableKnowledgeGraph !== false
-    && process.env.KNOWLEDGE_GRAPH_ENABLED !== 'false';
+  // Use shared isGraphRAGEnabled() function for consistency
+  const { isGraphRAGEnabled } = await import('./graphRAG.js');
+  const KG_ENABLED = options.enableKnowledgeGraph !== false && isGraphRAGEnabled();
 
   if (KG_ENABLED) {
     try {
-      const { detectAllPatterns, getPriorityPatternNarratives } = await import('./knowledgeGraph.js');
-      const patterns = detectAllPatterns(cardsInfo, { deckStyle });
-      if (patterns) {
-        themes.knowledgeGraph = {
-          patterns,
-          narrativeHighlights: getPriorityPatternNarratives(patterns, deckStyle)
-        };
+      const { buildGraphContext } = await import('./graphContext.js');
+      const graphContext = buildGraphContext(cardsInfo, { deckStyle });
+      if (graphContext) {
+        themes.knowledgeGraph = graphContext;
       }
     } catch (err) {
       console.error('Knowledge graph detection failed:', err);
@@ -626,10 +624,10 @@ function analyzeNucleus(present, challenge) {
   const synthesis = elemental.relationship === 'supportive'
     ? `The energies of ${present.card} and ${challenge.card} can work together constructively once the challenge is integrated.`
     : elemental.relationship === 'tension'
-    ? `${present.card} and ${challenge.card} create friction between present state and challenge, requiring careful balance.`
-    : elemental.relationship === 'amplified'
-    ? `Both cards share ${elemental.element} energy, intensifying this theme at the heart of the matter.`
-    : `${present.card} represents where you stand, while ${challenge.card} crosses as the immediate obstacle.`;
+      ? `${present.card} and ${challenge.card} create friction between present state and challenge, requiring careful balance.`
+      : elemental.relationship === 'amplified'
+        ? `Both cards share ${elemental.element} energy, intensifying this theme at the heart of the matter.`
+        : `${present.card} represents where you stand, while ${challenge.card} crosses as the immediate obstacle.`;
 
   return {
     theme: 'The Heart of the Matter (Nucleus)',
@@ -695,10 +693,10 @@ function analyzeConsciousness(subconscious, present, conscious) {
   const alignment = belowToAbove.relationship === 'supportive'
     ? 'aligned'
     : belowToAbove.relationship === 'tension'
-    ? 'conflicted'
-    : belowToAbove.relationship === 'amplified'
-    ? 'intensely unified'
-    : 'complex';
+      ? 'conflicted'
+      : belowToAbove.relationship === 'amplified'
+        ? 'intensely unified'
+        : 'complex';
 
   let synthesis = `Hidden beneath awareness: ${subconscious.card} ${subconscious.orientation}. `;
   synthesis += `Conscious goal or aspiration: ${conscious.card} ${conscious.orientation}. `;

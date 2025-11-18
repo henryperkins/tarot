@@ -179,6 +179,7 @@ export function detectFoolsJourneyStage(cards, options = {}) {
   // Return enriched stage data
   // IMPORTANT: Spread FOOLS_JOURNEY data FIRST, then override with actual spread data
   return {
+    stageKey,
     ...FOOLS_JOURNEY[stageKey],
     // Override with actual detected data from this spread:
     cardCount: stageCards.length,

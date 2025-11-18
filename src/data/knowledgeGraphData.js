@@ -188,6 +188,116 @@ export const ARCHETYPAL_TRIADS = [
       'lovers-hierophant': 'Personal values versus collective tradition',
       'empress-hierophant': 'Nurturing energy seeking formal structure'
     }
+  },
+
+  {
+    id: 'fool-magician-world',
+    cards: [0, 1, 21],
+    names: ['The Fool', 'The Magician', 'The World'],
+    theme: 'Complete Manifestation Cycle',
+    narrative: 'Innocent beginning → Conscious skill → Total integration',
+    description:
+      'The ouroboros of creation: from first spark of potential, through focused manifestation, to complete achievement and new beginning.',
+    strength: 'complete',
+    contexts: {
+      career: 'Starting a venture and bringing it to completion',
+      creative: 'From initial inspiration to finished masterpiece',
+      personal: 'Full developmental cycle from innocence to mastery',
+      spiritual: 'Soul journey from potential to realized wholeness'
+    },
+    partialNarrative: {
+      'fool-magician': 'Pure potential meeting conscious will',
+      'magician-world': 'Skillful action achieving total integration',
+      'fool-world': 'From zero to wholeness (quantum leap)'
+    }
+  },
+
+  {
+    id: 'empress-emperor-hierophant',
+    cards: [3, 4, 5],
+    names: ['The Empress', 'The Emperor', 'The Hierophant'],
+    theme: 'Authority & Structure Arc',
+    narrative: 'Nurturing abundance → Order & structure → Traditional wisdom',
+    description:
+      'Building institutions: from creative abundance through structured authority to codified tradition. Parenting, leadership, or establishing lasting systems.',
+    strength: 'complete',
+    contexts: {
+      parenting: 'From nurturing children to establishing family structure to teaching values',
+      leadership: 'Building organizations through care, structure, and shared principles',
+      creative: 'From fertile creativity to disciplined craft to teaching mastery',
+      career: 'From abundance to organization to institutional wisdom'
+    },
+    partialNarrative: {
+      'empress-emperor': 'Nurturing meets structure',
+      'emperor-hierophant': 'Authority seeking traditional validation',
+      'empress-hierophant': 'Abundance channeled through tradition'
+    }
+  },
+
+  {
+    id: 'wheel-justice-hangedman',
+    cards: [10, 11, 12],
+    names: ['Wheel of Fortune', 'Justice', 'The Hanged Man'],
+    theme: 'Karmic Acceptance Arc',
+    narrative: 'Fate turns → Truth demanded → Surrender to flow',
+    description:
+      'The path of acceptance: recognizing cycles beyond control, facing truth with clarity, releasing resistance through surrender.',
+    strength: 'complete',
+    contexts: {
+      legal: 'Court decisions, karmic justice, accepting outcomes',
+      relationships: 'Recognizing patterns, seeking fairness, letting go of control',
+      spiritual: 'Understanding karma, truth-seeking, ego surrender',
+      healing: 'Accepting what cannot be changed, finding balance, releasing attachment'
+    },
+    partialNarrative: {
+      'wheel-justice': 'Fate meeting accountability',
+      'justice-hangedman': 'Truth requiring suspension of judgment',
+      'wheel-hangedman': 'Cycles demanding surrender'
+    }
+  },
+
+  {
+    id: 'tower-star-moon',
+    cards: [16, 17, 18],
+    names: ['The Tower', 'The Star', 'The Moon'],
+    theme: 'Post-Crisis Navigation Arc',
+    narrative: 'Upheaval → Hope restored → Navigating uncertainty',
+    description:
+      'The aftermath journey: structures collapse, hope emerges from rubble, but the path forward remains shrouded in mystery requiring faith and intuition.',
+    strength: 'complete',
+    contexts: {
+      trauma: 'After crisis, finding hope, navigating healing with patience',
+      career: 'Job loss to new vision to uncertain next steps',
+      relationships: 'Breakup to renewed faith to navigating dating again',
+      spiritual: 'Dark night to glimpse of light to mysterious unfolding'
+    },
+    partialNarrative: {
+      'tower-star': 'Destruction clearing space for hope',
+      'star-moon': 'Hope meeting shadow work',
+      'tower-moon': 'Upheaval plunging into deep mystery'
+    }
+  },
+
+  {
+    id: 'strength-hermit-wheel',
+    cards: [8, 9, 10],
+    names: ['Strength', 'The Hermit', 'Wheel of Fortune'],
+    theme: 'Inner Mastery Through Solitude Arc',
+    narrative: 'Taming inner beasts → Solitary wisdom → Accepting cycles',
+    description:
+      'The contemplative path to wisdom: mastering inner turmoil through gentleness, withdrawing to seek truth, accepting the turning of fate with equanimity.',
+    strength: 'complete',
+    contexts: {
+      personal: 'Self-mastery through introspection and acceptance',
+      spiritual: 'Meditation, shadow work, surrendering to divine timing',
+      healing: 'Gentle self-compassion, inner work, accepting recovery cycles',
+      creative: 'Cultivating discipline, solitary practice, trusting the process'
+    },
+    partialNarrative: {
+      'strength-hermit': 'Inner fortitude seeking deeper wisdom',
+      'hermit-wheel': 'Solitary truth-seeking accepting fate',
+      'strength-wheel': 'Gentle mastery meeting life\'s cycles'
+    }
   }
 ];
 

@@ -5,8 +5,9 @@ import path from 'node:path';
 
 import { MAJOR_ARCANA } from '../../src/data/majorArcana.js';
 import { MINOR_ARCANA } from '../../src/data/minorArcana.js';
+import { SPREADS } from '../../src/data/spreads.js';
 import { getDeckImagePath } from '../../shared/vision/deckAssets.js';
-import { detectAllPatterns, getPriorityPatternNarratives } from '../../functions/lib/knowledgeGraph.js';
+import { buildGraphContext } from '../../functions/lib/graphContext.js';
 import { canonicalizeCardName } from '../../shared/vision/cardNameMapping.js';
 
 const DEFAULT_INPUT = 'training/readings.jsonl';
@@ -24,6 +25,14 @@ function buildCardIndex() {
     }
   });
   return map;
+}
+
+function getDeckLineage(deckStyle) {
+  if (!deckStyle) return null;
+  if (deckStyle.startsWith('thoth')) return 'thoth';
+  if (deckStyle.startsWith('marseille')) return 'marseille';
+  if (deckStyle.startsWith('rws')) return 'rws-like';
+  return 'indie';
 }
 
 function parseArgs(argv) {
@@ -162,31 +171,32 @@ function enrichCard(baseCard, deckStyle) {
 
   return {
     ...merged,
-    imagePath: imagePath || null
+    imagePath: imagePath || null,
+    isReversed: String(merged.orientation || '').toLowerCase() === 'reversed'
   };
-}
-
-function buildPatternContext(cards, deckStyle, { verbose } = {}) {
-  try {
-    const patterns = detectAllPatterns(cards, { deckStyle });
-    if (!patterns) {
-      return { patterns: null, patternHighlights: [] };
-    }
-    const patternHighlights = getPriorityPatternNarratives(patterns, deckStyle);
-    return { patterns, patternHighlights };
-  } catch (err) {
-    if (verbose) {
-      console.warn('[buildMultimodalDataset] Pattern detection failed:', err.message);
-    }
-    return { patterns: null, patternHighlights: [] };
-  }
 }
 
 function toMultimodalExample(reading, deckMetrics, options) {
   const deckStyle = reading.deckStyle || options.defaultDeckStyle || DEFAULT_DECK_STYLE;
+  const deckLineage = getDeckLineage(deckStyle);
   const cards = Array.isArray(reading.cards) ? reading.cards : [];
+  const spreadDef = reading.spreadKey ? SPREADS[reading.spreadKey] : null;
+  const roleKeys = Array.isArray(spreadDef?.roleKeys) ? spreadDef.roleKeys : [];
+
   const enrichedCards = cards
-    .map((card) => enrichCard(card, deckStyle))
+    .map((card, index) => {
+      const enriched = enrichCard(card, deckStyle);
+      if (!enriched) return null;
+      const slotIndex = index;
+      const slot = index + 1;
+      const positionRole = roleKeys[index] || null;
+      return {
+        ...enriched,
+        slotIndex,
+        slot,
+        positionRole
+      };
+    })
     .filter(Boolean);
 
   const imagePaths = enrichedCards
@@ -194,7 +204,38 @@ function toMultimodalExample(reading, deckMetrics, options) {
     .filter((p) => typeof p === 'string' && p.length > 0);
 
   const visionDeckMetrics = reading.deckVisionMetrics || pickDeckVisionMetrics(deckMetrics, deckStyle);
-  const { patterns, patternHighlights } = buildPatternContext(enrichedCards, deckStyle, options);
+
+  let graphContext = null;
+  try {
+    graphContext = buildGraphContext(enrichedCards, { deckStyle });
+  } catch (err) {
+    if (options.verbose) {
+      console.warn('[buildMultimodalDataset] Graph context detection failed:', err.message);
+    }
+    graphContext = null;
+  }
+
+  const knowledgeGraph = graphContext
+    ? {
+        patterns: graphContext.patterns || null,
+        narrativeHighlights: graphContext.narrativeHighlights || [],
+        graphKeys: graphContext.graphKeys || null
+      }
+    : {
+        patterns: null,
+        narrativeHighlights: [],
+        graphKeys: null
+      };
+
+  const spreadSchema = spreadDef
+    ? {
+        key: reading.spreadKey || null,
+        name: spreadDef.name || reading.spreadName || null,
+        count: spreadDef.count || (Array.isArray(cards) ? cards.length : null),
+        positions: Array.isArray(spreadDef.positions) ? spreadDef.positions : null,
+        roleKeys: Array.isArray(spreadDef.roleKeys) ? spreadDef.roleKeys : null
+      }
+    : null;
 
   return {
     id: reading.requestId || reading.journalId || null,
@@ -202,8 +243,10 @@ function toMultimodalExample(reading, deckMetrics, options) {
     journalId: reading.journalId || null,
     timestamp: reading.timestamp || null,
     deckStyle,
+    deckLineage,
     spreadKey: reading.spreadKey || null,
-    spreadName: reading.spreadName || null,
+    spreadName: reading.spreadName || spreadDef?.name || null,
+    spreadSchema,
     question: reading.question || '',
     context: reading.context || null,
     provider: reading.provider || null,
@@ -219,10 +262,7 @@ function toMultimodalExample(reading, deckMetrics, options) {
     feedbackLabel: reading.feedbackLabel || reading.feedback?.label || null,
     feedbackAverage: reading.feedbackAverage ?? reading.feedback?.averageScore ?? null,
     deckVisionMetrics: visionDeckMetrics || null,
-    knowledgeGraph: {
-      patterns: patterns || null,
-      narrativeHighlights: patternHighlights || []
-    }
+    knowledgeGraph
   };
 }
 

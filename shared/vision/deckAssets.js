@@ -1,4 +1,4 @@
-const THOTH_MAJOR_ALIASES = {
+export const THOTH_MAJOR_ALIASES = {
   0: 'The Fool',
   1: 'The Magus',
   2: 'The Priestess',
@@ -101,7 +101,7 @@ const THOTH_RANK_LABELS = {
   10: 'Ten'
 };
 
-const MARSEILLE_MAJOR_ALIASES = {
+export const MARSEILLE_MAJOR_ALIASES = {
   0: 'Le Mat',
   1: 'Le Bateleur',
   2: 'La Papesse',

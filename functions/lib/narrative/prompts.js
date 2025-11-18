@@ -11,6 +11,25 @@ import {
 } from './helpers.js';
 import { getDeckProfile } from '../../../shared/vision/deckProfiles.js';
 import { THOTH_MINOR_TITLES, MARSEILLE_NUMERICAL_THEMES } from '../../../src/data/knowledgeGraphData.js';
+import { isGraphRAGEnabled, retrievePassages, formatPassagesForPrompt } from '../graphRAG.js';
+
+/**
+ * Get optimal passage count based on spread complexity
+ * @param {string} spreadKey - Spread identifier (single, threeCard, celtic, etc.)
+ * @returns {number} Maximum number of passages to retrieve
+ */
+function getPassageCountForSpread(spreadKey) {
+  const limits = {
+    'single': 1,       // One-card = 1 passage (focused)
+    'threeCard': 2,    // Simple spread = 2 passages
+    'fiveCard': 3,     // Medium spread = 3 passages
+    'celtic': 5,       // Complex spread = 5 passages (rich context needed)
+    'decision': 3,     // Decision spread = 3 passages
+    'relationship': 2, // Relationship = 2 passages
+    'general': 3       // Default fallback
+  };
+  return limits[spreadKey] || 3;
+}
 
 const DECK_STYLE_TIPS = {
   'thoth-a1': [
@@ -171,7 +190,44 @@ function buildSystemPrompt(spreadKey, themes, context, deckStyle) {
 
   lines.push(
     ...reversalSection,
-    '',
+    ''
+  );
+
+  // GraphRAG: Retrieve and inject traditional wisdom passages
+  if (isGraphRAGEnabled() && themes?.knowledgeGraph?.graphKeys) {
+    try {
+      // Adaptive passage count based on spread complexity
+      const spreadKey = spreadInfo?.key || 'general';
+      const maxPassages = getPassageCountForSpread(spreadKey);
+
+      const retrievedPassages = retrievePassages(themes.knowledgeGraph.graphKeys, {
+        maxPassages
+      });
+
+      if (retrievedPassages.length > 0) {
+        const formattedPassages = formatPassagesForPrompt(retrievedPassages, {
+          includeSource: true,
+          markdown: true
+        });
+
+        lines.push(
+          '## TRADITIONAL WISDOM (GraphRAG)',
+          '',
+          formattedPassages,
+          'INTEGRATION: Ground your interpretation in this traditional wisdom. These passages provide',
+          'archetypal context from respected tarot literature. Weave their insights naturally',
+          'into your narrative—don\'t quote verbatim, but let them inform your understanding',
+          'of the patterns present in this spread.',
+          ''
+        );
+      }
+    } catch (err) {
+      // GraphRAG failure should not break readings; log and continue
+      console.error('[GraphRAG] Passage retrieval failed:', err.message);
+    }
+  }
+
+  lines.push(
     ...(themes?.knowledgeGraph?.narrativeHighlights?.length
       ? [
           '## ARCHETYPAL PATTERNS DETECTED',

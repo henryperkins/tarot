@@ -1,0 +1,291 @@
+// functions/lib/graphRAG.js
+// GraphRAG (Graph-Enhanced Retrieval-Augmented Generation) for tarot readings
+//
+// This module implements a lightweight GraphRAG system that:
+// 1. Takes graph keys from pattern detection (triads, dyads, journey stages)
+// 2. Retrieves relevant passages from the curated knowledge base
+// 3. Ranks and formats passages for injection into LLM prompts
+//
+// Architecture:
+//   graphKeys → retrievePassages() → ranked passages → formatForPrompt()
+//
+// This is a **prototype** implementation using deterministic retrieval.
+// Future enhancements could add:
+// - Semantic similarity via embeddings
+// - Dynamic passage generation
+// - User feedback loop for passage quality
+
+import {
+  getPassagesForPattern,
+  getKnowledgeBaseStats
+} from './knowledgeBase.js';
+
+/**
+ * Retrieve relevant passages based on detected graph patterns
+ *
+ * @param {Object} graphKeys - Graph keys from buildGraphContext()
+ * @param {Object} [options]
+ * @param {number} [options.maxPassages=3] - Maximum passages to return
+ * @param {boolean} [options.includeMetadata=false] - Include pattern metadata
+ * @returns {Array<Object>} Ranked passages with priority and metadata
+ *
+ * @example
+ * const graphKeys = {
+ *   completeTriadIds: ['death-temperance-star'],
+ *   foolsJourneyStageKey: 'integration'
+ * };
+ * const passages = retrievePassages(graphKeys, { maxPassages: 3 });
+ */
+export function retrievePassages(graphKeys, options = {}) {
+  const maxPassages = options.maxPassages || 3;
+  const includeMetadata = options.includeMetadata || false;
+
+  if (!graphKeys || typeof graphKeys !== 'object') {
+    return [];
+  }
+
+  const passages = [];
+
+  // Priority 1: Complete triads (highest narrative value)
+  if (Array.isArray(graphKeys.completeTriadIds) && graphKeys.completeTriadIds.length > 0) {
+    graphKeys.completeTriadIds.forEach((triadId) => {
+      const entry = getPassagesForPattern('triad', triadId);
+      if (entry && entry.passages) {
+        entry.passages.forEach((passage) => {
+          passages.push({
+            priority: 1,
+            type: 'triad',
+            patternId: triadId,
+            title: entry.title,
+            theme: entry.theme,
+            ...passage,
+            ...(includeMetadata ? { metadata: { triadId, isComplete: true } } : {})
+          });
+        });
+      }
+    });
+  }
+
+  // Priority 2: Fool's Journey stage (developmental context)
+  if (graphKeys.foolsJourneyStageKey) {
+    const entry = getPassagesForPattern('fools-journey', graphKeys.foolsJourneyStageKey);
+    if (entry && entry.passages) {
+      entry.passages.forEach((passage) => {
+        passages.push({
+          priority: 2,
+          type: 'fools-journey',
+          patternId: graphKeys.foolsJourneyStageKey,
+          title: entry.title,
+          theme: entry.theme,
+          stage: entry.stage,
+          ...passage,
+          ...(includeMetadata
+            ? { metadata: { stageKey: graphKeys.foolsJourneyStageKey } }
+            : {})
+        });
+      });
+    }
+  }
+
+  // Priority 3: High-significance dyads (powerful two-card synergies)
+  if (Array.isArray(graphKeys.dyadPairs) && graphKeys.dyadPairs.length > 0) {
+    graphKeys.dyadPairs
+      .filter((dyad) => dyad.significance === 'high')
+      .forEach((dyad) => {
+        const dyadKey = dyad.cards.join('-');
+        const entry = getPassagesForPattern('dyad', dyadKey);
+        if (entry && entry.passages) {
+          entry.passages.forEach((passage) => {
+            passages.push({
+              priority: 3,
+              type: 'dyad',
+              patternId: dyadKey,
+              theme: entry.theme,
+              cardNumbers: dyad.cards,
+              cardNames: entry.names,
+              ...passage,
+              ...(includeMetadata
+                ? { metadata: { cards: dyad.cards, category: dyad.category } }
+                : {})
+            });
+          });
+        }
+      });
+  }
+
+  // Priority 4: Strong suit progressions (Minor Arcana developmental arcs)
+  if (Array.isArray(graphKeys.suitProgressions) && graphKeys.suitProgressions.length > 0) {
+    graphKeys.suitProgressions
+      .filter((prog) => prog.significance === 'strong-progression')
+      .forEach((prog) => {
+        const progKey = `${prog.suit}:${prog.stage}`;
+        const entry = getPassagesForPattern('suit-progression', progKey);
+        if (entry && entry.passages) {
+          entry.passages.forEach((passage) => {
+            passages.push({
+              priority: 4,
+              type: 'suit-progression',
+              patternId: progKey,
+              title: entry.title,
+              suit: prog.suit,
+              stage: prog.stage,
+              ...passage,
+              ...(includeMetadata ? { metadata: { suit: prog.suit, stage: prog.stage } } : {})
+            });
+          });
+        }
+      });
+  }
+
+  // Sort by priority (lower number = higher priority), then limit
+  const ranked = passages
+    .sort((a, b) => a.priority - b.priority)
+    .slice(0, maxPassages);
+
+  return ranked;
+}
+
+/**
+ * Format retrieved passages for injection into LLM prompts
+ *
+ * @param {Array<Object>} passages - Retrieved passages from retrievePassages()
+ * @param {Object} [options]
+ * @param {boolean} [options.includeSource=true] - Show passage sources
+ * @param {boolean} [options.markdown=true] - Format as markdown
+ * @returns {string} Formatted passages ready for prompt injection
+ *
+ * @example
+ * const formatted = formatPassagesForPrompt(passages);
+ * // Returns formatted markdown with section header and passages
+ */
+export function formatPassagesForPrompt(passages, options = {}) {
+  const includeSource = options.includeSource !== false;
+  const markdown = options.markdown !== false;
+
+  if (!Array.isArray(passages) || passages.length === 0) {
+    return '';
+  }
+
+  const lines = [];
+
+  if (markdown) {
+    lines.push('**Retrieved Wisdom from Tarot Tradition:**');
+    lines.push('');
+  } else {
+    lines.push('Retrieved Wisdom from Tarot Tradition:');
+    lines.push('');
+  }
+
+  passages.forEach((passage, index) => {
+    const number = index + 1;
+
+    // Title line
+    if (passage.title) {
+      if (markdown) {
+        lines.push(`${number}. **${passage.title}**`);
+      } else {
+        lines.push(`${number}. ${passage.title}`);
+      }
+    } else if (passage.theme) {
+      if (markdown) {
+        lines.push(`${number}. **${passage.theme}**`);
+      } else {
+        lines.push(`${number}. ${passage.theme}`);
+      }
+    }
+
+    // Passage text
+    if (passage.text) {
+      const indent = '   ';
+      if (markdown) {
+        lines.push(`${indent}"${passage.text}"`);
+      } else {
+        lines.push(`${indent}${passage.text}`);
+      }
+    }
+
+    // Source attribution
+    if (includeSource && passage.source) {
+      const indent = '   ';
+      if (markdown) {
+        lines.push(`${indent}— ${passage.source}`);
+      } else {
+        lines.push(`${indent}(Source: ${passage.source})`);
+      }
+    }
+
+    lines.push('');
+  });
+
+  return lines.join('\n');
+}
+
+/**
+ * Build a retrieval summary for debugging/telemetry
+ *
+ * @param {Object} graphKeys - Graph keys from buildGraphContext()
+ * @param {Array<Object>} passages - Retrieved passages
+ * @returns {Object} Summary of retrieval results
+ */
+export function buildRetrievalSummary(graphKeys, passages) {
+  const summary = {
+    graphKeysProvided: !!graphKeys,
+    patternsDetected: {
+      completeTriads: graphKeys?.completeTriadIds?.length || 0,
+      partialTriads: (graphKeys?.triadIds?.length || 0) - (graphKeys?.completeTriadIds?.length || 0),
+      foolsJourneyStage: graphKeys?.foolsJourneyStageKey || null,
+      highDyads: graphKeys?.dyadPairs?.filter((d) => d.significance === 'high').length || 0,
+      strongSuitProgressions:
+        graphKeys?.suitProgressions?.filter((p) => p.significance === 'strong-progression')
+          .length || 0
+    },
+    passagesRetrieved: passages?.length || 0,
+    passagesByType: passages?.reduce((acc, p) => {
+      acc[p.type] = (acc[p.type] || 0) + 1;
+      return acc;
+    }, {}),
+    passagesByPriority: passages?.reduce((acc, p) => {
+      const key = `priority${p.priority}`;
+      acc[key] = (acc[key] || 0) + 1;
+      return acc;
+    }, {})
+  };
+
+  return summary;
+}
+
+/**
+ * Check if GraphRAG is enabled via environment
+ *
+ * @returns {boolean} True if GraphRAG should be used
+ */
+export function isGraphRAGEnabled() {
+  if (typeof process === 'undefined' || !process.env) {
+    return false;
+  }
+
+  // Check GRAPHRAG_ENABLED first (preferred), fall back to legacy KNOWLEDGE_GRAPH_ENABLED
+  const envValue = process.env.GRAPHRAG_ENABLED ?? process.env.KNOWLEDGE_GRAPH_ENABLED;
+
+  // Explicitly disabled
+  if (envValue === 'false' || envValue === '0') {
+    return false;
+  }
+
+  // Explicitly enabled
+  if (envValue === 'true' || envValue === '1') {
+    return true;
+  }
+
+  // Default: enabled (opt-out rather than opt-in for prototype)
+  return true;
+}
+
+/**
+ * Get knowledge base statistics for monitoring
+ *
+ * @returns {Object} Knowledge base coverage stats
+ */
+export function getKnowledgeBaseInfo() {
+  return getKnowledgeBaseStats();
+}

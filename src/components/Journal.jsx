@@ -1,21 +1,23 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { ChevronLeft, LogIn, Upload, Trash2 } from 'lucide-react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { ChevronLeft, LogIn, Upload, Trash2, Copy, ExternalLink, FileText, RefreshCw } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { GlobalNav } from './GlobalNav';
 import { useAuth } from '../contexts/AuthContext';
 import { useJournal } from '../hooks/useJournal';
 import AuthModal from './AuthModal';
 import { CardSymbolInsights } from './CardSymbolInsights';
+import { JournalFilters } from './JournalFilters.jsx';
 import {
   buildCardInsightPayload,
   computeJournalStats,
   exportJournalEntriesToCsv,
   copyJournalShareSummary,
   copyJournalEntrySummary,
-  loadShareTokenHistory,
-  revokeShareToken,
   saveCoachRecommendation
 } from '../lib/journalInsights';
+import { exportJournalInsightsToPdf, downloadInsightsSvg } from '../lib/pdfExport';
+import { buildHeuristicJourneySummary } from '../../shared/journal/summary.js';
+import { SPREADS } from '../data/spreads';
 
 const CONTEXT_SUMMARIES = {
   love: 'Relationship lens — center relational reciprocity and communication.',
@@ -58,6 +60,20 @@ const CONTEXT_TO_SPREAD = {
   }
 };
 
+const CONTEXT_FILTERS = [
+  { value: 'love', label: 'Love' },
+  { value: 'career', label: 'Career' },
+  { value: 'self', label: 'Self' },
+  { value: 'spiritual', label: 'Spiritual' },
+  { value: 'wellbeing', label: 'Wellbeing' },
+  { value: 'decision', label: 'Decision' }
+];
+
+const SPREAD_FILTERS = Object.entries(SPREADS || {}).map(([value, config]) => ({
+  value,
+  label: config?.name || value
+}));
+
 function mapContextToTopic(context) {
   switch (context) {
     case 'love':
@@ -97,31 +113,156 @@ function JournalCardListItem({ card }) {
   );
 }
 
+function parseJourneySummary(text) {
+  if (!text) return [];
+  const lines = text.split(/\n+/).map((line) => line.trim()).filter(Boolean);
+  const sections = [];
+  const headingRegex = /^(Arc of the Journey|Energies Calling for Focus|Gentle Next Steps)/i;
+  let current = null;
+  lines.forEach((line) => {
+    const match = line.match(headingRegex);
+    if (match) {
+      current = { title: match[1], content: line.replace(headingRegex, '').trim() };
+      sections.push(current);
+    } else if (current) {
+      current.content = current.content ? `${current.content}\n${line}` : line;
+    } else {
+      current = { title: 'Journey Highlights', content: line };
+      sections.push(current);
+    }
+  });
+  return sections;
+}
+
 function JournalInsightsPanel({
   stats,
   entries,
-  shareHistory = [],
-  onShareHistoryRefresh,
-  onRevokeShareToken
+  isAuthenticated,
+  filtersActive,
+  shareLinks = [],
+  shareLoading,
+  shareError,
+  onCreateShareLink,
+  onDeleteShareLink
 }) {
   if (!stats) return null;
 
   const [actionMessage, setActionMessage] = useState('');
+  const [journeySummary, setJourneySummary] = useState('');
+  const [summarySections, setSummarySections] = useState([]);
+  const [summaryStatus, setSummaryStatus] = useState('idle');
+  const [summaryError, setSummaryError] = useState('');
+  const [summaryGeneratedAt, setSummaryGeneratedAt] = useState(null);
+  const [shareComposerOpen, setShareComposerOpen] = useState(false);
+  const [shareComposer, setShareComposer] = useState({ scope: 'journal', entryId: '', title: '', limit: 5, expiresInHours: 72 });
+  const [autoSummarySignature, setAutoSummarySignature] = useState('');
 
   const handleExport = () => {
     const result = exportJournalEntriesToCsv(entries);
-    if (result) {
-      onShareHistoryRefresh?.();
-    }
     setActionMessage(result ? 'Exported journal.csv' : 'Unable to export right now');
     setTimeout(() => setActionMessage(''), 3500);
   };
 
-  const handleShare = async () => {
-    const success = await copyJournalShareSummary(stats);
-    setActionMessage(success ? 'Snapshot copied for sharing' : 'Unable to copy snapshot');
+  const handlePdfDownload = () => {
+    try {
+      exportJournalInsightsToPdf(stats, entries);
+      setActionMessage('PDF downloaded');
+    } catch (error) {
+      setActionMessage('Unable to create PDF');
+    }
     setTimeout(() => setActionMessage(''), 3500);
   };
+
+  const handleShare = async () => {
+    if (isAuthenticated && onCreateShareLink) {
+      try {
+        const data = await onCreateShareLink({ scope: 'journal' });
+        const shareUrl = data?.url && typeof window !== 'undefined'
+          ? `${window.location.origin}${data.url}`
+          : null;
+        if (shareUrl && navigator?.clipboard?.writeText) {
+          await navigator.clipboard.writeText(shareUrl);
+          setActionMessage('Share link copied');
+        } else {
+          setActionMessage('Share link ready');
+        }
+      } catch (error) {
+        setActionMessage(error.message || 'Unable to create share link');
+      }
+    } else {
+      const success = await copyJournalShareSummary(stats);
+      setActionMessage(success ? 'Snapshot copied for sharing' : 'Unable to copy snapshot');
+    }
+    setTimeout(() => setActionMessage(''), 3500);
+  };
+
+  const handleJourneySummary = useCallback(async ({ auto = false } = {}) => {
+    if (!entries || entries.length === 0) return;
+    setSummaryStatus('loading');
+    setSummaryError('');
+    try {
+      let summaryText = '';
+      if (isAuthenticated) {
+        const response = await fetch('/api/journal-summary', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ limit: Math.min(entries.length, 10) })
+        });
+        if (!response.ok) {
+          const payload = await response.json().catch(() => ({}));
+          throw new Error(payload.error || 'Unable to generate summary');
+        }
+        const payload = await response.json();
+        summaryText = payload.summary;
+      }
+      if (!summaryText) {
+        summaryText = buildHeuristicJourneySummary(entries, stats);
+      }
+      setJourneySummary(summaryText);
+      setSummarySections(parseJourneySummary(summaryText));
+      setSummaryGeneratedAt(Date.now());
+    } catch (error) {
+      if (!auto) {
+        setSummaryError(error.message || 'Unable to generate summary');
+      }
+    } finally {
+      setSummaryStatus('idle');
+    }
+  }, [entries, isAuthenticated, stats]);
+
+  useEffect(() => {
+    if (!shareComposer.entryId && entries?.[0]?.id) {
+      setShareComposer((prev) => ({ ...prev, entryId: entries[0].id }));
+    }
+  }, [entries, shareComposer.entryId]);
+
+  const entrySignature = useMemo(() => {
+    if (!Array.isArray(entries) || entries.length === 0) {
+      return '';
+    }
+    return entries
+      .map((entry) => {
+        const idPart = entry?.id ?? entry?.ts ?? 'entry';
+        const tsPart = entry?.ts ?? entry?.updated_at ?? entry?.created_at ?? '';
+        return `${idPart}:${tsPart}`;
+      })
+      .join('|');
+  }, [entries]);
+
+  useEffect(() => {
+    if (!entrySignature) {
+      if (autoSummarySignature) {
+        setAutoSummarySignature('');
+      }
+      return;
+    }
+    if (autoSummarySignature === entrySignature) {
+      return;
+    }
+    handleJourneySummary({ auto: true });
+    setAutoSummarySignature(entrySignature);
+  }, [entrySignature, autoSummarySignature, handleJourneySummary]);
 
   const topContext = stats.contextBreakdown?.slice().sort((a, b) => b.count - a.count)[0];
   const contextSuggestion = topContext && CONTEXT_TO_SPREAD[topContext.name];
@@ -154,68 +295,180 @@ function JournalInsightsPanel({
   }, [contextSuggestion, topCard, topContext]);
 
   useEffect(() => {
-    saveCoachRecommendation(coachRecommendation);
+    if (!coachRecommendation) return;
+    Promise.resolve(saveCoachRecommendation(coachRecommendation)).catch((error) => {
+      console.warn('Unable to persist coach recommendation', error);
+    });
   }, [coachRecommendation]);
+
+  const entryOptions = entries.slice(0, 10);
+
+  const handleComposerSubmit = async (event) => {
+    event.preventDefault();
+    if (!onCreateShareLink) return;
+    try {
+      const data = await onCreateShareLink({
+        scope: shareComposer.scope,
+        entryId: shareComposer.scope === 'entry' ? shareComposer.entryId : undefined,
+        title: shareComposer.title.trim(),
+        limit: shareComposer.scope === 'journal' ? Number(shareComposer.limit) : undefined,
+        expiresInHours: shareComposer.expiresInHours
+      });
+      const shareUrl = data?.url && typeof window !== 'undefined'
+        ? `${window.location.origin}${data.url}`
+        : null;
+      if (shareUrl && navigator?.clipboard?.writeText) {
+        await navigator.clipboard.writeText(shareUrl);
+        setActionMessage('Custom link copied');
+      } else {
+        setActionMessage('Custom link ready');
+      }
+      setShareComposerOpen(false);
+    } catch (error) {
+      setActionMessage(error.message || 'Unable to create custom link');
+    }
+    setTimeout(() => setActionMessage(''), 3500);
+  };
+
+  const copyShareUrl = async (token) => {
+    if (typeof window === 'undefined') return;
+    const url = `${window.location.origin}/share/${token}`;
+    if (navigator?.clipboard?.writeText) {
+      await navigator.clipboard.writeText(url);
+      setActionMessage('Link copied to clipboard');
+      setTimeout(() => setActionMessage(''), 2500);
+    }
+  };
 
   return (
     <section className="mb-8 rounded-3xl border border-emerald-400/40 bg-slate-950/70 p-6">
-      <div className="flex items-center justify-between flex-wrap gap-2">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
           <p className="text-xs uppercase tracking-[0.3em] text-emerald-300/80">Journal pulse</p>
           <h2 className="text-2xl font-serif text-amber-100">Reading insights at a glance</h2>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <button
-            type="button"
-            onClick={handleExport}
-            className="rounded-full border border-amber-400/50 px-3 py-1 text-xs text-amber-200 hover:bg-amber-500/10"
-          >
-            Export CSV
+          <button type="button" onClick={handleExport} className="inline-flex items-center gap-1 rounded-full border border-amber-400/50 px-3 py-1 text-xs text-amber-200 hover:bg-amber-500/10">
+            <FileText className="h-3.5 w-3.5" /> Export CSV
+          </button>
+          <button type="button" onClick={handlePdfDownload} className="inline-flex items-center gap-1 rounded-full border border-amber-400/50 px-3 py-1 text-xs text-amber-200 hover:bg-amber-500/10">
+            <Copy className="h-3.5 w-3.5" /> Download PDF
           </button>
           <button
             type="button"
-            onClick={handleShare}
-            className="rounded-full border border-emerald-400/50 px-3 py-1 text-xs text-emerald-200 hover:bg-emerald-500/10"
+            onClick={() => downloadInsightsSvg(stats)}
+            className="inline-flex items-center gap-1 rounded-full border border-amber-400/50 px-3 py-1 text-xs text-amber-200 hover:bg-amber-500/10"
           >
-            Share snapshot
+            <FileText className="h-3.5 w-3.5" /> Visual card
           </button>
+          <button type="button" onClick={handleShare} className="inline-flex items-center gap-1 rounded-full border border-emerald-400/50 px-3 py-1 text-xs text-emerald-200 hover:bg-emerald-500/10">
+            <ExternalLink className="h-3.5 w-3.5" /> {isAuthenticated ? 'Copy share link' : 'Share snapshot'}
+          </button>
+          {isAuthenticated && onCreateShareLink && (
+            <button
+              type="button"
+              onClick={() => setShareComposerOpen((prev) => !prev)}
+              className="inline-flex items-center gap-1 rounded-full border border-emerald-400/50 px-3 py-1 text-xs text-emerald-200 hover:bg-emerald-500/10"
+            >
+              <RefreshCw className="h-3.5 w-3.5" />
+              {shareComposerOpen ? 'Hide options' : 'Custom link'}
+            </button>
+          )}
         </div>
       </div>
 
       <p className="mt-2 text-sm text-amber-200/70">
         {stats.totalReadings} entries · {stats.totalCards} cards logged · {stats.reversalRate}% reversed
+        {filtersActive && <span className="ml-2 text-emerald-300/80">Filtered view</span>}
       </p>
-      {actionMessage && (
-        <p className="mt-2 text-xs text-emerald-200/70">{actionMessage}</p>
-      )}
+      {actionMessage && <p className="mt-2 text-xs text-emerald-200/70">{actionMessage}</p>}
 
-      <div className="mt-5 grid gap-4 sm:grid-cols-3">
-        <div className="rounded-2xl border border-amber-400/30 bg-slate-950/80 p-4">
-          <p className="text-xs uppercase tracking-[0.3em] text-amber-300/70">Entries</p>
-          <p className="text-2xl font-semibold text-amber-100">{stats.totalReadings}</p>
-          <p className="text-xs text-amber-200/70">Saved sessions</p>
-        </div>
-        <div className="rounded-2xl border border-amber-400/30 bg-slate-950/80 p-4">
-          <p className="text-xs uppercase tracking-[0.3em] text-amber-300/70">Cards logged</p>
-          <p className="text-2xl font-semibold text-amber-100">{stats.totalCards}</p>
-          <p className="text-xs text-amber-200/70">Across spreads</p>
-        </div>
-        <div className="rounded-2xl border border-amber-400/30 bg-slate-950/80 p-4">
-          <p className="text-xs uppercase tracking-[0.3em] text-amber-300/70">Reversal tilt</p>
-          <p className="text-2xl font-semibold text-amber-100">{stats.reversalRate}%</p>
-          <p className="text-xs text-amber-200/70">Of cards pulled</p>
-        </div>
-      </div>
+      {shareComposerOpen && (
+        <form onSubmit={handleComposerSubmit} className="mt-4 grid gap-3 rounded-2xl border border-emerald-400/30 bg-slate-900/50 p-4">
+          <div className="grid gap-3 sm:grid-cols-2">
+            <label className="text-xs uppercase tracking-[0.3em] text-emerald-300/80">
+              Link title
+              <input
+                type="text"
+                value={shareComposer.title}
+                onChange={(event) => setShareComposer((prev) => ({ ...prev, title: event.target.value }))}
+                placeholder="Optional"
+                maxLength={60}
+                className="mt-2 w-full rounded-2xl border border-emerald-400/30 bg-slate-950/70 px-3 py-2 text-sm text-amber-100 focus:outline-none focus:ring-2 focus:ring-emerald-400/50"
+              />
+            </label>
+            <label className="text-xs uppercase tracking-[0.3em] text-emerald-300/80">
+              Expires in
+              <select
+                value={shareComposer.expiresInHours ?? ''}
+                onChange={(event) => setShareComposer((prev) => ({ ...prev, expiresInHours: event.target.value ? Number(event.target.value) : undefined }))}
+                className="mt-2 w-full rounded-2xl border border-emerald-400/30 bg-slate-950/70 px-3 py-2 text-sm text-amber-100 focus:outline-none focus:ring-2 focus:ring-emerald-400/50"
+              >
+                <option value={24}>24 hours</option>
+                <option value={72}>3 days</option>
+                <option value={168}>1 week</option>
+                <option value="">No expiry</option>
+              </select>
+            </label>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <label className="text-xs uppercase tracking-[0.3em] text-emerald-300/80">
+              Scope
+              <select
+                value={shareComposer.scope}
+                onChange={(event) => setShareComposer((prev) => ({ ...prev, scope: event.target.value }))}
+                className="mt-2 w-full rounded-2xl border border-emerald-400/30 bg-slate-950/70 px-3 py-2 text-sm text-amber-100 focus:outline-none focus:ring-2 focus:ring-emerald-400/50"
+              >
+                <option value="journal">Recent journal entries</option>
+                <option value="entry">Single entry</option>
+              </select>
+            </label>
+            {shareComposer.scope === 'journal' ? (
+              <label className="text-xs uppercase tracking-[0.3em] text-emerald-300/80">
+                Entries included
+                <input
+                  type="number"
+                  min={1}
+                  max={10}
+                  value={shareComposer.limit}
+                  onChange={(event) => setShareComposer((prev) => ({ ...prev, limit: Number(event.target.value) }))}
+                  className="mt-2 w-full rounded-2xl border border-emerald-400/30 bg-slate-950/70 px-3 py-2 text-sm text-amber-100 focus:outline-none focus:ring-2 focus:ring-emerald-400/50"
+                />
+              </label>
+            ) : (
+              <label className="text-xs uppercase tracking-[0.3em] text-emerald-300/80">
+                Choose entry
+                <select
+                  value={shareComposer.entryId}
+                  onChange={(event) => setShareComposer((prev) => ({ ...prev, entryId: event.target.value }))}
+                  className="mt-2 w-full rounded-2xl border border-emerald-400/30 bg-slate-950/70 px-3 py-2 text-sm text-amber-100 focus:outline-none focus:ring-2 focus:ring-emerald-400/50"
+                >
+                  {entryOptions.map((entry) => (
+                    <option key={entry.id} value={entry.id}>
+                      {entry.spread} · {new Date(entry.ts).toLocaleDateString()}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
+          </div>
+          <div className="flex justify-end">
+            <button
+              type="submit"
+              className="rounded-full border border-emerald-400/60 px-4 py-2 text-sm text-emerald-100 hover:bg-emerald-500/10"
+            >
+              Generate link
+            </button>
+          </div>
+        </form>
+      )}
 
       {stats.frequentCards.length > 0 && (
         <div className="mt-6">
           <h3 className="text-sm font-semibold uppercase tracking-[0.3em] text-amber-400/80">Most frequent cards</h3>
           <ul className="mt-3 space-y-2">
             {stats.frequentCards.map((card) => (
-              <li
-                key={card.name}
-                className="flex items-center justify-between rounded-2xl bg-slate-900/60 px-4 py-3 text-sm text-amber-100/90"
-              >
+              <li key={card.name} className="flex items-center justify-between rounded-2xl bg-slate-900/60 px-4 py-3 text-sm text-amber-100/90">
                 <span>{card.name}</span>
                 <span className="text-amber-300/80">
                   {card.count}×{card.reversed ? ` · ${card.reversed} reversed` : ''}
@@ -231,10 +484,7 @@ function JournalInsightsPanel({
           <h3 className="text-sm font-semibold uppercase tracking-[0.3em] text-amber-400/80">Context mix</h3>
           <div className="mt-3 flex flex-wrap gap-2">
             {stats.contextBreakdown.map((context) => (
-              <span
-                key={context.name}
-                className="rounded-full border border-emerald-400/30 px-3 py-1 text-xs text-emerald-200"
-              >
+              <span key={context.name} className="rounded-full border border-emerald-400/30 px-3 py-1 text-xs text-emerald-200">
                 {context.name}: {context.count}
               </span>
             ))}
@@ -295,63 +545,54 @@ function JournalInsightsPanel({
         </div>
       )}
 
-      {shareHistory.length > 0 && (
+      {isAuthenticated && (
         <div className="mt-6">
           <h3 className="text-sm font-semibold uppercase tracking-[0.3em] text-amber-400/80">Manage share links</h3>
-          <div className="mt-3 space-y-2 text-xs text-amber-100/80">
-            {shareHistory.slice(0, 5).map((record) => (
-              <div key={record.token} className="rounded-2xl border border-emerald-400/20 bg-slate-900/60 p-3 flex items-center justify-between">
-                <div className="space-y-1">
-                  <p className="font-semibold text-amber-200">{record.scope === 'entry' ? 'Entry share' : 'Journal export'}</p>
-                  <p className="text-amber-100/70">{new Date(record.createdAt).toLocaleString()}</p>
-                  <p className="text-amber-200/60">{record.count} readings • token {record.token.slice(0, 8)}…</p>
+          {shareError && <p className="mt-2 text-xs text-rose-300">{shareError}</p>}
+          {shareLoading ? (
+            <p className="mt-3 text-xs text-amber-100/80">Loading share links…</p>
+          ) : shareLinks.length === 0 ? (
+            <p className="mt-3 text-xs text-amber-100/80">No active links yet. Share a reading to see it here.</p>
+          ) : (
+            <div className="mt-3 space-y-2 text-xs text-amber-100/80">
+              {shareLinks.slice(0, 6).map((record) => (
+                <div key={record.token} className="flex items-center justify-between rounded-2xl border border-emerald-400/20 bg-slate-900/60 p-3">
+                  <div className="space-y-1">
+                    <p className="font-semibold text-amber-200">{record.title || (record.scope === 'entry' ? 'Entry share' : 'Journal snapshot')}</p>
+                    <p className="text-amber-100/70">{new Date(record.createdAt).toLocaleString()}</p>
+                    <p className="text-amber-200/60">{record.entryCount ?? 0} entries · {record.viewCount || 0} visits</p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => copyShareUrl(record.token)}
+                      className="rounded-full border border-emerald-400/40 p-2 text-emerald-100 hover:bg-emerald-500/10"
+                      title="Copy link"
+                    >
+                      <Copy className="h-4 w-4" />
+                    </button>
+                    <a
+                      href={`/share/${record.token}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="rounded-full border border-amber-400/40 p-2 text-amber-100 hover:bg-amber-500/10"
+                      title="Open link"
+                    >
+                      <ExternalLink className="h-4 w-4" />
+                    </a>
+                    <button
+                      type="button"
+                      onClick={() => onDeleteShareLink?.(record.token)}
+                      className="rounded-full border border-red-400/40 p-2 text-red-100 hover:bg-red-500/10"
+                      title="Revoke link"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
                 </div>
-                <div className="flex flex-col gap-1">
-                  <button
-                    type="button"
-                    onClick={async () => {
-                      try {
-                        if (navigator?.clipboard?.writeText) {
-                          await navigator.clipboard.writeText(record.token);
-                          setActionMessage('Share token copied');
-                        } else {
-                          setActionMessage('Clipboard not available');
-                        }
-                      } catch (error) {
-                        setActionMessage('Unable to copy token');
-                      }
-                      setTimeout(() => setActionMessage(''), 3500);
-                    }}
-                    className="rounded-full border border-emerald-400/40 px-3 py-1 text-emerald-100 hover:bg-emerald-500/10"
-                  >
-                    Copy token
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (typeof window !== 'undefined') {
-                        window.open(`/share/${record.token}`, '_blank', 'noopener,noreferrer');
-                      }
-                    }}
-                    className="rounded-full border border-amber-400/40 px-3 py-1 text-amber-100 hover:bg-amber-500/10"
-                  >
-                    Open link
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      onRevokeShareToken?.(record.token);
-                      setActionMessage('Share token revoked');
-                      setTimeout(() => setActionMessage(''), 3500);
-                    }}
-                    className="rounded-full border border-red-400/40 px-3 py-1 text-red-100 hover:bg-red-500/10"
-                  >
-                    Revoke
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
     </section>
@@ -397,7 +638,7 @@ function buildThemeInsights(entry) {
   return lines.filter(Boolean);
 }
 
-function JournalEntryCard({ entry, onShareHistoryRefresh }) {
+function JournalEntryCard({ entry, onCreateShareLink, isAuthenticated }) {
   const insights = buildThemeInsights(entry);
   const [showNarrative, setShowNarrative] = useState(false);
   const [entryActionMessage, setEntryActionMessage] = useState('');
@@ -405,16 +646,30 @@ function JournalEntryCard({ entry, onShareHistoryRefresh }) {
   const handleEntryExport = () => {
     const filename = `tarot-entry-${entry.id || entry.ts || 'reading'}.csv`;
     const success = exportJournalEntriesToCsv([entry], filename);
-    if (success) {
-      onShareHistoryRefresh?.();
-    }
     setEntryActionMessage(success ? 'Entry CSV downloaded' : 'Export unavailable');
     setTimeout(() => setEntryActionMessage(''), 3500);
   };
 
   const handleEntryShare = async () => {
-    const success = await copyJournalEntrySummary(entry);
-    setEntryActionMessage(success ? 'Entry snapshot ready to share' : 'Unable to share entry now');
+    if (isAuthenticated && onCreateShareLink) {
+      try {
+        const data = await onCreateShareLink({ scope: 'entry', entryId: entry.id });
+        const shareUrl = data?.url && typeof window !== 'undefined'
+          ? `${window.location.origin}${data.url}`
+          : null;
+        if (shareUrl && navigator?.clipboard?.writeText) {
+          await navigator.clipboard.writeText(shareUrl);
+          setEntryActionMessage('Share link copied');
+        } else {
+          setEntryActionMessage('Share link ready');
+        }
+      } catch (error) {
+        setEntryActionMessage(error.message || 'Unable to create share link');
+      }
+    } else {
+      const success = await copyJournalEntrySummary(entry);
+      setEntryActionMessage(success ? 'Entry snapshot ready to share' : 'Unable to share entry now');
+    }
     setTimeout(() => setEntryActionMessage(''), 3500);
   };
 
@@ -499,17 +754,156 @@ export default function Journal() {
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [migrating, setMigrating] = useState(false);
   const [migrateMessage, setMigrateMessage] = useState('');
-  const [shareHistory, setShareHistory] = useState(() => loadShareTokenHistory());
+  const [filters, setFilters] = useState({ query: '', contexts: [], spreads: [], timeframe: 'all', onlyReversals: false });
+  const [shareLinks, setShareLinks] = useState([]);
+  const [shareLoading, setShareLoading] = useState(false);
+  const [shareError, setShareError] = useState('');
   const navigate = useNavigate();
-  const journalStats = useMemo(() => computeJournalStats(entries), [entries]);
 
-  const refreshShareHistory = () => {
-    setShareHistory(loadShareTokenHistory());
-  };
+  const filteredEntries = useMemo(() => {
+    if (!entries || entries.length === 0) {
+      return [];
+    }
+    const query = filters.query.trim().toLowerCase();
+    const contextSet = new Set(filters.contexts);
+    const spreadSet = new Set(filters.spreads);
+    const timeframeCutoff = (() => {
+      const now = Date.now();
+      switch (filters.timeframe) {
+        case '30d':
+          return now - 30 * 24 * 60 * 60 * 1000;
+        case '90d':
+          return now - 90 * 24 * 60 * 60 * 1000;
+        case 'ytd': {
+          const yearStart = new Date(new Date().getFullYear(), 0, 1).getTime();
+          return yearStart;
+        }
+        default:
+          return null;
+      }
+    })();
 
-  const handleShareTokenRevoke = (token) => {
-    setShareHistory(revokeShareToken(token));
-  };
+    return entries.filter((entry) => {
+      if (contextSet.size > 0 && !contextSet.has(entry?.context)) {
+        return false;
+      }
+      if (spreadSet.size > 0 && !spreadSet.has(entry?.spreadKey)) {
+        return false;
+      }
+      const entryTs = entry?.ts || (entry?.created_at ? entry.created_at * 1000 : null);
+      if (timeframeCutoff && entryTs && entryTs < timeframeCutoff) {
+        return false;
+      }
+      if (filters.onlyReversals) {
+        const hasReversal = (entry?.cards || []).some((card) => (card?.orientation || '').toLowerCase().includes('reversed'));
+        if (!hasReversal) {
+          return false;
+        }
+      }
+      if (query) {
+        const reflections = entry?.reflections ? Object.values(entry.reflections).join(' ') : '';
+        const cards = (entry?.cards || [])
+          .map((card) => `${card.position || ''} ${card.name} ${card.orientation || ''}`)
+          .join(' ');
+        const haystack = [
+          entry?.question,
+          entry?.spread,
+          entry?.context,
+          entry?.personalReading,
+          reflections,
+          cards
+        ]
+          .filter(Boolean)
+          .join(' ')
+          .toLowerCase();
+        if (!haystack.includes(query)) {
+          return false;
+        }
+      }
+      return true;
+    });
+  }, [entries, filters]);
+
+  const journalStats = useMemo(() => computeJournalStats(filteredEntries), [filteredEntries]);
+  const filtersActive = Boolean(filters.query.trim()) || filters.contexts.length > 0 || filters.spreads.length > 0 || filters.timeframe !== 'all' || filters.onlyReversals;
+
+  const fetchShareLinks = useCallback(async () => {
+    if (!isAuthenticated) return;
+    setShareLoading(true);
+    setShareError('');
+    try {
+      const response = await fetch('/api/share', { credentials: 'include' });
+      if (!response.ok) {
+        const payload = await response.json().catch(() => ({}));
+        throw new Error(payload.error || 'Unable to load share links');
+      }
+      const payload = await response.json();
+      setShareLinks(payload.shares || []);
+    } catch (error) {
+      setShareError(error.message || 'Unable to load share links');
+    } finally {
+      setShareLoading(false);
+    }
+  }, [isAuthenticated]);
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      fetchShareLinks();
+    } else {
+      setShareLinks([]);
+      setShareError('');
+    }
+  }, [isAuthenticated, fetchShareLinks]);
+
+  const createShareLink = useCallback(
+    async ({ scope = 'journal', entryId, title, limit, expiresInHours } = {}) => {
+      if (!isAuthenticated) {
+        throw new Error('Sign in to create share links');
+      }
+      const payload = { scope };
+      if (scope === 'entry' && entryId) {
+        payload.entryIds = [entryId];
+      } else if (typeof limit === 'number') {
+        payload.limit = limit;
+      }
+      if (title) {
+        payload.title = title;
+      }
+      if (expiresInHours) {
+        payload.expiresInHours = expiresInHours;
+      }
+      const response = await fetch('/api/share', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(payload)
+      });
+      if (!response.ok) {
+        const body = await response.json().catch(() => ({}));
+        throw new Error(body.error || 'Unable to create share link');
+      }
+      const data = await response.json();
+      await fetchShareLinks();
+      return data;
+    },
+    [isAuthenticated, fetchShareLinks]
+  );
+
+  const deleteShareLink = useCallback(
+    async (shareToken) => {
+      if (!isAuthenticated) return;
+      const response = await fetch(`/api/share/${shareToken}`, {
+        method: 'DELETE',
+        credentials: 'include'
+      });
+      if (!response.ok) {
+        const payload = await response.json().catch(() => ({}));
+        throw new Error(payload.error || 'Unable to delete share link');
+      }
+      await fetchShareLinks();
+    },
+    [isAuthenticated, fetchShareLinks]
+  );
 
   useEffect(() => {
     const storedTheme = typeof localStorage !== 'undefined' ? localStorage.getItem('tarot-theme') : null;
@@ -647,29 +1041,47 @@ export default function Journal() {
             <p className="text-amber-100/80">No entries yet. Save a reading to start your journal.</p>
           ) : (
             <div className="space-y-8">
+              <JournalFilters
+                filters={filters}
+                onChange={setFilters}
+                contexts={CONTEXT_FILTERS}
+                spreads={SPREAD_FILTERS}
+              />
               {journalStats && (
                 <JournalInsightsPanel
                   stats={journalStats}
-                  entries={entries}
-                  shareHistory={shareHistory}
-                  onShareHistoryRefresh={refreshShareHistory}
-                  onRevokeShareToken={handleShareTokenRevoke}
+                  entries={filteredEntries}
+                  isAuthenticated={isAuthenticated}
+                  filtersActive={filtersActive}
+                  shareLinks={shareLinks}
+                  shareLoading={shareLoading}
+                  shareError={shareError}
+                  onCreateShareLink={isAuthenticated ? createShareLink : null}
+                  onDeleteShareLink={isAuthenticated ? deleteShareLink : null}
                 />
               )}
-              {entries.map((entry) => (
-                <div key={entry.id} className="relative">
-                  <JournalEntryCard entry={entry} onShareHistoryRefresh={refreshShareHistory} />
-                  {isAuthenticated && (
-                    <button
-                      onClick={() => handleDelete(entry.id)}
-                      className="absolute top-4 right-4 p-2 text-red-400 hover:text-red-300 hover:bg-red-900/20 rounded-lg transition"
-                      title="Delete entry"
-                    >
-                      <Trash2 className="w-5 h-5" />
-                    </button>
-                  )}
-                </div>
-              ))}
+              {filteredEntries.length === 0 ? (
+                <p className="text-amber-100/80">No entries match your filters.</p>
+              ) : (
+                filteredEntries.map((entry) => (
+                  <div key={entry.id} className="relative">
+                    <JournalEntryCard
+                      entry={entry}
+                      isAuthenticated={isAuthenticated}
+                      onCreateShareLink={isAuthenticated ? createShareLink : null}
+                    />
+                    {isAuthenticated && (
+                      <button
+                        onClick={() => handleDelete(entry.id)}
+                        className="absolute top-4 right-4 p-2 text-red-400 hover:text-red-300 hover:bg-red-900/20 rounded-lg transition"
+                        title="Delete entry"
+                      >
+                        <Trash2 className="w-5 h-5" />
+                      </button>
+                    )}
+                  </div>
+                ))
+              )}
             </div>
           )}
         </main>

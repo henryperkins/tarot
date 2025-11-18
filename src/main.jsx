@@ -4,6 +4,7 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import './styles/tailwind.css';
 import TarotReading from './TarotReading.jsx';
 import Journal from './components/Journal.jsx';
+import ShareReading from './pages/ShareReading.jsx';
 import { AuthProvider } from './contexts/AuthContext.jsx';
 
 ReactDOM.createRoot(document.getElementById('root')).render(
@@ -13,6 +14,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
         <Routes>
           <Route path="/" element={<TarotReading />} />
           <Route path="/journal" element={<Journal />} />
+          <Route path="/share/:token" element={<ShareReading />} />
           <Route path="*" element={<TarotReading />} />
         </Routes>
       </BrowserRouter>
