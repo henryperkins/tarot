@@ -12,9 +12,14 @@ EXTENSION_LANGS = {
     '.ts': 'typescript',
     '.tsx': 'typescript',
     '.js': 'javascript',
+    '.jsx': 'javascript',
+    '.cjs': 'javascript',
     '.json': 'json',
     '.html': 'html',
     '.css': 'css',
+    '.sh': 'bash',
+    '.toml': 'toml',
+    '.sql': 'sql',
     '.log': 'text',
 }
 
