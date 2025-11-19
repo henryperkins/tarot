@@ -1,10 +1,10 @@
 #!/bin/bash
-# Development server startup script for Mystic Tarot
+# Development server startup script for Tableau
 # This starts both Vite (frontend) and Wrangler (API proxy) together
 
 set -e
 
-echo "🔮 Starting Mystic Tarot development environment..."
+echo "🔮 Starting Tableau development environment..."
 echo ""
 
 # Kill any existing processes on our ports

@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Mystic Tarot - Cloudflare Pages Secrets Setup
+# Tableau - Cloudflare Pages Secrets Setup
 # This script helps you configure all required secrets for production deployment
 
 set -e

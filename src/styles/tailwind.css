@@ -1,4 +1,4 @@
-/* Pull Mystic Tarot custom styles into the generated bundle */
+/* Pull Tableau custom styles into the generated bundle */
 @import './tarot.css';
 
 @tailwind base;

@@ -1,4 +1,4 @@
-// Minor Arcana data for Mystic Tarot
+// Minor Arcana data for Tableau
 // Shape is aligned with MINORS_TOGGLE_PLAN and existing majorArcana.js style.
 // - name: "Rank of Suit"
 // - suit: "Wands" | "Cups" | "Swords" | "Pentacles"

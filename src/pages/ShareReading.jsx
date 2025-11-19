@@ -161,7 +161,7 @@ export default function ShareReading() {
             to="/"
             className="mt-5 inline-flex items-center justify-center rounded-full border border-amber-400/60 px-4 py-2 text-sm text-amber-100 hover:bg-amber-500/10"
           >
-            Return to Mystic Tarot
+            Return to Tableau
           </Link>
         </div>
       </div>
@@ -238,11 +238,10 @@ export default function ShareReading() {
                   key={entry.id}
                   type="button"
                   onClick={() => setSelectedEntryIndex(index)}
-                  className={`rounded-full border px-3 py-1 text-[0.65rem] uppercase tracking-[0.2em] ${
-                    index === selectedEntryIndex
-                      ? 'border-emerald-400 bg-emerald-500/10 text-emerald-100'
-                      : 'border-slate-700/70 text-amber-100/70 hover:border-emerald-300/50'
-                  }`}
+                  className={`rounded-full border px-3 py-1 text-[0.65rem] uppercase tracking-[0.2em] ${index === selectedEntryIndex
+                    ? 'border-emerald-400 bg-emerald-500/10 text-emerald-100'
+                    : 'border-slate-700/70 text-amber-100/70 hover:border-emerald-300/50'
+                    }`}
                 >
                   {entry.spread || 'Reading'}
                 </button>

@@ -1,7 +1,7 @@
 {
-  "name": "Mystic Tarot",
-  "short_name": "Tarot",
-  "description": "Mystic Tarot blends AI insights, journaling, and ritual tooling for contemplative readings—now with offline access.",
+  "name": "Tableau",
+  "short_name": "Tableau",
+  "description": "Tableau blends AI insights, journaling, and ritual tooling for contemplative readings—now with offline access.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

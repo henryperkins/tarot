@@ -1,4 +1,4 @@
-# Mystic Tarot – AI coding guide
+# Tableau – AI coding guide
 
 ## Architecture & entrypoints
 - React+Vite SPA in `src/` with routes defined in `src/main.jsx` (`/` → `TarotReading.jsx`, `/journal` → `components/Journal.jsx`).

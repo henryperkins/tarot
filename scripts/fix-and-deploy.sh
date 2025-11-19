@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Mystic Tarot - Fix Configuration and Deploy
+# Tableau - Fix Configuration and Deploy
 # This script fixes the TTS endpoint and redeploys everything
 
 set -e
