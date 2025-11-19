@@ -379,14 +379,14 @@ export default function TarotReading() {
           <div className="text-center mb-6 sm:mb-8 mystic-heading-wrap flex flex-col items-center">
             <img
               src="/images/logo.png"
-              alt="Tableau Logo"
+              alt="Tableu Logo"
               className="w-20 h-20 mb-3 object-contain opacity-90 hover:opacity-100 transition-opacity"
             />
             <h1 id="tableau-heading" className="text-3xl sm:text-4xl md:text-5xl font-serif text-amber-200">
-              Tableau
+              Tableu
             </h1>
             <p className="mt-2 text-amber-100/80 text-sm sm:text-base md:text-lg">
-              Seek guidance from the ancient wisdom of the cards.
+              A picturesque grouping, analyzing many cards at once to reveal an artistic composition.
             </p>
           </div>
         </header>

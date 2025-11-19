@@ -1,7 +1,7 @@
 {
-  "name": "Tableau",
-  "short_name": "Tableau",
-  "description": "Tableau blends AI insights, journaling, and ritual tooling for contemplative readings—now with offline access.",
+  "name": "Tableu",
+  "short_name": "Tableu",
+  "description": "Tableu blends AI insights, journaling, and ritual tooling. A picturesque grouping, analyzing many cards at once to reveal an artistic composition.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
@@ -9,14 +9,14 @@
   "theme_color": "#022c22",
   "icons": [
     {
-      "src": "/icons/icon-192.svg",
+      "src": "/icons/icon-192.png",
       "sizes": "192x192",
-      "type": "image/svg+xml"
+      "type": "image/png"
     },
     {
-      "src": "/icons/icon-512.svg",
+      "src": "/icons/icon-512.png",
       "sizes": "512x512",
-      "type": "image/svg+xml"
+      "type": "image/png"
     }
   ]
 }

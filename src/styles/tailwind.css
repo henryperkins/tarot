@@ -1,4 +1,4 @@
-/* Pull Tableau custom styles into the generated bundle */
+/* Pull Tableu custom styles into the generated bundle */
 @import './tarot.css';
 
 @tailwind base;
