@@ -206,7 +206,12 @@ export function ReadingDisplay({ sectionRef }) {
                             <h3 className="text-xl sm:text-2xl font-serif text-amber-200 mb-2 flex items-center gap-2"><Sparkles className="w-5 h-5 sm:w-6 sm:h-6 text-emerald-300" />Your Personalized Narrative</h3>
                             <HelperToggle className="mt-3 max-w-2xl mx-auto"><p>This narrative braids together your spread positions, card meanings, and reflections into a single through-line. Read slowly, notice what resonates, and treat it as a mirror—not a script.</p></HelperToggle>
                             {userQuestion && (<div className="bg-slate-950/85 rounded-lg p-4 mb-4 border border-emerald-400/40"><p className="text-amber-300/85 text-xs sm:text-sm italic">Anchor: {userQuestion}</p></div>)}
-                            {readingMeta?.graphContext?.narrativeHighlights && <PatternHighlightBanner patterns={readingMeta.graphContext.narrativeHighlights} />}
+                            {readingMeta?.graphContext?.narrativeHighlights && (
+                                <PatternHighlightBanner
+                                    patterns={readingMeta.graphContext.narrativeHighlights}
+                                    passages={readingMeta.graphContext.retrievedPassages}
+                                />
+                            )}
                             {personalReading.hasMarkdown ? <MarkdownRenderer content={personalReading.raw} /> : (
                                 <div className="text-amber-100 leading-relaxed space-y-2 sm:space-y-3 md:space-y-4 max-w-none mx-auto text-left">
                                     {personalReading.paragraphs && personalReading.paragraphs.length > 0 ? personalReading.paragraphs.map((para, idx) => (<p key={idx} className="text-[0.9rem] sm:text-base md:text-lg leading-relaxed md:leading-loose">{para}</p>)) : <p className="text-[0.9rem] sm:text-base md:text-lg leading-relaxed md:leading-loose whitespace-pre-line">{personalReading.normalized || personalReading.raw || ''}</p>}

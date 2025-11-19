@@ -33,6 +33,8 @@ const audioObjectUrlMap = new WeakMap();
 let cleanupListenersRegistered = false;
 let lastCacheSweep = 0;
 
+const SILENT_AUDIO_URI = 'data:audio/mp3;base64,//MkxAAHiAICWABElBeKPL/RANb2w+yiT1g/gTok//lP/W/l3h8QO/OCdCqCW2Cw//MkxAQHkAIWUAhEmAQXWUOFW2dxPu//9mr60ElY5sseQ+xxesmHKtZr7bsqqX2L//MkxAgFwAYiQAhEAC2hq22d3///9FTV6tA36JdgBJoOGgc+7qvqej5Zu7/7uI9l//MkxBQHAAYi8AhEAO193vt9KGOq+6qcT7hhfN5FTInmwk8RkqKImTM55pRQHQSq//MkxBsGkgoIAABHhTACIJLf99nVI///yuW1uBqWfEu7CgNPWGpUadBmZ////4sL//MkxCMHMAH9iABEmAsKioqKigsLCwtVTEFNRTMuOTkuNVVVVVVVVVVVVVVVVVVV//MkxCkECAUYCAAAAFVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV';
+
 /**
  * Unlock audio playback by creating and playing a silent audio element.
  * Must be called from a user interaction event (click, touch, keydown, etc.)
@@ -44,56 +46,23 @@ export async function unlockAudio() {
 
   ensureGlobalCleanupListeners();
 
-  if (audioUnlockPromise) {
-    return audioUnlockPromise;
-  }
-
-  let silentAudio;
   try {
-    silentAudio = new Audio('data:audio/mp3;base64,//MkxAAHiAICWABElBeKPL/RANb2w+yiT1g/gTok//lP/W/l3h8QO/OCdCqCW2Cw//MkxAQHkAIWUAhEmAQXWUOFW2dxPu//9mr60ElY5sseQ+xxesmHKtZr7bsqqX2L//MkxAgFwAYiQAhEAC2hq22d3///9FTV6tA36JdgBJoOGgc+7qvqej5Zu7/7uI9l//MkxBQHAAYi8AhEAO193vt9KGOq+6qcT7hhfN5FTInmwk8RkqKImTM55pRQHQSq//MkxBsGkgoIAABHhTACIJLf99nVI///yuW1uBqWfEu7CgNPWGpUadBmZ////4sL//MkxCMHMAH9iABEmAsKioqKigsLCwtVTEFNRTMuOTkuNVVVVVVVVVVVVVVVVVVV//MkxCkECAUYCAAAAFVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV');
-    silentAudio.volume = 0.01; // Nearly silent
+    const silentAudio = new Audio(SILENT_AUDIO_URI);
+    silentAudio.volume = 0.01;
+    await silentAudio.play();
+    audioUnlocked = true;
+    console.log('[Audio] Audio context unlocked via direct call');
+    return true;
   } catch (err) {
-    console.warn('[Audio] Error creating unlock audio element:', err);
+    console.warn('[Audio] Audio unlock failed - user interaction needed', err);
     emitTTSState({
       status: 'unlock-failed',
-      reason: 'unsupported',
+      reason: 'interaction-required',
       error: err?.message || String(err),
       message: 'Tap anywhere on the page to enable audio.'
     });
     return false;
   }
-
-  audioUnlockPromise = (async () => {
-    try {
-      const playPromise = silentAudio.play();
-      if (playPromise && typeof playPromise.then === 'function') {
-        await playPromise;
-      }
-      audioUnlocked = true;
-      console.log('[Audio] Audio context unlocked');
-      return true;
-    } catch (err) {
-      console.warn('[Audio] Audio unlock failed - user interaction needed', err);
-      audioUnlocked = false;
-      emitTTSState({
-        status: 'unlock-failed',
-        reason: 'interaction-required',
-        error: err?.message || String(err),
-        message: 'Tap anywhere on the page to enable audio.'
-      });
-      return false;
-    } finally {
-      try {
-        silentAudio.pause();
-        silentAudio.currentTime = 0;
-      } catch {
-        // no-op
-      }
-      audioUnlockPromise = null;
-    }
-  })();
-
-  return audioUnlockPromise;
 }
 
 export function initAudio() {
@@ -106,21 +75,36 @@ export function initAudio() {
     };
   }
 
-  // Set up unlock listeners on first init
+  // Set up robust unlock listeners on first init
   if (typeof window !== 'undefined' && !unlockListenersRegistered) {
     unlockListenersRegistered = true;
     const unlockEvents = ['click', 'touchstart', 'keydown'];
+
     const unlockHandler = () => {
-      void unlockAudio().then(success => {
-        if (success) {
+      // Create and play immediately within the event handler
+      const s = new Audio(SILENT_AUDIO_URI);
+      s.volume = 0.01;
+      const p = s.play();
+
+      if (p !== undefined) {
+        p.then(() => {
+          audioUnlocked = true;
+          console.log('[Audio] Unlocked via global listener');
+          // Remove listeners once successfully unlocked
           unlockEvents.forEach(event => {
-            window.removeEventListener(event, unlockHandler);
+            window.removeEventListener(event, unlockHandler, { capture: true });
           });
-        }
-      });
+        }).catch(e => {
+          // If it fails (e.g. rapid clicks), we just keep the listeners attached
+          // and try again on next interaction
+          console.debug('[Audio] Silent unlock attempt failed', e);
+        });
+      }
     };
+
+    // Use capture: true to catch the event as early as possible
     unlockEvents.forEach(event => {
-      window.addEventListener(event, unlockHandler, { passive: true });
+      window.addEventListener(event, unlockHandler, { capture: true, passive: false });
     });
   }
 
@@ -370,8 +354,8 @@ export async function speakText({ text, enabled, context = 'default', voice = 'v
     } catch (err) {
       console.error('Error playing TTS audio:', err);
       const isAutoplayError = err.name === 'NotAllowedError' ||
-                             err.message?.toLowerCase().includes('autoplay') ||
-                             err.message?.toLowerCase().includes('user interaction');
+        err.message?.toLowerCase().includes('autoplay') ||
+        err.message?.toLowerCase().includes('user interaction');
 
       emitTTSState({
         status: 'error',
@@ -735,7 +719,7 @@ export async function resumeTTS() {
 }
 
 export function subscribeToTTS(listener) {
-  if (typeof listener !== 'function') return () => {};
+  if (typeof listener !== 'function') return () => { };
   ttsListeners.add(listener);
   listener(currentTTSState);
   return () => {

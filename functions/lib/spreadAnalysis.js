@@ -269,7 +269,7 @@ export async function analyzeSpreadThemes(cardsInfo, options = {}) {
 
   // Knowledge Graph pattern detection (archetypal triads, Fool's Journey, dyads)
   // Use shared isGraphRAGEnabled() function for consistency
-  const { isGraphRAGEnabled } = await import('./graphRAG.js');
+  const { isGraphRAGEnabled, retrievePassages } = await import('./graphRAG.js');
   const KG_ENABLED = options.enableKnowledgeGraph !== false && isGraphRAGEnabled();
 
   if (KG_ENABLED) {
@@ -278,6 +278,14 @@ export async function analyzeSpreadThemes(cardsInfo, options = {}) {
       const graphContext = buildGraphContext(cardsInfo, { deckStyle });
       if (graphContext) {
         themes.knowledgeGraph = graphContext;
+
+        // Retrieve passages for frontend display
+        // We retrieve a standard set here; the narrative builder may retrieve its own set with specific limits
+        const passages = retrievePassages(graphContext.graphKeys, {
+          maxPassages: 5,
+          includeMetadata: true
+        });
+        themes.knowledgeGraph.retrievedPassages = passages;
       }
     } catch (err) {
       console.error('Knowledge graph detection failed:', err);
