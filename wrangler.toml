@@ -12,7 +12,7 @@ compatibility_flags=["nodejs_compat"]
 # This file is the SOURCE OF TRUTH for your Pages project configuration.
 # Ref: https://developers.cloudflare.com/pages/functions/wrangler-configuration/
 #
-name                  ="tableu"
+name                  ="tableau"
 pages_build_output_dir="dist"
 
 # ============================================================================

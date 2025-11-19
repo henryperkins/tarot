@@ -1,5 +1,5 @@
 {
-  "name": "tableu",
+  "name": "tableau",
   "version": "1.0.0",
   "private": true,
   "type": "module",
@@ -10,7 +10,7 @@
     "build": "vite build",
     "preview": "vite preview",
     "preview:pages": "npm run build && wrangler pages dev dist",
-    "deploy": "wrangler pages deploy dist --project-name=tableu",
+    "deploy": "wrangler pages deploy dist --project-name=tableau",
     "test": "node --test tests/*.test.mjs",
     "vision:prototype": "node scripts/vision/runVisionPrototype.js",
     "eval:vision": "node scripts/evaluation/runVisionConfidence.js",
