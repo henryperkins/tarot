@@ -1,4 +1,5 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Sparkles, RotateCcw, Star } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { SPREADS } from '../data/spreads';
@@ -9,6 +10,8 @@ import { SpreadPatterns } from './SpreadPatterns';
 import { PatternHighlightBanner } from './PatternHighlightBanner';
 import { VisionValidationPanel } from './VisionValidationPanel';
 import { FeedbackPanel } from './FeedbackPanel';
+import { CardModal } from './CardModal';
+import { DeckPile } from './DeckPile';
 import { useReading } from '../contexts/ReadingContext';
 import { usePreferences } from '../contexts/PreferencesContext';
 import { useSaveReading } from '../hooks/useSaveReading';
@@ -16,6 +19,7 @@ import { useSaveReading } from '../hooks/useSaveReading';
 export function ReadingDisplay({ sectionRef }) {
     const navigate = useNavigate();
     const { saveReading } = useSaveReading();
+    const [selectedCardData, setSelectedCardData] = useState(null);
 
     // --- Contexts ---
     const {
@@ -136,11 +140,17 @@ export function ReadingDisplay({ sectionRef }) {
                         </div>
                     )}
                     {reading && revealedCards.size < reading.length && (
-                        <div className="hidden sm:block text-center">
-                            <button onClick={dealNext} className="mt-3 inline-flex items-center justify-center bg-gradient-to-r from-amber-500 to-amber-400 hover:from-amber-400 hover:to-amber-300 text-slate-950 font-semibold px-4 sm:px-6 py-2.5 sm:py-3 rounded-full shadow-lg shadow-amber-900/30 transition-all text-sm sm:text-base">
-                                <span>Reveal Next Card ({Math.min(dealIndex + 1, reading.length)}/{reading.length})</span>
-                            </button>
-                        </div>
+                        <DeckPile
+                            cardsRemaining={reading.length - revealedCards.size}
+                            onDraw={dealNext}
+                            isShuffling={isShuffling}
+                            nextLabel={(() => {
+                                const nextIndex = reading.findIndex((_, i) => !revealedCards.has(i));
+                                if (nextIndex === -1) return null;
+                                const pos = SPREADS[selectedSpread].positions[nextIndex];
+                                return pos ? pos.split('—')[0].trim() : `Card ${nextIndex + 1}`;
+                            })()}
+                        />
                     )}
 
                     <ReadingGrid
@@ -150,6 +160,7 @@ export function ReadingDisplay({ sectionRef }) {
                         revealCard={revealCard}
                         reflections={reflections}
                         setReflections={setReflections}
+                        onCardClick={(card, position, index) => setSelectedCardData({ card, position, index })}
                     />
 
                     {revealedCards.size === reading.length && highlightItems.length > 0 && (
@@ -242,9 +253,6 @@ export function ReadingDisplay({ sectionRef }) {
                                 )}
                                 {journalStatus && <p role="status" aria-live="polite" className={`text-xs text-center max-w-sm ${journalStatus.type === 'success' ? 'text-emerald-200' : 'text-rose-200'}`}>{journalStatus.message}</p>}
                             </div>
-                            <div className="mt-4 sm:mt-6 pt-4 sm:pt-6 border-t border-amber-500/20 flex flex-col gap-2 sm:gap-3 items-center">
-                                <HelperToggle><p className="text-center">This reading considered card combinations, positions, emotional arcs, and your reflections to provide personalized guidance.</p></HelperToggle>
-                            </div>
                             <div className="mt-6 w-full max-w-2xl">
                                 <FeedbackPanel
                                     requestId={readingMeta.requestId}
@@ -285,6 +293,18 @@ export function ReadingDisplay({ sectionRef }) {
                     <p className="text-amber-100/80 text-lg font-serif">Focus on your question, then draw your cards when you're ready.</p>
                 </div>
             )}
+
+            <AnimatePresence>
+                {selectedCardData && (
+                    <CardModal
+                        card={selectedCardData.card}
+                        position={selectedCardData.position}
+                        isOpen={!!selectedCardData}
+                        onClose={() => setSelectedCardData(null)}
+                        layoutId={`card-${selectedCardData.index}`}
+                    />
+                )}
+            </AnimatePresence>
         </section>
     );
 }

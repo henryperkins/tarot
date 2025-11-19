@@ -1,4 +1,6 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
+import { motion, useAnimation } from 'framer-motion';
+import { Maximize2 } from 'lucide-react';
 import { MAJOR_ARCANA } from '../data/majorArcana';
 import { MINOR_ARCANA } from '../data/minorArcana';
 import { CardSymbolInsights } from './CardSymbolInsights';
@@ -100,10 +102,31 @@ export function Card({
   onReveal,
   position,
   reflections,
-  setReflections
+  setReflections,
+  onCardClick,
+  staggerDelay = 0
 }) {
   const reflectionValue = reflections[index] || '';
   const revealedContentRef = useRef(null);
+  
+  // Local state to manage the visual reveal sequence
+  const [isVisuallyRevealed, setIsVisuallyRevealed] = useState(isRevealed);
+  const controls = useAnimation();
+  const hasMounted = useRef(false);
+
+  useEffect(() => {
+    // Entry animation
+    if (!hasMounted.current) {
+      controls.start({
+        opacity: 1,
+        y: 0,
+        scale: 1,
+        rotateY: 0,
+        transition: { type: "spring", stiffness: 300, damping: 30, mass: 1.2 }
+      });
+      hasMounted.current = true;
+    }
+  }, [controls]);
 
   useEffect(() => {
     if (isRevealed && revealedContentRef.current) {
@@ -111,10 +134,53 @@ export function Card({
     }
   }, [isRevealed]);
 
+  // Handle the flip animation sequence
+  useEffect(() => {
+    if (isRevealed === isVisuallyRevealed) return;
+
+    if (isRevealed && !isVisuallyRevealed) {
+      // Start reveal sequence
+      const sequence = async () => {
+        console.log(`Card ${index} starting reveal sequence. Stagger: ${staggerDelay}`);
+        // Wait for stagger delay
+        if (staggerDelay > 0) {
+          await new Promise(resolve => setTimeout(resolve, staggerDelay * 1000));
+        }
+
+        console.log(`Card ${index} starting Phase 1 (rotate 90)`);
+        // Phase 1: Rotate to 90deg (hide back)
+        await controls.start({
+          rotateY: 90,
+          opacity: 0.8,
+          transition: { duration: 0.25, ease: "easeIn" }
+        });
+
+        // Phase 2: Swap content
+        console.log(`Card ${index} Phase 2 (swap content)`);
+        setIsVisuallyRevealed(true);
+
+        // Phase 3: Rotate back to 0deg (show front)
+        console.log(`Card ${index} starting Phase 3 (rotate 0)`);
+        await controls.start({
+          rotateY: 0,
+          opacity: 1,
+          transition: { duration: 0.3, ease: "easeOut" }
+        });
+        console.log(`Card ${index} reveal complete`);
+      };
+      
+      sequence();
+    } else {
+      // Reset if needed (e.g. new game)
+      setIsVisuallyRevealed(false);
+      controls.set({ rotateY: 0, opacity: 1 });
+    }
+  }, [isRevealed, isVisuallyRevealed, staggerDelay, controls]);
+
   return (
     <div
       key={`${card.name}-${index}`}
-      className="modern-surface border border-emerald-400/40 overflow-hidden animate-fade-in"
+      className="modern-surface border border-emerald-400/40 overflow-hidden"
     >
       {/* Position Label */}
       <div className="bg-slate-950/80 p-2 sm:p-3 border-b border-emerald-400/40">
@@ -123,31 +189,38 @@ export function Card({
 
       {/* Card */}
       <div className="p-3 sm:p-4 md:p-6" style={{ perspective: '1000px' }}>
-        <div
-          onClick={() => !isRevealed && onReveal(index)}
+        <motion.div
+          layoutId={`card-${index}`}
+          initial={{ opacity: 0, y: 50, scale: 0.9, rotateY: 0 }}
+          animate={controls}
+          transition={{ type: "spring", stiffness: 300, damping: 30 }}
+          onClick={() => {
+            if (!isRevealed) onReveal(index);
+            else if (onCardClick) onCardClick(card, position, index);
+          }}
           onKeyDown={event => {
-            if (!isRevealed && (event.key === 'Enter' || event.key === ' ')) {
+            if (event.key === 'Enter' || event.key === ' ') {
               event.preventDefault();
-              onReveal(index);
+              if (!isRevealed) onReveal(index);
+              else if (onCardClick) onCardClick(card, position, index);
             }
           }}
           role="button"
           aria-label={
             isRevealed
-              ? `${position}: ${card.name} ${card.isReversed ? 'reversed' : 'upright'}`
+              ? `${position}: ${card.name} ${card.isReversed ? 'reversed' : 'upright'}. Click to view details.`
               : `Reveal card for ${position}`
           }
           tabIndex={0}
-          className={`cursor-pointer transition-all duration-500 transform ${!isRevealed
+          className={`cursor-pointer transition-all duration-500 transform ${!isVisuallyRevealed
             ? 'hover:bg-slate-900/70 hover:scale-105 focus:outline-none focus:ring-2 focus:ring-emerald-400/50 rounded-lg'
-            : ''
+            : 'hover:bg-slate-900/40 rounded-lg group'
             }`}
           style={{
-            transformStyle: 'preserve-3d',
-            animation: isRevealed ? 'flipCard 0.6s ease-out' : 'none'
+            transformStyle: 'preserve-3d'
           }}
         >
-          {!isRevealed ? (
+          {!isVisuallyRevealed ? (
             <div className="text-center py-6 sm:py-10">
               <div className="tarot-card-shell mx-auto">
                 <div className="tarot-card-back">
@@ -161,9 +234,19 @@ export function Card({
               </div>
             </div>
           ) : (
-            <div className="transition-all">
+            <div className="transition-all relative">
+              {/* Zoom Icon Overlay */}
+              <div className="absolute top-0 right-0 z-10 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                <div className="bg-slate-900/80 p-1.5 rounded-full text-amber-200 border border-amber-500/30 shadow-lg backdrop-blur-sm">
+                  <Maximize2 className="w-4 h-4" />
+                </div>
+              </div>
+
               {/* Rider-Waite Card Image */}
-              <div className={`mx-auto mb-3 max-w-[65%] sm:max-w-[280px] ${card.isReversed ? 'rotate-180' : ''}`}>
+              <motion.div
+                layoutId={`card-image-${index}`}
+                className={`mx-auto mb-3 max-w-[65%] sm:max-w-[280px] ${card.isReversed ? 'rotate-180' : ''}`}
+              >
                 <img
                   src={card.image}
                   alt={`${card.name}${card.isReversed ? ' (Reversed)' : ''}`}
@@ -174,7 +257,7 @@ export function Card({
                     e.target.src = '/images/cards/placeholder.jpg';
                   }}
                 />
-              </div>
+              </motion.div>
 
               <div className="text-center mb-3">
                 <span
@@ -225,7 +308,7 @@ export function Card({
               </div>
             </div>
           )}
-        </div>
+        </motion.div>
       </div>
     </div>
   );

@@ -169,7 +169,8 @@ async function analyzeEvidence(evidence, deckStyle) {
       basis: entry.topMatch?.basis || null,
       matches: sanitizeMatches(entry.matches, deckStyle),
       attention: sanitizeAttention(entry.attention),
-      symbolVerification: sanitizeSymbolVerification(entry.symbolVerification)
+      symbolVerification: sanitizeSymbolVerification(entry.symbolVerification),
+      visualProfile: entry.visualProfile || null
     };
   });
 }

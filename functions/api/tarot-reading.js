@@ -588,7 +588,7 @@ async function generateWithAzureGPT5Responses(env, { spreadInfo, cardsInfo, user
     model: deploymentName,
     instructions: systemPrompt,
     input: userPrompt,
-    max_output_tokens: 3000,
+    // max_output_tokens: 3000, // Removed to allow full model context length
     reasoning: {
       effort: reasoningEffort // Dynamically set based on model
     },
@@ -704,7 +704,7 @@ async function generateWithClaudeSonnet45Enhanced(env, { spreadInfo, cardsInfo, 
     },
     body: JSON.stringify({
       model,
-      max_tokens: 1200, // Increased for richer narratives
+      max_tokens: 8192, // Increased to allow full narrative generation without arbitrary limits
       temperature: 0.7,
       system: systemPrompt,
       messages: [
@@ -928,7 +928,8 @@ function annotateVisionInsights(proofInsights, cardsInfo = [], deckStyle = 'rws-
         matchesDrawnCard,
         matches,
         attention: entry.attention || null,
-        symbolVerification: entry.symbolVerification || null
+        symbolVerification: entry.symbolVerification || null,
+        visualProfile: entry.visualProfile || null
       };
     })
     .filter(Boolean)

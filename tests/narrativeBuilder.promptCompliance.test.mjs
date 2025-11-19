@@ -290,6 +290,40 @@ describe('Vision validation prompt context', () => {
     assert.match(userPrompt, /IMG_101/);
     assert.match(userPrompt, /The Fool/);
   });
+
+  it('embeds visual profile (tone/emotion) when available', async () => {
+    const cardsInfo = [
+      major('The Moon', 18, 'One-Card Insight', 'Upright')
+    ];
+    const themes = await buildThemes(cardsInfo, 'blocked');
+
+    const { userPrompt } = buildEnhancedClaudePrompt({
+      spreadInfo: { name: 'One-Card Insight' },
+      cardsInfo,
+      userQuestion: 'What is hidden?',
+      reflectionsText: '',
+      themes,
+      spreadAnalysis: null,
+      context: 'general',
+      visionInsights: [
+        {
+          label: 'IMG_DARK_MOON',
+          predictedCard: 'The Moon',
+          confidence: 0.98,
+          basis: 'image',
+          matchesDrawnCard: true,
+          visualProfile: {
+            tone: ['shadowy', 'muted'],
+            emotion: ['mysterious', 'melancholic']
+          }
+        }
+      ]
+    });
+
+    assert.match(userPrompt, /Visual Profile:/);
+    assert.match(userPrompt, /Tone: \[shadowy, muted\]/);
+    assert.match(userPrompt, /Emotion: \[mysterious, melancholic\]/);
+  });
 });
 
 // 2. THREE-CARD COMPLIANCE

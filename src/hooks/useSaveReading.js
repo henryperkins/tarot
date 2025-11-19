@@ -1,4 +1,5 @@
 import { useReading } from '../contexts/ReadingContext';
+import { usePreferences } from '../contexts/PreferencesContext';
 import { useJournal } from './useJournal';
 import { SPREADS } from '../data/spreads';
 
@@ -16,6 +17,7 @@ export function useSaveReading() {
         readingMeta
     } = useReading();
 
+    const { deckStyleId } = usePreferences();
     const { saveEntry } = useJournal({ autoLoad: false });
 
     async function saveReading() {
@@ -42,7 +44,8 @@ export function useSaveReading() {
             reflections: reflections || {},
             context: analysisContext || readingMeta?.graphContext || null,
             provider: personalReading?.provider || 'local',
-            sessionSeed
+            sessionSeed,
+            deckId: deckStyleId
         };
         try {
             const result = await saveEntry(entry);

@@ -165,6 +165,7 @@ export function useTarotState(speak) {
     if (!reading) return;
     if (dealIndex >= reading.length) return;
     
+    console.log('dealNext called', { dealIndex, readingLength: reading.length });
     void unlockAudio();
     const next = dealIndex;
     setRevealedCards(prev => new Set([...prev, next]));
@@ -184,6 +185,7 @@ export function useTarotState(speak) {
   }, [reading, dealIndex, selectedSpread, speak, shortLineForCard]);
 
   const revealCard = useCallback((index) => {
+    console.log('revealCard called', { index });
     if (!reading || !reading[index]) return;
     if (revealedCards.has(index)) return;
     
@@ -205,6 +207,7 @@ export function useTarotState(speak) {
   }, [reading, revealedCards, selectedSpread, speak, shortLineForCard]);
 
   const revealAll = useCallback(() => {
+    console.log('revealAll called');
     if (!reading || reading.length === 0) return;
     const allIndices = new Set(Array.from({ length: reading.length }, (_, index) => index));
     setRevealedCards(allIndices);

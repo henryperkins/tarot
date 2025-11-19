@@ -14,6 +14,7 @@ import { getMinorSymbolAnnotation } from './minorSymbolLexicon.js';
 import { getDeckProfile } from './deckProfiles.js';
 import { SymbolDetector } from './symbolDetector.js';
 import { loadFineTunedPrototypes } from './fineTuneCache.js';
+import { VISUAL_TONE_ANCHORS, VISUAL_EMOTION_ANCHORS, selectTopDescriptors } from './visualSemantics.js';
 
 const DEFAULT_MODEL = 'Xenova/clip-vit-base-patch32';
 const DEFAULT_SCOPE = 'major';
@@ -332,6 +333,7 @@ export class TarotVisionPipeline {
     this._textStackPromise = null;
     this._visionStackPromise = null;
     this._symbolDetectorPromise = null;
+    this._visualAnchorsPromise = null;
   }
 
   async _getTextStack() {
@@ -367,6 +369,34 @@ export class TarotVisionPipeline {
       this._symbolDetectorPromise = Promise.resolve(new SymbolDetector());
     }
     return this._symbolDetectorPromise;
+  }
+
+  async _getVisualAnchors() {
+    if (!this._visualAnchorsPromise) {
+      this._visualAnchorsPromise = (async () => {
+        const anchors = {
+          tone: {},
+          emotion: {}
+        };
+
+        // Embed tone anchors
+        for (const category in VISUAL_TONE_ANCHORS) {
+          for (const anchor of VISUAL_TONE_ANCHORS[category]) {
+            const vector = await this._embedPrompt(anchor.text);
+            anchors.tone[anchor.label] = vector;
+          }
+        }
+
+        // Embed emotion anchors
+        for (const anchor of VISUAL_EMOTION_ANCHORS) {
+          const vector = await this._embedPrompt(anchor.text);
+          anchors.emotion[anchor.label] = vector;
+        }
+
+        return anchors;
+      })();
+    }
+    return this._visualAnchorsPromise;
   }
 
   async _embedPrompt(prompt) {
@@ -441,8 +471,12 @@ export class TarotVisionPipeline {
     const analyses = [];
     const includeAttention = Boolean(options.includeAttention);
     const includeSymbols = Boolean(options.includeSymbols);
+    // Default to true for prototype purposes
+    const includeVisualProfile = options.includeVisualProfile !== false;
+    
     const deckStyle = this.deckProfile.id;
     const symbolDetector = includeSymbols ? await this._getSymbolDetector() : null;
+    const visualAnchors = includeVisualProfile ? await this._getVisualAnchors() : null;
 
     for (const input of imageInputs) {
       const normalized = normalizeInput(input);
@@ -493,6 +527,25 @@ export class TarotVisionPipeline {
       if ((!attention || !attention.heatmap) && symbolVerification?.heatmap && matches[0]?.cardMetadata) {
         attention = decorateAttentionWithSymbols(symbolVerification.heatmap, matches[0].cardMetadata);
       }
+      
+      let visualProfile = null;
+      if (includeVisualProfile && visualAnchors) {
+        const toneScores = {};
+        const emotionScores = {};
+
+        for (const [label, anchorVec] of Object.entries(visualAnchors.tone)) {
+          toneScores[label] = cosineSimilarity(imageVector, anchorVec);
+        }
+        
+        for (const [label, anchorVec] of Object.entries(visualAnchors.emotion)) {
+          emotionScores[label] = cosineSimilarity(imageVector, anchorVec);
+        }
+
+        visualProfile = {
+          tone: selectTopDescriptors(toneScores),
+          emotion: selectTopDescriptors(emotionScores)
+        };
+      }
 
       analyses.push({
         imagePath: resolvedPath,
@@ -501,7 +554,8 @@ export class TarotVisionPipeline {
         topMatch: matches[0] || null,
         confidence: matches[0]?.score ?? 0,
         attention,
-        symbolVerification
+        symbolVerification,
+        visualProfile
       });
     }
 

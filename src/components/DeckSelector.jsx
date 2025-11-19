@@ -1,7 +1,7 @@
 import React from 'react';
 import { Check } from 'lucide-react';
 
-const DECK_OPTIONS = [
+export const DECK_OPTIONS = [
   {
     id: 'rws-1909',
     label: 'Rider-Waite-Smith',

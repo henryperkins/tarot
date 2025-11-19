@@ -10,6 +10,7 @@ import { JournalInsightsPanel } from './JournalInsightsPanel.jsx';
 import { JournalEntryCard } from './JournalEntryCard.jsx';
 import { computeJournalStats } from '../lib/journalInsights';
 import { SPREADS } from '../data/spreads';
+import { DECK_OPTIONS } from './DeckSelector';
 
 const CONTEXT_FILTERS = [
   { value: 'love', label: 'Love' },
@@ -25,6 +26,8 @@ const SPREAD_FILTERS = Object.entries(SPREADS || {}).map(([value, config]) => ({
   label: config?.name || value
 }));
 
+const DECK_FILTERS = DECK_OPTIONS.map(d => ({ value: d.id, label: d.label }));
+
 const VISIBLE_ENTRY_BATCH = 10;
 
 export default function Journal() {
@@ -34,7 +37,7 @@ export default function Journal() {
   const [migrating, setMigrating] = useState(false);
   const [migrateMessage, setMigrateMessage] = useState('');
   const [deleteMessage, setDeleteMessage] = useState('');
-  const [filters, setFilters] = useState({ query: '', contexts: [], spreads: [], timeframe: 'all', onlyReversals: false });
+  const [filters, setFilters] = useState({ query: '', contexts: [], spreads: [], decks: [], timeframe: 'all', onlyReversals: false });
   const deferredQuery = useDeferredValue(filters.query);
   const filterSignature = useMemo(
     () =>
@@ -42,6 +45,7 @@ export default function Journal() {
         query: filters.query.trim().toLowerCase(),
         contexts: [...filters.contexts].sort(),
         spreads: [...filters.spreads].sort(),
+        decks: [...filters.decks].sort(),
         timeframe: filters.timeframe,
         onlyReversals: filters.onlyReversals
       }),
@@ -59,6 +63,7 @@ export default function Journal() {
     const query = deferredQuery.trim().toLowerCase();
     const contextSet = new Set(filters.contexts);
     const spreadSet = new Set(filters.spreads);
+    const deckSet = new Set(filters.decks);
     const timeframeCutoff = (() => {
       const now = Date.now();
       switch (filters.timeframe) {
@@ -80,6 +85,9 @@ export default function Journal() {
         return false;
       }
       if (spreadSet.size > 0 && !spreadSet.has(entry?.spreadKey)) {
+        return false;
+      }
+      if (deckSet.size > 0 && !deckSet.has(entry?.deckId)) {
         return false;
       }
       const entryTs = entry?.ts || (entry?.created_at ? entry.created_at * 1000 : null);
@@ -114,7 +122,7 @@ export default function Journal() {
       }
       return true;
     });
-  }, [entries, deferredQuery, filters.contexts, filters.spreads, filters.timeframe, filters.onlyReversals]);
+  }, [entries, deferredQuery, filters.contexts, filters.spreads, filters.decks, filters.timeframe, filters.onlyReversals]);
 
   const [visibleCount, setVisibleCount] = useState(VISIBLE_ENTRY_BATCH);
 
@@ -128,7 +136,7 @@ export default function Journal() {
   // Compute stats for both full journal and filtered view
   const allStats = useMemo(() => computeJournalStats(entries), [entries]);
   const filteredStats = useMemo(() => computeJournalStats(filteredEntries), [filteredEntries]);
-  const filtersActive = Boolean(filters.query.trim()) || filters.contexts.length > 0 || filters.spreads.length > 0 || filters.timeframe !== 'all' || filters.onlyReversals;
+  const filtersActive = Boolean(filters.query.trim()) || filters.contexts.length > 0 || filters.spreads.length > 0 || filters.decks.length > 0 || filters.timeframe !== 'all' || filters.onlyReversals;
 
   const fetchShareLinks = useCallback(async () => {
     if (!isAuthenticated) return;
@@ -420,6 +428,7 @@ export default function Journal() {
                 onChange={setFilters}
                 contexts={CONTEXT_FILTERS}
                 spreads={SPREAD_FILTERS}
+                decks={DECK_FILTERS}
               />
               {(allStats || filteredStats) && (
                 <JournalInsightsPanel

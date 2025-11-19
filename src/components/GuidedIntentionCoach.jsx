@@ -623,8 +623,12 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply 
                     <p className="text-sm text-amber-100/80">What area do you want to explore?</p>
                     {SPREAD_TO_TOPIC_MAP[selectedSpread] && (
                       <div className="rounded-lg bg-emerald-900/20 border border-emerald-400/30 px-3 py-2">
+                        <div className="flex items-center gap-2 mb-1">
+                          <Sparkles className="h-3 w-3 text-emerald-300" />
+                          <span className="text-xs font-bold uppercase tracking-wider text-emerald-300">Suggested Focus</span>
+                        </div>
                         <p className="text-xs text-emerald-200">
-                          💡 Based on your <span className="font-medium">{SPREAD_NAMES[selectedSpread]}</span> spread, we suggest exploring{' '}
+                          Based on your <span className="font-medium">{SPREAD_NAMES[selectedSpread]}</span> spread, we suggest exploring{' '}
                           <span className="font-medium text-emerald-100">
                             {INTENTION_TOPIC_OPTIONS.find(opt => opt.value === SPREAD_TO_TOPIC_MAP[selectedSpread])?.label}
                           </span>

@@ -72,7 +72,8 @@ export function trimInsights(rawInsights = [], deckStyle = 'rws-1909') {
       basis: typeof insight.basis === 'string' ? insight.basis : null,
       matches: Array.isArray(insight.matches) ? insight.matches.slice(0, 3) : [],
       attention: insight.attention || null,
-      symbolVerification: insight.symbolVerification || null
+      symbolVerification: insight.symbolVerification || null,
+      visualProfile: insight.visualProfile || null
     }));
 }
 

@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { FileText, Copy, RefreshCw, BarChart2, Sparkles, Share2, Download, Trash2 } from 'lucide-react';
+import { CoachSuggestion } from './CoachSuggestion';
 import {
     downloadInsightsSvg,
     exportJournalInsightsToPdf
@@ -548,29 +549,13 @@ export const JournalInsightsPanel = React.memo(function JournalInsightsPanel({
                 )}
 
                 {/* Next Steps / Coach */}
-                {(contextSuggestion || topTheme || topCard) && (
-                    <div className="rounded-3xl border border-emerald-400/20 bg-emerald-900/10 p-5">
-                        <h3 className="mb-4 flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-emerald-300">
-                            <Sparkles className="h-3 w-3" /> Suggested Focus
-                        </h3>
-                        <p className="font-serif text-lg text-amber-100">
-                            {contextSuggestion?.spread || 'Three-Card Story'}
-                        </p>
-                        <p className="mt-2 text-sm text-emerald-100/70">
-                            {contextSuggestion?.question ||
-                                (topTheme ? `Explore the theme of ${topTheme}` :
-                                    (topCard ? `Explore ${topCard.name}'s lessons` : 'Reflect on your journey'))}
-                        </p>
-                        {coachRecommendation && (
-                            <button
-                                onClick={handleCoachPrefill}
-                                disabled={filtersActive}
-                                className="mt-4 text-xs font-medium text-emerald-300 hover:text-emerald-200 underline decoration-emerald-500/30 underline-offset-4"
-                            >
-                                Start with Intention Coach →
-                            </button>
-                        )}
-                    </div>
+                {(contextSuggestion || topTheme || topCard) && coachRecommendation && (
+                    <CoachSuggestion
+                        recommendation={coachRecommendation}
+                        onApply={handleCoachPrefill}
+                        variant="journal"
+                        className={filtersActive ? "opacity-50 pointer-events-none" : ""}
+                    />
                 )}
             </div>
 

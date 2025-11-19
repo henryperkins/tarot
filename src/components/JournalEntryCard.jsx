@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import remarkBreaks from 'remark-breaks';
 import { Share2, Download, Trash2, ChevronDown, ChevronUp, BookOpen } from 'lucide-react';
 import { CardSymbolInsights } from './CardSymbolInsights';
 import { buildCardInsightPayload, exportJournalEntriesToCsv, copyJournalEntrySummary } from '../lib/journalInsights';
@@ -225,7 +226,7 @@ export const JournalEntryCard = React.memo(function JournalEntryCard({ entry, on
                             {showNarrative && (
                                 <div className="mt-2 animate-slide-down rounded-xl border border-emerald-400/10 bg-slate-950/20 p-4">
                                     <div className="prose prose-invert prose-sm max-w-none font-serif leading-relaxed text-amber-100/80">
-                                        <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                                        <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]} skipHtml>
                                             {entry.personalReading}
                                         </ReactMarkdown>
                                     </div>

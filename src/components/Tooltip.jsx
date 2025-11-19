@@ -178,12 +178,14 @@ export function Tooltip({
     triggerProps.onClick = handleToggle;
   }
 
+  const shouldShow = isVisible && content;
+
   return (
     <div ref={rootRef} className={rootBaseClass}>
       {asChild ? (
         <div
           {...triggerProps}
-          role="button"
+          role={enableClick ? "button" : undefined}
           className={triggerClassName || 'inline-flex'}
         >
           {children}
@@ -200,7 +202,7 @@ export function Tooltip({
       )}
 
       {/* Tooltip Content */}
-      {isVisible && (
+      {shouldShow && (
         <div
           role="tooltip"
           id={tooltipId}

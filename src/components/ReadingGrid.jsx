@@ -42,11 +42,23 @@ export function ReadingGrid({
   revealedCards,
   revealCard,
   reflections,
-  setReflections
+  setReflections,
+  onCardClick
 }) {
+  // Track previous reveal count to detect batch reveals
+  const prevRevealedCount = React.useRef(0);
+
+  // Update ref after render
+  React.useEffect(() => {
+    prevRevealedCount.current = revealedCards.size;
+  }, [revealedCards.size]);
+
   if (!reading) return null;
 
   const spreadInfo = SPREADS[selectedSpread];
+  const isBatchReveal = reading.length > 1 &&
+    revealedCards.size === reading.length &&
+    prevRevealedCount.current < reading.length - 1;
 
   return (
     <>
@@ -91,6 +103,8 @@ export function ReadingGrid({
               position={position}
               reflections={reflections}
               setReflections={setReflections}
+              onCardClick={onCardClick}
+              staggerDelay={isBatchReveal ? index * 0.15 : 0}
             />
           );
 
@@ -102,19 +116,15 @@ export function ReadingGrid({
                 : reading.length > 1 ? 'min-w-[85vw] snap-center sm:min-w-0' : ''
                 }`}
             >
-              {isRevealed ? (
-                <Tooltip
-                  content={tooltipContent}
-                  position="top"
-                  asChild
-                  enableClick={false}
-                  triggerClassName="block h-full"
-                >
-                  {cardElement}
-                </Tooltip>
-              ) : (
-                cardElement
-              )}
+              <Tooltip
+                content={isRevealed ? tooltipContent : null}
+                position="top"
+                asChild
+                enableClick={false}
+                triggerClassName="block h-full"
+              >
+                {cardElement}
+              </Tooltip>
             </div>
           );
         })}

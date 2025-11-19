@@ -118,7 +118,8 @@ function buildSystemPrompt(spreadKey, themes, context, deckStyle) {
     '- Use Markdown with clear `###` section headings for major beats (for example, “### Opening”, “### The Story”, “### Guidance”, “### Gentle Next Steps”, “### Closing”).',
     '- Bold each card name the first time it appears.',
     '- Prefer 4–6 moderately sized paragraphs plus one short bullet list of practical steps. Avoid filler.',
-    '- Keep paragraphs to about 2–4 sentences; break up anything longer for readability.'
+    '- Keep paragraphs to about 2–4 sentences; break up anything longer for readability.',
+    '- OUTPUT STYLE: Do NOT preface the reading with "Here is your reading" or "I have analyzed the cards." Start directly with the Opening section or the first header.'
   );
 
   lines.push(
@@ -259,10 +260,12 @@ function buildSystemPrompt(spreadKey, themes, context, deckStyle) {
 
   lines.push(
     '',
+    'SYNTHESIS RULE: Use the **Traditional Wisdom** (GraphRAG) to understand the core archetype (the "What"). Use the **Visual Profile** (Vision) to determine the specific manifestation or emotional texture (the "How"). If the Visual Profile contradicts the Traditional Wisdom (e.g., a dark Sun card), explicitly acknowledge this tension in the narrative if it adds depth—interpret it as the archetype expressing itself through that specific visual lens (e.g., "joy found in darkness").',
+    '',
     'GPT-5.1 DIRECTIVES:',
     '- PLAN FIRST: Before drafting, briefly plan the arc (sections, card order, actionable bulleted micro-steps) so the final response flows logically.',
     '- PERSIST UNTIL COMPLETE: Carry the reading through analysis, synthesis, and a short closing encouragement without stopping early or punting back to the user unless critical information is missing.',
-    '- SELF-VERIFY: After composing, quickly scan to ensure each referenced card/position is accurate, reversal instructions are obeyed, and ethical constraints are met before producing the final answer.'
+    '- SELF-VERIFY: After composing, quickly scan to ensure each referenced card/position is accurate, reversal instructions are obeyed, and the specific *visual profile* (tone/emotion) of the user\'s deck is reflected in the descriptive language before producing the final answer.'
   );
 
   return lines.join('\n');
@@ -412,6 +415,18 @@ function buildVisionValidationSection(visionInsights) {
         .join('; ');
       if (preview) {
         lines.push(`  · Secondary matches: ${preview}`);
+      }
+    }
+
+    if (entry.visualProfile) {
+      const tone = Array.isArray(entry.visualProfile.tone) ? entry.visualProfile.tone.slice(0, 2).join(', ') : '';
+      const emotion = Array.isArray(entry.visualProfile.emotion) ? entry.visualProfile.emotion.slice(0, 2).join(', ') : '';
+      const parts = [];
+      if (tone) parts.push(`Tone: [${tone}]`);
+      if (emotion) parts.push(`Emotion: [${emotion}]`);
+      
+      if (parts.length > 0) {
+        lines.push(`  · Visual Profile: ${parts.join(' | ')}`);
       }
     }
   });
