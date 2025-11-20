@@ -60,20 +60,20 @@ export function VisionValidationPanel({
   };
 
   return (
-    <div className="modern-surface border border-amber-400/30 p-4 sm:p-5 animate-fade-in">
+    <div className="modern-surface border border-primary/30 p-4 sm:p-5 animate-fade-in">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <p className="text-sm text-amber-100 font-semibold">Vision Research Console</p>
-          <p className="text-xs text-amber-200/70">
+          <p className="text-sm text-main font-semibold">Vision Research Console</p>
+          <p className="text-xs text-muted">
             Upload card photos to test the fine-tuned vision model's recognition accuracy and attention mechanisms. This tool compares your uploads against the active deck's embeddings.
           </p>
         </div>
-        <div className="flex flex-wrap items-center gap-2 text-sm font-medium text-emerald-200">
+        <div className="flex flex-wrap items-center gap-2 text-sm font-medium text-secondary">
           {results.length > 0 && (
             <button
               type="button"
               onClick={() => onClearResults?.()}
-              className="px-3 py-2 rounded-md border border-amber-400/30 text-amber-100/90 hover:border-amber-300/60"
+              className="px-3 py-2 rounded-md border border-accent/30 text-main/90 hover:border-accent/60"
             >
               Clear uploads
             </button>
@@ -91,7 +91,7 @@ export function VisionValidationPanel({
             type="button"
             onClick={() => !uploadLimitReached && setIsModalOpen(true)}
             disabled={uploadLimitReached}
-            className={`px-3 py-2 rounded-md border border-emerald-400/40 ${uploadLimitReached ? 'opacity-60 cursor-not-allowed' : ''}`}
+            className={`px-3 py-2 rounded-md border border-secondary/40 ${uploadLimitReached ? 'opacity-60 cursor-not-allowed' : ''}`}
           >
             {uploadLimitReached
               ? 'Limit reached'
@@ -114,9 +114,9 @@ export function VisionValidationPanel({
           onCancel={() => setIsCameraOpen(false)}
         />
       )}
-      {error && <p className="mt-2 text-xs text-rose-300">{error}</p>}
+      {error && <p className="mt-2 text-xs text-error">{error}</p>}
       {conflicts.length > 0 && (
-        <div className="mt-3 rounded border border-rose-400/40 bg-rose-900/20 p-3 text-xs text-rose-50">
+        <div className="mt-3 rounded border border-error/40 bg-error/20 p-3 text-xs text-main">
           <p className="font-semibold">Card mismatch detected</p>
           <p>Please confirm the following cards before generating a reading:</p>
           <ul className="mt-1 list-disc list-inside">
@@ -131,8 +131,8 @@ export function VisionValidationPanel({
       {results.length > 0 && (
         <div className="mt-4 space-y-3">
           {results.map((result) => (
-            <div key={result.uploadId || result.label} className="rounded border border-emerald-400/20 p-3">
-              <div className="flex items-center justify-between text-sm text-emerald-100">
+            <div key={result.uploadId || result.label} className="rounded border border-secondary/20 p-3">
+              <div className="flex items-center justify-between text-sm text-secondary">
                 <span>{result.label || 'Uploaded image'}</span>
                 <div className="flex items-center gap-3">
                   <span>
@@ -145,14 +145,14 @@ export function VisionValidationPanel({
                   <button
                     type="button"
                     onClick={() => onRemoveResult?.(result.uploadId || result.label)}
-                    className="text-xs text-rose-200/80 hover:text-rose-100"
+                    className="text-xs text-error/80 hover:text-error"
                   >
                     Remove
                   </button>
                 </div>
               </div>
               {Array.isArray(result.matches) && result.matches.length > 0 && (
-                <ul className="mt-2 text-xs text-emerald-50/80">
+                <ul className="mt-2 text-xs text-muted">
                   {result.matches.map((match) => (
                     <li key={`${result.label}-${match.cardName}`}>
                       {match.cardName}
@@ -165,14 +165,14 @@ export function VisionValidationPanel({
                 </ul>
               )}
               {result.attention?.focusRegions?.length > 0 && (
-                <div className="mt-2 text-[11px] text-emerald-100/70">
+                <div className="mt-2 text-[11px] text-secondary/70">
                   <p className="font-semibold">Model focus</p>
                   <p className="mb-1">Highlight patches where CLIP paid the most attention.</p>
                   <div className="flex flex-wrap gap-2">
                     {result.attention.focusRegions.slice(0, 4).map((region, idx) => (
                       <span
                         key={`${result.label}-region-${idx}`}
-                        className="px-2 py-1 rounded-full border border-emerald-400/30"
+                        className="px-2 py-1 rounded-full border border-secondary/30"
                       >
                         ({region.x}, {region.y}) · {(region.intensity * 100).toFixed(0)}%
                       </span>
@@ -186,7 +186,7 @@ export function VisionValidationPanel({
                 label={result.label}
               />
               {Array.isArray(result.attention?.symbolAlignment) && result.attention.symbolAlignment.length > 0 && (
-                <div className="mt-2 text-[11px] text-emerald-100/70">
+                <div className="mt-2 text-[11px] text-secondary/70">
                   <p className="font-semibold">Symbol alignment</p>
                   <ul className="list-disc list-inside space-y-1">
                     {result.attention.symbolAlignment.slice(0, 3).map((symbol) => (
@@ -202,7 +202,7 @@ export function VisionValidationPanel({
                 </div>
               )}
               {result.symbolVerification && (
-                <div className="mt-2 text-[11px] text-emerald-100/70">
+                <div className="mt-2 text-[11px] text-secondary/70">
                   <p className="font-semibold">Symbol verification</p>
                   <p>
                     Match rate:
@@ -212,14 +212,14 @@ export function VisionValidationPanel({
                       : 'n/a'}
                   </p>
                   {Array.isArray(result.symbolVerification.missingSymbols) && result.symbolVerification.missingSymbols.length > 0 && (
-                    <p className="mt-1 text-rose-100/80">
+                    <p className="mt-1 text-error/80">
                       Missing:
                       {' '}
                       {result.symbolVerification.missingSymbols.join(', ')}
                     </p>
                   )}
                   {Array.isArray(result.symbolVerification.unexpectedDetections) && result.symbolVerification.unexpectedDetections.length > 0 && (
-                    <p className="mt-1 text-amber-100/70">
+                    <p className="mt-1 text-muted">
                       Extra objects:
                       {' '}
                       {result.symbolVerification.unexpectedDetections.map((det) => det.label).join(', ')}

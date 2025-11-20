@@ -85,23 +85,23 @@ export default function AuthModal({ isOpen, onClose }) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm animate-fade-in">
-      <div className="relative w-full max-w-md mx-4 bg-slate-900 rounded-2xl border border-amber-400/40 shadow-2xl animate-pop-in">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-main/90 backdrop-blur-sm animate-fade-in">
+      <div className="relative w-full max-w-md mx-4 bg-surface rounded-2xl border border-primary/40 shadow-2xl animate-pop-in">
         {/* Close button */}
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 text-amber-200 hover:text-amber-100 transition"
+          className="absolute top-4 right-4 text-accent hover:text-main transition"
           aria-label="Close"
         >
           <X className="w-6 h-6" />
         </button>
 
         {/* Header */}
-        <div className="px-8 pt-8 pb-6 border-b border-amber-400/20">
-          <h2 className="text-2xl font-serif text-amber-200">
+        <div className="px-8 pt-8 pb-6 border-b border-primary/20">
+          <h2 className="text-2xl font-serif text-accent">
             {mode === 'login' ? 'Welcome Back' : 'Create Account'}
           </h2>
-          <p className="mt-2 text-sm text-amber-100/70">
+          <p className="mt-2 text-sm text-muted">
             {mode === 'login'
               ? 'Sign in to access your journal across devices'
               : 'Register to save your readings to the cloud'}
@@ -113,7 +113,7 @@ export default function AuthModal({ isOpen, onClose }) {
           <div className="space-y-4">
             {/* Email */}
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-amber-200 mb-1">
+              <label htmlFor="email" className="block text-sm font-medium text-accent mb-1">
                 Email
               </label>
               <input
@@ -121,7 +121,7 @@ export default function AuthModal({ isOpen, onClose }) {
                 id="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full px-4 py-2 bg-slate-800 border border-amber-400/30 rounded-lg text-amber-100 placeholder-amber-100/40 focus:outline-none focus:ring-2 focus:ring-amber-400/50"
+                className="w-full px-4 py-2 bg-surface-muted border border-primary/30 rounded-lg text-main placeholder-main/40 focus:outline-none focus:ring-2 focus:ring-primary/50"
                 placeholder="you@example.com"
                 required
                 disabled={loading}
@@ -131,7 +131,7 @@ export default function AuthModal({ isOpen, onClose }) {
             {/* Username (register only) */}
             {mode === 'register' && (
               <div>
-                <label htmlFor="username" className="block text-sm font-medium text-amber-200 mb-1">
+                <label htmlFor="username" className="block text-sm font-medium text-accent mb-1">
                   Username
                 </label>
                 <input
@@ -139,7 +139,7 @@ export default function AuthModal({ isOpen, onClose }) {
                   id="username"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
-                  className="w-full px-4 py-2 bg-slate-800 border border-amber-400/30 rounded-lg text-amber-100 placeholder-amber-100/40 focus:outline-none focus:ring-2 focus:ring-amber-400/50"
+                  className="w-full px-4 py-2 bg-surface-muted border border-primary/30 rounded-lg text-main placeholder-main/40 focus:outline-none focus:ring-2 focus:ring-primary/50"
                   placeholder="Choose a username"
                   required
                   disabled={loading}
@@ -151,7 +151,7 @@ export default function AuthModal({ isOpen, onClose }) {
 
             {/* Password */}
             <div>
-              <label htmlFor="password" className="block text-sm font-medium text-amber-200 mb-1">
+              <label htmlFor="password" className="block text-sm font-medium text-accent mb-1">
                 Password
               </label>
               <input
@@ -159,7 +159,7 @@ export default function AuthModal({ isOpen, onClose }) {
                 id="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full px-4 py-2 bg-slate-800 border border-amber-400/30 rounded-lg text-amber-100 placeholder-amber-100/40 focus:outline-none focus:ring-2 focus:ring-amber-400/50"
+                className="w-full px-4 py-2 bg-surface-muted border border-primary/30 rounded-lg text-main placeholder-main/40 focus:outline-none focus:ring-2 focus:ring-primary/50"
                 placeholder={mode === 'register' ? 'At least 8 characters' : 'Enter your password'}
                 required
                 disabled={loading}
@@ -170,7 +170,7 @@ export default function AuthModal({ isOpen, onClose }) {
             {/* Confirm Password (register only) */}
             {mode === 'register' && (
               <div>
-                <label htmlFor="confirmPassword" className="block text-sm font-medium text-amber-200 mb-1">
+                <label htmlFor="confirmPassword" className="block text-sm font-medium text-accent mb-1">
                   Confirm Password
                 </label>
                 <input
@@ -178,7 +178,7 @@ export default function AuthModal({ isOpen, onClose }) {
                   id="confirmPassword"
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
-                  className="w-full px-4 py-2 bg-slate-800 border border-amber-400/30 rounded-lg text-amber-100 placeholder-amber-100/40 focus:outline-none focus:ring-2 focus:ring-amber-400/50"
+                  className="w-full px-4 py-2 bg-surface-muted border border-primary/30 rounded-lg text-main placeholder-main/40 focus:outline-none focus:ring-2 focus:ring-primary/50"
                   placeholder="Confirm your password"
                   required
                   disabled={loading}
@@ -190,15 +190,15 @@ export default function AuthModal({ isOpen, onClose }) {
 
           {/* Error message */}
           {(error || authError) && (
-            <div className="mt-4 p-3 bg-red-900/30 border border-red-400/40 rounded-lg">
-              <p className="text-sm text-red-200">{error || authError}</p>
+            <div className="mt-4 p-3 bg-error/10 border border-error/40 rounded-lg">
+              <p className="text-sm text-error">{error || authError}</p>
             </div>
           )}
 
           {/* Success message */}
           {success && (
-            <div className="mt-4 p-3 bg-emerald-900/30 border border-emerald-400/40 rounded-lg">
-              <p className="text-sm text-emerald-200">{success}</p>
+            <div className="mt-4 p-3 bg-secondary/10 border border-secondary/40 rounded-lg">
+              <p className="text-sm text-secondary">{success}</p>
             </div>
           )}
 
@@ -206,7 +206,7 @@ export default function AuthModal({ isOpen, onClose }) {
           <button
             type="submit"
             disabled={loading}
-            className="mt-6 w-full px-6 py-3 bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-500 hover:to-amber-600 text-white font-medium rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed"
+            className="mt-6 w-full px-6 py-3 bg-primary hover:bg-primary/90 text-white font-medium rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {loading ? (
               <span className="flex items-center justify-center">
@@ -226,7 +226,7 @@ export default function AuthModal({ isOpen, onClose }) {
             <button
               type="button"
               onClick={switchMode}
-              className="text-sm text-amber-300 hover:text-amber-200 underline"
+              className="text-sm text-accent hover:text-accent/80 underline"
               disabled={loading}
             >
               {mode === 'login'
@@ -237,8 +237,8 @@ export default function AuthModal({ isOpen, onClose }) {
         </form>
 
         {/* Footer */}
-        <div className="px-8 pb-8 pt-4 border-t border-amber-400/20">
-          <p className="text-xs text-amber-100/50 text-center">
+        <div className="px-8 pb-8 pt-4 border-t border-primary/20">
+          <p className="text-xs text-muted/50 text-center">
             Your readings are private. We never share your data.
           </p>
         </div>

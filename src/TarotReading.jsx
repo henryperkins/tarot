@@ -146,8 +146,6 @@ export default function TarotReading() {
     reading: readingSectionRef
   };
 
-  const visionResearchEnabled = import.meta.env?.VITE_ENABLE_VISION_RESEARCH === 'true';
-
   // --- Effects & Helpers ---
 
   // Reset analysis state when Shuffle is triggered
@@ -232,6 +230,12 @@ export default function TarotReading() {
       setPlaceholderIndex(prev => (prev + 1) % EXAMPLE_QUESTIONS.length);
     }, 4000);
     return () => clearInterval(interval);
+  }, [allowPlaceholderCycle, userQuestion]);
+
+  useEffect(() => {
+    if (!userQuestion.trim() && !allowPlaceholderCycle) {
+      setAllowPlaceholderCycle(true);
+    }
   }, [allowPlaceholderCycle, userQuestion]);
 
   // Clear Journal Status Timeout
@@ -368,7 +372,7 @@ export default function TarotReading() {
   // --- Render Helper Wrappers ---
 
   return (
-    <div className="app-shell min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-amber-50">
+    <div className="app-shell min-h-screen bg-main text-main">
       <main className="max-w-7xl mx-auto px-4 sm:px-5 md:px-6 pt-6 pb-28 sm:py-8 lg:py-10">
         <div className="sr-only" role="status" aria-live="polite" aria-atomic="true">
           {[ttsAnnouncement, journalStatus?.message].filter(Boolean).join(' ')}
@@ -380,39 +384,39 @@ export default function TarotReading() {
             <img
               src="/images/logo.png"
               alt="Tableu Logo"
-              className="w-20 h-20 mb-3 object-contain opacity-90 hover:opacity-100 transition-opacity"
+              className="w-32 h-32 sm:w-40 sm:h-40 mb-3 object-contain opacity-90 hover:opacity-100 transition-opacity"
             />
-            <h1 id="tableau-heading" className="text-3xl sm:text-4xl md:text-5xl font-serif text-amber-200">
+            <h1 id="tableau-heading" className="sr-only">
               Tableu
             </h1>
-            <p className="mt-2 text-amber-100/80 text-sm sm:text-base md:text-lg">
+            <p className="mt-2 text-muted text-sm sm:text-base md:text-lg">
               A picturesque grouping, analyzing many cards at once to reveal an artistic composition.
             </p>
           </div>
         </header>
 
-        <div className="full-bleed sticky top-0 z-30 py-3 sm:py-4 mb-6 bg-slate-950/95 backdrop-blur border-y border-slate-800/70 px-4 sm:px-5 md:px-6">
+        <div className="full-bleed sticky top-0 z-30 py-3 sm:py-4 mb-6 bg-surface/95 backdrop-blur border-y border-accent/20 px-4 sm:px-5 md:px-6">
           <GlobalNav />
           <StepProgress steps={STEP_PROGRESS_STEPS} activeStep={activeStep} onSelect={handleStepNav} />
           {isShuffling && (
-            <div className="mt-2 flex items-center gap-2 text-amber-200/80 text-[clamp(0.85rem,2.4vw,0.95rem)] leading-snug" role="status" aria-live="polite">
-              <RotateCcw className="w-3.5 h-3.5 animate-spin text-amber-300" aria-hidden="true" />
+            <div className="mt-2 flex items-center gap-2 text-muted text-[clamp(0.85rem,2.4vw,0.95rem)] leading-snug" role="status" aria-live="polite">
+              <RotateCcw className="w-3.5 h-3.5 animate-spin text-accent" aria-hidden="true" />
               <span>Shuffling the deck...</span>
             </div>
           )}
         </div>
 
         {apiHealthBanner && (
-          <div className="mb-6 p-4 bg-amber-900/30 border border-amber-500/50 rounded-lg backdrop-blur">
+          <div className="mb-6 p-4 bg-primary/10 border border-primary/30 rounded-lg backdrop-blur">
             <div className="flex items-center gap-3">
-              <div className="w-3 h-3 rounded-full bg-amber-400 animate-pulse"></div>
-              <div className="text-amber-200 text-xs sm:text-sm">
+              <div className="w-3 h-3 rounded-full bg-primary animate-pulse"></div>
+              <div className="text-accent text-xs sm:text-sm">
                 <span className="font-semibold">Service Status:</span>{' '}
                 <span className="sm:hidden">Local fallbacks active</span>
                 <span className="hidden sm:inline">{apiHealthBanner.message}</span>
               </div>
             </div>
-            <div className="mt-2 text-amber-300/80 text-xs">
+            <div className="mt-2 text-muted text-xs">
               {!apiHealthBanner.anthropic && <div>• Claude AI: Using local composer</div>}
               {!apiHealthBanner.azure && <div>• Azure TTS: Using local audio</div>}
               <div className="mt-1">All readings remain fully functional with local fallbacks.</div>
@@ -421,14 +425,14 @@ export default function TarotReading() {
         )}
 
         {minorsFallbackWarning && (
-          <div className="mb-6 p-4 bg-rose-900/30 border border-rose-500/50 rounded-lg backdrop-blur">
+          <div className="mb-6 p-4 bg-error/10 border border-error/40 rounded-lg backdrop-blur">
             <div className="flex items-center gap-3">
-              <div className="w-3 h-3 rounded-full bg-rose-400 animate-pulse"></div>
-              <div className="text-rose-200 text-xs sm:text-sm">
+              <div className="w-3 h-3 rounded-full bg-error animate-pulse"></div>
+              <div className="text-error text-xs sm:text-sm">
                 <span className="font-semibold">Deck Data Warning:</span> Minor Arcana data incomplete. Using Major Arcana only.
               </div>
             </div>
-            <div className="mt-2 text-rose-300/80 text-xs">
+            <div className="mt-2 text-muted text-xs">
               <div>• Please check the Minor Arcana dataset for missing or malformed cards</div>
               <div>• Full deck readings will be available once data is restored</div>
             </div>
@@ -438,8 +442,8 @@ export default function TarotReading() {
         {/* Step 1–3: Spread + Prepare */}
         <section className="mb-6 xl:mb-4" aria-label="Reading setup">
           <div className="mb-4 sm:mb-5">
-            <p className="text-xs-plus sm:text-sm uppercase tracking-[0.18em] text-emerald-300/85">{stepIndicatorLabel}</p>
-            <p className="mt-1 text-amber-100/80 text-xs sm:text-sm">{stepIndicatorHint}</p>
+            <p className="text-xs-plus sm:text-sm uppercase tracking-[0.18em] text-accent/90">{stepIndicatorLabel}</p>
+            <p className="mt-1 text-muted text-xs sm:text-sm">{stepIndicatorHint}</p>
           </div>
 
           <div className="max-w-5xl mx-auto space-y-6">
@@ -449,8 +453,8 @@ export default function TarotReading() {
 
             <div aria-label="Choose your spread" ref={spreadSectionRef} id="step-spread" className="scroll-mt-[6.5rem] sm:scroll-mt-[7.5rem]">
               <div className="mb-3 sm:mb-4">
-                <h2 className="text-xs-plus sm:text-sm uppercase tracking-[0.18em] text-emerald-300/85">Spread</h2>
-                <p className="mt-1 text-amber-100/80 text-xs sm:text-sm">Choose a spread to shape the depth and focus of your reading.</p>
+                <h2 className="text-xs-plus sm:text-sm uppercase tracking-[0.18em] text-accent/90">Spread</h2>
+                <p className="mt-1 text-muted text-xs sm:text-sm">Choose a spread to shape the depth and focus of your reading.</p>
               </div>
               <SpreadSelector
                 selectedSpread={selectedSpread}
@@ -506,29 +510,29 @@ export default function TarotReading() {
       {!isIntentionCoachOpen && (
         <nav className="mobile-action-bar sm:hidden" aria-label="Primary mobile actions">
           <div className="flex flex-wrap gap-2">
-            {isShuffling && <button disabled className="flex-1 min-w-[7.5rem] inline-flex items-center justify-center rounded-xl px-3 py-2.5 text-sm font-semibold transition bg-amber-500 text-slate-950 shadow-lg flex-col gap-0.5 opacity-50"><span className="text-[0.55rem] uppercase tracking-[0.18em] text-amber-100/70">{stepIndicatorLabel}</span><span className="text-sm font-semibold">Shuffling...</span></button>}
+            {isShuffling && <button disabled className="flex-1 min-w-[7.5rem] inline-flex items-center justify-center rounded-xl px-3 py-2.5 text-sm font-semibold transition bg-accent text-surface shadow-lg flex-col gap-0.5 opacity-50"><span className="text-[0.55rem] uppercase tracking-[0.18em] opacity-70">{stepIndicatorLabel}</span><span className="text-sm font-semibold">Shuffling...</span></button>}
 
             {!isShuffling && !reading && (
               <>
-                <button onClick={() => setIsMobileSettingsOpen(true)} className="flex-none w-[3.5rem] inline-flex items-center justify-center rounded-xl px-0 py-2.5 text-sm font-semibold transition bg-slate-900/60 text-amber-200 border border-amber-200/30 hover:bg-slate-900/80 flex-col gap-0.5" aria-label="Settings">
+                <button onClick={() => setIsMobileSettingsOpen(true)} className="flex-none w-[3.5rem] inline-flex items-center justify-center rounded-xl px-0 py-2.5 text-sm font-semibold transition bg-surface-muted text-accent border border-accent/30 hover:bg-surface flex-col gap-0.5" aria-label="Settings">
                   <Settings className="w-5 h-5" />
                 </button>
-                <button onClick={handleShuffle} className="flex-1 min-w-[7.5rem] inline-flex items-center justify-center rounded-xl px-3 py-2.5 text-sm font-semibold transition bg-amber-500 text-slate-950 shadow-lg hover:bg-amber-400 flex-col gap-0.5"><span className="text-[0.55rem] uppercase tracking-[0.18em] text-amber-100/70">{stepIndicatorLabel}</span><span className="text-sm font-semibold">Draw cards</span></button>
+                <button onClick={handleShuffle} className="flex-1 min-w-[7.5rem] inline-flex items-center justify-center rounded-xl px-3 py-2.5 text-sm font-semibold transition bg-accent text-surface shadow-lg hover:opacity-90 flex-col gap-0.5"><span className="text-[0.55rem] uppercase tracking-[0.18em] opacity-70">{stepIndicatorLabel}</span><span className="text-sm font-semibold">Draw cards</span></button>
               </>
             )}
 
             {reading && revealedCards.size < reading.length && (
               <>
-                <button onClick={dealNext} className="flex-1 min-w-[7.5rem] inline-flex items-center justify-center rounded-xl px-3 py-2.5 text-sm font-semibold transition bg-amber-500 text-slate-950 shadow-lg hover:bg-amber-400 flex-col gap-0.5"><span className="text-[0.55rem] uppercase tracking-[0.18em] text-amber-100/70">{stepIndicatorLabel}</span><span className="text-sm font-semibold">Reveal next ({Math.min(dealIndex + 1, reading.length)}/{reading.length})</span></button>
-                {reading.length > 1 && <button onClick={revealAll} className="flex-1 min-w-[7.5rem] inline-flex items-center justify-center rounded-xl px-3 py-2.5 text-sm font-semibold transition bg-emerald-500/15 text-emerald-100 border border-emerald-400/40 hover:bg-emerald-500/25 flex-col gap-0.5"><span className="text-[0.55rem] uppercase tracking-[0.18em] text-amber-100/70">{stepIndicatorLabel}</span><span className="text-sm font-semibold">Reveal all</span></button>}
+                <button onClick={dealNext} className="flex-1 min-w-[7.5rem] inline-flex items-center justify-center rounded-xl px-3 py-2.5 text-sm font-semibold transition bg-accent text-surface shadow-lg hover:opacity-90 flex-col gap-0.5"><span className="text-[0.55rem] uppercase tracking-[0.18em] opacity-70">{stepIndicatorLabel}</span><span className="text-sm font-semibold">Reveal next ({Math.min(dealIndex + 1, reading.length)}/{reading.length})</span></button>
+                {reading.length > 1 && <button onClick={revealAll} className="flex-1 min-w-[7.5rem] inline-flex items-center justify-center rounded-xl px-3 py-2.5 text-sm font-semibold transition bg-primary/20 text-primary border border-primary/40 hover:bg-primary/30 flex-col gap-0.5"><span className="text-[0.55rem] uppercase tracking-[0.18em] opacity-70">{stepIndicatorLabel}</span><span className="text-sm font-semibold">Reveal all</span></button>}
               </>
             )}
 
             {reading && revealedCards.size === reading.length && (
               <>
-                {needsNarrativeGeneration && <button onClick={generatePersonalReading} disabled={isGenerating} className="flex-1 min-w-[7.5rem] inline-flex items-center justify-center rounded-xl px-3 py-2.5 text-sm font-semibold transition bg-amber-500 text-slate-950 shadow-lg hover:bg-amber-400 flex-col gap-0.5"><span className="text-[0.55rem] uppercase tracking-[0.18em] text-amber-100/70">{stepIndicatorLabel}</span><span className="text-sm font-semibold">{isGenerating ? 'Weaving...' : 'Create narrative'}</span></button>}
-                {hasNarrative && !isPersonalReadingError && <button onClick={saveReading} className="flex-1 min-w-[7.5rem] inline-flex items-center justify-center rounded-xl px-3 py-2.5 text-sm font-semibold transition bg-amber-500 text-slate-950 shadow-lg hover:bg-amber-400 flex-col gap-0.5"><span className="text-[0.55rem] uppercase tracking-[0.18em] text-amber-100/70">{stepIndicatorLabel}</span><span className="text-sm font-semibold">Save to journal</span></button>}
-                <button onClick={handleShuffle} className="flex-1 min-w-[7.5rem] inline-flex items-center justify-center rounded-xl px-3 py-2.5 text-sm font-semibold transition bg-slate-900/60 text-amber-200 border border-amber-200/30 hover:bg-slate-900/80 flex-col gap-0.5"><span className="text-[0.55rem] uppercase tracking-[0.18em] text-amber-100/70">{stepIndicatorLabel}</span><span className="text-sm font-semibold">New reading</span></button>
+                {needsNarrativeGeneration && <button onClick={generatePersonalReading} disabled={isGenerating} className="flex-1 min-w-[7.5rem] inline-flex items-center justify-center rounded-xl px-3 py-2.5 text-sm font-semibold transition bg-accent text-surface shadow-lg hover:opacity-90 flex-col gap-0.5"><span className="text-[0.55rem] uppercase tracking-[0.18em] opacity-70">{stepIndicatorLabel}</span><span className="text-sm font-semibold">{isGenerating ? 'Weaving...' : 'Create narrative'}</span></button>}
+                {hasNarrative && !isPersonalReadingError && <button onClick={saveReading} className="flex-1 min-w-[7.5rem] inline-flex items-center justify-center rounded-xl px-3 py-2.5 text-sm font-semibold transition bg-accent text-surface shadow-lg hover:opacity-90 flex-col gap-0.5"><span className="text-[0.55rem] uppercase tracking-[0.18em] opacity-70">{stepIndicatorLabel}</span><span className="text-sm font-semibold">Save to journal</span></button>}
+                <button onClick={handleShuffle} className="flex-1 min-w-[7.5rem] inline-flex items-center justify-center rounded-xl px-3 py-2.5 text-sm font-semibold transition bg-surface-muted text-accent border border-accent/30 hover:bg-surface flex-col gap-0.5"><span className="text-[0.55rem] uppercase tracking-[0.18em] opacity-70">{stepIndicatorLabel}</span><span className="text-sm font-semibold">New reading</span></button>
               </>
             )}
           </div>

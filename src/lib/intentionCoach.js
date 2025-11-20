@@ -21,6 +21,27 @@ const navigateSeed = EXAMPLE_QUESTIONS[1] || 'How can I navigate this relationsh
 const lessonSeed = EXAMPLE_QUESTIONS[3] || 'What lesson am I meant to learn?';
 const claritySeed = EXAMPLE_QUESTIONS[4] || 'How can I move forward with clarity?';
 
+function hashString(str) {
+  let hash = 0;
+  for (let i = 0; i < str.length; i += 1) {
+    hash = ((hash << 5) - hash) + str.charCodeAt(i);
+    hash |= 0;
+  }
+  return Math.abs(hash);
+}
+
+function pickVariant(list, seedBase = '') {
+  if (!Array.isArray(list) || list.length === 0) return '';
+  const seed = hashString(`${seedBase}|${Date.now()}|${Math.random()}`);
+  return list[seed % list.length];
+}
+
+function ensureQuestionMark(text) {
+  if (!text) return '';
+  const trimmed = text.trim();
+  return trimmed.endsWith('?') ? trimmed : `${trimmed}?`;
+}
+
 export const INTENTION_TOPIC_OPTIONS = [
   {
     value: 'relationships',
@@ -103,6 +124,37 @@ export const INTENTION_DEPTH_OPTIONS = [
   }
 ];
 
+function buildLocalCreativeQuestion({ focus, timeframePhrase, depthLabel, topicLabel }) {
+  const verbs = [
+    'move forward with',
+    'nurture',
+    'deepen trust in',
+    'open up to',
+    'energize'
+  ];
+  const aims = [
+    'honor my growth',
+    'stay aligned with my values',
+    'invite reciprocity',
+    'feel grounded',
+    'show up with compassion'
+  ];
+  const lenses = [
+    'with curiosity',
+    'with steadiness',
+    'with healthy boundaries',
+    'with courage',
+    'with clear communication'
+  ];
+
+  const verb = pickVariant(verbs, focus);
+  const aim = pickVariant(aims, depthLabel);
+  const lens = pickVariant(lenses, topicLabel);
+  const timeframe = timeframePhrase ? ` ${timeframePhrase}` : '';
+
+  return ensureQuestionMark(`How can I ${verb} ${focus}${timeframe} so I can ${aim} ${lens}`.replace(/\s+/g, ' ').trim());
+}
+
 export async function callLlmApi(prompt, metadata) {
   try {
     const response = await fetch('/api/generate-question', {
@@ -176,13 +228,26 @@ export async function buildCreativeQuestion({ topic, timeframe, depth, customFoc
     recentQuestions
   };
 
-  const creativeQuestion = await callLlmApi(prompt, metadata);
-  if (creativeQuestion) {
-    return creativeQuestion;
+  let creativeQuestion = null;
+  try {
+    creativeQuestion = await callLlmApi(prompt, metadata);
+  } catch (error) {
+    // swallow and fall back below
   }
 
-  // Fallback to deterministic guided question if API does not respond
-  return buildGuidedQuestion({ topic, timeframe, depth, customFocus });
+  if (creativeQuestion) {
+    return { question: creativeQuestion, source: 'api' };
+  }
+
+  // Local creative fallback adds variety instead of repeating guided wording
+  const localCreative = buildLocalCreativeQuestion({
+    focus,
+    timeframePhrase: timeframeData?.phrase,
+    depthLabel: depthData.label,
+    topicLabel: topicData.label
+  });
+
+  return { question: localCreative, source: 'local' };
 }
 
 export function buildGuidedQuestion({ topic, timeframe, depth, customFocus }) {
@@ -196,21 +261,38 @@ export function buildGuidedQuestion({ topic, timeframe, depth, customFocus }) {
   switch (depthData.pattern) {
     case 'support': {
       const closing = depthData.closing ? ` ${depthData.closing}` : '';
-      return `${depthData.opener} to support ${focus}${timeframeText}${closing}?`;
+      const variants = [
+        `${depthData.opener} to support ${focus}${timeframeText}${closing}`,
+        `${depthData.opener} hold space for ${focus}${timeframeText}${closing}`
+      ];
+      return ensureQuestionMark(pickVariant(variants, focus));
     }
     case 'navigate': {
       const closing = depthData.closing ? ` ${depthData.closing}` : '';
-      return `${depthData.opener} ${focus}${timeframeText}${closing}?`;
+      const variants = [
+        `${depthData.opener} ${focus}${timeframeText}${closing}`,
+        `${depthData.opener} stay aligned with ${focus}${timeframeText}${closing}`
+      ];
+      return ensureQuestionMark(pickVariant(variants, focus));
     }
     case 'lesson': {
-      return `${depthData.opener} from ${focus}${timeframeText}?`;
+      const variants = [
+        `${depthData.opener} from ${focus}${timeframeText}`,
+        `What deeper lesson is ${focus} offering${timeframeText}`
+      ];
+      return ensureQuestionMark(pickVariant(variants, focus));
     }
     case 'transform': {
       const closing = depthData.closing ? ` so I can ${depthData.closing}` : '';
-      return `${depthData.opener} with ${focus}${timeframeText}${closing}?`;
+      const relationshipVariants = [
+        `${depthData.opener} with ${focus}${timeframeText}${closing}`,
+        `What would help me feel closer to ${focus}${timeframeText}${closing}`,
+        `How might I nurture ${focus}${timeframeText}${closing}`
+      ];
+      return ensureQuestionMark(pickVariant(relationshipVariants, `${focus}|${timeframe}|${depth}`));
     }
     default:
-      return `${depthData.opener} ${focus}${timeframeText}?`;
+      return ensureQuestionMark(`${depthData.opener} ${focus}${timeframeText}`);
   }
 }
 

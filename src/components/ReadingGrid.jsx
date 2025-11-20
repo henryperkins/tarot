@@ -63,7 +63,7 @@ export function ReadingGrid({
   return (
     <>
       {reading.length > 1 && (
-        <p className="sm:hidden text-center text-xs text-emerald-300/70 mb-2 animate-pulse">
+        <p className="sm:hidden text-center text-xs text-primary/70 mb-2 animate-pulse">
           Swipe to explore cards &rarr;
         </p>
       )}
@@ -85,12 +85,12 @@ export function ReadingGrid({
 
           const tooltipContent = isRevealed ? (
             <div className="space-y-1 text-left leading-snug">
-              <strong className="block text-amber-200 text-sm">
+              <strong className="block text-accent text-sm">
                 {card.name}
                 {card.isReversed ? ' (Reversed)' : ''}
               </strong>
-              <em className="block text-xs text-amber-100/80">{position}</em>
-              <p className="text-xs-plus text-amber-50/90">{getOrientationMeaning(card)}</p>
+              <em className="block text-xs text-muted">{position}</em>
+              <p className="text-xs-plus text-main/90">{getOrientationMeaning(card)}</p>
             </div>
           ) : null;
 
@@ -111,7 +111,7 @@ export function ReadingGrid({
           return (
             <div
               key={`${card.name}-${index}`}
-              className={`modern-surface border border-emerald-400/40 ${selectedSpread === 'celtic'
+              className={`modern-surface border border-secondary/40 ${selectedSpread === 'celtic'
                 ? toAreaClass(position)
                 : reading.length > 1 ? 'min-w-[85vw] snap-center sm:min-w-0' : ''
                 }`}

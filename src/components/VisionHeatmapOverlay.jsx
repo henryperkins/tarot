@@ -26,7 +26,7 @@ export function VisionHeatmapOverlay({ attention, imageSrc, label }) {
 
   return (
     <div className="mt-3 animate-fade-in">
-      <div className="flex items-center justify-between text-[11px] text-emerald-100/80">
+      <div className="flex items-center justify-between text-[11px] text-secondary/80">
         <div>
           <p className="font-semibold">Interpretability heatmap</p>
           <p>Shows where the detector concentrated when matching symbols.</p>
@@ -34,12 +34,12 @@ export function VisionHeatmapOverlay({ attention, imageSrc, label }) {
         <button
           type="button"
           onClick={() => setVisible((prev) => !prev)}
-          className="rounded border border-emerald-400/40 px-2 py-1 text-[10px] uppercase tracking-wide text-emerald-100/80 hover:border-emerald-300/70"
+          className="rounded border border-secondary/40 px-2 py-1 text-[10px] uppercase tracking-wide text-secondary/80 hover:border-secondary/70"
         >
           {visible ? 'Hide overlay' : 'Show overlay'}
         </button>
       </div>
-      <div className="mt-2 rounded-lg border border-emerald-500/40 bg-black/20 p-2">
+      <div className="mt-2 rounded-lg border border-secondary/40 bg-black/20 p-2">
         <div className="relative">
           <img
             src={imageSrc}
@@ -60,7 +60,7 @@ export function VisionHeatmapOverlay({ attention, imageSrc, label }) {
                   return (
                     <div
                       key={`${colIndex}-${rowIndex}`}
-                      className={`border ${focusLookup.has(key) ? 'border-emerald-200/70' : 'border-transparent'}`}
+                      className={`border ${focusLookup.has(key) ? 'border-secondary/70' : 'border-transparent'}`}
                       style={{
                         backgroundColor: cellColor(value)
                       }}
@@ -72,9 +72,9 @@ export function VisionHeatmapOverlay({ attention, imageSrc, label }) {
           )}
         </div>
         {attention.focusRegions?.length > 0 && (
-          <div className="mt-2 grid grid-cols-2 gap-2 text-[11px] text-emerald-100/70">
+          <div className="mt-2 grid grid-cols-2 gap-2 text-[11px] text-secondary/70">
             {attention.focusRegions.slice(0, 4).map((region, idx) => (
-              <div key={`${label}-region-${idx}`} className="rounded border border-emerald-400/20 px-2 py-1">
+              <div key={`${label}-region-${idx}`} className="rounded border border-secondary/20 px-2 py-1">
                 Cell ({region.x}, {region.y}) · {(region.intensity * 100).toFixed(0)}%
               </div>
             ))}

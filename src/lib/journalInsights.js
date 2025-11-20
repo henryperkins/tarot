@@ -5,6 +5,7 @@ export { computeJournalStats, REVERSED_PATTERN };
 const JOURNAL_INSIGHTS_STORAGE_KEY = 'tarot_journal_insights';
 const SHARE_TOKEN_STORAGE_KEY = 'tarot_journal_share_tokens';
 const COACH_RECOMMENDATION_KEY = 'tarot_coach_recommendation';
+const COACH_STATS_SNAPSHOT_KEY = 'tarot_coach_stats_snapshot';
 
 export function buildCardInsightPayload(card) {
   if (!card?.name) return null;
@@ -44,6 +45,43 @@ export function loadStoredJournalInsights() {
     return parsed;
   } catch (error) {
     console.warn('Unable to load journal insights cache:', error);
+    return null;
+  }
+}
+
+export function persistCoachStatsSnapshot(stats, meta = {}) {
+  if (typeof localStorage === 'undefined') return;
+  try {
+    if (!stats) {
+      localStorage.removeItem(COACH_STATS_SNAPSHOT_KEY);
+      return;
+    }
+    const payload = {
+      stats,
+      meta: {
+        filtersActive: Boolean(meta.filtersActive),
+        filterLabel: meta.filterLabel || null,
+        entryCount: typeof meta.entryCount === 'number' ? meta.entryCount : null,
+        totalEntries: typeof meta.totalEntries === 'number' ? meta.totalEntries : null
+      },
+      updatedAt: Date.now()
+    };
+    localStorage.setItem(COACH_STATS_SNAPSHOT_KEY, JSON.stringify(payload));
+  } catch (error) {
+    console.warn('Unable to persist coach stats snapshot:', error);
+  }
+}
+
+export function loadCoachStatsSnapshot() {
+  if (typeof localStorage === 'undefined') return null;
+  try {
+    const raw = localStorage.getItem(COACH_STATS_SNAPSHOT_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (!parsed?.stats) return null;
+    return parsed;
+  } catch (error) {
+    console.warn('Unable to load coach stats snapshot:', error);
     return null;
   }
 }

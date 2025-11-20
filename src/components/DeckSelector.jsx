@@ -33,10 +33,10 @@ export function DeckSelector({ selectedDeck, onDeckChange }) {
   return (
     <div className="space-y-3 animate-fade-in">
       <div className="mb-3">
-        <h3 className="text-sm font-serif text-amber-200 mb-1">
+        <h3 className="text-sm font-serif text-accent mb-1">
           Select deck style for vision research
         </h3>
-        <p className="text-xs text-amber-100/70">
+        <p className="text-xs text-muted">
           If you're participating in vision validation research, select which deck style you're photographing to help our AI learn.
         </p>
       </div>
@@ -49,10 +49,10 @@ export function DeckSelector({ selectedDeck, onDeckChange }) {
             onClick={() => onDeckChange(deck.id)}
             className={`
               relative text-left p-4 rounded-xl border-2 transition-all
-              focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950
+              focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-main
               ${selectedDeck === deck.id
-                ? 'border-emerald-400 bg-emerald-500/10'
-                : 'border-slate-700/60 bg-slate-900/40 hover:border-slate-600/80 hover:bg-slate-900/60'
+                ? 'border-secondary bg-secondary/10'
+                : 'border-accent/20 bg-surface-muted/40 hover:border-accent/40 hover:bg-surface-muted/60'
               }
             `}
             aria-pressed={selectedDeck === deck.id}
@@ -60,21 +60,21 @@ export function DeckSelector({ selectedDeck, onDeckChange }) {
             {/* Selected indicator */}
             {selectedDeck === deck.id && (
               <div className="absolute top-3 right-3">
-                <div className="w-6 h-6 rounded-full bg-emerald-400 flex items-center justify-center">
-                  <Check className="w-4 h-4 text-slate-950" strokeWidth={3} />
+                <div className="w-6 h-6 rounded-full bg-secondary flex items-center justify-center">
+                  <Check className="w-4 h-4 text-surface" strokeWidth={3} />
                 </div>
               </div>
             )}
 
             {/* Deck info */}
             <div className="pr-8">
-              <div className="font-serif text-amber-200 text-base mb-0.5">
+              <div className="font-serif text-accent text-base mb-0.5">
                 {deck.label}
               </div>
-              <div className="text-[0.7rem] text-emerald-300/80 uppercase tracking-wider mb-2">
+              <div className="text-[0.7rem] text-secondary/80 uppercase tracking-wider mb-2">
                 {deck.subtitle}
               </div>
-              <p className="text-xs text-amber-100/75 leading-snug mb-2">
+              <p className="text-xs text-muted leading-snug mb-2">
                 {deck.description}
               </p>
 
@@ -83,7 +83,7 @@ export function DeckSelector({ selectedDeck, onDeckChange }) {
                 {deck.visualCues.map((cue) => (
                   <span
                     key={cue}
-                    className="text-[0.65rem] px-2 py-0.5 rounded-full bg-slate-950/60 text-amber-200/80 border border-slate-700/50"
+                    className="text-[0.65rem] px-2 py-0.5 rounded-full bg-surface-muted/60 text-accent/80 border border-accent/20"
                   >
                     {cue}
                   </span>
@@ -92,7 +92,7 @@ export function DeckSelector({ selectedDeck, onDeckChange }) {
 
               {/* Note if present */}
               {deck.note && (
-                <p className="text-[0.65rem] text-amber-300/70 italic mt-2">
+                <p className="text-[0.65rem] text-accent/70 italic mt-2">
                   {deck.note}
                 </p>
               )}
@@ -102,9 +102,9 @@ export function DeckSelector({ selectedDeck, onDeckChange }) {
       </div>
 
       {/* Helper text */}
-      <div className="mt-3 text-xs text-amber-100/70 bg-slate-950/60 border border-slate-800/70 rounded-lg px-3 py-2">
+      <div className="mt-3 text-xs text-muted bg-surface-muted/60 border border-accent/20 rounded-lg px-3 py-2">
         <p>
-          <strong className="text-amber-200">For research participants:</strong> The vision AI uses deck-specific visual cues to recognize cards in photos.
+          <strong className="text-accent">For research participants:</strong> The vision AI uses deck-specific visual cues to recognize cards in photos.
           Selecting the correct deck style helps us train more accurate recognition models across different artistic traditions.
         </p>
       </div>

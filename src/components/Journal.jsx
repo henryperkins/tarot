@@ -322,14 +322,14 @@ export default function Journal() {
 
   return (
     <>
-      <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-amber-50 animate-fade-in">
+      <div className="min-h-screen bg-main text-main animate-fade-in">
         <main className="max-w-5xl mx-auto px-4 sm:px-6 py-8">
           <GlobalNav />
 
           <div className="flex items-center justify-between mb-6">
             <button
               onClick={() => navigate('/')}
-              className="flex items-center text-amber-200 hover:text-amber-100"
+              className="flex items-center text-accent hover:text-main"
             >
               <ChevronLeft className="w-5 h-5 mr-2" />
               Back to Reading
@@ -339,12 +339,12 @@ export default function Journal() {
             <div className="flex items-center gap-4">
               {isAuthenticated ? (
                 <>
-                  <span className="text-sm text-amber-200">
+                  <span className="text-sm text-accent">
                     {user?.username}
                   </span>
                   <button
                     onClick={logout}
-                    className="text-sm text-amber-300 hover:text-amber-200 underline"
+                    className="text-sm text-accent hover:text-accent/80 underline"
                   >
                     Sign Out
                   </button>
@@ -352,7 +352,7 @@ export default function Journal() {
               ) : (
                 <button
                   onClick={() => setShowAuthModal(true)}
-                  className="flex items-center gap-2 px-4 py-2 bg-amber-600 hover:bg-amber-500 text-white rounded-lg transition"
+                  className="flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primary/90 text-white rounded-lg transition"
                 >
                   <LogIn className="w-4 h-4" />
                   <span>Sign In</span>
@@ -361,37 +361,37 @@ export default function Journal() {
             </div>
           </div>
 
-          <h1 className="text-3xl font-serif text-amber-200 mb-4">Your Tarot Journal</h1>
+          <h1 className="text-3xl font-serif text-accent mb-4">Your Tarot Journal</h1>
 
           {/* Auth status & migration banner */}
           {isAuthenticated ? (
-            <div className="mb-6 p-4 bg-emerald-900/30 border border-emerald-400/40 rounded-lg">
-              <p className="text-sm text-emerald-200">
+            <div className="mb-6 p-4 bg-secondary/10 border border-secondary/40 rounded-lg">
+              <p className="text-sm text-secondary">
                 ✓ Signed in — Your journal is synced across devices
               </p>
               {hasLocalStorageEntries() && !migrating && (
                 <button
                   onClick={handleMigrate}
-                  className="mt-2 flex items-center gap-2 text-sm text-emerald-300 hover:text-emerald-200 underline"
+                  className="mt-2 flex items-center gap-2 text-sm text-secondary hover:text-secondary/80 underline"
                 >
                   <Upload className="w-4 h-4" />
                   Migrate localStorage entries to cloud
                 </button>
               )}
               {migrating && (
-                <p className="mt-2 text-sm text-emerald-300">Migrating...</p>
+                <p className="mt-2 text-sm text-secondary">Migrating...</p>
               )}
               {migrateMessage && (
-                <p className="mt-2 text-sm text-emerald-200">{migrateMessage}</p>
+                <p className="mt-2 text-sm text-secondary">{migrateMessage}</p>
               )}
             </div>
           ) : (
-            <div className="mb-6 p-4 bg-amber-900/30 border border-amber-400/40 rounded-lg">
-              <p className="text-sm text-amber-200">
+            <div className="mb-6 p-4 bg-primary/10 border border-primary/40 rounded-lg">
+              <p className="text-sm text-accent">
                 Your journal is currently stored locally in this browser only.{' '}
                 <button
                   onClick={() => setShowAuthModal(true)}
-                  className="underline hover:text-amber-100"
+                  className="underline hover:text-main"
                 >
                   Sign in
                 </button>{' '}
@@ -401,14 +401,14 @@ export default function Journal() {
           )}
 
           {journalError && (
-            <div className="mb-4 rounded-lg border border-rose-400/40 bg-rose-900/30 p-3 text-sm text-rose-100">
+            <div className="mb-4 rounded-lg border border-error/40 bg-error/10 p-3 text-sm text-error">
               {journalError}
             </div>
           )}
 
           {/* Delete status message */}
           {deleteMessage && (
-            <div className={`mb-4 p-3 rounded-lg ${deleteMessage.includes('failed') ? 'bg-red-900/30 border border-red-400/40 text-red-200' : 'bg-emerald-900/30 border border-emerald-400/40 text-emerald-200'}`}>
+            <div className={`mb-4 p-3 rounded-lg ${deleteMessage.includes('failed') ? 'bg-error/10 border border-error/40 text-error' : 'bg-secondary/10 border border-secondary/40 text-secondary'}`}>
               <p className="text-sm">{deleteMessage}</p>
             </div>
           )}
@@ -416,11 +416,11 @@ export default function Journal() {
           {/* Loading state */}
           {loading ? (
             <div className="text-center py-12">
-              <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-amber-400"></div>
-              <p className="mt-4 text-amber-100/70">Loading journal...</p>
+              <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-accent"></div>
+              <p className="mt-4 text-muted">Loading journal...</p>
             </div>
           ) : entries.length === 0 ? (
-            <p className="text-amber-100/80">No entries yet. Save a reading to start your journal.</p>
+            <p className="text-muted">No entries yet. Save a reading to start your journal.</p>
           ) : (
             <div className="space-y-8">
               <JournalFilters
@@ -446,10 +446,10 @@ export default function Journal() {
                 />
               )}
               {filteredEntries.length === 0 ? (
-                <p className="text-amber-100/80">No entries match your filters.</p>
+                <p className="text-muted">No entries match your filters.</p>
               ) : (
                 <div className="space-y-6">
-                  <p className="text-xs uppercase tracking-[0.2em] text-emerald-200/70">
+                  <p className="text-xs uppercase tracking-[0.2em] text-secondary/70">
                     Showing {visibleEntries.length} of {filteredEntries.length} entries
                   </p>
                   {visibleEntries.map((entry) => (
@@ -466,7 +466,7 @@ export default function Journal() {
                       <button
                         type="button"
                         onClick={handleLoadMoreEntries}
-                        className="rounded-full border border-emerald-400/40 px-4 py-2 text-sm text-emerald-100 hover:bg-emerald-500/10"
+                        className="rounded-full border border-secondary/40 px-4 py-2 text-sm text-secondary hover:bg-secondary/10"
                       >
                         Show {Math.min(VISIBLE_ENTRY_BATCH, filteredEntries.length - visibleEntries.length)} more
                       </button>

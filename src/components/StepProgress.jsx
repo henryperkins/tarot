@@ -1,7 +1,7 @@
 import React from 'react';
 
 const baseButtonClasses =
-  'w-full h-full px-3 py-2 rounded-xl border transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/80 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950';
+  'w-full h-full px-3 py-2 rounded-xl border transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/80 focus-visible:ring-offset-2 focus-visible:ring-offset-main';
 
 export function StepProgress({ steps = [], activeStep, onSelect }) {
   return (
@@ -14,14 +14,14 @@ export function StepProgress({ steps = [], activeStep, onSelect }) {
               <button
                 type="button"
                 className={`${baseButtonClasses} ${isActive
-                    ? 'bg-emerald-500/15 border-emerald-300/80 text-emerald-100 shadow-lg shadow-emerald-900/30'
-                    : 'bg-slate-900/70 border-slate-700/70 text-amber-100/80 hover:bg-slate-900/90 hover:border-emerald-400/40'
+                    ? 'bg-secondary/15 border-secondary/80 text-secondary shadow-lg shadow-secondary/30'
+                    : 'bg-surface/70 border-accent/20 text-muted hover:bg-surface hover:border-secondary/40'
                   }`}
                 onClick={() => onSelect?.(step.id)}
                 aria-current={isActive ? 'step' : undefined}
                 aria-label={`Go to ${step.label} section`}
               >
-                <div className="text-[0.65rem] uppercase tracking-[0.2em] text-emerald-200/80">
+                <div className="text-[0.65rem] uppercase tracking-[0.2em] text-secondary/80">
                   Step {index + 1}
                 </div>
                 <div className="font-serif text-sm leading-snug">{step.label}</div>

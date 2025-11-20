@@ -23,27 +23,27 @@ export function RitualControls({
   const ritualStatus = knockComplete && hasCut ? 'Ready' : hasKnocked || hasCut ? 'In flow' : 'Optional';
 
   const controlShellClass =
-    'rounded-[1.75rem] border border-emerald-500/40 bg-slate-950/75 p-3 sm:p-4 shadow-[0_0_55px_rgba(16,185,129,0.28)] backdrop-blur-xl space-y-4';
+    'rounded-[1.75rem] border border-secondary/40 bg-surface/75 p-3 sm:p-4 shadow-lg shadow-secondary/20 backdrop-blur-xl space-y-4';
   const tileBaseClass =
-    'flex flex-col gap-3 rounded-2xl border border-emerald-500/15 bg-slate-950/70 p-3 sm:p-4 transition-all duration-200 hover:-translate-y-0.5 hover:border-amber-300/60 hover:shadow-[0_0_35px_rgba(245,158,11,0.18)]';
-  const activeTileClass = 'border-emerald-400/60 bg-emerald-500/5 shadow-[0_0_35px_rgba(16,185,129,0.35)]';
+    'flex flex-col gap-3 rounded-2xl border border-secondary/15 bg-surface/70 p-3 sm:p-4 transition-all duration-200 hover:-translate-y-0.5 hover:border-accent/60 hover:shadow-lg hover:shadow-accent/10';
+  const activeTileClass = 'border-secondary/60 bg-secondary/5 shadow-lg shadow-secondary/35';
   const iconWrapperBase =
-    'flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-2xl border text-emerald-100 transition-all duration-200';
+    'flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-2xl border text-secondary transition-all duration-200';
   const activeIconWrapper =
-    'border-emerald-400/60 bg-emerald-500/20 text-emerald-50 shadow-[0_0_20px_rgba(16,185,129,0.35)]';
-  const inactiveIconWrapper = 'border-slate-900/80 bg-slate-950/80 text-slate-400';
+    'border-secondary/60 bg-secondary/20 text-secondary shadow-lg shadow-secondary/20';
+  const inactiveIconWrapper = 'border-accent/20 bg-surface/80 text-muted';
   const badgeBaseClass =
     'inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[0.55rem] font-semibold uppercase tracking-[0.12em] transition-all duration-200';
   const activeBadgeClass =
-    'border-emerald-400/70 bg-emerald-500/20 text-emerald-50 shadow-[0_0_20px_rgba(16,185,129,0.45)]';
-  const inactiveBadgeClass = 'border-slate-700/70 bg-slate-900/80 text-slate-300';
+    'border-secondary/70 bg-secondary/20 text-secondary shadow-lg shadow-secondary/20';
+  const inactiveBadgeClass = 'border-accent/20 bg-surface-muted/80 text-muted';
   const infoButtonClass =
-    'inline-flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full border border-emerald-400/40 bg-transparent text-emerald-200/80 transition hover:border-amber-300/60 hover:text-amber-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/60';
+    'inline-flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full border border-secondary/40 bg-transparent text-secondary/80 transition hover:border-accent/60 hover:text-main focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60';
   const primaryButtonBase =
     'flex w-full items-center justify-between rounded-2xl border px-4 py-2.5 text-sm font-semibold transition-all duration-200';
-  const primaryButtonActive = 'border-emerald-400/60 bg-emerald-500/15 text-emerald-50 shadow-[0_0_20px_rgba(16,185,129,0.35)]';
-  const primaryButtonIdle = 'border-slate-800/80 bg-slate-950/60 text-amber-100/90 hover:border-amber-300/60 hover:text-amber-50';
-  const sliderWrapClass = 'rounded-2xl border border-slate-800/70 bg-slate-950/60 px-3 py-2.5';
+  const primaryButtonActive = 'border-secondary/60 bg-secondary/15 text-secondary shadow-lg shadow-secondary/20';
+  const primaryButtonIdle = 'border-accent/20 bg-surface/60 text-main/90 hover:border-accent/60 hover:text-main';
+  const sliderWrapClass = 'rounded-2xl border border-accent/20 bg-surface/60 px-3 py-2.5';
 
   const confirmSkip = () => {
     setShowSkipConfirm(false);
@@ -76,8 +76,8 @@ export function RitualControls({
       {/* Desktop Header - Hidden on Mobile */}
       <div className="hidden sm:flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <p className="text-[0.78rem] uppercase tracking-[0.35em] text-emerald-200/80">Ritual (optional)</p>
-          <p className="text-sm text-amber-100/80">Light grounding before the draw, or skip anytime.</p>
+          <p className="text-[0.78rem] uppercase tracking-[0.35em] text-secondary/80">Ritual (optional)</p>
+          <p className="text-sm text-muted">Light grounding before the draw, or skip anytime.</p>
         </div>
         <span
           className={`${badgeBaseClass} ${ritualStatus === 'Ready' ? activeBadgeClass : inactiveBadgeClass
@@ -89,7 +89,7 @@ export function RitualControls({
 
       {/* Mobile Header */}
       <div className="sm:hidden flex items-center justify-between mb-4">
-        <h3 className="text-lg font-serif text-amber-200">Ritual</h3>
+        <h3 className="text-lg font-serif text-accent">Ritual</h3>
         <span className={`${badgeBaseClass} ${ritualStatus === 'Ready' ? activeBadgeClass : inactiveBadgeClass}`}>
           {ritualStatus}
         </span>
@@ -107,7 +107,7 @@ export function RitualControls({
               <Sparkles className="h-4 w-4" />
             </span>
             <div className="flex flex-1 items-center gap-1.5 text-[0.85rem] normal-case tracking-normal">
-              <span className="font-semibold text-amber-50">Clear the deck</span>
+              <span className="font-semibold text-main">Clear the deck</span>
               <Tooltip
                 content="Knock three times to clear lingering energy."
                 position="top"
@@ -134,11 +134,11 @@ export function RitualControls({
           >
             <span>{knockComplete ? 'Deck cleared · 3 of 3' : `Knock ${nextKnockNumber} of 3`}</span>
             {!knockComplete && (
-              <span className="text-[0.65rem] uppercase tracking-[0.2em] text-amber-200/80">Tap</span>
+              <span className="text-[0.65rem] uppercase tracking-[0.2em] text-accent/80">Tap</span>
             )}
           </button>
-          <p className="text-sm text-amber-100/85">
-            Ritual progress: <span className="font-semibold text-emerald-200">{knocksCount}</span>/3 knocks registered.
+          <p className="text-sm text-muted">
+            Ritual progress: <span className="font-semibold text-secondary">{knocksCount}</span>/3 knocks registered.
           </p>
         </div>
 
@@ -151,7 +151,7 @@ export function RitualControls({
               <Scissors className="h-4 w-4" />
             </span>
             <div className="flex flex-1 items-center gap-1.5 text-[0.85rem] normal-case tracking-normal">
-              <span className="font-semibold text-amber-50">Cut the deck</span>
+              <span className="font-semibold text-main">Cut the deck</span>
               <Tooltip
                 content="Slide until the cut feels right, then lock it in."
                 position="top"
@@ -181,11 +181,11 @@ export function RitualControls({
               className="w-full cursor-pointer appearance-none"
               aria-label="Cut position"
               aria-valuetext={`Cut position ${cutIndex} of ${deckSize}`}
-              style={{ accentColor: '#fbbf24' }}
+              style={{ accentColor: 'var(--brand-accent)' }}
             />
-            <div className="mt-1 flex items-center justify-between text-[0.7rem] text-amber-100/70">
+            <div className="mt-1 flex items-center justify-between text-[0.7rem] text-muted">
               <span>0</span>
-              <span className="font-semibold text-emerald-200">Cut #{cutIndex}</span>
+              <span className="font-semibold text-secondary">Cut #{cutIndex}</span>
               <span>{sliderMax}</span>
             </div>
           </div>
@@ -196,13 +196,13 @@ export function RitualControls({
             aria-pressed={hasCut}
           >
             <span>{hasCut ? 'Cut confirmed' : 'Confirm cut'}</span>
-            <span className="text-[0.65rem] uppercase tracking-[0.2em] text-amber-200/80">
+            <span className="text-[0.65rem] uppercase tracking-[0.2em] text-accent/80">
               {hasCut ? 'Locked' : 'Lock'}
             </span>
           </button>
-          <p className="text-sm text-amber-100/85">
-            Cut at <span className="font-semibold text-emerald-200">{cutIndex}</span> of {deckSize}.{' '}
-            {hasCut ? <span className="text-emerald-300">Cut locked in.</span> : 'Adjust until it feels right.'}
+          <p className="text-sm text-muted">
+            Cut at <span className="font-semibold text-secondary">{cutIndex}</span> of {deckSize}.{' '}
+            {hasCut ? <span className="text-secondary">Cut locked in.</span> : 'Adjust until it feels right.'}
           </p>
         </div>
       </div>
@@ -214,11 +214,11 @@ export function RitualControls({
           type="button"
           onClick={handleKnock}
           className={`aspect-square rounded-2xl border flex flex-col items-center justify-center gap-2 transition-all active:scale-95 ${knockComplete
-            ? 'bg-emerald-500/20 border-emerald-400/60 text-emerald-100'
-            : 'bg-slate-900/60 border-slate-700/60 text-amber-100'
+            ? 'bg-secondary/20 border-secondary/60 text-secondary'
+            : 'bg-surface-muted/60 border-accent/20 text-main'
             }`}
         >
-          <Sparkles className={`w-8 h-8 ${knockComplete ? 'text-emerald-300' : 'text-amber-300'}`} />
+          <Sparkles className={`w-8 h-8 ${knockComplete ? 'text-secondary' : 'text-accent'}`} />
           <span className="text-sm font-semibold">{knockComplete ? 'Cleared' : 'Tap to Knock'}</span>
           <span className="text-xs opacity-70">{knocksCount}/3</span>
         </button>
@@ -228,11 +228,11 @@ export function RitualControls({
           type="button"
           onClick={applyCut}
           className={`aspect-square rounded-2xl border flex flex-col items-center justify-center gap-2 transition-all active:scale-95 ${hasCut
-            ? 'bg-emerald-500/20 border-emerald-400/60 text-emerald-100'
-            : 'bg-slate-900/60 border-slate-700/60 text-amber-100'
+            ? 'bg-secondary/20 border-secondary/60 text-secondary'
+            : 'bg-surface-muted/60 border-accent/20 text-main'
             }`}
         >
-          <Scissors className={`w-8 h-8 ${hasCut ? 'text-emerald-300' : 'text-amber-300'}`} />
+          <Scissors className={`w-8 h-8 ${hasCut ? 'text-secondary' : 'text-accent'}`} />
           <span className="text-sm font-semibold">{hasCut ? 'Locked' : 'Tap to Cut'}</span>
           <span className="text-xs opacity-70">{hasCut ? `Cut #${cutIndex}` : 'Random Cut'}</span>
         </button>
@@ -243,7 +243,7 @@ export function RitualControls({
           <button
             type="button"
             onClick={() => setShowSkipConfirm(show => !show)}
-            className="text-[0.68rem] uppercase tracking-[0.35em] text-amber-200/80 underline decoration-amber-300/60 underline-offset-4 transition hover:text-amber-50"
+            className="text-[0.68rem] uppercase tracking-[0.35em] text-accent/80 underline decoration-accent/60 underline-offset-4 transition hover:text-main"
             aria-haspopup="dialog"
             aria-expanded={showSkipConfirm}
           >
@@ -253,22 +253,22 @@ export function RitualControls({
             <div
               role="dialog"
               aria-label="Skip ritual confirmation"
-              className="absolute left-1/2 top-full mt-2 w-64 -translate-x-1/2 rounded-2xl border border-amber-300/40 bg-slate-950/95 p-4 text-xs sm:text-sm text-amber-50 shadow-[0_15px_40px_rgba(2,6,23,0.7)]"
+              className="absolute left-1/2 top-full mt-2 w-64 -translate-x-1/2 rounded-2xl border border-accent/40 bg-surface/95 p-4 text-xs sm:text-sm text-main shadow-lg"
             >
-              <p className="font-semibold text-amber-200">Skip ritual?</p>
-              <p className="text-amber-100/70 mt-1">This will draw immediately and bypass grounding steps.</p>
+              <p className="font-semibold text-accent">Skip ritual?</p>
+              <p className="text-muted mt-1">This will draw immediately and bypass grounding steps.</p>
               <div className="mt-3 flex items-center justify-end gap-2 text-[0.8rem]">
                 <button
                   type="button"
                   onClick={() => setShowSkipConfirm(false)}
-                  className="text-amber-200/80 hover:text-amber-50"
+                  className="text-accent/80 hover:text-main"
                 >
                   Stay here
                 </button>
                 <button
                   type="button"
                   onClick={confirmSkip}
-                  className="text-emerald-300 hover:text-emerald-200 font-semibold"
+                  className="text-secondary hover:text-secondary/80 font-semibold"
                 >
                   Skip & draw
                 </button>
@@ -276,7 +276,7 @@ export function RitualControls({
             </div>
           )}
         </div>
-        <div className="text-amber-100/85 text-xs-plus sm:text-sm">
+        <div className="text-muted text-xs-plus sm:text-sm">
           Ritual actions add intention, mirroring real readings where your energy guides the cards.
         </div>
       </div>

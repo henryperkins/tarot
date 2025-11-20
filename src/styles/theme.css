@@ -1,0 +1,84 @@
+:root {
+  /*
+   * Elegant Minimal Palette
+   * Clean, sophisticated, refined
+   */
+
+  /* Neutral Foundation (warmer, softer tones) */
+  --color-black: #0F0E13;
+  --color-charcoal: #1C1A22;
+  --color-slate-dark: #2A2730;
+  --color-slate-mid: #4A4640;
+  --color-slate-light: #6E6760;
+  --color-gray-light: #9B9388;
+  --color-gray-pale: #CCC5BD;
+  --color-white: #E8E6E3;
+
+  /* Refined Accents (warmer golds) */
+  --color-gold-champagne: #D4B896;
+  --color-gold-muted: #B59976;
+  --color-gold-soft: #E8DAC3;
+  --color-silver: #A8A39E;
+
+  /* Suit Colors (Subtle & Harmonious) */
+  --color-wands: #C9A876;
+  /* Warm gold */
+  --color-cups: #8B95A5;
+  /* Cool silver-blue */
+  --color-swords: #6B7280;
+  /* Steel gray */
+  --color-pentacles: #8A9985;
+  /* Muted sage */
+
+  /* Functional Colors */
+  --color-success: #6B9E78;
+  --color-error: #C97676;
+
+  /*
+   * Semantic Tokens (Elegant Minimal Theme)
+   */
+
+  /* Backgrounds (warmer, less harsh) */
+  --bg-main: #0F0E13;
+  /* Deep warm charcoal */
+  --bg-surface: #1C1A22;
+  /* Warm dark purple-charcoal */
+  --bg-surface-muted: #2A2730;
+  /* Muted warm gray-purple */
+
+  /* Text (softer, warmer) */
+  --text-main: #E8E6E3;
+  /* Warm off-white */
+  --text-muted: #9B9388;
+  /* Warm tan-gray */
+  --text-accent: #D4B896;
+  /* Warmer champagne */
+
+  /* Brand / Interactive (warmer) */
+  --brand-primary: #D4B896;
+  /* Warmer champagne */
+  --brand-secondary: #4A4640;
+  /* Warm brown-gray */
+  --brand-accent: #D4B896;
+  /* Warmer champagne */
+
+  /* Status */
+  --status-success: #6B9E78;
+  /* Muted green */
+  --status-error: #C97676;
+  /* Muted red */
+  --focus-ring-color: color-mix(in srgb, var(--brand-accent) 50%, transparent);
+  --halo-star-color: color-mix(in srgb, var(--text-main) 8%, transparent);
+}
+
+/* Light Mode Overrides (elegant minimal light variant) */
+.light-mode {
+  --bg-main: #FAFAFA;
+  --bg-surface: #FFFFFF;
+  --bg-surface-muted: #F5F5F5;
+  --text-main: #1A1A1A;
+  --text-muted: #6A6A6A;
+  --brand-primary: #A89166;
+  --brand-secondary: #E0E0E0;
+  --brand-accent: #A89166;
+}

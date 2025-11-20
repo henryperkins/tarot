@@ -51,14 +51,14 @@ function NoteAvatars({ notes }) {
         return (
           <span
             key={note.id}
-            className="flex h-6 w-6 items-center justify-center rounded-full bg-emerald-500/20 text-[0.65rem] font-semibold text-emerald-100"
+            className="flex h-6 w-6 items-center justify-center rounded-full bg-secondary/20 text-[0.65rem] font-semibold text-secondary"
           >
             {label}
           </span>
         );
       })}
       {notes.length > latest.length && (
-        <span className="text-xs text-emerald-200/80">+{notes.length - latest.length}</span>
+        <span className="text-xs text-secondary/80">+{notes.length - latest.length}</span>
       )}
     </div>
   );
@@ -96,20 +96,20 @@ export function SharedSpreadView({ entry, notes = [], selectedPosition, onSelect
               key={`${card.name}-${index}`}
               type="button"
               onClick={() => onSelectPosition?.(positionLabel)}
-              className={`group w-full rounded-2xl border bg-slate-950/70 p-4 text-left shadow-lg transition focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/60 ${
-                active ? 'border-emerald-300/70' : 'border-emerald-400/20 hover:border-emerald-300/40'
+              className={`group w-full rounded-2xl border bg-surface/70 p-4 text-left shadow-lg transition focus:outline-none focus-visible:ring-2 focus-visible:ring-secondary/60 ${
+                active ? 'border-secondary/70' : 'border-secondary/20 hover:border-secondary/40'
               } ${entry.spreadKey === 'celtic' ? 'modern-surface' : ''}`}
             >
               <div className="flex items-center justify-between gap-2">
-                <p className="text-[0.65rem] uppercase tracking-[0.25em] text-emerald-200">{positionLabel}</p>
+                <p className="text-[0.65rem] uppercase tracking-[0.25em] text-secondary">{positionLabel}</p>
                 {positionNotes.length > 0 && (
-                  <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-[0.65rem] text-emerald-100">
+                  <span className="rounded-full bg-secondary/10 px-2 py-0.5 text-[0.65rem] text-secondary">
                     {positionNotes.length} note{positionNotes.length === 1 ? '' : 's'}
                   </span>
                 )}
               </div>
               <div className="mt-3 flex flex-col items-center text-center">
-                <div className={`w-full max-w-[220px] overflow-hidden rounded-xl border border-amber-400/30 ${
+                <div className={`w-full max-w-[220px] overflow-hidden rounded-xl border border-primary/30 ${
                   orientation.toLowerCase().includes('reversed') ? 'rotate-180' : ''
                 }`}>
                   <img
@@ -122,14 +122,14 @@ export function SharedSpreadView({ entry, notes = [], selectedPosition, onSelect
                     }}
                   />
                 </div>
-                <p className="mt-3 font-serif text-lg text-amber-100">{card.name}</p>
-                <span className="text-xs uppercase tracking-[0.25em] text-emerald-300/70">{orientation}</span>
-                <p className="mt-2 text-sm text-amber-100/80">{meaning}</p>
+                <p className="mt-3 font-serif text-lg text-main">{card.name}</p>
+                <span className="text-xs uppercase tracking-[0.25em] text-secondary/70">{orientation}</span>
+                <p className="mt-2 text-sm text-muted">{meaning}</p>
               </div>
               <div className="mt-4 flex items-center justify-between">
                 <NoteAvatars notes={positionNotes} />
                 {active && (
-                  <span className="rounded-full border border-emerald-300/60 px-2 py-0.5 text-[0.65rem] text-emerald-100">
+                  <span className="rounded-full border border-secondary/60 px-2 py-0.5 text-[0.65rem] text-secondary">
                     Targeting note
                   </span>
                 )}
@@ -140,16 +140,16 @@ export function SharedSpreadView({ entry, notes = [], selectedPosition, onSelect
       </div>
 
       {generalNotes.length > 0 && (
-        <div className="rounded-2xl border border-emerald-400/20 bg-slate-950/70 p-4 shadow-inner">
-          <p className="text-xs uppercase tracking-[0.3em] text-emerald-200">Whole spread reflections</p>
+        <div className="rounded-2xl border border-secondary/20 bg-surface/70 p-4 shadow-inner">
+          <p className="text-xs uppercase tracking-[0.3em] text-secondary">Whole spread reflections</p>
           <div className="mt-3 space-y-2 max-h-48 overflow-y-auto pr-1">
             {generalNotes.map((note) => (
-              <article key={note.id} className="rounded-xl border border-slate-700/60 bg-slate-900/70 p-3">
-                <header className="flex items-center justify-between text-[0.7rem] text-emerald-200/90">
+              <article key={note.id} className="rounded-xl border border-accent/20 bg-surface-muted/70 p-3">
+                <header className="flex items-center justify-between text-[0.7rem] text-secondary/90">
                   <span className="font-semibold">{note.authorName}</span>
                   <time>{new Date(note.createdAt).toLocaleString()}</time>
                 </header>
-                <p className="mt-2 text-sm text-amber-100/90 whitespace-pre-wrap">{note.body}</p>
+                <p className="mt-2 text-sm text-main/90 whitespace-pre-wrap">{note.body}</p>
               </article>
             ))}
           </div>

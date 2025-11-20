@@ -85,7 +85,7 @@ export function ReadingPreparation({
             <div className="space-y-8">
                 {['intention', 'experience', 'ritual'].map(section => (
                     <section key={section}>
-                        <h3 className="text-sm uppercase tracking-widest text-emerald-300/80 mb-3">
+                        <h3 className="text-sm uppercase tracking-widest text-accent/90 mb-3">
                             {section.charAt(0).toUpperCase() + section.slice(1)}
                         </h3>
                         {renderSectionContent(section)}
@@ -98,10 +98,10 @@ export function ReadingPreparation({
     return (
         <section ref={sectionRef} aria-label="Prepare your reading" id="step-intention" className="hidden sm:block modern-surface p-4 sm:p-6 scroll-mt-[6.5rem] sm:scroll-mt-[7.5rem]">
             <header className="mb-4 space-y-1">
-                <h2 className="text-lg font-serif text-amber-200">Prepare your reading</h2>
-                <p className="text-xs text-amber-100/70">Capture an intention, tune the experience controls, and complete the optional ritual from one panel.</p>
+                <h2 className="text-lg font-serif text-accent">Prepare your reading</h2>
+                <p className="text-xs text-muted">Capture an intention, tune the experience controls, and complete the optional ritual from one panel.</p>
             </header>
-            <div className="text-[0.75rem] sm:text-xs text-amber-100/80 bg-slate-950/60 border border-slate-800/70 rounded-lg px-3 py-2 flex flex-wrap gap-x-3 gap-y-1">
+            <div className="text-[0.75rem] sm:text-xs text-muted bg-surface-muted/60 border border-accent/20 rounded-lg px-3 py-2 flex flex-wrap gap-x-3 gap-y-1">
                 <span>{prepareSummaries.intention}</span>
                 <span className="hidden xs:inline">·</span>
                 <span>{prepareSummaries.experience}</span>
@@ -110,13 +110,13 @@ export function ReadingPreparation({
             </div>
             <div className="mt-4 space-y-3">
                 {(['intention', 'experience', 'ritual']).map(section => (
-                    <div key={section} className="rounded-xl border border-slate-800/60 bg-slate-950/70 overflow-hidden">
+                    <div key={section} className="rounded-xl border border-accent/20 bg-surface-muted/70 overflow-hidden">
                         <button type="button" onClick={() => togglePrepareSection(section)} className="w-full flex items-center justify-between px-4 py-3 text-left" aria-expanded={prepareSectionsOpen[section]}>
                             <div>
-                                <p className="text-amber-200 font-serif text-sm">{prepareSectionLabels[section].title}</p>
-                                <p className="text-xs text-amber-100/70">{prepareSummaries[section]}</p>
+                                <p className="text-accent font-serif text-sm">{prepareSectionLabels[section].title}</p>
+                                <p className="text-xs text-muted">{prepareSummaries[section]}</p>
                             </div>
-                            {prepareSectionsOpen[section] ? <ChevronUp className="w-4 h-4 text-amber-300" /> : <ChevronDown className="w-4 h-4 text-amber-300" />}
+                            {prepareSectionsOpen[section] ? <ChevronUp className="w-4 h-4 text-accent" /> : <ChevronDown className="w-4 h-4 text-accent" />}
                         </button>
                         {prepareSectionsOpen[section] && (
                             <div className="px-4 pb-4 pt-2">

@@ -54,15 +54,15 @@ function FilterDropdown({ label, options, value, onChange, multiple = false }) {
         type="button"
         onClick={() => setIsOpen(!isOpen)}
         className={`flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-medium transition-all ${activeCount > 0
-          ? 'border-emerald-400 bg-emerald-500/10 text-emerald-100'
-          : 'border-slate-700/70 text-amber-100/70 hover:border-emerald-300/50 hover:text-emerald-100'
+          ? 'border-secondary bg-secondary/10 text-secondary'
+          : 'border-accent/20 text-muted hover:border-secondary/50 hover:text-secondary'
           }`}
       >
         {multiple && <span>{label}</span>}
-        {!multiple && <span className={value !== 'all' ? 'text-emerald-100' : ''}>{displayLabel}</span>}
+        {!multiple && <span className={value !== 'all' ? 'text-secondary' : ''}>{displayLabel}</span>}
 
         {multiple && activeCount > 0 && (
-          <span className="flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-emerald-500/20 px-1 text-[10px]">
+          <span className="flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-secondary/20 px-1 text-[10px]">
             {activeCount}
           </span>
         )}
@@ -70,16 +70,16 @@ function FilterDropdown({ label, options, value, onChange, multiple = false }) {
       </button>
 
       {isOpen && (
-        <div className="absolute left-0 top-full z-50 mt-2 w-64 origin-top-left rounded-xl border border-emerald-400/30 bg-slate-950 p-1.5 shadow-xl backdrop-blur-xl animate-in fade-in zoom-in-95 duration-100">
+        <div className="absolute left-0 top-full z-50 mt-2 w-64 origin-top-left rounded-xl border border-secondary/30 bg-main p-1.5 shadow-xl backdrop-blur-xl animate-in fade-in zoom-in-95 duration-100">
           <div className="max-h-64 overflow-y-auto py-1">
             {options.map((option) => (
               <button
                 key={option.value}
                 onClick={() => handleSelect(option.value)}
-                className="flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-sm text-amber-100/80 hover:bg-emerald-500/10 hover:text-emerald-100 transition-colors"
+                className="flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-sm text-muted hover:bg-secondary/10 hover:text-secondary transition-colors"
               >
                 <span>{option.label}</span>
-                {isSelected(option.value) && <Check className="h-3.5 w-3.5 text-emerald-400" />}
+                {isSelected(option.value) && <Check className="h-3.5 w-3.5 text-secondary" />}
               </button>
             ))}
           </div>
@@ -99,11 +99,11 @@ export function JournalFilters({ filters, onChange, contexts = [], spreads = [],
   };
 
   return (
-    <section className="rounded-3xl border border-emerald-400/30 bg-slate-950/70 p-5 shadow-lg animate-fade-in">
+    <section className="rounded-3xl border border-secondary/30 bg-surface/70 p-5 shadow-lg animate-fade-in">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-6">
         <div>
-          <p className="text-xs uppercase tracking-[0.3em] text-emerald-300/80">Filters</p>
-          <h2 className="text-xl font-serif text-amber-100">Focus your journal</h2>
+          <p className="text-xs uppercase tracking-[0.3em] text-secondary/80">Filters</p>
+          <h2 className="text-xl font-serif text-main">Focus your journal</h2>
         </div>
         <div className="flex items-center gap-3 w-full sm:w-auto">
           <div className="relative flex-1 sm:w-64">
@@ -112,13 +112,13 @@ export function JournalFilters({ filters, onChange, contexts = [], spreads = [],
               value={filters.query}
               onChange={handleQueryChange}
               placeholder="Search..."
-              className="w-full rounded-full border border-emerald-400/30 bg-slate-900/70 px-4 py-1.5 text-sm text-amber-100 focus:outline-none focus:ring-2 focus:ring-emerald-400/50 placeholder:text-emerald-300/30"
+              className="w-full rounded-full border border-secondary/30 bg-surface-muted/70 px-4 py-1.5 text-sm text-main focus:outline-none focus:ring-2 focus:ring-secondary/50 placeholder:text-secondary/30"
             />
           </div>
           <button
             type="button"
             onClick={clearFilters}
-            className="whitespace-nowrap rounded-full border border-slate-700/70 px-3 py-1.5 text-xs text-amber-100/80 hover:border-emerald-300/60 hover:text-emerald-100 transition-colors"
+            className="whitespace-nowrap rounded-full border border-accent/20 px-3 py-1.5 text-xs text-muted hover:border-secondary/60 hover:text-secondary transition-colors"
           >
             Clear
           </button>
@@ -164,14 +164,14 @@ export function JournalFilters({ filters, onChange, contexts = [], spreads = [],
           />
         )}
 
-        <div className="h-6 w-px bg-slate-700/50 mx-1" />
+        <div className="h-6 w-px bg-surface-muted/50 mx-1" />
 
         <button
           type="button"
           onClick={() => onChange({ ...filters, onlyReversals: !filters.onlyReversals })}
           className={`flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-medium transition-all ${filters.onlyReversals
-            ? 'border-emerald-400 bg-emerald-500/10 text-emerald-100'
-            : 'border-slate-700/70 text-amber-100/70 hover:border-emerald-300/50 hover:text-emerald-100'
+            ? 'border-secondary bg-secondary/10 text-secondary'
+            : 'border-accent/20 text-muted hover:border-secondary/50 hover:text-secondary'
             }`}
         >
           <span>Reversals</span>

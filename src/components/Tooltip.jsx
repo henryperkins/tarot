@@ -86,10 +86,10 @@ export function Tooltip({
   };
 
   const arrowClasses = {
-    top: 'top-full left-1/2 -translate-x-1/2 border-l-transparent border-r-transparent border-b-transparent border-t-slate-800',
-    bottom: 'bottom-full left-1/2 -translate-x-1/2 border-l-transparent border-r-transparent border-t-transparent border-b-slate-800',
-    left: 'left-full top-1/2 -translate-y-1/2 border-t-transparent border-b-transparent border-r-transparent border-l-slate-800',
-    right: 'right-full top-1/2 -translate-y-1/2 border-t-transparent border-b-transparent border-l-transparent border-r-slate-800'
+    top: 'top-full left-1/2 -translate-x-1/2 border-l-transparent border-r-transparent border-b-transparent border-t-surface-muted',
+    bottom: 'bottom-full left-1/2 -translate-x-1/2 border-l-transparent border-r-transparent border-t-transparent border-b-surface-muted',
+    left: 'left-full top-1/2 -translate-y-1/2 border-t-transparent border-b-transparent border-r-transparent border-l-surface-muted',
+    right: 'right-full top-1/2 -translate-y-1/2 border-t-transparent border-b-transparent border-l-transparent border-r-surface-muted'
   };
 
   const handleToggle = event => {
@@ -154,7 +154,7 @@ export function Tooltip({
   };
 
   const triggerBaseClass =
-    'inline-flex items-center justify-center text-amber-400/60 hover:text-amber-400 transition-colors focus:outline-none focus:ring-2 focus:ring-amber-400/50 rounded-full';
+    'inline-flex items-center justify-center text-accent/60 hover:text-accent transition-colors focus:outline-none focus:ring-2 focus:ring-accent/50 rounded-full';
 
   const rootBaseClass = asChild ? 'relative block' : 'relative inline-flex items-center';
 
@@ -209,7 +209,7 @@ export function Tooltip({
           ref={tooltipRef}
           className={`absolute z-50 ${positionClasses[position]} max-w-xs`}
         >
-          <div className="relative bg-slate-800 text-amber-50 text-xs rounded-lg px-3 py-2 shadow-xl border border-amber-500/20 whitespace-normal">
+          <div className="relative bg-surface-muted text-main text-xs rounded-lg px-3 py-2 shadow-xl border border-primary/20 whitespace-normal">
             {content}
             {/* Arrow */}
             <div

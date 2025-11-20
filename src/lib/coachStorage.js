@@ -1,7 +1,7 @@
 const TEMPLATE_STORAGE_KEY = 'tarot_coach_templates';
 const HISTORY_STORAGE_KEY = 'tarot_coach_history';
-const MAX_TEMPLATES = 8;
-const MAX_HISTORY_ITEMS = 10;
+export const MAX_TEMPLATES = 8;
+export const MAX_HISTORY_ITEMS = 10;
 
 function safeParse(value, fallback) {
   try {

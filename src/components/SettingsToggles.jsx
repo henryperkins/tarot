@@ -31,40 +31,40 @@ export function SettingsToggles() {
   } = usePreferences();
 
   const controlShellClass =
-    'rounded-[1.75rem] border border-emerald-500/40 bg-slate-950/75 p-3 sm:p-4 shadow-[0_0_55px_rgba(16,185,129,0.28)] backdrop-blur-xl';
+    'rounded-[1.75rem] border border-secondary/40 bg-surface/75 p-3 sm:p-4 shadow-lg shadow-secondary/20 backdrop-blur-xl';
   const tileBaseClass =
-    'group relative flex items-center gap-2 rounded-2xl border border-emerald-500/10 bg-slate-950/65 px-3 py-2 text-left text-[0.72rem] uppercase tracking-[0.08em] text-amber-50 transition-all duration-200 hover:-translate-y-0.5 hover:border-amber-300/60 hover:bg-slate-900/70 hover:shadow-[0_0_30px_rgba(245,158,11,0.25)] focus-within:ring-2 focus-within:ring-amber-300/40';
+    'group relative flex items-center gap-2 rounded-2xl border border-secondary/10 bg-surface/65 px-3 py-2 text-left text-[0.72rem] uppercase tracking-[0.08em] text-main transition-all duration-200 hover:-translate-y-0.5 hover:border-accent/60 hover:bg-surface/70 hover:shadow-lg hover:shadow-accent/20 focus-within:ring-2 focus-within:ring-accent/40';
   const activeTileClass =
-    'border-emerald-400/70 bg-emerald-500/10 shadow-[0_0_35px_rgba(16,185,129,0.35)]';
-  const inactiveTileClass = 'border-slate-800/70';
+    'border-secondary/70 bg-secondary/10 shadow-lg shadow-secondary/30';
+  const inactiveTileClass = 'border-accent/20';
 
   const iconWrapperBase =
-    'flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-2xl border text-emerald-100 transition-all duration-200';
+    'flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-2xl border text-secondary transition-all duration-200';
   const activeIconWrapper =
-    'border-emerald-400/60 bg-emerald-500/20 text-emerald-50 shadow-[0_0_20px_rgba(16,185,129,0.35)]';
+    'border-secondary/60 bg-secondary/20 text-secondary shadow-lg shadow-secondary/20';
   const inactiveIconWrapper =
-    'border-slate-900/80 bg-slate-950/80 text-slate-400 group-hover:border-amber-300/50 group-hover:text-amber-100';
+    'border-accent/20 bg-surface/80 text-muted group-hover:border-accent/50 group-hover:text-main';
 
   const badgeBaseClass =
     'inline-flex flex-shrink-0 items-center gap-1 rounded-full border px-2.5 py-0.5 text-[0.55rem] font-semibold uppercase tracking-[0.12em] transition-all duration-200';
   const activeBadgeClass =
-    'border-emerald-400/70 bg-emerald-500/20 text-emerald-50 shadow-[0_0_20px_rgba(16,185,129,0.45)]';
-  const inactiveBadgeClass = 'border-slate-700/70 bg-slate-900/80 text-slate-300';
+    'border-secondary/70 bg-secondary/20 text-secondary shadow-lg shadow-secondary/20';
+  const inactiveBadgeClass = 'border-accent/20 bg-surface-muted/80 text-muted';
 
   const switchTrackBase =
     'relative inline-flex h-5 w-9 flex-shrink-0 items-center rounded-full border px-0.5 transition-all duration-200';
-  const activeSwitchTrack = 'border-emerald-400/70 bg-emerald-500/30';
-  const inactiveSwitchTrack = 'border-slate-700/80 bg-slate-950/80';
+  const activeSwitchTrack = 'border-secondary/70 bg-secondary/30';
+  const inactiveSwitchTrack = 'border-accent/20 bg-surface/80';
   const switchThumbBase =
     'h-3.5 w-3.5 rounded-full transition-all duration-200';
   const activeSwitchThumb =
-    'translate-x-3 bg-amber-300 shadow-[0_0_14px_rgba(251,191,36,0.6)]';
-  const inactiveSwitchThumb = 'translate-x-0 bg-slate-400/80';
+    'translate-x-3 bg-accent shadow-lg shadow-accent/50';
+  const inactiveSwitchThumb = 'translate-x-0 bg-muted/80';
 
   const infoButtonClass =
-    'inline-flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full border border-emerald-400/40 bg-transparent text-emerald-200/80 transition hover:border-amber-300/60 hover:text-amber-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/60';
+    'inline-flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full border border-secondary/40 bg-transparent text-secondary/80 transition hover:border-accent/60 hover:text-main focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60';
   const reversalSelectClass =
-    'w-full rounded-2xl border border-emerald-400/25 bg-slate-950/70 px-3 py-2 text-[0.72rem] uppercase tracking-[0.08em] text-amber-50 transition focus:outline-none focus:ring-2 focus:ring-amber-300/50 sm:w-auto';
+    'w-full rounded-2xl border border-secondary/25 bg-surface/70 px-3 py-2 text-[0.72rem] uppercase tracking-[0.08em] text-main transition focus:outline-none focus:ring-2 focus:ring-accent/50 sm:w-auto';
 
   const VoiceIcon = voiceOn ? Volume2 : VolumeX;
   const LightIcon = theme === 'light' ? Sun : Moon;
@@ -159,7 +159,7 @@ export function SettingsToggles() {
                     <ItemIcon className="h-4 w-4" />
                   </span>
                   <div className="flex min-w-0 flex-1 items-center gap-1.5 text-[0.75rem] normal-case tracking-normal">
-                    <span className="truncate font-semibold text-amber-50">
+                    <span className="truncate font-semibold text-main">
                       {item.label}
                     </span>
                     <Tooltip
@@ -207,7 +207,7 @@ export function SettingsToggles() {
             </span>
             <div className="flex flex-1 flex-col gap-1 sm:flex-row sm:items-center sm:gap-3">
               <div className="flex items-center gap-1.5">
-                <span className="font-semibold text-amber-50">Reversal lens</span>
+                <span className="font-semibold text-main">Reversal lens</span>
                 <Tooltip
                   content="Choose how reversed cards are interpreted in AI narratives. Auto selects the best-fit lens for each spread."
                   position="top"
@@ -251,28 +251,28 @@ export function SettingsToggles() {
 
       {reversalFramework && (
         <HelperToggle className="mt-2 max-w-xl">
-          <div className="rounded-2xl border border-emerald-400/25 bg-emerald-500/5 px-3 py-2 text-[clamp(0.78rem,2vw,0.92rem)] leading-snug text-amber-100/85">
+          <div className="rounded-2xl border border-secondary/25 bg-secondary/5 px-3 py-2 text-[clamp(0.78rem,2vw,0.92rem)] leading-snug text-muted">
             {reversalFramework === 'blocked' && (
               <>
-                <span className="font-semibold text-emerald-200">Blocked energy:</span>{' '}
+                <span className="font-semibold text-secondary">Blocked energy:</span>{' '}
                 Reversed cards indicate obstructed, challenged, or resisted energy. The card's themes face barriers or opposition.
               </>
             )}
             {reversalFramework === 'delayed' && (
               <>
-                <span className="font-semibold text-emerald-200">Timing & delays:</span>{' '}
+                <span className="font-semibold text-secondary">Timing & delays:</span>{' '}
                 Reversed cards suggest the timing isn't right yet. Themes are emerging slowly or waiting for the right moment to manifest.
               </>
             )}
             {reversalFramework === 'internalized' && (
               <>
-                <span className="font-semibold text-emerald-200">Internal process:</span>{' '}
+                <span className="font-semibold text-secondary">Internal process:</span>{' '}
                 Reversed cards point to private, internal work. The card's energy is processing beneath the surface or kept within.
               </>
             )}
             {reversalFramework === 'contextual' && (
               <>
-                <span className="font-semibold text-emerald-200">Context-based:</span>{' '}
+                <span className="font-semibold text-secondary">Context-based:</span>{' '}
                 Reversed meanings adapt dynamically based on the card, position, and surrounding cards for nuanced interpretation.
               </>
             )}

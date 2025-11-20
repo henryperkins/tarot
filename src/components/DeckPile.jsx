@@ -11,12 +11,12 @@ export function DeckPile({ cardsRemaining, onDraw, isShuffling, nextLabel }) {
                 whileTap={{ scale: 0.95, y: 0 }}
                 onClick={onDraw}
                 disabled={isShuffling}
-                className="group relative w-[clamp(9rem,45vw,10rem)] h-[clamp(13.5rem,67.5vw,15rem)] sm:w-32 sm:h-48 md:w-40 md:h-60 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/50 rounded-2xl"
+                className="group relative w-[clamp(9rem,45vw,10rem)] h-[clamp(13.5rem,67.5vw,15rem)] sm:w-32 sm:h-48 md:w-40 md:h-60 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 rounded-2xl"
                 aria-label={nextLabel ? `Draw card for ${nextLabel}` : "Draw next card"}
             >
                 {/* Stack effect layers */}
-                <div className="absolute inset-0 bg-slate-900 rounded-2xl border border-amber-900/40 transform translate-x-2 translate-y-2 rotate-3 opacity-60" />
-                <div className="absolute inset-0 bg-slate-900 rounded-2xl border border-amber-900/40 transform -translate-x-1 translate-y-1 -rotate-2 opacity-80" />
+                <div className="absolute inset-0 bg-surface-muted rounded-2xl border border-primary/40 transform translate-x-2 translate-y-2 rotate-3 opacity-60" />
+                <div className="absolute inset-0 bg-surface-muted rounded-2xl border border-primary/40 transform -translate-x-1 translate-y-1 -rotate-2 opacity-80" />
 
                 {/* Top Card */}
                 <div className="absolute inset-0 shadow-2xl">
@@ -30,10 +30,10 @@ export function DeckPile({ cardsRemaining, onDraw, isShuffling, nextLabel }) {
                 </div>
 
                 <div className="absolute -bottom-10 left-0 right-0 text-center">
-                    <span className="inline-block px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-200/90 text-xs font-semibold tracking-widest uppercase backdrop-blur-sm group-hover:bg-amber-500/20 transition-colors">
+                    <span className="inline-block px-3 py-1 rounded-full bg-primary/10 border border-primary/20 text-accent/90 text-xs font-semibold tracking-widest uppercase backdrop-blur-sm group-hover:bg-primary/20 transition-colors">
                         {nextLabel ? `Draw: ${nextLabel}` : 'Tap to Draw'}
                     </span>
-                    <p className="text-amber-500/40 text-xs mt-2 font-medium">
+                    <p className="text-primary/40 text-xs mt-2 font-medium">
                         {cardsRemaining} card{cardsRemaining !== 1 ? 's' : ''} remaining
                     </p>
                 </div>

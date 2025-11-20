@@ -35,7 +35,7 @@ export function CardSymbolInsights({ card, position }) {
         onMouseEnter={handlePointerEnter}
         onFocus={handlePointerEnter}
         onClick={() => setIsOpen(prev => !prev)}
-        className="inline-flex items-center gap-2 rounded-full border border-emerald-400/60 bg-slate-950/80 px-3 py-1 text-xs text-emerald-200 hover:border-emerald-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/70"
+        className="inline-flex items-center gap-2 rounded-full border border-secondary/60 bg-surface/80 px-3 py-1 text-xs text-secondary hover:border-secondary focus:outline-none focus-visible:ring-2 focus-visible:ring-secondary/70"
       >
         <Info className="h-3.5 w-3.5" />
         <span>Card symbols</span>
@@ -44,34 +44,34 @@ export function CardSymbolInsights({ card, position }) {
       <div
         id={tooltipId}
         role="tooltip"
-        className={`absolute z-20 mt-2 w-72 rounded-2xl border border-emerald-400/40 bg-slate-950/95 p-4 text-left shadow-2xl transition-all duration-200 origin-top-left ${isOpen ? 'opacity-100 scale-100' : 'pointer-events-none opacity-0 scale-95'
+        className={`absolute z-20 mt-2 w-72 rounded-2xl border border-secondary/40 bg-surface/95 p-4 text-left shadow-2xl transition-all duration-200 origin-top-left ${isOpen ? 'opacity-100 scale-100' : 'pointer-events-none opacity-0 scale-95'
           }`}
         onMouseEnter={handlePointerEnter}
         onMouseLeave={handlePointerLeave}
       >
-        <p className="text-sm font-semibold text-amber-100">
+        <p className="text-sm font-semibold text-main">
           {insights.name}
-          <span className="ml-2 text-xs uppercase tracking-widest text-emerald-300/80">
+          <span className="ml-2 text-xs uppercase tracking-widest text-secondary/80">
             {orientationLabel}
           </span>
         </p>
         {keywordsPreview && (
-          <p className="mt-1 text-xs text-amber-200/80">Keywords: {keywordsPreview}</p>
+          <p className="mt-1 text-xs text-accent/80">Keywords: {keywordsPreview}</p>
         )}
         {insights.archetype && (
-          <p className="mt-2 text-xs text-emerald-200/80">Archetype: {insights.archetype}</p>
+          <p className="mt-2 text-xs text-secondary/80">Archetype: {insights.archetype}</p>
         )}
         {insights.symbols.length > 0 && (
           <div className="mt-3">
-            <p className="text-xs font-semibold uppercase tracking-[0.3em] text-amber-400/80">Symbols</p>
-            <ul className="mt-2 space-y-2 text-xs text-amber-100/90">
+            <p className="text-xs font-semibold uppercase tracking-[0.3em] text-accent/80">Symbols</p>
+            <ul className="mt-2 space-y-2 text-xs text-main/90">
               {insights.symbols.map((symbol, index) => (
                 <li key={`${symbol.object}-${index}`}>
-                  <span className="font-semibold text-amber-200">{symbol.object}</span>
+                  <span className="font-semibold text-accent">{symbol.object}</span>
                   {symbol.position && (
-                    <span className="ml-1 text-amber-300/60">({symbol.position})</span>
+                    <span className="ml-1 text-accent/60">({symbol.position})</span>
                   )}
-                  <div className="text-amber-100/70">{symbol.meaning}</div>
+                  <div className="text-muted">{symbol.meaning}</div>
                 </li>
               ))}
             </ul>
@@ -79,12 +79,12 @@ export function CardSymbolInsights({ card, position }) {
         )}
         {insights.colors.length > 0 && (
           <div className="mt-3">
-            <p className="text-xs font-semibold uppercase tracking-[0.3em] text-amber-400/80">Palette</p>
-            <ul className="mt-2 space-y-1 text-xs text-amber-100/80">
+            <p className="text-xs font-semibold uppercase tracking-[0.3em] text-accent/80">Palette</p>
+            <ul className="mt-2 space-y-1 text-xs text-muted">
               {insights.colors.map((color, index) => (
                 <li key={`${color.color}-${index}`}>
-                  <span className="font-semibold text-emerald-200">{color.color}</span>
-                  <span className="ml-1 text-amber-300/70">— {color.meaning}</span>
+                  <span className="font-semibold text-secondary">{color.color}</span>
+                  <span className="ml-1 text-accent/70">— {color.meaning}</span>
                 </li>
               ))}
             </ul>

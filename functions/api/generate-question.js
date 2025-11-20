@@ -10,6 +10,21 @@ function ensureQuestionMark(text) {
   return text.trim().endsWith('?') ? text.trim() : `${text.trim()}?`;
 }
 
+function pick(list, seed = '') {
+  if (!Array.isArray(list) || list.length === 0) return '';
+  const mixed = seed ? Math.abs(hashString(`${seed}|${Math.random()}|${Date.now()}`)) : Math.floor(Math.random() * list.length);
+  return list[mixed % list.length];
+}
+
+function hashString(str) {
+  let hash = 0;
+  for (let i = 0; i < str.length; i += 1) {
+    hash = ((hash << 5) - hash) + str.charCodeAt(i);
+    hash |= 0;
+  }
+  return hash;
+}
+
 function craftQuestionFromPrompt(prompt, metadata = {}) {
   const focusMatch = prompt.match(/about (.+?) for the/i);
   const timeframeMatch = prompt.match(/for the (.+?)(?:\.|$)/i);
@@ -27,8 +42,16 @@ function craftQuestionFromPrompt(prompt, metadata = {}) {
   const timeframeClause = timeframe ? ` over ${timeframe}` : '';
   const themeClause = recentTheme ? ` while honoring ${recentTheme}` : '';
 
-  const baseQuestion = `How can I work with ${focus}${timeframeClause}${themeClause} to invite ${depth.toLowerCase()} in ${topicLabel}?`;
-  return ensureQuestionMark(baseQuestion);
+  const verbs = ['move forward with', 'nurture', 'deepen trust in', 'reimagine', 'show up for'];
+  const closers = ['honor my growth', 'feel aligned', 'invite reciprocity', 'stay grounded', 'lead with compassion'];
+  const lenses = ['with clarity', 'with courage', 'with steadiness', 'with openness', 'with healthy boundaries'];
+
+  const verb = pick(verbs, focus);
+  const closer = pick(closers, depth);
+  const lens = pick(lenses, topicLabel);
+
+  const baseQuestion = `How can I ${verb} ${focus}${timeframeClause}${themeClause} so I can ${closer} ${lens} in ${topicLabel}`;
+  return ensureQuestionMark(baseQuestion.replace(/\s+/g, ' ').trim());
 }
 
 export async function onRequestPost({ request }) {

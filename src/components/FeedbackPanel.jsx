@@ -89,24 +89,24 @@ export function FeedbackPanel({
   };
 
   return (
-    <form onSubmit={handleSubmit} className="modern-surface border border-emerald-400/30 w-full px-4 py-4 sm:px-5 sm:py-5 animate-fade-in">
+    <form onSubmit={handleSubmit} className="modern-surface border border-secondary/30 w-full px-4 py-4 sm:px-5 sm:py-5 animate-fade-in">
       <div className="flex items-center justify-between gap-2">
         <div>
-          <p className="text-sm font-semibold text-amber-100">How did this reading land?</p>
-          <p className="text-xs text-amber-100/70">
+          <p className="text-sm font-semibold text-main">How did this reading land?</p>
+          <p className="text-xs text-muted">
             Your ratings stay private and help tune accuracy + narrative quality.
           </p>
         </div>
         {hasSubmitted && (
-          <span className="text-xs font-semibold text-emerald-300">Thank you ✦</span>
+          <span className="text-xs font-semibold text-secondary">Thank you ✦</span>
         )}
       </div>
 
       <div className="mt-4 space-y-4">
         {RATING_FIELDS.map((field) => (
           <div key={field.key}>
-            <p className="text-sm text-amber-50/90 font-medium">{field.label}</p>
-            <p className="text-xs text-amber-100/60 mb-1">{field.helper}</p>
+            <p className="text-sm text-main/90 font-medium">{field.label}</p>
+            <p className="text-xs text-muted mb-1">{field.helper}</p>
             <div className="inline-flex flex-wrap gap-2">
               {SCALE.map((value) => (
                 <button
@@ -114,8 +114,8 @@ export function FeedbackPanel({
                   key={`${field.key}-${value}`}
                   onClick={() => handleRating(field.key, value)}
                   className={`px-3 py-1.5 rounded-full border transition text-xs ${ratings[field.key] === value
-                      ? 'border-emerald-400/70 bg-emerald-500/20 text-emerald-100'
-                      : 'border-amber-300/30 bg-slate-900/70 text-amber-100/70 hover:border-amber-200/60'
+                      ? 'border-secondary/70 bg-secondary/20 text-secondary'
+                      : 'border-accent/30 bg-surface-muted/70 text-muted hover:border-accent/60'
                     }`}
                 >
                   {value}
@@ -127,19 +127,19 @@ export function FeedbackPanel({
       </div>
 
       <label className="block mt-4">
-        <span className="text-xs text-amber-100/70">Anything else you want to share?</span>
+        <span className="text-xs text-muted">Anything else you want to share?</span>
         <textarea
           value={notes}
           onChange={(event) => setNotes(event.target.value)}
           rows={3}
           maxLength={750}
-          className="mt-1 w-full rounded-lg border border-amber-400/20 bg-slate-950/70 p-2 text-sm text-amber-50 focus:border-emerald-400/60 focus:outline-none"
+          className="mt-1 w-full rounded-lg border border-accent/20 bg-surface/70 p-2 text-sm text-main focus:border-secondary/60 focus:outline-none"
           placeholder="Optional. This helps us understand what resonated."
         />
       </label>
 
       {error && (
-        <p className="mt-2 text-xs text-rose-300" role="alert">
+        <p className="mt-2 text-xs text-error" role="alert">
           {error}
         </p>
       )}
@@ -148,11 +148,11 @@ export function FeedbackPanel({
         <button
           type="submit"
           disabled={!canSubmit || hasSubmitted}
-          className="px-4 py-2 rounded-full border border-emerald-400/40 bg-emerald-500/20 text-sm text-emerald-100 transition disabled:opacity-40 disabled:cursor-not-allowed"
+          className="px-4 py-2 rounded-full border border-secondary/40 bg-secondary/20 text-sm text-secondary transition disabled:opacity-40 disabled:cursor-not-allowed"
         >
           {status === 'submitting' ? 'Sending…' : hasSubmitted ? 'Feedback saved' : 'Submit feedback'}
         </button>
-        <div className="text-[11px] text-amber-100/60 text-right">
+        <div className="text-[11px] text-muted text-right">
           {visionSummary?.avgConfidence && (
             <p>
               Vision avg confidence:

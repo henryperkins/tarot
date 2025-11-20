@@ -10,14 +10,14 @@ export function GlobalNav() {
   const isReading = !isJournal;
 
   const baseButtonClasses =
-    'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs-plus font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-200 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950';
-  const activeClasses = 'bg-amber-500 text-slate-950 shadow shadow-amber-900/30';
+    'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs-plus font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-main';
+  const activeClasses = 'bg-primary text-white shadow shadow-primary/30';
   const inactiveClasses =
-    'bg-slate-900/70 text-amber-100/80 hover:bg-slate-900/90';
+    'bg-surface-muted text-muted hover:bg-surface';
 
   return (
     <nav aria-label="Primary" className="flex justify-center mb-3 animate-fade-in">
-      <div className="inline-flex items-center gap-2 rounded-full bg-slate-950/80 border border-slate-800/70 px-2 py-1">
+      <div className="inline-flex items-center gap-2 rounded-full bg-surface/80 border border-accent/20 px-2 py-1">
         <button
           type="button"
           onClick={() => navigate('/')}

@@ -18,25 +18,46 @@ export default {
     },
     extend: {
       colors: {
-        // Explicitly ensure the slate/amber/indigo palette used throughout is available.
+        // Elegant Minimal Palette
+        charcoal: 'var(--color-charcoal)',
         slate: {
-          950: "#020817"
+          dark: 'var(--color-slate-dark)',
+          mid: 'var(--color-slate-mid)',
+          light: 'var(--color-slate-light)',
         },
-        amber: {
-          50: "#fffbeb",
-          100: "#fef3c7",
-          200: "#fde68a",
-          300: "#fcd34d",
-          400: "#fbbf24",
-          500: "#f59e0b"
+        gray: {
+          light: 'var(--color-gray-light)',
+          pale: 'var(--color-gray-pale)',
         },
-        indigo: {
-          900: "#312e81",
-          950: "#1e1b4b"
+        gold: {
+          DEFAULT: 'var(--color-gold-champagne)',
+          muted: 'var(--color-gold-muted)',
+          soft: 'var(--color-gold-soft)',
         },
-        purple: {
-          900: "#581c87"
-        }
+        silver: 'var(--color-silver)',
+
+        // Suit Colors
+        wands: 'var(--color-wands)',
+        cups: 'var(--color-cups)',
+        swords: 'var(--color-swords)',
+        pentacles: 'var(--color-pentacles)',
+
+        // Semantic Brand Colors
+        primary: 'var(--brand-primary)',
+        secondary: 'var(--brand-secondary)',
+        accent: 'var(--brand-accent)',
+        success: 'var(--status-success)',
+        error: 'var(--status-error)',
+      },
+      backgroundColor: {
+        main: 'var(--bg-main)',
+        surface: 'var(--bg-surface)',
+        'surface-muted': 'var(--bg-surface-muted)',
+      },
+      textColor: {
+        main: 'var(--text-main)',
+        muted: 'var(--text-muted)',
+        accent: 'var(--text-accent)',
       },
       fontSize: {
         'xs-plus': '0.8125rem', // 13px - improved mobile readability

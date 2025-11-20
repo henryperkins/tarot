@@ -5,17 +5,17 @@ import { CollaborativeNotesPanel } from '../components/share/CollaborativeNotesP
 
 function StatCard({ label, value, helper }) {
   return (
-    <div className="rounded-2xl border border-emerald-400/30 bg-slate-950/70 p-4 text-center">
-      <p className="text-[0.65rem] uppercase tracking-[0.3em] text-emerald-300/80">{label}</p>
-      <p className="mt-2 text-2xl font-semibold text-amber-50">{value}</p>
-      {helper && <p className="mt-1 text-xs text-amber-200/70">{helper}</p>}
+    <div className="rounded-2xl border border-secondary/30 bg-surface p-4 text-center">
+      <p className="text-[0.65rem] uppercase tracking-[0.3em] text-primary">{label}</p>
+      <p className="mt-2 text-2xl font-semibold text-main">{value}</p>
+      {helper && <p className="mt-1 text-xs text-muted">{helper}</p>}
     </div>
   );
 }
 
 function MetaChip({ label }) {
   return (
-    <span className="rounded-full border border-emerald-400/30 px-3 py-1 text-xs text-emerald-200">
+    <span className="rounded-full border border-primary/30 px-3 py-1 text-xs text-primary">
       {label}
     </span>
   );
@@ -143,10 +143,10 @@ export default function ShareReading() {
 
   if (status === 'loading') {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-amber-50">
+      <div className="flex min-h-screen items-center justify-center bg-main text-main">
         <div className="text-center">
-          <div className="inline-block h-10 w-10 animate-spin rounded-full border-2 border-amber-200 border-t-transparent" />
-          <p className="mt-4 text-sm text-amber-200/80">Opening sacred space…</p>
+          <div className="inline-block h-10 w-10 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+          <p className="mt-4 text-sm text-muted">Opening sacred space…</p>
         </div>
       </div>
     );
@@ -154,12 +154,12 @@ export default function ShareReading() {
 
   if (status === 'error') {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-amber-50">
-        <div className="max-w-md rounded-3xl border border-rose-400/40 bg-slate-950/80 p-8 text-center shadow-2xl">
-          <p className="text-lg font-serif text-rose-200">{errorMessage}</p>
+      <div className="flex min-h-screen items-center justify-center bg-main text-main">
+        <div className="max-w-md rounded-3xl border border-error/40 bg-surface p-8 text-center shadow-2xl">
+          <p className="text-lg font-serif text-error">{errorMessage}</p>
           <Link
             to="/"
-            className="mt-5 inline-flex items-center justify-center rounded-full border border-amber-400/60 px-4 py-2 text-sm text-amber-100 hover:bg-amber-500/10"
+            className="mt-5 inline-flex items-center justify-center rounded-full border border-primary/60 px-4 py-2 text-sm text-main hover:bg-primary/10"
           >
             Return to Tableu
           </Link>
@@ -169,16 +169,16 @@ export default function ShareReading() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-amber-50">
+    <div className="min-h-screen bg-main text-main">
       <main className="mx-auto max-w-6xl px-4 py-8">
-        <div className="rounded-3xl border border-emerald-400/40 bg-slate-950/80 p-6 shadow-2xl">
+        <div className="rounded-3xl border border-secondary/40 bg-surface p-6 shadow-2xl">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <p className="text-[0.65rem] uppercase tracking-[0.3em] text-emerald-300/80">Shared reading</p>
-              <h1 className="mt-1 text-3xl font-serif text-amber-100">
+              <p className="text-[0.65rem] uppercase tracking-[0.3em] text-primary">Shared reading</p>
+              <h1 className="mt-1 text-3xl font-serif text-accent">
                 {shareData?.title || (shareData?.scope === 'journal' ? 'Journal snapshot' : 'Reading transmission')}
               </h1>
-              <p className="text-sm text-amber-100/70">
+              <p className="text-sm text-muted">
                 Invite trusted friends to add their gentle insights. This page updates as new notes arrive.
               </p>
             </div>
@@ -186,28 +186,28 @@ export default function ShareReading() {
               <button
                 type="button"
                 onClick={copyShareLink}
-                className="rounded-full border border-amber-400/50 px-4 py-2 text-sm text-amber-100 hover:bg-amber-500/10"
+                className="rounded-full border border-primary/50 px-4 py-2 text-sm text-main hover:bg-primary/10"
               >
                 Copy link
               </button>
               <button
                 type="button"
                 onClick={fetchShare}
-                className="rounded-full border border-emerald-400/50 px-4 py-2 text-sm text-emerald-100 hover:bg-emerald-500/10"
+                className="rounded-full border border-primary/50 px-4 py-2 text-sm text-main hover:bg-primary/10"
               >
                 Refresh reading
               </button>
               <Link
                 to="/"
-                className="rounded-full border border-emerald-400/50 px-4 py-2 text-sm text-emerald-100 text-center hover:bg-emerald-500/10"
+                className="rounded-full border border-primary/50 px-4 py-2 text-sm text-main text-center hover:bg-primary/10"
               >
                 Start your reading
               </Link>
             </div>
           </div>
-          {copyState && <p className="mt-2 text-xs text-emerald-200/80">{copyState}</p>}
+          {copyState && <p className="mt-2 text-xs text-primary">{copyState}</p>}
 
-          <div className="mt-4 flex flex-wrap gap-2 text-xs text-emerald-200/70">
+          <div className="mt-4 flex flex-wrap gap-2 text-xs text-muted">
             <MetaChip label={`Views ${shareData?.viewCount ?? 0}`} />
             {shareData?.meta?.entryCount && <MetaChip label={`${shareData.meta.entryCount} entries`} />}
             {shareData?.expiresAt && (
@@ -239,8 +239,8 @@ export default function ShareReading() {
                   type="button"
                   onClick={() => setSelectedEntryIndex(index)}
                   className={`rounded-full border px-3 py-1 text-[0.65rem] uppercase tracking-[0.2em] ${index === selectedEntryIndex
-                    ? 'border-emerald-400 bg-emerald-500/10 text-emerald-100'
-                    : 'border-slate-700/70 text-amber-100/70 hover:border-emerald-300/50'
+                    ? 'border-primary bg-primary/10 text-main'
+                    : 'border-secondary text-muted hover:border-primary/50'
                     }`}
                 >
                   {entry.spread || 'Reading'}
@@ -252,14 +252,14 @@ export default function ShareReading() {
 
         <div className="mt-8 grid gap-6 lg:grid-cols-[2fr,1fr]">
           <div className="space-y-6">
-            <div className="rounded-3xl border border-emerald-400/30 bg-slate-950/60 p-5">
+            <div className="rounded-3xl border border-secondary/30 bg-surface-muted p-5">
               <div className="flex flex-col gap-1">
-                <p className="text-[0.65rem] uppercase tracking-[0.3em] text-emerald-300/80">Spread overview</p>
-                <h2 className="text-2xl font-serif text-amber-100">{activeEntry?.spread}</h2>
+                <p className="text-[0.65rem] uppercase tracking-[0.3em] text-primary">Spread overview</p>
+                <h2 className="text-2xl font-serif text-accent">{activeEntry?.spread}</h2>
                 {activeEntry?.question && (
-                  <p className="text-sm text-amber-100/70">Intention: {activeEntry.question}</p>
+                  <p className="text-sm text-muted">Intention: {activeEntry.question}</p>
                 )}
-                <p className="text-xs text-amber-200/70">
+                <p className="text-xs text-muted">
                   {activeEntry?.ts ? new Date(activeEntry.ts).toLocaleString() : ''}
                 </p>
               </div>

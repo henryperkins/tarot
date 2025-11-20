@@ -19,13 +19,14 @@ import {
   getCoachSummary
 } from '../lib/intentionCoach';
 import { scoreQuestion, getQualityLevel } from '../lib/questionQuality';
-import { loadCoachRecommendation, loadStoredJournalInsights } from '../lib/journalInsights';
+import { loadCoachRecommendation, loadStoredJournalInsights, loadCoachStatsSnapshot } from '../lib/journalInsights';
 import {
   loadCoachTemplates,
   saveCoachTemplate,
   deleteCoachTemplate,
   loadCoachHistory,
-  recordCoachQuestion
+  recordCoachQuestion,
+  MAX_TEMPLATES
 } from '../lib/coachStorage';
 
 const STEPS = [
@@ -81,7 +82,7 @@ const CONTEXT_HINTS = {
 };
 
 const baseOptionClass =
-  'text-left rounded-2xl border bg-slate-900/70 px-4 py-4 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950';
+  'text-left rounded-2xl border bg-surface-muted/50 px-4 py-4 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-main';
 
 // Map spreads to suggested topics
 const SPREAD_TO_TOPIC_MAP = {
@@ -200,6 +201,7 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply 
   const [templateStatus, setTemplateStatus] = useState('');
   const [questionHistory, setQuestionHistory] = useState([]);
   const [coachStats, setCoachStats] = useState(null);
+  const [coachStatsMeta, setCoachStatsMeta] = useState(null);
   const [personalizedSuggestions, setPersonalizedSuggestions] = useState([]);
   const [isTemplatePanelOpen, setTemplatePanelOpen] = useState(false);
   const modalRef = React.useRef(null);
@@ -222,6 +224,11 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply 
       setTemplateStatus('Add a template name first.');
       return;
     }
+    const trimmedQuestion = (questionText || guidedQuestion || '').trim();
+    if (!trimmedQuestion) {
+      setTemplateStatus('Add or generate a question before saving.');
+      return;
+    }
     const payload = {
       label,
       topic,
@@ -229,12 +236,13 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply 
       depth,
       customFocus,
       useCreative,
-      savedQuestion: questionText || guidedQuestion
+      savedQuestion: trimmedQuestion
     };
     const result = saveCoachTemplate(payload);
     if (result.success) {
       setTemplates(result.templates);
-      setTemplateStatus('Template saved');
+      const limitReached = templates.length >= MAX_TEMPLATES;
+      setTemplateStatus(limitReached ? 'Template saved (oldest archived to keep 8 max).' : 'Template saved');
       setNewTemplateLabel('');
       setTimeout(() => setTemplateStatus(''), 2600);
     } else if (result.error) {
@@ -380,7 +388,14 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply 
     const history = loadCoachHistory();
     setQuestionHistory(history);
     const insights = loadStoredJournalInsights();
-    setCoachStats(insights?.stats || null);
+    const snapshot = loadCoachStatsSnapshot();
+    if (snapshot?.stats) {
+      setCoachStats(snapshot.stats);
+      setCoachStatsMeta(snapshot.meta || null);
+    } else {
+      setCoachStats(insights?.stats || null);
+      setCoachStatsMeta(null);
+    }
   }, [isOpen]);
 
   useEffect(() => {
@@ -436,18 +451,29 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply 
       setQuestionLoading(true);
       setQuestionError('');
       (async () => {
-        const creative = await buildCreativeQuestion({ topic, timeframe, depth, customFocus });
-        if (questionRequestRef.current !== requestId) {
-          return;
-        }
-        if (creative) {
-          setQuestionText(creative);
-          setQuestionError('');
-        } else {
+        try {
+          const { question: creative, source } = await buildCreativeQuestion({ topic, timeframe, depth, customFocus });
+          if (questionRequestRef.current !== requestId) {
+            return;
+          }
+          if (creative) {
+            setQuestionText(creative);
+            setQuestionError(source === 'local' ? 'Using on-device generator for now.' : '');
+          } else {
+            setQuestionText(guidedQuestion);
+            setQuestionError('Personalized mode is temporarily unavailable. Showing guided version.');
+          }
+        } catch (error) {
+          if (questionRequestRef.current !== requestId) {
+            return;
+          }
           setQuestionText(guidedQuestion);
           setQuestionError('Personalized mode is temporarily unavailable. Showing guided version.');
+        } finally {
+          if (questionRequestRef.current === requestId) {
+            setQuestionLoading(false);
+          }
         }
-        setQuestionLoading(false);
       })();
     } else {
       setQuestionLoading(false);
@@ -541,7 +567,7 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply 
 
   return (
     <div
-      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 backdrop-blur animate-fade-in"
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-main/90 backdrop-blur animate-fade-in"
       onClick={(e) => {
         // Close on backdrop click (not on modal content click)
         if (e.target === e.currentTarget) {
@@ -555,12 +581,12 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply 
         aria-modal="true"
         aria-labelledby={titleId}
         tabIndex={-1}
-        className="relative w-full h-full sm:h-auto sm:max-w-3xl sm:mx-4 sm:rounded-3xl border-0 sm:border border-emerald-400/40 bg-slate-950 shadow-2xl focus:outline-none flex flex-col sm:block animate-pop-in"
+        className="relative w-full h-full sm:h-auto sm:max-w-3xl sm:mx-4 sm:rounded-3xl border-0 sm:border border-accent/30 bg-surface shadow-2xl focus:outline-none flex flex-col sm:block animate-pop-in"
       >
         <button
           type="button"
           onClick={onClose}
-          className="absolute right-4 top-4 text-amber-200/80 hover:text-amber-50 z-10"
+          className="absolute right-4 top-4 text-accent/80 hover:text-main z-10"
           aria-label="Close intention coach"
         >
           <X className="h-5 w-5" />
@@ -570,12 +596,12 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply 
         <div className="flex-1 overflow-y-auto sm:overflow-visible">
           <div className="flex flex-col gap-6 px-4 pb-6 pt-16 sm:pt-8 sm:px-10 sm:pb-6">
             <div>
-              <div className="flex items-center gap-2 text-emerald-200">
+              <div className="flex items-center gap-2 text-secondary">
                 <Sparkles className="h-4 w-4" />
                 <span className="text-xs uppercase tracking-[0.2em]">Guided Intention Coach</span>
               </div>
-              <h2 id={titleId} className="mt-2 font-serif text-2xl text-amber-100">Shape a question with clarity</h2>
-              <p className="mt-1 text-sm text-amber-100/70">
+              <h2 id={titleId} className="mt-2 font-serif text-2xl text-main">Shape a question with clarity</h2>
+              <p className="mt-1 text-sm text-muted">
                 Answer three quick prompts and we&apos;ll craft an open-ended question you can drop
                 directly into your reading.
               </p>
@@ -584,52 +610,52 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply 
             <div className="flex flex-col gap-3">
               {/* Step Progress Indicator */}
               <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-widest text-amber-200/70 flex-wrap">
+                <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-widest text-accent flex-wrap">
                   {STEPS.map((entry, index) => (
                     <React.Fragment key={entry.id}>
                       <button
                         type="button"
-                        className={`rounded-full px-3 py-1 min-h-[32px] touch-manipulation ${index === step
-                            ? 'bg-emerald-500/80 text-slate-950'
-                            : 'bg-slate-800/80 text-amber-100/70 hover:bg-slate-700/80'
+                        className={`rounded-full px-3 py-1 min-h-[32px] touch-manipulation transition ${index === step
+                            ? 'bg-accent text-main shadow-lg shadow-accent/20'
+                            : 'bg-surface-muted text-muted hover:bg-surface-muted/80 hover:text-accent'
                           }`}
                         onClick={() => setStep(index)}
                       >
                         <span className="hidden sm:inline">{entry.label}</span>
                         <span className="sm:hidden">{index + 1}</span>
                       </button>
-                      {index < STEPS.length - 1 && <span className="text-amber-100/30">·</span>}
+                      {index < STEPS.length - 1 && <span className="text-accent/30">·</span>}
                     </React.Fragment>
                   ))}
                 </div>
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
-                  <p className="text-xs text-emerald-200 font-medium">
+                  <p className="text-xs text-secondary font-medium">
                     Step {step + 1} of {STEPS.length}
                   </p>
                   <button
                     type="button"
                     onClick={() => setTemplatePanelOpen(true)}
-                    className="inline-flex items-center justify-center gap-1 rounded-full border border-emerald-400/40 px-3 py-1.5 text-[0.65rem] uppercase tracking-[0.2em] text-emerald-100 hover:bg-emerald-500/10 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/60"
+                    className="inline-flex items-center justify-center gap-1 rounded-full border border-secondary/40 px-3 py-1.5 text-[0.65rem] uppercase tracking-[0.2em] text-secondary hover:bg-secondary/10 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/60"
                   >
-                    <BookmarkPlus className="h-3.5 w-3.5 text-emerald-300" aria-hidden="true" />
+                    <BookmarkPlus className="h-3.5 w-3.5 text-secondary" aria-hidden="true" />
                     Templates
                   </button>
                 </div>
               </div>
 
-              <div className="rounded-2xl border border-slate-800/80 bg-slate-900/60 p-4 sm:p-5">
+              <div className="rounded-2xl border border-accent/30 bg-surface-muted/40 p-4 sm:p-5">
                 {step === 0 && (
                   <div className="space-y-4">
-                    <p className="text-sm text-amber-100/80">What area do you want to explore?</p>
+                    <p className="text-sm text-muted">What area do you want to explore?</p>
                     {SPREAD_TO_TOPIC_MAP[selectedSpread] && (
-                      <div className="rounded-lg bg-emerald-900/20 border border-emerald-400/30 px-3 py-2">
+                      <div className="rounded-lg bg-accent/10 border border-accent/30 px-3 py-2">
                         <div className="flex items-center gap-2 mb-1">
-                          <Sparkles className="h-3 w-3 text-emerald-300" />
-                          <span className="text-xs font-bold uppercase tracking-wider text-emerald-300">Suggested Focus</span>
+                          <Sparkles className="h-3 w-3 text-accent" />
+                          <span className="text-xs font-bold uppercase tracking-wider text-accent">Suggested Focus</span>
                         </div>
-                        <p className="text-xs text-emerald-200">
+                        <p className="text-xs text-secondary">
                           Based on your <span className="font-medium">{SPREAD_NAMES[selectedSpread]}</span> spread, we suggest exploring{' '}
-                          <span className="font-medium text-emerald-100">
+                          <span className="font-medium text-main">
                             {INTENTION_TOPIC_OPTIONS.find(opt => opt.value === SPREAD_TO_TOPIC_MAP[selectedSpread])?.label}
                           </span>
                           . Feel free to choose any topic.
@@ -641,7 +667,7 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply 
                         <button
                           key={option.value}
                           type="button"
-                          className={`${baseOptionClass} ${option.value === topic ? 'border-emerald-400/60 shadow-lg shadow-emerald-900/20' : 'border-slate-700/60 hover:border-emerald-300/40'}`}
+                          className={`${baseOptionClass} ${option.value === topic ? 'border-accent bg-accent/10 shadow-lg shadow-accent/20' : 'border-secondary/30 hover:border-accent/50 hover:bg-accent/5'}`}
                           onClick={() => {
                             if (option.value !== topic) {
                               releasePrefill();
@@ -649,8 +675,8 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply 
                             setTopic(option.value);
                           }}
                         >
-                          <p className="font-medium text-amber-100">{option.label}</p>
-                          <p className="text-sm text-amber-100/70">{option.description}</p>
+                          <p className="font-medium text-main">{option.label}</p>
+                          <p className="text-sm text-muted">{option.description}</p>
                         </button>
                       ))}
                     </div>
@@ -659,13 +685,13 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply 
 
                 {step === 1 && (
                   <div className="space-y-4">
-                    <p className="text-sm text-amber-100/80">When do you need guidance for?</p>
+                    <p className="text-sm text-muted">When do you need guidance for?</p>
                     <div className="grid gap-3 sm:grid-cols-2">
                       {INTENTION_TIMEFRAME_OPTIONS.map(option => (
                         <button
                           key={option.value}
                           type="button"
-                          className={`${baseOptionClass} ${option.value === timeframe ? 'border-emerald-400/60 shadow-lg shadow-emerald-900/20' : 'border-slate-700/60 hover:border-emerald-300/40'}`}
+                          className={`${baseOptionClass} ${option.value === timeframe ? 'border-accent bg-accent/10 shadow-lg shadow-accent/20' : 'border-secondary/30 hover:border-accent/50 hover:bg-accent/5'}`}
                           onClick={() => {
                             if (option.value !== timeframe) {
                               releasePrefill();
@@ -673,8 +699,8 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply 
                             setTimeframe(option.value);
                           }}
                         >
-                          <p className="font-medium text-amber-100">{option.label}</p>
-                          <p className="text-sm text-amber-100/70">{option.description}</p>
+                          <p className="font-medium text-main">{option.label}</p>
+                          <p className="text-sm text-muted">{option.description}</p>
                         </button>
                       ))}
                     </div>
@@ -684,13 +710,13 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply 
                 {step === 2 && (
                   <div className="space-y-6">
                     <div>
-                      <p className="text-sm text-amber-100/80">How deep do you want to go?</p>
+                      <p className="text-sm text-muted">How deep do you want to go?</p>
                       <div className="grid gap-3 md:grid-cols-2">
                         {INTENTION_DEPTH_OPTIONS.map(option => (
                           <button
                             key={option.value}
                             type="button"
-                            className={`${baseOptionClass} ${option.value === depth ? 'border-emerald-400/60 shadow-lg shadow-emerald-900/20' : 'border-slate-700/60 hover:border-emerald-300/40'}`}
+                            className={`${baseOptionClass} ${option.value === depth ? 'border-accent bg-accent/10 shadow-lg shadow-accent/20' : 'border-secondary/30 hover:border-accent/50 hover:bg-accent/5'}`}
                             onClick={() => {
                               if (option.value !== depth) {
                                 releasePrefill();
@@ -698,15 +724,15 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply 
                               setDepth(option.value);
                             }}
                           >
-                            <p className="font-medium text-amber-100">{option.label}</p>
-                            <p className="text-sm text-amber-100/70">{option.description}</p>
+                            <p className="font-medium text-main">{option.label}</p>
+                            <p className="text-sm text-muted">{option.description}</p>
                           </button>
                         ))}
                       </div>
                     </div>
 
                     <div className="space-y-2">
-                      <label htmlFor="custom-focus" className="text-sm font-medium text-amber-200">
+                      <label htmlFor="custom-focus" className="text-sm font-medium text-accent">
                         Add a detail (optional)
                       </label>
                       <input
@@ -718,26 +744,26 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply 
                           setCustomFocus(event.target.value);
                         }}
                         placeholder="e.g. a potential move, a creative launch, a new relationship"
-                        className="w-full rounded-xl border border-emerald-400/40 bg-slate-950/80 px-4 py-3 text-amber-100 placeholder:text-emerald-200/40 focus:border-emerald-400 focus:outline-none focus:ring-1 focus:ring-emerald-400/60"
+                        className="w-full rounded-xl border border-secondary/40 bg-surface/80 px-4 py-3 text-main placeholder:text-secondary/40 focus:border-secondary focus:outline-none focus:ring-1 focus:ring-secondary/60"
                       />
                     </div>
 
-                    <div className="rounded-2xl border border-emerald-400/40 bg-emerald-500/5 p-4 space-y-4">
+                    <div className="rounded-2xl border border-accent/30 bg-accent/5 p-4 space-y-4">
                       <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
                         <div>
-                          <p className="flex items-center gap-2 text-xs uppercase tracking-[0.3em] text-emerald-200">
-                            <Sparkles className="h-3.5 w-3.5 text-emerald-300" aria-hidden="true" />
+                          <p className="flex items-center gap-2 text-xs uppercase tracking-[0.3em] text-secondary">
+                            <Sparkles className="h-3.5 w-3.5 text-secondary" aria-hidden="true" />
                             Question blueprint
                           </p>
-                          <p className="text-xs text-emerald-100/80">
+                          <p className="text-xs text-secondary/80">
                             Adjust the topic, timing, or depth and we’ll re-weave the wording automatically.
                           </p>
                         </div>
                         <div className="flex flex-wrap items-center gap-2">
-                          <label className="inline-flex items-center gap-2 rounded-full border border-emerald-400/40 bg-slate-950/50 px-3 py-1.5 text-[0.7rem] text-emerald-100 cursor-pointer select-none">
+                          <label className="inline-flex items-center gap-2 rounded-full border border-secondary/40 bg-surface/50 px-3 py-1.5 text-[0.7rem] text-secondary cursor-pointer select-none">
                             <input
                               type="checkbox"
-                              className="h-4 w-4 rounded border-emerald-400/60 bg-transparent text-emerald-400 focus:ring-emerald-400"
+                              className="h-4 w-4 rounded border-secondary/60 bg-transparent text-secondary focus:ring-secondary"
                               checked={useCreative}
                               onChange={event => {
                                 releasePrefill();
@@ -746,7 +772,7 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply 
                               }}
                             />
                             <span className="inline-flex items-center gap-1 font-medium">
-                              <Wand2 className="h-3.5 w-3.5 text-emerald-300" aria-hidden="true" />
+                              <Wand2 className="h-3.5 w-3.5 text-secondary" aria-hidden="true" />
                               Personalize with AI
                             </span>
                           </label>
@@ -757,7 +783,7 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply 
                               setAutoQuestionEnabled(true);
                               setQuestionError('');
                             }}
-                            className="inline-flex items-center gap-1 rounded-full border border-emerald-300/60 bg-transparent px-3 py-1.5 text-[0.7rem] font-semibold text-emerald-100 hover:bg-emerald-500/10 transition"
+                            className="inline-flex items-center gap-1 rounded-full border border-secondary/60 bg-transparent px-3 py-1.5 text-[0.7rem] font-semibold text-secondary hover:bg-secondary/10 transition"
                           >
                             <RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />
                             Remix
@@ -765,22 +791,22 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply 
                         </div>
                       </div>
                       {prefillSource && (
-                        <p className="text-xs text-emerald-200/80">
-                          <span className="font-semibold text-emerald-100">Auto-filled</span> from your journal insights.
+                        <p className="text-xs text-secondary/80">
+                          <span className="font-semibold text-secondary">Auto-filled</span> from your journal insights.
                         </p>
                       )}
                       {questionLoading && (
-                        <p className="text-xs text-amber-200/80 animate-pulse">Weaving a personalized prompt…</p>
+                        <p className="text-xs text-accent/80 animate-pulse">Weaving a personalized prompt…</p>
                       )}
                       {questionError && (
-                        <p className="text-xs text-amber-300/80">{questionError}</p>
+                        <p className="text-xs text-accent/80">{questionError}</p>
                       )}
-                      <div className="rounded-2xl border border-emerald-400/30 bg-slate-950/60 p-4 space-y-3">
-                        <div className="flex items-center gap-2 text-[0.65rem] uppercase tracking-[0.3em] text-emerald-200/80">
-                          <Sparkles className="h-4 w-4 text-emerald-300" aria-hidden="true" />
+                      <div className="rounded-2xl border border-secondary/30 bg-surface/60 p-4 space-y-3">
+                        <div className="flex items-center gap-2 text-[0.65rem] uppercase tracking-[0.3em] text-secondary/80">
+                          <Sparkles className="h-4 w-4 text-secondary" aria-hidden="true" />
                           Current draft
                         </div>
-                        <p className="font-serif text-xl text-amber-50 leading-relaxed">
+                        <p className="font-serif text-xl text-main leading-relaxed">
                           {questionText || guidedQuestion}
                         </p>
                         {questionContextChips.length > 0 && (
@@ -788,7 +814,7 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply 
                             {questionContextChips.map(chip => (
                               <span
                                 key={chip}
-                                className="rounded-full border border-emerald-400/40 bg-transparent px-3 py-1 text-[0.65rem] uppercase tracking-[0.2em] text-emerald-100/80"
+                                className="rounded-full border border-secondary/40 bg-transparent px-3 py-1 text-[0.65rem] uppercase tracking-[0.2em] text-secondary/80"
                               >
                                 {chip}
                               </span>
@@ -798,41 +824,41 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply 
                       </div>
 
                       {/* Question Quality Indicator */}
-                      <div className="rounded-2xl border border-emerald-400/30 bg-slate-950/40 p-3 space-y-2">
-                        <div className="flex items-center justify-between text-xs text-emerald-200">
+                      <div className="rounded-2xl border border-secondary/30 bg-surface/40 p-3 space-y-2">
+                        <div className="flex items-center justify-between text-xs text-secondary">
                           <span className="inline-flex items-center gap-1">
-                            <Activity className="h-4 w-4 text-emerald-300" aria-hidden="true" />
+                            <Activity className="h-4 w-4 text-secondary" aria-hidden="true" />
                             Question quality
                           </span>
-                          <span className="text-xs font-semibold text-emerald-100">
+                          <span className="text-xs font-semibold text-secondary">
                             {qualityLevel.emoji} {qualityLevel.label}
                           </span>
                         </div>
-                        <div className="h-2 w-full rounded-full bg-slate-900/80 overflow-hidden">
+                        <div className="h-2 w-full rounded-full bg-surface-muted/80 overflow-hidden">
                           <div
                             className={`h-full transition-all duration-500 ${normalizedQualityScore >= 85
-                                ? 'bg-gradient-to-r from-emerald-400 via-emerald-500 to-emerald-300'
+                                ? 'bg-gradient-to-r from-secondary via-secondary/80 to-secondary/60'
                                 : normalizedQualityScore >= 65
-                                  ? 'bg-gradient-to-r from-green-400 via-emerald-400 to-emerald-300'
+                                  ? 'bg-gradient-to-r from-secondary via-secondary/80 to-secondary/60'
                                   : normalizedQualityScore >= 40
-                                    ? 'bg-gradient-to-r from-amber-400 via-orange-400 to-orange-300'
-                                    : 'bg-gradient-to-r from-red-400 via-orange-500 to-amber-300'
+                                    ? 'bg-gradient-to-r from-accent via-accent/80 to-accent/60'
+                                    : 'bg-gradient-to-r from-error via-error/80 to-accent/60'
                               }`}
                             style={{ width: `${normalizedQualityScore}%` }}
                           />
                         </div>
-                        <div className="flex flex-col gap-0.5 sm:flex-row sm:items-center sm:justify-between text-[0.7rem] text-emerald-200/80">
+                        <div className="flex flex-col gap-0.5 sm:flex-row sm:items-center sm:justify-between text-[0.7rem] text-secondary/80">
                           <span className="uppercase tracking-[0.2em]">Score {questionQuality.score}/100</span>
-                          <span className="text-emerald-100/80 sm:text-right">{qualityHelperText}</span>
+                          <span className="text-secondary/80 sm:text-right">{qualityHelperText}</span>
                         </div>
                       </div>
 
                       {/* Quality Feedback */}
                       {questionQuality.feedback.length > 0 && questionQuality.score < 85 && (
-                        <div className="rounded-2xl border border-amber-400/30 bg-amber-500/5 p-3 text-xs text-amber-100/80 space-y-1">
+                        <div className="rounded-2xl border border-accent/30 bg-accent/5 p-3 text-xs text-muted space-y-1">
                           {questionQuality.feedback.slice(0, 2).map((tip, i) => (
                             <p key={i} className="flex items-start gap-1">
-                              <span className="text-emerald-300 mt-0.5">•</span>
+                              <span className="text-secondary mt-0.5">•</span>
                               <span>{tip}</span>
                             </p>
                           ))}
@@ -844,34 +870,44 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply 
               </div>
 
               {personalizedSuggestions.length > 0 && (
-                <section className="rounded-3xl border border-emerald-400/30 bg-slate-950/60 mx-4 sm:mx-10 p-4 sm:p-5 space-y-3">
+                <section className="rounded-3xl border border-accent/30 bg-surface/40 mx-4 sm:mx-10 p-4 sm:p-5 space-y-3">
                   <div className="flex items-center justify-between gap-2">
-                    <p className="text-xs uppercase tracking-[0.3em] text-emerald-200">Personalized suggestions</p>
+                    <p className="text-xs uppercase tracking-[0.3em] text-secondary">Personalized suggestions</p>
                     <button
                       type="button"
                       onClick={refreshSuggestions}
-                      className="text-xs text-emerald-200 hover:text-emerald-100 underline decoration-dotted"
+                      className="text-xs text-secondary hover:text-secondary/80 underline decoration-dotted"
                     >
                       Refresh
                     </button>
                   </div>
+                  {coachStatsMeta?.filterLabel && (
+                    <p className="text-[0.65rem] uppercase tracking-[0.2em] text-secondary/70">
+                      {coachStatsMeta.filterLabel}
+                      {typeof coachStatsMeta.entryCount === 'number' && coachStatsMeta.entryCount >= 0 && (
+                        <span className="ml-1 normal-case capitalize text-secondary/60">
+                          ({coachStatsMeta.entryCount} entr{coachStatsMeta.entryCount === 1 ? 'y' : 'ies'})
+                        </span>
+                      )}
+                    </p>
+                  )}
                   <div className="space-y-2">
                     {personalizedSuggestions.map((suggestion) => (
                       <button
                         key={suggestion.id}
                         type="button"
                         onClick={() => handleApplySuggestion(suggestion)}
-                        className="w-full text-left rounded-2xl border border-emerald-400/20 bg-slate-900/70 px-4 py-3 hover:border-emerald-300/60 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/60"
+                        className="w-full text-left rounded-2xl border border-secondary/20 bg-surface-muted/70 px-4 py-3 hover:border-secondary/60 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/60"
                       >
                         <div className="flex items-center justify-between gap-3">
-                          <p className="text-sm font-semibold text-amber-100">{suggestion.label}</p>
-                          <span className="text-xs text-emerald-300/80">Apply</span>
+                          <p className="text-sm font-semibold text-main">{suggestion.label}</p>
+                          <span className="text-xs text-secondary/80">Apply</span>
                         </div>
                         {suggestion.helper && (
-                          <p className="mt-0.5 text-xs text-amber-100/70">{suggestion.helper}</p>
+                          <p className="mt-0.5 text-xs text-muted">{suggestion.helper}</p>
                         )}
                         {(suggestion.topic || suggestion.timeframe || suggestion.depth) && (
-                          <p className="mt-2 text-[0.65rem] uppercase tracking-[0.25em] text-emerald-200/80">
+                          <p className="mt-2 text-[0.65rem] uppercase tracking-[0.25em] text-secondary/80">
                             {[
                               getTopicLabel(suggestion.topic),
                               getTimeframeLabel(suggestion.timeframe),
@@ -890,8 +926,8 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply 
           </div>
 
           {/* Footer - outside scroll area on mobile, inline on desktop */}
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between flex-shrink-0 sm:static bg-slate-950 sm:bg-transparent pt-4 sm:pt-0 px-4 sm:px-10 pb-safe sm:pb-6 border-t sm:border-t-0 border-slate-800/50">
-            <div className="text-xs text-amber-100/70 hidden sm:block">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between flex-shrink-0 sm:static bg-main sm:bg-transparent pt-4 sm:pt-0 px-4 sm:px-10 pb-safe sm:pb-6 border-t sm:border-t-0 border-accent/20">
+            <div className="text-xs text-muted hidden sm:block">
               <p>
                 {summary.topicLabel} · {summary.timeframeLabel} · {summary.depthLabel}
               </p>
@@ -901,7 +937,7 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply 
                 type="button"
                 onClick={goBack}
                 disabled={step === 0}
-                className="inline-flex items-center justify-center gap-1 rounded-full border border-slate-700/70 px-4 py-2.5 sm:py-2 text-sm text-amber-100 transition disabled:opacity-40 min-h-[44px] sm:min-h-0 flex-1 sm:flex-none touch-manipulation"
+                className="inline-flex items-center justify-center gap-1 rounded-full border border-accent/20 px-4 py-2.5 sm:py-2 text-sm text-main transition disabled:opacity-40 min-h-[44px] sm:min-h-0 flex-1 sm:flex-none touch-manipulation"
               >
                 <ArrowLeft className="h-4 w-4" />
                 <span>Back</span>
@@ -911,7 +947,7 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply 
                   type="button"
                   onClick={goNext}
                   disabled={!canGoNext()}
-                  className="inline-flex items-center justify-center gap-2 rounded-full border border-emerald-400/60 bg-emerald-500/20 px-5 py-2.5 sm:py-2 text-sm font-medium text-emerald-100 transition disabled:opacity-50 min-h-[44px] sm:min-h-0 flex-1 sm:flex-none touch-manipulation"
+                  className="inline-flex items-center justify-center gap-2 rounded-full border border-secondary/60 bg-secondary/20 px-5 py-2.5 sm:py-2 text-sm font-medium text-secondary transition disabled:opacity-50 min-h-[44px] sm:min-h-0 flex-1 sm:flex-none touch-manipulation"
                 >
                   <span>Next</span>
                   <ArrowRight className="h-4 w-4" />
@@ -921,7 +957,7 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply 
                   type="button"
                   onClick={handleApply}
                   disabled={!questionText || questionLoading}
-                  className="inline-flex items-center justify-center gap-2 rounded-full border border-emerald-400/60 bg-emerald-500/80 px-5 py-2.5 sm:py-2 text-sm font-semibold text-slate-950 transition disabled:opacity-50 min-h-[44px] sm:min-h-0 flex-1 sm:flex-none touch-manipulation"
+                  className="inline-flex items-center justify-center gap-2 rounded-full border border-secondary/60 bg-secondary/80 px-5 py-2.5 sm:py-2 text-sm font-semibold text-white transition disabled:opacity-50 min-h-[44px] sm:min-h-0 flex-1 sm:flex-none touch-manipulation"
                 >
                   <span>Use question</span>
                   <Sparkles className="h-4 w-4" />
@@ -933,27 +969,27 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply 
       </div>
       {isTemplatePanelOpen && (
         <div
-          className="absolute inset-0 z-40 flex items-stretch bg-slate-950/70 backdrop-blur-sm animate-fade-in"
+          className="absolute inset-0 z-40 flex items-stretch bg-surface/70 backdrop-blur-sm animate-fade-in"
           onClick={() => setTemplatePanelOpen(false)}
         >
           <div
-            className="ml-auto h-full w-full sm:w-[26rem] bg-slate-950 border-l border-emerald-400/30 p-5 sm:p-6 overflow-y-auto shadow-[0_0_45px_rgba(0,0,0,0.6)] animate-slide-in-right"
+            className="ml-auto h-full w-full sm:w-[26rem] bg-surface border-l border-accent/30 p-5 sm:p-6 overflow-y-auto shadow-[0_0_45px_rgba(0,0,0,0.6)] animate-slide-in-right"
             onClick={event => event.stopPropagation()}
           >
             <div className="flex items-center justify-between gap-2">
               <div>
-                <p className="flex items-center gap-2 text-xs uppercase tracking-[0.3em] text-emerald-200">
-                  <BookmarkPlus className="h-4 w-4 text-emerald-300" aria-hidden="true" />
+                <p className="flex items-center gap-2 text-xs uppercase tracking-[0.3em] text-secondary">
+                  <BookmarkPlus className="h-4 w-4 text-secondary" aria-hidden="true" />
                   Template library
                 </p>
-                <p className="text-sm text-amber-100/70">
+                <p className="text-sm text-muted">
                   Save this configuration or reapply a favorite blend anytime.
                 </p>
               </div>
               <button
                 type="button"
                 onClick={() => setTemplatePanelOpen(false)}
-                className="inline-flex items-center justify-center rounded-full border border-emerald-400/40 p-1 text-emerald-200 hover:bg-emerald-500/10"
+                className="inline-flex items-center justify-center rounded-full border border-secondary/40 p-1 text-secondary hover:bg-secondary/10"
                 aria-label="Close template panel"
               >
                 <X className="h-4 w-4" />
@@ -962,34 +998,37 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply 
             <div className="mt-5 space-y-6">
               <section className="space-y-3">
                 <div className="flex flex-col gap-2">
-                  <p className="text-xs uppercase tracking-[0.3em] text-amber-300/80">Save current setup</p>
+                  <p className="text-xs uppercase tracking-[0.3em] text-accent/80">Save current setup</p>
                   <div className="flex flex-col gap-2 sm:flex-row">
                     <input
                       type="text"
                       value={newTemplateLabel}
                       onChange={event => setNewTemplateLabel(event.target.value)}
                       placeholder="Template name"
-                      className="flex-1 rounded-full border border-slate-700/70 bg-slate-950/70 px-3 py-2 text-sm text-amber-100 focus:outline-none focus:ring-1 focus:ring-emerald-400/60"
+                      className="flex-1 rounded-full border border-accent/20 bg-surface/70 px-3 py-2 text-sm text-main focus:outline-none focus:ring-1 focus:ring-secondary/60"
                     />
                     <button
                       type="button"
                       onClick={handleSaveTemplate}
-                      className="inline-flex items-center justify-center gap-1 rounded-full border border-emerald-400/60 bg-emerald-500/10 px-4 py-2 text-xs font-semibold text-emerald-100 hover:bg-emerald-500/20 transition"
+                      className="inline-flex items-center justify-center gap-1 rounded-full border border-secondary/60 bg-secondary/10 px-4 py-2 text-xs font-semibold text-secondary hover:bg-secondary/20 transition"
                     >
-                      <Sparkles className="h-3.5 w-3.5 text-emerald-300" aria-hidden="true" />
+                      <Sparkles className="h-3.5 w-3.5 text-secondary" aria-hidden="true" />
                       Save
                     </button>
                   </div>
+                  <p className="text-[0.65rem] text-secondary/70">
+                    {templates.length}/{MAX_TEMPLATES} templates saved · oldest entry is replaced when you add more than {MAX_TEMPLATES}.
+                  </p>
                 </div>
                 {templateStatus && (
-                  <p className="text-xs text-emerald-200/80">{templateStatus}</p>
+                  <p className="text-xs text-secondary/80">{templateStatus}</p>
                 )}
               </section>
 
               <section className="space-y-3">
-                <p className="text-xs uppercase tracking-[0.3em] text-amber-300/80">Saved templates</p>
+                <p className="text-xs uppercase tracking-[0.3em] text-accent/80">Saved templates</p>
                 {templates.length === 0 ? (
-                  <p className="text-xs text-amber-100/70">
+                  <p className="text-xs text-muted">
                     Nothing saved yet. Create a label above to store this blend for later.
                   </p>
                 ) : (
@@ -997,15 +1036,15 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply 
                     {templates.map(template => (
                       <div
                         key={template.id}
-                        className="rounded-2xl border border-slate-700/60 bg-slate-950/60 p-3 flex flex-col gap-2"
+                        className="rounded-2xl border border-accent/20 bg-surface-muted/70 p-3 flex flex-col gap-2"
                       >
                         <button
                           type="button"
                           onClick={() => handleApplyTemplate(template)}
                           className="text-left"
                         >
-                          <p className="text-sm font-semibold text-amber-100">{template.label}</p>
-                          <p className="text-xs text-amber-100/70">
+                          <p className="text-sm font-semibold text-main">{template.label}</p>
+                          <p className="text-xs text-muted">
                             {[
                               getTopicLabel(template.topic),
                               getTimeframeLabel(template.timeframe),
@@ -1015,16 +1054,16 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply 
                               .join(' · ') || 'Custom mix'}
                           </p>
                           {template.customFocus && (
-                            <p className="mt-1 text-xs text-emerald-200/80">{template.customFocus}</p>
+                            <p className="mt-1 text-xs text-secondary/80">{template.customFocus}</p>
                           )}
                           {template.savedQuestion && (
-                            <p className="mt-2 text-xs text-amber-100/60">{template.savedQuestion}</p>
+                            <p className="mt-2 text-xs text-muted">{template.savedQuestion}</p>
                           )}
                         </button>
                         <button
                           type="button"
                           onClick={() => handleDeleteTemplate(template.id)}
-                          className="self-start text-xs text-red-300 hover:text-red-200 underline decoration-dotted"
+                          className="self-start text-xs text-error hover:text-error/80 underline decoration-dotted"
                         >
                           Remove
                         </button>
@@ -1035,12 +1074,12 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply 
               </section>
 
               <section className="space-y-3">
-                <p className="flex items-center gap-2 text-xs uppercase tracking-[0.3em] text-amber-200/80">
-                  <History className="h-4 w-4 text-emerald-300" aria-hidden="true" />
+                <p className="flex items-center gap-2 text-xs uppercase tracking-[0.3em] text-accent/80">
+                  <History className="h-4 w-4 text-secondary" aria-hidden="true" />
                   Recent questions
                 </p>
                 {questionHistory.length === 0 ? (
-                  <p className="text-xs text-amber-100/70">No recent pulls yet—log a question to see it here.</p>
+                  <p className="text-xs text-muted">No recent pulls yet—log a question to see it here.</p>
                 ) : (
                   <div className="space-y-2">
                     {questionHistory.slice(0, 6).map(item => (
@@ -1048,7 +1087,7 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply 
                         key={item.id}
                         type="button"
                         onClick={() => handleApplyHistoryQuestion(item)}
-                        className="w-full text-left rounded-2xl border border-slate-700/60 bg-slate-900/70 px-4 py-2 text-sm text-amber-100/80 hover:border-emerald-400/50 transition"
+                        className="w-full text-left rounded-2xl border border-accent/20 bg-surface-muted/70 px-4 py-2 text-sm text-muted hover:border-secondary/50 transition"
                       >
                         {item.question}
                       </button>

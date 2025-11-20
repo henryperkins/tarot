@@ -3,7 +3,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
 const paragraphClass = 'text-[0.9rem] sm:text-base md:text-lg leading-relaxed md:leading-loose';
-const headingClass = 'font-serif text-lg sm:text-xl text-emerald-200 mt-4 mb-2';
+const headingClass = 'font-serif text-lg sm:text-xl text-secondary mt-4 mb-2';
 const listClass = 'list-disc pl-5 space-y-1';
 
 export function MarkdownRenderer({ content }) {
@@ -12,7 +12,7 @@ export function MarkdownRenderer({ content }) {
   }
 
   return (
-    <div className="text-amber-100 space-y-3 md:space-y-4 max-w-prose mx-auto text-left">
+    <div className="text-main space-y-3 md:space-y-4 max-w-prose mx-auto text-left">
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
         skipHtml
@@ -31,10 +31,10 @@ export function MarkdownRenderer({ content }) {
             <p {...props} className={paragraphClass} />
           ),
           strong: ({ node, ...props }) => (
-            <strong {...props} className="text-amber-50 font-semibold" />
+            <strong {...props} className="text-main font-semibold" />
           ),
           em: ({ node, ...props }) => (
-            <em {...props} className="italic text-amber-100/90" />
+            <em {...props} className="italic text-main/90" />
           ),
           ul: ({ node, ...props }) => (
             <ul {...props} className={`${listClass} ${paragraphClass}`} />
@@ -43,18 +43,18 @@ export function MarkdownRenderer({ content }) {
             <ol {...props} className={`list-decimal pl-5 space-y-1 ${paragraphClass}`} />
           ),
           li: ({ node, ...props }) => (
-            <li {...props} className="marker:text-emerald-300" />
+            <li {...props} className="marker:text-secondary" />
           ),
           blockquote: ({ node, ...props }) => (
             <blockquote
               {...props}
-              className={`${paragraphClass} border-l-2 border-emerald-400/40 pl-4 italic text-amber-200/85`}
+              className={`${paragraphClass} border-l-2 border-secondary/40 pl-4 italic text-accent/85`}
             />
           ),
           a: ({ node, ...props }) => (
             <a
               {...props}
-              className="text-emerald-300 underline decoration-dotted underline-offset-4 hover:text-emerald-200"
+              className="text-secondary underline decoration-dotted underline-offset-4 hover:text-secondary"
               target="_blank"
               rel="noreferrer"
             />

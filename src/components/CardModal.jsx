@@ -34,7 +34,7 @@ export function CardModal({ card, isOpen, onClose, position, layoutId }) {
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                className="absolute inset-0 bg-slate-950/90 backdrop-blur-sm"
+                className="absolute inset-0 bg-main/90 backdrop-blur-sm"
                 onClick={onClose}
                 aria-hidden="true"
             />
@@ -42,20 +42,20 @@ export function CardModal({ card, isOpen, onClose, position, layoutId }) {
             <motion.div
                 layoutId={layoutId}
                 ref={modalRef}
-                className="relative w-full max-w-lg max-h-[90vh] overflow-y-auto bg-slate-900 border border-amber-500/30 rounded-2xl shadow-2xl shadow-black/50 flex flex-col"
+                className="relative w-full max-w-lg max-h-[90vh] overflow-y-auto bg-surface border border-primary/30 rounded-2xl shadow-2xl shadow-black/50 flex flex-col"
             >
                 <button
                     onClick={onClose}
-                    className="absolute top-4 right-4 p-2 text-amber-200/70 hover:text-amber-100 hover:bg-white/10 rounded-full transition-colors z-10"
+                    className="absolute top-4 right-4 p-2 text-accent/70 hover:text-main hover:bg-white/10 rounded-full transition-colors z-10"
                     aria-label="Close modal"
                 >
                     <X className="w-6 h-6" />
                 </button>
 
                 <div className="p-6 sm:p-8 flex flex-col items-center text-center">
-                    <h3 className="text-amber-300 font-serif text-lg sm:text-xl mb-2">{position}</h3>
-                    <h2 className="text-2xl sm:text-3xl font-serif text-amber-100 mb-6">
-                        {card.name} {card.isReversed && <span className="text-amber-400/60 text-lg align-middle">(Reversed)</span>}
+                    <h3 className="text-accent font-serif text-lg sm:text-xl mb-2">{position}</h3>
+                    <h2 className="text-2xl sm:text-3xl font-serif text-main mb-6">
+                        {card.name} {card.isReversed && <span className="text-primary/60 text-lg align-middle">(Reversed)</span>}
                     </h2>
 
                     <motion.div
@@ -65,14 +65,14 @@ export function CardModal({ card, isOpen, onClose, position, layoutId }) {
                         <img
                             src={card.image}
                             alt={card.name}
-                            className="w-full h-auto rounded-xl shadow-2xl border-2 border-amber-400/20"
+                            className="w-full h-auto rounded-xl shadow-2xl border-2 border-primary/20"
                         />
                     </motion.div>
 
                     <div className="w-full space-y-6 text-left">
-                        <div className="bg-slate-950/50 rounded-xl p-5 border border-amber-500/10">
-                            <h4 className="text-amber-200 font-semibold mb-2 text-sm uppercase tracking-wider">Meaning</h4>
-                            <p className="text-amber-50/90 leading-relaxed text-lg">
+                        <div className="bg-surface-muted/50 rounded-xl p-5 border border-primary/10">
+                            <h4 className="text-accent font-semibold mb-2 text-sm uppercase tracking-wider">Meaning</h4>
+                            <p className="text-main/90 leading-relaxed text-lg">
                                 {meaning}
                             </p>
                         </div>
