@@ -396,7 +396,7 @@ export default function TarotReading() {
           </div>
         </header>
 
-        <div className="full-bleed sticky top-0 z-30 py-3 sm:py-4 mb-6 bg-surface/95 backdrop-blur border-y border-accent/20 px-4 sm:px-5 md:px-6 relative">
+        <div className="full-bleed relative sticky top-0 z-30 py-3 sm:py-4 mb-6 bg-surface/95 backdrop-blur border-y border-accent/20 px-4 sm:px-5 md:px-6">
           <div className="absolute right-4 top-3 sm:right-6 sm:top-4 z-50">
             <UserMenu />
           </div>

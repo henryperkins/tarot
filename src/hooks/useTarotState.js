@@ -134,9 +134,9 @@ export function useTarotState(speak) {
       userQuestion
     });
 
-    // Always use random shuffling for complete randomness
-    const useSeed = false;
-    const nextSessionSeed = null;
+    // Use deterministic seed when the user performs any ritual or sets a question.
+    const useSeed = Boolean(hasKnocked || hasCut || (userQuestion && userQuestion.trim()));
+    const nextSessionSeed = useSeed ? seed : null;
 
     const cards = drawSpread({
       spreadKey: currentSpread,
