@@ -66,6 +66,13 @@ function getMinorPipCount(card) {
   return map[rank] || 0;
 }
 
+function getPrefersReducedMotion() {
+  if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
+    return false;
+  }
+  return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+}
+
 // Roman numeral helper to evoke authentic majors labeling
 function romanize(num) {
   if (num === 0) return '0';
@@ -108,7 +115,7 @@ export function Card({
 }) {
   const reflectionValue = reflections[index] || '';
   const revealedContentRef = useRef(null);
-  
+
   // Local state to manage the visual reveal sequence
   const [isVisuallyRevealed, setIsVisuallyRevealed] = useState(isRevealed);
   const controls = useAnimation();
@@ -117,12 +124,13 @@ export function Card({
   useEffect(() => {
     // Entry animation
     if (!hasMounted.current) {
+      const prefersReducedMotion = getPrefersReducedMotion();
       controls.start({
         opacity: 1,
         y: 0,
         scale: 1,
         rotateY: 0,
-        transition: { type: "spring", stiffness: 300, damping: 30, mass: 1.2 }
+        transition: prefersReducedMotion ? { duration: 0 } : { type: "spring", stiffness: 260, damping: 20 }
       });
       hasMounted.current = true;
     }
@@ -142,8 +150,13 @@ export function Card({
       // Start reveal sequence
       const sequence = async () => {
         console.log(`Card ${index} starting reveal sequence. Stagger: ${staggerDelay}`);
+
+        const prefersReducedMotion = getPrefersReducedMotion();
+        const duration = prefersReducedMotion ? 0 : 0.25;
+        const springTransition = prefersReducedMotion ? { duration: 0 } : { type: "spring", stiffness: 260, damping: 20 };
+
         // Wait for stagger delay
-        if (staggerDelay > 0) {
+        if (staggerDelay > 0 && !prefersReducedMotion) {
           await new Promise(resolve => setTimeout(resolve, staggerDelay * 1000));
         }
 
@@ -152,7 +165,7 @@ export function Card({
         await controls.start({
           rotateY: 90,
           opacity: 0.8,
-          transition: { duration: 0.25, ease: "easeIn" }
+          transition: { duration: duration, ease: "easeIn" }
         });
 
         // Phase 2: Swap content
@@ -164,11 +177,11 @@ export function Card({
         await controls.start({
           rotateY: 0,
           opacity: 1,
-          transition: { duration: 0.3, ease: "easeOut" }
+          transition: springTransition
         });
         console.log(`Card ${index} reveal complete`);
       };
-      
+
       sequence();
     } else {
       // Reset if needed (e.g. new game)
@@ -193,7 +206,7 @@ export function Card({
           layoutId={`card-${index}`}
           initial={{ opacity: 0, y: 50, scale: 0.9, rotateY: 0 }}
           animate={controls}
-          transition={{ type: "spring", stiffness: 300, damping: 30 }}
+          transition={{ type: "spring", stiffness: 260, damping: 20 }}
           onClick={() => {
             if (!isRevealed) onReveal(index);
             else if (onCardClick) onCardClick(card, position, index);

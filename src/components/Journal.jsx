@@ -1,10 +1,10 @@
 import React, { useDeferredValue, useCallback, useEffect, useMemo, useState } from 'react';
-import { ChevronLeft, LogIn, Upload } from 'lucide-react';
+import { ChevronLeft, Upload } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { GlobalNav } from './GlobalNav';
+import { UserMenu } from './UserMenu';
 import { useAuth } from '../contexts/AuthContext';
 import { useJournal } from '../hooks/useJournal';
-import AuthModal from './AuthModal';
 import { JournalFilters } from './JournalFilters.jsx';
 import { JournalInsightsPanel } from './JournalInsightsPanel.jsx';
 import { JournalEntryCard } from './JournalEntryCard.jsx';
@@ -31,9 +31,8 @@ const DECK_FILTERS = DECK_OPTIONS.map(d => ({ value: d.id, label: d.label }));
 const VISIBLE_ENTRY_BATCH = 10;
 
 export default function Journal() {
-  const { isAuthenticated, user, logout } = useAuth();
+  const { isAuthenticated } = useAuth();
   const { entries, loading, deleteEntry, migrateToCloud, error: journalError } = useJournal();
-  const [showAuthModal, setShowAuthModal] = useState(false);
   const [migrating, setMigrating] = useState(false);
   const [migrateMessage, setMigrateMessage] = useState('');
   const [deleteMessage, setDeleteMessage] = useState('');
@@ -337,27 +336,7 @@ export default function Journal() {
 
             {/* Auth controls */}
             <div className="flex items-center gap-4">
-              {isAuthenticated ? (
-                <>
-                  <span className="text-sm text-accent">
-                    {user?.username}
-                  </span>
-                  <button
-                    onClick={logout}
-                    className="text-sm text-accent hover:text-accent/80 underline"
-                  >
-                    Sign Out
-                  </button>
-                </>
-              ) : (
-                <button
-                  onClick={() => setShowAuthModal(true)}
-                  className="flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primary/90 text-white rounded-lg transition"
-                >
-                  <LogIn className="w-4 h-4" />
-                  <span>Sign In</span>
-                </button>
-              )}
+              <UserMenu />
             </div>
           </div>
 
@@ -388,14 +367,7 @@ export default function Journal() {
           ) : (
             <div className="mb-6 p-4 bg-primary/10 border border-primary/40 rounded-lg">
               <p className="text-sm text-accent">
-                Your journal is currently stored locally in this browser only.{' '}
-                <button
-                  onClick={() => setShowAuthModal(true)}
-                  className="underline hover:text-main"
-                >
-                  Sign in
-                </button>{' '}
-                to sync across devices.
+                Your journal is currently stored locally in this browser only. Use the Sign In button in the header to sync across devices.
               </p>
             </div>
           )}
@@ -479,8 +451,6 @@ export default function Journal() {
         </main>
       </div>
 
-      {/* Auth Modal */}
-      <AuthModal isOpen={showAuthModal} onClose={() => setShowAuthModal(false)} />
     </>
   );
 }

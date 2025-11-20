@@ -9,6 +9,7 @@ import { StepProgress } from './components/StepProgress';
 import { GuidedIntentionCoach } from './components/GuidedIntentionCoach';
 import { loadCoachRecommendation, saveCoachRecommendation } from './lib/journalInsights';
 import { GlobalNav } from './components/GlobalNav';
+import { UserMenu } from './components/UserMenu';
 import { DeckSelector } from './components/DeckSelector';
 import { MobileSettingsDrawer } from './components/MobileSettingsDrawer';
 import { useNavigate } from 'react-router-dom';
@@ -395,7 +396,10 @@ export default function TarotReading() {
           </div>
         </header>
 
-        <div className="full-bleed sticky top-0 z-30 py-3 sm:py-4 mb-6 bg-surface/95 backdrop-blur border-y border-accent/20 px-4 sm:px-5 md:px-6">
+        <div className="full-bleed sticky top-0 z-30 py-3 sm:py-4 mb-6 bg-surface/95 backdrop-blur border-y border-accent/20 px-4 sm:px-5 md:px-6 relative">
+          <div className="absolute right-4 top-3 sm:right-6 sm:top-4 z-50">
+            <UserMenu />
+          </div>
           <GlobalNav />
           <StepProgress steps={STEP_PROGRESS_STEPS} activeStep={activeStep} onSelect={handleStepNav} />
           {isShuffling && (
@@ -524,7 +528,11 @@ export default function TarotReading() {
             {reading && revealedCards.size < reading.length && (
               <>
                 <button onClick={dealNext} className="flex-1 min-w-[7.5rem] inline-flex items-center justify-center rounded-xl px-3 py-2.5 text-sm font-semibold transition bg-accent text-surface shadow-lg hover:opacity-90 flex-col gap-0.5"><span className="text-[0.55rem] uppercase tracking-[0.18em] opacity-70">{stepIndicatorLabel}</span><span className="text-sm font-semibold">Reveal next ({Math.min(dealIndex + 1, reading.length)}/{reading.length})</span></button>
-                {reading.length > 1 && <button onClick={revealAll} className="flex-1 min-w-[7.5rem] inline-flex items-center justify-center rounded-xl px-3 py-2.5 text-sm font-semibold transition bg-primary/20 text-primary border border-primary/40 hover:bg-primary/30 flex-col gap-0.5"><span className="text-[0.55rem] uppercase tracking-[0.18em] opacity-70">{stepIndicatorLabel}</span><span className="text-sm font-semibold">Reveal all</span></button>}
+                {reading.length > 1 && <button onClick={() => {
+                  revealAll();
+                  const behavior = prefersReducedMotion() ? 'auto' : 'smooth';
+                  readingSectionRef.current?.scrollIntoView({ behavior, block: 'start' });
+                }} className="flex-1 min-w-[7.5rem] inline-flex items-center justify-center rounded-xl px-3 py-2.5 text-sm font-semibold transition bg-primary/20 text-primary border border-primary/40 hover:bg-primary/30 flex-col gap-0.5"><span className="text-[0.55rem] uppercase tracking-[0.18em] opacity-70">{stepIndicatorLabel}</span><span className="text-sm font-semibold">Reveal all</span></button>}
               </>
             )}
 

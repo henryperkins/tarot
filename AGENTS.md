@@ -50,3 +50,11 @@
 ## User Updates & Preambles
 - Provide plan/preamble updates only when the task benefits from progress checkpoints; tune frequency and detail to the user’s requests.
 - Keep updates consistent in tone with the persona above, focusing on measurable progress rather than reiterating instructions.
+
+## Exploration & Tooling Workflow
+- Think through the task before running commands so you can identify all files or resources you need to read.
+- Batch file reads or searches together; default to running those commands in parallel rather than one-by-one.
+- Use `multi_tool_use.parallel` for every batch of read/list/search operations and avoid other parallelization tactics.
+- Only fall back to sequential reads when you truly cannot determine the next file before seeing the current result.
+- Follow the workflow: (a) decide all needed reads, (b) issue one parallel batch, (c) analyze results, (d) repeat only when new, unplanned reads arise.
+- Always maximize parallelism, including for commands like `cat`, `rg`, `ls`, `git show`, or `wc`; single-file reads are the only acceptable exception.

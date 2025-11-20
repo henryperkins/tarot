@@ -134,8 +134,9 @@ export function useTarotState(speak) {
       userQuestion
     });
 
-    const useSeed = Boolean(hasKnocked || hasCut || (userQuestion && userQuestion.trim()));
-    const nextSessionSeed = useSeed ? seed : null;
+    // Always use random shuffling for complete randomness
+    const useSeed = false;
+    const nextSessionSeed = null;
 
     const cards = drawSpread({
       spreadKey: currentSpread,

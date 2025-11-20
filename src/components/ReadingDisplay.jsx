@@ -1,10 +1,10 @@
 import React, { useMemo, useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { AnimatePresence } from 'framer-motion';
 import { Sparkles, RotateCcw, Star } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { SPREADS } from '../data/spreads';
 import { ReadingGrid } from './ReadingGrid';
-import { MarkdownRenderer } from './MarkdownRenderer';
+import { StreamingNarrative } from './StreamingNarrative';
 import { HelperToggle } from './HelperToggle';
 import { SpreadPatterns } from './SpreadPatterns';
 import { PatternHighlightBanner } from './PatternHighlightBanner';
@@ -83,6 +83,15 @@ export function ReadingDisplay({ sectionRef }) {
     // --- Derived State ---
     const isPersonalReadingError = Boolean(personalReading?.isError);
     const fullReadingText = !isPersonalReadingError ? personalReading?.raw || personalReading?.normalized || '' : '';
+    const narrativeText = useMemo(() => {
+        if (!personalReading) return '';
+        if (personalReading.hasMarkdown) return personalReading.raw || personalReading.normalized || '';
+        if (Array.isArray(personalReading.paragraphs) && personalReading.paragraphs.length > 0) {
+            return personalReading.paragraphs.join('\n\n');
+        }
+        return personalReading.normalized || personalReading.raw || '';
+    }, [personalReading]);
+    const shouldStreamNarrative = Boolean(personalReading && !personalReading.isError);
 
     // --- Handlers ---
     const handleNarrationWrapper = () => handleNarrationButtonClick(fullReadingText, isPersonalReadingError);
@@ -126,7 +135,10 @@ export function ReadingDisplay({ sectionRef }) {
 
                     {revealedCards.size < reading.length && (
                         <div className="hidden sm:block text-center">
-                            <button type="button" onClick={revealAll} className="bg-primary hover:bg-primary/90 text-white font-semibold px-4 sm:px-6 py-2.5 sm:py-3 rounded-full shadow-lg shadow-primary/30 transition-all flex items-center gap-2 sm:gap-3 mx-auto text-sm sm:text-base">
+                            <button type="button" onClick={() => {
+                                revealAll();
+                                sectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                            }} className="bg-primary hover:bg-primary/90 text-white font-semibold px-4 sm:px-6 py-2.5 sm:py-3 rounded-full shadow-lg shadow-primary/30 transition-all flex items-center gap-2 sm:gap-3 mx-auto text-sm sm:text-base">
                                 <Star className="w-4 h-4 sm:w-5 sm:h-5" /><span>Reveal All Cards</span>
                             </button>
                             <p className="text-accent/80 text-xs sm:text-sm mt-2 sm:mt-3">{revealedCards.size} of {reading.length} cards revealed</p>
@@ -223,11 +235,11 @@ export function ReadingDisplay({ sectionRef }) {
                                     passages={readingMeta.graphContext.retrievedPassages}
                                 />
                             )}
-                            {personalReading.hasMarkdown ? <MarkdownRenderer content={personalReading.raw} /> : (
-                                <div className="text-main leading-relaxed space-y-2 sm:space-y-3 md:space-y-4 max-w-none mx-auto text-left">
-                                    {personalReading.paragraphs && personalReading.paragraphs.length > 0 ? personalReading.paragraphs.map((para, idx) => (<p key={idx} className="text-[0.9rem] sm:text-base md:text-lg leading-relaxed md:leading-loose">{para}</p>)) : <p className="text-[0.9rem] sm:text-base md:text-lg leading-relaxed md:leading-loose whitespace-pre-line">{personalReading.normalized || personalReading.raw || ''}</p>}
-                                </div>
-                            )}
+                            <StreamingNarrative
+                                text={narrativeText}
+                                useMarkdown={Boolean(personalReading?.hasMarkdown)}
+                                isStreamingEnabled={shouldStreamNarrative}
+                            />
                             <div className="flex flex-col items-center justify-center gap-2 sm:gap-3 mt-3 sm:mt-4">
                                 {reading && personalReading && !isPersonalReadingError && (
                                     <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-3">
