@@ -221,6 +221,31 @@ describe('GraphRAG Retrieval', () => {
     assert.strictEqual(passages[0].metadata.triadId, 'death-temperance-star');
     assert.strictEqual(passages[0].metadata.isComplete, true);
   });
+
+  test('retrievePassages: reorders based on userQuery keywords', () => {
+    // Setup: Journey (P2) usually beats Dyad (P3)
+    const graphKeys = {
+      foolsJourneyStageKey: 'integration', // Priority 2 ("Shadow Work")
+      dyadPairs: [
+        { cards: [13, 17], significance: 'high' } // Priority 3 ("Death + Star")
+      ]
+    };
+
+    // Query matching the Dyad passage ("hope", "star") but not the Journey one
+    const query = 'I am looking for hope and the star in my life';
+    
+    const passages = retrievePassages(graphKeys, { 
+      maxPassages: 5,
+      userQuery: query 
+    });
+
+    assert.ok(passages.length >= 2);
+    
+    // The Dyad (Priority 3) should be boosted above Journey (Priority 2)
+    // because it matches 'hope' and 'star'
+    assert.strictEqual(passages[0].type, 'dyad', 'Dyad should be boosted to first position');
+    assert.strictEqual(passages[1].type, 'fools-journey', 'Journey should be second');
+  });
 });
 
 describe('GraphRAG Formatting', () => {

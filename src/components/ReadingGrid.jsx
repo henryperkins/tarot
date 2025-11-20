@@ -113,7 +113,7 @@ export function ReadingGrid({
               key={`${card.name}-${index}`}
               className={`modern-surface border border-secondary/40 ${selectedSpread === 'celtic'
                 ? toAreaClass(position)
-                : reading.length > 1 ? 'min-w-[85vw] snap-center sm:min-w-0' : ''
+                : reading.length > 1 ? 'min-w-[75vw] snap-center sm:min-w-0' : ''
                 }`}
             >
               <Tooltip

@@ -118,7 +118,8 @@ export function ReadingProvider({ children }) {
                     number: card.number,
                     suit,
                     rank,
-                    rankValue
+                    rankValue,
+                    userReflection: (reflections[idx] || '').trim() || null
                 };
             });
 

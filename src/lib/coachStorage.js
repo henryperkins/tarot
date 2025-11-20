@@ -20,11 +20,15 @@ function readFromStorage(key) {
 }
 
 function writeToStorage(key, value) {
-  if (typeof localStorage === 'undefined') return;
+  if (typeof localStorage === 'undefined') {
+    return { success: false, error: 'Coach storage is unavailable in this environment.' };
+  }
   try {
     localStorage.setItem(key, JSON.stringify(value));
+    return { success: true };
   } catch (error) {
     console.warn('Unable to persist coach storage payload:', error);
+    return { success: false, error: 'We could not update your coach data. Please check storage settings and try again.' };
   }
 }
 
@@ -63,7 +67,10 @@ export function saveCoachTemplate(template) {
     updatedAt: Date.now()
   };
   const next = [entry, ...filtered].slice(0, MAX_TEMPLATES);
-  writeToStorage(TEMPLATE_STORAGE_KEY, next);
+  const persistence = writeToStorage(TEMPLATE_STORAGE_KEY, next);
+  if (!persistence.success) {
+    return { success: false, error: persistence.error || 'Unable to save template right now.' };
+  }
   return { success: true, templates: next, template: entry };
 }
 
@@ -73,7 +80,14 @@ export function deleteCoachTemplate(templateId) {
   }
   const existing = loadCoachTemplates();
   const next = existing.filter(template => template.id !== templateId);
-  writeToStorage(TEMPLATE_STORAGE_KEY, next);
+  const persistence = writeToStorage(TEMPLATE_STORAGE_KEY, next);
+  if (!persistence.success) {
+    return {
+      success: false,
+      error: persistence.error || 'Unable to update templates right now.',
+      templates: existing
+    };
+  }
   return { success: true, templates: next };
 }
 
@@ -88,17 +102,28 @@ export function loadCoachHistory(limit = MAX_HISTORY_ITEMS) {
 
 export function recordCoachQuestion(question, limit = MAX_HISTORY_ITEMS) {
   const trimmed = (question || '').trim();
+  const normalizedLimit = typeof limit === 'number' && limit > 0 ? limit : MAX_HISTORY_ITEMS;
+  const historyPool = loadCoachHistory(normalizedLimit * 2);
+  const currentHistory = historyPool.slice(0, normalizedLimit);
+
   if (!trimmed) {
-    return loadCoachHistory(limit);
+    return { success: true, history: currentHistory };
   }
-  const history = loadCoachHistory(limit * 2);
-  const filtered = history.filter(entry => entry.question.toLowerCase() !== trimmed.toLowerCase());
+
+  const filtered = historyPool.filter(entry => entry.question.toLowerCase() !== trimmed.toLowerCase());
   const entry = {
     id: generateId('question'),
     question: trimmed,
     createdAt: Date.now()
   };
-  const next = [entry, ...filtered].slice(0, limit);
-  writeToStorage(HISTORY_STORAGE_KEY, next);
-  return next;
+  const next = [entry, ...filtered].slice(0, normalizedLimit);
+  const persistence = writeToStorage(HISTORY_STORAGE_KEY, next);
+  if (!persistence.success) {
+    return {
+      success: false,
+      history: currentHistory,
+      error: persistence.error || 'Question applied, but we could not save it to your recent history. Check browser storage or privacy settings.'
+    };
+  }
+  return { success: true, history: next };
 }

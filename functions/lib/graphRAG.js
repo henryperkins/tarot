@@ -137,9 +137,25 @@ export function retrievePassages(graphKeys, options = {}) {
       });
   }
 
-  // Sort by priority (lower number = higher priority), then limit
+  // Sort by priority (lower number = higher priority) and relevance to user query
+  const keywords = (options.userQuery || '').toLowerCase().match(/\w+/g) || [];
+  const significantKeywords = keywords.filter(w => w.length > 3 && !['what', 'when', 'where', 'which', 'this', 'that', 'have', 'from', 'with', 'about', 'card', 'reading'].includes(w));
+
+  passages.forEach(p => {
+    p.relevance = 0;
+    const text = (p.text + ' ' + (p.title || '') + ' ' + (p.theme || '')).toLowerCase();
+    significantKeywords.forEach(kw => {
+      if (text.includes(kw)) p.relevance += 1;
+    });
+  });
+
   const ranked = passages
-    .sort((a, b) => a.priority - b.priority)
+    .sort((a, b) => {
+      // Boost priority by 2.0 per keyword match (lower score is better)
+      const scoreA = a.priority - (a.relevance * 2.0);
+      const scoreB = b.priority - (b.relevance * 2.0);
+      return scoreA - scoreB;
+    })
     .slice(0, maxPassages);
 
   return ranked;

@@ -15,6 +15,7 @@ export function QuestionInput({
   const helperId = useId();
   const optionalId = useId();
   const [savedNotice, setSavedNotice] = useState(false);
+  const [saveError, setSaveError] = useState('');
 
   const handleRefreshExamples = () => {
     onPlaceholderRefresh?.();
@@ -23,9 +24,16 @@ export function QuestionInput({
   const handleSaveIntention = () => {
     const trimmed = userQuestion.trim();
     if (!trimmed) return;
-    recordCoachQuestion(trimmed);
-    setSavedNotice(true);
-    setTimeout(() => setSavedNotice(false), 1800);
+    const result = recordCoachQuestion(trimmed);
+    if (result.success) {
+      setSavedNotice(true);
+      setSaveError('');
+      setTimeout(() => setSavedNotice(false), 1800);
+    } else {
+      setSavedNotice(false);
+      setSaveError(result.error || 'Unable to save this question. Check browser storage settings.');
+      setTimeout(() => setSaveError(''), 3000);
+    }
   };
 
   const handleLaunchCoach = () => {
@@ -93,6 +101,7 @@ export function QuestionInput({
           Save intention
         </button>
         {savedNotice && <span className="text-primary text-xs">Saved ✓</span>}
+        {saveError && <span className="text-error text-xs">{saveError}</span>}
       </div>
     </div>
   );

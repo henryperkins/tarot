@@ -42,11 +42,11 @@ export function CardModal({ card, isOpen, onClose, position, layoutId }) {
             <motion.div
                 layoutId={layoutId}
                 ref={modalRef}
-                className="relative w-full max-w-lg max-h-[90vh] overflow-y-auto bg-surface border border-primary/30 rounded-2xl shadow-2xl shadow-black/50 flex flex-col"
+                className="relative w-full max-w-lg max-h-[85dvh] overflow-y-auto bg-surface border border-primary/30 rounded-2xl shadow-2xl shadow-black/50 flex flex-col"
             >
                 <button
                     onClick={onClose}
-                    className="absolute top-4 right-4 p-2 text-accent/70 hover:text-main hover:bg-white/10 rounded-full transition-colors z-10"
+                    className="absolute top-4 right-4 p-3 text-accent/70 hover:text-main hover:bg-white/10 rounded-full transition-colors z-10 touch-manipulation"
                     aria-label="Close modal"
                 >
                     <X className="w-6 h-6" />
@@ -60,7 +60,7 @@ export function CardModal({ card, isOpen, onClose, position, layoutId }) {
 
                     <motion.div
                         layoutId={layoutId ? `card-image-${layoutId.split('-')[1]}` : undefined}
-                        className={`relative w-full max-w-[300px] mb-8 ${card.isReversed ? 'rotate-180' : ''}`}
+                        className={`relative w-full max-w-[300px] aspect-[3/5] mb-8 ${card.isReversed ? 'rotate-180' : ''}`}
                     >
                         <img
                             src={card.image}

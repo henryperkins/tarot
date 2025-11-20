@@ -104,6 +104,38 @@ const SPREAD_NAMES = {
   single: 'One-Card Insight'
 };
 
+function describePrefillSource(source) {
+  if (!source) return null;
+  const label = typeof source.label === 'string' ? source.label.trim() : '';
+  const normalizedSource = typeof source.source === 'string' ? source.source.toLowerCase() : '';
+
+  if (normalizedSource === 'template') {
+    return label ? `template "${label}"` : 'a saved template';
+  }
+
+  if (normalizedSource === 'suggestion') {
+    return label ? `suggestion "${label}"` : 'a personalized suggestion';
+  }
+
+  if (normalizedSource === 'journal' || normalizedSource === 'insight' || normalizedSource === 'insights') {
+    return label ? `journal insight "${label}"` : 'your journal insights';
+  }
+
+  if (normalizedSource && label) {
+    return `${source.source} "${label}"`;
+  }
+
+  if (label) {
+    return label;
+  }
+
+  if (normalizedSource) {
+    return source.source;
+  }
+
+  return 'your journal insights';
+}
+
 function buildPersonalizedSuggestions(stats, history = []) {
   const suggestions = [];
   if (stats?.frequentCards?.length) {
@@ -194,6 +226,7 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply 
   const [questionText, setQuestionText] = useState('');
   const [questionLoading, setQuestionLoading] = useState(false);
   const [questionError, setQuestionError] = useState('');
+  const [historyStatus, setHistoryStatus] = useState('');
   const [autoQuestionEnabled, setAutoQuestionEnabled] = useState(true);
   const [prefillSource, setPrefillSource] = useState(null);
   const [templates, setTemplates] = useState([]);
@@ -204,6 +237,7 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply 
   const [coachStatsMeta, setCoachStatsMeta] = useState(null);
   const [personalizedSuggestions, setPersonalizedSuggestions] = useState([]);
   const [isTemplatePanelOpen, setTemplatePanelOpen] = useState(false);
+  const [remixCount, setRemixCount] = useState(0);
   const modalRef = React.useRef(null);
   const titleId = React.useId();
   const questionRequestRef = useRef(0);
@@ -213,6 +247,7 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply 
       setAutoQuestionEnabled(true);
     }
   };
+  const prefillSourceDescription = useMemo(() => describePrefillSource(prefillSource), [prefillSource]);
 
   const refreshSuggestions = () => {
     setPersonalizedSuggestions(buildPersonalizedSuggestions(coachStats, questionHistory));
@@ -229,6 +264,9 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply 
       setTemplateStatus('Add or generate a question before saving.');
       return;
     }
+    const normalizedLabel = label.toLowerCase();
+    const previousTemplateCount = templates.length;
+    const replacedExisting = templates.some(template => template.label?.toLowerCase() === normalizedLabel);
     const payload = {
       label,
       topic,
@@ -241,8 +279,16 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply 
     const result = saveCoachTemplate(payload);
     if (result.success) {
       setTemplates(result.templates);
-      const limitReached = templates.length >= MAX_TEMPLATES;
-      setTemplateStatus(limitReached ? 'Template saved (oldest archived to keep 8 max).' : 'Template saved');
+      const archivedOldest =
+        !replacedExisting &&
+        previousTemplateCount >= MAX_TEMPLATES &&
+        (result.templates?.length || 0) >= MAX_TEMPLATES;
+      const status = archivedOldest
+        ? 'Template saved (oldest archived to keep 8 max).'
+        : replacedExisting
+          ? 'Template updated'
+          : 'Template saved';
+      setTemplateStatus(status);
       setNewTemplateLabel('');
       setTimeout(() => setTemplateStatus(''), 2600);
     } else if (result.error) {
@@ -285,6 +331,9 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply 
       setTemplates(result.templates);
       setTemplateStatus('Template removed');
       setTimeout(() => setTemplateStatus(''), 1800);
+    } else if (result.error) {
+      setTemplateStatus(result.error);
+      setTimeout(() => setTemplateStatus(''), 2600);
     }
   };
 
@@ -408,8 +457,15 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply 
       setTemplateStatus('');
       setNewTemplateLabel('');
       setTemplatePanelOpen(false);
+      setHistoryStatus('');
     }
   }, [isOpen]);
+
+  useEffect(() => {
+    if (!historyStatus) return undefined;
+    const timer = setTimeout(() => setHistoryStatus(''), 5000);
+    return () => clearTimeout(timer);
+  }, [historyStatus]);
 
   // Escape key handler and focus management
   useEffect(() => {
@@ -432,7 +488,7 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply 
 
   const guidedQuestion = useMemo(
     () => buildGuidedQuestion({ topic, timeframe, depth, customFocus }),
-    [topic, timeframe, depth, customFocus]
+    [topic, timeframe, depth, customFocus, remixCount]
   );
 
   useEffect(() => {
@@ -444,47 +500,51 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply 
       return;
     }
 
-    const requestId = questionRequestRef.current + 1;
-    questionRequestRef.current = requestId;
-
-    if (useCreative) {
-      setQuestionLoading(true);
-      setQuestionError('');
-      (async () => {
-        try {
-          const { question: creative, source } = await buildCreativeQuestion({ topic, timeframe, depth, customFocus });
-          if (questionRequestRef.current !== requestId) {
-            return;
-          }
-          if (creative) {
-            setQuestionText(creative);
-            setQuestionError(source === 'local' ? 'Using on-device generator for now.' : '');
-          } else {
-            setQuestionText(guidedQuestion);
-            setQuestionError('Personalized mode is temporarily unavailable. Showing guided version.');
-          }
-        } catch (error) {
-          if (questionRequestRef.current !== requestId) {
-            return;
-          }
-          setQuestionText(guidedQuestion);
-          setQuestionError('Personalized mode is temporarily unavailable. Showing guided version.');
-        } finally {
-          if (questionRequestRef.current === requestId) {
-            setQuestionLoading(false);
-          }
-        }
-      })();
-    } else {
+    // If not in creative mode, update immediately
+    if (!useCreative) {
       setQuestionLoading(false);
       setQuestionError('');
       setQuestionText(guidedQuestion);
+      return;
     }
 
+    const requestId = questionRequestRef.current + 1;
+    questionRequestRef.current = requestId;
+
+    setQuestionLoading(true);
+    setQuestionError('');
+
+    const timerId = setTimeout(async () => {
+      try {
+        const { question: creative, source } = await buildCreativeQuestion({ topic, timeframe, depth, customFocus });
+        if (questionRequestRef.current !== requestId) {
+          return;
+        }
+        if (creative) {
+          setQuestionText(creative);
+          setQuestionError(source === 'local' ? 'Using on-device generator for now.' : '');
+        } else {
+          setQuestionText(guidedQuestion);
+          setQuestionError('Personalized mode is temporarily unavailable. Showing guided version.');
+        }
+      } catch (error) {
+        if (questionRequestRef.current !== requestId) {
+          return;
+        }
+        setQuestionText(guidedQuestion);
+        setQuestionError('Personalized mode is temporarily unavailable. Showing guided version.');
+      } finally {
+        if (questionRequestRef.current === requestId) {
+          setQuestionLoading(false);
+        }
+      }
+    }, 800);
+
     return () => {
+      clearTimeout(timerId);
       questionRequestRef.current += 1;
     };
-  }, [guidedQuestion, useCreative, topic, timeframe, depth, customFocus, isOpen, autoQuestionEnabled]);
+  }, [guidedQuestion, useCreative, topic, timeframe, depth, customFocus, isOpen, autoQuestionEnabled, remixCount]);
 
   const questionQuality = useMemo(
     () => scoreQuestion(questionText || guidedQuestion || ''),
@@ -501,16 +561,16 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply 
   const questionContextChips = useMemo(() => {
     const chips = [];
     if (summary.topicLabel) {
-      chips.push(`Topic: ${summary.topicLabel}`);
+      chips.push({ label: summary.topicLabel, type: 'Topic', step: 0 });
     }
     if (summary.timeframeLabel) {
-      chips.push(`Timing: ${summary.timeframeLabel}`);
+      chips.push({ label: summary.timeframeLabel, type: 'Timing', step: 1 });
     }
     if (summary.depthLabel) {
-      chips.push(`Depth: ${summary.depthLabel}`);
+      chips.push({ label: summary.depthLabel, type: 'Depth', step: 2 });
     }
     if (customFocus?.trim()) {
-      chips.push(`Detail: ${customFocus.trim()}`);
+      chips.push({ label: customFocus.trim(), type: 'Detail', action: 'focus' });
     }
     return chips;
   }, [summary.topicLabel, summary.timeframeLabel, summary.depthLabel, customFocus]);
@@ -559,10 +619,20 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply 
     }
 
     onApply?.(questionText);
-    const updatedHistory = recordCoachQuestion(questionText);
-    setQuestionHistory(updatedHistory);
-    refreshSuggestions();
-    onClose?.();
+    const historyResult = recordCoachQuestion(questionText);
+    if (historyResult?.history) {
+      setQuestionHistory(historyResult.history);
+    }
+    if (historyResult?.success) {
+      setHistoryStatus('');
+      refreshSuggestions();
+      onClose?.();
+      return;
+    }
+    const message =
+      historyResult?.error ||
+      'Your question was used, but we could not save it to recent history. Check storage permissions and try again.';
+    setHistoryStatus(message);
   };
 
   return (
@@ -749,18 +819,39 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply 
                     </div>
 
                     <div className="rounded-2xl border border-accent/30 bg-accent/5 p-4 space-y-4">
-                      <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
+                      <div className="flex flex-col gap-2">
                         <div>
                           <p className="flex items-center gap-2 text-xs uppercase tracking-[0.3em] text-secondary">
                             <Sparkles className="h-3.5 w-3.5 text-secondary" aria-hidden="true" />
-                            Question blueprint
+                            Review & Refine
                           </p>
-                          <p className="text-xs text-secondary/80">
-                            Adjust the topic, timing, or depth and we’ll re-weave the wording automatically.
+                          <p className="text-xs text-secondary/80 mt-1">
+                            Tap a tag to adjust that setting or toggle AI for a creative spin.
                           </p>
                         </div>
-                        <div className="flex flex-wrap items-center gap-2">
-                          <label className="inline-flex items-center gap-2 rounded-full border border-secondary/40 bg-surface/50 px-3 py-1.5 text-[0.7rem] text-secondary cursor-pointer select-none">
+
+                        {questionContextChips.length > 0 && (
+                          <div className="flex flex-wrap gap-2 py-2">
+                            {questionContextChips.map((chip, idx) => (
+                              <button
+                                key={`${chip.label}-${idx}`}
+                                onClick={() => {
+                                  if (typeof chip.step === 'number') setStep(chip.step);
+                                  if (chip.action === 'focus') {
+                                    document.getElementById('custom-focus')?.focus();
+                                  }
+                                }}
+                                className="rounded-full border border-secondary/40 bg-surface/50 px-3 py-1 text-[0.65rem] uppercase tracking-[0.2em] text-secondary/80 hover:bg-secondary/10 hover:border-secondary transition"
+                              >
+                                <span className="font-bold opacity-50 mr-1">{chip.type}:</span>
+                                {chip.label}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+
+                        <div className="flex flex-wrap items-center gap-2 pt-1">
+                          <label className="inline-flex items-center gap-2 rounded-full border border-secondary/40 bg-surface/50 px-3 py-1.5 text-[0.7rem] text-secondary cursor-pointer select-none hover:bg-secondary/5 transition">
                             <input
                               type="checkbox"
                               className="h-4 w-4 rounded border-secondary/60 bg-transparent text-secondary focus:ring-secondary"
@@ -782,6 +873,7 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply 
                               setPrefillSource(null);
                               setAutoQuestionEnabled(true);
                               setQuestionError('');
+                              setRemixCount(c => c + 1);
                             }}
                             className="inline-flex items-center gap-1 rounded-full border border-secondary/60 bg-transparent px-3 py-1.5 text-[0.7rem] font-semibold text-secondary hover:bg-secondary/10 transition"
                           >
@@ -790,9 +882,10 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply 
                           </button>
                         </div>
                       </div>
-                      {prefillSource && (
+
+                      {prefillSource && prefillSourceDescription && (
                         <p className="text-xs text-secondary/80">
-                          <span className="font-semibold text-secondary">Auto-filled</span> from your journal insights.
+                          <span className="font-semibold text-secondary">Auto-filled</span> from {prefillSourceDescription}.
                         </p>
                       )}
                       {questionLoading && (
@@ -801,26 +894,15 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply 
                       {questionError && (
                         <p className="text-xs text-accent/80">{questionError}</p>
                       )}
-                      <div className="rounded-2xl border border-secondary/30 bg-surface/60 p-4 space-y-3">
-                        <div className="flex items-center gap-2 text-[0.65rem] uppercase tracking-[0.3em] text-secondary/80">
+                      
+                      <div className="rounded-2xl border border-secondary/30 bg-surface/60 p-5 space-y-3 text-center">
+                        <div className="flex items-center justify-center gap-2 text-[0.65rem] uppercase tracking-[0.3em] text-secondary/80">
                           <Sparkles className="h-4 w-4 text-secondary" aria-hidden="true" />
-                          Current draft
+                          Your Question
                         </div>
-                        <p className="font-serif text-xl text-main leading-relaxed">
+                        <p className="font-serif text-xl sm:text-2xl text-main leading-relaxed">
                           {questionText || guidedQuestion}
                         </p>
-                        {questionContextChips.length > 0 && (
-                          <div className="flex flex-wrap gap-2 pt-1">
-                            {questionContextChips.map(chip => (
-                              <span
-                                key={chip}
-                                className="rounded-full border border-secondary/40 bg-transparent px-3 py-1 text-[0.65rem] uppercase tracking-[0.2em] text-secondary/80"
-                              >
-                                {chip}
-                              </span>
-                            ))}
-                          </div>
-                        )}
                       </div>
 
                       {/* Question Quality Indicator */}
@@ -855,7 +937,7 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply 
 
                       {/* Quality Feedback */}
                       {questionQuality.feedback.length > 0 && questionQuality.score < 85 && (
-                        <div className="rounded-2xl border border-accent/30 bg-accent/5 p-3 text-xs text-muted space-y-1">
+                        <div className="rounded-2xl border border-accent/30 bg-accent/5 p-3 text-xs text-muted space-y-1 text-left">
                           {questionQuality.feedback.slice(0, 2).map((tip, i) => (
                             <p key={i} className="flex items-start gap-1">
                               <span className="text-secondary mt-0.5">•</span>
@@ -926,22 +1008,28 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply 
           </div>
 
           {/* Footer - outside scroll area on mobile, inline on desktop */}
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between flex-shrink-0 sm:static bg-main sm:bg-transparent pt-4 sm:pt-0 px-4 sm:px-10 pb-safe sm:pb-6 border-t sm:border-t-0 border-accent/20">
-            <div className="text-xs text-muted hidden sm:block">
-              <p>
-                {summary.topicLabel} · {summary.timeframeLabel} · {summary.depthLabel}
+          <div className="flex flex-col gap-2 flex-shrink-0 sm:static bg-main sm:bg-transparent pt-4 sm:pt-0 px-4 sm:px-10 pb-safe sm:pb-6 border-t sm:border-t-0 border-accent/20">
+            {historyStatus && (
+              <p className="text-xs text-error text-center sm:text-left">
+                {historyStatus}
               </p>
-            </div>
-            <div className="flex items-center gap-3 w-full sm:w-auto">
-              <button
-                type="button"
-                onClick={goBack}
-                disabled={step === 0}
-                className="inline-flex items-center justify-center gap-1 rounded-full border border-accent/20 px-4 py-2.5 sm:py-2 text-sm text-main transition disabled:opacity-40 min-h-[44px] sm:min-h-0 flex-1 sm:flex-none touch-manipulation"
-              >
-                <ArrowLeft className="h-4 w-4" />
-                <span>Back</span>
-              </button>
+            )}
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="text-xs text-muted hidden sm:block">
+                <p>
+                  {summary.topicLabel} · {summary.timeframeLabel} · {summary.depthLabel}
+                </p>
+              </div>
+              <div className="flex items-center gap-3 w-full sm:w-auto">
+                <button
+                  type="button"
+                  onClick={goBack}
+                  disabled={step === 0}
+                  className="inline-flex items-center justify-center gap-1 rounded-full border border-accent/20 px-4 py-2.5 sm:py-2 text-sm text-main transition disabled:opacity-40 min-h-[44px] sm:min-h-0 flex-1 sm:flex-none touch-manipulation"
+                >
+                  <ArrowLeft className="h-4 w-4" />
+                  <span>Back</span>
+                </button>
               {step < STEPS.length - 1 ? (
                 <button
                   type="button"
@@ -964,6 +1052,7 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply 
                 </button>
               )}
             </div>
+          </div>
           </div>
         </div>
       </div>

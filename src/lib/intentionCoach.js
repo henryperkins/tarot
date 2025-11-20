@@ -262,8 +262,9 @@ export function buildGuidedQuestion({ topic, timeframe, depth, customFocus }) {
     case 'support': {
       const closing = depthData.closing ? ` ${depthData.closing}` : '';
       const variants = [
-        `${depthData.opener} to support ${focus}${timeframeText}${closing}`,
-        `${depthData.opener} hold space for ${focus}${timeframeText}${closing}`
+        `${depthData.opener} support ${focus}${timeframeText}${closing}`,
+        `${depthData.opener} hold space for ${focus}${timeframeText}${closing}`,
+        `${depthData.opener} bring balance to ${focus}${timeframeText}`
       ];
       return ensureQuestionMark(pickVariant(variants, focus));
     }
@@ -271,14 +272,16 @@ export function buildGuidedQuestion({ topic, timeframe, depth, customFocus }) {
       const closing = depthData.closing ? ` ${depthData.closing}` : '';
       const variants = [
         `${depthData.opener} ${focus}${timeframeText}${closing}`,
-        `${depthData.opener} stay aligned with ${focus}${timeframeText}${closing}`
+        `${depthData.opener} stay aligned with ${focus}${timeframeText}${closing}`,
+        `${depthData.opener} make progress in ${focus}${timeframeText}`
       ];
       return ensureQuestionMark(pickVariant(variants, focus));
     }
     case 'lesson': {
       const variants = [
         `${depthData.opener} from ${focus}${timeframeText}`,
-        `What deeper lesson is ${focus} offering${timeframeText}`
+        `What deeper lesson is ${focus} offering${timeframeText}`,
+        `What is the hidden gift within ${focus}${timeframeText}`
       ];
       return ensureQuestionMark(pickVariant(variants, focus));
     }
@@ -287,7 +290,8 @@ export function buildGuidedQuestion({ topic, timeframe, depth, customFocus }) {
       const relationshipVariants = [
         `${depthData.opener} with ${focus}${timeframeText}${closing}`,
         `What would help me feel closer to ${focus}${timeframeText}${closing}`,
-        `How might I nurture ${focus}${timeframeText}${closing}`
+        `How might I nurture ${focus}${timeframeText}${closing}`,
+        `What must I release to transform ${focus}${timeframeText}`
       ];
       return ensureQuestionMark(pickVariant(relationshipVariants, `${focus}|${timeframe}|${depth}`));
     }

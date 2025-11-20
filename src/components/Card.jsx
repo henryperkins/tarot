@@ -308,6 +308,9 @@ export function Card({
                   onChange={event =>
                     setReflections(prev => ({ ...prev, [index]: event.target.value }))
                   }
+                  onClick={event => event.stopPropagation()}
+                  onPointerDown={event => event.stopPropagation()}
+                  onFocus={event => event.stopPropagation()}
                   rows={3}
                   maxLength={500}
                   className="w-full bg-surface/85 border border-secondary/40 rounded p-2 min-h-[4.5rem] resize-y text-main text-sm sm:text-base focus:outline-none focus:ring-1 focus:ring-secondary/55"
