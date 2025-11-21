@@ -967,7 +967,7 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply 
                     <p className="text-[0.65rem] uppercase tracking-[0.2em] text-secondary/70">
                       {coachStatsMeta.filterLabel}
                       {typeof coachStatsMeta.entryCount === 'number' && coachStatsMeta.entryCount >= 0 && (
-                        <span className="ml-1 normal-case capitalize text-secondary/60">
+                        <span className="ml-1 normal-case text-secondary/60">
                           ({coachStatsMeta.entryCount} entr{coachStatsMeta.entryCount === 1 ? 'y' : 'ies'})
                         </span>
                       )}
