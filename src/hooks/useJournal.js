@@ -146,6 +146,11 @@ export function useJournal({ autoLoad = true } = {}) {
           return next;
         });
 
+        // Track card appearances for archetype journey analytics
+        if (Array.isArray(entry.cards) && entry.cards.length > 0) {
+          trackCardAppearances(entry.cards, newEntry.ts);
+        }
+
         return { success: true, entry: newEntry };
       } else {
         // Save to localStorage
@@ -178,6 +183,32 @@ export function useJournal({ autoLoad = true } = {}) {
       console.error('Failed to save journal entry:', err);
       setError(err.message);
       return { success: false, error: err.message };
+    }
+  };
+
+  /**
+   * Track card appearances for archetype journey analytics
+   */
+  const trackCardAppearances = async (cards, timestamp) => {
+    if (!isAuthenticated) {
+      return; // Only track for authenticated users
+    }
+
+    try {
+      await fetch('/api/archetype-journey/track', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+          cards,
+          timestamp
+        })
+      });
+      // Silent failure - don't block reading save if tracking fails
+    } catch (err) {
+      console.warn('Failed to track card appearances:', err);
     }
   };
 

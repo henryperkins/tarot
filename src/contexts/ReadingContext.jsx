@@ -202,6 +202,8 @@ export function ReadingProvider({ children }) {
 
             const formatted = formatReading(data.reading.trim());
             formatted.isError = false;
+            formatted.provider = data.provider || 'local-composer';
+            formatted.requestId = data.requestId || null;
             setPersonalReading(formatted);
             setLastCardsForFeedback(
                 cardsInfo.map((card) => ({

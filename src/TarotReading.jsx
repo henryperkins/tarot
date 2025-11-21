@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import { RotateCcw, Settings } from 'lucide-react';
+import { ArrowCounterClockwise, Gear } from '@phosphor-icons/react';
 import { SPREADS } from './data/spreads';
 import { EXAMPLE_QUESTIONS } from './data/exampleQuestions';
 import { SpreadSelector } from './components/SpreadSelector';
@@ -404,7 +404,7 @@ export default function TarotReading() {
           <StepProgress steps={STEP_PROGRESS_STEPS} activeStep={activeStep} onSelect={handleStepNav} />
           {isShuffling && (
             <div className="mt-2 flex items-center gap-2 text-muted text-[clamp(0.85rem,2.4vw,0.95rem)] leading-snug" role="status" aria-live="polite">
-              <RotateCcw className="w-3.5 h-3.5 animate-spin text-accent" aria-hidden="true" />
+              <ArrowCounterClockwise className="w-3.5 h-3.5 animate-spin text-accent" aria-hidden="true" />
               <span>Shuffling the deck...</span>
             </div>
           )}
@@ -519,7 +519,7 @@ export default function TarotReading() {
             {!isShuffling && !reading && (
               <>
                 <button onClick={() => setIsMobileSettingsOpen(true)} className="flex-none w-[3.5rem] inline-flex items-center justify-center rounded-xl px-0 py-2.5 text-sm font-semibold transition bg-surface-muted text-accent border border-accent/30 hover:bg-surface flex-col gap-0.5" aria-label="Settings">
-                  <Settings className="w-5 h-5" />
+                  <Gear className="w-5 h-5" />
                 </button>
                 <button onClick={handleShuffle} className="flex-1 min-w-[7.5rem] inline-flex items-center justify-center rounded-xl px-3 py-2.5 text-sm font-semibold transition bg-accent text-surface shadow-lg hover:opacity-90 flex-col gap-0.5"><span className="text-[0.55rem] uppercase tracking-[0.18em] opacity-70">{stepIndicatorLabel}</span><span className="text-sm font-semibold">Draw cards</span></button>
               </>

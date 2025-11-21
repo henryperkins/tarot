@@ -1,5 +1,5 @@
 import React from 'react';
-import { X } from 'lucide-react';
+import { X } from '@phosphor-icons/react';
 
 export function MobileSettingsDrawer({ isOpen, onClose, children }) {
     if (!isOpen) return null;
@@ -18,7 +18,7 @@ export function MobileSettingsDrawer({ isOpen, onClose, children }) {
                 className="relative w-full bg-surface rounded-t-2xl border-t border-primary/30 shadow-2xl max-h-[85vh] flex flex-col animate-slide-up"
                 role="dialog"
                 aria-modal="true"
-                aria-label="Reading Settings"
+                aria-label="Reading Gear"
             >
                 {/* Header */}
                 <div className="flex items-center justify-between px-4 py-3 bg-surface/95 border-b border-accent/20 rounded-t-2xl backdrop-blur shrink-0">

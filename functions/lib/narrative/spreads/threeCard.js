@@ -15,7 +15,7 @@ import {
   DEFAULT_WEIGHT_DETAIL_THRESHOLD
 } from '../helpers.js';
 
-export function buildThreeCardReading({
+export async function buildThreeCardReading({
   cardsInfo,
   userQuestion,
   reflectionsText,
@@ -93,13 +93,13 @@ export function buildThreeCardReading({
     sections.push(supportingSummary);
   }
 
-  sections.push(buildThreeCardSynthesis(cardsInfo, themes, userQuestion, context));
+  sections.push(await buildThreeCardSynthesis(cardsInfo, themes, userQuestion, context));
 
   const full = sections.filter(Boolean).join('\n\n');
   return appendReversalReminder(full, cardsInfo, themes);
 }
 
-function buildThreeCardSynthesis(cardsInfo, themes, userQuestion, context) {
+async function buildThreeCardSynthesis(cardsInfo, themes, userQuestion, context) {
   let section = `### Guidance\n\n`;
 
   if (context && context !== 'general') {
@@ -108,6 +108,17 @@ function buildThreeCardSynthesis(cardsInfo, themes, userQuestion, context) {
 
   if (themes.suitFocus) {
     section += `${themes.suitFocus}\n\n`;
+  }
+
+  // Elemental remedies if imbalanced
+  if (themes.elementCounts && themes.elementalBalance) {
+    const { buildElementalRemedies, shouldOfferElementalRemedies } = await import('../helpers.js');
+    if (shouldOfferElementalRemedies(themes.elementCounts, cardsInfo.length)) {
+      const remedies = buildElementalRemedies(themes.elementCounts, cardsInfo.length, context);
+      if (remedies) {
+        section += `${themes.elementalBalance}\n\n${remedies}\n\n`;
+      }
+    }
   }
 
   // Timing profile (if available)

@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { Info } from 'lucide-react';
+import { Info } from '@phosphor-icons/react';
 import { buildCardInsights } from '../lib/cardInsights';
 
 export function CardSymbolInsights({ card, position }) {

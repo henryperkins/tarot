@@ -1,5 +1,5 @@
 import React, { useId, useState } from 'react';
-import { RefreshCw, Sparkles } from 'lucide-react';
+import { ArrowsClockwise, Sparkle } from '@phosphor-icons/react';
 import { EXAMPLE_QUESTIONS } from '../data/exampleQuestions';
 import { recordCoachQuestion } from '../lib/coachStorage';
 
@@ -58,7 +58,7 @@ export function QuestionInput({
             title="Shortcut: Shift+G"
             aria-label="Open guided coach (Shift+G)"
           >
-            <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
+            <Sparkle className="h-3.5 w-3.5" aria-hidden="true" />
             Guided coach
           </button>
         )}
@@ -84,11 +84,11 @@ export function QuestionInput({
           className="absolute inset-y-0 right-3 flex items-center justify-center text-muted hover:text-main focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-surface rounded-full"
           aria-label="Cycle example intention prompts"
         >
-          <RefreshCw className="w-4 h-4" aria-hidden="true" />
+          <ArrowsClockwise className="w-4 h-4" aria-hidden="true" />
         </button>
       </div>
       <p id={helperId} className="text-muted text-xs flex items-center gap-2">
-        <RefreshCw className="w-3.5 h-3.5 text-primary" aria-hidden="true" />
+        <ArrowsClockwise className="w-3.5 h-3.5 text-primary" aria-hidden="true" />
         Need inspiration? Tap the refresh icon to cycle example questions.
       </p>
       <div className="flex items-center gap-3">

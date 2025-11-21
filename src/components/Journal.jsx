@@ -1,5 +1,5 @@
 import React, { useDeferredValue, useCallback, useEffect, useMemo, useState } from 'react';
-import { ChevronLeft, Upload } from 'lucide-react';
+import { CaretLeft, UploadSimple } from '@phosphor-icons/react';
 import { useNavigate } from 'react-router-dom';
 import { GlobalNav } from './GlobalNav';
 import { UserMenu } from './UserMenu';
@@ -330,7 +330,7 @@ export default function Journal() {
               onClick={() => navigate('/')}
               className="flex items-center text-accent hover:text-main"
             >
-              <ChevronLeft className="w-5 h-5 mr-2" />
+              <CaretLeft className="w-5 h-5 mr-2" />
               Back to Reading
             </button>
 
@@ -353,7 +353,7 @@ export default function Journal() {
                   onClick={handleMigrate}
                   className="mt-2 flex items-center gap-2 text-sm text-secondary hover:text-secondary/80 underline"
                 >
-                  <Upload className="w-4 h-4" />
+                  <UploadSimple className="w-4 h-4" />
                   Migrate localStorage entries to cloud
                 </button>
               )}

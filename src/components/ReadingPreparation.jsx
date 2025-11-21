@@ -1,5 +1,5 @@
 import React from 'react';
-import { ChevronDown, ChevronUp } from 'lucide-react';
+import { CaretDown, CaretUp } from '@phosphor-icons/react';
 import { QuestionInput } from './QuestionInput';
 import { SettingsToggles } from './SettingsToggles';
 import { CoachSuggestion } from './CoachSuggestion';
@@ -116,7 +116,7 @@ export function ReadingPreparation({
                                 <p className="text-accent font-serif text-sm">{prepareSectionLabels[section].title}</p>
                                 <p className="text-xs text-muted">{prepareSummaries[section]}</p>
                             </div>
-                            {prepareSectionsOpen[section] ? <ChevronUp className="w-4 h-4 text-accent" /> : <ChevronDown className="w-4 h-4 text-accent" />}
+                            {prepareSectionsOpen[section] ? <CaretUp className="w-4 h-4 text-accent" /> : <CaretDown className="w-4 h-4 text-accent" />}
                         </button>
                         {prepareSectionsOpen[section] && (
                             <div className="px-4 pb-4 pt-2">

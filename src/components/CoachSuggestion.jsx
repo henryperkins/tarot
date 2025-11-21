@@ -1,5 +1,5 @@
 import React from 'react';
-import { Sparkles } from 'lucide-react';
+import { Sparkle } from '@phosphor-icons/react';
 
 export function CoachSuggestion({
     recommendation,
@@ -43,7 +43,7 @@ export function CoachSuggestion({
         <div className={containerClasses}>
             {showTitle && (
                 <h3 className={titleClasses}>
-                    <Sparkles className="h-3 w-3" /> Suggested Focus
+                    <Sparkle className="h-3 w-3" /> Suggested Focus
                 </h3>
             )}
 

@@ -1,9 +1,10 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { motion, useAnimation } from 'framer-motion';
-import { Maximize2 } from 'lucide-react';
+import { ArrowsOut } from '@phosphor-icons/react';
 import { MAJOR_ARCANA } from '../data/majorArcana';
 import { MINOR_ARCANA } from '../data/minorArcana';
 import { CardSymbolInsights } from './CardSymbolInsights';
+import { InteractiveCardOverlay } from './InteractiveCardOverlay';
 
 function isMinor(card) {
   return !!card.suit && !!card.rank;
@@ -203,7 +204,6 @@ export function Card({
       {/* Card */}
       <div className="p-3 sm:p-4 md:p-6" style={{ perspective: '1000px' }}>
         <motion.div
-          layoutId={`card-${index}`}
           initial={{ opacity: 0, y: 50, scale: 0.9, rotateY: 0 }}
           animate={controls}
           transition={{ type: "spring", stiffness: 260, damping: 20 }}
@@ -251,25 +251,29 @@ export function Card({
               {/* Zoom Icon Overlay */}
               <div className="absolute top-0 right-0 z-10 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
                 <div className="bg-surface-muted/80 p-1.5 rounded-full text-accent border border-primary/30 shadow-lg backdrop-blur-sm">
-                  <Maximize2 className="w-4 h-4" />
+                  <ArrowsOut className="w-4 h-4" />
                 </div>
               </div>
 
-              {/* Rider-Waite Card Image */}
+              {/* Rider-Waite Card Image with Interactive Overlay */}
               <motion.div
                 layoutId={`card-image-${index}`}
                 className={`mx-auto mb-3 max-w-[65%] sm:max-w-[280px] ${card.isReversed ? 'rotate-180' : ''}`}
               >
-                <img
-                  src={card.image}
-                  alt={`${card.name}${card.isReversed ? ' (Reversed)' : ''}`}
-                  className="w-full h-auto rounded-lg shadow-lg border-2 border-primary/30"
-                  loading="lazy"
-                  onError={(e) => {
-                    console.error(`Failed to load image: ${card.image}`);
-                    e.target.src = '/images/cards/placeholder.jpg';
-                  }}
-                />
+                <div className="relative">
+                  <img
+                    src={card.image}
+                    alt={`${card.name}${card.isReversed ? ' (Reversed)' : ''}`}
+                    className="w-full h-auto rounded-lg shadow-lg border-2 border-primary/30"
+                    loading="lazy"
+                    onError={(e) => {
+                      console.error(`Failed to load image: ${card.image}`);
+                      e.target.src = '/images/cards/placeholder.jpg';
+                    }}
+                  />
+                  {/* Interactive symbol overlay - only for cards with coordinates */}
+                  <InteractiveCardOverlay card={card} isReversed={card.isReversed} />
+                </div>
               </motion.div>
 
               <div className="text-center mb-3">
@@ -311,6 +315,7 @@ export function Card({
                   onClick={event => event.stopPropagation()}
                   onPointerDown={event => event.stopPropagation()}
                   onFocus={event => event.stopPropagation()}
+                  onKeyDown={event => event.stopPropagation()}
                   rows={3}
                   maxLength={500}
                   className="w-full bg-surface/85 border border-secondary/40 rounded p-2 min-h-[4.5rem] resize-y text-main text-sm sm:text-base focus:outline-none focus:ring-1 focus:ring-secondary/55"

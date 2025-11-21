@@ -1,5 +1,5 @@
 import React from 'react';
-import { Sparkles, BookOpen } from 'lucide-react';
+import { Sparkle, BookOpen } from '@phosphor-icons/react';
 
 /**
  * PatternHighlightBanner
@@ -25,7 +25,7 @@ export function PatternHighlightBanner({ patterns, passages, minimal = false }) 
       <div className="mb-4 p-3 bg-gradient-to-r from-primary/20 to-accent/20
                       border border-primary/20 rounded-lg animate-pop-in">
         <div className="flex items-center gap-2">
-          <Sparkles className="w-3.5 h-3.5 text-primary flex-shrink-0" />
+          <Sparkle className="w-3.5 h-3.5 text-primary flex-shrink-0" />
           <p className="text-xs text-main/90">
             {count} archetypal {count === 1 ? 'insight' : 'insights'} detected
           </p>
@@ -42,7 +42,7 @@ export function PatternHighlightBanner({ patterns, passages, minimal = false }) 
       {patterns && patterns.length > 0 && (
         <>
           <div className="flex items-center gap-2 mb-3">
-            <Sparkles className="w-4 h-4 text-primary flex-shrink-0" />
+            <Sparkle className="w-4 h-4 text-primary flex-shrink-0" />
             <h3 className="text-sm font-semibold text-main">
               Archetypal Patterns Detected
             </h3>

@@ -91,7 +91,7 @@ async function buildBlockedThemes(cardsInfo) {
   const themes = await buildBlockedThemes(cardsInfo);
   const celticAnalysis = analyzeCelticCross(cardsInfo);
 
-  const reading = buildCelticCrossReading({
+  const reading = await buildCelticCrossReading({
     cardsInfo,
     userQuestion: 'How can I navigate this turning point?',
     reflectionsText: '',
@@ -132,7 +132,7 @@ async function buildBlockedThemes(cardsInfo) {
   const themes = await buildBlockedThemes(cardsInfo);
   const threeCardAnalysis = null;
 
-  const reading = buildThreeCardReading({
+  const reading = await buildThreeCardReading({
     cardsInfo,
     userQuestion: 'What is unfolding right now?',
     reflectionsText: '',

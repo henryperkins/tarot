@@ -43,7 +43,7 @@ export function useSaveReading() {
             themes: themes || null,
             reflections: reflections || {},
             context: analysisContext || readingMeta?.graphContext || null,
-            provider: personalReading?.provider || 'local',
+            provider: personalReading?.provider || readingMeta?.provider || 'local',
             sessionSeed,
             deckId: deckStyleId
         };

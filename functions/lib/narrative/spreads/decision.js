@@ -14,7 +14,7 @@ import {
   getConnector
 } from '../helpers.js';
 
-export function buildDecisionReading({
+export async function buildDecisionReading({
   cardsInfo,
   userQuestion,
   reflectionsText,
@@ -178,6 +178,12 @@ export function buildDecisionReading({
     sections.push(patternSection);
   }
 
+  // Guidance synthesis with elemental remedies
+  const guidanceSection = await buildDecisionGuidance(normalizedCards, themes, context);
+  if (guidanceSection) {
+    sections.push(guidanceSection);
+  }
+
   const full = sections.filter(Boolean).join('\n\n');
   const validation = validateReadingNarrative(full);
   if (!validation.isValid) {
@@ -185,4 +191,30 @@ export function buildDecisionReading({
   }
 
   return appendReversalReminder(full, cardsInfo, themes);
+}
+
+async function buildDecisionGuidance(cardsInfo, themes, context) {
+  let section = `### Guidance\n\n`;
+
+  if (themes.suitFocus) {
+    section += `${themes.suitFocus}\n\n`;
+  }
+
+  // Elemental remedies if imbalanced
+  if (themes.elementCounts && themes.elementalBalance) {
+    const { buildElementalRemedies, shouldOfferElementalRemedies } = await import('../helpers.js');
+    if (shouldOfferElementalRemedies(themes.elementCounts, cardsInfo.length)) {
+      const remedies = buildElementalRemedies(themes.elementCounts, cardsInfo.length, context);
+      if (remedies) {
+        section += `${themes.elementalBalance}\n\n${remedies}\n\n`;
+      }
+    }
+  }
+
+  // Decision-specific guidance
+  section += `Remember: a decision is not a single moment but a series of aligned actions. `;
+  section += `These cards show energies and tendencies, not fixed outcomes. `;
+  section += `Your choices, moment to moment, shape which path you actually walk.`;
+
+  return section;
 }

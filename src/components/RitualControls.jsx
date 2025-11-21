@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Info, Sparkles, Scissors } from 'lucide-react';
+import { Info, Sparkle, Scissors } from '@phosphor-icons/react';
 import { Tooltip } from './Tooltip';
 import { usePreferences } from '../contexts/PreferencesContext';
 
@@ -104,7 +104,7 @@ export function RitualControls({
                 }`}
               aria-hidden="true"
             >
-              <Sparkles className="h-4 w-4" />
+              <Sparkle className="h-4 w-4" />
             </span>
             <div className="flex flex-1 items-center gap-1.5 text-[0.85rem] normal-case tracking-normal">
               <span className="font-semibold text-main">Clear the deck</span>
@@ -218,7 +218,7 @@ export function RitualControls({
             : 'bg-surface-muted/60 border-accent/20 text-main'
             }`}
         >
-          <Sparkles className={`w-8 h-8 ${knockComplete ? 'text-secondary' : 'text-accent'}`} />
+          <Sparkle className={`w-8 h-8 ${knockComplete ? 'text-secondary' : 'text-accent'}`} />
           <span className="text-sm font-semibold">{knockComplete ? 'Cleared' : 'Tap to Knock'}</span>
           <span className="text-xs opacity-70">{knocksCount}/3</span>
         </button>

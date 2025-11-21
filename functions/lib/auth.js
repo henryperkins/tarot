@@ -1,3 +1,5 @@
+import { validateApiKey } from './apiKeys.js';
+
 /**
  * Authentication library for Mystic Tarot
  *
@@ -280,4 +282,45 @@ export function isValidUsername(username) {
  */
 export function isValidPassword(password) {
   return password && password.length >= 8;
+}
+
+/**
+ * Resolve the authenticated user from a Request.
+ * Supports Bearer session tokens, API keys, and session cookies.
+ * @param {Request} request
+ * @param {object} env - Environment bindings (requires env.DB)
+ * @returns {Promise<object|null>} User object or null if unauthenticated
+ */
+export async function getUserFromRequest(request, env) {
+  const authHeader = request.headers.get('Authorization');
+
+  // Authorization: Bearer <token>
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    const token = authHeader.split(' ')[1];
+
+    // API key path (Bearer sk_...)
+    if (token && token.startsWith('sk_')) {
+      const apiKeyRecord = await validateApiKey(env.DB, token);
+      if (apiKeyRecord) {
+        return {
+          id: apiKeyRecord.user_id,
+          email: apiKeyRecord.email,
+          username: apiKeyRecord.username
+        };
+      }
+    }
+
+    // Session token path (Bearer <session>)
+    const userFromHeader = await validateSession(env.DB, token);
+    if (userFromHeader) {
+      return userFromHeader;
+    }
+  }
+
+  // Fallback to session cookie
+  const cookieHeader = request.headers.get('Cookie');
+  const sessionToken = getSessionFromCookie(cookieHeader);
+  if (!sessionToken) return null;
+
+  return validateSession(env.DB, sessionToken);
 }

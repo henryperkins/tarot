@@ -165,7 +165,7 @@ async function buildSpreadAnalysis(spreadKey, cardsInfo) {
   }
 }
 
-function buildReadingFromAnalysis(spreadKey, { spreadAnalysis, cardsInfo, userQuestion, reflectionsText, themes, spreadInfo, context }) {
+async function buildReadingFromAnalysis(spreadKey, { spreadAnalysis, cardsInfo, userQuestion, reflectionsText, themes, spreadInfo, context }) {
   switch (spreadKey) {
     case 'celtic':
       return buildCelticCrossReading({ cardsInfo, userQuestion, reflectionsText, celticAnalysis: spreadAnalysis, themes, spreadInfo, context });
@@ -203,7 +203,7 @@ async function generateSample(sample) {
   const themes = await analyzeSpreadThemes(cardsInfo);
   const spreadAnalysis = await buildSpreadAnalysis(sample.spreadKey, cardsInfo);
   const context = sample.context || inferContext(sample.userQuestion, sample.spreadKey);
-  const reading = buildReadingFromAnalysis(sample.spreadKey, {
+  const reading = await buildReadingFromAnalysis(sample.spreadKey, {
     spreadAnalysis,
     cardsInfo,
     userQuestion: sample.userQuestion,

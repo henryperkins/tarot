@@ -1,7 +1,7 @@
 import React, { useId, useState } from 'react';
-import { ChevronDown } from 'lucide-react';
+import { Question } from '@phosphor-icons/react';
 
-export function HelperToggle({ children, label = 'Understand this', className = '' }) {
+export function HelperToggle({ children, label = 'More information', className = '' }) {
   const [isOpen, setIsOpen] = useState(false);
   const contentId = useId();
 
@@ -10,15 +10,13 @@ export function HelperToggle({ children, label = 'Understand this', className = 
       <button
         type="button"
         onClick={() => setIsOpen(prev => !prev)}
-        className="inline-flex items-center gap-2 text-secondary text-sm font-medium underline underline-offset-4 decoration-secondary/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/70 focus-visible:ring-offset-2 focus-visible:ring-offset-main"
+        className="inline-flex items-center justify-center w-6 h-6 rounded-full border border-secondary/40 bg-transparent text-secondary/80 transition hover:border-accent/60 hover:text-main hover:bg-secondary/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/70 focus-visible:ring-offset-2 focus-visible:ring-offset-main"
         aria-expanded={isOpen}
         aria-controls={contentId}
+        aria-label={label}
+        title={label}
       >
-        <span>{label}</span>
-        <ChevronDown
-          aria-hidden="true"
-          className={`w-4 h-4 text-secondary transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`}
-        />
+        <Question className="w-4 h-4" aria-hidden="true" />
       </button>
       <div
         id={contentId}

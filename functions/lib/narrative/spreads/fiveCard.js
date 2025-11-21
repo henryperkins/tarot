@@ -13,7 +13,7 @@ import {
   getConnector
 } from '../helpers.js';
 
-export function buildFiveCardReading({
+export async function buildFiveCardReading({
   cardsInfo,
   userQuestion,
   reflectionsText,
@@ -171,6 +171,12 @@ export function buildFiveCardReading({
     sections.push(patternSection);
   }
 
+  // Guidance synthesis with elemental remedies
+  const guidanceSection = await buildFiveCardGuidance(cardsInfo, themes, context, direction);
+  if (guidanceSection) {
+    sections.push(guidanceSection);
+  }
+
   const full = sections.filter(Boolean).join('\n\n');
   const validation = validateReadingNarrative(full);
   if (!validation.isValid) {
@@ -178,4 +184,30 @@ export function buildFiveCardReading({
   }
 
   return appendReversalReminder(full, cardsInfo, themes);
+}
+
+async function buildFiveCardGuidance(cardsInfo, themes, context, direction) {
+  let section = `### Guidance\n\n`;
+
+  if (themes.suitFocus) {
+    section += `${themes.suitFocus}\n\n`;
+  }
+
+  // Elemental remedies if imbalanced
+  if (themes.elementCounts && themes.elementalBalance) {
+    const { buildElementalRemedies, shouldOfferElementalRemedies } = await import('../helpers.js');
+    if (shouldOfferElementalRemedies(themes.elementCounts, cardsInfo.length)) {
+      const remedies = buildElementalRemedies(themes.elementCounts, cardsInfo.length, context);
+      if (remedies) {
+        section += `${themes.elementalBalance}\n\n${remedies}\n\n`;
+      }
+    }
+  }
+
+  // Direction summary
+  section += `The path ahead shows ${direction.card} ${direction.orientation}. `;
+  section += `This is not fixed fate, but where current momentum leads if nothing shifts. `;
+  section += `Your awareness and choices shape what unfolds next.`;
+
+  return section;
 }

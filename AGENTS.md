@@ -1,60 +1,31 @@
 # Repository Guidelines
 
 ## Project Structure & Module Organization
-- `src/` holds the React 18 client: `components/`, `pages/`, `hooks/`, `contexts/`, and domain helpers in `lib/` and `data/`; keep feature assets beside their consumer.
-- Cloudflare Pages Functions live in `functions/api`, cross-runtime AI utilities in `shared/`, and evaluation or export tooling in `scripts/` and `data/evaluations/`.
-- Tests live in `tests/*.test.mjs`, static assets in `public/`, distributables in `dist/`, and reference docs in `docs/`.
+- Frontend (React + Vite) lives in `src/`: `components/` reusable UI, `pages/` routed screens, `contexts/` providers, `hooks/` shared logic, `styles/tailwind.css` for Tailwind setup.
+- Cloudflare Pages Functions sit in `functions/api/`; shared server logic in `functions/lib/` with tests in `functions/lib/__tests__/`.
+- Domain/unit tests reside in `tests/*.test.mjs`. Static decks/data live in `public/` and `data/`; build output lands in `dist/`.
 
 ## Build, Test, and Development Commands
-- `npm run dev` launches `dev.sh`, which starts Vite and proxies through Wrangler on `http://localhost:8788`; use `dev:frontend` or `dev:wrangler` only when isolating a tier.
-- `npm run build`, `preview`, and `deploy` cover bundle, serve, and publish; verify `npm run build` before pushing.
-- `npm test` runs the Node test runner, while `npm run ci:vision-check` and `npm run ci:narrative-check` execute the evaluation gates; deck-specific drills (e.g., `npm run eval:vision:thoth`) emit JSON/CSV artifacts for review.
+- `npm run dev` — runs `dev.sh` to start Vite plus Wrangler proxy at http://localhost:8788.
+- `npm run dev:frontend` for UI-only work; `npm run dev:wrangler` when you only need the proxy.
+- `npm run build` → `dist/`; `npm run preview:pages` serves that bundle locally; `npm run deploy` publishes to Cloudflare Pages (`tableau`).
+- `npm test` executes Node tests. Quality gates for ML flows: `npm run gate:vision` and `npm run gate:narrative` when touching vision or narrative code.
 
 ## Coding Style & Naming Conventions
-- Use two-space indentation, single quotes, trailing commas, and function components with hooks; colocate styling via Tailwind utilities plus files in `src/styles/`.
-- Components and contexts use `PascalCase`, hooks use `camelCase` prefixed with `use`, constants use SCREAMING_SNAKE_CASE, and worker helpers stay in named ESM exports with descriptive filenames.
-- Comment only non-obvious orchestration and run `npm run build` or `npm test` before committing sizable refactors.
+- ESM and functional React components throughout; 2-space indent, single quotes, and terminal semicolons.
+- Components/pages use PascalCase filenames; hooks start with `use`; Pages Functions stay kebab-case.
+- Prefer Tailwind utilities; share tokens in `styles/tailwind.css` or `tailwind.config.js`. Keep inline styles rare and justified.
+- Keep side effects in hooks/context or `functions/lib/`; UI components stay presentational.
 
 ## Testing Guidelines
-- Suites rely on Node’s `node --test` harness with `.test.mjs` files that mirror the structure of `src/`.
-- Extend the existing coverage/RAG/payload tests instead of ad-hoc scripts so deterministic seeds and metrics stay centralized.
-- CI requires green `ci:vision-check` and `ci:narrative-check`; attach regenerated metrics or CSVs when touching evaluation code.
+- Mirror file names in tests (`graphRAG.test.mjs`, etc.). New modules should gain matching tests under `tests/` or `__tests__/`.
+- Stub external services in server tests; for hooks, mock context/provider wrappers. Cover edge cases and error paths, not only the happy path.
+- Run `npm test` before pushing; if vision/narrative logic changes, also run the relevant `gate:*` command and record results.
 
 ## Commit & Pull Request Guidelines
-- Follow Conventional Commits (`feat:`, `fix:`, `chore:`) in imperative voice with ≤72-character subjects and optional explanatory bodies.
-- PRs should link an issue, summarize behavior changes, call out schema or env impacts, and list the commands you ran; UI work needs before/after evidence.
-- Rebase on `main`, request early feedback for `functions/api` or `scripts/` changes, and document manual data migrations in the PR template.
+- Prefer Conventional Commit prefixes (`feat:`, `fix:`, `chore:`, `docs:`, `test:`); imperative subject; avoid placeholders like `up`.
+- PRs: concise summary, linked issue, tests run, and screenshots/recordings for UI changes; note any config/env steps needed post-merge.
 
 ## Security & Configuration Tips
-- Front-end env vars live in `.env.local`, worker secrets in `.dev.vars`; mirror any new key into the sample files and `wrangler.toml` when required.
-- Never commit raw user decks or unredacted evaluation exports—use sanitized fixtures in `data/` and rotate API keys through the Cloudflare dashboard.
-
-## GPT-5.1 Agent Persona & Tone
-- Default voice prioritizes clarity and momentum: be concise, action-oriented, and skip pleasantries unless mirroring a warm/detailed user tone with a single brief acknowledgment.
-- Dial politeness according to stakes—drop acknowledgments entirely when urgency is high; otherwise, nod once then move straight to solving the request.
-- Treat acknowledgments as optional seasoning: never repeat them, never stack filler phrases, and match the user’s pacing (fast answers for fast queries, more context when they are verbose).
-- Communication ethos: “respect through momentum.” Keep warmth in intent, not in excess wording.
-
-## Final Answer Compactness Rules
-- Tiny/small single-file change (≤10 lines): respond with 2–5 sentences or ≤3 bullets, no headings, and at most one essential snippet (≤3 lines).
-- Medium change (single area/few files): keep to ≤6 bullets or 6–10 sentences with up to two snippets (≤8 lines each).
-- Large or multi-file change: summarize per file with 1–2 bullets; still no more than two short snippets total and avoid before/after dumps.
-- Use monospace only for literal tokens or file paths and never mix with bold; reference code via file paths instead of pasting large blocks.
-- Skip tooling/process narration unless the user explicitly asks or a failed check blocks progress.
-
-## Output Verbosity & Structure
-- Default to plain-text Markdown capped at two concise sentences when giving quick status updates; lead with the action/result before context.
-- Reference file paths in inline code (e.g., `src/foo.ts:12`) and reserve code fences for unavoidable clarifications while respecting snippet budgets.
-- Avoid multi-section recaps for simple answers; stick to What/Where/Outcome and stop once the user has the actionable info.
-
-## User Updates & Preambles
-- Provide plan/preamble updates only when the task benefits from progress checkpoints; tune frequency and detail to the user’s requests.
-- Keep updates consistent in tone with the persona above, focusing on measurable progress rather than reiterating instructions.
-
-## Exploration & Tooling Workflow
-- Think through the task before running commands so you can identify all files or resources you need to read.
-- Batch file reads or searches together; default to running those commands in parallel rather than one-by-one.
-- Use `multi_tool_use.parallel` for every batch of read/list/search operations and avoid other parallelization tactics.
-- Only fall back to sequential reads when you truly cannot determine the next file before seeing the current result.
-- Follow the workflow: (a) decide all needed reads, (b) issue one parallel batch, (c) analyze results, (d) repeat only when new, unplanned reads arise.
-- Always maximize parallelism, including for commands like `cat`, `rg`, `ls`, `git show`, or `wc`; single-file reads are the only acceptable exception.
+- Keep secrets out of the repo. Local values go in `.dev.vars`; set production/preview secrets with `wrangler pages secret put` (see `wrangler.toml` for required `AZURE_OPENAI_*`, `VISION_PROOF_SECRET`, etc.).
+- Do not log keys or PII; rotate credentials immediately if leaked.

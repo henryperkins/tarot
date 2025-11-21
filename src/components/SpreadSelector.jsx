@@ -1,7 +1,16 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Sparkles, ChevronLeft, ChevronRight, Check } from 'lucide-react';
+import { Sparkle, CaretLeft, CaretRight, Check, Lightning, BookOpen, Eye, Path, Heart, Compass } from '@phosphor-icons/react';
 import { SPREADS } from '../data/spreads';
 import { usePreferences } from '../contexts/PreferencesContext';
+
+const TAG_ICONS = {
+  'Quick': Lightning,
+  'Story': BookOpen,
+  'Clarity': Eye,
+  'Decision': Path,
+  'Relationship': Heart,
+  'Deep dive': Compass
+};
 
 export function SpreadSelector({
   selectedSpread,
@@ -97,7 +106,7 @@ export function SpreadSelector({
   return (
     <div className="modern-surface p-4 sm:p-6 mb-6 sm:mb-8 animate-fade-in">
       <h2 className="text-lg sm:text-xl font-serif text-accent mb-3 flex items-center gap-2">
-        <Sparkles className="w-4 h-4 sm:w-5 sm:h-5" />
+        <Sparkle className="w-4 h-4 sm:w-5 sm:h-5" />
         Choose Your Spread
       </h2>
       <div className="relative">
@@ -135,9 +144,9 @@ export function SpreadSelector({
                 <div className="pr-16">
                   <div className="flex items-center justify-between gap-2">
                     <div className="font-serif font-semibold text-base text-main">{spread.name}</div>
-                    {spread.tag && (
-                      <span className="inline-flex items-center px-2 py-0.5 rounded-full border border-accent/60 text-[0.65rem] uppercase tracking-[0.18em] text-accent">
-                        {spread.tag}
+                    {spread.tag && TAG_ICONS[spread.tag] && (
+                      <span className="inline-flex items-center justify-center w-7 h-7 rounded-full border border-accent/60 text-accent" title={spread.tag} aria-label={spread.tag}>
+                        {React.createElement(TAG_ICONS[spread.tag], { className: 'w-3.5 h-3.5', 'aria-hidden': 'true' })}
                       </span>
                     )}
                   </div>
@@ -181,7 +190,7 @@ export function SpreadSelector({
                 className="pointer-events-auto absolute top-1/2 -translate-y-1/2 left-2 inline-flex items-center justify-center rounded-full bg-main/90 border border-accent/20 text-muted w-9 h-9 shadow-lg shadow-main/60"
                 aria-label="See previous spreads"
               >
-                <ChevronLeft className="w-4 h-4" />
+                <CaretLeft className="w-4 h-4" />
               </button>
             </>
           )}
@@ -196,7 +205,7 @@ export function SpreadSelector({
                 className="pointer-events-auto absolute top-1/2 -translate-y-1/2 right-2 inline-flex items-center justify-center rounded-full bg-main/90 border border-accent/20 text-muted w-9 h-9 shadow-lg shadow-main/60"
                 aria-label="See more spreads"
               >
-                <ChevronRight className="w-4 h-4" />
+                <CaretRight className="w-4 h-4" />
               </button>
             </>
           )}

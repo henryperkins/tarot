@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
-import { FileText, Copy, RefreshCw, BarChart2, Sparkles, Share2, Download, Trash2 } from 'lucide-react';
+import { FileText, Copy, ArrowsClockwise, ChartBar, Sparkle, ShareNetwork, DownloadSimple, Trash } from '@phosphor-icons/react';
 import { CoachSuggestion } from './CoachSuggestion';
+import { ArchetypeJourneySection } from './ArchetypeJourneySection';
 import {
     downloadInsightsSvg,
     exportJournalInsightsToPdf
@@ -465,20 +466,20 @@ export const JournalInsightsPanel = React.memo(function JournalInsightsPanel({
                             <FileText className="h-4 w-4" />
                         </button>
                         <button onClick={handlePdfDownload} className="rounded-full p-2 text-secondary hover:bg-secondary/20" title="Download PDF">
-                            <Download className="h-4 w-4" />
+                            <DownloadSimple className="h-4 w-4" />
                         </button>
                         <button onClick={handleVisualCardDownload} disabled={!svgStats} className={`rounded-full p-2 ${svgStats ? 'text-secondary hover:bg-secondary/20' : 'text-secondary/30'}`} title="Visual Card">
-                            <Sparkles className="h-4 w-4" />
+                            <Sparkle className="h-4 w-4" />
                         </button>
                     </div>
 
                     <div className="flex items-center gap-2 rounded-full border border-secondary/20 bg-surface-muted/50 p-1">
-                        <button onClick={handleShare} className="rounded-full p-2 text-secondary hover:bg-secondary/20" title="Quick Share">
-                            <Share2 className="h-4 w-4" />
+                        <button onClick={handleShare} className="rounded-full p-2 text-secondary hover:bg-secondary/20" title="Quick share link">
+                            <ShareNetwork className="h-4 w-4" />
                         </button>
                         {isAuthenticated && onCreateShareLink && (
                             <button onClick={() => setShareComposerOpen(!shareComposerOpen)} className={`rounded-full p-2 hover:bg-secondary/20 ${shareComposerOpen ? 'bg-secondary/20 text-secondary' : 'text-secondary'}`} title="Custom Link">
-                                <RefreshCw className="h-4 w-4" />
+                                <ArrowsClockwise className="h-4 w-4" />
                             </button>
                         )}
                     </div>
@@ -489,7 +490,7 @@ export const JournalInsightsPanel = React.memo(function JournalInsightsPanel({
                 <div className="text-center text-sm text-secondary animate-fade-in">{actionMessage}</div>
             )}
 
-            {/* Share Composer */}
+            {/* ShareNetwork Composer */}
             {shareComposerOpen && (
                 <form onSubmit={handleComposerSubmit} className="rounded-2xl border border-secondary/30 bg-surface-muted/50 p-6 animate-slide-down">
                     <div className="grid gap-4 sm:grid-cols-2">
@@ -602,7 +603,7 @@ export const JournalInsightsPanel = React.memo(function JournalInsightsPanel({
                 {frequentCards.length > 0 && (
                     <div className="rounded-3xl border border-secondary/20 bg-surface/40 p-5">
                         <h3 className="mb-4 flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-accent/80">
-                            <BarChart2 className="h-3 w-3" /> Frequent Cards
+                            <ChartBar className="h-3 w-3" /> Frequent Cards
                         </h3>
                         <ul className="space-y-2">
                             {frequentCards.slice(0, 5).map((card) => (
@@ -633,7 +634,7 @@ export const JournalInsightsPanel = React.memo(function JournalInsightsPanel({
                 {recentThemes.length > 0 && (
                     <div className="rounded-3xl border border-secondary/20 bg-surface/40 p-5">
                         <h3 className="mb-4 flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-accent/80">
-                            <Sparkles className="h-3 w-3" /> Recent Themes
+                            <Sparkle className="h-3 w-3" /> Recent Themes
                         </h3>
                         <ul className="space-y-2">
                             {recentThemes.slice(0, 5).map((theme, idx) => (
@@ -655,6 +656,9 @@ export const JournalInsightsPanel = React.memo(function JournalInsightsPanel({
                         className={filtersActive ? "opacity-50 pointer-events-none" : ""}
                     />
                 )}
+
+                {/* Archetype Journey Analytics */}
+                <ArchetypeJourneySection isAuthenticated={isAuthenticated} />
             </div>
 
             {/* Active Share Links */}
@@ -670,7 +674,7 @@ export const JournalInsightsPanel = React.memo(function JournalInsightsPanel({
                                 </div>
                                 <div className="flex gap-1">
                                     <button onClick={() => copyShareUrl(link.token)} className="p-1.5 text-secondary hover:text-secondary"><Copy className="h-3 w-3" /></button>
-                                    <button onClick={() => onDeleteShareLink?.(link.token)} className="p-1.5 text-error hover:text-error/80"><Trash2 className="h-3 w-3" /></button>
+                                    <button onClick={() => onDeleteShareLink?.(link.token)} className="p-1.5 text-error hover:text-error/80"><Trash className="h-3 w-3" /></button>
                                 </div>
                             </div>
                         ))}

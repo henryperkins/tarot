@@ -2,9 +2,9 @@ import React, { useEffect, useRef, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkBreaks from 'remark-breaks';
-import { Share2, Download, Trash2, ChevronDown, ChevronUp, BookOpen } from 'lucide-react';
+import { ShareNetwork, DownloadSimple, Trash, CaretDown, CaretUp, BookOpen, ClipboardText } from '@phosphor-icons/react';
 import { CardSymbolInsights } from './CardSymbolInsights';
-import { buildCardInsightPayload, exportJournalEntriesToCsv, copyJournalEntrySummary } from '../lib/journalInsights';
+import { buildCardInsightPayload, exportJournalEntriesToCsv, copyJournalEntrySummary, copyJournalEntriesToClipboard } from '../lib/journalInsights';
 
 const CONTEXT_SUMMARIES = {
     love: 'Relationship lens — center relational reciprocity and communication.',
@@ -118,6 +118,12 @@ export const JournalEntryCard = React.memo(function JournalEntryCard({ entry, on
     scheduleClear();
   };
 
+  const handleEntryCopy = async () => {
+    const success = await copyJournalEntriesToClipboard([entry]);
+    setEntryActionMessage(success ? 'Journal entry copied!' : 'Copy unavailable');
+    scheduleClear();
+  };
+
   const handleEntryShare = async () => {
     if (isAuthenticated && onCreateShareLink) {
       try {
@@ -174,18 +180,25 @@ export const JournalEntryCard = React.memo(function JournalEntryCard({ entry, on
         {/* Actions Toolbar */}
         <div className="flex items-center gap-1 opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100">
           <button
+            onClick={handleEntryCopy}
+            className="rounded-lg p-2 text-secondary/60 hover:bg-secondary/10 hover:text-secondary"
+            title="Copy details"
+          >
+            <ClipboardText className="h-4 w-4" />
+          </button>
+          <button
             onClick={handleEntryExport}
             className="rounded-lg p-2 text-secondary/60 hover:bg-secondary/10 hover:text-secondary"
             title="Export CSV"
           >
-            <Download className="h-4 w-4" />
+            <DownloadSimple className="h-4 w-4" />
           </button>
           <button
             onClick={handleEntryShare}
             className="rounded-lg p-2 text-secondary/60 hover:bg-secondary/10 hover:text-secondary"
             title="Share"
           >
-            <Share2 className="h-4 w-4" />
+            <ShareNetwork className="h-4 w-4" />
           </button>
           {isAuthenticated && onDelete && (
             <button
@@ -193,7 +206,7 @@ export const JournalEntryCard = React.memo(function JournalEntryCard({ entry, on
               className="rounded-lg p-2 text-error/60 hover:bg-error/10 hover:text-error"
               title="Delete"
             >
-              <Trash2 className="h-4 w-4" />
+              <Trash className="h-4 w-4" />
             </button>
           )}
         </div>
@@ -249,7 +262,7 @@ export const JournalEntryCard = React.memo(function JournalEntryCard({ entry, on
                 className="flex w-full items-center justify-between rounded-xl border border-secondary/20 bg-surface/30 px-4 py-3 text-sm font-medium text-main transition-colors hover:bg-surface/50"
               >
                 <span>Reading Narrative</span>
-                {showNarrative ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                {showNarrative ? <CaretUp className="h-4 w-4" /> : <CaretDown className="h-4 w-4" />}
               </button>
 
               {showNarrative && (

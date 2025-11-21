@@ -27,7 +27,9 @@ import {
   buildDecisionReading,
   buildSingleCardReading,
   buildEnhancedClaudePrompt,
-  buildPositionCardText
+  buildPositionCardText,
+  buildElementalRemedies,
+  shouldOfferElementalRemedies
 } from '../lib/narrativeBuilder.js';
 import { enhanceSection, validateReadingNarrative } from '../lib/narrativeSpine.js';
 import { inferContext } from '../lib/contextDetection.js';
@@ -778,7 +780,7 @@ const SPREAD_READING_BUILDERS = {
 /**
  * Enhanced local composer with spread-specific narrative construction
  */
-function composeReadingEnhanced({ spreadInfo, cardsInfo, userQuestion, reflectionsText, analysis, context }) {
+async function composeReadingEnhanced({ spreadInfo, cardsInfo, userQuestion, reflectionsText, analysis, context }) {
   const { themes, spreadAnalysis, spreadKey } = analysis;
 
   return generateReadingFromAnalysis({
@@ -805,11 +807,11 @@ async function runNarrativeBackend(backendId, env, payload, requestId) {
   }
 }
 
-function generateReadingFromAnalysis({ spreadKey, spreadAnalysis, cardsInfo, userQuestion, reflectionsText, themes, spreadInfo, context }) {
+async function generateReadingFromAnalysis({ spreadKey, spreadAnalysis, cardsInfo, userQuestion, reflectionsText, themes, spreadInfo, context }) {
   const builder = SPREAD_READING_BUILDERS[spreadKey];
 
   if (builder) {
-    const result = builder({
+    const result = await builder({
       spreadAnalysis,
       cardsInfo,
       userQuestion,
@@ -956,6 +958,7 @@ function buildCardsSection(cardsInfo, context) {
  * Enhanced synthesis with rich theme analysis
  */
 function buildEnhancedSynthesis(cardsInfo, themes, userQuestion, context) {
+  const safeCards = Array.isArray(cardsInfo) ? cardsInfo : [];
   let section = `**Synthesis & Guidance**\n\n`;
 
   if (context && context !== 'general') {
@@ -988,9 +991,17 @@ function buildEnhancedSynthesis(cardsInfo, themes, userQuestion, context) {
     section += `${themes.archetypeDescription}\n\n`;
   }
 
-  // Elemental balance
+  // Elemental balance with actionable remedies
   if (themes.elementalBalance) {
     section += `Elemental context: ${themes.elementalBalance}\n\n`;
+
+    // Add elemental remedies if imbalanced
+    if (shouldOfferElementalRemedies(themes.elementCounts, safeCards.length)) {
+      const remedies = buildElementalRemedies(themes.elementCounts, safeCards.length, context);
+      if (remedies) {
+        section += `${remedies}\n\n`;
+      }
+    }
   }
 
   // Lifecycle stage

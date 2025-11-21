@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { AnimatePresence } from 'framer-motion';
-import { Sparkles, RotateCcw, Star } from 'lucide-react';
+import { Sparkle, ArrowCounterClockwise, Star } from '@phosphor-icons/react';
 import { useNavigate } from 'react-router-dom';
 import { SPREADS } from '../data/spreads';
 import { ReadingGrid } from './ReadingGrid';
@@ -107,7 +107,7 @@ export function ReadingDisplay({ sectionRef }) {
             {!reading && (
                 <div className="hidden sm:block text-center mb-8 sm:mb-10">
                     <button onClick={shuffle} disabled={isShuffling} className="bg-primary hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold px-6 sm:px-8 py-3 sm:py-4 rounded-lg shadow-lg transition-all inline-flex items-center gap-2 sm:gap-3 text-base sm:text-lg">
-                        <RotateCcw className={`w-4 h-4 sm:w-5 sm:h-5 ${isShuffling ? 'motion-safe:animate-spin' : ''}`} />
+                        <ArrowCounterClockwise className={`w-4 h-4 sm:w-5 sm:h-5 ${isShuffling ? 'motion-safe:animate-spin' : ''}`} />
                         <span>{isShuffling ? 'Shuffling the Cards...' : 'Draw Cards'}</span>
                     </button>
                 </div>
@@ -203,7 +203,7 @@ export function ReadingDisplay({ sectionRef }) {
                     {!personalReading && revealedCards.size === reading.length && (
                         <div className="text-center">
                             <button onClick={generatePersonalReading} disabled={isGenerating} className="bg-accent hover:bg-accent/90 disabled:opacity-50 disabled:cursor-not-allowed text-surface font-semibold px-5 sm:px-8 py-3 sm:py-4 rounded-xl shadow-xl shadow-accent/20 transition-all flex items-center gap-2 sm:gap-3 mx-auto text-sm sm:text-base md:text-lg">
-                                <Sparkles className={`w-4 h-4 sm:w-5 sm:h-5 ${isGenerating ? 'motion-safe:animate-pulse' : ''}`} />
+                                <Sparkle className={`w-4 h-4 sm:w-5 sm:h-5 ${isGenerating ? 'motion-safe:animate-pulse' : ''}`} />
                                 {isGenerating ? <span className="text-sm sm:text-base">Weaving your personalized reflection from this spread...</span> : <span>Create Personal Narrative</span>}
                             </button>
                             {hasVisionData && !isVisionReady && <p className="mt-3 text-sm text-muted">⚠️ Vision data has conflicts - research telemetry may be incomplete.</p>}
@@ -226,7 +226,7 @@ export function ReadingDisplay({ sectionRef }) {
 
                     {personalReading && (
                         <div className="bg-surface/95 backdrop-blur-xl rounded-2xl p-5 sm:p-8 border border-secondary/40 shadow-2xl shadow-secondary/40 max-w-5xl mx-auto">
-                            <h3 className="text-xl sm:text-2xl font-serif text-accent mb-2 flex items-center gap-2"><Sparkles className="w-5 h-5 sm:w-6 sm:h-6 text-secondary" />Your Personalized Narrative</h3>
+                            <h3 className="text-xl sm:text-2xl font-serif text-accent mb-2 flex items-center gap-2"><Sparkle className="w-5 h-5 sm:w-6 sm:h-6 text-secondary" />Your Personalized Narrative</h3>
                             <HelperToggle className="mt-3 max-w-2xl mx-auto"><p>This narrative braids together your spread positions, card meanings, and reflections into a single through-line. Read slowly, notice what resonates, and treat it as a mirror—not a script.</p></HelperToggle>
                             {userQuestion && (<div className="bg-surface/85 rounded-lg p-4 mb-4 border border-secondary/40"><p className="text-accent/85 text-xs sm:text-sm italic">Anchor: {userQuestion}</p></div>)}
                             {readingMeta?.graphContext?.narrativeHighlights && (
@@ -292,7 +292,7 @@ export function ReadingDisplay({ sectionRef }) {
 
                     <div className="hidden sm:block text-center mt-6 sm:mt-8">
                         <button onClick={shuffle} disabled={isShuffling} className="bg-primary hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold px-6 sm:px-8 py-3 sm:py-4 rounded-lg shadow-lg transition-all inline-flex items-center gap-2 sm:gap-3 text-base sm:text-lg">
-                            <RotateCcw className={`w-4 h-4 sm:w-5 sm:h-5 ${isShuffling ? 'motion-safe:animate-spin' : ''}`} />
+                            <ArrowCounterClockwise className={`w-4 h-4 sm:w-5 sm:h-5 ${isShuffling ? 'motion-safe:animate-spin' : ''}`} />
                             <span className="hidden xs:inline">{isShuffling ? 'Shuffling the Cards...' : 'Draw New Reading'}</span>
                             <span className="xs:hidden">{isShuffling ? 'Shuffling...' : 'New Reading'}</span>
                         </button>

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X } from 'lucide-react';
+import { X } from '@phosphor-icons/react';
 import { useAuth } from '../contexts/AuthContext';
 
 export default function AuthModal({ isOpen, onClose }) {

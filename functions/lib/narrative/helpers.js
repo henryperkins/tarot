@@ -117,11 +117,20 @@ function pickOne(value) {
   return value;
 }
 
-function normalizeContext(context) {
+const VALID_CONTEXTS = ['love', 'career', 'self', 'spiritual', 'general'];
+
+function normalizeContext(context, { onUnknown } = {}) {
   if (!context || typeof context !== 'string') return 'general';
   const key = context.trim().toLowerCase();
-  if (['love', 'career', 'self', 'spiritual'].includes(key)) {
+  if (VALID_CONTEXTS.includes(key)) {
     return key;
+  }
+  // Surface an explicit signal instead of silently downgrading.
+  const message = `[narrative] Unknown context "${context}"; falling back to "general".`;
+  if (typeof onUnknown === 'function') {
+    onUnknown(message);
+  } else if (typeof console !== 'undefined' && console.warn) {
+    console.warn(message);
   }
   return 'general';
 }
@@ -999,6 +1008,224 @@ function buildPatternSynthesis(themes) {
   return `${section}\n`.trimEnd();
 }
 
+/**
+ * ELEMENTAL REMEDIES
+ * Concrete practices to balance underrepresented elemental energies
+ */
+
+const ELEMENTAL_REMEDIES_BY_CONTEXT = {
+  Fire: {
+    love: [
+      'Plan a spontaneous date or shared adventure',
+      'Have an honest conversation about what excites you both',
+      'Try something new together that gets your hearts racing'
+    ],
+    career: [
+      'Pitch that idea you have been sitting on',
+      'Take initiative on a project without waiting for permission',
+      'Network with someone who inspires you'
+    ],
+    self: [
+      'Move your body—take a walk, stretch, or dance to music',
+      'Start that creative project you have been thinking about',
+      'Do something that scares you a little in a good way'
+    ],
+    spiritual: [
+      'Practice devotional movement (sacred dance, yoga, tai chi)',
+      'Engage with your spiritual practice through action (ritual, service)',
+      'Channel inspiration into creative expression of your beliefs'
+    ],
+    general: [
+      'Move your body—take a walk, stretch, or dance to music',
+      'Take one decisive action on something you have been considering',
+      'Create something with your hands—cook, draw, rearrange a space'
+    ]
+  },
+
+  Water: {
+    love: [
+      'Share a vulnerable feeling with your partner',
+      'Create space to really listen without planning your response',
+      'Express appreciation for something you often take for granted'
+    ],
+    career: [
+      'Check in with how you feel about your work, not just what you think',
+      'Reach out to a colleague with genuine care, not just networking',
+      'Notice and honor your emotional needs around work boundaries'
+    ],
+    self: [
+      'Journal your feelings without censoring or editing',
+      'Practice self-compassion when difficult emotions arise',
+      'Let yourself cry, laugh, or feel without trying to fix it'
+    ],
+    spiritual: [
+      'Spend time in receptive prayer or meditation',
+      'Engage with sacred texts or teachings that move you emotionally',
+      'Practice loving-kindness meditation for yourself and others'
+    ],
+    general: [
+      'Journal your feelings without censoring or editing',
+      'Spend time near water or take a mindful bath',
+      'Talk with someone who holds space for your emotions without trying to fix them'
+    ]
+  },
+
+  Air: {
+    love: [
+      'Ask a question you have been afraid to ask',
+      'Talk through a misunderstanding without defensiveness',
+      'Share an idea or perspective you usually keep to yourself'
+    ],
+    career: [
+      'Clarify expectations in a key work relationship',
+      'Ask for the feedback you need to grow',
+      'Articulate your vision or goals to someone who can help'
+    ],
+    self: [
+      'Write out your thoughts to gain perspective on what feels confusing',
+      'Talk through your inner dialogue with a trusted friend',
+      'Question an assumption you have been carrying'
+    ],
+    spiritual: [
+      'Study a teaching or text that challenges your understanding',
+      'Engage in dialogue with someone whose beliefs differ from yours',
+      'Write or speak your prayers aloud to clarify your intentions'
+    ],
+    general: [
+      'Discuss your thoughts with a trusted friend or mentor',
+      'Write out your thoughts to gain perspective on what feels confusing',
+      'Learn something new that sparks your curiosity'
+    ]
+  },
+
+  Earth: {
+    love: [
+      'Create a small daily ritual you do together (morning coffee, evening walk)',
+      'Tend to the practical, unglamorous foundations of your relationship',
+      'Show love through concrete actions, not just words'
+    ],
+    career: [
+      'Organize your workspace or schedule for better flow',
+      'Complete one small task that has been lingering',
+      'Build a sustainable routine that supports your energy'
+    ],
+    self: [
+      'Establish one grounding daily ritual (morning tea, evening walk, bedtime routine)',
+      'Tend to your body\'s basic needs (sleep, nourishing food, gentle movement)',
+      'Spend time in nature or with your hands in soil'
+    ],
+    spiritual: [
+      'Create a physical altar or sacred space in your home',
+      'Engage in embodied practice (walking meditation, sacred gardening)',
+      'Ground your beliefs in daily ritual and tangible acts of service'
+    ],
+    general: [
+      'Establish one grounding daily ritual (morning tea, evening walk, bedtime routine)',
+      'Organize a small physical space to create order',
+      'Work with your hands—garden, cook, craft, or repair something tangible'
+    ]
+  }
+};
+
+/**
+ * Select context-appropriate remedy for an element
+ * Implements fallback chain: context → general → first available
+ *
+ * @param {string} element - Fire, Water, Air, Earth
+ * @param {string} context - love, career, self, spiritual, general
+ * @param {number} index - Which remedy to pick (0-2, rotates for variety)
+ * @returns {string} Context-appropriate remedy
+ */
+function selectContextAwareRemedy(element, context, index = 0) {
+  const contextRemedies = ELEMENTAL_REMEDIES_BY_CONTEXT[element];
+  if (!contextRemedies) return null;
+
+  // Try context-specific first
+  let remedyList = contextRemedies[context];
+
+  // Fallback to general
+  if (!remedyList || remedyList.length === 0) {
+    remedyList = contextRemedies.general;
+  }
+
+  // Fallback to first available
+  if (!remedyList || remedyList.length === 0) {
+    const firstAvailable = Object.values(contextRemedies).find(
+      list => list && list.length > 0
+    );
+    remedyList = firstAvailable || [];
+  }
+
+  if (remedyList.length === 0) return null;
+
+  // Rotate through options
+  const selectedIndex = index % remedyList.length;
+  return remedyList[selectedIndex];
+}
+
+/**
+ * Generate actionable remedies for underrepresented elements
+ * Now with context-aware selection
+ *
+ * @param {Object} elementCounts - Counts of each element {Fire: 2, Water: 0, Air: 1, Earth: 0}
+ * @param {number} totalCards - Total number of cards in spread
+ * @param {string} context - Reading context (love, career, self, spiritual, general)
+ * @param {Object} options - Additional options
+ * @param {number} options.rotationIndex - Index for rotating through remedies (default: 0)
+ * @returns {string|null} Formatted remedy guidance or null if balanced
+ */
+function buildElementalRemedies(elementCounts, totalCards, context = 'general', options = {}) {
+  if (!elementCounts || !totalCards || totalCards < 3) return null;
+
+  const rotationIndex = options.rotationIndex || 0;
+
+  // Calculate which elements are underrepresented (< 15% of spread)
+  const threshold = 0.15;
+  const underrepresented = Object.entries(elementCounts)
+    .filter(([element, count]) => {
+      const ratio = count / totalCards;
+      return ratio < threshold && count < totalCards; // Exclude if element = 100%
+    })
+    .map(([element]) => element)
+    .filter(element => ELEMENTAL_REMEDIES_BY_CONTEXT[element]); // Only elements with remedies
+
+  if (underrepresented.length === 0) return null;
+
+  // Build remedy text with context-aware selection
+  const remedies = underrepresented
+    .map(element => {
+      const remedy = selectContextAwareRemedy(element, context, rotationIndex);
+      if (!remedy) return null;
+      return `- ${element}: ${remedy}`;
+    })
+    .filter(Boolean);
+
+  if (remedies.length === 0) return null;
+
+  return `To bring in underrepresented energies:\n${remedies.join('\n')}`;
+}
+
+/**
+ * Check if elemental remedies should be offered
+ * True when one element dominates (≥50%) or elements are very sparse
+ * Only applies to spreads with 3+ cards (single/two-card spreads too small to meaningfully balance)
+ */
+function shouldOfferElementalRemedies(elementCounts, totalCards) {
+  if (!elementCounts || !totalCards || totalCards < 3) return false;
+
+  const counts = Object.values(elementCounts);
+  const maxCount = Math.max(...counts);
+  const maxRatio = maxCount / totalCards;
+
+  // Offer remedies if:
+  // 1. One element dominates (≥50%)
+  // 2. OR 2 or fewer active elements (sparse coverage)
+  if (maxRatio >= 0.5) return true;
+
+  const activeElements = counts.filter(c => c > 0).length;
+  return activeElements <= 2;
+}
+
 export {
   DEFAULT_WEIGHT_DETAIL_THRESHOLD,
   SUPPORTING_WEIGHT_THRESHOLD,
@@ -1021,5 +1248,8 @@ export {
   buildReflectionsSection,
   buildGuidanceActionPrompt,
   buildInlineReversalNote,
-  buildPatternSynthesis
+  buildPatternSynthesis,
+  buildElementalRemedies,
+  shouldOfferElementalRemedies,
+  selectContextAwareRemedy
 };

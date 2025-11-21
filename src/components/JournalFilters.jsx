@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { ChevronDown, Check } from 'lucide-react';
+import { CaretDown, Check } from '@phosphor-icons/react';
 
 const TIMEFRAME_OPTIONS = [
   { value: 'all', label: 'All time' },
@@ -66,7 +66,7 @@ function FilterDropdown({ label, options, value, onChange, multiple = false }) {
             {activeCount}
           </span>
         )}
-        <ChevronDown className={`h-3 w-3 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+        <CaretDown className={`h-3 w-3 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
       </button>
 
       {isOpen && (

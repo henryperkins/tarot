@@ -1,15 +1,15 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  Activity,
+  ChartLine,
   ArrowLeft,
   ArrowRight,
-  BookmarkPlus,
-  History,
-  RefreshCw,
-  Sparkles,
-  Wand2,
+  BookmarkSimple,
+  ClockCounterClockwise,
+  ArrowsClockwise,
+  Sparkle,
+  MagicWand,
   X
-} from 'lucide-react';
+} from '@phosphor-icons/react';
 import {
   INTENTION_TOPIC_OPTIONS,
   INTENTION_TIMEFRAME_OPTIONS,
@@ -667,7 +667,7 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply 
           <div className="flex flex-col gap-6 px-4 pb-6 pt-16 sm:pt-8 sm:px-10 sm:pb-6">
             <div>
               <div className="flex items-center gap-2 text-secondary">
-                <Sparkles className="h-4 w-4" />
+                <Sparkle className="h-4 w-4" />
                 <span className="text-xs uppercase tracking-[0.2em]">Guided Intention Coach</span>
               </div>
               <h2 id={titleId} className="mt-2 font-serif text-2xl text-main">Shape a question with clarity</h2>
@@ -707,7 +707,7 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply 
                     onClick={() => setTemplatePanelOpen(true)}
                     className="inline-flex items-center justify-center gap-1 rounded-full border border-secondary/40 px-3 py-1.5 text-[0.65rem] uppercase tracking-[0.2em] text-secondary hover:bg-secondary/10 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/60"
                   >
-                    <BookmarkPlus className="h-3.5 w-3.5 text-secondary" aria-hidden="true" />
+                    <BookmarkSimple className="h-3.5 w-3.5 text-secondary" aria-hidden="true" />
                     Templates
                   </button>
                 </div>
@@ -720,7 +720,7 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply 
                     {SPREAD_TO_TOPIC_MAP[selectedSpread] && (
                       <div className="rounded-lg bg-accent/10 border border-accent/30 px-3 py-2">
                         <div className="flex items-center gap-2 mb-1">
-                          <Sparkles className="h-3 w-3 text-accent" />
+                          <Sparkle className="h-3 w-3 text-accent" />
                           <span className="text-xs font-bold uppercase tracking-wider text-accent">Suggested Focus</span>
                         </div>
                         <p className="text-xs text-secondary">
@@ -822,7 +822,7 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply 
                       <div className="flex flex-col gap-2">
                         <div>
                           <p className="flex items-center gap-2 text-xs uppercase tracking-[0.3em] text-secondary">
-                            <Sparkles className="h-3.5 w-3.5 text-secondary" aria-hidden="true" />
+                            <Sparkle className="h-3.5 w-3.5 text-secondary" aria-hidden="true" />
                             Review & Refine
                           </p>
                           <p className="text-xs text-secondary/80 mt-1">
@@ -863,7 +863,7 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply 
                               }}
                             />
                             <span className="inline-flex items-center gap-1 font-medium">
-                              <Wand2 className="h-3.5 w-3.5 text-secondary" aria-hidden="true" />
+                              <MagicWand className="h-3.5 w-3.5 text-secondary" aria-hidden="true" />
                               Personalize with AI
                             </span>
                           </label>
@@ -877,7 +877,7 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply 
                             }}
                             className="inline-flex items-center gap-1 rounded-full border border-secondary/60 bg-transparent px-3 py-1.5 text-[0.7rem] font-semibold text-secondary hover:bg-secondary/10 transition"
                           >
-                            <RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />
+                            <ArrowsClockwise className="h-3.5 w-3.5" aria-hidden="true" />
                             Remix
                           </button>
                         </div>
@@ -897,7 +897,7 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply 
                       
                       <div className="rounded-2xl border border-secondary/30 bg-surface/60 p-5 space-y-3 text-center">
                         <div className="flex items-center justify-center gap-2 text-[0.65rem] uppercase tracking-[0.3em] text-secondary/80">
-                          <Sparkles className="h-4 w-4 text-secondary" aria-hidden="true" />
+                          <Sparkle className="h-4 w-4 text-secondary" aria-hidden="true" />
                           Your Question
                         </div>
                         <p className="font-serif text-xl sm:text-2xl text-main leading-relaxed">
@@ -909,7 +909,7 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply 
                       <div className="rounded-2xl border border-secondary/30 bg-surface/40 p-3 space-y-2">
                         <div className="flex items-center justify-between text-xs text-secondary">
                           <span className="inline-flex items-center gap-1">
-                            <Activity className="h-4 w-4 text-secondary" aria-hidden="true" />
+                            <ChartLine className="h-4 w-4 text-secondary" aria-hidden="true" />
                             Question quality
                           </span>
                           <span className="text-xs font-semibold text-secondary">
@@ -1048,7 +1048,7 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply 
                   className="inline-flex items-center justify-center gap-2 rounded-full border border-secondary/60 bg-secondary/80 px-5 py-2.5 sm:py-2 text-sm font-semibold text-white transition disabled:opacity-50 min-h-[44px] sm:min-h-0 flex-1 sm:flex-none touch-manipulation"
                 >
                   <span>Use question</span>
-                  <Sparkles className="h-4 w-4" />
+                  <Sparkle className="h-4 w-4" />
                 </button>
               )}
             </div>
@@ -1068,7 +1068,7 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply 
             <div className="flex items-center justify-between gap-2">
               <div>
                 <p className="flex items-center gap-2 text-xs uppercase tracking-[0.3em] text-secondary">
-                  <BookmarkPlus className="h-4 w-4 text-secondary" aria-hidden="true" />
+                  <BookmarkSimple className="h-4 w-4 text-secondary" aria-hidden="true" />
                   Template library
                 </p>
                 <p className="text-sm text-muted">
@@ -1101,7 +1101,7 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply 
                       onClick={handleSaveTemplate}
                       className="inline-flex items-center justify-center gap-1 rounded-full border border-secondary/60 bg-secondary/10 px-4 py-2 text-xs font-semibold text-secondary hover:bg-secondary/20 transition"
                     >
-                      <Sparkles className="h-3.5 w-3.5 text-secondary" aria-hidden="true" />
+                      <Sparkle className="h-3.5 w-3.5 text-secondary" aria-hidden="true" />
                       Save
                     </button>
                   </div>
@@ -1164,7 +1164,7 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply 
 
               <section className="space-y-3">
                 <p className="flex items-center gap-2 text-xs uppercase tracking-[0.3em] text-accent/80">
-                  <History className="h-4 w-4 text-secondary" aria-hidden="true" />
+                  <ClockCounterClockwise className="h-4 w-4 text-secondary" aria-hidden="true" />
                   Recent questions
                 </p>
                 {questionHistory.length === 0 ? (

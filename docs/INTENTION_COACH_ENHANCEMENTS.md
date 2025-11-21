@@ -78,10 +78,11 @@ const SPREAD_TO_TOPIC_MAP = {
 
 | Dimension | Weight | Description |
 |-----------|--------|-------------|
-| **Open-ended** | 35% | Avoids yes/no questions, uses "How/What" instead |
-| **Specific** | 25% | Not too vague, 5-30 words, avoids generic terms |
-| **Actionable** | 25% | Uses reflective verbs (explore, navigate, understand) |
-| **Length** | 15% | 20-150 characters (not too short or long) |
+| **Open-ended** | 35% | Avoids yes/no questions, uses "How/What" instead; fate/guarantee phrasing is penalized |
+| **Specific** | 25% | Not too vague (5-40 words) and grounded in a concrete subject (person/role/situation) |
+| **Actionable** | 25% | Uses reflective + agency verbs (explore, navigate, align, build) |
+| **Length** | 10% | Word-based check; full credit at 8-30 words, partial at 6-40 |
+| **Context Bonus** | +5 | Mentions a gentle timeframe to focus the spread ("this month", "next six months") |
 
 **Quality Levels:**
 - 🌟 **Excellent** (85-100): Ready to use
@@ -96,7 +97,8 @@ const SPREAD_TO_TOPIC_MAP = {
 - Example tips:
   - "Try 'How' or 'What' instead of yes/no questions"
   - "Be more specific - what exactly are you exploring?"
-  - "Frame as an exploration: 'How can I...' or 'What do I need...'"
+  - "Include agency-forward verbs like navigate, align, or cultivate"
+  - "Add a gentle timeframe to focus the reading"
 
 **Impact:**
 - ✅ Educational - teaches users effective question crafting

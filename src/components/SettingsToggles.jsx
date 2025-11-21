@@ -1,14 +1,14 @@
 import React from 'react';
 import {
-  Volume2,
-  VolumeX,
-  Music,
+  SpeakerHigh,
+  SpeakerSlash,
+  MusicNotes,
   Sun,
   Moon,
-  Layers,
+  Stack,
   Info,
-  RotateCcw
-} from 'lucide-react';
+  ArrowCounterClockwise
+} from '@phosphor-icons/react';
 import { Tooltip } from './Tooltip';
 import { HelperToggle } from './HelperToggle';
 import { usePreferences } from '../contexts/PreferencesContext';
@@ -66,7 +66,7 @@ export function SettingsToggles() {
   const reversalSelectClass =
     'w-full rounded-2xl border border-secondary/25 bg-surface/70 px-3 py-2 text-[0.72rem] uppercase tracking-[0.08em] text-main transition focus:outline-none focus:ring-2 focus:ring-accent/50 sm:w-auto';
 
-  const VoiceIcon = voiceOn ? Volume2 : VolumeX;
+  const VoiceIcon = voiceOn ? SpeakerHigh : SpeakerSlash;
   const LightIcon = theme === 'light' ? Sun : Moon;
   const deckStatusLabel = minorsDataIncomplete
     ? 'Limited'
@@ -96,7 +96,7 @@ export function SettingsToggles() {
       srDescription: 'Play soft background ambience sound during readings.',
       active: ambienceOn,
       statusLabel: ambienceOn ? 'Playing' : 'Muted',
-      Icon: Music,
+      Icon: MusicNotes,
       onToggle: value => setAmbienceOn(value)
     },
     {
@@ -121,7 +121,7 @@ export function SettingsToggles() {
         'Toggle between the full 78-card deck and the Major Arcana-only deck.',
       active: includeMinors,
       statusLabel: deckStatusLabel,
-      Icon: Layers,
+      Icon: Stack,
       onToggle: value => setIncludeMinors?.(value)
     }
   ];
@@ -203,7 +203,7 @@ export function SettingsToggles() {
         >
           <div className="flex w-full items-center gap-3 text-[0.75rem] normal-case tracking-normal">
             <span className={`${iconWrapperBase} ${activeIconWrapper}`} aria-hidden="true">
-              <RotateCcw className="h-4 w-4" />
+              <ArrowCounterClockwise className="h-4 w-4" />
             </span>
             <div className="flex flex-1 flex-col gap-1 sm:flex-row sm:items-center sm:gap-3">
               <div className="flex items-center gap-1.5">

@@ -5,7 +5,7 @@ export function DeckPile({ cardsRemaining, onDraw, isShuffling, nextLabel }) {
     if (cardsRemaining <= 0) return null;
 
     return (
-        <div className="flex flex-col items-center justify-center py-6 sm:py-8 animate-fade-in">
+        <div className="flex flex-col items-center justify-center py-6 sm:py-8 animate-fade-in relative z-20">
             <motion.button
                 whileHover={{ scale: 1.05, y: -5 }}
                 whileTap={{ scale: 0.95, y: 0 }}

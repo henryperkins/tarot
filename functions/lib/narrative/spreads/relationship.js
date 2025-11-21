@@ -16,7 +16,7 @@ import {
   buildGuidanceActionPrompt
 } from '../helpers.js';
 
-export function buildRelationshipReading({
+export async function buildRelationshipReading({
   cardsInfo,
   userQuestion,
   reflectionsText,
@@ -260,6 +260,12 @@ export function buildRelationshipReading({
     sections.push(patternSection);
   }
 
+  // Additional guidance with elemental remedies
+  const additionalGuidance = await buildRelationshipAdditionalGuidance(normalizedCards, themes, context);
+  if (additionalGuidance) {
+    sections.push(additionalGuidance);
+  }
+
   const full = sections.filter(Boolean).join('\n\n');
   const validation = validateReadingNarrative(full);
   if (!validation.isValid) {
@@ -291,4 +297,28 @@ function buildRelationshipElementalTakeaway(elemental, youCard, themCard) {
     default:
       return 'Stay curious about how each of you is showing up today and keep checking in so the energy stays responsive, not reactive.';
   }
+}
+
+async function buildRelationshipAdditionalGuidance(cardsInfo, themes, context) {
+  // Only add elemental remedies section if there's an imbalance
+  if (!themes.elementCounts || !themes.elementalBalance) {
+    return null;
+  }
+
+  const { buildElementalRemedies, shouldOfferElementalRemedies } = await import('../helpers.js');
+  if (!shouldOfferElementalRemedies(themes.elementCounts, cardsInfo.length)) {
+    return null;
+  }
+
+  const remedies = buildElementalRemedies(themes.elementCounts, cardsInfo.length, context);
+  if (!remedies) {
+    return null;
+  }
+
+  let section = `### Supporting Your Connection\n\n`;
+  section += `${themes.elementalBalance}\n\n`;
+  section += `${remedies}\n\n`;
+  section += `These practices can help each of you show up more fully, bringing balance to the energies present in this reading.`;
+
+  return section;
 }

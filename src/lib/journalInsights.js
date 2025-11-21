@@ -86,20 +86,69 @@ export function loadCoachStatsSnapshot() {
   }
 }
 
-function buildCsv(entries) {
+export function buildJournalCsv(entries) {
   if (!Array.isArray(entries) || entries.length === 0) return '';
-  const header = ['Timestamp', 'Spread', 'Question', 'Cards', 'Context', 'Narrative'];
+  const header = [
+    'Timestamp',
+    'Spread',
+    'Spread Key',
+    'Question',
+    'Cards',
+    'Context',
+    'Provider',
+    'Deck',
+    'Session Seed',
+    'Reflections',
+    'Themes',
+    'Narrative'
+  ];
+
+  const escapeCsv = (value) => {
+    if (value === null || value === undefined) return '""';
+    const str = typeof value === 'string' ? value : JSON.stringify(value);
+    return `"${str.replace(/"/g, '""')}"`;
+  };
+
+  const formatCards = (cards = []) => {
+    if (!Array.isArray(cards) || cards.length === 0) return '';
+    return cards
+      .map(card => {
+        const pos = card?.position || '';
+        const name = card?.name || card?.card || '';
+        const orientation = card?.orientation || '';
+        return `${pos}: ${name}${orientation ? ` (${orientation})` : ''}`;
+      })
+      .join(' | ');
+  };
+
   const rows = entries.map((entry) => {
     const timestamp = entry?.ts ? new Date(entry.ts).toISOString() : '';
     const spread = entry?.spread || entry?.spreadName || '';
-    const question = (entry?.question || '').replace(/"/g, '""');
-    const cards = (entry?.cards || [])
-      .map(card => `${card.position}: ${card.name} (${card.orientation})`)
-      .join(' | ')
-      .replace(/"/g, '""');
+    const spreadKey = entry?.spreadKey || '';
+    const question = entry?.question || '';
+    const cards = formatCards(entry?.cards);
     const context = entry?.context || '';
-    const narrative = (entry?.personalReading || '').replace(/"/g, '""');
-    return [timestamp, spread, question, cards, context, narrative].map(value => `"${value || ''}"`).join(',');
+    const provider = entry?.provider || '';
+    const deck = entry?.deckId || entry?.deckStyle || '';
+    const sessionSeed = entry?.sessionSeed || '';
+    const reflections = entry?.reflections || '';
+    const themes = entry?.themes || '';
+    const narrative = entry?.personalReading || '';
+
+    return [
+      timestamp,
+      spread,
+      spreadKey,
+      question,
+      cards,
+      context,
+      provider,
+      deck,
+      sessionSeed,
+      reflections,
+      themes,
+      narrative
+    ].map(escapeCsv).join(',');
   });
   return `${header.join(',')}
 ${rows.join('\n')}`;
@@ -197,7 +246,7 @@ export function loadCoachRecommendation() {
 
 export function exportJournalEntriesToCsv(entries, filename = 'tarot-journal.csv') {
   if (typeof document === 'undefined') return false;
-  const csv = buildCsv(entries);
+  const csv = buildJournalCsv(entries);
   if (!csv) return false;
   // CSV export is local-only; no share token needed
   const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
@@ -210,6 +259,21 @@ export function exportJournalEntriesToCsv(entries, filename = 'tarot-journal.csv
   document.body.removeChild(link);
   URL.revokeObjectURL(url);
   return true;
+}
+
+export async function copyJournalEntriesToClipboard(entries) {
+  if (!Array.isArray(entries) || entries.length === 0) return false;
+  const csv = buildJournalCsv(entries);
+  if (!csv) return false;
+  try {
+    if (navigator?.clipboard?.writeText) {
+      await navigator.clipboard.writeText(csv);
+      return true;
+    }
+  } catch (error) {
+    console.warn('Unable to copy journal CSV to clipboard:', error);
+  }
+  return false;
 }
 
 export async function copyJournalShareSummary(stats) {

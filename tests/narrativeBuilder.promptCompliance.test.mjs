@@ -164,7 +164,7 @@ describe('Celtic Cross narrative + Claude prompt compliance', () => {
     const themes = await buildThemes(cardsInfo, 'blocked');
     const celticAnalysis = analyzeCelticCross(cardsInfo);
 
-    const reading = buildCelticCrossReading({
+    const reading = await buildCelticCrossReading({
       cardsInfo,
       userQuestion: 'How can I work with these changes?',
       reflectionsText: 'I feel a big transition approaching.',
@@ -339,7 +339,7 @@ describe('Three-Card narrative + Claude prompt compliance', () => {
     const themes = await buildThemes(cardsInfo, 'internalized');
     const threeCardAnalysis = analyzeThreeCard(cardsInfo);
 
-    const reading = buildThreeCardReading({
+    const reading = await buildThreeCardReading({
       cardsInfo,
       userQuestion: 'What is unfolding in this chapter?',
       reflectionsText: '',
@@ -402,7 +402,7 @@ describe('Other spread builders prompt-engineering compliance', () => {
     const themes = await buildThemes(cardsInfo, 'blocked');
     const fiveCardAnalysis = analyzeFiveCard(cardsInfo);
 
-    const reading = buildFiveCardReading({
+    const reading = await buildFiveCardReading({
       cardsInfo,
       userQuestion: 'How can I best navigate this?',
       reflectionsText: '',
@@ -431,7 +431,7 @@ describe('Other spread builders prompt-engineering compliance', () => {
 
     const themes = await buildThemes(cardsInfo, 'internalized');
 
-    const reading = buildRelationshipReading({
+    const reading = await buildRelationshipReading({
       cardsInfo,
       userQuestion: 'What is the energy of this connection?',
       reflectionsText: '',
@@ -461,7 +461,7 @@ describe('Other spread builders prompt-engineering compliance', () => {
 
     const themes = await buildThemes(cardsInfo, 'blocked');
 
-    const reading = buildDecisionReading({
+    const reading = await buildDecisionReading({
       cardsInfo,
       userQuestion: 'Which path aligns with me?',
       reflectionsText: '',
@@ -487,7 +487,7 @@ describe('Other spread builders prompt-engineering compliance', () => {
 
     const themes = await buildThemes(cardsInfo, 'internalized');
 
-    const reading = buildSingleCardReading({
+    const reading = await buildSingleCardReading({
       cardsInfo,
       userQuestion: 'What do I most need to hear?',
       reflectionsText: '',
@@ -516,7 +516,7 @@ describe('Other spread builders prompt-engineering compliance', () => {
     const themes = await buildThemes(cardsInfo, 'blocked');
     const threeCardAnalysis = analyzeThreeCard(cardsInfo);
 
-    const reading = buildThreeCardReading({
+    const reading = await buildThreeCardReading({
       cardsInfo,
       userQuestion: 'How is this momentum building?',
       reflectionsText: '',

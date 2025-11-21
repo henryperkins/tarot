@@ -18,7 +18,7 @@ import {
   DEFAULT_WEIGHT_DETAIL_THRESHOLD
 } from '../helpers.js';
 
-export function buildCelticCrossReading({
+export async function buildCelticCrossReading({
   cardsInfo,
   userQuestion,
   reflectionsText,
@@ -90,7 +90,7 @@ export function buildCelticCrossReading({
   // 7. SYNTHESIS - Actionable integration
   sections.push(
     enhanceSection(
-      buildSynthesisSection(cardsInfo, themes, celticAnalysis, userQuestion, context),
+      await buildSynthesisSection(cardsInfo, themes, celticAnalysis, userQuestion, context),
       { type: 'outcome' }
     ).text
   );
@@ -274,7 +274,7 @@ function buildCrossChecksSection(crossChecks, themes) {
 
 
 
-function buildSynthesisSection(cardsInfo, themes, celticAnalysis, userQuestion, context) {
+async function buildSynthesisSection(cardsInfo, themes, celticAnalysis, userQuestion, context) {
   let section = `### Synthesis & Guidance\n\n`;
 
   section += 'This synthesis shows how the spread integrates into actionable guidance.\n\n';
@@ -294,6 +294,17 @@ function buildSynthesisSection(cardsInfo, themes, celticAnalysis, userQuestion, 
 
   if (themes.elementalBalance) {
     section += `Elemental context: ${themes.elementalBalance}\n\n`;
+
+    // Elemental remedies if imbalanced
+    if (themes.elementCounts) {
+      const { buildElementalRemedies, shouldOfferElementalRemedies } = await import('../helpers.js');
+      if (shouldOfferElementalRemedies(themes.elementCounts, cardsInfo.length)) {
+        const remedies = buildElementalRemedies(themes.elementCounts, cardsInfo.length, context);
+        if (remedies) {
+          section += `${remedies}\n\n`;
+        }
+      }
+    }
   }
 
   // Timing profile (if available)
