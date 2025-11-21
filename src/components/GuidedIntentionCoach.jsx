@@ -239,6 +239,8 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply 
   const [isTemplatePanelOpen, setTemplatePanelOpen] = useState(false);
   const [remixCount, setRemixCount] = useState(0);
   const modalRef = React.useRef(null);
+  const depthSectionRef = useRef(null);
+  const customFocusRef = useRef(null);
   const titleId = React.useId();
   const questionRequestRef = useRef(0);
   const releasePrefill = () => {
@@ -486,9 +488,16 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply 
     return () => document.removeEventListener('keydown', handleEscape);
   }, [isOpen, onClose]);
 
+  // Generate deterministic seed from user selections
+  // This ensures same selections produce same question (reproducible)
+  // remixCount allows forcing a new variant
+  const questionSeed = useMemo(() => {
+    return `${topic}|${timeframe}|${depth}|${customFocus}|${remixCount}`;
+  }, [topic, timeframe, depth, customFocus, remixCount]);
+
   const guidedQuestion = useMemo(
-    () => buildGuidedQuestion({ topic, timeframe, depth, customFocus }),
-    [topic, timeframe, depth, customFocus, remixCount]
+    () => buildGuidedQuestion({ topic, timeframe, depth, customFocus, seed: questionSeed }),
+    [topic, timeframe, depth, customFocus, questionSeed]
   );
 
   useEffect(() => {
@@ -516,7 +525,13 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply 
 
     const timerId = setTimeout(async () => {
       try {
-        const { question: creative, source } = await buildCreativeQuestion({ topic, timeframe, depth, customFocus });
+        const { question: creative, source } = await buildCreativeQuestion({
+          topic,
+          timeframe,
+          depth,
+          customFocus,
+          seed: questionSeed  // Pass seed for deterministic creative questions
+        });
         if (questionRequestRef.current !== requestId) {
           return;
         }
@@ -544,7 +559,7 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply 
       clearTimeout(timerId);
       questionRequestRef.current += 1;
     };
-  }, [guidedQuestion, useCreative, topic, timeframe, depth, customFocus, isOpen, autoQuestionEnabled, remixCount]);
+  }, [guidedQuestion, useCreative, topic, timeframe, depth, customFocus, isOpen, autoQuestionEnabled, remixCount, questionSeed]);
 
   const questionQuality = useMemo(
     () => scoreQuestion(questionText || guidedQuestion || ''),
@@ -779,7 +794,7 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply 
 
                 {step === 2 && (
                   <div className="space-y-6">
-                    <div>
+                    <div ref={depthSectionRef}>
                       <p className="text-sm text-muted">How deep do you want to go?</p>
                       <div className="grid gap-3 md:grid-cols-2">
                         {INTENTION_DEPTH_OPTIONS.map(option => (
@@ -806,6 +821,7 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply 
                         Add a detail (optional)
                       </label>
                       <input
+                        ref={customFocusRef}
                         id="custom-focus"
                         type="text"
                         value={customFocus}
@@ -836,9 +852,14 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply 
                               <button
                                 key={`${chip.label}-${idx}`}
                                 onClick={() => {
-                                  if (typeof chip.step === 'number') setStep(chip.step);
+                                  if (typeof chip.step === 'number') {
+                                    setStep(chip.step);
+                                    if (chip.step === step && chip.type === 'Depth') {
+                                      depthSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                    }
+                                  }
                                   if (chip.action === 'focus') {
-                                    document.getElementById('custom-focus')?.focus();
+                                    customFocusRef.current?.focus();
                                   }
                                 }}
                                 className="rounded-full border border-secondary/40 bg-surface/50 px-3 py-1 text-[0.65rem] uppercase tracking-[0.2em] text-secondary/80 hover:bg-secondary/10 hover:border-secondary transition"

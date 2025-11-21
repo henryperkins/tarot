@@ -1,5 +1,11 @@
 # Developer Onboarding Guide: Mystic Tarot
 
+## 0. Environment Bootstrap
+
+1. Copy `.dev.vars.example` to `.dev.vars` and fill in the Azure OpenAI, Anthropic, and vision secrets. This is the single source of truth for local development values—never commit the populated file.
+2. Run `npm run config:check` anytime the secret list changes. The script inspects `.dev.vars` and your shell environment, failing fast if a required entry (e.g., `VISION_PROOF_SECRET`) is missing.
+3. When you're ready to push to Cloudflare Pages, mirror the same keys with `wrangler pages secret put <NAME> --project-name=tableau` (see `wrangler.toml` for the authoritative list).
+
 ## 1. The Scaffold & Stack Audit
 
 **Build & Environment**

@@ -1,0 +1,18 @@
+# Copy this file to .dev.vars and populate each value before running dev.sh
+# Secrets never belong in git. The example exists solely as a checklist.
+
+AZURE_OPENAI_ENDPOINT="https://your-azure-resource.openai.azure.com"
+AZURE_OPENAI_API_KEY="sk-your-key"
+AZURE_OPENAI_GPT5_MODEL="gpt-5.1"
+AZURE_OPENAI_TTS_ENDPOINT="https://your-azure-resource.openai.azure.com"
+AZURE_OPENAI_TTS_API_KEY="sk-your-tts-key"
+AZURE_OPENAI_GPT_AUDIO_MINI_DEPLOYMENT="gpt-4o-mini-tts"
+AZURE_OPENAI_GPT_AUDIO_MINI_FORMAT="mp3"
+AZURE_OPENAI_USE_V1_FORMAT="true"
+
+VISION_PROOF_SECRET="replace-me"
+ANTHROPIC_API_KEY="sk-ant-your-key" # Required for Claude fallbacks
+
+# Optional feature flags / diagnostics
+VITE_ENABLE_VISION_RESEARCH="false"
+LOG_LLM_PROMPTS="false"

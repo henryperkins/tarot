@@ -1,6 +1,7 @@
-import { EXAMPLE_QUESTIONS } from '../data/exampleQuestions';
-import { loadStoredJournalInsights } from './journalInsights';
-import { loadCoachHistory } from './coachStorage';
+import { EXAMPLE_QUESTIONS } from '../data/exampleQuestions.js';
+import { loadStoredJournalInsights } from './journalInsights.js';
+import { loadCoachHistory } from './coachStorage.js';
+import { hashString } from './deck.js';
 
 const STOP_PHRASES = [' this week', ' this relationship', ' right now', ' with clarity'];
 
@@ -21,15 +22,32 @@ const navigateSeed = EXAMPLE_QUESTIONS[1] || 'How can I navigate this relationsh
 const lessonSeed = EXAMPLE_QUESTIONS[3] || 'What lesson am I meant to learn?';
 const claritySeed = EXAMPLE_QUESTIONS[4] || 'How can I move forward with clarity?';
 
-function hashString(str) {
-  let hash = 0;
-  for (let i = 0; i < str.length; i += 1) {
-    hash = ((hash << 5) - hash) + str.charCodeAt(i);
-    hash |= 0;
-  }
-  return Math.abs(hash);
+/**
+ * Deterministically picks a variant from a list based on a seed.
+ * Same inputs always produce the same output.
+ *
+ * @param {Array} list - Array of variants to choose from
+ * @param {number|string} seed - Seed value for deterministic selection
+ * @returns {string} Selected variant
+ */
+function pickVariantDeterministic(list, seed) {
+  if (!Array.isArray(list) || list.length === 0) return '';
+
+  // Convert seed to number if it's a string
+  const numericSeed = typeof seed === 'string' ? hashString(seed) : (seed >>> 0);
+
+  // Use simple modulo for deterministic selection
+  return list[numericSeed % list.length];
 }
 
+/**
+ * Legacy variant picker with time-based randomization (non-deterministic).
+ * Kept for backward compatibility when no seed is provided.
+ *
+ * @param {Array} list - Array of variants to choose from
+ * @param {string} seedBase - Base string to influence selection
+ * @returns {string} Selected variant
+ */
 function pickVariant(list, seedBase = '') {
   if (!Array.isArray(list) || list.length === 0) return '';
   const seed = hashString(`${seedBase}|${Date.now()}|${Math.random()}`);
@@ -124,7 +142,18 @@ export const INTENTION_DEPTH_OPTIONS = [
   }
 ];
 
-function buildLocalCreativeQuestion({ focus, timeframePhrase, depthLabel, topicLabel }) {
+/**
+ * Local creative question builder (fallback when API is unavailable).
+ *
+ * @param {Object} params - Question parameters
+ * @param {string} params.focus - Focus area text
+ * @param {string} [params.timeframePhrase] - Timeframe phrase
+ * @param {string} params.depthLabel - Depth label
+ * @param {string} params.topicLabel - Topic label
+ * @param {number|string} [params.seed] - Optional seed for deterministic output
+ * @returns {string} Generated question text
+ */
+function buildLocalCreativeQuestion({ focus, timeframePhrase, depthLabel, topicLabel, seed }) {
   const verbs = [
     'move forward with',
     'nurture',
@@ -147,9 +176,12 @@ function buildLocalCreativeQuestion({ focus, timeframePhrase, depthLabel, topicL
     'with clear communication'
   ];
 
-  const verb = pickVariant(verbs, focus);
-  const aim = pickVariant(aims, depthLabel);
-  const lens = pickVariant(lenses, topicLabel);
+  // Choose picker based on seed presence
+  const picker = seed !== undefined ? pickVariantDeterministic : pickVariant;
+
+  const verb = picker(verbs, seed !== undefined ? hashString(`${seed}|verb|${focus}`) : focus);
+  const aim = picker(aims, seed !== undefined ? hashString(`${seed}|aim|${depthLabel}`) : depthLabel);
+  const lens = picker(lenses, seed !== undefined ? hashString(`${seed}|lens|${topicLabel}`) : topicLabel);
   const timeframe = timeframePhrase ? ` ${timeframePhrase}` : '';
 
   return ensureQuestionMark(`How can I ${verb} ${focus}${timeframe} so I can ${aim} ${lens}`.replace(/\s+/g, ' ').trim());
@@ -177,7 +209,18 @@ export async function callLlmApi(prompt, metadata) {
   }
 }
 
-export async function buildCreativeQuestion({ topic, timeframe, depth, customFocus }) {
+/**
+ * Builds a creative/personalized tarot question with journal context integration.
+ *
+ * @param {Object} params - Question parameters
+ * @param {string} params.topic - Topic area (relationships, career, etc.)
+ * @param {string} params.timeframe - Time scope (today, week, month, etc.)
+ * @param {string} params.depth - Depth level (pulse, guided, lesson, deep)
+ * @param {string} [params.customFocus] - Optional custom focus text
+ * @param {number|string} [params.seed] - Optional seed for deterministic output
+ * @returns {Promise<Object>} { question: string, source: 'api'|'local' }
+ */
+export async function buildCreativeQuestion({ topic, timeframe, depth, customFocus, seed }) {
   const topicData = INTENTION_TOPIC_OPTIONS.find(option => option.value === topic) || INTENTION_TOPIC_OPTIONS[0];
   const timeframeData = INTENTION_TIMEFRAME_OPTIONS.find(option => option.value === timeframe) || INTENTION_TIMEFRAME_OPTIONS[0];
   const depthData = INTENTION_DEPTH_OPTIONS.find(option => option.value === depth) || INTENTION_DEPTH_OPTIONS[0];
@@ -225,7 +268,8 @@ export async function buildCreativeQuestion({ topic, timeframe, depth, customFoc
     frequentCard,
     leadingContext,
     reversalRate,
-    recentQuestions
+    recentQuestions,
+    seed: seed !== undefined ? seed : null  // Pass seed to backend
   };
 
   let creativeQuestion = null;
@@ -244,19 +288,35 @@ export async function buildCreativeQuestion({ topic, timeframe, depth, customFoc
     focus,
     timeframePhrase: timeframeData?.phrase,
     depthLabel: depthData.label,
-    topicLabel: topicData.label
+    topicLabel: topicData.label,
+    seed  // Pass seed to fallback
   });
 
   return { question: localCreative, source: 'local' };
 }
 
-export function buildGuidedQuestion({ topic, timeframe, depth, customFocus }) {
+/**
+ * Builds a guided tarot question from structured parameters.
+ *
+ * @param {Object} params - Question parameters
+ * @param {string} params.topic - Topic area (relationships, career, etc.)
+ * @param {string} params.timeframe - Time scope (today, week, month, etc.)
+ * @param {string} params.depth - Depth level (pulse, guided, lesson, deep)
+ * @param {string} [params.customFocus] - Optional custom focus text
+ * @param {number|string} [params.seed] - Optional seed for deterministic output
+ * @returns {string} Generated question text
+ */
+export function buildGuidedQuestion({ topic, timeframe, depth, customFocus, seed }) {
   const topicData = INTENTION_TOPIC_OPTIONS.find(option => option.value === topic) || INTENTION_TOPIC_OPTIONS[0];
   const timeframeData = INTENTION_TIMEFRAME_OPTIONS.find(option => option.value === timeframe) || INTENTION_TIMEFRAME_OPTIONS[0];
   const depthData = INTENTION_DEPTH_OPTIONS.find(option => option.value === depth) || INTENTION_DEPTH_OPTIONS[0];
 
   const focus = customFocus?.trim() || topicData.focus;
   const timeframeText = timeframeData?.phrase ? ` ${timeframeData.phrase}` : '';
+
+  // Choose picker based on seed presence
+  const picker = seed !== undefined ? pickVariantDeterministic : pickVariant;
+  const pickerSeed = seed !== undefined ? hashString(`${seed}|${focus}`) : focus;
 
   switch (depthData.pattern) {
     case 'support': {
@@ -266,16 +326,16 @@ export function buildGuidedQuestion({ topic, timeframe, depth, customFocus }) {
         `${depthData.opener} hold space for ${focus}${timeframeText}${closing}`,
         `${depthData.opener} bring balance to ${focus}${timeframeText}`
       ];
-      return ensureQuestionMark(pickVariant(variants, focus));
+      return ensureQuestionMark(picker(variants, pickerSeed));
     }
     case 'navigate': {
       const closing = depthData.closing ? ` ${depthData.closing}` : '';
       const variants = [
         `${depthData.opener} ${focus}${timeframeText}${closing}`,
-        `${depthData.opener} stay aligned with ${focus}${timeframeText}${closing}`,
-        `${depthData.opener} make progress in ${focus}${timeframeText}`
+        `How can I stay aligned with ${focus}${timeframeText}${closing}`,
+        `How can I make progress in ${focus}${timeframeText}`
       ];
-      return ensureQuestionMark(pickVariant(variants, focus));
+      return ensureQuestionMark(picker(variants, pickerSeed));
     }
     case 'lesson': {
       const variants = [
@@ -283,7 +343,7 @@ export function buildGuidedQuestion({ topic, timeframe, depth, customFocus }) {
         `What deeper lesson is ${focus} offering${timeframeText}`,
         `What is the hidden gift within ${focus}${timeframeText}`
       ];
-      return ensureQuestionMark(pickVariant(variants, focus));
+      return ensureQuestionMark(picker(variants, pickerSeed));
     }
     case 'transform': {
       const closing = depthData.closing ? ` so I can ${depthData.closing}` : '';
@@ -293,7 +353,8 @@ export function buildGuidedQuestion({ topic, timeframe, depth, customFocus }) {
         `How might I nurture ${focus}${timeframeText}${closing}`,
         `What must I release to transform ${focus}${timeframeText}`
       ];
-      return ensureQuestionMark(pickVariant(relationshipVariants, `${focus}|${timeframe}|${depth}`));
+      const transformSeed = seed !== undefined ? hashString(`${seed}|${focus}|${timeframe}|${depth}`) : `${focus}|${timeframe}|${depth}`;
+      return ensureQuestionMark(picker(relationshipVariants, transformSeed));
     }
     default:
       return ensureQuestionMark(`${depthData.opener} ${focus}${timeframeText}`);

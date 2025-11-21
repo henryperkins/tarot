@@ -9,6 +9,7 @@ import { MINOR_ARCANA } from '../data/minorArcana';
 import { formatReading } from '../lib/formatting';
 import { canonicalCardKey, canonicalizeCardName } from '../../shared/vision/cardNameMapping.js';
 import { computeRelationships } from '../lib/deck';
+import { safeParseReadingRequest } from '../../shared/contracts/readingSchema.js';
 
 const ReadingContext = createContext(null);
 
@@ -171,7 +172,11 @@ export function ReadingProvider({ children }) {
             };
 
             const payload = {
-                spreadInfo: { name: spreadInfo.name },
+                spreadInfo: {
+                    name: spreadInfo.name,
+                    key: selectedSpread,
+                    deckStyle: deckStyleId
+                },
                 cardsInfo,
                 userQuestion,
                 reflectionsText,
@@ -181,7 +186,18 @@ export function ReadingProvider({ children }) {
             if (proof) {
                 payload.visionProof = proof;
             }
-            requestPayload.body = JSON.stringify(payload);
+            const normalizedPayload = safeParseReadingRequest(payload);
+            if (!normalizedPayload.success) {
+                setIsGenerating(false);
+                setAnalyzingText('');
+                setJournalStatus({
+                    type: 'error',
+                    message: normalizedPayload.error || 'Reading request is missing required details.'
+                });
+                return;
+            }
+
+            requestPayload.body = JSON.stringify(normalizedPayload.data);
 
             const response = await fetch('/api/tarot-reading', requestPayload);
 

@@ -36,6 +36,7 @@ import { inferContext } from '../lib/contextDetection.js';
 import { parseMinorName } from '../lib/minorMeta.js';
 import { jsonResponse, readJsonBody } from '../lib/utils.js';
 import { canonicalizeCardName, canonicalCardKey } from '../../shared/vision/cardNameMapping.js';
+import { safeParseReadingRequest } from '../../shared/contracts/readingSchema.js';
 import { verifyVisionProof } from '../lib/visionProof.js';
 import { MAJOR_ARCANA } from '../../src/data/majorArcana.js';
 import { MINOR_ARCANA } from '../../src/data/minorArcana.js';
@@ -190,6 +191,16 @@ export const onRequestPost = async ({ request, env }) => {
   try {
     console.log(`[${requestId}] Reading request body...`);
     const payload = await readJsonBody(request);
+    const schemaResult = safeParseReadingRequest(payload);
+    if (!schemaResult.success) {
+      console.error(`[${requestId}] Schema validation failed: ${schemaResult.error}`);
+      return jsonResponse(
+        { error: schemaResult.error || 'Invalid reading request payload.' },
+        { status: 400 }
+      );
+    }
+
+    const normalizedPayload = schemaResult.data;
     const {
       spreadInfo,
       cardsInfo,
@@ -198,8 +209,8 @@ export const onRequestPost = async ({ request, env }) => {
       reversalFrameworkOverride,
       visionProof,
       deckStyle: requestDeckStyle
-    } = payload;
-    const deckStyle = requestDeckStyle || 'rws-1909';
+    } = normalizedPayload;
+    const deckStyle = requestDeckStyle || spreadInfo?.deckStyle || 'rws-1909';
 
     console.log(`[${requestId}] Payload parsed:`, {
       spreadName: spreadInfo?.name,
@@ -211,7 +222,7 @@ export const onRequestPost = async ({ request, env }) => {
       hasVisionProof: !!visionProof
     });
 
-    const validationError = validatePayload(payload);
+    const validationError = validatePayload(normalizedPayload);
     if (validationError) {
       console.error(`[${requestId}] Validation failed:`, validationError);
       return jsonResponse(
