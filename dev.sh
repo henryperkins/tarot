@@ -4,6 +4,17 @@
 
 set -e
 
+ENV_FILE=".dev.vars"
+if [ -f "$ENV_FILE" ]; then
+  echo "🔐 Loading environment variables from $ENV_FILE"
+  set -a
+  # shellcheck disable=SC1090
+  source "$ENV_FILE"
+  set +a
+else
+  echo "⚠️  $ENV_FILE not found. API-powered features will fall back to local generators."
+fi
+
 echo "🔮 Starting Tableau development environment..."
 echo ""
 

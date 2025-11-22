@@ -14,6 +14,313 @@
 </head>
 
 <body class="bg-slate-950 text-amber-50">
+  <!-- Inline SVG Sprite for Tableu Logo -->
+  <svg xmlns="http://www.w3.org/2000/svg" style="display:none">
+    <defs>
+      <!-- ===========================
+           STYLE DEFINITIONS
+           =========================== -->
+      <style>
+        /* Base stroke/fill classes */
+        .t-stroke {
+          fill: none;
+          stroke: var(--stroke, currentColor);
+          stroke-width: var(--sw, 6);
+          stroke-linecap: round;
+          stroke-linejoin: round;
+        }
+        .t-fill {
+          fill: var(--fill, currentColor);
+          stroke: none;
+        }
+        .t-fill-stroke {
+          fill: var(--fill, currentColor);
+          stroke: var(--stroke, currentColor);
+          stroke-width: var(--sw, 3);
+          stroke-linecap: round;
+          stroke-linejoin: round;
+        }
+
+        /* Theme variants */
+        .theme-primary {
+          --fill: #C9B36E;
+          --stroke: #C9B36E;
+          --sw: 6;
+        }
+        .theme-mono {
+          --fill: #000000;
+          --stroke: #000000;
+          --sw: 6;
+        }
+        .theme-dark {
+          --fill: #FFFFFF;
+          --stroke: #FFFFFF;
+          --sw: 6;
+        }
+      </style>
+
+      <!-- ===========================
+           REUSABLE SYMBOL ELEMENTS
+           =========================== -->
+
+      <!-- Crescent Moon -->
+      <symbol id="t-moon" viewBox="0 0 100 100">
+        <path class="t-fill" d="
+          M35 20
+          C20 24 10 38 12 52
+          C14 66 26 76 40 75
+          C30 72 24 62 24 50
+          C24 38 30 28 40 25
+          C38 22 36 21 35 20 Z" />
+      </symbol>
+
+      <!-- 4-Point Star -->
+      <symbol id="t-star-4" viewBox="0 0 100 100">
+        <path class="t-fill" d="
+          M50 10
+          C48 30 48 30 28 32
+          C48 34 48 34 50 54
+          C52 34 52 34 72 32
+          C52 30 52 30 50 10 Z" />
+      </symbol>
+
+      <!-- 6-Point Sparkle (smaller) -->
+      <symbol id="t-sparkle" viewBox="0 0 100 100">
+        <path class="t-fill" d="
+          M50 20
+          C48 35 48 35 33 37
+          C48 39 48 39 50 54
+          C52 39 52 39 67 37
+          C52 35 52 35 50 20 Z" />
+      </symbol>
+
+      <!-- Eye -->
+      <symbol id="t-eye" viewBox="0 0 100 100">
+        <path class="t-stroke" d="
+          M50 25
+          C70 35 75 50 65 65
+          C55 75 45 75 35 65
+          C25 50 30 35 50 25 Z" />
+        <circle class="t-stroke" cx="50" cy="50" r="12" />
+        <circle class="t-fill" cx="50" cy="50" r="5" />
+      </symbol>
+
+      <!-- Octopus Head -->
+      <symbol id="t-octopus-head" viewBox="0 0 200 200">
+        <ellipse class="t-fill" cx="100" cy="90" rx="65" ry="70" />
+        <!-- Eyes (arcs) -->
+        <path class="t-stroke" d="M70 80 Q75 88 80 80" />
+        <path class="t-stroke" d="M130 80 Q125 88 120 80" />
+        <!-- Smile -->
+        <path class="t-stroke" d="M85 105 Q100 112 115 105" />
+      </symbol>
+
+      <!-- Single Tentacle -->
+      <symbol id="t-tentacle" viewBox="0 0 50 150">
+        <path class="t-fill" d="
+          M25 10
+          C20 40 15 80 18 110
+          C20 130 28 145 35 142
+          C40 138 38 120 35 100
+          C32 70 28 40 25 10 Z" />
+      </symbol>
+    </defs>
+
+    <!-- ===========================
+         MAIN LOGO MARK (no wordmark)
+         =========================== -->
+    <symbol id="tableu-mark" viewBox="0 0 432 576">
+      <g class="theme-primary">
+        <!-- Card Frame -->
+        <rect class="t-stroke" x="10" y="10" width="412" height="556" rx="48" />
+
+        <!-- Center Divider Line -->
+        <line class="t-stroke" x1="216" y1="18" x2="216" y2="110" />
+
+        <!-- Bottom Curved Baseline -->
+        <path class="t-stroke" d="M40 490 Q216 470 392 490" />
+
+        <!-- Moon (top left) -->
+        <g transform="translate(70, 45) scale(0.9)">
+          <use href="#t-moon" />
+        </g>
+
+        <!-- Star (top right) -->
+        <g transform="translate(310, 40) scale(1.1)">
+          <use href="#t-star-4" />
+        </g>
+
+        <!-- Wand with sparkle -->
+        <path class="t-stroke" d="M320 170 Q300 200 280 230" />
+        <g transform="translate(275, 145) scale(0.6)">
+          <use href="#t-sparkle" />
+        </g>
+
+        <!-- Eye (right side) -->
+        <g transform="translate(330, 240) scale(0.85)">
+          <use href="#t-eye" />
+        </g>
+
+        <!-- Bottom left sparkle -->
+        <g transform="translate(50, 360) scale(0.7)">
+          <use href="#t-sparkle" />
+        </g>
+
+        <!-- Octopus -->
+        <g transform="translate(116, 180)">
+          <use href="#t-octopus-head" />
+
+          <!-- 6 Tentacles spreading downward -->
+          <!-- Far left -->
+          <g transform="translate(15, 150) scale(0.95) rotate(-25 25 10)">
+            <use href="#t-tentacle" />
+          </g>
+
+          <!-- Mid left -->
+          <g transform="translate(35, 155) scale(1.0) rotate(-10 25 10)">
+            <use href="#t-tentacle" />
+          </g>
+
+          <!-- Center left -->
+          <g transform="translate(60, 160) scale(1.05) rotate(0 25 10)">
+            <use href="#t-tentacle" />
+          </g>
+
+          <!-- Center right -->
+          <g transform="translate(85, 160) scale(1.05) rotate(0 25 10)">
+            <use href="#t-tentacle" />
+          </g>
+
+          <!-- Mid right -->
+          <g transform="translate(110, 155) scale(1.0) rotate(10 25 10)">
+            <use href="#t-tentacle" />
+          </g>
+
+          <!-- Far right -->
+          <g transform="translate(130, 150) scale(0.95) rotate(25 25 10)">
+            <use href="#t-tentacle" />
+          </g>
+        </g>
+      </g>
+    </symbol>
+
+    <!-- ===========================
+         VARIANT 1: PRIMARY LOGO
+         =========================== -->
+    <symbol id="tableu-primary" viewBox="0 0 432 576">
+      <use href="#tableu-mark" />
+    </symbol>
+
+    <!-- ===========================
+         VARIANT 2: ICON (simplified)
+         Remove: eye, wand, bottom sparkle
+         =========================== -->
+    <symbol id="tableu-icon" viewBox="0 0 432 576">
+      <g class="theme-primary">
+        <rect class="t-stroke" x="10" y="10" width="412" height="556" rx="48" />
+        <line class="t-stroke" x1="216" y1="18" x2="216" y2="110" />
+        <path class="t-stroke" d="M40 490 Q216 470 392 490" />
+
+        <g transform="translate(70, 45) scale(0.9)">
+          <use href="#t-moon" />
+        </g>
+
+        <g transform="translate(310, 40) scale(1.1)">
+          <use href="#t-star-4" />
+        </g>
+
+        <!-- Octopus with tentacles -->
+        <g transform="translate(116, 180)">
+          <use href="#t-octopus-head" />
+          <g transform="translate(15, 150) scale(0.95) rotate(-25 25 10)">
+            <use href="#t-tentacle" />
+          </g>
+          <g transform="translate(35, 155) scale(1.0) rotate(-10 25 10)">
+            <use href="#t-tentacle" />
+          </g>
+          <g transform="translate(60, 160) scale(1.05) rotate(0 25 10)">
+            <use href="#t-tentacle" />
+          </g>
+          <g transform="translate(85, 160) scale(1.05) rotate(0 25 10)">
+            <use href="#t-tentacle" />
+          </g>
+          <g transform="translate(110, 155) scale(1.0) rotate(10 25 10)">
+            <use href="#t-tentacle" />
+          </g>
+          <g transform="translate(130, 150) scale(0.95) rotate(25 25 10)">
+            <use href="#t-tentacle" />
+          </g>
+        </g>
+      </g>
+    </symbol>
+
+    <!-- ===========================
+         VARIANT 3: MONOCHROME
+         =========================== -->
+    <symbol id="tableu-mono" viewBox="0 0 432 576">
+      <g class="theme-mono">
+        <use href="#tableu-mark" />
+      </g>
+    </symbol>
+
+    <!-- ===========================
+         VARIANT 4: DARK MODE
+         =========================== -->
+    <symbol id="tableu-dark" viewBox="0 0 432 576">
+      <g class="theme-dark">
+        <use href="#tableu-mark" />
+      </g>
+    </symbol>
+
+    <!-- ===========================
+         VARIANT 5: FAVICON (octopus only)
+         =========================== -->
+    <symbol id="tableu-favicon" viewBox="0 0 200 250">
+      <g class="theme-primary">
+        <g transform="translate(0, 10)">
+          <use href="#t-octopus-head" />
+
+          <!-- Simplified 4 tentacles -->
+          <g transform="translate(25, 150) scale(0.9) rotate(-20 25 10)">
+            <use href="#t-tentacle" />
+          </g>
+          <g transform="translate(55, 155) scale(1.0) rotate(-5 25 10)">
+            <use href="#t-tentacle" />
+          </g>
+          <g transform="translate(90, 155) scale(1.0) rotate(5 25 10)">
+            <use href="#t-tentacle" />
+          </g>
+          <g transform="translate(120, 150) scale(0.9) rotate(20 25 10)">
+            <use href="#t-tentacle" />
+          </g>
+        </g>
+      </g>
+    </symbol>
+
+    <!-- ===========================
+         VARIANT 6: WITH WORDMARK
+         =========================== -->
+    <symbol id="tableu-full" viewBox="0 0 432 720">
+      <!-- Logo mark -->
+      <use href="#tableu-mark" />
+
+      <!-- TABLEU Wordmark -->
+      <g class="theme-primary" transform="translate(0, 600)">
+        <text
+          x="216"
+          y="80"
+          text-anchor="middle"
+          font-family="serif"
+          font-size="72"
+          font-weight="300"
+          letter-spacing="12"
+          fill="var(--fill, #C9B36E)">
+          TABLEU
+        </text>
+      </g>
+    </symbol>
+  </svg>
+
   <div id="root"></div>
   <script type="module" src="/src/main.jsx"></script>
 </body>

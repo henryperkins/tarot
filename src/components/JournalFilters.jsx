@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useId } from 'react';
 import { CaretDown, Check } from '@phosphor-icons/react';
 
 const TIMEFRAME_OPTIONS = [
@@ -11,6 +11,8 @@ const TIMEFRAME_OPTIONS = [
 function FilterDropdown({ label, options, value, onChange, multiple = false }) {
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef(null);
+  const buttonRef = useRef(null);
+  const menuId = useId();
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -22,6 +24,37 @@ function FilterDropdown({ label, options, value, onChange, multiple = false }) {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  const focusFirstOption = () => {
+    if (typeof window === 'undefined') return;
+    const schedule = typeof window.requestAnimationFrame === 'function'
+      ? window.requestAnimationFrame
+      : (cb) => setTimeout(cb, 0);
+    schedule(() => {
+      const firstOption = containerRef.current?.querySelector('[data-dropdown-option="true"]');
+      if (firstOption instanceof HTMLElement) {
+        firstOption.focus();
+      }
+    });
+  };
+
+  const handleButtonKeyDown = (event) => {
+    if (event.key === 'ArrowDown' || event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      if (!isOpen) {
+        setIsOpen(true);
+        focusFirstOption();
+      }
+    }
+  };
+
+  const handleMenuKeyDown = (event) => {
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      setIsOpen(false);
+      buttonRef.current?.focus();
+    }
+  };
+
   const handleSelect = (optionValue) => {
     if (multiple) {
       const current = value || [];
@@ -32,6 +65,7 @@ function FilterDropdown({ label, options, value, onChange, multiple = false }) {
     } else {
       onChange(optionValue);
       setIsOpen(false);
+      buttonRef.current?.focus();
     }
   };
 
@@ -51,12 +85,23 @@ function FilterDropdown({ label, options, value, onChange, multiple = false }) {
   return (
     <div className="relative" ref={containerRef}>
       <button
+        ref={buttonRef}
         type="button"
-        onClick={() => setIsOpen(!isOpen)}
+        onClick={() => {
+          const next = !isOpen;
+          setIsOpen(next);
+          if (next) {
+            focusFirstOption();
+          }
+        }}
+        onKeyDown={handleButtonKeyDown}
         className={`flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-medium transition-all ${activeCount > 0
           ? 'border-secondary bg-secondary/10 text-secondary'
           : 'border-accent/20 text-muted hover:border-secondary/50 hover:text-secondary'
           }`}
+        aria-haspopup="listbox"
+        aria-expanded={isOpen}
+        aria-controls={isOpen ? menuId : undefined}
       >
         {multiple && <span>{label}</span>}
         {!multiple && <span className={value !== 'all' ? 'text-secondary' : ''}>{displayLabel}</span>}
@@ -70,13 +115,23 @@ function FilterDropdown({ label, options, value, onChange, multiple = false }) {
       </button>
 
       {isOpen && (
-        <div className="absolute left-0 top-full z-50 mt-2 w-64 origin-top-left rounded-xl border border-secondary/30 bg-main p-1.5 shadow-xl backdrop-blur-xl animate-in fade-in zoom-in-95 duration-100">
+        <div
+          id={menuId}
+          role="listbox"
+          aria-multiselectable={multiple || undefined}
+          className="absolute left-0 top-full z-50 mt-2 w-64 origin-top-left rounded-xl border border-secondary/30 bg-main p-1.5 shadow-xl backdrop-blur-xl animate-in fade-in zoom-in-95 duration-100"
+          onKeyDown={handleMenuKeyDown}
+        >
           <div className="max-h-64 overflow-y-auto py-1">
             {options.map((option) => (
               <button
                 key={option.value}
                 onClick={() => handleSelect(option.value)}
-                className="flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-sm text-muted hover:bg-secondary/10 hover:text-secondary transition-colors"
+                type="button"
+                data-dropdown-option="true"
+                role="option"
+                aria-selected={isSelected(option.value)}
+                className="flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-sm text-muted hover:bg-secondary/10 hover:text-secondary transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-secondary/40"
               >
                 <span>{option.label}</span>
                 {isSelected(option.value) && <Check className="h-3.5 w-3.5 text-secondary" />}

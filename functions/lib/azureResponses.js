@@ -7,11 +7,13 @@ export function ensureAzureConfig(env) {
     throw new Error('Azure OpenAI configuration is missing.');
   }
 
+  const apiVersion = env.AZURE_OPENAI_RESPONSES_API_VERSION || env.AZURE_OPENAI_API_VERSION || 'v1';
+
   return {
     endpoint,
     apiKey,
     model,
-    apiVersion: env.AZURE_OPENAI_API_VERSION || 'preview'
+    apiVersion
   };
 }
 
@@ -61,5 +63,7 @@ export async function callAzureResponses(env, { instructions, input, maxTokens =
     return data.output_text.trim();
   }
 
+  const serialized = JSON.stringify(data, null, 2);
+  console.warn('[azureResponses] No output_text returned. Raw payload:', serialized?.slice(0, 2000));
   throw new Error('Azure Responses API returned no text content.');
 }

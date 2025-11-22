@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert';
-import { buildGuidedQuestion } from '../src/lib/intentionCoach.js';
+import { buildGuidedQuestion, buildLocalCreativeQuestion } from '../src/lib/intentionCoach.js';
 
 describe('Question Generation Determinism', () => {
   describe('buildGuidedQuestion with seed', () => {
@@ -176,9 +176,49 @@ describe('Question Generation Determinism', () => {
       const hasProperGrammar =
         question.includes('How can I navigate') ||
         question.includes('How can I stay aligned') ||
-        question.includes('How can I make progress');
+        question.includes('How can I make progress') ||
+        question.includes('What next step would move') ||
+        question.includes('What should I prioritize');
 
       assert.ok(hasProperGrammar, 'Should use proper grammar construction');
+    });
+  });
+
+  describe('Creative fallback templates', () => {
+    it('should include timeframe and closing when using creative fallback templates', () => {
+      const question = buildLocalCreativeQuestion({
+        focus: 'my career pivot',
+        timeframePhrase: 'over the next month',
+        depthLabel: 'Deep dive',
+        pattern: 'transform',
+        closing: 'honor my growth',
+        topicLabel: 'Career & Purpose',
+        seed: 'creative-tone-check'
+      });
+
+      assert.ok(question.includes('over the next month'), 'Should include timeframe phrasing');
+      assert.ok(question.includes('honor my growth'), 'Should include depth-based closing');
+      assert.ok(question.endsWith('?'), 'Should end with a question mark');
+    });
+
+    it('should remain deterministic yet vary across different seeds', () => {
+      const baseParams = {
+        focus: 'my relationships',
+        timeframePhrase: 'this week',
+        depthLabel: 'Focused guidance',
+        pattern: 'navigate',
+        closing: 'with confidence',
+        topicLabel: 'Love & Relationships'
+      };
+
+      const sameSeedQuestionA = buildLocalCreativeQuestion({ ...baseParams, seed: 'seed-creative-A' });
+      const sameSeedQuestionB = buildLocalCreativeQuestion({ ...baseParams, seed: 'seed-creative-A' });
+      const differentSeedQuestion1 = buildLocalCreativeQuestion({ ...baseParams, seed: 'seed-creative-B' });
+      const differentSeedQuestion2 = buildLocalCreativeQuestion({ ...baseParams, seed: 'seed-creative-C' });
+
+      assert.strictEqual(sameSeedQuestionA, sameSeedQuestionB, 'Same seed should be deterministic');
+      const uniqueVariants = new Set([sameSeedQuestionA, differentSeedQuestion1, differentSeedQuestion2]);
+      assert.ok(uniqueVariants.size >= 2, 'Different seeds should produce variety');
     });
   });
 });

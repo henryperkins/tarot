@@ -1,6 +1,7 @@
 import React from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Sparkle, BookOpen } from '@phosphor-icons/react';
+import { Sparkle, BookOpen } from './icons';
+import { Icon, ICON_SIZES } from './Icon';
 
 export function GlobalNav() {
   const location = useLocation();
@@ -24,7 +25,7 @@ export function GlobalNav() {
           className={`${baseButtonClasses} ${isReading ? activeClasses : inactiveClasses}`}
           aria-current={isReading ? 'page' : undefined}
         >
-          <Sparkle className="w-4 h-4" aria-hidden="true" />
+          <Icon icon={Sparkle} size={ICON_SIZES.md} decorative />
           <span>Reading</span>
         </button>
         <button
@@ -33,7 +34,7 @@ export function GlobalNav() {
           className={`${baseButtonClasses} ${isJournal ? activeClasses : inactiveClasses}`}
           aria-current={isJournal ? 'page' : undefined}
         >
-          <BookOpen className="w-4 h-4" aria-hidden="true" />
+          <Icon icon={BookOpen} size={ICON_SIZES.md} decorative />
           <span>Journal</span>
         </button>
       </div>

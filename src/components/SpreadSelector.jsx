@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Sparkle, CaretLeft, CaretRight, Check, Lightning, BookOpen, Eye, Path, Heart, Compass } from '@phosphor-icons/react';
+import { Sparkle, CaretLeft, CaretRight, Check, Lightning, BookOpen, Eye, Path, Heart, Compass } from './icons';
+import { Icon, ICON_SIZES } from './Icon';
 import { SPREADS } from '../data/spreads';
 import { usePreferences } from '../contexts/PreferencesContext';
 
@@ -106,7 +107,7 @@ export function SpreadSelector({
   return (
     <div className="modern-surface p-4 sm:p-6 mb-6 sm:mb-8 animate-fade-in">
       <h2 className="text-lg sm:text-xl font-serif text-accent mb-3 flex items-center gap-2">
-        <Sparkle className="w-4 h-4 sm:w-5 sm:h-5" />
+        <Icon icon={Sparkle} size={ICON_SIZES.md} className="sm:w-5 sm:h-5" decorative />
         Choose Your Spread
       </h2>
       <div className="relative">
@@ -136,7 +137,7 @@ export function SpreadSelector({
                 {isActive && (
                   <div className="absolute top-3 right-3">
                     <div className="w-6 h-6 rounded-full bg-primary flex items-center justify-center">
-                      <Check className="w-4 h-4 text-surface" strokeWidth={3} />
+                      <Check className="w-4 h-4 text-surface" weight="bold" aria-hidden="true" />
                     </div>
                   </div>
                 )}
@@ -146,7 +147,7 @@ export function SpreadSelector({
                     <div className="font-serif font-semibold text-base text-main">{spread.name}</div>
                     {spread.tag && TAG_ICONS[spread.tag] && (
                       <span className="inline-flex items-center justify-center w-7 h-7 rounded-full border border-accent/60 text-accent" title={spread.tag} aria-label={spread.tag}>
-                        {React.createElement(TAG_ICONS[spread.tag], { className: 'w-3.5 h-3.5', 'aria-hidden': 'true' })}
+                        <Icon icon={TAG_ICONS[spread.tag]} size={ICON_SIZES.sm} decorative />
                       </span>
                     )}
                   </div>
@@ -190,7 +191,7 @@ export function SpreadSelector({
                 className="pointer-events-auto absolute top-1/2 -translate-y-1/2 left-2 inline-flex items-center justify-center rounded-full bg-main/90 border border-accent/20 text-muted w-9 h-9 shadow-lg shadow-main/60"
                 aria-label="See previous spreads"
               >
-                <CaretLeft className="w-4 h-4" />
+                <Icon icon={CaretLeft} size={ICON_SIZES.md} decorative />
               </button>
             </>
           )}
@@ -205,7 +206,7 @@ export function SpreadSelector({
                 className="pointer-events-auto absolute top-1/2 -translate-y-1/2 right-2 inline-flex items-center justify-center rounded-full bg-main/90 border border-accent/20 text-muted w-9 h-9 shadow-lg shadow-main/60"
                 aria-label="See more spreads"
               >
-                <CaretRight className="w-4 h-4" />
+                <Icon icon={CaretRight} size={ICON_SIZES.md} decorative />
               </button>
             </>
           )}

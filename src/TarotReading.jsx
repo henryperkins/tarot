@@ -12,6 +12,7 @@ import { GlobalNav } from './components/GlobalNav';
 import { UserMenu } from './components/UserMenu';
 import { DeckSelector } from './components/DeckSelector';
 import { MobileSettingsDrawer } from './components/MobileSettingsDrawer';
+import { TableuLogo } from './components/TableuLogo';
 import { useNavigate } from 'react-router-dom';
 import './styles/tarot.css';
 
@@ -382,10 +383,11 @@ export default function TarotReading() {
         {/* Header */}
         <header aria-labelledby="tableau-heading">
           <div className="text-center mb-6 sm:mb-8 mystic-heading-wrap flex flex-col items-center">
-            <img
-              src="/images/logo.png"
-              alt="Tableu Logo"
-              className="w-32 h-32 sm:w-40 sm:h-40 mb-3 object-contain opacity-90 hover:opacity-100 transition-opacity"
+            <TableuLogo
+              variant="full"
+              size={120}
+              className="mb-3 opacity-90 hover:opacity-100 transition-opacity"
+              ariaLabel="Tableu - Tarot Reading Application"
             />
             <h1 id="tableau-heading" className="sr-only">
               Tableu

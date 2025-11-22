@@ -24,6 +24,7 @@ export function PreferencesProvider({ children }) {
   useEffect(() => {
     const root = typeof document !== 'undefined' ? document.documentElement : null;
     if (root) {
+      root.classList.remove('light-mode');
       root.classList.toggle('light', theme === 'light');
     }
     if (typeof localStorage !== 'undefined') {

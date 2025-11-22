@@ -5,6 +5,7 @@ import { MAJOR_ARCANA } from '../data/majorArcana';
 import { MINOR_ARCANA } from '../data/minorArcana';
 import { CardSymbolInsights } from './CardSymbolInsights';
 import { InteractiveCardOverlay } from './InteractiveCardOverlay';
+import { TableuLogo } from './TableuLogo';
 
 function isMinor(card) {
   return !!card.suit && !!card.rank;
@@ -235,12 +236,13 @@ export function Card({
         >
           {!isVisuallyRevealed ? (
             <div className="text-center py-6 sm:py-10">
-              <div className="tarot-card-shell mx-auto">
-                <div className="tarot-card-back">
-                  <div className="tarot-card-back-symbol">
-                    <div className="tarot-card-back-glyph" />
-                  </div>
-                </div>
+              <div className="mx-auto flex items-center justify-center p-4 bg-gradient-to-br from-surface-muted/50 to-surface/50 rounded-xl border-2 border-primary/20 shadow-lg">
+                <TableuLogo
+                  variant="icon"
+                  size={160}
+                  className="opacity-75 hover:opacity-90 transition-opacity"
+                  ariaLabel="Tableu card back - tap to reveal"
+                />
               </div>
               <div className="mt-3 text-xs-plus font-serif tracking-[0.18em] uppercase text-accent/75">
                 Tap to cut the veil

@@ -242,6 +242,7 @@ export default function Journal() {
       const activeTheme = storedTheme === 'light' ? 'light' : 'dark';
       const root = typeof document !== 'undefined' ? document.documentElement : null;
       if (root) {
+        root.classList.remove('light-mode');
         root.classList.toggle('light', activeTheme === 'light');
       }
     };

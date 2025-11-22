@@ -537,7 +537,8 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply 
         }
         if (creative) {
           setQuestionText(creative);
-          setQuestionError(source === 'local' ? 'Using on-device generator for now.' : '');
+          const isLocalFallback = source === 'local' || source === 'local-fallback' || source === 'api-fallback';
+          setQuestionError(isLocalFallback ? 'Using on-device generator for now.' : '');
         } else {
           setQuestionText(guidedQuestion);
           setQuestionError('Personalized mode is temporarily unavailable. Showing guided version.');

@@ -24,6 +24,7 @@ pages_build_output_dir="dist"
 [vars]
     AZURE_OPENAI_GPT_AUDIO_MINI_FORMAT="mp3"
     AZURE_OPENAI_USE_V1_FORMAT        ="true"
+    AZURE_OPENAI_RESPONSES_API_VERSION="v1"
 
     # ============================================================================
     # Secrets Management

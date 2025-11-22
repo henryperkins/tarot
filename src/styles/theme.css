@@ -57,8 +57,8 @@
   /* Brand / Interactive (warmer) */
   --brand-primary: #D4B896;
   /* Warmer champagne */
-  --brand-secondary: #4A4640;
-  /* Warm brown-gray */
+  --brand-secondary: #92887D;
+  /* Warm brown-gray updated for WCAG contrast */
   --brand-accent: #D4B896;
   /* Warmer champagne */
 
@@ -72,7 +72,7 @@
 }
 
 /* Light Mode Overrides (elegant minimal light variant) */
-.light-mode {
+:root.light {
   --bg-main: #FAFAFA;
   --bg-surface: #FFFFFF;
   --bg-surface-muted: #F5F5F5;
