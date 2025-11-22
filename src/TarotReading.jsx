@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { ArrowCounterClockwise, Gear } from '@phosphor-icons/react';
 import { SPREADS } from './data/spreads';
 import { EXAMPLE_QUESTIONS } from './data/exampleQuestions';
@@ -13,7 +13,7 @@ import { UserMenu } from './components/UserMenu';
 import { DeckSelector } from './components/DeckSelector';
 import { MobileSettingsDrawer } from './components/MobileSettingsDrawer';
 import { TableuLogo } from './components/TableuLogo';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import './styles/tarot.css';
 
 // Hooks & Contexts
@@ -137,6 +137,7 @@ export default function TarotReading() {
   const [isMobileSettingsOpen, setIsMobileSettingsOpen] = useState(false);
 
   const navigate = useNavigate();
+  const location = useLocation();
   const spreadSectionRef = useRef(null);
   const prepareSectionRef = useRef(null);
   const readingSectionRef = useRef(null);
@@ -192,11 +193,20 @@ export default function TarotReading() {
   // Coach Recommendation Loading
   useEffect(() => {
     if (typeof window === 'undefined') return;
+
+    // Check for passed state from Journal (Saved Intentions)
+    if (location.state?.initialQuestion) {
+      setUserQuestion(location.state.initialQuestion);
+      setAllowPlaceholderCycle(false);
+      // Clear state so it doesn't persist on refresh/nav
+      window.history.replaceState({}, document.title);
+    }
+
     const rec = loadCoachRecommendation();
     if (rec?.question) {
       setCoachRecommendation(rec);
     }
-  }, []);
+  }, [location.state, setUserQuestion]);
 
   // Coach Shortcut
   useEffect(() => {

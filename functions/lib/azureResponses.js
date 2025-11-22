@@ -21,14 +21,32 @@ export async function callAzureResponses(env, { instructions, input, maxTokens =
   const { endpoint, apiKey, model, apiVersion } = ensureAzureConfig(env);
   const url = `${endpoint}/openai/v1/responses?api-version=${encodeURIComponent(apiVersion)}`;
 
+  // NOTE:
+  // We intentionally DO NOT set the `reasoning` field here.
+  // When `reasoning` is enabled, the model can consume the entire
+  // `max_output_tokens` budget on reasoning tokens only, returning
+  // only a `reasoning` block with `status: "incomplete"` and no
+  // `output_text` / message content (as seen in the logs).
+  //
+  // For this endpoint we just want the final question text, so we
+  // rely on the default behavior and request only text output.
   const body = {
     model,
     instructions,
     input,
     max_output_tokens: maxTokens,
-    reasoning: { effort: reasoningEffort },
     text: { verbosity }
   };
+
+  // Debug logging for request metadata (no secrets)
+  console.log('[azureResponses] Requesting Responses API', {
+    url,
+    model,
+    apiVersion,
+    maxTokens,
+    reasoningEffort,
+    verbosity
+  });
 
   const response = await fetch(url, {
     method: 'POST',
@@ -41,10 +59,31 @@ export async function callAzureResponses(env, { instructions, input, maxTokens =
 
   if (!response.ok) {
     const errText = await response.text().catch(() => '');
+    console.warn('[azureResponses] Non-OK HTTP status from Azure Responses API', {
+      status: response.status,
+      statusText: response.statusText,
+      bodyPreview: errText.slice(0, 500)
+    });
     throw new Error(`Azure Responses API error ${response.status}: ${errText}`);
   }
 
   const data = await response.json();
+
+  // Snapshot of the raw payload shape for debugging
+  try {
+    console.log('[azureResponses] Raw Azure Responses payload snapshot', {
+      id: data.id,
+      model: data.model,
+      created: data.created,
+      outputTypes: Array.isArray(data.output) ? data.output.map(block => block?.type) : typeof data.output,
+      hasMessageBlocks: Array.isArray(data.output)
+        ? data.output.some(block => block?.type === 'message')
+        : false,
+      hasOutputTextField: typeof data.output_text === 'string' && data.output_text.trim().length > 0
+    });
+  } catch (logError) {
+    console.warn('[azureResponses] Failed to log Azure payload snapshot', logError);
+  }
 
   if (data.output && Array.isArray(data.output)) {
     for (const block of data.output) {

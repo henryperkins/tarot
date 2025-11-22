@@ -127,3 +127,20 @@ export function recordCoachQuestion(question, limit = MAX_HISTORY_ITEMS) {
   }
   return { success: true, history: next };
 }
+
+export function deleteCoachHistoryItem(itemId) {
+  if (!itemId) {
+    return { success: false, history: loadCoachHistory() };
+  }
+  const existing = loadCoachHistory(100); // Load more to ensure we don't lose items unnecessarily, though we usually cap at MAX_HISTORY_ITEMS
+  const next = existing.filter(item => item.id !== itemId);
+  const persistence = writeToStorage(HISTORY_STORAGE_KEY, next);
+  if (!persistence.success) {
+    return {
+      success: false,
+      error: persistence.error || 'Unable to update history right now.',
+      history: existing
+    };
+  }
+  return { success: true, history: next };
+}

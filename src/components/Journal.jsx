@@ -1,4 +1,4 @@
-import React, { useDeferredValue, useCallback, useEffect, useMemo, useState } from 'react';
+import { useDeferredValue, useCallback, useEffect, useMemo, useState } from 'react';
 import { CaretLeft, UploadSimple } from '@phosphor-icons/react';
 import { useNavigate } from 'react-router-dom';
 import { GlobalNav } from './GlobalNav';
@@ -8,6 +8,7 @@ import { useJournal } from '../hooks/useJournal';
 import { JournalFilters } from './JournalFilters.jsx';
 import { JournalInsightsPanel } from './JournalInsightsPanel.jsx';
 import { JournalEntryCard } from './JournalEntryCard.jsx';
+import { SavedIntentionsList } from './SavedIntentionsList.jsx';
 import { computeJournalStats } from '../lib/journalInsights';
 import { SPREADS } from '../data/spreads';
 import { DECK_OPTIONS } from './DeckSelector';
@@ -378,6 +379,9 @@ export default function Journal() {
               {journalError}
             </div>
           )}
+
+          {/* Saved Intentions Section */}
+          <SavedIntentionsList />
 
           {/* Delete status message */}
           {deleteMessage && (

@@ -207,12 +207,27 @@ async function generateQuestionWithAzure(env, prompt, metadata) {
   const question = await callAzureResponses(env, {
     instructions,
     input,
-    maxTokens: 120,
-    reasoningEffort: 'low',
+    // Give the model ample budget for a short question while
+    // keeping latency reasonable. We no longer request reasoning
+    // tokens, so this is mostly for the final text.
+    maxTokens: 256,
     verbosity: 'low'
   });
 
-  return ensureQuestionMark(question);
+  const finalQuestion = ensureQuestionMark(question);
+
+  // Log successful Azure-backed question for debugging (no PII beyond prompt summary)
+  try {
+    console.log('[generate-question] Azure question generated', {
+      provider: 'azure-gpt5',
+      model: env?.AZURE_OPENAI_GPT5_MODEL || null,
+      snippet: finalQuestion.slice(0, 160)
+    });
+  } catch (logError) {
+    console.warn('[generate-question] Failed to log Azure question result', logError);
+  }
+
+  return finalQuestion;
 }
 
 function isAzureConfigured(env) {
@@ -245,6 +260,10 @@ export async function onRequestPost({ request, env }) {
     }
 
     if (!question) {
+      console.warn('[generate-question] No question returned from Azure path, falling back to local template.', {
+        hasAzureConfig: isAzureConfigured(env),
+        providerBeforeFallback: provider
+      });
       question = craftQuestionFromPrompt(prompt, metadata);
       provider = 'local-fallback';
     }
