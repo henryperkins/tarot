@@ -1,4 +1,3 @@
-import React from 'react';
 import { Check } from '@phosphor-icons/react';
 
 export const DECK_OPTIONS = [
@@ -17,7 +16,7 @@ export const DECK_OPTIONS = [
     description: 'Abstract, prismatic geometry with layered astrological sigils and Art Deco gradients.',
     visualCues: ['Electric teal', 'Magenta', 'Saffron gold'],
     texture: 'Oil and watercolor washes with airbrushed gradients',
-    note: 'Uses Thoth card names (e.g., "The Magus", "Adjustment")'
+    note: 'Uses Thoth card names (e.g., \u201cThe Magus\u201d, \u201cAdjustment\u201d)'
   },
   {
     id: 'marseille-classic',
@@ -37,7 +36,7 @@ export function DeckSelector({ selectedDeck, onDeckChange }) {
           Choose your deck style
         </h3>
         <p className="text-xs text-muted">
-          Pick the art style you want to experience. If you're also in vision research, select the deck you're photographing so the AI can learn.
+          Pick the art style you want to experience. If you&apos;re also in vision research, select the deck you&apos;re photographing so the AI can learn.
         </p>
       </div>
 

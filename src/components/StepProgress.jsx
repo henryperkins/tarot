@@ -1,4 +1,3 @@
-import React from 'react';
 import { GridFour, Question, Sparkle, Eye } from '@phosphor-icons/react';
 
 const baseButtonClasses =

@@ -443,7 +443,7 @@ function sanitizeAndTruncate(text = '', maxLength = 100) {
     ? text.slice(0, maxLength).trim() + '...' 
     : text.trim();
   return truncated
-    .replace(/[#*`_\[\]]/g, '')
+    .replace(/[#*`_[\]]/g, '')
     .replace(/\s+/g, ' ');
 }
 

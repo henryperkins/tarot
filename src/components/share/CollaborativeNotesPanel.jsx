@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 
 const ALIAS_STORAGE_KEY = 'mystic-share-alias';
 
@@ -22,22 +22,17 @@ export function CollaborativeNotesPanel({
   onSelectedPositionChange,
   lastSyncedAt
 }) {
-  const [authorName, setAuthorName] = useState('');
-  const [cardPosition, setCardPosition] = useState(selectedPosition || '');
+  const [authorName, setAuthorName] = useState(() => {
+    if (typeof window === 'undefined' || typeof window.localStorage === 'undefined') {
+      return '';
+    }
+    return localStorage.getItem(ALIAS_STORAGE_KEY) || '';
+  });
+  const externalPosition = selectedPosition || '';
+  const [positionState, setPositionState] = useState({ key: externalPosition, value: externalPosition });
+  const cardPosition = positionState.key === externalPosition ? positionState.value : externalPosition;
   const [body, setBody] = useState('');
   const [statusMessage, setStatusMessage] = useState('');
-
-  useEffect(() => {
-    if (typeof localStorage === 'undefined') return;
-    const stored = localStorage.getItem(ALIAS_STORAGE_KEY);
-    if (stored) {
-      setAuthorName(stored);
-    }
-  }, []);
-
-  useEffect(() => {
-    setCardPosition(selectedPosition || '');
-  }, [selectedPosition]);
 
   const sortedNotes = useMemo(() => {
     return [...notes].sort((a, b) => a.createdAt - b.createdAt);
@@ -68,7 +63,7 @@ export function CollaborativeNotesPanel({
   };
 
   const handlePositionChange = (value) => {
-    setCardPosition(value);
+    setPositionState({ key: externalPosition, value });
     onSelectedPositionChange?.(value);
   };
 

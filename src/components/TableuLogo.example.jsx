@@ -1,4 +1,3 @@
-import React from 'react';
 import { TableuLogo } from './TableuLogo';
 
 /**
@@ -50,7 +49,7 @@ export function TableuLogoExamples() {
       <section className="bg-white p-6 rounded-lg shadow">
         <h3 className="text-xl font-semibold mb-4">3. Full (with Wordmark)</h3>
         <p className="text-gray-600 mb-4">
-          Complete logo with "TABLEU" wordmark below. Best for headers and branding.
+          Complete logo with &ldquo;TABLEU&rdquo; wordmark below. Best for headers and branding.
         </p>
         <div className="flex items-center gap-8 flex-wrap">
           <TableuLogo variant="full" size={150} />
@@ -127,12 +126,12 @@ export function TableuLogoExamples() {
       <section className="bg-blue-50 p-6 rounded-lg border-2 border-blue-200">
         <h3 className="text-xl font-semibold mb-4">Usage Guidelines</h3>
         <ul className="space-y-2 text-gray-700">
-          <li><strong>Headers:</strong> Use <code>variant="full"</code> at size 180-240</li>
-          <li><strong>Navigation:</strong> Use <code>variant="icon"</code> at size 40-60</li>
-          <li><strong>Favicon:</strong> Use <code>variant="favicon"</code> at size 32 or 48</li>
-          <li><strong>Social Cards:</strong> Use <code>variant="primary"</code> at size 400-600</li>
-          <li><strong>Dark Backgrounds:</strong> Use <code>variant="dark"</code></li>
-          <li><strong>Print:</strong> Use <code>variant="mono"</code></li>
+          <li><strong>Headers:</strong> Use <code>variant=&quot;full&quot;</code> at size 180-240</li>
+          <li><strong>Navigation:</strong> Use <code>variant=&quot;icon&quot;</code> at size 40-60</li>
+          <li><strong>Favicon:</strong> Use <code>variant=&quot;favicon&quot;</code> at size 32 or 48</li>
+          <li><strong>Social Cards:</strong> Use <code>variant=&quot;primary&quot;</code> at size 400-600</li>
+          <li><strong>Dark Backgrounds:</strong> Use <code>variant=&quot;dark&quot;</code></li>
+          <li><strong>Print:</strong> Use <code>variant=&quot;mono&quot;</code></li>
         </ul>
       </section>
     </div>

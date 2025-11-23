@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { AnimatePresence } from 'framer-motion';
 import { Sparkle, ArrowCounterClockwise, Star } from '@phosphor-icons/react';
 import { useNavigate } from 'react-router-dom';
@@ -26,7 +26,6 @@ const NARRATIVE_STEPS = [
 export function ReadingDisplay({ sectionRef }) {
     const navigate = useNavigate();
     const { saveReading } = useSaveReading();
-    const [selectedCardData, setSelectedCardData] = useState(null);
 
     // --- Contexts ---
     const {
@@ -81,6 +80,19 @@ export function ReadingDisplay({ sectionRef }) {
         highlightItems
     } = useReading();
 
+    const readingIdentity = useMemo(() => {
+        const spreadKey = selectedSpread || 'unset-spread';
+        const seed = sessionSeed || 'no-seed';
+        const length = reading?.length ?? 0;
+        return `${spreadKey}:${seed}:${length}`;
+    }, [selectedSpread, sessionSeed, reading]);
+
+    const [selectionState, setSelectionState] = useState({ key: readingIdentity, value: null });
+    const selectedCardData = selectionState.key === readingIdentity ? selectionState.value : null;
+    const setSelectedCardData = useCallback((value) => {
+        setSelectionState({ key: readingIdentity, value });
+    }, [readingIdentity]);
+
     const {
         voiceOn,
         deckStyleId
@@ -108,10 +120,6 @@ export function ReadingDisplay({ sectionRef }) {
     // --- Handlers ---
     const handleNarrationWrapper = () => handleNarrationButtonClick(fullReadingText, isPersonalReadingError);
     const handleVoicePromptWrapper = () => handleVoicePromptEnable(fullReadingText);
-
-    useEffect(() => {
-        setSelectedCardData(null);
-    }, [reading, sessionSeed, selectedSpread]);
 
     return (
         <section ref={sectionRef} id="step-reading" tabIndex={-1} className="scroll-mt-[6.5rem] sm:scroll-mt-[7.5rem]" aria-label="Draw and explore your reading">
@@ -347,7 +355,7 @@ export function ReadingDisplay({ sectionRef }) {
 
             {!reading && !isShuffling && (
                 <div className="text-center py-16 px-4">
-                    <p className="text-muted text-lg font-serif">Focus on your question, then draw your cards when you're ready.</p>
+                    <p className="text-muted text-lg font-serif">Focus on your question, then draw your cards when you&apos;re ready.</p>
                 </div>
             )}
 

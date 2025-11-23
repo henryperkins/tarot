@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { motion, useAnimation } from 'framer-motion';
 import { ArrowsOut, HandPointing } from '@phosphor-icons/react';
 import { MAJOR_ARCANA } from '../data/majorArcana';
@@ -27,6 +27,7 @@ export function Card({
 }) {
   const reflectionValue = reflections[index] || '';
   const revealedContentRef = useRef(null);
+  const textareaRef = useRef(null);
   const userInitiatedRevealRef = useRef(false);
 
   // Local state to manage the visual reveal sequence
@@ -50,11 +51,19 @@ export function Card({
   }, [controls]);
 
   useEffect(() => {
-    if (isRevealed) {
-      if (userInitiatedRevealRef.current && revealedContentRef.current) {
-        revealedContentRef.current.focus();
-      }
+    if (isRevealed && userInitiatedRevealRef.current) {
+      // Focus textarea after animation completes (animation is ~300ms)
+      const prefersReducedMotion = getPrefersReducedMotion();
+      const delay = prefersReducedMotion ? 50 : 350;
+
+      const focusTimer = setTimeout(() => {
+        if (textareaRef.current) {
+          textareaRef.current.focus();
+        }
+      }, delay);
+
       userInitiatedRevealRef.current = false;
+      return () => clearTimeout(focusTimer);
     } else {
       userInitiatedRevealRef.current = false;
     }
@@ -73,8 +82,37 @@ export function Card({
     }
   };
 
+  // Reset visual state when card is unrevealed
+  useEffect(() => {
+    if (!isRevealed || !isVisuallyRevealed) {
+      return undefined;
+    }
+
+    const resetVisualState = () => {
+      setIsVisuallyRevealed(false);
+      controls.set({ rotateY: 0, opacity: 1 });
+    };
+
+    const canUseRaf = typeof window !== 'undefined' && typeof window.requestAnimationFrame === 'function';
+    const handleId = canUseRaf
+      ? window.requestAnimationFrame(resetVisualState)
+      : setTimeout(resetVisualState, 0);
+
+    return () => {
+      if (canUseRaf) {
+        window.cancelAnimationFrame(handleId);
+      } else {
+        clearTimeout(handleId);
+      }
+    };
+  }, [isRevealed, isVisuallyRevealed, controls]);
+
   // Handle the flip animation sequence
   useEffect(() => {
+    if (!isRevealed || isVisuallyRevealed) {
+      return;
+    }
+
     let isActive = true;
     let staggerTimeoutId = null;
 
@@ -85,72 +123,67 @@ export function Card({
       }
     };
 
-    if (isRevealed && !isVisuallyRevealed) {
-      const sequence = async () => {
-        if (import.meta.env.DEV) {
-          console.log(`Card ${index} starting reveal sequence. Stagger: ${staggerDelay}`);
-        }
+    const sequence = async () => {
+      if (import.meta.env.DEV) {
+        console.log(`Card ${index} starting reveal sequence. Stagger: ${staggerDelay}`);
+      }
 
-        const prefersReducedMotion = getPrefersReducedMotion();
-        const duration = prefersReducedMotion ? 0 : 0.25;
-        const springTransition = prefersReducedMotion ? { duration: 0 } : { type: "spring", stiffness: 260, damping: 20 };
+      const prefersReducedMotion = getPrefersReducedMotion();
+      const duration = prefersReducedMotion ? 0 : 0.25;
+      const springTransition = prefersReducedMotion ? { duration: 0 } : { type: "spring", stiffness: 260, damping: 20 };
 
-        if (staggerDelay > 0 && !prefersReducedMotion) {
-          await new Promise(resolve => {
-            staggerTimeoutId = setTimeout(() => {
-              resolve();
-              staggerTimeoutId = null;
-            }, staggerDelay * 1000);
-          });
-          if (!isActive) return;
-        }
-
-        if (!isActive) return;
-        if (import.meta.env.DEV) {
-          console.log(`Card ${index} starting Phase 1 (rotate 90)`);
-        }
-        await controls.start({
-          rotateY: 90,
-          opacity: 0.8,
-          transition: { duration: duration, ease: "easeIn" }
+      if (staggerDelay > 0 && !prefersReducedMotion) {
+        await new Promise(resolve => {
+          staggerTimeoutId = setTimeout(() => {
+            resolve();
+            staggerTimeoutId = null;
+          }, staggerDelay * 1000);
         });
         if (!isActive) return;
+      }
 
-        if (import.meta.env.DEV) {
-          console.log(`Card ${index} Phase 2 (swap content)`);
-        }
-        if (!isActive) return;
-        setIsVisuallyRevealed(true);
-        if (!isActive) return;
+      if (!isActive) return;
+      if (import.meta.env.DEV) {
+        console.log(`Card ${index} starting Phase 1 (rotate 90)`);
+      }
+      await controls.start({
+        rotateY: 90,
+        opacity: 0.8,
+        transition: { duration: duration, ease: "easeIn" }
+      });
+      if (!isActive) return;
 
-        if (import.meta.env.DEV) {
-          console.log(`Card ${index} starting Phase 3 (rotate 0)`);
-        }
-        if (!isActive) return;
-        await controls.start({
-          rotateY: 0,
-          opacity: 1,
-          transition: springTransition
-        });
-        if (!isActive) return;
+      if (import.meta.env.DEV) {
+        console.log(`Card ${index} Phase 2 (swap content)`);
+      }
+      if (!isActive) return;
+      setIsVisuallyRevealed(true);
+      if (!isActive) return;
 
-        if (import.meta.env.DEV) {
-          console.log(`Card ${index} reveal complete`);
-        }
-      };
+      if (import.meta.env.DEV) {
+        console.log(`Card ${index} starting Phase 3 (rotate 0)`);
+      }
+      if (!isActive) return;
+      await controls.start({
+        rotateY: 0,
+        opacity: 1,
+        transition: springTransition
+      });
+      if (!isActive) return;
 
-      sequence();
-    } else if (!isRevealed && isVisuallyRevealed) {
-      setIsVisuallyRevealed(false);
-      controls.set({ rotateY: 0, opacity: 1 });
-    }
+      if (import.meta.env.DEV) {
+        console.log(`Card ${index} reveal complete`);
+      }
+    };
+
+    sequence();
 
     return () => {
       isActive = false;
       clearStaggerTimeout();
       controls.stop();
     };
-  }, [isRevealed, isVisuallyRevealed, staggerDelay, controls]);
+  }, [isRevealed, isVisuallyRevealed, staggerDelay, controls, index]);
 
   return (
     <div
@@ -257,9 +290,8 @@ export function Card({
               </div>
 
               <div
-                className="bg-surface/85 rounded p-4 border border-secondary/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-secondary/70"
+                className="bg-surface/85 rounded p-4 border border-secondary/40"
                 ref={revealedContentRef}
-                tabIndex={-1}
               >
                 <p className="text-main text-sm sm:text-base leading-relaxed">
                   {(() => {
@@ -271,8 +303,12 @@ export function Card({
                 </p>
               </div>
               <div className="mt-3">
-                <label className="text-muted text-xs-plus sm:text-sm block mb-1">What resonates for you?</label>
+                <label htmlFor={`reflection-${index}`} className="text-muted text-xs-plus sm:text-sm block mb-1">
+                  What resonates for you?
+                </label>
                 <textarea
+                  ref={textareaRef}
+                  id={`reflection-${index}`}
                   value={reflectionValue}
                   onChange={event =>
                     setReflections(prev => ({ ...prev, [index]: event.target.value }))
@@ -285,9 +321,10 @@ export function Card({
                   maxLength={500}
                   className="w-full bg-surface/85 border border-secondary/40 rounded p-2 min-h-[4.5rem] resize-y text-main text-base focus:outline-none focus:ring-1 focus:ring-secondary/55"
                   placeholder="What resonates? (optional)"
+                  aria-describedby={reflectionValue.length > 0 ? `char-count-${index}` : undefined}
                 />
                 {reflectionValue.length > 0 && (
-                  <div className="mt-1 text-xs text-accent/70 text-right">
+                  <div id={`char-count-${index}`} className="mt-1 text-xs text-accent/70 text-right" aria-live="polite">
                     {reflectionValue.length} / 500
                   </div>
                 )}

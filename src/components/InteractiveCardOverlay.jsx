@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { SYMBOL_COORDINATES } from '../data/symbolCoordinates';
 
@@ -7,13 +7,21 @@ import { SYMBOL_COORDINATES } from '../data/symbolCoordinates';
  * Optimized for mobile with large touch targets and tap-based tooltips.
  * Now uses React Portals to render tooltips above all card boundaries.
  */
-export function InteractiveCardOverlay({ card, isReversed }) {
+export function InteractiveCardOverlay({ card }) {
   const [activeSymbol, setActiveSymbol] = useState(null);
   const [tooltipPosition, setTooltipPosition] = useState({ x: 0, y: 0 });
 
   // Get card number for coordinate lookup
   const cardNumber = card.number ?? null;
   const coordinates = SYMBOL_COORDINATES[cardNumber];
+
+  useEffect(() => {
+    if (!activeSymbol || typeof window === 'undefined') return undefined;
+
+    const handleScroll = () => setActiveSymbol(null);
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, [activeSymbol]);
 
   // Only render for cards with mapped coordinates
   if (!coordinates) {
@@ -57,15 +65,6 @@ export function InteractiveCardOverlay({ card, isReversed }) {
       setActiveSymbol(null);
     }
   };
-
-  // Close tooltip on global scroll to prevent detachment
-  React.useEffect(() => {
-    if (!activeSymbol) return;
-    
-    const handleScroll = () => setActiveSymbol(null);
-    window.addEventListener('scroll', handleScroll, { passive: true });
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, [activeSymbol]);
 
   return (
     <>

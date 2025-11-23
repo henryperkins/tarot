@@ -1,4 +1,3 @@
-import React from 'react';
 import { Sparkle, BookOpen } from '@phosphor-icons/react';
 
 /**
@@ -71,7 +70,7 @@ export function PatternHighlightBanner({ patterns, passages, minimal = false }) 
             {passages.map((passage, i) => (
               <div key={i} className="text-xs text-main/90 leading-relaxed bg-primary/20 p-3 rounded border border-primary/10">
                 <p className="font-medium text-main mb-1">{passage.title || passage.theme}</p>
-                <p className="italic opacity-90 mb-1">"{passage.text}"</p>
+                <p className="italic opacity-90 mb-1">&ldquo;{passage.text}&rdquo;</p>
                 {passage.source && (
                   <p className="text-primary/60 text-[10px] text-right">— {passage.source}</p>
                 )}

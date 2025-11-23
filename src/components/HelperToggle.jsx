@@ -1,4 +1,4 @@
-import React, { useId, useState } from 'react';
+import { useId, useState } from 'react';
 import { Question } from '@phosphor-icons/react';
 
 export function HelperToggle({ children, label = 'More information', className = '' }) {

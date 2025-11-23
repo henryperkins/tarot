@@ -187,7 +187,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           ],
         };
 
-      case 'get_daily_astrological_weather':
+      case 'get_daily_astrological_weather': {
         const positions = getCurrentPositions(args?.date);
         const aspects = getPlanetaryAspects(args?.date);
         const moon = getMoonPhase(args?.date);
@@ -210,6 +210,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             },
           ],
         };
+      }
 
       default:
         throw new Error(`Unknown tool: ${name}`);

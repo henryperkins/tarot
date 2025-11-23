@@ -1,4 +1,3 @@
-import React from 'react';
 import { X } from '@phosphor-icons/react';
 
 export function MobileSettingsDrawer({ isOpen, onClose, children }) {

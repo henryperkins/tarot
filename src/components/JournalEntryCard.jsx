@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, memo, useCallback } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkBreaks from 'remark-breaks';
@@ -69,7 +69,7 @@ function buildThemeInsights(entry) {
     return lines.filter(Boolean);
 }
 
-const JournalCardListItem = React.memo(function JournalCardListItem({ card }) {
+const JournalCardListItem = memo(function JournalCardListItem({ card }) {
   const insightCard = buildCardInsightPayload(card);
 
   return (
@@ -96,7 +96,7 @@ const JournalCardListItem = React.memo(function JournalCardListItem({ card }) {
   );
 });
 
-export const JournalEntryCard = React.memo(function JournalEntryCard({ entry, onCreateShareLink, isAuthenticated, onDelete }) {
+export const JournalEntryCard = memo(function JournalEntryCard({ entry, onCreateShareLink, isAuthenticated, onDelete }) {
   const insights = buildThemeInsights(entry);
   const [showNarrative, setShowNarrative] = useState(false);
   const [entryActionMessage, setEntryActionMessage] = useState('');
@@ -218,7 +218,7 @@ export const JournalEntryCard = React.memo(function JournalEntryCard({ entry, on
           <div className="mb-6">
             <p className="mb-1 text-[10px] font-medium uppercase tracking-wider text-secondary/80">Question</p>
             <p className="font-serif text-lg italic leading-relaxed text-main/90">
-              "{entry.question}"
+              &ldquo;{entry.question}&rdquo;
             </p>
           </div>
         )}

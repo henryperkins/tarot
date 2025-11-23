@@ -1,4 +1,4 @@
-import React, { useId, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { ArrowsClockwise, Sparkle } from '@phosphor-icons/react';
 import { EXAMPLE_QUESTIONS } from '../data/exampleQuestions';
 import { recordCoachQuestion } from '../lib/coachStorage';
@@ -16,6 +16,23 @@ export function QuestionInput({
   const optionalId = useId();
   const [savedNotice, setSavedNotice] = useState(false);
   const [saveError, setSaveError] = useState('');
+  const timeoutRefs = useRef([]);
+
+  const clearAllTimeouts = () => {
+    timeoutRefs.current.forEach(timeoutId => clearTimeout(timeoutId));
+    timeoutRefs.current = [];
+  };
+
+  const registerTimeout = (callback, delay) => {
+    const id = setTimeout(() => {
+      callback();
+      timeoutRefs.current = timeoutRefs.current.filter(timeoutId => timeoutId !== id);
+    }, delay);
+    timeoutRefs.current = [...timeoutRefs.current, id];
+    return id;
+  };
+
+  useEffect(() => clearAllTimeouts, []);
 
   const handleRefreshExamples = () => {
     onPlaceholderRefresh?.();
@@ -28,11 +45,11 @@ export function QuestionInput({
     if (result.success) {
       setSavedNotice(true);
       setSaveError('');
-      setTimeout(() => setSavedNotice(false), 1800);
+      registerTimeout(() => setSavedNotice(false), 1800);
     } else {
       setSavedNotice(false);
       setSaveError(result.error || 'Unable to save this question. Check browser storage settings.');
-      setTimeout(() => setSaveError(''), 3000);
+      registerTimeout(() => setSaveError(''), 3000);
     }
   };
 
@@ -91,7 +108,7 @@ export function QuestionInput({
         <ArrowsClockwise className="w-3.5 h-3.5 text-primary" aria-hidden="true" />
         Need inspiration? Tap the refresh icon to cycle example questions.
       </p>
-      <div className="flex items-center gap-3">
+      <div className="flex flex-wrap items-center gap-3">
         <button
           type="button"
           className="px-3 py-1.5 rounded-lg border border-primary/40 text-xs text-main hover:bg-primary/10 transition disabled:opacity-50"
@@ -100,8 +117,10 @@ export function QuestionInput({
         >
           Save intention
         </button>
-        {savedNotice && <span className="text-primary text-xs">Saved ✓</span>}
-        {saveError && <span className="text-error text-xs">{saveError}</span>}
+        <span role="status" aria-live="polite" className="text-xs min-h-[1.25rem]">
+          {savedNotice && <span className="text-primary">Saved ✓</span>}
+          {saveError && <span className="text-error">{saveError}</span>}
+        </span>
       </div>
     </div>
   );

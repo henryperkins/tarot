@@ -131,16 +131,7 @@ body {
   }
 }
 
-/* Light mode overrides - DEPRECATED in favor of semantic tokens, but keeping structure if needed for future */
-:root.light {
-  --mt-light-bg: linear-gradient(135deg,
-      var(--light-ambient-top) 0%,
-      var(--light-ambient-mid) 45%,
-      var(--light-ambient-base) 100%);
-  /* ... (keeping light mode definitions for now, though they might need updating if light mode is active) */
-}
-
-/* ... (Skipping light mode specific blocks in this replace, focusing on default dark theme first) ... */
+/* Light mode: Additional styles can be added here when implementing light mode support */
 
 .spread-patterns-panel {
   margin-top: 1.5rem;
@@ -187,8 +178,6 @@ body {
 .spread-patterns-panel .pattern-text p {
   margin: 0;
 }
-
-/* @keyframes flipCard removed as it is unused (handled by Framer Motion) */
 
 /* Celtic Cross grid layout */
 .cc-grid {
@@ -319,8 +308,6 @@ body {
     gap: 1.5rem;
   }
 }
-
-/* Remove previous gradient accent override from center cards to keep theme consistent */
 
 /* Focus visibility enhancements for keyboard users */
 button:focus-visible,
@@ -514,7 +501,8 @@ textarea:focus-visible {
   align-items: center;
   justify-content: center;
   gap: 0.25rem;
-  font-size: clamp(0.65rem, 2vw, 0.55rem);
+  font-size: clamp(0.6875rem, 2vw, 0.75rem);
+  /* Minimum 11px (0.6875rem) for readability */
   letter-spacing: 0.16em;
   text-transform: uppercase;
   color: var(--brand-accent);
@@ -570,7 +558,8 @@ textarea:focus-visible {
 /* Nameplate at bottom like traditional cards */
 .tarot-card-face-name {
   font-family: "Cormorant Garamond", "Times New Roman", serif;
-  font-size: clamp(0.7rem, 2.2vw, 0.58rem);
+  font-size: clamp(0.6875rem, 2.2vw, 0.875rem);
+  /* Minimum 11px (0.6875rem) for readability */
   letter-spacing: 0.09em;
   text-transform: uppercase;
   text-align: center;

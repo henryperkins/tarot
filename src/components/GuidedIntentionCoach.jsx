@@ -1,4 +1,5 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { Fragment, useEffect, useMemo, useRef, useState, useId } from 'react';
+import FocusTrap from 'focus-trap-react';
 import {
   ChartLine,
   ArrowLeft,
@@ -210,7 +211,7 @@ function getDepthLabel(value) {
   return INTENTION_DEPTH_OPTIONS.find(option => option.value === value)?.label || null;
 }
 
-export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply }) {
+export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply, prefillRecommendation = null }) {
   const [step, setStep] = useState(0);
 
   // Determine suggested topic based on spread
@@ -238,22 +239,61 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply 
   const [personalizedSuggestions, setPersonalizedSuggestions] = useState([]);
   const [isTemplatePanelOpen, setTemplatePanelOpen] = useState(false);
   const [remixCount, setRemixCount] = useState(0);
-  const modalRef = React.useRef(null);
+  const modalRef = useRef(null);
+  const closeButtonRef = useRef(null);
   const depthSectionRef = useRef(null);
   const customFocusRef = useRef(null);
-  const titleId = React.useId();
+  const previousFocusRef = useRef(null);
+  const titleId = useId();
   const questionRequestRef = useRef(0);
+  const creativeRequestControllerRef = useRef(null);
+  const timeoutRefs = useRef([]);
+  const hasInitializedRef = useRef(false);
   const releasePrefill = () => {
     if (prefillSource) {
       setPrefillSource(null);
       setAutoQuestionEnabled(true);
     }
   };
+
+  const scheduleTimeout = (callback, delay) => {
+    const id = setTimeout(() => {
+      timeoutRefs.current = timeoutRefs.current.filter(timeoutId => timeoutId !== id);
+      callback();
+    }, delay);
+    timeoutRefs.current.push(id);
+    return id;
+  };
+
+  const clearAllTimeouts = () => {
+    timeoutRefs.current.forEach(id => clearTimeout(id));
+    timeoutRefs.current = [];
+  };
+
+  useEffect(() => () => {
+    clearAllTimeouts();
+    if (creativeRequestControllerRef.current) {
+      creativeRequestControllerRef.current.abort();
+      creativeRequestControllerRef.current = null;
+    }
+  }, []);
   const prefillSourceDescription = useMemo(() => describePrefillSource(prefillSource), [prefillSource]);
 
   const refreshSuggestions = () => {
     setPersonalizedSuggestions(buildPersonalizedSuggestions(coachStats, questionHistory));
   };
+
+  // Generate deterministic seed from user selections
+  // This ensures same selections produce same question (reproducible)
+  // remixCount allows forcing a new variant
+  const questionSeed = useMemo(() => {
+    return `${topic}|${timeframe}|${depth}|${customFocus}|${remixCount}`;
+  }, [topic, timeframe, depth, customFocus, remixCount]);
+
+  const guidedQuestion = useMemo(
+    () => buildGuidedQuestion({ topic, timeframe, depth, customFocus, seed: questionSeed }),
+    [topic, timeframe, depth, customFocus, questionSeed]
+  );
 
   const handleSaveTemplate = () => {
     const label = newTemplateLabel.trim();
@@ -292,10 +332,10 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply 
           : 'Template saved';
       setTemplateStatus(status);
       setNewTemplateLabel('');
-      setTimeout(() => setTemplateStatus(''), 2600);
+      scheduleTimeout(() => setTemplateStatus(''), 2600);
     } else if (result.error) {
       setTemplateStatus(result.error);
-      setTimeout(() => setTemplateStatus(''), 2600);
+      scheduleTimeout(() => setTemplateStatus(''), 2600);
     }
   };
 
@@ -332,10 +372,10 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply 
     if (result.success) {
       setTemplates(result.templates);
       setTemplateStatus('Template removed');
-      setTimeout(() => setTemplateStatus(''), 1800);
+      scheduleTimeout(() => setTemplateStatus(''), 1800);
     } else if (result.error) {
       setTemplateStatus(result.error);
-      setTimeout(() => setTemplateStatus(''), 2600);
+      scheduleTimeout(() => setTemplateStatus(''), 2600);
     }
   };
 
@@ -380,7 +420,16 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply 
   };
 
   useEffect(() => {
-    if (!isOpen) return;
+    if (!isOpen) {
+      hasInitializedRef.current = false;
+      return;
+    }
+
+    if (hasInitializedRef.current) {
+      return;
+    }
+
+    hasInitializedRef.current = true;
 
     try {
       const saved = JSON.parse(localStorage.getItem(COACH_PREFS_KEY) || '{}');
@@ -400,6 +449,7 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply 
       setAutoQuestionEnabled(true);
       setPrefillSource(null);
     } catch (error) {
+      console.warn('Could not load coach preferences:', error);
       setStep(0);
       setTopic(suggestedTopic);
       setTimeframe(INTENTION_TIMEFRAME_OPTIONS[1].value);
@@ -413,7 +463,7 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply 
       setPrefillSource(null);
     }
 
-    const recommendation = loadCoachRecommendation();
+    const recommendation = prefillRecommendation?.question ? prefillRecommendation : loadCoachRecommendation();
     if (recommendation?.question) {
       if (recommendation.topicValue) {
         setTopic(recommendation.topicValue);
@@ -431,7 +481,7 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply 
       setPrefillSource(recommendation);
       setAutoQuestionEnabled(false);
     }
-  }, [isOpen, suggestedTopic]);
+  }, [isOpen, suggestedTopic, prefillRecommendation]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -460,6 +510,11 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply 
       setNewTemplateLabel('');
       setTemplatePanelOpen(false);
       setHistoryStatus('');
+      clearAllTimeouts();
+      if (creativeRequestControllerRef.current) {
+        creativeRequestControllerRef.current.abort();
+        creativeRequestControllerRef.current = null;
+      }
     }
   }, [isOpen]);
 
@@ -469,48 +524,49 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply 
     return () => clearTimeout(timer);
   }, [historyStatus]);
 
-  // Escape key handler and focus management
+  // Focus management for modal
   useEffect(() => {
     if (!isOpen) return;
 
-    const handleEscape = (e) => {
-      if (e.key === 'Escape') {
-        onClose?.();
+    // Store previous focus to restore on close
+    previousFocusRef.current = document.activeElement;
+
+    // Let FocusTrap handle focus, but we can ensure cleanup
+    return () => {
+      // Restore focus when modal closes
+      if (previousFocusRef.current && typeof previousFocusRef.current.focus === 'function') {
+        // Use setTimeout to ensure modal is fully removed before focusing
+        setTimeout(() => {
+          previousFocusRef.current?.focus();
+        }, 0);
       }
     };
-
-    // Focus the modal when it opens
-    if (modalRef.current) {
-      modalRef.current.focus();
-    }
-
-    document.addEventListener('keydown', handleEscape);
-    return () => document.removeEventListener('keydown', handleEscape);
-  }, [isOpen, onClose]);
-
-  // Generate deterministic seed from user selections
-  // This ensures same selections produce same question (reproducible)
-  // remixCount allows forcing a new variant
-  const questionSeed = useMemo(() => {
-    return `${topic}|${timeframe}|${depth}|${customFocus}|${remixCount}`;
-  }, [topic, timeframe, depth, customFocus, remixCount]);
-
-  const guidedQuestion = useMemo(
-    () => buildGuidedQuestion({ topic, timeframe, depth, customFocus, seed: questionSeed }),
-    [topic, timeframe, depth, customFocus, questionSeed]
-  );
+  }, [isOpen]);
 
   useEffect(() => {
     if (!isOpen) {
+      if (creativeRequestControllerRef.current) {
+        creativeRequestControllerRef.current.abort();
+        creativeRequestControllerRef.current = null;
+      }
       setQuestionText('');
       return;
     }
+
     if (!autoQuestionEnabled) {
+      if (creativeRequestControllerRef.current) {
+        creativeRequestControllerRef.current.abort();
+        creativeRequestControllerRef.current = null;
+      }
       return;
     }
 
     // If not in creative mode, update immediately
     if (!useCreative) {
+      if (creativeRequestControllerRef.current) {
+        creativeRequestControllerRef.current.abort();
+        creativeRequestControllerRef.current = null;
+      }
       setQuestionLoading(false);
       setQuestionError('');
       setQuestionText(guidedQuestion);
@@ -524,6 +580,8 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply 
     setQuestionError('');
 
     const timerId = setTimeout(async () => {
+      const controller = new AbortController();
+      creativeRequestControllerRef.current = controller;
       try {
         const { question: creative, source } = await buildCreativeQuestion({
           topic,
@@ -531,7 +589,7 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply 
           depth,
           customFocus,
           seed: questionSeed  // Pass seed for deterministic creative questions
-        });
+        }, { signal: controller.signal });
         if (questionRequestRef.current !== requestId) {
           return;
         }
@@ -544,6 +602,9 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply 
           setQuestionError('Personalized mode is temporarily unavailable. Showing guided version.');
         }
       } catch (error) {
+        if (error?.name === 'AbortError') {
+          return;
+        }
         if (questionRequestRef.current !== requestId) {
           return;
         }
@@ -553,14 +614,21 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply 
         if (questionRequestRef.current === requestId) {
           setQuestionLoading(false);
         }
+        if (creativeRequestControllerRef.current === controller) {
+          creativeRequestControllerRef.current = null;
+        }
       }
     }, 800);
 
     return () => {
       clearTimeout(timerId);
+      if (creativeRequestControllerRef.current) {
+        creativeRequestControllerRef.current.abort();
+        creativeRequestControllerRef.current = null;
+      }
       questionRequestRef.current += 1;
     };
-  }, [guidedQuestion, useCreative, topic, timeframe, depth, customFocus, isOpen, autoQuestionEnabled, remixCount, questionSeed]);
+  }, [guidedQuestion, useCreative, topic, timeframe, depth, customFocus, isOpen, autoQuestionEnabled, questionSeed]);
 
   const questionQuality = useMemo(
     () => scoreQuestion(questionText || guidedQuestion || ''),
@@ -617,8 +685,19 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply 
     if (step > 0) setStep(step - 1);
   };
 
-  const handleApply = () => {
-    if (!questionText) return;
+  const handleApply = async () => {
+    const finalQuestion = questionText || guidedQuestion;
+    if (!finalQuestion) return;
+
+    // Record question, but don't block apply if storage fails
+    const historyResult = recordCoachQuestion(finalQuestion);
+
+    // Update history state with the new list
+    if (historyResult?.history) {
+      setQuestionHistory(historyResult.history);
+      // Refresh suggestions with the NEW history immediately
+      setPersonalizedSuggestions(buildPersonalizedSuggestions(coachStats, historyResult.history));
+    }
 
     // Save preferences for next time
     try {
@@ -634,22 +713,28 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply 
       console.warn('Could not save coach preferences:', error);
     }
 
-    onApply?.(questionText);
-    const historyResult = recordCoachQuestion(questionText);
-    if (historyResult?.history) {
-      setQuestionHistory(historyResult.history);
-    }
+    // Clear any status messages on success
     if (historyResult?.success) {
       setHistoryStatus('');
-      refreshSuggestions();
-      onClose?.();
-      return;
+    } else {
+      const message =
+        historyResult?.error ||
+        'Your question was used, but we could not save it to recent history. Check storage permissions and try again.';
+      setHistoryStatus(message);
     }
-    const message =
-      historyResult?.error ||
-      'Your question was used, but we could not save it to recent history. Check storage permissions and try again.';
-    setHistoryStatus(message);
+
+    // Apply the question regardless of storage outcome
+    onApply?.(finalQuestion);
+
+    if (historyResult?.success) {
+      onClose?.();
+    }
   };
+
+  // Don't render if closed
+  if (!isOpen) {
+    return null;
+  }
 
   return (
     <div
@@ -661,22 +746,37 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply 
         }
       }}
     >
-      <div
-        ref={modalRef}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby={titleId}
-        tabIndex={-1}
-        className="relative w-full h-full sm:h-auto sm:max-w-3xl sm:mx-4 sm:rounded-3xl border-0 sm:border border-accent/30 bg-surface shadow-2xl focus:outline-none flex flex-col sm:block animate-pop-in"
+      <FocusTrap
+        active={isOpen}
+        focusTrapOptions={{
+          initialFocus: () => closeButtonRef.current,
+          escapeDeactivates: false,
+          clickOutsideDeactivates: false,
+          returnFocusOnDeactivate: false,
+          allowOutsideClick: true,
+        }}
       >
-        <button
-          type="button"
-          onClick={onClose}
-          className="absolute right-4 top-4 text-accent/80 hover:text-main z-10"
-          aria-label="Close intention coach"
+        <div
+          ref={modalRef}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby={titleId}
+          onKeyDown={(e) => {
+            if (e.key === 'Escape') {
+              onClose?.();
+            }
+          }}
+          className="relative w-full h-full sm:h-auto sm:max-w-3xl sm:mx-4 sm:rounded-3xl border-0 sm:border border-accent/30 bg-surface shadow-2xl focus:outline-none flex flex-col sm:block animate-pop-in"
         >
-          <X className="h-5 w-5" />
-        </button>
+          <button
+            ref={closeButtonRef}
+            type="button"
+            onClick={onClose}
+            className="absolute right-4 top-4 text-accent/80 hover:text-main z-10"
+            aria-label="Close intention coach"
+          >
+            <X className="h-5 w-5" />
+          </button>
 
         {/* Scrollable content area */}
         <div className="flex-1 overflow-y-auto sm:overflow-visible">
@@ -698,7 +798,7 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply 
               <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-widest text-accent flex-wrap">
                   {STEPS.map((entry, index) => (
-                    <React.Fragment key={entry.id}>
+                    <Fragment key={entry.id}>
                       <button
                         type="button"
                         className={`rounded-full px-3 py-1 min-h-[32px] touch-manipulation transition ${index === step
@@ -711,7 +811,7 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply 
                         <span className="sm:hidden">{index + 1}</span>
                       </button>
                       {index < STEPS.length - 1 && <span className="text-accent/30">·</span>}
-                    </React.Fragment>
+                    </Fragment>
                   ))}
                 </div>
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
@@ -795,7 +895,7 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply 
 
                 {step === 2 && (
                   <div className="space-y-6">
-                    <div ref={depthSectionRef}>
+                    <div ref={depthSectionRef} className="space-y-4">
                       <p className="text-sm text-muted">How deep do you want to go?</p>
                       <div className="grid gap-3 md:grid-cols-2">
                         {INTENTION_DEPTH_OPTIONS.map(option => (
@@ -974,7 +1074,7 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply 
               </div>
 
               {personalizedSuggestions.length > 0 && (
-                <section className="rounded-3xl border border-accent/30 bg-surface/40 mx-4 sm:mx-10 p-4 sm:p-5 space-y-3">
+                <section className="rounded-3xl border border-accent/30 bg-surface/40 p-4 sm:p-5 space-y-3">
                   <div className="flex items-center justify-between gap-2">
                     <p className="text-xs uppercase tracking-[0.3em] text-secondary">Personalized suggestions</p>
                     <button
@@ -1066,18 +1166,19 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply 
                 <button
                   type="button"
                   onClick={handleApply}
-                  disabled={!questionText || questionLoading}
+                  disabled={(!questionText && !guidedQuestion) || questionLoading}
                   className="inline-flex items-center justify-center gap-2 rounded-full border border-secondary/60 bg-secondary/80 px-5 py-2.5 sm:py-2 text-sm font-semibold text-white transition disabled:opacity-50 min-h-[44px] sm:min-h-0 flex-1 sm:flex-none touch-manipulation"
                 >
                   <span>Use question</span>
                   <Sparkle className="h-4 w-4" />
                 </button>
               )}
+              </div>
             </div>
           </div>
-          </div>
         </div>
-      </div>
+        </div>
+      </FocusTrap>
       {isTemplatePanelOpen && (
         <div
           className="absolute inset-0 z-40 flex items-stretch bg-surface/70 backdrop-blur-sm animate-fade-in"

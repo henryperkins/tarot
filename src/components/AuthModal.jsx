@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import FocusTrap from 'focus-trap-react';
 import { X } from '@phosphor-icons/react';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -14,28 +15,24 @@ export default function AuthModal({ isOpen, onClose }) {
   const [success, setSuccess] = useState('');
   const modalRef = useRef(null);
   const firstInputRef = useRef(null);
+  const previousFocusRef = useRef(null);
 
-  // Handle Escape key and focus management
+  // Handle focus management
   useEffect(() => {
     if (!isOpen) return;
 
-    const handleKeyDown = (e) => {
-      if (e.key === 'Escape') {
-        onClose();
-      }
-    };
-
-    document.addEventListener('keydown', handleKeyDown);
-
-    // Focus the first input when modal opens
-    if (firstInputRef.current) {
-      firstInputRef.current.focus();
-    }
+    // Store previous focus to restore on close
+    previousFocusRef.current = document.activeElement;
 
     return () => {
-      document.removeEventListener('keydown', handleKeyDown);
+      // Restore focus when modal closes
+      if (previousFocusRef.current && typeof previousFocusRef.current.focus === 'function') {
+        setTimeout(() => {
+          previousFocusRef.current?.focus();
+        }, 0);
+      }
     };
-  }, [isOpen, onClose]);
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
@@ -111,14 +108,34 @@ export default function AuthModal({ isOpen, onClose }) {
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-main/90 backdrop-blur-sm animate-fade-in"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="auth-modal-title"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) {
+          onClose();
+        }
+      }}
     >
-      <div
-        ref={modalRef}
-        className="relative w-full max-w-md mx-4 bg-surface rounded-2xl border border-primary/40 shadow-2xl animate-pop-in"
+      <FocusTrap
+        active={isOpen}
+        focusTrapOptions={{
+          initialFocus: () => firstInputRef.current,
+          escapeDeactivates: false,
+          clickOutsideDeactivates: false,
+          returnFocusOnDeactivate: false,
+          allowOutsideClick: true,
+        }}
       >
+        <div
+          ref={modalRef}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="auth-modal-title"
+          onKeyDown={(e) => {
+            if (e.key === 'Escape') {
+              onClose();
+            }
+          }}
+          className="relative w-full max-w-md mx-4 bg-surface rounded-2xl border border-primary/40 shadow-2xl animate-pop-in"
+        >
         {/* Close button */}
         <button
           onClick={onClose}
@@ -276,6 +293,7 @@ export default function AuthModal({ isOpen, onClose }) {
           </p>
         </div>
       </div>
+      </FocusTrap>
     </div>
   );
 }

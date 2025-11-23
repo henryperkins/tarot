@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useId } from 'react';
+import { useState, useRef, useEffect, useId } from 'react';
 import { CaretDown, Check } from '@phosphor-icons/react';
 
 const TIMEFRAME_OPTIONS = [

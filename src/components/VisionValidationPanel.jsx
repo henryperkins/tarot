@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import { useState, useRef } from 'react';
 import { useVisionValidation } from '../hooks/useVisionValidation';
 import { VisionHeatmapOverlay } from './VisionHeatmapOverlay';
 import { PhotoInputModal } from './PhotoInputModal';
@@ -65,7 +65,7 @@ export function VisionValidationPanel({
         <div>
           <p className="text-sm text-main font-semibold">Vision Research Console</p>
           <p className="text-xs text-muted">
-            Upload card photos to test the fine-tuned vision model's recognition accuracy and attention mechanisms. This tool compares your uploads against the active deck's embeddings.
+            Upload card photos to test the fine-tuned vision model&rsquo;s recognition accuracy and attention mechanisms. This tool compares your uploads against the active deck&rsquo;s embeddings.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2 text-sm font-medium text-secondary">

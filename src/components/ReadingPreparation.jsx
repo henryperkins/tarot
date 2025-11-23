@@ -1,4 +1,3 @@
-import React from 'react';
 import { CaretDown, CaretUp } from '@phosphor-icons/react';
 import { QuestionInput } from './QuestionInput';
 import { AudioControls } from './AudioControls';

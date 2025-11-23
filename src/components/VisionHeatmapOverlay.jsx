@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 
 function cellColor(value) {
   const alpha = Math.min(0.85, Math.max(0, value) * 0.9);
@@ -10,14 +10,14 @@ function focusKey(x, y) {
 }
 
 export function VisionHeatmapOverlay({ attention, imageSrc, label }) {
-  if (!attention?.heatmap || !imageSrc) {
+  const [visible, setVisible] = useState(true);
+  const hasHeatmap = Boolean(attention?.heatmap && imageSrc);
+  if (!hasHeatmap) {
     return null;
   }
 
   const gridSize = attention.gridSize || attention.heatmap.length || 0;
   if (!gridSize) return null;
-
-  const [visible, setVisible] = useState(true);
   const focusLookup = new Set(
     Array.isArray(attention.focusRegions)
       ? attention.focusRegions.map((region) => focusKey(region.x, region.y))

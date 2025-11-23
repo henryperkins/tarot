@@ -1,4 +1,3 @@
-import React from 'react';
 import { motion } from 'framer-motion';
 
 export function DeckPile({ cardsRemaining, onDraw, isShuffling, nextLabel }) {

@@ -1,4 +1,3 @@
-import React from 'react';
 import { Sparkle } from '@phosphor-icons/react';
 
 export function CoachSuggestion({
@@ -12,9 +11,7 @@ export function CoachSuggestion({
     if (!recommendation) return null;
 
     const isJournalVariant = variant === 'journal';
-    const headlineText = isJournalVariant
-        ? (recommendation.question || recommendation.customFocus || recommendation.spreadName || 'Suggested focus')
-        : recommendation.question;
+    const headlineText = recommendation.question || recommendation.customFocus || recommendation.spreadName || 'Suggested focus';
     const journalSubtitle = isJournalVariant ? (recommendation.spreadName || 'Three-Card Story') : null;
     const journalHelper = isJournalVariant
         ? (recommendation.customFocus
@@ -43,7 +40,7 @@ export function CoachSuggestion({
         <div className={containerClasses}>
             {showTitle && (
                 <h3 className={titleClasses}>
-                    <Sparkle className="h-3 w-3" /> Suggested Focus
+                    <Sparkle className="h-3 w-3" aria-hidden="true" /> Suggested Focus
                 </h3>
             )}
 
@@ -69,6 +66,7 @@ export function CoachSuggestion({
             <div className="mt-3 flex flex-wrap gap-2 text-xs">
                 {isJournalVariant ? (
                     <button
+                        type="button"
                         onClick={onApply}
                         className="mt-2 text-xs font-medium text-accent hover:text-main underline decoration-accent/30 underline-offset-4"
                     >

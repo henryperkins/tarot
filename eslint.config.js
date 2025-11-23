@@ -108,7 +108,17 @@ export default [
 
   // Node.js scripts
   {
-    files: ['scripts/**/*.{js,mjs}', '*.config.{js,mjs}'],
+    files: ['scripts/**/*.{js,mjs}', '*.config.{js,mjs}', 'test-telemetry.js'],
+    languageOptions: {
+      globals: {
+        ...globals.node,
+      },
+    },
+  },
+
+  // Plugins directory (Node.js environment)
+  {
+    files: ['plugins/**/*.{js,mjs}'],
     languageOptions: {
       globals: {
         ...globals.node,

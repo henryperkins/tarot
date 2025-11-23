@@ -218,14 +218,16 @@ export function buildLocalCreativeQuestion({ focus, timeframePhrase, depthLabel,
   return ensureQuestionMark(question);
 }
 
-export async function callLlmApi(prompt, metadata) {
+export async function callLlmApi(prompt, metadata, options = {}) {
+  const { signal } = options;
   try {
     const response = await fetch('/api/generate-question', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify({ prompt, metadata })
+      body: JSON.stringify({ prompt, metadata }),
+      signal
     });
 
     if (!response.ok) {
@@ -258,13 +260,14 @@ export async function callLlmApi(prompt, metadata) {
  * @param {number|string} [params.seed] - Optional seed for deterministic output
  * @returns {Promise<Object>} { question: string, source: 'api'|'local' }
  */
-export async function buildCreativeQuestion({ topic, timeframe, depth, customFocus, seed }) {
+export async function buildCreativeQuestion({ topic, timeframe, depth, customFocus, seed }, options = {}) {
+  const { signal } = options;
   const topicData = INTENTION_TOPIC_OPTIONS.find(option => option.value === topic) || INTENTION_TOPIC_OPTIONS[0];
   const timeframeData = INTENTION_TIMEFRAME_OPTIONS.find(option => option.value === timeframe) || INTENTION_TIMEFRAME_OPTIONS[0];
   const depthData = INTENTION_DEPTH_OPTIONS.find(option => option.value === depth) || INTENTION_DEPTH_OPTIONS[0];
 
   const focus = customFocus?.trim() || topicData.focus;
-  const timeframeText = timeframeData?.phrase ? ` ${timeframeData.phrase}` : '';
+  const timeframeClause = timeframeData?.phrase || 'the current moment';
 
   const insights = loadStoredJournalInsights();
   const stats = insights?.stats || null;
@@ -272,7 +275,9 @@ export async function buildCreativeQuestion({ topic, timeframe, depth, customFoc
   const frequentCard = stats?.frequentCards?.[0]?.name || null;
   const leadingContext = stats?.contextBreakdown?.[0]?.name || null;
   const reversalRate = typeof stats?.reversalRate === 'number' ? `${stats.reversalRate}% reversals logged` : null;
-  const recentQuestions = loadCoachHistory(3).map(entry => entry.question);
+  const recentQuestions = loadCoachHistory(3)
+    .map(entry => (typeof entry?.question === 'string' ? entry.question.trim() : ''))
+    .filter(Boolean);
 
   const personalizationFragments = [];
   if (recentThemes.length > 0) {
@@ -295,7 +300,12 @@ export async function buildCreativeQuestion({ topic, timeframe, depth, customFoc
     ? `Personalization: ${personalizationFragments.join(' | ')}.`
     : '';
 
-  const prompt = `Generate a tarot question about ${focus} for the${timeframeText || ' current moment'}. The desired depth is ${depthData.label}. ${personalizationNote}`.trim();
+  const promptParts = [
+    `Generate a tarot question about ${focus} for ${timeframeClause}.`,
+    `The desired depth is ${depthData.label}.`,
+    personalizationNote
+  ].filter(Boolean);
+  const prompt = promptParts.join(' ').trim();
   const metadata = {
     focus,
     customFocus: customFocus?.trim() || null,
@@ -316,9 +326,9 @@ export async function buildCreativeQuestion({ topic, timeframe, depth, customFoc
 
   let apiResult = null;
   try {
-    apiResult = await callLlmApi(prompt, metadata);
+    apiResult = await callLlmApi(prompt, metadata, { signal });
   } catch (error) {
-    // swallow and fall back below
+    console.warn('Creative question API failed, falling back to local generator:', error);
   }
 
   const apiQuestion = typeof apiResult === 'string' ? apiResult : apiResult?.question;

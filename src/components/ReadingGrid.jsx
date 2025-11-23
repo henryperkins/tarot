@@ -1,4 +1,3 @@
-import React from 'react';
 import { getSpreadInfo } from '../data/spreads';
 import { MAJOR_ARCANA } from '../data/majorArcana';
 import { MINOR_ARCANA } from '../data/minorArcana';
@@ -45,20 +44,10 @@ export function ReadingGrid({
   setReflections,
   onCardClick
 }) {
-  // Track previous reveal count to detect batch reveals
-  const prevRevealedCount = React.useRef(0);
-
-  // Update ref after render
-  React.useEffect(() => {
-    prevRevealedCount.current = revealedCards.size;
-  }, [revealedCards.size]);
-
   if (!reading) return null;
 
   const spreadInfo = getSpreadInfo(selectedSpread);
-  const isBatchReveal = reading.length > 1 &&
-    revealedCards.size === reading.length &&
-    prevRevealedCount.current < reading.length - 1;
+  const isBatchReveal = reading.length > 1 && revealedCards.size === reading.length;
 
   return (
     <>

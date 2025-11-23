@@ -1,17 +1,22 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { MarkdownRenderer } from './MarkdownRenderer';
 
 function usePrefersReducedMotion() {
-  const [reduceMotion, setReduceMotion] = useState(false);
+  const getInitialPreference = () => {
+    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
+      return false;
+    }
+    return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  };
+
+  const [reduceMotion, setReduceMotion] = useState(getInitialPreference);
 
   useEffect(() => {
     if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
-      return;
+      return undefined;
     }
 
     const query = window.matchMedia('(prefers-reduced-motion: reduce)');
-    setReduceMotion(query.matches);
-
     const handleChange = (event) => setReduceMotion(event.matches);
 
     if (typeof query.addEventListener === 'function') {

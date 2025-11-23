@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Sparkle, CaretLeft, CaretRight, Check, Lightning, BookOpen, Eye, Path, Heart, Compass } from './icons';
 import { Icon, ICON_SIZES } from './Icon';
 import { SPREADS } from '../data/spreads';

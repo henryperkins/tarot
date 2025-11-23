@@ -1,6 +1,11 @@
 import { useState, useEffect } from 'react';
 import { Trash, ClockCounterClockwise, ArrowRight, Sparkle } from '@phosphor-icons/react';
-import { loadCoachHistory, deleteCoachHistoryItem } from '../lib/coachStorage';
+import {
+  loadCoachHistory,
+  deleteCoachHistoryItem,
+  COACH_STORAGE_SYNC_EVENT,
+  HISTORY_STORAGE_KEY
+} from '../lib/coachStorage';
 import { useNavigate } from 'react-router-dom';
 
 export function SavedIntentionsList() {
@@ -8,14 +13,32 @@ export function SavedIntentionsList() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    // Listen for storage changes (in case added from another tab/component)
-    const handleStorage = (e) => {
-      if (e.key === 'tarot_coach_history') {
-        setIntentions(loadCoachHistory());
+    if (typeof window === 'undefined') {
+      return undefined;
+    }
+
+    const relevantKeys = new Set([HISTORY_STORAGE_KEY]);
+    const refreshHistory = () => setIntentions(loadCoachHistory());
+
+    const handleStorage = (event) => {
+      if (!event.key || relevantKeys.has(event.key)) {
+        refreshHistory();
       }
     };
+
+    const handleCoachSync = (event) => {
+      const detailKey = event?.detail?.key;
+      if (!detailKey || relevantKeys.has(detailKey)) {
+        refreshHistory();
+      }
+    };
+
     window.addEventListener('storage', handleStorage);
-    return () => window.removeEventListener('storage', handleStorage);
+    window.addEventListener(COACH_STORAGE_SYNC_EVENT, handleCoachSync);
+    return () => {
+      window.removeEventListener('storage', handleStorage);
+      window.removeEventListener(COACH_STORAGE_SYNC_EVENT, handleCoachSync);
+    };
   }, []);
 
   const handleDelete = (id) => {
@@ -40,25 +63,19 @@ export function SavedIntentionsList() {
         <h2 className="text-xl font-serif">Saved Intentions</h2>
       </div>
       <p className="text-xs text-muted mb-3 flex items-center gap-1">
-        <Sparkle className="w-4 h-4" /> From Guided Intention Coach
+        <Sparkle className="w-4 h-4" aria-hidden="true" /> From Guided Intention Coach
       </p>
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {intentions.map((item) => (
-          <div
+          <button
             key={item.id}
-            className="group relative p-4 bg-surface/50 border border-primary/20 rounded-lg hover:border-primary/40 transition-all cursor-pointer hover:bg-surface"
+            type="button"
+            className="group relative p-4 bg-surface/50 border border-primary/20 rounded-lg hover:border-primary/40 transition-all hover:bg-surface text-left w-full"
             onClick={() => handleUseIntention(item.question)}
-            role="button"
-            tabIndex={0}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' || e.key === ' ') {
-                handleUseIntention(item.question);
-              }
-            }}
           >
             <div className="flex items-center gap-2 text-[0.7rem] uppercase tracking-[0.12em] text-secondary/80 mb-2">
-              <Sparkle className="w-3.5 h-3.5" /> Guided coach
+              <Sparkle className="w-3.5 h-3.5" aria-hidden="true" /> Guided coach
             </div>
 
             <p className="text-main pr-8 font-medium line-clamp-3">
@@ -84,7 +101,7 @@ export function SavedIntentionsList() {
             >
               <Trash className="w-4 h-4" />
             </button>
-          </div>
+          </button>
         ))}
       </div>
     </div>

@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
+import { useState, useMemo, useEffect, useRef, memo } from 'react';
 import { FileText, Copy, ArrowsClockwise, ChartBar, Sparkle, ShareNetwork, DownloadSimple, Trash } from '@phosphor-icons/react';
 import { CoachSuggestion } from './CoachSuggestion';
 import { ArchetypeJourneySection } from './ArchetypeJourneySection';
@@ -46,6 +46,15 @@ const CONTEXT_TO_SPREAD = {
     }
 };
 
+function scheduleDeferred(callback) {
+    if (typeof window !== 'undefined' && typeof window.requestAnimationFrame === 'function') {
+        const frameId = window.requestAnimationFrame(callback);
+        return () => window.cancelAnimationFrame(frameId);
+    }
+    const timeoutId = setTimeout(callback, 0);
+    return () => clearTimeout(timeoutId);
+}
+
 function mapContextToTopic(context) {
     switch (context) {
         case 'love': return 'relationships';
@@ -76,7 +85,7 @@ function getEntryTimestamp(entry) {
     return candidates.find(Boolean) || null;
 }
 
-export const JournalInsightsPanel = React.memo(function JournalInsightsPanel({
+export const JournalInsightsPanel = memo(function JournalInsightsPanel({
     stats,
     allStats,
     entries,
@@ -90,12 +99,10 @@ export const JournalInsightsPanel = React.memo(function JournalInsightsPanel({
     onDeleteShareLink
 }) {
     const primaryStats = stats || allStats;
-    if (!primaryStats) return null;
-
-    const frequentCards = primaryStats.frequentCards || [];
-    const contextBreakdown = primaryStats.contextBreakdown || [];
-    const monthlyCadence = primaryStats.monthlyCadence || [];
-    const recentThemes = primaryStats.recentThemes || [];
+    const frequentCards = primaryStats?.frequentCards || [];
+    const contextBreakdown = primaryStats?.contextBreakdown || [];
+    const monthlyCadence = primaryStats?.monthlyCadence || [];
+    const recentThemes = primaryStats?.recentThemes || [];
     const isFilteredView = Boolean(filtersActive && stats);
 
     const [actionMessage, setActionMessage] = useState('');
@@ -152,21 +159,24 @@ export const JournalInsightsPanel = React.memo(function JournalInsightsPanel({
     }, [summaryStats, isFilteredView, baseEntries.length, allEntries]);
 
     useEffect(() => {
-        if (!shareComposerOpen) {
-            setComposerErrors({});
+        if (shareComposerOpen) {
+            return undefined;
         }
+        return scheduleDeferred(() => setComposerErrors({}));
     }, [shareComposerOpen]);
 
     useEffect(() => {
-        if (filtersActive) {
-            setInsightsOpen(true);
+        if (!filtersActive) {
+            return undefined;
         }
+        return scheduleDeferred(() => setInsightsOpen(true));
     }, [filtersActive]);
 
     useEffect(() => {
-        if (!shareOpen) {
-            setShareComposerOpen(false);
+        if (shareOpen) {
+            return undefined;
         }
+        return scheduleDeferred(() => setShareComposerOpen(false));
     }, [shareOpen]);
 
     const handleExport = () => {
@@ -260,7 +270,7 @@ export const JournalInsightsPanel = React.memo(function JournalInsightsPanel({
     const topCard = frequentCards[0];
     const topTheme = recentThemes[0];
 
-    const coachRecommendation = useMemo(() => {
+    const coachRecommendation = (() => {
         if (contextSuggestion) {
             return {
                 question: contextSuggestion.question,
@@ -297,9 +307,9 @@ export const JournalInsightsPanel = React.memo(function JournalInsightsPanel({
             };
         }
         return null;
-    }, [contextSuggestion, topCard, topContext, topTheme]);
+    })();
 
-    const prevCoachRecRef = React.useRef(null);
+    const prevCoachRecRef = useRef(null);
     useEffect(() => {
         if (!coachRecommendation) return;
         if (filtersActive) return;
@@ -309,7 +319,7 @@ export const JournalInsightsPanel = React.memo(function JournalInsightsPanel({
         prevCoachRecRef.current = current;
     }, [coachRecommendation, filtersActive]);
 
-    const handleCoachPrefill = useCallback(async () => {
+    const handleCoachPrefill = async () => {
         if (!coachRecommendation) return;
         if (filtersActive) {
             setActionMessage('Clear filters to sync this suggestion');
@@ -324,7 +334,7 @@ export const JournalInsightsPanel = React.memo(function JournalInsightsPanel({
             setActionMessage('Unable to sync coach suggestion');
         }
         scheduleActionClear(3500);
-    }, [coachRecommendation, filtersActive]);
+    };
 
     const entryOptions = useMemo(() => {
         const filteredList = Array.isArray(entries) ? entries : [];
@@ -453,6 +463,10 @@ export const JournalInsightsPanel = React.memo(function JournalInsightsPanel({
         }
         scheduleActionClear(2500);
     };
+
+    if (!primaryStats) {
+        return null;
+    }
 
     return (
         <div className="space-y-6 animate-fade-in">

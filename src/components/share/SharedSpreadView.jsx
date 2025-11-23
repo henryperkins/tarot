@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import { useMemo } from 'react';
 import { SPREADS } from '../../data/spreads';
 import { MAJOR_ARCANA } from '../../data/majorArcana';
 import { MINOR_ARCANA } from '../../data/minorArcana';

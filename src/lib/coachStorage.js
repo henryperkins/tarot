@@ -1,7 +1,19 @@
-const TEMPLATE_STORAGE_KEY = 'tarot_coach_templates';
-const HISTORY_STORAGE_KEY = 'tarot_coach_history';
+export const TEMPLATE_STORAGE_KEY = 'tarot_coach_templates';
+export const HISTORY_STORAGE_KEY = 'tarot_coach_history';
 export const MAX_TEMPLATES = 8;
 export const MAX_HISTORY_ITEMS = 10;
+export const COACH_STORAGE_SYNC_EVENT = 'coach-storage-sync';
+
+const dispatchCoachStorageEvent = (key) => {
+  if (typeof window === 'undefined' || typeof window.dispatchEvent !== 'function') {
+    return;
+  }
+  try {
+    window.dispatchEvent(new CustomEvent(COACH_STORAGE_SYNC_EVENT, { detail: { key } }));
+  } catch {
+    // CustomEvent or dispatch can fail in older browsers; swallow to avoid crashing.
+  }
+};
 
 function safeParse(value, fallback) {
   try {
@@ -16,7 +28,12 @@ function readFromStorage(key) {
   if (typeof localStorage === 'undefined') {
     return null;
   }
-  return localStorage.getItem(key);
+  try {
+    return localStorage.getItem(key);
+  } catch (error) {
+    console.warn('Unable to read coach storage payload:', error);
+    return null;
+  }
 }
 
 function writeToStorage(key, value) {
@@ -25,6 +42,7 @@ function writeToStorage(key, value) {
   }
   try {
     localStorage.setItem(key, JSON.stringify(value));
+    dispatchCoachStorageEvent(key);
     return { success: true };
   } catch (error) {
     console.warn('Unable to persist coach storage payload:', error);
@@ -97,7 +115,8 @@ export function loadCoachHistory(limit = MAX_HISTORY_ITEMS) {
   if (!Array.isArray(history)) {
     return [];
   }
-  return typeof limit === 'number' ? history.slice(0, limit) : history;
+  const normalized = history.filter(entry => entry && typeof entry.question === 'string');
+  return typeof limit === 'number' ? normalized.slice(0, limit) : normalized;
 }
 
 export function recordCoachQuestion(question, limit = MAX_HISTORY_ITEMS) {

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { SignIn, User, SignOut } from '@phosphor-icons/react';
 import { useAuth } from '../contexts/AuthContext';
 import AuthModal from './AuthModal';

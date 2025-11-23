@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useState } from 'react';
+import { useRef, useEffect, useState } from 'react';
 import { ImagePreview } from './ImagePreview';
 
 const hasUuidSupport = typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function';

@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Info, Sparkle, Scissors } from '@phosphor-icons/react';
 import { Tooltip } from './Tooltip';
 import { usePreferences } from '../contexts/PreferencesContext';

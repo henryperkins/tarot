@@ -14,7 +14,8 @@ export function useAudioController() {
   const { voiceOn, setVoiceOn } = usePreferences();
   const [ttsState, setTtsState] = useState(() => getCurrentTTSState());
   const [ttsAnnouncement, setTtsAnnouncement] = useState('');
-  const [showVoicePrompt, setShowVoicePrompt] = useState(false);
+  const [voicePromptRequested, setVoicePromptRequested] = useState(false);
+  const showVoicePrompt = voicePromptRequested && !voiceOn;
 
   // Subscribe to TTS state changes
   useEffect(() => {
@@ -25,7 +26,7 @@ export function useAudioController() {
         state.context === 'full-reading' ||
         state.context === 'card-reveal';
 
-      let baseMessage =
+      const baseMessage =
         state.message ||
         (state.status === 'completed'
           ? (state.context === 'card-reveal'
@@ -59,8 +60,6 @@ export function useAudioController() {
   useEffect(() => {
     if (!voiceOn) {
       stopTTS();
-    } else {
-      setShowVoicePrompt(false);
     }
   }, [voiceOn]);
 
@@ -75,7 +74,7 @@ export function useAudioController() {
 
   const handleNarrationButtonClick = useCallback(async (fullReadingText, isPersonalReadingError) => {
     if (!voiceOn) {
-      setShowVoicePrompt(true);
+      setVoicePromptRequested(true);
       return;
     }
     const isNarrationAvailable = Boolean(fullReadingText);
@@ -111,7 +110,7 @@ export function useAudioController() {
 
   const handleVoicePromptEnable = useCallback(async (fullReadingText) => {
     setVoiceOn(true);
-    setShowVoicePrompt(false);
+    setVoicePromptRequested(false);
     if (!fullReadingText) return;
     const unlocked = await unlockAudio();
     if (!unlocked) return;
@@ -119,6 +118,10 @@ export function useAudioController() {
       void speak(fullReadingText, 'full-reading');
     }, 120);
   }, [setVoiceOn, speak]);
+
+  const setShowVoicePrompt = useCallback((nextVisible) => {
+    setVoicePromptRequested(Boolean(nextVisible));
+  }, []);
 
   return {
     ttsState,

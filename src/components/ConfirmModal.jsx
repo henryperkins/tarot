@@ -1,8 +1,10 @@
+import { useEffect, useRef } from 'react';
+import FocusTrap from 'focus-trap-react';
 import { Warning, X } from '@phosphor-icons/react';
 
 /**
  * Confirmation Modal
- * 
+ *
  * Replaces native browser confirm() dialogs with a styled modal
  * that matches the application's design system.
  */
@@ -16,6 +18,25 @@ export function ConfirmModal({
   cancelText = 'Cancel',
   variant = 'warning' // 'warning' | 'danger'
 }) {
+  const cancelButtonRef = useRef(null);
+  const previousFocusRef = useRef(null);
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    // Store previous focus to restore on close
+    previousFocusRef.current = document.activeElement;
+
+    return () => {
+      // Restore focus when modal closes
+      if (previousFocusRef.current && typeof previousFocusRef.current.focus === 'function') {
+        setTimeout(() => {
+          previousFocusRef.current?.focus();
+        }, 0);
+      }
+    };
+  }, [isOpen]);
+
   if (!isOpen) return null;
 
   const handleConfirm = () => {
@@ -43,11 +64,28 @@ export function ConfirmModal({
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm animate-fade-in"
       onClick={handleBackdropClick}
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="confirm-modal-title"
     >
-      <div className={`relative w-full max-w-md mx-4 rounded-2xl border ${variantStyles[variant]} shadow-2xl animate-slide-up`}>
+      <FocusTrap
+        active={isOpen}
+        focusTrapOptions={{
+          initialFocus: () => cancelButtonRef.current,
+          escapeDeactivates: false,
+          clickOutsideDeactivates: false,
+          returnFocusOnDeactivate: false,
+          allowOutsideClick: true,
+        }}
+      >
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="confirm-modal-title"
+          onKeyDown={(e) => {
+            if (e.key === 'Escape') {
+              onClose();
+            }
+          }}
+          className={`relative w-full max-w-md mx-4 rounded-2xl border ${variantStyles[variant]} shadow-2xl animate-slide-up`}
+        >
         <button
           onClick={onClose}
           className="absolute top-4 right-4 p-1 text-muted hover:text-main transition"
@@ -73,6 +111,7 @@ export function ConfirmModal({
 
           <div className="flex gap-3 justify-end mt-6">
             <button
+              ref={cancelButtonRef}
               onClick={onClose}
               className="px-4 py-2 rounded-lg border border-secondary/40 text-muted hover:text-main hover:border-secondary/60 transition text-sm font-medium"
             >
@@ -87,6 +126,7 @@ export function ConfirmModal({
           </div>
         </div>
       </div>
+      </FocusTrap>
     </div>
   );
 }

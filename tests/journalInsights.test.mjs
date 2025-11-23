@@ -52,8 +52,8 @@ describe('journal CSV export', () => {
     assert.match(row, /local-composer/);
     assert.match(row, /rws-1909/);
     assert.match(row, /seed123/);
-    assert.match(row, /\"{""notes"":""Felt accurate""}\"/);
-    assert.match(row, /\"{""suitFocus"":""Cups & Swords"",""reversalFramework"":""blocked""}\"/);
+    assert.match(row, /"{""notes"":""Felt accurate""}"/);
+    assert.match(row, /"{""suitFocus"":""Cups & Swords"",""reversalFramework"":""blocked""}"/);
     assert.match(row, /Sample narrative/);
   });
 });

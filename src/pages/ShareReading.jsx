@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { SharedSpreadView } from '../components/share/SharedSpreadView.jsx';
 import { CollaborativeNotesPanel } from '../components/share/CollaborativeNotesPanel.jsx';

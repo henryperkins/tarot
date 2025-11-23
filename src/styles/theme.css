@@ -49,16 +49,16 @@
   /* Text (softer, warmer) */
   --text-main: #E8E6E3;
   /* Warm off-white */
-  --text-muted: #B5AFA4;
-  /* Lifted muted tone for stronger contrast on translucent surfaces */
+  --text-muted: #C4BDB0;
+  /* WCAG AA compliant muted tone (4.5:1 on dark backgrounds) */
   --text-accent: #D4B896;
   /* Warmer champagne */
 
   /* Brand / Interactive (warmer) */
   --brand-primary: #D4B896;
   /* Warmer champagne */
-  --brand-secondary: #92887D;
-  /* Warm brown-gray updated for WCAG contrast */
+  --brand-secondary: #A89D92;
+  /* Warm brown-gray updated for WCAG AA contrast (4.5:1) */
   --brand-accent: #E8DAC3;
   /* Lighter accent for differentiation from primary */
 

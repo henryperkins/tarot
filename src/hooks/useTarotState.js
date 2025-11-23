@@ -33,26 +33,36 @@ export function useTarotState(speak) {
 
   // Keep cut index centered on active deck and announce deck scope changes
   useEffect(() => {
-    const nextCutIndex = Math.floor(deckSize / 2);
-    setCutIndex(nextCutIndex);
+    const scheduleReset = () => {
+      const nextCutIndex = Math.floor(deckSize / 2);
+      setCutIndex(nextCutIndex);
 
-    if (!deckSizeInitializedRef.current) {
-      deckSizeInitializedRef.current = true;
-      return;
+      if (!deckSizeInitializedRef.current) {
+        deckSizeInitializedRef.current = true;
+        return;
+      }
+
+      setHasCut(false);
+      setHasKnocked(false);
+      setKnockCount(0);
+      knockTimesRef.current = [];
+      const announcement = `Deck now ${deckSize} cards. Cut index reset to ${nextCutIndex}.`;
+      setDeckAnnouncement(announcement);
+      if (deckAnnouncementTimeoutRef.current) {
+        clearTimeout(deckAnnouncementTimeoutRef.current);
+      }
+      deckAnnouncementTimeoutRef.current = setTimeout(() => {
+        setDeckAnnouncement('');
+      }, 4000);
+    };
+
+    if (typeof window !== 'undefined' && typeof window.requestAnimationFrame === 'function') {
+      const frameId = window.requestAnimationFrame(scheduleReset);
+      return () => window.cancelAnimationFrame(frameId);
     }
 
-    setHasCut(false);
-    setHasKnocked(false);
-    setKnockCount(0);
-    knockTimesRef.current = [];
-    const announcement = `Deck now ${deckSize} cards. Cut index reset to ${nextCutIndex}.`;
-    setDeckAnnouncement(announcement);
-    if (deckAnnouncementTimeoutRef.current) {
-      clearTimeout(deckAnnouncementTimeoutRef.current);
-    }
-    deckAnnouncementTimeoutRef.current = setTimeout(() => {
-      setDeckAnnouncement('');
-    }, 4000);
+    const timeoutId = setTimeout(scheduleReset, 0);
+    return () => clearTimeout(timeoutId);
   }, [deckSize]);
 
   useEffect(() => {

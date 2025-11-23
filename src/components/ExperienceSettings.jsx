@@ -1,4 +1,4 @@
-import React, { useId } from 'react';
+import { useId, Fragment } from 'react';
 import { Sun, Moon, Stack, ArrowCounterClockwise, Info } from '@phosphor-icons/react';
 import { Tooltip } from './Tooltip';
 import { HelperToggle } from './HelperToggle';
@@ -115,7 +115,7 @@ export function ExperienceSettings({ className = '' }) {
           {experienceToggles.map(item => {
             const ItemIcon = item.Icon;
             return (
-              <React.Fragment key={item.id}>
+              <Fragment key={item.id}>
                 <label
                   className={`${tileBaseClass} ${
                     item.active ? activeTileClass : inactiveTileClass
@@ -178,7 +178,7 @@ export function ExperienceSettings({ className = '' }) {
                 <span id={`${item.id}-description`} className="sr-only">
                   {item.srDescription}
                 </span>
-              </React.Fragment>
+              </Fragment>
             );
           })}
         </div>
@@ -241,19 +241,19 @@ export function ExperienceSettings({ className = '' }) {
             {reversalFramework === 'blocked' && (
               <>
                 <span className="font-semibold text-secondary">Blocked energy:</span>{' '}
-                Reversed cards indicate obstructed, challenged, or resisted energy. The card's themes face barriers or opposition.
+                Reversed cards indicate obstructed, challenged, or resisted energy. The card&rsquo;s themes face barriers or opposition.
               </>
             )}
             {reversalFramework === 'delayed' && (
               <>
                 <span className="font-semibold text-secondary">Timing & delays:</span>{' '}
-                Reversed cards suggest the timing isn't right yet. Themes are emerging slowly or waiting for the right moment to manifest.
+                Reversed cards suggest the timing isn&rsquo;t right yet. Themes are emerging slowly or waiting for the right moment to manifest.
               </>
             )}
             {reversalFramework === 'internalized' && (
               <>
                 <span className="font-semibold text-secondary">Internal process:</span>{' '}
-                Reversed cards point to private, internal work. The card's energy is processing beneath the surface or kept within.
+                Reversed cards point to private, internal work. The card&rsquo;s energy is processing beneath the surface or kept within.
               </>
             )}
             {reversalFramework === 'contextual' && (

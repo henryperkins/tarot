@@ -178,7 +178,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
   try {
     switch (name) {
-      case 'search_symbols':
+      case 'search_symbols': {
         if (!args?.query) {
           throw new Error('query is required');
         }
@@ -191,8 +191,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             },
           ],
         };
+      }
 
-      case 'get_symbol':
+      case 'get_symbol': {
         if (!args?.category || !args?.name) {
           throw new Error('category and name are required');
         }
@@ -205,8 +206,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             },
           ],
         };
+      }
 
-      case 'get_category':
+      case 'get_category': {
         if (!args?.category) {
           throw new Error('category is required');
         }
@@ -219,8 +221,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             },
           ],
         };
+      }
 
-      case 'get_related_symbols':
+      case 'get_related_symbols': {
         if (!args?.theme) {
           throw new Error('theme is required');
         }
@@ -233,8 +236,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             },
           ],
         };
+      }
 
-      case 'interpret_card_symbols':
+      case 'interpret_card_symbols': {
         if (!args?.cardName || !args?.symbols) {
           throw new Error('cardName and symbols are required');
         }
@@ -247,8 +251,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             },
           ],
         };
+      }
 
-      case 'get_color_meanings':
+      case 'get_color_meanings': {
         if (!args?.colors) {
           throw new Error('colors is required');
         }
@@ -267,8 +272,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             },
           ],
         };
+      }
 
-      case 'get_numerological_insight':
+      case 'get_numerological_insight': {
         if (!args?.number) {
           throw new Error('number is required');
         }
@@ -281,6 +287,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             },
           ],
         };
+      }
 
       default:
         throw new Error(`Unknown tool: ${name}`);

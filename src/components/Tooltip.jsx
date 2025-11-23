@@ -1,4 +1,4 @@
-import React, { useEffect, useId, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { Info } from '@phosphor-icons/react';
 
 /**
@@ -169,14 +169,11 @@ export function Tooltip({
     onTouchStart: handleTouchStart,
     onTouchEnd: handleTouchEnd,
     onTouchCancel: handleTouchCancel,
+    onClick: enableClick ? handleToggle : undefined,
     'aria-haspopup': true,
     'aria-expanded': isVisible,
     'aria-controls': isVisible ? tooltipId : undefined
   };
-
-  if (enableClick) {
-    triggerProps.onClick = handleToggle;
-  }
 
   const shouldShow = isVisible && content;
 

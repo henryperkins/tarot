@@ -6,6 +6,7 @@ const JOURNAL_INSIGHTS_STORAGE_KEY = 'tarot_journal_insights';
 const SHARE_TOKEN_STORAGE_KEY = 'tarot_journal_share_tokens';
 const COACH_RECOMMENDATION_KEY = 'tarot_coach_recommendation';
 const COACH_STATS_SNAPSHOT_KEY = 'tarot_coach_stats_snapshot';
+const COACH_RECOMMENDATION_TTL = 24 * 60 * 60 * 1000; // 24 hours
 
 export function buildCardInsightPayload(card) {
   if (!card?.name) return null;
@@ -20,7 +21,11 @@ export function persistJournalInsights(entries) {
   if (typeof localStorage === 'undefined') return null;
   const stats = computeJournalStats(entries);
   if (!stats) {
-    localStorage.removeItem(JOURNAL_INSIGHTS_STORAGE_KEY);
+    try {
+      localStorage.removeItem(JOURNAL_INSIGHTS_STORAGE_KEY);
+    } catch (error) {
+      console.warn('Unable to clear journal insights cache:', error);
+    }
     return null;
   }
   const payload = {
@@ -237,7 +242,12 @@ export function loadCoachRecommendation() {
   try {
     const raw = localStorage.getItem(COACH_RECOMMENDATION_KEY);
     if (!raw) return null;
-    return JSON.parse(raw);
+    const parsed = JSON.parse(raw);
+    if (parsed?.updatedAt && (Date.now() - parsed.updatedAt) > COACH_RECOMMENDATION_TTL) {
+      localStorage.removeItem(COACH_RECOMMENDATION_KEY);
+      return null;
+    }
+    return parsed;
   } catch (error) {
     console.warn('Unable to load coach recommendation:', error);
     return null;
@@ -273,7 +283,22 @@ export async function copyJournalEntriesToClipboard(entries) {
   } catch (error) {
     console.warn('Unable to copy journal CSV to clipboard:', error);
   }
-  return false;
+  if (typeof document === 'undefined') return false;
+  try {
+    const textarea = document.createElement('textarea');
+    textarea.value = csv;
+    textarea.style.position = 'fixed';
+    textarea.style.opacity = '0';
+    document.body.appendChild(textarea);
+    textarea.focus();
+    textarea.select();
+    const success = document.execCommand('copy');
+    document.body.removeChild(textarea);
+    return success;
+  } catch (error) {
+    console.warn('Unable to copy journal CSV via fallback:', error);
+    return false;
+  }
 }
 
 export async function copyJournalShareSummary(stats) {

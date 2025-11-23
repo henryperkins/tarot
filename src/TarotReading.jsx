@@ -1,18 +1,15 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import { ArrowCounterClockwise, Gear } from '@phosphor-icons/react';
+import { Gear } from '@phosphor-icons/react';
 import { SPREADS } from './data/spreads';
 import { EXAMPLE_QUESTIONS } from './data/exampleQuestions';
 import { SpreadSelector } from './components/SpreadSelector';
 import { ReadingPreparation } from './components/ReadingPreparation';
 import { ReadingDisplay } from './components/ReadingDisplay';
-import { StepProgress } from './components/StepProgress';
 import { GuidedIntentionCoach } from './components/GuidedIntentionCoach';
 import { loadCoachRecommendation, saveCoachRecommendation } from './lib/journalInsights';
-import { GlobalNav } from './components/GlobalNav';
-import { UserMenu } from './components/UserMenu';
 import { DeckSelector } from './components/DeckSelector';
 import { MobileSettingsDrawer } from './components/MobileSettingsDrawer';
-import { TableuLogo } from './components/TableuLogo';
+import { Header } from './components/Header';
 import { useNavigate, useLocation } from 'react-router-dom';
 import './styles/tarot.css';
 
@@ -106,16 +103,13 @@ export default function TarotReading() {
   const [minorsFallbackWarning, setMinorsFallbackWarning] = useState(false);
   const [apiHealthBanner, setApiHealthBanner] = useState(null);
   const [coachRecommendation, setCoachRecommendation] = useState(null);
+  const [pendingCoachPrefill, setPendingCoachPrefill] = useState(null);
   const [isIntentionCoachOpen, setIsIntentionCoachOpen] = useState(false);
   const [allowPlaceholderCycle, setAllowPlaceholderCycle] = useState(true);
   const [placeholderIndex, setPlaceholderIndex] = useState(0);
   const [isMobileSettingsOpen, setIsMobileSettingsOpen] = useState(false);
   const [shouldFocusSpread, setShouldFocusSpread] = useState(false);
-  const [isHeaderCompact, setIsHeaderCompact] = useState(false);
-  const [isHeaderHidden, setIsHeaderHidden] = useState(false);
   const [keyboardOffset, setKeyboardOffset] = useState(0);
-  const lastScrollYRef = useRef(0);
-  const scrollRafRef = useRef(null);
 
   const navigate = useNavigate();
   const location = useLocation();
@@ -168,53 +162,20 @@ export default function TarotReading() {
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
-    // Check for passed state from Journal (Saved Intentions)
     if (location.state?.initialQuestion) {
       setUserQuestion(location.state.initialQuestion);
       setAllowPlaceholderCycle(false);
-      // Clear state so it doesn't persist on refresh/nav
-      window.history.replaceState({}, document.title);
+      const nextState = { ...location.state };
+      delete nextState.initialQuestion;
+      const cleanedState = Object.keys(nextState).length > 0 ? nextState : null;
+      navigate(location.pathname, { replace: true, state: cleanedState });
     }
 
     const rec = loadCoachRecommendation();
     if (rec?.question) {
       setCoachRecommendation(rec);
     }
-  }, [location.state, setUserQuestion]);
-
-  // Header collapse / auto-hide
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-
-    const updateHeaderState = () => {
-      const currentY = window.scrollY || 0;
-      const isScrollingDown = currentY > lastScrollYRef.current;
-      const shouldCompact = currentY > 32;
-      const shouldHide = isScrollingDown && currentY > 140;
-
-      setIsHeaderCompact(shouldCompact);
-      setIsHeaderHidden(shouldHide);
-      lastScrollYRef.current = currentY;
-    };
-
-    const handleScroll = () => {
-      if (scrollRafRef.current) return;
-      scrollRafRef.current = window.requestAnimationFrame(() => {
-        updateHeaderState();
-        scrollRafRef.current = null;
-      });
-    };
-
-    window.addEventListener('scroll', handleScroll, { passive: true });
-    updateHeaderState();
-    return () => {
-      window.removeEventListener('scroll', handleScroll);
-      if (scrollRafRef.current) {
-        window.cancelAnimationFrame(scrollRafRef.current);
-        scrollRafRef.current = null;
-      }
-    };
-  }, []);
+  }, [location.pathname, location.state, navigate, setUserQuestion]);
 
   // Mobile keyboard avoidance for the bottom action bar
   useEffect(() => {
@@ -253,6 +214,7 @@ export default function TarotReading() {
 
       if ((event.key === 'g' || event.key === 'G') && event.shiftKey) {
         event.preventDefault();
+        setPendingCoachPrefill(null);
         setIsIntentionCoachOpen(true);
       }
     }
@@ -260,7 +222,7 @@ export default function TarotReading() {
     return () => {
       window.removeEventListener('keydown', handleCoachShortcut);
     };
-  }, [isIntentionCoachOpen]);
+  }, [isIntentionCoachOpen, setPendingCoachPrefill]);
 
   // Placeholder Cycle
   useEffect(() => {
@@ -312,23 +274,29 @@ export default function TarotReading() {
     setIsGenerating(false);
   };
 
+  const handleCoachClose = useCallback(() => {
+    setIsIntentionCoachOpen(false);
+    setPendingCoachPrefill(null);
+  }, []);
+
   const handleCoachApply = (guidedQuestion) => {
     if (!guidedQuestion) return;
     setUserQuestion(guidedQuestion);
     setAllowPlaceholderCycle(false);
-    setIsIntentionCoachOpen(false);
+    handleCoachClose();
   };
 
   const applyCoachRecommendation = useCallback(() => {
     if (!coachRecommendation) return;
     setUserQuestion(coachRecommendation.question || '');
     if (coachRecommendation.spreadKey && SPREADS[coachRecommendation.spreadKey]) {
-      setSelectedSpread(coachRecommendation.spreadKey);
+      selectSpread(coachRecommendation.spreadKey);
     }
+    setPendingCoachPrefill(coachRecommendation);
     setIsIntentionCoachOpen(true);
     saveCoachRecommendation(null);
     setCoachRecommendation(null);
-  }, [coachRecommendation, setSelectedSpread, setUserQuestion]);
+  }, [coachRecommendation, selectSpread, setPendingCoachPrefill, setUserQuestion]);
 
   const dismissCoachRecommendation = useCallback(() => {
     saveCoachRecommendation(null);
@@ -448,42 +416,12 @@ export default function TarotReading() {
         </div>
 
         {/* Header */}
-        <header aria-labelledby="tableau-heading" className={isHeaderCompact ? 'header-condensed' : ''}>
-          <div className="text-center mb-6 sm:mb-8 mystic-heading-wrap flex flex-col items-center">
-            <TableuLogo
-              variant="full"
-              size={isHeaderCompact ? 64 : 96}
-              className="mb-2 opacity-90 hover:opacity-100 transition-opacity"
-              ariaLabel="Tableu - Tarot Reading Application"
-            />
-            <h1 id="tableau-heading" className="sr-only">
-              Tableu
-            </h1>
-            <p className="mt-1 text-muted text-xs-plus sm:text-sm md:text-base leading-relaxed max-w-2xl">
-              A picturesque grouping, analyzing many cards at once to reveal an artistic composition.
-            </p>
-          </div>
-        </header>
-
-        <div
-          className={`full-bleed sticky top-0 z-30 mb-5 bg-surface/95 backdrop-blur border-y border-accent/20 px-4 sm:px-5 md:px-6 shadow-lg shadow-primary/20 header-sticky ${isHeaderCompact ? 'header-sticky--compact' : ''} ${isHeaderHidden ? 'header-sticky--hidden' : ''}`}
-        >
-          <div className="header-sticky__row">
-            <GlobalNav condensed={isHeaderCompact} />
-            {!isHeaderCompact && (
-              <div className="header-sticky__user">
-                <UserMenu />
-              </div>
-            )}
-          </div>
-          <StepProgress steps={STEP_PROGRESS_STEPS} activeStep={activeStep} onSelect={handleStepNav} condensed={isHeaderCompact} />
-          {isShuffling && (
-            <div className="mt-2 flex items-center gap-2 text-muted text-[clamp(0.85rem,2.4vw,0.95rem)] leading-snug" role="status" aria-live="polite">
-              <ArrowCounterClockwise className="w-3.5 h-3.5 animate-spin text-accent" aria-hidden="true" />
-              <span>Shuffling the deck...</span>
-            </div>
-          )}
-        </div>
+        <Header
+          steps={STEP_PROGRESS_STEPS}
+          activeStep={activeStep}
+          onStepSelect={handleStepNav}
+          isShuffling={isShuffling}
+        />
 
         {apiHealthBanner && (
           <div className="mb-6 p-4 bg-primary/10 border border-primary/30 rounded-lg backdrop-blur">
@@ -552,7 +490,10 @@ export default function TarotReading() {
               coachRecommendation={coachRecommendation}
               applyCoachRecommendation={applyCoachRecommendation}
               dismissCoachRecommendation={dismissCoachRecommendation}
-              onLaunchCoach={() => setIsIntentionCoachOpen(true)}
+              onLaunchCoach={() => {
+                setPendingCoachPrefill(null);
+                setIsIntentionCoachOpen(true);
+              }}
               prepareSectionsOpen={prepareSectionsOpen}
               togglePrepareSection={togglePrepareSection}
               prepareSummaries={prepareSummaries}
@@ -637,6 +578,7 @@ export default function TarotReading() {
           dismissCoachRecommendation={dismissCoachRecommendation}
           onLaunchCoach={() => {
             setIsMobileSettingsOpen(false);
+            setPendingCoachPrefill(null);
             setIsIntentionCoachOpen(true);
           }}
           hasKnocked={hasKnocked}
@@ -658,8 +600,9 @@ export default function TarotReading() {
         <GuidedIntentionCoach
           isOpen={isIntentionCoachOpen}
           selectedSpread={selectedSpread}
-          onClose={() => setIsIntentionCoachOpen(false)}
+          onClose={handleCoachClose}
           onApply={handleCoachApply}
+          prefillRecommendation={pendingCoachPrefill || coachRecommendation}
         />
       )}
     </div>

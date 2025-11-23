@@ -1,4 +1,3 @@
-import React from 'react';
 
 /**
  * SpreadPatternThumbnail - Visual SVG diagram showing spread layout pattern
