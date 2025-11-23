@@ -34,10 +34,10 @@ export function DeckSelector({ selectedDeck, onDeckChange }) {
     <div className="space-y-3 animate-fade-in">
       <div className="mb-3">
         <h3 className="text-sm font-serif text-accent mb-1">
-          Select deck style for vision research
+          Choose your deck style
         </h3>
         <p className="text-xs text-muted">
-          If you're participating in vision validation research, select which deck style you're photographing to help our AI learn.
+          Pick the art style you want to experience. If you're also in vision research, select the deck you're photographing so the AI can learn.
         </p>
       </div>
 
@@ -104,8 +104,7 @@ export function DeckSelector({ selectedDeck, onDeckChange }) {
       {/* Helper text */}
       <div className="mt-3 text-xs text-muted bg-surface-muted/60 border border-accent/20 rounded-lg px-3 py-2">
         <p>
-          <strong className="text-accent">For research participants:</strong> The vision AI uses deck-specific visual cues to recognize cards in photos.
-          Selecting the correct deck style helps us train more accurate recognition models across different artistic traditions.
+          <strong className="text-accent">For research participants:</strong> Choosing the matching deck helps the vision AI recognize cards accurately across art styles.
         </p>
       </div>
     </div>

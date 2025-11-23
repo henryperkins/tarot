@@ -100,6 +100,8 @@ export const JournalInsightsPanel = React.memo(function JournalInsightsPanel({
 
     const [actionMessage, setActionMessage] = useState('');
     const [shareComposerOpen, setShareComposerOpen] = useState(false);
+    const [insightsOpen, setInsightsOpen] = useState(false);
+    const [shareOpen, setShareOpen] = useState(false);
     const [shareComposer, setShareComposer] = useState({ scope: 'journal', entryId: '', title: '', limit: '5', expiresInHours: '72' });
     const [composerErrors, setComposerErrors] = useState({});
     const timeoutsRef = useRef([]);
@@ -154,6 +156,18 @@ export const JournalInsightsPanel = React.memo(function JournalInsightsPanel({
             setComposerErrors({});
         }
     }, [shareComposerOpen]);
+
+    useEffect(() => {
+        if (filtersActive) {
+            setInsightsOpen(true);
+        }
+    }, [filtersActive]);
+
+    useEffect(() => {
+        if (!shareOpen) {
+            setShareComposerOpen(false);
+        }
+    }, [shareOpen]);
 
     const handleExport = () => {
         const exportEntries = isFilteredAndEmpty && Array.isArray(allEntries) ? allEntries : summaryEntries;
@@ -461,6 +475,25 @@ export const JournalInsightsPanel = React.memo(function JournalInsightsPanel({
                 </div>
 
                 <div className="flex flex-wrap gap-2">
+                    <button
+                        type="button"
+                        onClick={() => setInsightsOpen(prev => !prev)}
+                        className={`rounded-full border px-3 py-1.5 text-xs font-medium transition ${insightsOpen ? 'border-secondary text-secondary bg-secondary/10' : 'border-accent/30 text-muted hover:text-secondary hover:border-secondary/50'}`}
+                    >
+                        {insightsOpen ? 'Hide insights' : 'Show insights'}
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => setShareOpen(prev => !prev)}
+                        className={`rounded-full border px-3 py-1.5 text-xs font-medium transition ${shareOpen ? 'border-secondary text-secondary bg-secondary/10' : 'border-accent/30 text-muted hover:text-secondary hover:border-secondary/50'}`}
+                    >
+                        {shareOpen ? 'Hide share & export' : 'Share & export'}
+                    </button>
+                </div>
+            </div>
+
+            {shareOpen && (
+                <div className="flex flex-wrap gap-3 rounded-2xl border border-secondary/20 bg-surface/70 p-3">
                     <div className="flex items-center gap-2 rounded-full border border-secondary/20 bg-surface-muted/50 p-1">
                         <button onClick={handleExport} className="rounded-full p-2 text-secondary hover:bg-secondary/20" title="Export CSV">
                             <FileText className="h-4 w-4" />
@@ -484,14 +517,14 @@ export const JournalInsightsPanel = React.memo(function JournalInsightsPanel({
                         )}
                     </div>
                 </div>
-            </div>
+            )}
 
             {actionMessage && (
                 <div className="text-center text-sm text-secondary animate-fade-in">{actionMessage}</div>
             )}
 
-            {/* ShareNetwork Composer */}
-            {shareComposerOpen && (
+            {/* Share & export composer */}
+            {shareOpen && shareComposerOpen && (
                 <form onSubmit={handleComposerSubmit} className="rounded-2xl border border-secondary/30 bg-surface-muted/50 p-6 animate-slide-down">
                     <div className="grid gap-4 sm:grid-cols-2">
                         <label className="block">
@@ -534,7 +567,7 @@ export const JournalInsightsPanel = React.memo(function JournalInsightsPanel({
                         </label>
                         {shareComposer.scope === 'journal' ? (
                             <label className="block">
-                                <span className="text-xs uppercase tracking-wider text-secondary/80">Count</span>
+                                <span className="text-xs uppercase tracking-wider text-secondary/80">How many entries to share (1–10)</span>
                                 <input
                                     type="number"
                                     min="1"
@@ -546,13 +579,14 @@ export const JournalInsightsPanel = React.memo(function JournalInsightsPanel({
                                     }}
                                     className="mt-2 w-full rounded-xl border border-secondary/30 bg-surface/50 px-3 py-2 text-sm text-main focus:ring-2 focus:ring-secondary/50"
                                 />
+                                <p className="mt-1 text-xs text-secondary/70">Defaults to your latest entries{filtersActive ? ' in this filtered view' : ''}.</p>
                                 {composerErrors.limit && (
                                     <p className="mt-1 text-xs text-error">{composerErrors.limit}</p>
                                 )}
                             </label>
                         ) : (
                             <label className="block">
-                                <span className="text-xs uppercase tracking-wider text-secondary/80">Select Entry</span>
+                                <span className="text-xs uppercase tracking-wider text-secondary/80">Pick an entry to share</span>
                                 <select
                                     value={shareComposer.entryId || ''}
                                     onChange={(e) => {
@@ -598,71 +632,73 @@ export const JournalInsightsPanel = React.memo(function JournalInsightsPanel({
             )}
 
             {/* Analytics Grid */}
-            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-                {/* Frequent Cards */}
-                {frequentCards.length > 0 && (
-                    <div className="rounded-3xl border border-secondary/20 bg-surface/40 p-5">
-                        <h3 className="mb-4 flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-accent/80">
-                            <ChartBar className="h-3 w-3" /> Frequent Cards
-                        </h3>
-                        <ul className="space-y-2">
-                            {frequentCards.slice(0, 5).map((card) => (
-                                <li key={card.name} className="flex items-center justify-between text-sm text-muted">
-                                    <span>{card.name}</span>
-                                    <span className="text-secondary/60">{card.count}×</span>
-                                </li>
-                            ))}
-                        </ul>
-                    </div>
-                )}
-
-                {/* Context Mix */}
-                {contextBreakdown.length > 0 && (
-                    <div className="rounded-3xl border border-secondary/20 bg-surface/40 p-5">
-                        <h3 className="mb-4 text-xs font-bold uppercase tracking-wider text-accent/80">Context Mix</h3>
-                        <div className="flex flex-wrap gap-2">
-                            {contextBreakdown.map((ctx) => (
-                                <span key={ctx.name} className="rounded-full border border-secondary/20 bg-secondary/5 px-3 py-1 text-xs text-secondary">
-                                    {ctx.name} <span className="opacity-50">({ctx.count})</span>
-                                </span>
-                            ))}
+            {insightsOpen && (
+                <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                    {/* Frequent Cards */}
+                    {frequentCards.length > 0 && (
+                        <div className="rounded-3xl border border-secondary/20 bg-surface/40 p-5">
+                            <h3 className="mb-4 flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-accent/80">
+                                <ChartBar className="h-3 w-3" /> Frequent Cards
+                            </h3>
+                            <ul className="space-y-2">
+                                {frequentCards.slice(0, 5).map((card) => (
+                                    <li key={card.name} className="flex items-center justify-between text-sm text-muted">
+                                        <span>{card.name}</span>
+                                        <span className="text-secondary/60">{card.count}×</span>
+                                    </li>
+                                ))}
+                            </ul>
                         </div>
-                    </div>
-                )}
+                    )}
 
-                {/* Recent Themes */}
-                {recentThemes.length > 0 && (
-                    <div className="rounded-3xl border border-secondary/20 bg-surface/40 p-5">
-                        <h3 className="mb-4 flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-accent/80">
-                            <Sparkle className="h-3 w-3" /> Recent Themes
-                        </h3>
-                        <ul className="space-y-2">
-                            {recentThemes.slice(0, 5).map((theme, idx) => (
-                                <li key={idx} className="flex items-center gap-2 text-sm text-muted">
-                                    <span className="h-1.5 w-1.5 rounded-full bg-secondary/40" />
-                                    <span>{theme}</span>
-                                </li>
-                            ))}
-                        </ul>
-                    </div>
-                )}
+                    {/* Context Mix */}
+                    {contextBreakdown.length > 0 && (
+                        <div className="rounded-3xl border border-secondary/20 bg-surface/40 p-5">
+                            <h3 className="mb-4 text-xs font-bold uppercase tracking-wider text-accent/80">Context Mix</h3>
+                            <div className="flex flex-wrap gap-2">
+                                {contextBreakdown.map((ctx) => (
+                                    <span key={ctx.name} className="rounded-full border border-secondary/20 bg-secondary/5 px-3 py-1 text-xs text-secondary">
+                                        {ctx.name} <span className="opacity-50">({ctx.count})</span>
+                                    </span>
+                                ))}
+                            </div>
+                        </div>
+                    )}
 
-                {/* Next Steps / Coach */}
-                {(contextSuggestion || topTheme || topCard) && coachRecommendation && (
-                    <CoachSuggestion
-                        recommendation={coachRecommendation}
-                        onApply={handleCoachPrefill}
-                        variant="journal"
-                        className={filtersActive ? "opacity-50 pointer-events-none" : ""}
-                    />
-                )}
+                    {/* Recent Themes */}
+                    {recentThemes.length > 0 && (
+                        <div className="rounded-3xl border border-secondary/20 bg-surface/40 p-5">
+                            <h3 className="mb-4 flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-accent/80">
+                                <Sparkle className="h-3 w-3" /> Recent Themes
+                            </h3>
+                            <ul className="space-y-2">
+                                {recentThemes.slice(0, 5).map((theme, idx) => (
+                                    <li key={idx} className="flex items-center gap-2 text-sm text-muted">
+                                        <span className="h-1.5 w-1.5 rounded-full bg-secondary/40" />
+                                        <span>{theme}</span>
+                                    </li>
+                                ))}
+                            </ul>
+                        </div>
+                    )}
 
-                {/* Archetype Journey Analytics */}
-                <ArchetypeJourneySection isAuthenticated={isAuthenticated} />
-            </div>
+                    {/* Next Steps / Coach */}
+                    {(contextSuggestion || topTheme || topCard) && coachRecommendation && (
+                        <CoachSuggestion
+                            recommendation={coachRecommendation}
+                            onApply={handleCoachPrefill}
+                            variant="journal"
+                            className={filtersActive ? "opacity-50 pointer-events-none" : ""}
+                        />
+                    )}
+
+                    {/* Archetype Journey Analytics */}
+                    <ArchetypeJourneySection isAuthenticated={isAuthenticated} />
+                </div>
+            )}
 
             {/* Active Share Links */}
-            {isAuthenticated && shareLinks.length > 0 && (
+            {shareOpen && isAuthenticated && shareLinks.length > 0 && (
                 <div className="rounded-3xl border border-secondary/20 bg-surface/40 p-5">
                     <h3 className="mb-4 text-xs font-bold uppercase tracking-wider text-accent/80">Active Share Links</h3>
                     <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">

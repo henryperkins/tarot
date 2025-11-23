@@ -31,11 +31,10 @@ export function StepProgress({ steps = [], activeStep, onSelect }) {
                 aria-label={`Step ${index + 1}: ${step.label}`}
                 title={`Step ${index + 1}: ${step.label}`}
               >
-                <div className="flex items-center justify-center gap-1.5">
+                <div className="flex items-center justify-center gap-1.5 sm:gap-2">
                   {StepIcon && <StepIcon className="w-4 h-4 sm:w-5 sm:h-5" aria-hidden="true" />}
-                  <div className="text-[0.7rem] font-semibold text-secondary/80">
-                    {index + 1}
-                  </div>
+                  <span className="text-[0.7rem] font-semibold text-secondary/80 sm:hidden">{index + 1}</span>
+                  <span className="hidden sm:inline text-[0.82rem] font-semibold text-main">{step.label}</span>
                 </div>
               </button>
 

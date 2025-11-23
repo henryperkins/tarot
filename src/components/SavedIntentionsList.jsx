@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Trash, ClockCounterClockwise, ArrowRight } from '@phosphor-icons/react';
+import { Trash, ClockCounterClockwise, ArrowRight, Sparkle } from '@phosphor-icons/react';
 import { loadCoachHistory, deleteCoachHistoryItem } from '../lib/coachStorage';
 import { useNavigate } from 'react-router-dom';
 
@@ -35,10 +35,13 @@ export function SavedIntentionsList() {
 
   return (
     <div className="mb-8 animate-fade-in">
-      <div className="flex items-center gap-2 mb-4 text-accent">
+      <div className="flex items-center gap-2 mb-1 text-accent">
         <ClockCounterClockwise className="w-5 h-5" />
         <h2 className="text-xl font-serif">Saved Intentions</h2>
       </div>
+      <p className="text-xs text-muted mb-3 flex items-center gap-1">
+        <Sparkle className="w-4 h-4" /> From Guided Intention Coach
+      </p>
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {intentions.map((item) => (
@@ -54,6 +57,10 @@ export function SavedIntentionsList() {
               }
             }}
           >
+            <div className="flex items-center gap-2 text-[0.7rem] uppercase tracking-[0.12em] text-secondary/80 mb-2">
+              <Sparkle className="w-3.5 h-3.5" /> Guided coach
+            </div>
+
             <p className="text-main pr-8 font-medium line-clamp-3">
               {item.question}
             </p>

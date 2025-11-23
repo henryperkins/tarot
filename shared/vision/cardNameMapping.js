@@ -34,13 +34,25 @@ function buildAliasMap(deckStyle = 'rws-1909') {
   const map = new Map();
   const cards = [...MAJOR_ARCANA, ...MINOR_ARCANA];
 
+  // FIRST PASS: Register deck-specific aliases (Thoth, Marseille) → RWS canonical names
+  // This must happen BEFORE registering RWS self-references to avoid collision
+  // e.g., Thoth "Knight of Cups" → RWS "King of Cups" must be registered
+  // before RWS "Knight of Cups" → "Knight of Cups"
+  if (deckStyle !== 'rws-1909') {
+    cards.forEach((card) => {
+      if (!card?.name) return;
+      const alias = getDeckAlias(card, deckStyle);
+      if (alias && alias !== card.name) {
+        registerAliasVariants(map, alias, card.name);
+      }
+    });
+  }
+
+  // SECOND PASS: Register RWS canonical names → themselves
+  // This allows RWS names to work as-is, while deck aliases take priority
   cards.forEach((card) => {
     if (!card?.name) return;
     registerName(map, card.name, card.name);
-    const alias = getDeckAlias(card, deckStyle);
-    if (alias && alias !== card.name) {
-      registerAliasVariants(map, alias, card.name);
-    }
   });
 
   return map;

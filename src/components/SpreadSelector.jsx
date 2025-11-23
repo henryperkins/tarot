@@ -120,6 +120,8 @@ export function SpreadSelector({
           {Object.entries(SPREADS).map(([key, spread]) => {
             const isActive = selectedSpread === key;
             const isExpanded = expandedSpread === key;
+            const baseDescription = spread.mobileDescription || spread.description || 'Guided snapshot for your focus.';
+            const desktopDescription = baseDescription.length > 120 ? `${baseDescription.slice(0, 117)}…` : baseDescription;
             return (
               <article
                 key={key}
@@ -146,8 +148,9 @@ export function SpreadSelector({
                   <div className="flex items-center justify-between gap-2">
                     <div className="font-serif font-semibold text-base text-main">{spread.name}</div>
                     {spread.tag && TAG_ICONS[spread.tag] && (
-                      <span className="inline-flex items-center justify-center w-7 h-7 rounded-full border border-accent/60 text-accent" title={spread.tag} aria-label={spread.tag}>
+                      <span className="inline-flex items-center gap-1 rounded-full border border-accent/60 px-2 py-1 text-[0.7rem] text-accent bg-surface/60" title={spread.tag} aria-label={spread.tag}>
                         <Icon icon={TAG_ICONS[spread.tag]} size={ICON_SIZES.sm} decorative />
+                        <span className="hidden sm:inline">{spread.tag}</span>
                       </span>
                     )}
                   </div>
@@ -156,7 +159,7 @@ export function SpreadSelector({
                   </p>
                 </div>
                 <p className="hidden sm:block text-sm opacity-90 mt-3 leading-snug text-muted">
-                  {spread.mobileDescription || spread.description || 'Guided snapshot for your focus.'}
+                  {desktopDescription}
                 </p>
                 <div className="sm:hidden mt-3">
                   {isExpanded && (

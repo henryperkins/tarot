@@ -135,6 +135,7 @@ export default function TarotReading() {
   const [allowPlaceholderCycle, setAllowPlaceholderCycle] = useState(true);
   const [placeholderIndex, setPlaceholderIndex] = useState(0);
   const [isMobileSettingsOpen, setIsMobileSettingsOpen] = useState(false);
+  const [shouldFocusSpread, setShouldFocusSpread] = useState(false);
 
   const navigate = useNavigate();
   const location = useLocation();
@@ -327,6 +328,29 @@ export default function TarotReading() {
     }
   };
 
+  // Handle navigation requests passed via router state (e.g., from Journal empty state)
+  useEffect(() => {
+    if (!location.state?.focusSpread) {
+      return;
+    }
+
+    setShouldFocusSpread(true);
+    navigate(location.pathname, { replace: true, state: null });
+  }, [location.pathname, location.state, navigate]);
+
+  useEffect(() => {
+    if (!shouldFocusSpread) {
+      return;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      handleStepNav('spread');
+      setShouldFocusSpread(false);
+    }, 40);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [shouldFocusSpread, handleStepNav]);
+
   // --- Logic: Journal Saving ---
 
   const { saveReading } = useSaveReading();
@@ -389,7 +413,7 @@ export default function TarotReading() {
         <div className="sr-only" role="status" aria-live="polite" aria-atomic="true">
           {[ttsAnnouncement, journalStatus?.message].filter(Boolean).join(' ')}
         </div>
-
+ 
         {/* Header */}
         <header aria-labelledby="tableau-heading">
           <div className="text-center mb-6 sm:mb-8 mystic-heading-wrap flex flex-col items-center">
@@ -516,6 +540,16 @@ export default function TarotReading() {
               onSkipRitual={handleShuffle}
               deckAnnouncement={deckAnnouncement}
             />
+
+            <div className="flex justify-center pt-1">
+              <button
+                type="button"
+                onClick={() => handleStepNav('reading')}
+                className="text-sm text-secondary hover:text-main underline underline-offset-4"
+              >
+                Ready? Jump to draw cards
+              </button>
+            </div>
           </div>
         </section>
 

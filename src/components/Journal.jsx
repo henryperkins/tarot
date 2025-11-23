@@ -56,6 +56,10 @@ export default function Journal() {
   const [shareError, setShareError] = useState('');
   const navigate = useNavigate();
 
+  const handleStartReading = () => {
+    navigate('/', { state: { focusSpread: true } });
+  };
+
   const filteredEntries = useMemo(() => {
     if (!entries || entries.length === 0) {
       return [];
@@ -397,7 +401,16 @@ export default function Journal() {
               <p className="mt-4 text-muted">Loading journal...</p>
             </div>
           ) : entries.length === 0 ? (
-            <p className="text-muted">No entries yet. Save a reading to start your journal.</p>
+            <div className="text-muted">
+              <p>No entries yet. Save a reading to start your journal.</p>
+              <button
+                type="button"
+                onClick={handleStartReading}
+                className="mt-3 inline-flex items-center gap-2 rounded-full border border-secondary/40 px-4 py-2 text-sm text-secondary hover:bg-secondary/10"
+              >
+                Start a reading
+              </button>
+            </div>
           ) : (
             <div className="space-y-8">
               <JournalFilters

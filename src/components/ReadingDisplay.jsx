@@ -108,7 +108,7 @@ export function ReadingDisplay({ sectionRef }) {
                 <div className="hidden sm:block text-center mb-8 sm:mb-10">
                     <button onClick={shuffle} disabled={isShuffling} className="bg-primary hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold px-6 sm:px-8 py-3 sm:py-4 rounded-lg shadow-lg transition-all inline-flex items-center gap-2 sm:gap-3 text-base sm:text-lg">
                         <ArrowCounterClockwise className={`w-4 h-4 sm:w-5 sm:h-5 ${isShuffling ? 'motion-safe:animate-spin' : ''}`} />
-                        <span>{isShuffling ? 'Shuffling the Cards...' : 'Draw Cards'}</span>
+                        <span>{isShuffling ? 'Shuffling the cards...' : 'Draw cards'}</span>
                     </button>
                 </div>
             )}
@@ -293,8 +293,8 @@ export function ReadingDisplay({ sectionRef }) {
                     <div className="hidden sm:block text-center mt-6 sm:mt-8">
                         <button onClick={shuffle} disabled={isShuffling} className="bg-primary hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold px-6 sm:px-8 py-3 sm:py-4 rounded-lg shadow-lg transition-all inline-flex items-center gap-2 sm:gap-3 text-base sm:text-lg">
                             <ArrowCounterClockwise className={`w-4 h-4 sm:w-5 sm:h-5 ${isShuffling ? 'motion-safe:animate-spin' : ''}`} />
-                            <span className="hidden xs:inline">{isShuffling ? 'Shuffling the Cards...' : 'Draw New Reading'}</span>
-                            <span className="xs:hidden">{isShuffling ? 'Shuffling...' : 'New Reading'}</span>
+                            <span className="hidden xs:inline">{isShuffling ? 'Shuffling the cards...' : 'Draw new reading'}</span>
+                            <span className="xs:hidden">{isShuffling ? 'Shuffling...' : 'New reading'}</span>
                         </button>
                     </div>
                 </div>

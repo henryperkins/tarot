@@ -1,0 +1,497 @@
+{
+  "animals": {
+    "dog": {
+      "keywords": ["loyalty", "instinct", "companionship", "guidance", "protection"],
+      "meanings": {
+        "general": "Faithful companion, instinctual wisdom, guardian of the threshold",
+        "tarot": "Appears in The Fool and The Moon - represents instinct, loyalty, and the animal nature that guides us",
+        "archetypal": "Cerberus, Anubis - guardian between worlds, psychopomp, trusted guide"
+      },
+      "cultural_context": "Cross-culturally associated with fidelity, protection, and the bridge between human and natural realms"
+    },
+    "wolf": {
+      "keywords": ["wildness", "shadow", "instinct", "lunar", "pack consciousness"],
+      "meanings": {
+        "general": "Untamed nature, lunar mysteries, pack wisdom, shadow integration",
+        "tarot": "The Moon - the wild, untamed aspects of consciousness that emerge in darkness",
+        "archetypal": "Fenrir, Romulus and Remus - wild nature that can destroy or nurture"
+      },
+      "cultural_context": "Symbol of the wild, the untamed, and the mysterious lunar forces"
+    },
+    "crayfish": {
+      "keywords": ["emergence", "primordial", "unconscious", "vulnerable", "evolution"],
+      "meanings": {
+        "general": "Emergence from the depths, primordial consciousness, evolutionary impulse",
+        "tarot": "The Moon - the primitive, instinctual self emerging from the unconscious waters",
+        "archetypal": "The primordial creature, the evolutionary impulse from water to land"
+      },
+      "cultural_context": "Ancient symbol of evolution, emergence, and the journey from unconscious to conscious"
+    },
+    "lion": {
+      "keywords": ["courage", "strength", "solar", "mastery", "heart"],
+      "meanings": {
+        "general": "Courage, raw power tamed through love, solar majesty, heart-centered strength",
+        "tarot": "Strength - the union of gentleness and power, taming through love not force",
+        "archetypal": "The Solar Lion, Sekhmet, Heart of the King"
+      },
+      "cultural_context": "Universal symbol of courage, nobility, and the power of the heart"
+    },
+    "serpent": {
+      "keywords": ["transformation", "kundalini", "wisdom", "healing", "renewal"],
+      "meanings": {
+        "general": "Transformation, shedding old skins, primal energy, healing wisdom",
+        "tarot": "The Magician, The Lovers - life force, temptation, transformation",
+        "archetypal": "Ouroboros, Kundalini, Caduceus - eternal renewal, primordial wisdom"
+      },
+      "cultural_context": "Ancient symbol of transformation, healing, and the cycle of death and rebirth"
+    },
+    "eagle": {
+      "keywords": ["vision", "spiritual", "ascension", "clarity", "sovereignty"],
+      "meanings": {
+        "general": "Higher perspective, spiritual vision, ascension, seeing the whole",
+        "tarot": "The Empress, The Wheel - divine perspective, spiritual sovereignty",
+        "archetypal": "Zeus's eagle, Solar bird, Messenger of the gods"
+      },
+      "cultural_context": "Symbol of spiritual vision, divine authority, and the ability to see from above"
+    },
+    "dove": {
+      "keywords": ["peace", "spirit", "purity", "love", "messenger"],
+      "meanings": {
+        "general": "Peace, Holy Spirit, pure love, divine messenger",
+        "tarot": "The Lovers, The Star - spiritual love, divine grace, purity",
+        "archetypal": "Holy Spirit, Aphrodite's bird, Messenger of peace"
+      },
+      "cultural_context": "Universal symbol of peace, divine spirit, and pure love"
+    },
+    "ram": {
+      "keywords": ["initiative", "yang", "fire", "leadership", "Aries"],
+      "meanings": {
+        "general": "Initiative, primal masculine force, breaking new ground, leadership",
+        "tarot": "The Emperor - masculine authority, initiative, primal force",
+        "archetypal": "Aries, The Golden Fleece, Sacrifice and renewal"
+      },
+      "cultural_context": "Symbol of initiative, masculine force, and the courage to lead"
+    },
+    "bull": {
+      "keywords": ["earthly", "fertility", "Taurus", "strength", "stability"],
+      "meanings": {
+        "general": "Earthly power, fertility, stability, material strength",
+        "tarot": "The Hierophant - earthly authority, traditional power, stability",
+        "archetypal": "Apis Bull, Minotaur, Earth strength"
+      },
+      "cultural_context": "Ancient symbol of earthly fertility, power, and the sacredness of the material"
+    },
+    "crab": {
+      "keywords": ["home", "protection", "Cancer", "emotional", "shell"],
+      "meanings": {
+        "general": "Protection, emotional boundaries, home, the shell we carry",
+        "tarot": "The Chariot - protective shell, emotional armor, carrying home with you",
+        "archetypal": "The Sacred Shell, Cancer, Emotional protection"
+      },
+      "cultural_context": "Symbol of emotional protection, home, and the boundaries we create"
+    },
+    "horse": {
+      "keywords": ["power", "freedom", "journey", "nobility", "spirit"],
+      "meanings": {
+        "general": "Spiritual power, freedom, the journey, noble spirit",
+        "tarot": "Death, The Sun - transformation vehicle, solar vitality, spiritual journey",
+        "archetypal": "Pegasus, Sleipnir, Vehicles of the gods"
+      },
+      "cultural_context": "Symbol of spiritual power, freedom, and the vehicle of transformation"
+    },
+    "sphinx": {
+      "keywords": ["riddle", "mystery", "guardian", "wisdom", "four-fold"],
+      "meanings": {
+        "general": "Keeper of mysteries, riddle of existence, guardian of wisdom",
+        "tarot": "The Wheel of Fortune - the mystery of fate, the riddle of existence",
+        "archetypal": "Guardian of thresholds, Keeper of mysteries, Four elements united"
+      },
+      "cultural_context": "Ancient guardian of sacred knowledge and the mysteries of existence"
+    }
+  },
+  "colors": {
+    "red": {
+      "keywords": ["passion", "fire", "energy", "life-force", "action"],
+      "meanings": {
+        "general": "Vital energy, passion, blood, life force, action, desire",
+        "psychological": "Stimulating, energizing, can signify anger or passion",
+        "spiritual": "Root chakra, grounding, survival, physical vitality",
+        "elemental": "Fire - transformation, will, creative power"
+      },
+      "associations": ["Mars", "Aries", "Wands suit", "Strength", "Magician"]
+    },
+    "blue": {
+      "keywords": ["water", "emotion", "intuition", "depth", "spirit"],
+      "meanings": {
+        "general": "Depth, emotion, intuition, spiritual waters, inner truth",
+        "psychological": "Calming, introspective, emotional depth",
+        "spiritual": "Throat chakra, truth, communication, the divine feminine",
+        "elemental": "Water - emotion, flow, intuition, the unconscious"
+      },
+      "associations": ["Moon", "Cancer", "Cups suit", "High Priestess", "Hanged Man"]
+    },
+    "yellow": {
+      "keywords": ["intellect", "clarity", "air", "joy", "consciousness"],
+      "meanings": {
+        "general": "Mental clarity, consciousness, joy, illumination, intellect",
+        "psychological": "Optimistic, stimulating to the mind, clear thinking",
+        "spiritual": "Solar plexus chakra, personal power, mental clarity",
+        "elemental": "Air - thought, communication, clarity, mental realm"
+      },
+      "associations": ["Sun", "Mercury", "Swords suit", "The Sun", "The Magician"]
+    },
+    "green": {
+      "keywords": ["growth", "nature", "heart", "healing", "fertility"],
+      "meanings": {
+        "general": "Growth, fertility, nature, healing, abundance, balance",
+        "psychological": "Balancing, nurturing, restful, harmonious",
+        "spiritual": "Heart chakra, love, compassion, healing, nature connection",
+        "elemental": "Earth - growth, manifestation, material abundance"
+      },
+      "associations": ["Venus", "Taurus", "Pentacles suit", "Empress", "World"]
+    },
+    "purple": {
+      "keywords": ["spiritual", "crown", "wisdom", "mystery", "transformation"],
+      "meanings": {
+        "general": "Spiritual wisdom, mystery, transformation, royalty, higher consciousness",
+        "psychological": "Contemplative, mysterious, transformative",
+        "spiritual": "Crown chakra, spiritual connection, divine wisdom",
+        "elemental": "Spirit - transcendence, unity, divine connection"
+      },
+      "associations": ["Jupiter", "Neptune", "Hermit", "High Priestess", "Temperance"]
+    },
+    "white": {
+      "keywords": ["purity", "light", "wholeness", "clarity", "spirit"],
+      "meanings": {
+        "general": "Purity, divine light, wholeness, clarity, spiritual essence",
+        "psychological": "Clear, pure, innocent, complete",
+        "spiritual": "All chakras unified, divine light, pure consciousness",
+        "elemental": "All elements in balance, unity, pure essence"
+      },
+      "associations": ["The Fool", "The Magician", "Death", "Temperance"]
+    },
+    "black": {
+      "keywords": ["mystery", "void", "potential", "shadow", "unknown"],
+      "meanings": {
+        "general": "The void, mystery, potential, shadow, the unknown, absorption",
+        "psychological": "Mystery, depth, the unconscious, hidden aspects",
+        "spiritual": "The void, infinite potential, the dark mother, shadow work",
+        "elemental": "The primordial darkness from which all emerges"
+      },
+      "associations": ["Saturn", "Pluto", "Death", "The Moon", "Devil"]
+    },
+    "gold": {
+      "keywords": ["solar", "divine", "enlightenment", "perfection", "spiritual wealth"],
+      "meanings": {
+        "general": "Solar consciousness, enlightenment, divine perfection, spiritual gold",
+        "psychological": "Valuable, precious, refined, perfected",
+        "spiritual": "Spiritual gold, enlightenment, the philosopher's stone",
+        "elemental": "Solar - divine consciousness, perfected will"
+      },
+      "associations": ["Sun", "Leo", "The Sun", "Wheel of Fortune", "World"]
+    },
+    "silver": {
+      "keywords": ["lunar", "receptive", "intuition", "reflection", "feminine"],
+      "meanings": {
+        "general": "Lunar consciousness, receptivity, reflection, intuitive wisdom",
+        "psychological": "Reflective, intuitive, receptive, flowing",
+        "spiritual": "Lunar mysteries, divine feminine, intuitive wisdom",
+        "elemental": "Lunar - receptivity, cycles, reflection"
+      },
+      "associations": ["Moon", "Cancer", "High Priestess", "The Moon", "Star"]
+    }
+  },
+  "numbers": {
+    "0": {
+      "keywords": ["potential", "void", "infinite", "beginning", "chaos"],
+      "meanings": {
+        "general": "Infinite potential, the void, chaos before creation, the beginning and end",
+        "tarot": "The Fool - zero point, pure potential, the journey before it begins",
+        "spiritual": "The Ain Soph, the void from which all emerges",
+        "psychological": "Unlimited possibility, freedom from structure"
+      },
+      "archetypal": "The Void, The Womb, Infinite Possibility"
+    },
+    "1": {
+      "keywords": ["unity", "beginning", "individuation", "will", "source"],
+      "meanings": {
+        "general": "Unity, the source, new beginnings, individual will, initiative",
+        "tarot": "The Magician, Aces - pure beginning, concentrated power, I AM",
+        "spiritual": "The Monad, Divine Unity, The One Source",
+        "psychological": "Individuation, self-awareness, independence"
+      },
+      "archetypal": "The Creator, The Self, The Source"
+    },
+    "2": {
+      "keywords": ["duality", "relationship", "balance", "choice", "polarity"],
+      "meanings": {
+        "general": "Duality, relationship, balance of opposites, choice, reflection",
+        "tarot": "High Priestess, Twos - balance, relationship, choice between paths",
+        "spiritual": "Polarity, the divine dyad, masculine/feminine",
+        "psychological": "Relationship, mirror, the other, choice"
+      },
+      "archetypal": "The Lovers, The Twin, The Mirror"
+    },
+    "3": {
+      "keywords": ["creation", "synthesis", "expression", "growth", "trinity"],
+      "meanings": {
+        "general": "Creation, synthesis of opposites, expression, growth, the trinity",
+        "tarot": "Empress, Threes - creative expression, growth, manifestation beginning",
+        "spiritual": "Holy Trinity, Maiden-Mother-Crone, Mind-Body-Spirit",
+        "psychological": "Creative expression, synthesis, offspring of union"
+      },
+      "archetypal": "The Creator, The Trinity, The Child"
+    },
+    "4": {
+      "keywords": ["structure", "stability", "foundation", "earth", "manifestation"],
+      "meanings": {
+        "general": "Structure, stability, foundation, material manifestation, the square",
+        "tarot": "Emperor, Fours - stability, structure, foundation, earthly power",
+        "spiritual": "Four elements, four directions, the material world",
+        "psychological": "Security, structure, boundaries, foundation"
+      },
+      "archetypal": "The Builder, The Foundation, The Square"
+    },
+    "5": {
+      "keywords": ["change", "challenge", "instability", "human", "pentagram"],
+      "meanings": {
+        "general": "Change, challenge, instability, the human number, dynamic tension",
+        "tarot": "Hierophant, Fives - challenge, change, disruption, growth through conflict",
+        "spiritual": "The pentagram, human with spirit, five senses",
+        "psychological": "Crisis, change, growth through challenge"
+      },
+      "archetypal": "The Challenger, The Human, The Rebel"
+    },
+    "6": {
+      "keywords": ["harmony", "balance", "beauty", "love", "hexagram"],
+      "meanings": {
+        "general": "Harmony, balance, beauty, love, the union of opposites",
+        "tarot": "Lovers, Sixes - harmony, choice aligned with love, balance achieved",
+        "spiritual": "As above so below, hexagram, perfect balance",
+        "psychological": "Harmony, aesthetic sense, balanced relationships"
+      },
+      "archetypal": "The Lover, The Artist, Perfect Balance"
+    },
+    "7": {
+      "keywords": ["spiritual", "mystical", "inner", "contemplation", "mastery"],
+      "meanings": {
+        "general": "Spiritual wisdom, inner journey, mystical number, contemplation",
+        "tarot": "Chariot, Sevens - spiritual mastery, inner journey, contemplation",
+        "spiritual": "Seven chakras, seven days, seven planets, mystical perfection",
+        "psychological": "Contemplation, inner wisdom, solitary journey"
+      },
+      "archetypal": "The Mystic, The Seeker, The Hermit"
+    },
+    "8": {
+      "keywords": ["power", "infinity", "manifestation", "karma", "balance"],
+      "meanings": {
+        "general": "Power, infinity, karmic balance, material mastery, regeneration",
+        "tarot": "Strength, Eights - power, manifestation, karmic balance",
+        "spiritual": "Infinity symbol, karma, the octave, regeneration",
+        "psychological": "Personal power, mastery, cause and effect"
+      },
+      "archetypal": "The Manifestor, Infinity, The Master"
+    },
+    "9": {
+      "keywords": ["completion", "wisdom", "attainment", "integration", "three times three"],
+      "meanings": {
+        "general": "Completion, wisdom, attainment, the end before the beginning",
+        "tarot": "Hermit, Nines - completion, wisdom, solitary attainment",
+        "spiritual": "Triple trinity, completion before renewal, integration",
+        "psychological": "Wisdom, completion, integration of lessons"
+      },
+      "archetypal": "The Sage, The Complete, The Wise Elder"
+    },
+    "10": {
+      "keywords": ["completion", "wholeness", "return", "new cycle", "perfection"],
+      "meanings": {
+        "general": "Completion, return to unity, perfection, end of cycle",
+        "tarot": "Wheel of Fortune, Tens - completion, new cycle beginning",
+        "spiritual": "Return to unity with wisdom, completion of cycle",
+        "psychological": "Completion, wholeness, readiness for new beginning"
+      },
+      "archetypal": "The Cycle Complete, The Omega, The Return"
+    }
+  },
+  "elements": {
+    "fire": {
+      "keywords": ["will", "passion", "energy", "transformation", "spirit"],
+      "meanings": {
+        "general": "Will, creative force, passion, transformation, spirit, action",
+        "tarot": "Wands suit - inspiration, willpower, creative energy, spiritual fire",
+        "directional": "South - midday, summer, full power, manifestation",
+        "alchemical": "Sulfur - the active principle, the masculine force, transformation"
+      },
+      "qualities": "Hot and dry, expansive, ascending, yang, active",
+      "associations": ["Salamander", "Lion", "Red/Orange", "Triangle pointing up"]
+    },
+    "water": {
+      "keywords": ["emotion", "intuition", "flow", "unconscious", "receptivity"],
+      "meanings": {
+        "general": "Emotion, intuition, flow, the unconscious, love, dreams",
+        "tarot": "Cups suit - emotion, relationships, intuition, love, inner life",
+        "directional": "West - sunset, autumn, inward turning, reflection",
+        "alchemical": "Mercury - the receptive principle, the feminine force, dissolution"
+      },
+      "qualities": "Cold and moist, contracting, descending, yin, receptive",
+      "associations": ["Undines", "Dolphins", "Blue/Silver", "Triangle pointing down"]
+    },
+    "air": {
+      "keywords": ["thought", "communication", "clarity", "logic", "breath"],
+      "meanings": {
+        "general": "Thought, communication, clarity, ideas, logic, breath of life",
+        "tarot": "Swords suit - thought, conflict, truth, mental clarity, challenges",
+        "directional": "East - dawn, spring, new beginnings, fresh start",
+        "alchemical": "Salt - the neutral principle, crystallization, manifestation"
+      },
+      "qualities": "Hot and moist, expansive, ascending, yang, active",
+      "associations": ["Sylphs", "Eagles", "Yellow/White", "Triangle with horizontal line"]
+    },
+    "earth": {
+      "keywords": ["manifestation", "stability", "body", "material", "grounding"],
+      "meanings": {
+        "general": "Material manifestation, stability, body, physical realm, grounding",
+        "tarot": "Pentacles suit - material world, money, body, practical matters",
+        "directional": "North - midnight, winter, darkness, gestation, depth",
+        "alchemical": "Prima materia - the base substance, the foundation, the body"
+      },
+      "qualities": "Cold and dry, contracting, descending, yin, receptive",
+      "associations": ["Gnomes", "Bulls", "Green/Brown", "Triangle with inverted line"]
+    },
+    "spirit": {
+      "keywords": ["unity", "transcendence", "quintessence", "divine", "center"],
+      "meanings": {
+        "general": "The fifth element, unity of all, transcendence, divine spark",
+        "tarot": "Major Arcana - spiritual journey, transcendent experiences",
+        "directional": "Center - the axis mundi, the point of connection, the heart",
+        "alchemical": "Quintessence - the fifth essence, spiritual gold, perfection"
+      },
+      "qualities": "Beyond qualities, unifying principle, the center point",
+      "associations": ["Purple/Gold", "Circle", "Infinite spiral", "The void and fullness"]
+    }
+  },
+  "plants": {
+    "rose": {
+      "keywords": ["love", "beauty", "unfolding", "heart", "divine feminine"],
+      "meanings": {
+        "general": "Divine love, beauty, the unfolding soul, heart wisdom",
+        "tarot": "The Magician, Death, Fool - the soul's flowering, beauty through transformation",
+        "spiritual": "The mystic rose, divine love, the soul's unfoldment"
+      }
+    },
+    "lily": {
+      "keywords": ["purity", "resurrection", "divine", "annunciation", "light"],
+      "meanings": {
+        "general": "Purity, resurrection, divine light, spiritual awakening",
+        "tarot": "The Magician, Death - purity, spiritual transformation, rebirth",
+        "spiritual": "The white lily of resurrection, divine purity, virgin birth"
+      }
+    },
+    "pomegranate": {
+      "keywords": ["underworld", "Persephone", "abundance", "fertility", "knowledge"],
+      "meanings": {
+        "general": "Underworld mysteries, sacred knowledge, abundant fertility",
+        "tarot": "High Priestess - secret knowledge, underworld wisdom, initiation",
+        "spiritual": "Seeds of wisdom, descent into the underworld, hidden abundance"
+      }
+    },
+    "wheat": {
+      "keywords": ["harvest", "abundance", "Demeter", "nourishment", "cycles"],
+      "meanings": {
+        "general": "Harvest, abundance, nourishment, natural cycles",
+        "tarot": "Empress - abundant fertility, the harvest, nourishment",
+        "spiritual": "Grain mysteries, death and rebirth, seasonal cycles"
+      }
+    },
+    "grape": {
+      "keywords": ["Dionysus", "ecstasy", "transformation", "spiritual intoxication"],
+      "meanings": {
+        "general": "Transformation, spiritual ecstasy, divine intoxication",
+        "tarot": "Temperance, The Sun - transformation, joy, spiritual fermentation",
+        "spiritual": "Wine mysteries, transubstantiation, sacred transformation"
+      }
+    },
+    "sunflower": {
+      "keywords": ["solar", "devotion", "enlightenment", "following the light"],
+      "meanings": {
+        "general": "Solar devotion, following the light, spiritual orientation",
+        "tarot": "The Sun - solar consciousness, enlightenment, joy",
+        "spiritual": "Devotion to the divine, spiritual orientation, heliotropism"
+      }
+    },
+    "lotus": {
+      "keywords": ["enlightenment", "purity", "arising", "transcendence", "chakras"],
+      "meanings": {
+        "general": "Enlightenment, purity arising from mud, spiritual unfoldment",
+        "tarot": "Magician, Star - spiritual arising, enlightenment, chakra opening",
+        "spiritual": "The thousand-petaled lotus, enlightenment, purity in the world"
+      }
+    },
+    "oak": {
+      "keywords": ["strength", "endurance", "wisdom", "Druidic", "axis mundi"],
+      "meanings": {
+        "general": "Ancient strength, wisdom, endurance, sacred tree",
+        "tarot": "Emperor, Hierophant - lasting strength, traditional wisdom",
+        "spiritual": "World tree, axis mundi, Druidic wisdom"
+      }
+    },
+    "willow": {
+      "keywords": ["flexibility", "lunar", "emotion", "water", "intuition"],
+      "meanings": {
+        "general": "Flexibility, lunar wisdom, emotional depth, water connection",
+        "tarot": "High Priestess, Moon - lunar wisdom, emotional flexibility",
+        "spiritual": "Tree of enchantment, lunar mysteries, emotional wisdom"
+      }
+    },
+    "ivy": {
+      "keywords": ["Dionysus", "persistence", "immortality", "spiraling growth"],
+      "meanings": {
+        "general": "Persistent growth, immortality, spiraling ascent",
+        "tarot": "Death, World - persistent life force, immortality through transformation",
+        "spiritual": "Eternal life, spiraling growth, Dionysian mysteries"
+      }
+    }
+  },
+  "celestial": {
+    "sun": {
+      "keywords": ["consciousness", "life", "vitality", "enlightenment", "masculine"],
+      "meanings": {
+        "general": "Consciousness, vitality, life force, enlightenment, the self",
+        "tarot": "The Sun, Strength, Wheel - life force, consciousness, vitality",
+        "spiritual": "The divine masculine, solar consciousness, enlightenment",
+        "psychological": "The conscious ego, identity, vitality, the hero"
+      },
+      "associations": ["Gold", "Lion", "Apollo", "Sunday"]
+    },
+    "moon": {
+      "keywords": ["unconscious", "intuition", "cycles", "feminine", "mystery"],
+      "meanings": {
+        "general": "The unconscious, intuition, cycles, dreams, the feminine",
+        "tarot": "The Moon, High Priestess - unconscious, mystery, intuition",
+        "spiritual": "The divine feminine, lunar mysteries, cyclical wisdom",
+        "psychological": "The unconscious, emotions, instinct, the inner world"
+      },
+      "associations": ["Silver", "Crab", "Artemis", "Monday"]
+    },
+    "stars": {
+      "keywords": ["hope", "guidance", "destiny", "higher self", "inspiration"],
+      "meanings": {
+        "general": "Hope, guidance, destiny, divine light, inspiration",
+        "tarot": "The Star - hope, guidance, divine inspiration, higher self",
+        "spiritual": "Divine guidance, our higher nature, celestial light",
+        "psychological": "Hope, aspiration, the idealized self, guidance"
+      },
+      "associations": ["The Star card", "Aquarius", "Divine hope"]
+    },
+    "lightning": {
+      "keywords": ["revelation", "sudden", "divine", "Tower", "awakening"],
+      "meanings": {
+        "general": "Sudden revelation, divine intervention, breakthrough, awakening",
+        "tarot": "The Tower - sudden awakening, divine revelation, breakthrough",
+        "spiritual": "Divine fire, sudden enlightenment, Zeus's thunderbolt",
+        "psychological": "Sudden insight, breakthrough, destruction of false structures"
+      },
+      "associations": ["The Tower", "Sudden change", "Revelation"]
+    }
+  }
+}

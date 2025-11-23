@@ -1,0 +1,20 @@
+{
+  "name": "tarot-astro-plugins",
+  "description": "Astrological context and symbolism reference tools for tarot readings",
+  "owner": {
+    "name": "Mystic Tarot",
+    "email": "dev@mystictarot.app"
+  },
+  "plugins": [
+    {
+      "name": "ephemeris-server",
+      "source": "./ephemeris-server",
+      "description": "Real-time planetary positions and astrological context for readings"
+    },
+    {
+      "name": "symbolism-server",
+      "source": "./symbolism-server",
+      "description": "Comprehensive symbolism reference database for card interpretation"
+    }
+  ]
+}

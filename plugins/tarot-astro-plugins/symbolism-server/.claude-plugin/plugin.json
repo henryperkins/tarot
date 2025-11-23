@@ -1,0 +1,12 @@
+{
+  "name": "symbolism-server",
+  "version": "1.0.0",
+  "description": "Comprehensive symbolism reference database for tarot card interpretation",
+  "author": {
+    "name": "Mystic Tarot",
+    "email": "dev@mystictarot.app"
+  },
+  "license": "MIT",
+  "keywords": ["symbolism", "tarot", "interpretation", "imagery", "archetypes"],
+  "mcpServers": "./.mcp.json"
+}

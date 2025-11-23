@@ -1,0 +1,12 @@
+{
+  "name": "ephemeris-server",
+  "version": "1.0.0",
+  "description": "Real-time planetary positions and astrological context for tarot readings",
+  "author": {
+    "name": "Mystic Tarot",
+    "email": "dev@mystictarot.app"
+  },
+  "license": "MIT",
+  "keywords": ["astrology", "ephemeris", "planets", "moon", "aspects"],
+  "mcpServers": "./.mcp.json"
+}
