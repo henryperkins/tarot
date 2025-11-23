@@ -1,0 +1,100 @@
+EPHEMERIS SERVER LICENSE
+
+This MCP server uses the Swiss Ephemeris library via the 'sweph' Node.js package.
+
+================================================================================
+PLUGIN LICENSE (Except Swiss Ephemeris components)
+================================================================================
+
+MIT License
+
+Copyright (c) 2024 Mystic Tarot
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+================================================================================
+SWISS EPHEMERIS LICENSE (sweph package)
+================================================================================
+
+This server depends on the Swiss Ephemeris library (via the 'sweph' npm package),
+which is dual-licensed:
+
+1. **AGPL-3.0 License** (Open Source)
+   - Free for use in open-source projects
+   - Requires derivative works to also be open-source under AGPL
+   - Full license: https://www.gnu.org/licenses/agpl-3.0.html
+
+2. **Professional License** (Commercial)
+   - Required for proprietary/commercial software
+   - Contact: https://www.astro.com/swisseph/
+
+Since this plugin is distributed as open-source, it uses the AGPL-3.0 license
+for the Swiss Ephemeris components.
+
+IMPORTANT NOTES:
+
+- If you use this plugin in a **closed-source or commercial application**, you
+  must either:
+  a) Make your entire application AGPL-3.0 compatible, OR
+  b) Purchase a Professional License from Astrodienst AG
+
+- If you distribute this plugin or derivative works, you must:
+  a) Include this license file
+  b) Provide source code access per AGPL-3.0 requirements
+  c) Clearly indicate any modifications made
+
+For more information about Swiss Ephemeris licensing:
+https://www.astro.com/swisseph/
+
+================================================================================
+EPHEMERIS DATA FILES
+================================================================================
+
+This server requires Swiss Ephemeris data files, which are available from:
+- https://github.com/aloistr/swisseph
+- https://www.astro.com/ftp/swisseph/
+
+These data files are based on JPL planetary ephemeris data (public domain)
+and are distributed under the same license as the Swiss Ephemeris library.
+
+================================================================================
+USAGE GUIDANCE
+================================================================================
+
+This plugin is provided as an open-source tool for the Mystic Tarot application
+and the broader tarot reading community.
+
+✅ Permitted Use (Under AGPL-3.0):
+- Personal tarot readings
+- Open-source tarot applications
+- Educational and research purposes
+- Non-commercial astrological software
+- Redistribution with source code (must remain AGPL)
+
+⚠️ Restricted Use (Requires Professional License):
+- Closed-source commercial applications
+- Proprietary tarot reading services
+- Mobile apps without source disclosure
+- SaaS platforms without AGPL compliance
+
+If you have questions about licensing compliance, please consult:
+- AGPL-3.0 FAQ: https://www.gnu.org/licenses/gpl-faq.html
+- Swiss Ephemeris Professional License: https://www.astro.com/swisseph/
+
+================================================================================

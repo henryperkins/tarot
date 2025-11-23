@@ -1,5 +1,5 @@
 import React from 'react';
-import { SPREADS } from '../data/spreads';
+import { getSpreadInfo } from '../data/spreads';
 import { MAJOR_ARCANA } from '../data/majorArcana';
 import { MINOR_ARCANA } from '../data/minorArcana';
 import { Card } from './Card';
@@ -55,7 +55,7 @@ export function ReadingGrid({
 
   if (!reading) return null;
 
-  const spreadInfo = SPREADS[selectedSpread];
+  const spreadInfo = getSpreadInfo(selectedSpread);
   const isBatchReveal = reading.length > 1 &&
     revealedCards.size === reading.length &&
     prevRevealedCount.current < reading.length - 1;
@@ -80,7 +80,7 @@ export function ReadingGrid({
         }
       >
         {reading.map((card, index) => {
-          const position = spreadInfo.positions[index] || `Position ${index + 1}`;
+          const position = spreadInfo?.positions?.[index] || `Position ${index + 1}`;
           const isRevealed = revealedCards.has(index);
 
           const tooltipContent = isRevealed ? (
@@ -111,7 +111,7 @@ export function ReadingGrid({
           return (
             <div
               key={`${card.name}-${index}`}
-              className={`modern-surface border border-secondary/40 ${selectedSpread === 'celtic'
+              className={`${selectedSpread === 'celtic'
                 ? toAreaClass(position)
                 : reading.length > 1 ? 'min-w-[75vw] snap-center sm:min-w-0' : ''
                 }`}

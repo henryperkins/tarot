@@ -1,4 +1,1 @@
 image,expected,predicted,confidence,basis,human_verdict,human_notes
-thoth_cups_14_knight-cups.png,King of Cups,Knight of Cups,1.0000,image,,
-thoth_swords_14_knight-swords.png,King of Swords,Knight of Swords,1.0000,image,,
-thoth_wands_14_knight-wands.png,King of Wands,Knight of Wands,1.0000,image,,

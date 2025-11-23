@@ -1,9 +1,9 @@
-import React, { createContext, useContext, useState, useCallback, useMemo } from 'react';
+import React, { createContext, useContext, useState, useCallback, useMemo, useRef } from 'react';
 import { useTarotState } from '../hooks/useTarotState';
 import { useVisionAnalysis } from '../hooks/useVisionAnalysis';
 import { useAudioController } from '../hooks/useAudioController';
 import { usePreferences } from './PreferencesContext';
-import { SPREADS } from '../data/spreads';
+import { getSpreadInfo, normalizeSpreadKey } from '../data/spreads';
 import { MAJOR_ARCANA } from '../data/majorArcana';
 import { MINOR_ARCANA } from '../data/minorArcana';
 import { formatReading } from '../lib/formatting';
@@ -20,7 +20,18 @@ export function ReadingProvider({ children }) {
 
     // 2. Core Tarot State
     const tarotState = useTarotState(speak);
-    const { reading, selectedSpread, userQuestion, revealedCards, shuffle } = tarotState;
+    const {
+        reading,
+        selectedSpread,
+        userQuestion,
+        revealedCards,
+        shuffle,
+        dealIndex,
+        dealNext: baseDealNext,
+        revealCard: baseRevealCard,
+        revealAll: baseRevealAll,
+        sessionSeed
+    } = tarotState;
     const { deckStyleId, includeMinors, reversalFramework } = usePreferences();
 
     // 3. Vision Analysis
@@ -31,6 +42,7 @@ export function ReadingProvider({ children }) {
     const [personalReading, setPersonalReading] = useState(null);
     const [isGenerating, setIsGenerating] = useState(false);
     const [analyzingText, setAnalyzingText] = useState('');
+    const [narrativePhase, setNarrativePhase] = useState('idle');
     const [spreadAnalysis, setSpreadAnalysis] = useState(null);
     const [themes, setThemes] = useState(null);
     const [analysisContext, setAnalysisContext] = useState(null);
@@ -49,11 +61,21 @@ export function ReadingProvider({ children }) {
     const [reflections, setReflections] = useState({});
     const [lastCardsForFeedback, setLastCardsForFeedback] = useState([]);
     const [showAllHighlights, setShowAllHighlights] = useState(false);
+    const [srAnnouncement, setSrAnnouncement] = useState('');
 
     const visionResearchEnabled = import.meta.env?.VITE_ENABLE_VISION_RESEARCH === 'true';
+    const inFlightReadingRef = useRef(null);
+
+    const cancelInFlightReading = useCallback(() => {
+        if (inFlightReadingRef.current?.controller) {
+            inFlightReadingRef.current.controller.abort();
+        }
+        inFlightReadingRef.current = null;
+    }, []);
 
     // Reset analysis state when Shuffle is triggered
     const handleShuffle = useCallback(() => {
+        cancelInFlightReading();
         shuffle(() => {
             setPersonalReading(null);
             setThemes(null);
@@ -61,14 +83,16 @@ export function ReadingProvider({ children }) {
             setAnalysisContext(null);
             setAnalyzingText('');
             setIsGenerating(false);
+            setNarrativePhase('idle');
             setJournalStatus(null);
             setReflections({});
             visionAnalysis.setVisionResults([]);
             visionAnalysis.setVisionConflicts([]);
             visionAnalysis.resetVisionProof();
             setShowAllHighlights(false);
+            setSrAnnouncement('');
         });
-    }, [shuffle, visionAnalysis]);
+    }, [shuffle, visionAnalysis, cancelInFlightReading]);
 
     // Generate Personal Reading Logic
     const generatePersonalReading = async () => {
@@ -81,19 +105,31 @@ export function ReadingProvider({ children }) {
                 type: 'error',
                 message: 'Draw and reveal your cards before requesting a personalized narrative.'
             });
+            setNarrativePhase('error');
+            setSrAnnouncement('Please draw and reveal your cards before requesting a personalized narrative.');
             return;
         }
         if (isGenerating) return;
+
+        cancelInFlightReading();
+        const controller = new AbortController();
+        inFlightReadingRef.current = { controller, sessionSeed };
 
         setIsGenerating(true);
         setAnalyzingText('');
         setPersonalReading(null);
         setJournalStatus(null);
+        setNarrativePhase('analyzing');
+        setSrAnnouncement('Step 1 of 3: Analyzing your spread, positions, and reflections.');
         setReadingMeta((prev) => ({ ...prev, requestId: null }));
         setLastCardsForFeedback([]);
 
         try {
-            const spreadInfo = SPREADS[selectedSpread];
+            const safeSpreadKey = normalizeSpreadKey(selectedSpread);
+            const spreadInfo = getSpreadInfo(safeSpreadKey);
+            if (!spreadInfo) {
+                throw new Error('Unable to find spread definition.');
+            }
             const allCards = [...MAJOR_ARCANA, ...MINOR_ARCANA];
 
             const cardsInfo = reading.map((card, idx) => {
@@ -136,7 +172,9 @@ export function ReadingProvider({ children }) {
                 .join('\n');
 
             const cardNames = cardsInfo.map(card => card.card).join(', ');
-            setAnalyzingText(`Analyzing: ${cardNames}...\n\nWeaving your personalized reflection from this spread...`);
+            setAnalyzingText(`Step 1 of 3 — Analyzing spread.\n\nCards in this reading: ${cardNames}.`);
+            setNarrativePhase('analyzing');
+            setSrAnnouncement('Step 1 of 3: Analyzing spread for your narrative.');
 
             const shouldAttachVisionProof = visionResearchEnabled && visionResults.length > 0;
             if (shouldAttachVisionProof) {
@@ -168,13 +206,14 @@ export function ReadingProvider({ children }) {
             const requestPayload = {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: null
+                body: null,
+                signal: controller.signal
             };
 
             const payload = {
                 spreadInfo: {
                     name: spreadInfo.name,
-                    key: selectedSpread,
+                    key: safeSpreadKey,
                     deckStyle: deckStyleId
                 },
                 cardsInfo,
@@ -190,14 +229,20 @@ export function ReadingProvider({ children }) {
             if (!normalizedPayload.success) {
                 setIsGenerating(false);
                 setAnalyzingText('');
+                setNarrativePhase('error');
                 setJournalStatus({
                     type: 'error',
                     message: normalizedPayload.error || 'Reading request is missing required details.'
                 });
+                setSrAnnouncement('Reading request is missing required details for narrative generation.');
                 return;
             }
 
             requestPayload.body = JSON.stringify(normalizedPayload.data);
+
+            setNarrativePhase('drafting');
+            setAnalyzingText((prev) => `${prev}\n\nStep 2 of 3 — Drafting narrative insights based on your spread.`);
+            setSrAnnouncement('Step 2 of 3: Drafting narrative insights.');
 
             const response = await fetch('/api/tarot-reading', requestPayload);
 
@@ -212,6 +257,18 @@ export function ReadingProvider({ children }) {
                 throw new Error('Empty reading returned');
             }
 
+            if (
+                controller.signal.aborted ||
+                !inFlightReadingRef.current ||
+                inFlightReadingRef.current.controller !== controller
+            ) {
+                return;
+            }
+
+            setNarrativePhase('polishing');
+            setAnalyzingText('Step 3 of 3 — Final polishing and assembling your narrative...');
+            setSrAnnouncement('Step 3 of 3: Final polishing and assembling your narrative.');
+
             setThemes(data.themes || null);
             setSpreadAnalysis(data.spreadAnalysis || null);
             setAnalysisContext(data.context || null);
@@ -221,6 +278,7 @@ export function ReadingProvider({ children }) {
             formatted.provider = data.provider || 'local-composer';
             formatted.requestId = data.requestId || null;
             setPersonalReading(formatted);
+            setNarrativePhase('complete');
             setLastCardsForFeedback(
                 cardsInfo.map((card) => ({
                     position: card.position,
@@ -231,13 +289,17 @@ export function ReadingProvider({ children }) {
             setReadingMeta({
                 requestId: data.requestId || null,
                 provider: data.provider || 'local',
-                spreadKey: selectedSpread,
+                spreadKey: safeSpreadKey,
                 spreadName: spreadInfo.name,
                 deckStyle: deckStyleId,
                 userQuestion,
                 graphContext: data.themes?.knowledgeGraph || null
             });
         } catch (error) {
+            if (error?.name === 'AbortError') {
+                console.debug('generatePersonalReading aborted');
+                return;
+            }
             console.error('generatePersonalReading error:', error);
             const errorMsg = 'Unable to generate reading at this time. Please try again in a moment.';
             const formattedError = formatReading(errorMsg);
@@ -247,7 +309,12 @@ export function ReadingProvider({ children }) {
                 type: 'error',
                 message: 'Unable to generate your narrative right now. Please try again shortly.'
             });
+            setNarrativePhase('error');
+            setSrAnnouncement('Unable to generate your narrative right now.');
         } finally {
+            if (inFlightReadingRef.current?.controller === controller) {
+                inFlightReadingRef.current = null;
+            }
             setIsGenerating(false);
             setAnalyzingText('');
         }
@@ -330,8 +397,8 @@ export function ReadingProvider({ children }) {
         });
         const reversedIdx = reading.map((card, index) => (card.isReversed ? index : -1)).filter(index => index >= 0);
         if (reversedIdx.length > 0) {
-            const spreadInfo = SPREADS[selectedSpread];
-            const positions = reversedIdx.map(index => spreadInfo.positions[index] || `Card ${index + 1}`).join(', ');
+            const spreadInfo = getSpreadInfo(selectedSpread);
+            const positions = reversedIdx.map(index => spreadInfo?.positions?.[index] || `Card ${index + 1}`).join(', ');
             const hasCluster = reversedIdx.some((idx, j) => j > 0 && idx === reversedIdx[j - 1] + 1);
             let text = `${positions}. These often point to inner processing, timing delays, or tension in the theme.`;
             if (hasCluster) text += ' Consecutive reversals suggest the theme persists across positions.';
@@ -365,14 +432,63 @@ export function ReadingProvider({ children }) {
         return [];
     }, [derivedHighlights, fallbackHighlights]);
 
+    const describeCardAtIndex = useCallback((index) => {
+        const card = reading?.[index];
+        if (!card) return null;
+        const spreadInfo = getSpreadInfo(selectedSpread);
+        const position = spreadInfo?.positions?.[index] || `Card ${index + 1}`;
+        return `${position}: ${card.name}${card.isReversed ? ' reversed' : ''}`;
+    }, [reading, selectedSpread]);
+
+    const dealNext = useCallback(() => {
+        if (!reading || dealIndex >= reading.length) return;
+        const description = describeCardAtIndex(dealIndex);
+        if (description) {
+            setSrAnnouncement(`Revealed ${description}.`);
+        }
+        baseDealNext();
+    }, [baseDealNext, dealIndex, describeCardAtIndex, reading]);
+
+    const revealCard = useCallback((index) => {
+        if (!reading || !reading[index]) return;
+        const description = describeCardAtIndex(index);
+        if (description) {
+            setSrAnnouncement(`Revealed ${description}.`);
+        }
+        baseRevealCard(index);
+    }, [baseRevealCard, describeCardAtIndex, reading]);
+
+    const revealAll = useCallback(() => {
+        if (!reading || reading.length === 0) return;
+        const descriptions = reading
+            .map((_, index) => (!revealedCards.has(index) ? describeCardAtIndex(index) : null))
+            .filter(Boolean);
+
+        if (descriptions.length === 1) {
+            setSrAnnouncement(`Revealed ${descriptions[0]}.`);
+        } else if (descriptions.length > 1) {
+            const preview = descriptions.slice(0, 2).join('; ');
+            const suffix = descriptions.length > 2 ? '…' : '.';
+            setSrAnnouncement(`Revealed ${descriptions.length} cards — ${preview}${suffix}`);
+        } else if (revealedCards.size === reading.length) {
+            setSrAnnouncement('All cards already revealed.');
+        }
+
+        baseRevealAll();
+    }, [baseRevealAll, describeCardAtIndex, reading, revealedCards]);
+
     const value = {
         ...audioController,
         ...tarotState,
         ...visionAnalysis,
         shuffle: handleShuffle,
+        dealNext,
+        revealCard,
+        revealAll,
         personalReading, setPersonalReading,
         isGenerating, setIsGenerating,
         analyzingText, setAnalyzingText,
+        narrativePhase, setNarrativePhase,
         spreadAnalysis, setSpreadAnalysis,
         themes, setThemes,
         analysisContext, setAnalysisContext,
@@ -382,7 +498,8 @@ export function ReadingProvider({ children }) {
         lastCardsForFeedback, setLastCardsForFeedback,
         showAllHighlights, setShowAllHighlights,
         generatePersonalReading,
-        highlightItems
+        highlightItems,
+        srAnnouncement, setSrAnnouncement
     };
 
     return (

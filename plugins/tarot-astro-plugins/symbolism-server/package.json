@@ -6,7 +6,8 @@
   "main": "server/index.js",
   "scripts": {
     "start": "node server/index.js",
-    "dev": "node --watch server/index.js"
+    "dev": "node --watch server/index.js",
+    "test": "node server/test.js"
   },
   "keywords": ["mcp", "symbolism", "tarot", "interpretation", "imagery"],
   "author": "Mystic Tarot",

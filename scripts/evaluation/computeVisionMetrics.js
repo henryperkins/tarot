@@ -4,7 +4,8 @@ import path from 'node:path';
 
 import { MAJOR_ARCANA } from '../../src/data/majorArcana.js';
 import { MINOR_ARCANA } from '../../src/data/minorArcana.js';
-import { getDeckImagePath, getDeckAlias } from '../../shared/vision/deckAssets.js';
+import { getDeckImagePath } from '../../shared/vision/deckAssets.js';
+import { canonicalizeCardName } from '../../shared/vision/cardNameMapping.js';
 import { parseCsv, stringifyRow } from './lib/csv.js';
 
 function usage() {
@@ -44,7 +45,6 @@ const options = {
 
 function buildDeckLookups(deckStyle) {
   const imageMap = new Map();
-  const aliasMap = new Map();
   const register = (card) => {
     const potential = [];
     if (card?.image) potential.push(card.image);
@@ -53,15 +53,6 @@ function buildDeckLookups(deckStyle) {
       potential.push(deckSpecific);
     }
     const canonical = card?.name || 'Unknown card';
-    const canonicalKey = normalizeName(canonical);
-    if (canonicalKey) {
-      aliasMap.set(canonicalKey, canonicalKey);
-    }
-    const alias = getDeckAlias(card, deckStyle);
-    const aliasKey = normalizeName(alias);
-    if (alias && aliasKey && !aliasMap.has(aliasKey)) {
-      aliasMap.set(aliasKey, canonicalKey);
-    }
 
     potential.forEach((location) => {
       const basename = path.basename(location);
@@ -72,7 +63,7 @@ function buildDeckLookups(deckStyle) {
   };
   MAJOR_ARCANA.forEach(register);
   MINOR_ARCANA.forEach(register);
-  return { imageMap, aliasMap };
+  return { imageMap };
 }
 
 function normalizeName(name) {
@@ -154,7 +145,7 @@ async function main() {
   }
 
   const deckStyle = options.deckStyle || payload?.deckStyle || 'rws-1909';
-  const { imageMap: imageNameMap, aliasMap } = buildDeckLookups(deckStyle);
+  const { imageMap: imageNameMap } = buildDeckLookups(deckStyle);
   let total = 0;
   let correct = 0;
   let highConfidenceCorrect = 0;
@@ -180,8 +171,10 @@ async function main() {
     total += 1;
     const predicted = entry.topMatch?.cardName;
     const confidence = entry.topMatch?.score ?? 0;
-    const normalizedExpected = aliasMap.get(normalizeName(expected)) || normalizeName(expected);
-    const normalizedPredicted = aliasMap.get(normalizeName(predicted)) || normalizeName(predicted);
+    // Expected is already in RWS canonical form (from imageNameMap)
+    // Only canonicalize predicted value (which may be in Thoth/Marseille form)
+    const normalizedExpected = normalizeName(expected);
+    const normalizedPredicted = normalizeName(canonicalizeCardName(predicted, deckStyle) || predicted);
     const isCorrect = normalizedPredicted === normalizedExpected;
     if (isCorrect) {
       correct += 1;

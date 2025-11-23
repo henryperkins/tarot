@@ -28,6 +28,13 @@ const STEP_PROGRESS_STEPS = [
   { id: 'reading', label: 'Reading' }
 ];
 
+function getPrefersReducedMotion() {
+  if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
+    return false;
+  }
+  return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+}
+
 export default function TarotReading() {
   // --- 1. Global Preferences (Context) ---
   const {
@@ -39,10 +46,8 @@ export default function TarotReading() {
     // Deck & Reversals
     deckStyleId,
     setDeckStyleId,
-    includeMinors,
     deckSize,
     minorsDataIncomplete,
-    reversalFramework,
     // UI State
     prepareSectionsOpen,
     togglePrepareSection
@@ -51,37 +56,23 @@ export default function TarotReading() {
   // --- 2. Reading Context ---
   const {
     // Audio
-    ttsState,
     ttsAnnouncement,
-    showVoicePrompt,
-    setShowVoicePrompt,
-    speak,
-    handleNarrationButtonClick,
-    handleNarrationStop,
-    handleVoicePromptEnable,
+    srAnnouncement,
 
     // Tarot State
     selectedSpread,
     setSelectedSpread,
+    selectSpread,
     reading,
-    setReading,
     isShuffling,
     revealedCards,
-    setRevealedCards,
     dealIndex,
-    setDealIndex,
     hasKnocked,
-    setHasKnocked,
     knockCount,
-    setKnockCount,
     hasCut,
-    setHasCut,
     cutIndex,
     setCutIndex,
     hasConfirmedSpread,
-    setHasConfirmedSpread,
-    sessionSeed,
-    setSessionSeed,
     userQuestion,
     setUserQuestion,
     deckAnnouncement,
@@ -89,41 +80,25 @@ export default function TarotReading() {
     handleKnock,
     applyCut,
     dealNext,
-    revealCard,
     revealAll,
     onSpreadConfirm,
-    resetReadingState,
-    knockTimesRef,
 
-    // Vision
-    visionResults,
-    visionConflicts,
-    isVisionReady,
-    hasVisionData,
-    handleVisionResults,
-    handleRemoveVisionResult,
-    handleClearVisionResults,
-    ensureVisionProof,
+    // Vision (only what's needed for deck change)
     resetVisionProof,
     setVisionResults,
     setVisionConflicts,
-    feedbackVisionSummary,
-    getVisionConflictsForCards,
 
     // Reading Generation & UI
-    personalReading, setPersonalReading,
-    isGenerating, setIsGenerating,
-    analyzingText, setAnalyzingText,
-    spreadAnalysis, setSpreadAnalysis,
-    themes, setThemes,
-    analysisContext, setAnalysisContext,
-    readingMeta, setReadingMeta,
-    journalStatus, setJournalStatus,
-    reflections, setReflections,
-    lastCardsForFeedback, setLastCardsForFeedback,
-    showAllHighlights, setShowAllHighlights,
-    generatePersonalReading,
-    highlightItems
+    personalReading,
+    setPersonalReading,
+    isGenerating,
+    setIsGenerating,
+    setAnalyzingText,
+    journalStatus,
+    setJournalStatus,
+    setReflections,
+    setShowAllHighlights,
+    generatePersonalReading
   } = useReading();
 
   // --- 3. Local View State & Wiring ---
@@ -136,19 +111,17 @@ export default function TarotReading() {
   const [placeholderIndex, setPlaceholderIndex] = useState(0);
   const [isMobileSettingsOpen, setIsMobileSettingsOpen] = useState(false);
   const [shouldFocusSpread, setShouldFocusSpread] = useState(false);
+  const [isHeaderCompact, setIsHeaderCompact] = useState(false);
+  const [isHeaderHidden, setIsHeaderHidden] = useState(false);
+  const [keyboardOffset, setKeyboardOffset] = useState(0);
+  const lastScrollYRef = useRef(0);
+  const scrollRafRef = useRef(null);
 
   const navigate = useNavigate();
   const location = useLocation();
   const spreadSectionRef = useRef(null);
   const prepareSectionRef = useRef(null);
   const readingSectionRef = useRef(null);
-
-  const stepSectionRefs = {
-    spread: spreadSectionRef,
-    intention: prepareSectionRef,
-    ritual: prepareSectionRef,
-    reading: readingSectionRef
-  };
 
   // --- Effects & Helpers ---
 
@@ -209,6 +182,62 @@ export default function TarotReading() {
     }
   }, [location.state, setUserQuestion]);
 
+  // Header collapse / auto-hide
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const updateHeaderState = () => {
+      const currentY = window.scrollY || 0;
+      const isScrollingDown = currentY > lastScrollYRef.current;
+      const shouldCompact = currentY > 32;
+      const shouldHide = isScrollingDown && currentY > 140;
+
+      setIsHeaderCompact(shouldCompact);
+      setIsHeaderHidden(shouldHide);
+      lastScrollYRef.current = currentY;
+    };
+
+    const handleScroll = () => {
+      if (scrollRafRef.current) return;
+      scrollRafRef.current = window.requestAnimationFrame(() => {
+        updateHeaderState();
+        scrollRafRef.current = null;
+      });
+    };
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    updateHeaderState();
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+      if (scrollRafRef.current) {
+        window.cancelAnimationFrame(scrollRafRef.current);
+        scrollRafRef.current = null;
+      }
+    };
+  }, []);
+
+  // Mobile keyboard avoidance for the bottom action bar
+  useEffect(() => {
+    if (typeof window === 'undefined' || !window.visualViewport) return;
+
+    const viewport = window.visualViewport;
+
+    const updateKeyboardOffset = () => {
+      const heightDiff = window.innerHeight - viewport.height - viewport.offsetTop;
+      const isKeyboardOpen = heightDiff > 120;
+      setKeyboardOffset(isKeyboardOpen ? Math.max(heightDiff, 0) : 0);
+    };
+
+    viewport.addEventListener('resize', updateKeyboardOffset);
+    viewport.addEventListener('scroll', updateKeyboardOffset);
+    updateKeyboardOffset();
+
+    return () => {
+      viewport.removeEventListener('resize', updateKeyboardOffset);
+      viewport.removeEventListener('scroll', updateKeyboardOffset);
+    };
+  }, []);
+
   // Coach Shortcut
   useEffect(() => {
     function handleCoachShortcut(event) {
@@ -256,12 +285,12 @@ export default function TarotReading() {
     if (!journalStatus) return;
     const timeout = setTimeout(() => setJournalStatus(null), 5000);
     return () => clearTimeout(timeout);
-  }, [journalStatus]);
+  }, [journalStatus, setJournalStatus]);
 
   // Reset Highlights on Spread Change
   useEffect(() => {
     setShowAllHighlights(false);
-  }, [selectedSpread, reading]);
+  }, [selectedSpread, reading, setShowAllHighlights]);
 
   // --- Handlers ---
 
@@ -273,13 +302,9 @@ export default function TarotReading() {
   };
 
   const handleSpreadSelection = (key) => {
-    setSelectedSpread(key);
-    // Reset Reading State driven by SpreadSelector
-    // Note: SpreadSelector component currently does this via individual props
-    // We will update SpreadSelector next to use cleaner props or context
-    // For now, we are passing setters to SpreadSelector in the return below
-    // but we need manual resets here if we change how SpreadSelector works
-    resetReadingState(false); // Keep question
+    // Use the centralized selectSpread from useTarotState
+    selectSpread(key);
+    // Reset narrative/analysis state
     setPersonalReading(null);
     setJournalStatus(null);
     setReflections({});
@@ -310,23 +335,22 @@ export default function TarotReading() {
     setCoachRecommendation(null);
   }, []);
 
-  const prefersReducedMotion = () => {
-    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
-      return false;
-    }
-    return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  };
-
-  const handleStepNav = (stepId) => {
-    const target = stepSectionRefs[stepId]?.current;
+  const handleStepNav = useCallback((stepId) => {
+    const refs = {
+      spread: spreadSectionRef,
+      intention: prepareSectionRef,
+      ritual: prepareSectionRef,
+      reading: readingSectionRef
+    };
+    const target = refs[stepId]?.current;
     if (target && typeof target.scrollIntoView === 'function') {
-      const behavior = prefersReducedMotion() ? 'auto' : 'smooth';
+      const behavior = getPrefersReducedMotion() ? 'auto' : 'smooth';
       target.scrollIntoView({
         behavior,
         block: 'start'
       });
     }
-  };
+  }, []);
 
   // Handle navigation requests passed via router state (e.g., from Journal empty state)
   useEffect(() => {
@@ -368,17 +392,21 @@ export default function TarotReading() {
       ? 'Ritual: Skipped'
       : `Ritual: ${knockSummary} · ${cutSummary}`;
     const deckSummaryLabel = `${deckSize}${minorsDataIncomplete ? ' (Major Arcana only)' : ''}`;
+    const audioSummary = `Voice: ${voiceOn ? 'On' : 'Off'} · Ambience: ${ambienceOn ? 'On' : 'Off'}`;
+    const experienceSummary = `Theme: ${theme === 'light' ? 'Light' : 'Dark'} · Deck: ${deckSummaryLabel}`;
 
     return {
       intention: questionSummary,
-      experience: `Voice: ${voiceOn ? 'On' : 'Off'} · Ambience: ${ambienceOn ? 'On' : 'Off'} · Deck: ${deckSummaryLabel}`,
+      audio: audioSummary,
+      experience: experienceSummary,
       ritual: ritualSummary
     };
-  }, [userQuestion, voiceOn, ambienceOn, deckSize, minorsDataIncomplete, knockCount, hasCut, cutIndex]);
+  }, [userQuestion, voiceOn, ambienceOn, theme, deckSize, minorsDataIncomplete, knockCount, hasCut, cutIndex]);
 
   const prepareSectionLabels = {
     intention: { title: 'Intention', helper: 'Optional guiding prompt before you draw.' },
-    experience: { title: 'Experience & preferences', helper: 'Voice, ambience, theme, reversals, and deck scope.' },
+    audio: { title: 'Audio', helper: 'Voice narration and ambient soundscape.' },
+    experience: { title: 'Experience', helper: 'Theme, deck scope, and reversal interpretation lens.' },
     ritual: { title: 'Ritual (optional)', helper: 'Knock, cut, or skip if that is not part of your practice.' }
   };
 
@@ -409,35 +437,46 @@ export default function TarotReading() {
 
   return (
     <div className="app-shell min-h-screen bg-main text-main">
-      <main className="max-w-7xl mx-auto px-4 sm:px-5 md:px-6 pt-6 pb-28 sm:py-8 lg:py-10">
+      <div className="skip-links">
+        <a href="#main-content" className="skip-link">Skip to main content</a>
+        <a href="#step-spread" className="skip-link">Skip to spreads</a>
+        <a href="#step-reading" className="skip-link">Skip to reading</a>
+      </div>
+      <main id="main-content" tabIndex={-1} className="max-w-7xl mx-auto px-4 sm:px-5 md:px-6 pt-6 pb-28 sm:py-8 lg:py-10">
         <div className="sr-only" role="status" aria-live="polite" aria-atomic="true">
-          {[ttsAnnouncement, journalStatus?.message].filter(Boolean).join(' ')}
+          {[ttsAnnouncement, srAnnouncement, journalStatus?.message].filter(Boolean).join(' · ')}
         </div>
- 
+
         {/* Header */}
-        <header aria-labelledby="tableau-heading">
+        <header aria-labelledby="tableau-heading" className={isHeaderCompact ? 'header-condensed' : ''}>
           <div className="text-center mb-6 sm:mb-8 mystic-heading-wrap flex flex-col items-center">
             <TableuLogo
               variant="full"
-              size={120}
-              className="mb-3 opacity-90 hover:opacity-100 transition-opacity"
+              size={isHeaderCompact ? 64 : 96}
+              className="mb-2 opacity-90 hover:opacity-100 transition-opacity"
               ariaLabel="Tableu - Tarot Reading Application"
             />
             <h1 id="tableau-heading" className="sr-only">
               Tableu
             </h1>
-            <p className="mt-2 text-muted text-sm sm:text-base md:text-lg">
+            <p className="mt-1 text-muted text-xs-plus sm:text-sm md:text-base leading-relaxed max-w-2xl">
               A picturesque grouping, analyzing many cards at once to reveal an artistic composition.
             </p>
           </div>
         </header>
 
-        <div className="full-bleed sticky top-0 z-30 py-3 sm:py-4 mb-6 bg-surface/95 backdrop-blur border-y border-accent/20 px-4 sm:px-5 md:px-6">
-          <div className="absolute right-4 top-3 sm:right-6 sm:top-4 z-50">
-            <UserMenu />
+        <div
+          className={`full-bleed sticky top-0 z-30 mb-5 bg-surface/95 backdrop-blur border-y border-accent/20 px-4 sm:px-5 md:px-6 shadow-lg shadow-primary/20 header-sticky ${isHeaderCompact ? 'header-sticky--compact' : ''} ${isHeaderHidden ? 'header-sticky--hidden' : ''}`}
+        >
+          <div className="header-sticky__row">
+            <GlobalNav condensed={isHeaderCompact} />
+            {!isHeaderCompact && (
+              <div className="header-sticky__user">
+                <UserMenu />
+              </div>
+            )}
           </div>
-          <GlobalNav />
-          <StepProgress steps={STEP_PROGRESS_STEPS} activeStep={activeStep} onSelect={handleStepNav} />
+          <StepProgress steps={STEP_PROGRESS_STEPS} activeStep={activeStep} onSelect={handleStepNav} condensed={isHeaderCompact} />
           {isShuffling && (
             <div className="mt-2 flex items-center gap-2 text-muted text-[clamp(0.85rem,2.4vw,0.95rem)] leading-snug" role="status" aria-live="polite">
               <ArrowCounterClockwise className="w-3.5 h-3.5 animate-spin text-accent" aria-hidden="true" />
@@ -482,7 +521,7 @@ export default function TarotReading() {
         {/* Step 1–3: Spread + Prepare */}
         <section className="mb-6 xl:mb-4" aria-label="Reading setup">
           <div className="mb-4 sm:mb-5">
-            <p className="text-xs-plus sm:text-sm uppercase tracking-[0.18em] text-accent/90">{stepIndicatorLabel}</p>
+            <p className="text-xs-plus sm:text-sm uppercase tracking-[0.12em] text-accent/90">{stepIndicatorLabel}</p>
             <p className="mt-1 text-muted text-xs sm:text-sm">{stepIndicatorHint}</p>
           </div>
 
@@ -491,26 +530,14 @@ export default function TarotReading() {
               <DeckSelector selectedDeck={deckStyleId} onDeckChange={handleDeckChange} />
             </div>
 
-            <div aria-label="Choose your spread" ref={spreadSectionRef} id="step-spread" className="scroll-mt-[6.5rem] sm:scroll-mt-[7.5rem]">
+            <div aria-label="Choose your spread" ref={spreadSectionRef} id="step-spread" tabIndex={-1} className="scroll-mt-[6.5rem] sm:scroll-mt-[7.5rem]">
               <div className="mb-3 sm:mb-4">
-                <h2 className="text-xs-plus sm:text-sm uppercase tracking-[0.18em] text-accent/90">Spread</h2>
+                <h2 className="text-xs-plus sm:text-sm uppercase tracking-[0.12em] text-accent/90">Spread</h2>
                 <p className="mt-1 text-muted text-xs sm:text-sm">Choose a spread to shape the depth and focus of your reading.</p>
               </div>
               <SpreadSelector
                 selectedSpread={selectedSpread}
-                setSelectedSpread={handleSpreadSelection}
-                setReading={setReading}
-                setRevealedCards={setRevealedCards}
-                setPersonalReading={setPersonalReading}
-                setJournalStatus={setJournalStatus}
-                setAnalyzingText={setAnalyzingText}
-                setIsGenerating={setIsGenerating}
-                setDealIndex={setDealIndex}
-                setReflections={setReflections}
-                setHasKnocked={setHasKnocked}
-                setHasCut={setHasCut}
-                setCutIndex={setCutIndex}
-                knockTimesRef={knockTimesRef}
+                onSelectSpread={handleSpreadSelection}
                 onSpreadConfirm={onSpreadConfirm}
               />
             </div>
@@ -558,35 +585,39 @@ export default function TarotReading() {
 
       {/* Mobile Nav - Keeping internal logic simple for now */}
       {!isIntentionCoachOpen && (
-        <nav className="mobile-action-bar sm:hidden" aria-label="Primary mobile actions">
+        <nav
+          className="mobile-action-bar sm:hidden"
+          aria-label="Primary mobile actions"
+          style={keyboardOffset > 0 ? { bottom: keyboardOffset } : undefined}
+        >
           <div className="flex flex-wrap gap-2">
-            {isShuffling && <button disabled className="flex-1 min-w-[7.5rem] inline-flex items-center justify-center rounded-xl px-3 py-2.5 text-sm font-semibold transition bg-accent text-surface shadow-lg flex-col gap-0.5 opacity-50"><span className="text-[0.55rem] uppercase tracking-[0.18em] opacity-70">{stepIndicatorLabel}</span><span className="text-sm font-semibold">Shuffling...</span></button>}
+            {isShuffling && <button disabled className="flex-1 min-w-[7.5rem] inline-flex items-center justify-center rounded-xl px-3 py-2.5 text-sm font-semibold transition bg-accent text-surface shadow-lg flex-col gap-0.5 opacity-50"><span className="text-[0.55rem] uppercase tracking-[0.12em] opacity-70">{stepIndicatorLabel}</span><span className="text-sm font-semibold">Shuffling...</span></button>}
 
             {!isShuffling && !reading && (
               <>
                 <button onClick={() => setIsMobileSettingsOpen(true)} className="flex-none w-[3.5rem] inline-flex items-center justify-center rounded-xl px-0 py-2.5 text-sm font-semibold transition bg-surface-muted text-accent border border-accent/30 hover:bg-surface flex-col gap-0.5" aria-label="Settings">
                   <Gear className="w-5 h-5" />
                 </button>
-                <button onClick={handleShuffle} className="flex-1 min-w-[7.5rem] inline-flex items-center justify-center rounded-xl px-3 py-2.5 text-sm font-semibold transition bg-accent text-surface shadow-lg hover:opacity-90 flex-col gap-0.5"><span className="text-[0.55rem] uppercase tracking-[0.18em] opacity-70">{stepIndicatorLabel}</span><span className="text-sm font-semibold">Draw cards</span></button>
+                <button onClick={handleShuffle} className="flex-1 min-w-[7.5rem] inline-flex items-center justify-center rounded-xl px-3 py-2.5 text-sm font-semibold transition bg-accent text-surface shadow-lg hover:opacity-90 flex-col gap-0.5"><span className="text-[0.55rem] uppercase tracking-[0.12em] opacity-70">{stepIndicatorLabel}</span><span className="text-sm font-semibold">Draw cards</span></button>
               </>
             )}
 
             {reading && revealedCards.size < reading.length && (
               <>
-                <button onClick={dealNext} className="flex-1 min-w-[7.5rem] inline-flex items-center justify-center rounded-xl px-3 py-2.5 text-sm font-semibold transition bg-accent text-surface shadow-lg hover:opacity-90 flex-col gap-0.5"><span className="text-[0.55rem] uppercase tracking-[0.18em] opacity-70">{stepIndicatorLabel}</span><span className="text-sm font-semibold">Reveal next ({Math.min(dealIndex + 1, reading.length)}/{reading.length})</span></button>
+                <button onClick={dealNext} className="flex-1 min-w-[7.5rem] inline-flex items-center justify-center rounded-xl px-3 py-2.5 text-sm font-semibold transition bg-accent text-surface shadow-lg hover:opacity-90 flex-col gap-0.5"><span className="text-[0.55rem] uppercase tracking-[0.12em] opacity-70">{stepIndicatorLabel}</span><span className="text-sm font-semibold">Reveal next ({Math.min(dealIndex + 1, reading.length)}/{reading.length})</span></button>
                 {reading.length > 1 && <button onClick={() => {
                   revealAll();
-                  const behavior = prefersReducedMotion() ? 'auto' : 'smooth';
+                  const behavior = getPrefersReducedMotion() ? 'auto' : 'smooth';
                   readingSectionRef.current?.scrollIntoView({ behavior, block: 'start' });
-                }} className="flex-1 min-w-[7.5rem] inline-flex items-center justify-center rounded-xl px-3 py-2.5 text-sm font-semibold transition bg-primary/20 text-primary border border-primary/40 hover:bg-primary/30 flex-col gap-0.5"><span className="text-[0.55rem] uppercase tracking-[0.18em] opacity-70">{stepIndicatorLabel}</span><span className="text-sm font-semibold">Reveal all</span></button>}
+                }} className="flex-1 min-w-[7.5rem] inline-flex items-center justify-center rounded-xl px-3 py-2.5 text-sm font-semibold transition bg-primary/20 text-primary border border-primary/40 hover:bg-primary/30 flex-col gap-0.5"><span className="text-[0.55rem] uppercase tracking-[0.12em] opacity-70">{stepIndicatorLabel}</span><span className="text-sm font-semibold">Reveal all</span></button>}
               </>
             )}
 
             {reading && revealedCards.size === reading.length && (
               <>
-                {needsNarrativeGeneration && <button onClick={generatePersonalReading} disabled={isGenerating} className="flex-1 min-w-[7.5rem] inline-flex items-center justify-center rounded-xl px-3 py-2.5 text-sm font-semibold transition bg-accent text-surface shadow-lg hover:opacity-90 flex-col gap-0.5"><span className="text-[0.55rem] uppercase tracking-[0.18em] opacity-70">{stepIndicatorLabel}</span><span className="text-sm font-semibold">{isGenerating ? 'Weaving...' : 'Create narrative'}</span></button>}
-                {hasNarrative && !isPersonalReadingError && <button onClick={saveReading} className="flex-1 min-w-[7.5rem] inline-flex items-center justify-center rounded-xl px-3 py-2.5 text-sm font-semibold transition bg-accent text-surface shadow-lg hover:opacity-90 flex-col gap-0.5"><span className="text-[0.55rem] uppercase tracking-[0.18em] opacity-70">{stepIndicatorLabel}</span><span className="text-sm font-semibold">Save to journal</span></button>}
-                <button onClick={handleShuffle} className="flex-1 min-w-[7.5rem] inline-flex items-center justify-center rounded-xl px-3 py-2.5 text-sm font-semibold transition bg-surface-muted text-accent border border-accent/30 hover:bg-surface flex-col gap-0.5"><span className="text-[0.55rem] uppercase tracking-[0.18em] opacity-70">{stepIndicatorLabel}</span><span className="text-sm font-semibold">New reading</span></button>
+                {needsNarrativeGeneration && <button onClick={generatePersonalReading} disabled={isGenerating} className="flex-1 min-w-[7.5rem] inline-flex items-center justify-center rounded-xl px-3 py-2.5 text-sm font-semibold transition bg-accent text-surface shadow-lg hover:opacity-90 flex-col gap-0.5"><span className="text-[0.55rem] uppercase tracking-[0.12em] opacity-70">{stepIndicatorLabel}</span><span className="text-sm font-semibold">{isGenerating ? 'Weaving...' : 'Create narrative'}</span></button>}
+                {hasNarrative && !isPersonalReadingError && <button onClick={saveReading} className="flex-1 min-w-[7.5rem] inline-flex items-center justify-center rounded-xl px-3 py-2.5 text-sm font-semibold transition bg-accent text-surface shadow-lg hover:opacity-90 flex-col gap-0.5"><span className="text-[0.55rem] uppercase tracking-[0.12em] opacity-70">{stepIndicatorLabel}</span><span className="text-sm font-semibold">Save to journal</span></button>}
+                <button onClick={handleShuffle} className="flex-1 min-w-[7.5rem] inline-flex items-center justify-center rounded-xl px-3 py-2.5 text-sm font-semibold transition bg-surface-muted text-accent border border-accent/30 hover:bg-surface flex-col gap-0.5"><span className="text-[0.55rem] uppercase tracking-[0.12em] opacity-70">{stepIndicatorLabel}</span><span className="text-sm font-semibold">New reading</span></button>
               </>
             )}
           </div>

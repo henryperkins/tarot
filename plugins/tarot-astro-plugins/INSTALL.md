@@ -35,7 +35,7 @@ claude
 
 Select "Install now" when prompted for each plugin.
 
-### 3. Install Dependencies
+### 3. Install Dependencies and Download Ephemeris Files
 
 Open a new terminal and run:
 
@@ -44,6 +44,12 @@ Open a new terminal and run:
 cd /home/azureuser/tarot/plugins/tarot-astro-plugins/ephemeris-server
 npm install
 
+# Download Swiss Ephemeris data files (required for calculations)
+cd ephe
+wget https://github.com/aloistr/swisseph/raw/master/ephe/sepl_18.se1
+wget https://github.com/aloistr/swisseph/raw/master/ephe/semo_18.se1
+cd ..
+
 # Install symbolism server dependencies
 cd ../symbolism-server
 npm install
@@ -51,8 +57,14 @@ npm install
 
 Expected output:
 ```
-added 2 packages in 1.2s
+✅ Swiss Ephemeris data files found!
+   Location: /home/azureuser/tarot/plugins/tarot-astro-plugins/ephemeris-server/ephe
+   Files: sepl_18.se1, semo_18.se1
+
+added 2 packages in 12s
 ```
+
+**Note:** The ephemeris server uses Swiss Ephemeris, which requires data files for calculations. The `npm install` postinstall script will check for these files and provide guidance if they're missing.
 
 ### 4. Restart Claude Code
 

@@ -104,7 +104,7 @@ export function CollaborativeNotesPanel({
               <time>{new Date(note.createdAt).toLocaleString()}</time>
             </div>
             {note.cardPosition && (
-              <p className="mt-1 text-[0.65rem] uppercase tracking-[0.18em] text-accent/70">{note.cardPosition}</p>
+              <p className="mt-1 text-[0.65rem] uppercase tracking-[0.12em] text-accent/70">{note.cardPosition}</p>
             )}
             <p className="mt-2 text-sm text-main/90 whitespace-pre-wrap">{note.body}</p>
           </article>

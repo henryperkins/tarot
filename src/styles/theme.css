@@ -49,8 +49,8 @@
   /* Text (softer, warmer) */
   --text-main: #E8E6E3;
   /* Warm off-white */
-  --text-muted: #9B9388;
-  /* Warm tan-gray */
+  --text-muted: #B5AFA4;
+  /* Lifted muted tone for stronger contrast on translucent surfaces */
   --text-accent: #D4B896;
   /* Warmer champagne */
 
@@ -59,15 +59,15 @@
   /* Warmer champagne */
   --brand-secondary: #92887D;
   /* Warm brown-gray updated for WCAG contrast */
-  --brand-accent: #D4B896;
-  /* Warmer champagne */
+  --brand-accent: #E8DAC3;
+  /* Lighter accent for differentiation from primary */
 
   /* Status */
   --status-success: #6B9E78;
   /* Muted green */
   --status-error: #C97676;
   /* Muted red */
-  --focus-ring-color: color-mix(in srgb, var(--brand-accent) 50%, transparent);
+  --focus-ring-color: var(--brand-accent);
   --halo-star-color: color-mix(in srgb, var(--text-main) 8%, transparent);
 }
 

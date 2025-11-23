@@ -51,7 +51,6 @@ export async function unlockAudio() {
     silentAudio.volume = 0.01;
     await silentAudio.play();
     audioUnlocked = true;
-    console.log('[Audio] Audio context unlocked via direct call');
     return true;
   } catch (err) {
     console.warn('[Audio] Audio unlock failed - user interaction needed', err);
@@ -89,7 +88,6 @@ export function initAudio() {
       if (p !== undefined) {
         p.then(() => {
           audioUnlocked = true;
-          console.log('[Audio] Unlocked via global listener');
           // Remove listeners once successfully unlocked
           unlockEvents.forEach(event => {
             window.removeEventListener(event, unlockHandler, { capture: true });
@@ -97,7 +95,6 @@ export function initAudio() {
         }).catch(e => {
           // If it fails (e.g. rapid clicks), we just keep the listeners attached
           // and try again on next interaction
-          console.debug('[Audio] Silent unlock attempt failed', e);
         });
       }
     };
@@ -618,7 +615,7 @@ function isQuotaExceededError(err) {
 
 /**
  * Stop any currently playing TTS audio.
- * This is called when the user toggles voice off in SettingsToggles.
+ * This is called when the user toggles voice off in settings.
  */
 export function stopTTS() {
   try {

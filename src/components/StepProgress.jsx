@@ -2,7 +2,7 @@ import React from 'react';
 import { GridFour, Question, Sparkle, Eye } from '@phosphor-icons/react';
 
 const baseButtonClasses =
-  'w-full h-full px-3 py-2 rounded-xl border transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/80 focus-visible:ring-offset-2 focus-visible:ring-offset-main';
+  'w-full h-full rounded-xl border transition font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/80 focus-visible:ring-offset-2 focus-visible:ring-offset-main';
 
 const STEP_ICONS = {
   'spread': GridFour,
@@ -11,10 +11,10 @@ const STEP_ICONS = {
   'reading': Eye
 };
 
-export function StepProgress({ steps = [], activeStep, onSelect }) {
+export function StepProgress({ steps = [], activeStep, onSelect, condensed = false }) {
   return (
     <nav aria-label="Tarot reading progress" className="w-full animate-fade-in">
-      <ol className="flex gap-2 sm:gap-3 overflow-x-auto snap-x snap-mandatory pb-1" role="list">
+      <ol className={`flex ${condensed ? 'gap-1.5 py-1' : 'gap-2 sm:gap-3 pb-1'} overflow-x-auto snap-x snap-mandatory`} role="list">
         {steps.map((step, index) => {
           const isActive = step.id === activeStep;
           const StepIcon = STEP_ICONS[step.id];
@@ -22,9 +22,9 @@ export function StepProgress({ steps = [], activeStep, onSelect }) {
             <li key={step.id} className="flex-1 snap-start group relative">
               <button
                 type="button"
-                className={`${baseButtonClasses} ${isActive
-                    ? 'bg-secondary/15 border-secondary/80 text-secondary shadow-lg shadow-secondary/30'
-                    : 'bg-surface/70 border-accent/20 text-muted hover:bg-surface hover:border-secondary/40'
+                className={`${baseButtonClasses} ${condensed ? 'px-2 py-1.5 text-[0.7rem]' : 'px-3 py-2.5 text-[0.78rem] sm:text-sm'} ${isActive
+                    ? 'bg-primary/20 border-primary/80 text-main shadow-md shadow-primary/35'
+                    : 'bg-surface border-secondary/40 text-muted hover:bg-surface-muted hover:border-secondary/60'
                   }`}
                 onClick={() => onSelect?.(step.id)}
                 aria-current={isActive ? 'step' : undefined}
@@ -32,9 +32,9 @@ export function StepProgress({ steps = [], activeStep, onSelect }) {
                 title={`Step ${index + 1}: ${step.label}`}
               >
                 <div className="flex items-center justify-center gap-1.5 sm:gap-2">
-                  {StepIcon && <StepIcon className="w-4 h-4 sm:w-5 sm:h-5" aria-hidden="true" />}
-                  <span className="text-[0.7rem] font-semibold text-secondary/80 sm:hidden">{index + 1}</span>
-                  <span className="hidden sm:inline text-[0.82rem] font-semibold text-main">{step.label}</span>
+                  {StepIcon && <StepIcon className={`w-4 h-4 ${condensed ? '' : 'sm:w-5 sm:h-5'}`} aria-hidden="true" />}
+                  <span className={`${condensed ? 'text-[0.68rem]' : 'text-[0.7rem]'} font-semibold text-secondary/80 sm:hidden`}>{index + 1}</span>
+                  <span className={`${condensed ? 'hidden' : 'hidden sm:inline'} text-[0.82rem] font-semibold text-main`}>{step.label}</span>
                 </div>
               </button>
 

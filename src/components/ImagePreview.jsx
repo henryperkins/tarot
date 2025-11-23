@@ -1,7 +1,24 @@
-import React from 'react';
+import { useEffect, useMemo } from 'react';
 
 export function ImagePreview({ image, onConfirm, onRetake }) {
-  const imageUrl = image instanceof File ? URL.createObjectURL(image) : image;
+  // Compute URL directly from image prop
+  const imageUrl = useMemo(() => {
+    if (image instanceof File) {
+      return URL.createObjectURL(image);
+    }
+    return image;
+  }, [image]);
+
+  // Cleanup object URL on unmount or when image changes
+  useEffect(() => {
+    if (image instanceof File && imageUrl) {
+      return () => {
+        URL.revokeObjectURL(imageUrl);
+      };
+    }
+  }, [image, imageUrl]);
+
+  if (!imageUrl) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-black animate-fade-in">

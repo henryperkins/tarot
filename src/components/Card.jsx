@@ -1,107 +1,17 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { motion, useAnimation } from 'framer-motion';
-import { ArrowsOut } from '@phosphor-icons/react';
+import { ArrowsOut, HandPointing } from '@phosphor-icons/react';
 import { MAJOR_ARCANA } from '../data/majorArcana';
 import { MINOR_ARCANA } from '../data/minorArcana';
 import { CardSymbolInsights } from './CardSymbolInsights';
 import { InteractiveCardOverlay } from './InteractiveCardOverlay';
 import { TableuLogo } from './TableuLogo';
 
-function isMinor(card) {
-  return !!card.suit && !!card.rank;
-}
-
-function getMinorSuitGlyph(card) {
-  if (!isMinor(card)) return null;
-  switch (card.suit) {
-    case 'Wands':
-      return '⚚';
-    case 'Cups':
-      return '♥';
-    case 'Swords':
-      return '♠';
-    case 'Pentacles':
-      return '★';
-    default:
-      return '✶';
-  }
-}
-
-function getMinorAccentClass(card) {
-  if (!isMinor(card)) return '';
-  switch (card.suit) {
-    case 'Wands':
-      return 'minor-wands';
-    case 'Cups':
-      return 'minor-cups';
-    case 'Swords':
-      return 'minor-swords';
-    case 'Pentacles':
-      return 'minor-pentacles';
-    default:
-      return '';
-  }
-}
-
-function getMinorPipCount(card) {
-  if (!isMinor(card)) return 0;
-  // Use rankValue from MINOR_ARCANA when available; fallback to simple mapping.
-  const meta =
-    MINOR_ARCANA.find(c => c.name === card.name) ||
-    MINOR_ARCANA.find(c => c.suit === card.suit && c.rank === card.rank);
-  if (meta && typeof meta.rankValue === 'number') {
-    return Math.min(Math.max(meta.rankValue, 1), 10);
-  }
-  const rank = card.rank;
-  const map = {
-    Ace: 1,
-    Two: 2,
-    Three: 3,
-    Four: 4,
-    Five: 5,
-    Six: 6,
-    Seven: 7,
-    Eight: 8,
-    Nine: 9,
-    Ten: 10
-  };
-  return map[rank] || 0;
-}
-
 function getPrefersReducedMotion() {
   if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
     return false;
   }
   return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-}
-
-// Roman numeral helper to evoke authentic majors labeling
-function romanize(num) {
-  if (num === 0) return '0';
-  const map = [
-    { v: 1000, s: 'M' },
-    { v: 900, s: 'CM' },
-    { v: 500, s: 'D' },
-    { v: 400, s: 'CD' },
-    { v: 100, s: 'C' },
-    { v: 90, s: 'XC' },
-    { v: 50, s: 'L' },
-    { v: 40, s: 'XL' },
-    { v: 10, s: 'X' },
-    { v: 9, s: 'IX' },
-    { v: 5, s: 'V' },
-    { v: 4, s: 'IV' },
-    { v: 1, s: 'I' }
-  ];
-  let res = '';
-  let n = num;
-  for (const { v, s } of map) {
-    while (n >= v) {
-      res += s;
-      n -= v;
-    }
-  }
-  return res || String(num);
 }
 
 export function Card({
@@ -117,6 +27,7 @@ export function Card({
 }) {
   const reflectionValue = reflections[index] || '';
   const revealedContentRef = useRef(null);
+  const userInitiatedRevealRef = useRef(false);
 
   // Local state to manage the visual reveal sequence
   const [isVisuallyRevealed, setIsVisuallyRevealed] = useState(isRevealed);
@@ -139,57 +50,106 @@ export function Card({
   }, [controls]);
 
   useEffect(() => {
-    if (isRevealed && revealedContentRef.current) {
-      revealedContentRef.current.focus();
+    if (isRevealed) {
+      if (userInitiatedRevealRef.current && revealedContentRef.current) {
+        revealedContentRef.current.focus();
+      }
+      userInitiatedRevealRef.current = false;
+    } else {
+      userInitiatedRevealRef.current = false;
     }
   }, [isRevealed]);
 
+  const handleReveal = () => {
+    userInitiatedRevealRef.current = true;
+    onReveal(index);
+  };
+
+  const handleCardActivate = () => {
+    if (!isRevealed) {
+      handleReveal();
+    } else if (onCardClick) {
+      onCardClick(card, position, index);
+    }
+  };
+
   // Handle the flip animation sequence
   useEffect(() => {
-    if (isRevealed === isVisuallyRevealed) return;
+    let isActive = true;
+    let staggerTimeoutId = null;
+
+    const clearStaggerTimeout = () => {
+      if (staggerTimeoutId) {
+        clearTimeout(staggerTimeoutId);
+        staggerTimeoutId = null;
+      }
+    };
 
     if (isRevealed && !isVisuallyRevealed) {
-      // Start reveal sequence
       const sequence = async () => {
-        console.log(`Card ${index} starting reveal sequence. Stagger: ${staggerDelay}`);
+        if (import.meta.env.DEV) {
+          console.log(`Card ${index} starting reveal sequence. Stagger: ${staggerDelay}`);
+        }
 
         const prefersReducedMotion = getPrefersReducedMotion();
         const duration = prefersReducedMotion ? 0 : 0.25;
         const springTransition = prefersReducedMotion ? { duration: 0 } : { type: "spring", stiffness: 260, damping: 20 };
 
-        // Wait for stagger delay
         if (staggerDelay > 0 && !prefersReducedMotion) {
-          await new Promise(resolve => setTimeout(resolve, staggerDelay * 1000));
+          await new Promise(resolve => {
+            staggerTimeoutId = setTimeout(() => {
+              resolve();
+              staggerTimeoutId = null;
+            }, staggerDelay * 1000);
+          });
+          if (!isActive) return;
         }
 
-        console.log(`Card ${index} starting Phase 1 (rotate 90)`);
-        // Phase 1: Rotate to 90deg (hide back)
+        if (!isActive) return;
+        if (import.meta.env.DEV) {
+          console.log(`Card ${index} starting Phase 1 (rotate 90)`);
+        }
         await controls.start({
           rotateY: 90,
           opacity: 0.8,
           transition: { duration: duration, ease: "easeIn" }
         });
+        if (!isActive) return;
 
-        // Phase 2: Swap content
-        console.log(`Card ${index} Phase 2 (swap content)`);
+        if (import.meta.env.DEV) {
+          console.log(`Card ${index} Phase 2 (swap content)`);
+        }
+        if (!isActive) return;
         setIsVisuallyRevealed(true);
+        if (!isActive) return;
 
-        // Phase 3: Rotate back to 0deg (show front)
-        console.log(`Card ${index} starting Phase 3 (rotate 0)`);
+        if (import.meta.env.DEV) {
+          console.log(`Card ${index} starting Phase 3 (rotate 0)`);
+        }
+        if (!isActive) return;
         await controls.start({
           rotateY: 0,
           opacity: 1,
           transition: springTransition
         });
-        console.log(`Card ${index} reveal complete`);
+        if (!isActive) return;
+
+        if (import.meta.env.DEV) {
+          console.log(`Card ${index} reveal complete`);
+        }
       };
 
       sequence();
-    } else {
-      // Reset if needed (e.g. new game)
+    } else if (!isRevealed && isVisuallyRevealed) {
       setIsVisuallyRevealed(false);
       controls.set({ rotateY: 0, opacity: 1 });
     }
+
+    return () => {
+      isActive = false;
+      clearStaggerTimeout();
+      controls.stop();
+    };
   }, [isRevealed, isVisuallyRevealed, staggerDelay, controls]);
 
   return (
@@ -208,50 +168,50 @@ export function Card({
           initial={{ opacity: 0, y: 50, scale: 0.9, rotateY: 0 }}
           animate={controls}
           transition={{ type: "spring", stiffness: 260, damping: 20 }}
-          onClick={() => {
-            if (!isRevealed) onReveal(index);
-            else if (onCardClick) onCardClick(card, position, index);
-          }}
+          onClick={handleCardActivate}
           onKeyDown={event => {
             if (event.key === 'Enter' || event.key === ' ') {
               event.preventDefault();
-              if (!isRevealed) onReveal(index);
-              else if (onCardClick) onCardClick(card, position, index);
+              handleCardActivate();
             }
           }}
           role="button"
           aria-label={
             isRevealed
               ? `${position}: ${card.name} ${card.isReversed ? 'reversed' : 'upright'}. Click to view details.`
-              : `Reveal card for ${position}`
+              : `Reveal card for ${position}. Cards can be revealed in any order.`
           }
           tabIndex={0}
           className={`cursor-pointer transition-all duration-500 transform ${!isVisuallyRevealed
-            ? 'hover:bg-surface-muted/70 hover:scale-105 focus:outline-none focus:ring-2 focus:ring-secondary/50 rounded-lg'
-            : 'hover:bg-surface-muted/40 rounded-lg group'
+            ? 'hover:bg-surface-muted/70 hover:scale-105 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70 focus-visible:ring-offset-2 focus-visible:ring-offset-main'
+            : 'hover:bg-surface-muted/40 rounded-lg group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70 focus-visible:ring-offset-2 focus-visible:ring-offset-main'
             }`}
           style={{
             transformStyle: 'preserve-3d'
           }}
         >
           {!isVisuallyRevealed ? (
-            <div className="text-center py-6 sm:py-10">
-              <div className="mx-auto flex items-center justify-center p-4 bg-gradient-to-br from-surface-muted/50 to-surface/50 rounded-xl border-2 border-primary/20 shadow-lg">
+            <div className="text-center py-6 sm:py-10 space-y-3">
+              <div className="mx-auto flex items-center justify-center p-4 bg-gradient-to-br from-surface-muted/40 to-surface/60 rounded-xl border-2 border-primary/30 shadow-lg">
                 <TableuLogo
                   variant="icon"
-                  size={160}
+                  size={140}
                   className="opacity-75 hover:opacity-90 transition-opacity"
                   ariaLabel="Tableu card back - tap to reveal"
                 />
               </div>
-              <div className="mt-3 text-xs-plus font-serif tracking-[0.18em] uppercase text-accent/75">
-                Tap to cut the veil
+              <div className="flex flex-col items-center gap-2">
+                <span className="inline-flex items-center gap-2 rounded-full border border-primary/60 bg-surface/90 px-4 py-2 text-sm font-semibold text-main shadow-md shadow-primary/30">
+                  <HandPointing className="w-4 h-4" aria-hidden="true" />
+                  <span>Tap to reveal</span>
+                </span>
+                <p className="text-xs text-muted max-w-[16rem]">Reveal cards in any order—follow your intuition.</p>
               </div>
             </div>
           ) : (
             <div className="transition-all relative">
               {/* Zoom Icon Overlay */}
-              <div className="absolute top-0 right-0 z-10 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+              <div className="absolute top-0 right-0 z-10 opacity-90 group-hover:opacity-100 transition-opacity duration-300">
                 <div className="bg-surface-muted/80 p-1.5 rounded-full text-accent border border-primary/30 shadow-lg backdrop-blur-sm">
                   <ArrowsOut className="w-4 h-4" />
                 </div>
@@ -268,9 +228,12 @@ export function Card({
                     alt={`${card.name}${card.isReversed ? ' (Reversed)' : ''}`}
                     className="w-full h-auto rounded-lg shadow-lg border-2 border-primary/30"
                     loading="lazy"
-                    onError={(e) => {
+                    onError={event => {
+                      const target = event.currentTarget;
+                      if (!target) return;
                       console.error(`Failed to load image: ${card.image}`);
-                      e.target.src = '/images/cards/placeholder.jpg';
+                      target.onerror = null;
+                      target.src = '/images/cards/placeholder.jpg';
                     }}
                   />
                   {/* Interactive symbol overlay - only for cards with coordinates */}
@@ -320,7 +283,7 @@ export function Card({
                   onKeyDown={event => event.stopPropagation()}
                   rows={3}
                   maxLength={500}
-                  className="w-full bg-surface/85 border border-secondary/40 rounded p-2 min-h-[4.5rem] resize-y text-main text-sm sm:text-base focus:outline-none focus:ring-1 focus:ring-secondary/55"
+                  className="w-full bg-surface/85 border border-secondary/40 rounded p-2 min-h-[4.5rem] resize-y text-main text-base focus:outline-none focus:ring-1 focus:ring-secondary/55"
                   placeholder="What resonates? (optional)"
                 />
                 {reflectionValue.length > 0 && (

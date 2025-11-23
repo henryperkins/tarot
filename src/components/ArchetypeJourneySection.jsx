@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { TrendUp, Medal, Fire } from '@phosphor-icons/react';
+import { normalizeAnalyticsShape, getBadgeIcon } from '../lib/archetypeJourney';
 
 /**
  * Archetype Journey Section
@@ -41,7 +42,8 @@ export function ArchetypeJourneySection({ isAuthenticated }) {
       }
 
       const data = await response.json();
-      setAnalytics(data.analytics);
+      // Normalize to ensure all arrays exist
+      setAnalytics(normalizeAnalyticsShape(data.analytics));
     } catch (err) {
       console.error('Failed to load archetype journey:', err);
       setError(err.message);
@@ -84,7 +86,7 @@ export function ArchetypeJourneySection({ isAuthenticated }) {
       )}
 
       {/* Streak Badges */}
-      {analytics.streaks && analytics.streaks.length > 0 && (
+      {analytics.streaks.length > 0 && (
         <div className="rounded-3xl border border-secondary/20 bg-surface/40 p-5">
           <h3 className="mb-4 flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-accent/80">
             <Fire className="h-3 w-3" /> Recent Patterns
@@ -113,7 +115,7 @@ export function ArchetypeJourneySection({ isAuthenticated }) {
       )}
 
       {/* Recent Badges */}
-      {analytics.badges && analytics.badges.length > 0 && (
+      {analytics.badges.length > 0 && (
         <div className="rounded-3xl border border-secondary/20 bg-surface/40 p-5">
           <h3 className="mb-4 flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-accent/80">
             <Medal className="h-3 w-3" /> Achievements
@@ -137,49 +139,4 @@ export function ArchetypeJourneySection({ isAuthenticated }) {
       )}
     </>
   );
-}
-
-/**
- * Get icon for badge type
- */
-function getBadgeIcon(badgeType) {
-  const icons = {
-    'streak': '🔥',
-    'frequency': '⭐',
-    'completion': '🎯',
-    'milestone': '🏆'
-  };
-  return icons[badgeType] || '✨';
-}
-
-/**
- * Get growth prompt for a card based on its archetype
- */
-export function getGrowthPrompt(cardName) {
-  const prompts = {
-    'The Fool': 'Recurring Fool energy suggests you\'re in a season of new beginnings. What leap of faith is calling you?',
-    'The Magician': 'The Magician appears when you have all the tools you need. What are you ready to manifest?',
-    'The High Priestess': 'The High Priestess invites you inward. What wisdom is your intuition revealing?',
-    'The Empress': 'The Empress energy calls for nurturing. What in your life needs tending?',
-    'The Emperor': 'The Emperor appears when structure is needed. Where can you create healthy boundaries?',
-    'The Hierophant': 'The Hierophant suggests learning from tradition. What wisdom do you seek?',
-    'The Lovers': 'The Lovers energy highlights choices and alignment. What values guide your path?',
-    'The Chariot': 'The Chariot appears when willpower is key. What direction are you moving toward?',
-    'Strength': 'Strength energy is about compassion and courage. Where can you be gentle with power?',
-    'The Hermit': 'The Hermit calls for solitude and reflection. What inner guidance are you seeking?',
-    'Wheel of Fortune': 'The Wheel reminds you of life\'s cycles. What patterns are you noticing?',
-    'Justice': 'Justice appears when balance is needed. What truth are you seeking?',
-    'The Hanged Man': 'The Hanged Man invites a new perspective. What are you ready to release?',
-    'Death': 'Death energy signals transformation. What old form is ready to fall away?',
-    'Temperance': 'Temperance calls for integration. What opposing forces seek harmony?',
-    'The Devil': 'The Devil appears when examining attachments. What pattern needs awareness?',
-    'The Tower': 'Tower energy brings breakthrough. What false structure is crumbling to make space for truth?',
-    'The Star': 'The Star brings hope and healing. What dream is worth nurturing?',
-    'The Moon': 'The Moon illuminates illusions. What fears need gentle examination?',
-    'The Sun': 'The Sun celebrates vitality and joy. What brings you alive?',
-    'Judgement': 'Judgement calls for awakening. What is your soul calling you toward?',
-    'The World': 'The World signals completion. What cycle is reaching its fulfillment?'
-  };
-
-  return prompts[cardName] || 'This card holds important energy for your journey. What does its recurring presence reveal?';
 }

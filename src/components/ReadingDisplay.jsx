@@ -1,8 +1,8 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { AnimatePresence } from 'framer-motion';
 import { Sparkle, ArrowCounterClockwise, Star } from '@phosphor-icons/react';
 import { useNavigate } from 'react-router-dom';
-import { SPREADS } from '../data/spreads';
+import { getSpreadInfo, normalizeSpreadKey } from '../data/spreads';
 import { ReadingGrid } from './ReadingGrid';
 import { StreamingNarrative } from './StreamingNarrative';
 import { HelperToggle } from './HelperToggle';
@@ -15,6 +15,13 @@ import { DeckPile } from './DeckPile';
 import { useReading } from '../contexts/ReadingContext';
 import { usePreferences } from '../contexts/PreferencesContext';
 import { useSaveReading } from '../hooks/useSaveReading';
+import { useFeatureFlags } from '../hooks/useFeatureFlags';
+
+const NARRATIVE_STEPS = [
+    { id: 'analyzing', label: 'Analyzing spread' },
+    { id: 'drafting', label: 'Drafting narrative' },
+    { id: 'polishing', label: 'Final polishing' }
+];
 
 export function ReadingDisplay({ sectionRef }) {
     const navigate = useNavigate();
@@ -60,6 +67,7 @@ export function ReadingDisplay({ sectionRef }) {
         personalReading,
         isGenerating,
         analyzingText,
+        narrativePhase,
         themes,
         readingMeta,
         journalStatus,
@@ -78,7 +86,9 @@ export function ReadingDisplay({ sectionRef }) {
         deckStyleId
     } = usePreferences();
 
-    const visionResearchEnabled = import.meta.env?.VITE_ENABLE_VISION_RESEARCH === 'true';
+    const { visionResearch: visionResearchEnabled } = useFeatureFlags();
+    const safeSpreadKey = normalizeSpreadKey(selectedSpread);
+    const spreadInfo = getSpreadInfo(safeSpreadKey);
 
     // --- Derived State ---
     const isPersonalReadingError = Boolean(personalReading?.isError);
@@ -92,15 +102,21 @@ export function ReadingDisplay({ sectionRef }) {
         return personalReading.normalized || personalReading.raw || '';
     }, [personalReading]);
     const shouldStreamNarrative = Boolean(personalReading && !personalReading.isError);
+    const phaseOrder = ['idle', 'analyzing', 'drafting', 'polishing', 'complete', 'error'];
+    const currentPhaseIndex = phaseOrder.indexOf(narrativePhase);
 
     // --- Handlers ---
     const handleNarrationWrapper = () => handleNarrationButtonClick(fullReadingText, isPersonalReadingError);
     const handleVoicePromptWrapper = () => handleVoicePromptEnable(fullReadingText);
 
+    useEffect(() => {
+        setSelectedCardData(null);
+    }, [reading, sessionSeed, selectedSpread]);
+
     return (
-        <section ref={sectionRef} id="step-reading" className="scroll-mt-[6.5rem] sm:scroll-mt-[7.5rem]" aria-label="Draw and explore your reading">
+        <section ref={sectionRef} id="step-reading" tabIndex={-1} className="scroll-mt-[6.5rem] sm:scroll-mt-[7.5rem]" aria-label="Draw and explore your reading">
             <div className="mb-4 sm:mb-5">
-                <p className="text-xs-plus sm:text-sm uppercase tracking-[0.18em] text-accent/90">Reading</p>
+                <p className="text-xs-plus sm:text-sm uppercase tracking-[0.12em] text-accent/90">Reading</p>
                 <p className="mt-1 text-muted text-xs sm:text-sm">Draw and reveal your cards, explore the spread, and weave your narrative.</p>
             </div>
             {/* Primary CTA */}
@@ -130,7 +146,7 @@ export function ReadingDisplay({ sectionRef }) {
             {reading && (
                 <div className="space-y-8">
                     {userQuestion && (<div className="text-center"><p className="text-muted text-sm italic">Intention: {userQuestion}</p></div>)}
-                    <div className="text-center text-accent font-serif text-2xl mb-2">{SPREADS[selectedSpread].name}</div>
+                    <div className="text-center text-accent font-serif text-2xl mb-2">{spreadInfo?.name || 'Tarot Spread'}</div>
                     {reading.length > 1 && (<p className="text-center text-muted text-xs-plus sm:text-sm mb-4">Reveal in order for a narrative flow, or follow your intuition and reveal randomly.</p>)}
 
                     {revealedCards.size < reading.length && (
@@ -159,7 +175,7 @@ export function ReadingDisplay({ sectionRef }) {
                             nextLabel={(() => {
                                 const nextIndex = reading.findIndex((_, i) => !revealedCards.has(i));
                                 if (nextIndex === -1) return null;
-                                const pos = SPREADS[selectedSpread].positions[nextIndex];
+                                const pos = spreadInfo?.positions?.[nextIndex];
                                 return pos ? pos.split('—')[0].trim() : `Card ${nextIndex + 1}`;
                             })()}
                         />
@@ -211,12 +227,41 @@ export function ReadingDisplay({ sectionRef }) {
                         </div>
                     )}
 
-                    {isGenerating && analyzingText && (
+                    {(isGenerating || (personalReading && !isPersonalReadingError)) && (
                         <div className="max-w-3xl mx-auto text-center">
-                            <div className="ai-panel-modern">
-                                <div className="ai-panel-text" aria-live="polite">{analyzingText}</div>
-                                <HelperToggle className="mt-3"><p>This reflection is generated from your spread and question to support insight, not to decide for you.</p></HelperToggle>
+                            <div className="flex items-center justify-center gap-2 sm:gap-3 mb-3" role="status" aria-label="Narrative generation progress">
+                                {NARRATIVE_STEPS.map((step, index) => {
+                                    const stepIndex = phaseOrder.indexOf(step.id);
+                                    const isDone = currentPhaseIndex > stepIndex && currentPhaseIndex !== -1;
+                                    const isCurrent = currentPhaseIndex === stepIndex || (currentPhaseIndex === -1 && index === 0 && isGenerating);
+                                    const statusClass = isDone
+                                        ? 'bg-primary/20 border-primary/70 text-main'
+                                        : isCurrent
+                                            ? 'bg-accent/20 border-accent/70 text-main'
+                                            : 'bg-surface-muted/80 border-secondary/40 text-muted';
+                                    return (
+                                        <div
+                                            key={step.id}
+                                            className={`flex-1 min-w-[5.5rem] px-2 py-1.5 rounded-full border text-[0.7rem] sm:text-xs font-semibold tracking-[0.08em] uppercase ${statusClass}`}
+                                            aria-current={isCurrent ? 'step' : undefined}
+                                        >
+                                            <span>{index + 1}</span>
+                                            <span className="sr-only"> of 3 — </span>
+                                            <span className="ml-1">{step.label}</span>
+                                        </div>
+                                    );
+                                })}
                             </div>
+                            {isGenerating && (
+                                <div className="ai-panel-modern">
+                                    <div className="ai-panel-text" aria-live="polite">
+                                        {analyzingText || 'Weaving your personalized narrative from this spread...'}
+                                    </div>
+                                    <HelperToggle className="mt-3">
+                                        <p>This reflection is generated from your spread and question to support insight, not to decide for you.</p>
+                                    </HelperToggle>
+                                </div>
+                            )}
                         </div>
                     )}
 
@@ -269,7 +314,7 @@ export function ReadingDisplay({ sectionRef }) {
                                 <FeedbackPanel
                                     requestId={readingMeta.requestId}
                                     spreadKey={readingMeta.spreadKey || selectedSpread}
-                                    spreadName={readingMeta.spreadName || SPREADS[selectedSpread]?.name}
+                                    spreadName={readingMeta.spreadName || spreadInfo?.name}
                                     deckStyle={readingMeta.deckStyle || deckStyleId}
                                     provider={readingMeta.provider}
                                     userQuestion={readingMeta.userQuestion || userQuestion}

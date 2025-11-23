@@ -305,9 +305,12 @@ Both plugins are configured to run as stdio MCP servers:
 ### Data Sources
 
 **Ephemeris Server:**
-- Uses Swiss Ephemeris algorithms via `astronomy-engine`
-- Accuracy: ±0.1° for planetary positions
-- Real-time calculations with <10ms latency
+- **Uses genuine Swiss Ephemeris library** (via `sweph` Node.js bindings)
+- **Accuracy:** Research-grade precision matching NASA JPL data
+- **Precision:** 0.001 arcsecond accuracy for major planets
+- Based on JPL DE431 planetary ephemeris data
+- Real-time calculations with minimal latency
+- Requires ephemeris data files (see EPHEMERIS_DATA_README.md)
 
 **Symbolism Server:**
 - Curated database of traditional tarot symbolism

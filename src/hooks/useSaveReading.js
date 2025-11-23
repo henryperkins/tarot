@@ -1,7 +1,7 @@
 import { useReading } from '../contexts/ReadingContext';
 import { usePreferences } from '../contexts/PreferencesContext';
 import { useJournal } from './useJournal';
-import { SPREADS } from '../data/spreads';
+import { getSpreadInfo } from '../data/spreads';
 
 export function useSaveReading() {
     const {
@@ -29,12 +29,13 @@ export function useSaveReading() {
             setJournalStatus({ type: 'error', message: 'Generate a personalized narrative before saving to the journal.' });
             return;
         }
+        const spreadInfo = getSpreadInfo(selectedSpread);
         const entry = {
-            spread: SPREADS[selectedSpread].name,
+            spread: spreadInfo?.name || 'Tarot Spread',
             spreadKey: selectedSpread,
             question: userQuestion || '',
             cards: reading.map((card, index) => ({
-                position: SPREADS[selectedSpread].positions[index] || `Position ${index + 1}`,
+                position: spreadInfo?.positions?.[index] || `Position ${index + 1}`,
                 name: card.name,
                 number: card.number,
                 orientation: card.isReversed ? 'Reversed' : 'Upright'

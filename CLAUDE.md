@@ -53,13 +53,15 @@ Core reading experience:
 - `Header.jsx` — Application header and branding.
 - `SpreadSelector.jsx` — Spread type selection UI; wired to curated spreads from `SPREADS`.
 - `QuestionInput.jsx` — Guides users toward open-ended, scope-appropriate questions.
-- `SettingsToggles.jsx` — Controls for audio, voice, and other preferences.
+- `AudioControls.jsx` — Audio settings panel (voice narration and ambience).
+- `ExperienceSettings.jsx` — Experience preferences (theme, deck size, reversal framework).
 - `RitualControls.jsx` — Knock and cut deck ritual inputs feeding seeded shuffle.
 - `Card.jsx` — Single card display with authentic visuals and reflection input.
 - `ReadingGrid.jsx` — Grid layout and position labels for the chosen spread.
 - `Tooltip.jsx` — Interactive symbol and card tooltips.
 - `StepProgress.jsx` — Reading workflow progress tracker.
 - `SpreadPatterns.jsx` — Visual spread pattern display.
+- `SpreadPatternThumbnail.jsx` — Visual SVG diagrams showing spread layout patterns.
 
 Intention coaching & refinement:
 - `GuidedIntentionCoach.jsx` — AI-powered question refinement and intention setting.

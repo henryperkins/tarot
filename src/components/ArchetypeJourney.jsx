@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import { normalizeAnalyticsShape, getGrowthPrompt, getBadgeIcon } from '../lib/archetypeJourney';
+import { ConfirmModal } from './ConfirmModal';
 
 /**
  * Archetype Journey Analytics Dashboard
@@ -19,6 +21,8 @@ export default function ArchetypeJourney() {
     archetype_journey_enabled: true,
     show_badges: true
   });
+  const [confirmReset, setConfirmReset] = useState(false);
+  const [growthPromptModal, setGrowthPromptModal] = useState(null);
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -50,7 +54,8 @@ export default function ArchetypeJourney() {
       }
 
       const data = await response.json();
-      setAnalytics(data.analytics);
+      // Normalize to ensure all arrays exist
+      setAnalytics(normalizeAnalyticsShape(data.analytics));
     } catch (err) {
       console.error('Failed to load archetype journey:', err);
       setError(err.message);
@@ -82,11 +87,7 @@ export default function ArchetypeJourney() {
     }
   };
 
-  const resetAnalytics = async () => {
-    if (!confirm('Are you sure you want to reset all archetype journey data?')) {
-      return;
-    }
-
+  const handleResetConfirm = async () => {
     try {
       const response = await fetch('/api/archetype-journey/reset', {
         method: 'POST',
@@ -142,7 +143,7 @@ export default function ArchetypeJourney() {
     );
   }
 
-  if (!analytics || analytics.topCards.length === 0) {
+  if (!analytics || !Array.isArray(analytics.topCards) || analytics.topCards.length === 0) {
     return (
       <div className="archetype-journey-empty">
         <h3>Your Archetype Journey</h3>
@@ -195,7 +196,7 @@ export default function ArchetypeJourney() {
       </section>
 
       {/* Streak Badges */}
-      {analytics.streaks.length > 0 && (
+      {Array.isArray(analytics.streaks) && analytics.streaks.length > 0 && (
         <section className="streaks-section">
           <h4>Recent Patterns</h4>
           <div className="streaks-grid">
@@ -215,7 +216,7 @@ export default function ArchetypeJourney() {
       )}
 
       {/* Badges */}
-      {preferences.show_badges && analytics.badges.length > 0 && (
+      {preferences.show_badges && Array.isArray(analytics.badges) && analytics.badges.length > 0 && (
         <section className="badges-section">
           <h4>Achievements</h4>
           <div className="badges-grid">
@@ -240,7 +241,7 @@ export default function ArchetypeJourney() {
       )}
 
       {/* Trends Sparkline (simplified) */}
-      {analytics.trends.length > 0 && (
+      {Array.isArray(analytics.trends) && analytics.trends.length > 0 && (
         <section className="trends-section">
           <h4>Six-Month Patterns</h4>
           <div className="trends-info">
@@ -256,65 +257,51 @@ export default function ArchetypeJourney() {
         <button onClick={toggleAnalytics} className="btn btn-link">
           Disable Analytics
         </button>
-        <button onClick={resetAnalytics} className="btn btn-link text-danger">
+        <button onClick={() => setConfirmReset(true)} className="btn btn-link text-danger">
           Reset Data
         </button>
       </div>
+
+      {/* Modals */}
+      <ConfirmModal
+        isOpen={confirmReset}
+        onClose={() => setConfirmReset(false)}
+        onConfirm={handleResetConfirm}
+        title="Reset Archetype Journey Data"
+        message="Are you sure you want to reset all archetype journey data? This action cannot be undone."
+        confirmText="Reset Data"
+        cancelText="Cancel"
+        variant="danger"
+      />
+
+      {growthPromptModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm animate-fade-in"
+          onClick={() => setGrowthPromptModal(null)}
+        >
+          <div className="relative w-full max-w-md mx-4 rounded-2xl border border-accent/40 bg-surface/95 shadow-2xl animate-slide-up p-6">
+            <h3 className="text-lg font-serif text-accent mb-3">{growthPromptModal.cardName}</h3>
+            <p className="text-muted text-sm leading-relaxed">{growthPromptModal.prompt}</p>
+            <button
+              onClick={() => setGrowthPromptModal(null)}
+              className="mt-4 w-full px-4 py-2 rounded-lg bg-accent/15 border border-accent/40 text-accent hover:bg-accent/25 transition text-sm font-medium"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
-}
 
-/**
- * Show growth prompt for a card
- */
-function showGrowthPrompt(card) {
-  // Simple modal or inline expansion - for MVP, just log
-  // In full implementation, expand inline or show modal with growth prompt
-  const prompt = getGrowthPrompt(card.card_name);
-  alert(`${card.card_name}\n\n${prompt}`);
-}
-
-/**
- * Get growth prompt for a card based on its archetype
- */
-function getGrowthPrompt(cardName) {
-  const prompts = {
-    'The Fool': 'Recurring Fool energy suggests you\'re in a season of new beginnings. What leap of faith is calling you?',
-    'The Magician': 'The Magician appears when you have all the tools you need. What are you ready to manifest?',
-    'The High Priestess': 'The High Priestess invites you inward. What wisdom is your intuition revealing?',
-    'The Empress': 'The Empress energy calls for nurturing. What in your life needs tending?',
-    'The Emperor': 'The Emperor appears when structure is needed. Where can you create healthy boundaries?',
-    'The Hierophant': 'The Hierophant suggests learning from tradition. What wisdom do you seek?',
-    'The Lovers': 'The Lovers energy highlights choices and alignment. What values guide your path?',
-    'The Chariot': 'The Chariot appears when willpower is key. What direction are you moving toward?',
-    'Strength': 'Strength energy is about compassion and courage. Where can you be gentle with power?',
-    'The Hermit': 'The Hermit calls for solitude and reflection. What inner guidance are you seeking?',
-    'Wheel of Fortune': 'The Wheel reminds you of life\'s cycles. What patterns are you noticing?',
-    'Justice': 'Justice appears when balance is needed. What truth are you seeking?',
-    'The Hanged Man': 'The Hanged Man invites a new perspective. What are you ready to release?',
-    'Death': 'Death energy signals transformation. What old form is ready to fall away?',
-    'Temperance': 'Temperance calls for integration. What opposing forces seek harmony?',
-    'The Devil': 'The Devil appears when examining attachments. What pattern needs awareness?',
-    'The Tower': 'Tower energy brings breakthrough. What false structure is crumbling to make space for truth?',
-    'The Star': 'The Star brings hope and healing. What dream is worth nurturing?',
-    'The Moon': 'The Moon illuminates illusions. What fears need gentle examination?',
-    'The Sun': 'The Sun celebrates vitality and joy. What brings you alive?',
-    'Judgement': 'Judgement calls for awakening. What is your soul calling you toward?',
-    'The World': 'The World signals completion. What cycle is reaching its fulfillment?'
-  };
-
-  return prompts[cardName] || 'This card holds important energy for your journey. What does its recurring presence reveal?';
-}
-
-/**
- * Get icon for badge type
- */
-function getBadgeIcon(badgeType) {
-  const icons = {
-    'streak': '🔥',
-    'frequency': '⭐',
-    'completion': '🎯',
-    'milestone': '🏆'
-  };
-  return icons[badgeType] || '✨';
+  /**
+   * Show growth prompt for a card
+   */
+  function showGrowthPrompt(card) {
+    const prompt = getGrowthPrompt(card.card_name);
+    setGrowthPromptModal({
+      cardName: card.card_name,
+      prompt
+    });
+  }
 }

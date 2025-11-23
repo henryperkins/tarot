@@ -3,6 +3,7 @@ import { Sparkle, CaretLeft, CaretRight, Check, Lightning, BookOpen, Eye, Path, 
 import { Icon, ICON_SIZES } from './Icon';
 import { SPREADS } from '../data/spreads';
 import { usePreferences } from '../contexts/PreferencesContext';
+import { SpreadPatternThumbnail } from './SpreadPatternThumbnail';
 
 const TAG_ICONS = {
   'Quick': Lightning,
@@ -13,31 +14,24 @@ const TAG_ICONS = {
   'Deep dive': Compass
 };
 
+const RECOMMENDED_SPREADS = new Set(['single', 'threeCard']);
+
+function getComplexity(count) {
+  if (count <= 1) return { label: 'Quick draw', tone: 'bg-primary/15 border-primary/60 text-main' };
+  if (count <= 3) return { label: 'Beginner friendly', tone: 'bg-secondary/15 border-secondary/70 text-main' };
+  if (count <= 5) return { label: 'Guided depth', tone: 'bg-secondary/20 border-secondary/70 text-main' };
+  return { label: 'Deep dive', tone: 'bg-primary/20 border-primary/70 text-main' };
+}
+
 export function SpreadSelector({
   selectedSpread,
-  setSelectedSpread,
-  onSpreadConfirm,
-  knockTimesRef,
-  // The following props are kept to reset parent state, although logic might move inside component over time
-  // or be coordinated via context. For now, relying on parent passing setters is acceptable during this phase.
-  setReading,
-  setRevealedCards,
-  setPersonalReading,
-  setJournalStatus,
-  setAnalyzingText,
-  setIsGenerating,
-  setDealIndex,
-  setReflections,
-  setHasKnocked,
-  setHasCut,
-  setCutIndex
+  onSelectSpread,
+  onSpreadConfirm
 }) {
   const [expandedSpread, setExpandedSpread] = useState(null);
   const carouselRef = useRef(null);
   const [canScrollPrev, setCanScrollPrev] = useState(false);
   const [canScrollNext, setCanScrollNext] = useState(false);
-  const { deckSize: activeDeckSize } = usePreferences();
-
   const updateScrollHints = () => {
     const el = carouselRef.current;
     if (!el) return;
@@ -69,26 +63,13 @@ export function SpreadSelector({
   }, [selectedSpread]);
 
   const handleSpreadSelection = key => {
-    setSelectedSpread(key);
-    // These resets are important for UX continuity when switching spreads
-    if (setReading) setReading(null);
-    if (setRevealedCards) setRevealedCards(new Set());
-    if (setPersonalReading) setPersonalReading(null);
-    if (setJournalStatus) setJournalStatus(null);
-    if (setAnalyzingText) setAnalyzingText('');
-    if (setIsGenerating) setIsGenerating(false);
-    if (setDealIndex) setDealIndex(0);
-    if (setReflections) setReflections({});
-    if (setHasKnocked) setHasKnocked(false);
-    if (setHasCut) setHasCut(false);
-    if (setCutIndex) setCutIndex(Math.floor(activeDeckSize / 2));
-
-    if (knockTimesRef && knockTimesRef.current) {
-      knockTimesRef.current = [];
+    if (onSelectSpread) {
+      onSelectSpread(key);
     }
-
     setExpandedSpread(null);
-    if (onSpreadConfirm) onSpreadConfirm(key);
+    if (onSpreadConfirm) {
+      onSpreadConfirm(key);
+    }
   };
 
   const handleCardKeyDown = (event, key) => {
@@ -122,6 +103,8 @@ export function SpreadSelector({
             const isExpanded = expandedSpread === key;
             const baseDescription = spread.mobileDescription || spread.description || 'Guided snapshot for your focus.';
             const desktopDescription = baseDescription.length > 120 ? `${baseDescription.slice(0, 117)}…` : baseDescription;
+            const complexity = getComplexity(spread.count);
+            const isRecommended = RECOMMENDED_SPREADS.has(key);
             return (
               <article
                 key={key}
@@ -131,9 +114,9 @@ export function SpreadSelector({
                 onClick={() => handleSpreadSelection(key)}
                 onKeyDown={event => handleCardKeyDown(event, key)}
                 className={`relative flex flex-col justify-between rounded-2xl border-2 px-3 py-3 sm:px-4 cursor-pointer select-none transition basis-[78%] shrink-0 snap-center sm:basis-auto ${isActive
-                  ? 'bg-primary/15 border-primary shadow-lg shadow-primary/20'
-                  : 'bg-surface-muted/70 border-secondary/30 hover:border-primary/50 hover:bg-surface-muted/90'
-                  } focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/80 focus-visible:ring-offset-2 focus-visible:ring-offset-main`}
+                  ? 'bg-primary/20 border-primary shadow-lg shadow-primary/20'
+                  : 'bg-surface-muted border-secondary/50 hover:border-primary/50 hover:bg-surface-muted/90'
+                } focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/90 focus-visible:ring-offset-2 focus-visible:ring-offset-main`}
               >
                 {/* Selected indicator */}
                 {isActive && (
@@ -144,9 +127,9 @@ export function SpreadSelector({
                   </div>
                 )}
 
-                <div className="pr-16">
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="font-serif font-semibold text-base text-main">{spread.name}</div>
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between gap-2 pr-16">
+                    <div className="font-serif font-semibold text-base text-main leading-snug">{spread.name}</div>
                     {spread.tag && TAG_ICONS[spread.tag] && (
                       <span className="inline-flex items-center gap-1 rounded-full border border-accent/60 px-2 py-1 text-[0.7rem] text-accent bg-surface/60" title={spread.tag} aria-label={spread.tag}>
                         <Icon icon={TAG_ICONS[spread.tag]} size={ICON_SIZES.sm} decorative />
@@ -154,13 +137,53 @@ export function SpreadSelector({
                       </span>
                     )}
                   </div>
-                  <p className="text-[clamp(0.85rem,2.4vw,0.95rem)] leading-snug text-muted mt-1">
-                    {spread.count} card{spread.count > 1 ? 's' : ''}
-                  </p>
+
+                  {/* Visual pattern thumbnail */}
+                  <div className="hidden sm:block w-full h-20 rounded-lg border border-secondary/30 bg-surface/40 p-2 overflow-hidden">
+                    <SpreadPatternThumbnail spreadKey={key} className="w-full h-full opacity-80" />
+                  </div>
+                  <div className="space-y-2">
+                    {(isRecommended || complexity) && (
+                      <div className="flex flex-wrap items-center gap-2">
+                        {isRecommended && (
+                          <span className="inline-flex items-center gap-1 rounded-full border border-primary/70 bg-primary/20 px-2.5 py-1 text-[0.72rem] font-semibold text-main shadow-sm shadow-primary/20">
+                            <Icon icon={Sparkle} size={ICON_SIZES.sm} decorative />
+                            <span>Recommended</span>
+                          </span>
+                        )}
+                        {complexity && (
+                          <span className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[0.72rem] font-semibold ${complexity.tone}`}>
+                            {complexity.label}
+                          </span>
+                        )}
+                      </div>
+                    )}
+                    <p className="text-[clamp(0.85rem,2.4vw,0.95rem)] leading-snug text-muted">
+                      {spread.count} card{spread.count > 1 ? 's' : ''}
+                    </p>
+                  </div>
                 </div>
-                <p className="hidden sm:block text-sm opacity-90 mt-3 leading-snug text-muted">
+                <p className="hidden sm:block text-sm opacity-90 leading-snug text-muted">
                   {desktopDescription}
                 </p>
+                <div className="mt-2 flex flex-wrap gap-1.5" aria-hidden="true">
+                  {Array.from({ length: Math.min(spread.count, 10) }).map((_, positionIndex) => (
+                    <span
+                      key={positionIndex}
+                      className={`inline-flex items-center justify-center w-8 h-8 rounded-lg border text-[0.7rem] font-semibold ${
+                        isActive ? 'border-primary/70 bg-primary/15 text-main' : 'border-secondary/50 bg-surface text-muted'
+                      }`}
+                    >
+                      {positionIndex + 1}
+                    </span>
+                  ))}
+                  {spread.count > 10 && (
+                    <span className="inline-flex items-center justify-center px-3 h-8 rounded-lg border border-secondary/50 bg-surface text-[0.7rem] text-muted">
+                      +{spread.count - 10} more
+                    </span>
+                  )}
+                </div>
+                <span className="sr-only">Layout preview showing {spread.count} card positions</span>
                 <div className="sm:hidden mt-3">
                   {isExpanded && (
                     <p className="text-main/90 text-[0.9rem] leading-snug mb-2 animate-slide-up">

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { X } from '@phosphor-icons/react';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -12,6 +12,30 @@ export default function AuthModal({ isOpen, onClose }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const modalRef = useRef(null);
+  const firstInputRef = useRef(null);
+
+  // Handle Escape key and focus management
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        onClose();
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+
+    // Focus the first input when modal opens
+    if (firstInputRef.current) {
+      firstInputRef.current.focus();
+    }
+
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isOpen, onClose]);
 
   if (!isOpen) return null;
 
@@ -78,15 +102,23 @@ export default function AuthModal({ isOpen, onClose }) {
     setMode(mode === 'login' ? 'register' : 'login');
     setError('');
     setSuccess('');
-    setEmail('');
+    // Preserve email when switching modes
     setUsername('');
     setPassword('');
     setConfirmPassword('');
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-main/90 backdrop-blur-sm animate-fade-in">
-      <div className="relative w-full max-w-md mx-4 bg-surface rounded-2xl border border-primary/40 shadow-2xl animate-pop-in">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-main/90 backdrop-blur-sm animate-fade-in"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="auth-modal-title"
+    >
+      <div
+        ref={modalRef}
+        className="relative w-full max-w-md mx-4 bg-surface rounded-2xl border border-primary/40 shadow-2xl animate-pop-in"
+      >
         {/* Close button */}
         <button
           onClick={onClose}
@@ -98,7 +130,7 @@ export default function AuthModal({ isOpen, onClose }) {
 
         {/* Header */}
         <div className="px-8 pt-8 pb-6 border-b border-primary/20">
-          <h2 className="text-2xl font-serif text-accent">
+          <h2 id="auth-modal-title" className="text-2xl font-serif text-accent">
             {mode === 'login' ? 'Welcome Back' : 'Create Account'}
           </h2>
           <p className="mt-2 text-sm text-muted">
@@ -117,6 +149,7 @@ export default function AuthModal({ isOpen, onClose }) {
                 Email
               </label>
               <input
+                ref={firstInputRef}
                 type="email"
                 id="email"
                 value={email}

@@ -8,6 +8,37 @@ body {
   padding-bottom: 1.5rem;
 }
 
+.skip-links {
+  position: relative;
+  z-index: 80;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding-left: 0.5rem;
+  height: 0;
+}
+
+.skip-link {
+  position: absolute;
+  left: 0;
+  top: 0.35rem;
+  transform: translateY(-150%);
+  opacity: 0;
+  padding: 0.7rem 1rem;
+  border-radius: 999px;
+  border: 2px solid var(--brand-accent);
+  background: color-mix(in srgb, var(--bg-surface) 88%, var(--bg-main));
+  color: var(--text-main);
+  font-weight: 600;
+  box-shadow: 0 12px 32px color-mix(in srgb, var(--brand-accent) 25%, transparent);
+  transition: transform 180ms ease, opacity 180ms ease;
+}
+
+.skip-link:focus-visible {
+  transform: translateY(0);
+  opacity: 1;
+}
+
 .pb-safe {
   padding-bottom: 1rem;
 }
@@ -17,6 +48,53 @@ body {
   margin-left: calc(50% - 50vw);
   margin-right: calc(50% - 50vw);
 }
+
+.header-condensed .mystic-heading-wrap {
+  transition: transform 200ms ease, opacity 200ms ease;
+}
+
+.header-sticky {
+  position: sticky;
+  transition: transform 260ms ease, padding 200ms ease, opacity 200ms ease;
+}
+
+.header-sticky--compact {
+  padding-top: 0.35rem !important;
+  padding-bottom: 0.35rem !important;
+  box-shadow: 0 10px 20px color-mix(in srgb, var(--bg-main) 45%, transparent);
+}
+
+.header-sticky--compact .header-sticky__row {
+  gap: 0.75rem;
+}
+
+.header-sticky--hidden {
+  transform: translateY(-110%);
+  opacity: 0;
+  pointer-events: none;
+}
+
+.header-sticky__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.5rem;
+}
+
+.header-sticky__user {
+  transition: opacity 200ms ease, transform 200ms ease;
+}
+
+.header-sticky--compact .header-sticky__user {
+  opacity: 0;
+  transform: translateY(-0.25rem);
+  pointer-events: none;
+}
+
+.header-sticky__status {
+  margin-top: 0.5rem;
+}
+
 
 :root {
   --light-ambient-top: #FEF4E9;
@@ -43,8 +121,8 @@ body {
   padding: 0.75rem 1rem 1rem;
   background: var(--bg-surface);
   backdrop-filter: blur(18px);
-  border-top: 1px solid var(--brand-secondary);
-  opacity: 0.98;
+  border-top: 1px solid color-mix(in srgb, var(--brand-accent) 65%, transparent);
+  transition: bottom 180ms ease-out;
 }
 
 @supports (padding: max(0px)) {

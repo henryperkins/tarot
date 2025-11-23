@@ -9,7 +9,8 @@ const PREPARE_SECTIONS_STORAGE_KEY = 'tarot-prepare-sections';
 const DEFAULT_PREPARE_SECTIONS = {
   intention: false,
   experience: false,
-  ritual: false
+  ritual: false,
+  audio: false
 };
 
 export function PreferencesProvider({ children }) {

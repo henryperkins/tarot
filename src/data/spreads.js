@@ -114,3 +114,21 @@ export const SPREADS = {
     mobileDescription: 'Classic 10-card deep dive for complex, layered questions.'
   }
 };
+
+export const DEFAULT_SPREAD_KEY = 'single';
+
+export function normalizeSpreadKey(spreadKey, fallbackKey = DEFAULT_SPREAD_KEY) {
+  if (spreadKey && SPREADS[spreadKey]) {
+    return spreadKey;
+  }
+  if (fallbackKey && SPREADS[fallbackKey]) {
+    return fallbackKey;
+  }
+  const [firstKey] = Object.keys(SPREADS);
+  return firstKey || '';
+}
+
+export function getSpreadInfo(spreadKey, fallbackKey = DEFAULT_SPREAD_KEY) {
+  const key = normalizeSpreadKey(spreadKey, fallbackKey);
+  return key ? SPREADS[key] : null;
+}

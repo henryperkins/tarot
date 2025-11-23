@@ -1,5 +1,5 @@
 import { useDeferredValue, useCallback, useEffect, useMemo, useState } from 'react';
-import { CaretLeft, UploadSimple } from '@phosphor-icons/react';
+import { CaretLeft, UploadSimple, Notebook, ChartLine, Sparkle, BookOpen } from '@phosphor-icons/react';
 import { useNavigate } from 'react-router-dom';
 import { GlobalNav } from './GlobalNav';
 import { UserMenu } from './UserMenu';
@@ -241,38 +241,6 @@ export default function Journal() {
     [isAuthenticated, fetchShareLinks]
   );
 
-  useEffect(() => {
-    const applyTheme = () => {
-      const storedTheme = typeof localStorage !== 'undefined' ? localStorage.getItem('tarot-theme') : null;
-      const activeTheme = storedTheme === 'light' ? 'light' : 'dark';
-      const root = typeof document !== 'undefined' ? document.documentElement : null;
-      if (root) {
-        root.classList.remove('light-mode');
-        root.classList.toggle('light', activeTheme === 'light');
-      }
-    };
-
-    applyTheme(); // Initial application
-
-    // Guard against SSR / non-browser environments
-    if (typeof window === 'undefined') return;
-
-    // Listen for theme changes from other components or tabs
-    const handleStorageChange = (e) => {
-      if (e.key === 'tarot-theme') {
-        applyTheme();
-      }
-    };
-    const handleThemeBroadcast = () => applyTheme();
-
-    window.addEventListener('storage', handleStorageChange);
-    window.addEventListener('tarot-theme-change', handleThemeBroadcast);
-    return () => {
-      window.removeEventListener('storage', handleStorageChange);
-      window.removeEventListener('tarot-theme-change', handleThemeBroadcast);
-    };
-  }, []);
-
   const handleMigrate = async () => {
     setMigrating(true);
     setMigrateMessage('');
@@ -328,7 +296,10 @@ export default function Journal() {
   return (
     <>
       <div className="min-h-screen bg-main text-main animate-fade-in">
-        <main className="max-w-5xl mx-auto px-4 sm:px-6 py-8">
+        <div className="skip-links">
+          <a href="#journal-content" className="skip-link">Skip to journal content</a>
+        </div>
+        <main id="journal-content" tabIndex={-1} className="max-w-5xl mx-auto px-4 sm:px-6 py-8">
           <GlobalNav />
 
           <div className="flex items-center justify-between mb-6">
@@ -401,15 +372,67 @@ export default function Journal() {
               <p className="mt-4 text-muted">Loading journal...</p>
             </div>
           ) : entries.length === 0 ? (
-            <div className="text-muted">
-              <p>No entries yet. Save a reading to start your journal.</p>
-              <button
-                type="button"
-                onClick={handleStartReading}
-                className="mt-3 inline-flex items-center gap-2 rounded-full border border-secondary/40 px-4 py-2 text-sm text-secondary hover:bg-secondary/10"
-              >
-                Start a reading
-              </button>
+            <div className="modern-surface p-6 sm:p-7 text-center text-main space-y-4 animate-fade-in">
+              <div className="flex justify-center">
+                <Notebook className="w-10 h-10 text-accent" aria-hidden="true" />
+              </div>
+              <div>
+                <h2 className="text-2xl font-serif text-accent">Start your tarot journal</h2>
+                <p className="text-muted text-sm sm:text-base max-w-2xl mx-auto mt-1">
+                  Track patterns across readings, revisit past insights, and watch your understanding deepen over time.
+                </p>
+              </div>
+
+              <div className="grid gap-3 sm:grid-cols-3 text-left text-sm text-muted">
+                <div className="flex items-start gap-2">
+                  <Sparkle className="w-4 h-4 mt-0.5 text-accent" />
+                  <div>
+                    <p className="text-main font-semibold">Spot recurring themes</p>
+                    <p>Surface repeaters and spreads that resonate most.</p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-2">
+                  <ChartLine className="w-4 h-4 mt-0.5 text-accent" />
+                  <div>
+                    <p className="text-main font-semibold">Measure your growth</p>
+                    <p>See how questions evolve and which cards guide you.</p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-2">
+                  <BookOpen className="w-4 h-4 mt-0.5 text-accent" />
+                  <div>
+                    <p className="text-main font-semibold">Capture reflections</p>
+                    <p>Keep notes beside each position to revisit later.</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="text-left bg-surface rounded-xl border border-secondary/50 p-4 shadow-sm">
+                <p className="text-[0.78rem] uppercase tracking-[0.12em] text-secondary/80 mb-1">Example entry</p>
+                <div className="flex flex-col gap-1">
+                  <p className="text-main font-semibold">Three-Card Story · Daily check-in</p>
+                  <p className="text-muted text-sm">Question: &ldquo;What pattern is emerging for me this week?&rdquo;</p>
+                  <p className="text-muted text-sm">Pull: The Star (upright), Six of Cups, Two of Wands</p>
+                  <p className="text-secondary text-sm italic">Reflection: Hope is back. Remember the plan from Tuesday and take the next step.</p>
+                </div>
+              </div>
+
+              <div className="flex flex-wrap items-center justify-center gap-3 pt-1">
+                <button
+                  type="button"
+                  onClick={handleStartReading}
+                  className="inline-flex items-center gap-2 rounded-full bg-accent px-5 py-2.5 text-sm font-semibold text-surface shadow-lg shadow-accent/25 hover:opacity-95 transition"
+                >
+                  Start a reading
+                </button>
+                <button
+                  type="button"
+                  onClick={() => navigate('/', { state: { focusSpread: true, initialQuestion: 'What pattern is emerging for me this week?' } })}
+                  className="inline-flex items-center gap-2 rounded-full border border-secondary/60 px-5 py-2.5 text-sm font-semibold text-secondary hover:bg-secondary/10 transition"
+                >
+                  Try a guided draw
+                </button>
+              </div>
             </div>
           ) : (
             <div className="space-y-8">

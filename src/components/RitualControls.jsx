@@ -10,15 +10,15 @@ export function RitualControls({
   setCutIndex,
   hasCut,
   applyCut,
-  knocksCount = 0,
+  knockCount = 0,
   onSkip,
   deckAnnouncement
 }) {
   const { deckSize } = usePreferences();
   const [showSkipConfirm, setShowSkipConfirm] = useState(false);
   const skipPromptRef = useRef(null);
-  const knockComplete = knocksCount >= 3;
-  const nextKnockNumber = Math.min(knocksCount + 1, 3);
+  const knockComplete = knockCount >= 3;
+  const nextKnockNumber = Math.min(knockCount + 1, 3);
   const sliderMax = Math.max(0, (deckSize ?? 22) - 1);
   const ritualStatus = knockComplete && hasCut ? 'Ready' : hasKnocked || hasCut ? 'In flow' : 'Optional';
 
@@ -121,7 +121,7 @@ export function RitualControls({
               className={`${badgeBaseClass} ${knockComplete ? activeBadgeClass : inactiveBadgeClass
                 }`}
             >
-              {knockComplete ? 'Cleared' : `${knocksCount}/3`}
+              {knockComplete ? 'Cleared' : `${knockCount}/3`}
             </span>
           </div>
           <button
@@ -129,7 +129,7 @@ export function RitualControls({
             onClick={handleKnock}
             className={`${primaryButtonBase} ${knockComplete ? primaryButtonActive : primaryButtonIdle
               }`}
-            aria-pressed={knocksCount > 0}
+            aria-pressed={knockCount > 0}
             title="Knock up to 3 times"
           >
             <span>{knockComplete ? 'Deck cleared · 3 of 3' : `Knock ${nextKnockNumber} of 3`}</span>
@@ -138,7 +138,7 @@ export function RitualControls({
             )}
           </button>
           <p className="text-sm text-muted">
-            Ritual progress: <span className="font-semibold text-secondary">{knocksCount}</span>/3 knocks registered.
+            Ritual progress: <span className="font-semibold text-secondary">{knockCount}</span>/3 knocks registered.
           </p>
         </div>
 
@@ -220,7 +220,7 @@ export function RitualControls({
         >
           <Sparkle className={`w-8 h-8 ${knockComplete ? 'text-secondary' : 'text-accent'}`} />
           <span className="text-sm font-semibold">{knockComplete ? 'Cleared' : 'Tap to Knock'}</span>
-          <span className="text-xs opacity-70">{knocksCount}/3</span>
+          <span className="text-xs opacity-70">{knockCount}/3</span>
         </button>
 
         {/* Cut Button */}

@@ -2,17 +2,21 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import { MAJOR_ARCANA } from '../data/majorArcana';
 import { computeSeed, drawSpread } from '../lib/deck';
 import { playFlip, unlockAudio } from '../lib/audio';
-import { SPREADS } from '../data/spreads';
+import { DEFAULT_SPREAD_KEY, normalizeSpreadKey, getSpreadInfo } from '../data/spreads';
 import { usePreferences } from '../contexts/PreferencesContext';
 
 export function useTarotState(speak) {
   const { includeMinors, deckSize } = usePreferences();
-  const [selectedSpread, setSelectedSpread] = useState('single');
+  const [selectedSpreadState, setSelectedSpreadState] = useState(DEFAULT_SPREAD_KEY);
+  const selectedSpread = normalizeSpreadKey(selectedSpreadState);
+  const setSelectedSpread = useCallback((nextKey) => {
+    setSelectedSpreadState(normalizeSpreadKey(nextKey));
+  }, []);
   const [reading, setReading] = useState(null);
   const [isShuffling, setIsShuffling] = useState(false);
   const [revealedCards, setRevealedCards] = useState(new Set());
   const [dealIndex, setDealIndex] = useState(0);
-  
+
   const [hasKnocked, setHasKnocked] = useState(false);
   const [knockCount, setKnockCount] = useState(0);
   const [hasCut, setHasCut] = useState(false);
@@ -86,27 +90,34 @@ export function useTarotState(speak) {
   }, []);
 
   const onSpreadConfirm = useCallback((key) => {
-      setHasConfirmedSpread(true);
-      if (key) {
-        // spreadSelector handles setSelectedSpread, but we can ensure sync if needed
-        // though strictly spreadSelector could call this just to flag confirmation
-      }
+    setHasConfirmedSpread(true);
+    if (key) {
+      // spreadSelector handles setSelectedSpread, but we can ensure sync if needed
+      // though strictly spreadSelector could call this just to flag confirmation
+    }
   }, []);
 
   const resetReadingState = useCallback((resetQuestion = false) => {
-      // Does NOT reset userQuestion unless specified, to preserve intention
-      setReading(null);
-      setRevealedCards(new Set());
-      setDealIndex(0);
-      setHasKnocked(false);
-      setKnockCount(0);
-      setHasCut(false);
-      setSessionSeed(null);
-      knockTimesRef.current = [];
-      if (resetQuestion) {
-          setUserQuestion('');
-      }
+    // Does NOT reset userQuestion unless specified, to preserve intention
+    setReading(null);
+    setRevealedCards(new Set());
+    setDealIndex(0);
+    setHasKnocked(false);
+    setKnockCount(0);
+    setHasCut(false);
+    setSessionSeed(null);
+    knockTimesRef.current = [];
+    if (resetQuestion) {
+      setUserQuestion('');
+    }
   }, []);
+
+  const selectSpread = useCallback((key) => {
+    setSelectedSpread(key);
+    resetReadingState(false); // Keep question
+    // Reset cut index to deck center
+    setCutIndex(Math.floor(deckSize / 2));
+  }, [setSelectedSpread, resetReadingState, deckSize]);
 
   const shuffle = useCallback((onShuffleComplete) => {
     const currentSpread = selectedSpread;
@@ -117,9 +128,9 @@ export function useTarotState(speak) {
 
     setIsShuffling(true);
     if (!hasConfirmedSpread) {
-        setHasConfirmedSpread(true);
+      setHasConfirmedSpread(true);
     }
-    
+
     resetReadingState(false);
     if (onShuffleComplete) onShuffleComplete(); // Callback to clear external state like vision/analysis
 
@@ -165,50 +176,47 @@ export function useTarotState(speak) {
   const dealNext = useCallback(() => {
     if (!reading) return;
     if (dealIndex >= reading.length) return;
-    
-    console.log('dealNext called', { dealIndex, readingLength: reading.length });
+
     void unlockAudio();
     const next = dealIndex;
     setRevealedCards(prev => new Set([...prev, next]));
     setDealIndex(next + 1);
-    
+
     if (typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function') {
       navigator.vibrate(10);
     }
     playFlip();
-    
-    const spreadInfo = SPREADS[selectedSpread];
-    const position = spreadInfo.positions[next] || `Position ${next + 1}`;
-    
+
+    const spreadInfo = getSpreadInfo(selectedSpread);
+    const position = spreadInfo?.positions?.[next] || `Position ${next + 1}`;
+
     if (speak) {
-        void speak(shortLineForCard(reading[next], position), 'card-reveal');
+      void speak(shortLineForCard(reading[next], position), 'card-reveal');
     }
   }, [reading, dealIndex, selectedSpread, speak, shortLineForCard]);
 
   const revealCard = useCallback((index) => {
-    console.log('revealCard called', { index });
     if (!reading || !reading[index]) return;
     if (revealedCards.has(index)) return;
-    
+
     void unlockAudio();
     setRevealedCards(prev => new Set([...prev, index]));
     setDealIndex(prev => Math.max(prev, index + 1));
-    
+
     if (typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function') {
       navigator.vibrate(10);
     }
     playFlip();
-    
-    const spreadInfo = SPREADS[selectedSpread];
-    const position = spreadInfo.positions[index] || `Position ${index + 1}`;
-    
+
+    const spreadInfo = getSpreadInfo(selectedSpread);
+    const position = spreadInfo?.positions?.[index] || `Position ${index + 1}`;
+
     if (speak) {
-        void speak(shortLineForCard(reading[index], position), 'card-reveal');
+      void speak(shortLineForCard(reading[index], position), 'card-reveal');
     }
   }, [reading, revealedCards, selectedSpread, speak, shortLineForCard]);
 
   const revealAll = useCallback(() => {
-    console.log('revealAll called');
     if (!reading || reading.length === 0) return;
     const allIndices = new Set(Array.from({ length: reading.length }, (_, index) => index));
     setRevealedCards(allIndices);
@@ -218,6 +226,7 @@ export function useTarotState(speak) {
   return {
     selectedSpread,
     setSelectedSpread,
+    selectSpread,
     reading,
     setReading,
     isShuffling,

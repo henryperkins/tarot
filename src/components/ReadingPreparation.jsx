@@ -1,7 +1,8 @@
 import React from 'react';
 import { CaretDown, CaretUp } from '@phosphor-icons/react';
 import { QuestionInput } from './QuestionInput';
-import { SettingsToggles } from './SettingsToggles';
+import { AudioControls } from './AudioControls';
+import { ExperienceSettings } from './ExperienceSettings';
 import { CoachSuggestion } from './CoachSuggestion';
 import { RitualControls } from './RitualControls';
 
@@ -59,8 +60,11 @@ export function ReadingPreparation({
                 </>
             );
         }
+        if (section === 'audio') {
+            return <AudioControls />;
+        }
         if (section === 'experience') {
-            return <SettingsToggles />;
+            return <ExperienceSettings />;
         }
         if (section === 'ritual') {
             return (
@@ -71,7 +75,7 @@ export function ReadingPreparation({
                     setCutIndex={setCutIndex}
                     hasCut={hasCut}
                     applyCut={applyCut}
-                    knocksCount={knockCount}
+                    knockCount={knockCount}
                     onSkip={onSkipRitual}
                     deckAnnouncement={deckAnnouncement}
                 />
@@ -83,10 +87,10 @@ export function ReadingPreparation({
     if (variant === 'mobile') {
         return (
             <div className="space-y-8">
-                {['intention', 'experience', 'ritual'].map(section => (
+                {['intention', 'audio', 'experience', 'ritual'].map(section => (
                     <section key={section}>
                         <h3 className="text-sm uppercase tracking-widest text-accent/90 mb-3">
-                            {section.charAt(0).toUpperCase() + section.slice(1)}
+                            {section === 'audio' ? 'Audio' : section === 'experience' ? 'Experience' : section.charAt(0).toUpperCase() + section.slice(1)}
                         </h3>
                         {renderSectionContent(section)}
                     </section>
@@ -101,20 +105,33 @@ export function ReadingPreparation({
                 <h2 className="text-lg font-serif text-accent">Prepare your reading</h2>
                 <p className="text-xs text-muted">Capture an intention, tune the experience controls, and complete the optional ritual from one panel.</p>
             </header>
-            <div className="text-[0.75rem] sm:text-xs text-muted bg-surface-muted/60 border border-accent/20 rounded-lg px-3 py-2 flex flex-wrap gap-x-3 gap-y-1">
+            <div className="text-[0.78rem] sm:text-xs text-muted bg-surface-muted border border-secondary/60 rounded-lg px-3 py-2 flex flex-wrap gap-x-3 gap-y-1">
                 <span>{prepareSummaries.intention}</span>
                 <span className="hidden xs:inline">·</span>
                 <span>{prepareSummaries.experience}</span>
                 <span className="hidden xs:inline">·</span>
                 <span>{prepareSummaries.ritual}</span>
             </div>
-            <div className="mt-4 space-y-3">
-                {(['intention', 'experience', 'ritual']).map(section => (
-                    <div key={section} className="rounded-xl border border-accent/20 bg-surface-muted/70 overflow-hidden">
+            <div className="mt-4 space-y-4">
+                <div className="rounded-xl border border-secondary/60 bg-surface/95 p-4 shadow-sm">
+                    <div className="flex items-start justify-between gap-3">
+                        <div>
+                            <p className="text-accent font-serif text-sm">Intention</p>
+                            <p className="text-xs text-muted">Set your guiding prompt before you draw — always available without expanding a panel.</p>
+                        </div>
+                        <span className="text-[11px] text-main bg-surface-muted border border-secondary/60 rounded-full px-3 py-1 leading-none">Inline</span>
+                    </div>
+                    <div className="mt-3">
+                        {renderSectionContent('intention')}
+                    </div>
+                </div>
+
+                {(['audio', 'experience', 'ritual']).map(section => (
+                    <div key={section} className="rounded-xl border border-secondary/50 bg-surface-muted overflow-hidden">
                         <button type="button" onClick={() => togglePrepareSection(section)} className="w-full flex items-center justify-between px-4 py-3 text-left" aria-expanded={prepareSectionsOpen[section]}>
                             <div>
-                                <p className="text-accent font-serif text-sm">{prepareSectionLabels[section].title}</p>
-                                <p className="text-xs text-muted">{prepareSummaries[section]}</p>
+                                <p className="text-accent font-serif text-sm">{prepareSectionLabels[section]?.title || (section === 'audio' ? 'Audio' : section.charAt(0).toUpperCase() + section.slice(1))}</p>
+                                <p className="text-xs text-muted">{prepareSummaries[section] || (section === 'audio' ? 'Voice narration and ambience settings' : '')}</p>
                             </div>
                             {prepareSectionsOpen[section] ? <CaretUp className="w-4 h-4 text-accent" /> : <CaretDown className="w-4 h-4 text-accent" />}
                         </button>

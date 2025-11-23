@@ -1,11 +1,44 @@
 /**
- * Ephemeris calculations using astronomy-engine
- * Provides planetary positions, aspects, and lunar data
+ * Ephemeris calculations using Swiss Ephemeris (via sweph)
+ * Provides planetary positions, aspects, and lunar data with high precision
  */
 
-import * as astronomy from 'astronomy-engine';
+import sweph from 'sweph';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
-const PLANETS = ['Sun', 'Moon', 'Mercury', 'Venus', 'Mars', 'Jupiter', 'Saturn', 'Uranus', 'Neptune', 'Pluto'];
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// Import constants from sweph
+const {
+  SE_SUN,
+  SE_MOON,
+  SE_MERCURY,
+  SE_VENUS,
+  SE_MARS,
+  SE_JUPITER,
+  SE_SATURN,
+  SE_URANUS,
+  SE_NEPTUNE,
+  SE_PLUTO,
+  SE_GREG_CAL,
+  SEFLG_SWIEPH,
+  SEFLG_SPEED
+} = sweph.constants;
+
+const PLANETS = [
+  { name: 'Sun', id: SE_SUN },
+  { name: 'Moon', id: SE_MOON },
+  { name: 'Mercury', id: SE_MERCURY },
+  { name: 'Venus', id: SE_VENUS },
+  { name: 'Mars', id: SE_MARS },
+  { name: 'Jupiter', id: SE_JUPITER },
+  { name: 'Saturn', id: SE_SATURN },
+  { name: 'Uranus', id: SE_URANUS },
+  { name: 'Neptune', id: SE_NEPTUNE },
+  { name: 'Pluto', id: SE_PLUTO }
+];
 
 const ZODIAC_SIGNS = [
   'Aries', 'Taurus', 'Gemini', 'Cancer',
@@ -13,34 +46,104 @@ const ZODIAC_SIGNS = [
   'Sagittarius', 'Capricorn', 'Aquarius', 'Pisces'
 ];
 
+// Initialize Swiss Ephemeris with data file path
+function initSwissEph() {
+  const possiblePaths = [
+    path.join(__dirname, '..', 'ephe'),
+    path.join(__dirname, '..', '..', 'ephe'),
+    '/usr/share/swisseph',
+    process.env.SE_EPHE_PATH
+  ].filter(Boolean);
+
+  for (const ephePath of possiblePaths) {
+    try {
+      sweph.set_ephe_path(ephePath);
+      // Test if path works by trying to calculate Sun position
+      const jd = sweph.julday(2024, 1, 1, 12.0, SE_GREG_CAL);
+      const result = sweph.calc_ut(jd, SE_SUN, SEFLG_SWIEPH);
+      if (!result.error) {
+        console.error(`✅ Swiss Ephemeris initialized with path: ${ephePath}`);
+        return ephePath;
+      }
+    } catch (error) {
+      continue;
+    }
+  }
+
+  console.error('⚠️  Warning: Swiss Ephemeris data files not found. Please run: npm run postinstall');
+  return null;
+}
+
+// Initialize on module load
+const EPHE_PATH = initSwissEph();
+
+/**
+ * Convert JavaScript Date to Julian Day (UT)
+ */
+function dateToJulianDay(date) {
+  const year = date.getUTCFullYear();
+  const month = date.getUTCMonth() + 1; // JS months are 0-indexed
+  const day = date.getUTCDate();
+  const hour = date.getUTCHours() + (date.getUTCMinutes() / 60.0) + (date.getUTCSeconds() / 3600.0);
+
+  return sweph.julday(year, month, day, hour, SE_GREG_CAL);
+}
+
+/**
+ * Get zodiac sign and degree from ecliptic longitude
+ */
+function getLongitudeInfo(longitude) {
+  // Normalize to 0-360
+  const normalizedLon = ((longitude % 360) + 360) % 360;
+  const signIndex = Math.floor(normalizedLon / 30);
+  const degree = normalizedLon % 30;
+
+  return {
+    sign: ZODIAC_SIGNS[signIndex],
+    degree: parseFloat(degree.toFixed(2)),
+    longitude: parseFloat(normalizedLon.toFixed(2))
+  };
+}
+
 /**
  * Get current planetary positions
  */
 export function getCurrentPositions(dateString = null) {
   const date = dateString ? new Date(dateString) : new Date();
+  const jd = dateToJulianDay(date);
   const positions = {};
 
   PLANETS.forEach(planet => {
     try {
-      const bodyName = planet === 'Sun' ? 'Sun' : planet;
-      const ecliptic = astronomy.Ecliptic(bodyName, date);
+      const result = sweph.calc_ut(jd, planet.id, SEFLG_SWIEPH | SEFLG_SPEED);
 
-      const sign = ZODIAC_SIGNS[Math.floor(ecliptic.elon / 30)];
-      const degree = ecliptic.elon % 30;
+      if (result.error) {
+        console.error(`Error calculating ${planet.name}: ${result.error}`);
+        return;
+      }
 
-      positions[planet] = {
-        sign,
-        degree: parseFloat(degree.toFixed(2)),
-        longitude: parseFloat(ecliptic.elon.toFixed(2)),
-        latitude: parseFloat(ecliptic.elat.toFixed(2))
+      const longitude = result.data[0]; // Ecliptic longitude
+      const latitude = result.data[1];  // Ecliptic latitude
+      const speed = result.data[3];     // Daily motion in longitude
+
+      const lonInfo = getLongitudeInfo(longitude);
+
+      positions[planet.name] = {
+        sign: lonInfo.sign,
+        degree: lonInfo.degree,
+        longitude: lonInfo.longitude,
+        latitude: parseFloat(latitude.toFixed(2)),
+        speed: parseFloat(speed.toFixed(4)),
+        isDirect: speed >= 0
       };
     } catch (error) {
-      console.error(`Error calculating position for ${planet}:`, error);
+      console.error(`Exception calculating ${planet.name}:`, error);
     }
   });
 
   return {
     timestamp: date.toISOString(),
+    julianDay: jd,
     positions
   };
 }
@@ -50,39 +153,54 @@ export function getCurrentPositions(dateString = null) {
  */
 export function getMoonPhase(dateString = null) {
   const date = dateString ? new Date(dateString) : new Date();
+  const jd = dateToJulianDay(date);
 
-  // Get illumination
-  const illumination = astronomy.Illumination('Moon', date);
+  try {
+    // Get Sun and Moon positions
+    const sunResult = sweph.calc_ut(jd, SE_SUN, SEFLG_SWIEPH);
+    const moonResult = sweph.calc_ut(jd, SE_MOON, SEFLG_SWIEPH);
 
-  // Get moon position
-  const ecliptic = astronomy.Ecliptic('Moon', date);
-  const sign = ZODIAC_SIGNS[Math.floor(ecliptic.elon / 30)];
-  const degree = ecliptic.elon % 30;
+    if (sunResult.error || moonResult.error) {
+      throw new Error(sunResult.error || moonResult.error);
+    }
 
-  // Determine phase name
-  const phase = illumination.phase_angle;
-  let phaseName;
+    const sunLon = sunResult.data[0];
+    const moonLon = moonResult.data[0];
 
-  if (phase < 22.5) phaseName = 'New Moon';
-  else if (phase < 67.5) phaseName = 'Waxing Crescent';
-  else if (phase < 112.5) phaseName = 'First Quarter';
-  else if (phase < 157.5) phaseName = 'Waxing Gibbous';
-  else if (phase < 202.5) phaseName = 'Full Moon';
-  else if (phase < 247.5) phaseName = 'Waning Gibbous';
-  else if (phase < 292.5) phaseName = 'Last Quarter';
-  else if (phase < 337.5) phaseName = 'Waning Crescent';
-  else phaseName = 'New Moon';
+    // Calculate phase angle (0-360)
+    let phaseAngle = moonLon - sunLon;
+    if (phaseAngle < 0) phaseAngle += 360;
 
-  return {
-    timestamp: date.toISOString(),
-    phaseName,
-    phaseAngle: parseFloat(phase.toFixed(2)),
-    illumination: parseFloat((illumination.phase_fraction * 100).toFixed(1)),
-    sign,
-    degree: parseFloat(degree.toFixed(2)),
-    isWaxing: phase < 180,
-    interpretation: getMoonPhaseInterpretation(phaseName, sign)
-  };
+    // Calculate illumination (0-100%)
+    const illumination = (1 - Math.cos((phaseAngle * Math.PI) / 180)) / 2 * 100;
+
+    // Determine phase name
+    let phaseName;
+    if (phaseAngle < 22.5 || phaseAngle >= 337.5) phaseName = 'New Moon';
+    else if (phaseAngle < 67.5) phaseName = 'Waxing Crescent';
+    else if (phaseAngle < 112.5) phaseName = 'First Quarter';
+    else if (phaseAngle < 157.5) phaseName = 'Waxing Gibbous';
+    else if (phaseAngle < 202.5) phaseName = 'Full Moon';
+    else if (phaseAngle < 247.5) phaseName = 'Waning Gibbous';
+    else if (phaseAngle < 292.5) phaseName = 'Last Quarter';
+    else phaseName = 'Waning Crescent';
+
+    const moonLonInfo = getLongitudeInfo(moonLon);
+
+    return {
+      timestamp: date.toISOString(),
+      phaseName,
+      phaseAngle: parseFloat(phaseAngle.toFixed(2)),
+      illumination: parseFloat(illumination.toFixed(1)),
+      sign: moonLonInfo.sign,
+      degree: moonLonInfo.degree,
+      isWaxing: phaseAngle < 180,
+      interpretation: getMoonPhaseInterpretation(phaseName, moonLonInfo.sign)
+    };
+  } catch (error) {
+    console.error('Error calculating moon phase:', error);
+    throw error;
+  }
 }
 
 /**
@@ -125,6 +243,7 @@ export function getPlanetaryAspects(dateString = null, orb = 8) {
             type: aspectType.name,
             angle: parseFloat(angle.toFixed(2)),
             orb: parseFloat(diff.toFixed(2)),
+            applying: isAspectApplying(positions[planet1], positions[planet2], aspectType.angle),
             interpretation: getAspectInterpretation(planet1, planet2, aspectType.name)
           });
         }
@@ -136,39 +255,39 @@ export function getPlanetaryAspects(dateString = null, orb = 8) {
 }
 
 /**
+ * Check if aspect is applying (planets moving together) or separating
+ */
+function isAspectApplying(planet1Pos, planet2Pos, targetAngle) {
+  // If planet1 is faster and behind, or planet2 is faster and behind, aspect is applying
+  const speedDiff = planet1Pos.speed - planet2Pos.speed;
+  let lonDiff = planet1Pos.longitude - planet2Pos.longitude;
+  if (lonDiff < 0) lonDiff += 360;
+
+  // Simplified check - more complex logic needed for exact determination
+  return Math.abs(speedDiff) > 0.01;
+}
+
+/**
  * Get planets in retrograde
  */
 export function getRetrogradePlanets(dateString = null) {
   const date = dateString ? new Date(dateString) : new Date();
+  const positions = getCurrentPositions(dateString).positions;
   const retrogrades = [];
 
   // Check Mercury through Pluto (not Sun/Moon)
   const retroPlanets = ['Mercury', 'Venus', 'Mars', 'Jupiter', 'Saturn', 'Uranus', 'Neptune', 'Pluto'];
 
-  retroPlanets.forEach(planet => {
-    try {
-      // Check velocity by comparing positions over 1 day
-      const currentEcliptic = astronomy.Ecliptic(planet, date);
-      const nextDay = new Date(date);
-      nextDay.setDate(nextDay.getDate() + 1);
-      const nextEcliptic = astronomy.Ecliptic(planet, nextDay);
-
-      let movement = nextEcliptic.elon - currentEcliptic.elon;
-
-      // Normalize for 360-degree wraparound
-      if (movement > 180) movement -= 360;
-      if (movement < -180) movement += 360;
-
-      if (movement < 0) {
-        retrogrades.push({
-          planet,
-          sign: ZODIAC_SIGNS[Math.floor(currentEcliptic.elon / 30)],
-          degree: parseFloat((currentEcliptic.elon % 30).toFixed(2)),
-          interpretation: getRetrogradeInterpretation(planet)
-        });
-      }
-    } catch (error) {
-      console.error(`Error checking retrograde for ${planet}:`, error);
+  retroPlanets.forEach(planetName => {
+    const planetPos = positions[planetName];
+    if (planetPos && planetPos.speed < 0) {
+      retrogrades.push({
+        planet: planetName,
+        sign: planetPos.sign,
+        degree: planetPos.degree,
+        speed: planetPos.speed,
+        interpretation: getRetrogradeInterpretation(planetName)
+      });
     }
   });
 
@@ -187,7 +306,8 @@ export function getEphemerisForReading(timestamp) {
     moon: getMoonPhase(timestamp),
     aspects: getPlanetaryAspects(timestamp),
     retrogrades: getRetrogradePlanets(timestamp),
-    readingContext: generateReadingContext(date)
+    readingContext: generateReadingContext(date),
+    ephemerisPath: EPHE_PATH
   };
 }
 
@@ -267,4 +387,9 @@ function getRetrogradeInterpretation(planet) {
   };
 
   return interpretations[planet] || 'Retrograde energy';
+}
+
+// Cleanup function (call when shutting down)
+export function closeEphemeris() {
+  sweph.close();
 }

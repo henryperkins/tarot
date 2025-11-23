@@ -1,9 +1,9 @@
 import { useState, useMemo, useCallback } from 'react';
 import { canonicalCardKey } from '../../shared/vision/cardNameMapping.js';
 import { usePreferences } from '../contexts/PreferencesContext';
+import { isVisionResearchEnabled } from './useFeatureFlags';
 
 const MAX_VISION_UPLOADS = 5;
-const ENABLE_VISION_RESEARCH = import.meta.env?.VITE_ENABLE_VISION_RESEARCH === 'true';
 const supportsBrowserUUID = typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function';
 
 const generateVisionUploadId = () => {
@@ -121,7 +121,7 @@ export function useVisionAnalysis(reading = []) {
   const [visionProof, setVisionProof] = useState(null);
   const [visionSummarySnapshot, setVisionSummarySnapshot] = useState(null);
 
-  const visionResearchEnabled = import.meta.env?.VITE_ENABLE_VISION_RESEARCH === 'true';
+  const visionResearchEnabled = isVisionResearchEnabled();
   const isVisionReady = visionResearchEnabled && visionResults.length > 0 && visionConflicts.length === 0;
   const hasVisionData = visionResearchEnabled && visionResults.length > 0;
 

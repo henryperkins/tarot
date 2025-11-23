@@ -7,20 +7,83 @@ import { CardSymbolInsights } from './CardSymbolInsights';
 
 export function CardModal({ card, isOpen, onClose, position, layoutId }) {
     const modalRef = useRef(null);
+    const previousBodyOverflow = useRef(null);
+    const previousFocusRef = useRef(null);
 
     useEffect(() => {
-        const handleEscape = (e) => {
-            if (e.key === 'Escape') onClose();
+        if (!isOpen || typeof document === 'undefined') return undefined;
+
+        const handleEscape = (event) => {
+            if (event.key === 'Escape') {
+                onClose();
+            }
         };
-        if (isOpen) {
-            window.addEventListener('keydown', handleEscape);
-            document.body.style.overflow = 'hidden';
+
+        window.addEventListener('keydown', handleEscape);
+        const body = document.body;
+        if (body) {
+            previousBodyOverflow.current = body.style.overflow;
+            body.style.overflow = 'hidden';
         }
+        const activeElement = document.activeElement;
+        if (activeElement && activeElement instanceof HTMLElement) {
+            previousFocusRef.current = activeElement;
+        }
+
         return () => {
             window.removeEventListener('keydown', handleEscape);
-            document.body.style.overflow = 'unset';
+            if (body) {
+                body.style.overflow = previousBodyOverflow.current ?? '';
+            }
+            previousBodyOverflow.current = null;
+            if (previousFocusRef.current && typeof previousFocusRef.current.focus === 'function') {
+                previousFocusRef.current.focus();
+            }
+            previousFocusRef.current = null;
         };
     }, [isOpen, onClose]);
+
+    useEffect(() => {
+        if (!isOpen || !modalRef.current) return undefined;
+
+        const dialogNode = modalRef.current;
+        if (typeof dialogNode.focus === 'function') {
+            dialogNode.focus({ preventScroll: true });
+        }
+
+        const focusableSelectors = [
+            'a[href]',
+            'button:not([disabled])',
+            'textarea:not([disabled])',
+            'input:not([disabled])',
+            'select:not([disabled])',
+            '[tabindex]:not([tabindex="-1"])'
+        ].join(', ');
+
+        const handleKeyDown = event => {
+            if (event.key !== 'Tab') return;
+            const focusable = dialogNode.querySelectorAll(focusableSelectors);
+            if (!focusable.length) {
+                event.preventDefault();
+                dialogNode.focus();
+                return;
+            }
+            const first = focusable[0];
+            const last = focusable[focusable.length - 1];
+            if (!event.shiftKey && document.activeElement === last) {
+                event.preventDefault();
+                first.focus();
+            } else if (event.shiftKey && document.activeElement === first) {
+                event.preventDefault();
+                last.focus();
+            }
+        };
+
+        dialogNode.addEventListener('keydown', handleKeyDown);
+        return () => {
+            dialogNode.removeEventListener('keydown', handleKeyDown);
+        };
+    }, [isOpen]);
 
     if (!isOpen || !card) return null;
 
@@ -43,6 +106,8 @@ export function CardModal({ card, isOpen, onClose, position, layoutId }) {
                 layoutId={layoutId}
                 ref={modalRef}
                 className="relative w-full max-w-lg max-h-[85dvh] overflow-y-auto bg-surface border border-primary/30 rounded-2xl shadow-2xl shadow-black/50 flex flex-col"
+                tabIndex={-1}
+                role="document"
             >
                 <button
                     onClick={onClose}

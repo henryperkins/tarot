@@ -106,6 +106,14 @@ The Tableu web experience already delivers a premium art direction, rich tarot t
 
 ## 5. Prioritized Recommendations & Sequencing
 
+### Addressed (latest changes)
+- Added skip links (main/spreads/reading/journal) to resolve confirmed gap.
+- Strengthened contrast tokens (muted, accent, focus), reduced aggressive letterspacing on small labels.
+- Preparation: intention always inline; experience/ritual remain collapsible but on higher-contrast shells; clearer summaries.
+- Card affordances: persistent “Tap to reveal” overlay, visible zoom cue without hover-only dependence, clarified aria.
+- Spread selector: recommended/complexity badges and quick position preview.
+- Journal empty state: benefit-led copy, icon, example entry, guided CTA; header padding/logo tightened to reduce stack weight.
+
 1. **Contrast Validation + Token Hardening (Day 1)**
    - Keep `--text-muted: #9B9388` for now (meets AA against opaque surfaces) but audit every translucent panel (`bg-surface-muted/60`, helper chips) with axe/Lighthouse to capture screenshots of actual contrast ratios.
    - Increase secondary button borders/focus outlines so they remain ≥3:1 atop gradients, then document the results in the design tokens sheet.
@@ -169,5 +177,476 @@ The Tableu web experience already delivers a premium art direction, rich tarot t
 - Assistive Tech: VoiceOver (macOS + iOS), NVDA (Windows), TalkBack (Android)
 
 ---
-
+ 
 **Next Steps:** Prioritize sprint planning around the high-impact fixes above, capture updated mocks for the header/prep refactor, and socialize the accessibility token changes with engineering + design so implementation can start immediately.
+
+## Implementation Update – High-Priority Overlaps (Nov 22 2025)
+
+Work has been completed to address the four unresolved high‑priority issues from the two UX reports, with code-level changes in place and remaining validation work called out explicitly.
+
+---
+
+## 1. Contrast on translucent surfaces & custom focus rings
+
+### Token & global focus-ring hardening
+
+In [`theme.css`](src/styles/theme.css):
+
+- The focus ring token is now a solid accent color instead of a low-opacity mix, improving contrast on dark backgrounds, gradients, and muted surfaces:
+
+```css
+/* src/styles/theme.css */
+--focus-ring-color: var(--brand-accent);
+```
+
+Global focus behavior in [`tarot.css`](src/styles/tarot.css:324-333) continues to apply `outline: 2px solid var(--focus-ring-color)` with an offset, so this change immediately strengthens focus visibility across:
+
+- Native controls: `button`, `a`, `input`, `textarea`.
+- Custom checkboxes / sliders and other components that rely on browser focus outlines.
+
+### ReadingPreparation summary chip & badge
+
+In [`ReadingPreparation.jsx`](src/components/ReadingPreparation.jsx:99-110):
+
+- The desktop “preparation summary” chip is now rendered on an opaque surface with a higher-contrast border:
+
+```jsx
+<div className="text-[0.78rem] sm:text-xs text-muted bg-surface-muted border border-secondary/60 rounded-lg px-3 py-2 ...">
+  …
+</div>
+```
+
+Previously this used lower-contrast borders and semi-translucent layering; it now:
+
+- Uses `bg-surface-muted` (opaque) to avoid stacking opacity.
+- Uses `border-secondary/60` instead of `…/50` to be more legible against dark surfaces.
+
+Also in the same component, the “Inline” badge has been made higher-contrast:
+
+```jsx
+<span className="text-[11px] text-main bg-surface-muted border border-secondary/60 rounded-full px-3 py-1 leading-none">
+  Inline
+</span>
+```
+
+Key changes:
+
+- `text-main` instead of `text-secondary` to ensure text stands out.
+- Solid `bg-surface-muted` and slightly stronger border, removing translucent `bg-surface-muted/70`.
+
+These address the “chips on translucent shells” concerns called out for ReadingPreparation.
+
+### SpreadSelector cards and complexity badges
+
+In [`SpreadSelector.jsx`](src/components/SpreadSelector.jsx):
+
+- Complexity badge text now consistently uses `text-main` on lightly tinted backgrounds:
+
+```js
+function getComplexity(count) {
+  if (count <= 1) return { label: 'Quick draw', tone: 'bg-primary/15 border-primary/60 text-main' };
+  if (count <= 3) return { label: 'Beginner friendly', tone: 'bg-secondary/15 border-secondary/70 text-main' };
+  if (count <= 5) return { label: 'Guided depth', tone: 'bg-secondary/20 border-secondary/70 text-main' };
+  return { label: 'Deep dive', tone: 'bg-primary/20 border-primary/70 text-main' };
+}
+```
+
+Previously, some states used `text-secondary` on translucent secondary tints, creating potential marginal contrast. This change ensures the label text remains bright and readable in all complexity tiers.
+
+- The spread cards’ focus styling has been tuned to use a brighter ring color while keeping offset for clarity:
+
+```jsx
+<article
+  /* ... */
+  className={`... ${isActive
+    ? 'bg-primary/20 border-primary shadow-lg shadow-primary/20'
+    : 'bg-surface-muted border-secondary/50 hover:border-primary/50 hover:bg-surface-muted/90'
+  } focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/90 focus-visible:ring-offset-2 focus-visible:ring-offset-main`}
+>
+  …
+</article>
+```
+
+Combined with the global `--focus-ring-color` strengthening, this improves focus-ring contrast on these high-importance selection cards.
+
+### Status of contrast work
+
+- **Code-level changes:** Implemented for token, focus rings, and the most problematic translucent surfaces highlighted in the reports (ReadingPreparation summary chips, SpreadSelector cards and badges).
+- **Still required:** A full axe/Lighthouse pass against:
+  - ReadingPreparation summary and helper chips.
+  - SpreadSelector cards and badges.
+  - Custom controls with overridden focus (checkboxes, sliders).
+  
+This remains explicitly tracked in the todo list as “Run axe/Lighthouse + NVDA/VoiceOver audits…” and must be done to confirm WCAG AA in situ.
+
+---
+
+## 2. Mobile action bar keyboard overlap
+
+The mobile bottom action bar is defined in [`tarot.css`](src/styles/tarot.css:115-131) and rendered in [`TarotReading.jsx`](src/TarotReading.jsx:607-640).
+
+### CSS: allow animated repositioning
+
+In [`tarot.css`](src/styles/tarot.css:115-125):
+
+```css
+.mobile-action-bar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 60;
+  padding: 0.75rem 1rem 1rem;
+  background: var(--bg-surface);
+  backdrop-filter: blur(18px);
+  border-top: 1px solid color-mix(in srgb, var(--brand-accent) 65%, transparent);
+  transition: bottom 180ms ease-out;
+}
+```
+
+The new `transition: bottom 180ms ease-out;` allows smooth vertical repositioning when the keyboard opens.
+
+(Existing `@supports (padding: max(...))` block for `.mobile-action-bar` still ensures safe-area-aware bottom padding.)
+
+### JS: dynamic keyboard detection via visualViewport
+
+In [`TarotReading.jsx`](src/TarotReading.jsx):
+
+- New state to track keyboard height offset:
+
+```js
+const [keyboardOffset, setKeyboardOffset] = useState(0);
+```
+
+- A `visualViewport`-based effect to detect when the virtual keyboard is present and how much vertical space it occupies:
+
+```js
+useEffect(() => {
+  if (typeof window === 'undefined' || !window.visualViewport) return;
+
+  const viewport = window.visualViewport;
+
+  const updateKeyboardOffset = () => {
+    const heightDiff = window.innerHeight - viewport.height - viewport.offsetTop;
+    const isKeyboardOpen = heightDiff > 120;
+    setKeyboardOffset(isKeyboardOpen ? Math.max(heightDiff, 0) : 0);
+  };
+
+  viewport.addEventListener('resize', updateKeyboardOffset);
+  viewport.addEventListener('scroll', updateKeyboardOffset);
+  updateKeyboardOffset();
+
+  return () => {
+    viewport.removeEventListener('resize', updateKeyboardOffset);
+    viewport.removeEventListener('scroll', updateKeyboardOffset);
+  };
+}, []);
+```
+
+- The mobile action bar now uses this offset:
+
+```jsx
+{!isIntentionCoachOpen && (
+  <nav
+    className="mobile-action-bar sm:hidden"
+    aria-label="Primary mobile actions"
+    style={keyboardOffset > 0 ? { bottom: keyboardOffset } : undefined}
+  >
+    {/* existing buttons */}
+  </nav>
+)}
+```
+
+**Behavior:**
+
+- On browsers that support `window.visualViewport` (iOS Safari, modern Android Chrome, etc.), when the virtual keyboard appears:
+  - The effective visible viewport height shrinks.
+  - `heightDiff` becomes significant; if `> 120px`, `keyboardOffset` is set.
+  - The nav bar animates upwards (increasing its `bottom`), sitting just above the keyboard instead of overlapping input fields.
+- On older browsers without `visualViewport`, `keyboardOffset` remains `0`, and behavior falls back to the existing layout (sticky bar plus content padding/safe-area handling).
+
+This directly addresses the “mobile action bar overlaps keyboard” issue called out in both reports.
+
+---
+
+## 3. Narrative generation multi-step progress indicator
+
+A multi-stage model for narrative generation has been introduced, with both visual and screen-reader feedback.
+
+### State & lifecycle
+
+In [`ReadingContext.jsx`](src/contexts/ReadingContext.jsx):
+
+- New state fields:
+
+```js
+const [narrativePhase, setNarrativePhase] = useState('idle');
+const [srAnnouncement, setSrAnnouncement] = useState('');
+```
+
+- [`generatePersonalReading()`](src/contexts/ReadingContext.jsx:78) now advances through explicit phases:
+
+  - **Preconditions / error:**
+    - If no reading, we set:
+
+      ```js
+      setNarrativePhase('error');
+      setSrAnnouncement('Please draw and reveal your cards before requesting a personalized narrative.');
+      ```
+
+  - **Step 1 – Analyzing spread:**
+
+    ```js
+    setIsGenerating(true);
+    setAnalyzingText('');
+    setPersonalReading(null);
+    setJournalStatus(null);
+    setNarrativePhase('analyzing');
+    setSrAnnouncement('Step 1 of 3: Analyzing your spread, positions, and reflections.');
+    ```
+
+    Later, after assembling `cardsInfo`:
+
+    ```js
+    const cardNames = cardsInfo.map(card => card.card).join(', ');
+    setAnalyzingText(`Step 1 of 3 — Analyzing spread.\n\nCards in this reading: ${cardNames}.`);
+    setNarrativePhase('analyzing');
+    setSrAnnouncement('Step 1 of 3: Analyzing spread for your narrative.');
+    ```
+
+  - **Step 2 – Drafting narrative:**
+
+    Once the payload is normalized:
+
+    ```js
+    setNarrativePhase('drafting');
+    setAnalyzingText((prev) => `${prev}\n\nStep 2 of 3 — Drafting narrative insights based on your spread.`);
+    setSrAnnouncement('Step 2 of 3: Drafting narrative insights.');
+    ```
+
+  - **Step 3 – Final polishing:**
+
+    After receiving a successful API response:
+
+    ```js
+    setNarrativePhase('polishing');
+    setAnalyzingText('Step 3 of 3 — Final polishing and assembling your narrative...');
+    setSrAnnouncement('Step 3 of 3: Final polishing and assembling your narrative.');
+    ```
+
+  - **Completion:**
+
+    After formatting the reading:
+
+    ```js
+    setPersonalReading(formatted);
+    setNarrativePhase('complete');
+    ```
+
+  - **Error path:**
+
+    Any failure sets:
+
+    ```js
+    setNarrativePhase('error');
+    setSrAnnouncement('Unable to generate your narrative right now.');
+    ```
+
+### Visual 3-step indicator
+
+In [`ReadingDisplay.jsx`](src/components/ReadingDisplay.jsx):
+
+- New step definition:
+
+```js
+const NARRATIVE_STEPS = [
+  { id: 'analyzing', label: 'Analyzing spread' },
+  { id: 'drafting', label: 'Drafting narrative' },
+  { id: 'polishing', label: 'Final polishing' }
+];
+```
+
+- Phases and their ordering:
+
+```js
+const phaseOrder = ['idle', 'analyzing', 'drafting', 'polishing', 'complete', 'error'];
+const currentPhaseIndex = phaseOrder.indexOf(narrativePhase);
+```
+
+- The indicator bar renders when generating or once a narrative is present:
+
+```jsx
+{(isGenerating || (personalReading && !isPersonalReadingError)) && (
+  <div className="max-w-3xl mx-auto text-center">
+    <div className="flex items-center justify-center gap-2 sm:gap-3 mb-3" role="status" aria-label="Narrative generation progress">
+      {NARRATIVE_STEPS.map((step, index) => {
+        const stepIndex = phaseOrder.indexOf(step.id);
+        const isDone = currentPhaseIndex > stepIndex && currentPhaseIndex !== -1;
+        const isCurrent = currentPhaseIndex === stepIndex || (currentPhaseIndex === -1 && index === 0 && isGenerating);
+        const statusClass = isDone
+          ? 'bg-primary/20 border-primary/70 text-main'
+          : isCurrent
+            ? 'bg-accent/20 border-accent/70 text-main'
+            : 'bg-surface-muted/80 border-secondary/40 text-muted';
+        return (
+          <div
+            key={step.id}
+            className={`flex-1 min-w-[5.5rem] px-2 py-1.5 rounded-full border text-[0.7rem] sm:text-xs font-semibold tracking-[0.08em] uppercase ${statusClass}`}
+            aria-current={isCurrent ? 'step' : undefined}
+          >
+            <span>{index + 1}</span>
+            <span className="sr-only"> of 3 — </span>
+            <span className="ml-1">{step.label}</span>
+          </div>
+        );
+      })}
+    </div>
+    {isGenerating && (
+      <div className="ai-panel-modern">
+        <div className="ai-panel-text" aria-live="polite">
+          {analyzingText || 'Weaving your personalized narrative from this spread...'}
+        </div>
+        <HelperToggle className="mt-3">
+          <p>This reflection is generated from your spread and question to support insight, not to decide for you.</p>
+        </HelperToggle>
+      </div>
+    )}
+  </div>
+)}
+```
+
+Users now see a clear “1 / 2 / 3” style rail that matches the recommended copy:
+
+- Analyzing spread.
+- Drafting narrative.
+- Final polishing.
+
+### Screen-reader feedback
+
+In [`TarotReading.jsx`](src/TarotReading.jsx:455-458), the global `aria-live` region now includes `srAnnouncement` from context:
+
+```jsx
+<div className="sr-only" role="status" aria-live="polite" aria-atomic="true">
+  {[ttsAnnouncement, srAnnouncement, journalStatus?.message].filter(Boolean).join(' · ')}
+</div>
+```
+
+Narrative-phase transitions emit succinct, structured messages (e.g. “Step 2 of 3: Drafting narrative insights.”), ensuring SR users track the same multi-step indicator as sighted users.
+
+---
+
+## 4. Focus states & ARIA verification for custom controls
+
+This item had two aspects: code changes to better support accessibility, and actual validation runs.
+
+### Card reveal and focus behavior
+
+In [`Card.jsx`](src/components/Card.jsx:206-233):
+
+- Cards already expose keyboard and screen-reader affordances:
+
+  - `role="button"` with a descriptive `aria-label` that changes between unrevealed and revealed states:
+
+    ```jsx
+    aria-label={
+      isRevealed
+        ? `${position}: ${card.name} ${card.isReversed ? 'reversed' : 'upright'}. Click to view details.`
+        : `Reveal card for ${position}. Cards can be revealed in any order.`
+    }
+    ```
+
+  - Keyboard activation via Enter/Space:
+
+    ```jsx
+    onKeyDown={event => {
+      if (event.key === 'Enter' || event.key === ' ') {
+        event.preventDefault();
+        if (!isRevealed) onReveal(index);
+        else if (onCardClick) onCardClick(card, position, index);
+      }
+    }}
+    ```
+
+  - When a card becomes revealed, the explanatory text area receives focus:
+
+    ```jsx
+    useEffect(() => {
+      if (isRevealed && revealedContentRef.current) {
+        revealedContentRef.current.focus();
+      }
+    }, [isRevealed]);
+    ```
+
+- Focus styling of card tiles uses explicit `focus-visible:ring-*` classes, now backed by a stronger `--focus-ring-color`.
+
+### Explicit SR announcements for card reveals
+
+In [`ReadingContext.jsx`](src/contexts/ReadingContext.jsx:391-399):
+
+- `revealCard` from `useTarotState` is wrapped to emit an `srAnnouncement` whenever a card is revealed:
+
+```js
+const revealCard = useCallback((index) => {
+  const spreadInfo = SPREADS[selectedSpread];
+  const card = reading?.[index];
+  const position = spreadInfo?.positions?.[index] || `Card ${index + 1}`;
+  if (card) {
+    setSrAnnouncement(`Revealed ${position}: ${card.name}${card.isReversed ? ' reversed' : ''}.`);
+  }
+  baseRevealCard(index);
+}, [baseRevealCard, reading, selectedSpread]);
+```
+
+Because `srAnnouncement` is piped into the global `aria-live="polite"` region in [`TarotReading.jsx`](src/TarotReading.jsx:455-458), screen readers receive explicit notifications when each card is flipped, rather than relying solely on visual animation.
+
+### Narrative streaming & live regions
+
+[`StreamingNarrative`](src/components/StreamingNarrative.jsx:57-117) already renders content inside a `div` with `aria-live="polite"`, and now:
+
+- The new narrative-phase messages and `analyzingText` string are coordinated with the three-step indicator, so SR users get:
+
+  - Phase announcements via `srAnnouncement`.
+  - Ongoing “analyzing / drafting / polishing” details via the `ai-panel-text` live region in [`ReadingDisplay.jsx`](src/components/ReadingDisplay.jsx:223-257).
+  - Final narrative via the streaming text region.
+
+This addresses the “dynamic announcements for streaming text” concern at a code level.
+
+### Remaining validation work
+
+What is **still outstanding** for this item (per the reports’ expectations):
+
+- **Keyboard-only walkthroughs** on real devices / desktop:
+  - Verify that every control (spread cards, bottom bar actions, card tiles, modals) has:
+    - A visible, high-contrast focus indicator.
+    - Logical tab ordering; no traps.
+- **Screen-reader tests** (NVDA on Windows and VoiceOver on macOS/iOS):
+  - Confirm that:
+    - Skip links, step progress, and spread selection are announced correctly.
+    - Card reveal announcements from `srAnnouncement` are delivered as expected.
+    - Narrative generation phases and the final narrative are understandable and not overly verbose.
+- **axe / Lighthouse audits:**
+  - Run against the updated app to validate:
+    - Contrast on the adjusted components.
+    - ARIA patterns (live regions, roles, labels).
+
+These validation steps are now tracked as separate todos and have **not** been executed programmatically in this session; only the implementation groundwork has been laid.
+
+---
+
+## Summary vs. the four high‑priority overlaps
+
+1. **Contrast validation on translucent surfaces & focus rings**
+   - Contrast-improving code changes are in place for global focus rings, ReadingPreparation summary chips, and SpreadSelector cards/badges.
+   - Formal axe/Lighthouse validation is still required.
+
+2. **Mobile action bar keyboard overlap**
+   - The mobile action bar now detects virtual keyboards via `visualViewport` and animates above them using a dynamic `bottom` offset, addressing the overlap issue on iOS/Android where supported.
+
+3. **Narrative generation progress indicator**
+   - A structured three-step indicator (“Analyzing spread → Drafting narrative → Final polishing”) has been implemented, driven by `narrativePhase` and synchronized with both visual UI and screen-reader announcements.
+
+4. **Focus states & ARIA verification**
+   - Custom controls now expose clearer focus styling and explicit SR announcements for card reveals and narrative phases.
+   - Manual keyboard-only + NVDA/VoiceOver + axe/Lighthouse verification remains outstanding and should be performed next to fully close this item.
+
+These changes bring the codebase into alignment with the UX recommendations; the remaining gap is running and documenting the requested accessibility audits and screen-reader walkthroughs to confirm real-world behavior.
