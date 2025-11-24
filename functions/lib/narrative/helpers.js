@@ -732,6 +732,57 @@ function buildReversalGuidance(reversalDescription) {
   return `Within the ${reversalDescription.name} lens, ${reversalDescription.guidance}`;
 }
 
+export function formatReversalLens(themes, options = {}) {
+  const {
+    includeExamples = true,
+    includeReminder = true,
+    cache = true,
+    refresh = false
+  } = options;
+
+  if (!themes) return { lines: [], text: '' };
+
+  const description = themes.reversalDescription || themes;
+  if (!description) return { lines: [], text: '' };
+
+  if (cache !== false && description.formattedLens && !refresh) {
+    return {
+      lines: description.formattedLens.split('\n'),
+      text: description.formattedLens
+    };
+  }
+
+  const lines = [];
+  const name = description.name || 'Reversal lens';
+  lines.push(`- Reversal lens: “${name}”.${description.description ? ` ${description.description}` : ''}`);
+
+  if (description.guidance) {
+    lines.push(`- Guidance: ${description.guidance}`);
+  }
+
+  if (includeExamples && description.examples && Object.keys(description.examples).length > 0) {
+    lines.push('- Example applications:');
+    Object.entries(description.examples).forEach(([card, interpretation]) => {
+      lines.push(`  - ${card} reversed: ${interpretation}`);
+    });
+  }
+
+  if (includeReminder) {
+    lines.push('- Keep this lens consistent for all reversed cards in this spread.');
+  }
+
+  if (themes?.reversalCount === 0) {
+    lines.push('- All cards appear upright in this reading.');
+  }
+
+  const text = lines.join('\n');
+  if (cache !== false) {
+    description.formattedLens = text;
+  }
+
+  return { lines, text };
+}
+
 function getPositionOptions(themes, context) {
   const options = {};
   if (themes && themes.reversalDescription) {

@@ -169,6 +169,10 @@ npm run deploy
 
 Need to inspect the exact prompt sent to GPT-5 or Claude? Add `LOG_LLM_PROMPTS=true` (or `DEBUG_LLM_PROMPTS=true`) to `.dev.vars` or your Pages secret set. When this flag is enabled the Pages Function logs the full `systemPrompt` and `userPrompt` payloads for each request. These logs include user questions and reflections, so leave the flag disabled in production unless absolutely necessary.
 
+Telemetry & budgets
+- `LOG_ENHANCEMENT_TELEMETRY=true` mirrors the enhancement summary/validation payloads for each reading (section counts, enhancement tags). Keep it disabled outside staging because it includes section text snippets.
+- `PROMPT_BUDGET_AZURE`, `PROMPT_BUDGET_CLAUDE`, and `PROMPT_BUDGET_DEFAULT` let you set approximate token ceilings (characters ÷ 4 heuristic) for each backend. When set, the builder will trim low-priority prompt content (low-weight imagery → GraphRAG block → deck geometry tables → diagnostics) and report the estimated token counts in the prompt metadata.
+
 ---
 
 ## Deployment

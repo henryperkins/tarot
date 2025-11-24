@@ -554,3 +554,34 @@ describe('Other spread builders prompt-engineering compliance', () => {
     );
   });
 });
+
+describe('Prompt budget telemetry', () => {
+  it('returns estimated tokens and applies budget from env', async () => {
+    const originalBudget = process.env.PROMPT_BUDGET_CLAUDE;
+    process.env.PROMPT_BUDGET_CLAUDE = '90';
+
+    const cardsInfo = [
+      major('The Fool', 0, 'Past — influences that led here', 'Upright'),
+      major('The Magician', 1, 'Present — where you stand now', 'Upright'),
+      major('The High Priestess', 2, 'Future — trajectory if nothing shifts', 'Upright')
+    ];
+
+    const themes = await buildThemes(cardsInfo, 'blocked');
+
+    const { promptMeta } = buildEnhancedClaudePrompt({
+      spreadInfo: { name: 'Three-Card Story (Past · Present · Future)' },
+      cardsInfo,
+      userQuestion: 'How do I keep momentum?',
+      reflectionsText: '',
+      themes,
+      spreadAnalysis: null,
+      context: 'general'
+    });
+
+    assert.equal(promptMeta.estimatedTokens.budget, 90);
+    assert.ok(promptMeta.estimatedTokens.total > 0);
+    assert.ok(Array.isArray(promptMeta.slimmingSteps));
+
+    process.env.PROMPT_BUDGET_CLAUDE = originalBudget;
+  });
+});

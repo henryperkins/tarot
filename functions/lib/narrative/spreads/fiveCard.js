@@ -20,8 +20,24 @@ export async function buildFiveCardReading({
   fiveCardAnalysis,
   themes,
   context
-}) {
+}, options = {}) {
   const sections = [];
+  const collectValidation =
+    typeof options.collectValidation === 'function'
+      ? options.collectValidation
+      : null;
+
+  const recordSection = (text, metadata = {}) => {
+    const result = enhanceSection(text, metadata);
+    if (collectValidation) {
+      collectValidation({
+        text: result.text,
+        metadata,
+        validation: result.validation || null
+      });
+    }
+    return result.text;
+  };
   const spreadName = 'Five-Card Clarity';
 
   // Opening
@@ -81,11 +97,13 @@ export async function buildFiveCardReading({
     coreSection += `\n\n${coreWeightNotes.join(' ')}`;
   }
 
-  sections.push(enhanceSection(coreSection, {
-    type: 'nucleus',
-    cards: [core, challenge],
-    relationships: { elementalRelationship: fiveCardAnalysis?.coreVsChallenge }
-  }).text);
+  sections.push(
+    recordSection(coreSection, {
+      type: 'nucleus',
+      cards: [core, challenge],
+      relationships: { elementalRelationship: fiveCardAnalysis?.coreVsChallenge }
+    })
+  );
 
   // Hidden influence
   let hiddenSection = `### Hidden Influence\n\n`;
@@ -102,10 +120,12 @@ export async function buildFiveCardReading({
   if (hiddenWeightNote) {
     hiddenSection += `\n\n${hiddenWeightNote}`;
   }
-  sections.push(enhanceSection(hiddenSection, {
-    type: 'subconscious',
-    cards: [hidden]
-  }).text);
+  sections.push(
+    recordSection(hiddenSection, {
+      type: 'subconscious',
+      cards: [hidden]
+    })
+  );
 
   // Support
   let supportSection = `### Supporting Energies\n\n`;
@@ -122,10 +142,12 @@ export async function buildFiveCardReading({
   if (supportWeightNote) {
     supportSection += `\n\n${supportWeightNote}`;
   }
-  sections.push(enhanceSection(supportSection, {
-    type: 'support',
-    cards: [support]
-  }).text);
+  sections.push(
+    recordSection(supportSection, {
+      type: 'support',
+      cards: [support]
+    })
+  );
 
   // Direction
   let directionSection = `### Direction on Your Current Path\n\n`;
@@ -150,11 +172,13 @@ export async function buildFiveCardReading({
     directionSection += `\n\n${directionWeightNote}`;
   }
 
-  sections.push(enhanceSection(directionSection, {
-    type: 'outcome',
-    cards: [direction],
-    relationships: { elementalRelationship: fiveCardAnalysis?.supportVsDirection }
-  }).text);
+  sections.push(
+    recordSection(directionSection, {
+      type: 'outcome',
+      cards: [direction],
+      relationships: { elementalRelationship: fiveCardAnalysis?.supportVsDirection }
+    })
+  );
 
   const supportingSummary = buildSupportingPositionsSummary(prioritized, spreadName);
   if (supportingSummary) {
@@ -174,7 +198,12 @@ export async function buildFiveCardReading({
   // Guidance synthesis with elemental remedies
   const guidanceSection = await buildFiveCardGuidance(cardsInfo, themes, context, direction);
   if (guidanceSection) {
-    sections.push(guidanceSection);
+    sections.push(
+      recordSection(guidanceSection, {
+        type: 'guidance',
+        cards: [direction]
+      })
+    );
   }
 
   const full = sections.filter(Boolean).join('\n\n');

@@ -25,9 +25,22 @@ export async function buildCelticCrossReading({
   celticAnalysis,
   themes,
   context
-}) {
+}, options = {}) {
   const prioritized = sortCardsByImportance(cardsInfo, 'celtic');
   const sections = [];
+  const collectValidation = typeof options.collectValidation === 'function' ? options.collectValidation : null;
+
+  const recordEnhancedSection = (sectionText, metadata = {}) => {
+    const result = enhanceSection(sectionText, metadata);
+    if (collectValidation) {
+      collectValidation({
+        text: result.text,
+        metadata,
+        validation: result.validation || null
+      });
+    }
+    sections.push(result.text);
+  };
 
   // Opening
   sections.push(buildOpening('Celtic Cross (Classic 10-Card)', userQuestion, context));
@@ -38,43 +51,37 @@ export async function buildCelticCrossReading({
   }
 
   // 1. NUCLEUS - The Heart of the Matter (Cards 1-2)
-  sections.push(
-    enhanceSection(
-      buildNucleusSection(celticAnalysis.nucleus, cardsInfo, themes, context),
-      { type: 'nucleus', cards: [cardsInfo[0], cardsInfo[1]], relationships: { elementalRelationship: celticAnalysis.nucleus.elementalDynamic } }
-    ).text
+  recordEnhancedSection(
+    buildNucleusSection(celticAnalysis.nucleus, cardsInfo, themes, context),
+    {
+      type: 'nucleus',
+      cards: [cardsInfo[0], cardsInfo[1]],
+      relationships: { elementalRelationship: celticAnalysis.nucleus.elementalDynamic }
+    }
   );
 
   // 2. TIMELINE - Past, Present, Future (Cards 3-1-4)
-  sections.push(
-    enhanceSection(
-      buildTimelineSection(celticAnalysis.timeline, cardsInfo, themes, context),
-      { type: 'timeline' }
-    ).text
+  recordEnhancedSection(
+    buildTimelineSection(celticAnalysis.timeline, cardsInfo, themes, context),
+    { type: 'timeline' }
   );
 
   // 3. CONSCIOUSNESS - Subconscious, Center, Conscious (Cards 6-1-5)
-  sections.push(
-    enhanceSection(
-      buildConsciousnessSection(celticAnalysis.consciousness, cardsInfo, themes, context),
-      { type: 'consciousness' }
-    ).text
+  recordEnhancedSection(
+    buildConsciousnessSection(celticAnalysis.consciousness, cardsInfo, themes, context),
+    { type: 'consciousness' }
   );
 
   // 4. STAFF - Self, External, Hopes/Fears, Outcome (Cards 7-10)
-  sections.push(
-    enhanceSection(
-      buildStaffSection(celticAnalysis.staff, cardsInfo, themes, context),
-      { type: 'staff' }
-    ).text
+  recordEnhancedSection(
+    buildStaffSection(celticAnalysis.staff, cardsInfo, themes, context),
+    { type: 'staff' }
   );
 
   // 5. CROSS-CHECKS - Key position comparisons
-  sections.push(
-    enhanceSection(
-      buildCrossChecksSection(celticAnalysis.crossChecks, themes),
-      { type: 'relationships' }
-    ).text
+  recordEnhancedSection(
+    buildCrossChecksSection(celticAnalysis.crossChecks, themes),
+    { type: 'relationships' }
   );
 
   // 6. User Reflections
@@ -88,11 +95,9 @@ export async function buildCelticCrossReading({
   }
 
   // 7. SYNTHESIS - Actionable integration
-  sections.push(
-    enhanceSection(
-      await buildSynthesisSection(cardsInfo, themes, celticAnalysis, userQuestion, context),
-      { type: 'outcome' }
-    ).text
+  recordEnhancedSection(
+    await buildSynthesisSection(cardsInfo, themes, celticAnalysis, userQuestion, context),
+    { type: 'outcome' }
   );
 
   const supportingSummary = buildSupportingPositionsSummary(prioritized, 'Celtic Cross');

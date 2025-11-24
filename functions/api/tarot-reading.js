@@ -29,7 +29,8 @@ import {
   buildEnhancedClaudePrompt,
   buildPositionCardText,
   buildElementalRemedies,
-  shouldOfferElementalRemedies
+  shouldOfferElementalRemedies,
+  formatReversalLens
 } from '../lib/narrativeBuilder.js';
 import { enhanceSection, validateReadingNarrative } from '../lib/narrativeSpine.js';
 import { inferContext } from '../lib/contextDetection.js';
@@ -97,6 +98,12 @@ function hasExplicitCardContext(text = '', name = '') {
   return patterns.some((regex) => regex.test(text));
 }
 
+function trimForTelemetry(text = '', limit = 500) {
+  if (!text || typeof text !== 'string') return '';
+  const trimmed = text.trim();
+  return trimmed.length > limit ? `${trimmed.slice(0, limit)}...` : trimmed;
+}
+
 function getSpreadDefinition(spreadName) {
   return SPREAD_NAME_MAP[spreadName] || null;
 }
@@ -161,7 +168,110 @@ function shouldLogLLMPrompts(env) {
   return false;
 }
 
-function maybeLogPromptPayload(env, requestId, backendLabel, systemPrompt, userPrompt) {
+function shouldLogNarrativeEnhancements(env) {
+  if (!env) return false;
+  if (env.LOG_NARRATIVE_ENHANCEMENTS !== undefined) {
+    return normalizeBooleanFlag(env.LOG_NARRATIVE_ENHANCEMENTS);
+  }
+  if (env.DEBUG_NARRATIVE_ENHANCEMENTS !== undefined) {
+    return normalizeBooleanFlag(env.DEBUG_NARRATIVE_ENHANCEMENTS);
+  }
+  return false;
+}
+
+function shouldLogEnhancementTelemetry(env) {
+  if (!env) return false;
+  if (env.LOG_ENHANCEMENT_TELEMETRY !== undefined) {
+    return normalizeBooleanFlag(env.LOG_ENHANCEMENT_TELEMETRY);
+  }
+  if (env.DEBUG_ENHANCEMENT_TELEMETRY !== undefined) {
+    return normalizeBooleanFlag(env.DEBUG_ENHANCEMENT_TELEMETRY);
+  }
+  return false;
+}
+
+function summarizeNarrativeEnhancements(sections = []) {
+  if (!Array.isArray(sections) || sections.length === 0) {
+    return null;
+  }
+
+  const summary = {
+    totalSections: sections.length,
+    enhancedSections: 0,
+    enhancementCounts: {},
+    sectionTypes: {},
+    sectionNames: [],
+    missingCounts: {},
+    totalEnhancements: 0,
+    sections: []
+  };
+
+  sections.forEach((section, index) => {
+    const metadata = section?.metadata || {};
+    const validation = section?.validation || {};
+    const type =
+      metadata.type ||
+      metadata.section ||
+      `section-${index + 1}`;
+    const name =
+      metadata.name ||
+      metadata.label ||
+      metadata.title ||
+      type;
+
+    const enhanced = Boolean(validation?.enhanced);
+    const enhancements = Array.isArray(validation?.enhancements)
+      ? validation.enhancements
+      : [];
+    const missing = Array.isArray(validation?.missing)
+      ? validation.missing
+      : [];
+    const present = validation?.present || {};
+
+    if (!summary.sectionTypes[type]) {
+      summary.sectionTypes[type] = { total: 0, enhanced: 0 };
+    }
+    summary.sectionTypes[type].total += 1;
+    if (enhanced) {
+      summary.enhancedSections += 1;
+      summary.sectionTypes[type].enhanced += 1;
+    }
+
+    enhancements.forEach((tag) => {
+      if (!tag) return;
+      summary.enhancementCounts[tag] =
+        (summary.enhancementCounts[tag] || 0) + 1;
+    });
+
+    summary.totalEnhancements += enhancements.length;
+    summary.sectionNames.push(name);
+
+    missing.forEach((key) => {
+      if (!key) return;
+      summary.missingCounts[key] = (summary.missingCounts[key] || 0) + 1;
+    });
+
+    summary.sections.push({
+      type,
+      name,
+      enhanced,
+      enhancements,
+      missing,
+      present
+    });
+  });
+
+  return summary;
+}
+
+export { summarizeNarrativeEnhancements };
+
+function maybeLogNarrativeEnhancements(env, requestId, provider, summary) {
+  if (!shouldLogNarrativeEnhancements(env) || !summary) return;
+  console.log(`[${requestId}] [${provider}] Narrative enhancement summary:`, summary);
+}
+
+function maybeLogPromptPayload(env, requestId, backendLabel, systemPrompt, userPrompt, promptMeta) {
   if (!shouldLogLLMPrompts(env)) return;
 
   console.log(`[${requestId}] [${backendLabel}] === SYSTEM PROMPT BEGIN ===`);
@@ -171,6 +281,26 @@ function maybeLogPromptPayload(env, requestId, backendLabel, systemPrompt, userP
   console.log(`[${requestId}] [${backendLabel}] === USER PROMPT BEGIN ===`);
   console.log(userPrompt);
   console.log(`[${requestId}] [${backendLabel}] === USER PROMPT END ===`);
+
+  if (promptMeta?.estimatedTokens) {
+    const { total, system, user, budget } = promptMeta.estimatedTokens;
+    const budgetNote = budget ? ` / budget ${budget}` : '';
+    console.log(`[${requestId}] [${backendLabel}] Estimated tokens: total ${total} (system ${system} + user ${user})${budgetNote}`);
+  }
+}
+
+function maybeLogEnhancementTelemetry(env, requestId, telemetry) {
+  if (!shouldLogEnhancementTelemetry(env)) return;
+  if (!telemetry) return;
+
+  const summary = telemetry.summary || telemetry;
+  console.log(
+    `[${requestId}] [enhancement-telemetry] sections=${summary.totalSections || 0}, enhanced=${summary.enhancedSections || 0}, tags=${summary.totalEnhancements || 0}`
+  );
+
+  if (summary.enhancementCounts && Object.keys(summary.enhancementCounts).length > 0) {
+    console.log(`[${requestId}] [enhancement-telemetry] enhancementCounts`, summary.enhancementCounts);
+  }
 }
 
 export const onRequestGet = async ({ env }) => {
@@ -282,7 +412,8 @@ export const onRequestPost = async ({ request, env }) => {
     const analysisStart = Date.now();
     const analysis = await performSpreadAnalysis(spreadInfo, cardsInfo, {
       reversalFrameworkOverride,
-      deckStyle
+      deckStyle,
+      userQuestion
     }, requestId);
     const analysisTime = Date.now() - analysisStart;
     console.log(`[${requestId}] Spread analysis completed in ${analysisTime}ms:`, {
@@ -292,7 +423,10 @@ export const onRequestPost = async ({ request, env }) => {
       reversalFramework: analysis.themes?.reversalFramework
     });
 
-    const context = inferContext(userQuestion, analysis.spreadKey);
+    const contextDiagnostics = [];
+    const context = inferContext(userQuestion, analysis.spreadKey, {
+      onUnknown: (message) => contextDiagnostics.push(message)
+    });
     console.log(`[${requestId}] Context inferred: ${context}`);
 
     // STEP 2: Generate reading via configured narrative backends
@@ -303,8 +437,12 @@ export const onRequestPost = async ({ request, env }) => {
       reflectionsText,
       analysis,
       context,
+      contextDiagnostics,
       visionInsights: sanitizedVisionInsights,
-      deckStyle
+      deckStyle,
+      narrativeEnhancements: [],
+      graphRAGPayload: analysis.graphRAGPayload || null,
+      promptMeta: null
     };
 
     let reading = null;
@@ -316,6 +454,8 @@ export const onRequestPost = async ({ request, env }) => {
     for (const backend of backendsToTry) {
       const attemptStart = Date.now();
       console.log(`[${requestId}] Attempting narrative backend ${backend.id} (${backend.label})...`);
+      narrativePayload.narrativeEnhancements = [];
+      narrativePayload.promptMeta = null;
       try {
         const result = await runNarrativeBackend(backend.id, env, narrativePayload, requestId);
         if (!result || !result.toString().trim()) {
@@ -347,7 +487,41 @@ export const onRequestPost = async ({ request, env }) => {
     console.log(`[${requestId}] Request completed successfully in ${totalTime}ms using provider: ${provider}`);
     console.log(`[${requestId}] === TAROT READING REQUEST END ===`);
 
-    const narrativeMetrics = buildNarrativeMetrics(reading, cardsInfo, deckStyle);
+    const narrativeEnhancementSummary = summarizeNarrativeEnhancements(
+      Array.isArray(narrativePayload.narrativeEnhancements)
+        ? narrativePayload.narrativeEnhancements
+        : []
+    );
+    maybeLogNarrativeEnhancements(env, requestId, provider, narrativeEnhancementSummary);
+    const enhancementSections = (narrativePayload.narrativeEnhancements || []).map((section, index) => ({
+      name: section?.metadata?.name || section?.metadata?.type || `section-${index + 1}`,
+      type: section?.metadata?.type || null,
+      text: trimForTelemetry(section?.text, 500),
+      validation: section?.validation || null
+    }));
+
+    const enhancementTelemetry = narrativeEnhancementSummary
+      ? { summary: narrativeEnhancementSummary, sections: enhancementSections }
+      : null;
+
+    const promptMeta = narrativePayload.promptMeta || null;
+    const promptTokens = promptMeta?.estimatedTokens || null;
+    const promptSlimming = promptMeta?.slimmingSteps || [];
+    const graphRAGStats = analysis.graphRAGPayload?.retrievalSummary || null;
+    const diagnosticsPayload = {
+      messages: contextDiagnostics,
+      count: contextDiagnostics.length
+    };
+
+    const narrativeMetrics = {
+      ...buildNarrativeMetrics(reading, cardsInfo, deckStyle),
+      enhancementTelemetry,
+      promptTokens,
+      promptSlimming,
+      graphRAG: graphRAGStats,
+      contextDiagnostics: diagnosticsPayload
+    };
+
     await persistReadingMetrics(env, {
       requestId,
       timestamp: new Date().toISOString(),
@@ -356,8 +530,15 @@ export const onRequestPost = async ({ request, env }) => {
       spreadKey: analysis.spreadKey,
       context,
       vision: visionMetrics,
-      narrative: narrativeMetrics
+      narrative: narrativeMetrics,
+      narrativeEnhancements: narrativeEnhancementSummary,
+      graphRAG: graphRAGStats,
+      promptMeta,
+      enhancementTelemetry,
+      contextDiagnostics: diagnosticsPayload
     });
+
+    maybeLogEnhancementTelemetry(env, requestId, enhancementTelemetry);
 
     return jsonResponse({
       reading,
@@ -365,6 +546,9 @@ export const onRequestPost = async ({ request, env }) => {
       requestId,
       themes: analysis.themes,
       context,
+      contextDiagnostics,
+      narrativeMetrics,
+      graphRAG: graphRAGStats,
       spreadAnalysis: {
         // Normalize top-level metadata for all spreads
         version: '1.0.0',
@@ -435,6 +619,7 @@ async function performSpreadAnalysis(spreadInfo, cardsInfo, options = {}, reques
   // Spread-specific position-relationship analysis
   let spreadAnalysis = null;
   let spreadKey = 'general';
+  let graphRAGPayload = null;
 
   try {
     spreadKey = getSpreadKey(spreadInfo.name);
@@ -469,10 +654,55 @@ async function performSpreadAnalysis(spreadInfo, cardsInfo, options = {}, reques
     spreadKey = 'general';
   }
 
+  // Memoize GraphRAG retrieval once so prompts for multiple backends reuse it
+  try {
+    const graphKeys = themes?.knowledgeGraph?.graphKeys;
+    if (graphKeys) {
+      const {
+        isGraphRAGEnabled,
+        retrievePassages,
+        formatPassagesForPrompt,
+        buildRetrievalSummary,
+        getPassageCountForSpread
+      } = await import('../lib/graphRAG.js');
+
+      if (isGraphRAGEnabled()) {
+        const maxPassages = getPassageCountForSpread(spreadKey || 'general');
+        const passages = retrievePassages(graphKeys, {
+          maxPassages,
+          userQuery: options.userQuestion
+        });
+
+        const formattedBlock = formatPassagesForPrompt(passages, {
+          includeSource: true,
+          markdown: true
+        });
+
+        const retrievalSummary = buildRetrievalSummary(graphKeys, passages);
+
+        graphRAGPayload = {
+          passages,
+          formattedBlock,
+          retrievalSummary,
+          maxPassages
+        };
+
+        // Make memoized payload discoverable to downstream consumers
+        themes.knowledgeGraph = {
+          ...(themes.knowledgeGraph || {}),
+          graphRAGPayload
+        };
+      }
+    }
+  } catch (err) {
+    console.warn(`[${requestId}] performSpreadAnalysis: GraphRAG memoization failed: ${err.message}`);
+  }
+
   return {
     themes,
     spreadAnalysis,
-    spreadKey
+    spreadKey,
+    graphRAGPayload
   };
 }
 
@@ -549,7 +779,8 @@ export function validatePayload({ spreadInfo, cardsInfo }) {
  *
  * API Reference: https://learn.microsoft.com/en-us/azure/ai-foundry/openai/how-to/responses
  */
-async function generateWithAzureGPT5Responses(env, { spreadInfo, cardsInfo, userQuestion, reflectionsText, analysis, context, visionInsights }, requestId = 'unknown') {
+async function generateWithAzureGPT5Responses(env, payload, requestId = 'unknown') {
+  const { spreadInfo, cardsInfo, userQuestion, reflectionsText, analysis, context, visionInsights, contextDiagnostics = [] } = payload;
   const endpoint = env.AZURE_OPENAI_ENDPOINT.replace(/\/+$/, '');
   const apiKey = env.AZURE_OPENAI_API_KEY;
   const deploymentName = env.AZURE_OPENAI_GPT5_MODEL; // Azure deployment name (often mirrors the base model name)
@@ -560,7 +791,7 @@ async function generateWithAzureGPT5Responses(env, { spreadInfo, cardsInfo, user
   console.log(`[${requestId}] Building Azure GPT-5 prompts...`);
 
   // Build enhanced prompts using narrative builder
-  const { systemPrompt, userPrompt } = buildEnhancedClaudePrompt({
+  const { systemPrompt, userPrompt, promptMeta, contextDiagnostics: promptDiagnostics } = buildEnhancedClaudePrompt({
     spreadInfo,
     cardsInfo,
     userQuestion,
@@ -569,11 +800,22 @@ async function generateWithAzureGPT5Responses(env, { spreadInfo, cardsInfo, user
     spreadAnalysis: analysis.spreadAnalysis,
     context,
     visionInsights,
-    deckStyle
+    deckStyle,
+    graphRAGPayload: analysis.graphRAGPayload,
+    budgetTarget: 'azure',
+    contextDiagnostics
   });
 
+  if (promptMeta) {
+    payload.promptMeta = promptMeta;
+  }
+
+  if (Array.isArray(promptDiagnostics) && promptDiagnostics.length) {
+    payload.contextDiagnostics = Array.from(new Set([...(payload.contextDiagnostics || []), ...promptDiagnostics]));
+  }
+
   console.log(`[${requestId}] System prompt length: ${systemPrompt.length}, User prompt length: ${userPrompt.length}`);
-  maybeLogPromptPayload(env, requestId, 'azure-gpt5', systemPrompt, userPrompt);
+  maybeLogPromptPayload(env, requestId, 'azure-gpt5', systemPrompt, userPrompt, promptMeta);
 
   // Azure OpenAI Responses API endpoint format (v1 API):
   // POST {endpoint}/openai/v1/responses?api-version=preview
@@ -687,14 +929,15 @@ async function generateWithAzureGPT5Responses(env, { spreadInfo, cardsInfo, user
 /**
  * Enhanced Claude Sonnet 4.5 generation with position-relationship analysis
  */
-async function generateWithClaudeSonnet45Enhanced(env, { spreadInfo, cardsInfo, userQuestion, reflectionsText, analysis, context, visionInsights }, requestId = 'unknown') {
+async function generateWithClaudeSonnet45Enhanced(env, payload, requestId = 'unknown') {
+  const { spreadInfo, cardsInfo, userQuestion, reflectionsText, analysis, context, visionInsights, contextDiagnostics = [] } = payload;
   const apiKey = env.ANTHROPIC_API_KEY;
   const apiUrl = env.ANTHROPIC_API_URL || 'https://api.anthropic.com/v1/messages';
   const model = 'claude-sonnet-4-5';
   const deckStyle = spreadInfo?.deckStyle || analysis?.themes?.deckStyle || cardsInfo?.[0]?.deckStyle || 'rws-1909';
 
   // Build enhanced prompts using narrative builder
-  const { systemPrompt, userPrompt } = buildEnhancedClaudePrompt({
+  const { systemPrompt, userPrompt, promptMeta, contextDiagnostics: promptDiagnostics } = buildEnhancedClaudePrompt({
     spreadInfo,
     cardsInfo,
     userQuestion,
@@ -703,10 +946,21 @@ async function generateWithClaudeSonnet45Enhanced(env, { spreadInfo, cardsInfo, 
     spreadAnalysis: analysis.spreadAnalysis,
     context,
     visionInsights,
-    deckStyle
+    deckStyle,
+    graphRAGPayload: analysis.graphRAGPayload,
+    budgetTarget: 'claude',
+    contextDiagnostics
   });
 
-  maybeLogPromptPayload(env, requestId, 'claude-sonnet45', systemPrompt, userPrompt);
+  if (promptMeta) {
+    payload.promptMeta = promptMeta;
+  }
+
+  if (Array.isArray(promptDiagnostics) && promptDiagnostics.length) {
+    payload.contextDiagnostics = Array.from(new Set([...(payload.contextDiagnostics || []), ...promptDiagnostics]));
+  }
+
+  maybeLogPromptPayload(env, requestId, 'claude-sonnet45', systemPrompt, userPrompt, promptMeta);
 
   const response = await fetch(apiUrl, {
     method: 'POST',
@@ -791,19 +1045,52 @@ const SPREAD_READING_BUILDERS = {
 /**
  * Enhanced local composer with spread-specific narrative construction
  */
-async function composeReadingEnhanced({ spreadInfo, cardsInfo, userQuestion, reflectionsText, analysis, context }) {
-  const { themes, spreadAnalysis, spreadKey } = analysis;
-
-  return generateReadingFromAnalysis({
-    spreadKey,
-    spreadAnalysis,
+async function composeReadingEnhanced(payload) {
+  const {
+    spreadInfo,
     cardsInfo,
     userQuestion,
     reflectionsText,
-    themes,
-    spreadInfo,
+    analysis,
     context
-  });
+  } = payload;
+  const { themes, spreadAnalysis, spreadKey } = analysis;
+  const collectedSections = [];
+
+  const reading = await generateReadingFromAnalysis(
+    {
+      spreadKey,
+      spreadAnalysis,
+      cardsInfo,
+      userQuestion,
+      reflectionsText,
+      themes,
+      spreadInfo,
+      context
+    },
+    {
+      collectValidation: (section) => {
+        if (!section) return;
+        collectedSections.push({
+          text: section.text || '',
+          metadata: section.metadata || {},
+          validation: section.validation || null
+        });
+      }
+    }
+  );
+
+  payload.narrativeEnhancements = collectedSections;
+
+  if (!payload.promptMeta) {
+    payload.promptMeta = {
+      backend: 'local-composer',
+      estimatedTokens: null,
+      slimmingSteps: []
+    };
+  }
+
+  return reading;
 }
 
 async function runNarrativeBackend(backendId, env, payload, requestId) {
@@ -818,7 +1105,10 @@ async function runNarrativeBackend(backendId, env, payload, requestId) {
   }
 }
 
-async function generateReadingFromAnalysis({ spreadKey, spreadAnalysis, cardsInfo, userQuestion, reflectionsText, themes, spreadInfo, context }) {
+async function generateReadingFromAnalysis(
+  { spreadKey, spreadAnalysis, cardsInfo, userQuestion, reflectionsText, themes, spreadInfo, context },
+  options = {}
+) {
   const builder = SPREAD_READING_BUILDERS[spreadKey];
 
   if (builder) {
@@ -830,27 +1120,34 @@ async function generateReadingFromAnalysis({ spreadKey, spreadAnalysis, cardsInf
       themes,
       spreadInfo,
       context
-    });
+    }, options);
 
     if (typeof result === 'string' && result.trim()) {
       return result;
     }
   }
 
-  return buildGenericReading({
-    spreadInfo,
-    cardsInfo,
-    userQuestion,
-    reflectionsText,
-    themes,
-    context
-  });
+  return buildGenericReading(
+    {
+      spreadInfo,
+      cardsInfo,
+      userQuestion,
+      reflectionsText,
+      themes,
+      context
+    },
+    options
+  );
 }
 
 /**
  * Generic enhanced reading builder (for spreads without specific builders yet)
  */
-function buildGenericReading({ spreadInfo, cardsInfo, userQuestion, reflectionsText, themes, context }) {
+function buildGenericReading(
+  { spreadInfo, cardsInfo, userQuestion, reflectionsText, themes, context },
+  options = {}
+) {
+  const { collectValidation } = options;
   const spreadName = spreadInfo?.name?.trim() || 'your chosen spread';
   const entries = [];
   const safeCards = Array.isArray(cardsInfo) ? cardsInfo : [];
@@ -886,11 +1183,25 @@ function buildGenericReading({ spreadInfo, cardsInfo, userQuestion, reflectionsT
     metadata: { type: 'synthesis', cards: finalCard ? [finalCard] : [] }
   });
 
-  const sections = entries
-    .map(({ text, metadata }) => enhanceSection(text, metadata).text)
+  const enhancedSections = entries
+    .map(({ text, metadata }) => {
+      const result = enhanceSection(text, metadata || {});
+      if (!result || !result.text) {
+        return null;
+      }
+      const sectionRecord = {
+        text: result.text,
+        metadata: metadata || {},
+        validation: result.validation || null
+      };
+      if (typeof collectValidation === 'function') {
+        collectValidation(sectionRecord);
+      }
+      return sectionRecord;
+    })
     .filter(Boolean);
 
-  const readingBody = sections.join('\n\n');
+  const readingBody = enhancedSections.map((section) => section.text).join('\n\n');
   return appendGenericReversalReminder(readingBody, safeCards, themes);
 }
 
@@ -1044,7 +1355,17 @@ function appendGenericReversalReminder(readingText, cardsInfo, themes) {
     return readingText;
   }
 
-  const reminder = `*Reversal lens reminder: Within the ${themes.reversalDescription.name} lens, ${themes.reversalDescription.guidance}*`;
+  const lens = formatReversalLens(themes, { includeExamples: false, includeReminder: false });
+  const guidanceLine = Array.isArray(lens.lines)
+    ? lens.lines.find((line) => line.toLowerCase().includes('guidance'))
+    : null;
+  const reminderText = guidanceLine
+    ? guidanceLine.replace(/^[-\s]*/, '').trim()
+    : (themes.reversalDescription.guidance
+        ? `Guidance: ${themes.reversalDescription.guidance}`
+        : `Reversal lens: ${themes.reversalDescription.name}`);
+
+  const reminder = `*Reversal lens reminder: ${reminderText}*`;
   if (readingText.includes(reminder)) {
     return readingText;
   }

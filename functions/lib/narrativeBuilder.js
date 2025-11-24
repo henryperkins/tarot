@@ -1,7 +1,7 @@
 /**
  * Narrative builder entrypoint that proxies to modular spread/prompt helpers.
  */
-export { buildPositionCardText, buildElementalRemedies, shouldOfferElementalRemedies } from './narrative/helpers.js';
+export { buildPositionCardText, buildElementalRemedies, shouldOfferElementalRemedies, formatReversalLens } from './narrative/helpers.js';
 export { buildEnhancedClaudePrompt } from './narrative/prompts.js';
 export { buildCelticCrossReading } from './narrative/spreads/celticCross.js';
 export { buildFiveCardReading } from './narrative/spreads/fiveCard.js';

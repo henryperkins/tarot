@@ -4,32 +4,21 @@ import {
   getContextDescriptor,
   buildPositionCardText,
   getPositionOptions,
-  buildReversalGuidance,
+  formatReversalLens,
   getCrossCheckReversalNote,
   buildCrossCheckSynthesis,
-  getConnector
+  getConnector,
+  DEFAULT_WEIGHT_DETAIL_THRESHOLD
 } from './helpers.js';
 import { getDeckProfile } from '../../../shared/vision/deckProfiles.js';
 import { THOTH_MINOR_TITLES, MARSEILLE_NUMERICAL_THEMES } from '../../../src/data/knowledgeGraphData.js';
-import { isGraphRAGEnabled, retrievePassages, formatPassagesForPrompt } from '../graphRAG.js';
-
-/**
- * Get optimal passage count based on spread complexity
- * @param {string} spreadKey - Spread identifier (single, threeCard, celtic, etc.)
- * @returns {number} Maximum number of passages to retrieve
- */
-function getPassageCountForSpread(spreadKey) {
-  const limits = {
-    'single': 1,       // One-card = 1 passage (focused)
-    'threeCard': 2,    // Simple spread = 2 passages
-    'fiveCard': 3,     // Medium spread = 3 passages
-    'celtic': 5,       // Complex spread = 5 passages (rich context needed)
-    'decision': 3,     // Decision spread = 3 passages
-    'relationship': 2, // Relationship = 2 passages
-    'general': 3       // Default fallback
-  };
-  return limits[spreadKey] || 3;
-}
+import {
+  isGraphRAGEnabled,
+  retrievePassages,
+  formatPassagesForPrompt,
+  getPassageCountForSpread
+} from '../graphRAG.js';
+import { getPositionWeight } from '../positionWeights.js';
 
 const DECK_STYLE_TIPS = {
   'thoth-a1': [
@@ -43,6 +32,35 @@ const DECK_STYLE_TIPS = {
     'Call out when repeated motifs (flowers, petals, crossed blades) change the energy of a pip card.'
   ]
 };
+
+const TOKEN_ESTIMATE_DIVISOR = 4; // Rough heuristic: ~4 characters per token
+
+function readEnvNumber(value) {
+  if (value === undefined || value === null) return null;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+}
+
+export function estimateTokenCount(text = '') {
+  const safe = typeof text === 'string' ? text : String(text || '');
+  return Math.ceil(safe.length / TOKEN_ESTIMATE_DIVISOR);
+}
+
+export function getPromptBudgetForTarget(target = 'default') {
+  const env = typeof process !== 'undefined' && process.env ? process.env : {};
+  const normalizedTarget = (target || 'default').toLowerCase();
+
+  let raw = null;
+  if (normalizedTarget === 'azure') {
+    raw = env.PROMPT_BUDGET_AZURE ?? env.PROMPT_BUDGET_DEFAULT;
+  } else if (normalizedTarget === 'claude') {
+    raw = env.PROMPT_BUDGET_CLAUDE ?? env.PROMPT_BUDGET_DEFAULT;
+  } else {
+    raw = env.PROMPT_BUDGET_DEFAULT;
+  }
+
+  return readEnvNumber(raw);
+}
 
 function getDeckStyleNotes(deckStyle = 'rws-1909') {
   const profile = getDeckProfile(deckStyle);
@@ -64,28 +82,118 @@ export function buildEnhancedClaudePrompt({
   spreadAnalysis,
   context,
   visionInsights,
-  deckStyle = 'rws-1909'
+  deckStyle = 'rws-1909',
+  graphRAGPayload = null,
+  budgetTarget = 'claude',
+  contextDiagnostics = []
 }) {
   const spreadKey = getSpreadKeyFromName(spreadInfo.name);
-  const normalizedContext = normalizeContext(context);
+  const diagnostics = Array.isArray(contextDiagnostics) ? contextDiagnostics : [];
 
-  // Build spread-specific system prompt
-  const systemPrompt = buildSystemPrompt(spreadKey, themes, normalizedContext, deckStyle, userQuestion);
+  const normalizedContext = normalizeContext(context, {
+    onUnknown: (message) => diagnostics.push(message)
+  });
 
-  // Build structured user prompt
-  const userPrompt = buildUserPrompt(
-    spreadKey,
-    cardsInfo,
-    userQuestion,
-    reflectionsText,
-    themes,
-    spreadAnalysis,
-    normalizedContext,
-    visionInsights,
-    deckStyle
-  );
+  const promptBudget = getPromptBudgetForTarget(budgetTarget);
 
-  return { systemPrompt, userPrompt };
+  const baseControls = {
+    graphRAGPayload,
+    includeGraphRAG: true,
+    includeDeckContext: true,
+    includeDiagnostics: true,
+    omitLowWeightImagery: false
+  };
+
+  const buildWithControls = (controls) => {
+    const systemPrompt = buildSystemPrompt(
+      spreadKey,
+      themes,
+      normalizedContext,
+      deckStyle,
+      userQuestion,
+      controls
+    );
+
+    const userPrompt = buildUserPrompt(
+      spreadKey,
+      cardsInfo,
+      userQuestion,
+      reflectionsText,
+      themes,
+      spreadAnalysis,
+      normalizedContext,
+      visionInsights,
+      deckStyle,
+      controls
+    );
+
+    const systemTokens = estimateTokenCount(systemPrompt);
+    const userTokens = estimateTokenCount(userPrompt);
+
+    return {
+      systemPrompt,
+      userPrompt,
+      systemTokens,
+      userTokens,
+      totalTokens: systemTokens + userTokens
+    };
+  };
+
+  let controls = { ...baseControls };
+  let built = buildWithControls(controls);
+  const slimmingSteps = [];
+
+  const maybeSlim = (label, updater) => {
+    if (!promptBudget) return;
+    if (built.totalTokens <= promptBudget) return;
+    updater();
+    built = buildWithControls(controls);
+    slimmingSteps.push(label);
+  };
+
+  // Step 1: Drop imagery/vision sub-points for lower-weight cards
+  maybeSlim('drop-low-weight-imagery', () => {
+    controls = { ...controls, omitLowWeightImagery: true };
+  });
+
+  // Step 2: Remove GraphRAG block if still over budget
+  maybeSlim('drop-graphrag-block', () => {
+    controls = { ...controls, includeGraphRAG: false };
+  });
+
+  // Step 3: Remove deck geometry/context tables (Thoth/Marseille)
+  maybeSlim('drop-deck-geometry', () => {
+    controls = { ...controls, includeDeckContext: false };
+  });
+
+  // Step 4: Remove diagnostics (vision validation, verbose notes)
+  maybeSlim('drop-diagnostics', () => {
+    controls = { ...controls, includeDiagnostics: false };
+  });
+
+  const promptMeta = {
+    estimatedTokens: {
+      system: built.systemTokens,
+      user: built.userTokens,
+      total: built.totalTokens,
+      budget: promptBudget,
+      budgetTarget,
+      overBudget: Boolean(promptBudget && built.totalTokens > promptBudget)
+    },
+    slimmingSteps,
+    appliedOptions: {
+      omitLowWeightImagery: Boolean(controls.omitLowWeightImagery),
+      includeGraphRAG: Boolean(controls.includeGraphRAG),
+      includeDeckContext: Boolean(controls.includeDeckContext),
+      includeDiagnostics: Boolean(controls.includeDiagnostics)
+    }
+  };
+
+  if (controls.graphRAGPayload?.retrievalSummary) {
+    promptMeta.graphRAG = controls.graphRAGPayload.retrievalSummary;
+  }
+
+  return { systemPrompt: built.systemPrompt, userPrompt: built.userPrompt, promptMeta, contextDiagnostics: diagnostics };
 }
 
 function getSpreadKeyFromName(name) {
@@ -100,7 +208,7 @@ function getSpreadKeyFromName(name) {
   return map[name] || 'general';
 }
 
-function buildSystemPrompt(spreadKey, themes, context, deckStyle, userQuestion = '') {
+function buildSystemPrompt(spreadKey, themes, context, deckStyle, userQuestion = '', options = {}) {
   const lines = [
     'You are an agency-forward, trauma-informed tarot storyteller.',
     '',
@@ -111,6 +219,8 @@ function buildSystemPrompt(spreadKey, themes, context, deckStyle, userQuestion =
     '- Never offer medical, mental health, legal, financial, or abuse-safety directives. When those themes surface, gently encourage seeking qualified professional or community support.',
     '- Treat reversals according to the selected framework for this reading (see Reversal Framework below) and keep that lens consistent throughout.'
   ];
+
+  const includeDeckContext = options.includeDeckContext !== false;
 
   lines.push(
     '',
@@ -148,63 +258,35 @@ function buildSystemPrompt(spreadKey, themes, context, deckStyle, userQuestion =
     );
   }
 
-  // Reversal framework
-  const reversalSection = [];
-  if (themes.reversalCount > 0 && themes.reversalFramework !== 'none') {
-    reversalSection.push(
-      '',
-      'REVERSAL FRAMEWORK',
-      `- Reversal lens for this reading: “${themes.reversalDescription.name}”.`,
-      `- Definition: ${themes.reversalDescription.description}`,
-      `- Guidance: ${themes.reversalDescription.guidance}`,
-      '- Keep this lens consistent for all reversed cards in this spread so the story stays coherent.'
-    );
-
-    if (themes.reversalDescription.examples && Object.keys(themes.reversalDescription.examples).length > 0) {
-      reversalSection.push('- Example applications:');
-      Object.entries(themes.reversalDescription.examples).forEach(([card, interpretation]) => {
-        reversalSection.push(`  - ${card} reversed: ${interpretation}`);
-      });
-    }
-  } else if (themes.reversalCount === 0) {
-    reversalSection.push(
-      '',
-      'REVERSAL FRAMEWORK',
-      `- Reversal lens: ${themes.reversalDescription.name}. All cards appear upright in this reading.`
-    );
-  } else {
-    // Fallback for edge cases
-    reversalSection.push(
-      '',
-      'REVERSAL FRAMEWORK',
-      `- Reversal lens: ${themes.reversalDescription.name}.`,
-      `- Definition: ${themes.reversalDescription.description}`
-    );
+  const reversalLens = formatReversalLens(themes, { includeExamples: true, includeReminder: true });
+  if (reversalLens.lines.length) {
+    lines.push('', 'REVERSAL FRAMEWORK', ...reversalLens.lines, '');
   }
 
-  lines.push(
-    ...reversalSection,
-    ''
-  );
+  const includeGraphRAG = options.includeGraphRAG !== false;
 
   // GraphRAG: Retrieve and inject traditional wisdom passages
-  if (isGraphRAGEnabled() && themes?.knowledgeGraph?.graphKeys) {
+  if (includeGraphRAG && isGraphRAGEnabled() && themes?.knowledgeGraph?.graphKeys) {
     try {
       // Adaptive passage count based on spread complexity
       const effectiveSpreadKey = spreadKey || 'general';
       const maxPassages = getPassageCountForSpread(effectiveSpreadKey);
 
-      const retrievedPassages = retrievePassages(themes.knowledgeGraph.graphKeys, {
-        maxPassages,
-        userQuery: userQuestion
-      });
+      const payload = options.graphRAGPayload || themes?.knowledgeGraph?.graphRAGPayload;
+      const retrievedPassages = Array.isArray(payload?.passages) && payload.passages.length
+        ? payload.passages.slice(0, maxPassages)
+        : retrievePassages(themes.knowledgeGraph.graphKeys, {
+            maxPassages,
+            userQuery: userQuestion
+          });
 
-      if (retrievedPassages.length > 0) {
-        const formattedPassages = formatPassagesForPrompt(retrievedPassages, {
+      const formattedPassages = payload?.formattedBlock
+        || formatPassagesForPrompt(retrievedPassages, {
           includeSource: true,
           markdown: true
         });
 
+      if (formattedPassages) {
         lines.push(
           '## TRADITIONAL WISDOM (GraphRAG)',
           '',
@@ -247,7 +329,7 @@ function buildSystemPrompt(spreadKey, themes, context, deckStyle, userQuestion =
   }
 
   const deckNotes = getDeckStyleNotes(deckStyle);
-  if (deckNotes) {
+  if (deckNotes && includeDeckContext) {
     lines.push(
       '',
       `DECK STYLE: ${deckNotes.label}. ${deckNotes.cue || ''}`.trim(),
@@ -272,8 +354,22 @@ function buildSystemPrompt(spreadKey, themes, context, deckStyle, userQuestion =
   return lines.join('\n');
 }
 
-function buildUserPrompt(spreadKey, cardsInfo, userQuestion, reflectionsText, themes, spreadAnalysis, context, visionInsights, deckStyle) {
+function buildUserPrompt(
+  spreadKey,
+  cardsInfo,
+  userQuestion,
+  reflectionsText,
+  themes,
+  spreadAnalysis,
+  context,
+  visionInsights,
+  deckStyle,
+  promptOptions = {}
+) {
   let prompt = ``;
+
+  const includeDeckContext = promptOptions.includeDeckContext !== false;
+  const includeDiagnostics = promptOptions.includeDiagnostics !== false;
 
   // Question
   prompt += `**Question**: ${userQuestion || '(No explicit question; speak to the energy most present for the querent.)'}\n\n`;
@@ -324,22 +420,22 @@ function buildUserPrompt(spreadKey, cardsInfo, userQuestion, reflectionsText, th
 
   // Spread-specific card presentation
   if (spreadKey === 'celtic' && spreadAnalysis) {
-    prompt += buildCelticCrossPromptCards(cardsInfo, spreadAnalysis, themes, context, userQuestion, visionInsights);
+    prompt += buildCelticCrossPromptCards(cardsInfo, spreadAnalysis, themes, context, userQuestion, visionInsights, promptOptions);
   } else if (spreadKey === 'threeCard' && spreadAnalysis) {
-    prompt += buildThreeCardPromptCards(cardsInfo, spreadAnalysis, themes, context, userQuestion, visionInsights);
+    prompt += buildThreeCardPromptCards(cardsInfo, spreadAnalysis, themes, context, userQuestion, visionInsights, promptOptions);
   } else if (spreadKey === 'fiveCard' && spreadAnalysis) {
-    prompt += buildFiveCardPromptCards(cardsInfo, spreadAnalysis, themes, context, visionInsights);
+    prompt += buildFiveCardPromptCards(cardsInfo, spreadAnalysis, themes, context, visionInsights, promptOptions);
   } else if (spreadKey === 'relationship') {
-    prompt += buildRelationshipPromptCards(cardsInfo, themes, context, visionInsights);
+    prompt += buildRelationshipPromptCards(cardsInfo, themes, context, visionInsights, promptOptions);
   } else if (spreadKey === 'decision') {
-    prompt += buildDecisionPromptCards(cardsInfo, themes, context, visionInsights);
+    prompt += buildDecisionPromptCards(cardsInfo, themes, context, visionInsights, promptOptions);
   } else if (spreadKey === 'single') {
-    prompt += buildSingleCardPrompt(cardsInfo, themes, context, visionInsights);
+    prompt += buildSingleCardPrompt(cardsInfo, themes, context, visionInsights, promptOptions);
   } else {
-    prompt += buildStandardPromptCards(cardsInfo, themes, context, visionInsights);
+    prompt += buildStandardPromptCards(spreadKey, cardsInfo, themes, context, visionInsights, promptOptions);
   }
 
-  const deckSpecificContext = buildDeckSpecificContext(deckStyle, cardsInfo);
+  const deckSpecificContext = buildDeckSpecificContext(deckStyle, cardsInfo, { includeDeckContext });
   if (deckSpecificContext) {
     prompt += deckSpecificContext;
   }
@@ -350,7 +446,7 @@ function buildUserPrompt(spreadKey, cardsInfo, userQuestion, reflectionsText, th
     prompt += `\n**Querent's Reflections**:\n${reflectionsText.trim()}\n\n`;
   }
 
-  const visionSection = buildVisionValidationSection(visionInsights);
+  const visionSection = buildVisionValidationSection(visionInsights, { includeDiagnostics });
   if (visionSection) {
     prompt += visionSection;
   }
@@ -370,7 +466,11 @@ Apply Minor Arcana interpretation rules to all non-Major cards.`;
   return prompt;
 }
 
-function buildVisionValidationSection(visionInsights) {
+function buildVisionValidationSection(visionInsights, options = {}) {
+  if (options.includeDiagnostics === false) {
+    return '';
+  }
+
   if (!Array.isArray(visionInsights) || visionInsights.length === 0) {
     return '';
   }
@@ -447,26 +547,27 @@ function sanitizeAndTruncate(text = '', maxLength = 100) {
     .replace(/\s+/g, ' ');
 }
 
-function buildCelticCrossPromptCards(cardsInfo, analysis, themes, context, userQuestion, visionInsights) {
-  const options = { ...getPositionOptions(themes, context), visionInsights };
+function buildCelticCrossPromptCards(cardsInfo, analysis, themes, context, userQuestion, visionInsights, promptOptions = {}) {
+  const baseOptions = { ...getPositionOptions(themes, context), visionInsights };
+  const optionsFor = (index, extra = {}) => ({
+    ...makeCardOptions('celtic', index, baseOptions, promptOptions),
+    ...extra
+  });
 
   let cards = `**NUCLEUS** (Heart of the Matter):\n`;
-  cards += buildCardWithImagery(cardsInfo[0], cardsInfo[0].position || 'Present — core situation (Card 1)', options);
-  cards += buildCardWithImagery(cardsInfo[1], cardsInfo[1].position || 'Challenge — crossing / tension (Card 2)', options);
+  cards += buildCardWithImagery(cardsInfo[0], cardsInfo[0].position || 'Present — core situation (Card 1)', optionsFor(0));
+  cards += buildCardWithImagery(cardsInfo[1], cardsInfo[1].position || 'Challenge — crossing / tension (Card 2)', optionsFor(1));
   cards += `Relationship insight: ${analysis.nucleus.synthesis}\n`;
   cards += getElementalImageryText(analysis.nucleus.elementalDynamic) + '\n\n';
 
   cards += `**TIMELINE**:\n`;
-  cards += buildCardWithImagery(cardsInfo[2], cardsInfo[2].position || 'Past — what lies behind (Card 3)', options);
+  cards += buildCardWithImagery(cardsInfo[2], cardsInfo[2].position || 'Past — what lies behind (Card 3)', optionsFor(2));
 
   const presentPosition = cardsInfo[0].position || 'Present — core situation (Card 1)';
   cards += buildCardWithImagery(
     cardsInfo[0],
     presentPosition,
-    {
-      ...options,
-      prevElementalRelationship: analysis.timeline.pastToPresent
-    },
+    optionsFor(0, { prevElementalRelationship: analysis.timeline.pastToPresent }),
     getConnector(presentPosition, 'toPrev')
   );
 
@@ -474,10 +575,7 @@ function buildCelticCrossPromptCards(cardsInfo, analysis, themes, context, userQ
   cards += buildCardWithImagery(
     cardsInfo[3],
     futurePosition,
-    {
-      ...options,
-      prevElementalRelationship: analysis.timeline.presentToFuture
-    },
+    optionsFor(3, { prevElementalRelationship: analysis.timeline.presentToFuture }),
     getConnector(futurePosition, 'toPrev')
   );
   cards += `Flow insight: ${analysis.timeline.causality}\n`;
@@ -485,21 +583,21 @@ function buildCelticCrossPromptCards(cardsInfo, analysis, themes, context, userQ
   cards += getElementalImageryText(analysis.timeline.presentToFuture) + '\n\n';
 
   cards += `**CONSCIOUSNESS**:\n`;
-  cards += buildCardWithImagery(cardsInfo[5], cardsInfo[5].position || 'Subconscious — roots / hidden forces (Card 6)', options);
-  cards += buildCardWithImagery(cardsInfo[4], cardsInfo[4].position || 'Conscious — goals & focus (Card 5)', options);
+  cards += buildCardWithImagery(cardsInfo[5], cardsInfo[5].position || 'Subconscious — roots / hidden forces (Card 6)', optionsFor(5));
+  cards += buildCardWithImagery(cardsInfo[4], cardsInfo[4].position || 'Conscious — goals & focus (Card 5)', optionsFor(4));
   cards += `Alignment insight: ${analysis.consciousness.synthesis}\n`;
   cards += getElementalImageryText(analysis.consciousness.elementalRelationship) + '\n\n';
 
   cards += `**STAFF** (Context & Outcome):\n`;
-  cards += buildCardWithImagery(cardsInfo[6], cardsInfo[6].position || 'Self / Advice — how to meet this (Card 7)', options);
-  cards += buildCardWithImagery(cardsInfo[7], cardsInfo[7].position || 'External Influences — people & environment (Card 8)', options);
-  cards += buildCardWithImagery(cardsInfo[8], cardsInfo[8].position || 'Hopes & Fears — deepest wishes & worries (Card 9)', options);
+  cards += buildCardWithImagery(cardsInfo[6], cardsInfo[6].position || 'Self / Advice — how to meet this (Card 7)', optionsFor(6));
+  cards += buildCardWithImagery(cardsInfo[7], cardsInfo[7].position || 'External Influences — people & environment (Card 8)', optionsFor(7));
+  cards += buildCardWithImagery(cardsInfo[8], cardsInfo[8].position || 'Hopes & Fears — deepest wishes & worries (Card 9)', optionsFor(8));
   
   const outcomeLabel = userQuestion 
     ? `Outcome — likely path for "${sanitizeAndTruncate(userQuestion)}" if unchanged (Card 10)`
     : 'Outcome — likely path if unchanged (Card 10)';
     
-  cards += buildCardWithImagery(cardsInfo[9], cardsInfo[9].position || outcomeLabel, options);
+  cards += buildCardWithImagery(cardsInfo[9], cardsInfo[9].position || outcomeLabel, optionsFor(9));
   cards += `Advice-to-outcome insight: ${analysis.staff.adviceImpact}\n`;
   cards += getElementalImageryText(analysis.staff.adviceToOutcome) + '\n\n';
 
@@ -521,8 +619,12 @@ function buildCelticCrossPromptCards(cardsInfo, analysis, themes, context, userQ
   return cards;
 }
 
-function buildThreeCardPromptCards(cardsInfo, analysis, themes, context, userQuestion, visionInsights) {
-  const options = { ...getPositionOptions(themes, context), visionInsights };
+function buildThreeCardPromptCards(cardsInfo, analysis, themes, context, userQuestion, visionInsights, promptOptions = {}) {
+  const baseOptions = { ...getPositionOptions(themes, context), visionInsights };
+  const optionsFor = (index, extra = {}) => ({
+    ...makeCardOptions('threeCard', index, baseOptions, promptOptions),
+    ...extra
+  });
   const [past, present, future] = cardsInfo;
 
   let cards = `**THREE-CARD STORY STRUCTURE**\n`;
@@ -531,17 +633,16 @@ function buildThreeCardPromptCards(cardsInfo, analysis, themes, context, userQue
   cards += buildCardWithImagery(
     past,
     past.position || 'Past — influences that led here',
-    options
+    optionsFor(0)
   );
 
   const presentPosition = present.position || 'Present — where you stand now';
   cards += buildCardWithImagery(
     present,
     presentPosition,
-    {
-      ...options,
+    optionsFor(1, {
       prevElementalRelationship: analysis?.transitions?.firstToSecond
-    },
+    }),
     getConnector(presentPosition, 'toPrev')
   );
 
@@ -553,10 +654,9 @@ function buildThreeCardPromptCards(cardsInfo, analysis, themes, context, userQue
   cards += buildCardWithImagery(
     future,
     futurePosition,
-    {
-      ...options,
+    optionsFor(2, {
       prevElementalRelationship: analysis?.transitions?.secondToThird
-    },
+    }),
     getConnector(futurePosition, 'toPrev')
   );
 
@@ -581,21 +681,36 @@ function findVisionInsightForCard(cardName, visionInsights) {
   );
 }
 
+function shouldIncludeImageryForPosition(spreadKey, positionIndex, promptOptions = {}) {
+  if (!promptOptions.omitLowWeightImagery) return true;
+  return getPositionWeight(spreadKey, positionIndex) >= DEFAULT_WEIGHT_DETAIL_THRESHOLD;
+}
+
+function makeCardOptions(spreadKey, positionIndex, baseOptions, promptOptions = {}) {
+  const includeImagery = shouldIncludeImageryForPosition(spreadKey, positionIndex, promptOptions);
+  return {
+    ...baseOptions,
+    omitImagery: !includeImagery
+  };
+}
+
 /**
  * Build card text with imagery hook for prompts
  * Now includes vision-detected visual profile (tone/emotion) when available
  */
 function buildCardWithImagery(cardInfo, position, options, prefix = '') {
-  const base = buildPositionCardText(cardInfo, position, options);
+  const safeOptions = options || {};
+  const base = buildPositionCardText(cardInfo, position, safeOptions);
   const lead = prefix ? `${prefix} ${base}` : base;
   let text = `${lead}\n`;
 
   // Check if vision profile exists for this card
-  const visionInsight = findVisionInsightForCard(cardInfo.card, options.visionInsights);
+  const visionInsight = findVisionInsightForCard(cardInfo.card, safeOptions.visionInsights);
   const visualProfile = visionInsight?.visualProfile;
+  const allowImagery = !safeOptions.omitImagery;
 
   // Add imagery hook if Major Arcana
-  if (isMajorArcana(cardInfo.number)) {
+  if (allowImagery && isMajorArcana(cardInfo.number)) {
     const hook = getImageryHook(cardInfo.number, cardInfo.orientation);
     if (hook) {
       text += `*Imagery: ${hook.visual}*\n`;
@@ -613,7 +728,7 @@ function buildCardWithImagery(cardInfo, position, options, prefix = '') {
         text += `*Emotional quality: ${emotionDescriptors}*\n`;
       }
     }
-  } else if (cardInfo.suit && cardInfo.rank) {
+  } else if (allowImagery && cardInfo.suit && cardInfo.rank) {
     const suitElements = {
       Wands: 'Fire',
       Cups: 'Water',
@@ -639,7 +754,9 @@ function buildCardWithImagery(cardInfo, position, options, prefix = '') {
   return text;
 }
 
-function buildDeckSpecificContext(deckStyle, cardsInfo) {
+function buildDeckSpecificContext(deckStyle, cardsInfo, options = {}) {
+  if (options.includeDeckContext === false) return '';
+
   if (!Array.isArray(cardsInfo) || cardsInfo.length === 0) {
     return '';
   }
@@ -699,46 +816,53 @@ function getElementalImageryText(elementalRelationship) {
   return '';
 }
 
-function buildFiveCardPromptCards(cardsInfo, fiveCardAnalysis, themes, context, visionInsights) {
-  const options = { ...getPositionOptions(themes, context), visionInsights };
+function buildFiveCardPromptCards(cardsInfo, fiveCardAnalysis, themes, context, visionInsights, promptOptions = {}) {
+  const baseOptions = { ...getPositionOptions(themes, context), visionInsights };
+  const optionsFor = (index, extra = {}) => ({
+    ...makeCardOptions('fiveCard', index, baseOptions, promptOptions),
+    ...extra
+  });
   const [core, challenge, hidden, support, direction] = cardsInfo;
 
   let out = `**FIVE-CARD CLARITY STRUCTURE**\n`;
   out += `- Core of the matter\n- Challenge or tension\n- Hidden / subconscious influence\n- Support / helpful energy\n- Likely direction on current path\n\n`;
 
-  out += buildCardWithImagery(core, core.position || 'Core of the matter', options);
-  out += buildCardWithImagery(challenge, challenge.position || 'Challenge or tension', {
-    ...options,
+  out += buildCardWithImagery(core, core.position || 'Core of the matter', optionsFor(0));
+  out += buildCardWithImagery(challenge, challenge.position || 'Challenge or tension', optionsFor(1, {
     prevElementalRelationship: fiveCardAnalysis?.coreVsChallenge
-  });
-  out += buildCardWithImagery(hidden, hidden.position || 'Hidden / subconscious influence', options);
-  out += buildCardWithImagery(support, support.position || 'Support / helpful energy', options);
-  out += buildCardWithImagery(direction, direction.position || 'Likely direction on current path', {
-    ...options,
+  }));
+  out += buildCardWithImagery(hidden, hidden.position || 'Hidden / subconscious influence', optionsFor(2));
+  out += buildCardWithImagery(support, support.position || 'Support / helpful energy', optionsFor(3));
+  out += buildCardWithImagery(direction, direction.position || 'Likely direction on current path', optionsFor(4, {
     prevElementalRelationship: fiveCardAnalysis?.supportVsDirection
-  });
+  }));
 
   return out;
 }
 
-function buildRelationshipPromptCards(cardsInfo, themes, context, visionInsights) {
-  const options = { ...getPositionOptions(themes, context), visionInsights };
+function buildRelationshipPromptCards(cardsInfo, themes, context, visionInsights, promptOptions = {}) {
+  const baseOptions = { ...getPositionOptions(themes, context), visionInsights };
+  const optionsFor = (index, extra = {}) => ({
+    ...makeCardOptions('relationship', index, baseOptions, promptOptions),
+    ...extra
+  });
+
   const [youCard, themCard, connectionCard, ...extraCards] = cardsInfo;
 
   let out = `**RELATIONSHIP SNAPSHOT STRUCTURE**\n`;
   out += `- You / your energy\n- Them / their energy\n- The connection / shared lesson\n\n`;
 
   if (youCard) {
-    out += buildCardWithImagery(youCard, youCard.position || 'You / your energy', options);
+    out += buildCardWithImagery(youCard, youCard.position || 'You / your energy', optionsFor(0));
   }
   if (themCard) {
-    out += buildCardWithImagery(themCard, themCard.position || 'Them / their energy', options);
+    out += buildCardWithImagery(themCard, themCard.position || 'Them / their energy', optionsFor(1));
   }
   if (connectionCard) {
     out += buildCardWithImagery(
       connectionCard,
       connectionCard.position || 'The connection / shared lesson',
-      options
+      optionsFor(2)
     );
   }
 
@@ -747,15 +871,20 @@ function buildRelationshipPromptCards(cardsInfo, themes, context, visionInsights
     extraCards.forEach((card, idx) => {
       if (!card) return;
       const label = card.position || `Additional insight ${idx + 1}`;
-      out += buildCardWithImagery(card, label, options);
+      out += buildCardWithImagery(card, label, optionsFor(idx + 3));
     });
   }
 
   return out;
 }
 
-function buildDecisionPromptCards(cardsInfo, themes, context, visionInsights) {
-  const options = { ...getPositionOptions(themes, context), visionInsights };
+function buildDecisionPromptCards(cardsInfo, themes, context, visionInsights, promptOptions = {}) {
+  const baseOptions = { ...getPositionOptions(themes, context), visionInsights };
+  const optionsFor = (index, extra = {}) => ({
+    ...makeCardOptions('decision', index, baseOptions, promptOptions),
+    ...extra
+  });
+
   const [heart, pathA, pathB, clarifier, freeWill] = cardsInfo;
 
   let out = `**DECISION / TWO-PATH STRUCTURE**\n`;
@@ -765,43 +894,44 @@ function buildDecisionPromptCards(cardsInfo, themes, context, visionInsights) {
     out += buildCardWithImagery(
       heart,
       heart.position || 'Heart of the decision',
-      options
+      optionsFor(0)
     );
   }
   if (pathA) {
     out += buildCardWithImagery(
       pathA,
       pathA.position || 'Path A — energy & likely outcome',
-      options
+      optionsFor(1)
     );
   }
   if (pathB) {
     out += buildCardWithImagery(
       pathB,
       pathB.position || 'Path B — energy & likely outcome',
-      options
+      optionsFor(2)
     );
   }
   if (clarifier) {
     out += buildCardWithImagery(
       clarifier,
       clarifier.position || 'What clarifies the best path',
-      options
+      optionsFor(3)
     );
   }
   if (freeWill) {
     out += buildCardWithImagery(
       freeWill,
       freeWill.position || 'What to remember about your free will',
-      options
+      optionsFor(4)
     );
   }
 
   return out;
 }
 
-function buildSingleCardPrompt(cardsInfo, themes, context, visionInsights) {
-  const options = { ...getPositionOptions(themes, context), visionInsights };
+function buildSingleCardPrompt(cardsInfo, themes, context, visionInsights, promptOptions = {}) {
+  const baseOptions = { ...getPositionOptions(themes, context), visionInsights };
+  const optionsFor = makeCardOptions('single', 0, baseOptions, promptOptions);
   const card = cardsInfo[0];
   if (!card) return '';
 
@@ -810,17 +940,18 @@ function buildSingleCardPrompt(cardsInfo, themes, context, visionInsights) {
   out += buildCardWithImagery(
     card,
     card.position || 'Theme / Guidance of the Moment',
-    options
+    optionsFor
   );
   return out;
 }
 
-function buildStandardPromptCards(cardsInfo, themes, context, visionInsights) {
-  const options = { ...getPositionOptions(themes, context), visionInsights };
+function buildStandardPromptCards(spreadKey, cardsInfo, themes, context, visionInsights, promptOptions = {}) {
+  const baseOptions = { ...getPositionOptions(themes, context), visionInsights };
 
   return cardsInfo
     .map((card, idx) => {
       const position = card.position || `Card ${idx + 1}`;
+      const options = makeCardOptions(spreadKey, idx, baseOptions, promptOptions);
       return buildCardWithImagery(card, position, options);
     })
     .join('\n') + '\n';

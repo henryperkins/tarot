@@ -1,73 +1,22 @@
-import { useEffect, useRef, useState } from 'react';
-import { Sparkle, CaretLeft, CaretRight, Check, Lightning, BookOpen, Eye, Path, Heart, Compass } from './icons';
+import { useRef } from 'react';
+import { Sparkle, Check, Star } from './icons';
 import { Icon, ICON_SIZES } from './Icon';
 import { SPREADS } from '../data/spreads';
-import { usePreferences } from '../contexts/PreferencesContext';
 import { SpreadPatternThumbnail } from './SpreadPatternThumbnail';
 
-const TAG_ICONS = {
-  'Quick': Lightning,
-  'Story': BookOpen,
-  'Clarity': Eye,
-  'Decision': Path,
-  'Relationship': Heart,
-  'Deep dive': Compass
-};
-
-const RECOMMENDED_SPREADS = new Set(['single', 'threeCard']);
-
-function getComplexity(count) {
-  if (count <= 1) return { label: 'Quick draw', tone: 'bg-primary/15 border-primary/60 text-main' };
-  if (count <= 3) return { label: 'Beginner friendly', tone: 'bg-secondary/15 border-secondary/70 text-main' };
-  if (count <= 5) return { label: 'Guided depth', tone: 'bg-secondary/20 border-secondary/70 text-main' };
-  return { label: 'Deep dive', tone: 'bg-primary/20 border-primary/70 text-main' };
-}
+const STAR_TOTAL = 3;
 
 export function SpreadSelector({
   selectedSpread,
   onSelectSpread,
   onSpreadConfirm
 }) {
-  const [expandedSpread, setExpandedSpread] = useState(null);
-  const carouselRef = useRef(null);
   const spreadRefs = useRef({});
-  const [canScrollPrev, setCanScrollPrev] = useState(false);
-  const [canScrollNext, setCanScrollNext] = useState(false);
-  const updateScrollHints = () => {
-    const el = carouselRef.current;
-    if (!el) return;
-    const tolerance = 4;
-    setCanScrollPrev(el.scrollLeft > tolerance);
-    setCanScrollNext(el.scrollLeft + el.clientWidth < el.scrollWidth - tolerance);
-  };
-
-  useEffect(() => {
-    const el = carouselRef.current;
-    if (!el) return;
-    updateScrollHints();
-
-    const handleScroll = () => updateScrollHints();
-    el.addEventListener('scroll', handleScroll, { passive: true });
-    if (typeof window !== 'undefined') {
-      window.addEventListener('resize', handleScroll);
-    }
-    return () => {
-      el.removeEventListener('scroll', handleScroll);
-      if (typeof window !== 'undefined') {
-        window.removeEventListener('resize', handleScroll);
-      }
-    };
-  }, []);
-
-  useEffect(() => {
-    updateScrollHints();
-  }, [selectedSpread]);
 
   const handleSpreadSelection = key => {
     if (onSelectSpread) {
       onSelectSpread(key);
     }
-    setExpandedSpread(null);
     if (onSpreadConfirm) {
       onSpreadConfirm(key);
     }
@@ -77,14 +26,12 @@ export function SpreadSelector({
     const spreadKeys = Object.keys(SPREADS);
     const currentIndex = spreadKeys.indexOf(key);
 
-    // Handle selection
     if (event.key === 'Enter' || event.key === ' ') {
       event.preventDefault();
       handleSpreadSelection(key);
       return;
     }
 
-    // Handle arrow key navigation for radiogroup
     let nextIndex = -1;
     if (event.key === 'ArrowRight' || event.key === 'ArrowDown') {
       event.preventDefault();
@@ -100,165 +47,104 @@ export function SpreadSelector({
       nextIndex = spreadKeys.length - 1;
     }
 
-    // Focus the next spread if we navigated
     if (nextIndex !== -1) {
       const nextKey = spreadKeys[nextIndex];
       const nextElement = spreadRefs.current[nextKey];
       if (nextElement && typeof nextElement.focus === 'function') {
         nextElement.focus();
-        // Scroll into view if needed
         nextElement.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
       }
     }
   };
 
-  const handleDetailsToggle = (event, key) => {
-    event.stopPropagation();
-    event.preventDefault();
-    setExpandedSpread(prev => (prev === key ? null : key));
-  };
+  const renderStars = stars => (
+    <div className="flex items-center gap-0.5 text-primary">
+      {Array.from({ length: STAR_TOTAL }).map((_, index) => (
+        <Icon
+          key={`${index}-star`}
+          icon={Star}
+          size="sm"
+          weight={index < stars ? 'fill' : 'regular'}
+          className={index < stars
+            ? 'text-primary drop-shadow-[0_0_10px_rgba(244,223,175,0.35)]'
+            : 'text-secondary/60'}
+          decorative
+        />
+      ))}
+    </div>
+  );
 
   return (
-    <div className="modern-surface p-4 sm:p-6 mb-6 sm:mb-8 animate-fade-in">
-      <h2 className="text-lg sm:text-xl font-serif text-accent mb-3 flex items-center gap-2">
-        <Icon icon={Sparkle} size={ICON_SIZES.md} className="sm:w-5 sm:h-5" decorative />
-        Choose Your Spread
-      </h2>
-      <div className="relative">
-        <div
-          ref={carouselRef}
-          role="radiogroup"
-          aria-label="Choose your spread"
-          className="flex gap-3 overflow-x-auto snap-x snap-mandatory pb-2 sm:overflow-visible sm:snap-none sm:grid sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-5 sm:gap-3"
-        >
-          {Object.entries(SPREADS).map(([key, spread], index) => {
-            const isActive = selectedSpread === key;
-            const isExpanded = expandedSpread === key;
-            const baseDescription = spread.mobileDescription || spread.description || 'Guided snapshot for your focus.';
-            const desktopDescription = baseDescription.length > 120 ? `${baseDescription.slice(0, 117)}…` : baseDescription;
-            const complexity = getComplexity(spread.count);
-            const isRecommended = RECOMMENDED_SPREADS.has(key);
-            // Roving tabindex: only selected spread (or first if none selected) is tabbable
-            const isFirstSpread = index === 0;
-            const isTabbable = isActive || (!selectedSpread && isFirstSpread);
-            return (
-              <article
-                key={key}
-                ref={el => { spreadRefs.current[key] = el; }}
-                role="radio"
-                tabIndex={isTabbable ? 0 : -1}
-                aria-checked={isActive}
-                onClick={() => handleSpreadSelection(key)}
-                onKeyDown={event => handleCardKeyDown(event, key)}
-                className={`relative flex flex-col justify-between rounded-2xl border-2 px-3 py-3 sm:px-4 cursor-pointer select-none transition basis-[78%] shrink-0 snap-center sm:basis-auto ${isActive
-                  ? 'bg-primary/20 border-primary shadow-lg shadow-primary/20'
-                  : 'bg-surface-muted border-secondary/50 hover:border-primary/50 hover:bg-surface-muted/90'
-                } focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/90 focus-visible:ring-offset-2 focus-visible:ring-offset-main`}
-              >
-                {/* Selected indicator */}
-                {isActive && (
-                  <div className="absolute top-3 right-3">
-                    <div className="w-6 h-6 rounded-full bg-primary flex items-center justify-center">
-                      <Check className="w-4 h-4 text-surface" weight="bold" aria-hidden="true" />
-                    </div>
-                  </div>
-                )}
-
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between gap-2 pr-16">
-                    <div className="font-serif font-semibold text-base text-main leading-snug">{spread.name}</div>
-                    {spread.tag && TAG_ICONS[spread.tag] && (
-                      <span className="inline-flex items-center gap-1 rounded-full border border-accent/60 px-2 py-1 text-[0.7rem] text-accent bg-surface/60" title={spread.tag} aria-label={spread.tag}>
-                        <Icon icon={TAG_ICONS[spread.tag]} size={ICON_SIZES.sm} decorative />
-                        <span className="hidden sm:inline">{spread.tag}</span>
-                      </span>
-                    )}
-                  </div>
-
-                  {/* Visual pattern thumbnail */}
-                  <div className="w-full h-16 sm:h-20 rounded-lg border border-secondary/30 bg-surface/40 p-2 overflow-hidden">
-                    <SpreadPatternThumbnail spreadKey={key} className="w-full h-full opacity-80" />
-                    <span className="sr-only">Layout preview showing {spread.count} card positions</span>
-                  </div>
-                  <div className="space-y-2">
-                    {(isRecommended || complexity) && (
-                      <div className="flex flex-wrap items-center gap-2">
-                        {isRecommended && (
-                          <span className="inline-flex items-center gap-1 rounded-full border border-primary/70 bg-primary/20 px-2.5 py-1 text-[0.72rem] font-semibold text-main shadow-sm shadow-primary/20">
-                            <Icon icon={Sparkle} size={ICON_SIZES.sm} decorative />
-                            <span>Recommended</span>
-                          </span>
-                        )}
-                        {complexity && (
-                          <span className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[0.72rem] font-semibold ${complexity.tone}`}>
-                            {complexity.label}
-                          </span>
-                        )}
-                      </div>
-                    )}
-                    <p className="text-[clamp(0.85rem,2.4vw,0.95rem)] leading-snug text-muted">
-                      {spread.count} card{spread.count > 1 ? 's' : ''}
-                    </p>
-                  </div>
-                </div>
-                <p className="text-xs sm:text-sm opacity-90 leading-snug text-muted">
-                  {desktopDescription}
-                </p>
-                <div className="sm:hidden mt-3">
-                  {isExpanded && (
-                    <p className="text-main/90 text-[0.9rem] leading-snug mb-2 animate-slide-up">
-                      {spread.description || spread.mobileDescription || 'Guided snapshot for your focus.'}
-                    </p>
-                  )}
-                  <button
-                    type="button"
-                    onClick={event => handleDetailsToggle(event, key)}
-                    aria-expanded={isExpanded}
-                    className="text-accent text-sm underline underline-offset-4"
-                  >
-                    {isExpanded ? 'Hide details' : 'More about this spread'}
-                  </button>
-                </div>
-              </article>
-            );
-          })}
-        </div>
-
-        {/* Mobile scroll affordances */}
-        <div className="sm:hidden pointer-events-none">
-          {canScrollPrev && (
-            <>
-              <div className="absolute inset-y-0 left-0 w-12 bg-gradient-to-r from-main via-main/80 to-transparent"></div>
-              <button
-                type="button"
-                onClick={() => {
-                  carouselRef.current?.scrollBy({ left: -carouselRef.current.clientWidth * 0.8, behavior: 'smooth' });
-                }}
-                className="pointer-events-auto absolute top-1/2 -translate-y-1/2 left-2 inline-flex items-center justify-center rounded-full bg-main/90 border border-accent/20 text-muted w-11 h-11 min-w-[44px] min-h-[44px] shadow-lg shadow-main/60"
-                aria-label="See previous spreads"
-              >
-                <Icon icon={CaretLeft} size={ICON_SIZES.md} decorative />
-              </button>
-            </>
-          )}
-          {canScrollNext && (
-            <>
-              <div className="absolute inset-y-0 right-0 w-12 bg-gradient-to-l from-main via-main/80 to-transparent"></div>
-              <button
-                type="button"
-                onClick={() => {
-                  carouselRef.current?.scrollBy({ left: carouselRef.current.clientWidth * 0.8, behavior: 'smooth' });
-                }}
-                className="pointer-events-auto absolute top-1/2 -translate-y-1/2 right-2 inline-flex items-center justify-center rounded-full bg-main/90 border border-accent/20 text-muted w-11 h-11 min-w-[44px] min-h-[44px] shadow-lg shadow-main/60"
-                aria-label="See more spreads"
-              >
-                <Icon icon={CaretRight} size={ICON_SIZES.md} decorative />
-              </button>
-            </>
-          )}
-        </div>
+    <div className="spread-selector-panel p-5 sm:p-7 mb-6 sm:mb-8 animate-fade-in">
+      <div className="flex items-center gap-2 mb-5">
+        <Icon
+          icon={Sparkle}
+          size={ICON_SIZES.md}
+          className="text-primary drop-shadow-[0_0_12px_rgba(244,223,175,0.35)] sm:w-5 sm:h-5"
+          decorative
+        />
+        <h2 className="text-lg sm:text-xl font-serif text-accent leading-tight">Choose Your Spread</h2>
       </div>
-      <p className="sm:hidden text-center text-xs text-muted mt-3">Swipe or tap arrows to explore more spreads.</p>
+
+      <div
+        role="radiogroup"
+        aria-label="Choose your spread"
+        className="flex gap-3 overflow-x-auto snap-x snap-mandatory pb-3 sm:overflow-visible sm:snap-none sm:grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 sm:gap-4"
+      >
+        {Object.entries(SPREADS).map(([key, spread], index) => {
+          const isActive = selectedSpread === key;
+          const baseDescription = spread.mobileDescription || spread.description || 'Guided snapshot for your focus.';
+          const isFirstSpread = index === 0;
+          const isTabbable = isActive || (!selectedSpread && isFirstSpread);
+          const stars = spread.complexity?.stars ?? 0;
+          const complexityLabel = spread.complexity?.label || 'Beginner';
+
+          return (
+            <article
+              key={key}
+              ref={el => { spreadRefs.current[key] = el; }}
+              role="radio"
+              tabIndex={isTabbable ? 0 : -1}
+              aria-checked={isActive}
+              onClick={() => handleSpreadSelection(key)}
+              onKeyDown={event => handleCardKeyDown(event, key)}
+              className={`spread-card group relative flex flex-col gap-3 min-h-[320px] sm:min-h-[340px] cursor-pointer select-none shrink-0 basis-[82%] xs:basis-[70%] snap-center sm:basis-auto sm:shrink ${isActive ? 'spread-card--active' : ''} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70 focus-visible:ring-offset-2 focus-visible:ring-offset-main`}
+            >
+              {isActive && (
+                <div className="absolute top-3 right-3 z-10">
+                  <div className="w-7 h-7 rounded-full bg-primary text-surface shadow-[0_0_0_2px_rgba(12,10,16,0.75),0_0_0_10px_rgba(212,184,150,0.25)] flex items-center justify-center">
+                    <Check className="w-4 h-4" weight="bold" aria-hidden="true" />
+                  </div>
+                </div>
+              )}
+
+              <div className="text-[15px] sm:text-base font-semibold text-main leading-snug pr-8">
+                {spread.name}
+              </div>
+
+              <SpreadPatternThumbnail
+                spreadKey={key}
+                preview={spread.preview}
+                spreadName={spread.name}
+                className="spread-card__preview w-full"
+              />
+
+              <div className="spread-card__meta">
+                <div className="spread-card__complexity">
+                  <span className="text-[11px] text-accent/90">Complexity:</span>
+                  {renderStars(stars)}
+                  <span className="text-[12px] text-muted capitalize">{complexityLabel}</span>
+                </div>
+              </div>
+
+              <p className="text-sm text-muted leading-snug mt-auto">
+                {baseDescription}
+              </p>
+            </article>
+          );
+        })}
+      </div>
+      <p className="sm:hidden text-center text-xs text-muted mt-3">Swipe horizontally to browse spreads.</p>
     </div>
   );
 }

@@ -21,6 +21,27 @@ import {
 } from './knowledgeBase.js';
 
 /**
+ * Determine the number of passages to retrieve based on spread complexity.
+ * Centralized here so prompts and server-side memoization stay in sync.
+ *
+ * @param {string} spreadKey
+ * @returns {number}
+ */
+export function getPassageCountForSpread(spreadKey) {
+  const limits = {
+    single: 1,        // One-card = 1 passage (focused)
+    threeCard: 2,     // Simple spread = 2 passages
+    fiveCard: 3,      // Medium spread = 3 passages
+    celtic: 5,        // Complex spread = 5 passages (rich context needed)
+    decision: 3,      // Decision spread = 3 passages
+    relationship: 2,  // Relationship = 2 passages
+    general: 3        // Default fallback
+  };
+
+  return limits[spreadKey] || limits.general;
+}
+
+/**
  * Retrieve relevant passages based on detected graph patterns
  *
  * @param {Object} graphKeys - Graph keys from buildGraphContext()

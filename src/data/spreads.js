@@ -7,8 +7,15 @@ export const SPREADS = {
     roleKeys: ['theme'],
     count: 1,
     description:
-      'A single anchor card capturing the key energy or message surrounding your question or your day.',
-    mobileDescription: 'One card to anchor the energy around your question.'
+      'Anchor the moment with one clear card that names the energy around your question.',
+    mobileDescription: 'One card anchoring the energy around your question.',
+    complexity: { stars: 1, label: 'Beginner' },
+    preview: {
+      src: '/images/spread-art/single.png',
+      width: 220,
+      height: 108,
+      alt: 'Single card centered on a starry field'
+    }
   },
 
   // Three-card: foundational narrative spread
@@ -23,8 +30,15 @@ export const SPREADS = {
     roleKeys: ['past', 'present', 'future'],
     count: 3,
     description:
-      'A classic snapshot showing how the situation has unfolded, what is active now, and where it is heading.',
-    mobileDescription: 'Past, present, and future snapshots of your story.'
+      'Trace past, present, and future threads so you understand how the story is moving.',
+    mobileDescription: 'Past, present, future snapshots to see your story moving.',
+    complexity: { stars: 2, label: 'Intermediate' },
+    preview: {
+      src: '/images/spread-art/threeCard.png',
+      width: 219,
+      height: 108,
+      alt: 'Three cards aligned for past, present, and future'
+    }
   },
 
   // Five-card: structured clarity without full deep-dive
@@ -41,8 +55,15 @@ export const SPREADS = {
     roleKeys: ['core', 'challenge', 'subconscious', 'support', 'direction'],
     count: 5,
     description:
-      'Adds nuance and reflection space while staying approachable for self-readings and beginners.',
-    mobileDescription: 'Five cards to surface core tension, support, and likely direction.'
+      'Surface the core tension, revealing support, challenge, and direction without a full deep dive.',
+    mobileDescription: 'Five cards naming tension, support, and next direction.',
+    complexity: { stars: 2, label: 'Intermediate' },
+    preview: {
+      src: '/images/spread-art/fiveCard.png',
+      width: 219,
+      height: 108,
+      alt: 'Five-card cross layout'
+    }
   },
 
   // Decision / two-path: compare options while honoring agency
@@ -59,8 +80,15 @@ export const SPREADS = {
     roleKeys: ['heart', 'pathA', 'pathB', 'clarifier', 'freeWill'],
     count: 5,
     description:
-      'Compares two routes with context and lesson, emphasizing choice over fixed fate.',
-    mobileDescription: 'Contrast two paths plus the wisdom that helps you choose.'
+      'Compare two paths plus the lesson between them so you can choose with agency.',
+    mobileDescription: 'Contrast both paths and the wisdom that clarifies your choice.',
+    complexity: { stars: 2, label: 'Intermediate' },
+    preview: {
+      src: '/images/spread-art/decision.png',
+      width: 220,
+      height: 108,
+      alt: 'Dual path layout with clarifying center'
+    }
   },
 
   // Relationship: focused dynamic between querent and other
@@ -75,8 +103,15 @@ export const SPREADS = {
     roleKeys: ['you', 'them', 'connection'],
     count: 3,
     description:
-      'Three-card check-in that centers your energy, their energy, and the shared field between you for clear relational guidance.',
-    mobileDescription: 'You, them, and the shared connection with grounded guidance.'
+      'Center your energy, their energy, and the shared field for a grounded relationship check-in.',
+    mobileDescription: 'You, them, and the shared connection for grounded guidance.',
+    complexity: { stars: 2, label: 'Intermediate' },
+    preview: {
+      src: '/images/spread-art/relationship.png',
+      width: 220,
+      height: 109,
+      alt: 'Three-card relationship triangle layout'
+    }
   },
 
   // Celtic Cross: classic full spread for complex questions
@@ -110,8 +145,15 @@ export const SPREADS = {
     ],
     count: 10,
     description:
-      'A traditional map of the heart of the matter, internal landscape, external forces, and probable outcome, ideal for layered questions.',
-    mobileDescription: 'Classic 10-card deep dive for complex, layered questions.'
+      'Walk the classic ten-card map to read layers of influence, advice, and likely outcome.',
+    mobileDescription: 'Classic 10-card deep dive for layered, complex questions.',
+    complexity: { stars: 3, label: 'Advanced' },
+    preview: {
+      src: '/images/spread-art/celtic.png',
+      width: 220,
+      height: 109,
+      alt: 'Celtic Cross ten-card arrangement'
+    }
   }
 };
 

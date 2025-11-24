@@ -20,8 +20,24 @@ export async function buildDecisionReading({
   reflectionsText,
   themes,
   context
-}) {
+}, options = {}) {
   const sections = [];
+  const collectValidation =
+    typeof options.collectValidation === 'function'
+      ? options.collectValidation
+      : null;
+
+  const recordSection = (text, metadata = {}) => {
+    const result = enhanceSection(text, metadata);
+    if (collectValidation) {
+      collectValidation({
+        text: result.text,
+        metadata,
+        validation: result.validation || null
+      });
+    }
+    return result.text;
+  };
   const spreadName = 'Decision / Two-Path';
 
   sections.push(
@@ -36,7 +52,7 @@ export async function buildDecisionReading({
   const normalizedCards = Array.isArray(cardsInfo) ? cardsInfo : [];
   const prioritized = sortCardsByImportance(normalizedCards, 'decision');
   const [heart, pathA, pathB, clarifier, freeWill] = normalizedCards;
-  const options = getPositionOptions(themes, context);
+  const positionOptions = getPositionOptions(themes, context);
 
   const attentionNote = buildWeightAttentionIntro(prioritized, spreadName);
   if (attentionNote) {
@@ -49,7 +65,7 @@ export async function buildDecisionReading({
   choice += buildPositionCardText(
     heart,
     heartPosition,
-    options
+    positionOptions
   );
   choice += '\n\nThis position stands at the center of your decision and points toward what truly matters as you weigh each path.';
 
@@ -58,10 +74,10 @@ export async function buildDecisionReading({
     choice += `\n\n${heartWeightNote}`;
   }
   sections.push(
-    enhanceSection(choice, {
+    recordSection(choice, {
       type: 'decision-core',
       cards: [heart]
-    }).text
+    })
   );
 
   // PATH A
@@ -71,7 +87,7 @@ export async function buildDecisionReading({
   const pathAText = buildPositionCardText(
     pathA,
     pathAPosition,
-    options
+    positionOptions
   );
   aSection += pathAConnector ? `${pathAConnector} ${pathAText}` : pathAText;
   aSection += '\n\nThis path suggests one possible trajectory if you commit to this direction.';
@@ -81,10 +97,10 @@ export async function buildDecisionReading({
     aSection += `\n\n${pathAWeightNote}`;
   }
   sections.push(
-    enhanceSection(aSection, {
+    recordSection(aSection, {
       type: 'decision-path',
       cards: [pathA]
-    }).text
+    })
   );
 
   // PATH B
@@ -94,7 +110,7 @@ export async function buildDecisionReading({
   const pathBText = buildPositionCardText(
     pathB,
     pathBPosition,
-    options
+    positionOptions
   );
   bSection += pathBConnector ? `${pathBConnector} ${pathBText}` : pathBText;
   bSection += '\n\nThis path suggests an alternate trajectory, inviting you to compare how each route aligns with your values.';
@@ -104,10 +120,10 @@ export async function buildDecisionReading({
     bSection += `\n\n${pathBWeightNote}`;
   }
   sections.push(
-    enhanceSection(bSection, {
+    recordSection(bSection, {
       type: 'decision-path',
       cards: [pathB]
-    }).text
+    })
   );
 
   // CLARITY + AGENCY
@@ -119,7 +135,7 @@ export async function buildDecisionReading({
     const clarifierText = buildPositionCardText(
       clarifier,
       clarifierPosition,
-      options
+      positionOptions
     );
     clarity += clarifierConnector ? `${clarifierConnector} ${clarifierText}` : clarifierText;
     clarity += '\n\n';
@@ -143,7 +159,7 @@ export async function buildDecisionReading({
     const freeWillText = buildPositionCardText(
       freeWill,
       freeWillPosition,
-      options
+      positionOptions
     );
     clarity += freeWillConnector ? `${freeWillConnector} ${freeWillText}` : freeWillText;
     clarity += '\n\n';
@@ -158,10 +174,10 @@ export async function buildDecisionReading({
     'Use these insights to understand how each option feels in your body and life. The cards illuminate possibilities; you remain the one who chooses. Each route is a trajectory shaped by your next intentional steps.';
 
   sections.push(
-    enhanceSection(clarity, {
+    recordSection(clarity, {
       type: 'decision-clarity',
       cards: [clarifier, freeWill].filter(Boolean)
-    }).text
+    })
   );
 
   const supportingSummary = buildSupportingPositionsSummary(prioritized, spreadName);
@@ -181,7 +197,12 @@ export async function buildDecisionReading({
   // Guidance synthesis with elemental remedies
   const guidanceSection = await buildDecisionGuidance(normalizedCards, themes, context);
   if (guidanceSection) {
-    sections.push(guidanceSection);
+    sections.push(
+      recordSection(guidanceSection, {
+        type: 'guidance',
+        cards: normalizedCards
+      })
+    );
   }
 
   const full = sections.filter(Boolean).join('\n\n');

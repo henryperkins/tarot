@@ -74,7 +74,6 @@ export function Header({ steps, activeStep, onStepSelect, isShuffling }) {
               className="mb-2 opacity-90 hover:opacity-100 transition-opacity"
               outline
               glow
-              useRaster
               ariaLabel="Tableu - Tarot Reading Application"
             />
           </div>

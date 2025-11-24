@@ -1,3 +1,4 @@
+import { enhanceSection } from '../../narrativeSpine.js';
 import { sortCardsByImportance, getPositionWeight } from '../../positionWeights.js';
 import {
   appendReversalReminder,
@@ -22,14 +23,30 @@ export async function buildThreeCardReading({
   threeCardAnalysis,
   themes,
   context
-}) {
+}, options = {}) {
   const sections = [];
+  const collectValidation =
+    typeof options.collectValidation === 'function'
+      ? options.collectValidation
+      : null;
+
+  const recordSection = (text, metadata = {}) => {
+    const result = enhanceSection(text, metadata);
+    if (collectValidation) {
+      collectValidation({
+        text: result.text,
+        metadata,
+        validation: result.validation || null
+      });
+    }
+    return result.text;
+  };
 
   sections.push(buildOpening('Three-Card Story (Past · Present · Future)', userQuestion, context));
 
   const [past, present, future] = cardsInfo;
   const prioritized = sortCardsByImportance(cardsInfo, 'threeCard');
-  const options = getPositionOptions(themes, context);
+  const positionOptions = getPositionOptions(themes, context);
 
   const attentionNote = buildWeightAttentionIntro(prioritized, 'Three-Card Story');
   if (attentionNote) {
@@ -43,7 +60,7 @@ export async function buildThreeCardReading({
   const futurePosition = future.position || 'Future — trajectory if nothing shifts';
 
   // Past card
-  narrative += `${buildPositionCardText(past, pastPosition, options)}\n\n`;
+  narrative += `${buildPositionCardText(past, pastPosition, positionOptions)}\n\n`;
   const pastWeightNote = buildWeightNote('threeCard', 0, pastPosition);
   if (pastWeightNote) {
     narrative += `${pastWeightNote}\n\n`;
@@ -53,7 +70,7 @@ export async function buildThreeCardReading({
   const firstToSecond = threeCardAnalysis?.transitions?.firstToSecond;
   const presentConnector = getConnector(presentPosition, 'toPrev');
   narrative += `${presentConnector} ${buildPositionCardText(present, presentPosition, {
-    ...options,
+    ...positionOptions,
     prevElementalRelationship: firstToSecond
   })}\n\n`;
   const presentWeightNote = buildWeightNote('threeCard', 1, presentPosition);
@@ -65,7 +82,7 @@ export async function buildThreeCardReading({
   const secondToThird = threeCardAnalysis?.transitions?.secondToThird;
   const futureConnector = getConnector(futurePosition, 'toPrev');
   narrative += `${futureConnector} ${buildPositionCardText(future, futurePosition, {
-    ...options,
+    ...positionOptions,
     prevElementalRelationship: secondToThird
   })}\n\n`;
   const futureWeightNote = buildWeightNote('threeCard', 2, futurePosition);
@@ -77,7 +94,12 @@ export async function buildThreeCardReading({
     narrative += threeCardAnalysis.narrative;
   }
 
-  sections.push(narrative);
+  sections.push(
+    recordSection(narrative, {
+      type: 'story',
+      cards: [past, present, future]
+    })
+  );
 
   if (reflectionsText && reflectionsText.trim()) {
     sections.push(buildReflectionsSection(reflectionsText));
@@ -93,7 +115,15 @@ export async function buildThreeCardReading({
     sections.push(supportingSummary);
   }
 
-  sections.push(await buildThreeCardSynthesis(cardsInfo, themes, userQuestion, context));
+  const guidanceSection = await buildThreeCardSynthesis(cardsInfo, themes, userQuestion, context);
+  if (guidanceSection) {
+    sections.push(
+      recordSection(guidanceSection, {
+        type: 'guidance',
+        cards: [future]
+      })
+    );
+  }
 
   const full = sections.filter(Boolean).join('\n\n');
   return appendReversalReminder(full, cardsInfo, themes);

@@ -1,3 +1,5 @@
+import { normalizeContext } from './narrative/helpers.js';
+
 const SPREAD_CONTEXT_DEFAULTS = {
   relationship: 'love'
 };
@@ -114,7 +116,8 @@ function countMatches(text, keywords) {
   return score;
 }
 
-export function inferContext(userQuestion, spreadKey) {
+export function inferContext(userQuestion, spreadKey, options = {}) {
+  const { onUnknown } = options;
   const normalizedSpreadKey = typeof spreadKey === 'string' ? spreadKey.toLowerCase() : '';
   const defaultContext = SPREAD_CONTEXT_DEFAULTS[normalizedSpreadKey] || null;
 
@@ -152,8 +155,9 @@ export function inferContext(userQuestion, spreadKey) {
   }
 
   if (bestScore === 0 && defaultContext) {
-    return defaultContext;
+    return normalizeContext(defaultContext, { onUnknown });
   }
 
-  return bestScore > 0 ? bestContext : 'general';
+  const detected = bestScore > 0 ? bestContext : 'general';
+  return normalizeContext(detected, { onUnknown });
 }

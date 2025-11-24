@@ -3,8 +3,34 @@
  * SpreadPatternThumbnail - Visual SVG diagram showing spread layout pattern
  * @param {string} spreadKey - The spread identifier (single, threeCard, etc.)
  * @param {string} className - Additional CSS classes
+ * @param {object} preview - Optional preview artwork { src, width, height, alt }
+ * @param {string} spreadName - Name used for accessible alt text
  */
-export function SpreadPatternThumbnail({ spreadKey, className = '' }) {
+export function SpreadPatternThumbnail({ spreadKey, className = '', preview = null, spreadName = '' }) {
+  // If we have custom artwork, prefer that over the vector fallback
+  if (preview?.src) {
+    const aspectRatio = preview.aspectRatio || (preview.width && preview.height ? `${preview.width} / ${preview.height}` : '2 / 1');
+    const altText = preview.alt || `${spreadName || spreadKey} spread layout`;
+
+    return (
+      <div
+        className={`relative overflow-hidden rounded-[14px] bg-[#0f0c14] ${className}`}
+        style={{ aspectRatio }}
+      >
+        <img
+          src={preview.src}
+          alt={altText}
+          className="w-full h-full object-cover"
+          loading="lazy"
+        />
+        <div
+          className="pointer-events-none absolute inset-0 rounded-[14px] border border-white/10 shadow-[0_0_0_1px_rgba(232,218,195,0.08)]"
+          aria-hidden="true"
+        ></div>
+      </div>
+    );
+  }
+
   const baseClass = 'w-full h-full';
   const cardClass = 'fill-accent/15 stroke-accent stroke-1';
   const highlightClass = 'fill-accent/30 stroke-accent stroke-[1.5]';
@@ -99,8 +125,9 @@ export function SpreadPatternThumbnail({ spreadKey, className = '' }) {
   };
 
   return (
-    <div className={`${className}`} aria-hidden="true">
+    <div className={`relative overflow-hidden rounded-[14px] bg-[#0f0c14] ${className}`} aria-hidden="true">
       {patterns[spreadKey] || patterns.single}
+      <div className="pointer-events-none absolute inset-0 rounded-[14px] border border-white/10 shadow-[0_0_0_1px_rgba(232,218,195,0.08)]" aria-hidden="true"></div>
     </div>
   );
 }

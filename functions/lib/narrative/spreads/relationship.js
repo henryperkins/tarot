@@ -22,8 +22,24 @@ export async function buildRelationshipReading({
   reflectionsText,
   themes,
   context
-}) {
+}, options = {}) {
   const sections = [];
+  const collectValidation =
+    typeof options.collectValidation === 'function'
+      ? options.collectValidation
+      : null;
+
+  const recordSection = (text, metadata = {}) => {
+    const result = enhanceSection(text, metadata);
+    if (collectValidation) {
+      collectValidation({
+        text: result.text,
+        metadata,
+        validation: result.validation || null
+      });
+    }
+    return result.text;
+  };
   const spreadName = 'Relationship Snapshot';
 
   sections.push(
@@ -40,7 +56,7 @@ export async function buildRelationshipReading({
   const [youCard, themCard, connectionCard, ...extraCards] = normalizedCards;
   const dynamicsCard = extraCards[0];
   const outcomeCard = extraCards[1];
-  const options = getPositionOptions(themes, context);
+  const positionOptions = getPositionOptions(themes, context);
   let reversalReminderEmbedded = false;
 
   const attentionNote = buildWeightAttentionIntro(prioritized, spreadName);
@@ -57,7 +73,7 @@ export async function buildRelationshipReading({
     const youText = buildPositionCardText(
       youCard,
       youPosition,
-      options
+      positionOptions
     );
     youThem += youText;
 
@@ -85,7 +101,7 @@ export async function buildRelationshipReading({
     const themText = buildPositionCardText(
       themCard,
       themPosition,
-      options
+      positionOptions
     );
     youThem += themConnector ? `${themConnector} ${themText}` : themText;
 
@@ -123,11 +139,11 @@ export async function buildRelationshipReading({
     : undefined;
 
   sections.push(
-    enhanceSection(youThem, {
+    recordSection(youThem, {
       type: 'relationship-dyad',
       cards: dyadCards,
       relationships: relationshipsMeta
-    }).text
+    })
   );
 
   // THE CONNECTION
@@ -139,7 +155,7 @@ export async function buildRelationshipReading({
     const connectionText = buildPositionCardText(
       connectionCard,
       connectionPosition,
-      options
+      positionOptions
     );
     connection += connectionConnector ? `${connectionConnector} ${connectionText}` : connectionText;
 
@@ -160,10 +176,10 @@ export async function buildRelationshipReading({
 
     connection += '\n\nThis focus invites you to notice what this bond is asking from both of you next.';
     sections.push(
-      enhanceSection(connection, {
+      recordSection(connection, {
         type: 'connection',
         cards: [connectionCard]
-      }).text
+      })
     );
   }
 
@@ -190,7 +206,7 @@ export async function buildRelationshipReading({
     const fallbackText = buildPositionCardText(
       fallbackGuidanceCard,
       fallbackPosition,
-      options
+      positionOptions
     );
     guidance += fallbackConnector ? `${fallbackConnector} ${fallbackText}\n\n` : `${fallbackText}\n\n`;
 
@@ -240,10 +256,10 @@ export async function buildRelationshipReading({
   guidance += 'Emphasize honest communication, reciprocal care, and boundaries. Treat these insights as a mirror that informs how you choose to show up—never as a command to stay or leave. Choose the path that best honors honesty, care, and your own boundaries—the outcome still rests in the choices you both make.';
 
   sections.push(
-    enhanceSection(guidance, {
+    recordSection(guidance, {
       type: 'relationship-guidance',
       cards: actionSources
-    }).text
+    })
   );
 
   const supportingSummary = buildSupportingPositionsSummary(prioritized, spreadName);
@@ -263,7 +279,12 @@ export async function buildRelationshipReading({
   // Additional guidance with elemental remedies
   const additionalGuidance = await buildRelationshipAdditionalGuidance(normalizedCards, themes, context);
   if (additionalGuidance) {
-    sections.push(additionalGuidance);
+    sections.push(
+      recordSection(additionalGuidance, {
+        type: 'relationship-support',
+        cards: normalizedCards
+      })
+    );
   }
 
   const full = sections.filter(Boolean).join('\n\n');

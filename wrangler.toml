@@ -1,17 +1,12 @@
 # ============================================================================
-# Cloudflare Pages Configuration - Tableu
-# ============================================================================
-# This file is the SOURCE OF TRUTH for your Pages project configuration.
-# Ref: https://developers.cloudflare.com/pages/functions/wrangler-configuration/
-#
-compatibility_date ="2025-01-13"
-compatibility_flags=["nodejs_compat"]
-# ============================================================================
 # Cloudflare Pages Configuration - Tableau
 # ============================================================================
 # This file is the SOURCE OF TRUTH for your Pages project configuration.
 # Ref: https://developers.cloudflare.com/pages/functions/wrangler-configuration/
 #
+compatibility_date ="2025-11-24"
+compatibility_flags=["nodejs_compat"]
+
 name                  ="tableau"
 pages_build_output_dir="dist"
 
@@ -24,6 +19,7 @@ pages_build_output_dir="dist"
 [vars]
     AZURE_OPENAI_GPT_AUDIO_MINI_FORMAT="mp3"
     AZURE_OPENAI_USE_V1_FORMAT        ="true"
+    AZURE_OPENAI_API_VERSION          ="preview"
     AZURE_OPENAI_RESPONSES_API_VERSION="v1"
 
     # ============================================================================
@@ -133,7 +129,10 @@ pages_build_output_dir="dist"
     # local_protocol = "http"
 
     # ============================================================================
-    # Compatibility Flags
-    # ============================================================================
-    # Enable Node.js compatibility for node:fs/promises and node:path imports
-    # Set at the top of the file as part of root configuration
+# Compatibility Flags
+# ============================================================================
+# Enable Node.js compatibility for node:fs/promises and node:path imports
+# Set at the top of the file as part of root configuration
+
+[observability]
+    enabled=true

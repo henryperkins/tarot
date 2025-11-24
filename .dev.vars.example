@@ -16,3 +16,7 @@ ANTHROPIC_API_KEY="sk-ant-your-key" # Required for Claude fallbacks
 # Optional feature flags / diagnostics
 VITE_ENABLE_VISION_RESEARCH="false"
 LOG_LLM_PROMPTS="false"
+LOG_ENHANCEMENT_TELEMETRY="false"
+PROMPT_BUDGET_AZURE=""   # Approx token cap for Azure prompts (chars/4 heuristic)
+PROMPT_BUDGET_CLAUDE=""  # Approx token cap for Claude prompts (chars/4 heuristic)
+PROMPT_BUDGET_DEFAULT="" # Fallback budget if backend-specific values are unset
