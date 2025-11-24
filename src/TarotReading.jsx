@@ -393,9 +393,9 @@ export default function TarotReading() {
     if (narrativeInProgress) return { stepIndicatorLabel: 'Weaving your narrative', stepIndicatorHint: 'Hang tight while we compose your personalized reading.', activeStep: 'reading' };
     if (hasReading) {
       if (allCardsRevealed) return { stepIndicatorLabel: 'Explore your spread', stepIndicatorHint: 'Review the card insights below or generate a personalized narrative.', activeStep: 'reading' };
-      return { stepIndicatorLabel: 'Reveal your cards', stepIndicatorHint: 'Flip each card to unfold the story of your spread.', activeStep: 'reading' };
+      return { stepIndicatorLabel: '', stepIndicatorHint: '', activeStep: 'reading' };
     }
-    if (!hasConfirmedSpread) return { stepIndicatorLabel: 'Choose your spread', stepIndicatorHint: 'Tap a spread that matches your focus to begin shaping the reading.', activeStep: 'spread' };
+    if (!hasConfirmedSpread) return { stepIndicatorLabel: '', stepIndicatorHint: '', activeStep: 'spread' };
     if (!hasQuestion || !hasRitualProgress) return { stepIndicatorLabel: 'Prepare your reading', stepIndicatorHint: 'Set an intention, tune experience preferences, or complete the optional ritual.', activeStep: !hasQuestion ? 'intention' : 'ritual' };
     return { stepIndicatorLabel: 'Draw your cards', stepIndicatorHint: 'When you feel ready, draw the cards to begin your reading.', activeStep: 'reading' };
   }, [hasNarrative, narrativeInProgress, hasReading, allCardsRevealed, hasQuestion, hasRitualProgress, hasConfirmedSpread]);

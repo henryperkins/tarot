@@ -100,48 +100,82 @@ export function ReadingPreparation({
     }
 
     return (
-        <section ref={sectionRef} aria-label="Prepare your reading" id="step-intention" className="hidden sm:block modern-surface p-4 sm:p-6 scroll-mt-[6.5rem] sm:scroll-mt-[7.5rem]">
-            <header className="mb-4 space-y-1">
-                <h2 className="text-lg font-serif text-accent">Prepare your reading</h2>
-                <p className="text-xs text-muted">Capture an intention, tune the experience controls, and complete the optional ritual from one panel.</p>
-            </header>
-            <div className="text-[0.78rem] sm:text-xs text-muted bg-surface-muted border border-secondary/60 rounded-lg px-3 py-2 flex flex-wrap gap-x-3 gap-y-1">
-                <span>{prepareSummaries.intention}</span>
-                <span className="hidden xs:inline">·</span>
-                <span>{prepareSummaries.experience}</span>
-                <span className="hidden xs:inline">·</span>
-                <span>{prepareSummaries.ritual}</span>
-            </div>
-            <div className="mt-4 space-y-4">
-                <div className="rounded-xl border border-secondary/60 bg-surface/95 p-4 shadow-sm">
-                    <div className="flex items-start justify-between gap-3">
-                        <div>
-                            <p className="text-accent font-serif text-sm">Intention</p>
-                            <p className="text-xs text-muted">Set your guiding prompt before you draw — always available without expanding a panel.</p>
-                        </div>
-                        <span className="text-[11px] text-main bg-surface-muted border border-secondary/60 rounded-full px-3 py-1 leading-none">Inline</span>
+        <section
+            ref={sectionRef}
+            aria-label="Prepare your reading"
+            id="step-intention"
+            className="hidden sm:block prepare-reading-panel deck-selector-panel animate-fade-in scroll-mt-[6.5rem] sm:scroll-mt-[7.5rem]"
+        >
+            <div className="relative z-10 space-y-5">
+                <header className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                        <p className="text-[0.68rem] uppercase tracking-[0.22em] text-gold-soft">Prepare Your Reading</p>
+                        <p className="text-xs text-muted max-w-2xl">
+                            Capture an intention, tune experience controls, and complete the ritual setup inside one textured command center.
+                        </p>
                     </div>
-                    <div className="mt-3">
-                        {renderSectionContent('intention')}
+                    <div className="hidden sm:flex items-center gap-2 rounded-full border border-gold-soft/50 bg-black/30 px-3 py-1 text-[0.7rem] text-accent backdrop-blur">
+                        <span className="w-1.5 h-1.5 rounded-full bg-gold-soft animate-pulse" aria-hidden="true" />
+                        <span>All-in-one prep</span>
                     </div>
+                </header>
+
+                <div className="prepare-summary-chip">
+                    <span>{prepareSummaries.intention}</span>
+                    <span aria-hidden="true">·</span>
+                    <span>{prepareSummaries.experience}</span>
+                    <span aria-hidden="true">·</span>
+                    <span>{prepareSummaries.ritual}</span>
                 </div>
 
-                {(['audio', 'experience', 'ritual']).map(section => (
-                    <div key={section} className="rounded-xl border border-secondary/50 bg-surface-muted overflow-hidden">
-                        <button type="button" onClick={() => togglePrepareSection(section)} className="w-full flex items-center justify-between px-4 py-3 text-left" aria-expanded={prepareSectionsOpen[section]}>
+                <div className="space-y-4">
+                    <div className="prepare-card">
+                        <div className="prepare-card__header">
                             <div>
-                                <p className="text-accent font-serif text-sm">{prepareSectionLabels[section]?.title || (section === 'audio' ? 'Audio' : section.charAt(0).toUpperCase() + section.slice(1))}</p>
-                                <p className="text-xs text-muted">{prepareSummaries[section] || (section === 'audio' ? 'Voice narration and ambience settings' : '')}</p>
+                                <p className="font-serif text-accent text-base leading-tight">Intention</p>
+                                <p className="text-xs text-muted">Set your guiding prompt before you draw — always available without expanding a panel.</p>
                             </div>
-                            {prepareSectionsOpen[section] ? <CaretUp className="w-4 h-4 text-accent" /> : <CaretDown className="w-4 h-4 text-accent" />}
-                        </button>
-                        {prepareSectionsOpen[section] && (
-                            <div className="px-4 pb-4 pt-2">
-                                {renderSectionContent(section)}
-                            </div>
-                        )}
+                            <span className="prepare-card__badge">Inline</span>
+                        </div>
+                        <div className="prepare-card__body">
+                            {renderSectionContent('intention')}
+                        </div>
                     </div>
-                ))}
+
+                    {(['audio', 'experience', 'ritual']).map(section => (
+                        <div key={section} className={`prepare-card ${prepareSectionsOpen[section] ? 'prepare-card--open' : ''}`}>
+                            <button
+                                type="button"
+                                onClick={() => togglePrepareSection(section)}
+                                className="prepare-card__toggle"
+                                aria-expanded={prepareSectionsOpen[section]}
+                            >
+                                <div>
+                                    <p className="font-serif text-accent text-base leading-tight">
+                                        {prepareSectionLabels[section]?.title || (section === 'audio' ? 'Audio' : section.charAt(0).toUpperCase() + section.slice(1))}
+                                    </p>
+                                    <p className="text-xs text-muted">
+                                        {prepareSummaries[section] || (section === 'audio' ? 'Voice narration and ambience settings' : '')}
+                                    </p>
+                                </div>
+                                {prepareSectionsOpen[section]
+                                    ? <CaretUp className="w-4 h-4 text-accent" />
+                                    : <CaretDown className="w-4 h-4 text-accent" />}
+                            </button>
+                            {prepareSectionsOpen[section] && (
+                                <div className="prepare-card__content">
+                                    {renderSectionContent(section)}
+                                </div>
+                            )}
+                        </div>
+                    ))}
+                </div>
+
+                <div className="deck-panel-footnote prepare-panel-footnote">
+                    <p className="text-[0.72rem] leading-relaxed text-muted">
+                        <strong className="text-accent">Tip:</strong> Keep these steps updated before drawing to help the AI align narration tone, audio, and ritual cues.
+                    </p>
+                </div>
             </div>
         </section>
     );

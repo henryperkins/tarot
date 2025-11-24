@@ -37,7 +37,7 @@ export function TableuLogo({
     icon: '-12 -12 456 600',
     mono: '-12 -12 456 600',
     dark: '-12 -12 456 600',
-    favicon: '-10 -10 220 270',
+    favicon: '-12 -12 456 600',
     full: '-12 -12 456 744'
   };
 
