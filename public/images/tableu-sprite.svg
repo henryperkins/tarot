@@ -49,32 +49,40 @@
     <!-- Crescent Moon -->
     <symbol id="t-moon" viewBox="0 0 100 100">
       <path class="t-fill" d="
-        M35 20
-        C20 24 10 38 12 52
-        C14 66 26 76 40 75
-        C30 72 24 62 24 50
-        C24 38 30 28 40 25
-        C38 22 36 21 35 20 Z" />
+        M40 15
+        C25 20 15 35 18 50
+        C21 65 35 75 50 73
+        C38 68 30 55 30 42
+        C30 29 38 20 50 18
+        C46 16 43 15 40 15 Z" />
     </symbol>
 
     <!-- 4-Point Star -->
     <symbol id="t-star-4" viewBox="0 0 100 100">
       <path class="t-fill" d="
-        M50 10
-        C48 30 48 30 28 32
-        C48 34 48 34 50 54
-        C52 34 52 34 72 32
-        C52 30 52 30 50 10 Z" />
+        M50 5
+        L55 45
+        L95 50
+        L55 55
+        L50 95
+        L45 55
+        L5 50
+        L45 45
+        Z" />
     </symbol>
 
-    <!-- 6-Point Sparkle (smaller) -->
+    <!-- 4-Point Sparkle (smaller) -->
     <symbol id="t-sparkle" viewBox="0 0 100 100">
       <path class="t-fill" d="
-        M50 20
-        C48 35 48 35 33 37
-        C48 39 48 39 50 54
-        C52 39 52 39 67 37
-        C52 35 52 35 50 20 Z" />
+        M50 10
+        L54 45
+        L89 50
+        L54 55
+        L50 90
+        L46 55
+        L11 50
+        L46 45
+        Z" />
     </symbol>
 
     <!-- Eye -->
@@ -90,22 +98,27 @@
 
     <!-- Octopus Head -->
     <symbol id="t-octopus-head" viewBox="0 0 200 200">
-      <ellipse class="t-fill" cx="100" cy="90" rx="65" ry="70" />
-      <!-- Eyes (arcs) -->
-      <path class="t-stroke" d="M70 80 Q75 88 80 80" />
-      <path class="t-stroke" d="M130 80 Q125 88 120 80" />
+      <!-- Head (perfect circle) -->
+      <circle class="t-fill" cx="100" cy="90" r="65" />
+      <!-- Happy eyes (upward arcs) -->
+      <path class="t-stroke" d="M75 82 Q80 74 85 82" stroke-width="4" fill="none" stroke="#FFFFFF" stroke-linecap="round" />
+      <path class="t-stroke" d="M115 82 Q120 74 125 82" stroke-width="4" fill="none" stroke="#FFFFFF" stroke-linecap="round" />
       <!-- Smile -->
-      <path class="t-stroke" d="M85 105 Q100 112 115 105" />
+      <path class="t-stroke" d="M82 108 Q100 118 118 108" stroke-width="4" fill="none" stroke="#FFFFFF" stroke-linecap="round" />
     </symbol>
 
-    <!-- Single Tentacle -->
-    <symbol id="t-tentacle" viewBox="0 0 50 150">
+    <!-- Single Tentacle (flowing wave) -->
+    <symbol id="t-tentacle" viewBox="0 0 60 180">
       <path class="t-fill" d="
-        M25 10
-        C20 40 15 80 18 110
-        C20 130 28 145 35 142
-        C40 138 38 120 35 100
-        C32 70 28 40 25 10 Z" />
+        M30 10
+        Q25 50 28 90
+        Q30 120 35 150
+        Q38 170 42 175
+        Q35 172 30 160
+        Q25 130 22 100
+        Q20 60 25 20
+        Q27 12 30 10
+        Z" />
     </symbol>
   </defs>
 
@@ -153,34 +166,44 @@
       <g transform="translate(116, 180)">
         <use href="#t-octopus-head" />
 
-        <!-- 6 Tentacles spreading downward -->
+        <!-- 8 Tentacles spreading outward and downward -->
+        <!-- Far far left -->
+        <g transform="translate(5, 145) scale(0.9) rotate(-35 30 10)">
+          <use href="#t-tentacle" />
+        </g>
+
         <!-- Far left -->
-        <g transform="translate(15, 150) scale(0.95) rotate(-25 25 10)">
+        <g transform="translate(20, 148) scale(0.95) rotate(-25 30 10)">
           <use href="#t-tentacle" />
         </g>
 
         <!-- Mid left -->
-        <g transform="translate(35, 155) scale(1.0) rotate(-10 25 10)">
+        <g transform="translate(40, 152) scale(1.0) rotate(-12 30 10)">
           <use href="#t-tentacle" />
         </g>
 
         <!-- Center left -->
-        <g transform="translate(60, 160) scale(1.05) rotate(0 25 10)">
+        <g transform="translate(60, 155) scale(1.05) rotate(-3 30 10)">
           <use href="#t-tentacle" />
         </g>
 
         <!-- Center right -->
-        <g transform="translate(85, 160) scale(1.05) rotate(0 25 10)">
+        <g transform="translate(80, 155) scale(1.05) rotate(3 30 10)">
           <use href="#t-tentacle" />
         </g>
 
         <!-- Mid right -->
-        <g transform="translate(110, 155) scale(1.0) rotate(10 25 10)">
+        <g transform="translate(100, 152) scale(1.0) rotate(12 30 10)">
           <use href="#t-tentacle" />
         </g>
 
         <!-- Far right -->
-        <g transform="translate(130, 150) scale(0.95) rotate(25 25 10)">
+        <g transform="translate(120, 148) scale(0.95) rotate(25 30 10)">
+          <use href="#t-tentacle" />
+        </g>
+
+        <!-- Far far right -->
+        <g transform="translate(135, 145) scale(0.9) rotate(35 30 10)">
           <use href="#t-tentacle" />
         </g>
       </g>
@@ -215,22 +238,29 @@
       <!-- Octopus with tentacles -->
       <g transform="translate(116, 180)">
         <use href="#t-octopus-head" />
-        <g transform="translate(15, 150) scale(0.95) rotate(-25 25 10)">
+        <!-- 8 Tentacles -->
+        <g transform="translate(5, 145) scale(0.9) rotate(-35 30 10)">
           <use href="#t-tentacle" />
         </g>
-        <g transform="translate(35, 155) scale(1.0) rotate(-10 25 10)">
+        <g transform="translate(20, 148) scale(0.95) rotate(-25 30 10)">
           <use href="#t-tentacle" />
         </g>
-        <g transform="translate(60, 160) scale(1.05) rotate(0 25 10)">
+        <g transform="translate(40, 152) scale(1.0) rotate(-12 30 10)">
           <use href="#t-tentacle" />
         </g>
-        <g transform="translate(85, 160) scale(1.05) rotate(0 25 10)">
+        <g transform="translate(60, 155) scale(1.05) rotate(-3 30 10)">
           <use href="#t-tentacle" />
         </g>
-        <g transform="translate(110, 155) scale(1.0) rotate(10 25 10)">
+        <g transform="translate(80, 155) scale(1.05) rotate(3 30 10)">
           <use href="#t-tentacle" />
         </g>
-        <g transform="translate(130, 150) scale(0.95) rotate(25 25 10)">
+        <g transform="translate(100, 152) scale(1.0) rotate(12 30 10)">
+          <use href="#t-tentacle" />
+        </g>
+        <g transform="translate(120, 148) scale(0.95) rotate(25 30 10)">
+          <use href="#t-tentacle" />
+        </g>
+        <g transform="translate(135, 145) scale(0.9) rotate(35 30 10)">
           <use href="#t-tentacle" />
         </g>
       </g>
@@ -263,17 +293,29 @@
       <g transform="translate(0, 10)">
         <use href="#t-octopus-head" />
 
-        <!-- Simplified 4 tentacles -->
-        <g transform="translate(25, 150) scale(0.9) rotate(-20 25 10)">
+        <!-- 8 tentacles for favicon -->
+        <g transform="translate(10, 145) scale(0.85) rotate(-35 30 10)">
           <use href="#t-tentacle" />
         </g>
-        <g transform="translate(55, 155) scale(1.0) rotate(-5 25 10)">
+        <g transform="translate(22, 148) scale(0.9) rotate(-25 30 10)">
           <use href="#t-tentacle" />
         </g>
-        <g transform="translate(90, 155) scale(1.0) rotate(5 25 10)">
+        <g transform="translate(38, 152) scale(0.95) rotate(-12 30 10)">
           <use href="#t-tentacle" />
         </g>
-        <g transform="translate(120, 150) scale(0.9) rotate(20 25 10)">
+        <g transform="translate(55, 155) scale(1.0) rotate(-3 30 10)">
+          <use href="#t-tentacle" />
+        </g>
+        <g transform="translate(73, 155) scale(1.0) rotate(3 30 10)">
+          <use href="#t-tentacle" />
+        </g>
+        <g transform="translate(90, 152) scale(0.95) rotate(12 30 10)">
+          <use href="#t-tentacle" />
+        </g>
+        <g transform="translate(106, 148) scale(0.9) rotate(25 30 10)">
+          <use href="#t-tentacle" />
+        </g>
+        <g transform="translate(118, 145) scale(0.85) rotate(35 30 10)">
           <use href="#t-tentacle" />
         </g>
       </g>

@@ -3,18 +3,18 @@ import { useMemo, useState } from 'react';
 const RATING_FIELDS = [
   {
     key: 'overallAccuracy',
-    label: 'How accurate was the interpretation?',
-    helper: 'Did the narrative match what you pulled?'
+    label: 'Accuracy',
+    helper: 'Did it match the cards?'
   },
   {
     key: 'narrativeCoherence',
-    label: 'How coherent was the story arc?',
-    helper: 'Did the reading flow and feel grounded?'
+    label: 'Coherence',
+    helper: 'Did it flow naturally?'
   },
   {
     key: 'practicalValue',
-    label: 'How actionable was the guidance?',
-    helper: 'Will you take something tangible away?'
+    label: 'Actionability',
+    helper: 'Can you use this?'
   }
 ];
 
@@ -94,7 +94,7 @@ export function FeedbackPanel({
         <div>
           <p className="text-sm font-semibold text-main">How did this reading land?</p>
           <p className="text-xs text-muted">
-            Your ratings stay private and help tune accuracy + narrative quality.
+            Private ratings help tune quality.
           </p>
         </div>
         {hasSubmitted && (
@@ -102,11 +102,13 @@ export function FeedbackPanel({
         )}
       </div>
 
-      <div className="mt-4 space-y-4">
+      <div className="mt-4 space-y-3">
         {RATING_FIELDS.map((field) => (
           <div key={field.key}>
-            <p className="text-sm text-main/90 font-medium">{field.label}</p>
-            <p className="text-xs text-muted mb-1">{field.helper}</p>
+            <p className="text-xs text-main/90 mb-1.5">
+              <span className="font-medium">{field.label}</span>
+              <span className="text-muted"> · {field.helper}</span>
+            </p>
             <div className="inline-flex flex-wrap gap-2">
               {SCALE.map((value) => (
                 <button
@@ -127,14 +129,14 @@ export function FeedbackPanel({
       </div>
 
       <label className="block mt-4">
-        <span className="text-xs text-muted">Anything else you want to share?</span>
+        <span className="text-xs text-muted">Additional notes (optional)</span>
         <textarea
           value={notes}
           onChange={(event) => setNotes(event.target.value)}
           rows={3}
           maxLength={750}
           className="mt-1 w-full rounded-lg border border-accent/20 bg-surface/70 p-2 text-sm text-main focus:border-secondary/60 focus:outline-none"
-          placeholder="Optional. This helps us understand what resonated."
+          placeholder="What resonated or felt off?"
         />
       </label>
 

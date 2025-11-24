@@ -1,14 +1,33 @@
 import { useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { X, ArrowsOut } from '@phosphor-icons/react';
+import { X } from '@phosphor-icons/react';
 import { MAJOR_ARCANA } from '../data/majorArcana';
 import { MINOR_ARCANA } from '../data/minorArcana';
 import { CardSymbolInsights } from './CardSymbolInsights';
+
+const FALLBACK_IMAGE = '/images/cards/RWS1909_-_00_Fool.jpeg';
+const CARD_LOOKUP = [...MAJOR_ARCANA, ...MINOR_ARCANA].reduce((acc, entry) => {
+    acc[entry.name] = entry;
+    return acc;
+}, {});
+
+function getCardImage(card) {
+    if (!card) return FALLBACK_IMAGE;
+    if (card.image) return card.image;
+    const lookupOrder = [card.name, card.canonicalName, card.card];
+    for (const key of lookupOrder) {
+        const match = key && CARD_LOOKUP[key];
+        if (match?.image) return match.image;
+    }
+    return FALLBACK_IMAGE;
+}
 
 export function CardModal({ card, isOpen, onClose, position, layoutId }) {
     const modalRef = useRef(null);
     const previousBodyOverflow = useRef(null);
     const previousFocusRef = useRef(null);
+    const titleId = `card-modal-title-${layoutId || 'default'}`;
+    const descId = `card-modal-desc-${layoutId || 'default'}`;
 
     useEffect(() => {
         if (!isOpen || typeof document === 'undefined') return undefined;
@@ -87,12 +106,11 @@ export function CardModal({ card, isOpen, onClose, position, layoutId }) {
 
     if (!isOpen || !card) return null;
 
-    const allCards = [...MAJOR_ARCANA, ...MINOR_ARCANA];
-    const originalCard = allCards.find(item => item.name === card.name) || card;
+    const originalCard = CARD_LOOKUP[card.name] || CARD_LOOKUP[card.canonicalName] || card;
     const meaning = card.isReversed ? originalCard.reversed : originalCard.upright;
 
     return (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6" role="dialog" aria-modal="true">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6" role="dialog" aria-modal="true" aria-labelledby={titleId} aria-describedby={descId}>
             <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
@@ -119,7 +137,7 @@ export function CardModal({ card, isOpen, onClose, position, layoutId }) {
 
                 <div className="p-6 sm:p-8 flex flex-col items-center text-center">
                     <h3 className="text-accent font-serif text-lg sm:text-xl mb-2">{position}</h3>
-                    <h2 className="text-2xl sm:text-3xl font-serif text-main mb-6">
+                    <h2 id={titleId} className="text-2xl sm:text-3xl font-serif text-main mb-6">
                         {card.name} {card.isReversed && <span className="text-primary/60 text-lg align-middle">(Reversed)</span>}
                     </h2>
 
@@ -128,16 +146,19 @@ export function CardModal({ card, isOpen, onClose, position, layoutId }) {
                         className={`relative w-full max-w-[300px] aspect-[3/5] mb-8 ${card.isReversed ? 'rotate-180' : ''}`}
                     >
                         <img
-                            src={card.image}
+                            src={getCardImage(card)}
                             alt={card.name}
                             className="w-full h-auto rounded-xl shadow-2xl border-2 border-primary/20"
+                            onError={(event) => {
+                                event.currentTarget.src = FALLBACK_IMAGE;
+                            }}
                         />
                     </motion.div>
 
                     <div className="w-full space-y-6 text-left">
                         <div className="bg-surface-muted/50 rounded-xl p-5 border border-primary/10">
                             <h4 className="text-accent font-semibold mb-2 text-sm uppercase tracking-wider">Meaning</h4>
-                            <p className="text-main/90 leading-relaxed text-lg">
+                            <p id={descId} className="text-main/90 leading-relaxed text-lg">
                                 {meaning}
                             </p>
                         </div>

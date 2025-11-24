@@ -55,6 +55,7 @@ export function ReadingPreparation({
                         recommendation={coachRecommendation}
                         onApply={applyCoachRecommendation}
                         onDismiss={dismissCoachRecommendation}
+                        showTitle={false}
                     />
                 </>
             );

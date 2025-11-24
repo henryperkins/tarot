@@ -8,7 +8,7 @@ import { usePreferences } from '../contexts/PreferencesContext';
  * Groups Voice (TTS) and Ambience controls together
  */
 export function AudioControls({ className = '' }) {
-  const { voiceOn, setVoiceOn, ambienceOn, setAmbienceOn } = usePreferences();
+  const { voiceOn, setVoiceOn, ambienceOn, setAmbienceOn, autoNarrate, setAutoNarrate } = usePreferences();
 
   const controlShellClass =
     'rounded-[1.75rem] border border-secondary/40 bg-surface/75 p-3 sm:p-4 shadow-lg shadow-secondary/20 backdrop-blur-xl';
@@ -60,6 +60,17 @@ export function AudioControls({ className = '' }) {
       onToggle: value => setVoiceOn(value)
     },
     {
+      id: 'auto-narrate-toggle',
+      label: 'Auto-narrate',
+      tooltipContent: 'Automatically play narration as your reading streams in (first view only).',
+      tooltipAria: 'About auto-narration with streaming',
+      srDescription: 'Automatically start voice narration when a new reading appears.',
+      active: autoNarrate,
+      statusLabel: autoNarrate ? 'Auto' : 'Manual',
+      Icon: SpeakerHigh,
+      onToggle: value => setAutoNarrate(value)
+    },
+    {
       id: 'ambience-toggle',
       label: 'Table ambience',
       tooltipContent:
@@ -80,11 +91,11 @@ export function AudioControls({ className = '' }) {
           <SpeakerHigh className="w-4 h-4" aria-hidden="true" />
           Audio Settings
         </h3>
-        <p className="text-[0.7rem] text-muted mt-1">Voice narration and ambient soundscape</p>
+        <p className="text-[0.7rem] text-muted mt-1">Voice narration, auto-play, and ambient soundscape</p>
       </div>
 
       <div
-        className="grid grid-cols-1 gap-2 sm:grid-cols-2 sm:gap-3"
+        className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3 sm:gap-3"
         role="group"
         aria-label="Audio controls"
       >

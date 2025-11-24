@@ -20,9 +20,9 @@ export function TableuLogoExamples() {
           Complete logo with all elements: card frame, moon, star, octopus, tentacles, eye, wand, sparkles
         </p>
         <div className="flex items-center gap-8 flex-wrap">
-          <TableuLogo variant="primary" size={120} />
-          <TableuLogo variant="primary" size={160} />
-          <TableuLogo variant="primary" size={200} />
+          <TableuLogo variant="primary" size={120} outline glow />
+          <TableuLogo variant="primary" size={160} outline glow />
+          <TableuLogo variant="primary" size={200} outline glow />
         </div>
         <pre className="mt-4 bg-gray-100 p-3 rounded text-sm">
 {`<TableuLogo variant="primary" size={160} />`}
@@ -36,9 +36,9 @@ export function TableuLogoExamples() {
           Simplified version without eye, wand, and bottom sparkle. Better for small sizes.
         </p>
         <div className="flex items-center gap-8 flex-wrap">
-          <TableuLogo variant="icon" size={80} />
-          <TableuLogo variant="icon" size={120} />
-          <TableuLogo variant="icon" size={160} />
+          <TableuLogo variant="icon" size={80} outline glow />
+          <TableuLogo variant="icon" size={120} outline glow />
+          <TableuLogo variant="icon" size={160} outline glow />
         </div>
         <pre className="mt-4 bg-gray-100 p-3 rounded text-sm">
 {`<TableuLogo variant="icon" size={80} />`}
@@ -52,8 +52,8 @@ export function TableuLogoExamples() {
           Complete logo with &ldquo;TABLEU&rdquo; wordmark below. Best for headers and branding.
         </p>
         <div className="flex items-center gap-8 flex-wrap">
-          <TableuLogo variant="full" size={150} />
-          <TableuLogo variant="full" size={200} />
+          <TableuLogo variant="full" size={150} outline glow />
+          <TableuLogo variant="full" size={200} outline glow />
         </div>
         <pre className="mt-4 bg-gray-100 p-3 rounded text-sm">
 {`<TableuLogo variant="full" size={200} />`}
@@ -67,9 +67,9 @@ export function TableuLogoExamples() {
           Minimal octopus-only mark for favicons and tiny contexts.
         </p>
         <div className="flex items-center gap-8 flex-wrap">
-          <TableuLogo variant="favicon" size={32} />
-          <TableuLogo variant="favicon" size={48} />
-          <TableuLogo variant="favicon" size={64} />
+          <TableuLogo variant="favicon" size={32} outline glow />
+          <TableuLogo variant="favicon" size={48} outline glow />
+          <TableuLogo variant="favicon" size={64} outline glow />
         </div>
         <pre className="mt-4 bg-gray-100 p-3 rounded text-sm">
 {`<TableuLogo variant="favicon" size={32} />`}
@@ -83,8 +83,8 @@ export function TableuLogoExamples() {
           Black version for print or high-contrast contexts.
         </p>
         <div className="flex items-center gap-8 flex-wrap">
-          <TableuLogo variant="mono" size={120} />
-          <TableuLogo variant="mono" size={160} />
+          <TableuLogo variant="mono" size={120} outline glow />
+          <TableuLogo variant="mono" size={160} outline glow />
         </div>
         <pre className="mt-4 bg-gray-100 p-3 rounded text-sm">
 {`<TableuLogo variant="mono" size={160} />`}
@@ -98,8 +98,8 @@ export function TableuLogoExamples() {
           White version with dark background for dark mode interfaces.
         </p>
         <div className="flex items-center gap-8 flex-wrap">
-          <TableuLogo variant="dark" size={120} />
-          <TableuLogo variant="dark" size={160} />
+          <TableuLogo variant="dark" size={120} outline glow />
+          <TableuLogo variant="dark" size={160} outline glow />
         </div>
         <pre className="mt-4 bg-gray-800 text-gray-100 p-3 rounded text-sm">
 {`<TableuLogo variant="dark" size={160} />`}

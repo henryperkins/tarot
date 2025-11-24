@@ -1,6 +1,9 @@
 import { motion } from 'framer-motion';
+import { TableuLogo } from './TableuLogo';
 
 export function DeckPile({ cardsRemaining, onDraw, isShuffling, nextLabel }) {
+    const rasterLogoSize = typeof window === 'undefined' ? 120 : Math.min(window.innerWidth * 0.15, 120);
+
     if (cardsRemaining <= 0) return null;
 
     return (
@@ -14,17 +17,28 @@ export function DeckPile({ cardsRemaining, onDraw, isShuffling, nextLabel }) {
                 aria-label={nextLabel ? `Draw card for ${nextLabel}` : "Draw next card"}
             >
                 {/* Stack effect layers */}
-                <div className="absolute inset-0 bg-surface-muted rounded-2xl border border-primary/40 transform translate-x-2 translate-y-2 rotate-3 opacity-60" />
-                <div className="absolute inset-0 bg-surface-muted rounded-2xl border border-primary/40 transform -translate-x-1 translate-y-1 -rotate-2 opacity-80" />
+                <div className="absolute inset-0 bg-surface-muted/60 rounded-2xl border border-primary/40 transform translate-x-2 translate-y-2 rotate-3 opacity-60" />
+                <div className="absolute inset-0 bg-surface-muted/70 rounded-2xl border border-primary/40 transform -translate-x-1 translate-y-1 -rotate-2 opacity-80" />
 
-                {/* Top Card */}
-                <div className="absolute inset-0 shadow-2xl">
-                    <div className="tarot-card-shell w-full h-full">
-                        <div className="tarot-card-back">
-                            <div className="tarot-card-back-symbol">
-                                <div className="tarot-card-back-glyph" />
-                            </div>
-                        </div>
+                {/* Top Card with Tableu Logo */}
+                <div className="absolute inset-0 bg-gradient-to-br from-surface/95 via-surface-muted/90 to-surface/95 rounded-2xl border-2 border-primary/30 shadow-2xl overflow-hidden">
+                    {/* Subtle pattern overlay */}
+                    <div className="absolute inset-0 opacity-10" style={{
+                        backgroundImage: 'radial-gradient(circle at 50% 50%, var(--brand-secondary) 1px, transparent 1px)',
+                        backgroundSize: '16px 16px'
+                    }} />
+
+                    {/* Tableu Logo */}
+                    <div className="absolute inset-0 flex items-center justify-center p-4">
+                        <TableuLogo
+                            variant="icon"
+                            size={rasterLogoSize}
+                            className="opacity-90 group-hover:opacity-100 transition-opacity duration-300"
+                            outline
+                            glow
+                            useRaster
+                            ariaLabel="Tableu deck - tap to draw"
+                        />
                     </div>
                 </div>
 

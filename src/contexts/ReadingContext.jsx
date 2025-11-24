@@ -171,8 +171,7 @@ export function ReadingProvider({ children }) {
                 .filter(Boolean)
                 .join('\n');
 
-            const cardNames = cardsInfo.map(card => card.card).join(', ');
-            setAnalyzingText(`Step 1 of 3 — Analyzing spread.\n\nCards in this reading: ${cardNames}.`);
+            setAnalyzingText('Analyzing your spread for narrative insights...');
             setNarrativePhase('analyzing');
             setSrAnnouncement('Step 1 of 3: Analyzing spread for your narrative.');
 
@@ -193,7 +192,7 @@ export function ReadingProvider({ children }) {
             let proof = null;
             if (shouldAttachVisionProof) {
                 try {
-                    setAnalyzingText((prev) => `${prev}\nValidating your card photos for research telemetry...`);
+                    setAnalyzingText('Validating your card photos for research telemetry...');
                     proof = await ensureVisionProof();
                 } catch (proofError) {
                     setJournalStatus({
@@ -241,7 +240,7 @@ export function ReadingProvider({ children }) {
             requestPayload.body = JSON.stringify(normalizedPayload.data);
 
             setNarrativePhase('drafting');
-            setAnalyzingText((prev) => `${prev}\n\nStep 2 of 3 — Drafting narrative insights based on your spread.`);
+            setAnalyzingText('Drafting narrative insights based on your spread...');
             setSrAnnouncement('Step 2 of 3: Drafting narrative insights.');
 
             const response = await fetch('/api/tarot-reading', requestPayload);
@@ -266,7 +265,7 @@ export function ReadingProvider({ children }) {
             }
 
             setNarrativePhase('polishing');
-            setAnalyzingText('Step 3 of 3 — Final polishing and assembling your narrative...');
+            setAnalyzingText('Final polishing and assembling your narrative...');
             setSrAnnouncement('Step 3 of 3: Final polishing and assembling your narrative.');
 
             setThemes(data.themes || null);
@@ -397,10 +396,8 @@ export function ReadingProvider({ children }) {
         });
         const reversedIdx = reading.map((card, index) => (card.isReversed ? index : -1)).filter(index => index >= 0);
         if (reversedIdx.length > 0) {
-            const spreadInfo = getSpreadInfo(selectedSpread);
-            const positions = reversedIdx.map(index => spreadInfo?.positions?.[index] || `Card ${index + 1}`).join(', ');
             const hasCluster = reversedIdx.some((idx, j) => j > 0 && idx === reversedIdx[j - 1] + 1);
-            let text = `${positions}. These often point to inner processing, timing delays, or tension in the theme.`;
+            let text = `These often point to inner processing, timing delays, or tension in the theme.`;
             if (hasCluster) text += ' Consecutive reversals suggest the theme persists across positions.';
             items.push({ key: 'reversal-summary', icon: '⤴', title: `Reversed cards (${reversedIdx.length}):`, text });
         }

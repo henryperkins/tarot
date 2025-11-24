@@ -58,6 +58,7 @@ export default {
         main: 'var(--text-main)',
         muted: 'var(--text-muted)',
         accent: 'var(--text-accent)',
+        surface: 'var(--color-charcoal)', // high-contrast text for light CTA backgrounds
       },
       fontSize: {
         'xs-plus': '0.8125rem', // 13px - improved mobile readability
@@ -85,6 +86,27 @@ export default {
         slideInRight: {
           '0%': { transform: 'translateX(100%)' },
           '100%': { transform: 'translateX(0)' },
+        },
+        fadeInUp: {
+          '0%': { opacity: '0', transform: 'translateY(1rem)' },
+          '100%': { opacity: '1', transform: 'translateY(0)' },
+        },
+        inkSpread: {
+          '0%': {
+            opacity: '0',
+            filter: 'blur(12px)',
+            transform: 'scale(0.95)',
+          },
+          '40%': {
+            opacity: '0.5',
+            filter: 'blur(6px)',
+            transform: 'scale(0.98)',
+          },
+          '100%': {
+            opacity: '1',
+            filter: 'blur(0px)',
+            transform: 'scale(1)',
+          },
         }
       },
       animation: {
@@ -92,6 +114,8 @@ export default {
         'slide-up': 'slideUp 0.3s ease-out',
         'pop-in': 'popIn 0.2s ease-out',
         'slide-in-right': 'slideInRight 0.3s ease-out',
+        'fade-in-up': 'fadeInUp 0.6s ease-out forwards',
+        'ink-spread': 'inkSpread 1.2s cubic-bezier(0.4, 0, 0.2, 1) forwards',
       }
     }
   },

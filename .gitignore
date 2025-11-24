@@ -58,6 +58,9 @@ wrangler.toml.local
 .dev.vars.*
 !.dev.vars.example
 
+# MCP configuration with credentials
+.mcp.json
+
 # Logs
 logs
 *.log
@@ -87,3 +90,12 @@ azure_reasoning.md
 azure_responses.md
 MysticTarot2.png
 .env
+
+# Design reference dumps (local-only large binaries)
+/IMG_*.PNG
+/Tableu*.heic
+/Tableu*.HEIC
+/Tableu*.jpg
+/Tableu*.JPG
+/Tableu*.png
+/Tableu*.PNG

@@ -27,18 +27,18 @@ export function SpreadPatternThumbnail({ spreadKey, className = '' }) {
     ),
 
     fiveCard: (
-      <svg viewBox="0 0 100 80" className={baseClass} aria-hidden="true">
+      <svg viewBox="0 0 100 110" className={baseClass} aria-hidden="true">
         <title>Five-card cross layout</title>
         {/* Center */}
-        <rect x="38" y="30" width="24" height="40" rx="3" className={highlightClass} />
+        <rect x="38" y="32" width="24" height="40" rx="3" className={highlightClass} />
         {/* Top */}
-        <rect x="38" y="5" width="24" height="20" rx="2" className={cardClass} />
+        <rect x="38" y="8" width="24" height="20" rx="2" className={cardClass} />
         {/* Bottom */}
-        <rect x="38" y="75" width="24" height="20" rx="2" className="fill-accent/10 stroke-accent/70 stroke-1" />
+        <rect x="38" y="85" width="24" height="20" rx="2" className="fill-accent/10 stroke-accent/70 stroke-1" />
         {/* Left */}
-        <rect x="8" y="30" width="24" height="40" rx="3" className={cardClass} />
+        <rect x="8" y="32" width="24" height="40" rx="3" className={cardClass} />
         {/* Right */}
-        <rect x="68" y="30" width="24" height="40" rx="3" className={cardClass} />
+        <rect x="68" y="32" width="24" height="40" rx="3" className={cardClass} />
       </svg>
     ),
 
@@ -76,7 +76,7 @@ export function SpreadPatternThumbnail({ spreadKey, className = '' }) {
     ),
 
     celtic: (
-      <svg viewBox="0 0 100 100" className={baseClass} aria-hidden="true">
+      <svg viewBox="0 0 110 120" className={baseClass} aria-hidden="true">
         <title>Celtic Cross layout</title>
         {/* Cross base */}
         <rect x="38" y="32" width="24" height="36" rx="3" className={highlightClass} />
@@ -84,16 +84,16 @@ export function SpreadPatternThumbnail({ spreadKey, className = '' }) {
         <rect x="33" y="46" width="34" height="8" rx="2" className="fill-accent/40 stroke-accent stroke-[1.5]" />
         
         {/* Cardinal positions */}
-        <rect x="38" y="8" width="24" height="20" rx="2" className={cardClass} />
-        <rect x="38" y="72" width="24" height="20" rx="2" className={cardClass} />
+        <rect x="38" y="10" width="24" height="20" rx="2" className={cardClass} />
+        <rect x="38" y="76" width="24" height="20" rx="2" className={cardClass} />
         <rect x="8" y="32" width="24" height="36" rx="3" className={cardClass} />
         <rect x="68" y="32" width="24" height="36" rx="3" className={cardClass} />
         
         {/* Staff column (right side) */}
-        <rect x="78" y="12" width="18" height="20" rx="2" className="fill-accent/10 stroke-accent/60 stroke-1" />
-        <rect x="78" y="35" width="18" height="20" rx="2" className="fill-accent/10 stroke-accent/60 stroke-1" />
-        <rect x="78" y="58" width="18" height="20" rx="2" className="fill-accent/10 stroke-accent/60 stroke-1" />
-        <rect x="78" y="81" width="18" height="20" rx="2" className="fill-accent/10 stroke-accent/60 stroke-1" />
+        <rect x="82" y="12" width="18" height="20" rx="2" className="fill-accent/10 stroke-accent/60 stroke-1" />
+        <rect x="82" y="36" width="18" height="20" rx="2" className="fill-accent/10 stroke-accent/60 stroke-1" />
+        <rect x="82" y="60" width="18" height="20" rx="2" className="fill-accent/10 stroke-accent/60 stroke-1" />
+        <rect x="82" y="84" width="18" height="20" rx="2" className="fill-accent/10 stroke-accent/60 stroke-1" />
       </svg>
     )
   };

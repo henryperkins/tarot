@@ -8,13 +8,26 @@ const CARD_LOOKUP = [...MAJOR_ARCANA, ...MINOR_ARCANA].reduce((acc, card) => {
   return acc;
 }, {});
 
+const FALLBACK_IMAGE = '/images/cards/RWS1909_-_00_Fool.jpeg';
+
 function getOrientationMeaning(card) {
-  const reference = CARD_LOOKUP[card.name] || card;
+  const reference = CARD_LOOKUP[card.name] || CARD_LOOKUP[card.canonicalName] || card;
   const upright = reference?.upright || card?.upright || '';
   const reversed = reference?.reversed || card?.reversed || '';
   const orientation = card?.orientation || '';
   const isReversed = orientation.toLowerCase().includes('reversed');
   return isReversed ? reversed || upright : upright || reversed;
+}
+
+function getCardImage(card) {
+  if (!card) return FALLBACK_IMAGE;
+  if (card.image) return card.image;
+  const lookupOrder = [card.name, card.canonicalName, card.card];
+  for (const key of lookupOrder) {
+    const match = key && CARD_LOOKUP[key];
+    if (match?.image) return match.image;
+  }
+  return FALLBACK_IMAGE;
 }
 
 function deriveSpreadPositions(entry) {
@@ -113,12 +126,12 @@ export function SharedSpreadView({ entry, notes = [], selectedPosition, onSelect
                   orientation.toLowerCase().includes('reversed') ? 'rotate-180' : ''
                 }`}>
                   <img
-                    src={card.image || '/images/cards/placeholder.jpg'}
+                    src={getCardImage(card)}
                     alt={card.name}
                     className="w-full object-cover"
                     loading="lazy"
                     onError={(event) => {
-                      event.currentTarget.src = '/images/cards/placeholder.jpg';
+                      event.currentTarget.src = FALLBACK_IMAGE;
                     }}
                   />
                 </div>

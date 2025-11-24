@@ -1,10 +1,24 @@
 {
   "mcpServers": {
-    "cloudflare": {
+    "cloudflare-bindings": {
       "command": "npx",
       "args": [
         "mcp-remote",
-        "https://bindings.mcp.cloudflare.com/sse"
+        "https://bindings.mcp.cloudflare.com/mcp"
+      ]
+    },
+    "cloudflare-docs": {
+      "command": "npx",
+      "args": [
+        "mcp-remote",
+        "https://docs.mcp.cloudflare.com/mcp"
+      ]
+    },
+    "cloudflare-observability": {
+      "command": "npx",
+      "args": [
+        "mcp-remote",
+        "https://observability.mcp.cloudflare.com/mcp"
       ]
     }
   }

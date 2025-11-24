@@ -64,6 +64,7 @@ export const onRequestPost = async ({ request, env }) => {
 
     const { text, context, voice, speed } = await readJsonBody(request);
     const sanitizedText = sanitizeText(text);
+    const debugLoggingEnabled = isTtsDebugLoggingEnabled(env);
 
     if (!sanitizedText) {
       return jsonResponse(
@@ -80,7 +81,8 @@ export const onRequestPost = async ({ request, env }) => {
       deployment: resolveEnv(env, 'AZURE_OPENAI_GPT_AUDIO_MINI_DEPLOYMENT'),
       apiVersion: resolveEnv(env, 'AZURE_OPENAI_API_VERSION'),
       format: resolveEnv(env, 'AZURE_OPENAI_GPT_AUDIO_MINI_FORMAT'),
-      useV1Format: resolveEnv(env, 'AZURE_OPENAI_USE_V1_FORMAT')
+      useV1Format: resolveEnv(env, 'AZURE_OPENAI_USE_V1_FORMAT'),
+      debugLoggingEnabled
     };
 
     if (azureConfig.endpoint && azureConfig.apiKey && azureConfig.deployment) {
@@ -199,6 +201,7 @@ async function generateWithAzureGptMiniTTS(env, { text, context, voice, speed })
   const deployment = env.deployment;
   const format = env.format || 'mp3';
   const useV1Format = env.useV1Format === 'true' || env.useV1Format === true;
+  const debugLoggingEnabled = Boolean(env.debugLoggingEnabled);
 
   // API version logic:
   // - v1 format uses "preview"
@@ -249,6 +252,13 @@ async function generateWithAzureGptMiniTTS(env, { text, context, voice, speed })
     payload.instructions = instructions;
   }
 
+  if (debugLoggingEnabled) {
+    console.log('[TTS] Request URL:', url);
+    console.log('[TTS] Request payload:', JSON.stringify(payload, null, 2));
+    console.log('[TTS] Using V1 format:', useV1Format);
+    console.log('[TTS] API version:', apiVersion);
+  }
+
   const response = await fetch(url, {
     method: 'POST',
     headers: {
@@ -258,9 +268,21 @@ async function generateWithAzureGptMiniTTS(env, { text, context, voice, speed })
     body: JSON.stringify(payload)
   });
 
+  if (debugLoggingEnabled) {
+    console.log('[TTS] Response status:', response.status, response.statusText);
+    console.log('[TTS] Response headers:', JSON.stringify([...response.headers.entries()]));
+  }
+
   if (!response.ok) {
-    const errText = await response.text().catch(() => '');
-    throw new Error(`Azure TTS error ${response.status}: ${errText}`);
+    let errText = '';
+    if (debugLoggingEnabled) {
+      errText = await response.text().catch(() => '');
+    }
+    console.error('[TTS] Azure request failed', response.status, response.statusText);
+    if (debugLoggingEnabled && errText) {
+      console.error('[TTS] Error response body:', errText);
+    }
+    throw new Error(`Azure TTS error ${response.status}`);
   }
 
   const arrayBuffer = await response.arrayBuffer();
@@ -285,6 +307,7 @@ async function generateWithAzureGptMiniTTSStream(env, { text, context, voice, sp
   const deployment = env.deployment;
   const format = env.format || 'mp3';
   const useV1Format = env.useV1Format === 'true' || env.useV1Format === true;
+  const debugLoggingEnabled = Boolean(env.debugLoggingEnabled);
 
   // API version logic:
   // - v1 format uses "preview"
@@ -332,6 +355,12 @@ async function generateWithAzureGptMiniTTSStream(env, { text, context, voice, sp
     payload.instructions = instructions;
   }
 
+  if (debugLoggingEnabled) {
+    console.log('[TTS Streaming] Request URL:', url);
+    console.log('[TTS Streaming] Request payload:', JSON.stringify(payload, null, 2));
+    console.log('[TTS Streaming] Using V1 format:', useV1Format);
+  }
+
   const response = await fetch(url, {
     method: 'POST',
     headers: {
@@ -341,9 +370,20 @@ async function generateWithAzureGptMiniTTSStream(env, { text, context, voice, sp
     body: JSON.stringify(payload)
   });
 
+  if (debugLoggingEnabled) {
+    console.log('[TTS Streaming] Response status:', response.status, response.statusText);
+  }
+
   if (!response.ok) {
-    const errText = await response.text().catch(() => '');
-    throw new Error(`Azure TTS streaming error ${response.status}: ${errText}`);
+    let errText = '';
+    if (debugLoggingEnabled) {
+      errText = await response.text().catch(() => '');
+    }
+    console.error('[TTS Streaming] Azure request failed', response.status, response.statusText);
+    if (debugLoggingEnabled && errText) {
+      console.error('[TTS Streaming] Error response body:', errText);
+    }
+    throw new Error(`Azure TTS streaming error ${response.status}`);
   }
 
   // Return the streaming response directly
@@ -425,4 +465,40 @@ function resolveEnv(env, key) {
   }
 
   return undefined;
+}
+
+function parseBooleanFlag(value) {
+  if (typeof value === 'boolean') {
+    return value;
+  }
+
+  if (typeof value === 'number') {
+    return value !== 0;
+  }
+
+  if (typeof value === 'string') {
+    const normalized = value.trim().toLowerCase();
+    return normalized === 'true' || normalized === '1' || normalized === 'yes';
+  }
+
+  return false;
+}
+
+function isTtsDebugLoggingEnabled(env) {
+  const explicit = resolveEnv(env, 'ENABLE_TTS_DEBUG_LOGGING');
+  if (typeof explicit !== 'undefined') {
+    return parseBooleanFlag(explicit);
+  }
+
+  const nodeEnv = resolveEnv(env, 'NODE_ENV');
+  if (nodeEnv && nodeEnv.toLowerCase() !== 'production') {
+    return true;
+  }
+
+  const mode = resolveEnv(env, 'MODE');
+  if (mode && mode.toLowerCase() !== 'production') {
+    return true;
+  }
+
+  return false;
 }

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { motion, useAnimation } from 'framer-motion';
 import { ArrowsOut, HandPointing } from '@phosphor-icons/react';
 import { MAJOR_ARCANA } from '../data/majorArcana';
@@ -7,11 +7,28 @@ import { CardSymbolInsights } from './CardSymbolInsights';
 import { InteractiveCardOverlay } from './InteractiveCardOverlay';
 import { TableuLogo } from './TableuLogo';
 
+const FALLBACK_IMAGE = '/images/cards/RWS1909_-_00_Fool.jpeg';
+const CARD_LOOKUP = [...MAJOR_ARCANA, ...MINOR_ARCANA].reduce((acc, entry) => {
+  acc[entry.name] = entry;
+  return acc;
+}, {});
+
 function getPrefersReducedMotion() {
   if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
     return false;
   }
   return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+}
+
+function getCardImage(card) {
+  if (!card) return FALLBACK_IMAGE;
+  if (card.image) return card.image;
+  const lookupOrder = [card.name, card.canonicalName, card.card];
+  for (const key of lookupOrder) {
+    const match = key && CARD_LOOKUP[key];
+    if (match?.image) return match.image;
+  }
+  return FALLBACK_IMAGE;
 }
 
 export function Card({
@@ -34,6 +51,8 @@ export function Card({
   const [isVisuallyRevealed, setIsVisuallyRevealed] = useState(isRevealed);
   const controls = useAnimation();
   const hasMounted = useRef(false);
+
+  const cardImage = useMemo(() => getCardImage(card), [card]);
 
   useEffect(() => {
     // Entry animation
@@ -74,17 +93,9 @@ export function Card({
     onReveal(index);
   };
 
-  const handleCardActivate = () => {
-    if (!isRevealed) {
-      handleReveal();
-    } else if (onCardClick) {
-      onCardClick(card, position, index);
-    }
-  };
-
-  // Reset visual state when card is unrevealed
+  // Reset visual state when a revealed card is returned to an unrevealed state
   useEffect(() => {
-    if (!isRevealed || !isVisuallyRevealed) {
+    if (isRevealed || !isVisuallyRevealed) {
       return undefined;
     }
 
@@ -183,12 +194,15 @@ export function Card({
       clearStaggerTimeout();
       controls.stop();
     };
-  }, [isRevealed, isVisuallyRevealed, staggerDelay, controls, index]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // isVisuallyRevealed is intentionally omitted - it changes mid-animation and would interrupt the sequence
+  }, [isRevealed, staggerDelay, controls, index]);
 
   return (
     <div
       key={`${card.name}-${index}`}
-      className="modern-surface border border-secondary/40 overflow-hidden"
+      className={`modern-surface border border-secondary/40 overflow-hidden ${isVisuallyRevealed ? 'z-10' : 'z-0'}`}
+      style={{ position: 'relative' }}
     >
       {/* Position Label */}
       <div className="bg-surface/80 p-2 sm:p-3 border-b border-secondary/40">
@@ -201,107 +215,128 @@ export function Card({
           initial={{ opacity: 0, y: 50, scale: 0.9, rotateY: 0 }}
           animate={controls}
           transition={{ type: "spring", stiffness: 260, damping: 20 }}
-          onClick={handleCardActivate}
-          onKeyDown={event => {
-            if (event.key === 'Enter' || event.key === ' ') {
-              event.preventDefault();
-              handleCardActivate();
-            }
-          }}
-          role="button"
-          aria-label={
-            isRevealed
-              ? `${position}: ${card.name} ${card.isReversed ? 'reversed' : 'upright'}. Click to view details.`
-              : `Reveal card for ${position}. Cards can be revealed in any order.`
-          }
-          tabIndex={0}
-          className={`cursor-pointer transition-all duration-500 transform ${!isVisuallyRevealed
-            ? 'hover:bg-surface-muted/70 hover:scale-105 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70 focus-visible:ring-offset-2 focus-visible:ring-offset-main'
-            : 'hover:bg-surface-muted/40 rounded-lg group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70 focus-visible:ring-offset-2 focus-visible:ring-offset-main'
-            }`}
+          className={`transition-all duration-500 transform rounded-lg ${!isVisuallyRevealed ? '' : 'group'}`}
           style={{
-            transformStyle: 'preserve-3d'
+            transformStyle: 'preserve-3d',
+            position: 'relative',
+            zIndex: isVisuallyRevealed ? 1 : 'auto',
+            backfaceVisibility: 'visible',
+            WebkitBackfaceVisibility: 'visible'
           }}
         >
           {!isVisuallyRevealed ? (
-            <div className="text-center py-6 sm:py-10 space-y-3">
-              <div className="mx-auto flex items-center justify-center p-4 bg-gradient-to-br from-surface-muted/40 to-surface/60 rounded-xl border-2 border-primary/30 shadow-lg">
-                <TableuLogo
-                  variant="icon"
-                  size={140}
-                  className="opacity-75 hover:opacity-90 transition-opacity"
-                  ariaLabel="Tableu card back - tap to reveal"
-                />
+            <button
+              onClick={handleReveal}
+              onKeyDown={event => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                  event.preventDefault();
+                  handleReveal();
+                }
+              }}
+              aria-label={`Reveal card for ${position}. Cards can be revealed in any order.`}
+              className="relative h-full min-h-[24rem] sm:min-h-[28rem] flex flex-col items-center justify-center gap-4 p-4 sm:p-6 w-full cursor-pointer hover:bg-surface-muted/70 hover:scale-105 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70 focus-visible:ring-offset-2 focus-visible:ring-offset-main"
+            >
+              {/* Card back surface with Tableu logo */}
+              <div className="relative w-full max-w-[280px] aspect-[2/3] mx-auto bg-gradient-to-br from-surface/95 via-surface-muted/90 to-surface/95 rounded-xl border-2 border-primary/30 shadow-2xl overflow-hidden">
+                {/* Subtle pattern overlay */}
+                <div className="absolute inset-0 opacity-10" style={{
+                  backgroundImage: 'radial-gradient(circle at 50% 50%, var(--brand-secondary) 1px, transparent 1px)',
+                  backgroundSize: '20px 20px'
+                }} />
+
+                {/* Tableu Logo - centered and prominent */}
+                <div className="absolute inset-0 flex items-center justify-center p-6">
+                  <TableuLogo
+                    variant="icon"
+                    size={180}
+                    className="opacity-90 hover:opacity-100 transition-opacity duration-300"
+                    outline
+                    glow
+                    useRaster
+                    ariaLabel="Tableu card back - tap to reveal"
+                  />
+                </div>
               </div>
-              <div className="flex flex-col items-center gap-2">
+
+              {/* Tap to reveal instruction */}
+              <div className="flex flex-col items-center gap-2 mt-2">
                 <span className="inline-flex items-center gap-2 rounded-full border border-primary/60 bg-surface/90 px-4 py-2 text-sm font-semibold text-main shadow-md shadow-primary/30">
                   <HandPointing className="w-4 h-4" aria-hidden="true" />
                   <span>Tap to reveal</span>
                 </span>
-                <p className="text-xs text-muted max-w-[16rem]">Reveal cards in any order—follow your intuition.</p>
+                <p className="text-xs text-muted max-w-[16rem] text-center">Reveal cards in any order—follow your intuition.</p>
               </div>
-            </div>
+            </button>
           ) : (
-            <div className="transition-all relative">
-              {/* Zoom Icon Overlay */}
-              <div className="absolute top-0 right-0 z-10 opacity-90 group-hover:opacity-100 transition-opacity duration-300">
-                <div className="bg-surface-muted/80 p-1.5 rounded-full text-accent border border-primary/30 shadow-lg backdrop-blur-sm">
-                  <ArrowsOut className="w-4 h-4" />
-                </div>
-              </div>
-
-              {/* Rider-Waite Card Image with Interactive Overlay */}
-              <motion.div
-                layoutId={`card-image-${index}`}
-                className={`mx-auto mb-3 max-w-[65%] sm:max-w-[280px] ${card.isReversed ? 'rotate-180' : ''}`}
+            <div className="transition-all relative h-full min-h-[24rem] sm:min-h-[28rem]">
+              {/* Clickable card image area - opens modal */}
+              <button
+                onClick={() => onCardClick?.(card, position, index)}
+                aria-label={`View details for ${card.name} ${card.isReversed ? '(Reversed)' : '(Upright)'} in ${position} position`}
+                className="w-full text-left cursor-pointer hover:bg-surface-muted/40 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70 focus-visible:ring-offset-2 focus-visible:ring-offset-main rounded-lg"
               >
-                <div className="relative">
-                  <img
-                    src={card.image}
-                    alt={`${card.name}${card.isReversed ? ' (Reversed)' : ''}`}
-                    className="w-full h-auto rounded-lg shadow-lg border-2 border-primary/30"
-                    loading="lazy"
-                    onError={event => {
-                      const target = event.currentTarget;
-                      if (!target) return;
-                      console.error(`Failed to load image: ${card.image}`);
-                      target.onerror = null;
-                      target.src = '/images/cards/placeholder.jpg';
-                    }}
-                  />
-                  {/* Interactive symbol overlay - only for cards with coordinates */}
-                  <InteractiveCardOverlay card={card} isReversed={card.isReversed} />
+                {/* Zoom Icon Overlay */}
+                <div className="absolute top-2 right-2 z-10 opacity-90 group-hover:opacity-100 transition-opacity duration-300">
+                  <div className="bg-surface-muted/80 p-1.5 rounded-full text-accent border border-primary/30 shadow-lg backdrop-blur-sm">
+                    <ArrowsOut className="w-4 h-4" />
+                  </div>
                 </div>
-              </motion.div>
 
-              <div className="text-center mb-3">
-                <span
-                  className={`inline-block px-3 py-1 rounded-full text-xs-plus font-semibold tracking-wide ${card.isReversed
-                    ? 'bg-surface-muted/90 text-accent border border-accent/50'
-                    : 'bg-secondary/10 text-secondary border border-secondary/60'
-                    }`}
+                {/* Rider-Waite Card Image with Interactive Overlay */}
+                <motion.div
+                  layoutId={`card-image-${index}`}
+                  className={`mx-auto mb-3 max-w-[65%] sm:max-w-[280px] ${card.isReversed ? 'rotate-180' : ''}`}
                 >
-                  {card.isReversed ? 'Reversed current' : 'Upright current'}
-                </span>
-              </div>
+                  <div className="relative aspect-[2/3]">
+                    <img
+                      src={cardImage}
+                      alt={`${card.name}${card.isReversed ? ' (Reversed)' : ''}`}
+                      className="w-full h-full object-cover rounded-lg shadow-lg border-2 border-primary/30"
+                      loading="lazy"
+                      onError={event => {
+                        const target = event.currentTarget;
+                        if (!target) return;
+                        console.error(`Failed to load image: ${cardImage}`);
+                        target.onerror = null;
+                        target.src = FALLBACK_IMAGE;
+                      }}
+                    />
+                    {/* Interactive symbol overlay - only for cards with coordinates */}
+                    <InteractiveCardOverlay card={card} isReversed={card.isReversed} />
+                  </div>
+                </motion.div>
 
-              <div className="mb-4 flex justify-center">
-                <CardSymbolInsights card={card} position={position} />
-              </div>
+                <div className="text-center mb-3">
+                  <span
+                    className={`inline-block px-3 py-1 rounded-full text-xs-plus font-semibold tracking-wide ${card.isReversed
+                      ? 'bg-surface-muted/90 text-accent border border-accent/50'
+                      : 'bg-secondary/10 text-secondary border border-secondary/60'
+                      }`}
+                  >
+                    {card.isReversed ? 'Reversed current' : 'Upright current'}
+                  </span>
+                </div>
 
-              <div
-                className="bg-surface/85 rounded p-4 border border-secondary/40"
-                ref={revealedContentRef}
-              >
-                <p className="text-main text-sm sm:text-base leading-relaxed">
-                  {(() => {
-                    const allCards = [...MAJOR_ARCANA, ...MINOR_ARCANA];
-                    const originalCard =
-                      allCards.find(item => item.name === card.name) || card;
-                    return card.isReversed ? originalCard.reversed : originalCard.upright;
-                  })()}
-                </p>
-              </div>
+                <div className="mb-4 flex justify-center">
+                  <CardSymbolInsights card={card} position={position} />
+                </div>
+
+                <div
+                  className="bg-surface/85 rounded p-4 border border-secondary/40 touch-pan-y"
+                  ref={revealedContentRef}
+                >
+                  <p className="text-main text-sm sm:text-base leading-relaxed">
+                    {(() => {
+                      const allCards = [...MAJOR_ARCANA, ...MINOR_ARCANA];
+                      const originalCard =
+                        allCards.find(item => item.name === card.name) || card;
+                      return card.isReversed ? originalCard.reversed : originalCard.upright;
+                    })()}
+                  </p>
+                </div>
+              </button>
+
+              {/* Reflection textarea - outside the button to avoid nested interactives */}
               <div className="mt-3">
                 <label htmlFor={`reflection-${index}`} className="text-muted text-xs-plus sm:text-sm block mb-1">
                   What resonates for you?
@@ -313,13 +348,9 @@ export function Card({
                   onChange={event =>
                     setReflections(prev => ({ ...prev, [index]: event.target.value }))
                   }
-                  onClick={event => event.stopPropagation()}
-                  onPointerDown={event => event.stopPropagation()}
-                  onFocus={event => event.stopPropagation()}
-                  onKeyDown={event => event.stopPropagation()}
                   rows={3}
                   maxLength={500}
-                  className="w-full bg-surface/85 border border-secondary/40 rounded p-2 min-h-[4.5rem] resize-y text-main text-base focus:outline-none focus:ring-1 focus:ring-secondary/55"
+                  className="w-full bg-surface/85 border border-secondary/40 rounded p-2 min-h-[4.5rem] resize-y text-main text-base focus:outline-none focus:ring-1 focus:ring-secondary/55 touch-pan-y"
                   placeholder="What resonates? (optional)"
                   aria-describedby={reflectionValue.length > 0 ? `char-count-${index}` : undefined}
                 />

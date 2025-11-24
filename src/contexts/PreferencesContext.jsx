@@ -60,6 +60,23 @@ export function PreferencesProvider({ children }) {
     }
   }, [voiceOn]);
 
+  // --- Audio: Auto-narrate on first view ---
+  const [autoNarrate, setAutoNarrate] = useState(() => {
+    if (typeof localStorage !== 'undefined') {
+      const saved = localStorage.getItem('tarot-auto-narrate');
+      // Default to true if not set
+      return saved === null ? true : saved === 'true';
+    }
+    return true;
+  });
+
+  // Persist auto-narrate setting
+  useEffect(() => {
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem('tarot-auto-narrate', autoNarrate.toString());
+    }
+  }, [autoNarrate]);
+
   // --- Audio: Ambience ---
   const [ambienceOn, setAmbienceOn] = useState(() => {
     if (typeof localStorage !== 'undefined') {
@@ -161,6 +178,8 @@ export function PreferencesProvider({ children }) {
     setVoiceOn,
     ambienceOn,
     setAmbienceOn,
+    autoNarrate,
+    setAutoNarrate,
     deckStyleId,
     setDeckStyleId,
     includeMinors,

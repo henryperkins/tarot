@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, memo, useCallback } from 'react';
+import { useEffect, useRef, useState, memo, useCallback, useId } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkBreaks from 'remark-breaks';
@@ -101,6 +101,7 @@ export const JournalEntryCard = memo(function JournalEntryCard({ entry, onCreate
   const [showNarrative, setShowNarrative] = useState(false);
   const [entryActionMessage, setEntryActionMessage] = useState('');
   const timeoutsRef = useRef([]);
+  const narrativeId = useId();
 
   const scheduleClear = (delay = 3500) => {
     const id = setTimeout(() => setEntryActionMessage(''), delay);
@@ -178,24 +179,27 @@ export const JournalEntryCard = memo(function JournalEntryCard({ entry, onCreate
         </div>
 
         {/* Actions Toolbar */}
-        <div className="flex items-center gap-1 opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100">
+        <div className="flex items-center gap-1 opacity-100 transition-opacity lg:opacity-0 lg:group-hover:opacity-100">
           <button
             onClick={handleEntryCopy}
-            className="rounded-lg p-2 text-secondary/60 hover:bg-secondary/10 hover:text-secondary"
+            className="rounded-lg p-2 text-secondary/60 hover:bg-secondary/10 hover:text-secondary min-w-[44px] min-h-[44px] flex items-center justify-center"
+            aria-label="Copy reading details to clipboard"
             title="Copy details"
           >
             <ClipboardText className="h-4 w-4" />
           </button>
           <button
             onClick={handleEntryExport}
-            className="rounded-lg p-2 text-secondary/60 hover:bg-secondary/10 hover:text-secondary"
+            className="rounded-lg p-2 text-secondary/60 hover:bg-secondary/10 hover:text-secondary min-w-[44px] min-h-[44px] flex items-center justify-center"
+            aria-label="Export reading as CSV file"
             title="Export CSV"
           >
             <DownloadSimple className="h-4 w-4" />
           </button>
           <button
             onClick={handleEntryShare}
-            className="rounded-lg p-2 text-secondary/60 hover:bg-secondary/10 hover:text-secondary"
+            className="rounded-lg p-2 text-secondary/60 hover:bg-secondary/10 hover:text-secondary min-w-[44px] min-h-[44px] flex items-center justify-center"
+            aria-label="Share reading"
             title="Share"
           >
             <ShareNetwork className="h-4 w-4" />
@@ -203,7 +207,8 @@ export const JournalEntryCard = memo(function JournalEntryCard({ entry, onCreate
           {isAuthenticated && onDelete && (
             <button
               onClick={() => onDelete(entry.id)}
-              className="rounded-lg p-2 text-error/60 hover:bg-error/10 hover:text-error"
+              className="rounded-lg p-2 text-error/60 hover:bg-error/10 hover:text-error min-w-[44px] min-h-[44px] flex items-center justify-center"
+              aria-label="Delete reading permanently"
               title="Delete"
             >
               <Trash className="h-4 w-4" />
@@ -259,14 +264,16 @@ export const JournalEntryCard = memo(function JournalEntryCard({ entry, onCreate
             <div>
               <button
                 onClick={() => setShowNarrative(!showNarrative)}
+                aria-expanded={showNarrative}
+                aria-controls={narrativeId}
                 className="flex w-full items-center justify-between rounded-xl border border-secondary/20 bg-surface/30 px-4 py-3 text-sm font-medium text-main transition-colors hover:bg-surface/50"
               >
                 <span>Reading Narrative</span>
-                {showNarrative ? <CaretUp className="h-4 w-4" /> : <CaretDown className="h-4 w-4" />}
+                {showNarrative ? <CaretUp className="h-4 w-4" aria-hidden="true" /> : <CaretDown className="h-4 w-4" aria-hidden="true" />}
               </button>
 
               {showNarrative && (
-                <div className="mt-2 animate-slide-down rounded-xl border border-secondary/10 bg-surface/20 p-4">
+                <div id={narrativeId} className="mt-2 animate-slide-down rounded-xl border border-secondary/10 bg-surface/20 p-4">
                   <div className="prose prose-invert prose-sm max-w-none font-serif leading-relaxed text-muted">
                     <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]} skipHtml>
                       {entry.personalReading}

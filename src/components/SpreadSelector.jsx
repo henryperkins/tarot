@@ -30,6 +30,7 @@ export function SpreadSelector({
 }) {
   const [expandedSpread, setExpandedSpread] = useState(null);
   const carouselRef = useRef(null);
+  const spreadRefs = useRef({});
   const [canScrollPrev, setCanScrollPrev] = useState(false);
   const [canScrollNext, setCanScrollNext] = useState(false);
   const updateScrollHints = () => {
@@ -73,9 +74,41 @@ export function SpreadSelector({
   };
 
   const handleCardKeyDown = (event, key) => {
+    const spreadKeys = Object.keys(SPREADS);
+    const currentIndex = spreadKeys.indexOf(key);
+
+    // Handle selection
     if (event.key === 'Enter' || event.key === ' ') {
       event.preventDefault();
       handleSpreadSelection(key);
+      return;
+    }
+
+    // Handle arrow key navigation for radiogroup
+    let nextIndex = -1;
+    if (event.key === 'ArrowRight' || event.key === 'ArrowDown') {
+      event.preventDefault();
+      nextIndex = (currentIndex + 1) % spreadKeys.length;
+    } else if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') {
+      event.preventDefault();
+      nextIndex = (currentIndex - 1 + spreadKeys.length) % spreadKeys.length;
+    } else if (event.key === 'Home') {
+      event.preventDefault();
+      nextIndex = 0;
+    } else if (event.key === 'End') {
+      event.preventDefault();
+      nextIndex = spreadKeys.length - 1;
+    }
+
+    // Focus the next spread if we navigated
+    if (nextIndex !== -1) {
+      const nextKey = spreadKeys[nextIndex];
+      const nextElement = spreadRefs.current[nextKey];
+      if (nextElement && typeof nextElement.focus === 'function') {
+        nextElement.focus();
+        // Scroll into view if needed
+        nextElement.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+      }
     }
   };
 
@@ -98,18 +131,22 @@ export function SpreadSelector({
           aria-label="Choose your spread"
           className="flex gap-3 overflow-x-auto snap-x snap-mandatory pb-2 sm:overflow-visible sm:snap-none sm:grid sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-5 sm:gap-3"
         >
-          {Object.entries(SPREADS).map(([key, spread]) => {
+          {Object.entries(SPREADS).map(([key, spread], index) => {
             const isActive = selectedSpread === key;
             const isExpanded = expandedSpread === key;
             const baseDescription = spread.mobileDescription || spread.description || 'Guided snapshot for your focus.';
             const desktopDescription = baseDescription.length > 120 ? `${baseDescription.slice(0, 117)}…` : baseDescription;
             const complexity = getComplexity(spread.count);
             const isRecommended = RECOMMENDED_SPREADS.has(key);
+            // Roving tabindex: only selected spread (or first if none selected) is tabbable
+            const isFirstSpread = index === 0;
+            const isTabbable = isActive || (!selectedSpread && isFirstSpread);
             return (
               <article
                 key={key}
+                ref={el => { spreadRefs.current[key] = el; }}
                 role="radio"
-                tabIndex={0}
+                tabIndex={isTabbable ? 0 : -1}
                 aria-checked={isActive}
                 onClick={() => handleSpreadSelection(key)}
                 onKeyDown={event => handleCardKeyDown(event, key)}
@@ -139,8 +176,9 @@ export function SpreadSelector({
                   </div>
 
                   {/* Visual pattern thumbnail */}
-                  <div className="hidden sm:block w-full h-20 rounded-lg border border-secondary/30 bg-surface/40 p-2 overflow-hidden">
+                  <div className="w-full h-16 sm:h-20 rounded-lg border border-secondary/30 bg-surface/40 p-2 overflow-hidden">
                     <SpreadPatternThumbnail spreadKey={key} className="w-full h-full opacity-80" />
+                    <span className="sr-only">Layout preview showing {spread.count} card positions</span>
                   </div>
                   <div className="space-y-2">
                     {(isRecommended || complexity) && (
@@ -163,27 +201,9 @@ export function SpreadSelector({
                     </p>
                   </div>
                 </div>
-                <p className="hidden sm:block text-sm opacity-90 leading-snug text-muted">
+                <p className="text-xs sm:text-sm opacity-90 leading-snug text-muted">
                   {desktopDescription}
                 </p>
-                <div className="mt-2 flex flex-wrap gap-1.5" aria-hidden="true">
-                  {Array.from({ length: Math.min(spread.count, 10) }).map((_, positionIndex) => (
-                    <span
-                      key={positionIndex}
-                      className={`inline-flex items-center justify-center w-8 h-8 rounded-lg border text-[0.7rem] font-semibold ${
-                        isActive ? 'border-primary/70 bg-primary/15 text-main' : 'border-secondary/50 bg-surface text-muted'
-                      }`}
-                    >
-                      {positionIndex + 1}
-                    </span>
-                  ))}
-                  {spread.count > 10 && (
-                    <span className="inline-flex items-center justify-center px-3 h-8 rounded-lg border border-secondary/50 bg-surface text-[0.7rem] text-muted">
-                      +{spread.count - 10} more
-                    </span>
-                  )}
-                </div>
-                <span className="sr-only">Layout preview showing {spread.count} card positions</span>
                 <div className="sm:hidden mt-3">
                   {isExpanded && (
                     <p className="text-main/90 text-[0.9rem] leading-snug mb-2 animate-slide-up">
@@ -214,7 +234,7 @@ export function SpreadSelector({
                 onClick={() => {
                   carouselRef.current?.scrollBy({ left: -carouselRef.current.clientWidth * 0.8, behavior: 'smooth' });
                 }}
-                className="pointer-events-auto absolute top-1/2 -translate-y-1/2 left-2 inline-flex items-center justify-center rounded-full bg-main/90 border border-accent/20 text-muted w-9 h-9 shadow-lg shadow-main/60"
+                className="pointer-events-auto absolute top-1/2 -translate-y-1/2 left-2 inline-flex items-center justify-center rounded-full bg-main/90 border border-accent/20 text-muted w-11 h-11 min-w-[44px] min-h-[44px] shadow-lg shadow-main/60"
                 aria-label="See previous spreads"
               >
                 <Icon icon={CaretLeft} size={ICON_SIZES.md} decorative />
@@ -229,7 +249,7 @@ export function SpreadSelector({
                 onClick={() => {
                   carouselRef.current?.scrollBy({ left: carouselRef.current.clientWidth * 0.8, behavior: 'smooth' });
                 }}
-                className="pointer-events-auto absolute top-1/2 -translate-y-1/2 right-2 inline-flex items-center justify-center rounded-full bg-main/90 border border-accent/20 text-muted w-9 h-9 shadow-lg shadow-main/60"
+                className="pointer-events-auto absolute top-1/2 -translate-y-1/2 right-2 inline-flex items-center justify-center rounded-full bg-main/90 border border-accent/20 text-muted w-11 h-11 min-w-[44px] min-h-[44px] shadow-lg shadow-main/60"
                 aria-label="See more spreads"
               >
                 <Icon icon={CaretRight} size={ICON_SIZES.md} decorative />

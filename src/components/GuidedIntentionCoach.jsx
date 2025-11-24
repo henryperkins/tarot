@@ -85,6 +85,8 @@ const CONTEXT_HINTS = {
 const baseOptionClass =
   'text-left rounded-2xl border bg-surface-muted/50 px-4 py-4 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-main';
 
+const SUGGESTIONS_PER_PAGE = 5;
+
 // Map spreads to suggested topics
 const SPREAD_TO_TOPIC_MAP = {
   relationship: 'relationships',
@@ -196,7 +198,7 @@ function buildPersonalizedSuggestions(stats, history = []) {
     });
   }
 
-  return suggestions.slice(0, 6);
+  return suggestions;
 }
 
 function getTopicLabel(value) {
@@ -237,6 +239,7 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply,
   const [coachStats, setCoachStats] = useState(null);
   const [coachStatsMeta, setCoachStatsMeta] = useState(null);
   const [personalizedSuggestions, setPersonalizedSuggestions] = useState([]);
+  const [suggestionsPage, setSuggestionsPage] = useState(0);
   const [isTemplatePanelOpen, setTemplatePanelOpen] = useState(false);
   const [remixCount, setRemixCount] = useState(0);
   const modalRef = useRef(null);
@@ -281,6 +284,7 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply,
 
   const refreshSuggestions = () => {
     setPersonalizedSuggestions(buildPersonalizedSuggestions(coachStats, questionHistory));
+    setSuggestionsPage(0);
   };
 
   // Generate deterministic seed from user selections
@@ -502,7 +506,14 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply,
   useEffect(() => {
     if (!isOpen) return;
     setPersonalizedSuggestions(buildPersonalizedSuggestions(coachStats, questionHistory));
+    setSuggestionsPage(0);
   }, [coachStats, questionHistory, isOpen]);
+
+  // Keep pagination in range when suggestion count changes
+  useEffect(() => {
+    const totalPages = Math.max(0, Math.ceil(personalizedSuggestions.length / SUGGESTIONS_PER_PAGE) - 1);
+    setSuggestionsPage(prev => Math.min(prev, totalPages));
+  }, [personalizedSuggestions]);
 
   useEffect(() => {
     if (!isOpen) {
@@ -510,6 +521,7 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply,
       setNewTemplateLabel('');
       setTemplatePanelOpen(false);
       setHistoryStatus('');
+      setSuggestionsPage(0);
       clearAllTimeouts();
       if (creativeRequestControllerRef.current) {
         creativeRequestControllerRef.current.abort();
@@ -668,6 +680,17 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply,
 
   const normalizedQualityScore = Math.min(Math.max(questionQuality.score, 0), 100);
 
+  const suggestionPageCount = useMemo(() => {
+    if (personalizedSuggestions.length === 0) return 0;
+    return Math.ceil(personalizedSuggestions.length / SUGGESTIONS_PER_PAGE);
+  }, [personalizedSuggestions.length]);
+
+  const visibleSuggestions = useMemo(() => {
+    if (personalizedSuggestions.length === 0) return [];
+    const start = suggestionsPage * SUGGESTIONS_PER_PAGE;
+    return personalizedSuggestions.slice(start, start + SUGGESTIONS_PER_PAGE);
+  }, [personalizedSuggestions, suggestionsPage]);
+
   const canGoNext = () => {
     if (step === 0) return Boolean(topic);
     if (step === 1) return Boolean(timeframe);
@@ -697,6 +720,7 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply,
       setQuestionHistory(historyResult.history);
       // Refresh suggestions with the NEW history immediately
       setPersonalizedSuggestions(buildPersonalizedSuggestions(coachStats, historyResult.history));
+      setSuggestionsPage(0);
     }
 
     // Save preferences for next time
@@ -1096,7 +1120,7 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply,
                     </p>
                   )}
                   <div className="space-y-2">
-                    {personalizedSuggestions.map((suggestion) => (
+                    {visibleSuggestions.map((suggestion) => (
                       <button
                         key={suggestion.id}
                         type="button"
@@ -1124,13 +1148,41 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply,
                       </button>
                     ))}
                   </div>
+
+                  {suggestionPageCount > 1 && (
+                    <div className="flex items-center justify-between pt-2 text-xs text-secondary/80">
+                      <span>
+                        Page {suggestionsPage + 1} of {suggestionPageCount}
+                      </span>
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setSuggestionsPage((prev) => Math.max(prev - 1, 0))}
+                          disabled={suggestionsPage === 0}
+                          className="inline-flex items-center gap-1 rounded-full border border-secondary/30 px-3 py-1.5 text-xs font-semibold text-secondary transition disabled:opacity-40 disabled:cursor-not-allowed hover:border-secondary/60"
+                        >
+                          <ArrowLeft className="h-3.5 w-3.5" aria-hidden="true" />
+                          Prev
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setSuggestionsPage((prev) => Math.min(prev + 1, suggestionPageCount - 1))}
+                          disabled={suggestionsPage >= suggestionPageCount - 1}
+                          className="inline-flex items-center gap-1 rounded-full border border-secondary/30 px-3 py-1.5 text-xs font-semibold text-secondary transition disabled:opacity-40 disabled:cursor-not-allowed hover:border-secondary/60"
+                        >
+                          Next
+                          <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </section>
               )}
             </div>
           </div>
 
-          {/* Footer - outside scroll area on mobile, inline on desktop */}
-          <div className="flex flex-col gap-2 flex-shrink-0 sm:static bg-main sm:bg-transparent pt-4 sm:pt-0 px-4 sm:px-10 pb-safe sm:pb-6 border-t sm:border-t-0 border-accent/20">
+          {/* Footer - sticky on mobile so the CTA stays reachable */}
+          <div className="sticky bottom-0 inset-x-0 flex flex-col gap-2 flex-shrink-0 bg-main/95 backdrop-blur shadow-[0_-10px_30px_rgba(0,0,0,0.35)] sm:static sm:bg-transparent sm:shadow-none pt-4 sm:pt-0 px-4 sm:px-10 pb-safe sm:pb-6 border-t sm:border-t-0 border-accent/20">
             {historyStatus && (
               <p className="text-xs text-error text-center sm:text-left">
                 {historyStatus}
@@ -1177,14 +1229,18 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply,
             </div>
           </div>
         </div>
-        </div>
-      </FocusTrap>
-      {isTemplatePanelOpen && (
-        <div
-          className="absolute inset-0 z-40 flex items-stretch bg-surface/70 backdrop-blur-sm animate-fade-in"
-          onClick={() => setTemplatePanelOpen(false)}
-        >
+
+        {/* Template panel - inside FocusTrap so keyboard users can access it */}
+        {isTemplatePanelOpen && (
           <div
+            className="absolute inset-0 z-40 flex items-stretch bg-surface/70 backdrop-blur-sm animate-fade-in"
+            onClick={() => setTemplatePanelOpen(false)}
+            role="presentation"
+          >
+          <div
+            role="dialog"
+            aria-modal="false"
+            aria-label="Template library"
             className="ml-auto h-full w-full sm:w-[26rem] bg-surface border-l border-accent/30 p-5 sm:p-6 overflow-y-auto shadow-[0_0_45px_rgba(0,0,0,0.6)] animate-slide-in-right"
             onClick={event => event.stopPropagation()}
           >
@@ -1310,7 +1366,9 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply,
             </div>
           </div>
         </div>
-      )}
+        )}
+        </div>
+      </FocusTrap>
     </div>
   );
 }

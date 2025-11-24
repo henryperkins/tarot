@@ -16,6 +16,7 @@ import { useReading } from '../contexts/ReadingContext';
 import { usePreferences } from '../contexts/PreferencesContext';
 import { useSaveReading } from '../hooks/useSaveReading';
 import { useFeatureFlags } from '../hooks/useFeatureFlags';
+import { useAuth } from '../contexts/AuthContext';
 
 const NARRATIVE_STEPS = [
     { id: 'analyzing', label: 'Analyzing spread' },
@@ -95,8 +96,10 @@ export function ReadingDisplay({ sectionRef }) {
 
     const {
         voiceOn,
+        autoNarrate,
         deckStyleId
     } = usePreferences();
+    const { isAuthenticated } = useAuth();
 
     const { visionResearch: visionResearchEnabled } = useFeatureFlags();
     const safeSpreadKey = normalizeSpreadKey(selectedSpread);
@@ -137,7 +140,7 @@ export function ReadingDisplay({ sectionRef }) {
                 </div>
             )}
 
-            {visionResearchEnabled && (
+            {visionResearchEnabled && isAuthenticated && (
                 <div className="mb-6">
                     <VisionValidationPanel
                         deckStyle={deckStyleId}
@@ -292,6 +295,8 @@ export function ReadingDisplay({ sectionRef }) {
                                 text={narrativeText}
                                 useMarkdown={Boolean(personalReading?.hasMarkdown)}
                                 isStreamingEnabled={shouldStreamNarrative}
+                                autoNarrate={voiceOn && autoNarrate}
+                                onNarrationStart={handleNarrationWrapper}
                             />
                             <div className="flex flex-col items-center justify-center gap-2 sm:gap-3 mt-3 sm:mt-4">
                                 {reading && personalReading && !isPersonalReadingError && (

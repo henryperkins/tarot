@@ -1,3 +1,4 @@
+import { useRef } from 'react';
 import { Check } from '@phosphor-icons/react';
 
 export const DECK_OPTIONS = [
@@ -29,6 +30,45 @@ export const DECK_OPTIONS = [
 ];
 
 export function DeckSelector({ selectedDeck, onDeckChange }) {
+  const deckRefs = useRef({});
+
+  const handleKeyDown = (event, deckId) => {
+    const deckIds = DECK_OPTIONS.map(d => d.id);
+    const currentIndex = deckIds.indexOf(deckId);
+
+    // Handle selection
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      onDeckChange(deckId);
+      return;
+    }
+
+    // Handle arrow key navigation
+    let nextIndex = -1;
+    if (event.key === 'ArrowRight' || event.key === 'ArrowDown') {
+      event.preventDefault();
+      nextIndex = (currentIndex + 1) % deckIds.length;
+    } else if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') {
+      event.preventDefault();
+      nextIndex = (currentIndex - 1 + deckIds.length) % deckIds.length;
+    } else if (event.key === 'Home') {
+      event.preventDefault();
+      nextIndex = 0;
+    } else if (event.key === 'End') {
+      event.preventDefault();
+      nextIndex = deckIds.length - 1;
+    }
+
+    // Focus the next deck if we navigated
+    if (nextIndex !== -1) {
+      const nextDeckId = deckIds[nextIndex];
+      const nextElement = deckRefs.current[nextDeckId];
+      if (nextElement && typeof nextElement.focus === 'function') {
+        nextElement.focus();
+      }
+    }
+  };
+
   return (
     <div className="space-y-3 animate-fade-in">
       <div className="mb-3">
@@ -40,30 +80,39 @@ export function DeckSelector({ selectedDeck, onDeckChange }) {
         </p>
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-3">
-        {DECK_OPTIONS.map((deck) => (
-          <button
-            key={deck.id}
-            type="button"
-            onClick={() => onDeckChange(deck.id)}
-            className={`
-              relative text-left p-4 rounded-xl border-2 transition-all
-              focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-main
-              ${selectedDeck === deck.id
-                ? 'border-secondary bg-secondary/10'
-                : 'border-accent/20 bg-surface-muted/40 hover:border-accent/40 hover:bg-surface-muted/60'
-              }
-            `}
-            aria-pressed={selectedDeck === deck.id}
-          >
-            {/* Selected indicator */}
-            {selectedDeck === deck.id && (
-              <div className="absolute top-3 right-3">
-                <div className="w-6 h-6 rounded-full bg-secondary flex items-center justify-center">
-                  <Check className="w-4 h-4 text-surface" strokeWidth={3} />
+      <div role="radiogroup" aria-label="Choose your deck style" className="grid gap-3 sm:grid-cols-3">
+        {DECK_OPTIONS.map((deck, index) => {
+          const isSelected = selectedDeck === deck.id;
+          const isFirstDeck = index === 0;
+          const isTabbable = isSelected || (!selectedDeck && isFirstDeck);
+
+          return (
+            <button
+              key={deck.id}
+              ref={el => { deckRefs.current[deck.id] = el; }}
+              type="button"
+              role="radio"
+              aria-checked={isSelected}
+              tabIndex={isTabbable ? 0 : -1}
+              onClick={() => onDeckChange(deck.id)}
+              onKeyDown={(e) => handleKeyDown(e, deck.id)}
+              className={`
+                relative text-left p-4 rounded-xl border-2 transition-all
+                focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-main
+                ${isSelected
+                  ? 'border-secondary bg-secondary/10'
+                  : 'border-accent/20 bg-surface-muted/40 hover:border-accent/40 hover:bg-surface-muted/60'
+                }
+              `}
+            >
+              {/* Selected indicator */}
+              {isSelected && (
+                <div className="absolute top-3 right-3">
+                  <div className="w-6 h-6 rounded-full bg-secondary flex items-center justify-center">
+                    <Check className="w-4 h-4 text-surface" strokeWidth={3} />
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
 
             {/* Deck info */}
             <div className="pr-8">
@@ -96,8 +145,9 @@ export function DeckSelector({ selectedDeck, onDeckChange }) {
                 </p>
               )}
             </div>
-          </button>
-        ))}
+            </button>
+          );
+        })}
       </div>
 
       {/* Helper text */}

@@ -24,16 +24,21 @@ export function TableuLogo({
   size = 160,
   className = '',
   color,
-  ariaLabel = 'Tableu Logo'
+  ariaLabel = 'Tableu Logo',
+  outline = false,
+  glow = false,
+  useRaster = false,
+  rasterSrc = '/images/tableu-logo.png'
 }) {
   // Determine viewBox based on variant
   const viewBoxMap = {
-    primary: '0 0 432 576',
-    icon: '0 0 432 576',
-    mono: '0 0 432 576',
-    dark: '0 0 432 576',
-    favicon: '0 0 200 250',
-    full: '0 0 432 720'
+    // Slight padding to prevent stroke/letter clipping when referenced via <use>
+    primary: '-12 -12 456 600',
+    icon: '-12 -12 456 600',
+    mono: '-12 -12 456 600',
+    dark: '-12 -12 456 600',
+    favicon: '-10 -10 220 270',
+    full: '-12 -12 456 744'
   };
 
   // Calculate dimensions
@@ -48,12 +53,40 @@ export function TableuLogo({
   // Build style object
   const style = color ? { color } : undefined;
 
+  const classes = [
+    'tableu-logo',
+    outline ? 'tableu-logo--outline' : null,
+    glow ? 'tableu-logo--glow' : null,
+    className
+  ]
+    .filter(Boolean)
+    .join(' ');
+
+  if (useRaster) {
+    const width = variant === 'full' ? size : size;
+    const height = variant === 'full' ? size * aspectRatio : size;
+    return (
+      <img
+        src={rasterSrc}
+        width={width}
+        height={height}
+        className={classes}
+        style={{ objectFit: 'contain', display: 'block', ...style }}
+        alt={ariaLabel}
+        loading="lazy"
+        decoding="async"
+      />
+    );
+  }
+
   return (
     <svg
       width={width}
       height={height}
       viewBox={viewBox}
-      className={`tableu-logo ${className}`.trim()}
+      overflow="visible"
+      preserveAspectRatio="xMidYMid meet"
+      className={classes}
       style={style}
       aria-label={ariaLabel}
       role="img"
@@ -68,5 +101,9 @@ TableuLogo.propTypes = {
   size: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
   className: PropTypes.string,
   color: PropTypes.string,
-  ariaLabel: PropTypes.string
+  ariaLabel: PropTypes.string,
+  outline: PropTypes.bool,
+  glow: PropTypes.bool,
+  useRaster: PropTypes.bool,
+  rasterSrc: PropTypes.string
 };

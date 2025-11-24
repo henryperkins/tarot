@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from 'react';
 import { getSpreadInfo } from '../data/spreads';
 import { MAJOR_ARCANA } from '../data/majorArcana';
 import { MINOR_ARCANA } from '../data/minorArcana';
@@ -48,6 +49,31 @@ export function ReadingGrid({
 
   const spreadInfo = getSpreadInfo(selectedSpread);
   const isBatchReveal = reading.length > 1 && revealedCards.size === reading.length;
+  const carouselRef = useRef(null);
+  const [activeIndex, setActiveIndex] = useState(0);
+
+  useEffect(() => {
+    const el = carouselRef.current;
+    if (!el || reading.length <= 1) return undefined;
+
+    const handleScroll = () => {
+      const approxIndex = Math.round(el.scrollLeft / el.clientWidth);
+      const clamped = Math.min(reading.length - 1, Math.max(0, approxIndex));
+      setActiveIndex(clamped);
+    };
+
+    handleScroll();
+    el.addEventListener('scroll', handleScroll, { passive: true });
+    return () => el.removeEventListener('scroll', handleScroll);
+  }, [reading.length]);
+
+  const scrollToIndex = (index) => {
+    const el = carouselRef.current;
+    if (!el) return;
+    const clamped = Math.min(reading.length - 1, Math.max(0, index));
+    setActiveIndex(clamped);
+    el.scrollTo({ left: clamped * el.clientWidth, behavior: 'smooth' });
+  };
 
   return (
     <>
@@ -67,6 +93,7 @@ export function ReadingGrid({
                 : 'sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3')
             }`
         }
+        ref={reading.length > 1 ? carouselRef : null}
       >
         {reading.map((card, index) => {
           const position = spreadInfo?.positions?.[index] || `Position ${index + 1}`;
@@ -118,6 +145,31 @@ export function ReadingGrid({
           );
         })}
       </div>
+      {reading.length > 1 && (
+        <div className="sm:hidden mt-3 flex items-center justify-between gap-2">
+          <button
+            type="button"
+            onClick={() => scrollToIndex(activeIndex - 1)}
+            disabled={activeIndex === 0}
+            className="inline-flex items-center justify-center rounded-full border border-secondary/50 bg-surface px-3 py-2 min-w-[48px] min-h-[44px] text-xs font-semibold text-muted disabled:opacity-40"
+            aria-label="Show previous card"
+          >
+            Prev
+          </button>
+          <p className="text-xs text-muted" aria-live="polite">
+            Card {activeIndex + 1} of {reading.length}
+          </p>
+          <button
+            type="button"
+            onClick={() => scrollToIndex(activeIndex + 1)}
+            disabled={activeIndex >= reading.length - 1}
+            className="inline-flex items-center justify-center rounded-full border border-secondary/50 bg-surface px-3 py-2 min-w-[48px] min-h-[44px] text-xs font-semibold text-muted disabled:opacity-40"
+            aria-label="Show next card"
+          >
+            Next
+          </button>
+        </div>
+      )}
     </>
   );
 }

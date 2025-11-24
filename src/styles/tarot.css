@@ -77,22 +77,57 @@ body {
 .header-sticky__row {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: center;
   gap: 1.5rem;
+  position: relative;
+}
+
+.header-sticky__nav {
+  flex: 1;
+  display: flex;
+  justify-content: center;
 }
 
 .header-sticky__user {
   transition: opacity 200ms ease, transform 200ms ease;
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
 }
 
 .header-sticky--compact .header-sticky__user {
   opacity: 0;
-  transform: translateY(-0.25rem);
+  transform: translate(0, -0.25rem);
   pointer-events: none;
 }
 
 .header-sticky__status {
   margin-top: 0.5rem;
+}
+
+/* Tableu logo styling */
+.tableu-logo {
+  display: block;
+  color: var(--brand-primary);
+  overflow: visible;
+}
+
+.tableu-logo--outline .t-fill,
+.tableu-logo--outline .t-fill-stroke {
+  fill: transparent;
+}
+
+.tableu-logo--outline .t-fill-stroke,
+.tableu-logo--outline .t-stroke,
+.tableu-logo--outline .t-fill {
+  stroke: currentColor;
+}
+
+.tableu-logo--glow {
+  filter:
+    drop-shadow(0 0 10px color-mix(in srgb, currentColor 50%, transparent))
+    drop-shadow(0 0 22px color-mix(in srgb, currentColor 30%, transparent));
 }
 
 
