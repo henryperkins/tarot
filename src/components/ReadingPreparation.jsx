@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { CaretDown, CaretUp } from '@phosphor-icons/react';
 import { QuestionInput } from './QuestionInput';
 import { AudioControls } from './AudioControls';
@@ -84,17 +85,89 @@ export function ReadingPreparation({
         return null;
     };
 
+    // Mobile section state - intention always open, others collapsible
+    const [mobileSectionsOpen, setMobileSectionsOpen] = useState({
+        intention: true,  // Always expanded on mobile
+        audio: false,
+        experience: false,
+        ritual: true  // Ritual is important, start expanded
+    });
+
+    const toggleMobileSection = (section) => {
+        setMobileSectionsOpen(prev => ({
+            ...prev,
+            [section]: !prev[section]
+        }));
+    };
+
+    const MOBILE_SECTION_META = {
+        intention: { title: 'Intention', description: 'Your guiding question or focus' },
+        audio: { title: 'Audio', description: 'Voice narration and ambience' },
+        experience: { title: 'Experience', description: 'Theme, deck, and reversal settings' },
+        ritual: { title: 'Ritual', description: 'Knock and cut to prepare the deck' }
+    };
+
     if (variant === 'mobile') {
         return (
-            <div className="space-y-8">
-                {['intention', 'audio', 'experience', 'ritual'].map(section => (
-                    <section key={section}>
-                        <h3 className="text-sm uppercase tracking-widest text-accent/90 mb-3">
-                            {section === 'audio' ? 'Audio' : section === 'experience' ? 'Experience' : section.charAt(0).toUpperCase() + section.slice(1)}
-                        </h3>
-                        {renderSectionContent(section)}
-                    </section>
-                ))}
+            <div className="space-y-4">
+                {['intention', 'audio', 'experience', 'ritual'].map(section => {
+                    const meta = MOBILE_SECTION_META[section];
+                    const isOpen = mobileSectionsOpen[section];
+                    const isIntention = section === 'intention';
+
+                    return (
+                        <section
+                            key={section}
+                            className="rounded-2xl border border-secondary/20 bg-surface/40 overflow-hidden"
+                        >
+                            {/* Section header - clickable to toggle except for intention */}
+                            <button
+                                type="button"
+                                onClick={() => !isIntention && toggleMobileSection(section)}
+                                disabled={isIntention}
+                                className={`w-full flex items-center justify-between gap-3 px-4 py-3 text-left transition touch-manipulation ${
+                                    isIntention ? 'cursor-default' : 'active:bg-secondary/5'
+                                }`}
+                                aria-expanded={isOpen}
+                                aria-controls={`mobile-section-${section}`}
+                            >
+                                <div className="min-w-0 flex-1">
+                                    <h3 className="text-sm font-semibold text-accent">
+                                        {meta.title}
+                                    </h3>
+                                    <p className="text-xs text-muted truncate">
+                                        {meta.description}
+                                    </p>
+                                </div>
+                                {!isIntention && (
+                                    <span className="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-full bg-surface/60 border border-secondary/20">
+                                        {isOpen
+                                            ? <CaretUp className="w-4 h-4 text-accent" />
+                                            : <CaretDown className="w-4 h-4 text-accent" />
+                                        }
+                                    </span>
+                                )}
+                                {isIntention && (
+                                    <span className="flex-shrink-0 text-[0.65rem] uppercase tracking-wider text-secondary/70 bg-secondary/10 px-2 py-1 rounded-full">
+                                        Always open
+                                    </span>
+                                )}
+                            </button>
+
+                            {/* Section content */}
+                            <div
+                                id={`mobile-section-${section}`}
+                                className={`transition-all duration-200 ${
+                                    isOpen ? 'opacity-100' : 'opacity-0 h-0 overflow-hidden'
+                                }`}
+                            >
+                                <div className="px-4 pb-4 pt-1">
+                                    {renderSectionContent(section)}
+                                </div>
+                            </div>
+                        </section>
+                    );
+                })}
             </div>
         );
     }

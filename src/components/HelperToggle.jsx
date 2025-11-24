@@ -10,7 +10,7 @@ export function HelperToggle({ children, label = 'More information', className =
       <button
         type="button"
         onClick={() => setIsOpen(prev => !prev)}
-        className="inline-flex items-center justify-center w-6 h-6 rounded-full border border-secondary/40 bg-transparent text-secondary/80 transition hover:border-accent/60 hover:text-main hover:bg-secondary/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/70 focus-visible:ring-offset-2 focus-visible:ring-offset-main"
+        className="inline-flex items-center justify-center min-w-[44px] min-h-[44px] w-11 h-11 rounded-full border border-secondary/40 bg-transparent text-secondary/80 transition hover:border-accent/60 hover:text-main hover:bg-secondary/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/70 focus-visible:ring-offset-2 focus-visible:ring-offset-main touch-manipulation"
         aria-expanded={isOpen}
         aria-controls={contentId}
         aria-label={label}

@@ -33,12 +33,13 @@ export function RitualControls({
     'border-secondary/60 bg-secondary/20 text-secondary shadow-lg shadow-secondary/20';
   const inactiveIconWrapper = 'border-accent/20 bg-surface/80 text-muted';
   const badgeBaseClass =
-    'inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[0.55rem] font-semibold uppercase tracking-[0.12em] transition-all duration-200';
+    'inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs font-semibold uppercase tracking-wider transition-all duration-200';
   const activeBadgeClass =
     'border-secondary/70 bg-secondary/20 text-secondary shadow-lg shadow-secondary/20';
   const inactiveBadgeClass = 'border-accent/20 bg-surface-muted/80 text-muted';
+  // Info button - subtle icon, 44px touch target but no visible border
   const infoButtonClass =
-    'inline-flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full border border-secondary/40 bg-transparent text-secondary/80 transition hover:border-accent/60 hover:text-main focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60';
+    'inline-flex min-w-[44px] min-h-[44px] items-center justify-center rounded-full text-muted/60 transition hover:text-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 touch-manipulation -ml-2 -mr-3';
   const primaryButtonBase =
     'flex w-full items-center justify-between rounded-2xl border px-4 py-2.5 text-sm font-semibold transition-all duration-200';
   const primaryButtonActive = 'border-secondary/60 bg-secondary/15 text-secondary shadow-lg shadow-secondary/20';
@@ -208,34 +209,70 @@ export function RitualControls({
       </div>
 
       {/* Mobile Touch Controls */}
-      <div className="sm:hidden grid grid-cols-2 gap-4">
-        {/* Knock Button */}
-        <button
-          type="button"
-          onClick={handleKnock}
-          className={`aspect-square rounded-2xl border flex flex-col items-center justify-center gap-2 transition-all active:scale-95 ${knockComplete
-            ? 'bg-secondary/20 border-secondary/60 text-secondary'
-            : 'bg-surface-muted/60 border-accent/20 text-main'
-            }`}
-        >
-          <Sparkle className={`w-8 h-8 ${knockComplete ? 'text-secondary' : 'text-accent'}`} />
-          <span className="text-sm font-semibold">{knockComplete ? 'Cleared' : 'Tap to Knock'}</span>
-          <span className="text-xs opacity-70">{knockCount}/3</span>
-        </button>
+      <div className="sm:hidden space-y-4">
+        <div className="grid grid-cols-2 gap-4">
+          {/* Knock Button */}
+          <button
+            type="button"
+            onClick={handleKnock}
+            className={`aspect-square rounded-2xl border flex flex-col items-center justify-center gap-2 transition-all active:scale-95 touch-manipulation ${knockComplete
+              ? 'bg-secondary/20 border-secondary/60 text-secondary'
+              : 'bg-surface-muted/60 border-accent/20 text-main'
+              }`}
+            aria-label={knockComplete ? 'Deck cleared with 3 knocks' : `Knock ${nextKnockNumber} of 3`}
+          >
+            <Sparkle className={`w-8 h-8 ${knockComplete ? 'text-secondary' : 'text-accent'}`} />
+            <span className="text-sm font-semibold">{knockComplete ? 'Cleared' : 'Tap to Knock'}</span>
+            <span className="text-xs opacity-70">{knockCount}/3</span>
+          </button>
 
-        {/* Cut Button */}
-        <button
-          type="button"
-          onClick={applyCut}
-          className={`aspect-square rounded-2xl border flex flex-col items-center justify-center gap-2 transition-all active:scale-95 ${hasCut
-            ? 'bg-secondary/20 border-secondary/60 text-secondary'
-            : 'bg-surface-muted/60 border-accent/20 text-main'
-            }`}
-        >
-          <Scissors className={`w-8 h-8 ${hasCut ? 'text-secondary' : 'text-accent'}`} />
-          <span className="text-sm font-semibold">{hasCut ? 'Locked' : 'Tap to Cut'}</span>
-          <span className="text-xs opacity-70">{hasCut ? `Cut #${cutIndex}` : 'Random Cut'}</span>
-        </button>
+          {/* Cut Button */}
+          <button
+            type="button"
+            onClick={applyCut}
+            className={`aspect-square rounded-2xl border flex flex-col items-center justify-center gap-2 transition-all active:scale-95 touch-manipulation ${hasCut
+              ? 'bg-secondary/20 border-secondary/60 text-secondary'
+              : 'bg-surface-muted/60 border-accent/20 text-main'
+              }`}
+            aria-pressed={hasCut}
+            aria-label={hasCut ? `Relock cut at position ${cutIndex}` : `Lock cut at position ${cutIndex}`}
+          >
+            <Scissors className={`w-8 h-8 ${hasCut ? 'text-secondary' : 'text-accent'}`} />
+            <span className="text-sm font-semibold">{hasCut ? 'Relock cut' : 'Tap to Lock'}</span>
+            <span className="text-xs opacity-70">{hasCut ? 'Adjust or relock anytime' : `Cut #${cutIndex}`}</span>
+          </button>
+        </div>
+
+        {/* Mobile Cut Position Slider */}
+        <div className="rounded-2xl border border-accent/20 bg-surface/60 px-4 py-3">
+          <div className="flex items-center justify-between mb-2">
+            <label htmlFor="mobile-cut-range" className="text-xs text-muted">
+              Slide to choose cut position
+            </label>
+            <span className="text-sm font-semibold text-secondary">#{cutIndex}</span>
+          </div>
+          <input
+            id="mobile-cut-range"
+            type="range"
+            min={0}
+            max={sliderMax}
+            value={cutIndex}
+            onChange={event => setCutIndex(parseInt(event.target.value, 10))}
+            className="w-full cursor-pointer appearance-none touch-manipulation"
+            aria-label="Cut position"
+            aria-valuetext={`Cut position ${cutIndex} of ${deckSize}`}
+            style={{ accentColor: 'var(--brand-accent)' }}
+          />
+          <div className="mt-1 flex items-center justify-between text-[0.65rem] text-muted">
+            <span>Top (0)</span>
+            <span>Bottom ({sliderMax})</span>
+          </div>
+          {hasCut && (
+            <p className="mt-2 text-[0.65rem] text-secondary/80">
+              Adjust the slider and tap "Relock cut" whenever you need to fine-tune.
+            </p>
+          )}
+        </div>
       </div>
 
       <div className="flex flex-col items-center gap-2 text-center mt-4 sm:mt-0">

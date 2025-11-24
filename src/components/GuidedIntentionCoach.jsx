@@ -247,6 +247,7 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply,
   const depthSectionRef = useRef(null);
   const customFocusRef = useRef(null);
   const previousFocusRef = useRef(null);
+  const stepButtonRefs = useRef([]);
   const titleId = useId();
   const questionRequestRef = useRef(0);
   const creativeRequestControllerRef = useRef(null);
@@ -555,92 +556,83 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply,
     };
   }, [isOpen]);
 
+  // Creative question generation with proper race condition handling
+  // Uses AbortController created at effect start (not inside timeout) for reliable cancellation
   useEffect(() => {
+    // Create AbortController at effect start to ensure cleanup can always abort
+    const controller = new AbortController();
+    let timerId = null;
+    let isCancelled = false;
+
+    // Helper to safely update state only if effect is still active
+    const safeSetState = (setter, value) => {
+      if (!isCancelled) setter(value);
+    };
+
     if (!isOpen) {
-      if (creativeRequestControllerRef.current) {
-        creativeRequestControllerRef.current.abort();
-        creativeRequestControllerRef.current = null;
-      }
       setQuestionText('');
-      return;
+      return () => { isCancelled = true; };
     }
 
     if (!autoQuestionEnabled) {
-      if (creativeRequestControllerRef.current) {
-        creativeRequestControllerRef.current.abort();
-        creativeRequestControllerRef.current = null;
-      }
-      return;
+      return () => { isCancelled = true; };
     }
 
     // If not in creative mode, update immediately
     if (!useCreative) {
-      if (creativeRequestControllerRef.current) {
-        creativeRequestControllerRef.current.abort();
-        creativeRequestControllerRef.current = null;
-      }
       setQuestionLoading(false);
       setQuestionError('');
       setQuestionText(guidedQuestion);
-      return;
+      return () => { isCancelled = true; };
     }
-
-    const requestId = questionRequestRef.current + 1;
-    questionRequestRef.current = requestId;
 
     setQuestionLoading(true);
     setQuestionError('');
 
-    const timerId = setTimeout(async () => {
-      const controller = new AbortController();
-      creativeRequestControllerRef.current = controller;
+    timerId = setTimeout(async () => {
       try {
         const { question: creative, source } = await buildCreativeQuestion({
           topic,
           timeframe,
           depth,
           customFocus,
-          seed: questionSeed  // Pass seed for deterministic creative questions
+          seed: questionSeed
         }, { signal: controller.signal });
-        if (questionRequestRef.current !== requestId) {
+
+        // Check if cancelled after await
+        if (isCancelled || controller.signal.aborted) {
           return;
         }
+
         if (creative) {
-          setQuestionText(creative);
+          safeSetState(setQuestionText, creative);
           const isLocalFallback = source === 'local' || source === 'local-fallback' || source === 'api-fallback';
-          setQuestionError(isLocalFallback ? 'Using on-device generator for now.' : '');
+          safeSetState(setQuestionError, isLocalFallback ? 'Using on-device generator for now.' : '');
         } else {
-          setQuestionText(guidedQuestion);
-          setQuestionError('Personalized mode is temporarily unavailable. Showing guided version.');
+          safeSetState(setQuestionText, guidedQuestion);
+          safeSetState(setQuestionError, 'Personalized mode is temporarily unavailable. Showing guided version.');
         }
       } catch (error) {
-        if (error?.name === 'AbortError') {
+        // Ignore abort errors - these are expected on cleanup
+        if (error?.name === 'AbortError' || isCancelled) {
           return;
         }
-        if (questionRequestRef.current !== requestId) {
-          return;
-        }
-        setQuestionText(guidedQuestion);
-        setQuestionError('Personalized mode is temporarily unavailable. Showing guided version.');
+        safeSetState(setQuestionText, guidedQuestion);
+        safeSetState(setQuestionError, 'Personalized mode is temporarily unavailable. Showing guided version.');
       } finally {
-        if (questionRequestRef.current === requestId) {
-          setQuestionLoading(false);
-        }
-        if (creativeRequestControllerRef.current === controller) {
-          creativeRequestControllerRef.current = null;
+        if (!isCancelled && !controller.signal.aborted) {
+          safeSetState(setQuestionLoading, false);
         }
       }
     }, 800);
 
+    // Cleanup: cancel timer and abort any in-flight request
     return () => {
-      clearTimeout(timerId);
-      if (creativeRequestControllerRef.current) {
-        creativeRequestControllerRef.current.abort();
-        creativeRequestControllerRef.current = null;
-      }
-      questionRequestRef.current += 1;
+      isCancelled = true;
+      if (timerId) clearTimeout(timerId);
+      controller.abort();
     };
-  }, [guidedQuestion, useCreative, topic, timeframe, depth, customFocus, isOpen, autoQuestionEnabled, questionSeed]);
+  }, [guidedQuestion, useCreative, isOpen, autoQuestionEnabled, questionSeed, topic, timeframe, depth, customFocus]);
 
   const questionQuality = useMemo(
     () => scoreQuestion(questionText || guidedQuestion || ''),
@@ -706,6 +698,37 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply,
 
   const goBack = () => {
     if (step > 0) setStep(step - 1);
+  };
+
+  // Keyboard navigation for step indicators (roving tabindex pattern)
+  const handleStepKeyDown = (event, currentIndex) => {
+    let nextIndex = null;
+
+    if (event.key === 'ArrowRight' || event.key === 'ArrowDown') {
+      event.preventDefault();
+      nextIndex = (currentIndex + 1) % STEPS.length;
+    } else if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') {
+      event.preventDefault();
+      nextIndex = (currentIndex - 1 + STEPS.length) % STEPS.length;
+    } else if (event.key === 'Home') {
+      event.preventDefault();
+      nextIndex = 0;
+    } else if (event.key === 'End') {
+      event.preventDefault();
+      nextIndex = STEPS.length - 1;
+    } else if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      setStep(currentIndex);
+      return;
+    }
+
+    if (nextIndex !== null) {
+      setStep(nextIndex);
+      // Focus the new step button after state update
+      requestAnimationFrame(() => {
+        stepButtonRefs.current[nextIndex]?.focus();
+      });
+    }
   };
 
   const handleApply = async () => {
@@ -818,23 +841,33 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply,
             </div>
 
             <div className="flex flex-col gap-3">
-              {/* Step Progress Indicator */}
+              {/* Step Progress Indicator with keyboard navigation */}
               <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-widest text-accent flex-wrap">
+                <div
+                  className="flex items-center gap-2 text-xs font-semibold uppercase tracking-widest text-accent flex-wrap"
+                  role="tablist"
+                  aria-label="Coach wizard steps"
+                >
                   {STEPS.map((entry, index) => (
                     <Fragment key={entry.id}>
                       <button
+                        ref={el => { stepButtonRefs.current[index] = el; }}
                         type="button"
-                        className={`rounded-full px-3 py-1 min-h-[32px] touch-manipulation transition ${index === step
+                        role="tab"
+                        aria-selected={index === step}
+                        aria-controls={`step-panel-${entry.id}`}
+                        tabIndex={index === step ? 0 : -1}
+                        className={`rounded-full px-3 py-1 min-h-[44px] min-w-[44px] touch-manipulation transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/70 focus-visible:ring-offset-2 focus-visible:ring-offset-surface ${index === step
                             ? 'bg-accent text-main shadow-lg shadow-accent/20'
                             : 'bg-surface-muted text-muted hover:bg-surface-muted/80 hover:text-accent'
                           }`}
                         onClick={() => setStep(index)}
+                        onKeyDown={(e) => handleStepKeyDown(e, index)}
                       >
                         <span className="hidden sm:inline">{entry.label}</span>
                         <span className="sm:hidden">{index + 1}</span>
                       </button>
-                      {index < STEPS.length - 1 && <span className="text-accent/30">·</span>}
+                      {index < STEPS.length - 1 && <span className="text-accent/30" aria-hidden="true">·</span>}
                     </Fragment>
                   ))}
                 </div>

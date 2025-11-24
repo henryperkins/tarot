@@ -1,5 +1,6 @@
-import { useRef } from 'react';
+import { useRef, useState, useEffect } from 'react';
 import { Check } from '@phosphor-icons/react';
+import { CarouselDots } from './CarouselDots';
 
 export const DECK_OPTIONS = [
   {
@@ -115,6 +116,56 @@ function PaletteBadge({ label, swatch, textColor }) {
 
 export function DeckSelector({ selectedDeck, onDeckChange }) {
   const deckRefs = useRef({});
+  const carouselRef = useRef(null);
+  const deckIds = DECK_OPTIONS.map(d => d.id);
+  const [activeIndex, setActiveIndex] = useState(0);
+
+  // Track scroll position for pagination dots using actual element positions
+  useEffect(() => {
+    const el = carouselRef.current;
+    if (!el || deckIds.length <= 1) return undefined;
+
+    const handleScroll = () => {
+      const cards = Array.from(el.children);
+      if (cards.length === 0) return;
+
+      // Find the card whose center is closest to the viewport center
+      const viewportCenter = el.scrollLeft + el.clientWidth / 2;
+      let closestIndex = 0;
+      let closestDistance = Infinity;
+
+      cards.forEach((card, idx) => {
+        const cardCenter = card.offsetLeft + card.offsetWidth / 2;
+        const distance = Math.abs(viewportCenter - cardCenter);
+        if (distance < closestDistance) {
+          closestDistance = distance;
+          closestIndex = idx;
+        }
+      });
+
+      setActiveIndex(closestIndex);
+    };
+
+    handleScroll();
+    el.addEventListener('scroll', handleScroll, { passive: true });
+    return () => el.removeEventListener('scroll', handleScroll);
+  }, [deckIds.length]);
+
+  const scrollToIndex = (index) => {
+    const el = carouselRef.current;
+    if (!el) return;
+    const clamped = Math.min(deckIds.length - 1, Math.max(0, index));
+    setActiveIndex(clamped);
+
+    // Scroll to center the target card in the viewport
+    const cards = Array.from(el.children);
+    const targetCard = cards[clamped];
+    if (targetCard) {
+      const cardCenter = targetCard.offsetLeft + targetCard.offsetWidth / 2;
+      const scrollTarget = cardCenter - el.clientWidth / 2;
+      el.scrollTo({ left: Math.max(0, scrollTarget), behavior: 'smooth' });
+    }
+  };
 
   const handleKeyDown = (event, deckId) => {
     const deckIds = DECK_OPTIONS.map(d => d.id);
@@ -146,7 +197,10 @@ export function DeckSelector({ selectedDeck, onDeckChange }) {
       const nextElement = deckRefs.current[nextDeckId];
       if (nextElement && typeof nextElement.focus === 'function') {
         nextElement.focus();
+        nextElement.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
       }
+      // Note: Selection only happens on Enter/Space (handled above), not on arrow navigation
+      // This follows the roving tabindex pattern where arrows move focus, not selection
     }
   };
 
@@ -166,7 +220,12 @@ export function DeckSelector({ selectedDeck, onDeckChange }) {
           </div>
         </header>
 
-        <div role="radiogroup" aria-label="Choose your deck style" className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <div
+          ref={carouselRef}
+          role="radiogroup"
+          aria-label="Choose your deck style"
+          className="deck-selector-grid flex gap-3 overflow-x-auto snap-x snap-mandatory pb-3 sm:overflow-visible sm:snap-none sm:grid sm:grid-cols-2 lg:grid-cols-3 sm:gap-4"
+        >
           {DECK_OPTIONS.map((deck, index) => {
             const isSelected = selectedDeck === deck.id;
             const isFirstDeck = index === 0;
@@ -182,7 +241,7 @@ export function DeckSelector({ selectedDeck, onDeckChange }) {
                 tabIndex={isTabbable ? 0 : -1}
                 onClick={() => onDeckChange(deck.id)}
                 onKeyDown={(e) => handleKeyDown(e, deck.id)}
-                className={`deck-card relative flex h-full flex-col gap-3 rounded-2xl px-4 py-4 sm:px-5 sm:py-5 text-left transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--deck-ring)] focus-visible:ring-offset-2 focus-visible:ring-offset-[#0f0c13] ${isSelected ? 'deck-card--active' : ''}`}
+                className={`deck-card relative flex h-full flex-col gap-3 rounded-2xl px-4 py-4 sm:px-5 sm:py-5 text-left transition-all cursor-pointer select-none shrink-0 basis-[82%] xs:basis-[70%] snap-center sm:basis-auto sm:shrink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--deck-ring)] focus-visible:ring-offset-2 focus-visible:ring-offset-[#0f0c13] ${isSelected ? 'deck-card--active' : ''}`}
                 style={{
                   '--deck-accent': deck.accent,
                   '--deck-border': isSelected ? deck.borderActive : deck.border,
@@ -235,8 +294,20 @@ export function DeckSelector({ selectedDeck, onDeckChange }) {
           })}
         </div>
 
+        {/* Mobile pagination dots */}
+        <div className="sm:hidden">
+          <CarouselDots
+            activeIndex={activeIndex}
+            totalItems={deckIds.length}
+            onSelectItem={scrollToIndex}
+            labels={DECK_OPTIONS.map(d => d.label)}
+            ariaLabel="Deck selection"
+            variant="compact"
+          />
+        </div>
+
         <div className="deck-panel-footnote">
-          <p className="text-[0.72rem] leading-relaxed text-muted">
+          <p className="text-xs leading-relaxed text-muted">
             <strong className="text-accent">For research participants:</strong> Choose the matching deck to help the vision model recognize suits and illustrations across art styles.
           </p>
         </div>

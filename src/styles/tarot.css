@@ -327,11 +327,10 @@ body {
   isolation: isolate;
   border-radius: 1.35rem;
   padding: 1rem 1.15rem 1.35rem;
-  --spread-card-height-mobile: 22.5rem;
-  --spread-card-height-desktop: 23rem;
+  --spread-card-height-mobile: 23rem;
+  --spread-card-height-desktop: 23.5rem;
+  /* Mobile: flexible min-height for carousel */
   min-height: var(--spread-card-height-mobile);
-  height: var(--spread-card-height-mobile);
-  max-height: var(--spread-card-height-mobile);
   background: var(--spread-background, #15121f);
   border: 1px solid var(--spread-border, rgba(255, 255, 255, 0.08));
   box-shadow: 0 18px 36px -24px rgba(0, 0, 0, 0.85), inset 0 1px 0 rgba(255, 255, 255, 0.05);
@@ -340,9 +339,9 @@ body {
 
 @media (min-width: 640px) {
   .spread-card {
+    /* Desktop: fixed height for uniform grid appearance */
     min-height: var(--spread-card-height-desktop);
     height: var(--spread-card-height-desktop);
-    max-height: var(--spread-card-height-desktop);
   }
 }
 
@@ -424,8 +423,8 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 0.75rem;
-  flex-wrap: wrap;
+  gap: 0.5rem;
+  flex-wrap: nowrap;
   margin-top: auto;
   padding-top: 0.75rem;
   border-top: 1px solid rgba(255, 255, 255, 0.05);
@@ -434,19 +433,36 @@ body {
 .spread-card__complexity {
   display: inline-flex;
   align-items: center;
-  gap: 0.45rem;
-  padding: 0.45rem 0.9rem;
+  gap: 0.35rem;
+  padding: 0.4rem 0.65rem;
   border-radius: 999px;
   border: 1px solid color-mix(in srgb, var(--spread-accent, #d4b896) 24%, transparent);
   background: rgba(13, 10, 18, 0.65);
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.02);
+  font-size: 0.68rem;
+  flex-shrink: 1;
+  min-width: 0;
+}
+
+/* Hide "Complexity" label on mobile to save space */
+@media (max-width: 639px) {
+  .spread-card__complexity > span:first-child {
+    display: none;
+  }
 }
 
 .spread-card__count {
   display: flex;
   flex-direction: column;
   text-align: right;
-  min-width: 88px;
+  flex-shrink: 0;
+}
+
+/* Hide count label on mobile since it's redundant with the tag */
+@media (max-width: 639px) {
+  .spread-card__count > span:first-child {
+    display: none;
+  }
 }
 
 .spread-panel-footnote {
@@ -1071,6 +1087,134 @@ input[type="range"]:focus::-webkit-slider-thumb {
   margin-top: 0.25rem;
 }
 
+/* Mobile settings drawer aligns with deck/spread card styling */
+.mobile-drawer-overlay {
+  background:
+    radial-gradient(circle at 18% 12%, rgba(229, 196, 142, 0.16), transparent 36%),
+    radial-gradient(circle at 82% 6%, rgba(126, 170, 255, 0.16), transparent 42%),
+    rgba(7, 6, 12, 0.86);
+  backdrop-filter: blur(12px);
+}
+
+.mobile-drawer {
+  --drawer-accent: #e5c48e;
+  --drawer-border: rgba(229, 196, 142, 0.28);
+  --drawer-border-strong: rgba(229, 196, 142, 0.72);
+  --drawer-glow: rgba(229, 196, 142, 0.32);
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  border-radius: 1.3rem 1.3rem 0 0;
+  background:
+    radial-gradient(circle at 16% -8%, rgba(229, 196, 142, 0.18), transparent 46%),
+    radial-gradient(circle at 88% -12%, rgba(124, 164, 255, 0.16), transparent 50%),
+    linear-gradient(170deg, rgba(24, 18, 33, 0.96), rgba(10, 8, 16, 0.98));
+  border: 1px solid var(--drawer-border);
+  box-shadow: 0 -18px 42px -26px rgba(0, 0, 0, 0.86), 0 -8px 24px -18px var(--drawer-glow), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+.mobile-drawer::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 20% 14%, color-mix(in srgb, var(--drawer-accent) 38%, transparent) 0%, transparent 52%),
+    radial-gradient(circle at 80% 0%, color-mix(in srgb, var(--drawer-accent) 18%, transparent) 0%, transparent 48%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0));
+  opacity: 0.9;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.mobile-drawer::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120' viewBox='0 0 120 120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='120' height='120' filter='url(%23n)' opacity='0.25'/%3E%3C/svg%3E");
+  mix-blend-mode: soft-light;
+  opacity: 0.25;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.mobile-drawer__handle {
+  position: relative;
+  z-index: 1;
+  width: 3.25rem;
+  height: 0.28rem;
+  margin: 0.85rem auto 0.35rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--drawer-accent) 70%, #f8edd6);
+  box-shadow: 0 10px 18px -12px var(--drawer-glow), inset 0 0 0 1px rgba(255, 255, 255, 0.2);
+  opacity: 0.9;
+}
+
+.mobile-drawer__header {
+  position: relative;
+  z-index: 1;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0));
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.mobile-drawer__eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.7rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--drawer-accent) 70%, #d4b896);
+}
+
+.mobile-drawer__badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.45rem 0.9rem;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--drawer-accent) 32%, transparent);
+  background: rgba(12, 10, 16, 0.65);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  color: rgba(232, 218, 195, 0.92);
+}
+
+.mobile-drawer__close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  /* WCAG 2.2 SC 2.5.8: Touch target minimum 44x44px */
+  height: 2.75rem;
+  width: 2.75rem;
+  min-height: 44px;
+  min-width: 44px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(10, 8, 14, 0.65);
+  color: rgba(208, 198, 185, 0.9);
+  transition: color 160ms ease, border-color 160ms ease, background-color 160ms ease, transform 160ms ease;
+  box-shadow: 0 10px 24px -18px rgba(0, 0, 0, 0.8);
+  /* Prevent accidental activation on touch */
+  touch-action: manipulation;
+}
+
+.mobile-drawer__close:hover {
+  color: #f4e9d1;
+  border-color: color-mix(in srgb, var(--drawer-accent) 55%, transparent);
+  background: rgba(18, 14, 20, 0.85);
+  transform: translateY(-1px);
+}
+
+.mobile-drawer__close:active {
+  transform: translateY(0);
+  background: rgba(18, 14, 20, 0.95);
+}
+
+.mobile-drawer__body {
+  position: relative;
+  z-index: 1;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.02), rgba(255, 255, 255, 0));
+}
+
 .deck-card {
   position: relative;
   overflow: hidden;
@@ -1157,7 +1301,7 @@ input[type="range"]:focus::-webkit-slider-thumb {
   border-radius: 999px;
   padding: 0.45rem 0.9rem;
   background:
-    linear-gradient(120deg, rgba(18, 14, 24, 0.8), rgba(32, 24, 44, 0.9));
+    linear-gradient(125deg, rgba(22, 17, 28, 0.68), rgba(34, 26, 46, 0.74));
   backdrop-filter: blur(6px);
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.02);
 }
@@ -1179,9 +1323,10 @@ input[type="range"]:focus::-webkit-slider-thumb {
   border-radius: 1.35rem;
   padding: 1.2rem 1.35rem 1.4rem;
   background:
-    radial-gradient(circle at 18% 12%, rgba(244, 207, 150, 0.12), transparent 46%),
-    radial-gradient(circle at 82% -8%, rgba(113, 154, 255, 0.12), transparent 52%),
-    linear-gradient(155deg, rgba(20, 15, 25, 0.96), rgba(10, 8, 16, 0.98));
+    radial-gradient(circle at 4% 14%, color-mix(in srgb, var(--prepare-accent) 14%, transparent) 0%, transparent 42%),
+    radial-gradient(circle at 94% -8%, rgba(120, 161, 255, 0.08), transparent 48%),
+    radial-gradient(circle at 48% 120%, rgba(255, 163, 205, 0.06), transparent 56%),
+    linear-gradient(140deg, #0d0a14, #151020 55%, #0f0b17);
   border: 1px solid rgba(232, 218, 195, 0.18);
   box-shadow: 0 18px 36px -24px rgba(0, 0, 0, 0.85), inset 0 1px 0 rgba(255, 255, 255, 0.05);
   transition: border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
@@ -1192,10 +1337,10 @@ input[type="range"]:focus::-webkit-slider-thumb {
   position: absolute;
   inset: 0;
   background:
-    radial-gradient(circle at 20% 18%, color-mix(in srgb, var(--prepare-accent) 35%, transparent) 0%, transparent 52%),
-    radial-gradient(circle at 80% 0%, color-mix(in srgb, var(--prepare-accent) 18%, transparent) 0%, transparent 50%),
-    linear-gradient(165deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0));
-  opacity: 0.9;
+    radial-gradient(circle at 18% 18%, color-mix(in srgb, var(--prepare-accent) 18%, transparent) 0%, transparent 52%),
+    radial-gradient(circle at 78% 0%, color-mix(in srgb, var(--prepare-accent) 10%, transparent) 0%, transparent 50%),
+    linear-gradient(165deg, rgba(255, 255, 255, 0.02), rgba(255, 255, 255, 0));
+  opacity: 0.5;
   pointer-events: none;
   z-index: 0;
 }
@@ -1206,7 +1351,7 @@ input[type="range"]:focus::-webkit-slider-thumb {
   inset: 0;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120' viewBox='0 0 120 120'%3E%3Cfilter id='p'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='120' height='120' filter='url(%23p)' opacity='0.25'/%3E%3C/svg%3E");
   mix-blend-mode: soft-light;
-  opacity: 0.25;
+  opacity: 0.18;
   pointer-events: none;
   z-index: 0;
 }
@@ -1281,4 +1426,63 @@ input[type="range"]:focus::-webkit-slider-thumb {
 
 .prepare-panel-footnote {
   padding-top: 0.9rem;
+}
+
+/* ==========================================================================
+   Reduced Motion Support (WCAG 2.3.3 Animation from Interactions)
+   ========================================================================== */
+
+@media (prefers-reduced-motion: reduce) {
+  /* Disable all animations */
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  /* Specifically target common animated classes */
+  .animate-pulse,
+  .animate-fade-in,
+  .animate-slide-up,
+  .animate-slide-in-right,
+  .animate-pop-in {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+
+  /* Disable card flip and hover transforms */
+  .tarot-card-shell:hover,
+  .tarot-card-shell:active {
+    transform: none;
+  }
+
+  /* Disable spread/deck card hover effects */
+  .spread-card:hover,
+  .deck-card:hover,
+  .prepare-card:hover {
+    transform: none;
+  }
+
+  /* Keep focus indicators visible but remove animation */
+  button:focus-visible,
+  [role='button']:focus-visible,
+  a:focus-visible,
+  input:focus-visible,
+  textarea:focus-visible {
+    outline: 2px solid var(--focus-ring-color);
+    outline-offset: 3px;
+    transition: none;
+  }
+
+  /* Disable carousel snap scrolling momentum */
+  .cc-grid,
+  .spread-selector-grid,
+  .deck-selector-grid {
+    scroll-behavior: auto;
+    scroll-snap-type: none;
+  }
 }

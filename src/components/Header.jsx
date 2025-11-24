@@ -1,9 +1,14 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { ArrowCounterClockwise } from '@phosphor-icons/react';
 import { TableuLogo } from './TableuLogo';
 import { GlobalNav } from './GlobalNav';
 import { UserMenu } from './UserMenu';
 import { StepProgress } from './StepProgress';
+
+// Scroll thresholds - using viewport-relative values for mobile
+const COMPACT_THRESHOLD = 32;
+const HIDE_THRESHOLD_MIN = 180; // Minimum for small screens
+const HIDE_THRESHOLD_RATIO = 0.2; // 20% of viewport height
 
 export function Header({ steps, activeStep, onStepSelect, isShuffling }) {
   const [headerState, setHeaderState] = useState(() => ({
@@ -12,18 +17,35 @@ export function Header({ steps, activeStep, onStepSelect, isShuffling }) {
   }));
   const lastScrollYRef = useRef(0);
   const scrollRafRef = useRef(null);
+  const isCleanedUpRef = useRef(false);
   const { isCompact, isHidden } = headerState;
   const shouldHideHeader = isHidden && !isShuffling;
+
+  // Calculate viewport-aware hide threshold
+  const getHideThreshold = useCallback(() => {
+    if (typeof window === 'undefined') return HIDE_THRESHOLD_MIN;
+    // Use the larger of: minimum threshold OR 20% of viewport height
+    const viewportThreshold = Math.round(window.innerHeight * HIDE_THRESHOLD_RATIO);
+    return Math.max(HIDE_THRESHOLD_MIN, viewportThreshold);
+  }, []);
 
   // Header collapse / auto-hide based on scroll
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
+    isCleanedUpRef.current = false;
+
     const updateHeaderState = () => {
+      if (isCleanedUpRef.current) return;
+
       const currentY = window.scrollY || 0;
       const isScrollingDown = currentY > lastScrollYRef.current;
-      const shouldCompact = currentY > 32;
-      const shouldHide = isScrollingDown && currentY > 140;
+      const hideThreshold = getHideThreshold();
+
+      const shouldCompact = currentY > COMPACT_THRESHOLD;
+      // Only hide when scrolling down AND past threshold
+      // Reveal immediately when scrolling up
+      const shouldHide = isScrollingDown && currentY > hideThreshold;
 
       setHeaderState((prev) => {
         if (prev.isCompact === shouldCompact && prev.isHidden === shouldHide) {
@@ -38,23 +60,40 @@ export function Header({ steps, activeStep, onStepSelect, isShuffling }) {
     };
 
     const handleScroll = () => {
-      if (scrollRafRef.current) return;
+      if (scrollRafRef.current || isCleanedUpRef.current) return;
       scrollRafRef.current = window.requestAnimationFrame(() => {
-        updateHeaderState();
+        if (!isCleanedUpRef.current) {
+          updateHeaderState();
+        }
         scrollRafRef.current = null;
       });
     };
 
+    // Reset scroll tracking on resize/orientation change
+    const handleResize = () => {
+      lastScrollYRef.current = window.scrollY || 0;
+      // Force re-evaluation after resize
+      updateHeaderState();
+    };
+
     window.addEventListener('scroll', handleScroll, { passive: true });
+    window.addEventListener('resize', handleResize, { passive: true });
     updateHeaderState();
+
     return () => {
+      isCleanedUpRef.current = true;
       window.removeEventListener('scroll', handleScroll);
+      window.removeEventListener('resize', handleResize);
       if (scrollRafRef.current) {
         window.cancelAnimationFrame(scrollRafRef.current);
         scrollRafRef.current = null;
       }
     };
-  }, []);
+  }, [getHideThreshold]);
+
+  // Logo size based on compact state - use actual sizes instead of CSS transform
+  // This avoids blurry rendering from non-integer scale factors
+  const logoSize = isCompact ? 64 : 96;
 
   return (
     <>
@@ -62,15 +101,16 @@ export function Header({ steps, activeStep, onStepSelect, isShuffling }) {
       <header aria-labelledby="tableau-heading" className={isCompact ? 'header-condensed' : ''}>
         <div className="text-center mb-6 sm:mb-8 mystic-heading-wrap flex flex-col items-center">
           <div
+            className="transition-all duration-200 ease-out"
             style={{
-              transform: isCompact ? 'scale(0.667)' : 'scale(1)',
-              transition: 'transform 200ms ease',
-              transformOrigin: 'center',
+              // Use margin adjustment for smooth visual transition instead of scale
+              marginTop: isCompact ? '-8px' : '0',
+              marginBottom: isCompact ? '-8px' : '0',
             }}
           >
             <TableuLogo
               variant="full"
-              size={96}
+              size={logoSize}
               className="mb-2 opacity-90 hover:opacity-100 transition-opacity"
               outline
               glow
@@ -80,7 +120,17 @@ export function Header({ steps, activeStep, onStepSelect, isShuffling }) {
           <h1 id="tableau-heading" className="sr-only">
             Tableu
           </h1>
-          <p className="mt-1 text-muted text-xs-plus sm:text-sm md:text-base leading-relaxed max-w-2xl">
+          <p
+            className={`
+              mt-1 text-muted leading-relaxed max-w-2xl
+              transition-all duration-200
+              ${isCompact
+                ? 'text-xs opacity-0 h-0 overflow-hidden'
+                : 'text-xs-plus sm:text-sm md:text-base opacity-100'
+              }
+            `}
+            aria-hidden={isCompact}
+          >
             Authentic tarot, thoughtfully interpreted.
           </p>
         </div>
@@ -88,22 +138,34 @@ export function Header({ steps, activeStep, onStepSelect, isShuffling }) {
 
       {/* Sticky Navigation Bar */}
       <div
-        className={`full-bleed sticky top-0 z-30 mb-5 bg-surface/95 backdrop-blur border-y border-accent/20 px-4 sm:px-5 md:px-6 shadow-lg shadow-primary/20 header-sticky ${isCompact ? 'header-sticky--compact' : ''} ${shouldHideHeader ? 'header-sticky--hidden' : ''}`}
+        className={`
+          full-bleed sticky top-0 z-30 mb-5
+          bg-surface/95 backdrop-blur
+          border-y border-accent/20
+          px-4 sm:px-5 md:px-6
+          shadow-lg shadow-primary/20
+          header-sticky
+          ${isCompact ? 'header-sticky--compact' : ''}
+          ${shouldHideHeader ? 'header-sticky--hidden' : ''}
+        `}
       >
         <div className="header-sticky__row">
           <div className="header-sticky__nav">
             <GlobalNav condensed={isCompact} />
           </div>
-          {!isCompact && (
-            <div className="header-sticky__user">
-              <UserMenu />
-            </div>
-          )}
+          {/* Always render UserMenu but hide visually in compact mode for better UX */}
+          <div className={`header-sticky__user ${isCompact ? 'hidden sm:block' : ''}`}>
+            <UserMenu />
+          </div>
         </div>
         <StepProgress steps={steps} activeStep={activeStep} onSelect={onStepSelect} condensed={isCompact} />
         {isShuffling && (
-          <div className="mt-2 flex items-center gap-2 text-muted text-[clamp(0.85rem,2.4vw,0.95rem)] leading-snug" role="status" aria-live="polite">
-            <ArrowCounterClockwise className="w-3.5 h-3.5 animate-spin text-accent" aria-hidden="true" />
+          <div
+            className="mt-2 pb-1 flex items-center gap-2 text-muted text-[clamp(0.85rem,2.4vw,0.95rem)] leading-snug"
+            role="status"
+            aria-live="polite"
+          >
+            <ArrowCounterClockwise className="w-4 h-4 animate-spin text-accent" aria-hidden="true" />
             <span>Shuffling the deck...</span>
           </div>
         )}

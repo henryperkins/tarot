@@ -1,8 +1,9 @@
-import { useRef } from 'react';
+import { useRef, useState, useEffect } from 'react';
 import { Sparkle, Check, Star } from './icons';
 import { Icon } from './Icon';
 import { SPREADS } from '../data/spreads';
 import { SpreadPatternThumbnail } from './SpreadPatternThumbnail';
+import { CarouselDots } from './CarouselDots';
 
 const STAR_TOTAL = 3;
 
@@ -72,6 +73,56 @@ export function SpreadSelector({
   onSpreadConfirm
 }) {
   const spreadRefs = useRef({});
+  const carouselRef = useRef(null);
+  const spreadKeys = Object.keys(SPREADS);
+  const [activeIndex, setActiveIndex] = useState(0);
+
+  // Track scroll position for pagination dots using actual element positions
+  useEffect(() => {
+    const el = carouselRef.current;
+    if (!el || spreadKeys.length <= 1) return undefined;
+
+    const handleScroll = () => {
+      const cards = Array.from(el.children);
+      if (cards.length === 0) return;
+
+      // Find the card whose center is closest to the viewport center
+      const viewportCenter = el.scrollLeft + el.clientWidth / 2;
+      let closestIndex = 0;
+      let closestDistance = Infinity;
+
+      cards.forEach((card, idx) => {
+        const cardCenter = card.offsetLeft + card.offsetWidth / 2;
+        const distance = Math.abs(viewportCenter - cardCenter);
+        if (distance < closestDistance) {
+          closestDistance = distance;
+          closestIndex = idx;
+        }
+      });
+
+      setActiveIndex(closestIndex);
+    };
+
+    handleScroll();
+    el.addEventListener('scroll', handleScroll, { passive: true });
+    return () => el.removeEventListener('scroll', handleScroll);
+  }, [spreadKeys.length]);
+
+  const scrollToIndex = (index) => {
+    const el = carouselRef.current;
+    if (!el) return;
+    const clamped = Math.min(spreadKeys.length - 1, Math.max(0, index));
+    setActiveIndex(clamped);
+
+    // Scroll to center the target card in the viewport
+    const cards = Array.from(el.children);
+    const targetCard = cards[clamped];
+    if (targetCard) {
+      const cardCenter = targetCard.offsetLeft + targetCard.offsetWidth / 2;
+      const scrollTarget = cardCenter - el.clientWidth / 2;
+      el.scrollTo({ left: Math.max(0, scrollTarget), behavior: 'smooth' });
+    }
+  };
 
   const handleSpreadSelection = key => {
     if (onSelectSpread) {
@@ -151,6 +202,7 @@ export function SpreadSelector({
         </header>
 
         <div
+          ref={carouselRef}
           role="radiogroup"
           aria-label="Choose your spread"
           className="spread-selector-grid flex gap-3 overflow-x-auto snap-x snap-mandatory pb-3 sm:overflow-visible sm:snap-none sm:grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 sm:gap-4"
@@ -237,11 +289,22 @@ export function SpreadSelector({
           })}
         </div>
 
+        {/* Mobile pagination dots */}
+        <div className="sm:hidden">
+          <CarouselDots
+            activeIndex={activeIndex}
+            totalItems={spreadKeys.length}
+            onSelectItem={scrollToIndex}
+            labels={spreadKeys.map(key => SPREADS[key]?.name || key)}
+            ariaLabel="Spread selection"
+            variant="compact"
+          />
+        </div>
+
         <div className="deck-panel-footnote spread-panel-footnote">
-          <p className="text-[0.72rem] leading-relaxed text-muted">
+          <p className="text-xs leading-relaxed text-muted">
             <strong className="text-accent">Tip:</strong> Your spread selection tunes positional prompts, narration pacing, and journaling cues.
           </p>
-          <p className="sm:hidden text-center text-[0.7rem] text-muted mt-2">Swipe horizontally to browse spreads.</p>
         </div>
       </div>
     </section>

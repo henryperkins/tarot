@@ -1,41 +1,237 @@
-import { X } from '@phosphor-icons/react';
+import { useEffect, useRef, useCallback, useState } from 'react';
+import { Sparkle, X } from '@phosphor-icons/react';
+
+const FOCUSABLE_SELECTORS = [
+  'a[href]',
+  'button:not([disabled])',
+  'textarea:not([disabled])',
+  'input:not([disabled])',
+  'select:not([disabled])',
+  '[tabindex]:not([tabindex="-1"])'
+].join(', ');
 
 export function MobileSettingsDrawer({ isOpen, onClose, children }) {
-    if (!isOpen) return null;
+  const drawerRef = useRef(null);
+  const closeButtonRef = useRef(null);
+  const previousFocusRef = useRef(null);
 
-    return (
-        <div className="fixed inset-0 z-[70] flex items-end justify-center sm:hidden">
-            {/* Backdrop */}
-            <div
-                className="absolute inset-0 bg-main/90 backdrop-blur-sm animate-fade-in"
-                onClick={onClose}
-                aria-hidden="true"
-            />
+  // Focus trap and body scroll lock
+  useEffect(() => {
+    if (!isOpen) return undefined;
 
-            {/* Drawer */}
-            <div
-                className="relative w-full bg-surface rounded-t-2xl border-t border-primary/30 shadow-2xl max-h-[85vh] flex flex-col animate-slide-up"
-                role="dialog"
-                aria-modal="true"
-                aria-label="Reading Gear"
-            >
-                {/* Header */}
-                <div className="flex items-center justify-between px-4 py-3 bg-surface/95 border-b border-accent/20 rounded-t-2xl backdrop-blur shrink-0">
-                    <h2 className="text-lg font-serif text-accent">Prepare Reading</h2>
-                    <button
-                        onClick={onClose}
-                        className="p-2 -mr-2 text-muted hover:text-main active:text-main transition-colors"
-                        aria-label="Close settings"
-                    >
-                        <X className="w-6 h-6" />
-                    </button>
-                </div>
+    // Store previously focused element
+    if (document.activeElement instanceof HTMLElement) {
+      previousFocusRef.current = document.activeElement;
+    }
 
-                {/* Content */}
-                <div className="p-4 space-y-8 overflow-y-auto overscroll-contain pb-safe-area-bottom">
-                    {children}
-                </div>
+    // Lock body scroll
+    const originalOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+
+    // Focus the close button after a brief delay for animation
+    const focusTimer = setTimeout(() => {
+      closeButtonRef.current?.focus();
+    }, 100);
+
+    // Handle Escape key
+    const handleKeyDown = (event) => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        onClose();
+        return;
+      }
+
+      // Focus trap on Tab
+      if (event.key === 'Tab' && drawerRef.current) {
+        const focusable = drawerRef.current.querySelectorAll(FOCUSABLE_SELECTORS);
+        if (!focusable.length) return;
+
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+
+        if (event.shiftKey && document.activeElement === first) {
+          event.preventDefault();
+          last.focus();
+        } else if (!event.shiftKey && document.activeElement === last) {
+          event.preventDefault();
+          first.focus();
+        }
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      clearTimeout(focusTimer);
+      document.removeEventListener('keydown', handleKeyDown);
+      document.body.style.overflow = originalOverflow;
+
+      // Restore focus to previously focused element
+      if (previousFocusRef.current && typeof previousFocusRef.current.focus === 'function') {
+        previousFocusRef.current.focus();
+      }
+      previousFocusRef.current = null;
+    };
+  }, [isOpen, onClose]);
+
+  // Handle swipe-to-dismiss with velocity and visual feedback
+  const touchStartY = useRef(null);
+  const touchStartTime = useRef(null);
+  const [dragOffset, setDragOffset] = useState(0);
+  const [isDragging, setIsDragging] = useState(false);
+
+  // Reset drag state when drawer opens (prevents stale state from previous dismissal)
+  useEffect(() => {
+    if (isOpen) {
+      setDragOffset(0);
+      setIsDragging(false);
+      touchStartY.current = null;
+      touchStartTime.current = null;
+    }
+
+    // Cleanup touch refs on unmount to prevent memory leaks
+    return () => {
+      touchStartY.current = null;
+      touchStartTime.current = null;
+    };
+  }, [isOpen]);
+
+  const handleTouchStart = useCallback((event) => {
+    // Only track touches that start on the handle area or header
+    const target = event.target;
+    const isHandleOrHeader = target.closest('.mobile-drawer__handle') ||
+      target.closest('.mobile-drawer__header');
+
+    // Allow anywhere if at scroll top, or specifically on handle/header
+    const scrollContainer = drawerRef.current?.querySelector('.mobile-drawer__body');
+    const isAtScrollTop = !scrollContainer || scrollContainer.scrollTop <= 0;
+
+    if (isHandleOrHeader || isAtScrollTop) {
+      touchStartY.current = event.touches[0].clientY;
+      touchStartTime.current = Date.now();
+      setIsDragging(true);
+    }
+  }, []);
+
+  const handleTouchMove = useCallback((event) => {
+    if (touchStartY.current === null) return;
+
+    const currentY = event.touches[0].clientY;
+    const deltaY = currentY - touchStartY.current;
+
+    // Only allow dragging downward (positive delta)
+    if (deltaY > 0) {
+      // Apply resistance as drag increases (feels more natural)
+      const resistance = 0.6;
+      const dampedDelta = deltaY * resistance;
+      setDragOffset(dampedDelta);
+    }
+  }, []);
+
+  const handleTouchEnd = useCallback((event) => {
+    if (touchStartY.current === null) {
+      setIsDragging(false);
+      setDragOffset(0);
+      return;
+    }
+
+    const touchEndY = event.changedTouches[0].clientY;
+    const deltaY = touchEndY - touchStartY.current;
+    const elapsed = Date.now() - (touchStartTime.current || Date.now());
+
+    // Calculate velocity (pixels per millisecond)
+    const velocity = deltaY / Math.max(elapsed, 1);
+
+    // Dismiss conditions:
+    // 1. Dragged far enough (150px+)
+    // 2. Fast swipe (velocity > 0.5 px/ms) with some distance (50px+)
+    const shouldDismiss = deltaY > 150 || (deltaY > 50 && velocity > 0.5);
+
+    if (shouldDismiss) {
+      // Animate out with current momentum
+      setDragOffset(window.innerHeight);
+      setTimeout(onClose, 150);
+    } else {
+      // Snap back
+      setDragOffset(0);
+    }
+
+    touchStartY.current = null;
+    touchStartTime.current = null;
+    setIsDragging(false);
+  }, [onClose]);
+
+  const handleTouchCancel = useCallback(() => {
+    touchStartY.current = null;
+    touchStartTime.current = null;
+    setIsDragging(false);
+    setDragOffset(0);
+  }, []);
+
+  if (!isOpen) return null;
+
+  return (
+    <div
+      className="fixed inset-0 z-[70] flex items-end justify-center sm:hidden"
+      style={{ paddingTop: 'max(16px, env(safe-area-inset-top, 16px))' }}
+    >
+      <div
+        className="mobile-drawer-overlay absolute inset-0 animate-fade-in"
+        onClick={onClose}
+        aria-hidden="true"
+      />
+
+      <div
+        ref={drawerRef}
+        className="mobile-drawer relative w-full flex flex-col animate-slide-up"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="mobile-drawer-title"
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+        onTouchCancel={handleTouchCancel}
+        style={{
+          maxHeight: 'calc(100% - 8px)',
+          transform: dragOffset > 0 ? `translateY(${dragOffset}px)` : undefined,
+          transition: isDragging ? 'none' : 'transform 0.2s ease-out'
+        }}
+      >
+        <div className="mobile-drawer__handle" aria-hidden="true" />
+
+        <div className="mobile-drawer__header px-4 pt-3 pb-3">
+          <div className="flex items-start justify-between gap-3">
+            <div className="space-y-1">
+              <p className="mobile-drawer__eyebrow">
+                <Sparkle className="w-3.5 h-3.5" aria-hidden="true" />
+                Guided setup
+              </p>
+              <h2 id="mobile-drawer-title" className="text-lg font-serif text-accent">Prepare Reading</h2>
+              <p className="text-[0.78rem] text-muted/90 leading-snug max-w-[22rem]">
+                Align your spread, deck, and ritual steps before you draw cards.
+              </p>
             </div>
+
+            <button
+              ref={closeButtonRef}
+              onClick={onClose}
+              className="mobile-drawer__close"
+              aria-label="Close settings drawer"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+
+          <div className="mobile-drawer__badge mt-3">
+            <span className="w-1.5 h-1.5 rounded-full bg-gold-soft animate-pulse" aria-hidden="true" />
+            <span className="text-[0.7rem] tracking-[0.14em] uppercase">Uses current deck + spread</span>
+          </div>
         </div>
-    );
+
+        <div className="mobile-drawer__body p-4 space-y-8 overflow-y-auto overscroll-contain pb-safe-area-bottom">
+          {children}
+        </div>
+      </div>
+    </div>
+  );
 }

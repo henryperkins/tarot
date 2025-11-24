@@ -72,10 +72,18 @@ export function Tooltip({
 
   useEffect(() => () => clearTouchHideTimeout(), []);
 
-  const sizeClasses = {
+  // Icon sizes (visual appearance inside the touch target)
+  const iconSizeClasses = {
     sm: 'w-3.5 h-3.5',
     md: 'w-4 h-4',
     lg: 'w-5 h-5'
+  };
+
+  // Touch target sizes - minimum 44x44px for WCAG 2.5.8 compliance
+  const touchTargetClasses = {
+    sm: 'min-w-[44px] min-h-[44px] w-11 h-11',
+    md: 'min-w-[44px] min-h-[44px] w-11 h-11',
+    lg: 'min-w-[48px] min-h-[48px] w-12 h-12'
   };
 
   const positionClasses = {
@@ -153,11 +161,16 @@ export function Tooltip({
     hideTooltip();
   };
 
+  // Base trigger class with proper touch target and visual centering
   const triggerBaseClass =
-    'inline-flex items-center justify-center text-accent/60 hover:text-accent transition-colors focus:outline-none focus:ring-2 focus:ring-accent/50 rounded-full';
+    'inline-flex items-center justify-center text-accent/60 hover:text-accent transition-colors focus:outline-none focus:ring-2 focus:ring-accent/50 rounded-full touch-manipulation';
 
   const rootBaseClass = asChild ? 'relative block' : 'relative inline-flex items-center';
 
+  // ARIA pattern for tooltips:
+  // - Use aria-describedby to associate trigger with tooltip content
+  // - aria-expanded indicates toggle state for interactive triggers
+  // - Don't use aria-haspopup (that's for menus/dialogs, not tooltips)
   const triggerProps = {
     ref: triggerRef,
     onMouseEnter: handleMouseEnter,
@@ -170,9 +183,8 @@ export function Tooltip({
     onTouchEnd: handleTouchEnd,
     onTouchCancel: handleTouchCancel,
     onClick: enableClick ? handleToggle : undefined,
-    'aria-haspopup': true,
-    'aria-expanded': isVisible,
-    'aria-controls': isVisible ? tooltipId : undefined
+    'aria-describedby': isVisible ? tooltipId : undefined,
+    'aria-expanded': enableClick ? isVisible : undefined
   };
 
   const shouldShow = isVisible && content;
@@ -192,9 +204,9 @@ export function Tooltip({
           type="button"
           {...triggerProps}
           aria-label={ariaLabel}
-          className={`${triggerBaseClass} ${triggerClassName}`.trim()}
+          className={`${triggerBaseClass} ${touchTargetClasses[size]} ${triggerClassName}`.trim()}
         >
-          {children || <Info className={sizeClasses[size]} />}
+          {children || <Info className={iconSizeClasses[size]} />}
         </button>
       )}
 
