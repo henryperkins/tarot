@@ -157,8 +157,10 @@ export function ReadingPreparation({
                             {/* Section content */}
                             <div
                                 id={`mobile-section-${section}`}
+                                aria-hidden={!isOpen}
+                                inert={isOpen ? undefined : true}
                                 className={`transition-all duration-200 ${
-                                    isOpen ? 'opacity-100' : 'opacity-0 h-0 overflow-hidden'
+                                    isOpen ? 'opacity-100' : 'opacity-0 h-0 overflow-hidden pointer-events-none'
                                 }`}
                             >
                                 <div className="px-4 pb-4 pt-1">

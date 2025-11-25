@@ -1,8 +1,31 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useCallback } from 'react';
 import { useVisionValidation } from '../hooks/useVisionValidation';
 import { VisionHeatmapOverlay } from './VisionHeatmapOverlay';
 import { PhotoInputModal } from './PhotoInputModal';
 import { CameraCapture } from './CameraCapture';
+
+/** Maximum number of images allowed for vision validation */
+const MAX_UPLOADS = 5;
+/** Maximum file size in bytes (10MB) */
+const MAX_FILE_SIZE = 10 * 1024 * 1024;
+/** Allowed MIME type prefix */
+const ALLOWED_TYPE_PREFIX = 'image/';
+
+/**
+ * Validates a file for type and size constraints
+ * @param {File} file - File to validate
+ * @returns {{ valid: boolean, reason?: string }}
+ */
+function validateFile(file) {
+  if (!file.type.startsWith(ALLOWED_TYPE_PREFIX)) {
+    return { valid: false, reason: `"${file.name}" is not an image file` };
+  }
+  if (file.size > MAX_FILE_SIZE) {
+    const sizeMB = (file.size / (1024 * 1024)).toFixed(1);
+    return { valid: false, reason: `"${file.name}" is too large (${sizeMB}MB, max 10MB)` };
+  }
+  return { valid: true };
+}
 
 export function VisionValidationPanel({
   deckStyle = 'rws-1909',
@@ -15,26 +38,49 @@ export function VisionValidationPanel({
   const { status, error, validateFiles } = useVisionValidation({ deckStyle });
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isCameraOpen, setIsCameraOpen] = useState(false);
+  const [localError, setLocalError] = useState(null);
   const fileInputRef = useRef(null);
-  const uploadLimitReached = results.length >= 5;
+  const uploadLimitReached = results.length >= MAX_UPLOADS;
+  const remainingSlots = MAX_UPLOADS - results.length;
 
-  const handleFileChange = async (event) => {
+  const handleFileChange = useCallback(async (event) => {
     const inputEl = event.target;
-    const files = inputEl?.files;
-    if (!files || files.length === 0) {
-      if (inputEl) inputEl.value = '';
+    const files = Array.from(inputEl?.files || []);
+
+    // Reset input immediately to allow re-selecting same file
+    if (inputEl) inputEl.value = '';
+
+    if (files.length === 0) return;
+
+    // Clear previous local errors
+    setLocalError(null);
+
+    // Validate all files
+    const validationResults = files.map(validateFile);
+    const invalidFiles = validationResults.filter(r => !r.valid);
+
+    if (invalidFiles.length > 0) {
+      setLocalError(invalidFiles.map(r => r.reason).join('. '));
       return;
     }
 
+    // Limit files to remaining slots
+    const filesToProcess = files.slice(0, remainingSlots);
+    if (filesToProcess.length < files.length) {
+      setLocalError(`Only ${remainingSlots} slot${remainingSlots !== 1 ? 's' : ''} remaining. ${files.length - filesToProcess.length} file(s) skipped.`);
+    }
+
+    if (filesToProcess.length === 0) return;
+
     try {
-      const analyses = await validateFiles(files);
+      const analyses = await validateFiles(filesToProcess);
       if (analyses.length) {
         onResults?.(analyses);
       }
-    } finally {
-      if (inputEl) inputEl.value = '';
+    } catch (err) {
+      setLocalError(`Analysis failed: ${err.message || 'Unknown error'}`);
     }
-  };
+  }, [validateFiles, onResults, remainingSlots]);
 
   const handleChooseFromLibrary = () => {
     setIsModalOpen(false);
@@ -73,7 +119,7 @@ export function VisionValidationPanel({
             <button
               type="button"
               onClick={() => onClearResults?.()}
-              className="px-3 py-2 rounded-md border border-accent/30 text-main/90 hover:border-accent/60"
+              className="min-h-[44px] px-3 py-2 rounded-md border border-accent/30 text-main/90 hover:border-accent/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 transition-colors"
             >
               Clear uploads
             </button>
@@ -86,19 +132,32 @@ export function VisionValidationPanel({
             onChange={handleFileChange}
             className="hidden"
             disabled={uploadLimitReached}
+            aria-describedby={uploadLimitReached ? 'upload-limit-info' : undefined}
           />
           <button
             type="button"
-            onClick={() => !uploadLimitReached && setIsModalOpen(true)}
-            disabled={uploadLimitReached}
-            className={`px-3 py-2 rounded-md border border-secondary/40 ${uploadLimitReached ? 'opacity-60 cursor-not-allowed' : ''}`}
+            onClick={() => setIsModalOpen(true)}
+            disabled={uploadLimitReached || status === 'loading'}
+            aria-haspopup="dialog"
+            aria-expanded={isModalOpen}
+            aria-describedby="upload-limit-info"
+            className={`min-h-[44px] px-3 py-2 rounded-md border border-secondary/40 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 ${
+              uploadLimitReached || status === 'loading'
+                ? 'opacity-60 cursor-not-allowed'
+                : 'hover:border-secondary/70 hover:bg-secondary/10'
+            }`}
           >
-            {uploadLimitReached
-              ? 'Limit reached'
-              : status === 'loading'
-                ? 'Analyzing…'
-                : 'Add Photo'}
+            {status === 'loading'
+              ? 'Analyzing…'
+              : uploadLimitReached
+                ? `Limit (${MAX_UPLOADS}) reached`
+                : `Add Photo${remainingSlots < MAX_UPLOADS ? ` (${remainingSlots} left)` : ''}`}
           </button>
+          <span id="upload-limit-info" className="sr-only">
+            {uploadLimitReached
+              ? `Maximum ${MAX_UPLOADS} images allowed. Remove an image to add more.`
+              : `${remainingSlots} of ${MAX_UPLOADS} upload slots remaining.`}
+          </span>
         </div>
       </div>
       {isModalOpen && (
@@ -114,7 +173,11 @@ export function VisionValidationPanel({
           onCancel={() => setIsCameraOpen(false)}
         />
       )}
-      {error && <p className="mt-2 text-xs text-error">{error}</p>}
+      {(error || localError) && (
+        <p role="alert" className="mt-2 text-xs text-error">
+          {error || localError}
+        </p>
+      )}
       {conflicts.length > 0 && (
         <div className="mt-3 rounded border border-error/40 bg-error/20 p-3 text-xs text-main">
           <p className="font-semibold">Card mismatch detected</p>
@@ -129,23 +192,28 @@ export function VisionValidationPanel({
         </div>
       )}
       {results.length > 0 && (
-        <div className="mt-4 space-y-3">
+        <ul role="list" className="mt-4 space-y-3" aria-label="Vision analysis results">
           {results.map((result) => (
-            <div key={result.uploadId || result.label} className="rounded border border-secondary/20 p-3">
+            <li
+              key={result.uploadId || result.label || result.imagePath}
+              className="rounded border border-secondary/20 p-3"
+            >
               <div className="flex items-center justify-between text-sm text-secondary">
-                <span>{result.label || 'Uploaded image'}</span>
+                <span className="font-medium">{result.label || 'Uploaded image'}</span>
                 <div className="flex items-center gap-3">
-                  <span>
-                    Confidence:
-                    {' '}
-                    {typeof result.confidence === 'number'
-                      ? `${(result.confidence * 100).toFixed(1)}%`
-                      : 'n/a'}
+                  <span className="text-muted">
+                    Confidence:{' '}
+                    <span className={typeof result.confidence === 'number' && result.confidence >= 0.7 ? 'text-accent' : ''}>
+                      {typeof result.confidence === 'number'
+                        ? `${(result.confidence * 100).toFixed(1)}%`
+                        : 'n/a'}
+                    </span>
                   </span>
                   <button
                     type="button"
                     onClick={() => onRemoveResult?.(result.uploadId || result.label)}
-                    className="text-xs text-error/80 hover:text-error"
+                    className="min-h-[44px] min-w-[44px] px-2 text-sm text-error/80 hover:text-error focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-error/50 rounded transition-colors"
+                    aria-label={`Remove ${result.label || 'uploaded image'}`}
                   >
                     Remove
                   </button>
@@ -165,13 +233,13 @@ export function VisionValidationPanel({
                 </ul>
               )}
               {result.attention?.focusRegions?.length > 0 && (
-                <div className="mt-2 text-[11px] text-secondary/70">
-                  <p className="font-semibold">Model focus</p>
-                  <p className="mb-1">Highlight patches where CLIP paid the most attention.</p>
+                <div className="mt-2 text-xs text-secondary/70">
+                  <p className="font-semibold text-secondary">Model focus</p>
+                  <p className="mb-1 text-muted">Highlight patches where CLIP paid the most attention.</p>
                   <div className="flex flex-wrap gap-2">
-                    {result.attention.focusRegions.slice(0, 4).map((region, idx) => (
+                    {result.attention.focusRegions.slice(0, 4).map((region) => (
                       <span
-                        key={`${result.label}-region-${idx}`}
+                        key={`${result.label || 'result'}-region-${region.x}-${region.y}`}
                         className="px-2 py-1 rounded-full border border-secondary/30"
                       >
                         ({region.x}, {region.y}) · {(region.intensity * 100).toFixed(0)}%
@@ -186,50 +254,47 @@ export function VisionValidationPanel({
                 label={result.label}
               />
               {Array.isArray(result.attention?.symbolAlignment) && result.attention.symbolAlignment.length > 0 && (
-                <div className="mt-2 text-[11px] text-secondary/70">
-                  <p className="font-semibold">Symbol alignment</p>
+                <div className="mt-2 text-xs text-secondary/70">
+                  <p className="font-semibold text-secondary">Symbol alignment</p>
                   <ul className="list-disc list-inside space-y-1">
                     {result.attention.symbolAlignment.slice(0, 3).map((symbol) => (
-                      <li key={`${result.label}-${symbol.object}`}>
+                      <li key={`${result.label || 'result'}-symbol-${symbol.object}`}>
                         {symbol.object}
-                        {' '}
-                        · focus {(symbol.attentionScore * 100).toFixed(0)}%
-                        {' '}
-                        {symbol.isModelFocused ? '✅' : ''}
+                        {' '}· focus {(symbol.attentionScore * 100).toFixed(0)}%
+                        {symbol.isModelFocused && (
+                          <span className="ml-1" aria-label="Model focused on this symbol">✅</span>
+                        )}
                       </li>
                     ))}
                   </ul>
                 </div>
               )}
               {result.symbolVerification && (
-                <div className="mt-2 text-[11px] text-secondary/70">
-                  <p className="font-semibold">Symbol verification</p>
+                <div className="mt-2 text-xs text-secondary/70">
+                  <p className="font-semibold text-secondary">Symbol verification</p>
                   <p>
-                    Match rate:
-                    {' '}
-                    {typeof result.symbolVerification.matchRate === 'number'
-                      ? `${(result.symbolVerification.matchRate * 100).toFixed(0)}%`
-                      : 'n/a'}
+                    Match rate:{' '}
+                    <span className={typeof result.symbolVerification.matchRate === 'number' && result.symbolVerification.matchRate >= 0.7 ? 'text-accent' : ''}>
+                      {typeof result.symbolVerification.matchRate === 'number'
+                        ? `${(result.symbolVerification.matchRate * 100).toFixed(0)}%`
+                        : 'n/a'}
+                    </span>
                   </p>
                   {Array.isArray(result.symbolVerification.missingSymbols) && result.symbolVerification.missingSymbols.length > 0 && (
                     <p className="mt-1 text-error/80">
-                      Missing:
-                      {' '}
-                      {result.symbolVerification.missingSymbols.join(', ')}
+                      Missing: {result.symbolVerification.missingSymbols.join(', ')}
                     </p>
                   )}
                   {Array.isArray(result.symbolVerification.unexpectedDetections) && result.symbolVerification.unexpectedDetections.length > 0 && (
                     <p className="mt-1 text-muted">
-                      Extra objects:
-                      {' '}
-                      {result.symbolVerification.unexpectedDetections.map((det) => det.label).join(', ')}
+                      Extra objects: {result.symbolVerification.unexpectedDetections.map((det) => det.label).join(', ')}
                     </p>
                   )}
                 </div>
               )}
-            </div>
+            </li>
           ))}
-        </div>
+        </ul>
       )}
     </div>
   );

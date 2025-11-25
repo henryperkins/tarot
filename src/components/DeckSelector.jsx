@@ -13,11 +13,10 @@ export const DECK_OPTIONS = [
       { label: 'Lapis blues', swatch: '#1f3f78', textColor: '#e6ecf7' },
       { label: 'Crimson accents', swatch: '#8d1c33', textColor: '#f7e7ef' }
     ],
-    previewImages: [
-      '/images/cards/RWS1909_-_00_Fool.jpeg',
-      '/images/cards/RWS1909_-_09_Hermit.jpeg',
-      '/images/cards/RWS1909_-_19_Sun.jpeg'
-    ],
+    preview: {
+      src: '/images/deck-art/rws.png',
+      alt: 'Rider-Waite-Smith deck featuring The Magician card'
+    },
     accent: '#e5c48e',
     border: 'rgba(220, 188, 141, 0.35)',
     borderActive: 'rgba(229, 196, 142, 0.9)',
@@ -34,12 +33,10 @@ export const DECK_OPTIONS = [
       { label: 'Magenta', swatch: '#c1248b', textColor: '#fde7f4' },
       { label: 'Saffron gold', swatch: '#d9a441', textColor: '#120c05' }
     ],
-    previewImages: [
-      '/images/cards/thoth/thoth_major_17_the-star.png',
-      '/images/cards/thoth/thoth_major_14_art.png',
-      '/images/cards/thoth/thoth_major_20_the-aeon.png',
-      '/images/cards/thoth/thoth_major_08_adjustment.png'
-    ],
+    preview: {
+      src: '/images/deck-art/thoth.png',
+      alt: 'Thoth deck featuring The Magus card with Art Deco styling'
+    },
     accent: '#44e0d2',
     border: 'rgba(83, 216, 206, 0.25)',
     borderActive: 'rgba(83, 216, 206, 0.75)',
@@ -57,11 +54,10 @@ export const DECK_OPTIONS = [
       { label: 'Cobalt blue', swatch: '#21489b', textColor: '#e7efff' },
       { label: 'Sunflower yellow', swatch: '#d8a300', textColor: '#140d02' }
     ],
-    previewImages: [
-      '/images/cards/marseille/major01.jpg',
-      '/images/cards/marseille/major19.jpg',
-      '/images/cards/marseille/major05.jpg'
-    ],
+    preview: {
+      src: '/images/deck-art/marseille.png',
+      alt: 'Tarot de Marseille deck featuring Le Bateleur card'
+    },
     accent: '#d8a300',
     border: 'rgba(192, 146, 64, 0.28)',
     borderActive: 'rgba(216, 163, 0, 0.82)',
@@ -71,30 +67,27 @@ export const DECK_OPTIONS = [
   }
 ];
 
-function DeckPreviewStack({ images = [], accent }) {
-  const stack = images.length >= 4 ? [-12, -3, 6, 14] : [-10, 0, 10];
-  const cards = images.slice(0, stack.length);
-
-  if (cards.length === 0) {
+function DeckPreviewImage({ preview, deckLabel }) {
+  if (!preview?.src) {
     return null;
   }
 
   return (
-    <div className="relative h-28 sm:h-32 md:h-36 mb-1">
-      {cards.map((src, index) => (
-        <img
-          key={`${src}-${index}`}
-          src={src}
-          alt=""
-          role="presentation"
-          loading="lazy"
-          className="deck-preview-card absolute bottom-0 h-28 sm:h-32 md:h-36 w-auto rounded-xl border border-white/70 shadow-lg object-cover"
-          style={{
-            transform: `translateX(${index * 16}px) rotate(${stack[index]}deg)`,
-            boxShadow: `0 16px 40px -24px rgba(0,0,0,0.8), 0 8px 24px -18px ${accent || 'rgba(212, 184, 150, 0.35)'}, 0 0 0 1px rgba(255,255,255,0.08)`
-          }}
-        />
-      ))}
+    <div className="relative overflow-hidden rounded-[14px] bg-[#0f0c14] mb-1">
+      <img
+        src={preview.src}
+        alt={preview.alt || `${deckLabel} deck preview`}
+        className="w-full h-auto object-cover"
+        loading="lazy"
+        decoding="async"
+        onError={(e) => {
+          e.currentTarget.style.display = 'none';
+        }}
+      />
+      <div
+        className="pointer-events-none absolute inset-0 rounded-[14px] border border-white/10 shadow-[0_0_0_1px_rgba(232,218,195,0.08)]"
+        aria-hidden="true"
+      />
     </div>
   );
 }
@@ -264,7 +257,7 @@ export function DeckSelector({ selectedDeck, onDeckChange }) {
                   </div>
                 )}
 
-                <DeckPreviewStack images={deck.previewImages} accent={deck.glow} />
+                <DeckPreviewImage preview={deck.preview} deckLabel={deck.label} />
 
                 <div className="pr-1">
                   <div className="font-serif text-accent text-base leading-tight">

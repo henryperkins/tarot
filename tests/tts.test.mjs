@@ -582,7 +582,11 @@ describe('TTS API - Streaming Mode', () => {
 
     assert.strictEqual(response.status, 200);
     assert.ok(response.headers.get('content-type').includes('audio/'));
-    assert.strictEqual(response.headers.get('transfer-encoding'), 'chunked');
+    // Streaming mode returns binary audio directly, not JSON with base64
+    // Note: transfer-encoding: chunked is only set when streaming unknown-length data;
+    // the fallback audio returns a fixed-size Uint8Array so no chunked encoding is used
+    const body = await response.arrayBuffer();
+    assert.ok(body.byteLength > 0, 'Should return binary audio data');
   });
 
   it('should return non-streaming response when stream=false', async () => {

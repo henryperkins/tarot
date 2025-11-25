@@ -243,7 +243,7 @@ export function UserMenu() {
             onClick={() => setShowAuthModal(true)}
             className="
               flex items-center gap-1.5 px-3 sm:px-4 min-h-[44px]
-              rounded-full bg-primary text-white
+              rounded-full bg-primary text-surface
               hover:bg-primary/90 active:bg-primary/80 active:scale-[0.98]
               shadow-sm shadow-primary/20 transition
               text-xs-plus font-semibold touch-manipulation

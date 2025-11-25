@@ -1,35 +1,108 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 
 export function ImagePreview({ image, onConfirm, onRetake }) {
-  // Compute URL directly from image prop
-  const imageUrl = useMemo(() => {
+  const [imageUrl, setImageUrl] = useState(null);
+  const previousTriggerRef = useRef(null);
+  const confirmButtonRef = useRef(null);
+
+  // Properly handle object URL creation and cleanup to prevent memory leaks
+  useEffect(() => {
     if (image instanceof File) {
-      return URL.createObjectURL(image);
+      const url = URL.createObjectURL(image);
+      setImageUrl(url);
+      return () => URL.revokeObjectURL(url);
+    } else if (image) {
+      setImageUrl(image);
+    } else {
+      setImageUrl(null);
     }
-    return image;
   }, [image]);
 
-  // Cleanup object URL on unmount or when image changes
+  // Store reference to previously focused element for focus restoration
   useEffect(() => {
-    if (image instanceof File && imageUrl) {
+    if (imageUrl) {
+      previousTriggerRef.current = document.activeElement;
+      // Focus the confirm button when modal opens
+      requestAnimationFrame(() => {
+        confirmButtonRef.current?.focus();
+      });
+    }
+    return () => {
+      // Restore focus when modal closes
+      if (previousTriggerRef.current && typeof previousTriggerRef.current.focus === 'function') {
+        previousTriggerRef.current.focus();
+      }
+    };
+  }, [imageUrl]);
+
+  // Handle keyboard events for accessibility
+  const handleKeyDown = useCallback((event) => {
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      onRetake?.();
+    }
+    // Trap focus within the modal
+    if (event.key === 'Tab') {
+      const focusableElements = event.currentTarget.querySelectorAll(
+        'button:not([disabled]), [tabindex]:not([tabindex="-1"])'
+      );
+      const firstElement = focusableElements[0];
+      const lastElement = focusableElements[focusableElements.length - 1];
+
+      if (event.shiftKey && document.activeElement === firstElement) {
+        event.preventDefault();
+        lastElement?.focus();
+      } else if (!event.shiftKey && document.activeElement === lastElement) {
+        event.preventDefault();
+        firstElement?.focus();
+      }
+    }
+  }, [onRetake]);
+
+  // Lock body scroll when modal is open
+  useEffect(() => {
+    if (imageUrl) {
+      const originalOverflow = document.body.style.overflow;
+      document.body.style.overflow = 'hidden';
       return () => {
-        URL.revokeObjectURL(imageUrl);
+        document.body.style.overflow = originalOverflow;
       };
     }
-  }, [image, imageUrl]);
+  }, [imageUrl]);
 
   if (!imageUrl) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-black animate-fade-in">
-      <img src={imageUrl} alt="Preview" className="w-full h-full object-contain" />
-      <div className="absolute bottom-0 left-0 right-0 bg-black/50 p-4 flex justify-around items-center">
-        <button onClick={onRetake} className="px-6 py-3 text-lg text-white font-semibold">
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-label="Image preview"
+      className="fixed inset-0 z-50 flex flex-col bg-black animate-fade-in"
+      onKeyDown={handleKeyDown}
+    >
+      {/* Image container */}
+      <div className="flex-1 flex items-center justify-center p-4 min-h-0">
+        <img
+          src={imageUrl}
+          alt="Preview of your captured photo for the tarot reading"
+          className="max-w-full max-h-full object-contain"
+        />
+      </div>
+
+      {/* Action buttons with safe area padding for notched devices */}
+      <div className="bg-black/70 backdrop-blur-sm p-4 pb-[max(1rem,env(safe-area-inset-bottom))] flex justify-center gap-6">
+        <button
+          type="button"
+          onClick={onRetake}
+          className="min-h-[48px] min-w-[100px] px-6 py-3 text-lg text-white font-semibold rounded-lg border border-white/30 hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/50 focus-visible:ring-offset-2 focus-visible:ring-offset-black transition-colors touch-manipulation"
+        >
           Retake
         </button>
         <button
+          ref={confirmButtonRef}
+          type="button"
           onClick={onConfirm}
-          className="px-6 py-3 text-lg text-white font-semibold bg-secondary hover:bg-secondary/90 rounded-lg"
+          className="min-h-[48px] min-w-[120px] px-6 py-3 text-lg text-white font-semibold bg-secondary hover:bg-secondary/90 rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-secondary/50 focus-visible:ring-offset-2 focus-visible:ring-offset-black transition-colors touch-manipulation"
         >
           Use Photo
         </button>

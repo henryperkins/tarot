@@ -7,7 +7,7 @@ export function GlobalNav({ condensed = false }) {
   const navigate = useNavigate();
 
   const isJournal = location.pathname.startsWith('/journal');
-  const isReading = location.pathname === '/' || (!isJournal && !location.pathname.startsWith('/settings'));
+  const isReading = !isJournal;
 
   const baseButtonClasses = `
     inline-flex items-center justify-center gap-1.5
@@ -23,7 +23,7 @@ export function GlobalNav({ condensed = false }) {
     ? 'px-3 sm:px-3.5 py-2 text-xs-plus'
     : 'px-4 sm:px-5 py-2.5 text-sm';
 
-  const activeClasses = 'bg-primary text-white shadow shadow-primary/30 active:bg-primary/90';
+  const activeClasses = 'bg-primary text-surface shadow shadow-primary/30 active:bg-primary/90';
   const inactiveClasses = `
     bg-surface text-main/85 border border-secondary/50
     hover:bg-surface-muted hover:text-main hover:border-secondary/60

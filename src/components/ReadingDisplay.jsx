@@ -120,9 +120,47 @@ export function ReadingDisplay({ sectionRef }) {
     const phaseOrder = ['idle', 'analyzing', 'drafting', 'polishing', 'complete', 'error'];
     const currentPhaseIndex = phaseOrder.indexOf(narrativePhase);
 
+    // Memoize step states to avoid indexOf in render loop
+    const stepStates = useMemo(() => {
+        return NARRATIVE_STEPS.map((step, index) => {
+            const stepIndex = phaseOrder.indexOf(step.id);
+            const isDone = currentPhaseIndex > stepIndex && currentPhaseIndex !== -1;
+            const isCurrent = currentPhaseIndex === stepIndex || (currentPhaseIndex === -1 && index === 0 && isGenerating);
+            return { ...step, index, isDone, isCurrent };
+        });
+    }, [currentPhaseIndex, isGenerating]);
+
     // --- Handlers ---
-    const handleNarrationWrapper = () => handleNarrationButtonClick(fullReadingText, isPersonalReadingError);
-    const handleVoicePromptWrapper = () => handleVoicePromptEnable(fullReadingText);
+    const handleNarrationWrapper = useCallback(() => {
+        handleNarrationButtonClick(fullReadingText, isPersonalReadingError);
+    }, [handleNarrationButtonClick, fullReadingText, isPersonalReadingError]);
+
+    const handleVoicePromptWrapper = useCallback(() => {
+        handleVoicePromptEnable(fullReadingText);
+    }, [handleVoicePromptEnable, fullReadingText]);
+
+    const handleRevealAllWithScroll = useCallback(() => {
+        revealAll();
+        sectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, [revealAll, sectionRef]);
+
+    const handleResetReveals = useCallback(() => {
+        setRevealedCards(new Set());
+        setDealIndex(0);
+    }, [setRevealedCards, setDealIndex]);
+
+    const handleCardClick = useCallback((card, position, index) => {
+        setSelectedCardData({ card, position, index });
+    }, [setSelectedCardData]);
+
+    // Memoize next label computation to avoid IIFE in render
+    const nextLabel = useMemo(() => {
+        if (!reading) return null;
+        const nextIndex = reading.findIndex((_, i) => !revealedCards.has(i));
+        if (nextIndex === -1) return null;
+        const pos = spreadInfo?.positions?.[nextIndex];
+        return pos ? pos.split('—')[0].trim() : `Card ${nextIndex + 1}`;
+    }, [reading, revealedCards, spreadInfo]);
 
     return (
         <section ref={sectionRef} id="step-reading" tabIndex={-1} className="scroll-mt-[6.5rem] sm:scroll-mt-[7.5rem]" aria-label="Draw and explore your reading">
@@ -133,7 +171,7 @@ export function ReadingDisplay({ sectionRef }) {
             {/* Primary CTA */}
             {!reading && (
                 <div className="hidden sm:block text-center mb-8 sm:mb-10">
-                    <button onClick={shuffle} disabled={isShuffling} className="bg-primary hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold px-6 sm:px-8 py-3 sm:py-4 rounded-lg shadow-lg transition-all inline-flex items-center gap-2 sm:gap-3 text-base sm:text-lg">
+                    <button onClick={shuffle} disabled={isShuffling} className="bg-primary hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed text-surface font-semibold px-6 sm:px-8 py-3 sm:py-4 rounded-lg shadow-lg transition-all inline-flex items-center gap-2 sm:gap-3 text-base sm:text-lg">
                         <ArrowCounterClockwise className={`w-4 h-4 sm:w-5 sm:h-5 ${isShuffling ? 'motion-safe:animate-spin' : ''}`} />
                         <span>{isShuffling ? 'Shuffling the cards...' : 'Draw cards'}</span>
                     </button>
@@ -162,10 +200,7 @@ export function ReadingDisplay({ sectionRef }) {
 
                     {revealedCards.size < reading.length && (
                         <div className="hidden sm:block text-center">
-                            <button type="button" onClick={() => {
-                                revealAll();
-                                sectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                            }} className="bg-primary hover:bg-primary/90 text-white font-semibold px-4 sm:px-6 py-2.5 sm:py-3 rounded-full shadow-lg shadow-primary/30 transition-all flex items-center gap-2 sm:gap-3 mx-auto text-sm sm:text-base">
+                            <button type="button" onClick={handleRevealAllWithScroll} className="bg-primary hover:bg-primary/90 text-surface font-semibold px-4 sm:px-6 py-2.5 sm:py-3 rounded-full shadow-lg shadow-primary/30 transition-all flex items-center gap-2 sm:gap-3 mx-auto text-sm sm:text-base">
                                 <Star className="w-4 h-4 sm:w-5 sm:h-5" /><span>Reveal All Cards</span>
                             </button>
                             <p className="text-accent/80 text-xs sm:text-sm mt-2 sm:mt-3">{revealedCards.size} of {reading.length} cards revealed</p>
@@ -173,7 +208,7 @@ export function ReadingDisplay({ sectionRef }) {
                     )}
                     {revealedCards.size > 0 && (
                         <div className="text-center mt-3 sm:mt-4">
-                            <button type="button" onClick={() => { setRevealedCards(new Set()); setDealIndex(0); }} className="inline-flex items-center justify-center px-4 py-2 rounded-full border border-accent/50 text-muted text-xs sm:text-sm hover:text-main hover:border-accent/70 transition">
+                            <button type="button" onClick={handleResetReveals} className="inline-flex items-center justify-center px-4 py-2 rounded-full border border-accent/50 text-muted text-xs sm:text-sm hover:text-main hover:border-accent/70 transition">
                                 <span className="hidden xs:inline">Reset reveals (keep this spread)</span><span className="xs:hidden">Reset reveals</span>
                             </button>
                         </div>
@@ -183,12 +218,7 @@ export function ReadingDisplay({ sectionRef }) {
                             cardsRemaining={reading.length - revealedCards.size}
                             onDraw={dealNext}
                             isShuffling={isShuffling}
-                            nextLabel={(() => {
-                                const nextIndex = reading.findIndex((_, i) => !revealedCards.has(i));
-                                if (nextIndex === -1) return null;
-                                const pos = spreadInfo?.positions?.[nextIndex];
-                                return pos ? pos.split('—')[0].trim() : `Card ${nextIndex + 1}`;
-                            })()}
+                            nextLabel={nextLabel}
                         />
                     )}
 
@@ -199,7 +229,7 @@ export function ReadingDisplay({ sectionRef }) {
                         revealCard={revealCard}
                         reflections={reflections}
                         setReflections={setReflections}
-                        onCardClick={(card, position, index) => setSelectedCardData({ card, position, index })}
+                        onCardClick={handleCardClick}
                     />
 
                     {revealedCards.size === reading.length && highlightItems.length > 0 && (
@@ -240,29 +270,31 @@ export function ReadingDisplay({ sectionRef }) {
 
                     {(isGenerating || (personalReading && !isPersonalReadingError)) && (
                         <div className="max-w-3xl mx-auto text-center">
-                            <div className="flex items-center justify-center gap-2 sm:gap-3 mb-3" role="status" aria-label="Narrative generation progress">
-                                {NARRATIVE_STEPS.map((step, index) => {
-                                    const stepIndex = phaseOrder.indexOf(step.id);
-                                    const isDone = currentPhaseIndex > stepIndex && currentPhaseIndex !== -1;
-                                    const isCurrent = currentPhaseIndex === stepIndex || (currentPhaseIndex === -1 && index === 0 && isGenerating);
-                                    const statusClass = isDone
-                                        ? 'bg-primary/20 border-primary/70 text-main'
-                                        : isCurrent
-                                            ? 'bg-accent/20 border-accent/70 text-main'
-                                            : 'bg-surface-muted/80 border-secondary/40 text-muted';
-                                    return (
-                                        <div
-                                            key={step.id}
-                                            className={`flex-1 min-w-[5.5rem] px-2 py-1.5 rounded-full border text-[0.7rem] sm:text-xs font-semibold tracking-[0.08em] uppercase ${statusClass}`}
-                                            aria-current={isCurrent ? 'step' : undefined}
-                                        >
-                                            <span>{index + 1}</span>
-                                            <span className="sr-only"> of 3 — </span>
-                                            <span className="ml-1">{step.label}</span>
-                                        </div>
-                                    );
-                                })}
-                            </div>
+                            <nav aria-label="Narrative generation progress" className="mb-3">
+                                <ol className="flex items-center justify-center gap-2 sm:gap-3" role="list">
+                                    {stepStates.map((step) => {
+                                        const statusClass = step.isDone
+                                            ? 'bg-primary/20 border-primary/70 text-main'
+                                            : step.isCurrent
+                                                ? 'bg-accent/20 border-accent/70 text-main'
+                                                : 'bg-surface-muted/80 border-secondary/40 text-muted';
+                                        return (
+                                            <li
+                                                key={step.id}
+                                                className={`flex-1 min-w-[5rem] px-1.5 sm:px-2 py-1.5 rounded-full border text-xs font-semibold tracking-[0.06em] uppercase ${statusClass}`}
+                                                aria-current={step.isCurrent ? 'step' : undefined}
+                                            >
+                                                <span aria-hidden="true">{step.index + 1}</span>
+                                                <span className="sr-only">Step {step.index + 1} of {stepStates.length}: </span>
+                                                <span className="ml-1">{step.label}</span>
+                                                <span className="sr-only">
+                                                    {step.isDone ? ' (completed)' : step.isCurrent ? ' (in progress)' : ' (pending)'}
+                                                </span>
+                                            </li>
+                                        );
+                                    })}
+                                </ol>
+                            </nav>
                             {isGenerating && (
                                 <div className="ai-panel-modern">
                                     <div className="ai-panel-text" aria-live="polite">
@@ -285,9 +317,8 @@ export function ReadingDisplay({ sectionRef }) {
                             <h3 className="text-xl sm:text-2xl font-serif text-accent mb-2 flex items-center gap-2"><Sparkle className="w-5 h-5 sm:w-6 sm:h-6 text-secondary" />Your Personalized Narrative</h3>
                             <HelperToggle className="mt-3 max-w-2xl mx-auto"><p>This narrative braids together your spread positions, card meanings, and reflections into a single through-line. Read slowly, notice what resonates, and treat it as a mirror—not a script.</p></HelperToggle>
                             {userQuestion && (<div className="bg-surface/85 rounded-lg p-4 mb-4 border border-secondary/40"><p className="text-accent/85 text-xs sm:text-sm italic">Anchor: {userQuestion}</p></div>)}
-                            {readingMeta?.graphContext?.narrativeHighlights && (
+                            {readingMeta?.graphContext?.retrievedPassages?.length > 0 && (
                                 <PatternHighlightBanner
-                                    patterns={readingMeta.graphContext.narrativeHighlights}
                                     passages={readingMeta.graphContext.retrievedPassages}
                                 />
                             )}
@@ -301,14 +332,14 @@ export function ReadingDisplay({ sectionRef }) {
                             <div className="flex flex-col items-center justify-center gap-2 sm:gap-3 mt-3 sm:mt-4">
                                 {reading && personalReading && !isPersonalReadingError && (
                                     <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-3">
-                                        <button type="button" onClick={handleNarrationWrapper} className="px-3 sm:px-4 py-2 rounded-lg border border-secondary/40 bg-surface/85 hover:bg-surface/80 disabled:opacity-40 disabled:cursor-not-allowed transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary focus-visible:ring-offset-2 focus-visible:ring-offset-main text-xs sm:text-sm" disabled={!fullReadingText || (ttsState.status === 'loading' && ttsState.status !== 'paused' && ttsState.status !== 'playing')}>
+                                        <button type="button" onClick={handleNarrationWrapper} className="px-3 sm:px-4 py-2 rounded-lg border border-secondary/40 bg-surface/85 hover:bg-surface/80 disabled:opacity-40 disabled:cursor-not-allowed transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary focus-visible:ring-offset-2 focus-visible:ring-offset-main text-xs sm:text-sm" disabled={!fullReadingText || ttsState.status === 'loading'}>
                                             <span className="hidden xs:inline">{ttsState.status === 'loading' ? 'Preparing narration...' : ttsState.status === 'playing' ? 'Pause narration' : ttsState.status === 'paused' ? 'Resume narration' : 'Read this aloud'}</span>
                                             <span className="xs:hidden">{ttsState.status === 'loading' ? 'Loading...' : ttsState.status === 'playing' ? 'Pause' : ttsState.status === 'paused' ? 'Resume' : 'Play'}</span>
                                         </button>
                                         {(voiceOn && fullReadingText && (ttsState.status === 'playing' || ttsState.status === 'paused' || ttsState.status === 'loading')) && (
                                             <button type="button" onClick={handleNarrationStop} className="px-2 sm:px-3 py-2 rounded-lg border border-secondary/40 bg-surface/70 hover:bg-surface/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary focus-visible:ring-offset-2 focus-visible:ring-offset-main transition disabled:opacity-40 disabled:cursor-not-allowed text-xs sm:text-sm">Stop</button>
                                         )}
-                                        <button type="button" onClick={saveReading} className="hidden sm:inline-flex px-3 sm:px-4 py-2 rounded-lg bg-accent/15 border border-accent/40 text-accent text-xs sm:text-sm hover:bg-accent/25 hover:text-accent transition"><span className="hidden xs:inline">Save this narrative to your journal</span><span className="xs:hidden">Save to journal</span></button>
+                                        <button type="button" onClick={saveReading} className="inline-flex px-3 sm:px-4 py-2 rounded-lg bg-accent/15 border border-accent/40 text-accent text-xs sm:text-sm hover:bg-accent/25 hover:text-accent transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"><span className="hidden xs:inline">Save this narrative to your journal</span><span className="xs:hidden">Save</span></button>
                                         <button type="button" onClick={() => navigate('/journal')} className="px-3 sm:px-4 py-2 rounded-lg bg-primary/15 border border-primary/40 text-primary text-xs sm:text-sm hover:bg-primary/25 hover:text-primary transition">View Journal</button>
                                     </div>
                                 )}
@@ -349,7 +380,7 @@ export function ReadingDisplay({ sectionRef }) {
                     )}
 
                     <div className="hidden sm:block text-center mt-6 sm:mt-8">
-                        <button onClick={shuffle} disabled={isShuffling} className="bg-primary hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold px-6 sm:px-8 py-3 sm:py-4 rounded-lg shadow-lg transition-all inline-flex items-center gap-2 sm:gap-3 text-base sm:text-lg">
+                        <button onClick={shuffle} disabled={isShuffling} className="bg-primary hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed text-surface font-semibold px-6 sm:px-8 py-3 sm:py-4 rounded-lg shadow-lg transition-all inline-flex items-center gap-2 sm:gap-3 text-base sm:text-lg">
                             <ArrowCounterClockwise className={`w-4 h-4 sm:w-5 sm:h-5 ${isShuffling ? 'motion-safe:animate-spin' : ''}`} />
                             <span className="hidden xs:inline">{isShuffling ? 'Shuffling the cards...' : 'Draw new reading'}</span>
                             <span className="xs:hidden">{isShuffling ? 'Shuffling...' : 'New reading'}</span>

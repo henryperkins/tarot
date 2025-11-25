@@ -89,8 +89,8 @@ export function CarouselDots({
       dotInactive: 'bg-secondary/50 hover:bg-secondary/70'
     },
     compact: {
-      container: 'flex items-center justify-center gap-0.5',
-      button: 'relative flex items-center justify-center w-8 h-8 touch-manipulation',
+      container: 'flex items-center justify-center gap-0',
+      button: 'relative flex items-center justify-center min-w-[44px] min-h-[44px] w-11 h-11 touch-manipulation',
       dotBase: 'w-1.5 h-1.5 rounded-full transition-all duration-200',
       dotActive: 'bg-primary w-3 shadow-sm shadow-primary/30',
       dotInactive: 'bg-secondary/40 hover:bg-secondary/60'

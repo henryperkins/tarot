@@ -22,11 +22,16 @@ export function SpreadPatternThumbnail({ spreadKey, className = '', preview = nu
           alt={altText}
           className="w-full h-full object-cover"
           loading="lazy"
+          decoding="async"
+          onError={(e) => {
+            // Hide broken image and show fallback background
+            e.currentTarget.style.display = 'none';
+          }}
         />
         <div
           className="pointer-events-none absolute inset-0 rounded-[14px] border border-white/10 shadow-[0_0_0_1px_rgba(232,218,195,0.08)]"
           aria-hidden="true"
-        ></div>
+        />
       </div>
     );
   }
@@ -35,17 +40,18 @@ export function SpreadPatternThumbnail({ spreadKey, className = '', preview = nu
   const cardClass = 'fill-accent/15 stroke-accent stroke-1';
   const highlightClass = 'fill-accent/30 stroke-accent stroke-[1.5]';
 
+  // SVG patterns for each spread type
+  // Note: These are purely decorative visuals (aria-hidden on container)
+  // The spread name is displayed separately as text for accessibility
   const patterns = {
     single: (
-      <svg viewBox="0 0 100 80" className={baseClass} aria-hidden="true">
-        <title>One-card layout</title>
+      <svg viewBox="0 0 100 80" className={baseClass} role="img" aria-hidden="true">
         <rect x="35" y="15" width="30" height="50" rx="3" className={highlightClass} />
       </svg>
     ),
 
     threeCard: (
-      <svg viewBox="0 0 100 80" className={baseClass} aria-hidden="true">
-        <title>Three-card row layout</title>
+      <svg viewBox="0 0 100 80" className={baseClass} role="img" aria-hidden="true">
         <rect x="8" y="15" width="24" height="50" rx="3" className={cardClass} />
         <rect x="38" y="15" width="24" height="50" rx="3" className={highlightClass} />
         <rect x="68" y="15" width="24" height="50" rx="3" className={cardClass} />
@@ -53,8 +59,7 @@ export function SpreadPatternThumbnail({ spreadKey, className = '', preview = nu
     ),
 
     fiveCard: (
-      <svg viewBox="0 0 100 110" className={baseClass} aria-hidden="true">
-        <title>Five-card cross layout</title>
+      <svg viewBox="0 0 100 110" className={baseClass} role="img" aria-hidden="true">
         {/* Center */}
         <rect x="38" y="32" width="24" height="40" rx="3" className={highlightClass} />
         {/* Top */}
@@ -69,8 +74,7 @@ export function SpreadPatternThumbnail({ spreadKey, className = '', preview = nu
     ),
 
     decision: (
-      <svg viewBox="0 0 100 80" className={baseClass} aria-hidden="true">
-        <title>Decision two-path layout</title>
+      <svg viewBox="0 0 100 80" className={baseClass} role="img" aria-hidden="true">
         {/* Center question */}
         <rect x="38" y="5" width="24" height="35" rx="3" className={highlightClass} />
         {/* Path A */}
@@ -87,8 +91,7 @@ export function SpreadPatternThumbnail({ spreadKey, className = '', preview = nu
     ),
 
     relationship: (
-      <svg viewBox="0 0 100 80" className={baseClass} aria-hidden="true">
-        <title>Relationship triangle layout</title>
+      <svg viewBox="0 0 100 80" className={baseClass} role="img" aria-hidden="true">
         {/* You */}
         <rect x="8" y="45" width="24" height="35" rx="3" className={cardClass} />
         {/* Them */}
@@ -102,19 +105,16 @@ export function SpreadPatternThumbnail({ spreadKey, className = '', preview = nu
     ),
 
     celtic: (
-      <svg viewBox="0 0 110 120" className={baseClass} aria-hidden="true">
-        <title>Celtic Cross layout</title>
+      <svg viewBox="0 0 110 120" className={baseClass} role="img" aria-hidden="true">
         {/* Cross base */}
         <rect x="38" y="32" width="24" height="36" rx="3" className={highlightClass} />
         {/* Crossing card */}
         <rect x="33" y="46" width="34" height="8" rx="2" className="fill-accent/40 stroke-accent stroke-[1.5]" />
-        
         {/* Cardinal positions */}
         <rect x="38" y="10" width="24" height="20" rx="2" className={cardClass} />
         <rect x="38" y="76" width="24" height="20" rx="2" className={cardClass} />
         <rect x="8" y="32" width="24" height="36" rx="3" className={cardClass} />
         <rect x="68" y="32" width="24" height="36" rx="3" className={cardClass} />
-        
         {/* Staff column (right side) */}
         <rect x="82" y="12" width="18" height="20" rx="2" className="fill-accent/10 stroke-accent/60 stroke-1" />
         <rect x="82" y="36" width="18" height="20" rx="2" className="fill-accent/10 stroke-accent/60 stroke-1" />

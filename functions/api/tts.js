@@ -9,7 +9,7 @@ import { jsonResponse, readJsonBody } from '../lib/utils.js';
  *
  * Supports:
  * - Context-specific instruction templates (card-reveal, full-reading, synthesis)
- * - Voice selection (nova, shimmer, alloy, echo, fable, onyx)
+ * - Voice selection (verse, nova, shimmer, alloy, echo, fable, onyx, etc.)
  * - Speed control for contemplative pacing (0.25-4.0, default 1.1)
  * - Streaming mode for real-time audio playback
  * - Graceful fallback to local waveform
@@ -18,13 +18,13 @@ import { jsonResponse, readJsonBody } from '../lib/utils.js';
  *
  * Non-streaming mode (returns JSON with base64 data URI):
  *   POST /api/tts
- *   Body: { "text": "...", "context": "full-reading", "voice": "nova", "speed": 0.9 }
+ *   Body: { "text": "...", "context": "full-reading", "voice": "verse", "speed": 0.9 }
  *   Response: { "audio": "data:audio/mp3;base64,...", "provider": "azure-gpt-4o-mini-tts" }
  *
  * Streaming mode (returns audio stream):
  *   POST /api/tts?stream=true
- *   Body: { "text": "...", "context": "full-reading", "voice": "nova", "speed": 0.9 }
- *   Response: audio/mp3 stream (content-type: audio/mp3, transfer-encoding: chunked)
+ *   Body: { "text": "...", "context": "full-reading", "voice": "verse", "speed": 0.9 }
+ *   Response: audio/mp3 stream (content-type: audio/mp3)
  *
  * API Reference: https://learn.microsoft.com/en-us/azure/ai-foundry/openai/reference-preview-latest#create-speech
  */
@@ -92,7 +92,7 @@ export const onRequestPost = async ({ request, env }) => {
           return await generateWithAzureGptMiniTTSStream(azureConfig, {
             text: sanitizedText,
             context: context || 'default',
-            voice: voice || 'nova',
+            voice: voice || 'verse',
             speed: speed
           });
         } else {
@@ -100,7 +100,7 @@ export const onRequestPost = async ({ request, env }) => {
           const audio = await generateWithAzureGptMiniTTS(azureConfig, {
             text: sanitizedText,
             context: context || 'default',
-            voice: voice || 'nova',
+            voice: voice || 'verse',
             speed: speed
           });
           if (audio) {
@@ -116,11 +116,17 @@ export const onRequestPost = async ({ request, env }) => {
     const fallbackAudio = generateFallbackWaveform(sanitizedText);
 
     if (stream) {
-      // For streaming requests, return the fallback as a single-chunk stream
-      return new Response(fallbackAudio.split(',')[1], {
+      // For streaming requests, decode base64 and return binary audio
+      const base64Data = fallbackAudio.split(',')[1];
+      const binaryString = atob(base64Data);
+      const bytes = new Uint8Array(binaryString.length);
+      for (let i = 0; i < binaryString.length; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+      }
+      return new Response(bytes, {
         headers: {
           'content-type': 'audio/wav',
-          'transfer-encoding': 'chunked'
+          'cache-control': 'no-cache'
         }
       });
     }
@@ -138,6 +144,18 @@ export const onRequestPost = async ({ request, env }) => {
 function sanitizeText(text) {
   if (typeof text !== 'string') return '';
   return text.trim().slice(0, 4000); // Increased for full readings; gpt-4o-mini-tts handles longer text well
+}
+
+/**
+ * Convert Uint8Array to base64 string.
+ * Used for encoding audio binary data into data URIs.
+ */
+function uint8ToBase64(uint8Array) {
+  let binary = '';
+  for (let i = 0; i < uint8Array.length; i++) {
+    binary += String.fromCharCode(uint8Array[i]);
+  }
+  return btoa(binary);
 }
 
 /**
@@ -171,32 +189,18 @@ const INSTRUCTION_TEMPLATES = {
 };
 
 /**
- * Enhanced Azure OpenAI TTS generation with optional steerable instructions.
+ * Build TTS request configuration shared by both streaming and non-streaming modes.
+ * Extracts common logic for endpoint construction, payload building, and parameter validation.
  *
- * For steerable-capable models (e.g. gpt-4o-mini-tts, audio-preview variants), includes
- * context-aware instructions. For standard models (tts-1, tts-1-hd), omits unsupported fields.
- * This keeps behavior model-agnostic while preserving rich narration when available.
- *
- * API Reference: https://learn.microsoft.com/en-us/azure/ai-foundry/openai/reference-preview-latest#create-speech
+ * @param {Object} env - Environment configuration
+ * @param {Object} options - TTS options
+ * @param {string} options.text - Text to synthesize
+ * @param {string} options.context - Context template (card-reveal, full-reading, etc.)
+ * @param {string} [options.voice='verse'] - Voice selection
+ * @param {number} [options.speed=1.1] - Speech speed (0.25-4.0)
+ * @returns {Object} Request configuration with url, payload, format, etc.
  */
-async function generateWithAzureGptMiniTTS(env, { text, context, voice, speed }) {
-  // Azure OpenAI TTS endpoint structure (two formats supported):
-  // Format 1 (v1, preferred): POST {endpoint}/openai/v1/audio/speech?api-version=preview
-  // Format 2 (deployment-specific): POST {endpoint}/openai/deployments/{deployment}/audio/speech?api-version={version}
-  //
-  // Required env vars:
-  // - AZURE_OPENAI_TTS_ENDPOINT (or AZURE_OPENAI_ENDPOINT): https://YOUR-RESOURCE.openai.azure.com
-  // - AZURE_OPENAI_TTS_API_KEY (or AZURE_OPENAI_API_KEY): API key for the Azure OpenAI resource
-  // - AZURE_OPENAI_GPT_AUDIO_MINI_DEPLOYMENT: deployment name (e.g., "gpt-audio-mini")
-  // - AZURE_OPENAI_API_VERSION: optional, defaults based on format
-  // - AZURE_OPENAI_USE_V1_FORMAT: optional, set to "true" to use v1 format (default: false)
-  //
-  // Note: TTS-specific credentials (AZURE_OPENAI_TTS_*) take precedence, falling back to shared credentials
-  //
-  // API Reference: https://learn.microsoft.com/en-us/azure/ai-foundry/openai/reference-preview-latest#create-speech
-  //
-  // Returns audio as base64 data URI.
-
+function buildTTSRequest(env, { text, context, voice, speed }) {
   const endpoint = env.endpoint.replace(/\/+$/, '');
   const deployment = env.deployment;
   const format = env.format || 'mp3';
@@ -229,34 +233,39 @@ async function generateWithAzureGptMiniTTS(env, { text, context, voice, speed })
     : `${endpoint}/openai/deployments/${deployment}/audio/speech?api-version=${apiVersion}`;
 
   // Build payload per API specification
-  // Per official docs: input, instructions (optional), model, response_format, speed, stream_format, voice
-  // Content-Type is documented as multipart/form-data, but JSON works and is shown in examples
   const payload = {
-    input: text,           // Required: text to synthesize (max 4096 chars)
-    model: deployment,     // Required: deployment/model identifier
-    voice: selectedVoice,  // Required: voice selection
-    response_format: format, // Optional: audio format (mp3, wav, opus, flac, etc.)
-    speed: selectedSpeed   // Optional: playback speed (0.25-4.0, default 1.0)
+    input: text,
+    model: deployment,
+    voice: selectedVoice,
+    response_format: format,
+    speed: selectedSpeed
   };
 
   // Check if this deployment supports steerable instructions
-  // gpt-4o-mini-tts and similar models support instructions
-  // tts-1 and tts-1-hd do NOT support instructions (per API docs)
-  const isSteerableModel = deployment.toLowerCase().includes('gpt-4o') ||
-                          deployment.toLowerCase().includes('mini-tts') ||
-                          deployment.toLowerCase().includes('audio-preview');
+  const isSteerableModel = /gpt-4o|mini-tts|audio-preview/i.test(deployment);
 
   if (isSteerableModel) {
-    // KEY FEATURE: Steerable tone and delivery (gpt-4o-mini-tts only)
-    // Per API docs: "Does not work with tts-1 or tts-1-hd"
     payload.instructions = instructions;
   }
+
+  return { url, payload, format, useV1Format, apiVersion, debugLoggingEnabled };
+}
+
+/**
+ * Enhanced Azure OpenAI TTS generation with optional steerable instructions.
+ *
+ * For steerable-capable models (e.g. gpt-4o-mini-tts, audio-preview variants), includes
+ * context-aware instructions. For standard models (tts-1, tts-1-hd), omits unsupported fields.
+ * This keeps behavior model-agnostic while preserving rich narration when available.
+ *
+ * API Reference: https://learn.microsoft.com/en-us/azure/ai-foundry/openai/reference-preview-latest#create-speech
+ */
+async function generateWithAzureGptMiniTTS(env, { text, context, voice, speed }) {
+  const { url, payload, format, debugLoggingEnabled } = buildTTSRequest(env, { text, context, voice, speed });
 
   if (debugLoggingEnabled) {
     console.log('[TTS] Request URL:', url);
     console.log('[TTS] Request payload:', JSON.stringify(payload, null, 2));
-    console.log('[TTS] Using V1 format:', useV1Format);
-    console.log('[TTS] API version:', apiVersion);
   }
 
   const response = await fetch(url, {
@@ -303,62 +312,14 @@ async function generateWithAzureGptMiniTTS(env, { text, context, voice, speed })
  * API Reference: https://learn.microsoft.com/en-us/azure/ai-foundry/openai/reference-preview-latest#create-speech
  */
 async function generateWithAzureGptMiniTTSStream(env, { text, context, voice, speed }) {
-  const endpoint = env.endpoint.replace(/\/+$/, '');
-  const deployment = env.deployment;
-  const format = env.format || 'mp3';
-  const useV1Format = env.useV1Format === 'true' || env.useV1Format === true;
-  const debugLoggingEnabled = Boolean(env.debugLoggingEnabled);
+  const { url, payload, format, debugLoggingEnabled } = buildTTSRequest(env, { text, context, voice, speed });
 
-  // API version logic:
-  // - v1 format uses "preview"
-  // - deployment format uses dated preview version (e.g., "2025-04-01-preview")
-  const apiVersion = useV1Format
-    ? 'preview'
-    : (env.apiVersion || '2025-04-01-preview');
-
-  // Select instruction template based on context
-  const instructions = INSTRUCTION_TEMPLATES[context] || INSTRUCTION_TEMPLATES.default;
-
-  // Voice validation (gpt-4o-mini-tts voices - 11 available)
-  // Base voices: alloy, ash, ballad, coral, echo, fable, nova, onyx, sage, shimmer, verse
-  const validVoices = ['alloy', 'ash', 'ballad', 'coral', 'echo', 'fable', 'nova', 'onyx', 'sage', 'shimmer', 'verse'];
-  const selectedVoice = validVoices.includes(voice) ? voice : 'verse';
-
-  // Speed validation (0.25 - 4.0 range per API spec)
-  const selectedSpeed = speed !== undefined
-    ? Math.max(0.25, Math.min(4.0, speed))
-    : 1.1; // Default: slightly faster for engaging tarot reading pace
-
-  // Build URL based on format preference
-  const url = useV1Format
-    ? `${endpoint}/openai/v1/audio/speech?api-version=${apiVersion}`
-    : `${endpoint}/openai/deployments/${deployment}/audio/speech?api-version=${apiVersion}`;
-
-  // Build payload with streaming enabled
-  // Per API docs: stream_format can be 'sse' or 'audio'
-  // Note: 'sse' is not supported for tts-1 or tts-1-hd models
-  const payload = {
-    input: text,
-    model: deployment,
-    voice: selectedVoice,
-    response_format: format,
-    speed: selectedSpeed,
-    stream_format: 'audio' // Stream raw audio chunks (safer, works with all models)
-  };
-
-  // Check if this deployment supports steerable instructions
-  const isSteerableModel = deployment.toLowerCase().includes('gpt-4o') ||
-                          deployment.toLowerCase().includes('mini-tts') ||
-                          deployment.toLowerCase().includes('audio-preview');
-
-  if (isSteerableModel) {
-    payload.instructions = instructions;
-  }
+  // Add streaming parameter
+  payload.stream_format = 'audio'; // Stream raw audio chunks (safer, works with all models)
 
   if (debugLoggingEnabled) {
     console.log('[TTS Streaming] Request URL:', url);
     console.log('[TTS Streaming] Request payload:', JSON.stringify(payload, null, 2));
-    console.log('[TTS Streaming] Using V1 format:', useV1Format);
   }
 
   const response = await fetch(url, {
@@ -392,7 +353,6 @@ async function generateWithAzureGptMiniTTSStream(env, { text, context, voice, sp
   return new Response(response.body, {
     headers: {
       'content-type': mime,
-      'transfer-encoding': 'chunked',
       'cache-control': 'no-cache'
     }
   });

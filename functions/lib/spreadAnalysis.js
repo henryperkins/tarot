@@ -54,7 +54,33 @@ export const SUIT_ELEMENTS = {
 };
 
 /**
+ * Elemental relationship definitions
+ * Used for consistent dignity analysis across the module
+ */
+const ELEMENTAL_RELATIONSHIPS = {
+  // Supportive pairs (active or receptive energies work together)
+  supportive: [
+    'Fire-Air', 'Air-Fire',
+    'Water-Earth', 'Earth-Water'
+  ],
+  // Tension pairs (opposing qualities create friction)
+  tension: [
+    'Fire-Water', 'Water-Fire',
+    'Air-Earth', 'Earth-Air'
+  ],
+  // Neutral pairs (neither strongly supportive nor tense)
+  neutral: [
+    'Fire-Earth', 'Earth-Fire',
+    'Air-Water', 'Water-Air'
+  ]
+};
+
+/**
  * Get elemental correspondence for any card
+ *
+ * @param {string} cardName - Full card name (e.g., "Three of Wands", "The Fool")
+ * @param {number} [cardNumber] - Card number (0-21 for Majors)
+ * @returns {string|null} Element name or null if not determinable
  */
 export function getCardElement(cardName, cardNumber) {
   // Major Arcana (0-21)
@@ -63,9 +89,11 @@ export function getCardElement(cardName, cardNumber) {
   }
 
   // Minor Arcana - extract suit from card name
-  for (const [suit, element] of Object.entries(SUIT_ELEMENTS)) {
-    if (cardName.includes(suit)) {
-      return element;
+  if (typeof cardName === 'string') {
+    for (const [suit, element] of Object.entries(SUIT_ELEMENTS)) {
+      if (cardName.includes(suit)) {
+        return element;
+      }
     }
   }
 
@@ -80,6 +108,8 @@ export function getCardElement(cardName, cardNumber) {
  * - Water & Earth support each other (receptive energies)
  * - Fire & Water create tension (steam/conflict)
  * - Air & Earth create tension (scattered vs grounded)
+ * - Fire & Earth are neutral (neither strongly aligned nor opposed)
+ * - Air & Water are neutral (neither strongly aligned nor opposed)
  * - Same element amplifies
  *
  * @param {Object} card1 - First card object with card name and number
@@ -98,6 +128,7 @@ export function analyzeElementalDignity(card1, card2) {
   if (!card1 || !card2) {
     return {
       relationship: 'neutral',
+      elements: null,
       description: null
     };
   }
@@ -108,16 +139,17 @@ export function analyzeElementalDignity(card1, card2) {
   if (!e1 || !e2) {
     return {
       relationship: 'neutral',
+      elements: null,
       description: null
     };
   }
 
-  // Same element
+  // Same element - amplification
   if (e1 === e2) {
     return {
       relationship: 'amplified',
       element: e1,
-      elements: [e1, e1],
+      elements: [e1, e2],
       description: `Both ${e1} cards reinforce and intensify this elemental energy`
     };
   }
@@ -125,7 +157,7 @@ export function analyzeElementalDignity(card1, card2) {
   const pair = `${e1}-${e2}`;
 
   // Supportive combinations (active or receptive pairs)
-  if (['Fire-Air', 'Air-Fire', 'Water-Earth', 'Earth-Water'].includes(pair)) {
+  if (ELEMENTAL_RELATIONSHIPS.supportive.includes(pair)) {
     return {
       relationship: 'supportive',
       elements: [e1, e2],
@@ -134,7 +166,7 @@ export function analyzeElementalDignity(card1, card2) {
   }
 
   // Tension combinations (opposing qualities)
-  if (['Fire-Water', 'Water-Fire', 'Air-Earth', 'Earth-Air'].includes(pair)) {
+  if (ELEMENTAL_RELATIONSHIPS.tension.includes(pair)) {
     return {
       relationship: 'tension',
       elements: [e1, e2],
@@ -142,8 +174,19 @@ export function analyzeElementalDignity(card1, card2) {
     };
   }
 
+  // Neutral combinations (diagonal elements)
+  if (ELEMENTAL_RELATIONSHIPS.neutral.includes(pair)) {
+    return {
+      relationship: 'neutral',
+      elements: [e1, e2],
+      description: `${e1} and ${e2} operate independently, neither reinforcing nor opposing each other`
+    };
+  }
+
+  // Fallback (should not reach here with complete relationship definitions)
   return {
     relationship: 'neutral',
+    elements: [e1, e2],
     description: null
   };
 }
@@ -152,10 +195,38 @@ export function analyzeElementalDignity(card1, card2) {
  * Analyze themes across entire spread
  * Detects suit dominance, elemental balance, Major density, reversal patterns
  *
- * Accepts optional options:
- * - reversalFrameworkOverride: if provided and valid, forces that framework.
+ * @param {Array} cardsInfo - Array of card objects with card, number, orientation properties
+ * @param {Object} [options] - Analysis options
+ * @param {string} [options.deckStyle='rws-1909'] - Deck style identifier
+ * @param {string} [options.reversalFrameworkOverride] - Force specific reversal framework
+ * @param {boolean} [options.enableKnowledgeGraph=true] - Enable knowledge graph pattern detection
+ * @returns {Promise<Object>} Theme analysis results
  */
 export async function analyzeSpreadThemes(cardsInfo, options = {}) {
+  if (!Array.isArray(cardsInfo) || cardsInfo.length === 0) {
+    return {
+      deckStyle: options.deckStyle || 'rws-1909',
+      suitCounts: { Wands: 0, Cups: 0, Swords: 0, Pentacles: 0 },
+      dominantSuit: null,
+      suitFocus: null,
+      elementCounts: { Fire: 0, Water: 0, Air: 0, Earth: 0 },
+      dominantElement: null,
+      elementalBalance: 'No elemental data available.',
+      majorCount: 0,
+      majorRatio: 0,
+      archetypeLevel: 'normal',
+      archetypeDescription: 'Primarily Minor Arcana, focusing on practical, day-to-day dynamics and immediate concerns.',
+      reversalCount: 0,
+      reversalRatio: 0,
+      reversalFramework: 'none',
+      reversalDescription: REVERSAL_FRAMEWORKS.none,
+      averageNumber: null,
+      lifecycleStage: null,
+      timingProfile: null,
+      knowledgeGraph: null
+    };
+  }
+
   const deckStyle = options.deckStyle || 'rws-1909';
   const suitCounts = { Wands: 0, Cups: 0, Swords: 0, Pentacles: 0 };
   const elementCounts = { Fire: 0, Water: 0, Air: 0, Earth: 0 };
@@ -164,16 +235,20 @@ export async function analyzeSpreadThemes(cardsInfo, options = {}) {
   const numbers = [];
 
   cardsInfo.forEach(card => {
+    if (!card) return;
+
     // Count Majors (numbers 0-21)
-    if (card.number >= 0 && card.number <= 21) {
+    if (typeof card.number === 'number' && card.number >= 0 && card.number <= 21) {
       majorCount++;
     }
 
     // Count suits
-    for (const suit of Object.keys(suitCounts)) {
-      if (card.card.includes(suit)) {
-        suitCounts[suit]++;
-        break;
+    if (typeof card.card === 'string') {
+      for (const suit of Object.keys(suitCounts)) {
+        if (card.card.includes(suit)) {
+          suitCounts[suit]++;
+          break;
+        }
       }
     }
 
@@ -196,8 +271,8 @@ export async function analyzeSpreadThemes(cardsInfo, options = {}) {
   });
 
   const totalCards = cardsInfo.length;
-  const reversalRatio = reversalCount / totalCards;
-  const majorRatio = majorCount / totalCards;
+  const reversalRatio = totalCards > 0 ? reversalCount / totalCards : 0;
+  const majorRatio = totalCards > 0 ? majorCount / totalCards : 0;
 
   // Find dominant suit
   const sortedSuitEntries = Object.entries(suitCounts)
@@ -256,40 +331,48 @@ export async function analyzeSpreadThemes(cardsInfo, options = {}) {
     lifecycleStage: getLifecycleStage(avgNumber),
 
     // Timing profile (set below)
-    timingProfile: null
+    timingProfile: null,
+
+    // Knowledge graph (set below if enabled)
+    knowledgeGraph: null
   };
 
   // Soft timing profile (non-deterministic pacing hint)
   try {
     const { getSpreadTimingProfile } = await import('./timingMeta.js');
     themes.timingProfile = getSpreadTimingProfile({ cardsInfo, themes });
-  } catch {
+  } catch (err) {
+    // Graceful degradation: timing profile unavailable
     themes.timingProfile = null;
   }
 
   // Knowledge Graph pattern detection (archetypal triads, Fool's Journey, dyads)
-  // Use shared isGraphRAGEnabled() function for consistency
-  const { isGraphRAGEnabled, retrievePassages } = await import('./graphRAG.js');
-  const KG_ENABLED = options.enableKnowledgeGraph !== false && isGraphRAGEnabled();
+  const enableKG = options.enableKnowledgeGraph !== false;
 
-  if (KG_ENABLED) {
+  if (enableKG) {
     try {
-      const { buildGraphContext } = await import('./graphContext.js');
-      const graphContext = buildGraphContext(cardsInfo, { deckStyle });
-      if (graphContext) {
-        themes.knowledgeGraph = graphContext;
+      const { isGraphRAGEnabled, retrievePassages } = await import('./graphRAG.js');
+      const KG_ENABLED = isGraphRAGEnabled();
 
-        // Retrieve passages for frontend display
-        // We retrieve a standard set here; the narrative builder may retrieve its own set with specific limits
-        const passages = retrievePassages(graphContext.graphKeys, {
-          maxPassages: 5,
-          includeMetadata: true
-        });
-        themes.knowledgeGraph.retrievedPassages = passages;
+      if (KG_ENABLED) {
+        const { buildGraphContext } = await import('./graphContext.js');
+        const graphContext = buildGraphContext(cardsInfo, { deckStyle });
+
+        if (graphContext) {
+          themes.knowledgeGraph = graphContext;
+
+          // Retrieve passages for frontend display
+          const passages = retrievePassages(graphContext.graphKeys, {
+            maxPassages: 5,
+            includeMetadata: true
+          });
+          themes.knowledgeGraph.retrievedPassages = passages;
+        }
       }
     } catch (err) {
       console.error('Knowledge graph detection failed:', err);
       // Graceful degradation: continue without patterns
+      themes.knowledgeGraph = null;
     }
   }
 
@@ -298,6 +381,10 @@ export async function analyzeSpreadThemes(cardsInfo, options = {}) {
 
 /**
  * Select appropriate reversal interpretation framework based on patterns
+ *
+ * @param {number} ratio - Ratio of reversed cards (0-1)
+ * @param {Array} cardsInfo - Card array (reserved for future pattern detection)
+ * @returns {string} Framework key
  */
 function selectReversalFramework(ratio, cardsInfo) {
   if (ratio === 0) return 'none';
@@ -363,12 +450,23 @@ export const REVERSAL_FRAMEWORKS = {
   }
 };
 
+/**
+ * Get reversal framework description object
+ *
+ * @param {string} framework - Framework key
+ * @returns {Object} Framework definition
+ */
 function getReversalFrameworkDescription(framework) {
   return REVERSAL_FRAMEWORKS[framework] || REVERSAL_FRAMEWORKS.contextual;
 }
 
 /**
  * Get description of suit focus
+ *
+ * @param {Object} params - Suit entry data
+ * @param {Array} params.top - [suitName, count] for dominant suit
+ * @param {Array} params.second - [suitName, count] for second suit
+ * @returns {string|null} Description or null if no clear focus
  */
 function getSuitFocusDescription({ top, second }) {
   const [topSuit, topCount] = top || [null, 0];
@@ -391,7 +489,13 @@ function getSuitFocusDescription({ top, second }) {
 }
 
 /**
- * Get description of elemental balance
+ * Get description of elemental balance with Major Arcana awareness
+ *
+ * @param {Object} params - Analysis parameters
+ * @param {Object} params.elementCounts - Element count map
+ * @param {number} params.totalCards - Total card count
+ * @param {number} params.majorRatio - Ratio of Major Arcana cards
+ * @returns {string} Elemental balance description
  */
 function getMajorAwareElementalBalanceDescription({ elementCounts, totalCards, majorRatio }) {
   if (majorRatio > 0.8) {
@@ -401,7 +505,16 @@ function getMajorAwareElementalBalanceDescription({ elementCounts, totalCards, m
   return getElementalBalanceDescription(elementCounts, totalCards);
 }
 
+/**
+ * Get description of elemental balance
+ *
+ * @param {Object} elementCounts - Element count map
+ * @param {number} total - Total card count
+ * @returns {string} Elemental balance description
+ */
 function getElementalBalanceDescription(elementCounts, total) {
+  if (total === 0) return 'No elemental data available.';
+
   const active = Object.entries(elementCounts)
     .filter(([, count]) => count > 0)
     .sort((a, b) => b[1] - a[1]);
@@ -425,6 +538,9 @@ function getElementalBalanceDescription(elementCounts, total) {
 
 /**
  * Get description of Major Arcana density
+ *
+ * @param {number} ratio - Ratio of Major Arcana cards (0-1)
+ * @returns {string} Archetype level description
  */
 function getArchetypeDescription(ratio) {
   if (ratio >= 0.5) {
@@ -438,15 +554,18 @@ function getArchetypeDescription(ratio) {
 
 /**
  * Get lifecycle stage based on average card number
+ *
+ * @param {number|null} avgNumber - Average card number
+ * @returns {string|null} Lifecycle stage description or null
  */
 function getLifecycleStage(avgNumber) {
-  if (avgNumber === null) return null;
+  if (avgNumber === null || typeof avgNumber !== 'number') return null;
   if (avgNumber <= 7) return 'new cycles, initiative, fresh beginnings, and reclaiming agency';
   if (avgNumber <= 14) return 'integration, balance, working through challenges, and staying centered amidst change';
   return 'culmination, mastery, completion, and preparing to release what is finished';
 }
 
-/**
+/* ==========================================================================
  * CELTIC CROSS SPECIFIC ANALYSIS
  *
  * Analyzes the unique position relationships in the Celtic Cross spread:
@@ -455,16 +574,29 @@ function getLifecycleStage(avgNumber) {
  * - Consciousness (Cards 6-1-5): Subconscious → Present → Conscious
  * - Staff (Cards 7-10): Self, External, Hopes/Fears, Outcome
  * - Cross-checks between key positions
+ * ========================================================================== */
+
+/**
+ * Analyze a Celtic Cross spread
+ *
+ * @param {Array} cardsInfo - Array of 10 card objects
+ * @returns {Object|null} Celtic Cross analysis or null if invalid input
  */
 export function analyzeCelticCross(cardsInfo) {
-  if (!cardsInfo || cardsInfo.length !== 10) {
-    return null; // Not a Celtic Cross
+  if (!Array.isArray(cardsInfo) || cardsInfo.length !== 10) {
+    return null;
+  }
+
+  // Validate all cards exist
+  for (let i = 0; i < 10; i++) {
+    if (!cardsInfo[i]) return null;
   }
 
   const nucleus = analyzeNucleus(cardsInfo[0], cardsInfo[1]);
   const timeline = analyzeTimeline(cardsInfo[2], cardsInfo[0], cardsInfo[3]);
   const consciousness = analyzeConsciousness(cardsInfo[5], cardsInfo[0], cardsInfo[4]);
   const staff = analyzeStaff(cardsInfo[6], cardsInfo[7], cardsInfo[8], cardsInfo[9]);
+
   const crossChecks = {
     goalVsOutcome: comparePositions(
       cardsInfo[4], cardsInfo[9],
@@ -625,17 +757,29 @@ export function analyzeCelticCross(cardsInfo) {
 
 /**
  * Analyze the nucleus (Cards 1-2) - the heart of the matter
+ *
+ * @param {Object} present - Present position card
+ * @param {Object} challenge - Challenge/crossing card
+ * @returns {Object} Nucleus analysis
  */
 function analyzeNucleus(present, challenge) {
   const elemental = analyzeElementalDignity(present, challenge);
 
-  const synthesis = elemental.relationship === 'supportive'
-    ? `The energies of ${present.card} and ${challenge.card} can work together constructively once the challenge is integrated.`
-    : elemental.relationship === 'tension'
-      ? `${present.card} and ${challenge.card} create friction between present state and challenge, requiring careful balance.`
-      : elemental.relationship === 'amplified'
-        ? `Both cards share ${elemental.element} energy, intensifying this theme at the heart of the matter.`
-        : `${present.card} represents where you stand, while ${challenge.card} crosses as the immediate obstacle.`;
+  let synthesis;
+  switch (elemental.relationship) {
+    case 'supportive':
+      synthesis = `The energies of ${present.card} and ${challenge.card} can work together constructively once the challenge is integrated.`;
+      break;
+    case 'tension':
+      synthesis = `${present.card} and ${challenge.card} create friction between present state and challenge, requiring careful balance.`;
+      break;
+    case 'amplified':
+      synthesis = `Both cards share ${elemental.element} energy, intensifying this theme at the heart of the matter.`;
+      break;
+    case 'neutral':
+    default:
+      synthesis = `${present.card} represents where you stand, while ${challenge.card} crosses as the immediate obstacle.`;
+  }
 
   return {
     theme: 'The Heart of the Matter (Nucleus)',
@@ -656,6 +800,11 @@ function analyzeNucleus(present, challenge) {
 
 /**
  * Analyze the timeline (Cards 3-1-4) - past, present, future flow
+ *
+ * @param {Object} past - Past position card
+ * @param {Object} present - Present position card
+ * @param {Object} future - Future position card
+ * @returns {Object} Timeline analysis
  */
 function analyzeTimeline(past, present, future) {
   const pastToPresent = analyzeElementalDignity(past, present);
@@ -668,6 +817,8 @@ function analyzeTimeline(past, present, future) {
     causality += ` The transition from past to present involved friction and adjustment.`;
   } else if (pastToPresent.relationship === 'supportive') {
     causality += ` The past supports and flows naturally into the present state.`;
+  } else if (pastToPresent.relationship === 'amplified') {
+    causality += ` The same elemental theme persists from past into present.`;
   }
 
   causality += ` This is developing toward ${future.card} in the near future.`;
@@ -676,6 +827,8 @@ function analyzeTimeline(past, present, future) {
     causality += ` Moving forward will require navigating elemental tension.`;
   } else if (presentToFuture.relationship === 'supportive') {
     causality += ` The trajectory ahead is supported by current energies.`;
+  } else if (presentToFuture.relationship === 'amplified') {
+    causality += ` The elemental energy intensifies as you move forward.`;
   }
 
   return {
@@ -694,29 +847,45 @@ function analyzeTimeline(past, present, future) {
 
 /**
  * Analyze consciousness flow (Cards 6-1-5) - below, center, above
+ *
+ * @param {Object} subconscious - Subconscious position card
+ * @param {Object} present - Present position card
+ * @param {Object} conscious - Conscious position card
+ * @returns {Object} Consciousness analysis
  */
 function analyzeConsciousness(subconscious, present, conscious) {
   const belowToAbove = analyzeElementalDignity(subconscious, conscious);
 
-  const alignment = belowToAbove.relationship === 'supportive'
-    ? 'aligned'
-    : belowToAbove.relationship === 'tension'
-      ? 'conflicted'
-      : belowToAbove.relationship === 'amplified'
-        ? 'intensely unified'
-        : 'complex';
+  let alignment;
+  switch (belowToAbove.relationship) {
+    case 'supportive':
+      alignment = 'aligned';
+      break;
+    case 'tension':
+      alignment = 'conflicted';
+      break;
+    case 'amplified':
+      alignment = 'intensely unified';
+      break;
+    default:
+      alignment = 'complex';
+  }
 
   let synthesis = `Hidden beneath awareness: ${subconscious.card} ${subconscious.orientation}. `;
   synthesis += `Conscious goal or aspiration: ${conscious.card} ${conscious.orientation}. `;
 
-  if (alignment === 'aligned') {
-    synthesis += `Your subconscious drives and conscious goals are working together harmoniously.`;
-  } else if (alignment === 'conflicted') {
-    synthesis += `There is tension between what you want consciously and what drives you beneath awareness. Integration is needed.`;
-  } else if (alignment === 'intensely unified') {
-    synthesis += `Your inner depths and conscious mind are unified around the same ${belowToAbove.element} theme.`;
-  } else {
-    synthesis += `Your inner and outer goals show nuanced dynamics worth exploring.`;
+  switch (alignment) {
+    case 'aligned':
+      synthesis += `Your subconscious drives and conscious goals are working together harmoniously.`;
+      break;
+    case 'conflicted':
+      synthesis += `There is tension between what you want consciously and what drives you beneath awareness. Integration is needed.`;
+      break;
+    case 'intensely unified':
+      synthesis += `Your inner depths and conscious mind are unified around the same ${belowToAbove.element} theme.`;
+      break;
+    default:
+      synthesis += `Your inner and outer goals show nuanced dynamics worth exploring.`;
   }
 
   return {
@@ -737,19 +906,29 @@ function analyzeConsciousness(subconscious, present, conscious) {
 
 /**
  * Analyze the staff (Cards 7-10) - self, external, hopes/fears, outcome
+ *
+ * @param {Object} self - Self/Advice position card
+ * @param {Object} external - External influences card
+ * @param {Object} hopesFears - Hopes & Fears card
+ * @param {Object} outcome - Outcome card
+ * @returns {Object} Staff analysis
  */
 function analyzeStaff(self, external, hopesFears, outcome) {
   const adviceToOutcome = analyzeElementalDignity(self, outcome);
 
   let adviceImpact;
-  if (adviceToOutcome.relationship === 'supportive') {
-    adviceImpact = `Following the guidance of ${self.card} actively supports and harmonizes with the likely outcome of ${outcome.card}.`;
-  } else if (adviceToOutcome.relationship === 'tension') {
-    adviceImpact = `Acting on ${self.card} creates dynamic tension with the trajectory toward ${outcome.card}, requiring skillful navigation.`;
-  } else if (adviceToOutcome.relationship === 'amplified') {
-    adviceImpact = `The advice (${self.card}) and outcome (${outcome.card}) share the same ${adviceToOutcome.element} energy, creating a unified path forward.`;
-  } else {
-    adviceImpact = `The relationship between the advice of ${self.card} and the outcome shows subtle complexity.`;
+  switch (adviceToOutcome.relationship) {
+    case 'supportive':
+      adviceImpact = `Following the guidance of ${self.card} actively supports and harmonizes with the likely outcome of ${outcome.card}.`;
+      break;
+    case 'tension':
+      adviceImpact = `Acting on ${self.card} creates dynamic tension with the trajectory toward ${outcome.card}, requiring skillful navigation.`;
+      break;
+    case 'amplified':
+      adviceImpact = `The advice (${self.card}) and outcome (${outcome.card}) share the same ${adviceToOutcome.element} energy, creating a unified path forward.`;
+      break;
+    default:
+      adviceImpact = `The relationship between the advice of ${self.card} and the outcome shows subtle complexity.`;
   }
 
   return {
@@ -770,7 +949,7 @@ function analyzeStaff(self, external, hopesFears, outcome) {
       card: outcome.card,
       orientation: outcome.orientation
     },
-    adviceToOutcome: adviceToOutcome,
+    adviceToOutcome,
     adviceImpact
   };
 }
@@ -784,19 +963,32 @@ function analyzeStaff(self, external, hopesFears, outcome) {
  *                   'parallel-tension' | 'dynamic-shift' | 'complex'
  */
 function determineAlignmentType(elemental, orientationMatch) {
-  if (elemental.relationship === 'amplified') return 'unified';
-  if (elemental.relationship === 'supportive' && orientationMatch) return 'harmonious';
-  if (elemental.relationship === 'supportive' && !orientationMatch) return 'evolving-support';
-  if (elemental.relationship === 'tension' && orientationMatch) return 'parallel-tension';
-  if (elemental.relationship === 'tension' && !orientationMatch) return 'dynamic-shift';
-  return 'complex';
+  if (!elemental) return 'complex';
+
+  switch (elemental.relationship) {
+    case 'amplified':
+      return 'unified';
+    case 'supportive':
+      return orientationMatch ? 'harmonious' : 'evolving-support';
+    case 'tension':
+      return orientationMatch ? 'parallel-tension' : 'dynamic-shift';
+    default:
+      return 'complex';
+  }
 }
 
 /**
  * Generate summary prose for cross-check relationships
  * Used to populate the summary field needed by UI highlights
+ *
+ * @param {Object} crossCheck - Cross-check comparison result
+ * @returns {string} Summary prose
  */
 function buildCrossCheckSummary(crossCheck) {
+  if (!crossCheck || !crossCheck.position1 || !crossCheck.position2) {
+    return 'Unable to compare these positions.';
+  }
+
   const { position1, position2, elementalRelationship, alignmentType } = crossCheck;
 
   let summary = `${position1.name} (${position1.card} ${position1.orientation}) compared to ${position2.name} (${position2.card} ${position2.orientation}): `;
@@ -826,31 +1018,68 @@ function buildCrossCheckSummary(crossCheck) {
  *
  * Returns structured data only - prose generation handled by narrative builder.
  * This eliminates redundant synthesis text and centralizes narrative logic.
+ *
+ * @param {Object} card1 - First card object
+ * @param {Object} card2 - Second card object
+ * @param {string} pos1Name - First position name
+ * @param {string} pos2Name - Second position name
+ * @returns {Object} Comparison result with elemental and orientation data
  */
 function comparePositions(card1, card2, pos1Name, pos2Name) {
+  if (!card1 || !card2) {
+    return {
+      position1: { name: pos1Name, card: null, orientation: null, meaning: null },
+      position2: { name: pos2Name, card: null, orientation: null, meaning: null },
+      elementalRelationship: null,
+      orientationAlignment: false,
+      alignmentType: 'complex'
+    };
+  }
+
   const elemental = analyzeElementalDignity(card1, card2);
   const orientationMatch = card1.orientation === card2.orientation;
 
   return {
-    position1: { name: pos1Name, card: card1.card, orientation: card1.orientation, meaning: card1.meaning },
-    position2: { name: pos2Name, card: card2.card, orientation: card2.orientation, meaning: card2.meaning },
+    position1: {
+      name: pos1Name,
+      card: card1.card,
+      orientation: card1.orientation,
+      meaning: card1.meaning
+    },
+    position2: {
+      name: pos2Name,
+      card: card2.card,
+      orientation: card2.orientation,
+      meaning: card2.meaning
+    },
     elementalRelationship: elemental,
     orientationAlignment: orientationMatch,
     alignmentType: determineAlignmentType(elemental, orientationMatch)
   };
 }
 
-/**
+/* ==========================================================================
  * THREE-CARD ANALYSIS
  *
  * Analyzes Past-Present-Future or Situation-Challenge-Advice patterns
+ * ========================================================================== */
+
+/**
+ * Analyze a three-card spread
+ *
+ * @param {Array} cardsInfo - Array of 3 card objects
+ * @returns {Object|null} Three-card analysis or null if invalid input
  */
 export function analyzeThreeCard(cardsInfo) {
-  if (!cardsInfo || cardsInfo.length !== 3) {
+  if (!Array.isArray(cardsInfo) || cardsInfo.length !== 3) {
     return null;
   }
 
   const [first, second, third] = cardsInfo;
+
+  if (!first || !second || !third) {
+    return null;
+  }
 
   // Analyze the causal flow
   const firstToSecond = analyzeElementalDignity(first, second);
@@ -893,6 +1122,16 @@ export function analyzeThreeCard(cardsInfo) {
   };
 }
 
+/**
+ * Build narrative prose for three-card spread
+ *
+ * @param {Object} first - First card
+ * @param {Object} second - Second card
+ * @param {Object} third - Third card
+ * @param {Object} trans1 - First to second transition analysis
+ * @param {Object} trans2 - Second to third transition analysis
+ * @returns {string} Narrative prose
+ */
 function buildThreeCardNarrative(first, second, third, trans1, trans2) {
   let narrative = `The story unfolds from ${first.card} through ${second.card} to ${third.card}. `;
 
@@ -900,25 +1139,41 @@ function buildThreeCardNarrative(first, second, third, trans1, trans2) {
     narrative += `The transition from first to second position is harmonious. `;
   } else if (trans1.relationship === 'tension') {
     narrative += `The move from first to second involves friction that shapes the narrative. `;
+  } else if (trans1.relationship === 'amplified') {
+    narrative += `The same elemental energy intensifies from first to second position. `;
   }
 
   if (trans2.relationship === 'supportive') {
     narrative += `The path forward from second to third is well-supported.`;
   } else if (trans2.relationship === 'tension') {
     narrative += `Reaching the third position will require navigating dynamic tension.`;
+  } else if (trans2.relationship === 'amplified') {
+    narrative += `The elemental theme continues to build toward the third position.`;
   }
 
   return narrative;
 }
 
-/**
+/* ==========================================================================
  * FIVE-CARD ANALYSIS
  *
  * Analyzes the five-card clarity spread structure
+ * ========================================================================== */
+
+/**
+ * Analyze a five-card spread
+ *
+ * @param {Array} cardsInfo - Array of 5 card objects
+ * @returns {Object|null} Five-card analysis or null if invalid input
  */
 export function analyzeFiveCard(cardsInfo) {
-  if (!cardsInfo || cardsInfo.length !== 5) {
+  if (!Array.isArray(cardsInfo) || cardsInfo.length !== 5) {
     return null;
+  }
+
+  // Validate all cards exist
+  for (let i = 0; i < 5; i++) {
+    if (!cardsInfo[i]) return null;
   }
 
   // Core vs Challenge
@@ -971,10 +1226,17 @@ export function analyzeFiveCard(cardsInfo) {
   };
 }
 
-/**
+/* ==========================================================================
  * RELATIONSHIP SNAPSHOT ANALYSIS
  *
  * Maps the interplay between You ↔ Them and the shared Connection card.
+ * ========================================================================== */
+
+/**
+ * Analyze a relationship spread
+ *
+ * @param {Array} cardsInfo - Array of 3+ card objects (You, Them, Connection)
+ * @returns {Object|null} Relationship analysis or null if invalid input
  */
 export function analyzeRelationship(cardsInfo) {
   if (!Array.isArray(cardsInfo) || cardsInfo.length < 3) {
@@ -1002,13 +1264,24 @@ export function analyzeRelationship(cardsInfo) {
   ].filter(Boolean);
 
   const relationships = [];
+
   if (youVsThem) {
     // Generate summary from structured data
     let summary = `${youLabel} (${you.card} ${you.orientation}) and ${themLabel} (${them.card} ${them.orientation}): `;
+
     if (youVsThem.elementalRelationship?.description) {
       summary += youVsThem.elementalRelationship.description;
     } else {
-      summary += `The dynamic between you ${youVsThem.alignmentType === 'unified' ? 'resonates with shared energy' : youVsThem.alignmentType === 'harmonious' ? 'flows harmoniously' : 'holds creative tension'}.`;
+      switch (youVsThem.alignmentType) {
+        case 'unified':
+          summary += `The dynamic between you resonates with shared energy.`;
+          break;
+        case 'harmonious':
+          summary += `The dynamic between you flows harmoniously.`;
+          break;
+        default:
+          summary += `The dynamic between you holds creative tension.`;
+      }
     }
 
     relationships.push({
@@ -1064,11 +1337,18 @@ export function analyzeRelationship(cardsInfo) {
   };
 }
 
-/**
+/* ==========================================================================
  * DECISION / TWO-PATH ANALYSIS
  *
  * Compares Path A vs Path B with respect to the heart of the decision
  * and synthesizes clarifier + free-will guidance.
+ * ========================================================================== */
+
+/**
+ * Analyze a decision/two-path spread
+ *
+ * @param {Array} cardsInfo - Array of 5 card objects (Heart, PathA, PathB, Clarifier, FreeWill)
+ * @returns {Object|null} Decision analysis or null if invalid input
  */
 export function analyzeDecision(cardsInfo) {
   if (!Array.isArray(cardsInfo) || cardsInfo.length !== 5) {
@@ -1095,10 +1375,20 @@ export function analyzeDecision(cardsInfo) {
   if (heartVsA) {
     // Generate summary from structured data
     let summary = `${heartLabel} (${heart.card} ${heart.orientation}) and ${pathALabel} (${pathA.card} ${pathA.orientation}): `;
+
     if (heartVsA.elementalRelationship?.description) {
       summary += heartVsA.elementalRelationship.description;
     } else {
-      summary += `This path ${heartVsA.alignmentType === 'unified' ? 'strongly aligns with' : heartVsA.alignmentType === 'harmonious' ? 'supports' : 'creates complexity with'} your core values.`;
+      switch (heartVsA.alignmentType) {
+        case 'unified':
+          summary += `This path strongly aligns with your core values.`;
+          break;
+        case 'harmonious':
+          summary += `This path supports your core values.`;
+          break;
+        default:
+          summary += `This path creates complexity with your core values.`;
+      }
     }
 
     relationships.push({
@@ -1118,10 +1408,20 @@ export function analyzeDecision(cardsInfo) {
   if (heartVsB) {
     // Generate summary from structured data
     let summary = `${heartLabel} (${heart.card} ${heart.orientation}) and ${pathBLabel} (${pathB.card} ${pathB.orientation}): `;
+
     if (heartVsB.elementalRelationship?.description) {
       summary += heartVsB.elementalRelationship.description;
     } else {
-      summary += `This path ${heartVsB.alignmentType === 'unified' ? 'strongly aligns with' : heartVsB.alignmentType === 'harmonious' ? 'supports' : 'creates complexity with'} your core values.`;
+      switch (heartVsB.alignmentType) {
+        case 'unified':
+          summary += `This path strongly aligns with your core values.`;
+          break;
+        case 'harmonious':
+          summary += `This path supports your core values.`;
+          break;
+        default:
+          summary += `This path creates complexity with your core values.`;
+      }
     }
 
     relationships.push({
@@ -1141,10 +1441,17 @@ export function analyzeDecision(cardsInfo) {
   if (pathAVsB) {
     // Generate summary from structured data
     let summary = `${pathALabel} (${pathA.card} ${pathA.orientation}) and ${pathBLabel} (${pathB.card} ${pathB.orientation}): `;
+
     if (pathAVsB.elementalRelationship?.description) {
       summary += pathAVsB.elementalRelationship.description;
     } else {
-      summary += `These paths ${pathAVsB.alignmentType === 'unified' ? 'share similar energies' : pathAVsB.alignmentType === 'tension' || pathAVsB.alignmentType === 'parallel-tension' ? 'contrast with each other' : 'offer different approaches'}.`;
+      if (pathAVsB.alignmentType === 'unified') {
+        summary += `These paths share similar energies.`;
+      } else if (pathAVsB.alignmentType === 'parallel-tension' || pathAVsB.alignmentType === 'dynamic-shift') {
+        summary += `These paths contrast with each other.`;
+      } else {
+        summary += `These paths offer different approaches.`;
+      }
     }
 
     relationships.push({
@@ -1202,21 +1509,35 @@ export function analyzeDecision(cardsInfo) {
   };
 }
 
+/**
+ * Build guidance summary for decision spread
+ *
+ * @param {Object|null} clarifier - Clarifier card object
+ * @param {string} clarifierLabel - Clarifier position label
+ * @param {Object|null} freeWill - Free will card object
+ * @param {string} freeWillLabel - Free will position label
+ * @returns {string|null} Guidance summary prose or null
+ */
 function buildDecisionGuidanceSummary(clarifier, clarifierLabel, freeWill, freeWillLabel) {
   const parts = [];
+
   if (clarifier) {
     parts.push(
       `${clarifierLabel}: ${clarifier.card} ${clarifier.orientation} explains what data point or reflection helps you compare the routes.`
     );
   }
+
   if (freeWill) {
     parts.push(
       `${freeWillLabel}: ${freeWill.card} ${freeWill.orientation} reminds you that your agency ultimately shapes how this plays out.`
     );
   }
-  if (!parts.length) return null;
+
+  if (parts.length === 0) return null;
+
   if (clarifier && freeWill) {
     parts.push('Together they ask you to pair clear-eyed assessment with empowered choice.');
   }
+
   return parts.join(' ');
 }

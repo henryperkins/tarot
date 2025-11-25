@@ -1,7 +1,111 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { normalizeAnalyticsShape, getGrowthPrompt, getBadgeIcon } from '../lib/archetypeJourney';
 import { ConfirmModal } from './ConfirmModal';
+
+/**
+ * Accessible modal for displaying growth prompts
+ */
+function GrowthPromptModal({ cardName, prompt, onClose }) {
+  const modalRef = useRef(null);
+  const closeButtonRef = useRef(null);
+  const previousFocusRef = useRef(null);
+
+  // Focus management
+  useEffect(() => {
+    previousFocusRef.current = document.activeElement;
+    document.body.style.overflow = 'hidden';
+
+    // Focus the close button when modal opens
+    requestAnimationFrame(() => {
+      closeButtonRef.current?.focus();
+    });
+
+    return () => {
+      document.body.style.overflow = '';
+      // Restore focus when modal closes
+      if (previousFocusRef.current?.focus) {
+        previousFocusRef.current.focus();
+      }
+    };
+  }, []);
+
+  // Keyboard handling
+  const handleKeyDown = useCallback((event) => {
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      onClose();
+      return;
+    }
+
+    // Focus trap
+    if (event.key === 'Tab') {
+      const focusableElements = modalRef.current?.querySelectorAll(
+        'button:not([disabled]), [tabindex]:not([tabindex="-1"])'
+      );
+      if (!focusableElements?.length) return;
+
+      const firstElement = focusableElements[0];
+      const lastElement = focusableElements[focusableElements.length - 1];
+
+      if (event.shiftKey && document.activeElement === firstElement) {
+        event.preventDefault();
+        lastElement?.focus();
+      } else if (!event.shiftKey && document.activeElement === lastElement) {
+        event.preventDefault();
+        firstElement?.focus();
+      }
+    }
+  }, [onClose]);
+
+  // Prevent backdrop click from propagating
+  const handleBackdropClick = (event) => {
+    if (event.target === event.currentTarget) {
+      onClose();
+    }
+  };
+
+  return (
+    <div
+      className="fixed inset-0 z-[100] flex items-center justify-center"
+      onKeyDown={handleKeyDown}
+    >
+      {/* Backdrop */}
+      <div
+        className="absolute inset-0 bg-black/50 backdrop-blur-sm animate-fade-in"
+        onClick={handleBackdropClick}
+        aria-hidden="true"
+      />
+
+      {/* Modal content */}
+      <div
+        ref={modalRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="growth-prompt-title"
+        className="relative z-10 w-full max-w-md mx-4 rounded-2xl border border-accent/40 bg-surface/98 shadow-2xl animate-slide-up p-6 focus:outline-none"
+        tabIndex={-1}
+      >
+        <h3
+          id="growth-prompt-title"
+          className="text-lg font-serif text-accent mb-3"
+        >
+          {cardName}
+        </h3>
+        <p className="text-muted text-sm leading-relaxed">{prompt}</p>
+        <button
+          ref={closeButtonRef}
+          type="button"
+          onClick={onClose}
+          className="mt-4 w-full min-h-[44px] px-4 py-2.5 rounded-lg bg-accent/15 border border-accent/40 text-accent hover:bg-accent/25 transition text-sm font-medium
+            focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 focus-visible:ring-offset-2 touch-manipulation"
+        >
+          Close
+        </button>
+      </div>
+    </div>
+  );
+}
 
 /**
  * Archetype Journey Analytics Dashboard
@@ -275,21 +379,11 @@ export default function ArchetypeJourney() {
       />
 
       {growthPromptModal && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm animate-fade-in"
-          onClick={() => setGrowthPromptModal(null)}
-        >
-          <div className="relative w-full max-w-md mx-4 rounded-2xl border border-accent/40 bg-surface/95 shadow-2xl animate-slide-up p-6">
-            <h3 className="text-lg font-serif text-accent mb-3">{growthPromptModal.cardName}</h3>
-            <p className="text-muted text-sm leading-relaxed">{growthPromptModal.prompt}</p>
-            <button
-              onClick={() => setGrowthPromptModal(null)}
-              className="mt-4 w-full px-4 py-2 rounded-lg bg-accent/15 border border-accent/40 text-accent hover:bg-accent/25 transition text-sm font-medium"
-            >
-              Close
-            </button>
-          </div>
-        </div>
+        <GrowthPromptModal
+          cardName={growthPromptModal.cardName}
+          prompt={growthPromptModal.prompt}
+          onClose={() => setGrowthPromptModal(null)}
+        />
       )}
     </div>
   );

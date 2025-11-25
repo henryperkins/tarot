@@ -53,10 +53,63 @@ export function MarkdownRenderer({ content }) {
           a: ({ node, ...props }) => (
             <a
               {...props}
-              className="text-secondary underline decoration-dotted underline-offset-4 hover:text-secondary"
+              className="text-secondary underline decoration-dotted underline-offset-4 hover:text-secondary break-words overflow-wrap-anywhere"
               target="_blank"
-              rel="noreferrer"
+              rel="noopener noreferrer"
             />
+          ),
+          // Inline code (backticks)
+          code: ({ node, inline, className, children, ...props }) => {
+            if (inline) {
+              return (
+                <code
+                  {...props}
+                  className="bg-surface-muted/70 text-accent px-1.5 py-0.5 rounded text-sm font-mono"
+                >
+                  {children}
+                </code>
+              );
+            }
+            // Code blocks (triple backticks) - pre handles container styling
+            return (
+              <code
+                {...props}
+                className={`block p-3 text-sm font-mono whitespace-pre ${className || ''}`}
+              >
+                {children}
+              </code>
+            );
+          },
+          // Pre wrapper for code blocks - handles scrolling
+          pre: ({ node, ...props }) => (
+            <pre
+              {...props}
+              className="bg-surface-muted/50 rounded-lg overflow-x-auto my-3 border border-secondary/20"
+            />
+          ),
+          // Horizontal rule
+          hr: ({ node, ...props }) => (
+            <hr {...props} className="border-secondary/30 my-6" />
+          ),
+          // Tables (from GFM) - scrollable container with keyboard support
+          table: ({ node, ...props }) => (
+            <div
+              className="overflow-x-auto my-4"
+              role="region"
+              aria-label="Data table"
+              tabIndex={0}
+            >
+              <table {...props} className="w-full border-collapse text-sm" />
+            </div>
+          ),
+          thead: ({ node, ...props }) => (
+            <thead {...props} className="bg-surface-muted/50" />
+          ),
+          th: ({ node, ...props }) => (
+            <th {...props} className="border border-secondary/30 px-3 py-2 text-left font-semibold text-accent" />
+          ),
+          td: ({ node, ...props }) => (
+            <td {...props} className="border border-secondary/30 px-3 py-2" />
           )
         }}
       >

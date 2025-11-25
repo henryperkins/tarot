@@ -549,6 +549,35 @@ const POSITION_LANGUAGE = {
     useImagery: true
   },
 
+  // Extended relationship positions (for custom/extended relationship spreads)
+  'Dynamics / guidance': {
+    intro: [
+      (card, orientation) => `The dynamics and guidance for this connection: ${card} ${orientation}.`,
+      (card, orientation) => `${card} ${orientation} illuminates the active patterns and suggests how to engage with them.`,
+      (card, orientation) => `Here, ${card} ${orientation} offers guidance on how to navigate the current dynamic.`
+    ],
+    frame: [
+      'This card points toward how the relationship is moving and what awareness might help.',
+      'Let it suggest attitudes or small shifts that could support healthier engagement.'
+    ],
+    connectorToPrev: ['Therefore, in this dynamic,', 'And so, given all of this,'],
+    useImagery: true
+  },
+
+  'Outcome / what this can become': {
+    intro: [
+      (card, orientation) => `What this connection can become: ${card} ${orientation}.`,
+      (card, orientation) => `${card} ${orientation} sketches a possible evolution of this bond.`,
+      (card, orientation) => `Looking ahead, ${card} ${orientation} hints at where this relationship may grow.`
+    ],
+    frame: [
+      'This is not a fixed fate, but a trajectory shaped by how you both choose to show up.',
+      'Hold it as an invitation to co-create consciously, not a verdict on what must be.'
+    ],
+    connectorToPrev: ['Therefore,', 'Therefore, if you both lean in,'],
+    useImagery: true
+  },
+
   // Decision spread positions
   'Heart of the decision': {
     intro: [

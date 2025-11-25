@@ -304,21 +304,14 @@ function buildSystemPrompt(spreadKey, themes, context, deckStyle, userQuestion =
     }
   }
 
+  // Archetypal patterns are reading-specific - they go in user prompt only
+
   lines.push(
-    ...(themes?.knowledgeGraph?.narrativeHighlights?.length
-      ? [
-          '## ARCHETYPAL PATTERNS DETECTED',
-          '',
-          'Multi-card patterns identified:',
-          ...themes.knowledgeGraph.narrativeHighlights.map((h) => `- ${h.text}`),
-          '',
-          'INTEGRATION: Weave these naturally into narrative, not mechanically.',
-          ''
-        ]
-      : []),
     '',
-    'ETHICS: Emphasize choice, agency, and trajectory language; forbid deterministic guarantees or fatalism.',
-    'ETHICS: Do NOT provide diagnosis or treatment, or directives about medical, mental health, legal, financial, or abuse-safety matters; instead, when those themes surface, gently suggest consulting qualified professionals or trusted support resources.'
+    'ETHICS',
+    '- Emphasize choice, agency, and trajectory language; forbid deterministic guarantees or fatalism.',
+    '- Do NOT provide diagnosis, treatment, or directives about medical, mental health, legal, financial, or abuse-safety matters.',
+    '- When restricted themes surface, gently suggest consulting qualified professionals or trusted support resources.'
   );
 
     if (context && context !== 'general') {
@@ -374,16 +367,10 @@ function buildUserPrompt(
   // Question
   prompt += `**Question**: ${userQuestion || '(No explicit question; speak to the energy most present for the querent.)'}\n\n`;
 
+  // Deck style name only - detailed tips are in system prompt
   const deckNotes = getDeckStyleNotes(deckStyle);
-  if (deckNotes) {
-    prompt += `**Deck Style**: ${deckNotes.label}\n`;
-    if (deckNotes.cue) {
-      prompt += `- Aesthetic cue: ${deckNotes.cue}\n`;
-    }
-    deckNotes.tips.forEach((tip) => {
-      prompt += `- ${tip}\n`;
-    });
-    prompt += '\n';
+  if (deckNotes && deckStyle !== 'rws-1909') {
+    prompt += `**Deck Style**: ${deckNotes.label} (see system prompt for interpretation guidelines)\n\n`;
   }
 
   // Thematic context
@@ -409,7 +396,7 @@ function buildUserPrompt(
   prompt += `**Thematic Context**:\n${thematicLines.join('\n')}\n\n`;
 
   if (themes?.knowledgeGraph?.narrativeHighlights?.length) {
-    prompt += '**Archetypal Highlights**:\n';
+    prompt += '**Archetypal Patterns** (weave naturally, not mechanically):\n';
     themes.knowledgeGraph.narrativeHighlights.slice(0, 5).forEach((highlight, index) => {
       const label = highlight?.text || '';
       if (!label) return;
@@ -451,17 +438,11 @@ function buildUserPrompt(
     prompt += visionSection;
   }
 
-  // Instructions
-  prompt += `\nPlease now write the reading. Use Markdown and:
-- Add clear \`###\` headings for major sections.
-- Mention each card and its position at least once, in a way that feels natural.
-- Let each section follow the story spine: briefly describe what is happening, why it matters or how it arose, and what might be next.
-- When you link ideas across sentences or paragraphs, you may use connective phrases like "Because...", "Therefore...", or "However..." so the causal flow stays clear; vary or omit them when the link is already obvious.
-- Include one short bullet list (2–4 items) of concrete, gentle next steps, each starting with a bolded verb.
-- Close by reminding the querent that this spread shows a possible trajectory, and that their choices and circumstances can always shift the outcome.
-Apply Minor Arcana interpretation rules to all non-Major cards.`;
-
-  prompt += `\n\nRemember ethical constraints: emphasize agency, avoid guarantees, no medical/legal directives.`;
+  // Instructions (minimal - detailed rules are in system prompt)
+  prompt += `\nPlease now write the reading following the system prompt guidelines. Ensure you:
+- Reference each card by name at least once
+- Close with a trajectory reminder (choices shape outcomes)
+- Apply the reversal lens consistently throughout`;
 
   return prompt;
 }

@@ -20,6 +20,7 @@ export function StepProgress({ steps = [], activeStep, onSelect, condensed = fal
   const [activeTooltip, setActiveTooltip] = useState(null);
   const tooltipTimeoutRef = useRef(null);
   const buttonRefs = useRef({});
+  const isTouchActiveRef = useRef(false);
 
   // Clear tooltip timeout on unmount
   useEffect(() => {
@@ -50,11 +51,13 @@ export function StepProgress({ steps = [], activeStep, onSelect, condensed = fal
     }
     tooltipTimeoutRef.current = setTimeout(() => {
       setActiveTooltip(null);
+      isTouchActiveRef.current = false;
     }, delay);
   }, []);
 
-  // Handle touch start - show tooltip
+  // Handle touch start - show tooltip and mark touch as active
   const handleTouchStart = useCallback((stepId) => {
+    isTouchActiveRef.current = true;
     showTooltip(stepId);
   }, [showTooltip]);
 
@@ -62,6 +65,19 @@ export function StepProgress({ steps = [], activeStep, onSelect, condensed = fal
   const handleTouchEnd = useCallback(() => {
     hideTooltipWithDelay(1500);
   }, [hideTooltipWithDelay]);
+
+  // Mouse handlers that respect touch state to avoid race conditions
+  const handleMouseEnter = useCallback((stepId) => {
+    // Ignore mouse events during active touch interaction
+    if (isTouchActiveRef.current) return;
+    showTooltip(stepId);
+  }, [showTooltip]);
+
+  const handleMouseLeave = useCallback(() => {
+    // Ignore mouse events during active touch interaction
+    if (isTouchActiveRef.current) return;
+    hideTooltip();
+  }, [hideTooltip]);
 
   // Handle click outside to close tooltip
   useEffect(() => {
@@ -122,13 +138,13 @@ export function StepProgress({ steps = [], activeStep, onSelect, condensed = fal
                   }
                 `}
                 onClick={() => onSelect?.(step.id)}
-                onMouseEnter={() => showTooltip(step.id)}
-                onMouseLeave={() => hideTooltip()}
+                onMouseEnter={() => handleMouseEnter(step.id)}
+                onMouseLeave={handleMouseLeave}
                 onFocus={() => showTooltip(step.id)}
                 onBlur={() => hideTooltip()}
                 onTouchStart={() => handleTouchStart(step.id)}
                 onTouchEnd={handleTouchEnd}
-                onTouchCancel={() => hideTooltip()}
+                onTouchCancel={() => { isTouchActiveRef.current = false; hideTooltip(); }}
                 aria-current={isActive ? 'step' : undefined}
                 aria-label={`Step ${index + 1}: ${step.label}`}
                 aria-describedby={isTooltipVisible ? `step-tooltip-${step.id}` : undefined}

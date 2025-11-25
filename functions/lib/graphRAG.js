@@ -68,91 +68,91 @@ export function retrievePassages(graphKeys, options = {}) {
   const passages = [];
 
   // Priority 1: Complete triads (highest narrative value)
+  // Only take first passage per triad to avoid duplicate titles in UI
   if (Array.isArray(graphKeys.completeTriadIds) && graphKeys.completeTriadIds.length > 0) {
     graphKeys.completeTriadIds.forEach((triadId) => {
       const entry = getPassagesForPattern('triad', triadId);
-      if (entry && entry.passages) {
-        entry.passages.forEach((passage) => {
-          passages.push({
-            priority: 1,
-            type: 'triad',
-            patternId: triadId,
-            title: entry.title,
-            theme: entry.theme,
-            ...passage,
-            ...(includeMetadata ? { metadata: { triadId, isComplete: true } } : {})
-          });
+      if (entry && entry.passages && entry.passages.length > 0) {
+        const passage = entry.passages[0];
+        passages.push({
+          priority: 1,
+          type: 'triad',
+          patternId: triadId,
+          title: entry.title,
+          theme: entry.theme,
+          ...passage,
+          ...(includeMetadata ? { metadata: { triadId, isComplete: true } } : {})
         });
       }
     });
   }
 
   // Priority 2: Fool's Journey stage (developmental context)
+  // Only take first passage per stage to avoid duplicate titles in UI
   if (graphKeys.foolsJourneyStageKey) {
     const entry = getPassagesForPattern('fools-journey', graphKeys.foolsJourneyStageKey);
-    if (entry && entry.passages) {
-      entry.passages.forEach((passage) => {
-        passages.push({
-          priority: 2,
-          type: 'fools-journey',
-          patternId: graphKeys.foolsJourneyStageKey,
-          title: entry.title,
-          theme: entry.theme,
-          stage: entry.stage,
-          ...passage,
-          ...(includeMetadata
-            ? { metadata: { stageKey: graphKeys.foolsJourneyStageKey } }
-            : {})
-        });
+    if (entry && entry.passages && entry.passages.length > 0) {
+      const passage = entry.passages[0];
+      passages.push({
+        priority: 2,
+        type: 'fools-journey',
+        patternId: graphKeys.foolsJourneyStageKey,
+        title: entry.title,
+        theme: entry.theme,
+        stage: entry.stage,
+        ...passage,
+        ...(includeMetadata
+          ? { metadata: { stageKey: graphKeys.foolsJourneyStageKey } }
+          : {})
       });
     }
   }
 
   // Priority 3: High-significance dyads (powerful two-card synergies)
+  // Only take first passage per dyad to avoid duplicate titles in UI
   if (Array.isArray(graphKeys.dyadPairs) && graphKeys.dyadPairs.length > 0) {
     graphKeys.dyadPairs
       .filter((dyad) => dyad.significance === 'high')
       .forEach((dyad) => {
         const dyadKey = dyad.cards.join('-');
         const entry = getPassagesForPattern('dyad', dyadKey);
-        if (entry && entry.passages) {
-          entry.passages.forEach((passage) => {
-            passages.push({
-              priority: 3,
-              type: 'dyad',
-              patternId: dyadKey,
-              theme: entry.theme,
-              cardNumbers: dyad.cards,
-              cardNames: entry.names,
-              ...passage,
-              ...(includeMetadata
-                ? { metadata: { cards: dyad.cards, category: dyad.category } }
-                : {})
-            });
+        if (entry && entry.passages && entry.passages.length > 0) {
+          const passage = entry.passages[0];
+          passages.push({
+            priority: 3,
+            type: 'dyad',
+            patternId: dyadKey,
+            theme: entry.theme,
+            cardNumbers: dyad.cards,
+            cardNames: entry.names,
+            ...passage,
+            ...(includeMetadata
+              ? { metadata: { cards: dyad.cards, category: dyad.category } }
+              : {})
           });
         }
       });
   }
 
   // Priority 4: Strong suit progressions (Minor Arcana developmental arcs)
+  // Only take first passage per progression to avoid duplicate titles in UI
   if (Array.isArray(graphKeys.suitProgressions) && graphKeys.suitProgressions.length > 0) {
     graphKeys.suitProgressions
       .filter((prog) => prog.significance === 'strong-progression')
       .forEach((prog) => {
         const progKey = `${prog.suit}:${prog.stage}`;
         const entry = getPassagesForPattern('suit-progression', progKey);
-        if (entry && entry.passages) {
-          entry.passages.forEach((passage) => {
-            passages.push({
-              priority: 4,
-              type: 'suit-progression',
-              patternId: progKey,
-              title: entry.title,
-              suit: prog.suit,
-              stage: prog.stage,
-              ...passage,
-              ...(includeMetadata ? { metadata: { suit: prog.suit, stage: prog.stage } } : {})
-            });
+        if (entry && entry.passages && entry.passages.length > 0) {
+          const passage = entry.passages[0];
+          passages.push({
+            priority: 4,
+            type: 'suit-progression',
+            patternId: progKey,
+            title: entry.title,
+            suit: prog.suit,
+            stage: prog.stage,
+            ...passage,
+            ...(includeMetadata ? { metadata: { suit: prog.suit, stage: prog.stage } } : {})
           });
         }
       });

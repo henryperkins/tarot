@@ -95,7 +95,7 @@ export function ReadingProvider({ children }) {
     }, [shuffle, visionAnalysis, cancelInFlightReading]);
 
     // Generate Personal Reading Logic
-    const generatePersonalReading = async () => {
+    const generatePersonalReading = useCallback(async () => {
         if (!reading || reading.length === 0) {
             const errorMsg = 'Please draw your cards before requesting a personalized reading.';
             const formattedError = formatReading(errorMsg);
@@ -317,7 +317,23 @@ export function ReadingProvider({ children }) {
             setIsGenerating(false);
             setAnalyzingText('');
         }
-    };
+    }, [
+        reading,
+        isGenerating,
+        selectedSpread,
+        userQuestion,
+        reflections,
+        sessionSeed,
+        deckStyleId,
+        reversalFramework,
+        visionResearchEnabled,
+        visionResults,
+        visionConflicts,
+        getVisionConflictsForCards,
+        setVisionConflicts,
+        ensureVisionProof,
+        cancelInFlightReading
+    ]);
 
     // --- Logic: Analysis Highlights ---
 
@@ -474,7 +490,7 @@ export function ReadingProvider({ children }) {
         baseRevealAll();
     }, [baseRevealAll, describeCardAtIndex, reading, revealedCards]);
 
-    const value = {
+    const value = useMemo(() => ({
         ...audioController,
         ...tarotState,
         ...visionAnalysis,
@@ -497,7 +513,30 @@ export function ReadingProvider({ children }) {
         generatePersonalReading,
         highlightItems,
         srAnnouncement, setSrAnnouncement
-    };
+    }), [
+        audioController,
+        tarotState,
+        visionAnalysis,
+        handleShuffle,
+        dealNext,
+        revealCard,
+        revealAll,
+        personalReading,
+        isGenerating,
+        analyzingText,
+        narrativePhase,
+        spreadAnalysis,
+        themes,
+        analysisContext,
+        readingMeta,
+        journalStatus,
+        reflections,
+        lastCardsForFeedback,
+        showAllHighlights,
+        generatePersonalReading,
+        highlightItems,
+        srAnnouncement
+    ]);
 
     return (
         <ReadingContext.Provider value={value}>

@@ -3,6 +3,7 @@ import { CaretLeft, UploadSimple, Notebook, ChartLine, Sparkle, BookOpen } from 
 import { useNavigate } from 'react-router-dom';
 import { GlobalNav } from './GlobalNav';
 import { UserMenu } from './UserMenu';
+import { ConfirmModal } from './ConfirmModal';
 import { useAuth } from '../contexts/AuthContext';
 import { useJournal } from '../hooks/useJournal';
 import { JournalFilters } from './JournalFilters.jsx';
@@ -37,6 +38,7 @@ export default function Journal() {
   const [migrating, setMigrating] = useState(false);
   const [migrateMessage, setMigrateMessage] = useState('');
   const [deleteMessage, setDeleteMessage] = useState('');
+  const [deleteConfirmModal, setDeleteConfirmModal] = useState({ isOpen: false, entryId: null });
   const [filters, setFilters] = useState({ query: '', contexts: [], spreads: [], decks: [], timeframe: 'all', onlyReversals: false });
   const deferredQuery = useDeferredValue(filters.query);
   const filterSignature = useMemo(
@@ -261,10 +263,16 @@ export default function Journal() {
     setMigrating(false);
   };
 
-  const handleDelete = async (entryId) => {
-    if (!confirm('Are you sure you want to delete this journal entry?')) {
-      return;
-    }
+  const handleDeleteRequest = (entryId) => {
+    setDeleteConfirmModal({ isOpen: true, entryId });
+  };
+
+  const handleDeleteConfirm = async () => {
+    const entryId = deleteConfirmModal.entryId;
+    if (!entryId) return;
+
+    // Close modal immediately to provide responsive feedback
+    setDeleteConfirmModal({ isOpen: false, entryId: null });
 
     const result = await deleteEntry(entryId);
 
@@ -274,6 +282,10 @@ export default function Journal() {
       setDeleteMessage(`Delete failed: ${result.error || 'Unknown error'}`);
     }
     setTimeout(() => setDeleteMessage(''), 4000);
+  };
+
+  const handleDeleteCancel = () => {
+    setDeleteConfirmModal({ isOpen: false, entryId: null });
   };
 
   const handleLoadMoreEntries = () => {
@@ -471,7 +483,7 @@ export default function Journal() {
                       entry={entry}
                       isAuthenticated={isAuthenticated}
                       onCreateShareLink={isAuthenticated ? createShareLink : null}
-                      onDelete={handleDelete}
+                      onDelete={handleDeleteRequest}
                     />
                   ))}
                   {hasMoreEntries && (
@@ -492,6 +504,16 @@ export default function Journal() {
         </main>
       </div>
 
+      <ConfirmModal
+        isOpen={deleteConfirmModal.isOpen}
+        onClose={handleDeleteCancel}
+        onConfirm={handleDeleteConfirm}
+        title="Delete Journal Entry"
+        message="Are you sure you want to delete this journal entry? This action cannot be undone."
+        confirmText="Delete"
+        cancelText="Keep Entry"
+        variant="danger"
+      />
     </>
   );
 }

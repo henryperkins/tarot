@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { ArrowCounterClockwise } from '@phosphor-icons/react';
-import { TableuLogo } from './TableuLogo';
 import { GlobalNav } from './GlobalNav';
 import { UserMenu } from './UserMenu';
 import { StepProgress } from './StepProgress';
@@ -91,9 +90,8 @@ export function Header({ steps, activeStep, onStepSelect, isShuffling }) {
     };
   }, [getHideThreshold]);
 
-  // Logo size based on compact state - use actual sizes instead of CSS transform
-  // This avoids blurry rendering from non-integer scale factors
-  const logoSize = isCompact ? 64 : 96;
+  // Logo height based on compact state
+  const logoHeight = isCompact ? 48 : 72;
 
   return (
     <>
@@ -108,13 +106,11 @@ export function Header({ steps, activeStep, onStepSelect, isShuffling }) {
               marginBottom: isCompact ? '-8px' : '0',
             }}
           >
-            <TableuLogo
-              variant="full"
-              size={logoSize}
+            <img
+              src="/images/tableu-logo-new.png"
+              alt="Tableu - Tarot Reading Application"
               className="mb-2 opacity-90 hover:opacity-100 transition-opacity"
-              outline
-              glow
-              ariaLabel="Tableu - Tarot Reading Application"
+              style={{ height: logoHeight, width: 'auto' }}
             />
           </div>
           <h1 id="tableau-heading" className="sr-only">

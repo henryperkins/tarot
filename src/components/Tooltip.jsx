@@ -1,6 +1,9 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import { Info } from '@phosphor-icons/react';
 
+// Viewport padding for collision detection
+const VIEWPORT_PADDING = 8;
+
 /**
  * Accessible tooltip component with keyboard, mouse, and touch support.
  *
@@ -21,6 +24,7 @@ export function Tooltip({
   enableClick = true
 }) {
   const [isVisible, setIsVisible] = useState(false);
+  const [adjustedPosition, setAdjustedPosition] = useState(null);
   const rootRef = useRef(null);
   const triggerRef = useRef(null);
   const tooltipRef = useRef(null);
@@ -72,6 +76,59 @@ export function Tooltip({
 
   useEffect(() => () => clearTouchHideTimeout(), []);
 
+  // Viewport collision detection - adjust tooltip position if it would overflow
+  useEffect(() => {
+    if (!isVisible || !tooltipRef.current || typeof window === 'undefined') {
+      setAdjustedPosition(null);
+      return;
+    }
+
+    // Use requestAnimationFrame to ensure tooltip is rendered before measuring
+    const rafId = requestAnimationFrame(() => {
+      const tooltip = tooltipRef.current;
+      if (!tooltip) return;
+
+      const rect = tooltip.getBoundingClientRect();
+      const viewportWidth = window.innerWidth;
+      const viewportHeight = window.innerHeight;
+
+      let newPosition = position;
+      let horizontalOffset = 0;
+
+      // Check vertical overflow for top/bottom positions
+      if (position === 'top' && rect.top < VIEWPORT_PADDING) {
+        newPosition = 'bottom';
+      } else if (position === 'bottom' && rect.bottom > viewportHeight - VIEWPORT_PADDING) {
+        newPosition = 'top';
+      }
+
+      // Check horizontal overflow for left/right positions
+      if (position === 'left' && rect.left < VIEWPORT_PADDING) {
+        newPosition = 'right';
+      } else if (position === 'right' && rect.right > viewportWidth - VIEWPORT_PADDING) {
+        newPosition = 'left';
+      }
+
+      // For top/bottom positions, check horizontal overflow and adjust
+      if (position === 'top' || position === 'bottom' || newPosition === 'top' || newPosition === 'bottom') {
+        if (rect.left < VIEWPORT_PADDING) {
+          horizontalOffset = VIEWPORT_PADDING - rect.left;
+        } else if (rect.right > viewportWidth - VIEWPORT_PADDING) {
+          horizontalOffset = viewportWidth - VIEWPORT_PADDING - rect.right;
+        }
+      }
+
+      // Only update if there's a change
+      if (newPosition !== position || horizontalOffset !== 0) {
+        setAdjustedPosition({ position: newPosition, horizontalOffset });
+      } else {
+        setAdjustedPosition(null);
+      }
+    });
+
+    return () => cancelAnimationFrame(rafId);
+  }, [isVisible, position]);
+
   // Icon sizes (visual appearance inside the touch target)
   const iconSizeClasses = {
     sm: 'w-3.5 h-3.5',
@@ -79,7 +136,15 @@ export function Tooltip({
     lg: 'w-5 h-5'
   };
 
-  // Touch target sizes - minimum 44x44px for WCAG 2.5.8 compliance
+  /**
+   * Touch target sizes - minimum 44x44px for WCAG 2.5.8 compliance.
+   *
+   * Note: 'sm' and 'md' have identical touch targets (44x44px) intentionally.
+   * The size prop controls the visual icon size, not the touch target.
+   * All sizes meet WCAG 2.5.8 minimum requirements:
+   * - sm/md: 44x44px (minimum compliant)
+   * - lg: 48x48px (comfortable for primary actions)
+   */
   const touchTargetClasses = {
     sm: 'min-w-[44px] min-h-[44px] w-11 h-11',
     md: 'min-w-[44px] min-h-[44px] w-11 h-11',
@@ -152,9 +217,10 @@ export function Tooltip({
 
   const handleTouchEnd = () => {
     clearTouchHideTimeout();
+    // Extended to 3000ms for cognitive accessibility (WCAG 2.2.1)
     touchHideTimeoutRef.current = setTimeout(() => {
       hideTooltip();
-    }, 1600);
+    }, 3000);
   };
 
   const handleTouchCancel = () => {
@@ -211,23 +277,30 @@ export function Tooltip({
       )}
 
       {/* Tooltip Content */}
-      {shouldShow && (
-        <div
-          role="tooltip"
-          id={tooltipId}
-          ref={tooltipRef}
-          className={`absolute z-50 ${positionClasses[position]} max-w-xs`}
-        >
-          <div className="relative bg-surface-muted text-main text-xs rounded-lg px-3 py-2 shadow-xl border border-primary/20 whitespace-normal">
-            {content}
-            {/* Arrow */}
-            <div
-              className={`absolute w-0 h-0 border-4 ${arrowClasses[position]}`}
-              aria-hidden="true"
-            />
+      {shouldShow && (() => {
+        const effectivePosition = adjustedPosition?.position || position;
+        const horizontalOffset = adjustedPosition?.horizontalOffset || 0;
+
+        return (
+          <div
+            role="tooltip"
+            id={tooltipId}
+            ref={tooltipRef}
+            className={`absolute z-50 ${positionClasses[effectivePosition]} max-w-xs`}
+            style={horizontalOffset ? { transform: `translateX(calc(-50% + ${horizontalOffset}px))` } : undefined}
+          >
+            <div className="relative bg-surface-muted text-main text-xs rounded-lg px-3 py-2 shadow-xl border border-primary/20 whitespace-normal">
+              {content}
+              {/* Arrow */}
+              <div
+                className={`absolute w-0 h-0 border-4 ${arrowClasses[effectivePosition]}`}
+                style={horizontalOffset ? { transform: `translateX(calc(-50% - ${horizontalOffset}px))` } : undefined}
+                aria-hidden="true"
+              />
+            </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
     </div>
   );
 }

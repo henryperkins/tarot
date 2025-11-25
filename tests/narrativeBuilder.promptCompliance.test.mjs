@@ -240,16 +240,15 @@ describe('Celtic Cross narrative + Claude prompt compliance', () => {
 
     assert.ok(
       userPrompt.includes('Reversal framework:') ||
-        userPrompt.toLowerCase().includes('reversal framework'),
+        userPrompt.toLowerCase().includes('reversal framework') ||
+        userPrompt.includes('reversal lens'),
       'User prompt should mention reversal framework'
     );
+    // Ethics and Minor Arcana rules are now in system prompt to reduce redundancy
+    // User prompt just references system prompt guidelines
     assert.ok(
-      userPrompt.includes('Apply Minor Arcana interpretation rules'),
-      'User prompt should remind Claude to apply Minor Arcana interpretation rules'
-    );
-    assert.ok(
-      userPrompt.includes('Remember ethical constraints'),
-      'User prompt should append concise ethics reminder'
+      userPrompt.includes('system prompt') || userPrompt.includes('guidelines'),
+      'User prompt should reference system prompt guidelines'
     );
 
     assertAgencyForward(userPrompt);

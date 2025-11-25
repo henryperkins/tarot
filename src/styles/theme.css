@@ -77,7 +77,7 @@
   --bg-surface: #FFFFFF;
   --bg-surface-muted: #F5F5F5;
   --text-main: #1A1A1A;
-  --text-muted: #6A6A6A;
+  --text-muted: #555555; /* WCAG AA compliant: 7:1 contrast on #FAFAFA */
   --brand-primary: #A89166;
   --brand-secondary: #E0E0E0;
   --brand-accent: #A89166;

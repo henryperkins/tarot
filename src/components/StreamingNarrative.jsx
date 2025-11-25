@@ -1,39 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { MarkdownRenderer } from './MarkdownRenderer';
-
-function usePrefersReducedMotion() {
-  const getInitialPreference = () => {
-    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
-      return false;
-    }
-    return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  };
-
-  const [reduceMotion, setReduceMotion] = useState(getInitialPreference);
-
-  useEffect(() => {
-    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
-      return undefined;
-    }
-
-    const query = window.matchMedia('(prefers-reduced-motion: reduce)');
-    const handleChange = (event) => setReduceMotion(event.matches);
-
-    if (typeof query.addEventListener === 'function') {
-      query.addEventListener('change', handleChange);
-      return () => query.removeEventListener('change', handleChange);
-    }
-
-    if (typeof query.addListener === 'function') {
-      query.addListener(handleChange);
-      return () => query.removeListener(handleChange);
-    }
-
-    return undefined;
-  }, []);
-
-  return reduceMotion;
-}
+import { useReducedMotion } from '../hooks/useReducedMotion';
 
 /**
  * Split text into words for gradual reveal, preserving spaces
@@ -43,18 +10,9 @@ function splitIntoWords(text) {
 
   // Split by spaces while capturing them
   const parts = text.split(/(\s+)/);
-  const words = [];
 
-  for (let i = 0; i < parts.length; i++) {
-    const part = parts[i];
-    if (!part) continue;
-
-    // Keep both words and spaces as separate units
-    // This ensures proper spacing between words
-    words.push(part);
-  }
-
-  return words.filter(w => w.length > 0);
+  // Filter in single pass
+  return parts.filter(part => part && part.length > 0);
 }
 
 export function StreamingNarrative({
@@ -67,7 +25,7 @@ export function StreamingNarrative({
   onNarrationStart,
 }) {
   const narrativeText = useMemo(() => (typeof text === 'string' ? text : ''), [text]);
-  const prefersReducedMotion = usePrefersReducedMotion();
+  const prefersReducedMotion = useReducedMotion();
 
   // Split text into reveal units (words)
   const units = useMemo(() => {
@@ -77,8 +35,10 @@ export function StreamingNarrative({
 
   const [visibleCount, setVisibleCount] = useState(0);
   const [isComplete, setIsComplete] = useState(false);
-  const [userSkipped, setUserSkipped] = useState(false);
+
+  // Refs for cleanup and tracking
   const timerRef = useRef(null);
+  const narrationTimerRef = useRef(null);
   const completionNotifiedRef = useRef(false);
   const narrationTriggeredRef = useRef(false);
 
@@ -90,19 +50,29 @@ export function StreamingNarrative({
     onDone?.();
   }, [onDone]);
 
-  const clearTimer = () => {
-    if (timerRef.current && typeof window !== 'undefined') {
+  const clearTimer = useCallback(() => {
+    if (timerRef.current) {
       window.clearTimeout(timerRef.current);
       timerRef.current = null;
     }
-  };
+  }, []);
+
+  const clearNarrationTimer = useCallback(() => {
+    if (narrationTimerRef.current) {
+      window.clearTimeout(narrationTimerRef.current);
+      narrationTimerRef.current = null;
+    }
+  }, []);
 
   // Reset when text changes
   useEffect(() => {
+    // Clear any existing timers first
+    clearTimer();
+    clearNarrationTimer();
+
     if (!isStreamingEnabled || prefersReducedMotion) {
       setVisibleCount(units.length);
       setIsComplete(true);
-      setUserSkipped(false);
       completionNotifiedRef.current = false;
       narrationTriggeredRef.current = false;
       notifyCompletion();
@@ -111,10 +81,37 @@ export function StreamingNarrative({
 
     setVisibleCount(0);
     setIsComplete(false);
-    setUserSkipped(false);
     completionNotifiedRef.current = false;
     narrationTriggeredRef.current = false;
-  }, [narrativeText, isStreamingEnabled, prefersReducedMotion, units.length, notifyCompletion]);
+  }, [narrativeText, isStreamingEnabled, prefersReducedMotion, units.length, notifyCompletion, clearTimer, clearNarrationTimer]);
+
+  // Handle completion separately from state updates
+  useEffect(() => {
+    if (visibleCount >= units.length && units.length > 0 && !isComplete) {
+      setIsComplete(true);
+      notifyCompletion();
+    }
+  }, [visibleCount, units.length, isComplete, notifyCompletion]);
+
+  // Auto-narration effect - separate from streaming to avoid coupling
+  useEffect(() => {
+    if (!autoNarrate || !onNarrationStart || narrationTriggeredRef.current) {
+      return;
+    }
+
+    if (visibleCount === 0 && units.length > 0 && isStreamingEnabled && !prefersReducedMotion) {
+      narrationTriggeredRef.current = true;
+      // Capture current text for the timeout closure
+      const textToNarrate = narrativeText;
+      narrationTimerRef.current = window.setTimeout(() => {
+        onNarrationStart(textToNarrate);
+      }, 200);
+    }
+
+    return () => {
+      clearNarrationTimer();
+    };
+  }, [visibleCount, units.length, autoNarrate, onNarrationStart, narrativeText, isStreamingEnabled, prefersReducedMotion, clearNarrationTimer]);
 
   // Streaming effect: reveal units one by one
   useEffect(() => {
@@ -123,18 +120,7 @@ export function StreamingNarrative({
     }
 
     if (visibleCount >= units.length) {
-      setIsComplete(true);
-      notifyCompletion();
       return;
-    }
-
-    // Trigger auto-narration when streaming starts (first reveal only)
-    if (visibleCount === 0 && autoNarrate && onNarrationStart && !narrationTriggeredRef.current) {
-      narrationTriggeredRef.current = true;
-      // Small delay to ensure component is ready
-      window.setTimeout(() => {
-        onNarrationStart(narrativeText);
-      }, 200);
     }
 
     // Calculate delay between words for natural reading pace
@@ -146,20 +132,21 @@ export function StreamingNarrative({
 
     clearTimer();
     timerRef.current = window.setTimeout(() => {
-      setVisibleCount((prev) => {
-        const next = prev + 1;
-        if (next >= units.length) {
-          setIsComplete(true);
-          notifyCompletion();
-        }
-        return next;
-      });
+      setVisibleCount((prev) => prev + 1);
     }, delay);
 
     return () => {
       clearTimer();
     };
-  }, [visibleCount, units, isStreamingEnabled, prefersReducedMotion, notifyCompletion, autoNarrate, onNarrationStart, narrativeText]);
+  }, [visibleCount, units, isStreamingEnabled, prefersReducedMotion, clearTimer]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      clearTimer();
+      clearNarrationTimer();
+    };
+  }, [clearTimer, clearNarrationTimer]);
 
   const handleSkip = () => {
     if (units.length === 0) {
@@ -168,7 +155,6 @@ export function StreamingNarrative({
     clearTimer();
     setVisibleCount(units.length);
     setIsComplete(true);
-    setUserSkipped(true);
     notifyCompletion();
   };
 
@@ -189,10 +175,10 @@ export function StreamingNarrative({
             <button
               type="button"
               onClick={handleSkip}
-              className="text-xs text-secondary/80 hover:text-secondary underline decoration-dotted underline-offset-4 transition"
+              className="min-h-[44px] min-w-[44px] px-4 py-2 text-xs text-secondary/80 hover:text-secondary underline decoration-dotted underline-offset-4 transition touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary focus-visible:ring-offset-2"
               aria-label="Show full narrative immediately"
             >
-              Show all now →
+              Show all now &rarr;
             </button>
           </div>
         )}
@@ -201,9 +187,23 @@ export function StreamingNarrative({
   }
 
   // For plain text: render words with ink-spreading effect
+  // Only apply willChange to recently revealed words to avoid GPU memory exhaustion
+  const RECENT_WORDS_THRESHOLD = 10;
+
+  // Memoize animation styles to avoid creating new objects per word per render
+  const recentWordStyle = useMemo(() => ({
+    animation: 'inkSpread 0.5s cubic-bezier(0.4, 0, 0.2, 1) forwards',
+    willChange: 'opacity, filter, transform'
+  }), []);
+
+  const settledWordStyle = useMemo(() => ({
+    animation: 'inkSpread 0.5s cubic-bezier(0.4, 0, 0.2, 1) forwards',
+    willChange: 'auto'
+  }), []);
+
   return (
     <div className={className} aria-live="polite">
-      <div className="text-main text-sm sm:text-base md:text-lg leading-relaxed md:leading-loose max-w-none mx-auto text-left">
+      <div className="text-main text-sm sm:text-base md:text-lg leading-relaxed md:leading-loose max-w-prose mx-auto text-left">
         {visibleWords.map((word, idx) => {
           // Check if this is whitespace (space, newline, etc.)
           const isWhitespace = /^\s+$/.test(word);
@@ -213,19 +213,15 @@ export function StreamingNarrative({
             return <span key={idx}>{word}</span>;
           }
 
+          // Only recent words get willChange hint to avoid exhausting GPU memory
+          const isRecentWord = idx >= visibleCount - RECENT_WORDS_THRESHOLD;
+
           // Render word with ink-spreading animation
           return (
             <span
               key={idx}
-              className="inline-block animate-ink-spread opacity-0"
-              style={{
-                animation: prefersReducedMotion
-                  ? 'none'
-                  : 'inkSpread 0.5s cubic-bezier(0.4, 0, 0.2, 1) forwards',
-                animationDelay: '0ms',
-                opacity: 1,
-                willChange: 'opacity, filter, transform'
-              }}
+              className={`inline-block ${prefersReducedMotion ? '' : 'animate-ink-spread'}`}
+              style={prefersReducedMotion ? undefined : (isRecentWord ? recentWordStyle : settledWordStyle)}
             >
               {word}
             </span>
@@ -238,10 +234,10 @@ export function StreamingNarrative({
           <button
             type="button"
             onClick={handleSkip}
-            className="text-xs text-secondary/80 hover:text-secondary underline decoration-dotted underline-offset-4 transition"
+            className="min-h-[44px] min-w-[44px] px-4 py-2 text-xs text-secondary/80 hover:text-secondary underline decoration-dotted underline-offset-4 transition touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary focus-visible:ring-offset-2"
             aria-label="Show full narrative immediately"
           >
-            Show all now →
+            Show all now &rarr;
           </button>
         </div>
       )}

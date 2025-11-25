@@ -98,7 +98,7 @@ export function QuestionInput({
         <button
           type="button"
           onClick={handleRefreshExamples}
-          className="absolute inset-y-0 right-3 flex items-center justify-center text-muted hover:text-main focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-surface rounded-full"
+          className="absolute inset-y-0 right-1 flex items-center justify-center min-w-[44px] min-h-[44px] text-muted hover:text-main focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-surface rounded-full touch-manipulation"
           aria-label="Cycle example intention prompts"
         >
           <ArrowsClockwise className="w-4 h-4" aria-hidden="true" />

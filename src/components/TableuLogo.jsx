@@ -32,13 +32,12 @@ export function TableuLogo({
 }) {
   // Determine viewBox based on variant
   const viewBoxMap = {
-    // Slight padding to prevent stroke/letter clipping when referenced via <use>
-    primary: '-12 -12 456 600',
-    icon: '-12 -12 456 600',
-    mono: '-12 -12 456 600',
-    dark: '-12 -12 456 600',
-    favicon: '-12 -12 456 600',
-    full: '-12 -12 456 744'
+    primary: '0 0 432 400',
+    icon: '0 0 432 400',
+    mono: '0 0 432 400',
+    dark: '0 0 432 400',
+    favicon: '60 20 320 400',
+    full: '0 0 432 500'
   };
 
   // Calculate dimensions

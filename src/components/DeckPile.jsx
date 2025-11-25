@@ -1,24 +1,72 @@
-import { motion } from 'framer-motion';
+import { useState, useEffect, useRef } from 'react';
+import { motion, useReducedMotion } from 'framer-motion';
 import { TableuLogo } from './TableuLogo';
 
+/**
+ * Hook to compute responsive logo size with SSR safety, debounced resize handling
+ * @param {number} baseSize - Maximum size in pixels
+ * @param {number} factor - Viewport width multiplier
+ * @param {number} debounceMs - Debounce delay in milliseconds
+ */
+function useDynamicLogoSize(baseSize = 120, factor = 0.15, debounceMs = 100) {
+    const [size, setSize] = useState(baseSize);
+    const timeoutRef = useRef(null);
+
+    useEffect(() => {
+        function updateSize() {
+            setSize(Math.min(window.innerWidth * factor, baseSize));
+        }
+
+        function handleResize() {
+            // Debounce resize events
+            if (timeoutRef.current) {
+                clearTimeout(timeoutRef.current);
+            }
+            timeoutRef.current = setTimeout(updateSize, debounceMs);
+        }
+
+        // Initial size calculation
+        updateSize();
+
+        window.addEventListener('resize', handleResize);
+        return () => {
+            window.removeEventListener('resize', handleResize);
+            if (timeoutRef.current) {
+                clearTimeout(timeoutRef.current);
+            }
+        };
+    }, [baseSize, factor, debounceMs]);
+
+    return size;
+}
+
 export function DeckPile({ cardsRemaining, onDraw, isShuffling, nextLabel }) {
-    const rasterLogoSize = typeof window === 'undefined' ? 120 : Math.min(window.innerWidth * 0.15, 120);
+    const rasterLogoSize = useDynamicLogoSize(120, 0.15);
+    const shouldReduceMotion = useReducedMotion();
 
     if (cardsRemaining <= 0) return null;
+
+    const hoverAnimation = shouldReduceMotion ? {} : { scale: 1.05, y: -5 };
+    const tapAnimation = shouldReduceMotion ? {} : { scale: 0.97 };
 
     return (
         <div className="flex flex-col items-center justify-center py-6 sm:py-8 animate-fade-in relative z-20">
             <motion.button
-                whileHover={{ scale: 1.05, y: -5 }}
-                whileTap={{ scale: 0.95, y: 0 }}
+                whileHover={hoverAnimation}
+                whileTap={tapAnimation}
+                transition={{ type: 'spring', stiffness: 400, damping: 25 }}
                 onClick={onDraw}
                 disabled={isShuffling}
-                className="group relative w-[clamp(9rem,45vw,10rem)] h-[clamp(13.5rem,67.5vw,15rem)] sm:w-32 sm:h-48 md:w-40 md:h-60 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 rounded-2xl"
+                className="group relative w-[clamp(9rem,45vw,10rem)] h-[clamp(13.5rem,67.5vw,15rem)] sm:w-32 sm:h-48 md:w-40 md:h-60 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-2 rounded-2xl touch-manipulation"
                 aria-label={nextLabel ? `Draw card for ${nextLabel}` : "Draw next card"}
             >
-                {/* Stack effect layers */}
-                <div className="absolute inset-0 bg-surface-muted/60 rounded-2xl border border-primary/40 transform translate-x-2 translate-y-2 rotate-3 opacity-60" />
-                <div className="absolute inset-0 bg-surface-muted/70 rounded-2xl border border-primary/40 transform -translate-x-1 translate-y-1 -rotate-2 opacity-80" />
+                {/* Stack effect layers - decorative, hidden when user prefers reduced motion */}
+                {!shouldReduceMotion && (
+                    <>
+                        <div aria-hidden="true" className="pointer-events-none absolute inset-0 bg-surface-muted/60 rounded-2xl border border-primary/40 transform translate-x-2 translate-y-2 rotate-3 opacity-60" />
+                        <div aria-hidden="true" className="pointer-events-none absolute inset-0 bg-surface-muted/70 rounded-2xl border border-primary/40 transform -translate-x-1 translate-y-1 -rotate-2 opacity-80" />
+                    </>
+                )}
 
                 {/* Top Card with Tableu Logo */}
                 <div className="absolute inset-0 bg-gradient-to-br from-surface/95 via-surface-muted/90 to-surface/95 rounded-2xl border-2 border-primary/30 shadow-2xl overflow-hidden">

@@ -17,6 +17,7 @@ import './styles/tarot.css';
 import { usePreferences } from './contexts/PreferencesContext';
 import { useReading } from './contexts/ReadingContext';
 import { useSaveReading } from './hooks/useSaveReading';
+import { useReducedMotion } from './hooks/useReducedMotion';
 
 const STEP_PROGRESS_STEPS = [
   { id: 'spread', label: 'Spread' },
@@ -24,13 +25,6 @@ const STEP_PROGRESS_STEPS = [
   { id: 'ritual', label: 'Ritual (optional)' },
   { id: 'reading', label: 'Reading' }
 ];
-
-function getPrefersReducedMotion() {
-  if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
-    return false;
-  }
-  return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-}
 
 export default function TarotReading() {
   // --- 1. Global Preferences (Context) ---
@@ -49,6 +43,9 @@ export default function TarotReading() {
     prepareSectionsOpen,
     togglePrepareSection
   } = usePreferences();
+
+  // Accessibility: reduced motion preference
+  const prefersReducedMotion = useReducedMotion();
 
   // --- 2. Reading Context ---
   const {
@@ -312,13 +309,13 @@ export default function TarotReading() {
     };
     const target = refs[stepId]?.current;
     if (target && typeof target.scrollIntoView === 'function') {
-      const behavior = getPrefersReducedMotion() ? 'auto' : 'smooth';
+      const behavior = prefersReducedMotion ? 'auto' : 'smooth';
       target.scrollIntoView({
         behavior,
         block: 'start'
       });
     }
-  }, []);
+  }, [prefersReducedMotion]);
 
   // Handle navigation requests passed via router state (e.g., from Journal empty state)
   useEffect(() => {
@@ -532,33 +529,33 @@ export default function TarotReading() {
           style={keyboardOffset > 0 ? { bottom: keyboardOffset } : undefined}
         >
           <div className="flex flex-wrap gap-2">
-            {isShuffling && <button disabled className="flex-1 min-w-[7.5rem] inline-flex items-center justify-center rounded-xl px-3 py-2.5 text-sm font-semibold transition bg-accent text-surface shadow-lg flex-col gap-0.5 opacity-50"><span className="text-xs uppercase tracking-wider opacity-70">{stepIndicatorLabel}</span><span className="text-sm font-semibold">Shuffling...</span></button>}
+            {isShuffling && <button disabled className="flex-1 min-w-[7.5rem] min-h-[44px] inline-flex items-center justify-center rounded-xl px-3 py-2.5 text-sm font-semibold transition bg-accent text-surface shadow-lg flex-col gap-0.5 opacity-50 touch-manipulation"><span className="text-xs uppercase tracking-wider opacity-70">{stepIndicatorLabel}</span><span className="text-sm font-semibold">Shuffling...</span></button>}
 
             {!isShuffling && !reading && (
               <>
-                <button onClick={() => setIsMobileSettingsOpen(true)} className="flex-none w-[3.5rem] inline-flex items-center justify-center rounded-xl px-0 py-2.5 text-sm font-semibold transition bg-surface-muted text-accent border border-accent/30 hover:bg-surface flex-col gap-0.5" aria-label="Settings">
+                <button onClick={() => setIsMobileSettingsOpen(true)} className="flex-none w-[3.5rem] min-h-[44px] inline-flex items-center justify-center rounded-xl px-0 py-2.5 text-sm font-semibold transition bg-surface-muted text-accent border border-accent/30 hover:bg-surface flex-col gap-0.5 touch-manipulation" aria-label="Settings">
                   <Gear className="w-5 h-5" />
                 </button>
-                <button onClick={handleShuffle} className="flex-1 min-w-[7.5rem] inline-flex items-center justify-center rounded-xl px-3 py-2.5 text-sm font-semibold transition bg-accent text-surface shadow-lg hover:opacity-90 flex-col gap-0.5"><span className="text-xs uppercase tracking-wider opacity-70">{stepIndicatorLabel}</span><span className="text-sm font-semibold">Draw cards</span></button>
+                <button onClick={handleShuffle} className="flex-1 min-w-[7.5rem] min-h-[44px] inline-flex items-center justify-center rounded-xl px-3 py-2.5 text-sm font-semibold transition bg-accent text-surface shadow-lg hover:opacity-90 flex-col gap-0.5 touch-manipulation"><span className="text-xs uppercase tracking-wider opacity-70">{stepIndicatorLabel}</span><span className="text-sm font-semibold">Draw cards</span></button>
               </>
             )}
 
             {reading && revealedCards.size < reading.length && (
               <>
-                <button onClick={dealNext} className="flex-1 min-w-[7.5rem] inline-flex items-center justify-center rounded-xl px-3 py-2.5 text-sm font-semibold transition bg-accent text-surface shadow-lg hover:opacity-90 flex-col gap-0.5"><span className="text-xs uppercase tracking-wider opacity-70">{stepIndicatorLabel}</span><span className="text-sm font-semibold">Reveal next ({Math.min(dealIndex + 1, reading.length)}/{reading.length})</span></button>
+                <button onClick={dealNext} className="flex-1 min-w-[7.5rem] min-h-[44px] inline-flex items-center justify-center rounded-xl px-3 py-2.5 text-sm font-semibold transition bg-accent text-surface shadow-lg hover:opacity-90 flex-col gap-0.5 touch-manipulation"><span className="text-xs uppercase tracking-wider opacity-70">{stepIndicatorLabel}</span><span className="text-sm font-semibold">Reveal next ({Math.min(dealIndex + 1, reading.length)}/{reading.length})</span></button>
                 {reading.length > 1 && <button onClick={() => {
                   revealAll();
-                  const behavior = getPrefersReducedMotion() ? 'auto' : 'smooth';
+                  const behavior = prefersReducedMotion ? 'auto' : 'smooth';
                   readingSectionRef.current?.scrollIntoView({ behavior, block: 'start' });
-                }} className="flex-1 min-w-[7.5rem] inline-flex items-center justify-center rounded-xl px-3 py-2.5 text-sm font-semibold transition bg-primary/20 text-primary border border-primary/40 hover:bg-primary/30 flex-col gap-0.5"><span className="text-xs uppercase tracking-wider opacity-70">{stepIndicatorLabel}</span><span className="text-sm font-semibold">Reveal all</span></button>}
+                }} className="flex-1 min-w-[7.5rem] min-h-[44px] inline-flex items-center justify-center rounded-xl px-3 py-2.5 text-sm font-semibold transition bg-primary/20 text-primary border border-primary/40 hover:bg-primary/30 flex-col gap-0.5 touch-manipulation"><span className="text-xs uppercase tracking-wider opacity-70">{stepIndicatorLabel}</span><span className="text-sm font-semibold">Reveal all</span></button>}
               </>
             )}
 
             {reading && revealedCards.size === reading.length && (
               <>
-                {needsNarrativeGeneration && <button onClick={generatePersonalReading} disabled={isGenerating} className="flex-1 min-w-[7.5rem] inline-flex items-center justify-center rounded-xl px-3 py-2.5 text-sm font-semibold transition bg-accent text-surface shadow-lg hover:opacity-90 flex-col gap-0.5"><span className="text-xs uppercase tracking-wider opacity-70">{stepIndicatorLabel}</span><span className="text-sm font-semibold">{isGenerating ? 'Weaving...' : 'Create narrative'}</span></button>}
-                {hasNarrative && !isPersonalReadingError && <button onClick={saveReading} className="flex-1 min-w-[7.5rem] inline-flex items-center justify-center rounded-xl px-3 py-2.5 text-sm font-semibold transition bg-accent text-surface shadow-lg hover:opacity-90 flex-col gap-0.5"><span className="text-xs uppercase tracking-wider opacity-70">{stepIndicatorLabel}</span><span className="text-sm font-semibold">Save to journal</span></button>}
-                <button onClick={handleShuffle} className="flex-1 min-w-[7.5rem] inline-flex items-center justify-center rounded-xl px-3 py-2.5 text-sm font-semibold transition bg-surface-muted text-accent border border-accent/30 hover:bg-surface flex-col gap-0.5"><span className="text-xs uppercase tracking-wider opacity-70">{stepIndicatorLabel}</span><span className="text-sm font-semibold">New reading</span></button>
+                {needsNarrativeGeneration && <button onClick={generatePersonalReading} disabled={isGenerating} className="flex-1 min-w-[7.5rem] min-h-[44px] inline-flex items-center justify-center rounded-xl px-3 py-2.5 text-sm font-semibold transition bg-accent text-surface shadow-lg hover:opacity-90 flex-col gap-0.5 touch-manipulation"><span className="text-xs uppercase tracking-wider opacity-70">{stepIndicatorLabel}</span><span className="text-sm font-semibold">{isGenerating ? 'Weaving...' : 'Create narrative'}</span></button>}
+                {hasNarrative && !isPersonalReadingError && <button onClick={saveReading} className="flex-1 min-w-[7.5rem] min-h-[44px] inline-flex items-center justify-center rounded-xl px-3 py-2.5 text-sm font-semibold transition bg-accent text-surface shadow-lg hover:opacity-90 flex-col gap-0.5 touch-manipulation"><span className="text-xs uppercase tracking-wider opacity-70">{stepIndicatorLabel}</span><span className="text-sm font-semibold">Save to journal</span></button>}
+                <button onClick={handleShuffle} className="flex-1 min-w-[7.5rem] min-h-[44px] inline-flex items-center justify-center rounded-xl px-3 py-2.5 text-sm font-semibold transition bg-surface-muted text-accent border border-accent/30 hover:bg-surface flex-col gap-0.5 touch-manipulation"><span className="text-xs uppercase tracking-wider opacity-70">{stepIndicatorLabel}</span><span className="text-sm font-semibold">New reading</span></button>
               </>
             )}
           </div>
