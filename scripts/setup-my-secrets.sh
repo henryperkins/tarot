@@ -5,7 +5,7 @@
 
 set -e
 
-PROJECT_NAME="mystic-tarot"
+PROJECT_NAME="tableau"
 
 echo "=================================================="
 echo "  Mystic Tarot - Cloudflare Pages Secrets Setup"
@@ -85,11 +85,11 @@ echo "   1. Build your project: npm run build"
 echo "   2. Deploy to Cloudflare: npm run deploy"
 echo "   3. Test deployment with the vision proof handshake:"
 echo "      # (a) Create a proof by POSTing base64 photo data"
-echo "      curl -X POST https://mystic-tarot.pages.dev/api/vision-proof \"
+echo "      curl -X POST https://tableau-8xz.pages.dev/api/vision-proof \"
 echo "        -H 'Content-Type: application/json' \"
 echo "        -d '{\"deckStyle\":\"rws-1909\",\"evidence\":[{\"label\":\"Card 1\",\"dataUrl\":\"data:image/jpeg;base64,REPLACE_ME\"}]}'"
 echo "      # (b) Use the returned proof when calling /api/tarot-reading"
-echo "      curl -X POST https://mystic-tarot.pages.dev/api/tarot-reading \"
+echo "      curl -X POST https://tableau-8xz.pages.dev/api/tarot-reading \"
 echo "        -H 'Content-Type: application/json' \"
 echo "        -d '{\"spreadInfo\":{\"name\":\"One-Card Insight\"},\"cardsInfo\":[{\"position\":\"Card 1\",\"card\":\"The Fool\",\"orientation\":\"upright\",\"meaning\":\"New beginnings\"}],\"userQuestion\":\"Test\",\"visionProof\":{...}}'"
 echo "      See docs/VISION_PIPELINE.md for helper scripts to automate this flow."

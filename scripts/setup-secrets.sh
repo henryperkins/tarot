@@ -5,7 +5,7 @@
 
 set -e
 
-PROJECT_NAME="mystic-tarot"
+PROJECT_NAME="tableau"
 
 echo "=================================================="
 echo "  Mystic Tarot - Cloudflare Pages Secrets Setup"

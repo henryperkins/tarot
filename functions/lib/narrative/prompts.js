@@ -10,6 +10,12 @@ import {
   getConnector,
   DEFAULT_WEIGHT_DETAIL_THRESHOLD
 } from './helpers.js';
+import {
+  buildAstrologicalWeatherSection,
+  buildCardTransitNotes,
+  buildForecastSection,
+  generateTimingGuidance
+} from '../ephemerisIntegration.js';
 import { getDeckProfile } from '../../../shared/vision/deckProfiles.js';
 import { THOTH_MINOR_TITLES, MARSEILLE_NUMERICAL_THEMES } from '../../../src/data/knowledgeGraphData.js';
 import {
@@ -84,6 +90,9 @@ export function buildEnhancedClaudePrompt({
   visionInsights,
   deckStyle = 'rws-1909',
   graphRAGPayload = null,
+  ephemerisContext = null,
+  ephemerisForecast = null,
+  transitResonances = [],
   budgetTarget = 'claude',
   contextDiagnostics = []
 }) {
@@ -98,7 +107,12 @@ export function buildEnhancedClaudePrompt({
 
   const baseControls = {
     graphRAGPayload,
+    ephemerisContext,
+    ephemerisForecast,
+    transitResonances,
     includeGraphRAG: true,
+    includeEphemeris: true,
+    includeForecast: true,
     includeDeckContext: true,
     includeDiagnostics: true,
     omitLowWeightImagery: false
@@ -156,17 +170,27 @@ export function buildEnhancedClaudePrompt({
     controls = { ...controls, omitLowWeightImagery: true };
   });
 
-  // Step 2: Remove GraphRAG block if still over budget
+  // Step 2: Remove forecast (future events) if over budget
+  maybeSlim('drop-forecast', () => {
+    controls = { ...controls, includeForecast: false };
+  });
+
+  // Step 3: Remove ephemeris/astrological context if over budget
+  maybeSlim('drop-ephemeris', () => {
+    controls = { ...controls, includeEphemeris: false };
+  });
+
+  // Step 4: Remove GraphRAG block if still over budget
   maybeSlim('drop-graphrag-block', () => {
     controls = { ...controls, includeGraphRAG: false };
   });
 
-  // Step 3: Remove deck geometry/context tables (Thoth/Marseille)
+  // Step 5: Remove deck geometry/context tables (Thoth/Marseille)
   maybeSlim('drop-deck-geometry', () => {
     controls = { ...controls, includeDeckContext: false };
   });
 
-  // Step 4: Remove diagnostics (vision validation, verbose notes)
+  // Step 6: Remove diagnostics (vision validation, verbose notes)
   maybeSlim('drop-diagnostics', () => {
     controls = { ...controls, includeDiagnostics: false };
   });
@@ -183,6 +207,8 @@ export function buildEnhancedClaudePrompt({
     slimmingSteps,
     appliedOptions: {
       omitLowWeightImagery: Boolean(controls.omitLowWeightImagery),
+      includeForecast: Boolean(controls.includeForecast),
+      includeEphemeris: Boolean(controls.includeEphemeris),
       includeGraphRAG: Boolean(controls.includeGraphRAG),
       includeDeckContext: Boolean(controls.includeDeckContext),
       includeDiagnostics: Boolean(controls.includeDiagnostics)
@@ -191,6 +217,23 @@ export function buildEnhancedClaudePrompt({
 
   if (controls.graphRAGPayload?.retrievalSummary) {
     promptMeta.graphRAG = controls.graphRAGPayload.retrievalSummary;
+  }
+
+  if (controls.ephemerisContext?.available) {
+    promptMeta.ephemeris = {
+      available: true,
+      moonPhase: controls.ephemerisContext.moonPhase?.phaseName,
+      retrogradeCount: controls.ephemerisContext.retrogrades?.length || 0,
+      transitResonances: controls.transitResonances?.length || 0
+    };
+  }
+
+  if (controls.ephemerisForecast?.available) {
+    promptMeta.forecast = {
+      available: true,
+      days: controls.ephemerisForecast.forecastDays,
+      eventCount: controls.ephemerisForecast.events?.length || 0
+    };
   }
 
   return { systemPrompt: built.systemPrompt, userPrompt: built.userPrompt, promptMeta, contextDiagnostics: diagnostics };
@@ -306,6 +349,32 @@ function buildSystemPrompt(spreadKey, themes, context, deckStyle, userQuestion =
 
   // Archetypal patterns are reading-specific - they go in user prompt only
 
+  // Ephemeris: Real-time astrological context
+  const includeEphemeris = options.includeEphemeris !== false;
+  if (includeEphemeris && options.ephemerisContext?.available) {
+    try {
+      const astroSection = buildAstrologicalWeatherSection(options.ephemerisContext);
+      if (astroSection) {
+        lines.push('', astroSection, '');
+      }
+    } catch (err) {
+      console.error('[Ephemeris] Astrological context build failed:', err.message);
+    }
+  }
+
+  // Ephemeris Forecast: Upcoming astrological events (for seasonal/monthly questions)
+  const includeForecast = options.includeForecast !== false;
+  if (includeForecast && options.ephemerisForecast?.available) {
+    try {
+      const forecastSection = buildForecastSection(options.ephemerisForecast);
+      if (forecastSection) {
+        lines.push('', forecastSection, '');
+      }
+    } catch (err) {
+      console.error('[Ephemeris] Forecast section build failed:', err.message);
+    }
+  }
+
   lines.push(
     '',
     'ETHICS',
@@ -403,6 +472,27 @@ function buildUserPrompt(
       prompt += `- ${label}\n`;
     });
     prompt += '\n';
+  }
+
+  // Transit resonances from ephemeris
+  const includeEphemeris = promptOptions.includeEphemeris !== false;
+  if (includeEphemeris && promptOptions.transitResonances?.length > 0) {
+    const transitNotes = buildCardTransitNotes(promptOptions.transitResonances);
+    if (transitNotes) {
+      prompt += transitNotes + '\n\n';
+    }
+  }
+
+  // Timing guidance from ephemeris
+  if (includeEphemeris && promptOptions.ephemerisContext?.available) {
+    const timingHints = generateTimingGuidance(promptOptions.ephemerisContext, spreadKey);
+    if (timingHints?.length > 0) {
+      prompt += '**Astrological Timing**:\n';
+      timingHints.forEach(hint => {
+        prompt += `- ${hint}\n`;
+      });
+      prompt += '\n';
+    }
   }
 
   // Spread-specific card presentation

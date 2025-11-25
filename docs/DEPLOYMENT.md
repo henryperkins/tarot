@@ -62,18 +62,18 @@ Set production secrets using the Wrangler CLI:
 
 ```bash
 # Set each secret (you'll be prompted for the value)
-wrangler pages secret put AZURE_OPENAI_ENDPOINT --project-name=mystic-tarot
-wrangler pages secret put AZURE_OPENAI_API_KEY --project-name=mystic-tarot
-wrangler pages secret put AZURE_OPENAI_GPT5_MODEL --project-name=mystic-tarot
-wrangler pages secret put AZURE_OPENAI_TTS_ENDPOINT --project-name=mystic-tarot
-wrangler pages secret put AZURE_OPENAI_TTS_API_KEY --project-name=mystic-tarot
-wrangler pages secret put AZURE_OPENAI_GPT_AUDIO_MINI_DEPLOYMENT --project-name=mystic-tarot
+wrangler pages secret put AZURE_OPENAI_ENDPOINT --project-name=tableau
+wrangler pages secret put AZURE_OPENAI_API_KEY --project-name=tableau
+wrangler pages secret put AZURE_OPENAI_GPT5_MODEL --project-name=tableau
+wrangler pages secret put AZURE_OPENAI_TTS_ENDPOINT --project-name=tableau
+wrangler pages secret put AZURE_OPENAI_TTS_API_KEY --project-name=tableau
+wrangler pages secret put AZURE_OPENAI_GPT_AUDIO_MINI_DEPLOYMENT --project-name=tableau
 ```
 
 **Tip**: You can pipe values to avoid interactive prompts:
 
 ```bash
-echo "https://your-resource.openai.azure.com" | wrangler pages secret put AZURE_OPENAI_ENDPOINT --project-name=mystic-tarot
+echo "https://your-resource.openai.azure.com" | wrangler pages secret put AZURE_OPENAI_ENDPOINT --project-name=tableau
 ```
 
 ### Preview Environment Secrets
@@ -81,20 +81,20 @@ echo "https://your-resource.openai.azure.com" | wrangler pages secret put AZURE_
 For branch deployments (preview environments), use the `--env=preview` flag:
 
 ```bash
-wrangler pages secret put AZURE_OPENAI_API_KEY --project-name=mystic-tarot --env=preview
+wrangler pages secret put AZURE_OPENAI_API_KEY --project-name=tableau --env=preview
 ```
 
 ### Managing Secrets
 
 ```bash
 # List all secrets (shows names only, not values)
-wrangler pages secret list --project-name=mystic-tarot
+wrangler pages secret list --project-name=tableau
 
 # Delete a secret
-wrangler pages secret delete AZURE_OPENAI_API_KEY --project-name=mystic-tarot
+wrangler pages secret delete AZURE_OPENAI_API_KEY --project-name=tableau
 
 # Bulk upload secrets from JSON file
-echo '{"SECRET_NAME": "secret-value"}' | wrangler pages secret bulk --project-name=mystic-tarot
+echo '{"SECRET_NAME": "secret-value"}' | wrangler pages secret bulk --project-name=tableau
 ```
 
 ### Environment Variables vs Secrets
@@ -184,14 +184,14 @@ Telemetry & budgets
 npm run build && npm run deploy
 
 # Or using wrangler directly
-wrangler pages deploy dist --project-name=mystic-tarot
+wrangler pages deploy dist --project-name=tableau
 ```
 
 ### Deploy to Preview (Branch Deployment)
 
 ```bash
 # Deploy to a specific branch
-wrangler pages deploy dist --project-name=mystic-tarot --branch=feature-branch
+wrangler pages deploy dist --project-name=tableau --branch=feature-branch
 
 # If in a git workspace, wrangler auto-detects the branch
 wrangler pages deploy dist
@@ -199,14 +199,14 @@ wrangler pages deploy dist
 
 ### Deployment URLs
 
-- **Production**: `https://mystic-tarot.pages.dev` and `https://tarot.lakefrontdev.com`
-- **Branch Previews**: `https://<BRANCH_NAME>.mystic-tarot.pages.dev`
+- **Production**: `https://tableau-8xz.pages.dev` and `https://tarot.lakefrontdev.com`
+- **Branch Previews**: `https://<BRANCH_NAME>.tableau-8xz.pages.dev`
 
 ### Deployment Checklist
 
 Before deploying to production, ensure:
 
-- [ ] All secrets are set (run `wrangler pages secret list --project-name=mystic-tarot`)
+- [ ] All secrets are set (run `wrangler pages secret list --project-name=tableau`)
 - [ ] `npm run build` completes successfully
 - [ ] `_routes.json` is in `public/` directory (controls which routes invoke Functions)
 - [ ] Test locally with `npx wrangler pages dev dist`
@@ -315,7 +315,7 @@ wrangler r2 bucket create mystic-tarot-audio
 **Solution**: Ensure secrets are set for the production environment:
 
 ```bash
-wrangler pages secret list --project-name=mystic-tarot
+wrangler pages secret list --project-name=tableau
 ```
 
 If missing, set them using `wrangler pages secret put`.
@@ -359,7 +359,7 @@ npm run build
 
 ```bash
 # List recent deployments
-wrangler pages deployment list --project-name=mystic-tarot
+wrangler pages deployment list --project-name=tableau
 
 # View project info
 wrangler pages project list

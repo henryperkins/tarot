@@ -1,10 +1,18 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { motion, useAnimation } from 'framer-motion';
-import { ArrowsOut, HandPointing } from '@phosphor-icons/react';
+import { ArrowsOut, HandPointing, ArrowLeft, ArrowRight, NotePencil, CaretDown, CaretUp } from '@phosphor-icons/react';
 import { CARD_LOOKUP, FALLBACK_IMAGE, getCardImage } from '../lib/cardLookup';
 import { CardSymbolInsights } from './CardSymbolInsights';
 import { InteractiveCardOverlay } from './InteractiveCardOverlay';
 import { useReducedMotion } from '../hooks/useReducedMotion';
+import { useSmallScreen } from '../hooks/useSmallScreen';
+
+// Haptic feedback helper
+const vibrate = (pattern) => {
+  if (typeof navigator !== 'undefined' && navigator.vibrate) {
+    navigator.vibrate(pattern);
+  }
+};
 
 export function Card({
   card,
@@ -20,7 +28,12 @@ export function Card({
   const reflectionValue = reflections?.[index] ?? '';
   const textareaRef = useRef(null);
   const userInitiatedRevealRef = useRef(false);
+  const animationStartedRef = useRef(false);
   const prefersReducedMotion = useReducedMotion();
+  const isSmallScreen = useSmallScreen(640); // < sm breakpoint
+
+  // Mobile: collapsible reflection section (starts collapsed unless has content)
+  const [showReflection, setShowReflection] = useState(() => Boolean(reflectionValue));
 
   // Local state to manage the visual reveal sequence
   const [isVisuallyRevealed, setIsVisuallyRevealed] = useState(isRevealed);
@@ -61,13 +74,78 @@ export function Card({
     }
   }, [isRevealed, prefersReducedMotion]);
 
-  const handleReveal = () => {
+  const handleReveal = useCallback(() => {
     userInitiatedRevealRef.current = true;
     onReveal(index);
-  };
+  }, [onReveal, index]);
+
+  // Swipe gesture state
+  const touchStartRef = useRef({ x: 0, y: 0, time: 0 });
+  const [swipeOffset, setSwipeOffset] = useState(0);
+  const [showSwipeHint, setShowSwipeHint] = useState(true);
+
+  // Swipe-to-reveal gesture handler
+  const handleSwipeReveal = useCallback((direction) => {
+    if (isRevealed || isVisuallyRevealed) return;
+
+    vibrate(10);
+
+    // Visual swipe animation before reveal
+    if (!prefersReducedMotion) {
+      controls.start({
+        x: direction === 'right' ? 50 : -50,
+        opacity: 0.7,
+        transition: { duration: 0.15 }
+      }).then(() => {
+        handleReveal();
+        controls.start({ x: 0, opacity: 1 });
+      });
+    } else {
+      handleReveal();
+    }
+  }, [isRevealed, isVisuallyRevealed, handleReveal, controls, prefersReducedMotion]);
+
+  // Touch gesture tracking for swipe
+  const handleTouchStart = useCallback((e) => {
+    if (isRevealed) return;
+    touchStartRef.current = {
+      x: e.touches[0].clientX,
+      y: e.touches[0].clientY,
+      time: Date.now()
+    };
+    setShowSwipeHint(false);
+  }, [isRevealed]);
+
+  const handleTouchMove = useCallback((e) => {
+    if (isRevealed) return;
+    const dx = e.touches[0].clientX - touchStartRef.current.x;
+    // Only track horizontal movement, cap at 100px
+    setSwipeOffset(Math.max(-100, Math.min(100, dx)));
+  }, [isRevealed]);
+
+  const handleTouchEnd = useCallback((e) => {
+    if (isRevealed) return;
+
+    const dx = e.changedTouches[0].clientX - touchStartRef.current.x;
+    const dy = e.changedTouches[0].clientY - touchStartRef.current.y;
+    const dt = Date.now() - touchStartRef.current.time;
+
+    // Reset offset
+    setSwipeOffset(0);
+
+    // Swipe detection: horizontal movement > 50px, completed in < 300ms
+    if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) && dt < 300) {
+      handleSwipeReveal(dx > 0 ? 'right' : 'left');
+    }
+  }, [isRevealed, handleSwipeReveal]);
 
   // Reset visual state when a revealed card is returned to an unrevealed state
   useEffect(() => {
+    // When card becomes unrevealed, reset animation tracking
+    if (!isRevealed) {
+      animationStartedRef.current = false;
+    }
+
     if (isRevealed || !isVisuallyRevealed) {
       return undefined;
     }
@@ -93,9 +171,13 @@ export function Card({
 
   // Handle the flip animation sequence
   useEffect(() => {
-    if (!isRevealed || isVisuallyRevealed) {
+    // Only start animation when isRevealed becomes true and we haven't animated yet
+    if (!isRevealed || animationStartedRef.current) {
       return;
     }
+
+    // Mark animation as started immediately to prevent re-triggers
+    animationStartedRef.current = true;
 
     let isActive = true;
     let staggerTimeoutId = null;
@@ -139,20 +221,17 @@ export function Card({
       if (import.meta.env.DEV) {
         console.log(`Card ${index} Phase 2 (swap content)`);
       }
-      if (!isActive) return;
       setIsVisuallyRevealed(true);
       if (!isActive) return;
 
       if (import.meta.env.DEV) {
         console.log(`Card ${index} starting Phase 3 (rotate 0)`);
       }
-      if (!isActive) return;
       await controls.start({
         rotateY: 0,
         opacity: 1,
         transition: springTransition
       });
-      if (!isActive) return;
 
       if (import.meta.env.DEV) {
         console.log(`Card ${index} reveal complete`);
@@ -164,10 +243,10 @@ export function Card({
     return () => {
       isActive = false;
       clearStaggerTimeout();
-      controls.stop();
+      // Don't call controls.stop() here - let the animation complete naturally
     };
-    // Note: isVisuallyRevealed is intentionally omitted as it changes mid-animation
-    // prefersReducedMotion is now included to handle preference changes
+    // Intentionally only depend on isRevealed to start animation once
+    // Other values are read from refs or are stable
   }, [isRevealed, staggerDelay, controls, index, prefersReducedMotion]);
 
   // Get card meaning
@@ -213,30 +292,48 @@ export function Card({
                   handleReveal();
                 }
               }}
-              aria-label={`Reveal card for ${position}. Cards can be revealed in any order.`}
-              className="relative h-full min-h-[24rem] sm:min-h-[28rem] flex flex-col items-center justify-center gap-4 p-4 sm:p-6 w-full cursor-pointer hover:bg-surface-muted/70 hover:scale-105 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70 focus-visible:ring-offset-2 focus-visible:ring-offset-main"
+              onTouchStart={handleTouchStart}
+              onTouchMove={handleTouchMove}
+              onTouchEnd={handleTouchEnd}
+              aria-label={`Reveal card for ${position}. Tap or swipe to reveal. Cards can be revealed in any order.`}
+              className="card-swipe-container relative h-full min-h-[20rem] sm:min-h-[24rem] flex flex-col items-center justify-center gap-4 p-4 sm:p-6 w-full cursor-pointer hover:bg-surface-muted/70 hover:scale-105 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70 focus-visible:ring-offset-2 focus-visible:ring-offset-main"
             >
               {/* Card back with mystical design */}
-              <div className="relative w-full max-w-[280px] aspect-[2/3] mx-auto rounded-xl border-2 border-primary/30 shadow-2xl overflow-hidden">
+              <div
+                className="relative w-full max-w-[280px] aspect-[2/3] mx-auto rounded-xl border-2 border-primary/30 shadow-2xl overflow-hidden transition-transform"
+                style={{ transform: `translateX(${swipeOffset * 0.5}px)` }}
+              >
                 <img
                   src="/cardback.png"
-                  alt="Card back - tap to reveal"
+                  alt="Card back - tap or swipe to reveal"
                   className="w-full h-full object-cover"
                   loading="eager"
                 />
+
+                {/* Swipe hint arrows */}
+                {showSwipeHint && !prefersReducedMotion && (
+                  <>
+                    <div className="card-swipe-hint card-swipe-hint--left swipe-hint">
+                      <ArrowLeft className="w-6 h-6 text-primary/60" aria-hidden="true" />
+                    </div>
+                    <div className="card-swipe-hint card-swipe-hint--right swipe-hint">
+                      <ArrowRight className="w-6 h-6 text-primary/60" aria-hidden="true" />
+                    </div>
+                  </>
+                )}
               </div>
 
-              {/* Tap to reveal instruction */}
+              {/* Tap/swipe to reveal instruction */}
               <div className="flex flex-col items-center gap-2 mt-2">
                 <span className="inline-flex items-center gap-2 rounded-full border border-primary/60 bg-surface/90 px-4 py-2 text-sm font-semibold text-main shadow-md shadow-primary/30">
                   <HandPointing className="w-4 h-4" aria-hidden="true" />
-                  <span>Tap to reveal</span>
+                  <span>Tap or swipe to reveal</span>
                 </span>
                 <p className="text-xs text-muted max-w-[16rem] text-center">Reveal cards in any order—follow your intuition.</p>
               </div>
             </button>
           ) : (
-            <div className="transition-all relative h-full min-h-[24rem] sm:min-h-[28rem]">
+            <div className="transition-all relative h-full min-h-[20rem] sm:min-h-[24rem]">
               {/* Card content area - restructured to avoid nested interactives */}
               <div className="relative">
                 {/* Zoom Icon - primary keyboard target for modal */}
@@ -302,31 +399,72 @@ export function Card({
                 </div>
               </div>
 
-              {/* Reflection textarea - separate from clickable card area */}
+              {/* Reflection textarea - collapsible on mobile to reduce density */}
               <div className="mt-3">
-                <label htmlFor={`reflection-${index}`} className="text-muted text-xs-plus sm:text-sm block mb-1">
-                  What resonates for you?
-                </label>
-                <textarea
-                  ref={textareaRef}
-                  id={`reflection-${index}`}
-                  value={reflectionValue}
-                  onChange={event =>
-                    setReflections(prev => ({ ...prev, [index]: event.target.value }))
-                  }
-                  rows={3}
-                  maxLength={500}
-                  className="w-full bg-surface/85 border border-secondary/40 rounded p-2 min-h-[4.5rem] resize-y text-main text-base focus:outline-none focus:ring-1 focus:ring-secondary/55 touch-pan-y"
-                  placeholder="What resonates? (optional)"
-                  aria-describedby={`char-count-${index}`}
-                />
-                <div
-                  id={`char-count-${index}`}
-                  className={`mt-1 text-xs text-right ${charCountClass}`}
-                  aria-live="polite"
-                >
-                  {charCount} / 500
-                </div>
+                {/* Mobile: toggle button when collapsed */}
+                {isSmallScreen && !showReflection ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowReflection(true);
+                      // Focus textarea after state update
+                      setTimeout(() => textareaRef.current?.focus(), 50);
+                    }}
+                    className="w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg border border-secondary/30 bg-surface/60 text-muted hover:text-main hover:border-secondary/50 transition-colors touch-manipulation min-h-[44px]"
+                    aria-expanded="false"
+                    aria-controls={`reflection-${index}`}
+                  >
+                    <NotePencil className="w-4 h-4" aria-hidden="true" />
+                    <span className="text-sm">
+                      {reflectionValue ? 'Edit reflection' : 'Add reflection'}
+                    </span>
+                    {reflectionValue && (
+                      <span className="text-xs text-secondary ml-1">({reflectionValue.length})</span>
+                    )}
+                  </button>
+                ) : (
+                  <>
+                    {/* Mobile: collapsible header with toggle */}
+                    {isSmallScreen && (
+                      <button
+                        type="button"
+                        onClick={() => setShowReflection(false)}
+                        className="w-full flex items-center justify-between mb-1.5 text-muted hover:text-main transition-colors"
+                        aria-expanded="true"
+                        aria-controls={`reflection-${index}`}
+                      >
+                        <span className="text-xs-plus">What resonates for you?</span>
+                        <CaretUp className="w-4 h-4" aria-hidden="true" />
+                      </button>
+                    )}
+                    {/* Desktop: static label */}
+                    {!isSmallScreen && (
+                      <label htmlFor={`reflection-${index}`} className="text-muted text-xs-plus sm:text-sm block mb-1">
+                        What resonates for you?
+                      </label>
+                    )}
+                    <textarea
+                      ref={textareaRef}
+                      id={`reflection-${index}`}
+                      value={reflectionValue}
+                      onChange={event =>
+                        setReflections(prev => ({ ...prev, [index]: event.target.value }))
+                      }
+                      rows={isSmallScreen ? 2 : 3}
+                      maxLength={500}
+                      className="w-full bg-surface/85 border border-secondary/40 rounded p-2 min-h-[3.5rem] sm:min-h-[4.5rem] resize-y text-main text-base focus:outline-none focus:ring-1 focus:ring-secondary/55 touch-pan-y"
+                      placeholder="What resonates? (optional)"
+                      aria-describedby={`char-count-${index}`}
+                    />
+                    <div
+                      id={`char-count-${index}`}
+                      className={`mt-1 text-xs text-right ${charCountClass}`}
+                      aria-live="polite"
+                    >
+                      {charCount} / 500
+                    </div>
+                  </>
+                )}
               </div>
             </div>
           )}

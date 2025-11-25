@@ -41,6 +41,37 @@ import { safeParseReadingRequest } from '../../shared/contracts/readingSchema.js
 import { verifyVisionProof } from '../lib/visionProof.js';
 import { MAJOR_ARCANA } from '../../src/data/majorArcana.js';
 import { MINOR_ARCANA } from '../../src/data/minorArcana.js';
+import {
+  fetchEphemerisContext,
+  fetchEphemerisForecast,
+  matchTransitsToCards,
+  getEphemerisSummary
+} from '../lib/ephemerisIntegration.js';
+
+// Detect if question asks about future timeframe
+function detectForecastTimeframe(userQuestion) {
+  if (!userQuestion) return null;
+  const q = userQuestion.toLowerCase();
+
+  // Season-level (90 days)
+  if (q.includes('season') || q.includes('next few months') ||
+      q.includes('coming months') || q.includes('quarter')) {
+    return 90;
+  }
+
+  // Month-level (30 days)
+  if (q.includes('month') || q.includes('30 days') ||
+      q.includes('next weeks') || q.includes('coming weeks')) {
+    return 30;
+  }
+
+  // Week-level (14 days)
+  if (q.includes('week') || q.includes('next few days')) {
+    return 14;
+  }
+
+  return null;
+}
 
 const SPREAD_NAME_MAP = {
   'Celtic Cross (Classic 10-Card)': { key: 'celtic', count: 10 },
@@ -755,11 +786,49 @@ async function performSpreadAnalysis(spreadInfo, cardsInfo, options = {}, reques
     console.warn(`[${requestId}] performSpreadAnalysis: GraphRAG memoization failed: ${err.message}`);
   }
 
+  // Ephemeris integration: fetch real-time astrological context
+  let ephemerisContext = null;
+  let transitResonances = [];
+  let ephemerisForecast = null;
+
+  try {
+    console.log(`[${requestId}] Fetching ephemeris context...`);
+    ephemerisContext = await fetchEphemerisContext();
+
+    if (ephemerisContext?.available) {
+      console.log(`[${requestId}] Ephemeris context available:`, getEphemerisSummary(ephemerisContext));
+
+      // Match current transits to drawn cards
+      transitResonances = matchTransitsToCards(cardsInfo, ephemerisContext);
+      if (transitResonances.length > 0) {
+        console.log(`[${requestId}] Found ${transitResonances.length} transit resonance(s)`);
+      }
+
+      // Check if question asks about future timeframe
+      const forecastDays = detectForecastTimeframe(options.userQuestion);
+      if (forecastDays) {
+        console.log(`[${requestId}] Detected future timeframe, fetching ${forecastDays}-day forecast...`);
+        ephemerisForecast = await fetchEphemerisForecast(forecastDays);
+        if (ephemerisForecast?.available) {
+          console.log(`[${requestId}] Forecast available: ${ephemerisForecast.events?.length || 0} events`);
+        }
+      }
+    } else {
+      console.log(`[${requestId}] Ephemeris context not available (server may not be running)`);
+    }
+  } catch (err) {
+    console.warn(`[${requestId}] performSpreadAnalysis: Ephemeris fetch failed: ${err.message}`);
+    ephemerisContext = { available: false, error: err.message };
+  }
+
   return {
     themes,
     spreadAnalysis,
     spreadKey,
-    graphRAGPayload
+    graphRAGPayload,
+    ephemerisContext,
+    ephemerisForecast,
+    transitResonances
   };
 }
 
@@ -859,6 +928,9 @@ async function generateWithAzureGPT5Responses(env, payload, requestId = 'unknown
     visionInsights,
     deckStyle,
     graphRAGPayload: analysis.graphRAGPayload,
+    ephemerisContext: analysis.ephemerisContext,
+    ephemerisForecast: analysis.ephemerisForecast,
+    transitResonances: analysis.transitResonances,
     budgetTarget: 'azure',
     contextDiagnostics
   });
@@ -1005,6 +1077,9 @@ async function generateWithClaudeSonnet45Enhanced(env, payload, requestId = 'unk
     visionInsights,
     deckStyle,
     graphRAGPayload: analysis.graphRAGPayload,
+    ephemerisContext: analysis.ephemerisContext,
+    ephemerisForecast: analysis.ephemerisForecast,
+    transitResonances: analysis.transitResonances,
     budgetTarget: 'claude',
     contextDiagnostics
   });

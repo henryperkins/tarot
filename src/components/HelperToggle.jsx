@@ -1,5 +1,5 @@
 import { useId, useState, useRef, useEffect } from 'react';
-import { Question } from '@phosphor-icons/react';
+import { CaretDown } from '@phosphor-icons/react';
 
 export function HelperToggle({ children, label = 'More information', className = '' }) {
   const [isOpen, setIsOpen] = useState(false);
@@ -21,17 +21,17 @@ export function HelperToggle({ children, label = 'More information', className =
       <button
         type="button"
         onClick={() => setIsOpen(prev => !prev)}
-        className="inline-flex items-center justify-center min-w-[44px] min-h-[44px] w-11 h-11 rounded-full border border-secondary/40 bg-transparent text-secondary/80 transition-all duration-200
-          hover:border-accent/60 hover:text-main hover:bg-secondary/5
-          focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/70 focus-visible:ring-offset-2 focus-visible:ring-offset-main
-          active:scale-95 touch-manipulation"
+        className="inline-flex items-center gap-1.5 px-3 py-1.5 min-h-[44px] text-xs text-muted/80 transition-all duration-200
+          hover:text-secondary
+          focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/50 focus-visible:ring-offset-2 focus-visible:ring-offset-main
+          touch-manipulation"
         aria-expanded={isOpen}
         aria-controls={contentId}
         aria-label={isOpen ? `Hide ${label.toLowerCase()}` : label}
-        title={label}
       >
-        <Question
-          className={`w-4 h-4 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`}
+        <span className="font-medium tracking-wide">{isOpen ? 'Less' : 'Learn more'}</span>
+        <CaretDown
+          className={`w-3.5 h-3.5 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`}
           aria-hidden="true"
         />
       </button>

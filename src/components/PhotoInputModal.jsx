@@ -1,114 +1,21 @@
-import { useCallback, useEffect, useRef } from 'react';
+import { useRef, useCallback } from 'react';
 import { Camera, Images, X } from '@phosphor-icons/react';
-
-const FOCUSABLE_SELECTORS = [
-  'button:not([disabled])',
-  '[href]',
-  'input:not([disabled])',
-  'select:not([disabled])',
-  'textarea:not([disabled])',
-  '[tabindex]:not([tabindex="-1"])'
-].join(', ');
+import { useModalA11y, createBackdropHandler } from '../hooks/useModalA11y';
 
 export function PhotoInputModal({ onTakePhoto, onChooseFromLibrary, onCancel }) {
   const modalRef = useRef(null);
-  const previousFocusRef = useRef(null);
-  const previousBodyStylesRef = useRef(null);
   const titleId = 'photo-input-modal-title';
 
-  // Handle escape key
-  const handleKeyDown = useCallback((event) => {
-    if (event.key === 'Escape') {
-      event.preventDefault();
-      onCancel();
-      return;
-    }
+  // Shared modal accessibility: scroll lock, escape key, focus trap, focus restoration
+  // This modal is always open when rendered, so isOpen is always true
+  useModalA11y(true, {
+    onClose: onCancel,
+    containerRef: modalRef,
+    scrollLockStrategy: 'fixed',
+  });
 
-    // Focus trap
-    if (event.key === 'Tab' && modalRef.current) {
-      const focusable = modalRef.current.querySelectorAll(FOCUSABLE_SELECTORS);
-      if (focusable.length === 0) {
-        event.preventDefault();
-        return;
-      }
-
-      const first = focusable[0];
-      const last = focusable[focusable.length - 1];
-
-      if (event.shiftKey && document.activeElement === first) {
-        event.preventDefault();
-        last.focus();
-      } else if (!event.shiftKey && document.activeElement === last) {
-        event.preventDefault();
-        first.focus();
-      }
-    }
-  }, [onCancel]);
-
-  // Handle backdrop click
-  const handleBackdropClick = useCallback((event) => {
-    if (event.target === event.currentTarget) {
-      onCancel();
-    }
-  }, [onCancel]);
-
-  useEffect(() => {
-    // Store current focus to restore later
-    const activeElement = document.activeElement;
-    if (activeElement instanceof HTMLElement) {
-      previousFocusRef.current = activeElement;
-    }
-
-    // Lock body scroll and prevent content shift
-    const scrollY = window.scrollY;
-    const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
-
-    previousBodyStylesRef.current = {
-      overflow: document.body.style.overflow,
-      position: document.body.style.position,
-      top: document.body.style.top,
-      width: document.body.style.width,
-      paddingRight: document.body.style.paddingRight
-    };
-
-    document.body.style.overflow = 'hidden';
-    document.body.style.position = 'fixed';
-    document.body.style.top = `-${scrollY}px`;
-    document.body.style.width = '100%';
-    if (scrollbarWidth > 0) {
-      document.body.style.paddingRight = `${scrollbarWidth}px`;
-    }
-
-    // Focus the modal
-    if (modalRef.current) {
-      modalRef.current.focus();
-    }
-
-    // Add keyboard listener
-    window.addEventListener('keydown', handleKeyDown);
-
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown);
-
-      // Restore body styles
-      if (previousBodyStylesRef.current) {
-        const prev = previousBodyStylesRef.current;
-        document.body.style.overflow = prev.overflow;
-        document.body.style.position = prev.position;
-        document.body.style.top = prev.top;
-        document.body.style.width = prev.width;
-        document.body.style.paddingRight = prev.paddingRight;
-      }
-
-      // Restore scroll position
-      window.scrollTo(0, scrollY);
-
-      // Restore focus
-      if (previousFocusRef.current && typeof previousFocusRef.current.focus === 'function') {
-        previousFocusRef.current.focus();
-      }
-    };
-  }, [handleKeyDown]);
+  // Handle backdrop click using shared helper
+  const handleBackdropClick = useCallback(createBackdropHandler(onCancel), [onCancel]);
 
   return (
     <div

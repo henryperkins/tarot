@@ -1,6 +1,10 @@
-import { useRef, useState, useEffect } from 'react';
-import { Check } from '@phosphor-icons/react';
+import { useRef, useState, useEffect, useCallback } from 'react';
+import { Check, CaretRight } from '@phosphor-icons/react';
 import { CarouselDots } from './CarouselDots';
+import rwsPreview from '../../selectorimages/rider.jpeg';
+import thothPreview from '../../selectorimages/Thoth.jpeg';
+import marseillePreview from '../../selectorimages/marseille.jpeg';
+import { useReducedMotion } from '../hooks/useReducedMotion';
 
 export const DECK_OPTIONS = [
   {
@@ -14,7 +18,7 @@ export const DECK_OPTIONS = [
       { label: 'Crimson accents', swatch: '#8d1c33', textColor: '#f7e7ef' }
     ],
     preview: {
-      src: '/images/deck-art/rws.png',
+      src: rwsPreview,
       alt: 'Rider-Waite-Smith deck featuring The Magician card'
     },
     accent: '#e5c48e',
@@ -34,7 +38,7 @@ export const DECK_OPTIONS = [
       { label: 'Saffron gold', swatch: '#d9a441', textColor: '#120c05' }
     ],
     preview: {
-      src: '/images/deck-art/thoth.png',
+      src: thothPreview,
       alt: 'Thoth deck featuring The Magus card with Art Deco styling'
     },
     accent: '#44e0d2',
@@ -55,7 +59,7 @@ export const DECK_OPTIONS = [
       { label: 'Sunflower yellow', swatch: '#d8a300', textColor: '#140d02' }
     ],
     preview: {
-      src: '/images/deck-art/marseille.png',
+      src: marseillePreview,
       alt: 'Tarot de Marseille deck featuring Le Bateleur card'
     },
     accent: '#d8a300',
@@ -112,6 +116,20 @@ export function DeckSelector({ selectedDeck, onDeckChange }) {
   const carouselRef = useRef(null);
   const deckIds = DECK_OPTIONS.map(d => d.id);
   const [activeIndex, setActiveIndex] = useState(0);
+  const [showLeftFade, setShowLeftFade] = useState(false);
+  const [showRightFade, setShowRightFade] = useState(true);
+  const prefersReducedMotion = useReducedMotion();
+
+  // Update edge fade visibility based on scroll position
+  const updateEdgeFades = useCallback((el) => {
+    if (!el) return;
+    const scrollLeft = el.scrollLeft;
+    const scrollWidth = el.scrollWidth;
+    const clientWidth = el.clientWidth;
+
+    setShowLeftFade(scrollLeft > 10);
+    setShowRightFade(scrollLeft < scrollWidth - clientWidth - 10);
+  }, []);
 
   // Track scroll position for pagination dots using actual element positions
   useEffect(() => {
@@ -137,12 +155,13 @@ export function DeckSelector({ selectedDeck, onDeckChange }) {
       });
 
       setActiveIndex(closestIndex);
+      updateEdgeFades(el);
     };
 
     handleScroll();
     el.addEventListener('scroll', handleScroll, { passive: true });
     return () => el.removeEventListener('scroll', handleScroll);
-  }, [deckIds.length]);
+  }, [deckIds.length, updateEdgeFades]);
 
   const scrollToIndex = (index) => {
     const el = carouselRef.current;
@@ -156,7 +175,10 @@ export function DeckSelector({ selectedDeck, onDeckChange }) {
     if (targetCard) {
       const cardCenter = targetCard.offsetLeft + targetCard.offsetWidth / 2;
       const scrollTarget = cardCenter - el.clientWidth / 2;
-      el.scrollTo({ left: Math.max(0, scrollTarget), behavior: 'smooth' });
+      el.scrollTo({
+        left: Math.max(0, scrollTarget),
+        behavior: prefersReducedMotion ? 'auto' : 'smooth'
+      });
     }
   };
 
@@ -190,7 +212,11 @@ export function DeckSelector({ selectedDeck, onDeckChange }) {
       const nextElement = deckRefs.current[nextDeckId];
       if (nextElement && typeof nextElement.focus === 'function') {
         nextElement.focus();
-        nextElement.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+        nextElement.scrollIntoView({
+          behavior: prefersReducedMotion ? 'auto' : 'smooth',
+          block: 'nearest',
+          inline: 'center'
+        });
       }
       // Note: Selection only happens on Enter/Space (handled above), not on arrow navigation
       // This follows the roving tabindex pattern where arrows move focus, not selection
@@ -213,12 +239,48 @@ export function DeckSelector({ selectedDeck, onDeckChange }) {
           </div>
         </header>
 
-        <div
-          ref={carouselRef}
-          role="radiogroup"
-          aria-label="Choose your deck style"
-          className="deck-selector-grid flex gap-3 overflow-x-auto snap-x snap-mandatory pb-3 sm:overflow-visible sm:snap-none sm:grid sm:grid-cols-2 lg:grid-cols-3 sm:gap-4"
-        >
+        {/* Carousel wrapper with edge fade indicators */}
+        <div className="relative">
+          {/* Left edge fade - indicates scrolled content behind */}
+          <div
+            className={`
+              absolute left-0 top-0 bottom-3 w-8 z-10
+              pointer-events-none
+              bg-gradient-to-r from-[rgba(13,10,20,0.9)] to-transparent
+              rounded-l-2xl
+              transition-opacity duration-200
+              sm:hidden
+              ${showLeftFade ? 'opacity-100' : 'opacity-0'}
+            `}
+            aria-hidden="true"
+          />
+
+          {/* Right edge fade with scroll hint arrow */}
+          <div
+            className={`
+              absolute right-0 top-0 bottom-3 w-12 z-10
+              pointer-events-none
+              bg-gradient-to-l from-[rgba(13,10,20,0.9)] via-[rgba(13,10,20,0.6)] to-transparent
+              rounded-r-2xl
+              transition-opacity duration-200
+              sm:hidden
+              flex items-center justify-end pr-1
+              ${showRightFade ? 'opacity-100' : 'opacity-0'}
+            `}
+            aria-hidden="true"
+          >
+            <CaretRight
+              className="w-5 h-5 text-accent/70 animate-pulse drop-shadow-md"
+              weight="bold"
+            />
+          </div>
+
+          <div
+            ref={carouselRef}
+            role="radiogroup"
+            aria-label="Choose your deck style"
+            className="deck-selector-grid flex gap-3 overflow-x-auto snap-x snap-mandatory pb-3 sm:overflow-visible sm:snap-none sm:grid sm:grid-cols-2 lg:grid-cols-3 sm:gap-4"
+          >
           {DECK_OPTIONS.map((deck, index) => {
             const isSelected = selectedDeck === deck.id;
             const isFirstDeck = index === 0;
@@ -285,6 +347,7 @@ export function DeckSelector({ selectedDeck, onDeckChange }) {
               </button>
             );
           })}
+          </div>
         </div>
 
         {/* Mobile pagination dots */}

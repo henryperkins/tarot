@@ -104,15 +104,12 @@ export function SharedSpreadView({ entry, notes = [], selectedPosition, onSelect
   // Track which images have failed to prevent infinite error loops
   const failedImagesRef = useRef(new Set());
 
-  if (!entry) {
-    return null;
-  }
-
-  const generalNotes = noteMap.general || [];
-  const cardCount = entry.cards?.length ?? 0;
-
   // Improved grid logic with better responsive handling
   const gridClass = useMemo(() => {
+    if (!entry) return 'grid grid-cols-1';
+
+    const cardCount = entry.cards?.length ?? 0;
+
     if (entry.spreadKey === 'celtic') return 'cc-grid';
     if (cardCount === 0) return 'grid grid-cols-1';
     if (cardCount === 1) return 'grid grid-cols-1 max-w-sm mx-auto';
@@ -120,7 +117,13 @@ export function SharedSpreadView({ entry, notes = [], selectedPosition, onSelect
     if (cardCount === 3) return 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3';
     if (cardCount <= 4) return 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4';
     return 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3';
-  }, [entry.spreadKey, cardCount]);
+  }, [entry]);
+
+  if (!entry) {
+    return null;
+  }
+
+  const generalNotes = noteMap.general || [];
 
   const handleImageError = (event, cardName) => {
     const img = event.currentTarget;

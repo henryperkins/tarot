@@ -1,5 +1,4 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import { Gear } from '@phosphor-icons/react';
 import { SPREADS } from './data/spreads';
 import { EXAMPLE_QUESTIONS } from './data/exampleQuestions';
 import { SpreadSelector } from './components/SpreadSelector';
@@ -9,6 +8,7 @@ import { GuidedIntentionCoach } from './components/GuidedIntentionCoach';
 import { loadCoachRecommendation, saveCoachRecommendation } from './lib/journalInsights';
 import { DeckSelector } from './components/DeckSelector';
 import { MobileSettingsDrawer } from './components/MobileSettingsDrawer';
+import { MobileActionBar, MobileActionGroup } from './components/MobileActionBar';
 import { Header } from './components/Header';
 import { useNavigate, useLocation } from 'react-router-dom';
 import './styles/tarot.css';
@@ -18,6 +18,7 @@ import { usePreferences } from './contexts/PreferencesContext';
 import { useReading } from './contexts/ReadingContext';
 import { useSaveReading } from './hooks/useSaveReading';
 import { useReducedMotion } from './hooks/useReducedMotion';
+import { useSmallScreen } from './hooks/useSmallScreen';
 
 const STEP_PROGRESS_STEPS = [
   { id: 'spread', label: 'Spread' },
@@ -46,6 +47,7 @@ export default function TarotReading() {
 
   // Accessibility: reduced motion preference
   const prefersReducedMotion = useReducedMotion();
+  const isSmallScreen = useSmallScreen();
 
   // --- 2. Reading Context ---
   const {
@@ -55,7 +57,7 @@ export default function TarotReading() {
 
     // Tarot State
     selectedSpread,
-    setSelectedSpread,
+    setSelectedSpread: _setSelectedSpread,
     selectSpread,
     reading,
     isShuffling,
@@ -301,6 +303,15 @@ export default function TarotReading() {
   }, []);
 
   const handleStepNav = useCallback((stepId) => {
+    // On mobile (< 640px), open the settings drawer for intention/ritual steps
+    // since the prep section is hidden on mobile
+    const isMobile = typeof window !== 'undefined' && window.innerWidth < 640;
+
+    if (isMobile && (stepId === 'intention' || stepId === 'ritual')) {
+      setIsMobileSettingsOpen(true);
+      return;
+    }
+
     const refs = {
       spread: spreadSectionRef,
       intention: prepareSectionRef,
@@ -340,6 +351,12 @@ export default function TarotReading() {
     return () => window.clearTimeout(timeoutId);
   }, [shouldFocusSpread, handleStepNav]);
 
+  const handleRevealAll = useCallback(() => {
+    revealAll();
+    const behavior = prefersReducedMotion ? 'auto' : 'smooth';
+    readingSectionRef.current?.scrollIntoView({ behavior, block: 'start' });
+  }, [prefersReducedMotion, revealAll]);
+
   // --- Logic: Journal Saving ---
 
   const { saveReading } = useSaveReading();
@@ -376,8 +393,8 @@ export default function TarotReading() {
   };
 
   // Determine Active Step for StepProgress
+  // These are milestone-based flags that represent permanent progress through the flow
   const hasQuestion = Boolean(userQuestion && userQuestion.trim().length > 0);
-  const hasRitualProgress = hasKnocked || hasCut || knockCount > 0;
   const hasReading = Boolean(reading && reading.length > 0);
   const allCardsRevealed = hasReading && revealedCards.size === reading.length;
   const hasNarrative = Boolean(personalReading && !personalReading.isError);
@@ -385,17 +402,80 @@ export default function TarotReading() {
   const needsNarrativeGeneration = allCardsRevealed && (!personalReading || personalReading.isError);
   const isPersonalReadingError = Boolean(personalReading?.isError);
 
+  // Compute the highest milestone achieved (not affected by which panel user views)
+  // This ensures the step indicator stays consistent once progress is made
   const { stepIndicatorLabel, stepIndicatorHint, activeStep } = useMemo(() => {
-    if (hasNarrative) return { stepIndicatorLabel: 'Reflect on your narrative', stepIndicatorHint: 'Read through the personalized guidance and save anything that resonates.', activeStep: 'reading' };
-    if (narrativeInProgress) return { stepIndicatorLabel: 'Weaving your narrative', stepIndicatorHint: 'Hang tight while we compose your personalized reading.', activeStep: 'reading' };
+    // Once we have a reading, we're always in the "reading" phase
+    // This prevents the indicator from regressing when users revisit prep panels
     if (hasReading) {
-      if (allCardsRevealed) return { stepIndicatorLabel: 'Explore your spread', stepIndicatorHint: 'Review the card insights below or generate a personalized narrative.', activeStep: 'reading' };
-      return { stepIndicatorLabel: '', stepIndicatorHint: '', activeStep: 'reading' };
+      if (hasNarrative) {
+        return {
+          stepIndicatorLabel: 'Reflect on your narrative',
+          stepIndicatorHint: 'Read through the personalized guidance and save anything that resonates.',
+          activeStep: 'reading'
+        };
+      }
+      if (narrativeInProgress) {
+        return {
+          stepIndicatorLabel: 'Weaving your narrative',
+          stepIndicatorHint: 'Hang tight while we compose your personalized reading.',
+          activeStep: 'reading'
+        };
+      }
+      if (allCardsRevealed) {
+        return {
+          stepIndicatorLabel: 'Explore your spread',
+          stepIndicatorHint: 'Review the card insights below or generate a personalized narrative.',
+          activeStep: 'reading'
+        };
+      }
+      // Cards drawn but not all revealed
+      const remainingCards = reading.length - revealedCards.size;
+      return {
+        stepIndicatorLabel: `Reveal your cards`,
+        stepIndicatorHint: `${remainingCards} card${remainingCards === 1 ? '' : 's'} remaining to reveal.`,
+        activeStep: 'reading'
+      };
     }
-    if (!hasConfirmedSpread) return { stepIndicatorLabel: '', stepIndicatorHint: '', activeStep: 'spread' };
-    if (!hasQuestion || !hasRitualProgress) return { stepIndicatorLabel: 'Prepare your reading', stepIndicatorHint: 'Set an intention, tune experience preferences, or complete the optional ritual.', activeStep: !hasQuestion ? 'intention' : 'ritual' };
-    return { stepIndicatorLabel: 'Draw your cards', stepIndicatorHint: 'When you feel ready, draw the cards to begin your reading.', activeStep: 'reading' };
-  }, [hasNarrative, narrativeInProgress, hasReading, allCardsRevealed, hasQuestion, hasRitualProgress, hasConfirmedSpread]);
+
+    // No reading yet - check preparation milestones
+    if (!hasConfirmedSpread) {
+      return {
+        stepIndicatorLabel: 'Choose your spread',
+        stepIndicatorHint: 'Select a spread that matches the depth of your inquiry.',
+        activeStep: 'spread'
+      };
+    }
+
+    // Spread confirmed - check intention and ritual
+    // Show intention step if no question set
+    if (!hasQuestion) {
+      return {
+        stepIndicatorLabel: 'Set your intention',
+        stepIndicatorHint: 'A focused question helps guide the narrative (optional but recommended).',
+        activeStep: 'intention'
+      };
+    }
+
+    // Question set - check ritual or ready to draw
+    // Note: Ritual is optional, so we show "ready to draw" as soon as question is set
+    // unless they've started but not finished the ritual
+    if (knockCount > 0 && knockCount < 3 && !hasCut) {
+      // User started ritual but hasn't finished - prompt to continue or skip
+      return {
+        stepIndicatorLabel: 'Complete your ritual',
+        stepIndicatorHint: `${3 - knockCount} more knock${3 - knockCount === 1 ? '' : 's'} to clear the deck, or skip to draw.`,
+        activeStep: 'ritual'
+      };
+    }
+
+    // Ready to draw - either ritual complete/skipped or no ritual started
+    return {
+      stepIndicatorLabel: 'Draw your cards',
+      stepIndicatorHint: 'When you feel ready, draw the cards to begin your reading.',
+      activeStep: 'reading'
+    };
+  }, [hasNarrative, narrativeInProgress, hasReading, allCardsRevealed, hasQuestion, hasConfirmedSpread, knockCount, hasCut, reading, revealedCards]);
 
 
   // --- Render Helper Wrappers ---
@@ -456,8 +536,8 @@ export default function TarotReading() {
         {/* Step 1–3: Spread + Prepare */}
         <section className="mb-6 xl:mb-4" aria-label="Reading setup">
           <div className="mb-4 sm:mb-5">
-            <p className="text-xs-plus sm:text-sm uppercase tracking-[0.12em] text-accent/90">{stepIndicatorLabel}</p>
-            <p className="mt-1 text-muted text-xs sm:text-sm">{stepIndicatorHint}</p>
+            <p className="text-xs-plus sm:text-sm uppercase tracking-[0.12em] text-accent">{stepIndicatorLabel}</p>
+            <p className="mt-1 text-muted-high text-xs sm:text-sm">{stepIndicatorHint}</p>
           </div>
 
           <div className="max-w-5xl mx-auto space-y-6">
@@ -465,10 +545,11 @@ export default function TarotReading() {
               <DeckSelector selectedDeck={deckStyleId} onDeckChange={handleDeckChange} />
             </div>
 
+
             <div aria-label="Choose your spread" ref={spreadSectionRef} id="step-spread" tabIndex={-1} className="scroll-mt-[6.5rem] sm:scroll-mt-[7.5rem]">
               <div className="mb-3 sm:mb-4">
-                <h2 className="text-xs-plus sm:text-sm uppercase tracking-[0.12em] text-accent/90">Spread</h2>
-                <p className="mt-1 text-muted text-xs sm:text-sm">Choose a spread to shape the depth and focus of your reading.</p>
+                <h2 className="text-xs-plus sm:text-sm uppercase tracking-[0.12em] text-accent">Spread</h2>
+                <p className="mt-1 text-muted-high text-xs sm:text-sm">Choose a spread to shape the depth and focus of your reading.</p>
               </div>
               <SpreadSelector
                 selectedSpread={selectedSpread}
@@ -477,34 +558,36 @@ export default function TarotReading() {
               />
             </div>
 
-            <ReadingPreparation
-              sectionRef={prepareSectionRef}
-              userQuestion={userQuestion}
-              setUserQuestion={setUserQuestion}
-              placeholderIndex={placeholderIndex}
-              onPlaceholderRefresh={() => setPlaceholderIndex(prev => (prev + 1) % EXAMPLE_QUESTIONS.length)}
-              setAllowPlaceholderCycle={setAllowPlaceholderCycle}
-              coachRecommendation={coachRecommendation}
-              applyCoachRecommendation={applyCoachRecommendation}
-              dismissCoachRecommendation={dismissCoachRecommendation}
-              onLaunchCoach={() => {
-                setPendingCoachPrefill(null);
-                setIsIntentionCoachOpen(true);
-              }}
-              prepareSectionsOpen={prepareSectionsOpen}
-              togglePrepareSection={togglePrepareSection}
-              prepareSummaries={prepareSummaries}
-              prepareSectionLabels={prepareSectionLabels}
-              hasKnocked={hasKnocked}
-              handleKnock={handleKnock}
-              cutIndex={cutIndex}
-              setCutIndex={setCutIndex}
-              hasCut={hasCut}
-              applyCut={applyCut}
-              knockCount={knockCount}
-              onSkipRitual={handleShuffle}
-              deckAnnouncement={deckAnnouncement}
-            />
+            {!isSmallScreen && (
+              <ReadingPreparation
+                sectionRef={prepareSectionRef}
+                userQuestion={userQuestion}
+                setUserQuestion={setUserQuestion}
+                placeholderIndex={placeholderIndex}
+                onPlaceholderRefresh={() => setPlaceholderIndex(prev => (prev + 1) % EXAMPLE_QUESTIONS.length)}
+                setAllowPlaceholderCycle={setAllowPlaceholderCycle}
+                coachRecommendation={coachRecommendation}
+                applyCoachRecommendation={applyCoachRecommendation}
+                dismissCoachRecommendation={dismissCoachRecommendation}
+                onLaunchCoach={() => {
+                  setPendingCoachPrefill(null);
+                  setIsIntentionCoachOpen(true);
+                }}
+                prepareSectionsOpen={prepareSectionsOpen}
+                togglePrepareSection={togglePrepareSection}
+                prepareSummaries={prepareSummaries}
+                prepareSectionLabels={prepareSectionLabels}
+                hasKnocked={hasKnocked}
+                handleKnock={handleKnock}
+                cutIndex={cutIndex}
+                setCutIndex={setCutIndex}
+                hasCut={hasCut}
+                applyCut={applyCut}
+                knockCount={knockCount}
+                onSkipRitual={handleShuffle}
+                deckAnnouncement={deckAnnouncement}
+              />
+            )}
 
             <div className="flex justify-center pt-1">
               <button
@@ -521,48 +604,63 @@ export default function TarotReading() {
         <ReadingDisplay sectionRef={readingSectionRef} />
       </main>
 
-      {/* Mobile Nav - Keeping internal logic simple for now */}
-      {!isIntentionCoachOpen && (
-        <nav
-          className="mobile-action-bar sm:hidden"
-          aria-label="Primary mobile actions"
-          style={keyboardOffset > 0 ? { bottom: keyboardOffset } : undefined}
-        >
-          <div className="flex flex-wrap gap-2">
-            {isShuffling && <button disabled className="flex-1 min-w-[7.5rem] min-h-[44px] inline-flex items-center justify-center rounded-xl px-3 py-2.5 text-sm font-semibold transition bg-accent text-surface shadow-lg flex-col gap-0.5 opacity-50 touch-manipulation"><span className="text-xs uppercase tracking-wider opacity-70">{stepIndicatorLabel}</span><span className="text-sm font-semibold">Shuffling...</span></button>}
-
-            {!isShuffling && !reading && (
-              <>
-                <button onClick={() => setIsMobileSettingsOpen(true)} className="flex-none w-[3.5rem] min-h-[44px] inline-flex items-center justify-center rounded-xl px-0 py-2.5 text-sm font-semibold transition bg-surface-muted text-accent border border-accent/30 hover:bg-surface flex-col gap-0.5 touch-manipulation" aria-label="Settings">
-                  <Gear className="w-5 h-5" />
-                </button>
-                <button onClick={handleShuffle} className="flex-1 min-w-[7.5rem] min-h-[44px] inline-flex items-center justify-center rounded-xl px-3 py-2.5 text-sm font-semibold transition bg-accent text-surface shadow-lg hover:opacity-90 flex-col gap-0.5 touch-manipulation"><span className="text-xs uppercase tracking-wider opacity-70">{stepIndicatorLabel}</span><span className="text-sm font-semibold">Draw cards</span></button>
-              </>
-            )}
-
-            {reading && revealedCards.size < reading.length && (
-              <>
-                <button onClick={dealNext} className="flex-1 min-w-[7.5rem] min-h-[44px] inline-flex items-center justify-center rounded-xl px-3 py-2.5 text-sm font-semibold transition bg-accent text-surface shadow-lg hover:opacity-90 flex-col gap-0.5 touch-manipulation"><span className="text-xs uppercase tracking-wider opacity-70">{stepIndicatorLabel}</span><span className="text-sm font-semibold">Reveal next ({Math.min(dealIndex + 1, reading.length)}/{reading.length})</span></button>
-                {reading.length > 1 && <button onClick={() => {
-                  revealAll();
-                  const behavior = prefersReducedMotion ? 'auto' : 'smooth';
-                  readingSectionRef.current?.scrollIntoView({ behavior, block: 'start' });
-                }} className="flex-1 min-w-[7.5rem] min-h-[44px] inline-flex items-center justify-center rounded-xl px-3 py-2.5 text-sm font-semibold transition bg-primary/20 text-primary border border-primary/40 hover:bg-primary/30 flex-col gap-0.5 touch-manipulation"><span className="text-xs uppercase tracking-wider opacity-70">{stepIndicatorLabel}</span><span className="text-sm font-semibold">Reveal all</span></button>}
-              </>
-            )}
-
-            {reading && revealedCards.size === reading.length && (
-              <>
-                {needsNarrativeGeneration && <button onClick={generatePersonalReading} disabled={isGenerating} className="flex-1 min-w-[7.5rem] min-h-[44px] inline-flex items-center justify-center rounded-xl px-3 py-2.5 text-sm font-semibold transition bg-accent text-surface shadow-lg hover:opacity-90 flex-col gap-0.5 touch-manipulation"><span className="text-xs uppercase tracking-wider opacity-70">{stepIndicatorLabel}</span><span className="text-sm font-semibold">{isGenerating ? 'Weaving...' : 'Create narrative'}</span></button>}
-                {hasNarrative && !isPersonalReadingError && <button onClick={saveReading} className="flex-1 min-w-[7.5rem] min-h-[44px] inline-flex items-center justify-center rounded-xl px-3 py-2.5 text-sm font-semibold transition bg-accent text-surface shadow-lg hover:opacity-90 flex-col gap-0.5 touch-manipulation"><span className="text-xs uppercase tracking-wider opacity-70">{stepIndicatorLabel}</span><span className="text-sm font-semibold">Save to journal</span></button>}
-                <button onClick={handleShuffle} className="flex-1 min-w-[7.5rem] min-h-[44px] inline-flex items-center justify-center rounded-xl px-3 py-2.5 text-sm font-semibold transition bg-surface-muted text-accent border border-accent/30 hover:bg-surface flex-col gap-0.5 touch-manipulation"><span className="text-xs uppercase tracking-wider opacity-70">{stepIndicatorLabel}</span><span className="text-sm font-semibold">New reading</span></button>
-              </>
-            )}
-          </div>
-        </nav>
+      {/* Mobile Nav - Hidden when full-screen surfaces (coach or settings drawer) are open */}
+      {!isIntentionCoachOpen && !isMobileSettingsOpen && (
+        <MobileActionBar
+          isShuffling={isShuffling}
+          reading={reading}
+          revealedCards={revealedCards}
+          dealIndex={dealIndex}
+          isGenerating={isGenerating}
+          personalReading={personalReading}
+          needsNarrativeGeneration={needsNarrativeGeneration}
+          stepIndicatorLabel={stepIndicatorLabel}
+          activeStep={activeStep}
+          keyboardOffset={keyboardOffset}
+          onOpenSettings={() => setIsMobileSettingsOpen(true)}
+          onOpenCoach={() => {
+            setPendingCoachPrefill(null);
+            setIsIntentionCoachOpen(true);
+          }}
+          onShuffle={handleShuffle}
+          onDealNext={dealNext}
+          onRevealAll={handleRevealAll}
+          onGenerateNarrative={generatePersonalReading}
+          onSaveReading={saveReading}
+          onNewReading={handleShuffle}
+        />
       )}
 
-      <MobileSettingsDrawer isOpen={isMobileSettingsOpen} onClose={() => setIsMobileSettingsOpen(false)}>
+      <MobileSettingsDrawer
+        isOpen={isMobileSettingsOpen}
+        onClose={() => setIsMobileSettingsOpen(false)}
+        footer={(
+          <MobileActionGroup
+            isShuffling={isShuffling}
+            reading={reading}
+            revealedCards={revealedCards}
+            dealIndex={dealIndex}
+            isGenerating={isGenerating}
+            personalReading={personalReading}
+            needsNarrativeGeneration={needsNarrativeGeneration}
+            stepIndicatorLabel={stepIndicatorLabel}
+            activeStep={activeStep}
+            showUtilityButtons={false}
+            onOpenSettings={() => setIsMobileSettingsOpen(false)}
+            onOpenCoach={() => {
+              setIsMobileSettingsOpen(false);
+              setPendingCoachPrefill(null);
+              setIsIntentionCoachOpen(true);
+            }}
+            onShuffle={handleShuffle}
+            onDealNext={dealNext}
+            onRevealAll={handleRevealAll}
+            onGenerateNarrative={generatePersonalReading}
+            onSaveReading={saveReading}
+            onNewReading={handleShuffle}
+          />
+        )}
+      >
         <ReadingPreparation
           variant="mobile"
           userQuestion={userQuestion}

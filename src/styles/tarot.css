@@ -4,6 +4,30 @@ body {
   /* Prevent horizontal scroll on mobile */
 }
 
+/* Mobile typography improvements for readability */
+@media (max-width: 639px) {
+  /* Increase base text size on mobile for better readability */
+  body {
+    font-size: 1rem; /* 16px base */
+  }
+
+  /* Ensure paragraph text is comfortable to read */
+  p, li, dd {
+    font-size: 0.9375rem; /* 15px */
+    line-height: 1.6;
+  }
+
+  /* Slightly larger form elements on mobile */
+  input, textarea, select {
+    font-size: 1rem; /* 16px - prevents iOS zoom on focus */
+  }
+
+  /* Larger link/button text for easier tapping */
+  button, a {
+    font-size: inherit;
+  }
+}
+
 .app-shell {
   padding-bottom: 1.5rem;
 }
@@ -177,9 +201,65 @@ body {
   transition: bottom 180ms ease-out;
 }
 
+.mobile-action-group {
+  padding: 0.5rem 0 0.25rem;
+  background: var(--bg-surface);
+  border-top: 1px solid color-mix(in srgb, var(--brand-accent) 20%, transparent);
+  box-shadow: 0 -18px 40px rgba(0, 0, 0, 0.35);
+}
+
+.mobile-drawer__footer {
+  padding: 0.75rem 1rem 1rem;
+  background: color-mix(in srgb, var(--bg-surface) 92%, transparent);
+  border-top: 1px solid color-mix(in srgb, var(--brand-accent) 22%, transparent);
+  box-shadow: 0 -18px 32px rgba(0, 0, 0, 0.4);
+}
+
+@supports (padding: max(0px)) {
+  .mobile-drawer__footer {
+    padding-bottom: max(1rem, calc(1rem + env(safe-area-inset-bottom, 0rem)));
+  }
+}
+
 @supports (padding: max(0px)) {
   .mobile-action-bar {
     padding-bottom: max(1rem, calc(0.75rem + env(safe-area-inset-bottom, 0.5rem)));
+  }
+}
+
+/* Landscape mode safeguards for small mobile devices */
+@media (max-height: 500px) and (orientation: landscape) {
+  /* Compact mobile action bar in landscape */
+  .mobile-action-bar {
+    padding-top: 0.5rem;
+    padding-bottom: 0.5rem;
+  }
+
+  @supports (padding: max(0px)) {
+    .mobile-action-bar {
+      padding-bottom: max(0.5rem, env(safe-area-inset-bottom, 0.5rem));
+    }
+  }
+
+  /* Compact header in cramped landscape */
+  .header-sticky {
+    padding-top: 0.25rem !important;
+    padding-bottom: 0.25rem !important;
+  }
+
+  .header-sticky__row {
+    gap: 0.5rem;
+  }
+
+  /* Reduce spacing between content sections */
+  .app-shell {
+    padding-bottom: 0.75rem;
+  }
+
+  /* Smaller deck pile in landscape */
+  .deck-pile {
+    transform: scale(0.85);
+    transform-origin: center;
   }
 }
 
@@ -344,9 +424,9 @@ body {
   isolation: isolate;
   border-radius: 1.35rem;
   padding: 1rem 1.15rem 1.35rem;
-  --spread-card-height-mobile: 23rem;
-  --spread-card-height-desktop: 23.5rem;
-  /* Mobile: flexible min-height for carousel */
+  --spread-card-height-mobile: 21rem;
+  --spread-card-height-desktop: 22rem;
+  /* Mobile: flexible min-height for carousel - reduced from 23rem for better viewport fit */
   min-height: var(--spread-card-height-mobile);
   background: var(--spread-background, #15121f);
   border: 1px solid var(--spread-border, rgba(255, 255, 255, 0.08));
@@ -1443,6 +1523,132 @@ input[type="range"]:focus::-webkit-slider-thumb {
 
 .prepare-panel-footnote {
   padding-top: 0.9rem;
+}
+
+/* ==========================================================================
+   Deck Ritual Interface Styles
+   ========================================================================== */
+
+/* Deck ritual container */
+.deck-ritual-container {
+  --deck-shadow-color: color-mix(in srgb, var(--brand-primary) 20%, transparent);
+}
+
+/* Deck stack 3D effect */
+.deck-stack {
+  transform-style: preserve-3d;
+  transition: transform 0.3s ease;
+}
+
+.deck-stack:hover {
+  transform: rotateX(5deg) rotateY(-3deg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .deck-stack:hover {
+    transform: none;
+  }
+}
+
+/* Card deal animation */
+@keyframes cardDeal {
+  0% {
+    transform: translate(0, 0) rotate(0deg) scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: translate(var(--deal-x, 100px), var(--deal-y, -50px)) rotate(15deg) scale(0.8);
+    opacity: 0.8;
+  }
+  100% {
+    transform: translate(var(--deal-end-x, 200px), var(--deal-end-y, 100px)) rotate(0deg) scale(0.6);
+    opacity: 1;
+  }
+}
+
+.card-dealing {
+  animation: cardDeal 0.6s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+/* Knock ripple */
+@keyframes knockRipple {
+  0% {
+    transform: scale(0.9);
+    opacity: 0.8;
+    border-width: 3px;
+  }
+  100% {
+    transform: scale(1.5);
+    opacity: 0;
+    border-width: 1px;
+  }
+}
+
+.knock-ripple {
+  animation: knockRipple 0.4s ease-out forwards;
+}
+
+/* Spread table layout */
+.spread-table {
+  touch-action: manipulation;
+  user-select: none;
+}
+
+/* Card placeholder pulse */
+@keyframes placeholderPulse {
+  0%, 100% {
+    border-color: color-mix(in srgb, var(--brand-primary) 30%, transparent);
+    background-color: color-mix(in srgb, var(--brand-primary) 5%, transparent);
+  }
+  50% {
+    border-color: color-mix(in srgb, var(--brand-primary) 60%, transparent);
+    background-color: color-mix(in srgb, var(--brand-primary) 15%, transparent);
+  }
+}
+
+.card-placeholder-next {
+  animation: placeholderPulse 1.5s ease-in-out infinite;
+}
+
+/* Swipe reveal hint */
+@keyframes swipeHint {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-8px); }
+  75% { transform: translateX(8px); }
+}
+
+.swipe-hint {
+  animation: swipeHint 2s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .swipe-hint,
+  .card-placeholder-next {
+    animation: none;
+  }
+}
+
+/* Swipe-to-reveal card styles */
+.card-swipe-container {
+  touch-action: pan-y;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.card-swipe-hint {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+.card-swipe-hint--left {
+  left: 0.5rem;
+}
+
+.card-swipe-hint--right {
+  right: 0.5rem;
 }
 
 /* ==========================================================================

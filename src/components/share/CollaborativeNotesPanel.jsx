@@ -29,22 +29,22 @@ function formatTimestamp(ts) {
 }
 
 /**
- * Safe localStorage access that works with SSR
+ * LocalStorage-backed state for client-side usage.
+ * Reads once during initial render and debounces writes.
  */
 function useLocalStorage(key, initialValue) {
-  const [value, setValue] = useState(initialValue);
-
-  // Sync from localStorage after mount (avoids hydration mismatch)
-  useEffect(() => {
+  const [value, setValue] = useState(() => {
     try {
-      const stored = localStorage.getItem(key);
-      if (stored !== null) {
-        setValue(stored);
+      if (typeof window === 'undefined' || !window.localStorage) {
+        return initialValue;
       }
+      const stored = window.localStorage.getItem(key);
+      return stored !== null ? stored : initialValue;
     } catch {
       // localStorage unavailable
+      return initialValue;
     }
-  }, [key]);
+  });
 
   // Debounced save to localStorage
   const saveTimeoutRef = useRef(null);
@@ -57,11 +57,14 @@ function useLocalStorage(key, initialValue) {
     }
     saveTimeoutRef.current = setTimeout(() => {
       try {
+        if (typeof window === 'undefined' || !window.localStorage) {
+          return;
+        }
         // Handle empty strings by removing the key, otherwise persist the value
         if (newValue === '' || newValue === null || newValue === undefined) {
-          localStorage.removeItem(key);
+          window.localStorage.removeItem(key);
         } else {
-          localStorage.setItem(key, newValue);
+          window.localStorage.setItem(key, newValue);
         }
       } catch {
         // localStorage unavailable

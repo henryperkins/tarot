@@ -1,124 +1,21 @@
-import { useEffect, useRef } from 'react';
+import { useRef } from 'react';
 import { motion } from 'framer-motion';
 import { X } from '@phosphor-icons/react';
-import { CARD_LOOKUP, FALLBACK_IMAGE, getCardImage, getCanonicalCard } from '../lib/cardLookup';
+import { FALLBACK_IMAGE, getCardImage, getCanonicalCard } from '../lib/cardLookup';
 import { CardSymbolInsights } from './CardSymbolInsights';
-
-const FOCUSABLE_SELECTORS = [
-    'a[href]',
-    'button:not([disabled])',
-    'textarea:not([disabled])',
-    'input:not([disabled])',
-    'select:not([disabled])',
-    '[tabindex]:not([tabindex="-1"])',
-    '[contenteditable]',
-    'audio[controls]',
-    'video[controls]'
-].join(', ');
+import { useModalA11y } from '../hooks/useModalA11y';
 
 export function CardModal({ card, isOpen, onClose, position, layoutId }) {
     const modalRef = useRef(null);
-    const previousBodyStylesRef = useRef(null);
-    const previousFocusRef = useRef(null);
-    const scrollYRef = useRef(0);
     const titleId = `card-modal-title-${layoutId || 'default'}`;
     const descId = `card-modal-desc-${layoutId || 'default'}`;
 
-    useEffect(() => {
-        if (!isOpen || typeof document === 'undefined') return undefined;
-
-        const handleEscape = (event) => {
-            if (event.key === 'Escape') {
-                onClose();
-            }
-        };
-
-        window.addEventListener('keydown', handleEscape);
-
-        // Store current focus to restore later
-        const activeElement = document.activeElement;
-        if (activeElement && activeElement instanceof HTMLElement) {
-            previousFocusRef.current = activeElement;
-        }
-
-        // Store scroll position and body styles
-        scrollYRef.current = window.scrollY;
-        const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
-
-        previousBodyStylesRef.current = {
-            overflow: document.body.style.overflow,
-            position: document.body.style.position,
-            top: document.body.style.top,
-            width: document.body.style.width,
-            paddingRight: document.body.style.paddingRight
-        };
-
-        // Lock scroll without causing content shift
-        document.body.style.overflow = 'hidden';
-        document.body.style.position = 'fixed';
-        document.body.style.top = `-${scrollYRef.current}px`;
-        document.body.style.width = '100%';
-        if (scrollbarWidth > 0) {
-            document.body.style.paddingRight = `${scrollbarWidth}px`;
-        }
-
-        return () => {
-            window.removeEventListener('keydown', handleEscape);
-
-            // Restore body styles
-            if (previousBodyStylesRef.current) {
-                const prev = previousBodyStylesRef.current;
-                document.body.style.overflow = prev.overflow;
-                document.body.style.position = prev.position;
-                document.body.style.top = prev.top;
-                document.body.style.width = prev.width;
-                document.body.style.paddingRight = prev.paddingRight;
-            }
-            previousBodyStylesRef.current = null;
-
-            // Restore scroll position
-            window.scrollTo(0, scrollYRef.current);
-
-            // Restore focus
-            if (previousFocusRef.current && typeof previousFocusRef.current.focus === 'function') {
-                previousFocusRef.current.focus();
-            }
-            previousFocusRef.current = null;
-        };
-    }, [isOpen, onClose]);
-
-    useEffect(() => {
-        if (!isOpen || !modalRef.current) return undefined;
-
-        const dialogNode = modalRef.current;
-        if (typeof dialogNode.focus === 'function') {
-            dialogNode.focus({ preventScroll: true });
-        }
-
-        const handleKeyDown = event => {
-            if (event.key !== 'Tab') return;
-            const focusable = dialogNode.querySelectorAll(FOCUSABLE_SELECTORS);
-            if (!focusable.length) {
-                event.preventDefault();
-                dialogNode.focus();
-                return;
-            }
-            const first = focusable[0];
-            const last = focusable[focusable.length - 1];
-            if (!event.shiftKey && document.activeElement === last) {
-                event.preventDefault();
-                first.focus();
-            } else if (event.shiftKey && document.activeElement === first) {
-                event.preventDefault();
-                last.focus();
-            }
-        };
-
-        dialogNode.addEventListener('keydown', handleKeyDown);
-        return () => {
-            dialogNode.removeEventListener('keydown', handleKeyDown);
-        };
-    }, [isOpen]);
+    // Shared modal accessibility: scroll lock, escape key, focus trap, focus restoration
+    useModalA11y(isOpen, {
+        onClose,
+        containerRef: modalRef,
+        scrollLockStrategy: 'fixed', // Prevents iOS bounce
+    });
 
     if (!isOpen || !card) return null;
 

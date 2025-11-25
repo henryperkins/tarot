@@ -150,7 +150,7 @@ try {
   console.log('🎉 Your Azure OpenAI TTS integration is configured correctly!');
   console.log('\n📌 Next steps:');
   console.log('   1. For Cloudflare Pages deployment, set these environment variables in:');
-  console.log('      Cloudflare Dashboard → Pages → mystic-tarot → Settings → Environment variables');
+  console.log('      Cloudflare Dashboard → Pages → tableau → Settings → Environment variables');
   console.log('   2. For local development with Vite, the .env.local file should work');
   console.log('   3. For Cloudflare Pages Functions, you may need to use wrangler.toml or dashboard\n');
 

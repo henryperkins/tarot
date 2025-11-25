@@ -24,15 +24,20 @@ export function GlowToggle({
     }
 
     if (prevChecked.current !== checked) {
-      setGlowing(true);
       prevChecked.current = checked;
-      const timer = setTimeout(() => setGlowing(false), 400);
-      return () => clearTimeout(timer);
     }
   }, [checked]);
 
+  // Handle glow timeout separately
+  useEffect(() => {
+    if (!glowing) return;
+    const timer = setTimeout(() => setGlowing(false), 400);
+    return () => clearTimeout(timer);
+  }, [glowing]);
+
   const handleToggle = () => {
     if (disabled) return;
+    setGlowing(true);
     onChange(!checked);
   };
 

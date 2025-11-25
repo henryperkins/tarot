@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { getSpreadInfo } from '../data/spreads';
-import { CARD_LOOKUP, getOrientationMeaning } from '../lib/cardLookup';
+import { getOrientationMeaning } from '../lib/cardLookup';
 import { Card } from './Card';
 import { Tooltip } from './Tooltip';
 import { CarouselDots } from './CarouselDots';
+import { useSmallScreen } from '../hooks/useSmallScreen';
+import { useReducedMotion } from '../hooks/useReducedMotion';
 
 /**
  * Celtic Cross position short labels for mobile context.
@@ -137,17 +139,29 @@ export function ReadingGrid({
   const rafIdRef = useRef(null);
   const [activeIndex, setActiveIndex] = useState(0);
   const [showSwipeHint, setShowSwipeHint] = useState(true);
+  const [mobileLayoutMode, setMobileLayoutMode] = useState('carousel');
+  const isCompactScreen = useSmallScreen();
+  const prefersReducedMotion = useReducedMotion();
+  const isListView = mobileLayoutMode === 'list';
 
   // Hide swipe hint after 4 seconds or when user interacts
   useEffect(() => {
-    if (!reading || reading.length <= 1) return undefined;
+    if (!reading || reading.length <= 1 || isListView) return undefined;
 
     const timer = setTimeout(() => {
       setShowSwipeHint(false);
     }, 4000);
 
     return () => clearTimeout(timer);
-  }, [reading]);
+  }, [reading, isListView]);
+
+  useEffect(() => {
+    if (!isCompactScreen && mobileLayoutMode === 'list') {
+      setMobileLayoutMode('carousel');
+    }
+  }, [isCompactScreen, mobileLayoutMode]);
+
+  const enableCarousel = reading?.length > 1 && !isListView;
 
   // Hide hint when user scrolls
   const hideHintOnInteraction = useCallback(() => {
@@ -188,8 +202,9 @@ export function ReadingGrid({
   }, []);
 
   useEffect(() => {
+    if (!enableCarousel) return undefined;
     const el = carouselRef.current;
-    if (!el || reading.length <= 1) return undefined;
+    if (!el) return undefined;
 
     // Cache card elements
     cardsRef.current = Array.from(el.children);
@@ -218,9 +233,10 @@ export function ReadingGrid({
         rafIdRef.current = null;
       }
     };
-  }, [reading.length, updateActiveIndex, hideHintOnInteraction]);
+  }, [enableCarousel, reading?.length, updateActiveIndex, hideHintOnInteraction]);
 
   const scrollToIndex = useCallback((index) => {
+    if (!enableCarousel) return;
     const el = carouselRef.current;
     if (!el) return;
 
@@ -233,9 +249,23 @@ export function ReadingGrid({
     if (targetCard) {
       const cardCenter = targetCard.offsetLeft + targetCard.offsetWidth / 2;
       const scrollTarget = cardCenter - el.clientWidth / 2;
-      el.scrollTo({ left: Math.max(0, scrollTarget), behavior: 'smooth' });
+      el.scrollTo({
+        left: Math.max(0, scrollTarget),
+        behavior: prefersReducedMotion ? 'auto' : 'smooth'
+      });
     }
-  }, [reading.length]);
+  }, [enableCarousel, reading.length, prefersReducedMotion]);
+
+  const handleLayoutToggle = useCallback((mode) => {
+    setMobileLayoutMode(mode);
+    if (mode === 'list') {
+      setShowSwipeHint(false);
+    } else if (reading?.length > 1) {
+      setShowSwipeHint(true);
+    }
+  }, [reading?.length]);
+
+  const mobileSummaryEnabled = isCompactScreen;
 
   // Memoize tooltip content generator
   const getTooltipContent = useCallback((card, position, isRevealed) => {
@@ -246,7 +276,7 @@ export function ReadingGrid({
           {card.name}
           {card.isReversed ? ' (Reversed)' : ''}
         </strong>
-        <em className="block text-xs text-muted">{position}</em>
+        <em className="block text-xs-plus text-muted">{position}</em>
         <p className="text-xs-plus text-main/90">{getOrientationMeaning(card)}</p>
       </div>
     );
@@ -254,7 +284,7 @@ export function ReadingGrid({
 
   return (
     <>
-      {reading.length > 1 && showSwipeHint && (
+      {enableCarousel && showSwipeHint && (
         <p className="sm:hidden text-center text-xs text-primary/70 mb-2 animate-pulse">
           Swipe to explore cards &rarr;
         </p>
@@ -265,12 +295,12 @@ export function ReadingGrid({
             ? 'cc-grid animate-fade-in'
             : `animate-fade-in ${reading.length === 1
               ? 'grid grid-cols-1 max-w-md mx-auto'
-              : 'flex overflow-x-auto snap-x snap-mandatory gap-4 pb-6 sm:grid sm:gap-8 sm:overflow-visible sm:snap-none sm:pb-0 ' + (reading.length <= 4
+              : `${isListView ? 'flex flex-col gap-4 pb-4' : 'flex overflow-x-auto snap-x snap-mandatory gap-4 pb-6'} sm:grid sm:gap-8 sm:overflow-visible sm:snap-none sm:pb-0 ${reading.length <= 4
                 ? 'sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-4'
-                : 'sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3')
+                : 'sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3'}`
             }`
         }
-        ref={reading.length > 1 ? carouselRef : null}
+        ref={enableCarousel ? carouselRef : null}
       >
         {reading.map((card, index) => {
           const position = spreadInfo?.positions?.[index] || `Position ${index + 1}`;
@@ -296,7 +326,7 @@ export function ReadingGrid({
               key={`${card.name}-${index}`}
               className={`${selectedSpread === 'celtic'
                 ? getAreaClass(index, selectedSpread)
-                : reading.length > 1 ? 'min-w-[75vw] snap-center sm:min-w-0' : ''
+                : reading.length > 1 ? (isListView ? 'w-full sm:min-w-0' : 'min-w-[68vw] snap-center sm:min-w-0') : ''
                 }`}
             >
               <Tooltip
@@ -308,51 +338,81 @@ export function ReadingGrid({
               >
                 {cardElement}
               </Tooltip>
+              {isRevealed && mobileSummaryEnabled && (
+                <div className="mt-2 text-xs-plus text-main/90 leading-snug sm:hidden">
+                  <p className="font-semibold text-accent">
+                    {card.name}
+                    {card.isReversed ? ' (Reversed)' : ''}
+                  </p>
+                  <p className="text-muted mt-0.5">{position}</p>
+                  <p className="text-muted mt-1">{getOrientationMeaning(card)}</p>
+                </div>
+              )}
             </div>
           );
         })}
       </div>
       {reading.length > 1 && (
         <div className="sm:hidden mt-3 space-y-3">
-          {/* Celtic Cross gets special mini-map context */}
-          {selectedSpread === 'celtic' && (
-            <CelticCrossMiniMap activeIndex={activeIndex} totalCards={reading.length} />
-          )}
-
-          {/* Position dots for all multi-card spreads */}
-          <PositionDotsWrapper
-            activeIndex={activeIndex}
-            totalCards={reading.length}
-            spreadKey={selectedSpread}
-            onSelectPosition={scrollToIndex}
-          />
-
-          {/* Navigation buttons */}
-          <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center justify-center gap-2" role="group" aria-label="Change mobile layout">
             <button
               type="button"
-              onClick={() => scrollToIndex(activeIndex - 1)}
-              disabled={activeIndex === 0}
-              className="inline-flex items-center justify-center rounded-full border border-secondary/50 bg-surface px-3 py-2 min-w-[48px] min-h-[44px] text-xs font-semibold text-muted disabled:opacity-40 touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-              aria-label="Show previous card"
+              aria-pressed={!isListView}
+              onClick={() => handleLayoutToggle('carousel')}
+              className={`flex-1 rounded-full border px-3 py-2 text-xs font-semibold ${isListView ? 'border-secondary/40 text-muted' : 'border-primary/60 bg-primary/10 text-primary'}`}
             >
-              Prev
+              Swipe view
             </button>
-            <p className="text-xs text-muted" aria-live="polite">
-              {selectedSpread === 'celtic'
-                ? CELTIC_POSITION_LABELS[activeIndex]
-                : `Card ${activeIndex + 1} of ${reading.length}`}
-            </p>
             <button
               type="button"
-              onClick={() => scrollToIndex(activeIndex + 1)}
-              disabled={activeIndex >= reading.length - 1}
-              className="inline-flex items-center justify-center rounded-full border border-secondary/50 bg-surface px-3 py-2 min-w-[48px] min-h-[44px] text-xs font-semibold text-muted disabled:opacity-40 touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-              aria-label="Show next card"
+              aria-pressed={isListView}
+              onClick={() => handleLayoutToggle('list')}
+              className={`flex-1 rounded-full border px-3 py-2 text-xs font-semibold ${isListView ? 'border-primary/60 bg-primary/10 text-primary' : 'border-secondary/40 text-muted'}`}
             >
-              Next
+              List view
             </button>
           </div>
+
+          {enableCarousel && (
+            <>
+              {selectedSpread === 'celtic' && (
+                <CelticCrossMiniMap activeIndex={activeIndex} totalCards={reading.length} />
+              )}
+
+              <PositionDotsWrapper
+                activeIndex={activeIndex}
+                totalCards={reading.length}
+                spreadKey={selectedSpread}
+                onSelectPosition={scrollToIndex}
+              />
+
+              <div className="flex items-center justify-between gap-2">
+                <button
+                  type="button"
+                  onClick={() => scrollToIndex(activeIndex - 1)}
+                  disabled={activeIndex === 0}
+                  className="inline-flex items-center justify-center rounded-full border border-secondary/50 bg-surface px-3 py-2 min-w-[48px] min-h-[44px] text-xs font-semibold text-muted disabled:opacity-40 touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                  aria-label="Show previous card"
+                >
+                  Prev
+                </button>
+                <p className="text-xs text-muted" aria-live="polite">
+                  {selectedSpread === 'celtic'
+                    ? CELTIC_POSITION_LABELS[activeIndex]
+                    : `Card ${activeIndex + 1} of ${reading.length}`}
+                </p>
+                <button
+                  type="button"
+                  onClick={() => scrollToIndex(activeIndex + 1)}
+                  disabled={activeIndex >= reading.length - 1}
+                  className="inline-flex items-center justify-center rounded-full border border-secondary/50 bg-surface px-3 py-2 min-w-[48px] min-h-[44px] text-xs font-semibold text-muted disabled:opacity-40 touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                  aria-label="Show next card"
+                >
+                  Next
+                </button>
+              </div>
+            </>
+          )}
         </div>
       )}
     </>

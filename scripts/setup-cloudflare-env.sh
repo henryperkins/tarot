@@ -6,7 +6,7 @@ set -e
 echo "🔧 Setting up Cloudflare Pages environment variables..."
 echo ""
 
-PROJECT_NAME="mystic-tarot"
+PROJECT_NAME="tableau"
 
 # Read from .env.local or current environment
 ENDPOINT="${AZURE_OPENAI_ENDPOINT:-https://thefoundry.openai.azure.com}"
@@ -57,4 +57,4 @@ echo "🔄 Next steps:"
 echo "   1. Trigger a new deployment to pick up the variables"
 echo "   2. Or run: npm run deploy"
 echo ""
-echo "🌐 Your site: https://master.mystic-tarot.pages.dev/"
+echo "🌐 Your site: https://tableau-8xz.pages.dev/"

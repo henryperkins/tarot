@@ -1,10 +1,18 @@
-import { useState } from 'react';
-import { CaretDown, CaretUp } from '@phosphor-icons/react';
+import { useState, useCallback } from 'react';
+import { CaretDown, CaretUp, TextAlignLeft, SpeakerHigh, Palette, Sparkle } from '@phosphor-icons/react';
 import { QuestionInput } from './QuestionInput';
 import { AudioControls } from './AudioControls';
 import { ExperienceSettings } from './ExperienceSettings';
 import { CoachSuggestion } from './CoachSuggestion';
 import { RitualControls } from './RitualControls';
+
+// Mobile tab configuration
+const MOBILE_TABS = [
+    { id: 'intention', label: 'Intent', icon: TextAlignLeft },
+    { id: 'audio', label: 'Audio', icon: SpeakerHigh },
+    { id: 'experience', label: 'Theme', icon: Palette },
+    { id: 'ritual', label: 'Ritual', icon: Sparkle }
+];
 
 export function ReadingPreparation({
     variant = 'desktop',
@@ -85,91 +93,67 @@ export function ReadingPreparation({
         return null;
     };
 
-    // Mobile section state - intention always open, others collapsible
-    const [mobileSectionsOpen, setMobileSectionsOpen] = useState({
-        intention: true,  // Always expanded on mobile
-        audio: false,
-        experience: false,
-        ritual: true  // Ritual is important, start expanded
-    });
+    // Mobile tabbed navigation state
+    const [activeTab, setActiveTab] = useState('intention');
 
-    const toggleMobileSection = (section) => {
-        setMobileSectionsOpen(prev => ({
-            ...prev,
-            [section]: !prev[section]
-        }));
-    };
-
-    const MOBILE_SECTION_META = {
-        intention: { title: 'Intention', description: 'Your guiding question or focus' },
-        audio: { title: 'Audio', description: 'Voice narration and ambience' },
-        experience: { title: 'Experience', description: 'Theme, deck, and reversal settings' },
-        ritual: { title: 'Ritual', description: 'Knock and cut to prepare the deck' }
-    };
+    const handleTabChange = useCallback((tabId) => {
+        setActiveTab(tabId);
+    }, []);
 
     if (variant === 'mobile') {
         return (
             <div className="space-y-4">
-                {['intention', 'audio', 'experience', 'ritual'].map(section => {
-                    const meta = MOBILE_SECTION_META[section];
-                    const isOpen = mobileSectionsOpen[section];
-                    const isIntention = section === 'intention';
-
-                    return (
-                        <section
-                            key={section}
-                            className="rounded-2xl border border-secondary/20 bg-surface/40 overflow-hidden"
-                        >
-                            {/* Section header - clickable to toggle except for intention */}
+                {/* Segmented tab control */}
+                <div
+                    className="flex bg-surface-muted/60 rounded-xl p-1 border border-secondary/20"
+                    role="tablist"
+                    aria-label="Preparation settings"
+                >
+                    {MOBILE_TABS.map((tab) => {
+                        const Icon = tab.icon;
+                        const isActive = activeTab === tab.id;
+                        return (
                             <button
+                                key={tab.id}
                                 type="button"
-                                onClick={() => !isIntention && toggleMobileSection(section)}
-                                disabled={isIntention}
-                                className={`w-full flex items-center justify-between gap-3 px-4 py-3 text-left transition touch-manipulation ${
-                                    isIntention ? 'cursor-default' : 'active:bg-secondary/5'
-                                }`}
-                                aria-expanded={isOpen}
-                                aria-controls={`mobile-section-${section}`}
+                                role="tab"
+                                aria-selected={isActive}
+                                aria-controls={`mobile-panel-${tab.id}`}
+                                onClick={() => handleTabChange(tab.id)}
+                                className={`
+                                    flex-1 flex flex-col items-center justify-center gap-1 py-2.5 px-1 rounded-lg
+                                    text-xs font-semibold transition-all touch-manipulation
+                                    focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70
+                                    ${isActive
+                                        ? 'bg-surface shadow-sm border border-secondary/30 text-accent'
+                                        : 'text-muted hover:text-main'
+                                    }
+                                `}
                             >
-                                <div className="min-w-0 flex-1">
-                                    <h3 className="text-sm font-semibold text-accent">
-                                        {meta.title}
-                                    </h3>
-                                    <p className="text-xs text-muted truncate">
-                                        {meta.description}
-                                    </p>
-                                </div>
-                                {!isIntention && (
-                                    <span className="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-full bg-surface/60 border border-secondary/20">
-                                        {isOpen
-                                            ? <CaretUp className="w-4 h-4 text-accent" />
-                                            : <CaretDown className="w-4 h-4 text-accent" />
-                                        }
-                                    </span>
-                                )}
-                                {isIntention && (
-                                    <span className="flex-shrink-0 text-[0.65rem] uppercase tracking-wider text-secondary/70 bg-secondary/10 px-2 py-1 rounded-full">
-                                        Always open
-                                    </span>
-                                )}
+                                <Icon className={`w-4 h-4 ${isActive ? 'text-secondary' : ''}`} weight={isActive ? 'fill' : 'regular'} />
+                                <span className="truncate">{tab.label}</span>
                             </button>
+                        );
+                    })}
+                </div>
 
-                            {/* Section content */}
-                            <div
-                                id={`mobile-section-${section}`}
-                                aria-hidden={!isOpen}
-                                inert={isOpen ? undefined : true}
-                                className={`transition-all duration-200 ${
-                                    isOpen ? 'opacity-100' : 'opacity-0 h-0 overflow-hidden pointer-events-none'
-                                }`}
-                            >
-                                <div className="px-4 pb-4 pt-1">
-                                    {renderSectionContent(section)}
-                                </div>
+                {/* Tab panel content */}
+                {MOBILE_TABS.map((tab) => (
+                    <div
+                        key={tab.id}
+                        id={`mobile-panel-${tab.id}`}
+                        role="tabpanel"
+                        aria-labelledby={`mobile-tab-${tab.id}`}
+                        hidden={activeTab !== tab.id}
+                        className={activeTab === tab.id ? 'animate-fade-in' : ''}
+                    >
+                        {activeTab === tab.id && (
+                            <div className="rounded-2xl border border-secondary/20 bg-surface/40 p-4">
+                                {renderSectionContent(tab.id)}
                             </div>
-                        </section>
-                    );
-                })}
+                        )}
+                    </div>
+                ))}
             </div>
         );
     }

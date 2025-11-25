@@ -2,9 +2,10 @@ import { useEffect, useRef, useState, memo, useCallback, useId } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkBreaks from 'remark-breaks';
-import { ShareNetwork, DownloadSimple, Trash, CaretDown, CaretUp, BookOpen, ClipboardText } from '@phosphor-icons/react';
+import { ShareNetwork, DownloadSimple, Trash, CaretDown, CaretUp, BookOpen, ClipboardText, DotsThreeVertical } from '@phosphor-icons/react';
 import { CardSymbolInsights } from './CardSymbolInsights';
 import { buildCardInsightPayload, exportJournalEntriesToCsv, copyJournalEntrySummary, copyJournalEntriesToClipboard } from '../lib/journalInsights';
+import { useSmallScreen } from '../hooks/useSmallScreen';
 
 const CONTEXT_SUMMARIES = {
     love: 'Relationship lens — center relational reciprocity and communication.',
@@ -100,8 +101,32 @@ export const JournalEntryCard = memo(function JournalEntryCard({ entry, onCreate
   const insights = buildThemeInsights(entry);
   const [showNarrative, setShowNarrative] = useState(false);
   const [entryActionMessage, setEntryActionMessage] = useState('');
+  const [showCards, setShowCards] = useState(false); // Collapsed by default on mobile
+  const [showActionsMenu, setShowActionsMenu] = useState(false);
   const timeoutsRef = useRef([]);
   const narrativeId = useId();
+  const cardsId = useId();
+  const actionsMenuRef = useRef(null);
+  const isSmallScreen = useSmallScreen(640); // < sm breakpoint
+
+  // Close actions menu when clicking outside
+  useEffect(() => {
+    if (!showActionsMenu) return undefined;
+
+    const handleClickOutside = (event) => {
+      if (actionsMenuRef.current && !actionsMenuRef.current.contains(event.target)) {
+        setShowActionsMenu(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('touchstart', handleClickOutside);
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('touchstart', handleClickOutside);
+    };
+  }, [showActionsMenu]);
 
   const scheduleClear = (delay = 3500) => {
     const id = setTimeout(() => setEntryActionMessage(''), delay);
@@ -179,7 +204,8 @@ export const JournalEntryCard = memo(function JournalEntryCard({ entry, onCreate
         </div>
 
         {/* Actions Toolbar */}
-        <div className="flex items-center gap-1 opacity-100 transition-opacity lg:opacity-0 lg:group-hover:opacity-100">
+        {/* Desktop: inline buttons */}
+        <div className="hidden sm:flex items-center gap-1 opacity-100 transition-opacity lg:opacity-0 lg:group-hover:opacity-100">
           <button
             onClick={handleEntryCopy}
             className="rounded-lg p-2 text-secondary/60 hover:bg-secondary/10 hover:text-secondary min-w-[44px] min-h-[44px] flex items-center justify-center"
@@ -215,6 +241,63 @@ export const JournalEntryCard = memo(function JournalEntryCard({ entry, onCreate
             </button>
           )}
         </div>
+
+        {/* Mobile: overflow menu */}
+        <div className="sm:hidden relative" ref={actionsMenuRef}>
+          <button
+            onClick={() => setShowActionsMenu(prev => !prev)}
+            className="rounded-lg p-2 text-secondary/60 hover:bg-secondary/10 hover:text-secondary min-w-[44px] min-h-[44px] flex items-center justify-center"
+            aria-label="More actions"
+            aria-expanded={showActionsMenu}
+            aria-haspopup="menu"
+          >
+            <DotsThreeVertical className="h-5 w-5" weight="bold" />
+          </button>
+          {showActionsMenu && (
+            <div
+              role="menu"
+              className="absolute right-0 top-full mt-1 z-20 min-w-[160px] rounded-xl border border-secondary/20 bg-surface shadow-xl py-1 animate-fade-in"
+            >
+              <button
+                role="menuitem"
+                onClick={() => { handleEntryCopy(); setShowActionsMenu(false); }}
+                className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-main hover:bg-secondary/10 transition-colors"
+              >
+                <ClipboardText className="h-4 w-4 text-secondary/70" />
+                Copy details
+              </button>
+              <button
+                role="menuitem"
+                onClick={() => { handleEntryExport(); setShowActionsMenu(false); }}
+                className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-main hover:bg-secondary/10 transition-colors"
+              >
+                <DownloadSimple className="h-4 w-4 text-secondary/70" />
+                Export CSV
+              </button>
+              <button
+                role="menuitem"
+                onClick={() => { handleEntryShare(); setShowActionsMenu(false); }}
+                className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-main hover:bg-secondary/10 transition-colors"
+              >
+                <ShareNetwork className="h-4 w-4 text-secondary/70" />
+                Share
+              </button>
+              {isAuthenticated && onDelete && (
+                <>
+                  <div className="my-1 border-t border-secondary/10" />
+                  <button
+                    role="menuitem"
+                    onClick={() => { onDelete(entry.id); setShowActionsMenu(false); }}
+                    className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-error hover:bg-error/10 transition-colors"
+                  >
+                    <Trash className="h-4 w-4" />
+                    Delete
+                  </button>
+                </>
+              )}
+            </div>
+          )}
+        </div>
       </div>
 
       <div className="p-5">
@@ -228,17 +311,54 @@ export const JournalEntryCard = memo(function JournalEntryCard({ entry, onCreate
           </div>
         )}
 
-        {/* Cards Grid */}
+        {/* Cards Grid - collapsible on mobile */}
         <div className="mb-6">
-          <p className="mb-2 text-[10px] font-medium uppercase tracking-wider text-secondary/80">Cards Drawn</p>
-          {cards.length > 0 ? (
-            <ul className="grid gap-2 sm:grid-cols-2">
-              {cards.map((card, idx) => (
-                <JournalCardListItem key={idx} card={card} />
-              ))}
-            </ul>
+          {/* Mobile: collapsible toggle */}
+          {isSmallScreen && cards.length > 0 ? (
+            <div>
+              <button
+                onClick={() => setShowCards(prev => !prev)}
+                aria-expanded={showCards}
+                aria-controls={cardsId}
+                className="w-full flex items-center justify-between mb-2 text-left"
+              >
+                <span className="text-[10px] font-medium uppercase tracking-wider text-secondary/80">
+                  Cards Drawn ({cards.length})
+                </span>
+                {showCards ? (
+                  <CaretUp className="h-4 w-4 text-secondary/60" aria-hidden="true" />
+                ) : (
+                  <CaretDown className="h-4 w-4 text-secondary/60" aria-hidden="true" />
+                )}
+              </button>
+              {showCards && (
+                <ul id={cardsId} className="grid gap-2 animate-slide-down">
+                  {cards.map((card, idx) => (
+                    <JournalCardListItem key={idx} card={card} />
+                  ))}
+                </ul>
+              )}
+              {!showCards && (
+                <p className="text-xs text-secondary/60">
+                  {cards.map(c => c.name).slice(0, 3).join(', ')}
+                  {cards.length > 3 && ` +${cards.length - 3} more`}
+                </p>
+              )}
+            </div>
           ) : (
-            <p className="text-sm text-secondary/70">No cards recorded for this entry.</p>
+            <>
+              {/* Desktop: always expanded */}
+              <p className="mb-2 text-[10px] font-medium uppercase tracking-wider text-secondary/80">Cards Drawn</p>
+              {cards.length > 0 ? (
+                <ul className="grid gap-2 sm:grid-cols-2">
+                  {cards.map((card, idx) => (
+                    <JournalCardListItem key={idx} card={card} />
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-sm text-secondary/70">No cards recorded for this entry.</p>
+              )}
+            </>
           )}
         </div>
 

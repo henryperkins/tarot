@@ -1,78 +1,18 @@
-import { useEffect, useRef, useCallback, useState } from 'react';
+import { useRef, useCallback, useState, useEffect } from 'react';
 import { Sparkle, X } from '@phosphor-icons/react';
+import { useModalA11y } from '../hooks/useModalA11y';
 
-const FOCUSABLE_SELECTORS = [
-  'a[href]',
-  'button:not([disabled])',
-  'textarea:not([disabled])',
-  'input:not([disabled])',
-  'select:not([disabled])',
-  '[tabindex]:not([tabindex="-1"])'
-].join(', ');
-
-export function MobileSettingsDrawer({ isOpen, onClose, children }) {
+export function MobileSettingsDrawer({ isOpen, onClose, children, footer = null }) {
   const drawerRef = useRef(null);
   const closeButtonRef = useRef(null);
-  const previousFocusRef = useRef(null);
 
-  // Focus trap and body scroll lock
-  useEffect(() => {
-    if (!isOpen) return undefined;
-
-    // Store previously focused element
-    if (document.activeElement instanceof HTMLElement) {
-      previousFocusRef.current = document.activeElement;
-    }
-
-    // Lock body scroll
-    const originalOverflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-
-    // Focus the close button after a brief delay for animation
-    const focusTimer = setTimeout(() => {
-      closeButtonRef.current?.focus();
-    }, 100);
-
-    // Handle Escape key
-    const handleKeyDown = (event) => {
-      if (event.key === 'Escape') {
-        event.preventDefault();
-        onClose();
-        return;
-      }
-
-      // Focus trap on Tab
-      if (event.key === 'Tab' && drawerRef.current) {
-        const focusable = drawerRef.current.querySelectorAll(FOCUSABLE_SELECTORS);
-        if (!focusable.length) return;
-
-        const first = focusable[0];
-        const last = focusable[focusable.length - 1];
-
-        if (event.shiftKey && document.activeElement === first) {
-          event.preventDefault();
-          last.focus();
-        } else if (!event.shiftKey && document.activeElement === last) {
-          event.preventDefault();
-          first.focus();
-        }
-      }
-    };
-
-    document.addEventListener('keydown', handleKeyDown);
-
-    return () => {
-      clearTimeout(focusTimer);
-      document.removeEventListener('keydown', handleKeyDown);
-      document.body.style.overflow = originalOverflow;
-
-      // Restore focus to previously focused element
-      if (previousFocusRef.current && typeof previousFocusRef.current.focus === 'function') {
-        previousFocusRef.current.focus();
-      }
-      previousFocusRef.current = null;
-    };
-  }, [isOpen, onClose]);
+  // Shared modal accessibility: scroll lock, escape key, focus trap, focus restoration
+  useModalA11y(isOpen, {
+    onClose,
+    containerRef: drawerRef,
+    initialFocusRef: closeButtonRef,
+    scrollLockStrategy: 'simple', // Simple strategy for drawers
+  });
 
   // Handle swipe-to-dismiss with velocity and visual feedback
   const touchStartY = useRef(null);
@@ -80,20 +20,14 @@ export function MobileSettingsDrawer({ isOpen, onClose, children }) {
   const [dragOffset, setDragOffset] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
 
-  // Reset drag state when drawer opens (prevents stale state from previous dismissal)
+  // Reset drag state when drawer opens/closes
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: reset on open/close transitions
   useEffect(() => {
-    if (isOpen) {
-      setDragOffset(0);
-      setIsDragging(false);
-      touchStartY.current = null;
-      touchStartTime.current = null;
-    }
-
-    // Cleanup touch refs on unmount to prevent memory leaks
-    return () => {
-      touchStartY.current = null;
-      touchStartTime.current = null;
-    };
+    // Reset all drag-related state and refs when drawer state changes
+    touchStartY.current = null;
+    touchStartTime.current = null;
+    setDragOffset(0);
+    setIsDragging(false);
   }, [isOpen]);
 
   const handleTouchStart = useCallback((event) => {
@@ -142,10 +76,10 @@ export function MobileSettingsDrawer({ isOpen, onClose, children }) {
     // Calculate velocity (pixels per millisecond)
     const velocity = deltaY / Math.max(elapsed, 1);
 
-    // Dismiss conditions:
-    // 1. Dragged far enough (150px+)
-    // 2. Fast swipe (velocity > 0.5 px/ms) with some distance (50px+)
-    const shouldDismiss = deltaY > 150 || (deltaY > 50 && velocity > 0.5);
+    // Dismiss conditions (increased thresholds to prevent accidental dismissal):
+    // 1. Dragged far enough (200px+)
+    // 2. Fast swipe (velocity > 0.6 px/ms) with substantial distance (80px+)
+    const shouldDismiss = deltaY > 200 || (deltaY > 80 && velocity > 0.6);
 
     if (shouldDismiss) {
       // Animate out with current momentum
@@ -228,9 +162,14 @@ export function MobileSettingsDrawer({ isOpen, onClose, children }) {
           </div>
         </div>
 
-        <div className="mobile-drawer__body p-4 space-y-8 overflow-y-auto overscroll-contain pb-safe-area-bottom">
+        <div className="mobile-drawer__body p-4 space-y-8 overflow-y-auto overscroll-contain pb-safe-bottom">
           {children}
         </div>
+        {footer && (
+          <div className="mobile-drawer__footer">
+            {footer}
+          </div>
+        )}
       </div>
     </div>
   );

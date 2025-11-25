@@ -3,6 +3,7 @@ import { ArrowCounterClockwise } from '@phosphor-icons/react';
 import { GlobalNav } from './GlobalNav';
 import { UserMenu } from './UserMenu';
 import { StepProgress } from './StepProgress';
+import { useReducedMotion } from '../hooks/useReducedMotion';
 
 // Scroll thresholds - using viewport-relative values for mobile
 const COMPACT_THRESHOLD = 32;
@@ -10,6 +11,7 @@ const HIDE_THRESHOLD_MIN = 180; // Minimum for small screens
 const HIDE_THRESHOLD_RATIO = 0.2; // 20% of viewport height
 
 export function Header({ steps, activeStep, onStepSelect, isShuffling }) {
+  const prefersReducedMotion = useReducedMotion();
   const [headerState, setHeaderState] = useState(() => ({
     isCompact: false,
     isHidden: false,
@@ -18,7 +20,8 @@ export function Header({ steps, activeStep, onStepSelect, isShuffling }) {
   const scrollRafRef = useRef(null);
   const isCleanedUpRef = useRef(false);
   const { isCompact, isHidden } = headerState;
-  const shouldHideHeader = isHidden && !isShuffling;
+  // Disable auto-hide for reduced motion users to prevent unexpected movement
+  const shouldHideHeader = isHidden && !isShuffling && !prefersReducedMotion;
 
   // Calculate viewport-aware hide threshold
   const getHideThreshold = useCallback(() => {
@@ -90,14 +93,15 @@ export function Header({ steps, activeStep, onStepSelect, isShuffling }) {
     };
   }, [getHideThreshold]);
 
-  // Logo height based on compact state
-  const logoHeight = isCompact ? 48 : 72;
+  // Logo height based on compact state and screen size
+  // Mobile (< 640px) uses smaller logo to reduce header height
+  const logoHeight = isCompact ? 40 : 56; // Reduced from 48/72
 
   return (
     <>
       {/* Main Header */}
       <header aria-labelledby="tableau-heading" className={isCompact ? 'header-condensed' : ''}>
-        <div className="text-center mb-6 sm:mb-8 mystic-heading-wrap flex flex-col items-center">
+        <div className="text-center mb-3 sm:mb-6 md:mb-8 mystic-heading-wrap flex flex-col items-center">
           <div
             className="transition-all duration-200 ease-out"
             style={{
@@ -120,6 +124,7 @@ export function Header({ steps, activeStep, onStepSelect, isShuffling }) {
             className={`
               mt-1 text-muted leading-relaxed max-w-2xl
               transition-all duration-200
+              hidden sm:block
               ${isCompact
                 ? 'text-xs opacity-0 h-0 overflow-hidden'
                 : 'text-xs-plus sm:text-sm md:text-base opacity-100'
@@ -154,7 +159,14 @@ export function Header({ steps, activeStep, onStepSelect, isShuffling }) {
             <UserMenu />
           </div>
         </div>
-        <StepProgress steps={steps} activeStep={activeStep} onSelect={onStepSelect} condensed={isCompact} />
+        <div className="mt-2 sm:mt-1">
+          <StepProgress
+            steps={steps}
+            activeStep={activeStep}
+            onSelect={onStepSelect}
+            condensed={isCompact}
+          />
+        </div>
         {isShuffling && (
           <div
             className="mt-2 pb-1 flex items-center gap-2 text-muted text-[clamp(0.85rem,2.4vw,0.95rem)] leading-snug"
