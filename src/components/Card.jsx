@@ -284,7 +284,7 @@ export function Card({
               onTouchMove={handleTouchMove}
               onTouchEnd={handleTouchEnd}
               aria-label={`Reveal card for ${position}. Tap or swipe to reveal. Cards can be revealed in any order.`}
-              className="card-swipe-container relative h-full min-h-[24rem] sm:min-h-[28rem] flex flex-col items-center justify-center gap-4 p-4 sm:p-6 w-full cursor-pointer hover:bg-surface-muted/70 hover:scale-105 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70 focus-visible:ring-offset-2 focus-visible:ring-offset-main"
+              className="card-swipe-container relative h-full min-h-[20rem] sm:min-h-[24rem] flex flex-col items-center justify-center gap-4 p-4 sm:p-6 w-full cursor-pointer hover:bg-surface-muted/70 hover:scale-105 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70 focus-visible:ring-offset-2 focus-visible:ring-offset-main"
             >
               {/* Card back with mystical design */}
               <div
@@ -321,7 +321,7 @@ export function Card({
               </div>
             </button>
           ) : (
-            <div className="transition-all relative h-full min-h-[24rem] sm:min-h-[28rem]">
+            <div className="transition-all relative h-full min-h-[20rem] sm:min-h-[24rem]">
               {/* Card content area - restructured to avoid nested interactives */}
               <div className="relative">
                 {/* Zoom Icon - primary keyboard target for modal */}

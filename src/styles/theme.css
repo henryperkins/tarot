@@ -51,6 +51,8 @@
   /* Warm off-white */
   --text-muted: #C4BDB0;
   /* WCAG AA compliant muted tone (4.5:1 on dark backgrounds) */
+  --text-muted-high: #D8D2C8;
+  /* Higher contrast muted for over translucent backgrounds (5.5:1) */
   --text-accent: #D4B896;
   /* Warmer champagne */
 

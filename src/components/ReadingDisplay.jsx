@@ -175,8 +175,8 @@ export function ReadingDisplay({ sectionRef }) {
     return (
         <section ref={sectionRef} id="step-reading" tabIndex={-1} className="scroll-mt-[6.5rem] sm:scroll-mt-[7.5rem]" aria-label="Draw and explore your reading">
             <div className="mb-4 sm:mb-5">
-                <p className="text-xs-plus sm:text-sm uppercase tracking-[0.12em] text-accent/90">Reading</p>
-                <p className="mt-1 text-muted text-xs sm:text-sm">Draw and reveal your cards, explore the spread, and weave your narrative.</p>
+                <p className="text-xs-plus sm:text-sm uppercase tracking-[0.12em] text-accent">Reading</p>
+                <p className="mt-1 text-muted-high text-xs sm:text-sm">Draw and reveal your cards, explore the spread, and weave your narrative.</p>
             </div>
             {/* Primary CTA */}
             {!reading && (

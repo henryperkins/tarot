@@ -344,9 +344,9 @@ body {
   isolation: isolate;
   border-radius: 1.35rem;
   padding: 1rem 1.15rem 1.35rem;
-  --spread-card-height-mobile: 23rem;
-  --spread-card-height-desktop: 23.5rem;
-  /* Mobile: flexible min-height for carousel */
+  --spread-card-height-mobile: 19rem;
+  --spread-card-height-desktop: 20rem;
+  /* Mobile: flexible min-height for carousel - reduced from 23rem for better viewport fit */
   min-height: var(--spread-card-height-mobile);
   background: var(--spread-background, #15121f);
   border: 1px solid var(--spread-border, rgba(255, 255, 255, 0.08));

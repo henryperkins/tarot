@@ -57,6 +57,7 @@ export default {
       textColor: {
         main: 'var(--text-main)',
         muted: 'var(--text-muted)',
+        'muted-high': 'var(--text-muted-high)', // Higher contrast muted for translucent backgrounds
         accent: 'var(--text-accent)',
         surface: 'var(--color-charcoal)', // high-contrast text for light CTA backgrounds
       },

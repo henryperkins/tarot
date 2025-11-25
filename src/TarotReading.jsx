@@ -9,6 +9,7 @@ import { GuidedIntentionCoach } from './components/GuidedIntentionCoach';
 import { loadCoachRecommendation, saveCoachRecommendation } from './lib/journalInsights';
 import { DeckSelector } from './components/DeckSelector';
 import { MobileSettingsDrawer } from './components/MobileSettingsDrawer';
+import { MobilePrepSummary } from './components/MobilePrepSummary';
 import { Header } from './components/Header';
 import { useNavigate, useLocation } from 'react-router-dom';
 import './styles/tarot.css';
@@ -301,6 +302,15 @@ export default function TarotReading() {
   }, []);
 
   const handleStepNav = useCallback((stepId) => {
+    // On mobile (< 640px), open the settings drawer for intention/ritual steps
+    // since the prep section is hidden on mobile
+    const isMobile = typeof window !== 'undefined' && window.innerWidth < 640;
+
+    if (isMobile && (stepId === 'intention' || stepId === 'ritual')) {
+      setIsMobileSettingsOpen(true);
+      return;
+    }
+
     const refs = {
       spread: spreadSectionRef,
       intention: prepareSectionRef,
@@ -456,8 +466,8 @@ export default function TarotReading() {
         {/* Step 1–3: Spread + Prepare */}
         <section className="mb-6 xl:mb-4" aria-label="Reading setup">
           <div className="mb-4 sm:mb-5">
-            <p className="text-xs-plus sm:text-sm uppercase tracking-[0.12em] text-accent/90">{stepIndicatorLabel}</p>
-            <p className="mt-1 text-muted text-xs sm:text-sm">{stepIndicatorHint}</p>
+            <p className="text-xs-plus sm:text-sm uppercase tracking-[0.12em] text-accent">{stepIndicatorLabel}</p>
+            <p className="mt-1 text-muted-high text-xs sm:text-sm">{stepIndicatorHint}</p>
           </div>
 
           <div className="max-w-5xl mx-auto space-y-6">
@@ -465,10 +475,19 @@ export default function TarotReading() {
               <DeckSelector selectedDeck={deckStyleId} onDeckChange={handleDeckChange} />
             </div>
 
+            {/* Mobile-only prep summary - visible inline to address UX finding */}
+            <MobilePrepSummary
+              userQuestion={userQuestion}
+              knockCount={knockCount}
+              hasCut={hasCut}
+              cutIndex={cutIndex}
+              onOpenSettings={() => setIsMobileSettingsOpen(true)}
+            />
+
             <div aria-label="Choose your spread" ref={spreadSectionRef} id="step-spread" tabIndex={-1} className="scroll-mt-[6.5rem] sm:scroll-mt-[7.5rem]">
               <div className="mb-3 sm:mb-4">
-                <h2 className="text-xs-plus sm:text-sm uppercase tracking-[0.12em] text-accent/90">Spread</h2>
-                <p className="mt-1 text-muted text-xs sm:text-sm">Choose a spread to shape the depth and focus of your reading.</p>
+                <h2 className="text-xs-plus sm:text-sm uppercase tracking-[0.12em] text-accent">Spread</h2>
+                <p className="mt-1 text-muted-high text-xs sm:text-sm">Choose a spread to shape the depth and focus of your reading.</p>
               </div>
               <SpreadSelector
                 selectedSpread={selectedSpread}
