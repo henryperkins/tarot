@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef } from 'react';
 import { Camera, Images, X } from '@phosphor-icons/react';
+import { useBodyScrollLock } from '../hooks/useBodyScrollLock';
 
 const FOCUSABLE_SELECTORS = [
   'button:not([disabled])',
@@ -13,8 +14,10 @@ const FOCUSABLE_SELECTORS = [
 export function PhotoInputModal({ onTakePhoto, onChooseFromLibrary, onCancel }) {
   const modalRef = useRef(null);
   const previousFocusRef = useRef(null);
-  const previousBodyStylesRef = useRef(null);
   const titleId = 'photo-input-modal-title';
+
+  // Centralized scroll lock
+  useBodyScrollLock(true, { strategy: 'fixed' });
 
   // Handle escape key
   const handleKeyDown = useCallback((event) => {
@@ -59,26 +62,6 @@ export function PhotoInputModal({ onTakePhoto, onChooseFromLibrary, onCancel }) 
       previousFocusRef.current = activeElement;
     }
 
-    // Lock body scroll and prevent content shift
-    const scrollY = window.scrollY;
-    const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
-
-    previousBodyStylesRef.current = {
-      overflow: document.body.style.overflow,
-      position: document.body.style.position,
-      top: document.body.style.top,
-      width: document.body.style.width,
-      paddingRight: document.body.style.paddingRight
-    };
-
-    document.body.style.overflow = 'hidden';
-    document.body.style.position = 'fixed';
-    document.body.style.top = `-${scrollY}px`;
-    document.body.style.width = '100%';
-    if (scrollbarWidth > 0) {
-      document.body.style.paddingRight = `${scrollbarWidth}px`;
-    }
-
     // Focus the modal
     if (modalRef.current) {
       modalRef.current.focus();
@@ -89,19 +72,6 @@ export function PhotoInputModal({ onTakePhoto, onChooseFromLibrary, onCancel }) 
 
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
-
-      // Restore body styles
-      if (previousBodyStylesRef.current) {
-        const prev = previousBodyStylesRef.current;
-        document.body.style.overflow = prev.overflow;
-        document.body.style.position = prev.position;
-        document.body.style.top = prev.top;
-        document.body.style.width = prev.width;
-        document.body.style.paddingRight = prev.paddingRight;
-      }
-
-      // Restore scroll position
-      window.scrollTo(0, scrollY);
 
       // Restore focus
       if (previousFocusRef.current && typeof previousFocusRef.current.focus === 'function') {

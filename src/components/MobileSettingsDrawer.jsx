@@ -1,5 +1,6 @@
 import { useEffect, useRef, useCallback, useState } from 'react';
 import { Sparkle, X } from '@phosphor-icons/react';
+import { useBodyScrollLock } from '../hooks/useBodyScrollLock';
 
 const FOCUSABLE_SELECTORS = [
   'a[href]',
@@ -15,7 +16,10 @@ export function MobileSettingsDrawer({ isOpen, onClose, children }) {
   const closeButtonRef = useRef(null);
   const previousFocusRef = useRef(null);
 
-  // Focus trap and body scroll lock
+  // Centralized scroll lock (simple strategy for drawers)
+  useBodyScrollLock(isOpen, { strategy: 'simple' });
+
+  // Focus trap and keyboard handling
   useEffect(() => {
     if (!isOpen) return undefined;
 
@@ -23,10 +27,6 @@ export function MobileSettingsDrawer({ isOpen, onClose, children }) {
     if (document.activeElement instanceof HTMLElement) {
       previousFocusRef.current = document.activeElement;
     }
-
-    // Lock body scroll
-    const originalOverflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
 
     // Focus the close button after a brief delay for animation
     const focusTimer = setTimeout(() => {
@@ -64,7 +64,6 @@ export function MobileSettingsDrawer({ isOpen, onClose, children }) {
     return () => {
       clearTimeout(focusTimer);
       document.removeEventListener('keydown', handleKeyDown);
-      document.body.style.overflow = originalOverflow;
 
       // Restore focus to previously focused element
       if (previousFocusRef.current && typeof previousFocusRef.current.focus === 'function') {
@@ -142,10 +141,10 @@ export function MobileSettingsDrawer({ isOpen, onClose, children }) {
     // Calculate velocity (pixels per millisecond)
     const velocity = deltaY / Math.max(elapsed, 1);
 
-    // Dismiss conditions:
-    // 1. Dragged far enough (150px+)
-    // 2. Fast swipe (velocity > 0.5 px/ms) with some distance (50px+)
-    const shouldDismiss = deltaY > 150 || (deltaY > 50 && velocity > 0.5);
+    // Dismiss conditions (increased thresholds to prevent accidental dismissal):
+    // 1. Dragged far enough (200px+)
+    // 2. Fast swipe (velocity > 0.6 px/ms) with substantial distance (80px+)
+    const shouldDismiss = deltaY > 200 || (deltaY > 80 && velocity > 0.6);
 
     if (shouldDismiss) {
       // Animate out with current momentum

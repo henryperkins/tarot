@@ -1,5 +1,6 @@
+import { useState } from 'react';
 import ReactMarkdown from 'react-markdown';
-import { Fire, Drop, Wind, Leaf, Star, Triangle, Path, Infinity as InfinityIcon } from '@phosphor-icons/react';
+import { Fire, Drop, Wind, Leaf, Star, Triangle, Path, Infinity as InfinityIcon, CaretDown, CaretUp } from '@phosphor-icons/react';
 
 // Suit icons using Phosphor icons for consistent rendering
 const SUIT_ICONS = {
@@ -59,17 +60,72 @@ function generateHighlightKey(highlight, index) {
 
 export function SpreadPatterns({ themes }) {
   const highlights = themes?.knowledgeGraph?.narrativeHighlights;
+  // Default collapsed on mobile to reduce cognitive load
+  const [isExpanded, setIsExpanded] = useState(false);
+
   if (!Array.isArray(highlights) || highlights.length === 0) {
     return null;
   }
 
   return (
     <div className="modern-surface spread-patterns-panel border border-secondary/40 p-4 sm:p-6 animate-fade-in">
-      <div className="flex items-center gap-2 mb-3">
+      {/* Mobile: Collapsible header */}
+      <button
+        type="button"
+        onClick={() => setIsExpanded(prev => !prev)}
+        className="sm:hidden w-full flex items-center justify-between gap-2 mb-0 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70 rounded"
+        aria-expanded={isExpanded}
+        aria-controls="spread-patterns-list-mobile"
+      >
+        <div className="flex items-center gap-2">
+          <Star className="w-5 h-5 text-accent" aria-hidden="true" />
+          <span className="text-accent text-base font-serif">Archetypal Patterns</span>
+          <span className="text-xs text-muted">({highlights.length})</span>
+        </div>
+        {isExpanded ? (
+          <CaretUp className="w-5 h-5 text-accent" aria-hidden="true" />
+        ) : (
+          <CaretDown className="w-5 h-5 text-accent" aria-hidden="true" />
+        )}
+      </button>
+
+      {/* Desktop: Static header */}
+      <div className="hidden sm:flex items-center gap-2 mb-3">
         <Star className="w-5 h-5 text-accent" aria-hidden="true" />
-        <span className="text-accent text-base sm:text-lg font-serif">Archetypal Patterns</span>
+        <span className="text-accent text-lg font-serif">Archetypal Patterns</span>
       </div>
-      <ul className="pattern-list space-y-2" role="list" aria-label="Detected archetypal patterns">
+
+      {/* Mobile: Collapsible list */}
+      <ul
+        id="spread-patterns-list-mobile"
+        className={`sm:hidden pattern-list space-y-2 mt-3 ${isExpanded ? '' : 'hidden'}`}
+        role="list"
+        aria-label="Detected archetypal patterns"
+      >
+        {highlights.map((highlight, index) => (
+          <li
+            key={generateHighlightKey(highlight, index)}
+            className={`pattern pattern-${highlight.type || 'default'} flex items-start gap-2`}
+          >
+            <span className="pattern-icon flex-shrink-0 mt-0.5" aria-hidden="true">
+              {getPatternIcon(highlight.type, highlight.suit)}
+            </span>
+            <ReactMarkdown
+              className="pattern-text text-sm text-main/90 leading-relaxed"
+              components={{
+                p: ({ children }) => <span>{children}</span>,
+                strong: ({ children }) => <strong className="font-semibold text-accent">{children}</strong>,
+                em: ({ children }) => <em className="italic">{children}</em>
+              }}
+            >
+              {highlight.text || ''}
+            </ReactMarkdown>
+          </li>
+        ))}
+      </ul>
+
+      {/* Desktop: Always visible list */}
+      <ul className="hidden sm:block pattern-list space-y-2" role="list" aria-label="Detected archetypal patterns">
         {highlights.map((highlight, index) => (
           <li
             key={generateHighlightKey(highlight, index)}

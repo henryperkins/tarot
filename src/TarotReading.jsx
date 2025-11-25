@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import { Gear } from '@phosphor-icons/react';
+import { Gear, Sparkle, Lightning } from '@phosphor-icons/react';
 import { SPREADS } from './data/spreads';
 import { EXAMPLE_QUESTIONS } from './data/exampleQuestions';
 import { SpreadSelector } from './components/SpreadSelector';
@@ -56,7 +56,7 @@ export default function TarotReading() {
 
     // Tarot State
     selectedSpread,
-    setSelectedSpread,
+    setSelectedSpread: _setSelectedSpread,
     selectSpread,
     reading,
     isShuffling,
@@ -122,6 +122,33 @@ export default function TarotReading() {
   const handleShuffle = useCallback(() => {
     shuffle(); // Context handles the resets
   }, [shuffle]);
+
+  // Quick Start state - triggers shuffle after spread is set
+  const [quickStartPending, setQuickStartPending] = useState(false);
+
+  // Quick Start: Auto-select three-card spread and draw immediately
+  const handleQuickStart = useCallback(() => {
+    // Select three-card spread
+    selectSpread('threeCard');
+    // Confirm the spread selection
+    onSpreadConfirm();
+    // Reset narrative/analysis state
+    setPersonalReading(null);
+    setJournalStatus(null);
+    setReflections({});
+    setAnalyzingText('');
+    setIsGenerating(false);
+    // Mark quick start as pending - effect will trigger shuffle
+    setQuickStartPending(true);
+  }, [selectSpread, onSpreadConfirm, setPersonalReading, setJournalStatus, setReflections, setAnalyzingText, setIsGenerating]);
+
+  // Effect to complete quick start after state is set
+  useEffect(() => {
+    if (quickStartPending && hasConfirmedSpread && selectedSpread === 'threeCard') {
+      setQuickStartPending(false);
+      shuffle();
+    }
+  }, [quickStartPending, hasConfirmedSpread, selectedSpread, shuffle]);
 
   // Sync Minor Arcana dataset warning
   useEffect(() => {
@@ -386,8 +413,8 @@ export default function TarotReading() {
   };
 
   // Determine Active Step for StepProgress
+  // These are milestone-based flags that represent permanent progress through the flow
   const hasQuestion = Boolean(userQuestion && userQuestion.trim().length > 0);
-  const hasRitualProgress = hasKnocked || hasCut || knockCount > 0;
   const hasReading = Boolean(reading && reading.length > 0);
   const allCardsRevealed = hasReading && revealedCards.size === reading.length;
   const hasNarrative = Boolean(personalReading && !personalReading.isError);
@@ -395,17 +422,80 @@ export default function TarotReading() {
   const needsNarrativeGeneration = allCardsRevealed && (!personalReading || personalReading.isError);
   const isPersonalReadingError = Boolean(personalReading?.isError);
 
+  // Compute the highest milestone achieved (not affected by which panel user views)
+  // This ensures the step indicator stays consistent once progress is made
   const { stepIndicatorLabel, stepIndicatorHint, activeStep } = useMemo(() => {
-    if (hasNarrative) return { stepIndicatorLabel: 'Reflect on your narrative', stepIndicatorHint: 'Read through the personalized guidance and save anything that resonates.', activeStep: 'reading' };
-    if (narrativeInProgress) return { stepIndicatorLabel: 'Weaving your narrative', stepIndicatorHint: 'Hang tight while we compose your personalized reading.', activeStep: 'reading' };
+    // Once we have a reading, we're always in the "reading" phase
+    // This prevents the indicator from regressing when users revisit prep panels
     if (hasReading) {
-      if (allCardsRevealed) return { stepIndicatorLabel: 'Explore your spread', stepIndicatorHint: 'Review the card insights below or generate a personalized narrative.', activeStep: 'reading' };
-      return { stepIndicatorLabel: '', stepIndicatorHint: '', activeStep: 'reading' };
+      if (hasNarrative) {
+        return {
+          stepIndicatorLabel: 'Reflect on your narrative',
+          stepIndicatorHint: 'Read through the personalized guidance and save anything that resonates.',
+          activeStep: 'reading'
+        };
+      }
+      if (narrativeInProgress) {
+        return {
+          stepIndicatorLabel: 'Weaving your narrative',
+          stepIndicatorHint: 'Hang tight while we compose your personalized reading.',
+          activeStep: 'reading'
+        };
+      }
+      if (allCardsRevealed) {
+        return {
+          stepIndicatorLabel: 'Explore your spread',
+          stepIndicatorHint: 'Review the card insights below or generate a personalized narrative.',
+          activeStep: 'reading'
+        };
+      }
+      // Cards drawn but not all revealed
+      const remainingCards = reading.length - revealedCards.size;
+      return {
+        stepIndicatorLabel: `Reveal your cards`,
+        stepIndicatorHint: `${remainingCards} card${remainingCards === 1 ? '' : 's'} remaining to reveal.`,
+        activeStep: 'reading'
+      };
     }
-    if (!hasConfirmedSpread) return { stepIndicatorLabel: '', stepIndicatorHint: '', activeStep: 'spread' };
-    if (!hasQuestion || !hasRitualProgress) return { stepIndicatorLabel: 'Prepare your reading', stepIndicatorHint: 'Set an intention, tune experience preferences, or complete the optional ritual.', activeStep: !hasQuestion ? 'intention' : 'ritual' };
-    return { stepIndicatorLabel: 'Draw your cards', stepIndicatorHint: 'When you feel ready, draw the cards to begin your reading.', activeStep: 'reading' };
-  }, [hasNarrative, narrativeInProgress, hasReading, allCardsRevealed, hasQuestion, hasRitualProgress, hasConfirmedSpread]);
+
+    // No reading yet - check preparation milestones
+    if (!hasConfirmedSpread) {
+      return {
+        stepIndicatorLabel: 'Choose your spread',
+        stepIndicatorHint: 'Select a spread that matches the depth of your inquiry.',
+        activeStep: 'spread'
+      };
+    }
+
+    // Spread confirmed - check intention and ritual
+    // Show intention step if no question set
+    if (!hasQuestion) {
+      return {
+        stepIndicatorLabel: 'Set your intention',
+        stepIndicatorHint: 'A focused question helps guide the narrative (optional but recommended).',
+        activeStep: 'intention'
+      };
+    }
+
+    // Question set - check ritual or ready to draw
+    // Note: Ritual is optional, so we show "ready to draw" as soon as question is set
+    // unless they've started but not finished the ritual
+    if (knockCount > 0 && knockCount < 3 && !hasCut) {
+      // User started ritual but hasn't finished - prompt to continue or skip
+      return {
+        stepIndicatorLabel: 'Complete your ritual',
+        stepIndicatorHint: `${3 - knockCount} more knock${3 - knockCount === 1 ? '' : 's'} to clear the deck, or skip to draw.`,
+        activeStep: 'ritual'
+      };
+    }
+
+    // Ready to draw - either ritual complete/skipped or no ritual started
+    return {
+      stepIndicatorLabel: 'Draw your cards',
+      stepIndicatorHint: 'When you feel ready, draw the cards to begin your reading.',
+      activeStep: 'reading'
+    };
+  }, [hasNarrative, narrativeInProgress, hasReading, allCardsRevealed, hasQuestion, hasConfirmedSpread, knockCount, hasCut, reading, revealedCards]);
 
 
   // --- Render Helper Wrappers ---
@@ -460,6 +550,21 @@ export default function TarotReading() {
               <div>• Please check the Minor Arcana dataset for missing or malformed cards</div>
               <div>• Full deck readings will be available once data is restored</div>
             </div>
+          </div>
+        )}
+
+        {/* Quick Start CTA - only show when no reading is in progress */}
+        {!reading && !isShuffling && (
+          <div className="mb-6 text-center">
+            <button
+              type="button"
+              onClick={handleQuickStart}
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-secondary/20 border border-secondary/40 text-secondary hover:bg-secondary/30 transition-all text-sm font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary touch-manipulation"
+            >
+              <Lightning className="w-4 h-4" weight="fill" />
+              <span>Quick three-card reading</span>
+            </button>
+            <p className="mt-2 text-xs text-muted">Skip setup and draw immediately</p>
           </div>
         )}
 
@@ -540,8 +645,8 @@ export default function TarotReading() {
         <ReadingDisplay sectionRef={readingSectionRef} />
       </main>
 
-      {/* Mobile Nav - Keeping internal logic simple for now */}
-      {!isIntentionCoachOpen && (
+      {/* Mobile Nav - Hidden when full-screen surfaces (coach or settings drawer) are open */}
+      {!isIntentionCoachOpen && !isMobileSettingsOpen && (
         <nav
           className="mobile-action-bar sm:hidden"
           aria-label="Primary mobile actions"
@@ -552,10 +657,21 @@ export default function TarotReading() {
 
             {!isShuffling && !reading && (
               <>
-                <button onClick={() => setIsMobileSettingsOpen(true)} className="flex-none w-[3.5rem] min-h-[44px] inline-flex items-center justify-center rounded-xl px-0 py-2.5 text-sm font-semibold transition bg-surface-muted text-accent border border-accent/30 hover:bg-surface flex-col gap-0.5 touch-manipulation" aria-label="Settings">
+                <button onClick={() => setIsMobileSettingsOpen(true)} className="flex-none w-[3rem] min-h-[44px] inline-flex items-center justify-center rounded-xl px-0 py-2.5 text-sm font-semibold transition bg-surface-muted text-accent border border-accent/30 hover:bg-surface touch-manipulation" aria-label="Settings">
                   <Gear className="w-5 h-5" />
                 </button>
-                <button onClick={handleShuffle} className="flex-1 min-w-[7.5rem] min-h-[44px] inline-flex items-center justify-center rounded-xl px-3 py-2.5 text-sm font-semibold transition bg-accent text-surface shadow-lg hover:opacity-90 flex-col gap-0.5 touch-manipulation"><span className="text-xs uppercase tracking-wider opacity-70">{stepIndicatorLabel}</span><span className="text-sm font-semibold">Draw cards</span></button>
+                <button
+                  onClick={() => {
+                    setPendingCoachPrefill(null);
+                    setIsIntentionCoachOpen(true);
+                  }}
+                  className="flex-none min-h-[44px] inline-flex items-center justify-center gap-1.5 rounded-xl px-3 py-2.5 text-sm font-semibold transition bg-secondary/20 text-secondary border border-secondary/40 hover:bg-secondary/30 touch-manipulation"
+                  aria-label="Open guided intention coach"
+                >
+                  <Sparkle className="w-4 h-4" weight="fill" />
+                  <span className="text-xs font-semibold">Coach</span>
+                </button>
+                <button onClick={handleShuffle} className="flex-1 min-w-[6rem] min-h-[44px] inline-flex items-center justify-center rounded-xl px-3 py-2.5 text-sm font-semibold transition bg-accent text-surface shadow-lg hover:opacity-90 flex-col gap-0.5 touch-manipulation"><span className="text-xs uppercase tracking-wider opacity-70">{stepIndicatorLabel}</span><span className="text-sm font-semibold">Draw cards</span></button>
               </>
             )}
 

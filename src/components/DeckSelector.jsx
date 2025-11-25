@@ -1,6 +1,9 @@
 import { useRef, useState, useEffect } from 'react';
 import { Check } from '@phosphor-icons/react';
 import { CarouselDots } from './CarouselDots';
+import rwsPreview from '../../selectorimages/rider.jpeg';
+import thothPreview from '../../selectorimages/Thoth.jpeg';
+import marseillePreview from '../../selectorimages/marseille.jpeg';
 
 export const DECK_OPTIONS = [
   {
@@ -14,7 +17,7 @@ export const DECK_OPTIONS = [
       { label: 'Crimson accents', swatch: '#8d1c33', textColor: '#f7e7ef' }
     ],
     preview: {
-      src: '/images/deck-art/rws.png',
+      src: rwsPreview,
       alt: 'Rider-Waite-Smith deck featuring The Magician card'
     },
     accent: '#e5c48e',
@@ -34,7 +37,7 @@ export const DECK_OPTIONS = [
       { label: 'Saffron gold', swatch: '#d9a441', textColor: '#120c05' }
     ],
     preview: {
-      src: '/images/deck-art/thoth.png',
+      src: thothPreview,
       alt: 'Thoth deck featuring The Magus card with Art Deco styling'
     },
     accent: '#44e0d2',
@@ -55,7 +58,7 @@ export const DECK_OPTIONS = [
       { label: 'Sunflower yellow', swatch: '#d8a300', textColor: '#140d02' }
     ],
     preview: {
-      src: '/images/deck-art/marseille.png',
+      src: marseillePreview,
       alt: 'Tarot de Marseille deck featuring Le Bateleur card'
     },
     accent: '#d8a300',

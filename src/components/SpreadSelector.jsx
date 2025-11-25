@@ -4,6 +4,12 @@ import { Icon } from './Icon';
 import { SPREADS } from '../data/spreads';
 import { SpreadPatternThumbnail } from './SpreadPatternThumbnail';
 import { CarouselDots } from './CarouselDots';
+import oneCardArt from '../../selectorimages/onecard.png';
+import threeCardArt from '../../selectorimages/3card.png';
+import fiveCardArt from '../../selectorimages/5card.png';
+import decisionArt from '../../selectorimages/decision.png';
+import relationshipArt from '../../selectorimages/relationshipsnapshot.png';
+import celticArt from '../../selectorimages/celticcross.png';
 
 const STAR_TOTAL = 3;
 
@@ -64,6 +70,51 @@ const SPREAD_THEMES = {
     glow: 'rgba(169, 146, 255, 0.4)',
     background:
       'linear-gradient(170deg, rgba(28, 24, 54, 0.95), rgba(10, 9, 17, 0.96)), radial-gradient(circle at 20% 12%, rgba(169, 146, 255, 0.28), transparent 52%), radial-gradient(circle at 88% -10%, rgba(255, 191, 140, 0.2), transparent 54)'
+  }
+};
+
+const SPREAD_ART_OVERRIDES = {
+  single: {
+    src: oneCardArt,
+    width: 4096,
+    height: 4096,
+    aspectRatio: '16 / 9',
+    alt: 'One-card insight spread artwork'
+  },
+  threeCard: {
+    src: threeCardArt,
+    width: 4096,
+    height: 4096,
+    aspectRatio: '16 / 9',
+    alt: 'Three-card story spread artwork'
+  },
+  fiveCard: {
+    src: fiveCardArt,
+    width: 4096,
+    height: 4096,
+    aspectRatio: '16 / 9',
+    alt: 'Five-card clarity spread artwork'
+  },
+  decision: {
+    src: decisionArt,
+    width: 4096,
+    height: 4096,
+    aspectRatio: '16 / 9',
+    alt: 'Decision two-path spread artwork'
+  },
+  relationship: {
+    src: relationshipArt,
+    width: 4096,
+    height: 4096,
+    aspectRatio: '16 / 9',
+    alt: 'Relationship snapshot spread artwork'
+  },
+  celtic: {
+    src: celticArt,
+    width: 4096,
+    height: 4096,
+    aspectRatio: '16 / 9',
+    alt: 'Celtic cross spread artwork'
   }
 };
 
@@ -218,6 +269,7 @@ export function SpreadSelector({
             const resolvedBorder = isActive
               ? (theme.borderActive || FALLBACK_SPREAD_THEME.borderActive)
               : (theme.border || FALLBACK_SPREAD_THEME.border);
+            const previewArt = SPREAD_ART_OVERRIDES[key] || spread.preview;
 
             return (
               <button
@@ -254,7 +306,7 @@ export function SpreadSelector({
 
                 <SpreadPatternThumbnail
                   spreadKey={key}
-                  preview={spread.preview}
+                  preview={previewArt}
                   spreadName={spread.name}
                   className="spread-card__preview w-full"
                 />

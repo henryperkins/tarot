@@ -1,4 +1,4 @@
-import { TextAlignLeft, Sparkle, Gear } from '@phosphor-icons/react';
+import { TextAlignLeft, Sparkle, CaretRight } from '@phosphor-icons/react';
 
 /**
  * Mobile-only condensed prep summary shown inline above the deck.
@@ -31,12 +31,15 @@ export function MobilePrepSummary({
         className="w-full rounded-xl border border-secondary/30 bg-surface/60 backdrop-blur-sm p-3 text-left transition active:bg-surface/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70 touch-manipulation"
         aria-label="Open reading preparation settings"
       >
-        {/* Header row */}
+        {/* Header row with chevron for clear tap affordance */}
         <div className="flex items-center justify-between gap-2 mb-2">
-          <span className="text-[0.65rem] uppercase tracking-wider text-accent font-semibold">
+          <span className="text-xs uppercase tracking-wider text-accent font-semibold">
             Prepare Your Reading
           </span>
-          <Gear className="w-4 h-4 text-accent" aria-hidden="true" />
+          <div className="flex items-center gap-1 text-accent">
+            <span className="text-xs uppercase tracking-wider opacity-70">Edit</span>
+            <CaretRight className="w-4 h-4" weight="bold" aria-hidden="true" />
+          </div>
         </div>
 
         {/* Status pills */}
@@ -71,7 +74,7 @@ export function MobilePrepSummary({
 
         {/* Hint text */}
         {!hasQuestion && !hasRitualProgress && (
-          <p className="mt-2 text-[0.68rem] text-muted leading-snug">
+          <p className="mt-2 text-xs text-muted leading-snug">
             Tap to set an intention and prepare your deck before drawing.
           </p>
         )}

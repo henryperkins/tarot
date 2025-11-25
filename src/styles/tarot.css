@@ -183,6 +183,42 @@ body {
   }
 }
 
+/* Landscape mode safeguards for small mobile devices */
+@media (max-height: 500px) and (orientation: landscape) {
+  /* Compact mobile action bar in landscape */
+  .mobile-action-bar {
+    padding-top: 0.5rem;
+    padding-bottom: 0.5rem;
+  }
+
+  @supports (padding: max(0px)) {
+    .mobile-action-bar {
+      padding-bottom: max(0.5rem, env(safe-area-inset-bottom, 0.5rem));
+    }
+  }
+
+  /* Compact header in cramped landscape */
+  .header-sticky {
+    padding-top: 0.25rem !important;
+    padding-bottom: 0.25rem !important;
+  }
+
+  .header-sticky__row {
+    gap: 0.5rem;
+  }
+
+  /* Reduce spacing between content sections */
+  .app-shell {
+    padding-bottom: 0.75rem;
+  }
+
+  /* Smaller deck pile in landscape */
+  .deck-pile {
+    transform: scale(0.85);
+    transform-origin: center;
+  }
+}
+
 /* Light mode: Additional styles can be added here when implementing light mode support */
 
 .spread-patterns-panel {
@@ -344,8 +380,8 @@ body {
   isolation: isolate;
   border-radius: 1.35rem;
   padding: 1rem 1.15rem 1.35rem;
-  --spread-card-height-mobile: 19rem;
-  --spread-card-height-desktop: 20rem;
+  --spread-card-height-mobile: 21rem;
+  --spread-card-height-desktop: 22rem;
   /* Mobile: flexible min-height for carousel - reduced from 23rem for better viewport fit */
   min-height: var(--spread-card-height-mobile);
   background: var(--spread-background, #15121f);

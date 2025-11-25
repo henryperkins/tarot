@@ -1,6 +1,6 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { AnimatePresence } from 'framer-motion';
-import { Sparkle, ArrowCounterClockwise, Star } from '@phosphor-icons/react';
+import { Sparkle, ArrowCounterClockwise, Star, CheckCircle, BookmarkSimple, SpeakerHigh } from '@phosphor-icons/react';
 import { useNavigate } from 'react-router-dom';
 import { getSpreadInfo, normalizeSpreadKey } from '../data/spreads';
 import { ReadingGrid } from './ReadingGrid';
@@ -18,6 +18,7 @@ import { usePreferences } from '../contexts/PreferencesContext';
 import { useSaveReading } from '../hooks/useSaveReading';
 import { useFeatureFlags } from '../hooks/useFeatureFlags';
 import { useAuth } from '../contexts/AuthContext';
+import { useSmallScreen } from '../hooks/useSmallScreen';
 
 const NARRATIVE_STEPS = [
     { id: 'analyzing', label: 'Analyzing spread' },
@@ -99,6 +100,7 @@ export function ReadingDisplay({ sectionRef }) {
     }, [selectedSpread, sessionSeed, reading]);
 
     const [selectionState, setSelectionState] = useState({ key: readingIdentity, value: null });
+    const [isNarrativeFocus, setIsNarrativeFocus] = useState(false);
     const selectedCardData = selectionState.key === readingIdentity ? selectionState.value : null;
     const setSelectedCardData = useCallback((value) => {
         setSelectionState({ key: readingIdentity, value });
@@ -112,8 +114,10 @@ export function ReadingDisplay({ sectionRef }) {
     const { isAuthenticated } = useAuth();
 
     const { visionResearch: visionResearchEnabled, newDeckInterface } = useFeatureFlags();
+    const isCompactScreen = useSmallScreen(768);
     const safeSpreadKey = normalizeSpreadKey(selectedSpread);
     const spreadInfo = getSpreadInfo(safeSpreadKey);
+    const canShowVisionPanel = visionResearchEnabled && isAuthenticated;
 
     // --- Derived State ---
     const isPersonalReadingError = Boolean(personalReading?.isError);
@@ -129,6 +133,17 @@ export function ReadingDisplay({ sectionRef }) {
     const shouldStreamNarrative = Boolean(personalReading && !personalReading.isError);
     const phaseOrder = ['idle', 'analyzing', 'drafting', 'polishing', 'complete', 'error'];
     const currentPhaseIndex = phaseOrder.indexOf(narrativePhase);
+    const hasPatternHighlights = Boolean(personalReading && !isPersonalReadingError && themes?.knowledgeGraph?.narrativeHighlights?.length);
+    const hasTraditionalInsights = Boolean(readingMeta?.graphContext?.retrievedPassages?.length);
+    const hasHighlightPanel = Boolean(highlightItems?.length && revealedCards.size === reading?.length);
+    const hasInsightPanels = hasPatternHighlights || hasTraditionalInsights || hasHighlightPanel || canShowVisionPanel;
+    const focusToggleAvailable = hasInsightPanels && (isCompactScreen || isNarrativeFocus);
+
+    useEffect(() => {
+        if (!hasInsightPanels && isNarrativeFocus) {
+            setIsNarrativeFocus(false);
+        }
+    }, [hasInsightPanels, isNarrativeFocus]);
 
     // Memoize step states to avoid indexOf in render loop
     const stepStates = useMemo(() => {
@@ -188,7 +203,7 @@ export function ReadingDisplay({ sectionRef }) {
                 </div>
             )}
 
-            {visionResearchEnabled && isAuthenticated && (
+            {canShowVisionPanel && !isNarrativeFocus && (
                 <div className="mb-6">
                     <VisionValidationPanel
                         deckStyle={deckStyleId}
@@ -265,7 +280,7 @@ export function ReadingDisplay({ sectionRef }) {
                         onCardClick={handleCardClick}
                     />
 
-                    {revealedCards.size === reading.length && highlightItems.length > 0 && (
+                    {revealedCards.size === reading.length && highlightItems.length > 0 && !isNarrativeFocus && (
                         <div className="modern-surface p-4 sm:p-6 border border-secondary/40 space-y-4">
                             <h3 className="text-base sm:text-lg font-serif text-accent mb-3 flex items-center gap-2"><Star className="w-4 h-4 sm:w-5 sm:h-5" />Spread Highlights</h3>
                             <div className="sm:hidden space-y-3">
@@ -341,19 +356,61 @@ export function ReadingDisplay({ sectionRef }) {
                         </div>
                     )}
 
-                    {personalReading && !isPersonalReadingError && themes?.knowledgeGraph?.narrativeHighlights?.length > 0 && (
-                        <SpreadPatterns themes={themes} />
-                    )}
-
                     {personalReading && (
                         <div className="bg-surface/95 backdrop-blur-xl rounded-2xl p-5 sm:p-8 border border-secondary/40 shadow-2xl shadow-secondary/40 max-w-5xl mx-auto">
+                            {/* Narrative completion banner - shown when complete */}
+                            {narrativePhase === 'complete' && !isPersonalReadingError && (
+                                <div className="mb-5 p-4 bg-gradient-to-r from-primary/20 via-secondary/15 to-accent/20 border border-primary/30 rounded-xl animate-fade-in" role="status" aria-live="polite">
+                                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                                        <div className="flex items-center gap-2.5">
+                                            <CheckCircle className="w-5 h-5 text-primary flex-shrink-0" weight="fill" />
+                                            <div>
+                                                <p className="text-sm font-semibold text-main">Your narrative is ready</p>
+                                                <p className="text-xs text-muted">Save it to your journal or listen to the narration.</p>
+                                            </div>
+                                        </div>
+                                        <div className="flex flex-wrap items-center gap-2">
+                                            <button
+                                                type="button"
+                                                onClick={saveReading}
+                                                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-accent/20 border border-accent/40 text-accent text-xs font-semibold hover:bg-accent/30 transition touch-manipulation"
+                                            >
+                                                <BookmarkSimple className="w-3.5 h-3.5" weight="fill" />
+                                                <span>Save</span>
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={handleNarrationWrapper}
+                                                disabled={!fullReadingText || ttsState.status === 'loading'}
+                                                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-secondary/20 border border-secondary/40 text-secondary text-xs font-semibold hover:bg-secondary/30 disabled:opacity-50 transition touch-manipulation"
+                                            >
+                                                <SpeakerHigh className="w-3.5 h-3.5" weight="fill" />
+                                                <span>{ttsState.status === 'playing' ? 'Pause' : 'Play'}</span>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
                             <h3 className="text-xl sm:text-2xl font-serif text-accent mb-2 flex items-center gap-2"><Sparkle className="w-5 h-5 sm:w-6 sm:h-6 text-secondary" />Your Personalized Narrative</h3>
                             <HelperToggle className="mt-3 max-w-2xl mx-auto"><p>This narrative braids together your spread positions, card meanings, and reflections into a single through-line. Read slowly, notice what resonates, and treat it as a mirror—not a script.</p></HelperToggle>
                             {userQuestion && (<div className="bg-surface/85 rounded-lg p-4 mb-4 border border-secondary/40"><p className="text-accent/85 text-xs sm:text-sm italic">Anchor: {userQuestion}</p></div>)}
-                            {readingMeta?.graphContext?.retrievedPassages?.length > 0 && (
+                            {hasTraditionalInsights && (
                                 <PatternHighlightBanner
                                     passages={readingMeta.graphContext.retrievedPassages}
+                                    minimal={isNarrativeFocus}
                                 />
+                            )}
+                            {focusToggleAvailable && (
+                                <div className="mt-4 flex justify-end">
+                                    <button
+                                        type="button"
+                                        aria-pressed={isNarrativeFocus}
+                                        onClick={() => setIsNarrativeFocus(prev => !prev)}
+                                        className="inline-flex items-center gap-2 rounded-full border border-secondary/50 px-3 py-1.5 text-xs font-semibold text-muted hover:text-main hover:border-secondary/70 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/60"
+                                    >
+                                        {isNarrativeFocus ? 'Show insight panels' : 'Focus on narrative'}
+                                    </button>
+                                </div>
                             )}
                             <StreamingNarrative
                                 text={narrativeText}
@@ -387,6 +444,11 @@ export function ReadingDisplay({ sectionRef }) {
                                 )}
                                 {journalStatus && <p role="status" aria-live="polite" className={`text-xs text-center max-w-sm ${journalStatus.type === 'success' ? 'text-success' : 'text-error'}`}>{journalStatus.message}</p>}
                             </div>
+                            {!isNarrativeFocus && hasPatternHighlights && (
+                                <div className="mt-6 w-full">
+                                    <SpreadPatterns themes={themes} />
+                                </div>
+                            )}
                             <div className="mt-6 w-full max-w-2xl">
                                 <FeedbackPanel
                                     requestId={readingMeta.requestId}

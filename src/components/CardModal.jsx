@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { X } from '@phosphor-icons/react';
 import { CARD_LOOKUP, FALLBACK_IMAGE, getCardImage, getCanonicalCard } from '../lib/cardLookup';
 import { CardSymbolInsights } from './CardSymbolInsights';
+import { useBodyScrollLock } from '../hooks/useBodyScrollLock';
 
 const FOCUSABLE_SELECTORS = [
     'a[href]',
@@ -18,11 +19,12 @@ const FOCUSABLE_SELECTORS = [
 
 export function CardModal({ card, isOpen, onClose, position, layoutId }) {
     const modalRef = useRef(null);
-    const previousBodyStylesRef = useRef(null);
     const previousFocusRef = useRef(null);
-    const scrollYRef = useRef(0);
     const titleId = `card-modal-title-${layoutId || 'default'}`;
     const descId = `card-modal-desc-${layoutId || 'default'}`;
+
+    // Centralized scroll lock with fixed strategy (prevents iOS bounce)
+    useBodyScrollLock(isOpen, { strategy: 'fixed' });
 
     useEffect(() => {
         if (!isOpen || typeof document === 'undefined') return undefined;
@@ -41,43 +43,8 @@ export function CardModal({ card, isOpen, onClose, position, layoutId }) {
             previousFocusRef.current = activeElement;
         }
 
-        // Store scroll position and body styles
-        scrollYRef.current = window.scrollY;
-        const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
-
-        previousBodyStylesRef.current = {
-            overflow: document.body.style.overflow,
-            position: document.body.style.position,
-            top: document.body.style.top,
-            width: document.body.style.width,
-            paddingRight: document.body.style.paddingRight
-        };
-
-        // Lock scroll without causing content shift
-        document.body.style.overflow = 'hidden';
-        document.body.style.position = 'fixed';
-        document.body.style.top = `-${scrollYRef.current}px`;
-        document.body.style.width = '100%';
-        if (scrollbarWidth > 0) {
-            document.body.style.paddingRight = `${scrollbarWidth}px`;
-        }
-
         return () => {
             window.removeEventListener('keydown', handleEscape);
-
-            // Restore body styles
-            if (previousBodyStylesRef.current) {
-                const prev = previousBodyStylesRef.current;
-                document.body.style.overflow = prev.overflow;
-                document.body.style.position = prev.position;
-                document.body.style.top = prev.top;
-                document.body.style.width = prev.width;
-                document.body.style.paddingRight = prev.paddingRight;
-            }
-            previousBodyStylesRef.current = null;
-
-            // Restore scroll position
-            window.scrollTo(0, scrollYRef.current);
 
             // Restore focus
             if (previousFocusRef.current && typeof previousFocusRef.current.focus === 'function') {
