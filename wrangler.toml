@@ -35,23 +35,23 @@ pages_build_output_dir="dist"
     # PRODUCTION DEPLOYMENT:
     # Set secrets using wrangler CLI:
     #
-    #   wrangler pages secret put AZURE_OPENAI_ENDPOINT --project-name=mystic-tarot
-    #   wrangler pages secret put AZURE_OPENAI_API_KEY --project-name=mystic-tarot
-    #   wrangler pages secret put AZURE_OPENAI_GPT5_MODEL --project-name=mystic-tarot
-    #   wrangler pages secret put AZURE_OPENAI_TTS_ENDPOINT --project-name=mystic-tarot
-    #   wrangler pages secret put AZURE_OPENAI_TTS_API_KEY --project-name=mystic-tarot
-    #   wrangler pages secret put AZURE_OPENAI_GPT_AUDIO_MINI_DEPLOYMENT --project-name=mystic-tarot
+    #   wrangler pages secret put AZURE_OPENAI_ENDPOINT --project-name=tableau
+    #   wrangler pages secret put AZURE_OPENAI_API_KEY --project-name=tableau
+    #   wrangler pages secret put AZURE_OPENAI_GPT5_MODEL --project-name=tableau
+    #   wrangler pages secret put AZURE_OPENAI_TTS_ENDPOINT --project-name=tableau
+    #   wrangler pages secret put AZURE_OPENAI_TTS_API_KEY --project-name=tableau
+    #   wrangler pages secret put AZURE_OPENAI_GPT_AUDIO_MINI_DEPLOYMENT --project-name=tableau
     #
     # PREVIEW ENVIRONMENT:
     # For branch deployments, add --env=preview:
     #
-    #   wrangler pages secret put AZURE_OPENAI_API_KEY --project-name=mystic-tarot --env=preview
+    #   wrangler pages secret put AZURE_OPENAI_API_KEY --project-name=tableau --env=preview
     #
     # LIST SECRETS:
-    #   wrangler pages secret list --project-name=mystic-tarot
+    #   wrangler pages secret list --project-name=tableau
     #
     # DELETE SECRET:
-    #   wrangler pages secret delete AZURE_OPENAI_API_KEY --project-name=mystic-tarot
+    #   wrangler pages secret delete AZURE_OPENAI_API_KEY --project-name=tableau
     #
     # Required Secrets for this project:
     # - AZURE_OPENAI_ENDPOINT (Azure OpenAI endpoint URL)

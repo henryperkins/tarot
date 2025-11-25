@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { AnimatePresence } from 'framer-motion';
-import { Sparkle, ArrowCounterClockwise, Star, CheckCircle, BookmarkSimple, SpeakerHigh } from '@phosphor-icons/react';
+import { Sparkle, ArrowCounterClockwise, Star, CheckCircle, BookmarkSimple } from '@phosphor-icons/react';
 import { useNavigate } from 'react-router-dom';
 import { getSpreadInfo, normalizeSpreadKey } from '../data/spreads';
 import { ReadingGrid } from './ReadingGrid';
@@ -366,28 +366,17 @@ export function ReadingDisplay({ sectionRef }) {
                                             <CheckCircle className="w-5 h-5 text-primary flex-shrink-0" weight="fill" />
                                             <div>
                                                 <p className="text-sm font-semibold text-main">Your narrative is ready</p>
-                                                <p className="text-xs text-muted">Save it to your journal or listen to the narration.</p>
+                                                <p className="text-xs text-muted">Save to your journal. Use controls below for narration.</p>
                                             </div>
                                         </div>
-                                        <div className="flex flex-wrap items-center gap-2">
-                                            <button
-                                                type="button"
-                                                onClick={saveReading}
-                                                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-accent/20 border border-accent/40 text-accent text-xs font-semibold hover:bg-accent/30 transition touch-manipulation"
-                                            >
-                                                <BookmarkSimple className="w-3.5 h-3.5" weight="fill" />
-                                                <span>Save</span>
-                                            </button>
-                                            <button
-                                                type="button"
-                                                onClick={handleNarrationWrapper}
-                                                disabled={!fullReadingText || ttsState.status === 'loading'}
-                                                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-secondary/20 border border-secondary/40 text-secondary text-xs font-semibold hover:bg-secondary/30 disabled:opacity-50 transition touch-manipulation"
-                                            >
-                                                <SpeakerHigh className="w-3.5 h-3.5" weight="fill" />
-                                                <span>{ttsState.status === 'playing' ? 'Pause' : 'Play'}</span>
-                                            </button>
-                                        </div>
+                                        <button
+                                            type="button"
+                                            onClick={saveReading}
+                                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-accent/20 border border-accent/40 text-accent text-xs font-semibold hover:bg-accent/30 transition touch-manipulation"
+                                        >
+                                            <BookmarkSimple className="w-3.5 h-3.5" weight="fill" />
+                                            <span>Save to Journal</span>
+                                        </button>
                                     </div>
                                 </div>
                             )}

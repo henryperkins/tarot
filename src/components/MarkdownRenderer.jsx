@@ -26,7 +26,7 @@ export function MarkdownRenderer({ content }) {
           h3: ({ node, ...props }) => (
             <h3 {...props} className={`${headingClass} text-lg`} />
           ),
-          p: ({ node, ...props }) => (
+          p: ({ node: _node, ...props }) => (
             <p {...props} className={paragraphClass} />
           ),
           strong: ({ node, ...props }) => (

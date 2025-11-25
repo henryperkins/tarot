@@ -4,6 +4,30 @@ body {
   /* Prevent horizontal scroll on mobile */
 }
 
+/* Mobile typography improvements for readability */
+@media (max-width: 639px) {
+  /* Increase base text size on mobile for better readability */
+  body {
+    font-size: 1rem; /* 16px base */
+  }
+
+  /* Ensure paragraph text is comfortable to read */
+  p, li, dd {
+    font-size: 0.9375rem; /* 15px */
+    line-height: 1.6;
+  }
+
+  /* Slightly larger form elements on mobile */
+  input, textarea, select {
+    font-size: 1rem; /* 16px - prevents iOS zoom on focus */
+  }
+
+  /* Larger link/button text for easier tapping */
+  button, a {
+    font-size: inherit;
+  }
+}
+
 .app-shell {
   padding-bottom: 1.5rem;
 }
@@ -175,6 +199,26 @@ body {
   backdrop-filter: blur(18px);
   border-top: 1px solid color-mix(in srgb, var(--brand-accent) 65%, transparent);
   transition: bottom 180ms ease-out;
+}
+
+.mobile-action-group {
+  padding: 0.5rem 0 0.25rem;
+  background: var(--bg-surface);
+  border-top: 1px solid color-mix(in srgb, var(--brand-accent) 20%, transparent);
+  box-shadow: 0 -18px 40px rgba(0, 0, 0, 0.35);
+}
+
+.mobile-drawer__footer {
+  padding: 0.75rem 1rem 1rem;
+  background: color-mix(in srgb, var(--bg-surface) 92%, transparent);
+  border-top: 1px solid color-mix(in srgb, var(--brand-accent) 22%, transparent);
+  box-shadow: 0 -18px 32px rgba(0, 0, 0, 0.4);
+}
+
+@supports (padding: max(0px)) {
+  .mobile-drawer__footer {
+    padding-bottom: max(1rem, calc(1rem + env(safe-area-inset-bottom, 0rem)));
+  }
 }
 
 @supports (padding: max(0px)) {

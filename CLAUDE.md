@@ -29,7 +29,7 @@ npm run preview      # Preview production build locally
 ### Deployment
 ```bash
 npm run deploy       # Deploy to Cloudflare Pages
-wrangler pages deploy dist --project-name=mystic-tarot
+wrangler pages deploy dist --project-name=tableau
 ```
 
 ## Architecture

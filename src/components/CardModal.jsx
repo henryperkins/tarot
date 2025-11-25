@@ -1,91 +1,21 @@
-import { useEffect, useRef } from 'react';
+import { useRef } from 'react';
 import { motion } from 'framer-motion';
 import { X } from '@phosphor-icons/react';
-import { CARD_LOOKUP, FALLBACK_IMAGE, getCardImage, getCanonicalCard } from '../lib/cardLookup';
+import { FALLBACK_IMAGE, getCardImage, getCanonicalCard } from '../lib/cardLookup';
 import { CardSymbolInsights } from './CardSymbolInsights';
-import { useBodyScrollLock } from '../hooks/useBodyScrollLock';
-
-const FOCUSABLE_SELECTORS = [
-    'a[href]',
-    'button:not([disabled])',
-    'textarea:not([disabled])',
-    'input:not([disabled])',
-    'select:not([disabled])',
-    '[tabindex]:not([tabindex="-1"])',
-    '[contenteditable]',
-    'audio[controls]',
-    'video[controls]'
-].join(', ');
+import { useModalA11y } from '../hooks/useModalA11y';
 
 export function CardModal({ card, isOpen, onClose, position, layoutId }) {
     const modalRef = useRef(null);
-    const previousFocusRef = useRef(null);
     const titleId = `card-modal-title-${layoutId || 'default'}`;
     const descId = `card-modal-desc-${layoutId || 'default'}`;
 
-    // Centralized scroll lock with fixed strategy (prevents iOS bounce)
-    useBodyScrollLock(isOpen, { strategy: 'fixed' });
-
-    useEffect(() => {
-        if (!isOpen || typeof document === 'undefined') return undefined;
-
-        const handleEscape = (event) => {
-            if (event.key === 'Escape') {
-                onClose();
-            }
-        };
-
-        window.addEventListener('keydown', handleEscape);
-
-        // Store current focus to restore later
-        const activeElement = document.activeElement;
-        if (activeElement && activeElement instanceof HTMLElement) {
-            previousFocusRef.current = activeElement;
-        }
-
-        return () => {
-            window.removeEventListener('keydown', handleEscape);
-
-            // Restore focus
-            if (previousFocusRef.current && typeof previousFocusRef.current.focus === 'function') {
-                previousFocusRef.current.focus();
-            }
-            previousFocusRef.current = null;
-        };
-    }, [isOpen, onClose]);
-
-    useEffect(() => {
-        if (!isOpen || !modalRef.current) return undefined;
-
-        const dialogNode = modalRef.current;
-        if (typeof dialogNode.focus === 'function') {
-            dialogNode.focus({ preventScroll: true });
-        }
-
-        const handleKeyDown = event => {
-            if (event.key !== 'Tab') return;
-            const focusable = dialogNode.querySelectorAll(FOCUSABLE_SELECTORS);
-            if (!focusable.length) {
-                event.preventDefault();
-                dialogNode.focus();
-                return;
-            }
-            const first = focusable[0];
-            const last = focusable[focusable.length - 1];
-            if (!event.shiftKey && document.activeElement === last) {
-                event.preventDefault();
-                first.focus();
-            } else if (event.shiftKey && document.activeElement === first) {
-                event.preventDefault();
-                last.focus();
-            }
-        };
-
-        dialogNode.addEventListener('keydown', handleKeyDown);
-        return () => {
-            dialogNode.removeEventListener('keydown', handleKeyDown);
-        };
-    }, [isOpen]);
+    // Shared modal accessibility: scroll lock, escape key, focus trap, focus restoration
+    useModalA11y(isOpen, {
+        onClose,
+        containerRef: modalRef,
+        scrollLockStrategy: 'fixed', // Prevents iOS bounce
+    });
 
     if (!isOpen || !card) return null;
 

@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { motion, useAnimation } from 'framer-motion';
-import { ArrowsOut, HandPointing, ArrowLeft, ArrowRight } from '@phosphor-icons/react';
+import { ArrowsOut, HandPointing, ArrowLeft, ArrowRight, NotePencil, CaretDown, CaretUp } from '@phosphor-icons/react';
 import { CARD_LOOKUP, FALLBACK_IMAGE, getCardImage } from '../lib/cardLookup';
 import { CardSymbolInsights } from './CardSymbolInsights';
 import { InteractiveCardOverlay } from './InteractiveCardOverlay';
 import { useReducedMotion } from '../hooks/useReducedMotion';
+import { useSmallScreen } from '../hooks/useSmallScreen';
 
 // Haptic feedback helper
 const vibrate = (pattern) => {
@@ -27,7 +28,12 @@ export function Card({
   const reflectionValue = reflections?.[index] ?? '';
   const textareaRef = useRef(null);
   const userInitiatedRevealRef = useRef(false);
+  const animationStartedRef = useRef(false);
   const prefersReducedMotion = useReducedMotion();
+  const isSmallScreen = useSmallScreen(640); // < sm breakpoint
+
+  // Mobile: collapsible reflection section (starts collapsed unless has content)
+  const [showReflection, setShowReflection] = useState(() => Boolean(reflectionValue));
 
   // Local state to manage the visual reveal sequence
   const [isVisuallyRevealed, setIsVisuallyRevealed] = useState(isRevealed);
@@ -135,6 +141,11 @@ export function Card({
 
   // Reset visual state when a revealed card is returned to an unrevealed state
   useEffect(() => {
+    // When card becomes unrevealed, reset animation tracking
+    if (!isRevealed) {
+      animationStartedRef.current = false;
+    }
+
     if (isRevealed || !isVisuallyRevealed) {
       return undefined;
     }
@@ -160,9 +171,13 @@ export function Card({
 
   // Handle the flip animation sequence
   useEffect(() => {
-    if (!isRevealed || isVisuallyRevealed) {
+    // Only start animation when isRevealed becomes true and we haven't animated yet
+    if (!isRevealed || animationStartedRef.current) {
       return;
     }
+
+    // Mark animation as started immediately to prevent re-triggers
+    animationStartedRef.current = true;
 
     let isActive = true;
     let staggerTimeoutId = null;
@@ -206,20 +221,17 @@ export function Card({
       if (import.meta.env.DEV) {
         console.log(`Card ${index} Phase 2 (swap content)`);
       }
-      if (!isActive) return;
       setIsVisuallyRevealed(true);
       if (!isActive) return;
 
       if (import.meta.env.DEV) {
         console.log(`Card ${index} starting Phase 3 (rotate 0)`);
       }
-      if (!isActive) return;
       await controls.start({
         rotateY: 0,
         opacity: 1,
         transition: springTransition
       });
-      if (!isActive) return;
 
       if (import.meta.env.DEV) {
         console.log(`Card ${index} reveal complete`);
@@ -231,10 +243,10 @@ export function Card({
     return () => {
       isActive = false;
       clearStaggerTimeout();
-      controls.stop();
+      // Don't call controls.stop() here - let the animation complete naturally
     };
-    // Note: isVisuallyRevealed is intentionally omitted as it changes mid-animation
-    // prefersReducedMotion is now included to handle preference changes
+    // Intentionally only depend on isRevealed to start animation once
+    // Other values are read from refs or are stable
   }, [isRevealed, staggerDelay, controls, index, prefersReducedMotion]);
 
   // Get card meaning
@@ -387,31 +399,72 @@ export function Card({
                 </div>
               </div>
 
-              {/* Reflection textarea - separate from clickable card area */}
+              {/* Reflection textarea - collapsible on mobile to reduce density */}
               <div className="mt-3">
-                <label htmlFor={`reflection-${index}`} className="text-muted text-xs-plus sm:text-sm block mb-1">
-                  What resonates for you?
-                </label>
-                <textarea
-                  ref={textareaRef}
-                  id={`reflection-${index}`}
-                  value={reflectionValue}
-                  onChange={event =>
-                    setReflections(prev => ({ ...prev, [index]: event.target.value }))
-                  }
-                  rows={3}
-                  maxLength={500}
-                  className="w-full bg-surface/85 border border-secondary/40 rounded p-2 min-h-[4.5rem] resize-y text-main text-base focus:outline-none focus:ring-1 focus:ring-secondary/55 touch-pan-y"
-                  placeholder="What resonates? (optional)"
-                  aria-describedby={`char-count-${index}`}
-                />
-                <div
-                  id={`char-count-${index}`}
-                  className={`mt-1 text-xs text-right ${charCountClass}`}
-                  aria-live="polite"
-                >
-                  {charCount} / 500
-                </div>
+                {/* Mobile: toggle button when collapsed */}
+                {isSmallScreen && !showReflection ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowReflection(true);
+                      // Focus textarea after state update
+                      setTimeout(() => textareaRef.current?.focus(), 50);
+                    }}
+                    className="w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg border border-secondary/30 bg-surface/60 text-muted hover:text-main hover:border-secondary/50 transition-colors touch-manipulation min-h-[44px]"
+                    aria-expanded="false"
+                    aria-controls={`reflection-${index}`}
+                  >
+                    <NotePencil className="w-4 h-4" aria-hidden="true" />
+                    <span className="text-sm">
+                      {reflectionValue ? 'Edit reflection' : 'Add reflection'}
+                    </span>
+                    {reflectionValue && (
+                      <span className="text-xs text-secondary ml-1">({reflectionValue.length})</span>
+                    )}
+                  </button>
+                ) : (
+                  <>
+                    {/* Mobile: collapsible header with toggle */}
+                    {isSmallScreen && (
+                      <button
+                        type="button"
+                        onClick={() => setShowReflection(false)}
+                        className="w-full flex items-center justify-between mb-1.5 text-muted hover:text-main transition-colors"
+                        aria-expanded="true"
+                        aria-controls={`reflection-${index}`}
+                      >
+                        <span className="text-xs-plus">What resonates for you?</span>
+                        <CaretUp className="w-4 h-4" aria-hidden="true" />
+                      </button>
+                    )}
+                    {/* Desktop: static label */}
+                    {!isSmallScreen && (
+                      <label htmlFor={`reflection-${index}`} className="text-muted text-xs-plus sm:text-sm block mb-1">
+                        What resonates for you?
+                      </label>
+                    )}
+                    <textarea
+                      ref={textareaRef}
+                      id={`reflection-${index}`}
+                      value={reflectionValue}
+                      onChange={event =>
+                        setReflections(prev => ({ ...prev, [index]: event.target.value }))
+                      }
+                      rows={isSmallScreen ? 2 : 3}
+                      maxLength={500}
+                      className="w-full bg-surface/85 border border-secondary/40 rounded p-2 min-h-[3.5rem] sm:min-h-[4.5rem] resize-y text-main text-base focus:outline-none focus:ring-1 focus:ring-secondary/55 touch-pan-y"
+                      placeholder="What resonates? (optional)"
+                      aria-describedby={`char-count-${index}`}
+                    />
+                    <div
+                      id={`char-count-${index}`}
+                      className={`mt-1 text-xs text-right ${charCountClass}`}
+                      aria-live="polite"
+                    >
+                      {charCount} / 500
+                    </div>
+                  </>
+                )}
               </div>
             </div>
           )}

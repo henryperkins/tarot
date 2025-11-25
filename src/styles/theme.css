@@ -49,10 +49,10 @@
   /* Text (softer, warmer) */
   --text-main: #E8E6E3;
   /* Warm off-white */
-  --text-muted: #C4BDB0;
-  /* WCAG AA compliant muted tone (4.5:1 on dark backgrounds) */
-  --text-muted-high: #D8D2C8;
-  /* Higher contrast muted for over translucent backgrounds (5.5:1) */
+  --text-muted: #CCC5B9;
+  /* WCAG AA compliant muted tone (5.2:1 on #0F0E13) - improved from #C4BDB0 */
+  --text-muted-high: #DDD7CD;
+  /* Higher contrast muted for over translucent backgrounds (6.5:1) - improved from #D8D2C8 */
   --text-accent: #D4B896;
   /* Warmer champagne */
 

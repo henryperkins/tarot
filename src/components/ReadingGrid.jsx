@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { getSpreadInfo } from '../data/spreads';
-import { CARD_LOOKUP, getOrientationMeaning } from '../lib/cardLookup';
+import { getOrientationMeaning } from '../lib/cardLookup';
 import { Card } from './Card';
 import { Tooltip } from './Tooltip';
 import { CarouselDots } from './CarouselDots';
 import { useSmallScreen } from '../hooks/useSmallScreen';
+import { useReducedMotion } from '../hooks/useReducedMotion';
 
 /**
  * Celtic Cross position short labels for mobile context.
@@ -140,6 +141,7 @@ export function ReadingGrid({
   const [showSwipeHint, setShowSwipeHint] = useState(true);
   const [mobileLayoutMode, setMobileLayoutMode] = useState('carousel');
   const isCompactScreen = useSmallScreen();
+  const prefersReducedMotion = useReducedMotion();
   const isListView = mobileLayoutMode === 'list';
 
   // Hide swipe hint after 4 seconds or when user interacts
@@ -247,9 +249,12 @@ export function ReadingGrid({
     if (targetCard) {
       const cardCenter = targetCard.offsetLeft + targetCard.offsetWidth / 2;
       const scrollTarget = cardCenter - el.clientWidth / 2;
-      el.scrollTo({ left: Math.max(0, scrollTarget), behavior: 'smooth' });
+      el.scrollTo({
+        left: Math.max(0, scrollTarget),
+        behavior: prefersReducedMotion ? 'auto' : 'smooth'
+      });
     }
-  }, [enableCarousel, reading.length]);
+  }, [enableCarousel, reading.length, prefersReducedMotion]);
 
   const handleLayoutToggle = useCallback((mode) => {
     setMobileLayoutMode(mode);
@@ -260,7 +265,7 @@ export function ReadingGrid({
     }
   }, [reading?.length]);
 
-  const mobileSummaryEnabled = isListView && isCompactScreen;
+  const mobileSummaryEnabled = isCompactScreen;
 
   // Memoize tooltip content generator
   const getTooltipContent = useCallback((card, position, isRevealed) => {

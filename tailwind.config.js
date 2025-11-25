@@ -62,7 +62,8 @@ export default {
         surface: 'var(--color-charcoal)', // high-contrast text for light CTA backgrounds
       },
       fontSize: {
-        'xs-plus': '0.8125rem', // 13px - improved mobile readability
+        'xs-plus': ['0.875rem', { lineHeight: '1.4' }], // 14px - improved mobile readability
+        'sm-mobile': ['0.9375rem', { lineHeight: '1.5' }], // 15px - comfortable mobile body text
       },
       fontFamily: {
         serif: ["serif"],
@@ -70,6 +71,19 @@ export default {
       },
       backdropBlur: {
         xs: "2px"
+      },
+      // Safe area utilities for modern mobile devices
+      padding: {
+        'safe-top': 'env(safe-area-inset-top, 0px)',
+        'safe-bottom': 'env(safe-area-inset-bottom, 0px)',
+        'safe-left': 'env(safe-area-inset-left, 0px)',
+        'safe-right': 'env(safe-area-inset-right, 0px)',
+      },
+      margin: {
+        'safe-top': 'env(safe-area-inset-top, 0px)',
+        'safe-bottom': 'env(safe-area-inset-bottom, 0px)',
+        'safe-left': 'env(safe-area-inset-left, 0px)',
+        'safe-right': 'env(safe-area-inset-right, 0px)',
       },
       keyframes: {
         fadeIn: {

@@ -3,6 +3,7 @@ import { ArrowCounterClockwise } from '@phosphor-icons/react';
 import { GlobalNav } from './GlobalNav';
 import { UserMenu } from './UserMenu';
 import { StepProgress } from './StepProgress';
+import { useReducedMotion } from '../hooks/useReducedMotion';
 
 // Scroll thresholds - using viewport-relative values for mobile
 const COMPACT_THRESHOLD = 32;
@@ -10,6 +11,7 @@ const HIDE_THRESHOLD_MIN = 180; // Minimum for small screens
 const HIDE_THRESHOLD_RATIO = 0.2; // 20% of viewport height
 
 export function Header({ steps, activeStep, onStepSelect, isShuffling }) {
+  const prefersReducedMotion = useReducedMotion();
   const [headerState, setHeaderState] = useState(() => ({
     isCompact: false,
     isHidden: false,
@@ -18,7 +20,8 @@ export function Header({ steps, activeStep, onStepSelect, isShuffling }) {
   const scrollRafRef = useRef(null);
   const isCleanedUpRef = useRef(false);
   const { isCompact, isHidden } = headerState;
-  const shouldHideHeader = isHidden && !isShuffling;
+  // Disable auto-hide for reduced motion users to prevent unexpected movement
+  const shouldHideHeader = isHidden && !isShuffling && !prefersReducedMotion;
 
   // Calculate viewport-aware hide threshold
   const getHideThreshold = useCallback(() => {
@@ -156,9 +159,13 @@ export function Header({ steps, activeStep, onStepSelect, isShuffling }) {
             <UserMenu />
           </div>
         </div>
-        {/* StepProgress - hide on mobile to reduce nav stacking, show sm+ */}
-        <div className="hidden sm:block">
-          <StepProgress steps={steps} activeStep={activeStep} onSelect={onStepSelect} condensed={isCompact} />
+        <div className="mt-2 sm:mt-1">
+          <StepProgress
+            steps={steps}
+            activeStep={activeStep}
+            onSelect={onStepSelect}
+            condensed={isCompact}
+          />
         </div>
         {isShuffling && (
           <div

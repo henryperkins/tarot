@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
-import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { SPREADS } from '../data/spreads';
+import { useReducedMotion } from '../hooks/useReducedMotion';
 import { getCardImage, FALLBACK_IMAGE } from '../lib/cardLookup';
 
 /**

@@ -1,7 +1,8 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
-import { motion, useAnimation, AnimatePresence, useReducedMotion } from 'framer-motion';
+import { motion, useAnimation, AnimatePresence } from 'framer-motion';
 import { TableuLogo } from './TableuLogo';
 import { Sparkle, Scissors, ArrowsClockwise, HandTap } from '@phosphor-icons/react';
+import { useReducedMotion } from '../hooks/useReducedMotion';
 
 const CARD_STACK_COUNT = 7; // Visual stack layers
 
@@ -316,21 +317,72 @@ export function DeckRitual({
         )}
       </AnimatePresence>
 
-      {/* Gesture hints */}
-      <div className="mt-5 sm:mt-6 flex flex-wrap items-center justify-center gap-2 sm:gap-3 text-xs text-muted px-4">
-        <span className="flex items-center gap-1.5 px-2 py-1 rounded-full bg-surface/60 border border-accent/20">
-          <HandTap className="w-3.5 h-3.5" />
-          <span>Tap to knock</span>
-        </span>
-        <span className="flex items-center gap-1.5 px-2 py-1 rounded-full bg-surface/60 border border-accent/20">
-          <Scissors className="w-3.5 h-3.5" />
-          <span>Hold to cut</span>
-        </span>
-        <span className="flex items-center gap-1.5 px-2 py-1 rounded-full bg-surface/60 border border-accent/20">
-          <ArrowsClockwise className="w-3.5 h-3.5" />
-          <span>Double-tap to shuffle</span>
-        </span>
+      {/* Ritual action buttons - explicit alternatives to gestures for accessibility */}
+      <div className="mt-5 sm:mt-6 flex flex-wrap items-center justify-center gap-2 sm:gap-3 px-4">
+        {/* Knock button */}
+        <button
+          onClick={handleDeckTap}
+          disabled={knockComplete || showCutSlider}
+          className={`
+            flex items-center gap-1.5 px-3 py-2 rounded-full text-xs font-medium
+            transition-all touch-manipulation min-h-[44px]
+            ${knockComplete
+              ? 'bg-secondary/15 border border-secondary/40 text-secondary cursor-default'
+              : 'bg-surface/60 border border-accent/30 text-muted hover:bg-surface hover:border-accent/50 hover:text-main active:scale-95'
+            }
+          `}
+          aria-label={knockComplete ? 'Knocking complete' : `Knock on deck (${knockCount}/3)`}
+        >
+          <HandTap className="w-4 h-4" aria-hidden="true" />
+          <span>{knockComplete ? 'Cleared' : `Knock (${knockCount}/3)`}</span>
+        </button>
+
+        {/* Cut button */}
+        <button
+          onClick={() => setShowCutSlider(prev => !prev)}
+          className={`
+            flex items-center gap-1.5 px-3 py-2 rounded-full text-xs font-medium
+            transition-all touch-manipulation min-h-[44px]
+            ${hasCut
+              ? 'bg-secondary/15 border border-secondary/40 text-secondary'
+              : showCutSlider
+              ? 'bg-accent/20 border border-accent/50 text-main'
+              : 'bg-surface/60 border border-accent/30 text-muted hover:bg-surface hover:border-accent/50 hover:text-main active:scale-95'
+            }
+          `}
+          aria-label={hasCut ? `Deck cut at position ${cutIndex}` : showCutSlider ? 'Close cut slider' : 'Cut the deck'}
+          aria-expanded={showCutSlider}
+        >
+          <Scissors className="w-4 h-4" aria-hidden="true" />
+          <span>{hasCut ? `Cut #${cutIndex}` : showCutSlider ? 'Cutting...' : 'Cut Deck'}</span>
+        </button>
+
+        {/* Shuffle button */}
+        <button
+          onClick={() => {
+            onShuffle?.();
+            vibrate([20, 50, 20, 50, 20]);
+          }}
+          disabled={isShuffling}
+          className="
+            flex items-center gap-1.5 px-3 py-2 rounded-full text-xs font-medium
+            bg-surface/60 border border-accent/30 text-muted
+            hover:bg-surface hover:border-accent/50 hover:text-main
+            disabled:opacity-50 disabled:cursor-not-allowed
+            transition-all touch-manipulation min-h-[44px] active:scale-95
+          "
+          aria-label={isShuffling ? 'Shuffling deck...' : 'Shuffle the deck'}
+        >
+          <ArrowsClockwise className={`w-4 h-4 ${isShuffling ? 'animate-spin' : ''}`} aria-hidden="true" />
+          <span>{isShuffling ? 'Shuffling...' : 'Shuffle'}</span>
+        </button>
       </div>
+
+      {/* Gesture hints (supplementary info for touch users) */}
+      <p className="mt-3 text-center text-[0.7rem] text-muted/70 px-4">
+        <span className="hidden sm:inline">Gestures: </span>
+        Tap deck to knock · Hold to cut · Double-tap to shuffle
+      </p>
 
       {/* Draw CTA */}
       {cardsRemaining > 0 && (

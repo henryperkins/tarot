@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
-import { motion, useReducedMotion } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { TableuLogo } from './TableuLogo';
+import { useReducedMotion } from '../hooks/useReducedMotion';
 
 /**
  * Hook to compute responsive logo size with SSR safety, debounced resize handling

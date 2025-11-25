@@ -200,9 +200,9 @@ When deployed to Cloudflare Pages, everything works automatically:
 Set production secrets with:
 
 ```bash
-wrangler pages secret put AZURE_OPENAI_ENDPOINT --project-name=mystic-tarot
-wrangler pages secret put AZURE_OPENAI_API_KEY --project-name=mystic-tarot
-wrangler pages secret put AZURE_OPENAI_GPT5_MODEL --project-name=mystic-tarot
+wrangler pages secret put AZURE_OPENAI_ENDPOINT --project-name=tableau
+wrangler pages secret put AZURE_OPENAI_API_KEY --project-name=tableau
+wrangler pages secret put AZURE_OPENAI_GPT5_MODEL --project-name=tableau
 ```
 
 ## Summary

@@ -1,9 +1,10 @@
-import { useRef, useState, useEffect } from 'react';
-import { Sparkle, Check, Star } from './icons';
+import { useRef, useState, useEffect, useCallback } from 'react';
+import { Sparkle, Check, Star, CaretRight } from './icons';
 import { Icon } from './Icon';
 import { SPREADS } from '../data/spreads';
 import { SpreadPatternThumbnail } from './SpreadPatternThumbnail';
 import { CarouselDots } from './CarouselDots';
+import { useReducedMotion } from '../hooks/useReducedMotion';
 import oneCardArt from '../../selectorimages/onecard.png';
 import threeCardArt from '../../selectorimages/3card.png';
 import fiveCardArt from '../../selectorimages/5card.png';
@@ -127,6 +128,20 @@ export function SpreadSelector({
   const carouselRef = useRef(null);
   const spreadKeys = Object.keys(SPREADS);
   const [activeIndex, setActiveIndex] = useState(0);
+  const [showLeftFade, setShowLeftFade] = useState(false);
+  const [showRightFade, setShowRightFade] = useState(true);
+  const prefersReducedMotion = useReducedMotion();
+
+  // Update edge fade visibility based on scroll position
+  const updateEdgeFades = useCallback((el) => {
+    if (!el) return;
+    const scrollLeft = el.scrollLeft;
+    const scrollWidth = el.scrollWidth;
+    const clientWidth = el.clientWidth;
+
+    setShowLeftFade(scrollLeft > 10);
+    setShowRightFade(scrollLeft < scrollWidth - clientWidth - 10);
+  }, []);
 
   // Track scroll position for pagination dots using actual element positions
   useEffect(() => {
@@ -152,12 +167,13 @@ export function SpreadSelector({
       });
 
       setActiveIndex(closestIndex);
+      updateEdgeFades(el);
     };
 
     handleScroll();
     el.addEventListener('scroll', handleScroll, { passive: true });
     return () => el.removeEventListener('scroll', handleScroll);
-  }, [spreadKeys.length]);
+  }, [spreadKeys.length, updateEdgeFades]);
 
   const scrollToIndex = (index) => {
     const el = carouselRef.current;
@@ -171,7 +187,10 @@ export function SpreadSelector({
     if (targetCard) {
       const cardCenter = targetCard.offsetLeft + targetCard.offsetWidth / 2;
       const scrollTarget = cardCenter - el.clientWidth / 2;
-      el.scrollTo({ left: Math.max(0, scrollTarget), behavior: 'smooth' });
+      el.scrollTo({
+        left: Math.max(0, scrollTarget),
+        behavior: prefersReducedMotion ? 'auto' : 'smooth'
+      });
     }
   };
 
@@ -214,7 +233,11 @@ export function SpreadSelector({
       const nextElement = spreadRefs.current[nextKey];
       if (nextElement && typeof nextElement.focus === 'function') {
         nextElement.focus();
-        nextElement.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+        nextElement.scrollIntoView({
+          behavior: prefersReducedMotion ? 'auto' : 'smooth',
+          block: 'nearest',
+          inline: 'center'
+        });
       }
     }
   };
@@ -252,12 +275,48 @@ export function SpreadSelector({
           </div>
         </header>
 
-        <div
-          ref={carouselRef}
-          role="radiogroup"
-          aria-label="Choose your spread"
-          className="spread-selector-grid flex gap-3 overflow-x-auto snap-x snap-mandatory pb-3 sm:overflow-visible sm:snap-none sm:grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 sm:gap-4"
-        >
+        {/* Carousel wrapper with edge fade indicators */}
+        <div className="relative">
+          {/* Left edge fade - indicates scrolled content behind */}
+          <div
+            className={`
+              absolute left-0 top-0 bottom-3 w-8 z-10
+              pointer-events-none
+              bg-gradient-to-r from-[rgba(13,10,20,0.9)] to-transparent
+              rounded-l-2xl
+              transition-opacity duration-200
+              sm:hidden
+              ${showLeftFade ? 'opacity-100' : 'opacity-0'}
+            `}
+            aria-hidden="true"
+          />
+
+          {/* Right edge fade with scroll hint arrow */}
+          <div
+            className={`
+              absolute right-0 top-0 bottom-3 w-12 z-10
+              pointer-events-none
+              bg-gradient-to-l from-[rgba(13,10,20,0.9)] via-[rgba(13,10,20,0.6)] to-transparent
+              rounded-r-2xl
+              transition-opacity duration-200
+              sm:hidden
+              flex items-center justify-end pr-1
+              ${showRightFade ? 'opacity-100' : 'opacity-0'}
+            `}
+            aria-hidden="true"
+          >
+            <CaretRight
+              className="w-5 h-5 text-accent/70 animate-pulse drop-shadow-md"
+              weight="bold"
+            />
+          </div>
+
+          <div
+            ref={carouselRef}
+            role="radiogroup"
+            aria-label="Choose your spread"
+            className="spread-selector-grid flex gap-3 overflow-x-auto snap-x snap-mandatory pb-3 sm:overflow-visible sm:snap-none sm:grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 sm:gap-4"
+          >
           {Object.entries(SPREADS).map(([key, spread], index) => {
             const isActive = selectedSpread === key;
             const baseDescription = spread.mobileDescription || spread.description || 'Guided snapshot for your focus.';
@@ -339,6 +398,7 @@ export function SpreadSelector({
               </button>
             );
           })}
+          </div>
         </div>
 
         {/* Mobile pagination dots */}

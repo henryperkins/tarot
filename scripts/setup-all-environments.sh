@@ -5,7 +5,7 @@
 
 set -e
 
-PROJECT_NAME="mystic-tarot"
+PROJECT_NAME="tableau"
 
 echo "Setting up secrets for BOTH production AND preview environments..."
 echo ""
