@@ -1,10 +1,17 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { motion, useAnimation } from 'framer-motion';
-import { ArrowsOut, HandPointing } from '@phosphor-icons/react';
+import { ArrowsOut, HandPointing, ArrowLeft, ArrowRight } from '@phosphor-icons/react';
 import { CARD_LOOKUP, FALLBACK_IMAGE, getCardImage } from '../lib/cardLookup';
 import { CardSymbolInsights } from './CardSymbolInsights';
 import { InteractiveCardOverlay } from './InteractiveCardOverlay';
 import { useReducedMotion } from '../hooks/useReducedMotion';
+
+// Haptic feedback helper
+const vibrate = (pattern) => {
+  if (typeof navigator !== 'undefined' && navigator.vibrate) {
+    navigator.vibrate(pattern);
+  }
+};
 
 export function Card({
   card,
@@ -61,10 +68,70 @@ export function Card({
     }
   }, [isRevealed, prefersReducedMotion]);
 
-  const handleReveal = () => {
+  const handleReveal = useCallback(() => {
     userInitiatedRevealRef.current = true;
     onReveal(index);
-  };
+  }, [onReveal, index]);
+
+  // Swipe gesture state
+  const touchStartRef = useRef({ x: 0, y: 0, time: 0 });
+  const [swipeOffset, setSwipeOffset] = useState(0);
+  const [showSwipeHint, setShowSwipeHint] = useState(true);
+
+  // Swipe-to-reveal gesture handler
+  const handleSwipeReveal = useCallback((direction) => {
+    if (isRevealed || isVisuallyRevealed) return;
+
+    vibrate(10);
+
+    // Visual swipe animation before reveal
+    if (!prefersReducedMotion) {
+      controls.start({
+        x: direction === 'right' ? 50 : -50,
+        opacity: 0.7,
+        transition: { duration: 0.15 }
+      }).then(() => {
+        handleReveal();
+        controls.start({ x: 0, opacity: 1 });
+      });
+    } else {
+      handleReveal();
+    }
+  }, [isRevealed, isVisuallyRevealed, handleReveal, controls, prefersReducedMotion]);
+
+  // Touch gesture tracking for swipe
+  const handleTouchStart = useCallback((e) => {
+    if (isRevealed) return;
+    touchStartRef.current = {
+      x: e.touches[0].clientX,
+      y: e.touches[0].clientY,
+      time: Date.now()
+    };
+    setShowSwipeHint(false);
+  }, [isRevealed]);
+
+  const handleTouchMove = useCallback((e) => {
+    if (isRevealed) return;
+    const dx = e.touches[0].clientX - touchStartRef.current.x;
+    // Only track horizontal movement, cap at 100px
+    setSwipeOffset(Math.max(-100, Math.min(100, dx)));
+  }, [isRevealed]);
+
+  const handleTouchEnd = useCallback((e) => {
+    if (isRevealed) return;
+
+    const dx = e.changedTouches[0].clientX - touchStartRef.current.x;
+    const dy = e.changedTouches[0].clientY - touchStartRef.current.y;
+    const dt = Date.now() - touchStartRef.current.time;
+
+    // Reset offset
+    setSwipeOffset(0);
+
+    // Swipe detection: horizontal movement > 50px, completed in < 300ms
+    if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) && dt < 300) {
+      handleSwipeReveal(dx > 0 ? 'right' : 'left');
+    }
+  }, [isRevealed, handleSwipeReveal]);
 
   // Reset visual state when a revealed card is returned to an unrevealed state
   useEffect(() => {
@@ -213,24 +280,42 @@ export function Card({
                   handleReveal();
                 }
               }}
-              aria-label={`Reveal card for ${position}. Cards can be revealed in any order.`}
-              className="relative h-full min-h-[24rem] sm:min-h-[28rem] flex flex-col items-center justify-center gap-4 p-4 sm:p-6 w-full cursor-pointer hover:bg-surface-muted/70 hover:scale-105 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70 focus-visible:ring-offset-2 focus-visible:ring-offset-main"
+              onTouchStart={handleTouchStart}
+              onTouchMove={handleTouchMove}
+              onTouchEnd={handleTouchEnd}
+              aria-label={`Reveal card for ${position}. Tap or swipe to reveal. Cards can be revealed in any order.`}
+              className="card-swipe-container relative h-full min-h-[24rem] sm:min-h-[28rem] flex flex-col items-center justify-center gap-4 p-4 sm:p-6 w-full cursor-pointer hover:bg-surface-muted/70 hover:scale-105 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70 focus-visible:ring-offset-2 focus-visible:ring-offset-main"
             >
               {/* Card back with mystical design */}
-              <div className="relative w-full max-w-[280px] aspect-[2/3] mx-auto rounded-xl border-2 border-primary/30 shadow-2xl overflow-hidden">
+              <div
+                className="relative w-full max-w-[280px] aspect-[2/3] mx-auto rounded-xl border-2 border-primary/30 shadow-2xl overflow-hidden transition-transform"
+                style={{ transform: `translateX(${swipeOffset * 0.5}px)` }}
+              >
                 <img
                   src="/cardback.png"
-                  alt="Card back - tap to reveal"
+                  alt="Card back - tap or swipe to reveal"
                   className="w-full h-full object-cover"
                   loading="eager"
                 />
+
+                {/* Swipe hint arrows */}
+                {showSwipeHint && !prefersReducedMotion && (
+                  <>
+                    <div className="card-swipe-hint card-swipe-hint--left swipe-hint">
+                      <ArrowLeft className="w-6 h-6 text-primary/60" aria-hidden="true" />
+                    </div>
+                    <div className="card-swipe-hint card-swipe-hint--right swipe-hint">
+                      <ArrowRight className="w-6 h-6 text-primary/60" aria-hidden="true" />
+                    </div>
+                  </>
+                )}
               </div>
 
-              {/* Tap to reveal instruction */}
+              {/* Tap/swipe to reveal instruction */}
               <div className="flex flex-col items-center gap-2 mt-2">
                 <span className="inline-flex items-center gap-2 rounded-full border border-primary/60 bg-surface/90 px-4 py-2 text-sm font-semibold text-main shadow-md shadow-primary/30">
                   <HandPointing className="w-4 h-4" aria-hidden="true" />
-                  <span>Tap to reveal</span>
+                  <span>Tap or swipe to reveal</span>
                 </span>
                 <p className="text-xs text-muted max-w-[16rem] text-center">Reveal cards in any order—follow your intuition.</p>
               </div>

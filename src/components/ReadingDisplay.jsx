@@ -12,6 +12,7 @@ import { VisionValidationPanel } from './VisionValidationPanel';
 import { FeedbackPanel } from './FeedbackPanel';
 import { CardModal } from './CardModal';
 import { DeckPile } from './DeckPile';
+import { DeckRitual } from './DeckRitual';
 import { useReading } from '../contexts/ReadingContext';
 import { usePreferences } from '../contexts/PreferencesContext';
 import { useSaveReading } from '../hooks/useSaveReading';
@@ -44,7 +45,7 @@ export function ReadingDisplay({ sectionRef }) {
         isShuffling,
         revealedCards,
         setRevealedCards,
-        dealIndex,
+        dealIndex: _dealIndex,
         setDealIndex,
         sessionSeed,
         userQuestion,
@@ -52,6 +53,15 @@ export function ReadingDisplay({ sectionRef }) {
         dealNext,
         revealCard,
         revealAll,
+
+        // Ritual State (for DeckRitual)
+        knockCount,
+        hasKnocked: _hasKnocked,
+        hasCut,
+        cutIndex,
+        setCutIndex,
+        handleKnock,
+        applyCut,
 
         // Vision
         visionResults,
@@ -71,7 +81,7 @@ export function ReadingDisplay({ sectionRef }) {
         themes,
         readingMeta,
         journalStatus,
-        setJournalStatus,
+        setJournalStatus: _setJournalStatus,
         reflections,
         setReflections,
         lastCardsForFeedback,
@@ -101,7 +111,7 @@ export function ReadingDisplay({ sectionRef }) {
     } = usePreferences();
     const { isAuthenticated } = useAuth();
 
-    const { visionResearch: visionResearchEnabled } = useFeatureFlags();
+    const { visionResearch: visionResearchEnabled, newDeckInterface } = useFeatureFlags();
     const safeSpreadKey = normalizeSpreadKey(selectedSpread);
     const spreadInfo = getSpreadInfo(safeSpreadKey);
 
@@ -214,12 +224,35 @@ export function ReadingDisplay({ sectionRef }) {
                         </div>
                     )}
                     {reading && revealedCards.size < reading.length && (
-                        <DeckPile
-                            cardsRemaining={reading.length - revealedCards.size}
-                            onDraw={dealNext}
-                            isShuffling={isShuffling}
-                            nextLabel={nextLabel}
-                        />
+                        newDeckInterface ? (
+                            <DeckRitual
+                                // Ritual state
+                                knockCount={knockCount}
+                                onKnock={handleKnock}
+                                hasCut={hasCut}
+                                cutIndex={cutIndex}
+                                onCutChange={setCutIndex}
+                                onCutConfirm={applyCut}
+                                deckSize={78}
+                                // Deal state
+                                isShuffling={isShuffling}
+                                onShuffle={shuffle}
+                                cardsRemaining={reading.length - revealedCards.size}
+                                nextPosition={nextLabel}
+                                spreadPositions={spreadInfo?.positions || []}
+                                revealedCount={revealedCards.size}
+                                totalCards={reading.length}
+                                // Deal action
+                                onDeal={dealNext}
+                            />
+                        ) : (
+                            <DeckPile
+                                cardsRemaining={reading.length - revealedCards.size}
+                                onDraw={dealNext}
+                                isShuffling={isShuffling}
+                                nextLabel={nextLabel}
+                            />
+                        )
                     )}
 
                     <ReadingGrid

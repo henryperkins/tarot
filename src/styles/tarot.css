@@ -1446,6 +1446,132 @@ input[type="range"]:focus::-webkit-slider-thumb {
 }
 
 /* ==========================================================================
+   Deck Ritual Interface Styles
+   ========================================================================== */
+
+/* Deck ritual container */
+.deck-ritual-container {
+  --deck-shadow-color: color-mix(in srgb, var(--brand-primary) 20%, transparent);
+}
+
+/* Deck stack 3D effect */
+.deck-stack {
+  transform-style: preserve-3d;
+  transition: transform 0.3s ease;
+}
+
+.deck-stack:hover {
+  transform: rotateX(5deg) rotateY(-3deg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .deck-stack:hover {
+    transform: none;
+  }
+}
+
+/* Card deal animation */
+@keyframes cardDeal {
+  0% {
+    transform: translate(0, 0) rotate(0deg) scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: translate(var(--deal-x, 100px), var(--deal-y, -50px)) rotate(15deg) scale(0.8);
+    opacity: 0.8;
+  }
+  100% {
+    transform: translate(var(--deal-end-x, 200px), var(--deal-end-y, 100px)) rotate(0deg) scale(0.6);
+    opacity: 1;
+  }
+}
+
+.card-dealing {
+  animation: cardDeal 0.6s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+/* Knock ripple */
+@keyframes knockRipple {
+  0% {
+    transform: scale(0.9);
+    opacity: 0.8;
+    border-width: 3px;
+  }
+  100% {
+    transform: scale(1.5);
+    opacity: 0;
+    border-width: 1px;
+  }
+}
+
+.knock-ripple {
+  animation: knockRipple 0.4s ease-out forwards;
+}
+
+/* Spread table layout */
+.spread-table {
+  touch-action: manipulation;
+  user-select: none;
+}
+
+/* Card placeholder pulse */
+@keyframes placeholderPulse {
+  0%, 100% {
+    border-color: color-mix(in srgb, var(--brand-primary) 30%, transparent);
+    background-color: color-mix(in srgb, var(--brand-primary) 5%, transparent);
+  }
+  50% {
+    border-color: color-mix(in srgb, var(--brand-primary) 60%, transparent);
+    background-color: color-mix(in srgb, var(--brand-primary) 15%, transparent);
+  }
+}
+
+.card-placeholder-next {
+  animation: placeholderPulse 1.5s ease-in-out infinite;
+}
+
+/* Swipe reveal hint */
+@keyframes swipeHint {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-8px); }
+  75% { transform: translateX(8px); }
+}
+
+.swipe-hint {
+  animation: swipeHint 2s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .swipe-hint,
+  .card-placeholder-next {
+    animation: none;
+  }
+}
+
+/* Swipe-to-reveal card styles */
+.card-swipe-container {
+  touch-action: pan-y;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.card-swipe-hint {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+.card-swipe-hint--left {
+  left: 0.5rem;
+}
+
+.card-swipe-hint--right {
+  right: 0.5rem;
+}
+
+/* ==========================================================================
    Reduced Motion Support (WCAG 2.3.3 Animation from Interactions)
    ========================================================================== */
 
