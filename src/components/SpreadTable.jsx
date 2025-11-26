@@ -132,7 +132,7 @@ export function SpreadTable({
               // Empty placeholder - min 44px touch target on mobile
               <div
                 className={`
-                  ${compact ? 'w-11 h-[60px] xs:w-12 xs:h-16 sm:w-14 sm:h-[76px]' : 'w-14 h-[76px] xs:w-16 xs:h-22 sm:w-18 sm:h-24 md:w-20 md:h-28'}
+                  ${compact ? 'w-11 h-[60px] xs:w-12 xs:h-16 sm:w-14 sm:h-[76px]' : 'w-14 h-[76px] xs:w-16 xs:h-[88px] sm:w-[72px] sm:h-24 md:w-20 md:h-28'}
                   rounded-lg border-2 border-dashed
                   flex items-center justify-center
                   transition-all
@@ -161,7 +161,7 @@ export function SpreadTable({
                   exit={prefersReducedMotion ? { opacity: 0 } : { scale: 0, rotate: 180 }}
                   transition={prefersReducedMotion ? { duration: 0.1 } : { type: 'spring', stiffness: 300, damping: 20 }}
                   className={`
-                    ${compact ? 'w-11 h-[60px] xs:w-12 xs:h-16 sm:w-14 sm:h-[76px]' : 'w-14 h-[76px] xs:w-16 xs:h-22 sm:w-18 sm:h-24 md:w-20 md:h-28'}
+                    ${compact ? 'w-11 h-[60px] xs:w-12 xs:h-16 sm:w-14 sm:h-[76px]' : 'w-14 h-[76px] xs:w-16 xs:h-[88px] sm:w-[72px] sm:h-24 md:w-20 md:h-28'}
                     rounded-lg border-2 cursor-pointer overflow-hidden
                     transition-all touch-manipulation
                     focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70 focus-visible:ring-offset-2 focus-visible:ring-offset-main
