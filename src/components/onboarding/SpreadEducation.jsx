@@ -33,7 +33,13 @@ const SPREAD_DESCRIPTIONS = {
   decision: {
     tagline: 'Compare your paths',
     explanation: 'When facing a choice, see the energy and outcomes of different options.',
-    positions: ['Heart of the decision', 'Path A outcome', 'Path B outcome'],
+    positions: [
+      'Heart of the decision',
+      'Path A — energy & likely outcome',
+      'Path B — energy & likely outcome',
+      'What clarifies the best path',
+      'What to remember about your free will',
+    ],
   },
 };
 
