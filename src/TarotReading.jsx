@@ -376,7 +376,7 @@ export default function TarotReading() {
       setUserQuestion(selections.question);
       setAllowPlaceholderCycle(false);
     }
-  }, [setOnboardingComplete, setOnboardingSpreadKey, selectSpread, setUserQuestion]);
+  }, [selectSpread]);
 
   const handleOnboardingSpreadSelect = useCallback((spreadKey) => {
     setOnboardingSpreadKey(spreadKey);
