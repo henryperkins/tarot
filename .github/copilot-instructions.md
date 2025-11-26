@@ -38,7 +38,7 @@
 - Ethics: treat readings as reflective guidance. Any new copy, prompts, or features should:
   - Emphasize agency and free will, not fixed fate.
   - Avoid diagnosing, prescribing, or replacing professional help for health, safety, legal, or financial issues.
-  - Stay inclusive and trauma‑aware in tone (see `CLAUDE.md` and `guide.md` for reference language).
+  - Stay inclusive and trauma‑aware in tone (see `CLAUDE.md` for reference language).
 
 ## React & styling conventions
 - Components: functional React with hooks only; keep `TarotReading.jsx` as the orchestration layer and keep `src/components/*` mostly presentational (receive props, no global side effects).
@@ -46,3 +46,28 @@
 - Cards: `Card.jsx` expects the `.tarot-card-*` CSS hooks and CSS variable suit accents; if you adjust card layout, keep the back/face split, upright vs reversed classes, and `isMinor`/`getMinorPipCount` logic intact.
 - Layout: use the Celtic Cross grid utilities (`.cc-grid` + `.cc-*` areas) for 10-card layouts; don’t re-encode grid rules in JSX—lean on the existing responsive CSS.
 - Theming & motion: theme toggling is done by toggling `light` on `<html>`; add light-mode overrides in `tarot.css` alongside existing ones. Respect `prefers-reduced-motion` (see `flipCard` keyframes and scroll-behavior) and the focus-visible ring styles when adding interactive elements.
+
+## Environment setup
+- Copy `.dev.vars.example` to `.dev.vars` and fill in secrets (never commit populated `.dev.vars`).
+- Required secrets for full functionality:
+  - `AZURE_OPENAI_ENDPOINT`, `AZURE_OPENAI_API_KEY`, `AZURE_OPENAI_GPT5_MODEL` — reading generation
+  - `AZURE_OPENAI_TTS_ENDPOINT`, `AZURE_OPENAI_TTS_API_KEY`, `AZURE_OPENAI_GPT_AUDIO_MINI_DEPLOYMENT` — TTS (optional)
+  - `VISION_PROOF_SECRET` — vision research mode (optional)
+- Run `npm run config:check` to verify environment configuration.
+- For production, use `wrangler pages secret put <NAME> --project-name=tableau`.
+
+## Security & compliance
+- Never commit secrets or API keys; use `.dev.vars` locally and Cloudflare secrets in production.
+- Never log API keys, secrets, or PII in server functions.
+- Validate all API inputs using the `validatePayload()` pattern.
+- Rate limit sensitive endpoints using Cloudflare KV.
+- Sanitize user-provided content before rendering (XSS prevention).
+- When adding dependencies, check for known vulnerabilities with `npm audit`.
+
+## Contribution guidelines
+- Follow Conventional Commits: `feat:`, `fix:`, `chore:`, `docs:`, `test:` prefixes.
+- Run `npm test` before pushing changes.
+- Run `npm run lint` to check code style.
+- If touching vision/narrative code, run `npm run gate:vision` or `npm run gate:narrative`.
+- Include screenshots for UI changes in PR descriptions.
+- Keep PRs focused; avoid bundling unrelated changes.
