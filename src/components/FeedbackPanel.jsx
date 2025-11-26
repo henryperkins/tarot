@@ -121,11 +121,11 @@ export function FeedbackPanel({
   return (
     <form
       onSubmit={handleSubmit}
-      className="modern-surface border border-secondary/30 w-full px-4 py-4 sm:px-5 sm:py-5 animate-fade-in"
+      className="modern-surface border border-secondary/30 w-full px-3 py-3 xs:px-4 xs:py-4 sm:px-5 sm:py-5 animate-fade-in"
       aria-describedby={error ? errorId : undefined}
     >
       <div className="flex items-center justify-between gap-2">
-        <div>
+        <div className="min-w-0">
           <p className="text-sm font-semibold text-main">How did this reading land?</p>
           <p className="text-xs text-muted">
             Private ratings help tune quality.
@@ -133,7 +133,7 @@ export function FeedbackPanel({
         </div>
         {hasSubmitted && (
           <span
-            className="text-xs font-semibold text-secondary"
+            className="text-xs font-semibold text-secondary shrink-0"
             role="status"
             aria-live="polite"
           >
@@ -142,7 +142,7 @@ export function FeedbackPanel({
         )}
       </div>
 
-      <div className="mt-4 space-y-4">
+      <div className="mt-3 xs:mt-4 space-y-3 xs:space-y-4">
         {RATING_FIELDS.map((field) => {
           const groupId = `rating-group-${field.key}`;
           return (
@@ -154,7 +154,7 @@ export function FeedbackPanel({
               <div
                 role="radiogroup"
                 aria-labelledby={groupId}
-                className="flex flex-wrap gap-2"
+                className="flex flex-wrap gap-1.5 xs:gap-2"
               >
                 {SCALE.map((value, index) => {
                   const isSelected = ratings[field.key] === value;
@@ -167,11 +167,11 @@ export function FeedbackPanel({
                       aria-label={`${value} out of 5, ${SCALE_LABELS[index]}`}
                       onClick={() => handleRating(field.key, value)}
                       disabled={hasSubmitted}
-                      className={`min-h-[44px] min-w-[44px] px-3 py-2 rounded-full border text-sm font-medium transition-colors touch-manipulation
+                      className={`min-h-[44px] min-w-[44px] px-2.5 xs:px-3 py-2 rounded-full border text-sm font-medium transition-colors touch-manipulation
                         focus:outline-none focus-visible:ring-2 focus-visible:ring-secondary/70 focus-visible:ring-offset-2
                         ${isSelected
                           ? 'border-secondary/70 bg-secondary/20 text-secondary'
-                          : 'border-accent/30 bg-surface-muted/70 text-muted hover:border-accent/60 hover:bg-surface-muted'
+                          : 'border-accent/30 bg-surface-muted/70 text-muted hover:border-accent/60 hover:bg-surface-muted active:bg-surface-muted/90'
                         }
                         ${hasSubmitted ? 'cursor-not-allowed opacity-60' : ''}
                       `}

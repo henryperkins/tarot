@@ -106,12 +106,12 @@ export function VisionValidationPanel({
   };
 
   return (
-    <div className="modern-surface border border-primary/30 p-4 sm:p-5 animate-fade-in">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
+    <div className="modern-surface border border-primary/30 p-3 xs:p-4 sm:p-5 animate-fade-in">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0 flex-1">
           <p className="text-sm text-main font-semibold">Vision Research Console</p>
-          <p className="text-xs text-muted">
-            Upload card photos to test the fine-tuned vision model&rsquo;s recognition accuracy and attention mechanisms. This tool compares your uploads against the active deck&rsquo;s embeddings.
+          <p className="text-xs text-muted leading-relaxed">
+            Upload card photos to test vision model recognition. Compares uploads against the active deck&rsquo;s embeddings.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2 text-sm font-medium text-secondary">
@@ -119,9 +119,9 @@ export function VisionValidationPanel({
             <button
               type="button"
               onClick={() => onClearResults?.()}
-              className="min-h-[44px] px-3 py-2 rounded-md border border-accent/30 text-main/90 hover:border-accent/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 transition-colors"
+              className="min-h-[44px] min-w-[44px] px-3 py-2 rounded-lg border border-accent/30 text-main/90 hover:border-accent/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 transition-colors touch-manipulation text-xs xs:text-sm"
             >
-              Clear uploads
+              Clear
             </button>
           )}
           <input
@@ -141,17 +141,17 @@ export function VisionValidationPanel({
             aria-haspopup="dialog"
             aria-expanded={isModalOpen}
             aria-describedby="upload-limit-info"
-            className={`min-h-[44px] px-3 py-2 rounded-md border border-secondary/40 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 ${
+            className={`min-h-[44px] min-w-[44px] px-3 py-2 rounded-lg border border-secondary/40 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 touch-manipulation text-xs xs:text-sm ${
               uploadLimitReached || status === 'loading'
                 ? 'opacity-60 cursor-not-allowed'
-                : 'hover:border-secondary/70 hover:bg-secondary/10'
+                : 'hover:border-secondary/70 hover:bg-secondary/10 active:bg-secondary/20'
             }`}
           >
             {status === 'loading'
               ? 'Analyzing…'
               : uploadLimitReached
-                ? `Limit (${MAX_UPLOADS}) reached`
-                : `Add Photo${remainingSlots < MAX_UPLOADS ? ` (${remainingSlots} left)` : ''}`}
+                ? `Limit reached`
+                : `Add Photo${remainingSlots < MAX_UPLOADS ? ` (${remainingSlots})` : ''}`}
           </button>
           <span id="upload-limit-info" className="sr-only">
             {uploadLimitReached
