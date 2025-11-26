@@ -11,15 +11,15 @@ export function AudioControls({ className = '' }) {
   const { voiceOn, setVoiceOn, ambienceOn, setAmbienceOn, autoNarrate, setAutoNarrate, ttsProvider, setTtsProvider } = usePreferences();
 
   const controlShellClass =
-    'rounded-3xl border border-secondary/25 bg-surface/80 p-4 sm:p-5 shadow-md shadow-secondary/15 backdrop-blur-lg';
+    'rounded-3xl border border-secondary/25 bg-surface/80 p-3 xs:p-4 sm:p-5 shadow-md shadow-secondary/15 backdrop-blur-lg';
   const tileBaseClass =
-    'group flex items-center gap-3 rounded-2xl border border-secondary/20 bg-surface/75 px-3 py-2.5 transition-colors duration-200 touch-manipulation';
+    'group flex items-center gap-2 xs:gap-3 rounded-2xl border border-secondary/20 bg-surface/75 px-3 py-2 xs:py-2.5 transition-colors duration-200 touch-manipulation min-h-[56px]';
   const activeTileClass =
     'border-secondary/50 bg-secondary/10 shadow-lg shadow-secondary/25';
   const inactiveTileClass = 'hover:border-accent/35 hover:bg-surface/80';
 
   const iconWrapperBase =
-    'flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl border transition-colors duration-200';
+    'flex h-8 w-8 xs:h-9 xs:w-9 flex-shrink-0 items-center justify-center rounded-xl border transition-colors duration-200';
   const activeIconWrapper =
     'border-secondary/60 bg-secondary/20 text-secondary shadow-md shadow-secondary/20';
   const inactiveIconWrapper =
@@ -146,7 +146,7 @@ export function AudioControls({ className = '' }) {
 
       {/* Voice Engine Selector */}
       {voiceOn && (
-        <div className="mt-4 pt-4 border-t border-secondary/20">
+        <div className="mt-3 xs:mt-4 pt-3 xs:pt-4 border-t border-secondary/20">
           <div className="flex items-center gap-2 mb-2">
             <Waveform className="h-4 w-4 text-accent" aria-hidden="true" />
             <span className="text-xs font-semibold text-accent uppercase tracking-wide">Voice Engine</span>
@@ -165,28 +165,28 @@ export function AudioControls({ className = '' }) {
               role="radio"
               aria-checked={ttsProvider === 'hume'}
               onClick={() => setTtsProvider('hume')}
-              className={`flex-1 px-3 py-2 rounded-xl text-sm font-medium transition-all ${
+              className={`flex-1 min-h-[52px] px-2 xs:px-3 py-2 rounded-xl text-sm font-medium transition-all touch-manipulation ${
                 ttsProvider === 'hume'
                   ? 'bg-primary/20 border-2 border-primary text-primary shadow-md'
-                  : 'bg-surface/60 border border-secondary/30 text-muted hover:text-main hover:border-secondary/50'
+                  : 'bg-surface/60 border border-secondary/30 text-muted hover:text-main hover:border-secondary/50 active:bg-surface/80'
               }`}
             >
-              <span className="block font-semibold">Hume AI</span>
-              <span className="block text-xs opacity-75">Expressive & mystical</span>
+              <span className="block font-semibold text-xs xs:text-sm">Hume AI</span>
+              <span className="block text-[0.65rem] xs:text-xs opacity-75">Expressive</span>
             </button>
             <button
               type="button"
               role="radio"
               aria-checked={ttsProvider === 'azure'}
               onClick={() => setTtsProvider('azure')}
-              className={`flex-1 px-3 py-2 rounded-xl text-sm font-medium transition-all ${
+              className={`flex-1 min-h-[52px] px-2 xs:px-3 py-2 rounded-xl text-sm font-medium transition-all touch-manipulation ${
                 ttsProvider === 'azure'
                   ? 'bg-primary/20 border-2 border-primary text-primary shadow-md'
-                  : 'bg-surface/60 border border-secondary/30 text-muted hover:text-main hover:border-secondary/50'
+                  : 'bg-surface/60 border border-secondary/30 text-muted hover:text-main hover:border-secondary/50 active:bg-surface/80'
               }`}
             >
-              <span className="block font-semibold">Azure</span>
-              <span className="block text-xs opacity-75">Clear & reliable</span>
+              <span className="block font-semibold text-xs xs:text-sm">Azure</span>
+              <span className="block text-[0.65rem] xs:text-xs opacity-75">Clear</span>
             </button>
           </div>
         </div>

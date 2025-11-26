@@ -25,15 +25,15 @@ export function ExperienceSettings({ className = '' }) {
   const getId = suffix => `${idPrefix}-${suffix}`;
 
   const controlShellClass =
-    'rounded-[1.75rem] border border-secondary/40 bg-surface/75 p-3 sm:p-4 shadow-lg shadow-secondary/20 backdrop-blur-xl';
+    'rounded-[1.75rem] border border-secondary/40 bg-surface/75 p-3 xs:p-4 shadow-lg shadow-secondary/20 backdrop-blur-xl';
   const tileBaseClass =
-    'group flex items-center gap-3 rounded-2xl border border-secondary/10 bg-surface/65 px-3 py-2.5 transition-colors duration-200 touch-manipulation';
+    'group flex items-center gap-2 xs:gap-3 rounded-2xl border border-secondary/10 bg-surface/65 px-3 py-2 xs:py-2.5 transition-colors duration-200 touch-manipulation min-h-[56px]';
   const activeTileClass =
     'border-secondary/70 bg-secondary/10 shadow-lg shadow-secondary/30';
   const inactiveTileClass = 'border-accent/20 hover:border-accent/40 hover:bg-surface/70';
 
   const iconWrapperBase =
-    'flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl border text-secondary transition-colors duration-200';
+    'flex h-8 w-8 xs:h-9 xs:w-9 flex-shrink-0 items-center justify-center rounded-xl border text-secondary transition-colors duration-200';
   const activeIconWrapper =
     'border-secondary/60 bg-secondary/20 text-secondary shadow-md shadow-secondary/20';
   const inactiveIconWrapper =
@@ -44,7 +44,7 @@ export function ExperienceSettings({ className = '' }) {
     'inline-flex min-w-[44px] min-h-[44px] items-center justify-center rounded-full text-muted/60 transition hover:text-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 touch-manipulation -ml-2 -mr-3';
 
   const reversalSelectClass =
-    'w-full rounded-2xl border border-secondary/25 bg-surface/70 px-3 py-2 text-[0.72rem] uppercase tracking-[0.08em] text-main transition focus:outline-none focus:ring-2 focus:ring-accent/50 sm:w-auto';
+    'w-full rounded-2xl border border-secondary/25 bg-surface/70 px-3 py-2.5 min-h-[44px] text-[0.72rem] uppercase tracking-[0.08em] text-main transition focus:outline-none focus:ring-2 focus:ring-accent/50';
 
   const LightIcon = theme === 'light' ? Sun : Moon;
 

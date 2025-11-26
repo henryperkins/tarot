@@ -50,8 +50,14 @@ export function ConfirmModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm animate-fade-in"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm animate-fade-in p-3 xs:p-4"
       onClick={createBackdropHandler(onClose)}
+      style={{
+        paddingTop: 'max(0.75rem, env(safe-area-inset-top))',
+        paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))',
+        paddingLeft: 'max(0.75rem, env(safe-area-inset-left))',
+        paddingRight: 'max(0.75rem, env(safe-area-inset-right))'
+      }}
     >
       <FocusTrap
         active={isOpen}
@@ -68,23 +74,23 @@ export function ConfirmModal({
           role="dialog"
           aria-modal="true"
           aria-labelledby="confirm-modal-title"
-          className={`relative w-full max-w-md mx-4 rounded-2xl border ${variantStyles[variant]} shadow-2xl animate-slide-up`}
+          className={`relative w-full max-w-md rounded-2xl border ${variantStyles[variant]} shadow-2xl animate-slide-up`}
         >
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 p-1 text-muted hover:text-main transition"
+          className="absolute top-3 right-3 xs:top-4 xs:right-4 p-2 min-w-[44px] min-h-[44px] flex items-center justify-center text-muted hover:text-main hover:bg-surface-muted/50 rounded-full transition touch-manipulation"
           aria-label="Close"
         >
           <X className="w-5 h-5" />
         </button>
 
-        <div className="p-6">
-          <div className="flex items-start gap-4 mb-4">
-            <div className={`p-2 rounded-full ${variant === 'danger' ? 'bg-error/10' : 'bg-accent/10'}`}>
-              <Warning className={`w-6 h-6 ${variant === 'danger' ? 'text-error' : 'text-accent'}`} />
+        <div className="p-5 xs:p-6">
+          <div className="flex items-start gap-3 xs:gap-4 mb-4 pr-8">
+            <div className={`p-2 rounded-full shrink-0 ${variant === 'danger' ? 'bg-error/10' : 'bg-accent/10'}`}>
+              <Warning className={`w-5 h-5 xs:w-6 xs:h-6 ${variant === 'danger' ? 'text-error' : 'text-accent'}`} />
             </div>
-            <div className="flex-1">
-              <h2 id="confirm-modal-title" className="text-xl font-serif text-main mb-2">
+            <div className="flex-1 min-w-0">
+              <h2 id="confirm-modal-title" className="text-lg xs:text-xl font-serif text-main mb-2">
                 {title}
               </h2>
               <p className="text-muted text-sm leading-relaxed">
@@ -93,17 +99,17 @@ export function ConfirmModal({
             </div>
           </div>
 
-          <div className="flex gap-3 justify-end mt-6">
+          <div className="flex flex-col-reverse xs:flex-row gap-2 xs:gap-3 xs:justify-end mt-6">
             <button
               ref={cancelButtonRef}
               onClick={onClose}
-              className="px-4 py-2 rounded-lg border border-secondary/40 text-muted hover:text-main hover:border-secondary/60 transition text-sm font-medium"
+              className="w-full xs:w-auto px-4 py-2.5 min-h-[44px] rounded-lg border border-secondary/40 text-muted hover:text-main hover:border-secondary/60 transition text-sm font-medium touch-manipulation"
             >
               {cancelText}
             </button>
             <button
               onClick={handleConfirm}
-              className={`px-4 py-2 rounded-lg border ${buttonStyles[variant]} transition text-sm font-medium`}
+              className={`w-full xs:w-auto px-4 py-2.5 min-h-[44px] rounded-lg border ${buttonStyles[variant]} transition text-sm font-medium touch-manipulation`}
             >
               {confirmText}
             </button>

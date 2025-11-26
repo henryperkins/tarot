@@ -79,39 +79,80 @@ export function CameraCapture({ onCapture, onCancel }) {
   }
 
   // In landscape: controls on right side; in portrait: controls at bottom
+  // Using safe-area-inset for notch/Dynamic Island support
   const containerClass = isLandscape
     ? 'fixed inset-0 z-50 flex flex-row items-center justify-center bg-black animate-fade-in'
     : 'fixed inset-0 z-50 flex flex-col items-center justify-center bg-black animate-fade-in';
 
-  const controlsClass = isLandscape
-    ? 'absolute right-0 top-0 bottom-0 bg-black bg-opacity-50 p-3 flex flex-col justify-center items-center gap-6 w-24'
-    : 'absolute bottom-0 left-0 right-0 bg-black bg-opacity-50 p-4 flex justify-center items-center gap-8';
-
-  const captureButtonSize = isLandscape ? 'w-16 h-16' : 'w-20 h-20';
-
   return (
     <div className={containerClass}>
       {error ? (
-        <div className="text-white text-center p-4">
-          <p>{error}</p>
-          <button onClick={onCancel} className="mt-4 px-4 py-2 bg-red-600 rounded-md">
+        <div 
+          className="text-white text-center p-4"
+          style={{
+            paddingTop: 'max(1rem, env(safe-area-inset-top))',
+            paddingBottom: 'max(1rem, env(safe-area-inset-bottom))',
+            paddingLeft: 'max(1rem, env(safe-area-inset-left))',
+            paddingRight: 'max(1rem, env(safe-area-inset-right))'
+          }}
+        >
+          <p className="text-sm xs:text-base">{error}</p>
+          <button 
+            onClick={onCancel} 
+            className="mt-4 px-6 py-3 min-h-[44px] bg-red-600 hover:bg-red-700 rounded-lg text-sm font-medium transition touch-manipulation"
+          >
             Close
           </button>
         </div>
       ) : (
         <video ref={videoRef} autoPlay playsInline className="w-full h-full object-cover" />
       )}
-      <div className={controlsClass}>
-        <button onClick={onCancel} className="px-4 py-2 text-white text-sm">
+      
+      {/* Controls - positioned with safe area insets */}
+      <div 
+        className={`
+          absolute bg-black/60 backdrop-blur-sm
+          flex items-center justify-center
+          ${isLandscape 
+            ? 'right-0 top-0 bottom-0 flex-col gap-4 xs:gap-6 w-20 xs:w-24' 
+            : 'bottom-0 left-0 right-0 flex-row gap-6 xs:gap-8 py-4 xs:py-6'
+          }
+        `}
+        style={isLandscape ? {
+          paddingTop: 'max(0.75rem, env(safe-area-inset-top))',
+          paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))',
+          paddingRight: 'max(0.75rem, env(safe-area-inset-right))'
+        } : {
+          paddingBottom: 'max(1rem, env(safe-area-inset-bottom))',
+          paddingLeft: 'max(1rem, env(safe-area-inset-left))',
+          paddingRight: 'max(1rem, env(safe-area-inset-right))'
+        }}
+      >
+        {/* Cancel button - 44px minimum touch target */}
+        <button 
+          onClick={onCancel} 
+          className="min-w-[44px] min-h-[44px] px-4 py-2 text-white text-sm font-medium hover:text-white/80 transition touch-manipulation rounded-lg active:bg-white/10"
+        >
           Cancel
         </button>
+        
+        {/* Capture button - large touch target */}
         <button
           onClick={handleCapture}
           disabled={!stream}
-          className={`${captureButtonSize} rounded-full bg-white border-4 border-gray-400 disabled:opacity-50`}
+          className={`
+            ${isLandscape ? 'w-14 h-14 xs:w-16 xs:h-16' : 'w-16 h-16 xs:w-20 xs:h-20'}
+            rounded-full bg-white border-4 border-gray-300 
+            disabled:opacity-50 disabled:cursor-not-allowed
+            transition touch-manipulation
+            active:scale-95 active:border-gray-400
+            focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-white/50
+          `}
           aria-label="Capture photo"
         />
-        {!isLandscape && <div className="w-16"></div>}
+        
+        {/* Spacer for centering in portrait mode */}
+        {!isLandscape && <div className="w-14 xs:w-16" aria-hidden />}
       </div>
     </div>
   );

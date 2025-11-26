@@ -61,7 +61,7 @@ export function QuestionInput({
 
   return (
     <div className="space-y-3 animate-fade-in">
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-2 xs:flex-row xs:items-center xs:justify-between">
         <div className="text-accent font-serif text-sm sm:text-base">
           <label htmlFor="question-input">
             Step 2 · Your question or intention <span className="text-muted text-xs font-normal">(optional)</span>
@@ -71,7 +71,7 @@ export function QuestionInput({
           <button
             type="button"
             onClick={handleLaunchCoach}
-            className="inline-flex items-center gap-1.5 rounded-full border border-primary/50 px-3 py-1.5 text-xs text-main transition hover:bg-primary/10"
+            className="inline-flex items-center gap-1.5 rounded-full border border-primary/50 px-3 py-1.5 min-h-[44px] text-xs text-main transition hover:bg-primary/10 active:bg-primary/15 touch-manipulation self-start xs:self-auto"
             title="Shortcut: Shift+G"
             aria-label="Open guided coach (Shift+G)"
           >
@@ -90,7 +90,8 @@ export function QuestionInput({
           value={userQuestion}
           onChange={event => setUserQuestion(event.target.value)}
           placeholder={EXAMPLE_QUESTIONS[placeholderIndex]}
-          className="w-full bg-surface border border-primary/40 rounded-lg px-4 py-3 pr-12 text-main placeholder-muted focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/70 transition-all"
+          className="w-full bg-surface border border-primary/40 rounded-lg px-3 xs:px-4 py-3 pr-12 text-base text-main placeholder-muted focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/70 transition-all"
+          // text-base (16px) prevents iOS zoom on focus
           onFocus={onFocus}
           onBlur={onBlur}
           aria-describedby={`${optionalId} ${helperId}`.trim()}
@@ -105,13 +106,13 @@ export function QuestionInput({
         </button>
       </div>
       <p id={helperId} className="text-muted text-xs flex items-center gap-2">
-        <ArrowsClockwise className="w-3.5 h-3.5 text-primary" aria-hidden="true" />
-        Need inspiration? Tap the refresh icon to cycle example questions.
+        <ArrowsClockwise className="w-3.5 h-3.5 text-primary shrink-0" aria-hidden="true" />
+        <span>Need inspiration? Tap the refresh icon to cycle example questions.</span>
       </p>
-      <div className="flex flex-wrap items-center gap-3">
+      <div className="flex flex-wrap items-center gap-2 xs:gap-3">
         <button
           type="button"
-          className="px-3 py-1.5 rounded-lg border border-primary/40 text-xs text-main hover:bg-primary/10 transition disabled:opacity-50"
+          className="px-3 py-1.5 min-h-[36px] rounded-lg border border-primary/40 text-xs text-main hover:bg-primary/10 active:bg-primary/15 transition disabled:opacity-50 touch-manipulation"
           onClick={handleSaveIntention}
           disabled={!userQuestion.trim()}
         >

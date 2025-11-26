@@ -108,7 +108,7 @@ export function StepProgress({ steps = [], activeStep, onSelect, condensed = fal
   return (
     <nav aria-label="Tarot reading progress" className="w-full animate-fade-in">
       <ol
-        className={`flex ${condensed ? 'gap-1.5 py-1' : 'gap-2 sm:gap-3 pb-1'} overflow-x-auto snap-x snap-mandatory`}
+        className={`flex ${condensed ? 'gap-1 xs:gap-1.5 py-1' : 'gap-1.5 xs:gap-2 sm:gap-3 pb-1'} overflow-x-auto snap-x snap-mandatory`}
         role="list"
       >
         {steps.map((step, index) => {
@@ -116,6 +116,10 @@ export function StepProgress({ steps = [], activeStep, onSelect, condensed = fal
           const StepIcon = STEP_ICONS[step.id];
           const shortLabel = STEP_SHORT_LABELS[step.id] || step.label;
           const isTooltipVisible = activeTooltip === step.id;
+          
+          // Calculate tooltip position adjustment for edge items
+          const isFirstStep = index === 0;
+          const isLastStep = index === steps.length - 1;
 
           return (
             <li key={step.id} className="flex-1 snap-start relative min-w-0">
@@ -129,8 +133,8 @@ export function StepProgress({ steps = [], activeStep, onSelect, condensed = fal
                   touch-manipulation active:scale-[0.97]
                   min-h-[44px]
                   ${condensed
-                    ? 'px-2 sm:px-3 py-2 text-[0.75rem]'
-                    : 'px-3 sm:px-4 py-2.5 text-[0.78rem] sm:text-sm'
+                    ? 'px-1.5 xs:px-2 sm:px-3 py-2 text-[0.7rem] xs:text-[0.75rem]'
+                    : 'px-2 xs:px-3 sm:px-4 py-2 xs:py-2.5 text-[0.72rem] xs:text-[0.78rem] sm:text-sm'
                   }
                   ${isActive
                     ? 'bg-primary/20 border-primary/80 text-main shadow-md shadow-primary/35'
@@ -149,10 +153,10 @@ export function StepProgress({ steps = [], activeStep, onSelect, condensed = fal
                 aria-label={`Step ${index + 1}: ${step.label}`}
                 aria-describedby={isTooltipVisible ? `step-tooltip-${step.id}` : undefined}
               >
-                <div className="flex items-center justify-center gap-1.5 sm:gap-2">
+                <div className="flex items-center justify-center gap-1 xs:gap-1.5 sm:gap-2">
                   {StepIcon && (
                     <StepIcon
-                      className={`shrink-0 ${condensed ? 'w-4 h-4' : 'w-4 h-4 sm:w-5 sm:h-5'}`}
+                      className={`shrink-0 ${condensed ? 'w-3.5 h-3.5 xs:w-4 xs:h-4' : 'w-3.5 h-3.5 xs:w-4 xs:h-4 sm:w-5 sm:h-5'}`}
                       aria-hidden="true"
                     />
                   )}
@@ -160,8 +164,8 @@ export function StepProgress({ steps = [], activeStep, onSelect, condensed = fal
                   <span className={`
                     font-semibold truncate
                     ${condensed
-                      ? 'text-[0.7rem] text-secondary'
-                      : 'text-[0.72rem] sm:text-[0.82rem]'
+                      ? 'text-[0.65rem] xs:text-[0.7rem] text-secondary'
+                      : 'text-[0.68rem] xs:text-[0.72rem] sm:text-[0.82rem]'
                     }
                     ${isActive ? 'text-main' : 'text-muted-high'}
                   `}>
@@ -171,26 +175,38 @@ export function StepProgress({ steps = [], activeStep, onSelect, condensed = fal
                 </div>
               </button>
 
-              {/* Touch-friendly tooltip */}
+              {/* Touch-friendly tooltip - positioned to avoid off-screen on edges */}
               <div
                 id={`step-tooltip-${step.id}`}
                 role="tooltip"
                 className={`
-                  absolute bottom-full left-1/2 -translate-x-1/2 mb-2
-                  px-3 py-1.5 bg-main border border-secondary/40 rounded-lg
+                  absolute bottom-full mb-2
+                  px-2.5 xs:px-3 py-1.5 bg-main border border-secondary/40 rounded-lg
                   shadow-lg whitespace-nowrap z-50
                   transition-all duration-200
+                  ${isFirstStep 
+                    ? 'left-0' 
+                    : isLastStep 
+                    ? 'right-0' 
+                    : 'left-1/2 -translate-x-1/2'
+                  }
                   ${isTooltipVisible
                     ? 'opacity-100 visible translate-y-0'
                     : 'opacity-0 invisible translate-y-1 pointer-events-none'
                   }
                 `}
               >
-                <div className="text-xs font-serif text-accent">{step.label}</div>
-                <div className="text-[0.65rem] text-muted mt-0.5">Step {index + 1} of {steps.length}</div>
-                {/* Arrow */}
+                <div className="text-[0.7rem] xs:text-xs font-serif text-accent">{step.label}</div>
+                <div className="text-[0.6rem] xs:text-[0.65rem] text-muted mt-0.5">Step {index + 1} of {steps.length}</div>
+                {/* Arrow - positioned based on tooltip alignment */}
                 <div
-                  className="absolute top-full left-1/2 -translate-x-1/2 -mt-1 border-4 border-transparent border-t-main"
+                  className={`absolute top-full -mt-1 border-4 border-transparent border-t-main ${
+                    isFirstStep 
+                      ? 'left-4' 
+                      : isLastStep 
+                      ? 'right-4' 
+                      : 'left-1/2 -translate-x-1/2'
+                  }`}
                   style={{ filter: 'drop-shadow(0 1px 0 rgba(0,0,0,0.1))' }}
                   aria-hidden="true"
                 />
