@@ -10,6 +10,7 @@ import { DeckSelector } from './components/DeckSelector';
 import { MobileSettingsDrawer } from './components/MobileSettingsDrawer';
 import { MobileActionBar, MobileActionGroup } from './components/MobileActionBar';
 import { Header } from './components/Header';
+import { OnboardingWizard } from './components/onboarding';
 import { useNavigate, useLocation } from 'react-router-dom';
 import './styles/tarot.css';
 
@@ -43,7 +44,11 @@ export default function TarotReading() {
     minorsDataIncomplete,
     // UI State
     prepareSectionsOpen,
-    togglePrepareSection
+    togglePrepareSection,
+    // Onboarding
+    onboardingComplete,
+    setOnboardingComplete,
+    setOnboardingSpreadKey
   } = usePreferences();
 
   // Accessibility: reduced motion preference
@@ -358,6 +363,24 @@ export default function TarotReading() {
     const behavior = prefersReducedMotion ? 'auto' : 'smooth';
     readingSectionRef.current?.scrollIntoView({ behavior, block: 'start' });
   }, [prefersReducedMotion, revealAll]);
+
+  // --- Onboarding Handler ---
+
+  const handleOnboardingComplete = useCallback((selections) => {
+    setOnboardingComplete(true);
+    if (selections?.selectedSpread) {
+      setOnboardingSpreadKey(selections.selectedSpread);
+      selectSpread(selections.selectedSpread);
+    }
+    if (selections?.question) {
+      setUserQuestion(selections.question);
+      setAllowPlaceholderCycle(false);
+    }
+  }, [setOnboardingComplete, setOnboardingSpreadKey, selectSpread, setUserQuestion]);
+
+  const handleOnboardingSpreadSelect = useCallback((spreadKey) => {
+    setOnboardingSpreadKey(spreadKey);
+  }, [setOnboardingSpreadKey]);
 
   // --- Logic: Journal Saving ---
 
@@ -704,6 +727,13 @@ export default function TarotReading() {
           prefillRecommendation={pendingCoachPrefill || coachRecommendation}
         />
       )}
+
+      {/* Onboarding wizard for first-time visitors */}
+      <OnboardingWizard
+        isOpen={!onboardingComplete}
+        onComplete={handleOnboardingComplete}
+        onSelectSpread={handleOnboardingSpreadSelect}
+      />
     </div>
   );
 }

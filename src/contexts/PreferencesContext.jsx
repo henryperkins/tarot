@@ -6,6 +6,7 @@ import { initAudio, cleanupAudio, stopTTS, toggleAmbience } from '../lib/audio';
 const PreferencesContext = createContext(null);
 
 const PREPARE_SECTIONS_STORAGE_KEY = 'tarot-prepare-sections';
+const ONBOARDING_STORAGE_KEY = 'tarot-onboarding-complete';
 const DEFAULT_PREPARE_SECTIONS = {
   intention: false,
   experience: false,
@@ -187,6 +188,28 @@ export function PreferencesProvider({ children }) {
     }));
   };
 
+  // --- Onboarding State ---
+  const [onboardingComplete, setOnboardingCompleteState] = useState(() => {
+    if (typeof localStorage !== 'undefined') {
+      return localStorage.getItem(ONBOARDING_STORAGE_KEY) === 'true';
+    }
+    return false;
+  });
+
+  const [onboardingSpreadKey, setOnboardingSpreadKey] = useState(null);
+
+  const setOnboardingComplete = (value) => {
+    setOnboardingCompleteState(value);
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem(ONBOARDING_STORAGE_KEY, value.toString());
+    }
+  };
+
+  const resetOnboarding = () => {
+    setOnboardingComplete(false);
+    setOnboardingSpreadKey(null);
+  };
+
   const value = {
     theme,
     setTheme,
@@ -207,7 +230,13 @@ export function PreferencesProvider({ children }) {
     reversalFramework,
     setReversalFramework,
     prepareSectionsOpen,
-    togglePrepareSection
+    togglePrepareSection,
+    // Onboarding
+    onboardingComplete,
+    setOnboardingComplete,
+    onboardingSpreadKey,
+    setOnboardingSpreadKey,
+    resetOnboarding
   };
 
   return (

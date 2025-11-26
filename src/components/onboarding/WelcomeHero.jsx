@@ -1,0 +1,146 @@
+import { Sparkle, Moon, Star, ArrowRight, Eye, Path, Lightbulb } from '@phosphor-icons/react';
+import { useReducedMotion } from '../../hooks/useReducedMotion';
+import { useLandscape } from '../../hooks/useLandscape';
+
+/**
+ * WelcomeHero - Step 1 of onboarding
+ *
+ * Introduces users to tarot as a tool for self-reflection,
+ * emphasizing guidance over fortune-telling.
+ */
+export function WelcomeHero({ onNext, onSkip }) {
+  const prefersReducedMotion = useReducedMotion();
+  const isLandscape = useLandscape();
+
+  return (
+    <div className="flex flex-col h-full">
+      {/* Hero content - centered vertically */}
+      <div className="flex-1 flex flex-col items-center justify-center text-center">
+        {/* Mystical icon cluster */}
+        <div
+          className={`relative mb-6 ${isLandscape ? 'mb-4' : 'mb-8'} ${
+            prefersReducedMotion ? '' : 'animate-fade-in-up'
+          }`}
+          style={{ animationDelay: '0.1s' }}
+        >
+          <div className="relative">
+            <Moon
+              className="w-16 h-16 sm:w-20 sm:h-20 text-accent"
+              weight="duotone"
+              aria-hidden="true"
+            />
+            <Star
+              className="absolute -top-2 -right-2 w-6 h-6 sm:w-8 sm:h-8 text-gold"
+              weight="fill"
+              aria-hidden="true"
+            />
+            <Sparkle
+              className="absolute -bottom-1 -left-3 w-5 h-5 sm:w-6 sm:h-6 text-primary"
+              weight="fill"
+              aria-hidden="true"
+            />
+          </div>
+        </div>
+
+        {/* Welcome text */}
+        <div
+          className={prefersReducedMotion ? '' : 'animate-fade-in-up'}
+          style={{ animationDelay: '0.2s' }}
+        >
+          <h2
+            className={`font-serif text-main mb-3 ${
+              isLandscape ? 'text-2xl' : 'text-3xl sm:text-4xl'
+            }`}
+          >
+            Welcome to Mystic Tarot
+          </h2>
+          <p
+            className={`text-muted max-w-md mx-auto leading-relaxed ${
+              isLandscape ? 'text-sm' : 'text-base sm:text-lg'
+            }`}
+          >
+            A space for reflection, clarity, and personal insight
+          </p>
+        </div>
+
+        {/* What is tarot explanation */}
+        <div
+          className={`mt-6 sm:mt-8 max-w-lg mx-auto ${
+            prefersReducedMotion ? '' : 'animate-fade-in-up'
+          } ${isLandscape ? 'mt-4' : ''}`}
+          style={{ animationDelay: '0.3s' }}
+        >
+          <div className="rounded-2xl border border-accent/20 bg-surface/50 backdrop-blur-sm p-5 sm:p-6">
+            <h3 className="text-accent font-serif text-lg mb-3 flex items-center gap-2">
+              <Sparkle className="w-4 h-4" weight="fill" aria-hidden="true" />
+              What is tarot?
+            </h3>
+            <div className={`space-y-3 text-muted leading-relaxed ${isLandscape ? 'text-sm' : ''}`}>
+              <p>
+                Tarot is a tool for <strong className="text-main">self-reflection</strong>, not
+                fortune-telling. The cards don&apos;t predict a fixed future—they invite you to explore
+                your thoughts, patterns, and possibilities.
+              </p>
+              {!isLandscape && (
+                <p>
+                  Think of it as a <strong className="text-main">conversation with yourself</strong>,
+                  guided by symbolic imagery that speaks to the human experience.
+                </p>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Key principles - hidden in landscape for space */}
+        {!isLandscape && (
+          <div
+            className={`mt-6 grid grid-cols-1 xs:grid-cols-3 gap-4 max-w-lg mx-auto ${
+              prefersReducedMotion ? '' : 'animate-fade-in-up'
+            }`}
+            style={{ animationDelay: '0.4s' }}
+          >
+            <div className="text-center">
+              <div className="w-10 h-10 mx-auto mb-2 rounded-full bg-accent/10 border border-accent/30 flex items-center justify-center">
+                <Eye className="w-5 h-5 text-accent" weight="duotone" aria-hidden="true" />
+              </div>
+              <p className="text-xs text-muted">Reflect & explore</p>
+            </div>
+            <div className="text-center">
+              <div className="w-10 h-10 mx-auto mb-2 rounded-full bg-accent/10 border border-accent/30 flex items-center justify-center">
+                <Path className="w-5 h-5 text-accent" weight="duotone" aria-hidden="true" />
+              </div>
+              <p className="text-xs text-muted">Embrace free will</p>
+            </div>
+            <div className="text-center">
+              <div className="w-10 h-10 mx-auto mb-2 rounded-full bg-accent/10 border border-accent/30 flex items-center justify-center">
+                <Lightbulb className="w-5 h-5 text-accent" weight="duotone" aria-hidden="true" />
+              </div>
+              <p className="text-xs text-muted">Trust your intuition</p>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Actions - sticky at bottom */}
+      <div
+        className={`flex flex-col gap-3 pt-4 pb-safe-bottom ${isLandscape ? 'pt-2' : 'pt-6'}`}
+      >
+        <button
+          type="button"
+          onClick={onNext}
+          className="w-full flex items-center justify-center gap-2 min-h-[48px] px-6 py-3 rounded-xl bg-accent text-surface font-semibold text-base transition hover:bg-accent/90 active:scale-[0.98] touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-main"
+        >
+          Begin Your Journey
+          <ArrowRight className="w-5 h-5" weight="bold" />
+        </button>
+        <button
+          type="button"
+          onClick={onSkip}
+          className="w-full min-h-[44px] px-4 py-2 text-muted hover:text-main text-sm transition touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary focus-visible:ring-offset-2 focus-visible:ring-offset-main"
+        >
+          Skip intro — I know tarot
+        </button>
+      </div>
+    </div>
+  );
+}
