@@ -2,7 +2,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
 // Mobile-optimized typography: 65-75 character line length, good paragraph spacing
-const paragraphClass = 'text-[0.9375rem] xs:text-base sm:text-base md:text-lg leading-relaxed xs:leading-7 sm:leading-7 md:leading-loose';
+const paragraphClass = 'text-[0.9375rem] xs:text-base md:text-lg leading-relaxed xs:leading-7 sm:leading-7 md:leading-loose';
 const headingClass = 'font-serif text-lg sm:text-xl text-secondary mt-5 xs:mt-6 mb-2 xs:mb-3';
 const listClass = 'list-disc pl-5 space-y-1.5 xs:space-y-2';
 
