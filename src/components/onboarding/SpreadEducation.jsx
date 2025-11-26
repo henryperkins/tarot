@@ -4,6 +4,7 @@ import { SPREADS } from '../../data/spreads';
 import { useReducedMotion } from '../../hooks/useReducedMotion';
 import { useLandscape } from '../../hooks/useLandscape';
 import { useSmallScreen } from '../../hooks/useSmallScreen';
+import { usePreferences } from '../../contexts/PreferencesContext';
 
 // Import spread artwork
 import oneCardArt from '../../../selectorimages/onecard.png';
@@ -43,17 +44,34 @@ const SPREAD_DESCRIPTIONS = {
   },
 };
 
+const SPREAD_DEPTH_OPTIONS = [
+  { value: 'short', label: 'Quick check-ins (1–2 cards)' },
+  { value: 'standard', label: 'Balanced (3–5 cards)' },
+  { value: 'deep', label: 'Deep dives (bigger spreads)' },
+];
+
+const FOCUS_AREA_OPTIONS = [
+  { value: 'love', label: 'Love & relationships' },
+  { value: 'career', label: 'Career & money' },
+  { value: 'self_worth', label: 'Self-worth & confidence' },
+  { value: 'healing', label: 'Healing & growth' },
+  { value: 'creativity', label: 'Creativity & projects' },
+  { value: 'spirituality', label: 'Spiritual path' },
+];
+
 /**
  * SpreadEducation - Step 2 of onboarding
  *
  * Teaches users about different spread types and lets them
  * select their first spread for the reading.
+ * Also collects preferred spread depth and focus areas.
  */
 export function SpreadEducation({ selectedSpread, onSelectSpread, onNext, onBack }) {
   const [expandedSpread, setExpandedSpread] = useState(null);
   const prefersReducedMotion = useReducedMotion();
   const isLandscape = useLandscape();
   const isSmallScreen = useSmallScreen();
+  const { personalization, setPreferredSpreadDepth, toggleFocusArea } = usePreferences();
 
   const handleSpreadClick = (spreadKey) => {
     onSelectSpread(spreadKey);
@@ -210,6 +228,81 @@ export function SpreadEducation({ selectedSpread, onSelectSpread, onNext, onBack
             The AI uses these positions to give you a more meaningful reading.
           </p>
         </div>
+
+        {/* Personalization: Spread Depth Preference */}
+        <div
+          className={`mt-6 rounded-2xl border border-accent/20 bg-surface/50 p-5 ${
+            prefersReducedMotion ? '' : 'animate-fade-in-up'
+          } ${isLandscape ? 'mt-4 p-4' : ''}`}
+          style={{ animationDelay: '0.5s' }}
+        >
+          <p className="text-sm text-accent mb-3">
+            What kind of readings do you like most?
+          </p>
+          <p className="text-xs text-muted mb-3">
+            You can change this anytime
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {SPREAD_DEPTH_OPTIONS.map((option) => {
+              const isSelected = personalization.preferredSpreadDepth === option.value;
+              return (
+                <button
+                  key={option.value}
+                  type="button"
+                  onClick={() => setPreferredSpreadDepth(option.value)}
+                  className={`min-h-[44px] px-4 py-2 rounded-full border text-sm font-medium transition touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-main ${
+                    isSelected
+                      ? 'bg-accent text-surface border-accent'
+                      : 'bg-surface/50 text-muted border-secondary/30 hover:border-accent/50 hover:text-main'
+                  }`}
+                  aria-pressed={isSelected}
+                >
+                  {option.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Personalization: Focus Areas */}
+        {!isLandscape && (
+          <div
+            className={`mt-6 rounded-2xl border border-accent/20 bg-surface/50 p-5 ${
+              prefersReducedMotion ? '' : 'animate-fade-in-up'
+            }`}
+            style={{ animationDelay: '0.6s' }}
+          >
+            <p className="text-sm text-accent mb-3">
+              What are you most curious about right now?
+            </p>
+            <p className="text-xs text-muted mb-3">
+              This helps us suggest spreads you&apos;ll actually use
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {FOCUS_AREA_OPTIONS.map((option) => {
+                const isSelected = (personalization.focusAreas || []).includes(option.value);
+                return (
+                  <button
+                    key={option.value}
+                    type="button"
+                    onClick={() => toggleFocusArea(option.value)}
+                    className={`min-h-[44px] px-4 py-2 rounded-full border text-sm font-medium transition touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-main ${
+                      isSelected
+                        ? 'bg-accent text-surface border-accent'
+                        : 'bg-surface/50 text-muted border-secondary/30 hover:border-accent/50 hover:text-main'
+                    }`}
+                    aria-pressed={isSelected}
+                  >
+                    {isSelected && (
+                      <Check className="w-4 h-4 inline mr-1" weight="bold" aria-hidden="true" />
+                    )}
+                    {option.label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Navigation */}

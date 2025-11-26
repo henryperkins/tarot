@@ -3,5 +3,7 @@ export { WelcomeHero } from './WelcomeHero';
 export { SpreadEducation } from './SpreadEducation';
 export { QuestionCrafting } from './QuestionCrafting';
 export { RitualIntro } from './RitualIntro';
+export { AccountSetup } from './AccountSetup';
+export { JournalIntro } from './JournalIntro';
 export { JourneyBegin } from './JourneyBegin';
 export { OnboardingProgress } from './OnboardingProgress';

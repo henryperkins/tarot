@@ -6,6 +6,8 @@ const STEP_LABELS = [
   'Spreads',
   'Question',
   'Ritual',
+  'Account',
+  'Journal',
   'Begin',
 ];
 

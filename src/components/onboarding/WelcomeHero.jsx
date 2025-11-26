@@ -1,16 +1,25 @@
-import { Sparkle, Moon, Star, ArrowRight, Eye, Path, Lightbulb } from '@phosphor-icons/react';
+import { Sparkle, Moon, Star, ArrowRight, Eye, Path, Lightbulb, User } from '@phosphor-icons/react';
 import { useReducedMotion } from '../../hooks/useReducedMotion';
 import { useLandscape } from '../../hooks/useLandscape';
+import { usePreferences } from '../../contexts/PreferencesContext';
+
+const EXPERIENCE_OPTIONS = [
+  { value: 'newbie', label: 'Brand new' },
+  { value: 'intermediate', label: 'I know the basics' },
+  { value: 'experienced', label: 'Pretty experienced' },
+];
 
 /**
  * WelcomeHero - Step 1 of onboarding
  *
  * Introduces users to tarot as a tool for self-reflection,
  * emphasizing guidance over fortune-telling.
+ * Also collects display name and tarot experience level.
  */
 export function WelcomeHero({ onNext, onSkip }) {
   const prefersReducedMotion = useReducedMotion();
   const isLandscape = useLandscape();
+  const { personalization, setDisplayName, setTarotExperience } = usePreferences();
 
   return (
     <div className="flex flex-col h-full">
@@ -119,6 +128,61 @@ export function WelcomeHero({ onNext, onSkip }) {
             </div>
           </div>
         )}
+
+        {/* Personalization Section */}
+        <div
+          className={`mt-6 w-full max-w-md mx-auto space-y-5 ${
+            prefersReducedMotion ? '' : 'animate-fade-in-up'
+          } ${isLandscape ? 'mt-3 space-y-3' : ''}`}
+          style={{ animationDelay: '0.5s' }}
+        >
+          {/* Display name input */}
+          <div className="text-left">
+            <label
+              htmlFor="display-name"
+              className="flex items-center gap-2 text-sm text-accent mb-2"
+            >
+              <User className="w-4 h-4" weight="duotone" aria-hidden="true" />
+              What should we call you?
+            </label>
+            <input
+              id="display-name"
+              type="text"
+              value={personalization.displayName}
+              onChange={(e) => setDisplayName(e.target.value)}
+              placeholder="Optional – we'll use this to personalize your readings"
+              className="w-full bg-surface border border-primary/40 rounded-xl px-4 py-3 text-base text-main placeholder-muted/70 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/70 transition-all"
+              autoComplete="given-name"
+            />
+          </div>
+
+          {/* Tarot experience chips */}
+          <div className="text-left">
+            <p className="text-sm text-accent mb-2">
+              How familiar are you with tarot?
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {EXPERIENCE_OPTIONS.map((option) => {
+                const isSelected = personalization.tarotExperience === option.value;
+                return (
+                  <button
+                    key={option.value}
+                    type="button"
+                    onClick={() => setTarotExperience(option.value)}
+                    className={`min-h-[44px] px-4 py-2 rounded-full border text-sm font-medium transition touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-main ${
+                      isSelected
+                        ? 'bg-accent text-surface border-accent'
+                        : 'bg-surface/50 text-muted border-secondary/30 hover:border-accent/50 hover:text-main'
+                    }`}
+                    aria-pressed={isSelected}
+                  >
+                    {option.label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Actions - sticky at bottom */}

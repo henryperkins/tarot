@@ -4,6 +4,7 @@ import { EXAMPLE_QUESTIONS } from '../../data/exampleQuestions';
 import { scoreQuestion, getQualityLevel } from '../../lib/questionQuality';
 import { useReducedMotion } from '../../hooks/useReducedMotion';
 import { useLandscape } from '../../hooks/useLandscape';
+import { usePreferences } from '../../contexts/PreferencesContext';
 
 // Additional example questions for onboarding
 const ONBOARDING_EXAMPLES = [
@@ -17,16 +18,31 @@ const ONBOARDING_EXAMPLES = [
 // Number of additional onboarding examples to show (adds variety without overwhelming)
 const MAX_ADDITIONAL_EXAMPLES = 2;
 
+const READING_TONE_OPTIONS = [
+  { value: 'gentle', label: 'Gentle & encouraging' },
+  { value: 'balanced', label: 'Honest but kind' },
+  { value: 'blunt', label: 'Blunt, no sugar-coating' },
+];
+
+const SPIRITUAL_FRAME_OPTIONS = [
+  { value: 'psychological', label: 'Mostly self-reflection / psychology' },
+  { value: 'spiritual', label: 'Spiritual & intuitive' },
+  { value: 'mixed', label: 'Mix of both' },
+  { value: 'playful', label: 'Just vibes & fun' },
+];
+
 /**
  * QuestionCrafting - Step 3 of onboarding
  *
  * Teaches users how to craft effective tarot questions
  * with real-time quality feedback.
+ * Also collects reading tone and spiritual framing preferences.
  */
 export function QuestionCrafting({ question, onQuestionChange, onNext, onBack }) {
   const [showTips, setShowTips] = useState(false);
   const prefersReducedMotion = useReducedMotion();
   const isLandscape = useLandscape();
+  const { personalization, setReadingTone, setSpiritualFrame } = usePreferences();
 
   const quality = useMemo(() => scoreQuestion(question), [question]);
   const qualityLevel = useMemo(() => getQualityLevel(quality.score), [quality.score]);
@@ -223,6 +239,72 @@ export function QuestionCrafting({ question, onQuestionChange, onNext, onBack })
           Don&apos;t have a question yet? That&apos;s okay — you can skip this step and let the cards
           guide you.
         </p>
+
+        {/* Personalization: Reading Tone */}
+        <div
+          className={`mt-6 rounded-2xl border border-accent/20 bg-surface/50 p-5 ${
+            prefersReducedMotion ? '' : 'animate-fade-in-up'
+          } ${isLandscape ? 'mt-4 p-4' : ''}`}
+          style={{ animationDelay: '0.4s' }}
+        >
+          <p className="text-sm text-accent mb-3">
+            How do you like your readings?
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {READING_TONE_OPTIONS.map((option) => {
+              const isSelected = personalization.readingTone === option.value;
+              return (
+                <button
+                  key={option.value}
+                  type="button"
+                  onClick={() => setReadingTone(option.value)}
+                  className={`min-h-[44px] px-4 py-2 rounded-full border text-sm font-medium transition touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-main ${
+                    isSelected
+                      ? 'bg-accent text-surface border-accent'
+                      : 'bg-surface/50 text-muted border-secondary/30 hover:border-accent/50 hover:text-main'
+                  }`}
+                  aria-pressed={isSelected}
+                >
+                  {option.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Personalization: Spiritual Framing */}
+        {!isLandscape && (
+          <div
+            className={`mt-4 rounded-2xl border border-accent/20 bg-surface/50 p-5 ${
+              prefersReducedMotion ? '' : 'animate-fade-in-up'
+            }`}
+            style={{ animationDelay: '0.5s' }}
+          >
+            <p className="text-sm text-accent mb-3">
+              How should we frame things?
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {SPIRITUAL_FRAME_OPTIONS.map((option) => {
+                const isSelected = personalization.spiritualFrame === option.value;
+                return (
+                  <button
+                    key={option.value}
+                    type="button"
+                    onClick={() => setSpiritualFrame(option.value)}
+                    className={`min-h-[44px] px-4 py-2 rounded-full border text-sm font-medium transition touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-main ${
+                      isSelected
+                        ? 'bg-accent text-surface border-accent'
+                        : 'bg-surface/50 text-muted border-secondary/30 hover:border-accent/50 hover:text-main'
+                    }`}
+                    aria-pressed={isSelected}
+                  >
+                    {option.label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Navigation */}

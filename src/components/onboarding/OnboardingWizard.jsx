@@ -8,10 +8,12 @@ import { WelcomeHero } from './WelcomeHero';
 import { SpreadEducation } from './SpreadEducation';
 import { QuestionCrafting } from './QuestionCrafting';
 import { RitualIntro } from './RitualIntro';
+import { AccountSetup } from './AccountSetup';
+import { JournalIntro } from './JournalIntro';
 import { JourneyBegin } from './JourneyBegin';
 import { OnboardingProgress } from './OnboardingProgress';
 
-const TOTAL_STEPS = 5;
+const TOTAL_STEPS = 7;
 
 /**
  * OnboardingWizard - Multi-step onboarding flow for new users
@@ -130,6 +132,20 @@ export function OnboardingWizard({ isOpen, onComplete, onSelectSpread }) {
           />
         );
       case 5:
+        return (
+          <AccountSetup
+            onNext={handleNext}
+            onBack={handleBack}
+          />
+        );
+      case 6:
+        return (
+          <JournalIntro
+            onNext={handleNext}
+            onBack={handleBack}
+          />
+        );
+      case 7:
         return (
           <JourneyBegin
             selectedSpread={selectedSpread}

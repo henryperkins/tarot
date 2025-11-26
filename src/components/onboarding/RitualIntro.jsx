@@ -1,16 +1,19 @@
-import { ArrowLeft, ArrowRight, Hand, Scissors, Sparkle, Lightbulb } from '@phosphor-icons/react';
+import { ArrowLeft, ArrowRight, Hand, Scissors, Sparkle, Lightbulb, ToggleLeft, ToggleRight } from '@phosphor-icons/react';
 import { useReducedMotion } from '../../hooks/useReducedMotion';
 import { useLandscape } from '../../hooks/useLandscape';
+import { usePreferences } from '../../contexts/PreferencesContext';
 
 /**
  * RitualIntro - Step 4 of onboarding
  *
  * Explains the optional ritual mechanics (knock and cut)
  * and their symbolic meaning.
+ * Also allows users to set their ritual preference.
  */
 export function RitualIntro({ onNext, onBack, onSkipRitual }) {
   const prefersReducedMotion = useReducedMotion();
   const isLandscape = useLandscape();
+  const { personalization, setShowRitualSteps } = usePreferences();
 
   return (
     <div className="flex flex-col h-full">
@@ -117,6 +120,61 @@ export function RitualIntro({ onNext, onBack, onSkipRitual }) {
             </p>
           </div>
         )}
+
+        {/* Ritual preference toggle */}
+        <div
+          className={`rounded-2xl border border-accent/20 bg-surface/50 p-5 ${
+            prefersReducedMotion ? '' : 'animate-fade-in-up'
+          } ${isLandscape ? 'p-4' : ''}`}
+          style={{ animationDelay: '0.45s' }}
+        >
+          <p className="text-sm text-accent mb-3">
+            Your default ritual preference
+          </p>
+          <div className="flex flex-col gap-2 sm:flex-row sm:gap-4">
+            <button
+              type="button"
+              onClick={() => setShowRitualSteps(true)}
+              className={`flex items-center gap-3 min-h-[44px] px-4 py-3 rounded-xl border text-left transition touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-main ${
+                personalization.showRitualSteps
+                  ? 'bg-accent/10 border-accent text-main'
+                  : 'bg-surface/50 border-secondary/30 text-muted hover:border-accent/50'
+              }`}
+              aria-pressed={personalization.showRitualSteps}
+            >
+              <ToggleRight
+                className={`w-6 h-6 shrink-0 ${
+                  personalization.showRitualSteps ? 'text-accent' : 'text-muted'
+                }`}
+                weight={personalization.showRitualSteps ? 'fill' : 'regular'}
+                aria-hidden="true"
+              />
+              <span className="text-sm font-medium">Always show ritual steps</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowRitualSteps(false)}
+              className={`flex items-center gap-3 min-h-[44px] px-4 py-3 rounded-xl border text-left transition touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-main ${
+                !personalization.showRitualSteps
+                  ? 'bg-accent/10 border-accent text-main'
+                  : 'bg-surface/50 border-secondary/30 text-muted hover:border-accent/50'
+              }`}
+              aria-pressed={!personalization.showRitualSteps}
+            >
+              <ToggleLeft
+                className={`w-6 h-6 shrink-0 ${
+                  !personalization.showRitualSteps ? 'text-accent' : 'text-muted'
+                }`}
+                weight={!personalization.showRitualSteps ? 'fill' : 'regular'}
+                aria-hidden="true"
+              />
+              <span className="text-sm font-medium">Keep ritual minimal</span>
+            </button>
+          </div>
+          <p className="text-xs text-muted mt-3">
+            You can change this anytime in Settings
+          </p>
+        </div>
 
         {/* Note about skipping */}
         <div

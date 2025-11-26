@@ -7,11 +7,22 @@ const PreferencesContext = createContext(null);
 
 const PREPARE_SECTIONS_STORAGE_KEY = 'tarot-prepare-sections';
 const ONBOARDING_STORAGE_KEY = 'tarot-onboarding-complete';
+const PERSONALIZATION_STORAGE_KEY = 'tarot-personalization';
 const DEFAULT_PREPARE_SECTIONS = {
   intention: false,
   experience: false,
   ritual: false,
   audio: false
+};
+
+const DEFAULT_PERSONALIZATION = {
+  displayName: '',
+  tarotExperience: 'newbie',
+  readingTone: 'balanced',
+  focusAreas: [],
+  preferredSpreadDepth: 'standard',
+  spiritualFrame: 'mixed',
+  showRitualSteps: true
 };
 
 export function PreferencesProvider({ children }) {
@@ -152,6 +163,74 @@ export function PreferencesProvider({ children }) {
   // Not persisted by default in original code, but kept as state
   const [reversalFramework, setReversalFramework] = useState(null);
 
+  // --- Personalization Preferences ---
+  const [personalization, setPersonalizationState] = useState(() => {
+    if (typeof localStorage !== 'undefined') {
+      try {
+        const stored = localStorage.getItem(PERSONALIZATION_STORAGE_KEY);
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          return { ...DEFAULT_PERSONALIZATION, ...parsed };
+        }
+      } catch (error) {
+        console.debug('Unable to load personalization:', error);
+      }
+    }
+    return { ...DEFAULT_PERSONALIZATION };
+  });
+
+  // Persist personalization changes
+  useEffect(() => {
+    if (typeof localStorage !== 'undefined') {
+      try {
+        localStorage.setItem(PERSONALIZATION_STORAGE_KEY, JSON.stringify(personalization));
+      } catch (error) {
+        console.debug('Unable to persist personalization:', error);
+      }
+    }
+  }, [personalization]);
+
+  // Individual setters for personalization fields
+  const setDisplayName = (value) => {
+    setPersonalizationState(prev => ({ ...prev, displayName: value }));
+  };
+
+  const setTarotExperience = (value) => {
+    setPersonalizationState(prev => ({ ...prev, tarotExperience: value }));
+  };
+
+  const setReadingTone = (value) => {
+    setPersonalizationState(prev => ({ ...prev, readingTone: value }));
+  };
+
+  const setFocusAreas = (value) => {
+    setPersonalizationState(prev => ({ ...prev, focusAreas: value }));
+  };
+
+  const setPreferredSpreadDepth = (value) => {
+    setPersonalizationState(prev => ({ ...prev, preferredSpreadDepth: value }));
+  };
+
+  const setSpiritualFrame = (value) => {
+    setPersonalizationState(prev => ({ ...prev, spiritualFrame: value }));
+  };
+
+  const setShowRitualSteps = (value) => {
+    setPersonalizationState(prev => ({ ...prev, showRitualSteps: value }));
+  };
+
+  // Toggle a focus area (for multi-select)
+  const toggleFocusArea = (area) => {
+    setPersonalizationState(prev => {
+      const current = prev.focusAreas || [];
+      if (current.includes(area)) {
+        return { ...prev, focusAreas: current.filter(a => a !== area) };
+      } else {
+        return { ...prev, focusAreas: [...current, area] };
+      }
+    });
+  };
+
   // --- UI State: Prepare Sections ---
   const [prepareSectionsOpen, setPrepareSectionsOpen] = useState(() => {
     if (typeof sessionStorage === 'undefined') {
@@ -231,6 +310,16 @@ export function PreferencesProvider({ children }) {
     setReversalFramework,
     prepareSectionsOpen,
     togglePrepareSection,
+    // Personalization
+    personalization,
+    setDisplayName,
+    setTarotExperience,
+    setReadingTone,
+    setFocusAreas,
+    setPreferredSpreadDepth,
+    setSpiritualFrame,
+    setShowRitualSteps,
+    toggleFocusArea,
     // Onboarding
     onboardingComplete,
     setOnboardingComplete,
