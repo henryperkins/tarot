@@ -1,10 +1,12 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
-import { SignIn, User, SignOut } from '@phosphor-icons/react';
+import { SignIn, User, SignOut, BookOpen } from '@phosphor-icons/react';
 import { useAuth } from '../contexts/AuthContext';
+import { usePreferences } from '../contexts/PreferencesContext';
 import AuthModal from './AuthModal';
 
 export function UserMenu({ condensed = false }) {
   const { isAuthenticated, user, logout } = useAuth();
+  const { resetOnboarding } = usePreferences();
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showDropdown, setShowDropdown] = useState(false);
   const [analyticsEnabled, setAnalyticsEnabled] = useState(null);
@@ -22,6 +24,11 @@ export function UserMenu({ condensed = false }) {
     closeDropdown();
     setAnalyticsEnabled(null);
     setPrefsError(null);
+  };
+
+  const handleReplayTutorial = () => {
+    resetOnboarding();
+    closeDropdown();
   };
 
   // Handle Escape key and click outside
@@ -221,6 +228,22 @@ export function UserMenu({ condensed = false }) {
                     )}
                   </div>
 
+                  {/* Replay Tutorial */}
+                  <button
+                    role="menuitem"
+                    onClick={handleReplayTutorial}
+                    className="
+                      w-full text-left px-4 py-3 min-h-[44px]
+                      text-sm text-accent hover:bg-accent/5 active:bg-accent/10
+                      flex items-center gap-2 touch-manipulation
+                      focus-visible:outline-none focus-visible:bg-accent/5
+                      border-b border-accent/10
+                    "
+                  >
+                    <BookOpen className="w-4 h-4" aria-hidden="true" />
+                    Replay Tutorial
+                  </button>
+
                   {/* Sign out */}
                   <button
                     role="menuitem"
@@ -240,21 +263,38 @@ export function UserMenu({ condensed = false }) {
             )}
           </div>
         ) : (
-          <button
-            onClick={() => setShowAuthModal(true)}
-            className="
-              flex items-center gap-1.5 px-3 sm:px-4 min-h-[44px]
-              rounded-full bg-primary text-surface
-              hover:bg-primary/90 active:bg-primary/80 active:scale-[0.98]
-              shadow-sm shadow-primary/20 transition
-              text-xs-plus font-semibold touch-manipulation
-              focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60
-              focus-visible:ring-offset-2 focus-visible:ring-offset-main
-            "
-          >
-            <SignIn className="w-4 h-4" aria-hidden="true" />
-            <span>Sign In</span>
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleReplayTutorial}
+              className="
+                flex items-center justify-center min-w-[44px] min-h-[44px]
+                rounded-full bg-surface/50 border border-accent/20
+                text-accent hover:bg-surface hover:border-accent/40 active:bg-surface-muted
+                transition touch-manipulation
+                focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60
+                focus-visible:ring-offset-2 focus-visible:ring-offset-main
+              "
+              aria-label="Replay tutorial"
+              title="Replay Tutorial"
+            >
+              <BookOpen className="w-4 h-4" aria-hidden="true" />
+            </button>
+            <button
+              onClick={() => setShowAuthModal(true)}
+              className="
+                flex items-center gap-1.5 px-3 sm:px-4 min-h-[44px]
+                rounded-full bg-primary text-surface
+                hover:bg-primary/90 active:bg-primary/80 active:scale-[0.98]
+                shadow-sm shadow-primary/20 transition
+                text-xs-plus font-semibold touch-manipulation
+                focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60
+                focus-visible:ring-offset-2 focus-visible:ring-offset-main
+              "
+            >
+              <SignIn className="w-4 h-4" aria-hidden="true" />
+              <span>Sign In</span>
+            </button>
+          </div>
         )}
       </div>
 
