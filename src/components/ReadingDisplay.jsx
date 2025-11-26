@@ -408,18 +408,16 @@ export function ReadingDisplay({ sectionRef }) {
                                 )}
                                 {journalStatus && <p role="status" aria-live="polite" className={`text-xs text-center max-w-sm ${journalStatus.type === 'success' ? 'text-success' : 'text-error'}`}>{journalStatus.message}</p>}
                             </div>
-                            <div className="mt-6 w-full max-w-2xl">
-                                <FeedbackPanel
-                                    requestId={readingMeta.requestId}
-                                    spreadKey={readingMeta.spreadKey || selectedSpread}
-                                    spreadName={readingMeta.spreadName || spreadInfo?.name}
-                                    deckStyle={readingMeta.deckStyle || deckStyleId}
-                                    provider={readingMeta.provider}
-                                    userQuestion={readingMeta.userQuestion || userQuestion}
-                                    cards={lastCardsForFeedback}
-                                    visionSummary={feedbackVisionSummary}
-                                />
-                            </div>
+                        </div>
+                    )}
+
+                    {!personalReading && !isGenerating && (
+                        <div className="bg-surface/95 backdrop-blur-xl rounded-2xl p-4 sm:p-6 border border-secondary/40 max-w-2xl mx-auto">
+                            <h3 className="text-lg sm:text-xl font-serif text-accent mb-2 sm:mb-3 flex items-center gap-2"><Star className="w-4 h-4 sm:w-5 sm:h-5" />Interpretation Guidance</h3>
+                            <HelperToggle className="mt-2">
+                                <p>Notice how the cards speak to one another. Consider themes, repetitions, contrasts, and where your attention is drawn. Trust your intuition as much as any description.</p>
+                                <p className="mt-2">This reading offers reflective guidance only. It is not a substitute for medical, mental health, legal, financial, or safety advice. If your situation involves health, legal risk, abuse, or crisis, consider reaching out to qualified professionals or trusted support services.</p>
+                            </HelperToggle>
                         </div>
                     )}
 
@@ -433,13 +431,18 @@ export function ReadingDisplay({ sectionRef }) {
                         </div>
                     )}
 
-                    {!personalReading && !isGenerating && (
-                        <div className="bg-surface/95 backdrop-blur-xl rounded-2xl p-4 sm:p-6 border border-secondary/40 max-w-2xl mx-auto">
-                            <h3 className="text-lg sm:text-xl font-serif text-accent mb-2 sm:mb-3 flex items-center gap-2"><Star className="w-4 h-4 sm:w-5 sm:h-5" />Interpretation Guidance</h3>
-                            <HelperToggle className="mt-2">
-                                <p>Notice how the cards speak to one another. Consider themes, repetitions, contrasts, and where your attention is drawn. Trust your intuition as much as any description.</p>
-                                <p className="mt-2">This reading offers reflective guidance only. It is not a substitute for medical, mental health, legal, financial, or safety advice. If your situation involves health, legal risk, abuse, or crisis, consider reaching out to qualified professionals or trusted support services.</p>
-                            </HelperToggle>
+                    {personalReading && (
+                        <div className="w-full max-w-2xl mx-auto">
+                            <FeedbackPanel
+                                requestId={readingMeta.requestId}
+                                spreadKey={readingMeta.spreadKey || selectedSpread}
+                                spreadName={readingMeta.spreadName || spreadInfo?.name}
+                                deckStyle={readingMeta.deckStyle || deckStyleId}
+                                provider={readingMeta.provider}
+                                userQuestion={readingMeta.userQuestion || userQuestion}
+                                cards={lastCardsForFeedback}
+                                visionSummary={feedbackVisionSummary}
+                            />
                         </div>
                     )}
 
