@@ -50,6 +50,10 @@ export async function buildDecisionReading({
   );
 
   const normalizedCards = Array.isArray(cardsInfo) ? cardsInfo : [];
+  if (normalizedCards.length < 5) {
+    const placeholder = '### Decision / Two-Path\n\nThis spread needs all five cards (heart, two paths, clarifier, and free-will reminder) before a narrative can be generated. Draw or reveal the remaining cards, then try again.';
+    return appendReversalReminder(placeholder, normalizedCards, themes);
+  }
   const prioritized = sortCardsByImportance(normalizedCards, 'decision');
   const [heart, pathA, pathB, clarifier, freeWill] = normalizedCards;
   const positionOptions = getPositionOptions(themes, context);
@@ -62,16 +66,22 @@ export async function buildDecisionReading({
   // THE CHOICE
   let choice = `### The Choice\n\n`;
   const heartPosition = heart?.position || 'Heart of the decision';
-  choice += buildPositionCardText(
-    heart,
-    heartPosition,
-    positionOptions
-  );
-  choice += '\n\nThis position stands at the center of your decision and points toward what truly matters as you weigh each path.';
+  if (heart) {
+    choice += buildPositionCardText(
+      heart,
+      heartPosition,
+      positionOptions
+    );
+    choice += '\n\nThis position stands at the center of your decision and points toward what truly matters as you weigh each path.';
+  } else {
+    choice += 'This position has not been revealed yet, so the core of the decision is still taking shape.';
+  }
 
-  const heartWeightNote = buildWeightNote('decision', 0, heartPosition);
-  if (heartWeightNote) {
-    choice += `\n\n${heartWeightNote}`;
+  if (heart) {
+    const heartWeightNote = buildWeightNote('decision', 0, heartPosition);
+    if (heartWeightNote) {
+      choice += `\n\n${heartWeightNote}`;
+    }
   }
   sections.push(
     recordSection(choice, {
@@ -82,19 +92,23 @@ export async function buildDecisionReading({
 
   // PATH A
   let aSection = `### Path A\n\n`;
-  const pathAPosition = pathA.position || 'Path A — energy & likely outcome';
-  const pathAConnector = getConnector(pathAPosition, 'toPrev');
-  const pathAText = buildPositionCardText(
-    pathA,
-    pathAPosition,
-    positionOptions
-  );
-  aSection += pathAConnector ? `${pathAConnector} ${pathAText}` : pathAText;
-  aSection += '\n\nThis path suggests one possible trajectory if you commit to this direction.';
+  const pathAPosition = pathA?.position || 'Path A — energy & likely outcome';
+  if (pathA) {
+    const pathAConnector = getConnector(pathAPosition, 'toPrev');
+    const pathAText = buildPositionCardText(
+      pathA,
+      pathAPosition,
+      positionOptions
+    );
+    aSection += pathAConnector ? `${pathAConnector} ${pathAText}` : pathAText;
+    aSection += '\n\nThis path suggests one possible trajectory if you commit to this direction.';
 
-  const pathAWeightNote = buildWeightNote('decision', 1, pathAPosition);
-  if (pathAWeightNote) {
-    aSection += `\n\n${pathAWeightNote}`;
+    const pathAWeightNote = buildWeightNote('decision', 1, pathAPosition);
+    if (pathAWeightNote) {
+      aSection += `\n\n${pathAWeightNote}`;
+    }
+  } else {
+    aSection += 'Path A has not been revealed yet, so we cannot describe this trajectory.\n\n';
   }
   sections.push(
     recordSection(aSection, {
@@ -105,19 +119,23 @@ export async function buildDecisionReading({
 
   // PATH B
   let bSection = `### Path B\n\n`;
-  const pathBPosition = pathB.position || 'Path B — energy & likely outcome';
-  const pathBConnector = getConnector(pathBPosition, 'toPrev');
-  const pathBText = buildPositionCardText(
-    pathB,
-    pathBPosition,
-    positionOptions
-  );
-  bSection += pathBConnector ? `${pathBConnector} ${pathBText}` : pathBText;
-  bSection += '\n\nThis path suggests an alternate trajectory, inviting you to compare how each route aligns with your values.';
+  const pathBPosition = pathB?.position || 'Path B — energy & likely outcome';
+  if (pathB) {
+    const pathBConnector = getConnector(pathBPosition, 'toPrev');
+    const pathBText = buildPositionCardText(
+      pathB,
+      pathBPosition,
+      positionOptions
+    );
+    bSection += pathBConnector ? `${pathBConnector} ${pathBText}` : pathBText;
+    bSection += '\n\nThis path suggests an alternate trajectory, inviting you to compare how each route aligns with your values.';
 
-  const pathBWeightNote = buildWeightNote('decision', 2, pathBPosition);
-  if (pathBWeightNote) {
-    bSection += `\n\n${pathBWeightNote}`;
+    const pathBWeightNote = buildWeightNote('decision', 2, pathBPosition);
+    if (pathBWeightNote) {
+      bSection += `\n\n${pathBWeightNote}`;
+    }
+  } else {
+    bSection += 'Path B has not been revealed yet, so there is no comparison point for the alternate route.\n\n';
   }
   sections.push(
     recordSection(bSection, {
@@ -144,6 +162,8 @@ export async function buildDecisionReading({
     if (clarifierWeightNote) {
       clarity += `${clarifierWeightNote}\n\n`;
     }
+  } else {
+    clarity += 'Clarifier card not provided yet, so note any new information you need before committing.\n\n';
   }
 
   if (pathA && pathB) {
@@ -168,6 +188,8 @@ export async function buildDecisionReading({
     if (freeWillWeightNote) {
       clarity += `${freeWillWeightNote}\n\n`;
     }
+  } else {
+    clarity += 'Remember: your free will ultimately guides this choice, even without a dedicated card drawn yet.\n\n';
   }
 
   clarity +=
