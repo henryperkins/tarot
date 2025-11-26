@@ -271,7 +271,7 @@ export function StreamingNarrative({
     <div className={className} aria-live="polite">
       {streamingOptInNotice}
       {/* Mobile-optimized text with good line height and spacing - min-height prevents layout shift */}
-      <div className="text-main text-[0.9375rem] xs:text-base sm:text-base md:text-lg leading-7 xs:leading-relaxed md:leading-loose max-w-prose mx-auto text-left min-h-[8rem] xs:min-h-[10rem]">
+      <div className="text-main text-[0.9375rem] xs:text-base md:text-lg leading-7 xs:leading-relaxed md:leading-loose max-w-prose mx-auto text-left min-h-[8rem] xs:min-h-[10rem]">
         {visibleWords.map((word, idx) => {
           // Check if this is whitespace (space, newline, etc.)
           const isWhitespace = /^\s+$/.test(word);
