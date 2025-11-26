@@ -38,7 +38,7 @@
 - Ethics: treat readings as reflective guidance. Any new copy, prompts, or features should:
   - Emphasize agency and free will, not fixed fate.
   - Avoid diagnosing, prescribing, or replacing professional help for health, safety, legal, or financial issues.
-  - Stay inclusive and trauma‑aware in tone (see `CLAUDE.md` and `guide.md` for reference language).
+  - Stay inclusive and trauma‑aware in tone (see `CLAUDE.md` for reference language).
 
 ## React & styling conventions
 - Components: functional React with hooks only; keep `TarotReading.jsx` as the orchestration layer and keep `src/components/*` mostly presentational (receive props, no global side effects).
