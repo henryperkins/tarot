@@ -59,8 +59,8 @@ export function OnboardingWizard({ isOpen, onComplete, onSelectSpread }) {
   };
 
   const handleSkip = () => {
-    // Mark onboarding as complete and close
-    onComplete?.();
+    // Mark onboarding as complete and close, passing any selections made so far
+    onComplete?.({ selectedSpread, question });
   };
 
   const handleSpreadSelect = (spreadKey) => {
@@ -83,7 +83,8 @@ export function OnboardingWizard({ isOpen, onComplete, onSelectSpread }) {
   };
 
   const handleStepSelect = (step) => {
-    // Only allow navigation to previously visited steps
+    // Allow navigation to previously visited steps only
+    // User selections (spread, question) are preserved in state during navigation
     if (step <= currentStep) {
       setCurrentStep(step);
     }
