@@ -1,8 +1,9 @@
 import { useMemo } from 'react';
 import { Gear, Sparkle, ArrowsClockwise } from '@phosphor-icons/react';
+import { useLandscape } from '../hooks/useLandscape';
 
-// Shared button styles
-const BTN_BASE = 'min-h-[44px] inline-flex items-center justify-center rounded-xl text-sm font-semibold transition touch-manipulation';
+// Shared button styles - reduced height in landscape while maintaining touch target
+const BTN_BASE = 'inline-flex items-center justify-center rounded-xl font-semibold transition touch-manipulation';
 const BTN_PRIMARY = `${BTN_BASE} bg-accent text-surface shadow-lg hover:opacity-90`;
 const BTN_SECONDARY = `${BTN_BASE} bg-surface-muted text-accent border border-accent/30 hover:bg-surface`;
 const BTN_TERTIARY = `${BTN_BASE} bg-primary/20 text-primary border border-primary/40 hover:bg-primary/30`;
@@ -37,7 +38,8 @@ function ActionButton({
   children,
   ariaLabel,
   icon: Icon,
-  className = ''
+  className = '',
+  isLandscape = false
 }) {
   const variantClass = {
     primary: BTN_PRIMARY,
@@ -46,7 +48,10 @@ function ActionButton({
     coach: BTN_COACH
   }[variant] || BTN_PRIMARY;
 
-  const hasStepLabel = Boolean(stepLabel);
+  // In landscape: hide step labels, use compact height
+  const showStepLabel = Boolean(stepLabel) && !isLandscape;
+  const heightClass = isLandscape ? 'min-h-[40px]' : 'min-h-[44px]';
+  const textSize = isLandscape ? 'text-xs' : 'text-sm';
 
   return (
     <button
@@ -56,16 +61,17 @@ function ActionButton({
       aria-label={ariaLabel}
       className={`
         ${variantClass}
-        ${hasStepLabel ? 'flex-col gap-0.5' : 'gap-1.5'}
+        ${heightClass}
+        ${showStepLabel ? 'flex-col gap-0.5' : 'gap-1.5'}
         ${disabled ? 'opacity-50 cursor-not-allowed' : ''}
         ${className}
       `}
     >
-      {Icon && !hasStepLabel && <Icon className="w-4 h-4" weight="fill" aria-hidden="true" />}
-      {stepLabel && (
+      {Icon && !showStepLabel && <Icon className={isLandscape ? 'w-3.5 h-3.5' : 'w-4 h-4'} weight="fill" aria-hidden="true" />}
+      {showStepLabel && (
         <span className="text-xs uppercase tracking-wider opacity-70">{stepLabel}</span>
       )}
-      <span className="text-sm font-semibold">{children}</span>
+      <span className={`${textSize} font-semibold`}>{children}</span>
     </button>
   );
 }
@@ -91,6 +97,7 @@ function MobileActionContents({
   variant = 'fixed',
   showUtilityButtons = true
 }) {
+  const isLandscape = useLandscape();
   const readingLength = reading?.length || 0;
   const revealedCount = revealedCards?.size || 0;
   const allRevealed = readingLength > 0 && revealedCount === readingLength;
@@ -111,9 +118,12 @@ function MobileActionContents({
     isError
   }), [isShuffling, reading, revealedCount, allRevealed, needsNarrative, hasNarrative, isGenerating, isError]);
 
+  // In landscape: tighter layout with smaller gaps
   const layoutClass = variant === 'inline'
     ? 'flex flex-col gap-2 w-full'
-    : 'flex flex-wrap gap-2';
+    : isLandscape
+      ? 'flex flex-wrap gap-1.5'
+      : 'flex flex-wrap gap-2';
 
   return (
     <div className={layoutClass}>
@@ -125,6 +135,7 @@ function MobileActionContents({
         stepBadge,
         stepIndicatorLabel,
         hasNarrative,
+        isLandscape,
         onOpenSettings,
         onOpenCoach,
         onShuffle,
@@ -152,6 +163,7 @@ function renderActions(mode, options) {
     stepBadge,
     stepIndicatorLabel,
     hasNarrative,
+    isLandscape,
     onOpenSettings,
     onOpenCoach,
     onShuffle,
@@ -162,28 +174,33 @@ function renderActions(mode, options) {
     onNewReading
   } = options;
 
+  // In landscape: smaller minimum widths to fit more buttons
   const widthClasses = {
-    primary: variant === 'inline' ? 'w-full' : 'flex-1 min-w-[7.5rem]',
-    prepPrimary: variant === 'inline' ? 'w-full' : 'flex-1 min-w-[6rem]',
-    secondary: variant === 'inline' ? 'w-full' : 'flex-1 min-w-[7.5rem]',
-    tertiary: variant === 'inline' ? 'w-full' : 'flex-1 min-w-[7.5rem]',
-    icon: variant === 'inline' ? 'w-full' : 'flex-none w-[3rem]',
+    primary: variant === 'inline' ? 'w-full' : isLandscape ? 'flex-1 min-w-[5.5rem]' : 'flex-1 min-w-[7.5rem]',
+    prepPrimary: variant === 'inline' ? 'w-full' : isLandscape ? 'flex-1 min-w-[4.5rem]' : 'flex-1 min-w-[6rem]',
+    secondary: variant === 'inline' ? 'w-full' : isLandscape ? 'flex-1 min-w-[5.5rem]' : 'flex-1 min-w-[7.5rem]',
+    tertiary: variant === 'inline' ? 'w-full' : isLandscape ? 'flex-1 min-w-[5.5rem]' : 'flex-1 min-w-[7.5rem]',
+    icon: variant === 'inline' ? 'w-full' : isLandscape ? 'flex-none w-[2.5rem]' : 'flex-none w-[3rem]',
     coach: variant === 'inline' ? 'w-full' : 'flex-none'
   };
 
+  // Padding classes: smaller in landscape
+  const px = isLandscape ? 'px-2' : 'px-3';
+
   switch (mode) {
     case 'shuffling': {
-      const label = 'Shuffling';
+      const label = isLandscape ? 'Shuffling' : 'Shuffling';
       return (
         <ActionButton
           variant="primary"
           disabled
           stepLabel={stepBadge}
           ariaLabel={withStepContext(label, stepIndicatorLabel)}
-          className={`${widthClasses.primary} px-3`}
+          className={`${widthClasses.primary} ${px}`}
+          isLandscape={isLandscape}
         >
-          <span className="flex items-center gap-2">
-            <ArrowsClockwise className="w-4 h-4 animate-spin" aria-hidden="true" />
+          <span className="flex items-center gap-1.5">
+            <ArrowsClockwise className={isLandscape ? 'w-3.5 h-3.5 animate-spin' : 'w-4 h-4 animate-spin'} aria-hidden="true" />
             {label}...
           </span>
         </ActionButton>
@@ -191,7 +208,7 @@ function renderActions(mode, options) {
     }
 
     case 'preparation': {
-      const drawLabel = 'Draw cards';
+      const drawLabel = isLandscape ? 'Draw' : 'Draw cards';
       return (
         <>
           {showUtilityButtons && (
@@ -199,9 +216,10 @@ function renderActions(mode, options) {
               variant="secondary"
               onClick={onOpenSettings}
               ariaLabel="Open settings"
-              className={`${widthClasses.icon} ${variant === 'inline' ? 'px-3' : 'px-0'}`}
+              className={`${widthClasses.icon} ${variant === 'inline' ? px : 'px-0'}`}
+              isLandscape={isLandscape}
             >
-              <Gear className="w-5 h-5" />
+              <Gear className={isLandscape ? 'w-4 h-4' : 'w-5 h-5'} />
             </ActionButton>
           )}
           {showUtilityButtons && (
@@ -210,9 +228,10 @@ function renderActions(mode, options) {
               onClick={onOpenCoach}
               icon={Sparkle}
               ariaLabel="Open guided intention coach"
-              className={`${widthClasses.coach} px-3`}
+              className={`${widthClasses.coach} ${px}`}
+              isLandscape={isLandscape}
             >
-              Coach
+              {isLandscape ? 'Coach' : 'Coach'}
             </ActionButton>
           )}
           <ActionButton
@@ -220,7 +239,8 @@ function renderActions(mode, options) {
             onClick={onShuffle}
             stepLabel={stepBadge}
             ariaLabel={withStepContext(drawLabel, stepIndicatorLabel)}
-            className={`${widthClasses.prepPrimary} px-3`}
+            className={`${widthClasses.prepPrimary} ${px}`}
+            isLandscape={isLandscape}
           >
             {drawLabel}
           </ActionButton>
@@ -229,7 +249,10 @@ function renderActions(mode, options) {
     }
 
     case 'revealing': {
-      const nextLabel = `Reveal next (${Math.min(dealIndex + 1, readingLength)}/${readingLength})`;
+      const nextLabel = isLandscape
+        ? `Next (${Math.min(dealIndex + 1, readingLength)}/${readingLength})`
+        : `Reveal next (${Math.min(dealIndex + 1, readingLength)}/${readingLength})`;
+      const revealAllLabel = isLandscape ? 'All' : 'Reveal all';
       return (
         <>
           <ActionButton
@@ -237,7 +260,8 @@ function renderActions(mode, options) {
             onClick={onDealNext}
             stepLabel={stepBadge}
             ariaLabel={withStepContext(nextLabel, stepIndicatorLabel)}
-            className={`${widthClasses.primary} px-3`}
+            className={`${widthClasses.primary} ${px}`}
+            isLandscape={isLandscape}
           >
             {nextLabel}
           </ActionButton>
@@ -246,9 +270,10 @@ function renderActions(mode, options) {
               variant="tertiary"
               onClick={onRevealAll}
               ariaLabel={withStepContext('Reveal all cards', stepIndicatorLabel)}
-              className={`${widthClasses.tertiary} px-3`}
+              className={`${widthClasses.tertiary} ${px}`}
+              isLandscape={isLandscape}
             >
-              Reveal all
+              {revealAllLabel}
             </ActionButton>
           )}
         </>
@@ -263,20 +288,22 @@ function renderActions(mode, options) {
             disabled
             stepLabel={stepBadge}
             ariaLabel={withStepContext('Narrative in progress', stepIndicatorLabel)}
-            className={`${widthClasses.primary} px-3`}
+            className={`${widthClasses.primary} ${px}`}
+            isLandscape={isLandscape}
           >
-            <span className="flex items-center gap-2">
-              <ArrowsClockwise className="w-4 h-4 animate-spin" aria-hidden="true" />
-              Weaving...
+            <span className="flex items-center gap-1.5">
+              <ArrowsClockwise className={isLandscape ? 'w-3.5 h-3.5 animate-spin' : 'w-4 h-4 animate-spin'} aria-hidden="true" />
+              {isLandscape ? 'Weaving' : 'Weaving...'}
             </span>
           </ActionButton>
           <ActionButton
             variant="secondary"
             onClick={onNewReading}
             ariaLabel="Start a new reading"
-            className={`${widthClasses.secondary} px-3`}
+            className={`${widthClasses.secondary} ${px}`}
+            isLandscape={isLandscape}
           >
-            New reading
+            {isLandscape ? 'New' : 'New reading'}
           </ActionButton>
         </>
       );
@@ -290,17 +317,19 @@ function renderActions(mode, options) {
             stepLabel={stepBadge}
             icon={ArrowsClockwise}
             ariaLabel={withStepContext('Retry narrative generation', stepIndicatorLabel)}
-            className={`${widthClasses.primary} px-3`}
+            className={`${widthClasses.primary} ${px}`}
+            isLandscape={isLandscape}
           >
-            Retry narrative
+            {isLandscape ? 'Retry' : 'Retry narrative'}
           </ActionButton>
           <ActionButton
             variant="secondary"
             onClick={onNewReading}
             ariaLabel="Start a new reading"
-            className={`${widthClasses.secondary} px-3`}
+            className={`${widthClasses.secondary} ${px}`}
+            isLandscape={isLandscape}
           >
-            New reading
+            {isLandscape ? 'New' : 'New reading'}
           </ActionButton>
         </>
       );
@@ -313,17 +342,19 @@ function renderActions(mode, options) {
             onClick={onGenerateNarrative}
             stepLabel={stepBadge}
             ariaLabel={withStepContext('Create narrative', stepIndicatorLabel)}
-            className={`${widthClasses.primary} px-3`}
+            className={`${widthClasses.primary} ${px}`}
+            isLandscape={isLandscape}
           >
-            Create narrative
+            {isLandscape ? 'Create' : 'Create narrative'}
           </ActionButton>
           <ActionButton
             variant="secondary"
             onClick={onNewReading}
             ariaLabel="Start a new reading"
-            className={`${widthClasses.secondary} px-3`}
+            className={`${widthClasses.secondary} ${px}`}
+            isLandscape={isLandscape}
           >
-            New reading
+            {isLandscape ? 'New' : 'New reading'}
           </ActionButton>
         </>
       );
@@ -337,18 +368,20 @@ function renderActions(mode, options) {
               onClick={onSaveReading}
               stepLabel={stepBadge}
               ariaLabel={withStepContext('Save to journal', stepIndicatorLabel)}
-              className={`${widthClasses.primary} px-3`}
+              className={`${widthClasses.primary} ${px}`}
+              isLandscape={isLandscape}
             >
-              Save to journal
+              {isLandscape ? 'Save' : 'Save to journal'}
             </ActionButton>
           )}
           <ActionButton
             variant="secondary"
             onClick={onNewReading}
             ariaLabel="Start a new reading"
-            className={`${widthClasses.secondary} px-3`}
+            className={`${widthClasses.secondary} ${px}`}
+            isLandscape={isLandscape}
           >
-            New reading
+            {isLandscape ? 'New' : 'New reading'}
           </ActionButton>
         </>
       );

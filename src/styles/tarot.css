@@ -541,7 +541,7 @@ body {
   min-width: 0;
 }
 
-/* Hide "Complexity" label on mobile to save space */
+/* Hide "Complexity" label on mobile to save space - keep stars and level label */
 @media (max-width: 639px) {
   .spread-card__complexity > span:first-child {
     display: none;

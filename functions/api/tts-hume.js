@@ -1,4 +1,5 @@
 import { jsonResponse, readJsonBody } from '../lib/utils.js';
+import { getActingInstructions, EMOTION_DESCRIPTIONS } from '../../src/data/emotionMapping.js';
 
 /**
  * Cloudflare Pages Function that provides text-to-speech audio using Hume AI's Octave TTS.
@@ -19,8 +20,8 @@ import { jsonResponse, readJsonBody } from '../lib/utils.js';
  *
  * Basic request:
  *   POST /api/tts-hume
- *   Body: { "text": "...", "voiceName": "Wise Wizard" }
- *   Response: { "audio": "data:audio/wav;base64,...", "provider": "hume-ai", "generationId": "..." }
+ *   Body: { "text": "...", "voiceName": "ITO" }
+ *   Response: { "audio": "data:audio/mpeg;base64,...", "provider": "hume-ai", "generationId": "..." }
  *
  * Context-aware request with custom voice:
  *   POST /api/tts-hume
@@ -75,14 +76,15 @@ export const onRequestGet = async ({ env }) => {
 
 export const onRequestPost = async ({ request, env }) => {
   try {
-    const { 
-      text, 
-      context, 
-      voiceName, 
+    const {
+      text,
+      context,
+      voiceName,
       description,
+      emotion,
       speed,
       previousGenerationId,
-      trailingSilence 
+      trailingSilence
     } = await readJsonBody(request);
 
     const sanitizedText = sanitizeText(text);
@@ -119,9 +121,12 @@ export const onRequestPost = async ({ request, env }) => {
         provider: 'HUME_AI'
       };
 
-      // Add voice description/acting instructions if provided or use context-based
+      // Add voice description/acting instructions
+      // Priority: custom description > emotion-based > context-based
       if (description) {
         utterance.description = description;
+      } else if (emotion && EMOTION_DESCRIPTIONS[emotion]) {
+        utterance.description = getActingInstructions(emotion);
       } else if (context && CONTEXT_DESCRIPTIONS[context]) {
         utterance.description = CONTEXT_DESCRIPTIONS[context];
       }
@@ -131,15 +136,16 @@ export const onRequestPost = async ({ request, env }) => {
         utterance.speed = Math.max(0.5, Math.min(2.0, speed));
       }
 
-      // Add trailing silence if provided (0-5 seconds)
+      // Add trailing silence if provided (0-5 seconds) - API uses snake_case
       if (trailingSilence !== undefined) {
         const clamped = Math.max(0, Math.min(5, Number(trailingSilence)));
-        utterance.trailingSilence = clamped;
+        utterance.trailing_silence = clamped;
       }
 
-      // Build the TTS request payload
+      // Build the TTS request payload - format is REQUIRED as an object
       const ttsPayload = {
-        utterances: [utterance]
+        utterances: [utterance],
+        format: { type: 'mp3' } // Required object: { type: 'mp3' | 'pcm' | 'wav' }
       };
 
       // Add continuation context if provided
@@ -198,8 +204,8 @@ export const onRequestPost = async ({ request, env }) => {
       // Extract generation ID correctly (may be in context or at top level)
       const generationId = generation.context?.generationId ?? generation.id ?? null;
 
-      // The audio is already base64-encoded, create data URI
-      const dataUri = `data:audio/wav;base64,${generation.audio}`;
+      // The audio is already base64-encoded, create data URI (mp3 format)
+      const dataUri = `data:audio/mpeg;base64,${generation.audio}`;
 
       return jsonResponse({ 
         audio: dataUri, 

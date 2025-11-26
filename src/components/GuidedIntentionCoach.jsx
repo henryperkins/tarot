@@ -11,6 +11,7 @@ import {
   MagicWand,
   X
 } from '@phosphor-icons/react';
+import { useLandscape } from '../hooks/useLandscape';
 import {
   INTENTION_TOPIC_OPTIONS,
   INTENTION_TIMEFRAME_OPTIONS,
@@ -236,6 +237,7 @@ function getDepthLabel(value) {
 // ============================================================================
 
 export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply, prefillRecommendation = null }) {
+  const isLandscape = useLandscape();
   const [step, setStep] = useState(0);
 
   // Determine suggested topic based on spread
@@ -1103,7 +1105,7 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply,
               onClose?.();
             }
           }}
-          className="relative w-full h-full sm:h-auto sm:max-w-3xl sm:mx-4 sm:rounded-3xl border-0 sm:border border-accent/30 bg-surface shadow-2xl focus:outline-none flex flex-col animate-pop-in"
+          className="relative w-full h-full sm:h-auto sm:max-h-[90vh] sm:max-w-3xl sm:mx-4 sm:rounded-3xl border-0 sm:border border-accent/30 bg-surface shadow-2xl focus:outline-none flex flex-col animate-pop-in"
         >
           {/* Close Button */}
           <button
@@ -1117,19 +1119,21 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply,
           </button>
 
           {/* Scrollable content area */}
-          <div className="flex-1 overflow-y-auto sm:overflow-visible">
-            <div className="flex flex-col gap-6 px-4 pb-6 pt-16 sm:pt-8 sm:px-10 sm:pb-6">
+          <div className="flex-1 overflow-y-auto">
+            <div className={`flex flex-col gap-6 px-4 pb-6 sm:px-10 sm:pb-6 ${isLandscape ? 'pt-10 gap-4' : 'pt-16 sm:pt-8'}`}>
               {/* Header */}
               <div>
                 <div className="flex items-center gap-2 text-secondary">
                   <Sparkle className="h-4 w-4" />
                   <span className="text-xs uppercase tracking-[0.2em]">Guided Intention Coach</span>
                 </div>
-                <h2 id={titleId} className="mt-2 font-serif text-2xl text-main">Shape a question with clarity</h2>
-                <p className="mt-1 text-sm text-muted">
-                  Answer three quick prompts and we&apos;ll craft an open-ended question you can drop
-                  directly into your reading.
-                </p>
+                <h2 id={titleId} className={`mt-2 font-serif text-main ${isLandscape ? 'text-xl' : 'text-2xl'}`}>Shape a question with clarity</h2>
+                {!isLandscape && (
+                  <p className="mt-1 text-sm text-muted">
+                    Answer three quick prompts and we&apos;ll craft an open-ended question you can drop
+                    directly into your reading.
+                  </p>
+                )}
               </div>
 
               {/* Step Navigation & Content */}
@@ -1184,7 +1188,7 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply,
                 </div>
 
                 {/* Step Panels */}
-                <div className="rounded-2xl border border-accent/30 bg-surface-muted/40 p-4 sm:p-5">
+                <div className={`rounded-2xl border border-accent/30 bg-surface-muted/40 ${isLandscape ? 'p-3' : 'p-4 sm:p-5'}`}>
                   {STEPS.map((entry, index) => (
                     <div
                       key={entry.id}
@@ -1204,34 +1208,36 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply,
           </div>
 
           {/* Footer - OUTSIDE scrollable area for proper sticky behavior */}
-          <div className="flex-shrink-0 bg-surface border-t border-accent/20 sm:border-t-0 pt-4 sm:pt-0 px-4 sm:px-10 pb-safe sm:pb-6">
+          <div className={`flex-shrink-0 bg-surface border-t border-accent/20 sm:border-t-0 px-4 sm:px-10 pb-safe sm:pb-6 ${isLandscape ? 'pt-2' : 'pt-4 sm:pt-0'}`}>
             {historyStatus && (
               <p className="text-xs text-error text-center sm:text-left mb-2">
                 {historyStatus}
               </p>
             )}
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <div className="text-xs text-muted hidden sm:block">
+            <div className={`flex sm:flex-row sm:items-center sm:justify-between ${isLandscape ? 'flex-row items-center gap-2' : 'flex-col gap-3'}`}>
+              <div className={`text-xs text-muted ${isLandscape ? 'block' : 'hidden sm:block'}`}>
                 <p>
-                  {summary.topicLabel} · {summary.timeframeLabel} · {summary.depthLabel}
+                  {isLandscape
+                    ? `${summary.topicLabel} · ${summary.timeframeLabel}`
+                    : `${summary.topicLabel} · ${summary.timeframeLabel} · ${summary.depthLabel}`}
                 </p>
               </div>
-              <div className="flex items-center gap-3 w-full sm:w-auto">
+              <div className={`flex items-center w-full sm:w-auto ${isLandscape ? 'gap-2 flex-1 justify-end' : 'gap-3'}`}>
                 <button
                   type="button"
                   onClick={goBack}
                   disabled={step === 0}
-                  className="inline-flex items-center justify-center gap-1 rounded-full border border-accent/20 px-4 py-2.5 sm:py-2 text-sm text-main transition disabled:opacity-40 min-h-[44px] sm:min-h-0 flex-1 sm:flex-none touch-manipulation"
+                  className={`inline-flex items-center justify-center gap-1 rounded-full border border-accent/20 text-sm text-main transition disabled:opacity-40 min-h-[44px] sm:min-h-0 touch-manipulation ${isLandscape ? 'px-3 py-2 flex-none' : 'px-4 py-2.5 sm:py-2 flex-1 sm:flex-none'}`}
                 >
                   <ArrowLeft className="h-4 w-4" />
-                  <span>Back</span>
+                  {!isLandscape && <span>Back</span>}
                 </button>
                 {step < STEPS.length - 1 ? (
                   <button
                     type="button"
                     onClick={goNext}
                     disabled={!canGoNext()}
-                    className="inline-flex items-center justify-center gap-2 rounded-full border border-secondary/60 bg-secondary/20 px-5 py-2.5 sm:py-2 text-sm font-medium text-secondary transition disabled:opacity-50 min-h-[44px] sm:min-h-0 flex-1 sm:flex-none touch-manipulation"
+                    className={`inline-flex items-center justify-center gap-2 rounded-full border border-secondary/60 bg-secondary/20 text-sm font-medium text-secondary transition disabled:opacity-50 min-h-[44px] sm:min-h-0 touch-manipulation ${isLandscape ? 'px-4 py-2 flex-none' : 'px-5 py-2.5 sm:py-2 flex-1 sm:flex-none'}`}
                   >
                     <span>Next</span>
                     <ArrowRight className="h-4 w-4" />
@@ -1241,9 +1247,9 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply,
                     type="button"
                     onClick={handleApply}
                     disabled={(!questionText && !guidedQuestion) || questionLoading}
-                    className="inline-flex items-center justify-center gap-2 rounded-full border border-secondary/60 bg-secondary/80 px-5 py-2.5 sm:py-2 text-sm font-semibold text-white transition disabled:opacity-50 min-h-[44px] sm:min-h-0 flex-1 sm:flex-none touch-manipulation"
+                    className={`inline-flex items-center justify-center gap-2 rounded-full border border-secondary/60 bg-secondary/80 text-sm font-semibold text-white transition disabled:opacity-50 min-h-[44px] sm:min-h-0 touch-manipulation ${isLandscape ? 'px-4 py-2 flex-none' : 'px-5 py-2.5 sm:py-2 flex-1 sm:flex-none'}`}
                   >
-                    <span>Use question</span>
+                    <span>{isLandscape ? 'Use' : 'Use question'}</span>
                     <Sparkle className="h-4 w-4" />
                   </button>
                 )}

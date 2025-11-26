@@ -45,6 +45,7 @@ export function ReadingProvider({ children }) {
     const [narrativePhase, setNarrativePhase] = useState('idle');
     const [spreadAnalysis, setSpreadAnalysis] = useState(null);
     const [themes, setThemes] = useState(null);
+    const [emotionalTone, setEmotionalTone] = useState(null);
     const [analysisContext, setAnalysisContext] = useState(null);
     const [readingMeta, setReadingMeta] = useState({
         requestId: null,
@@ -79,6 +80,7 @@ export function ReadingProvider({ children }) {
         shuffle(() => {
             setPersonalReading(null);
             setThemes(null);
+            setEmotionalTone(null);
             setSpreadAnalysis(null);
             setAnalysisContext(null);
             setAnalyzingText('');
@@ -269,6 +271,7 @@ export function ReadingProvider({ children }) {
             setSrAnnouncement('Step 3 of 3: Final polishing and assembling your narrative.');
 
             setThemes(data.themes || null);
+            setEmotionalTone(data.emotionalTone || null);
             setSpreadAnalysis(data.spreadAnalysis || null);
             setAnalysisContext(data.context || null);
 
@@ -504,6 +507,7 @@ export function ReadingProvider({ children }) {
         narrativePhase, setNarrativePhase,
         spreadAnalysis, setSpreadAnalysis,
         themes, setThemes,
+        emotionalTone, setEmotionalTone,
         analysisContext, setAnalysisContext,
         readingMeta, setReadingMeta,
         journalStatus, setJournalStatus,
@@ -527,6 +531,7 @@ export function ReadingProvider({ children }) {
         narrativePhase,
         spreadAnalysis,
         themes,
+        emotionalTone,
         analysisContext,
         readingMeta,
         journalStatus,

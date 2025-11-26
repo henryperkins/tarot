@@ -333,9 +333,9 @@ export function Card({
               </div>
             </button>
           ) : (
-            <div className="transition-all relative h-full min-h-[20rem] sm:min-h-[24rem]">
+            <div className="transition-all relative h-full min-h-[20rem] sm:min-h-[24rem] flex flex-col items-center">
               {/* Card content area - restructured to avoid nested interactives */}
-              <div className="relative">
+              <div className="relative w-full">
                 {/* Zoom Icon - primary keyboard target for modal */}
                 <button
                   type="button"
@@ -400,7 +400,7 @@ export function Card({
               </div>
 
               {/* Reflection textarea - collapsible on mobile to reduce density */}
-              <div className="mt-3">
+              <div className="mt-3 w-full">
                 {/* Mobile: toggle button when collapsed */}
                 {isSmallScreen && !showReflection ? (
                   <button

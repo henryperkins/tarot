@@ -47,6 +47,7 @@ import {
   matchTransitsToCards,
   getEphemerisSummary
 } from '../lib/ephemerisIntegration.js';
+import { deriveEmotionalTone } from '../../src/data/emotionMapping.js';
 
 // Detect if question asks about future timeframe
 function detectForecastTimeframe(userQuestion) {
@@ -628,11 +629,16 @@ export const onRequestPost = async ({ request, env }) => {
 
     maybeLogEnhancementTelemetry(env, requestId, enhancementTelemetry);
 
+    // Derive emotional tone from GraphRAG patterns for TTS
+    const emotionalTone = deriveEmotionalTone(analysis.themes);
+
     return jsonResponse({
       reading,
       provider,
       requestId,
+      backendErrors: backendErrors.length > 0 ? backendErrors : undefined,
       themes: analysis.themes,
+      emotionalTone,
       context,
       contextDiagnostics,
       narrativeMetrics,
@@ -907,14 +913,22 @@ export function validatePayload({ spreadInfo, cardsInfo }) {
  */
 async function generateWithAzureGPT5Responses(env, payload, requestId = 'unknown') {
   const { spreadInfo, cardsInfo, userQuestion, reflectionsText, analysis, context, visionInsights, contextDiagnostics = [] } = payload;
-  const endpoint = env.AZURE_OPENAI_ENDPOINT.replace(/\/+$/, '');
+  // Normalize endpoint: strip trailing slashes and any existing /openai/v1 path
+  // to avoid double-pathing when constructing the full URL
+  const rawEndpoint = env.AZURE_OPENAI_ENDPOINT || '';
+  const endpoint = rawEndpoint
+    .replace(/\/+$/, '')                    // Remove trailing slashes
+    .replace(/\/openai\/v1\/?$/, '')        // Remove /openai/v1 suffix if present
+    .replace(/\/openai\/?$/, '');           // Remove /openai suffix if present
   const apiKey = env.AZURE_OPENAI_API_KEY;
   const deploymentName = env.AZURE_OPENAI_GPT5_MODEL; // Azure deployment name (often mirrors the base model name)
-  // Responses API requires v1 path format with 'preview' API version
-  const apiVersion = env.AZURE_OPENAI_API_VERSION || 'preview';
+  // Responses API requires v1 path format - use dedicated Responses version binding
+  // (same pattern as functions/lib/azureResponses.js)
+  const apiVersion = env.AZURE_OPENAI_RESPONSES_API_VERSION || env.AZURE_OPENAI_API_VERSION || 'v1';
   const deckStyle = spreadInfo?.deckStyle || analysis?.themes?.deckStyle || cardsInfo?.[0]?.deckStyle || 'rws-1909';
 
   console.log(`[${requestId}] Building Azure GPT-5 prompts...`);
+  console.log(`[${requestId}] Azure config: endpoint=${endpoint ? 'set' : 'missing'}, apiKey=${apiKey ? 'set' : 'missing'}, model=${deploymentName}, apiVersion=${apiVersion}`);
 
   // Build enhanced prompts using narrative builder
   const { systemPrompt, userPrompt, promptMeta, contextDiagnostics: promptDiagnostics } = buildEnhancedClaudePrompt({
@@ -947,10 +961,14 @@ async function generateWithAzureGPT5Responses(env, payload, requestId = 'unknown
   maybeLogPromptPayload(env, requestId, 'azure-gpt5', systemPrompt, userPrompt, promptMeta);
 
   // Azure OpenAI Responses API endpoint format (v1 API):
-  // POST {endpoint}/openai/v1/responses?api-version=preview
+  // POST {endpoint}/openai/v1/responses?api-version=v1
   // Model is passed in the request body, NOT in the URL path
   const url = `${endpoint}/openai/v1/responses?api-version=${encodeURIComponent(apiVersion)}`;
 
+  // Log endpoint normalization for debugging
+  if (rawEndpoint !== endpoint) {
+    console.log(`[${requestId}] Endpoint normalized: "${rawEndpoint}" -> "${endpoint}"`);
+  }
   console.log(`[${requestId}] Making Azure GPT-5 Responses API request to: ${url}`);
   console.log(`[${requestId}] Using deployment: ${deploymentName}, api-version: ${apiVersion}`);
 

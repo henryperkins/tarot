@@ -77,6 +77,22 @@ export function PreferencesProvider({ children }) {
     }
   }, [autoNarrate]);
 
+  // --- Audio: TTS Provider (azure or hume) ---
+  const [ttsProvider, setTtsProvider] = useState(() => {
+    if (typeof localStorage !== 'undefined') {
+      const saved = localStorage.getItem('tarot-tts-provider');
+      return saved || 'hume'; // Default to Hume for expressive readings
+    }
+    return 'hume';
+  });
+
+  // Persist TTS provider setting
+  useEffect(() => {
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem('tarot-tts-provider', ttsProvider);
+    }
+  }, [ttsProvider]);
+
   // --- Audio: Ambience ---
   const [ambienceOn, setAmbienceOn] = useState(() => {
     if (typeof localStorage !== 'undefined') {
@@ -180,6 +196,8 @@ export function PreferencesProvider({ children }) {
     setAmbienceOn,
     autoNarrate,
     setAutoNarrate,
+    ttsProvider,
+    setTtsProvider,
     deckStyleId,
     setDeckStyleId,
     includeMinors,

@@ -7,7 +7,6 @@ import { ReadingGrid } from './ReadingGrid';
 import { StreamingNarrative } from './StreamingNarrative';
 import { HelperToggle } from './HelperToggle';
 import { SpreadPatterns } from './SpreadPatterns';
-import { PatternHighlightBanner } from './PatternHighlightBanner';
 import { VisionValidationPanel } from './VisionValidationPanel';
 import { FeedbackPanel } from './FeedbackPanel';
 import { CardModal } from './CardModal';
@@ -19,6 +18,7 @@ import { useSaveReading } from '../hooks/useSaveReading';
 import { useFeatureFlags } from '../hooks/useFeatureFlags';
 import { useAuth } from '../contexts/AuthContext';
 import { useSmallScreen } from '../hooks/useSmallScreen';
+import { useLandscape } from '../hooks/useLandscape';
 
 const NARRATIVE_STEPS = [
     { id: 'analyzing', label: 'Analyzing spread' },
@@ -80,14 +80,13 @@ export function ReadingDisplay({ sectionRef }) {
         analyzingText,
         narrativePhase,
         themes,
+        emotionalTone,
         readingMeta,
         journalStatus,
         setJournalStatus: _setJournalStatus,
         reflections,
         setReflections,
         lastCardsForFeedback,
-        showAllHighlights,
-        setShowAllHighlights,
         generatePersonalReading,
         highlightItems
     } = useReading();
@@ -115,6 +114,7 @@ export function ReadingDisplay({ sectionRef }) {
 
     const { visionResearch: visionResearchEnabled, newDeckInterface } = useFeatureFlags();
     const isCompactScreen = useSmallScreen(768);
+    const isLandscape = useLandscape();
     const safeSpreadKey = normalizeSpreadKey(selectedSpread);
     const spreadInfo = getSpreadInfo(safeSpreadKey);
     const canShowVisionPanel = visionResearchEnabled && isAuthenticated;
@@ -133,11 +133,12 @@ export function ReadingDisplay({ sectionRef }) {
     const shouldStreamNarrative = Boolean(personalReading && !personalReading.isError);
     const phaseOrder = ['idle', 'analyzing', 'drafting', 'polishing', 'complete', 'error'];
     const currentPhaseIndex = phaseOrder.indexOf(narrativePhase);
-    const hasPatternHighlights = Boolean(personalReading && !isPersonalReadingError && themes?.knowledgeGraph?.narrativeHighlights?.length);
+    const hasPatternHighlights = Boolean(!isPersonalReadingError && themes?.knowledgeGraph?.narrativeHighlights?.length);
     const hasTraditionalInsights = Boolean(readingMeta?.graphContext?.retrievedPassages?.length);
     const hasHighlightPanel = Boolean(highlightItems?.length && revealedCards.size === reading?.length);
     const hasInsightPanels = hasPatternHighlights || hasTraditionalInsights || hasHighlightPanel || canShowVisionPanel;
     const focusToggleAvailable = hasInsightPanels && (isCompactScreen || isNarrativeFocus);
+    const shouldShowSpreadInsights = !isNarrativeFocus && (hasPatternHighlights || hasHighlightPanel || hasTraditionalInsights);
 
     useEffect(() => {
         if (!hasInsightPanels && isNarrativeFocus) {
@@ -157,12 +158,15 @@ export function ReadingDisplay({ sectionRef }) {
 
     // --- Handlers ---
     const handleNarrationWrapper = useCallback(() => {
-        handleNarrationButtonClick(fullReadingText, isPersonalReadingError);
-    }, [handleNarrationButtonClick, fullReadingText, isPersonalReadingError]);
+        // Extract emotion from GraphRAG-derived emotional tone for TTS acting instructions
+        const emotion = emotionalTone?.emotion || null;
+        handleNarrationButtonClick(fullReadingText, isPersonalReadingError, emotion);
+    }, [handleNarrationButtonClick, fullReadingText, isPersonalReadingError, emotionalTone]);
 
     const handleVoicePromptWrapper = useCallback(() => {
-        handleVoicePromptEnable(fullReadingText);
-    }, [handleVoicePromptEnable, fullReadingText]);
+        const emotion = emotionalTone?.emotion || null;
+        handleVoicePromptEnable(fullReadingText, emotion);
+    }, [handleVoicePromptEnable, fullReadingText, emotionalTone]);
 
     const handleRevealAllWithScroll = useCallback(() => {
         revealAll();
@@ -189,9 +193,9 @@ export function ReadingDisplay({ sectionRef }) {
 
     return (
         <section ref={sectionRef} id="step-reading" tabIndex={-1} className="scroll-mt-[6.5rem] sm:scroll-mt-[7.5rem]" aria-label="Draw and explore your reading">
-            <div className="mb-4 sm:mb-5">
+            <div className={isLandscape ? 'mb-2' : 'mb-4 sm:mb-5'}>
                 <p className="text-xs-plus sm:text-sm uppercase tracking-[0.12em] text-accent">Reading</p>
-                <p className="mt-1 text-muted-high text-xs sm:text-sm">Draw and reveal your cards, explore the spread, and weave your narrative.</p>
+                {!isLandscape && <p className="mt-1 text-muted-high text-xs sm:text-sm">Draw and reveal your cards, explore the spread, and weave your narrative.</p>}
             </div>
             {/* Primary CTA */}
             {!reading && (
@@ -218,10 +222,10 @@ export function ReadingDisplay({ sectionRef }) {
 
             {/* Reading Display */}
             {reading && (
-                <div className="space-y-8">
-                    {userQuestion && (<div className="text-center"><p className="text-muted text-sm italic">Intention: {userQuestion}</p></div>)}
-                    <div className="text-center text-accent font-serif text-2xl mb-2">{spreadInfo?.name || 'Tarot Spread'}</div>
-                    {reading.length > 1 && (<p className="text-center text-muted text-xs-plus sm:text-sm mb-4">Reveal in order for a narrative flow, or follow your intuition and reveal randomly.</p>)}
+                <div className={isLandscape ? 'space-y-4' : 'space-y-8'}>
+                    {userQuestion && !isLandscape && (<div className="text-center"><p className="text-muted text-sm italic">Intention: {userQuestion}</p></div>)}
+                    <div className={`text-center text-accent font-serif mb-2 ${isLandscape ? 'text-lg' : 'text-2xl'}`}>{spreadInfo?.name || 'Tarot Spread'}</div>
+                    {reading.length > 1 && !isLandscape && (<p className="text-center text-muted text-xs-plus sm:text-sm mb-4">Reveal in order for a narrative flow, or follow your intuition and reveal randomly.</p>)}
 
                     {revealedCards.size < reading.length && (
                         <div className="hidden sm:block text-center">
@@ -280,31 +284,6 @@ export function ReadingDisplay({ sectionRef }) {
                         onCardClick={handleCardClick}
                     />
 
-                    {revealedCards.size === reading.length && highlightItems.length > 0 && !isNarrativeFocus && (
-                        <div className="modern-surface p-4 sm:p-6 border border-secondary/40 space-y-4">
-                            <h3 className="text-base sm:text-lg font-serif text-accent mb-3 flex items-center gap-2"><Star className="w-4 h-4 sm:w-5 sm:h-5" />Spread Highlights</h3>
-                            <div className="sm:hidden space-y-3">
-                                {highlightItems.slice(0, showAllHighlights ? highlightItems.length : 3).map(item => (
-                                    <div key={item.key} className="flex items-start gap-3">
-                                        <div className="text-accent mt-1" aria-hidden="true">{item.icon}</div>
-                                        <div className="text-muted text-sm leading-snug"><span className="font-semibold text-accent">{item.title}</span> {item.text}</div>
-                                    </div>
-                                ))}
-                                {highlightItems.length > 3 && (
-                                    <button type="button" onClick={() => setShowAllHighlights(prev => !prev)} className="text-secondary text-sm underline underline-offset-4">{showAllHighlights ? 'Hide extra insights' : 'See all insights'}</button>
-                                )}
-                            </div>
-                            <div className="hidden sm:flex sm:flex-col sm:gap-3">
-                                {highlightItems.map(item => (
-                                    <div key={item.key} className="flex items-start gap-3">
-                                        <div className="text-accent mt-1" aria-hidden="true">{item.icon}</div>
-                                        <div className="text-muted text-sm leading-snug"><span className="font-semibold text-accent">{item.title}</span> {item.text}</div>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    )}
-
                     {!personalReading && revealedCards.size === reading.length && (
                         <div className="text-center">
                             <button onClick={generatePersonalReading} disabled={isGenerating} className="bg-accent hover:bg-accent/90 disabled:opacity-50 disabled:cursor-not-allowed text-surface font-semibold px-5 sm:px-8 py-3 sm:py-4 rounded-xl shadow-xl shadow-accent/20 transition-all flex items-center gap-2 sm:gap-3 mx-auto text-sm sm:text-base md:text-lg">
@@ -318,8 +297,8 @@ export function ReadingDisplay({ sectionRef }) {
 
                     {(isGenerating || (personalReading && !isPersonalReadingError)) && (
                         <div className="max-w-3xl mx-auto text-center">
-                            <nav aria-label="Narrative generation progress" className="mb-3">
-                                <ol className="flex items-center justify-center gap-2 sm:gap-3" role="list">
+                            <nav aria-label="Narrative generation progress" className={isLandscape ? 'mb-2' : 'mb-3'}>
+                                <ol className={`flex items-center justify-center ${isLandscape ? 'gap-1' : 'gap-2 sm:gap-3'}`} role="list">
                                     {stepStates.map((step) => {
                                         const statusClass = step.isDone
                                             ? 'bg-primary/20 border-primary/70 text-main'
@@ -329,12 +308,12 @@ export function ReadingDisplay({ sectionRef }) {
                                         return (
                                             <li
                                                 key={step.id}
-                                                className={`flex-1 min-w-[5rem] px-1.5 sm:px-2 py-1.5 rounded-full border text-xs font-semibold tracking-[0.06em] uppercase ${statusClass}`}
+                                                className={`flex-1 rounded-full border font-semibold uppercase ${statusClass} ${isLandscape ? 'min-w-[4rem] px-1 py-1 text-[0.6rem] tracking-[0.04em]' : 'min-w-[5rem] px-1.5 sm:px-2 py-1.5 text-xs tracking-[0.06em]'}`}
                                                 aria-current={step.isCurrent ? 'step' : undefined}
                                             >
                                                 <span aria-hidden="true">{step.index + 1}</span>
                                                 <span className="sr-only">Step {step.index + 1} of {stepStates.length}: </span>
-                                                <span className="ml-1">{step.label}</span>
+                                                {!isLandscape && <span className="ml-1">{step.label}</span>}
                                                 <span className="sr-only">
                                                     {step.isDone ? ' (completed)' : step.isCurrent ? ' (in progress)' : ' (pending)'}
                                                 </span>
@@ -357,7 +336,7 @@ export function ReadingDisplay({ sectionRef }) {
                     )}
 
                     {personalReading && (
-                        <div className="bg-surface/95 backdrop-blur-xl rounded-2xl p-5 sm:p-8 border border-secondary/40 shadow-2xl shadow-secondary/40 max-w-5xl mx-auto">
+                        <div className={`bg-surface/95 backdrop-blur-xl rounded-2xl border border-secondary/40 shadow-2xl shadow-secondary/40 max-w-5xl mx-auto ${isLandscape ? 'p-3' : 'p-5 sm:p-8'}`}>
                             {/* Narrative completion banner - shown when complete */}
                             {narrativePhase === 'complete' && !isPersonalReadingError && (
                                 <div className="mb-5 p-4 bg-gradient-to-r from-primary/20 via-secondary/15 to-accent/20 border border-primary/30 rounded-xl animate-fade-in" role="status" aria-live="polite">
@@ -383,12 +362,6 @@ export function ReadingDisplay({ sectionRef }) {
                             <h3 className="text-xl sm:text-2xl font-serif text-accent mb-2 flex items-center gap-2"><Sparkle className="w-5 h-5 sm:w-6 sm:h-6 text-secondary" />Your Personalized Narrative</h3>
                             <HelperToggle className="mt-3 max-w-2xl mx-auto"><p>This narrative braids together your spread positions, card meanings, and reflections into a single through-line. Read slowly, notice what resonates, and treat it as a mirror—not a script.</p></HelperToggle>
                             {userQuestion && (<div className="bg-surface/85 rounded-lg p-4 mb-4 border border-secondary/40"><p className="text-accent/85 text-xs sm:text-sm italic">Anchor: {userQuestion}</p></div>)}
-                            {hasTraditionalInsights && (
-                                <PatternHighlightBanner
-                                    passages={readingMeta.graphContext.retrievedPassages}
-                                    minimal={isNarrativeFocus}
-                                />
-                            )}
                             {focusToggleAvailable && (
                                 <div className="mt-4 flex justify-end">
                                     <button
@@ -433,11 +406,6 @@ export function ReadingDisplay({ sectionRef }) {
                                 )}
                                 {journalStatus && <p role="status" aria-live="polite" className={`text-xs text-center max-w-sm ${journalStatus.type === 'success' ? 'text-success' : 'text-error'}`}>{journalStatus.message}</p>}
                             </div>
-                            {!isNarrativeFocus && hasPatternHighlights && (
-                                <div className="mt-6 w-full">
-                                    <SpreadPatterns themes={themes} />
-                                </div>
-                            )}
                             <div className="mt-6 w-full max-w-2xl">
                                 <FeedbackPanel
                                     requestId={readingMeta.requestId}
@@ -450,6 +418,16 @@ export function ReadingDisplay({ sectionRef }) {
                                     visionSummary={feedbackVisionSummary}
                                 />
                             </div>
+                        </div>
+                    )}
+
+                    {shouldShowSpreadInsights && (
+                        <div className="w-full max-w-5xl mx-auto">
+                            <SpreadPatterns
+                                themes={themes}
+                                spreadHighlights={highlightItems}
+                                passages={readingMeta?.graphContext?.retrievedPassages}
+                            />
                         </div>
                     )}
 

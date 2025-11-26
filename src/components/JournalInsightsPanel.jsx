@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect, useRef, memo } from 'react';
 import { FileText, Copy, ArrowsClockwise, ChartBar, Sparkle, ShareNetwork, DownloadSimple, Trash } from '@phosphor-icons/react';
+import { useLandscape } from '../hooks/useLandscape';
 import { CoachSuggestion } from './CoachSuggestion';
 import { ArchetypeJourneySection } from './ArchetypeJourneySection';
 import {
@@ -98,6 +99,7 @@ export const JournalInsightsPanel = memo(function JournalInsightsPanel({
     onCreateShareLink,
     onDeleteShareLink
 }) {
+    const isLandscape = useLandscape();
     const primaryStats = stats || allStats;
     const frequentCards = primaryStats?.frequentCards || [];
     const contextBreakdown = primaryStats?.contextBreakdown || [];
@@ -471,10 +473,10 @@ export const JournalInsightsPanel = memo(function JournalInsightsPanel({
     return (
         <div className="space-y-6 animate-fade-in">
             {/* Top Bar: Stats & Actions */}
-            <div className="flex flex-col gap-4 rounded-3xl border border-secondary/30 bg-surface/70 p-6 sm:flex-row sm:items-center sm:justify-between">
+            <div className={`flex rounded-3xl border border-secondary/30 bg-surface/70 sm:flex-row sm:items-center sm:justify-between ${isLandscape ? 'flex-row items-center gap-3 p-4' : 'flex-col gap-4 p-6'}`}>
                 <div>
-                    <h2 className="text-2xl font-serif text-main">Journal Insights</h2>
-                    <p className="mt-1 text-sm text-secondary/70">
+                    <h2 className={`font-serif text-main ${isLandscape ? 'text-lg' : 'text-2xl'}`}>Journal Insights</h2>
+                    <p className={`mt-1 text-secondary/70 ${isLandscape ? 'text-xs' : 'text-sm'}`}>
                         {isFilteredView && allStats ? (
                             <>
                                 <span className="font-medium text-secondary">Filtered: </span>
@@ -647,16 +649,16 @@ export const JournalInsightsPanel = memo(function JournalInsightsPanel({
 
             {/* Analytics Grid */}
             {insightsOpen && (
-                <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                <div className={`grid md:grid-cols-2 lg:grid-cols-3 ${isLandscape ? 'gap-3 grid-cols-2' : 'gap-6'}`}>
                     {/* Frequent Cards */}
                     {frequentCards.length > 0 && (
-                        <div className="rounded-3xl border border-secondary/20 bg-surface/40 p-5">
-                            <h3 className="mb-4 flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-accent/80">
+                        <div className={`rounded-3xl border border-secondary/20 bg-surface/40 ${isLandscape ? 'p-3' : 'p-5'}`}>
+                            <h3 className={`flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-accent/80 ${isLandscape ? 'mb-2' : 'mb-4'}`}>
                                 <ChartBar className="h-3 w-3" /> Frequent Cards
                             </h3>
-                            <ul className="space-y-2">
-                                {frequentCards.slice(0, 5).map((card) => (
-                                    <li key={card.name} className="flex items-center justify-between text-sm text-muted">
+                            <ul className={isLandscape ? 'space-y-1' : 'space-y-2'}>
+                                {frequentCards.slice(0, isLandscape ? 3 : 5).map((card) => (
+                                    <li key={card.name} className={`flex items-center justify-between text-muted ${isLandscape ? 'text-xs' : 'text-sm'}`}>
                                         <span>{card.name}</span>
                                         <span className="text-secondary/60">{card.count}×</span>
                                     </li>
@@ -667,11 +669,11 @@ export const JournalInsightsPanel = memo(function JournalInsightsPanel({
 
                     {/* Context Mix */}
                     {contextBreakdown.length > 0 && (
-                        <div className="rounded-3xl border border-secondary/20 bg-surface/40 p-5">
-                            <h3 className="mb-4 text-xs font-bold uppercase tracking-wider text-accent/80">Context Mix</h3>
-                            <div className="flex flex-wrap gap-2">
+                        <div className={`rounded-3xl border border-secondary/20 bg-surface/40 ${isLandscape ? 'p-3' : 'p-5'}`}>
+                            <h3 className={`text-xs font-bold uppercase tracking-wider text-accent/80 ${isLandscape ? 'mb-2' : 'mb-4'}`}>Context Mix</h3>
+                            <div className={`flex flex-wrap ${isLandscape ? 'gap-1' : 'gap-2'}`}>
                                 {contextBreakdown.map((ctx) => (
-                                    <span key={ctx.name} className="rounded-full border border-secondary/20 bg-secondary/5 px-3 py-1 text-xs text-secondary">
+                                    <span key={ctx.name} className={`rounded-full border border-secondary/20 bg-secondary/5 text-secondary ${isLandscape ? 'px-2 py-0.5 text-[0.65rem]' : 'px-3 py-1 text-xs'}`}>
                                         {ctx.name} <span className="opacity-50">({ctx.count})</span>
                                     </span>
                                 ))}
@@ -681,13 +683,13 @@ export const JournalInsightsPanel = memo(function JournalInsightsPanel({
 
                     {/* Recent Themes */}
                     {recentThemes.length > 0 && (
-                        <div className="rounded-3xl border border-secondary/20 bg-surface/40 p-5">
-                            <h3 className="mb-4 flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-accent/80">
+                        <div className={`rounded-3xl border border-secondary/20 bg-surface/40 ${isLandscape ? 'p-3' : 'p-5'}`}>
+                            <h3 className={`flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-accent/80 ${isLandscape ? 'mb-2' : 'mb-4'}`}>
                                 <Sparkle className="h-3 w-3" /> Recent Themes
                             </h3>
-                            <ul className="space-y-2">
-                                {recentThemes.slice(0, 5).map((theme, idx) => (
-                                    <li key={idx} className="flex items-center gap-2 text-sm text-muted">
+                            <ul className={isLandscape ? 'space-y-1' : 'space-y-2'}>
+                                {recentThemes.slice(0, isLandscape ? 3 : 5).map((theme, idx) => (
+                                    <li key={idx} className={`flex items-center gap-2 text-muted ${isLandscape ? 'text-xs' : 'text-sm'}`}>
                                         <span className="h-1.5 w-1.5 rounded-full bg-secondary/40" />
                                         <span>{theme}</span>
                                     </li>

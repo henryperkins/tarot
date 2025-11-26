@@ -3,6 +3,15 @@ import react from '@vitejs/plugin-react';
 
 export default defineConfig({
   plugins: [react()],
+  server: {
+    fs: {
+      deny: ['venv/**', '.git/**']
+    }
+  },
+  optimizeDeps: {
+    // Explicitly specify entry points to avoid scanning venv
+    entries: ['index.html', 'src/**/*.{js,jsx}']
+  },
   build: {
     rollupOptions: {
       external: [

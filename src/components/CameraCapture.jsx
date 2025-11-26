@@ -1,5 +1,6 @@
 import { useRef, useEffect, useState } from 'react';
 import { ImagePreview } from './ImagePreview';
+import { useLandscape } from '../hooks/useLandscape';
 
 const hasUuidSupport = typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function';
 
@@ -16,6 +17,7 @@ export function CameraCapture({ onCapture, onCancel }) {
   const [stream, setStream] = useState(null);
   const [capturedImage, setCapturedImage] = useState(null);
   const [error, setError] = useState(null);
+  const isLandscape = useLandscape();
 
   useEffect(() => {
     async function getCameraStream() {
@@ -76,8 +78,19 @@ export function CameraCapture({ onCapture, onCancel }) {
     return <ImagePreview image={capturedImage} onConfirm={handleConfirm} onRetake={handleRetake} />;
   }
 
+  // In landscape: controls on right side; in portrait: controls at bottom
+  const containerClass = isLandscape
+    ? 'fixed inset-0 z-50 flex flex-row items-center justify-center bg-black animate-fade-in'
+    : 'fixed inset-0 z-50 flex flex-col items-center justify-center bg-black animate-fade-in';
+
+  const controlsClass = isLandscape
+    ? 'absolute right-0 top-0 bottom-0 bg-black bg-opacity-50 p-3 flex flex-col justify-center items-center gap-6 w-24'
+    : 'absolute bottom-0 left-0 right-0 bg-black bg-opacity-50 p-4 flex justify-center items-center gap-8';
+
+  const captureButtonSize = isLandscape ? 'w-16 h-16' : 'w-20 h-20';
+
   return (
-    <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-black animate-fade-in">
+    <div className={containerClass}>
       {error ? (
         <div className="text-white text-center p-4">
           <p>{error}</p>
@@ -88,16 +101,17 @@ export function CameraCapture({ onCapture, onCancel }) {
       ) : (
         <video ref={videoRef} autoPlay playsInline className="w-full h-full object-cover" />
       )}
-      <div className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-50 p-4 flex justify-center items-center gap-8">
-        <button onClick={onCancel} className="px-4 py-2 text-white">
+      <div className={controlsClass}>
+        <button onClick={onCancel} className="px-4 py-2 text-white text-sm">
           Cancel
         </button>
         <button
           onClick={handleCapture}
           disabled={!stream}
-          className="w-20 h-20 rounded-full bg-white border-4 border-gray-400 disabled:opacity-50"
+          className={`${captureButtonSize} rounded-full bg-white border-4 border-gray-400 disabled:opacity-50`}
+          aria-label="Capture photo"
         />
-        <div className="w-16"></div>
+        {!isLandscape && <div className="w-16"></div>}
       </div>
     </div>
   );

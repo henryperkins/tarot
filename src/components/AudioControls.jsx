@@ -1,4 +1,4 @@
-import { SpeakerHigh, SpeakerSlash, MusicNotes, Info } from '@phosphor-icons/react';
+import { SpeakerHigh, SpeakerSlash, MusicNotes, Info, Waveform } from '@phosphor-icons/react';
 import { Tooltip } from './Tooltip';
 import { GlowToggle } from './GlowToggle';
 import { usePreferences } from '../contexts/PreferencesContext';
@@ -8,7 +8,7 @@ import { usePreferences } from '../contexts/PreferencesContext';
  * Groups Voice (TTS) and Ambience controls together
  */
 export function AudioControls({ className = '' }) {
-  const { voiceOn, setVoiceOn, ambienceOn, setAmbienceOn, autoNarrate, setAutoNarrate } = usePreferences();
+  const { voiceOn, setVoiceOn, ambienceOn, setAmbienceOn, autoNarrate, setAutoNarrate, ttsProvider, setTtsProvider } = usePreferences();
 
   const controlShellClass =
     'rounded-3xl border border-secondary/25 bg-surface/80 p-4 sm:p-5 shadow-md shadow-secondary/15 backdrop-blur-lg';
@@ -143,6 +143,54 @@ export function AudioControls({ className = '' }) {
           );
         })}
       </div>
+
+      {/* Voice Engine Selector */}
+      {voiceOn && (
+        <div className="mt-4 pt-4 border-t border-secondary/20">
+          <div className="flex items-center gap-2 mb-2">
+            <Waveform className="h-4 w-4 text-accent" aria-hidden="true" />
+            <span className="text-xs font-semibold text-accent uppercase tracking-wide">Voice Engine</span>
+            <Tooltip
+              content="Hume AI offers emotionally expressive voices with natural prosody. Azure provides reliable, clear narration."
+              position="top"
+              triggerClassName={infoButtonClass}
+              ariaLabel="About voice engine options"
+            >
+              <Info className="h-3.5 w-3.5" />
+            </Tooltip>
+          </div>
+          <div className="flex gap-2" role="radiogroup" aria-label="Select voice engine">
+            <button
+              type="button"
+              role="radio"
+              aria-checked={ttsProvider === 'hume'}
+              onClick={() => setTtsProvider('hume')}
+              className={`flex-1 px-3 py-2 rounded-xl text-sm font-medium transition-all ${
+                ttsProvider === 'hume'
+                  ? 'bg-primary/20 border-2 border-primary text-primary shadow-md'
+                  : 'bg-surface/60 border border-secondary/30 text-muted hover:text-main hover:border-secondary/50'
+              }`}
+            >
+              <span className="block font-semibold">Hume AI</span>
+              <span className="block text-xs opacity-75">Expressive & mystical</span>
+            </button>
+            <button
+              type="button"
+              role="radio"
+              aria-checked={ttsProvider === 'azure'}
+              onClick={() => setTtsProvider('azure')}
+              className={`flex-1 px-3 py-2 rounded-xl text-sm font-medium transition-all ${
+                ttsProvider === 'azure'
+                  ? 'bg-primary/20 border-2 border-primary text-primary shadow-md'
+                  : 'bg-surface/60 border border-secondary/30 text-muted hover:text-main hover:border-secondary/50'
+              }`}
+            >
+              <span className="block font-semibold">Azure</span>
+              <span className="block text-xs opacity-75">Clear & reliable</span>
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

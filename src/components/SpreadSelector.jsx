@@ -5,6 +5,8 @@ import { SPREADS } from '../data/spreads';
 import { SpreadPatternThumbnail } from './SpreadPatternThumbnail';
 import { CarouselDots } from './CarouselDots';
 import { useReducedMotion } from '../hooks/useReducedMotion';
+import { useLandscape } from '../hooks/useLandscape';
+import { useSmallScreen } from '../hooks/useSmallScreen';
 import oneCardArt from '../../selectorimages/onecard.png';
 import threeCardArt from '../../selectorimages/3card.png';
 import fiveCardArt from '../../selectorimages/5card.png';
@@ -131,6 +133,13 @@ export function SpreadSelector({
   const [showLeftFade, setShowLeftFade] = useState(false);
   const [showRightFade, setShowRightFade] = useState(true);
   const prefersReducedMotion = useReducedMotion();
+  const isLandscape = useLandscape();
+  const isSmallScreen = useSmallScreen();
+
+  // In landscape: smaller cards to fit more on screen
+  const cardBasisClass = isLandscape
+    ? 'basis-[55%] xs:basis-[45%]'
+    : 'basis-[82%] xs:basis-[70%]';
 
   // Update edge fade visibility based on scroll position
   const updateEdgeFades = useCallback((el) => {
@@ -262,12 +271,14 @@ export function SpreadSelector({
   return (
     <section className="spread-selector-panel animate-fade-in mb-6 sm:mb-8">
       <div className="relative z-10 space-y-5">
-        <header className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <header className={`flex flex-col ${isLandscape ? 'gap-1' : 'gap-2'} sm:flex-row sm:items-center sm:justify-between`}>
           <div>
             <p className="text-[0.68rem] uppercase tracking-[0.22em] text-gold-soft">Choose Your Spread</p>
-            <p className="text-xs text-muted max-w-2xl">
-              Select the ritual layout shaping how the AI interprets card positions, pacing, and narrative focus.
-            </p>
+            {!isLandscape && (
+              <p className="text-xs text-muted max-w-2xl">
+                Select the ritual layout shaping how the AI interprets card positions, pacing, and narrative focus.
+              </p>
+            )}
           </div>
           <div className="hidden sm:flex items-center gap-2 rounded-full border border-gold-soft/50 bg-black/30 px-3 py-1 text-[0.7rem] text-accent backdrop-blur">
             <Sparkle className="w-3 h-3" aria-hidden="true" />
@@ -315,7 +326,7 @@ export function SpreadSelector({
             ref={carouselRef}
             role="radiogroup"
             aria-label="Choose your spread"
-            className="spread-selector-grid flex gap-3 overflow-x-auto snap-x snap-mandatory pb-3 sm:overflow-visible sm:snap-none sm:grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 sm:gap-4"
+            className={`spread-selector-grid flex ${isLandscape ? 'gap-2 pb-2' : 'gap-3 pb-3'} overflow-x-auto snap-x snap-mandatory sm:overflow-visible sm:snap-none sm:grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 sm:gap-4`}
           >
           {Object.entries(SPREADS).map(([key, spread], index) => {
             const isActive = selectedSpread === key;
@@ -340,7 +351,7 @@ export function SpreadSelector({
                 aria-checked={isActive}
                 onClick={() => handleSpreadSelection(key)}
                 onKeyDown={event => handleCardKeyDown(event, key)}
-                className={`spread-card relative flex h-full flex-col gap-3 cursor-pointer select-none shrink-0 basis-[82%] xs:basis-[70%] snap-center sm:basis-auto sm:shrink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--spread-ring)] focus-visible:ring-offset-2 focus-visible:ring-offset-[#0f0c13] ${isActive ? 'spread-card--active' : ''}`}
+                className={`spread-card relative flex h-full flex-col ${isLandscape ? 'gap-2' : 'gap-3'} cursor-pointer select-none shrink-0 ${cardBasisClass} snap-center sm:basis-auto sm:shrink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--spread-ring)] focus-visible:ring-offset-2 focus-visible:ring-offset-[#0f0c13] ${isActive ? 'spread-card--active' : ''}`}
                 style={{
                   '--spread-accent': theme.accent || FALLBACK_SPREAD_THEME.accent,
                   '--spread-border': resolvedBorder,
@@ -379,9 +390,11 @@ export function SpreadSelector({
                     <span className="text-gold-soft/60 ml-2">· {spread.count} cards</span>
                   </div>
 
-                  <p className="spread-card__description text-xs text-muted leading-snug mb-3">
-                    {baseDescription}
-                  </p>
+                  {!isLandscape && (
+                    <p className="spread-card__description text-xs text-muted leading-snug mb-3">
+                      {baseDescription}
+                    </p>
+                  )}
 
                   <div className="spread-card__meta">
                     <div className="spread-card__complexity">
@@ -413,11 +426,13 @@ export function SpreadSelector({
           />
         </div>
 
-        <div className="deck-panel-footnote spread-panel-footnote">
-          <p className="text-xs leading-relaxed text-muted">
-            <strong className="text-accent">Tip:</strong> Your spread selection tunes positional prompts, narration pacing, and journaling cues.
-          </p>
-        </div>
+        {!isLandscape && (
+          <div className="deck-panel-footnote spread-panel-footnote">
+            <p className="text-xs leading-relaxed text-muted">
+              <strong className="text-accent">Tip:</strong> Your spread selection tunes positional prompts, narration pacing, and journaling cues.
+            </p>
+          </div>
+        )}
       </div>
     </section>
   );

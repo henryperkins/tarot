@@ -9,7 +9,7 @@ export const SPREADS = {
     description:
       'Anchor the moment with one clear card that names the energy around your question.',
     mobileDescription: 'One card anchoring the energy around your question.',
-    complexity: { stars: 1, label: 'Beginner' },
+    complexity: { stars: 1, label: 'Easy' },
     preview: {
       src: '/images/spread-art/single.png',
       width: 220,
@@ -32,7 +32,7 @@ export const SPREADS = {
     description:
       'Trace past, present, and future threads so you understand how the story is moving.',
     mobileDescription: 'Past, present, future snapshots to see your story moving.',
-    complexity: { stars: 2, label: 'Intermediate' },
+    complexity: { stars: 2, label: 'Normal' },
     preview: {
       src: '/images/spread-art/threeCard.png',
       width: 219,
@@ -57,7 +57,7 @@ export const SPREADS = {
     description:
       'Surface the core tension, revealing support, challenge, and direction without a full deep dive.',
     mobileDescription: 'Five cards naming tension, support, and next direction.',
-    complexity: { stars: 2, label: 'Intermediate' },
+    complexity: { stars: 2, label: 'Normal' },
     preview: {
       src: '/images/spread-art/fiveCard.png',
       width: 219,
@@ -82,7 +82,7 @@ export const SPREADS = {
     description:
       'Compare two paths plus the lesson between them so you can choose with agency.',
     mobileDescription: 'Contrast both paths and the wisdom that clarifies your choice.',
-    complexity: { stars: 2, label: 'Intermediate' },
+    complexity: { stars: 2, label: 'Normal' },
     preview: {
       src: '/images/spread-art/decision.png',
       width: 220,
@@ -105,7 +105,7 @@ export const SPREADS = {
     description:
       'Center your energy, their energy, and the shared field for a grounded relationship check-in.',
     mobileDescription: 'You, them, and the shared connection for grounded guidance.',
-    complexity: { stars: 2, label: 'Intermediate' },
+    complexity: { stars: 2, label: 'Normal' },
     preview: {
       src: '/images/spread-art/relationship.png',
       width: 220,
@@ -147,7 +147,7 @@ export const SPREADS = {
     description:
       'Walk the classic ten-card map to read layers of influence, advice, and likely outcome.',
     mobileDescription: 'Classic 10-card deep dive for layered, complex questions.',
-    complexity: { stars: 3, label: 'Advanced' },
+    complexity: { stars: 3, label: 'Hard' },
     preview: {
       src: '/images/spread-art/celtic.png',
       width: 220,

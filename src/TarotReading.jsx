@@ -19,6 +19,7 @@ import { useReading } from './contexts/ReadingContext';
 import { useSaveReading } from './hooks/useSaveReading';
 import { useReducedMotion } from './hooks/useReducedMotion';
 import { useSmallScreen } from './hooks/useSmallScreen';
+import { useLandscape } from './hooks/useLandscape';
 
 const STEP_PROGRESS_STEPS = [
   { id: 'spread', label: 'Spread' },
@@ -48,6 +49,7 @@ export default function TarotReading() {
   // Accessibility: reduced motion preference
   const prefersReducedMotion = useReducedMotion();
   const isSmallScreen = useSmallScreen();
+  const isLandscape = useLandscape();
 
   // --- 2. Reading Context ---
   const {
@@ -487,7 +489,7 @@ export default function TarotReading() {
         <a href="#step-spread" className="skip-link">Skip to spreads</a>
         <a href="#step-reading" className="skip-link">Skip to reading</a>
       </div>
-      <main id="main-content" tabIndex={-1} className="max-w-7xl mx-auto px-4 sm:px-5 md:px-6 pt-6 pb-28 sm:py-8 lg:py-10">
+      <main id="main-content" tabIndex={-1} className={`max-w-7xl mx-auto px-4 sm:px-5 md:px-6 ${isLandscape ? 'pt-3 pb-24' : 'pt-6 pb-28 sm:py-8 lg:py-10'}`}>
         <div className="sr-only" role="status" aria-live="polite" aria-atomic="true">
           {[ttsAnnouncement, srAnnouncement, journalStatus?.message].filter(Boolean).join(' · ')}
         </div>
@@ -534,22 +536,22 @@ export default function TarotReading() {
         )}
 
         {/* Step 1–3: Spread + Prepare */}
-        <section className="mb-6 xl:mb-4" aria-label="Reading setup">
-          <div className="mb-4 sm:mb-5">
+        <section aria-label="Reading setup" className={isLandscape ? 'mb-3' : 'mb-6 xl:mb-4'}>
+          <div className={isLandscape ? 'mb-2' : 'mb-4 sm:mb-5'}>
             <p className="text-xs-plus sm:text-sm uppercase tracking-[0.12em] text-accent">{stepIndicatorLabel}</p>
-            <p className="mt-1 text-muted-high text-xs sm:text-sm">{stepIndicatorHint}</p>
+            {!isLandscape && <p className="mt-1 text-muted-high text-xs sm:text-sm">{stepIndicatorHint}</p>}
           </div>
 
-          <div className="max-w-5xl mx-auto space-y-6">
-            <div className="modern-surface p-4 sm:p-6" aria-label="Choose your physical deck">
+          <div className={`max-w-5xl mx-auto ${isLandscape ? 'space-y-3' : 'space-y-6'}`}>
+            <div className={`modern-surface ${isLandscape ? 'p-3' : 'p-4 sm:p-6'}`} aria-label="Choose your physical deck">
               <DeckSelector selectedDeck={deckStyleId} onDeckChange={handleDeckChange} />
             </div>
 
 
             <div aria-label="Choose your spread" ref={spreadSectionRef} id="step-spread" tabIndex={-1} className="scroll-mt-[6.5rem] sm:scroll-mt-[7.5rem]">
-              <div className="mb-3 sm:mb-4">
+              <div className={isLandscape ? 'mb-2' : 'mb-3 sm:mb-4'}>
                 <h2 className="text-xs-plus sm:text-sm uppercase tracking-[0.12em] text-accent">Spread</h2>
-                <p className="mt-1 text-muted-high text-xs sm:text-sm">Choose a spread to shape the depth and focus of your reading.</p>
+                {!isLandscape && <p className="mt-1 text-muted-high text-xs sm:text-sm">Choose a spread to shape the depth and focus of your reading.</p>}
               </div>
               <SpreadSelector
                 selectedSpread={selectedSpread}
@@ -589,15 +591,17 @@ export default function TarotReading() {
               />
             )}
 
-            <div className="flex justify-center pt-1">
-              <button
-                type="button"
-                onClick={() => handleStepNav('reading')}
-                className="text-sm text-secondary hover:text-main underline underline-offset-4"
-              >
-                Ready? Jump to draw cards
-              </button>
-            </div>
+            {!isLandscape && (
+              <div className="flex justify-center pt-1">
+                <button
+                  type="button"
+                  onClick={() => handleStepNav('reading')}
+                  className="text-sm text-secondary hover:text-main underline underline-offset-4"
+                >
+                  Ready? Jump to draw cards
+                </button>
+              </div>
+            )}
           </div>
         </section>
 

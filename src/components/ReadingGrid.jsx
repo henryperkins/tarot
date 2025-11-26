@@ -6,6 +6,7 @@ import { Tooltip } from './Tooltip';
 import { CarouselDots } from './CarouselDots';
 import { useSmallScreen } from '../hooks/useSmallScreen';
 import { useReducedMotion } from '../hooks/useReducedMotion';
+import { useLandscape } from '../hooks/useLandscape';
 
 /**
  * Celtic Cross position short labels for mobile context.
@@ -142,7 +143,11 @@ export function ReadingGrid({
   const [mobileLayoutMode, setMobileLayoutMode] = useState('carousel');
   const isCompactScreen = useSmallScreen();
   const prefersReducedMotion = useReducedMotion();
+  const isLandscape = useLandscape();
   const isListView = mobileLayoutMode === 'list';
+
+  // In landscape mobile: use smaller card widths to fit more cards visible
+  const landscapeCardWidth = isLandscape ? 'min-w-[45vw]' : 'min-w-[68vw]';
 
   // Hide swipe hint after 4 seconds or when user interacts
   useEffect(() => {
@@ -295,7 +300,7 @@ export function ReadingGrid({
             ? 'cc-grid animate-fade-in'
             : `animate-fade-in ${reading.length === 1
               ? 'grid grid-cols-1 max-w-md mx-auto'
-              : `${isListView ? 'flex flex-col gap-4 pb-4' : 'flex overflow-x-auto snap-x snap-mandatory gap-4 pb-6'} sm:grid sm:gap-8 sm:overflow-visible sm:snap-none sm:pb-0 ${reading.length <= 4
+              : `${isListView ? 'flex flex-col gap-4 pb-4' : `flex overflow-x-auto snap-x snap-mandatory ${isLandscape ? 'gap-2 pb-4' : 'gap-4 pb-6'}`} sm:grid sm:gap-8 sm:overflow-visible sm:snap-none sm:pb-0 ${reading.length <= 4
                 ? 'sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-4'
                 : 'sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3'}`
             }`
@@ -326,7 +331,7 @@ export function ReadingGrid({
               key={`${card.name}-${index}`}
               className={`${selectedSpread === 'celtic'
                 ? getAreaClass(index, selectedSpread)
-                : reading.length > 1 ? (isListView ? 'w-full sm:min-w-0' : 'min-w-[68vw] snap-center sm:min-w-0') : ''
+                : reading.length > 1 ? (isListView ? 'w-full sm:min-w-0' : `${landscapeCardWidth} snap-center sm:min-w-0`) : ''
                 }`}
             >
               <Tooltip
@@ -353,29 +358,33 @@ export function ReadingGrid({
         })}
       </div>
       {reading.length > 1 && (
-        <div className="sm:hidden mt-3 space-y-3">
-          <div className="flex items-center justify-center gap-2" role="group" aria-label="Change mobile layout">
-            <button
-              type="button"
-              aria-pressed={!isListView}
-              onClick={() => handleLayoutToggle('carousel')}
-              className={`flex-1 rounded-full border px-3 py-2 text-xs font-semibold ${isListView ? 'border-secondary/40 text-muted' : 'border-primary/60 bg-primary/10 text-primary'}`}
-            >
-              Swipe view
-            </button>
-            <button
-              type="button"
-              aria-pressed={isListView}
-              onClick={() => handleLayoutToggle('list')}
-              className={`flex-1 rounded-full border px-3 py-2 text-xs font-semibold ${isListView ? 'border-primary/60 bg-primary/10 text-primary' : 'border-secondary/40 text-muted'}`}
-            >
-              List view
-            </button>
-          </div>
+        <div className={`sm:hidden ${isLandscape ? 'mt-2 space-y-2' : 'mt-3 space-y-3'}`}>
+          {/* Layout toggle - hide in landscape to save space */}
+          {!isLandscape && (
+            <div className="flex items-center justify-center gap-2" role="group" aria-label="Change mobile layout">
+              <button
+                type="button"
+                aria-pressed={!isListView}
+                onClick={() => handleLayoutToggle('carousel')}
+                className={`flex-1 rounded-full border px-3 py-2 text-xs font-semibold ${isListView ? 'border-secondary/40 text-muted' : 'border-primary/60 bg-primary/10 text-primary'}`}
+              >
+                Swipe view
+              </button>
+              <button
+                type="button"
+                aria-pressed={isListView}
+                onClick={() => handleLayoutToggle('list')}
+                className={`flex-1 rounded-full border px-3 py-2 text-xs font-semibold ${isListView ? 'border-primary/60 bg-primary/10 text-primary' : 'border-secondary/40 text-muted'}`}
+              >
+                List view
+              </button>
+            </div>
+          )}
 
           {enableCarousel && (
             <>
-              {selectedSpread === 'celtic' && (
+              {/* Celtic Cross mini-map - more compact in landscape */}
+              {selectedSpread === 'celtic' && !isLandscape && (
                 <CelticCrossMiniMap activeIndex={activeIndex} totalCards={reading.length} />
               )}
 
@@ -391,24 +400,24 @@ export function ReadingGrid({
                   type="button"
                   onClick={() => scrollToIndex(activeIndex - 1)}
                   disabled={activeIndex === 0}
-                  className="inline-flex items-center justify-center rounded-full border border-secondary/50 bg-surface px-3 py-2 min-w-[48px] min-h-[44px] text-xs font-semibold text-muted disabled:opacity-40 touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                  className={`inline-flex items-center justify-center rounded-full border border-secondary/50 bg-surface ${isLandscape ? 'px-2 py-1.5 min-w-[40px] min-h-[36px]' : 'px-3 py-2 min-w-[48px] min-h-[44px]'} text-xs font-semibold text-muted disabled:opacity-40 touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary`}
                   aria-label="Show previous card"
                 >
-                  Prev
+                  {isLandscape ? '←' : 'Prev'}
                 </button>
                 <p className="text-xs text-muted" aria-live="polite">
                   {selectedSpread === 'celtic'
                     ? CELTIC_POSITION_LABELS[activeIndex]
-                    : `Card ${activeIndex + 1} of ${reading.length}`}
+                    : `${activeIndex + 1}/${reading.length}`}
                 </p>
                 <button
                   type="button"
                   onClick={() => scrollToIndex(activeIndex + 1)}
                   disabled={activeIndex >= reading.length - 1}
-                  className="inline-flex items-center justify-center rounded-full border border-secondary/50 bg-surface px-3 py-2 min-w-[48px] min-h-[44px] text-xs font-semibold text-muted disabled:opacity-40 touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                  className={`inline-flex items-center justify-center rounded-full border border-secondary/50 bg-surface ${isLandscape ? 'px-2 py-1.5 min-w-[40px] min-h-[36px]' : 'px-3 py-2 min-w-[48px] min-h-[44px]'} text-xs font-semibold text-muted disabled:opacity-40 touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary`}
                   aria-label="Show next card"
                 >
-                  Next
+                  {isLandscape ? '→' : 'Next'}
                 </button>
               </div>
             </>
