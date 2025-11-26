@@ -71,7 +71,7 @@ export function QuestionInput({
           <button
             type="button"
             onClick={handleLaunchCoach}
-            className="inline-flex items-center gap-1.5 rounded-full border border-primary/50 px-3 py-1.5 min-h-[36px] text-xs text-main transition hover:bg-primary/10 active:bg-primary/15 touch-manipulation self-start xs:self-auto"
+            className="inline-flex items-center gap-1.5 rounded-full border border-primary/50 px-3 py-1.5 min-h-[44px] text-xs text-main transition hover:bg-primary/10 active:bg-primary/15 touch-manipulation self-start xs:self-auto"
             title="Shortcut: Shift+G"
             aria-label="Open guided coach (Shift+G)"
           >
