@@ -19,6 +19,7 @@ import { useFeatureFlags } from '../hooks/useFeatureFlags';
 import { useAuth } from '../contexts/AuthContext';
 import { useSmallScreen } from '../hooks/useSmallScreen';
 import { useLandscape } from '../hooks/useLandscape';
+import { useReducedMotion } from '../hooks/useReducedMotion';
 
 const NARRATIVE_STEPS = [
     { id: 'analyzing', label: 'Analyzing spread' },
@@ -115,6 +116,7 @@ export function ReadingDisplay({ sectionRef }) {
     const { visionResearch: visionResearchEnabled, newDeckInterface } = useFeatureFlags();
     const isCompactScreen = useSmallScreen(768);
     const isLandscape = useLandscape();
+    const prefersReducedMotion = useReducedMotion();
     const safeSpreadKey = normalizeSpreadKey(selectedSpread);
     const spreadInfo = getSpreadInfo(safeSpreadKey);
     const canShowVisionPanel = visionResearchEnabled && isAuthenticated;
@@ -339,7 +341,7 @@ export function ReadingDisplay({ sectionRef }) {
                         <div className={`bg-surface/95 backdrop-blur-xl rounded-2xl border border-secondary/40 shadow-2xl shadow-secondary/40 max-w-5xl mx-auto ${isLandscape ? 'p-3' : 'p-5 sm:p-8'}`}>
                             {/* Narrative completion banner - shown when complete */}
                             {narrativePhase === 'complete' && !isPersonalReadingError && (
-                                <div className="mb-5 p-4 bg-gradient-to-r from-primary/20 via-secondary/15 to-accent/20 border border-primary/30 rounded-xl animate-fade-in" role="status" aria-live="polite">
+                                <div className={`mb-5 p-4 bg-gradient-to-r from-primary/20 via-secondary/15 to-accent/20 border border-primary/30 rounded-xl ${prefersReducedMotion ? '' : 'animate-fade-in'}`} role="status" aria-live="polite">
                                     <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
                                         <div className="flex items-center gap-2.5">
                                             <CheckCircle className="w-5 h-5 text-primary flex-shrink-0" weight="fill" />

@@ -2,9 +2,12 @@ import { useState, useEffect, useRef } from 'react';
 import FocusTrap from 'focus-trap-react';
 import { X, Eye, EyeSlash } from '@phosphor-icons/react';
 import { useAuth } from '../contexts/AuthContext';
+import { useModalA11y, createBackdropHandler } from '../hooks/useModalA11y';
+import { useSmallScreen } from '../hooks/useSmallScreen';
 
 export default function AuthModal({ isOpen, onClose }) {
   const { register, login, error: authError } = useAuth();
+  const isSmallScreen = useSmallScreen();
   const [mode, setMode] = useState('login'); // 'login' or 'register'
   const [email, setEmail] = useState('');
   const [username, setUsername] = useState('');
@@ -17,24 +20,15 @@ export default function AuthModal({ isOpen, onClose }) {
   const [success, setSuccess] = useState('');
   const modalRef = useRef(null);
   const firstInputRef = useRef(null);
-  const previousFocusRef = useRef(null);
 
-  // Handle focus management
-  useEffect(() => {
-    if (!isOpen) return;
-
-    // Store previous focus to restore on close
-    previousFocusRef.current = document.activeElement;
-
-    return () => {
-      // Restore focus when modal closes
-      if (previousFocusRef.current && typeof previousFocusRef.current.focus === 'function') {
-        setTimeout(() => {
-          previousFocusRef.current?.focus();
-        }, 0);
-      }
-    };
-  }, [isOpen]);
+  // Use modal accessibility hook for scroll lock, escape key, and focus restoration
+  // trapFocus: false because FocusTrap library handles focus trapping
+  useModalA11y(isOpen, {
+    onClose,
+    containerRef: modalRef,
+    trapFocus: false,
+    initialFocusRef: firstInputRef,
+  });
 
   // Reset password visibility when mode changes
   useEffect(() => {
@@ -127,11 +121,7 @@ export default function AuthModal({ isOpen, onClose }) {
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-main/90 backdrop-blur-sm animate-fade-in p-4"
-      onClick={(e) => {
-        if (e.target === e.currentTarget) {
-          onClose();
-        }
-      }}
+      onClick={createBackdropHandler(onClose)}
     >
       <FocusTrap
         active={isOpen}
@@ -149,12 +139,7 @@ export default function AuthModal({ isOpen, onClose }) {
           aria-modal="true"
           aria-labelledby="auth-modal-title"
           aria-describedby={errorId}
-          onKeyDown={(e) => {
-            if (e.key === 'Escape') {
-              onClose();
-            }
-          }}
-          className="relative w-full max-w-md bg-surface rounded-2xl border border-primary/40 shadow-2xl animate-pop-in max-h-[90vh] overflow-y-auto"
+          className={`relative w-full bg-surface rounded-2xl border border-primary/40 shadow-2xl animate-pop-in max-h-[90vh] overflow-y-auto ${isSmallScreen ? 'max-w-full mx-2' : 'max-w-md'}`}
         >
           {/* Close button - 44px touch target */}
           <button

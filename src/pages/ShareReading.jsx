@@ -15,7 +15,7 @@ function StatCard({ label, value, helper }) {
 
 function MetaChip({ label }) {
   return (
-    <span className="rounded-full border border-primary/30 px-3 py-1 text-xs text-primary">
+    <span className="inline-flex items-center rounded-full border border-primary/30 px-3 py-2 min-h-[36px] text-xs text-primary">
       {label}
     </span>
   );
@@ -40,6 +40,7 @@ export default function ShareReading() {
   const [noteError, setNoteError] = useState('');
   const [copyState, setCopyState] = useState('');
   const [lastSyncedAt, setLastSyncedAt] = useState(null);
+  const [mobileView, setMobileView] = useState('spread'); // 'spread' | 'notes'
 
   const fetchShare = useCallback(async () => {
     if (!token) return;
@@ -186,20 +187,20 @@ export default function ShareReading() {
               <button
                 type="button"
                 onClick={copyShareLink}
-                className="rounded-full border border-primary/50 px-4 py-2 text-sm text-main hover:bg-primary/10"
+                className="inline-flex items-center justify-center rounded-full border border-primary/50 px-4 py-2 min-h-[44px] text-sm text-main hover:bg-primary/10 active:bg-primary/20 touch-manipulation transition"
               >
                 Copy link
               </button>
               <button
                 type="button"
                 onClick={fetchShare}
-                className="rounded-full border border-primary/50 px-4 py-2 text-sm text-main hover:bg-primary/10"
+                className="inline-flex items-center justify-center rounded-full border border-primary/50 px-4 py-2 min-h-[44px] text-sm text-main hover:bg-primary/10 active:bg-primary/20 touch-manipulation transition"
               >
                 Refresh reading
               </button>
               <Link
                 to="/"
-                className="rounded-full border border-primary/50 px-4 py-2 text-sm text-main text-center hover:bg-primary/10"
+                className="inline-flex items-center justify-center rounded-full border border-primary/50 px-4 py-2 min-h-[44px] text-sm text-main hover:bg-primary/10 active:bg-primary/20 touch-manipulation transition"
               >
                 Start your reading
               </Link>
@@ -238,9 +239,9 @@ export default function ShareReading() {
                   key={entry.id}
                   type="button"
                   onClick={() => setSelectedEntryIndex(index)}
-                  className={`rounded-full border px-3 py-1 text-[0.65rem] uppercase tracking-[0.2em] ${index === selectedEntryIndex
+                  className={`inline-flex items-center justify-center rounded-full border px-4 py-2 min-h-[44px] text-xs uppercase tracking-[0.15em] touch-manipulation transition ${index === selectedEntryIndex
                     ? 'border-primary bg-primary/10 text-main'
-                    : 'border-secondary text-muted hover:border-primary/50'
+                    : 'border-secondary text-muted hover:border-primary/50 active:bg-primary/5'
                     }`}
                 >
                   {entry.spread || 'Reading'}
@@ -250,7 +251,111 @@ export default function ShareReading() {
           )}
         </div>
 
-        <div className="mt-8 grid gap-6 lg:grid-cols-[2fr,1fr]">
+        {/* Mobile view toggle - only visible below lg breakpoint */}
+        <div className="mt-6 lg:hidden" role="tablist" aria-label="View selection">
+          <div className="flex rounded-xl bg-surface-muted/60 p-1 border border-secondary/20">
+            <button
+              type="button"
+              role="tab"
+              id="mobile-spread-tab"
+              aria-selected={mobileView === 'spread'}
+              aria-controls="mobile-spread-panel"
+              tabIndex={mobileView === 'spread' ? 0 : -1}
+              onClick={() => setMobileView('spread')}
+              onKeyDown={(e) => {
+                if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
+                  e.preventDefault();
+                  setMobileView(mobileView === 'spread' ? 'notes' : 'spread');
+                  document.getElementById(mobileView === 'spread' ? 'mobile-notes-tab' : 'mobile-spread-tab')?.focus();
+                }
+              }}
+              className={`flex-1 rounded-lg px-4 py-3 min-h-[44px] text-sm font-semibold transition-all touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70 ${
+                mobileView === 'spread'
+                  ? 'bg-surface shadow-sm border border-secondary/30 text-accent'
+                  : 'text-muted hover:text-main'
+              }`}
+            >
+              Spread
+            </button>
+            <button
+              type="button"
+              role="tab"
+              id="mobile-notes-tab"
+              aria-selected={mobileView === 'notes'}
+              aria-controls="mobile-notes-panel"
+              tabIndex={mobileView === 'notes' ? 0 : -1}
+              onClick={() => setMobileView('notes')}
+              onKeyDown={(e) => {
+                if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
+                  e.preventDefault();
+                  setMobileView(mobileView === 'spread' ? 'notes' : 'spread');
+                  document.getElementById(mobileView === 'spread' ? 'mobile-notes-tab' : 'mobile-spread-tab')?.focus();
+                }
+              }}
+              className={`flex-1 rounded-lg px-4 py-3 min-h-[44px] text-sm font-semibold transition-all touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70 ${
+                mobileView === 'notes'
+                  ? 'bg-surface shadow-sm border border-secondary/30 text-accent'
+                  : 'text-muted hover:text-main'
+              }`}
+            >
+              Notes {notes.length > 0 && <span className="ml-1 text-xs text-primary">({notes.length})</span>}
+            </button>
+          </div>
+        </div>
+
+        {/* Mobile: tabbed panels */}
+        <div className="mt-4 lg:hidden">
+          <div
+            id="mobile-spread-panel"
+            role="tabpanel"
+            aria-labelledby="mobile-spread-tab"
+            hidden={mobileView !== 'spread'}
+          >
+            {mobileView === 'spread' && (
+              <div className="rounded-3xl border border-secondary/30 bg-surface-muted p-5">
+                <div className="flex flex-col gap-1">
+                  <p className="text-[0.65rem] uppercase tracking-[0.3em] text-primary">Spread overview</p>
+                  <h2 className="text-2xl font-serif text-accent">{activeEntry?.spread}</h2>
+                  {activeEntry?.question && (
+                    <p className="text-sm text-muted">Intention: {activeEntry.question}</p>
+                  )}
+                  <p className="text-xs text-muted">
+                    {activeEntry?.ts ? new Date(activeEntry.ts).toLocaleString() : ''}
+                  </p>
+                </div>
+                <SharedSpreadView
+                  entry={activeEntry}
+                  notes={notes}
+                  selectedPosition={activePosition}
+                  onSelectPosition={setActivePosition}
+                />
+              </div>
+            )}
+          </div>
+          <div
+            id="mobile-notes-panel"
+            role="tabpanel"
+            aria-labelledby="mobile-notes-tab"
+            hidden={mobileView !== 'notes'}
+          >
+            {mobileView === 'notes' && (
+              <CollaborativeNotesPanel
+                notes={notes}
+                cards={activeEntry?.cards || []}
+                onSubmit={handleAddNote}
+                onRefresh={refreshNotes}
+                isSubmitting={noteSubmitting}
+                error={noteError}
+                selectedPosition={activePosition}
+                onSelectedPositionChange={setActivePosition}
+                lastSyncedAt={lastSyncedAt}
+              />
+            )}
+          </div>
+        </div>
+
+        {/* Desktop: side-by-side grid layout */}
+        <div className="mt-8 hidden lg:grid lg:grid-cols-[2fr,1fr] gap-6">
           <div className="space-y-6">
             <div className="rounded-3xl border border-secondary/30 bg-surface-muted p-5">
               <div className="flex flex-col gap-1">

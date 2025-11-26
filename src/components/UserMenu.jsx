@@ -3,7 +3,7 @@ import { SignIn, User, SignOut } from '@phosphor-icons/react';
 import { useAuth } from '../contexts/AuthContext';
 import AuthModal from './AuthModal';
 
-export function UserMenu() {
+export function UserMenu({ condensed = false }) {
   const { isAuthenticated, user, logout } = useAuth();
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showDropdown, setShowDropdown] = useState(false);
@@ -132,24 +132,25 @@ export function UserMenu() {
             <button
               ref={triggerRef}
               onClick={() => setShowDropdown(!showDropdown)}
-              className="
-                flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3 min-h-[44px]
-                rounded-full bg-surface/50 border border-accent/20
-                hover:bg-surface hover:border-accent/40
-                active:bg-surface-muted active:scale-[0.98]
-                transition text-xs-plus font-semibold text-accent
-                touch-manipulation
+              className={`
+                flex items-center gap-1.5 sm:gap-2 min-h-[44px]
+                rounded-full border transition text-xs-plus font-semibold text-accent touch-manipulation
+                active:scale-[0.98]
                 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60
                 focus-visible:ring-offset-2 focus-visible:ring-offset-main
-              "
+                ${condensed
+                  ? 'h-11 w-11 justify-center px-0 bg-surface/80 border-accent/30 hover:bg-surface hover:border-accent/50 active:bg-surface-muted sm:h-auto sm:w-auto sm:px-3 sm:justify-start'
+                  : 'px-2 sm:px-3 bg-surface/50 border-accent/20 hover:bg-surface hover:border-accent/40 active:bg-surface-muted'
+                }
+              `}
               aria-expanded={showDropdown}
               aria-haspopup="menu"
               aria-label={`User menu for ${user?.username || 'account'}`}
             >
               <User className="w-4 h-4 shrink-0" aria-hidden="true" />
               {/* Mobile: show initial, tablet+: show truncated username */}
-              <span className="xs:hidden text-xs font-bold">{getInitial()}</span>
-              <span className="hidden xs:inline max-w-[80px] sm:max-w-[100px] truncate text-xs sm:text-xs-plus">
+              {!condensed && <span className="xs:hidden text-xs font-bold">{getInitial()}</span>}
+              <span className={`${condensed ? 'hidden sm:inline' : 'hidden xs:inline'} max-w-[80px] sm:max-w-[100px] truncate text-xs sm:text-xs-plus`}>
                 {getDisplayName()}
               </span>
             </button>

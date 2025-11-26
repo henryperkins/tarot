@@ -154,9 +154,9 @@ export function Header({ steps, activeStep, onStepSelect, isShuffling }) {
           <div className="header-sticky__nav">
             <GlobalNav condensed={isCompact} />
           </div>
-          {/* Always render UserMenu but hide visually in compact mode for better UX */}
-          <div className={`header-sticky__user ${isCompact ? 'hidden sm:block' : ''}`}>
-            <UserMenu />
+          {/* Keep account access available in compact mode with a condensed trigger */}
+          <div className="header-sticky__user">
+            <UserMenu condensed={isCompact} />
           </div>
         </div>
         <div className="mt-2 sm:mt-1">

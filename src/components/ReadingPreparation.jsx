@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { CaretDown, CaretUp, TextAlignLeft, SpeakerHigh, Palette, Sparkle } from '@phosphor-icons/react';
 import { QuestionInput } from './QuestionInput';
 import { AudioControls } from './AudioControls';
@@ -95,9 +95,41 @@ export function ReadingPreparation({
 
     // Mobile tabbed navigation state
     const [activeTab, setActiveTab] = useState('intention');
+    const tabRefs = useRef({});
 
     const handleTabChange = useCallback((tabId) => {
         setActiveTab(tabId);
+    }, []);
+
+    // Keyboard navigation for tabs (roving tabindex pattern)
+    const handleTabKeyDown = useCallback((event, currentIndex) => {
+        const tabIds = MOBILE_TABS.map(t => t.id);
+        let nextIndex = currentIndex;
+
+        switch (event.key) {
+            case 'ArrowLeft':
+                event.preventDefault();
+                nextIndex = currentIndex === 0 ? tabIds.length - 1 : currentIndex - 1;
+                break;
+            case 'ArrowRight':
+                event.preventDefault();
+                nextIndex = currentIndex === tabIds.length - 1 ? 0 : currentIndex + 1;
+                break;
+            case 'Home':
+                event.preventDefault();
+                nextIndex = 0;
+                break;
+            case 'End':
+                event.preventDefault();
+                nextIndex = tabIds.length - 1;
+                break;
+            default:
+                return;
+        }
+
+        const nextTabId = tabIds[nextIndex];
+        setActiveTab(nextTabId);
+        tabRefs.current[nextTabId]?.focus();
     }, []);
 
     if (variant === 'mobile') {
@@ -109,17 +141,21 @@ export function ReadingPreparation({
                     role="tablist"
                     aria-label="Preparation settings"
                 >
-                    {MOBILE_TABS.map((tab) => {
+                    {MOBILE_TABS.map((tab, index) => {
                         const Icon = tab.icon;
                         const isActive = activeTab === tab.id;
                         return (
                             <button
                                 key={tab.id}
+                                ref={(el) => { tabRefs.current[tab.id] = el; }}
                                 type="button"
                                 role="tab"
+                                id={`mobile-tab-${tab.id}`}
                                 aria-selected={isActive}
                                 aria-controls={`mobile-panel-${tab.id}`}
+                                tabIndex={isActive ? 0 : -1}
                                 onClick={() => handleTabChange(tab.id)}
+                                onKeyDown={(e) => handleTabKeyDown(e, index)}
                                 className={`
                                     flex-1 flex flex-col items-center justify-center gap-1 py-2.5 px-1 rounded-lg
                                     text-xs font-semibold transition-all touch-manipulation

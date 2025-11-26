@@ -1,6 +1,7 @@
-import { useEffect, useRef } from 'react';
+import { useRef } from 'react';
 import FocusTrap from 'focus-trap-react';
 import { Warning, X } from '@phosphor-icons/react';
+import { useModalA11y, createBackdropHandler } from '../hooks/useModalA11y';
 
 /**
  * Confirmation Modal
@@ -8,10 +9,10 @@ import { Warning, X } from '@phosphor-icons/react';
  * Replaces native browser confirm() dialogs with a styled modal
  * that matches the application's design system.
  */
-export function ConfirmModal({ 
-  isOpen, 
-  onClose, 
-  onConfirm, 
+export function ConfirmModal({
+  isOpen,
+  onClose,
+  onConfirm,
   title = 'Confirm Action',
   message,
   confirmText = 'Confirm',
@@ -19,35 +20,22 @@ export function ConfirmModal({
   variant = 'warning' // 'warning' | 'danger'
 }) {
   const cancelButtonRef = useRef(null);
-  const previousFocusRef = useRef(null);
+  const modalRef = useRef(null);
 
-  useEffect(() => {
-    if (!isOpen) return;
-
-    // Store previous focus to restore on close
-    previousFocusRef.current = document.activeElement;
-
-    return () => {
-      // Restore focus when modal closes
-      if (previousFocusRef.current && typeof previousFocusRef.current.focus === 'function') {
-        setTimeout(() => {
-          previousFocusRef.current?.focus();
-        }, 0);
-      }
-    };
-  }, [isOpen]);
+  // Use modal accessibility hook for scroll lock, escape key, and focus restoration
+  // trapFocus: false because FocusTrap library handles focus trapping
+  useModalA11y(isOpen, {
+    onClose,
+    containerRef: modalRef,
+    trapFocus: false,
+    initialFocusRef: cancelButtonRef,
+  });
 
   if (!isOpen) return null;
 
   const handleConfirm = () => {
     onConfirm();
     onClose();
-  };
-
-  const handleBackdropClick = (e) => {
-    if (e.target === e.currentTarget) {
-      onClose();
-    }
   };
 
   const variantStyles = {
@@ -63,7 +51,7 @@ export function ConfirmModal({
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm animate-fade-in"
-      onClick={handleBackdropClick}
+      onClick={createBackdropHandler(onClose)}
     >
       <FocusTrap
         active={isOpen}
@@ -76,14 +64,10 @@ export function ConfirmModal({
         }}
       >
         <div
+          ref={modalRef}
           role="dialog"
           aria-modal="true"
           aria-labelledby="confirm-modal-title"
-          onKeyDown={(e) => {
-            if (e.key === 'Escape') {
-              onClose();
-            }
-          }}
           className={`relative w-full max-w-md mx-4 rounded-2xl border ${variantStyles[variant]} shadow-2xl animate-slide-up`}
         >
         <button

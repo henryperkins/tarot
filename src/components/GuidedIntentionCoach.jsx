@@ -11,7 +11,10 @@ import {
   MagicWand,
   X
 } from '@phosphor-icons/react';
+import { useModalA11y, createBackdropHandler } from '../hooks/useModalA11y';
+import { useSmallScreen } from '../hooks/useSmallScreen';
 import { useLandscape } from '../hooks/useLandscape';
+import { useReducedMotion } from '../hooks/useReducedMotion';
 import {
   INTENTION_TOPIC_OPTIONS,
   INTENTION_TIMEFRAME_OPTIONS,
@@ -238,6 +241,8 @@ function getDepthLabel(value) {
 
 export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply, prefillRecommendation = null }) {
   const isLandscape = useLandscape();
+  const isSmallScreen = useSmallScreen();
+  const prefersReducedMotion = useReducedMotion();
   const [step, setStep] = useState(0);
 
   // Determine suggested topic based on spread
@@ -272,11 +277,19 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply,
   const closeButtonRef = useRef(null);
   const depthSectionRef = useRef(null);
   const customFocusRef = useRef(null);
-  const previousFocusRef = useRef(null);
   const stepButtonRefs = useRef([]);
   const titleId = useId();
   const timeoutRefs = useRef([]);
   const hasInitializedRef = useRef(false);
+
+  // Use modal accessibility hook for scroll lock, escape key, and focus restoration
+  // trapFocus: false because FocusTrap library handles focus trapping
+  useModalA11y(isOpen, {
+    onClose,
+    containerRef: modalRef,
+    trapFocus: false,
+    initialFocusRef: closeButtonRef,
+  });
 
   // Clear step button refs on each render to prevent stale references
   useLayoutEffect(() => {
@@ -727,30 +740,6 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply,
     return () => clearTimeout(timeoutId);
   }, [historyStatus]);
 
-  // Focus management for modal
-  useEffect(() => {
-    if (!isOpen) return;
-
-    // Store previous focus to restore on close
-    previousFocusRef.current = document.activeElement;
-
-    return () => {
-      // Restore focus when modal closes
-      const elementToFocus = previousFocusRef.current;
-      if (
-        elementToFocus &&
-        typeof elementToFocus.focus === 'function' &&
-        document.body.contains(elementToFocus)
-      ) {
-        // Use requestAnimationFrame to ensure modal is fully removed
-        requestAnimationFrame(() => {
-          if (document.body.contains(elementToFocus)) {
-            elementToFocus.focus();
-          }
-        });
-      }
-    };
-  }, [isOpen]);
 
   // Creative question generation with proper race condition handling
   useEffect(() => {
@@ -1015,7 +1004,7 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply,
               </p>
             )}
             {questionLoading && (
-              <p className="text-xs text-accent/80 animate-pulse">Weaving a personalized prompt…</p>
+              <p className={`text-xs text-accent/80 ${prefersReducedMotion ? '' : 'animate-pulse'}`}>Weaving a personalized prompt…</p>
             )}
             {questionError && (
               <p className="text-xs text-accent/80">{questionError}</p>
@@ -1044,7 +1033,7 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply,
               </div>
               <div className="h-2 w-full rounded-full bg-surface-muted/80 overflow-hidden">
                 <div
-                  className={`h-full transition-all duration-500 ${
+                  className={`h-full ${prefersReducedMotion ? '' : 'transition-all duration-500'} ${
                     normalizedQualityScore >= 85
                       ? 'bg-accent'
                       : normalizedQualityScore >= 65
@@ -1078,12 +1067,8 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply,
 
   return (
     <div
-      className="fixed inset-0 z-[100] flex items-center justify-center bg-main/90 backdrop-blur animate-fade-in"
-      onClick={(e) => {
-        if (e.target === e.currentTarget) {
-          onClose?.();
-        }
-      }}
+      className={`fixed inset-0 z-[100] flex items-center justify-center bg-main/90 backdrop-blur ${prefersReducedMotion ? '' : 'animate-fade-in'}`}
+      onClick={createBackdropHandler(onClose)}
     >
       <FocusTrap
         active={isOpen}
@@ -1100,12 +1085,7 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply,
           role="dialog"
           aria-modal="true"
           aria-labelledby={titleId}
-          onKeyDown={(e) => {
-            if (e.key === 'Escape') {
-              onClose?.();
-            }
-          }}
-          className="relative w-full h-full sm:h-auto sm:max-h-[90vh] sm:max-w-3xl sm:mx-4 sm:rounded-3xl border-0 sm:border border-accent/30 bg-surface shadow-2xl focus:outline-none flex flex-col animate-pop-in"
+          className={`relative w-full h-full sm:h-auto sm:max-h-[90vh] sm:max-w-3xl sm:mx-4 sm:rounded-3xl border-0 sm:border border-accent/30 bg-surface shadow-2xl focus:outline-none flex flex-col ${prefersReducedMotion ? '' : 'animate-pop-in'}`}
         >
           {/* Close Button */}
           <button
@@ -1260,7 +1240,7 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply,
           {/* Template Panel Overlay */}
           {isTemplatePanelOpen && (
             <div
-              className="absolute inset-0 z-40 flex items-stretch bg-surface/70 backdrop-blur-sm animate-fade-in"
+              className={`absolute inset-0 z-40 flex items-stretch bg-surface/70 backdrop-blur-sm ${prefersReducedMotion ? '' : 'animate-fade-in'}`}
               onClick={() => setTemplatePanelOpen(false)}
               onKeyDown={(e) => {
                 if (e.key === 'Escape') {
@@ -1273,7 +1253,7 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply,
                 role="dialog"
                 aria-modal="false"
                 aria-label="Template library"
-                className="ml-auto h-full w-full sm:w-[26rem] bg-surface border-l border-accent/30 p-5 sm:p-6 overflow-y-auto shadow-[0_0_45px_rgba(0,0,0,0.6)] animate-slide-in-right"
+                className={`ml-auto h-full w-full sm:w-[26rem] bg-surface border-l border-accent/30 p-5 sm:p-6 overflow-y-auto shadow-[0_0_45px_rgba(0,0,0,0.6)] ${prefersReducedMotion ? '' : 'animate-slide-in-right'}`}
                 onClick={event => event.stopPropagation()}
               >
                 {/* Panel Header */}

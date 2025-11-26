@@ -2,6 +2,7 @@ import { useState, useCallback, useRef, useEffect } from 'react';
 import { motion, useAnimation, AnimatePresence } from 'framer-motion';
 import { TableuLogo } from './TableuLogo';
 import { Sparkle, Scissors, ArrowsClockwise, HandTap } from '@phosphor-icons/react';
+import { useSmallScreen } from '../hooks/useSmallScreen';
 import { useReducedMotion } from '../hooks/useReducedMotion';
 import { useLandscape } from '../hooks/useLandscape';
 
@@ -40,6 +41,7 @@ export function DeckRitual({
   // Deal action
   onDeal
 }) {
+  const isSmallScreen = useSmallScreen();
   const prefersReducedMotion = useReducedMotion();
   const isLandscape = useLandscape();
   const deckControls = useAnimation();
@@ -210,7 +212,7 @@ export function DeckRitual({
           {stackCards.map((card) => (
             <motion.div
               key={card.id}
-              className="absolute w-[clamp(8rem,40vw,9rem)] h-[clamp(12rem,60vw,13.5rem)] rounded-xl border-2 border-primary/30 overflow-hidden"
+              className={`absolute rounded-xl border-2 border-primary/30 overflow-hidden ${isSmallScreen ? 'w-[clamp(6.5rem,35vw,8rem)] h-[clamp(9.75rem,52vw,12rem)]' : 'w-[clamp(8rem,40vw,9rem)] h-[clamp(12rem,60vw,13.5rem)]'}`}
               style={{
                 zIndex: card.zIndex,
                 opacity: card.opacity,
@@ -234,7 +236,7 @@ export function DeckRitual({
 
           {/* Top card with logo */}
           <motion.div
-            className="relative w-[clamp(8rem,40vw,9rem)] h-[clamp(12rem,60vw,13.5rem)] rounded-xl border-2 border-primary/40 shadow-2xl overflow-hidden"
+            className={`relative rounded-xl border-2 border-primary/40 shadow-2xl overflow-hidden ${isSmallScreen ? 'w-[clamp(6.5rem,35vw,8rem)] h-[clamp(9.75rem,52vw,12rem)]' : 'w-[clamp(8rem,40vw,9rem)] h-[clamp(12rem,60vw,13.5rem)]'}`}
             style={{
               background: 'linear-gradient(145deg, var(--bg-surface), var(--bg-surface-muted))',
               boxShadow: '0 20px 40px rgba(0,0,0,0.3), 0 0 30px color-mix(in srgb, var(--brand-primary) 10%, transparent)'

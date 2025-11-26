@@ -1,6 +1,8 @@
 import { useState, useMemo, useEffect, useRef, memo } from 'react';
 import { FileText, Copy, ArrowsClockwise, ChartBar, Sparkle, ShareNetwork, DownloadSimple, Trash } from '@phosphor-icons/react';
+import { useSmallScreen } from '../hooks/useSmallScreen';
 import { useLandscape } from '../hooks/useLandscape';
+import { useReducedMotion } from '../hooks/useReducedMotion';
 import { CoachSuggestion } from './CoachSuggestion';
 import { ArchetypeJourneySection } from './ArchetypeJourneySection';
 import {
@@ -99,7 +101,9 @@ export const JournalInsightsPanel = memo(function JournalInsightsPanel({
     onCreateShareLink,
     onDeleteShareLink
 }) {
+    const isSmallScreen = useSmallScreen();
     const isLandscape = useLandscape();
+    const prefersReducedMotion = useReducedMotion();
     const primaryStats = stats || allStats;
     const frequentCards = primaryStats?.frequentCards || [];
     const contextBreakdown = primaryStats?.contextBreakdown || [];
@@ -471,7 +475,7 @@ export const JournalInsightsPanel = memo(function JournalInsightsPanel({
     }
 
     return (
-        <div className="space-y-6 animate-fade-in">
+        <div className={`space-y-6 ${prefersReducedMotion ? '' : 'animate-fade-in'}`}>
             {/* Top Bar: Stats & Actions */}
             <div className={`flex rounded-3xl border border-secondary/30 bg-surface/70 sm:flex-row sm:items-center sm:justify-between ${isLandscape ? 'flex-row items-center gap-3 p-4' : 'flex-col gap-4 p-6'}`}>
                 <div>
@@ -536,12 +540,12 @@ export const JournalInsightsPanel = memo(function JournalInsightsPanel({
             )}
 
             {actionMessage && (
-                <div className="text-center text-sm text-secondary animate-fade-in">{actionMessage}</div>
+                <div className={`text-center text-sm text-secondary ${prefersReducedMotion ? '' : 'animate-fade-in'}`}>{actionMessage}</div>
             )}
 
             {/* Share & export composer */}
             {shareOpen && shareComposerOpen && (
-                <form onSubmit={handleComposerSubmit} className="rounded-2xl border border-secondary/30 bg-surface-muted/50 p-6 animate-slide-down">
+                <form onSubmit={handleComposerSubmit} className={`rounded-2xl border border-secondary/30 bg-surface-muted/50 ${isSmallScreen ? 'p-4' : 'p-6'} ${prefersReducedMotion ? '' : 'animate-slide-down'}`}>
                     <div className="grid gap-4 sm:grid-cols-2">
                         <label className="block">
                             <span className="text-xs uppercase tracking-wider text-secondary/80">Link Title</span>
@@ -649,7 +653,7 @@ export const JournalInsightsPanel = memo(function JournalInsightsPanel({
 
             {/* Analytics Grid */}
             {insightsOpen && (
-                <div className={`grid md:grid-cols-2 lg:grid-cols-3 ${isLandscape ? 'gap-3 grid-cols-2' : 'gap-6'}`}>
+                <div className={`grid ${isSmallScreen ? 'grid-cols-1 gap-4' : isLandscape ? 'gap-3 grid-cols-2' : 'md:grid-cols-2 lg:grid-cols-3 gap-6'}`}>
                     {/* Frequent Cards */}
                     {frequentCards.length > 0 && (
                         <div className={`rounded-3xl border border-secondary/20 bg-surface/40 ${isLandscape ? 'p-3' : 'p-5'}`}>

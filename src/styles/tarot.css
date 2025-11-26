@@ -138,9 +138,10 @@ body {
 }
 
 .header-sticky--compact .header-sticky__user {
-  opacity: 0;
-  transform: translate(0, -0.25rem);
-  pointer-events: none;
+  /* Keep user menu accessible in compact mode - UserMenu handles condensed display */
+  opacity: 1;
+  transform: translateY(-50%);
+  pointer-events: auto;
 }
 
 .header-sticky__status {
