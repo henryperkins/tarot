@@ -91,7 +91,7 @@ export function QuestionInput({
           onChange={event => setUserQuestion(event.target.value)}
           placeholder={EXAMPLE_QUESTIONS[placeholderIndex]}
           className="w-full bg-surface border border-primary/40 rounded-lg px-3 xs:px-4 py-3 pr-12 text-base text-main placeholder-muted focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/70 transition-all"
-          style={{ fontSize: '16px' }} // Prevent iOS zoom on focus
+          // text-base (16px) prevents iOS zoom on focus
           onFocus={onFocus}
           onBlur={onBlur}
           aria-describedby={`${optionalId} ${helperId}`.trim()}
