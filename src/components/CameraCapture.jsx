@@ -152,7 +152,7 @@ export function CameraCapture({ onCapture, onCancel }) {
         />
         
         {/* Spacer for centering in portrait mode */}
-        {!isLandscape && <div className="w-14 xs:w-16" aria-hidden="true" />}
+        {!isLandscape && <div className="w-14 xs:w-16" aria-hidden />}
       </div>
     </div>
   );
