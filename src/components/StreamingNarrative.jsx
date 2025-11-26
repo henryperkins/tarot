@@ -231,16 +231,17 @@ export function StreamingNarrative({
     return (
       <div className={className} aria-live="polite">
         {streamingOptInNotice}
-        <div className="prose prose-sm sm:prose-base md:prose-lg max-w-none">
+        {/* Container with min-height to prevent layout shift during streaming */}
+        <div className="prose prose-sm sm:prose-base md:prose-lg max-w-none min-h-[8rem] xs:min-h-[10rem]">
           <MarkdownRenderer content={visibleText} />
         </div>
 
         {showSkipButton && (
-          <div className="mt-4 sticky bottom-4 sm:static flex justify-center px-4 sm:px-0">
+          <div className="mt-4 xs:mt-5 sticky bottom-4 sm:static flex justify-center px-3 xs:px-4 sm:px-0">
             <button
               type="button"
               onClick={handleSkip}
-              className="min-h-[44px] w-full max-w-sm sm:max-w-none px-5 py-2.5 text-sm font-semibold rounded-full bg-surface-muted/80 border border-secondary/40 text-secondary hover:bg-surface-muted hover:border-secondary/60 shadow-lg sm:shadow-sm transition-all touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary focus-visible:ring-offset-2"
+              className="min-h-[44px] w-full max-w-sm sm:max-w-none px-4 xs:px-5 py-2.5 text-[0.85rem] xs:text-sm font-semibold rounded-full bg-surface-muted/80 border border-secondary/40 text-secondary hover:bg-surface-muted hover:border-secondary/60 shadow-lg sm:shadow-sm transition-all touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary focus-visible:ring-offset-2"
               aria-label="Show full narrative immediately"
             >
               Show all now →
@@ -269,7 +270,8 @@ export function StreamingNarrative({
   return (
     <div className={className} aria-live="polite">
       {streamingOptInNotice}
-      <div className="text-main text-sm sm:text-base md:text-lg leading-relaxed md:leading-loose max-w-prose mx-auto text-left">
+      {/* Mobile-optimized text with good line height and spacing - min-height prevents layout shift */}
+      <div className="text-main text-[0.9375rem] xs:text-base sm:text-base md:text-lg leading-7 xs:leading-relaxed md:leading-loose max-w-prose mx-auto text-left min-h-[8rem] xs:min-h-[10rem]">
         {visibleWords.map((word, idx) => {
           // Check if this is whitespace (space, newline, etc.)
           const isWhitespace = /^\s+$/.test(word);
@@ -296,11 +298,11 @@ export function StreamingNarrative({
       </div>
 
       {showSkipButton && (
-        <div className="mt-4 sticky bottom-4 sm:static flex justify-center px-4 sm:px-0">
+        <div className="mt-4 xs:mt-5 sticky bottom-4 sm:static flex justify-center px-3 xs:px-4 sm:px-0">
           <button
             type="button"
             onClick={handleSkip}
-            className="min-h-[44px] w-full max-w-sm sm:max-w-none px-5 py-2.5 text-sm font-semibold rounded-full bg-surface-muted/80 border border-secondary/40 text-secondary hover:bg-surface-muted hover:border-secondary/60 shadow-lg sm:shadow-sm transition-all touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary focus-visible:ring-offset-2"
+            className="min-h-[44px] w-full max-w-sm sm:max-w-none px-4 xs:px-5 py-2.5 text-[0.85rem] xs:text-sm font-semibold rounded-full bg-surface-muted/80 border border-secondary/40 text-secondary hover:bg-surface-muted hover:border-secondary/60 shadow-lg sm:shadow-sm transition-all touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary focus-visible:ring-offset-2"
             aria-label="Show full narrative immediately"
           >
             Show all now →

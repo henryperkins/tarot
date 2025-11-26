@@ -129,10 +129,10 @@ export function SpreadTable({
             transition={{ repeat: Infinity, duration: 1.5 }}
           >
             {!card ? (
-              // Empty placeholder
+              // Empty placeholder - min 44px touch target on mobile
               <div
                 className={`
-                  ${compact ? 'w-10 h-14 sm:w-12 sm:h-16' : 'w-12 h-16 sm:w-16 sm:h-22 md:w-20 md:h-28'}
+                  ${compact ? 'w-11 h-[60px] xs:w-12 xs:h-16 sm:w-14 sm:h-[76px]' : 'w-14 h-[76px] xs:w-16 xs:h-22 sm:w-18 sm:h-24 md:w-20 md:h-28'}
                   rounded-lg border-2 border-dashed
                   flex items-center justify-center
                   transition-all
@@ -147,12 +147,12 @@ export function SpreadTable({
                 role="img"
                 aria-label={`${positionLabel}: waiting for card`}
               >
-                <span className={`${compact ? 'text-[0.5rem]' : 'text-[0.55rem] sm:text-xs'} text-muted text-center px-1 leading-tight`}>
+                <span className={`${compact ? 'text-[0.55rem] xs:text-[0.6rem]' : 'text-[0.6rem] xs:text-[0.65rem] sm:text-xs'} text-muted text-center px-1 leading-tight`}>
                   {positionLabel}
                 </span>
               </div>
             ) : (
-              // Card in position (mini representation)
+              // Card in position (mini representation) - min 44px touch target
               <AnimatePresence mode="wait">
                 <motion.button
                   key={card.name}
@@ -161,13 +161,13 @@ export function SpreadTable({
                   exit={prefersReducedMotion ? { opacity: 0 } : { scale: 0, rotate: 180 }}
                   transition={prefersReducedMotion ? { duration: 0.1 } : { type: 'spring', stiffness: 300, damping: 20 }}
                   className={`
-                    ${compact ? 'w-10 h-14 sm:w-12 sm:h-16' : 'w-12 h-16 sm:w-16 sm:h-22 md:w-20 md:h-28'}
+                    ${compact ? 'w-11 h-[60px] xs:w-12 xs:h-16 sm:w-14 sm:h-[76px]' : 'w-14 h-[76px] xs:w-16 xs:h-22 sm:w-18 sm:h-24 md:w-20 md:h-28'}
                     rounded-lg border-2 cursor-pointer overflow-hidden
                     transition-all touch-manipulation
                     focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70 focus-visible:ring-offset-2 focus-visible:ring-offset-main
                     ${isRevealed
                       ? 'border-secondary/60 shadow-lg'
-                      : 'border-primary/40 hover:border-primary/60'
+                      : 'border-primary/40 hover:border-primary/60 active:scale-95'
                     }
                   `}
                   style={isRevealed ? {
@@ -192,15 +192,15 @@ export function SpreadTable({
                         }}
                       />
                       {/* Mini label overlay */}
-                      <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-0.5 sm:p-1">
-                        <span className={`${compact ? 'text-[0.4rem]' : 'text-[0.45rem] sm:text-[0.55rem]'} text-white font-semibold leading-tight block truncate`}>
+                      <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-0.5 xs:p-1 sm:p-1">
+                        <span className={`${compact ? 'text-[0.5rem] xs:text-[0.55rem]' : 'text-[0.55rem] xs:text-[0.6rem] sm:text-[0.65rem]'} text-white font-semibold leading-tight block truncate`}>
                           {card.name.replace(/^The /, '')}
                         </span>
                       </div>
                     </div>
                   ) : (
                     <div className="w-full h-full bg-surface-muted flex items-center justify-center">
-                      <span className={`${compact ? 'text-[0.45rem]' : 'text-[0.5rem] sm:text-xs'} text-muted`}>Tap</span>
+                      <span className={`${compact ? 'text-[0.55rem] xs:text-[0.6rem]' : 'text-[0.6rem] xs:text-[0.65rem] sm:text-xs'} text-muted`}>Tap</span>
                     </div>
                   )}
                 </motion.button>
@@ -212,7 +212,7 @@ export function SpreadTable({
 
       {/* Spread name indicator */}
       <div className="absolute bottom-2 left-1/2 -translate-x-1/2">
-        <span className={`${compact ? 'text-[0.55rem] px-2 py-0.5' : 'text-xs px-3 py-1'} text-muted/70 bg-surface/60 rounded-full border border-accent/10`}>
+        <span className={`${compact ? 'text-[0.6rem] px-2.5 py-1' : 'text-xs px-3 py-1'} text-muted/70 bg-surface/60 rounded-full border border-accent/10`}>
           {spreadInfo?.tag || spreadKey}
         </span>
       </div>
@@ -229,7 +229,7 @@ export function SpreadTableCompact({ spreadKey, cards = [], revealedIndices = ne
 
   return (
     <div
-      className="flex items-center justify-center gap-1.5 py-3 px-4 bg-surface/40 rounded-xl border border-accent/15"
+      className="flex items-center justify-center gap-2 py-3 px-4 bg-surface/40 rounded-xl border border-accent/15"
       role="region"
       aria-label={`${spreadInfo?.name || 'Spread'} progress`}
     >
@@ -241,7 +241,7 @@ export function SpreadTableCompact({ spreadKey, cards = [], revealedIndices = ne
           <div
             key={i}
             className={`
-              w-6 h-9 rounded border
+              w-7 h-10 xs:w-8 xs:h-11 rounded border
               flex items-center justify-center
               transition-all
               ${card
@@ -254,11 +254,11 @@ export function SpreadTableCompact({ spreadKey, cards = [], revealedIndices = ne
             title={pos.label || `Position ${i + 1}`}
           >
             {card && isRevealed ? (
-              <span className="text-[0.4rem] text-secondary font-bold">
+              <span className="text-[0.5rem] xs:text-[0.55rem] text-secondary font-bold">
                 {card.name.charAt(0)}
               </span>
             ) : card ? (
-              <span className="text-[0.4rem] text-primary">?</span>
+              <span className="text-[0.5rem] xs:text-[0.55rem] text-primary">?</span>
             ) : null}
           </div>
         );
