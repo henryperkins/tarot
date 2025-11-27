@@ -52,8 +52,7 @@ export function ExperienceSettings({ className = '' }) {
     {
       id: getId('theme-toggle'),
       label: 'Light mode',
-      tooltipContent:
-        'Switch to a brighter palette if you prefer more contrast while reading.',
+      tooltipContent: 'High contrast theme',
       tooltipAria: 'About light mode',
       srDescription: 'Toggle between dark and light theme.',
       active: theme === 'light',
@@ -63,11 +62,9 @@ export function ExperienceSettings({ className = '' }) {
     {
       id: getId('deck-toggle'),
       label: 'Full deck',
-      tooltipContent:
-        'Toggle the Minor Arcana to focus on archetypal majors or explore the full 78-card deck.',
+      tooltipContent: 'Include Minor Arcana',
       tooltipAria: 'About deck size',
-      srDescription:
-        'Toggle between the full 78-card deck and the Major Arcana-only deck.',
+      srDescription: 'Toggle between the full 78-card deck and the Major Arcana-only deck.',
       active: includeMinors,
       Icon: Stack,
       onToggle: value => setIncludeMinors?.(value)
@@ -150,7 +147,7 @@ export function ExperienceSettings({ className = '' }) {
             <div className="flex items-center gap-1.5 mb-2">
               <span className="text-sm font-semibold text-main">Reversal lens</span>
               <Tooltip
-                content="Choose how reversed cards are interpreted in AI narratives. Auto selects the best-fit lens for each spread."
+                content="Reversal interpretation style"
                 position="top"
                 triggerClassName={infoButtonClass}
                 ariaLabel="About reversal lens options"
@@ -186,28 +183,16 @@ export function ExperienceSettings({ className = '' }) {
         <HelperToggle className="mt-2 max-w-xl">
           <div className="rounded-2xl border border-secondary/25 bg-secondary/5 px-3 py-2 text-[clamp(0.78rem,2vw,0.92rem)] leading-snug text-muted">
             {reversalFramework === 'blocked' && (
-              <>
-                <span className="font-semibold text-secondary">Blocked energy:</span>{' '}
-                Reversed cards indicate obstructed, challenged, or resisted energy. The card&rsquo;s themes face barriers or opposition.
-              </>
+              <><span className="font-semibold text-secondary">Blocked</span> — themes face resistance or barriers</>
             )}
             {reversalFramework === 'delayed' && (
-              <>
-                <span className="font-semibold text-secondary">Timing & delays:</span>{' '}
-                Reversed cards suggest the timing isn&rsquo;t right yet. Themes are emerging slowly or waiting for the right moment to manifest.
-              </>
+              <><span className="font-semibold text-secondary">Delayed</span> — timing not yet right</>
             )}
             {reversalFramework === 'internalized' && (
-              <>
-                <span className="font-semibold text-secondary">Internal process:</span>{' '}
-                Reversed cards point to private, internal work. The card&rsquo;s energy is processing beneath the surface or kept within.
-              </>
+              <><span className="font-semibold text-secondary">Internal</span> — processing beneath the surface</>
             )}
             {reversalFramework === 'contextual' && (
-              <>
-                <span className="font-semibold text-secondary">Context-based:</span>{' '}
-                Reversed meanings adapt dynamically based on the card, position, and surrounding cards for nuanced interpretation.
-              </>
+              <><span className="font-semibold text-secondary">Contextual</span> — adapts to card and position</>
             )}
           </div>
         </HelperToggle>

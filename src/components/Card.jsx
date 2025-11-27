@@ -295,7 +295,7 @@ export function Card({
               onTouchStart={handleTouchStart}
               onTouchMove={handleTouchMove}
               onTouchEnd={handleTouchEnd}
-              aria-label={`Reveal card for ${position}. Tap or swipe to reveal. Cards can be revealed in any order.`}
+              aria-label={`${position}. Tap to reveal.`}
               className="card-swipe-container relative h-full min-h-[20rem] sm:min-h-[24rem] flex flex-col items-center justify-center gap-4 p-4 sm:p-6 w-full cursor-pointer hover:bg-surface-muted/70 hover:scale-105 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70 focus-visible:ring-offset-2 focus-visible:ring-offset-main"
             >
               {/* Card back with mystical design */}
@@ -327,9 +327,8 @@ export function Card({
               <div className="flex flex-col items-center gap-2 mt-2">
                 <span className="inline-flex items-center gap-2 rounded-full border border-primary/60 bg-surface/90 px-4 py-2 text-sm font-semibold text-main shadow-md shadow-primary/30">
                   <HandPointing className="w-4 h-4" aria-hidden="true" />
-                  <span>Tap or swipe to reveal</span>
+                  <span>Tap to reveal</span>
                 </span>
-                <p className="text-xs text-muted max-w-[16rem] text-center">Reveal cards in any order—follow your intuition.</p>
               </div>
             </button>
           ) : (

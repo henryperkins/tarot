@@ -245,7 +245,7 @@ export function AccountSetup({ onNext, onBack }) {
             onClick={onNext}
             className="flex-1 min-h-[48px] px-4 py-3 text-muted hover:text-main text-sm transition touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary focus-visible:ring-offset-2 focus-visible:ring-offset-main"
           >
-            Skip for now — I&apos;ll stay local
+            Skip
           </button>
         </div>
         <p className="text-xs text-muted text-center">

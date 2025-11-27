@@ -112,7 +112,7 @@ export function CoachSuggestion({
                             className="min-h-[44px] rounded-full border border-primary/50 px-4 py-2 text-sm text-main transition-colors
                                 hover:bg-primary/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-2 touch-manipulation"
                         >
-                            Open in intention coach
+                            Use this focus
                         </button>
                         {onDismiss && (
                             <button

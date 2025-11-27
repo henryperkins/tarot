@@ -93,7 +93,7 @@ export function SpreadEducation({ selectedSpread, onSelectSpread, onNext, onBack
         className={`text-center mb-4 sm:mb-6 ${prefersReducedMotion ? '' : 'animate-fade-in-up'}`}
       >
         <h2 className={`font-serif text-main ${isLandscape ? 'text-xl' : 'text-2xl sm:text-3xl'}`}>
-          Choose Your Spread
+          Match Your Spread
         </h2>
         <p className={`text-muted mt-2 max-w-md mx-auto ${isLandscape ? 'text-sm' : ''}`}>
           A spread is how cards are laid out. Each position has a meaning that shapes the reading.
@@ -212,23 +212,6 @@ export function SpreadEducation({ selectedSpread, onSelectSpread, onNext, onBack
           })}
         </div>
 
-        {/* What are positions explanation */}
-        <div
-          className={`mt-6 rounded-xl border border-secondary/20 bg-surface/30 p-4 ${
-            isLandscape ? 'hidden' : ''
-          }`}
-        >
-          <h4 className="text-sm font-medium text-main mb-2 flex items-center gap-2">
-            <Info className="w-4 h-4 text-accent" />
-            What are positions?
-          </h4>
-          <p className="text-xs text-muted leading-relaxed">
-            Each spot in a spread has a specific meaning. For example, in a three-card spread, the
-            first position represents your past, the second your present, and the third your future.
-            The AI uses these positions to give you a more meaningful reading.
-          </p>
-        </div>
-
         {/* Personalization: Spread Depth Preference */}
         <div
           className={`mt-6 rounded-2xl border border-accent/20 bg-surface/50 p-5 ${
@@ -240,7 +223,7 @@ export function SpreadEducation({ selectedSpread, onSelectSpread, onNext, onBack
             What kind of readings do you like most?
           </p>
           <p className="text-xs text-muted mb-3">
-            You can change this anytime
+            This preference helps us tailor recommendations for this session.
           </p>
           <div className="flex flex-wrap gap-2">
             {SPREAD_DEPTH_OPTIONS.map((option) => {

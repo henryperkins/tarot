@@ -6,9 +6,7 @@ export const SPREADS = {
     positions: ['Theme / Guidance of the Moment'],
     roleKeys: ['theme'],
     count: 1,
-    description:
-      'Anchor the moment with one clear card that names the energy around your question.',
-    mobileDescription: 'One card anchoring the energy around your question.',
+    description: "One card focused on your question's core energy.",
     complexity: { stars: 1, label: 'Easy' },
     preview: {
       src: '/images/spread-art/single.png',
@@ -29,9 +27,7 @@ export const SPREADS = {
     ],
     roleKeys: ['past', 'present', 'future'],
     count: 3,
-    description:
-      'Trace past, present, and future threads so you understand how the story is moving.',
-    mobileDescription: 'Past, present, future snapshots to see your story moving.',
+    description: 'Past, present, and future—see how your story moves.',
     complexity: { stars: 2, label: 'Normal' },
     preview: {
       src: '/images/spread-art/threeCard.png',
@@ -54,9 +50,7 @@ export const SPREADS = {
     ],
     roleKeys: ['core', 'challenge', 'subconscious', 'support', 'direction'],
     count: 5,
-    description:
-      'Surface the core tension, revealing support, challenge, and direction without a full deep dive.',
-    mobileDescription: 'Five cards naming tension, support, and next direction.',
+    description: 'Core tension, support, challenge, and direction.',
     complexity: { stars: 2, label: 'Normal' },
     preview: {
       src: '/images/spread-art/fiveCard.png',
@@ -79,9 +73,7 @@ export const SPREADS = {
     ],
     roleKeys: ['heart', 'pathA', 'pathB', 'clarifier', 'freeWill'],
     count: 5,
-    description:
-      'Compare two paths plus the lesson between them so you can choose with agency.',
-    mobileDescription: 'Contrast both paths and the wisdom that clarifies your choice.',
+    description: 'Compare two paths. Choose with clarity.',
     complexity: { stars: 2, label: 'Normal' },
     preview: {
       src: '/images/spread-art/decision.png',
@@ -102,9 +94,7 @@ export const SPREADS = {
     ],
     roleKeys: ['you', 'them', 'connection'],
     count: 3,
-    description:
-      'Center your energy, their energy, and the shared field for a grounded relationship check-in.',
-    mobileDescription: 'You, them, and the shared connection for grounded guidance.',
+    description: 'Your energy, their energy, your shared connection.',
     complexity: { stars: 2, label: 'Normal' },
     preview: {
       src: '/images/spread-art/relationship.png',
@@ -119,16 +109,16 @@ export const SPREADS = {
     name: 'Celtic Cross (Classic 10-Card)',
     tag: 'Deep dive',
     positions: [
-      'Present — core situation (Card 1)',
-      'Challenge — crossing / tension (Card 2)',
-      'Past — what lies behind (Card 3)',
-      'Near Future — what lies before (Card 4)',
-      'Conscious — goals & focus (Card 5)',
-      'Subconscious — roots / hidden forces (Card 6)',
-      'Self / Advice — how to meet this (Card 7)',
-      'External Influences — people & environment (Card 8)',
-      'Hopes & Fears — deepest wishes & worries (Card 9)',
-      'Outcome — likely path if unchanged (Card 10)'
+      'Present — core situation',
+      'Challenge — crossing / tension',
+      'Past — what lies behind',
+      'Near Future — what lies before',
+      'Conscious — goals & focus',
+      'Subconscious — roots / hidden forces',
+      'Self / Advice — how to meet this',
+      'External Influences — people & environment',
+      'Hopes & Fears — deepest wishes & worries',
+      'Outcome — likely path if unchanged'
     ],
     // Canonical position roles aligned with AI Tarot Master guide §10 + Appendix A
     roleKeys: [
@@ -144,9 +134,7 @@ export const SPREADS = {
       'outcome'        // 10
     ],
     count: 10,
-    description:
-      'Walk the classic ten-card map to read layers of influence, advice, and likely outcome.',
-    mobileDescription: 'Classic 10-card deep dive for layered, complex questions.',
+    description: 'The classic deep dive—ten cards, full picture.',
     complexity: { stars: 3, label: 'Hard' },
     preview: {
       src: '/images/spread-art/celtic.png',

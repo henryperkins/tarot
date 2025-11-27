@@ -22,7 +22,7 @@ export function RitualIntro({ onNext, onBack, onSkipRitual }) {
         className={`text-center mb-4 sm:mb-6 ${prefersReducedMotion ? '' : 'animate-fade-in-up'}`}
       >
         <h2 className={`font-serif text-main ${isLandscape ? 'text-xl' : 'text-2xl sm:text-3xl'}`}>
-          The Ritual (Optional)
+          The Ritual
         </h2>
         <p className={`text-muted mt-2 max-w-md mx-auto ${isLandscape ? 'text-sm' : ''}`}>
           A mindful moment to connect with the deck before your reading.
@@ -172,21 +172,10 @@ export function RitualIntro({ onNext, onBack, onSkipRitual }) {
             </button>
           </div>
           <p className="text-xs text-muted mt-3">
-            You can change this anytime in Settings
+            These choices steer how much ritual guidance we surface; revisit them later under Settings if your practice shifts.
           </p>
         </div>
 
-        {/* Note about skipping */}
-        <div
-          className={`text-center ${prefersReducedMotion ? '' : 'animate-fade-in-up'}`}
-          style={{ animationDelay: '0.5s' }}
-        >
-          <p className="text-xs text-muted">
-            You can always skip the ritual and go straight to drawing cards.
-            <br />
-            The AI reading works the same either way.
-          </p>
-        </div>
       </div>
 
       {/* Navigation */}

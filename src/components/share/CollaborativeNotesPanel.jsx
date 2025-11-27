@@ -160,23 +160,18 @@ export function CollaborativeNotesPanel({
       aria-labelledby="collab-notes-title"
     >
       <header className="flex items-center justify-between gap-3">
-        <div>
-          <p className="text-[0.65rem] uppercase tracking-[0.3em] text-secondary/80">
-            Collaborative reflections
-          </p>
-          <h3 id="collab-notes-title" className="text-lg sm:text-xl font-serif text-main">
-            Add your voice to this spread
-          </h3>
-        </div>
+        <h3 id="collab-notes-title" className="text-lg sm:text-xl font-serif text-main">
+          Shared reflections
+        </h3>
         {onRefresh && (
           <button
             type="button"
             onClick={handleRefresh}
             disabled={isRefreshing}
-            className="min-h-[44px] min-w-[44px] rounded-full border border-secondary/40 px-4 py-2 text-sm text-secondary transition-colors touch-manipulation
-              hover:bg-secondary/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-secondary/70 focus-visible:ring-offset-2
-              disabled:opacity-60"
-            aria-label={isRefreshing ? 'Refreshing notes...' : 'Refresh notes'}
+            aria-label="Refresh shared notes"
+            className="inline-flex items-center gap-2 rounded-full border border-secondary/40 px-3 py-1.5 text-xs font-medium text-secondary transition-colors
+              hover:bg-secondary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/70 focus-visible:ring-offset-2
+              disabled:opacity-60 disabled:cursor-not-allowed"
           >
             {isRefreshing ? 'Refreshing…' : 'Refresh'}
           </button>

@@ -270,8 +270,6 @@ export function ReadingGrid({
     }
   }, [reading?.length]);
 
-  const mobileSummaryEnabled = isCompactScreen;
-
   // Memoize tooltip content generator
   const getTooltipContent = useCallback((card, position, isRevealed) => {
     if (!isRevealed) return null;
@@ -343,16 +341,6 @@ export function ReadingGrid({
               >
                 {cardElement}
               </Tooltip>
-              {isRevealed && mobileSummaryEnabled && (
-                <div className="mt-2 text-xs-plus text-main/90 leading-snug sm:hidden">
-                  <p className="font-semibold text-accent">
-                    {card.name}
-                    {card.isReversed ? ' (Reversed)' : ''}
-                  </p>
-                  <p className="text-muted mt-0.5">{position}</p>
-                  <p className="text-muted mt-1">{getOrientationMeaning(card)}</p>
-                </div>
-              )}
             </div>
           );
         })}

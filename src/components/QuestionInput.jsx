@@ -12,7 +12,6 @@ export function QuestionInput({
   onPlaceholderRefresh,
   onLaunchCoach
 }) {
-  const helperId = useId();
   const optionalId = useId();
   const [savedNotice, setSavedNotice] = useState(false);
   const [saveError, setSaveError] = useState('');
@@ -64,7 +63,7 @@ export function QuestionInput({
       <div className="flex flex-col gap-2 xs:flex-row xs:items-center xs:justify-between">
         <div className="text-accent font-serif text-sm sm:text-base">
           <label htmlFor="question-input">
-            Step 2 · Your question or intention <span className="text-muted text-xs font-normal">(optional)</span>
+            Step 2 · Your question or intention
           </label>
         </div>
         {typeof onLaunchCoach === 'function' && (
@@ -94,7 +93,7 @@ export function QuestionInput({
           // text-base (16px) prevents iOS zoom on focus
           onFocus={onFocus}
           onBlur={onBlur}
-          aria-describedby={`${optionalId} ${helperId}`.trim()}
+          aria-describedby={optionalId}
         />
         <button
           type="button"
@@ -105,10 +104,6 @@ export function QuestionInput({
           <ArrowsClockwise className="w-4 h-4" aria-hidden="true" />
         </button>
       </div>
-      <p id={helperId} className="text-muted text-xs flex items-center gap-2">
-        <ArrowsClockwise className="w-3.5 h-3.5 text-primary shrink-0" aria-hidden="true" />
-        <span>Need inspiration? Tap the refresh icon to cycle example questions.</span>
-      </p>
       <div className="flex flex-wrap items-center gap-2 xs:gap-3">
         <button
           type="button"

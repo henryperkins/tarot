@@ -362,7 +362,7 @@ export function ReadingDisplay({ sectionRef }) {
                                 </div>
                             )}
                             <h3 className="text-xl sm:text-2xl font-serif text-accent mb-2 flex items-center gap-2"><Sparkle className="w-5 h-5 sm:w-6 sm:h-6 text-secondary" />Your Personalized Narrative</h3>
-                            <HelperToggle className="mt-3 max-w-2xl mx-auto"><p>This narrative braids together your spread positions, card meanings, and reflections into a single through-line. Read slowly, notice what resonates, and treat it as a mirror—not a script.</p></HelperToggle>
+                            <HelperToggle className="mt-3 max-w-2xl mx-auto"><p>This narrative braids together your spread positions, card meanings, and reflections into a single through-line. Read slowly, notice what resonates, and treat it as a mirror—not a script. Let your own sense of meaning carry as much weight as any description.</p></HelperToggle>
                             {userQuestion && (<div className="bg-surface/85 rounded-lg p-4 mb-4 border border-secondary/40"><p className="text-accent/85 text-xs sm:text-sm italic">Anchor: {userQuestion}</p></div>)}
                             {focusToggleAvailable && (
                                 <div className="mt-4 flex justify-end">
@@ -393,7 +393,6 @@ export function ReadingDisplay({ sectionRef }) {
                                         {(voiceOn && fullReadingText && (ttsState.status === 'playing' || ttsState.status === 'paused' || ttsState.status === 'loading')) && (
                                             <button type="button" onClick={handleNarrationStop} className="px-2 sm:px-3 py-2 rounded-lg border border-secondary/40 bg-surface/70 hover:bg-surface/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary focus-visible:ring-offset-2 focus-visible:ring-offset-main transition disabled:opacity-40 disabled:cursor-not-allowed text-xs sm:text-sm">Stop</button>
                                         )}
-                                        <button type="button" onClick={saveReading} className="inline-flex px-3 sm:px-4 py-2 rounded-lg bg-accent/15 border border-accent/40 text-accent text-xs sm:text-sm hover:bg-accent/25 hover:text-accent transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"><span className="hidden xs:inline">Save this narrative to your journal</span><span className="xs:hidden">Save</span></button>
                                         <button type="button" onClick={() => navigate('/journal')} className="px-3 sm:px-4 py-2 rounded-lg bg-primary/15 border border-primary/40 text-primary text-xs sm:text-sm hover:bg-primary/25 hover:text-primary transition">View Journal</button>
                                     </div>
                                 )}
@@ -415,7 +414,7 @@ export function ReadingDisplay({ sectionRef }) {
                         <div className="bg-surface/95 backdrop-blur-xl rounded-2xl p-4 sm:p-6 border border-secondary/40 max-w-2xl mx-auto">
                             <h3 className="text-lg sm:text-xl font-serif text-accent mb-2 sm:mb-3 flex items-center gap-2"><Star className="w-4 h-4 sm:w-5 sm:h-5" />Interpretation Guidance</h3>
                             <HelperToggle className="mt-2">
-                                <p>Notice how the cards speak to one another. Consider themes, repetitions, contrasts, and where your attention is drawn. Trust your intuition as much as any description.</p>
+                                <p>Notice how the cards speak to one another. Consider themes, repetitions, contrasts, and where your attention is drawn. Give as much weight to your own felt sense as you do to any written description.</p>
                                 <p className="mt-2">This reading offers reflective guidance only. It is not a substitute for medical, mental health, legal, financial, or safety advice. If your situation involves health, legal risk, abuse, or crisis, consider reaching out to qualified professionals or trusted support services.</p>
                             </HelperToggle>
                         </div>
@@ -447,10 +446,15 @@ export function ReadingDisplay({ sectionRef }) {
                     )}
 
                     <div className="hidden sm:block text-center mt-6 sm:mt-8">
-                        <button onClick={shuffle} disabled={isShuffling} className="bg-primary hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed text-surface font-semibold px-6 sm:px-8 py-3 sm:py-4 rounded-lg shadow-lg transition-all inline-flex items-center gap-2 sm:gap-3 text-base sm:text-lg">
+                        <button
+                            onClick={shuffle}
+                            disabled={isShuffling}
+                            aria-label={isShuffling ? 'Shuffling a new reading' : 'Start a new reading and reset this spread'}
+                            className="bg-primary hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed text-surface font-semibold px-6 sm:px-8 py-3 sm:py-4 rounded-lg shadow-lg transition-all inline-flex items-center gap-2 sm:gap-3 text-base sm:text-lg"
+                        >
                             <ArrowCounterClockwise className={`w-4 h-4 sm:w-5 sm:h-5 ${isShuffling ? 'motion-safe:animate-spin' : ''}`} />
                             <span className="hidden xs:inline">{isShuffling ? 'Shuffling the cards...' : 'Draw new reading'}</span>
-                            <span className="xs:hidden">{isShuffling ? 'Shuffling...' : 'New reading'}</span>
+                            <span className="xs:hidden">{isShuffling ? 'Shuffling...' : 'Reset spread'}</span>
                         </button>
                     </div>
                 </div>

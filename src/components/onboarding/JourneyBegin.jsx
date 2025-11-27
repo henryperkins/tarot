@@ -101,7 +101,7 @@ export function JourneyBegin({ selectedSpread, question, onBegin, onBack }) {
               isLandscape ? 'text-sm' : 'text-base'
             }`}
           >
-            Trust your intuition. The cards will meet you where you are.
+            Stay open to what feels true. The cards will meet you where you are.
           </p>
         </div>
 

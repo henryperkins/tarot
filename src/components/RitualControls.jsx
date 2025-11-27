@@ -77,8 +77,8 @@ export function RitualControls({
       {/* Desktop Header - Hidden on Mobile */}
       <div className="hidden sm:flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <p className="text-[0.78rem] uppercase tracking-[0.35em] text-secondary/80">Ritual (optional)</p>
-          <p className="text-sm text-muted">Light grounding before the draw, or skip anytime.</p>
+          <p className="text-[0.78rem] uppercase tracking-[0.35em] text-secondary/80">Ritual</p>
+          <p className="text-sm text-muted">A grounding moment before the draw.</p>
         </div>
         <span
           className={`${badgeBaseClass} ${ritualStatus === 'Ready' ? activeBadgeClass : inactiveBadgeClass
@@ -110,7 +110,7 @@ export function RitualControls({
             <div className="flex flex-1 items-center gap-1.5 text-[0.85rem] normal-case tracking-normal">
               <span className="font-semibold text-main">Clear the deck</span>
               <Tooltip
-                content="Knock three times to clear lingering energy."
+                content="Clear deck energy"
                 position="top"
                 triggerClassName={infoButtonClass}
                 ariaLabel="About clearing the deck ritual"
@@ -154,7 +154,7 @@ export function RitualControls({
             <div className="flex flex-1 items-center gap-1.5 text-[0.85rem] normal-case tracking-normal">
               <span className="font-semibold text-main">Cut the deck</span>
               <Tooltip
-                content="Slide until the cut feels right, then lock it in."
+                content="Choose cut position"
                 position="top"
                 triggerClassName={infoButtonClass}
                 ariaLabel="About cutting the deck"
@@ -222,7 +222,7 @@ export function RitualControls({
             aria-label={knockComplete ? 'Deck cleared with 3 knocks' : `Knock ${nextKnockNumber} of 3`}
           >
             <Sparkle className={`w-8 h-8 ${knockComplete ? 'text-secondary' : 'text-accent'}`} />
-            <span className="text-sm font-semibold">{knockComplete ? 'Cleared' : 'Tap to Knock'}</span>
+            <span className="text-sm font-semibold">{knockComplete ? 'Cleared' : 'Knock'}</span>
             <span className="text-xs opacity-70">{knockCount}/3</span>
           </button>
 
@@ -238,7 +238,7 @@ export function RitualControls({
             aria-label={hasCut ? `Relock cut at position ${cutIndex}` : `Lock cut at position ${cutIndex}`}
           >
             <Scissors className={`w-8 h-8 ${hasCut ? 'text-secondary' : 'text-accent'}`} />
-            <span className="text-sm font-semibold">{hasCut ? 'Relock cut' : 'Tap to Lock'}</span>
+            <span className="text-sm font-semibold">{hasCut ? 'Relock' : 'Lock'}</span>
             <span className="text-xs opacity-70">{hasCut ? 'Adjust or relock anytime' : `Cut #${cutIndex}`}</span>
           </button>
         </div>
@@ -284,7 +284,7 @@ export function RitualControls({
             aria-haspopup="dialog"
             aria-expanded={showSkipConfirm}
           >
-            Skip ritual for now
+            Skip
           </button>
           {showSkipConfirm && (
             <div
@@ -292,8 +292,8 @@ export function RitualControls({
               aria-label="Skip ritual confirmation"
               className="absolute left-1/2 top-full mt-2 w-64 -translate-x-1/2 rounded-2xl border border-accent/40 bg-surface/95 p-4 text-xs sm:text-sm text-main shadow-lg"
             >
-              <p className="font-semibold text-accent">Skip ritual?</p>
-              <p className="text-muted mt-1">This will draw immediately and bypass grounding steps.</p>
+              <p className="font-semibold text-accent">Skip?</p>
+              <p className="text-muted mt-1">Draw immediately without ritual.</p>
               <div className="mt-3 flex items-center justify-end gap-2 text-[0.8rem]">
                 <button
                   type="button"
@@ -312,9 +312,6 @@ export function RitualControls({
               </div>
             </div>
           )}
-        </div>
-        <div className="text-muted text-xs-plus sm:text-sm">
-          Ritual actions add intention, mirroring real readings where your energy guides the cards.
         </div>
       </div>
 

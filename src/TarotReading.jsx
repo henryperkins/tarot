@@ -414,7 +414,7 @@ export default function TarotReading() {
     intention: { title: 'Intention', helper: 'Optional guiding prompt before you draw.' },
     audio: { title: 'Audio', helper: 'Voice narration and ambient soundscape.' },
     experience: { title: 'Experience', helper: 'Theme, deck scope, and reversal interpretation lens.' },
-    ritual: { title: 'Ritual (optional)', helper: 'Knock, cut, or skip if that is not part of your practice.' }
+    ritual: { title: 'Ritual (optional)', helper: 'Shape the ritual steps so they match your practice.' }
   };
 
   // Determine Active Step for StepProgress
@@ -466,8 +466,8 @@ export default function TarotReading() {
     // No reading yet - check preparation milestones
     if (!hasConfirmedSpread) {
       return {
-        stepIndicatorLabel: 'Choose your spread',
-        stepIndicatorHint: 'Select a spread that matches the depth of your inquiry.',
+        stepIndicatorLabel: 'Pick a spread',
+        stepIndicatorHint: 'Match the layout to the depth of your inquiry.',
         activeStep: 'spread'
       };
     }
@@ -489,15 +489,15 @@ export default function TarotReading() {
       // User started ritual but hasn't finished - prompt to continue or skip
       return {
         stepIndicatorLabel: 'Complete your ritual',
-        stepIndicatorHint: `${3 - knockCount} more knock${3 - knockCount === 1 ? '' : 's'} to clear the deck, or skip to draw.`,
+        stepIndicatorHint: `${3 - knockCount} more knock${3 - knockCount === 1 ? '' : 's'} to clear the deck before drawing.`,
         activeStep: 'ritual'
       };
     }
 
     // Ready to draw - either ritual complete/skipped or no ritual started
     return {
-      stepIndicatorLabel: 'Draw your cards',
-      stepIndicatorHint: 'When you feel ready, draw the cards to begin your reading.',
+      stepIndicatorLabel: 'Begin your draw',
+      stepIndicatorHint: 'When you feel ready, deal the cards to begin your reading.',
       activeStep: 'reading'
     };
   }, [hasNarrative, narrativeInProgress, hasReading, allCardsRevealed, hasQuestion, hasConfirmedSpread, knockCount, hasCut, reading, revealedCards]);
@@ -571,10 +571,10 @@ export default function TarotReading() {
             </div>
 
 
-            <div aria-label="Choose your spread" ref={spreadSectionRef} id="step-spread" tabIndex={-1} className="scroll-mt-[6.5rem] sm:scroll-mt-[7.5rem]">
+            <div aria-label="Spread selection" ref={spreadSectionRef} id="step-spread" tabIndex={-1} className="scroll-mt-[6.5rem] sm:scroll-mt-[7.5rem]">
               <div className={isLandscape ? 'mb-2' : 'mb-3 sm:mb-4'}>
-                <h2 className="text-xs-plus sm:text-sm uppercase tracking-[0.12em] text-accent">Spread</h2>
-                {!isLandscape && <p className="mt-1 text-muted-high text-xs sm:text-sm">Choose a spread to shape the depth and focus of your reading.</p>}
+                <h2 className="text-xs-plus sm:text-sm uppercase tracking-[0.12em] text-accent">Spread Options</h2>
+                {!isLandscape && <p className="mt-1 text-muted-high text-xs sm:text-sm">Pick a spread that matches the depth and focus of your question.</p>}
               </div>
               <SpreadSelector
                 selectedSpread={selectedSpread}
@@ -621,7 +621,7 @@ export default function TarotReading() {
                   onClick={() => handleStepNav('reading')}
                   className="text-sm text-secondary hover:text-main underline underline-offset-4"
                 >
-                  Ready? Jump to draw cards
+                  Skip ahead to the reading
                 </button>
               </div>
             )}

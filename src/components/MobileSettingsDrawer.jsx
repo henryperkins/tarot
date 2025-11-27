@@ -156,10 +156,6 @@ export function MobileSettingsDrawer({ isOpen, onClose, children, footer = null 
             </button>
           </div>
 
-          <div className="mobile-drawer__badge mt-3">
-            <span className="w-1.5 h-1.5 rounded-full bg-gold-soft animate-pulse" aria-hidden="true" />
-            <span className="text-[0.7rem] tracking-[0.14em] uppercase">Uses current deck + spread</span>
-          </div>
         </div>
 
         <div className="mobile-drawer__body p-4 space-y-8 overflow-y-auto overscroll-contain pb-safe-bottom">

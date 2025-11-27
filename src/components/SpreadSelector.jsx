@@ -273,10 +273,10 @@ export function SpreadSelector({
       <div className="relative z-10 space-y-5">
         <header className={`flex flex-col ${isLandscape ? 'gap-1' : 'gap-2'} sm:flex-row sm:items-center sm:justify-between`}>
           <div>
-            <p className="text-[0.68rem] uppercase tracking-[0.22em] text-gold-soft">Choose Your Spread</p>
+            <p className="text-[0.68rem] uppercase tracking-[0.22em] text-gold-soft">Spread Selection</p>
             {!isLandscape && (
               <p className="text-xs text-muted max-w-2xl">
-                Select the ritual layout shaping how the AI interprets card positions, pacing, and narrative focus.
+                Choose how your reading unfolds.
               </p>
             )}
           </div>
@@ -325,12 +325,12 @@ export function SpreadSelector({
           <div
             ref={carouselRef}
             role="radiogroup"
-            aria-label="Choose your spread"
+            aria-label="Spread selection"
             className={`spread-selector-grid flex ${isLandscape ? 'gap-2 pb-2' : 'gap-3 pb-3'} overflow-x-auto snap-x snap-mandatory sm:overflow-visible sm:snap-none sm:grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 sm:gap-4`}
           >
           {Object.entries(SPREADS).map(([key, spread], index) => {
             const isActive = selectedSpread === key;
-            const baseDescription = spread.mobileDescription || spread.description || 'Guided snapshot for your focus.';
+            const baseDescription = spread.description || 'Guided snapshot for your focus.';
             const isFirstSpread = index === 0;
             const isTabbable = isActive || (!selectedSpread && isFirstSpread);
             const stars = spread.complexity?.stars ?? 0;
@@ -426,13 +426,6 @@ export function SpreadSelector({
           />
         </div>
 
-        {!isLandscape && (
-          <div className="deck-panel-footnote spread-panel-footnote">
-            <p className="text-xs leading-relaxed text-muted">
-              <strong className="text-accent">Tip:</strong> Your spread selection tunes positional prompts, narration pacing, and journaling cues.
-            </p>
-          </div>
-        )}
       </div>
     </section>
   );

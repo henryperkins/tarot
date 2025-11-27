@@ -84,19 +84,9 @@ export function WelcomeHero({ onNext, onSkip }) {
               <Sparkle className="w-4 h-4" weight="fill" aria-hidden="true" />
               What is tarot?
             </h3>
-            <div className={`space-y-3 text-muted leading-relaxed ${isLandscape ? 'text-sm' : ''}`}>
-              <p>
-                Tarot is a tool for <strong className="text-main">self-reflection</strong>, not
-                fortune-telling. The cards don&apos;t predict a fixed future—they invite you to explore
-                your thoughts, patterns, and possibilities.
-              </p>
-              {!isLandscape && (
-                <p>
-                  Think of it as a <strong className="text-main">conversation with yourself</strong>,
-                  guided by symbolic imagery that speaks to the human experience.
-                </p>
-              )}
-            </div>
+            <p className={`text-muted leading-relaxed ${isLandscape ? 'text-sm' : ''}`}>
+              Tarot is a mirror, not a crystal ball. The cards invite you to explore your thoughts and possibilities—a <strong className="text-main">conversation with yourself</strong> through symbolic imagery.
+            </p>
           </div>
         </div>
 
@@ -120,12 +110,12 @@ export function WelcomeHero({ onNext, onSkip }) {
               </div>
               <p className="text-xs text-muted">Embrace free will</p>
             </div>
-            <div className="text-center">
-              <div className="w-10 h-10 mx-auto mb-2 rounded-full bg-accent/10 border border-accent/30 flex items-center justify-center">
-                <Lightbulb className="w-5 h-5 text-accent" weight="duotone" aria-hidden="true" />
+              <div className="text-center">
+                <div className="w-10 h-10 mx-auto mb-2 rounded-full bg-accent/10 border border-accent/30 flex items-center justify-center">
+                  <Lightbulb className="w-5 h-5 text-accent" weight="duotone" aria-hidden="true" />
+                </div>
+                <p className="text-xs text-muted">Follow what resonates</p>
               </div>
-              <p className="text-xs text-muted">Trust your intuition</p>
-            </div>
           </div>
         )}
 
@@ -150,7 +140,7 @@ export function WelcomeHero({ onNext, onSkip }) {
               type="text"
               value={personalization.displayName}
               onChange={(e) => setDisplayName(e.target.value)}
-              placeholder="Optional – we'll use this to personalize your readings"
+              placeholder="Used to personalize your readings"
               className="w-full bg-surface border border-primary/40 rounded-xl px-4 py-3 text-base text-main placeholder-muted/70 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/70 transition-all"
               autoComplete="given-name"
             />
@@ -194,16 +184,19 @@ export function WelcomeHero({ onNext, onSkip }) {
           onClick={onNext}
           className="w-full flex items-center justify-center gap-2 min-h-[48px] px-6 py-3 rounded-xl bg-accent text-surface font-semibold text-base transition hover:bg-accent/90 active:scale-[0.98] touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-main"
         >
-          Begin Your Journey
+          Continue
           <ArrowRight className="w-5 h-5" weight="bold" />
         </button>
-        <button
-          type="button"
-          onClick={onSkip}
-          className="w-full min-h-[44px] px-4 py-2 text-muted hover:text-main text-sm transition touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary focus-visible:ring-offset-2 focus-visible:ring-offset-main"
-        >
-          Skip intro — I know tarot
-        </button>
+        {onSkip && (
+          <button
+            type="button"
+            onClick={onSkip}
+            className="w-full text-sm font-medium text-muted underline-offset-4 decoration-dashed decoration-accent/60 transition-colors
+              hover:text-main focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-main touch-manipulation"
+          >
+            Skip intro — I know tarot
+          </button>
+        )}
       </div>
     </div>
   );

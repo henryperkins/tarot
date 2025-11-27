@@ -234,12 +234,6 @@ export function QuestionCrafting({ question, onQuestionChange, onNext, onBack })
           </div>
         </div>
 
-        {/* Skip note */}
-        <p className="text-xs text-muted text-center italic">
-          Don&apos;t have a question yet? That&apos;s okay — you can skip this step and let the cards
-          guide you.
-        </p>
-
         {/* Personalization: Reading Tone */}
         <div
           className={`mt-6 rounded-2xl border border-accent/20 bg-surface/50 p-5 ${
@@ -322,7 +316,7 @@ export function QuestionCrafting({ question, onQuestionChange, onNext, onBack })
           onClick={onNext}
           className="flex-1 flex items-center justify-center gap-2 min-h-[48px] px-6 py-3 rounded-xl bg-accent text-surface font-semibold text-base transition hover:bg-accent/90 active:scale-[0.98] touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-main"
         >
-          {question.trim() ? 'Continue' : 'Skip for now'}
+          {question.trim() ? 'Continue' : 'Skip'}
           <ArrowRight className="w-5 h-5" weight="bold" />
         </button>
       </div>

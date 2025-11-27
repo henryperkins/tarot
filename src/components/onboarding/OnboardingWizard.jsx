@@ -102,7 +102,6 @@ export function OnboardingWizard({ isOpen, onComplete, onSelectSpread }) {
         return (
           <WelcomeHero
             onNext={handleNext}
-            onSkip={handleSkip}
           />
         );
       case 2:

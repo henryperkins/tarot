@@ -299,7 +299,7 @@ function renderActions(mode, options) {
           <ActionButton
             variant="secondary"
             onClick={onNewReading}
-            ariaLabel="Start a new reading"
+            ariaLabel="Start a new reading (resets the current spread)"
             className={`${widthClasses.secondary} ${px}`}
             isLandscape={isLandscape}
           >
@@ -325,7 +325,7 @@ function renderActions(mode, options) {
           <ActionButton
             variant="secondary"
             onClick={onNewReading}
-            ariaLabel="Start a new reading"
+            ariaLabel="Start a new reading (resets the current spread)"
             className={`${widthClasses.secondary} ${px}`}
             isLandscape={isLandscape}
           >
@@ -350,7 +350,7 @@ function renderActions(mode, options) {
           <ActionButton
             variant="secondary"
             onClick={onNewReading}
-            ariaLabel="Start a new reading"
+            ariaLabel="Start a new reading (resets the current spread)"
             className={`${widthClasses.secondary} ${px}`}
             isLandscape={isLandscape}
           >
@@ -367,17 +367,17 @@ function renderActions(mode, options) {
               variant="primary"
               onClick={onSaveReading}
               stepLabel={stepBadge}
-              ariaLabel={withStepContext('Save to journal', stepIndicatorLabel)}
+              ariaLabel={withStepContext('Save reading to journal', stepIndicatorLabel)}
               className={`${widthClasses.primary} ${px}`}
               isLandscape={isLandscape}
             >
-              {isLandscape ? 'Save' : 'Save to journal'}
+              {isLandscape ? 'Save' : 'Save reading'}
             </ActionButton>
           )}
           <ActionButton
             variant="secondary"
             onClick={onNewReading}
-            ariaLabel="Start a new reading"
+            ariaLabel="Start a new reading (resets the current spread)"
             className={`${widthClasses.secondary} ${px}`}
             isLandscape={isLandscape}
           >
