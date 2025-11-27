@@ -19,11 +19,13 @@ const TOTAL_STEPS = 7;
  * OnboardingWizard - Multi-step onboarding flow for new users
  *
  * Guides users through:
- * 1. Welcome & introduction to tarot
- * 2. Learning about spreads
- * 3. Crafting their first question
- * 4. Understanding the ritual (optional)
- * 5. Beginning their journey
+ * 1. Welcome & introduction to tarot (+ name, experience level)
+ * 2. Account setup (optional registration)
+ * 3. Learning about spreads (+ depth/focus preferences)
+ * 4. Crafting their first question (+ tone/frame preferences)
+ * 5. Understanding the ritual (+ ritual preference)
+ * 6. Journal introduction
+ * 7. Beginning their journey (summary + launch)
  */
 export function OnboardingWizard({ isOpen, onComplete, onSelectSpread }) {
   const [currentStep, setCurrentStep] = useState(1);
@@ -106,6 +108,13 @@ export function OnboardingWizard({ isOpen, onComplete, onSelectSpread }) {
         );
       case 2:
         return (
+          <AccountSetup
+            onNext={handleNext}
+            onBack={handleBack}
+          />
+        );
+      case 3:
+        return (
           <SpreadEducation
             selectedSpread={selectedSpread}
             onSelectSpread={handleSpreadSelect}
@@ -113,7 +122,7 @@ export function OnboardingWizard({ isOpen, onComplete, onSelectSpread }) {
             onBack={handleBack}
           />
         );
-      case 3:
+      case 4:
         return (
           <QuestionCrafting
             question={question}
@@ -122,19 +131,12 @@ export function OnboardingWizard({ isOpen, onComplete, onSelectSpread }) {
             onBack={handleBack}
           />
         );
-      case 4:
+      case 5:
         return (
           <RitualIntro
             onNext={handleNext}
             onBack={handleBack}
             onSkipRitual={handleSkipRitual}
-          />
-        );
-      case 5:
-        return (
-          <AccountSetup
-            onNext={handleNext}
-            onBack={handleBack}
           />
         );
       case 6:
@@ -201,7 +203,7 @@ export function OnboardingWizard({ isOpen, onComplete, onSelectSpread }) {
           {/* Header with close button and progress */}
           <header
             className={`relative z-10 flex items-center justify-between px-4 pt-safe-top sm:px-6 ${
-              isLandscape ? 'py-2' : 'py-4'
+              isLandscape ? 'py-1.5' : 'py-4'
             }`}
           >
             <h1 id={titleId} className="sr-only">
@@ -226,9 +228,10 @@ export function OnboardingWizard({ isOpen, onComplete, onSelectSpread }) {
 
           {/* Main content area - scrollable */}
           <main
-            className={`relative z-10 flex-1 overflow-y-auto overflow-x-hidden ${
-              isLandscape ? 'px-4 py-2' : 'px-4 py-6 sm:px-8 sm:py-8'
+            className={`relative z-10 flex-1 overflow-y-auto overflow-x-hidden scroll-smooth ${
+              isLandscape ? 'px-3 py-3 sm:px-4' : 'px-4 py-6 sm:px-8 sm:py-8'
             }`}
+            style={{ scrollPaddingTop: '1rem', scrollPaddingBottom: '1rem' }}
           >
             <div className="max-w-2xl mx-auto h-full">
               {renderStep()}

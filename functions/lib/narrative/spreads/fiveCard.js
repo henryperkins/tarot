@@ -10,7 +10,8 @@ import {
   buildSupportingPositionsSummary,
   buildReflectionsSection,
   buildPatternSynthesis,
-  getConnector
+  getConnector,
+  computeRemedyRotationIndex
 } from '../helpers.js';
 
 export async function buildFiveCardReading({
@@ -19,7 +20,8 @@ export async function buildFiveCardReading({
   reflectionsText,
   fiveCardAnalysis,
   themes,
-  context
+  context,
+  spreadInfo
 }, options = {}) {
   const sections = [];
   const collectValidation =
@@ -45,7 +47,7 @@ export async function buildFiveCardReading({
     buildOpening(
       spreadName,
       userQuestion ||
-        'This spread clarifies the core issue, the challenge, hidden influences, support, and where things are heading if nothing shifts.',
+      'This spread clarifies the core issue, the challenge, hidden influences, support, and where things are heading if nothing shifts.',
       context
     )
   );
@@ -57,6 +59,7 @@ export async function buildFiveCardReading({
   const [core, challenge, hidden, support, direction] = cardsInfo;
   const prioritized = sortCardsByImportance(cardsInfo, 'fiveCard');
   const positionOptions = getPositionOptions(themes, context);
+  const remedyRotationIndex = computeRemedyRotationIndex({ cardsInfo, userQuestion, spreadInfo });
 
   const attentionNote = buildWeightAttentionIntro(prioritized, spreadName);
   if (attentionNote) {
@@ -196,7 +199,7 @@ export async function buildFiveCardReading({
   }
 
   // Guidance synthesis with elemental remedies
-  const guidanceSection = await buildFiveCardGuidance(cardsInfo, themes, context, direction);
+  const guidanceSection = await buildFiveCardGuidance(cardsInfo, themes, context, direction, remedyRotationIndex);
   if (guidanceSection) {
     sections.push(
       recordSection(guidanceSection, {
@@ -215,7 +218,7 @@ export async function buildFiveCardReading({
   return appendReversalReminder(full, cardsInfo, themes);
 }
 
-async function buildFiveCardGuidance(cardsInfo, themes, context, direction) {
+async function buildFiveCardGuidance(cardsInfo, themes, context, direction, rotationIndex = 0) {
   let section = `### Guidance\n\n`;
 
   if (themes.suitFocus) {
@@ -226,7 +229,9 @@ async function buildFiveCardGuidance(cardsInfo, themes, context, direction) {
   if (themes.elementCounts && themes.elementalBalance) {
     const { buildElementalRemedies, shouldOfferElementalRemedies } = await import('../helpers.js');
     if (shouldOfferElementalRemedies(themes.elementCounts, cardsInfo.length)) {
-      const remedies = buildElementalRemedies(themes.elementCounts, cardsInfo.length, context);
+      const remedies = buildElementalRemedies(themes.elementCounts, cardsInfo.length, context, {
+        rotationIndex
+      });
       if (remedies) {
         section += `${themes.elementalBalance}\n\n${remedies}\n\n`;
       }

@@ -32,7 +32,7 @@ const SPIRITUAL_FRAME_OPTIONS = [
 ];
 
 /**
- * QuestionCrafting - Step 3 of onboarding
+ * QuestionCrafting - Step 4 of onboarding
  *
  * Teaches users how to craft effective tarot questions
  * with real-time quality feedback.

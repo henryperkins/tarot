@@ -60,7 +60,7 @@ const FOCUS_AREA_OPTIONS = [
 ];
 
 /**
- * SpreadEducation - Step 2 of onboarding
+ * SpreadEducation - Step 3 of onboarding
  *
  * Teaches users about different spread types and lets them
  * select their first spread for the reading.

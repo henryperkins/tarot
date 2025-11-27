@@ -1257,7 +1257,9 @@ function selectContextAwareRemedy(element, context, index = 0) {
 function buildElementalRemedies(elementCounts, totalCards, context = 'general', options = {}) {
   if (!elementCounts || !totalCards || totalCards < 3) return null;
 
-  const rotationIndex = options.rotationIndex || 0;
+  const rotationIndex = Number.isFinite(options.rotationIndex)
+    ? Math.abs(Math.floor(options.rotationIndex))
+    : 0;
 
   // Calculate which elements are underrepresented (< 15% of spread)
   const threshold = 0.15;
@@ -1283,6 +1285,36 @@ function buildElementalRemedies(elementCounts, totalCards, context = 'general', 
   if (remedies.length === 0) return null;
 
   return `To bring in underrepresented energies:\n${remedies.join('\n')}`;
+}
+
+function computeRemedyRotationIndex({ cardsInfo = [], userQuestion = '', spreadInfo = {} } = {}) {
+  const segments = [];
+
+  if (spreadInfo?.name) segments.push(spreadInfo.name);
+  if (spreadInfo?.key) segments.push(spreadInfo.key);
+  if (spreadInfo?.deckStyle) segments.push(spreadInfo.deckStyle);
+  if (userQuestion) segments.push(userQuestion);
+
+  if (Array.isArray(cardsInfo)) {
+    cardsInfo.forEach((card) => {
+      if (card?.canonicalName) {
+        segments.push(card.canonicalName);
+      } else if (card?.card) {
+        segments.push(card.card);
+      }
+    });
+  }
+
+  const composite = segments.join('|').trim();
+  if (!composite) return 0;
+
+  let hash = 0;
+  for (let i = 0; i < composite.length; i += 1) {
+    hash = (hash << 5) - hash + composite.charCodeAt(i);
+    hash |= 0; // Convert to 32-bit int
+  }
+
+  return Math.abs(hash);
 }
 
 /**
@@ -1331,5 +1363,6 @@ export {
   buildPatternSynthesis,
   buildElementalRemedies,
   shouldOfferElementalRemedies,
-  selectContextAwareRemedy
+  selectContextAwareRemedy,
+  computeRemedyRotationIndex
 };

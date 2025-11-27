@@ -5,7 +5,7 @@ import { useLandscape } from '../../hooks/useLandscape';
 import { useAuth } from '../../contexts/AuthContext';
 
 /**
- * AccountSetup - Step 5 of onboarding
+ * AccountSetup - Step 2 of onboarding
  *
  * Explains benefits of account creation and provides
  * inline registration form. Users can skip if preferred.

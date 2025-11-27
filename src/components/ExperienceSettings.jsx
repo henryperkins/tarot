@@ -44,7 +44,7 @@ export function ExperienceSettings({ className = '' }) {
     'inline-flex min-w-[44px] min-h-[44px] items-center justify-center rounded-full text-muted/60 transition hover:text-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 touch-manipulation -ml-2 -mr-3';
 
   const reversalSelectClass =
-    'w-full rounded-2xl border border-secondary/25 bg-surface/70 px-3 py-2.5 min-h-[44px] text-[0.72rem] uppercase tracking-[0.08em] text-main transition focus:outline-none focus:ring-2 focus:ring-accent/50';
+    'w-full rounded-2xl border border-secondary/25 bg-surface/70 px-2 xs:px-3 py-2.5 min-h-[44px] text-[0.65rem] xs:text-[0.72rem] uppercase tracking-[0.06em] xs:tracking-[0.08em] text-main transition focus:outline-none focus:ring-2 focus:ring-accent/50';
 
   const LightIcon = theme === 'light' ? Sun : Moon;
 
@@ -170,6 +170,9 @@ export function ExperienceSettings({ className = '' }) {
               <option value="delayed">Timing & delays</option>
               <option value="internalized">Internal process</option>
               <option value="contextual">Context-based</option>
+              <option value="shadow">Shadow Integration (Jungian)</option>
+              <option value="mirror">Mirror / reflection</option>
+              <option value="potentialBlocked">Unrealized potential</option>
             </select>
           </div>
         </div>
@@ -193,6 +196,15 @@ export function ExperienceSettings({ className = '' }) {
             )}
             {reversalFramework === 'contextual' && (
               <><span className="font-semibold text-secondary">Contextual</span> — adapts to card and position</>
+            )}
+            {reversalFramework === 'shadow' && (
+              <><span className="font-semibold text-secondary">Shadow</span> — surface hidden feelings and name a reintegration micro-practice</>
+            )}
+            {reversalFramework === 'mirror' && (
+              <><span className="font-semibold text-secondary">Mirror</span> — examine what energy you might be projecting or attracting</>
+            )}
+            {reversalFramework === 'potentialBlocked' && (
+              <><span className="font-semibold text-secondary">Potential</span> — treat reversals as dormant strengths awaiting activation</>
             )}
           </div>
         </HelperToggle>

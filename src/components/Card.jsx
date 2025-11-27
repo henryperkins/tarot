@@ -6,6 +6,7 @@ import { CardSymbolInsights } from './CardSymbolInsights';
 import { InteractiveCardOverlay } from './InteractiveCardOverlay';
 import { useReducedMotion } from '../hooks/useReducedMotion';
 import { useSmallScreen } from '../hooks/useSmallScreen';
+import { useLandscape } from '../hooks/useLandscape';
 
 // Haptic feedback helper
 const vibrate = (pattern) => {
@@ -31,6 +32,7 @@ export function Card({
   const animationStartedRef = useRef(false);
   const prefersReducedMotion = useReducedMotion();
   const isSmallScreen = useSmallScreen(640); // < sm breakpoint
+  const isLandscape = useLandscape();
 
   // Mobile: collapsible reflection section (starts collapsed unless has content)
   const [showReflection, setShowReflection] = useState(() => Boolean(reflectionValue));
@@ -296,7 +298,7 @@ export function Card({
               onTouchMove={handleTouchMove}
               onTouchEnd={handleTouchEnd}
               aria-label={`${position}. Tap to reveal.`}
-              className="card-swipe-container relative h-full min-h-[20rem] sm:min-h-[24rem] flex flex-col items-center justify-center gap-4 p-4 sm:p-6 w-full cursor-pointer hover:bg-surface-muted/70 hover:scale-105 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70 focus-visible:ring-offset-2 focus-visible:ring-offset-main"
+              className={`card-swipe-container relative h-full ${isLandscape ? 'min-h-[200px] max-h-[280px]' : 'min-h-[45vh] min-h-[45svh] max-h-[65vh] max-h-[65svh]'} sm:min-h-[24rem] sm:max-h-none flex flex-col items-center justify-center gap-4 p-4 sm:p-6 w-full cursor-pointer hover:bg-surface-muted/70 hover:scale-105 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70 focus-visible:ring-offset-2 focus-visible:ring-offset-main`}
             >
               {/* Card back with mystical design */}
               <div
@@ -332,7 +334,7 @@ export function Card({
               </div>
             </button>
           ) : (
-            <div className="transition-all relative h-full min-h-[20rem] sm:min-h-[24rem] flex flex-col items-center">
+            <div className={`transition-all relative h-full ${isLandscape ? 'min-h-[200px] max-h-[280px]' : 'min-h-[45vh] min-h-[45svh] max-h-[65vh] max-h-[65svh]'} sm:min-h-[24rem] sm:max-h-none flex flex-col items-center`}>
               {/* Card content area - restructured to avoid nested interactives */}
               <div className="relative w-full">
                 {/* Zoom Icon - primary keyboard target for modal */}
@@ -449,9 +451,9 @@ export function Card({
                       onChange={event =>
                         setReflections(prev => ({ ...prev, [index]: event.target.value }))
                       }
-                      rows={isSmallScreen ? 2 : 3}
+                      rows={isSmallScreen ? 3 : 4}
                       maxLength={500}
-                      className="w-full bg-surface/85 border border-secondary/40 rounded p-2 min-h-[3.5rem] sm:min-h-[4.5rem] resize-y text-main text-base focus:outline-none focus:ring-1 focus:ring-secondary/55 touch-pan-y"
+                      className="w-full bg-surface/85 border border-secondary/40 rounded p-2 min-h-[3.5rem] sm:min-h-[4.5rem] resize-y text-main text-base leading-relaxed focus:outline-none focus:ring-1 focus:ring-secondary/55 touch-pan-y"
                       placeholder="What resonates? (optional)"
                       aria-describedby={`char-count-${index}`}
                     />

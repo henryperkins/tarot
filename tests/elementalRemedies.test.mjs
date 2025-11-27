@@ -60,6 +60,7 @@ const tests = [
 
 let passed = 0;
 let failed = 0;
+let totalTests = tests.length;
 
 tests.forEach((test, index) => {
   console.log(`\n📝 Test ${index + 1}: ${test.name}`);
@@ -98,20 +99,20 @@ tests.forEach((test, index) => {
 
     // Check that remedies contain actionable text (checking for context-aware fragments)
     const hasActionableText = remedies.includes('Move your body') ||
-                              remedies.includes('Start that creative') ||
-                              remedies.includes('Journal your feelings') ||
-                              remedies.includes('Practice self-compassion') ||
-                              remedies.includes('Discuss your thoughts') ||
-                              remedies.includes('Write out your thoughts') ||
-                              remedies.includes('Establish one grounding') ||
-                              remedies.includes('Tend to your body') ||
-                              remedies.includes('Share a vulnerable') ||
-                              remedies.includes('Check in with how you feel') ||
-                              remedies.includes('Plan a spontaneous date') ||
-                              remedies.includes('Ask a question') ||
-                              remedies.includes('Create a small daily ritual') ||
-                              remedies.includes('Engage in embodied practice');
-                              
+      remedies.includes('Start that creative') ||
+      remedies.includes('Journal your feelings') ||
+      remedies.includes('Practice self-compassion') ||
+      remedies.includes('Discuss your thoughts') ||
+      remedies.includes('Write out your thoughts') ||
+      remedies.includes('Establish one grounding') ||
+      remedies.includes('Tend to your body') ||
+      remedies.includes('Share a vulnerable') ||
+      remedies.includes('Check in with how you feel') ||
+      remedies.includes('Plan a spontaneous date') ||
+      remedies.includes('Ask a question') ||
+      remedies.includes('Create a small daily ritual') ||
+      remedies.includes('Engage in embodied practice');
+
     if (!hasActionableText) {
       console.log(`   ❌ FAILED: Remedies don't contain actionable guidance`);
       failed++;
@@ -131,7 +132,24 @@ tests.forEach((test, index) => {
   }
 });
 
-console.log(`\n\n📊 Results: ${passed}/${tests.length} tests passed`);
+console.log('\n🌀 Rotation variety check');
+const rotationCounts = { Fire: 2, Water: 0, Air: 1, Earth: 1 };
+const rotationTotalCards = 4;
+const firstRemedy = buildElementalRemedies(rotationCounts, rotationTotalCards, 'love', { rotationIndex: 0 });
+const secondRemedy = buildElementalRemedies(rotationCounts, rotationTotalCards, 'love', { rotationIndex: 1 });
+if (!firstRemedy || !secondRemedy) {
+  console.log('   ❌ FAILED: Rotation test could not generate remedies for comparison');
+  failed++;
+} else if (firstRemedy === secondRemedy) {
+  console.log('   ❌ FAILED: Different rotationIndex values returned identical remedies');
+  failed++;
+} else {
+  console.log('   ✅ PASSED: Rotation index surfaces varied remedies');
+  passed++;
+}
+totalTests += 1;
+
+console.log(`\n\n📊 Results: ${passed}/${totalTests} tests passed`);
 
 if (failed === 0) {
   console.log('✨ All elemental remedy tests passed!');

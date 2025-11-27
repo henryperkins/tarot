@@ -10,6 +10,7 @@ import {
   buildSingleCardReading,
   buildEnhancedClaudePrompt
 } from '../functions/lib/narrativeBuilder.js';
+import { formatVisionLabelForPrompt } from '../functions/lib/visionLabels.js';
 import {
   analyzeCelticCross,
   analyzeThreeCard,
@@ -71,17 +72,17 @@ function assertAgencyForward(text) {
   const lowered = text.toLowerCase();
   assert.ok(
     lowered.includes('trajectory') ||
-      lowered.includes('path') ||
-      lowered.includes('if the current path continues') ||
-      lowered.includes('if current path continues'),
+    lowered.includes('path') ||
+    lowered.includes('if the current path continues') ||
+    lowered.includes('if current path continues'),
     'Reading/prompt should frame outcomes as trajectories, not fixed fate'
   );
   assert.ok(
     lowered.includes('free will') ||
-      lowered.includes('choice') ||
-      lowered.includes('agency') ||
-      lowered.includes('you remain the one who chooses') ||
-      lowered.includes('you are co-creating this path'),
+    lowered.includes('choice') ||
+    lowered.includes('agency') ||
+    lowered.includes('you remain the one who chooses') ||
+    lowered.includes('you are co-creating this path'),
     'Reading/prompt should emphasize free will and agency-forward framing'
   );
 }
@@ -90,9 +91,9 @@ function assertNoBannedDeterminism(text) {
   const lowered = text.toLowerCase();
   assert.ok(
     !lowered.includes('guaranteed') &&
-      !lowered.includes('will definitely') &&
-      !lowered.includes('100% certain') &&
-      !lowered.includes('fate demands'),
+    !lowered.includes('will definitely') &&
+    !lowered.includes('100% certain') &&
+    !lowered.includes('fate demands'),
     'Reading/prompt should not contain deterministic guarantee language'
   );
 }
@@ -239,8 +240,8 @@ describe('Celtic Cross narrative + Claude prompt compliance', () => {
 
     assert.ok(
       userPrompt.includes('Reversal framework:') ||
-        userPrompt.toLowerCase().includes('reversal framework') ||
-        userPrompt.includes('reversal lens'),
+      userPrompt.toLowerCase().includes('reversal framework') ||
+      userPrompt.includes('reversal lens'),
       'User prompt should mention reversal framework'
     );
     // Ethics and Minor Arcana rules are now in system prompt to reduce redundancy
@@ -285,7 +286,11 @@ describe('Vision validation prompt context', () => {
     });
 
     assert.match(userPrompt, /Vision Validation/);
-    assert.match(userPrompt, /IMG_101/);
+    const sanitizedLabel = formatVisionLabelForPrompt('IMG_101');
+    assert.ok(
+      userPrompt.includes(sanitizedLabel),
+      `Vision validation block should include sanitized label: ${sanitizedLabel}`
+    );
     assert.match(userPrompt, /The Fool/);
   });
 

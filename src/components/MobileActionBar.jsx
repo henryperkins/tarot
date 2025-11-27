@@ -1,6 +1,9 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Gear, Sparkle, ArrowsClockwise } from '@phosphor-icons/react';
 import { useLandscape } from '../hooks/useLandscape';
+
+export const MOBILE_SETTINGS_DIALOG_ID = 'mobile-settings-drawer';
+export const MOBILE_COACH_DIALOG_ID = 'guided-intention-coach';
 
 // Shared button styles - reduced height in landscape while maintaining touch target
 const BTN_BASE = 'inline-flex items-center justify-center rounded-xl font-semibold transition touch-manipulation';
@@ -37,6 +40,8 @@ function ActionButton({
   stepLabel,
   children,
   ariaLabel,
+  ariaControls,
+  ariaExpanded,
   icon: Icon,
   className = '',
   isLandscape = false
@@ -48,9 +53,9 @@ function ActionButton({
     coach: BTN_COACH
   }[variant] || BTN_PRIMARY;
 
-  // In landscape: hide step labels, use compact height
+  // In landscape: hide step labels but keep touch target size consistent
   const showStepLabel = Boolean(stepLabel) && !isLandscape;
-  const heightClass = isLandscape ? 'min-h-[40px]' : 'min-h-[44px]';
+  const heightClass = 'min-h-[44px]';
   const textSize = isLandscape ? 'text-xs' : 'text-sm';
 
   return (
@@ -59,6 +64,8 @@ function ActionButton({
       onClick={onClick}
       disabled={disabled}
       aria-label={ariaLabel}
+      aria-controls={ariaControls}
+      aria-expanded={typeof ariaExpanded === 'boolean' ? ariaExpanded : undefined}
       className={`
         ${variantClass}
         ${heightClass}
@@ -95,7 +102,11 @@ function MobileActionContents({
   onSaveReading,
   onNewReading,
   variant = 'fixed',
-  showUtilityButtons = true
+  showUtilityButtons = true,
+  isSettingsOpen = false,
+  isCoachOpen = false,
+  settingsDialogId = MOBILE_SETTINGS_DIALOG_ID,
+  coachDialogId = MOBILE_COACH_DIALOG_ID
 }) {
   const isLandscape = useLandscape();
   const readingLength = reading?.length || 0;
@@ -136,6 +147,10 @@ function MobileActionContents({
         stepIndicatorLabel,
         hasNarrative,
         isLandscape,
+        isSettingsOpen,
+        isCoachOpen,
+        settingsDialogId,
+        coachDialogId,
         onOpenSettings,
         onOpenCoach,
         onShuffle,
@@ -164,6 +179,10 @@ function renderActions(mode, options) {
     stepIndicatorLabel,
     hasNarrative,
     isLandscape,
+    isSettingsOpen,
+    isCoachOpen,
+    settingsDialogId,
+    coachDialogId,
     onOpenSettings,
     onOpenCoach,
     onShuffle,
@@ -176,11 +195,11 @@ function renderActions(mode, options) {
 
   // In landscape: smaller minimum widths to fit more buttons
   const widthClasses = {
-    primary: variant === 'inline' ? 'w-full' : isLandscape ? 'flex-1 min-w-[5.5rem]' : 'flex-1 min-w-[7.5rem]',
-    prepPrimary: variant === 'inline' ? 'w-full' : isLandscape ? 'flex-1 min-w-[4.5rem]' : 'flex-1 min-w-[6rem]',
-    secondary: variant === 'inline' ? 'w-full' : isLandscape ? 'flex-1 min-w-[5.5rem]' : 'flex-1 min-w-[7.5rem]',
-    tertiary: variant === 'inline' ? 'w-full' : isLandscape ? 'flex-1 min-w-[5.5rem]' : 'flex-1 min-w-[7.5rem]',
-    icon: variant === 'inline' ? 'w-full' : isLandscape ? 'flex-none w-[2.5rem]' : 'flex-none w-[3rem]',
+    primary: variant === 'inline' ? 'w-full' : isLandscape ? 'flex-1 min-w-[4rem]' : 'flex-1 min-w-[7.5rem]',
+    prepPrimary: variant === 'inline' ? 'w-full' : isLandscape ? 'flex-1 min-w-[3.5rem]' : 'flex-1 min-w-[6rem]',
+    secondary: variant === 'inline' ? 'w-full' : isLandscape ? 'flex-1 min-w-[4rem]' : 'flex-1 min-w-[7.5rem]',
+    tertiary: variant === 'inline' ? 'w-full' : isLandscape ? 'flex-1 min-w-[3rem]' : 'flex-1 min-w-[7.5rem]',
+    icon: variant === 'inline' ? 'w-full' : isLandscape ? 'flex-none w-[2.25rem]' : 'flex-none w-[3rem]',
     coach: variant === 'inline' ? 'w-full' : 'flex-none'
   };
 
@@ -216,6 +235,8 @@ function renderActions(mode, options) {
               variant="secondary"
               onClick={onOpenSettings}
               ariaLabel="Open settings"
+              ariaControls={settingsDialogId}
+              ariaExpanded={isSettingsOpen}
               className={`${widthClasses.icon} ${variant === 'inline' ? px : 'px-0'}`}
               isLandscape={isLandscape}
             >
@@ -228,6 +249,8 @@ function renderActions(mode, options) {
               onClick={onOpenCoach}
               icon={Sparkle}
               ariaLabel="Open guided intention coach"
+              ariaControls={coachDialogId}
+              ariaExpanded={isCoachOpen}
               className={`${widthClasses.coach} ${px}`}
               isLandscape={isLandscape}
             >
@@ -250,7 +273,7 @@ function renderActions(mode, options) {
 
     case 'revealing': {
       const nextLabel = isLandscape
-        ? `Next (${Math.min(dealIndex + 1, readingLength)}/${readingLength})`
+        ? `${Math.min(dealIndex + 1, readingLength)}/${readingLength}`
         : `Reveal next (${Math.min(dealIndex + 1, readingLength)}/${readingLength})`;
       const revealAllLabel = isLandscape ? 'All' : 'Reveal all';
       return (
@@ -391,12 +414,39 @@ function renderActions(mode, options) {
   }
 }
 
-export function MobileActionBar({ keyboardOffset = 0, ...props }) {
+export function MobileActionBar({ keyboardOffset = 0, isOverlayActive = false, ...props }) {
+  const [viewportOffset, setViewportOffset] = useState(0);
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || !window.visualViewport) {
+      setViewportOffset(0);
+      return undefined;
+    }
+
+    const handleViewportChange = () => {
+      const offset = window.innerHeight - window.visualViewport.height;
+      setViewportOffset(offset > 50 ? offset : 0);
+    };
+
+    handleViewportChange();
+
+    window.visualViewport.addEventListener('resize', handleViewportChange);
+    window.visualViewport.addEventListener('scroll', handleViewportChange);
+
+    return () => {
+      window.visualViewport.removeEventListener('resize', handleViewportChange);
+      window.visualViewport.removeEventListener('scroll', handleViewportChange);
+    };
+  }, []);
+
+  const effectiveOffset = Math.max(keyboardOffset, viewportOffset);
+
   return (
     <nav
-      className="mobile-action-bar sm:hidden"
+      className={`mobile-action-bar sm:hidden transition-opacity duration-200 ${isOverlayActive ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}
       aria-label="Primary mobile actions"
-      style={keyboardOffset > 0 ? { bottom: keyboardOffset } : undefined}
+      style={effectiveOffset > 0 ? { bottom: effectiveOffset } : undefined}
+      data-overlay-active={isOverlayActive ? 'true' : undefined}
     >
       <MobileActionContents {...props} />
     </nav>

@@ -2,6 +2,7 @@ import { jsonResponse, readJsonBody } from '../lib/utils.js';
 import { createVisionBackend } from '../../shared/vision/visionBackends.js';
 import { buildVisionProofPayload, signVisionProof } from '../lib/visionProof.js';
 import { canonicalizeCardName } from '../../shared/vision/cardNameMapping.js';
+import { normalizeVisionLabel } from '../lib/visionLabels.js';
 
 const MAX_EVIDENCE = 5;
 const MAX_DATA_URL_BYTES = 8 * 1024 * 1024; // 8MB per upload
@@ -13,13 +14,6 @@ function clampConfidence(value) {
   if (value < 0) return 0;
   if (value > 1) return 1;
   return value;
-}
-
-function normalizeLabel(label) {
-  if (typeof label === 'string' && label.trim()) {
-    return label.trim();
-  }
-  return 'uploaded-image';
 }
 
 function sanitizeMatches(matches, deckStyle) {
@@ -47,18 +41,18 @@ function sanitizeAttention(attention) {
     : null;
   const focusRegions = Array.isArray(attention.focusRegions)
     ? attention.focusRegions.slice(0, 8).map((region) => ({
-        x: Number(region.x),
-        y: Number(region.y),
-        intensity: Number(Number(region.intensity).toFixed(4))
-      }))
+      x: Number(region.x),
+      y: Number(region.y),
+      intensity: Number(Number(region.intensity).toFixed(4))
+    }))
     : null;
   const symbolAlignment = Array.isArray(attention.symbolAlignment)
     ? attention.symbolAlignment.slice(0, 5).map((symbol) => ({
-        object: symbol.object,
-        position: symbol.position,
-        attentionScore: Number(Number(symbol.attentionScore).toFixed(4)),
-        isModelFocused: Boolean(symbol.isModelFocused)
-      }))
+      object: symbol.object,
+      position: symbol.position,
+      attentionScore: Number(Number(symbol.attentionScore).toFixed(4)),
+      isModelFocused: Boolean(symbol.isModelFocused)
+    }))
     : null;
   return {
     gridSize,
@@ -80,14 +74,14 @@ function sanitizeSymbolVerification(symbolVerification) {
 
   const matches = Array.isArray(symbolVerification.matches)
     ? symbolVerification.matches.slice(0, 6).map((match) => ({
-        object: match.object,
-        expectedPosition: match.expectedPosition || null,
-        found: Boolean(match.found),
-        confidence: typeof match.confidence === 'number'
-          ? Number(Number(match.confidence).toFixed(4))
-          : null,
-        detectionLabel: match.detectionLabel || null
-      }))
+      object: match.object,
+      expectedPosition: match.expectedPosition || null,
+      found: Boolean(match.found),
+      confidence: typeof match.confidence === 'number'
+        ? Number(Number(match.confidence).toFixed(4))
+        : null,
+      detectionLabel: match.detectionLabel || null
+    }))
     : null;
 
   const missingSymbols = Array.isArray(symbolVerification.missingSymbols)
@@ -96,11 +90,11 @@ function sanitizeSymbolVerification(symbolVerification) {
 
   const unexpectedDetections = Array.isArray(symbolVerification.unexpectedDetections)
     ? symbolVerification.unexpectedDetections.slice(0, 5).map((det) => ({
-        label: det.label,
-        confidence: typeof det.confidence === 'number'
-          ? Number(Number(det.confidence).toFixed(4))
-          : null
-      }))
+      label: det.label,
+      confidence: typeof det.confidence === 'number'
+        ? Number(Number(det.confidence).toFixed(4))
+        : null
+    }))
     : [];
 
   return {
@@ -139,7 +133,7 @@ function validateEvidence(evidence) {
     throw new Error(`Please limit vision uploads to ${MAX_EVIDENCE} images per request.`);
   }
   return evidence.map((entry, index) => {
-    const label = normalizeLabel(entry?.label || `upload-${index + 1}`);
+    const label = normalizeVisionLabel(entry?.label || `upload-${index + 1}`);
     const dataUrl = entry?.dataUrl;
     if (typeof dataUrl !== 'string' || !dataUrl.startsWith('data:image/')) {
       throw new Error(`Upload ${label} must include a base64 data URL.`);
@@ -163,7 +157,7 @@ async function analyzeEvidence(evidence, deckStyle) {
   return analyses.map((entry) => {
     const predictedCard = canonicalizeCardName(entry.topMatch?.canonicalName || entry.topMatch?.cardName, deckStyle);
     return {
-      label: normalizeLabel(entry.label || entry.imagePath),
+      label: normalizeVisionLabel(entry.label || entry.imagePath),
       predictedCard,
       confidence: clampConfidence(entry.confidence ?? entry.topMatch?.score ?? null),
       basis: entry.topMatch?.basis || null,

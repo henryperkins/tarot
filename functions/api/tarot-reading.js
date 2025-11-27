@@ -30,7 +30,8 @@ import {
   buildPositionCardText,
   buildElementalRemedies,
   shouldOfferElementalRemedies,
-  formatReversalLens
+  formatReversalLens,
+  computeRemedyRotationIndex
 } from '../lib/narrativeBuilder.js';
 import { enhanceSection, validateReadingNarrative } from '../lib/narrativeSpine.js';
 import { inferContext } from '../lib/contextDetection.js';
@@ -48,6 +49,7 @@ import {
   getEphemerisSummary
 } from '../lib/ephemerisIntegration.js';
 import { deriveEmotionalTone } from '../../src/data/emotionMapping.js';
+import { normalizeVisionLabel } from '../lib/visionLabels.js';
 
 // Detect if question asks about future timeframe
 function detectForecastTimeframe(userQuestion) {
@@ -56,13 +58,13 @@ function detectForecastTimeframe(userQuestion) {
 
   // Season-level (90 days)
   if (q.includes('season') || q.includes('next few months') ||
-      q.includes('coming months') || q.includes('quarter')) {
+    q.includes('coming months') || q.includes('quarter')) {
     return 90;
   }
 
   // Month-level (30 days)
   if (q.includes('month') || q.includes('30 days') ||
-      q.includes('next weeks') || q.includes('coming weeks')) {
+    q.includes('next weeks') || q.includes('coming weeks')) {
     return 30;
   }
 
@@ -687,7 +689,9 @@ async function performSpreadAnalysis(spreadInfo, cardsInfo, options = {}, reques
   try {
     console.log(`[${requestId}] Analyzing spread themes...`);
     themes = await analyzeSpreadThemes(cardsInfo, {
-      reversalFrameworkOverride: options.reversalFrameworkOverride
+      reversalFrameworkOverride: options.reversalFrameworkOverride,
+      deckStyle: options.deckStyle,
+      userQuestion: options.userQuestion
     });
     console.log(`[${requestId}] Theme analysis complete:`, {
       suitCounts: themes.suitCounts,
@@ -946,7 +950,8 @@ async function generateWithAzureGPT5Responses(env, payload, requestId = 'unknown
     ephemerisForecast: analysis.ephemerisForecast,
     transitResonances: analysis.transitResonances,
     budgetTarget: 'azure',
-    contextDiagnostics
+    contextDiagnostics,
+    promptBudgetEnv: env
   });
 
   if (promptMeta) {
@@ -1060,7 +1065,7 @@ async function generateWithAzureGPT5Responses(env, payload, requestId = 'unknown
       status: data.status
     });
     throw new Error('Empty response from Azure OpenAI GPT-5 Responses API');
-}
+  }
 
   console.log(`[${requestId}] Generated reading length: ${content.length} characters`);
   console.log(`[${requestId}] Token usage:`, {
@@ -1099,7 +1104,8 @@ async function generateWithClaudeSonnet45Enhanced(env, payload, requestId = 'unk
     ephemerisForecast: analysis.ephemerisForecast,
     transitResonances: analysis.transitResonances,
     budgetTarget: 'claude',
-    contextDiagnostics
+    contextDiagnostics,
+    promptBudgetEnv: env
   });
 
   if (promptMeta) {
@@ -1154,35 +1160,35 @@ const SPREAD_READING_BUILDERS = {
   celtic: ({ spreadAnalysis, cardsInfo, userQuestion, reflectionsText, themes, context }) =>
     spreadAnalysis
       ? buildCelticCrossReading({
-          cardsInfo,
-          userQuestion,
-          reflectionsText,
-          celticAnalysis: spreadAnalysis,
-          themes,
-          context
-        })
+        cardsInfo,
+        userQuestion,
+        reflectionsText,
+        celticAnalysis: spreadAnalysis,
+        themes,
+        context
+      })
       : null,
   threeCard: ({ spreadAnalysis, cardsInfo, userQuestion, reflectionsText, themes, context }) =>
     spreadAnalysis
       ? buildThreeCardReading({
-          cardsInfo,
-          userQuestion,
-          reflectionsText,
-          threeCardAnalysis: spreadAnalysis,
-          themes,
-          context
-        })
+        cardsInfo,
+        userQuestion,
+        reflectionsText,
+        threeCardAnalysis: spreadAnalysis,
+        themes,
+        context
+      })
       : null,
   fiveCard: ({ spreadAnalysis, cardsInfo, userQuestion, reflectionsText, themes, context }) =>
     spreadAnalysis
       ? buildFiveCardReading({
-          cardsInfo,
-          userQuestion,
-          reflectionsText,
-          fiveCardAnalysis: spreadAnalysis,
-          themes,
-          context
-        })
+        cardsInfo,
+        userQuestion,
+        reflectionsText,
+        fiveCardAnalysis: spreadAnalysis,
+        themes,
+        context
+      })
       : null,
   relationship: ({ cardsInfo, userQuestion, reflectionsText, themes, context }) =>
     buildRelationshipReading({ cardsInfo, userQuestion, reflectionsText, themes, context }),
@@ -1301,6 +1307,11 @@ function buildGenericReading(
   const spreadName = spreadInfo?.name?.trim() || 'your chosen spread';
   const entries = [];
   const safeCards = Array.isArray(cardsInfo) ? cardsInfo : [];
+  const remedyRotationIndex = computeRemedyRotationIndex({
+    cardsInfo: safeCards,
+    userQuestion,
+    spreadInfo
+  });
 
   // Opening
   const openingText = userQuestion && userQuestion.trim()
@@ -1329,7 +1340,7 @@ function buildGenericReading(
   // Synthesis with enhanced themes
   const finalCard = safeCards.length > 0 ? safeCards[safeCards.length - 1] : null;
   entries.push({
-    text: buildEnhancedSynthesis(safeCards, themes, userQuestion, context),
+    text: buildEnhancedSynthesis(safeCards, themes, userQuestion, context, { rotationIndex: remedyRotationIndex }),
     metadata: { type: 'synthesis', cards: finalCard ? [finalCard] : [] }
   });
 
@@ -1382,20 +1393,20 @@ function annotateVisionInsights(proofInsights, cardsInfo = [], deckStyle = 'rws-
 
       const matches = Array.isArray(entry.matches)
         ? entry.matches
-            .map((match) => {
-              const card = canonicalizeCardName(match?.card || match?.cardName, normalizedDeck);
-              if (!card) return null;
-              return {
-                ...match,
-                card
-              };
-            })
-            .filter(Boolean)
-            .slice(0, 3)
+          .map((match) => {
+            const card = canonicalizeCardName(match?.card || match?.cardName, normalizedDeck);
+            if (!card) return null;
+            return {
+              ...match,
+              card
+            };
+          })
+          .filter(Boolean)
+          .slice(0, 3)
         : [];
 
       return {
-        label: typeof entry.label === 'string' ? entry.label : 'uploaded-image',
+        label: normalizeVisionLabel(entry.label),
         predictedCard,
         confidence: typeof entry.confidence === 'number' ? entry.confidence : null,
         basis: typeof entry.basis === 'string' ? entry.basis : null,
@@ -1429,9 +1440,12 @@ function buildCardsSection(cardsInfo, context) {
 /**
  * Enhanced synthesis with rich theme analysis
  */
-function buildEnhancedSynthesis(cardsInfo, themes, userQuestion, context) {
+function buildEnhancedSynthesis(cardsInfo, themes, userQuestion, context, options = {}) {
   const safeCards = Array.isArray(cardsInfo) ? cardsInfo : [];
   let section = `**Synthesis & Guidance**\n\n`;
+  const rotationIndex = Number.isFinite(options.rotationIndex)
+    ? Math.abs(Math.floor(options.rotationIndex))
+    : 0;
 
   if (context && context !== 'general') {
     const contextMap = {
@@ -1469,7 +1483,9 @@ function buildEnhancedSynthesis(cardsInfo, themes, userQuestion, context) {
 
     // Add elemental remedies if imbalanced
     if (shouldOfferElementalRemedies(themes.elementCounts, safeCards.length)) {
-      const remedies = buildElementalRemedies(themes.elementCounts, safeCards.length, context);
+      const remedies = buildElementalRemedies(themes.elementCounts, safeCards.length, context, {
+        rotationIndex
+      });
       if (remedies) {
         section += `${remedies}\n\n`;
       }
@@ -1512,8 +1528,8 @@ function appendGenericReversalReminder(readingText, cardsInfo, themes) {
   const reminderText = guidanceLine
     ? guidanceLine.replace(/^[-\s]*/, '').trim()
     : (themes.reversalDescription.guidance
-        ? `Guidance: ${themes.reversalDescription.guidance}`
-        : `Reversal lens: ${themes.reversalDescription.name}`);
+      ? `Guidance: ${themes.reversalDescription.guidance}`
+      : `Reversal lens: ${themes.reversalDescription.name}`);
 
   const reminder = `*Reversal lens reminder: ${reminderText}*`;
   if (readingText.includes(reminder)) {

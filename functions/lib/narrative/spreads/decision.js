@@ -11,7 +11,8 @@ import {
   buildSupportingPositionsSummary,
   buildReflectionsSection,
   buildPatternSynthesis,
-  getConnector
+  getConnector,
+  computeRemedyRotationIndex
 } from '../helpers.js';
 
 export async function buildDecisionReading({
@@ -19,7 +20,8 @@ export async function buildDecisionReading({
   userQuestion,
   reflectionsText,
   themes,
-  context
+  context,
+  spreadInfo
 }, options = {}) {
   const sections = [];
   const collectValidation =
@@ -44,7 +46,7 @@ export async function buildDecisionReading({
     buildOpening(
       spreadName,
       userQuestion ||
-        'This spread illuminates the heart of your decision, two possible paths, clarifying insight, and a reminder of your agency.',
+      'This spread illuminates the heart of your decision, two possible paths, clarifying insight, and a reminder of your agency.',
       context
     )
   );
@@ -57,6 +59,7 @@ export async function buildDecisionReading({
   const prioritized = sortCardsByImportance(normalizedCards, 'decision');
   const [heart, pathA, pathB, clarifier, freeWill] = normalizedCards;
   const positionOptions = getPositionOptions(themes, context);
+  const remedyRotationIndex = computeRemedyRotationIndex({ cardsInfo: normalizedCards, userQuestion, spreadInfo });
 
   const attentionNote = buildWeightAttentionIntro(prioritized, spreadName);
   if (attentionNote) {
@@ -217,7 +220,7 @@ export async function buildDecisionReading({
   }
 
   // Guidance synthesis with elemental remedies
-  const guidanceSection = await buildDecisionGuidance(normalizedCards, themes, context);
+  const guidanceSection = await buildDecisionGuidance(normalizedCards, themes, context, remedyRotationIndex);
   if (guidanceSection) {
     sections.push(
       recordSection(guidanceSection, {
@@ -236,7 +239,7 @@ export async function buildDecisionReading({
   return appendReversalReminder(full, cardsInfo, themes);
 }
 
-async function buildDecisionGuidance(cardsInfo, themes, context) {
+async function buildDecisionGuidance(cardsInfo, themes, context, rotationIndex = 0) {
   let section = `### Guidance\n\n`;
 
   if (themes.suitFocus) {
@@ -247,7 +250,9 @@ async function buildDecisionGuidance(cardsInfo, themes, context) {
   if (themes.elementCounts && themes.elementalBalance) {
     const { buildElementalRemedies, shouldOfferElementalRemedies } = await import('../helpers.js');
     if (shouldOfferElementalRemedies(themes.elementCounts, cardsInfo.length)) {
-      const remedies = buildElementalRemedies(themes.elementCounts, cardsInfo.length, context);
+      const remedies = buildElementalRemedies(themes.elementCounts, cardsInfo.length, context, {
+        rotationIndex
+      });
       if (remedies) {
         section += `${themes.elementalBalance}\n\n${remedies}\n\n`;
       }

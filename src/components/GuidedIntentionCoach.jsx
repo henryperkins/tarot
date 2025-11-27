@@ -33,6 +33,7 @@ import {
   recordCoachQuestion,
   MAX_TEMPLATES
 } from '../lib/coachStorage';
+import { MOBILE_COACH_DIALOG_ID } from './MobileActionBar';
 
 // ============================================================================
 // Constants
@@ -1082,17 +1083,18 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply,
       >
         <div
           ref={modalRef}
+          id={MOBILE_COACH_DIALOG_ID}
           role="dialog"
           aria-modal="true"
           aria-labelledby={titleId}
-          className={`relative w-full h-full sm:h-auto sm:max-h-[90vh] sm:max-w-3xl sm:mx-4 sm:rounded-3xl border-0 sm:border border-accent/30 bg-surface shadow-2xl focus:outline-none flex flex-col ${prefersReducedMotion ? '' : 'animate-pop-in'}`}
+          className={`relative w-full h-full sm:h-auto ${isLandscape ? 'max-h-[98vh]' : 'sm:max-h-[90vh]'} sm:max-w-3xl sm:mx-4 sm:rounded-3xl border-0 sm:border border-accent/30 bg-surface shadow-2xl focus:outline-none flex flex-col ${prefersReducedMotion ? '' : 'animate-pop-in'}`}
         >
           {/* Close Button */}
           <button
             ref={closeButtonRef}
             type="button"
             onClick={onClose}
-            className="absolute right-4 top-4 text-accent/80 hover:text-main z-10"
+            className="absolute right-3 top-3 min-h-[44px] min-w-[44px] flex items-center justify-center rounded-full text-accent/80 hover:text-main hover:bg-surface-muted/50 z-10 touch-manipulation transition-colors"
             aria-label="Close intention coach"
           >
             <X className="h-5 w-5" />

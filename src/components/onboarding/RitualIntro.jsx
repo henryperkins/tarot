@@ -4,7 +4,7 @@ import { useLandscape } from '../../hooks/useLandscape';
 import { usePreferences } from '../../contexts/PreferencesContext';
 
 /**
- * RitualIntro - Step 4 of onboarding
+ * RitualIntro - Step 5 of onboarding
  *
  * Explains the optional ritual mechanics (knock and cut)
  * and their symbolic meaning.

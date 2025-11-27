@@ -15,7 +15,8 @@ import {
   formatCrossCheck,
   buildReversalGuidance,
   getContextDescriptor,
-  DEFAULT_WEIGHT_DETAIL_THRESHOLD
+  DEFAULT_WEIGHT_DETAIL_THRESHOLD,
+  computeRemedyRotationIndex
 } from '../helpers.js';
 
 export async function buildCelticCrossReading({
@@ -24,11 +25,13 @@ export async function buildCelticCrossReading({
   reflectionsText,
   celticAnalysis,
   themes,
-  context
+  context,
+  spreadInfo
 }, options = {}) {
   const prioritized = sortCardsByImportance(cardsInfo, 'celtic');
   const sections = [];
   const collectValidation = typeof options.collectValidation === 'function' ? options.collectValidation : null;
+  const remedyRotationIndex = computeRemedyRotationIndex({ cardsInfo, userQuestion, spreadInfo });
 
   const recordEnhancedSection = (sectionText, metadata = {}) => {
     const result = enhanceSection(sectionText, metadata);
@@ -96,7 +99,7 @@ export async function buildCelticCrossReading({
 
   // 7. SYNTHESIS - Actionable integration
   recordEnhancedSection(
-    await buildSynthesisSection(cardsInfo, themes, celticAnalysis, userQuestion, context),
+    await buildSynthesisSection(cardsInfo, themes, celticAnalysis, userQuestion, context, remedyRotationIndex),
     { type: 'outcome' }
   );
 
@@ -279,7 +282,7 @@ function buildCrossChecksSection(crossChecks, themes) {
 
 
 
-async function buildSynthesisSection(cardsInfo, themes, celticAnalysis, userQuestion, context) {
+async function buildSynthesisSection(cardsInfo, themes, celticAnalysis, userQuestion, context, rotationIndex = 0) {
   let section = `### Synthesis & Guidance\n\n`;
 
   section += 'This synthesis shows how the spread integrates into actionable guidance.\n\n';
@@ -304,7 +307,9 @@ async function buildSynthesisSection(cardsInfo, themes, celticAnalysis, userQues
     if (themes.elementCounts) {
       const { buildElementalRemedies, shouldOfferElementalRemedies } = await import('../helpers.js');
       if (shouldOfferElementalRemedies(themes.elementCounts, cardsInfo.length)) {
-        const remedies = buildElementalRemedies(themes.elementCounts, cardsInfo.length, context);
+        const remedies = buildElementalRemedies(themes.elementCounts, cardsInfo.length, context, {
+          rotationIndex
+        });
         if (remedies) {
           section += `${remedies}\n\n`;
         }

@@ -13,7 +13,8 @@ import {
   getConnector,
   getContextDescriptor,
   buildReversalGuidance,
-  DEFAULT_WEIGHT_DETAIL_THRESHOLD
+  DEFAULT_WEIGHT_DETAIL_THRESHOLD,
+  computeRemedyRotationIndex
 } from '../helpers.js';
 
 export async function buildThreeCardReading({
@@ -22,7 +23,8 @@ export async function buildThreeCardReading({
   reflectionsText,
   threeCardAnalysis,
   themes,
-  context
+  context,
+  spreadInfo
 }, options = {}) {
   const sections = [];
   const collectValidation =
@@ -47,6 +49,7 @@ export async function buildThreeCardReading({
   const [past, present, future] = cardsInfo;
   const prioritized = sortCardsByImportance(cardsInfo, 'threeCard');
   const positionOptions = getPositionOptions(themes, context);
+  const remedyRotationIndex = computeRemedyRotationIndex({ cardsInfo, userQuestion, spreadInfo });
 
   const attentionNote = buildWeightAttentionIntro(prioritized, 'Three-Card Story');
   if (attentionNote) {
@@ -115,7 +118,7 @@ export async function buildThreeCardReading({
     sections.push(supportingSummary);
   }
 
-  const guidanceSection = await buildThreeCardSynthesis(cardsInfo, themes, userQuestion, context);
+  const guidanceSection = await buildThreeCardSynthesis(cardsInfo, themes, userQuestion, context, remedyRotationIndex);
   if (guidanceSection) {
     sections.push(
       recordSection(guidanceSection, {
@@ -133,7 +136,7 @@ export async function buildThreeCardReading({
   return appendReversalReminder(full, cardsInfo, themes);
 }
 
-async function buildThreeCardSynthesis(cardsInfo, themes, userQuestion, context) {
+async function buildThreeCardSynthesis(cardsInfo, themes, userQuestion, context, rotationIndex = 0) {
   let section = `### Guidance\n\n`;
 
   if (context && context !== 'general') {
@@ -148,7 +151,9 @@ async function buildThreeCardSynthesis(cardsInfo, themes, userQuestion, context)
   if (themes.elementCounts && themes.elementalBalance) {
     const { buildElementalRemedies, shouldOfferElementalRemedies } = await import('../helpers.js');
     if (shouldOfferElementalRemedies(themes.elementCounts, cardsInfo.length)) {
-      const remedies = buildElementalRemedies(themes.elementCounts, cardsInfo.length, context);
+      const remedies = buildElementalRemedies(themes.elementCounts, cardsInfo.length, context, {
+        rotationIndex
+      });
       if (remedies) {
         section += `${themes.elementalBalance}\n\n${remedies}\n\n`;
       }

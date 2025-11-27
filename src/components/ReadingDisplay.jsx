@@ -338,7 +338,7 @@ export function ReadingDisplay({ sectionRef }) {
                     )}
 
                     {personalReading && (
-                        <div className={`bg-surface/95 backdrop-blur-xl rounded-2xl border border-secondary/40 shadow-2xl shadow-secondary/40 max-w-5xl mx-auto ${isLandscape ? 'p-3' : 'p-5 sm:p-8'}`}>
+                        <div className={`bg-surface/95 backdrop-blur-xl rounded-2xl border border-secondary/40 shadow-2xl shadow-secondary/40 max-w-5xl mx-auto ${isLandscape ? 'p-3' : 'p-4 sm:p-6 md:p-8'}`}>
                             {/* Narrative completion banner - shown when complete */}
                             {narrativePhase === 'complete' && !isPersonalReadingError && (
                                 <div className={`mb-5 p-4 bg-gradient-to-r from-primary/20 via-secondary/15 to-accent/20 border border-primary/30 rounded-xl ${prefersReducedMotion ? '' : 'animate-fade-in'}`} role="status" aria-live="polite">

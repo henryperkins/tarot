@@ -116,6 +116,7 @@ export default function TarotReading() {
   const [isMobileSettingsOpen, setIsMobileSettingsOpen] = useState(false);
   const [shouldFocusSpread, setShouldFocusSpread] = useState(false);
   const [keyboardOffset, setKeyboardOffset] = useState(0);
+  const isMobileOverlayActive = isIntentionCoachOpen || isMobileSettingsOpen;
 
   const navigate = useNavigate();
   const location = useLocation();
@@ -631,32 +632,33 @@ export default function TarotReading() {
         <ReadingDisplay sectionRef={readingSectionRef} />
       </main>
 
-      {/* Mobile Nav - Hidden when full-screen surfaces (coach or settings drawer) are open */}
-      {!isIntentionCoachOpen && !isMobileSettingsOpen && (
-        <MobileActionBar
-          isShuffling={isShuffling}
-          reading={reading}
-          revealedCards={revealedCards}
-          dealIndex={dealIndex}
-          isGenerating={isGenerating}
-          personalReading={personalReading}
-          needsNarrativeGeneration={needsNarrativeGeneration}
-          stepIndicatorLabel={stepIndicatorLabel}
-          activeStep={activeStep}
-          keyboardOffset={keyboardOffset}
-          onOpenSettings={() => setIsMobileSettingsOpen(true)}
-          onOpenCoach={() => {
-            setPendingCoachPrefill(null);
-            setIsIntentionCoachOpen(true);
-          }}
-          onShuffle={handleShuffle}
-          onDealNext={dealNext}
-          onRevealAll={handleRevealAll}
-          onGenerateNarrative={generatePersonalReading}
-          onSaveReading={saveReading}
-          onNewReading={handleShuffle}
-        />
-      )}
+      {/* Mobile Nav - visually obscured when full-screen surfaces are open */}
+      <MobileActionBar
+        isOverlayActive={isMobileOverlayActive}
+        isSettingsOpen={isMobileSettingsOpen}
+        isCoachOpen={isIntentionCoachOpen}
+        isShuffling={isShuffling}
+        reading={reading}
+        revealedCards={revealedCards}
+        dealIndex={dealIndex}
+        isGenerating={isGenerating}
+        personalReading={personalReading}
+        needsNarrativeGeneration={needsNarrativeGeneration}
+        stepIndicatorLabel={stepIndicatorLabel}
+        activeStep={activeStep}
+        keyboardOffset={keyboardOffset}
+        onOpenSettings={() => setIsMobileSettingsOpen(true)}
+        onOpenCoach={() => {
+          setPendingCoachPrefill(null);
+          setIsIntentionCoachOpen(true);
+        }}
+        onShuffle={handleShuffle}
+        onDealNext={dealNext}
+        onRevealAll={handleRevealAll}
+        onGenerateNarrative={generatePersonalReading}
+        onSaveReading={saveReading}
+        onNewReading={handleShuffle}
+      />
 
       <MobileSettingsDrawer
         isOpen={isMobileSettingsOpen}

@@ -13,7 +13,8 @@ import {
   buildPatternSynthesis,
   getConnector,
   buildInlineReversalNote,
-  buildGuidanceActionPrompt
+  buildGuidanceActionPrompt,
+  computeRemedyRotationIndex
 } from '../helpers.js';
 
 export async function buildRelationshipReading({
@@ -21,7 +22,8 @@ export async function buildRelationshipReading({
   userQuestion,
   reflectionsText,
   themes,
-  context
+  context,
+  spreadInfo
 }, options = {}) {
   const sections = [];
   const collectValidation =
@@ -46,13 +48,14 @@ export async function buildRelationshipReading({
     buildOpening(
       spreadName,
       userQuestion ||
-        'This spread explores your energy, their energy, the connection between you, and guidance for relating with agency and care.',
+      'This spread explores your energy, their energy, the connection between you, and guidance for relating with agency and care.',
       context
     )
   );
 
   const normalizedCards = Array.isArray(cardsInfo) ? cardsInfo : [];
   const prioritized = sortCardsByImportance(normalizedCards, 'relationship');
+  const remedyRotationIndex = computeRemedyRotationIndex({ cardsInfo: normalizedCards, userQuestion, spreadInfo });
   const [youCard, themCard, connectionCard, ...extraCards] = normalizedCards;
   const dynamicsCard = extraCards[0];
   const outcomeCard = extraCards[1];
@@ -277,7 +280,7 @@ export async function buildRelationshipReading({
   }
 
   // Additional guidance with elemental remedies
-  const additionalGuidance = await buildRelationshipAdditionalGuidance(normalizedCards, themes, context);
+  const additionalGuidance = await buildRelationshipAdditionalGuidance(normalizedCards, themes, context, remedyRotationIndex);
   if (additionalGuidance) {
     sections.push(
       recordSection(additionalGuidance, {
@@ -320,7 +323,7 @@ function buildRelationshipElementalTakeaway(elemental, youCard, themCard) {
   }
 }
 
-async function buildRelationshipAdditionalGuidance(cardsInfo, themes, context) {
+async function buildRelationshipAdditionalGuidance(cardsInfo, themes, context, rotationIndex = 0) {
   // Only add elemental remedies section if there's an imbalance
   if (!themes.elementCounts || !themes.elementalBalance) {
     return null;
@@ -331,7 +334,9 @@ async function buildRelationshipAdditionalGuidance(cardsInfo, themes, context) {
     return null;
   }
 
-  const remedies = buildElementalRemedies(themes.elementCounts, cardsInfo.length, context);
+  const remedies = buildElementalRemedies(themes.elementCounts, cardsInfo.length, context, {
+    rotationIndex
+  });
   if (!remedies) {
     return null;
   }

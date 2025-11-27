@@ -26,6 +26,7 @@ import {
   buildRetrievalSummary
 } from '../graphRAG.js';
 import { getPositionWeight } from '../positionWeights.js';
+import { formatVisionLabelForPrompt } from '../visionLabels.js';
 
 const DECK_STYLE_TIPS = {
   'thoth-a1': [
@@ -59,8 +60,8 @@ export function estimateTokenCount(text = '') {
   return Math.ceil(safe.length / TOKEN_ESTIMATE_DIVISOR);
 }
 
-export function getPromptBudgetForTarget(target = 'default') {
-  const env = typeof process !== 'undefined' && process.env ? process.env : {};
+export function getPromptBudgetForTarget(target = 'default', options = {}) {
+  const env = options.env || (typeof process !== 'undefined' && process.env ? process.env : {});
   const normalizedTarget = (target || 'default').toLowerCase();
 
   let raw = null;
@@ -101,7 +102,8 @@ export function buildEnhancedClaudePrompt({
   ephemerisForecast = null,
   transitResonances = [],
   budgetTarget = 'claude',
-  contextDiagnostics = []
+  contextDiagnostics = [],
+  promptBudgetEnv = null
 }) {
   const baseThemes = typeof themes === 'object' && themes !== null ? themes : {};
   const activeThemes = baseThemes.reversalDescription
@@ -115,7 +117,7 @@ export function buildEnhancedClaudePrompt({
     onUnknown: (message) => diagnostics.push(message)
   });
 
-  const promptBudget = getPromptBudgetForTarget(budgetTarget);
+  const promptBudget = getPromptBudgetForTarget(budgetTarget, { env: promptBudgetEnv });
 
   const baseControls = {
     graphRAGPayload,
@@ -420,7 +422,7 @@ function buildSystemPrompt(spreadKey, themes, context, deckStyle, userQuestion =
     '- When restricted themes surface, gently suggest consulting qualified professionals or trusted support resources.'
   );
 
-    if (context && context !== 'general') {
+  if (context && context !== 'general') {
     lines.push(
       '',
       `CONTEXT LENS: The query falls within the ${getContextDescriptor(context)} realm. Ensure interpretations address this context while prioritizing the specific nuances of the user's actual text.`
@@ -589,20 +591,39 @@ function buildVisionValidationSection(visionInsights, options = {}) {
   }
 
   const safeEntries = visionInsights.slice(0, 5);
-  const coverage = safeEntries.filter((entry) => entry.matchesDrawnCard !== false).length;
-  const coverageLine = coverage === safeEntries.length
-    ? 'All uploaded cards align with the declared spread.'
-    : `${safeEntries.length - coverage} upload(s) did not match the selected cards—address gently if relevant.`;
+  const verifiedMatches = safeEntries.filter((entry) => entry.matchesDrawnCard === true).length;
+  const mismatches = safeEntries.filter((entry) => entry.matchesDrawnCard === false).length;
+  const unverified = safeEntries.length - verifiedMatches - mismatches;
+
+  let coverageLine = 'Vision uploads include verification notes below.';
+  if (mismatches === 0 && unverified === 0) {
+    coverageLine = 'All uploaded cards align with the declared spread.';
+  } else {
+    const parts = [];
+    if (mismatches > 0) {
+      parts.push(`${mismatches} upload(s) did not match the selected cards—address gently if relevant.`);
+    }
+    if (unverified > 0) {
+      parts.push(`${unverified} upload(s) could not be verified against the drawn spread; treat these as unverified evidence if you reference them.`);
+    }
+    coverageLine = parts.join(' ');
+  }
 
   const lines = ['\n**Vision Validation**:', coverageLine];
 
   safeEntries.forEach((entry) => {
+    const safeLabel = formatVisionLabelForPrompt(entry.label);
     const confidenceText = typeof entry.confidence === 'number'
       ? `${(entry.confidence * 100).toFixed(1)}%`
       : 'confidence unavailable';
     const basisText = entry.basis ? ` via ${entry.basis}` : '';
-    const mismatchFlag = entry.matchesDrawnCard === false ? ' [not in drawn spread]' : '';
-    lines.push(`- ${entry.label}: recognized as ${entry.predictedCard}${basisText} (${confidenceText})${mismatchFlag}`);
+    let validationNote = '';
+    if (entry.matchesDrawnCard === false) {
+      validationNote = ' [not in drawn spread]';
+    } else if (entry.matchesDrawnCard === null || typeof entry.matchesDrawnCard === 'undefined') {
+      validationNote = ' [unverified upload]';
+    }
+    lines.push(`- ${safeLabel}: recognized as ${entry.predictedCard}${basisText} (${confidenceText})${validationNote}`);
 
     if (entry.symbolVerification && typeof entry.symbolVerification === 'object') {
       const sv = entry.symbolVerification;
@@ -639,7 +660,7 @@ function buildVisionValidationSection(visionInsights, options = {}) {
       const parts = [];
       if (tone) parts.push(`Tone: [${tone}]`);
       if (emotion) parts.push(`Emotion: [${emotion}]`);
-      
+
       if (parts.length > 0) {
         lines.push(`  · Visual Profile: ${parts.join(' | ')}`);
       }
@@ -652,8 +673,8 @@ function buildVisionValidationSection(visionInsights, options = {}) {
 
 function sanitizeAndTruncate(text = '', maxLength = 100) {
   if (!text || typeof text !== 'string') return '';
-  const truncated = text.length > maxLength 
-    ? text.slice(0, maxLength).trim() + '...' 
+  const truncated = text.length > maxLength
+    ? text.slice(0, maxLength).trim() + '...'
     : text.trim();
   return truncated
     .replace(/[#*`_[\]]/g, '')
@@ -705,11 +726,11 @@ function buildCelticCrossPromptCards(cardsInfo, analysis, themes, context, userQ
   cards += buildCardWithImagery(cardsInfo[6], cardsInfo[6].position || 'Self / Advice — how to meet this (Card 7)', optionsFor(6));
   cards += buildCardWithImagery(cardsInfo[7], cardsInfo[7].position || 'External Influences — people & environment (Card 8)', optionsFor(7));
   cards += buildCardWithImagery(cardsInfo[8], cardsInfo[8].position || 'Hopes & Fears — deepest wishes & worries (Card 9)', optionsFor(8));
-  
-  const outcomeLabel = userQuestion 
+
+  const outcomeLabel = userQuestion
     ? `Outcome — likely path for "${sanitizeAndTruncate(userQuestion)}" if unchanged (Card 10)`
     : 'Outcome — likely path if unchanged (Card 10)';
-    
+
   cards += buildCardWithImagery(cardsInfo[9], cardsInfo[9].position || outcomeLabel, optionsFor(9));
   cards += `Advice-to-outcome insight: ${analysis.staff.adviceImpact}\n`;
   cards += getElementalImageryText(analysis.staff.adviceToOutcome) + '\n\n';

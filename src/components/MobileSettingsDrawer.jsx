@@ -1,6 +1,7 @@
 import { useRef, useCallback, useState, useEffect } from 'react';
 import { Sparkle, X } from '@phosphor-icons/react';
 import { useModalA11y } from '../hooks/useModalA11y';
+import { MOBILE_SETTINGS_DIALOG_ID } from './MobileActionBar';
 
 export function MobileSettingsDrawer({ isOpen, onClose, children, footer = null }) {
   const drawerRef = useRef(null);
@@ -118,6 +119,7 @@ export function MobileSettingsDrawer({ isOpen, onClose, children, footer = null 
       <div
         ref={drawerRef}
         className="mobile-drawer relative w-full flex flex-col animate-slide-up"
+        id={MOBILE_SETTINGS_DIALOG_ID}
         role="dialog"
         aria-modal="true"
         aria-labelledby="mobile-drawer-title"

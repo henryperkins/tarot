@@ -13,10 +13,18 @@ export default {
   ],
   theme: {
     screens: {
+      'xxs': '320px',
       'xs': '375px',
       ...defaultTheme.screens,
     },
     extend: {
+      screens: {
+        // Landscape detection (for short landscape viewports)
+        'landscape': { 'raw': '(orientation: landscape) and (max-height: 500px)' },
+        'portrait': { 'raw': '(orientation: portrait)' },
+        // Short viewport (useful for foldables and small tablets in landscape)
+        'short': { 'raw': '(max-height: 600px)' },
+      },
       colors: {
         // Elegant Minimal Palette
         charcoal: 'var(--color-charcoal)',

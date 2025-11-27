@@ -3,10 +3,10 @@ import { useReducedMotion } from '../../hooks/useReducedMotion';
 
 const STEP_LABELS = [
   'Welcome',
+  'Account',
   'Spreads',
   'Question',
   'Ritual',
-  'Account',
   'Journal',
   'Begin',
 ];

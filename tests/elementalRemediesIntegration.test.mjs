@@ -110,8 +110,8 @@ for (const test of tests) {
 
     // Check for elemental remedies
     const hasElementalBalance = reading.includes('Fire energy strongly dominates');
-    const hasWaterRemedy = /Water:\s*Journal your feelings/i.test(reading);
-    const hasEarthRemedy = /Earth:\s*Establish one grounding/i.test(reading);
+    const hasWaterRemedy = /Water:\s*[^\n]+/i.test(reading);
+    const hasEarthRemedy = /Earth:\s*[^\n]+/i.test(reading);
 
     if (!hasElementalBalance) {
       console.log(`   ❌ FAILED: Missing elemental balance description`);

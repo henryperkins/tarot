@@ -290,7 +290,9 @@ export async function analyzeSpreadThemes(cardsInfo, options = {}) {
     : null;
 
   // Select reversal framework (allow explicit override)
-  let reversalFramework = selectReversalFramework(reversalRatio, cardsInfo);
+  let reversalFramework = selectReversalFramework(reversalRatio, cardsInfo, {
+    userQuestion: options.userQuestion
+  });
   if (options.reversalFrameworkOverride && REVERSAL_FRAMEWORKS[options.reversalFrameworkOverride]) {
     reversalFramework = options.reversalFrameworkOverride;
   }
@@ -383,15 +385,78 @@ export async function analyzeSpreadThemes(cardsInfo, options = {}) {
  * Select appropriate reversal interpretation framework based on patterns
  *
  * @param {number} ratio - Ratio of reversed cards (0-1)
- * @param {Array} cardsInfo - Card array (reserved for future pattern detection)
+ * @param {Array} cardsInfo - Card array for pattern detection
+ * @param {Object} [options] - Additional context
+ * @param {string} [options.userQuestion] - User's question for intent detection
  * @returns {string} Framework key
  */
-function selectReversalFramework(ratio, cardsInfo) {
+export function selectReversalFramework(ratio, cardsInfo, options = {}) {
   if (ratio === 0) return 'none';
-  if (ratio >= 0.6) return 'blocked';      // Heavy reversals suggest blockage
-  if (ratio >= 0.4) return 'internalized'; // Moderate = internal work
-  if (ratio >= 0.2) return 'delayed';      // Light = timing issues
-  return 'contextual';                      // Very light = case-by-case
+
+  const { userQuestion } = options;
+
+  if (userQuestion) {
+    const q = userQuestion.toLowerCase();
+    const shadowKeywords = [
+      'afraid',
+      'avoid',
+      'fear',
+      'shadow',
+      'hidden',
+      'deny',
+      'repress',
+      'shame',
+      'guilt',
+      'trigger'
+    ];
+    const mirrorKeywords = [
+      'reflect',
+      'mirror',
+      'project',
+      'attract',
+      'pattern',
+      'repeat',
+      'always'
+    ];
+    const potentialKeywords = [
+      'potential',
+      'talent',
+      'gift',
+      'dormant',
+      'untapped',
+      'could be',
+      'capable'
+    ];
+
+    if (shadowKeywords.some(kw => q.includes(kw))) {
+      return 'shadow';
+    }
+    if (mirrorKeywords.some(kw => q.includes(kw))) {
+      return 'mirror';
+    }
+    if (potentialKeywords.some(kw => q.includes(kw))) {
+      return 'potentialBlocked';
+    }
+  }
+
+  if (Array.isArray(cardsInfo)) {
+    const reversedMajors = cardsInfo.filter(
+      c =>
+        c &&
+        (c.orientation || '').toLowerCase() === 'reversed' &&
+        typeof c.number === 'number' &&
+        c.number >= 0 &&
+        c.number <= 21
+    );
+    if (reversedMajors.length >= 2) {
+      return 'potentialBlocked';
+    }
+  }
+
+  if (ratio >= 0.6) return 'blocked';
+  if (ratio >= 0.4) return 'internalized';
+  if (ratio >= 0.2) return 'delayed';
+  return 'contextual';
 }
 
 /**
@@ -446,6 +511,39 @@ export const REVERSAL_FRAMEWORKS = {
       'The Devil': 'In Subconscious: Releasing limiting beliefs; in External: Others\' attachments affecting you',
       'Seven of Swords': 'In Past: Previous deception being revealed; in Advice: Straightforward honesty needed now',
       'Ten of Pentacles': 'In Outcome: Legacy work still developing; in Hopes/Fears: Ambivalence about stability vs freedom'
+    }
+  },
+  shadow: {
+    name: 'Shadow Integration',
+    description: 'Reversals reveal disowned emotions, avoided needs, or unconscious habits surfacing for healing and wholeness.',
+    guidance: 'Name the hidden feeling, show how it can be witnessed safely, and suggest a micro-practice for reintegration.',
+    examples: {
+      'The Moon': 'Anxiety eases when you name the fear aloud and create grounding rituals; try writing it down each morning.',
+      'Five of Swords': 'Step out of zero-sum thinking by repairing the belief that conflict automatically equals abandonment.',
+      'The Tower': 'Resistance to change reveals fear of losing control; acknowledge the grief of letting go as a first step.',
+      'The Devil': 'An attachment you judge in yourself deserves compassion; get curious about what need it serves.'
+    }
+  },
+  mirror: {
+    name: 'Mirror / Reflection',
+    description: 'Reversed cards reflect back what the querent is projecting outward, highlighting unconscious behavior or energy.',
+    guidance: 'Ask what aspect of this energy you might be unconsciously expressing, attracting, or projecting onto others.',
+    examples: {
+      'The Emperor': 'Where might you be overly controlling or rigid without realizing it?',
+      'Queen of Cups': 'Are you suppressing your emotional needs while focusing on caring for others?',
+      'Knight of Swords': 'Is your mental intensity coming across as aggression to those around you?',
+      'The Hermit': 'Are you isolating yourself in ways that others perceive as withdrawal or judgment?'
+    }
+  },
+  potentialBlocked: {
+    name: 'Unrealized Potential',
+    description: 'Reversed cards show latent gifts, strengths, or capacities that have not yet been activated, claimed, or developed.',
+    guidance: 'Treat each reversal as a dormant strength awaiting conscious cultivation and ask what would help this energy emerge fully.',
+    examples: {
+      'The Magician': 'You have the tools and skills; what belief or circumstance is preventing you from using them fully?',
+      'Eight of Pentacles': 'A talent exists that you have not invested time in developing yet; what would daily practice look like?',
+      'The Star': 'Hope and inspiration are available but not yet accessed; what would help you reconnect with your vision?',
+      'Ace of Wands': 'Creative fire is present but has not been channeled; what outlet would let it take form?'
     }
   }
 };

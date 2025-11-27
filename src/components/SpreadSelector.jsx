@@ -148,8 +148,11 @@ export function SpreadSelector({
     const scrollWidth = el.scrollWidth;
     const clientWidth = el.clientWidth;
 
-    setShowLeftFade(scrollLeft > 10);
-    setShowRightFade(scrollLeft < scrollWidth - clientWidth - 10);
+    const threshold = Math.max(10, clientWidth * 0.05);
+    const maxScrollLeft = Math.max(0, scrollWidth - clientWidth);
+
+    setShowLeftFade(scrollLeft > threshold);
+    setShowRightFade(maxScrollLeft - scrollLeft > threshold);
   }, []);
 
   // Track scroll position for pagination dots using actual element positions
@@ -185,10 +188,10 @@ export function SpreadSelector({
   }, [spreadKeys.length, updateEdgeFades]);
 
   const scrollToIndex = (index) => {
-    const el = carouselRef.current;
-    if (!el) return;
     const clamped = Math.min(spreadKeys.length - 1, Math.max(0, index));
     setActiveIndex(clamped);
+    const el = carouselRef.current;
+    if (!el) return;
 
     // Scroll to center the target card in the viewport
     const cards = Array.from(el.children);
@@ -204,6 +207,10 @@ export function SpreadSelector({
   };
 
   const handleSpreadSelection = key => {
+    const selectedIndex = spreadKeys.indexOf(key);
+    if (selectedIndex !== -1) {
+      scrollToIndex(selectedIndex);
+    }
     if (onSelectSpread) {
       onSelectSpread(key);
     }
@@ -326,7 +333,8 @@ export function SpreadSelector({
             ref={carouselRef}
             role="radiogroup"
             aria-label="Spread selection"
-            className={`spread-selector-grid flex ${isLandscape ? 'gap-2 pb-2' : 'gap-3 pb-3'} overflow-x-auto snap-x snap-mandatory sm:overflow-visible sm:snap-none sm:grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 sm:gap-4`}
+            className={`spread-selector-grid flex ${isLandscape ? 'gap-2 pb-2' : 'gap-3 pb-3'} overflow-x-auto snap-x snap-mandatory scroll-smooth sm:overflow-visible sm:snap-none sm:grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 sm:gap-4`}
+            style={{ scrollPaddingLeft: '1rem', scrollPaddingRight: '1rem' }}
           >
           {Object.entries(SPREADS).map(([key, spread], index) => {
             const isActive = selectedSpread === key;
@@ -351,7 +359,7 @@ export function SpreadSelector({
                 aria-checked={isActive}
                 onClick={() => handleSpreadSelection(key)}
                 onKeyDown={event => handleCardKeyDown(event, key)}
-                className={`spread-card relative flex h-full flex-col ${isLandscape ? 'gap-2' : 'gap-3'} cursor-pointer select-none shrink-0 ${cardBasisClass} snap-center sm:basis-auto sm:shrink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--spread-ring)] focus-visible:ring-offset-2 focus-visible:ring-offset-[#0f0c13] ${isActive ? 'spread-card--active' : ''}`}
+                className={`spread-card relative flex h-full flex-col ${isLandscape ? 'gap-2' : 'gap-3'} cursor-pointer select-none shrink-0 ${cardBasisClass} snap-center snap-always sm:basis-auto sm:shrink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--spread-ring)] focus-visible:ring-offset-2 focus-visible:ring-offset-[#0f0c13] ${isActive ? 'spread-card--active' : ''}`}
                 style={{
                   '--spread-accent': theme.accent || FALLBACK_SPREAD_THEME.accent,
                   '--spread-border': resolvedBorder,

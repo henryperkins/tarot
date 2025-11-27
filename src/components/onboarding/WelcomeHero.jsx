@@ -16,7 +16,7 @@ const EXPERIENCE_OPTIONS = [
  * emphasizing guidance over fortune-telling.
  * Also collects display name and tarot experience level.
  */
-export function WelcomeHero({ onNext, onSkip }) {
+export function WelcomeHero({ onNext }) {
   const prefersReducedMotion = useReducedMotion();
   const isLandscape = useLandscape();
   const { personalization, setDisplayName, setTarotExperience } = usePreferences();
@@ -187,16 +187,6 @@ export function WelcomeHero({ onNext, onSkip }) {
           Continue
           <ArrowRight className="w-5 h-5" weight="bold" />
         </button>
-        {onSkip && (
-          <button
-            type="button"
-            onClick={onSkip}
-            className="w-full text-sm font-medium text-muted underline-offset-4 decoration-dashed decoration-accent/60 transition-colors
-              hover:text-main focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-main touch-manipulation"
-          >
-            Skip intro — I know tarot
-          </button>
-        )}
       </div>
     </div>
   );
