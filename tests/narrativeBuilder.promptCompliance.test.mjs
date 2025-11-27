@@ -10,14 +10,13 @@ import {
   buildSingleCardReading,
   buildEnhancedClaudePrompt
 } from '../functions/lib/narrativeBuilder.js';
-import { validateReadingNarrative } from '../functions/lib/narrativeSpine.js';
-
 import {
   analyzeCelticCross,
   analyzeThreeCard,
   analyzeFiveCard,
   analyzeSpreadThemes
 } from '../functions/lib/spreadAnalysis.js';
+import { validateReadingNarrative } from '../functions/lib/narrativeSpine.js';
 
 // Minimal helper to fabricate a Major Arcana-like card
 function major(name, number, position, orientation = 'Upright', meaning = 'Meaningful transformation and growth.') {
@@ -476,6 +475,28 @@ describe('Other spread builders prompt-engineering compliance', () => {
     assert.ok(
       decisionValidation.isValid,
       'Decision reading should satisfy narrative spine validation'
+    );
+  });
+
+  it('Decision builder surfaces helpful guidance when spread is incomplete', async () => {
+    const cardsInfo = [
+      major('The High Priestess', 2, 'Heart of the decision', 'Upright'),
+      major('The Sun', 19, 'Path A — energy & likely outcome', 'Upright')
+    ];
+
+    const themes = await buildThemes(cardsInfo, 'blocked');
+
+    const reading = await buildDecisionReading({
+      cardsInfo,
+      userQuestion: 'Which path aligns with me?',
+      reflectionsText: '',
+      themes
+    });
+
+    assert.match(
+      reading,
+      /needs all five cards/i,
+      'Decision builder should warn when fewer than five cards are supplied'
     );
   });
 

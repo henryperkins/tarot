@@ -1,4 +1,4 @@
-import { enhanceSection } from '../../narrativeSpine.js';
+import { enhanceSection, validateReadingNarrative } from '../../narrativeSpine.js';
 import { sortCardsByImportance, getPositionWeight } from '../../positionWeights.js';
 import {
   appendReversalReminder,
@@ -126,6 +126,10 @@ export async function buildThreeCardReading({
   }
 
   const full = sections.filter(Boolean).join('\n\n');
+  const validation = validateReadingNarrative(full);
+  if (!validation.isValid) {
+    console.debug('Three-card narrative spine suggestions:', validation.suggestions || validation.sectionAnalyses);
+  }
   return appendReversalReminder(full, cardsInfo, themes);
 }
 

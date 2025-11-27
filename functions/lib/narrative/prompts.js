@@ -22,7 +22,8 @@ import {
   isGraphRAGEnabled,
   retrievePassages,
   formatPassagesForPrompt,
-  getPassageCountForSpread
+  getPassageCountForSpread,
+  buildRetrievalSummary
 } from '../graphRAG.js';
 import { getPositionWeight } from '../positionWeights.js';
 
@@ -40,6 +41,12 @@ const DECK_STYLE_TIPS = {
 };
 
 const TOKEN_ESTIMATE_DIVISOR = 4; // Rough heuristic: ~4 characters per token
+const MAX_REFLECTION_TEXT_LENGTH = 600;
+const DEFAULT_REVERSAL_DESCRIPTION = {
+  name: 'Upright Emphasis',
+  description: 'No specific reversal framework supplied for this reading.',
+  guidance: 'If a card appears reversed, treat it as an internalized or blocked expression rather than an ominous inversion.'
+};
 
 function readEnvNumber(value) {
   if (value === undefined || value === null) return null;
@@ -96,6 +103,11 @@ export function buildEnhancedClaudePrompt({
   budgetTarget = 'claude',
   contextDiagnostics = []
 }) {
+  const baseThemes = typeof themes === 'object' && themes !== null ? themes : {};
+  const activeThemes = baseThemes.reversalDescription
+    ? baseThemes
+    : { ...baseThemes, reversalDescription: { ...DEFAULT_REVERSAL_DESCRIPTION } };
+
   const spreadKey = getSpreadKeyFromName(spreadInfo.name);
   const diagnostics = Array.isArray(contextDiagnostics) ? contextDiagnostics : [];
 
@@ -121,7 +133,7 @@ export function buildEnhancedClaudePrompt({
   const buildWithControls = (controls) => {
     const systemPrompt = buildSystemPrompt(
       spreadKey,
-      themes,
+      activeThemes,
       normalizedContext,
       deckStyle,
       userQuestion,
@@ -133,7 +145,7 @@ export function buildEnhancedClaudePrompt({
       cardsInfo,
       userQuestion,
       reflectionsText,
-      themes,
+      activeThemes,
       spreadAnalysis,
       normalizedContext,
       visionInsights,
@@ -315,19 +327,44 @@ function buildSystemPrompt(spreadKey, themes, context, deckStyle, userQuestion =
       const effectiveSpreadKey = spreadKey || 'general';
       const maxPassages = getPassageCountForSpread(effectiveSpreadKey);
 
-      const payload = options.graphRAGPayload || themes?.knowledgeGraph?.graphRAGPayload;
-      const retrievedPassages = Array.isArray(payload?.passages) && payload.passages.length
-        ? payload.passages.slice(0, maxPassages)
-        : retrievePassages(themes.knowledgeGraph.graphKeys, {
-            maxPassages,
-            userQuery: userQuestion
-          });
+      let payload = options.graphRAGPayload || themes?.knowledgeGraph?.graphRAGPayload || null;
+      let retrievedPassages = Array.isArray(payload?.passages) && payload.passages.length
+        ? payload.passages
+        : null;
 
-      const formattedPassages = payload?.formattedBlock
-        || formatPassagesForPrompt(retrievedPassages, {
+      if (!retrievedPassages) {
+        retrievedPassages = retrievePassages(themes.knowledgeGraph.graphKeys, {
+          maxPassages,
+          userQuery: userQuestion
+        });
+        payload = {
+          passages: retrievedPassages,
+          formattedBlock: null,
+          retrievalSummary: buildRetrievalSummary(themes.knowledgeGraph.graphKeys, retrievedPassages)
+        };
+      }
+
+      if (Array.isArray(retrievedPassages) && retrievedPassages.length > maxPassages) {
+        retrievedPassages = retrievedPassages.slice(0, maxPassages);
+        if (payload) {
+          payload.passages = retrievedPassages;
+        }
+      }
+
+      if (!payload.retrievalSummary) {
+        payload.retrievalSummary = buildRetrievalSummary(themes.knowledgeGraph.graphKeys, retrievedPassages);
+      }
+
+      let formattedPassages = payload.formattedBlock;
+      if (!formattedPassages) {
+        formattedPassages = formatPassagesForPrompt(retrievedPassages, {
           includeSource: true,
           markdown: true
         });
+        payload.formattedBlock = formattedPassages;
+      }
+
+      options.graphRAGPayload = payload;
 
       if (formattedPassages) {
         lines.push(
@@ -421,13 +458,15 @@ function buildUserPrompt(
   cardsInfo,
   userQuestion,
   reflectionsText,
-  themes,
+  themes = {},
   spreadAnalysis,
   context,
   visionInsights,
   deckStyle,
   promptOptions = {}
 ) {
+  const activeThemes = typeof themes === 'object' && themes !== null ? themes : {};
+  const reversalDescriptor = activeThemes.reversalDescription || { ...DEFAULT_REVERSAL_DESCRIPTION };
   let prompt = ``;
 
   const includeDeckContext = promptOptions.includeDeckContext !== false;
@@ -447,26 +486,26 @@ function buildUserPrompt(
   if (context && context !== 'general') {
     thematicLines.push(`- Context lens: Focus the narrative through ${getContextDescriptor(context)}`);
   }
-  if (themes.suitFocus) thematicLines.push(`- ${themes.suitFocus}`);
-  if (themes.archetypeDescription) thematicLines.push(`- ${themes.archetypeDescription}`);
-  if (themes.elementalBalance) thematicLines.push(`- ${themes.elementalBalance}`);
-  if (themes.timingProfile) {
+  if (activeThemes.suitFocus) thematicLines.push(`- ${activeThemes.suitFocus}`);
+  if (activeThemes.archetypeDescription) thematicLines.push(`- ${activeThemes.archetypeDescription}`);
+  if (activeThemes.elementalBalance) thematicLines.push(`- ${activeThemes.elementalBalance}`);
+  if (activeThemes.timingProfile) {
     const timingDescriptions = {
       'near-term-tilt': 'Timing: This reading leans toward near-term shifts if you engage actively with the guidance.',
       'longer-arc-tilt': 'Timing: This pattern unfolds across a longer structural arc requiring patience and sustained attention.',
       'developing-arc': 'Timing: Expect this to emerge as a meaningful chapter rather than a single moment.'
     };
-    const timingText = timingDescriptions[themes.timingProfile];
+    const timingText = timingDescriptions[activeThemes.timingProfile];
     if (timingText) {
       thematicLines.push(`- ${timingText}`);
     }
   }
-  thematicLines.push(`- Reversal framework: ${themes.reversalDescription.name}`);
+  thematicLines.push(`- Reversal framework: ${reversalDescriptor.name}`);
   prompt += `**Thematic Context**:\n${thematicLines.join('\n')}\n\n`;
 
-  if (themes?.knowledgeGraph?.narrativeHighlights?.length) {
+  if (activeThemes?.knowledgeGraph?.narrativeHighlights?.length) {
     prompt += '**Archetypal Patterns** (weave naturally, not mechanically):\n';
-    themes.knowledgeGraph.narrativeHighlights.slice(0, 5).forEach((highlight, index) => {
+    activeThemes.knowledgeGraph.narrativeHighlights.slice(0, 5).forEach((highlight, index) => {
       const label = highlight?.text || '';
       if (!label) return;
       prompt += `- ${label}\n`;
@@ -497,19 +536,19 @@ function buildUserPrompt(
 
   // Spread-specific card presentation
   if (spreadKey === 'celtic' && spreadAnalysis) {
-    prompt += buildCelticCrossPromptCards(cardsInfo, spreadAnalysis, themes, context, userQuestion, visionInsights, promptOptions);
+    prompt += buildCelticCrossPromptCards(cardsInfo, spreadAnalysis, activeThemes, context, userQuestion, visionInsights, promptOptions);
   } else if (spreadKey === 'threeCard' && spreadAnalysis) {
-    prompt += buildThreeCardPromptCards(cardsInfo, spreadAnalysis, themes, context, userQuestion, visionInsights, promptOptions);
+    prompt += buildThreeCardPromptCards(cardsInfo, spreadAnalysis, activeThemes, context, userQuestion, visionInsights, promptOptions);
   } else if (spreadKey === 'fiveCard' && spreadAnalysis) {
-    prompt += buildFiveCardPromptCards(cardsInfo, spreadAnalysis, themes, context, visionInsights, promptOptions);
+    prompt += buildFiveCardPromptCards(cardsInfo, spreadAnalysis, activeThemes, context, visionInsights, promptOptions);
   } else if (spreadKey === 'relationship') {
-    prompt += buildRelationshipPromptCards(cardsInfo, themes, context, visionInsights, promptOptions);
+    prompt += buildRelationshipPromptCards(cardsInfo, activeThemes, context, visionInsights, promptOptions);
   } else if (spreadKey === 'decision') {
-    prompt += buildDecisionPromptCards(cardsInfo, themes, context, visionInsights, promptOptions);
+    prompt += buildDecisionPromptCards(cardsInfo, activeThemes, context, visionInsights, promptOptions);
   } else if (spreadKey === 'single') {
-    prompt += buildSingleCardPrompt(cardsInfo, themes, context, visionInsights, promptOptions);
+    prompt += buildSingleCardPrompt(cardsInfo, activeThemes, context, visionInsights, promptOptions);
   } else {
-    prompt += buildStandardPromptCards(spreadKey, cardsInfo, themes, context, visionInsights, promptOptions);
+    prompt += buildStandardPromptCards(spreadKey, cardsInfo, activeThemes, context, visionInsights, promptOptions);
   }
 
   const deckSpecificContext = buildDeckSpecificContext(deckStyle, cardsInfo, { includeDeckContext });
@@ -520,7 +559,10 @@ function buildUserPrompt(
   // Reflections (Fallback for legacy/aggregate usage)
   const hasPerCardReflections = cardsInfo.some(c => c.userReflection);
   if (!hasPerCardReflections && reflectionsText && reflectionsText.trim()) {
-    prompt += `\n**Querent's Reflections**:\n${reflectionsText.trim()}\n\n`;
+    const sanitizedReflections = sanitizeAndTruncate(reflectionsText, MAX_REFLECTION_TEXT_LENGTH);
+    if (sanitizedReflections) {
+      prompt += `\n**Querent's Reflections**:\n${sanitizedReflections}\n\n`;
+    }
   }
 
   const visionSection = buildVisionValidationSection(visionInsights, { includeDiagnostics });
