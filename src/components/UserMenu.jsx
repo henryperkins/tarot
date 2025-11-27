@@ -6,7 +6,7 @@ import AuthModal from './AuthModal';
 
 export function UserMenu({ condensed = false }) {
   const { isAuthenticated, user, logout } = useAuth();
-  const { resetOnboarding } = usePreferences();
+  const { resetOnboarding, onboardingComplete } = usePreferences();
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showDropdown, setShowDropdown] = useState(false);
   const [analyticsEnabled, setAnalyticsEnabled] = useState(null);
@@ -264,21 +264,23 @@ export function UserMenu({ condensed = false }) {
           </div>
         ) : (
           <div className="flex items-center gap-2">
-            <button
-              onClick={handleReplayTutorial}
-              className="
-                flex items-center justify-center min-w-[44px] min-h-[44px]
-                rounded-full bg-surface/50 border border-accent/20
-                text-accent hover:bg-surface hover:border-accent/40 active:bg-surface-muted
-                transition touch-manipulation
-                focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60
-                focus-visible:ring-offset-2 focus-visible:ring-offset-main
-              "
-              aria-label="Replay tutorial"
-              title="Replay Tutorial"
-            >
-              <BookOpen className="w-4 h-4" aria-hidden="true" />
-            </button>
+            {onboardingComplete && (
+              <button
+                onClick={handleReplayTutorial}
+                className="
+                  flex items-center justify-center min-w-[44px] min-h-[44px]
+                  rounded-full bg-surface/50 border border-accent/20
+                  text-accent hover:bg-surface hover:border-accent/40 active:bg-surface-muted
+                  transition touch-manipulation
+                  focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60
+                  focus-visible:ring-offset-2 focus-visible:ring-offset-main
+                "
+                aria-label="Replay tutorial"
+                title="Replay Tutorial"
+              >
+                <BookOpen className="w-4 h-4" aria-hidden="true" />
+              </button>
+            )}
             <button
               onClick={() => setShowAuthModal(true)}
               className="
