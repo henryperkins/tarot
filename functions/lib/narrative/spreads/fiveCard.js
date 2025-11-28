@@ -13,6 +13,7 @@ import {
   getConnector,
   computeRemedyRotationIndex
 } from '../helpers.js';
+import { getToneStyle, getFrameVocabulary, buildNameClause, buildPersonalizedClosing } from '../styleHelpers.js';
 
 export async function buildFiveCardReading({
   cardsInfo,
@@ -24,6 +25,10 @@ export async function buildFiveCardReading({
   spreadInfo
 }, options = {}) {
   const sections = [];
+  const personalization = options.personalization || null;
+  const tone = getToneStyle(personalization?.readingTone);
+  const frameVocab = getFrameVocabulary(personalization?.spiritualFrame);
+  const nameInline = buildNameClause(personalization?.displayName, 'inline');
   const collectValidation =
     typeof options.collectValidation === 'function'
       ? options.collectValidation
@@ -48,7 +53,8 @@ export async function buildFiveCardReading({
       spreadName,
       userQuestion ||
       'This spread clarifies the core issue, the challenge, hidden influences, support, and where things are heading if nothing shifts.',
-      context
+      context,
+      { personalization: options.personalization }
     )
   );
 
@@ -199,7 +205,12 @@ export async function buildFiveCardReading({
   }
 
   // Guidance synthesis with elemental remedies
-  const guidanceSection = await buildFiveCardGuidance(cardsInfo, themes, context, direction, remedyRotationIndex);
+  let guidanceSection = await buildFiveCardGuidance(cardsInfo, themes, context, direction, remedyRotationIndex);
+  if (guidanceSection) {
+    const tonePhrase = tone.challengeFraming || 'grounded next step';
+    const frameWord = frameVocab[0] || 'insight';
+    guidanceSection += `\n\nFor you${nameInline || ''} this becomes a ${tonePhrase}, translating ${frameWord} into practice.`;
+  }
   if (guidanceSection) {
     sections.push(
       recordSection(guidanceSection, {
@@ -215,7 +226,9 @@ export async function buildFiveCardReading({
     console.debug('Five-Card narrative spine suggestions:', validation.suggestions || validation.sectionAnalyses);
   }
 
-  return appendReversalReminder(full, cardsInfo, themes);
+  const closing = buildPersonalizedClosing(personalization);
+  const narrative = closing ? `${full}\n\n${closing}` : full;
+  return appendReversalReminder(narrative, cardsInfo, themes);
 }
 
 async function buildFiveCardGuidance(cardsInfo, themes, context, direction, rotationIndex = 0) {

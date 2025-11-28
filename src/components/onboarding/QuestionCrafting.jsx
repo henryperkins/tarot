@@ -82,8 +82,8 @@ export function QuestionCrafting({ question, onQuestionChange, onNext, onBack })
             value={question}
             onChange={(e) => onQuestionChange(e.target.value)}
             placeholder="e.g., What energy should I focus on this week?"
-            rows={isLandscape ? 2 : 3}
-            className="w-full bg-surface border border-primary/40 rounded-xl px-4 py-3 text-base text-main placeholder-muted resize-none focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/70 transition-all"
+            rows={isLandscape ? 2 : 4}
+            className={`w-full bg-surface border border-primary/40 rounded-xl px-4 py-3 text-base text-main placeholder-muted resize-none focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/70 transition-all ${isLandscape ? 'min-h-[4rem] max-h-[30vh]' : 'min-h-[6rem] xs:min-h-[7rem] sm:min-h-[8rem]'}`}
           />
         </div>
 
@@ -226,7 +226,7 @@ export function QuestionCrafting({ question, onQuestionChange, onNext, onBack })
                 key={i}
                 type="button"
                 onClick={() => handleExampleClick(example)}
-                className="px-3 py-1.5 rounded-full border border-secondary/30 bg-surface/50 text-xs text-muted hover:text-main hover:border-accent/50 transition touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                className="min-h-[44px] px-3 xs:px-4 py-2 rounded-full border border-secondary/30 bg-surface/50 text-xs xs:text-sm text-muted hover:text-main hover:border-accent/50 transition touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
               >
                 {example.length > 35 ? example.slice(0, 35) + '...' : example}
               </button>

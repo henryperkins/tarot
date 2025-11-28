@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect, useRef, memo } from 'react';
-import { FileText, Copy, ArrowsClockwise, ChartBar, Sparkle, ShareNetwork, DownloadSimple, Trash } from '@phosphor-icons/react';
+import { FileText, Copy, ArrowsClockwise, ChartBar, Sparkle, ShareNetwork, DownloadSimple, Trash, BookOpen } from '@phosphor-icons/react';
 import { useSmallScreen } from '../hooks/useSmallScreen';
 import { useLandscape } from '../hooks/useLandscape';
 import { useReducedMotion } from '../hooks/useReducedMotion';
@@ -13,8 +13,11 @@ import {
     exportJournalEntriesToCsv,
     copyJournalShareSummary,
     saveCoachRecommendation,
-    persistCoachStatsSnapshot
+    persistCoachStatsSnapshot,
+    computePreferenceDrift,
+    formatContextName
 } from '../lib/journalInsights';
+import { usePreferences } from '../contexts/PreferencesContext';
 
 const CONTEXT_TO_SPREAD = {
     love: {
@@ -104,6 +107,7 @@ export const JournalInsightsPanel = memo(function JournalInsightsPanel({
     const isSmallScreen = useSmallScreen();
     const isLandscape = useLandscape();
     const prefersReducedMotion = useReducedMotion();
+    const { personalization } = usePreferences();
     const primaryStats = stats || allStats;
     const frequentCards = primaryStats?.frequentCards || [];
     const contextBreakdown = primaryStats?.contextBreakdown || [];
@@ -151,6 +155,15 @@ export const JournalInsightsPanel = memo(function JournalInsightsPanel({
         baseEntries.length === 0 &&
         Array.isArray(allEntries) &&
         allEntries.length > 0;
+
+    // Compute preference drift for "Emerging Interests" insight (Phase 5.4)
+    const preferenceDrift = useMemo(
+        () => computePreferenceDrift(
+            filtersActive ? allEntries : summaryEntries,
+            personalization?.focusAreas
+        ),
+        [allEntries, summaryEntries, filtersActive, personalization?.focusAreas]
+    );
 
     useEffect(() => {
         if (!summaryStats) return;
@@ -699,6 +712,28 @@ export const JournalInsightsPanel = memo(function JournalInsightsPanel({
                                     </li>
                                 ))}
                             </ul>
+                        </div>
+                    )}
+
+                    {/* Emerging Interests (Preference Drift) - Phase 5.4 */}
+                    {preferenceDrift?.hasDrift && (
+                        <div className={`rounded-3xl border border-amber-500/30 bg-amber-500/5 ${isLandscape ? 'p-3' : 'p-5'}`}>
+                            <h3 className={`flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-amber-400/90 ${isLandscape ? 'mb-2' : 'mb-4'}`}>
+                                <BookOpen className="h-3 w-3" /> Emerging Interests
+                            </h3>
+                            <p className={`text-muted leading-relaxed ${isLandscape ? 'text-xs' : 'text-sm'}`}>
+                                You&apos;ve been exploring{' '}
+                                <span className="font-medium text-amber-300">
+                                    {preferenceDrift.driftContexts
+                                        .slice(0, 2)
+                                        .map(d => formatContextName(d.context))
+                                        .join(' and ')}
+                                </span>{' '}
+                                themes beyond your selected focus areas.
+                            </p>
+                            <p className={`mt-2 text-secondary/60 ${isLandscape ? 'text-[0.65rem]' : 'text-xs'}`}>
+                                Consider updating your focus areas in Settings to personalize future readings.
+                            </p>
                         </div>
                     )}
 

@@ -27,6 +27,7 @@ import {
 } from '../graphRAG.js';
 import { getPositionWeight } from '../positionWeights.js';
 import { formatVisionLabelForPrompt } from '../visionLabels.js';
+import { getDepthProfile } from './styleHelpers.js';
 
 const DECK_STYLE_TIPS = {
   'thoth-a1': [
@@ -47,6 +48,19 @@ const DEFAULT_REVERSAL_DESCRIPTION = {
   name: 'Upright Emphasis',
   description: 'No specific reversal framework supplied for this reading.',
   guidance: 'If a card appears reversed, treat it as an internalized or blocked expression rather than an ominous inversion.'
+};
+
+const TONE_GUIDANCE = {
+  gentle: `Use warm, nurturing language throughout. Lead with validation before addressing challenges. Frame difficulties as growth opportunities rather than obstacles. Avoid harsh absolutes or alarming language. Emphasize possibilities, hope, and the querent's inner wisdom.`,
+  balanced: `Be honest but kind. Acknowledge both challenges and opportunities with equal weight. Balance difficult truths with encouragement. Use measured language that neither sugarcoats nor dramatizes. Trust the querent to handle nuanced information.`,
+  blunt: `Be direct and clear. Skip softening phrases like "perhaps" or "you might consider." State observations plainly without hedging. Focus on clarity over comfort. Assume the querent prefers straightforward guidance over diplomatic cushioning.`
+};
+
+const FRAME_GUIDANCE = {
+  psychological: `Interpret through Jungian archetypes, shadow work, and behavioral patterns. Use language of the psyche: projection, integration, individuation. Ground insights in observable patterns and personal development frameworks.`,
+  spiritual: `Embrace intuitive, mystical language. Reference cosmic cycles, soul contracts, and energetic resonance. Honor the sacred dimension of the reading. Use terms like "spirit guides," "higher self," and "universal wisdom" where appropriate.`,
+  mixed: `Blend psychological insight with spiritual symbolism naturally. Move fluidly between archetypal psychology and mystical language based on what serves each card's message. This is the default approach when no preference is specified.`,
+  playful: `Keep it light, fun, and exploratory. Use humor where appropriate. Frame the reading as a curious adventure rather than a solemn ritual. Avoid heavy language even for challenging cards. Maintain wonder and levity throughout.`
 };
 
 function readEnvNumber(value) {
@@ -103,7 +117,8 @@ export function buildEnhancedClaudePrompt({
   transitResonances = [],
   budgetTarget = 'claude',
   contextDiagnostics = [],
-  promptBudgetEnv = null
+  promptBudgetEnv = null,
+  personalization = null
 }) {
   const baseThemes = typeof themes === 'object' && themes !== null ? themes : {};
   const activeThemes = baseThemes.reversalDescription
@@ -139,7 +154,11 @@ export function buildEnhancedClaudePrompt({
       normalizedContext,
       deckStyle,
       userQuestion,
-      controls
+      {
+        ...controls,
+        personalization,
+        maxTokenBudget: promptBudget
+      }
     );
 
     const userPrompt = buildUserPrompt(
@@ -152,7 +171,10 @@ export function buildEnhancedClaudePrompt({
       normalizedContext,
       visionInsights,
       deckStyle,
-      controls
+      {
+        ...controls,
+        personalization
+      }
     );
 
     const systemTokens = estimateTokenCount(systemPrompt);
@@ -452,6 +474,33 @@ function buildSystemPrompt(spreadKey, themes, context, deckStyle, userQuestion =
     '- SELF-VERIFY: After composing, quickly scan to ensure each referenced card/position is accurate, reversal instructions are obeyed, and the specific *visual profile* (tone/emotion) of the user\'s deck is reflected in the descriptive language before producing the final answer.'
   );
 
+  const personalization = options.personalization || null;
+  const toneKey = personalization?.readingTone;
+  const frameKey = personalization?.spiritualFrame;
+  const depthPreference = personalization?.preferredSpreadDepth;
+  const depthProfile = depthPreference ? getDepthProfile(depthPreference) : null;
+  const hasToneSection = toneKey && TONE_GUIDANCE[toneKey];
+  const hasFrameSection = frameKey && FRAME_GUIDANCE[frameKey];
+
+  if (hasToneSection || hasFrameSection) {
+    const basePrompt = lines.join('\n');
+    const maxTokenBudget = Number.isFinite(options.maxTokenBudget) ? options.maxTokenBudget : null;
+    const baseTokens = estimateTokenCount(basePrompt);
+    const remainingBudget = maxTokenBudget ? maxTokenBudget - baseTokens : Infinity;
+    if (remainingBudget > 400) {
+      if (hasToneSection) {
+        lines.push('', '## Reading Tone', TONE_GUIDANCE[toneKey], '');
+      }
+      if (hasFrameSection) {
+        lines.push('', '## Interpretive Frame', FRAME_GUIDANCE[frameKey], '');
+      }
+    }
+  }
+
+  if (depthProfile && depthProfile.systemGuidance && depthProfile.key !== 'standard') {
+    lines.push('', '## Narrative Depth Preference', depthProfile.systemGuidance, '');
+  }
+
   return lines.join('\n');
 }
 
@@ -467,6 +516,13 @@ function buildUserPrompt(
   deckStyle,
   promptOptions = {}
 ) {
+  const personalization = promptOptions.personalization || null;
+  const displayName =
+    typeof personalization?.displayName === 'string'
+      ? personalization.displayName.trim()
+      : '';
+  const depthPreference = personalization?.preferredSpreadDepth;
+  const depthProfile = depthPreference ? getDepthProfile(depthPreference) : null;
   const activeThemes = typeof themes === 'object' && themes !== null ? themes : {};
   const reversalDescriptor = activeThemes.reversalDescription || { ...DEFAULT_REVERSAL_DESCRIPTION };
   let prompt = ``;
@@ -475,7 +531,21 @@ function buildUserPrompt(
   const includeDiagnostics = promptOptions.includeDiagnostics !== false;
 
   // Question
-  prompt += `**Question**: ${userQuestion || '(No explicit question; speak to the energy most present for the querent.)'}\n\n`;
+  let questionLine = userQuestion || '(No explicit question; speak to the energy most present for the querent.)';
+  if (displayName && userQuestion) {
+    questionLine = `${displayName}, you asked: ${userQuestion}`;
+  } else if (displayName && !userQuestion) {
+    questionLine = `${displayName} did not pose a question—attune to the energy most present for them.`;
+  }
+  prompt += `**Question**: ${questionLine}\n\n`;
+
+  if (displayName) {
+    prompt += `**Name Usage**:\n- Weave the querent's name naturally in key transitions (for example, "For you, ${displayName}, this suggests...").\n- Open with a direct acknowledgement such as "${displayName}, you asked..." and close with "Remember, ${displayName}, ..." to keep the reading personal without overusing the name.\n\n`;
+  }
+
+  if (depthProfile && depthProfile.promptReminder && depthProfile.key !== 'standard') {
+    prompt += `**Depth Preference**: ${depthProfile.promptReminder}\n\n`;
+  }
 
   // Deck style name only - detailed tips are in system prompt
   const deckNotes = getDeckStyleNotes(deckStyle);

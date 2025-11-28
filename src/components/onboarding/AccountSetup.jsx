@@ -13,8 +13,9 @@ import { useAuth } from '../../contexts/AuthContext';
 export function AccountSetup({ onNext, onBack }) {
   const prefersReducedMotion = useReducedMotion();
   const isLandscape = useLandscape();
-  const { isAuthenticated, user, register, loading: authLoading } = useAuth();
+  const { isAuthenticated, user, register, login, loading: authLoading } = useAuth();
 
+  const [mode, setMode] = useState('register'); // 'register' or 'login'
   const [email, setEmail] = useState('');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -26,15 +27,28 @@ export function AccountSetup({ onNext, onBack }) {
     setError(null);
     setIsSubmitting(true);
 
-    const result = await register(email, username, password);
-    
+    let result;
+    if (mode === 'register') {
+      result = await register(email, username, password);
+    } else {
+      result = await login(email, password);
+    }
+
     setIsSubmitting(false);
-    
+
     if (result.success) {
       onNext();
     } else {
-      setError(result.error || 'Registration failed. Please try again.');
+      const defaultError = mode === 'register'
+        ? 'Registration failed. Please try again.'
+        : 'Sign in failed. Check your email and password.';
+      setError(result.error || defaultError);
     }
+  };
+
+  const toggleMode = () => {
+    setMode(prev => prev === 'register' ? 'login' : 'register');
+    setError(null);
   };
 
   // If already authenticated, show success state
@@ -100,43 +114,47 @@ export function AccountSetup({ onNext, onBack }) {
         className={`text-center mb-4 sm:mb-6 ${prefersReducedMotion ? '' : 'animate-fade-in-up'}`}
       >
         <h2 className={`font-serif text-main ${isLandscape ? 'text-xl' : 'text-2xl sm:text-3xl'}`}>
-          Save Your Journey
+          {mode === 'register' ? 'Save Your Journey' : 'Welcome Back'}
         </h2>
         <p className={`text-muted mt-2 max-w-md mx-auto ${isLandscape ? 'text-sm' : ''}`}>
-          Create an account to keep your readings safe and synced.
+          {mode === 'register'
+            ? 'Create an account to keep your readings safe and synced.'
+            : 'Sign in to access your saved readings.'}
         </p>
       </div>
 
       {/* Main content */}
       <div className="flex-1 overflow-y-auto space-y-4 sm:space-y-6">
-        {/* Benefits */}
-        <div
-          className={`rounded-2xl border border-accent/20 bg-surface/50 p-5 ${
-            prefersReducedMotion ? '' : 'animate-fade-in-up'
-          } ${isLandscape ? 'p-4' : ''}`}
-          style={{ animationDelay: '0.1s' }}
-        >
-          <div className="flex items-center gap-3 mb-3">
-            <div className="w-10 h-10 rounded-full bg-accent/10 border border-accent/30 flex items-center justify-center">
-              <CloudArrowUp className="w-5 h-5 text-accent" weight="duotone" aria-hidden="true" />
+        {/* Benefits - only show for registration */}
+        {mode === 'register' && (
+          <div
+            className={`rounded-2xl border border-accent/20 bg-surface/50 p-5 ${
+              prefersReducedMotion ? '' : 'animate-fade-in-up'
+            } ${isLandscape ? 'p-4' : ''}`}
+            style={{ animationDelay: '0.1s' }}
+          >
+            <div className="flex items-center gap-3 mb-3">
+              <div className="w-10 h-10 rounded-full bg-accent/10 border border-accent/30 flex items-center justify-center">
+                <CloudArrowUp className="w-5 h-5 text-accent" weight="duotone" aria-hidden="true" />
+              </div>
+              <h3 className="font-medium text-main">Benefits of an account</h3>
             </div>
-            <h3 className="font-medium text-main">Benefits of an account</h3>
+            <ul className={`space-y-2 ${isLandscape ? 'text-sm' : ''}`}>
+              <li className="flex items-start gap-2 text-muted">
+                <Check className="w-4 h-4 text-accent shrink-0 mt-0.5" weight="bold" aria-hidden="true" />
+                <span>Sync your readings across devices</span>
+              </li>
+              <li className="flex items-start gap-2 text-muted">
+                <Check className="w-4 h-4 text-accent shrink-0 mt-0.5" weight="bold" aria-hidden="true" />
+                <span>Track patterns over time</span>
+              </li>
+              <li className="flex items-start gap-2 text-muted">
+                <Check className="w-4 h-4 text-accent shrink-0 mt-0.5" weight="bold" aria-hidden="true" />
+                <span>Never lose your insights</span>
+              </li>
+            </ul>
           </div>
-          <ul className={`space-y-2 ${isLandscape ? 'text-sm' : ''}`}>
-            <li className="flex items-start gap-2 text-muted">
-              <Check className="w-4 h-4 text-accent shrink-0 mt-0.5" weight="bold" aria-hidden="true" />
-              <span>Sync your readings across devices</span>
-            </li>
-            <li className="flex items-start gap-2 text-muted">
-              <Check className="w-4 h-4 text-accent shrink-0 mt-0.5" weight="bold" aria-hidden="true" />
-              <span>Track patterns over time</span>
-            </li>
-            <li className="flex items-start gap-2 text-muted">
-              <Check className="w-4 h-4 text-accent shrink-0 mt-0.5" weight="bold" aria-hidden="true" />
-              <span>Never lose your insights</span>
-            </li>
-          </ul>
-        </div>
+        )}
 
         {/* Registration form */}
         <form
@@ -170,23 +188,25 @@ export function AccountSetup({ onNext, onBack }) {
             />
           </div>
 
-          {/* Username input */}
-          <div>
-            <label htmlFor="signup-username" className="flex items-center gap-2 text-sm text-accent mb-2">
-              <User className="w-4 h-4" weight="duotone" aria-hidden="true" />
-              Username
-            </label>
-            <input
-              id="signup-username"
-              type="text"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              placeholder="Choose a username"
-              required
-              autoComplete="username"
-              className="w-full bg-surface border border-primary/40 rounded-xl px-4 py-3 text-base text-main placeholder-muted/70 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/70 transition-all"
-            />
-          </div>
+          {/* Username input - only for registration */}
+          {mode === 'register' && (
+            <div>
+              <label htmlFor="signup-username" className="flex items-center gap-2 text-sm text-accent mb-2">
+                <User className="w-4 h-4" weight="duotone" aria-hidden="true" />
+                Username
+              </label>
+              <input
+                id="signup-username"
+                type="text"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                placeholder="Choose a username"
+                required
+                autoComplete="username"
+                className="w-full bg-surface border border-primary/40 rounded-xl px-4 py-3 text-base text-main placeholder-muted/70 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/70 transition-all"
+              />
+            </div>
+          )}
 
           {/* Password input */}
           <div>
@@ -199,13 +219,15 @@ export function AccountSetup({ onNext, onBack }) {
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder="Create a password"
+              placeholder={mode === 'register' ? 'Create a password' : 'Enter your password'}
               required
-              autoComplete="new-password"
-              minLength={8}
+              autoComplete={mode === 'register' ? 'new-password' : 'current-password'}
+              minLength={mode === 'register' ? 8 : undefined}
               className="w-full bg-surface border border-primary/40 rounded-xl px-4 py-3 text-base text-main placeholder-muted/70 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/70 transition-all"
             />
-            <p className="text-xs text-muted mt-1">At least 8 characters</p>
+            {mode === 'register' && (
+              <p className="text-xs text-muted mt-1">At least 8 characters</p>
+            )}
           </div>
 
           {/* Submit button */}
@@ -217,15 +239,42 @@ export function AccountSetup({ onNext, onBack }) {
             {isSubmitting ? (
               <>
                 <CircleNotch className="w-5 h-5 animate-spin" aria-hidden="true" />
-                Creating account...
+                {mode === 'register' ? 'Creating account...' : 'Signing in...'}
               </>
             ) : (
               <>
-                Create Account
+                {mode === 'register' ? 'Create Account' : 'Sign In'}
                 <ArrowRight className="w-5 h-5" weight="bold" />
               </>
             )}
           </button>
+
+          {/* Mode toggle */}
+          <p className="text-center text-sm text-muted">
+            {mode === 'register' ? (
+              <>
+                Already have an account?{' '}
+                <button
+                  type="button"
+                  onClick={toggleMode}
+                  className="text-accent hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                >
+                  Sign in
+                </button>
+              </>
+            ) : (
+              <>
+                New here?{' '}
+                <button
+                  type="button"
+                  onClick={toggleMode}
+                  className="text-accent hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                >
+                  Create an account
+                </button>
+              </>
+            )}
+          </p>
         </form>
       </div>
 

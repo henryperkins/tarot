@@ -14,6 +14,7 @@ import {
   getConnector,
   computeRemedyRotationIndex
 } from '../helpers.js';
+import { getToneStyle, getFrameVocabulary, buildNameClause, buildPersonalizedClosing } from '../styleHelpers.js';
 
 export async function buildDecisionReading({
   cardsInfo,
@@ -41,13 +42,18 @@ export async function buildDecisionReading({
     return result.text;
   };
   const spreadName = 'Decision / Two-Path';
+  const personalization = options.personalization || null;
+  const tone = getToneStyle(personalization?.readingTone);
+  const frameVocab = getFrameVocabulary(personalization?.spiritualFrame);
+  const nameInline = buildNameClause(personalization?.displayName, 'inline');
 
   sections.push(
     buildOpening(
       spreadName,
       userQuestion ||
       'This spread illuminates the heart of your decision, two possible paths, clarifying insight, and a reminder of your agency.',
-      context
+      context,
+      { personalization: options.personalization }
     )
   );
 
@@ -220,7 +226,12 @@ export async function buildDecisionReading({
   }
 
   // Guidance synthesis with elemental remedies
-  const guidanceSection = await buildDecisionGuidance(normalizedCards, themes, context, remedyRotationIndex);
+  let guidanceSection = await buildDecisionGuidance(normalizedCards, themes, context, remedyRotationIndex);
+  if (guidanceSection) {
+    const tonePhrase = tone.challengeFraming || 'clear reminder';
+    const frameWord = frameVocab[0] || 'insight';
+    guidanceSection += `\n\nFor you${nameInline || ''} this is a ${tonePhrase} to notice which path carries more ${frameWord} and agency.`;
+  }
   if (guidanceSection) {
     sections.push(
       recordSection(guidanceSection, {
@@ -236,7 +247,10 @@ export async function buildDecisionReading({
     console.debug('Decision narrative spine suggestions:', validation.suggestions || validation.sectionAnalyses);
   }
 
-  return appendReversalReminder(full, cardsInfo, themes);
+  const closing = buildPersonalizedClosing(personalization);
+  const narrative = closing ? `${full}\n\n${closing}` : full;
+
+  return appendReversalReminder(narrative, cardsInfo, themes);
 }
 
 async function buildDecisionGuidance(cardsInfo, themes, context, rotationIndex = 0) {

@@ -4,6 +4,7 @@ import { GlobalNav } from './GlobalNav';
 import { UserMenu } from './UserMenu';
 import { StepProgress } from './StepProgress';
 import { useReducedMotion } from '../hooks/useReducedMotion';
+import { usePreferences } from '../contexts/PreferencesContext';
 
 // Scroll thresholds - using viewport-relative values for mobile
 const COMPACT_THRESHOLD = 32;
@@ -12,6 +13,8 @@ const HIDE_THRESHOLD_RATIO = 0.2; // 20% of viewport height
 
 export function Header({ steps, activeStep, onStepSelect, isShuffling }) {
   const prefersReducedMotion = useReducedMotion();
+  const { personalization } = usePreferences();
+  const displayName = personalization?.displayName?.trim();
   const [headerState, setHeaderState] = useState(() => ({
     isCompact: false,
     isHidden: false,
@@ -160,6 +163,11 @@ export function Header({ steps, activeStep, onStepSelect, isShuffling }) {
           </div>
         </div>
         <div className="mt-2 sm:mt-1">
+          {displayName && (
+            <p className="text-[0.75rem] sm:text-xs text-muted mb-1">
+              Welcome back, {displayName}.
+            </p>
+          )}
           <StepProgress
             steps={steps}
             activeStep={activeStep}

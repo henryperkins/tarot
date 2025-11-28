@@ -151,7 +151,7 @@ export function WelcomeHero({ onNext }) {
             <p className="text-sm text-accent mb-2">
               How familiar are you with tarot?
             </p>
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-col xs:flex-row flex-wrap gap-2 w-full">
               {EXPERIENCE_OPTIONS.map((option) => {
                 const isSelected = personalization.tarotExperience === option.value;
                 return (
@@ -159,7 +159,7 @@ export function WelcomeHero({ onNext }) {
                     key={option.value}
                     type="button"
                     onClick={() => setTarotExperience(option.value)}
-                    className={`min-h-[44px] px-4 py-2 rounded-full border text-sm font-medium transition touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-main ${
+                    className={`min-h-[44px] w-full xs:w-auto px-4 sm:px-5 py-2.5 rounded-full border text-sm font-medium text-center xs:text-left transition touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-main ${
                       isSelected
                         ? 'bg-accent text-surface border-accent'
                         : 'bg-surface/50 text-muted border-secondary/30 hover:border-accent/50 hover:text-main'
@@ -182,7 +182,7 @@ export function WelcomeHero({ onNext }) {
         <button
           type="button"
           onClick={onNext}
-          className="w-full flex items-center justify-center gap-2 min-h-[48px] px-6 py-3 rounded-xl bg-accent text-surface font-semibold text-base transition hover:bg-accent/90 active:scale-[0.98] touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-main"
+          className="w-full flex items-center justify-center gap-2 min-h-[48px] px-4 xs:px-5 py-3 rounded-xl bg-accent text-surface font-semibold text-base transition hover:bg-accent/90 active:scale-[0.98] touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-main"
         >
           Continue
           <ArrowRight className="w-5 h-5" weight="bold" />

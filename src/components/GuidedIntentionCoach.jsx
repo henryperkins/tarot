@@ -15,6 +15,7 @@ import { useModalA11y, createBackdropHandler } from '../hooks/useModalA11y';
 import { useSmallScreen } from '../hooks/useSmallScreen';
 import { useLandscape } from '../hooks/useLandscape';
 import { useReducedMotion } from '../hooks/useReducedMotion';
+import { usePreferences } from '../contexts/PreferencesContext';
 import {
   INTENTION_TOPIC_OPTIONS,
   INTENTION_TIMEFRAME_OPTIONS,
@@ -120,6 +121,16 @@ const SPREAD_NAMES = {
   fiveCard: 'Five-Card Clarity',
   threeCard: 'Three-Card Story',
   single: 'One-Card Insight'
+};
+
+// Map onboarding focus areas to intention topics
+const FOCUS_AREA_TO_TOPIC = {
+  love: 'relationships',
+  career: 'career',
+  self_worth: 'growth',
+  healing: 'wellbeing',
+  creativity: 'career',
+  spirituality: 'growth'
 };
 
 const baseOptionClass =
@@ -244,12 +255,26 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply,
   const isLandscape = useLandscape();
   const isSmallScreen = useSmallScreen();
   const prefersReducedMotion = useReducedMotion();
+  const { personalization } = usePreferences();
   const [step, setStep] = useState(0);
 
-  // Determine suggested topic based on spread
-  const suggestedTopic = useMemo(() => {
-    return SPREAD_TO_TOPIC_MAP[selectedSpread] || INTENTION_TOPIC_OPTIONS[0].value;
+  // Determine suggested topic from focus areas, falling back to spread
+  const focusAreaSuggestedTopic = useMemo(() => {
+    if (!Array.isArray(personalization?.focusAreas)) return null;
+    for (const area of personalization.focusAreas) {
+      const mapped = FOCUS_AREA_TO_TOPIC[area];
+      if (mapped) return mapped;
+    }
+    return null;
+  }, [personalization?.focusAreas]);
+
+  const spreadSuggestedTopic = useMemo(() => {
+    return SPREAD_TO_TOPIC_MAP[selectedSpread] || null;
   }, [selectedSpread]);
+
+  const suggestedTopic = useMemo(() => {
+    return focusAreaSuggestedTopic || spreadSuggestedTopic || INTENTION_TOPIC_OPTIONS[0].value;
+  }, [focusAreaSuggestedTopic, spreadSuggestedTopic]);
 
   const [topic, setTopic] = useState(suggestedTopic);
   const [timeframe, setTimeframe] = useState(INTENTION_TIMEFRAME_OPTIONS[1].value);
@@ -779,7 +804,8 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply,
           timeframe,
           depth,
           customFocus,
-          seed: questionSeed
+          seed: questionSeed,
+          focusAreas: personalization?.focusAreas
         }, { signal: controller.signal });
 
         if (isCancelled || controller.signal.aborted) {
@@ -812,7 +838,7 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply,
       if (timerId) clearTimeout(timerId);
       controller.abort();
     };
-  }, [guidedQuestion, useCreative, isOpen, autoQuestionEnabled, questionSeed, topic, timeframe, depth, customFocus]);
+  }, [guidedQuestion, useCreative, isOpen, autoQuestionEnabled, questionSeed, topic, timeframe, depth, customFocus, personalization?.focusAreas]);
 
   // ============================================================================
   // Render Helpers
@@ -853,6 +879,11 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply,
               >
                 <p className="font-medium text-main">{option.label}</p>
                 <p className="text-sm text-muted">{option.description}</p>
+                {focusAreaSuggestedTopic && option.value === focusAreaSuggestedTopic && (
+                  <span className="mt-3 inline-flex items-center gap-1 rounded-full bg-accent/15 px-3 py-1 text-[0.65rem] font-semibold uppercase tracking-[0.2em] text-accent">
+                    Based on your interests
+                  </span>
+                )}
               </button>
             ))}
           </div>

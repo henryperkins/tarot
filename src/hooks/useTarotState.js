@@ -4,10 +4,17 @@ import { computeSeed, drawSpread } from '../lib/deck';
 import { playFlip, unlockAudio } from '../lib/audio';
 import { DEFAULT_SPREAD_KEY, normalizeSpreadKey, getSpreadInfo } from '../data/spreads';
 import { usePreferences } from '../contexts/PreferencesContext';
+import { getSpreadFromDepth } from '../utils/personalization';
+
+const SKIP_RITUAL_DEFAULTS = {
+  knockTimes: [100, 200, 300],
+  knockCount: 3
+};
 
 export function useTarotState(speak) {
-  const { includeMinors, deckSize } = usePreferences();
+  const { includeMinors, deckSize, personalization } = usePreferences();
   const [selectedSpreadState, setSelectedSpreadState] = useState(DEFAULT_SPREAD_KEY);
+  const [hasUserSelectedSpread, setHasUserSelectedSpread] = useState(false);
   const selectedSpread = normalizeSpreadKey(selectedSpreadState);
   const setSelectedSpread = useCallback((nextKey) => {
     setSelectedSpreadState(normalizeSpreadKey(nextKey));
@@ -30,6 +37,7 @@ export function useTarotState(speak) {
   const shuffleTimeoutRef = useRef(null);
   const deckAnnouncementTimeoutRef = useRef(null);
   const deckSizeInitializedRef = useRef(false);
+  const shouldSkipRitual = personalization?.showRitualSteps === false;
 
   // Keep cut index centered on active deck and announce deck scope changes
   useEffect(() => {
@@ -122,7 +130,15 @@ export function useTarotState(speak) {
     }
   }, []);
 
+  useEffect(() => {
+    if (!hasUserSelectedSpread && personalization?.preferredSpreadDepth) {
+      const preferred = getSpreadFromDepth(personalization.preferredSpreadDepth);
+      setSelectedSpreadState(preferred);
+    }
+  }, [hasUserSelectedSpread, personalization?.preferredSpreadDepth]);
+
   const selectSpread = useCallback((key) => {
+    setHasUserSelectedSpread(true);
     setSelectedSpread(key);
     resetReadingState(false); // Keep question
     // Reset cut index to deck center
@@ -149,14 +165,25 @@ export function useTarotState(speak) {
       knockTimesRef.current = knockTimesRef.current.filter(timestamp => now - timestamp < 2000);
     }
 
+    let effectiveKnockTimes = knockTimesRef.current;
+    let effectiveCutIndex = cutIndex;
+    const shouldAutoComplete = shouldSkipRitual && !hasKnocked;
+
+    if (shouldAutoComplete) {
+      effectiveKnockTimes = [...SKIP_RITUAL_DEFAULTS.knockTimes];
+      effectiveCutIndex = Math.floor(deckSize / 2);
+      knockTimesRef.current = effectiveKnockTimes;
+      setCutIndex(effectiveCutIndex);
+    }
+
     const seed = computeSeed({
-      cutIndex,
-      knockTimes: knockTimesRef.current,
+      cutIndex: effectiveCutIndex,
+      knockTimes: effectiveKnockTimes,
       userQuestion
     });
 
     // Use deterministic seed when the user performs any ritual or sets a question.
-    const useSeed = Boolean(hasKnocked || hasCut || (userQuestion && userQuestion.trim()));
+    const useSeed = Boolean(hasKnocked || hasCut || (userQuestion && userQuestion.trim()) || shouldAutoComplete);
     const nextSessionSeed = useSeed ? seed : null;
 
     const cards = drawSpread({
@@ -174,8 +201,14 @@ export function useTarotState(speak) {
       setReading(cards);
       setIsShuffling(false);
       setSessionSeed(nextSessionSeed);
+
+      if (shouldAutoComplete) {
+        setKnockCount(SKIP_RITUAL_DEFAULTS.knockCount);
+        setHasKnocked(true);
+        setHasCut(true);
+      }
     }, 1200);
-  }, [selectedSpread, hasConfirmedSpread, hasKnocked, hasCut, userQuestion, cutIndex, includeMinors, resetReadingState]);
+  }, [selectedSpread, hasConfirmedSpread, hasKnocked, hasCut, userQuestion, cutIndex, includeMinors, resetReadingState, shouldSkipRitual, deckSize]);
 
   const shortLineForCard = useCallback((card, position) => {
     const meaning = card.isReversed ? card.reversed : card.upright;
@@ -267,6 +300,7 @@ export function useTarotState(speak) {
     revealAll,
     onSpreadConfirm,
     resetReadingState,
-    knockTimesRef
+    knockTimesRef,
+    shouldSkipRitual
   };
 }

@@ -17,7 +17,7 @@ export function useSaveReading() {
         readingMeta
     } = useReading();
 
-    const { deckStyleId } = usePreferences();
+    const { deckStyleId, personalization } = usePreferences();
     const { saveEntry } = useJournal({ autoLoad: false });
 
     async function saveReading() {
@@ -46,7 +46,15 @@ export function useSaveReading() {
             context: analysisContext || readingMeta?.graphContext || null,
             provider: personalReading?.provider || readingMeta?.provider || 'local',
             sessionSeed,
-            deckId: deckStyleId
+            deckId: deckStyleId,
+            // Snapshot of user preferences at the time of the reading (Phase 5.1)
+            userPreferences: personalization ? {
+                readingTone: personalization.readingTone || 'balanced',
+                spiritualFrame: personalization.spiritualFrame || 'mixed',
+                tarotExperience: personalization.tarotExperience || 'intermediate',
+                // Store displayName only if set (avoid null/empty)
+                ...(personalization.displayName?.trim() ? { displayName: personalization.displayName.trim() } : {})
+            } : null
         };
         try {
             const result = await saveEntry(entry);

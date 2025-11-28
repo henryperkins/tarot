@@ -2,6 +2,7 @@ import { useEffect, useId, useRef, useState } from 'react';
 import { ArrowsClockwise, Sparkle } from '@phosphor-icons/react';
 import { EXAMPLE_QUESTIONS } from '../data/exampleQuestions';
 import { recordCoachQuestion } from '../lib/coachStorage';
+import { usePreferences } from '../contexts/PreferencesContext';
 
 export function QuestionInput({
   userQuestion,
@@ -16,6 +17,10 @@ export function QuestionInput({
   const [savedNotice, setSavedNotice] = useState(false);
   const [saveError, setSaveError] = useState('');
   const timeoutRefs = useRef([]);
+  const { personalization } = usePreferences();
+  const isExperienced = personalization?.tarotExperience === 'experienced';
+  const isNewbie = personalization?.tarotExperience === 'newbie';
+  const displayName = personalization?.displayName?.trim();
 
   const clearAllTimeouts = () => {
     timeoutRefs.current.forEach(timeoutId => clearTimeout(timeoutId));
@@ -63,7 +68,7 @@ export function QuestionInput({
       <div className="flex flex-col gap-2 xs:flex-row xs:items-center xs:justify-between">
         <div className="text-accent font-serif text-sm sm:text-base">
           <label htmlFor="question-input">
-            Step 2 · Your question or intention
+            Step 2 · {displayName ? `${displayName}'s intention` : 'Your question or intention'}
           </label>
         </div>
         {typeof onLaunchCoach === 'function' && (
@@ -75,13 +80,18 @@ export function QuestionInput({
             aria-label="Open guided coach (Shift+G)"
           >
             <Sparkle className="h-3.5 w-3.5" aria-hidden="true" />
-            Guided coach
+            {isExperienced ? 'Coach' : 'Guided coach'}
           </button>
         )}
         <span id={optionalId} className="sr-only">
           Optional field
         </span>
       </div>
+      {isNewbie && (
+        <p className="text-xs text-muted mt-1">
+          Unsure what to ask? Tap Guided coach or cycle the example prompt to get inspired.
+        </p>
+      )}
       <div className="relative">
         <input
           id="question-input"

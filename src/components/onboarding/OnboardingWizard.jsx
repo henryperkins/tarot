@@ -1,4 +1,4 @@
-import { useState, useRef, useId } from 'react';
+import { useState, useRef, useId, useEffect } from 'react';
 import FocusTrap from 'focus-trap-react';
 import { X } from '@phosphor-icons/react';
 import { useModalA11y, createBackdropHandler } from '../../hooks/useModalA11y';
@@ -26,11 +26,26 @@ const TOTAL_STEPS = 7;
  * 5. Understanding the ritual (+ ritual preference)
  * 6. Journal introduction
  * 7. Beginning their journey (summary + launch)
+ *
+ * @param {boolean} isOpen - Whether wizard is visible
+ * @param {function} onComplete - Called with { selectedSpread, question } when finished
+ * @param {function} onSelectSpread - Called when user selects a spread in step 3
+ * @param {string} initialSpread - Pre-selected spread key for replay (default: 'single')
+ * @param {string} initialQuestion - Pre-filled question for replay (default: '')
  */
-export function OnboardingWizard({ isOpen, onComplete, onSelectSpread }) {
+export function OnboardingWizard({ isOpen, onComplete, onSelectSpread, initialSpread = 'single', initialQuestion = '' }) {
   const [currentStep, setCurrentStep] = useState(1);
-  const [selectedSpread, setSelectedSpread] = useState('single');
-  const [question, setQuestion] = useState('');
+  const [selectedSpread, setSelectedSpread] = useState(initialSpread || 'single');
+  const [question, setQuestion] = useState(initialQuestion || '');
+
+  // Reset state when wizard opens (replay scenario) to pick up current values
+  useEffect(() => {
+    if (isOpen) {
+      setCurrentStep(1);
+      setSelectedSpread(initialSpread || 'single');
+      setQuestion(initialQuestion || '');
+    }
+  }, [isOpen, initialSpread, initialQuestion]);
 
   const prefersReducedMotion = useReducedMotion();
   const isLandscape = useLandscape();
@@ -77,8 +92,8 @@ export function OnboardingWizard({ isOpen, onComplete, onSelectSpread }) {
   };
 
   const handleSkipRitual = () => {
-    // Skip to the final step
-    setCurrentStep(TOTAL_STEPS);
+    // Complete onboarding immediately - user wants to start reading now
+    onComplete?.({ selectedSpread, question });
   };
 
   const handleBegin = () => {
@@ -202,38 +217,38 @@ export function OnboardingWizard({ isOpen, onComplete, onSelectSpread }) {
 
           {/* Header with close button and progress */}
           <header
-            className={`relative z-10 flex items-center justify-between px-4 pt-safe-top sm:px-6 ${
-              isLandscape ? 'py-1.5' : 'py-4'
+            className={`relative z-10 pt-safe-top ${
+              isLandscape ? 'py-1.5' : 'py-3 xs:py-4'
             }`}
           >
-            <h1 id={titleId} className="sr-only">
-              Welcome to Mystic Tarot
-            </h1>
-            <OnboardingProgress
-              currentStep={currentStep}
-              totalSteps={TOTAL_STEPS}
-              onStepSelect={handleStepSelect}
-              allowNavigation={true}
-            />
-            <button
-              ref={closeButtonRef}
-              type="button"
-              onClick={handleSkip}
-              className="flex items-center justify-center min-w-[44px] min-h-[44px] rounded-full text-muted hover:text-main hover:bg-surface/50 transition touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-main"
-              aria-label="Skip onboarding"
-            >
-              <X className="w-5 h-5" weight="bold" />
-            </button>
+            <div className="flex items-center justify-between px-3 xs:px-4 sm:px-6 pl-safe-left pr-safe-right">
+              <h1 id={titleId} className="sr-only">
+                Welcome to Mystic Tarot
+              </h1>
+              <OnboardingProgress
+                currentStep={currentStep}
+                totalSteps={TOTAL_STEPS}
+                onStepSelect={handleStepSelect}
+                allowNavigation={true}
+              />
+              <button
+                ref={closeButtonRef}
+                type="button"
+                onClick={handleSkip}
+                className="flex items-center justify-center min-w-[44px] min-h-[44px] rounded-full text-muted hover:text-main hover:bg-surface/50 transition touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-main"
+                aria-label="Skip onboarding"
+              >
+                <X className="w-5 h-5" weight="bold" />
+              </button>
+            </div>
           </header>
 
           {/* Main content area - scrollable */}
           <main
-            className={`relative z-10 flex-1 overflow-y-auto overflow-x-hidden scroll-smooth ${
-              isLandscape ? 'px-3 py-3 sm:px-4' : 'px-4 py-6 sm:px-8 sm:py-8'
-            }`}
+            className="relative z-10 flex-1 overflow-y-auto overflow-x-hidden scroll-smooth pt-safe-top pb-safe-bottom pl-safe-left pr-safe-right"
             style={{ scrollPaddingTop: '1rem', scrollPaddingBottom: '1rem' }}
           >
-            <div className="max-w-2xl mx-auto h-full">
+            <div className={`max-w-full sm:max-w-2xl mx-auto h-full ${isLandscape ? 'px-2 xs:px-3 py-2 sm:px-4' : 'px-2 xs:px-4 md:px-6 py-4 xs:py-6 md:py-8'}`}>
               {renderStep()}
             </div>
           </main>

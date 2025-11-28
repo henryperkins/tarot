@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { CaretDown, CaretUp, TextAlignLeft, SpeakerHigh, Palette, Sparkle } from '@phosphor-icons/react';
 import { QuestionInput } from './QuestionInput';
 import { AudioControls } from './AudioControls';
@@ -45,8 +45,16 @@ export function ReadingPreparation({
     knockCount,
     onSkipRitual,
     deckAnnouncement,
-    sectionRef
+    sectionRef,
+    shouldSkipRitual = false
 }) {
+    const mobileTabs = shouldSkipRitual
+        ? MOBILE_TABS.filter(tab => tab.id !== 'ritual')
+        : MOBILE_TABS;
+    const sectionOrder = shouldSkipRitual
+        ? ['audio', 'experience']
+        : ['audio', 'experience', 'ritual'];
+
     const renderSectionContent = (section) => {
         if (section === 'intention') {
             return (
@@ -76,6 +84,13 @@ export function ReadingPreparation({
             return <ExperienceSettings />;
         }
         if (section === 'ritual') {
+            if (shouldSkipRitual) {
+                return (
+                    <p className="text-sm text-muted">
+                        Ritual steps are hidden based on your personalization preferences.
+                    </p>
+                );
+            }
             return (
                 <RitualControls
                     hasKnocked={hasKnocked}
@@ -97,13 +112,19 @@ export function ReadingPreparation({
     const [activeTab, setActiveTab] = useState('intention');
     const tabRefs = useRef({});
 
+    useEffect(() => {
+        if (shouldSkipRitual && activeTab === 'ritual') {
+            setActiveTab('intention');
+        }
+    }, [shouldSkipRitual, activeTab]);
+
     const handleTabChange = useCallback((tabId) => {
         setActiveTab(tabId);
     }, []);
 
     // Keyboard navigation for tabs (roving tabindex pattern)
     const handleTabKeyDown = useCallback((event, currentIndex) => {
-        const tabIds = MOBILE_TABS.map(t => t.id);
+        const tabIds = mobileTabs.map(t => t.id);
         let nextIndex = currentIndex;
 
         switch (event.key) {
@@ -141,7 +162,7 @@ export function ReadingPreparation({
                     role="tablist"
                     aria-label="Preparation settings"
                 >
-                    {MOBILE_TABS.map((tab, index) => {
+                    {mobileTabs.map((tab, index) => {
                         const Icon = tab.icon;
                         const isActive = activeTab === tab.id;
                         return (
@@ -174,7 +195,7 @@ export function ReadingPreparation({
                 </div>
 
                 {/* Tab panel content */}
-                {MOBILE_TABS.map((tab) => (
+                {mobileTabs.map((tab) => (
                     <div
                         key={tab.id}
                         id={`mobile-panel-${tab.id}`}
@@ -219,8 +240,12 @@ export function ReadingPreparation({
                     <span>{prepareSummaries.intention}</span>
                     <span aria-hidden="true">·</span>
                     <span>{prepareSummaries.experience}</span>
-                    <span aria-hidden="true">·</span>
-                    <span>{prepareSummaries.ritual}</span>
+                    {!shouldSkipRitual && (
+                        <>
+                            <span aria-hidden="true">·</span>
+                            <span>{prepareSummaries.ritual}</span>
+                        </>
+                    )}
                 </div>
 
                 <div className="space-y-4">
@@ -237,7 +262,7 @@ export function ReadingPreparation({
                         </div>
                     </div>
 
-                    {(['audio', 'experience', 'ritual']).map(section => (
+                    {sectionOrder.map(section => (
                         <div key={section} className={`prepare-card ${prepareSectionsOpen[section] ? 'prepare-card--open' : ''}`}>
                             <button
                                 type="button"

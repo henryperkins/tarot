@@ -15,6 +15,12 @@ export function RitualIntro({ onNext, onBack, onSkipRitual }) {
   const isLandscape = useLandscape();
   const { personalization, setShowRitualSteps } = usePreferences();
 
+  const handleSkipAndStart = () => {
+    // Set ritual preference to minimal when user chooses to skip
+    setShowRitualSteps(false);
+    onSkipRitual?.();
+  };
+
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
@@ -200,7 +206,7 @@ export function RitualIntro({ onNext, onBack, onSkipRitual }) {
         </div>
         <button
           type="button"
-          onClick={onSkipRitual}
+          onClick={handleSkipAndStart}
           className="w-full min-h-[44px] px-4 py-2 text-muted hover:text-main text-sm transition touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary focus-visible:ring-offset-2 focus-visible:ring-offset-main"
         >
           Skip and start reading

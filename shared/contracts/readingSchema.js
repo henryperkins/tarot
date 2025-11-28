@@ -67,6 +67,16 @@ const optionalVisionProofSchema = z
   })
   .catchall(z.unknown());
 
+const personalizationSchema = z
+  .object({
+    displayName: z.string().trim().max(50).optional(),
+    readingTone: z.enum(['gentle', 'balanced', 'blunt']).optional(),
+    spiritualFrame: z.enum(['psychological', 'spiritual', 'mixed', 'playful']).optional(),
+    tarotExperience: z.enum(['newbie', 'intermediate', 'experienced']).optional(),
+    preferredSpreadDepth: z.enum(['short', 'standard', 'deep']).optional()
+  })
+  .catchall(z.unknown());
+
 export const readingRequestSchema = z.object({
   spreadInfo: spreadInfoSchema,
   cardsInfo: z.array(cardInfoSchema).min(1, 'cardsInfo must include at least one card'),
@@ -74,7 +84,8 @@ export const readingRequestSchema = z.object({
   reflectionsText: optionalCleanString(),
   reversalFrameworkOverride: optionalCleanString(),
   deckStyle: optionalCleanString(),
-  visionProof: optionalVisionProofSchema.optional()
+  visionProof: optionalVisionProofSchema.optional(),
+  personalization: personalizationSchema.optional()
 });
 
 export const readingResponseSchema = z.object({

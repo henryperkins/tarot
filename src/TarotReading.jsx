@@ -11,6 +11,7 @@ import { MobileSettingsDrawer } from './components/MobileSettingsDrawer';
 import { MobileActionBar, MobileActionGroup } from './components/MobileActionBar';
 import { Header } from './components/Header';
 import { OnboardingWizard } from './components/onboarding';
+import { PersonalizationBanner } from './components/PersonalizationBanner';
 import { useNavigate, useLocation } from 'react-router-dom';
 import './styles/tarot.css';
 
@@ -48,7 +49,9 @@ export default function TarotReading() {
     // Onboarding
     onboardingComplete,
     setOnboardingComplete,
-    setOnboardingSpreadKey
+    setOnboardingSpreadKey,
+    showPersonalizationBanner,
+    setShowPersonalizationBanner
   } = usePreferences();
 
   // Accessibility: reduced motion preference
@@ -79,6 +82,7 @@ export default function TarotReading() {
     userQuestion,
     setUserQuestion,
     deckAnnouncement,
+    shouldSkipRitual,
     shuffle,
     handleKnock,
     applyCut,
@@ -123,6 +127,7 @@ export default function TarotReading() {
   const spreadSectionRef = useRef(null);
   const prepareSectionRef = useRef(null);
   const readingSectionRef = useRef(null);
+  const hasAutoCompletedRef = useRef(false);
 
   // --- Effects & Helpers ---
 
@@ -359,11 +364,52 @@ export default function TarotReading() {
     return () => window.clearTimeout(timeoutId);
   }, [shouldFocusSpread, handleStepNav]);
 
+  useEffect(() => {
+    if (
+      hasConfirmedSpread &&
+      shouldSkipRitual &&
+      !hasKnocked &&
+      !hasAutoCompletedRef.current
+    ) {
+      hasAutoCompletedRef.current = true;
+      console.warn('Ritual auto-complete fallback triggered - shuffle should handle this.');
+    }
+  }, [hasConfirmedSpread, shouldSkipRitual, hasKnocked]);
+
+  useEffect(() => {
+    if (!hasConfirmedSpread) {
+      hasAutoCompletedRef.current = false;
+    }
+  }, [hasConfirmedSpread]);
+
   const handleRevealAll = useCallback(() => {
     revealAll();
     const behavior = prefersReducedMotion ? 'auto' : 'smooth';
     readingSectionRef.current?.scrollIntoView({ behavior, block: 'start' });
   }, [prefersReducedMotion, revealAll]);
+
+  const handlePersonalizationBannerDismiss = useCallback(() => {
+    setShowPersonalizationBanner(false);
+    if (typeof localStorage !== 'undefined') {
+      try {
+        localStorage.setItem('tarot-personalization-banner', 'dismissed');
+      } catch (error) {
+        console.debug('Unable to persist personalization banner dismissal', error);
+      }
+    }
+  }, [setShowPersonalizationBanner]);
+
+  const handlePersonalizationBannerPersonalize = useCallback(() => {
+    if (typeof localStorage !== 'undefined') {
+      try {
+        localStorage.removeItem('tarot-personalization-banner');
+      } catch (error) {
+        console.debug('Unable to reset personalization banner state', error);
+      }
+    }
+    setShowPersonalizationBanner(false);
+    setOnboardingComplete(false);
+  }, [setShowPersonalizationBanner, setOnboardingComplete]);
 
   // --- Onboarding Handler ---
 
@@ -396,9 +442,11 @@ export default function TarotReading() {
       : 'Intention: Blank';
     const knockSummary = knockCount >= 3 ? 'Knocks ready' : `Knocks ${knockCount}/3`;
     const cutSummary = hasCut ? `Cut ${cutIndex}` : 'Cut pending';
-    const ritualSummary = knockCount === 0 && !hasCut
-      ? 'Ritual: Skipped'
-      : `Ritual: ${knockSummary} · ${cutSummary}`;
+    const ritualSummary = shouldSkipRitual
+      ? 'Ritual: Personalized off'
+      : knockCount === 0 && !hasCut
+        ? 'Ritual: Skipped'
+        : `Ritual: ${knockSummary} · ${cutSummary}`;
     const deckSummaryLabel = `${deckSize}${minorsDataIncomplete ? ' (Major Arcana only)' : ''}`;
     const audioSummary = `Voice: ${voiceOn ? 'On' : 'Off'} · Ambience: ${ambienceOn ? 'On' : 'Off'}`;
     const experienceSummary = `Theme: ${theme === 'light' ? 'Light' : 'Dark'} · Deck: ${deckSummaryLabel}`;
@@ -409,7 +457,7 @@ export default function TarotReading() {
       experience: experienceSummary,
       ritual: ritualSummary
     };
-  }, [userQuestion, voiceOn, ambienceOn, theme, deckSize, minorsDataIncomplete, knockCount, hasCut, cutIndex]);
+  }, [userQuestion, voiceOn, ambienceOn, theme, deckSize, minorsDataIncomplete, knockCount, hasCut, cutIndex, shouldSkipRitual]);
 
   const prepareSectionLabels = {
     intention: { title: 'Intention', helper: 'Optional guiding prompt before you draw.' },
@@ -559,6 +607,13 @@ export default function TarotReading() {
           </div>
         )}
 
+        {showPersonalizationBanner && (
+          <PersonalizationBanner
+            onDismiss={handlePersonalizationBannerDismiss}
+            onPersonalize={handlePersonalizationBannerPersonalize}
+          />
+        )}
+
         {/* Step 1–3: Spread + Prepare */}
         <section aria-label="Reading setup" className={isLandscape ? 'mb-3' : 'mb-6 xl:mb-4'}>
           <div className={isLandscape ? 'mb-2' : 'mb-4 sm:mb-5'}>
@@ -612,6 +667,7 @@ export default function TarotReading() {
                 knockCount={knockCount}
                 onSkipRitual={handleShuffle}
                 deckAnnouncement={deckAnnouncement}
+                shouldSkipRitual={shouldSkipRitual}
               />
             )}
 
@@ -717,6 +773,7 @@ export default function TarotReading() {
             setIsMobileSettingsOpen(false);
           }}
           deckAnnouncement={deckAnnouncement}
+          shouldSkipRitual={shouldSkipRitual}
         />
       </MobileSettingsDrawer>
 
@@ -732,9 +789,11 @@ export default function TarotReading() {
 
       {/* Onboarding wizard for first-time visitors */}
       <OnboardingWizard
-        isOpen={!onboardingComplete}
+        isOpen={!onboardingComplete && !showPersonalizationBanner}
         onComplete={handleOnboardingComplete}
         onSelectSpread={handleOnboardingSpreadSelect}
+        initialSpread={selectedSpread}
+        initialQuestion={userQuestion}
       />
     </div>
   );

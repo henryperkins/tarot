@@ -6,6 +6,7 @@ import { getSpreadInfo, normalizeSpreadKey } from '../data/spreads';
 import { ReadingGrid } from './ReadingGrid';
 import { StreamingNarrative } from './StreamingNarrative';
 import { HelperToggle } from './HelperToggle';
+import { Tooltip } from './Tooltip';
 import { SpreadPatterns } from './SpreadPatterns';
 import { VisionValidationPanel } from './VisionValidationPanel';
 import { FeedbackPanel } from './FeedbackPanel';
@@ -109,9 +110,20 @@ export function ReadingDisplay({ sectionRef }) {
     const {
         voiceOn,
         autoNarrate,
-        deckStyleId
+        deckStyleId,
+        personalization
     } = usePreferences();
+    const displayName = personalization?.displayName?.trim();
+    const isExperienced = personalization?.tarotExperience === 'experienced';
+    const isNewbie = personalization?.tarotExperience === 'newbie';
+    const readingTone = personalization?.readingTone || 'balanced';
+    const spiritualFrame = personalization?.spiritualFrame || 'mixed';
     const { isAuthenticated } = useAuth();
+
+    // Labels for tooltip display
+    const TONE_LABELS = { gentle: 'Gentle', balanced: 'Balanced', blunt: 'Direct' };
+    const FRAME_LABELS = { psychological: 'Psychological', spiritual: 'Spiritual', mixed: 'Balanced', playful: 'Playful' };
+    const narrativeStyleTooltip = `Your style: ${TONE_LABELS[readingTone] || 'Balanced'} tone, ${FRAME_LABELS[spiritualFrame] || 'Balanced'} frame`;
 
     const { visionResearch: visionResearchEnabled, newDeckInterface } = useFeatureFlags();
     const isCompactScreen = useSmallScreen(768);
@@ -196,8 +208,14 @@ export function ReadingDisplay({ sectionRef }) {
     return (
         <section ref={sectionRef} id="step-reading" tabIndex={-1} className="scroll-mt-[6.5rem] sm:scroll-mt-[7.5rem]" aria-label="Draw and explore your reading">
             <div className={isLandscape ? 'mb-2' : 'mb-4 sm:mb-5'}>
-                <p className="text-xs-plus sm:text-sm uppercase tracking-[0.12em] text-accent">Reading</p>
-                {!isLandscape && <p className="mt-1 text-muted-high text-xs sm:text-sm">Draw and reveal your cards, explore the spread, and weave your narrative.</p>}
+                <p className="text-xs-plus sm:text-sm uppercase tracking-[0.12em] text-accent">
+                    {displayName ? `Reading for ${displayName}` : 'Reading'}
+                </p>
+                {!isLandscape && (
+                    <p className="mt-1 text-muted-high text-xs sm:text-sm">
+                        {displayName ? `${displayName}, draw and reveal your cards, explore the spread, and weave your narrative.` : 'Draw and reveal your cards, explore the spread, and weave your narrative.'}
+                    </p>
+                )}
             </div>
             {/* Primary CTA */}
             {!reading && (
@@ -288,12 +306,14 @@ export function ReadingDisplay({ sectionRef }) {
 
                     {!personalReading && revealedCards.size === reading.length && (
                         <div className="text-center">
-                            <button onClick={generatePersonalReading} disabled={isGenerating} className="bg-accent hover:bg-accent/90 disabled:opacity-50 disabled:cursor-not-allowed text-surface font-semibold px-5 sm:px-8 py-3 sm:py-4 rounded-xl shadow-xl shadow-accent/20 transition-all flex items-center gap-2 sm:gap-3 mx-auto text-sm sm:text-base md:text-lg">
-                                <Sparkle className={`w-4 h-4 sm:w-5 sm:h-5 ${isGenerating ? 'motion-safe:animate-pulse' : ''}`} />
-                                {isGenerating ? <span className="text-sm sm:text-base">Weaving your personalized reflection from this spread...</span> : <span>Create Personal Narrative</span>}
-                            </button>
+                            <Tooltip content={narrativeStyleTooltip} position="top" asChild enableClick={false}>
+                                <button onClick={generatePersonalReading} disabled={isGenerating} className="bg-accent hover:bg-accent/90 disabled:opacity-50 disabled:cursor-not-allowed text-surface font-semibold px-5 sm:px-8 py-3 sm:py-4 rounded-xl shadow-xl shadow-accent/20 transition-all flex items-center gap-2 sm:gap-3 mx-auto text-sm sm:text-base md:text-lg">
+                                    <Sparkle className={`w-4 h-4 sm:w-5 sm:h-5 ${isGenerating ? 'motion-safe:animate-pulse' : ''}`} />
+                                    {isGenerating ? <span className="text-sm sm:text-base">Weaving your personalized reflection from this spread...</span> : <span>Create Personal Narrative</span>}
+                                </button>
+                            </Tooltip>
                             {hasVisionData && !isVisionReady && <p className="mt-3 text-sm text-muted">⚠️ Vision data has conflicts - research telemetry may be incomplete.</p>}
-                            <HelperToggle className="mt-3 max-w-xl mx-auto"><p>Reveal all cards to unlock a tailored reflection that weaves positions, meanings, and your notes into one coherent story.</p></HelperToggle>
+                            <HelperToggle className="mt-3 max-w-xl mx-auto" defaultOpen={isNewbie}><p>Reveal all cards to unlock a tailored reflection that weaves positions, meanings, and your notes into one coherent story.</p></HelperToggle>
                         </div>
                     )}
 
@@ -329,7 +349,7 @@ export function ReadingDisplay({ sectionRef }) {
                                     <div className="ai-panel-text" aria-live="polite">
                                         {analyzingText || 'Weaving your personalized narrative from this spread...'}
                                     </div>
-                                    <HelperToggle className="mt-3">
+                                    <HelperToggle className="mt-3" defaultOpen={isNewbie}>
                                         <p>This reflection is generated from your spread and question to support insight, not to decide for you.</p>
                                     </HelperToggle>
                                 </div>
@@ -338,7 +358,7 @@ export function ReadingDisplay({ sectionRef }) {
                     )}
 
                     {personalReading && (
-                        <div className={`bg-surface/95 backdrop-blur-xl rounded-2xl border border-secondary/40 shadow-2xl shadow-secondary/40 max-w-5xl mx-auto ${isLandscape ? 'p-3' : 'p-4 sm:p-6 md:p-8'}`}>
+                        <div className={`bg-surface/95 backdrop-blur-xl rounded-2xl border border-secondary/40 shadow-2xl shadow-secondary/40 max-w-full sm:max-w-5xl mx-auto ${isLandscape ? 'p-3' : 'px-2 py-4 xs:px-4 sm:p-6 md:p-8'}`}>
                             {/* Narrative completion banner - shown when complete */}
                             {narrativePhase === 'complete' && !isPersonalReadingError && (
                                 <div className={`mb-5 p-4 bg-gradient-to-r from-primary/20 via-secondary/15 to-accent/20 border border-primary/30 rounded-xl ${prefersReducedMotion ? '' : 'animate-fade-in'}`} role="status" aria-live="polite">
@@ -361,8 +381,10 @@ export function ReadingDisplay({ sectionRef }) {
                                     </div>
                                 </div>
                             )}
-                            <h3 className="text-xl sm:text-2xl font-serif text-accent mb-2 flex items-center gap-2"><Sparkle className="w-5 h-5 sm:w-6 sm:h-6 text-secondary" />Your Personalized Narrative</h3>
-                            <HelperToggle className="mt-3 max-w-2xl mx-auto"><p>This narrative braids together your spread positions, card meanings, and reflections into a single through-line. Read slowly, notice what resonates, and treat it as a mirror—not a script. Let your own sense of meaning carry as much weight as any description.</p></HelperToggle>
+                            <h3 className="text-lg xs:text-xl sm:text-2xl font-serif text-accent mb-2 flex items-center gap-2"><Sparkle className="w-5 h-5 sm:w-6 sm:h-6 text-secondary" />Your Personalized Narrative</h3>
+                            <HelperToggle className="mt-3 max-w-2xl mx-auto" defaultOpen={isNewbie}>
+                                <p>This narrative braids together your spread positions, card meanings, and reflections into a single through-line. Read slowly, notice what resonates, and treat it as a mirror—not a script. Let your own sense of meaning carry as much weight as any description.</p>
+                            </HelperToggle>
                             {userQuestion && (<div className="bg-surface/85 rounded-lg p-4 mb-4 border border-secondary/40"><p className="text-accent/85 text-xs sm:text-sm italic">Anchor: {userQuestion}</p></div>)}
                             {focusToggleAvailable && (
                                 <div className="mt-4 flex justify-end">
@@ -382,6 +404,7 @@ export function ReadingDisplay({ sectionRef }) {
                                 isStreamingEnabled={shouldStreamNarrative}
                                 autoNarrate={voiceOn && autoNarrate}
                                 onNarrationStart={handleNarrationWrapper}
+                                displayName={displayName}
                             />
                             <div className="flex flex-col items-center justify-center gap-2 sm:gap-3 mt-3 sm:mt-4">
                                 {reading && personalReading && !isPersonalReadingError && (
@@ -413,7 +436,7 @@ export function ReadingDisplay({ sectionRef }) {
                     {!personalReading && !isGenerating && (
                         <div className="bg-surface/95 backdrop-blur-xl rounded-2xl p-4 sm:p-6 border border-secondary/40 max-w-2xl mx-auto">
                             <h3 className="text-lg sm:text-xl font-serif text-accent mb-2 sm:mb-3 flex items-center gap-2"><Star className="w-4 h-4 sm:w-5 sm:h-5" />Interpretation Guidance</h3>
-                            <HelperToggle className="mt-2">
+                            <HelperToggle className="mt-2" defaultOpen={isNewbie}>
                                 <p>Notice how the cards speak to one another. Consider themes, repetitions, contrasts, and where your attention is drawn. Give as much weight to your own felt sense as you do to any written description.</p>
                                 <p className="mt-2">This reading offers reflective guidance only. It is not a substitute for medical, mental health, legal, financial, or safety advice. If your situation involves health, legal risk, abuse, or crisis, consider reaching out to qualified professionals or trusted support services.</p>
                             </HelperToggle>

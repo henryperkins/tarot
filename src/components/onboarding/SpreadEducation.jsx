@@ -102,7 +102,8 @@ export function SpreadEducation({ selectedSpread, onSelectSpread, onNext, onBack
 
       {/* Spread cards */}
       <div className="flex-1 overflow-y-auto">
-        <div className={`grid gap-4 ${isLandscape ? 'grid-cols-3' : 'grid-cols-1 sm:grid-cols-3'}`}>
+        {/* Use 2 columns in landscape on small screens to prevent cramped cards */}
+        <div className={`grid gap-3 xs:gap-4 ${isLandscape ? 'grid-cols-2 lg:grid-cols-3' : 'grid-cols-1 md:grid-cols-3'}`}>
           {BEGINNER_SPREADS.map((spreadKey, index) => {
             const spread = SPREADS[spreadKey];
             const description = SPREAD_DESCRIPTIONS[spreadKey];
@@ -131,7 +132,7 @@ export function SpreadEducation({ selectedSpread, onSelectSpread, onNext, onBack
                 )}
 
                 {/* Spread artwork */}
-                <div className="relative aspect-[16/10] bg-gradient-to-br from-surface to-main overflow-hidden">
+                <div className="relative aspect-video sm:aspect-[16/10] bg-gradient-to-br from-surface to-main overflow-hidden">
                   {art && (
                     <img
                       src={art.src}
@@ -161,7 +162,7 @@ export function SpreadEducation({ selectedSpread, onSelectSpread, onNext, onBack
                     </span>
                   </div>
 
-                  <p className={`text-sm text-muted mt-2 leading-relaxed ${isLandscape ? 'hidden' : ''}`}>
+                  <p className={`text-xs xs:text-sm text-muted mt-2 leading-relaxed ${isLandscape ? 'hidden' : 'hidden xs:block'}`}>
                     {description.explanation}
                   </p>
 
@@ -293,7 +294,7 @@ export function SpreadEducation({ selectedSpread, onSelectSpread, onNext, onBack
         <button
           type="button"
           onClick={onBack}
-          className="flex items-center justify-center gap-1 min-h-[48px] px-4 py-3 rounded-xl border border-secondary/40 text-muted hover:text-main hover:border-secondary/60 transition touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary focus-visible:ring-offset-2 focus-visible:ring-offset-main"
+          className="flex items-center justify-center gap-1 min-h-[48px] min-w-[44px] px-2.5 xs:px-3 sm:px-4 py-3 rounded-xl border border-secondary/40 text-muted hover:text-main hover:border-secondary/60 transition touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary focus-visible:ring-offset-2 focus-visible:ring-offset-main"
         >
           <ArrowLeft className="w-4 h-4" />
           <span className="hidden xs:inline">Back</span>
@@ -302,7 +303,7 @@ export function SpreadEducation({ selectedSpread, onSelectSpread, onNext, onBack
           type="button"
           onClick={onNext}
           disabled={!selectedSpread}
-          className="flex-1 flex items-center justify-center gap-2 min-h-[48px] px-6 py-3 rounded-xl bg-accent text-surface font-semibold text-base transition hover:bg-accent/90 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-main"
+          className="flex-1 flex items-center justify-center gap-2 min-h-[48px] px-4 xs:px-5 sm:px-6 py-3 rounded-xl bg-accent text-surface font-semibold text-base transition hover:bg-accent/90 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-main"
         >
           Continue
           <ArrowRight className="w-5 h-5" weight="bold" />

@@ -29,6 +29,7 @@ export function StreamingNarrative({
   onDone,
   autoNarrate = false,
   onNarrationStart,
+  displayName = '',
 }) {
   const narrativeText = useMemo(() => (typeof text === 'string' ? text : ''), [text]);
   const prefersReducedMotion = useReducedMotion();
@@ -225,23 +226,32 @@ export function StreamingNarrative({
     </div>
   ) : null;
 
+  const personalizedIntro = displayName
+    ? (
+      <p className="text-xs text-muted text-center mb-2">
+        For you, {displayName}, this unfolds in stages:
+      </p>
+    )
+    : null;
+
   // For markdown: render completed text progressively
   if (useMarkdown) {
     const visibleText = visibleWords.join('');
     return (
       <div className={className} aria-live="polite">
         {streamingOptInNotice}
+        {personalizedIntro}
         {/* Container with min-height to prevent layout shift during streaming */}
-        <div className="prose prose-sm sm:prose-base md:prose-lg max-w-full sm:max-w-[65ch] w-full min-h-[8rem] xs:min-h-[10rem] px-1 sm:px-0 mx-auto">
+        <div className="prose prose-sm sm:prose-base md:prose-lg max-w-[calc(100vw-2rem)] xs:max-w-sm sm:max-w-[65ch] w-full min-h-[6rem] xs:min-h-[8rem] md:min-h-[10rem] px-1 xs:px-3 sm:px-0 mx-auto">
           <MarkdownRenderer content={visibleText} />
         </div>
 
         {showSkipButton && (
-          <div className="mt-4 xs:mt-5 sticky bottom-4 sm:static flex justify-center px-3 xs:px-4 sm:px-0">
+          <div className="mt-4 xs:mt-5 sticky bottom-[max(1rem,env(safe-area-inset-bottom,1rem))] sm:static flex justify-center px-3 xs:px-4 sm:px-0">
             <button
               type="button"
               onClick={handleSkip}
-              className="min-h-[44px] w-full max-w-sm sm:max-w-none px-4 xs:px-5 py-2.5 text-[0.85rem] xs:text-sm font-semibold rounded-full bg-surface-muted/80 border border-secondary/40 text-secondary hover:bg-surface-muted hover:border-secondary/60 shadow-lg sm:shadow-sm transition-all touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary focus-visible:ring-offset-2"
+              className="min-h-[44px] w-full max-w-sm sm:max-w-none px-4 xs:px-5 py-2.5 text-sm font-semibold rounded-full bg-surface-muted/90 border border-secondary/40 text-secondary hover:bg-surface-muted hover:border-secondary/60 shadow-lg sm:shadow-sm backdrop-blur-sm transition-all touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary focus-visible:ring-offset-2"
               aria-label="Show full narrative immediately"
             >
               Show all now →
@@ -270,8 +280,9 @@ export function StreamingNarrative({
   return (
     <div className={className} aria-live="polite">
       {streamingOptInNotice}
+      {personalizedIntro}
       {/* Mobile-optimized text with good line height and spacing - min-height prevents layout shift */}
-      <div className="text-main text-[0.9375rem] xs:text-base md:text-lg leading-7 xs:leading-relaxed md:leading-loose max-w-full sm:max-w-[65ch] mx-auto text-left min-h-[8rem] xs:min-h-[10rem] px-1 sm:px-0">
+      <div className="text-main text-base md:text-lg leading-7 xs:leading-relaxed md:leading-loose max-w-[calc(100vw-2rem)] xs:max-w-sm sm:max-w-[65ch] mx-auto text-left min-h-[6rem] xs:min-h-[8rem] md:min-h-[10rem] px-1 xs:px-3 sm:px-0">
         {visibleWords.map((word, idx) => {
           // Check if this is whitespace (space, newline, etc.)
           const isWhitespace = /^\s+$/.test(word);
@@ -298,11 +309,11 @@ export function StreamingNarrative({
       </div>
 
       {showSkipButton && (
-        <div className="mt-4 xs:mt-5 sticky bottom-4 sm:static flex justify-center px-3 xs:px-4 sm:px-0">
+        <div className="mt-4 xs:mt-5 sticky bottom-[max(1rem,env(safe-area-inset-bottom,1rem))] sm:static flex justify-center px-3 xs:px-4 sm:px-0">
           <button
             type="button"
             onClick={handleSkip}
-            className="min-h-[44px] w-full max-w-sm sm:max-w-none px-4 xs:px-5 py-2.5 text-[0.85rem] xs:text-sm font-semibold rounded-full bg-surface-muted/80 border border-secondary/40 text-secondary hover:bg-surface-muted hover:border-secondary/60 shadow-lg sm:shadow-sm transition-all touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary focus-visible:ring-offset-2"
+            className="min-h-[44px] w-full max-w-sm sm:max-w-none px-4 xs:px-5 py-2.5 text-sm font-semibold rounded-full bg-surface-muted/90 border border-secondary/40 text-secondary hover:bg-surface-muted hover:border-secondary/60 shadow-lg sm:shadow-sm backdrop-blur-sm transition-all touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary focus-visible:ring-offset-2"
             aria-label="Show full narrative immediately"
           >
             Show all now →

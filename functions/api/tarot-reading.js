@@ -50,6 +50,7 @@ import {
 } from '../lib/ephemerisIntegration.js';
 import { deriveEmotionalTone } from '../../src/data/emotionMapping.js';
 import { normalizeVisionLabel } from '../lib/visionLabels.js';
+import { getToneStyle, getFrameVocabulary, buildNameClause, buildPersonalizedClosing, getDepthProfile } from '../lib/narrative/styleHelpers.js';
 
 // Detect if question asks about future timeframe
 function detectForecastTimeframe(userQuestion) {
@@ -332,15 +333,33 @@ function maybeLogNarrativeEnhancements(env, requestId, provider, summary) {
   console.log(`[${requestId}] [${provider}] Narrative enhancement summary:`, summary);
 }
 
-function maybeLogPromptPayload(env, requestId, backendLabel, systemPrompt, userPrompt, promptMeta) {
+function redactPromptSegment(text, personalization) {
+  if (!text || typeof text !== 'string') return text;
+  const displayName = personalization?.displayName;
+  if (!displayName || typeof displayName !== 'string') return text;
+  const trimmed = displayName.trim();
+  if (!trimmed) return text;
+  try {
+    const matcher = new RegExp(escapeRegex(trimmed), 'gi');
+    return text.replace(matcher, '[REDACTED_NAME]');
+  } catch {
+    return text;
+  }
+}
+
+function maybeLogPromptPayload(env, requestId, backendLabel, systemPrompt, userPrompt, promptMeta, options = {}) {
   if (!shouldLogLLMPrompts(env)) return;
 
+  const personalization = options.personalization || null;
+  const redactedSystem = redactPromptSegment(systemPrompt, personalization);
+  const redactedUser = redactPromptSegment(userPrompt, personalization);
+
   console.log(`[${requestId}] [${backendLabel}] === SYSTEM PROMPT BEGIN ===`);
-  console.log(systemPrompt);
+  console.log(redactedSystem);
   console.log(`[${requestId}] [${backendLabel}] === SYSTEM PROMPT END ===`);
 
   console.log(`[${requestId}] [${backendLabel}] === USER PROMPT BEGIN ===`);
-  console.log(userPrompt);
+  console.log(redactedUser);
   console.log(`[${requestId}] [${backendLabel}] === USER PROMPT END ===`);
 
   if (promptMeta?.estimatedTokens) {
@@ -399,7 +418,8 @@ export const onRequestPost = async ({ request, env }) => {
       reflectionsText,
       reversalFrameworkOverride,
       visionProof,
-      deckStyle: requestDeckStyle
+      deckStyle: requestDeckStyle,
+      personalization
     } = normalizedPayload;
     const deckStyle = requestDeckStyle || spreadInfo?.deckStyle || 'rws-1909';
 
@@ -410,7 +430,8 @@ export const onRequestPost = async ({ request, env }) => {
       hasReflections: !!reflectionsText,
       reversalOverride: reversalFrameworkOverride,
       deckStyle,
-      hasVisionProof: !!visionProof
+      hasVisionProof: !!visionProof,
+      hasPersonalization: Boolean(personalization)
     });
 
     const validationError = validatePayload(normalizedPayload);
@@ -501,6 +522,7 @@ export const onRequestPost = async ({ request, env }) => {
       contextDiagnostics,
       visionInsights: sanitizedVisionInsights,
       deckStyle,
+      personalization: personalization || null,
       narrativeEnhancements: [],
       graphRAGPayload: analysis.graphRAGPayload || null,
       promptMeta: null
@@ -951,7 +973,8 @@ async function generateWithAzureGPT5Responses(env, payload, requestId = 'unknown
     transitResonances: analysis.transitResonances,
     budgetTarget: 'azure',
     contextDiagnostics,
-    promptBudgetEnv: env
+    promptBudgetEnv: env,
+    personalization: payload.personalization
   });
 
   if (promptMeta) {
@@ -963,7 +986,15 @@ async function generateWithAzureGPT5Responses(env, payload, requestId = 'unknown
   }
 
   console.log(`[${requestId}] System prompt length: ${systemPrompt.length}, User prompt length: ${userPrompt.length}`);
-  maybeLogPromptPayload(env, requestId, 'azure-gpt5', systemPrompt, userPrompt, promptMeta);
+  maybeLogPromptPayload(
+    env,
+    requestId,
+    'azure-gpt5',
+    systemPrompt,
+    userPrompt,
+    promptMeta,
+    { personalization: payload.personalization }
+  );
 
   // Azure OpenAI Responses API endpoint format (v1 API):
   // POST {endpoint}/openai/v1/responses?api-version=v1
@@ -1105,7 +1136,8 @@ async function generateWithClaudeSonnet45Enhanced(env, payload, requestId = 'unk
     transitResonances: analysis.transitResonances,
     budgetTarget: 'claude',
     contextDiagnostics,
-    promptBudgetEnv: env
+    promptBudgetEnv: env,
+    personalization: payload.personalization
   });
 
   if (promptMeta) {
@@ -1116,7 +1148,15 @@ async function generateWithClaudeSonnet45Enhanced(env, payload, requestId = 'unk
     payload.contextDiagnostics = Array.from(new Set([...(payload.contextDiagnostics || []), ...promptDiagnostics]));
   }
 
-  maybeLogPromptPayload(env, requestId, 'claude-sonnet45', systemPrompt, userPrompt, promptMeta);
+  maybeLogPromptPayload(
+    env,
+    requestId,
+    'claude-sonnet45',
+    systemPrompt,
+    userPrompt,
+    promptMeta,
+    { personalization: payload.personalization }
+  );
 
   const response = await fetch(apiUrl, {
     method: 'POST',
@@ -1157,7 +1197,7 @@ async function generateWithClaudeSonnet45Enhanced(env, payload, requestId = 'unk
 }
 
 const SPREAD_READING_BUILDERS = {
-  celtic: ({ spreadAnalysis, cardsInfo, userQuestion, reflectionsText, themes, context }) =>
+  celtic: ({ spreadAnalysis, cardsInfo, userQuestion, reflectionsText, themes, context }, options = {}) =>
     spreadAnalysis
       ? buildCelticCrossReading({
         cardsInfo,
@@ -1166,9 +1206,9 @@ const SPREAD_READING_BUILDERS = {
         celticAnalysis: spreadAnalysis,
         themes,
         context
-      })
+      }, options)
       : null,
-  threeCard: ({ spreadAnalysis, cardsInfo, userQuestion, reflectionsText, themes, context }) =>
+  threeCard: ({ spreadAnalysis, cardsInfo, userQuestion, reflectionsText, themes, context }, options = {}) =>
     spreadAnalysis
       ? buildThreeCardReading({
         cardsInfo,
@@ -1177,9 +1217,9 @@ const SPREAD_READING_BUILDERS = {
         threeCardAnalysis: spreadAnalysis,
         themes,
         context
-      })
+      }, options)
       : null,
-  fiveCard: ({ spreadAnalysis, cardsInfo, userQuestion, reflectionsText, themes, context }) =>
+  fiveCard: ({ spreadAnalysis, cardsInfo, userQuestion, reflectionsText, themes, context }, options = {}) =>
     spreadAnalysis
       ? buildFiveCardReading({
         cardsInfo,
@@ -1188,14 +1228,14 @@ const SPREAD_READING_BUILDERS = {
         fiveCardAnalysis: spreadAnalysis,
         themes,
         context
-      })
+      }, options)
       : null,
-  relationship: ({ cardsInfo, userQuestion, reflectionsText, themes, context }) =>
-    buildRelationshipReading({ cardsInfo, userQuestion, reflectionsText, themes, context }),
-  decision: ({ cardsInfo, userQuestion, reflectionsText, themes, context }) =>
-    buildDecisionReading({ cardsInfo, userQuestion, reflectionsText, themes, context }),
-  single: ({ cardsInfo, userQuestion, reflectionsText, themes, context }) =>
-    buildSingleCardReading({ cardsInfo, userQuestion, reflectionsText, themes, context })
+  relationship: ({ cardsInfo, userQuestion, reflectionsText, themes, context }, options = {}) =>
+    buildRelationshipReading({ cardsInfo, userQuestion, reflectionsText, themes, context }, options),
+  decision: ({ cardsInfo, userQuestion, reflectionsText, themes, context }, options = {}) =>
+    buildDecisionReading({ cardsInfo, userQuestion, reflectionsText, themes, context }, options),
+  single: ({ cardsInfo, userQuestion, reflectionsText, themes, context }, options = {}) =>
+    buildSingleCardReading({ cardsInfo, userQuestion, reflectionsText, themes, context }, options)
 };
 
 /**
@@ -1208,7 +1248,8 @@ async function composeReadingEnhanced(payload) {
     userQuestion,
     reflectionsText,
     analysis,
-    context
+    context,
+    personalization = null
   } = payload;
   const { themes, spreadAnalysis, spreadKey } = analysis;
   const collectedSections = [];
@@ -1225,6 +1266,7 @@ async function composeReadingEnhanced(payload) {
       context
     },
     {
+      personalization,
       collectValidation: (section) => {
         if (!section) return;
         collectedSections.push({
@@ -1303,7 +1345,7 @@ function buildGenericReading(
   { spreadInfo, cardsInfo, userQuestion, reflectionsText, themes, context },
   options = {}
 ) {
-  const { collectValidation } = options;
+  const { collectValidation, personalization = null } = options;
   const spreadName = spreadInfo?.name?.trim() || 'your chosen spread';
   const entries = [];
   const safeCards = Array.isArray(cardsInfo) ? cardsInfo : [];
@@ -1312,11 +1354,20 @@ function buildGenericReading(
     userQuestion,
     spreadInfo
   });
-
+  const tone = getToneStyle(personalization?.readingTone);
+  const vocab = getFrameVocabulary(personalization?.spiritualFrame);
+  const nameOpening = buildNameClause(personalization?.displayName, 'opening');
+  const depthProfile = getDepthProfile(personalization?.preferredSpreadDepth);
+  
   // Opening
-  const openingText = userQuestion && userQuestion.trim()
-    ? `Focusing on the ${spreadName.toLowerCase()}, I attune to your question: "${userQuestion.trim()}"\n\nThe cards respond with insight that honors both seen and unseen influences.`
-    : `Focusing on the ${spreadName.toLowerCase()}, the cards speak to the energy most present for you right now.`;
+  const trimmedQuestion = userQuestion && userQuestion.trim();
+  const subject = nameOpening ? `${nameOpening}the cards` : 'The cards';
+  const descriptor = tone.openingAdjectives?.[0] || 'thoughtful';
+  const preface = depthProfile?.openingPreface ? `${depthProfile.openingPreface}\n\n` : '';
+  const openingBody = trimmedQuestion
+    ? `${subject} offer a ${descriptor} response through the ${spreadName.toLowerCase()} to your question: "${trimmedQuestion}".\n\nThey honor both seen and unseen influences while centering your agency.`
+    : `${subject} share a ${descriptor} impression of what the ${spreadName.toLowerCase()} reveals around you right now.\n\nThey honor both seen and unseen influences while centering your agency.`;
+  const openingText = `${preface}${openingBody}`.trim();
 
   entries.push({
     text: openingText,
@@ -1324,8 +1375,16 @@ function buildGenericReading(
   });
 
   // Cards section
+  let cardsSection = buildCardsSection(safeCards, context, {
+    detailLevel: depthProfile?.cardDetail,
+    heading: depthProfile?.cardsHeading,
+    note: depthProfile?.cardsNote
+  });
+  if (tone.challengeFraming) {
+    cardsSection += `\n\nTreat any friction or challenge as a ${tone.challengeFraming}; the spread is highlighting choices, not fixed fate.`;
+  }
   entries.push({
-    text: buildCardsSection(safeCards, context),
+    text: cardsSection,
     metadata: { type: 'cards', cards: safeCards }
   });
 
@@ -1340,7 +1399,10 @@ function buildGenericReading(
   // Synthesis with enhanced themes
   const finalCard = safeCards.length > 0 ? safeCards[safeCards.length - 1] : null;
   entries.push({
-    text: buildEnhancedSynthesis(safeCards, themes, userQuestion, context, { rotationIndex: remedyRotationIndex }),
+    text: buildEnhancedSynthesis(safeCards, themes, userQuestion, context, {
+      rotationIndex: remedyRotationIndex,
+      depthProfile
+    }),
     metadata: { type: 'synthesis', cards: finalCard ? [finalCard] : [] }
   });
 
@@ -1363,7 +1425,9 @@ function buildGenericReading(
     .filter(Boolean);
 
   const readingBody = enhancedSections.map((section) => section.text).join('\n\n');
-  return appendGenericReversalReminder(readingBody, safeCards, themes);
+  const closing = buildPersonalizedClosing(personalization);
+  const bodyWithClosing = closing ? `${readingBody}\n\n${closing}` : readingBody;
+  return appendGenericReversalReminder(bodyWithClosing, safeCards, themes);
 }
 
 function annotateVisionInsights(proofInsights, cardsInfo = [], deckStyle = 'rws-1909') {
@@ -1424,14 +1488,54 @@ function annotateVisionInsights(proofInsights, cardsInfo = [], deckStyle = 'rws-
 /**
  * Build cards section with reversal framework awareness
  */
-function buildCardsSection(cardsInfo, context) {
-  const lines = cardsInfo.map(card => {
-    const position = (card.position || '').trim() || `Card ${cardsInfo.indexOf(card) + 1}`;
-    const description = buildPositionCardText(card, position, { context });
+function buildCardsSection(cardsInfo, context, options = {}) {
+  const safeCards = Array.isArray(cardsInfo) ? cardsInfo : [];
+  const normalizedDetail = typeof options.detailLevel === 'string' ? options.detailLevel : 'standard';
+  const heading = options.heading
+    || (normalizedDetail === 'concise'
+      ? '**Quick Card Highlights**'
+      : normalizedDetail === 'expansive'
+        ? '**Layered Card Weaving**'
+        : '**The Cards Speak**');
+
+  const lines = safeCards.map((card, index) => {
+    const position = (card?.position || '').trim() || `Card ${index + 1}`;
+    let description = buildPositionCardText(card, position, { context });
+    if (normalizedDetail === 'concise') {
+      description = condenseDescriptionForDepth(description);
+    } else if (normalizedDetail === 'expansive') {
+      const reflectionPrompt = buildDepthReflectionPrompt(card, position);
+      if (reflectionPrompt) {
+        description = `${description}\n*Deep dive: ${reflectionPrompt}*`;
+      }
+    }
     return `**${position}**\n${description}`;
   });
 
-  return `**The Cards Speak**\n\n${lines.join('\n\n')}`;
+  let section = `${heading}\n\n${lines.join('\n\n')}`;
+  if (options.note) {
+    section += `\n\n${options.note}`;
+  }
+  return section;
+}
+
+function condenseDescriptionForDepth(text, sentenceCount = 2) {
+  if (!text || typeof text !== 'string') {
+    return text;
+  }
+  const segments = text.match(/[^.!?]+[.!?]?/g);
+  if (!segments || segments.length <= sentenceCount) {
+    return text;
+  }
+  return segments.slice(0, sentenceCount).join(' ').trim();
+}
+
+function buildDepthReflectionPrompt(card, position) {
+  if (!card) return '';
+  const cardName = typeof card.card === 'string' && card.card.trim() ? card.card.trim() : 'this card';
+  const orientation = typeof card.orientation === 'string' && card.orientation.trim() ? ` ${card.orientation.trim()}` : '';
+  const focus = (position || 'this position').toLowerCase();
+  return `Journal on how ${cardName}${orientation} wants you to engage with ${focus}.`;
 }
 
 /**
@@ -1442,7 +1546,13 @@ function buildCardsSection(cardsInfo, context) {
  */
 function buildEnhancedSynthesis(cardsInfo, themes, userQuestion, context, options = {}) {
   const safeCards = Array.isArray(cardsInfo) ? cardsInfo : [];
-  let section = `**Synthesis & Guidance**\n\n`;
+  const depthProfile = options.depthProfile || null;
+  const heading = depthProfile?.key === 'short'
+    ? '**Quick Trajectory**'
+    : depthProfile?.key === 'deep'
+      ? '**Deep Synthesis & Guidance**'
+      : '**Synthesis & Guidance**';
+  let section = `${heading}\n\n`;
   const rotationIndex = Number.isFinite(options.rotationIndex)
     ? Math.abs(Math.floor(options.rotationIndex))
     : 0;
@@ -1506,6 +1616,10 @@ function buildEnhancedSynthesis(cardsInfo, themes, userQuestion, context, option
 
   // Free will reminder
   section += `Remember: These cards show a trajectory based on current patterns. Your awareness, choices, and actions shape what unfolds. You are co-creating this path.`;
+
+  if (depthProfile?.synthesisReminder) {
+    section += `\n\n${depthProfile.synthesisReminder}`;
+  }
 
   return section;
 }

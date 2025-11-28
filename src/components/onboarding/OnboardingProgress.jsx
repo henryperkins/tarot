@@ -27,9 +27,9 @@ export function OnboardingProgress({
 
   return (
     <div className="flex-1">
-      {/* Mobile: compact dots */}
+      {/* Mobile: compact dots with horizontal scroll on very narrow screens */}
       <nav
-        className="flex items-center gap-2 sm:hidden"
+        className="flex items-center gap-1.5 xs:gap-2 sm:hidden overflow-x-auto scrollbar-none"
         aria-label="Onboarding progress"
       >
         {Array.from({ length: totalSteps }, (_, i) => {
@@ -44,7 +44,7 @@ export function OnboardingProgress({
               type="button"
               onClick={() => isAccessible && onStepSelect?.(step)}
               disabled={!isAccessible}
-              className={`relative w-8 h-8 rounded-full flex items-center justify-center transition touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-main ${
+              className={`relative min-w-[2rem] w-8 h-8 xs:min-w-[2.25rem] xs:w-9 xs:h-9 rounded-full flex items-center justify-center shrink-0 transition touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-main ${
                 isCurrent
                   ? 'bg-accent text-surface'
                   : isCompleted
@@ -59,9 +59,9 @@ export function OnboardingProgress({
               aria-current={isCurrent ? 'step' : undefined}
             >
               {isCompleted ? (
-                <Check className="w-4 h-4" weight="bold" />
+                <Check className="w-3.5 h-3.5 xs:w-4 xs:h-4" weight="bold" />
               ) : (
-                <span className="text-xs font-semibold">{step}</span>
+                <span className="text-[0.65rem] xs:text-[0.7rem] font-semibold">{step}</span>
               )}
             </button>
           );
@@ -113,7 +113,7 @@ export function OnboardingProgress({
                     step
                   )}
                 </span>
-                <span className="text-xs font-medium">{STEP_LABELS[i]}</span>
+                <span className="text-[0.65rem] sm:text-xs lg:text-sm font-medium">{STEP_LABELS[i]}</span>
               </button>
 
               {/* Connector line */}

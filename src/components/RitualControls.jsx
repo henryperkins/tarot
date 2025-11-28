@@ -14,13 +14,15 @@ export function RitualControls({
   onSkip,
   deckAnnouncement
 }) {
-  const { deckSize } = usePreferences();
+  const { deckSize, personalization } = usePreferences();
   const [showSkipConfirm, setShowSkipConfirm] = useState(false);
   const skipPromptRef = useRef(null);
   const knockComplete = knockCount >= 3;
   const nextKnockNumber = Math.min(knockCount + 1, 3);
   const sliderMax = Math.max(0, (deckSize ?? 22) - 1);
   const ritualStatus = knockComplete && hasCut ? 'Ready' : hasKnocked || hasCut ? 'In flow' : 'Optional';
+  const isExperienced = personalization?.tarotExperience === 'experienced';
+  const isNewbie = personalization?.tarotExperience === 'newbie';
 
   const controlShellClass =
     'rounded-[1.75rem] border border-secondary/40 bg-surface/75 p-3 sm:p-4 shadow-lg shadow-secondary/20 backdrop-blur-xl space-y-4';
@@ -78,7 +80,9 @@ export function RitualControls({
       <div className="hidden sm:flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <p className="text-[0.78rem] uppercase tracking-[0.35em] text-secondary/80">Ritual</p>
-          <p className="text-sm text-muted">A grounding moment before the draw.</p>
+          {!isExperienced && (
+            <p className="text-sm text-muted">A grounding moment before the draw.</p>
+          )}
         </div>
         <span
           className={`${badgeBaseClass} ${ritualStatus === 'Ready' ? activeBadgeClass : inactiveBadgeClass
@@ -138,9 +142,11 @@ export function RitualControls({
               <span className="text-[0.65rem] uppercase tracking-[0.2em] text-accent/80">Tap</span>
             )}
           </button>
-          <p className="text-sm text-muted">
-            Ritual progress: <span className="font-semibold text-secondary">{knockCount}</span>/3 knocks registered.
-          </p>
+          {!isExperienced && (
+            <p className="text-sm text-muted">
+              Ritual progress: <span className="font-semibold text-secondary">{knockCount}</span>/3 knocks registered.
+            </p>
+          )}
         </div>
 
         <div className={`${tileBaseClass} ${hasCut ? activeTileClass : ''}`}>
@@ -201,10 +207,12 @@ export function RitualControls({
               {hasCut ? 'Locked' : 'Lock'}
             </span>
           </button>
-          <p className="text-sm text-muted">
-            Cut at <span className="font-semibold text-secondary">{cutIndex}</span> of {deckSize}.{' '}
-            {hasCut ? <span className="text-secondary">Cut locked in.</span> : 'Adjust until it feels right.'}
-          </p>
+          {!isExperienced && (
+            <p className="text-sm text-muted">
+              Cut at <span className="font-semibold text-secondary">{cutIndex}</span> of {deckSize}.{' '}
+              {hasCut ? <span className="text-secondary">Cut locked in.</span> : 'Adjust until it feels right.'}
+            </p>
+          )}
         </div>
       </div>
 
@@ -313,6 +321,11 @@ export function RitualControls({
             </div>
           )}
         </div>
+        {isNewbie && (
+          <p className="text-[0.72rem] text-muted">
+            You can adjust or hide these steps anytime in Settings → Personalization.
+          </p>
+        )}
       </div>
 
       {deckAnnouncement && (

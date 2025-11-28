@@ -43,7 +43,8 @@ export async function onRequestGet(context) {
         reflections_json,
         context,
         provider,
-        session_seed
+        session_seed,
+        user_preferences_json
       FROM journal_entries
       WHERE user_id = ?
       ORDER BY created_at DESC
@@ -64,7 +65,8 @@ export async function onRequestGet(context) {
       reflections: entry.reflections_json ? JSON.parse(entry.reflections_json) : {},
       context: entry.context,
       provider: entry.provider,
-      sessionSeed: entry.session_seed
+      sessionSeed: entry.session_seed,
+      userPreferences: entry.user_preferences_json ? JSON.parse(entry.user_preferences_json) : null
     }));
 
     return new Response(
@@ -117,7 +119,9 @@ export async function onRequestPost(context) {
       provider,
       sessionSeed,
       // Optional: original timestamp in milliseconds (used for migrations)
-      timestampMs
+      timestampMs,
+      // User preferences snapshot at time of reading (Phase 5.2)
+      userPreferences
     } = body;
 
     // Validate required fields
@@ -165,9 +169,10 @@ export async function onRequestPost(context) {
         reflections_json,
         context,
         provider,
-        session_seed
+        session_seed,
+        user_preferences_json
       )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `)
       .bind(
         entryId,
@@ -183,7 +188,8 @@ export async function onRequestPost(context) {
         reflections ? JSON.stringify(reflections) : null,
         context || null,
         provider || null,
-        sessionSeed || null
+        sessionSeed || null,
+        userPreferences ? JSON.stringify(userPreferences) : null
       )
       .run();
 

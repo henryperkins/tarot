@@ -178,6 +178,9 @@ function buildAzureQuestionPrompt(prompt, metadata = {}) {
   if (Array.isArray(metadata.recentQuestions) && metadata.recentQuestions.length > 0) {
     personalizationLines.push(`Avoid repeating: ${metadata.recentQuestions.join('; ')}`);
   }
+  if (Array.isArray(metadata.focusAreas) && metadata.focusAreas.length > 0) {
+    personalizationLines.push(`User focus areas: ${metadata.focusAreas.join(', ')}`);
+  }
 
   const instructions = [
     'You are a tarot intention coach. Write ONE open, agency-forward question that fits the user’s focus, timeframe, and depth.',

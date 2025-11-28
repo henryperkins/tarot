@@ -32,11 +32,29 @@ export function ReadingProvider({ children }) {
         revealAll: baseRevealAll,
         sessionSeed
     } = tarotState;
-    const { deckStyleId, includeMinors, reversalFramework } = usePreferences();
+    const { deckStyleId, includeMinors, reversalFramework, personalization } = usePreferences();
 
     // 3. Vision Analysis
     const visionAnalysis = useVisionAnalysis(reading);
     const { visionResults, visionConflicts, resetVisionProof, ensureVisionProof, getVisionConflictsForCards, setVisionConflicts } = visionAnalysis;
+
+    const personalizationForRequest = useMemo(() => {
+        if (!personalization || typeof personalization !== 'object') {
+            return null;
+        }
+        const sanitizedName =
+            typeof personalization.displayName === 'string'
+                ? personalization.displayName.trim()
+                : '';
+        const payload = {
+            displayName: sanitizedName || undefined,
+            readingTone: personalization.readingTone || undefined,
+            spiritualFrame: personalization.spiritualFrame || undefined,
+            tarotExperience: personalization.tarotExperience || undefined,
+            preferredSpreadDepth: personalization.preferredSpreadDepth || undefined
+        };
+        return Object.values(payload).some((value) => value !== undefined) ? payload : null;
+    }, [personalization]);
 
     // 4. Reading Generation State
     const [personalReading, setPersonalReading] = useState(null);
@@ -226,6 +244,9 @@ export function ReadingProvider({ children }) {
             if (proof) {
                 payload.visionProof = proof;
             }
+            if (personalizationForRequest) {
+                payload.personalization = personalizationForRequest;
+            }
             const normalizedPayload = safeParseReadingRequest(payload);
             if (!normalizedPayload.success) {
                 setIsGenerating(false);
@@ -335,7 +356,8 @@ export function ReadingProvider({ children }) {
         getVisionConflictsForCards,
         setVisionConflicts,
         ensureVisionProof,
-        cancelInFlightReading
+        cancelInFlightReading,
+        personalizationForRequest
     ]);
 
     // --- Logic: Analysis Highlights ---

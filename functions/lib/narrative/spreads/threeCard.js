@@ -16,6 +16,7 @@ import {
   DEFAULT_WEIGHT_DETAIL_THRESHOLD,
   computeRemedyRotationIndex
 } from '../helpers.js';
+import { getToneStyle, getFrameVocabulary, buildNameClause, buildPersonalizedClosing } from '../styleHelpers.js';
 
 export async function buildThreeCardReading({
   cardsInfo,
@@ -27,6 +28,10 @@ export async function buildThreeCardReading({
   spreadInfo
 }, options = {}) {
   const sections = [];
+  const personalization = options.personalization || null;
+  const tone = getToneStyle(personalization?.readingTone);
+  const frameVocab = getFrameVocabulary(personalization?.spiritualFrame);
+  const nameInline = buildNameClause(personalization?.displayName, 'inline');
   const collectValidation =
     typeof options.collectValidation === 'function'
       ? options.collectValidation
@@ -44,7 +49,14 @@ export async function buildThreeCardReading({
     return result.text;
   };
 
-  sections.push(buildOpening('Three-Card Story (Past · Present · Future)', userQuestion, context));
+  sections.push(
+    buildOpening(
+      'Three-Card Story (Past · Present · Future)',
+      userQuestion,
+      context,
+      { personalization: options.personalization }
+    )
+  );
 
   const [past, present, future] = cardsInfo;
   const prioritized = sortCardsByImportance(cardsInfo, 'threeCard');
@@ -118,7 +130,12 @@ export async function buildThreeCardReading({
     sections.push(supportingSummary);
   }
 
-  const guidanceSection = await buildThreeCardSynthesis(cardsInfo, themes, userQuestion, context, remedyRotationIndex);
+  let guidanceSection = await buildThreeCardSynthesis(cardsInfo, themes, userQuestion, context, remedyRotationIndex);
+  if (guidanceSection) {
+    const tonePhrase = tone.challengeFraming || 'clear next step';
+    const frameWord = frameVocab[0] || 'insight';
+    guidanceSection += `\n\nFor you${nameInline || ''} this reads as a ${tonePhrase}, inviting ${frameWord} in motion.`;
+  }
   if (guidanceSection) {
     sections.push(
       recordSection(guidanceSection, {
@@ -129,11 +146,13 @@ export async function buildThreeCardReading({
   }
 
   const full = sections.filter(Boolean).join('\n\n');
+  const closing = buildPersonalizedClosing(personalization);
+  const narrativeWithClosing = closing ? `${full}\n\n${closing}` : full;
   const validation = validateReadingNarrative(full);
   if (!validation.isValid) {
     console.debug('Three-card narrative spine suggestions:', validation.suggestions || validation.sectionAnalyses);
   }
-  return appendReversalReminder(full, cardsInfo, themes);
+  return appendReversalReminder(narrativeWithClosing, cardsInfo, themes);
 }
 
 async function buildThreeCardSynthesis(cardsInfo, themes, userQuestion, context, rotationIndex = 0) {

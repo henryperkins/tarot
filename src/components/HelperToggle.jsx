@@ -1,11 +1,18 @@
 import { useId, useState, useRef, useEffect } from 'react';
 import { CaretDown } from '@phosphor-icons/react';
 
-export function HelperToggle({ children, label = 'More information', className = '' }) {
-  const [isOpen, setIsOpen] = useState(false);
+export function HelperToggle({ children, label = 'More information', className = '', defaultOpen = false }) {
+  const [isOpen, setIsOpen] = useState(defaultOpen);
   const contentId = useId();
   const contentRef = useRef(null);
   const [contentHeight, setContentHeight] = useState(0);
+  const hasToggledRef = useRef(false);
+
+  useEffect(() => {
+    if (defaultOpen && !hasToggledRef.current) {
+      setIsOpen(true);
+    }
+  }, [defaultOpen]);
 
   // Measure content height for smooth animation
   useEffect(() => {
@@ -16,11 +23,16 @@ export function HelperToggle({ children, label = 'More information', className =
     }
   }, [children, isOpen]);
 
+  const handleToggle = () => {
+    hasToggledRef.current = true;
+    setIsOpen(prev => !prev);
+  };
+
   return (
     <div className={className}>
       <button
         type="button"
-        onClick={() => setIsOpen(prev => !prev)}
+        onClick={handleToggle}
         className="inline-flex items-center gap-1.5 px-3 py-1.5 min-h-[44px] text-xs text-muted/80 transition-all duration-200
           hover:text-secondary
           focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/50 focus-visible:ring-offset-2 focus-visible:ring-offset-main

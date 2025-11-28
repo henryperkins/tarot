@@ -7,6 +7,8 @@ import { CarouselDots } from './CarouselDots';
 import { useReducedMotion } from '../hooks/useReducedMotion';
 import { useLandscape } from '../hooks/useLandscape';
 import { useSmallScreen } from '../hooks/useSmallScreen';
+import { usePreferences } from '../contexts/PreferencesContext';
+import { getSpreadFromDepth } from '../utils/personalization';
 import oneCardArt from '../../selectorimages/onecard.png';
 import threeCardArt from '../../selectorimages/3card.png';
 import fiveCardArt from '../../selectorimages/5card.png';
@@ -135,6 +137,9 @@ export function SpreadSelector({
   const prefersReducedMotion = useReducedMotion();
   const isLandscape = useLandscape();
   const isSmallScreen = useSmallScreen();
+  const { personalization } = usePreferences();
+  const recommendedSpread = getSpreadFromDepth(personalization?.preferredSpreadDepth);
+  const isExperienced = personalization?.tarotExperience === 'experienced';
 
   // In landscape: smaller cards to fit more on screen
   const cardBasisClass = isLandscape
@@ -390,15 +395,20 @@ export function SpreadSelector({
                 />
 
                 <div className="spread-card__body">
-                  <div className="spread-card__title font-serif font-semibold text-accent text-base leading-tight">
+                  <div className="spread-card__title font-serif font-semibold text-accent text-base leading-tight flex flex-wrap items-center gap-2">
                     {spread.name}
+                    {key === recommendedSpread && (
+                      <span className="text-[0.65rem] uppercase tracking-[0.18em] text-amber-200 bg-amber-500/15 border border-amber-300/40 px-2 py-0.5 rounded-full">
+                        Recommended
+                      </span>
+                    )}
                   </div>
                   <div className="text-[0.68rem] uppercase tracking-[0.2em] text-gold-soft/90 mb-2">
                     {spread.tag || 'Guided spread'}
                     <span className="text-gold-soft/60 ml-2">· {spread.count} cards</span>
                   </div>
 
-                  {!isLandscape && (
+                  {!isLandscape && !isExperienced && (
                     <p className="spread-card__description text-xs text-muted leading-snug mb-3">
                       {baseDescription}
                     </p>

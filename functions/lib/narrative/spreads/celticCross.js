@@ -18,6 +18,7 @@ import {
   DEFAULT_WEIGHT_DETAIL_THRESHOLD,
   computeRemedyRotationIndex
 } from '../helpers.js';
+import { buildPersonalizedClosing } from '../styleHelpers.js';
 
 export async function buildCelticCrossReading({
   cardsInfo,
@@ -30,6 +31,7 @@ export async function buildCelticCrossReading({
 }, options = {}) {
   const prioritized = sortCardsByImportance(cardsInfo, 'celtic');
   const sections = [];
+  const personalization = options.personalization || null;
   const collectValidation = typeof options.collectValidation === 'function' ? options.collectValidation : null;
   const remedyRotationIndex = computeRemedyRotationIndex({ cardsInfo, userQuestion, spreadInfo });
 
@@ -46,7 +48,14 @@ export async function buildCelticCrossReading({
   };
 
   // Opening
-  sections.push(buildOpening('Celtic Cross (Classic 10-Card)', userQuestion, context));
+  sections.push(
+    buildOpening(
+      'Celtic Cross (Classic 10-Card)',
+      userQuestion,
+      context,
+      { personalization: options.personalization }
+    )
+  );
 
   const attentionNote = buildWeightAttentionIntro(prioritized, 'Celtic Cross');
   if (attentionNote) {
@@ -115,7 +124,9 @@ export async function buildCelticCrossReading({
     console.debug('Celtic Cross narrative spine suggestions:', validation.suggestions || validation.sectionAnalyses);
   }
 
-  return appendReversalReminder(readingBody, cardsInfo, themes);
+  const closing = buildPersonalizedClosing(personalization);
+  const narrative = closing ? `${readingBody}\n\n${closing}` : readingBody;
+  return appendReversalReminder(narrative, cardsInfo, themes);
 }
 
 

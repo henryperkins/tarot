@@ -8,6 +8,7 @@ const PreferencesContext = createContext(null);
 const PREPARE_SECTIONS_STORAGE_KEY = 'tarot-prepare-sections';
 const ONBOARDING_STORAGE_KEY = 'tarot-onboarding-complete';
 const PERSONALIZATION_STORAGE_KEY = 'tarot-personalization';
+const PERSONALIZATION_BANNER_KEY = 'tarot-personalization-banner';
 const DEFAULT_PREPARE_SECTIONS = {
   intention: false,
   experience: false,
@@ -276,6 +277,22 @@ export function PreferencesProvider({ children }) {
   });
 
   const [onboardingSpreadKey, setOnboardingSpreadKey] = useState(null);
+  const [showPersonalizationBanner, setShowPersonalizationBanner] = useState(false);
+
+  // Check if returning user should see personalization banner
+  useEffect(() => {
+    if (typeof localStorage === 'undefined') return;
+    try {
+      const hasReadings = localStorage.getItem('tarot_journal');
+      const hasCompletedOnboarding = localStorage.getItem(ONBOARDING_STORAGE_KEY) === 'true';
+      const bannerDismissed = localStorage.getItem(PERSONALIZATION_BANNER_KEY) === 'dismissed';
+      if (hasReadings && !hasCompletedOnboarding && !bannerDismissed) {
+        setShowPersonalizationBanner(true);
+      }
+    } catch (error) {
+      console.debug('Unable to evaluate personalization banner state:', error);
+    }
+  }, []);
 
   const setOnboardingComplete = (value) => {
     setOnboardingCompleteState(value);
@@ -325,7 +342,9 @@ export function PreferencesProvider({ children }) {
     setOnboardingComplete,
     onboardingSpreadKey,
     setOnboardingSpreadKey,
-    resetOnboarding
+    resetOnboarding,
+    showPersonalizationBanner,
+    setShowPersonalizationBanner
   };
 
   return (

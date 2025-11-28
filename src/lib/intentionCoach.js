@@ -260,7 +260,7 @@ export async function callLlmApi(prompt, metadata, options = {}) {
  * @param {number|string} [params.seed] - Optional seed for deterministic output
  * @returns {Promise<Object>} { question: string, source: 'api'|'local' }
  */
-export async function buildCreativeQuestion({ topic, timeframe, depth, customFocus, seed }, options = {}) {
+export async function buildCreativeQuestion({ topic, timeframe, depth, customFocus, seed, focusAreas }, options = {}) {
   const { signal } = options;
   const topicData = INTENTION_TOPIC_OPTIONS.find(option => option.value === topic) || INTENTION_TOPIC_OPTIONS[0];
   const timeframeData = INTENTION_TIMEFRAME_OPTIONS.find(option => option.value === timeframe) || INTENTION_TIMEFRAME_OPTIONS[0];
@@ -268,6 +268,9 @@ export async function buildCreativeQuestion({ topic, timeframe, depth, customFoc
 
   const focus = customFocus?.trim() || topicData.focus;
   const timeframeClause = timeframeData?.phrase || 'the current moment';
+  const normalizedFocusAreas = Array.isArray(focusAreas)
+    ? focusAreas.map(area => (typeof area === 'string' ? area.trim() : '')).filter(Boolean)
+    : [];
 
   const insights = loadStoredJournalInsights();
   const stats = insights?.stats || null;
@@ -295,6 +298,9 @@ export async function buildCreativeQuestion({ topic, timeframe, depth, customFoc
   if (recentQuestions.length > 0) {
     personalizationFragments.push(`Avoid repeating prior asks like: ${recentQuestions.join('; ')}`);
   }
+  if (normalizedFocusAreas.length > 0) {
+    personalizationFragments.push(`User focus areas: ${normalizedFocusAreas.join(', ')}`);
+  }
 
   const personalizationNote = personalizationFragments.length > 0
     ? `Personalization: ${personalizationFragments.join(' | ')}.`
@@ -321,7 +327,8 @@ export async function buildCreativeQuestion({ topic, timeframe, depth, customFoc
     leadingContext,
     reversalRate,
     recentQuestions,
-    seed: seed !== undefined ? seed : null  // Pass seed to backend
+    seed: seed !== undefined ? seed : null,  // Pass seed to backend
+    focusAreas: normalizedFocusAreas
   };
 
   let apiResult = null;

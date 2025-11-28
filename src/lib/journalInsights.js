@@ -381,6 +381,84 @@ export async function copyJournalEntrySummary(entry) {
   }
 }
 
+// ============================================================================
+// Preference Drift Analysis (Phase 5.3)
+// ============================================================================
+// Compares user's stated focus areas with actual reading contexts
+// to surface emerging interests they might want to add to their profile.
+
+/**
+ * Map focus areas (from onboarding) to reading context categories.
+ * This allows comparing what users said they care about vs what they
+ * actually read about.
+ */
+const FOCUS_TO_CONTEXT = {
+  love: 'love',
+  career: 'career',
+  self_worth: 'self',
+  healing: 'wellbeing',
+  creativity: 'career', // approximate mapping
+  spirituality: 'spiritual'
+};
+
+/**
+ * Compute preference drift between stated focus areas and actual reading contexts.
+ *
+ * @param {Array} entries - Journal entries with context field
+ * @param {Array} currentFocusAreas - User's stated focus areas from onboarding
+ * @returns {Object|null} Drift analysis or null if insufficient data
+ */
+export function computePreferenceDrift(entries, currentFocusAreas = []) {
+  // Guard against empty/invalid inputs
+  if (!Array.isArray(entries) || entries.length === 0) return null;
+  if (!Array.isArray(currentFocusAreas) || currentFocusAreas.length === 0) return null;
+
+  // Map focus areas to expected contexts
+  const expectedContexts = new Set(
+    currentFocusAreas
+      .map(f => FOCUS_TO_CONTEXT[f])
+      .filter(Boolean)
+  );
+
+  // Count actual contexts from entries
+  const actualContextCounts = {};
+  entries.forEach(entry => {
+    const ctx = entry?.context;
+    if (ctx && typeof ctx === 'string') {
+      actualContextCounts[ctx] = (actualContextCounts[ctx] || 0) + 1;
+    }
+  });
+
+  // Find drift: contexts user reads about but didn't select as focus
+  const driftContexts = Object.entries(actualContextCounts)
+    .filter(([ctx]) => !expectedContexts.has(ctx))
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 3);
+
+  // Get top actual contexts for comparison
+  const actualTopContexts = Object.entries(actualContextCounts)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 3)
+    .map(([context, count]) => ({ context, count }));
+
+  return {
+    expectedContexts: Array.from(expectedContexts),
+    actualTopContexts,
+    driftContexts: driftContexts.map(([context, count]) => ({ context, count })),
+    hasDrift: driftContexts.length > 0
+  };
+}
+
+/**
+ * Format a context name for display (capitalize first letter).
+ * @param {string} context - Raw context string
+ * @returns {string} Formatted context name
+ */
+export function formatContextName(context) {
+  if (!context || typeof context !== 'string') return '';
+  return context.charAt(0).toUpperCase() + context.slice(1);
+}
+
 export {
   JOURNAL_INSIGHTS_STORAGE_KEY,
   SHARE_TOKEN_STORAGE_KEY,

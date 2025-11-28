@@ -4,6 +4,7 @@
 import { getImageryHook, isMajorArcana, getElementalImagery, getMinorImageryHook } from '../imageryHooks.js';
 import { buildMinorSummary } from '../minorMeta.js';
 import { getPositionWeight } from '../positionWeights.js';
+import { getToneStyle, buildNameClause } from './styleHelpers.js';
 import {
   getAstroForCard,
   getQabalahForCard,
@@ -865,11 +866,21 @@ function formatMeaningForPosition(meaning, position) {
   return `This shows ${lowered} as a live theme.`;
 }
 
-function buildOpening(spreadName, userQuestion, context) {
+function buildOpening(spreadName, userQuestion, context, options = {}) {
+  const personalization = options.personalization || null;
+  const tone = getToneStyle(personalization?.readingTone);
   const question = userQuestion && userQuestion.trim();
-  const base = question
-    ? `Focusing on the ${spreadName}, I attune to your question: "${question}"\n\nThe cards respond with insight that honors both seen and unseen influences.`
-    : `Focusing on the ${spreadName}, the cards speak to the energy most present for you right now.`;
+  const spreadLabel = spreadName || 'your chosen spread';
+  const descriptor = tone.openingAdjectives?.[0] || 'thoughtful';
+  const nameOpening = buildNameClause(personalization?.displayName, 'opening');
+  const subject = nameOpening ? `${nameOpening}the cards` : 'The cards';
+
+  const responseLead = question
+    ? `${subject} offer a ${descriptor} response through the ${spreadLabel} to your question: "${question}".`
+    : `${subject} share a ${descriptor} impression of what the ${spreadLabel.toLowerCase()} reveals around you.`;
+
+  const followUp = 'They honor both seen and unseen influences while centering your agency.';
+  const base = `${responseLead}\n\n${followUp}`;
 
   const contextReminder = buildContextReminder(context);
   return contextReminder ? `${base}\n\n${contextReminder}` : base;

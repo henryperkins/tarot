@@ -16,6 +16,7 @@ import {
   buildGuidanceActionPrompt,
   computeRemedyRotationIndex
 } from '../helpers.js';
+import { getToneStyle, getFrameVocabulary, buildNameClause, buildPersonalizedClosing } from '../styleHelpers.js';
 
 export async function buildRelationshipReading({
   cardsInfo,
@@ -43,13 +44,18 @@ export async function buildRelationshipReading({
     return result.text;
   };
   const spreadName = 'Relationship Snapshot';
+  const personalization = options.personalization || null;
+  const tone = getToneStyle(personalization?.readingTone);
+  const frameVocab = getFrameVocabulary(personalization?.spiritualFrame);
+  const nameInline = buildNameClause(personalization?.displayName, 'inline');
 
   sections.push(
     buildOpening(
       spreadName,
       userQuestion ||
       'This spread explores your energy, their energy, the connection between you, and guidance for relating with agency and care.',
-      context
+      context,
+      { personalization: options.personalization }
     )
   );
 
@@ -257,6 +263,9 @@ export async function buildRelationshipReading({
   }
 
   guidance += 'Emphasize honest communication, reciprocal care, and boundaries. Treat these insights as a mirror that informs how you choose to show up—never as a command to stay or leave. Choose the path that best honors honesty, care, and your own boundaries—the outcome still rests in the choices you both make.';
+  const tonePhrase = tone.challengeFraming || 'honest reminder';
+  const frameWord = frameVocab[0] || 'connection';
+  guidance += `\n\nFor you${nameInline || ''} this is a ${tonePhrase}, inviting ${frameWord}-level dialogue about how you both want to participate.`;
 
   sections.push(
     recordSection(guidance, {
@@ -296,11 +305,14 @@ export async function buildRelationshipReading({
     console.debug('Relationship narrative spine suggestions:', validation.suggestions || validation.sectionAnalyses);
   }
 
+  const closing = buildPersonalizedClosing(personalization);
+  const narrative = closing ? `${full}\n\n${closing}` : full;
+
   if (reversalReminderEmbedded) {
-    return full;
+    return narrative;
   }
 
-  return appendReversalReminder(full, cardsInfo, themes);
+  return appendReversalReminder(narrative, cardsInfo, themes);
 }
 
 function buildRelationshipElementalTakeaway(elemental, youCard, themCard) {
