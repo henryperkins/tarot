@@ -1,6 +1,8 @@
 #!/bin/bash
 # Development server startup script for Tableau
-# This starts both Vite (frontend) and Wrangler (API proxy) together
+# This starts both Vite (frontend) and Wrangler Workers (API) together
+#
+# MIGRATION NOTE: Updated from Pages Functions to Workers with Static Assets
 
 set -e
 
@@ -15,15 +17,15 @@ else
   echo "⚠️  $ENV_FILE not found. API-powered features will fall back to local generators."
 fi
 
-echo "🔮 Starting Tableau development environment..."
+echo "🔮 Starting Tableau development environment (Workers mode)..."
 echo ""
 
 # Kill any existing processes on our ports
 echo "Cleaning up any existing processes..."
-lsof -ti:5173,5174,8788 2>/dev/null | xargs kill -9 2>/dev/null || true
+lsof -ti:5173,5174,8787 2>/dev/null | xargs kill -9 2>/dev/null || true
 sleep 1
 
-# Start Vite in background
+# Start Vite in background for frontend HMR
 echo "📦 Starting Vite frontend server..."
 npm run dev:frontend &
 VITE_PID=$!
@@ -51,9 +53,13 @@ fi
 
 echo "📍 Vite running on port $VITE_PORT"
 
-# Start Wrangler proxy directly with the detected port
-echo "⚡ Starting Wrangler Pages proxy..."
-wrangler pages dev --proxy=$VITE_PORT --live-reload &
+# Build frontend assets first for Workers to serve
+echo "🏗️  Building frontend assets for Workers..."
+npm run build
+
+# Start Wrangler Workers dev server
+echo "⚡ Starting Wrangler Workers dev server..."
+wrangler dev --config wrangler.jsonc --live-reload &
 WRANGLER_PID=$!
 
 # Cleanup function
@@ -62,36 +68,38 @@ cleanup() {
   echo "🛑 Shutting down development servers..."
   kill $VITE_PID 2>/dev/null || true
   kill $WRANGLER_PID 2>/dev/null || true
-  lsof -ti:5173,5174,8788 2>/dev/null | xargs kill -9 2>/dev/null || true
+  lsof -ti:5173,5174,8787 2>/dev/null | xargs kill -9 2>/dev/null || true
   echo "✅ Cleanup complete"
   exit 0
 }
 
 trap cleanup EXIT INT TERM
 
-# Wait for Wrangler to be ready
-echo "⏳ Waiting for Wrangler..."
+# Wait for Wrangler Workers to be ready
+echo "⏳ Waiting for Workers..."
 for i in {1..30}; do
-  if curl -s http://localhost:8788 >/dev/null 2>&1; then
-    echo "✅ Wrangler is ready!"
+  if curl -s http://localhost:8787 >/dev/null 2>&1; then
+    echo "✅ Workers dev server is ready!"
     break
   fi
   sleep 1
   if [ $i -eq 30 ]; then
-    echo "❌ Wrangler failed to start"
+    echo "❌ Workers dev server failed to start"
     cleanup
   fi
 done
 
 echo ""
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo "🎉 Development environment ready!"
+echo "🎉 Development environment ready! (Workers mode)"
 echo ""
-echo "🌐 Access your app at: http://localhost:8788"
+echo "🌐 Access your app at: http://localhost:$VITE_PORT"
 echo ""
 echo "📝 Notes:"
-echo "  - Frontend (Vite): http://localhost:$VITE_PORT (for reference only)"
-echo "  - Full app with API: http://localhost:8788 (USE THIS!)"
+echo "  - Frontend HMR (Vite): http://localhost:$VITE_PORT (USE THIS!)"
+echo "  - Full app with API: http://localhost:8787 (API backend)"
+echo "  - Workers serve static assets from dist/"
+echo "  - API routes handled by src/worker/index.js"
 echo "  - Press Ctrl+C to stop all servers"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo ""

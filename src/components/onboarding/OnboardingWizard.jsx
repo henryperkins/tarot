@@ -221,25 +221,27 @@ export function OnboardingWizard({ isOpen, onComplete, onSelectSpread, initialSp
               isLandscape ? 'py-1.5' : 'py-3 xs:py-4'
             }`}
           >
-            <div className="flex items-center justify-between px-3 xs:px-4 sm:px-6 pl-safe-left pr-safe-right">
+            <div className="flex flex-wrap items-center gap-2 xs:gap-3 px-2 xxs:px-3 sm:px-6 pl-safe-left pr-safe-right">
               <h1 id={titleId} className="sr-only">
                 Welcome to Mystic Tarot
               </h1>
-              <OnboardingProgress
-                currentStep={currentStep}
-                totalSteps={TOTAL_STEPS}
-                onStepSelect={handleStepSelect}
-                allowNavigation={true}
-              />
               <button
                 ref={closeButtonRef}
                 type="button"
                 onClick={handleSkip}
-                className="flex items-center justify-center min-w-[44px] min-h-[44px] rounded-full text-muted hover:text-main hover:bg-surface/50 transition touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-main"
+                className="order-1 sm:order-2 self-start sm:self-center ml-auto sm:ml-0 flex items-center justify-center min-w-[44px] min-h-[44px] rounded-full text-muted hover:text-main hover:bg-surface/50 transition touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-main"
                 aria-label="Skip onboarding"
               >
                 <X className="w-5 h-5" weight="bold" />
               </button>
+              <div className="order-2 sm:order-1 flex-1 min-w-0 w-full sm:w-auto">
+                <OnboardingProgress
+                  currentStep={currentStep}
+                  totalSteps={TOTAL_STEPS}
+                  onStepSelect={handleStepSelect}
+                  allowNavigation={true}
+                />
+              </div>
             </div>
           </header>
 
@@ -248,7 +250,7 @@ export function OnboardingWizard({ isOpen, onComplete, onSelectSpread, initialSp
             className="relative z-10 flex-1 overflow-y-auto overflow-x-hidden scroll-smooth pt-safe-top pb-safe-bottom pl-safe-left pr-safe-right"
             style={{ scrollPaddingTop: '1rem', scrollPaddingBottom: '1rem' }}
           >
-            <div className={`max-w-full sm:max-w-2xl mx-auto h-full ${isLandscape ? 'px-2 xs:px-3 py-2 sm:px-4' : 'px-2 xs:px-4 md:px-6 py-4 xs:py-6 md:py-8'}`}>
+            <div className={`max-w-full sm:max-w-2xl mx-auto h-full ${isLandscape ? 'px-2 xxs:px-3 py-2 sm:px-4' : 'px-3 xxs:px-4 md:px-6 py-4 xs:py-6 md:py-8'}`}>
               {renderStep()}
             </div>
           </main>

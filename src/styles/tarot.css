@@ -815,6 +815,26 @@ body {
   }
 }
 
+/* Ultra-compact phones (<= 330px) */
+@media (max-width: 330px) {
+  .spread-card {
+    --spread-card-height-mobile: 14.25rem;
+    padding: 0.65rem 0.75rem 0.9rem;
+  }
+
+  .spread-card__title {
+    font-size: 0.9rem;
+  }
+
+  .spread-card__description {
+    font-size: 0.8rem;
+  }
+
+  .spread-card__meta {
+    gap: 0.35rem;
+  }
+}
+
 @media (max-height: 500px) and (orientation: landscape) {
   .spread-card {
     --spread-card-height-mobile: 12rem;
@@ -1044,6 +1064,19 @@ body {
   .cc-grid>* {
     flex-basis: min(72vw, 14rem);
     width: min(72vw, 14rem);
+  }
+}
+
+@media (max-width: 330px) {
+  .cc-grid {
+    gap: 0.6rem;
+    padding: 0 0.55rem 1rem;
+    scroll-padding-inline: 0.55rem;
+  }
+
+  .cc-grid>* {
+    flex-basis: min(70vw, 13.25rem);
+    width: min(70vw, 13.25rem);
   }
 }
 
@@ -1427,10 +1460,9 @@ textarea:focus-visible {
   position: absolute;
   pointer-events: none;
   border-radius: 999px;
-  opacity: 0.18;
-  box-shadow:
-    0 0 18px var(--brand-accent),
-    0 0 32px var(--brand-secondary);
+  opacity: 0.25;
+  background: radial-gradient(circle, var(--brand-accent) 0%, transparent 70%);
+  filter: blur(8px);
 }
 
 .mystic-heading-wrap::before {

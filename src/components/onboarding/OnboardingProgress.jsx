@@ -29,7 +29,7 @@ export function OnboardingProgress({
     <div className="flex-1">
       {/* Mobile: compact dots with horizontal scroll on very narrow screens */}
       <nav
-        className="flex items-center gap-1.5 xs:gap-2 sm:hidden overflow-x-auto scrollbar-none"
+        className="flex items-center gap-1.5 xs:gap-2 sm:hidden overflow-x-auto scrollbar-none px-1.5 xxs:px-2"
         aria-label="Onboarding progress"
       >
         {Array.from({ length: totalSteps }, (_, i) => {
@@ -61,7 +61,7 @@ export function OnboardingProgress({
               {isCompleted ? (
                 <Check className="w-3.5 h-3.5 xs:w-4 xs:h-4" weight="bold" />
               ) : (
-                <span className="text-[0.65rem] xs:text-[0.7rem] font-semibold">{step}</span>
+                <span className="text-[0.6rem] xxs:text-[0.65rem] xs:text-[0.7rem] font-semibold">{step}</span>
               )}
             </button>
           );
@@ -70,7 +70,7 @@ export function OnboardingProgress({
 
       {/* Desktop: labels with connecting line */}
       <nav
-        className="hidden sm:flex items-center gap-1"
+        className="hidden sm:flex flex-wrap items-center gap-1"
         aria-label="Onboarding progress"
       >
         {Array.from({ length: totalSteps }, (_, i) => {

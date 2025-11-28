@@ -1,40 +1,129 @@
 #!/bin/bash
-# Migrate secrets from .dev.vars to the new Tableau project
+# =============================================================================
+# Secrets Migration Script: Pages Functions → Workers
+# =============================================================================
+# This script helps migrate secrets from Cloudflare Pages to Cloudflare Workers.
+# 
+# Pages secrets are stored separately from Workers secrets, so you need to
+# re-add them to the Workers deployment.
+#
+# Usage:
+#   ./scripts/migrate-secrets.sh           # Interactive mode (prompts for values)
+#   ./scripts/migrate-secrets.sh --from-env # Uses .dev.vars file values
+# =============================================================================
 
-PROJECT_NAME="tableau"
-ENV_FILE=".dev.vars"
+set -e
 
-if [ ! -f "$ENV_FILE" ]; then
-    echo "Error: $ENV_FILE not found."
-    exit 1
-fi
+WORKER_NAME="tableau"
 
-echo "Migrating secrets from $ENV_FILE to Cloudflare Pages project: $PROJECT_NAME"
-
-# List of secrets to migrate
-SECRETS=(
-    "AZURE_OPENAI_ENDPOINT"
-    "AZURE_OPENAI_API_KEY"
-    "AZURE_OPENAI_GPT5_MODEL"
-    "AZURE_OPENAI_TTS_ENDPOINT"
-    "AZURE_OPENAI_TTS_API_KEY"
-    "AZURE_OPENAI_GPT_AUDIO_MINI_DEPLOYMENT"
-    "VISION_PROOF_SECRET"
+# List of required secrets (must have values)
+REQUIRED_SECRETS=(
+  "AZURE_OPENAI_ENDPOINT"
+  "AZURE_OPENAI_API_KEY"
+  "AZURE_OPENAI_GPT5_MODEL"
 )
 
-for SECRET_NAME in "${SECRETS[@]}"; do
-    # Extract value from .dev.vars
-    # grep for the line, then cut after the first '='
-    VALUE=$(grep "^$SECRET_NAME=" "$ENV_FILE" | cut -d'=' -f2-)
+# List of optional secrets (may be empty)
+OPTIONAL_SECRETS=(
+  "AZURE_OPENAI_TTS_ENDPOINT"
+  "AZURE_OPENAI_TTS_API_KEY"
+  "AZURE_OPENAI_GPT_AUDIO_MINI_DEPLOYMENT"
+  "ANTHROPIC_API_KEY"
+  "VISION_PROOF_SECRET"
+  "HUME_API_KEY"
+)
 
-    if [ -n "$VALUE" ]; then
-        echo "Uploading $SECRET_NAME..."
-        # Remove potential quotes around the value
-        VALUE=$(echo "$VALUE" | sed -e 's/^"//' -e 's/"$//')
-        echo "$VALUE" | wrangler pages secret put "$SECRET_NAME" --project-name="$PROJECT_NAME"
-    else
-        echo "Warning: $SECRET_NAME not found in $ENV_FILE"
+echo "========================================"
+echo "Cloudflare Workers Secrets Migration"
+echo "========================================"
+echo ""
+echo "This script will add secrets to Worker: $WORKER_NAME"
+echo ""
+
+# Check if wrangler is available
+if ! command -v wrangler &> /dev/null; then
+  echo "❌ Error: wrangler CLI not found. Install with: npm install -g wrangler"
+  exit 1
+fi
+
+# Function to add a secret
+add_secret() {
+  local secret_name=$1
+  local secret_value=$2
+  
+  if [ -n "$secret_value" ]; then
+    echo "$secret_value" | wrangler secret put "$secret_name" --name "$WORKER_NAME"
+    echo "✅ Added secret: $secret_name"
+  else
+    echo "⏭️  Skipped (empty): $secret_name"
+  fi
+}
+
+# Check for --from-env flag
+if [ "$1" == "--from-env" ]; then
+  echo "📁 Reading secrets from .dev.vars file..."
+  
+  if [ ! -f ".dev.vars" ]; then
+    echo "❌ Error: .dev.vars file not found"
+    echo "   Create it from .dev.vars.example first"
+    exit 1
+  fi
+  
+  # Source the .dev.vars file
+  set -a
+  source .dev.vars
+  set +a
+  
+  echo ""
+  echo "Adding required secrets..."
+  for secret in "${REQUIRED_SECRETS[@]}"; do
+    value="${!secret}"
+    if [ -z "$value" ]; then
+      echo "❌ Error: Required secret $secret is empty in .dev.vars"
+      exit 1
     fi
-done
+    add_secret "$secret" "$value"
+  done
+  
+  echo ""
+  echo "Adding optional secrets..."
+  for secret in "${OPTIONAL_SECRETS[@]}"; do
+    value="${!secret}"
+    add_secret "$secret" "$value"
+  done
+  
+else
+  echo "🔐 Interactive mode - you'll be prompted for each secret"
+  echo "   (Use --from-env to read from .dev.vars instead)"
+  echo ""
+  
+  echo "Adding required secrets..."
+  for secret in "${REQUIRED_SECRETS[@]}"; do
+    echo ""
+    echo "Enter value for $secret:"
+    wrangler secret put "$secret" --name "$WORKER_NAME"
+  done
+  
+  echo ""
+  echo "Adding optional secrets (press Enter to skip)..."
+  for secret in "${OPTIONAL_SECRETS[@]}"; do
+    echo ""
+    read -p "Add $secret? (y/N): " yn
+    if [ "$yn" == "y" ] || [ "$yn" == "Y" ]; then
+      wrangler secret put "$secret" --name "$WORKER_NAME"
+    else
+      echo "⏭️  Skipped: $secret"
+    fi
+  done
+fi
 
-echo "Migration complete!"
+echo ""
+echo "========================================"
+echo "✅ Secrets migration complete!"
+echo "========================================"
+echo ""
+echo "To verify secrets are set:"
+echo "  wrangler secret list --name $WORKER_NAME"
+echo ""
+echo "To deploy with new secrets:"
+echo "  npm run deploy"

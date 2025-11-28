@@ -47,8 +47,8 @@ export function StreamingNarrative({
   }, [units]);
 
   const [visibleCount, setVisibleCount] = useState(0);
-  const [isComplete, setIsComplete] = useState(false);
   const [mobileStreamingOptIn, setMobileStreamingOptIn] = useState(false);
+  const [prevNarrativeText, setPrevNarrativeText] = useState(narrativeText);
 
   // Refs for cleanup and tracking
   const timerRef = useRef(null);
@@ -73,6 +73,32 @@ export function StreamingNarrative({
     !mobileStreamingOptIn
   );
 
+  // Derive isComplete from visibleCount (no need for separate state)
+  const isComplete = units.length > 0 && visibleCount >= units.length;
+
+  // Adjust state during render when narrative text changes (React-recommended pattern)
+  // This avoids the cascading render issue from calling setState in useEffect
+  // See: https://react.dev/learn/you-might-not-need-an-effect#adjusting-some-state-when-a-prop-changes
+  if (narrativeText !== prevNarrativeText) {
+    setPrevNarrativeText(narrativeText);
+    setMobileStreamingOptIn(false);
+    
+    // Compute what streamingActive will be after mobileStreamingOptIn resets to false
+    const newStreamingActive = Boolean(
+      isStreamingEnabled &&
+      !prefersReducedMotion &&
+      units.length > 0 &&
+      !isVeryLongNarrative &&
+      !isLongMobileNarrative // mobileStreamingOptIn will be false
+    );
+    
+    if (!newStreamingActive) {
+      setVisibleCount(units.length);
+    } else {
+      setVisibleCount(0);
+    }
+  }
+
   const notifyCompletion = useCallback(() => {
     if (completionNotifiedRef.current) {
       return;
@@ -95,35 +121,31 @@ export function StreamingNarrative({
     }
   }, []);
 
-  // Reset when text changes
+  // Clear timers and reset refs when text changes (side effects that must stay in useEffect)
   useEffect(() => {
-    // Clear any existing timers first
     clearTimer();
     clearNarrationTimer();
-
     completionNotifiedRef.current = false;
     narrationTriggeredRef.current = false;
+  }, [narrativeText, clearTimer, clearNarrationTimer]);
 
-    if (!streamingActive) {
-      setVisibleCount(units.length);
-      setIsComplete(true);
-      if (units.length > 0) {
-        notifyCompletion();
-      }
-      return;
-    }
-
-    setVisibleCount(0);
-    setIsComplete(false);
-  }, [narrativeText, streamingActive, units.length, notifyCompletion, clearTimer, clearNarrationTimer]);
-
-  // Handle completion separately from state updates
+  // Handle initial render and streaming-disabled state
+  // The render-time state adjustment (lines 82-100) only runs when text changes,
+  // so on first mount with streaming disabled, visibleCount stays at 0.
+  // This effect ensures text is shown immediately when streaming is not active.
   useEffect(() => {
-    if (visibleCount >= units.length && units.length > 0 && !isComplete) {
-      setIsComplete(true);
+    if (!streamingActive && units.length > 0 && visibleCount < units.length) {
+      setVisibleCount(units.length);
+    }
+  }, [streamingActive, units.length, visibleCount]);
+
+  // Notify completion when all content is visible
+  // This effect only calls external callback, no setState
+  useEffect(() => {
+    if (isComplete && !completionNotifiedRef.current) {
       notifyCompletion();
     }
-  }, [visibleCount, units.length, isComplete, notifyCompletion]);
+  }, [isComplete, notifyCompletion]);
 
   // Auto-narration effect - separate from streaming to avoid coupling
   useEffect(() => {
@@ -174,7 +196,7 @@ export function StreamingNarrative({
     return () => {
       clearTimer();
     };
-  }, [visibleCount, units, isStreamingEnabled, prefersReducedMotion, clearTimer]);
+  }, [visibleCount, units, streamingActive, clearTimer]);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -184,9 +206,6 @@ export function StreamingNarrative({
     };
   }, [clearTimer, clearNarrationTimer]);
 
-  useEffect(() => {
-    setMobileStreamingOptIn(false);
-  }, [narrativeText]);
 
   const handleSkip = () => {
     if (units.length === 0) {
@@ -194,8 +213,7 @@ export function StreamingNarrative({
     }
     clearTimer();
     setVisibleCount(units.length);
-    setIsComplete(true);
-    notifyCompletion();
+    // notifyCompletion will be called by the effect when isComplete becomes true
   };
 
   const handleEnableStreaming = () => {
@@ -207,14 +225,25 @@ export function StreamingNarrative({
     narrationTriggeredRef.current = false;
     clearTimer();
     setVisibleCount(0);
-    setIsComplete(false);
   };
 
   const visibleWords = units.slice(0, visibleCount);
   const showSkipButton = streamingActive && !isComplete;
 
+  // Memoize animation styles to avoid creating new objects per word per render
+  // Must be defined before any conditional returns to satisfy Rules of Hooks
+  const recentWordStyle = useMemo(() => ({
+    animation: 'inkSpread 0.5s cubic-bezier(0.4, 0, 0.2, 1) forwards',
+    willChange: 'opacity, filter, transform'
+  }), []);
+
+  const settledWordStyle = useMemo(() => ({
+    animation: 'inkSpread 0.5s cubic-bezier(0.4, 0, 0.2, 1) forwards',
+    willChange: 'auto'
+  }), []);
+
   const streamingOptInNotice = streamingSuppressedForMobile ? (
-    <div className="sm:hidden mb-3 rounded-xl border border-secondary/40 bg-surface/80 px-4 py-3 text-center">
+    <div className="sm:hidden mb-3 rounded-xl border border-secondary/40 bg-surface/80 px-3 xxs:px-4 py-3 text-center">
       <p className="text-xs-plus text-muted mb-2">Long readings show instantly on small screens.</p>
       <button
         type="button"
@@ -242,12 +271,12 @@ export function StreamingNarrative({
         {streamingOptInNotice}
         {personalizedIntro}
         {/* Container with min-height to prevent layout shift during streaming */}
-        <div className="prose prose-sm sm:prose-base md:prose-lg max-w-[calc(100vw-2rem)] xs:max-w-sm sm:max-w-[65ch] w-full min-h-[6rem] xs:min-h-[8rem] md:min-h-[10rem] px-1 xs:px-3 sm:px-0 mx-auto">
+        <div className="prose prose-sm xxs:prose-base sm:prose-base md:prose-lg max-w-[min(32rem,calc(100vw-2.25rem))] xxs:max-w-sm sm:max-w-[65ch] w-full min-h-[5.5rem] xxs:min-h-[7rem] md:min-h-[10rem] px-2 xxs:px-3 sm:px-0 mx-auto">
           <MarkdownRenderer content={visibleText} />
         </div>
 
         {showSkipButton && (
-          <div className="mt-4 xs:mt-5 sticky bottom-[max(1rem,env(safe-area-inset-bottom,1rem))] sm:static flex justify-center px-3 xs:px-4 sm:px-0">
+          <div className="mt-4 xs:mt-5 sticky bottom-[max(1rem,env(safe-area-inset-bottom,1rem))] sm:static flex justify-center px-3 xxs:px-4 sm:px-0">
             <button
               type="button"
               onClick={handleSkip}
@@ -266,23 +295,12 @@ export function StreamingNarrative({
   // Only apply willChange to recently revealed words to avoid GPU memory exhaustion
   const RECENT_WORDS_THRESHOLD = 10;
 
-  // Memoize animation styles to avoid creating new objects per word per render
-  const recentWordStyle = useMemo(() => ({
-    animation: 'inkSpread 0.5s cubic-bezier(0.4, 0, 0.2, 1) forwards',
-    willChange: 'opacity, filter, transform'
-  }), []);
-
-  const settledWordStyle = useMemo(() => ({
-    animation: 'inkSpread 0.5s cubic-bezier(0.4, 0, 0.2, 1) forwards',
-    willChange: 'auto'
-  }), []);
-
   return (
     <div className={className} aria-live="polite">
       {streamingOptInNotice}
       {personalizedIntro}
       {/* Mobile-optimized text with good line height and spacing - min-height prevents layout shift */}
-      <div className="text-main text-base md:text-lg leading-7 xs:leading-relaxed md:leading-loose max-w-[calc(100vw-2rem)] xs:max-w-sm sm:max-w-[65ch] mx-auto text-left min-h-[6rem] xs:min-h-[8rem] md:min-h-[10rem] px-1 xs:px-3 sm:px-0">
+      <div className="text-main text-[0.95rem] xxs:text-base md:text-lg leading-7 xs:leading-relaxed md:leading-loose max-w-[min(32rem,calc(100vw-2.25rem))] xxs:max-w-sm sm:max-w-[65ch] mx-auto text-left min-h-[5.5rem] xxs:min-h-[7rem] md:min-h-[10rem] px-2 xxs:px-3 sm:px-0">
         {visibleWords.map((word, idx) => {
           // Check if this is whitespace (space, newline, etc.)
           const isWhitespace = /^\s+$/.test(word);
@@ -309,7 +327,7 @@ export function StreamingNarrative({
       </div>
 
       {showSkipButton && (
-        <div className="mt-4 xs:mt-5 sticky bottom-[max(1rem,env(safe-area-inset-bottom,1rem))] sm:static flex justify-center px-3 xs:px-4 sm:px-0">
+        <div className="mt-4 xs:mt-5 sticky bottom-[max(1rem,env(safe-area-inset-bottom,1rem))] sm:static flex justify-center px-3 xxs:px-4 sm:px-0">
           <button
             type="button"
             onClick={handleSkip}

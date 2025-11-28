@@ -5,20 +5,22 @@
 // 1. Takes graph keys from pattern detection (triads, dyads, journey stages)
 // 2. Retrieves relevant passages from the curated knowledge base
 // 3. Ranks and formats passages for injection into LLM prompts
+// 4. Scores passage relevance using keyword + semantic similarity
 //
 // Architecture:
-//   graphKeys → retrievePassages() → ranked passages → formatForPrompt()
+//   graphKeys → retrievePassages() → scored passages → quality filter → formatForPrompt()
 //
-// This is a **prototype** implementation using deterministic retrieval.
-// Future enhancements could add:
-// - Semantic similarity via embeddings
-// - Dynamic passage generation
-// - User feedback loop for passage quality
+// Quality filtering enhancements:
+// - Keyword overlap scoring (fast, cheap)
+// - Semantic similarity via embeddings (optional, requires API)
+// - Deduplication of similar passages
+// - Relevance threshold filtering
 
 import {
   getPassagesForPattern,
   getKnowledgeBaseStats
 } from './knowledgeBase.js';
+import { cosineSimilarity, embedText } from './embeddings.js';
 
 /**
  * Determine the number of passages to retrieve based on spread complexity.
@@ -294,15 +296,24 @@ export function buildRetrievalSummary(graphKeys, passages) {
 /**
  * Check if GraphRAG is enabled via environment
  *
+ * @param {Object} [env] - Environment object (e.g., Cloudflare Worker env or process.env)
  * @returns {boolean} True if GraphRAG should be used
  */
-export function isGraphRAGEnabled() {
-  if (typeof process === 'undefined' || !process.env) {
-    return false;
+export function isGraphRAGEnabled(env) {
+  // Prefer provided env (for Workers), fall back to process.env (for Node.js)
+  let effectiveEnv = env;
+  
+  if (!effectiveEnv) {
+    if (typeof process !== 'undefined' && process.env) {
+      effectiveEnv = process.env;
+    } else {
+      // No env available - default to enabled
+      return true;
+    }
   }
 
   // Check GRAPHRAG_ENABLED first (preferred), fall back to legacy KNOWLEDGE_GRAPH_ENABLED
-  const envValue = process.env.GRAPHRAG_ENABLED ?? process.env.KNOWLEDGE_GRAPH_ENABLED;
+  const envValue = effectiveEnv.GRAPHRAG_ENABLED ?? effectiveEnv.KNOWLEDGE_GRAPH_ENABLED;
 
   // Explicitly disabled
   if (envValue === 'false' || envValue === '0') {
@@ -325,4 +336,262 @@ export function isGraphRAGEnabled() {
  */
 export function getKnowledgeBaseInfo() {
   return getKnowledgeBaseStats();
+}
+
+// ============================================================================
+// QUALITY FILTERING ENHANCEMENTS
+// ============================================================================
+
+/**
+ * Score passage relevance against user query.
+ * Combines fast keyword matching with optional semantic similarity.
+ *
+ * @param {string} passage - The passage text
+ * @param {string} userQuery - User's question
+ * @param {Object} [options] - Scoring options
+ * @param {number} [options.keywordWeight=0.3] - Weight for keyword score
+ * @param {number} [options.semanticWeight=0.7] - Weight for semantic score
+ * @param {boolean} [options.enableSemanticScoring=false] - Use embeddings API
+ * @param {Object} [options.env] - Environment variables for API calls
+ * @returns {Promise<number>} Relevance score 0-1
+ *
+ * @example
+ * const score = await scorePassageRelevance(
+ *   "The Fool represents new beginnings...",
+ *   "What does this new chapter hold for me?",
+ *   { enableSemanticScoring: true }
+ * );
+ * // Returns ~0.75 (high relevance)
+ */
+export async function scorePassageRelevance(passage, userQuery, options = {}) {
+  const { keywordWeight = 0.3, semanticWeight = 0.7 } = options;
+
+  if (!userQuery || !passage) {
+    return 0.5; // Default neutral score
+  }
+
+  const queryText = typeof userQuery === 'string' ? userQuery : '';
+  const passageText = typeof passage === 'string' ? passage : '';
+
+  if (!queryText.trim() || !passageText.trim()) {
+    return 0.5;
+  }
+
+  // Keyword overlap scoring (fast, cheap)
+  const queryTerms = queryText
+    .toLowerCase()
+    .split(/\W+/)
+    .filter((t) => t.length > 3);
+  const passageLower = passageText.toLowerCase();
+  const keywordMatches = queryTerms.filter((term) =>
+    passageLower.includes(term)
+  );
+  const keywordScore =
+    queryTerms.length > 0 ? keywordMatches.length / queryTerms.length : 0;
+
+  // Semantic similarity (requires embeddings API)
+  let semanticScore = 0.5; // Default to neutral if semantic scoring disabled/fails
+  if (options.enableSemanticScoring) {
+    try {
+      const [queryEmbed, passageEmbed] = await Promise.all([
+        embedText(queryText, { env: options.env }),
+        embedText(passageText.slice(0, 500), { env: options.env }) // Truncate for efficiency
+      ]);
+      semanticScore = cosineSimilarity(queryEmbed, passageEmbed);
+    } catch (err) {
+      console.warn('[GraphRAG] Semantic scoring failed:', err.message);
+      // Fall back to keyword-only scoring
+      return keywordScore;
+    }
+  }
+
+  return keywordScore * keywordWeight + semanticScore * semanticWeight;
+}
+
+/**
+ * Remove passages with high content overlap.
+ * Uses a simple fingerprint-based approach for efficiency.
+ *
+ * @param {Array<Object>} passages - Passages to deduplicate
+ * @param {Object} [options] - Deduplication options
+ * @param {number} [options.fingerprintLength=100] - Characters to use for fingerprint
+ * @returns {Array<Object>} Deduplicated passages
+ *
+ * @example
+ * const unique = deduplicatePassages(passages);
+ */
+export function deduplicatePassages(passages, options = {}) {
+  const fingerprintLength = options.fingerprintLength || 100;
+
+  if (!Array.isArray(passages) || passages.length === 0) {
+    return [];
+  }
+
+  const seen = new Set();
+
+  return passages.filter((passage) => {
+    if (!passage || typeof passage.text !== 'string') {
+      return true; // Keep passages without text (shouldn't happen but be safe)
+    }
+
+    // Generate content fingerprint (normalized first N chars)
+    const fingerprint = passage.text
+      .toLowerCase()
+      .replace(/\s+/g, ' ')
+      .trim()
+      .slice(0, fingerprintLength);
+
+    if (seen.has(fingerprint)) {
+      return false; // Duplicate, filter out
+    }
+
+    seen.add(fingerprint);
+    return true;
+  });
+}
+
+/**
+ * Enhanced retrieval with quality filtering.
+ * Builds on retrievePassages() but adds:
+ * - Relevance scoring (keyword + semantic)
+ * - Quality threshold filtering
+ * - Deduplication
+ *
+ * @param {Object} graphKeys - Graph keys from buildGraphContext()
+ * @param {Object} [options] - Retrieval options
+ * @param {number} [options.maxPassages=5] - Maximum passages to return
+ * @param {string} [options.userQuery=''] - User's question for relevance scoring
+ * @param {number} [options.minRelevanceScore=0.3] - Minimum relevance to include
+ * @param {boolean} [options.enableDeduplication=true] - Remove similar passages
+ * @param {boolean} [options.enableSemanticScoring=false] - Use embeddings API
+ * @param {Object} [options.env] - Environment variables for API calls
+ * @returns {Promise<Array<Object>>} Quality-filtered, scored passages
+ *
+ * @example
+ * const passages = await retrievePassagesWithQuality(
+ *   themes.knowledgeGraph.graphKeys,
+ *   {
+ *     maxPassages: 5,
+ *     userQuery: "What does this new chapter hold?",
+ *     minRelevanceScore: 0.35,
+ *     enableSemanticScoring: true
+ *   }
+ * );
+ */
+export async function retrievePassagesWithQuality(graphKeys, options = {}) {
+  const {
+    maxPassages = 5,
+    userQuery = '',
+    minRelevanceScore = 0.3,
+    enableDeduplication = true,
+    enableSemanticScoring = false,
+    env = null
+  } = options;
+
+  // Get raw passages (retrieve 2x to allow for filtering)
+  const rawPassages = retrievePassages(graphKeys, {
+    maxPassages: maxPassages * 2,
+    userQuery,
+    includeMetadata: true
+  });
+
+  if (!rawPassages || rawPassages.length === 0) {
+    return [];
+  }
+
+  // Score each passage for relevance
+  const scoredPassages = await Promise.all(
+    rawPassages.map(async (passage) => {
+      const relevanceScore = await scorePassageRelevance(
+        passage.text,
+        userQuery,
+        {
+          enableSemanticScoring,
+          env
+        }
+      );
+      return {
+        ...passage,
+        relevanceScore,
+        // Track whether semantic scoring was enabled for this retrieval
+        _semanticScoringEnabled: enableSemanticScoring
+      };
+    })
+  );
+
+  // Filter by quality threshold
+  let filtered = scoredPassages.filter(
+    (p) => p.relevanceScore >= minRelevanceScore
+  );
+
+  // Deduplicate similar passages
+  if (enableDeduplication) {
+    filtered = deduplicatePassages(filtered);
+  }
+
+  // Sort by relevance score (highest first) and take top N
+  const ranked = filtered
+    .sort((a, b) => b.relevanceScore - a.relevanceScore)
+    .slice(0, maxPassages);
+
+  return ranked;
+}
+
+/**
+ * Build enhanced retrieval summary including quality metrics.
+ *
+ * @param {Object} graphKeys - Graph keys from buildGraphContext()
+ * @param {Array<Object>} passages - Retrieved passages with relevance scores
+ * @returns {Object} Summary with quality metrics
+ */
+export function buildQualityRetrievalSummary(graphKeys, passages) {
+  const baseSummary = buildRetrievalSummary(graphKeys, passages);
+
+  // Add quality metrics
+  const qualityMetrics = {
+    averageRelevance: 0,
+    minRelevance: 0,
+    maxRelevance: 0,
+    semanticScoringUsed: false
+  };
+
+  if (Array.isArray(passages) && passages.length > 0) {
+    const scores = passages
+      .map((p) => p.relevanceScore)
+      .filter((s) => typeof s === 'number' && !Number.isNaN(s));
+
+    if (scores.length > 0) {
+      qualityMetrics.averageRelevance =
+        scores.reduce((sum, s) => sum + s, 0) / scores.length;
+      qualityMetrics.minRelevance = Math.min(...scores);
+      qualityMetrics.maxRelevance = Math.max(...scores);
+    }
+
+    // Check if semantic scoring was enabled for any passage retrieval
+    // Uses the _semanticScoringEnabled flag set by retrievePassagesWithQuality
+    qualityMetrics.semanticScoringUsed = passages.some(
+      (p) => p._semanticScoringEnabled === true
+    );
+  }
+
+  return {
+    ...baseSummary,
+    qualityMetrics
+  };
+}
+
+/**
+ * Check if semantic scoring is available (API configured).
+ *
+ * @param {Object} [env] - Environment variables. Pass null to explicitly check without env.
+ * @returns {boolean} True if semantic scoring can be used
+ */
+export function isSemanticScoringAvailable(env) {
+  // If null is explicitly passed, don't fall back to process.env
+  if (env === null) {
+    return false;
+  }
+  
+  const effectiveEnv = env || (typeof process !== 'undefined' && process.env ? process.env : {});
+  return Boolean(effectiveEnv?.AZURE_OPENAI_ENDPOINT && effectiveEnv?.AZURE_OPENAI_API_KEY);
 }

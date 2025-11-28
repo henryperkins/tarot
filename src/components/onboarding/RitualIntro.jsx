@@ -50,7 +50,7 @@ export function RitualIntro({ onNext, onBack, onSkipRitual }) {
 
         {/* Ritual steps */}
         <div
-          className={`grid gap-4 ${isLandscape ? 'grid-cols-2' : 'grid-cols-1 sm:grid-cols-2'}`}
+          className={`grid gap-4 xxs:gap-5 ${isLandscape ? 'grid-cols-2' : 'grid-cols-1 sm:grid-cols-2'}`}
         >
           {/* Knock */}
           <div
@@ -207,7 +207,7 @@ export function RitualIntro({ onNext, onBack, onSkipRitual }) {
         <button
           type="button"
           onClick={handleSkipAndStart}
-          className="w-full min-h-[44px] px-4 py-2 text-muted hover:text-main text-sm transition touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary focus-visible:ring-offset-2 focus-visible:ring-offset-main"
+          className="w-full min-h-[44px] px-3 xxs:px-4 py-2 text-muted hover:text-main text-xs xxs:text-sm transition touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary focus-visible:ring-offset-2 focus-visible:ring-offset-main"
         >
           Skip and start reading
         </button>

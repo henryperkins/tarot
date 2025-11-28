@@ -281,7 +281,7 @@ export function SpreadSelector({
   );
 
   return (
-    <section className="spread-selector-panel animate-fade-in mb-6 sm:mb-8">
+    <section className="panel-mystic spread-selector-panel animate-fade-in mb-6 sm:mb-8">
       <div className="relative z-10 space-y-5">
         <header className={`flex flex-col ${isLandscape ? 'gap-1' : 'gap-2'} sm:flex-row sm:items-center sm:justify-between`}>
           <div>

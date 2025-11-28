@@ -40,6 +40,10 @@ import { jsonResponse, readJsonBody } from '../lib/utils.js';
 import { canonicalizeCardName, canonicalCardKey } from '../../shared/vision/cardNameMapping.js';
 import { safeParseReadingRequest } from '../../shared/contracts/readingSchema.js';
 import { verifyVisionProof } from '../lib/visionProof.js';
+import {
+  buildPromptEngineeringPayload,
+  shouldPersistPrompts
+} from '../lib/promptEngineering.js';
 import { MAJOR_ARCANA } from '../../src/data/majorArcana.js';
 import { MINOR_ARCANA } from '../../src/data/minorArcana.js';
 import {
@@ -250,6 +254,29 @@ function shouldLogEnhancementTelemetry(env) {
     return normalizeBooleanFlag(env.DEBUG_ENHANCEMENT_TELEMETRY);
   }
   return false;
+}
+
+/**
+ * Determine if semantic scoring should be enabled for GraphRAG retrieval.
+ * Defaults to true if the embeddings API is configured, but can be
+ * explicitly disabled via environment variable.
+ *
+ * @param {Object} env - Environment variables
+ * @returns {boolean|null} - true/false for explicit config, null for auto-detect
+ */
+function getSemanticScoringConfig(env) {
+  if (!env) return null;
+  
+  // Check explicit override
+  if (env.ENABLE_SEMANTIC_SCORING !== undefined) {
+    return normalizeBooleanFlag(env.ENABLE_SEMANTIC_SCORING);
+  }
+  if (env.GRAPHRAG_SEMANTIC_SCORING !== undefined) {
+    return normalizeBooleanFlag(env.GRAPHRAG_SEMANTIC_SCORING);
+  }
+  
+  // Return null to let auto-detection based on API availability
+  return null;
 }
 
 function summarizeNarrativeEnhancements(sections = []) {
@@ -496,7 +523,7 @@ export const onRequestPost = async ({ request, env }) => {
       reversalFrameworkOverride,
       deckStyle,
       userQuestion
-    }, requestId);
+    }, requestId, env);
     const analysisTime = Date.now() - analysisStart;
     console.log(`[${requestId}] Spread analysis completed in ${analysisTime}ms:`, {
       spreadKey: analysis.spreadKey,
@@ -535,15 +562,31 @@ export const onRequestPost = async ({ request, env }) => {
     const candidateBackends = getAvailableNarrativeBackends(env);
     const backendsToTry = candidateBackends.length ? candidateBackends : [NARRATIVE_BACKENDS['local-composer']];
 
+    // Track captured prompts for engineering persistence
+    let capturedPrompts = null;
+    let capturedUsage = null;
+    
     for (const backend of backendsToTry) {
       const attemptStart = Date.now();
       console.log(`[${requestId}] Attempting narrative backend ${backend.id} (${backend.label})...`);
       narrativePayload.narrativeEnhancements = [];
       narrativePayload.promptMeta = null;
       try {
-        const result = await runNarrativeBackend(backend.id, env, narrativePayload, requestId);
+        const backendResult = await runNarrativeBackend(backend.id, env, narrativePayload, requestId);
+        
+        // Extract reading and prompts from result
+        const result = typeof backendResult === 'object' && backendResult.reading
+          ? backendResult.reading
+          : backendResult;
+        
         if (!result || !result.toString().trim()) {
           throw new Error('Backend returned empty narrative.');
+        }
+
+        // Capture prompts if available
+        if (typeof backendResult === 'object' && backendResult.prompts) {
+          capturedPrompts = backendResult.prompts;
+          capturedUsage = backendResult.usage;
         }
 
         // Quality gate: validate narrative structure and content before accepting
@@ -635,6 +678,23 @@ export const onRequestPost = async ({ request, env }) => {
       contextDiagnostics: diagnosticsPayload
     };
 
+    // Build prompt engineering payload if prompts were captured
+    let promptEngineering = null;
+    if (capturedPrompts && shouldPersistPrompts(env)) {
+      try {
+        promptEngineering = await buildPromptEngineeringPayload({
+          systemPrompt: capturedPrompts.system,
+          userPrompt: capturedPrompts.user,
+          response: reading,
+          redactionOptions: {
+            displayName: personalization?.displayName
+          }
+        });
+      } catch (err) {
+        console.warn(`[${requestId}] Failed to build prompt engineering payload: ${err.message}`);
+      }
+    }
+
     await persistReadingMetrics(env, {
       requestId,
       timestamp: new Date().toISOString(),
@@ -648,7 +708,10 @@ export const onRequestPost = async ({ request, env }) => {
       graphRAG: graphRAGStats,
       promptMeta,
       enhancementTelemetry,
-      contextDiagnostics: diagnosticsPayload
+      contextDiagnostics: diagnosticsPayload,
+      // New: prompt engineering data
+      promptEngineering,
+      llmUsage: capturedUsage
     });
 
     maybeLogEnhancementTelemetry(env, requestId, enhancementTelemetry);
@@ -695,7 +758,7 @@ export const onRequestPost = async ({ request, env }) => {
  * Perform comprehensive spread analysis
  * Returns themes, spread-specific relationships, and elemental insights
  */
-async function performSpreadAnalysis(spreadInfo, cardsInfo, options = {}, requestId = 'unknown') {
+async function performSpreadAnalysis(spreadInfo, cardsInfo, options = {}, requestId = 'unknown', env = null) {
   // Guard against malformed input (defensive: validatePayload should have run already)
   if (!spreadInfo || !Array.isArray(cardsInfo) || cardsInfo.length === 0) {
     console.warn(`[${requestId}] performSpreadAnalysis: missing or invalid spreadInfo/cardsInfo, falling back to generic themes only.`);
@@ -704,6 +767,17 @@ async function performSpreadAnalysis(spreadInfo, cardsInfo, options = {}, reques
       spreadAnalysis: null,
       spreadKey: 'general'
     };
+  }
+
+  // Pass env through to options for API access in semantic scoring
+  if (env && !options.env) {
+    options.env = env;
+  }
+
+  // Apply semantic scoring config from environment
+  const semanticScoringConfig = env ? getSemanticScoringConfig(env) : null;
+  if (semanticScoringConfig !== null && options.enableSemanticScoring === undefined) {
+    options.enableSemanticScoring = semanticScoringConfig;
   }
 
   // Theme analysis (suits, elements, majors, reversals)
@@ -781,30 +855,65 @@ async function performSpreadAnalysis(spreadInfo, cardsInfo, options = {}, reques
       const {
         isGraphRAGEnabled,
         retrievePassages,
+        retrievePassagesWithQuality,
         formatPassagesForPrompt,
         buildRetrievalSummary,
-        getPassageCountForSpread
+        buildQualityRetrievalSummary,
+        getPassageCountForSpread,
+        isSemanticScoringAvailable
       } = await import('../lib/graphRAG.js');
 
-      if (isGraphRAGEnabled()) {
+      if (isGraphRAGEnabled(options.env)) {
         const maxPassages = getPassageCountForSpread(spreadKey || 'general');
-        const passages = retrievePassages(graphKeys, {
-          maxPassages,
-          userQuery: options.userQuestion
-        });
+        
+        // Determine if semantic scoring should be used
+        // Default: enabled if API is available, can be overridden via options
+        const semanticAvailable = isSemanticScoringAvailable(options.env);
+        const enableSemanticScoring = options.enableSemanticScoring !== undefined
+          ? Boolean(options.enableSemanticScoring)
+          : semanticAvailable;
+
+        let passages;
+        let retrievalSummary;
+
+        if (enableSemanticScoring) {
+          // Use quality-aware retrieval with relevance scoring
+          console.log(`[${requestId}] Using quality-aware GraphRAG retrieval with semantic scoring`);
+          passages = await retrievePassagesWithQuality(graphKeys, {
+            maxPassages,
+            userQuery: options.userQuestion,
+            minRelevanceScore: 0.3,
+            enableDeduplication: true,
+            enableSemanticScoring: true,
+            env: options.env
+          });
+          retrievalSummary = buildQualityRetrievalSummary(graphKeys, passages);
+          
+          // Log average relevance for monitoring
+          if (retrievalSummary.qualityMetrics?.averageRelevance) {
+            console.log(`[${requestId}] GraphRAG quality: ${passages.length} passages, avg relevance: ${(retrievalSummary.qualityMetrics.averageRelevance * 100).toFixed(1)}%`);
+          }
+        } else {
+          // Fall back to standard retrieval (keyword-only)
+          passages = retrievePassages(graphKeys, {
+            maxPassages,
+            userQuery: options.userQuestion
+          });
+          retrievalSummary = buildRetrievalSummary(graphKeys, passages);
+        }
 
         const formattedBlock = formatPassagesForPrompt(passages, {
           includeSource: true,
           markdown: true
         });
 
-        const retrievalSummary = buildRetrievalSummary(graphKeys, passages);
-
         graphRAGPayload = {
           passages,
           formattedBlock,
           retrievalSummary,
-          maxPassages
+          maxPassages,
+          enableSemanticScoring,
+          qualityMetrics: retrievalSummary.qualityMetrics || null
         };
 
         // Make memoized payload discoverable to downstream consumers
@@ -939,6 +1048,10 @@ export function validatePayload({ spreadInfo, cardsInfo }) {
  */
 async function generateWithAzureGPT5Responses(env, payload, requestId = 'unknown') {
   const { spreadInfo, cardsInfo, userQuestion, reflectionsText, analysis, context, visionInsights, contextDiagnostics = [] } = payload;
+  
+  // Track prompts for engineering analysis
+  let capturedSystemPrompt = '';
+  let capturedUserPrompt = '';
   // Normalize endpoint: strip trailing slashes and any existing /openai/v1 path
   // to avoid double-pathing when constructing the full URL
   const rawEndpoint = env.AZURE_OPENAI_ENDPOINT || '';
@@ -955,6 +1068,12 @@ async function generateWithAzureGPT5Responses(env, payload, requestId = 'unknown
 
   console.log(`[${requestId}] Building Azure GPT-5 prompts...`);
   console.log(`[${requestId}] Azure config: endpoint=${endpoint ? 'set' : 'missing'}, apiKey=${apiKey ? 'set' : 'missing'}, model=${deploymentName}, apiVersion=${apiVersion}`);
+
+  // Determine semantic scoring configuration
+  const semanticScoringConfig = getSemanticScoringConfig(env);
+  const enableSemanticScoring = semanticScoringConfig !== null
+    ? semanticScoringConfig
+    : analysis.graphRAGPayload?.enableSemanticScoring ?? null;
 
   // Build enhanced prompts using narrative builder
   const { systemPrompt, userPrompt, promptMeta, contextDiagnostics: promptDiagnostics } = buildEnhancedClaudePrompt({
@@ -974,7 +1093,8 @@ async function generateWithAzureGPT5Responses(env, payload, requestId = 'unknown
     budgetTarget: 'azure',
     contextDiagnostics,
     promptBudgetEnv: env,
-    personalization: payload.personalization
+    personalization: payload.personalization,
+    enableSemanticScoring
   });
 
   if (promptMeta) {
@@ -985,6 +1105,10 @@ async function generateWithAzureGPT5Responses(env, payload, requestId = 'unknown
     payload.contextDiagnostics = Array.from(new Set([...(payload.contextDiagnostics || []), ...promptDiagnostics]));
   }
 
+  // Capture prompts for persistence
+  capturedSystemPrompt = systemPrompt;
+  capturedUserPrompt = userPrompt;
+  
   console.log(`[${requestId}] System prompt length: ${systemPrompt.length}, User prompt length: ${userPrompt.length}`);
   maybeLogPromptPayload(
     env,
@@ -1106,7 +1230,15 @@ async function generateWithAzureGPT5Responses(env, payload, requestId = 'unknown
     total_tokens: data.usage?.total_tokens
   });
 
-  return content.trim();
+  // Return reading with captured prompts for engineering analysis
+  return {
+    reading: content.trim(),
+    prompts: {
+      system: capturedSystemPrompt,
+      user: capturedUserPrompt
+    },
+    usage: data.usage
+  };
 }
 
 /**
@@ -1114,10 +1246,21 @@ async function generateWithAzureGPT5Responses(env, payload, requestId = 'unknown
  */
 async function generateWithClaudeSonnet45Enhanced(env, payload, requestId = 'unknown') {
   const { spreadInfo, cardsInfo, userQuestion, reflectionsText, analysis, context, visionInsights, contextDiagnostics = [] } = payload;
+  
+  // Track prompts for engineering analysis
+  let capturedSystemPrompt = '';
+  let capturedUserPrompt = '';
+  
   const apiKey = env.ANTHROPIC_API_KEY;
   const apiUrl = env.ANTHROPIC_API_URL || 'https://api.anthropic.com/v1/messages';
   const model = 'claude-sonnet-4-5';
   const deckStyle = spreadInfo?.deckStyle || analysis?.themes?.deckStyle || cardsInfo?.[0]?.deckStyle || 'rws-1909';
+
+  // Determine semantic scoring configuration
+  const semanticScoringConfig = getSemanticScoringConfig(env);
+  const enableSemanticScoring = semanticScoringConfig !== null
+    ? semanticScoringConfig
+    : analysis.graphRAGPayload?.enableSemanticScoring ?? null;
 
   // Build enhanced prompts using narrative builder
   const { systemPrompt, userPrompt, promptMeta, contextDiagnostics: promptDiagnostics } = buildEnhancedClaudePrompt({
@@ -1137,9 +1280,14 @@ async function generateWithClaudeSonnet45Enhanced(env, payload, requestId = 'unk
     budgetTarget: 'claude',
     contextDiagnostics,
     promptBudgetEnv: env,
-    personalization: payload.personalization
+    personalization: payload.personalization,
+    enableSemanticScoring
   });
 
+  // Capture prompts for persistence
+  capturedSystemPrompt = systemPrompt;
+  capturedUserPrompt = userPrompt;
+  
   if (promptMeta) {
     payload.promptMeta = promptMeta;
   }
@@ -1193,7 +1341,15 @@ async function generateWithClaudeSonnet45Enhanced(env, payload, requestId = 'unk
     throw new Error('Empty response from Anthropic Claude Sonnet 4.5');
   }
 
-  return content;
+  // Return reading with captured prompts for engineering analysis
+  return {
+    reading: content,
+    prompts: {
+      system: capturedSystemPrompt,
+      user: capturedUserPrompt
+    },
+    usage: data.usage
+  };
 }
 
 const SPREAD_READING_BUILDERS = {
@@ -1254,7 +1410,7 @@ async function composeReadingEnhanced(payload) {
   const { themes, spreadAnalysis, spreadKey } = analysis;
   const collectedSections = [];
 
-  const reading = await generateReadingFromAnalysis(
+  const readingText = await generateReadingFromAnalysis(
     {
       spreadKey,
       spreadAnalysis,
@@ -1288,7 +1444,12 @@ async function composeReadingEnhanced(payload) {
     };
   }
 
-  return reading;
+  // Return reading with null prompts (local composer doesn't use LLM prompts)
+  return {
+    reading: readingText,
+    prompts: null,
+    usage: null
+  };
 }
 
 async function runNarrativeBackend(backendId, env, payload, requestId) {

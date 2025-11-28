@@ -25,13 +25,16 @@ export function VisionHeatmapOverlay({ attention, imageSrc, label }) {
   const [visible, setVisible] = useState(true);
   const hasHeatmap = Boolean(attention?.heatmap && imageSrc);
 
+  // Extract focusRegions to a stable reference for React Compiler compatibility
+  const focusRegions = attention?.focusRegions;
+
   // Memoize focus region lookup Set to prevent recreation on every render
   const focusLookup = useMemo(() => {
-    if (!Array.isArray(attention?.focusRegions)) return new Set();
+    if (!Array.isArray(focusRegions)) return new Set();
     return new Set(
-      attention.focusRegions.map((region) => focusKey(region.x, region.y))
+      focusRegions.map((region) => focusKey(region.x, region.y))
     );
-  }, [attention?.focusRegions]);
+  }, [focusRegions]);
 
   if (!hasHeatmap) {
     return null;

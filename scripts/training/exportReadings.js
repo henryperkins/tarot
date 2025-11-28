@@ -12,8 +12,8 @@
  *   node scripts/training/exportReadings.js --out tmp/readings.jsonl --limit 200
  *   node scripts/training/exportReadings.js --journal-source file --journal-file data/journal/export.json
  *
- * Requires Wrangler for live D1/KV exports. Configure bindings in wrangler.toml or use
- * --feedback-namespace / --metrics-namespace flags to override.
+ * Requires Wrangler for live D1/KV exports. Configure bindings in wrangler.jsonc (or legacy
+ * wrangler.toml) or use --feedback-namespace / --metrics-namespace flags to override.
  */
 
 import fs from 'node:fs/promises';
@@ -141,7 +141,7 @@ Options:
   --metrics-source <kv|file|none>   Source for metrics (default: kv)
   --metrics-file <path>        JSONL/JSON file for metrics when using file source
   --wrangler-target <local|remote>  Use local or remote Wrangler bindings (default: remote)
-  --d1-name <name>             D1 database binding name (default: from wrangler.toml)
+  --d1-name <name>             D1 database binding name (default: from wrangler.jsonc/wrangler.toml)
   --feedback-namespace <id>    Override FEEDBACK_KV namespace id
   --metrics-namespace <id>     Override METRICS_DB namespace id
   --verbose                    Enable debug logging
@@ -161,7 +161,7 @@ async function loadFeedbackRecords(options) {
   }
 
   if (!options.feedbackNamespace) {
-    console.warn('[export] FEEDBACK_KV namespace id missing; pass --feedback-namespace or add METRICS binding to wrangler.toml. Falling back to file source.');
+    console.warn('[export] FEEDBACK_KV namespace id missing; pass --feedback-namespace or add FEEDBACK_KV binding to wrangler.jsonc/wrangler.toml. Falling back to file source.');
     return readFeedbackFromFile(options.feedbackFile, { optional: true });
   }
 
@@ -177,7 +177,7 @@ async function loadMetricsRecords(options) {
   }
 
   if (!options.metricsNamespace) {
-    console.warn('[export] METRICS_DB namespace id missing; pass --metrics-namespace or set METRICS_DB in wrangler.toml. Metrics will be skipped.');
+    console.warn('[export] METRICS_DB namespace id missing; pass --metrics-namespace or set METRICS_DB in wrangler.jsonc/wrangler.toml. Metrics will be skipped.');
     return [];
   }
 
@@ -565,13 +565,108 @@ async function runCommand(command, args) {
   });
 }
 
-async function loadWranglerConfig(configPath = 'wrangler.toml') {
+/**
+ * Load wrangler config from wrangler.jsonc (preferred) or wrangler.toml (legacy).
+ * Supports optional configPath override for either format.
+ */
+async function loadWranglerConfig(configPath = null) {
+  // If explicit path provided, use that
+  if (configPath) {
+    return loadWranglerConfigFromPath(configPath);
+  }
+
+  // Try wrangler.jsonc first (new Workers format), then fall back to wrangler.toml
+  const jsoncResult = await loadWranglerConfigFromPath('wrangler.jsonc');
+  if (jsoncResult) return jsoncResult;
+
+  return loadWranglerConfigFromPath('wrangler.toml');
+}
+
+async function loadWranglerConfigFromPath(configPath) {
   try {
     const absPath = path.resolve(process.cwd(), configPath);
     const content = await fs.readFile(absPath, 'utf-8');
+
+    // Detect format based on extension
+    if (configPath.endsWith('.jsonc') || configPath.endsWith('.json')) {
+      return parseJsoncConfig(content);
+    }
+
+    // Legacy TOML format
     return {
       d1: parseTomlBlocks(content, 'd1_databases'),
       kv: parseTomlBlocks(content, 'kv_namespaces')
+    };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Parse JSONC (JSON with comments) wrangler config.
+ * Strips comments while preserving URLs and other strings containing "//".
+ */
+function parseJsoncConfig(content) {
+  // Strip comments while respecting string literals.
+  // Process character-by-character to avoid stripping "//" inside strings.
+  let stripped = '';
+  let inString = false;
+  let escapeNext = false;
+
+  for (let i = 0; i < content.length; i++) {
+    const char = content[i];
+    const next = content[i + 1];
+
+    if (escapeNext) {
+      stripped += char;
+      escapeNext = false;
+      continue;
+    }
+
+    if (char === '\\' && inString) {
+      stripped += char;
+      escapeNext = true;
+      continue;
+    }
+
+    if (char === '"' && !escapeNext) {
+      inString = !inString;
+      stripped += char;
+      continue;
+    }
+
+    if (!inString) {
+      // Check for single-line comment
+      if (char === '/' && next === '/') {
+        // Skip to end of line
+        while (i < content.length && content[i] !== '\n') {
+          i++;
+        }
+        // Include the newline to preserve line structure
+        if (content[i] === '\n') {
+          stripped += '\n';
+        }
+        continue;
+      }
+      // Check for multi-line comment
+      if (char === '/' && next === '*') {
+        i += 2; // Skip /*
+        while (i < content.length && !(content[i] === '*' && content[i + 1] === '/')) {
+          i++;
+        }
+        i++; // Skip closing */
+        continue;
+      }
+    }
+
+    stripped += char;
+  }
+
+  try {
+    const config = JSON.parse(stripped);
+    return {
+      d1: config.d1_databases || [],
+      kv: config.kv_namespaces || []
     };
   } catch {
     return null;

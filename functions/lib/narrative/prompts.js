@@ -21,9 +21,11 @@ import { THOTH_MINOR_TITLES, MARSEILLE_NUMERICAL_THEMES } from '../../../src/dat
 import {
   isGraphRAGEnabled,
   retrievePassages,
+  retrievePassagesWithQuality,
   formatPassagesForPrompt,
   getPassageCountForSpread,
-  buildRetrievalSummary
+  buildRetrievalSummary,
+  buildQualityRetrievalSummary
 } from '../graphRAG.js';
 import { getPositionWeight } from '../positionWeights.js';
 import { formatVisionLabelForPrompt } from '../visionLabels.js';
@@ -118,7 +120,8 @@ export function buildEnhancedClaudePrompt({
   budgetTarget = 'claude',
   contextDiagnostics = [],
   promptBudgetEnv = null,
-  personalization = null
+  personalization = null,
+  enableSemanticScoring = null
 }) {
   const baseThemes = typeof themes === 'object' && themes !== null ? themes : {};
   const activeThemes = baseThemes.reversalDescription
@@ -134,8 +137,36 @@ export function buildEnhancedClaudePrompt({
 
   const promptBudget = getPromptBudgetForTarget(budgetTarget, { env: promptBudgetEnv });
 
+  // Pre-fetch GraphRAG payload if not already provided
+  // This ensures a single retrieval even across slimming passes
+  let effectiveGraphRAGPayload = graphRAGPayload;
+  if (!effectiveGraphRAGPayload && isGraphRAGEnabled(promptBudgetEnv) && activeThemes?.knowledgeGraph?.graphKeys) {
+    const effectiveSpreadKey = spreadKey || 'general';
+    const maxPassages = getPassageCountForSpread(effectiveSpreadKey);
+
+    try {
+      // Note: Semantic scoring with embeddings requires async, so we use
+      // keyword-only synchronous retrieval here. Semantic scoring can be
+      // enabled by pre-computing the graphRAGPayload with retrievePassagesWithQuality
+      // before calling buildEnhancedClaudePrompt.
+      const retrievedPassages = retrievePassages(activeThemes.knowledgeGraph.graphKeys, {
+        maxPassages,
+        userQuery: userQuestion
+      });
+
+      effectiveGraphRAGPayload = {
+        passages: retrievedPassages,
+        formattedBlock: null,
+        retrievalSummary: buildRetrievalSummary(activeThemes.knowledgeGraph.graphKeys, retrievedPassages),
+        enableSemanticScoring: false
+      };
+    } catch (err) {
+      console.error('[GraphRAG] Pre-fetch failed:', err.message);
+    }
+  }
+
   const baseControls = {
-    graphRAGPayload,
+    graphRAGPayload: effectiveGraphRAGPayload,
     ephemerisContext,
     ephemerisForecast,
     transitResonances,
@@ -144,7 +175,9 @@ export function buildEnhancedClaudePrompt({
     includeForecast: true,
     includeDeckContext: true,
     includeDiagnostics: true,
-    omitLowWeightImagery: false
+    omitLowWeightImagery: false,
+    enableSemanticScoring,
+    env: promptBudgetEnv
   };
 
   const buildWithControls = (controls) => {
@@ -344,67 +377,56 @@ function buildSystemPrompt(spreadKey, themes, context, deckStyle, userQuestion =
 
   const includeGraphRAG = options.includeGraphRAG !== false;
 
-  // GraphRAG: Retrieve and inject traditional wisdom passages
-  if (includeGraphRAG && isGraphRAGEnabled() && themes?.knowledgeGraph?.graphKeys) {
+  // GraphRAG: Inject traditional wisdom passages from pre-fetched payload
+  if (includeGraphRAG && isGraphRAGEnabled(options.env) && themes?.knowledgeGraph?.graphKeys) {
     try {
-      // Adaptive passage count based on spread complexity
-      const effectiveSpreadKey = spreadKey || 'general';
-      const maxPassages = getPassageCountForSpread(effectiveSpreadKey);
-
-      let payload = options.graphRAGPayload || themes?.knowledgeGraph?.graphRAGPayload || null;
+      // Use pre-fetched payload from options (computed in buildEnhancedClaudePrompt)
+      const payload = options.graphRAGPayload || themes?.knowledgeGraph?.graphRAGPayload || null;
       let retrievedPassages = Array.isArray(payload?.passages) && payload.passages.length
         ? payload.passages
         : null;
 
-      if (!retrievedPassages) {
-        retrievedPassages = retrievePassages(themes.knowledgeGraph.graphKeys, {
-          maxPassages,
-          userQuery: userQuestion
-        });
-        payload = {
-          passages: retrievedPassages,
-          formattedBlock: null,
-          retrievalSummary: buildRetrievalSummary(themes.knowledgeGraph.graphKeys, retrievedPassages)
-        };
-      }
+      if (retrievedPassages && retrievedPassages.length > 0) {
+        // Adaptive passage count based on spread complexity
+        const effectiveSpreadKey = spreadKey || 'general';
+        const maxPassages = getPassageCountForSpread(effectiveSpreadKey);
 
-      if (Array.isArray(retrievedPassages) && retrievedPassages.length > maxPassages) {
-        retrievedPassages = retrievedPassages.slice(0, maxPassages);
-        if (payload) {
-          payload.passages = retrievedPassages;
+        // Trim if needed
+        if (retrievedPassages.length > maxPassages) {
+          retrievedPassages = retrievedPassages.slice(0, maxPassages);
         }
-      }
 
-      if (!payload.retrievalSummary) {
-        payload.retrievalSummary = buildRetrievalSummary(themes.knowledgeGraph.graphKeys, retrievedPassages);
-      }
+        // Log quality metrics if passages have relevance scores
+        const hasRelevanceScores = retrievedPassages.some(p => typeof p.relevanceScore === 'number');
+        if (hasRelevanceScores) {
+          const avgRelevance = retrievedPassages.reduce((sum, p) => sum + (p.relevanceScore || 0), 0) / retrievedPassages.length;
+          console.log(`[GraphRAG] Injecting ${retrievedPassages.length} passages (avg relevance: ${(avgRelevance * 100).toFixed(1)}%)`);
+        }
 
-      let formattedPassages = payload.formattedBlock;
-      if (!formattedPassages) {
-        formattedPassages = formatPassagesForPrompt(retrievedPassages, {
-          includeSource: true,
-          markdown: true
-        });
-        payload.formattedBlock = formattedPassages;
-      }
+        let formattedPassages = payload.formattedBlock;
+        if (!formattedPassages) {
+          formattedPassages = formatPassagesForPrompt(retrievedPassages, {
+            includeSource: true,
+            markdown: true
+          });
+        }
 
-      options.graphRAGPayload = payload;
-
-      if (formattedPassages) {
-        lines.push(
-          '## TRADITIONAL WISDOM (GraphRAG)',
-          '',
-          formattedPassages,
-          'INTEGRATION: Ground your interpretation in this traditional wisdom. These passages provide',
-          'archetypal context from respected tarot literature. Weave their insights naturally',
-          'into your narrative—don\'t quote verbatim, but let them inform your understanding',
-          'of the patterns present in this spread.',
-          ''
-        );
+        if (formattedPassages) {
+          lines.push(
+            '## TRADITIONAL WISDOM (GraphRAG)',
+            '',
+            formattedPassages,
+            'INTEGRATION: Ground your interpretation in this traditional wisdom. These passages provide',
+            'archetypal context from respected tarot literature. Weave their insights naturally',
+            'into your narrative—don\'t quote verbatim, but let them inform your understanding',
+            'of the patterns present in this spread.',
+            ''
+          );
+        }
       }
     } catch (err) {
       // GraphRAG failure should not break readings; log and continue
-      console.error('[GraphRAG] Passage retrieval failed:', err.message);
+      console.error('[GraphRAG] Passage injection failed:', err.message);
     }
   }
 

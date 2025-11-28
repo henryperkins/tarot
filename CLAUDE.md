@@ -4,12 +4,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Mystic Tarot is a React-based interactive tarot reading web application built with Vite and deployed to Cloudflare Pages.
+Mystic Tarot is a React-based interactive tarot reading web application built with Vite and deployed to Cloudflare Workers.
 
 It is designed to feel like sitting with a practiced reader using a real deck, not a generic "card of the day" widget. The app encodes authentic spreads, visual language, and interpretation frameworks directly into its UX.
 
 - Frontend: React + Vite, with ritual controls, spread selector, guided questions, and authentic 1909 Rider-Waite card imagery.
-- Backend: Cloudflare Pages Function `functions/api/tarot-reading.js` handles narrative composition (Anthropic Claude Sonnet 4.5 when available, otherwise deterministic local logic).
+- Backend: Cloudflare Workers (`src/worker/index.js`) routes to API handlers in `functions/api/` for narrative composition (Anthropic Claude Sonnet 4.5 when available, otherwise deterministic local logic).
 - Deck: 78 cards total (22 Major + 56 Minor Arcana) with upright/reversed meanings and public domain card images.
   - Major Arcana: Defined in `src/data/majorArcana.js` with image paths.
   - Minor Arcana: Defined in `src/data/minorArcana.js` with auto-generated image paths via `makeCard()` helper.
@@ -28,8 +28,8 @@ npm run preview      # Preview production build locally
 
 ### Deployment
 ```bash
-npm run deploy       # Deploy to Cloudflare Pages
-wrangler pages deploy dist --project-name=tableau
+npm run deploy       # Deploy to Cloudflare Workers
+wrangler deploy      # Deploys using wrangler.toml configuration
 ```
 
 ## Architecture

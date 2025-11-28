@@ -200,6 +200,7 @@ export function analyzeElementalDignity(card1, card2) {
  * @param {string} [options.deckStyle='rws-1909'] - Deck style identifier
  * @param {string} [options.reversalFrameworkOverride] - Force specific reversal framework
  * @param {boolean} [options.enableKnowledgeGraph=true] - Enable knowledge graph pattern detection
+ * @param {Object} [options.env] - Environment object for Workers (used for feature flags)
  * @returns {Promise<Object>} Theme analysis results
  */
 export async function analyzeSpreadThemes(cardsInfo, options = {}) {
@@ -354,7 +355,7 @@ export async function analyzeSpreadThemes(cardsInfo, options = {}) {
   if (enableKG) {
     try {
       const { isGraphRAGEnabled, retrievePassages } = await import('./graphRAG.js');
-      const KG_ENABLED = isGraphRAGEnabled();
+      const KG_ENABLED = isGraphRAGEnabled(options.env);
 
       if (KG_ENABLED) {
         const { buildGraphContext } = await import('./graphContext.js');

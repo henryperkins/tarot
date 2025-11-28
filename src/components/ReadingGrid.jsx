@@ -148,7 +148,10 @@ export function ReadingGrid({
   const isListView = mobileLayoutMode === 'list';
 
   // In landscape mobile: use smaller card widths to fit more cards visible
-  const landscapeCardWidth = isLandscape ? 'min-w-[50vw] max-w-[12rem]' : 'min-w-[68vw]';
+  const carouselCardWidthClass = isLandscape
+    ? 'min-w-[48vw] max-w-[11.5rem]'
+    : 'min-w-[84vw] xxs:min-w-[78vw] xs:min-w-[68vw]';
+  const mobileCarouselPadding = isLandscape ? 'px-2' : 'px-3 xxs:px-4';
 
   // Hide swipe hint after 4 seconds or when user interacts
   useEffect(() => {
@@ -175,7 +178,9 @@ export function ReadingGrid({
     }
   }, [isCompactScreen, mobileLayoutMode]);
 
-  const enableCarousel = reading?.length > 1 && !isListView;
+  // Celtic Cross uses a fixed CSS grid layout that doesn't scroll horizontally,
+  // so carousel navigation (swipe, dots, prev/next) should be disabled for it
+  const enableCarousel = reading?.length > 1 && !isListView && selectedSpread !== 'celtic';
 
   // Hide hint when user scrolls
   const hideHintOnInteraction = useCallback(() => {
@@ -186,6 +191,23 @@ export function ReadingGrid({
 
   const spreadInfo = getSpreadInfo(selectedSpread);
   const isBatchReveal = reading.length > 1 && revealedCards.size === reading.length;
+
+  const responsiveGridFallback = reading.length <= 4
+    ? 'sm:grid sm:gap-8 sm:overflow-visible sm:snap-none sm:pb-0 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-4'
+    : 'sm:grid sm:gap-8 sm:overflow-visible sm:snap-none sm:pb-0 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3';
+
+  const multiCardLayoutClass = isListView
+    ? 'flex flex-col gap-4 pb-4'
+    : `flex overflow-x-auto snap-x snap-mandatory ${isLandscape ? 'gap-2 pb-4' : 'gap-4 pb-6'} ${mobileCarouselPadding}`;
+
+  const shouldApplyCarouselPadding = enableCarousel && !isListView && selectedSpread !== 'celtic';
+  const carouselInlineStyles = shouldApplyCarouselPadding
+    ? {
+        scrollPaddingLeft: '1.25rem',
+        scrollPaddingRight: '1.25rem',
+        scrollbarGutter: 'stable both-edges'
+      }
+    : undefined;
 
   // Optimized scroll handler with RAF throttling and cached elements
   const updateActiveIndex = useCallback(() => {
@@ -308,11 +330,10 @@ export function ReadingGrid({
             ? 'cc-grid animate-fade-in'
             : `animate-fade-in ${reading.length === 1
               ? 'grid grid-cols-1 max-w-md mx-auto'
-              : `${isListView ? 'flex flex-col gap-4 pb-4' : `flex overflow-x-auto snap-x snap-mandatory ${isLandscape ? 'gap-2 pb-4' : 'gap-4 pb-6'}`} sm:grid sm:gap-8 sm:overflow-visible sm:snap-none sm:pb-0 ${reading.length <= 4
-                ? 'sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-4'
-                : 'sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3'}`
+              : `${multiCardLayoutClass} ${responsiveGridFallback}`
             }`
         }
+        style={selectedSpread === 'celtic' ? undefined : carouselInlineStyles}
         ref={enableCarousel ? carouselRef : null}
       >
         {reading.map((card, index) => {
@@ -339,7 +360,7 @@ export function ReadingGrid({
               key={`${card.name}-${index}`}
               className={`${selectedSpread === 'celtic'
                 ? getAreaClass(index, selectedSpread)
-                : reading.length > 1 ? (isListView ? 'w-full sm:min-w-0' : `${landscapeCardWidth} snap-center sm:min-w-0`) : ''
+                : reading.length > 1 ? (isListView ? 'w-full sm:min-w-0' : `${carouselCardWidthClass} snap-center sm:min-w-0`) : ''
                 }`}
             >
               <Tooltip

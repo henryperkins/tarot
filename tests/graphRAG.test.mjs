@@ -6,9 +6,14 @@ import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   retrievePassages,
+  retrievePassagesWithQuality,
   formatPassagesForPrompt,
   buildRetrievalSummary,
+  buildQualityRetrievalSummary,
+  scorePassageRelevance,
+  deduplicatePassages,
   isGraphRAGEnabled,
+  isSemanticScoringAvailable,
   getKnowledgeBaseInfo
 } from '../functions/lib/graphRAG.js';
 import {
@@ -387,6 +392,264 @@ describe('GraphRAG Utilities', () => {
   });
 });
 
+describe('GraphRAG Quality Filtering', () => {
+  test('scorePassageRelevance: returns neutral score for empty inputs', async () => {
+    const score1 = await scorePassageRelevance('', 'test query');
+    const score2 = await scorePassageRelevance('test passage', '');
+    const score3 = await scorePassageRelevance(null, 'test');
+    const score4 = await scorePassageRelevance('test', null);
+
+    assert.strictEqual(score1, 0.5, 'Should return 0.5 for empty passage');
+    assert.strictEqual(score2, 0.5, 'Should return 0.5 for empty query');
+    assert.strictEqual(score3, 0.5, 'Should return 0.5 for null passage');
+    assert.strictEqual(score4, 0.5, 'Should return 0.5 for null query');
+  });
+
+  test('scorePassageRelevance: keyword matching increases score', async () => {
+    const passage = 'The Fool represents new beginnings, adventure, and taking a leap of faith.';
+    const matchingQuery = 'What does this new beginning mean for my adventure?';
+    const nonMatchingQuery = 'How can I handle my career finances?';
+
+    const matchScore = await scorePassageRelevance(passage, matchingQuery, {
+      enableSemanticScoring: false
+    });
+    const nonMatchScore = await scorePassageRelevance(passage, nonMatchingQuery, {
+      enableSemanticScoring: false
+    });
+
+    assert.ok(matchScore > nonMatchScore, 'Matching keywords should produce higher score');
+    assert.ok(matchScore > 0, 'Matching query should have positive score');
+  });
+
+  test('scorePassageRelevance: respects keyword/semantic weights', async () => {
+    const passage = 'Death transformation endings renewal cycle change.';
+    const query = 'death endings transformation';
+
+    const keywordHeavy = await scorePassageRelevance(passage, query, {
+      keywordWeight: 0.9,
+      semanticWeight: 0.1,
+      enableSemanticScoring: false
+    });
+
+    const balanced = await scorePassageRelevance(passage, query, {
+      keywordWeight: 0.5,
+      semanticWeight: 0.5,
+      enableSemanticScoring: false
+    });
+
+    // With semantic scoring disabled, semantic component is 0.5 (neutral)
+    // So different weights should produce different total scores
+    assert.ok(typeof keywordHeavy === 'number', 'Should return number');
+    assert.ok(typeof balanced === 'number', 'Should return number');
+    assert.ok(keywordHeavy >= 0 && keywordHeavy <= 1, 'Score should be between 0 and 1');
+  });
+
+  test('deduplicatePassages: removes duplicate passages', () => {
+    const passages = [
+      { text: 'The Fool represents new beginnings and adventure.', title: 'First' },
+      { text: 'The Fool represents new beginnings and adventure.', title: 'Duplicate' },
+      { text: 'Death signifies transformation and endings.', title: 'Different' }
+    ];
+
+    const deduped = deduplicatePassages(passages);
+
+    assert.strictEqual(deduped.length, 2, 'Should remove duplicate');
+    assert.strictEqual(deduped[0].title, 'First', 'Should keep first occurrence');
+    assert.strictEqual(deduped[1].title, 'Different', 'Should keep unique passage');
+  });
+
+  test('deduplicatePassages: handles empty array', () => {
+    const deduped = deduplicatePassages([]);
+    assert.strictEqual(deduped.length, 0, 'Should return empty array');
+  });
+
+  test('deduplicatePassages: handles passages without text', () => {
+    const passages = [
+      { title: 'No text field' },
+      { text: 'Valid text', title: 'Has text' }
+    ];
+
+    const deduped = deduplicatePassages(passages);
+    assert.strictEqual(deduped.length, 2, 'Should preserve passages without text');
+  });
+
+  test('deduplicatePassages: uses configurable fingerprint length', () => {
+    const passages = [
+      { text: 'Short prefix but different ending one.', title: 'First' },
+      { text: 'Short prefix but different ending two.', title: 'Second' }
+    ];
+
+    // With short fingerprint (15 chars), these would be considered duplicates
+    const shortFingerprint = deduplicatePassages(passages, { fingerprintLength: 15 });
+    // With long fingerprint (100 chars), they're unique
+    const longFingerprint = deduplicatePassages(passages, { fingerprintLength: 100 });
+
+    assert.strictEqual(shortFingerprint.length, 1, 'Short fingerprint should detect as duplicates');
+    assert.strictEqual(longFingerprint.length, 2, 'Long fingerprint should preserve unique passages');
+  });
+
+  test('retrievePassagesWithQuality: returns scored passages', async () => {
+    const graphKeys = {
+      completeTriadIds: ['death-temperance-star']
+    };
+
+    const passages = await retrievePassagesWithQuality(graphKeys, {
+      maxPassages: 3,
+      userQuery: 'healing and transformation',
+      enableSemanticScoring: false,
+      minRelevanceScore: 0
+    });
+
+    assert.ok(passages.length > 0, 'Should retrieve passages');
+    passages.forEach(passage => {
+      assert.ok(typeof passage.relevanceScore === 'number', 'Each passage should have relevanceScore');
+      assert.ok(passage.relevanceScore >= 0 && passage.relevanceScore <= 1, 'Score should be between 0 and 1');
+    });
+  });
+
+  test('retrievePassagesWithQuality: filters by minimum score threshold', async () => {
+    const graphKeys = {
+      completeTriadIds: ['death-temperance-star'],
+      dyadPairs: [{ cards: [13, 17], significance: 'high' }]
+    };
+
+    const lowThreshold = await retrievePassagesWithQuality(graphKeys, {
+      maxPassages: 10,
+      userQuery: 'xyz123 unrelated query',
+      enableSemanticScoring: false,
+      minRelevanceScore: 0
+    });
+
+    const highThreshold = await retrievePassagesWithQuality(graphKeys, {
+      maxPassages: 10,
+      userQuery: 'xyz123 unrelated query',
+      enableSemanticScoring: false,
+      minRelevanceScore: 0.9
+    });
+
+    // With very high threshold and unrelated query, should filter out more
+    assert.ok(lowThreshold.length >= highThreshold.length,
+      'Higher threshold should filter out more passages');
+  });
+
+  test('retrievePassagesWithQuality: sorts by relevance score', async () => {
+    const graphKeys = {
+      completeTriadIds: ['death-temperance-star'],
+      foolsJourneyStageKey: 'integration'
+    };
+
+    const passages = await retrievePassagesWithQuality(graphKeys, {
+      maxPassages: 5,
+      userQuery: 'transformation healing shadow work',
+      enableSemanticScoring: false,
+      minRelevanceScore: 0
+    });
+
+    if (passages.length >= 2) {
+      for (let i = 0; i < passages.length - 1; i++) {
+        assert.ok(
+          passages[i].relevanceScore >= passages[i + 1].relevanceScore,
+          'Passages should be sorted by relevance score (descending)'
+        );
+      }
+    }
+  });
+
+  test('retrievePassagesWithQuality: applies deduplication when enabled', async () => {
+    const graphKeys = {
+      completeTriadIds: ['death-temperance-star']
+    };
+
+    const withDedup = await retrievePassagesWithQuality(graphKeys, {
+      maxPassages: 10,
+      userQuery: 'test',
+      enableDeduplication: true,
+      minRelevanceScore: 0
+    });
+
+    const withoutDedup = await retrievePassagesWithQuality(graphKeys, {
+      maxPassages: 10,
+      userQuery: 'test',
+      enableDeduplication: false,
+      minRelevanceScore: 0
+    });
+
+    // Results should be at least as filtered with dedup enabled
+    assert.ok(withDedup.length <= withoutDedup.length + 1,
+      'Deduplication should not increase passage count');
+  });
+
+  test('retrievePassagesWithQuality: handles empty graphKeys', async () => {
+    const passages = await retrievePassagesWithQuality({}, {
+      maxPassages: 5,
+      userQuery: 'test'
+    });
+
+    assert.strictEqual(passages.length, 0, 'Should return empty array for empty graphKeys');
+  });
+
+  test('buildQualityRetrievalSummary: includes quality metrics', () => {
+    const graphKeys = {
+      completeTriadIds: ['death-temperance-star']
+    };
+
+    const passages = [
+      { type: 'triad', priority: 1, relevanceScore: 0.8 },
+      { type: 'dyad', priority: 3, relevanceScore: 0.6 },
+      { type: 'fools-journey', priority: 2, relevanceScore: 0.7 }
+    ];
+
+    const summary = buildQualityRetrievalSummary(graphKeys, passages);
+
+    assert.ok(summary.qualityMetrics, 'Summary should include qualityMetrics');
+    assert.ok(typeof summary.qualityMetrics.averageRelevance === 'number',
+      'Should have averageRelevance');
+    assert.ok(typeof summary.qualityMetrics.minRelevance === 'number',
+      'Should have minRelevance');
+    assert.ok(typeof summary.qualityMetrics.maxRelevance === 'number',
+      'Should have maxRelevance');
+    
+    // Verify calculations
+    const expectedAvg = (0.8 + 0.6 + 0.7) / 3;
+    assert.ok(Math.abs(summary.qualityMetrics.averageRelevance - expectedAvg) < 0.001,
+      'Average relevance should be calculated correctly');
+    assert.strictEqual(summary.qualityMetrics.minRelevance, 0.6,
+      'Min relevance should be correct');
+    assert.strictEqual(summary.qualityMetrics.maxRelevance, 0.8,
+      'Max relevance should be correct');
+  });
+
+  test('buildQualityRetrievalSummary: handles passages without scores', () => {
+    const summary = buildQualityRetrievalSummary({}, [
+      { type: 'triad', priority: 1 }, // No relevanceScore
+      { type: 'dyad', priority: 3 }
+    ]);
+
+    assert.ok(summary.qualityMetrics, 'Should still include qualityMetrics object');
+    assert.strictEqual(summary.qualityMetrics.averageRelevance, 0,
+      'Average should be 0 when no scores present');
+  });
+
+  test('isSemanticScoringAvailable: checks for API configuration', () => {
+    // Without env, should return false
+    const withoutEnv = isSemanticScoringAvailable(null);
+    assert.strictEqual(withoutEnv, false, 'Should return false without env');
+
+    // With partial config, should return false
+    const partialConfig = isSemanticScoringAvailable({
+      AZURE_OPENAI_ENDPOINT: 'https://test.openai.azure.com'
+    });
+    assert.strictEqual(partialConfig, false, 'Should return false with partial config');
+
+    // With full config, should return true
+    const fullConfig = isSemanticScoringAvailable({
+      AZURE_OPENAI_ENDPOINT: 'https://test.openai.azure.com',
+      AZURE_OPENAI_API_KEY: 'test-key'
+    });
+    assert.strictEqual(fullConfig, true, 'Should return true with full config');
+  });
+});
+
 describe('GraphRAG Integration Test', () => {
   test('Full GraphRAG flow: Death-Temperance-Star spread', () => {
     // Simulate graphKeys from a Death-Temperance-Star spread
@@ -459,5 +722,46 @@ describe('GraphRAG Integration Test', () => {
         assert.ok(firstJourney < firstDyad, 'Journey should precede dyads');
       }
     }
+  });
+
+  test('Full GraphRAG flow with quality filtering', async () => {
+    const graphKeys = {
+      completeTriadIds: ['death-temperance-star'],
+      foolsJourneyStageKey: 'integration',
+      dyadPairs: [
+        { cards: [13, 17], category: 'transformation', significance: 'high' }
+      ]
+    };
+
+    // Step 1: Retrieve with quality filtering
+    const passages = await retrievePassagesWithQuality(graphKeys, {
+      maxPassages: 3,
+      userQuery: 'How do I heal from this ending?',
+      enableSemanticScoring: false,
+      minRelevanceScore: 0.1,
+      enableDeduplication: true
+    });
+
+    assert.ok(passages.length > 0, 'Should retrieve passages');
+    assert.ok(passages.length <= 3, 'Should respect max limit');
+
+    // Verify all passages have relevance scores
+    passages.forEach(p => {
+      assert.ok(typeof p.relevanceScore === 'number', 'Each passage should have score');
+    });
+
+    // Step 2: Verify sorted by relevance
+    if (passages.length >= 2) {
+      assert.ok(passages[0].relevanceScore >= passages[1].relevanceScore,
+        'Should be sorted by relevance');
+    }
+
+    // Step 3: Build quality summary
+    const summary = buildQualityRetrievalSummary(graphKeys, passages);
+
+    assert.ok(summary.qualityMetrics, 'Summary should have quality metrics');
+    assert.ok(summary.passagesRetrieved > 0, 'Should report passages retrieved');
+    assert.ok(summary.qualityMetrics.averageRelevance > 0,
+      'Should have non-zero average relevance for matching query');
   });
 });

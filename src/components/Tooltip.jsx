@@ -79,14 +79,17 @@ export function Tooltip({
   // Viewport collision detection - adjust tooltip position if it would overflow
   useEffect(() => {
     if (!isVisible || !tooltipRef.current || typeof window === 'undefined') {
-      setAdjustedPosition(null);
       return;
     }
 
     // Use requestAnimationFrame to ensure tooltip is rendered before measuring
+    // All setState calls happen inside rAF callback to avoid cascading renders
     const rafId = requestAnimationFrame(() => {
       const tooltip = tooltipRef.current;
-      if (!tooltip) return;
+      if (!tooltip) {
+        setAdjustedPosition(null);
+        return;
+      }
 
       const rect = tooltip.getBoundingClientRect();
       const viewportWidth = window.innerWidth;

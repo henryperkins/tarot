@@ -110,17 +110,21 @@ export default function TarotReading() {
 
   // --- 3. Local View State & Wiring ---
   // UI Specifics
-  const [minorsFallbackWarning, setMinorsFallbackWarning] = useState(false);
   const [apiHealthBanner, setApiHealthBanner] = useState(null);
-  const [coachRecommendation, setCoachRecommendation] = useState(null);
+  // Load coach recommendation from localStorage on initial render
+  const [coachRecommendation, setCoachRecommendation] = useState(() => {
+    if (typeof window === 'undefined') return null;
+    const rec = loadCoachRecommendation();
+    return rec?.question ? rec : null;
+  });
   const [pendingCoachPrefill, setPendingCoachPrefill] = useState(null);
   const [isIntentionCoachOpen, setIsIntentionCoachOpen] = useState(false);
-  const [allowPlaceholderCycle, setAllowPlaceholderCycle] = useState(true);
   const [placeholderIndex, setPlaceholderIndex] = useState(0);
   const [isMobileSettingsOpen, setIsMobileSettingsOpen] = useState(false);
-  const [shouldFocusSpread, setShouldFocusSpread] = useState(false);
   const [keyboardOffset, setKeyboardOffset] = useState(0);
-  const isMobileOverlayActive = isIntentionCoachOpen || isMobileSettingsOpen;
+  const isOnboardingOpen = !onboardingComplete && !showPersonalizationBanner;
+  // Only true overlays (modals/drawers) should hide the action bar - not the small personalization banner
+  const isMobileOverlayActive = isIntentionCoachOpen || isMobileSettingsOpen || isOnboardingOpen;
 
   const navigate = useNavigate();
   const location = useLocation();
@@ -128,6 +132,7 @@ export default function TarotReading() {
   const prepareSectionRef = useRef(null);
   const readingSectionRef = useRef(null);
   const hasAutoCompletedRef = useRef(false);
+  const pendingFocusSpreadRef = useRef(false);
 
   // --- Effects & Helpers ---
 
@@ -137,12 +142,7 @@ export default function TarotReading() {
     shuffle(); // Context handles the resets
   }, [shuffle]);
 
-  // Sync Minor Arcana dataset warning
-  useEffect(() => {
-    setMinorsFallbackWarning(minorsDataIncomplete);
-  }, [minorsDataIncomplete]);
-
-  // Check API health
+  // Check API health - runs on mount and when tab becomes visible
   useEffect(() => {
     async function checkApiHealth() {
       try {
@@ -167,25 +167,33 @@ export default function TarotReading() {
         console.debug('API health check failed:', err);
       }
     }
+
+    // Initial check
     checkApiHealth();
+
+    // Re-check when tab becomes visible (handles recovery/outage scenarios)
+    function handleVisibilityChange() {
+      if (document.visibilityState === 'visible') {
+        checkApiHealth();
+      }
+    }
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
   }, []);
 
-  // Coach Recommendation Loading
+  // Process router state for initial question - clean up navigation state after consuming
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
     if (location.state?.initialQuestion) {
       setUserQuestion(location.state.initialQuestion);
-      setAllowPlaceholderCycle(false);
       const nextState = { ...location.state };
       delete nextState.initialQuestion;
       const cleanedState = Object.keys(nextState).length > 0 ? nextState : null;
       navigate(location.pathname, { replace: true, state: cleanedState });
-    }
-
-    const rec = loadCoachRecommendation();
-    if (rec?.question) {
-      setCoachRecommendation(rec);
     }
   }, [location.pathname, location.state, navigate, setUserQuestion]);
 
@@ -236,23 +244,17 @@ export default function TarotReading() {
     };
   }, [isIntentionCoachOpen, setPendingCoachPrefill]);
 
-  // Placeholder Cycle
+  // Placeholder Cycle - cycles example questions when user has no question entered
   useEffect(() => {
     const trimmedQuestion = userQuestion.trim();
-    if (!allowPlaceholderCycle || trimmedQuestion) {
+    if (trimmedQuestion) {
       return undefined;
     }
     const interval = setInterval(() => {
       setPlaceholderIndex(prev => (prev + 1) % EXAMPLE_QUESTIONS.length);
     }, 4000);
     return () => clearInterval(interval);
-  }, [allowPlaceholderCycle, userQuestion]);
-
-  useEffect(() => {
-    if (!userQuestion.trim() && !allowPlaceholderCycle) {
-      setAllowPlaceholderCycle(true);
-    }
-  }, [allowPlaceholderCycle, userQuestion]);
+  }, [userQuestion]);
 
   // Clear Journal Status Timeout
   useEffect(() => {
@@ -268,14 +270,14 @@ export default function TarotReading() {
 
   // --- Handlers ---
 
-  const handleDeckChange = (newDeckId) => {
+  const handleDeckChange = useCallback((newDeckId) => {
     setDeckStyleId(newDeckId);
     setVisionResults([]);
     setVisionConflicts([]);
     resetVisionProof();
-  };
+  }, [setDeckStyleId, setVisionResults, setVisionConflicts, resetVisionProof]);
 
-  const handleSpreadSelection = (key) => {
+  const handleSpreadSelection = useCallback((key) => {
     // Use the centralized selectSpread from useTarotState
     selectSpread(key);
     // Reset narrative/analysis state
@@ -284,7 +286,7 @@ export default function TarotReading() {
     setReflections({});
     setAnalyzingText('');
     setIsGenerating(false);
-  };
+  }, [selectSpread, setPersonalReading, setJournalStatus, setReflections, setAnalyzingText, setIsGenerating]);
 
   const handleCoachClose = useCallback(() => {
     setIsIntentionCoachOpen(false);
@@ -294,7 +296,6 @@ export default function TarotReading() {
   const handleCoachApply = (guidedQuestion) => {
     if (!guidedQuestion) return;
     setUserQuestion(guidedQuestion);
-    setAllowPlaceholderCycle(false);
     handleCoachClose();
   };
 
@@ -308,7 +309,7 @@ export default function TarotReading() {
     setIsIntentionCoachOpen(true);
     saveCoachRecommendation(null);
     setCoachRecommendation(null);
-  }, [coachRecommendation, selectSpread, setPendingCoachPrefill, setUserQuestion]);
+  }, [coachRecommendation, selectSpread, setPendingCoachPrefill, setUserQuestion, setCoachRecommendation, setIsIntentionCoachOpen]);
 
   const dismissCoachRecommendation = useCallback(() => {
     saveCoachRecommendation(null);
@@ -347,22 +348,20 @@ export default function TarotReading() {
       return;
     }
 
-    setShouldFocusSpread(true);
+    // Mark that we need to focus spread, then clean up router state
+    pendingFocusSpreadRef.current = true;
     navigate(location.pathname, { replace: true, state: null });
-  }, [location.pathname, location.state, navigate]);
 
-  useEffect(() => {
-    if (!shouldFocusSpread) {
-      return;
-    }
-
+    // Schedule the scroll after navigation state is cleaned
     const timeoutId = window.setTimeout(() => {
-      handleStepNav('spread');
-      setShouldFocusSpread(false);
+      if (pendingFocusSpreadRef.current) {
+        handleStepNav('spread');
+        pendingFocusSpreadRef.current = false;
+      }
     }, 40);
 
     return () => window.clearTimeout(timeoutId);
-  }, [shouldFocusSpread, handleStepNav]);
+  }, [location.pathname, location.state, navigate, handleStepNav]);
 
   useEffect(() => {
     if (
@@ -421,9 +420,8 @@ export default function TarotReading() {
     }
     if (selections?.question) {
       setUserQuestion(selections.question);
-      setAllowPlaceholderCycle(false);
     }
-  }, [selectSpread]);
+  }, [selectSpread, setOnboardingComplete, setOnboardingSpreadKey, setUserQuestion]);
 
   const handleOnboardingSpreadSelect = useCallback((spreadKey) => {
     setOnboardingSpreadKey(spreadKey);
@@ -592,7 +590,7 @@ export default function TarotReading() {
           </div>
         )}
 
-        {minorsFallbackWarning && (
+        {minorsDataIncomplete && (
           <div className="mb-6 p-4 bg-error/10 border border-error/40 rounded-lg backdrop-blur">
             <div className="flex items-center gap-3">
               <div className="w-3 h-3 rounded-full bg-error animate-pulse"></div>
@@ -622,16 +620,11 @@ export default function TarotReading() {
           </div>
 
           <div className={`max-w-5xl mx-auto ${isLandscape ? 'space-y-3' : 'space-y-6'}`}>
-            <div className={`modern-surface ${isLandscape ? 'p-3' : 'p-4 sm:p-6'}`} aria-label="Choose your physical deck">
+            <div aria-label="Choose your physical deck">
               <DeckSelector selectedDeck={deckStyleId} onDeckChange={handleDeckChange} />
             </div>
 
-
             <div aria-label="Spread selection" ref={spreadSectionRef} id="step-spread" tabIndex={-1} className="scroll-mt-[6.5rem] sm:scroll-mt-[7.5rem]">
-              <div className={isLandscape ? 'mb-2' : 'mb-3 sm:mb-4'}>
-                <h2 className="text-xs-plus sm:text-sm uppercase tracking-[0.12em] text-accent">Spread Options</h2>
-                {!isLandscape && <p className="mt-1 text-muted-high text-xs sm:text-sm">Pick a spread that matches the depth and focus of your question.</p>}
-              </div>
               <SpreadSelector
                 selectedSpread={selectedSpread}
                 onSelectSpread={handleSpreadSelection}
@@ -646,7 +639,6 @@ export default function TarotReading() {
                 setUserQuestion={setUserQuestion}
                 placeholderIndex={placeholderIndex}
                 onPlaceholderRefresh={() => setPlaceholderIndex(prev => (prev + 1) % EXAMPLE_QUESTIONS.length)}
-                setAllowPlaceholderCycle={setAllowPlaceholderCycle}
                 coachRecommendation={coachRecommendation}
                 applyCoachRecommendation={applyCoachRecommendation}
                 dismissCoachRecommendation={dismissCoachRecommendation}
@@ -752,7 +744,6 @@ export default function TarotReading() {
           setUserQuestion={setUserQuestion}
           placeholderIndex={placeholderIndex}
           onPlaceholderRefresh={() => setPlaceholderIndex(prev => (prev + 1) % EXAMPLE_QUESTIONS.length)}
-          setAllowPlaceholderCycle={setAllowPlaceholderCycle}
           coachRecommendation={coachRecommendation}
           applyCoachRecommendation={() => { applyCoachRecommendation(); setIsMobileSettingsOpen(false); }}
           dismissCoachRecommendation={dismissCoachRecommendation}

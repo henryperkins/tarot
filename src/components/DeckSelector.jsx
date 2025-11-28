@@ -224,7 +224,7 @@ export function DeckSelector({ selectedDeck, onDeckChange }) {
   };
 
   return (
-    <div className="deck-selector-panel animate-fade-in">
+    <div className="panel-mystic deck-selector-panel animate-fade-in">
       <div className="relative z-10 space-y-5">
         <header className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <div>

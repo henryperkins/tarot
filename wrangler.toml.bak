@@ -136,3 +136,4 @@ pages_build_output_dir="dist"
 
 [observability]
     enabled=true
+    logpush=true

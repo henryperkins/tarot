@@ -358,7 +358,7 @@ export function ReadingDisplay({ sectionRef }) {
                     )}
 
                     {personalReading && (
-                        <div className={`bg-surface/95 backdrop-blur-xl rounded-2xl border border-secondary/40 shadow-2xl shadow-secondary/40 max-w-full sm:max-w-5xl mx-auto ${isLandscape ? 'p-3' : 'px-2 py-4 xs:px-4 sm:p-6 md:p-8'}`}>
+                        <div className={`bg-surface/95 backdrop-blur-xl rounded-2xl border border-secondary/40 shadow-2xl shadow-secondary/40 max-w-full sm:max-w-5xl mx-auto ${isLandscape ? 'p-3' : 'px-3 xxs:px-4 py-4 xs:px-5 sm:p-6 md:p-8'}`}>
                             {/* Narrative completion banner - shown when complete */}
                             {narrativePhase === 'complete' && !isPersonalReadingError && (
                                 <div className={`mb-5 p-4 bg-gradient-to-r from-primary/20 via-secondary/15 to-accent/20 border border-primary/30 rounded-xl ${prefersReducedMotion ? '' : 'animate-fade-in'}`} role="status" aria-live="polite">
@@ -381,18 +381,22 @@ export function ReadingDisplay({ sectionRef }) {
                                     </div>
                                 </div>
                             )}
-                            <h3 className="text-lg xs:text-xl sm:text-2xl font-serif text-accent mb-2 flex items-center gap-2"><Sparkle className="w-5 h-5 sm:w-6 sm:h-6 text-secondary" />Your Personalized Narrative</h3>
+                            <h3 className="text-base xxs:text-lg xs:text-xl sm:text-2xl font-serif text-accent mb-2 flex items-center gap-2 leading-tight"><Sparkle className="w-5 h-5 sm:w-6 sm:h-6 text-secondary" />Your Personalized Narrative</h3>
                             <HelperToggle className="mt-3 max-w-2xl mx-auto" defaultOpen={isNewbie}>
                                 <p>This narrative braids together your spread positions, card meanings, and reflections into a single through-line. Read slowly, notice what resonates, and treat it as a mirror—not a script. Let your own sense of meaning carry as much weight as any description.</p>
                             </HelperToggle>
-                            {userQuestion && (<div className="bg-surface/85 rounded-lg p-4 mb-4 border border-secondary/40"><p className="text-accent/85 text-xs sm:text-sm italic">Anchor: {userQuestion}</p></div>)}
+                            {userQuestion && (
+                                <div className="bg-surface/85 rounded-lg px-3 xxs:px-4 py-3 mb-4 border border-secondary/40">
+                                    <p className="text-accent/85 text-xs sm:text-sm italic">Anchor: {userQuestion}</p>
+                                </div>
+                            )}
                             {focusToggleAvailable && (
                                 <div className="mt-4 flex justify-end">
                                     <button
                                         type="button"
                                         aria-pressed={isNarrativeFocus}
                                         onClick={() => setIsNarrativeFocus(prev => !prev)}
-                                        className="inline-flex items-center gap-2 rounded-full border border-secondary/50 px-3 py-1.5 text-xs font-semibold text-muted hover:text-main hover:border-secondary/70 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/60"
+                                        className="inline-flex items-center gap-2 rounded-full border border-secondary/50 px-3 xxs:px-4 py-1.5 text-[0.7rem] xxs:text-xs font-semibold text-muted hover:text-main hover:border-secondary/70 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/60"
                                     >
                                         {isNarrativeFocus ? 'Show insight panels' : 'Focus on narrative'}
                                     </button>

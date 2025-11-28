@@ -1,19 +1,18 @@
 #!/bin/bash
-# Setup Cloudflare Pages environment variables for Azure TTS
+# Setup Cloudflare Workers secrets for Azure TTS
+# Updated for Cloudflare Workers (migrated from Pages)
 
 set -e
 
-echo "🔧 Setting up Cloudflare Pages environment variables..."
+echo "🔧 Setting up Cloudflare Workers secrets..."
 echo ""
 
-PROJECT_NAME="tableau"
+WORKER_NAME="tableau"
 
 # Read from .env.local or current environment
 ENDPOINT="${AZURE_OPENAI_ENDPOINT:-https://thefoundry.openai.azure.com}"
 API_KEY="${AZURE_OPENAI_API_KEY}"
 DEPLOYMENT="${AZURE_OPENAI_GPT_AUDIO_MINI_DEPLOYMENT:-gpt-4o-mini-tts}"
-API_VERSION="${AZURE_OPENAI_API_VERSION:-2025-04-01-preview}"
-FORMAT="${AZURE_OPENAI_GPT_AUDIO_MINI_FORMAT:-mp3}"
 
 if [ -z "$API_KEY" ]; then
   echo "❌ Error: AZURE_OPENAI_API_KEY not found in environment"
@@ -24,13 +23,11 @@ fi
 echo "📋 Configuration to deploy:"
 echo "   Endpoint: $ENDPOINT"
 echo "   Deployment: $DEPLOYMENT"
-echo "   API Version: $API_VERSION"
-echo "   Format: $FORMAT"
 echo ""
 echo "⚠️  API Key will be set (encrypted)"
 echo ""
 
-read -p "Deploy these settings to Cloudflare Pages? (y/N) " -n 1 -r
+read -p "Deploy these settings to Cloudflare Workers? (y/N) " -n 1 -r
 echo
 if [[ ! $REPLY =~ ^[Yy]$ ]]; then
   echo "Cancelled."
@@ -38,23 +35,24 @@ if [[ ! $REPLY =~ ^[Yy]$ ]]; then
 fi
 
 echo ""
-echo "🚀 Deploying to production environment..."
+echo "🚀 Deploying secrets to Worker: $WORKER_NAME..."
 
-# Set production environment variables
-wrangler pages project variable add \
-  --project-name="$PROJECT_NAME" \
-  --environment="production" \
-  AZURE_OPENAI_ENDPOINT="$ENDPOINT" \
-  AZURE_OPENAI_API_KEY="$API_KEY" \
-  AZURE_OPENAI_GPT_AUDIO_MINI_DEPLOYMENT="$DEPLOYMENT" \
-  AZURE_OPENAI_API_VERSION="$API_VERSION" \
-  AZURE_OPENAI_GPT_AUDIO_MINI_FORMAT="$FORMAT"
+# Set secrets (Workers use secrets for sensitive values, not env vars)
+echo "$ENDPOINT" | wrangler secret put AZURE_OPENAI_ENDPOINT --name "$WORKER_NAME"
+echo "✅ AZURE_OPENAI_ENDPOINT set"
+
+echo "$API_KEY" | wrangler secret put AZURE_OPENAI_API_KEY --name "$WORKER_NAME"
+echo "✅ AZURE_OPENAI_API_KEY set"
+
+echo "$DEPLOYMENT" | wrangler secret put AZURE_OPENAI_GPT_AUDIO_MINI_DEPLOYMENT --name "$WORKER_NAME"
+echo "✅ AZURE_OPENAI_GPT_AUDIO_MINI_DEPLOYMENT set"
 
 echo ""
-echo "✅ Environment variables deployed to production!"
+echo "✅ Secrets deployed to Worker!"
 echo ""
 echo "🔄 Next steps:"
-echo "   1. Trigger a new deployment to pick up the variables"
-echo "   2. Or run: npm run deploy"
+echo "   1. Deploy the Worker: npm run deploy"
+echo "   2. Or run: wrangler deploy --config wrangler.jsonc"
 echo ""
-echo "🌐 Your site: https://tableau-8xz.pages.dev/"
+echo "📝 Note: Non-secret env vars are configured in wrangler.jsonc"
+echo "   (AZURE_OPENAI_GPT_AUDIO_MINI_FORMAT, AZURE_OPENAI_API_VERSION, etc.)"

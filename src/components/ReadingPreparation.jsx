@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useEffect } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { CaretDown, CaretUp, TextAlignLeft, SpeakerHigh, Palette, Sparkle } from '@phosphor-icons/react';
 import { QuestionInput } from './QuestionInput';
 import { AudioControls } from './AudioControls';
@@ -21,7 +21,6 @@ export function ReadingPreparation({
     setUserQuestion,
     placeholderIndex,
     onPlaceholderRefresh,
-    setAllowPlaceholderCycle,
 
     // Coach
     coachRecommendation,
@@ -63,8 +62,6 @@ export function ReadingPreparation({
                         userQuestion={userQuestion}
                         setUserQuestion={setUserQuestion}
                         placeholderIndex={placeholderIndex}
-                        onFocus={() => setAllowPlaceholderCycle(false)}
-                        onBlur={() => !userQuestion.trim() && setAllowPlaceholderCycle(true)}
                         onPlaceholderRefresh={onPlaceholderRefresh}
                         onLaunchCoach={onLaunchCoach}
                     />
@@ -109,17 +106,14 @@ export function ReadingPreparation({
     };
 
     // Mobile tabbed navigation state
-    const [activeTab, setActiveTab] = useState('intention');
+    const [activeTabRaw, setActiveTabRaw] = useState('intention');
     const tabRefs = useRef({});
 
-    useEffect(() => {
-        if (shouldSkipRitual && activeTab === 'ritual') {
-            setActiveTab('intention');
-        }
-    }, [shouldSkipRitual, activeTab]);
+    // Derive the effective active tab - if ritual is skipped and ritual was selected, fall back to intention
+    const activeTab = (shouldSkipRitual && activeTabRaw === 'ritual') ? 'intention' : activeTabRaw;
 
     const handleTabChange = useCallback((tabId) => {
-        setActiveTab(tabId);
+        setActiveTabRaw(tabId);
     }, []);
 
     // Keyboard navigation for tabs (roving tabindex pattern)
@@ -149,9 +143,9 @@ export function ReadingPreparation({
         }
 
         const nextTabId = tabIds[nextIndex];
-        setActiveTab(nextTabId);
+        setActiveTabRaw(nextTabId);
         tabRefs.current[nextTabId]?.focus();
-    }, []);
+    }, [mobileTabs]);
 
     if (variant === 'mobile') {
         return (

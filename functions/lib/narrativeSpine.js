@@ -334,7 +334,8 @@ export function validateReadingNarrative(readingText) {
   }
 
   // Split by major section headers
-  const sectionPattern = /(\*\*([^*]+)\*\*)|(^#{2,6}\s+(.+)$)/gm;
+  // Match: ### Markdown headers OR **Bold text at start of line** (not inline bold)
+  const sectionPattern = /(^[ \t]*\*\*([^*]+)\*\*[ \t]*$)|(^#{2,6}\s+(.+)$)/gm;
   const sections = [];
   let match;
   let lastIndex = 0;
