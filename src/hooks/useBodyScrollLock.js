@@ -1,4 +1,7 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+
+// Use useLayoutEffect on client, useEffect during SSR
+const useIsomorphicLayoutEffect = typeof window !== 'undefined' ? useLayoutEffect : useEffect;
 
 /**
  * useBodyScrollLock prevents background scroll when overlays are open.
@@ -13,16 +16,28 @@ import { useEffect, useRef } from 'react';
  * @returns {{ scrollY: number }} - Current scroll position when locked
  */
 export function useBodyScrollLock(isLocked, { strategy = 'fixed' } = {}) {
-  const scrollYRef = useRef(0);
+  // State for return value (safe to read during render)
+  const [scrollY, setScrollY] = useState(0);
   const previousStylesRef = useRef(null);
+  const prevIsLockedRef = useRef(false);
+
+  // Capture scroll position when transitioning to locked state.
+  // Must run in a layout effect (not during render) to avoid re-render loops.
+  useIsomorphicLayoutEffect(() => {
+    if (isLocked && !prevIsLockedRef.current) {
+      const currentScrollY = typeof window !== 'undefined' ? window.scrollY : 0;
+      setScrollY(currentScrollY);
+    }
+    prevIsLockedRef.current = isLocked;
+  }, [isLocked]);
 
   useEffect(() => {
     if (!isLocked) {
       return undefined;
     }
 
-    // Capture current scroll position
-    scrollYRef.current = window.scrollY;
+    // Capture scroll position at the time effect runs
+    const capturedScrollY = window.scrollY;
 
     // Calculate scrollbar width to prevent content shift
     const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
@@ -46,7 +61,7 @@ export function useBodyScrollLock(isLocked, { strategy = 'fixed' } = {}) {
       // Fixed strategy: prevents iOS bounce and maintains scroll position
       document.body.style.overflow = 'hidden';
       document.body.style.position = 'fixed';
-      document.body.style.top = `-${scrollYRef.current}px`;
+      document.body.style.top = `-${capturedScrollY}px`;
       document.body.style.width = '100%';
       if (scrollbarWidth > 0) {
         document.body.style.paddingRight = `${scrollbarWidth}px`;
@@ -67,10 +82,10 @@ export function useBodyScrollLock(isLocked, { strategy = 'fixed' } = {}) {
 
       // Restore scroll position (only needed for fixed strategy)
       if (strategy === 'fixed') {
-        window.scrollTo(0, scrollYRef.current);
+        window.scrollTo(0, capturedScrollY);
       }
     };
   }, [isLocked, strategy]);
 
-  return { scrollY: scrollYRef.current };
+  return { scrollY };
 }

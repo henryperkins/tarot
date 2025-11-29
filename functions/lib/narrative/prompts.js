@@ -21,11 +21,9 @@ import { THOTH_MINOR_TITLES, MARSEILLE_NUMERICAL_THEMES } from '../../../src/dat
 import {
   isGraphRAGEnabled,
   retrievePassages,
-  retrievePassagesWithQuality,
   formatPassagesForPrompt,
   getPassageCountForSpread,
-  buildRetrievalSummary,
-  buildQualityRetrievalSummary
+  buildRetrievalSummary
 } from '../graphRAG.js';
 import { getPositionWeight } from '../positionWeights.js';
 import { formatVisionLabelForPrompt } from '../visionLabels.js';
@@ -320,7 +318,7 @@ function getSpreadKeyFromName(name) {
   return map[name] || 'general';
 }
 
-function buildSystemPrompt(spreadKey, themes, context, deckStyle, userQuestion = '', options = {}) {
+function buildSystemPrompt(spreadKey, themes, context, deckStyle, _userQuestion = '', options = {}) {
   const lines = [
     'You are an agency-forward, trauma-informed tarot storyteller.',
     '',
@@ -368,6 +366,20 @@ function buildSystemPrompt(spreadKey, themes, context, deckStyle, userQuestion =
       '',
       'RELATIONSHIP FLOW: Explore the interplay between "You" and "Them" cards, then the Connection card as shared lesson. Include specific examples of communication, boundaries, and relational practices without telling the querent to stay or leave.'
     );
+  }
+
+  // Spread-proportional length guidance
+  const SPREAD_LENGTH_GUIDANCE = {
+    single: 'LENGTH: This is a single-card reading. Aim for ~300-400 words total—a focused insight rather than an exhaustive essay.',
+    threeCard: 'LENGTH: This is a 3-card spread. Aim for ~500-700 words total—enough depth for each position without excessive elaboration.',
+    fiveCard: 'LENGTH: This is a 5-card spread. Aim for ~700-900 words total—give each card meaningful attention while maintaining narrative flow.',
+    decision: 'LENGTH: This is a 5-card decision spread. Aim for ~700-900 words total—ensure both paths receive balanced treatment.',
+    relationship: 'LENGTH: This is a 3-card relationship spread. Aim for ~500-700 words total—explore each energy with care but stay concise.',
+    celtic: 'LENGTH: This is a 10-card Celtic Cross. Aim for ~1000-1400 words total—weave the positions into a cohesive narrative rather than ten separate mini-readings.'
+  };
+  const lengthGuidance = SPREAD_LENGTH_GUIDANCE[spreadKey];
+  if (lengthGuidance) {
+    lines.push('', lengthGuidance);
   }
 
   const reversalLens = formatReversalLens(themes, { includeExamples: true, includeReminder: true });
@@ -599,7 +611,7 @@ function buildUserPrompt(
 
   if (activeThemes?.knowledgeGraph?.narrativeHighlights?.length) {
     prompt += '**Archetypal Patterns** (weave naturally, not mechanically):\n';
-    activeThemes.knowledgeGraph.narrativeHighlights.slice(0, 5).forEach((highlight, index) => {
+    activeThemes.knowledgeGraph.narrativeHighlights.slice(0, 5).forEach((highlight, _index) => {
       const label = highlight?.text || '';
       if (!label) return;
       prompt += `- ${label}\n`;
@@ -1250,7 +1262,7 @@ function buildPromptCrossChecks(crossChecks, themes) {
     .join('\n');
 }
 
-function formatMeaning(meaning) {
+function _formatMeaning(meaning) {
   const sentence = meaning.includes('.') ? meaning.split('.')[0] : meaning;
   const lowerCased = sentence.trim();
   if (!lowerCased) {

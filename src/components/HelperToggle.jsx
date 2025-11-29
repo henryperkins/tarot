@@ -6,25 +6,36 @@ export function HelperToggle({ children, label = 'More information', className =
   const contentId = useId();
   const contentRef = useRef(null);
   const [contentHeight, setContentHeight] = useState(0);
-  const hasToggledRef = useRef(false);
+  // Use state instead of ref since we need to read it during render for state adjustment
+  const [hasToggled, setHasToggled] = useState(false);
 
-  useEffect(() => {
-    if (defaultOpen && !hasToggledRef.current) {
+  // Track previous defaultOpen for render-time state adjustment
+  const [prevDefaultOpen, setPrevDefaultOpen] = useState(defaultOpen);
+
+  // Sync isOpen with defaultOpen changes if user hasn't manually toggled
+  // This pattern (adjusting state during render) is React-recommended over useEffect
+  if (defaultOpen !== prevDefaultOpen) {
+    setPrevDefaultOpen(defaultOpen);
+    if (defaultOpen && !hasToggled) {
       setIsOpen(true);
     }
-  }, [defaultOpen]);
+  }
 
   // Measure content height for smooth animation
+  // Schedule via RAF to avoid synchronous setState in effect
   useEffect(() => {
     if (contentRef.current) {
-      // Get the scroll height when open for animation
-      const height = contentRef.current.scrollHeight;
-      setContentHeight(height);
+      requestAnimationFrame(() => {
+        if (contentRef.current) {
+          const height = contentRef.current.scrollHeight;
+          setContentHeight(height);
+        }
+      });
     }
   }, [children, isOpen]);
 
   const handleToggle = () => {
-    hasToggledRef.current = true;
+    setHasToggled(true);
     setIsOpen(prev => !prev);
   };
 

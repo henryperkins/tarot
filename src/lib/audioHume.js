@@ -112,7 +112,7 @@ export async function speakWithHume(text, options = {}) {
       try {
         const errorData = JSON.parse(responseText);
         errorMsg = errorData.error ?? errorMsg;
-      } catch (_) {
+      } catch {
         // Keep default if response is not JSON
       }
       throw new Error(errorMsg);

@@ -147,6 +147,8 @@ export function Header({ steps, activeStep, onStepSelect, isShuffling }) {
           bg-surface/95 backdrop-blur
           border-y border-accent/20
           px-4 sm:px-5 md:px-6
+          pr-[max(1rem,env(safe-area-inset-right))]
+          pl-[max(1rem,env(safe-area-inset-left))]
           shadow-lg shadow-primary/20
           header-sticky
           ${isCompact ? 'header-sticky--compact' : ''}

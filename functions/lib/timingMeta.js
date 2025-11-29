@@ -98,7 +98,7 @@ export function getTimingHintForCard(card = {}) {
  *   - 'longer-arc-tilt'
  * Otherwise null.
  */
-export function getSpreadTimingProfile({ cardsInfo = [], themes = {} } = {}) {
+export function getSpreadTimingProfile({ cardsInfo = [], themes: _themes = {} } = {}) {
   if (!Array.isArray(cardsInfo) || cardsInfo.length === 0) return null;
 
   // Prefer labeled positions commonly used as trajectory indicators

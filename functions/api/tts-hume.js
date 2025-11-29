@@ -175,7 +175,7 @@ export const onRequestPost = async ({ request, env }) => {
         try {
           const errorBody = JSON.parse(errorText);
           errorMessage = errorBody.error ?? errorBody.message ?? errorMessage;
-        } catch (_) {
+        } catch {
           // Keep default message if parsing fails
         }
         

@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
 // Import the functions we need to test
-import { hashString, xorshift32, seededShuffle, cryptoShuffle, computeSeed, getDeckPool, drawSpread, computeRelationships } from '../src/lib/deck.js';
+import { seededShuffle, cryptoShuffle, computeSeed, getDeckPool, drawSpread, computeRelationships } from '../src/lib/deck.js';
 import { MAJOR_ARCANA } from '../src/data/majorArcana.js';
 import { MINOR_ARCANA } from '../src/data/minorArcana.js';
 import { SPREADS } from '../src/data/spreads.js';
@@ -185,8 +185,6 @@ describe('Deck Shuffling and Seeding', () => {
     
     it('should throw error when deck is too small for spread', () => {
       // Create a mock spread that requires more cards than available
-      const originalSpreads = SPREADS;
-      
       // Temporarily add a problematic spread
       SPREADS.oversized = {
         name: 'Oversized Test Spread',

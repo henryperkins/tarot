@@ -4,7 +4,7 @@
  * to the tarot narrative builder system.
  */
 
-import { getAstroForCard, ASTRO_ASSOCIATIONS } from './esotericMeta.js';
+import { getAstroForCard } from './esotericMeta.js';
 
 // Planet name normalization for matching
 const PLANET_ALIASES = {

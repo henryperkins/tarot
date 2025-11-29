@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, memo, useCallback, useId } from 'react';
+import { useEffect, useRef, useState, memo, useId } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkBreaks from 'remark-breaks';

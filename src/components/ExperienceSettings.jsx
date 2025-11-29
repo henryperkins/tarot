@@ -15,8 +15,6 @@ export function ExperienceSettings({ className = '' }) {
     setTheme,
     includeMinors,
     setIncludeMinors,
-    deckSize,
-    minorsDataIncomplete,
     reversalFramework,
     setReversalFramework
   } = usePreferences();

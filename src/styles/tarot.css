@@ -398,14 +398,15 @@ body {
   display: flex;
   justify-content: center;
   /* Balance padding to keep nav centered while making room for UserMenu */
-  padding-left: 4rem;
-  padding-right: 4rem;
+  /* Reduced for mobile to prevent overflow */
+  padding-left: 2.5rem;
+  padding-right: 2.5rem;
 }
 
 @media (min-width: 400px) {
   .header-sticky__nav {
-    padding-left: 5rem;
-    padding-right: 5rem;
+    padding-left: 4rem;
+    padding-right: 4rem;
   }
 }
 
@@ -419,7 +420,8 @@ body {
 .header-sticky__user {
   transition: opacity 200ms ease, transform 200ms ease;
   position: absolute;
-  right: 0;
+  /* Account for safe area on notched devices */
+  right: max(0.25rem, env(safe-area-inset-right, 0px));
   top: 50%;
   transform: translateY(-50%);
 }
@@ -2261,6 +2263,52 @@ input[type="range"]:focus::-webkit-slider-thumb {
   }
 }
 
+/* Narrative streaming container refinements */
+.narrative-stream {
+  width: 100%;
+}
+
+.narrative-stream__text {
+  font-size: clamp(0.98rem, 0.9rem + 0.4vw, 1.15rem);
+  line-height: 1.75;
+  letter-spacing: 0.01em;
+  text-wrap: pretty;
+  hyphens: auto;
+  max-width: min(65ch, 100%);
+  margin-left: auto;
+  margin-right: auto;
+  color: var(--text-main);
+}
+
+.narrative-stream__text--plain {
+  text-align: left;
+}
+
+.narrative-stream__text p + p {
+  margin-top: 1.2em;
+}
+
+.narrative-stream__actions {
+  bottom: max(1rem, env(safe-area-inset-bottom, 1rem));
+}
+
+@media (max-width: 520px) {
+  .narrative-stream__text {
+    padding-left: clamp(0.75rem, 4vw, 1.5rem);
+    padding-right: clamp(0.75rem, 4vw, 1.5rem);
+    line-height: 1.85;
+  }
+}
+
+@media (min-width: 640px) {
+  .narrative-stream__text {
+    padding-left: 0;
+    padding-right: 0;
+    font-size: 1.05rem;
+    line-height: 1.8;
+  }
+}
+
 /* Optimize narrative reading on mobile */
 @media (max-width: 479px) {
   .prose {
@@ -2271,6 +2319,28 @@ input[type="range"]:focus::-webkit-slider-thumb {
   .prose p {
     margin-bottom: 1.25em;
   }
+}
+
+/* Fullscreen onboarding modal support */
+.onboarding-modal {
+  min-height: 100vh;
+}
+
+@supports (min-height: 100svh) {
+  .onboarding-modal {
+    min-height: 100svh;
+  }
+}
+
+@supports (min-height: 100dvh) {
+  .onboarding-modal {
+    min-height: 100dvh;
+  }
+}
+
+.onboarding-modal__scroll {
+  scrollbar-gutter: stable both-edges;
+  overscroll-behavior: contain;
 }
 
 /* Dropdown text sizing on narrow screens */

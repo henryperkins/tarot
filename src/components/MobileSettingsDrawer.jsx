@@ -22,13 +22,21 @@ export function MobileSettingsDrawer({ isOpen, onClose, children, footer = null 
   const [isDragging, setIsDragging] = useState(false);
 
   // Reset drag state when drawer opens/closes
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: reset on open/close transitions
+  // Using refs for previous state to avoid cascading renders
+  const prevIsOpenRef = useRef(isOpen);
   useEffect(() => {
-    // Reset all drag-related state and refs when drawer state changes
-    touchStartY.current = null;
-    touchStartTime.current = null;
-    setDragOffset(0);
-    setIsDragging(false);
+    // Only reset when isOpen actually changes
+    if (prevIsOpenRef.current !== isOpen) {
+      prevIsOpenRef.current = isOpen;
+      // Reset all drag-related state and refs when drawer state changes
+      touchStartY.current = null;
+      touchStartTime.current = null;
+      // Defer state updates to avoid cascading renders
+      queueMicrotask(() => {
+        setDragOffset(0);
+        setIsDragging(false);
+      });
+    }
   }, [isOpen]);
 
   const handleTouchStart = useCallback((event) => {

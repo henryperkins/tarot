@@ -102,7 +102,7 @@ export async function onRequest(context) {
  * Get analytics data for user
  */
 async function handleGetAnalytics(db, userId, corsHeaders) {
-  const now = Math.floor(Date.now() / 1000);
+  const _now = Math.floor(Date.now() / 1000);
   const currentMonth = new Date().toISOString().slice(0, 7); // YYYY-MM
 
   // Get top 5 cards this month

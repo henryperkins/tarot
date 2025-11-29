@@ -242,6 +242,39 @@ async function readMetricsFromFile(filePath, { optional = true } = {}) {
 
 async function fetchJournalFromD1(options) {
   const limitClause = Number.isFinite(options.limit) ? ` LIMIT ${options.limit}` : '';
+
+  // Check if request_id column exists (added in migration 0007)
+  // We must detect this dynamically because referencing a non-existent column
+  // in SQLite throws "no such column" even inside COALESCE.
+  const pragmaArgs = [
+    'wrangler',
+    'd1',
+    'execute',
+    options.d1Name,
+    '--command',
+    'PRAGMA table_info(journal_entries);',
+    '--json'
+  ];
+  if (options.wranglerTarget === 'local') {
+    pragmaArgs.push('--local');
+  } else if (options.wranglerTarget === 'remote') {
+    pragmaArgs.push('--remote');
+  }
+
+  let hasRequestIdColumn = false;
+  try {
+    const pragmaResult = await runCommand('npx', pragmaArgs);
+    const pragmaParsed = JSON.parse(pragmaResult);
+    const columns = Array.isArray(pragmaParsed)
+      ? pragmaParsed.flatMap((entry) => entry?.results || [])
+      : pragmaParsed?.results || [];
+    hasRequestIdColumn = columns.some((col) => col.name === 'request_id');
+  } catch {
+    // If PRAGMA fails, assume column doesn't exist
+    hasRequestIdColumn = false;
+  }
+
+  const requestIdSelect = hasRequestIdColumn ? ',\n      request_id' : '';
   const sql = `
     SELECT
       id,
@@ -255,8 +288,7 @@ async function fetchJournalFromD1(options) {
       reflections_json,
       context,
       provider,
-      session_seed,
-      request_id
+      session_seed${requestIdSelect}
     FROM journal_entries
     ORDER BY created_at DESC${limitClause};
   `.trim();
@@ -482,16 +514,30 @@ function mergeReadings(journalEntries, feedbackRecords, metricsRecords) {
 
 function normalizeCards(cards = []) {
   if (!Array.isArray(cards)) return [];
-  return cards.map((card, index) => ({
-    position: card.position || `Position ${index + 1}`,
-    name: card.name || card.card || card.title || null,
-    card: card.card || card.name || null,
-    orientation: card.orientation || card.status || 'Upright',
-    number: card.number ?? card.value ?? null,
-    suit: card.suit || null,
-    rank: card.rank || null,
-    rankValue: card.rankValue ?? null
-  }));
+  return cards.map((card, index) => {
+    // Infer rankValue from rank name if missing (for legacy data)
+    let rankValue = card.rankValue ?? null;
+    if (rankValue === null && card.rank) {
+      const RANK_VALUES = {
+        Ace: 1, Two: 2, Three: 3, Four: 4, Five: 5, Six: 6, Seven: 7,
+        Eight: 8, Nine: 9, Ten: 10, Page: 11, Knight: 12, Queen: 13, King: 14
+      };
+      rankValue = RANK_VALUES[card.rank] ?? null;
+    }
+
+    return {
+      position: card.position || `Position ${index + 1}`,
+      name: card.name || card.card || card.title || null,
+      card: card.card || card.name || null,
+      orientation: card.orientation || card.status || 'Upright',
+      // Major Arcana: number (0-21), Minor Arcana: null
+      number: card.number ?? card.value ?? null,
+      suit: card.suit || null,
+      rank: card.rank || null,
+      // Minor Arcana: rankValue (1-14), Major Arcana: null
+      rankValue
+    };
+  });
 }
 
 function deriveFeedbackStats(ratings) {

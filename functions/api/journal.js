@@ -132,6 +132,31 @@ export async function onRequestPost(context) {
       );
     }
 
+    // Deduplicate by session_seed to prevent double-saves
+    if (sessionSeed) {
+      const existing = await env.DB.prepare(
+        `SELECT id, created_at FROM journal_entries WHERE user_id = ? AND session_seed = ?`
+      ).bind(user.id, sessionSeed).first();
+
+      if (existing) {
+        // Return existing entry instead of creating duplicate
+        return new Response(
+          JSON.stringify({
+            success: true,
+            entry: {
+              id: existing.id,
+              ts: existing.created_at * 1000
+            },
+            deduplicated: true
+          }),
+          {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' }
+          }
+        );
+      }
+    }
+
     // Create journal entry
     const entryId = crypto.randomUUID();
     const nowSeconds = Math.floor(Date.now() / 1000);

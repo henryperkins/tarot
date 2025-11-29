@@ -1,6 +1,31 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useSyncExternalStore } from 'react';
 import { Gear, Sparkle, ArrowsClockwise } from '@phosphor-icons/react';
 import { useLandscape } from '../hooks/useLandscape';
+
+// Subscribe to visualViewport changes for keyboard avoidance
+function subscribeToViewport(callback) {
+  if (typeof window === 'undefined' || !window.visualViewport) {
+    return () => {};
+  }
+  window.visualViewport.addEventListener('resize', callback);
+  window.visualViewport.addEventListener('scroll', callback);
+  return () => {
+    window.visualViewport.removeEventListener('resize', callback);
+    window.visualViewport.removeEventListener('scroll', callback);
+  };
+}
+
+function getViewportOffset() {
+  if (typeof window === 'undefined' || !window.visualViewport) {
+    return 0;
+  }
+  const offset = window.innerHeight - window.visualViewport.height;
+  return offset > 50 ? offset : 0;
+}
+
+function getServerViewportOffset() {
+  return 0;
+}
 
 export const MOBILE_SETTINGS_DIALOG_ID = 'mobile-settings-drawer';
 export const MOBILE_COACH_DIALOG_ID = 'guided-intention-coach';
@@ -22,7 +47,7 @@ const STEP_BADGES = {
 /**
  * Determines which action mode the mobile bar should display
  */
-export function getActionMode({ isShuffling, reading, revealedCount, allRevealed, needsNarrative, hasNarrative, isGenerating, isError }) {
+export function getActionMode({ isShuffling, reading, revealedCount: _revealedCount, allRevealed, needsNarrative, hasNarrative, isGenerating, isError }) {
   if (isShuffling) return 'shuffling';
   if (!reading) return 'preparation';
   if (!allRevealed) return 'revealing';
@@ -415,29 +440,12 @@ function renderActions(mode, options) {
 }
 
 export function MobileActionBar({ keyboardOffset = 0, isOverlayActive = false, ...props }) {
-  const [viewportOffset, setViewportOffset] = useState(0);
-
-  useEffect(() => {
-    if (typeof window === 'undefined' || !window.visualViewport) {
-      setViewportOffset(0);
-      return undefined;
-    }
-
-    const handleViewportChange = () => {
-      const offset = window.innerHeight - window.visualViewport.height;
-      setViewportOffset(offset > 50 ? offset : 0);
-    };
-
-    handleViewportChange();
-
-    window.visualViewport.addEventListener('resize', handleViewportChange);
-    window.visualViewport.addEventListener('scroll', handleViewportChange);
-
-    return () => {
-      window.visualViewport.removeEventListener('resize', handleViewportChange);
-      window.visualViewport.removeEventListener('scroll', handleViewportChange);
-    };
-  }, []);
+  // Use useSyncExternalStore for visualViewport subscription (React-recommended pattern for browser APIs)
+  const viewportOffset = useSyncExternalStore(
+    subscribeToViewport,
+    getViewportOffset,
+    getServerViewportOffset
+  );
 
   const effectiveOffset = Math.max(keyboardOffset, viewportOffset);
 

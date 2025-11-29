@@ -58,14 +58,18 @@ describe('detectFoolsJourneyStage', () => {
     assert.strictEqual(result.cardCount, 4);
   });
 
-  it('returns null when <2 Major Arcana cards', () => {
+  it('returns minimal significance for single Major Arcana card', () => {
     const cards = [
       { number: 1, name: 'The Magician' },
       { suit: 'Wands', rank: 'Ace' }
     ];
     const result = detectFoolsJourneyStage(cards);
 
-    assert.strictEqual(result, null);
+    // Single Major now returns result with 'minimal' significance for basic archetypal context
+    assert.strictEqual(result.significance, 'minimal');
+    assert.strictEqual(result.cardCount, 1);
+    assert.strictEqual(result.totalMajors, 1);
+    assert.strictEqual(result.stageKey, 'initiation');
   });
 
   it('handles mixed stages (returns dominant)', () => {
@@ -153,28 +157,35 @@ describe('detectArchetypalTriads', () => {
       { number: 17, name: 'The Star' },     // Healing Arc
       { number: 1, name: 'The Magician' },  // Mastery Arc
       { number: 7, name: 'The Chariot' },   // Mastery Arc
-      { number: 21, name: 'The World' }     // Mastery Arc
+      { number: 21, name: 'The World' }     // Mastery Arc (also partial fool-magician-world)
     ];
     const result = detectArchetypalTriads(cards);
 
-    assert.strictEqual(result.length, 2);
+    // Expects 3: two complete (Healing + Mastery) plus partial fool-magician-world (1,21)
+    assert.strictEqual(result.length, 3);
     assert.strictEqual(result[0].isComplete, true);
     assert.strictEqual(result[1].isComplete, true);
+    // Third is the partial fool-magician-world triad (Magician + World)
+    const partialTriad = result.find(t => !t.isComplete);
+    assert.ok(partialTriad, 'Should find partial fool-magician-world triad');
+    assert.strictEqual(partialTriad.id, 'fool-magician-world');
   });
 
   it('sorts complete triads before partial', () => {
     const cards = [
-      { number: 13, name: 'Death' },     // Healing partial
-      { number: 17, name: 'The Star' },  // Healing partial
+      { number: 13, name: 'Death' },     // Healing partial (death-star)
+      { number: 17, name: 'The Star' },  // Healing partial + tower-star-moon partial
       { number: 15, name: 'The Devil' }, // Liberation complete
-      { number: 16, name: 'The Tower' }, // Liberation complete
+      { number: 16, name: 'The Tower' }, // Liberation complete + tower-star-moon partial
       { number: 19, name: 'The Sun' }    // Liberation complete
     ];
     const result = detectArchetypalTriads(cards);
 
-    assert.strictEqual(result.length, 2);
+    // Expects 3: one complete (Liberation) + two partials (death-star, tower-star)
+    assert.strictEqual(result.length, 3);
     assert.strictEqual(result[0].isComplete, true);  // Complete first
     assert.strictEqual(result[1].isComplete, false); // Partial second
+    assert.strictEqual(result[2].isComplete, false); // Partial third
   });
 });
 
@@ -282,8 +293,8 @@ describe('detectSuitProgressions', () => {
 describe('detectAllPatterns', () => {
   it('detects all pattern types when present', () => {
     const cards = [
-      { number: 0, name: 'The Fool' },      // Journey: initiation, Dyad: Fool+Magician
-      { number: 1, name: 'The Magician' },  // Journey: initiation, Dyad: Fool+Magician, Partial Triad: Mastery Arc
+      { number: 0, name: 'The Fool' },      // Journey: initiation, Dyad: Fool+Magician, Partial: fool-magician-world
+      { number: 1, name: 'The Magician' },  // Journey: initiation, Dyad: Fool+Magician, Partial Triad: Mastery Arc + fool-magician-world
       { number: 7, name: 'The Chariot' },   // Journey: initiation, Partial Triad: Mastery Arc
       { number: 13, name: 'Death' },        // Triad: Healing Arc, Dyad: Death+Star
       { number: 14, name: 'Temperance' },   // Triad: Healing Arc
@@ -298,7 +309,8 @@ describe('detectAllPatterns', () => {
     assert.ok(result.dyads);
     assert.ok(result.suitProgressions);
     assert.strictEqual(result.foolsJourney.stage, 'departure'); // Stage value for 0-7 range
-    assert.strictEqual(result.triads.length, 2); // Healing Arc (complete) + Mastery Arc (partial)
+    // 3 triads: Healing Arc (complete) + Mastery Arc partial (1,7) + fool-magician-world partial (0,1)
+    assert.strictEqual(result.triads.length, 3);
     assert.strictEqual(result.dyads.length, 2); // Fool+Magician + Death+Star
     assert.strictEqual(result.suitProgressions.length, 1);
   });
@@ -489,20 +501,23 @@ describe('getPriorityPatternNarratives', () => {
     assert.strictEqual(result.length, 0);
   });
 
-  it('skips moderate Fool\'s Journey (only includes strong)', () => {
+  it('includes moderate Fool\'s Journey at priority 4', () => {
     const patterns = {
       foolsJourney: {
         stage: 'initiation',
         cardCount: 2,
-        significance: 'moderate', // Not strong
+        significance: 'moderate',
         readingSignificance: 'building',
+        displayNames: ['The Fool', 'The Magician'],
         cards: [{ number: 0 }, { number: 1 }]
       }
     };
 
     const result = getPriorityPatternNarratives(patterns);
 
-    // Should not include moderate journey
-    assert.strictEqual(result.length, 0);
+    // Moderate journey now included at priority 4
+    assert.strictEqual(result.length, 1);
+    assert.strictEqual(result[0].priority, 4);
+    assert.strictEqual(result[0].type, 'fools-journey');
   });
 });

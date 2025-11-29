@@ -36,7 +36,7 @@ export function ReadingProvider({ children }) {
 
     // 3. Vision Analysis
     const visionAnalysis = useVisionAnalysis(reading);
-    const { visionResults, visionConflicts, resetVisionProof, ensureVisionProof, getVisionConflictsForCards, setVisionConflicts } = visionAnalysis;
+    const { visionResults, visionConflicts, resetVisionProof: _resetVisionProof, ensureVisionProof, getVisionConflictsForCards, setVisionConflicts } = visionAnalysis;
 
     const personalizationForRequest = useMemo(() => {
         if (!personalization || typeof personalization !== 'object') {
@@ -462,7 +462,7 @@ export function ReadingProvider({ children }) {
             items.push({ key: `relationship-${relationship.type || 'pattern'}-${index}`, icon: meta.icon, title: meta.title, text: relationship.text });
         });
         return items;
-    }, [reading, revealedCards, includeMinors, selectedSpread, relationships]);
+    }, [reading, revealedCards, includeMinors, relationships]);
 
     const highlightItems = useMemo(() => {
         if (Array.isArray(derivedHighlights) && derivedHighlights.length > 0) return derivedHighlights;

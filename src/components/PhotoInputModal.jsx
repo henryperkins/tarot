@@ -1,4 +1,4 @@
-import { useRef, useCallback } from 'react';
+import { useRef, useMemo } from 'react';
 import { Camera, Images, X } from '@phosphor-icons/react';
 import { useModalA11y, createBackdropHandler } from '../hooks/useModalA11y';
 
@@ -15,7 +15,8 @@ export function PhotoInputModal({ onTakePhoto, onChooseFromLibrary, onCancel }) 
   });
 
   // Handle backdrop click using shared helper
-  const handleBackdropClick = useCallback(createBackdropHandler(onCancel), [onCancel]);
+  // useMemo is appropriate here since createBackdropHandler returns a function
+  const handleBackdropClick = useMemo(() => createBackdropHandler(onCancel), [onCancel]);
 
   return (
     <div

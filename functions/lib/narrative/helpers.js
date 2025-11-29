@@ -917,7 +917,7 @@ function getConnector(position, direction = 'toPrev') {
 }
 
 function buildCrossCheckSynthesis(crossCheck) {
-  const { position1, position2, elementalRelationship, orientationAlignment, alignmentType } = crossCheck;
+  const { position1, position2, elementalRelationship, alignmentType } = crossCheck;
 
   let synthesis = `${position1.name} (${position1.card} ${position1.orientation}) and ${position2.name} (${position2.card} ${position2.orientation}): `;
 
@@ -999,7 +999,7 @@ function buildOccultFlavor(cardInfo) {
   return ` On a symbolic level, some readers link this card to ${bits.join(' and ')}; treat that as color, not a command.`;
 }
 
-function buildReflectionPrompt(cardInfo, position) {
+function _buildReflectionPrompt(cardInfo, position) {
   const name = (cardInfo.card || 'this card').toLowerCase();
   const pos = (position || '').toLowerCase();
 
@@ -1275,7 +1275,7 @@ function buildElementalRemedies(elementCounts, totalCards, context = 'general', 
   // Calculate which elements are underrepresented (< 15% of spread)
   const threshold = 0.15;
   const underrepresented = Object.entries(elementCounts)
-    .filter(([element, count]) => {
+    .filter(([_element, count]) => {
       const ratio = count / totalCards;
       return ratio < threshold && count < totalCards; // Exclude if element = 100%
     })

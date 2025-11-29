@@ -19,7 +19,7 @@ let currentNarrationRequestId = 0;
 let activeNarrationId = null;
 let cancelledUpToRequestId = 0;
 let audioUnlocked = false;
-const audioUnlockPromise = null;
+const _audioUnlockPromise = null;
 let unlockListenersRegistered = false;
 const TTS_CACHE_PREFIX = 'tts_cache_';
 const TTS_CACHE_MAX_ENTRIES = 50;
@@ -92,7 +92,7 @@ export function initAudio() {
           unlockEvents.forEach(event => {
             window.removeEventListener(event, unlockHandler, { capture: true });
           });
-        }).catch(e => {
+        }).catch(_e => {
           // If it fails (e.g. rapid clicks), we just keep the listeners attached
           // and try again on next interaction
         });

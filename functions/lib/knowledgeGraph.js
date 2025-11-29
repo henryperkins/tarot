@@ -149,8 +149,8 @@ export function detectFoolsJourneyStage(cards, options = {}) {
     (c) => typeof c.number === 'number' && c.number >= 0 && c.number <= 21
   );
 
-  // Need at least 2 Majors to detect a meaningful pattern
-  if (majorCards.length < 2) return null;
+  // Need at least 1 Major to provide any archetypal context
+  if (majorCards.length < 1) return null;
 
   const stages = { initiation: [], integration: [], culmination: [] };
 
@@ -176,6 +176,17 @@ export function detectFoolsJourneyStage(cards, options = {}) {
   // If no clear dominance (all stages tied), return null
   if (stageCards.length === 0) return null;
 
+  // Determine significance level:
+  // - 'strong': 3+ cards in one stage (clear thematic cluster)
+  // - 'moderate': 2 cards in one stage (notable pattern)
+  // - 'minimal': 1 card (basic archetypal presence, useful for enrichment)
+  let significance = 'minimal';
+  if (stageCards.length >= 3) {
+    significance = 'strong';
+  } else if (stageCards.length >= 2 || majorCards.length >= 2) {
+    significance = 'moderate';
+  }
+
   // Return enriched stage data
   // IMPORTANT: Spread FOOLS_JOURNEY data FIRST, then override with actual spread data
   return {
@@ -185,7 +196,7 @@ export function detectFoolsJourneyStage(cards, options = {}) {
     cardCount: stageCards.length,
     cards: stageCards, // Actual cards from spread (not static reference)
     totalMajors: majorCards.length,
-    significance: stageCards.length >= 3 ? 'strong' : 'moderate',
+    significance,
     displayNames: stageCards.map((card) => deckAwareName(card, getCardLabel(card), deckStyle))
   };
 }
@@ -740,6 +751,36 @@ export function getPriorityPatternNarratives(patterns, deckStyle = 'rws-1909') {
       priority: 2,
       type: 'fools-journey',
       text: `**Fool's Journey — ${journey.stage.charAt(0).toUpperCase() + journey.stage.slice(1)}** ${journey.cardCount} cards from this stage${journeyNames} suggest ${journey.readingSignificance.toLowerCase()}.`,
+      cards: journey.cards.map((c) => c.number),
+      stage: journey.stage
+    });
+  }
+
+  // Priority 4: Moderate Fool's Journey (2 cards in stage or 2+ total Majors)
+  if (patterns.foolsJourney && patterns.foolsJourney.significance === 'moderate') {
+    const journey = patterns.foolsJourney;
+    const journeyNames = Array.isArray(journey.displayNames) && journey.displayNames.length > 0
+      ? ` (${journey.displayNames.join(', ')})`
+      : '';
+    narratives.push({
+      priority: 4,
+      type: 'fools-journey',
+      text: `**Fool's Journey — ${journey.stage.charAt(0).toUpperCase() + journey.stage.slice(1)}** ${journey.cardCount} card${journey.cardCount > 1 ? 's' : ''} from this stage${journeyNames} suggest ${journey.readingSignificance.toLowerCase()}.`,
+      cards: journey.cards.map((c) => c.number),
+      stage: journey.stage
+    });
+  }
+
+  // Priority 6: Minimal Fool's Journey (single Major provides basic archetypal context)
+  if (patterns.foolsJourney && patterns.foolsJourney.significance === 'minimal') {
+    const journey = patterns.foolsJourney;
+    const journeyNames = Array.isArray(journey.displayNames) && journey.displayNames.length > 0
+      ? journey.displayNames.join(', ')
+      : '';
+    narratives.push({
+      priority: 6,
+      type: 'fools-journey-minimal',
+      text: `**${journeyNames}** appears in the ${journey.stage} stage of the Fool's Journey, touching on themes of ${journey.theme.toLowerCase()}.`,
       cards: journey.cards.map((c) => c.number),
       stage: journey.stage
     });

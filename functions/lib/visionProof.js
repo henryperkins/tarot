@@ -1,7 +1,7 @@
 import { canonicalizeCardName } from '../../shared/vision/cardNameMapping.js';
 
 const encoder = new TextEncoder();
-const decoder = typeof TextDecoder === 'function' ? new TextDecoder() : null;
+const _decoder = typeof TextDecoder === 'function' ? new TextDecoder() : null;
 const DEFAULT_TTL_MS = 5 * 60 * 1000; // 5 minutes
 const MAX_INSIGHTS = 10;
 

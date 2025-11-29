@@ -1,3 +1,4 @@
+import { useState, useRef, useCallback } from 'react';
 import { useReading } from '../contexts/ReadingContext';
 import { usePreferences } from '../contexts/PreferencesContext';
 import { useJournal } from './useJournal';
@@ -20,7 +21,22 @@ export function useSaveReading() {
     const { deckStyleId, personalization } = usePreferences();
     const { saveEntry } = useJournal({ autoLoad: false });
 
-    async function saveReading() {
+    // Prevent double-saves from rapid clicks or network retries
+    const [isSaving, setIsSaving] = useState(false);
+    const lastSavedSeedRef = useRef(null);
+
+    const saveReading = useCallback(async function saveReading() {
+        // Prevent double-saves
+        if (isSaving) {
+            return;
+        }
+
+        // Skip if this exact reading was already saved (same session seed)
+        if (sessionSeed && lastSavedSeedRef.current === sessionSeed) {
+            setJournalStatus({ type: 'info', message: 'This reading is already saved to your journal.' });
+            return;
+        }
+
         if (!reading) {
             setJournalStatus({ type: 'error', message: 'Draw your cards before saving to the journal.' });
             return;
@@ -37,7 +53,11 @@ export function useSaveReading() {
             cards: reading.map((card, index) => ({
                 position: spreadInfo?.positions?.[index] || `Position ${index + 1}`,
                 name: card.name,
-                number: card.number,
+                // Major Arcana have `number` (0-21), Minor Arcana have `rankValue` (1-14)
+                number: card.number ?? null,
+                suit: card.suit ?? null,
+                rank: card.rank ?? null,
+                rankValue: card.rankValue ?? null,
                 orientation: card.isReversed ? 'Reversed' : 'Upright'
             })),
             personalReading: personalReading?.raw || personalReading?.normalized || '',
@@ -52,23 +72,39 @@ export function useSaveReading() {
                 readingTone: personalization.readingTone || 'balanced',
                 spiritualFrame: personalization.spiritualFrame || 'mixed',
                 tarotExperience: personalization.tarotExperience || 'intermediate',
+                // Capture reading depth preference for narrative length consistency
+                preferredSpreadDepth: personalization.preferredSpreadDepth || 'standard',
                 // Store displayName only if set (avoid null/empty)
                 ...(personalization.displayName?.trim() ? { displayName: personalization.displayName.trim() } : {})
             } : null
         };
+        setIsSaving(true);
         try {
             const result = await saveEntry(entry);
             if (result.success) {
+                // Track successful save to prevent duplicate saves of same reading
+                if (sessionSeed) {
+                    lastSavedSeedRef.current = sessionSeed;
+                }
                 if (typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function') navigator.vibrate(12);
-                setJournalStatus({ type: 'success', message: 'Saved to your journal.' });
+                const message = result.deduplicated
+                    ? 'This reading is already in your journal.'
+                    : 'Saved to your journal.';
+                setJournalStatus({ type: 'success', message });
             } else {
                 setJournalStatus({ type: 'error', message: result.error || 'Unable to save to your journal. Please try again.' });
             }
         } catch (error) {
             console.error('Failed to save tarot reading', error);
             setJournalStatus({ type: 'error', message: 'Unable to save to your journal. Please try again.' });
+        } finally {
+            setIsSaving(false);
         }
-    }
+    }, [
+        isSaving, sessionSeed, reading, personalReading, selectedSpread,
+        userQuestion, themes, reflections, analysisContext, readingMeta,
+        deckStyleId, personalization, saveEntry, setJournalStatus
+    ]);
 
-    return { saveReading };
+    return { saveReading, isSaving };
 }

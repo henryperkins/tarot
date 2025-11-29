@@ -472,7 +472,7 @@ export default function TarotReading() {
   const hasNarrative = Boolean(personalReading && !personalReading.isError);
   const narrativeInProgress = isGenerating && !personalReading;
   const needsNarrativeGeneration = allCardsRevealed && (!personalReading || personalReading.isError);
-  const isPersonalReadingError = Boolean(personalReading?.isError);
+  const _isPersonalReadingError = Boolean(personalReading?.isError);
 
   // Compute the highest milestone achieved (not affected by which panel user views)
   // This ensures the step indicator stays consistent once progress is made

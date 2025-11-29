@@ -136,7 +136,7 @@ export function SpreadSelector({
   const [showRightFade, setShowRightFade] = useState(true);
   const prefersReducedMotion = useReducedMotion();
   const isLandscape = useLandscape();
-  const isSmallScreen = useSmallScreen();
+  const _isSmallScreen = useSmallScreen();
   const { personalization } = usePreferences();
   const recommendedSpread = getSpreadFromDepth(personalization?.preferredSpreadDepth);
   const isExperienced = personalization?.tarotExperience === 'experienced';

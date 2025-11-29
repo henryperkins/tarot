@@ -1,5 +1,4 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { MAJOR_ARCANA } from '../data/majorArcana';
 import { computeSeed, drawSpread } from '../lib/deck';
 import { playFlip, unlockAudio } from '../lib/audio';
 import { DEFAULT_SPREAD_KEY, normalizeSpreadKey, getSpreadInfo } from '../data/spreads';
@@ -130,8 +129,16 @@ export function useTarotState(speak) {
     }
   }, []);
 
+  // Track previous preferred depth to detect changes (use ref to avoid render-time state updates)
+  const prevPreferredDepthRef = useRef(undefined);
+
+  // Auto-select spread based on personalization (only when user hasn't manually selected).
+  // Must run in an effect to avoid calling state setters during render.
   useEffect(() => {
-    if (!hasUserSelectedSpread && personalization?.preferredSpreadDepth) {
+    if (!hasUserSelectedSpread &&
+        personalization?.preferredSpreadDepth &&
+        personalization?.preferredSpreadDepth !== prevPreferredDepthRef.current) {
+      prevPreferredDepthRef.current = personalization.preferredSpreadDepth;
       const preferred = getSpreadFromDepth(personalization.preferredSpreadDepth);
       setSelectedSpreadState(preferred);
     }

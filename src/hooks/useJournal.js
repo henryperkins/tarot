@@ -25,6 +25,7 @@ export function useJournal({ autoLoad = true } = {}) {
       return;
     }
     loadEntries();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- loadEntries is stable, avoid infinite loop
   }, [isAuthenticated, autoLoad]);
 
   const loadEntries = async () => {
@@ -131,12 +132,20 @@ export function useJournal({ autoLoad = true } = {}) {
 
         const data = await response.json();
 
-        // Add to local state
+        // Build entry object from server response
         const newEntry = {
           id: data.entry.id,
           ts: data.entry.ts,
           ...entry
         };
+
+        // If server detected a duplicate (same session_seed), skip local state
+        // updates to keep client in sync with DB
+        if (data.deduplicated) {
+          return { success: true, entry: newEntry, deduplicated: true };
+        }
+
+        // Add to local state only for genuinely new entries
         setEntries(prev => {
           const next = [newEntry, ...prev];
           if (typeof window !== 'undefined') {

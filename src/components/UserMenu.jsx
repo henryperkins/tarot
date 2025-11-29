@@ -83,7 +83,7 @@ export function UserMenu({ condensed = false }) {
           setPrefsError('Unable to load analytics preference');
           setAnalyticsEnabled(false);
         }
-      } catch (error) {
+      } catch {
         if (!cancelled) {
           setPrefsError('Unable to load analytics preference');
           setAnalyticsEnabled(false);
@@ -113,7 +113,7 @@ export function UserMenu({ condensed = false }) {
       }
       const data = await response.json().catch(() => ({}));
       setAnalyticsEnabled(data?.preferences?.archetype_journey_enabled ?? next);
-    } catch (error) {
+    } catch {
       setPrefsError('Failed to update');
     } finally {
       setPrefsLoading(false);
@@ -155,9 +155,9 @@ export function UserMenu({ condensed = false }) {
               aria-label={`User menu for ${user?.username || 'account'}`}
             >
               <User className="w-4 h-4 shrink-0" aria-hidden="true" />
-              {/* Mobile: show initial, tablet+: show truncated username */}
+              {/* Mobile: show initial only, tablet+: show truncated username */}
               {!condensed && <span className="xs:hidden text-xs font-bold">{getInitial()}</span>}
-              <span className={`${condensed ? 'hidden sm:inline' : 'hidden xs:inline'} max-w-[80px] sm:max-w-[100px] truncate text-xs sm:text-xs-plus`}>
+              <span className={`${condensed ? 'hidden sm:inline' : 'hidden xs:inline'} max-w-[60px] sm:max-w-[80px] md:max-w-[100px] truncate text-xs sm:text-xs-plus`}>
                 {getDisplayName()}
               </span>
             </button>

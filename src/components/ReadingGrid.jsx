@@ -4,6 +4,7 @@ import { getOrientationMeaning } from '../lib/cardLookup';
 import { Card } from './Card';
 import { Tooltip } from './Tooltip';
 import { CarouselDots } from './CarouselDots';
+import { SpreadTableCompact } from './SpreadTable';
 import { useSmallScreen } from '../hooks/useSmallScreen';
 import { useReducedMotion } from '../hooks/useReducedMotion';
 import { useLandscape } from '../hooks/useLandscape';
@@ -141,16 +142,23 @@ export function ReadingGrid({
   const [activeIndex, setActiveIndex] = useState(0);
   const [showSwipeHint, setShowSwipeHint] = useState(true);
   const [mobileLayoutMode, setMobileLayoutMode] = useState('carousel');
-  const layoutPreferenceRef = useRef('carousel');
+  // User's preferred layout mode (persists when switching between mobile/desktop)
+  const [layoutPreference, setLayoutPreference] = useState('carousel');
   const isCompactScreen = useSmallScreen();
+  const isVerySmallScreen = useSmallScreen(480);
   const prefersReducedMotion = useReducedMotion();
   const isLandscape = useLandscape();
   const isListView = mobileLayoutMode === 'list';
 
+  // Track previous isCompactScreen for render-time state adjustment
+  const [prevIsCompactScreen, setPrevIsCompactScreen] = useState(isCompactScreen);
+
   // In landscape mobile: use smaller card widths to fit more cards visible
   const carouselCardWidthClass = isLandscape
     ? 'min-w-[48vw] max-w-[11.5rem]'
-    : 'min-w-[84vw] xxs:min-w-[78vw] xs:min-w-[68vw]';
+    : isVerySmallScreen
+      ? 'min-w-[92vw] max-w-[19rem]'
+      : 'min-w-[84vw] xxs:min-w-[78vw] xs:min-w-[68vw]';
   const mobileCarouselPadding = isLandscape ? 'px-2' : 'px-3 xxs:px-4';
 
   // Hide swipe hint after 4 seconds or when user interacts
@@ -164,19 +172,23 @@ export function ReadingGrid({
     return () => clearTimeout(timer);
   }, [reading, isListView]);
 
-  useEffect(() => {
+  // Sync mobile layout mode with screen size changes.
+  // This pattern (adjusting state during render) is React-recommended over useEffect
+  // for syncing state with prop/hook changes. See: https://react.dev/learn/you-might-not-need-an-effect
+  if (isCompactScreen !== prevIsCompactScreen) {
+    setPrevIsCompactScreen(isCompactScreen);
     if (!isCompactScreen) {
+      // Desktop: always use carousel
       if (mobileLayoutMode !== 'carousel') {
         setMobileLayoutMode('carousel');
       }
-      return;
+    } else {
+      // Mobile: restore user's preferred layout
+      if (layoutPreference !== mobileLayoutMode) {
+        setMobileLayoutMode(layoutPreference);
+      }
     }
-
-    const preferredLayout = layoutPreferenceRef.current;
-    if (preferredLayout !== mobileLayoutMode) {
-      setMobileLayoutMode(preferredLayout);
-    }
-  }, [isCompactScreen, mobileLayoutMode]);
+  }
 
   // Celtic Cross uses a fixed CSS grid layout that doesn't scroll horizontally,
   // so carousel navigation (swipe, dots, prev/next) should be disabled for it
@@ -186,28 +198,6 @@ export function ReadingGrid({
   const hideHintOnInteraction = useCallback(() => {
     setShowSwipeHint(false);
   }, []);
-
-  if (!reading) return null;
-
-  const spreadInfo = getSpreadInfo(selectedSpread);
-  const isBatchReveal = reading.length > 1 && revealedCards.size === reading.length;
-
-  const responsiveGridFallback = reading.length <= 4
-    ? 'sm:grid sm:gap-8 sm:overflow-visible sm:snap-none sm:pb-0 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-4'
-    : 'sm:grid sm:gap-8 sm:overflow-visible sm:snap-none sm:pb-0 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3';
-
-  const multiCardLayoutClass = isListView
-    ? 'flex flex-col gap-4 pb-4'
-    : `flex overflow-x-auto snap-x snap-mandatory ${isLandscape ? 'gap-2 pb-4' : 'gap-4 pb-6'} ${mobileCarouselPadding}`;
-
-  const shouldApplyCarouselPadding = enableCarousel && !isListView && selectedSpread !== 'celtic';
-  const carouselInlineStyles = shouldApplyCarouselPadding
-    ? {
-        scrollPaddingLeft: '1.25rem',
-        scrollPaddingRight: '1.25rem',
-        scrollbarGutter: 'stable both-edges'
-      }
-    : undefined;
 
   // Optimized scroll handler with RAF throttling and cached elements
   const updateActiveIndex = useCallback(() => {
@@ -257,8 +247,11 @@ export function ReadingGrid({
       });
     };
 
-    // Initial calculation
-    updateActiveIndex();
+    // Initial calculation - schedule via RAF to avoid synchronous setState in effect
+    rafIdRef.current = requestAnimationFrame(() => {
+      rafIdRef.current = null;
+      updateActiveIndex();
+    });
 
     el.addEventListener('scroll', handleScroll, { passive: true });
 
@@ -272,7 +265,7 @@ export function ReadingGrid({
   }, [enableCarousel, reading?.length, updateActiveIndex, hideHintOnInteraction]);
 
   const scrollToIndex = useCallback((index) => {
-    if (!enableCarousel) return;
+    if (!enableCarousel || !reading) return;
     const el = carouselRef.current;
     if (!el) return;
 
@@ -290,10 +283,10 @@ export function ReadingGrid({
         behavior: prefersReducedMotion ? 'auto' : 'smooth'
       });
     }
-  }, [enableCarousel, reading.length, prefersReducedMotion]);
+  }, [enableCarousel, reading, prefersReducedMotion]);
 
   const handleLayoutToggle = useCallback((mode) => {
-    layoutPreferenceRef.current = mode;
+    setLayoutPreference(mode);
     setMobileLayoutMode(mode);
     if (mode === 'list') {
       setShowSwipeHint(false);
@@ -316,6 +309,30 @@ export function ReadingGrid({
       </div>
     );
   }, []);
+
+  // Early return after all hooks to satisfy Rules of Hooks
+  if (!reading) return null;
+
+  const spreadInfo = getSpreadInfo(selectedSpread);
+  const isBatchReveal = reading.length > 1 && revealedCards.size === reading.length;
+
+  const responsiveGridFallback = reading.length <= 4
+    ? 'sm:grid sm:gap-8 sm:overflow-visible sm:snap-none sm:pb-0 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-4'
+    : 'sm:grid sm:gap-8 sm:overflow-visible sm:snap-none sm:pb-0 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3';
+
+  const multiCardLayoutClass = isListView
+    ? 'flex flex-col gap-4 pb-4'
+    : `flex overflow-x-auto snap-x snap-mandatory ${isLandscape ? 'gap-2 pb-4' : 'gap-4 pb-6'} ${mobileCarouselPadding}`;
+
+  const shouldApplyCarouselPadding = enableCarousel && !isListView && selectedSpread !== 'celtic';
+  const shouldShowCompactMap = Boolean(isCompactScreen && reading && reading.length > 2);
+  const carouselInlineStyles = shouldApplyCarouselPadding
+    ? {
+        scrollPaddingLeft: '1.25rem',
+        scrollPaddingRight: '1.25rem',
+        scrollbarGutter: 'stable both-edges'
+      }
+    : undefined;
 
   return (
     <>
@@ -398,6 +415,14 @@ export function ReadingGrid({
                 List view
               </button>
             </div>
+          )}
+
+          {shouldShowCompactMap && (
+            <SpreadTableCompact
+              spreadKey={selectedSpread}
+              cards={reading}
+              revealedIndices={revealedCards}
+            />
           )}
 
           {enableCarousel && (

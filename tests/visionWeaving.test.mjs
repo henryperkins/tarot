@@ -84,7 +84,7 @@ const mockThemes = {
 console.log('🧪 Testing Vision Weaving Enhancement...\n');
 
 try {
-  const { systemPrompt, userPrompt } = buildEnhancedClaudePrompt({
+  const { systemPrompt: _systemPrompt, userPrompt } = buildEnhancedClaudePrompt({
     spreadInfo: mockSpreadInfo,
     cardsInfo: mockCardsInfo,
     userQuestion: 'How can I navigate this new phase?',

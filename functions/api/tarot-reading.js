@@ -1516,7 +1516,7 @@ function buildGenericReading(
     spreadInfo
   });
   const tone = getToneStyle(personalization?.readingTone);
-  const vocab = getFrameVocabulary(personalization?.spiritualFrame);
+  const _vocab = getFrameVocabulary(personalization?.spiritualFrame);
   const nameOpening = buildNameClause(personalization?.displayName, 'opening');
   const depthProfile = getDepthProfile(personalization?.preferredSpreadDepth);
   

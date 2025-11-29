@@ -344,7 +344,7 @@ export async function analyzeSpreadThemes(cardsInfo, options = {}) {
   try {
     const { getSpreadTimingProfile } = await import('./timingMeta.js');
     themes.timingProfile = getSpreadTimingProfile({ cardsInfo, themes });
-  } catch (err) {
+  } catch {
     // Graceful degradation: timing profile unavailable
     themes.timingProfile = null;
   }
@@ -440,6 +440,11 @@ export function selectReversalFramework(ratio, cardsInfo, options = {}) {
     }
   }
 
+  // Calculate spread size for threshold adjustments
+  const totalCards = Array.isArray(cardsInfo) ? cardsInfo.length : 0;
+  const reversalCount = totalCards > 0 ? Math.round(ratio * totalCards) : 0;
+
+  // Check for reversed Major Arcana pattern
   if (Array.isArray(cardsInfo)) {
     const reversedMajors = cardsInfo.filter(
       c =>
@@ -454,6 +459,22 @@ export function selectReversalFramework(ratio, cardsInfo, options = {}) {
     }
   }
 
+  // Spread-aware thresholds: Small spreads (≤5 cards) need adjusted thresholds
+  // because 2/3 = 67% would immediately trigger "blocked" which is too aggressive.
+  // For small spreads, require higher absolute counts to trigger stronger frameworks.
+  if (totalCards > 0 && totalCards <= 5) {
+    // Small spread adjustments:
+    // - 'blocked' requires 3+ reversals (impossible in 3-card, rare in 5-card)
+    // - 'internalized' requires 2+ reversals with ratio >= 0.5
+    // - Otherwise use softer frameworks for more nuanced interpretation
+    if (reversalCount >= 3) return 'blocked';
+    if (reversalCount >= 2 && ratio >= 0.5) return 'internalized';
+    if (reversalCount >= 2) return 'delayed';
+    if (reversalCount >= 1) return 'contextual';
+    return 'contextual';
+  }
+
+  // Standard thresholds for larger spreads (6+ cards)
   if (ratio >= 0.6) return 'blocked';
   if (ratio >= 0.4) return 'internalized';
   if (ratio >= 0.2) return 'delayed';
@@ -1349,7 +1370,7 @@ export function analyzeRelationship(cardsInfo) {
 
   const youLabel = you.position || 'You / your energy';
   const themLabel = them.position || 'Them / their energy';
-  const connectionLabel = connection.position || 'The connection / shared lesson';
+  const _connectionLabel = connection.position || 'The connection / shared lesson';
 
   const youVsThem = comparePositions(you, them, youLabel, themLabel);
   const youBridge = analyzeElementalDignity(connection, you);

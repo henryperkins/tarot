@@ -1,4 +1,4 @@
-import { useState, useRef, useId, useEffect } from 'react';
+import { useState, useRef, useId } from 'react';
 import FocusTrap from 'focus-trap-react';
 import { X } from '@phosphor-icons/react';
 import { useModalA11y, createBackdropHandler } from '../../hooks/useModalA11y';
@@ -38,14 +38,20 @@ export function OnboardingWizard({ isOpen, onComplete, onSelectSpread, initialSp
   const [selectedSpread, setSelectedSpread] = useState(initialSpread || 'single');
   const [question, setQuestion] = useState(initialQuestion || '');
 
-  // Reset state when wizard opens (replay scenario) to pick up current values
-  useEffect(() => {
-    if (isOpen) {
-      setCurrentStep(1);
-      setSelectedSpread(initialSpread || 'single');
-      setQuestion(initialQuestion || '');
-    }
-  }, [isOpen, initialSpread, initialQuestion]);
+  // Track previous isOpen to detect open transitions
+  const [prevIsOpen, setPrevIsOpen] = useState(isOpen);
+
+  // Reset state when wizard opens (replay scenario) to pick up current values.
+  // This pattern (adjusting state during render) is React-recommended over useEffect
+  // for syncing state with prop changes. See: https://react.dev/learn/you-might-not-need-an-effect
+  if (isOpen && !prevIsOpen) {
+    setPrevIsOpen(true);
+    setCurrentStep(1);
+    setSelectedSpread(initialSpread || 'single');
+    setQuestion(initialQuestion || '');
+  } else if (!isOpen && prevIsOpen) {
+    setPrevIsOpen(false);
+  }
 
   const prefersReducedMotion = useReducedMotion();
   const isLandscape = useLandscape();
@@ -177,7 +183,7 @@ export function OnboardingWizard({ isOpen, onComplete, onSelectSpread, initialSp
 
   return (
     <div
-      className={`fixed inset-0 z-[100] flex items-center justify-center bg-main/95 backdrop-blur-sm ${
+      className={`fixed inset-0 z-[100] flex items-center justify-center bg-main/95 backdrop-blur-sm px-safe-left px-safe-right ${
         prefersReducedMotion ? '' : 'animate-fade-in'
       }`}
       onClick={createBackdropHandler(handleSkip)}
@@ -197,7 +203,7 @@ export function OnboardingWizard({ isOpen, onComplete, onSelectSpread, initialSp
           role="dialog"
           aria-modal="true"
           aria-labelledby={titleId}
-          className={`relative w-full h-full overflow-hidden bg-main flex flex-col ${
+          className={`relative w-full h-full onboarding-modal overflow-hidden bg-main flex flex-col ${
             prefersReducedMotion ? '' : 'animate-pop-in'
           }`}
           onClick={(e) => e.stopPropagation()}
@@ -217,7 +223,7 @@ export function OnboardingWizard({ isOpen, onComplete, onSelectSpread, initialSp
 
           {/* Header with close button and progress */}
           <header
-            className={`relative z-10 pt-safe-top ${
+            className={`relative z-20 pt-safe-top bg-main/95 backdrop-blur supports-[backdrop-filter]:backdrop-blur-lg border-b border-white/5 ${
               isLandscape ? 'py-1.5' : 'py-3 xs:py-4'
             }`}
           >
@@ -247,8 +253,13 @@ export function OnboardingWizard({ isOpen, onComplete, onSelectSpread, initialSp
 
           {/* Main content area - scrollable */}
           <main
-            className="relative z-10 flex-1 overflow-y-auto overflow-x-hidden scroll-smooth pt-safe-top pb-safe-bottom pl-safe-left pr-safe-right"
-            style={{ scrollPaddingTop: '1rem', scrollPaddingBottom: '1rem' }}
+            className="relative z-10 flex-1 overflow-y-auto overflow-x-hidden scroll-smooth pt-safe-top pb-safe-bottom pl-safe-left pr-safe-right onboarding-modal__scroll"
+            style={{
+              scrollPaddingTop: '1rem',
+              scrollPaddingBottom: '1rem',
+              scrollbarGutter: 'stable both-edges',
+              overscrollBehavior: 'contain'
+            }}
           >
             <div className={`max-w-full sm:max-w-2xl mx-auto h-full ${isLandscape ? 'px-2 xxs:px-3 py-2 sm:px-4' : 'px-3 xxs:px-4 md:px-6 py-4 xs:py-6 md:py-8'}`}>
               {renderStep()}

@@ -7,7 +7,7 @@ import { parseCsv } from './lib/csv.js';
 const DEFAULT_QUEUE = 'data/evaluations/narrative-review-queue.csv';
 const DEFAULT_SUMMARY = 'data/evaluations/narrative-review-summary.json';
 
-function usage() {
+function _usage() {
   console.log('Usage: node scripts/evaluation/processNarrativeReviews.js [queueFile] [summaryFile]');
 }
 

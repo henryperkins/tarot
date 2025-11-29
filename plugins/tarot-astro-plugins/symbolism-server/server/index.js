@@ -339,7 +339,7 @@ function interpretCardSymbols(cardName, symbols) {
  * Synthesize multiple symbols into coherent interpretation
  */
 function synthesizeSymbols(cardName, symbolData) {
-  const themes = [];
+  const _themes = [];
   const keywords = [];
 
   symbolData.forEach((item) => {

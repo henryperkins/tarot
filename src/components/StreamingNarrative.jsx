@@ -34,6 +34,7 @@ export function StreamingNarrative({
   const narrativeText = useMemo(() => (typeof text === 'string' ? text : ''), [text]);
   const prefersReducedMotion = useReducedMotion();
   const isSmallScreen = useSmallScreen();
+  const wrapperClassName = className ? `narrative-stream ${className}` : 'narrative-stream';
 
   // Split text into reveal units (words)
   const units = useMemo(() => {
@@ -48,7 +49,9 @@ export function StreamingNarrative({
 
   const [visibleCount, setVisibleCount] = useState(0);
   const [mobileStreamingOptIn, setMobileStreamingOptIn] = useState(false);
-  const [prevNarrativeText, setPrevNarrativeText] = useState(narrativeText);
+  // Initialize to null so render-time adjustment runs on first mount
+  // (narrativeText is always a string, so null will never match)
+  const [prevNarrativeText, setPrevNarrativeText] = useState(null);
 
   // Refs for cleanup and tracking
   const timerRef = useRef(null);
@@ -128,16 +131,6 @@ export function StreamingNarrative({
     completionNotifiedRef.current = false;
     narrationTriggeredRef.current = false;
   }, [narrativeText, clearTimer, clearNarrationTimer]);
-
-  // Handle initial render and streaming-disabled state
-  // The render-time state adjustment (lines 82-100) only runs when text changes,
-  // so on first mount with streaming disabled, visibleCount stays at 0.
-  // This effect ensures text is shown immediately when streaming is not active.
-  useEffect(() => {
-    if (!streamingActive && units.length > 0 && visibleCount < units.length) {
-      setVisibleCount(units.length);
-    }
-  }, [streamingActive, units.length, visibleCount]);
 
   // Notify completion when all content is visible
   // This effect only calls external callback, no setState
@@ -267,16 +260,16 @@ export function StreamingNarrative({
   if (useMarkdown) {
     const visibleText = visibleWords.join('');
     return (
-      <div className={className} aria-live="polite">
+      <div className={wrapperClassName} aria-live="polite">
         {streamingOptInNotice}
         {personalizedIntro}
         {/* Container with min-height to prevent layout shift during streaming */}
-        <div className="prose prose-sm xxs:prose-base sm:prose-base md:prose-lg max-w-[min(32rem,calc(100vw-2.25rem))] xxs:max-w-sm sm:max-w-[65ch] w-full min-h-[5.5rem] xxs:min-h-[7rem] md:min-h-[10rem] px-2 xxs:px-3 sm:px-0 mx-auto">
+        <div className="prose prose-sm xxs:prose-base sm:prose-base md:prose-lg max-w-[min(32rem,calc(100vw-2.25rem))] xxs:max-w-sm sm:max-w-[65ch] w-full min-h-[5.5rem] xxs:min-h-[7rem] md:min-h-[10rem] px-2 xxs:px-3 sm:px-0 mx-auto narrative-stream__text narrative-stream__text--md">
           <MarkdownRenderer content={visibleText} />
         </div>
 
         {showSkipButton && (
-          <div className="mt-4 xs:mt-5 sticky bottom-[max(1rem,env(safe-area-inset-bottom,1rem))] sm:static flex justify-center px-3 xxs:px-4 sm:px-0">
+          <div className="mt-4 xs:mt-5 sticky bottom-[max(1rem,env(safe-area-inset-bottom,1rem))] sm:static flex justify-center px-3 xxs:px-4 sm:px-0 narrative-stream__actions">
             <button
               type="button"
               onClick={handleSkip}
@@ -296,11 +289,11 @@ export function StreamingNarrative({
   const RECENT_WORDS_THRESHOLD = 10;
 
   return (
-    <div className={className} aria-live="polite">
+    <div className={wrapperClassName} aria-live="polite">
       {streamingOptInNotice}
       {personalizedIntro}
       {/* Mobile-optimized text with good line height and spacing - min-height prevents layout shift */}
-      <div className="text-main text-[0.95rem] xxs:text-base md:text-lg leading-7 xs:leading-relaxed md:leading-loose max-w-[min(32rem,calc(100vw-2.25rem))] xxs:max-w-sm sm:max-w-[65ch] mx-auto text-left min-h-[5.5rem] xxs:min-h-[7rem] md:min-h-[10rem] px-2 xxs:px-3 sm:px-0">
+      <div className="text-main text-[0.95rem] xxs:text-base md:text-lg leading-7 xs:leading-relaxed md:leading-loose max-w-[min(32rem,calc(100vw-2.25rem))] xxs:max-w-sm sm:max-w-[65ch] mx-auto text-left min-h-[5.5rem] xxs:min-h-[7rem] md:min-h-[10rem] px-2 xxs:px-3 sm:px-0 narrative-stream__text narrative-stream__text--plain">
         {visibleWords.map((word, idx) => {
           // Check if this is whitespace (space, newline, etc.)
           const isWhitespace = /^\s+$/.test(word);
@@ -327,7 +320,7 @@ export function StreamingNarrative({
       </div>
 
       {showSkipButton && (
-        <div className="mt-4 xs:mt-5 sticky bottom-[max(1rem,env(safe-area-inset-bottom,1rem))] sm:static flex justify-center px-3 xxs:px-4 sm:px-0">
+        <div className="mt-4 xs:mt-5 sticky bottom-[max(1rem,env(safe-area-inset-bottom,1rem))] sm:static flex justify-center px-3 xxs:px-4 sm:px-0 narrative-stream__actions">
           <button
             type="button"
             onClick={handleSkip}

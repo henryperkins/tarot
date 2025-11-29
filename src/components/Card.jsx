@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { motion, useAnimation } from 'framer-motion';
-import { ArrowsOut, HandPointing, ArrowLeft, ArrowRight, NotePencil, CaretDown, CaretUp } from '@phosphor-icons/react';
+import { ArrowsOut, HandPointing, ArrowLeft, ArrowRight, NotePencil, CaretUp } from '@phosphor-icons/react';
 import { CARD_LOOKUP, FALLBACK_IMAGE, getCardImage } from '../lib/cardLookup';
 import { CardSymbolInsights } from './CardSymbolInsights';
 import { InteractiveCardOverlay } from './InteractiveCardOverlay';

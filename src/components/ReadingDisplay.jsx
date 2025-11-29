@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { AnimatePresence } from 'framer-motion';
 import { Sparkle, ArrowCounterClockwise, Star, CheckCircle, BookmarkSimple } from '@phosphor-icons/react';
 import { useNavigate } from 'react-router-dom';
@@ -28,9 +28,11 @@ const NARRATIVE_STEPS = [
     { id: 'polishing', label: 'Final polishing' }
 ];
 
+const PHASE_ORDER = ['idle', 'analyzing', 'drafting', 'polishing', 'complete', 'error'];
+
 export function ReadingDisplay({ sectionRef }) {
     const navigate = useNavigate();
-    const { saveReading } = useSaveReading();
+    const { saveReading, isSaving } = useSaveReading();
 
     // --- Contexts ---
     const {
@@ -114,7 +116,7 @@ export function ReadingDisplay({ sectionRef }) {
         personalization
     } = usePreferences();
     const displayName = personalization?.displayName?.trim();
-    const isExperienced = personalization?.tarotExperience === 'experienced';
+    const _isExperienced = personalization?.tarotExperience === 'experienced';
     const isNewbie = personalization?.tarotExperience === 'newbie';
     const readingTone = personalization?.readingTone || 'balanced';
     const spiritualFrame = personalization?.spiritualFrame || 'mixed';
@@ -145,8 +147,7 @@ export function ReadingDisplay({ sectionRef }) {
         return personalReading.normalized || personalReading.raw || '';
     }, [personalReading]);
     const shouldStreamNarrative = Boolean(personalReading && !personalReading.isError);
-    const phaseOrder = ['idle', 'analyzing', 'drafting', 'polishing', 'complete', 'error'];
-    const currentPhaseIndex = phaseOrder.indexOf(narrativePhase);
+    const currentPhaseIndex = PHASE_ORDER.indexOf(narrativePhase);
     const hasPatternHighlights = Boolean(!isPersonalReadingError && themes?.knowledgeGraph?.narrativeHighlights?.length);
     const hasTraditionalInsights = Boolean(readingMeta?.graphContext?.retrievedPassages?.length);
     const hasHighlightPanel = Boolean(highlightItems?.length && revealedCards.size === reading?.length);
@@ -154,16 +155,23 @@ export function ReadingDisplay({ sectionRef }) {
     const focusToggleAvailable = hasInsightPanels && (isCompactScreen || isNarrativeFocus);
     const shouldShowSpreadInsights = !isNarrativeFocus && (hasPatternHighlights || hasHighlightPanel || hasTraditionalInsights);
 
-    useEffect(() => {
+    // Track previous hasInsightPanels for render-time state adjustment
+    const [prevHasInsightPanels, setPrevHasInsightPanels] = useState(hasInsightPanels);
+
+    // Reset narrative focus when insight panels become unavailable.
+    // This pattern (adjusting state during render) is React-recommended over useEffect
+    // for syncing derived state. See: https://react.dev/learn/you-might-not-need-an-effect
+    if (hasInsightPanels !== prevHasInsightPanels) {
+        setPrevHasInsightPanels(hasInsightPanels);
         if (!hasInsightPanels && isNarrativeFocus) {
             setIsNarrativeFocus(false);
         }
-    }, [hasInsightPanels, isNarrativeFocus]);
+    }
 
     // Memoize step states to avoid indexOf in render loop
     const stepStates = useMemo(() => {
         return NARRATIVE_STEPS.map((step, index) => {
-            const stepIndex = phaseOrder.indexOf(step.id);
+            const stepIndex = PHASE_ORDER.indexOf(step.id);
             const isDone = currentPhaseIndex > stepIndex && currentPhaseIndex !== -1;
             const isCurrent = currentPhaseIndex === stepIndex || (currentPhaseIndex === -1 && index === 0 && isGenerating);
             return { ...step, index, isDone, isCurrent };
@@ -373,10 +381,11 @@ export function ReadingDisplay({ sectionRef }) {
                                         <button
                                             type="button"
                                             onClick={saveReading}
-                                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-accent/20 border border-accent/40 text-accent text-xs font-semibold hover:bg-accent/30 transition touch-manipulation"
+                                            disabled={isSaving}
+                                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-accent/20 border border-accent/40 text-accent text-xs font-semibold hover:bg-accent/30 transition touch-manipulation disabled:opacity-50 disabled:cursor-not-allowed"
                                         >
                                             <BookmarkSimple className="w-3.5 h-3.5" weight="fill" />
-                                            <span>Save to Journal</span>
+                                            <span>{isSaving ? 'Saving...' : 'Save to Journal'}</span>
                                         </button>
                                     </div>
                                 </div>
@@ -403,6 +412,7 @@ export function ReadingDisplay({ sectionRef }) {
                                 </div>
                             )}
                             <StreamingNarrative
+                                className="max-w-3xl mx-auto"
                                 text={narrativeText}
                                 useMarkdown={Boolean(personalReading?.hasMarkdown)}
                                 isStreamingEnabled={shouldStreamNarrative}

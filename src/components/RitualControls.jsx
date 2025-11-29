@@ -277,7 +277,7 @@ export function RitualControls({
           </div>
           {hasCut && (
             <p className="mt-2 text-[0.65rem] text-secondary/80">
-              Adjust the slider and tap "Relock cut" whenever you need to fine-tune.
+              Adjust the slider and tap &ldquo;Relock cut&rdquo; whenever you need to fine-tune.
             </p>
           )}
         </div>

@@ -65,7 +65,7 @@ function initSwissEph() {
         console.error(`✅ Swiss Ephemeris initialized with path: ${ephePath}`);
         return ephePath;
       }
-    } catch (error) {
+    } catch {
       continue;
     }
   }
@@ -207,7 +207,7 @@ export function getMoonPhase(dateString = null) {
  * Get planetary aspects
  */
 export function getPlanetaryAspects(dateString = null, orb = 8) {
-  const date = dateString ? new Date(dateString) : new Date();
+  const _date = dateString ? new Date(dateString) : new Date();
   const positions = getCurrentPositions(dateString).positions;
   const aspects = [];
 
@@ -257,7 +257,7 @@ export function getPlanetaryAspects(dateString = null, orb = 8) {
 /**
  * Check if aspect is applying (planets moving together) or separating
  */
-function isAspectApplying(planet1Pos, planet2Pos, targetAngle) {
+function isAspectApplying(planet1Pos, planet2Pos, _targetAngle) {
   // If planet1 is faster and behind, or planet2 is faster and behind, aspect is applying
   const speedDiff = planet1Pos.speed - planet2Pos.speed;
   let lonDiff = planet1Pos.longitude - planet2Pos.longitude;
@@ -271,7 +271,7 @@ function isAspectApplying(planet1Pos, planet2Pos, targetAngle) {
  * Get planets in retrograde
  */
 export function getRetrogradePlanets(dateString = null) {
-  const date = dateString ? new Date(dateString) : new Date();
+  const _date = dateString ? new Date(dateString) : new Date();
   const positions = getCurrentPositions(dateString).positions;
   const retrogrades = [];
 

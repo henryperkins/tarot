@@ -253,7 +253,7 @@ function getDepthLabel(value) {
 
 export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply, prefillRecommendation = null }) {
   const isLandscape = useLandscape();
-  const isSmallScreen = useSmallScreen();
+  const _isSmallScreen = useSmallScreen();
   const prefersReducedMotion = useReducedMotion();
   const { personalization } = usePreferences();
   const [step, setStep] = useState(0);
@@ -292,7 +292,7 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply,
   const [templateStatus, setTemplateStatus] = useState('');
   const [questionHistory, setQuestionHistory] = useState([]);
   const [coachStats, setCoachStats] = useState(null);
-  const [coachStatsMeta, setCoachStatsMeta] = useState(null);
+  const [_coachStatsMeta, setCoachStatsMeta] = useState(null);
   const [personalizedSuggestions, setPersonalizedSuggestions] = useState([]);
   const [suggestionsPage, setSuggestionsPage] = useState(0);
   const [isTemplatePanelOpen, setTemplatePanelOpen] = useState(false);
@@ -359,7 +359,7 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply,
     [prefillSource]
   );
 
-  const refreshSuggestions = () => {
+  const _refreshSuggestions = () => {
     setPersonalizedSuggestions(buildPersonalizedSuggestions(coachStats, questionHistory));
     setSuggestionsPage(0);
   };
@@ -416,12 +416,12 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply,
 
   const normalizedQualityScore = Math.min(Math.max(questionQuality.score, 0), 100);
 
-  const suggestionPageCount = useMemo(() => {
+  const _suggestionPageCount = useMemo(() => {
     if (personalizedSuggestions.length === 0) return 0;
     return Math.ceil(personalizedSuggestions.length / SUGGESTIONS_PER_PAGE);
   }, [personalizedSuggestions.length]);
 
-  const visibleSuggestions = useMemo(() => {
+  const _visibleSuggestions = useMemo(() => {
     if (personalizedSuggestions.length === 0) return [];
     const start = suggestionsPage * SUGGESTIONS_PER_PAGE;
     return personalizedSuggestions.slice(start, start + SUGGESTIONS_PER_PAGE);

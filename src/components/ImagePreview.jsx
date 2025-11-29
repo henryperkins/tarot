@@ -1,22 +1,23 @@
-import { useEffect, useState, useRef, useCallback } from 'react';
+import { useEffect, useMemo, useRef, useCallback } from 'react';
 
 export function ImagePreview({ image, onConfirm, onRetake }) {
-  const [imageUrl, setImageUrl] = useState(null);
   const previousTriggerRef = useRef(null);
   const confirmButtonRef = useRef(null);
 
-  // Properly handle object URL creation and cleanup to prevent memory leaks
-  useEffect(() => {
+  // Compute imageUrl synchronously via useMemo to avoid setState in effect
+  const imageUrl = useMemo(() => {
     if (image instanceof File) {
-      const url = URL.createObjectURL(image);
-      setImageUrl(url);
-      return () => URL.revokeObjectURL(url);
-    } else if (image) {
-      setImageUrl(image);
-    } else {
-      setImageUrl(null);
+      return URL.createObjectURL(image);
     }
+    return image || null;
   }, [image]);
+
+  // Cleanup object URLs to prevent memory leaks (no setState, only cleanup side effect)
+  useEffect(() => {
+    if (image instanceof File && imageUrl) {
+      return () => URL.revokeObjectURL(imageUrl);
+    }
+  }, [image, imageUrl]);
 
   // Store reference to previously focused element for focus restoration
   useEffect(() => {

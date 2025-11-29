@@ -99,8 +99,8 @@ export const JournalInsightsPanel = memo(function JournalInsightsPanel({
     isAuthenticated,
     filtersActive,
     shareLinks = [],
-    shareLoading,
-    shareError,
+    shareLoading: _shareLoading,
+    shareError: _shareError,
     onCreateShareLink,
     onDeleteShareLink
 }) {
@@ -111,7 +111,7 @@ export const JournalInsightsPanel = memo(function JournalInsightsPanel({
     const primaryStats = stats || allStats;
     const frequentCards = primaryStats?.frequentCards || [];
     const contextBreakdown = primaryStats?.contextBreakdown || [];
-    const monthlyCadence = primaryStats?.monthlyCadence || [];
+    const _monthlyCadence = primaryStats?.monthlyCadence || [];
     const recentThemes = primaryStats?.recentThemes || [];
     const isFilteredView = Boolean(filtersActive && stats);
 
@@ -211,7 +211,7 @@ export const JournalInsightsPanel = memo(function JournalInsightsPanel({
         try {
             exportJournalInsightsToPdf(pdfStats, pdfEntries);
             setActionMessage('PDF download started');
-        } catch (e) {
+        } catch {
             setActionMessage('PDF generation failed');
         }
         scheduleActionClear();
@@ -222,7 +222,7 @@ export const JournalInsightsPanel = memo(function JournalInsightsPanel({
         try {
             downloadInsightsSvg(svgStats);
             setActionMessage('Visual card downloaded');
-        } catch (e) {
+        } catch {
             setActionMessage('Visual card failed');
         }
         scheduleActionClear();

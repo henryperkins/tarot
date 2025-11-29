@@ -13,7 +13,6 @@ import {
   getConnector,
   shouldEmphasizePosition,
   formatCrossCheck,
-  buildReversalGuidance,
   getContextDescriptor,
   DEFAULT_WEIGHT_DETAIL_THRESHOLD,
   computeRemedyRotationIndex

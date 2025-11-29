@@ -277,22 +277,22 @@ export function PreferencesProvider({ children }) {
   });
 
   const [onboardingSpreadKey, setOnboardingSpreadKey] = useState(null);
-  const [showPersonalizationBanner, setShowPersonalizationBanner] = useState(false);
 
-  // Check if returning user should see personalization banner
-  useEffect(() => {
-    if (typeof localStorage === 'undefined') return;
+  // Initialize personalization banner visibility based on localStorage
+  // Using lazy initializer avoids needing an effect to set initial state
+  const [showPersonalizationBanner, setShowPersonalizationBanner] = useState(() => {
+    if (typeof localStorage === 'undefined') return false;
     try {
       const hasReadings = localStorage.getItem('tarot_journal');
       const hasCompletedOnboarding = localStorage.getItem(ONBOARDING_STORAGE_KEY) === 'true';
       const bannerDismissed = localStorage.getItem(PERSONALIZATION_BANNER_KEY) === 'dismissed';
-      if (hasReadings && !hasCompletedOnboarding && !bannerDismissed) {
-        setShowPersonalizationBanner(true);
-      }
+      // Show banner if user has readings but hasn't completed onboarding and hasn't dismissed
+      return !!(hasReadings && !hasCompletedOnboarding && !bannerDismissed);
     } catch (error) {
       console.debug('Unable to evaluate personalization banner state:', error);
+      return false;
     }
-  }, []);
+  });
 
   const setOnboardingComplete = (value) => {
     setOnboardingCompleteState(value);
@@ -354,6 +354,7 @@ export function PreferencesProvider({ children }) {
   );
 }
 
+// eslint-disable-next-line react-refresh/only-export-components -- Context + hook pattern is intentional
 export function usePreferences() {
   const context = useContext(PreferencesContext);
   if (!context) {
