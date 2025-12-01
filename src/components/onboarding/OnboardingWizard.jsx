@@ -183,7 +183,7 @@ export function OnboardingWizard({ isOpen, onComplete, onSelectSpread, initialSp
 
   return (
     <div
-      className={`fixed inset-0 z-[100] flex items-center justify-center bg-main/95 backdrop-blur-sm px-safe-left px-safe-right ${
+      className={`fixed inset-0 z-[100] flex items-stretch sm:items-center justify-center bg-main/95 backdrop-blur-sm px-safe-left px-safe-right py-safe-top pb-safe-bottom ${
         prefersReducedMotion ? '' : 'animate-fade-in'
       }`}
       onClick={createBackdropHandler(handleSkip)}
@@ -255,13 +255,14 @@ export function OnboardingWizard({ isOpen, onComplete, onSelectSpread, initialSp
           <main
             className="relative z-10 flex-1 overflow-y-auto overflow-x-hidden scroll-smooth pt-safe-top pb-safe-bottom pl-safe-left pr-safe-right onboarding-modal__scroll"
             style={{
-              scrollPaddingTop: '1rem',
-              scrollPaddingBottom: '1rem',
+              scrollPaddingTop: 'max(0.9rem, env(safe-area-inset-top, 0.75rem))',
+              scrollPaddingBottom: 'max(1.25rem, env(safe-area-inset-bottom, 1rem))',
               scrollbarGutter: 'stable both-edges',
-              overscrollBehavior: 'contain'
+              overscrollBehavior: 'contain',
+              WebkitOverflowScrolling: 'touch'
             }}
           >
-            <div className={`max-w-full sm:max-w-2xl mx-auto h-full ${isLandscape ? 'px-2 xxs:px-3 py-2 sm:px-4' : 'px-3 xxs:px-4 md:px-6 py-4 xs:py-6 md:py-8'}`}>
+            <div className={`w-full max-w-3xl mx-auto min-h-full ${isLandscape ? 'px-2 xxs:px-3 py-2 sm:px-4' : 'px-3 xxs:px-4 md:px-6 py-4 xs:py-5 md:py-8'}`}>
               {renderStep()}
             </div>
           </main>

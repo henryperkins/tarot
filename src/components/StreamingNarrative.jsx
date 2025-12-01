@@ -222,6 +222,7 @@ export function StreamingNarrative({
 
   const visibleWords = units.slice(0, visibleCount);
   const showSkipButton = streamingActive && !isComplete;
+  const textBottomPaddingClass = showSkipButton ? 'pb-16 sm:pb-10' : 'pb-6 sm:pb-6';
 
   // Memoize animation styles to avoid creating new objects per word per render
   // Must be defined before any conditional returns to satisfy Rules of Hooks
@@ -264,7 +265,7 @@ export function StreamingNarrative({
         {streamingOptInNotice}
         {personalizedIntro}
         {/* Container with min-height to prevent layout shift during streaming */}
-        <div className="prose prose-sm xxs:prose-base sm:prose-base md:prose-lg max-w-[min(32rem,calc(100vw-2.25rem))] xxs:max-w-sm sm:max-w-[65ch] w-full min-h-[5.5rem] xxs:min-h-[7rem] md:min-h-[10rem] px-2 xxs:px-3 sm:px-0 mx-auto narrative-stream__text narrative-stream__text--md">
+        <div className={`prose prose-sm xxs:prose-base sm:prose-base md:prose-lg max-w-[min(32rem,calc(100vw-2.25rem))] xxs:max-w-sm sm:max-w-[65ch] w-full min-h-[5.5rem] xxs:min-h-[7rem] md:min-h-[10rem] px-2 xxs:px-3 sm:px-0 mx-auto narrative-stream__text narrative-stream__text--md ${textBottomPaddingClass}`}>
           <MarkdownRenderer content={visibleText} />
         </div>
 
@@ -293,7 +294,7 @@ export function StreamingNarrative({
       {streamingOptInNotice}
       {personalizedIntro}
       {/* Mobile-optimized text with good line height and spacing - min-height prevents layout shift */}
-      <div className="text-main text-[0.95rem] xxs:text-base md:text-lg leading-7 xs:leading-relaxed md:leading-loose max-w-[min(32rem,calc(100vw-2.25rem))] xxs:max-w-sm sm:max-w-[65ch] mx-auto text-left min-h-[5.5rem] xxs:min-h-[7rem] md:min-h-[10rem] px-2 xxs:px-3 sm:px-0 narrative-stream__text narrative-stream__text--plain">
+      <div className={`text-main text-[0.95rem] xxs:text-base md:text-lg leading-7 xs:leading-relaxed md:leading-loose max-w-[min(32rem,calc(100vw-2.25rem))] xxs:max-w-sm sm:max-w-[65ch] mx-auto text-left min-h-[5.5rem] xxs:min-h-[7rem] md:min-h-[10rem] px-2 xxs:px-3 sm:px-0 narrative-stream__text narrative-stream__text--plain ${textBottomPaddingClass}`}>
         {visibleWords.map((word, idx) => {
           // Check if this is whitespace (space, newline, etc.)
           const isWhitespace = /^\s+$/.test(word);

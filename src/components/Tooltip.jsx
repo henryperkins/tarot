@@ -21,7 +21,10 @@ export function Tooltip({
   triggerClassName = '',
   ariaLabel = 'More information',
   asChild = false,
-  enableClick = true
+  enableClick = true,
+  autoHideMs = 3000,
+  showCloseButton = false,
+  closeLabel = 'Close'
 }) {
   const [isVisible, setIsVisible] = useState(false);
   const [adjustedPosition, setAdjustedPosition] = useState(null);
@@ -220,10 +223,11 @@ export function Tooltip({
 
   const handleTouchEnd = () => {
     clearTouchHideTimeout();
-    // Extended to 3000ms for cognitive accessibility (WCAG 2.2.1)
-    touchHideTimeoutRef.current = setTimeout(() => {
-      hideTooltip();
-    }, 3000);
+    if (typeof autoHideMs === 'number') {
+      touchHideTimeoutRef.current = setTimeout(() => {
+        hideTooltip();
+      }, autoHideMs);
+    }
   };
 
   const handleTouchCancel = () => {
@@ -293,6 +297,16 @@ export function Tooltip({
             style={horizontalOffset ? { transform: `translateX(calc(-50% + ${horizontalOffset}px))` } : undefined}
           >
             <div className="relative bg-surface-muted text-main text-xs rounded-lg px-3 py-2 shadow-xl border border-primary/20 whitespace-normal">
+              {showCloseButton && (
+                <button
+                  type="button"
+                  onClick={hideTooltip}
+                  className="absolute top-1 right-1 text-muted hover:text-main focus:outline-none focus-visible:ring-1 focus-visible:ring-accent/60 rounded"
+                  aria-label={closeLabel}
+                >
+                  ×
+                </button>
+              )}
               {content}
               {/* Arrow */}
               <div

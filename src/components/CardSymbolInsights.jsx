@@ -1,6 +1,7 @@
 import { useMemo, useState, useRef, useEffect, useCallback } from 'react';
 import { Info, X } from '@phosphor-icons/react';
 import { buildCardInsights } from '../lib/cardInsights';
+import { titleCase } from '../lib/textUtils';
 
 // Focusable element selectors for focus trap
 const FOCUSABLE_SELECTORS = [
@@ -100,7 +101,7 @@ function SymbolContent({ insights, onClose, showCloseButton = false }) {
             {insights.symbols.map((symbol, index) => (
               <li key={`${symbol.object}-${index}`} className="flex flex-col">
                 <span>
-                  <span className="font-semibold text-accent">{symbol.object}</span>
+                  <span className="font-semibold text-accent">{titleCase(symbol.object)}</span>
                   {symbol.position && (
                     <span className="ml-1 text-accent/60">({symbol.position})</span>
                   )}
@@ -241,20 +242,26 @@ export function CardSymbolInsights({ card, position }) {
     };
   }, []);
 
-  // Delayed close to allow moving between trigger and tooltip
-  const handleOpen = useCallback(() => {
+  const cancelCloseTimeout = useCallback(() => {
     if (closeTimeoutRef.current) {
       clearTimeout(closeTimeoutRef.current);
       closeTimeoutRef.current = null;
     }
-    setIsOpen(true);
   }, []);
 
+  // Delayed close to allow moving between trigger and tooltip
+  const handleOpen = useCallback(() => {
+    cancelCloseTimeout();
+    setIsOpen(true);
+  }, [cancelCloseTimeout]);
+
   const handleClose = useCallback(() => {
+    cancelCloseTimeout();
     closeTimeoutRef.current = setTimeout(() => {
       setIsOpen(false);
+      closeTimeoutRef.current = null;
     }, 150);
-  }, []);
+  }, [cancelCloseTimeout]);
 
   const handleToggle = useCallback((event) => {
     event.stopPropagation();
@@ -262,11 +269,18 @@ export function CardSymbolInsights({ card, position }) {
   }, []);
 
   const handleCloseImmediate = useCallback(() => {
-    if (closeTimeoutRef.current) {
-      clearTimeout(closeTimeoutRef.current);
-    }
+    cancelCloseTimeout();
     setIsOpen(false);
-  }, []);
+  }, [cancelCloseTimeout]);
+
+  const handleBlur = useCallback((event) => {
+    const nextFocus = event.relatedTarget;
+    if (nextFocus && containerRef.current?.contains(nextFocus)) {
+      cancelCloseTimeout();
+      return;
+    }
+    handleClose();
+  }, [cancelCloseTimeout, handleClose]);
 
   if (!insights) {
     return null;
@@ -312,14 +326,14 @@ export function CardSymbolInsights({ card, position }) {
         aria-controls={tooltipId}
         onClick={handleToggle}
         onFocus={handleOpen}
-        onBlur={handleClose}
+        onBlur={handleBlur}
         className="inline-flex items-center justify-center gap-2 min-h-[44px] min-w-[44px] rounded-full border border-secondary/60 bg-surface/80 px-4 py-2 text-sm text-secondary hover:border-secondary active:bg-secondary/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-secondary/70 focus-visible:ring-offset-2 transition-colors"
       >
         <Info className="h-4 w-4" aria-hidden="true" />
         <span>Card symbols</span>
       </button>
 
-      {/* Desktop tooltip - positioned to avoid overflow */}
+      {/* Desktop popover - positioned to avoid overflow */}
       <div
         ref={tooltipRef}
         id={tooltipId}
@@ -327,6 +341,7 @@ export function CardSymbolInsights({ card, position }) {
         aria-label="Card symbol insights"
         onMouseEnter={handleOpen}
         onMouseLeave={handleClose}
+        onBlur={handleBlur}
         className={`absolute z-30 mt-2 w-72 max-w-[calc(100vw-2rem)] rounded-2xl border border-secondary/40 bg-surface/98 p-4 shadow-2xl backdrop-blur-sm transition-all duration-200
           left-0 sm:left-auto sm:right-0
           ${isOpen
@@ -334,6 +349,14 @@ export function CardSymbolInsights({ card, position }) {
             : 'opacity-0 -translate-y-2 invisible pointer-events-none'
           }`}
       >
+        <button
+          type="button"
+          onClick={handleCloseImmediate}
+          className="absolute top-2 right-2 text-secondary hover:text-main focus:outline-none focus-visible:ring-2 focus-visible:ring-secondary/70 rounded-full"
+          aria-label="Close symbol insights"
+        >
+          ×
+        </button>
         <SymbolContent insights={insights} />
       </div>
     </div>

@@ -766,9 +766,9 @@ body {
 
 @media (min-width: 640px) {
   .spread-card {
-    /* Desktop: fixed height for uniform grid appearance */
+    /* Desktop: keep a comfortable baseline height but let content expand to avoid clipping */
     min-height: var(--spread-card-height-desktop);
-    height: var(--spread-card-height-desktop);
+    height: auto;
     max-height: none;
   }
 }
@@ -912,19 +912,26 @@ body {
   min-height: 0;
 }
 
-.spread-card__title,
+.spread-card__title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.spread-card__title-text {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  min-width: 0;
+}
+
 .spread-card__description {
   display: -webkit-box;
   -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-
-.spread-card__title {
-  -webkit-line-clamp: 2;
-}
-
-.spread-card__description {
   -webkit-line-clamp: 3;
+  overflow: hidden;
 }
 
 .spread-card__preview {
@@ -2266,6 +2273,9 @@ input[type="range"]:focus::-webkit-slider-thumb {
 /* Narrative streaming container refinements */
 .narrative-stream {
   width: 100%;
+  padding-bottom: clamp(1.25rem, 4vw, 2.5rem);
+  padding-left: max(0.25rem, env(safe-area-inset-left, 0px));
+  padding-right: max(0.25rem, env(safe-area-inset-right, 0px));
 }
 
 .narrative-stream__text {
@@ -2278,6 +2288,7 @@ input[type="range"]:focus::-webkit-slider-thumb {
   margin-left: auto;
   margin-right: auto;
   color: var(--text-main);
+  scrollbar-gutter: stable both-edges;
 }
 
 .narrative-stream__text--plain {
@@ -2318,6 +2329,12 @@ input[type="range"]:focus::-webkit-slider-thumb {
 
   .prose p {
     margin-bottom: 1.25em;
+  }
+}
+
+@supports (text-wrap: balance) {
+  .narrative-stream__text {
+    text-wrap: balance;
   }
 }
 

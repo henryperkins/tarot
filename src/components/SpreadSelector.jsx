@@ -396,7 +396,7 @@ export function SpreadSelector({
 
                 <div className="spread-card__body">
                   <div className="spread-card__title font-serif font-semibold text-accent text-base leading-tight flex flex-wrap items-center gap-2">
-                    {spread.name}
+                    <span className="spread-card__title-text">{spread.name}</span>
                     {key === recommendedSpread && (
                       <span className="text-[0.65rem] uppercase tracking-[0.18em] text-amber-200 bg-amber-500/15 border border-amber-300/40 px-2 py-0.5 rounded-full">
                         Recommended

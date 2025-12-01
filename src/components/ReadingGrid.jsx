@@ -155,10 +155,10 @@ export function ReadingGrid({
 
   // In landscape mobile: use smaller card widths to fit more cards visible
   const carouselCardWidthClass = isLandscape
-    ? 'min-w-[48vw] max-w-[11.5rem]'
+    ? 'min-w-[46vw] max-w-[11.5rem]'
     : isVerySmallScreen
-      ? 'min-w-[92vw] max-w-[19rem]'
-      : 'min-w-[84vw] xxs:min-w-[78vw] xs:min-w-[68vw]';
+      ? 'min-w-[88vw] max-w-[18.5rem]'
+      : 'min-w-[78vw] xxs:min-w-[72vw] xs:min-w-[64vw] max-w-[18.5rem]';
   const mobileCarouselPadding = isLandscape ? 'px-2' : 'px-3 xxs:px-4';
 
   // Hide swipe hint after 4 seconds or when user interacts
@@ -295,20 +295,29 @@ export function ReadingGrid({
     }
   }, [reading?.length]);
 
+  const getCardTakeaway = useCallback((card) => {
+    const meaning = getOrientationMeaning(card);
+    if (!meaning) return '';
+    const firstClause = meaning.split(/[.;]| — | – | - /)[0];
+    const text = firstClause.trim();
+    if (text.length <= 72) return text;
+    return `${text.slice(0, 72).trimEnd()}…`;
+  }, []);
+
   // Memoize tooltip content generator
   const getTooltipContent = useCallback((card, position, isRevealed) => {
     if (!isRevealed) return null;
+    const takeaway = getCardTakeaway(card);
     return (
       <div className="space-y-1 text-left leading-snug">
-        <strong className="block text-accent text-sm">
-          {card.name}
-          {card.isReversed ? ' (Reversed)' : ''}
-        </strong>
-        <em className="block text-xs-plus text-muted">{position}</em>
-        <p className="text-xs-plus text-main/90">{getOrientationMeaning(card)}</p>
+        <strong className="block text-accent text-sm">{position}</strong>
+        <p className="text-xs-plus text-muted">
+          {card.name}{card.isReversed ? ' (Reversed)' : ''}
+        </p>
+        <p className="text-xs-plus text-main/90">{takeaway || 'Card revealed'}</p>
       </div>
     );
-  }, []);
+  }, [getCardTakeaway]);
 
   // Early return after all hooks to satisfy Rules of Hooks
   if (!reading) return null;
@@ -321,15 +330,15 @@ export function ReadingGrid({
     : 'sm:grid sm:gap-8 sm:overflow-visible sm:snap-none sm:pb-0 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3';
 
   const multiCardLayoutClass = isListView
-    ? 'flex flex-col gap-4 pb-4'
-    : `flex overflow-x-auto snap-x snap-mandatory ${isLandscape ? 'gap-2 pb-4' : 'gap-4 pb-6'} ${mobileCarouselPadding}`;
+    ? 'flex flex-col gap-4 pb-6 sm:pb-4'
+    : `flex overflow-x-auto snap-x snap-mandatory ${isLandscape ? 'gap-2 pb-5' : 'gap-3 pb-8'} ${mobileCarouselPadding}`;
 
   const shouldApplyCarouselPadding = enableCarousel && !isListView && selectedSpread !== 'celtic';
   const shouldShowCompactMap = Boolean(isCompactScreen && reading && reading.length > 2);
   const carouselInlineStyles = shouldApplyCarouselPadding
     ? {
-        scrollPaddingLeft: '1.25rem',
-        scrollPaddingRight: '1.25rem',
+        scrollPaddingLeft: 'max(1.25rem, env(safe-area-inset-left, 1rem))',
+        scrollPaddingRight: 'max(1.25rem, env(safe-area-inset-right, 1rem))',
         scrollbarGutter: 'stable both-edges'
       }
     : undefined;
@@ -385,6 +394,7 @@ export function ReadingGrid({
                 position="top"
                 asChild
                 enableClick={false}
+                autoHideMs={null}
                 triggerClassName="block h-full"
               >
                 {cardElement}

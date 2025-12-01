@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { SYMBOL_COORDINATES } from '../data/symbolCoordinates';
 import { useReducedMotion } from '../hooks/useReducedMotion';
+import { titleCase } from '../lib/textUtils';
 
 // Estimated tooltip dimensions for collision detection
 const TOOLTIP_WIDTH = 220;
@@ -220,7 +221,7 @@ export function InteractiveCardOverlay({ card }) {
             style={{ maxWidth: `${TOOLTIP_WIDTH}px` }}
           >
             <p className="text-sm font-semibold text-accent mb-1">
-              {activeSymbol.object}
+              {titleCase(activeSymbol.object)}
             </p>
             {activeSymbol.color && (
               <p className="text-xs text-secondary/80 mb-1">

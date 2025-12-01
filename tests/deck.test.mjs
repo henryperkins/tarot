@@ -245,16 +245,25 @@ describe('Deck Shuffling and Seeding', () => {
     it('should work with minors deck', () => {
       const draw = drawSpread({
         spreadKey: 'threeCard',
-        useSeed: false,
-        seed: 0,
+        useSeed: true,
+        seed: 12345,
         includeMinors: true
       });
-      
+
       assert.strictEqual(draw.length, 3, 'Should draw correct number with minors');
-      
-      // Should include minor arcana cards
-      const hasMinors = draw.some(c => c.suit !== undefined);
-      assert.ok(hasMinors, 'Draw with minors should include minor arcana cards');
+
+      // Verify the deck pool includes minors (not that a specific seed produces them)
+      const pool = getDeckPool(true);
+      const poolHasMinors = pool.some(c => c.suit !== undefined);
+      assert.ok(poolHasMinors, 'Deck pool with includeMinors=true should contain minor arcana');
+
+      // If any drawn cards are minors, verify they have valid structure
+      const drawnMinors = draw.filter(c => c.suit !== undefined);
+      drawnMinors.forEach(minor => {
+        assert.ok(typeof minor.suit === 'string', 'Minor card should have suit');
+        assert.ok(typeof minor.rank === 'string', 'Minor card should have rank');
+        assert.ok(typeof minor.rankValue === 'number', 'Minor card should have rankValue');
+      });
     });
   });
   
