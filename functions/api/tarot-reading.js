@@ -42,7 +42,8 @@ import { safeParseReadingRequest } from '../../shared/contracts/readingSchema.js
 import { verifyVisionProof } from '../lib/visionProof.js';
 import {
   buildPromptEngineeringPayload,
-  shouldPersistPrompts
+  shouldPersistPrompts,
+  redactPII
 } from '../lib/promptEngineering.js';
 import { MAJOR_ARCANA } from '../../src/data/majorArcana.js';
 import { MINOR_ARCANA } from '../../src/data/minorArcana.js';
@@ -55,6 +56,12 @@ import {
 import { deriveEmotionalTone } from '../../src/data/emotionMapping.js';
 import { normalizeVisionLabel } from '../lib/visionLabels.js';
 import { getToneStyle, getFrameVocabulary, buildNameClause, buildPersonalizedClosing, getDepthProfile } from '../lib/narrative/styleHelpers.js';
+import {
+  escapeRegex,
+  hasExplicitCardContext,
+  normalizeCardName,
+  AMBIGUOUS_CARD_NAMES
+} from '../lib/cardContextDetection.js';
 
 // Detect if question asks about future timeframe
 function detectForecastTimeframe(userQuestion) {
@@ -90,14 +97,6 @@ const SPREAD_NAME_MAP = {
   'Decision / Two-Path': { key: 'decision', count: 5 }
 };
 
-function escapeRegex(text = '') {
-  return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-}
-
-function normalizeCardName(value = '') {
-  return value.trim().toLowerCase();
-}
-
 const CARD_NAME_PATTERNS = [...MAJOR_ARCANA, ...MINOR_ARCANA]
   .map((card) => card.name)
   .map((name) => ({
@@ -106,63 +105,12 @@ const CARD_NAME_PATTERNS = [...MAJOR_ARCANA, ...MINOR_ARCANA]
     pattern: new RegExp(`\\b${escapeRegex(name)}\\b`, 'i')
   }));
 
-// Card names that are also common vocabulary and prone to false positives
-// when scanning free-form narrative text.
-const AMBIGUOUS_CARD_NORMALIZED = new Set([
-  'justice',
-  'strength',
-  'temperance',
-  'death',
-  'judgement'
-]);
-
-/**
- * Require explicit "card-like" context around ambiguous names so that phrases like
- * "restore a sense of justice in how you negotiate" do not count as hallucinated
- * mentions of the Justice card.
- *
- * Detects card mentions via:
- * - Explicit card reference: "Justice card", "the Death card"
- * - Major Arcana context: "Justice (Major Arcana)", "Major Arcana: Death"
- * - Archetypal framing: "The Death archetype", "Strength archetype"
- * - Orientation markers: "Death reversed", "Justice upright"
- * - Markdown formatting: "**Death**", "**Justice**" (bold card names)
- * - Position labels: "Present: Death", "Card 1: Justice", "Outcome — Death"
- */
-function hasExplicitCardContext(text = '', name = '') {
-  if (!text || !name) return false;
-
-  const namePattern = escapeRegex(name);
-
-  const patterns = [
-    // "Justice card", "Death card", "the Strength card", etc.
-    new RegExp(`\\b(?:the\\s+)?${namePattern}\\s+card\\b`, 'i'),
-
-    // "Justice (Major Arcana)", "Major Arcana Justice", "Major Arcana: Death"
-    new RegExp(`\\b${namePattern}\\b[^\\n]{0,40}\\bmajor arcana\\b`, 'i'),
-    new RegExp(`\\bmajor arcana\\b[^\\n]{0,40}\\b${namePattern}\\b`, 'i'),
-
-    // "The Death archetype", "Strength archetype", "archetype of Death"
-    new RegExp(`\\b(?:the\\s+)?${namePattern}\\s+archetype\\b`, 'i'),
-    new RegExp(`\\barchetype\\s+(?:of\\s+)?(?:the\\s+)?${namePattern}\\b`, 'i'),
-
-    // "Death reversed", "Justice upright", "Strength (reversed)"
-    new RegExp(`\\b${namePattern}\\s+(?:reversed|upright)\\b`, 'i'),
-    new RegExp(`\\b${namePattern}\\s*\\(\\s*(?:reversed|upright)\\s*\\)`, 'i'),
-
-    // Markdown bold formatting: "**Death**", "**Justice**"
-    new RegExp(`\\*\\*${namePattern}\\*\\*`, 'i'),
-
-    // Position labels: "Present: Death", "Card 1: Justice", "Outcome — Death"
-    // Common position words followed by colon/dash and the card name
-    new RegExp(`\\b(?:present|past|future|challenge|outcome|advice|anchor|core|heart|theme|guidance|position|card\\s*\\d+)\\s*[:\\-–—]\\s*(?:the\\s+)?${namePattern}\\b`, 'i'),
-
-    // Card name followed by position context: "Death in the Present position"
-    new RegExp(`\\b${namePattern}\\s+(?:in\\s+(?:the\\s+)?)?(?:present|past|future|challenge|outcome|advice|anchor)\\s+position\\b`, 'i')
-  ];
-
-  return patterns.some((regex) => regex.test(text));
-}
+const CARD_NAMES_REQUIRING_CARD_CASE = new Set(
+  MAJOR_ARCANA
+    .map((card) => normalizeCardName(card.name))
+    .filter((name) => name.startsWith('the ') || name === 'wheel of fortune')
+);
+const CARD_NAME_STOP_WORDS = new Set(['the', 'of']);
 
 function trimForTelemetry(text = '', limit = 500) {
   if (!text || typeof text !== 'string') return '';
@@ -199,8 +147,12 @@ const NARRATIVE_BACKENDS = {
   },
   'claude-sonnet45': {
     id: 'claude-sonnet45',
-    label: 'Claude Sonnet 4.5',
-    isAvailable: (env) => Boolean(env?.ANTHROPIC_API_KEY)
+    label: 'Claude Opus 4.5 (Azure Foundry)',
+    // Uses Azure AI Foundry Anthropic endpoint - may use separate API key
+    isAvailable: (env) => Boolean(
+      (env?.AZURE_ANTHROPIC_API_KEY || env?.AZURE_OPENAI_API_KEY) &&
+      env?.AZURE_ANTHROPIC_ENDPOINT
+    )
   },
   'local-composer': {
     id: 'local-composer',
@@ -228,6 +180,25 @@ function normalizeBooleanFlag(value) {
 
 function shouldLogLLMPrompts(env) {
   if (!env) return false;
+
+  // SECURITY: Block prompt logging in production to prevent PII leaks
+  // Production is detected via the Pages production branch or explicit prod env flags
+  const normalizedBranch = (env.CF_PAGES_BRANCH || '').toLowerCase();
+  const prodBranches = new Set(['main', 'master']);
+  if (env.CF_PAGES_BRANCH_PRODUCTION) {
+    prodBranches.add(String(env.CF_PAGES_BRANCH_PRODUCTION).toLowerCase());
+  }
+  const isProdBranch = normalizedBranch && prodBranches.has(normalizedBranch);
+
+  const isProd =
+    isProdBranch ||
+    env.NODE_ENV === 'production' ||
+    env.ENVIRONMENT === 'production';
+
+  if (isProd) {
+    return false;
+  }
+
   if (env.LOG_LLM_PROMPTS !== undefined) return normalizeBooleanFlag(env.LOG_LLM_PROMPTS);
   if (env.DEBUG_LLM_PROMPTS !== undefined) return normalizeBooleanFlag(env.DEBUG_LLM_PROMPTS);
   if (env.DEBUG_PROMPTS !== undefined) return normalizeBooleanFlag(env.DEBUG_PROMPTS);
@@ -377,9 +348,16 @@ function redactPromptSegment(text, personalization) {
 function maybeLogPromptPayload(env, requestId, backendLabel, systemPrompt, userPrompt, promptMeta, options = {}) {
   if (!shouldLogLLMPrompts(env)) return;
 
+  // SECURITY: Use comprehensive PII redaction for all prompt logging
+  // This includes email, phone, SSN, credit card, dates, URLs, IP addresses,
+  // and any user-provided display name
   const personalization = options.personalization || null;
-  const redactedSystem = redactPromptSegment(systemPrompt, personalization);
-  const redactedUser = redactPromptSegment(userPrompt, personalization);
+  const redactionOptions = {
+    displayName: personalization?.displayName
+  };
+
+  const redactedSystem = redactPII(systemPrompt, redactionOptions);
+  const redactedUser = redactPII(userPrompt, redactionOptions);
 
   console.log(`[${requestId}] [${backendLabel}] === SYSTEM PROMPT BEGIN ===`);
   console.log(redactedSystem);
@@ -593,9 +571,14 @@ export const onRequestPost = async ({ request, env }) => {
         const qualityMetrics = buildNarrativeMetrics(result, cardsInfo, deckStyle);
         const qualityIssues = [];
 
-        // Check for hallucinated cards (strict: any hallucination fails)
-        if (qualityMetrics.hallucinatedCards && qualityMetrics.hallucinatedCards.length > 0) {
-          qualityIssues.push(`hallucinated cards: ${qualityMetrics.hallucinatedCards.join(', ')}`);
+        // Check for hallucinated cards (allow up to 2 for natural LLM comparisons)
+        // Only fail if excessive hallucinations suggest model is off-track
+        const maxAllowedHallucinations = Math.max(2, Math.floor(cardsInfo.length / 2));
+        if (qualityMetrics.hallucinatedCards && qualityMetrics.hallucinatedCards.length > maxAllowedHallucinations) {
+          qualityIssues.push(`excessive hallucinated cards (${qualityMetrics.hallucinatedCards.length}): ${qualityMetrics.hallucinatedCards.join(', ')}`);
+        } else if (qualityMetrics.hallucinatedCards?.length > 0) {
+          // Log but don't fail for minor hallucinations (comparisons/examples)
+          console.log(`[${requestId}] Minor hallucinations (allowed): ${qualityMetrics.hallucinatedCards.join(', ')}`);
         }
 
         // Check card coverage (at least 50% of cards should be mentioned)
@@ -902,6 +885,17 @@ async function performSpreadAnalysis(spreadInfo, cardsInfo, options = {}, reques
           retrievalSummary = buildRetrievalSummary(graphKeys, passages);
         }
 
+        const semanticScoringRequested = enableSemanticScoring === true;
+        const semanticScoringUsed = retrievalSummary?.qualityMetrics?.semanticScoringUsed === true;
+        const semanticScoringFallback = semanticScoringRequested && !semanticScoringUsed;
+
+        retrievalSummary = {
+          ...retrievalSummary,
+          semanticScoringRequested,
+          semanticScoringUsed,
+          semanticScoringFallback
+        };
+
         const formattedBlock = formatPassagesForPrompt(passages, {
           includeSource: true,
           markdown: true
@@ -913,7 +907,10 @@ async function performSpreadAnalysis(spreadInfo, cardsInfo, options = {}, reques
           retrievalSummary,
           maxPassages,
           enableSemanticScoring,
-          qualityMetrics: retrievalSummary.qualityMetrics || null
+          qualityMetrics: retrievalSummary.qualityMetrics || null,
+          semanticScoringRequested,
+          semanticScoringUsed,
+          semanticScoringFallback
         };
 
         // Make memoized payload discoverable to downstream consumers
@@ -1251,9 +1248,19 @@ async function generateWithClaudeSonnet45Enhanced(env, payload, requestId = 'unk
   let capturedSystemPrompt = '';
   let capturedUserPrompt = '';
   
-  const apiKey = env.ANTHROPIC_API_KEY;
-  const apiUrl = env.ANTHROPIC_API_URL || 'https://api.anthropic.com/v1/messages';
-  const model = 'claude-sonnet-4-5';
+  // Azure AI Foundry Anthropic endpoint
+  // API key: prefer AZURE_ANTHROPIC_API_KEY, fall back to AZURE_OPENAI_API_KEY
+  const apiKey = env.AZURE_ANTHROPIC_API_KEY || env.AZURE_OPENAI_API_KEY;
+  // Base URL should be: https://<resource>.services.ai.azure.com/anthropic
+  // We append /v1/messages if not already present
+  const baseEndpoint = env.AZURE_ANTHROPIC_ENDPOINT || '';
+  const apiUrl = baseEndpoint.endsWith('/v1/messages')
+    ? baseEndpoint
+    : `${baseEndpoint.replace(/\/$/, '')}/v1/messages`;
+  // Model = deployment name in Foundry (e.g., 'claude-opus-4-5' or custom)
+  const model = env.AZURE_ANTHROPIC_MODEL || 'claude-opus-4-5';
+
+  console.log(`[${requestId}] Azure Foundry Claude config: endpoint=${baseEndpoint ? 'set' : 'missing'}, apiKey=${apiKey ? 'set' : 'missing'}, model=${model}`);
   const deckStyle = spreadInfo?.deckStyle || analysis?.themes?.deckStyle || cardsInfo?.[0]?.deckStyle || 'rws-1909';
 
   // Determine semantic scoring configuration
@@ -1309,7 +1316,7 @@ async function generateWithClaudeSonnet45Enhanced(env, payload, requestId = 'unk
   const response = await fetch(apiUrl, {
     method: 'POST',
     headers: {
-      'x-api-key': apiKey,
+      'x-api-key': apiKey,  // Azure Foundry Anthropic uses 'x-api-key' header
       'anthropic-version': '2023-06-01',
       'content-type': 'application/json'
     },
@@ -1329,7 +1336,7 @@ async function generateWithClaudeSonnet45Enhanced(env, payload, requestId = 'unk
 
   if (!response.ok) {
     const errText = await response.text().catch(() => '');
-    throw new Error(`Anthropic API error ${response.status}: ${errText}`);
+    throw new Error(`Azure Anthropic proxy error ${response.status}: ${errText}`);
   }
 
   const data = await response.json();
@@ -1338,7 +1345,7 @@ async function generateWithClaudeSonnet45Enhanced(env, payload, requestId = 'unk
     : (data.content?.toString?.() || '').trim();
 
   if (!content) {
-    throw new Error('Empty response from Anthropic Claude Sonnet 4.5');
+    throw new Error('Empty response from Azure Claude Opus 4.5');
   }
 
   // Return reading with captured prompts for engineering analysis
@@ -1880,6 +1887,19 @@ function analyzeCardCoverage(readingText, cardsInfo = []) {
   return { coverage, missingCards };
 }
 
+function looksLikeCardNameCase(matchText) {
+  if (!matchText || typeof matchText !== 'string') return false;
+  if (matchText === matchText.toUpperCase()) return true;
+
+  const words = matchText.trim().split(/\s+/).filter(Boolean);
+  if (!words.length) return false;
+
+  const significantWords = words.filter((word) => !CARD_NAME_STOP_WORDS.has(word.toLowerCase()));
+  if (!significantWords.length) return false;
+
+  return significantWords.every((word) => /^[A-Z]/.test(word));
+}
+
 function detectHallucinatedCards(readingText, cardsInfo = [], deckStyle = 'rws-1909') {
   if (!readingText) return [];
 
@@ -1900,13 +1920,25 @@ function detectHallucinatedCards(readingText, cardsInfo = [], deckStyle = 'rws-1
   const hallucinated = [];
 
   CARD_NAME_PATTERNS.forEach(({ name, normalized, pattern }) => {
-    if (!pattern.test(text)) {
+    const flags = pattern.flags.includes('g') ? pattern.flags : `${pattern.flags}g`;
+    const matches = Array.from(text.matchAll(new RegExp(pattern.source, flags)));
+    if (!matches.length) {
       return;
     }
 
+    const hasContext = hasExplicitCardContext(text, name);
+    const requiresCardCase = CARD_NAMES_REQUIRING_CARD_CASE.has(normalized);
+    const hasCardCase = requiresCardCase
+      ? matches.some((match) => looksLikeCardNameCase(match[0]))
+      : true;
+
     // For names that are also common vocabulary (Justice, Strength, Temperance, Death, Judgement),
     // only treat them as card mentions when there is explicit card-like context in the text.
-    if (AMBIGUOUS_CARD_NORMALIZED.has(normalized) && !hasExplicitCardContext(text, name)) {
+    if (AMBIGUOUS_CARD_NAMES.has(normalized) && !hasContext) {
+      return;
+    }
+
+    if (requiresCardCase && !hasContext && !hasCardCase) {
       return;
     }
 

@@ -341,14 +341,20 @@ async function buildRelationshipAdditionalGuidance(cardsInfo, themes, context, r
     return null;
   }
 
-  const { buildElementalRemedies, shouldOfferElementalRemedies } = await import('../helpers.js');
-  if (!shouldOfferElementalRemedies(themes.elementCounts, cardsInfo.length)) {
+  let remedies;
+  try {
+    const { buildElementalRemedies, shouldOfferElementalRemedies } = await import('../helpers.js');
+    if (!shouldOfferElementalRemedies(themes.elementCounts, cardsInfo.length)) {
+      return null;
+    }
+
+    remedies = buildElementalRemedies(themes.elementCounts, cardsInfo.length, context, {
+      rotationIndex
+    });
+  } catch (err) {
+    console.error('[Relationship] Elemental remedies unavailable:', err.message);
     return null;
   }
-
-  const remedies = buildElementalRemedies(themes.elementCounts, cardsInfo.length, context, {
-    rotationIndex
-  });
   if (!remedies) {
     return null;
   }

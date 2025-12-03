@@ -14,7 +14,8 @@ import {
   deduplicatePassages,
   isGraphRAGEnabled,
   isSemanticScoringAvailable,
-  getKnowledgeBaseInfo
+  getKnowledgeBaseInfo,
+  getPassageCountForSpread
 } from '../functions/lib/graphRAG.js';
 import {
   getPassagesForPattern,
@@ -763,5 +764,230 @@ describe('GraphRAG Integration Test', () => {
     assert.ok(summary.passagesRetrieved > 0, 'Should report passages retrieved');
     assert.ok(summary.qualityMetrics.averageRelevance > 0,
       'Should have non-zero average relevance for matching query');
+  });
+});
+
+// ============================================================================
+// GAP COVERAGE: getPassageCountForSpread
+// ============================================================================
+
+describe('getPassageCountForSpread', () => {
+  test('returns correct count for single spread', () => {
+    assert.strictEqual(getPassageCountForSpread('single'), 1);
+  });
+
+  test('returns correct count for threeCard spread', () => {
+    assert.strictEqual(getPassageCountForSpread('threeCard'), 2);
+  });
+
+  test('returns correct count for fiveCard spread', () => {
+    assert.strictEqual(getPassageCountForSpread('fiveCard'), 3);
+  });
+
+  test('returns correct count for celtic spread', () => {
+    assert.strictEqual(getPassageCountForSpread('celtic'), 5);
+  });
+
+  test('returns correct count for decision spread', () => {
+    assert.strictEqual(getPassageCountForSpread('decision'), 3);
+  });
+
+  test('returns correct count for relationship spread', () => {
+    assert.strictEqual(getPassageCountForSpread('relationship'), 2);
+  });
+
+  test('returns general fallback (3) for unknown spread key', () => {
+    assert.strictEqual(getPassageCountForSpread('unknownSpread'), 3);
+    assert.strictEqual(getPassageCountForSpread('customSpread'), 3);
+  });
+
+  test('returns general fallback (3) for undefined/null', () => {
+    assert.strictEqual(getPassageCountForSpread(undefined), 3);
+    assert.strictEqual(getPassageCountForSpread(null), 3);
+  });
+
+  test('returns general fallback (3) for empty string', () => {
+    assert.strictEqual(getPassageCountForSpread(''), 3);
+  });
+});
+
+// ============================================================================
+// GAP COVERAGE: Keyword Boost Edge Cases
+// ============================================================================
+
+describe('Keyword Boost Edge Cases', () => {
+  test('retrievePassages: handles all-stopword query (no boost applied)', () => {
+    const graphKeys = {
+      foolsJourneyStageKey: 'integration',
+      dyadPairs: [{ cards: [13, 17], significance: 'high' }]
+    };
+
+    // All words are stopwords or too short
+    const passages = retrievePassages(graphKeys, {
+      maxPassages: 5,
+      userQuery: 'what is this about?'
+    });
+
+    // Should still retrieve, just with no keyword boost
+    assert.ok(passages.length >= 2, 'Should retrieve passages without keyword boost');
+    // Default priority order should be preserved (journey P2 before dyad P3)
+    assert.strictEqual(passages[0].type, 'fools-journey', 'Journey should be first without boost');
+  });
+
+  test('retrievePassages: handles short-words-only query', () => {
+    const graphKeys = {
+      foolsJourneyStageKey: 'initiation',
+      completeTriadIds: ['death-temperance-star']
+    };
+
+    // All words are 3 chars or less
+    const passages = retrievePassages(graphKeys, {
+      maxPassages: 5,
+      userQuery: 'how can I do it now?'
+    });
+
+    assert.ok(passages.length > 0, 'Should retrieve passages');
+    // Default priority preserved (triad P1 first)
+    assert.strictEqual(passages[0].type, 'triad', 'Triad should be first');
+  });
+
+  test('retrievePassages: handles mixed case query', () => {
+    const graphKeys = {
+      foolsJourneyStageKey: 'integration',
+      dyadPairs: [{ cards: [13, 17], significance: 'high' }]
+    };
+
+    // Mixed case - should match case-insensitively
+    const passagesLower = retrievePassages(graphKeys, {
+      maxPassages: 5,
+      userQuery: 'transformation hope healing'
+    });
+
+    const passagesUpper = retrievePassages(graphKeys, {
+      maxPassages: 5,
+      userQuery: 'TRANSFORMATION HOPE HEALING'
+    });
+
+    // Both should produce same relevance boosting
+    assert.strictEqual(passagesLower[0].type, passagesUpper[0].type,
+      'Case should not affect ranking');
+  });
+
+  test('retrievePassages: handles empty query string', () => {
+    const graphKeys = {
+      completeTriadIds: ['death-temperance-star'],
+      foolsJourneyStageKey: 'integration'
+    };
+
+    const passages = retrievePassages(graphKeys, {
+      maxPassages: 5,
+      userQuery: ''
+    });
+
+    assert.ok(passages.length > 0, 'Should retrieve passages with empty query');
+    // Default priority ordering preserved
+    assert.strictEqual(passages[0].priority, 1, 'Should maintain priority order');
+  });
+
+  test('retrievePassages: filters tarot-specific stopwords', () => {
+    const graphKeys = {
+      foolsJourneyStageKey: 'integration',
+      dyadPairs: [{ cards: [13, 17], significance: 'high' }]
+    };
+
+    // "card" and "reading" are filtered as stopwords
+    const passages = retrievePassages(graphKeys, {
+      maxPassages: 5,
+      userQuery: 'card reading interpretation'
+    });
+
+    // Only "interpretation" should contribute to boost (if it matches)
+    // Journey (P2) should still come before dyad (P3) without strong boost
+    assert.ok(passages.length >= 2, 'Should retrieve passages');
+  });
+
+  test('retrievePassages: special characters in query handled', () => {
+    const graphKeys = {
+      completeTriadIds: ['death-temperance-star']
+    };
+
+    // Contractions and punctuation
+    const passages = retrievePassages(graphKeys, {
+      maxPassages: 3,
+      userQuery: "what's the meaning? I'm seeking transformation..."
+    });
+
+    assert.ok(passages.length > 0, 'Should handle special characters');
+    // "meaning", "seeking", "transformation" should be extracted
+  });
+});
+
+// ============================================================================
+// GAP COVERAGE: Malformed Knowledge Base Data Handling
+// ============================================================================
+
+describe('Malformed Data Handling', () => {
+  test('formatPassagesForPrompt: handles passage without text field', () => {
+    const passages = [
+      { priority: 1, title: 'Test Title', source: 'Test Source' }
+      // Note: no 'text' field
+    ];
+
+    const formatted = formatPassagesForPrompt(passages);
+
+    assert.ok(formatted.includes('Test Title'), 'Should include title');
+    assert.ok(!formatted.includes('undefined'), 'Should not output "undefined"');
+  });
+
+  test('formatPassagesForPrompt: handles passage without source field', () => {
+    const passages = [
+      { priority: 1, title: 'Test Title', text: 'Test text content' }
+      // Note: no 'source' field
+    ];
+
+    const formatted = formatPassagesForPrompt(passages, { includeSource: true });
+
+    assert.ok(formatted.includes('Test text content'), 'Should include text');
+    assert.ok(!formatted.includes('— null'), 'Should not output "— null"');
+    assert.ok(!formatted.includes('— undefined'), 'Should not output "— undefined"');
+  });
+
+  test('formatPassagesForPrompt: handles passage without title or theme', () => {
+    const passages = [
+      { priority: 1, text: 'Just text, no title', source: 'Source' }
+    ];
+
+    const formatted = formatPassagesForPrompt(passages);
+
+    // Should not crash, text should still appear
+    assert.ok(formatted.includes('Just text, no title'), 'Should include text');
+  });
+
+  test('deduplicatePassages: handles null passage in array', () => {
+    const passages = [
+      { text: 'Valid passage one', title: 'First' },
+      null,
+      { text: 'Valid passage two', title: 'Second' }
+    ];
+
+    const deduped = deduplicatePassages(passages);
+
+    // Should preserve valid passages and handle null gracefully
+    assert.ok(deduped.length >= 2, 'Should preserve valid passages');
+  });
+
+  test('buildRetrievalSummary: handles graphKeys with undefined arrays', () => {
+    const graphKeys = {
+      completeTriadIds: undefined,
+      triadIds: undefined,
+      dyadPairs: undefined,
+      suitProgressions: undefined
+    };
+
+    const summary = buildRetrievalSummary(graphKeys, []);
+
+    assert.strictEqual(summary.patternsDetected.completeTriads, 0);
+    assert.strictEqual(summary.patternsDetected.highDyads, 0);
+    assert.strictEqual(summary.patternsDetected.strongSuitProgressions, 0);
   });
 });

@@ -315,14 +315,18 @@ async function buildSynthesisSection(cardsInfo, themes, celticAnalysis, userQues
 
     // Elemental remedies if imbalanced
     if (themes.elementCounts) {
-      const { buildElementalRemedies, shouldOfferElementalRemedies } = await import('../helpers.js');
-      if (shouldOfferElementalRemedies(themes.elementCounts, cardsInfo.length)) {
-        const remedies = buildElementalRemedies(themes.elementCounts, cardsInfo.length, context, {
-          rotationIndex
-        });
-        if (remedies) {
-          section += `${remedies}\n\n`;
+      try {
+        const { buildElementalRemedies, shouldOfferElementalRemedies } = await import('../helpers.js');
+        if (shouldOfferElementalRemedies(themes.elementCounts, cardsInfo.length)) {
+          const remedies = buildElementalRemedies(themes.elementCounts, cardsInfo.length, context, {
+            rotationIndex
+          });
+          if (remedies) {
+            section += `${remedies}\n\n`;
+          }
         }
+      } catch (err) {
+        console.error('[Celtic Cross] Elemental remedies unavailable:', err.message);
       }
     }
   }

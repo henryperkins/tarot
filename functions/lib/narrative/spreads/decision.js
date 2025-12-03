@@ -262,14 +262,18 @@ async function buildDecisionGuidance(cardsInfo, themes, context, rotationIndex =
 
   // Elemental remedies if imbalanced
   if (themes.elementCounts && themes.elementalBalance) {
-    const { buildElementalRemedies, shouldOfferElementalRemedies } = await import('../helpers.js');
-    if (shouldOfferElementalRemedies(themes.elementCounts, cardsInfo.length)) {
-      const remedies = buildElementalRemedies(themes.elementCounts, cardsInfo.length, context, {
-        rotationIndex
-      });
-      if (remedies) {
-        section += `${themes.elementalBalance}\n\n${remedies}\n\n`;
+    try {
+      const { buildElementalRemedies, shouldOfferElementalRemedies } = await import('../helpers.js');
+      if (shouldOfferElementalRemedies(themes.elementCounts, cardsInfo.length)) {
+        const remedies = buildElementalRemedies(themes.elementCounts, cardsInfo.length, context, {
+          rotationIndex
+        });
+        if (remedies) {
+          section += `${themes.elementalBalance}\n\n${remedies}\n\n`;
+        }
       }
+    } catch (err) {
+      console.error('[Decision] Elemental remedies unavailable:', err.message);
     }
   }
 

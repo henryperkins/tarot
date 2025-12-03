@@ -94,11 +94,21 @@
   // ============================================================================
   // Secrets (set via CLI, not in config)
   // ============================================================================
+  // Azure OpenAI (GPT-5 narrative generation)
   // wrangler secret put AZURE_OPENAI_ENDPOINT
   // wrangler secret put AZURE_OPENAI_API_KEY
   // wrangler secret put AZURE_OPENAI_GPT5_MODEL
+  //
+  // Azure AI Foundry Anthropic (Claude fallback)
+  // wrangler secret put AZURE_ANTHROPIC_ENDPOINT  (e.g., https://<resource>.services.ai.azure.com/anthropic)
+  // wrangler secret put AZURE_ANTHROPIC_API_KEY   (from Foundry Keys & endpoint, or falls back to AZURE_OPENAI_API_KEY)
+  // wrangler secret put AZURE_ANTHROPIC_MODEL     (deployment name, default: claude-opus-4-5)
+  //
+  // Azure TTS
   // wrangler secret put AZURE_OPENAI_TTS_ENDPOINT
   // wrangler secret put AZURE_OPENAI_TTS_API_KEY
   // wrangler secret put AZURE_OPENAI_GPT_AUDIO_MINI_DEPLOYMENT
+  //
+  // Other
   // wrangler secret put VISION_PROOF_SECRET
 }

@@ -74,6 +74,21 @@ export function estimateTokenCount(text = '') {
   return Math.ceil(safe.length / TOKEN_ESTIMATE_DIVISOR);
 }
 
+// Default token budgets per provider - used if no env var is set
+// These are conservative estimates based on typical context windows
+const DEFAULT_BUDGETS = {
+  azure: 12000,   // GPT-5 has ~128k context, but we keep prompts reasonable
+  claude: 16000,  // Claude has ~200k context, allow slightly larger prompts
+  default: 8000   // Fallback for unknown providers
+};
+
+// Hard caps - prompts will be truncated if they exceed these after all slimming
+const HARD_CAP_BUDGETS = {
+  azure: 20000,
+  claude: 25000,
+  default: 15000
+};
+
 export function getPromptBudgetForTarget(target = 'default', options = {}) {
   const env = options.env || (typeof process !== 'undefined' && process.env ? process.env : {});
   const normalizedTarget = (target || 'default').toLowerCase();
@@ -87,7 +102,57 @@ export function getPromptBudgetForTarget(target = 'default', options = {}) {
     raw = env.PROMPT_BUDGET_DEFAULT;
   }
 
-  return readEnvNumber(raw);
+  const envBudget = readEnvNumber(raw);
+
+  // If no env budget is set, use sensible defaults
+  if (!envBudget) {
+    return DEFAULT_BUDGETS[normalizedTarget] || DEFAULT_BUDGETS.default;
+  }
+
+  return envBudget;
+}
+
+export function getHardCapBudget(target = 'default') {
+  const normalizedTarget = (target || 'default').toLowerCase();
+  return HARD_CAP_BUDGETS[normalizedTarget] || HARD_CAP_BUDGETS.default;
+}
+
+/**
+ * Truncate prompt text to fit within a token budget
+ * Preserves structure by truncating from the end
+ *
+ * @param {string} text - Text to truncate
+ * @param {number} maxTokens - Maximum tokens allowed
+ * @returns {{ text: string, truncated: boolean, originalTokens: number }}
+ */
+function truncateToTokenBudget(text, maxTokens) {
+  if (!text || typeof text !== 'string') {
+    return { text: '', truncated: false, originalTokens: 0 };
+  }
+
+  const originalTokens = estimateTokenCount(text);
+  if (originalTokens <= maxTokens) {
+    return { text, truncated: false, originalTokens };
+  }
+
+  // Estimate character limit based on token count
+  const targetChars = Math.floor(maxTokens * TOKEN_ESTIMATE_DIVISOR * 0.95); // 5% safety margin
+
+  // Try to truncate at a paragraph boundary
+  let truncated = text.slice(0, targetChars);
+  const lastParagraph = truncated.lastIndexOf('\n\n');
+
+  if (lastParagraph > targetChars * 0.7) {
+    truncated = truncated.slice(0, lastParagraph);
+  }
+
+  truncated = truncated.trim() + '\n\n[...prompt truncated to fit context window...]';
+
+  return {
+    text: truncated,
+    truncated: true,
+    originalTokens
+  };
 }
 
 function getDeckStyleNotes(deckStyle = 'rws-1909') {
@@ -142,21 +207,43 @@ export function buildEnhancedClaudePrompt({
     const effectiveSpreadKey = spreadKey || 'general';
     const maxPassages = getPassageCountForSpread(effectiveSpreadKey);
 
+    // Check if semantic scoring was requested
+    // If enableSemanticScoring is explicitly true but we're doing sync retrieval,
+    // log a warning since async retrieval is required for embeddings
+    const requestedSemanticScoring = enableSemanticScoring === true;
+
+    if (requestedSemanticScoring) {
+      console.warn('[GraphRAG] Semantic scoring requested but graphRAGPayload not pre-computed. ' +
+        'For semantic scoring, pre-compute the payload with retrievePassagesWithQuality() ' +
+        'in performSpreadAnalysis(). Falling back to keyword-only retrieval.');
+    }
+
     try {
-      // Note: Semantic scoring with embeddings requires async, so we use
-      // keyword-only synchronous retrieval here. Semantic scoring can be
-      // enabled by pre-computing the graphRAGPayload with retrievePassagesWithQuality
-      // before calling buildEnhancedClaudePrompt.
+      // Keyword-only synchronous retrieval
+      // Semantic scoring requires async retrievePassagesWithQuality() which should
+      // be called in performSpreadAnalysis() and passed via graphRAGPayload
       const retrievedPassages = retrievePassages(activeThemes.knowledgeGraph.graphKeys, {
         maxPassages,
         userQuery: userQuestion
       });
 
+      const retrievalSummary = buildRetrievalSummary(activeThemes.knowledgeGraph.graphKeys, retrievedPassages);
+      const semanticScoringUsed = Boolean(retrievalSummary?.qualityMetrics?.semanticScoringUsed);
+      const semanticScoringFallback = requestedSemanticScoring && !semanticScoringUsed;
+
       effectiveGraphRAGPayload = {
         passages: retrievedPassages,
         formattedBlock: null,
-        retrievalSummary: buildRetrievalSummary(activeThemes.knowledgeGraph.graphKeys, retrievedPassages),
-        enableSemanticScoring: false
+        retrievalSummary: {
+          ...retrievalSummary,
+          semanticScoringRequested: requestedSemanticScoring,
+          semanticScoringUsed,
+          semanticScoringFallback
+        },
+        // Track whether semantic scoring was requested vs what we could deliver
+        enableSemanticScoring: false,
+        semanticScoringRequested: requestedSemanticScoring,
+        semanticScoringFallback
       };
     } catch (err) {
       console.error('[GraphRAG] Pre-fetch failed:', err.message);
@@ -262,14 +349,57 @@ export function buildEnhancedClaudePrompt({
     controls = { ...controls, includeDiagnostics: false };
   });
 
+  // Step 7: HARD CAP - If still over budget after all slimming, truncate
+  // This ensures we never send prompts that exceed context windows
+  const hardCap = getHardCapBudget(budgetTarget);
+  let finalSystem = built.systemPrompt;
+  let finalUser = built.userPrompt;
+  let systemTruncated = false;
+  let userTruncated = false;
+
+  if (built.totalTokens > hardCap) {
+    console.warn(`[Prompt Budget] Exceeded hard cap after slimming: ${built.totalTokens} > ${hardCap} tokens`);
+
+    // Calculate how many tokens we need to shed
+    const excessTokens = built.totalTokens - hardCap;
+
+    // Prefer truncating user prompt first (system prompt has core instructions)
+    const userTargetTokens = Math.max(
+      built.userTokens - excessTokens,
+      Math.floor(hardCap * 0.3) // Keep at least 30% of budget for user prompt
+    );
+
+    const userResult = truncateToTokenBudget(built.userPrompt, userTargetTokens);
+    finalUser = userResult.text;
+    userTruncated = userResult.truncated;
+
+    // If user truncation wasn't enough, truncate system prompt too
+    const newUserTokens = estimateTokenCount(finalUser);
+    const remainingBudget = hardCap - newUserTokens;
+
+    if (built.systemTokens > remainingBudget) {
+      const systemResult = truncateToTokenBudget(built.systemPrompt, remainingBudget);
+      finalSystem = systemResult.text;
+      systemTruncated = systemResult.truncated;
+    }
+
+    slimmingSteps.push('hard-cap-truncation');
+  }
+
+  const finalSystemTokens = estimateTokenCount(finalSystem);
+  const finalUserTokens = estimateTokenCount(finalUser);
+  const finalTotalTokens = finalSystemTokens + finalUserTokens;
+
   const promptMeta = {
     estimatedTokens: {
-      system: built.systemTokens,
-      user: built.userTokens,
-      total: built.totalTokens,
+      system: finalSystemTokens,
+      user: finalUserTokens,
+      total: finalTotalTokens,
       budget: promptBudget,
+      hardCap,
       budgetTarget,
-      overBudget: Boolean(promptBudget && built.totalTokens > promptBudget)
+      overBudget: Boolean(promptBudget && finalTotalTokens > promptBudget),
+      truncated: systemTruncated || userTruncated
     },
     slimmingSteps,
     appliedOptions: {
@@ -279,11 +409,57 @@ export function buildEnhancedClaudePrompt({
       includeGraphRAG: Boolean(controls.includeGraphRAG),
       includeDeckContext: Boolean(controls.includeDeckContext),
       includeDiagnostics: Boolean(controls.includeDiagnostics)
-    }
+    },
+    truncation: (systemTruncated || userTruncated) ? {
+      systemTruncated,
+      userTruncated,
+      originalSystemTokens: built.systemTokens,
+      originalUserTokens: built.userTokens,
+      originalTotalTokens: built.totalTokens
+    } : null
   };
 
   if (controls.graphRAGPayload?.retrievalSummary) {
-    promptMeta.graphRAG = controls.graphRAGPayload.retrievalSummary;
+    const retrievalSummary = { ...controls.graphRAGPayload.retrievalSummary };
+    const passageCount = Array.isArray(controls.graphRAGPayload.passages)
+      ? controls.graphRAGPayload.passages.length
+      : 0;
+    const effectiveMaxPassages = getPassageCountForSpread(spreadKey || 'general');
+    const graphRAGIncluded = controls.includeGraphRAG !== false && passageCount > 0;
+    const passagesUsed = graphRAGIncluded ? Math.min(passageCount, effectiveMaxPassages) : 0;
+    const truncatedCount = graphRAGIncluded && passageCount > passagesUsed
+      ? passageCount - passagesUsed
+      : 0;
+
+    const semanticScoringUsed = Boolean(
+      retrievalSummary.qualityMetrics?.semanticScoringUsed ||
+      retrievalSummary.semanticScoringUsed
+    );
+    const semanticScoringRequested = Boolean(
+      controls.graphRAGPayload.semanticScoringRequested ||
+      retrievalSummary.semanticScoringRequested ||
+      controls.enableSemanticScoring === true ||
+      controls.graphRAGPayload.enableSemanticScoring === true
+    );
+    const semanticScoringFallback =
+      controls.graphRAGPayload.semanticScoringFallback === true ||
+      retrievalSummary.semanticScoringFallback === true ||
+      (semanticScoringRequested && semanticScoringUsed === false);
+
+    retrievalSummary.semanticScoringRequested = semanticScoringRequested;
+    retrievalSummary.semanticScoringUsed = semanticScoringUsed;
+    if (semanticScoringFallback) {
+      retrievalSummary.semanticScoringFallback = true;
+    }
+
+    retrievalSummary.passagesProvided = passageCount;
+    retrievalSummary.passagesUsedInPrompt = passagesUsed;
+    if (truncatedCount > 0) {
+      retrievalSummary.truncatedPassages = truncatedCount;
+    }
+    retrievalSummary.includedInPrompt = graphRAGIncluded;
+
+    promptMeta.graphRAG = retrievalSummary;
   }
 
   if (controls.ephemerisContext?.available) {
@@ -303,7 +479,8 @@ export function buildEnhancedClaudePrompt({
     };
   }
 
-  return { systemPrompt: built.systemPrompt, userPrompt: built.userPrompt, promptMeta, contextDiagnostics: diagnostics };
+  // Return final prompts (potentially truncated to fit hard cap)
+  return { systemPrompt: finalSystem, userPrompt: finalUser, promptMeta, contextDiagnostics: diagnostics };
 }
 
 function getSpreadKeyFromName(name) {
