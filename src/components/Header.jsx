@@ -4,6 +4,7 @@ import { GlobalNav } from './GlobalNav';
 import { UserMenu } from './UserMenu';
 import { StepProgress } from './StepProgress';
 import { useReducedMotion } from '../hooks/useReducedMotion';
+import { useSmallScreen } from '../hooks/useSmallScreen';
 import { usePreferences } from '../contexts/PreferencesContext';
 
 // Scroll thresholds - using viewport-relative values for mobile
@@ -13,6 +14,7 @@ const HIDE_THRESHOLD_RATIO = 0.2; // 20% of viewport height
 
 export function Header({ steps, activeStep, onStepSelect, isShuffling }) {
   const prefersReducedMotion = useReducedMotion();
+  const isMobile = useSmallScreen(768);
   const { personalization } = usePreferences();
   const displayName = personalization?.displayName?.trim();
   const [headerState, setHeaderState] = useState(() => ({
@@ -23,8 +25,8 @@ export function Header({ steps, activeStep, onStepSelect, isShuffling }) {
   const scrollRafRef = useRef(null);
   const isCleanedUpRef = useRef(false);
   const { isCompact, isHidden } = headerState;
-  // Disable auto-hide for reduced motion users to prevent unexpected movement
-  const shouldHideHeader = isHidden && !isShuffling && !prefersReducedMotion;
+  // Disable auto-hide for reduced motion users and on small screens to prevent unexpected movement
+  const shouldHideHeader = isHidden && !isShuffling && !prefersReducedMotion && !isMobile;
 
   // Calculate viewport-aware hide threshold
   const getHideThreshold = useCallback(() => {
@@ -50,7 +52,7 @@ export function Header({ steps, activeStep, onStepSelect, isShuffling }) {
       const shouldCompact = currentY > COMPACT_THRESHOLD;
       // Only hide when scrolling down AND past threshold
       // Reveal immediately when scrolling up
-      const shouldHide = isScrollingDown && currentY > hideThreshold;
+      const shouldHide = !isMobile && isScrollingDown && currentY > hideThreshold;
 
       setHeaderState((prev) => {
         if (prev.isCompact === shouldCompact && prev.isHidden === shouldHide) {
@@ -94,17 +96,17 @@ export function Header({ steps, activeStep, onStepSelect, isShuffling }) {
         scrollRafRef.current = null;
       }
     };
-  }, [getHideThreshold]);
+  }, [getHideThreshold, isMobile]);
 
   // Logo height based on compact state and screen size
   // Mobile (< 640px) uses smaller logo to reduce header height
-  const logoHeight = isCompact ? 40 : 56; // Reduced from 48/72
+  const logoHeight = isCompact ? (isMobile ? 36 : 40) : (isMobile ? 50 : 56);
 
   return (
     <>
       {/* Main Header */}
       <header aria-labelledby="tableau-heading" className={isCompact ? 'header-condensed' : ''}>
-        <div className="text-center mb-3 sm:mb-6 md:mb-8 mystic-heading-wrap flex flex-col items-center">
+        <div className="text-center mb-2 sm:mb-6 md:mb-8 mystic-heading-wrap flex flex-col items-center">
           <div
             className="transition-all duration-200 ease-out"
             style={{
@@ -152,15 +154,18 @@ export function Header({ steps, activeStep, onStepSelect, isShuffling }) {
           shadow-lg shadow-primary/20
           header-sticky
           ${isCompact ? 'header-sticky--compact' : ''}
-          ${shouldHideHeader ? 'header-sticky--hidden' : ''}
         `}
+        style={{
+          transform: shouldHideHeader ? 'translateY(-110%)' : 'translateY(0)',
+          transition: 'transform 200ms ease',
+        }}
       >
-        <div className="header-sticky__row">
-          <div className="header-sticky__nav">
-            <GlobalNav condensed={isCompact} />
+        <div className="header-sticky__row flex flex-wrap items-center gap-2 sm:gap-3 justify-between">
+          <div className="header-sticky__nav flex-1 w-full sm:w-auto">
+            <GlobalNav condensed={isCompact} withUserChip />
           </div>
-          {/* Keep account access available in compact mode with a condensed trigger */}
-          <div className="header-sticky__user">
+          {/* Fallback placement if user chip overflows (desktop still shows) */}
+          <div className="header-sticky__user hidden sm:block">
             <UserMenu condensed={isCompact} />
           </div>
         </div>

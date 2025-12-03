@@ -60,7 +60,8 @@ import {
   escapeRegex,
   hasExplicitCardContext,
   normalizeCardName,
-  AMBIGUOUS_CARD_NAMES
+  AMBIGUOUS_CARD_NAMES,
+  TAROT_TERMINOLOGY_EXCLUSIONS
 } from '../lib/cardContextDetection.js';
 
 // Detect if question asks about future timeframe
@@ -1181,6 +1182,7 @@ async function generateWithAzureGPT5Responses(env, payload, requestId = 'unknown
   }
 
   const data = await response.json();
+  console.log(`[${requestId}] Azure Responses API raw response:`, JSON.stringify(data, null, 2));
   console.log(`[${requestId}] Azure Responses API response received:`, {
     id: data.id,
     model: data.model,
@@ -1334,12 +1336,15 @@ async function generateWithClaudeSonnet45Enhanced(env, payload, requestId = 'unk
     })
   });
 
+  console.log(`[${requestId}] Azure Foundry Claude response status: ${response.status}`);
+
   if (!response.ok) {
     const errText = await response.text().catch(() => '');
     throw new Error(`Azure Anthropic proxy error ${response.status}: ${errText}`);
   }
 
   const data = await response.json();
+  console.log(`[${requestId}] Azure Foundry Claude raw response:`, JSON.stringify(data, null, 2));
   const content = Array.isArray(data.content)
     ? data.content.map(part => part.text || '').join('').trim()
     : (data.content?.toString?.() || '').trim();
@@ -1903,8 +1908,14 @@ function looksLikeCardNameCase(matchText) {
 function detectHallucinatedCards(readingText, cardsInfo = [], deckStyle = 'rws-1909') {
   if (!readingText) return [];
 
-  const text = typeof readingText === 'string' ? readingText : '';
+  let text = typeof readingText === 'string' ? readingText : '';
   const safeCards = Array.isArray(cardsInfo) ? cardsInfo : [];
+
+  // Remove tarot terminology phrases that reference card names but aren't card references
+  // e.g., "Fool's Journey" refers to the archetypal journey, not The Fool card
+  TAROT_TERMINOLOGY_EXCLUSIONS.forEach(pattern => {
+    text = text.replace(pattern, '[TERMINOLOGY]');
+  });
 
   // Track both canonical deck-aware keys and normalized literal names for drawn cards.
   const drawnKeys = new Set(

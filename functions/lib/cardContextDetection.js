@@ -27,6 +27,18 @@ export const AMBIGUOUS_CARD_NAMES = new Set([
 ]);
 
 /**
+ * Phrases that reference card names in tarot terminology but are NOT
+ * actual card references (e.g., "Fool's Journey" refers to the archetypal
+ * journey through the Major Arcana, not The Fool card itself).
+ */
+export const TAROT_TERMINOLOGY_EXCLUSIONS = [
+  /fool['\u2019]?s\s+journey/gi,   // "Fool's Journey" - handles both ' and ' (U+2019) apostrophes
+  /major\s+arcana\s+journey/gi,    // "Major Arcana journey"
+  /hero['\u2019]?s\s+journey/gi,   // "Hero's Journey" (related concept)
+  /journey\s+(?:of|through)\s+(?:the\s+)?fool/gi  // "journey of the Fool"
+];
+
+/**
  * Require explicit "card-like" context around ambiguous names so that phrases like
  * "restore a sense of justice in how you negotiate" do not count as hallucinated
  * mentions of the Justice card.

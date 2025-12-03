@@ -64,11 +64,24 @@ export function DeckRitual({
     opacity: 1 - (i * 0.08)
   }));
 
-  // Knock gesture handler - now directly on deck
+  // Tap / double-tap handler (handles knock + shuffle within same flow to avoid browser dblclick delay)
+  const lastTapRef = useRef(0);
   const handleDeckTap = useCallback(() => {
     if (showCutSlider) return;
 
-    // Check if it's a quick tap (vs drag start)
+    const now = Date.now();
+    const sinceLast = now - lastTapRef.current;
+    const withinDoubleTap = sinceLast > 0 && sinceLast < 320;
+
+    if (withinDoubleTap) {
+      lastTapRef.current = 0;
+      onShuffle?.();
+      vibrate([20, 50, 20, 50, 20]);
+      return;
+    }
+
+    lastTapRef.current = now;
+
     if (knockCount < 3) {
       onKnock?.();
       vibrate([15, 30, 15]);
@@ -81,30 +94,17 @@ export function DeckRitual({
         });
       }
     }
-  }, [knockCount, onKnock, showCutSlider, prefersReducedMotion, deckControls]);
+  }, [knockCount, onKnock, onShuffle, showCutSlider, prefersReducedMotion, deckControls]);
 
-  // Double-tap to shuffle
-  const lastTapRef = useRef(0);
-  const handleDoubleTap = useCallback(() => {
-    const now = Date.now();
-    if (now - lastTapRef.current < 300) {
-      // Double tap detected
-      onShuffle?.();
-      vibrate([20, 50, 20, 50, 20]);
-      lastTapRef.current = 0;
-    } else {
-      lastTapRef.current = now;
-    }
-  }, [onShuffle]);
-
-  // Long-press to reveal cut slider
+  // Long-press to reveal cut slider (disabled once cut is done to reduce accidental opens)
   const longPressTimerRef = useRef(null);
   const handleTouchStart = useCallback(() => {
+    if (hasCut) return;
     longPressTimerRef.current = setTimeout(() => {
       setShowCutSlider(true);
       vibrate([30]);
-    }, 400);
-  }, []);
+    }, 420);
+  }, [hasCut]);
 
   const handleTouchEnd = useCallback(() => {
     if (longPressTimerRef.current) {
@@ -174,7 +174,6 @@ export function DeckRitual({
           animate={deckControls}
           className="deck-stack relative cursor-pointer touch-manipulation"
           onClick={handleDeckTap}
-          onDoubleClick={handleDoubleTap}
           onTouchStart={handleTouchStart}
           onTouchEnd={handleTouchEnd}
           onMouseDown={handleTouchStart}
@@ -321,8 +320,25 @@ export function DeckRitual({
         )}
       </AnimatePresence>
 
+      {/* Quick draw CTA placed nearer to the deck on mobile */}
+      {cardsRemaining > 0 && (
+        <div className={`text-center px-3 xs:px-4 ${isLandscape ? 'mt-3' : 'mt-4 xs:mt-5'} sm:hidden`}>
+          <motion.button
+            onClick={handleDealWithAnimation}
+            disabled={isShuffling}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary text-main font-semibold shadow-lg disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+            style={{ boxShadow: '0 10px 30px color-mix(in srgb, var(--brand-primary) 30%, transparent)' }}
+            whileHover={prefersReducedMotion ? {} : { scale: 1.03 }}
+            whileTap={prefersReducedMotion ? {} : { scale: 0.98 }}
+          >
+            <span>Draw: {nextPosition || 'Next Card'}</span>
+            <span className="opacity-70 text-[0.7rem]">({cardsRemaining})</span>
+          </motion.button>
+        </div>
+      )}
+
       {/* Ritual action buttons - explicit alternatives to gestures for accessibility */}
-      <div className={`flex flex-wrap items-center justify-center px-3 xs:px-4 ${isLandscape ? 'mt-3 gap-1.5' : 'mt-4 xs:mt-5 sm:mt-6 gap-1.5 xs:gap-2 sm:gap-3'}`}>
+      <div className={`flex flex-wrap items-center justify-center px-3 xs:px-4 ${isLandscape ? 'mt-3 gap-1.5' : 'mt-3 xs:mt-4 sm:mt-5 gap-1.5 xs:gap-2 sm:gap-3'}`}>
         {/* Knock button */}
         <button
           onClick={handleDeckTap}
@@ -395,7 +411,7 @@ export function DeckRitual({
 
       {/* Draw CTA - optimized for small screens */}
       {cardsRemaining > 0 && (
-        <div className={`text-center px-3 xs:px-4 ${isLandscape ? 'mt-3' : 'mt-4 xs:mt-5 sm:mt-6'}`}>
+        <div className={`text-center px-3 xs:px-4 ${isLandscape ? 'mt-3' : 'mt-4 xs:mt-5 sm:mt-6 hidden sm:block'}`}>
           <motion.button
             onClick={handleDealWithAnimation}
             disabled={isShuffling}

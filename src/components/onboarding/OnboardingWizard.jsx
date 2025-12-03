@@ -223,7 +223,7 @@ export function OnboardingWizard({ isOpen, onComplete, onSelectSpread, initialSp
 
           {/* Header with close button and progress */}
           <header
-            className={`relative z-20 pt-safe-top bg-main/95 backdrop-blur supports-[backdrop-filter]:backdrop-blur-lg border-b border-white/5 ${
+            className={`sticky top-0 z-30 pt-safe-top bg-main/95 backdrop-blur supports-[backdrop-filter]:backdrop-blur-lg border-b border-white/5 shadow-lg shadow-main/40 ${
               isLandscape ? 'py-1.5' : 'py-3 xs:py-4'
             }`}
           >
@@ -255,8 +255,8 @@ export function OnboardingWizard({ isOpen, onComplete, onSelectSpread, initialSp
           <main
             className="relative z-10 flex-1 overflow-y-auto overflow-x-hidden scroll-smooth pt-safe-top pb-safe-bottom pl-safe-left pr-safe-right onboarding-modal__scroll"
             style={{
-              scrollPaddingTop: 'max(0.9rem, env(safe-area-inset-top, 0.75rem))',
-              scrollPaddingBottom: 'max(1.25rem, env(safe-area-inset-bottom, 1rem))',
+              scrollPaddingTop: 'calc(4.5rem + env(safe-area-inset-top, 0.75rem))',
+              scrollPaddingBottom: 'calc(2rem + env(safe-area-inset-bottom, 1rem))',
               scrollbarGutter: 'stable both-edges',
               overscrollBehavior: 'contain',
               WebkitOverflowScrolling: 'touch'

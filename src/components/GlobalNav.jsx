@@ -1,8 +1,9 @@
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Sparkle, BookOpen } from './icons';
 import { Icon, ICON_SIZES } from './Icon';
+import { UserMenu } from './UserMenu';
 
-export function GlobalNav({ condensed = false }) {
+export function GlobalNav({ condensed = false, withUserChip = false }) {
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -21,7 +22,10 @@ export function GlobalNav({ condensed = false }) {
 
   const buttonPadding = condensed
     ? 'px-3 sm:px-3.5 py-2 text-xs-plus'
-    : 'px-4 sm:px-5 py-2.5 text-sm';
+    : 'px-3.5 sm:px-5 py-2.5 text-sm';
+  const buttonWidth = condensed
+    ? 'flex-1 basis-[38%] min-w-[36%] sm:min-w-[9rem] sm:basis-auto'
+    : 'flex-1 basis-[38%] min-w-[36%] sm:min-w-[10rem] sm:basis-auto';
 
   const activeClasses = 'bg-primary text-surface shadow shadow-primary/30 active:bg-primary/90';
   const inactiveClasses = `
@@ -33,19 +37,19 @@ export function GlobalNav({ condensed = false }) {
   return (
     <nav
       aria-label="Primary navigation"
-      className={`flex ${condensed ? 'justify-start mb-1.5' : 'justify-center mb-3'} animate-fade-in`}
+      className={`flex ${condensed ? 'justify-start mb-1.5' : 'justify-center mb-3'} animate-fade-in w-full`}
     >
       <div
         className={`
-          inline-flex items-center
+          inline-flex items-center flex-wrap sm:flex-nowrap w-full max-w-full
           ${condensed ? 'gap-1 sm:gap-1.5 px-1.5 py-1 shadow-inner shadow-main/20' : 'gap-1.5 sm:gap-2 px-1.5 py-1'}
-          rounded-full bg-surface/80 border border-accent/20
+          rounded-full sm:bg-surface/80 bg-surface/60 border border-transparent sm:border-accent/20
         `}
       >
         <button
           type="button"
           onClick={() => navigate('/')}
-          className={`${baseButtonClasses} ${buttonPadding} ${isReading ? activeClasses : inactiveClasses}`}
+          className={`${baseButtonClasses} ${buttonPadding} ${buttonWidth} ${isReading ? activeClasses : inactiveClasses}`}
           aria-current={isReading ? 'page' : undefined}
         >
           <Icon icon={Sparkle} size={condensed ? ICON_SIZES.md : ICON_SIZES.lg} decorative />
@@ -54,12 +58,18 @@ export function GlobalNav({ condensed = false }) {
         <button
           type="button"
           onClick={() => navigate('/journal')}
-          className={`${baseButtonClasses} ${buttonPadding} ${isJournal ? activeClasses : inactiveClasses}`}
+          className={`${baseButtonClasses} ${buttonPadding} ${buttonWidth} ${isJournal ? activeClasses : inactiveClasses}`}
           aria-current={isJournal ? 'page' : undefined}
         >
           <Icon icon={BookOpen} size={condensed ? ICON_SIZES.md : ICON_SIZES.lg} decorative />
           <span>Journal</span>
         </button>
+
+        {withUserChip && (
+          <div className="ml-auto flex-none sm:hidden">
+            <UserMenu condensed />
+          </div>
+        )}
       </div>
     </nav>
   );

@@ -135,11 +135,20 @@ export function Card({
     // Reset offset
     setSwipeOffset(0);
 
-    // Swipe detection: horizontal movement > 50px, completed in < 300ms
-    if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) && dt < 300) {
+    // Responsive swipe thresholds (more forgiving on small screens)
+    const vw = typeof window !== 'undefined' ? window.innerWidth : 1024;
+    const isVerySmall = vw < 375;
+    const isSmall = vw < 440;
+    const distanceThreshold = isVerySmall ? 35 : isSmall ? 42 : 50;
+    const timeThreshold = isVerySmall ? 350 : isSmall ? 320 : 300;
+    const horizontalAdvantage = isSmallScreen ? 1.2 : 1.5;
+
+    const horizontalDominant = Math.abs(dx) > Math.abs(dy) * horizontalAdvantage;
+
+    if (Math.abs(dx) > distanceThreshold && horizontalDominant && dt < timeThreshold) {
       handleSwipeReveal(dx > 0 ? 'right' : 'left');
     }
-  }, [isRevealed, handleSwipeReveal]);
+  }, [isRevealed, handleSwipeReveal, isSmallScreen]);
 
   // Reset visual state when a revealed card is returned to an unrevealed state
   useEffect(() => {

@@ -311,7 +311,12 @@ export function buildEnhancedClaudePrompt({
   let built = buildWithControls(controls);
   const slimmingSteps = [];
 
+  // Check if prompt slimming/truncation is disabled via env
+  const disableSlimming = promptBudgetEnv?.DISABLE_PROMPT_SLIMMING === 'true' ||
+    promptBudgetEnv?.DISABLE_PROMPT_SLIMMING === true;
+
   const maybeSlim = (label, updater) => {
+    if (disableSlimming) return; // Skip all slimming when disabled
     if (!promptBudget) return;
     if (built.totalTokens <= promptBudget) return;
     updater();
@@ -357,7 +362,8 @@ export function buildEnhancedClaudePrompt({
   let systemTruncated = false;
   let userTruncated = false;
 
-  if (built.totalTokens > hardCap) {
+  // Skip hard cap truncation when slimming is disabled
+  if (!disableSlimming && built.totalTokens > hardCap) {
     console.warn(`[Prompt Budget] Exceeded hard cap after slimming: ${built.totalTokens} > ${hardCap} tokens`);
 
     // Calculate how many tokens we need to shed

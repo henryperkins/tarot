@@ -106,6 +106,9 @@ export async function embedText(text, options = {}) {
 /**
  * Fetch embedding from Azure OpenAI embeddings API.
  *
+ * Uses the v1 API format for consistency with the Responses API.
+ * See: https://learn.microsoft.com/en-us/azure/ai-foundry/openai/how-to/embeddings
+ *
  * @param {string} text - Text to embed
  * @param {Object} env - Environment variables
  * @returns {Promise<number[]|null>} Embedding vector or null if unavailable
@@ -113,24 +116,25 @@ export async function embedText(text, options = {}) {
 async function fetchAzureEmbedding(text, env) {
   const endpoint = env?.AZURE_OPENAI_ENDPOINT;
   const apiKey = env?.AZURE_OPENAI_API_KEY;
-  const embeddingModel = env?.AZURE_OPENAI_EMBEDDING_MODEL || 'text-embedding-3-small';
-  const apiVersion = env?.AZURE_OPENAI_API_VERSION || '2024-02-15-preview';
+  const embeddingModel = env?.AZURE_OPENAI_EMBEDDING_MODEL || 'text-embedding-3-large';
+  // Azure OpenAI v1 embeddings path requires api-version=preview (literal string)
+  // This is different from deployment-based paths which use date-based versions
+  const apiVersion = env?.AZURE_OPENAI_EMBEDDINGS_API_VERSION || 'preview';
 
   if (!endpoint || !apiKey) {
     return null;
   }
 
   try {
-    // Normalize endpoint
+    // Normalize endpoint: strip trailing slashes and any existing /openai/v1 path
     const normalizedEndpoint = endpoint
       .replace(/\/+$/, '')
       .replace(/\/openai\/v1\/?$/, '')
       .replace(/\/openai\/?$/, '');
 
-    const url = `${normalizedEndpoint}/openai/deployments/${embeddingModel}/embeddings?api-version=${apiVersion}`;
+    // V1 embeddings path with api-version=preview (required for this path)
+    const url = `${normalizedEndpoint}/openai/v1/embeddings?api-version=${encodeURIComponent(apiVersion)}`;
 
-    // Note: Azure deployment-scoped endpoints don't accept a `model` field in the body.
-    // The deployment name in the URL already specifies the model.
     const response = await fetch(url, {
       method: 'POST',
       headers: {
@@ -138,12 +142,14 @@ async function fetchAzureEmbedding(text, env) {
         'content-type': 'application/json'
       },
       body: JSON.stringify({
-        input: text
+        input: text,
+        model: embeddingModel
       })
     });
 
     if (!response.ok) {
-      console.warn(`[Embeddings] Azure API error ${response.status}`);
+      const errText = await response.text().catch(() => '');
+      console.warn(`[Embeddings] Azure v1 API error ${response.status}: ${errText}`);
       return null;
     }
 

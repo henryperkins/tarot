@@ -149,16 +149,23 @@ export function ReadingGrid({
   const prefersReducedMotion = useReducedMotion();
   const isLandscape = useLandscape();
   const isListView = mobileLayoutMode === 'list';
+  const shouldUseGridOnMobile = Boolean(
+    isCompactScreen &&
+    !isListView &&
+    selectedSpread !== 'celtic' &&
+    reading?.length &&
+    reading.length <= 3
+  );
 
   // Track previous isCompactScreen for render-time state adjustment
   const [prevIsCompactScreen, setPrevIsCompactScreen] = useState(isCompactScreen);
 
   // In landscape mobile: use smaller card widths to fit more cards visible
   const carouselCardWidthClass = isLandscape
-    ? 'min-w-[46vw] max-w-[11.5rem]'
+    ? 'min-w-[44vw] max-w-[11.5rem]'
     : isVerySmallScreen
-      ? 'min-w-[88vw] max-w-[18.5rem]'
-      : 'min-w-[78vw] xxs:min-w-[72vw] xs:min-w-[64vw] max-w-[18.5rem]';
+      ? 'min-w-[82vw] max-w-[17.5rem]'
+      : 'min-w-[72vw] xxs:min-w-[66vw] xs:min-w-[60vw] max-w-[18.5rem]';
   const mobileCarouselPadding = isLandscape ? 'px-2' : 'px-3 xxs:px-4';
 
   // Hide swipe hint after 4 seconds or when user interacts
@@ -190,9 +197,18 @@ export function ReadingGrid({
     }
   }
 
+  useEffect(() => {
+    if (!isCompactScreen) return;
+    const manyCards = reading?.length > 4;
+    if ((isVerySmallScreen || manyCards) && layoutPreference === 'carousel' && mobileLayoutMode === 'carousel') {
+      setLayoutPreference('list');
+      setMobileLayoutMode('list');
+    }
+  }, [isCompactScreen, isVerySmallScreen, reading?.length, layoutPreference, mobileLayoutMode]);
+
   // Celtic Cross uses a fixed CSS grid layout that doesn't scroll horizontally,
   // so carousel navigation (swipe, dots, prev/next) should be disabled for it
-  const enableCarousel = reading?.length > 1 && !isListView && selectedSpread !== 'celtic';
+  const enableCarousel = reading?.length > 1 && !isListView && selectedSpread !== 'celtic' && !shouldUseGridOnMobile;
 
   // Hide hint when user scrolls
   const hideHintOnInteraction = useCallback(() => {
@@ -331,7 +347,7 @@ export function ReadingGrid({
 
   const multiCardLayoutClass = isListView
     ? 'flex flex-col gap-4 pb-6 sm:pb-4'
-    : `flex overflow-x-auto snap-x snap-mandatory ${isLandscape ? 'gap-2 pb-5' : 'gap-3 pb-8'} ${mobileCarouselPadding}`;
+    : `flex overflow-x-auto snap-x snap-mandatory scrollbar-none ${isLandscape ? 'gap-2 pb-5' : 'gap-3 pb-8'} ${mobileCarouselPadding}`;
 
   const shouldApplyCarouselPadding = enableCarousel && !isListView && selectedSpread !== 'celtic';
   const shouldShowCompactMap = Boolean(isCompactScreen && reading && reading.length > 2);
@@ -354,10 +370,12 @@ export function ReadingGrid({
         className={
           selectedSpread === 'celtic'
             ? 'cc-grid animate-fade-in'
-            : `animate-fade-in ${reading.length === 1
-              ? 'grid grid-cols-1 max-w-md mx-auto'
-              : `${multiCardLayoutClass} ${responsiveGridFallback}`
-            }`
+            : shouldUseGridOnMobile
+              ? 'animate-fade-in grid grid-cols-1 xxs:grid-cols-2 gap-3 xs:gap-4'
+              : `animate-fade-in ${reading.length === 1
+                ? 'grid grid-cols-1 max-w-md mx-auto'
+                : `${multiCardLayoutClass} ${responsiveGridFallback}`
+              }`
         }
         style={selectedSpread === 'celtic' ? undefined : carouselInlineStyles}
         ref={enableCarousel ? carouselRef : null}
