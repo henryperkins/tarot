@@ -78,7 +78,7 @@ export function SavedIntentionsList() {
               <Sparkle className="w-3.5 h-3.5" aria-hidden="true" /> Guided coach
             </div>
 
-            <p className="text-main pr-8 font-medium line-clamp-3">
+            <p className="journal-prose text-main pr-8 font-medium line-clamp-3">
               {item.question}
             </p>
             <div className="mt-2 flex items-center justify-between">

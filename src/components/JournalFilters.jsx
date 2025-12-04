@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useId } from 'react';
-import { CaretDown, Check } from '@phosphor-icons/react';
+import { CaretDown, Check, BookmarkSimple } from '@phosphor-icons/react';
 
 const TIMEFRAME_OPTIONS = [
   { value: 'all', label: 'All time' },
@@ -95,9 +95,9 @@ function FilterDropdown({ label, options, value, onChange, multiple = false }) {
           }
         }}
         onKeyDown={handleButtonKeyDown}
-        className={`flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-medium transition-all ${activeCount > 0
-          ? 'border-secondary bg-secondary/10 text-secondary'
-          : 'border-accent/20 text-muted hover:border-secondary/50 hover:text-secondary'
+        className={`flex items-center gap-2 rounded-xl border px-3 py-2 text-sm font-medium transition-all ${activeCount > 0
+          ? 'border-secondary/60 bg-secondary/10 text-secondary'
+          : 'border-secondary/30 text-secondary/70 hover:border-secondary/50'
           }`}
         aria-haspopup="listbox"
         aria-expanded={isOpen}
@@ -154,30 +154,39 @@ export function JournalFilters({ filters, onChange, contexts = [], spreads = [],
   };
 
   return (
-    <section className="rounded-3xl border border-secondary/30 bg-surface/70 p-5 shadow-lg animate-fade-in">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-6">
+    <section className="rounded-3xl border border-secondary/30 bg-surface/80 p-5 shadow-lg animate-fade-in">
+      <div className="mb-6 space-y-4">
         <div>
-          <p className="text-xs uppercase tracking-[0.3em] text-secondary/80">Filters</p>
+          <p className="text-[11px] uppercase tracking-[0.3em] text-secondary/80">Filters</p>
           <h2 className="text-xl font-serif text-main">Focus your journal</h2>
         </div>
-        <div className="flex items-center gap-3 w-full sm:w-auto">
-          <div className="relative flex-1 sm:w-64">
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="relative flex-1 min-w-[200px]">
             <input
               type="search"
               value={filters.query}
               onChange={handleQueryChange}
-              placeholder="Search..."
-              className="w-full rounded-full border border-secondary/30 bg-surface-muted/70 px-4 py-1.5 text-sm text-main focus:outline-none focus:ring-2 focus:ring-secondary/50 placeholder:text-secondary/30"
+              placeholder="Search readings..."
+              className="w-full rounded-xl border border-secondary/30 bg-surface/60 px-4 py-2 text-sm text-main focus:outline-none focus:ring-2 focus:ring-secondary/40 placeholder:text-secondary/40"
             />
           </div>
           <button
             type="button"
             onClick={clearFilters}
-            className="whitespace-nowrap rounded-full border border-accent/20 px-3 py-1.5 text-xs text-muted hover:border-secondary/60 hover:text-secondary transition-colors"
+            className="text-xs font-semibold text-secondary/70 underline decoration-dotted decoration-secondary/40 hover:text-secondary"
           >
-            Clear
+            Clear filters
           </button>
         </div>
+        <button
+          type="button"
+          disabled
+          className="inline-flex items-center gap-2 text-xs text-secondary/60"
+          aria-disabled="true"
+        >
+          <BookmarkSimple className="h-4 w-4" />
+          Saved filters coming soon
+        </button>
       </div>
 
       <div className="flex flex-wrap items-center gap-3">
@@ -224,9 +233,9 @@ export function JournalFilters({ filters, onChange, contexts = [], spreads = [],
         <button
           type="button"
           onClick={() => onChange({ ...filters, onlyReversals: !filters.onlyReversals })}
-          className={`flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-medium transition-all ${filters.onlyReversals
-            ? 'border-secondary bg-secondary/10 text-secondary'
-            : 'border-accent/20 text-muted hover:border-secondary/50 hover:text-secondary'
+          className={`flex items-center gap-2 rounded-xl border px-3 py-2 text-sm font-medium transition-all ${filters.onlyReversals
+            ? 'border-secondary/60 bg-secondary/10 text-secondary'
+            : 'border-secondary/30 text-secondary/70 hover:border-secondary/50'
             }`}
         >
           <span>Reversals</span>

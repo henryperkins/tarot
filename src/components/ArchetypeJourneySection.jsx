@@ -2,6 +2,32 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { TrendUp, Medal, Fire, ArrowsClockwise, Sparkle } from '@phosphor-icons/react';
 import { normalizeAnalyticsShape, getBadgeIcon } from '../lib/archetypeJourney';
 
+function parseTimestamp(value) {
+  if (!value) return null;
+  if (typeof value === 'number') {
+    return value < 1e12 ? value * 1000 : value;
+  }
+  if (typeof value === 'string' && /^\d+$/.test(value)) {
+    const numeric = Number(value);
+    return Number.isFinite(numeric) ? (numeric < 1e12 ? numeric * 1000 : numeric) : null;
+  }
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date.getTime();
+}
+
+function formatTimestampLabel(value) {
+  const ms = parseTimestamp(value);
+  if (!ms) return null;
+  const date = new Date(ms);
+  if (Number.isNaN(date.getTime())) return null;
+  return date.toLocaleString(undefined, {
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  });
+}
+
 /**
  * Loading skeleton for analytics sections
  */
@@ -91,6 +117,7 @@ function EmptyState({ onBackfill, isBackfilling, backfillResult }) {
           <button
             onClick={handleClick}
             disabled={isBackfilling}
+            aria-label="Analyze journal for archetype journey"
             className={`
               flex items-center gap-2 px-4 py-2 rounded-full text-xs font-medium
               border border-accent/30 text-accent
@@ -110,6 +137,11 @@ function EmptyState({ onBackfill, isBackfilling, backfillResult }) {
           <p className="mt-3 text-[11px] text-secondary/50">
             This will scan your journal entries and build your card frequency data.
           </p>
+          {backfillResult?.success && backfillResult?.stats?.entriesProcessed > 0 && (
+            <p className="mt-1 text-[10px] text-secondary/60">
+              Last run processed {backfillResult.stats.entriesProcessed} entries.
+            </p>
+          )}
         </>
       )}
     </section>
@@ -270,33 +302,22 @@ export function ArchetypeJourneySection({ isAuthenticated, showEmptyState = true
     );
   }
 
-  return (
-    <>
-      {/* Top Cards This Month */}
-      {analytics.topCards.length > 0 && (
-        <section
-          className="rounded-3xl border border-secondary/20 bg-surface/40 p-5"
-          aria-labelledby="archetype-journey-heading"
-        >
-          <h3
-            id="archetype-journey-heading"
-            className="mb-4 flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-accent/80"
-          >
+  const sectionBlocks = [];
+
+  if (analytics.topCards.length > 0) {
+    sectionBlocks.push({
+      key: 'topCards',
+      content: (
+        <>
+          <div className="mb-4 flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-accent/80">
             <TrendUp className="h-3 w-3" aria-hidden="true" />
-            Archetype Journey
-          </h3>
-          <p className="mb-3 text-xs text-secondary/70">{analytics.currentMonth}</p>
-          <ul
-            className="space-y-2"
-            aria-label="Your top 5 most frequently appearing cards this month"
-          >
+            Top Cards
+          </div>
+          <ul className="space-y-2" aria-label="Your top 5 most frequently appearing cards this month">
             {analytics.topCards.slice(0, 5).map((card, index) => (
-              <li key={card.card_name} className="flex items-center justify-between text-sm">
+              <li key={`${card.card_name}-${index}`} className="flex items-center justify-between text-sm">
                 <div className="flex items-center gap-2">
-                  <span
-                    className="flex h-5 w-5 items-center justify-center rounded-full bg-secondary/10 text-xs font-medium text-secondary"
-                    aria-hidden="true"
-                  >
+                  <span className="flex h-5 w-5 items-center justify-center rounded-full bg-secondary/10 text-xs font-medium text-secondary" aria-hidden="true">
                     {index + 1}
                   </span>
                   <span className="text-muted">
@@ -304,37 +325,33 @@ export function ArchetypeJourneySection({ isAuthenticated, showEmptyState = true
                     {card.card_name}
                   </span>
                 </div>
-                <span
-                  className="text-secondary/60"
-                  aria-label={`appeared ${card.count} times`}
-                >
+                <span className="text-secondary/60" aria-label={`appeared ${card.count} times`}>
                   {card.count}×
                 </span>
               </li>
             ))}
           </ul>
-        </section>
-      )}
+        </>
+      )
+    });
+  }
 
-      {/* Streak Badges */}
-      {analytics.streaks.length > 0 && (
-        <section
-          className="rounded-3xl border border-secondary/20 bg-surface/40 p-5"
-          aria-labelledby="recent-patterns-heading"
-        >
-          <h3
-            id="recent-patterns-heading"
-            className="mb-4 flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-accent/80"
-          >
+  if (analytics.streaks.length > 0) {
+    sectionBlocks.push({
+      key: 'patterns',
+      content: (
+        <>
+          <div className="mb-4 flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-accent/80">
             <Fire className="h-3 w-3" aria-hidden="true" />
             Recent Patterns
-          </h3>
+          </div>
           <ul className="space-y-3" aria-label="Cards appearing frequently this month">
             {analytics.streaks.slice(0, 3).map((streak) => (
               <li key={streak.cardName} className="flex items-center gap-3">
                 <div
                   className="flex h-8 w-8 items-center justify-center rounded-full bg-accent/10 text-accent"
                   aria-hidden="true"
+                  title="Pattern highlight"
                 >
                   <Fire className="h-4 w-4" />
                 </div>
@@ -352,44 +369,82 @@ export function ArchetypeJourneySection({ isAuthenticated, showEmptyState = true
               +{analytics.streaks.length - 3} more pattern{analytics.streaks.length - 3 !== 1 ? 's' : ''}
             </p>
           )}
-        </section>
-      )}
+        </>
+      )
+    });
+  }
 
-      {/* Recent Badges */}
-      {analytics.badges.length > 0 && (
-        <section
-          className="rounded-3xl border border-secondary/20 bg-surface/40 p-5"
-          aria-labelledby="achievements-heading"
-        >
-          <h3
-            id="achievements-heading"
-            className="mb-4 flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-accent/80"
-          >
+  if (analytics.badges.length > 0) {
+    sectionBlocks.push({
+      key: 'achievements',
+      content: (
+        <>
+          <div className="mb-4 flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-accent/80">
             <Medal className="h-3 w-3" aria-hidden="true" />
             Achievements
-          </h3>
+          </div>
           <ul className="space-y-2" aria-label="Your earned achievements">
             {analytics.badges.slice(0, 3).map((badge) => {
               const BadgeIcon = getBadgeIcon(badge.badge_type);
               return (
-              <li key={badge.badge_key} className="flex items-start gap-2">
-                <span className="text-lg" aria-hidden="true">
-                  <BadgeIcon className="h-4 w-4" />
-                </span>
-                <div className="flex-1">
-                  <p className="text-sm font-medium text-secondary">
-                    {badge.card_name || 'Milestone'}
-                  </p>
-                  <p className="text-xs text-secondary/60">
-                    {badge.metadata?.context || 'Achievement unlocked'}
-                  </p>
-                </div>
-              </li>
+                <li key={badge.badge_key} className="flex items-start gap-2">
+                  <span className="text-lg" title={badge.card_name || 'Achievement badge'}>
+                    <BadgeIcon className="h-4 w-4" aria-hidden="true" />
+                  </span>
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-secondary">
+                      {badge.card_name || 'Milestone'}
+                    </p>
+                    <p className="text-xs text-secondary/60">
+                      {badge.metadata?.context || 'Achievement unlocked'}
+                    </p>
+                  </div>
+                </li>
               );
             })}
           </ul>
-        </section>
+        </>
+      )
+    });
+  }
+
+  const topCardWithLastSeen = analytics.topCards.find((card) => card.last_seen);
+  const lastAnalyzedLabel = formatTimestampLabel(analytics.stats?.lastAnalyzedAt || topCardWithLastSeen?.last_seen);
+  const processedCaptionCount = analytics.stats?.entriesProcessed ?? analytics.stats?.totalReadings ?? null;
+  const runCaptionParts = [];
+  if (lastAnalyzedLabel) {
+    runCaptionParts.push(`Last analyzed ${lastAnalyzedLabel}`);
+  }
+  if (processedCaptionCount) {
+    runCaptionParts.push(`${processedCaptionCount} entries processed`);
+  }
+  const runCaption = runCaptionParts.join(' · ');
+
+  return (
+    <section className="rounded-3xl border border-secondary/30 bg-surface/70 p-5 space-y-5" aria-labelledby="archetype-journey-heading">
+      <div>
+        <p className="text-[11px] uppercase tracking-[0.3em] text-secondary/70">Archetype Journey</p>
+        <h3 id="archetype-journey-heading" className="text-lg font-serif text-main">{analytics.currentMonth}</h3>
+        <p className="text-xs text-secondary/60">
+          {analytics.stats?.thisMonth ?? 0} entries this month · Avg {analytics.stats?.avgPerWeek ?? 0}/week · {analytics.stats?.totalReadings ?? 0} total
+        </p>
+        {runCaption && (
+          <p className="text-[11px] text-secondary/60">
+            {runCaption}
+          </p>
+        )}
+      </div>
+      {sectionBlocks.length > 0 ? (
+        <div className="space-y-5 divide-y divide-secondary/15">
+          {sectionBlocks.map((section, index) => (
+            <div key={section.key} className={index === 0 ? '' : 'pt-5'}>
+              {section.content}
+            </div>
+          ))}
+        </div>
+      ) : (
+        <p className="text-sm text-secondary/70">Run more readings to unlock archetype analytics.</p>
       )}
-    </>
+    </section>
   );
 }

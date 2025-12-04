@@ -90,7 +90,9 @@ export function normalizeAnalyticsShape(rawData) {
     stats: {
       totalReadings: rawData.stats?.totalReadings || rawData.totalReadings || rawData.totalReadingsThisMonth || 0,
       thisMonth: rawData.stats?.thisMonth || rawData.totalReadingsThisMonth || 0,
-      avgPerWeek: rawData.stats?.avgPerWeek || 0
+      avgPerWeek: rawData.stats?.avgPerWeek || 0,
+      entriesProcessed: rawData.stats?.entriesProcessed ?? rawData.entriesProcessed ?? null,
+      lastAnalyzedAt: rawData.stats?.lastAnalyzedAt ?? rawData.stats?.lastRunAt ?? rawData.lastAnalyzedAt ?? rawData.lastRunAt ?? null
     },
 
     // Growth prompts/suggestions

@@ -12,9 +12,10 @@ import { InsightsErrorBoundary } from './InsightsErrorBoundary.jsx';
 import { JournalEntryCard } from './JournalEntryCard.jsx';
 import { SavedIntentionsList } from './SavedIntentionsList.jsx';
 import { ArchetypeJourneySection } from './ArchetypeJourneySection.jsx';
-import { computeJournalStats } from '../lib/journalInsights';
+import { computeJournalStats, formatContextName } from '../lib/journalInsights';
 import { SPREADS } from '../data/spreads';
 import { DECK_OPTIONS } from './DeckSelector';
+import { useSmallScreen } from '../hooks/useSmallScreen';
 
 const CONTEXT_FILTERS = [
   { value: 'love', label: 'Love' },
@@ -33,6 +34,40 @@ const SPREAD_FILTERS = Object.entries(SPREADS || {}).map(([value, config]) => ({
 const DECK_FILTERS = DECK_OPTIONS.map(d => ({ value: d.id, label: d.label }));
 
 const VISIBLE_ENTRY_BATCH = 10;
+const MOBILE_LAYOUT_MAX = 1023;
+
+const MOBILE_SECTIONS = [
+  { id: 'today', label: 'Today' },
+  { id: 'insights', label: 'Insights' },
+  { id: 'history', label: 'History' }
+];
+
+function getEntryTimestamp(entry) {
+  if (!entry) return null;
+  if (typeof entry.ts === 'number') return entry.ts;
+  if (entry?.created_at) return entry.created_at * 1000;
+  if (entry?.updated_at) return entry.updated_at * 1000;
+  return null;
+}
+
+function getMonthHeader(timestamp) {
+  if (!timestamp) return 'Undated';
+  const date = new Date(timestamp);
+  if (Number.isNaN(date.getTime())) return 'Undated';
+  return date.toLocaleString(undefined, { month: 'long', year: 'numeric' });
+}
+
+function formatSummaryDate(timestamp) {
+  if (!timestamp) return 'No entries yet';
+  const date = new Date(timestamp);
+  if (Number.isNaN(date.getTime())) return 'No entries yet';
+  return date.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
+}
+
+function getTopContext(stats) {
+  if (!stats?.contextBreakdown?.length) return null;
+  return stats.contextBreakdown.slice().sort((a, b) => b.count - a.count)[0];
+}
 
 export default function Journal() {
   const { isAuthenticated } = useAuth();
@@ -58,7 +93,10 @@ export default function Journal() {
   const [shareLinks, setShareLinks] = useState([]);
   const [shareLoading, setShareLoading] = useState(false);
   const [shareError, setShareError] = useState('');
+  const [compactList, setCompactList] = useState(false);
+  const [activeMobileSection, setActiveMobileSection] = useState('today');
   const navigate = useNavigate();
+  const isMobileLayout = useSmallScreen(MOBILE_LAYOUT_MAX);
 
   const handleStartReading = () => {
     navigate('/', { state: { focusSpread: true } });
@@ -145,6 +183,97 @@ export default function Journal() {
   const allStats = useMemo(() => computeJournalStats(entries), [entries]);
   const filteredStats = useMemo(() => computeJournalStats(filteredEntries), [filteredEntries]);
   const filtersActive = Boolean(filters.query.trim()) || filters.contexts.length > 0 || filters.spreads.length > 0 || filters.decks.length > 0 || filters.timeframe !== 'all' || filters.onlyReversals;
+  const hasEntries = entries.length > 0;
+  useEffect(() => {
+    if (!isMobileLayout && activeMobileSection !== 'today') {
+      setActiveMobileSection('today');
+    }
+  }, [isMobileLayout, activeMobileSection]);
+  useEffect(() => {
+    if (!hasEntries && activeMobileSection !== 'today') {
+      setActiveMobileSection('today');
+    }
+  }, [hasEntries, activeMobileSection]);
+
+  const latestAllEntryTs = useMemo(() => {
+    if (!entries || entries.length === 0) return null;
+    return entries.reduce((latest, entry) => {
+      const ts = getEntryTimestamp(entry);
+      if (!ts) return latest;
+      if (!latest || ts > latest) return ts;
+      return latest;
+    }, null);
+  }, [entries]);
+
+  const latestFilteredEntryTs = useMemo(() => {
+    if (!filteredEntries || filteredEntries.length === 0) return null;
+    return filteredEntries.reduce((latest, entry) => {
+      const ts = getEntryTimestamp(entry);
+      if (!ts) return latest;
+      if (!latest || ts > latest) return ts;
+      return latest;
+    }, null);
+  }, [filteredEntries]);
+
+  const topContextAll = useMemo(() => getTopContext(allStats), [allStats]);
+  const topContextFiltered = useMemo(() => getTopContext(filteredStats), [filteredStats]);
+  const primaryEntryCount = filtersActive ? filteredEntries.length : entries.length;
+  const entrySecondaryLabel = filtersActive ? `of ${entries.length} entries` : 'All time';
+  const primaryReversalRate = filtersActive
+    ? (filteredStats ? filteredStats.reversalRate : 0)
+    : (allStats?.reversalRate ?? 0);
+  const reversalSecondary = filtersActive
+    ? `Journal avg ${allStats?.reversalRate ?? 0}%`
+    : allStats?.totalCards
+      ? `${allStats.totalCards} cards logged`
+      : 'Log cards to see insights';
+  const summaryTopContext = filtersActive && topContextFiltered ? topContextFiltered : topContextAll;
+  const topContextLabel = summaryTopContext
+    ? formatContextName(summaryTopContext.name)
+    : filtersActive
+      ? 'No match'
+      : 'No context yet';
+  const topContextSecondary = filtersActive
+    ? summaryTopContext
+      ? 'Filtered view'
+      : 'Adjust filters to resurface contexts'
+    : hasEntries
+      ? `${entries.length} entries`
+      : 'Log a reading';
+  const summaryLastEntryTs = filtersActive && filteredEntries.length > 0 ? latestFilteredEntryTs : latestAllEntryTs;
+  const summaryLastEntryLabel = filtersActive && filteredEntries.length === 0
+    ? 'No matches'
+    : formatSummaryDate(summaryLastEntryTs);
+  const summaryLastEntrySecondary = filtersActive
+    ? (filteredEntries.length === 0 ? 'Showing whole journal' : `Journal: ${formatSummaryDate(latestAllEntryTs)}`)
+    : 'Latest journal update';
+  const summaryCardData = [
+    {
+      id: 'entries',
+      label: 'Entries logged',
+      value: primaryEntryCount,
+      hint: entrySecondaryLabel
+    },
+    {
+      id: 'reversal',
+      label: 'Reversal rate',
+      value: `${primaryReversalRate}%`,
+      hint: reversalSecondary
+    },
+    {
+      id: 'context',
+      label: 'Top context',
+      value: topContextLabel,
+      hint: topContextSecondary
+    },
+    {
+      id: 'last-entry',
+      label: 'Last entry',
+      value: summaryLastEntryLabel,
+      hint: summaryLastEntrySecondary
+    }
+  ];
+  const showSummaryBand = !loading && hasEntries;
 
   const fetchShareLinks = useCallback(async () => {
     if (!isAuthenticated) return;
@@ -307,13 +436,71 @@ export default function Journal() {
     }
   };
 
+  const railContent = !loading && hasEntries ? (
+    <div className="space-y-6 lg:space-y-8">
+      <JournalFilters
+        filters={filters}
+        onChange={setFilters}
+        contexts={CONTEXT_FILTERS}
+        spreads={SPREAD_FILTERS}
+        decks={DECK_FILTERS}
+      />
+      {(allStats || filteredStats) && (
+        <InsightsErrorBoundary>
+          <JournalInsightsPanel
+            stats={filteredStats}
+            allStats={allStats}
+            entries={filteredEntries}
+            allEntries={entries}
+            isAuthenticated={isAuthenticated}
+            filtersActive={filtersActive}
+            shareLinks={shareLinks}
+            shareLoading={shareLoading}
+            shareError={shareError}
+            onCreateShareLink={isAuthenticated ? createShareLink : null}
+            onDeleteShareLink={isAuthenticated ? deleteShareLink : null}
+          />
+        </InsightsErrorBoundary>
+      )}
+      {isAuthenticated && (
+        <ArchetypeJourneySection isAuthenticated={isAuthenticated} showEmptyState />
+      )}
+    </div>
+  ) : null;
+  const sectionVisibility = (sectionId) => (isMobileLayout && activeMobileSection !== sectionId ? 'hidden lg:block' : '');
+  const hasRailContent = Boolean(railContent);
+  const mobileSections = MOBILE_SECTIONS.filter((section) => (section.id === 'insights' ? hasRailContent : true));
+  const entryStackSpacingClass = compactList ? 'space-y-4' : 'space-y-6';
+  let lastMonthLabel = null;
+  const renderedHistoryEntries = visibleEntries.map((entry, index) => {
+    const timestamp = getEntryTimestamp(entry);
+    const monthLabel = getMonthHeader(timestamp);
+    const showDivider = monthLabel !== lastMonthLabel;
+    lastMonthLabel = monthLabel;
+    const key = entry.id || `${timestamp || 'entry'}-${index}`;
+    return (
+      <div key={key} className="space-y-2">
+        {showDivider && (
+          <p className="text-[11px] uppercase tracking-[0.3em] text-secondary/60">{monthLabel}</p>
+        )}
+        <JournalEntryCard
+          entry={entry}
+          isAuthenticated={isAuthenticated}
+          onCreateShareLink={isAuthenticated ? createShareLink : null}
+          onDelete={handleDeleteRequest}
+          compact={compactList}
+        />
+      </div>
+    );
+  });
+
   return (
     <>
       <div className="min-h-screen bg-main text-main animate-fade-in">
         <div className="skip-links">
           <a href="#journal-content" className="skip-link">Skip to journal content</a>
         </div>
-        <main id="journal-content" tabIndex={-1} className="max-w-5xl mx-auto px-4 sm:px-6 py-8">
+        <main id="journal-content" tabIndex={-1} className="journal-page max-w-5xl mx-auto px-4 sm:px-6 py-8">
           <GlobalNav />
 
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-6">
@@ -325,7 +512,6 @@ export default function Journal() {
               Back to Reading
             </button>
 
-            {/* Auth controls */}
             <div className="flex items-center gap-4">
               <UserMenu />
             </div>
@@ -333,16 +519,13 @@ export default function Journal() {
 
           <h1 className="text-3xl font-serif text-accent mb-4">Your Tarot Journal</h1>
 
-          {/* Auth status & migration banner */}
           {isAuthenticated ? (
-            <div className="mb-6 p-4 bg-secondary/10 border border-secondary/40 rounded-lg">
-              <p className="text-sm text-secondary">
-                ✓ Signed in — Your journal is synced across devices
-              </p>
+            <div className="mb-6 rounded-2xl border border-secondary/40 bg-secondary/10 p-4">
+              <p className="journal-prose text-secondary">✓ Signed in — Your journal is synced across devices</p>
               {hasLocalStorageEntries() && !migrating && (
                 <button
                   onClick={handleMigrate}
-                  className="mt-2 flex items-center gap-2 text-sm text-secondary hover:text-secondary/80 underline"
+                  className="mt-2 inline-flex items-center gap-2 text-sm text-secondary hover:text-secondary/80 underline"
                 >
                   <UploadSimple className="w-4 h-4" />
                   Migrate localStorage entries to cloud
@@ -356,10 +539,8 @@ export default function Journal() {
               )}
             </div>
           ) : (
-            <div className="mb-6 p-4 bg-primary/10 border border-primary/40 rounded-lg">
-              <p className="text-sm text-accent">
-                Your journal is currently stored locally in this browser only. Use the Sign In button in the header to sync across devices.
-              </p>
+            <div className="mb-6 rounded-2xl border border-primary/40 bg-primary/10 p-4 text-sm text-accent journal-prose">
+              Your journal is currently stored locally in this browser only. Use the Sign In button in the header to sync across devices.
             </div>
           )}
 
@@ -369,146 +550,199 @@ export default function Journal() {
             </div>
           )}
 
-          {/* Saved Intentions Section */}
-          <SavedIntentionsList />
+          {showSummaryBand && (
+            <section className="mb-6 rounded-3xl border border-secondary/30 bg-surface/80 p-6 shadow-lg">
+              <div className="flex flex-col gap-6">
+                <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                  <div>
+                    <p className="journal-eyebrow text-secondary/70">Journal pulse</p>
+                    <h2 className="text-2xl font-serif text-main">Where your readings stand</h2>
+                  </div>
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                    <button
+                      type="button"
+                      onClick={handleStartReading}
+                      className="inline-flex items-center justify-center rounded-full bg-accent px-5 py-2 text-sm font-semibold text-surface shadow-lg shadow-accent/30 hover:opacity-95"
+                    >
+                      New entry
+                    </button>
+                      <label className="journal-prose flex items-center gap-2 text-sm text-secondary">
+                      <input
+                        type="checkbox"
+                        className="h-4 w-4 rounded border-secondary/40 bg-surface text-accent focus:ring-secondary"
+                        checked={compactList}
+                        onChange={(event) => setCompactList(event.target.checked)}
+                      />
+                      Compact list
+                    </label>
+                  </div>
+                </div>
+                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                  {summaryCardData.map((card) => (
+                    <div key={card.id} className="rounded-2xl border border-secondary/20 bg-surface/40 p-4">
+                      <p className="journal-eyebrow text-secondary/60">{card.label}</p>
+                      <p className="mt-2 text-2xl font-serif text-main">{card.value}</p>
+                      {card.hint && (
+                        <p className="journal-prose text-secondary/70">{card.hint}</p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </section>
+          )}
 
-          {/* Archetype Journey - Prominent placement for authenticated users */}
-          {isAuthenticated && !loading && entries.length > 0 && (
-            <div className="mb-6">
-              <ArchetypeJourneySection isAuthenticated={isAuthenticated} showEmptyState={true} />
+          {showSummaryBand && isMobileLayout && mobileSections.length > 1 && (
+            <div className="mb-6 flex w-full gap-2 rounded-full bg-surface/60 p-1" role="tablist" aria-label="Journal sections">
+              {mobileSections.map((section) => (
+                <button
+                  key={section.id}
+                  type="button"
+                  role="tab"
+                  aria-selected={activeMobileSection === section.id}
+                  onClick={() => setActiveMobileSection(section.id)}
+                  className={`flex-1 rounded-full px-4 py-2 text-sm font-medium transition ${
+                    activeMobileSection === section.id ? 'bg-main text-accent shadow-lg shadow-main/40' : 'text-secondary/70'
+                  }`}
+                >
+                  {section.label}
+                </button>
+              ))}
             </div>
           )}
 
-          {/* Delete status message */}
           {deleteMessage && (
             <div className={`mb-4 p-3 rounded-lg ${deleteMessage.includes('failed') ? 'bg-error/10 border border-error/40 text-error' : 'bg-secondary/10 border border-secondary/40 text-secondary'}`}>
-              <p className="text-sm">{deleteMessage}</p>
+              <p className="journal-prose text-sm">{deleteMessage}</p>
             </div>
           )}
 
-          {/* Loading state */}
           {loading ? (
-            <div className="text-center py-12">
-              <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-accent"></div>
+            <div className="py-12 text-center">
+              <div className="inline-block h-8 w-8 animate-spin rounded-full border-b-2 border-accent" />
               <p className="mt-4 text-muted">Loading journal...</p>
             </div>
-          ) : entries.length === 0 ? (
-            <div className="modern-surface p-6 sm:p-7 text-center text-main space-y-4 animate-fade-in">
-              <div className="flex justify-center">
-                <Notebook className="w-10 h-10 text-accent" aria-hidden="true" />
-              </div>
-              <div>
-                <h2 className="text-2xl font-serif text-accent">Start your tarot journal</h2>
-                <p className="text-muted text-sm sm:text-base max-w-2xl mx-auto mt-1">
-                  Track patterns across readings, revisit past insights, and watch your understanding deepen over time.
-                </p>
-              </div>
-
-              <div className="grid gap-3 sm:grid-cols-3 text-left text-sm text-muted">
-                <div className="flex items-start gap-2">
-                  <Sparkle className="w-4 h-4 mt-0.5 text-accent" />
-                  <div>
-                    <p className="text-main font-semibold">Spot recurring themes</p>
-                    <p>Surface repeaters and spreads that resonate most.</p>
-                  </div>
-                </div>
-                <div className="flex items-start gap-2">
-                  <ChartLine className="w-4 h-4 mt-0.5 text-accent" />
-                  <div>
-                    <p className="text-main font-semibold">Measure your growth</p>
-                    <p>See how questions evolve and which cards guide you.</p>
-                  </div>
-                </div>
-                <div className="flex items-start gap-2">
-                  <BookOpen className="w-4 h-4 mt-0.5 text-accent" />
-                  <div>
-                    <p className="text-main font-semibold">Capture reflections</p>
-                    <p>Keep notes beside each position to revisit later.</p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="text-left bg-surface rounded-xl border border-secondary/50 p-4 shadow-sm">
-                <p className="text-[0.78rem] uppercase tracking-[0.12em] text-secondary/80 mb-1">Example entry</p>
-                <div className="flex flex-col gap-1">
-                  <p className="text-main font-semibold">Three-Card Story · Daily check-in</p>
-                  <p className="text-muted text-sm">Question: &ldquo;What pattern is emerging for me this week?&rdquo;</p>
-                  <p className="text-muted text-sm">Pull: The Star (upright), Six of Cups, Two of Wands</p>
-                  <p className="text-secondary text-sm italic">Reflection: Hope is back. Remember the plan from Tuesday and take the next step.</p>
-                </div>
-              </div>
-
-              <div className="flex flex-wrap items-center justify-center gap-3 pt-1">
-                <button
-                  type="button"
-                  onClick={handleStartReading}
-                  className="inline-flex items-center gap-2 rounded-full bg-accent px-5 py-2.5 text-sm font-semibold text-surface shadow-lg shadow-accent/25 hover:opacity-95 transition"
-                >
-                  Start a reading
-                </button>
-                <button
-                  type="button"
-                  onClick={() => navigate('/', { state: { focusSpread: true, initialQuestion: 'What pattern is emerging for me this week?' } })}
-                  className="inline-flex items-center gap-2 rounded-full border border-secondary/60 px-5 py-2.5 text-sm font-semibold text-secondary hover:bg-secondary/10 transition"
-                >
-                  Try a guided draw
-                </button>
-              </div>
-            </div>
           ) : (
-            <div className="space-y-8">
-              <JournalFilters
-                filters={filters}
-                onChange={setFilters}
-                contexts={CONTEXT_FILTERS}
-                spreads={SPREAD_FILTERS}
-                decks={DECK_FILTERS}
-              />
-              {(allStats || filteredStats) && (
-                <InsightsErrorBoundary>
-                  <JournalInsightsPanel
-                    stats={filteredStats}
-                    allStats={allStats}
-                    entries={filteredEntries}
-                    allEntries={entries}
-                    isAuthenticated={isAuthenticated}
-                    filtersActive={filtersActive}
-                    shareLinks={shareLinks}
-                    shareLoading={shareLoading}
-                    shareError={shareError}
-                    onCreateShareLink={isAuthenticated ? createShareLink : null}
-                    onDeleteShareLink={isAuthenticated ? deleteShareLink : null}
-                  />
-                </InsightsErrorBoundary>
-              )}
-              {filteredEntries.length === 0 ? (
-                <p className="text-muted">No entries match your filters.</p>
-              ) : (
-                <div className="space-y-6">
-                  <p className="text-xs uppercase tracking-[0.2em] text-secondary/70">
-                    Showing {visibleEntries.length} of {filteredEntries.length} entries
-                  </p>
-                  {visibleEntries.map((entry) => (
-                    <JournalEntryCard
-                      key={entry.id}
-                      entry={entry}
-                      isAuthenticated={isAuthenticated}
-                      onCreateShareLink={isAuthenticated ? createShareLink : null}
-                      onDelete={handleDeleteRequest}
-                    />
-                  ))}
-                  {hasMoreEntries && (
+            <div className={hasEntries && hasRailContent ? 'lg:grid lg:grid-cols-[minmax(0,1fr)_360px] lg:gap-6' : ''}>
+              <div className="space-y-8">
+                <section id="today" className={`rounded-3xl border border-secondary/30 bg-surface/70 p-5 shadow-lg ${hasEntries ? sectionVisibility('today') : ''}`}>
+                  <div className="mb-4">
+                    <p className="journal-eyebrow text-secondary/70">Today</p>
+                    <h2 className="text-xl font-serif text-main">Keep today&rsquo;s focus handy</h2>
+                  </div>
+                  <SavedIntentionsList />
+                </section>
+
+                {hasEntries ? (
+                  <section id="history" className={`space-y-6 ${sectionVisibility('history')}`}>
+                    <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                      <div>
+                        <p className="journal-eyebrow text-secondary/70">History</p>
+                        <h2 className="text-2xl font-serif text-main">Journal history</h2>
+                      </div>
+                      <p className="journal-eyebrow text-secondary/60">
+                        Showing {visibleEntries.length} of {filteredEntries.length} entries
+                      </p>
+                    </div>
+
+                    {filteredEntries.length === 0 ? (
+                      <div className="rounded-2xl border border-secondary/30 bg-surface/60 p-6 text-sm text-secondary">
+                          <p className="journal-prose">No entries match your filters.</p>
+                          <p className="journal-prose mt-2 text-secondary/70">Try adjusting the filters or reset to see the full journal.</p>
+                      </div>
+                    ) : (
+                      <>
+                        <div className={entryStackSpacingClass}>
+                          {renderedHistoryEntries}
+                        </div>
+                        {hasMoreEntries && (
+                          <div className="flex justify-center">
+                            <button
+                              type="button"
+                              onClick={handleLoadMoreEntries}
+                              className="rounded-full border border-secondary/40 px-4 py-2 text-sm text-secondary hover:bg-secondary/10"
+                            >
+                              Show {Math.min(VISIBLE_ENTRY_BATCH, filteredEntries.length - visibleEntries.length)} more
+                            </button>
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </section>
+                ) : (
+                  <div className="modern-surface animate-fade-in space-y-4 rounded-3xl p-6 text-center text-main">
                     <div className="flex justify-center">
+                      <Notebook className="h-10 w-10 text-accent" aria-hidden="true" />
+                    </div>
+                    <div>
+                      <h2 className="text-2xl font-serif text-accent">Start your tarot journal</h2>
+                      <p className="journal-prose mt-1 text-sm text-muted sm:text-base">
+                        Track patterns across readings, revisit past insights, and watch your understanding deepen over time.
+                      </p>
+                    </div>
+                    <div className="grid gap-3 text-left text-sm text-muted sm:grid-cols-3">
+                      <div className="flex items-start gap-2">
+                        <Sparkle className="mt-0.5 h-4 w-4 text-accent" />
+                        <div className="journal-prose">
+                          <p className="text-main font-semibold">Spot recurring themes</p>
+                          <p>Surface repeaters and spreads that resonate most.</p>
+                        </div>
+                      </div>
+                      <div className="flex items-start gap-2">
+                        <ChartLine className="mt-0.5 h-4 w-4 text-accent" />
+                        <div className="journal-prose">
+                          <p className="text-main font-semibold">Measure your growth</p>
+                          <p>See how questions evolve and which cards guide you.</p>
+                        </div>
+                      </div>
+                      <div className="flex items-start gap-2">
+                        <BookOpen className="mt-0.5 h-4 w-4 text-accent" />
+                        <div className="journal-prose">
+                          <p className="text-main font-semibold">Capture reflections</p>
+                          <p>Keep notes beside each position to revisit later.</p>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="rounded-xl border border-secondary/50 bg-surface p-4 text-left shadow-sm">
+                      <p className="text-[0.78rem] uppercase tracking-[0.12em] text-secondary/80 mb-1">Example entry</p>
+                      <div className="journal-prose flex flex-col gap-1 text-sm text-muted">
+                        <p className="text-main font-semibold">Three-Card Story · Daily check-in</p>
+                        <p>Question: &ldquo;What pattern is emerging for me this week?&rdquo;</p>
+                        <p>Pull: The Star (upright), Six of Cups, Two of Wands</p>
+                        <p className="italic text-secondary">Reflection: Hope is back. Remember the plan from Tuesday and take the next step.</p>
+                      </div>
+                    </div>
+                    <div className="flex flex-wrap items-center justify-center gap-3 pt-1">
                       <button
                         type="button"
-                        onClick={handleLoadMoreEntries}
-                        className="rounded-full border border-secondary/40 px-4 py-2 text-sm text-secondary hover:bg-secondary/10"
+                        onClick={handleStartReading}
+                        className="inline-flex items-center gap-2 rounded-full bg-accent px-5 py-2.5 text-sm font-semibold text-surface shadow-lg shadow-accent/25 hover:opacity-95 transition"
                       >
-                        Show {Math.min(VISIBLE_ENTRY_BATCH, filteredEntries.length - visibleEntries.length)} more
+                        Start a reading
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => navigate('/', { state: { focusSpread: true, initialQuestion: 'What pattern is emerging for me this week?' } })}
+                        className="inline-flex items-center gap-2 rounded-full border border-secondary/60 px-5 py-2.5 text-sm font-semibold text-secondary hover:bg-secondary/10 transition"
+                      >
+                        Try a guided draw
                       </button>
                     </div>
-                  )}
-                </div>
+                  </div>
+                )}
+              </div>
+
+              {hasEntries && hasRailContent && (
+                <>
+                  <aside className="hidden lg:block">
+                    <div className="lg:sticky lg:top-6">
+                      {railContent}
+                    </div>
+                  </aside>
+                  <section id="insights" className={`mt-8 lg:hidden ${activeMobileSection === 'insights' ? '' : 'hidden'}`}>
+                    {railContent}
+                  </section>
+                </>
               )}
             </div>
           )}

@@ -100,7 +100,6 @@ export function ReadingProvider({ children }) {
             setEmotionalTone(null);
             setSpreadAnalysis(null);
             setAnalysisContext(null);
-            setAnalyzingText('');
             setIsGenerating(false);
             setNarrativePhase('idle');
             setJournalStatus(null);
@@ -135,7 +134,6 @@ export function ReadingProvider({ children }) {
         inFlightReadingRef.current = { controller, sessionSeed };
 
         setIsGenerating(true);
-        setAnalyzingText('');
         setPersonalReading(null);
         setJournalStatus(null);
         setNarrativePhase('analyzing');
@@ -190,7 +188,6 @@ export function ReadingProvider({ children }) {
                 .filter(Boolean)
                 .join('\n');
 
-            setAnalyzingText('Analyzing your spread for narrative insights...');
             setNarrativePhase('analyzing');
             setSrAnnouncement('Step 1 of 3: Analyzing spread for your narrative.');
 
@@ -211,7 +208,6 @@ export function ReadingProvider({ children }) {
             let proof = null;
             if (shouldAttachVisionProof) {
                 try {
-                    setAnalyzingText('Validating your card photos for research telemetry...');
                     proof = await ensureVisionProof();
                 } catch (proofError) {
                     setJournalStatus({
@@ -249,7 +245,6 @@ export function ReadingProvider({ children }) {
             const normalizedPayload = safeParseReadingRequest(payload);
             if (!normalizedPayload.success) {
                 setIsGenerating(false);
-                setAnalyzingText('');
                 setNarrativePhase('error');
                 setJournalStatus({
                     type: 'error',
@@ -262,7 +257,6 @@ export function ReadingProvider({ children }) {
             requestPayload.body = JSON.stringify(normalizedPayload.data);
 
             setNarrativePhase('drafting');
-            setAnalyzingText('Drafting narrative insights based on your spread...');
             setSrAnnouncement('Step 2 of 3: Drafting narrative insights.');
 
             const response = await fetch('/api/tarot-reading', requestPayload);
@@ -287,7 +281,6 @@ export function ReadingProvider({ children }) {
             }
 
             setNarrativePhase('polishing');
-            setAnalyzingText('Final polishing and assembling your narrative...');
             setSrAnnouncement('Step 3 of 3: Final polishing and assembling your narrative.');
 
             setThemes(data.themes || null);
@@ -338,7 +331,6 @@ export function ReadingProvider({ children }) {
                 inFlightReadingRef.current = null;
             }
             setIsGenerating(false);
-            setAnalyzingText('');
         }
     }, [
         reading,
@@ -524,7 +516,6 @@ export function ReadingProvider({ children }) {
         revealAll,
         personalReading, setPersonalReading,
         isGenerating, setIsGenerating,
-        analyzingText, setAnalyzingText,
         narrativePhase, setNarrativePhase,
         spreadAnalysis, setSpreadAnalysis,
         themes, setThemes,
@@ -548,7 +539,6 @@ export function ReadingProvider({ children }) {
         revealAll,
         personalReading,
         isGenerating,
-        analyzingText,
         narrativePhase,
         spreadAnalysis,
         themes,

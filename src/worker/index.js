@@ -21,6 +21,7 @@ import * as shareToken from '../../functions/api/share/[token].js';
 import * as shareNotes from '../../functions/api/share-notes/[token].js';
 import * as visionProof from '../../functions/api/vision-proof.js';
 import * as archetypeJourney from '../../functions/api/archetype-journey.js';
+import * as archetypeJourneyBackfill from '../../functions/api/archetype-journey-backfill.js';
 
 // Auth handlers
 import * as authLogin from '../../functions/api/auth/login.js';
@@ -65,6 +66,7 @@ const routes = [
   { pattern: /^\/api\/vision-proof$/, handlers: visionProof },
   { pattern: /^\/api\/archetype-journey$/, handlers: archetypeJourney },
   { pattern: /^\/api\/archetype-journey\/(.*)$/, handlers: archetypeJourney, params: ['path'] },
+  { pattern: /^\/api\/archetype-journey-backfill$/, handlers: archetypeJourneyBackfill },
 
   // Auth endpoints
   { pattern: /^\/api\/auth\/login$/, handlers: authLogin },

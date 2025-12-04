@@ -118,14 +118,19 @@ export const JournalInsightsPanel = memo(function JournalInsightsPanel({
 
     const [actionMessage, setActionMessage] = useState('');
     const [shareComposerOpen, setShareComposerOpen] = useState(false);
-    const [insightsOpen, setInsightsOpen] = useState(false);
-    const [shareOpen, setShareOpen] = useState(false);
     const [shareComposer, setShareComposer] = useState({ scope: 'journal', entryId: '', title: '', limit: '5', expiresInHours: '72' });
     const [composerErrors, setComposerErrors] = useState({});
+    const [shareLinkFeedback, setShareLinkFeedback] = useState({ token: null, message: '' });
     const timeoutsRef = useRef([]);
 
     const scheduleActionClear = (delay = 3000) => {
         const id = setTimeout(() => setActionMessage(''), delay);
+        timeoutsRef.current.push(id);
+    };
+
+    const showLinkFeedback = (token, message, delay = 2500) => {
+        setShareLinkFeedback({ token, message });
+        const id = setTimeout(() => setShareLinkFeedback({ token: null, message: '' }), delay);
         timeoutsRef.current.push(id);
     };
 
@@ -186,18 +191,18 @@ export const JournalInsightsPanel = memo(function JournalInsightsPanel({
     }, [shareComposerOpen]);
 
     useEffect(() => {
-        if (!filtersActive) {
-            return undefined;
+        if (!isAuthenticated && shareComposerOpen) {
+            setShareComposerOpen(false);
         }
-        return scheduleDeferred(() => setInsightsOpen(true));
-    }, [filtersActive]);
+    }, [isAuthenticated, shareComposerOpen]);
 
     useEffect(() => {
-        if (shareOpen) {
-            return undefined;
+        if (!shareLinkFeedback.token) return;
+        const stillExists = shareLinks.some(link => link.token === shareLinkFeedback.token);
+        if (!stillExists) {
+            setShareLinkFeedback({ token: null, message: '' });
         }
-        return scheduleDeferred(() => setShareComposerOpen(false));
-    }, [shareOpen]);
+    }, [shareLinks, shareLinkFeedback.token]);
 
     const handleExport = () => {
         const exportEntries = isFilteredAndEmpty && Array.isArray(allEntries) ? allEntries : summaryEntries;
@@ -299,7 +304,7 @@ export const JournalInsightsPanel = memo(function JournalInsightsPanel({
 
         const run = async () => {
             // Reset when there is no theme or insights are hidden
-            if (!insightsOpen || !normalizedTopTheme) {
+            if (!normalizedTopTheme) {
                 setPolishedThemeQuestion(null);
                 return;
             }
@@ -350,7 +355,7 @@ export const JournalInsightsPanel = memo(function JournalInsightsPanel({
             isCancelled = true;
             controller.abort();
         };
-    }, [insightsOpen, normalizedTopTheme, topContext?.name, primaryStats?.totalReadings]);
+    }, [normalizedTopTheme, topContext?.name, primaryStats?.totalReadings]);
 
     const coachRecommendation = (() => {
         if (contextSuggestion) {
@@ -437,6 +442,16 @@ export const JournalInsightsPanel = memo(function JournalInsightsPanel({
 
         return { filtered: filteredOptions, journal: journalOptions, all: [...filteredOptions, ...journalOptions] };
     }, [allEntries, entries]);
+
+    const insightsGridLayout = useMemo(() => {
+        if (isSmallScreen) {
+            return 'grid-cols-1 gap-4';
+        }
+        if (isLandscape) {
+            return 'grid-cols-2 gap-3';
+        }
+        return 'sm:grid-cols-2 gap-6';
+    }, [isLandscape, isSmallScreen]);
 
     const composerPreviewEntries = useMemo(() => {
         if (!filtersActive || shareComposer.scope !== 'journal') return [];
@@ -535,13 +550,17 @@ export const JournalInsightsPanel = memo(function JournalInsightsPanel({
         if (navigator?.clipboard?.writeText) {
             try {
                 await navigator.clipboard.writeText(url);
-                setActionMessage('Link copied');
+                showLinkFeedback(token, 'Link copied');
+                setActionMessage('');
+                return;
             } catch (error) {
                 console.warn('Clipboard write failed for saved link', error);
                 setActionMessage('Copy blocked—link ready to open manually');
+                showLinkFeedback(token, 'Copy blocked—use tap-and-hold to copy');
             }
         } else {
             setActionMessage('Copy not supported in this browser');
+            showLinkFeedback(token, 'Copy not supported in this browser');
         }
         scheduleActionClear(2500);
     };
@@ -551,16 +570,14 @@ export const JournalInsightsPanel = memo(function JournalInsightsPanel({
     }
 
     return (
-        <div className={`space-y-6 ${prefersReducedMotion ? '' : 'animate-fade-in'}`}>
-            {/* Top Bar: Stats & Actions */}
-            <div className={`flex rounded-3xl border border-secondary/30 bg-surface/70 sm:flex-row sm:items-center sm:justify-between ${isLandscape ? 'flex-row items-center gap-3 p-4' : 'flex-col gap-4 p-6'}`}>
+        <div className={prefersReducedMotion ? '' : 'animate-fade-in'}>
+            <div className="space-y-6 rounded-3xl border border-secondary/30 bg-surface/70 p-6">
                 <div>
-                    <h2 className={`font-serif text-main ${isLandscape ? 'text-lg' : 'text-2xl'}`}>Journal Insights</h2>
-                    <p className={`mt-1 text-secondary/70 ${isLandscape ? 'text-xs' : 'text-sm'}`}>
+                    <h2 className="text-2xl font-serif text-main">Journal Insights</h2>
+                    <p className="mt-1 text-sm text-secondary/70">
                         {isFilteredView && allStats ? (
                             <>
-                                <span className="font-medium text-secondary">Filtered: </span>
-                                {stats.totalReadings} of {allStats.totalReadings} entries · {stats.reversalRate}% reversed
+                                <span className="font-medium text-secondary">Filtered:</span> {stats.totalReadings} of {allStats.totalReadings} entries · {stats.reversalRate}% reversed
                             </>
                         ) : (
                             <>
@@ -568,63 +585,67 @@ export const JournalInsightsPanel = memo(function JournalInsightsPanel({
                             </>
                         )}
                     </p>
+                    {isFilteredAndEmpty && (
+                        <p className="mt-1 text-xs text-secondary/70">Filters returned no entries, showing full journal insights.</p>
+                    )}
                 </div>
 
-                <div className="flex flex-wrap gap-2">
-                    <button
-                        type="button"
-                        onClick={() => setInsightsOpen(prev => !prev)}
-                        className={`rounded-full border px-3 py-1.5 text-xs font-medium transition ${insightsOpen ? 'border-secondary text-secondary bg-secondary/10' : 'border-accent/30 text-muted hover:text-secondary hover:border-secondary/50'}`}
-                    >
-                        {insightsOpen ? 'Hide insights' : 'Show insights'}
-                    </button>
-                    <button
-                        type="button"
-                        onClick={() => setShareOpen(prev => !prev)}
-                        className={`rounded-full border px-3 py-1.5 text-xs font-medium transition ${shareOpen ? 'border-secondary text-secondary bg-secondary/10' : 'border-accent/30 text-muted hover:text-secondary hover:border-secondary/50'}`}
-                    >
-                        {shareOpen ? 'Hide share & export' : 'Share & export'}
-                    </button>
-                </div>
-            </div>
-
-            {shareOpen && (
-                <div className="flex flex-wrap gap-3 rounded-2xl border border-secondary/20 bg-surface/70 p-3">
-                    <div className="flex items-center gap-2 rounded-full border border-secondary/20 bg-surface-muted/50 p-1">
-                        <button onClick={handleExport} className="rounded-full p-2 text-secondary hover:bg-secondary/20" title="Export CSV">
-                            <FileText className="h-4 w-4" />
-                        </button>
-                        <button onClick={handlePdfDownload} className="rounded-full p-2 text-secondary hover:bg-secondary/20" title="Download PDF">
-                            <DownloadSimple className="h-4 w-4" />
-                        </button>
-                        <button onClick={handleVisualCardDownload} disabled={!svgStats} className={`rounded-full p-2 ${svgStats ? 'text-secondary hover:bg-secondary/20' : 'text-secondary/30'}`} title="Visual Card">
-                            <Sparkle className="h-4 w-4" />
-                        </button>
-                    </div>
-
-                    <div className="flex items-center gap-2 rounded-full border border-secondary/20 bg-surface-muted/50 p-1">
-                        <button onClick={handleShare} className="rounded-full p-2 text-secondary hover:bg-secondary/20" title="Quick share link">
+                <div className="rounded-2xl border border-secondary/30 bg-surface/60 p-3 lg:sticky lg:top-0 lg:z-10">
+                    <div className="flex flex-wrap gap-2">
+                        <button
+                            type="button"
+                            onClick={handleShare}
+                            className="inline-flex items-center gap-2 rounded-full border border-secondary/40 px-3 py-1.5 text-xs font-semibold text-secondary hover:border-secondary/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/50"
+                        >
                             <ShareNetwork className="h-4 w-4" />
+                            Share link
+                        </button>
+                        <button
+                            type="button"
+                            onClick={handleExport}
+                            className="inline-flex items-center gap-2 rounded-full border border-secondary/40 px-3 py-1.5 text-xs font-semibold text-secondary hover:border-secondary/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/50"
+                        >
+                            <FileText className="h-4 w-4" />
+                            Export CSV
+                        </button>
+                        <button
+                            type="button"
+                            onClick={handlePdfDownload}
+                            className="inline-flex items-center gap-2 rounded-full border border-secondary/40 px-3 py-1.5 text-xs font-semibold text-secondary hover:border-secondary/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/50"
+                        >
+                            <DownloadSimple className="h-4 w-4" />
+                            PDF
+                        </button>
+                        <button
+                            type="button"
+                            onClick={handleVisualCardDownload}
+                            disabled={!svgStats}
+                            className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/50 ${svgStats ? 'border-secondary/40 text-secondary hover:border-secondary/70' : 'border-secondary/20 text-secondary/40'}`}
+                        >
+                            <Sparkle className="h-4 w-4" />
+                            Visual card
                         </button>
                         {isAuthenticated && onCreateShareLink && (
-                            <button onClick={() => setShareComposerOpen(!shareComposerOpen)} className={`rounded-full p-2 hover:bg-secondary/20 ${shareComposerOpen ? 'bg-secondary/20 text-secondary' : 'text-secondary'}`} title="Custom Link">
+                            <button
+                                type="button"
+                                onClick={() => setShareComposerOpen(prev => !prev)}
+                                className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/50 ${shareComposerOpen ? 'border-secondary text-secondary bg-secondary/10' : 'border-secondary/40 text-secondary hover:border-secondary/70'}`}
+                            >
                                 <ArrowsClockwise className="h-4 w-4" />
+                                {shareComposerOpen ? 'Close custom link' : 'Custom link'}
                             </button>
                         )}
                     </div>
+                    {actionMessage && (
+                        <p className={`mt-2 text-sm text-secondary ${prefersReducedMotion ? '' : 'animate-fade-in'}`}>{actionMessage}</p>
+                    )}
                 </div>
-            )}
 
-            {actionMessage && (
-                <div className={`text-center text-sm text-secondary ${prefersReducedMotion ? '' : 'animate-fade-in'}`}>{actionMessage}</div>
-            )}
-
-            {/* Share & export composer */}
-            {shareOpen && shareComposerOpen && (
-                <form onSubmit={handleComposerSubmit} className={`rounded-2xl border border-secondary/30 bg-surface-muted/50 ${isSmallScreen ? 'p-4' : 'p-6'} ${prefersReducedMotion ? '' : 'animate-slide-down'}`}>
-                    <div className="grid gap-4 sm:grid-cols-2">
-                        <label className="block">
-                            <span className="text-xs uppercase tracking-wider text-secondary/80">Link Title</span>
+                {shareComposerOpen && (
+                    <form onSubmit={handleComposerSubmit} className={`rounded-2xl border border-secondary/30 bg-surface-muted/50 ${isSmallScreen ? 'p-4' : 'p-6'} ${prefersReducedMotion ? '' : 'animate-slide-down'}`}>
+                        <div className="grid gap-4 sm:grid-cols-2">
+                            <label className="block">
+                                <span className="text-xs uppercase tracking-wider text-secondary/80">Link Title</span>
                             <input
                                 type="text"
                                 value={shareComposer.title}
@@ -727,9 +748,7 @@ export const JournalInsightsPanel = memo(function JournalInsightsPanel({
                 </form>
             )}
 
-            {/* Analytics Grid */}
-            {insightsOpen && (
-                <div className={`grid ${isSmallScreen ? 'grid-cols-1 gap-4' : isLandscape ? 'gap-3 grid-cols-2' : 'md:grid-cols-2 lg:grid-cols-3 gap-6'}`}>
+                <div className={`grid ${insightsGridLayout} lg:grid-cols-1 lg:gap-4`}>
                     {/* Frequent Cards */}
                     {frequentCards.length > 0 && (
                         <div className={`rounded-3xl border border-secondary/20 bg-surface/40 ${isLandscape ? 'p-3' : 'p-5'}`}>
@@ -810,28 +829,50 @@ export const JournalInsightsPanel = memo(function JournalInsightsPanel({
                         />
                     )}
                 </div>
-            )}
 
-            {/* Active Share Links */}
-            {shareOpen && isAuthenticated && shareLinks.length > 0 && (
-                <div className="rounded-3xl border border-secondary/20 bg-surface/40 p-5">
-                    <h3 className="mb-4 text-xs font-bold uppercase tracking-wider text-accent/80">Active Share Links</h3>
-                    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                        {shareLinks.slice(0, 6).map((link) => (
-                            <div key={link.token} className="flex items-center justify-between rounded-xl border border-secondary/10 bg-surface-muted/40 p-3">
-                                <div className="overflow-hidden">
-                                    <p className="truncate text-sm font-medium text-secondary">{link.title || 'Untitled Link'}</p>
-                                    <p className="text-xs text-secondary/50">{link.viewCount || 0} views</p>
+                {isAuthenticated && shareLinks.length > 0 && (
+                    <div className="rounded-3xl border border-secondary/20 bg-surface/40 p-5">
+                        <h3 className="mb-4 text-xs font-bold uppercase tracking-wider text-accent/80">
+                            Active Share Links
+                        </h3>
+                        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                            {shareLinks.slice(0, 6).map((link) => (
+                                <div key={link.token} className="rounded-xl border border-secondary/10 bg-surface-muted/40 p-3">
+                                    <div className="flex items-center justify-between gap-3">
+                                        <div className="overflow-hidden">
+                                            <p className="truncate text-sm font-medium text-secondary">{link.title || 'Untitled Link'}</p>
+                                            <p className="text-xs text-secondary/50">{link.viewCount || 0} views</p>
+                                        </div>
+                                        <div className="flex flex-wrap gap-2">
+                                            <button
+                                                onClick={() => copyShareUrl(link.token)}
+                                                className="inline-flex items-center gap-1.5 rounded-full border border-secondary/30 px-2.5 py-1 text-xs font-semibold text-secondary hover:border-secondary/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/50"
+                                                aria-label="Copy share link"
+                                            >
+                                                <Copy className="h-3.5 w-3.5" />
+                                                <span>Copy</span>
+                                            </button>
+                                            <button
+                                                onClick={() => onDeleteShareLink?.(link.token)}
+                                                className="inline-flex items-center gap-1.5 rounded-full border border-error/40 px-2.5 py-1 text-xs font-semibold text-error hover:border-error/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-error/50"
+                                                aria-label="Delete share link"
+                                            >
+                                                <Trash className="h-3.5 w-3.5" />
+                                                <span>Delete</span>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    {shareLinkFeedback.token === link.token && shareLinkFeedback.message && (
+                                        <p className="mt-2 text-[11px] text-secondary/70" aria-live="polite">
+                                            {shareLinkFeedback.message}
+                                        </p>
+                                    )}
                                 </div>
-                                <div className="flex gap-1">
-                                    <button onClick={() => copyShareUrl(link.token)} className="p-1.5 text-secondary hover:text-secondary"><Copy className="h-3 w-3" /></button>
-                                    <button onClick={() => onDeleteShareLink?.(link.token)} className="p-1.5 text-error hover:text-error/80"><Trash className="h-3 w-3" /></button>
-                                </div>
-                            </div>
-                        ))}
+                            ))}
+                        </div>
                     </div>
-                </div>
-            )}
+                )}
+            </div>
         </div>
     );
 });

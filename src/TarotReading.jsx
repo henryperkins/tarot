@@ -100,7 +100,6 @@ export default function TarotReading() {
     setPersonalReading,
     isGenerating,
     setIsGenerating,
-    setAnalyzingText,
     journalStatus,
     setJournalStatus,
     setReflections,
@@ -284,9 +283,8 @@ export default function TarotReading() {
     setPersonalReading(null);
     setJournalStatus(null);
     setReflections({});
-    setAnalyzingText('');
     setIsGenerating(false);
-  }, [selectSpread, setPersonalReading, setJournalStatus, setReflections, setAnalyzingText, setIsGenerating]);
+  }, [selectSpread, setPersonalReading, setJournalStatus, setReflections, setIsGenerating]);
 
   const handleCoachClose = useCallback(() => {
     setIsIntentionCoachOpen(false);

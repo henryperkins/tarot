@@ -16,3 +16,52 @@ body {
   @apply bg-surface backdrop-blur-xl border border-secondary rounded-2xl shadow-xl;
 }
 
+/* Journal-specific typography helpers */
+.journal-page {
+  font-feature-settings: 'liga' 1, 'clig' 1, 'kern' 1;
+  text-rendering: optimizeLegibility;
+}
+
+@supports (text-wrap: balance) {
+  .journal-page h1,
+  .journal-page h2,
+  .journal-page h3,
+  .journal-page h4 {
+    text-wrap: balance;
+  }
+}
+
+.journal-prose {
+  font-size: clamp(0.95rem, 0.92rem + 0.25vw, 1.05rem);
+  line-height: 1.85;
+  letter-spacing: 0.01em;
+  color: var(--text-muted-high);
+  text-wrap: pretty;
+}
+
+@supports not (text-wrap: pretty) {
+  .journal-prose {
+    overflow-wrap: anywhere;
+  }
+}
+
+.journal-prose strong {
+  color: var(--text-main);
+}
+
+.journal-quote {
+  font-family: 'Ibarra Real Nova', 'Georgia', serif;
+  font-size: clamp(1.1rem, 1.02rem + 0.3vw, 1.35rem);
+  line-height: 1.9;
+  color: var(--text-main);
+  font-style: italic;
+  text-wrap: balance;
+}
+
+.journal-eyebrow {
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  color: var(--text-muted-high);
+}
