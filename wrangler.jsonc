@@ -82,14 +82,24 @@
   ],
 
   // ============================================================================
-  // R2 Buckets (for log storage)
+  // R2 Buckets (for log storage and exports)
   // ============================================================================
   "r2_buckets": [
     {
       "binding": "LOGS_BUCKET",
       "bucket_name": "tarot-logs"
     }
-  ]
+  ],
+
+  // ============================================================================
+  // Cron Triggers (Scheduled Tasks)
+  // ============================================================================
+  // Archive metrics/feedback from KV to R2 and cleanup expired sessions
+  "triggers": {
+    "crons": [
+      "0 3 * * *"
+    ]
+  }
 
   // ============================================================================
   // Secrets (set via CLI, not in config)
@@ -111,4 +121,7 @@
   //
   // Other
   // wrangler secret put VISION_PROOF_SECRET
+  //
+  // Admin (for manual archival trigger)
+  // wrangler secret put ADMIN_API_KEY
 }

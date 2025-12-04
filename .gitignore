@@ -93,9 +93,16 @@ MysticTarot2.png
 
 # Design reference dumps (local-only large binaries)
 /IMG_*.PNG
+/IMG_*.HEIC
+/IMG_*.heic
 /Tableu*.heic
 /Tableu*.HEIC
 /Tableu*.jpg
 /Tableu*.JPG
 /Tableu*.png
 /Tableu*.PNG
+
+# Screenshots and temporary uploads
+*.HEIC
+Cloudflareworkerbindings.png
+_shellfish_uploading_*

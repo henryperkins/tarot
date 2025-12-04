@@ -36,6 +36,12 @@ import * as keysById from '../../functions/api/keys/[id].js';
 import * as healthTarotReading from '../../functions/api/health/tarot-reading.js';
 import * as healthTts from '../../functions/api/health/tts.js';
 
+// Export handlers
+import * as journalExport from '../../functions/api/journal-export.js';
+
+// Scheduled tasks
+import { handleScheduled, onRequestPost as adminArchive } from '../../functions/lib/scheduled.js';
+
 // Utility functions
 import { jsonResponse } from '../../functions/lib/utils.js';
 
@@ -73,6 +79,13 @@ const routes = [
   // Health check endpoints
   { pattern: /^\/api\/health\/tarot-reading$/, handlers: healthTarotReading },
   { pattern: /^\/api\/health\/tts$/, handlers: healthTts },
+
+  // Export endpoints
+  { pattern: /^\/api\/journal-export$/, handlers: journalExport },
+  { pattern: /^\/api\/journal-export\/([^/]+)$/, handlers: journalExport, params: ['id'] },
+
+  // Admin endpoints
+  { pattern: /^\/api\/admin\/archive$/, handlers: { onRequestPost: adminArchive } },
 ];
 
 /**
@@ -155,15 +168,28 @@ function addCorsHeaders(response, request) {
  * @property {D1Database} DB - D1 database for auth
  * @property {KVNamespace} RATELIMIT - Rate limiting KV
  * @property {KVNamespace} METRICS_DB - Metrics storage KV
+ * @property {KVNamespace} FEEDBACK_KV - Feedback storage KV
+ * @property {R2Bucket} LOGS_BUCKET - R2 bucket for logs, archives, and exports
  * @property {string} AZURE_OPENAI_ENDPOINT - Azure OpenAI endpoint
  * @property {string} AZURE_OPENAI_API_KEY - Azure OpenAI API key
  * @property {string} AZURE_OPENAI_GPT5_MODEL - GPT-5 model deployment name
  * @property {string} ANTHROPIC_API_KEY - Anthropic API key
  * @property {string} VISION_PROOF_SECRET - Vision proof signing secret
  * @property {string} HUME_API_KEY - Hume AI API key
+ * @property {string} ADMIN_API_KEY - Admin API key for manual archival
  */
 
 export default {
+  /**
+   * Scheduled handler for cron triggers
+   * @param {ScheduledController} controller - Cron controller
+   * @param {Env} env - Environment bindings
+   * @param {ExecutionContext} ctx - Execution context
+   */
+  async scheduled(controller, env, ctx) {
+    ctx.waitUntil(handleScheduled(controller, env, ctx));
+  },
+
   /**
    * Main fetch handler for all incoming requests
    * @param {Request} request - Incoming request

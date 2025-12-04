@@ -1,4 +1,5 @@
 import { computeJournalStats, REVERSED_PATTERN } from '../../shared/journal/stats.js';
+import { buildThemeQuestion, normalizeThemeLabel } from './themeText.js';
 
 export { computeJournalStats, REVERSED_PATTERN };
 
@@ -7,6 +8,33 @@ const SHARE_TOKEN_STORAGE_KEY = 'tarot_journal_share_tokens';
 const COACH_RECOMMENDATION_KEY = 'tarot_coach_recommendation';
 const COACH_STATS_SNAPSHOT_KEY = 'tarot_coach_stats_snapshot';
 const COACH_RECOMMENDATION_TTL = 24 * 60 * 60 * 1000; // 24 hours
+
+function normalizeCoachRecommendation(recommendation) {
+  if (!recommendation || typeof recommendation !== 'object') return recommendation;
+
+  const normalized = { ...recommendation };
+
+  if (typeof normalized.customFocus === 'string') {
+    const cleanedFocus = normalizeThemeLabel(normalized.customFocus) || normalized.customFocus.trim();
+    normalized.customFocus = cleanedFocus || normalized.customFocus;
+  }
+
+  if (typeof normalized.question === 'string') {
+    const themeMatch = normalized.question.match(/^How can I explore (?:the theme of )?(.+?) more deeply\??$/i);
+    if (themeMatch) {
+      const cleanedTheme = normalizeThemeLabel(themeMatch[1]) || themeMatch[1].trim();
+      normalized.question = buildThemeQuestion(cleanedTheme);
+      if (!normalized.customFocus) {
+        normalized.customFocus = cleanedTheme;
+      }
+      if (cleanedTheme && typeof normalized.source === 'string' && normalized.source.startsWith('theme:')) {
+        normalized.source = `theme:${cleanedTheme}`;
+      }
+    }
+  }
+
+  return normalized;
+}
 
 export function buildCardInsightPayload(card) {
   if (!card?.name) return null;
@@ -227,8 +255,9 @@ export function saveCoachRecommendation(recommendation) {
       localStorage.removeItem(COACH_RECOMMENDATION_KEY);
       return;
     }
+    const normalized = normalizeCoachRecommendation(recommendation);
     const payload = {
-      ...recommendation,
+      ...normalized,
       updatedAt: Date.now()
     };
     localStorage.setItem(COACH_RECOMMENDATION_KEY, JSON.stringify(payload));
@@ -247,7 +276,7 @@ export function loadCoachRecommendation() {
       localStorage.removeItem(COACH_RECOMMENDATION_KEY);
       return null;
     }
-    return parsed;
+    return normalizeCoachRecommendation(parsed);
   } catch (error) {
     console.warn('Unable to load coach recommendation:', error);
     return null;

@@ -12,6 +12,7 @@ Guidance for Claude Code when working with this repository.
 | Backend | Cloudflare Workers | `src/worker/index.js` → `functions/api/` |
 | AI | Claude Sonnet 4.5 (fallback: local composer) | `functions/api/tarot-reading.js` |
 | Database | Cloudflare D1 | `migrations/*.sql` |
+| Storage | Cloudflare KV + R2 | Metrics, feedback, exports, archives |
 
 **Deck**: 78 cards (22 Major + 56 Minor Arcana) with 1909 Rider-Waite public domain images.
 
@@ -30,7 +31,7 @@ npm run deploy   # Deploy to Cloudflare Workers
 | Path | Environment | Access |
 |------|-------------|--------|
 | `src/lib/` | Browser | DOM, window APIs |
-| `functions/lib/` | Cloudflare Workers | env, D1, KV, secrets |
+| `functions/lib/` | Cloudflare Workers | env, D1, KV, R2, secrets |
 | `scripts/evaluation/lib/` | Node.js | Development tooling |
 
 ### Key Files
@@ -45,9 +46,12 @@ npm run deploy   # Deploy to Cloudflare Workers
 - `api/tarot-reading.js` — Main endpoint: validates payload, calls Claude or local composer
 - `api/tts.js` — Azure TTS with rate limiting
 - `api/journal.js` — Reading history (dedup by `session_seed`)
+- `api/journal-export.js` — PDF/text export of readings (stores in R2)
+- `api/feedback.js` — User feedback (stored in KV)
 - `lib/narrative/` — Spread-specific narrative builders
 - `lib/spreadAnalysis.js` — Card relationship detection
 - `lib/knowledgeGraph.js` — Archetypal relationships
+- `lib/scheduled.js` — Cron tasks: KV→R2 archival, session cleanup
 
 **Shared (`shared/`)**
 - `vision/` — Physical deck recognition pipeline
@@ -117,6 +121,40 @@ Key tables (see `migrations/`):
 - `share_tokens` — Reading sharing
 - `archetype_journey` — User's card history tracking
 
+## Cloudflare Bindings
+
+Configured in `wrangler.jsonc`:
+
+| Binding | Type | Purpose |
+|---------|------|---------|
+| `DB` | D1 | Main database (users, sessions, journal, etc.) |
+| `RATELIMIT` | KV | Rate limiting counters (auto-expires) |
+| `METRICS_DB` | KV | Reading metrics (archived to R2 daily) |
+| `FEEDBACK_KV` | KV | User feedback (archived to R2 daily) |
+| `LOGS_BUCKET` | R2 | Archives, exports, logs storage |
+| `ASSETS` | Assets | Static frontend files |
+
+### R2 Bucket Structure (`tarot-logs`)
+
+```
+tarot-logs/
+├── archives/
+│   ├── metrics/{date}/{timestamp}.json    # Archived from METRICS_DB
+│   ├── feedback/{date}/{timestamp}.json   # Archived from FEEDBACK_KV
+│   └── summaries/{date}.json              # Daily archival summary
+└── exports/
+    ├── readings/{userId}/{entryId}.pdf    # Single reading exports
+    └── journals/{userId}/{timestamp}.pdf  # Full journal exports
+```
+
+### Scheduled Tasks (Cron)
+
+Daily at 3 AM UTC (`0 3 * * *`):
+1. Archive `METRICS_DB` keys to R2 and delete from KV
+2. Archive `FEEDBACK_KV` keys to R2 and delete from KV
+3. Clean up expired sessions from D1
+4. Store archival summary in R2
+
 ## Tests
 
 ```bash
@@ -132,3 +170,29 @@ Key test files: `deck.test.mjs`, `narrativeBuilder.*.test.mjs`, `narrativeSpine.
 3. **New spreads** need: position definitions, narrative builder in `functions/lib/narrative/spreads/`
 4. **Visual changes** must preserve A11y (labels, focus, ARIA)
 5. Keep the authentic tarot feel — this isn't a generic card app
+
+## API Endpoints
+
+| Endpoint | Method | Purpose |
+|----------|--------|---------|
+| `/api/tarot-reading` | POST | Generate a reading |
+| `/api/tts` | POST | Text-to-speech |
+| `/api/journal` | GET/POST | List/save journal entries |
+| `/api/journal/:id` | GET/DELETE | Get/delete single entry |
+| `/api/journal-export` | GET | Export journal as PDF/txt/json |
+| `/api/journal-export/:id` | GET | Export single reading |
+| `/api/share` | POST | Create share link |
+| `/api/share/:token` | GET/DELETE | View/revoke share |
+| `/api/feedback` | POST | Submit feedback |
+| `/api/archetype-journey` | GET/POST | Analytics tracking |
+| `/api/auth/*` | Various | Login, logout, register, me |
+| `/api/keys` | GET/POST | API key management |
+| `/api/admin/archive` | POST | Manual archival trigger (requires ADMIN_API_KEY) |
+
+## Secrets (via `wrangler secret put`)
+
+- `AZURE_OPENAI_ENDPOINT`, `AZURE_OPENAI_API_KEY`, `AZURE_OPENAI_GPT5_MODEL`
+- `AZURE_ANTHROPIC_ENDPOINT`, `AZURE_ANTHROPIC_API_KEY`, `AZURE_ANTHROPIC_MODEL`
+- `AZURE_OPENAI_TTS_ENDPOINT`, `AZURE_OPENAI_TTS_API_KEY`, `AZURE_OPENAI_GPT_AUDIO_MINI_DEPLOYMENT`
+- `VISION_PROOF_SECRET`
+- `ADMIN_API_KEY` — For manual archival trigger

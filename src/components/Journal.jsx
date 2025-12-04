@@ -8,6 +8,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useJournal } from '../hooks/useJournal';
 import { JournalFilters } from './JournalFilters.jsx';
 import { JournalInsightsPanel } from './JournalInsightsPanel.jsx';
+import { InsightsErrorBoundary } from './InsightsErrorBoundary.jsx';
 import { JournalEntryCard } from './JournalEntryCard.jsx';
 import { SavedIntentionsList } from './SavedIntentionsList.jsx';
 import { computeJournalStats } from '../lib/journalInsights';
@@ -456,19 +457,21 @@ export default function Journal() {
                 decks={DECK_FILTERS}
               />
               {(allStats || filteredStats) && (
-                <JournalInsightsPanel
-                  stats={filteredStats}
-                  allStats={allStats}
-                  entries={filteredEntries}
-                  allEntries={entries}
-                  isAuthenticated={isAuthenticated}
-                  filtersActive={filtersActive}
-                  shareLinks={shareLinks}
-                  shareLoading={shareLoading}
-                  shareError={shareError}
-                  onCreateShareLink={isAuthenticated ? createShareLink : null}
-                  onDeleteShareLink={isAuthenticated ? deleteShareLink : null}
-                />
+                <InsightsErrorBoundary>
+                  <JournalInsightsPanel
+                    stats={filteredStats}
+                    allStats={allStats}
+                    entries={filteredEntries}
+                    allEntries={entries}
+                    isAuthenticated={isAuthenticated}
+                    filtersActive={filtersActive}
+                    shareLinks={shareLinks}
+                    shareLoading={shareLoading}
+                    shareError={shareError}
+                    onCreateShareLink={isAuthenticated ? createShareLink : null}
+                    onDeleteShareLink={isAuthenticated ? deleteShareLink : null}
+                  />
+                </InsightsErrorBoundary>
               )}
               {filteredEntries.length === 0 ? (
                 <p className="text-muted">No entries match your filters.</p>

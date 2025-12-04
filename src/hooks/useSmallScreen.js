@@ -28,8 +28,19 @@ export function useSmallScreen(maxWidth = 640) {
     // Sync immediately in case layout changed before effect ran
     handleChange(mediaQuery);
 
-    mediaQuery.addEventListener('change', handleChange);
-    return () => mediaQuery.removeEventListener('change', handleChange);
+    // Modern browsers
+    if (typeof mediaQuery.addEventListener === 'function') {
+      mediaQuery.addEventListener('change', handleChange);
+      return () => mediaQuery.removeEventListener('change', handleChange);
+    }
+
+    // Legacy Safari (<14) fallback
+    if (typeof mediaQuery.addListener === 'function') {
+      mediaQuery.addListener(handleChange);
+      return () => mediaQuery.removeListener(handleChange);
+    }
+
+    return undefined;
   }, [maxWidth]);
 
   return isSmall;

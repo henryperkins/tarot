@@ -35,6 +35,7 @@ import {
   MAX_TEMPLATES
 } from '../lib/coachStorage';
 import { MOBILE_COACH_DIALOG_ID } from './MobileActionBar';
+import { normalizeThemeLabel } from '../lib/themeText';
 
 // ============================================================================
 // Constants
@@ -194,14 +195,16 @@ function buildPersonalizedSuggestions(stats, history = []) {
 
   if (Array.isArray(stats?.recentThemes)) {
     stats.recentThemes.slice(0, 2).forEach((theme, idx) => {
+      const label = normalizeThemeLabel(theme);
+      if (!label) return;
       suggestions.push({
         id: `theme-${idx}`,
-        label: `Lean into: ${theme}`,
+        label: `Lean into: ${label}`,
         helper: 'Recent journal theme',
         topic: 'growth',
         timeframe: 'month',
         depth: 'guided',
-        customFocus: theme
+        customFocus: label
       });
     });
   }

@@ -1,6 +1,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert';
 import { buildGuidedQuestion } from '../src/lib/intentionCoach.js';
+import { buildThemeQuestion, normalizeThemeLabel } from '../src/lib/themeText.js';
 
 describe('Journal Integration with Deterministic Question Generation', () => {
   describe('Coach Recommendations from Journal', () => {
@@ -39,13 +40,14 @@ describe('Journal Integration with Deterministic Question Generation', () => {
       // Simulating a theme-based recommendation
       // Based on user's recent journal themes
       const theme = 'transformation';
+      const normalized = normalizeThemeLabel(theme);
       const recommendation = {
-        question: `How can I explore the theme of ${theme} more deeply?`,
+        question: buildThemeQuestion(theme),
         topicValue: 'growth',
         timeframeValue: 'month',
         depthValue: 'guided',
-        customFocus: theme,
-        source: `theme:${theme}`
+        customFocus: normalized,
+        source: `theme:${normalized}`
       };
 
       const seed = `journal-rec|${recommendation.source}`;
@@ -63,6 +65,14 @@ describe('Journal Integration with Deterministic Question Generation', () => {
 
       assert.strictEqual(question1, question2, 'Theme-based questions should be reproducible');
       assert.ok(question1.includes(theme), 'Should incorporate the theme');
+    });
+
+    it('should normalize verbose theme sentences for readable questions', () => {
+      const rawTheme = 'Moderate Major Arcana suggests important archetypal lessons woven through everyday matters.';
+      const label = normalizeThemeLabel(rawTheme);
+      assert.strictEqual(label, 'Moderate Major Arcana (archetypal lessons in daily life)');
+      const question = buildThemeQuestion(rawTheme);
+      assert.strictEqual(question, 'How can I explore Moderate Major Arcana (archetypal lessons in daily life) more deeply?');
     });
 
     it('should generate deterministic questions from card-based recommendations', () => {

@@ -18,6 +18,8 @@ import {
     formatContextName
 } from '../lib/journalInsights';
 import { usePreferences } from '../contexts/PreferencesContext';
+import { buildThemePolishPrompt, buildThemeQuestion, ensureQuestionMark, normalizeThemeLabel } from '../lib/themeText';
+import { callLlmApi } from '../lib/intentionCoach';
 
 const CONTEXT_TO_SPREAD = {
     love: {
@@ -288,6 +290,68 @@ export const JournalInsightsPanel = memo(function JournalInsightsPanel({
     const contextSuggestion = topContext && CONTEXT_TO_SPREAD[topContext.name];
     const topCard = frequentCards[0];
     const topTheme = recentThemes[0];
+    const normalizedTopTheme = normalizeThemeLabel(topTheme);
+    const [polishedThemeQuestion, setPolishedThemeQuestion] = useState(null);
+
+    // Automatically polish the theme-based suggestion via LLM for smoother default wording
+    useEffect(() => {
+        let isCancelled = false;
+        const controller = new AbortController();
+
+        const run = async () => {
+            // Reset when there is no theme or insights are hidden
+            if (!insightsOpen || !normalizedTopTheme) {
+                setPolishedThemeQuestion(null);
+                return;
+            }
+
+            const fallbackQuestion = buildThemeQuestion(normalizedTopTheme);
+
+            try {
+                if (typeof callLlmApi !== 'function') {
+                    setPolishedThemeQuestion(fallbackQuestion);
+                    return;
+                }
+
+                const { prompt, metadata } = buildThemePolishPrompt(normalizedTopTheme, {
+                    draftQuestion: fallbackQuestion,
+                    spreadName: 'Three-Card Story',
+                    topic: 'growth',
+                    timeframe: 'month',
+                    contextHint: topContext?.name || null,
+                    entryCount: primaryStats?.totalReadings
+                });
+
+                const result = await callLlmApi(prompt, metadata, { signal: controller.signal });
+                const refined = typeof result === 'string' ? result : result?.question;
+
+                if (!isCancelled && refined) {
+                    setPolishedThemeQuestion(ensureQuestionMark(refined));
+                } else if (!isCancelled) {
+                    setPolishedThemeQuestion(fallbackQuestion);
+                }
+            } catch (error) {
+                if (!isCancelled) {
+                    console.warn('Theme polish failed; using fallback', error);
+                    setPolishedThemeQuestion(fallbackQuestion);
+                }
+            }
+        };
+
+        try {
+            run();
+        } catch (err) {
+            console.error('Theme polish unexpected error; disabling polish', err);
+            if (!isCancelled) {
+                setPolishedThemeQuestion(null);
+            }
+        }
+
+        return () => {
+            isCancelled = true;
+            controller.abort();
+        };
+    }, [insightsOpen, normalizedTopTheme, topContext?.name, primaryStats?.totalReadings]);
 
     const coachRecommendation = (() => {
         if (contextSuggestion) {
@@ -301,16 +365,16 @@ export const JournalInsightsPanel = memo(function JournalInsightsPanel({
                 source: topContext?.name ? `context:${topContext.name}` : 'context'
             };
         }
-        if (topTheme) {
+        if (normalizedTopTheme) {
             return {
-                question: `How can I explore the theme of ${topTheme} more deeply?`,
+                question: polishedThemeQuestion || buildThemeQuestion(normalizedTopTheme),
                 spreadName: 'Three-Card Story',
                 spreadKey: 'threeCard',
                 topicValue: 'growth',
                 timeframeValue: 'month',
                 depthValue: 'guided',
-                source: `theme:${topTheme}`,
-                customFocus: topTheme
+                source: `theme:${normalizedTopTheme}`,
+                customFocus: normalizedTopTheme
             };
         }
         if (topCard) {
