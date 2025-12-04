@@ -186,7 +186,6 @@ export function getMoonPhase(dateString = null) {
  * @returns {Array} List of active aspects
  */
 export function getPlanetaryAspects(dateString = null, orb = 8) {
-  const date = dateString ? new Date(dateString) : new Date();
   const positions = getCurrentPositions(dateString).positions;
   const aspects = [];
 
@@ -250,7 +249,6 @@ function isAspectApplying(pos1, pos2) {
  * @returns {Array} List of retrograde planets
  */
 export function getRetrogradePlanets(dateString = null) {
-  const date = dateString ? new Date(dateString) : new Date();
   const positions = getCurrentPositions(dateString).positions;
   const retrogrades = [];
 

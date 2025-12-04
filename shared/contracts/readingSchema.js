@@ -73,7 +73,8 @@ const personalizationSchema = z
     readingTone: z.enum(['gentle', 'balanced', 'blunt']).optional(),
     spiritualFrame: z.enum(['psychological', 'spiritual', 'mixed', 'playful']).optional(),
     tarotExperience: z.enum(['newbie', 'intermediate', 'experienced']).optional(),
-    preferredSpreadDepth: z.enum(['short', 'standard', 'deep']).optional()
+    preferredSpreadDepth: z.enum(['short', 'standard', 'deep']).optional(),
+    focusAreas: z.array(z.string().trim().min(1)).optional()
   })
   .catchall(z.unknown());
 

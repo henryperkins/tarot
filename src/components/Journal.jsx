@@ -1,5 +1,5 @@
 import { useDeferredValue, useCallback, useEffect, useMemo, useState } from 'react';
-import { CaretLeft, UploadSimple, Notebook, ChartLine, Sparkle, BookOpen } from '@phosphor-icons/react';
+import { CaretLeft, UploadSimple, Notebook, ChartLine, Sparkle, BookOpen, CaretDown, CaretUp } from '@phosphor-icons/react';
 import { useNavigate } from 'react-router-dom';
 import { GlobalNav } from './GlobalNav';
 import { UserMenu } from './UserMenu';
@@ -37,12 +37,6 @@ const DECK_FILTERS = DECK_OPTIONS.map(d => ({ value: d.id, label: d.label }));
 const VISIBLE_ENTRY_BATCH = 10;
 const MOBILE_LAYOUT_MAX = 1023;
 
-const MOBILE_SECTIONS = [
-  { id: 'today', label: 'Today' },
-  { id: 'insights', label: 'Insights' },
-  { id: 'history', label: 'History' }
-];
-
 function getEntryTimestamp(entry) {
   if (!entry) return null;
   if (typeof entry.ts === 'number') return entry.ts;
@@ -71,7 +65,7 @@ function getTopContext(stats) {
 }
 
 export default function Journal() {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
   const { entries, loading, deleteEntry, migrateToCloud, error: journalError } = useJournal();
   const [migrating, setMigrating] = useState(false);
   const [deleteConfirmModal, setDeleteConfirmModal] = useState({ isOpen: false, entryId: null });
@@ -93,7 +87,7 @@ export default function Journal() {
   const [shareLoading, setShareLoading] = useState(false);
   const [shareError, setShareError] = useState('');
   const [compactList, setCompactList] = useState(false);
-  const [activeMobileSection, setActiveMobileSection] = useState('today');
+  const [mobilePanelsOpen, setMobilePanelsOpen] = useState({ filters: true, insights: false, archetype: false });
   const navigate = useNavigate();
   const isMobileLayout = useSmallScreen(MOBILE_LAYOUT_MAX);
   const { publish: showToast } = useToast();
@@ -184,16 +178,30 @@ export default function Journal() {
   const filteredStats = useMemo(() => computeJournalStats(filteredEntries), [filteredEntries]);
   const filtersActive = Boolean(filters.query.trim()) || filters.contexts.length > 0 || filters.spreads.length > 0 || filters.decks.length > 0 || filters.timeframe !== 'all' || filters.onlyReversals;
   const hasEntries = entries.length > 0;
-  useEffect(() => {
-    if (!isMobileLayout && activeMobileSection !== 'today') {
-      setActiveMobileSection('today');
-    }
-  }, [isMobileLayout, activeMobileSection]);
-  useEffect(() => {
-    if (!hasEntries && activeMobileSection !== 'today') {
-      setActiveMobileSection('today');
-    }
-  }, [hasEntries, activeMobileSection]);
+  const toggleMobilePanel = (panelId) => {
+    setMobilePanelsOpen((prev) => ({ ...prev, [panelId]: !prev[panelId] }));
+  };
+  const renderMobileAccordionSection = (id, label, content, helperText) => (
+    <div className="rounded-2xl border border-secondary/30 bg-surface/70">
+      <button
+        type="button"
+        onClick={() => toggleMobilePanel(id)}
+        aria-expanded={Boolean(mobilePanelsOpen[id])}
+        className="flex w-full items-center justify-between px-4 py-3 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/40"
+      >
+        <div>
+          <p className="text-[11px] uppercase tracking-[0.25em] text-secondary/70">{label}</p>
+          {helperText && <p className="text-xs text-secondary/60">{helperText}</p>}
+        </div>
+        {mobilePanelsOpen[id] ? <CaretUp className="h-4 w-4 text-secondary/70" aria-hidden /> : <CaretDown className="h-4 w-4 text-secondary/70" aria-hidden />}
+      </button>
+      {mobilePanelsOpen[id] && (
+        <div className="border-t border-secondary/15 p-4">
+          {content}
+        </div>
+      )}
+    </div>
+  );
 
   const latestAllEntryTs = useMemo(() => {
     if (!entries || entries.length === 0) return null;
@@ -449,7 +457,7 @@ export default function Journal() {
     }
   };
 
-  const railContent = !loading && hasEntries ? (
+  const desktopRailContent = (!loading && hasEntries && !isMobileLayout) ? (
     <div className="space-y-6 lg:space-y-8">
       <JournalFilters
         filters={filters}
@@ -476,14 +484,12 @@ export default function Journal() {
         </InsightsErrorBoundary>
       )}
       {isAuthenticated && (
-        <ArchetypeJourneySection isAuthenticated={isAuthenticated} showEmptyState />
+        <ArchetypeJourneySection isAuthenticated={isAuthenticated} userId={user?.id} showEmptyState />
       )}
     </div>
   ) : null;
-  const sectionVisibility = (sectionId) => (isMobileLayout && activeMobileSection !== sectionId ? 'hidden lg:block' : '');
-  const hasRailContent = Boolean(railContent);
-  const mobileSections = MOBILE_SECTIONS.filter((section) => (section.id === 'insights' ? hasRailContent : true));
-  const entryStackSpacingClass = compactList ? 'space-y-4' : 'space-y-6';
+  const hasRailContent = !loading && hasEntries;
+  const entryStackSpacingClass = compactList ? 'space-y-3.5' : 'space-y-5';
   let lastMonthLabel = null;
   const renderedHistoryEntries = visibleEntries.map((entry, index) => {
     const timestamp = getEntryTimestamp(entry);
@@ -506,6 +512,42 @@ export default function Journal() {
       </div>
     );
   });
+
+  const mobileRailContent = (!loading && hasEntries && isMobileLayout) ? (
+    <section className="mb-6 space-y-3 lg:hidden" aria-label="Journal filters and insights">
+      {renderMobileAccordionSection('filters', 'Filters', (
+        <JournalFilters
+          filters={filters}
+          onChange={setFilters}
+          contexts={CONTEXT_FILTERS}
+          spreads={SPREAD_FILTERS}
+          decks={DECK_FILTERS}
+        />
+      ), 'Search and narrow your journal')}
+
+      {(allStats || filteredStats) && renderMobileAccordionSection('insights', 'Insights', (
+        <InsightsErrorBoundary>
+          <JournalInsightsPanel
+            stats={filteredStats}
+            allStats={allStats}
+            entries={filteredEntries}
+            allEntries={entries}
+            isAuthenticated={isAuthenticated}
+            filtersActive={filtersActive}
+            shareLinks={shareLinks}
+            shareLoading={shareLoading}
+            shareError={shareError}
+            onCreateShareLink={isAuthenticated ? createShareLink : null}
+            onDeleteShareLink={isAuthenticated ? deleteShareLink : null}
+          />
+        </InsightsErrorBoundary>
+      ), 'Share, export, and view analytics')}
+
+      {isAuthenticated && renderMobileAccordionSection('archetype', 'Archetype journey', (
+        <ArchetypeJourneySection isAuthenticated={isAuthenticated} userId={user?.id} showEmptyState />
+      ), 'Track recurring cards in your readings')}
+    </section>
+  ) : null;
 
   return (
     <>
@@ -602,24 +644,7 @@ export default function Journal() {
             </section>
           )}
 
-          {showSummaryBand && isMobileLayout && mobileSections.length > 1 && (
-            <div className="mb-6 flex w-full gap-2 rounded-full bg-surface/60 p-1" role="tablist" aria-label="Journal sections">
-              {mobileSections.map((section) => (
-                <button
-                  key={section.id}
-                  type="button"
-                  role="tab"
-                  aria-selected={activeMobileSection === section.id}
-                  onClick={() => setActiveMobileSection(section.id)}
-                  className={`flex-1 rounded-full px-4 py-2 text-sm font-medium transition ${
-                    activeMobileSection === section.id ? 'bg-main text-accent shadow-lg shadow-main/40' : 'text-secondary/70'
-                  }`}
-                >
-                  {section.label}
-                </button>
-              ))}
-            </div>
-          )}
+          {mobileRailContent}
 
           {loading ? (
             <div className="py-12 text-center">
@@ -627,9 +652,9 @@ export default function Journal() {
               <p className="mt-4 text-muted">Loading journal...</p>
             </div>
           ) : (
-            <div className={hasEntries && hasRailContent ? 'lg:grid lg:grid-cols-[minmax(0,1fr)_360px] lg:gap-6' : ''}>
-              <div className="space-y-8">
-                <section id="today" className={`rounded-3xl border border-secondary/30 bg-surface/70 p-5 shadow-lg ${hasEntries ? sectionVisibility('today') : ''}`}>
+              <div className={hasEntries && hasRailContent ? 'lg:grid lg:grid-cols-[minmax(0,1fr)_360px] lg:gap-6' : ''}>
+                <div className="space-y-8">
+                <section id="today" className="rounded-3xl border border-secondary/30 bg-surface/70 p-5 shadow-lg">
                   <div className="mb-4">
                     <p className="journal-eyebrow text-secondary/70">Today</p>
                     <h2 className="text-xl font-serif text-main">Keep today&rsquo;s focus handy</h2>
@@ -637,17 +662,19 @@ export default function Journal() {
                   <SavedIntentionsList />
                 </section>
 
-                {hasEntries ? (
-                  <section id="history" className={`space-y-6 ${sectionVisibility('history')}`}>
-                    <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                      <div>
-                        <p className="journal-eyebrow text-secondary/70">History</p>
-                        <h2 className="text-2xl font-serif text-main">Journal history</h2>
+                    {hasEntries ? (
+                      <section id="history" className="space-y-5">
+                      <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+                        <div className="flex items-center gap-2">
+                          <h2 className="text-xl font-serif text-main">Journal history</h2>
+                          <span className="inline-flex items-center rounded-full border border-secondary/25 bg-surface/60 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-secondary/70">
+                            History
+                          </span>
+                        </div>
+                        <span className="inline-flex items-center gap-2 rounded-full border border-secondary/25 bg-surface/60 px-3 py-1 text-[11px] text-secondary/70">
+                          Showing {visibleEntries.length} of {filteredEntries.length}
+                        </span>
                       </div>
-                      <p className="journal-eyebrow text-secondary/60">
-                        Showing {visibleEntries.length} of {filteredEntries.length} entries
-                      </p>
-                    </div>
 
                     {filteredEntries.length === 0 ? (
                       <div className="rounded-2xl border border-secondary/30 bg-surface/60 p-6 text-sm text-secondary">
@@ -664,9 +691,9 @@ export default function Journal() {
                             <button
                               type="button"
                               onClick={handleLoadMoreEntries}
-                              className="rounded-full border border-secondary/40 px-4 py-2 text-sm text-secondary hover:bg-secondary/10"
+                              className="inline-flex items-center rounded-full border border-secondary/30 bg-surface/70 px-3.5 py-1.5 text-xs font-semibold text-secondary hover:bg-secondary/10"
                             >
-                              Show {Math.min(VISIBLE_ENTRY_BATCH, filteredEntries.length - visibleEntries.length)} more
+                              Load {Math.min(VISIBLE_ENTRY_BATCH, filteredEntries.length - visibleEntries.length)} more
                             </button>
                           </div>
                         )}
@@ -736,17 +763,12 @@ export default function Journal() {
                 )}
               </div>
 
-              {hasEntries && hasRailContent && (
-                <>
-                  <aside className="hidden lg:block">
-                    <div className="lg:sticky lg:top-6">
-                      {railContent}
-                    </div>
-                  </aside>
-                  <section id="insights" className={`mt-8 lg:hidden ${activeMobileSection === 'insights' ? '' : 'hidden'}`}>
-                    {railContent}
-                  </section>
-                </>
+              {hasEntries && hasRailContent && desktopRailContent && (
+                <aside className="hidden lg:block">
+                  <div className="lg:sticky lg:top-6">
+                    {desktopRailContent}
+                  </div>
+                </aside>
               )}
             </div>
           )}

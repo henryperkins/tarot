@@ -28,6 +28,16 @@ function formatTimestampLabel(value) {
   });
 }
 
+const RUN_META_KEY_PREFIX = 'archetype_run_meta';
+
+/**
+ * Get user-scoped localStorage key for run metadata.
+ * Falls back to a default key if userId is not provided.
+ */
+function getRunMetaKey(userId) {
+  return userId ? `${RUN_META_KEY_PREFIX}_${userId}` : null;
+}
+
 /**
  * Loading skeleton for analytics sections
  */
@@ -156,14 +166,75 @@ function EmptyState({ onBackfill, isBackfilling, backfillResult }) {
  * - Streak badges
  * - Growth prompts
  */
-export function ArchetypeJourneySection({ isAuthenticated, showEmptyState = true }) {
+export function ArchetypeJourneySection({ isAuthenticated, userId, showEmptyState = true }) {
   const [analytics, setAnalytics] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [isDisabled, setIsDisabled] = useState(false);
   const [isBackfilling, setIsBackfilling] = useState(false);
   const [backfillResult, setBackfillResult] = useState(null);
+  const [runMeta, setRunMeta] = useState({ lastAnalyzedAt: null, entriesProcessed: null });
   const reloadControllerRef = useRef(null);
+
+  // Load run metadata from user-scoped localStorage when userId changes
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    // Clear metadata when not authenticated or no userId
+    if (!isAuthenticated || !userId) {
+      setRunMeta({ lastAnalyzedAt: null, entriesProcessed: null });
+      return;
+    }
+
+    const key = getRunMetaKey(userId);
+    if (!key) return;
+
+    try {
+      const stored = JSON.parse(localStorage.getItem(key) || 'null');
+      if (stored && typeof stored === 'object') {
+        setRunMeta({
+          lastAnalyzedAt: stored.lastAnalyzedAt ?? null,
+          entriesProcessed: stored.entriesProcessed ?? null
+        });
+      } else {
+        setRunMeta({ lastAnalyzedAt: null, entriesProcessed: null });
+      }
+    } catch (err) {
+      console.warn('Failed to parse stored run metadata', err);
+      setRunMeta({ lastAnalyzedAt: null, entriesProcessed: null });
+    }
+  }, [isAuthenticated, userId]);
+
+  const updateRunMeta = useCallback((incoming) => {
+    // If incoming is null/undefined, reset the metadata
+    const shouldReset = incoming === null || incoming === undefined;
+
+    setRunMeta((prev) => {
+      const next = shouldReset
+        ? { lastAnalyzedAt: null, entriesProcessed: null }
+        : {
+            lastAnalyzedAt: incoming.lastAnalyzedAt ?? prev.lastAnalyzedAt ?? null,
+            entriesProcessed: incoming.entriesProcessed ?? prev.entriesProcessed ?? null
+          };
+
+      // Only persist if we have a valid user-scoped key
+      if (typeof window !== 'undefined' && userId) {
+        const key = getRunMetaKey(userId);
+        if (key) {
+          try {
+            if (shouldReset) {
+              localStorage.removeItem(key);
+            } else {
+              localStorage.setItem(key, JSON.stringify(next));
+            }
+          } catch (err) {
+            console.warn('Failed to persist run metadata', err);
+          }
+        }
+      }
+      return next;
+    });
+  }, [userId]);
 
   const loadAnalytics = useCallback(async (signal) => {
     setLoading(true);
@@ -188,7 +259,12 @@ export function ArchetypeJourneySection({ isAuthenticated, showEmptyState = true
 
       const data = await response.json();
       // Normalize to ensure all arrays exist
-      setAnalytics(normalizeAnalyticsShape(data.analytics));
+      const normalized = normalizeAnalyticsShape(data.analytics);
+      setAnalytics(normalized);
+      updateRunMeta({
+        lastAnalyzedAt: normalized?.stats?.lastAnalyzedAt ?? data.analytics?.lastRunAt ?? null,
+        entriesProcessed: normalized?.stats?.entriesProcessed ?? null
+      });
     } catch (err) {
       // Don't set error state for abort
       if (err.name === 'AbortError') return;
@@ -197,7 +273,7 @@ export function ArchetypeJourneySection({ isAuthenticated, showEmptyState = true
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [updateRunMeta]);
 
   const handleBackfill = useCallback(async (signal) => {
     setIsBackfilling(true);
@@ -218,6 +294,10 @@ export function ArchetypeJourneySection({ isAuthenticated, showEmptyState = true
       }
 
       setBackfillResult({ success: true, stats: data.stats });
+      updateRunMeta({
+        lastAnalyzedAt: Date.now(),
+        entriesProcessed: data.stats?.entriesProcessed ?? data.stats?.cardsTracked ?? null
+      });
 
       // Reload analytics after successful backfill
       if (data.stats?.cardsTracked > 0) {
@@ -245,7 +325,7 @@ export function ArchetypeJourneySection({ isAuthenticated, showEmptyState = true
     } finally {
       setIsBackfilling(false);
     }
-  }, [loadAnalytics]);
+  }, [loadAnalytics, updateRunMeta]);
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -409,8 +489,8 @@ export function ArchetypeJourneySection({ isAuthenticated, showEmptyState = true
   }
 
   const topCardWithLastSeen = analytics.topCards.find((card) => card.last_seen);
-  const lastAnalyzedLabel = formatTimestampLabel(analytics.stats?.lastAnalyzedAt || topCardWithLastSeen?.last_seen);
-  const processedCaptionCount = analytics.stats?.entriesProcessed ?? analytics.stats?.totalReadings ?? null;
+  const lastAnalyzedLabel = formatTimestampLabel(runMeta.lastAnalyzedAt || analytics.stats?.lastAnalyzedAt || topCardWithLastSeen?.last_seen);
+  const processedCaptionCount = runMeta.entriesProcessed ?? analytics.stats?.entriesProcessed ?? analytics.stats?.totalReadings ?? null;
   const runCaptionParts = [];
   if (lastAnalyzedLabel) {
     runCaptionParts.push(`Last analyzed ${lastAnalyzedLabel}`);

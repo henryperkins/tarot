@@ -8,6 +8,12 @@ const TIMEFRAME_OPTIONS = [
   { value: 'ytd', label: 'This year' }
 ];
 
+const DEFAULT_FILTERS = { query: '', contexts: [], spreads: [], decks: [], timeframe: 'all', onlyReversals: false };
+const SAVED_FILTERS_KEY = 'journal_saved_filters_v1';
+const OUTLINE_FILTER_BASE = 'flex items-center gap-2 rounded-xl border px-3 py-2 text-sm font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/40';
+const OUTLINE_FILTER_IDLE = 'border-secondary/40 text-secondary/80 hover:border-secondary/60';
+const OUTLINE_FILTER_ACTIVE = 'border-secondary/60 bg-secondary/10 text-secondary';
+
 function FilterDropdown({ label, options, value, onChange, multiple = false }) {
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef(null);
@@ -95,10 +101,7 @@ function FilterDropdown({ label, options, value, onChange, multiple = false }) {
           }
         }}
         onKeyDown={handleButtonKeyDown}
-        className={`flex items-center gap-2 rounded-xl border px-3 py-2 text-sm font-medium transition-all ${activeCount > 0
-          ? 'border-secondary/60 bg-secondary/10 text-secondary'
-          : 'border-secondary/30 text-secondary/70 hover:border-secondary/50'
-          }`}
+        className={`${OUTLINE_FILTER_BASE} ${activeCount > 0 ? OUTLINE_FILTER_ACTIVE : OUTLINE_FILTER_IDLE}`}
         aria-haspopup="listbox"
         aria-expanded={isOpen}
         aria-controls={isOpen ? menuId : undefined}
@@ -145,12 +148,86 @@ function FilterDropdown({ label, options, value, onChange, multiple = false }) {
 }
 
 export function JournalFilters({ filters, onChange, contexts = [], spreads = [], decks = [] }) {
+  const [savedFilters, setSavedFilters] = useState([]);
+  const [newFilterName, setNewFilterName] = useState('');
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      const stored = JSON.parse(localStorage.getItem(SAVED_FILTERS_KEY) || '[]');
+      if (Array.isArray(stored)) {
+        setSavedFilters(stored);
+      }
+    } catch (error) {
+      console.warn('Failed to load saved filters', error);
+    }
+  }, []);
+
+  const persistSavedFilters = (next) => {
+    setSavedFilters(next);
+    if (typeof window === 'undefined') return;
+    try {
+      localStorage.setItem(SAVED_FILTERS_KEY, JSON.stringify(next));
+    } catch (error) {
+      console.warn('Unable to persist saved filters', error);
+    }
+  };
+
+  const normalizedFilters = () => ({
+    ...DEFAULT_FILTERS,
+    query: filters.query || '',
+    contexts: Array.isArray(filters.contexts) ? [...filters.contexts] : [],
+    spreads: Array.isArray(filters.spreads) ? [...filters.spreads] : [],
+    decks: Array.isArray(filters.decks) ? [...filters.decks] : [],
+    timeframe: filters.timeframe || 'all',
+    onlyReversals: Boolean(filters.onlyReversals)
+  });
+
+  const hasActiveFilters = () => {
+    const snapshot = normalizedFilters();
+    return Boolean(snapshot.query.trim())
+      || snapshot.contexts.length > 0
+      || snapshot.spreads.length > 0
+      || snapshot.decks.length > 0
+      || snapshot.timeframe !== 'all'
+      || snapshot.onlyReversals;
+  };
+
+  const handleSaveCurrent = () => {
+    const name = newFilterName.trim();
+    if (!name || !hasActiveFilters()) return;
+    const snapshot = normalizedFilters();
+    const existingIndex = savedFilters.findIndex(item => item.name.toLowerCase() === name.toLowerCase());
+    const entry = {
+      id: existingIndex >= 0 ? savedFilters[existingIndex].id : `saved-${Date.now()}`,
+      name,
+      values: snapshot
+    };
+
+    const next = existingIndex >= 0
+      ? savedFilters.map((item, idx) => (idx === existingIndex ? entry : item))
+      : [entry, ...savedFilters].slice(0, 6);
+
+    persistSavedFilters(next);
+    setNewFilterName('');
+  };
+
+  const handleApplySaved = (saved) => {
+    if (!saved?.values) return;
+    onChange({ ...DEFAULT_FILTERS, ...saved.values });
+  };
+
+  const handleDeleteSaved = (id) => {
+    const next = savedFilters.filter(item => item.id !== id);
+    persistSavedFilters(next);
+  };
+
   const handleQueryChange = (event) => {
     onChange({ ...filters, query: event.target.value });
   };
 
   const clearFilters = () => {
-    onChange({ query: '', contexts: [], spreads: [], decks: [], timeframe: 'all', onlyReversals: false });
+    onChange(DEFAULT_FILTERS);
   };
 
   return (
@@ -178,15 +255,66 @@ export function JournalFilters({ filters, onChange, contexts = [], spreads = [],
             Clear filters
           </button>
         </div>
-        <button
-          type="button"
-          disabled
-          className="inline-flex items-center gap-2 text-xs text-secondary/60"
-          aria-disabled="true"
-        >
-          <BookmarkSimple className="h-4 w-4" />
-          Saved filters coming soon
-        </button>
+        <div className="rounded-xl border border-secondary/20 bg-surface/60 p-3">
+          <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.25em] text-secondary/80">
+            <BookmarkSimple className="h-4 w-4" />
+            <span>Saved filters</span>
+          </div>
+          <div className="mt-2 flex flex-wrap items-center gap-2">
+            {savedFilters.length > 0 ? (
+              savedFilters.map((saved) => (
+                <div
+                  key={saved.id}
+                  className="inline-flex items-center gap-2 rounded-full border border-secondary/30 bg-surface/70 px-3 py-1 text-xs text-secondary"
+                >
+                  <button
+                    type="button"
+                    onClick={() => handleApplySaved(saved)}
+                    className="flex items-center gap-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/40"
+                  >
+                    <span className="font-semibold text-main">{saved.name}</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleDeleteSaved(saved.id)}
+                    className="rounded-full px-1 text-secondary/60 hover:text-error focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/40"
+                    aria-label={`Delete saved filter ${saved.name}`}
+                  >
+                    <span aria-hidden="true">×</span>
+                  </button>
+                </div>
+              ))
+            ) : (
+              <p className="text-xs text-secondary/60">No saved filters yet—name a view to reuse it.</p>
+            )}
+          </div>
+          <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
+            <input
+              type="text"
+              value={newFilterName}
+              onChange={(event) => setNewFilterName(event.target.value)}
+              placeholder="Name this view"
+              className="flex-1 rounded-xl border border-secondary/30 bg-surface/60 px-4 py-2 text-sm text-main focus:outline-none focus:ring-2 focus:ring-secondary/40 placeholder:text-secondary/40"
+            />
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={handleSaveCurrent}
+                className={`${OUTLINE_FILTER_BASE} ${OUTLINE_FILTER_ACTIVE}`}
+                disabled={!newFilterName.trim() || !hasActiveFilters()}
+              >
+                Save current
+              </button>
+              <button
+                type="button"
+                onClick={clearFilters}
+                className={`${OUTLINE_FILTER_BASE} ${OUTLINE_FILTER_IDLE}`}
+              >
+                Reset
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
 
       <div className="flex flex-wrap items-center gap-3">
@@ -233,10 +361,7 @@ export function JournalFilters({ filters, onChange, contexts = [], spreads = [],
         <button
           type="button"
           onClick={() => onChange({ ...filters, onlyReversals: !filters.onlyReversals })}
-          className={`flex items-center gap-2 rounded-xl border px-3 py-2 text-sm font-medium transition-all ${filters.onlyReversals
-            ? 'border-secondary/60 bg-secondary/10 text-secondary'
-            : 'border-secondary/30 text-secondary/70 hover:border-secondary/50'
-            }`}
+          className={`${OUTLINE_FILTER_BASE} ${filters.onlyReversals ? OUTLINE_FILTER_ACTIVE : OUTLINE_FILTER_IDLE}`}
         >
           <span>Reversals</span>
           {filters.onlyReversals && <Check className="h-3 w-3" />}

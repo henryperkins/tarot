@@ -1327,7 +1327,7 @@ async function generateWithClaudeSonnet45Enhanced(env, payload, requestId = 'unk
     body: JSON.stringify({
       model,
       max_tokens: 8192, // Increased to allow full narrative generation without arbitrary limits
-      temperature: 0.7,
+      temperature: 0.75,
       system: systemPrompt,
       messages: [
         {

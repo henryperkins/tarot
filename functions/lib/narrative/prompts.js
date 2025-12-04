@@ -30,6 +30,48 @@ import { getPositionWeight } from '../positionWeights.js';
 import { formatVisionLabelForPrompt } from '../visionLabels.js';
 import { getDepthProfile } from './styleHelpers.js';
 
+// Heuristic: decide when astrological context is relevant enough to surface
+// in the reading prompts. Uses card anchors + spread/graph signals + user intent
+// to avoid spraying astro notes when the spread is more practical/grounded.
+export function shouldIncludeAstroInsights(cardsInfo = [], themes = {}, userQuestion = '') {
+  const names = (Array.isArray(cardsInfo) ? cardsInfo : [])
+    .map((c) => (c?.card || '').toLowerCase());
+
+  // Cards that strongly imply celestial / timing context
+  const astroAnchors = ['the sun', 'the moon', 'the star', 'wheel of fortune', 'judgement', 'temperance', 'the world'];
+  const hasAnchor = names.some((n) => astroAnchors.some((anchor) => n.includes(anchor)));
+
+  // Dense Major presence keeps astro relevant
+  const majorHeavy = typeof themes?.majorRatio === 'number' && themes.majorRatio >= 0.5;
+
+  // GraphRAG combos (triads / Fool's Journey) are archetypal and pair well with astro timing
+  const graphKeys = themes?.knowledgeGraph?.graphKeys || {};
+  const hasGraphCombos = Boolean((graphKeys.completeTriadIds?.length || 0) > 0 || graphKeys.foolsJourneyStageKey);
+
+  // Timing profile hints at longer arcs (weekly/seasonal) where astro adds value
+  const timingType = themes?.timingProfile?.type;
+  const timingSuggestsAstro = ['seasonal', 'long', 'medium'].includes(timingType);
+
+  // User intent: explicit astro/time keywords force opt-in
+  const intent = (userQuestion || '').toLowerCase();
+  const astroKeywords = [
+    'astrology', 'planet', 'planets', 'transit', 'transits', 'retrograde', 'mercury retrograde',
+    'eclipse', 'moon', 'full moon', 'new moon', 'lunar', 'solar return', 'horoscope',
+    'zodiac', 'sign', 'season', 'equinox', 'solstice'
+  ];
+  const intentAstro = astroKeywords.some((kw) => intent.includes(kw));
+
+  let score = 0;
+  if (hasAnchor) score += 2;          // Strong signal
+  if (majorHeavy) score += 1;
+  if (hasGraphCombos) score += 1;
+  if (timingSuggestsAstro) score += 1;
+  if (intentAstro) score += 3;        // strong override from user intent
+
+  // Require at least two signals, or a single strong anchor, to include astro
+  return score >= 2;
+}
+
 const DECK_STYLE_TIPS = {
   'thoth-a1': [
     'Use Crowley/Harris titles when they differ from Rider–Waite (Adjustment ↔ Justice, Lust ↔ Strength, Art ↔ Temperance).',
@@ -201,6 +243,12 @@ export function buildEnhancedClaudePrompt({
 
   const promptBudget = getPromptBudgetForTarget(budgetTarget, { env: promptBudgetEnv });
 
+  // Determine if astro context is relevant enough to surface
+  const astroRelevant = shouldIncludeAstroInsights(cardsInfo, activeThemes, userQuestion);
+  const astroContext = astroRelevant ? ephemerisContext : null;
+  const astroForecast = astroRelevant ? ephemerisForecast : null;
+  const astroTransits = astroRelevant ? transitResonances : [];
+
   // Pre-fetch GraphRAG payload if not already provided
   // This ensures a single retrieval even across slimming passes
   let effectiveGraphRAGPayload = graphRAGPayload;
@@ -255,12 +303,12 @@ export function buildEnhancedClaudePrompt({
 
   const baseControls = {
     graphRAGPayload: effectiveGraphRAGPayload,
-    ephemerisContext,
-    ephemerisForecast,
-    transitResonances,
+    ephemerisContext: astroContext,
+    ephemerisForecast: astroForecast,
+    transitResonances: astroTransits,
     includeGraphRAG: true,
-    includeEphemeris: true,
-    includeForecast: true,
+    includeEphemeris: astroRelevant,
+    includeForecast: astroRelevant,
     includeDeckContext: true,
     includeDiagnostics: true,
     omitLowWeightImagery: false,
@@ -561,17 +609,24 @@ function getSpreadKeyFromName(name) {
 }
 
 function buildSystemPrompt(spreadKey, themes, context, deckStyle, _userQuestion = '', options = {}) {
+  const personalization = options.personalization || null;
+  const depthPreference = personalization?.preferredSpreadDepth;
+  const depthProfile = depthPreference ? getDepthProfile(depthPreference) : null;
+  const isDeepDive = depthProfile?.key === 'deep';
+
   const lines = [
     'You are an agency-forward, trauma-informed tarot storyteller.',
     '',
     'CORE PRINCIPLES',
     '- Keep the querent’s agency and consent at the center. Emphasize trajectories and choices, not fixed fate.',
     '- In each section, loosely follow a story spine: name what is happening (WHAT), why it matters or how it arose (WHY), and what might be next in terms of options or small steps (WHAT’S NEXT). You can signal these shifts with connective phrases such as "Because...", "Therefore...", or "However..." where helpful.',
+    '- Begin the Opening with 2–3 sentences naming the felt experience before introducing frameworks (elemental map, spread overview, positional lenses).',
     '- Speak in warm, grounded language. Avoid heavy jargon; use brief astrological or Qabalah notes only when they clearly support the card\'s core Rider–Waite–Smith meaning.',
     '- Only reference cards explicitly provided in the spread. Do not introduce or imply additional cards (e.g., never claim The Fool appears unless it is actually in the spread).',
     '- When using Fool’s Journey or other archetypal stages, treat them as developmental context only—not as evidence that The Fool card is present.',
     '- Never offer medical, mental health, legal, financial, or abuse-safety directives. When those themes surface, gently encourage seeking qualified professional or community support.',
-    '- Treat reversals according to the selected framework for this reading (see Reversal Framework below) and keep that lens consistent throughout.'
+    '- Treat reversals according to the selected framework for this reading (see Reversal Framework below) and keep that lens consistent throughout.',
+    '- If depth and brevity ever conflict, favor depth and clarity (especially for deep-dive preferences); hit the spirit of the guidance even if the exact word target flexes.'
   ];
 
   const includeDeckContext = options.includeDeckContext !== false;
@@ -581,8 +636,10 @@ function buildSystemPrompt(spreadKey, themes, context, deckStyle, _userQuestion 
     'FORMATTING',
     '- Use Markdown with clear `###` section headings for major beats (for example, “### Opening”, “### The Story”, “### Guidance”, “### Gentle Next Steps”, “### Closing”).',
     '- Bold each card name the first time it appears.',
+    '- For multi-card spreads, aim for ~120–160 words per card while respecting the total length guidance.',
     '- Prefer 4–6 moderately sized paragraphs plus one short bullet list of practical steps. Avoid filler.',
     '- Keep paragraphs to about 2–4 sentences; break up anything longer for readability.',
+    '- Within each card section, you may use mini labels **WHAT**, **WHY**, **WHAT’S NEXT** to signal the spine; vary at least one card by opening with WHAT’S NEXT before backfilling WHAT and WHY to avoid a repetitive cadence.',
     '- OUTPUT STYLE: Do NOT preface the reading with "Here is your reading" or "I have analyzed the cards." Start directly with the Opening section or the first header.'
   );
 
@@ -591,7 +648,8 @@ function buildSystemPrompt(spreadKey, themes, context, deckStyle, _userQuestion 
     'ESOTERIC LAYERS (OPTIONAL)',
     '- You may briefly reference astrology or Qabalah only when it clarifies the card’s core meaning for this querent.',
     '- For very practical questions (for example, career logistics or daily check-ins), prioritize concrete, grounded language over esoteric detail.',
-    '- When you do mention these correspondences, keep them to one short sentence and avoid repeating the same formula for every card.'
+    '- When you do mention these correspondences, keep them to one short sentence and avoid repeating the same formula for every card.',
+    '- If the depth preference is deep, weave at most one reinforcing esoteric thread across the spread; otherwise keep esoteric notes optional and minimal.'
   );
 
   // Spread-specific flow hints
@@ -624,6 +682,14 @@ function buildSystemPrompt(spreadKey, themes, context, deckStyle, _userQuestion 
   const lengthGuidance = SPREAD_LENGTH_GUIDANCE[spreadKey];
   if (lengthGuidance) {
     lines.push('', lengthGuidance);
+    if (isDeepDive) {
+      lines.push(
+        'DEEP DIVE LENGTH: When the querent prefers deep dives, allow ~1500–1900 words. If the narrative exceeds ~1000 words, append a 120–150 word **Concise Recap** summarizing the arc and next steps.',
+        'LENGTH PRIORITY: If depth and brevity conflict, prioritize depth and clarity over strict counts.'
+      );
+    } else {
+      lines.push('LENGTH PRIORITY: If depth and brevity conflict, preserve clarity while staying close to the target band.');
+    }
   }
 
   const reversalLens = formatReversalLens(themes, { includeExamples: true, includeReminder: true });
@@ -753,11 +819,8 @@ function buildSystemPrompt(spreadKey, themes, context, deckStyle, _userQuestion 
     '- SELF-VERIFY: After composing, quickly scan to ensure each referenced card/position is accurate, reversal instructions are obeyed, and the specific *visual profile* (tone/emotion) of the user\'s deck is reflected in the descriptive language before producing the final answer.'
   );
 
-  const personalization = options.personalization || null;
   const toneKey = personalization?.readingTone;
   const frameKey = personalization?.spiritualFrame;
-  const depthPreference = personalization?.preferredSpreadDepth;
-  const depthProfile = depthPreference ? getDepthProfile(depthPreference) : null;
   const hasToneSection = toneKey && TONE_GUIDANCE[toneKey];
   const hasFrameSection = frameKey && FRAME_GUIDANCE[frameKey];
 
@@ -840,6 +903,10 @@ function buildUserPrompt(
   if (activeThemes.suitFocus) thematicLines.push(`- ${activeThemes.suitFocus}`);
   if (activeThemes.archetypeDescription) thematicLines.push(`- ${activeThemes.archetypeDescription}`);
   if (activeThemes.elementalBalance) thematicLines.push(`- ${activeThemes.elementalBalance}`);
+  if (Array.isArray(personalization?.focusAreas) && personalization.focusAreas.length > 0) {
+    const focusList = personalization.focusAreas.slice(0, 5).join(', ');
+    thematicLines.push(`- Focus areas (from onboarding): ${focusList}`);
+  }
   if (activeThemes.timingProfile) {
     const timingDescriptions = {
       'near-term-tilt': 'Timing: This reading leans toward near-term shifts if you engage actively with the guidance.',

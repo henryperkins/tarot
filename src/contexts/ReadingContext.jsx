@@ -46,13 +46,22 @@ export function ReadingProvider({ children }) {
             typeof personalization.displayName === 'string'
                 ? personalization.displayName.trim()
                 : '';
+
+        const focusAreas = Array.isArray(personalization.focusAreas)
+            ? personalization.focusAreas
+                .map((area) => (typeof area === 'string' ? area.trim() : ''))
+                .filter((area) => area.length > 0)
+            : [];
+
         const payload = {
             displayName: sanitizedName || undefined,
             readingTone: personalization.readingTone || undefined,
             spiritualFrame: personalization.spiritualFrame || undefined,
             tarotExperience: personalization.tarotExperience || undefined,
-            preferredSpreadDepth: personalization.preferredSpreadDepth || undefined
+            preferredSpreadDepth: personalization.preferredSpreadDepth || undefined,
+            focusAreas: focusAreas.length ? focusAreas : undefined
         };
+
         return Object.values(payload).some((value) => value !== undefined) ? payload : null;
     }, [personalization]);
 
