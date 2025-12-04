@@ -8,20 +8,23 @@ import ShareReading from './pages/ShareReading.jsx';
 import { AuthProvider } from './contexts/AuthContext.jsx';
 import { PreferencesProvider } from './contexts/PreferencesContext.jsx';
 import { ReadingProvider } from './contexts/ReadingContext.jsx';
+import { ToastProvider } from './contexts/ToastContext.jsx';
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <AuthProvider>
       <PreferencesProvider>
         <ReadingProvider>
-          <BrowserRouter>
-            <Routes>
-              <Route path="/" element={<TarotReading />} />
-              <Route path="/journal" element={<Journal />} />
-              <Route path="/share/:token" element={<ShareReading />} />
-              <Route path="*" element={<TarotReading />} />
-            </Routes>
-          </BrowserRouter>
+          <ToastProvider>
+            <BrowserRouter>
+              <Routes>
+                <Route path="/" element={<TarotReading />} />
+                <Route path="/journal" element={<Journal />} />
+                <Route path="/share/:token" element={<ShareReading />} />
+                <Route path="*" element={<TarotReading />} />
+              </Routes>
+            </BrowserRouter>
+          </ToastProvider>
         </ReadingProvider>
       </PreferencesProvider>
     </AuthProvider>

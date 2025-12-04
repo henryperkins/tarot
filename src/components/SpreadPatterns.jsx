@@ -25,7 +25,8 @@ const PATTERN_ICONS = {
 const DEFAULT_ICON = <Star className="w-4 h-4 text-accent" aria-hidden="true" />;
 
 // Maximum length for passage text before truncation
-const MAX_PASSAGE_LENGTH = 250;
+// Increased from 250 to 450 to preserve complete quotes from traditional sources
+const MAX_PASSAGE_LENGTH = 450;
 
 /**
  * Get the appropriate icon for a pattern type

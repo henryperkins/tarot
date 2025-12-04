@@ -16,6 +16,7 @@ import { computeJournalStats, formatContextName } from '../lib/journalInsights';
 import { SPREADS } from '../data/spreads';
 import { DECK_OPTIONS } from './DeckSelector';
 import { useSmallScreen } from '../hooks/useSmallScreen';
+import { useToast } from '../contexts/ToastContext.jsx';
 
 const CONTEXT_FILTERS = [
   { value: 'love', label: 'Love' },
@@ -73,8 +74,6 @@ export default function Journal() {
   const { isAuthenticated } = useAuth();
   const { entries, loading, deleteEntry, migrateToCloud, error: journalError } = useJournal();
   const [migrating, setMigrating] = useState(false);
-  const [migrateMessage, setMigrateMessage] = useState('');
-  const [deleteMessage, setDeleteMessage] = useState('');
   const [deleteConfirmModal, setDeleteConfirmModal] = useState({ isOpen: false, entryId: null });
   const [filters, setFilters] = useState({ query: '', contexts: [], spreads: [], decks: [], timeframe: 'all', onlyReversals: false });
   const deferredQuery = useDeferredValue(filters.query);
@@ -97,6 +96,7 @@ export default function Journal() {
   const [activeMobileSection, setActiveMobileSection] = useState('today');
   const navigate = useNavigate();
   const isMobileLayout = useSmallScreen(MOBILE_LAYOUT_MAX);
+  const { publish: showToast } = useToast();
 
   const handleStartReading = () => {
     navigate('/', { state: { focusSpread: true } });
@@ -376,7 +376,6 @@ export default function Journal() {
 
   const handleMigrate = async () => {
     setMigrating(true);
-    setMigrateMessage('');
 
     const result = await migrateToCloud();
 
@@ -385,10 +384,17 @@ export default function Journal() {
       if (typeof result.skipped === 'number' && result.skipped > 0) {
         parts.push(`${result.skipped} already existed`);
       }
-      setMigrateMessage(`Migration complete! ${parts.join(', ')}.`);
-      setTimeout(() => setMigrateMessage(''), 5000);
+      showToast({
+        type: 'success',
+        title: 'Migration complete',
+        description: parts.join(', ')
+      });
     } else {
-      setMigrateMessage(`Migration failed: ${result.error}`);
+      showToast({
+        type: 'error',
+        title: 'Migration failed',
+        description: result.error || 'We could not sync your local entries.'
+      });
     }
 
     setMigrating(false);
@@ -408,11 +414,18 @@ export default function Journal() {
     const result = await deleteEntry(entryId);
 
     if (result.success) {
-      setDeleteMessage('Entry deleted');
+      showToast({
+        type: 'success',
+        title: 'Entry deleted',
+        description: 'Removed from your journal history.'
+      });
     } else {
-      setDeleteMessage(`Delete failed: ${result.error || 'Unknown error'}`);
+      showToast({
+        type: 'error',
+        title: 'Delete failed',
+        description: result.error || 'Please try again in a moment.'
+      });
     }
-    setTimeout(() => setDeleteMessage(''), 4000);
   };
 
   const handleDeleteCancel = () => {
@@ -534,9 +547,6 @@ export default function Journal() {
               {migrating && (
                 <p className="mt-2 text-sm text-secondary">Migrating...</p>
               )}
-              {migrateMessage && (
-                <p className="mt-2 text-sm text-secondary">{migrateMessage}</p>
-              )}
             </div>
           ) : (
             <div className="mb-6 rounded-2xl border border-primary/40 bg-primary/10 p-4 text-sm text-accent journal-prose">
@@ -608,12 +618,6 @@ export default function Journal() {
                   {section.label}
                 </button>
               ))}
-            </div>
-          )}
-
-          {deleteMessage && (
-            <div className={`mb-4 p-3 rounded-lg ${deleteMessage.includes('failed') ? 'bg-error/10 border border-error/40 text-error' : 'bg-secondary/10 border border-secondary/40 text-secondary'}`}>
-              <p className="journal-prose text-sm">{deleteMessage}</p>
             </div>
           )}
 

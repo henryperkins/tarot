@@ -23,7 +23,8 @@ import {
   retrievePassages,
   formatPassagesForPrompt,
   getPassageCountForSpread,
-  buildRetrievalSummary
+  buildRetrievalSummary,
+  rankPassagesForPrompt
 } from '../graphRAG.js';
 import { getPositionWeight } from '../positionWeights.js';
 import { formatVisionLabelForPrompt } from '../visionLabels.js';
@@ -233,6 +234,7 @@ export function buildEnhancedClaudePrompt({
 
       effectiveGraphRAGPayload = {
         passages: retrievedPassages,
+        initialPassageCount: retrievedPassages.length,
         formattedBlock: null,
         retrievalSummary: {
           ...retrievalSummary,
@@ -242,6 +244,7 @@ export function buildEnhancedClaudePrompt({
         },
         // Track whether semantic scoring was requested vs what we could deliver
         enableSemanticScoring: false,
+        rankingStrategy: 'keyword',
         semanticScoringRequested: requestedSemanticScoring,
         semanticScoringFallback
       };
@@ -339,6 +342,53 @@ export function buildEnhancedClaudePrompt({
     controls = { ...controls, includeEphemeris: false };
   });
 
+  // Step 3.5: Trim GraphRAG passages before dropping the block entirely
+  maybeSlim('trim-graphrag-passages', () => {
+    if (controls.includeGraphRAG === false) return;
+    const payload = controls.graphRAGPayload;
+    if (!payload?.passages || payload.passages.length <= 1) return;
+
+    const effectiveSpreadKey = spreadKey || 'general';
+    const baselineMax = payload.maxPassages || getPassageCountForSpread(effectiveSpreadKey);
+    const currentCount = payload.passages.length;
+    const targetCount = Math.max(
+      1,
+      Math.min(currentCount - 1, Math.ceil(baselineMax / 2))
+    );
+
+    if (targetCount >= currentCount) return;
+
+    const { passages: rankedPassages, strategy } = rankPassagesForPrompt(payload.passages, {
+      limit: targetCount
+    });
+
+    if (!rankedPassages || rankedPassages.length >= currentCount) return;
+
+    const trimmedCount = currentCount - rankedPassages.length;
+    const initialPassageCount =
+      typeof payload.initialPassageCount === 'number'
+        ? payload.initialPassageCount
+        : currentCount;
+
+    controls = {
+      ...controls,
+      graphRAGPayload: {
+        ...payload,
+        passages: rankedPassages,
+        formattedBlock: null,
+        initialPassageCount,
+        budgetTrimmed: true,
+        budgetTrimmedCount: (payload.budgetTrimmedCount || 0) + trimmedCount,
+        budgetTrimmedFrom:
+          typeof payload.budgetTrimmedFrom === 'number'
+            ? payload.budgetTrimmedFrom
+            : initialPassageCount,
+        budgetTrimmedTo: rankedPassages.length,
+        rankingStrategy: strategy || payload.rankingStrategy || null
+      }
+    };
+  });
+
   // Step 4: Remove GraphRAG block if still over budget
   maybeSlim('drop-graphrag-block', () => {
     controls = { ...controls, includeGraphRAG: false };
@@ -426,16 +476,17 @@ export function buildEnhancedClaudePrompt({
   };
 
   if (controls.graphRAGPayload?.retrievalSummary) {
-    const retrievalSummary = { ...controls.graphRAGPayload.retrievalSummary };
-    const passageCount = Array.isArray(controls.graphRAGPayload.passages)
-      ? controls.graphRAGPayload.passages.length
+    const payload = controls.graphRAGPayload;
+    const retrievalSummary = { ...payload.retrievalSummary };
+    const passagesAfterSlimming = Array.isArray(payload.passages)
+      ? payload.passages.length
       : 0;
-    const effectiveMaxPassages = getPassageCountForSpread(spreadKey || 'general');
-    const graphRAGIncluded = controls.includeGraphRAG !== false && passageCount > 0;
-    const passagesUsed = graphRAGIncluded ? Math.min(passageCount, effectiveMaxPassages) : 0;
-    const truncatedCount = graphRAGIncluded && passageCount > passagesUsed
-      ? passageCount - passagesUsed
-      : 0;
+    const initialPassageCount = typeof payload.initialPassageCount === 'number'
+      ? payload.initialPassageCount
+      : passagesAfterSlimming;
+    const graphRAGIncluded = controls.includeGraphRAG !== false && passagesAfterSlimming > 0;
+    const passagesUsed = graphRAGIncluded ? passagesAfterSlimming : 0;
+    const trimmedCount = Math.max(0, initialPassageCount - passagesUsed);
 
     const semanticScoringUsed = Boolean(
       retrievalSummary.qualityMetrics?.semanticScoringUsed ||
@@ -458,10 +509,18 @@ export function buildEnhancedClaudePrompt({
       retrievalSummary.semanticScoringFallback = true;
     }
 
-    retrievalSummary.passagesProvided = passageCount;
+    retrievalSummary.passagesProvided = initialPassageCount;
     retrievalSummary.passagesUsedInPrompt = passagesUsed;
-    if (truncatedCount > 0) {
-      retrievalSummary.truncatedPassages = truncatedCount;
+    if (trimmedCount > 0) {
+      retrievalSummary.truncatedPassages = trimmedCount;
+    }
+    if (payload.budgetTrimmedCount) {
+      retrievalSummary.truncatedForBudget = true;
+      retrievalSummary.budgetTrimmedFrom = payload.budgetTrimmedFrom ?? initialPassageCount;
+      retrievalSummary.budgetTrimmedTo = payload.budgetTrimmedTo ?? passagesUsed;
+      if (payload.rankingStrategy) {
+        retrievalSummary.budgetTrimmedStrategy = payload.rankingStrategy;
+      }
     }
     retrievalSummary.includedInPrompt = graphRAGIncluded;
 

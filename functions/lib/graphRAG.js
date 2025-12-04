@@ -451,6 +451,78 @@ export function deduplicatePassages(passages, options = {}) {
 }
 
 /**
+ * Rank passages for prompt injection, prioritizing semantic relevance when available.
+ * Falls back to keyword overlap, then priority ordering.
+ *
+ * @param {Array<Object>} passages
+ * @param {Object} [options]
+ * @param {number} [options.limit] - Optional limit for returned passages
+ * @returns {{passages: Array<Object>, strategy: string}}
+ */
+export function rankPassagesForPrompt(passages, options = {}) {
+  if (!Array.isArray(passages) || passages.length === 0) {
+    return { passages: [], strategy: 'none' };
+  }
+
+  const limit = Math.min(
+    Math.max(1, options.limit || passages.length),
+    passages.length
+  );
+
+  const strategy = determineRankingStrategy(passages);
+  const ranked = [...passages]
+    .sort((a, b) => comparePassagesForPrompt(a, b, strategy))
+    .slice(0, limit);
+
+  return { passages: ranked, strategy };
+}
+
+function determineRankingStrategy(passages) {
+  if (passages.some((p) => typeof p?.relevanceScore === 'number')) {
+    return 'semantic';
+  }
+  if (passages.some((p) => typeof p?.relevance === 'number')) {
+    return 'keyword';
+  }
+  return 'priority';
+}
+
+function getPrimaryScore(passage, strategy) {
+  if (strategy === 'semantic') {
+    return typeof passage.relevanceScore === 'number' ? passage.relevanceScore : 0;
+  }
+  if (strategy === 'keyword') {
+    return typeof passage.relevance === 'number' ? passage.relevance : 0;
+  }
+
+  // Priority: lower numbers are higher priority, so invert for comparison
+  const priority = typeof passage.priority === 'number' ? passage.priority : Infinity;
+  return priority === Infinity ? 0 : 1 / (1 + priority);
+}
+
+function comparePassagesForPrompt(a, b, strategy) {
+  const scoreA = getPrimaryScore(a, strategy);
+  const scoreB = getPrimaryScore(b, strategy);
+  if (scoreA !== scoreB) {
+    return scoreB - scoreA;
+  }
+
+  const keywordA = typeof a.relevance === 'number' ? a.relevance : 0;
+  const keywordB = typeof b.relevance === 'number' ? b.relevance : 0;
+  if (keywordA !== keywordB) {
+    return keywordB - keywordA;
+  }
+
+  const priorityA = typeof a.priority === 'number' ? a.priority : Infinity;
+  const priorityB = typeof b.priority === 'number' ? b.priority : Infinity;
+  if (priorityA !== priorityB) {
+    return priorityA - priorityB;
+  }
+
+  return 0;
+}
+
+/**
  * Enhanced retrieval with quality filtering.
  * Builds on retrievePassages() but adds:
  * - Relevance scoring (keyword + semantic)

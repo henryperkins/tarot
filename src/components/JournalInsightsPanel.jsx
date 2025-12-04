@@ -19,6 +19,7 @@ import {
 import { usePreferences } from '../contexts/PreferencesContext';
 import { buildThemePolishPrompt, buildThemeQuestion, ensureQuestionMark, normalizeThemeLabel } from '../lib/themeText';
 import { callLlmApi } from '../lib/intentionCoach';
+import { useToast } from '../contexts/ToastContext.jsx';
 
 const CONTEXT_TO_SPREAD = {
     love: {
@@ -116,25 +117,29 @@ export const JournalInsightsPanel = memo(function JournalInsightsPanel({
     const recentThemes = primaryStats?.recentThemes || [];
     const isFilteredView = Boolean(filtersActive && stats);
 
-    const [actionMessage, setActionMessage] = useState('');
     const [shareComposerOpen, setShareComposerOpen] = useState(false);
     const [shareComposer, setShareComposer] = useState({ scope: 'journal', entryId: '', title: '', limit: '5', expiresInHours: '72' });
     const [composerErrors, setComposerErrors] = useState({});
     const [shareLinkFeedback, setShareLinkFeedback] = useState({ token: null, message: '' });
-    const timeoutsRef = useRef([]);
-
-    const scheduleActionClear = (delay = 3000) => {
-        const id = setTimeout(() => setActionMessage(''), delay);
-        timeoutsRef.current.push(id);
-    };
+    const { publish: showToast } = useToast();
+    const shareFeedbackTimeout = useRef(null);
 
     const showLinkFeedback = (token, message, delay = 2500) => {
         setShareLinkFeedback({ token, message });
-        const id = setTimeout(() => setShareLinkFeedback({ token: null, message: '' }), delay);
-        timeoutsRef.current.push(id);
+        if (shareFeedbackTimeout.current) {
+            clearTimeout(shareFeedbackTimeout.current);
+        }
+        shareFeedbackTimeout.current = setTimeout(() => {
+            setShareLinkFeedback({ token: null, message: '' });
+            shareFeedbackTimeout.current = null;
+        }, delay);
     };
 
-    useEffect(() => () => timeoutsRef.current.forEach(clearTimeout), []);
+    useEffect(() => () => {
+        if (shareFeedbackTimeout.current) {
+            clearTimeout(shareFeedbackTimeout.current);
+        }
+    }, []);
 
     const summaryEntries = useMemo(() => {
         if (filtersActive) {
@@ -207,8 +212,11 @@ export const JournalInsightsPanel = memo(function JournalInsightsPanel({
     const handleExport = () => {
         const exportEntries = isFilteredAndEmpty && Array.isArray(allEntries) ? allEntries : summaryEntries;
         const result = exportJournalEntriesToCsv(exportEntries);
-        setActionMessage(result ? 'Export started' : 'Export failed');
-        scheduleActionClear();
+        showToast({
+            type: result ? 'success' : 'error',
+            title: result ? 'Export started' : 'Export failed',
+            description: result ? 'CSV download is on its way.' : 'Unable to export this view right now.'
+        });
     };
 
     const handlePdfDownload = () => {
@@ -216,31 +224,49 @@ export const JournalInsightsPanel = memo(function JournalInsightsPanel({
         const pdfEntries = isFilteredAndEmpty && Array.isArray(allEntries) ? allEntries : summaryEntries;
         try {
             exportJournalInsightsToPdf(pdfStats, pdfEntries);
-            setActionMessage('PDF download started');
+            showToast({
+                type: 'success',
+                title: 'PDF download started',
+                description: 'Your insights PDF is being generated.'
+            });
         } catch {
-            setActionMessage('PDF generation failed');
+            showToast({
+                type: 'error',
+                title: 'PDF generation failed',
+                description: 'Please try again in a moment.'
+            });
         }
-        scheduleActionClear();
     };
 
     const handleVisualCardDownload = () => {
         if (!svgStats) return;
         try {
             downloadInsightsSvg(svgStats);
-            setActionMessage('Visual card downloaded');
+            showToast({
+                type: 'success',
+                title: 'Visual card downloaded',
+                description: 'Saved a visual snapshot of your insights.'
+            });
         } catch {
-            setActionMessage('Visual card failed');
+            showToast({
+                type: 'error',
+                title: 'Visual card failed',
+                description: 'Unable to download the visual card.'
+            });
         }
-        scheduleActionClear();
     };
 
     const handleShare = async () => {
-        if (
+        const noEntriesAvailable =
             (!isFilteredAndEmpty && baseEntries.length === 0) ||
-            (isFilteredAndEmpty && (!allEntries || allEntries.length === 0))
-        ) {
-            setActionMessage('No entries to share');
-            scheduleActionClear(3500);
+            (isFilteredAndEmpty && (!allEntries || allEntries.length === 0));
+
+        if (noEntriesAvailable) {
+            showToast({
+                type: 'info',
+                title: 'Nothing to share',
+                description: 'Log a reading or clear filters to create a link.'
+            });
             return;
         }
 
@@ -254,8 +280,11 @@ export const JournalInsightsPanel = memo(function JournalInsightsPanel({
                         .map((entry) => entry?.id)
                         .filter(Boolean);
                     if (entryIds.length === 0) {
-                        setActionMessage('Filtered entries need ids before sharing');
-                        scheduleActionClear(3500);
+                        showToast({
+                            type: 'warning',
+                            title: 'Share unavailable',
+                            description: 'Filtered entries need IDs before they can be shared.'
+                        });
                         return;
                     }
                     payload.entryIds = entryIds;
@@ -268,26 +297,51 @@ export const JournalInsightsPanel = memo(function JournalInsightsPanel({
                 if (shareUrl && navigator?.clipboard?.writeText) {
                     try {
                         await navigator.clipboard.writeText(shareUrl);
-                        setActionMessage(isFilteredAndEmpty ? 'Filters empty, created link for full journal' : 'Share link copied');
+                        showToast({
+                            type: 'success',
+                            title: isFilteredAndEmpty ? 'Shared full journal' : 'Share link copied',
+                            description: isFilteredAndEmpty
+                                ? 'Filters returned no entries, so the full journal link was copied.'
+                                : 'Link copied to your clipboard.'
+                        });
                     } catch (error) {
                         console.warn('Clipboard write failed for quick share link', error);
-                        setActionMessage('Link created but copy failed—use clipboard manually');
+                        showToast({
+                            type: 'warning',
+                            title: 'Link ready to share',
+                            description: 'Copy was blocked, but the link is ready in your browser.'
+                        });
                     }
                 } else {
-                    setActionMessage(isFilteredAndEmpty ? 'Filters empty, link for full journal ready' : 'Share link ready');
+                    showToast({
+                        type: 'success',
+                        title: isFilteredAndEmpty ? 'Full journal link ready' : 'Share link ready',
+                        description: 'Copy the link shown in the address bar to share.'
+                    });
                 }
             } catch (error) {
                 console.warn('Share link creation failed, falling back to snapshot', error);
                 const shareStats = isFilteredAndEmpty ? allStats : (summaryStats || allStats || primaryStats);
                 const success = await copyJournalShareSummary(shareStats);
-                setActionMessage(success ? 'Link creation failed, copied snapshot instead' : 'Unable to create share link');
+                showToast({
+                    type: success ? 'warning' : 'error',
+                    title: success ? 'Link unavailable' : 'Share failed',
+                    description: success
+                        ? 'Link creation failed, but a journal snapshot was copied instead.'
+                        : 'Unable to create a share link right now.'
+                });
             }
         } else {
             const shareStats = isFilteredAndEmpty ? allStats : (summaryStats || allStats || primaryStats);
             const success = await copyJournalShareSummary(shareStats);
-            setActionMessage(success ? (isFilteredAndEmpty ? 'Filters empty, copied full journal summary' : 'Snapshot copied for sharing') : 'Unable to copy snapshot');
+            showToast({
+                type: success ? 'success' : 'error',
+                title: success ? 'Snapshot copied' : 'Share unavailable',
+                description: success
+                    ? (isFilteredAndEmpty ? 'Copied a full journal summary.' : 'Use paste to share these insights.')
+                    : 'Clipboard copy failed in this browser.'
+            });
         }
-        scheduleActionClear(3500);
     };
 
     const topContext = contextBreakdown.slice().sort((a, b) => b.count - a.count)[0];
@@ -409,18 +463,28 @@ export const JournalInsightsPanel = memo(function JournalInsightsPanel({
     const handleCoachPrefill = async () => {
         if (!coachRecommendation) return;
         if (filtersActive) {
-            setActionMessage('Clear filters to sync this suggestion');
-            scheduleActionClear(3500);
+            showToast({
+                type: 'info',
+                title: 'Suggestion paused',
+                description: 'Clear filters to sync this coach recommendation.'
+            });
             return;
         }
         try {
             await Promise.resolve(saveCoachRecommendation(coachRecommendation));
-            setActionMessage('Sent suggestion to intention coach');
+            showToast({
+                type: 'success',
+                title: 'Sent to Intention Coach',
+                description: 'Open the coach to keep working from this prompt.'
+            });
         } catch (error) {
             console.warn('Unable to persist coach recommendation', error);
-            setActionMessage('Unable to sync coach suggestion');
+            showToast({
+                type: 'error',
+                title: 'Unable to sync suggestion',
+                description: 'Please try again in a moment.'
+            });
         }
-        scheduleActionClear(3500);
     };
 
     const entryOptions = useMemo(() => {
@@ -529,19 +593,36 @@ export const JournalInsightsPanel = memo(function JournalInsightsPanel({
             if (shareUrl && navigator?.clipboard?.writeText) {
                 try {
                     await navigator.clipboard.writeText(shareUrl);
-                    setActionMessage('Custom link copied');
+                    showToast({
+                        type: 'success',
+                        title: 'Custom link copied',
+                        description: 'Share this private link with your trusted recipients.'
+                    });
                 } catch (error) {
                     console.warn('Clipboard write failed for custom link', error);
-                    setActionMessage('Link ready but copy was blocked');
+                    showToast({
+                        type: 'warning',
+                        title: 'Link ready to share',
+                        description: 'Copy was blocked—use tap-and-hold or the share sheet.'
+                    });
                 }
             } else {
-                setActionMessage('Custom link ready');
+                showToast({
+                    type: 'success',
+                    title: 'Custom link ready',
+                    description: 'Copy the link from your browser to share it.'
+                });
             }
             setShareComposerOpen(false);
         } catch (error) {
-            setComposerErrors({ general: error.message || 'Unable to create custom link' });
+            const message = error.message || 'Unable to create custom link';
+            setComposerErrors({ general: message });
+            showToast({
+                type: 'error',
+                title: 'Custom link failed',
+                description: message
+            });
         }
-        scheduleActionClear(3500);
     };
 
     const copyShareUrl = async (token) => {
@@ -551,18 +632,29 @@ export const JournalInsightsPanel = memo(function JournalInsightsPanel({
             try {
                 await navigator.clipboard.writeText(url);
                 showLinkFeedback(token, 'Link copied');
-                setActionMessage('');
+                showToast({
+                    type: 'success',
+                    title: 'Link copied',
+                    description: 'Share it anywhere.'
+                });
                 return;
             } catch (error) {
                 console.warn('Clipboard write failed for saved link', error);
-                setActionMessage('Copy blocked—link ready to open manually');
                 showLinkFeedback(token, 'Copy blocked—use tap-and-hold to copy');
+                showToast({
+                    type: 'warning',
+                    title: 'Copy blocked',
+                    description: 'Open the link and copy it manually.'
+                });
             }
         } else {
-            setActionMessage('Copy not supported in this browser');
             showLinkFeedback(token, 'Copy not supported in this browser');
+            showToast({
+                type: 'error',
+                title: 'Copy not supported',
+                description: 'Use tap-and-hold or open the link to share it.'
+            });
         }
-        scheduleActionClear(2500);
     };
 
     if (!primaryStats) {
@@ -625,20 +717,17 @@ export const JournalInsightsPanel = memo(function JournalInsightsPanel({
                             <Sparkle className="h-4 w-4" />
                             Visual card
                         </button>
-                        {isAuthenticated && onCreateShareLink && (
-                            <button
-                                type="button"
-                                onClick={() => setShareComposerOpen(prev => !prev)}
-                                className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/50 ${shareComposerOpen ? 'border-secondary text-secondary bg-secondary/10' : 'border-secondary/40 text-secondary hover:border-secondary/70'}`}
+                    {isAuthenticated && onCreateShareLink && (
+                        <button
+                            type="button"
+                            onClick={() => setShareComposerOpen(prev => !prev)}
+                            className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/50 ${shareComposerOpen ? 'border-secondary text-secondary bg-secondary/10' : 'border-secondary/40 text-secondary hover:border-secondary/70'}`}
                             >
                                 <ArrowsClockwise className="h-4 w-4" />
                                 {shareComposerOpen ? 'Close custom link' : 'Custom link'}
                             </button>
                         )}
                     </div>
-                    {actionMessage && (
-                        <p className={`mt-2 text-sm text-secondary ${prefersReducedMotion ? '' : 'animate-fade-in'}`}>{actionMessage}</p>
-                    )}
                 </div>
 
                 {shareComposerOpen && (

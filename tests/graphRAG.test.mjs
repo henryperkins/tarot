@@ -12,6 +12,7 @@ import {
   buildQualityRetrievalSummary,
   scorePassageRelevance,
   deduplicatePassages,
+  rankPassagesForPrompt,
   isGraphRAGEnabled,
   isSemanticScoringAvailable,
   getKnowledgeBaseInfo,
@@ -390,6 +391,54 @@ describe('GraphRAG Utilities', () => {
     const info = getKnowledgeBaseInfo();
     assert.ok(info.triads > 0);
     assert.ok(info.totalPassages > 0);
+  });
+});
+
+describe('GraphRAG Passage Ranking', () => {
+  test('rankPassagesForPrompt prioritizes semantic relevance scores', () => {
+    const passages = [
+      { title: 'A', relevanceScore: 0.35, priority: 2 },
+      { title: 'B', relevanceScore: 0.91, priority: 3 },
+      { title: 'C', relevanceScore: 0.62, priority: 1 }
+    ];
+
+    const { passages: ranked, strategy } = rankPassagesForPrompt(passages);
+
+    assert.strictEqual(strategy, 'semantic');
+    assert.strictEqual(ranked.length, 3);
+    assert.strictEqual(ranked[0].title, 'B', 'Highest semantic score should lead');
+    assert.strictEqual(ranked[1].title, 'C');
+    assert.strictEqual(ranked[2].title, 'A');
+  });
+
+  test('rankPassagesForPrompt falls back to keyword relevance', () => {
+    const passages = [
+      { title: 'A', relevance: 1, priority: 2 },
+      { title: 'B', relevance: 4, priority: 5 },
+      { title: 'C', relevance: 3, priority: 1 }
+    ];
+
+    const { passages: ranked, strategy } = rankPassagesForPrompt(passages, { limit: 2 });
+
+    assert.strictEqual(strategy, 'keyword');
+    assert.strictEqual(ranked.length, 2, 'Limit should be enforced');
+    assert.strictEqual(ranked[0].title, 'B');
+    assert.strictEqual(ranked[1].title, 'C');
+  });
+
+  test('rankPassagesForPrompt uses priority ordering when scores missing', () => {
+    const passages = [
+      { title: 'A', priority: 3 },
+      { title: 'B', priority: 1 },
+      { title: 'C', priority: 2 }
+    ];
+
+    const { passages: ranked, strategy } = rankPassagesForPrompt(passages);
+
+    assert.strictEqual(strategy, 'priority');
+    assert.strictEqual(ranked[0].title, 'B');
+    assert.strictEqual(ranked[1].title, 'C');
+    assert.strictEqual(ranked[2].title, 'A');
   });
 });
 

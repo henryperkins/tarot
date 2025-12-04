@@ -6,6 +6,7 @@ import { ShareNetwork, DownloadSimple, Trash, CaretDown, CaretUp, BookOpen, Clip
 import { CardSymbolInsights } from './CardSymbolInsights';
 import { buildCardInsightPayload, exportJournalEntriesToCsv, copyJournalEntrySummary, copyJournalEntriesToClipboard, REVERSED_PATTERN } from '../lib/journalInsights';
 import { useSmallScreen } from '../hooks/useSmallScreen';
+import { useToast } from '../contexts/ToastContext.jsx';
 
 const CONTEXT_SUMMARIES = {
     love: 'Relationship lens — center relational reciprocity and communication.',
@@ -101,15 +102,14 @@ export const JournalEntryCard = memo(function JournalEntryCard({ entry, onCreate
   const insights = buildThemeInsights(entry);
   const [isExpanded, setIsExpanded] = useState(defaultExpanded);
   const [showNarrative, setShowNarrative] = useState(false);
-  const [entryActionMessage, setEntryActionMessage] = useState('');
   const [showCards, setShowCards] = useState(false); // Collapsed by default on mobile
   const [showActionsMenu, setShowActionsMenu] = useState(false);
-  const timeoutsRef = useRef([]);
   const entryContentId = useId();
   const narrativeId = useId();
   const cardsId = useId();
   const actionsMenuRef = useRef(null);
   const isSmallScreen = useSmallScreen(640); // < sm breakpoint
+  const { publish: showToast } = useToast();
 
   // Close actions menu when clicking outside
   useEffect(() => {
@@ -130,26 +130,23 @@ export const JournalEntryCard = memo(function JournalEntryCard({ entry, onCreate
     };
   }, [showActionsMenu]);
 
-  const scheduleClear = (delay = 3500) => {
-    const id = setTimeout(() => setEntryActionMessage(''), delay);
-    timeoutsRef.current.push(id);
-  };
-
-  useEffect(() => () => {
-    timeoutsRef.current.forEach(clearTimeout);
-  }, []);
-
   const handleEntryExport = () => {
     const filename = `tarot-entry-${entry.id || entry.ts || 'reading'}.csv`;
     const success = exportJournalEntriesToCsv([entry], filename);
-    setEntryActionMessage(success ? 'Entry CSV downloaded' : 'Export unavailable');
-    scheduleClear();
+    showToast({
+      type: success ? 'success' : 'error',
+      title: success ? 'Export started' : 'Export unavailable',
+      description: success ? `Saved ${filename}` : 'Unable to download this entry right now.'
+    });
   };
 
   const handleEntryCopy = async () => {
     const success = await copyJournalEntriesToClipboard([entry]);
-    setEntryActionMessage(success ? 'Journal entry copied!' : 'Copy unavailable');
-    scheduleClear();
+    showToast({
+      type: success ? 'success' : 'error',
+      title: success ? 'Entry copied' : 'Copy blocked',
+      description: success ? 'Reading details are in your clipboard.' : 'Copying is not supported in this browser.'
+    });
   };
 
   const handleEntryShare = async () => {
@@ -161,18 +158,33 @@ export const JournalEntryCard = memo(function JournalEntryCard({ entry, onCreate
           : null;
         if (shareUrl && navigator?.clipboard?.writeText) {
           await navigator.clipboard.writeText(shareUrl);
-          setEntryActionMessage('Share link copied');
+          showToast({
+            type: 'success',
+            title: 'Share link copied',
+            description: 'Anyone with the link can view this entry.'
+          });
         } else {
-          setEntryActionMessage('Share link ready');
+          showToast({
+            type: 'success',
+            title: 'Share link ready',
+            description: 'Copy the link shown in your browser to share.'
+          });
         }
       } catch (error) {
-        setEntryActionMessage(error.message || 'Unable to create share link');
+        showToast({
+          type: 'error',
+          title: 'Unable to create share link',
+          description: error.message || 'Please try again shortly.'
+        });
       }
     } else {
       const success = await copyJournalEntrySummary(entry);
-      setEntryActionMessage(success ? 'Entry snapshot ready to share' : 'Unable to share entry now');
+      showToast({
+        type: success ? 'success' : 'error',
+        title: success ? 'Snapshot ready' : 'Share unavailable',
+        description: success ? 'Entry summary copied to your clipboard.' : 'Unable to copy this entry right now.'
+      });
     }
-    scheduleClear();
   };
 
   const timestamp = deriveTimestamp(entry);
@@ -382,7 +394,7 @@ export const JournalEntryCard = memo(function JournalEntryCard({ entry, onCreate
 
       <div className="border-t border-secondary/10 bg-surface/30 px-4 py-3 sm:flex sm:items-center sm:justify-between">
         <div className="text-xs text-secondary/70">
-          {entryActionMessage || (hasReflections ? `${reflections.length} reflection${reflections.length === 1 ? '' : 's'}` : '')}
+          {hasReflections ? `${reflections.length} reflection${reflections.length === 1 ? '' : 's'}` : ''}
         </div>
         <div className="hidden sm:flex flex-wrap items-center gap-2">
           <button

@@ -907,6 +907,8 @@ async function performSpreadAnalysis(spreadInfo, cardsInfo, options = {}, reques
           formattedBlock,
           retrievalSummary,
           maxPassages,
+          initialPassageCount: passages.length,
+          rankingStrategy: enableSemanticScoring ? 'semantic' : 'keyword',
           enableSemanticScoring,
           qualityMetrics: retrievalSummary.qualityMetrics || null,
           semanticScoringRequested,

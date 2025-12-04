@@ -382,8 +382,19 @@ export function ReadingProvider({ children }) {
                     notes.push({ key: 'reversal-framework', icon: '⤴', title: 'Reversal Lens:', text: `${themes.reversalDescription.name} — ${themes.reversalDescription.description}` });
                 }
             }
+            // Track cross-checks separately to limit them (reduces information overload)
+            let crossCheckCount = 0;
+            const MAX_CROSS_CHECKS = 2;
+
             spreadAnalysis.relationships.forEach((rel, index) => {
                 if (!rel || !rel.summary) return;
+
+                // Limit cross-checks to the 2 most important to reduce density
+                if (rel.type === 'cross-check') {
+                    crossCheckCount++;
+                    if (crossCheckCount > MAX_CROSS_CHECKS) return;
+                }
+
                 let title = 'Pattern';
                 let icon = '•';
                 const typeMap = {
@@ -403,12 +414,9 @@ export function ReadingProvider({ children }) {
                 }
                 notes.push({ key: `rel-${index}-${rel.type || 'rel'}`, icon, title, text: rel.summary });
             });
-            if (Array.isArray(spreadAnalysis.positionNotes)) {
-                spreadAnalysis.positionNotes.forEach((pos, idx) => {
-                    if (!pos || !pos.notes || pos.notes.length === 0) return;
-                    notes.push({ key: `pos-${idx}`, icon: '□', title: `Position ${pos.index + 1} – ${pos.label}:`, text: pos.notes.join(' ') });
-                });
-            }
+            // Note: positionNotes are intentionally omitted from UI display.
+            // They contain generic reader guidelines (e.g., "Core situation; anchor for nucleus")
+            // useful for AI narrative building but not for end-user card-specific insights.
             return notes;
         }
         return null;
