@@ -143,7 +143,7 @@ export default {
         'pop-in': 'popIn 0.2s ease-out',
         'slide-in-right': 'slideInRight 0.3s ease-out',
         'fade-in-up': 'fadeInUp 0.6s ease-out forwards',
-        'ink-spread': 'inkSpread 1.2s cubic-bezier(0.4, 0, 0.2, 1) forwards',
+        'ink-spread': 'inkSpread 0.5s cubic-bezier(0.4, 0, 0.2, 1) forwards',
       }
     }
   },

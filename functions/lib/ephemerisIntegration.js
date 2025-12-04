@@ -1,10 +1,13 @@
 /**
  * Ephemeris Integration Module
- * Connects real-time astrological data from the ephemeris MCP server
- * to the tarot narrative builder system.
+ * Connects real-time astrological data to the tarot narrative builder system.
+ *
+ * Uses astronomy-engine (pure JavaScript) for Workers-compatible calculations.
+ * No native Node.js addons required - works in Cloudflare Workers V8 isolates.
  */
 
 import { getAstroForCard } from './esotericMeta.js';
+import * as ephemerisWorkers from './ephemerisWorkers.js';
 
 // Planet name normalization for matching
 const PLANET_ALIASES = {
@@ -59,35 +62,26 @@ function parseAstroLabel(label) {
 }
 
 /**
- * Fetch ephemeris context from the ephemeris server
- * This can be called directly or via MCP protocol
+ * Fetch ephemeris context using Workers-compatible astronomy-engine
+ * Pure JavaScript - no native addons, works in V8 isolates
  */
-export async function fetchEphemerisContext(timestamp = null, options = {}) {
-  const { ephemerisServerPath } = options;
-
+export async function fetchEphemerisContext(timestamp = null, _options = {}) {
   try {
-    // Try to import from the local ephemeris server
-    const serverPath = ephemerisServerPath ||
-      '../../plugins/tarot-astro-plugins/ephemeris-server/server/ephemeris.js';
-
-    const ephemeris = await import(serverPath);
-
     const date = timestamp ? new Date(timestamp) : new Date();
     const isoTimestamp = date.toISOString();
 
-    // Fetch all ephemeris data
+    // Use Workers-compatible ephemeris module (astronomy-engine)
     const [positionsPayload, moonPhase, aspects, retrogrades] = await Promise.all([
-      Promise.resolve(ephemeris.getCurrentPositions(isoTimestamp)),
-      Promise.resolve(ephemeris.getMoonPhase(isoTimestamp)),
-      Promise.resolve(ephemeris.getPlanetaryAspects(isoTimestamp, 5)), // 5° orb for tight aspects
-      Promise.resolve(ephemeris.getRetrogradePlanets(isoTimestamp))
+      Promise.resolve(ephemerisWorkers.getCurrentPositions(isoTimestamp)),
+      Promise.resolve(ephemerisWorkers.getMoonPhase(isoTimestamp)),
+      Promise.resolve(ephemerisWorkers.getPlanetaryAspects(isoTimestamp, 5)), // 5° orb for tight aspects
+      Promise.resolve(ephemerisWorkers.getRetrogradePlanets(isoTimestamp))
     ]);
 
-    // Older ephemeris builds returned just the positions map, newer ones wrap it
+    // Extract positions from payload
     const planetPositions = positionsPayload?.positions || positionsPayload || null;
     const positionsMeta = positionsPayload?.positions ? {
-      timestamp: positionsPayload.timestamp,
-      julianDay: positionsPayload.julianDay
+      timestamp: positionsPayload.timestamp
     } : null;
 
     return {
@@ -97,7 +91,8 @@ export async function fetchEphemerisContext(timestamp = null, options = {}) {
       moonPhase,
       aspects,
       retrogrades,
-      available: true
+      available: true,
+      source: 'astronomy-engine' // Indicates pure JS source
     };
   } catch (err) {
     console.warn('[ephemerisIntegration] Failed to fetch ephemeris data:', err.message);
@@ -368,15 +363,8 @@ export function generateTimingGuidance(ephemerisContext, spreadKey) {
  * - Medium forecasts (15-30 days): every 2 days
  * - Long forecasts (31-90 days): every 3 days
  */
-export async function fetchEphemerisForecast(days = 30, options = {}) {
-  const { ephemerisServerPath } = options;
-
+export async function fetchEphemerisForecast(days = 30, _options = {}) {
   try {
-    const serverPath = ephemerisServerPath ||
-      '../../plugins/tarot-astro-plugins/ephemeris-server/server/ephemeris.js';
-
-    const ephemeris = await import(serverPath);
-
     const now = new Date();
     const events = [];
 
@@ -392,10 +380,11 @@ export async function fetchEphemerisForecast(days = 30, options = {}) {
       sampleDate.setDate(sampleDate.getDate() + dayOffset);
       const isoDate = sampleDate.toISOString();
 
-      const positionsPayload = ephemeris.getCurrentPositions(isoDate);
+      // Use Workers-compatible ephemeris module
+      const positionsPayload = ephemerisWorkers.getCurrentPositions(isoDate);
       const positions = positionsPayload?.positions || positionsPayload || null;
-      const moonPhase = ephemeris.getMoonPhase(isoDate);
-      const retrogrades = ephemeris.getRetrogradePlanets(isoDate);
+      const moonPhase = ephemerisWorkers.getMoonPhase(isoDate);
+      const retrogrades = ephemerisWorkers.getRetrogradePlanets(isoDate);
 
       // Detect New Moon / Full Moon transitions
       if (prevMoonPhase) {
@@ -484,7 +473,8 @@ export async function fetchEphemerisForecast(days = 30, options = {}) {
       startDate: now.toISOString(),
       endDate: new Date(now.getTime() + days * 24 * 60 * 60 * 1000).toISOString(),
       events: events.sort((a, b) => a.dayOffset - b.dayOffset),
-      currentContext
+      currentContext,
+      source: 'astronomy-engine'
     };
   } catch (err) {
     console.warn('[ephemerisIntegration] Failed to fetch forecast:', err.message);
@@ -594,6 +584,41 @@ export function getEphemerisSummary(ephemerisContext) {
   return parts.join(' | ');
 }
 
+/**
+ * Build concise highlight strings for medium/long-range intention coaching
+ * Keeps to a small number of bullets for prompt+UI use.
+ */
+export function formatForecastHighlights(forecast, maxItems = 4) {
+  if (!forecast?.available) return [];
+
+  const highlights = [];
+  const events = Array.isArray(forecast.events) ? forecast.events : [];
+
+  for (const event of events) {
+    if (highlights.length >= maxItems) break;
+
+    const inDays = event.dayOffset === 0 ? 'today'
+      : event.dayOffset === 1 ? 'in 1 day'
+      : `in ${event.dayOffset} days`;
+
+    const desc = event.description || 'Astrological event';
+    highlights.push(`${desc} (${inDays})`);
+  }
+
+  // Add current retrogrades context if space remains
+  if (highlights.length < maxItems && forecast.currentContext?.retrogrades?.length) {
+    const retroList = forecast.currentContext.retrogrades
+      .map(r => r.planet)
+      .filter(Boolean)
+      .join(', ');
+    if (retroList) {
+      highlights.push(`Retrogrades active now: ${retroList}`);
+    }
+  }
+
+  return highlights;
+}
+
 export default {
   fetchEphemerisContext,
   fetchEphemerisForecast,
@@ -602,5 +627,6 @@ export default {
   buildCardTransitNotes,
   buildForecastSection,
   generateTimingGuidance,
-  getEphemerisSummary
+  getEphemerisSummary,
+  formatForecastHighlights
 };

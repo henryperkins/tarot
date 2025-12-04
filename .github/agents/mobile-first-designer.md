@@ -87,7 +87,7 @@ Use existing keyframes from the config:
 - `animate-pop-in` - Scale entrance (0.2s)
 - `animate-slide-in-right` - Drawer entrance (0.3s)
 - `animate-fade-in-up` - Card reveal (0.6s)
-- `animate-ink-spread` - Mystical reveal effect (1.2s)
+- `animate-ink-spread` - Mystical reveal effect (0.5s)
 
 Always wrap animations in reduced motion checks:
 ```jsx

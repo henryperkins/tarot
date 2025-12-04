@@ -179,7 +179,7 @@ export const TRIAD_PASSAGES = {
  */
 export const FOOLS_JOURNEY_PASSAGES = {
   initiation: {
-    title: "Fool's Journey: Initiation (0-7)",
+    title: 'Journey Stage: Initiation (0-7)',
     stage: 'departure',
     theme: 'Building Ego & Identity',
     passages: [
@@ -197,7 +197,7 @@ export const FOOLS_JOURNEY_PASSAGES = {
   },
 
   integration: {
-    title: "Fool's Journey: Integration (8-14)",
+    title: 'Journey Stage: Integration (8-14)',
     stage: 'initiation',
     theme: 'Shadow Work & Transformation',
     passages: [
@@ -215,7 +215,7 @@ export const FOOLS_JOURNEY_PASSAGES = {
   },
 
   culmination: {
-    title: "Fool's Journey: Culmination (15-21)",
+    title: 'Journey Stage: Culmination (15-21)',
     stage: 'return',
     theme: 'Shadow Integration & Cosmic Consciousness',
     passages: [

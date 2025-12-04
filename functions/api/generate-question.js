@@ -1,4 +1,8 @@
 import { callAzureResponses, ensureAzureConfig } from '../lib/azureResponses.js';
+import {
+  fetchEphemerisForecast,
+  formatForecastHighlights
+} from '../lib/ephemerisIntegration.js';
 
 const JSON_HEADERS = { 'Content-Type': 'application/json' };
 
@@ -156,6 +160,15 @@ function inferClosing(pattern, depthLabel = '') {
   return '';
 }
 
+function getForecastDays(metadata = {}) {
+  const tf = `${metadata.timeframe || ''} ${metadata.timeframePhrase || ''} ${metadata.timeframeValue || ''}`.toLowerCase();
+
+  if (tf.includes('season')) return 90;
+  if (tf.includes('few months')) return 90;
+  if (tf.includes('30') || tf.includes('month')) return 30;
+  return null;
+}
+
 function buildAzureQuestionPrompt(prompt, metadata = {}) {
   const focusMatch = prompt.match(/about (.+?) for the/i);
   const timeframeMatch = prompt.match(/for the (.+?)(?:\.|$)/i);
@@ -182,11 +195,16 @@ function buildAzureQuestionPrompt(prompt, metadata = {}) {
     personalizationLines.push(`User focus areas: ${metadata.focusAreas.join(', ')}`);
   }
 
+  const astroHighlights = Array.isArray(metadata.ephemerisForecast?.highlights)
+    ? metadata.ephemerisForecast.highlights
+    : [];
+
   const instructions = [
     'You are a tarot intention coach. Write ONE open, agency-forward question that fits the user’s focus, timeframe, and depth.',
     'Use supportive verbs like support, navigate, transform, or explore. Avoid yes/no phrasing and avoid listing options.',
     'Do not add quotes, bullets, or any preamble. Respond with the question only and end with a question mark.',
     `Pattern: ${pattern} (support/navigate/lesson/transform), Closing: ${closing || 'none'}.`,
+    astroHighlights.length ? 'Astro window is contextual; you may echo the timing (e.g., “this cycle”, “up to the next Full Moon”) but do not list the events verbatim.' : null,
     metadata.seed ? `Seed: ${metadata.seed} (use to pick a variant; do not mention).` : null
   ].filter(Boolean).join('\n');
 
@@ -196,6 +214,7 @@ function buildAzureQuestionPrompt(prompt, metadata = {}) {
     `Depth: ${depthLabel}`,
     `Topic: ${topicLabel}`,
     personalizationLines.length > 0 ? personalizationLines.join('\n') : null,
+    astroHighlights.length ? `Astro window: ${astroHighlights.slice(0, 3).join(' • ')}` : null,
     '',
     'Return a single question. Keep it under 28 words.'
   ].filter(Boolean).join('\n');
@@ -250,6 +269,30 @@ export async function onRequestPost({ request, env }) {
       );
     }
 
+    // Optional ephemeris forecast for medium/long-range timeframes
+    let ephemerisForecast = null;
+    const forecastDays = getForecastDays(metadata);
+
+    if (forecastDays) {
+      try {
+        const forecast = await fetchEphemerisForecast(forecastDays);
+        const highlights = formatForecastHighlights(forecast, 4);
+
+        if (highlights.length) {
+          ephemerisForecast = {
+            days: forecast.forecastDays,
+            highlights,
+            source: forecast.source || 'astronomy-engine'
+          };
+
+          metadata.ephemerisForecast = ephemerisForecast;
+          metadata.timeframeValue = metadata.timeframeValue || (forecastDays === 90 ? 'season' : 'month');
+        }
+      } catch (error) {
+        console.warn('[generate-question] Ephemeris forecast unavailable:', error?.message || error);
+      }
+    }
+
     let provider = 'local-fallback';
     let question = null;
 
@@ -275,7 +318,8 @@ export async function onRequestPost({ request, env }) {
       JSON.stringify({
         question,
         provider,
-        model: provider === 'azure-gpt5' ? env?.AZURE_OPENAI_GPT5_MODEL || null : null
+        model: provider === 'azure-gpt5' ? env?.AZURE_OPENAI_GPT5_MODEL || null : null,
+        forecast: ephemerisForecast
       }),
       { status: 200, headers: JSON_HEADERS }
     );

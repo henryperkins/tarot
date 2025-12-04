@@ -224,15 +224,14 @@ export function StreamingNarrative({
   const showSkipButton = streamingActive && !isComplete;
   const textBottomPaddingClass = showSkipButton ? 'pb-16 sm:pb-10' : 'pb-6 sm:pb-6';
 
-  // Memoize animation styles to avoid creating new objects per word per render
+  // Memoize willChange styles to avoid creating new objects per word per render
+  // Animation timing now controlled solely by Tailwind's animate-ink-spread class
   // Must be defined before any conditional returns to satisfy Rules of Hooks
   const recentWordStyle = useMemo(() => ({
-    animation: 'inkSpread 0.5s cubic-bezier(0.4, 0, 0.2, 1) forwards',
     willChange: 'opacity, filter, transform'
   }), []);
 
   const settledWordStyle = useMemo(() => ({
-    animation: 'inkSpread 0.5s cubic-bezier(0.4, 0, 0.2, 1) forwards',
     willChange: 'auto'
   }), []);
 

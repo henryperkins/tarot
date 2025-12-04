@@ -202,7 +202,7 @@ export const JournalEntryCard = memo(function JournalEntryCard({ entry, onCreate
   }));
 
   return (
-    <article className="group relative overflow-hidden rounded-2xl border border-secondary/20 bg-surface/40 transition-all hover:border-secondary/40 hover:bg-surface/60 animate-fade-in">
+    <article className="group relative rounded-2xl border border-secondary/20 bg-surface/40 transition-all hover:border-secondary/40 hover:bg-surface/60 animate-fade-in">
       <div className={`${headerPadding} ${isExpanded ? 'border-b border-secondary/10' : ''}`}>
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <button

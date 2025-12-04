@@ -300,6 +300,9 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply,
   const [suggestionsPage, setSuggestionsPage] = useState(0);
   const [isTemplatePanelOpen, setTemplatePanelOpen] = useState(false);
   const [remixCount, setRemixCount] = useState(0);
+  const [astroHighlights, setAstroHighlights] = useState([]);
+  const [astroWindowDays, setAstroWindowDays] = useState(null);
+  const [astroSource, setAstroSource] = useState(null);
 
   // Refs
   const modalRef = useRef(null);
@@ -782,6 +785,9 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply,
 
     if (!isOpen) {
       setQuestionText('');
+      setAstroHighlights([]);
+      setAstroWindowDays(null);
+      setAstroSource(null);
       return () => { isCancelled = true; };
     }
 
@@ -794,6 +800,9 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply,
       setQuestionLoading(false);
       setQuestionError('');
       setQuestionText(guidedQuestion);
+      setAstroHighlights([]);
+      setAstroWindowDays(null);
+      setAstroSource(null);
       return () => { isCancelled = true; };
     }
 
@@ -802,7 +811,7 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply,
 
     timerId = setTimeout(async () => {
       try {
-        const { question: creative, source } = await buildCreativeQuestion({
+        const { question: creative, source, forecast } = await buildCreativeQuestion({
           topic,
           timeframe,
           depth,
@@ -819,9 +828,22 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply,
           safeSetState(setQuestionText, creative);
           const isLocalFallback = source === 'local' || source === 'local-fallback' || source === 'api-fallback';
           safeSetState(setQuestionError, isLocalFallback ? 'Using on-device generator for now.' : '');
+
+          if (forecast?.highlights?.length) {
+            safeSetState(setAstroHighlights, forecast.highlights);
+            safeSetState(setAstroWindowDays, forecast.days || (timeframe === 'season' ? 90 : 30));
+            safeSetState(setAstroSource, forecast.source || null);
+          } else {
+            safeSetState(setAstroHighlights, []);
+            safeSetState(setAstroWindowDays, null);
+            safeSetState(setAstroSource, null);
+          }
         } else {
           safeSetState(setQuestionText, guidedQuestion);
           safeSetState(setQuestionError, 'Personalized mode is temporarily unavailable. Showing guided version.');
+          safeSetState(setAstroHighlights, []);
+          safeSetState(setAstroWindowDays, null);
+          safeSetState(setAstroSource, null);
         }
       } catch (error) {
         if (error?.name === 'AbortError' || isCancelled) {
@@ -829,6 +851,9 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply,
         }
         safeSetState(setQuestionText, guidedQuestion);
         safeSetState(setQuestionError, 'Personalized mode is temporarily unavailable. Showing guided version.');
+        safeSetState(setAstroHighlights, []);
+        safeSetState(setAstroWindowDays, null);
+        safeSetState(setAstroSource, null);
       } finally {
         if (!isCancelled && !controller.signal.aborted) {
           safeSetState(setQuestionLoading, false);
@@ -1054,6 +1079,26 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply,
                 {questionText || guidedQuestion}
               </p>
             </div>
+
+            {astroHighlights.length > 0 && (
+              <div className="rounded-2xl border border-secondary/30 bg-surface/50 p-4 space-y-2">
+                <div className="flex items-center justify-between text-xs text-secondary/80">
+                  <span className="inline-flex items-center gap-2 uppercase tracking-[0.2em]">
+                    <MagicWand className="h-3.5 w-3.5 text-secondary" aria-hidden="true" />
+                    Astro window{astroWindowDays ? ` · ${astroWindowDays} days` : ''}
+                  </span>
+                  {astroSource && <span className="text-[0.65rem] text-secondary/60">{astroSource}</span>}
+                </div>
+                <ul className="grid gap-1 text-sm text-main text-left">
+                  {astroHighlights.map((item, idx) => (
+                    <li key={`astro-${idx}`} className="flex items-start gap-2">
+                      <span className="mt-[5px] h-1.5 w-1.5 rounded-full bg-secondary/70" aria-hidden="true" />
+                      <span className="leading-snug text-secondary/90">{item}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
 
             {/* Question Quality Indicator */}
             <div className="rounded-2xl border border-secondary/30 bg-surface/40 p-3 space-y-2">

@@ -239,7 +239,8 @@ export async function callLlmApi(prompt, metadata, options = {}) {
       return {
         question: data.question,
         provider: data.provider || data.source || null,
-        model: data.model || null
+        model: data.model || null,
+        forecast: data.forecast || null
       };
     }
     return null;
@@ -318,6 +319,7 @@ export async function buildCreativeQuestion({ topic, timeframe, depth, customFoc
     topic: topicData.label,
     topicValue: topicData.value,
     timeframe: timeframeData.label,
+    timeframeValue: timeframeData.value,
     timeframePhrase: timeframeData.phrase,
     depth: depthData.label,
     pattern: depthData.pattern,
@@ -340,9 +342,10 @@ export async function buildCreativeQuestion({ topic, timeframe, depth, customFoc
 
   const apiQuestion = typeof apiResult === 'string' ? apiResult : apiResult?.question;
   const apiSource = apiResult?.provider || 'api';
+  const apiForecast = apiResult?.forecast || null;
 
   if (apiQuestion) {
-    return { question: apiQuestion, source: apiSource };
+    return { question: apiQuestion, source: apiSource, forecast: apiForecast };
   }
 
   // Local creative fallback adds variety instead of repeating guided wording
@@ -356,7 +359,7 @@ export async function buildCreativeQuestion({ topic, timeframe, depth, customFoc
     seed  // Pass seed to fallback
   });
 
-  return { question: localCreative, source: 'local' };
+  return { question: localCreative, source: 'local', forecast: null };
 }
 
 /**

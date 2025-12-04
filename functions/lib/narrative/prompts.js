@@ -568,6 +568,8 @@ function buildSystemPrompt(spreadKey, themes, context, deckStyle, _userQuestion 
     '- Keep the querent’s agency and consent at the center. Emphasize trajectories and choices, not fixed fate.',
     '- In each section, loosely follow a story spine: name what is happening (WHAT), why it matters or how it arose (WHY), and what might be next in terms of options or small steps (WHAT’S NEXT). You can signal these shifts with connective phrases such as "Because...", "Therefore...", or "However..." where helpful.',
     '- Speak in warm, grounded language. Avoid heavy jargon; use brief astrological or Qabalah notes only when they clearly support the card\'s core Rider–Waite–Smith meaning.',
+    '- Only reference cards explicitly provided in the spread. Do not introduce or imply additional cards (e.g., never claim The Fool appears unless it is actually in the spread).',
+    '- When using Fool’s Journey or other archetypal stages, treat them as developmental context only—not as evidence that The Fool card is present.',
     '- Never offer medical, mental health, legal, financial, or abuse-safety directives. When those themes surface, gently encourage seeking qualified professional or community support.',
     '- Treat reversals according to the selected framework for this reading (see Reversal Framework below) and keep that lens consistent throughout.'
   ];
@@ -674,6 +676,7 @@ function buildSystemPrompt(spreadKey, themes, context, deckStyle, _userQuestion 
             'archetypal context from respected tarot literature. Weave their insights naturally',
             'into your narrative—don\'t quote verbatim, but let them inform your understanding',
             'of the patterns present in this spread.',
+            'CARD GUARDRAIL: Do not add cards that are not in the spread. If a journey stage is mentioned, treat it as context only and do not assert that The Fool (or any other absent card) appears.',
             ''
           );
         }
@@ -920,6 +923,7 @@ function buildUserPrompt(
 
   // Instructions (minimal - detailed rules are in system prompt)
   prompt += `\nPlease now write the reading following the system prompt guidelines. Ensure you:
+- Do not introduce any card names beyond the provided spread; treat Fool’s Journey references as stage context only.
 - Reference each card by name at least once
 - Close with a trajectory reminder (choices shape outcomes)
 - Apply the reversal lens consistently throughout`;
