@@ -11,6 +11,7 @@ import { JournalInsightsPanel } from './JournalInsightsPanel.jsx';
 import { InsightsErrorBoundary } from './InsightsErrorBoundary.jsx';
 import { JournalEntryCard } from './JournalEntryCard.jsx';
 import { SavedIntentionsList } from './SavedIntentionsList.jsx';
+import { ArchetypeJourneySection } from './ArchetypeJourneySection.jsx';
 import { computeJournalStats } from '../lib/journalInsights';
 import { SPREADS } from '../data/spreads';
 import { DECK_OPTIONS } from './DeckSelector';
@@ -370,6 +371,13 @@ export default function Journal() {
 
           {/* Saved Intentions Section */}
           <SavedIntentionsList />
+
+          {/* Archetype Journey - Prominent placement for authenticated users */}
+          {isAuthenticated && !loading && entries.length > 0 && (
+            <div className="mb-6">
+              <ArchetypeJourneySection isAuthenticated={isAuthenticated} showEmptyState={true} />
+            </div>
+          )}
 
           {/* Delete status message */}
           {deleteMessage && (

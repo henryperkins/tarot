@@ -4,7 +4,6 @@ import { useSmallScreen } from '../hooks/useSmallScreen';
 import { useLandscape } from '../hooks/useLandscape';
 import { useReducedMotion } from '../hooks/useReducedMotion';
 import { CoachSuggestion } from './CoachSuggestion';
-import { ArchetypeJourneySection } from './ArchetypeJourneySection';
 import {
     downloadInsightsSvg,
     exportJournalInsightsToPdf
@@ -810,9 +809,6 @@ export const JournalInsightsPanel = memo(function JournalInsightsPanel({
                             className={filtersActive ? "opacity-50 pointer-events-none" : ""}
                         />
                     )}
-
-                    {/* Archetype Journey Analytics */}
-                    <ArchetypeJourneySection isAuthenticated={isAuthenticated} />
                 </div>
             )}
 

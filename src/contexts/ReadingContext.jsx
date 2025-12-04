@@ -59,7 +59,6 @@ export function ReadingProvider({ children }) {
     // 4. Reading Generation State
     const [personalReading, setPersonalReading] = useState(null);
     const [isGenerating, setIsGenerating] = useState(false);
-    const [analyzingText, setAnalyzingText] = useState('');
     const [narrativePhase, setNarrativePhase] = useState('idle');
     const [spreadAnalysis, setSpreadAnalysis] = useState(null);
     const [themes, setThemes] = useState(null);

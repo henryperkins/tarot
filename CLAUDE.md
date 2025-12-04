@@ -184,7 +184,8 @@ Key test files: `deck.test.mjs`, `narrativeBuilder.*.test.mjs`, `narrativeSpine.
 | `/api/share` | POST | Create share link |
 | `/api/share/:token` | GET/DELETE | View/revoke share |
 | `/api/feedback` | POST | Submit feedback |
-| `/api/archetype-journey` | GET/POST | Analytics tracking |
+| `/api/archetype-journey` | GET/POST/PUT | Analytics: GET data, POST track cards, PUT preferences |
+| `/api/archetype-journey-backfill` | POST | Backfill card_appearances from existing journal entries |
 | `/api/auth/*` | Various | Login, logout, register, me |
 | `/api/keys` | GET/POST | API key management |
 | `/api/admin/archive` | POST | Manual archival trigger (requires ADMIN_API_KEY) |

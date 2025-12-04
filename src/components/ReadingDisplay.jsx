@@ -22,14 +22,6 @@ import { useSmallScreen } from '../hooks/useSmallScreen';
 import { useLandscape } from '../hooks/useLandscape';
 import { useReducedMotion } from '../hooks/useReducedMotion';
 
-const NARRATIVE_STEPS = [
-    { id: 'analyzing', label: 'Analyzing spread' },
-    { id: 'drafting', label: 'Drafting narrative' },
-    { id: 'polishing', label: 'Final polishing' }
-];
-
-const PHASE_ORDER = ['idle', 'analyzing', 'drafting', 'polishing', 'complete', 'error'];
-
 export function ReadingDisplay({ sectionRef }) {
     const navigate = useNavigate();
     const { saveReading, isSaving } = useSaveReading();
@@ -81,7 +73,6 @@ export function ReadingDisplay({ sectionRef }) {
         // Reading Generation & UI
         personalReading,
         isGenerating,
-        analyzingText,
         narrativePhase,
         themes,
         emotionalTone,
@@ -147,7 +138,6 @@ export function ReadingDisplay({ sectionRef }) {
         return personalReading.normalized || personalReading.raw || '';
     }, [personalReading]);
     const shouldStreamNarrative = Boolean(personalReading && !personalReading.isError);
-    const currentPhaseIndex = PHASE_ORDER.indexOf(narrativePhase);
     const hasPatternHighlights = Boolean(!isPersonalReadingError && themes?.knowledgeGraph?.narrativeHighlights?.length);
     const hasTraditionalInsights = Boolean(readingMeta?.graphContext?.retrievedPassages?.length);
     const hasHighlightPanel = Boolean(highlightItems?.length && revealedCards.size === reading?.length);
@@ -168,15 +158,6 @@ export function ReadingDisplay({ sectionRef }) {
         }
     }
 
-    // Memoize step states to avoid indexOf in render loop
-    const stepStates = useMemo(() => {
-        return NARRATIVE_STEPS.map((step, index) => {
-            const stepIndex = PHASE_ORDER.indexOf(step.id);
-            const isDone = currentPhaseIndex > stepIndex && currentPhaseIndex !== -1;
-            const isCurrent = currentPhaseIndex === stepIndex || (currentPhaseIndex === -1 && index === 0 && isGenerating);
-            return { ...step, index, isDone, isCurrent };
-        });
-    }, [currentPhaseIndex, isGenerating]);
 
     // --- Handlers ---
     const handleNarrationWrapper = useCallback(() => {
@@ -325,45 +306,6 @@ export function ReadingDisplay({ sectionRef }) {
                         </div>
                     )}
 
-                    {(isGenerating || (personalReading && !isPersonalReadingError)) && (
-                        <div className="max-w-3xl mx-auto text-center">
-                            <nav aria-label="Narrative generation progress" className={isLandscape ? 'mb-2' : 'mb-3'}>
-                                <ol className={`flex items-center justify-center ${isLandscape ? 'gap-1' : 'gap-2 sm:gap-3'}`} role="list">
-                                    {stepStates.map((step) => {
-                                        const statusClass = step.isDone
-                                            ? 'bg-primary/20 border-primary/70 text-main'
-                                            : step.isCurrent
-                                                ? 'bg-accent/20 border-accent/70 text-main'
-                                                : 'bg-surface-muted/80 border-secondary/40 text-muted';
-                                        return (
-                                            <li
-                                                key={step.id}
-                                                className={`flex-1 rounded-full border font-semibold uppercase ${statusClass} ${isLandscape ? 'min-w-[4rem] px-1 py-1 text-[0.6rem] tracking-[0.04em]' : 'min-w-[5rem] px-1.5 sm:px-2 py-1.5 text-xs tracking-[0.06em]'}`}
-                                                aria-current={step.isCurrent ? 'step' : undefined}
-                                            >
-                                                <span aria-hidden="true">{step.index + 1}</span>
-                                                <span className="sr-only">Step {step.index + 1} of {stepStates.length}: </span>
-                                                {!isLandscape && <span className="ml-1">{step.label}</span>}
-                                                <span className="sr-only">
-                                                    {step.isDone ? ' (completed)' : step.isCurrent ? ' (in progress)' : ' (pending)'}
-                                                </span>
-                                            </li>
-                                        );
-                                    })}
-                                </ol>
-                            </nav>
-                            {isGenerating && (
-                                <div className="ai-panel-modern">
-                                    <div className="ai-panel-text" aria-live="polite">
-                                        {analyzingText || 'Weaving your personalized narrative from this spread...'}
-                                    </div>
-                                    <HelperToggle className="mt-3" defaultOpen={isNewbie}>
-                                        <p>This reflection is generated from your spread and question to support insight, not to decide for you.</p>
-                                    </HelperToggle>
-                                </div>
-                            )}
-                        </div>
-                    )}
 
                     {personalReading && (
                         <div className={`bg-surface/95 backdrop-blur-xl rounded-2xl border border-secondary/40 shadow-2xl shadow-secondary/40 max-w-full sm:max-w-5xl mx-auto ${isLandscape ? 'p-3' : 'px-3 xxs:px-4 py-4 xs:px-5 sm:p-6 md:p-8'}`}>

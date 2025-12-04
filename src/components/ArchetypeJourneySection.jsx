@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback } from 'react';
-import { TrendUp, Medal, Fire } from '@phosphor-icons/react';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { TrendUp, Medal, Fire, ArrowsClockwise, Sparkle } from '@phosphor-icons/react';
 import { normalizeAnalyticsShape, getBadgeIcon } from '../lib/archetypeJourney';
 
 /**
@@ -28,6 +28,95 @@ function AnalyticsSkeleton() {
 }
 
 /**
+ * Empty state component with backfill option
+ */
+function EmptyState({ onBackfill, isBackfilling, backfillResult }) {
+  const abortControllerRef = useRef(null);
+
+  const handleClick = useCallback(() => {
+    // Abort any previous backfill
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    abortControllerRef.current = new AbortController();
+    onBackfill(abortControllerRef.current.signal);
+  }, [onBackfill]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    };
+  }, []);
+
+  return (
+    <section
+      className="rounded-3xl border border-secondary/20 bg-surface/40 p-5"
+      aria-labelledby="archetype-journey-empty-heading"
+    >
+      <h3
+        id="archetype-journey-empty-heading"
+        className="mb-3 flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-accent/80"
+      >
+        <Sparkle className="h-3 w-3" aria-hidden="true" />
+        Archetype Journey
+      </h3>
+
+      {backfillResult ? (
+        <div className="text-sm text-secondary/80">
+          <p className="mb-2 text-primary">
+            {backfillResult.success ? 'Backfill complete!' : 'Backfill failed'}
+          </p>
+          {backfillResult.success && backfillResult.stats && (
+            <ul className="space-y-1 text-xs text-muted">
+              <li>{backfillResult.stats.entriesProcessed} entries processed</li>
+              <li>{backfillResult.stats.cardsTracked} cards tracked</li>
+              {backfillResult.stats.badgesAwarded > 0 && (
+                <li>{backfillResult.stats.badgesAwarded} badges awarded</li>
+              )}
+            </ul>
+          )}
+          {!backfillResult.success && (
+            <p className="text-xs text-error">{backfillResult.message || 'Please try again'}</p>
+          )}
+        </div>
+      ) : (
+        <>
+          <p className="mb-4 text-sm text-muted leading-relaxed">
+            Track which cards appear most often in your readings to discover recurring archetypal themes in your journey.
+          </p>
+
+          <button
+            onClick={handleClick}
+            disabled={isBackfilling}
+            className={`
+              flex items-center gap-2 px-4 py-2 rounded-full text-xs font-medium
+              border border-accent/30 text-accent
+              hover:bg-accent/10 hover:border-accent/50
+              active:bg-accent/20
+              disabled:opacity-50 disabled:cursor-not-allowed
+              transition
+            `}
+          >
+            <ArrowsClockwise
+              className={`h-3.5 w-3.5 ${isBackfilling ? 'animate-spin' : ''}`}
+              aria-hidden="true"
+            />
+            {isBackfilling ? 'Analyzing readings...' : 'Analyze past readings'}
+          </button>
+
+          <p className="mt-3 text-[11px] text-secondary/50">
+            This will scan your journal entries and build your card frequency data.
+          </p>
+        </>
+      )}
+    </section>
+  );
+}
+
+/**
  * Archetype Journey Section
  *
  * Displays gamified analytics to embed within JournalInsightsPanel:
@@ -35,14 +124,19 @@ function AnalyticsSkeleton() {
  * - Streak badges
  * - Growth prompts
  */
-export function ArchetypeJourneySection({ isAuthenticated }) {
+export function ArchetypeJourneySection({ isAuthenticated, showEmptyState = true }) {
   const [analytics, setAnalytics] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [isDisabled, setIsDisabled] = useState(false);
+  const [isBackfilling, setIsBackfilling] = useState(false);
+  const [backfillResult, setBackfillResult] = useState(null);
+  const reloadControllerRef = useRef(null);
 
   const loadAnalytics = useCallback(async (signal) => {
     setLoading(true);
     setError(null);
+    setIsDisabled(false);
 
     try {
       const response = await fetch('/api/archetype-journey', {
@@ -52,7 +146,8 @@ export function ArchetypeJourneySection({ isAuthenticated }) {
 
       if (!response.ok) {
         if (response.status === 403) {
-          // Analytics disabled
+          // Analytics disabled by user preference
+          setIsDisabled(true);
           setLoading(false);
           return;
         }
@@ -72,6 +167,54 @@ export function ArchetypeJourneySection({ isAuthenticated }) {
     }
   }, []);
 
+  const handleBackfill = useCallback(async (signal) => {
+    setIsBackfilling(true);
+    setBackfillResult(null);
+
+    try {
+      const response = await fetch('/api/archetype-journey-backfill', {
+        method: 'POST',
+        credentials: 'include',
+        signal
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        setBackfillResult({ success: false, message: data.error || 'Backfill failed' });
+        return;
+      }
+
+      setBackfillResult({ success: true, stats: data.stats });
+
+      // Reload analytics after successful backfill
+      if (data.stats?.cardsTracked > 0) {
+        // Reload with slight delay to let DB settle
+        await new Promise(resolve => setTimeout(resolve, 300));
+        if (!signal?.aborted) {
+          if (reloadControllerRef.current) {
+            reloadControllerRef.current.abort();
+          }
+          const reloadController = new AbortController();
+          reloadControllerRef.current = reloadController;
+          try {
+            await loadAnalytics(reloadController.signal);
+          } finally {
+            if (reloadControllerRef.current === reloadController) {
+              reloadControllerRef.current = null;
+            }
+          }
+        }
+      }
+    } catch (err) {
+      if (err.name === 'AbortError') return;
+      console.error('Backfill failed:', err);
+      setBackfillResult({ success: false, message: err.message });
+    } finally {
+      setIsBackfilling(false);
+    }
+  }, [loadAnalytics]);
+
   useEffect(() => {
     if (!isAuthenticated) {
       setLoading(false);
@@ -84,6 +227,14 @@ export function ArchetypeJourneySection({ isAuthenticated }) {
     return () => controller.abort();
   }, [isAuthenticated, loadAnalytics]);
 
+  useEffect(() => {
+    return () => {
+      if (reloadControllerRef.current) {
+        reloadControllerRef.current.abort();
+      }
+    };
+  }, []);
+
   // Show nothing if not authenticated
   if (!isAuthenticated) {
     return null;
@@ -94,15 +245,29 @@ export function ArchetypeJourneySection({ isAuthenticated }) {
     return <AnalyticsSkeleton />;
   }
 
+  // Feature disabled by user - show nothing (they can enable in UserMenu)
+  if (isDisabled) {
+    return null;
+  }
+
   // Log errors but don't show them to user (graceful degradation)
   if (error) {
     console.error('ArchetypeJourneySection error:', error);
     return null;
   }
 
-  // No data yet
+  // No data yet - show empty state with backfill option
   if (!analytics || analytics.topCards.length === 0) {
-    return null;
+    if (!showEmptyState) {
+      return null;
+    }
+    return (
+      <EmptyState
+        onBackfill={handleBackfill}
+        isBackfilling={isBackfilling}
+        backfillResult={backfillResult}
+      />
+    );
   }
 
   return (
@@ -204,10 +369,12 @@ export function ArchetypeJourneySection({ isAuthenticated }) {
             Achievements
           </h3>
           <ul className="space-y-2" aria-label="Your earned achievements">
-            {analytics.badges.slice(0, 3).map((badge) => (
+            {analytics.badges.slice(0, 3).map((badge) => {
+              const BadgeIcon = getBadgeIcon(badge.badge_type);
+              return (
               <li key={badge.badge_key} className="flex items-start gap-2">
                 <span className="text-lg" aria-hidden="true">
-                  {getBadgeIcon(badge.badge_type)}
+                  <BadgeIcon className="h-4 w-4" />
                 </span>
                 <div className="flex-1">
                   <p className="text-sm font-medium text-secondary">
@@ -218,7 +385,8 @@ export function ArchetypeJourneySection({ isAuthenticated }) {
                   </p>
                 </div>
               </li>
-            ))}
+              );
+            })}
           </ul>
         </section>
       )}
