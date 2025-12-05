@@ -5,15 +5,23 @@ export function NoFiltersIllustration({ className = "" }) {
 
   return (
     <div className={`relative ${className}`}>
-      <img
-        src="/images/illustrations/empty-states/no-filters-match.png"
-        alt=""
-        role="presentation"
-        className={`
-          w-full max-w-xs mx-auto opacity-80
-          ${prefersReducedMotion ? "" : "animate-pulse-slow"}
-        `}
-      />
+      <picture>
+        <source
+          srcSet="/images/illustrations/empty-states/no-filters-match.webp"
+          type="image/webp"
+        />
+        <img
+          src="/images/illustrations/empty-states/no-filters-match.png"
+          alt=""
+          role="presentation"
+          loading="lazy"
+          decoding="async"
+          className={`
+            w-full max-w-xs mx-auto opacity-80
+            ${prefersReducedMotion ? "" : "animate-pulse-slow"}
+          `}
+        />
+      </picture>
     </div>
   );
 }

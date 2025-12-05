@@ -81,7 +81,7 @@ function NoteAvatars({ notes }) {
         return (
           <span
             key={note.id}
-            className="flex h-6 w-6 items-center justify-center rounded-full bg-secondary/30 text-[0.65rem] font-semibold text-secondary"
+            className="flex h-6 w-6 items-center justify-center rounded-full bg-secondary/30 text-xs font-semibold text-secondary"
             title={note.authorName || 'Anonymous'}
             aria-hidden="true"
           >
@@ -190,7 +190,7 @@ export function SharedSpreadView({ entry, notes = [], selectedPosition, onSelect
               <div className="mt-4 flex items-center justify-between">
                 <NoteAvatars notes={positionNotes} />
                 {active && (
-                  <span className="rounded-full border border-secondary/60 px-2.5 py-1 text-xs text-secondary">
+                  <span className="rounded-full border border-secondary/60 px-2.5 py-1 text-xs-plus text-secondary">
                     Targeting note
                   </span>
                 )}

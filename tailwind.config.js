@@ -67,7 +67,7 @@ export default {
         muted: 'var(--text-muted)',
         'muted-high': 'var(--text-muted-high)', // Higher contrast muted for translucent backgrounds
         accent: 'var(--text-accent)',
-        surface: 'var(--color-charcoal)', // high-contrast text for light CTA backgrounds
+        surface: 'var(--text-on-brand)', // text color chosen for brand surfaces
       },
       fontSize: {
         'xs-plus': ['0.875rem', { lineHeight: '1.4' }], // 14px - improved mobile readability

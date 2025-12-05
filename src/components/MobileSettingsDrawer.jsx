@@ -1,11 +1,42 @@
-import { useRef, useCallback, useState, useEffect } from 'react';
+import { useRef, useCallback, useState, useEffect, useSyncExternalStore } from 'react';
 import { Sparkle, X } from '@phosphor-icons/react';
 import { useModalA11y } from '../hooks/useModalA11y';
 import { MOBILE_SETTINGS_DIALOG_ID } from './MobileActionBar';
 
+// Subscribe to visualViewport changes for keyboard-aware padding
+function subscribeToViewport(callback) {
+  if (typeof window === 'undefined' || !window.visualViewport) {
+    return () => {};
+  }
+  window.visualViewport.addEventListener('resize', callback);
+  window.visualViewport.addEventListener('scroll', callback);
+  return () => {
+    window.visualViewport.removeEventListener('resize', callback);
+    window.visualViewport.removeEventListener('scroll', callback);
+  };
+}
+
+function getViewportOffset() {
+  if (typeof window === 'undefined' || !window.visualViewport) {
+    return 0;
+  }
+  const offset = window.innerHeight - window.visualViewport.height - window.visualViewport.offsetTop;
+  return offset > 50 ? offset : 0;
+}
+
+function getServerViewportOffset() {
+  return 0;
+}
+
 export function MobileSettingsDrawer({ isOpen, onClose, children, footer = null }) {
   const drawerRef = useRef(null);
   const closeButtonRef = useRef(null);
+  const viewportOffset = useSyncExternalStore(
+    subscribeToViewport,
+    getViewportOffset,
+    getServerViewportOffset
+  );
+  const effectiveOffset = Math.max(0, viewportOffset);
 
   // Shared modal accessibility: scroll lock, escape key, focus trap, focus restoration
   useModalA11y(isOpen, {
@@ -168,11 +199,17 @@ export function MobileSettingsDrawer({ isOpen, onClose, children, footer = null 
 
         </div>
 
-        <div className="mobile-drawer__body p-4 space-y-8 overflow-y-auto overscroll-contain pb-safe-bottom">
+        <div
+          className="mobile-drawer__body p-4 space-y-8 overflow-y-auto overscroll-contain"
+          style={{ paddingBottom: effectiveOffset ? `calc(1rem + env(safe-area-inset-bottom) + ${effectiveOffset}px)` : undefined }}
+        >
           {children}
         </div>
         {footer && (
-          <div className="mobile-drawer__footer">
+          <div
+            className="mobile-drawer__footer"
+            style={effectiveOffset ? { paddingBottom: `calc(1rem + ${effectiveOffset}px)` } : undefined}
+          >
             {footer}
           </div>
         )}

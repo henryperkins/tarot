@@ -638,7 +638,7 @@ export const JournalInsightsPanel = memo(function JournalInsightsPanel({
 
     return (
         <div className={prefersReducedMotion ? '' : 'animate-fade-in'}>
-            <div className="space-y-6 rounded-3xl border border-secondary/30 bg-surface/70 p-6">
+            <div className="space-y-6 rounded-3xl bg-surface/75 ring-1 ring-white/5 p-6 shadow-[0_22px_60px_-36px_rgba(0,0,0,0.8)]">
                 <div>
                     <h2 className="text-2xl font-serif text-main">Journal Insights</h2>
                     <p className="mt-1 text-sm text-secondary/70">
@@ -657,7 +657,7 @@ export const JournalInsightsPanel = memo(function JournalInsightsPanel({
                     )}
                 </div>
 
-                <div className="rounded-2xl border border-secondary/30 bg-surface/60 p-3 lg:sticky lg:top-0 lg:z-10">
+                <div className="rounded-2xl bg-surface/60 ring-1 ring-white/5 p-3 lg:sticky lg:top-0 lg:z-10 shadow-[0_14px_40px_-28px_rgba(0,0,0,0.7)]">
                     <div className="flex flex-wrap gap-2">
                         <button
                             type="button"
@@ -712,7 +712,7 @@ export const JournalInsightsPanel = memo(function JournalInsightsPanel({
                 </div>
 
                 {shareComposerOpen && (
-                    <form onSubmit={handleComposerSubmit} className={`rounded-2xl border border-secondary/30 bg-surface-muted/50 ${isSmallScreen ? 'p-4' : 'p-6'} ${prefersReducedMotion ? '' : 'animate-slide-down'}`}>
+                    <form onSubmit={handleComposerSubmit} className={`rounded-2xl bg-surface/65 ring-1 ring-white/5 shadow-[0_16px_46px_-30px_rgba(0,0,0,0.75)] ${isSmallScreen ? 'p-4' : 'p-6'} ${prefersReducedMotion ? '' : 'animate-slide-down'}`}>
                         <div className="grid gap-4 sm:grid-cols-2">
                             <label className="block">
                                 <span className="text-xs uppercase tracking-wider text-secondary/80">Link Title</span>

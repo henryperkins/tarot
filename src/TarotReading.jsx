@@ -6,7 +6,7 @@ import { ReadingPreparation } from './components/ReadingPreparation';
 import { ReadingDisplay } from './components/ReadingDisplay';
 import { GuidedIntentionCoach } from './components/GuidedIntentionCoach';
 import { loadCoachRecommendation, saveCoachRecommendation } from './lib/journalInsights';
-import { DeckSelector } from './components/DeckSelector';
+import { DeckSelector, DECK_OPTIONS } from './components/DeckSelector';
 import { MobileSettingsDrawer } from './components/MobileSettingsDrawer';
 import { MobileActionBar, MobileActionGroup } from './components/MobileActionBar';
 import { Header } from './components/Header';
@@ -619,7 +619,26 @@ export default function TarotReading() {
 
           <div className={`max-w-5xl mx-auto ${isLandscape ? 'space-y-3' : 'space-y-6'}`}>
             <div aria-label="Choose your physical deck">
-              <DeckSelector selectedDeck={deckStyleId} onDeckChange={handleDeckChange} />
+              {!isSmallScreen ? (
+                <DeckSelector selectedDeck={deckStyleId} onDeckChange={handleDeckChange} />
+              ) : (
+                <div className="sm:hidden rounded-2xl border border-secondary/25 bg-surface/70 px-4 py-3 shadow-lg shadow-main/20 flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="text-[11px] uppercase tracking-[0.2em] text-secondary/70">Deck</p>
+                    <p className="text-sm text-main truncate">
+                      {DECK_OPTIONS.find(d => d.id === deckStyleId)?.label || 'Deck selected'}
+                    </p>
+                    <p className="text-[12px] text-secondary/70 truncate">Tap change to pick another deck.</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setIsMobileSettingsOpen(true)}
+                    className="flex-none rounded-xl border border-secondary/40 px-3 py-2 text-xs font-semibold text-secondary hover:bg-secondary/10 transition touch-manipulation"
+                  >
+                    Change
+                  </button>
+                </div>
+              )}
             </div>
 
             <div aria-label="Spread selection" ref={spreadSectionRef} id="step-spread" tabIndex={-1} className="scroll-mt-[6.5rem] sm:scroll-mt-[7.5rem]">
@@ -629,6 +648,47 @@ export default function TarotReading() {
                 onSpreadConfirm={onSpreadConfirm}
               />
             </div>
+
+            {/* Mobile quick intention entry keeps the question visible without opening the drawer */}
+            {isSmallScreen && (
+              <div className="sm:hidden">
+                <div className="rounded-2xl border border-secondary/30 bg-surface/70 px-4 py-3 shadow-lg shadow-main/20 flex flex-col gap-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <div>
+                      <p className="text-xs uppercase tracking-[0.18em] text-secondary/80">Quick intention</p>
+                      <p className="text-xs text-secondary/70">Add or edit your question before drawing.</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setPendingCoachPrefill(null);
+                        setIsIntentionCoachOpen(true);
+                      }}
+                      className="inline-flex items-center gap-1 rounded-full border border-secondary/40 px-3 py-1.5 text-[0.72rem] font-semibold text-secondary hover:bg-secondary/10 transition touch-manipulation"
+                    >
+                      <span className="sr-only">Open guided coach</span>
+                      Coach
+                    </button>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      value={userQuestion}
+                      onChange={(event) => setUserQuestion(event.target.value)}
+                      placeholder={EXAMPLE_QUESTIONS[placeholderIndex]}
+                      className="flex-1 rounded-xl border border-secondary/30 bg-surface px-3 py-2 text-base text-main placeholder:text-secondary/50 focus:border-secondary focus:outline-none focus:ring-1 focus:ring-secondary/50"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setIsMobileSettingsOpen(true)}
+                      className="rounded-xl border border-secondary/40 px-3 py-2 text-xs font-semibold text-secondary hover:bg-secondary/10 transition touch-manipulation"
+                    >
+                      More
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {!isSmallScreen && (
               <ReadingPreparation

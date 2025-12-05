@@ -19,6 +19,9 @@ export function SpreadPatternThumbnail({ spreadKey, className = '', preview = nu
       >
         <img
           src={preview.src}
+          width={preview.width || undefined}
+          height={preview.height || undefined}
+          sizes="(max-width: 640px) 88vw, (max-width: 1024px) 46vw, 340px"
           alt={altText}
           className="w-full h-full object-cover"
           loading="lazy"

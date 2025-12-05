@@ -89,7 +89,7 @@ export default function Journal() {
   const [shareLoading, setShareLoading] = useState(false);
   const [shareError, setShareError] = useState('');
   const [compactList, setCompactList] = useState(false);
-  const [mobilePanelsOpen, setMobilePanelsOpen] = useState({ filters: true, insights: false, archetype: false });
+  const [mobilePanelsOpen, setMobilePanelsOpen] = useState({ filters: false, insights: false, archetype: false });
   const navigate = useNavigate();
   const isMobileLayout = useSmallScreen(MOBILE_LAYOUT_MAX);
   const { publish: showToast } = useToast();
@@ -184,7 +184,7 @@ export default function Journal() {
     setMobilePanelsOpen((prev) => ({ ...prev, [panelId]: !prev[panelId] }));
   };
   const renderMobileAccordionSection = (id, label, content, helperText) => (
-    <div className="rounded-2xl border border-secondary/30 bg-surface/70">
+    <div className="rounded-2xl bg-surface/75 ring-1 ring-white/5 shadow-[0_18px_45px_-32px_rgba(0,0,0,0.75)]">
       <button
         type="button"
         onClick={() => toggleMobilePanel(id)}
@@ -198,7 +198,7 @@ export default function Journal() {
         {mobilePanelsOpen[id] ? <CaretUp className="h-4 w-4 text-secondary/70" aria-hidden /> : <CaretDown className="h-4 w-4 text-secondary/70" aria-hidden />}
       </button>
       {mobilePanelsOpen[id] && (
-        <div className="border-t border-secondary/15 p-4">
+        <div className="border-t border-white/5 p-4">
           {content}
         </div>
       )}
@@ -656,7 +656,7 @@ export default function Journal() {
           ) : (
               <div className={hasEntries && hasRailContent ? 'lg:grid lg:grid-cols-[minmax(0,1fr)_360px] lg:gap-6' : ''}>
                 <div className="space-y-8">
-                <section id="today" className="rounded-3xl border border-secondary/30 bg-surface/70 p-5 shadow-lg">
+                <section id="today" className="rounded-3xl bg-surface/75 ring-1 ring-white/5 p-5 shadow-[0_18px_50px_-32px_rgba(0,0,0,0.8)]">
                   <div className="mb-4">
                     <p className="journal-eyebrow text-secondary/70">Today</p>
                     <h2 className="text-xl font-serif text-main">Keep today&rsquo;s focus handy</h2>
@@ -669,17 +669,17 @@ export default function Journal() {
                       <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
                         <div className="flex items-center gap-2">
                           <h2 className="text-xl font-serif text-main">Journal history</h2>
-                          <span className="inline-flex items-center rounded-full border border-secondary/25 bg-surface/60 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-secondary/70">
+                          <span className="inline-flex items-center rounded-full bg-surface/70 ring-1 ring-white/5 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-secondary/70">
                             History
                           </span>
                         </div>
-                        <span className="inline-flex items-center gap-2 rounded-full border border-secondary/25 bg-surface/60 px-3 py-1 text-[11px] text-secondary/70">
+                        <span className="inline-flex items-center gap-2 rounded-full bg-surface/70 ring-1 ring-white/5 px-3 py-1 text-[11px] text-secondary/70">
                           Showing {visibleEntries.length} of {filteredEntries.length}
                         </span>
                       </div>
 
                     {filteredEntries.length === 0 ? (
-                      <div className="rounded-2xl border border-secondary/30 bg-surface/60 p-8 text-center text-sm text-secondary">
+                      <div className="rounded-2xl bg-surface/70 ring-1 ring-white/5 p-8 text-center text-sm text-secondary shadow-[0_16px_40px_-30px_rgba(0,0,0,0.7)]">
                           <NoFiltersIllustration className="mb-4" />
                           <p className="journal-prose text-lg text-main">No entries match your filters.</p>
                           <p className="journal-prose mt-2 text-secondary/70">Try adjusting the filters or reset to see the full journal.</p>
@@ -694,7 +694,7 @@ export default function Journal() {
                             <button
                               type="button"
                               onClick={handleLoadMoreEntries}
-                              className="inline-flex items-center rounded-full border border-secondary/30 bg-surface/70 px-3.5 py-1.5 text-xs font-semibold text-secondary hover:bg-secondary/10"
+                              className="inline-flex items-center rounded-full bg-surface/70 ring-1 ring-white/5 px-3.5 py-1.5 min-h-[44px] text-xs font-semibold text-secondary hover:bg-secondary/10 shadow-[0_10px_26px_-22px_rgba(0,0,0,0.7)] touch-manipulation"
                             >
                               Load {Math.min(VISIBLE_ENTRY_BATCH, filteredEntries.length - visibleEntries.length)} more
                             </button>

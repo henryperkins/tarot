@@ -201,11 +201,6 @@ export function ReadingDisplay({ sectionRef }) {
                 <p className="text-xs-plus sm:text-sm uppercase tracking-[0.12em] text-accent">
                     {displayName ? `Reading for ${displayName}` : 'Reading'}
                 </p>
-                {!isLandscape && (
-                    <p className="mt-1 text-muted-high text-xs sm:text-sm">
-                        {displayName ? `${displayName}, draw and reveal your cards, explore the spread, and weave your narrative.` : 'Draw and reveal your cards, explore the spread, and weave your narrative.'}
-                    </p>
-                )}
             </div>
             {/* Primary CTA */}
             {!reading && (
@@ -303,7 +298,6 @@ export function ReadingDisplay({ sectionRef }) {
                                 </button>
                             </Tooltip>
                             {hasVisionData && !isVisionReady && <p className="mt-3 text-sm text-muted">⚠️ Vision data has conflicts - research telemetry may be incomplete.</p>}
-                            <HelperToggle className="mt-3 max-w-xl mx-auto" defaultOpen={isNewbie}><p>Reveal all cards to unlock a tailored reflection that weaves positions, meanings, and your notes into one coherent story.</p></HelperToggle>
                         </div>
                     )}
 
@@ -354,7 +348,7 @@ export function ReadingDisplay({ sectionRef }) {
                                         type="button"
                                         aria-pressed={isNarrativeFocus}
                                         onClick={() => setIsNarrativeFocus(prev => !prev)}
-                                        className="inline-flex items-center gap-2 rounded-full border border-secondary/50 px-3 xxs:px-4 py-1.5 text-[0.7rem] xxs:text-xs font-semibold text-muted hover:text-main hover:border-secondary/70 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/60"
+                                        className="inline-flex items-center gap-2 rounded-full border border-secondary/50 px-3 xxs:px-4 py-1.5 text-xs-plus sm:text-sm font-semibold text-muted hover:text-main hover:border-secondary/70 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/60"
                                     >
                                         {isNarrativeFocus ? 'Show insight panels' : 'Focus on narrative'}
                                     </button>
@@ -443,12 +437,6 @@ export function ReadingDisplay({ sectionRef }) {
                             <span className="xs:hidden">{isShuffling ? 'Shuffling...' : 'Reset spread'}</span>
                         </button>
                     </div>
-                </div>
-            )}
-
-            {!reading && !isShuffling && (
-                <div className="text-center py-16 px-4">
-                    <p className="text-muted text-lg font-serif">Focus on your question, then draw your cards when you&apos;re ready.</p>
                 </div>
             )}
 

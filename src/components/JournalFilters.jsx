@@ -228,7 +228,7 @@ export function JournalFilters({ filters, onChange, contexts = [], spreads = [],
   };
 
   return (
-    <section className="rounded-3xl border border-secondary/30 bg-surface/80 p-5 shadow-lg animate-fade-in">
+    <section className="rounded-3xl bg-surface/75 ring-1 ring-white/5 p-5 shadow-[0_20px_55px_-32px_rgba(0,0,0,0.8)] animate-fade-in">
       <div className="mb-6 space-y-4">
         <div>
           <p className="text-[11px] uppercase tracking-[0.3em] text-secondary/80">Filters</p>
@@ -241,7 +241,7 @@ export function JournalFilters({ filters, onChange, contexts = [], spreads = [],
               value={filters.query}
               onChange={handleQueryChange}
               placeholder="Search readings..."
-              className="w-full rounded-xl border border-secondary/30 bg-surface/60 px-4 py-2 text-sm text-main focus:outline-none focus:ring-2 focus:ring-secondary/40 placeholder:text-secondary/40"
+              className="w-full rounded-xl bg-surface/60 ring-1 ring-white/5 px-4 py-2 text-sm text-main focus:outline-none focus:ring-2 focus:ring-secondary/40 placeholder:text-secondary/40"
             />
           </div>
           <button
@@ -252,7 +252,7 @@ export function JournalFilters({ filters, onChange, contexts = [], spreads = [],
             Clear filters
           </button>
         </div>
-        <div className="rounded-xl border border-secondary/20 bg-surface/60 p-3">
+        <div className="rounded-xl bg-surface/60 ring-1 ring-white/5 p-3">
           <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.25em] text-secondary/80">
             <BookmarkSimple className="h-4 w-4" />
             <span>Saved filters</span>

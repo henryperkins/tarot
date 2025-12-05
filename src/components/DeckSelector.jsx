@@ -80,6 +80,9 @@ function DeckPreviewImage({ preview, deckLabel }) {
     <div className="relative overflow-hidden rounded-[14px] bg-[#0f0c14] mb-1">
       <img
         src={preview.src}
+        width={preview.width || 640}
+        height={preview.height || 360}
+        sizes="(max-width: 640px) 88vw, (max-width: 1024px) 46vw, 340px"
         alt={preview.alt || `${deckLabel} deck preview`}
         className="w-full h-auto object-cover"
         loading="lazy"

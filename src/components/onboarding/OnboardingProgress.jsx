@@ -101,7 +101,7 @@ export function OnboardingProgress({
                 <span
                   className={`w-5 h-5 rounded-full flex items-center justify-center text-xs font-semibold ${
                     isCurrent
-                      ? 'bg-surface/20 text-surface'
+                      ? 'bg-surface/20 text-main'
                       : isCompleted
                       ? 'bg-accent/20 text-accent'
                       : 'bg-surface-muted/50 text-muted'

@@ -6,16 +6,16 @@ import { CollaborativeNotesPanel } from '../components/share/CollaborativeNotesP
 function StatCard({ label, value, helper }) {
   return (
     <div className="rounded-2xl border border-secondary/30 bg-surface p-4 text-center">
-      <p className="text-[0.65rem] uppercase tracking-[0.3em] text-primary">{label}</p>
+      <p className="text-xs uppercase tracking-[0.24em] text-primary">{label}</p>
       <p className="mt-2 text-2xl font-semibold text-main">{value}</p>
-      {helper && <p className="mt-1 text-xs text-muted">{helper}</p>}
+      {helper && <p className="mt-1 text-xs-plus text-muted">{helper}</p>}
     </div>
   );
 }
 
 function MetaChip({ label }) {
   return (
-    <span className="inline-flex items-center rounded-full border border-primary/30 px-3 py-2 min-h-[36px] text-xs text-primary">
+    <span className="inline-flex items-center rounded-full border border-primary/30 px-3 py-2 min-h-[36px] text-xs-plus text-primary">
       {label}
     </span>
   );
@@ -175,7 +175,7 @@ export default function ShareReading() {
         <div className="rounded-3xl border border-secondary/40 bg-surface p-6 shadow-2xl">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <p className="text-[0.65rem] uppercase tracking-[0.3em] text-primary">Shared reading</p>
+              <p className="text-xs uppercase tracking-[0.24em] text-primary">Shared reading</p>
               <h1 className="mt-1 text-3xl font-serif text-accent">
                 {shareData?.title || (shareData?.scope === 'journal' ? 'Journal snapshot' : 'Reading transmission')}
               </h1>
@@ -206,7 +206,7 @@ export default function ShareReading() {
               </Link>
             </div>
           </div>
-          {copyState && <p className="mt-2 text-xs text-primary">{copyState}</p>}
+          {copyState && <p className="mt-2 text-xs-plus text-primary">{copyState}</p>}
 
           <div className="mt-4 flex flex-wrap gap-2 text-xs text-muted">
             <MetaChip label={`Views ${shareData?.viewCount ?? 0}`} />
@@ -314,12 +314,12 @@ export default function ShareReading() {
             {mobileView === 'spread' && (
               <div className="rounded-3xl border border-secondary/30 bg-surface-muted p-5">
                 <div className="flex flex-col gap-1">
-                  <p className="text-[0.65rem] uppercase tracking-[0.3em] text-primary">Spread overview</p>
+                  <p className="text-xs uppercase tracking-[0.24em] text-primary">Spread overview</p>
                   <h2 className="text-2xl font-serif text-accent">{activeEntry?.spread}</h2>
                   {activeEntry?.question && (
                     <p className="text-sm text-muted">Intention: {activeEntry.question}</p>
                   )}
-                  <p className="text-xs text-muted">
+                  <p className="text-xs-plus text-muted">
                     {activeEntry?.ts ? new Date(activeEntry.ts).toLocaleString() : ''}
                   </p>
                 </div>
@@ -359,12 +359,12 @@ export default function ShareReading() {
           <div className="space-y-6">
             <div className="rounded-3xl border border-secondary/30 bg-surface-muted p-5">
               <div className="flex flex-col gap-1">
-                <p className="text-[0.65rem] uppercase tracking-[0.3em] text-primary">Spread overview</p>
+                <p className="text-xs uppercase tracking-[0.24em] text-primary">Spread overview</p>
                 <h2 className="text-2xl font-serif text-accent">{activeEntry?.spread}</h2>
                 {activeEntry?.question && (
                   <p className="text-sm text-muted">Intention: {activeEntry.question}</p>
                 )}
-                <p className="text-xs text-muted">
+                <p className="text-xs-plus text-muted">
                   {activeEntry?.ts ? new Date(activeEntry.ts).toLocaleString() : ''}
                 </p>
               </div>

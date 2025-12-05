@@ -4,7 +4,7 @@
 import { getImageryHook, isMajorArcana, getElementalImagery, getMinorImageryHook } from '../imageryHooks.js';
 import { buildMinorSummary } from '../minorMeta.js';
 import { getPositionWeight } from '../positionWeights.js';
-import { getToneStyle, buildNameClause } from './styleHelpers.js';
+import { getToneStyle, buildNameClause, buildPersonalizationBridge } from './styleHelpers.js';
 import {
   getAstroForCard,
   getQabalahForCard,
@@ -881,9 +881,17 @@ function buildOpening(spreadName, userQuestion, context, options = {}) {
 
   const followUp = 'They honor both seen and unseen influences while centering your agency.';
   const base = `${responseLead}\n\n${followUp}`;
-
+  const contextDescriptor = getContextDescriptor(context);
+  const personalizationBridge = buildPersonalizationBridge(personalization, { contextDescriptor });
   const contextReminder = buildContextReminder(context);
-  return contextReminder ? `${base}\n\n${contextReminder}` : base;
+  const parts = [base];
+  if (personalizationBridge) {
+    parts.push(personalizationBridge);
+  }
+  if (contextReminder) {
+    parts.push(contextReminder);
+  }
+  return parts.join('\n\n');
 }
 
 function appendReversalReminder(text, cardsInfo, themes) {

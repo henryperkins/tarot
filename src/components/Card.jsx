@@ -307,7 +307,7 @@ export function Card({
               onTouchMove={handleTouchMove}
               onTouchEnd={handleTouchEnd}
               aria-label={`${position}. Tap to reveal.`}
-              className={`card-swipe-container relative h-full ${isLandscape ? 'min-h-[200px] max-h-[280px]' : 'min-h-[45vh] min-h-[45svh] max-h-[65vh] max-h-[65svh]'} sm:min-h-[24rem] sm:max-h-none flex flex-col items-center justify-center gap-4 p-4 sm:p-6 w-full cursor-pointer hover:bg-surface-muted/70 hover:scale-105 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70 focus-visible:ring-offset-2 focus-visible:ring-offset-main`}
+              className={`card-swipe-container relative h-full ${isLandscape ? 'min-h-[200px] max-h-[280px]' : 'min-h-[40vh] min-h-[40svh] max-h-[55vh] max-h-[55svh]'} sm:min-h-[24rem] sm:max-h-none flex flex-col items-center justify-center gap-4 p-4 sm:p-6 w-full cursor-pointer hover:bg-surface-muted/70 hover:scale-105 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70 focus-visible:ring-offset-2 focus-visible:ring-offset-main`}
             >
               {/* Card back with mystical design */}
               <div
@@ -343,7 +343,7 @@ export function Card({
               </div>
             </button>
           ) : (
-            <div className={`transition-all relative h-full ${isLandscape ? 'min-h-[200px] max-h-[280px]' : 'min-h-[45vh] min-h-[45svh] max-h-[65vh] max-h-[65svh]'} sm:min-h-[24rem] sm:max-h-none flex flex-col items-center`}>
+            <div className={`transition-all relative h-full ${isLandscape ? 'min-h-[200px] max-h-[280px]' : 'min-h-[40vh] min-h-[40svh] max-h-[55vh] max-h-[55svh]'} sm:min-h-[24rem] sm:max-h-none flex flex-col items-center`}>
               {/* Card content area - restructured to avoid nested interactives */}
               <div className="relative w-full">
                 {/* Zoom Icon - primary keyboard target for modal */}

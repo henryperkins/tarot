@@ -27,6 +27,16 @@ const TIMING_SUMMARIES = {
   'developing-arc': 'Timing: expect this to develop as an unfolding chapter, not a single moment.'
 };
 
+const CONTEXT_ACCENTS = {
+  love: '#f4b8d6',
+  career: '#8fb3ff',
+  self: '#a8d9c1',
+  spiritual: '#c3b4ff',
+  wellbeing: '#9ce8d5',
+  decision: '#f6c174',
+  default: '#d2c3a5'
+};
+
 function normalizeTimestamp(value) {
   if (!Number.isFinite(value)) return null;
   return value < 1e12 ? value * 1000 : value;
@@ -97,10 +107,10 @@ const JournalCardListItem = memo(function JournalCardListItem({ card }) {
   const suitIcon = renderSuitIcon(card.name, { className: 'w-3.5 h-3.5 text-secondary/60 shrink-0', 'aria-hidden': true });
 
   return (
-    <li className="group relative flex flex-col gap-2 rounded-xl border border-secondary/20 bg-surface-muted/40 p-3 transition-colors hover:bg-surface-muted/60 sm:flex-row sm:items-center sm:justify-between">
+    <li className="group relative flex flex-col gap-2 rounded-xl bg-surface/50 ring-1 ring-white/5 p-3 transition-colors hover:bg-surface/60 shadow-[0_10px_26px_-20px_rgba(0,0,0,0.65)] sm:flex-row sm:items-center sm:justify-between">
       <div className="flex items-center gap-3 min-w-0 flex-1">
         {/* Position indicator bar */}
-        <div className="flex-shrink-0 w-1 self-stretch rounded-full bg-secondary/30 hidden sm:block" />
+        <div className="flex-shrink-0 w-1 self-stretch rounded-full bg-secondary/25 hidden sm:block" />
 
         <div className="flex-1 min-w-0">
           {/* Position label */}
@@ -215,6 +225,7 @@ export const JournalEntryCard = memo(function JournalEntryCard({ entry, onCreate
     : [];
   const hasReflections = reflections.length > 0;
   const contextLabel = entry?.context ? formatContextName(entry.context) : '';
+  const accentColor = CONTEXT_ACCENTS[entry?.context] || CONTEXT_ACCENTS.default;
   const headerPadding = compact ? 'p-3.5 sm:p-4' : 'p-4';
   const contentPadding = compact ? 'px-4 py-4 sm:p-5' : 'p-5';
   const cardPreview = cards.slice(0, 3).map((card, index) => ({
@@ -225,8 +236,15 @@ export const JournalEntryCard = memo(function JournalEntryCard({ entry, onCreate
   }));
 
   return (
-    <article className="group relative rounded-2xl border border-secondary/20 bg-surface/40 transition-all hover:border-secondary/40 hover:bg-surface/60 animate-fade-in">
-      <div className={`${headerPadding} ${isExpanded ? 'border-b border-secondary/10' : ''}`}>
+    <article
+      className="group relative overflow-hidden rounded-2xl bg-surface/65 ring-1 ring-white/5 transition-all shadow-[0_24px_60px_-36px_rgba(0,0,0,0.85)] hover:shadow-[0_24px_70px_-30px_rgba(0,0,0,0.9)] animate-fade-in"
+      style={{
+        borderLeft: `4px solid ${accentColor}66`,
+        backgroundImage: 'linear-gradient(145deg, rgba(255,255,255,0.02), rgba(255,255,255,0.04))'
+      }}
+    >
+      <div className="absolute inset-y-0 left-0 w-1.5 bg-gradient-to-b from-transparent via-white/25 to-transparent pointer-events-none" aria-hidden="true" />
+      <div className={`${headerPadding} ${isExpanded ? 'border-b border-white/5' : ''}`}>
         <button
           onClick={() => setIsExpanded(prev => !prev)}
           aria-expanded={isExpanded}
@@ -248,12 +266,12 @@ export const JournalEntryCard = memo(function JournalEntryCard({ entry, onCreate
                   {entry.spread || 'Tarot Reading'}
                 </h3>
                 {contextLabel && (
-                  <span className="inline-flex items-center rounded-full bg-secondary/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-secondary/80">
+                  <span className="inline-flex items-center rounded-full bg-surface/70 ring-1 ring-white/10 px-2 py-0.5 text-[10px] font-semibold text-secondary/80">
                     {contextLabel}
                   </span>
                 )}
                 {hasReflections && (
-                  <span className="inline-flex items-center gap-1 rounded-full bg-accent/10 border border-accent/20 px-2 py-0.5 text-[10px] font-semibold text-accent/90">
+                  <span className="inline-flex items-center gap-1 rounded-full bg-accent/12 ring-1 ring-accent/30 px-2 py-0.5 text-[10px] font-semibold text-accent/90">
                     <Sparkle className="h-2.5 w-2.5" aria-hidden="true" />
                     {reflections.length}
                   </span>

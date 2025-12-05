@@ -66,6 +66,63 @@ const DEPTH_STYLES = {
   }
 };
 
+function formatList(values = []) {
+  if (!Array.isArray(values) || values.length === 0) return '';
+  if (values.length === 1) return values[0];
+  if (values.length === 2) return `${values[0]} and ${values[1]}`;
+  const head = values.slice(0, -1).join(', ');
+  const tail = values[values.length - 1];
+  return `${head}, and ${tail}`;
+}
+
+function normalizeFocusAreas(focusAreas, limit = 3) {
+  if (!Array.isArray(focusAreas) || focusAreas.length === 0) {
+    return [];
+  }
+
+  const seen = new Set();
+  const normalized = [];
+
+  for (const entry of focusAreas) {
+    if (typeof entry !== 'string') continue;
+    const trimmed = entry.trim();
+    if (!trimmed) continue;
+    const key = trimmed.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    normalized.push(trimmed);
+    if (normalized.length >= limit) break;
+  }
+
+  return normalized;
+}
+
+function buildFocusBridgeLine(focusAreas, contextDescriptor) {
+  const normalized = normalizeFocusAreas(focusAreas);
+  if (!normalized.length) return '';
+  const formatted = formatList(normalized);
+  if (contextDescriptor) {
+    return `We'll stay attuned to your focus on ${formatted} so the cards speak directly to your ${contextDescriptor}.`;
+  }
+  return `We'll stay attuned to your focus on ${formatted} as this reading unfolds.`;
+}
+
+function buildExperienceLine(level) {
+  if (!level) return '';
+  const lines = {
+    newbie: "I'll keep the symbolism grounded and translate each card into everyday choices you can work with.",
+    intermediate: "Expect a balance of archetypal nuance and practical translation so you can integrate the insights quickly.",
+    experienced: "I'll name the subtler archetypal threads so you can weave them into your own practice."
+  };
+  return lines[level] || '';
+}
+
+function buildFocusReminder(focusAreas) {
+  const normalized = normalizeFocusAreas(focusAreas);
+  if (!normalized.length) return '';
+  return `Let the next steps honor your focus on ${formatList(normalized)}.`;
+}
+
 export function resolveToneKey(value) {
   return Object.prototype.hasOwnProperty.call(TONE_STYLES, value) ? value : DEFAULT_TONE;
 }
@@ -81,6 +138,20 @@ function resolveDepthKey(value) {
 export function getDepthProfile(value) {
   const key = resolveDepthKey(value);
   return DEPTH_STYLES[key] || DEPTH_STYLES[DEFAULT_DEPTH];
+}
+
+export function buildPersonalizationBridge(personalization, { contextDescriptor } = {}) {
+  if (!personalization) return '';
+  const lines = [];
+  const focusLine = buildFocusBridgeLine(personalization.focusAreas, contextDescriptor);
+  if (focusLine) {
+    lines.push(focusLine);
+  }
+  const experienceLine = buildExperienceLine(personalization.tarotExperience);
+  if (experienceLine) {
+    lines.push(experienceLine);
+  }
+  return lines.join(' ');
 }
 
 export function buildNameClause(displayName, position = 'inline') {
@@ -118,5 +189,13 @@ export function buildPersonalizedClosing(personalization) {
   const toneDescriptor = tone.closingTone || 'steady encouragement';
   const depthProfile = getDepthProfile(personalization.preferredSpreadDepth);
   const base = `Remember${closingName || ''} the ${anchorWord} you already carry—let that ${toneDescriptor} shape what unfolds next.`;
-  return depthProfile?.closingReminder ? `${base} ${depthProfile.closingReminder}` : base;
+  const focusReminder = buildFocusReminder(personalization.focusAreas);
+  const parts = [base];
+  if (focusReminder) {
+    parts.push(focusReminder);
+  }
+  if (depthProfile?.closingReminder) {
+    parts.push(depthProfile.closingReminder);
+  }
+  return parts.join(' ');
 }

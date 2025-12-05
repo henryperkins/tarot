@@ -5,15 +5,23 @@ export function EmptyJournalIllustration({ className = "" }) {
 
   return (
     <div className={`relative ${className}`}>
-      <img
-        src="/images/illustrations/empty-states/empty-journal.png"
-        alt=""
-        role="presentation"
-        className={`
-          w-full max-w-sm mx-auto
-          ${prefersReducedMotion ? "" : "animate-float-gentle"}
-        `}
-      />
+      <picture>
+        <source
+          srcSet="/images/illustrations/empty-states/empty-journal.webp"
+          type="image/webp"
+        />
+        <img
+          src="/images/illustrations/empty-states/empty-journal.png"
+          alt=""
+          role="presentation"
+          loading="lazy"
+          decoding="async"
+          className={`
+            w-full max-w-sm mx-auto
+            ${prefersReducedMotion ? "" : "animate-float-gentle"}
+          `}
+        />
+      </picture>
     </div>
   );
 }

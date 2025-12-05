@@ -55,6 +55,8 @@
   /* Higher contrast muted for over translucent backgrounds (6.5:1) - improved from #D8D2C8 */
   --text-accent: #D4B896;
   /* Warmer champagne */
+  --text-on-brand: var(--color-charcoal);
+  /* High-contrast text for brand surfaces (lighten in light mode) */
 
   /* Brand / Interactive (warmer) */
   --brand-primary: #D4B896;
@@ -80,7 +82,8 @@
   --bg-surface-muted: #F5F5F5;
   --text-main: #1A1A1A;
   --text-muted: #555555; /* WCAG AA compliant: 7:1 contrast on #FAFAFA */
-  --brand-primary: #A89166;
-  --brand-secondary: #E0E0E0;
-  --brand-accent: #A89166;
+  --text-on-brand: #FAFAFA; /* Light text for brand backgrounds */
+  --brand-primary: #7D623B; /* 5.46:1 on #FAFAFA */
+  --brand-secondary: #6A5746; /* 6.57:1 on #FAFAFA */
+  --brand-accent: #8A6B3B; /* 4.74:1 on #FAFAFA */
 }

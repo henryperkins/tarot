@@ -12,14 +12,13 @@
   "compatibility_date": "2025-11-24",
   "compatibility_flags": ["nodejs_compat"],
 
-  // Routes - uncomment and configure if you have a custom domain
-  // For now, the worker will be accessible at <name>.<account>.workers.dev
-  // "routes": [
-  //   {
-  //     "pattern": "tarot.yourdomain.com/*",
-  //     "zone_name": "yourdomain.com"
-  //   }
-  // ],
+  // Routes - custom domain configuration
+  "routes": [
+    {
+      "pattern": "tarot.lakefrontdev.com/*",
+      "zone_name": "lakefrontdev.com"
+    }
+  ],
 
   // Main worker entry point (unified router)
   "main": "./src/worker/index.js",

@@ -3,7 +3,7 @@ import { Gear, Sparkle, ArrowsClockwise } from '@phosphor-icons/react';
 import { useLandscape } from '../hooks/useLandscape';
 
 // Subscribe to visualViewport changes for keyboard avoidance
-function subscribeToViewport(callback) {
+export function subscribeToViewport(callback) {
   if (typeof window === 'undefined' || !window.visualViewport) {
     return () => {};
   }
@@ -15,7 +15,7 @@ function subscribeToViewport(callback) {
   };
 }
 
-function getViewportOffset() {
+export function getViewportOffset() {
   if (typeof window === 'undefined' || !window.visualViewport) {
     return 0;
   }
@@ -23,7 +23,7 @@ function getViewportOffset() {
   return offset > 50 ? offset : 0;
 }
 
-function getServerViewportOffset() {
+export function getServerViewportOffset() {
   return 0;
 }
 

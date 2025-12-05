@@ -285,14 +285,14 @@ export function SpreadSelector({
       <div className="relative z-10 space-y-5">
         <header className={`flex flex-col ${isLandscape ? 'gap-1' : 'gap-2'} sm:flex-row sm:items-center sm:justify-between`}>
           <div>
-            <p className="text-[0.68rem] uppercase tracking-[0.22em] text-gold-soft">Spread Selection</p>
+            <p className="text-xs uppercase tracking-[0.18em] text-gold-soft">Spread Selection</p>
             {!isLandscape && (
               <p className="text-xs text-muted max-w-2xl">
                 Choose how your reading unfolds.
               </p>
             )}
           </div>
-          <div className="hidden sm:flex items-center gap-2 rounded-full border border-gold-soft/50 bg-black/30 px-3 py-1 text-[0.7rem] text-accent backdrop-blur">
+          <div className="hidden sm:flex items-center gap-2 rounded-full border border-gold-soft/50 bg-black/30 px-3 py-1 text-xs-plus text-accent backdrop-blur">
             <Sparkle className="w-3 h-3" aria-hidden="true" />
             <span>Guided layouts</span>
           </div>
@@ -398,30 +398,30 @@ export function SpreadSelector({
                   <div className="spread-card__title font-serif font-semibold text-accent text-base leading-tight flex flex-wrap items-center gap-2">
                     <span className="spread-card__title-text">{spread.name}</span>
                     {key === recommendedSpread && (
-                      <span className="text-[0.65rem] uppercase tracking-[0.18em] text-amber-200 bg-amber-500/15 border border-amber-300/40 px-2 py-0.5 rounded-full">
+                      <span className="text-xs uppercase tracking-[0.16em] text-amber-200 bg-amber-500/15 border border-amber-300/40 px-2 py-0.5 rounded-full">
                         Recommended
                       </span>
                     )}
                   </div>
-                  <div className="text-[0.68rem] uppercase tracking-[0.2em] text-gold-soft/90 mb-2">
+                  <div className="text-xs uppercase tracking-[0.18em] text-gold-soft/90 mb-2">
                     {spread.tag || 'Guided spread'}
                     <span className="text-gold-soft/60 ml-2">· {spread.count} cards</span>
                   </div>
 
                   {!isLandscape && !isExperienced && (
-                    <p className="spread-card__description text-xs text-muted leading-snug mb-3">
+                    <p className="spread-card__description text-xs-plus text-muted leading-snug mb-3">
                       {baseDescription}
                     </p>
                   )}
 
                   <div className="spread-card__meta">
                     <div className="spread-card__complexity">
-                      <span className="text-[0.68rem] uppercase tracking-[0.2em] text-gold-soft/80">Complexity</span>
+                      <span className="text-xs uppercase tracking-[0.18em] text-gold-soft/80">Complexity</span>
                       {renderStars(stars)}
-                      <span className="text-[0.72rem] text-muted capitalize">{complexityLabel}</span>
+                      <span className="text-sm text-muted capitalize">{complexityLabel}</span>
                     </div>
                     <div className="spread-card__count">
-                      <span className="text-[0.7rem] text-muted">Card Count</span>
+                      <span className="text-xs-plus text-muted">Card Count</span>
                       <span className="text-sm font-semibold text-accent">{spread.count}</span>
                     </div>
                   </div>

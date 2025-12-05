@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useLayoutEffect, useMemo, useRef, useState, useId } from 'react';
+import { Fragment, useEffect, useLayoutEffect, useMemo, useRef, useState, useId, useSyncExternalStore } from 'react';
 import FocusTrap from 'focus-trap-react';
 import {
   ChartLine,
@@ -36,6 +36,7 @@ import {
 } from '../lib/coachStorage';
 import { MOBILE_COACH_DIALOG_ID } from './MobileActionBar';
 import { normalizeThemeLabel } from '../lib/themeText';
+import { subscribeToViewport, getViewportOffset, getServerViewportOffset } from './MobileActionBar';
 
 // ============================================================================
 // Constants
@@ -303,6 +304,12 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply,
   const [astroHighlights, setAstroHighlights] = useState([]);
   const [astroWindowDays, setAstroWindowDays] = useState(null);
   const [astroSource, setAstroSource] = useState(null);
+  const viewportOffset = useSyncExternalStore(
+    subscribeToViewport,
+    getViewportOffset,
+    getServerViewportOffset
+  );
+  const effectiveOffset = Math.max(0, viewportOffset);
 
   // Refs
   const modalRef = useRef(null);
@@ -1079,6 +1086,17 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply,
                 {questionText || guidedQuestion}
               </p>
             </div>
+            <div className="flex justify-center">
+              <button
+                type="button"
+                onClick={handleApply}
+                disabled={(!questionText && !guidedQuestion) || questionLoading}
+                className="mt-2 inline-flex items-center justify-center gap-2 rounded-full border border-secondary/50 bg-secondary/20 px-4 py-2 text-sm font-semibold text-secondary hover:bg-secondary/30 transition disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <Sparkle className="h-4 w-4" />
+                Use this question
+              </button>
+            </div>
 
             {astroHighlights.length > 0 && (
               <div className="rounded-2xl border border-secondary/30 bg-surface/50 p-4 space-y-2">
@@ -1269,7 +1287,10 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply,
           </div>
 
           {/* Footer - OUTSIDE scrollable area for proper sticky behavior */}
-          <div className={`flex-shrink-0 bg-surface border-t border-accent/20 sm:border-t-0 px-4 sm:px-10 pb-safe sm:pb-6 ${isLandscape ? 'pt-2' : 'pt-4 sm:pt-0'}`}>
+          <div
+            className={`flex-shrink-0 bg-surface border-t border-accent/20 sm:border-t-0 px-4 sm:px-10 pb-safe sm:pb-6 ${isLandscape ? 'pt-2' : 'pt-4 sm:pt-0'}`}
+            style={effectiveOffset ? { paddingBottom: `calc(env(safe-area-inset-bottom, 0px) + ${effectiveOffset + 16}px)` } : undefined}
+          >
             {historyStatus && (
               <p className="text-xs text-error text-center sm:text-left mb-2">
                 {historyStatus}

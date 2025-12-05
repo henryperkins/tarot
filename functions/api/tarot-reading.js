@@ -55,7 +55,8 @@ import {
 } from '../lib/ephemerisIntegration.js';
 import { deriveEmotionalTone } from '../../src/data/emotionMapping.js';
 import { normalizeVisionLabel } from '../lib/visionLabels.js';
-import { getToneStyle, getFrameVocabulary, buildNameClause, buildPersonalizedClosing, getDepthProfile } from '../lib/narrative/styleHelpers.js';
+import { getToneStyle, buildPersonalizedClosing, getDepthProfile } from '../lib/narrative/styleHelpers.js';
+import { buildOpening } from '../lib/narrative/helpers.js';
 import {
   escapeRegex,
   hasExplicitCardContext,
@@ -1530,19 +1531,13 @@ function buildGenericReading(
     spreadInfo
   });
   const tone = getToneStyle(personalization?.readingTone);
-  const _vocab = getFrameVocabulary(personalization?.spiritualFrame);
-  const nameOpening = buildNameClause(personalization?.displayName, 'opening');
   const depthProfile = getDepthProfile(personalization?.preferredSpreadDepth);
-  
+
   // Opening
-  const trimmedQuestion = userQuestion && userQuestion.trim();
-  const subject = nameOpening ? `${nameOpening}the cards` : 'The cards';
-  const descriptor = tone.openingAdjectives?.[0] || 'thoughtful';
-  const preface = depthProfile?.openingPreface ? `${depthProfile.openingPreface}\n\n` : '';
-  const openingBody = trimmedQuestion
-    ? `${subject} offer a ${descriptor} response through the ${spreadName.toLowerCase()} to your question: "${trimmedQuestion}".\n\nThey honor both seen and unseen influences while centering your agency.`
-    : `${subject} share a ${descriptor} impression of what the ${spreadName.toLowerCase()} reveals around you right now.\n\nThey honor both seen and unseen influences while centering your agency.`;
-  const openingText = `${preface}${openingBody}`.trim();
+  const composedOpening = buildOpening(spreadName, userQuestion, context, { personalization });
+  const openingText = depthProfile?.openingPreface
+    ? `${depthProfile.openingPreface}\n\n${composedOpening}`.trim()
+    : composedOpening;
 
   entries.push({
     text: openingText,

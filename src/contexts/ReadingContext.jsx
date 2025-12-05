@@ -123,6 +123,9 @@ export function ReadingProvider({ children }) {
 
     // Generate Personal Reading Logic
     const generatePersonalReading = useCallback(async () => {
+        // Synchronous ref check prevents double-clicks before React can re-render
+        if (inFlightReadingRef.current) return;
+
         if (!reading || reading.length === 0) {
             const errorMsg = 'Please draw your cards before requesting a personalized reading.';
             const formattedError = formatReading(errorMsg);
