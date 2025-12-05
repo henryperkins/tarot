@@ -5,6 +5,8 @@ import rwsPreview from '../../selectorimages/rider.jpeg';
 import thothPreview from '../../selectorimages/Thoth.jpeg';
 import marseillePreview from '../../selectorimages/marseille.jpeg';
 import { useReducedMotion } from '../hooks/useReducedMotion';
+import { useSmallScreen } from '../hooks/useSmallScreen';
+import { MobileInfoSection } from './MobileInfoSection';
 
 export const DECK_OPTIONS = [
   {
@@ -12,6 +14,7 @@ export const DECK_OPTIONS = [
     label: 'Rider-Waite-Smith',
     subtitle: '1909 Edition',
     description: 'Classic Pamela Colman Smith watercolors with bold ink outlines and theatrical staging.',
+    mobileDescription: 'Classic watercolor art with bold ink.',
     palette: [
       { label: 'Sunlit yellows', swatch: '#eac26d', textColor: '#1c1308' },
       { label: 'Lapis blues', swatch: '#1f3f78', textColor: '#e6ecf7' },
@@ -32,6 +35,7 @@ export const DECK_OPTIONS = [
     label: 'Thoth',
     subtitle: 'Crowley/Harris A1',
     description: 'Abstract, prismatic geometry with layered astrological sigils and Art Deco gradients.',
+    mobileDescription: 'Prismatic geometry with astro sigils.',
     palette: [
       { label: 'Electric teal', swatch: '#27cfc0', textColor: '#061412' },
       { label: 'Magenta', swatch: '#c1248b', textColor: '#fde7f4' },
@@ -53,6 +57,7 @@ export const DECK_OPTIONS = [
     label: 'Tarot de Marseille',
     subtitle: '18th Century Scans',
     description: 'Woodcut line work with flat primary colors and medieval heraldry.',
+    mobileDescription: 'Historic woodcuts with bold primaries.',
     palette: [
       { label: 'Carmine red', swatch: '#a32035', textColor: '#fde6ec' },
       { label: 'Cobalt blue', swatch: '#21489b', textColor: '#e7efff' },
@@ -122,6 +127,7 @@ export function DeckSelector({ selectedDeck, onDeckChange }) {
   const [showLeftFade, setShowLeftFade] = useState(false);
   const [showRightFade, setShowRightFade] = useState(true);
   const prefersReducedMotion = useReducedMotion();
+  const isSmallScreen = useSmallScreen();
 
   // Update edge fade visibility based on scroll position
   const updateEdgeFades = useCallback((el) => {
@@ -331,17 +337,36 @@ export function DeckSelector({ selectedDeck, onDeckChange }) {
                   <div className="text-[0.7rem] uppercase tracking-[0.18em] text-gold-soft/90 mb-2">
                     {deck.subtitle}
                   </div>
-                  <p className="text-xs text-muted leading-snug mb-3">
-                    {deck.description}
+                  <p className={`text-xs text-muted leading-snug ${isSmallScreen ? 'mb-2 line-clamp-2' : 'mb-3'}`}>
+                    {deck.mobileDescription || deck.description}
                   </p>
 
-                  <div className="flex flex-wrap gap-1.5 mb-2">
-                    {deck.palette.map((tone) => (
-                      <PaletteBadge key={`${deck.id}-${tone.label}`} {...tone} />
-                    ))}
-                  </div>
+                  {!isSmallScreen && (
+                    <div className="flex flex-wrap gap-1.5 mb-2">
+                      {deck.palette.map((tone) => (
+                        <PaletteBadge key={`${deck.id}-${tone.label}`} {...tone} />
+                      ))}
+                    </div>
+                  )}
 
-                  {deck.note && (
+                  {isSmallScreen && (
+                    <div className="mt-1">
+                      <MobileInfoSection title="See color palette">
+                        <div className="flex flex-wrap gap-1.5">
+                          {deck.palette.map((tone) => (
+                            <PaletteBadge key={`${deck.id}-${tone.label}`} {...tone} />
+                          ))}
+                        </div>
+                        {deck.note && (
+                          <p className="text-[0.68rem] text-accent/85 italic mt-2">
+                            {deck.note}
+                          </p>
+                        )}
+                      </MobileInfoSection>
+                    </div>
+                  )}
+
+                  {deck.note && !isSmallScreen && (
                     <p className="text-[0.68rem] text-accent/85 italic mt-2">
                       {deck.note}
                     </p>

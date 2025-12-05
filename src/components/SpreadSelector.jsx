@@ -146,6 +146,8 @@ export function SpreadSelector({
     ? 'basis-[55%] xs:basis-[45%]'
     : 'basis-[82%] xs:basis-[70%]';
 
+  const isCompactCopy = _isSmallScreen && !isLandscape;
+
   // Update edge fade visibility based on scroll position
   const updateEdgeFades = useCallback((el) => {
     if (!el) return;
@@ -409,8 +411,8 @@ export function SpreadSelector({
                   </div>
 
                   {!isLandscape && !isExperienced && (
-                    <p className="spread-card__description text-xs-plus text-muted leading-snug mb-3">
-                      {baseDescription}
+                    <p className={`spread-card__description text-xs-plus text-muted leading-snug ${isCompactCopy ? 'mb-2 line-clamp-2' : 'mb-3'}`}>
+                      {isCompactCopy ? (spread.mobileDescription || baseDescription) : baseDescription}
                     </p>
                   )}
 

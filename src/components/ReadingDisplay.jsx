@@ -7,6 +7,7 @@ import { ReadingGrid } from './ReadingGrid';
 import { StreamingNarrative } from './StreamingNarrative';
 import { HelperToggle } from './HelperToggle';
 import { Tooltip } from './Tooltip';
+import { MobileInfoSection } from './MobileInfoSection';
 import { SpreadPatterns } from './SpreadPatterns';
 import { VisionValidationPanel } from './VisionValidationPanel';
 import { FeedbackPanel } from './FeedbackPanel';
@@ -290,13 +291,25 @@ export function ReadingDisplay({ sectionRef }) {
                     />
 
                     {!personalReading && !isGenerating && revealedCards.size === reading.length && (
-                        <div className="text-center">
-                            <Tooltip content={narrativeStyleTooltip} position="top" asChild enableClick={false}>
-                                <button onClick={generatePersonalReading} className="bg-accent hover:bg-accent/90 text-surface font-semibold px-5 sm:px-8 py-3 sm:py-4 rounded-xl shadow-xl shadow-accent/20 transition-all flex items-center gap-2 sm:gap-3 mx-auto text-sm sm:text-base md:text-lg">
-                                    <Sparkle className="w-4 h-4 sm:w-5 sm:h-5" />
-                                    <span>Create Personal Narrative</span>
-                                </button>
-                            </Tooltip>
+                        <div className="text-center space-y-3">
+                            {isCompactScreen ? (
+                                <div className="space-y-2">
+                                    <button onClick={generatePersonalReading} className="bg-accent hover:bg-accent/90 text-surface font-semibold px-5 sm:px-8 py-3 sm:py-4 rounded-xl shadow-xl shadow-accent/20 transition-all flex items-center gap-2 sm:gap-3 mx-auto text-sm sm:text-base md:text-lg">
+                                        <Sparkle className="w-4 h-4 sm:w-5 sm:h-5" />
+                                        <span>Create Personal Narrative</span>
+                                    </button>
+                                    <MobileInfoSection title="How we style your narrative">
+                                        <p className="text-sm text-muted leading-snug">{narrativeStyleTooltip}</p>
+                                    </MobileInfoSection>
+                                </div>
+                            ) : (
+                                <Tooltip content={narrativeStyleTooltip} position="top" asChild enableClick={false}>
+                                    <button onClick={generatePersonalReading} className="bg-accent hover:bg-accent/90 text-surface font-semibold px-5 sm:px-8 py-3 sm:py-4 rounded-xl shadow-xl shadow-accent/20 transition-all flex items-center gap-2 sm:gap-3 mx-auto text-sm sm:text-base md:text-lg">
+                                        <Sparkle className="w-4 h-4 sm:w-5 sm:h-5" />
+                                        <span>Create Personal Narrative</span>
+                                    </button>
+                                </Tooltip>
+                            )}
                             {hasVisionData && !isVisionReady && <p className="mt-3 text-sm text-muted">⚠️ Vision data has conflicts - research telemetry may be incomplete.</p>}
                         </div>
                     )}

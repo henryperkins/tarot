@@ -7,6 +7,7 @@ export const SPREADS = {
     roleKeys: ['theme'],
     count: 1,
     description: "One card focused on your question's core energy.",
+    mobileDescription: 'Fast, single-card guidance.',
     complexity: { stars: 1, label: 'Easy' },
     preview: {
       src: '/images/spread-art/single.png',
@@ -28,6 +29,7 @@ export const SPREADS = {
     roleKeys: ['past', 'present', 'future'],
     count: 3,
     description: 'Past, present, and future—see how your story moves.',
+    mobileDescription: 'Past, present, future in three beats.',
     complexity: { stars: 2, label: 'Normal' },
     preview: {
       src: '/images/spread-art/threeCard.png',
@@ -51,6 +53,7 @@ export const SPREADS = {
     roleKeys: ['core', 'challenge', 'subconscious', 'support', 'direction'],
     count: 5,
     description: 'Core tension, support, challenge, and direction.',
+    mobileDescription: 'Five cards for depth: core, challenge, hidden, support, direction.',
     complexity: { stars: 2, label: 'Normal' },
     preview: {
       src: '/images/spread-art/fiveCard.png',
@@ -74,6 +77,7 @@ export const SPREADS = {
     roleKeys: ['heart', 'pathA', 'pathB', 'clarifier', 'freeWill'],
     count: 5,
     description: 'Compare two paths. Choose with clarity.',
+    mobileDescription: 'Weigh two paths with heart, paths A/B, clarity, free will.',
     complexity: { stars: 2, label: 'Normal' },
     preview: {
       src: '/images/spread-art/decision.png',
@@ -95,6 +99,7 @@ export const SPREADS = {
     roleKeys: ['you', 'them', 'connection'],
     count: 3,
     description: 'Your energy, their energy, your shared connection.',
+    mobileDescription: 'You · them · connection in one glance.',
     complexity: { stars: 2, label: 'Normal' },
     preview: {
       src: '/images/spread-art/relationship.png',
@@ -135,6 +140,7 @@ export const SPREADS = {
     ],
     count: 10,
     description: 'The classic deep dive—ten cards, full picture.',
+    mobileDescription: 'Classic 10-card deep dive.',
     complexity: { stars: 3, label: 'Hard' },
     preview: {
       src: '/images/spread-art/celtic.png',

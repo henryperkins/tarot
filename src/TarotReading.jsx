@@ -276,7 +276,10 @@ export default function TarotReading() {
     setVisionResults([]);
     setVisionConflicts([]);
     resetVisionProof();
-  }, [setDeckStyleId, setVisionResults, setVisionConflicts, resetVisionProof]);
+    if (isSmallScreen) {
+      setIsMobileSettingsOpen(false);
+    }
+  }, [setDeckStyleId, setVisionResults, setVisionConflicts, resetVisionProof, isSmallScreen]);
 
   const scrollQuickIntentionIntoView = useCallback(() => {
     if (!isSmallScreen) return;
@@ -631,29 +634,18 @@ export default function TarotReading() {
           <div className={isLandscape ? 'mb-2' : 'mb-4 sm:mb-5'}>
             <p className="text-xs-plus sm:text-sm uppercase tracking-[0.12em] text-accent">{stepIndicatorLabel}</p>
             {!isLandscape && <p className="mt-1 text-muted-high text-xs sm:text-sm">{stepIndicatorHint}</p>}
+            {isSmallScreen && (
+              <div className="mt-3 grid grid-cols-2 gap-2 sm:hidden text-[11px] uppercase tracking-[0.18em] text-secondary/70">
+                <div className="rounded-full border border-secondary/30 bg-surface/70 px-3 py-1.5 text-center font-semibold text-secondary/80">Step 1 · Spread</div>
+                <div className="rounded-full border border-secondary/30 bg-surface/70 px-3 py-1.5 text-center font-semibold text-secondary/80">Step 2 · Question</div>
+              </div>
+            )}
           </div>
 
           <div className={`max-w-5xl mx-auto ${isLandscape ? 'space-y-3' : 'space-y-6'}`}>
             <div aria-label="Choose your physical deck">
-              {!isSmallScreen ? (
+              {!isSmallScreen && (
                 <DeckSelector selectedDeck={deckStyleId} onDeckChange={handleDeckChange} />
-              ) : (
-                <div className="sm:hidden rounded-2xl border border-secondary/25 bg-surface/70 px-4 py-3 shadow-lg shadow-main/20 flex items-center justify-between gap-3">
-                  <div className="min-w-0">
-                    <p className="text-[11px] uppercase tracking-[0.2em] text-secondary/70">Deck</p>
-                    <p className="text-sm text-main truncate">
-                      {DECK_OPTIONS.find(d => d.id === deckStyleId)?.label || 'Deck selected'}
-                    </p>
-                    <p className="text-[12px] text-secondary/70 truncate">Tap change to pick another deck.</p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setIsMobileSettingsOpen(true)}
-                    className="flex-none rounded-xl border border-secondary/40 px-3 py-2 text-xs font-semibold text-secondary hover:bg-secondary/10 transition touch-manipulation"
-                  >
-                    Change
-                  </button>
-                </div>
               )}
             </div>
 
@@ -674,7 +666,7 @@ export default function TarotReading() {
                 >
                   <div className="flex items-center justify-between gap-2">
                     <div>
-                      <p className="text-xs uppercase tracking-[0.18em] text-secondary/80">Quick intention</p>
+                      <p className="text-xs uppercase tracking-[0.18em] text-secondary/80">Step 2 · Quick intention</p>
                       <p className="text-xs text-secondary/70">Add or edit your question before drawing.</p>
                     </div>
                     <button
@@ -705,6 +697,18 @@ export default function TarotReading() {
                       className="rounded-xl border border-secondary/40 px-3 py-2 text-xs font-semibold text-secondary hover:bg-secondary/10 transition touch-manipulation"
                     >
                       More
+                    </button>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2 text-[12px] text-secondary/80">
+                    <span className="inline-flex items-center gap-1 rounded-full border border-secondary/40 bg-surface px-2.5 py-1 font-semibold text-secondary/90">
+                      Deck: {DECK_OPTIONS.find(d => d.id === deckStyleId)?.label || 'Selected'}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setIsMobileSettingsOpen(true)}
+                      className="text-[12px] font-semibold text-secondary underline underline-offset-4"
+                    >
+                      Change
                     </button>
                   </div>
                   {selectedSpread && userQuestion.trim().length > 0 && (
@@ -747,7 +751,7 @@ export default function TarotReading() {
               />
             )}
 
-            {!isLandscape && (
+            {!isLandscape && !isSmallScreen && (
               <div className="flex justify-center pt-1">
                 <button
                   type="button"

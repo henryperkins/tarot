@@ -1,17 +1,14 @@
-import { useState, memo, useId } from 'react';
+import { memo, useEffect, useId, useRef, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkBreaks from 'remark-breaks';
-import { ShareNetwork, DownloadSimple, Trash, CaretDown, CaretUp, BookOpen, ClipboardText, Sparkle, CircleNotch } from '@phosphor-icons/react';
+import { ShareNetwork, DownloadSimple, Trash, CaretDown, CaretUp, BookOpen, ClipboardText, Sparkle, CircleNotch, DotsThreeVertical } from '@phosphor-icons/react';
 import { CardSymbolInsights } from './CardSymbolInsights';
 import { buildCardInsightPayload, exportJournalEntriesToCsv, copyJournalEntrySummary, copyJournalEntriesToClipboard, REVERSED_PATTERN, formatContextName } from '../lib/journalInsights';
 import { useSmallScreen } from '../hooks/useSmallScreen';
 import { InlineStatus } from './InlineStatus.jsx';
 import { useInlineStatus } from '../hooks/useInlineStatus';
 import { CupsIcon, WandsIcon, SwordsIcon, PentaclesIcon, MajorIcon } from './illustrations/SuitIcons';
-
-const ICON_BUTTON_CLASS = 'inline-flex items-center justify-center h-9 w-9 rounded-full border border-secondary/25 bg-surface/40 text-secondary/70 hover:border-secondary/50 hover:text-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/40 disabled:opacity-50 disabled:cursor-not-allowed active:bg-secondary/15';
-const ICON_BUTTON_DANGER_CLASS = 'inline-flex items-center justify-center h-9 w-9 rounded-full border border-error/25 bg-surface/40 text-error/80 hover:border-error/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-error/40 disabled:opacity-50 disabled:cursor-not-allowed active:bg-error/10';
 
 const CONTEXT_SUMMARIES = {
     love: 'Relationship lens — center relational reciprocity and communication.',
@@ -146,11 +143,42 @@ export const JournalEntryCard = memo(function JournalEntryCard({ entry, onCreate
   const [showNarrative, setShowNarrative] = useState(false);
   const [showCards, setShowCards] = useState(false); // Collapsed by default on mobile
   const [pendingAction, setPendingAction] = useState(null);
+  const [actionMenuOpen, setActionMenuOpen] = useState(false);
   const entryContentId = useId();
   const narrativeId = useId();
   const cardsId = useId();
   const isSmallScreen = useSmallScreen(640); // < sm breakpoint
   const { status: inlineStatus, showStatus, clearStatus } = useInlineStatus();
+  const actionMenuRef = useRef(null);
+  const actionMenuButtonRef = useRef(null);
+
+  useEffect(() => {
+    if (!actionMenuOpen) return;
+
+    const handlePointerDown = (event) => {
+      const menuEl = actionMenuRef.current;
+      const buttonEl = actionMenuButtonRef.current;
+      if (!menuEl || menuEl.contains(event.target)) return;
+      if (buttonEl && buttonEl.contains(event.target)) return;
+      setActionMenuOpen(false);
+    };
+
+    const handleKeyDown = (event) => {
+      if (event.key === 'Escape') {
+        setActionMenuOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handlePointerDown);
+    document.addEventListener('touchstart', handlePointerDown);
+    document.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      document.removeEventListener('mousedown', handlePointerDown);
+      document.removeEventListener('touchstart', handlePointerDown);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [actionMenuOpen]);
 
   const runAction = async (actionKey, task) => {
     setPendingAction(actionKey);
@@ -224,16 +252,29 @@ export const JournalEntryCard = memo(function JournalEntryCard({ entry, onCreate
     ? Object.entries(entry.reflections).filter(([, note]) => typeof note === 'string' && note.trim())
     : [];
   const hasReflections = reflections.length > 0;
-  const contextLabel = entry?.context ? formatContextName(entry.context) : '';
   const accentColor = CONTEXT_ACCENTS[entry?.context] || CONTEXT_ACCENTS.default;
-  const headerPadding = compact ? 'p-3.5 sm:p-4' : 'p-4';
-  const contentPadding = compact ? 'px-4 py-4 sm:p-5' : 'p-5';
-  const cardPreview = cards.slice(0, 3).map((card, index) => ({
-    key: `${card?.position || card?.name || 'card'}-${index}`,
-    name: card?.name || 'Card',
-    isReversed: REVERSED_PATTERN.test(card?.orientation || (card?.isReversed ? 'reversed' : '')),
-    icon: renderSuitIcon(card?.name, { className: 'w-3 h-3 text-secondary/60', 'aria-hidden': true })
-  }));
+  const accentChipBg = `${accentColor}1f`;
+  const accentChipBorder = `${accentColor}66`;
+  const collapsedHeaderPadding = compact ? 'px-3 py-2.5 sm:px-3.5 sm:py-3' : 'px-3.5 py-2.5';
+  const expandedHeaderPadding = compact ? 'px-4 py-4 sm:px-5 sm:py-4' : 'px-4 py-3.5 sm:px-5 sm:py-4';
+  const headerPadding = isExpanded ? expandedHeaderPadding : collapsedHeaderPadding;
+  const contentPadding = compact ? 'px-4 py-4 sm:p-5' : 'px-4 py-4 sm:p-5';
+  const actionMenuId = `${entry.id || entry.ts || 'entry'}-actions-menu`;
+  const actionMenuItems = [
+    { key: 'copy', label: 'Copy entry', icon: ClipboardText, onSelect: handleEntryCopy },
+    { key: 'share', label: 'Share reading', icon: ShareNetwork, onSelect: handleEntryShare },
+    { key: 'export', label: 'Export CSV', icon: DownloadSimple, onSelect: handleEntryExport }
+  ];
+
+  if (isAuthenticated && onDelete) {
+    actionMenuItems.push({
+      key: 'delete',
+      label: 'Delete entry',
+      icon: Trash,
+      onSelect: () => onDelete(entry.id),
+      tone: 'danger'
+    });
+  }
 
   return (
     <article
@@ -245,43 +286,51 @@ export const JournalEntryCard = memo(function JournalEntryCard({ entry, onCreate
     >
       <div className="absolute inset-y-0 left-0 w-1.5 bg-gradient-to-b from-transparent via-white/25 to-transparent pointer-events-none" aria-hidden="true" />
       <div className={`${headerPadding} ${isExpanded ? 'border-b border-white/5' : ''}`}>
-        <button
-          onClick={() => setIsExpanded(prev => !prev)}
-          aria-expanded={isExpanded}
-          aria-controls={entryContentId}
-          className="w-full text-left rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/50 -m-1 p-1"
-        >
-          <div className="flex items-start gap-3">
-            <span className="mt-0.5 flex h-8 w-8 items-center justify-center rounded-full bg-surface-muted/70 text-secondary/70 ring-1 ring-secondary/25">
+        <div className="flex items-start gap-2">
+          <button
+            type="button"
+            onClick={() => setIsExpanded(prev => !prev)}
+            aria-expanded={isExpanded}
+            aria-controls={entryContentId}
+            className="flex flex-1 items-start gap-3 rounded-xl px-1 py-0.5 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/50"
+          >
+            <span className="mt-0.5 flex h-7 w-7 items-center justify-center rounded-full bg-surface-muted/70 text-secondary/70 ring-1 ring-secondary/25">
               {isExpanded ? (
-                <CaretUp className="h-4 w-4" aria-hidden="true" />
+                <CaretUp className="h-3.5 w-3.5" aria-hidden="true" />
               ) : (
-                <CaretDown className="h-4 w-4" aria-hidden="true" />
+                <CaretDown className="h-3.5 w-3.5" aria-hidden="true" />
               )}
             </span>
 
             <div className="min-w-0 flex-1 space-y-1">
-              <div className="flex items-center gap-2 min-w-0">
-                <h3 className={`font-serif ${compact ? 'text-base' : 'text-lg'} text-main truncate`}>
+              <div className="flex items-center gap-2 min-w-0 flex-nowrap">
+                <h3 className={`font-serif ${compact ? 'text-base' : 'text-lg'} text-main flex-1 truncate`}>
                   {entry.spread || 'Tarot Reading'}
                 </h3>
-                {contextLabel && (
-                  <span className="inline-flex items-center rounded-full bg-surface/70 ring-1 ring-white/10 px-2 py-0.5 text-[10px] font-semibold text-secondary/80">
-                    {contextLabel}
+                {entry.context && (
+                  <span
+                    className="inline-flex flex-shrink-0 items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-semibold leading-tight"
+                    style={{
+                      color: accentColor,
+                      backgroundColor: accentChipBg,
+                      borderColor: accentChipBorder
+                    }}
+                  >
+                    {formatContextName(entry.context)}
                   </span>
                 )}
                 {hasReflections && (
-                  <span className="inline-flex items-center gap-1 rounded-full bg-accent/12 ring-1 ring-accent/30 px-2 py-0.5 text-[10px] font-semibold text-accent/90">
+                  <span className="inline-flex flex-shrink-0 items-center gap-1 rounded-full bg-accent/12 ring-1 ring-accent/30 px-2 py-0.5 text-[10px] font-semibold text-accent/90">
                     <Sparkle className="h-2.5 w-2.5" aria-hidden="true" />
                     {reflections.length}
                   </span>
                 )}
               </div>
 
-              <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-secondary/70">
-                <span>{formattedTimestamp}</span>
+              <div className="flex items-center gap-2 text-[11px] text-secondary/70 min-w-0">
+                <span className="truncate">{formattedTimestamp}</span>
                 {cards.length > 0 && (
-                  <span className="inline-flex items-center gap-1 rounded-full bg-surface-muted/60 px-2 py-0.5 text-[11px] text-secondary/70">
+                  <span className="inline-flex flex-shrink-0 items-center gap-1 rounded-full bg-surface-muted/60 px-2 py-0.5 text-[11px] text-secondary/70">
                     {cards.length} cards
                   </span>
                 )}
@@ -293,30 +342,65 @@ export const JournalEntryCard = memo(function JournalEntryCard({ entry, onCreate
                 </p>
               )}
             </div>
-          </div>
-        </button>
+          </button>
 
-        {!isExpanded && cardPreview.length > 0 && (
-          <div className="mt-3 flex flex-wrap items-center gap-1.5 sm:gap-2">
-            {cardPreview.map((card) => (
-              <span
-                key={card.key}
-                className="inline-flex items-center rounded-full border border-secondary/20 bg-surface-muted/80 px-2.5 py-1 text-[11px] font-medium text-main/80 shadow-sm gap-1.5"
+          <div className="relative flex-shrink-0 self-start">
+            <button
+              type="button"
+              ref={actionMenuButtonRef}
+              onClick={() => setActionMenuOpen((prev) => !prev)}
+              className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-secondary/25 bg-surface/40 text-secondary/70 hover:border-secondary/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/40"
+              aria-haspopup="menu"
+              aria-controls={actionMenuId}
+              aria-expanded={actionMenuOpen}
+              title="Entry actions"
+            >
+              <DotsThreeVertical className="h-4 w-4" aria-hidden="true" />
+              <span className="sr-only">Open entry actions</span>
+            </button>
+
+            {actionMenuOpen && (
+              <div
+                id={actionMenuId}
+                ref={actionMenuRef}
+                role="menu"
+                aria-label="Entry actions"
+                className="absolute right-0 top-full z-30 mt-2 w-56 rounded-2xl border border-secondary/20 bg-surface/95 p-1.5 shadow-2xl backdrop-blur"
               >
-                {card.icon}
-                <span className="truncate max-w-[8rem]">{card.name}</span>
-                {card.isReversed && (
-                  <span className="ml-1 inline-flex h-4 w-4 items-center justify-center rounded-full bg-error/10 text-[10px] text-error/90 ring-1 ring-error/20">
-                    <CaretDown className="h-3 w-3 rotate-180" aria-hidden="true" />
-                  </span>
-                )}
-              </span>
-            ))}
-            {cards.length > 3 && (
-              <span className="text-[11px] font-semibold text-secondary/60">+{cards.length - 3}</span>
+                {actionMenuItems.map((item) => {
+                  const IconComponent = item.icon;
+                  const isPending = pendingAction === item.key;
+                  return (
+                    <button
+                      key={item.key}
+                      type="button"
+                      role="menuitem"
+                      onClick={() => {
+                        setActionMenuOpen(false);
+                        item.onSelect();
+                      }}
+                      disabled={isPending}
+                      className={`flex w-full items-center justify-between rounded-xl px-3 py-2 text-left text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 disabled:opacity-60 disabled:cursor-not-allowed ${
+                        item.tone === 'danger'
+                          ? 'text-error hover:bg-error/10 focus-visible:ring-error/40'
+                          : 'text-main/80 hover:bg-secondary/10 focus-visible:ring-secondary/40'
+                      }`}
+                    >
+                      <span className="flex items-center gap-2">
+                        {isPending ? (
+                          <CircleNotch className="h-3.5 w-3.5 animate-spin text-secondary/70" aria-hidden="true" />
+                        ) : (
+                          <IconComponent className="h-4 w-4 text-secondary/70" aria-hidden="true" />
+                        )}
+                        {item.label}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
             )}
           </div>
-        )}
+        </div>
       </div>
 
       {/* Collapsible content */}
@@ -451,57 +535,10 @@ export const JournalEntryCard = memo(function JournalEntryCard({ entry, onCreate
         </div>
       )}
 
-      {/* Footer actions */}
-      <div className="border-t border-secondary/10 bg-surface/30 px-3.5 py-2.5 flex items-center justify-between">
-        <div className="hidden sm:block text-[11px] text-secondary/70">
-          {hasReflections ? `${reflections.length} reflection${reflections.length === 1 ? '' : 's'}` : formattedTimestamp}
-        </div>
-
-        <div className="flex items-center gap-1.5">
-          <button
-            onClick={handleEntryCopy}
-            className={ICON_BUTTON_CLASS}
-            aria-label="Copy reading details to clipboard"
-            title="Copy entry"
-            disabled={pendingAction === 'copy'}
-          >
-            {pendingAction === 'copy' ? <CircleNotch className="h-4 w-4 animate-spin" /> : <ClipboardText className="h-4 w-4" />}
-            <span className="sr-only">Copy entry</span>
-          </button>
-          <button
-            onClick={handleEntryShare}
-            className={ICON_BUTTON_CLASS}
-            aria-label="Share reading"
-            title="Share"
-            disabled={pendingAction === 'share'}
-          >
-            {pendingAction === 'share' ? <CircleNotch className="h-4 w-4 animate-spin" /> : <ShareNetwork className="h-4 w-4" />}
-            <span className="sr-only">Share</span>
-          </button>
-          <button
-            onClick={handleEntryExport}
-            className={ICON_BUTTON_CLASS}
-            aria-label="Export reading as CSV file"
-            title="Export CSV"
-            disabled={pendingAction === 'export'}
-          >
-            {pendingAction === 'export' ? <CircleNotch className="h-4 w-4 animate-spin" /> : <DownloadSimple className="h-4 w-4" />}
-            <span className="sr-only">Export CSV</span>
-          </button>
-          {isAuthenticated && onDelete && (
-            <button
-              onClick={() => onDelete(entry.id)}
-              className={ICON_BUTTON_DANGER_CLASS}
-              aria-label="Delete reading permanently"
-              title="Delete entry"
-            >
-              <Trash className="h-4 w-4" />
-              <span className="sr-only">Delete</span>
-            </button>
-          )}
-        </div>
+      <div className="border-t border-secondary/10 bg-surface/30 px-4 py-2 text-[11px] text-secondary/70">
+        {hasReflections ? `${reflections.length} reflection${reflections.length === 1 ? '' : 's'}` : formattedTimestamp}
       </div>
-      <div className="px-4 pb-3">
+      <div className="px-4 pb-3 pt-2">
         <InlineStatus tone={inlineStatus.tone} message={inlineStatus.message} />
       </div>
     </article>
