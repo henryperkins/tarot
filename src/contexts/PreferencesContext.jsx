@@ -2,7 +2,6 @@ import { createContext, useContext, useState, useEffect, useMemo } from 'react';
 import { MAJOR_ARCANA } from '../data/majorArcana';
 import { getDeckPool } from '../lib/deck';
 import { initAudio, cleanupAudio, stopTTS, toggleAmbience } from '../lib/audio';
-import { clearOnboardingVariant } from '../lib/onboardingVariant';
 
 const PreferencesContext = createContext(null);
 
@@ -103,7 +102,7 @@ export function PreferencesProvider({ children }) {
 
   // --- Audio: TTS Provider (azure, azure-sdk, or hume) ---
   const TTS_PROVIDER_OPTIONS = ['hume', 'azure', 'azure-sdk'];
-  const [ttsProvider, setTtsProvider] = useState(() => {
+  const [ttsProviderState, setTtsProviderState] = useState(() => {
     if (typeof localStorage !== 'undefined') {
       const saved = localStorage.getItem('tarot-tts-provider');
       return TTS_PROVIDER_OPTIONS.includes(saved) ? saved : 'hume'; // Default to Hume for expressive readings
@@ -111,16 +110,21 @@ export function PreferencesProvider({ children }) {
     return 'hume';
   });
 
+  // Wrapper setter that guards against invalid TTS provider values
+  const setTtsProvider = (value) => {
+    const safeValue = TTS_PROVIDER_OPTIONS.includes(value) ? value : 'hume';
+    setTtsProviderState(safeValue);
+  };
+
+  // Expose validated state value (alias for clarity)
+  const ttsProvider = ttsProviderState;
+
   // Persist TTS provider setting
   useEffect(() => {
     if (typeof localStorage !== 'undefined') {
-      const safeProvider = TTS_PROVIDER_OPTIONS.includes(ttsProvider) ? ttsProvider : 'hume';
-      localStorage.setItem('tarot-tts-provider', safeProvider);
-      if (safeProvider !== ttsProvider) {
-        setTtsProvider(safeProvider);
-      }
+      localStorage.setItem('tarot-tts-provider', ttsProviderState);
     }
-  }, [ttsProvider]);
+  }, [ttsProviderState]);
 
   // --- Audio: Ambience ---
   const [ambienceOn, setAmbienceOn] = useState(() => {
@@ -318,9 +322,9 @@ export function PreferencesProvider({ children }) {
   };
 
   const resetOnboarding = () => {
+    // Variant is memoized per wizard mount; reset here just clears progress/state.
     setOnboardingComplete(false);
     setOnboardingSpreadKey(null);
-    clearOnboardingVariant(); // Clear variant so user gets re-assigned (now defaults to trimmed)
   };
 
   // --- Nudge State (Contextual Discovery) ---

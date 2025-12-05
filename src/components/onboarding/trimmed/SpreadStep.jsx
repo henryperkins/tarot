@@ -45,15 +45,19 @@ export function SpreadStep({ selectedSpread, onSelectSpread, onNext, onBack }) {
   const [focusArea, setFocusArea] = useState(null);
 
   const handleContinue = () => {
-    const existing = Array.isArray(personalization?.focusAreas) ? personalization.focusAreas : [];
+    // Only update focus areas if user actively selected one during this step.
+    // Merge with existing areas to preserve prior personalization.
     if (focusArea) {
-      const lower = focusArea;
-      const merged = existing.includes(lower) ? existing : [...existing, lower];
-      setFocusAreas(merged);
-    } else {
-      // Preserve any existing focus areas instead of clearing
-      setFocusAreas(existing);
+      const existingAreas = Array.isArray(personalization?.focusAreas)
+        ? personalization.focusAreas
+        : [];
+      // Add new area if not already present, preserving existing selections
+      const mergedAreas = existingAreas.includes(focusArea)
+        ? existingAreas
+        : [...existingAreas, focusArea];
+      setFocusAreas(mergedAreas);
     }
+    // If no selection made, existing focus areas are preserved (no-op)
     onNext();
   };
 
