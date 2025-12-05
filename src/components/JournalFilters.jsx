@@ -148,20 +148,17 @@ function FilterDropdown({ label, options, value, onChange, multiple = false }) {
 }
 
 export function JournalFilters({ filters, onChange, contexts = [], spreads = [], decks = [] }) {
-  const [savedFilters, setSavedFilters] = useState([]);
-  const [newFilterName, setNewFilterName] = useState('');
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
+  const [savedFilters, setSavedFilters] = useState(() => {
+    if (typeof window === 'undefined') return [];
     try {
       const stored = JSON.parse(localStorage.getItem(SAVED_FILTERS_KEY) || '[]');
-      if (Array.isArray(stored)) {
-        setSavedFilters(stored);
-      }
+      return Array.isArray(stored) ? stored : [];
     } catch (error) {
       console.warn('Failed to load saved filters', error);
+      return [];
     }
-  }, []);
+  });
+  const [newFilterName, setNewFilterName] = useState('');
 
   const persistSavedFilters = (next) => {
     setSavedFilters(next);

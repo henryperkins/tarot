@@ -2384,3 +2384,56 @@ input[type="range"]:focus::-webkit-slider-thumb {
 .spread-selector-grid > * {
   scroll-snap-stop: always;
 }
+
+/* ===========================
+   Narrative Skeleton Styles
+   =========================== */
+
+.narrative-skeleton {
+  animation: skeleton-fade-in 0.3s ease-out;
+}
+
+@keyframes skeleton-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(0.5rem);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Shimmer animation for skeleton lines */
+@keyframes skeleton-shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.narrative-skeleton [class*="bg-gradient-to-r"] {
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 2s ease-in-out infinite;
+}
+
+/* Staggered bounce for dots */
+.narrative-skeleton [class*="animate-bounce"] {
+  animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Reduce motion: disable all skeleton animations */
+@media (prefers-reduced-motion: reduce) {
+  .narrative-skeleton,
+  .narrative-skeleton * {
+    animation: none !important;
+    transition: none !important;
+  }
+
+  .narrative-skeleton [class*="bg-gradient-to-r"] {
+    background: var(--brand-secondary);
+    opacity: 0.2;
+  }
+}

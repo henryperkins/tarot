@@ -229,9 +229,16 @@ function resolveThemeIcon(theme) {
 }
 
 /**
+ * Render the icon element for a given theme
+ */
+function renderThemeIcon(theme, props) {
+  const IconComponent = resolveThemeIcon(theme);
+  return <IconComponent {...props} />;
+}
+
+/**
  * Component that renders the icon for a given theme
  */
 export function ThemeIcon({ theme, ...props }) {
-  const Icon = resolveThemeIcon(theme);
-  return <Icon {...props} />;
+  return renderThemeIcon(theme, props);
 }

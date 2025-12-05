@@ -11,6 +11,7 @@ import { SpreadPatterns } from './SpreadPatterns';
 import { VisionValidationPanel } from './VisionValidationPanel';
 import { FeedbackPanel } from './FeedbackPanel';
 import { CardModal } from './CardModal';
+import { NarrativeSkeleton } from './NarrativeSkeleton';
 import { DeckPile } from './DeckPile';
 import { DeckRitual } from './DeckRitual';
 import { useReading } from '../contexts/ReadingContext';
@@ -293,12 +294,12 @@ export function ReadingDisplay({ sectionRef }) {
                         onCardClick={handleCardClick}
                     />
 
-                    {!personalReading && revealedCards.size === reading.length && (
+                    {!personalReading && !isGenerating && revealedCards.size === reading.length && (
                         <div className="text-center">
                             <Tooltip content={narrativeStyleTooltip} position="top" asChild enableClick={false}>
-                                <button onClick={generatePersonalReading} disabled={isGenerating} className="bg-accent hover:bg-accent/90 disabled:opacity-50 disabled:cursor-not-allowed text-surface font-semibold px-5 sm:px-8 py-3 sm:py-4 rounded-xl shadow-xl shadow-accent/20 transition-all flex items-center gap-2 sm:gap-3 mx-auto text-sm sm:text-base md:text-lg">
-                                    <Sparkle className={`w-4 h-4 sm:w-5 sm:h-5 ${isGenerating ? 'motion-safe:animate-pulse' : ''}`} />
-                                    {isGenerating ? <span className="text-sm sm:text-base">Weaving your personalized reflection from this spread...</span> : <span>Create Personal Narrative</span>}
+                                <button onClick={generatePersonalReading} className="bg-accent hover:bg-accent/90 text-surface font-semibold px-5 sm:px-8 py-3 sm:py-4 rounded-xl shadow-xl shadow-accent/20 transition-all flex items-center gap-2 sm:gap-3 mx-auto text-sm sm:text-base md:text-lg">
+                                    <Sparkle className="w-4 h-4 sm:w-5 sm:h-5" />
+                                    <span>Create Personal Narrative</span>
                                 </button>
                             </Tooltip>
                             {hasVisionData && !isVisionReady && <p className="mt-3 text-sm text-muted">⚠️ Vision data has conflicts - research telemetry may be incomplete.</p>}
@@ -306,6 +307,12 @@ export function ReadingDisplay({ sectionRef }) {
                         </div>
                     )}
 
+                    {/* Skeleton loading state during narrative generation */}
+                    {isGenerating && !personalReading && (
+                        <div className={`bg-surface/95 backdrop-blur-xl rounded-2xl border border-secondary/40 shadow-2xl shadow-secondary/40 max-w-full sm:max-w-5xl mx-auto ${isLandscape ? 'p-3' : 'px-3 xxs:px-4 py-4 xs:px-5 sm:p-6 md:p-8'}`}>
+                            <NarrativeSkeleton hasQuestion={Boolean(userQuestion)} />
+                        </div>
+                    )}
 
                     {personalReading && (
                         <div className={`bg-surface/95 backdrop-blur-xl rounded-2xl border border-secondary/40 shadow-2xl shadow-secondary/40 max-w-full sm:max-w-5xl mx-auto ${isLandscape ? 'p-3' : 'px-3 xxs:px-4 py-4 xs:px-5 sm:p-6 md:p-8'}`}>

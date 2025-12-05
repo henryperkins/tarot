@@ -14,7 +14,10 @@ export function useTarotState(speak) {
   const { includeMinors, deckSize, personalization } = usePreferences();
   const [selectedSpreadState, setSelectedSpreadState] = useState(DEFAULT_SPREAD_KEY);
   const [hasUserSelectedSpread, setHasUserSelectedSpread] = useState(false);
-  const selectedSpread = normalizeSpreadKey(selectedSpreadState);
+  const autoSelectedSpread = (!hasUserSelectedSpread && personalization?.preferredSpreadDepth)
+    ? getSpreadFromDepth(personalization.preferredSpreadDepth)
+    : null;
+  const selectedSpread = normalizeSpreadKey(autoSelectedSpread || selectedSpreadState);
   const setSelectedSpread = useCallback((nextKey) => {
     setSelectedSpreadState(normalizeSpreadKey(nextKey));
   }, []);
@@ -128,21 +131,6 @@ export function useTarotState(speak) {
       setUserQuestion('');
     }
   }, []);
-
-  // Track previous preferred depth to detect changes (use ref to avoid render-time state updates)
-  const prevPreferredDepthRef = useRef(undefined);
-
-  // Auto-select spread based on personalization (only when user hasn't manually selected).
-  // Must run in an effect to avoid calling state setters during render.
-  useEffect(() => {
-    if (!hasUserSelectedSpread &&
-        personalization?.preferredSpreadDepth &&
-        personalization?.preferredSpreadDepth !== prevPreferredDepthRef.current) {
-      prevPreferredDepthRef.current = personalization.preferredSpreadDepth;
-      const preferred = getSpreadFromDepth(personalization.preferredSpreadDepth);
-      setSelectedSpreadState(preferred);
-    }
-  }, [hasUserSelectedSpread, personalization?.preferredSpreadDepth]);
 
   const selectSpread = useCallback((key) => {
     setHasUserSelectedSpread(true);

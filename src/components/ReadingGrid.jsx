@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { getSpreadInfo } from '../data/spreads';
 import { getOrientationMeaning } from '../lib/cardLookup';
 import { Card } from './Card';
@@ -141,24 +141,28 @@ export function ReadingGrid({
   const rafIdRef = useRef(null);
   const [activeIndex, setActiveIndex] = useState(0);
   const [showSwipeHint, setShowSwipeHint] = useState(true);
-  const [mobileLayoutMode, setMobileLayoutMode] = useState('carousel');
-  // User's preferred layout mode (persists when switching between mobile/desktop)
   const [layoutPreference, setLayoutPreference] = useState('carousel');
   const isCompactScreen = useSmallScreen();
   const isVerySmallScreen = useSmallScreen(480);
   const prefersReducedMotion = useReducedMotion();
   const isLandscape = useLandscape();
+  const readingLength = reading?.length || 0;
+  const manyCards = readingLength > 4;
+  const mobileLayoutMode = useMemo(() => {
+    if (!isCompactScreen) return 'carousel';
+    if ((isVerySmallScreen || manyCards) && layoutPreference === 'carousel') {
+      return 'list';
+    }
+    return layoutPreference;
+  }, [isCompactScreen, isVerySmallScreen, manyCards, layoutPreference]);
   const isListView = mobileLayoutMode === 'list';
   const shouldUseGridOnMobile = Boolean(
     isCompactScreen &&
     !isListView &&
     selectedSpread !== 'celtic' &&
-    reading?.length &&
-    reading.length <= 3
+    readingLength &&
+    readingLength <= 3
   );
-
-  // Track previous isCompactScreen for render-time state adjustment
-  const [prevIsCompactScreen, setPrevIsCompactScreen] = useState(isCompactScreen);
 
   // In landscape mobile: use smaller card widths to fit more cards visible
   const carouselCardWidthClass = isLandscape
@@ -179,36 +183,9 @@ export function ReadingGrid({
     return () => clearTimeout(timer);
   }, [reading, isListView]);
 
-  // Sync mobile layout mode with screen size changes.
-  // This pattern (adjusting state during render) is React-recommended over useEffect
-  // for syncing state with prop/hook changes. See: https://react.dev/learn/you-might-not-need-an-effect
-  if (isCompactScreen !== prevIsCompactScreen) {
-    setPrevIsCompactScreen(isCompactScreen);
-    if (!isCompactScreen) {
-      // Desktop: always use carousel
-      if (mobileLayoutMode !== 'carousel') {
-        setMobileLayoutMode('carousel');
-      }
-    } else {
-      // Mobile: restore user's preferred layout
-      if (layoutPreference !== mobileLayoutMode) {
-        setMobileLayoutMode(layoutPreference);
-      }
-    }
-  }
-
-  useEffect(() => {
-    if (!isCompactScreen) return;
-    const manyCards = reading?.length > 4;
-    if ((isVerySmallScreen || manyCards) && layoutPreference === 'carousel' && mobileLayoutMode === 'carousel') {
-      setLayoutPreference('list');
-      setMobileLayoutMode('list');
-    }
-  }, [isCompactScreen, isVerySmallScreen, reading?.length, layoutPreference, mobileLayoutMode]);
-
   // Celtic Cross uses a fixed CSS grid layout that doesn't scroll horizontally,
   // so carousel navigation (swipe, dots, prev/next) should be disabled for it
-  const enableCarousel = reading?.length > 1 && !isListView && selectedSpread !== 'celtic' && !shouldUseGridOnMobile;
+  const enableCarousel = readingLength > 1 && !isListView && selectedSpread !== 'celtic' && !shouldUseGridOnMobile;
 
   // Hide hint when user scrolls
   const hideHintOnInteraction = useCallback(() => {
@@ -278,7 +255,7 @@ export function ReadingGrid({
         rafIdRef.current = null;
       }
     };
-  }, [enableCarousel, reading?.length, updateActiveIndex, hideHintOnInteraction]);
+  }, [enableCarousel, readingLength, updateActiveIndex, hideHintOnInteraction]);
 
   const scrollToIndex = useCallback((index) => {
     if (!enableCarousel || !reading) return;
@@ -303,13 +280,12 @@ export function ReadingGrid({
 
   const handleLayoutToggle = useCallback((mode) => {
     setLayoutPreference(mode);
-    setMobileLayoutMode(mode);
     if (mode === 'list') {
       setShowSwipeHint(false);
-    } else if (reading?.length > 1) {
+    } else if (readingLength > 1) {
       setShowSwipeHint(true);
     }
-  }, [reading?.length]);
+  }, [readingLength]);
 
   const getCardTakeaway = useCallback((card) => {
     const meaning = getOrientationMeaning(card);
