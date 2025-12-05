@@ -142,6 +142,7 @@ export function ReadingGrid({
   const [activeIndex, setActiveIndex] = useState(0);
   const [showSwipeHint, setShowSwipeHint] = useState(true);
   const [layoutPreference, setLayoutPreference] = useState('carousel');
+  const [openReflectionIndex, setOpenReflectionIndex] = useState(null);
   const isCompactScreen = useSmallScreen();
   const isVerySmallScreen = useSmallScreen(480);
   const prefersReducedMotion = useReducedMotion();
@@ -182,6 +183,20 @@ export function ReadingGrid({
 
     return () => clearTimeout(timer);
   }, [reading, isListView]);
+
+  // Keep only one mobile reflection open at a time; default to the first card with notes
+  useEffect(() => {
+    if (!Array.isArray(reading) || !isCompactScreen) return;
+
+    setOpenReflectionIndex(prev => {
+      if (prev !== null && reading[prev]) return prev;
+      const firstWithReflection = reading.findIndex((_, idx) => {
+        const val = reflections?.[idx];
+        return typeof val === 'string' && val.trim().length > 0;
+      });
+      return firstWithReflection >= 0 ? firstWithReflection : null;
+    });
+  }, [reading, reflections, isCompactScreen]);
 
   // Celtic Cross uses a fixed CSS grid layout that doesn't scroll horizontally,
   // so carousel navigation (swipe, dots, prev/next) should be disabled for it
@@ -360,6 +375,7 @@ export function ReadingGrid({
           const position = spreadInfo?.positions?.[index] || `Position ${index + 1}`;
           const isRevealed = revealedCards.has(index);
           const tooltipContent = getTooltipContent(card, position, isRevealed);
+          const reflectionPreview = (reflections?.[index] || '').trim();
 
           const cardElement = (
             <Card
@@ -371,6 +387,8 @@ export function ReadingGrid({
               reflections={reflections}
               setReflections={setReflections}
               onCardClick={onCardClick}
+              openReflectionIndex={openReflectionIndex}
+              onRequestOpenReflection={setOpenReflectionIndex}
               staggerDelay={isBatchReveal ? index * 0.15 : 0}
             />
           );
@@ -393,6 +411,11 @@ export function ReadingGrid({
               >
                 {cardElement}
               </Tooltip>
+              {isCompactScreen && reflectionPreview && (
+                <p className="mt-2 text-[11px] text-secondary/80 truncate">
+                  Notes: {reflectionPreview}
+                </p>
+              )}
             </div>
           );
         })}

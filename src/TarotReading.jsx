@@ -130,6 +130,8 @@ export default function TarotReading() {
   const spreadSectionRef = useRef(null);
   const prepareSectionRef = useRef(null);
   const readingSectionRef = useRef(null);
+  const quickIntentionCardRef = useRef(null);
+  const quickIntentionInputRef = useRef(null);
   const hasAutoCompletedRef = useRef(false);
   const pendingFocusSpreadRef = useRef(false);
 
@@ -275,6 +277,20 @@ export default function TarotReading() {
     setVisionConflicts([]);
     resetVisionProof();
   }, [setDeckStyleId, setVisionResults, setVisionConflicts, resetVisionProof]);
+
+  const scrollQuickIntentionIntoView = useCallback(() => {
+    if (!isSmallScreen) return;
+    const target = quickIntentionCardRef.current || quickIntentionInputRef.current;
+    if (!target) return;
+
+    window.requestAnimationFrame(() => {
+      try {
+        target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      } catch {
+        // Silently ignore scroll failures (e.g., Safari quirks)
+      }
+    });
+  }, [isSmallScreen]);
 
   const handleSpreadSelection = useCallback((key) => {
     // Use the centralized selectSpread from useTarotState
@@ -652,7 +668,10 @@ export default function TarotReading() {
             {/* Mobile quick intention entry keeps the question visible without opening the drawer */}
             {isSmallScreen && (
               <div className="sm:hidden">
-                <div className="rounded-2xl border border-secondary/30 bg-surface/70 px-4 py-3 shadow-lg shadow-main/20 flex flex-col gap-3">
+                <div
+                  ref={quickIntentionCardRef}
+                  className="rounded-2xl border border-secondary/30 bg-surface/70 px-4 py-3 shadow-lg shadow-main/20 flex flex-col gap-3"
+                >
                   <div className="flex items-center justify-between gap-2">
                     <div>
                       <p className="text-xs uppercase tracking-[0.18em] text-secondary/80">Quick intention</p>
@@ -672,9 +691,11 @@ export default function TarotReading() {
                   </div>
                   <div className="flex items-center gap-2">
                     <input
+                      ref={quickIntentionInputRef}
                       type="text"
                       value={userQuestion}
                       onChange={(event) => setUserQuestion(event.target.value)}
+                      onFocus={scrollQuickIntentionIntoView}
                       placeholder={EXAMPLE_QUESTIONS[placeholderIndex]}
                       className="flex-1 rounded-xl border border-secondary/30 bg-surface px-3 py-2 text-base text-main placeholder:text-secondary/50 focus:border-secondary focus:outline-none focus:ring-1 focus:ring-secondary/50"
                     />
@@ -686,6 +707,11 @@ export default function TarotReading() {
                       More
                     </button>
                   </div>
+                  {selectedSpread && userQuestion.trim().length > 0 && (
+                    <p className="text-[12px] text-secondary/80">
+                      Next: tap <span className="font-semibold text-main">Draw cards</span> below when you&apos;re ready.
+                    </p>
+                  )}
                 </div>
               </div>
             )}

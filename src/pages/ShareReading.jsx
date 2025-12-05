@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { SharedSpreadView } from '../components/share/SharedSpreadView.jsx';
 import { CollaborativeNotesPanel } from '../components/share/CollaborativeNotesPanel.jsx';
@@ -41,6 +41,24 @@ export default function ShareReading() {
   const [copyState, setCopyState] = useState('');
   const [lastSyncedAt, setLastSyncedAt] = useState(null);
   const [mobileView, setMobileView] = useState('spread'); // 'spread' | 'notes'
+  const notesPanelRef = useRef(null);
+
+  const scrollToNotesForm = useCallback(() => {
+    setMobileView('notes');
+    window.requestAnimationFrame(() => {
+      const panel = notesPanelRef.current;
+      if (!panel) return;
+      try {
+        panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      } catch {
+        // no-op: scrollIntoView may fail on some older browsers
+      }
+      const focusTarget = panel.querySelector('textarea, input');
+      if (focusTarget && typeof focusTarget.focus === 'function') {
+        focusTarget.focus({ preventScroll: true });
+      }
+    });
+  }, []);
 
   const fetchShare = useCallback(async () => {
     if (!token) return;
@@ -252,8 +270,13 @@ export default function ShareReading() {
         </div>
 
         {/* Mobile view toggle - only visible below lg breakpoint */}
-        <div className="mt-6 lg:hidden" role="tablist" aria-label="View selection">
-          <div className="flex rounded-xl bg-surface-muted/60 p-1 border border-secondary/20">
+        <div
+          className="mt-6 lg:hidden sticky top-2 z-20"
+          style={{ top: 'calc(env(safe-area-inset-top, 0px) + 0.75rem)' }}
+          role="tablist"
+          aria-label="View selection"
+        >
+          <div className="flex rounded-xl bg-surface-muted/80 backdrop-blur p-1 border border-secondary/20 shadow-sm shadow-secondary/20">
             <button
               type="button"
               role="tab"
@@ -337,6 +360,7 @@ export default function ShareReading() {
             role="tabpanel"
             aria-labelledby="mobile-notes-tab"
             hidden={mobileView !== 'notes'}
+            ref={notesPanelRef}
           >
             {mobileView === 'notes' && (
               <CollaborativeNotesPanel
@@ -353,6 +377,22 @@ export default function ShareReading() {
             )}
           </div>
         </div>
+
+        {/* Mobile: bottom CTA to jump to note form */}
+        {mobileView === 'notes' && (
+          <div
+            className="lg:hidden fixed right-4 z-30"
+            style={{ bottom: 'calc(env(safe-area-inset-bottom, 0px) + 1rem)' }}
+          >
+            <button
+              type="button"
+              onClick={scrollToNotesForm}
+              className="inline-flex items-center gap-2 rounded-full bg-primary text-surface px-4 py-2.5 shadow-lg shadow-primary/30 border border-primary/70 text-sm font-semibold touch-manipulation"
+            >
+              Add note
+            </button>
+          </div>
+        )}
 
         {/* Desktop: side-by-side grid layout */}
         <div className="mt-8 hidden lg:grid lg:grid-cols-[2fr,1fr] gap-6">

@@ -24,6 +24,8 @@ export function Card({
   reflections,
   setReflections,
   onCardClick,
+  openReflectionIndex,
+  onRequestOpenReflection,
   staggerDelay = 0
 }) {
   const reflectionValue = reflections?.[index] ?? '';
@@ -36,6 +38,18 @@ export function Card({
 
   // Mobile: collapsible reflection section (starts collapsed unless has content)
   const [showReflection, setShowReflection] = useState(() => Boolean(reflectionValue));
+
+  // Sync reflection visibility with parent coordinator so only one stays open on mobile
+  useEffect(() => {
+    if (!isSmallScreen) return;
+    if (openReflectionIndex === null) return;
+    if (openReflectionIndex === index) {
+      setShowReflection(true);
+      setTimeout(() => textareaRef.current?.focus(), 50);
+    } else {
+      setShowReflection(false);
+    }
+  }, [openReflectionIndex, index, isSmallScreen]);
 
   // Local state to manage the visual reveal sequence
   const [isVisuallyRevealed, setIsVisuallyRevealed] = useState(isRevealed);
@@ -417,6 +431,7 @@ export function Card({
                     type="button"
                     onClick={() => {
                       setShowReflection(true);
+                      onRequestOpenReflection?.(index);
                       // Focus textarea after state update
                       setTimeout(() => textareaRef.current?.focus(), 50);
                     }}
@@ -438,7 +453,12 @@ export function Card({
                     {isSmallScreen && (
                       <button
                         type="button"
-                        onClick={() => setShowReflection(false)}
+                        onClick={() => {
+                          setShowReflection(false);
+                          if (onRequestOpenReflection && openReflectionIndex === index) {
+                            onRequestOpenReflection(null);
+                          }
+                        }}
                         className="w-full flex items-center justify-between mb-1.5 text-muted hover:text-main transition-colors"
                         aria-expanded="true"
                         aria-controls={`reflection-${index}`}

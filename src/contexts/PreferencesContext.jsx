@@ -90,11 +90,12 @@ export function PreferencesProvider({ children }) {
     }
   }, [autoNarrate]);
 
-  // --- Audio: TTS Provider (azure or hume) ---
+  // --- Audio: TTS Provider (azure, azure-sdk, or hume) ---
+  const TTS_PROVIDER_OPTIONS = ['hume', 'azure', 'azure-sdk'];
   const [ttsProvider, setTtsProvider] = useState(() => {
     if (typeof localStorage !== 'undefined') {
       const saved = localStorage.getItem('tarot-tts-provider');
-      return saved || 'hume'; // Default to Hume for expressive readings
+      return TTS_PROVIDER_OPTIONS.includes(saved) ? saved : 'hume'; // Default to Hume for expressive readings
     }
     return 'hume';
   });
@@ -102,7 +103,11 @@ export function PreferencesProvider({ children }) {
   // Persist TTS provider setting
   useEffect(() => {
     if (typeof localStorage !== 'undefined') {
-      localStorage.setItem('tarot-tts-provider', ttsProvider);
+      const safeProvider = TTS_PROVIDER_OPTIONS.includes(ttsProvider) ? ttsProvider : 'hume';
+      localStorage.setItem('tarot-tts-provider', safeProvider);
+      if (safeProvider !== ttsProvider) {
+        setTtsProvider(safeProvider);
+      }
     }
   }, [ttsProvider]);
 

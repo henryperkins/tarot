@@ -9,6 +9,9 @@ AZURE_OPENAI_TTS_API_KEY="sk-your-tts-key"
 AZURE_OPENAI_GPT_AUDIO_MINI_DEPLOYMENT="gpt-4o-mini-tts"
 AZURE_OPENAI_GPT_AUDIO_MINI_FORMAT="mp3"
 AZURE_OPENAI_USE_V1_FORMAT="true"
+AZURE_SPEECH_KEY="sk-your-speech-key"
+AZURE_SPEECH_REGION="eastus2"
+ENABLE_SPEECH_TOKEN_DEBUG="false"
 
 VISION_PROOF_SECRET="replace-me"
 ANTHROPIC_API_KEY="sk-ant-your-key" # Required for Claude fallbacks

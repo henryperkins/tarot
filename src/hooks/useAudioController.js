@@ -13,6 +13,12 @@ import {
   stopHumeAudio,
   resetGenerationId
 } from '../lib/audioHume';
+import {
+  initSpeechSDK,
+  isSpeechSDKReady,
+  synthesizeWithSDK,
+  cleanup as cleanupSpeechSDK
+} from '../lib/audioSpeechSDK';
 import { usePreferences } from '../contexts/PreferencesContext';
 
 export function useAudioController() {
@@ -25,6 +31,34 @@ export function useAudioController() {
   // Track Hume audio state separately
   const humeAudioRef = useRef(null);
   const [humeState, setHumeState] = useState({ status: 'idle', error: null });
+
+  // Track Speech SDK state separately
+  const sdkAudioRef = useRef(null);
+  const sdkObjectUrlRef = useRef(null);
+  const [sdkState, setSdkState] = useState({ status: 'idle', error: null });
+  const [wordBoundary, setWordBoundary] = useState(null);
+  const sdkInitializedRef = useRef(false);
+
+  const releaseSdkAudio = useCallback(() => {
+    if (sdkAudioRef.current) {
+      try {
+        sdkAudioRef.current.pause();
+        sdkAudioRef.current.currentTime = 0;
+        sdkAudioRef.current.src = '';
+      } catch {
+        // ignore pause errors
+      }
+      sdkAudioRef.current = null;
+    }
+    if (sdkObjectUrlRef.current && typeof URL !== 'undefined') {
+      try {
+        URL.revokeObjectURL(sdkObjectUrlRef.current);
+      } catch {
+        // ignore revoke errors
+      }
+      sdkObjectUrlRef.current = null;
+    }
+  }, []);
 
   // Subscribe to TTS state changes
   useEffect(() => {
@@ -65,6 +99,38 @@ export function useAudioController() {
     return unsubscribe;
   }, []);
 
+  // Initialize Speech SDK when needed
+  useEffect(() => {
+    let cancelled = false;
+
+    if (ttsProvider === 'azure-sdk' && voiceOn && !sdkInitializedRef.current) {
+      initSpeechSDK({ voice: 'verse', enableSentenceBoundary: true })
+        .then(success => {
+          if (!cancelled && success) {
+            sdkInitializedRef.current = true;
+            console.log('[AudioController] Speech SDK initialized');
+          }
+        })
+        .catch(err => {
+          if (!cancelled) {
+            console.warn('[AudioController] Speech SDK init failed:', err);
+            setSdkState({ status: 'error', error: err?.message || 'Speech SDK unavailable' });
+          }
+        });
+    }
+
+    return () => {
+      cancelled = true;
+      if (ttsProvider === 'azure-sdk') {
+        releaseSdkAudio();
+        setSdkState({ status: 'idle', error: null });
+        setWordBoundary(null);
+        sdkInitializedRef.current = false;
+        void cleanupSpeechSDK();
+      }
+    };
+  }, [ttsProvider, voiceOn, releaseSdkAudio]);
+
   // Stop TTS when voice is toggled off
   useEffect(() => {
     if (!voiceOn) {
@@ -73,8 +139,15 @@ export function useAudioController() {
       setTimeout(() => {
         setHumeState({ status: 'idle', error: null });
       }, 0);
+      releaseSdkAudio();
+      setSdkState({ status: 'idle', error: null });
+      setWordBoundary(null);
+      if (sdkInitializedRef.current) {
+        sdkInitializedRef.current = false;
+        void cleanupSpeechSDK();
+      }
     }
-  }, [voiceOn]);
+  }, [voiceOn, releaseSdkAudio]);
 
   // Hume TTS speak function with emotion support
   const speakWithHumeProvider = useCallback(async (text, context = 'default', emotion = null) => {
@@ -135,15 +208,126 @@ export function useAudioController() {
     });
   }, [voiceOn]);
 
+  // Azure Speech SDK with word-boundary events
+  const speakWithSpeechSDK = useCallback(async (text, context = 'default') => {
+    if (!text || !voiceOn) return;
+
+    try {
+      if (!isSpeechSDKReady()) {
+        const success = await initSpeechSDK({ voice: 'verse', enableSentenceBoundary: true });
+        if (!success) {
+          throw new Error('Failed to initialize Speech SDK');
+        }
+        sdkInitializedRef.current = true;
+      }
+
+      releaseSdkAudio();
+      setSdkState({ status: 'loading', error: null });
+      setTtsAnnouncement('Preparing narration with word tracking...');
+      setWordBoundary(null);
+
+      const wordTimings = [];
+
+      const result = await synthesizeWithSDK(text, {
+        voice: 'verse',
+        context,
+        speed: 0.95,
+        enableViseme: false,
+        onStart: () => {
+          setSdkState({ status: 'synthesizing', error: null });
+        },
+        onWordBoundary: (event) => {
+          wordTimings.push(event);
+          if (event.boundaryType === 'word') {
+            setWordBoundary(event);
+          }
+        },
+        onComplete: () => {
+          setSdkState({ status: 'ready', error: null });
+        },
+        onError: (err) => {
+          console.error('[SpeechSDK] Synthesis error:', err);
+          setSdkState({ status: 'error', error: err?.errorDetails || err?.reason || 'Synthesis failed' });
+          setTtsAnnouncement('Narration unavailable.');
+        }
+      });
+
+      const audio = new Audio(result.audioUrl);
+      sdkAudioRef.current = audio;
+      sdkObjectUrlRef.current = result.audioUrl;
+
+      audio.ontimeupdate = () => {
+        const currentMs = audio.currentTime * 1000;
+        const currentWord = wordTimings.find((w, index) => {
+          const next = wordTimings[index + 1];
+          return currentMs >= w.audioOffsetMs && (!next || currentMs < next.audioOffsetMs);
+        });
+        if (currentWord && currentWord.boundaryType === 'word') {
+          setWordBoundary(currentWord);
+        }
+      };
+
+      audio.onplay = () => {
+        setSdkState({ status: 'playing', error: null });
+        setTtsAnnouncement('Playing narration with word highlighting.');
+      };
+
+      audio.onpause = () => {
+        if (!audio.ended) {
+          setSdkState({ status: 'paused', error: null });
+          setTtsAnnouncement('Narration paused.');
+        }
+      };
+
+      audio.onended = () => {
+        releaseSdkAudio();
+        setSdkState({ status: 'completed', error: null });
+        setWordBoundary(null);
+        setTtsAnnouncement('Narration finished.');
+      };
+
+      audio.onerror = () => {
+        releaseSdkAudio();
+        setSdkState({ status: 'error', error: 'Audio playback failed' });
+        setWordBoundary(null);
+        setTtsAnnouncement('Narration unavailable.');
+      };
+
+      await audio.play();
+    } catch (error) {
+      releaseSdkAudio();
+      setWordBoundary(null);
+
+      const autoplayError = error?.name === 'NotAllowedError' ||
+        error?.message?.toLowerCase?.().includes('user interaction') ||
+        error?.message?.toLowerCase?.().includes('autoplay');
+
+      setSdkState({
+        status: 'error',
+        error: error?.message || 'Failed to generate speech'
+      });
+      setTtsAnnouncement(
+        autoplayError
+          ? 'Tap anywhere on the page to enable audio, then try again.'
+          : 'Narration unavailable.'
+      );
+
+      console.log('[AudioController] Falling back to Azure REST API');
+      await speakWithAzure(text, context);
+    }
+  }, [voiceOn, releaseSdkAudio, speakWithAzure]);
+
   // Unified speak function that routes to appropriate provider
   const speak = useCallback(async (text, context = 'default', emotion = null) => {
     if (ttsProvider === 'hume') {
       await speakWithHumeProvider(text, context, emotion);
+    } else if (ttsProvider === 'azure-sdk') {
+      await speakWithSpeechSDK(text, context);
     } else {
       // Azure TTS doesn't support emotion parameter
       await speakWithAzure(text, context);
     }
-  }, [ttsProvider, speakWithHumeProvider, speakWithAzure]);
+  }, [ttsProvider, speakWithHumeProvider, speakWithSpeechSDK, speakWithAzure]);
 
   const handleNarrationButtonClick = useCallback(async (fullReadingText, isPersonalReadingError, emotion = null) => {
     if (!voiceOn) {
@@ -154,13 +338,18 @@ export function useAudioController() {
     if (!isNarrationAvailable || isPersonalReadingError) return;
 
     // Determine current state based on provider
-    const currentState = ttsProvider === 'hume' ? humeState : ttsState;
-    const isLoading = currentState.status === 'loading';
-    
-    // Check if either provider is playing to prevent race conditions or overlap
+    const currentState = ttsProvider === 'hume'
+      ? humeState
+      : ttsProvider === 'azure-sdk'
+        ? sdkState
+        : ttsState;
+    const isLoading = currentState.status === 'loading' || currentState.status === 'synthesizing';
+
+    // Check if any provider is playing to prevent overlap
     const isHumePlaying = humeState.status === 'playing';
     const isAzurePlaying = ttsState.status === 'playing';
-    const isPlaying = isHumePlaying || isAzurePlaying;
+    const isSdkPlaying = sdkState.status === 'playing';
+    const isPlaying = isHumePlaying || isAzurePlaying || isSdkPlaying;
     const isPaused = currentState.status === 'paused';
 
     if (isLoading && !isPaused && !isPlaying) return;
@@ -171,7 +360,13 @@ export function useAudioController() {
         setHumeState({ status: 'paused', error: null });
         setTtsAnnouncement('Narration paused.');
       }
-      
+
+      if (isSdkPlaying && sdkAudioRef.current) {
+        sdkAudioRef.current.pause();
+        setSdkState({ status: 'paused', error: null });
+        setTtsAnnouncement('Narration paused.');
+      }
+
       if (isAzurePlaying) {
         pauseTTS();
       }
@@ -188,6 +383,10 @@ export function useAudioController() {
         humeAudioRef.current.audio.play();
         setHumeState({ status: 'playing', error: null });
         setTtsAnnouncement('Resuming narration...');
+      } else if (ttsProvider === 'azure-sdk' && sdkAudioRef.current) {
+        void sdkAudioRef.current.play();
+        setSdkState({ status: 'playing', error: null });
+        setTtsAnnouncement('Resuming narration...');
       } else {
         void resumeTTS();
       }
@@ -200,7 +399,7 @@ export function useAudioController() {
     }
 
     void speak(fullReadingText, 'full-reading', emotion);
-  }, [voiceOn, ttsState, humeState, ttsProvider, speak]);
+  }, [voiceOn, ttsState, humeState, sdkState, ttsProvider, speak]);
 
   const handleNarrationStop = useCallback(() => {
     // Always attempt to stop both providers to prevent orphaned audio
@@ -209,11 +408,15 @@ export function useAudioController() {
       humeAudioRef.current = null;
     }
     setHumeState({ status: 'stopped', error: null });
-    setTtsAnnouncement('Narration stopped.');
     resetGenerationId(); // Reset for next reading
-    
+
+    releaseSdkAudio();
+    setSdkState({ status: 'stopped', error: null });
+    setWordBoundary(null);
+
     stopTTS();
-  }, []);
+    setTtsAnnouncement('Narration stopped.');
+  }, [releaseSdkAudio]);
 
   const handleVoicePromptEnable = useCallback(async (fullReadingText, emotion) => {
     setVoiceOn(true);
@@ -231,7 +434,14 @@ export function useAudioController() {
   }, []);
 
   // Expose the correct TTS state based on current provider
-  const effectiveTtsState = ttsProvider === 'hume' ? humeState : ttsState;
+  let effectiveTtsState;
+  if (ttsProvider === 'hume') {
+    effectiveTtsState = humeState;
+  } else if (ttsProvider === 'azure-sdk') {
+    effectiveTtsState = sdkState;
+  } else {
+    effectiveTtsState = ttsState;
+  }
 
   return {
     ttsState: effectiveTtsState,
@@ -242,6 +452,7 @@ export function useAudioController() {
     handleNarrationButtonClick,
     handleNarrationStop,
     handleVoicePromptEnable,
-    ttsProvider
+    ttsProvider,
+    wordBoundary
   };
 }
