@@ -38,17 +38,21 @@ const FOCUS_AREAS = ['Love', 'Career', 'Growth', 'Decision'];
  * Target completion: 15-25 seconds.
  */
 export function SpreadStep({ selectedSpread, onSelectSpread, onNext, onBack }) {
-  const { setFocusAreas } = usePreferences();
+  const { setFocusAreas, personalization } = usePreferences();
   const prefersReducedMotion = useReducedMotion();
   const isLandscape = useLandscape();
 
   const [focusArea, setFocusArea] = useState(null);
 
   const handleContinue = () => {
+    const existing = Array.isArray(personalization?.focusAreas) ? personalization.focusAreas : [];
     if (focusArea) {
-      setFocusAreas([focusArea]);
+      const lower = focusArea;
+      const merged = existing.includes(lower) ? existing : [...existing, lower];
+      setFocusAreas(merged);
     } else {
-      setFocusAreas([]);
+      // Preserve any existing focus areas instead of clearing
+      setFocusAreas(existing);
     }
     onNext();
   };

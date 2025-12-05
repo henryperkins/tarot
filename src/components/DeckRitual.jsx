@@ -5,15 +5,9 @@ import { Sparkle, Scissors, ArrowsClockwise, HandTap } from '@phosphor-icons/rea
 import { useSmallScreen } from '../hooks/useSmallScreen';
 import { useReducedMotion } from '../hooks/useReducedMotion';
 import { useLandscape } from '../hooks/useLandscape';
+import { useHaptic } from '../hooks/useHaptic';
 
 const CARD_STACK_COUNT = 7; // Visual stack layers
-
-// Haptic feedback helper
-const vibrate = (pattern) => {
-  if (typeof navigator !== 'undefined' && navigator.vibrate) {
-    navigator.vibrate(pattern);
-  }
-};
 
 /**
  * Unified deck + ritual interface combining DeckPile and RitualControls
@@ -44,6 +38,7 @@ export function DeckRitual({
   const isSmallScreen = useSmallScreen();
   const prefersReducedMotion = useReducedMotion();
   const isLandscape = useLandscape();
+  const { vibrate } = useHaptic();
   const deckControls = useAnimation();
   const [showCutSlider, setShowCutSlider] = useState(false);
   const [localCutIndex, setLocalCutIndex] = useState(cutIndex);
@@ -94,7 +89,7 @@ export function DeckRitual({
         });
       }
     }
-  }, [knockCount, onKnock, onShuffle, showCutSlider, prefersReducedMotion, deckControls]);
+  }, [knockCount, onKnock, onShuffle, showCutSlider, prefersReducedMotion, deckControls, vibrate]);
 
   // Long-press to reveal cut slider (disabled once cut is done to reduce accidental opens)
   const longPressTimerRef = useRef(null);
@@ -104,7 +99,7 @@ export function DeckRitual({
       setShowCutSlider(true);
       vibrate([30]);
     }, 420);
-  }, [hasCut]);
+  }, [hasCut, vibrate]);
 
   const handleTouchEnd = useCallback(() => {
     if (longPressTimerRef.current) {
@@ -128,7 +123,7 @@ export function DeckRitual({
     if (cardsRemaining <= 0 || isShuffling) return;
     vibrate(10);
     onDeal?.();
-  }, [cardsRemaining, isShuffling, onDeal]);
+  }, [cardsRemaining, isShuffling, onDeal, vibrate]);
 
   // Handle local cut slider change
   const handleCutSliderChange = useCallback((e) => {
@@ -142,7 +137,7 @@ export function DeckRitual({
     onCutConfirm?.();
     setShowCutSlider(false);
     vibrate([20, 30, 20]);
-  }, [onCutConfirm]);
+  }, [onCutConfirm, vibrate]);
 
   return (
     <div className={`deck-ritual-container relative ${isLandscape ? 'py-3' : 'py-4 xs:py-5 sm:py-8'}`}>

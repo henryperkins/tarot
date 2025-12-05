@@ -11,7 +11,7 @@ Based on the codebase patterns, here's a comprehensive implementation plan for i
 | Phase 1: Landscape-Safe Layouts | ✅ Mostly Complete | WelcomeHero PRINCIPLES array implemented; TarotReading QuickIntentionCard extracted |
 | Phase 2: Gesture-Enabled Modals | ✅ Complete | [`useSwipeDismiss.js`](../src/hooks/useSwipeDismiss.js), [`useSwipeNavigation.js`](../src/hooks/useSwipeNavigation.js) implemented |
 | Phase 3: Haptic Hooks | ❌ Not Started | Centralized `useHaptic` hook not created; DeckRitual still uses inline vibrate |
-| Phase 4: Responsive Spread Art | ❌ Not Started | Build script and ResponsiveSpreadArt component not implemented |
+| Phase 4: Responsive Spread Art | ✅ Complete | [`ResponsiveSpreadArt.jsx`](../src/components/ResponsiveSpreadArt.jsx) created; responsive variants (AVIF/WebP at 640/1280px) in `selectorimages/`; [`SpreadSelector.jsx`](../src/components/SpreadSelector.jsx) updated with srcset sources |
 
 ### Implementation Gaps
 - **GuidedIntentionCoach landscape height**: Doc specifies `max-h-[85vh]` but actual implementation uses `max-h-[98vh]` in landscape mode ([`GuidedIntentionCoach.jsx:1195`](../src/components/GuidedIntentionCoach.jsx:1195))
@@ -372,13 +372,20 @@ const handleReflectionBlur = useCallback(() => {
 
 ## Phase 4: Responsive Spread Art (Week 4)
 
-> ❌ **NOT STARTED:** This phase has not been implemented. No build script or ResponsiveSpreadArt component exists.
+> ✅ **COMPLETE:** Responsive images generated and integrated via `<picture>` element with AVIF/WebP srcset.
 
-**Current state:** Spread artwork in [`SpreadSelector.jsx`](../src/components/SpreadSelector.jsx) uses 4096×4096px images directly—massive for mobile [^11].
+**Implementation Details:**
+- Responsive variants exist in `selectorimages/`: `{spread}-640.avif`, `{spread}-640.webp`, `{spread}-1280.avif`, `{spread}-1280.webp`
+- [`SpreadSelector.jsx:12-46`](../src/components/SpreadSelector.jsx:12) imports all 30 responsive variants
+- [`SpreadSelector.jsx:110-212`](../src/components/SpreadSelector.jsx:110) `SPREAD_ART_OVERRIDES` includes `sources` object with format/width info
+- [`SpreadPatternThumbnail.jsx:17-44`](../src/components/SpreadPatternThumbnail.jsx:17) parses sources and uses `ResponsiveSpreadArt`
+- [`ResponsiveSpreadArt.jsx`](../src/components/ResponsiveSpreadArt.jsx) renders `<picture>` with `<source>` elements for each format
 
-### Priority 4.1: Generate Responsive Variants (TODO)
+**Previous state:** Spread artwork used 4096×4096px images directly [^11].
 
-**Build script:**
+### Priority 4.1: Generate Responsive Variants ✅
+
+**Build script (reference implementation):**
 
 ```javascript
 // scripts/generate-responsive-images.js
@@ -412,9 +419,9 @@ async function generateVariants() {
 }
 ```
 
-### Priority 4.2: Responsive Image Component
+### Priority 4.2: Responsive Image Component ✅
 
-**Implementation:**
+**Actual implementation:** [`ResponsiveSpreadArt.jsx`](../src/components/ResponsiveSpreadArt.jsx)
 
 ```jsx
 // components/ResponsiveSpreadArt.jsx
@@ -460,9 +467,11 @@ export function ResponsiveSpreadArt({
 }
 ```
 
-### Priority 4.3: Update SpreadSelector
+### Priority 4.3: Update SpreadSelector ✅
 
-**Implementation:**
+**Actual implementation:** [`SpreadPatternThumbnail.jsx`](../src/components/SpreadPatternThumbnail.jsx) handles the responsive rendering.
+
+**Reference implementation:**
 
 ```jsx
 // SpreadSelector.jsx
@@ -486,7 +495,7 @@ import { ResponsiveSpreadArt } from './ResponsiveSpreadArt';
 | 1 | Landscape layouts | WelcomeHero, JourneyBegin, TarotReading, GuidedIntentionCoach | Medium | ✅ Mostly Complete |
 | 2 | Gesture modals | useSwipeDismiss, GuidedIntentionCoach, OnboardingWizard | Medium | ✅ Complete |
 | 3 | Haptic feedback | useHaptic, DeckRitual, Card, MobileActionBar | Low | ❌ Not Started |
-| 4 | Responsive art | Build script, ResponsiveSpreadArt, SpreadSelector | Medium | ❌ Not Started |
+| 4 | Responsive art | ResponsiveSpreadArt, SpreadPatternThumbnail, SpreadSelector | Medium | ✅ Complete |
 
 ### Success Metrics
 

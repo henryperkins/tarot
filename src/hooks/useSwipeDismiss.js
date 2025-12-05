@@ -31,14 +31,24 @@ export function useSwipeDismiss({
     setDragOffset(0);
   }, []);
 
-  const handleTouchStart = useCallback((e) => {
-    // Only handle touches on the modal itself or swipe handle
-    const target = e.target;
-    const isScrollable = target.scrollHeight > target.clientHeight;
-    const isAtTop = target.scrollTop === 0;
+  const isScrollableAncestorActive = (node) => {
+    const docBody = typeof document !== 'undefined' ? document.body : null;
+    let current = node;
+    while (current && current !== docBody) {
+      if (current.scrollHeight > current.clientHeight) {
+        if (current.scrollTop > 0) return true;
+        // If scrollable but at top, allow dismiss
+      }
+      current = current.parentElement;
+    }
+    return false;
+  };
 
-    // Don't intercept if user is scrolling within content
-    if (isScrollable && !isAtTop) return;
+  const handleTouchStart = useCallback((e) => {
+    const target = e.target;
+
+    // Skip if nested scrollable content is currently scrolled
+    if (isScrollableAncestorActive(target)) return;
 
     touchStartY.current = e.touches[0].clientY;
     touchStartTime.current = Date.now();
@@ -72,7 +82,10 @@ export function useSwipeDismiss({
 
     if (shouldDismiss) {
       // Animate out before dismissing
-      setDragOffset(window.innerHeight);
+      const viewportHeight = typeof window !== 'undefined' && typeof window.innerHeight === 'number'
+        ? window.innerHeight
+        : 1000;
+      setDragOffset(viewportHeight);
       setTimeout(onDismiss, 150);
     } else {
       // Snap back

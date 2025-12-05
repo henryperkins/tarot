@@ -1,29 +1,29 @@
 /**
- * Onboarding A/B Test Variant Assignment
+ * Onboarding Variant Selection
  *
- * Assigns users to either 'control' (7-step) or 'trimmed' (4-step) onboarding.
- * Assignment is persisted in localStorage for consistent experience across sessions.
+ * The trimmed 4-step onboarding is now the default for all users.
+ * The control (7-step) variant can still be accessed via URL param for testing.
  */
 
 const VARIANT_STORAGE_KEY = 'tarot-onboarding-variant';
 const VALID_VARIANTS = ['control', 'trimmed'];
 
 /**
- * Get the user's assigned onboarding variant.
- * If no variant is assigned yet, randomly assigns one and persists it.
+ * Get the onboarding variant.
+ * Returns 'trimmed' (4-step) by default for all users.
+ * Use ?onboarding=control to test the legacy 7-step flow.
  *
  * @param {Object} options
  * @param {string} options.forceVariant - Force a specific variant (for testing)
- * @param {number} options.trimmedPercentage - Percentage of users to get trimmed variant (default: 50)
- * @returns {'control' | 'trimmed'} The assigned variant
+ * @returns {'control' | 'trimmed'} The variant
  */
-export function getOnboardingVariant({ forceVariant, trimmedPercentage = 50 } = {}) {
+export function getOnboardingVariant({ forceVariant } = {}) {
   // Allow forcing variant via parameter (useful for testing)
   if (forceVariant && VALID_VARIANTS.includes(forceVariant)) {
     return forceVariant;
   }
 
-  // Check URL param for testing (e.g., ?onboarding=trimmed)
+  // Check URL param for testing (e.g., ?onboarding=control)
   if (typeof window !== 'undefined') {
     const urlParams = new URLSearchParams(window.location.search);
     const urlVariant = urlParams.get('onboarding');
@@ -32,27 +32,8 @@ export function getOnboardingVariant({ forceVariant, trimmedPercentage = 50 } = 
     }
   }
 
-  // Check for existing assignment
-  try {
-    const stored = localStorage.getItem(VARIANT_STORAGE_KEY);
-    if (stored && VALID_VARIANTS.includes(stored)) {
-      return stored;
-    }
-  } catch {
-    // localStorage not available - fall through to random assignment
-  }
-
-  // First visit: randomly assign variant
-  const variant = Math.random() * 100 < trimmedPercentage ? 'trimmed' : 'control';
-
-  // Persist assignment
-  try {
-    localStorage.setItem(VARIANT_STORAGE_KEY, variant);
-  } catch {
-    // localStorage not available - variant will be re-assigned on next visit
-  }
-
-  return variant;
+  // Default: trimmed 4-step onboarding for all users
+  return 'trimmed';
 }
 
 /**

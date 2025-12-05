@@ -15,11 +15,28 @@ import { useRef, useCallback } from 'react';
 export function useSwipeNavigation({ onSwipeLeft, onSwipeRight, threshold = 60 }) {
   const startX = useRef(null);
   const startY = useRef(null);
+  const preventedScroll = useRef(false);
 
   const handleTouchStart = useCallback((event) => {
     startX.current = event.touches[0].clientX;
     startY.current = event.touches[0].clientY;
+    preventedScroll.current = false;
   }, []);
+
+  const handleTouchMove = useCallback((event) => {
+    if (startX.current === null || startY.current === null || preventedScroll.current) return;
+
+    const deltaX = event.touches[0].clientX - startX.current;
+    const deltaY = event.touches[0].clientY - startY.current;
+
+    // Once horizontal intent is clear, prevent native scroll to avoid cancelling the swipe
+    if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) >= threshold * 0.5) {
+      if (event.cancelable) {
+        event.preventDefault();
+        preventedScroll.current = true;
+      }
+    }
+  }, [threshold]);
 
   const handleTouchEnd = useCallback((event) => {
     if (startX.current === null || startY.current === null) return;
@@ -39,15 +56,18 @@ export function useSwipeNavigation({ onSwipeLeft, onSwipeRight, threshold = 60 }
 
     startX.current = null;
     startY.current = null;
+    preventedScroll.current = false;
   }, [onSwipeLeft, onSwipeRight, threshold]);
 
   const handleTouchCancel = useCallback(() => {
     startX.current = null;
     startY.current = null;
+    preventedScroll.current = false;
   }, []);
 
   return {
     onTouchStart: handleTouchStart,
+    onTouchMove: handleTouchMove,
     onTouchEnd: handleTouchEnd,
     onTouchCancel: handleTouchCancel
   };

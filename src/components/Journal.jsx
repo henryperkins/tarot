@@ -465,29 +465,35 @@ export default function Journal() {
   };
 
   const desktopRailContent = (!loading && hasEntries && !isMobileLayout) ? (
-    <div className="space-y-6 lg:space-y-8">
-      <JournalFilters
-        filters={filters}
-        onChange={setFilters}
-        contexts={CONTEXT_FILTERS}
-        spreads={SPREAD_FILTERS}
-        decks={DECK_FILTERS}
-      />
+    <div className="space-y-6 lg:space-y-8 w-full">
+      <div className="w-full">
+        <JournalFilters
+          filters={filters}
+          onChange={setFilters}
+          contexts={CONTEXT_FILTERS}
+          spreads={SPREAD_FILTERS}
+          decks={DECK_FILTERS}
+        />
+      </div>
       {(allStats || filteredStats) && (
-        <InsightsErrorBoundary>
-          <JournalInsightsPanel
-            stats={filteredStats}
-            allStats={allStats}
-            entries={filteredEntries}
-            allEntries={entries}
-            isAuthenticated={isAuthenticated}
-            filtersActive={filtersActive}
-            onCreateShareLink={isAuthenticated ? createShareLink : null}
-          />
-        </InsightsErrorBoundary>
+        <div className="w-full">
+          <InsightsErrorBoundary>
+            <JournalInsightsPanel
+              stats={filteredStats}
+              allStats={allStats}
+              entries={filteredEntries}
+              allEntries={entries}
+              isAuthenticated={isAuthenticated}
+              filtersActive={filtersActive}
+              onCreateShareLink={isAuthenticated ? createShareLink : null}
+            />
+          </InsightsErrorBoundary>
+        </div>
       )}
       {isAuthenticated && (
-        <ArchetypeJourneySection isAuthenticated={isAuthenticated} userId={user?.id} showEmptyState />
+        <div className="w-full">
+          <ArchetypeJourneySection isAuthenticated={isAuthenticated} userId={user?.id} showEmptyState />
+        </div>
       )}
     </div>
   ) : null;
@@ -774,8 +780,8 @@ export default function Journal() {
               </div>
 
               {hasEntries && hasRailContent && desktopRailContent && (
-                <aside className="hidden lg:block">
-                  <div className="lg:sticky lg:top-6">
+                <aside className="hidden lg:block lg:w-full">
+                  <div className="lg:sticky lg:top-6 lg:w-full">
                     {desktopRailContent}
                   </div>
                 </aside>

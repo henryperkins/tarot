@@ -2,6 +2,7 @@ import { createContext, useContext, useState, useEffect, useMemo } from 'react';
 import { MAJOR_ARCANA } from '../data/majorArcana';
 import { getDeckPool } from '../lib/deck';
 import { initAudio, cleanupAudio, stopTTS, toggleAmbience } from '../lib/audio';
+import { clearOnboardingVariant } from '../lib/onboardingVariant';
 
 const PreferencesContext = createContext(null);
 
@@ -319,6 +320,7 @@ export function PreferencesProvider({ children }) {
   const resetOnboarding = () => {
     setOnboardingComplete(false);
     setOnboardingSpreadKey(null);
+    clearOnboardingVariant(); // Clear variant so user gets re-assigned (now defaults to trimmed)
   };
 
   // --- Nudge State (Contextual Discovery) ---

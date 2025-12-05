@@ -8,12 +8,7 @@ import { useReducedMotion } from '../hooks/useReducedMotion';
 import { useSmallScreen } from '../hooks/useSmallScreen';
 import { useLandscape } from '../hooks/useLandscape';
 
-// Haptic feedback helper
-const vibrate = (pattern) => {
-  if (typeof navigator !== 'undefined' && navigator.vibrate) {
-    navigator.vibrate(pattern);
-  }
-};
+import { useHaptic } from '../hooks/useHaptic';
 
 export function Card({
   card,
@@ -32,6 +27,7 @@ export function Card({
   const textareaRef = useRef(null);
   const userInitiatedRevealRef = useRef(false);
   const animationStartedRef = useRef(false);
+  const { vibrate } = useHaptic();
   const prefersReducedMotion = useReducedMotion();
   const isSmallScreen = useSmallScreen(640); // < sm breakpoint
   const isLandscape = useLandscape();
@@ -119,7 +115,7 @@ export function Card({
     } else {
       handleReveal();
     }
-  }, [isRevealed, isVisuallyRevealed, handleReveal, controls, prefersReducedMotion]);
+  }, [isRevealed, isVisuallyRevealed, handleReveal, controls, prefersReducedMotion, vibrate]);
 
   // Touch gesture tracking for swipe
   const handleTouchStart = useCallback((e) => {
