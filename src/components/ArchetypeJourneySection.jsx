@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { TrendUp, Medal, Fire, ArrowsClockwise, Sparkle } from '@phosphor-icons/react';
 import { normalizeAnalyticsShape, getBadgeIcon } from '../lib/archetypeJourney';
+import { ArchetypeEmptyIllustration } from './illustrations/ArchetypeEmptyIllustration';
 
 function parseTimestamp(value) {
   if (!value) return null;
@@ -119,7 +120,8 @@ function EmptyState({ onBackfill, isBackfilling, backfillResult }) {
           )}
         </div>
       ) : (
-        <>
+        <div className="flex flex-col items-center text-center">
+          <ArchetypeEmptyIllustration className="mb-4 w-32 opacity-90" />
           <p className="mb-4 text-sm text-muted leading-relaxed">
             Track which cards appear most often in your readings to discover recurring archetypal themes in your journey.
           </p>
@@ -152,7 +154,7 @@ function EmptyState({ onBackfill, isBackfilling, backfillResult }) {
               Last run processed {backfillResult.stats.entriesProcessed} entries.
             </p>
           )}
-        </>
+        </div>
       )}
     </section>
   );

@@ -1,5 +1,15 @@
 import { useState, useMemo, useEffect, useRef, memo } from 'react';
 import { FileText, Copy, ArrowsClockwise, ChartBar, Sparkle, ShareNetwork, DownloadSimple, Trash, BookOpen, CircleNotch } from '@phosphor-icons/react';
+import {
+    LoveIcon,
+    CareerIcon,
+    SelfIcon,
+    SpiritualIcon,
+    WellbeingIcon,
+    DecisionIcon,
+    GeneralIcon
+} from './illustrations/ContextIcons';
+import { ThemeIcon } from './illustrations/ThemeIcons';
 import { useSmallScreen } from '../hooks/useSmallScreen';
 import { useLandscape } from '../hooks/useLandscape';
 import { useReducedMotion } from '../hooks/useReducedMotion';
@@ -76,6 +86,21 @@ function mapContextToTopic(context) {
         case 'decision': return 'decision';
         default: return null;
     }
+}
+
+const CONTEXT_ICONS = {
+    love: LoveIcon,
+    career: CareerIcon,
+    self: SelfIcon,
+    spiritual: SpiritualIcon,
+    wellbeing: WellbeingIcon,
+    decision: DecisionIcon,
+    general: GeneralIcon
+};
+
+function getContextIcon(contextName) {
+    const normalized = contextName?.toLowerCase?.() || 'general';
+    return CONTEXT_ICONS[normalized] || GeneralIcon;
 }
 
 function formatEntryOptionLabel(entry) {
@@ -816,11 +841,18 @@ export const JournalInsightsPanel = memo(function JournalInsightsPanel({
                         <div className={`rounded-3xl border border-secondary/20 bg-surface/40 ${isLandscape ? 'p-3' : 'p-5'}`}>
                             <h3 className={`text-xs font-bold uppercase tracking-wider text-accent/80 ${isLandscape ? 'mb-2' : 'mb-4'}`}>Context Mix</h3>
                             <div className={`flex flex-wrap ${isLandscape ? 'gap-1' : 'gap-2'}`}>
-                                {contextBreakdown.map((ctx) => (
-                                    <span key={ctx.name} className={`rounded-full border border-secondary/20 bg-secondary/5 text-secondary ${isLandscape ? 'px-2 py-0.5 text-[0.65rem]' : 'px-3 py-1 text-xs'}`}>
-                                        {ctx.name} <span className="opacity-50">({ctx.count})</span>
-                                    </span>
-                                ))}
+                                {contextBreakdown.map((ctx) => {
+                                    const ContextIcon = getContextIcon(ctx.name);
+                                    return (
+                                        <span
+                                            key={ctx.name}
+                                            className={`inline-flex items-center gap-1.5 rounded-full border border-secondary/20 bg-secondary/5 text-secondary ${isLandscape ? 'px-2 py-0.5 text-[0.65rem]' : 'px-3 py-1 text-xs'}`}
+                                        >
+                                            <ContextIcon className={`${isLandscape ? 'w-3 h-3' : 'w-3.5 h-3.5'} text-accent/70`} aria-hidden="true" />
+                                            {ctx.name} <span className="opacity-50">({ctx.count})</span>
+                                        </span>
+                                    );
+                                })}
                             </div>
                         </div>
                     )}
@@ -834,7 +866,11 @@ export const JournalInsightsPanel = memo(function JournalInsightsPanel({
                             <ul className={isLandscape ? 'space-y-1' : 'space-y-2'}>
                                 {recentThemes.slice(0, isLandscape ? 3 : 5).map((theme, idx) => (
                                     <li key={idx} className={`flex items-center gap-2 text-muted ${isLandscape ? 'text-xs' : 'text-sm'}`}>
-                                        <span className="h-1.5 w-1.5 rounded-full bg-secondary/40" />
+                                        <ThemeIcon
+                                            theme={theme}
+                                            className={`${isLandscape ? 'w-3 h-3' : 'w-3.5 h-3.5'} text-accent/60 flex-shrink-0`}
+                                            aria-hidden="true"
+                                        />
                                         <span>{theme}</span>
                                     </li>
                                 ))}

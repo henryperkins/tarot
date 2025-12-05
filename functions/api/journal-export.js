@@ -34,7 +34,7 @@ export function generatePDF(content) {
       .replace(/\\/g, '\\\\')
       .replace(/\(/g, '\\(')
       .replace(/\)/g, '\\)')
-      .replace(/[^\x00-\x7F]/g, '?'); // Replace non-ASCII with ?
+      .replace(/[\u0080-\uFFFF]/g, '?'); // Replace non-ASCII with ?
   };
 
   // Word wrap a single line

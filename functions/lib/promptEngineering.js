@@ -48,9 +48,9 @@ const PII_PATTERNS = [
   // Credit card numbers (basic)
   { pattern: /\b(?:\d{4}[-.\s]?){3}\d{4}\b/g, replacement: '[CARD]' },
   // Dates that might be birthdates (MM/DD/YYYY, DD/MM/YYYY, etc.)
-  { pattern: /\b(?:0?[1-9]|1[0-2])[/\-.](?:0?[1-9]|[12]\d|3[01])[/\-.](?:19|20)\d{2}\b/g, replacement: '[DATE]' },
+  { pattern: /\b(?:0?[1-9]|1[0-2])[-/.](?:0?[1-9]|[12]\d|3[01])[-/.](?:19|20)\d{2}\b/g, replacement: '[DATE]' },
   // ISO-style dates (YYYY-MM-DD or YYYY/MM/DD)
-  { pattern: /\b(19|20)\d{2}[-/\.](0?[1-9]|1[0-2])[-/\.](0?[1-9]|[12]\d|3[01])\b/g, replacement: '[DATE]' },
+  { pattern: /\b(19|20)\d{2}[-/.](0?[1-9]|1[0-2])[-/.](0?[1-9]|[12]\d|3[01])\b/g, replacement: '[DATE]' },
   // URLs with potential tracking params
   { pattern: /https?:\/\/[^\s]+/gi, replacement: '[URL]' },
   // IP addresses

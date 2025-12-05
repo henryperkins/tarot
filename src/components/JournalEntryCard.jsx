@@ -8,6 +8,7 @@ import { buildCardInsightPayload, exportJournalEntriesToCsv, copyJournalEntrySum
 import { useSmallScreen } from '../hooks/useSmallScreen';
 import { InlineStatus } from './InlineStatus.jsx';
 import { useInlineStatus } from '../hooks/useInlineStatus';
+import { CupsIcon, WandsIcon, SwordsIcon, PentaclesIcon, MajorIcon } from './illustrations/SuitIcons';
 
 const ICON_BUTTON_CLASS = 'inline-flex items-center justify-center h-9 w-9 rounded-full border border-secondary/25 bg-surface/40 text-secondary/70 hover:border-secondary/50 hover:text-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/40 disabled:opacity-50 disabled:cursor-not-allowed active:bg-secondary/15';
 const ICON_BUTTON_DANGER_CLASS = 'inline-flex items-center justify-center h-9 w-9 rounded-full border border-error/25 bg-surface/40 text-error/80 hover:border-error/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-error/40 disabled:opacity-50 disabled:cursor-not-allowed active:bg-error/10';
@@ -34,6 +35,21 @@ function normalizeTimestamp(value) {
 function deriveTimestamp(entry) {
   const tsCandidates = [entry?.ts, entry?.created_at, entry?.updated_at].map(normalizeTimestamp);
   return tsCandidates.find(Boolean) || null;
+}
+
+function getSuitIcon(cardName) {
+  if (!cardName) return MajorIcon;
+  const lower = cardName.toLowerCase();
+  if (lower.includes('cups') || lower.includes('chalices')) return CupsIcon;
+  if (lower.includes('wands') || lower.includes('staves') || lower.includes('rods')) return WandsIcon;
+  if (lower.includes('swords') || lower.includes('blades')) return SwordsIcon;
+  if (lower.includes('pentacles') || lower.includes('coins') || lower.includes('disks')) return PentaclesIcon;
+  return MajorIcon;
+}
+
+function renderSuitIcon(cardName, iconProps) {
+  const IconComponent = getSuitIcon(cardName);
+  return <IconComponent {...iconProps} />;
 }
 
 function buildThemeInsights(entry) {
@@ -78,6 +94,7 @@ function buildThemeInsights(entry) {
 const JournalCardListItem = memo(function JournalCardListItem({ card }) {
   const insightCard = buildCardInsightPayload(card);
   const isReversed = REVERSED_PATTERN.test(card?.orientation || '');
+  const suitIcon = renderSuitIcon(card.name, { className: 'w-3.5 h-3.5 text-secondary/60 shrink-0', 'aria-hidden': true });
 
   return (
     <li className="group relative flex flex-col gap-2 rounded-xl border border-secondary/20 bg-surface-muted/40 p-3 transition-colors hover:bg-surface-muted/60 sm:flex-row sm:items-center sm:justify-between">
@@ -92,6 +109,7 @@ const JournalCardListItem = memo(function JournalCardListItem({ card }) {
           </span>
           {/* Card name + orientation */}
           <div className="flex items-center gap-2 mt-0.5">
+            {suitIcon}
             <p className="text-sm font-medium text-main truncate">
               {card.name}
             </p>
@@ -202,7 +220,8 @@ export const JournalEntryCard = memo(function JournalEntryCard({ entry, onCreate
   const cardPreview = cards.slice(0, 3).map((card, index) => ({
     key: `${card?.position || card?.name || 'card'}-${index}`,
     name: card?.name || 'Card',
-    isReversed: REVERSED_PATTERN.test(card?.orientation || (card?.isReversed ? 'reversed' : ''))
+    isReversed: REVERSED_PATTERN.test(card?.orientation || (card?.isReversed ? 'reversed' : '')),
+    icon: renderSuitIcon(card?.name, { className: 'w-3 h-3 text-secondary/60', 'aria-hidden': true })
   }));
 
   return (
@@ -264,8 +283,9 @@ export const JournalEntryCard = memo(function JournalEntryCard({ entry, onCreate
             {cardPreview.map((card) => (
               <span
                 key={card.key}
-                className="inline-flex items-center rounded-full border border-secondary/20 bg-surface-muted/80 px-2.5 py-1 text-[11px] font-medium text-main/80 shadow-sm"
+                className="inline-flex items-center rounded-full border border-secondary/20 bg-surface-muted/80 px-2.5 py-1 text-[11px] font-medium text-main/80 shadow-sm gap-1.5"
               >
+                {card.icon}
                 <span className="truncate max-w-[8rem]">{card.name}</span>
                 {card.isReversed && (
                   <span className="ml-1 inline-flex h-4 w-4 items-center justify-center rounded-full bg-error/10 text-[10px] text-error/90 ring-1 ring-error/20">

@@ -1,5 +1,5 @@
 import { useDeferredValue, useCallback, useEffect, useMemo, useState } from 'react';
-import { CaretLeft, UploadSimple, Notebook, ChartLine, Sparkle, BookOpen, CaretDown, CaretUp } from '@phosphor-icons/react';
+import { CaretLeft, UploadSimple, ChartLine, Sparkle, BookOpen, CaretDown, CaretUp } from '@phosphor-icons/react';
 import { useNavigate } from 'react-router-dom';
 import { GlobalNav } from './GlobalNav';
 import { UserMenu } from './UserMenu';
@@ -12,6 +12,8 @@ import { InsightsErrorBoundary } from './InsightsErrorBoundary.jsx';
 import { JournalEntryCard } from './JournalEntryCard.jsx';
 import { SavedIntentionsList } from './SavedIntentionsList.jsx';
 import { ArchetypeJourneySection } from './ArchetypeJourneySection.jsx';
+import { EmptyJournalIllustration } from './illustrations/EmptyJournalIllustration';
+import { NoFiltersIllustration } from './illustrations/NoFiltersIllustration';
 import { computeJournalStats, formatContextName } from '../lib/journalInsights';
 import { SPREADS } from '../data/spreads';
 import { DECK_OPTIONS } from './DeckSelector';
@@ -677,8 +679,9 @@ export default function Journal() {
                       </div>
 
                     {filteredEntries.length === 0 ? (
-                      <div className="rounded-2xl border border-secondary/30 bg-surface/60 p-6 text-sm text-secondary">
-                          <p className="journal-prose">No entries match your filters.</p>
+                      <div className="rounded-2xl border border-secondary/30 bg-surface/60 p-8 text-center text-sm text-secondary">
+                          <NoFiltersIllustration className="mb-4" />
+                          <p className="journal-prose text-lg text-main">No entries match your filters.</p>
                           <p className="journal-prose mt-2 text-secondary/70">Try adjusting the filters or reset to see the full journal.</p>
                       </div>
                     ) : (
@@ -701,10 +704,8 @@ export default function Journal() {
                     )}
                   </section>
                 ) : (
-                  <div className="modern-surface animate-fade-in space-y-4 rounded-3xl p-6 text-center text-main">
-                    <div className="flex justify-center">
-                      <Notebook className="h-10 w-10 text-accent" aria-hidden="true" />
-                    </div>
+                  <div className="modern-surface animate-fade-in space-y-6 rounded-3xl p-8 text-center text-main">
+                    <EmptyJournalIllustration className="mb-6" />
                     <div>
                       <h2 className="text-2xl font-serif text-accent">Start your tarot journal</h2>
                       <p className="journal-prose mt-1 text-sm text-muted sm:text-base">

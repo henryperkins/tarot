@@ -5,22 +5,29 @@
  * including growth prompts, badges, and analytics normalization.
  */
 
-import { Fire, Star, Lightning, Sparkle, Medal, Trophy, Flame, Sun, Moon, Heart } from '@phosphor-icons/react';
+import { Heart } from '@phosphor-icons/react';
+import { 
+  FirstReadingBadge, 
+  TenReadingsBadge, 
+  FiftyReadingsBadge, 
+  StreakBadge, 
+  MasteryBadge 
+} from '../components/illustrations/BadgeIllustrations';
 
 /**
  * Badge icons mapped by streak/achievement type
  */
 const BADGE_ICONS = {
-  fire: Fire,
-  star: Star,
-  lightning: Lightning,
-  sparkle: Sparkle,
-  medal: Medal,
-  trophy: Trophy,
-  flame: Flame,
-  sun: Sun,
-  moon: Moon,
-  heart: Heart
+  fire: StreakBadge,
+  star: FirstReadingBadge,
+  lightning: TenReadingsBadge, // Map lightning to constellation/ten readings if appropriate, or keep generic
+  sparkle: TenReadingsBadge,
+  medal: FiftyReadingsBadge,
+  trophy: MasteryBadge,
+  flame: StreakBadge,
+  sun: MasteryBadge, // Alternate for mastery
+  moon: FiftyReadingsBadge,
+  heart: Heart // Keep heart as icon for now or map to Love context badge later
 };
 
 /**
@@ -29,7 +36,7 @@ const BADGE_ICONS = {
  * @returns {React.ComponentType} Icon component
  */
 export function getBadgeIcon(type) {
-  return BADGE_ICONS[type] || Star;
+  return BADGE_ICONS[type] || FirstReadingBadge;
 }
 
 /**

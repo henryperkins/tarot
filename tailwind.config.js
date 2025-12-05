@@ -135,6 +135,14 @@ export default {
           '0%': { opacity: '0', transform: 'translateY(-0.5rem)' },
           '100%': { opacity: '1', transform: 'translateY(0)' },
         },
+        floatGentle: {
+          '0%, 100%': { transform: 'translateY(0px)' },
+          '50%': { transform: 'translateY(-10px)' },
+        },
+        pulseSlow: {
+          '0%, 100%': { opacity: '0.8' },
+          '50%': { opacity: '0.4' },
+        },
       },
       animation: {
         'fade-in': 'fadeIn 0.2s ease-out',
@@ -144,6 +152,8 @@ export default {
         'slide-in-right': 'slideInRight 0.3s ease-out',
         'fade-in-up': 'fadeInUp 0.6s ease-out forwards',
         'ink-spread': 'inkSpread 0.5s cubic-bezier(0.4, 0, 0.2, 1) forwards',
+        'float-gentle': 'floatGentle 6s ease-in-out infinite',
+        'pulse-slow': 'pulseSlow 4s ease-in-out infinite',
       }
     }
   },

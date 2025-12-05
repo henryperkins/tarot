@@ -324,22 +324,25 @@ export default function ArchetypeJourney() {
         <section className="badges-section">
           <h4>Achievements</h4>
           <div className="badges-grid">
-            {analytics.badges.map((badge) => (
-              <div key={badge.badge_key} className="achievement-badge">
-                <div className="badge-icon">
-                  {getBadgeIcon(badge.badge_type)}
-                </div>
-                <div className="badge-info">
-                  <div className="badge-title">{badge.card_name || 'Milestone'}</div>
-                  <div className="badge-description">
-                    {badge.metadata.context || 'Achievement unlocked'}
+            {analytics.badges.map((badge) => {
+              const BadgeIcon = getBadgeIcon(badge.badge_type);
+              return (
+                <div key={badge.badge_key} className="achievement-badge">
+                  <div className="badge-icon">
+                    {BadgeIcon ? <BadgeIcon className="h-12 w-12" aria-hidden="true" /> : null}
                   </div>
-                  <div className="badge-date">
-                    {new Date(badge.earned_at * 1000).toLocaleDateString()}
+                  <div className="badge-info">
+                    <div className="badge-title">{badge.card_name || 'Milestone'}</div>
+                    <div className="badge-description">
+                      {badge.metadata?.context || 'Achievement unlocked'}
+                    </div>
+                    <div className="badge-date">
+                      {new Date(badge.earned_at * 1000).toLocaleDateString()}
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </section>
       )}
