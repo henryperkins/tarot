@@ -1,9 +1,11 @@
-import { useState, useRef, useId } from 'react';
+import { useState, useRef, useId, useMemo, useEffect } from 'react';
 import FocusTrap from 'focus-trap-react';
 import { X } from '@phosphor-icons/react';
 import { useModalA11y, createBackdropHandler } from '../../hooks/useModalA11y';
 import { useReducedMotion } from '../../hooks/useReducedMotion';
 import { useLandscape } from '../../hooks/useLandscape';
+import { useSwipeNavigation } from '../../hooks/useSwipeNavigation';
+// Control variant components (7 steps)
 import { WelcomeHero } from './WelcomeHero';
 import { SpreadEducation } from './SpreadEducation';
 import { QuestionCrafting } from './QuestionCrafting';
@@ -11,9 +13,12 @@ import { RitualIntro } from './RitualIntro';
 import { AccountSetup } from './AccountSetup';
 import { JournalIntro } from './JournalIntro';
 import { JourneyBegin } from './JourneyBegin';
+// Trimmed variant components (4 steps)
+import { WelcomeStep, SpreadStep, IntentionStep, BeginStep } from './trimmed';
 import { OnboardingProgress } from './OnboardingProgress';
-
-const TOTAL_STEPS = 7;
+// A/B test utilities
+import { getOnboardingVariant, getStepLabels, getTotalSteps } from '../../lib/onboardingVariant';
+import { startOnboardingTimer } from '../../lib/onboardingMetrics';
 
 /**
  * OnboardingWizard - Multi-step onboarding flow for new users
@@ -41,6 +46,29 @@ export function OnboardingWizard({ isOpen, onComplete, onSelectSpread, initialSp
   // Track previous isOpen to detect open transitions
   const [prevIsOpen, setPrevIsOpen] = useState(isOpen);
 
+  // A/B test variant - determined once and cached
+  const variant = useMemo(() => getOnboardingVariant(), []);
+  const totalSteps = getTotalSteps(variant);
+  const stepLabels = useMemo(() => getStepLabels(variant), [variant]);
+
+  // Metrics timer for A/B test validation
+  const metricsTimerRef = useRef(null);
+
+  // Initialize metrics timer when wizard opens
+  useEffect(() => {
+    if (isOpen && !metricsTimerRef.current) {
+      metricsTimerRef.current = startOnboardingTimer({ variant });
+      metricsTimerRef.current.recordStep(1);
+    }
+    // Cleanup when wizard closes without completing
+    return () => {
+      if (!isOpen && metricsTimerRef.current && !metricsTimerRef.current.isCompleted()) {
+        metricsTimerRef.current.complete({ skipped: true });
+        metricsTimerRef.current = null;
+      }
+    };
+  }, [isOpen, variant]);
+
   // Reset state when wizard opens (replay scenario) to pick up current values.
   // This pattern (adjusting state during render) is React-recommended over useEffect
   // for syncing state with prop changes. See: https://react.dev/learn/you-might-not-need-an-effect
@@ -49,6 +77,8 @@ export function OnboardingWizard({ isOpen, onComplete, onSelectSpread, initialSp
     setCurrentStep(1);
     setSelectedSpread(initialSpread || 'single');
     setQuestion(initialQuestion || '');
+    // Reset metrics timer for new session
+    metricsTimerRef.current = null;
   } else if (!isOpen && prevIsOpen) {
     setPrevIsOpen(false);
   }
@@ -72,8 +102,10 @@ export function OnboardingWizard({ isOpen, onComplete, onSelectSpread, initialSp
   });
 
   const handleNext = () => {
-    if (currentStep < TOTAL_STEPS) {
-      setCurrentStep(currentStep + 1);
+    if (currentStep < totalSteps) {
+      const nextStep = currentStep + 1;
+      metricsTimerRef.current?.recordStep(nextStep);
+      setCurrentStep(nextStep);
     }
   };
 
@@ -84,6 +116,9 @@ export function OnboardingWizard({ isOpen, onComplete, onSelectSpread, initialSp
   };
 
   const handleSkip = () => {
+    // Record metrics as skipped
+    metricsTimerRef.current?.complete({ skipped: true });
+    metricsTimerRef.current = null;
     // Mark onboarding as complete and close, passing any selections made so far
     onComplete?.({ selectedSpread, question });
   };
@@ -98,11 +133,24 @@ export function OnboardingWizard({ isOpen, onComplete, onSelectSpread, initialSp
   };
 
   const handleSkipRitual = () => {
+    // Record metrics as skipped (user skipped from ritual step)
+    metricsTimerRef.current?.complete({ skipped: true });
+    metricsTimerRef.current = null;
     // Complete onboarding immediately - user wants to start reading now
     onComplete?.({ selectedSpread, question });
   };
 
   const handleBegin = () => {
+    // Record successful completion metrics
+    const metrics = metricsTimerRef.current?.complete({ skipped: false });
+    metricsTimerRef.current = null;
+    if (metrics) {
+      console.debug('Onboarding completed:', {
+        variant,
+        totalTime: `${(metrics.totalTime / 1000).toFixed(1)}s`,
+        steps: metrics.stepCount
+      });
+    }
     // Complete onboarding and pass selections to parent
     onComplete?.({ selectedSpread, question });
   };
@@ -115,11 +163,31 @@ export function OnboardingWizard({ isOpen, onComplete, onSelectSpread, initialSp
     }
   };
 
+  // Swipe navigation between steps (mobile gesture support)
+  const swipeHandlers = useSwipeNavigation({
+    onSwipeLeft: () => {
+      // Swipe left = advance to next step
+      if (currentStep < totalSteps) {
+        const nextStep = currentStep + 1;
+        metricsTimerRef.current?.recordStep(nextStep);
+        setCurrentStep(nextStep);
+      }
+    },
+    onSwipeRight: () => {
+      // Swipe right = go back to previous step
+      if (currentStep > 1) {
+        setCurrentStep(currentStep - 1);
+      }
+    },
+    threshold: 80 // Slightly higher threshold to avoid accidental triggers
+  });
+
   if (!isOpen) {
     return null;
   }
 
-  const renderStep = () => {
+  // Render control variant (7 steps)
+  const renderControlStep = () => {
     switch (currentStep) {
       case 1:
         return (
@@ -181,6 +249,46 @@ export function OnboardingWizard({ isOpen, onComplete, onSelectSpread, initialSp
         return null;
     }
   };
+
+  // Render trimmed variant (4 steps)
+  const renderTrimmedStep = () => {
+    switch (currentStep) {
+      case 1:
+        return <WelcomeStep onNext={handleNext} />;
+      case 2:
+        return (
+          <SpreadStep
+            selectedSpread={selectedSpread}
+            onSelectSpread={handleSpreadSelect}
+            onNext={handleNext}
+            onBack={handleBack}
+          />
+        );
+      case 3:
+        return (
+          <IntentionStep
+            question={question}
+            onQuestionChange={handleQuestionChange}
+            onNext={handleNext}
+            onBack={handleBack}
+          />
+        );
+      case 4:
+        return (
+          <BeginStep
+            selectedSpread={selectedSpread}
+            question={question}
+            onBegin={handleBegin}
+            onBack={handleBack}
+          />
+        );
+      default:
+        return null;
+    }
+  };
+
+  // Select render function based on variant
+  const renderStep = variant === 'trimmed' ? renderTrimmedStep : renderControlStep;
 
   return (
     <div
@@ -244,7 +352,8 @@ export function OnboardingWizard({ isOpen, onComplete, onSelectSpread, initialSp
               <div className="order-2 sm:order-1 flex-1 min-w-0 w-full sm:w-auto">
                 <OnboardingProgress
                   currentStep={currentStep}
-                  totalSteps={TOTAL_STEPS}
+                  totalSteps={totalSteps}
+                  stepLabels={stepLabels}
                   onStepSelect={handleStepSelect}
                   allowNavigation={true}
                 />
@@ -252,7 +361,7 @@ export function OnboardingWizard({ isOpen, onComplete, onSelectSpread, initialSp
             </div>
           </header>
 
-          {/* Main content area - scrollable */}
+          {/* Main content area - scrollable with swipe navigation */}
           <main
             className="relative z-10 flex-1 overflow-y-auto overflow-x-hidden scroll-smooth pt-safe-top pb-safe-bottom pl-safe-left pr-safe-right onboarding-modal__scroll"
             style={{
@@ -262,6 +371,7 @@ export function OnboardingWizard({ isOpen, onComplete, onSelectSpread, initialSp
               overscrollBehavior: 'contain',
               WebkitOverflowScrolling: 'touch'
             }}
+            {...swipeHandlers}
           >
             <div className={`w-full max-w-3xl mx-auto min-h-full ${isLandscape ? 'px-2 xxs:px-3 py-2 sm:px-4' : 'px-3 xxs:px-4 md:px-6 py-4 xs:py-5 md:py-8'}`}>
               {renderStep()}

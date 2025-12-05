@@ -1,4 +1,6 @@
 
+import { ResponsiveSpreadArt } from './ResponsiveSpreadArt';
+
 /**
  * SpreadPatternThumbnail - Visual SVG diagram showing spread layout pattern
  * @param {string} spreadKey - The spread identifier (single, threeCard, etc.)
@@ -11,26 +13,51 @@ export function SpreadPatternThumbnail({ spreadKey, className = '', preview = nu
   if (preview?.src) {
     const aspectRatio = preview.aspectRatio || (preview.width && preview.height ? `${preview.width} / ${preview.height}` : '2 / 1');
     const altText = preview.alt || `${spreadName || spreadKey} spread layout`;
+    const sizes = preview.sizes || '(max-width: 640px) 88vw, (max-width: 1024px) 46vw, 340px';
+    const responsiveSources = preview.sources
+      ? Object.entries(preview.sources).map(([format, entries]) => {
+          const list = Array.isArray(entries) ? entries : [];
+          const srcSet = list
+            .filter((item) => item?.src)
+            .map((item) => (item.width ? `${item.src} ${item.width}w` : item.src))
+            .join(', ');
+          if (!srcSet) return null;
+          const type = format.startsWith('image/') ? format : `image/${format}`;
+          return { type, srcSet };
+        }).filter(Boolean)
+      : [];
 
     return (
       <div
         className={`relative overflow-hidden rounded-[14px] bg-[#0f0c14] ${className}`}
         style={{ aspectRatio }}
       >
-        <img
-          src={preview.src}
-          width={preview.width || undefined}
-          height={preview.height || undefined}
-          sizes="(max-width: 640px) 88vw, (max-width: 1024px) 46vw, 340px"
-          alt={altText}
-          className="w-full h-full object-cover"
-          loading="lazy"
-          decoding="async"
-          onError={(e) => {
-            // Hide broken image and show fallback background
-            e.currentTarget.style.display = 'none';
-          }}
-        />
+        {responsiveSources.length > 0 ? (
+          <ResponsiveSpreadArt
+            alt={altText}
+            aspectRatio={aspectRatio}
+            sources={responsiveSources}
+            fallbackSrc={preview.src}
+            fallbackWidth={preview.width}
+            fallbackHeight={preview.height}
+            sizes={sizes}
+          />
+        ) : (
+          <img
+            src={preview.src}
+            width={preview.width || undefined}
+            height={preview.height || undefined}
+            sizes={sizes}
+            alt={altText}
+            className="w-full h-full object-cover"
+            loading="lazy"
+            decoding="async"
+            onError={(e) => {
+              // Hide broken image and show fallback background
+              e.currentTarget.style.display = 'none';
+            }}
+          />
+        )}
         <div
           className="pointer-events-none absolute inset-0 rounded-[14px] border border-white/10 shadow-[0_0_0_1px_rgba(232,218,195,0.08)]"
           aria-hidden="true"

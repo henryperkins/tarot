@@ -9,6 +9,7 @@ import { loadCoachRecommendation, saveCoachRecommendation } from './lib/journalI
 import { DeckSelector, DECK_OPTIONS } from './components/DeckSelector';
 import { MobileSettingsDrawer } from './components/MobileSettingsDrawer';
 import { MobileActionBar, MobileActionGroup } from './components/MobileActionBar';
+import { QuickIntentionCard } from './components/QuickIntentionCard';
 import { Header } from './components/Header';
 import { OnboardingWizard } from './components/onboarding';
 import { PersonalizationBanner } from './components/PersonalizationBanner';
@@ -635,10 +636,49 @@ export default function TarotReading() {
             <p className="text-xs-plus sm:text-sm uppercase tracking-[0.12em] text-accent">{stepIndicatorLabel}</p>
             {!isLandscape && <p className="mt-1 text-muted-high text-xs sm:text-sm">{stepIndicatorHint}</p>}
             {isSmallScreen && (
-              <div className="mt-3 grid grid-cols-2 gap-2 sm:hidden text-[11px] uppercase tracking-[0.18em] text-secondary/70">
-                <div className="rounded-full border border-secondary/30 bg-surface/70 px-3 py-1.5 text-center font-semibold text-secondary/80">Step 1 · Spread</div>
-                <div className="rounded-full border border-secondary/30 bg-surface/70 px-3 py-1.5 text-center font-semibold text-secondary/80">Step 2 · Question</div>
-              </div>
+              <nav
+                className="mt-3 grid grid-cols-2 gap-2 sm:hidden"
+                aria-label="Reading setup steps"
+              >
+                <button
+                  type="button"
+                  onClick={() => handleStepNav('spread')}
+                  className={`min-h-[44px] rounded-full border px-3 py-2 text-[11px] uppercase tracking-[0.15em] font-semibold transition touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent ${
+                    activeStep === 'spread'
+                      ? 'border-accent bg-accent/15 text-accent'
+                      : 'border-secondary/30 bg-surface/70 text-secondary/80 hover:border-secondary/50'
+                  }`}
+                  aria-current={activeStep === 'spread' ? 'step' : undefined}
+                >
+                  <span className="flex items-center justify-center gap-1.5">
+                    <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[0.6rem] ${
+                      activeStep === 'spread' ? 'bg-accent text-surface' : 'bg-secondary/20 text-secondary'
+                    }`}>
+                      1
+                    </span>
+                    Spread
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleStepNav('intention')}
+                  className={`min-h-[44px] rounded-full border px-3 py-2 text-[11px] uppercase tracking-[0.15em] font-semibold transition touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent ${
+                    activeStep === 'intention'
+                      ? 'border-accent bg-accent/15 text-accent'
+                      : 'border-secondary/30 bg-surface/70 text-secondary/80 hover:border-secondary/50'
+                  }`}
+                  aria-current={activeStep === 'intention' ? 'step' : undefined}
+                >
+                  <span className="flex items-center justify-center gap-1.5">
+                    <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[0.6rem] ${
+                      activeStep === 'intention' ? 'bg-accent text-surface' : 'bg-secondary/20 text-secondary'
+                    }`}>
+                      2
+                    </span>
+                    Question
+                  </span>
+                </button>
+              </nav>
             )}
           </div>
 
@@ -660,63 +700,22 @@ export default function TarotReading() {
             {/* Mobile quick intention entry keeps the question visible without opening the drawer */}
             {isSmallScreen && (
               <div className="sm:hidden">
-                <div
+                <QuickIntentionCard
                   ref={quickIntentionCardRef}
-                  className="rounded-2xl border border-secondary/30 bg-surface/70 px-4 py-3 shadow-lg shadow-main/20 flex flex-col gap-3"
-                >
-                  <div className="flex items-center justify-between gap-2">
-                    <div>
-                      <p className="text-xs uppercase tracking-[0.18em] text-secondary/80">Step 2 · Quick intention</p>
-                      <p className="text-xs text-secondary/70">Add or edit your question before drawing.</p>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setPendingCoachPrefill(null);
-                        setIsIntentionCoachOpen(true);
-                      }}
-                      className="inline-flex items-center gap-1 rounded-full border border-secondary/40 px-3 py-1.5 text-[0.72rem] font-semibold text-secondary hover:bg-secondary/10 transition touch-manipulation"
-                    >
-                      <span className="sr-only">Open guided coach</span>
-                      Coach
-                    </button>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <input
-                      ref={quickIntentionInputRef}
-                      type="text"
-                      value={userQuestion}
-                      onChange={(event) => setUserQuestion(event.target.value)}
-                      onFocus={scrollQuickIntentionIntoView}
-                      placeholder={EXAMPLE_QUESTIONS[placeholderIndex]}
-                      className="flex-1 rounded-xl border border-secondary/30 bg-surface px-3 py-2 text-base text-main placeholder:text-secondary/50 focus:border-secondary focus:outline-none focus:ring-1 focus:ring-secondary/50"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setIsMobileSettingsOpen(true)}
-                      className="rounded-xl border border-secondary/40 px-3 py-2 text-xs font-semibold text-secondary hover:bg-secondary/10 transition touch-manipulation"
-                    >
-                      More
-                    </button>
-                  </div>
-                  <div className="flex flex-wrap items-center gap-2 text-[12px] text-secondary/80">
-                    <span className="inline-flex items-center gap-1 rounded-full border border-secondary/40 bg-surface px-2.5 py-1 font-semibold text-secondary/90">
-                      Deck: {DECK_OPTIONS.find(d => d.id === deckStyleId)?.label || 'Selected'}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => setIsMobileSettingsOpen(true)}
-                      className="text-[12px] font-semibold text-secondary underline underline-offset-4"
-                    >
-                      Change
-                    </button>
-                  </div>
-                  {selectedSpread && userQuestion.trim().length > 0 && (
-                    <p className="text-[12px] text-secondary/80">
-                      Next: tap <span className="font-semibold text-main">Draw cards</span> below when you&apos;re ready.
-                    </p>
-                  )}
-                </div>
+                  userQuestion={userQuestion}
+                  onQuestionChange={setUserQuestion}
+                  placeholderQuestion={EXAMPLE_QUESTIONS[placeholderIndex]}
+                  inputRef={quickIntentionInputRef}
+                  onInputFocus={scrollQuickIntentionIntoView}
+                  onCoachOpen={() => {
+                    setPendingCoachPrefill(null);
+                    setIsIntentionCoachOpen(true);
+                  }}
+                  onMoreOpen={() => setIsMobileSettingsOpen(true)}
+                  deckStyleId={deckStyleId}
+                  selectedSpread={selectedSpread}
+                  onDeckChange={() => setIsMobileSettingsOpen(true)}
+                />
               </div>
             )}
 

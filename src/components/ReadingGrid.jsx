@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { ArrowsLeftRight } from '@phosphor-icons/react';
 import { getSpreadInfo } from '../data/spreads';
 import { getOrientationMeaning } from '../lib/cardLookup';
 import { Card } from './Card';
@@ -141,6 +142,7 @@ export function ReadingGrid({
   const rafIdRef = useRef(null);
   const [activeIndex, setActiveIndex] = useState(0);
   const [showSwipeHint, setShowSwipeHint] = useState(true);
+  const [hasUserScrolled, setHasUserScrolled] = useState(false);
   const [layoutPreference, setLayoutPreference] = useState('carousel');
   const [openReflectionIndex, setOpenReflectionIndex] = useState(null);
   const isCompactScreen = useSmallScreen();
@@ -173,16 +175,25 @@ export function ReadingGrid({
       : 'min-w-[72vw] xxs:min-w-[66vw] xs:min-w-[60vw] max-w-[18.5rem]';
   const mobileCarouselPadding = isLandscape ? 'px-2' : 'px-3 xxs:px-4';
 
-  // Hide swipe hint after 4 seconds or when user interacts
+  // Hide swipe hint only after user scrolls OR after extended timeout (8s)
+  // This ensures users have time to discover the swipe gesture
   useEffect(() => {
-    if (!reading || reading.length <= 1 || isListView) return undefined;
+    if (!reading || reading.length <= 1 || isListView || hasUserScrolled) {
+      return undefined;
+    }
 
     const timer = setTimeout(() => {
       setShowSwipeHint(false);
-    }, 4000);
+    }, 8000); // Extended from 4s to 8s for better discoverability
 
     return () => clearTimeout(timer);
-  }, [reading, isListView]);
+  }, [reading, isListView, hasUserScrolled]);
+
+  // Reset scroll tracking when reading changes
+  useEffect(() => {
+    setHasUserScrolled(false);
+    setShowSwipeHint(true);
+  }, [reading]);
 
   // Keep only one mobile reflection open at a time; default to the first card with notes
   useEffect(() => {
@@ -202,10 +213,19 @@ export function ReadingGrid({
   // so carousel navigation (swipe, dots, prev/next) should be disabled for it
   const enableCarousel = readingLength > 1 && !isListView && selectedSpread !== 'celtic' && !shouldUseGridOnMobile;
 
-  // Hide hint when user scrolls
+  // Track user scroll interaction - only count significant scrolls (>20px)
+  const lastScrollLeftRef = useRef(0);
   const hideHintOnInteraction = useCallback(() => {
-    setShowSwipeHint(false);
-  }, []);
+    const container = carouselRef.current;
+    if (!container || hasUserScrolled) return;
+
+    const scrollDelta = Math.abs(container.scrollLeft - lastScrollLeftRef.current);
+    if (scrollDelta > 20) {
+      setHasUserScrolled(true);
+      setShowSwipeHint(false);
+    }
+    lastScrollLeftRef.current = container.scrollLeft;
+  }, [hasUserScrolled]);
 
   // Optimized scroll handler with RAF throttling and cached elements
   const updateActiveIndex = useCallback(() => {
@@ -242,6 +262,9 @@ export function ReadingGrid({
 
     // Cache card elements
     cardsRef.current = Array.from(el.children);
+
+    // Initialize scroll position ref to prevent false positive on first scroll
+    lastScrollLeftRef.current = el.scrollLeft;
 
     const handleScroll = () => {
       // Hide swipe hint on first scroll interaction
@@ -352,10 +375,15 @@ export function ReadingGrid({
 
   return (
     <>
-      {enableCarousel && showSwipeHint && (
-        <p className="sm:hidden text-center text-xs text-primary/70 mb-2 animate-pulse">
-          Swipe to explore cards &rarr;
-        </p>
+      {enableCarousel && showSwipeHint && !hasUserScrolled && reading.length > 1 && (
+        <div
+          className="sm:hidden flex items-center justify-center gap-2 px-4 py-2 mb-2 mx-auto w-fit rounded-full bg-main/80 backdrop-blur-sm border border-secondary/30 shadow-lg animate-pulse"
+          role="status"
+          aria-live="polite"
+        >
+          <ArrowsLeftRight className="w-4 h-4 text-accent" weight="bold" aria-hidden="true" />
+          <span className="text-xs font-medium text-main">Swipe to see more cards</span>
+        </div>
       )}
       <div
         className={

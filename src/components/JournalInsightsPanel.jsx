@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect, useRef, memo } from 'react';
-import { FileText, Copy, ArrowsClockwise, ChartBar, Sparkle, ShareNetwork, DownloadSimple, Trash, BookOpen, CircleNotch } from '@phosphor-icons/react';
+import { FileText, ArrowsClockwise, ChartBar, Sparkle, ShareNetwork, DownloadSimple, BookOpen, CircleNotch } from '@phosphor-icons/react';
 import {
     LoveIcon,
     CareerIcon,
@@ -33,7 +33,6 @@ import { InlineStatus } from './InlineStatus.jsx';
 import { useInlineStatus } from '../hooks/useInlineStatus';
 
 const OUTLINE_BUTTON_CLASS = 'inline-flex items-center gap-2 rounded-full border border-secondary/40 px-3 py-1.5 text-xs font-semibold text-secondary hover:border-secondary/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/50 disabled:opacity-50 disabled:cursor-not-allowed';
-
 const CONTEXT_TO_SPREAD = {
     love: {
         spread: 'Relationship Snapshot',
@@ -128,11 +127,7 @@ export const JournalInsightsPanel = memo(function JournalInsightsPanel({
     allEntries,
     isAuthenticated,
     filtersActive,
-    shareLinks = [],
-    shareLoading: _shareLoading,
-    shareError: _shareError,
-    onCreateShareLink,
-    onDeleteShareLink
+    onCreateShareLink
 }) {
     const isSmallScreen = useSmallScreen();
     const isLandscape = useLandscape();
@@ -148,21 +143,8 @@ export const JournalInsightsPanel = memo(function JournalInsightsPanel({
     const [shareComposerOpen, setShareComposerOpen] = useState(false);
     const [shareComposer, setShareComposer] = useState({ scope: 'journal', entryId: '', title: '', limit: '5', expiresInHours: '72' });
     const [composerErrors, setComposerErrors] = useState({});
-    const [shareLinkFeedback, setShareLinkFeedback] = useState({ token: null, message: '' });
     const [pendingAction, setPendingAction] = useState(null);
     const { status: inlineStatus, showStatus, clearStatus } = useInlineStatus();
-    const shareFeedbackTimeout = useRef(null);
-
-    const showLinkFeedback = (token, message, delay = 2500) => {
-        setShareLinkFeedback({ token, message });
-        if (shareFeedbackTimeout.current) {
-            clearTimeout(shareFeedbackTimeout.current);
-        }
-        shareFeedbackTimeout.current = setTimeout(() => {
-            setShareLinkFeedback({ token: null, message: '' });
-            shareFeedbackTimeout.current = null;
-        }, delay);
-    };
 
     const runToolbarAction = async (actionKey, task) => {
         setPendingAction(actionKey);
@@ -173,12 +155,6 @@ export const JournalInsightsPanel = memo(function JournalInsightsPanel({
             setPendingAction(null);
         }
     };
-
-    useEffect(() => () => {
-        if (shareFeedbackTimeout.current) {
-            clearTimeout(shareFeedbackTimeout.current);
-        }
-    }, []);
 
     const summaryEntries = useMemo(() => {
         if (filtersActive) {
@@ -239,14 +215,6 @@ export const JournalInsightsPanel = memo(function JournalInsightsPanel({
             setShareComposerOpen(false);
         }
     }, [isAuthenticated, shareComposerOpen]);
-
-    useEffect(() => {
-        if (!shareLinkFeedback.token) return;
-        const stillExists = shareLinks.some(link => link.token === shareLinkFeedback.token);
-        if (!stillExists) {
-            setShareLinkFeedback({ token: null, message: '' });
-        }
-    }, [shareLinks, shareLinkFeedback.token]);
 
     const handleExport = () => runToolbarAction('export', async () => {
         const exportEntries = isFilteredAndEmpty && Array.isArray(allEntries) ? allEntries : summaryEntries;
@@ -612,26 +580,6 @@ export const JournalInsightsPanel = memo(function JournalInsightsPanel({
         }
     };
 
-    const copyShareUrl = async (token) => {
-        if (typeof window === 'undefined') return;
-        const url = `${window.location.origin}/share/${token}`;
-        if (navigator?.clipboard?.writeText) {
-            try {
-                await navigator.clipboard.writeText(url);
-                showLinkFeedback(token, 'Link copied');
-                showStatus({ tone: 'success', message: 'Link copied.' });
-                return;
-            } catch (error) {
-                console.warn('Clipboard write failed for saved link', error);
-                showLinkFeedback(token, 'Copy blocked—use tap-and-hold to copy');
-                showStatus({ tone: 'warning', message: 'Copy blocked—open the link and copy manually.' });
-            }
-        } else {
-            showLinkFeedback(token, 'Copy not supported in this browser');
-            showStatus({ tone: 'error', message: 'Copy not supported—open the link to share it.' });
-        }
-    };
-
     if (!primaryStats) {
         return null;
     }
@@ -911,48 +859,6 @@ export const JournalInsightsPanel = memo(function JournalInsightsPanel({
                     )}
                 </div>
 
-                {isAuthenticated && shareLinks.length > 0 && (
-                    <div className="rounded-3xl border border-secondary/20 bg-surface/40 p-5">
-                        <h3 className="mb-4 text-xs font-bold uppercase tracking-wider text-accent/80">
-                            Active Share Links
-                        </h3>
-                        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                            {shareLinks.slice(0, 6).map((link) => (
-                                <div key={link.token} className="rounded-xl border border-secondary/10 bg-surface-muted/40 p-3">
-                                    <div className="flex items-center justify-between gap-3">
-                                        <div className="overflow-hidden">
-                                            <p className="truncate text-sm font-medium text-secondary">{link.title || 'Untitled Link'}</p>
-                                            <p className="text-xs text-secondary/50">{link.viewCount || 0} views</p>
-                                        </div>
-                                        <div className="flex flex-wrap gap-2">
-                                            <button
-                                                onClick={() => copyShareUrl(link.token)}
-                                                className="inline-flex items-center gap-1.5 rounded-full border border-secondary/40 px-2.5 py-1 text-xs font-semibold text-secondary hover:border-secondary/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/50"
-                                                aria-label="Copy share link"
-                                            >
-                                                <Copy className="h-3.5 w-3.5" />
-                                                <span>Copy</span>
-                                            </button>
-                                            <button
-                                                onClick={() => onDeleteShareLink?.(link.token)}
-                                                className="inline-flex items-center gap-1.5 rounded-full border border-error/40 px-2.5 py-1 text-xs font-semibold text-error hover:border-error/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-error/50"
-                                                aria-label="Delete share link"
-                                            >
-                                                <Trash className="h-3.5 w-3.5" />
-                                                <span>Delete</span>
-                                            </button>
-                                        </div>
-                                    </div>
-                                    {shareLinkFeedback.token === link.token && shareLinkFeedback.message && (
-                                        <p className="mt-2 text-[11px] text-secondary/70" aria-live="polite">
-                                            {shareLinkFeedback.message}
-                                        </p>
-                                    )}
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                )}
             </div>
         </div>
     );

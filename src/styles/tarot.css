@@ -535,6 +535,19 @@ body {
   }
 }
 
+/* Mobile action bar keyboard avoidance animation */
+.mobile-action-bar {
+  /* Prevent layout thrashing during animation */
+  contain: layout style;
+}
+
+/* Reduce motion preference - disable smooth transitions */
+@media (prefers-reduced-motion: reduce) {
+  .mobile-action-bar {
+    transition: opacity 0.1s ease-out !important;
+  }
+}
+
 /* Landscape mode safeguards for small mobile devices */
 @media (max-height: 500px) and (orientation: landscape) {
   /* Compact mobile action bar in landscape */

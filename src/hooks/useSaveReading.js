@@ -18,7 +18,7 @@ export function useSaveReading() {
         readingMeta
     } = useReading();
 
-    const { deckStyleId, personalization } = usePreferences();
+    const { deckStyleId, personalization, incrementJournalSaveCount } = usePreferences();
     const { saveEntry } = useJournal({ autoLoad: false });
 
     // Prevent double-saves from rapid clicks or network retries
@@ -86,6 +86,10 @@ export function useSaveReading() {
                 if (sessionSeed) {
                     lastSavedSeedRef.current = sessionSeed;
                 }
+                // Increment journal save count for nudge system (only for new saves)
+                if (!result.deduplicated) {
+                    incrementJournalSaveCount();
+                }
                 if (typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function') navigator.vibrate(12);
                 const message = result.deduplicated
                     ? 'This reading is already in your journal.'
@@ -103,7 +107,7 @@ export function useSaveReading() {
     }, [
         isSaving, sessionSeed, reading, personalReading, selectedSpread,
         userQuestion, themes, reflections, analysisContext, readingMeta,
-        deckStyleId, personalization, saveEntry, setJournalStatus
+        deckStyleId, personalization, saveEntry, setJournalStatus, incrementJournalSaveCount
     ]);
 
     return { saveReading, isSaving };

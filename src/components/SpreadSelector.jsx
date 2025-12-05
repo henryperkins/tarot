@@ -10,11 +10,40 @@ import { useSmallScreen } from '../hooks/useSmallScreen';
 import { usePreferences } from '../contexts/PreferencesContext';
 import { getSpreadFromDepth } from '../utils/personalization';
 import oneCardArt from '../../selectorimages/onecard.png';
+import oneCard640Avif from '../../selectorimages/onecard-640.avif';
+import oneCard1280Avif from '../../selectorimages/onecard-1280.avif';
+import oneCard640Webp from '../../selectorimages/onecard-640.webp';
+import oneCard1280Webp from '../../selectorimages/onecard-1280.webp';
+
 import threeCardArt from '../../selectorimages/3card.png';
+import threeCard640Avif from '../../selectorimages/3card-640.avif';
+import threeCard1280Avif from '../../selectorimages/3card-1280.avif';
+import threeCard640Webp from '../../selectorimages/3card-640.webp';
+import threeCard1280Webp from '../../selectorimages/3card-1280.webp';
+
 import fiveCardArt from '../../selectorimages/5card.png';
+import fiveCard640Avif from '../../selectorimages/5card-640.avif';
+import fiveCard1280Avif from '../../selectorimages/5card-1280.avif';
+import fiveCard640Webp from '../../selectorimages/5card-640.webp';
+import fiveCard1280Webp from '../../selectorimages/5card-1280.webp';
+
 import decisionArt from '../../selectorimages/decision.png';
+import decision640Avif from '../../selectorimages/decision-640.avif';
+import decision1280Avif from '../../selectorimages/decision-1280.avif';
+import decision640Webp from '../../selectorimages/decision-640.webp';
+import decision1280Webp from '../../selectorimages/decision-1280.webp';
+
 import relationshipArt from '../../selectorimages/relationshipsnapshot.png';
+import relationship640Avif from '../../selectorimages/relationshipsnapshot-640.avif';
+import relationship1280Avif from '../../selectorimages/relationshipsnapshot-1280.avif';
+import relationship640Webp from '../../selectorimages/relationshipsnapshot-640.webp';
+import relationship1280Webp from '../../selectorimages/relationshipsnapshot-1280.webp';
+
 import celticArt from '../../selectorimages/celticcross.png';
+import celtic640Avif from '../../selectorimages/celticcross-640.avif';
+import celtic1280Avif from '../../selectorimages/celticcross-1280.avif';
+import celtic640Webp from '../../selectorimages/celticcross-640.webp';
+import celtic1280Webp from '../../selectorimages/celticcross-1280.webp';
 
 const STAR_TOTAL = 3;
 
@@ -84,42 +113,102 @@ const SPREAD_ART_OVERRIDES = {
     width: 4096,
     height: 4096,
     aspectRatio: '16 / 9',
-    alt: 'One-card insight spread artwork'
+    alt: 'One-card insight spread artwork',
+    sources: {
+      avif: [
+        { src: oneCard640Avif, width: 640 },
+        { src: oneCard1280Avif, width: 1280 }
+      ],
+      webp: [
+        { src: oneCard640Webp, width: 640 },
+        { src: oneCard1280Webp, width: 1280 }
+      ]
+    }
   },
   threeCard: {
     src: threeCardArt,
     width: 4096,
     height: 4096,
     aspectRatio: '16 / 9',
-    alt: 'Three-card story spread artwork'
+    alt: 'Three-card story spread artwork',
+    sources: {
+      avif: [
+        { src: threeCard640Avif, width: 640 },
+        { src: threeCard1280Avif, width: 1280 }
+      ],
+      webp: [
+        { src: threeCard640Webp, width: 640 },
+        { src: threeCard1280Webp, width: 1280 }
+      ]
+    }
   },
   fiveCard: {
     src: fiveCardArt,
     width: 4096,
     height: 4096,
     aspectRatio: '16 / 9',
-    alt: 'Five-card clarity spread artwork'
+    alt: 'Five-card clarity spread artwork',
+    sources: {
+      avif: [
+        { src: fiveCard640Avif, width: 640 },
+        { src: fiveCard1280Avif, width: 1280 }
+      ],
+      webp: [
+        { src: fiveCard640Webp, width: 640 },
+        { src: fiveCard1280Webp, width: 1280 }
+      ]
+    }
   },
   decision: {
     src: decisionArt,
     width: 4096,
     height: 4096,
     aspectRatio: '16 / 9',
-    alt: 'Decision two-path spread artwork'
+    alt: 'Decision two-path spread artwork',
+    sources: {
+      avif: [
+        { src: decision640Avif, width: 640 },
+        { src: decision1280Avif, width: 1280 }
+      ],
+      webp: [
+        { src: decision640Webp, width: 640 },
+        { src: decision1280Webp, width: 1280 }
+      ]
+    }
   },
   relationship: {
     src: relationshipArt,
     width: 4096,
     height: 4096,
     aspectRatio: '16 / 9',
-    alt: 'Relationship snapshot spread artwork'
+    alt: 'Relationship snapshot spread artwork',
+    sources: {
+      avif: [
+        { src: relationship640Avif, width: 640 },
+        { src: relationship1280Avif, width: 1280 }
+      ],
+      webp: [
+        { src: relationship640Webp, width: 640 },
+        { src: relationship1280Webp, width: 1280 }
+      ]
+    }
   },
   celtic: {
     src: celticArt,
     width: 4096,
     height: 4096,
     aspectRatio: '16 / 9',
-    alt: 'Celtic cross spread artwork'
+    alt: 'Celtic cross spread artwork',
+    sources: {
+      avif: [
+        { src: celtic640Avif, width: 640 },
+        { src: celtic1280Avif, width: 1280 }
+      ],
+      webp: [
+        { src: celtic640Webp, width: 640 },
+        { src: celtic1280Webp, width: 1280 }
+      ]
+    }
   }
 };
 

@@ -9,6 +9,13 @@ const EXPERIENCE_OPTIONS = [
   { value: 'experienced', label: 'Pretty experienced' },
 ];
 
+/** Core principles shown in onboarding - extracted for landscape scroll */
+const PRINCIPLES = [
+  { Icon: Eye, label: 'Reflect & explore' },
+  { Icon: Path, label: 'Embrace free will' },
+  { Icon: Lightbulb, label: 'Follow what resonates' }
+];
+
 /**
  * WelcomeHero - Step 1 of onboarding
  *
@@ -90,32 +97,39 @@ export function WelcomeHero({ onNext, onSkip }) {
           </div>
         </div>
 
-        {/* Key principles - hidden in landscape for space */}
-        {!isLandscape && (
+        {/* Key principles - horizontal scroll in landscape, grid in portrait */}
+        {isLandscape ? (
+          <div
+            className={`mt-3 flex gap-3 overflow-x-auto pb-2 snap-x snap-mandatory scrollbar-none ${
+              prefersReducedMotion ? '' : 'animate-fade-in-up'
+            }`}
+            style={{ animationDelay: '0.4s' }}
+          >
+            {PRINCIPLES.map((principle, i) => (
+              <div
+                key={i}
+                className="flex-shrink-0 w-32 snap-center flex items-center gap-2 px-3 py-2 rounded-xl bg-surface/40 border border-secondary/20"
+              >
+                <principle.Icon className="w-5 h-5 text-accent shrink-0" weight="duotone" aria-hidden="true" />
+                <span className="text-xs text-muted line-clamp-2">{principle.label}</span>
+              </div>
+            ))}
+          </div>
+        ) : (
           <div
             className={`mt-6 grid grid-cols-1 xs:grid-cols-3 gap-4 max-w-lg mx-auto ${
               prefersReducedMotion ? '' : 'animate-fade-in-up'
             }`}
             style={{ animationDelay: '0.4s' }}
           >
-            <div className="text-center">
-              <div className="w-10 h-10 mx-auto mb-2 rounded-full bg-accent/10 border border-accent/30 flex items-center justify-center">
-                <Eye className="w-5 h-5 text-accent" weight="duotone" aria-hidden="true" />
-              </div>
-              <p className="text-xs text-muted">Reflect & explore</p>
-            </div>
-            <div className="text-center">
-              <div className="w-10 h-10 mx-auto mb-2 rounded-full bg-accent/10 border border-accent/30 flex items-center justify-center">
-                <Path className="w-5 h-5 text-accent" weight="duotone" aria-hidden="true" />
-              </div>
-              <p className="text-xs text-muted">Embrace free will</p>
-            </div>
-              <div className="text-center">
+            {PRINCIPLES.map((principle, i) => (
+              <div key={i} className="text-center">
                 <div className="w-10 h-10 mx-auto mb-2 rounded-full bg-accent/10 border border-accent/30 flex items-center justify-center">
-                  <Lightbulb className="w-5 h-5 text-accent" weight="duotone" aria-hidden="true" />
+                  <principle.Icon className="w-5 h-5 text-accent" weight="duotone" aria-hidden="true" />
                 </div>
-                <p className="text-xs text-muted">Follow what resonates</p>
+                <p className="text-xs text-muted">{principle.label}</p>
               </div>
+            ))}
           </div>
         )}
 

@@ -5,6 +5,7 @@ import { GlobalNav } from './GlobalNav';
 import { UserMenu } from './UserMenu';
 import { ConfirmModal } from './ConfirmModal';
 import { useAuth } from '../contexts/AuthContext';
+import { usePreferences } from '../contexts/PreferencesContext';
 import { useJournal } from '../hooks/useJournal';
 import { JournalFilters } from './JournalFilters.jsx';
 import { JournalInsightsPanel } from './JournalInsightsPanel.jsx';
@@ -19,6 +20,8 @@ import { SPREADS } from '../data/spreads';
 import { DECK_OPTIONS } from './DeckSelector';
 import { useSmallScreen } from '../hooks/useSmallScreen';
 import { useToast } from '../contexts/ToastContext.jsx';
+import AuthModal from './AuthModal';
+import { AccountNudge } from './nudges';
 
 const CONTEXT_FILTERS = [
   { value: 'love', label: 'Love' },
@@ -68,6 +71,7 @@ function getTopContext(stats) {
 
 export default function Journal() {
   const { isAuthenticated, user } = useAuth();
+  const { shouldShowAccountNudge, dismissAccountNudge } = usePreferences();
   const { entries, loading, deleteEntry, migrateToCloud, error: journalError } = useJournal();
   const [migrating, setMigrating] = useState(false);
   const [deleteConfirmModal, setDeleteConfirmModal] = useState({ isOpen: false, entryId: null });
@@ -90,6 +94,7 @@ export default function Journal() {
   const [shareError, setShareError] = useState('');
   const [compactList, setCompactList] = useState(false);
   const [mobilePanelsOpen, setMobilePanelsOpen] = useState({ filters: false, insights: false, archetype: false });
+  const [showAuthModal, setShowAuthModal] = useState(false);
   const navigate = useNavigate();
   const isMobileLayout = useSmallScreen(MOBILE_LAYOUT_MAX);
   const { publish: showToast } = useToast();
@@ -477,11 +482,7 @@ export default function Journal() {
             allEntries={entries}
             isAuthenticated={isAuthenticated}
             filtersActive={filtersActive}
-            shareLinks={shareLinks}
-            shareLoading={shareLoading}
-            shareError={shareError}
             onCreateShareLink={isAuthenticated ? createShareLink : null}
-            onDeleteShareLink={isAuthenticated ? deleteShareLink : null}
           />
         </InsightsErrorBoundary>
       )}
@@ -508,6 +509,10 @@ export default function Journal() {
           entry={entry}
           isAuthenticated={isAuthenticated}
           onCreateShareLink={isAuthenticated ? createShareLink : null}
+          shareLinks={shareLinks}
+          shareLoading={shareLoading}
+          shareError={shareError}
+          onDeleteShareLink={isAuthenticated ? deleteShareLink : null}
           onDelete={handleDeleteRequest}
           compact={compactList}
         />
@@ -536,11 +541,7 @@ export default function Journal() {
             allEntries={entries}
             isAuthenticated={isAuthenticated}
             filtersActive={filtersActive}
-            shareLinks={shareLinks}
-            shareLoading={shareLoading}
-            shareError={shareError}
             onCreateShareLink={isAuthenticated ? createShareLink : null}
-            onDeleteShareLink={isAuthenticated ? deleteShareLink : null}
           />
         </InsightsErrorBoundary>
       ), 'Share, export, and view analytics')}
@@ -595,6 +596,14 @@ export default function Journal() {
           ) : (
             <div className="mb-6 rounded-2xl border border-primary/40 bg-primary/10 p-4 text-sm text-accent journal-prose">
               Your journal is currently stored locally in this browser only. Use the Sign In button in the header to sync across devices.
+              {shouldShowAccountNudge && (
+                <div className="mt-3">
+                  <AccountNudge
+                    onCreateAccount={() => setShowAuthModal(true)}
+                    onDismiss={dismissAccountNudge}
+                  />
+                </div>
+              )}
             </div>
           )}
 
@@ -620,7 +629,7 @@ export default function Journal() {
                     >
                       New entry
                     </button>
-                      <label className="journal-prose flex items-center gap-2 text-sm text-secondary">
+                    <label className="journal-prose flex items-center gap-2 text-sm text-secondary">
                       <input
                         type="checkbox"
                         className="h-4 w-4 rounded border-secondary/40 bg-surface text-accent focus:ring-secondary"
@@ -786,6 +795,7 @@ export default function Journal() {
         cancelText="Keep Entry"
         variant="danger"
       />
+      <AuthModal isOpen={showAuthModal} onClose={() => setShowAuthModal(false)} />
     </>
   );
 }

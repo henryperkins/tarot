@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState, useEffect } from 'react';
 import { AnimatePresence } from 'framer-motion';
 import { Sparkle, ArrowCounterClockwise, Star, CheckCircle, BookmarkSimple } from '@phosphor-icons/react';
 import { useNavigate } from 'react-router-dom';
@@ -15,6 +15,7 @@ import { CardModal } from './CardModal';
 import { NarrativeSkeleton } from './NarrativeSkeleton';
 import { DeckPile } from './DeckPile';
 import { DeckRitual } from './DeckRitual';
+import { RitualNudge, JournalNudge } from './nudges';
 import { useReading } from '../contexts/ReadingContext';
 import { usePreferences } from '../contexts/PreferencesContext';
 import { useSaveReading } from '../hooks/useSaveReading';
@@ -106,7 +107,14 @@ export function ReadingDisplay({ sectionRef }) {
         voiceOn,
         autoNarrate,
         deckStyleId,
-        personalization
+        personalization,
+        // Nudge state (contextual discovery)
+        shouldShowRitualNudge,
+        shouldShowJournalNudge,
+        markRitualNudgeSeen,
+        markJournalNudgeSeen,
+        incrementReadingCount,
+        nudgeState
     } = usePreferences();
     const displayName = personalization?.displayName?.trim();
     const _isExperienced = personalization?.tarotExperience === 'experienced';
@@ -196,6 +204,14 @@ export function ReadingDisplay({ sectionRef }) {
         return pos ? pos.split('—')[0].trim() : `Card ${nextIndex + 1}`;
     }, [reading, revealedCards, spreadInfo]);
 
+    // Track first completed reading for nudge system
+    useEffect(() => {
+        // Increment reading count when first narrative completes successfully
+        if (personalReading && !personalReading.isError && nudgeState.readingCount === 0) {
+            incrementReadingCount();
+        }
+    }, [personalReading, nudgeState.readingCount, incrementReadingCount]);
+
     return (
         <section ref={sectionRef} id="step-reading" tabIndex={-1} className="scroll-mt-[6.5rem] sm:scroll-mt-[7.5rem]" aria-label="Draw and explore your reading">
             <div className={isLandscape ? 'mb-2' : 'mb-4 sm:mb-5'}>
@@ -248,6 +264,16 @@ export function ReadingDisplay({ sectionRef }) {
                             </button>
                         </div>
                     )}
+                    {/* RitualNudge - contextual education for first-time users */}
+                    {reading && revealedCards.size < reading.length && shouldShowRitualNudge && knockCount === 0 && !hasCut && (
+                        <div className="mb-4 max-w-md mx-auto">
+                            <RitualNudge
+                                onEnableRitual={markRitualNudgeSeen}
+                                onSkip={markRitualNudgeSeen}
+                            />
+                        </div>
+                    )}
+
                     {reading && revealedCards.size < reading.length && (
                         newDeckInterface ? (
                             <DeckRitual
@@ -399,6 +425,19 @@ export function ReadingDisplay({ sectionRef }) {
                                     </div>
                                 )}
                                 {journalStatus && <p role="status" aria-live="polite" className={`text-xs text-center max-w-sm ${journalStatus.type === 'success' ? 'text-success' : 'text-error'}`}>{journalStatus.message}</p>}
+
+                                {/* JournalNudge - contextual prompt for first-time users after narrative */}
+                                {shouldShowJournalNudge && personalReading && !personalReading.isError && !journalStatus && (
+                                    <div className="mt-4 max-w-md mx-auto">
+                                        <JournalNudge
+                                            onSave={() => {
+                                                saveReading();
+                                                markJournalNudgeSeen();
+                                            }}
+                                            onDismiss={markJournalNudgeSeen}
+                                        />
+                                    </div>
+                                )}
                             </div>
                         </div>
                     )}

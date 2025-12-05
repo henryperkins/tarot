@@ -15,6 +15,7 @@ import { useModalA11y, createBackdropHandler } from '../hooks/useModalA11y';
 import { useSmallScreen } from '../hooks/useSmallScreen';
 import { useLandscape } from '../hooks/useLandscape';
 import { useReducedMotion } from '../hooks/useReducedMotion';
+import { useSwipeDismiss } from '../hooks/useSwipeDismiss';
 import { usePreferences } from '../contexts/PreferencesContext';
 import {
   INTENTION_TOPIC_OPTIONS,
@@ -257,7 +258,6 @@ function getDepthLabel(value) {
 
 export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply, prefillRecommendation = null }) {
   const isLandscape = useLandscape();
-  const _isSmallScreen = useSmallScreen();
   const prefersReducedMotion = useReducedMotion();
   const { personalization } = usePreferences();
   const [step, setStep] = useState(0);
@@ -328,6 +328,14 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply,
     containerRef: modalRef,
     trapFocus: false,
     initialFocusRef: closeButtonRef,
+  });
+
+  // Swipe-to-dismiss for mobile (swipe down to close)
+  const isSmallScreen = useSmallScreen();
+  const { handlers: swipeDismissHandlers, style: swipeDismissStyle, isDragging } = useSwipeDismiss({
+    onDismiss: onClose,
+    threshold: 120,
+    resistance: 0.5
   });
 
   // Clear step button refs on each render to prevent stale references
@@ -1185,7 +1193,17 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply,
           aria-modal="true"
           aria-labelledby={titleId}
           className={`relative w-full h-full sm:h-auto ${isLandscape ? 'max-h-[98vh]' : 'sm:max-h-[90vh]'} sm:max-w-3xl sm:mx-4 sm:rounded-3xl border-0 sm:border border-accent/30 bg-surface shadow-2xl focus:outline-none flex flex-col ${prefersReducedMotion ? '' : 'animate-pop-in'}`}
+          style={isSmallScreen ? swipeDismissStyle : undefined}
+          {...(isSmallScreen ? swipeDismissHandlers : {})}
         >
+          {/* Swipe handle indicator - mobile only */}
+          {isSmallScreen && (
+            <div
+              className={`w-12 h-1 bg-secondary/40 rounded-full mx-auto mt-3 mb-1 shrink-0 ${isDragging ? 'bg-accent/60' : ''}`}
+              aria-hidden="true"
+            />
+          )}
+
           {/* Close Button */}
           <button
             ref={closeButtonRef}

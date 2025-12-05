@@ -1,7 +1,8 @@
 import { Check } from '@phosphor-icons/react';
 import { useReducedMotion } from '../../hooks/useReducedMotion';
 
-const STEP_LABELS = [
+/** Default step labels for 7-step control variant */
+const DEFAULT_STEP_LABELS = [
   'Welcome',
   'Account',
   'Spreads',
@@ -16,10 +17,17 @@ const STEP_LABELS = [
  *
  * Shows current step and allows navigation to previously visited steps.
  * Mobile-compact design with dots, expanding to labels on larger screens.
+ *
+ * @param {number} currentStep - Current step number (1-indexed)
+ * @param {number} totalSteps - Total number of steps
+ * @param {string[]} stepLabels - Labels for each step (optional, defaults to 7-step labels)
+ * @param {function} onStepSelect - Callback when step is clicked
+ * @param {boolean} allowNavigation - Whether to allow clicking previous steps
  */
 export function OnboardingProgress({
   currentStep,
   totalSteps,
+  stepLabels = DEFAULT_STEP_LABELS,
   onStepSelect,
   allowNavigation = true,
 }) {
@@ -53,7 +61,7 @@ export function OnboardingProgress({
               } ${isAccessible && !isCurrent ? 'hover:bg-accent/30' : ''} ${
                 !isAccessible ? 'cursor-not-allowed opacity-50' : ''
               }`}
-              aria-label={`Step ${step}: ${STEP_LABELS[i] || `Step ${step}`}${
+              aria-label={`Step ${step}: ${stepLabels[i] || `Step ${step}`}${
                 isCompleted ? ' (completed)' : isCurrent ? ' (current)' : ''
               }`}
               aria-current={isCurrent ? 'step' : undefined}
@@ -93,7 +101,7 @@ export function OnboardingProgress({
                     ? 'bg-accent/10 text-accent hover:bg-accent/20'
                     : 'text-muted'
                 } ${!isAccessible ? 'cursor-not-allowed opacity-50' : ''}`}
-                aria-label={`${STEP_LABELS[i] || `Step ${step}`}${
+                aria-label={`${stepLabels[i] || `Step ${step}`}${
                   isCompleted ? ' (completed)' : isCurrent ? ' (current)' : ''
                 }`}
                 aria-current={isCurrent ? 'step' : undefined}
@@ -113,7 +121,7 @@ export function OnboardingProgress({
                     step
                   )}
                 </span>
-                <span className="text-[0.65rem] sm:text-xs lg:text-sm font-medium">{STEP_LABELS[i]}</span>
+                <span className="text-[0.65rem] sm:text-xs lg:text-sm font-medium">{stepLabels[i]}</span>
               </button>
 
               {/* Connector line */}

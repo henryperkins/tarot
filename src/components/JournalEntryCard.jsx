@@ -24,6 +24,30 @@ const TIMING_SUMMARIES = {
   'developing-arc': 'Timing: expect this to develop as an unfolding chapter, not a single moment.'
 };
 
+const MAX_SHARE_LINKS_IN_MENU = 6;
+
+function formatShareExpiry(expiresAt) {
+  if (!expiresAt) return 'No expiry';
+  const expiryMs = typeof expiresAt === 'number' ? expiresAt : new Date(expiresAt).getTime();
+  if (!Number.isFinite(expiryMs)) return 'No expiry';
+  const delta = expiryMs - Date.now();
+  if (delta <= 0) return 'Expired';
+  const days = Math.ceil(delta / (1000 * 60 * 60 * 24));
+  if (days <= 1) return 'Expires soon';
+  return `Expires in ${days}d`;
+}
+
+function getShareScopeLabel(link) {
+  return link?.scope === 'entry' ? 'Single reading' : 'Journal snapshot';
+}
+
+function formatShareMeta(link) {
+  const entryCount = link?.entryCount || 0;
+  const countLabel = entryCount === 1 ? '1 entry' : `${entryCount} entries`;
+  const expiryLabel = formatShareExpiry(link?.expiresAt);
+  return `${countLabel} • ${expiryLabel}`;
+}
+
 const CONTEXT_ACCENTS = {
   love: '#f4b8d6',
   career: '#8fb3ff',
@@ -137,7 +161,18 @@ const JournalCardListItem = memo(function JournalCardListItem({ card }) {
   );
 });
 
-export const JournalEntryCard = memo(function JournalEntryCard({ entry, onCreateShareLink, isAuthenticated, onDelete, defaultExpanded = false, compact = false }) {
+export const JournalEntryCard = memo(function JournalEntryCard({
+  entry,
+  onCreateShareLink,
+  isAuthenticated,
+  shareLinks = [],
+  shareLoading = false,
+  shareError = '',
+  onDelete,
+  onDeleteShareLink,
+  defaultExpanded = false,
+  compact = false
+}) {
   const insights = buildThemeInsights(entry);
   const [isExpanded, setIsExpanded] = useState(defaultExpanded);
   const [showNarrative, setShowNarrative] = useState(false);
@@ -237,6 +272,40 @@ export const JournalEntryCard = memo(function JournalEntryCard({ entry, onCreate
     return success;
   });
 
+    const handleCopyShareLink = async (token) => runAction('share-link-copy', async () => {
+      if (!token) return false;
+      if (typeof window === 'undefined') {
+        showStatus({ tone: 'error', message: 'Copy is unavailable in this environment.' });
+        return false;
+      }
+      const url = `${window.location.origin}/share/${token}`;
+      if (navigator?.clipboard?.writeText) {
+        try {
+          await navigator.clipboard.writeText(url);
+          showStatus({ tone: 'success', message: 'Share link copied.' });
+          return true;
+        } catch (error) {
+          console.warn('Clipboard write failed for share link', error);
+          showStatus({ tone: 'warning', message: 'Copy blocked—open the link and copy manually.' });
+          return false;
+        }
+      }
+      showStatus({ tone: 'error', message: 'Copy not supported—open the link to share.' });
+      return false;
+    });
+
+    const handleDeleteShareLink = async (token) => runAction('share-link-delete', async () => {
+      if (!token || !onDeleteShareLink) return false;
+      try {
+        await onDeleteShareLink(token);
+        showStatus({ tone: 'success', message: 'Share link removed.' });
+        return true;
+      } catch (error) {
+        showStatus({ tone: 'error', message: error?.message || 'Unable to delete share link.' });
+        return false;
+      }
+    });
+
   const timestamp = deriveTimestamp(entry);
   const formattedTimestamp = timestamp
     ? new Date(timestamp).toLocaleString(undefined, {
@@ -276,9 +345,26 @@ export const JournalEntryCard = memo(function JournalEntryCard({ entry, onCreate
     });
   }
 
+  const currentEntryId = entry?.id;
+  const entryShareLinks = Array.isArray(shareLinks)
+    ? shareLinks.filter((link) => {
+        // Only show entry-scoped links that include this entry
+        if (link?.scope && link.scope !== 'entry') return false;
+        const ids = Array.isArray(link?.entryIds) ? link.entryIds : [];
+        if (currentEntryId) {
+          return ids.includes(currentEntryId) || link?.entryId === currentEntryId;
+        }
+        // Fallback: allow single-entry links even if id is missing locally
+        return ids.length === 1 || link?.entryCount === 1;
+      })
+    : [];
+  const shareLinksPreview = entryShareLinks.slice(0, MAX_SHARE_LINKS_IN_MENU);
+  const extraShareLinks = Math.max(0, entryShareLinks.length - shareLinksPreview.length);
+  const shareActionsDisabled = pendingAction === 'share-link-copy' || pendingAction === 'share-link-delete';
+
   return (
     <article
-      className="group relative overflow-hidden rounded-2xl bg-surface/65 ring-1 ring-white/5 transition-all shadow-[0_24px_60px_-36px_rgba(0,0,0,0.85)] hover:shadow-[0_24px_70px_-30px_rgba(0,0,0,0.9)] animate-fade-in"
+      className="group relative overflow-visible rounded-2xl bg-surface/65 ring-1 ring-white/5 transition-all shadow-[0_24px_60px_-36px_rgba(0,0,0,0.85)] hover:shadow-[0_24px_70px_-30px_rgba(0,0,0,0.9)] animate-fade-in"
       style={{
         borderLeft: `4px solid ${accentColor}66`,
         backgroundImage: 'linear-gradient(145deg, rgba(255,255,255,0.02), rgba(255,255,255,0.04))'
@@ -365,38 +451,111 @@ export const JournalEntryCard = memo(function JournalEntryCard({ entry, onCreate
                 ref={actionMenuRef}
                 role="menu"
                 aria-label="Entry actions"
-                className="absolute right-0 top-full z-30 mt-2 w-56 rounded-2xl border border-secondary/20 bg-surface/95 p-1.5 shadow-2xl backdrop-blur"
+                className="absolute right-0 top-full z-50 mt-2 w-72 max-h-[75vh] overflow-y-auto rounded-2xl border border-secondary/20 bg-surface/95 p-2 shadow-2xl backdrop-blur"
               >
-                {actionMenuItems.map((item) => {
-                  const IconComponent = item.icon;
-                  const isPending = pendingAction === item.key;
-                  return (
-                    <button
-                      key={item.key}
-                      type="button"
-                      role="menuitem"
-                      onClick={() => {
-                        setActionMenuOpen(false);
-                        item.onSelect();
-                      }}
-                      disabled={isPending}
-                      className={`flex w-full items-center justify-between rounded-xl px-3 py-2 text-left text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 disabled:opacity-60 disabled:cursor-not-allowed ${
-                        item.tone === 'danger'
-                          ? 'text-error hover:bg-error/10 focus-visible:ring-error/40'
-                          : 'text-main/80 hover:bg-secondary/10 focus-visible:ring-secondary/40'
-                      }`}
-                    >
-                      <span className="flex items-center gap-2">
-                        {isPending ? (
-                          <CircleNotch className="h-3.5 w-3.5 animate-spin text-secondary/70" aria-hidden="true" />
-                        ) : (
-                          <IconComponent className="h-4 w-4 text-secondary/70" aria-hidden="true" />
-                        )}
-                        {item.label}
+                <div className="space-y-1">
+                  {actionMenuItems.map((item) => {
+                    const IconComponent = item.icon;
+                    const isPending = pendingAction === item.key;
+                    return (
+                      <button
+                        key={item.key}
+                        type="button"
+                        role="menuitem"
+                        onClick={() => {
+                          setActionMenuOpen(false);
+                          item.onSelect();
+                        }}
+                        disabled={isPending}
+                        className={`flex w-full items-center justify-between rounded-xl px-3 py-2 text-left text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 disabled:opacity-60 disabled:cursor-not-allowed ${
+                          item.tone === 'danger'
+                            ? 'text-error hover:bg-error/10 focus-visible:ring-error/40'
+                            : 'text-main/80 hover:bg-secondary/10 focus-visible:ring-secondary/40'
+                        }`}
+                      >
+                        <span className="flex items-center gap-2">
+                          {isPending ? (
+                            <CircleNotch className="h-3.5 w-3.5 animate-spin text-secondary/70" aria-hidden="true" />
+                          ) : (
+                            <IconComponent className="h-4 w-4 text-secondary/70" aria-hidden="true" />
+                          )}
+                          {item.label}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <div className="mt-3 rounded-xl border border-secondary/10 bg-surface/70 p-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-secondary/70">Active share links</p>
+                    {shareLoading ? (
+                      <CircleNotch className="h-3.5 w-3.5 animate-spin text-secondary/60" aria-label="Loading share links" />
+                    ) : (
+                      <span className="text-[11px] text-secondary/60">
+                        {shareLinksPreview.length > 0 ? `${shareLinksPreview.length}${extraShareLinks ? '+' : ''} shown` : 'None'}
                       </span>
-                    </button>
-                  );
-                })}
+                    )}
+                  </div>
+                  {shareError && (
+                    <p className="mt-1 text-[11px] text-error" aria-live="polite">{shareError}</p>
+                  )}
+                  {!shareLoading && !shareError && shareLinksPreview.length === 0 && (
+                    <p className="mt-2 text-[12px] text-secondary/70">No active links for this reading yet—create one to share it.</p>
+                  )}
+                  {!shareLoading && shareLinksPreview.length > 0 && (
+                    <ul className="mt-2 space-y-2">
+                      {shareLinksPreview.map((link) => {
+                        const meta = formatShareMeta(link);
+                        const isShareLinkPending = shareActionsDisabled;
+                        return (
+                          <li key={link.token} className="rounded-lg border border-secondary/15 bg-surface/80 p-2.5 shadow-[0_10px_26px_-22px_rgba(0,0,0,0.7)]">
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="min-w-0 space-y-0.5">
+                                <p className="truncate text-sm font-semibold text-main">{link.title || 'Untitled link'}</p>
+                                <p className="truncate text-[11px] text-secondary/65">{getShareScopeLabel(link)} · {meta}</p>
+                              </div>
+                              <span className="text-[11px] text-secondary/60">{link.viewCount || 0} views</span>
+                            </div>
+                            <div className="mt-2 flex flex-wrap gap-2">
+                              <button
+                                type="button"
+                                onClick={() => handleCopyShareLink(link.token)}
+                                disabled={isShareLinkPending}
+                                className="inline-flex items-center gap-1 rounded-full border border-secondary/30 bg-surface/60 px-2.5 py-1 text-[11px] font-semibold text-secondary hover:border-secondary/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/40 disabled:opacity-60 disabled:cursor-not-allowed"
+                              >
+                                {pendingAction === 'share-link-copy' ? (
+                                  <CircleNotch className="h-3 w-3 animate-spin text-secondary/70" aria-hidden="true" />
+                                ) : (
+                                  <ClipboardText className="h-3.5 w-3.5 text-secondary/70" aria-hidden="true" />
+                                )}
+                                Copy
+                              </button>
+                              {onDeleteShareLink && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleDeleteShareLink(link.token)}
+                                  disabled={isShareLinkPending}
+                                  className="inline-flex items-center gap-1 rounded-full border border-error/40 bg-error/5 px-2.5 py-1 text-[11px] font-semibold text-error hover:border-error/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-error/30 disabled:opacity-60 disabled:cursor-not-allowed"
+                                >
+                                  {pendingAction === 'share-link-delete' ? (
+                                    <CircleNotch className="h-3 w-3 animate-spin text-error/70" aria-hidden="true" />
+                                  ) : (
+                                    <Trash className="h-3.5 w-3.5" aria-hidden="true" />
+                                  )}
+                                  Delete
+                                </button>
+                              )}
+                            </div>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  )}
+                  {extraShareLinks > 0 && (
+                    <p className="mt-2 text-[11px] text-secondary/60">Showing the first {shareLinksPreview.length} of {entryShareLinks.length} links.</p>
+                  )}
+                </div>
               </div>
             )}
           </div>

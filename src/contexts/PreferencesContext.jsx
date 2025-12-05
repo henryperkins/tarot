@@ -9,6 +9,7 @@ const PREPARE_SECTIONS_STORAGE_KEY = 'tarot-prepare-sections';
 const ONBOARDING_STORAGE_KEY = 'tarot-onboarding-complete';
 const PERSONALIZATION_STORAGE_KEY = 'tarot-personalization';
 const PERSONALIZATION_BANNER_KEY = 'tarot-personalization-banner';
+const NUDGE_STATE_STORAGE_KEY = 'tarot-nudge-state';
 const DEFAULT_PREPARE_SECTIONS = {
   intention: false,
   experience: false,
@@ -24,6 +25,15 @@ const DEFAULT_PERSONALIZATION = {
   preferredSpreadDepth: 'standard',
   spiritualFrame: 'mixed',
   showRitualSteps: true
+};
+
+/** Nudge state for contextual discovery (trimmed onboarding) */
+const DEFAULT_NUDGE_STATE = {
+  hasSeenRitualNudge: false,
+  hasSeenJournalNudge: false,
+  hasDismissedAccountNudge: false,
+  readingCount: 0,
+  journalSaveCount: 0
 };
 
 export function PreferencesProvider({ children }) {
@@ -311,6 +321,59 @@ export function PreferencesProvider({ children }) {
     setOnboardingSpreadKey(null);
   };
 
+  // --- Nudge State (Contextual Discovery) ---
+  const [nudgeState, setNudgeStateInternal] = useState(() => {
+    if (typeof localStorage === 'undefined') {
+      return { ...DEFAULT_NUDGE_STATE };
+    }
+    try {
+      const stored = localStorage.getItem(NUDGE_STATE_STORAGE_KEY);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        return { ...DEFAULT_NUDGE_STATE, ...parsed };
+      }
+    } catch (error) {
+      console.debug('Unable to load nudge state:', error);
+    }
+    return { ...DEFAULT_NUDGE_STATE };
+  });
+
+  // Persist nudge state to localStorage
+  useEffect(() => {
+    if (typeof localStorage === 'undefined') return;
+    try {
+      localStorage.setItem(NUDGE_STATE_STORAGE_KEY, JSON.stringify(nudgeState));
+    } catch (error) {
+      console.debug('Unable to persist nudge state:', error);
+    }
+  }, [nudgeState]);
+
+  // Nudge state setters
+  const markRitualNudgeSeen = () => {
+    setNudgeStateInternal(prev => ({ ...prev, hasSeenRitualNudge: true }));
+  };
+
+  const markJournalNudgeSeen = () => {
+    setNudgeStateInternal(prev => ({ ...prev, hasSeenJournalNudge: true }));
+  };
+
+  const dismissAccountNudge = () => {
+    setNudgeStateInternal(prev => ({ ...prev, hasDismissedAccountNudge: true }));
+  };
+
+  const incrementReadingCount = () => {
+    setNudgeStateInternal(prev => ({ ...prev, readingCount: prev.readingCount + 1 }));
+  };
+
+  const incrementJournalSaveCount = () => {
+    setNudgeStateInternal(prev => ({ ...prev, journalSaveCount: prev.journalSaveCount + 1 }));
+  };
+
+  // Computed nudge visibility helpers
+  const shouldShowRitualNudge = nudgeState.readingCount === 0 && !nudgeState.hasSeenRitualNudge;
+  const shouldShowJournalNudge = nudgeState.readingCount === 0 && !nudgeState.hasSeenJournalNudge;
+  const shouldShowAccountNudge = nudgeState.journalSaveCount >= 3 && !nudgeState.hasDismissedAccountNudge;
+
   const value = {
     theme,
     setTheme,
@@ -349,7 +412,17 @@ export function PreferencesProvider({ children }) {
     setOnboardingSpreadKey,
     resetOnboarding,
     showPersonalizationBanner,
-    setShowPersonalizationBanner
+    setShowPersonalizationBanner,
+    // Nudge state (contextual discovery)
+    nudgeState,
+    shouldShowRitualNudge,
+    shouldShowJournalNudge,
+    shouldShowAccountNudge,
+    markRitualNudgeSeen,
+    markJournalNudgeSeen,
+    dismissAccountNudge,
+    incrementReadingCount,
+    incrementJournalSaveCount
   };
 
   return (
