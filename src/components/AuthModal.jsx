@@ -117,12 +117,17 @@ export default function AuthModal({ isOpen, onClose }) {
   `;
 
   const errorId = error || authError ? 'auth-error' : undefined;
+  const overlayClasses = [
+    'fixed inset-0 z-[200] flex justify-center bg-main/90 backdrop-blur-sm animate-fade-in overflow-y-auto',
+    isSmallScreen ? 'items-start px-4 py-8' : 'items-center p-4',
+  ].join(' ');
+  const modalClasses = [
+    'relative w-full bg-surface rounded-2xl border border-primary/40 shadow-2xl animate-pop-in overflow-y-auto',
+    isSmallScreen ? 'max-w-full mx-auto my-6' : 'max-w-md max-h-[90vh]',
+  ].join(' ');
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-main/90 backdrop-blur-sm animate-fade-in p-4"
-      onClick={createBackdropHandler(onClose)}
-    >
+    <div className={overlayClasses} onClick={createBackdropHandler(onClose)}>
       <FocusTrap
         active={isOpen}
         focusTrapOptions={{
@@ -139,7 +144,7 @@ export default function AuthModal({ isOpen, onClose }) {
           aria-modal="true"
           aria-labelledby="auth-modal-title"
           aria-describedby={errorId}
-          className={`relative w-full bg-surface rounded-2xl border border-primary/40 shadow-2xl animate-pop-in max-h-[90vh] overflow-y-auto ${isSmallScreen ? 'max-w-full mx-2' : 'max-w-md'}`}
+          className={modalClasses}
         >
           {/* Close button - 44px touch target */}
           <button
