@@ -1167,6 +1167,10 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply,
     return null;
   }
 
+  const contentPaddingTop = isSmallScreen
+    ? 'calc(env(safe-area-inset-top, 0px) + 0.5rem)'
+    : null;
+
   // ============================================================================
   // Main Render
   // ============================================================================
@@ -1199,7 +1203,7 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply,
           {/* Swipe handle indicator - mobile only */}
           {isSmallScreen && (
             <div
-              className={`w-12 h-1 bg-secondary/40 rounded-full mx-auto mt-3 mb-1 shrink-0 ${isDragging ? 'bg-accent/60' : ''}`}
+              className={`w-12 h-1 bg-secondary/40 rounded-full mx-auto mt-2 mb-1 shrink-0 ${isDragging ? 'bg-accent/60' : ''}`}
               aria-hidden="true"
             />
           )}
@@ -1217,7 +1221,10 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply,
 
           {/* Scrollable content area */}
           <div className="flex-1 overflow-y-auto">
-            <div className={`flex flex-col gap-6 px-4 pb-6 sm:px-10 sm:pb-6 ${isLandscape ? 'pt-10 gap-4' : 'pt-16 sm:pt-8'}`}>
+            <div
+              className={`flex flex-col gap-6 px-4 pb-6 sm:px-10 sm:pb-6 ${isLandscape ? 'pt-6 gap-4' : 'pt-8 sm:pt-6'}`}
+              style={contentPaddingTop ? { paddingTop: contentPaddingTop } : undefined}
+            >
               {/* Header */}
               <div>
                 <div className="flex items-center gap-2 text-secondary">

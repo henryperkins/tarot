@@ -227,7 +227,8 @@ export function buildEnhancedClaudePrompt({
   contextDiagnostics = [],
   promptBudgetEnv = null,
   personalization = null,
-  enableSemanticScoring = null
+  enableSemanticScoring = null,
+  subscriptionTier = null
 }) {
   const baseThemes = typeof themes === 'object' && themes !== null ? themes : {};
   const activeThemes = baseThemes.reversalDescription
@@ -254,7 +255,7 @@ export function buildEnhancedClaudePrompt({
   let effectiveGraphRAGPayload = graphRAGPayload;
   if (!effectiveGraphRAGPayload && isGraphRAGEnabled(promptBudgetEnv) && activeThemes?.knowledgeGraph?.graphKeys) {
     const effectiveSpreadKey = spreadKey || 'general';
-    const maxPassages = getPassageCountForSpread(effectiveSpreadKey);
+    const maxPassages = getPassageCountForSpread(effectiveSpreadKey, subscriptionTier);
 
     // Check if semantic scoring was requested
     // If enableSemanticScoring is explicitly true but we're doing sync retrieval,
@@ -397,7 +398,7 @@ export function buildEnhancedClaudePrompt({
     if (!payload?.passages || payload.passages.length <= 1) return;
 
     const effectiveSpreadKey = spreadKey || 'general';
-    const baselineMax = payload.maxPassages || getPassageCountForSpread(effectiveSpreadKey);
+    const baselineMax = payload.maxPassages || getPassageCountForSpread(effectiveSpreadKey, subscriptionTier);
     const currentCount = payload.passages.length;
     const targetCount = Math.max(
       1,
@@ -711,7 +712,7 @@ function buildSystemPrompt(spreadKey, themes, context, deckStyle, _userQuestion 
       if (retrievedPassages && retrievedPassages.length > 0) {
         // Adaptive passage count based on spread complexity
         const effectiveSpreadKey = spreadKey || 'general';
-        const maxPassages = getPassageCountForSpread(effectiveSpreadKey);
+        const maxPassages = payload?.maxPassages || getPassageCountForSpread(effectiveSpreadKey, subscriptionTier);
 
         // Trim if needed
         if (retrievedPassages.length > maxPassages) {

@@ -1,4 +1,4 @@
-import { ArrowLeft, ArrowRight, Notebook, ClockCounterClockwise, Sparkle, MagnifyingGlass, PencilLine, CloudCheck, HardDrive } from '@phosphor-icons/react';
+import { ArrowLeft, ArrowRight, Notebook, ClockCounterClockwise, Sparkle, MagnifyingGlass, PencilLine, CloudCheck, HardDrive, UserPlus } from '@phosphor-icons/react';
 import { useReducedMotion } from '../../hooks/useReducedMotion';
 import { useLandscape } from '../../hooks/useLandscape';
 import { useAuth } from '../../contexts/AuthContext';
@@ -9,7 +9,7 @@ import { useAuth } from '../../contexts/AuthContext';
  * Introduces the journal feature and explains its benefits.
  * Shows sync status based on authentication state.
  */
-export function JournalIntro({ onNext, onBack }) {
+export function JournalIntro({ onNext, onBack, onGoToStep }) {
   const prefersReducedMotion = useReducedMotion();
   const isLandscape = useLandscape();
   const { isAuthenticated } = useAuth();
@@ -128,8 +128,18 @@ export function JournalIntro({ onNext, onBack }) {
                 <div>
                   <p className="text-sm font-medium text-main">Saved locally on this device</p>
                   <p className="text-xs text-muted">
-                    Your journal stays private on this browser. Create an account to sync across devices.
+                    Your journal stays private on this browser.
                   </p>
+                  {onGoToStep && (
+                    <button
+                      type="button"
+                      onClick={() => onGoToStep(2)}
+                      className="mt-2 inline-flex items-center gap-1.5 text-xs text-accent hover:text-accent/80 transition touch-manipulation"
+                    >
+                      <UserPlus className="w-3.5 h-3.5" weight="bold" aria-hidden="true" />
+                      Create free account to sync
+                    </button>
+                  )}
                 </div>
               </>
             )}
@@ -152,7 +162,7 @@ export function JournalIntro({ onNext, onBack }) {
           onClick={onNext}
           className="flex-1 flex items-center justify-center gap-2 min-h-[48px] px-6 py-3 rounded-xl bg-accent text-surface font-semibold text-base transition hover:bg-accent/90 active:scale-[0.98] touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-main"
         >
-          Continue
+          {isAuthenticated ? 'Start your first reading' : 'Continue'}
           <ArrowRight className="w-5 h-5" weight="bold" />
         </button>
       </div>

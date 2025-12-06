@@ -23,13 +23,23 @@ import {
 import { cosineSimilarity, embedText } from './embeddings.js';
 
 /**
- * Determine the number of passages to retrieve based on spread complexity.
- * Centralized here so prompts and server-side memoization stay in sync.
+ * Determine the number of passages to retrieve based on spread complexity
+ * and subscription tier. Centralized here so prompts and server-side
+ * memoization stay in sync.
+ *
+ * Tier semantics:
+ * - free  → concisely scoped context (roughly half of base passages)
+ * - plus  → full base limits
+ * - pro   → full base limits (future: could increase beyond base)
+ *
+ * Callers that are not yet tier-aware can omit the tier argument; it will
+ * default to paid/full depth to preserve existing behavior.
  *
  * @param {string} spreadKey
+ * @param {string} [tier='free'] - 'free' | 'plus' | 'pro'
  * @returns {number}
  */
-export function getPassageCountForSpread(spreadKey) {
+export function getPassageCountForSpread(spreadKey, tier = 'plus') {
   const limits = {
     single: 1,        // One-card = 1 passage (focused)
     threeCard: 2,     // Simple spread = 2 passages
@@ -40,7 +50,20 @@ export function getPassageCountForSpread(spreadKey) {
     general: 3        // Default fallback
   };
 
-  return limits[spreadKey] || limits.general;
+  const base = limits[spreadKey] || limits.general;
+  const normalizedTier = typeof tier === 'string' && tier.trim()
+    ? tier.toLowerCase()
+    : 'plus';
+
+  // Free users receive a slimmer GraphRAG block for more concise readings
+  // while still preserving at least one passage for context.
+  if (normalizedTier === 'free') {
+    return Math.max(1, Math.floor(base / 2));
+  }
+
+  // Plus/Pro currently share the same base limits. This can be expanded
+  // later (e.g., pro → base * 2) without touching call sites.
+  return base;
 }
 
 /**

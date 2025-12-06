@@ -11,7 +11,8 @@ import {
   createSessionCookie,
   isValidEmail,
   isValidUsername,
-  isValidPassword
+  isValidPassword,
+  validateSession
 } from '../../lib/auth.js';
 
 export async function onRequestPost(context) {
@@ -88,15 +89,24 @@ export async function onRequestPost(context) {
     };
 
     const { token, expiresAt } = await createSession(env.DB, userId, metadata);
+    const sessionUser = await validateSession(env.DB, token);
+
+    if (!sessionUser) {
+      throw new Error('Session validation failed after registration');
+    }
 
     // Return success with session cookie
     return new Response(
       JSON.stringify({
         success: true,
         user: {
-          id: userId,
-          email: email.toLowerCase(),
-          username: username
+          id: sessionUser.id,
+          email: sessionUser.email,
+          username: sessionUser.username,
+          subscription_tier: sessionUser.subscription_tier || 'free',
+          subscription_status: sessionUser.subscription_status || 'inactive',
+          subscription_provider: sessionUser.subscription_provider || null,
+          stripe_customer_id: sessionUser.stripe_customer_id || null
         }
       }),
       {

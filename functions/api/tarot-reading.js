@@ -64,6 +64,7 @@ import {
   AMBIGUOUS_CARD_NAMES,
   TAROT_TERMINOLOGY_EXCLUSIONS
 } from '../lib/cardContextDetection.js';
+import { getUserFromRequest } from '../lib/auth.js';
 
 // Detect if question asks about future timeframe
 function detectForecastTimeframe(userQuestion) {
@@ -496,13 +497,19 @@ export const onRequestPost = async ({ request, env }) => {
     }
 
 
+    // Get user subscription tier for feature gating
+    const user = await getUserFromRequest(request, env);
+    const subscriptionTier = user?.subscription_tier || 'free';
+    console.log(`[${requestId}] User subscription tier: ${subscriptionTier}`);
+
     // STEP 1: Comprehensive spread analysis
     console.log(`[${requestId}] Starting spread analysis...`);
     const analysisStart = Date.now();
     const analysis = await performSpreadAnalysis(spreadInfo, cardsInfo, {
       reversalFrameworkOverride,
       deckStyle,
-      userQuestion
+      userQuestion,
+      subscriptionTier
     }, requestId, env);
     const analysisTime = Date.now() - analysisStart;
     console.log(`[${requestId}] Spread analysis completed in ${analysisTime}ms:`, {
@@ -526,14 +533,15 @@ export const onRequestPost = async ({ request, env }) => {
       reflectionsText,
       analysis,
       context,
-      contextDiagnostics,
-      visionInsights: sanitizedVisionInsights,
-      deckStyle,
-      personalization: personalization || null,
-      narrativeEnhancements: [],
-      graphRAGPayload: analysis.graphRAGPayload || null,
-      promptMeta: null
-    };
+  contextDiagnostics,
+  visionInsights: sanitizedVisionInsights,
+  deckStyle,
+  personalization: personalization || null,
+  subscriptionTier,
+  narrativeEnhancements: [],
+  graphRAGPayload: analysis.graphRAGPayload || null,
+  promptMeta: null
+};
 
     let reading = null;
     let provider = 'local-composer';
@@ -848,15 +856,65 @@ async function performSpreadAnalysis(spreadInfo, cardsInfo, options = {}, reques
         isSemanticScoringAvailable
       } = await import('../lib/graphRAG.js');
 
-      if (isGraphRAGEnabled(options.env)) {
-        const maxPassages = getPassageCountForSpread(spreadKey || 'general');
-        
-        // Determine if semantic scoring should be used
-        // Default: enabled if API is available, can be overridden via options
-        const semanticAvailable = isSemanticScoringAvailable(options.env);
-        const enableSemanticScoring = options.enableSemanticScoring !== undefined
-          ? Boolean(options.enableSemanticScoring)
-          : semanticAvailable;
+      const semanticAvailable = isSemanticScoringAvailable(options.env);
+      const requestedSemanticScoring =
+        options.enableSemanticScoring === true ||
+        (options.enableSemanticScoring === undefined && semanticAvailable);
+      const enableSemanticScoring = requestedSemanticScoring && semanticAvailable;
+
+      const attachGraphRAGPlaceholder = (reason) => {
+        const patternsDetected = {
+          completeTriads: graphKeys?.completeTriadIds?.length || 0,
+          partialTriads:
+            (graphKeys?.triadIds?.length || 0) -
+            (graphKeys?.completeTriadIds?.length || 0),
+          foolsJourneyStage: graphKeys?.foolsJourneyStageKey || null,
+          highDyads: graphKeys?.dyadPairs?.filter((d) => d.significance === 'high').length || 0,
+          strongSuitProgressions:
+            graphKeys?.suitProgressions?.filter((p) => p.significance === 'strong-progression').length || 0
+        };
+
+        graphRAGPayload = {
+          passages: [],
+          formattedBlock: null,
+          retrievalSummary: {
+            graphKeysProvided: Boolean(graphKeys),
+            patternsDetected,
+            passagesRetrieved: 0,
+            passagesByType: {},
+            passagesByPriority: {},
+            semanticScoringRequested: requestedSemanticScoring,
+            semanticScoringUsed: false,
+            semanticScoringFallback: requestedSemanticScoring,
+            reason
+          },
+          maxPassages: 0,
+          initialPassageCount: 0,
+          rankingStrategy: null,
+          enableSemanticScoring,
+          qualityMetrics: null,
+          semanticScoringRequested: requestedSemanticScoring,
+          semanticScoringUsed: false,
+          semanticScoringFallback: requestedSemanticScoring
+        };
+
+        themes.knowledgeGraph = themes.knowledgeGraph || { graphKeys: graphKeys || null };
+        themes.knowledgeGraph.graphRAGPayload = graphRAGPayload;
+      };
+
+      if (requestedSemanticScoring && !semanticAvailable) {
+        console.warn(
+          `[${requestId}] Semantic scoring requested but embeddings are unavailable (missing AZURE_OPENAI_ENDPOINT/API_KEY); falling back to keyword scoring.`
+        );
+      }
+
+      if (!isGraphRAGEnabled(options.env)) {
+        attachGraphRAGPlaceholder('graphrag-disabled-env');
+      } else {
+        // Pass subscription tier for tier-aware passage limits
+        const tier = options.subscriptionTier || 'free';
+        const maxPassages = getPassageCountForSpread(spreadKey || 'general', tier);
+        console.log(`[${requestId}] GraphRAG passage limit: ${maxPassages} (tier: ${tier})`);
 
         let passages;
         let retrievalSummary;
@@ -873,10 +931,12 @@ async function performSpreadAnalysis(spreadInfo, cardsInfo, options = {}, reques
             env: options.env
           });
           retrievalSummary = buildQualityRetrievalSummary(graphKeys, passages);
-          
+
           // Log average relevance for monitoring
           if (retrievalSummary.qualityMetrics?.averageRelevance) {
-            console.log(`[${requestId}] GraphRAG quality: ${passages.length} passages, avg relevance: ${(retrievalSummary.qualityMetrics.averageRelevance * 100).toFixed(1)}%`);
+            console.log(
+              `[${requestId}] GraphRAG quality: ${passages.length} passages, avg relevance: ${(retrievalSummary.qualityMetrics.averageRelevance * 100).toFixed(1)}%`
+            );
           }
         } else {
           // Fall back to standard retrieval (keyword-only)
@@ -887,7 +947,7 @@ async function performSpreadAnalysis(spreadInfo, cardsInfo, options = {}, reques
           retrievalSummary = buildRetrievalSummary(graphKeys, passages);
         }
 
-        const semanticScoringRequested = enableSemanticScoring === true;
+        const semanticScoringRequested = requestedSemanticScoring;
         const semanticScoringUsed = retrievalSummary?.qualityMetrics?.semanticScoringUsed === true;
         const semanticScoringFallback = semanticScoringRequested && !semanticScoringUsed;
 
@@ -923,6 +983,40 @@ async function performSpreadAnalysis(spreadInfo, cardsInfo, options = {}, reques
           graphRAGPayload
         };
       }
+    } else {
+      // No patterns detected but includeGraphRAG was expected; attach placeholder telemetry
+      graphRAGPayload = {
+        passages: [],
+        formattedBlock: null,
+        retrievalSummary: {
+          graphKeysProvided: false,
+          patternsDetected: {
+            completeTriads: 0,
+            partialTriads: 0,
+            foolsJourneyStage: null,
+            highDyads: 0,
+            strongSuitProgressions: 0
+          },
+          passagesRetrieved: 0,
+          passagesByType: {},
+          passagesByPriority: {},
+          semanticScoringRequested: options.enableSemanticScoring === true,
+          semanticScoringUsed: false,
+          semanticScoringFallback: options.enableSemanticScoring === true,
+          reason: 'missing-graph-keys'
+        },
+        maxPassages: 0,
+        initialPassageCount: 0,
+        rankingStrategy: null,
+        enableSemanticScoring: Boolean(options.enableSemanticScoring),
+        qualityMetrics: null,
+        semanticScoringRequested: options.enableSemanticScoring === true,
+        semanticScoringUsed: false,
+        semanticScoringFallback: options.enableSemanticScoring === true
+      };
+      themes.knowledgeGraph = themes.knowledgeGraph || { graphKeys: null };
+      themes.knowledgeGraph.graphRAGPayload = graphRAGPayload;
+      console.warn(`[${requestId}] GraphRAG skipped: no graph patterns detected for this spread.`);
     }
   } catch (err) {
     console.warn(`[${requestId}] performSpreadAnalysis: GraphRAG memoization failed: ${err.message}`);
@@ -1095,7 +1189,8 @@ async function generateWithAzureGPT5Responses(env, payload, requestId = 'unknown
     contextDiagnostics,
     promptBudgetEnv: env,
     personalization: payload.personalization,
-    enableSemanticScoring
+    enableSemanticScoring,
+    subscriptionTier: payload.subscriptionTier
   });
 
   if (promptMeta) {
@@ -1293,7 +1388,8 @@ async function generateWithClaudeSonnet45Enhanced(env, payload, requestId = 'unk
     contextDiagnostics,
     promptBudgetEnv: env,
     personalization: payload.personalization,
-    enableSemanticScoring
+    enableSemanticScoring,
+    subscriptionTier: payload.subscriptionTier
   });
 
   // Capture prompts for persistence

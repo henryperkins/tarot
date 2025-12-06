@@ -136,23 +136,63 @@ export async function validateSession(db, token) {
 
   const now = Math.floor(Date.now() / 1000);
 
-  // Get session and join with user data
-  const result = await db
-    .prepare(`
-      SELECT
-        s.id as session_id,
-        s.user_id,
-        s.expires_at,
-        u.id,
-        u.email,
-        u.username,
-        u.is_active
-      FROM sessions s
-      JOIN users u ON s.user_id = u.id
-      WHERE s.id = ? AND s.expires_at > ? AND u.is_active = 1
-    `)
-    .bind(token, now)
-    .first();
+  // Get session and join with user data. Attempt the subscription-aware
+  // projection first; if the migration hasn't been applied yet, fall back
+  // to the pre-subscription schema so auth doesn't 500.
+  let result;
+  try {
+    result = await db
+      .prepare(`
+        SELECT
+          s.id as session_id,
+          s.user_id,
+          s.expires_at,
+          u.id,
+          u.email,
+          u.username,
+          u.is_active,
+          u.subscription_tier,
+          u.subscription_status,
+          u.subscription_provider,
+          u.stripe_customer_id
+        FROM sessions s
+        JOIN users u ON s.user_id = u.id
+        WHERE s.id = ? AND s.expires_at > ? AND u.is_active = 1
+      `)
+      .bind(token, now)
+      .first();
+  } catch (error) {
+    const message = error?.message || '';
+    const missingSubscriptionColumns =
+      message.includes('no such column') &&
+      (message.includes('subscription_tier') ||
+        message.includes('subscription_status') ||
+        message.includes('subscription_provider') ||
+        message.includes('stripe_customer_id'));
+
+    if (!missingSubscriptionColumns) {
+      throw error;
+    }
+
+    // Pre-0008 schema fallback: return core user fields and let callers
+    // receive defaulted subscription metadata below.
+    result = await db
+      .prepare(`
+        SELECT
+          s.id as session_id,
+          s.user_id,
+          s.expires_at,
+          u.id,
+          u.email,
+          u.username,
+          u.is_active
+        FROM sessions s
+        JOIN users u ON s.user_id = u.id
+        WHERE s.id = ? AND s.expires_at > ? AND u.is_active = 1
+      `)
+      .bind(token, now)
+      .first();
+  }
 
   if (!result) return null;
 
@@ -162,11 +202,22 @@ export async function validateSession(db, token) {
     .bind(now, token)
     .run();
 
+  // Normalize subscription-related fields with sensible defaults so
+  // downstream callers (e.g., subscription gating, dashboards) can rely
+  // on their presence.
+  const subscriptionTier = result.subscription_tier || 'free';
+  const subscriptionStatus = result.subscription_status || 'inactive';
+  const subscriptionProvider = result.subscription_provider || null;
+
   return {
     id: result.user_id,
     email: result.email,
     username: result.username,
-    sessionId: result.session_id
+    sessionId: result.session_id,
+    subscription_tier: subscriptionTier,
+    subscription_status: subscriptionStatus,
+    subscription_provider: subscriptionProvider,
+    stripe_customer_id: result.stripe_customer_id || null
   };
 }
 
@@ -302,10 +353,17 @@ export async function getUserFromRequest(request, env) {
     if (token && token.startsWith('sk_')) {
       const apiKeyRecord = await validateApiKey(env.DB, token);
       if (apiKeyRecord) {
+        // API keys are reserved for advanced / Pro-style integrations.
+        // Treat them as having an active "pro"-level subscription by
+        // default so API usage can be gated separately from end-user tiers.
         return {
           id: apiKeyRecord.user_id,
           email: apiKeyRecord.email,
-          username: apiKeyRecord.username
+          username: apiKeyRecord.username,
+          subscription_tier: 'pro',
+          subscription_status: 'active',
+          subscription_provider: 'api_key',
+          stripe_customer_id: null
         };
       }
     }

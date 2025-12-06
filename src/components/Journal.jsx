@@ -1,5 +1,5 @@
 import { useDeferredValue, useCallback, useEffect, useMemo, useState } from 'react';
-import { CaretLeft, UploadSimple, ChartLine, Sparkle, BookOpen, CaretDown, CaretUp } from '@phosphor-icons/react';
+import { CaretLeft, UploadSimple, ChartLine, Sparkle, BookOpen, CaretDown, CaretUp, ClockCounterClockwise } from '@phosphor-icons/react';
 import { useNavigate } from 'react-router-dom';
 import { GlobalNav } from './GlobalNav';
 import { UserMenu } from './UserMenu';
@@ -289,6 +289,46 @@ export default function Journal() {
     }
   ];
   const showSummaryBand = !loading && hasEntries;
+  const NOISE_TEXTURE =
+    "url('data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 160 160%22%3E%3Cfilter id=%22n%22%3E%3CfeTurbulence type=%22fractalNoise%22 baseFrequency=%220.9%22 numOctaves=%223%22 stitchTiles=%22stitch%22/%3E%3C/filter%3E%3Crect width=%22100%25%22 height=%22100%25%22 filter=%22url(%23n)%22 opacity=%220.35%22/%3E%3C/svg%3E')";
+  const CARD_NODE_POSITIONS = {
+    entries: { x: 50, y: 50 },
+    reversal: { x: 78, y: 38 },
+    context: { x: 24, y: 36 },
+    'last-entry': { x: 52, y: 74 }
+  };
+  const CARD_NODE_FALLBACK = [
+    { x: 24, y: 36 },
+    { x: 78, y: 38 },
+    { x: 50, y: 50 },
+    { x: 52, y: 74 }
+  ];
+  const CARD_CONNECTORS = [
+    ['entries', 'reversal'],
+    ['entries', 'context'],
+    ['entries', 'last-entry'],
+    ['reversal', 'context'],
+    ['reversal', 'last-entry'],
+    ['context', 'last-entry']
+  ];
+  const statNodes = useMemo(() => {
+    let fallbackIndex = 0;
+    return summaryCardData.map((card) => {
+      const fallback = CARD_NODE_FALLBACK[fallbackIndex] || { x: 50, y: 50 + fallbackIndex * 8 };
+      const pos = CARD_NODE_POSITIONS[card.id] || fallback;
+      fallbackIndex += CARD_NODE_POSITIONS[card.id] ? 0 : 1;
+      return {
+        ...card,
+        x: pos.x,
+        y: pos.y,
+        isHero: card.id === 'entries'
+      };
+    });
+  }, [summaryCardData]);
+  const statNodeMap = useMemo(
+    () => Object.fromEntries(statNodes.map((node) => [node.id, node])),
+    [statNodes]
+  );
 
   const fetchShareLinks = useCallback(async () => {
     if (!isAuthenticated) return;
@@ -620,42 +660,435 @@ export default function Journal() {
           )}
 
           {showSummaryBand && (
-            <section className="mb-6 rounded-3xl border border-secondary/30 bg-surface/80 p-6 shadow-lg">
-              <div className="flex flex-col gap-6">
-                <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-                  <div>
-                    <p className="journal-eyebrow text-secondary/70">Journal pulse</p>
-                    <h2 className="text-2xl font-serif text-main">Where your readings stand</h2>
+            <section className="relative mb-6 overflow-hidden rounded-3xl border border-amber-300/10 bg-gradient-to-br from-[#07091a] via-[#0a0c1a] to-[#050714] shadow-[0_24px_64px_-24px_rgba(0,0,0,0.95)]">
+              {/* Dense star field */}
+              <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden="true">
+                {[
+                  { x: 5, y: 12, s: 1, o: 0.6 }, { x: 12, y: 8, s: 1.5, o: 0.8 }, { x: 18, y: 25, s: 1, o: 0.4 },
+                  { x: 25, y: 5, s: 2, o: 0.7 }, { x: 32, y: 18, s: 1, o: 0.5 }, { x: 38, y: 10, s: 1.5, o: 0.6 },
+                  { x: 45, y: 22, s: 1, o: 0.4 }, { x: 52, y: 6, s: 1, o: 0.7 }, { x: 58, y: 15, s: 2, o: 0.5 },
+                  { x: 65, y: 8, s: 1, o: 0.6 }, { x: 72, y: 20, s: 1.5, o: 0.4 }, { x: 78, y: 12, s: 1, o: 0.8 },
+                  { x: 85, y: 5, s: 1, o: 0.5 }, { x: 92, y: 18, s: 2, o: 0.6 }, { x: 95, y: 8, s: 1, o: 0.4 },
+                  { x: 8, y: 88, s: 1, o: 0.5 }, { x: 15, y: 92, s: 1.5, o: 0.6 }, { x: 22, y: 85, s: 1, o: 0.4 },
+                  { x: 35, y: 90, s: 2, o: 0.7 }, { x: 48, y: 95, s: 1, o: 0.5 }, { x: 62, y: 88, s: 1, o: 0.6 },
+                  { x: 75, y: 92, s: 1.5, o: 0.4 }, { x: 88, y: 86, s: 1, o: 0.7 }, { x: 95, y: 90, s: 1, o: 0.5 },
+                  { x: 3, y: 45, s: 1, o: 0.3 }, { x: 97, y: 55, s: 1, o: 0.3 }, { x: 50, y: 3, s: 1.5, o: 0.4 },
+                ].map((star, i) => (
+                  <div
+                    key={i}
+                    className="absolute rounded-full bg-amber-100"
+                    style={{
+                      left: `${star.x}%`,
+                      top: `${star.y}%`,
+                      width: star.s,
+                      height: star.s,
+                      opacity: star.o,
+                      boxShadow: star.o > 0.6 ? `0 0 ${star.s * 4}px ${star.s}px rgba(251,191,36,${star.o * 0.4})` : 'none'
+                    }}
+                  />
+                ))}
+              </div>
+
+              {/* Nebula glows */}
+              <div className="pointer-events-none absolute -left-40 top-1/4 h-80 w-80 rounded-full bg-indigo-600/[0.07] blur-[100px]" aria-hidden="true" />
+              <div className="pointer-events-none absolute -right-32 top-1/3 h-64 w-64 rounded-full bg-amber-500/[0.05] blur-[80px]" aria-hidden="true" />
+              <div className="pointer-events-none absolute left-1/4 -bottom-24 h-56 w-56 rounded-full bg-purple-600/[0.06] blur-[90px]" aria-hidden="true" />
+              <div className="pointer-events-none absolute right-1/4 top-0 h-48 w-48 rounded-full bg-cyan-500/[0.04] blur-[70px]" aria-hidden="true" />
+
+              <div className="relative p-5 sm:p-6 lg:p-8">
+                {/* Header */}
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-6 lg:mb-4">
+                  <div className="space-y-1">
+                    <p className="text-[10px] uppercase tracking-[0.3em] text-amber-300/50">Journal Pulse</p>
+                    <h2 className="text-xl sm:text-2xl font-serif text-amber-50/90">Your practice at a glance</h2>
                   </div>
-                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-                    <button
-                      type="button"
-                      onClick={handleStartReading}
-                      className="inline-flex items-center justify-center rounded-full bg-accent px-5 py-2 text-sm font-semibold text-surface shadow-lg shadow-accent/30 hover:opacity-95"
-                    >
-                      New entry
-                    </button>
-                    <label className="journal-prose flex items-center gap-2 text-sm text-secondary">
+                  <div className="flex items-center gap-3">
+                    <label className="flex items-center gap-2 text-xs text-amber-100/50 cursor-pointer select-none">
                       <input
                         type="checkbox"
-                        className="h-4 w-4 rounded border-secondary/40 bg-surface text-accent focus:ring-secondary"
+                        className="h-3.5 w-3.5 rounded border-amber-200/30 bg-transparent text-amber-300 focus:ring-amber-200/40 focus:ring-offset-0"
                         checked={compactList}
                         onChange={(event) => setCompactList(event.target.checked)}
                       />
-                      Compact list
+                      Compact
                     </label>
+                    <button
+                      type="button"
+                      onClick={handleStartReading}
+                      className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-amber-300 to-amber-400 px-4 py-2 text-sm font-semibold text-slate-900 shadow-lg shadow-amber-400/20 transition hover:shadow-amber-300/30 hover:-translate-y-0.5 active:translate-y-0"
+                    >
+                      <Sparkle className="h-4 w-4" weight="fill" aria-hidden />
+                      New Reading
+                    </button>
                   </div>
                 </div>
-                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                  {summaryCardData.map((card) => (
-                    <div key={card.id} className="rounded-2xl border border-secondary/20 bg-surface/40 p-4">
-                      <p className="journal-eyebrow text-secondary/60">{card.label}</p>
-                      <p className="mt-2 text-2xl font-serif text-main">{card.value}</p>
-                      {card.hint && (
-                        <p className="journal-prose text-secondary/70">{card.hint}</p>
-                      )}
-                    </div>
-                  ))}
+
+                {/* Constellation layout */}
+                <div className="relative">
+                  {/* Mobile: 2x2 grid */}
+                  <div className="grid grid-cols-2 gap-3 lg:hidden">
+                    {statNodes.map((stat) => {
+                      const isHero = stat.id === 'entries';
+                      const icon = (() => {
+                        if (stat.id === 'entries') return <Sparkle className="h-4 w-4" weight="fill" aria-hidden />;
+                        if (stat.id === 'reversal') return <ChartLine className="h-4 w-4" aria-hidden />;
+                        if (stat.id === 'context') return <BookOpen className="h-4 w-4" aria-hidden />;
+                        return <ClockCounterClockwise className="h-4 w-4" aria-hidden />;
+                      })();
+
+                      return (
+                        <div key={stat.id} className="group relative">
+                          {/* Card glow */}
+                          {isHero && (
+                            <div className="pointer-events-none absolute -inset-2 rounded-lg bg-amber-400/10 blur-xl" aria-hidden="true" />
+                          )}
+                          {/* Tarot card */}
+                          <div className={`relative overflow-hidden rounded-lg ${isHero ? 'ring-1 ring-amber-400/30' : 'ring-1 ring-amber-200/10'}`}>
+                            {/* Outer decorative border area with pattern */}
+                            <div className={`absolute inset-0 ${isHero ? 'bg-gradient-to-b from-amber-900/40 via-amber-950/30 to-amber-900/40' : 'bg-gradient-to-b from-amber-900/20 via-amber-950/15 to-amber-900/20'}`}>
+                              {/* Geometric card-back pattern */}
+                              <svg className="absolute inset-0 w-full h-full opacity-[0.08]" aria-hidden="true">
+                                <defs>
+                                  <pattern id={`cardPattern-mobile-${stat.id}`} x="0" y="0" width="16" height="16" patternUnits="userSpaceOnUse">
+                                    <path d="M8 0L16 8L8 16L0 8Z" fill="none" stroke="currentColor" strokeWidth="0.5" className="text-amber-300" />
+                                    <circle cx="8" cy="8" r="2" fill="none" stroke="currentColor" strokeWidth="0.5" className="text-amber-300" />
+                                  </pattern>
+                                </defs>
+                                <rect width="100%" height="100%" fill={`url(#cardPattern-mobile-${stat.id})`} />
+                              </svg>
+                            </div>
+                            {/* Inner card frame */}
+                            <div className={`relative m-1.5 rounded overflow-hidden ${isHero ? 'bg-gradient-to-b from-[#0f0d18] via-[#0a0912] to-[#0f0d18]' : 'bg-gradient-to-b from-[#0c0a14] via-[#08070e] to-[#0c0a14]'}`}>
+                              <div className={`absolute inset-0 rounded border ${isHero ? 'border-amber-400/25' : 'border-amber-200/10'}`} />
+                              {/* Corner ornaments */}
+                              <svg className="absolute top-0 left-0 w-4 h-4 text-amber-400/40" viewBox="0 0 16 16" aria-hidden="true">
+                                <path d="M0 8L0 0L8 0" fill="none" stroke="currentColor" strokeWidth="1" />
+                                <circle cx="2" cy="2" r="1" fill="currentColor" />
+                              </svg>
+                              <svg className="absolute top-0 right-0 w-4 h-4 text-amber-400/40" viewBox="0 0 16 16" aria-hidden="true">
+                                <path d="M16 8L16 0L8 0" fill="none" stroke="currentColor" strokeWidth="1" />
+                                <circle cx="14" cy="2" r="1" fill="currentColor" />
+                              </svg>
+                              <svg className="absolute bottom-0 left-0 w-4 h-4 text-amber-400/40" viewBox="0 0 16 16" aria-hidden="true">
+                                <path d="M0 8L0 16L8 16" fill="none" stroke="currentColor" strokeWidth="1" />
+                                <circle cx="2" cy="14" r="1" fill="currentColor" />
+                              </svg>
+                              <svg className="absolute bottom-0 right-0 w-4 h-4 text-amber-400/40" viewBox="0 0 16 16" aria-hidden="true">
+                                <path d="M16 8L16 16L8 16" fill="none" stroke="currentColor" strokeWidth="1" />
+                                <circle cx="14" cy="14" r="1" fill="currentColor" />
+                              </svg>
+                              {/* Card content */}
+                              <div className="relative p-3 text-center">
+                                <div className={`mx-auto mb-2 flex h-8 w-8 items-center justify-center rounded-full ${isHero ? 'bg-amber-400/20 text-amber-300 ring-1 ring-amber-400/30' : 'bg-amber-200/10 text-amber-200/60 ring-1 ring-amber-200/15'}`}>
+                                  {icon}
+                                </div>
+                                <p className={`text-[9px] uppercase tracking-[0.15em] mb-1 ${isHero ? 'text-amber-300/60' : 'text-amber-100/40'}`}>{stat.label}</p>
+                                <p className={`font-serif leading-tight ${isHero ? 'text-2xl text-amber-100' : 'text-xl text-amber-50/80'}`}>{stat.value}</p>
+                                {stat.hint && <p className={`mt-1 text-[10px] leading-snug ${isHero ? 'text-amber-200/40' : 'text-amber-100/25'}`}>{stat.hint}</p>}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* Desktop: Constellation layout */}
+                  <div className="hidden lg:block relative" style={{ height: '340px' }}>
+                    {/* SVG constellation lines */}
+                    <svg className="absolute inset-0 w-full h-full" aria-hidden="true">
+                      <defs>
+                        <linearGradient id="lineGradient1" x1="0%" y1="0%" x2="100%" y2="0%">
+                          <stop offset="0%" stopColor="rgba(251,191,36,0.45)" />
+                          <stop offset="50%" stopColor="rgba(251,191,36,0.12)" />
+                          <stop offset="100%" stopColor="rgba(251,191,36,0.45)" />
+                        </linearGradient>
+                        <linearGradient id="lineGradient2" x1="0%" y1="0%" x2="100%" y2="100%">
+                          <stop offset="0%" stopColor="rgba(251,191,36,0.4)" />
+                          <stop offset="100%" stopColor="rgba(251,191,36,0.12)" />
+                        </linearGradient>
+                        <radialGradient id="nodeGlow" cx="50%" cy="50%" r="50%">
+                          <stop offset="0%" stopColor="rgba(251,191,36,0.8)" />
+                          <stop offset="60%" stopColor="rgba(251,191,36,0.25)" />
+                          <stop offset="100%" stopColor="rgba(251,191,36,0)" />
+                        </radialGradient>
+                        <filter id="glow">
+                          <feGaussianBlur stdDeviation="2" result="coloredBlur" />
+                          <feMerge>
+                            <feMergeNode in="coloredBlur" />
+                            <feMergeNode in="SourceGraphic" />
+                          </feMerge>
+                        </filter>
+                      </defs>
+
+                      {/* Draw connectors based on card positions */}
+                      {CARD_CONNECTORS.map(([from, to], idx) => {
+                        const start = statNodeMap[from];
+                        const end = statNodeMap[to];
+                        if (!start || !end) return null;
+                        return (
+                          <line
+                            key={idx}
+                            x1={`${start.x}%`}
+                            y1={`${start.y}%`}
+                            x2={`${end.x}%`}
+                            y2={`${end.y}%`}
+                            stroke="url(#lineGradient2)"
+                            strokeWidth="1"
+                            opacity={start.isHero || end.isHero ? 0.65 : 0.35}
+                            strokeLinecap="round"
+                          />
+                        );
+                      })}
+
+                      {/* Accent arc between outer nodes */}
+                      <path
+                        d="M 20 125 Q 50 90 80 110"
+                        fill="none"
+                        stroke="url(#lineGradient1)"
+                        strokeWidth="1"
+                        opacity="0.35"
+                      />
+
+                      {/* Star nodes at intersections */}
+                      {statNodes.map((node) => (
+                        <g key={node.id}>
+                          <circle cx={`${node.x}%`} cy={`${node.y}%`} r="3.5" fill="url(#nodeGlow)" />
+                          <circle cx={`${node.x}%`} cy={`${node.y}%`} r={node.isHero ? 4 : 3} fill="rgba(251,191,36,0.55)" filter="url(#glow)" />
+                        </g>
+                      ))}
+
+                      {/* Smaller accent stars along the network */}
+                      {[{ x: 34, y: 40 }, { x: 66, y: 40 }, { x: 34, y: 56 }, { x: 66, y: 56 }, { x: 50, y: 62 }].map((star, i) => (
+                        <circle key={i} cx={`${star.x}%`} cy={`${star.y}%`} r="1.5" fill="rgba(251,191,36,0.28)" />
+                      ))}
+                    </svg>
+
+                    {/* Positioned tarot cards */}
+                    {statNodes.map((stat, index) => {
+                      const isHero = stat.id === 'entries';
+                      // Check if this card should show the notebook illustration
+                      const showNotebookIllustration = stat.id === 'context';
+                      const icon = (() => {
+                        if (stat.id === 'entries') return <Sparkle className="h-5 w-5" weight="fill" aria-hidden />;
+                        if (stat.id === 'reversal') return <ChartLine className="h-5 w-5" aria-hidden />;
+                        if (stat.id === 'context') return <BookOpen className="h-5 w-5" aria-hidden />;
+                        return <ClockCounterClockwise className="h-5 w-5" aria-hidden />;
+                      })();
+                      const rotation = { entries: 0, context: -3, reversal: 2.5, 'last-entry': -1.5 }[stat.id] || 0;
+                      const pos = statNodeMap[stat.id]
+                        ? { left: `${statNodeMap[stat.id].x}%`, top: `${statNodeMap[stat.id].y}%` }
+                        : { left: '50%', top: '50%' };
+
+                      return (
+                        <div
+                          key={stat.id}
+                          className="group absolute transition-transform duration-500 hover:z-10"
+                          style={{
+                            left: pos.left,
+                            top: pos.top,
+                            transform: `translate(-50%, -50%) rotate(${rotation}deg)`,
+                            width: isHero ? '160px' : '140px'
+                          }}
+                        >
+                          {/* Card glow */}
+                          <div
+                            className={`pointer-events-none absolute -inset-3 rounded-xl blur-2xl transition-opacity duration-500 ${
+                              isHero ? 'bg-amber-400/20 opacity-100' : 'bg-amber-400/10 opacity-0 group-hover:opacity-100'
+                            }`}
+                            aria-hidden="true"
+                          />
+
+                          {/* Tarot card */}
+                          <div
+                            className={`relative overflow-hidden rounded-lg transition-all duration-300 group-hover:-translate-y-1 ${
+                              isHero
+                                ? 'ring-2 ring-amber-400/40 shadow-[0_0_40px_-10px_rgba(251,191,36,0.4)]'
+                                : 'ring-1 ring-amber-300/20 shadow-[0_8px_32px_-8px_rgba(0,0,0,0.8)] group-hover:ring-amber-300/30 group-hover:shadow-[0_12px_40px_-8px_rgba(251,191,36,0.2)]'
+                            }`}
+                            style={{ aspectRatio: '2.5/4' }}
+                          >
+                            {/* Outer decorative border area with intricate pattern */}
+                            <div className={`absolute inset-0 ${
+                              isHero
+                                ? 'bg-gradient-to-b from-amber-800/50 via-amber-900/40 to-amber-800/50'
+                                : 'bg-gradient-to-b from-amber-900/30 via-amber-950/25 to-amber-900/30'
+                            }`}>
+                              {/* Ornate card-back pattern */}
+                              <svg className="absolute inset-0 w-full h-full" aria-hidden="true">
+                                <defs>
+                                  <pattern id={`cardPattern-${stat.id}`} x="0" y="0" width="20" height="20" patternUnits="userSpaceOnUse">
+                                    <path d="M10 0L20 10L10 20L0 10Z" fill="none" stroke="currentColor" strokeWidth="0.5" className={isHero ? 'text-amber-400/20' : 'text-amber-300/10'} />
+                                    <circle cx="10" cy="10" r="3" fill="none" stroke="currentColor" strokeWidth="0.5" className={isHero ? 'text-amber-400/15' : 'text-amber-300/8'} />
+                                    <circle cx="10" cy="10" r="1" fill="currentColor" className={isHero ? 'text-amber-400/10' : 'text-amber-300/5'} />
+                                  </pattern>
+                                </defs>
+                                <rect width="100%" height="100%" fill={`url(#cardPattern-${stat.id})`} />
+                              </svg>
+                            </div>
+
+                            {/* Inner card frame */}
+                            <div className={`absolute inset-2 rounded overflow-hidden ${
+                              isHero
+                                ? 'bg-gradient-to-b from-[#12101c] via-[#0a0912] to-[#12101c]'
+                                : 'bg-gradient-to-b from-[#0e0c16] via-[#08070d] to-[#0e0c16]'
+                            }`}>
+                              {/* Inner border */}
+                              <div className={`absolute inset-0 rounded border ${
+                                isHero ? 'border-amber-400/30' : 'border-amber-200/15 group-hover:border-amber-300/20'
+                              } transition-colors`} />
+
+                              {/* Decorative inner frame line */}
+                              <div className={`absolute inset-1 rounded border ${
+                                isHero ? 'border-amber-500/15' : 'border-amber-200/5'
+                              }`} />
+
+                              {/* Corner ornaments - more elaborate */}
+                              {[
+                                { pos: 'top-0 left-0', rotate: '0', anchor: 'M0 12L0 0L12 0' },
+                                { pos: 'top-0 right-0', rotate: '90', anchor: 'M0 12L0 0L12 0' },
+                                { pos: 'bottom-0 right-0', rotate: '180', anchor: 'M0 12L0 0L12 0' },
+                                { pos: 'bottom-0 left-0', rotate: '270', anchor: 'M0 12L0 0L12 0' }
+                              ].map((corner, i) => (
+                                <svg
+                                  key={i}
+                                  className={`absolute ${corner.pos} w-5 h-5 ${isHero ? 'text-amber-400/50' : 'text-amber-300/25'}`}
+                                  viewBox="0 0 20 20"
+                                  style={{ transform: `rotate(${corner.rotate}deg)` }}
+                                  aria-hidden="true"
+                                >
+                                  <path d={corner.anchor} fill="none" stroke="currentColor" strokeWidth="1.5" />
+                                  <circle cx="3" cy="3" r="1.5" fill="currentColor" />
+                                  <path d="M6 0L6 6L0 6" fill="none" stroke="currentColor" strokeWidth="0.75" opacity="0.6" />
+                                </svg>
+                              ))}
+
+                              {/* Center star/sun symbol for hero */}
+                              {isHero && (
+                                <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-[0.03]" aria-hidden="true">
+                                  <svg className="w-32 h-32 text-amber-300" viewBox="0 0 100 100">
+                                    {[...Array(8)].map((_, i) => (
+                                      <line
+                                        key={i}
+                                        x1="50"
+                                        y1="50"
+                                        x2={50 + 45 * Math.cos((i * Math.PI) / 4)}
+                                        y2={50 + 45 * Math.sin((i * Math.PI) / 4)}
+                                        stroke="currentColor"
+                                        strokeWidth="1"
+                                      />
+                                    ))}
+                                    <circle cx="50" cy="50" r="15" fill="none" stroke="currentColor" strokeWidth="1" />
+                                    <circle cx="50" cy="50" r="8" fill="none" stroke="currentColor" strokeWidth="1" />
+                                  </svg>
+                                </div>
+                              )}
+
+                              {/* Card content */}
+                              <div className="relative h-full flex flex-col items-center justify-center p-3 text-center">
+                                {showNotebookIllustration ? (
+                                  <>
+                                    {/* Notebook illustration - like a tarot card image */}
+                                    <div className="relative mb-2 w-full flex-1 min-h-[80px] max-h-[100px]">
+                                      <svg className="w-full h-full" viewBox="0 0 80 100" aria-hidden="true">
+                                        {/* Open notebook */}
+                                        <g className="text-amber-200/40">
+                                          {/* Left page */}
+                                          <path d="M8 15 L38 12 L38 85 L8 88 Z" fill="rgba(251,191,36,0.08)" stroke="currentColor" strokeWidth="0.5" />
+                                          {/* Right page */}
+                                          <path d="M42 12 L72 15 L72 88 L42 85 Z" fill="rgba(251,191,36,0.06)" stroke="currentColor" strokeWidth="0.5" />
+                                          {/* Spine */}
+                                          <path d="M38 12 L40 10 L42 12 L42 85 L40 87 L38 85 Z" fill="rgba(251,191,36,0.12)" stroke="currentColor" strokeWidth="0.5" />
+                                          {/* Page lines - left */}
+                                          <line x1="12" y1="25" x2="34" y2="23" stroke="currentColor" strokeWidth="0.3" opacity="0.5" />
+                                          <line x1="12" y1="32" x2="34" y2="30" stroke="currentColor" strokeWidth="0.3" opacity="0.5" />
+                                          <line x1="12" y1="39" x2="34" y2="37" stroke="currentColor" strokeWidth="0.3" opacity="0.5" />
+                                          <line x1="12" y1="46" x2="34" y2="44" stroke="currentColor" strokeWidth="0.3" opacity="0.5" />
+                                          <line x1="12" y1="53" x2="34" y2="51" stroke="currentColor" strokeWidth="0.3" opacity="0.5" />
+                                          {/* Page lines - right */}
+                                          <line x1="46" y1="23" x2="68" y2="25" stroke="currentColor" strokeWidth="0.3" opacity="0.5" />
+                                          <line x1="46" y1="30" x2="68" y2="32" stroke="currentColor" strokeWidth="0.3" opacity="0.5" />
+                                          <line x1="46" y1="37" x2="68" y2="39" stroke="currentColor" strokeWidth="0.3" opacity="0.5" />
+                                          {/* Quill pen */}
+                                          <g transform="translate(50, 45) rotate(25)">
+                                            <path d="M0 0 L2 -25 L4 -28 L6 -25 L8 0 L4 2 Z" fill="rgba(251,191,36,0.15)" stroke="currentColor" strokeWidth="0.4" />
+                                            <path d="M3 -28 L4 -35 L5 -28" fill="none" stroke="currentColor" strokeWidth="0.3" />
+                                            <ellipse cx="4" cy="2" rx="2" ry="1" fill="rgba(251,191,36,0.2)" />
+                                          </g>
+                                          {/* Written text squiggles on right page */}
+                                          <path d="M47 44 Q50 43 53 44 Q56 45 59 44" fill="none" stroke="currentColor" strokeWidth="0.4" opacity="0.6" />
+                                          <path d="M47 51 Q49 50 51 51 Q53 52 55 51" fill="none" stroke="currentColor" strokeWidth="0.4" opacity="0.6" />
+                                          {/* Small star doodle */}
+                                          <path d="M30 60 L31 64 L35 64 L32 67 L33 71 L30 68 L27 71 L28 67 L25 64 L29 64 Z" fill="rgba(251,191,36,0.15)" stroke="currentColor" strokeWidth="0.3" />
+                                          {/* Moon doodle */}
+                                          <path d="M55 62 A8 8 0 1 1 55 78 A6 6 0 1 0 55 62" fill="rgba(251,191,36,0.1)" stroke="currentColor" strokeWidth="0.3" />
+                                        </g>
+                                      </svg>
+                                    </div>
+                                    {/* Label at bottom like tarot card name */}
+                                    <div className="border-t border-amber-200/10 pt-1.5 w-full">
+                                      <p className="text-[8px] uppercase tracking-[0.2em] text-amber-100/30 mb-0.5">{stat.label}</p>
+                                      <p className="font-serif text-lg text-amber-50/85 leading-tight">{stat.value}</p>
+                                    </div>
+                                  </>
+                                ) : (
+                                  <>
+                                    {/* Icon medallion */}
+                                    <div className={`mb-2 flex h-10 w-10 items-center justify-center rounded-full transition-all ${
+                                      isHero
+                                        ? 'bg-gradient-to-br from-amber-400/25 to-amber-600/15 text-amber-300 ring-2 ring-amber-400/30 shadow-[0_0_20px_-4px_rgba(251,191,36,0.5)]'
+                                        : 'bg-gradient-to-br from-amber-200/15 to-amber-400/10 text-amber-200/70 ring-1 ring-amber-200/20 group-hover:text-amber-200 group-hover:ring-amber-300/25'
+                                    }`}>
+                                      {icon}
+                                    </div>
+
+                                    {/* Label */}
+                                    <p className={`text-[9px] uppercase tracking-[0.2em] mb-1.5 ${
+                                      isHero ? 'text-amber-300/60' : 'text-amber-100/35'
+                                    }`}>
+                                      {stat.label}
+                                    </p>
+
+                                    {/* Value */}
+                                    <p className={`font-serif leading-tight ${
+                                      isHero
+                                        ? 'text-3xl text-amber-100 drop-shadow-[0_0_16px_rgba(251,191,36,0.4)]'
+                                        : 'text-2xl text-amber-50/85'
+                                    }`}>
+                                      {stat.value}
+                                    </p>
+
+                                    {/* Hint */}
+                                    {stat.hint && (
+                                      <p className={`mt-1.5 text-[10px] leading-snug max-w-[100px] ${
+                                        isHero ? 'text-amber-200/45' : 'text-amber-100/25'
+                                      }`}>
+                                        {stat.hint}
+                                      </p>
+                                    )}
+
+                                    {/* Bottom decorative element */}
+                                    <div className={`mt-2 w-6 h-px ${
+                                      isHero
+                                        ? 'bg-gradient-to-r from-transparent via-amber-400/50 to-transparent'
+                                        : 'bg-gradient-to-r from-transparent via-amber-200/20 to-transparent'
+                                    }`} />
+                                  </>
+                                )}
+                              </div>
+                            </div>
+
+                            {/* Top edge shine */}
+                            <div className={`pointer-events-none absolute inset-x-0 top-0 h-px ${
+                              isHero
+                                ? 'bg-gradient-to-r from-transparent via-amber-300/50 to-transparent'
+                                : 'bg-gradient-to-r from-transparent via-amber-200/20 to-transparent'
+                            }`} aria-hidden="true" />
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
               </div>
             </section>

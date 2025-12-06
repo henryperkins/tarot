@@ -1,5 +1,14 @@
 import { useState, useRef, useEffect, useId } from 'react';
-import { CaretDown, Check, BookmarkSimple } from '@phosphor-icons/react';
+import {
+  CaretDown,
+  Check,
+  BookmarkSimple,
+  ClockCounterClockwise,
+  BookOpen,
+  Cards,
+  ChartLine,
+  Sparkle
+} from '@phosphor-icons/react';
 
 const TIMEFRAME_OPTIONS = [
   { value: 'all', label: 'All time' },
@@ -10,9 +19,9 @@ const TIMEFRAME_OPTIONS = [
 
 const DEFAULT_FILTERS = { query: '', contexts: [], spreads: [], decks: [], timeframe: 'all', onlyReversals: false };
 const SAVED_FILTERS_KEY = 'journal_saved_filters_v1';
-const OUTLINE_FILTER_BASE = 'flex items-center gap-2 rounded-xl border px-3 py-2 text-sm font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/40';
-const OUTLINE_FILTER_IDLE = 'border-secondary/40 text-secondary/80 hover:border-secondary/60';
-const OUTLINE_FILTER_ACTIVE = 'border-secondary/60 bg-secondary/10 text-secondary';
+const OUTLINE_FILTER_BASE = 'flex items-center gap-2 rounded-xl border px-3 py-2 text-sm font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/40';
+const OUTLINE_FILTER_IDLE = 'border-amber-200/20 text-amber-100/60 hover:border-amber-200/35 hover:text-amber-100/80';
+const OUTLINE_FILTER_ACTIVE = 'border-amber-300/60 bg-amber-300/10 text-amber-50 shadow-[0_10px_30px_-18px_rgba(251,191,36,0.6)]';
 
 function FilterDropdown({ label, options, value, onChange, multiple = false }) {
   const [isOpen, setIsOpen] = useState(false);
@@ -228,141 +237,421 @@ export function JournalFilters({ filters, onChange, contexts = [], spreads = [],
   };
 
   return (
-    <section className="rounded-3xl bg-surface/75 ring-1 ring-white/5 p-5 shadow-[0_20px_55px_-32px_rgba(0,0,0,0.8)] animate-fade-in">
-      <div className="mb-6 space-y-4">
-        <div>
-          <p className="text-[11px] uppercase tracking-[0.3em] text-secondary/80">Filters</p>
-          <h2 className="text-xl font-serif text-main">Focus your journal</h2>
-        </div>
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="relative flex-1 min-w-[200px]">
-            <input
-              type="search"
-              value={filters.query}
-              onChange={handleQueryChange}
-              placeholder="Search readings..."
-              className="w-full rounded-xl bg-surface/60 ring-1 ring-white/5 px-4 py-2 text-sm text-main focus:outline-none focus:ring-2 focus:ring-secondary/40 placeholder:text-secondary/40"
-            />
+    <section
+      className="relative overflow-hidden rounded-3xl border border-amber-300/12 bg-gradient-to-br from-[#0b0c1d] via-[#0d1024] to-[#090a16] p-5 lg:p-7 shadow-[0_24px_68px_-30px_rgba(0,0,0,0.9)] animate-fade-in"
+      aria-label="Focus your journal"
+    >
+      {/* Starfield + glows */}
+      <div
+        className="pointer-events-none absolute inset-0 opacity-60 mix-blend-screen"
+        aria-hidden="true"
+        style={{
+          backgroundImage:
+            'radial-gradient(circle at 10% 20%, rgba(251,191,36,0.08), transparent 32%), radial-gradient(circle at 82% 24%, rgba(56,189,248,0.07), transparent 30%), radial-gradient(circle at 55% 78%, rgba(167,139,250,0.08), transparent 32%)'
+        }}
+      />
+      <div className="pointer-events-none absolute inset-0" aria-hidden="true">
+        {[
+          { x: 6, y: 14, s: 1.4, o: 0.8 },
+          { x: 18, y: 26, s: 1, o: 0.5 },
+          { x: 34, y: 10, s: 1.6, o: 0.7 },
+          { x: 52, y: 8, s: 1.2, o: 0.5 },
+          { x: 68, y: 18, s: 1, o: 0.4 },
+          { x: 84, y: 12, s: 1.5, o: 0.7 },
+          { x: 12, y: 78, s: 1.2, o: 0.5 },
+          { x: 28, y: 64, s: 1, o: 0.4 },
+          { x: 46, y: 86, s: 1.6, o: 0.7 },
+          { x: 64, y: 74, s: 1.2, o: 0.6 },
+          { x: 82, y: 82, s: 1, o: 0.4 },
+          { x: 92, y: 66, s: 1.3, o: 0.5 }
+        ].map((star, i) => (
+          <div
+            key={i}
+            className="absolute rounded-full bg-amber-100"
+            style={{
+              left: `${star.x}%`,
+              top: `${star.y}%`,
+              width: star.s,
+              height: star.s,
+              opacity: star.o,
+              boxShadow: `0 0 ${star.s * 4}px ${star.s}px rgba(251,191,36,${star.o * 0.45})`
+            }}
+          />
+        ))}
+      </div>
+      <div className="pointer-events-none absolute -left-24 top-12 h-64 w-64 rounded-full bg-amber-500/12 blur-[110px]" aria-hidden="true" />
+      <div className="pointer-events-none absolute right-[-120px] top-1/3 h-72 w-72 rounded-full bg-cyan-400/10 blur-[110px]" aria-hidden="true" />
+
+      {/* Foreground */}
+      <div className="relative z-10 space-y-6">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="text-[10px] uppercase tracking-[0.32em] text-amber-200/55">Filters</p>
+            <h2 className="text-2xl font-serif text-amber-50">Focus your journal</h2>
+            <p className="text-sm text-amber-100/65">Shape your readings with a constellation of filters.</p>
           </div>
           <button
             type="button"
             onClick={clearFilters}
-            className="text-xs font-semibold text-secondary/70 underline decoration-dotted decoration-secondary/40 hover:text-secondary"
+            className="inline-flex items-center gap-2 rounded-full border border-amber-300/30 bg-amber-300/10 px-3 py-1.5 text-xs font-semibold text-amber-50 shadow-[0_12px_30px_-18px_rgba(251,191,36,0.6)] transition hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/50"
           >
-            Clear filters
+            <Sparkle className="h-4 w-4" weight="fill" aria-hidden="true" />
+            Reset view
           </button>
         </div>
-        <div className="rounded-xl bg-surface/60 ring-1 ring-white/5 p-3">
-          <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.25em] text-secondary/80">
-            <BookmarkSimple className="h-4 w-4" />
-            <span>Saved filters</span>
-          </div>
-          <div className="mt-2 flex flex-wrap items-center gap-2">
-            {savedFilters.length > 0 ? (
-              savedFilters.map((saved) => (
-                <div
-                  key={saved.id}
-                  className="inline-flex items-center gap-2 rounded-full border border-secondary/30 bg-surface/70 px-3 py-1 text-xs text-secondary"
-                >
-                  <button
-                    type="button"
-                    onClick={() => handleApplySaved(saved)}
-                    className="flex items-center gap-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/40"
+
+        {(() => {
+          const timeframeLabel = TIMEFRAME_OPTIONS.find((opt) => opt.value === filters.timeframe)?.label || 'All time';
+          const ctxCount = (filters.contexts || []).length;
+          const spreadCount = (filters.spreads || []).length;
+          const deckCount = (filters.decks || []).length;
+          const reversedOn = Boolean(filters.onlyReversals);
+          const query = (filters.query || '').trim();
+          const truncatedQuery = query.length > 22 ? `${query.slice(0, 22)}...` : query;
+          const positions = {
+            query: { x: 50, y: 46 },
+            timeframe: { x: 50, y: 16 },
+            contexts: { x: 24, y: 30 },
+            spreads: { x: 76, y: 30 },
+            decks: { x: 22, y: 72 },
+            reversals: { x: 78, y: 70 }
+          };
+          const connections = [
+            ['query', 'timeframe'],
+            ['query', 'contexts'],
+            ['query', 'spreads'],
+            ['query', 'decks'],
+            ['query', 'reversals'],
+            ['contexts', 'timeframe'],
+            ['spreads', 'timeframe'],
+            ['decks', 'reversals']
+          ];
+          const nodes = [
+            {
+              id: 'query',
+              label: 'Search',
+              value: query ? truncatedQuery : 'All readings',
+              hint: query ? 'Keyword active' : 'Type to filter',
+              icon: <Sparkle className="h-5 w-5" weight="fill" aria-hidden />,
+              isHero: true,
+              active: Boolean(query)
+            },
+            {
+              id: 'timeframe',
+              label: 'Timeframe',
+              value: timeframeLabel,
+              hint: filters.timeframe !== 'all' ? 'Scoped' : 'Any date',
+              icon: <ClockCounterClockwise className="h-5 w-5" aria-hidden />,
+              active: filters.timeframe !== 'all'
+            },
+            {
+              id: 'contexts',
+              label: 'Contexts',
+              value: ctxCount > 0 ? `${ctxCount} selected` : 'Any',
+              hint: ctxCount > 0 ? 'Focused themes' : 'All themes',
+              icon: <BookOpen className="h-5 w-5" aria-hidden />,
+              active: ctxCount > 0
+            },
+            {
+              id: 'spreads',
+              label: 'Spreads',
+              value: spreadCount > 0 ? `${spreadCount} chosen` : 'Any',
+              hint: spreadCount > 0 ? 'Specific layouts' : 'All layouts',
+              icon: <ChartLine className="h-5 w-5" aria-hidden />,
+              active: spreadCount > 0
+            },
+            {
+              id: 'decks',
+              label: 'Decks',
+              value: deckCount > 0 ? `${deckCount} deck${deckCount === 1 ? '' : 's'}` : 'Any',
+              hint: deckCount > 0 ? 'Curated decks' : 'All decks',
+              icon: <Cards className="h-5 w-5" aria-hidden />,
+              active: deckCount > 0
+            },
+            {
+              id: 'reversals',
+              label: 'Reversals',
+              value: reversedOn ? 'Only reversed' : 'Include all',
+              hint: reversedOn ? 'Focused' : 'Upright + reversed',
+              icon: <ChartLine className="h-5 w-5" aria-hidden />,
+              active: reversedOn
+            }
+          ];
+
+          return (
+            <>
+              {/* Desktop constellation */}
+              <div className="relative hidden h-[260px] lg:block">
+                <svg className="absolute inset-0 h-full w-full" aria-hidden="true">
+                  <defs>
+                    <linearGradient id="filters-line-1" x1="0%" y1="0%" x2="100%" y2="100%">
+                      <stop offset="0%" stopColor="rgba(251,191,36,0.48)" />
+                      <stop offset="100%" stopColor="rgba(251,191,36,0.12)" />
+                    </linearGradient>
+                    <radialGradient id="filters-node" cx="50%" cy="50%" r="50%">
+                      <stop offset="0%" stopColor="rgba(251,191,36,0.9)" />
+                      <stop offset="60%" stopColor="rgba(251,191,36,0.35)" />
+                      <stop offset="100%" stopColor="rgba(251,191,36,0)" />
+                    </radialGradient>
+                    <filter id="filters-glow">
+                      <feGaussianBlur stdDeviation="2" result="blur" />
+                      <feMerge>
+                        <feMergeNode in="blur" />
+                        <feMergeNode in="SourceGraphic" />
+                      </feMerge>
+                    </filter>
+                  </defs>
+                  {connections.map(([from, to], idx) => {
+                    const start = positions[from];
+                    const end = positions[to];
+                    if (!start || !end) return null;
+                    return (
+                      <line
+                        key={idx}
+                        x1={`${start.x}%`}
+                        y1={`${start.y}%`}
+                        x2={`${end.x}%`}
+                        y2={`${end.y}%`}
+                        stroke="url(#filters-line-1)"
+                        strokeWidth="1"
+                        strokeLinecap="round"
+                        opacity="0.55"
+                      />
+                    );
+                  })}
+                  {nodes.map((node) => (
+                    <g key={node.id}>
+                      <circle cx={`${positions[node.id].x}%`} cy={`${positions[node.id].y}%`} r="3.8" fill="url(#filters-node)" />
+                      <circle
+                        cx={`${positions[node.id].x}%`}
+                        cy={`${positions[node.id].y}%`}
+                        r={node.isHero ? 4.2 : 3.4}
+                        fill="rgba(251,191,36,0.6)"
+                        filter="url(#filters-glow)"
+                      />
+                    </g>
+                  ))}
+                </svg>
+
+                {nodes.map((node) => {
+                  const pos = positions[node.id] || { x: 50, y: 50 };
+                  const isHero = node.isHero;
+                  return (
+                    <div
+                      key={node.id}
+                      className="group absolute"
+                      style={{
+                        left: `${pos.x}%`,
+                        top: `${pos.y}%`,
+                        transform: 'translate(-50%, -50%)'
+                      }}
+                    >
+                      <div
+                        className={`relative w-[160px] overflow-hidden rounded-xl border ${
+                          isHero ? 'border-amber-300/40 shadow-[0_20px_60px_-24px_rgba(251,191,36,0.7)]' : 'border-amber-300/25 shadow-[0_16px_40px_-26px_rgba(251,191,36,0.45)]'
+                        } bg-gradient-to-b from-[#161728] via-[#0f1020] to-[#0c0d17] p-[1px]`}
+                      >
+                        <div className="relative h-full rounded-[11px] bg-gradient-to-b from-[#0c0d19] via-[#0b0c18] to-[#0a0b14]">
+                          <div className="pointer-events-none absolute inset-0 opacity-10">
+                            <svg className="h-full w-full" aria-hidden="true">
+                              <defs>
+                                <pattern id={`filters-card-${node.id}`} width="18" height="18" patternUnits="userSpaceOnUse">
+                                  <path d="M9 0L18 9L9 18L0 9Z" fill="none" stroke="currentColor" strokeWidth="0.5" className="text-amber-300" />
+                                  <circle cx="9" cy="9" r="2.5" fill="none" stroke="currentColor" strokeWidth="0.5" className="text-amber-300" />
+                                </pattern>
+                              </defs>
+                              <rect width="100%" height="100%" fill={`url(#filters-card-${node.id})`} />
+                            </svg>
+                          </div>
+                          <div className={`relative flex flex-col items-center gap-1 px-4 py-4 text-center ${isHero ? 'bg-amber-300/[0.01]' : ''}`}>
+                            <div
+                              className={`mb-1 flex h-10 w-10 items-center justify-center rounded-full ${
+                                node.active
+                                  ? 'bg-amber-300/20 text-amber-200 ring-1 ring-amber-300/40'
+                                  : 'bg-amber-200/10 text-amber-100/70 ring-1 ring-amber-200/25'
+                              }`}
+                            >
+                              {node.icon}
+                            </div>
+                            <p className={`text-[9px] uppercase tracking-[0.24em] ${isHero ? 'text-amber-200/80' : 'text-amber-200/60'}`}>{node.label}</p>
+                            <p className={`font-serif leading-tight ${isHero ? 'text-amber-50 text-xl' : 'text-amber-50/90 text-lg'}`}>{node.value}</p>
+                            <p className="text-[10px] text-amber-100/45">{node.hint}</p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Mobile horizontal cards */}
+              <div className="flex gap-3 overflow-x-auto pb-1 lg:hidden">
+                {nodes.map((node) => (
+                  <div
+                    key={node.id}
+                    className={`min-w-[150px] flex-1 rounded-xl border px-4 py-3 backdrop-blur-md ${
+                      node.isHero
+                        ? 'border-amber-300/40 bg-amber-300/10 shadow-[0_14px_36px_-20px_rgba(251,191,36,0.6)]'
+                        : 'border-amber-200/20 bg-white/5 shadow-[0_10px_30px_-24px_rgba(251,191,36,0.5)]'
+                    }`}
                   >
-                    <span className="font-semibold text-main">{saved.name}</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleDeleteSaved(saved.id)}
-                    className="rounded-full px-1 text-secondary/60 hover:text-error focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/40"
-                    aria-label={`Delete saved filter ${saved.name}`}
-                  >
-                    <span aria-hidden="true">×</span>
-                  </button>
+                    <div className="mb-2 flex items-center gap-2 text-[10px] uppercase tracking-[0.22em] text-amber-200/70">
+                      {node.icon}
+                      <span>{node.label}</span>
+                    </div>
+                    <p className="font-serif text-lg text-amber-50 leading-tight">{node.value}</p>
+                    <p className="text-[11px] text-amber-100/50">{node.hint}</p>
+                  </div>
+                ))}
+              </div>
+            </>
+          );
+        })()}
+
+        <div className="grid gap-4 lg:grid-cols-[1.05fr_0.95fr]">
+          {/* Search + saved filters */}
+          <div className="rounded-2xl border border-amber-300/15 bg-[#0b0d18]/70 p-4 ring-1 ring-amber-300/10 shadow-[0_18px_45px_-30px_rgba(0,0,0,0.8)]">
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="relative flex-1 min-w-[220px]">
+                <div className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-amber-200/60">
+                  <Sparkle className="h-4 w-4" weight="fill" aria-hidden />
                 </div>
-              ))
-            ) : (
-              <p className="text-xs text-secondary/60">No saved filters yet—name a view to reuse it.</p>
-            )}
-          </div>
-          <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
-            <input
-              type="text"
-              value={newFilterName}
-              onChange={(event) => setNewFilterName(event.target.value)}
-              placeholder="Name this view"
-              className="flex-1 rounded-xl border border-secondary/30 bg-surface/60 px-4 py-2 text-sm text-main focus:outline-none focus:ring-2 focus:ring-secondary/40 placeholder:text-secondary/40"
-            />
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={handleSaveCurrent}
-                className={`${OUTLINE_FILTER_BASE} ${OUTLINE_FILTER_ACTIVE}`}
-                disabled={!newFilterName.trim() || !hasActiveFilters()}
-              >
-                Save current
-              </button>
+                <input
+                  type="search"
+                  value={filters.query}
+                  onChange={handleQueryChange}
+                  placeholder="Search readings..."
+                  className="w-full rounded-xl border border-amber-200/20 bg-[#0f1124]/80 px-9 py-2 text-sm text-amber-50 placeholder:text-amber-100/45 focus:outline-none focus:ring-2 focus:ring-amber-300/50"
+                />
+              </div>
               <button
                 type="button"
                 onClick={clearFilters}
-                className={`${OUTLINE_FILTER_BASE} ${OUTLINE_FILTER_IDLE}`}
+                className="text-xs font-semibold text-amber-100/80 underline decoration-dotted decoration-amber-200/40 hover:text-amber-50"
               >
-                Reset
+                Clear filters
               </button>
             </div>
+
+            <div className="mt-4 rounded-xl border border-amber-200/15 bg-[#0f1222]/70 p-3">
+              <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.25em] text-amber-200/70">
+                <BookmarkSimple className="h-4 w-4" />
+                <span>Saved filters</span>
+              </div>
+              <div className="mt-2 flex flex-wrap items-center gap-2">
+                {savedFilters.length > 0 ? (
+                  savedFilters.map((saved) => (
+                    <div
+                      key={saved.id}
+                      className="inline-flex items-center gap-2 rounded-full border border-amber-200/25 bg-amber-200/5 px-3 py-1 text-xs text-amber-100"
+                    >
+                      <button
+                        type="button"
+                        onClick={() => handleApplySaved(saved)}
+                        className="flex items-center gap-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/40"
+                      >
+                        <span className="font-semibold text-amber-50">{saved.name}</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteSaved(saved.id)}
+                        className="rounded-full px-1 text-amber-100/60 hover:text-error focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/40"
+                        aria-label={`Delete saved filter ${saved.name}`}
+                      >
+                        <span aria-hidden="true">×</span>
+                      </button>
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-xs text-amber-100/60">No saved filters yet—name a view to reuse it.</p>
+                )}
+              </div>
+              <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
+                <input
+                  type="text"
+                  value={newFilterName}
+                  onChange={(event) => setNewFilterName(event.target.value)}
+                  placeholder="Name this view"
+                  className="flex-1 rounded-xl border border-amber-200/25 bg-[#0b0d18]/70 px-4 py-2 text-sm text-amber-50 placeholder:text-amber-100/45 focus:outline-none focus:ring-2 focus:ring-amber-300/50"
+                />
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={handleSaveCurrent}
+                    className={`${OUTLINE_FILTER_BASE} ${OUTLINE_FILTER_ACTIVE}`}
+                    disabled={!newFilterName.trim() || !hasActiveFilters()}
+                  >
+                    Save current
+                  </button>
+                  <button
+                    type="button"
+                    onClick={clearFilters}
+                    className={`${OUTLINE_FILTER_BASE} ${OUTLINE_FILTER_IDLE}`}
+                  >
+                    Reset
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Filter toggles */}
+          <div className="rounded-2xl border border-amber-300/12 bg-[#0c0e1a]/70 p-4 ring-1 ring-amber-300/10 shadow-[0_18px_45px_-30px_rgba(0,0,0,0.8)]">
+            <div className="flex flex-wrap items-center gap-3">
+              <FilterDropdown
+                label="Timeframe"
+                options={TIMEFRAME_OPTIONS}
+                value={filters.timeframe}
+                onChange={(val) => onChange({ ...filters, timeframe: val })}
+                multiple={false}
+              />
+
+              {contexts.length > 0 && (
+                <FilterDropdown
+                  label="Context"
+                  options={contexts}
+                  value={filters.contexts}
+                  onChange={(val) => onChange({ ...filters, contexts: val })}
+                  multiple={true}
+                />
+              )}
+
+              {spreads.length > 0 && (
+                <FilterDropdown
+                  label="Spread"
+                  options={spreads}
+                  value={filters.spreads}
+                  onChange={(val) => onChange({ ...filters, spreads: val })}
+                  multiple={true}
+                />
+              )}
+
+              {decks.length > 0 && (
+                <FilterDropdown
+                  label="Deck"
+                  options={decks}
+                  value={filters.decks}
+                  onChange={(val) => onChange({ ...filters, decks: val })}
+                  multiple={true}
+                />
+              )}
+
+              <div className="hidden h-6 w-px bg-amber-200/15 sm:block" />
+
+              <button
+                type="button"
+                onClick={() => onChange({ ...filters, onlyReversals: !filters.onlyReversals })}
+                className={`${OUTLINE_FILTER_BASE} ${filters.onlyReversals ? OUTLINE_FILTER_ACTIVE : OUTLINE_FILTER_IDLE}`}
+              >
+                <span>Reversals</span>
+                {filters.onlyReversals && <Check className="h-3 w-3" />}
+              </button>
+            </div>
+            <p className="mt-3 text-[11px] uppercase tracking-[0.22em] text-amber-100/50">
+              Tip: combine filters to surface exact readings you want.
+            </p>
           </div>
         </div>
-      </div>
-
-      <div className="flex flex-wrap items-center gap-3">
-        <FilterDropdown
-          label="Timeframe"
-          options={TIMEFRAME_OPTIONS}
-          value={filters.timeframe}
-          onChange={(val) => onChange({ ...filters, timeframe: val })}
-          multiple={false}
-        />
-
-        {contexts.length > 0 && (
-          <FilterDropdown
-            label="Context"
-            options={contexts}
-            value={filters.contexts}
-            onChange={(val) => onChange({ ...filters, contexts: val })}
-            multiple={true}
-          />
-        )}
-
-        {spreads.length > 0 && (
-          <FilterDropdown
-            label="Spread"
-            options={spreads}
-            value={filters.spreads}
-            onChange={(val) => onChange({ ...filters, spreads: val })}
-            multiple={true}
-          />
-        )}
-
-        {decks.length > 0 && (
-          <FilterDropdown
-            label="Deck"
-            options={decks}
-            value={filters.decks}
-            onChange={(val) => onChange({ ...filters, decks: val })}
-            multiple={true}
-          />
-        )}
-
-        <div className="h-6 w-px bg-surface-muted/50 mx-1" />
-
-        <button
-          type="button"
-          onClick={() => onChange({ ...filters, onlyReversals: !filters.onlyReversals })}
-          className={`${OUTLINE_FILTER_BASE} ${filters.onlyReversals ? OUTLINE_FILTER_ACTIVE : OUTLINE_FILTER_IDLE}`}
-        >
-          <span>Reversals</span>
-          {filters.onlyReversals && <Check className="h-3 w-3" />}
-        </button>
       </div>
     </section>
   );

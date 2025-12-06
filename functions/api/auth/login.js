@@ -8,7 +8,8 @@
 import {
   verifyPassword,
   createSession,
-  createSessionCookie
+  createSessionCookie,
+  validateSession
 } from '../../lib/auth.js';
 
 export async function onRequestPost(context) {
@@ -74,15 +75,24 @@ export async function onRequestPost(context) {
     };
 
     const { token, expiresAt } = await createSession(env.DB, user.id, metadata);
+    const sessionUser = await validateSession(env.DB, token);
+
+    if (!sessionUser) {
+      throw new Error('Session validation failed after login');
+    }
 
     // Return success with session cookie
     return new Response(
       JSON.stringify({
         success: true,
         user: {
-          id: user.id,
-          email: user.email,
-          username: user.username
+          id: sessionUser.id,
+          email: sessionUser.email,
+          username: sessionUser.username,
+          subscription_tier: sessionUser.subscription_tier || 'free',
+          subscription_status: sessionUser.subscription_status || 'inactive',
+          subscription_provider: sessionUser.subscription_provider || null,
+          stripe_customer_id: sessionUser.stripe_customer_id || null
         }
       }),
       {

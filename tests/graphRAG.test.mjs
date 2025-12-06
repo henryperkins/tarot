@@ -858,6 +858,18 @@ describe('getPassageCountForSpread', () => {
   test('returns general fallback (3) for empty string', () => {
     assert.strictEqual(getPassageCountForSpread(''), 3);
   });
+
+  test('applies free-tier slimming while preserving minimum of one passage', () => {
+    assert.strictEqual(getPassageCountForSpread('celtic', 'free'), 2);
+    assert.strictEqual(getPassageCountForSpread('general', 'free'), 1);
+    assert.strictEqual(getPassageCountForSpread('single', 'free'), 1);
+  });
+
+  test('keeps full base limits for paid tiers and unspecified callers', () => {
+    assert.strictEqual(getPassageCountForSpread('fiveCard', 'plus'), 3);
+    assert.strictEqual(getPassageCountForSpread('threeCard', 'pro'), 2);
+    assert.strictEqual(getPassageCountForSpread('relationship', undefined), 2);
+  });
 });
 
 // ============================================================================

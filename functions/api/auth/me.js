@@ -35,13 +35,17 @@ export async function onRequestGet(context) {
       );
     }
 
-    // Return user data
+    // Return user data, including subscription metadata so the frontend
+    // can drive feature gating without extra round-trips.
     return new Response(
       JSON.stringify({
         user: {
           id: user.id,
           email: user.email,
-          username: user.username
+          username: user.username,
+          subscription_tier: user.subscription_tier || 'free',
+          subscription_status: user.subscription_status || 'inactive',
+          subscription_provider: user.subscription_provider || null
         }
       }),
       {

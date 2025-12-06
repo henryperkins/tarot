@@ -3,8 +3,19 @@ import {
   fetchEphemerisForecast,
   formatForecastHighlights
 } from '../lib/ephemerisIntegration.js';
+import { getUserFromRequest } from '../lib/auth.js';
 
 const JSON_HEADERS = { 'Content-Type': 'application/json' };
+
+/**
+ * Check if user has access to AI question generation.
+ * Free tier users get local template fallback; paid tiers get Azure AI.
+ */
+function canUseAIQuestions(user) {
+  if (!user) return false;
+  const tier = user.subscription_tier || 'free';
+  return tier === 'plus' || tier === 'pro';
+}
 
 function sanitizeSnippet(value, fallback) {
   if (!value || typeof value !== 'string') return fallback;
@@ -266,6 +277,25 @@ export async function onRequestPost({ request, env }) {
       return new Response(
         JSON.stringify({ error: 'Missing prompt' }),
         { status: 400, headers: JSON_HEADERS }
+      );
+    }
+
+    // Check subscription tier for AI question access
+    const user = await getUserFromRequest(request, env);
+    const hasAIAccess = canUseAIQuestions(user);
+
+    // For free tier, skip Azure AI and use local template directly
+    if (!hasAIAccess) {
+      const question = craftQuestionFromPrompt(prompt, metadata);
+      return new Response(
+        JSON.stringify({
+          question,
+          provider: 'local-template',
+          model: null,
+          forecast: null,
+          tierLimited: true
+        }),
+        { status: 200, headers: JSON_HEADERS }
       );
     }
 

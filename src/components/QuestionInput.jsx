@@ -3,6 +3,7 @@ import { ArrowsClockwise, Sparkle } from '@phosphor-icons/react';
 import { EXAMPLE_QUESTIONS } from '../data/exampleQuestions';
 import { recordCoachQuestion } from '../lib/coachStorage';
 import { usePreferences } from '../contexts/PreferencesContext';
+import { useAutoGrow } from '../hooks/useAutoGrow';
 
 export function QuestionInput({
   userQuestion,
@@ -18,6 +19,7 @@ export function QuestionInput({
   const [saveError, setSaveError] = useState('');
   const timeoutRefs = useRef([]);
   const { personalization } = usePreferences();
+  const textareaRef = useAutoGrow(userQuestion, 1, 4);
   const isExperienced = personalization?.tarotExperience === 'experienced';
   const isNewbie = personalization?.tarotExperience === 'newbie';
   const displayName = personalization?.displayName?.trim();
@@ -63,6 +65,14 @@ export function QuestionInput({
     }
   };
 
+  // Enter blurs (implicit continue), Shift+Enter inserts newline
+  const handleKeyDown = (event) => {
+    if (event.key === 'Enter' && !event.shiftKey) {
+      event.preventDefault();
+      event.target.blur();
+    }
+  };
+
   return (
     <div className="space-y-3 animate-fade-in">
       <div className="flex flex-col gap-2 xs:flex-row xs:items-center xs:justify-between">
@@ -93,13 +103,15 @@ export function QuestionInput({
         </p>
       )}
       <div className="relative">
-        <input
+        <textarea
+          ref={textareaRef}
           id="question-input"
-          type="text"
           value={userQuestion}
           onChange={event => setUserQuestion(event.target.value)}
+          onKeyDown={handleKeyDown}
           placeholder={EXAMPLE_QUESTIONS[placeholderIndex]}
-          className="w-full bg-surface border border-primary/40 rounded-lg px-3 xs:px-4 py-3 pr-12 text-base text-main placeholder-muted focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/70 transition-all"
+          rows={1}
+          className="w-full bg-surface border border-primary/40 rounded-lg px-3 xs:px-4 py-3 pr-12 text-base text-main placeholder-muted focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/70 transition-all resize-none"
           // text-base (16px) prevents iOS zoom on focus
           onFocus={onFocus}
           onBlur={onBlur}
@@ -108,7 +120,7 @@ export function QuestionInput({
         <button
           type="button"
           onClick={handleRefreshExamples}
-          className="absolute inset-y-0 right-1 flex items-center justify-center min-w-[44px] min-h-[44px] text-muted hover:text-main focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-surface rounded-full touch-manipulation"
+          className="absolute top-1 right-1 flex items-center justify-center min-w-[44px] min-h-[44px] text-muted hover:text-main focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-surface rounded-full touch-manipulation"
           aria-label="Cycle example intention prompts"
         >
           <ArrowsClockwise className="w-4 h-4" aria-hidden="true" />

@@ -1,6 +1,7 @@
-import { forwardRef } from 'react';
+import { forwardRef, useCallback } from 'react';
 import { Sparkle, GearSix } from '@phosphor-icons/react';
 import { DECK_OPTIONS } from './DeckSelector';
+import { useAutoGrow } from '../hooks/useAutoGrow';
 
 /**
  * QuickIntentionCard - Mobile quick intention entry
@@ -20,6 +21,26 @@ export const QuickIntentionCard = forwardRef(function QuickIntentionCard({
   selectedSpread,
   onDeckChange
 }, ref) {
+  const autoGrowRef = useAutoGrow(userQuestion, 1, 4);
+
+  // Merge inputRef (from parent) with autoGrowRef (from hook)
+  const mergedRef = useCallback((el) => {
+    autoGrowRef.current = el;
+    if (typeof inputRef === 'function') {
+      inputRef(el);
+    } else if (inputRef) {
+      inputRef.current = el;
+    }
+  }, [inputRef, autoGrowRef]);
+
+  // Enter blurs (implicit continue), Shift+Enter inserts newline
+  const handleKeyDown = (event) => {
+    if (event.key === 'Enter' && !event.shiftKey) {
+      event.preventDefault();
+      event.target.blur();
+    }
+  };
+
   return (
     <div
       ref={ref}
@@ -40,15 +61,16 @@ export const QuickIntentionCard = forwardRef(function QuickIntentionCard({
           Coach
         </button>
       </div>
-      <div className="flex items-center gap-2">
-        <input
-          ref={inputRef}
-          type="text"
+      <div className="flex items-start gap-2">
+        <textarea
+          ref={mergedRef}
           value={userQuestion}
           onChange={(event) => onQuestionChange(event.target.value)}
+          onKeyDown={handleKeyDown}
           onFocus={onInputFocus}
           placeholder={placeholderQuestion}
-          className="flex-1 min-h-[44px] rounded-xl border border-secondary/30 bg-surface px-3 py-2 text-base text-main placeholder:text-secondary/50 focus:border-secondary focus:outline-none focus:ring-1 focus:ring-secondary/50"
+          rows={1}
+          className="flex-1 min-h-[44px] rounded-xl border border-secondary/30 bg-surface px-3 py-2 text-base text-main placeholder:text-secondary/50 focus:border-secondary focus:outline-none focus:ring-1 focus:ring-secondary/50 resize-none"
         />
         <button
           type="button"

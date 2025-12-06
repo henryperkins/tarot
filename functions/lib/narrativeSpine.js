@@ -299,7 +299,17 @@ export function enhanceSection(section, metadata = {}) {
 
   // Add WHAT'S NEXT guidance for forward-looking sections
   if (!detection.whatsNext && typeof metadata.type === 'string') {
-    const forwardTypes = ['timeline', 'outcome', 'future', 'staff'];
+    const forwardTypes = [
+      'timeline',
+      'outcome',
+      'future',
+      'staff',
+      'relationship',
+      'relationship-dyad',
+      'relationship-guidance',
+      'relationship-support',
+      'connection'
+    ];
     if (forwardTypes.includes(metadata.type.toLowerCase())) {
       const guidancePrompt = 'Consider what this trajectory invites you to do next.';
       enhanced = enhanced ? `${enhanced} ${guidancePrompt}` : guidancePrompt;

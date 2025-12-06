@@ -1,11 +1,14 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
-import { SignIn, User, SignOut, BookOpen } from '@phosphor-icons/react';
+import { Link } from 'react-router-dom';
+import { SignIn, User, SignOut, BookOpen, Gear, Crown, Sparkle, Moon } from '@phosphor-icons/react';
 import { useAuth } from '../contexts/AuthContext';
+import { useSubscription, SUBSCRIPTION_TIERS } from '../contexts/SubscriptionContext';
 import { usePreferences } from '../contexts/PreferencesContext';
 import AuthModal from './AuthModal';
 
 export function UserMenu({ condensed = false }) {
   const { isAuthenticated, user, logout } = useAuth();
+  const { tier, isPaid } = useSubscription();
   const { resetOnboarding, onboardingComplete } = usePreferences();
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showDropdown, setShowDropdown] = useState(false);
@@ -188,7 +191,41 @@ export function UserMenu({ condensed = false }) {
                     {user?.email && (
                       <p className="text-[11px] text-muted/70 truncate mt-0.5">{user.email}</p>
                     )}
+                    {/* Subscription tier badge */}
+                    <div className="mt-2 flex items-center gap-1.5">
+                      {tier === 'pro' && <Crown className="h-3.5 w-3.5 text-accent" weight="fill" />}
+                      {tier === 'plus' && <Sparkle className="h-3.5 w-3.5 text-accent" weight="fill" />}
+                      {tier === 'free' && <Moon className="h-3.5 w-3.5 text-muted" weight="fill" />}
+                      <span className={`text-[11px] font-medium ${isPaid ? 'text-accent' : 'text-muted'}`}>
+                        {SUBSCRIPTION_TIERS[tier]?.name || 'Seeker'} Plan
+                      </span>
+                      {!isPaid && (
+                        <Link
+                          to="/pricing"
+                          onClick={closeDropdown}
+                          className="ml-auto text-[11px] font-semibold text-primary hover:text-primary/80"
+                        >
+                          Upgrade
+                        </Link>
+                      )}
+                    </div>
                   </div>
+
+                  {/* Account Settings Link */}
+                  <Link
+                    to="/account"
+                    onClick={closeDropdown}
+                    className="
+                      w-full text-left px-4 py-3 min-h-[44px]
+                      text-sm text-accent hover:bg-accent/5 active:bg-accent/10
+                      flex items-center gap-2 touch-manipulation
+                      focus-visible:outline-none focus-visible:bg-accent/5
+                      border-b border-accent/10
+                    "
+                  >
+                    <Gear className="w-4 h-4" aria-hidden="true" />
+                    Account Settings
+                  </Link>
 
                   {/* Analytics toggle */}
                   <div className="px-4 py-3 border-b border-accent/10 space-y-2">

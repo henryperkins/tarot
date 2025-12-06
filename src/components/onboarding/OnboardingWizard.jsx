@@ -234,6 +234,7 @@ export function OnboardingWizard({ isOpen, onComplete, onSelectSpread, initialSp
           <JournalIntro
             onNext={handleNext}
             onBack={handleBack}
+            onGoToStep={handleStepSelect}
           />
         );
       case 7:

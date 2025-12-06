@@ -1,5 +1,6 @@
 import { generateFallbackWaveform } from '../../shared/fallbackAudio.js';
 import { jsonResponse, readJsonBody } from '../lib/utils.js';
+import { getUserFromRequest } from '../lib/auth.js';
 
 /**
  * Cloudflare Pages Function that provides text-to-speech audio as a data URI or streaming response.
@@ -42,16 +43,40 @@ export const onRequestGet = async ({ env }) => {
   });
 };
 
+/**
+ * Get TTS limits based on subscription tier
+ */
+function getTTSLimits(tier) {
+  const limits = {
+    free: { monthly: 3, premium: false },
+    plus: { monthly: 50, premium: true },
+    pro: { monthly: Infinity, premium: true }
+  };
+  return limits[tier] || limits.free;
+}
+
 export const onRequestPost = async ({ request, env }) => {
   try {
     const url = new URL(request.url);
     const stream = url.searchParams.get('stream') === 'true';
 
-    const rateLimitResult = await enforceTtsRateLimit(env, request);
+    // Get user and subscription info
+    const user = await getUserFromRequest(request, env);
+    const tier = user?.subscription_tier || 'free';
+    const ttsLimits = getTTSLimits(tier);
+
+    // Check tier-based rate limits (in addition to global rate limit)
+    const rateLimitResult = await enforceTtsRateLimit(env, request, ttsLimits);
     if (rateLimitResult?.limited) {
+      const errorMessage = rateLimitResult.tierLimited
+        ? `You've reached your monthly TTS limit (${ttsLimits.monthly}). Upgrade to Plus or Pro for more.`
+        : 'Too many text-to-speech requests. Please wait a few moments and try again.';
+      
       return jsonResponse(
         {
-          error: 'Too many text-to-speech requests. Please wait a few moments and try again.'
+          error: errorMessage,
+          tierLimited: rateLimitResult.tierLimited || false,
+          currentTier: tier
         },
         {
           status: 429,
@@ -360,33 +385,57 @@ async function generateWithAzureGptMiniTTSStream(env, { text, context, voice, sp
 const DEFAULT_RATE_LIMIT_MAX = 30;
 const DEFAULT_RATE_LIMIT_WINDOW_SECONDS = 60;
 const TTS_RATE_LIMIT_KEY_PREFIX = 'tts-rate';
+const TTS_MONTHLY_KEY_PREFIX = 'tts-monthly';
 
-async function enforceTtsRateLimit(env, request) {
+async function enforceTtsRateLimit(env, request, ttsLimits = { monthly: 3, premium: false }) {
   try {
     const store = env?.RATELIMIT;
-    if (!store) {
-      return { limited: false };
+    
+    // Short-term rate limit (requests per minute)
+    if (store) {
+      const maxRequests = Number(resolveEnv(env, 'TTS_RATE_LIMIT_MAX')) || DEFAULT_RATE_LIMIT_MAX;
+      const windowSeconds = Number(resolveEnv(env, 'TTS_RATE_LIMIT_WINDOW')) || DEFAULT_RATE_LIMIT_WINDOW_SECONDS;
+      const now = Date.now();
+      const windowBucket = Math.floor(now / (windowSeconds * 1000));
+      const clientId = getClientIdentifier(request);
+      const rateLimitKey = `${TTS_RATE_LIMIT_KEY_PREFIX}:${clientId}:${windowBucket}`;
+
+      const existing = await store.get(rateLimitKey);
+      const currentCount = existing ? Number(existing) || 0 : 0;
+
+      if (currentCount >= maxRequests) {
+        const windowBoundary = (windowBucket + 1) * windowSeconds * 1000;
+        const retryAfter = Math.max(1, Math.ceil((windowBoundary - now) / 1000));
+        return { limited: true, retryAfter };
+      }
+
+      await store.put(rateLimitKey, String(currentCount + 1), {
+        expirationTtl: windowSeconds
+      });
     }
 
-    const maxRequests = Number(resolveEnv(env, 'TTS_RATE_LIMIT_MAX')) || DEFAULT_RATE_LIMIT_MAX;
-    const windowSeconds = Number(resolveEnv(env, 'TTS_RATE_LIMIT_WINDOW')) || DEFAULT_RATE_LIMIT_WINDOW_SECONDS;
-    const now = Date.now();
-    const windowBucket = Math.floor(now / (windowSeconds * 1000));
-    const clientId = getClientIdentifier(request);
-    const rateLimitKey = `${TTS_RATE_LIMIT_KEY_PREFIX}:${clientId}:${windowBucket}`;
+    // Monthly tier-based limit (skip for unlimited/Pro tier)
+    if (store && ttsLimits.monthly !== Infinity) {
+      const clientId = getClientIdentifier(request);
+      const now = new Date();
+      const monthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+      const monthlyKey = `${TTS_MONTHLY_KEY_PREFIX}:${clientId}:${monthKey}`;
 
-    const existing = await store.get(rateLimitKey);
-    const currentCount = existing ? Number(existing) || 0 : 0;
+      const monthlyCount = await store.get(monthlyKey);
+      const currentMonthlyCount = monthlyCount ? Number(monthlyCount) || 0 : 0;
 
-    if (currentCount >= maxRequests) {
-      const windowBoundary = (windowBucket + 1) * windowSeconds * 1000;
-      const retryAfter = Math.max(1, Math.ceil((windowBoundary - now) / 1000));
-      return { limited: true, retryAfter };
+      if (currentMonthlyCount >= ttsLimits.monthly) {
+        // Monthly limit reached - suggest upgrade
+        const nextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+        const retryAfter = Math.ceil((nextMonth.getTime() - now.getTime()) / 1000);
+        return { limited: true, tierLimited: true, retryAfter };
+      }
+
+      // Increment monthly counter (expire after 35 days to cover month boundary)
+      await store.put(monthlyKey, String(currentMonthlyCount + 1), {
+        expirationTtl: 35 * 24 * 60 * 60
+      });
     }
-
-    await store.put(rateLimitKey, String(currentCount + 1), {
-      expirationTtl: windowSeconds
-    });
 
     return { limited: false };
   } catch (error) {
