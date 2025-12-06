@@ -144,6 +144,8 @@ export function ReadingGrid({
   const [showSwipeHint, setShowSwipeHint] = useState(true);
   const [hasUserScrolled, setHasUserScrolled] = useState(false);
   const [layoutPreference, setLayoutPreference] = useState('carousel');
+  const [prevReading, setPrevReading] = useState(reading);
+  const [prevReflectionDeps, setPrevReflectionDeps] = useState({ reading, reflections, isCompactScreen: false });
   const [openReflectionIndex, setOpenReflectionIndex] = useState(null);
   const isCompactScreen = useSmallScreen();
   const isVerySmallScreen = useSmallScreen(480);
@@ -175,6 +177,42 @@ export function ReadingGrid({
       : 'min-w-[72vw] xxs:min-w-[66vw] xs:min-w-[60vw] max-w-[18.5rem]';
   const mobileCarouselPadding = isLandscape ? 'px-2' : 'px-3 xxs:px-4';
 
+  // Reset scroll tracking when reading changes - handled during render, not in effect
+  // This avoids cascading renders from calling setState in useEffect
+  // See: https://react.dev/learn/you-might-not-need-an-effect#adjusting-some-state-when-a-prop-changes
+  if (reading !== prevReading) {
+    setPrevReading(reading);
+    setHasUserScrolled(false);
+    setShowSwipeHint(true);
+  }
+
+  // Keep only one mobile reflection open at a time; default to the first card with notes
+  // Handled during render to avoid cascading renders from setState in effect
+  if (
+    reading !== prevReflectionDeps.reading ||
+    reflections !== prevReflectionDeps.reflections ||
+    isCompactScreen !== prevReflectionDeps.isCompactScreen
+  ) {
+    setPrevReflectionDeps({ reading, reflections, isCompactScreen });
+
+    if (Array.isArray(reading) && isCompactScreen) {
+      // Compute new value based on current openReflectionIndex
+      let newIndex = openReflectionIndex;
+      if (!(newIndex !== null && reading[newIndex])) {
+        // Current selection is invalid, find first card with reflection
+        const firstWithReflection = reading.findIndex((_, idx) => {
+          const val = reflections?.[idx];
+          return typeof val === 'string' && val.trim().length > 0;
+        });
+        newIndex = firstWithReflection >= 0 ? firstWithReflection : null;
+      }
+      // Only update if changed
+      if (newIndex !== openReflectionIndex) {
+        setOpenReflectionIndex(newIndex);
+      }
+    }
+  }
+
   // Hide swipe hint only after user scrolls OR after extended timeout (8s)
   // This ensures users have time to discover the swipe gesture
   useEffect(() => {
@@ -188,26 +226,6 @@ export function ReadingGrid({
 
     return () => clearTimeout(timer);
   }, [reading, isListView, hasUserScrolled]);
-
-  // Reset scroll tracking when reading changes
-  useEffect(() => {
-    setHasUserScrolled(false);
-    setShowSwipeHint(true);
-  }, [reading]);
-
-  // Keep only one mobile reflection open at a time; default to the first card with notes
-  useEffect(() => {
-    if (!Array.isArray(reading) || !isCompactScreen) return;
-
-    setOpenReflectionIndex(prev => {
-      if (prev !== null && reading[prev]) return prev;
-      const firstWithReflection = reading.findIndex((_, idx) => {
-        const val = reflections?.[idx];
-        return typeof val === 'string' && val.trim().length > 0;
-      });
-      return firstWithReflection >= 0 ? firstWithReflection : null;
-    });
-  }, [reading, reflections, isCompactScreen]);
 
   // Celtic Cross uses a fixed CSS grid layout that doesn't scroll horizontally,
   // so carousel navigation (swipe, dots, prev/next) should be disabled for it

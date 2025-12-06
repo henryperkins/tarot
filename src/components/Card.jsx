@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
+import { useEffect, useMemo, useRef, useState, useCallback, useLayoutEffect } from 'react';
 import { motion, useAnimation } from 'framer-motion';
 import { ArrowsOut, HandPointing, ArrowLeft, ArrowRight, NotePencil, CaretUp } from '@phosphor-icons/react';
 import { CARD_LOOKUP, FALLBACK_IMAGE, getCardImage } from '../lib/cardLookup';
@@ -33,17 +33,28 @@ export function Card({
   const isLandscape = useLandscape();
 
   // Mobile: collapsible reflection section (starts collapsed unless has content)
-  const [showReflection, setShowReflection] = useState(() => Boolean(reflectionValue));
+  // This is local state that is authoritative on desktop, or when mobile has no coordination
+  const [localShowReflection, setLocalShowReflection] = useState(() => Boolean(reflectionValue));
 
-  // Sync reflection visibility with parent coordinator so only one stays open on mobile
-  useEffect(() => {
+  // Compute effective visibility: on mobile with active coordination, derive from parent
+  const showReflection = useMemo(() => {
+    if (!isSmallScreen) return localShowReflection;
+    if (openReflectionIndex === null) return localShowReflection;
+    return openReflectionIndex === index;
+  }, [isSmallScreen, openReflectionIndex, index, localShowReflection]);
+
+  // Track previous openReflectionIndex to detect when this card is newly opened
+  const prevOpenReflectionIndexRef = useRef(openReflectionIndex);
+
+  // Focus textarea when this card's reflection is opened via parent coordination (side effect only)
+  useLayoutEffect(() => {
     if (!isSmallScreen) return;
-    if (openReflectionIndex === null) return;
-    if (openReflectionIndex === index) {
-      setShowReflection(true);
+    const prevIndex = prevOpenReflectionIndexRef.current;
+    prevOpenReflectionIndexRef.current = openReflectionIndex;
+
+    // Focus only when this card's reflection was just opened via parent coordination
+    if (openReflectionIndex === index && prevIndex !== index) {
       setTimeout(() => textareaRef.current?.focus(), 50);
-    } else {
-      setShowReflection(false);
     }
   }, [openReflectionIndex, index, isSmallScreen]);
 
@@ -426,7 +437,7 @@ export function Card({
                   <button
                     type="button"
                     onClick={() => {
-                      setShowReflection(true);
+                      setLocalShowReflection(true);
                       onRequestOpenReflection?.(index);
                       // Focus textarea after state update
                       setTimeout(() => textareaRef.current?.focus(), 50);
@@ -450,7 +461,7 @@ export function Card({
                       <button
                         type="button"
                         onClick={() => {
-                          setShowReflection(false);
+                          setLocalShowReflection(false);
                           if (onRequestOpenReflection && openReflectionIndex === index) {
                             onRequestOpenReflection(null);
                           }

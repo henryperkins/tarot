@@ -51,7 +51,14 @@ npm run deploy   # Deploy to Cloudflare Workers
 - `lib/narrative/` — Spread-specific narrative builders
 - `lib/spreadAnalysis.js` — Card relationship detection
 - `lib/knowledgeGraph.js` — Archetypal relationships
+- `lib/evaluation.js` — Automated reading quality evaluation (Workers AI)
 - `lib/scheduled.js` — Cron tasks: KV→R2 archival, session cleanup
+
+**Scripts (`scripts/`)**
+- `lib/dataAccess.js` — Shared R2/KV/D1 access helpers
+- `training/exportReadings.js` — Export training data (journal + feedback + metrics + eval)
+- `evaluation/exportEvalData.js` — Export eval-only data for calibration
+- `evaluation/calibrateEval.js` — Analyze score distributions
 
 **Shared (`shared/`)**
 - `vision/` — Physical deck recognition pipeline
@@ -128,8 +135,9 @@ Configured in `wrangler.jsonc`:
 | Binding | Type | Purpose |
 |---------|------|---------|
 | `DB` | D1 | Main database (users, sessions, journal, etc.) |
+| `AI` | Workers AI | Automated reading evaluation (Llama 3 8B) |
 | `RATELIMIT` | KV | Rate limiting counters (auto-expires) |
-| `METRICS_DB` | KV | Reading metrics (archived to R2 daily) |
+| `METRICS_DB` | KV | Reading metrics + eval scores (archived to R2 daily) |
 | `FEEDBACK_KV` | KV | User feedback (archived to R2 daily) |
 | `LOGS_BUCKET` | R2 | Archives, exports, logs storage |
 | `ASSETS` | Assets | Static frontend files |
@@ -155,13 +163,54 @@ Daily at 3 AM UTC (`0 3 * * *`):
 3. Clean up expired sessions from D1
 4. Store archival summary in R2
 
+## Automated Evaluation System
+
+Every AI-generated reading is automatically evaluated on quality dimensions using Workers AI (Llama 3 8B). The evaluation runs asynchronously via `waitUntil()` so it doesn't block user responses.
+
+**Scoring dimensions** (1-5 scale):
+- `personalization` — Does the reading address the user's specific question?
+- `tarot_coherence` — Accuracy to cards, positions, traditional meanings
+- `tone` — Empowering, agency-preserving language
+- `safety` — Avoids harmful advice (medical, financial, doom language)
+- `overall` — Holistic quality assessment
+- `safety_flag` — Binary flag for egregious violations
+
+**Configuration** (in `wrangler.jsonc` vars):
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `EVAL_ENABLED` | `"false"` | Master switch for evaluation |
+| `EVAL_MODEL` | `"@cf/meta/llama-3-8b-instruct-awq"` | Workers AI model |
+| `EVAL_TIMEOUT_MS` | `"5000"` | Timeout for eval call |
+| `EVAL_GATE_ENABLED` | `"false"` | Block readings on low scores |
+
+**Data pipeline:**
+1. Reading generated → quality gate → response sent
+2. `waitUntil()` runs evaluation asynchronously
+3. Scores stored in `METRICS_DB` with reading metrics
+4. Daily cron archives to R2 (`archives/metrics/{date}/*.json`)
+5. Export scripts pull from R2 for analysis
+
+**Export & calibration:**
+```bash
+# Full training export with eval scores
+node scripts/training/exportReadings.js --metrics-source r2 --out readings.jsonl
+
+# Eval-only export
+node scripts/evaluation/exportEvalData.js --days=7
+
+# Analyze score distributions
+cat readings.jsonl | node scripts/evaluation/calibrateEval.js
+```
+
+**Full documentation:** See `docs/evaluation-system.md`
+
 ## Tests
 
 ```bash
 npm test  # Runs tests in tests/
 ```
 
-Key test files: `deck.test.mjs`, `narrativeBuilder.*.test.mjs`, `narrativeSpine.test.mjs`
+Key test files: `deck.test.mjs`, `narrativeBuilder.*.test.mjs`, `narrativeSpine.test.mjs`, `evaluation.test.mjs`
 
 ## Working with This Repo
 

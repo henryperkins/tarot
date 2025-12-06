@@ -21,7 +21,7 @@ const DEFAULT_FILTERS = { query: '', contexts: [], spreads: [], decks: [], timef
 const SAVED_FILTERS_KEY = 'journal_saved_filters_v1';
 const OUTLINE_FILTER_BASE = 'flex items-center gap-2 rounded-xl border px-3 py-2 text-sm font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/40';
 const OUTLINE_FILTER_IDLE = 'border-amber-200/20 text-amber-100/60 hover:border-amber-200/35 hover:text-amber-100/80';
-const OUTLINE_FILTER_ACTIVE = 'border-amber-300/60 bg-amber-300/10 text-amber-50 shadow-[0_10px_30px_-18px_rgba(251,191,36,0.6)]';
+const OUTLINE_FILTER_ACTIVE = 'border-amber-300/70 bg-amber-300/15 text-amber-50 shadow-[0_12px_30px_-18px_rgba(251,191,36,0.75)]';
 
 function FilterDropdown({ label, options, value, onChange, multiple = false }) {
   const [isOpen, setIsOpen] = useState(false);
@@ -114,6 +114,7 @@ function FilterDropdown({ label, options, value, onChange, multiple = false }) {
         aria-haspopup="listbox"
         aria-expanded={isOpen}
         aria-controls={isOpen ? menuId : undefined}
+        aria-pressed={activeCount > 0}
       >
         {multiple && <span>{label}</span>}
         {!multiple && <span className={value !== 'all' ? 'text-secondary' : ''}>{displayLabel}</span>}
@@ -156,7 +157,8 @@ function FilterDropdown({ label, options, value, onChange, multiple = false }) {
   );
 }
 
-export function JournalFilters({ filters, onChange, contexts = [], spreads = [], decks = [] }) {
+export function JournalFilters({ filters, onChange, contexts = [], spreads = [], decks = [], variant = 'full' }) {
+  const isCompact = variant === 'compact';
   const [savedFilters, setSavedFilters] = useState(() => {
     if (typeof window === 'undefined') return [];
     try {
@@ -236,51 +238,59 @@ export function JournalFilters({ filters, onChange, contexts = [], spreads = [],
     onChange(DEFAULT_FILTERS);
   };
 
+  const containerClass = isCompact
+    ? 'relative overflow-hidden rounded-3xl border border-amber-300/15 bg-gradient-to-br from-[#0b0a12] via-[#0d0a1a] to-[#0b0a12] p-5 lg:p-6 shadow-[0_22px_60px_-30px_rgba(0,0,0,0.9)] animate-fade-in'
+    : 'relative overflow-hidden rounded-3xl border border-amber-300/12 bg-gradient-to-br from-[#0b0c1d] via-[#0d1024] to-[#090a16] p-5 lg:p-7 shadow-[0_24px_68px_-30px_rgba(0,0,0,0.9)] animate-fade-in';
+
   return (
     <section
-      className="relative overflow-hidden rounded-3xl border border-amber-300/12 bg-gradient-to-br from-[#0b0c1d] via-[#0d1024] to-[#090a16] p-5 lg:p-7 shadow-[0_24px_68px_-30px_rgba(0,0,0,0.9)] animate-fade-in"
+      className={containerClass}
       aria-label="Focus your journal"
     >
       {/* Starfield + glows */}
-      <div
-        className="pointer-events-none absolute inset-0 opacity-60 mix-blend-screen"
-        aria-hidden="true"
-        style={{
-          backgroundImage:
-            'radial-gradient(circle at 10% 20%, rgba(251,191,36,0.08), transparent 32%), radial-gradient(circle at 82% 24%, rgba(56,189,248,0.07), transparent 30%), radial-gradient(circle at 55% 78%, rgba(167,139,250,0.08), transparent 32%)'
-        }}
-      />
-      <div className="pointer-events-none absolute inset-0" aria-hidden="true">
-        {[
-          { x: 6, y: 14, s: 1.4, o: 0.8 },
-          { x: 18, y: 26, s: 1, o: 0.5 },
-          { x: 34, y: 10, s: 1.6, o: 0.7 },
-          { x: 52, y: 8, s: 1.2, o: 0.5 },
-          { x: 68, y: 18, s: 1, o: 0.4 },
-          { x: 84, y: 12, s: 1.5, o: 0.7 },
-          { x: 12, y: 78, s: 1.2, o: 0.5 },
-          { x: 28, y: 64, s: 1, o: 0.4 },
-          { x: 46, y: 86, s: 1.6, o: 0.7 },
-          { x: 64, y: 74, s: 1.2, o: 0.6 },
-          { x: 82, y: 82, s: 1, o: 0.4 },
-          { x: 92, y: 66, s: 1.3, o: 0.5 }
-        ].map((star, i) => (
+      {!isCompact && (
+        <>
           <div
-            key={i}
-            className="absolute rounded-full bg-amber-100"
+            className="pointer-events-none absolute inset-0 opacity-60 mix-blend-screen"
+            aria-hidden="true"
             style={{
-              left: `${star.x}%`,
-              top: `${star.y}%`,
-              width: star.s,
-              height: star.s,
-              opacity: star.o,
-              boxShadow: `0 0 ${star.s * 4}px ${star.s}px rgba(251,191,36,${star.o * 0.45})`
+              backgroundImage:
+                'radial-gradient(circle at 10% 20%, rgba(251,191,36,0.08), transparent 32%), radial-gradient(circle at 82% 24%, rgba(56,189,248,0.07), transparent 30%), radial-gradient(circle at 55% 78%, rgba(167,139,250,0.08), transparent 32%)'
             }}
           />
-        ))}
-      </div>
-      <div className="pointer-events-none absolute -left-24 top-12 h-64 w-64 rounded-full bg-amber-500/12 blur-[110px]" aria-hidden="true" />
-      <div className="pointer-events-none absolute right-[-120px] top-1/3 h-72 w-72 rounded-full bg-cyan-400/10 blur-[110px]" aria-hidden="true" />
+          <div className="pointer-events-none absolute inset-0" aria-hidden="true">
+            {[
+              { x: 6, y: 14, s: 1.4, o: 0.8 },
+              { x: 18, y: 26, s: 1, o: 0.5 },
+              { x: 34, y: 10, s: 1.6, o: 0.7 },
+              { x: 52, y: 8, s: 1.2, o: 0.5 },
+              { x: 68, y: 18, s: 1, o: 0.4 },
+              { x: 84, y: 12, s: 1.5, o: 0.7 },
+              { x: 12, y: 78, s: 1.2, o: 0.5 },
+              { x: 28, y: 64, s: 1, o: 0.4 },
+              { x: 46, y: 86, s: 1.6, o: 0.7 },
+              { x: 64, y: 74, s: 1.2, o: 0.6 },
+              { x: 82, y: 82, s: 1, o: 0.4 },
+              { x: 92, y: 66, s: 1.3, o: 0.5 }
+            ].map((star, i) => (
+              <div
+                key={i}
+                className="absolute rounded-full bg-amber-100"
+                style={{
+                  left: `${star.x}%`,
+                  top: `${star.y}%`,
+                  width: star.s,
+                  height: star.s,
+                  opacity: star.o,
+                  boxShadow: `0 0 ${star.s * 4}px ${star.s}px rgba(251,191,36,${star.o * 0.45})`
+                }}
+              />
+            ))}
+          </div>
+          <div className="pointer-events-none absolute -left-24 top-12 h-64 w-64 rounded-full bg-amber-500/12 blur-[110px]" aria-hidden="true" />
+          <div className="pointer-events-none absolute right-[-120px] top-1/3 h-72 w-72 rounded-full bg-cyan-400/10 blur-[110px]" aria-hidden="true" />
+        </>
+      )}
 
       {/* Foreground */}
       <div className="relative z-10 space-y-6">
@@ -381,6 +391,7 @@ export function JournalFilters({ filters, onChange, contexts = [], spreads = [],
           return (
             <>
               {/* Desktop constellation */}
+              {!isCompact && (
               <div className="relative hidden h-[260px] lg:block">
                 <svg className="absolute inset-0 h-full w-full" aria-hidden="true">
                   <defs>
@@ -483,6 +494,7 @@ export function JournalFilters({ filters, onChange, contexts = [], spreads = [],
                   );
                 })}
               </div>
+              )}
 
               {/* Mobile horizontal cards */}
               <div className="flex gap-3 overflow-x-auto pb-1 lg:hidden">
@@ -508,9 +520,9 @@ export function JournalFilters({ filters, onChange, contexts = [], spreads = [],
           );
         })()}
 
-        <div className="grid gap-4 lg:grid-cols-[1.05fr_0.95fr]">
+        <div className={isCompact ? 'flex flex-col gap-4' : 'grid gap-4 lg:grid-cols-[1.05fr_0.95fr]'}>
           {/* Search + saved filters */}
-          <div className="rounded-2xl border border-amber-300/15 bg-[#0b0d18]/70 p-4 ring-1 ring-amber-300/10 shadow-[0_18px_45px_-30px_rgba(0,0,0,0.8)]">
+          <div className="rounded-2xl border border-amber-300/15 bg-gradient-to-br from-[#0e0b18]/80 via-[#0c0a14]/80 to-[#0d0a16]/80 p-4 ring-1 ring-amber-300/10 shadow-[0_18px_45px_-30px_rgba(0,0,0,0.8)]">
             <div className="flex flex-wrap items-center gap-3">
               <div className="relative flex-1 min-w-[220px]">
                 <div className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-amber-200/60">
@@ -596,7 +608,7 @@ export function JournalFilters({ filters, onChange, contexts = [], spreads = [],
           </div>
 
           {/* Filter toggles */}
-          <div className="rounded-2xl border border-amber-300/12 bg-[#0c0e1a]/70 p-4 ring-1 ring-amber-300/10 shadow-[0_18px_45px_-30px_rgba(0,0,0,0.8)]">
+          <div className="rounded-2xl border border-amber-300/12 bg-gradient-to-br from-[#0f0b16]/80 via-[#0c0a13]/80 to-[#0a0810]/85 p-4 ring-1 ring-amber-300/10 shadow-[0_18px_45px_-30px_rgba(0,0,0,0.8)]">
             <div className="flex flex-wrap items-center gap-3">
               <FilterDropdown
                 label="Timeframe"

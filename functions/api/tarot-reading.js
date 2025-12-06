@@ -45,6 +45,7 @@ import {
   shouldPersistPrompts,
   redactPII
 } from '../lib/promptEngineering.js';
+import { scheduleEvaluation } from '../lib/evaluation.js';
 import { MAJOR_ARCANA } from '../../src/data/majorArcana.js';
 import { MINOR_ARCANA } from '../../src/data/minorArcana.js';
 import {
@@ -400,7 +401,7 @@ export const onRequestGet = async ({ env }) => {
   });
 };
 
-export const onRequestPost = async ({ request, env }) => {
+export const onRequestPost = async ({ request, env, waitUntil }) => {
   const startTime = Date.now();
   const requestId = crypto.randomUUID ? crypto.randomUUID() : `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
@@ -688,9 +689,10 @@ export const onRequestPost = async ({ request, env }) => {
       }
     }
 
-    await persistReadingMetrics(env, {
+    const timestamp = new Date().toISOString();
+    const metricsPayload = {
       requestId,
-      timestamp: new Date().toISOString(),
+      timestamp,
       provider,
       deckStyle,
       spreadKey: analysis.spreadKey,
@@ -705,7 +707,22 @@ export const onRequestPost = async ({ request, env }) => {
       // New: prompt engineering data
       promptEngineering,
       llmUsage: capturedUsage
-    });
+    };
+
+    await persistReadingMetrics(env, metricsPayload);
+
+    scheduleEvaluation(
+      env,
+      {
+        reading,
+        userQuestion,
+        cardsInfo,
+        spreadKey: analysis.spreadKey,
+        requestId
+      },
+      metricsPayload,
+      { waitUntil }
+    );
 
     maybeLogEnhancementTelemetry(env, requestId, enhancementTelemetry);
 

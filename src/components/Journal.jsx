@@ -220,6 +220,17 @@ export default function Journal() {
     }, null);
   }, [entries]);
 
+  const heroEntry = useMemo(() => {
+    const source = (filtersActive && filteredEntries.length > 0) ? filteredEntries : entries;
+    if (!Array.isArray(source) || source.length === 0) return null;
+    const sorted = [...source].sort((a, b) => {
+      const aTs = getEntryTimestamp(a) || 0;
+      const bTs = getEntryTimestamp(b) || 0;
+      return bTs - aTs;
+    });
+    return sorted[0] || null;
+  }, [entries, filteredEntries, filtersActive]);
+
   const latestFilteredEntryTs = useMemo(() => {
     if (!filteredEntries || filteredEntries.length === 0) return null;
     return filteredEntries.reduce((latest, entry) => {
@@ -262,6 +273,17 @@ export default function Journal() {
   const summaryLastEntrySecondary = filtersActive
     ? (filteredEntries.length === 0 ? 'Showing whole journal' : `Journal: ${formatSummaryDate(latestAllEntryTs)}`)
     : 'Latest journal update';
+  const heroDateLabel = heroEntry ? formatSummaryDate(getEntryTimestamp(heroEntry)) : null;
+  const heroCards = useMemo(() => {
+    if (!heroEntry || !Array.isArray(heroEntry.cards)) return [];
+    return heroEntry.cards.slice(0, 3).map((card, index) => ({
+      id: `${card.name || 'card'}-${index}`,
+      name: card.name || 'Card',
+      position: card.position || `Card ${index + 1}`,
+      orientation: card.orientation || (card.isReversed ? 'Reversed' : 'Upright'),
+      image: card.image || card.img || card.url || '/cardback.png'
+    }));
+  }, [heroEntry]);
   const summaryCardData = [
     {
       id: 'entries',
@@ -513,6 +535,7 @@ export default function Journal() {
           contexts={CONTEXT_FILTERS}
           spreads={SPREAD_FILTERS}
           decks={DECK_FILTERS}
+          variant="compact"
         />
       </div>
       {(allStats || filteredStats) && (
@@ -575,6 +598,7 @@ export default function Journal() {
           contexts={CONTEXT_FILTERS}
           spreads={SPREAD_FILTERS}
           decks={DECK_FILTERS}
+          variant="compact"
         />
       ), 'Search and narrow your journal')}
 
@@ -722,6 +746,40 @@ export default function Journal() {
                     </button>
                   </div>
                 </div>
+
+                {heroEntry && heroCards.length > 0 && (
+                  <div className="mb-4 grid gap-3 sm:grid-cols-3">
+                    {heroCards.map((card, index) => (
+                      <div
+                        key={card.id}
+                        className="relative overflow-hidden rounded-2xl border border-amber-300/20 bg-gradient-to-b from-[#120f1f] via-[#0c0a14] to-[#0a0911] shadow-[0_16px_40px_-28px_rgba(251,191,36,0.35)]"
+                      >
+                        <div className="relative aspect-[2/3] overflow-hidden">
+                          <img
+                            src={card.image}
+                            alt={card.name}
+                            className="h-full w-full object-cover"
+                            loading="lazy"
+                          />
+                          <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/45 via-black/5 to-transparent" />
+                          <div className="absolute left-3 top-3 rounded-full bg-black/55 px-3 py-1 text-[11px] uppercase tracking-[0.22em] text-amber-100/80">
+                            {card.position}
+                          </div>
+                          {index === 0 && heroDateLabel && (
+                            <div className="absolute right-3 top-3 rounded-full bg-amber-300/20 px-3 py-1 text-[11px] font-semibold text-amber-50 shadow-[0_12px_30px_-18px_rgba(251,191,36,0.7)]">
+                              {heroDateLabel}
+                            </div>
+                          )}
+                        </div>
+                        <div className="px-3 pb-3 pt-2">
+                          <p className="text-xs uppercase tracking-[0.18em] text-amber-100/60">Latest reading</p>
+                          <p className="font-serif text-lg text-amber-50 leading-tight">{card.name}</p>
+                          <p className="text-[11px] text-amber-100/55">{card.orientation}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
 
                 {/* Constellation layout */}
                 <div className="relative">

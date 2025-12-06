@@ -1,4 +1,4 @@
-import { useState, useRef, useId, useMemo, useEffect } from 'react';
+import { useState, useRef, useId, useMemo, useEffect, useCallback } from 'react';
 import FocusTrap from 'focus-trap-react';
 import { X } from '@phosphor-icons/react';
 import { useModalA11y, createBackdropHandler } from '../../hooks/useModalA11y';
@@ -54,31 +54,32 @@ export function OnboardingWizard({ isOpen, onComplete, onSelectSpread, initialSp
   // Metrics timer for A/B test validation
   const metricsTimerRef = useRef(null);
 
-  // Initialize metrics timer when wizard opens
+  // Initialize/cleanup metrics timer when wizard opens/closes
   useEffect(() => {
-    if (isOpen && !metricsTimerRef.current) {
+    if (isOpen) {
+      // Wizard is opening - start fresh timer
       metricsTimerRef.current = startOnboardingTimer({ variant });
       metricsTimerRef.current.recordStep(1);
-    }
-    // Cleanup when wizard closes without completing
-    return () => {
-      if (!isOpen && metricsTimerRef.current && !metricsTimerRef.current.isCompleted()) {
-        metricsTimerRef.current.complete({ skipped: true });
+
+      // Cleanup when wizard closes or dependencies change
+      return () => {
+        if (metricsTimerRef.current && !metricsTimerRef.current.isCompleted()) {
+          metricsTimerRef.current.complete({ skipped: true });
+        }
         metricsTimerRef.current = null;
-      }
-    };
+      };
+    }
   }, [isOpen, variant]);
 
   // Reset state when wizard opens (replay scenario) to pick up current values.
   // This pattern (adjusting state during render) is React-recommended over useEffect
   // for syncing state with prop changes. See: https://react.dev/learn/you-might-not-need-an-effect
+  // Note: Ref mutations must NOT happen here - they are handled in useEffect above.
   if (isOpen && !prevIsOpen) {
     setPrevIsOpen(true);
     setCurrentStep(1);
     setSelectedSpread(initialSpread || 'single');
     setQuestion(initialQuestion || '');
-    // Reset metrics timer for new session
-    metricsTimerRef.current = null;
   } else if (!isOpen && prevIsOpen) {
     setPrevIsOpen(false);
   }
@@ -101,46 +102,46 @@ export function OnboardingWizard({ isOpen, onComplete, onSelectSpread, initialSp
     initialFocusRef: closeButtonRef,
   });
 
-  const handleNext = () => {
+  const handleNext = useCallback(() => {
     if (currentStep < totalSteps) {
       const nextStep = currentStep + 1;
       metricsTimerRef.current?.recordStep(nextStep);
       setCurrentStep(nextStep);
     }
-  };
+  }, [currentStep, totalSteps]);
 
-  const handleBack = () => {
+  const handleBack = useCallback(() => {
     if (currentStep > 1) {
       setCurrentStep(currentStep - 1);
     }
-  };
+  }, [currentStep]);
 
-  const handleSkip = () => {
+  const handleSkip = useCallback(() => {
     // Record metrics as skipped
     metricsTimerRef.current?.complete({ skipped: true });
     metricsTimerRef.current = null;
     // Mark onboarding as complete and close, passing any selections made so far
     onComplete?.({ selectedSpread, question });
-  };
+  }, [onComplete, selectedSpread, question]);
 
-  const handleSpreadSelect = (spreadKey) => {
+  const handleSpreadSelect = useCallback((spreadKey) => {
     setSelectedSpread(spreadKey);
     onSelectSpread?.(spreadKey);
-  };
+  }, [onSelectSpread]);
 
-  const handleQuestionChange = (newQuestion) => {
+  const handleQuestionChange = useCallback((newQuestion) => {
     setQuestion(newQuestion);
-  };
+  }, []);
 
-  const handleSkipRitual = () => {
+  const handleSkipRitual = useCallback(() => {
     // Record metrics as skipped (user skipped from ritual step)
     metricsTimerRef.current?.complete({ skipped: true });
     metricsTimerRef.current = null;
     // Complete onboarding immediately - user wants to start reading now
     onComplete?.({ selectedSpread, question });
-  };
+  }, [onComplete, selectedSpread, question]);
 
-  const handleBegin = () => {
+  const handleBegin = useCallback(() => {
     // Record successful completion metrics
     const metrics = metricsTimerRef.current?.complete({ skipped: false });
     metricsTimerRef.current = null;
@@ -153,15 +154,15 @@ export function OnboardingWizard({ isOpen, onComplete, onSelectSpread, initialSp
     }
     // Complete onboarding and pass selections to parent
     onComplete?.({ selectedSpread, question });
-  };
+  }, [onComplete, selectedSpread, question, variant]);
 
-  const handleStepSelect = (step) => {
+  const handleStepSelect = useCallback((step) => {
     // Allow navigation to previously visited steps only
     // User selections (spread, question) are preserved in state during navigation
     if (step <= currentStep) {
       setCurrentStep(step);
     }
-  };
+  }, [currentStep]);
 
   // Swipe navigation between steps (mobile gesture support)
   const swipeHandlers = useSwipeNavigation({
@@ -296,6 +297,7 @@ export function OnboardingWizard({ isOpen, onComplete, onSelectSpread, initialSp
       className={`fixed inset-0 z-[100] flex items-stretch sm:items-center justify-center bg-main/95 backdrop-blur-sm px-safe-left px-safe-right py-safe-top pb-safe-bottom ${
         prefersReducedMotion ? '' : 'animate-fade-in'
       }`}
+      // eslint-disable-next-line react-hooks/refs -- handleSkip only reads ref when invoked (event handler), not during render
       onClick={createBackdropHandler(handleSkip)}
     >
       <FocusTrap

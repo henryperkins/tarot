@@ -8,6 +8,7 @@ import {
   validateSession,
   getSessionFromCookie
 } from '../lib/auth.js';
+import { dedupeEntries } from '../../shared/journal/dedupe.js';
 
 /**
  * GET /api/journal
@@ -69,8 +70,10 @@ export async function onRequestGet(context) {
       userPreferences: entry.user_preferences_json ? JSON.parse(entry.user_preferences_json) : null
     }));
 
+    const dedupedEntries = dedupeEntries(parsedEntries);
+
     return new Response(
-      JSON.stringify({ entries: parsedEntries }),
+      JSON.stringify({ entries: dedupedEntries }),
       {
         status: 200,
         headers: { 'Content-Type': 'application/json' }

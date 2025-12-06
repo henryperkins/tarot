@@ -18,7 +18,13 @@
 
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import { spawn } from 'node:child_process';
+import {
+  createR2Client,
+  listJsonFromR2,
+  fetchKvJsonRecords,
+  executeD1Query,
+  runWranglerCommand
+} from '../lib/dataAccess.js';
 
 const DEFAULT_OUTPUT = 'training/readings.jsonl';
 const DEFAULT_JOURNAL_FILE = 'data/journal/export.json';
@@ -46,7 +52,7 @@ async function main() {
     ? []
     : await loadMetricsRecords(options);
 
-  const dataset = mergeReadings(journalEntries, feedbackRecords, metricsRecords);
+  const dataset = mergeReadings(journalEntries, feedbackRecords, metricsRecords, options);
   await writeJsonl(dataset, options.output);
 
   console.log(`[export] Wrote ${dataset.length} reading(s) to ${options.output}`);
@@ -64,6 +70,10 @@ function parseArgs(argv, wranglerConfig) {
     limit: null,
     wranglerTarget: 'remote',
     verbose: false,
+    includeEval: true,
+    requireEval: false,
+    metricsDays: 7,
+    r2Bucket: process.env.R2_BUCKET || 'tarot-logs',
     d1Name: wranglerConfig?.d1?.[0]?.database_name || 'mystic-tarot-db',
     feedbackNamespace: getNamespaceId(wranglerConfig, 'FEEDBACK_KV') || null,
     metricsNamespace: getNamespaceId(wranglerConfig, 'METRICS_DB') || null
@@ -111,6 +121,22 @@ function parseArgs(argv, wranglerConfig) {
       case '--metrics-namespace':
         options.metricsNamespace = argv[++i] || null;
         break;
+      case '--metrics-days':
+        options.metricsDays = Number(argv[++i]);
+        break;
+      case '--r2-bucket':
+        options.r2Bucket = argv[++i] || options.r2Bucket;
+        break;
+      case '--include-eval':
+        options.includeEval = true;
+        break;
+      case '--no-eval':
+        options.includeEval = false;
+        break;
+      case '--require-eval':
+        options.requireEval = true;
+        options.includeEval = true;
+        break;
       case '--verbose':
         options.verbose = true;
         break;
@@ -140,6 +166,11 @@ Options:
   --feedback-file <path>       JSON file for feedback when using file source
   --metrics-source <kv|file|none>   Source for metrics (default: kv)
   --metrics-file <path>        JSONL/JSON file for metrics when using file source
+  --metrics-days <number>      When metrics-source=r2, include archives from the last N days (default: 7)
+  --r2-bucket <name>           R2 bucket for metrics archives (default: env R2_BUCKET or tarot-logs)
+  --include-eval               Include eval payloads when present in metrics (default: on)
+  --no-eval                    Exclude eval payloads from export
+  --require-eval               Only include records that contain eval payloads
   --wrangler-target <local|remote>  Use local or remote Wrangler bindings (default: remote)
   --d1-name <name>             D1 database binding name (default: from wrangler.jsonc/wrangler.toml)
   --feedback-namespace <id>    Override FEEDBACK_KV namespace id
@@ -174,6 +205,10 @@ async function loadFeedbackRecords(options) {
 async function loadMetricsRecords(options) {
   if (options.metricsSource === 'file') {
     return readMetricsFromFile(options.metricsFile);
+  }
+
+  if (options.metricsSource === 'r2') {
+    return fetchMetricsFromR2(options);
   }
 
   if (!options.metricsNamespace) {
@@ -263,7 +298,7 @@ async function fetchJournalFromD1(options) {
 
   let hasRequestIdColumn = false;
   try {
-    const pragmaResult = await runCommand('npx', pragmaArgs);
+    const pragmaResult = await runWranglerCommand(pragmaArgs);
     const pragmaParsed = JSON.parse(pragmaResult);
     const columns = Array.isArray(pragmaParsed)
       ? pragmaParsed.flatMap((entry) => entry?.results || [])
@@ -293,33 +328,11 @@ async function fetchJournalFromD1(options) {
     ORDER BY created_at DESC${limitClause};
   `.trim();
 
-  const args = [
-    'wrangler',
-    'd1',
-    'execute',
-    options.d1Name,
-    '--command',
+  const rows = await executeD1Query({
+    dbName: options.d1Name,
     sql,
-    '--json'
-  ];
-
-  if (options.wranglerTarget === 'local') {
-    args.push('--local');
-  } else if (options.wranglerTarget === 'remote') {
-    args.push('--remote');
-  }
-
-  const result = await runCommand('npx', args);
-  let parsed;
-  try {
-    parsed = JSON.parse(result);
-  } catch (err) {
-    throw new Error(`Failed to parse D1 response: ${err.message}`);
-  }
-
-  const rows = Array.isArray(parsed)
-    ? parsed.flatMap((entry) => entry?.results || [])
-    : parsed?.results || [];
+    target: options.wranglerTarget
+  });
 
   return rows.map((row) => ({
     id: row.id,
@@ -339,102 +352,41 @@ async function fetchJournalFromD1(options) {
 }
 
 async function fetchFeedbackFromKv({ namespaceId, target }) {
-  const args = [
-    'wrangler',
-    'kv',
-    'key',
-    'list',
-    '--namespace-id',
-    namespaceId,
-    '--prefix',
-    'feedback:'
-  ];
-
-  if (target === 'remote') {
-    args.push('--remote');
-  } else if (target === 'local') {
-    args.push('--local');
-  }
-
-  const listOutput = await runCommand('npx', args);
-  let keys;
-  try {
-    keys = JSON.parse(listOutput);
-  } catch (err) {
-    throw new Error(`Failed to parse feedback key list: ${err.message}`);
-  }
-
-  const records = [];
-  for (const entry of keys) {
-    if (!entry?.name) continue;
-    const record = await readKvJson(namespaceId, entry.name, target);
-    if (record) records.push(record);
-  }
-  return records;
+  return fetchKvJsonRecords({ namespaceId, prefix: 'feedback:', target });
 }
 
 async function fetchMetricsFromKv({ namespaceId, target }) {
-  const args = [
-    'wrangler',
-    'kv',
-    'key',
-    'list',
-    '--namespace-id',
-    namespaceId,
-    '--prefix',
-    'reading:'
-  ];
-
-  if (target === 'remote') {
-    args.push('--remote');
-  } else if (target === 'local') {
-    args.push('--local');
-  }
-
-  const listOutput = await runCommand('npx', args);
-  let keys;
-  try {
-    keys = JSON.parse(listOutput);
-  } catch (err) {
-    throw new Error(`Failed to parse metrics key list: ${err.message}`);
-  }
-
-  const records = [];
-  for (const entry of keys) {
-    if (!entry?.name) continue;
-    const record = await readKvJson(namespaceId, entry.name, target);
-    if (record) records.push(record);
-  }
-  return records;
+  return fetchKvJsonRecords({ namespaceId, prefix: 'reading:', target });
 }
 
-async function readKvJson(namespaceId, key, target) {
-  const args = [
-    'wrangler',
-    'kv',
-    'key',
-    'get',
-    key,
-    '--namespace-id',
-    namespaceId
-  ];
-
-  if (target === 'remote') {
-    args.push('--remote');
-  } else if (target === 'local') {
-    args.push('--local');
+async function fetchMetricsFromR2(options) {
+  const bucket = options.r2Bucket || process.env.R2_BUCKET || 'tarot-logs';
+  let client;
+  try {
+    client = createR2Client();
+  } catch (err) {
+    console.warn(`[export] ${err.message}`);
+    return [];
   }
 
-  const value = await runCommand('npx', args);
+  const days = Number.isFinite(options.metricsDays) ? options.metricsDays : 7;
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - days);
+
   try {
-    return JSON.parse(value);
+    const objects = await listJsonFromR2(client, {
+      bucket,
+      prefix: 'archives/metrics/',
+      cutoffDate: cutoff
+    });
+    return objects.map((item) => item.data).filter(Boolean);
   } catch (err) {
-    console.warn(`[export] Failed to parse KV value for ${key}: ${err.message}`);
-    return null;
+    console.warn(`[export] Failed to fetch metrics from R2: ${err.message}`);
+    return [];
   }
 }
 
-function mergeReadings(journalEntries, feedbackRecords, metricsRecords) {
+function mergeReadings(journalEntries, feedbackRecords, metricsRecords, options = {}) {
   const feedbackByRequest = new Map();
   const feedbackBySignature = new Map();
   feedbackRecords.forEach((record) => {
@@ -454,7 +406,7 @@ function mergeReadings(journalEntries, feedbackRecords, metricsRecords) {
     }
   });
 
-  return journalEntries.map((entry) => {
+  const records = journalEntries.map((entry) => {
     const signature = buildSignature(entry.spreadKey, entry.question, entry.cards);
     const primaryFeedback = entry.requestId
       ? feedbackByRequest.get(entry.requestId)
@@ -467,7 +419,14 @@ function mergeReadings(journalEntries, feedbackRecords, metricsRecords) {
     const requestId = entry.requestId || feedback?.requestId || null;
     const metrics = requestId ? metricsByRequest.get(requestId) || null : null;
 
+    if (options.requireEval && !metrics?.eval) {
+      return null;
+    }
+
     const feedbackStats = feedback ? deriveFeedbackStats(feedback.ratings) : null;
+    const evalPayload = options.includeEval ? metrics?.eval || null : null;
+    const evalScores = evalPayload?.scores || null;
+    const evalSafetyFlag = evalScores?.safety_flag ?? null;
 
     return {
       requestId,
@@ -489,6 +448,9 @@ function mergeReadings(journalEntries, feedbackRecords, metricsRecords) {
       deckVisionMetrics: metrics?.vision || null,
       feedbackLabel: feedbackStats?.label || null,
       feedbackAverage: feedbackStats?.average || null,
+      evalScores,
+      evalSafetyFlag,
+      eval: evalPayload,
       feedback: feedback
         ? {
             ratings: feedback.ratings,
@@ -505,11 +467,14 @@ function mergeReadings(journalEntries, feedbackRecords, metricsRecords) {
             narrative: metrics.narrative || null,
             spreadKey: metrics.spreadKey,
             provider: metrics.provider,
-            timestamp: metrics.timestamp
+            timestamp: metrics.timestamp,
+            eval: evalPayload
           }
         : null
     };
   });
+
+  return records.filter(Boolean);
 }
 
 function normalizeCards(cards = []) {
@@ -588,27 +553,6 @@ function safeParseJson(value, fallback = null) {
   } catch {
     return fallback;
   }
-}
-
-async function runCommand(command, args) {
-  return new Promise((resolve, reject) => {
-    const child = spawn(command, args, { stdio: ['ignore', 'pipe', 'pipe'] });
-    let stdout = '';
-    let stderr = '';
-    child.stdout.on('data', (chunk) => {
-      stdout += chunk.toString();
-    });
-    child.stderr.on('data', (chunk) => {
-      stderr += chunk.toString();
-    });
-    child.on('close', (code) => {
-      if (code !== 0) {
-        reject(new Error(`${command} ${args.join(' ')} failed: ${stderr || stdout}`));
-      } else {
-        resolve(stdout.trim());
-      }
-    });
-  });
 }
 
 /**

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { persistJournalInsights } from '../lib/journalInsights';
+import { dedupeEntries } from '../../shared/journal/dedupe.js';
 
 const LOCALSTORAGE_KEY = 'tarot_journal';
 const CACHE_KEY = 'tarot_journal_cache';
@@ -45,7 +46,7 @@ export function useJournal({ autoLoad = true } = {}) {
           }
 
           const data = await response.json();
-          const apiEntries = data.entries || [];
+          const apiEntries = dedupeEntries(data.entries || []);
           setEntries(apiEntries);
 
           // Update cache
@@ -59,7 +60,7 @@ export function useJournal({ autoLoad = true } = {}) {
           if (typeof localStorage !== 'undefined') {
             const cached = localStorage.getItem(CACHE_KEY);
             if (cached) {
-              const parsedCache = JSON.parse(cached);
+              const parsedCache = dedupeEntries(JSON.parse(cached));
               setEntries(parsedCache);
               persistJournalInsights(parsedCache);
               // Don't set error if we have cache, just warn
@@ -82,7 +83,7 @@ export function useJournal({ autoLoad = true } = {}) {
           if (stored) {
             try {
               const parsed = JSON.parse(stored);
-              const safeEntries = Array.isArray(parsed) ? parsed : [];
+              const safeEntries = dedupeEntries(Array.isArray(parsed) ? parsed : []);
               setEntries(safeEntries);
               if (typeof window !== 'undefined') {
                 persistJournalInsights(safeEntries);

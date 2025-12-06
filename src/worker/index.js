@@ -1,9 +1,9 @@
 /**
  * Cloudflare Workers Entry Point
- * 
+ *
  * Main router that handles all incoming requests, routing to API handlers
  * or serving static assets via the ASSETS binding.
- * 
+ *
  * Migrated from Cloudflare Pages Functions to Workers with Static Assets.
  */
 
@@ -11,6 +11,7 @@
 import * as tarotReading from '../../functions/api/tarot-reading.js';
 import * as tts from '../../functions/api/tts.js';
 import * as ttsHume from '../../functions/api/tts-hume.js';
+import * as speechToken from '../../functions/api/speech-token.js';
 import * as journal from '../../functions/api/journal.js';
 import * as journalById from '../../functions/api/journal/[id].js';
 import * as journalSummary from '../../functions/api/journal-summary.js';
@@ -55,6 +56,7 @@ const routes = [
   { pattern: /^\/api\/tarot-reading$/, handlers: tarotReading },
   { pattern: /^\/api\/tts$/, handlers: tts },
   { pattern: /^\/api\/tts-hume$/, handlers: ttsHume },
+  { pattern: /^\/api\/speech-token$/, handlers: speechToken },
   { pattern: /^\/api\/journal$/, handlers: journal },
   { pattern: /^\/api\/journal\/([^/]+)$/, handlers: journalById, params: ['id'] },
   { pattern: /^\/api\/journal-summary$/, handlers: journalSummary },
@@ -172,6 +174,7 @@ function addCorsHeaders(response, request) {
  * @property {KVNamespace} METRICS_DB - Metrics storage KV
  * @property {KVNamespace} FEEDBACK_KV - Feedback storage KV
  * @property {R2Bucket} LOGS_BUCKET - R2 bucket for logs, archives, and exports
+ * @property {*} AI - Workers AI binding for evaluation
  * @property {string} AZURE_OPENAI_ENDPOINT - Azure OpenAI endpoint
  * @property {string} AZURE_OPENAI_API_KEY - Azure OpenAI API key
  * @property {string} AZURE_OPENAI_GPT5_MODEL - GPT-5 model deployment name
@@ -179,6 +182,11 @@ function addCorsHeaders(response, request) {
  * @property {string} VISION_PROOF_SECRET - Vision proof signing secret
  * @property {string} HUME_API_KEY - Hume AI API key
  * @property {string} ADMIN_API_KEY - Admin API key for manual archival
+ * @property {string} EVAL_ENABLED - Enable evaluation (string flag)
+ * @property {string} EVAL_MODEL - Workers AI model id for evaluation
+ * @property {string} EVAL_TIMEOUT_MS - Evaluation timeout in milliseconds
+ * @property {string} EVAL_GATE_ENABLED - Enable gating on eval results
+ * @property {string} EVAL_GATEWAY_ID - AI Gateway id for routing eval calls
  */
 
 export default {
@@ -213,7 +221,7 @@ export default {
     if (pathname.startsWith('/api/')) {
       try {
         const matched = matchRoute(pathname);
-        
+
         if (!matched) {
           return addCorsHeaders(jsonResponse(
             { error: 'Not found', path: pathname },
@@ -223,10 +231,10 @@ export default {
 
         const { route, params } = matched;
         const handlerName = getHandlerName(method);
-        
+
         // Check for method-specific handler first, then fall back to generic onRequest
         const handler = route.handlers[handlerName] || route.handlers.onRequest;
-        
+
         if (!handler) {
           return addCorsHeaders(jsonResponse(
             { error: 'Method not allowed', method, path: pathname },
@@ -240,7 +248,7 @@ export default {
           env,
           params,
           waitUntil: ctx.waitUntil.bind(ctx),
-          passThroughOnException: () => {}, // Not applicable in Workers
+          passThroughOnException: () => { }, // Not applicable in Workers
           next: async () => env.ASSETS.fetch(request), // Fall through to assets
           data: {},
         };

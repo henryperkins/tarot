@@ -4,14 +4,14 @@
   // ============================================================================
   // Migrated from Pages to Workers for full Logpush support
   // Ref: https://developers.cloudflare.com/workers/wrangler/configuration/
-
   "name": "tableau",
   // TODO: Add your Cloudflare account ID here (required for Workers deploy)
   // Find it at: https://dash.cloudflare.com/ → select your account → copy from URL
   "account_id": "a77e479f6736120eadd99973dbeb705e",
   "compatibility_date": "2025-11-24",
-  "compatibility_flags": ["nodejs_compat"],
-
+  "compatibility_flags": [
+    "nodejs_compat"
+  ],
   // Routes - custom domain configuration
   "routes": [
     {
@@ -19,25 +19,24 @@
       "zone_name": "lakefrontdev.com"
     }
   ],
-
   // Main worker entry point (unified router)
   "main": "./src/worker/index.js",
-
   // Static assets configuration (SPA fallback enabled)
   "assets": {
     "directory": "./dist",
     "binding": "ASSETS",
     "not_found_handling": "single-page-application"
   },
-
+  // Workers AI binding for evaluation
+  "ai": {
+    "binding": "AI"
+  },
   // Enable Logpush for Workers trace events
   "logpush": true,
-
   // Observability
   "observability": {
     "enabled": true
   },
-
   // ============================================================================
   // Environment Variables (Non-Secret)
   // ============================================================================
@@ -45,9 +44,13 @@
     "AZURE_OPENAI_GPT_AUDIO_MINI_FORMAT": "mp3",
     "AZURE_OPENAI_USE_V1_FORMAT": "true",
     "AZURE_OPENAI_API_VERSION": "preview",
-    "AZURE_OPENAI_RESPONSES_API_VERSION": "v1"
+    "AZURE_OPENAI_RESPONSES_API_VERSION": "v1",
+    "EVAL_ENABLED": "false",
+    "EVAL_MODEL": "@cf/meta/llama-3-8b-instruct-awq",
+    "EVAL_TIMEOUT_MS": "5000",
+    "EVAL_GATE_ENABLED": "false",
+    "EVAL_GATEWAY_ID": ""
   },
-
   // ============================================================================
   // D1 Database
   // ============================================================================
@@ -58,7 +61,6 @@
       "database_name": "mystic-tarot-db"
     }
   ],
-
   // ============================================================================
   // KV Namespaces
   // ============================================================================
@@ -79,7 +81,6 @@
       "preview_id": "8e820de09f9c459ea0e149bf55644c81"
     }
   ],
-
   // ============================================================================
   // R2 Buckets (for log storage and exports)
   // ============================================================================
@@ -89,7 +90,6 @@
       "bucket_name": "tarot-logs"
     }
   ],
-
   // ============================================================================
   // Cron Triggers (Scheduled Tasks)
   // ============================================================================
@@ -99,7 +99,6 @@
       "0 3 * * *"
     ]
   }
-
   // ============================================================================
   // Secrets (set via CLI, not in config)
   // ============================================================================
@@ -117,6 +116,10 @@
   // wrangler secret put AZURE_OPENAI_TTS_ENDPOINT
   // wrangler secret put AZURE_OPENAI_TTS_API_KEY
   // wrangler secret put AZURE_OPENAI_GPT_AUDIO_MINI_DEPLOYMENT
+  //
+  // Azure Speech SDK (client-side token auth)
+  // wrangler secret put AZURE_SPEECH_KEY
+  // wrangler secret put AZURE_SPEECH_REGION  (optional, defaults to eastus2)
   //
   // Other
   // wrangler secret put VISION_PROOF_SECRET
