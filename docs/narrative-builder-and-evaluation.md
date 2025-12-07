@@ -108,6 +108,7 @@ This section documents specific failure modes and the exact code paths that dete
 ### Layer 1: Deterministic Composer (spreads/helpers/spine)
 
 **Failure modes:**
+
 - Missing WHAT/WHY/NEXT elements in narrative sections
 - Weak or missing causal connectors between sections
 - Card headers absent from sections
@@ -115,15 +116,16 @@ This section documents specific failure modes and the exact code paths that dete
 
 **Where caught:**
 
-| File | Function | What It Catches |
-|------|----------|-----------------|
-| [`functions/lib/narrativeSpine.js:120`](../functions/lib/narrativeSpine.js:120) | `enhanceSection()` | Auto-injects missing WHAT/WHY/NEXT elements, card headers, and flow connectors |
-| [`functions/lib/narrativeSpine.js:210`](../functions/lib/narrativeSpine.js:210) | `buildFlowNarrative()` | Enforces causal connectors via `SPINE_TEMPLATES.FLOW_CONNECTORS` |
-| [`functions/lib/narrativeSpine.js:280`](../functions/lib/narrativeSpine.js:280) | `validateReadingNarrative()` | Returns `isValid: false` when sections are incomplete |
-| [`functions/lib/positionWeights.js`](../functions/lib/positionWeights.js) | `getPositionWeight()` | Controls emphasis depth per position (high/medium/low) |
-| [`functions/lib/narrative/helpers.js:75`](../functions/lib/narrative/helpers.js:75) | `buildPositionCardText()` | Ensures position-appropriate card descriptions with context lenses |
+| File                                                                                | Function                     | What It Catches                                                                |
+| ----------------------------------------------------------------------------------- | ---------------------------- | ------------------------------------------------------------------------------ |
+| [`functions/lib/narrativeSpine.js:120`](../functions/lib/narrativeSpine.js:120)     | `enhanceSection()`           | Auto-injects missing WHAT/WHY/NEXT elements, card headers, and flow connectors |
+| [`functions/lib/narrativeSpine.js:210`](../functions/lib/narrativeSpine.js:210)     | `buildFlowNarrative()`       | Enforces causal connectors via `SPINE_TEMPLATES.FLOW_CONNECTORS`               |
+| [`functions/lib/narrativeSpine.js:280`](../functions/lib/narrativeSpine.js:280)     | `validateReadingNarrative()` | Returns `isValid: false` when sections are incomplete                          |
+| [`functions/lib/positionWeights.js`](../functions/lib/positionWeights.js)           | `getPositionWeight()`        | Controls emphasis depth per position (high/medium/low)                         |
+| [`functions/lib/narrative/helpers.js:75`](../functions/lib/narrative/helpers.js:75) | `buildPositionCardText()`    | Ensures position-appropriate card descriptions with context lenses             |
 
 **Detection signals:**
+
 - `spine.completeSections < spine.totalSections` indicates incomplete sections
 - `validation.enhanced === true` means auto-enhancement was required
 - `validation.enhancements[]` array shows which elements were injected
@@ -133,6 +135,7 @@ This section documents specific failure modes and the exact code paths that dete
 ### Layer 2: Prompt Budget/Grounding
 
 **Failure modes:**
+
 - Missing spread structure from prompt
 - Missing deck style instructions
 - Vision hooks omitted
@@ -142,14 +145,15 @@ This section documents specific failure modes and the exact code paths that dete
 
 **Where caught:**
 
-| File | Function | What It Catches |
-|------|----------|-----------------|
-| [`functions/lib/narrative/prompts.js:296`](../functions/lib/narrative/prompts.js:296) | `slimPromptForBudget()` | Progressive slimming: disables imagery → forecast → ephemeris → GraphRAG → deck context |
-| [`functions/lib/narrative/prompts.js:220`](../functions/lib/narrative/prompts.js:220) | `getPromptBudgetForTarget()` | Calculates token budgets per model target (azure/claude) |
-| [`functions/lib/narrative/prompts.js:180`](../functions/lib/narrative/prompts.js:180) | `truncateAtParagraphBoundary()` | Structural truncation with `"[...prompt truncated…]"` marker |
-| [`functions/lib/narrative/prompts.js:520`](../functions/lib/narrative/prompts.js:520) | `buildPromptMeta()` | Records GraphRAG telemetry: `semanticScoringRequested/Used/Fallback`, `passagesProvided`, `truncatedPassages`, `includedInPrompt` |
+| File                                                                                  | Function                        | What It Catches                                                                                                                   |
+| ------------------------------------------------------------------------------------- | ------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| [`functions/lib/narrative/prompts.js:296`](../functions/lib/narrative/prompts.js:296) | `slimPromptForBudget()`         | Progressive slimming: disables imagery → forecast → ephemeris → GraphRAG → deck context                                           |
+| [`functions/lib/narrative/prompts.js:220`](../functions/lib/narrative/prompts.js:220) | `getPromptBudgetForTarget()`    | Calculates token budgets per model target (azure/claude)                                                                          |
+| [`functions/lib/narrative/prompts.js:180`](../functions/lib/narrative/prompts.js:180) | `truncateAtParagraphBoundary()` | Structural truncation with `"[...prompt truncated…]"` marker                                                                      |
+| [`functions/lib/narrative/prompts.js:520`](../functions/lib/narrative/prompts.js:520) | `buildPromptMeta()`             | Records GraphRAG telemetry: `semanticScoringRequested/Used/Fallback`, `passagesProvided`, `truncatedPassages`, `includedInPrompt` |
 
 **Detection signals via `promptMeta.graphRAG`:**
+
 ```javascript
 {
   semanticScoringRequested: true,    // Did we ask for semantic scoring?
@@ -163,18 +167,43 @@ This section documents specific failure modes and the exact code paths that dete
 ```
 
 **Slimming steps recorded in `promptMeta.slimmingSteps[]`:**
-- `"disable-low-weight-imagery"` — imagery hooks for non-essential positions removed
-- `"disable-forecast"` — ephemeris forecast section dropped
-- `"disable-ephemeris"` — all astro context removed
-- `"disable-graphrag"` — knowledge graph passages dropped
-- `"disable-deck-context"` — deck-specific instructions removed
-- `"structural-truncation"` — hard truncation at paragraph boundary
+
+- `"drop-low-weight-imagery"` — imagery hooks for non-essential positions removed
+- `"drop-forecast"` — ephemeris forecast section dropped
+- `"drop-ephemeris"` — all astro context removed
+- `"trim-graphrag-passages"` — GraphRAG passages reduced (keeps highest-ranked)
+- `"drop-graphrag-block"` — knowledge graph passages dropped entirely
+- `"drop-deck-geometry"` — deck-specific instructions removed
+- `"drop-diagnostics"` — vision validation and verbose notes removed
+- `"hard-cap-truncation"` — hard truncation at paragraph boundary
+
+> **⚠️ SLIMMING IS DISABLED BY DEFAULT (as of 2025-12-07)**
+>
+> Prompt slimming is turned off because:
+> - Modern LLMs have massive context windows (GPT-5 ~128k, Claude ~200k tokens)
+> - Our largest prompts (~10-15k tokens) are a small fraction of available context
+> - Slimming removes valuable interpretive context (GraphRAG, ephemeris, imagery)
+> - **Cost is not a concern at current scale**
+>
+> **Token counting:**
+> - `promptMeta.estimatedTokens` is **only populated when slimming is enabled** (for budget decisions)
+> - **Actual token counts** come from `tokens.input` / `llmUsage.input_tokens` in the metrics payload
+> - These use the model's native tokenizer (authoritative for billing/context usage)
+>
+> **When to re-enable slimming:**
+> Only re-enable (`ENABLE_PROMPT_SLIMMING=true`) when there is empirical evidence that:
+> 1. Prompt size is degrading reading quality (not just increasing cost)
+> 2. The model is struggling with signal-to-noise ratio in large prompts
+> 3. Eval scores or user feedback correlate negatively with prompt size
+>
+> Monitor `tokens.input` in metrics to track actual prompt sizes over time.
 
 ---
 
 ### Layer 3: Runtime Eval + Backend Selection
 
 **Failure modes:**
+
 - Hallucinated cards (cards mentioned that weren't drawn)
 - Low card coverage (less than 50% of cards mentioned)
 - Spine gaps (no narrative sections detected)
@@ -182,24 +211,26 @@ This section documents specific failure modes and the exact code paths that dete
 
 **Where caught:**
 
-| File | Function | What It Catches |
-|------|----------|-----------------|
-| [`functions/api/tarot-reading.js:586`](../functions/api/tarot-reading.js:586) | Backend quality gate | Runs `buildNarrativeMetrics()` immediately after each backend returns |
-| [`functions/api/tarot-reading.js:2049`](../functions/api/tarot-reading.js:2049) | `buildNarrativeMetrics()` | Computes spine validity, card coverage, hallucinated cards |
-| [`functions/api/tarot-reading.js:2103`](../functions/api/tarot-reading.js:2103) | `detectHallucinatedCards()` | Compares mentioned card names against drawn cards |
-| [`functions/lib/evaluation.js:388`](../functions/lib/evaluation.js:388) | `runEvaluation()` | Workers AI model scores personalization, coherence, tone, safety (1-5) |
-| [`functions/lib/evaluation.js:636`](../functions/lib/evaluation.js:636) | `checkEvalGate()` | Blocks on `safety_flag: true` or `safety < 2` or `tone < 2` |
-| [`functions/lib/evaluation.js:667`](../functions/lib/evaluation.js:667) | `runSyncEvaluationGate()` | Synchronous gate when `EVAL_GATE_ENABLED=true` |
-| [`functions/lib/evaluation.js:746`](../functions/lib/evaluation.js:746) | `generateSafeFallbackReading()` | Returns generic safe reading when gate blocks |
-| [`functions/lib/evaluation.js:787`](../functions/lib/evaluation.js:787) | `buildHeuristicScores()` | Fallback scoring when AI eval fails (coverage → coherence, hallucinations → safety_flag) |
+| File                                                                            | Function                        | What It Catches                                                                          |
+| ------------------------------------------------------------------------------- | ------------------------------- | ---------------------------------------------------------------------------------------- |
+| [`functions/api/tarot-reading.js:586`](../functions/api/tarot-reading.js:586)   | Backend quality gate            | Runs `buildNarrativeMetrics()` immediately after each backend returns                    |
+| [`functions/api/tarot-reading.js:2049`](../functions/api/tarot-reading.js:2049) | `buildNarrativeMetrics()`       | Computes spine validity, card coverage, hallucinated cards                               |
+| [`functions/api/tarot-reading.js:2103`](../functions/api/tarot-reading.js:2103) | `detectHallucinatedCards()`     | Compares mentioned card names against drawn cards                                        |
+| [`functions/lib/evaluation.js:388`](../functions/lib/evaluation.js:388)         | `runEvaluation()`               | Workers AI model scores personalization, coherence, tone, safety (1-5)                   |
+| [`functions/lib/evaluation.js:636`](../functions/lib/evaluation.js:636)         | `checkEvalGate()`               | Blocks on `safety_flag: true` or `safety < 2` or `tone < 2`                              |
+| [`functions/lib/evaluation.js:667`](../functions/lib/evaluation.js:667)         | `runSyncEvaluationGate()`       | Synchronous gate when `EVAL_GATE_ENABLED=true`                                           |
+| [`functions/lib/evaluation.js:746`](../functions/lib/evaluation.js:746)         | `generateSafeFallbackReading()` | Returns generic safe reading when gate blocks                                            |
+| [`functions/lib/evaluation.js:787`](../functions/lib/evaluation.js:787)         | `buildHeuristicScores()`        | Fallback scoring when AI eval fails (coverage → coherence, hallucinations → safety_flag) |
 
 **Backend selection flow:**
+
 1. Try `azure-gpt5` → run `buildNarrativeMetrics()` → check thresholds
 2. If quality gate fails, try `claude-sonnet45` → repeat
 3. If quality gate fails, try `local-composer` → repeat
 4. If all backends fail, return 503
 
 **Quality gate thresholds (in `tarot-reading.js:590-617`):**
+
 - Max hallucinated cards: `max(2, floor(cardCount / 2))`
 - Min card coverage: `0.5` (50%)
 - Spine must be valid if sections detected
@@ -209,24 +240,26 @@ This section documents specific failure modes and the exact code paths that dete
 ### Layer 4: Prompt Privacy/Metrics
 
 **Failure modes:**
+
 - Raw PII persistence (email, phone, SSN, dates, names)
 - Unredacted prompt storage leaking user data
 
 **Where caught:**
 
-| File | Function | What It Catches |
-|------|----------|-----------------|
-| [`functions/lib/promptEngineering.js:68`](../functions/lib/promptEngineering.js:68) | `redactPII()` | Redacts email, phone, SSN, credit card, dates, URLs, IPs, display names |
-| [`functions/lib/promptEngineering.js:297`](../functions/lib/promptEngineering.js:297) | `stripUserContent()` | Strips user questions/reflections from prompts before storage |
-| [`functions/lib/promptEngineering.js:271`](../functions/lib/promptEngineering.js:271) | `shouldPersistPrompts()` | Opt-in only via `PERSIST_PROMPTS=true` (defaults to FALSE) |
+| File                                                                                  | Function                          | What It Catches                                                          |
+| ------------------------------------------------------------------------------------- | --------------------------------- | ------------------------------------------------------------------------ |
+| [`functions/lib/promptEngineering.js:68`](../functions/lib/promptEngineering.js:68)   | `redactPII()`                     | Redacts email, phone, SSN, credit card, dates, URLs, IPs, display names  |
+| [`functions/lib/promptEngineering.js:297`](../functions/lib/promptEngineering.js:297) | `stripUserContent()`              | Strips user questions/reflections from prompts before storage            |
+| [`functions/lib/promptEngineering.js:271`](../functions/lib/promptEngineering.js:271) | `shouldPersistPrompts()`          | Opt-in only via `PERSIST_PROMPTS=true` (defaults to FALSE)               |
 | [`functions/lib/promptEngineering.js:178`](../functions/lib/promptEngineering.js:178) | `buildPromptEngineeringPayload()` | Two-layer protection: strip user content first, then redact PII patterns |
-| [`functions/lib/evaluation.js:32`](../functions/lib/evaluation.js:32) | `redactUserQuestion()` | Redacts PII from questions before eval storage |
-| [`functions/lib/evaluation.js:70`](../functions/lib/evaluation.js:70) | `redactReadingText()` | Redacts mirrored PII from reading output |
-| [`functions/lib/evaluation.js:99`](../functions/lib/evaluation.js:99) | `sanitizeCardsInfo()` | Strips user notes, keeps only position/card/orientation |
-| [`functions/lib/evaluation.js:110`](../functions/lib/evaluation.js:110) | `sanitizeMetricsPayload()` | Modes: `full` (dev only), `redact` (default), `minimal` (max privacy) |
-| [`scripts/viewPrompts.js`](../scripts/viewPrompts.js) | CLI tool | Displays redacted prompts from KV for offline analysis |
+| [`functions/lib/evaluation.js:32`](../functions/lib/evaluation.js:32)                 | `redactUserQuestion()`            | Redacts PII from questions before eval storage                           |
+| [`functions/lib/evaluation.js:70`](../functions/lib/evaluation.js:70)                 | `redactReadingText()`             | Redacts mirrored PII from reading output                                 |
+| [`functions/lib/evaluation.js:99`](../functions/lib/evaluation.js:99)                 | `sanitizeCardsInfo()`             | Strips user notes, keeps only position/card/orientation                  |
+| [`functions/lib/evaluation.js:110`](../functions/lib/evaluation.js:110)               | `sanitizeMetricsPayload()`        | Modes: `full` (dev only), `redact` (default), `minimal` (max privacy)    |
+| [`scripts/viewPrompts.js`](../scripts/viewPrompts.js)                                 | CLI tool                          | Displays redacted prompts from KV for offline analysis                   |
 
 **PII patterns detected:**
+
 - Email: `[EMAIL]`
 - Phone (with extensions): `[PHONE]`
 - SSN: `[SSN]`
@@ -237,6 +270,7 @@ This section documents specific failure modes and the exact code paths that dete
 - Display names: `[NAME]`
 
 **Storage mode selection (`METRICS_STORAGE_MODE`):**
+
 - `full` — WARNING: dev only, stores raw PII
 - `redact` — default: stores redacted versions
 - `minimal` — max privacy: only aggregate stats, no user content
@@ -246,6 +280,7 @@ This section documents specific failure modes and the exact code paths that dete
 ### Layer 5: Offline CI/Human Review
 
 **Failure modes:**
+
 - Regressions in spine completeness
 - Card coverage degradation
 - Tone/agency issues introduced by changes
@@ -253,14 +288,15 @@ This section documents specific failure modes and the exact code paths that dete
 
 **Where caught:**
 
-| File | Function | What It Catches |
-|------|----------|-----------------|
-| [`scripts/evaluation/runNarrativeSamples.js`](../scripts/evaluation/runNarrativeSamples.js) | Sample generator | Creates 5 fixed test spreads via local composer |
+| File                                                                                                | Function         | What It Catches                                                                           |
+| --------------------------------------------------------------------------------------------------- | ---------------- | ----------------------------------------------------------------------------------------- |
+| [`scripts/evaluation/runNarrativeSamples.js`](../scripts/evaluation/runNarrativeSamples.js)         | Sample generator | Creates 5 fixed test spreads via local composer                                           |
 | [`scripts/evaluation/computeNarrativeMetrics.js`](../scripts/evaluation/computeNarrativeMetrics.js) | Metrics computer | Runs all heuristic checks, writes `narrative-metrics.json` + `narrative-review-queue.csv` |
-| [`scripts/evaluation/verifyNarrativeGate.js`](../scripts/evaluation/verifyNarrativeGate.js) | CI gate | Fails if metrics below thresholds |
-| [`scripts/evaluation/processNarrativeReviews.js`](../scripts/evaluation/processNarrativeReviews.js) | Review processor | Digests human verdicts from CSV into summary JSON |
+| [`scripts/evaluation/verifyNarrativeGate.js`](../scripts/evaluation/verifyNarrativeGate.js)         | CI gate          | Fails if metrics below thresholds                                                         |
+| [`scripts/evaluation/processNarrativeReviews.js`](../scripts/evaluation/processNarrativeReviews.js) | Review processor | Digests human verdicts from CSV into summary JSON                                         |
 
 **Metrics computed per sample:**
+
 - `spine.isValid`, `spine.totalSections`, `spine.completeSections`
 - `cardCoverage`, `missingCards[]`
 - `hallucinatedCards[]`
@@ -286,6 +322,7 @@ This section documents specific failure modes and the exact code paths that dete
 | Min rubric compassion | 85% | `NARRATIVE_MIN_RUBRIC_COMPASSION` |
 
 **Workflow:**
+
 1. `npm run eval:narrative` — generates samples + computes metrics
 2. `npm run gate:narrative` — verifies thresholds, fails CI if not met
 3. Human review via `narrative-review-queue.csv` → `processNarrativeReviews.js`
@@ -297,25 +334,33 @@ This section documents specific failure modes and the exact code paths that dete
 Based on this analysis, the following enhancements could strengthen the system:
 
 ### 1. Spread-Specific Eval Heuristics
+
 Currently eval is spread-agnostic. Add spread-aware scoring that checks:
+
 - Celtic Cross: Nucleus-Staff relationship coherence
 - Relationship: Both-parties balance
 - Decision: Path-outcome logical flow
 
 ### 2. Stricter Health-Context Gates
+
 Add explicit pattern detection for:
+
 - Mental health crisis language
 - Self-harm indicators
 - Medical symptom descriptions
 
 ### 3. GraphRAG Telemetry Alerts
+
 Add warning logs/alerts when:
+
 - `promptMeta.graphRAG.includedInPrompt === false`
 - `promptMeta.graphRAG.truncatedPassages > passagesUsedInPrompt`
 - `promptMeta.graphRAG.semanticScoringFallback === true` with patterns detected
 
 ### 4. TimeoutOverflowWarning Mitigation
+
 Clamp long timeouts in eval to avoid Node.js `TimeoutOverflowWarning`:
+
 ```javascript
 const MAX_SAFE_TIMEOUT = 2147483647; // Max 32-bit signed int
 const timeoutMs = Math.min(configuredTimeout, MAX_SAFE_TIMEOUT);
@@ -325,129 +370,77 @@ const timeoutMs = Math.min(configuredTimeout, MAX_SAFE_TIMEOUT);
 
 ## Implementation Status (as of 2025-12-07)
 
-> **All 4 suggested improvements above remain UNIMPLEMENTED.** This section documents findings from a deep codebase investigation and provides specific fix guidance.
+> **Summary:** Items 2–4 below are now implemented. Item 1 (spread-specific eval heuristics) is partially addressed in code but could use stronger spread-aware gate thresholds and more targeted tests.
 
-### ❌ 1. Spread-Specific Eval Heuristics — NOT IMPLEMENTED
+### ⚠️ 1. Spread-Specific Eval Heuristics — PARTIALLY IMPLEMENTED
 
-**Evidence:**
-- [`functions/lib/evaluation.js:787-829`](../functions/lib/evaluation.js:787) — `buildHeuristicScores()` is completely spread-agnostic
-- The function only checks `cardCoverage` and `hallucinatedCards` with no spread-specific logic
-- [`EVAL_USER_TEMPLATE`](../functions/lib/evaluation.js:252) uses a generic rubric with no spread-aware checks
+**What’s implemented:**
 
-**Fix guidance:**
-1. Add `spreadKey` parameter to `buildHeuristicScores(narrativeMetrics, spreadKey)`
-2. Add spread-specific validation logic:
-   ```javascript
-   // In buildHeuristicScores()
-   if (spreadKey === 'celtic') {
-     // Check nucleus↔staff relationship coherence
-     // Verify positions 0-1 (nucleus) relate to positions 6-9 (staff)
-   } else if (spreadKey === 'relationship') {
-     // Check both-parties balance (you vs them card coverage)
-     // Ensure positions 0 and 1 have roughly equal treatment
-   } else if (spreadKey === 'decision') {
-     // Check path-outcome logical flow
-     // Verify paths A and B (positions 1-2) connect to clarifier/free will
-   }
-   ```
-3. Extend `checkEvalGate()` with spread-keyed thresholds
-4. Add tests: `tests/evaluation.spread-specific.test.mjs`
+- `buildHeuristicScores(narrativeMetrics, spreadKey)` in [`functions/lib/evaluation.js`](../functions/lib/evaluation.js) now accepts a `spreadKey` and applies spread-aware nudges:
+  - Celtic: penalizes tarot coherence when the Celtic Cross spine is incomplete.
+  - Relationship: downgrades coherence when card coverage is low for the relationship spread.
+  - Decision: downgrades coherence when card coverage is low for the decision spread.
+- The evaluation user prompt template `EVAL_USER_TEMPLATE` includes spread-specific hints via `buildSpreadEvaluationHints(spreadKey)` so the model’s rubric is spread-aware (`celtic`, `relationship`, `decision`, default).
+- `runSyncEvaluationGate()` passes `spreadKey` through to `buildHeuristicScores`, and tests in [`tests/evaluation.test.mjs`](../tests/evaluation.test.mjs) cover the heuristic pathway at a basic level.
+
+**Remaining gaps / follow-ups:**
+
+- `checkEvalGate()` still uses global thresholds only (safety_flag / safety < 2 / tone < 2) rather than spread-keyed criteria.
+- There is no dedicated spread-specific test suite (for example, `tests/evaluation.spread-specific.test.mjs`) to assert expected behavior for Celtic / Relationship / Decision heuristics under edge cases.
+
+**Potential next steps:**
+
+1. Extend `checkEvalGate()` to optionally take `spreadKey` and apply slightly different floor/ceiling logic for specific spreads (for example, stricter tone/safety expectations for relationship readings).
+2. Add a focused test file (for example, `tests/evaluation.spread-specific.test.mjs`) that:
+   - Feeds representative `narrativeMetrics` for each spread type.
+   - Asserts how `buildHeuristicScores()` and `runSyncEvaluationGate()` behave under good, borderline, and clearly-bad conditions.
 
 ---
 
-### ❌ 2. Stricter Health-Context Gates — NOT IMPLEMENTED
+### ✅ 2. Stricter Health-Context Gates — IMPLEMENTED
 
-**Evidence:**
-- [`functions/lib/contextDetection.js:53-75`](../functions/lib/contextDetection.js:53) only has generic "self" context keywords like "mental health", "therapy"
-- No crisis detection patterns exist for self-harm, suicidal ideation, or acute medical symptoms
-- [`evaluation.js:247-249`](../functions/lib/evaluation.js:247) mentions "death predictions" but only in LLM prompt text — not as active code detection
+**What’s implemented:**
 
-**Fix guidance:**
-1. Create a new function in `contextDetection.js` or a dedicated `crisisDetection.js`:
-   ```javascript
-   const CRISIS_PATTERNS = {
-     selfHarm: [
-       /\b(hurt|harm|cut|kill)\s*(my)?self\b/i,
-       /\bsuicid(e|al|ing)\b/i,
-       /\bwant(ing)?\s*to\s*die\b/i,
-       /\bend\s*(my|it\s*all)\b/i
-     ],
-     acuteMedical: [
-       /\bchest\s*pain\b/i,
-       /\bcan'?t\s*breathe\b/i,
-       /\bstroke\s*symptoms?\b/i,
-       /\bseizure\b/i
-     ]
-   };
+- Crisis and medical-emergency detection lives in [`functions/lib/safetyChecks.js`](../functions/lib/safetyChecks.js) via `detectCrisisSignals(inputText)`:
+  - Detects self-harm and suicidal intent (for example, “kill myself”, “suicidal”, “end my life”, “want to die”, “self-harm”).
+  - Detects mental health crisis language (for example, “I can’t go on”, “no reason to live”, “give up on life”, “mental breakdown”, “panic attack”).
+  - Detects acute medical emergencies (for example, “heart attack”, “stroke”, “seizure”, “can’t breathe”, “chest pain”, “unconscious”, “passed out”).
+- `onRequestPost` in [`functions/api/tarot-reading.js`](../functions/api/tarot-reading.js) calls `detectCrisisSignals()` early, using the combined `userQuestion` and `reflectionsText`. When any crisis patterns are detected:
+  - Logs a warning including matched categories and phrases.
+  - Builds a metrics payload with `evalGate` set to `{ ran: false, blocked: true, reason: crisisReason }` and persists it.
+  - Immediately returns a `generateSafeFallbackReading()` response with `provider: 'safe-fallback'`, `gateBlocked: true`, and a `gateReason` derived from the crisis categories.
 
-   export function detectCrisisPatterns(text) {
-     const triggered = [];
-     for (const [category, patterns] of Object.entries(CRISIS_PATTERNS)) {
-       if (patterns.some(p => p.test(text))) {
-         triggered.push(category);
-       }
-     }
-     return { hasCrisis: triggered.length > 0, categories: triggered };
-   }
-   ```
-2. Call early in `runSyncEvaluationGate()` or before backend selection in `tarot-reading.js`
-3. If triggered, short-circuit to `generateSafeFallbackReading()` with reason `'crisis_detected'`
-4. Add tests: `tests/crisisDetection.test.mjs`
+**Net effect:** Health / crisis-context gating is now proactive at the tarot-reading entrypoint, before any narrative backend is invoked.
 
 ---
 
-### ❌ 3. GraphRAG Telemetry Alerts — NOT IMPLEMENTED
+### ✅ 3. GraphRAG Telemetry Alerts — IMPLEMENTED
 
-**Evidence:**
-- [`functions/lib/narrative/prompts.js:545-594`](../functions/lib/narrative/prompts.js:545) captures GraphRAG telemetry in `promptMeta.graphRAG`:
-  - `includedInPrompt`, `passagesUsedInPrompt`, `truncatedPassages`, `semanticScoringFallback`
-- **However**, there are NO warning logs or alerts when these conditions are problematic
-- Telemetry is captured for metrics storage but not actively surfaced for observability
+**What’s implemented:**
 
-**Fix guidance:**
-Add warning logs after prompt build (around line 594 in `prompts.js`):
-```javascript
-// After building promptMeta.graphRAG
-if (promptMeta.graphRAG) {
-  const g = promptMeta.graphRAG;
-  if (g.includedInPrompt === false && g.passagesProvided > 0) {
-    console.warn('[GraphRAG Alert] GraphRAG block dropped from prompt despite having passages');
-  }
-  if (g.truncatedPassages > g.passagesUsedInPrompt) {
-    console.warn(`[GraphRAG Alert] Heavy truncation: ${g.truncatedPassages} passages dropped, only ${g.passagesUsedInPrompt} used`);
-  }
-  if (g.semanticScoringFallback && g.passagesProvided > 0) {
-    console.warn('[GraphRAG Alert] Semantic scoring unavailable, fell back to keyword ranking');
-  }
-}
-```
+- GraphRAG telemetry continues to be collected in `promptMeta.graphRAG` from [`functions/lib/narrative/prompts.js`](../functions/lib/narrative/prompts.js), including:
+  - `includedInPrompt`, `passagesProvided`, `passagesUsedInPrompt`, `truncatedPassages`, and `semanticScoringFallback`.
+- A dedicated helper [`functions/lib/graphRAGAlerts.js`](../functions/lib/graphRAGAlerts.js) now exposes `collectGraphRAGAlerts(promptMeta)` which returns human-readable alert strings when:
+  - GraphRAG was requested but omitted from the prompt.
+  - Truncation is heavy (for example, `truncatedPassages > passagesUsedInPrompt`).
+  - Semantic scoring fell back to keyword-only ranking.
+- After each narrative backend call, [`functions/api/tarot-reading.js`](../functions/api/tarot-reading.js) calls `collectGraphRAGAlerts(narrativePayload.promptMeta || {})` and:
+  - Logs each alert via `console.warn` with backend context.
+  - Injects these messages into `contextDiagnostics` so they surface alongside other diagnostics and can be stored in metrics.
 
-Optionally increment counters for observability dashboards if metrics system supports it.
+**Net effect:** GraphRAG degradation is no longer silent; it is surfaced via logs and diagnostics for observability and analysis.
 
 ---
 
-### ❌ 4. TimeoutOverflowWarning Mitigation — NOT IMPLEMENTED
+### ✅ 4. TimeoutOverflowWarning Mitigation — IMPLEMENTED
 
-**Evidence:**
-- [`functions/lib/evaluation.js:403`](../functions/lib/evaluation.js:403): `const timeoutMs = parseInt(env.EVAL_TIMEOUT_MS, 10) || DEFAULT_TIMEOUT_MS;`
-- [`functions/lib/evaluation.js:418`](../functions/lib/evaluation.js:418): `setTimeout(() => controller.abort(), timeoutMs);`
-- **No clamping** to `MAX_SAFE_TIMEOUT_MS` — very large env values can cause Node.js `TimeoutOverflowWarning`
+**What’s implemented:**
 
-**Fix guidance:**
-```javascript
-// At top of evaluation.js (around line 10)
-const MAX_SAFE_TIMEOUT_MS = 2147483647; // Max 32-bit signed int
+- [`functions/lib/evaluation.js`](../functions/lib/evaluation.js) now defines `MAX_SAFE_TIMEOUT_MS = 2147483647` and exposes `getEvaluationTimeoutMs(env)`, which:
+  - Parses `EVAL_TIMEOUT_MS` from `env`.
+  - Falls back to `DEFAULT_TIMEOUT_MS` when unset or invalid.
+  - **Clamps** the result to `MAX_SAFE_TIMEOUT_MS` to avoid Node.js `TimeoutOverflowWarning` from oversized timer values.
+- `runEvaluation()` now calls `getEvaluationTimeoutMs(env)` and uses the returned `timeoutMs` for the `AbortController` timer, ensuring safe timeouts even if the environment variable is set to an extremely large value.
+- [`tests/evaluation.test.mjs`](../tests/evaluation.test.mjs) includes timeout behavior tests (fast vs slow AI), and the clamping logic makes these scenarios robust against misconfigured `EVAL_TIMEOUT_MS`.
 
-// In runEvaluation() - replace line 403
-const rawTimeout = parseInt(env.EVAL_TIMEOUT_MS, 10) || DEFAULT_TIMEOUT_MS;
-const timeoutMs = Math.min(rawTimeout, MAX_SAFE_TIMEOUT_MS);
-```
-
-Add test in `tests/evaluation.test.mjs`:
-```javascript
-test('timeoutMs clamps to MAX_SAFE_TIMEOUT_MS', () => {
-  const result = runEvaluation({ EVAL_TIMEOUT_MS: '9999999999999' }, ...);
-  // Should not throw TimeoutOverflowWarning
-});
-```
-
+**Net effect:** Evaluation timeouts are bounded to a safe range; misconfigured environment timeouts will no longer trigger `TimeoutOverflowWarning`.

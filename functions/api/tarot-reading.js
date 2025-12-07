@@ -377,10 +377,12 @@ function maybeLogPromptPayload(env, requestId, backendLabel, systemPrompt, userP
   console.log(redactedUser);
   console.log(`[${requestId}] [${backendLabel}] === USER PROMPT END ===`);
 
+  // Only log estimated tokens when slimming is enabled (estimation is skipped otherwise)
+  // Actual token counts are logged from llmUsage after API response
   if (promptMeta?.estimatedTokens) {
     const { total, system, user, budget } = promptMeta.estimatedTokens;
     const budgetNote = budget ? ` / budget ${budget}` : '';
-    console.log(`[${requestId}] [${backendLabel}] Estimated tokens: total ${total} (system ${system} + user ${user})${budgetNote}`);
+    console.log(`[${requestId}] [${backendLabel}] Estimated tokens (slimming enabled): total ${total} (system ${system} + user ${user})${budgetNote}`);
   }
 }
 
@@ -833,6 +835,16 @@ export const onRequestPost = async ({ request, env, waitUntil }) => {
     }
 
     const timestamp = new Date().toISOString();
+
+    // Token counts: use actual values from API response (authoritative)
+    // promptMeta.estimatedTokens is only present when slimming is enabled
+    const tokens = capturedUsage ? {
+      input: capturedUsage.input_tokens,
+      output: capturedUsage.output_tokens,
+      total: capturedUsage.total_tokens || (capturedUsage.input_tokens + capturedUsage.output_tokens),
+      source: 'api'  // Authoritative: from model's native tokenizer
+    } : null;
+
     const metricsPayload = {
       requestId,
       timestamp,
@@ -840,15 +852,18 @@ export const onRequestPost = async ({ request, env, waitUntil }) => {
       deckStyle,
       spreadKey: analysis.spreadKey,
       context,
+      // Token usage from API response (authoritative - uses model's native tokenizer)
+      tokens,
       vision: visionMetrics,
       narrative: narrativeMetrics,
       narrativeEnhancements: narrativeEnhancementSummary,
       graphRAG: graphRAGStats,
+      // promptMeta.estimatedTokens only present when ENABLE_PROMPT_SLIMMING=true
       promptMeta,
       enhancementTelemetry,
       contextDiagnostics: diagnosticsPayload,
-      // New: prompt engineering data
       promptEngineering,
+      // Raw API usage data (kept for backwards compatibility)
       llmUsage: capturedUsage,
       // Gate evaluation result (if gate was run)
       evalGate: evalGateResult ? {

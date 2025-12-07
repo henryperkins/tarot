@@ -608,7 +608,7 @@ export const JournalInsightsPanel = memo(function JournalInsightsPanel({
 
     return (
         <div className={prefersReducedMotion ? '' : 'animate-fade-in'}>
-            <div className="relative overflow-hidden rounded-3xl border border-amber-300/12 bg-gradient-to-br from-[#0b0c1d] via-[#0d1024] to-[#090a16] p-6 lg:p-7 shadow-[0_24px_68px_-30px_rgba(0,0,0,0.9)]">
+            <div className="relative overflow-hidden rounded-3xl border border-amber-300/12 bg-gradient-to-br from-[#0b0c1d] via-[#0d1024] to-[#090a16] p-5 shadow-[0_24px_68px_-30px_rgba(0,0,0,0.9)]">
                 {/* Starfield + glows to mirror Journal Pulse/Filters */}
                 <div
                     className="pointer-events-none absolute inset-0 opacity-60 mix-blend-screen"
@@ -651,9 +651,9 @@ export const JournalInsightsPanel = memo(function JournalInsightsPanel({
                 <div className="pointer-events-none absolute right-[-120px] top-1/3 h-72 w-72 rounded-full bg-cyan-400/10 blur-[110px]" aria-hidden="true" />
 
                 <div className="relative z-10 space-y-6">
-                    <div className="space-y-1">
-                        <p className="text-[10px] uppercase tracking-[0.32em] text-amber-200/60">Insights</p>
-                        <h2 className="text-2xl font-serif text-amber-50">Journal Insights</h2>
+                    <div className="mb-4">
+                        <p className="journal-eyebrow text-amber-100/70">Insights</p>
+                        <h2 className="text-xl font-serif text-amber-50">Journal Insights</h2>
                         <p className="text-sm text-amber-100/70">
                             {isFilteredView && allStats ? (
                                 <>

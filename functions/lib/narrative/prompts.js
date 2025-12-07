@@ -365,25 +365,44 @@ export function buildEnhancedClaudePrompt({
       }
     );
 
-    const systemTokens = estimateTokenCount(systemPrompt);
-    const userTokens = estimateTokenCount(userPrompt);
+    // Only estimate tokens when slimming is enabled (needed for budget decisions)
+    // When slimming is disabled, skip estimation - actual tokens come from API response
+    const needsEstimation = promptBudgetEnv?.ENABLE_PROMPT_SLIMMING === 'true' ||
+      promptBudgetEnv?.ENABLE_PROMPT_SLIMMING === true;
 
-    return {
-      systemPrompt,
-      userPrompt,
-      systemTokens,
-      userTokens,
-      totalTokens: systemTokens + userTokens
-    };
+    if (needsEstimation) {
+      const systemTokens = estimateTokenCount(systemPrompt);
+      const userTokens = estimateTokenCount(userPrompt);
+      return {
+        systemPrompt,
+        userPrompt,
+        systemTokens,
+        userTokens,
+        totalTokens: systemTokens + userTokens
+      };
+    }
+
+    return { systemPrompt, userPrompt, systemTokens: null, userTokens: null, totalTokens: null };
   };
 
   let controls = { ...baseControls };
   let built = buildWithControls(controls);
   const slimmingSteps = [];
 
-  // Check if prompt slimming/truncation is disabled via env
-  const disableSlimming = promptBudgetEnv?.DISABLE_PROMPT_SLIMMING === 'true' ||
-    promptBudgetEnv?.DISABLE_PROMPT_SLIMMING === true;
+  // Prompt slimming is DISABLED by default.
+  // Rationale: Modern LLMs (GPT-5 ~128k, Claude ~200k context) can easily handle
+  // full prompts with GraphRAG, ephemeris, imagery, and diagnostics. Slimming
+  // removes valuable interpretive context. Cost is not a concern at current scale.
+  //
+  // Only re-enable slimming when there is empirical evidence that:
+  // 1. Prompt size is degrading reading quality (not just increasing cost)
+  // 2. The model is struggling with signal-to-noise ratio
+  //
+  // To re-enable: set ENABLE_PROMPT_SLIMMING=true in environment
+  const disableSlimming = !(
+    promptBudgetEnv?.ENABLE_PROMPT_SLIMMING === 'true' ||
+    promptBudgetEnv?.ENABLE_PROMPT_SLIMMING === true
+  );
 
   const maybeSlim = (label, updater) => {
     if (disableSlimming) return; // Skip all slimming when disabled
@@ -509,12 +528,16 @@ export function buildEnhancedClaudePrompt({
     slimmingSteps.push('hard-cap-truncation');
   }
 
-  const finalSystemTokens = estimateTokenCount(finalSystem);
-  const finalUserTokens = estimateTokenCount(finalUser);
-  const finalTotalTokens = finalSystemTokens + finalUserTokens;
+  // Only include token estimates when slimming is enabled
+  // Actual token counts come from llmUsage in API response (authoritative)
+  const slimmingEnabled = !disableSlimming;
+  let estimatedTokens = null;
 
-  const promptMeta = {
-    estimatedTokens: {
+  if (slimmingEnabled) {
+    const finalSystemTokens = estimateTokenCount(finalSystem);
+    const finalUserTokens = estimateTokenCount(finalUser);
+    const finalTotalTokens = finalSystemTokens + finalUserTokens;
+    estimatedTokens = {
       system: finalSystemTokens,
       user: finalUserTokens,
       total: finalTotalTokens,
@@ -523,7 +546,14 @@ export function buildEnhancedClaudePrompt({
       budgetTarget,
       overBudget: Boolean(promptBudget && finalTotalTokens > promptBudget),
       truncated: systemTruncated || userTruncated
-    },
+    };
+  }
+
+  const promptMeta = {
+    // Token estimates only present when slimming is enabled (for budget decisions)
+    // Use llmUsage.input_tokens from API response for actual token counts
+    estimatedTokens,
+    slimmingEnabled,
     slimmingSteps,
     appliedOptions: {
       omitLowWeightImagery: Boolean(controls.omitLowWeightImagery),

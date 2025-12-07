@@ -44,7 +44,7 @@ function getRunMetaKey(userId) {
  */
 function AnalyticsSkeleton() {
   return (
-    <div className="rounded-3xl border border-amber-300/15 bg-gradient-to-br from-[#0b0c1d] via-[#0d1024] to-[#0a0c1a] p-5 shadow-[0_18px_50px_-32px_rgba(0,0,0,0.85)] animate-pulse">
+    <div className="relative overflow-hidden rounded-3xl border border-amber-300/12 bg-gradient-to-br from-[#0b0c1d] via-[#0d1024] to-[#090a16] p-5 shadow-[0_24px_68px_-30px_rgba(0,0,0,0.9)] animate-pulse">
       <div className="flex items-center gap-2 mb-4">
         <div className="h-3 w-3 rounded bg-amber-200/25" />
         <div className="h-3 w-28 rounded bg-amber-200/25" />
@@ -90,7 +90,7 @@ function EmptyState({ onBackfill, isBackfilling, backfillResult }) {
 
   return (
     <section
-      className="relative overflow-hidden rounded-3xl border border-amber-300/15 bg-gradient-to-br from-[#0b0a12] via-[#0d0a1a] to-[#0b0a12] p-5 shadow-[0_18px_50px_-32px_rgba(0,0,0,0.85)]"
+      className="relative overflow-hidden rounded-3xl border border-amber-300/12 bg-gradient-to-br from-[#0b0c1d] via-[#0d1024] to-[#090a16] p-5 shadow-[0_24px_68px_-30px_rgba(0,0,0,0.9)]"
       aria-labelledby="archetype-journey-empty-heading"
     >
       <div
@@ -107,7 +107,7 @@ function EmptyState({ onBackfill, isBackfilling, backfillResult }) {
       <div className="relative z-10">
         <h3
           id="archetype-journey-empty-heading"
-          className="mb-3 flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-amber-200/70"
+          className="mb-4 flex items-center gap-2 journal-eyebrow text-amber-100/70"
         >
           <Sparkle className="h-3 w-3" aria-hidden="true" />
           Archetype Journey
@@ -518,9 +518,9 @@ export function ArchetypeJourneySection({ isAuthenticated, userId, showEmptyStat
   const runCaption = runCaptionParts.join(' · ');
 
   return (
-    <section className="relative overflow-hidden rounded-3xl border border-amber-300/15 bg-gradient-to-br from-[#0b0c1d] via-[#0d1024] to-[#090a16] p-5 space-y-5 shadow-[0_22px_60px_-32px_rgba(0,0,0,0.85)]" aria-labelledby="archetype-journey-heading">
+    <section className="relative overflow-hidden rounded-3xl border border-amber-300/12 bg-gradient-to-br from-[#0b0c1d] via-[#0d1024] to-[#090a16] p-5 space-y-5 shadow-[0_24px_68px_-30px_rgba(0,0,0,0.9)]" aria-labelledby="archetype-journey-heading">
       <div
-        className="pointer-events-none absolute inset-0 opacity-55 mix-blend-screen"
+        className="pointer-events-none absolute inset-0 opacity-60 mix-blend-screen"
         aria-hidden="true"
         style={{
           backgroundImage:
@@ -531,9 +531,9 @@ export function ArchetypeJourneySection({ isAuthenticated, userId, showEmptyStat
       <div className="pointer-events-none absolute right-[-120px] top-1/3 h-72 w-72 rounded-full bg-cyan-400/10 blur-[110px]" aria-hidden="true" />
 
       <div className="relative z-10 space-y-5">
-        <div>
-          <p className="text-[11px] uppercase tracking-[0.3em] text-amber-200/60">Archetype Journey</p>
-          <h3 id="archetype-journey-heading" className="text-lg font-serif text-amber-50">{analytics.currentMonth}</h3>
+        <div className="mb-4">
+          <p className="journal-eyebrow text-amber-100/70">Archetype Journey</p>
+          <h3 id="archetype-journey-heading" className="text-xl font-serif text-amber-50">{analytics.currentMonth}</h3>
           <p className="text-xs text-amber-100/70">
             {analytics.stats?.thisMonth ?? 0} entries this month · Avg {analytics.stats?.avgPerWeek ?? 0}/week · {analytics.stats?.totalReadings ?? 0} total
           </p>

@@ -105,9 +105,7 @@ describe('enhancement telemetry summary', () => {
 });
 
 describe('prompt slimming respects budget order', () => {
-  it('applies slimming steps when token budget is exceeded', () => {
-    process.env.PROMPT_BUDGET_CLAUDE = '40';
-
+  it('applies slimming steps when token budget is exceeded and slimming is enabled', () => {
     const spreadInfo = { name: 'Three-Card Story (Past · Present · Future)' };
     const cardsInfo = [
       { card: 'The Fool', position: 'Past', number: 0, orientation: 'Upright', meaning: 'A long wandering path.' },
@@ -127,6 +125,8 @@ describe('prompt slimming respects budget order', () => {
       elementCounts: {}
     };
 
+    // Slimming is disabled by default - must explicitly enable via ENABLE_PROMPT_SLIMMING
+    // Actual token counts come from API response (llmUsage.input_tokens)
     const { promptMeta } = buildEnhancedClaudePrompt({
       spreadInfo,
       cardsInfo,
@@ -136,9 +136,14 @@ describe('prompt slimming respects budget order', () => {
       spreadAnalysis: null,
       context: 'career',
       visionInsights: [],
-      deckStyle: 'rws-1909'
+      deckStyle: 'rws-1909',
+      promptBudgetEnv: {
+        ENABLE_PROMPT_SLIMMING: 'true',
+        PROMPT_BUDGET_CLAUDE: '40'
+      }
     });
 
+    assert.equal(promptMeta.slimmingEnabled, true);
     assert.ok(promptMeta.estimatedTokens.total > promptMeta.estimatedTokens.budget);
     assert.deepEqual(promptMeta.slimmingSteps, [
       'drop-low-weight-imagery',

@@ -581,10 +581,7 @@ describe('Other spread builders prompt-engineering compliance', () => {
 });
 
 describe('Prompt budget telemetry', () => {
-  it('returns estimated tokens and applies budget from env', async () => {
-    const originalBudget = process.env.PROMPT_BUDGET_CLAUDE;
-    process.env.PROMPT_BUDGET_CLAUDE = '90';
-
+  it('returns estimated tokens only when slimming is enabled', async () => {
     const cardsInfo = [
       major('The Fool', 0, 'Past — influences that led here', 'Upright'),
       major('The Magician', 1, 'Present — where you stand now', 'Upright'),
@@ -593,7 +590,9 @@ describe('Prompt budget telemetry', () => {
 
     const themes = await buildThemes(cardsInfo, 'blocked');
 
-    const { promptMeta } = buildEnhancedClaudePrompt({
+    // Without ENABLE_PROMPT_SLIMMING, estimatedTokens should be null
+    // (actual tokens come from API response via llmUsage)
+    const { promptMeta: metaWithoutSlimming } = buildEnhancedClaudePrompt({
       spreadInfo: { name: 'Three-Card Story (Past · Present · Future)' },
       cardsInfo,
       userQuestion: 'How do I keep momentum?',
@@ -603,10 +602,26 @@ describe('Prompt budget telemetry', () => {
       context: 'general'
     });
 
-    assert.equal(promptMeta.estimatedTokens.budget, 90);
-    assert.ok(promptMeta.estimatedTokens.total > 0);
-    assert.ok(Array.isArray(promptMeta.slimmingSteps));
+    assert.equal(metaWithoutSlimming.estimatedTokens, null, 'estimatedTokens should be null when slimming disabled');
+    assert.equal(metaWithoutSlimming.slimmingEnabled, false);
+    assert.ok(Array.isArray(metaWithoutSlimming.slimmingSteps));
+    assert.equal(metaWithoutSlimming.slimmingSteps.length, 0, 'no slimming steps when disabled');
 
-    process.env.PROMPT_BUDGET_CLAUDE = originalBudget;
+    // With ENABLE_PROMPT_SLIMMING=true, estimatedTokens should be populated
+    const { promptMeta: metaWithSlimming } = buildEnhancedClaudePrompt({
+      spreadInfo: { name: 'Three-Card Story (Past · Present · Future)' },
+      cardsInfo,
+      userQuestion: 'How do I keep momentum?',
+      reflectionsText: '',
+      themes,
+      spreadAnalysis: null,
+      context: 'general',
+      promptBudgetEnv: { ENABLE_PROMPT_SLIMMING: 'true', PROMPT_BUDGET_CLAUDE: '90' }
+    });
+
+    assert.equal(metaWithSlimming.slimmingEnabled, true);
+    assert.ok(metaWithSlimming.estimatedTokens, 'estimatedTokens should exist when slimming enabled');
+    assert.equal(metaWithSlimming.estimatedTokens.budget, 90);
+    assert.ok(metaWithSlimming.estimatedTokens.total > 0);
   });
 });

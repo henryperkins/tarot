@@ -18,6 +18,7 @@ import { NoFiltersIllustration } from './illustrations/NoFiltersIllustration';
 import { computeJournalStats, formatContextName } from '../lib/journalInsights';
 import { SPREADS } from '../data/spreads';
 import { DECK_OPTIONS } from './DeckSelector';
+import { getCardImage, getCanonicalCard } from '../lib/cardLookup';
 import { useSmallScreen } from '../hooks/useSmallScreen';
 import { useToast } from '../contexts/ToastContext.jsx';
 import AuthModal from './AuthModal';
@@ -38,6 +39,13 @@ const SPREAD_FILTERS = Object.entries(SPREADS || {}).map(([value, config]) => ({
 }));
 
 const DECK_FILTERS = DECK_OPTIONS.map(d => ({ value: d.id, label: d.label }));
+
+const SUIT_ELEMENTS = {
+  Wands: { element: 'Fire', quality: 'passion, action, creativity' },
+  Cups: { element: 'Water', quality: 'emotions, relationships, intuition' },
+  Swords: { element: 'Air', quality: 'thoughts, communication, conflict' },
+  Pentacles: { element: 'Earth', quality: 'material, practical, grounded' }
+};
 
 const VISIBLE_ENTRY_BATCH = 10;
 const MOBILE_LAYOUT_MAX = 1023;
@@ -114,6 +122,7 @@ export default function Journal() {
   const [compactList, setCompactList] = useState(false);
   const [mobilePanelsOpen, setMobilePanelsOpen] = useState({ filters: false, insights: false, archetype: false });
   const [showAuthModal, setShowAuthModal] = useState(false);
+  const [expandedCardIndex, setExpandedCardIndex] = useState(null);
   const navigate = useNavigate();
   const isMobileLayout = useSmallScreen(MOBILE_LAYOUT_MAX);
   const isSmallSummary = useSmallScreen(640);
@@ -280,6 +289,11 @@ export default function Journal() {
     return sorted[0] || null;
   }, [entries, filteredEntries, filtersActive]);
 
+  // Reset expanded card when the hero entry changes (new reading, filter change)
+  useEffect(() => {
+    setExpandedCardIndex(null);
+  }, [heroEntry?.id, heroEntry?.sessionSeed]);
+
   const latestFilteredEntryTs = useMemo(() => {
     if (!filteredEntries || filteredEntries.length === 0) return null;
     return filteredEntries.reduce((latest, entry) => {
@@ -331,7 +345,7 @@ export default function Journal() {
       name: card.name || 'Card',
       position: card.position || `Card ${index + 1}`,
       orientation: card.orientation || (card.isReversed ? 'Reversed' : 'Upright'),
-      image: card.image || card.img || card.url || '/cardback.png'
+      image: getCardImage(card)
     }));
   }, [heroEntry, heroCardLimit]);
   const summaryCardData = [
@@ -836,37 +850,72 @@ export default function Journal() {
                   </div>
                 )}
 
-                {showInsightsContent && heroEntry && heroCards.length > 0 && (
-                  <div className="mb-4 grid gap-3 sm:grid-cols-3">
-                    {heroCards.map((card, index) => (
-                      <div
-                        key={card.id}
-                        className="relative overflow-hidden rounded-2xl border border-amber-300/20 bg-gradient-to-b from-[#120f1f] via-[#0c0a14] to-[#0a0911] shadow-[0_16px_40px_-28px_rgba(251,191,36,0.35)]"
-                      >
-                        <div className="relative aspect-[2/3] overflow-hidden">
-                          <img
-                            src={card.image}
-                            alt={card.name}
-                            className="h-full w-full object-cover"
-                            loading="lazy"
-                          />
-                          <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/45 via-black/5 to-transparent" />
-                          <div className="absolute left-3 top-3 rounded-full bg-black/55 px-3 py-1 text-[11px] uppercase tracking-[0.22em] text-amber-100/80">
-                            {card.position}
-                          </div>
-                          {index === 0 && heroDateLabel && (
-                            <div className="absolute right-3 top-3 rounded-full bg-amber-300/20 px-3 py-1 text-[11px] font-semibold text-amber-50 shadow-[0_12px_30px_-18px_rgba(251,191,36,0.7)]">
-                              {heroDateLabel}
+                {heroEntry && heroCards.length > 0 && (
+                  <div className="mb-4 flex flex-wrap justify-center gap-2.5">
+                    {heroCards.map((card, index) => {
+                      const isExpanded = expandedCardIndex === index;
+                      const canonical = getCanonicalCard(card);
+                      const isReversed = (card.orientation || '').toLowerCase().includes('reversed');
+                      const meaning = isReversed ? canonical?.reversed : canonical?.upright;
+                      const suitInfo = canonical?.suit ? SUIT_ELEMENTS[canonical.suit] : null;
+                      const isMajor = canonical?.number !== undefined;
+
+                      return (
+                        <div key={card.id} className="flex items-stretch">
+                          <button
+                            type="button"
+                            aria-expanded={isExpanded}
+                            aria-label={`${card.name}, ${card.orientation}. Tap for insight.`}
+                            onClick={() => setExpandedCardIndex(isExpanded ? null : index)}
+                            className={`relative w-24 sm:w-28 flex-shrink-0 overflow-hidden rounded-xl border transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/60 ${
+                              isExpanded
+                                ? 'border-amber-400/40 ring-1 ring-amber-400/20 rounded-r-none'
+                                : 'border-amber-300/20 hover:border-amber-300/30'
+                            } bg-gradient-to-b from-[#120f1f] via-[#0c0a14] to-[#0a0911] shadow-[0_12px_32px_-20px_rgba(251,191,36,0.35)]`}
+                          >
+                            <div className="relative aspect-[2/3] overflow-hidden">
+                              <img
+                                src={card.image}
+                                alt={card.name}
+                                className="h-full w-full object-cover"
+                                loading="lazy"
+                              />
+                              <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/50 via-black/5 to-transparent" />
+                              {index === 0 && heroDateLabel && (
+                                <div className="absolute left-1.5 top-1.5 rounded-full bg-amber-300/25 px-1.5 py-0.5 text-[8px] font-semibold text-amber-50">
+                                  {heroDateLabel}
+                                </div>
+                              )}
                             </div>
-                          )}
+                            <div className="px-2 pb-2 pt-1.5">
+                              <p className="font-serif text-xs text-amber-50 leading-tight truncate">{card.name}</p>
+                              <p className="text-[9px] text-amber-100/55">{card.orientation}</p>
+                            </div>
+                          </button>
+
+                          {/* Slide-out insight panel */}
+                          <div
+                            className={`overflow-hidden transition-all duration-300 ease-out ${
+                              isExpanded ? 'w-36 sm:w-40 opacity-100' : 'w-0 opacity-0'
+                            }`}
+                          >
+                            <div className="w-36 sm:w-40 h-full rounded-r-xl border-y border-r border-amber-400/25 bg-gradient-to-br from-[#12101c] to-[#0a0912] p-2 flex flex-col">
+                              <p className="text-[9px] uppercase tracking-wider text-amber-300/50 mb-1">
+                                {suitInfo ? suitInfo.element : isMajor ? 'Major Arcana' : 'Insight'}
+                              </p>
+                              {suitInfo && (
+                                <p className="text-[9px] text-amber-200/50 mb-1.5 leading-tight">
+                                  {suitInfo.quality}
+                                </p>
+                              )}
+                              <p className="text-[10px] text-amber-100/80 leading-relaxed overflow-hidden flex-1" style={{ display: '-webkit-box', WebkitLineClamp: suitInfo ? 4 : 5, WebkitBoxOrient: 'vertical' }}>
+                                {meaning || 'Explore this card\'s traditional symbolism and personal significance in your reading.'}
+                              </p>
+                            </div>
+                          </div>
                         </div>
-                        <div className="px-3 pb-3 pt-2">
-                          <p className="text-xs uppercase tracking-[0.18em] text-amber-100/60">Latest reading</p>
-                          <p className="font-serif text-lg text-amber-50 leading-tight">{card.name}</p>
-                          <p className="text-[11px] text-amber-100/55">{card.orientation}</p>
-                        </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
 
