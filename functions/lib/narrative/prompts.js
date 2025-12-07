@@ -263,42 +263,60 @@ export function buildEnhancedClaudePrompt({
     const requestedSemanticScoring = enableSemanticScoring === true;
 
     if (requestedSemanticScoring) {
-      console.warn('[GraphRAG] Semantic scoring requested but graphRAGPayload not pre-computed. ' +
-        'For semantic scoring, pre-compute the payload with retrievePassagesWithQuality() ' +
-        'in performSpreadAnalysis(). Falling back to keyword-only retrieval.');
-    }
-
-    try {
-      // Keyword-only synchronous retrieval
-      // Semantic scoring requires async retrievePassagesWithQuality() which should
-      // be called in performSpreadAnalysis() and passed via graphRAGPayload
-      const retrievedPassages = retrievePassages(activeThemes.knowledgeGraph.graphKeys, {
-        maxPassages,
-        userQuery: userQuestion
-      });
-
-      const retrievalSummary = buildRetrievalSummary(activeThemes.knowledgeGraph.graphKeys, retrievedPassages);
-      const semanticScoringUsed = Boolean(retrievalSummary?.qualityMetrics?.semanticScoringUsed);
-      const semanticScoringFallback = requestedSemanticScoring && !semanticScoringUsed;
+      // Do not silently downgrade to keyword-only; require precomputed semantic payload.
+      const message = '[GraphRAG] Semantic scoring requested but graphRAGPayload not pre-computed. Skipping GraphRAG injection to avoid keyword-only fallback. Pre-compute with retrievePassagesWithQuality() in performSpreadAnalysis().';
+      console.warn(message);
+      diagnostics.push(message);
 
       effectiveGraphRAGPayload = {
-        passages: retrievedPassages,
-        initialPassageCount: retrievedPassages.length,
+        passages: [],
+        initialPassageCount: 0,
         formattedBlock: null,
         retrievalSummary: {
-          ...retrievalSummary,
-          semanticScoringRequested: requestedSemanticScoring,
-          semanticScoringUsed,
-          semanticScoringFallback
+          semanticScoringRequested: true,
+          semanticScoringUsed: false,
+          semanticScoringFallback: true,
+          reason: 'semantic-scoring-not-prefetched'
         },
-        // Track whether semantic scoring was requested vs what we could deliver
-        enableSemanticScoring: false,
-        rankingStrategy: 'keyword',
-        semanticScoringRequested: requestedSemanticScoring,
-        semanticScoringFallback
+        enableSemanticScoring: true,
+        rankingStrategy: 'semantic',
+        semanticScoringRequested: true,
+        semanticScoringUsed: false,
+        semanticScoringFallback: true
       };
-    } catch (err) {
-      console.error('[GraphRAG] Pre-fetch failed:', err.message);
+    } else {
+      try {
+        // Keyword-only synchronous retrieval
+        // Semantic scoring requires async retrievePassagesWithQuality() which should
+        // be called in performSpreadAnalysis() and passed via graphRAGPayload
+        const retrievedPassages = retrievePassages(activeThemes.knowledgeGraph.graphKeys, {
+          maxPassages,
+          userQuery: userQuestion
+        });
+
+        const retrievalSummary = buildRetrievalSummary(activeThemes.knowledgeGraph.graphKeys, retrievedPassages);
+        const semanticScoringUsed = Boolean(retrievalSummary?.qualityMetrics?.semanticScoringUsed);
+        const semanticScoringFallback = requestedSemanticScoring && !semanticScoringUsed;
+
+        effectiveGraphRAGPayload = {
+          passages: retrievedPassages,
+          initialPassageCount: retrievedPassages.length,
+          formattedBlock: null,
+          retrievalSummary: {
+            ...retrievalSummary,
+            semanticScoringRequested: requestedSemanticScoring,
+            semanticScoringUsed,
+            semanticScoringFallback
+          },
+          // Track whether semantic scoring was requested vs what we could deliver
+          enableSemanticScoring: false,
+          rankingStrategy: 'keyword',
+          semanticScoringRequested: requestedSemanticScoring,
+          semanticScoringFallback
+        };
+      } catch (err) {
+        console.error('[GraphRAG] Pre-fetch failed:', err.message);
+      }
     }
   }
 

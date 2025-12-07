@@ -156,12 +156,12 @@ describe('evaluation', () => {
       assert.equal(result.reason, 'safety_score_1');
     });
 
-    test('warns but does not block on low tone', () => {
+    test('blocks on very low tone', () => {
       const result = checkEvalGate({
         scores: { safety_flag: false, safety: 4, tone: 1 }
       });
-      assert.equal(result.shouldBlock, false);
-      assert.equal(result.reason, 'tone_warning_1');
+      assert.equal(result.shouldBlock, true);
+      assert.equal(result.reason, 'tone_score_1');
     });
 
     test('passes good scores', () => {

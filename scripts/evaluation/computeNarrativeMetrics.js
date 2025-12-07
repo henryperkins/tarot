@@ -134,11 +134,12 @@ function analyzeCardCoverage(reading, cardsInfo = []) {
 
 function detectHallucinatedCards(reading, cardsInfo = []) {
   if (!reading) return [];
+  const cleanedReading = reading.replace(/(?:the\s+)?fool['’]?s?\s+journey/gi, '');
   const drawn = new Set((cardsInfo || []).map((card) => normalizeCardName(card.card)));
   const hallucinated = [];
 
   ALL_CARD_NAME_PATTERNS.forEach(({ name, normalized, pattern }) => {
-    if (!pattern.test(reading)) return;
+    if (!pattern.test(cleanedReading)) return;
     if (!drawn.has(normalized)) {
       hallucinated.push(name);
     }

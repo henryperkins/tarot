@@ -601,6 +601,12 @@ export const onRequestPost = async ({ request, env, waitUntil }) => {
           qualityIssues.push(`low card coverage: ${(qualityMetrics.cardCoverage * 100).toFixed(0)}%`);
         }
 
+        // Enforce spine completeness beyond mere section presence
+        const spine = qualityMetrics.spine || null;
+        if (spine && spine.totalSections > 0 && spine.isValid === false) {
+          qualityIssues.push(`incomplete spine (${spine.completeSections || 0}/${spine.totalSections})`);
+        }
+
         // Check narrative has at least one section (basic structure validation)
         if (qualityMetrics.spine && qualityMetrics.spine.totalSections === 0) {
           qualityIssues.push('no narrative sections detected');

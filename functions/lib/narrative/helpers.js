@@ -415,7 +415,7 @@ const POSITION_LANGUAGE = {
     ],
     frame: [
       'This shows where things are tending if you maintain your current course.',
-      'Hold it as a forecast of trajectory, always adjustable through your choices.'
+      'Hold it as a forecast of trajectory, adjustable through your choices.'
     ],
     connectorToPrev: ['Therefore,', 'Therefore, on this trajectory,'],
     useImagery: true

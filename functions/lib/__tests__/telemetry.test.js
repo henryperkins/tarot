@@ -23,6 +23,52 @@ afterEach(() => {
   });
 });
 
+describe('semantic scoring prefetch expectations', () => {
+  it('flags missing precomputed semantic payload and avoids injecting GraphRAG', () => {
+    process.env.GRAPHRAG_ENABLED = 'true';
+
+    const { promptMeta, contextDiagnostics } = buildEnhancedClaudePrompt({
+      spreadInfo: { name: 'Three-Card Story (Past · Present · Future)' },
+      cardsInfo: [
+        { card: 'The Fool', position: 'Past', number: 0, orientation: 'Upright', meaning: 'Leap of faith.' },
+        { card: 'The Magician', position: 'Present', number: 1, orientation: 'Upright', meaning: 'Manifesting resources and skill.' },
+        { card: 'The High Priestess', position: 'Future', number: 2, orientation: 'Reversed', meaning: 'Inner knowing.' }
+      ],
+      userQuestion: 'How do I integrate this chapter?',
+      reflectionsText: '',
+      themes: {
+        reversalCount: 0,
+        reversalDescription: {
+          name: 'Upright Focus',
+          description: 'No reversals detected.',
+          guidance: 'Refer to upright meanings unless a reversed card appears.'
+        },
+        knowledgeGraph: {
+          graphKeys: { completeTriadIds: ['death-temperance-star'] }
+        },
+        suitCounts: {},
+        elementCounts: {}
+      },
+      spreadAnalysis: null,
+      context: 'self',
+      visionInsights: [],
+      deckStyle: 'rws-1909',
+      enableSemanticScoring: true
+    });
+
+    assert.ok(promptMeta.graphRAG, 'graphRAG metadata should be present');
+    assert.equal(promptMeta.graphRAG.semanticScoringRequested, true);
+    assert.equal(promptMeta.graphRAG.semanticScoringUsed, false);
+    assert.equal(promptMeta.graphRAG.semanticScoringFallback, true);
+    assert.equal(promptMeta.graphRAG.includedInPrompt, false);
+    assert.ok(
+      Array.isArray(contextDiagnostics) &&
+      contextDiagnostics.some((d) => d.includes('Semantic scoring requested')),
+      'Diagnostics should flag missing precomputed semantic payload'
+    );
+  });
+});
+
 describe('enhancement telemetry summary', () => {
   it('captures counts, names, and missing keys', () => {
     const sections = [
@@ -96,6 +142,9 @@ describe('prompt slimming respects budget order', () => {
     assert.ok(promptMeta.estimatedTokens.total > promptMeta.estimatedTokens.budget);
     assert.deepEqual(promptMeta.slimmingSteps, [
       'drop-low-weight-imagery',
+      'drop-forecast',
+      'drop-ephemeris',
+      'trim-graphrag-passages',
       'drop-graphrag-block',
       'drop-deck-geometry',
       'drop-diagnostics'
@@ -197,46 +246,55 @@ describe('prompt builder resilience', () => {
     process.env.PROMPT_BUDGET_CLAUDE = '40';
     process.env.GRAPHRAG_ENABLED = 'true';
 
-    const tracker = mock.method(graphRAG, 'retrievePassages', () => ([
-      { title: 'Triad Wisdom', text: 'Insight about the Fool’s Journey.', source: 'Arcana Anthology', priority: 1, type: 'triad' }
-    ]));
+    const themes = {
+      reversalCount: 0,
+      reversalDescription: {
+        name: 'Upright Focus',
+        description: 'No reversals detected.',
+        guidance: 'Refer to upright meanings unless a reversed card appears.'
+      },
+      knowledgeGraph: {
+        graphKeys: {
+          completeTriadIds: ['fool-magician-highpriestess']
+        }
+      },
+      suitCounts: {},
+      elementCounts: {}
+    };
 
-    try {
-      const themes = {
-        reversalCount: 0,
-        reversalDescription: {
-          name: 'Upright Focus',
-          description: 'No reversals detected.',
-          guidance: 'Refer to upright meanings unless a reversed card appears.'
-        },
-        knowledgeGraph: {
-          graphKeys: {
-            completeTriadIds: ['fool-magician-highpriestess']
-          }
-        },
-        suitCounts: {},
-        elementCounts: {}
-      };
+    const graphRAGPayload = {
+      passages: [
+        { title: 'Triad Wisdom', text: 'Insight about the Fool’s Journey.', source: 'Arcana Anthology', priority: 1, type: 'triad' }
+      ],
+      initialPassageCount: 1,
+      formattedBlock: null,
+      retrievalSummary: {
+        semanticScoringRequested: false,
+        semanticScoringUsed: false,
+        semanticScoringFallback: false
+      },
+      maxPassages: 1,
+      rankingStrategy: 'keyword'
+    };
 
-      buildEnhancedClaudePrompt({
-        spreadInfo: { name: 'Three-Card Story (Past · Present · Future)' },
-        cardsInfo: [
-          { card: 'The Fool', position: 'Past', number: 0, orientation: 'Upright', meaning: 'Leap of faith.' },
-          { card: 'The Magician', position: 'Present', number: 1, orientation: 'Upright', meaning: 'Channel skills.' },
-          { card: 'The High Priestess', position: 'Future', number: 2, orientation: 'Reversed', meaning: 'Inner knowing.' }
-        ],
-        userQuestion: 'How do I integrate this chapter? '.repeat(6),
-        reflectionsText: '',
-        themes,
-        spreadAnalysis: null,
-        context: 'self',
-        visionInsights: [],
-        deckStyle: 'rws-1909'
-      });
+    const { promptMeta } = buildEnhancedClaudePrompt({
+      spreadInfo: { name: 'Three-Card Story (Past · Present · Future)' },
+      cardsInfo: [
+        { card: 'The Fool', position: 'Past', number: 0, orientation: 'Upright', meaning: 'Leap of faith.' },
+        { card: 'The Magician', position: 'Present', number: 1, orientation: 'Upright', meaning: 'Channel skills.' },
+        { card: 'The High Priestess', position: 'Future', number: 2, orientation: 'Reversed', meaning: 'Inner knowing.' }
+      ],
+      userQuestion: 'How do I integrate this chapter? '.repeat(6),
+      reflectionsText: '',
+      themes,
+      spreadAnalysis: null,
+      context: 'self',
+      visionInsights: [],
+      deckStyle: 'rws-1909',
+      graphRAGPayload
+    });
 
-      assert.equal(tracker.mock.calls.length, 1, 'GraphRAG retrieval should execute only once despite slimming');
-    } finally {
-      tracker.restore();
-    }
+    assert.ok(promptMeta.graphRAG, 'graphRAG metadata should be present');
+    assert.equal(promptMeta.graphRAG.passagesProvided, 1);
   });
 });

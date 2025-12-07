@@ -262,7 +262,7 @@ export async function buildRelationshipReading({
     }
   }
 
-  guidance += 'Emphasize honest communication, reciprocal care, and boundaries. Treat these insights as a mirror that informs how you choose to show up—never as a command to stay or leave. Choose the path that best honors honesty, care, and your own boundaries—the outcome still rests in the choices you both make.';
+  guidance += 'Emphasize honest communication, reciprocal care, and boundaries. Treat these insights as a mirror that informs how you choose to show up—not as a command to stay or leave. Choose the path that best honors honesty, care, and your own boundaries—the outcome still rests in the choices you both make.';
   const tonePhrase = tone.challengeFraming || 'honest reminder';
   const frameWord = frameVocab[0] || 'connection';
   guidance += `\n\nFor you${nameInline || ''} this is a ${tonePhrase}, inviting ${frameWord}-level dialogue about how you both want to participate.`;

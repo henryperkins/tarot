@@ -3,7 +3,8 @@ import {
   appendReversalReminder,
   buildPositionCardText,
   getPositionOptions,
-  buildContextReminder
+  buildContextReminder,
+  buildReflectionsSection
 } from '../helpers.js';
 import { getToneStyle, getFrameVocabulary, buildNameClause, buildPersonalizedClosing } from '../styleHelpers.js';
 
@@ -58,7 +59,7 @@ export function buildSingleCardReading({
   }
 
   if (reflectionsText && reflectionsText.trim()) {
-    narrative += `\n\n### Your Reflections\n\n${reflectionsText.trim()}`;
+    narrative += `\n\n${buildReflectionsSection(reflectionsText)}`;
   }
 
   const closing = buildPersonalizedClosing(personalization);
