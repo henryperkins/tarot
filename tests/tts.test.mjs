@@ -25,6 +25,9 @@ const originalConsoleLog = console.log;
 const originalConsoleError = console.error;
 const originalConsoleWarn = console.warn;
 
+// Node's setTimeout cannot schedule beyond ~24.8 days (2^31-1 ms)
+const MAX_SAFE_TIMEOUT_MS = 2_147_483_647;
+
 // Helper to create a mock Request object
 function createMockRequest(url, options = {}) {
   const fullUrl = url.startsWith('http') ? url : `https://example.com${url}`;
@@ -69,7 +72,14 @@ class MockKVStore {
   async put(key, value, options = {}) {
     this.store.set(key, value);
     if (options.expirationTtl) {
-      setTimeout(() => this.store.delete(key), options.expirationTtl * 1000);
+      const ttlMs = Number(options.expirationTtl) * 1000;
+      if (Number.isFinite(ttlMs) && ttlMs > 0) {
+        const timeoutMs = Math.min(ttlMs, MAX_SAFE_TIMEOUT_MS);
+        const timer = setTimeout(() => this.store.delete(key), timeoutMs);
+        if (typeof timer.unref === 'function') {
+          timer.unref(); // Do not keep the Node process alive for long TTLs
+        }
+      }
     }
   }
 
