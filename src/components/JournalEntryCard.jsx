@@ -329,11 +329,9 @@ export const JournalEntryCard = memo(function JournalEntryCard({
   const headerPadding = isExpanded ? expandedHeaderPadding : collapsedHeaderPadding;
   const contentPadding = compact ? 'px-4 py-4 sm:p-5' : 'px-4 py-4 sm:p-5';
   const actionMenuId = `${entry.id || entry.ts || 'entry'}-actions-menu`;
-  const quickActions = [
-    { key: 'copy', label: 'Copy', icon: ClipboardText, onSelect: handleEntryCopy },
-    { key: 'share', label: 'Share', icon: ShareNetwork, onSelect: handleEntryShare }
-  ];
   const actionMenuItems = [
+    { key: 'copy', label: 'Copy entry', icon: ClipboardText, onSelect: handleEntryCopy },
+    { key: 'share', label: 'Share reading', icon: ShareNetwork, onSelect: handleEntryShare },
     { key: 'export', label: 'Export CSV', icon: DownloadSimple, onSelect: handleEntryExport }
   ];
 
@@ -363,8 +361,6 @@ export const JournalEntryCard = memo(function JournalEntryCard({
   const shareLinksPreview = entryShareLinks.slice(0, MAX_SHARE_LINKS_IN_MENU);
   const extraShareLinks = Math.max(0, entryShareLinks.length - shareLinksPreview.length);
   const shareActionsDisabled = pendingAction === 'share-link-copy' || pendingAction === 'share-link-delete';
-  const overflowActions = actionMenuItems;
-  const isMobileActions = isSmallScreen;
 
   const renderShareLinks = () => (
     <div className="mt-3 rounded-xl border border-secondary/10 bg-surface/70 p-3">
@@ -506,29 +502,6 @@ export const JournalEntryCard = memo(function JournalEntryCard({
                 )}
               </div>
 
-              <div className="mt-3 flex flex-wrap gap-2">
-                {quickActions.map((action) => {
-                  const ActionIcon = action.icon;
-                  const isPending = pendingAction === action.key;
-                  return (
-                    <button
-                      key={action.key}
-                      type="button"
-                      onClick={action.onSelect}
-                      disabled={isPending}
-                      className="inline-flex min-h-[44px] items-center gap-2 rounded-full border border-secondary/25 bg-surface/40 px-3 py-2 text-xs font-semibold text-secondary hover:border-secondary/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/40 disabled:opacity-60 disabled:cursor-not-allowed"
-                    >
-                      {isPending ? (
-                        <CircleNotch className="h-4 w-4 animate-spin text-secondary/70" aria-hidden="true" />
-                      ) : (
-                        <ActionIcon className="h-4 w-4 text-secondary/70" aria-hidden="true" />
-                      )}
-                      {action.label}
-                    </button>
-                  );
-                })}
-              </div>
-
               {entry.question && (
                 <p className="text-sm text-secondary/80 line-clamp-1">
                   &ldquo;{entry.question}&rdquo;
@@ -542,7 +515,7 @@ export const JournalEntryCard = memo(function JournalEntryCard({
               type="button"
               ref={actionMenuButtonRef}
               onClick={() => setActionMenuOpen((prev) => !prev)}
-              className="inline-flex h-11 w-11 min-h-[48px] min-w-[48px] items-center justify-center rounded-full border border-secondary/25 bg-surface/40 text-secondary/70 hover:border-secondary/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/40"
+              className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-secondary/25 bg-surface/40 text-secondary/70 hover:border-secondary/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/40"
               aria-haspopup="menu"
               aria-controls={actionMenuId}
               aria-expanded={actionMenuOpen}
@@ -553,103 +526,48 @@ export const JournalEntryCard = memo(function JournalEntryCard({
             </button>
 
             {actionMenuOpen && (
-              <>
-                {isMobileActions ? (
-                  <div className="fixed inset-0 z-50 flex items-end justify-center">
-                    <button
-                      type="button"
-                      aria-label="Close entry actions"
-                      className="absolute inset-0 bg-black/50"
-                      onClick={() => setActionMenuOpen(false)}
-                    />
-                    <div
-                      id={actionMenuId}
-                      ref={actionMenuRef}
-                      role="menu"
-                      aria-label="Entry actions"
-                      className="relative w-full max-w-xl rounded-t-3xl border border-secondary/20 bg-surface/95 p-4 shadow-[0_-12px_30px_-18px_rgba(0,0,0,0.7)] backdrop-blur"
-                    >
-                      <div className="mx-auto mb-3 h-1 w-12 rounded-full bg-white/20" aria-hidden />
-                      <div className="space-y-2">
-                        {overflowActions.map((item) => {
-                          const IconComponent = item.icon;
-                          const isPending = pendingAction === item.key;
-                          return (
-                            <button
-                              key={item.key}
-                              type="button"
-                              role="menuitem"
-                              onClick={() => {
-                                setActionMenuOpen(false);
-                                item.onSelect();
-                              }}
-                              disabled={isPending}
-                              className={`flex w-full items-center justify-between rounded-2xl px-4 py-3 text-left text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 disabled:opacity-60 disabled:cursor-not-allowed ${
-                                item.tone === 'danger'
-                                  ? 'text-error hover:bg-error/10 focus-visible:ring-error/40'
-                                  : 'text-main/80 hover:bg-secondary/10 focus-visible:ring-secondary/40'
-                              }`}
-                            >
-                              <span className="flex items-center gap-2">
-                                {isPending ? (
-                                  <CircleNotch className="h-4 w-4 animate-spin text-secondary/70" aria-hidden="true" />
-                                ) : (
-                                  <IconComponent className="h-5 w-5 text-secondary/70" aria-hidden="true" />
-                                )}
-                                {item.label}
-                              </span>
-                            </button>
-                          );
-                        })}
-                      </div>
-                      {renderShareLinks()}
-                    </div>
-                  </div>
-                ) : (
-                  <div
-                    id={actionMenuId}
-                    ref={actionMenuRef}
-                    role="menu"
-                    aria-label="Entry actions"
-                    className="absolute right-0 top-full z-50 mt-2 w-72 max-h-[75vh] overflow-y-auto rounded-2xl border border-secondary/20 bg-surface/95 p-2 shadow-2xl backdrop-blur"
-                  >
-                    <div className="space-y-1">
-                      {overflowActions.map((item) => {
-                        const IconComponent = item.icon;
-                        const isPending = pendingAction === item.key;
-                        return (
-                          <button
-                            key={item.key}
-                            type="button"
-                            role="menuitem"
-                            onClick={() => {
-                              setActionMenuOpen(false);
-                              item.onSelect();
-                            }}
-                            disabled={isPending}
-                            className={`flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-left text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 disabled:opacity-60 disabled:cursor-not-allowed ${
-                              item.tone === 'danger'
-                                ? 'text-error hover:bg-error/10 focus-visible:ring-error/40'
-                                : 'text-main/80 hover:bg-secondary/10 focus-visible:ring-secondary/40'
-                            }`}
-                          >
-                            <span className="flex items-center gap-2">
-                              {isPending ? (
-                                <CircleNotch className="h-3.5 w-3.5 animate-spin text-secondary/70" aria-hidden="true" />
-                              ) : (
-                                <IconComponent className="h-4 w-4 text-secondary/70" aria-hidden="true" />
-                              )}
-                              {item.label}
-                            </span>
-                          </button>
-                        );
-                      })}
-                    </div>
+              <div
+                id={actionMenuId}
+                ref={actionMenuRef}
+                role="menu"
+                aria-label="Entry actions"
+                className="absolute right-0 top-full z-50 mt-2 w-72 max-h-[75vh] overflow-y-auto rounded-2xl border border-secondary/20 bg-surface/95 p-2 shadow-2xl backdrop-blur"
+              >
+                <div className="space-y-1">
+                  {actionMenuItems.map((item) => {
+                    const IconComponent = item.icon;
+                    const isPending = pendingAction === item.key;
+                    return (
+                      <button
+                        key={item.key}
+                        type="button"
+                        role="menuitem"
+                        onClick={() => {
+                          setActionMenuOpen(false);
+                          item.onSelect();
+                        }}
+                        disabled={isPending}
+                        className={`flex w-full items-center justify-between rounded-xl px-3 py-2 text-left text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 disabled:opacity-60 disabled:cursor-not-allowed ${
+                          item.tone === 'danger'
+                            ? 'text-error hover:bg-error/10 focus-visible:ring-error/40'
+                            : 'text-main/80 hover:bg-secondary/10 focus-visible:ring-secondary/40'
+                        }`}
+                      >
+                        <span className="flex items-center gap-2">
+                          {isPending ? (
+                            <CircleNotch className="h-3.5 w-3.5 animate-spin text-secondary/70" aria-hidden="true" />
+                          ) : (
+                            <IconComponent className="h-4 w-4 text-secondary/70" aria-hidden="true" />
+                          )}
+                          {item.label}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
 
-                    {renderShareLinks()}
-                  </div>
-                )}
-              </>
+                {renderShareLinks()}
+              </div>
             )}
           </div>
         </div>

@@ -702,13 +702,21 @@ export default function PricingPage() {
           </div>
         </section>
 
-        {/* Feature Comparison Table */}
-        <section className="mb-10">
-          <h2 className="mb-4 text-xs font-semibold uppercase tracking-[0.2em] text-muted">
+        {/* Compare Features Button */}
+        <div className="mb-10 flex justify-center">
+          <button
+            type="button"
+            onClick={() => setShowComparisonModal(true)}
+            className={[
+              'inline-flex items-center gap-2 rounded-full border border-secondary/40 bg-surface/80 px-5 py-2.5 text-sm font-medium text-secondary backdrop-blur',
+              'hover:border-accent/60 hover:text-main',
+              prefersReducedMotion ? '' : 'transition'
+            ].join(' ')}
+          >
+            <Table className="h-4 w-4" />
             Compare all features
-          </h2>
-          <ComparisonTable />
-        </section>
+          </button>
+        </div>
 
         {/* Why upgrade */}
         <section className="mb-10 grid gap-4 md:grid-cols-3">
@@ -807,6 +815,9 @@ export default function PricingPage() {
 
       {/* Auth Modal */}
       <AuthModal isOpen={showAuthModal} onClose={handleAuthModalClose} />
+
+      {/* Comparison Modal */}
+      <ComparisonModal isOpen={showComparisonModal} onClose={() => setShowComparisonModal(false)} />
     </div>
   );
 }
