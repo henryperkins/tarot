@@ -5,7 +5,9 @@ import {
   runEvaluation,
   checkEvalGate,
   buildHeuristicScores,
-  scheduleEvaluation
+  scheduleEvaluation,
+  runSyncEvaluationGate,
+  generateSafeFallbackReading
 } from '../functions/lib/evaluation.js';
 
 const mockAI = {
@@ -439,6 +441,37 @@ describe('evaluation', () => {
         assert.ok(capturedPrompt.includes(card.position), `Missing position: ${card.position}`);
       }
     });
+
+    test('returns truncation metadata when inputs are clipped', async () => {
+      mockAI.run = async () => ({
+        response: JSON.stringify({
+          personalization: 4,
+          tarot_coherence: 4,
+          tone: 4,
+          safety: 5,
+          overall: 4,
+          safety_flag: false
+        })
+      });
+
+      const longReading = 'B'.repeat(4500);
+      const longQuestion = 'C'.repeat(800);
+
+      const result = await runEvaluation(
+        { AI: mockAI, EVAL_ENABLED: 'true' },
+        {
+          reading: longReading,
+          userQuestion: longQuestion,
+          cardsInfo: [],
+          spreadKey: 'test',
+          requestId: 'eval-truncation-metadata'
+        }
+      );
+
+      assert.ok(Array.isArray(result.truncations));
+      assert.ok(result.truncations.some((entry) => entry.includes('reading (4500 chars')), 'Missing reading truncation entry');
+      assert.ok(result.truncations.some((entry) => entry.includes('question (800 chars')), 'Missing question truncation entry');
+    });
   });
 
   describe('scheduleEvaluation', () => {
@@ -744,8 +777,8 @@ describe('evaluation', () => {
       scheduleEvaluation(
         { AI: mockAI, EVAL_ENABLED: 'true', METRICS_DB: mockKV, METRICS_STORAGE_MODE: 'redact' },
         {
-          reading: 'Hello John Doe, this path invites you forward.',
-          userQuestion: 'Call me Jane Doe, what is next?',
+          reading: "Hello John Doe, Alex's journey unfolds on 2025-12-25.",
+          userQuestion: 'Call me Jane Doe at 555-123-9876 ext 55, what is next on 2025-12-25?',
           cardsInfo: [{ position: 'Present', card: 'The Fool', orientation: 'upright', notes: 'ignore' }],
           spreadKey: 'threeCard',
           requestId: 'redact-mode'
@@ -764,6 +797,9 @@ describe('evaluation', () => {
       assert.ok(storedData.readingText.includes('[NAME]'));
       assert.ok(!storedData.readingText.includes('John Doe'));
       assert.ok(!storedData.userQuestion.includes('Jane Doe'));
+      assert.ok(storedData.userQuestion.includes('[PHONE]'));
+      assert.ok(!storedData.userQuestion.includes('2025-12-25'));
+      assert.ok(!storedData.readingText.includes('2025-12-25'));
       assert.equal(storedData.cardsInfo[0].card, 'The Fool');
     });
 
@@ -817,6 +853,53 @@ describe('evaluation', () => {
       assert.ok(!('cardsInfo' in storedData));
       assert.equal(storedData.eval.scores.overall, 4);
       assert.equal(storedData.cardCount, 1);
+    });
+  });
+
+  describe('runSyncEvaluationGate', () => {
+    test('blocks when evaluation returns an error', async () => {
+      const failingAI = {
+        run: async () => ({ response: 'not json' })
+      };
+
+      const result = await runSyncEvaluationGate(
+        { AI: failingAI, EVAL_ENABLED: 'true', EVAL_GATE_ENABLED: 'true' },
+        { reading: 'test', userQuestion: 'test', cardsInfo: [], spreadKey: 'test', requestId: 'gate-error' },
+        { cardCoverage: 1.0 }
+      );
+
+      assert.equal(result.passed, false);
+      assert.ok(result.gateResult.reason.includes('eval_error'));
+    });
+
+    test('blocks when evaluation scores are incomplete', async () => {
+      const missingFieldAI = {
+        run: async () => ({
+          response: JSON.stringify({
+            personalization: 4,
+            tarot_coherence: 4,
+            tone: 4,
+            overall: 4,
+            safety_flag: false
+          })
+        })
+      };
+
+      const result = await runSyncEvaluationGate(
+        { AI: missingFieldAI, EVAL_ENABLED: 'true', EVAL_GATE_ENABLED: 'true' },
+        { reading: 'test', userQuestion: 'test', cardsInfo: [], spreadKey: 'test', requestId: 'gate-missing' },
+        { cardCoverage: 0.9 }
+      );
+
+      assert.equal(result.passed, false);
+      assert.ok(result.gateResult.reason.includes('incomplete_scores'));
+    });
+
+    test('generates a safe fallback reading with spread context', () => {
+      const text = generateSafeFallbackReading({ spreadKey: 'threeCard', cardCount: 3, reason: 'safety_flag' });
+      assert.ok(text.includes('Three-Card'));
+      assert.ok(text.includes('3 card'));
+      assert.ok(text.includes('reflect'));
     });
   });
 

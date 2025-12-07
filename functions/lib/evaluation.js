@@ -17,6 +17,11 @@ const MAX_CARDS_INFO_LENGTH = 1500;
 // Default setting for PII storage - set to 'redact' for production safety
 const DEFAULT_METRICS_STORAGE_MODE = 'redact';
 
+// PII redaction patterns
+const PHONE_REGEX = /\b(?:\+?1[-.\s]?)?(?:\(?[0-9]{3}\)?[-.\s]?)?[0-9]{3}[-.\s]?[0-9]{4}(?:\s?(?:x|ext\.?|extension)\s?[0-9]{1,5})?\b/g;
+const ISO_DATE_REGEX = /\b\d{4}-\d{2}-\d{2}\b/g;
+const POSSESSIVE_NAME_REGEX = /\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+){0,2})'s\b/g;
+
 /**
  * Redact potentially sensitive information from user question.
  * Removes patterns that might contain PII like emails, phone numbers, names, etc.
@@ -33,10 +38,11 @@ function redactUserQuestion(text) {
   redacted = redacted.replace(/\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b/g, '[EMAIL]');
 
   // Redact phone numbers (various formats)
-  redacted = redacted.replace(/\b(?:\+?1[-.\s]?)?(?:\(?[0-9]{3}\)?[-.\s]?)?[0-9]{3}[-.\s]?[0-9]{4}\b/g, '[PHONE]');
+  redacted = redacted.replace(PHONE_REGEX, '[PHONE]');
 
   // Redact dates (various formats) that might be birthdates
   redacted = redacted.replace(/\b(?:0?[1-9]|1[0-2])[-/](?:0?[1-9]|[12][0-9]|3[01])[-/](?:19|20)?\d{2}\b/g, '[DATE]');
+  redacted = redacted.replace(ISO_DATE_REGEX, '[DATE]');
 
   // Redact potential names (capitalized sequences of 2-4 words)
   // Only in contexts like "my name is X" or "I'm X"
@@ -45,6 +51,7 @@ function redactUserQuestion(text) {
   // Additional name phrases
   redacted = redacted.replace(/(?:call me|name's|name is|i go by)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+){0,2})/gi,
     (match, name) => match.replace(name, '[NAME]'));
+  redacted = redacted.replace(POSSESSIVE_NAME_REGEX, (match) => match.replace(/^[A-Z][a-z]+(?:\s+[A-Z][a-z]+){0,2}/, '[NAME]'));
 
   // Redact SSN patterns
   redacted = redacted.replace(/\b\d{3}[-.\s]?\d{2}[-.\s]?\d{4}\b/g, '[SSN]');
@@ -69,13 +76,15 @@ function redactReadingText(text) {
   redacted = redacted.replace(/\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b/g, '[EMAIL]');
 
   // Redact phone numbers
-  redacted = redacted.replace(/\b(?:\+?1[-.\s]?)?(?:\(?[0-9]{3}\)?[-.\s]?)?[0-9]{3}[-.\s]?[0-9]{4}\b/g, '[PHONE]');
+  redacted = redacted.replace(PHONE_REGEX, '[PHONE]');
 
   // Redact mirrored names that may have been echoed back
   redacted = redacted.replace(/\b(?:dear|hello|hi|hey|thanks(?: you)?|remember|for you,?)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+){0,2})/gi,
     (match, name) => match.replace(name, '[NAME]'));
   redacted = redacted.replace(/\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+){0,2}),\s+(?:remember|consider|reflect|here)/g,
     (match, name) => match.replace(name, '[NAME]'));
+  redacted = redacted.replace(POSSESSIVE_NAME_REGEX, (match) => match.replace(/^[A-Z][a-z]+(?:\s+[A-Z][a-z]+){0,2}/, '[NAME]'));
+  redacted = redacted.replace(ISO_DATE_REGEX, '[DATE]');
 
   return redacted;
 }
@@ -336,12 +345,14 @@ function buildUserPrompt({ spreadKey, cardsInfo, userQuestion, reading, requestI
     console.warn(`[${requestId}] [eval] Input truncated: ${truncations.join(', ')}`);
   }
 
-  return EVAL_USER_TEMPLATE
+  const prompt = EVAL_USER_TEMPLATE
     .replace('{{spreadKey}}', spreadKey || 'unknown')
     .replace('{{cardCount}}', String(cardCount))
     .replace('{{cardsList}}', cardsResult.text || '(none)')
     .replace('{{userQuestion}}', questionResult.text || '(no question provided)')
     .replace('{{reading}}', readingResult.text || '');
+
+  return { prompt, truncations };
 }
 
 /**
@@ -351,6 +362,15 @@ function clampScore(value) {
   const num = Number(value);
   if (!Number.isFinite(num)) return null;
   return Math.max(1, Math.min(5, Math.round(num)));
+}
+
+function findMissingScoreFields(scores) {
+  if (!scores || typeof scores !== 'object') {
+    return ['scores'];
+  }
+
+  const required = ['personalization', 'tarot_coherence', 'tone', 'safety', 'overall', 'safety_flag'];
+  return required.filter((field) => scores[field] === null || scores[field] === undefined);
 }
 
 /**
@@ -384,7 +404,7 @@ export async function runEvaluation(env, params = {}) {
   const gatewayId = env.EVAL_GATEWAY_ID || null;
 
   try {
-    const userPrompt = buildUserPrompt({
+    const { prompt: userPrompt, truncations } = buildUserPrompt({
       spreadKey,
       cardsInfo,
       userQuestion,
@@ -457,6 +477,7 @@ export async function runEvaluation(env, params = {}) {
       latencyMs,
       gatewayLogId,
       promptVersion: EVAL_PROMPT_VERSION,
+      truncations,
       timestamp: new Date().toISOString()
     };
   } catch (err) {
@@ -628,7 +649,7 @@ export function checkEvalGate(evalResult) {
   }
 
   if (scores.tone && scores.tone < 2) {
-    return { shouldBlock: false, reason: `tone_warning_${scores.tone}` };
+    return { shouldBlock: true, reason: `tone_score_${scores.tone}` };
   }
 
   return { shouldBlock: false, reason: null };
@@ -664,10 +685,29 @@ export async function runSyncEvaluationGate(env, evalParams, narrativeMetrics = 
   // Try AI evaluation first
   let evalResult = await runEvaluation(env, evalParams);
 
-  // If AI eval failed, fall back to heuristic
-  if (!evalResult || evalResult.error) {
-    console.log(`[${requestId}] [gate] AI eval failed (${evalResult?.error || 'null'}), using heuristic fallback`);
-    evalResult = buildHeuristicScores(narrativeMetrics);
+  const missingFields = findMissingScoreFields(evalResult?.scores);
+  const hasEvalError = !evalResult || Boolean(evalResult.error);
+  const hasIncompleteScores = missingFields.length > 0;
+
+  if (hasEvalError || hasIncompleteScores) {
+    const fallbackEval = hasEvalError ? buildHeuristicScores(narrativeMetrics) : evalResult;
+    const reason = hasEvalError
+      ? `eval_error_${(evalResult?.error || 'unavailable').replace(/\s+/g, '_')}`
+      : `incomplete_scores_${missingFields.join('_')}`;
+    const latencyMs = Date.now() - startTime;
+
+    const gateResult = { shouldBlock: true, reason };
+
+    return {
+      passed: false,
+      evalResult: {
+        ...(fallbackEval || {}),
+        mode: hasEvalError ? 'error' : (fallbackEval?.mode || 'model'),
+        error: evalResult?.error || fallbackEval?.error || 'eval_unavailable'
+      },
+      gateResult,
+      latencyMs
+    };
   }
 
   const gateResult = checkEvalGate(evalResult);
