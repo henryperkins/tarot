@@ -1,4 +1,4 @@
-import { useDeferredValue, useCallback, useEffect, useMemo, useState } from 'react';
+import { useDeferredValue, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { CaretLeft, UploadSimple, ChartLine, Sparkle, BookOpen, CaretDown, CaretUp, ClockCounterClockwise } from '@phosphor-icons/react';
 import { useNavigate } from 'react-router-dom';
 import { GlobalNav } from './GlobalNav';
@@ -97,6 +97,10 @@ export default function Journal() {
   const [showAuthModal, setShowAuthModal] = useState(false);
   const navigate = useNavigate();
   const isMobileLayout = useSmallScreen(MOBILE_LAYOUT_MAX);
+  const isSmallSummary = useSmallScreen(640);
+  const summaryRef = useRef(null);
+  const [summaryExpanded, setSummaryExpanded] = useState(() => !isSmallSummary);
+  const [summaryInView, setSummaryInView] = useState(!isSmallSummary);
   const { publish: showToast } = useToast();
 
   const handleStartReading = () => {
@@ -176,6 +180,31 @@ export default function Journal() {
   useEffect(() => {
     setVisibleCount(VISIBLE_ENTRY_BATCH);
   }, [filterSignature, filteredEntries.length]);
+
+  useEffect(() => {
+    setSummaryExpanded(!isSmallSummary);
+    setSummaryInView(!isSmallSummary);
+  }, [isSmallSummary]);
+
+  useEffect(() => {
+    if (!summaryRef.current) return undefined;
+    if (!isSmallSummary) {
+      setSummaryInView(true);
+      return undefined;
+    }
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            setSummaryInView(true);
+          }
+        });
+      },
+      { threshold: 0.2 }
+    );
+    observer.observe(summaryRef.current);
+    return () => observer.disconnect();
+  }, [isSmallSummary]);
 
   const visibleEntries = useMemo(() => filteredEntries.slice(0, visibleCount), [filteredEntries, visibleCount]);
   const hasMoreEntries = filteredEntries.length > visibleCount;
@@ -274,16 +303,17 @@ export default function Journal() {
     ? (filteredEntries.length === 0 ? 'Showing whole journal' : `Journal: ${formatSummaryDate(latestAllEntryTs)}`)
     : 'Latest journal update';
   const heroDateLabel = heroEntry ? formatSummaryDate(getEntryTimestamp(heroEntry)) : null;
+  const heroCardLimit = isSmallSummary ? 1 : 3;
   const heroCards = useMemo(() => {
     if (!heroEntry || !Array.isArray(heroEntry.cards)) return [];
-    return heroEntry.cards.slice(0, 3).map((card, index) => ({
+    return heroEntry.cards.slice(0, heroCardLimit).map((card, index) => ({
       id: `${card.name || 'card'}-${index}`,
       name: card.name || 'Card',
       position: card.position || `Card ${index + 1}`,
       orientation: card.orientation || (card.isReversed ? 'Reversed' : 'Upright'),
       image: card.image || card.img || card.url || '/cardback.png'
     }));
-  }, [heroEntry]);
+  }, [heroEntry, heroCardLimit]);
   const summaryCardData = [
     {
       id: 'entries',
@@ -311,6 +341,7 @@ export default function Journal() {
     }
   ];
   const showSummaryBand = !loading && hasEntries;
+  const showInsightsContent = summaryExpanded && summaryInView;
   const NOISE_TEXTURE =
     "url('data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 160 160%22%3E%3Cfilter id=%22n%22%3E%3CfeTurbulence type=%22fractalNoise%22 baseFrequency=%220.9%22 numOctaves=%223%22 stitchTiles=%22stitch%22/%3E%3C/filter%3E%3Crect width=%22100%25%22 height=%22100%25%22 filter=%22url(%23n)%22 opacity=%220.35%22/%3E%3C/svg%3E')";
   const CARD_NODE_POSITIONS = {
@@ -684,40 +715,47 @@ export default function Journal() {
           )}
 
           {showSummaryBand && (
-            <section className="relative mb-6 overflow-hidden rounded-3xl border border-amber-300/10 bg-gradient-to-br from-[#07091a] via-[#0a0c1a] to-[#050714] shadow-[0_24px_64px_-24px_rgba(0,0,0,0.95)]">
-              {/* Dense star field */}
-              <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden="true">
-                {[
-                  { x: 5, y: 12, s: 1, o: 0.6 }, { x: 12, y: 8, s: 1.5, o: 0.8 }, { x: 18, y: 25, s: 1, o: 0.4 },
-                  { x: 25, y: 5, s: 2, o: 0.7 }, { x: 32, y: 18, s: 1, o: 0.5 }, { x: 38, y: 10, s: 1.5, o: 0.6 },
-                  { x: 45, y: 22, s: 1, o: 0.4 }, { x: 52, y: 6, s: 1, o: 0.7 }, { x: 58, y: 15, s: 2, o: 0.5 },
-                  { x: 65, y: 8, s: 1, o: 0.6 }, { x: 72, y: 20, s: 1.5, o: 0.4 }, { x: 78, y: 12, s: 1, o: 0.8 },
-                  { x: 85, y: 5, s: 1, o: 0.5 }, { x: 92, y: 18, s: 2, o: 0.6 }, { x: 95, y: 8, s: 1, o: 0.4 },
-                  { x: 8, y: 88, s: 1, o: 0.5 }, { x: 15, y: 92, s: 1.5, o: 0.6 }, { x: 22, y: 85, s: 1, o: 0.4 },
-                  { x: 35, y: 90, s: 2, o: 0.7 }, { x: 48, y: 95, s: 1, o: 0.5 }, { x: 62, y: 88, s: 1, o: 0.6 },
-                  { x: 75, y: 92, s: 1.5, o: 0.4 }, { x: 88, y: 86, s: 1, o: 0.7 }, { x: 95, y: 90, s: 1, o: 0.5 },
-                  { x: 3, y: 45, s: 1, o: 0.3 }, { x: 97, y: 55, s: 1, o: 0.3 }, { x: 50, y: 3, s: 1.5, o: 0.4 },
-                ].map((star, i) => (
-                  <div
-                    key={i}
-                    className="absolute rounded-full bg-amber-100"
-                    style={{
-                      left: `${star.x}%`,
-                      top: `${star.y}%`,
-                      width: star.s,
-                      height: star.s,
-                      opacity: star.o,
-                      boxShadow: star.o > 0.6 ? `0 0 ${star.s * 4}px ${star.s}px rgba(251,191,36,${star.o * 0.4})` : 'none'
-                    }}
-                  />
-                ))}
-              </div>
+            <section
+              ref={summaryRef}
+              className="relative mb-6 overflow-hidden rounded-3xl border border-amber-300/10 bg-gradient-to-br from-[#07091a] via-[#0a0c1a] to-[#050714] shadow-[0_24px_64px_-24px_rgba(0,0,0,0.95)]"
+            >
+              {summaryExpanded && summaryInView && (
+                <>
+                  {/* Dense star field */}
+                  <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden="true">
+                    {[
+                      { x: 5, y: 12, s: 1, o: 0.6 }, { x: 12, y: 8, s: 1.5, o: 0.8 }, { x: 18, y: 25, s: 1, o: 0.4 },
+                      { x: 25, y: 5, s: 2, o: 0.7 }, { x: 32, y: 18, s: 1, o: 0.5 }, { x: 38, y: 10, s: 1.5, o: 0.6 },
+                      { x: 45, y: 22, s: 1, o: 0.4 }, { x: 52, y: 6, s: 1, o: 0.7 }, { x: 58, y: 15, s: 2, o: 0.5 },
+                      { x: 65, y: 8, s: 1, o: 0.6 }, { x: 72, y: 20, s: 1.5, o: 0.4 }, { x: 78, y: 12, s: 1, o: 0.8 },
+                      { x: 85, y: 5, s: 1, o: 0.5 }, { x: 92, y: 18, s: 2, o: 0.6 }, { x: 95, y: 8, s: 1, o: 0.4 },
+                      { x: 8, y: 88, s: 1, o: 0.5 }, { x: 15, y: 92, s: 1.5, o: 0.6 }, { x: 22, y: 85, s: 1, o: 0.4 },
+                      { x: 35, y: 90, s: 2, o: 0.7 }, { x: 48, y: 95, s: 1, o: 0.5 }, { x: 62, y: 88, s: 1, o: 0.6 },
+                      { x: 75, y: 92, s: 1.5, o: 0.4 }, { x: 88, y: 86, s: 1, o: 0.7 }, { x: 95, y: 90, s: 1, o: 0.5 },
+                      { x: 3, y: 45, s: 1, o: 0.3 }, { x: 97, y: 55, s: 1, o: 0.3 }, { x: 50, y: 3, s: 1.5, o: 0.4 },
+                    ].map((star, i) => (
+                      <div
+                        key={i}
+                        className="absolute rounded-full bg-amber-100"
+                        style={{
+                          left: `${star.x}%`,
+                          top: `${star.y}%`,
+                          width: star.s,
+                          height: star.s,
+                          opacity: star.o,
+                          boxShadow: star.o > 0.6 ? `0 0 ${star.s * 4}px ${star.s}px rgba(251,191,36,${star.o * 0.4})` : 'none'
+                        }}
+                      />
+                    ))}
+                  </div>
 
-              {/* Nebula glows */}
-              <div className="pointer-events-none absolute -left-40 top-1/4 h-80 w-80 rounded-full bg-indigo-600/[0.07] blur-[100px]" aria-hidden="true" />
-              <div className="pointer-events-none absolute -right-32 top-1/3 h-64 w-64 rounded-full bg-amber-500/[0.05] blur-[80px]" aria-hidden="true" />
-              <div className="pointer-events-none absolute left-1/4 -bottom-24 h-56 w-56 rounded-full bg-purple-600/[0.06] blur-[90px]" aria-hidden="true" />
-              <div className="pointer-events-none absolute right-1/4 top-0 h-48 w-48 rounded-full bg-cyan-500/[0.04] blur-[70px]" aria-hidden="true" />
+                  {/* Nebula glows */}
+                  <div className="pointer-events-none absolute -left-40 top-1/4 h-80 w-80 rounded-full bg-indigo-600/[0.07] blur-[100px]" aria-hidden="true" />
+                  <div className="pointer-events-none absolute -right-32 top-1/3 h-64 w-64 rounded-full bg-amber-500/[0.05] blur-[80px]" aria-hidden="true" />
+                  <div className="pointer-events-none absolute left-1/4 -bottom-24 h-56 w-56 rounded-full bg-purple-600/[0.06] blur-[90px]" aria-hidden="true" />
+                  <div className="pointer-events-none absolute right-1/4 top-0 h-48 w-48 rounded-full bg-cyan-500/[0.04] blur-[70px]" aria-hidden="true" />
+                </>
+              )}
 
               <div className="relative p-5 sm:p-6 lg:p-8">
                 {/* Header */}
@@ -726,7 +764,18 @@ export default function Journal() {
                     <p className="text-[10px] uppercase tracking-[0.3em] text-amber-300/50">Journal Pulse</p>
                     <h2 className="text-xl sm:text-2xl font-serif text-amber-50/90">Your practice at a glance</h2>
                   </div>
-                  <div className="flex items-center gap-3">
+                  <div className="flex flex-wrap items-center justify-end gap-2 sm:gap-3">
+                    {isSmallSummary && (
+                      <button
+                        type="button"
+                        onClick={() => setSummaryExpanded(prev => !prev)}
+                        aria-expanded={summaryExpanded}
+                        className="inline-flex items-center gap-2 rounded-full border border-amber-300/35 bg-amber-300/10 px-3 py-1.5 text-xs font-semibold text-amber-50 shadow-[0_12px_30px_-18px_rgba(251,191,36,0.6)] transition hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/50"
+                      >
+                        <Sparkle className="h-4 w-4" weight="fill" aria-hidden />
+                        {summaryExpanded ? 'Hide insights' : 'Show insights'}
+                      </button>
+                    )}
                     <label className="flex items-center gap-2 text-xs text-amber-100/50 cursor-pointer select-none">
                       <input
                         type="checkbox"
@@ -747,7 +796,21 @@ export default function Journal() {
                   </div>
                 </div>
 
-                {heroEntry && heroCards.length > 0 && (
+                {!showInsightsContent && (
+                  <div className="mb-3 flex flex-wrap gap-2" aria-live="polite">
+                    {summaryCardData.slice(0, 2).map((card) => (
+                      <span
+                        key={card.id}
+                        className="inline-flex items-center gap-2 rounded-full border border-amber-300/20 bg-amber-300/10 px-3 py-1 text-xs font-semibold text-amber-50"
+                      >
+                        <Sparkle className="h-3.5 w-3.5 text-amber-200" aria-hidden />
+                        {card.label}: {card.value}
+                      </span>
+                    ))}
+                  </div>
+                )}
+
+                {showInsightsContent && heroEntry && heroCards.length > 0 && (
                   <div className="mb-4 grid gap-3 sm:grid-cols-3">
                     {heroCards.map((card, index) => (
                       <div
@@ -781,78 +844,78 @@ export default function Journal() {
                   </div>
                 )}
 
-                {/* Constellation layout */}
-                <div className="relative">
-                  {/* Mobile: 2x2 grid */}
-                  <div className="grid grid-cols-2 gap-3 lg:hidden">
-                    {statNodes.map((stat) => {
-                      const isHero = stat.id === 'entries';
-                      const icon = (() => {
-                        if (stat.id === 'entries') return <Sparkle className="h-4 w-4" weight="fill" aria-hidden />;
-                        if (stat.id === 'reversal') return <ChartLine className="h-4 w-4" aria-hidden />;
-                        if (stat.id === 'context') return <BookOpen className="h-4 w-4" aria-hidden />;
-                        return <ClockCounterClockwise className="h-4 w-4" aria-hidden />;
-                      })();
+                {showInsightsContent && (
+                  <div className="relative">
+                    {/* Mobile: 2x2 grid */}
+                    <div className="grid grid-cols-2 gap-3 lg:hidden">
+                      {statNodes.map((stat) => {
+                        const isHero = stat.id === 'entries';
+                        const icon = (() => {
+                          if (stat.id === 'entries') return <Sparkle className="h-4 w-4" weight="fill" aria-hidden />;
+                          if (stat.id === 'reversal') return <ChartLine className="h-4 w-4" aria-hidden />;
+                          if (stat.id === 'context') return <BookOpen className="h-4 w-4" aria-hidden />;
+                          return <ClockCounterClockwise className="h-4 w-4" aria-hidden />;
+                        })();
 
-                      return (
-                        <div key={stat.id} className="group relative">
-                          {/* Card glow */}
-                          {isHero && (
-                            <div className="pointer-events-none absolute -inset-2 rounded-lg bg-amber-400/10 blur-xl" aria-hidden="true" />
-                          )}
-                          {/* Tarot card */}
-                          <div className={`relative overflow-hidden rounded-lg ${isHero ? 'ring-1 ring-amber-400/30' : 'ring-1 ring-amber-200/10'}`}>
-                            {/* Outer decorative border area with pattern */}
-                            <div className={`absolute inset-0 ${isHero ? 'bg-gradient-to-b from-amber-900/40 via-amber-950/30 to-amber-900/40' : 'bg-gradient-to-b from-amber-900/20 via-amber-950/15 to-amber-900/20'}`}>
-                              {/* Geometric card-back pattern */}
-                              <svg className="absolute inset-0 w-full h-full opacity-[0.08]" aria-hidden="true">
-                                <defs>
-                                  <pattern id={`cardPattern-mobile-${stat.id}`} x="0" y="0" width="16" height="16" patternUnits="userSpaceOnUse">
-                                    <path d="M8 0L16 8L8 16L0 8Z" fill="none" stroke="currentColor" strokeWidth="0.5" className="text-amber-300" />
-                                    <circle cx="8" cy="8" r="2" fill="none" stroke="currentColor" strokeWidth="0.5" className="text-amber-300" />
-                                  </pattern>
-                                </defs>
-                                <rect width="100%" height="100%" fill={`url(#cardPattern-mobile-${stat.id})`} />
-                              </svg>
-                            </div>
-                            {/* Inner card frame */}
-                            <div className={`relative m-1.5 rounded overflow-hidden ${isHero ? 'bg-gradient-to-b from-[#0f0d18] via-[#0a0912] to-[#0f0d18]' : 'bg-gradient-to-b from-[#0c0a14] via-[#08070e] to-[#0c0a14]'}`}>
-                              <div className={`absolute inset-0 rounded border ${isHero ? 'border-amber-400/25' : 'border-amber-200/10'}`} />
-                              {/* Corner ornaments */}
-                              <svg className="absolute top-0 left-0 w-4 h-4 text-amber-400/40" viewBox="0 0 16 16" aria-hidden="true">
-                                <path d="M0 8L0 0L8 0" fill="none" stroke="currentColor" strokeWidth="1" />
-                                <circle cx="2" cy="2" r="1" fill="currentColor" />
-                              </svg>
-                              <svg className="absolute top-0 right-0 w-4 h-4 text-amber-400/40" viewBox="0 0 16 16" aria-hidden="true">
-                                <path d="M16 8L16 0L8 0" fill="none" stroke="currentColor" strokeWidth="1" />
-                                <circle cx="14" cy="2" r="1" fill="currentColor" />
-                              </svg>
-                              <svg className="absolute bottom-0 left-0 w-4 h-4 text-amber-400/40" viewBox="0 0 16 16" aria-hidden="true">
-                                <path d="M0 8L0 16L8 16" fill="none" stroke="currentColor" strokeWidth="1" />
-                                <circle cx="2" cy="14" r="1" fill="currentColor" />
-                              </svg>
-                              <svg className="absolute bottom-0 right-0 w-4 h-4 text-amber-400/40" viewBox="0 0 16 16" aria-hidden="true">
-                                <path d="M16 8L16 16L8 16" fill="none" stroke="currentColor" strokeWidth="1" />
-                                <circle cx="14" cy="14" r="1" fill="currentColor" />
-                              </svg>
-                              {/* Card content */}
-                              <div className="relative p-3 text-center">
-                                <div className={`mx-auto mb-2 flex h-8 w-8 items-center justify-center rounded-full ${isHero ? 'bg-amber-400/20 text-amber-300 ring-1 ring-amber-400/30' : 'bg-amber-200/10 text-amber-200/60 ring-1 ring-amber-200/15'}`}>
-                                  {icon}
+                        return (
+                          <div key={stat.id} className="group relative">
+                            {/* Card glow */}
+                            {isHero && (
+                              <div className="pointer-events-none absolute -inset-2 rounded-lg bg-amber-400/10 blur-xl" aria-hidden="true" />
+                            )}
+                            {/* Tarot card */}
+                            <div className={`relative overflow-hidden rounded-lg ${isHero ? 'ring-1 ring-amber-400/30' : 'ring-1 ring-amber-200/10'}`}>
+                              {/* Outer decorative border area with pattern */}
+                              <div className={`absolute inset-0 ${isHero ? 'bg-gradient-to-b from-amber-900/40 via-amber-950/30 to-amber-900/40' : 'bg-gradient-to-b from-amber-900/20 via-amber-950/15 to-amber-900/20'}`}>
+                                {/* Geometric card-back pattern */}
+                                <svg className="absolute inset-0 w-full h-full opacity-[0.08]" aria-hidden="true">
+                                  <defs>
+                                    <pattern id={`cardPattern-mobile-${stat.id}`} x="0" y="0" width="16" height="16" patternUnits="userSpaceOnUse">
+                                      <path d="M8 0L16 8L8 16L0 8Z" fill="none" stroke="currentColor" strokeWidth="0.5" className="text-amber-300" />
+                                      <circle cx="8" cy="8" r="2" fill="none" stroke="currentColor" strokeWidth="0.5" className="text-amber-300" />
+                                    </pattern>
+                                  </defs>
+                                  <rect width="100%" height="100%" fill={`url(#cardPattern-mobile-${stat.id})`} />
+                                </svg>
+                              </div>
+                              {/* Inner card frame */}
+                              <div className={`relative m-1.5 rounded overflow-hidden ${isHero ? 'bg-gradient-to-b from-[#0f0d18] via-[#0a0912] to-[#0f0d18]' : 'bg-gradient-to-b from-[#0c0a14] via-[#08070e] to-[#0c0a14]'}`}>
+                                <div className={`absolute inset-0 rounded border ${isHero ? 'border-amber-400/25' : 'border-amber-200/10'}`} />
+                                {/* Corner ornaments */}
+                                <svg className="absolute top-0 left-0 w-4 h-4 text-amber-400/40" viewBox="0 0 16 16" aria-hidden="true">
+                                  <path d="M0 8L0 0L8 0" fill="none" stroke="currentColor" strokeWidth="1" />
+                                  <circle cx="2" cy="2" r="1" fill="currentColor" />
+                                </svg>
+                                <svg className="absolute top-0 right-0 w-4 h-4 text-amber-400/40" viewBox="0 0 16 16" aria-hidden="true">
+                                  <path d="M16 8L16 0L8 0" fill="none" stroke="currentColor" strokeWidth="1" />
+                                  <circle cx="14" cy="2" r="1" fill="currentColor" />
+                                </svg>
+                                <svg className="absolute bottom-0 left-0 w-4 h-4 text-amber-400/40" viewBox="0 0 16 16" aria-hidden="true">
+                                  <path d="M0 8L0 16L8 16" fill="none" stroke="currentColor" strokeWidth="1" />
+                                  <circle cx="2" cy="14" r="1" fill="currentColor" />
+                                </svg>
+                                <svg className="absolute bottom-0 right-0 w-4 h-4 text-amber-400/40" viewBox="0 0 16 16" aria-hidden="true">
+                                  <path d="M16 8L16 16L8 16" fill="none" stroke="currentColor" strokeWidth="1" />
+                                  <circle cx="14" cy="14" r="1" fill="currentColor" />
+                                </svg>
+                                {/* Card content */}
+                                <div className="relative p-3 text-center">
+                                  <div className={`mx-auto mb-2 flex h-8 w-8 items-center justify-center rounded-full ${isHero ? 'bg-amber-400/20 text-amber-300 ring-1 ring-amber-400/30' : 'bg-amber-200/10 text-amber-200/60 ring-1 ring-amber-200/15'}`}>
+                                    {icon}
+                                  </div>
+                                  <p className={`text-[9px] uppercase tracking-[0.15em] mb-1 ${isHero ? 'text-amber-300/60' : 'text-amber-100/40'}`}>{stat.label}</p>
+                                  <p className={`font-serif leading-tight ${isHero ? 'text-2xl text-amber-100' : 'text-xl text-amber-50/80'}`}>{stat.value}</p>
+                                  {stat.hint && <p className={`mt-1 text-[10px] leading-snug ${isHero ? 'text-amber-200/40' : 'text-amber-100/25'}`}>{stat.hint}</p>}
                                 </div>
-                                <p className={`text-[9px] uppercase tracking-[0.15em] mb-1 ${isHero ? 'text-amber-300/60' : 'text-amber-100/40'}`}>{stat.label}</p>
-                                <p className={`font-serif leading-tight ${isHero ? 'text-2xl text-amber-100' : 'text-xl text-amber-50/80'}`}>{stat.value}</p>
-                                {stat.hint && <p className={`mt-1 text-[10px] leading-snug ${isHero ? 'text-amber-200/40' : 'text-amber-100/25'}`}>{stat.hint}</p>}
                               </div>
                             </div>
                           </div>
-                        </div>
-                      );
-                    })}
-                  </div>
+                        );
+                      })}
+                    </div>
 
-                  {/* Desktop: Constellation layout */}
-                  <div className="hidden lg:block relative" style={{ height: '340px' }}>
+                    {/* Desktop: Constellation layout */}
+                    <div className="hidden lg:block relative" style={{ height: '340px' }}>
                     {/* SVG constellation lines */}
                     <svg className="absolute inset-0 w-full h-full" aria-hidden="true">
                       <defs>
@@ -1148,6 +1211,7 @@ export default function Journal() {
                     })}
                   </div>
                 </div>
+                )}
               </div>
             </section>
           )}
@@ -1155,9 +1219,24 @@ export default function Journal() {
           {mobileRailContent}
 
           {loading ? (
-            <div className="py-12 text-center">
-              <div className="inline-block h-8 w-8 animate-spin rounded-full border-b-2 border-accent" />
-              <p className="mt-4 text-muted">Loading journal...</p>
+            <div className="space-y-4 py-6" aria-live="polite">
+              {Array.from({ length: 3 }).map((_, index) => (
+                <div
+                  key={index}
+                  className="animate-pulse rounded-2xl bg-surface/65 ring-1 ring-white/5 p-4 shadow-[0_16px_40px_-28px_rgba(0,0,0,0.7)]"
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="h-4 w-28 rounded-full bg-white/10" />
+                    <div className="h-9 w-9 rounded-full bg-white/10" />
+                  </div>
+                  <div className="mt-3 h-3 w-3/4 rounded-full bg-white/10" />
+                  <div className="mt-2 h-3 w-5/6 rounded-full bg-white/10" />
+                  <div className="mt-4 grid grid-cols-2 gap-2">
+                    <div className="h-16 rounded-xl bg-white/5" />
+                    <div className="h-16 rounded-xl bg-white/5" />
+                  </div>
+                </div>
+              ))}
             </div>
           ) : (
               <div className={hasEntries && hasRailContent ? 'lg:grid lg:grid-cols-[minmax(0,1fr)_360px] lg:gap-6' : ''}>

@@ -14,186 +14,422 @@ import {
   ArrowRight,
   CircleNotch,
   Cards,
-  Moon
+  Moon,
+  Graph,
+  Stack,
+  PlusCircle,
+  Lightbulb,
+  Headset,
+  Table
 } from '@phosphor-icons/react';
 import { useAuth } from '../contexts/AuthContext';
 import { useSubscription, SUBSCRIPTION_TIERS } from '../contexts/SubscriptionContext';
 import { useReducedMotion } from '../hooks/useReducedMotion';
 import AuthModal from '../components/AuthModal';
 
-/**
- * Feature row for comparison table
- */
-function FeatureRow({ feature, free, plus, pro, highlight = false }) {
-  const renderValue = (val) => {
-    if (val === true) {
-      return <Check className="h-5 w-5 text-accent mx-auto" weight="bold" />;
-    }
-    if (val === false) {
-      return <X className="h-5 w-5 text-muted/40 mx-auto" weight="bold" />;
-    }
-    return <span className="text-sm text-main">{val}</span>;
-  };
-
-  return (
-    <div className={`grid grid-cols-4 gap-4 py-3 ${highlight ? 'bg-accent/5 -mx-4 px-4 rounded-xl' : ''}`}>
-      <div className="text-sm text-secondary">{feature}</div>
-      <div className="text-center">{renderValue(free)}</div>
-      <div className="text-center">{renderValue(plus)}</div>
-      <div className="text-center">{renderValue(pro)}</div>
-    </div>
-  );
+function formatCount(value) {
+  if (value === Infinity) return 'Unlimited';
+  return value;
 }
 
-/**
- * Tier card for mobile/responsive view
- */
-function TierCard({ tier, config, isCurrentTier, onSelect, isLoading, disabled }) {
-  const prefersReducedMotion = useReducedMotion();
-  const isPaid = tier !== 'free';
+function formatPerMonth(value) {
+  if (value === Infinity) return 'Unlimited';
+  return `${value}/mo`;
+}
 
-  const tierIcons = {
+function TierCard({ tierKey, config, isCurrent, onSelect, isLoading, disabled }) {
+  const prefersReducedMotion = useReducedMotion();
+  const isFree = tierKey === 'free';
+  const isPaid = !isFree;
+
+  const iconMap = {
     free: Moon,
     plus: Sparkle,
     pro: Crown
   };
-
-  const TierIcon = tierIcons[tier];
+  const TierIcon = iconMap[tierKey];
 
   return (
     <div
-      className={`
-        relative rounded-3xl border p-6 transition-all
-        ${isCurrentTier
-          ? 'border-accent bg-accent/5 ring-2 ring-accent/30'
-          : 'border-secondary/40 bg-surface hover:border-accent/50'
-        }
-        ${tier === 'plus' ? 'lg:scale-105 lg:shadow-xl lg:shadow-accent/10' : ''}
-      `}
+      className={[
+        'relative rounded-3xl border bg-surface/80 p-6 backdrop-blur',
+        isCurrent
+          ? 'border-accent/80 ring-2 ring-accent/40'
+          : 'border-secondary/40 hover:border-accent/60',
+        prefersReducedMotion ? '' : 'transition-transform hover:-translate-y-0.5'
+      ].join(' ')}
     >
-      {tier === 'plus' && (
-        <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-          <span className="inline-flex items-center gap-1 rounded-full bg-accent px-3 py-1 text-xs font-semibold text-main">
-            <Star className="h-3 w-3" weight="fill" />
-            Most Popular
-          </span>
+      <div className="mb-4 flex items-center justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <div className={`rounded-full p-2 ${isPaid ? 'bg-accent/15' : 'bg-secondary/20'}`}>
+            <TierIcon className={`h-5 w-5 ${isPaid ? 'text-accent' : 'text-secondary'}`} weight="fill" />
+          </div>
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted">{config.name}</p>
+            <p className="text-lg font-semibold text-main">{config.label}</p>
+          </div>
+        </div>
+
+        <div className="text-right">
+          {isFree ? (
+            <p className="text-3xl font-bold text-main">Free</p>
+          ) : (
+            <p className="text-main">
+              <span className="text-3xl font-bold">${config.price}</span>
+              <span className="ml-1 text-sm text-muted">/month</span>
+            </p>
+          )}
+        </div>
+      </div>
+
+      {tierKey === 'plus' && (
+        <div className="mb-3 inline-flex items-center gap-1 rounded-full bg-accent/10 px-3 py-1 text-xs font-medium text-accent">
+          <Star className="h-3.5 w-3.5" weight="fill" />
+          Most popular
         </div>
       )}
 
-      {isCurrentTier && (
-        <div className="absolute -top-3 right-4">
-          <span className="inline-flex items-center rounded-full bg-primary/20 px-3 py-1 text-xs font-medium text-primary">
-            Current Plan
-          </span>
+      {isCurrent && (
+        <div className="mb-3 inline-flex items-center gap-1 rounded-full bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
+          <Check className="h-3.5 w-3.5" weight="bold" />
+          Current plan
         </div>
       )}
 
-      <div className="text-center mb-6">
-        <div className={`inline-flex rounded-full p-3 mb-3 ${isPaid ? 'bg-accent/20' : 'bg-secondary/20'}`}>
-          <TierIcon className={`h-8 w-8 ${isPaid ? 'text-accent' : 'text-secondary'}`} weight="fill" />
-        </div>
-        <h3 className="font-serif text-2xl text-main">{config.name}</h3>
-        <p className="text-xs uppercase tracking-[0.2em] text-muted mt-1">{config.label}</p>
-      </div>
-
-      <div className="text-center mb-6">
-        {isPaid ? (
-          <>
-            <span className="text-4xl font-bold text-main">${config.price}</span>
-            <span className="text-muted">/month</span>
-          </>
-        ) : (
-          <span className="text-4xl font-bold text-main">Free</span>
-        )}
-      </div>
-
-      <ul className="space-y-3 mb-6">
-        <li className="flex items-center gap-2 text-sm">
-          <Cards className="h-4 w-4 text-accent shrink-0" />
+      <ul className="mb-6 space-y-2 text-sm">
+        {/* Core limits */}
+        <li className="flex items-center gap-2">
+          <Cards className="h-4 w-4 text-accent" weight="fill" />
           <span className="text-secondary">
-            {config.monthlyReadings === Infinity ? 'Unlimited' : config.monthlyReadings} AI readings/month
+            {formatCount(config.monthlyReadings)} AI readings/month
           </span>
         </li>
-        <li className="flex items-center gap-2 text-sm">
-          <Microphone className="h-4 w-4 text-accent shrink-0" />
+        <li className="flex items-center gap-2">
+          <Microphone className="h-4 w-4 text-accent" weight="fill" />
           <span className="text-secondary">
-            {config.monthlyTTS === Infinity ? 'Unlimited' : config.monthlyTTS} voice narrations/month
+            {formatPerMonth(config.monthlyTTS)} voice narrations
           </span>
         </li>
-        <li className="flex items-center gap-2 text-sm">
+
+        {/* Spreads access */}
+        <li className="flex items-center gap-2">
+          <Stack className="h-4 w-4 text-accent" weight="fill" />
+          <span className="text-secondary">
+            {config.spreads === 'all+custom'
+              ? 'All spreads + custom'
+              : config.spreads === 'all'
+                ? 'All spread layouts'
+                : '3 core spreads'}
+          </span>
+        </li>
+
+        {/* GraphRAG depth */}
+        <li className="flex items-center gap-2">
+          <Graph className="h-4 w-4 text-accent" weight="fill" />
+          <span className="text-secondary">
+            {config.graphRAGDepth === 'full' ? 'Full GraphRAG context' : 'Limited context depth'}
+          </span>
+        </li>
+
+        {/* AI questions */}
+        <li className="flex items-center gap-2">
           {config.aiQuestions ? (
-            <Check className="h-4 w-4 text-accent shrink-0" />
+            <Check className="h-4 w-4 text-accent" weight="bold" />
           ) : (
-            <X className="h-4 w-4 text-muted/40 shrink-0" />
+            <X className="h-4 w-4 text-secondary" />
           )}
-          <span className={config.aiQuestions ? 'text-secondary' : 'text-muted'}>
-            AI question suggestions
-          </span>
+          <span className="text-secondary">Guided AI questions</span>
         </li>
-        <li className="flex items-center gap-2 text-sm">
-          {config.cloudJournal ? (
-            <Check className="h-4 w-4 text-accent shrink-0" />
-          ) : (
-            <X className="h-4 w-4 text-muted/40 shrink-0" />
-          )}
-          <span className={config.cloudJournal ? 'text-secondary' : 'text-muted'}>
-            Cloud journal sync
-          </span>
-        </li>
-        <li className="flex items-center gap-2 text-sm">
+
+        {/* Advanced insights */}
+        <li className="flex items-center gap-2">
           {config.advancedInsights ? (
-            <Check className="h-4 w-4 text-accent shrink-0" />
+            <Lightbulb className="h-4 w-4 text-accent" weight="fill" />
           ) : (
-            <X className="h-4 w-4 text-muted/40 shrink-0" />
+            <X className="h-4 w-4 text-secondary" />
           )}
-          <span className={config.advancedInsights ? 'text-secondary' : 'text-muted'}>
-            Advanced insights
-          </span>
+          <span className="text-secondary">Advanced insights & patterns</span>
         </li>
-        {tier === 'pro' && (
-          <li className="flex items-center gap-2 text-sm">
-            <Code className="h-4 w-4 text-accent shrink-0" />
-            <span className="text-secondary">API access ({config.apiCallsPerMonth} calls/mo)</span>
+
+        {/* Cloud journal */}
+        <li className="flex items-center gap-2">
+          {config.cloudJournal ? (
+            <CloudArrowUp className="h-4 w-4 text-accent" weight="fill" />
+          ) : (
+            <X className="h-4 w-4 text-secondary" />
+          )}
+          <span className="text-secondary">Cloud-synced journal</span>
+        </li>
+
+        {/* Ad-free */}
+        <li className="flex items-center gap-2">
+          {config.adFree ? (
+            <Check className="h-4 w-4 text-accent" weight="bold" />
+          ) : (
+            <X className="h-4 w-4 text-secondary" />
+          )}
+          <span className="text-secondary">Ad-free experience</span>
+        </li>
+
+        {/* API access (Pro only) */}
+        {config.apiAccess && (
+          <li className="flex items-center gap-2">
+            <Code className="h-4 w-4 text-accent" weight="fill" />
+            <span className="text-secondary">
+              API access · {config.apiCallsPerMonth?.toLocaleString()} calls/mo
+            </span>
+          </li>
+        )}
+
+        {/* Priority support hint for Pro */}
+        {tierKey === 'pro' && (
+          <li className="flex items-center gap-2">
+            <Headset className="h-4 w-4 text-accent" weight="fill" />
+            <span className="text-secondary">Priority support</span>
           </li>
         )}
       </ul>
 
       <button
         type="button"
-        onClick={() => onSelect(tier)}
-        disabled={disabled || isCurrentTier || isLoading}
-        className={`
-          w-full rounded-full py-3 px-6 text-sm font-semibold transition
-          ${prefersReducedMotion ? '' : 'hover:scale-[1.02]'}
-          ${isCurrentTier
-            ? 'border border-accent/60 bg-accent/10 text-main cursor-default'
+        onClick={() => onSelect(tierKey)}
+        disabled={disabled || isLoading || isCurrent}
+        className={[
+          'inline-flex w-full items-center justify-center gap-2 rounded-full px-4 py-2.5 text-sm font-semibold',
+          isCurrent
+            ? 'bg-secondary/30 text-secondary cursor-default'
             : isPaid
-              ? 'border border-accent bg-accent text-main hover:bg-accent/90 shadow-sm'
-              : 'border border-secondary/60 bg-surface-muted/60 text-main hover:bg-secondary/20 shadow-sm'
-          }
-          disabled:opacity-50 disabled:cursor-not-allowed
-        `}
+              ? 'bg-amber-500 text-neutral-900 shadow-md hover:bg-amber-400'
+              : 'border-2 border-secondary/60 bg-transparent text-main hover:border-accent hover:bg-secondary/10',
+          prefersReducedMotion ? '' : 'transition'
+        ].join(' ')}
       >
-        {isLoading ? (
-          <CircleNotch className="h-5 w-5 animate-spin mx-auto" />
-        ) : isCurrentTier ? (
-          'Current Plan'
-        ) : isPaid ? (
-          <span className="inline-flex items-center gap-2">
-            <Crown className="h-4 w-4" weight="fill" />
-            Upgrade to {config.label}
-          </span>
-        ) : (
-          'Get Started Free'
-        )}
+        {isCurrent
+          ? 'Current plan'
+          : isFree
+            ? 'Continue free'
+            : `Upgrade to ${config.label}`}
+        {isLoading && <CircleNotch className="h-4 w-4 animate-spin" />}
       </button>
     </div>
   );
 }
 
-/**
- * PricingPage - Full pricing page with tier comparison and Stripe checkout
- */
+const heroBenefits = [
+  {
+    label: 'Paid plans keep GraphRAG context intact',
+    icon: Eye
+  },
+  {
+    label: 'Plus unlocks AI questions & cloud sync',
+    icon: Sparkle
+  },
+  {
+    label: 'Pro adds unlimited readings and API',
+    icon: Lightning
+  }
+];
+
+const comparisonFeatures = [
+  { key: 'monthlyReadings', label: 'AI readings/month', type: 'count' },
+  { key: 'monthlyTTS', label: 'Voice narrations/month', type: 'count' },
+  { key: 'spreads', label: 'Spread layouts', type: 'spreads' },
+  { key: 'graphRAGDepth', label: 'GraphRAG context', type: 'graphRAG' },
+  { key: 'aiQuestions', label: 'Guided AI questions', type: 'boolean' },
+  { key: 'advancedInsights', label: 'Advanced insights & patterns', type: 'boolean' },
+  { key: 'cloudJournal', label: 'Cloud-synced journal', type: 'boolean' },
+  { key: 'adFree', label: 'Ad-free experience', type: 'boolean' },
+  { key: 'apiAccess', label: 'API access', type: 'api' },
+  { key: 'prioritySupport', label: 'Priority support', type: 'tier-check', tiers: ['pro'] },
+  { key: 'refundWindow', label: 'Refund window', type: 'refund' }
+];
+
+function ComparisonModal({ isOpen, onClose }) {
+  const prefersReducedMotion = useReducedMotion();
+  const tiers = ['free', 'plus', 'pro'];
+
+  const renderValue = (feature, tier) => {
+    const config = SUBSCRIPTION_TIERS[tier];
+
+    switch (feature.type) {
+      case 'count':
+        return formatCount(config[feature.key]);
+      case 'spreads':
+        if (config.spreads === 'all+custom') return 'All + custom';
+        if (config.spreads === 'all') return 'All 6 spreads';
+        return '3 core spreads';
+      case 'graphRAG':
+        return config.graphRAGDepth === 'full' ? 'Full depth' : 'Limited';
+      case 'boolean':
+        return config[feature.key] ? (
+          <Check className="mx-auto h-4 w-4 text-accent" weight="bold" />
+        ) : (
+          <X className="mx-auto h-4 w-4 text-secondary/50" />
+        );
+      case 'api':
+        return config.apiAccess ? (
+          <span>{config.apiCallsPerMonth?.toLocaleString()} calls/mo</span>
+        ) : (
+          <X className="mx-auto h-4 w-4 text-secondary/50" />
+        );
+      case 'tier-check':
+        return feature.tiers?.includes(tier) ? (
+          <Check className="mx-auto h-4 w-4 text-accent" weight="bold" />
+        ) : (
+          <X className="mx-auto h-4 w-4 text-secondary/50" />
+        );
+      case 'refund':
+        return tier === 'free' ? (
+          <span className="text-secondary/50">—</span>
+        ) : (
+          <span>7 days</span>
+        );
+      default:
+        return '—';
+    }
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="comparison-modal-title"
+    >
+      {/* Backdrop */}
+      <div
+        className={[
+          'absolute inset-0 bg-black/70 backdrop-blur-sm',
+          prefersReducedMotion ? '' : 'animate-fade-in'
+        ].join(' ')}
+        onClick={onClose}
+        aria-hidden="true"
+      />
+
+      {/* Modal content */}
+      <div
+        className={[
+          'relative max-h-[85vh] w-full max-w-3xl overflow-hidden rounded-3xl border border-secondary/30 bg-main shadow-2xl',
+          prefersReducedMotion ? '' : 'animate-scale-in'
+        ].join(' ')}
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between border-b border-secondary/20 px-6 py-4">
+          <h2 id="comparison-modal-title" className="text-lg font-semibold text-main">
+            Compare all features
+          </h2>
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-full p-2 text-muted transition hover:bg-secondary/20 hover:text-main"
+            aria-label="Close comparison"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+
+        {/* Table */}
+        <div className="overflow-x-auto p-4">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-secondary/30">
+                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.15em] text-muted">
+                  Feature
+                </th>
+                {tiers.map((tier) => (
+                  <th
+                    key={tier}
+                    className="px-4 py-3 text-center text-xs font-semibold uppercase tracking-[0.15em] text-muted"
+                  >
+                    {SUBSCRIPTION_TIERS[tier].label}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {comparisonFeatures.map((feature, idx) => (
+                <tr
+                  key={feature.key}
+                  className={idx < comparisonFeatures.length - 1 ? 'border-b border-secondary/20' : ''}
+                >
+                  <td className="px-4 py-2.5 text-secondary">{feature.label}</td>
+                  {tiers.map((tier) => (
+                    <td key={tier} className="px-4 py-2.5 text-center text-main">
+                      {renderValue(feature, tier)}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Footer hint */}
+        <div className="border-t border-secondary/20 px-6 py-3 text-center">
+          <p className="text-xs text-muted">
+            All paid plans include a 7-day refund window on first purchase
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+const faqs = [
+  {
+    question: 'Can I cancel anytime?',
+    answer:
+      'Yes. You can cancel Plus or Pro from your account settings. Your plan will stay active until the end of the current billing period.'
+  },
+  {
+    question: 'What payment methods do you accept?',
+    answer:
+      'Stripe supports all major credit and debit cards, plus Apple Pay and Google Pay where available.'
+  },
+  {
+    question: 'What happens when I hit my reading limit?',
+    answer:
+      'You keep access to your journal and past readings. New AI readings pause until your month renews or you upgrade tiers.'
+  },
+  {
+    question: 'Do you offer refunds?',
+    answer: 'We offer a 7-day refund window on first-time upgrades if the paid plan is not a fit.'
+  }
+];
+
+function FAQItem({ item, index }) {
+  const [open, setOpen] = useState(false);
+  const questionId = `faq-question-${index}`;
+  const answerId = `faq-answer-${index}`;
+
+  return (
+    <div className="rounded-2xl border border-secondary/30 bg-surface/80">
+      <button
+        type="button"
+        id={questionId}
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        aria-controls={answerId}
+        className="flex w-full items-center justify-between gap-4 px-4 py-3 text-left"
+      >
+        <span className="text-sm font-medium text-main">{item.question}</span>
+        <span className="text-xs text-muted" aria-hidden="true">{open ? '–' : '+'}</span>
+      </button>
+      <div
+        id={answerId}
+        role="region"
+        aria-labelledby={questionId}
+        hidden={!open}
+        className={open ? 'px-4 pb-3' : ''}
+      >
+        {open && <p className="text-xs text-muted">{item.answer}</p>}
+      </div>
+    </div>
+  );
+}
+
 export default function PricingPage() {
   const navigate = useNavigate();
   const { isAuthenticated } = useAuth();
@@ -204,68 +440,69 @@ export default function PricingPage() {
   const [error, setError] = useState('');
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [pendingTier, setPendingTier] = useState(null);
+  const [showComparisonModal, setShowComparisonModal] = useState(false);
 
   const tiers = ['free', 'plus', 'pro'];
-  const tierOrderMap = { free: 0, plus: 1, pro: 2 };
 
-  const handleSelectTier = useCallback(async (tier) => {
-    setError('');
+  const handleSelectTier = useCallback(
+    async (tier) => {
+      setError('');
 
-    // Free tier - just go to home
-    if (tier === 'free') {
-      navigate('/');
-      return;
-    }
-
-    // Require authentication for paid tiers
-    if (!isAuthenticated) {
-      setPendingTier(tier);
-      setShowAuthModal(true);
-      return;
-    }
-
-    // Already on this tier
-    if (tier === currentTier) {
-      return;
-    }
-
-    // Create checkout session
-    setLoadingTier(tier);
-    try {
-      const response = await fetch('/api/create-checkout-session', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        credentials: 'include',
-        body: JSON.stringify({
-          tier,
-          successUrl: `${window.location.origin}/account?session_id={CHECKOUT_SESSION_ID}&upgrade=success`,
-          cancelUrl: `${window.location.origin}/pricing`
-        })
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to create checkout session');
+      // Free tier - just go to home
+      if (tier === 'free') {
+        navigate('/');
+        return;
       }
 
-      // Redirect to Stripe Checkout
-      if (data.url) {
-        window.location.href = data.url;
-      } else {
-        throw new Error('No checkout URL returned');
+      // Require authentication for paid tiers
+      if (!isAuthenticated) {
+        setPendingTier(tier);
+        setShowAuthModal(true);
+        return;
       }
-    } catch (err) {
-      console.error('Checkout error:', err);
-      setError(err.message || 'Unable to start checkout. Please try again.');
-    } finally {
-      setLoadingTier(null);
-    }
-  }, [isAuthenticated, currentTier, navigate]);
 
-  // Handle auth modal close - continue to checkout if user logged in with pending tier
+      // Already on this tier
+      if (tier === currentTier) {
+        return;
+      }
+
+      try {
+        setLoadingTier(tier);
+
+        const response = await fetch('/api/create-checkout-session', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          credentials: 'include',
+          body: JSON.stringify({
+            tier,
+            successUrl: `${window.location.origin}/account?session_id={CHECKOUT_SESSION_ID}&upgrade=success`,
+            cancelUrl: `${window.location.origin}/pricing`
+          })
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.error || 'Failed to create checkout session');
+        }
+
+        if (data.url) {
+          window.location.href = data.url;
+        } else {
+          throw new Error('No checkout URL returned');
+        }
+      } catch (err) {
+        console.error('Checkout error:', err);
+        setError(err.message || 'Unable to start checkout. Please try again.');
+      } finally {
+        setLoadingTier(null);
+      }
+    },
+    [isAuthenticated, currentTier, navigate]
+  );
+
   const handleAuthModalClose = useCallback(() => {
     setShowAuthModal(false);
     if (pendingTier && isAuthenticated) {
@@ -274,749 +511,302 @@ export default function PricingPage() {
     setPendingTier(null);
   }, [pendingTier, isAuthenticated, handleSelectTier]);
 
-  const formatMonthly = (value) => (value === Infinity ? 'Unlimited' : `${value}/mo`);
-  const formatCount = (value) => (value === Infinity ? 'Unlimited' : value);
-  const hasCustomSpreads = (tierConfig) => tierConfig.spreads === 'all+custom';
-  const hasAdvancedSpreads = (tierConfig) => tierConfig.spreads === 'all' || tierConfig.spreads === 'all+custom';
-
-  // Feature comparison data
-  const features = [
-    {
-      feature: 'AI Readings per Month',
-      free: formatCount(SUBSCRIPTION_TIERS.free.monthlyReadings),
-      plus: formatCount(SUBSCRIPTION_TIERS.plus.monthlyReadings),
-      pro: formatCount(SUBSCRIPTION_TIERS.pro.monthlyReadings)
-    },
-    {
-      feature: 'Voice Narrations',
-      free: formatMonthly(SUBSCRIPTION_TIERS.free.monthlyTTS),
-      plus: formatMonthly(SUBSCRIPTION_TIERS.plus.monthlyTTS),
-      pro: formatMonthly(SUBSCRIPTION_TIERS.pro.monthlyTTS)
-    },
-    { feature: 'Basic Spreads (1-5 cards)', free: true, plus: true, pro: true },
-    {
-      feature: 'Advanced Spreads (Celtic Cross)',
-      free: hasAdvancedSpreads(SUBSCRIPTION_TIERS.free),
-      plus: hasAdvancedSpreads(SUBSCRIPTION_TIERS.plus),
-      pro: hasAdvancedSpreads(SUBSCRIPTION_TIERS.pro)
-    },
-    { feature: 'AI Question Suggestions', free: SUBSCRIPTION_TIERS.free.aiQuestions, plus: SUBSCRIPTION_TIERS.plus.aiQuestions, pro: SUBSCRIPTION_TIERS.pro.aiQuestions, highlight: true },
-    { feature: 'Cloud Journal Sync', free: SUBSCRIPTION_TIERS.free.cloudJournal, plus: SUBSCRIPTION_TIERS.plus.cloudJournal, pro: SUBSCRIPTION_TIERS.pro.cloudJournal },
-    { feature: 'Advanced Insights & Analytics', free: SUBSCRIPTION_TIERS.free.advancedInsights, plus: SUBSCRIPTION_TIERS.plus.advancedInsights, pro: SUBSCRIPTION_TIERS.pro.advancedInsights },
-    { feature: 'Full GraphRAG Context', free: SUBSCRIPTION_TIERS.free.graphRAGDepth === 'full', plus: SUBSCRIPTION_TIERS.plus.graphRAGDepth === 'full', pro: SUBSCRIPTION_TIERS.pro.graphRAGDepth === 'full' },
-    { feature: 'Ad-Free Experience', free: SUBSCRIPTION_TIERS.free.adFree, plus: SUBSCRIPTION_TIERS.plus.adFree, pro: SUBSCRIPTION_TIERS.pro.adFree },
-    { feature: 'Custom Spread Builder', free: false, plus: hasCustomSpreads(SUBSCRIPTION_TIERS.plus), pro: hasCustomSpreads(SUBSCRIPTION_TIERS.pro), highlight: true },
-    { feature: 'API Access', free: false, plus: false, pro: SUBSCRIPTION_TIERS.pro.apiAccess ? `${SUBSCRIPTION_TIERS.pro.apiCallsPerMonth} calls/mo` : false },
-    { feature: 'Priority Support', free: false, plus: false, pro: true }
-  ];
-
-  const valueProps = [
-    {
-      title: 'Context that stays true',
-      description: 'GraphRAG semantic scoring keeps prompts grounded in the querent\'s story so premium users feel the difference.',
-      icon: Sparkle
-    },
-    {
-      title: 'Voice & ritual built-in',
-      description: 'Narrate readings, guide intentions, and keep seekers engaged with ambient UX that feels premium.',
-      icon: Microphone
-    },
-    {
-      title: 'Cloud-safe journals',
-      description: 'Cloud sync and backups keep notes safe while you upsell ad-free focus and advanced insights.',
-      icon: CloudArrowUp
-    }
-  ];
-
-  const planHighlights = [
-    {
-      tier: 'plus',
-      title: 'Plus amplifies weekly readers',
-      bullets: [
-        `${SUBSCRIPTION_TIERS.plus.monthlyReadings} AI readings and ${SUBSCRIPTION_TIERS.plus.monthlyTTS} narrations each month`,
-        'AI-generated question prompts to unblock seekers',
-        'Cloud journal sync, advanced insights, and ad-free sessions'
-      ]
-    },
-    {
-      tier: 'pro',
-      title: 'Pro is built for practitioners and builders',
-      bullets: [
-        `${SUBSCRIPTION_TIERS.pro.monthlyReadings === Infinity ? 'Unlimited' : SUBSCRIPTION_TIERS.pro.monthlyReadings} AI readings plus unlimited narration`,
-        'Custom spreads with full GraphRAG depth and advanced insights',
-        `API access with ${SUBSCRIPTION_TIERS.pro.apiCallsPerMonth} calls each month`
-      ]
-    }
-  ];
-
-  const heroStats = [
-    {
-      label: 'GraphRAG context',
-      detail: 'Paid tiers keep full passages & scoring',
-      icon: Eye
-    },
-    {
-      label: 'Upgrade gates',
-      detail: 'AI questions + cloud sync are Plus+',
-      icon: Lightning
-    },
-    {
-      label: 'Power features',
-      detail: 'Unlimited + API for practitioners',
-      icon: Code
-    }
-  ];
-
-  const heroBenefits = [
-    {
-      label: 'GraphRAG stays intact on paid plans',
-      icon: Eye
-    },
-    {
-      label: 'AI questions + cloud sync unlock at Plus',
-      icon: Sparkle
-    },
-    {
-      label: 'Unlimited readings & API reserved for Pro',
-      icon: Lightning
-    },
-    {
-      label: 'Stripe checkout ready with refund support',
-      icon: CloudArrowUp
-    }
-  ];
-
-  const upgradeMoments = [
-    {
-      tier: 'plus',
-      badge: 'Weekly readers',
-      title: 'Lock in Plus before you hit the limits',
-      bullets: [
-        `${SUBSCRIPTION_TIERS.plus.monthlyReadings} AI readings + ${SUBSCRIPTION_TIERS.plus.monthlyTTS} narrations per month`,
-        'AI question prompts, cloud journal sync, and ad-free focus',
-        'Best for seekers who rely on guided readings every week'
-      ]
-    },
-    {
-      tier: 'pro',
-      badge: 'Practitioners & builders',
-      title: 'Pro keeps your practice premium',
-      bullets: [
-        'Unlimited readings and narration with full GraphRAG depth',
-        `Custom spreads and ${SUBSCRIPTION_TIERS.pro.apiCallsPerMonth} API calls for client portals`,
-        'For readers who sell sessions or automate tarot workflows'
-      ]
-    }
-  ];
-
-  const paidPerks = [
-    {
-      label: 'AI question suggestions',
-      detail: 'Plus & Pro unlock guided prompts so seekers never get stuck.',
-      icon: Sparkle
-    },
-    {
-      label: 'Cloud journal sync',
-      detail: 'Keep notes safe across devices with backups for every reading.',
-      icon: CloudArrowUp
-    },
-    {
-      label: 'Ad-free focus',
-      detail: 'Remove distractions during spreads and rituals on paid plans.',
-      icon: Moon
-    },
-    {
-      label: 'Full GraphRAG depth',
-      detail: 'Premium tiers keep full passages and semantic scoring intact.',
-      icon: Eye
-    }
-  ];
+  // Only show sticky CTA for confirmed free-tier users (not during loading)
+  const showMobileSticky = !subscriptionLoading && currentTier === 'free';
 
   return (
     <div className="min-h-screen bg-main text-main">
       {/* Header */}
       <header className="border-b border-secondary/20">
-        <div className="mx-auto max-w-6xl px-4 py-4 flex items-center justify-between">
-          <Link to="/" className="flex items-center gap-2 text-accent hover:text-accent/80 transition">
+        <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-4">
+          <Link to="/" className="flex items-center gap-2 text-accent transition hover:text-accent/80">
             <Eye className="h-6 w-6" weight="duotone" />
             <span className="font-serif text-xl">Tableu</span>
           </Link>
           <nav className="flex items-center gap-4">
-            <Link to="/" className="text-sm text-muted hover:text-main transition">
+            <Link to="/" className="text-sm text-muted transition hover:text-main">
               Reading
             </Link>
-            <Link to="/journal" className="text-sm text-muted hover:text-main transition">
+            <Link to="/journal" className="text-sm text-muted transition hover:text-main">
               Journal
             </Link>
-      </nav>
-    </div>
-  </header>
+            <Link to="/pricing" className="text-sm font-medium text-main">
+              Pricing
+            </Link>
+          </nav>
+        </div>
+      </header>
 
-  <main className="mx-auto max-w-6xl px-4 py-12">
+      <main className="mx-auto max-w-6xl px-4 pb-24 pt-8">
         {/* Hero */}
-        <section className="relative overflow-hidden rounded-[32px] border border-secondary/30 bg-gradient-to-br from-primary/10 via-surface to-surface-muted p-6 md:p-10 mb-12">
-          <div className="pointer-events-none absolute inset-0">
-            <div className="absolute -left-12 -top-20 h-48 w-48 rounded-full bg-accent/20 blur-3xl" />
-            <div className="absolute -right-16 top-6 h-56 w-56 rounded-full bg-primary/20 blur-3xl" />
-            <div className="absolute bottom-0 left-1/3 h-32 w-72 rounded-full bg-secondary/10 blur-3xl" />
-          </div>
-
-          <div className="relative grid items-center gap-10 md:grid-cols-[1.05fr,0.95fr]">
-            <div className="space-y-5">
-              <div className="inline-flex items-center gap-2 rounded-full bg-accent/15 px-4 py-2 text-xs font-semibold text-accent">
-                <Sparkle className="h-4 w-4" weight="fill" />
-                Monetization ready
-              </div>
-              <h1 className="font-serif text-4xl md:text-5xl text-main leading-tight">
+        <section className="mb-10 grid gap-10 lg:grid-cols-[minmax(0,1.25fr)_minmax(0,0.9fr)] lg:items-center">
+          <div className="space-y-6">
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-accent">
+              Monetization ready
+            </p>
+            <div className="space-y-3">
+              <h1 className="font-serif text-3xl leading-tight sm:text-4xl md:text-5xl">
                 Earn while keeping seekers grounded
               </h1>
-              <p className="text-lg text-muted max-w-2xl">
-                Paid tiers preserve full GraphRAG context, premium rituals, and a clear upgrade path—so free users try everything once and know exactly why to convert.
+              <p className="max-w-2xl text-sm text-muted sm:text-base">
+                Let new seekers try a full reading on Seeker, then invite them into Plus and Pro for deeper
+                context, cloud journals, and voice rituals every month.
               </p>
+            </div>
 
-              <div className="grid gap-3 sm:grid-cols-2">
-                {heroBenefits.map(({ label, icon: Icon }) => (
-                  <div
-                    key={label}
-                    className="flex items-center gap-2 rounded-2xl border border-secondary/30 bg-surface/80 px-3 py-2 backdrop-blur"
-                  >
-                    <div className="rounded-full bg-accent/15 p-2">
-                      <Icon className="h-4 w-4 text-accent" weight="fill" />
-                    </div>
-                    <p className="text-sm text-secondary">{label}</p>
-                  </div>
-                ))}
-              </div>
-
-              <div className="flex flex-wrap items-center gap-3">
-                <button
-                  type="button"
-                  onClick={() => handleSelectTier('plus')}
-                  disabled={loadingTier !== null}
-                  className={`
-                    inline-flex items-center gap-2 rounded-full border border-accent bg-accent px-6 py-3 text-sm font-semibold text-main shadow-sm
-                    ${prefersReducedMotion ? '' : 'hover:scale-[1.02] transition'}
-                    disabled:opacity-60 disabled:cursor-not-allowed
-                  `}
-                >
-                  <Sparkle className="h-4 w-4" weight="fill" />
-                  Upgrade to Plus
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+              <button
+                type="button"
+                onClick={() => handleSelectTier('plus')}
+                disabled={loadingTier !== null}
+                className={[
+                  'inline-flex items-center justify-center gap-2 rounded-full px-6 py-3 text-sm font-semibold shadow-md',
+                  'bg-amber-500 text-neutral-900 hover:bg-amber-400',
+                  prefersReducedMotion ? '' : 'transition hover:scale-[1.02]'
+                ].join(' ')}
+              >
+                <Sparkle className="h-4 w-4" weight="fill" />
+                Upgrade to Plus
+                {loadingTier === 'plus' ? (
+                  <CircleNotch className="h-4 w-4 animate-spin" />
+                ) : (
                   <ArrowRight className="h-4 w-4" />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleSelectTier('pro')}
-                  disabled={loadingTier !== null}
-                  className={`
-                    inline-flex items-center gap-2 rounded-full border border-secondary/40 bg-surface px-6 py-3 text-sm font-semibold text-main
-                    ${prefersReducedMotion ? '' : 'hover:scale-[1.02] transition'}
-                    disabled:opacity-60 disabled:cursor-not-allowed
-                  `}
-                >
-                  <Crown className="h-4 w-4" weight="fill" />
-                  Go Pro
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleSelectTier('free')}
-                  disabled={loadingTier !== null}
-                  className={`
-                    inline-flex items-center gap-2 rounded-full border border-secondary/40 px-6 py-3 text-sm font-semibold text-main
-                    ${prefersReducedMotion ? '' : 'hover:scale-[1.02] transition'}
-                    disabled:opacity-60 disabled:cursor-not-allowed
-                  `}
-                >
-                  <Cards className="h-4 w-4" weight="fill" />
-                  Start free
-                </button>
-              </div>
+                )}
+              </button>
 
-              <div className="flex flex-wrap gap-4 text-xs text-muted">
-                <span className="inline-flex items-center gap-2">
-                  <Check className="h-4 w-4 text-accent" weight="bold" />
-                  Cancel anytime
-                </span>
-                <span className="inline-flex items-center gap-2">
-                  <Check className="h-4 w-4 text-accent" weight="bold" />
-                  7-day refund window for paid tiers
-                </span>
-                <span className="inline-flex items-center gap-2">
-                  <Check className="h-4 w-4 text-accent" weight="bold" />
-                  Secure Stripe checkout
-                </span>
+              <button
+                type="button"
+                onClick={() => handleSelectTier('pro')}
+                disabled={loadingTier !== null}
+                className={[
+                  'inline-flex items-center justify-center gap-2 rounded-full px-6 py-3 text-sm font-semibold',
+                  'border-2 border-secondary/60 bg-transparent text-main hover:border-amber-500/60 hover:bg-secondary/10',
+                  prefersReducedMotion ? '' : 'transition hover:scale-[1.02]'
+                ].join(' ')}
+              >
+                <Crown className="h-4 w-4" weight="fill" />
+                Explore Pro
+              </button>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => handleSelectTier('free')}
+              disabled={loadingTier !== null}
+              className="mt-1 text-xs text-muted underline underline-offset-4"
+            >
+              Or stay on the Seeker plan for free
+            </button>
+
+            <div className="mt-4 grid gap-3 sm:grid-cols-2">
+              {heroBenefits.map(({ label, icon: Icon }) => (
+                <div
+                  key={label}
+                  className="flex items-center gap-2 rounded-2xl border border-secondary/30 bg-surface/80 px-3 py-2 backdrop-blur"
+                >
+                  <div className="rounded-full bg-accent/15 p-2">
+                    <Icon className="h-4 w-4 text-accent" weight="fill" />
+                  </div>
+                  <p className="text-xs text-secondary sm:text-sm">{label}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Desktop "plans at a glance" panel */}
+          <div className="hidden rounded-3xl border border-secondary/30 bg-surface/80 p-6 lg:block">
+            <div className="mb-5 flex items-center justify-between gap-4">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted">
+                  Plans at a glance
+                </p>
+                <p className="mt-1 text-sm text-secondary">
+                  From <span className="font-semibold text-main">$7.99/month</span>
+                </p>
+              </div>
+              <div className="flex items-center gap-2 rounded-full bg-main/80 px-3 py-1 text-[11px] text-muted">
+                <Lightning className="h-3.5 w-3.5 text-accent" weight="fill" />
+                <span>For steady readers & practitioners</span>
               </div>
             </div>
 
-            <div className="relative">
-              <div className="rounded-3xl border border-secondary/40 bg-surface/90 p-6 shadow-2xl shadow-accent/10">
-                <div className="flex items-center justify-between mb-4">
-                  <p className="text-xs uppercase tracking-[0.2em] text-muted">Plan snapshot</p>
-                  <span className="inline-flex items-center gap-2 rounded-full bg-accent/15 px-3 py-1 text-xs font-semibold text-accent">
-                    <Lightning className="h-3.5 w-3.5" weight="fill" />
-                    Conversion ready
-                  </span>
-                </div>
-
-                <div className="space-y-3">
-                  {tiers.map((tier) => {
-                    const config = SUBSCRIPTION_TIERS[tier];
-                    const isPaid = tier !== 'free';
-                    const isCurrent = currentTier === tier;
-                    const tierIcons = { free: Moon, plus: Sparkle, pro: Crown };
-                    const TierIcon = tierIcons[tier];
-
-                    return (
-                      <div
-                        key={tier}
-                        className={`flex items-center justify-between rounded-2xl border px-4 py-3 ${
-                          isPaid ? 'border-accent/40 bg-accent/5' : 'border-secondary/30 bg-surface-muted/60'
-                        }`}
-                      >
-                        <div className="flex items-center gap-3">
-                          <div className={`rounded-full p-2 ${isPaid ? 'bg-accent/20' : 'bg-secondary/20'}`}>
-                            <TierIcon className={`h-5 w-5 ${isPaid ? 'text-accent' : 'text-secondary'}`} weight="fill" />
-                          </div>
-                          <div>
-                            <p className="text-sm font-semibold text-main">{config.name}</p>
-                            <p className="text-xs text-muted">
-                              {isPaid ? `$${config.price}/mo • ${config.label}` : 'Start free • Seeker'}
-                            </p>
-                          </div>
-                        </div>
-                        {isCurrent ? (
-                          <span className="rounded-full bg-primary/15 px-3 py-1 text-xs font-semibold text-primary">
-                            Current
-                          </span>
-                        ) : (
-                          <button
-                            type="button"
-                            onClick={() => handleSelectTier(tier)}
-                            disabled={loadingTier !== null}
-                            className={`
-                              inline-flex items-center gap-1 rounded-full px-3 py-1.5 text-xs font-semibold
-                              border ${isPaid ? 'border-accent text-main' : 'border-secondary/50 text-secondary'}
-                              ${prefersReducedMotion ? '' : 'hover:scale-[1.02] transition'}
-                              disabled:opacity-60 disabled:cursor-not-allowed
-                            `}
-                          >
-                            {isPaid ? 'Upgrade' : 'Choose'}
-                            {!prefersReducedMotion && <ArrowRight className="h-3.5 w-3.5" />}
-                          </button>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-
-                <div className="mt-5 grid gap-3 sm:grid-cols-3">
-                  {heroStats.map(({ label, detail, icon: Icon }) => (
-                    <div
-                      key={label}
-                      className="rounded-2xl border border-secondary/30 bg-surface-muted/60 px-3 py-2.5 flex items-start gap-3"
-                    >
-                      <div className="rounded-full bg-accent/15 p-2">
-                        <Icon className="h-4 w-4 text-accent" weight="bold" />
-                      </div>
-                      <div>
-                        <p className="text-xs uppercase tracking-[0.18em] text-muted">{label}</p>
-                        <p className="text-sm text-main">{detail}</p>
-                      </div>
+            <div className="space-y-3 text-sm">
+              {['plus', 'pro'].map((tier) => {
+                const config = SUBSCRIPTION_TIERS[tier];
+                const isCurrent = currentTier === tier;
+                return (
+                  <div
+                    key={tier}
+                    className="flex items-center justify-between gap-3 rounded-2xl border border-secondary/30 bg-main/70 px-4 py-3"
+                  >
+                    <div className="space-y-0.5">
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted">
+                        {config.name}
+                      </p>
+                      <p className="text-sm text-main">
+                        ${config.price}/mo · {formatCount(config.monthlyReadings)} readings
+                      </p>
+                      <p className="text-[11px] text-muted">
+                        {formatPerMonth(config.monthlyTTS)} voice narrations
+                      </p>
                     </div>
-                  ))}
-                </div>
-              </div>
+                    {isCurrent ? (
+                      <span className="rounded-full bg-primary/20 px-3 py-1 text-[11px] font-semibold text-primary">
+                        Current
+                      </span>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => handleSelectTier(tier)}
+                        disabled={loadingTier !== null}
+                        className="inline-flex items-center gap-1 rounded-full bg-amber-500 px-3 py-1.5 text-[11px] font-semibold text-neutral-900 hover:bg-amber-400 transition"
+                      >
+                        Choose
+                        <ArrowRight className="h-3 w-3" />
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           </div>
         </section>
 
-        {/* Error Message */}
         {error && (
-          <div className="max-w-md mx-auto mb-8 rounded-2xl border border-error/40 bg-error/10 px-4 py-3 text-center">
-            <p className="text-sm text-error">{error}</p>
+          <div className="mx-auto mb-8 max-w-md rounded-2xl border border-red-500/40 bg-red-500/10 px-4 py-3 text-center">
+            <p className="text-sm text-red-300">{error}</p>
           </div>
         )}
 
-        {/* Upgrade Moments */}
-        <div className="grid gap-4 md:grid-cols-2 mb-10">
-          {upgradeMoments.map(({ tier, badge, title, bullets }) => {
-            const config = SUBSCRIPTION_TIERS[tier];
-            const isCurrent = currentTier === tier;
-            const currentOrder = tierOrderMap[currentTier] ?? 0;
-            const targetOrder = tierOrderMap[tier] ?? 0;
-            const alreadyCovered = currentOrder > targetOrder;
-            const disabled = loadingTier !== null || isCurrent || alreadyCovered;
+        {/* Plans */}
+        <section id="plans" className="mb-10">
+          <h2 className="mb-4 text-xs font-semibold uppercase tracking-[0.2em] text-muted">
+            Choose your path
+          </h2>
+          <div className="grid gap-6 md:grid-cols-3">
+            {tiers.map((tier) => {
+              const config = SUBSCRIPTION_TIERS[tier];
+              const isCurrent = currentTier === tier;
+              return (
+                <TierCard
+                  key={tier}
+                  tierKey={tier}
+                  config={config}
+                  isCurrent={isCurrent}
+                  onSelect={handleSelectTier}
+                  isLoading={loadingTier === tier}
+                  disabled={loadingTier !== null}
+                />
+              );
+            })}
+          </div>
+        </section>
 
-            return (
-              <div
-                key={tier}
-                className={`rounded-3xl border p-5 flex flex-col gap-3 ${
-                  tier === 'pro'
-                    ? 'border-accent/50 bg-gradient-to-br from-accent/10 via-surface to-surface-muted'
-                    : 'border-secondary/30 bg-surface/80'
-                }`}
-              >
-                <div className="flex items-center justify-between">
-                  <div className="inline-flex items-center gap-2 rounded-full bg-accent/15 px-3 py-1 text-xs font-semibold text-accent">
-                    <Sparkle className="h-4 w-4" weight="fill" />
-                    {badge}
-                  </div>
-                  <p className="text-xs uppercase tracking-[0.2em] text-muted">{config.label}</p>
-                </div>
-                <div className="flex items-center justify-between gap-3">
-                  <div>
-                    <h3 className="font-serif text-xl text-main">{title}</h3>
-                    <p className="text-sm text-muted">${config.price}/mo • {config.name}</p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => handleSelectTier(tier)}
-                    disabled={disabled}
-                    className={`
-                      inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold
-                      border ${isCurrent
-                        ? 'border-accent/60 bg-accent/12 text-main cursor-default'
-                        : tier === 'pro'
-                          ? 'border-accent bg-accent text-main shadow-sm'
-                          : 'border-secondary/40 bg-surface text-main shadow-sm'}
-                      ${prefersReducedMotion ? '' : 'hover:scale-[1.02] transition'}
-                      disabled:opacity-60 disabled:cursor-not-allowed
-                    `}
-                  >
-                    {loadingTier === tier ? (
-                      <CircleNotch className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <>
-                        {isCurrent ? 'Current plan' : alreadyCovered ? 'Included' : `Upgrade to ${config.label}`}
-                        {!disabled && <ArrowRight className="h-4 w-4" />}
-                      </>
-                    )}
-                  </button>
-                </div>
-                <ul className="space-y-2">
-                  {bullets.map((bullet) => (
-                    <li key={bullet} className="flex items-start gap-2 text-sm text-secondary">
-                      <Check className="h-4 w-4 text-accent shrink-0" weight="bold" />
-                      <span>{bullet}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            );
-          })}
-        </div>
+        {/* Feature Comparison Table */}
+        <section className="mb-10">
+          <h2 className="mb-4 text-xs font-semibold uppercase tracking-[0.2em] text-muted">
+            Compare all features
+          </h2>
+          <ComparisonTable />
+        </section>
 
-        {/* Value Props */}
-        <div className="grid gap-4 md:grid-cols-3 mb-10">
-          {valueProps.map(({ title, description, icon: Icon }) => (
-            <div key={title} className="rounded-3xl border border-secondary/30 bg-surface p-5 flex flex-col gap-3">
-              <div className="inline-flex items-center gap-2 rounded-full bg-accent/15 px-3 py-1 text-xs font-semibold text-accent">
-                <Icon className="h-4 w-4" weight="fill" />
-                Monetization win
-              </div>
-              <h3 className="font-serif text-xl text-main">{title}</h3>
-              <p className="text-sm text-muted leading-relaxed">{description}</p>
-            </div>
-          ))}
-        </div>
+        {/* Why upgrade */}
+        <section className="mb-10 grid gap-4 md:grid-cols-3">
+          <div className="rounded-3xl border border-secondary/30 bg-surface/80 p-5">
+            <h3 className="mb-2 flex items-center gap-2 text-sm font-semibold text-main">
+              <Sparkle className="h-4 w-4" weight="fill" />
+              Keep context sacred
+            </h3>
+            <p className="text-sm text-muted">
+              Plus and Pro preserve full GraphRAG depth so returning seekers feel seen without you repeating
+              setup every time.
+            </p>
+          </div>
+          <div className="rounded-3xl border border-secondary/30 bg-surface/80 p-5">
+            <h3 className="mb-2 flex items-center gap-2 text-sm font-semibold text-main">
+              <Microphone className="h-4 w-4" weight="fill" />
+              Rituals with voice
+            </h3>
+            <p className="text-sm text-muted">
+              Narrate spreads out loud and let seekers replay them later with generous voice narration limits.
+            </p>
+          </div>
+          <div className="rounded-3xl border border-secondary/30 bg-surface/80 p-5">
+            <h3 className="mb-2 flex items-center gap-2 text-sm font-semibold text-main">
+              <CloudArrowUp className="h-4 w-4" weight="fill" />
+              Journals that travel
+            </h3>
+            <p className="text-sm text-muted">
+              Cloud sync keeps readings and reflections backed up across devices for long-term seekers.
+            </p>
+          </div>
+        </section>
 
-        {/* Paid Perks callout */}
-        <div className="rounded-3xl border border-secondary/30 bg-gradient-to-br from-surface via-surface to-accent/5 p-6 mb-10">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-4">
-            <div className="flex items-center gap-3">
-              <div className="inline-flex items-center gap-2 rounded-full bg-accent/15 px-3 py-1 text-xs font-semibold text-accent">
-                <Sparkle className="h-4 w-4" weight="fill" />
-                Plus & Pro perks
-              </div>
-              <p className="text-sm text-muted">
-                Upsell the features seekers feel immediately—then keep them with focus and depth.
+        {/* FAQ */}
+        <section className="mb-12">
+          <h2 className="mb-4 text-xs font-semibold uppercase tracking-[0.2em] text-muted">
+            Common questions
+          </h2>
+          <div className="space-y-3">
+            {faqs.map((item, index) => (
+              <FAQItem key={item.question} item={item} index={index} />
+            ))}
+          </div>
+        </section>
+
+        {/* Final CTA */}
+        <section className="border-t border-secondary/20 pt-8">
+          <div className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted">
+                Ready to deepen your practice?
               </p>
+              <p className="mt-1 text-sm text-secondary">
+                Start a reading, then upgrade when you&apos;re ready for more ritual, context, and monetization.
+              </p>
+            </div>
+            <Link
+              to="/"
+              className={[
+                'inline-flex items-center gap-2 rounded-full px-5 py-2.5 text-sm font-semibold',
+                'bg-main/90 text-accent border border-secondary/40',
+                prefersReducedMotion ? '' : 'transition hover:scale-[1.02]'
+              ].join(' ')}
+            >
+              <Lightning className="h-4 w-4" weight="fill" />
+              Start a Reading Now
+            </Link>
+          </div>
+        </section>
+      </main>
+
+      {/* Sticky mobile CTA */}
+      {showMobileSticky && (
+        <div className="fixed inset-x-0 bottom-0 z-30 border-t border-secondary/40 bg-main/95 px-4 py-3 shadow-[0_-8px_30px_rgba(0,0,0,0.6)] lg:hidden">
+          <div className="mx-auto flex max-w-6xl items-center justify-between gap-3">
+            <div className="text-xs text-muted">
+              <p className="font-semibold text-main">Upgrade to Plus</p>
+              <p>$7.99/month · cancel anytime</p>
             </div>
             <button
               type="button"
               onClick={() => handleSelectTier('plus')}
               disabled={loadingTier !== null}
-              className={`
-                inline-flex items-center gap-2 rounded-full border border-accent bg-accent px-4 py-2 text-sm font-semibold text-main shadow-sm
-                ${prefersReducedMotion ? '' : 'hover:scale-[1.02] transition'}
-                disabled:opacity-60 disabled:cursor-not-allowed
-              `}
+              className="inline-flex items-center gap-2 rounded-full bg-amber-500 px-4 py-2.5 text-xs font-semibold text-neutral-900 shadow-md hover:bg-amber-400 transition"
             >
-              <Sparkle className="h-4 w-4" weight="fill" />
-              Upgrade now
-              <ArrowRight className="h-4 w-4" />
+              Go Plus
+              {loadingTier === 'plus' ? (
+                <CircleNotch className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <ArrowRight className="h-3.5 w-3.5" />
+              )}
             </button>
           </div>
-          <div className="grid gap-3 md:grid-cols-2">
-            {paidPerks.map(({ label, detail, icon: Icon }) => (
-              <div
-                key={label}
-                className="rounded-2xl border border-secondary/20 bg-surface-muted/60 p-3 flex items-start gap-3"
-              >
-                <div className="rounded-full bg-accent/15 p-2">
-                  <Icon className="h-4 w-4 text-accent" weight="fill" />
-                </div>
-                <div>
-                  <p className="text-sm font-semibold text-main">{label}</p>
-                  <p className="text-xs text-muted leading-snug">{detail}</p>
-                </div>
-              </div>
-            ))}
-          </div>
         </div>
-
-        {/* Tier Cards - Mobile/Tablet View */}
-        <div className="grid gap-6 md:grid-cols-3 lg:hidden mb-12">
-          {tiers.map((tier) => (
-            <TierCard
-              key={tier}
-              tier={tier}
-              config={SUBSCRIPTION_TIERS[tier]}
-              isCurrentTier={currentTier === tier}
-              onSelect={handleSelectTier}
-              isLoading={loadingTier === tier}
-              disabled={loadingTier !== null && loadingTier !== tier}
-            />
-          ))}
-        </div>
-
-        {/* Plan Highlights */}
-        <div className="hidden lg:grid grid-cols-2 gap-4 mb-12">
-          {planHighlights.map(({ tier, title, bullets }) => {
-            const config = SUBSCRIPTION_TIERS[tier];
-            const isPro = tier === 'pro';
-            const currentOrder = tierOrderMap[currentTier] ?? 0;
-            const targetOrder = tierOrderMap[tier] ?? 0;
-            const alreadyCovered = currentOrder > targetOrder;
-            const isCurrent = currentTier === tier;
-            const disabled = loadingTier !== null || isCurrent || alreadyCovered;
-            const ctaLabel = isCurrent
-              ? 'Current Plan'
-              : alreadyCovered
-                ? 'Included'
-                : tier === 'pro'
-                  ? 'Upgrade to Pro'
-                  : 'Upgrade to Plus';
-            return (
-              <div
-                key={tier}
-                className={`rounded-3xl border p-6 flex flex-col gap-4 ${
-                  isPro
-                    ? 'border-accent/50 bg-gradient-to-br from-accent/10 via-surface to-surface-muted'
-                    : 'border-secondary/30 bg-surface'
-                }`}
-              >
-                <div className="flex items-center gap-2">
-                  {tier === 'pro' ? (
-                    <Crown className="h-5 w-5 text-accent" weight="fill" />
-                  ) : (
-                    <Sparkle className="h-5 w-5 text-accent" weight="fill" />
-                  )}
-                  <p className="text-xs uppercase tracking-[0.2em] text-muted">{config.label}</p>
-                </div>
-                <div className="flex items-baseline justify-between gap-4">
-                  <div>
-                    <h3 className="font-serif text-2xl text-main">{title}</h3>
-                    <p className="text-sm text-muted">
-                      ${config.price}/mo • {config.name}
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => handleSelectTier(tier)}
-                    disabled={disabled}
-                    className={`
-                      inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold
-                      border ${isCurrent
-                        ? 'border-accent/60 bg-accent/12 text-main cursor-default'
-                        : isPro
-                          ? 'border-accent bg-accent text-main shadow-sm'
-                          : 'border-accent/60 bg-accent/12 text-main shadow-sm'}
-                      ${prefersReducedMotion ? '' : 'hover:scale-[1.02] transition'}
-                      disabled:opacity-60 disabled:cursor-not-allowed
-                    `}
-                  >
-                    {loadingTier === tier ? (
-                      <CircleNotch className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <>
-                        {ctaLabel}
-                        {!disabled && <ArrowRight className="h-4 w-4" />}
-                      </>
-                    )}
-                  </button>
-                </div>
-                <ul className="space-y-2">
-                  {bullets.map((bullet) => (
-                    <li key={bullet} className="flex items-start gap-2 text-sm text-secondary">
-                      <Check className="h-4 w-4 text-accent shrink-0" weight="bold" />
-                      <span>{bullet}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            );
-          })}
-        </div>
-
-        {/* Desktop Feature Comparison Table */}
-        <div className="hidden lg:block rounded-3xl border border-secondary/40 bg-surface p-8 mb-12">
-          {/* Table Header */}
-          <div className="grid grid-cols-4 gap-4 pb-6 border-b border-secondary/20">
-            <div></div>
-            {tiers.map((tier) => {
-              const config = SUBSCRIPTION_TIERS[tier];
-              const isPaid = tier !== 'free';
-              const tierIcons = { free: Moon, plus: Sparkle, pro: Crown };
-              const TierIcon = tierIcons[tier];
-
-              return (
-                <div key={tier} className="text-center">
-                  <div className={`inline-flex rounded-full p-2 mb-2 ${isPaid ? 'bg-accent/20' : 'bg-secondary/20'}`}>
-                    <TierIcon className={`h-6 w-6 ${isPaid ? 'text-accent' : 'text-secondary'}`} weight="fill" />
-                  </div>
-                  <h3 className="font-serif text-xl text-main">{config.name}</h3>
-                  <p className="text-xs uppercase tracking-[0.15em] text-muted">{config.label}</p>
-                  <div className="mt-2">
-                    {isPaid ? (
-                      <span className="text-2xl font-bold text-main">${config.price}<span className="text-sm text-muted font-normal">/mo</span></span>
-                    ) : (
-                      <span className="text-2xl font-bold text-main">Free</span>
-                    )}
-                  </div>
-                  {tier === 'plus' && (
-                    <span className="inline-flex items-center gap-1 mt-2 text-xs text-accent">
-                      <Star className="h-3 w-3" weight="fill" />
-                      Most Popular
-                    </span>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-
-          {/* Feature Rows */}
-          <div className="divide-y divide-secondary/10 py-4">
-            {features.map((row) => (
-              <FeatureRow
-                key={row.feature}
-                feature={row.feature}
-                free={row.free}
-                plus={row.plus}
-                pro={row.pro}
-                highlight={row.highlight}
-              />
-            ))}
-          </div>
-
-          {/* CTA Buttons */}
-          <div className="grid grid-cols-4 gap-4 pt-6 border-t border-secondary/20">
-            <div></div>
-            {tiers.map((tier) => {
-              const config = SUBSCRIPTION_TIERS[tier];
-              const isPaid = tier !== 'free';
-              const isCurrent = currentTier === tier;
-
-              return (
-                <div key={tier} className="text-center">
-                  <button
-                    type="button"
-                    onClick={() => handleSelectTier(tier)}
-                    disabled={isCurrent || loadingTier !== null}
-                    className={`
-                      w-full rounded-full py-3 px-4 text-sm font-semibold transition
-                      ${prefersReducedMotion ? '' : 'hover:scale-[1.02]'}
-                      ${isCurrent
-                        ? 'border border-accent/60 bg-accent/10 text-main cursor-default'
-                        : isPaid
-                          ? 'border border-accent bg-accent text-main hover:bg-accent/90 shadow-sm'
-                          : 'border border-secondary/60 bg-surface-muted/60 text-main hover:bg-secondary/20 shadow-sm'
-                      }
-                      disabled:opacity-50 disabled:cursor-not-allowed
-                    `}
-                  >
-                    {loadingTier === tier ? (
-                      <CircleNotch className="h-5 w-5 animate-spin mx-auto" />
-                    ) : isCurrent ? (
-                      'Current Plan'
-                    ) : isPaid ? (
-                      <span className="inline-flex items-center justify-center gap-2">
-                        Upgrade <ArrowRight className="h-4 w-4" />
-                      </span>
-                    ) : (
-                      'Get Started'
-                    )}
-                  </button>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* FAQ Section */}
-        <div className="max-w-3xl mx-auto">
-          <h2 className="font-serif text-2xl text-center text-main mb-8">Common Questions</h2>
-          <div className="space-y-4">
-            <details className="group rounded-2xl border border-secondary/30 bg-surface p-4">
-              <summary className="flex items-center justify-between cursor-pointer text-main font-medium">
-                Can I cancel anytime?
-                <ArrowRight className="h-4 w-4 text-muted transition-transform group-open:rotate-90" />
-              </summary>
-              <p className="mt-3 text-sm text-muted">
-                Yes! You can cancel your subscription at any time. You&apos;ll continue to have access to your plan&apos;s features until the end of your billing period.
-              </p>
-            </details>
-            <details className="group rounded-2xl border border-secondary/30 bg-surface p-4">
-              <summary className="flex items-center justify-between cursor-pointer text-main font-medium">
-                What payment methods do you accept?
-                <ArrowRight className="h-4 w-4 text-muted transition-transform group-open:rotate-90" />
-              </summary>
-              <p className="mt-3 text-sm text-muted">
-                We accept all major credit cards (Visa, Mastercard, American Express) through our secure payment processor, Stripe.
-              </p>
-            </details>
-            <details className="group rounded-2xl border border-secondary/30 bg-surface p-4">
-              <summary className="flex items-center justify-between cursor-pointer text-main font-medium">
-                What happens when I hit my reading limit?
-                <ArrowRight className="h-4 w-4 text-muted transition-transform group-open:rotate-90" />
-              </summary>
-              <p className="mt-3 text-sm text-muted">
-                Once you reach your monthly AI reading limit, you can still draw cards and perform manual readings. You&apos;ll be invited to upgrade for more AI-powered interpretations.
-              </p>
-            </details>
-            <details className="group rounded-2xl border border-secondary/30 bg-surface p-4">
-              <summary className="flex items-center justify-between cursor-pointer text-main font-medium">
-                Do you offer refunds?
-                <ArrowRight className="h-4 w-4 text-muted transition-transform group-open:rotate-90" />
-              </summary>
-              <p className="mt-3 text-sm text-muted">
-                If you&apos;re not satisfied within the first 7 days of your subscription, contact us for a full refund. We want you to feel confident in your choice.
-              </p>
-            </details>
-          </div>
-        </div>
-
-        {/* Bottom CTA */}
-        <div className="text-center mt-12 pt-12 border-t border-secondary/20">
-          <p className="text-muted mb-4">Ready to deepen your practice?</p>
-          <Link
-            to="/"
-            className={`
-              inline-flex items-center gap-2 rounded-full border border-primary/60 px-6 py-3
-              text-sm font-medium text-main hover:bg-primary/10 transition
-              ${prefersReducedMotion ? '' : 'hover:scale-[1.02]'}
-            `}
-          >
-            <Lightning className="h-4 w-4" />
-            Start a Reading Now
-          </Link>
-        </div>
-      </main>
+      )}
 
       {/* Auth Modal */}
-      <AuthModal
-        isOpen={showAuthModal}
-        onClose={handleAuthModalClose}
-      />
+      <AuthModal isOpen={showAuthModal} onClose={handleAuthModalClose} />
     </div>
   );
 }

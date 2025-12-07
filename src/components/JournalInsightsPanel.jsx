@@ -181,6 +181,8 @@ export const JournalInsightsPanel = memo(function JournalInsightsPanel({
         baseEntries.length === 0 &&
         Array.isArray(allEntries) &&
         allEntries.length > 0;
+    const filteredEntryCount = Array.isArray(entries) ? entries.length : 0;
+    const totalEntryCount = Array.isArray(allEntries) ? allEntries.length : filteredEntryCount;
 
     // Compute preference drift for "Emerging Interests" insight (Phase 5.4)
     const preferenceDrift = useMemo(
@@ -209,6 +211,21 @@ export const JournalInsightsPanel = memo(function JournalInsightsPanel({
         }
         return scheduleDeferred(() => setComposerErrors({}));
     }, [shareComposerOpen]);
+
+    useEffect(() => {
+        if (!shareComposerOpen || shareComposer.scope !== 'journal') return;
+        const suggestedLimit = Math.min(
+            10,
+            Math.max(1, filtersActive ? filteredEntryCount || 1 : totalEntryCount || filteredEntryCount || 1)
+        );
+        setShareComposer((prev) => {
+            const currentLimit = Number.parseInt(prev.limit, 10);
+            if (Number.isFinite(currentLimit) && currentLimit === suggestedLimit) {
+                return prev;
+            }
+            return { ...prev, limit: String(suggestedLimit) };
+        });
+    }, [filteredEntryCount, filtersActive, shareComposer.scope, shareComposerOpen, totalEntryCount]);
 
     useEffect(() => {
         if (!isAuthenticated && shareComposerOpen) {
@@ -498,6 +515,11 @@ export const JournalInsightsPanel = memo(function JournalInsightsPanel({
             : Math.min(10, filteredList.length);
         return filteredList.slice(0, limit);
     }, [entries, filtersActive, shareComposer.limit, shareComposer.scope]);
+    const selectedEntryLabel = useMemo(() => {
+        if (shareComposer.scope !== 'entry') return '';
+        const match = entryOptions.all.find((option) => option.id === shareComposer.entryId);
+        return match?.label || '';
+    }, [entryOptions.all, shareComposer.entryId, shareComposer.scope]);
 
     const handleComposerSubmit = async (event) => {
         event.preventDefault();
@@ -664,42 +686,45 @@ export const JournalInsightsPanel = memo(function JournalInsightsPanel({
                         <div className="grid gap-4 sm:grid-cols-2">
                             <label className="block">
                                 <span className="text-xs uppercase tracking-wider text-secondary/80">Link Title</span>
-                            <input
-                                type="text"
-                                value={shareComposer.title}
-                                onChange={(e) => setShareComposer(p => ({ ...p, title: e.target.value }))}
-                                placeholder="Optional title"
-                                className="mt-2 w-full rounded-xl border border-secondary/30 bg-surface/50 px-3 py-2 text-sm text-main focus:ring-2 focus:ring-secondary/50"
-                            />
-                        </label>
-                        <label className="block">
-                            <span className="text-xs uppercase tracking-wider text-secondary/80">Expires In</span>
-                            <select
-                                value={shareComposer.expiresInHours ?? ''}
-                                onChange={(e) => setShareComposer(p => ({ ...p, expiresInHours: e.target.value || undefined }))}
-                                className="mt-2 w-full rounded-xl border border-secondary/30 bg-surface/50 px-3 py-2 text-sm text-main focus:ring-2 focus:ring-secondary/50"
-                            >
-                                <option value="24">24 hours</option>
-                                <option value="72">3 days</option>
-                                <option value="168">1 week</option>
-                                <option value="">No expiry</option>
-                            </select>
-                        </label>
-                        <label className="block">
-                            <span className="text-xs uppercase tracking-wider text-secondary/80">Scope</span>
-                            <select
-                                value={shareComposer.scope}
-                                onChange={(e) => {
-                                    const nextScope = e.target.value;
-                                    setShareComposer(p => ({ ...p, scope: nextScope }));
-                                    setComposerErrors(prev => ({ ...prev, limit: '', entryId: '', general: '' }));
-                                }}
-                                className="mt-2 w-full rounded-xl border border-secondary/30 bg-surface/50 px-3 py-2 text-sm text-main focus:ring-2 focus:ring-secondary/50"
-                            >
-                                <option value="journal">Recent entries</option>
-                                <option value="entry">Single entry</option>
-                            </select>
-                        </label>
+                                <input
+                                    type="text"
+                                    value={shareComposer.title}
+                                    onChange={(e) => setShareComposer(p => ({ ...p, title: e.target.value }))}
+                                    placeholder="Optional title"
+                                    className="mt-2 w-full rounded-xl border border-secondary/30 bg-surface/50 px-3 py-2 text-sm text-main focus:ring-2 focus:ring-secondary/50"
+                                />
+                                <p className="mt-1 text-xs text-secondary/70">Shown on the shared page to give viewers context.</p>
+                            </label>
+                            <label className="block">
+                                <span className="text-xs uppercase tracking-wider text-secondary/80">Expires In</span>
+                                <select
+                                    value={shareComposer.expiresInHours ?? ''}
+                                    onChange={(e) => setShareComposer(p => ({ ...p, expiresInHours: e.target.value || undefined }))}
+                                    className="mt-2 w-full rounded-xl border border-secondary/30 bg-surface/50 px-3 py-2 text-sm text-main focus:ring-2 focus:ring-secondary/50"
+                                >
+                                    <option value="24">24 hours</option>
+                                    <option value="72">3 days</option>
+                                    <option value="168">1 week</option>
+                                    <option value="">No expiry</option>
+                                </select>
+                                <p className="mt-1 text-xs text-secondary/70">Control how long the link stays live.</p>
+                            </label>
+                            <label className="block">
+                                <span className="text-xs uppercase tracking-wider text-secondary/80">Scope</span>
+                                <select
+                                    value={shareComposer.scope}
+                                    onChange={(e) => {
+                                        const nextScope = e.target.value;
+                                        setShareComposer(p => ({ ...p, scope: nextScope }));
+                                        setComposerErrors(prev => ({ ...prev, limit: '', entryId: '', general: '' }));
+                                    }}
+                                    className="mt-2 w-full rounded-xl border border-secondary/30 bg-surface/50 px-3 py-2 text-sm text-main focus:ring-2 focus:ring-secondary/50"
+                                >
+                                    <option value="journal">Recent entries</option>
+                                    <option value="entry">Single entry</option>
+                                </select>
+                                <p className="mt-1 text-xs text-secondary/70">Share a filtered journal snapshot or one specific reading.</p>
+                            </label>
                         {shareComposer.scope === 'journal' ? (
                             <label className="block">
                                 <span className="text-xs uppercase tracking-wider text-secondary/80">How many entries to share (1–10)</span>
@@ -712,9 +737,16 @@ export const JournalInsightsPanel = memo(function JournalInsightsPanel({
                                         setShareComposer(p => ({ ...p, limit: e.target.value }));
                                         setComposerErrors(prev => ({ ...prev, limit: '', general: '' }));
                                     }}
-                                    className="mt-2 w-full rounded-xl border border-secondary/30 bg-surface/50 px-3 py-2 text-sm text-main focus:ring-2 focus:ring-secondary/50"
+                                    inputMode="numeric"
+                                    pattern="[0-9]*"
+                                    disabled={!filtersActive}
+                                    className="mt-2 w-full rounded-xl border border-secondary/30 bg-surface/50 px-3 py-2 text-sm text-main focus:ring-2 focus:ring-secondary/50 disabled:opacity-60"
                                 />
-                                <p className="mt-1 text-xs text-secondary/70">Defaults to your latest entries{filtersActive ? ' in this filtered view' : ''}.</p>
+                                <p className="mt-1 text-xs text-secondary/70">
+                                    {filtersActive
+                                        ? `Auto-filled from ${filteredEntryCount} matching entr${filteredEntryCount === 1 ? 'y' : 'ies'}.`
+                                        : 'Sharing your most recent journal entries.'}
+                                </p>
                                 {composerErrors.limit && (
                                     <p className="mt-1 text-xs text-error">{composerErrors.limit}</p>
                                 )}
@@ -734,6 +766,10 @@ export const JournalInsightsPanel = memo(function JournalInsightsPanel({
                                         <option key={opt.id} value={opt.id}>{opt.label}</option>
                                     ))}
                                 </select>
+                                <p className="mt-1 text-xs text-secondary/70">Select a single reading to share.</p>
+                                {selectedEntryLabel && (
+                                    <p className="text-[11px] text-secondary/60">Chosen: {selectedEntryLabel}</p>
+                                )}
                                 {composerErrors.entryId && (
                                     <p className="mt-1 text-xs text-error">{composerErrors.entryId}</p>
                                 )}

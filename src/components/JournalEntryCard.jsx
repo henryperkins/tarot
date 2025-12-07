@@ -329,9 +329,11 @@ export const JournalEntryCard = memo(function JournalEntryCard({
   const headerPadding = isExpanded ? expandedHeaderPadding : collapsedHeaderPadding;
   const contentPadding = compact ? 'px-4 py-4 sm:p-5' : 'px-4 py-4 sm:p-5';
   const actionMenuId = `${entry.id || entry.ts || 'entry'}-actions-menu`;
+  const quickActions = [
+    { key: 'copy', label: 'Copy', icon: ClipboardText, onSelect: handleEntryCopy },
+    { key: 'share', label: 'Share', icon: ShareNetwork, onSelect: handleEntryShare }
+  ];
   const actionMenuItems = [
-    { key: 'copy', label: 'Copy entry', icon: ClipboardText, onSelect: handleEntryCopy },
-    { key: 'share', label: 'Share reading', icon: ShareNetwork, onSelect: handleEntryShare },
     { key: 'export', label: 'Export CSV', icon: DownloadSimple, onSelect: handleEntryExport }
   ];
 
@@ -361,6 +363,88 @@ export const JournalEntryCard = memo(function JournalEntryCard({
   const shareLinksPreview = entryShareLinks.slice(0, MAX_SHARE_LINKS_IN_MENU);
   const extraShareLinks = Math.max(0, entryShareLinks.length - shareLinksPreview.length);
   const shareActionsDisabled = pendingAction === 'share-link-copy' || pendingAction === 'share-link-delete';
+  const overflowActions = actionMenuItems;
+  const isMobileActions = isSmallScreen;
+
+  const renderShareLinks = () => (
+    <div className="mt-3 rounded-xl border border-secondary/10 bg-surface/70 p-3">
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-secondary/70">Active share links</p>
+        {shareLoading ? (
+          <CircleNotch className="h-3.5 w-3.5 animate-spin text-secondary/60" aria-label="Loading share links" />
+        ) : (
+          <span className="text-[11px] text-secondary/60">
+            {shareLinksPreview.length > 0 ? `${shareLinksPreview.length}${extraShareLinks ? '+' : ''} shown` : 'None'}
+          </span>
+        )}
+      </div>
+      {shareError && (
+        <p className="mt-1 text-[11px] text-error" aria-live="polite">{shareError}</p>
+      )}
+      {shareLoading && (
+        <div className="mt-2 space-y-2" aria-live="polite">
+          {[0, 1].map((skeleton) => (
+            <div key={skeleton} className="h-10 rounded-lg bg-white/5 animate-pulse" />
+          ))}
+        </div>
+      )}
+      {!shareLoading && !shareError && shareLinksPreview.length === 0 && (
+        <p className="mt-2 text-[12px] text-secondary/70">No active links for this reading yet—create one to share it.</p>
+      )}
+      {!shareLoading && shareLinksPreview.length > 0 && (
+        <ul className="mt-2 space-y-2">
+          {shareLinksPreview.map((link) => {
+            const meta = formatShareMeta(link);
+            const isShareLinkPending = shareActionsDisabled;
+            return (
+              <li key={link.token} className="rounded-lg border border-secondary/15 bg-surface/80 p-2.5 shadow-[0_10px_26px_-22px_rgba(0,0,0,0.7)]">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0 space-y-0.5">
+                    <p className="truncate text-sm font-semibold text-main">{link.title || 'Untitled link'}</p>
+                    <p className="truncate text-[11px] text-secondary/65">{getShareScopeLabel(link)} · {meta}</p>
+                  </div>
+                  <span className="text-[11px] text-secondary/60">{link.viewCount || 0} views</span>
+                </div>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() => handleCopyShareLink(link.token)}
+                    disabled={isShareLinkPending}
+                    className="inline-flex items-center gap-1 rounded-full border border-secondary/30 bg-surface/60 px-2.5 py-1 text-[11px] font-semibold text-secondary hover:border-secondary/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/40 disabled:opacity-60 disabled:cursor-not-allowed"
+                  >
+                    {pendingAction === 'share-link-copy' ? (
+                      <CircleNotch className="h-3 w-3 animate-spin text-secondary/70" aria-hidden="true" />
+                    ) : (
+                      <ClipboardText className="h-3.5 w-3.5 text-secondary/70" aria-hidden="true" />
+                    )}
+                    Copy
+                  </button>
+                  {onDeleteShareLink && (
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteShareLink(link.token)}
+                      disabled={isShareLinkPending}
+                      className="inline-flex items-center gap-1 rounded-full border border-error/40 bg-error/5 px-2.5 py-1 text-[11px] font-semibold text-error hover:border-error/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-error/30 disabled:opacity-60 disabled:cursor-not-allowed"
+                    >
+                      {pendingAction === 'share-link-delete' ? (
+                        <CircleNotch className="h-3 w-3 animate-spin text-error/70" aria-hidden="true" />
+                      ) : (
+                        <Trash className="h-3.5 w-3.5" aria-hidden="true" />
+                      )}
+                      Delete
+                    </button>
+                  )}
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+      {extraShareLinks > 0 && (
+        <p className="mt-2 text-[11px] text-secondary/60">Showing the first {shareLinksPreview.length} of {entryShareLinks.length} links.</p>
+      )}
+    </div>
+  );
 
   return (
     <article
@@ -422,6 +506,29 @@ export const JournalEntryCard = memo(function JournalEntryCard({
                 )}
               </div>
 
+              <div className="mt-3 flex flex-wrap gap-2">
+                {quickActions.map((action) => {
+                  const ActionIcon = action.icon;
+                  const isPending = pendingAction === action.key;
+                  return (
+                    <button
+                      key={action.key}
+                      type="button"
+                      onClick={action.onSelect}
+                      disabled={isPending}
+                      className="inline-flex min-h-[44px] items-center gap-2 rounded-full border border-secondary/25 bg-surface/40 px-3 py-2 text-xs font-semibold text-secondary hover:border-secondary/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/40 disabled:opacity-60 disabled:cursor-not-allowed"
+                    >
+                      {isPending ? (
+                        <CircleNotch className="h-4 w-4 animate-spin text-secondary/70" aria-hidden="true" />
+                      ) : (
+                        <ActionIcon className="h-4 w-4 text-secondary/70" aria-hidden="true" />
+                      )}
+                      {action.label}
+                    </button>
+                  );
+                })}
+              </div>
+
               {entry.question && (
                 <p className="text-sm text-secondary/80 line-clamp-1">
                   &ldquo;{entry.question}&rdquo;
@@ -435,7 +542,7 @@ export const JournalEntryCard = memo(function JournalEntryCard({
               type="button"
               ref={actionMenuButtonRef}
               onClick={() => setActionMenuOpen((prev) => !prev)}
-              className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-secondary/25 bg-surface/40 text-secondary/70 hover:border-secondary/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/40"
+              className="inline-flex h-11 w-11 min-h-[48px] min-w-[48px] items-center justify-center rounded-full border border-secondary/25 bg-surface/40 text-secondary/70 hover:border-secondary/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/40"
               aria-haspopup="menu"
               aria-controls={actionMenuId}
               aria-expanded={actionMenuOpen}
@@ -446,117 +553,103 @@ export const JournalEntryCard = memo(function JournalEntryCard({
             </button>
 
             {actionMenuOpen && (
-              <div
-                id={actionMenuId}
-                ref={actionMenuRef}
-                role="menu"
-                aria-label="Entry actions"
-                className="absolute right-0 top-full z-50 mt-2 w-72 max-h-[75vh] overflow-y-auto rounded-2xl border border-secondary/20 bg-surface/95 p-2 shadow-2xl backdrop-blur"
-              >
-                <div className="space-y-1">
-                  {actionMenuItems.map((item) => {
-                    const IconComponent = item.icon;
-                    const isPending = pendingAction === item.key;
-                    return (
-                      <button
-                        key={item.key}
-                        type="button"
-                        role="menuitem"
-                        onClick={() => {
-                          setActionMenuOpen(false);
-                          item.onSelect();
-                        }}
-                        disabled={isPending}
-                        className={`flex w-full items-center justify-between rounded-xl px-3 py-2 text-left text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 disabled:opacity-60 disabled:cursor-not-allowed ${
-                          item.tone === 'danger'
-                            ? 'text-error hover:bg-error/10 focus-visible:ring-error/40'
-                            : 'text-main/80 hover:bg-secondary/10 focus-visible:ring-secondary/40'
-                        }`}
-                      >
-                        <span className="flex items-center gap-2">
-                          {isPending ? (
-                            <CircleNotch className="h-3.5 w-3.5 animate-spin text-secondary/70" aria-hidden="true" />
-                          ) : (
-                            <IconComponent className="h-4 w-4 text-secondary/70" aria-hidden="true" />
-                          )}
-                          {item.label}
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
-
-                <div className="mt-3 rounded-xl border border-secondary/10 bg-surface/70 p-3">
-                  <div className="flex items-center justify-between gap-2">
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-secondary/70">Active share links</p>
-                    {shareLoading ? (
-                      <CircleNotch className="h-3.5 w-3.5 animate-spin text-secondary/60" aria-label="Loading share links" />
-                    ) : (
-                      <span className="text-[11px] text-secondary/60">
-                        {shareLinksPreview.length > 0 ? `${shareLinksPreview.length}${extraShareLinks ? '+' : ''} shown` : 'None'}
-                      </span>
-                    )}
-                  </div>
-                  {shareError && (
-                    <p className="mt-1 text-[11px] text-error" aria-live="polite">{shareError}</p>
-                  )}
-                  {!shareLoading && !shareError && shareLinksPreview.length === 0 && (
-                    <p className="mt-2 text-[12px] text-secondary/70">No active links for this reading yet—create one to share it.</p>
-                  )}
-                  {!shareLoading && shareLinksPreview.length > 0 && (
-                    <ul className="mt-2 space-y-2">
-                      {shareLinksPreview.map((link) => {
-                        const meta = formatShareMeta(link);
-                        const isShareLinkPending = shareActionsDisabled;
-                        return (
-                          <li key={link.token} className="rounded-lg border border-secondary/15 bg-surface/80 p-2.5 shadow-[0_10px_26px_-22px_rgba(0,0,0,0.7)]">
-                            <div className="flex items-start justify-between gap-2">
-                              <div className="min-w-0 space-y-0.5">
-                                <p className="truncate text-sm font-semibold text-main">{link.title || 'Untitled link'}</p>
-                                <p className="truncate text-[11px] text-secondary/65">{getShareScopeLabel(link)} · {meta}</p>
-                              </div>
-                              <span className="text-[11px] text-secondary/60">{link.viewCount || 0} views</span>
-                            </div>
-                            <div className="mt-2 flex flex-wrap gap-2">
-                              <button
-                                type="button"
-                                onClick={() => handleCopyShareLink(link.token)}
-                                disabled={isShareLinkPending}
-                                className="inline-flex items-center gap-1 rounded-full border border-secondary/30 bg-surface/60 px-2.5 py-1 text-[11px] font-semibold text-secondary hover:border-secondary/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/40 disabled:opacity-60 disabled:cursor-not-allowed"
-                              >
-                                {pendingAction === 'share-link-copy' ? (
-                                  <CircleNotch className="h-3 w-3 animate-spin text-secondary/70" aria-hidden="true" />
+              <>
+                {isMobileActions ? (
+                  <div className="fixed inset-0 z-50 flex items-end justify-center">
+                    <button
+                      type="button"
+                      aria-label="Close entry actions"
+                      className="absolute inset-0 bg-black/50"
+                      onClick={() => setActionMenuOpen(false)}
+                    />
+                    <div
+                      id={actionMenuId}
+                      ref={actionMenuRef}
+                      role="menu"
+                      aria-label="Entry actions"
+                      className="relative w-full max-w-xl rounded-t-3xl border border-secondary/20 bg-surface/95 p-4 shadow-[0_-12px_30px_-18px_rgba(0,0,0,0.7)] backdrop-blur"
+                    >
+                      <div className="mx-auto mb-3 h-1 w-12 rounded-full bg-white/20" aria-hidden />
+                      <div className="space-y-2">
+                        {overflowActions.map((item) => {
+                          const IconComponent = item.icon;
+                          const isPending = pendingAction === item.key;
+                          return (
+                            <button
+                              key={item.key}
+                              type="button"
+                              role="menuitem"
+                              onClick={() => {
+                                setActionMenuOpen(false);
+                                item.onSelect();
+                              }}
+                              disabled={isPending}
+                              className={`flex w-full items-center justify-between rounded-2xl px-4 py-3 text-left text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 disabled:opacity-60 disabled:cursor-not-allowed ${
+                                item.tone === 'danger'
+                                  ? 'text-error hover:bg-error/10 focus-visible:ring-error/40'
+                                  : 'text-main/80 hover:bg-secondary/10 focus-visible:ring-secondary/40'
+                              }`}
+                            >
+                              <span className="flex items-center gap-2">
+                                {isPending ? (
+                                  <CircleNotch className="h-4 w-4 animate-spin text-secondary/70" aria-hidden="true" />
                                 ) : (
-                                  <ClipboardText className="h-3.5 w-3.5 text-secondary/70" aria-hidden="true" />
+                                  <IconComponent className="h-5 w-5 text-secondary/70" aria-hidden="true" />
                                 )}
-                                Copy
-                              </button>
-                              {onDeleteShareLink && (
-                                <button
-                                  type="button"
-                                  onClick={() => handleDeleteShareLink(link.token)}
-                                  disabled={isShareLinkPending}
-                                  className="inline-flex items-center gap-1 rounded-full border border-error/40 bg-error/5 px-2.5 py-1 text-[11px] font-semibold text-error hover:border-error/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-error/30 disabled:opacity-60 disabled:cursor-not-allowed"
-                                >
-                                  {pendingAction === 'share-link-delete' ? (
-                                    <CircleNotch className="h-3 w-3 animate-spin text-error/70" aria-hidden="true" />
-                                  ) : (
-                                    <Trash className="h-3.5 w-3.5" aria-hidden="true" />
-                                  )}
-                                  Delete
-                                </button>
+                                {item.label}
+                              </span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                      {renderShareLinks()}
+                    </div>
+                  </div>
+                ) : (
+                  <div
+                    id={actionMenuId}
+                    ref={actionMenuRef}
+                    role="menu"
+                    aria-label="Entry actions"
+                    className="absolute right-0 top-full z-50 mt-2 w-72 max-h-[75vh] overflow-y-auto rounded-2xl border border-secondary/20 bg-surface/95 p-2 shadow-2xl backdrop-blur"
+                  >
+                    <div className="space-y-1">
+                      {overflowActions.map((item) => {
+                        const IconComponent = item.icon;
+                        const isPending = pendingAction === item.key;
+                        return (
+                          <button
+                            key={item.key}
+                            type="button"
+                            role="menuitem"
+                            onClick={() => {
+                              setActionMenuOpen(false);
+                              item.onSelect();
+                            }}
+                            disabled={isPending}
+                            className={`flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-left text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 disabled:opacity-60 disabled:cursor-not-allowed ${
+                              item.tone === 'danger'
+                                ? 'text-error hover:bg-error/10 focus-visible:ring-error/40'
+                                : 'text-main/80 hover:bg-secondary/10 focus-visible:ring-secondary/40'
+                            }`}
+                          >
+                            <span className="flex items-center gap-2">
+                              {isPending ? (
+                                <CircleNotch className="h-3.5 w-3.5 animate-spin text-secondary/70" aria-hidden="true" />
+                              ) : (
+                                <IconComponent className="h-4 w-4 text-secondary/70" aria-hidden="true" />
                               )}
-                            </div>
-                          </li>
+                              {item.label}
+                            </span>
+                          </button>
                         );
                       })}
-                    </ul>
-                  )}
-                  {extraShareLinks > 0 && (
-                    <p className="mt-2 text-[11px] text-secondary/60">Showing the first {shareLinksPreview.length} of {entryShareLinks.length} links.</p>
-                  )}
-                </div>
-              </div>
+                    </div>
+
+                    {renderShareLinks()}
+                  </div>
+                )}
+              </>
             )}
           </div>
         </div>
@@ -584,29 +677,38 @@ export const JournalEntryCard = memo(function JournalEntryCard({
                   onClick={() => setShowCards(prev => !prev)}
                   aria-expanded={showCards}
                   aria-controls={cardsId}
-                  className="w-full flex items-center justify-between px-3 py-2.5 text-left active:bg-secondary/10"
+                  className="w-full flex flex-col items-start gap-2 px-3 py-3 text-left active:bg-secondary/10"
                 >
-                  <span className="text-[11px] font-semibold uppercase tracking-wider text-secondary/80">
-                    Cards Drawn
-                    <span className="ml-1.5 text-secondary/60">({cards.length})</span>
-                  </span>
-                  <div className="flex items-center gap-2">
-                    {!showCards && (
-                      <span className="text-xs text-secondary/50 truncate max-w-[140px]">
-                        {cards.slice(0, 2).map(c => {
-                          // Abbreviate long names: "The High Priestess" → "High Priestess", "Ace of Wands" → "Ace Wands"
-                          const name = c.name || '';
-                          return name.replace(/^The\s+/i, '').replace(/\s+of\s+/i, ' ');
-                        }).join(', ')}
-                        {cards.length > 2 && '…'}
-                      </span>
-                    )}
+                  <div className="flex w-full items-center justify-between gap-2">
+                    <span className="text-[11px] font-semibold uppercase tracking-wider text-secondary/80">
+                      View cards
+                      <span className="ml-1.5 text-secondary/60">({cards.length})</span>
+                    </span>
                     {showCards ? (
-                      <CaretUp className="h-4 w-4 text-secondary/60 flex-shrink-0" aria-hidden="true" />
+                      <CaretUp className="h-5 w-5 text-secondary/60 flex-shrink-0" aria-hidden="true" />
                     ) : (
-                      <CaretDown className="h-4 w-4 text-secondary/60 flex-shrink-0" aria-hidden="true" />
+                      <CaretDown className="h-5 w-5 text-secondary/60 flex-shrink-0" aria-hidden="true" />
                     )}
                   </div>
+                  {!showCards && (
+                    <div className="flex flex-wrap gap-2">
+                      {cards.slice(0, 2).map((card, idx) => {
+                        const name = (card.name || '').replace(/^The\s+/i, '').replace(/\s+of\s+/i, ' ');
+                        return (
+                          <span
+                            key={`${card.name || 'card'}-${idx}`}
+                            className="inline-flex items-center gap-1 rounded-full bg-surface-muted/70 px-2.5 py-1 text-[12px] font-medium text-secondary ring-1 ring-secondary/20"
+                          >
+                            <Sparkle className="h-3 w-3 text-secondary/60" weight="fill" aria-hidden="true" />
+                            {name || 'Card'}
+                          </span>
+                        );
+                      })}
+                      {cards.length > 2 && (
+                        <span className="text-xs text-secondary/60">+{cards.length - 2} more</span>
+                      )}
+                    </div>
+                  )}
                 </button>
                 {showCards && (
                   <div id={cardsId} className="px-3 pb-3 animate-slide-down">
@@ -697,7 +799,7 @@ export const JournalEntryCard = memo(function JournalEntryCard({
       <div className="border-t border-secondary/10 bg-surface/30 px-4 py-2 text-[11px] text-secondary/70">
         {hasReflections ? `${reflections.length} reflection${reflections.length === 1 ? '' : 's'}` : formattedTimestamp}
       </div>
-      <div className="px-4 pb-3 pt-2">
+      <div className="px-4 pb-3 pt-2" aria-live="polite">
         <InlineStatus tone={inlineStatus.tone} message={inlineStatus.message} />
       </div>
     </article>

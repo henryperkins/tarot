@@ -19,6 +19,7 @@ const TIMEFRAME_OPTIONS = [
 
 const DEFAULT_FILTERS = { query: '', contexts: [], spreads: [], decks: [], timeframe: 'all', onlyReversals: false };
 const SAVED_FILTERS_KEY = 'journal_saved_filters_v1';
+const ADVANCED_FILTERS_KEY = 'journal_filters_advanced_v1';
 const OUTLINE_FILTER_BASE = 'flex items-center gap-2 rounded-xl border px-3 py-2 text-sm font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/40';
 const OUTLINE_FILTER_IDLE = 'border-amber-200/20 text-amber-100/60 hover:border-amber-200/35 hover:text-amber-100/80';
 const OUTLINE_FILTER_ACTIVE = 'border-amber-300/70 bg-amber-300/15 text-amber-50 shadow-[0_12px_30px_-18px_rgba(251,191,36,0.75)]';
@@ -169,6 +170,14 @@ export function JournalFilters({ filters, onChange, contexts = [], spreads = [],
       return [];
     }
   });
+  const [advancedOpen, setAdvancedOpen] = useState(() => {
+    if (typeof window === 'undefined') return !isCompact;
+    const stored = localStorage.getItem(ADVANCED_FILTERS_KEY);
+    if (stored === 'true' || stored === 'false') {
+      return stored === 'true';
+    }
+    return !isCompact;
+  });
   const [newFilterName, setNewFilterName] = useState('');
 
   const persistSavedFilters = (next) => {
@@ -180,6 +189,21 @@ export function JournalFilters({ filters, onChange, contexts = [], spreads = [],
       console.warn('Unable to persist saved filters', error);
     }
   };
+
+  useEffect(() => {
+    if (typeof localStorage === 'undefined') return;
+    try {
+      localStorage.setItem(ADVANCED_FILTERS_KEY, advancedOpen.toString());
+    } catch (error) {
+      console.warn('Unable to persist advanced filter state', error);
+    }
+  }, [advancedOpen]);
+
+  useEffect(() => {
+    if (!isCompact && !advancedOpen) {
+      setAdvancedOpen(true);
+    }
+  }, [advancedOpen, isCompact]);
 
   const normalizedFilters = () => ({
     ...DEFAULT_FILTERS,
@@ -237,6 +261,8 @@ export function JournalFilters({ filters, onChange, contexts = [], spreads = [],
   const clearFilters = () => {
     onChange(DEFAULT_FILTERS);
   };
+
+  const shouldShowAdvanced = !isCompact || advancedOpen;
 
   const containerClass = isCompact
     ? 'relative overflow-hidden rounded-3xl border border-amber-300/15 bg-gradient-to-br from-[#0b0a12] via-[#0d0a1a] to-[#0b0a12] p-5 lg:p-6 shadow-[0_22px_60px_-30px_rgba(0,0,0,0.9)] animate-fade-in'
@@ -310,7 +336,19 @@ export function JournalFilters({ filters, onChange, contexts = [], spreads = [],
           </button>
         </div>
 
-        {(() => {
+        {isCompact && (
+          <button
+            type="button"
+            onClick={() => setAdvancedOpen(prev => !prev)}
+            aria-expanded={advancedOpen}
+            className="flex w-full items-center justify-between rounded-xl border border-amber-300/20 bg-amber-300/5 px-3 py-2 text-sm font-semibold text-amber-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/40"
+          >
+            <span>Advanced filters</span>
+            <CaretDown className={`h-4 w-4 transition-transform ${advancedOpen ? 'rotate-180' : ''}`} aria-hidden="true" />
+          </button>
+        )}
+
+        {shouldShowAdvanced && (() => {
           const timeframeLabel = TIMEFRAME_OPTIONS.find((opt) => opt.value === filters.timeframe)?.label || 'All time';
           const ctxCount = (filters.contexts || []).length;
           const spreadCount = (filters.spreads || []).length;
@@ -545,66 +583,68 @@ export function JournalFilters({ filters, onChange, contexts = [], spreads = [],
               </button>
             </div>
 
-            <div className="mt-4 rounded-xl border border-amber-200/15 bg-[#0f1222]/70 p-3">
-              <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.25em] text-amber-200/70">
-                <BookmarkSimple className="h-4 w-4" />
-                <span>Saved filters</span>
-              </div>
-              <div className="mt-2 flex flex-wrap items-center gap-2">
-                {savedFilters.length > 0 ? (
-                  savedFilters.map((saved) => (
-                    <div
-                      key={saved.id}
-                      className="inline-flex items-center gap-2 rounded-full border border-amber-200/25 bg-amber-200/5 px-3 py-1 text-xs text-amber-100"
+            {shouldShowAdvanced && (
+              <div className="mt-4 rounded-xl border border-amber-200/15 bg-[#0f1222]/70 p-3">
+                <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.25em] text-amber-200/70">
+                  <BookmarkSimple className="h-4 w-4" />
+                  <span>Saved filters</span>
+                </div>
+                <div className="mt-2 flex flex-wrap items-center gap-2">
+                  {savedFilters.length > 0 ? (
+                    savedFilters.map((saved) => (
+                      <div
+                        key={saved.id}
+                        className="inline-flex items-center gap-2 rounded-full border border-amber-200/25 bg-amber-200/5 px-3 py-1 text-xs text-amber-100"
+                      >
+                        <button
+                          type="button"
+                          onClick={() => handleApplySaved(saved)}
+                          className="flex items-center gap-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/40"
+                        >
+                          <span className="font-semibold text-amber-50">{saved.name}</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteSaved(saved.id)}
+                          className="rounded-full px-1 text-amber-100/60 hover:text-error focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/40"
+                          aria-label={`Delete saved filter ${saved.name}`}
+                        >
+                          <span aria-hidden="true">×</span>
+                        </button>
+                      </div>
+                    ))
+                  ) : (
+                    <p className="text-xs text-amber-100/60">No saved filters yet—name a view to reuse it.</p>
+                  )}
+                </div>
+                <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
+                  <input
+                    type="text"
+                    value={newFilterName}
+                    onChange={(event) => setNewFilterName(event.target.value)}
+                    placeholder="Name this view"
+                    className="flex-1 rounded-xl border border-amber-200/25 bg-[#0b0d18]/70 px-4 py-2 text-sm text-amber-50 placeholder:text-amber-100/45 focus:outline-none focus:ring-2 focus:ring-amber-300/50"
+                  />
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={handleSaveCurrent}
+                      className={`${OUTLINE_FILTER_BASE} ${OUTLINE_FILTER_ACTIVE}`}
+                      disabled={!newFilterName.trim() || !hasActiveFilters()}
                     >
-                      <button
-                        type="button"
-                        onClick={() => handleApplySaved(saved)}
-                        className="flex items-center gap-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/40"
-                      >
-                        <span className="font-semibold text-amber-50">{saved.name}</span>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleDeleteSaved(saved.id)}
-                        className="rounded-full px-1 text-amber-100/60 hover:text-error focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/40"
-                        aria-label={`Delete saved filter ${saved.name}`}
-                      >
-                        <span aria-hidden="true">×</span>
-                      </button>
-                    </div>
-                  ))
-                ) : (
-                  <p className="text-xs text-amber-100/60">No saved filters yet—name a view to reuse it.</p>
-                )}
-              </div>
-              <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
-                <input
-                  type="text"
-                  value={newFilterName}
-                  onChange={(event) => setNewFilterName(event.target.value)}
-                  placeholder="Name this view"
-                  className="flex-1 rounded-xl border border-amber-200/25 bg-[#0b0d18]/70 px-4 py-2 text-sm text-amber-50 placeholder:text-amber-100/45 focus:outline-none focus:ring-2 focus:ring-amber-300/50"
-                />
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={handleSaveCurrent}
-                    className={`${OUTLINE_FILTER_BASE} ${OUTLINE_FILTER_ACTIVE}`}
-                    disabled={!newFilterName.trim() || !hasActiveFilters()}
-                  >
-                    Save current
-                  </button>
-                  <button
-                    type="button"
-                    onClick={clearFilters}
-                    className={`${OUTLINE_FILTER_BASE} ${OUTLINE_FILTER_IDLE}`}
-                  >
-                    Reset
-                  </button>
+                      Save current
+                    </button>
+                    <button
+                      type="button"
+                      onClick={clearFilters}
+                      className={`${OUTLINE_FILTER_BASE} ${OUTLINE_FILTER_IDLE}`}
+                    >
+                      Reset
+                    </button>
+                  </div>
                 </div>
               </div>
-            </div>
+            )}
           </div>
 
           {/* Filter toggles */}

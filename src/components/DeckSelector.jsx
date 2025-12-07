@@ -315,17 +315,31 @@ export function DeckSelector({ selectedDeck, onDeckChange }) {
                 }}
               >
                 {isSelected && (
-                  <div className="absolute top-3 right-3 z-20">
+                  <>
+                    <div className="absolute top-3 right-3 z-20">
+                      <div
+                        className="w-7 h-7 rounded-full flex items-center justify-center border border-white/30"
+                        style={{
+                          backgroundColor: 'var(--deck-accent)',
+                          boxShadow: `0 12px 26px -18px var(--deck-glow, rgba(212, 184, 150, 0.4))`
+                        }}
+                      >
+                        <Check className="w-4 h-4 text-main" strokeWidth={3} aria-hidden="true" />
+                      </div>
+                    </div>
                     <div
-                      className="w-7 h-7 rounded-full flex items-center justify-center border border-white/30"
+                      className="absolute left-3 top-3 z-20 inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-semibold"
                       style={{
-                        backgroundColor: 'var(--deck-accent)',
-                        boxShadow: `0 12px 26px -18px var(--deck-glow, rgba(212, 184, 150, 0.4))`
+                        backgroundColor: 'rgba(13, 10, 20, 0.92)',
+                        color: deck.accent,
+                        border: '1px solid rgba(255,255,255,0.15)',
+                        boxShadow: '0 12px 28px -20px rgba(0,0,0,0.7)'
                       }}
                     >
-                      <Check className="w-4 h-4 text-main" strokeWidth={3} />
+                      <Check className="h-3.5 w-3.5" weight="bold" aria-hidden="true" />
+                      <span>Selected</span>
                     </div>
-                  </div>
+                  </>
                 )}
 
                 <DeckPreviewImage preview={deck.preview} deckLabel={deck.label} />

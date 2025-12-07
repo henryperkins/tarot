@@ -66,7 +66,7 @@ export function GlobalNav({ condensed = false, withUserChip = false }) {
         </button>
 
         {withUserChip && (
-          <div className="ml-auto flex-none sm:hidden">
+          <div className="header-sticky__user header-sticky__user--fab sm:hidden">
             <UserMenu condensed />
           </div>
         )}

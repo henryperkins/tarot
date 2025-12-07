@@ -391,6 +391,7 @@ body {
   justify-content: center;
   gap: 1.5rem;
   position: relative;
+  min-height: 3.25rem;
 }
 
 .header-sticky__nav {
@@ -420,10 +421,17 @@ body {
 .header-sticky__user {
   transition: opacity 200ms ease, transform 200ms ease;
   position: absolute;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 48px;
+  min-height: 48px;
+  padding: 0.125rem;
   /* Account for safe area on notched devices */
-  right: max(0.25rem, env(safe-area-inset-right, 0px));
+  right: max(0.75rem, env(safe-area-inset-right, 0px));
   top: 50%;
   transform: translateY(-50%);
+  touch-action: manipulation;
 }
 
 .header-sticky--compact .header-sticky__user {
@@ -431,6 +439,25 @@ body {
   opacity: 1;
   transform: translateY(-50%);
   pointer-events: auto;
+}
+
+.header-sticky__user--fab {
+  border-radius: 999px;
+}
+
+@media (max-width: 399px) {
+  .header-sticky__user--fab {
+    position: fixed;
+    top: max(0.75rem, env(safe-area-inset-top, 0.5rem));
+    right: max(0.85rem, env(safe-area-inset-right, 0.5rem));
+    background: rgba(21, 18, 31, 0.8);
+    background: color-mix(in srgb, var(--bg-surface) 70%, transparent);
+    backdrop-filter: blur(14px);
+    box-shadow:
+      0 14px 30px -16px rgba(0, 0, 0, 0.65),
+      0 0 0 1px color-mix(in srgb, var(--brand-accent) 20%, transparent);
+    z-index: var(--z-fixed, 50);
+  }
 }
 
 .header-sticky__status {
@@ -581,6 +608,20 @@ body {
   .deck-pile {
     transform: scale(0.85);
     transform-origin: center;
+  }
+}
+
+@media (orientation: landscape) and (max-width: 1024px) {
+  .mobile-action-bar {
+    left: max(0.5rem, env(safe-area-inset-left, 0.5rem));
+    right: max(0.5rem, env(safe-area-inset-right, 0.5rem));
+    bottom: max(0rem, env(safe-area-inset-bottom, 0rem));
+    border-radius: 1rem;
+    padding-bottom: max(1rem, calc(0.85rem + env(safe-area-inset-bottom, 0.5rem)));
+  }
+
+  .mobile-action-group {
+    padding-bottom: max(0.5rem, env(safe-area-inset-bottom, 0.5rem));
   }
 }
 
@@ -904,6 +945,14 @@ body {
     0 0 0 1px rgba(255, 255, 255, 0.08),
     inset 0 1px 0 rgba(255, 255, 255, 0.08);
   transform: translateY(-2px);
+  background:
+    linear-gradient(150deg, color-mix(in srgb, var(--spread-accent, #d4b896) 14%, transparent), transparent),
+    var(--spread-background, #15121f);
+}
+
+.spread-card--active .spread-card__title,
+.spread-card--active .spread-card__description {
+  color: var(--text-main);
 }
 
 @supports (color: color-mix(in srgb, red 50%, blue)) {
@@ -1153,6 +1202,13 @@ textarea:focus-visible {
   outline: 2px solid var(--focus-ring-color);
   /* slightly stronger accent for contrast */
   outline-offset: 3px;
+}
+
+.spread-card:focus-visible,
+.deck-card:focus-visible,
+.header-sticky__user:focus-visible {
+  outline: 2px solid var(--focus-ring-color);
+  outline-offset: 4px;
 }
 
 /* Authentic tarot card styling inspired by classic decks like Rider–Waite–Smith.
@@ -1848,6 +1904,9 @@ input[type="range"]:focus::-webkit-slider-thumb {
     0 0 0 1px rgba(255, 255, 255, 0.08),
     inset 0 1px 0 rgba(255, 255, 255, 0.08);
   transform: translateY(-2px);
+  background:
+    linear-gradient(150deg, color-mix(in srgb, var(--deck-accent, #d4b896) 16%, transparent), transparent),
+    var(--deck-background, #15121f);
 }
 
 .deck-preview-card {
@@ -2427,14 +2486,16 @@ input[type="range"]:focus::-webkit-slider-thumb {
   }
 }
 
-.narrative-skeleton [class*="bg-gradient-to-r"] {
-  background-size: 200% 100%;
-  animation: skeleton-shimmer 2s ease-in-out infinite;
-}
+@media (prefers-reduced-motion: no-preference) {
+  .narrative-skeleton [class*="bg-gradient-to-r"] {
+    background-size: 200% 100%;
+    animation: skeleton-shimmer 2s ease-in-out infinite;
+  }
 
-/* Staggered bounce for dots */
-.narrative-skeleton [class*="animate-bounce"] {
-  animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  /* Staggered bounce for dots */
+  .narrative-skeleton [class*="animate-bounce"] {
+    animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  }
 }
 
 /* Reduce motion: disable all skeleton animations */

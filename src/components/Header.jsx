@@ -165,7 +165,7 @@ export function Header({ steps, activeStep, onStepSelect, isShuffling }) {
             <GlobalNav condensed={isCompact} withUserChip />
           </div>
           {/* Fallback placement if user chip overflows (desktop still shows) */}
-          <div className="header-sticky__user hidden sm:block">
+          <div className="header-sticky__user header-sticky__user--fab hidden sm:block">
             <UserMenu condensed={isCompact} />
           </div>
         </div>
