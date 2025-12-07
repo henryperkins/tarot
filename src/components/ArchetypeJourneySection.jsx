@@ -44,19 +44,19 @@ function getRunMetaKey(userId) {
  */
 function AnalyticsSkeleton() {
   return (
-    <div className="rounded-3xl border border-secondary/20 bg-surface/40 p-5 animate-pulse">
+    <div className="rounded-3xl border border-amber-300/15 bg-gradient-to-br from-[#0b0c1d] via-[#0d1024] to-[#0a0c1a] p-5 shadow-[0_18px_50px_-32px_rgba(0,0,0,0.85)] animate-pulse">
       <div className="flex items-center gap-2 mb-4">
-        <div className="h-3 w-3 rounded bg-secondary/20" />
-        <div className="h-3 w-28 rounded bg-secondary/20" />
+        <div className="h-3 w-3 rounded bg-amber-200/25" />
+        <div className="h-3 w-28 rounded bg-amber-200/25" />
       </div>
       <div className="space-y-3">
         {[1, 2, 3].map((i) => (
           <div key={i} className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <div className="h-5 w-5 rounded-full bg-secondary/10" />
-              <div className="h-4 w-24 rounded bg-secondary/10" />
+              <div className="h-5 w-5 rounded-full bg-amber-200/15" />
+              <div className="h-4 w-24 rounded bg-amber-200/15" />
             </div>
-            <div className="h-4 w-8 rounded bg-secondary/10" />
+            <div className="h-4 w-8 rounded bg-amber-200/15" />
           </div>
         ))}
       </div>
@@ -90,72 +90,87 @@ function EmptyState({ onBackfill, isBackfilling, backfillResult }) {
 
   return (
     <section
-      className="rounded-3xl border border-secondary/20 bg-surface/40 p-5"
+      className="relative overflow-hidden rounded-3xl border border-amber-300/15 bg-gradient-to-br from-[#0b0a12] via-[#0d0a1a] to-[#0b0a12] p-5 shadow-[0_18px_50px_-32px_rgba(0,0,0,0.85)]"
       aria-labelledby="archetype-journey-empty-heading"
     >
-      <h3
-        id="archetype-journey-empty-heading"
-        className="mb-3 flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-accent/80"
-      >
-        <Sparkle className="h-3 w-3" aria-hidden="true" />
-        Archetype Journey
-      </h3>
+      <div
+        className="pointer-events-none absolute inset-0 opacity-60 mix-blend-screen"
+        aria-hidden="true"
+        style={{
+          backgroundImage:
+            'radial-gradient(circle at 18% 18%, rgba(251,191,36,0.08), transparent 32%), radial-gradient(circle at 82% 26%, rgba(56,189,248,0.08), transparent 30%), radial-gradient(circle at 52% 76%, rgba(167,139,250,0.08), transparent 32%)'
+        }}
+      />
+      <div className="pointer-events-none absolute -left-16 top-10 h-48 w-48 rounded-full bg-amber-500/12 blur-[90px]" aria-hidden="true" />
+      <div className="pointer-events-none absolute right-[-96px] top-1/3 h-60 w-60 rounded-full bg-cyan-400/10 blur-[90px]" aria-hidden="true" />
 
-      {backfillResult ? (
-        <div className="text-sm text-secondary/80">
-          <p className="mb-2 text-primary">
-            {backfillResult.success ? 'Backfill complete!' : 'Backfill failed'}
-          </p>
-          {backfillResult.success && backfillResult.stats && (
-            <ul className="space-y-1 text-xs text-muted">
-              <li>{backfillResult.stats.entriesProcessed} entries processed</li>
-              <li>{backfillResult.stats.cardsTracked} cards tracked</li>
-              {backfillResult.stats.badgesAwarded > 0 && (
-                <li>{backfillResult.stats.badgesAwarded} badges awarded</li>
-              )}
-            </ul>
-          )}
-          {!backfillResult.success && (
-            <p className="text-xs text-error">{backfillResult.message || 'Please try again'}</p>
-          )}
-        </div>
-      ) : (
-        <div className="flex flex-col items-center text-center">
-          <ArchetypeEmptyIllustration className="mb-4 w-32 opacity-90" />
-          <p className="mb-4 text-sm text-muted leading-relaxed">
-            Track which cards appear most often in your readings to discover recurring archetypal themes in your journey.
-          </p>
+      <div className="relative z-10">
+        <h3
+          id="archetype-journey-empty-heading"
+          className="mb-3 flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-amber-200/70"
+        >
+          <Sparkle className="h-3 w-3" aria-hidden="true" />
+          Archetype Journey
+        </h3>
 
-          <button
-            onClick={handleClick}
-            disabled={isBackfilling}
-            aria-label="Analyze journal for archetype journey"
-            className={`
-              flex items-center gap-2 px-4 py-2 rounded-full text-xs font-medium
-              border border-accent/30 text-accent
-              hover:bg-accent/10 hover:border-accent/50
-              active:bg-accent/20
-              disabled:opacity-50 disabled:cursor-not-allowed
-              transition
-            `}
-          >
-            <ArrowsClockwise
-              className={`h-3.5 w-3.5 ${isBackfilling ? 'animate-spin' : ''}`}
-              aria-hidden="true"
-            />
-            {isBackfilling ? 'Analyzing readings...' : 'Analyze past readings'}
-          </button>
-
-          <p className="mt-3 text-[11px] text-secondary/50">
-            This will scan your journal entries and build your card frequency data.
-          </p>
-          {backfillResult?.success && backfillResult?.stats?.entriesProcessed > 0 && (
-            <p className="mt-1 text-[10px] text-secondary/60">
-              Last run processed {backfillResult.stats.entriesProcessed} entries.
+        {backfillResult ? (
+          <div className="text-sm text-amber-100/80">
+            <p className="mb-2 text-amber-50">
+              {backfillResult.success ? 'Backfill complete!' : 'Backfill failed'}
             </p>
-          )}
-        </div>
-      )}
+            {backfillResult.success && backfillResult.stats && (
+              <ul className="space-y-1 text-xs text-amber-100/70">
+                <li>{backfillResult.stats.entriesProcessed} entries processed</li>
+                <li>{backfillResult.stats.cardsTracked} cards tracked</li>
+                {backfillResult.stats.badgesAwarded > 0 && (
+                  <li>{backfillResult.stats.badgesAwarded} badges awarded</li>
+                )}
+              </ul>
+            )}
+            {!backfillResult.success && (
+              <p className="text-xs text-error">{backfillResult.message || 'Please try again'}</p>
+            )}
+          </div>
+        ) : (
+          <div className="flex flex-col items-center text-center">
+            <ArchetypeEmptyIllustration className="mb-4 w-32 opacity-90" />
+            <p className="mb-4 text-sm text-amber-100/70 leading-relaxed">
+              Track which cards appear most often in your readings to discover recurring archetypal themes in your journey.
+            </p>
+
+            <button
+              onClick={handleClick}
+              disabled={isBackfilling}
+              aria-label="Analyze journal for archetype journey"
+              className={`
+                flex items-center gap-2 px-4 py-2 rounded-full text-xs font-medium
+                border border-amber-300/40 text-amber-50 bg-amber-300/10
+                shadow-[0_16px_36px_-22px_rgba(251,191,36,0.65)]
+                hover:-translate-y-0.5 hover:border-amber-300/60
+                active:bg-amber-300/20
+                focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/50
+                disabled:opacity-50 disabled:cursor-not-allowed disabled:translate-y-0
+                transition
+              `}
+            >
+              <ArrowsClockwise
+                className={`h-3.5 w-3.5 ${isBackfilling ? 'animate-spin' : ''}`}
+                aria-hidden="true"
+              />
+              {isBackfilling ? 'Analyzing readings...' : 'Analyze past readings'}
+            </button>
+
+            <p className="mt-3 text-[11px] text-amber-100/55">
+              This will scan your journal entries and build your card frequency data.
+            </p>
+            {backfillResult?.success && backfillResult?.stats?.entriesProcessed > 0 && (
+              <p className="mt-1 text-[10px] text-amber-100/60">
+                Last run processed {backfillResult.stats.entriesProcessed} entries.
+              </p>
+            )}
+          </div>
+        )}
+      </div>
     </section>
   );
 }
@@ -391,7 +406,7 @@ export function ArchetypeJourneySection({ isAuthenticated, userId, showEmptyStat
       key: 'topCards',
       content: (
         <>
-          <div className="mb-4 flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-accent/80">
+          <div className="mb-4 flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-amber-200/75">
             <TrendUp className="h-3 w-3" aria-hidden="true" />
             Top Cards
           </div>
@@ -399,15 +414,15 @@ export function ArchetypeJourneySection({ isAuthenticated, userId, showEmptyStat
             {analytics.topCards.slice(0, 5).map((card, index) => (
               <li key={`${card.card_name}-${index}`} className="flex items-center justify-between text-sm">
                 <div className="flex items-center gap-2">
-                  <span className="flex h-5 w-5 items-center justify-center rounded-full bg-secondary/10 text-xs font-medium text-secondary" aria-hidden="true">
+                  <span className="flex h-5 w-5 items-center justify-center rounded-full bg-amber-200/15 text-xs font-medium text-amber-100" aria-hidden="true">
                     {index + 1}
                   </span>
-                  <span className="text-muted">
+                  <span className="text-amber-100/80">
                     <span className="sr-only">Rank {index + 1}: </span>
                     {card.card_name}
                   </span>
                 </div>
-                <span className="text-secondary/60" aria-label={`appeared ${card.count} times`}>
+                <span className="text-amber-200/70" aria-label={`appeared ${card.count} times`}>
                   {card.count}×
                 </span>
               </li>
@@ -423,7 +438,7 @@ export function ArchetypeJourneySection({ isAuthenticated, userId, showEmptyStat
       key: 'patterns',
       content: (
         <>
-          <div className="mb-4 flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-accent/80">
+          <div className="mb-4 flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-amber-200/75">
             <Fire className="h-3 w-3" aria-hidden="true" />
             Recent Patterns
           </div>
@@ -431,15 +446,15 @@ export function ArchetypeJourneySection({ isAuthenticated, userId, showEmptyStat
             {analytics.streaks.slice(0, 3).map((streak) => (
               <li key={streak.cardName} className="flex items-center gap-3">
                 <div
-                  className="flex h-8 w-8 items-center justify-center rounded-full bg-accent/10 text-accent"
+                  className="flex h-8 w-8 items-center justify-center rounded-full bg-amber-300/15 text-amber-100"
                   aria-hidden="true"
                   title="Pattern highlight"
                 >
                   <Fire className="h-4 w-4" />
                 </div>
                 <div className="flex-1">
-                  <p className="text-sm font-medium text-secondary">{streak.cardName}</p>
-                  <p className="text-xs text-secondary/60">
+                  <p className="text-sm font-medium text-amber-100/85">{streak.cardName}</p>
+                  <p className="text-xs text-amber-100/70">
                     Appeared {streak.count} time{streak.count === 1 ? '' : 's'} this month
                   </p>
                 </div>
@@ -447,7 +462,7 @@ export function ArchetypeJourneySection({ isAuthenticated, userId, showEmptyStat
             ))}
           </ul>
           {analytics.streaks.length > 3 && (
-            <p className="mt-3 text-xs text-secondary/50">
+            <p className="mt-3 text-xs text-amber-100/60">
               +{analytics.streaks.length - 3} more pattern{analytics.streaks.length - 3 !== 1 ? 's' : ''}
             </p>
           )}
@@ -461,7 +476,7 @@ export function ArchetypeJourneySection({ isAuthenticated, userId, showEmptyStat
       key: 'achievements',
       content: (
         <>
-          <div className="mb-4 flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-accent/80">
+          <div className="mb-4 flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-amber-200/75">
             <Medal className="h-3 w-3" aria-hidden="true" />
             Achievements
           </div>
@@ -474,10 +489,10 @@ export function ArchetypeJourneySection({ isAuthenticated, userId, showEmptyStat
                     <BadgeIcon className="h-4 w-4" aria-hidden="true" />
                   </span>
                   <div className="flex-1">
-                    <p className="text-sm font-medium text-secondary">
+                    <p className="text-sm font-medium text-amber-100/85">
                       {badge.card_name || 'Milestone'}
                     </p>
-                    <p className="text-xs text-secondary/60">
+                    <p className="text-xs text-amber-100/70">
                       {badge.metadata?.context || 'Achievement unlocked'}
                     </p>
                   </div>
@@ -503,30 +518,43 @@ export function ArchetypeJourneySection({ isAuthenticated, userId, showEmptyStat
   const runCaption = runCaptionParts.join(' · ');
 
   return (
-    <section className="rounded-3xl border border-secondary/30 bg-surface/70 p-5 space-y-5" aria-labelledby="archetype-journey-heading">
-      <div>
-        <p className="text-[11px] uppercase tracking-[0.3em] text-secondary/70">Archetype Journey</p>
-        <h3 id="archetype-journey-heading" className="text-lg font-serif text-main">{analytics.currentMonth}</h3>
-        <p className="text-xs text-secondary/60">
-          {analytics.stats?.thisMonth ?? 0} entries this month · Avg {analytics.stats?.avgPerWeek ?? 0}/week · {analytics.stats?.totalReadings ?? 0} total
-        </p>
-        {runCaption && (
-          <p className="text-[11px] text-secondary/60">
-            {runCaption}
+    <section className="relative overflow-hidden rounded-3xl border border-amber-300/15 bg-gradient-to-br from-[#0b0c1d] via-[#0d1024] to-[#090a16] p-5 space-y-5 shadow-[0_22px_60px_-32px_rgba(0,0,0,0.85)]" aria-labelledby="archetype-journey-heading">
+      <div
+        className="pointer-events-none absolute inset-0 opacity-55 mix-blend-screen"
+        aria-hidden="true"
+        style={{
+          backgroundImage:
+            'radial-gradient(circle at 14% 18%, rgba(251,191,36,0.08), transparent 32%), radial-gradient(circle at 86% 26%, rgba(56,189,248,0.07), transparent 30%), radial-gradient(circle at 60% 78%, rgba(167,139,250,0.08), transparent 32%)'
+        }}
+      />
+      <div className="pointer-events-none absolute -left-24 top-8 h-64 w-64 rounded-full bg-amber-500/12 blur-[110px]" aria-hidden="true" />
+      <div className="pointer-events-none absolute right-[-120px] top-1/3 h-72 w-72 rounded-full bg-cyan-400/10 blur-[110px]" aria-hidden="true" />
+
+      <div className="relative z-10 space-y-5">
+        <div>
+          <p className="text-[11px] uppercase tracking-[0.3em] text-amber-200/60">Archetype Journey</p>
+          <h3 id="archetype-journey-heading" className="text-lg font-serif text-amber-50">{analytics.currentMonth}</h3>
+          <p className="text-xs text-amber-100/70">
+            {analytics.stats?.thisMonth ?? 0} entries this month · Avg {analytics.stats?.avgPerWeek ?? 0}/week · {analytics.stats?.totalReadings ?? 0} total
           </p>
+          {runCaption && (
+            <p className="text-[11px] text-amber-100/60">
+              {runCaption}
+            </p>
+          )}
+        </div>
+        {sectionBlocks.length > 0 ? (
+          <div className="space-y-5 divide-y divide-amber-200/10">
+            {sectionBlocks.map((section, index) => (
+              <div key={section.key} className={index === 0 ? '' : 'pt-5'}>
+                {section.content}
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="text-sm text-amber-100/70">Run more readings to unlock archetype analytics.</p>
         )}
       </div>
-      {sectionBlocks.length > 0 ? (
-        <div className="space-y-5 divide-y divide-secondary/15">
-          {sectionBlocks.map((section, index) => (
-            <div key={section.key} className={index === 0 ? '' : 'pt-5'}>
-              {section.content}
-            </div>
-          ))}
-        </div>
-      ) : (
-        <p className="text-sm text-secondary/70">Run more readings to unlock archetype analytics.</p>
-      )}
     </section>
   );
 }

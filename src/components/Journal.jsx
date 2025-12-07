@@ -8,7 +8,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { usePreferences } from '../contexts/PreferencesContext';
 import { useJournal } from '../hooks/useJournal';
 import { JournalFilters } from './JournalFilters.jsx';
-import { JournalInsightsPanel } from './JournalInsightsPanel.jsx';
+import { JournalInsightsPanel, OUTLINE_BUTTON_CLASS } from './JournalInsightsPanel.jsx';
 import { InsightsErrorBoundary } from './InsightsErrorBoundary.jsx';
 import { JournalEntryCard } from './JournalEntryCard.jsx';
 import { SavedIntentionsList } from './SavedIntentionsList.jsx';
@@ -41,6 +41,25 @@ const DECK_FILTERS = DECK_OPTIONS.map(d => ({ value: d.id, label: d.label }));
 
 const VISIBLE_ENTRY_BATCH = 10;
 const MOBILE_LAYOUT_MAX = 1023;
+const AMBER_SHELL_CLASS = 'relative overflow-hidden rounded-3xl border border-amber-300/12 bg-gradient-to-br from-[#0b0c1d] via-[#0d1024] to-[#090a16] shadow-[0_24px_68px_-30px_rgba(0,0,0,0.9)]';
+const AMBER_CARD_CLASS = 'relative overflow-hidden rounded-2xl border border-amber-300/15 bg-gradient-to-br from-[#0f0b16]/85 via-[#0c0a13]/85 to-[#0a0810]/85 ring-1 ring-amber-300/10 shadow-[0_18px_45px_-30px_rgba(0,0,0,0.85)]';
+
+function AmberStarfield() {
+  return (
+    <>
+      <div
+        className="pointer-events-none absolute inset-0 opacity-60 mix-blend-screen"
+        aria-hidden="true"
+        style={{
+          backgroundImage:
+            'radial-gradient(circle at 12% 18%, rgba(251,191,36,0.08), transparent 32%), radial-gradient(circle at 84% 22%, rgba(56,189,248,0.07), transparent 30%), radial-gradient(circle at 58% 76%, rgba(167,139,250,0.08), transparent 32%)'
+        }}
+      />
+      <div className="pointer-events-none absolute -left-24 top-10 h-64 w-64 rounded-full bg-amber-500/12 blur-[110px]" aria-hidden="true" />
+      <div className="pointer-events-none absolute right-[-120px] top-1/3 h-72 w-72 rounded-full bg-cyan-400/10 blur-[110px]" aria-hidden="true" />
+    </>
+  );
+}
 
 function getEntryTimestamp(entry) {
   if (!entry) return null;
@@ -218,21 +237,22 @@ export default function Journal() {
     setMobilePanelsOpen((prev) => ({ ...prev, [panelId]: !prev[panelId] }));
   };
   const renderMobileAccordionSection = (id, label, content, helperText) => (
-    <div className="rounded-2xl bg-surface/75 ring-1 ring-white/5 shadow-[0_18px_45px_-32px_rgba(0,0,0,0.75)]">
+    <div className={`${AMBER_SHELL_CLASS} p-1.5`}>
+      <AmberStarfield />
       <button
         type="button"
         onClick={() => toggleMobilePanel(id)}
         aria-expanded={Boolean(mobilePanelsOpen[id])}
-        className="flex w-full items-center justify-between px-4 py-3 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/40"
+        className="relative z-10 flex w-full items-center justify-between rounded-2xl px-4 py-3 text-left text-amber-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/40"
       >
         <div>
-          <p className="text-[11px] uppercase tracking-[0.25em] text-secondary/70">{label}</p>
-          {helperText && <p className="text-xs text-secondary/60">{helperText}</p>}
+          <p className="text-[11px] uppercase tracking-[0.25em] text-amber-100/70">{label}</p>
+          {helperText && <p className="text-xs text-amber-100/60">{helperText}</p>}
         </div>
-        {mobilePanelsOpen[id] ? <CaretUp className="h-4 w-4 text-secondary/70" aria-hidden /> : <CaretDown className="h-4 w-4 text-secondary/70" aria-hidden />}
+        {mobilePanelsOpen[id] ? <CaretUp className="h-4 w-4 text-amber-200/70" aria-hidden /> : <CaretDown className="h-4 w-4 text-amber-200/70" aria-hidden />}
       </button>
       {mobilePanelsOpen[id] && (
-        <div className="border-t border-white/5 p-4">
+        <div className="relative z-10 border-t border-amber-200/12 bg-[#0b0d18]/70 p-4 backdrop-blur-sm">
           {content}
         </div>
       )}
@@ -603,7 +623,7 @@ export default function Journal() {
     return (
       <div key={key} className="space-y-2">
         {showDivider && (
-          <p className="text-[11px] uppercase tracking-[0.3em] text-secondary/60">{monthLabel}</p>
+          <p className="text-[11px] uppercase tracking-[0.3em] text-amber-100/60">{monthLabel}</p>
         )}
         <JournalEntryCard
           entry={entry}
@@ -679,32 +699,38 @@ export default function Journal() {
           <h1 className="text-3xl font-serif text-accent mb-4">Your Tarot Journal</h1>
 
           {isAuthenticated ? (
-            <div className="mb-6 rounded-2xl border border-secondary/40 bg-secondary/10 p-4">
-              <p className="journal-prose text-secondary">✓ Signed in — Your journal is synced across devices</p>
-              {hasLocalStorageEntries() && !migrating && (
-                <button
-                  onClick={handleMigrate}
-                  className="mt-2 inline-flex items-center gap-2 text-sm text-secondary hover:text-secondary/80 underline"
-                >
-                  <UploadSimple className="w-4 h-4" />
-                  Migrate localStorage entries to cloud
-                </button>
-              )}
-              {migrating && (
-                <p className="mt-2 text-sm text-secondary">Migrating...</p>
-              )}
+            <div className={`mb-6 ${AMBER_CARD_CLASS} p-5`}>
+              <AmberStarfield />
+              <div className="relative z-10 space-y-2">
+                <p className="journal-prose text-amber-100/85">✓ Signed in — Your journal is synced across devices</p>
+                {hasLocalStorageEntries() && !migrating && (
+                  <button
+                    onClick={handleMigrate}
+                    className={`${OUTLINE_BUTTON_CLASS} mt-1`}
+                  >
+                    <UploadSimple className="w-4 h-4" />
+                    Migrate localStorage entries
+                  </button>
+                )}
+                {migrating && (
+                  <p className="text-sm text-amber-100/70">Migrating...</p>
+                )}
+              </div>
             </div>
           ) : (
-            <div className="mb-6 rounded-2xl border border-primary/40 bg-primary/10 p-4 text-sm text-accent journal-prose">
-              Your journal is currently stored locally in this browser only. Use the Sign In button in the header to sync across devices.
-              {shouldShowAccountNudge && (
-                <div className="mt-3">
-                  <AccountNudge
-                    onCreateAccount={() => setShowAuthModal(true)}
-                    onDismiss={dismissAccountNudge}
-                  />
-                </div>
-              )}
+            <div className={`mb-6 ${AMBER_CARD_CLASS} p-5`}>
+              <AmberStarfield />
+              <div className="relative z-10 space-y-3 text-sm text-amber-100/80 journal-prose">
+                <p>Your journal is currently stored locally in this browser only. Use the Sign In button in the header to sync across devices.</p>
+                {shouldShowAccountNudge && (
+                  <div className="mt-1">
+                    <AccountNudge
+                      onCreateAccount={() => setShowAuthModal(true)}
+                      onDismiss={dismissAccountNudge}
+                    />
+                  </div>
+                )}
+              </div>
             </div>
           )}
 
@@ -1223,7 +1249,7 @@ export default function Journal() {
               {Array.from({ length: 3 }).map((_, index) => (
                 <div
                   key={index}
-                  className="animate-pulse rounded-2xl bg-surface/65 ring-1 ring-white/5 p-4 shadow-[0_16px_40px_-28px_rgba(0,0,0,0.7)]"
+                  className="animate-pulse rounded-2xl border border-amber-300/15 bg-amber-200/5 ring-1 ring-amber-300/10 p-4 shadow-[0_16px_40px_-28px_rgba(0,0,0,0.7)]"
                 >
                   <div className="flex items-center justify-between gap-3">
                     <div className="h-4 w-28 rounded-full bg-white/10" />
@@ -1241,109 +1267,118 @@ export default function Journal() {
           ) : (
               <div className={hasEntries && hasRailContent ? 'lg:grid lg:grid-cols-[minmax(0,1fr)_360px] lg:gap-6' : ''}>
                 <div className="space-y-8">
-                <section id="today" className="rounded-3xl bg-surface/75 ring-1 ring-white/5 p-5 shadow-[0_18px_50px_-32px_rgba(0,0,0,0.8)]">
-                  <div className="mb-4">
-                    <p className="journal-eyebrow text-secondary/70">Today</p>
-                    <h2 className="text-xl font-serif text-main">Keep today&rsquo;s focus handy</h2>
+                <section id="today" className={`${AMBER_SHELL_CLASS} p-5`}>
+                  <AmberStarfield />
+                  <div className="relative z-10">
+                    <div className="mb-4">
+                      <p className="journal-eyebrow text-amber-100/70">Today</p>
+                      <h2 className="text-xl font-serif text-amber-50">Keep today&rsquo;s focus handy</h2>
+                    </div>
+                    <SavedIntentionsList />
                   </div>
-                  <SavedIntentionsList />
                 </section>
 
                     {hasEntries ? (
-                      <section id="history" className="space-y-5">
-                      <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-                        <div className="flex items-center gap-2">
-                          <h2 className="text-xl font-serif text-main">Journal history</h2>
-                          <span className="inline-flex items-center rounded-full bg-surface/70 ring-1 ring-white/5 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-secondary/70">
-                            History
-                          </span>
-                        </div>
-                        <span className="inline-flex items-center gap-2 rounded-full bg-surface/70 ring-1 ring-white/5 px-3 py-1 text-[11px] text-secondary/70">
-                          Showing {visibleEntries.length} of {filteredEntries.length}
-                        </span>
-                      </div>
-
-                    {filteredEntries.length === 0 ? (
-                      <div className="rounded-2xl bg-surface/70 ring-1 ring-white/5 p-8 text-center text-sm text-secondary shadow-[0_16px_40px_-30px_rgba(0,0,0,0.7)]">
-                          <NoFiltersIllustration className="mb-4" />
-                          <p className="journal-prose text-lg text-main">No entries match your filters.</p>
-                          <p className="journal-prose mt-2 text-secondary/70">Try adjusting the filters or reset to see the full journal.</p>
-                      </div>
-                    ) : (
-                      <>
-                        <div className={entryStackSpacingClass}>
-                          {renderedHistoryEntries}
-                        </div>
-                        {hasMoreEntries && (
-                          <div className="flex justify-center">
-                            <button
-                              type="button"
-                              onClick={handleLoadMoreEntries}
-                              className="inline-flex items-center rounded-full bg-surface/70 ring-1 ring-white/5 px-3.5 py-1.5 min-h-[44px] text-xs font-semibold text-secondary hover:bg-secondary/10 shadow-[0_10px_26px_-22px_rgba(0,0,0,0.7)] touch-manipulation"
-                            >
-                              Load {Math.min(VISIBLE_ENTRY_BATCH, filteredEntries.length - visibleEntries.length)} more
-                            </button>
+                      <section id="history" className={`${AMBER_SHELL_CLASS} p-5 space-y-5`}>
+                        <AmberStarfield />
+                        <div className="relative z-10 space-y-5">
+                          <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+                            <div className="flex items-center gap-2">
+                              <h2 className="text-xl font-serif text-amber-50">Journal history</h2>
+                              <span className="inline-flex items-center rounded-full border border-amber-200/20 bg-amber-200/10 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-amber-100/75">
+                                History
+                              </span>
+                            </div>
+                            <span className="inline-flex items-center gap-2 rounded-full border border-amber-200/20 bg-amber-200/10 px-3 py-1 text-[11px] text-amber-100/70">
+                              Showing {visibleEntries.length} of {filteredEntries.length}
+                            </span>
                           </div>
-                        )}
-                      </>
-                    )}
-                  </section>
-                ) : (
-                  <div className="modern-surface animate-fade-in space-y-6 rounded-3xl p-8 text-center text-main">
-                    <EmptyJournalIllustration className="mb-6" />
-                    <div>
-                      <h2 className="text-2xl font-serif text-accent">Start your tarot journal</h2>
-                      <p className="journal-prose mt-1 text-sm text-muted sm:text-base">
-                        Track patterns across readings, revisit past insights, and watch your understanding deepen over time.
-                      </p>
-                    </div>
-                    <div className="grid gap-3 text-left text-sm text-muted sm:grid-cols-3">
-                      <div className="flex items-start gap-2">
-                        <Sparkle className="mt-0.5 h-4 w-4 text-accent" />
-                        <div className="journal-prose">
-                          <p className="text-main font-semibold">Spot recurring themes</p>
-                          <p>Surface repeaters and spreads that resonate most.</p>
+
+                          {filteredEntries.length === 0 ? (
+                            <div className="relative overflow-hidden rounded-2xl border border-amber-300/15 bg-amber-200/5 p-8 text-center text-sm text-amber-100/75 shadow-[0_16px_40px_-30px_rgba(0,0,0,0.8)]">
+                              <NoFiltersIllustration className="mb-4" />
+                              <p className="journal-prose text-lg text-amber-50">No entries match your filters.</p>
+                              <p className="journal-prose mt-2 text-amber-100/70">Try adjusting the filters or reset to see the full journal.</p>
+                            </div>
+                          ) : (
+                            <>
+                              <div className={entryStackSpacingClass}>
+                                {renderedHistoryEntries}
+                              </div>
+                              {hasMoreEntries && (
+                                <div className="flex justify-center">
+                                  <button
+                                    type="button"
+                                    onClick={handleLoadMoreEntries}
+                                    className={`${OUTLINE_BUTTON_CLASS} min-h-[44px] px-4 py-2`}
+                                  >
+                                    Load {Math.min(VISIBLE_ENTRY_BATCH, filteredEntries.length - visibleEntries.length)} more
+                                  </button>
+                                </div>
+                              )}
+                            </>
+                          )}
+                        </div>
+                      </section>
+                    ) : (
+                  <div className={`${AMBER_SHELL_CLASS} animate-fade-in space-y-6 rounded-3xl p-8 text-center text-amber-50`}>
+                    <AmberStarfield />
+                    <div className="relative z-10 space-y-6">
+                      <EmptyJournalIllustration className="mx-auto mb-2 w-40" />
+                      <div>
+                        <h2 className="text-2xl font-serif text-amber-50">Start your tarot journal</h2>
+                        <p className="journal-prose mt-1 text-sm text-amber-100/70 sm:text-base">
+                          Track patterns across readings, revisit past insights, and watch your understanding deepen over time.
+                        </p>
+                      </div>
+                      <div className="grid gap-3 text-left text-sm text-amber-100/75 sm:grid-cols-3">
+                        <div className="flex items-start gap-2">
+                          <Sparkle className="mt-0.5 h-4 w-4 text-amber-200" />
+                          <div className="journal-prose">
+                            <p className="text-amber-50 font-semibold">Spot recurring themes</p>
+                            <p>Surface repeaters and spreads that resonate most.</p>
+                          </div>
+                        </div>
+                        <div className="flex items-start gap-2">
+                          <ChartLine className="mt-0.5 h-4 w-4 text-amber-200" />
+                          <div className="journal-prose">
+                            <p className="text-amber-50 font-semibold">Measure your growth</p>
+                            <p>See how questions evolve and which cards guide you.</p>
+                          </div>
+                        </div>
+                        <div className="flex items-start gap-2">
+                          <BookOpen className="mt-0.5 h-4 w-4 text-amber-200" />
+                          <div className="journal-prose">
+                            <p className="text-amber-50 font-semibold">Capture reflections</p>
+                            <p>Keep notes beside each position to revisit later.</p>
+                          </div>
                         </div>
                       </div>
-                      <div className="flex items-start gap-2">
-                        <ChartLine className="mt-0.5 h-4 w-4 text-accent" />
-                        <div className="journal-prose">
-                          <p className="text-main font-semibold">Measure your growth</p>
-                          <p>See how questions evolve and which cards guide you.</p>
+                      <div className="rounded-xl border border-amber-200/20 bg-amber-200/5 p-4 text-left shadow-[0_14px_40px_-24px_rgba(0,0,0,0.75)]">
+                        <p className="text-[0.78rem] uppercase tracking-[0.12em] text-amber-100/70 mb-1">Example entry</p>
+                        <div className="journal-prose flex flex-col gap-1 text-sm text-amber-100/80">
+                          <p className="text-amber-50 font-semibold">Three-Card Story · Daily check-in</p>
+                          <p>Question: &ldquo;What pattern is emerging for me this week?&rdquo;</p>
+                          <p>Pull: The Star (upright), Six of Cups, Two of Wands</p>
+                          <p className="italic text-amber-100/65">Reflection: Hope is back. Remember the plan from Tuesday and take the next step.</p>
                         </div>
                       </div>
-                      <div className="flex items-start gap-2">
-                        <BookOpen className="mt-0.5 h-4 w-4 text-accent" />
-                        <div className="journal-prose">
-                          <p className="text-main font-semibold">Capture reflections</p>
-                          <p>Keep notes beside each position to revisit later.</p>
-                        </div>
+                      <div className="flex flex-wrap items-center justify-center gap-3 pt-1">
+                        <button
+                          type="button"
+                          onClick={handleStartReading}
+                          className={`${OUTLINE_BUTTON_CLASS} px-5 py-2.5 text-sm`}
+                        >
+                          Start a reading
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => navigate('/', { state: { focusSpread: true, initialQuestion: 'What pattern is emerging for me this week?' } })}
+                          className="inline-flex items-center gap-2 rounded-full border border-amber-200/25 bg-amber-200/5 px-5 py-2.5 text-sm font-semibold text-amber-50 shadow-[0_12px_30px_-18px_rgba(251,191,36,0.35)] transition hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/40"
+                        >
+                          Try a guided draw
+                        </button>
                       </div>
-                    </div>
-                    <div className="rounded-xl border border-secondary/50 bg-surface p-4 text-left shadow-sm">
-                      <p className="text-[0.78rem] uppercase tracking-[0.12em] text-secondary/80 mb-1">Example entry</p>
-                      <div className="journal-prose flex flex-col gap-1 text-sm text-muted">
-                        <p className="text-main font-semibold">Three-Card Story · Daily check-in</p>
-                        <p>Question: &ldquo;What pattern is emerging for me this week?&rdquo;</p>
-                        <p>Pull: The Star (upright), Six of Cups, Two of Wands</p>
-                        <p className="italic text-secondary">Reflection: Hope is back. Remember the plan from Tuesday and take the next step.</p>
-                      </div>
-                    </div>
-                    <div className="flex flex-wrap items-center justify-center gap-3 pt-1">
-                      <button
-                        type="button"
-                        onClick={handleStartReading}
-                        className="inline-flex items-center gap-2 rounded-full bg-accent px-5 py-2.5 text-sm font-semibold text-surface shadow-lg shadow-accent/25 hover:opacity-95 transition"
-                      >
-                        Start a reading
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => navigate('/', { state: { focusSpread: true, initialQuestion: 'What pattern is emerging for me this week?' } })}
-                        className="inline-flex items-center gap-2 rounded-full border border-secondary/60 px-5 py-2.5 text-sm font-semibold text-secondary hover:bg-secondary/10 transition"
-                      >
-                        Try a guided draw
-                      </button>
                     </div>
                   </div>
                 )}

@@ -88,32 +88,32 @@ export function SavedIntentionsList() {
 
   return (
     <div className="mb-8 animate-fade-in">
-      <div className="mb-1 flex items-center justify-between text-accent">
+      <div className="mb-1 flex items-center justify-between text-black">
         <div className="flex items-center gap-2">
           <ClockCounterClockwise className="w-5 h-5" />
-          <h2 className="text-xl font-serif">Saved Intentions</h2>
+          <h2 className="text-xl font-serif text-black">Saved Intentions</h2>
         </div>
 
         {totalPages > 1 && (
-          <div className="flex items-center gap-1 text-[0.78rem] text-muted">
+          <div className="flex items-center gap-1 text-[0.78rem] text-black/70">
             <button
               type="button"
               onClick={() => setPageIndex((prev) => Math.max(prev - 1, 0))}
               disabled={page === 0}
-              className="flex items-center gap-1 rounded-full px-2 py-1 transition-colors duration-150 disabled:opacity-40 hover:text-charcoal focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 focus-visible:ring-offset-2 focus-visible:ring-offset-[rgba(245,239,223,0.9)]"
+              className="flex items-center gap-1 rounded-full px-2 py-1 transition-colors duration-150 disabled:opacity-40 hover:text-black focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 focus-visible:ring-offset-2 focus-visible:ring-offset-[rgba(245,239,223,0.9)]"
               aria-label="Previous intentions page"
             >
               <CaretLeft className="h-4 w-4" />
               Prev
             </button>
-            <span className="px-2 text-[0.78rem] font-semibold text-charcoal/70">
+            <span className="px-2 text-[0.78rem] font-semibold text-black/70">
               {page + 1} / {totalPages}
             </span>
             <button
               type="button"
               onClick={() => setPageIndex((prev) => Math.min(prev + 1, totalPages - 1))}
               disabled={page === totalPages - 1}
-              className="flex items-center gap-1 rounded-full px-2 py-1 transition-colors duration-150 disabled:opacity-40 hover:text-charcoal focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 focus-visible:ring-offset-2 focus-visible:ring-offset-[rgba(245,239,223,0.9)]"
+              className="flex items-center gap-1 rounded-full px-2 py-1 transition-colors duration-150 disabled:opacity-40 hover:text-black focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 focus-visible:ring-offset-2 focus-visible:ring-offset-[rgba(245,239,223,0.9)]"
               aria-label="Next intentions page"
             >
               Next
@@ -122,7 +122,7 @@ export function SavedIntentionsList() {
           </div>
         )}
       </div>
-      <p className="text-xs text-muted mb-3 flex items-center gap-1">
+      <p className="text-xs text-black/70 mb-3 flex items-center gap-1">
         <Sparkle className="w-4 h-4" aria-hidden="true" /> From Guided Intention Coach
       </p>
 
@@ -153,19 +153,19 @@ export function SavedIntentionsList() {
               />
 
               <div className="relative z-10 space-y-2">
-                <div className="flex items-center gap-2 text-[0.7rem] uppercase tracking-[0.18em] text-slate-mid font-semibold drop-shadow-sm">
+                <div className="flex items-center gap-2 text-[0.7rem] uppercase tracking-[0.18em] text-black/70 font-semibold drop-shadow-sm">
                   <Sparkle className="w-3.5 h-3.5 text-primary/80" aria-hidden="true" /> Guided coach
                 </div>
 
-                <p className="pr-8 text-[0.98rem] font-semibold leading-[1.65] text-charcoal/90 line-clamp-3">
+                <p className="pr-8 text-[0.98rem] font-semibold leading-[1.65] text-black line-clamp-3">
                   {item.question}
                 </p>
 
                 <div className="flex items-center justify-between pt-1">
-                  <span className="text-[0.72rem] font-semibold text-slate-mid">
+                  <span className="text-[0.72rem] font-semibold text-black/70">
                     {new Date(item.createdAt).toLocaleDateString()}
                   </span>
-                  <span className="flex items-center gap-1 text-[0.78rem] font-semibold text-charcoal/70 opacity-0 transition-opacity group-hover:opacity-100">
+                  <span className="flex items-center gap-1 text-[0.78rem] font-semibold text-black/70 opacity-0 transition-opacity group-hover:opacity-100">
                     Use this <ArrowRight className="w-3 h-3" />
                   </span>
                 </div>
@@ -176,7 +176,7 @@ export function SavedIntentionsList() {
                   e.stopPropagation();
                   handleDelete(item.id);
                 }}
-                className="absolute top-3 right-3 z-30 rounded-full bg-black/0 p-1.5 text-charcoal/60 transition-all duration-150 hover:bg-black/5 hover:text-error focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-error/70 focus-visible:ring-offset-2 focus-visible:ring-offset-[rgba(255,247,209,0.9)]"
+                className="absolute top-3 right-3 z-30 rounded-full bg-black/0 p-1.5 text-black/60 transition-all duration-150 hover:bg-black/5 hover:text-error focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-error/70 focus-visible:ring-offset-2 focus-visible:ring-offset-[rgba(255,247,209,0.9)]"
                 title="Delete intention"
                 aria-label="Delete intention"
               >

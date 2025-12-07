@@ -32,7 +32,7 @@ import { callLlmApi } from '../lib/intentionCoach';
 import { InlineStatus } from './InlineStatus.jsx';
 import { useInlineStatus } from '../hooks/useInlineStatus';
 
-const OUTLINE_BUTTON_CLASS = 'inline-flex items-center gap-2 rounded-full border border-secondary/40 px-3 py-1.5 text-xs font-semibold text-secondary hover:border-secondary/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/50 disabled:opacity-50 disabled:cursor-not-allowed';
+export const OUTLINE_BUTTON_CLASS = 'inline-flex items-center gap-2 rounded-full border border-amber-300/35 bg-amber-300/10 px-3 py-1.5 text-xs font-semibold text-amber-50 shadow-[0_12px_30px_-18px_rgba(251,191,36,0.65)] transition hover:-translate-y-0.5 hover:border-amber-300/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/50 disabled:opacity-50 disabled:cursor-not-allowed disabled:translate-y-0';
 const CONTEXT_TO_SPREAD = {
     love: {
         spread: 'Relationship Snapshot',
@@ -608,26 +608,69 @@ export const JournalInsightsPanel = memo(function JournalInsightsPanel({
 
     return (
         <div className={prefersReducedMotion ? '' : 'animate-fade-in'}>
-            <div className="space-y-6 rounded-3xl bg-surface/75 ring-1 ring-white/5 p-6 shadow-[0_22px_60px_-36px_rgba(0,0,0,0.8)]">
-                <div>
-                    <h2 className="text-2xl font-serif text-main">Journal Insights</h2>
-                    <p className="mt-1 text-sm text-secondary/70">
-                        {isFilteredView && allStats ? (
-                            <>
-                                <span className="font-medium text-secondary">Filtered:</span> {stats.totalReadings} of {allStats.totalReadings} entries · {stats.reversalRate}% reversed
-                            </>
-                        ) : (
-                            <>
-                                {primaryStats.totalReadings} entries · {primaryStats.totalCards} cards · {primaryStats.reversalRate}% reversed
-                            </>
-                        )}
-                    </p>
-                    {isFilteredAndEmpty && (
-                        <p className="mt-1 text-xs text-secondary/70">Filters returned no entries, showing full journal insights.</p>
-                    )}
+            <div className="relative overflow-hidden rounded-3xl border border-amber-300/12 bg-gradient-to-br from-[#0b0c1d] via-[#0d1024] to-[#090a16] p-6 lg:p-7 shadow-[0_24px_68px_-30px_rgba(0,0,0,0.9)]">
+                {/* Starfield + glows to mirror Journal Pulse/Filters */}
+                <div
+                    className="pointer-events-none absolute inset-0 opacity-60 mix-blend-screen"
+                    aria-hidden="true"
+                    style={{
+                        backgroundImage:
+                            'radial-gradient(circle at 12% 18%, rgba(251,191,36,0.08), transparent 32%), radial-gradient(circle at 86% 24%, rgba(56,189,248,0.07), transparent 30%), radial-gradient(circle at 58% 78%, rgba(167,139,250,0.08), transparent 32%)'
+                    }}
+                />
+                <div className="pointer-events-none absolute inset-0" aria-hidden="true">
+                    {[
+                        { x: 6, y: 14, s: 1.2, o: 0.7 },
+                        { x: 18, y: 26, s: 1, o: 0.5 },
+                        { x: 34, y: 10, s: 1.6, o: 0.7 },
+                        { x: 52, y: 8, s: 1.2, o: 0.5 },
+                        { x: 68, y: 18, s: 1, o: 0.4 },
+                        { x: 84, y: 12, s: 1.5, o: 0.7 },
+                        { x: 12, y: 78, s: 1.2, o: 0.5 },
+                        { x: 28, y: 64, s: 1, o: 0.4 },
+                        { x: 46, y: 86, s: 1.6, o: 0.7 },
+                        { x: 64, y: 74, s: 1.2, o: 0.6 },
+                        { x: 82, y: 82, s: 1, o: 0.4 },
+                        { x: 92, y: 66, s: 1.3, o: 0.5 }
+                    ].map((star, i) => (
+                        <div
+                            key={i}
+                            className="absolute rounded-full bg-amber-100"
+                            style={{
+                                left: `${star.x}%`,
+                                top: `${star.y}%`,
+                                width: star.s,
+                                height: star.s,
+                                opacity: star.o,
+                                boxShadow: `0 0 ${star.s * 4}px ${star.s}px rgba(251,191,36,${star.o * 0.45})`
+                            }}
+                        />
+                    ))}
                 </div>
+                <div className="pointer-events-none absolute -left-24 top-12 h-64 w-64 rounded-full bg-amber-500/12 blur-[110px]" aria-hidden="true" />
+                <div className="pointer-events-none absolute right-[-120px] top-1/3 h-72 w-72 rounded-full bg-cyan-400/10 blur-[110px]" aria-hidden="true" />
 
-                <div className="rounded-2xl bg-surface/60 ring-1 ring-white/5 p-3 lg:sticky lg:top-0 lg:z-10 shadow-[0_14px_40px_-28px_rgba(0,0,0,0.7)]">
+                <div className="relative z-10 space-y-6">
+                    <div className="space-y-1">
+                        <p className="text-[10px] uppercase tracking-[0.32em] text-amber-200/60">Insights</p>
+                        <h2 className="text-2xl font-serif text-amber-50">Journal Insights</h2>
+                        <p className="text-sm text-amber-100/70">
+                            {isFilteredView && allStats ? (
+                                <>
+                                    <span className="font-medium text-amber-100">Filtered:</span> {stats.totalReadings} of {allStats.totalReadings} entries · {stats.reversalRate}% reversed
+                                </>
+                            ) : (
+                                <>
+                                    {primaryStats.totalReadings} entries · {primaryStats.totalCards} cards · {primaryStats.reversalRate}% reversed
+                                </>
+                            )}
+                        </p>
+                        {isFilteredAndEmpty && (
+                            <p className="text-[11px] text-amber-100/60">Filters returned no entries, showing full journal insights.</p>
+                        )}
+                    </div>
+
+                <div className="rounded-2xl border border-amber-300/20 bg-amber-300/10 ring-1 ring-amber-300/15 p-3 lg:sticky lg:top-0 lg:z-10 shadow-[0_14px_40px_-28px_rgba(0,0,0,0.7)] backdrop-blur-sm">
                     <div className="flex flex-wrap gap-2">
                         <button
                             type="button"
@@ -660,7 +703,7 @@ export const JournalInsightsPanel = memo(function JournalInsightsPanel({
                             type="button"
                             onClick={handleVisualCardDownload}
                             disabled={!svgStats}
-                            className={`${OUTLINE_BUTTON_CLASS} ${svgStats ? '' : 'border-secondary/20 text-secondary/40'}`}
+                            className={`${OUTLINE_BUTTON_CLASS} ${svgStats ? '' : 'border-amber-200/25 text-amber-200/50 shadow-none'}`}
                         >
                             {pendingAction === 'visual-card' ? <CircleNotch className="h-4 w-4 animate-spin" /> : <Sparkle className="h-4 w-4" />}
                             Visual card
@@ -669,7 +712,7 @@ export const JournalInsightsPanel = memo(function JournalInsightsPanel({
                         <button
                             type="button"
                             onClick={() => setShareComposerOpen(prev => !prev)}
-                            className={`${OUTLINE_BUTTON_CLASS} ${shareComposerOpen ? 'border-secondary text-secondary bg-secondary/10' : ''}`}
+                            className={`${OUTLINE_BUTTON_CLASS} ${shareComposerOpen ? 'border-amber-300 text-amber-50 bg-amber-300/15' : ''}`}
                             >
                                 <ArrowsClockwise className="h-4 w-4" />
                                 {shareComposerOpen ? 'Close custom link' : 'Custom link'}
@@ -682,35 +725,35 @@ export const JournalInsightsPanel = memo(function JournalInsightsPanel({
                 </div>
 
                 {shareComposerOpen && (
-                    <form onSubmit={handleComposerSubmit} className={`rounded-2xl bg-surface/65 ring-1 ring-white/5 shadow-[0_16px_46px_-30px_rgba(0,0,0,0.75)] ${isSmallScreen ? 'p-4' : 'p-6'} ${prefersReducedMotion ? '' : 'animate-slide-down'}`}>
+                    <form onSubmit={handleComposerSubmit} className={`relative overflow-hidden rounded-2xl border border-amber-300/15 bg-gradient-to-br from-[#0c0d1d]/80 via-[#0c0a16]/80 to-[#090a14]/85 ring-1 ring-amber-300/15 shadow-[0_16px_46px_-30px_rgba(0,0,0,0.75)] ${isSmallScreen ? 'p-4' : 'p-6'} ${prefersReducedMotion ? '' : 'animate-slide-down'}`}>
                         <div className="grid gap-4 sm:grid-cols-2">
                             <label className="block">
-                                <span className="text-xs uppercase tracking-wider text-secondary/80">Link Title</span>
+                                <span className="text-xs uppercase tracking-wider text-amber-100/80">Link Title</span>
                                 <input
                                     type="text"
                                     value={shareComposer.title}
                                     onChange={(e) => setShareComposer(p => ({ ...p, title: e.target.value }))}
                                     placeholder="Optional title"
-                                    className="mt-2 w-full rounded-xl border border-secondary/30 bg-surface/50 px-3 py-2 text-sm text-main focus:ring-2 focus:ring-secondary/50"
+                                    className="mt-2 w-full rounded-xl border border-amber-200/25 bg-[#0b0d18]/70 px-3 py-2 text-sm text-amber-50 placeholder:text-amber-100/45 focus:ring-2 focus:ring-amber-300/50"
                                 />
-                                <p className="mt-1 text-xs text-secondary/70">Shown on the shared page to give viewers context.</p>
+                                <p className="mt-1 text-xs text-amber-100/70">Shown on the shared page to give viewers context.</p>
                             </label>
                             <label className="block">
-                                <span className="text-xs uppercase tracking-wider text-secondary/80">Expires In</span>
+                                <span className="text-xs uppercase tracking-wider text-amber-100/80">Expires In</span>
                                 <select
                                     value={shareComposer.expiresInHours ?? ''}
                                     onChange={(e) => setShareComposer(p => ({ ...p, expiresInHours: e.target.value || undefined }))}
-                                    className="mt-2 w-full rounded-xl border border-secondary/30 bg-surface/50 px-3 py-2 text-sm text-main focus:ring-2 focus:ring-secondary/50"
+                                    className="mt-2 w-full rounded-xl border border-amber-200/25 bg-[#0b0d18]/70 px-3 py-2 text-sm text-amber-50 focus:ring-2 focus:ring-amber-300/50"
                                 >
                                     <option value="24">24 hours</option>
                                     <option value="72">3 days</option>
                                     <option value="168">1 week</option>
                                     <option value="">No expiry</option>
                                 </select>
-                                <p className="mt-1 text-xs text-secondary/70">Control how long the link stays live.</p>
+                                <p className="mt-1 text-xs text-amber-100/70">Control how long the link stays live.</p>
                             </label>
                             <label className="block">
-                                <span className="text-xs uppercase tracking-wider text-secondary/80">Scope</span>
+                                <span className="text-xs uppercase tracking-wider text-amber-100/80">Scope</span>
                                 <select
                                     value={shareComposer.scope}
                                     onChange={(e) => {
@@ -718,16 +761,16 @@ export const JournalInsightsPanel = memo(function JournalInsightsPanel({
                                         setShareComposer(p => ({ ...p, scope: nextScope }));
                                         setComposerErrors(prev => ({ ...prev, limit: '', entryId: '', general: '' }));
                                     }}
-                                    className="mt-2 w-full rounded-xl border border-secondary/30 bg-surface/50 px-3 py-2 text-sm text-main focus:ring-2 focus:ring-secondary/50"
+                                    className="mt-2 w-full rounded-xl border border-amber-200/25 bg-[#0b0d18]/70 px-3 py-2 text-sm text-amber-50 focus:ring-2 focus:ring-amber-300/50"
                                 >
                                     <option value="journal">Recent entries</option>
                                     <option value="entry">Single entry</option>
                                 </select>
-                                <p className="mt-1 text-xs text-secondary/70">Share a filtered journal snapshot or one specific reading.</p>
+                                <p className="mt-1 text-xs text-amber-100/70">Share a filtered journal snapshot or one specific reading.</p>
                             </label>
                         {shareComposer.scope === 'journal' ? (
                             <label className="block">
-                                <span className="text-xs uppercase tracking-wider text-secondary/80">How many entries to share (1–10)</span>
+                                <span className="text-xs uppercase tracking-wider text-amber-100/80">How many entries to share (1–10)</span>
                                 <input
                                     type="number"
                                     min="1"
@@ -740,9 +783,9 @@ export const JournalInsightsPanel = memo(function JournalInsightsPanel({
                                     inputMode="numeric"
                                     pattern="[0-9]*"
                                     disabled={!filtersActive}
-                                    className="mt-2 w-full rounded-xl border border-secondary/30 bg-surface/50 px-3 py-2 text-sm text-main focus:ring-2 focus:ring-secondary/50 disabled:opacity-60"
+                                    className="mt-2 w-full rounded-xl border border-amber-200/25 bg-[#0b0d18]/70 px-3 py-2 text-sm text-amber-50 focus:ring-2 focus:ring-amber-300/50 disabled:opacity-60"
                                 />
-                                <p className="mt-1 text-xs text-secondary/70">
+                                <p className="mt-1 text-xs text-amber-100/70">
                                     {filtersActive
                                         ? `Auto-filled from ${filteredEntryCount} matching entr${filteredEntryCount === 1 ? 'y' : 'ies'}.`
                                         : 'Sharing your most recent journal entries.'}
@@ -753,22 +796,22 @@ export const JournalInsightsPanel = memo(function JournalInsightsPanel({
                             </label>
                         ) : (
                             <label className="block">
-                                <span className="text-xs uppercase tracking-wider text-secondary/80">Pick an entry to share</span>
+                                <span className="text-xs uppercase tracking-wider text-amber-100/80">Pick an entry to share</span>
                                 <select
                                     value={shareComposer.entryId || ''}
                                     onChange={(e) => {
                                         setShareComposer(p => ({ ...p, entryId: e.target.value }));
                                         setComposerErrors(prev => ({ ...prev, entryId: '', general: '' }));
                                     }}
-                                    className="mt-2 w-full rounded-xl border border-secondary/30 bg-surface/50 px-3 py-2 text-sm text-main focus:ring-2 focus:ring-secondary/50"
+                                    className="mt-2 w-full rounded-xl border border-amber-200/25 bg-[#0b0d18]/70 px-3 py-2 text-sm text-amber-50 focus:ring-2 focus:ring-amber-300/50"
                                 >
                                     {entryOptions.all.map(opt => (
                                         <option key={opt.id} value={opt.id}>{opt.label}</option>
                                     ))}
                                 </select>
-                                <p className="mt-1 text-xs text-secondary/70">Select a single reading to share.</p>
+                                <p className="mt-1 text-xs text-amber-100/70">Select a single reading to share.</p>
                                 {selectedEntryLabel && (
-                                    <p className="text-[11px] text-secondary/60">Chosen: {selectedEntryLabel}</p>
+                                    <p className="text-[11px] text-amber-100/60">Chosen: {selectedEntryLabel}</p>
                                 )}
                                 {composerErrors.entryId && (
                                     <p className="mt-1 text-xs text-error">{composerErrors.entryId}</p>
@@ -776,14 +819,14 @@ export const JournalInsightsPanel = memo(function JournalInsightsPanel({
                             </label>
                         )}
                         {filtersActive && shareComposer.scope === 'journal' && composerPreviewEntries.length > 0 && (
-                            <div className="sm:col-span-2 rounded-xl border border-secondary/20 bg-surface/40 p-4">
-                                <p className="text-xs uppercase tracking-[0.2em] text-secondary/80">
+                            <div className="sm:col-span-2 rounded-xl border border-amber-200/25 bg-amber-200/5 p-4">
+                                <p className="text-xs uppercase tracking-[0.2em] text-amber-100/80">
                                     Sharing {composerPreviewEntries.length} filtered entr{composerPreviewEntries.length === 1 ? 'y' : 'ies'}
                                 </p>
-                                <ul className="mt-2 space-y-1 text-sm text-muted">
+                                <ul className="mt-2 space-y-1 text-sm text-amber-100/80">
                                     {composerPreviewEntries.map((entry, idx) => (
                                         <li key={entry?.id || idx} className="flex items-center gap-2">
-                                            <span className="h-1.5 w-1.5 rounded-full bg-secondary/40" />
+                                            <span className="h-1.5 w-1.5 rounded-full bg-amber-200/50" />
                                             <span className="truncate">{formatEntryOptionLabel(entry)}</span>
                                         </li>
                                     ))}
@@ -795,7 +838,7 @@ export const JournalInsightsPanel = memo(function JournalInsightsPanel({
                         {composerErrors.general && (
                             <p className="mr-4 text-sm text-error">{composerErrors.general}</p>
                         )}
-                        <button type="submit" className="rounded-full bg-secondary/20 px-6 py-2 text-sm font-medium text-secondary hover:bg-secondary/30">
+                        <button type="submit" className="inline-flex items-center gap-2 rounded-full border border-amber-300/35 bg-amber-300/15 px-6 py-2 text-sm font-semibold text-amber-50 shadow-[0_12px_30px_-18px_rgba(251,191,36,0.6)] transition hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/50">
                             Create Link
                         </button>
                     </div>
@@ -805,15 +848,15 @@ export const JournalInsightsPanel = memo(function JournalInsightsPanel({
                 <div className={`grid ${insightsGridLayout} lg:grid-cols-1 lg:gap-4`}>
                     {/* Frequent Cards */}
                     {frequentCards.length > 0 && (
-                        <div className={`rounded-3xl border border-secondary/20 bg-surface/40 ${isLandscape ? 'p-3' : 'p-5'}`}>
-                            <h3 className={`flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-accent/80 ${isLandscape ? 'mb-2' : 'mb-4'}`}>
+                        <div className={`relative overflow-hidden rounded-3xl border border-amber-300/12 bg-gradient-to-br from-[#0f0b16]/80 via-[#0c0a13]/80 to-[#0a0810]/85 ring-1 ring-amber-300/10 shadow-[0_18px_45px_-30px_rgba(0,0,0,0.8)] ${isLandscape ? 'p-3' : 'p-5'}`}>
+                            <h3 className={`flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-amber-200/75 ${isLandscape ? 'mb-2' : 'mb-4'}`}>
                                 <ChartBar className="h-3 w-3" /> Frequent Cards
                             </h3>
                             <ul className={isLandscape ? 'space-y-1' : 'space-y-2'}>
                                 {frequentCards.slice(0, isLandscape ? 3 : 5).map((card) => (
-                                    <li key={card.name} className={`flex items-center justify-between text-muted ${isLandscape ? 'text-xs' : 'text-sm'}`}>
+                                    <li key={card.name} className={`flex items-center justify-between text-amber-100/80 ${isLandscape ? 'text-xs' : 'text-sm'}`}>
                                         <span>{card.name}</span>
-                                        <span className="text-secondary/60">{card.count}×</span>
+                                        <span className="text-amber-200/70">{card.count}×</span>
                                     </li>
                                 ))}
                             </ul>
@@ -822,18 +865,18 @@ export const JournalInsightsPanel = memo(function JournalInsightsPanel({
 
                     {/* Context Mix */}
                     {contextBreakdown.length > 0 && (
-                        <div className={`rounded-3xl border border-secondary/20 bg-surface/40 ${isLandscape ? 'p-3' : 'p-5'}`}>
-                            <h3 className={`text-xs font-bold uppercase tracking-wider text-accent/80 ${isLandscape ? 'mb-2' : 'mb-4'}`}>Context Mix</h3>
+                        <div className={`relative overflow-hidden rounded-3xl border border-amber-300/12 bg-gradient-to-br from-[#0f0b16]/80 via-[#0c0a13]/80 to-[#0a0810]/85 ring-1 ring-amber-300/10 shadow-[0_18px_45px_-30px_rgba(0,0,0,0.8)] ${isLandscape ? 'p-3' : 'p-5'}`}>
+                            <h3 className={`text-xs font-bold uppercase tracking-wider text-amber-200/75 ${isLandscape ? 'mb-2' : 'mb-4'}`}>Context Mix</h3>
                             <div className={`flex flex-wrap ${isLandscape ? 'gap-1' : 'gap-2'}`}>
                                 {contextBreakdown.map((ctx) => {
                                     const ContextIcon = getContextIcon(ctx.name);
                                     return (
                                         <span
                                             key={ctx.name}
-                                            className={`inline-flex items-center gap-1.5 rounded-full border border-secondary/20 bg-secondary/5 text-secondary ${isLandscape ? 'px-2 py-0.5 text-[0.65rem]' : 'px-3 py-1 text-xs'}`}
+                                            className={`inline-flex items-center gap-1.5 rounded-full border border-amber-200/25 bg-amber-200/10 text-amber-50 ${isLandscape ? 'px-2 py-0.5 text-[0.65rem]' : 'px-3 py-1 text-xs'}`}
                                         >
-                                            <ContextIcon className={`${isLandscape ? 'w-3 h-3' : 'w-3.5 h-3.5'} text-accent/70`} aria-hidden="true" />
-                                            {ctx.name} <span className="opacity-50">({ctx.count})</span>
+                                            <ContextIcon className={`${isLandscape ? 'w-3 h-3' : 'w-3.5 h-3.5'} text-amber-200/70`} aria-hidden="true" />
+                                            {ctx.name} <span className="opacity-60">({ctx.count})</span>
                                         </span>
                                     );
                                 })}
@@ -843,16 +886,16 @@ export const JournalInsightsPanel = memo(function JournalInsightsPanel({
 
                     {/* Recent Themes */}
                     {recentThemes.length > 0 && (
-                        <div className={`rounded-3xl border border-secondary/20 bg-surface/40 ${isLandscape ? 'p-3' : 'p-5'}`}>
-                            <h3 className={`flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-accent/80 ${isLandscape ? 'mb-2' : 'mb-4'}`}>
+                        <div className={`relative overflow-hidden rounded-3xl border border-amber-300/12 bg-gradient-to-br from-[#0f0b16]/80 via-[#0c0a13]/80 to-[#0a0810]/85 ring-1 ring-amber-300/10 shadow-[0_18px_45px_-30px_rgba(0,0,0,0.8)] ${isLandscape ? 'p-3' : 'p-5'}`}>
+                            <h3 className={`flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-amber-200/75 ${isLandscape ? 'mb-2' : 'mb-4'}`}>
                                 <Sparkle className="h-3 w-3" /> Recent Themes
                             </h3>
                             <ul className={isLandscape ? 'space-y-1' : 'space-y-2'}>
                                 {recentThemes.slice(0, isLandscape ? 3 : 5).map((theme, idx) => (
-                                    <li key={idx} className={`flex items-center gap-2 text-muted ${isLandscape ? 'text-xs' : 'text-sm'}`}>
+                                    <li key={idx} className={`flex items-center gap-2 text-amber-100/80 ${isLandscape ? 'text-xs' : 'text-sm'}`}>
                                         <ThemeIcon
                                             theme={theme}
-                                            className={`${isLandscape ? 'w-3 h-3' : 'w-3.5 h-3.5'} text-accent/60 flex-shrink-0`}
+                                            className={`${isLandscape ? 'w-3 h-3' : 'w-3.5 h-3.5'} text-amber-200/70 flex-shrink-0`}
                                             aria-hidden="true"
                                         />
                                         <span>{theme}</span>
@@ -864,11 +907,11 @@ export const JournalInsightsPanel = memo(function JournalInsightsPanel({
 
                     {/* Emerging Interests (Preference Drift) - Phase 5.4 */}
                     {preferenceDrift?.hasDrift && (
-                        <div className={`rounded-3xl border border-amber-500/30 bg-amber-500/5 ${isLandscape ? 'p-3' : 'p-5'}`}>
-                            <h3 className={`flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-amber-400/90 ${isLandscape ? 'mb-2' : 'mb-4'}`}>
+                        <div className={`relative overflow-hidden rounded-3xl border border-amber-500/35 bg-gradient-to-br from-[#2a1606]/80 via-[#1c1005]/85 to-[#130a05]/90 ring-1 ring-amber-500/20 shadow-[0_18px_45px_-30px_rgba(0,0,0,0.8)] ${isLandscape ? 'p-3' : 'p-5'}`}>
+                            <h3 className={`flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-amber-200/85 ${isLandscape ? 'mb-2' : 'mb-4'}`}>
                                 <BookOpen className="h-3 w-3" /> Emerging Interests
                             </h3>
-                            <p className={`text-muted leading-relaxed ${isLandscape ? 'text-xs' : 'text-sm'}`}>
+                            <p className={`text-amber-100/85 leading-relaxed ${isLandscape ? 'text-xs' : 'text-sm'}`}>
                                 You&apos;ve been exploring{' '}
                                 <span className="font-medium text-amber-300">
                                     {preferenceDrift.driftContexts
@@ -878,7 +921,7 @@ export const JournalInsightsPanel = memo(function JournalInsightsPanel({
                                 </span>{' '}
                                 themes beyond your selected focus areas.
                             </p>
-                            <p className={`mt-2 text-secondary/60 ${isLandscape ? 'text-[0.65rem]' : 'text-xs'}`}>
+                            <p className={`mt-2 text-amber-100/65 ${isLandscape ? 'text-[0.65rem]' : 'text-xs'}`}>
                                 Consider updating your focus areas in Settings to personalize future readings.
                             </p>
                         </div>
@@ -897,5 +940,6 @@ export const JournalInsightsPanel = memo(function JournalInsightsPanel({
 
             </div>
         </div>
+    </div>
     );
 });

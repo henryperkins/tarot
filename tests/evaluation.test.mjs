@@ -95,7 +95,7 @@ describe('evaluation', () => {
       assert.equal(result.scores.overall, 4);
       assert.equal(result.scores.safety_flag, false);
       assert.equal(result.model, '@cf/meta/llama-3-8b-instruct-awq');
-      assert.equal(result.promptVersion, '1.1.0');
+      assert.equal(result.promptVersion, '1.2.0');
     });
 
     test('handles malformed JSON response', async () => {
@@ -280,8 +280,8 @@ describe('evaluation', () => {
     });
   });
 
-  describe('runEvaluation - full data preservation', () => {
-    test('preserves full reading without truncation', async () => {
+  describe('runEvaluation - input length guards', () => {
+    test('truncates very long readings to prevent context overflow', async () => {
       let capturedPrompt = '';
       const capturingMockAI = {
         run: async (model, params) => {
@@ -299,7 +299,7 @@ describe('evaluation', () => {
         }
       };
 
-      const longReading = 'A'.repeat(5000);
+      const longReading = 'A'.repeat(5000);  // Exceeds 4000 char limit
 
       await runEvaluation(
         { AI: capturingMockAI, EVAL_ENABLED: 'true' },
@@ -308,16 +308,17 @@ describe('evaluation', () => {
           userQuestion: 'test',
           cardsInfo: [],
           spreadKey: 'test',
-          requestId: 'eval-no-truncate'
+          requestId: 'eval-truncate-reading'
         }
       );
 
-      // Verify NO truncation occurs - full reading is preserved
-      assert.ok(!capturedPrompt.includes('[truncated]'));
-      assert.ok(capturedPrompt.includes('A'.repeat(5000)));
+      // Verify truncation occurs for long readings
+      assert.ok(capturedPrompt.includes('[truncated]'), 'Long reading should be truncated');
+      assert.ok(!capturedPrompt.includes('A'.repeat(5000)), 'Full 5000 chars should not be present');
+      assert.ok(capturedPrompt.includes('A'.repeat(3000)), 'At least 3000 chars should be preserved');
     });
 
-    test('preserves full user question without truncation', async () => {
+    test('truncates very long user questions to prevent context overflow', async () => {
       let capturedPrompt = '';
       const capturingMockAI = {
         run: async (model, params) => {
@@ -335,7 +336,7 @@ describe('evaluation', () => {
         }
       };
 
-      const longQuestion = 'What should I do about ' + 'my situation '.repeat(100);
+      const longQuestion = 'What should I do about ' + 'my situation '.repeat(100);  // Exceeds 500 char limit
 
       await runEvaluation(
         { AI: capturingMockAI, EVAL_ENABLED: 'true' },
@@ -344,12 +345,49 @@ describe('evaluation', () => {
           userQuestion: longQuestion,
           cardsInfo: [],
           spreadKey: 'test',
-          requestId: 'eval-full-question'
+          requestId: 'eval-truncate-question'
         }
       );
 
-      // Verify full question is preserved
-      assert.ok(capturedPrompt.includes(longQuestion));
+      // Verify question is truncated
+      assert.ok(capturedPrompt.includes('[truncated]') || !capturedPrompt.includes(longQuestion),
+        'Long question should be truncated');
+    });
+
+    test('preserves short readings without truncation', async () => {
+      let capturedPrompt = '';
+      const capturingMockAI = {
+        run: async (model, params) => {
+          capturedPrompt = params.messages[1].content;
+          return {
+            response: JSON.stringify({
+              personalization: 4,
+              tarot_coherence: 4,
+              tone: 4,
+              safety: 5,
+              overall: 4,
+              safety_flag: false
+            })
+          };
+        }
+      };
+
+      const shortReading = 'This is a normal length reading that should not be truncated.';
+
+      await runEvaluation(
+        { AI: capturingMockAI, EVAL_ENABLED: 'true' },
+        {
+          reading: shortReading,
+          userQuestion: 'What about my career?',
+          cardsInfo: [],
+          spreadKey: 'test',
+          requestId: 'eval-no-truncate'
+        }
+      );
+
+      // Verify NO truncation for short content
+      assert.ok(!capturedPrompt.includes('[truncated]'), 'Short content should not be truncated');
+      assert.ok(capturedPrompt.includes(shortReading), 'Full short reading should be preserved');
     });
 
     test('preserves all card information without truncation', async () => {
@@ -627,6 +665,159 @@ describe('evaluation', () => {
 
       assert.equal(mockKV.putCalls.length, 1);
     });
+
+    test('stores precomputed gate evaluation without rerunning AI', async () => {
+      const mockKV = new MockKV();
+      let runCalled = false;
+      const trackingAI = {
+        run: async () => {
+          runCalled = true;
+          return { response: '{}' };
+        }
+      };
+
+      const precomputedEval = {
+        scores: {
+          personalization: 5,
+          tarot_coherence: 5,
+          tone: 5,
+          safety: 5,
+          overall: 5,
+          safety_flag: false
+        },
+        model: 'gate-model',
+        latencyMs: 10,
+        promptVersion: '1.2.0',
+        timestamp: new Date().toISOString(),
+        mode: 'model'
+      };
+
+      const waitPromises = [];
+      const waitUntil = (p) => waitPromises.push(p);
+
+      scheduleEvaluation(
+        { AI: trackingAI, EVAL_ENABLED: 'true', METRICS_DB: mockKV },
+        { reading: 'test', userQuestion: 'test', cardsInfo: [], spreadKey: 'test', requestId: 'precomputed-store' },
+        { requestId: 'precomputed-store', spreadKey: 'test', provider: 'claude' },
+        { waitUntil, precomputedEvalResult: precomputedEval }
+      );
+
+      await Promise.all(waitPromises);
+
+      assert.equal(runCalled, false);
+      assert.equal(mockKV.putCalls.length, 1);
+      const storedData = JSON.parse(mockKV.putCalls[0].value);
+      assert.equal(storedData.eval.model, 'gate-model');
+      assert.equal(storedData.eval.scores.overall, 5);
+    });
+
+    test('applies redaction and drops unsafe metrics fields in redact mode', async () => {
+      const mockKV = new MockKV();
+      const waitPromises = [];
+      const waitUntil = (p) => waitPromises.push(p);
+
+      const precomputedEval = {
+        scores: {
+          personalization: 4,
+          tarot_coherence: 4,
+          tone: 4,
+          safety: 5,
+          overall: 4,
+          safety_flag: false
+        },
+        model: 'gate-model',
+        latencyMs: 10,
+        promptVersion: '1.2.0',
+        timestamp: new Date().toISOString(),
+        mode: 'model'
+      };
+
+      const metricsPayload = {
+        requestId: 'redact-mode',
+        spreadKey: 'threeCard',
+        provider: 'claude',
+        context: 'user context with pii',
+        promptEngineering: { raw: 'should not persist' },
+        extraField: 'drop me'
+      };
+
+      scheduleEvaluation(
+        { AI: mockAI, EVAL_ENABLED: 'true', METRICS_DB: mockKV, METRICS_STORAGE_MODE: 'redact' },
+        {
+          reading: 'Hello John Doe, this path invites you forward.',
+          userQuestion: 'Call me Jane Doe, what is next?',
+          cardsInfo: [{ position: 'Present', card: 'The Fool', orientation: 'upright', notes: 'ignore' }],
+          spreadKey: 'threeCard',
+          requestId: 'redact-mode'
+        },
+        metricsPayload,
+        { waitUntil, precomputedEvalResult: precomputedEval }
+      );
+
+      await Promise.all(waitPromises);
+
+      const storedData = JSON.parse(mockKV.putCalls[0].value);
+      assert.equal(storedData._storageMode, 'redact');
+      assert.ok(!('context' in storedData));
+      assert.ok(!('promptEngineering' in storedData));
+      assert.ok(!('extraField' in storedData));
+      assert.ok(storedData.readingText.includes('[NAME]'));
+      assert.ok(!storedData.readingText.includes('John Doe'));
+      assert.ok(!storedData.userQuestion.includes('Jane Doe'));
+      assert.equal(storedData.cardsInfo[0].card, 'The Fool');
+    });
+
+    test('strips payload down in minimal mode while keeping eval scores', async () => {
+      const mockKV = new MockKV();
+      const waitPromises = [];
+      const waitUntil = (p) => waitPromises.push(p);
+
+      const precomputedEval = {
+        scores: {
+          personalization: 3,
+          tarot_coherence: 4,
+          tone: 4,
+          safety: 5,
+          overall: 4,
+          safety_flag: false
+        },
+        model: 'gate-model',
+        latencyMs: 5,
+        promptVersion: '1.2.0',
+        timestamp: new Date().toISOString(),
+        mode: 'model'
+      };
+
+      const metricsPayload = {
+        requestId: 'minimal-mode',
+        spreadKey: 'single',
+        provider: 'claude',
+        context: 'sensitive context'
+      };
+
+      scheduleEvaluation(
+        { AI: mockAI, EVAL_ENABLED: 'true', METRICS_DB: mockKV, METRICS_STORAGE_MODE: 'minimal' },
+        {
+          reading: 'Hello Casey, gentle reminder.',
+          userQuestion: 'name is Casey',
+          cardsInfo: [{ position: 'Single', card: 'The Star', orientation: 'upright' }],
+          spreadKey: 'single',
+          requestId: 'minimal-mode'
+        },
+        metricsPayload,
+        { waitUntil, precomputedEvalResult: precomputedEval }
+      );
+
+      await Promise.all(waitPromises);
+
+      const storedData = JSON.parse(mockKV.putCalls[0].value);
+      assert.equal(storedData._storageMode, 'minimal');
+      assert.ok(!('context' in storedData));
+      assert.ok(!('readingText' in storedData));
+      assert.ok(!('cardsInfo' in storedData));
+      assert.equal(storedData.eval.scores.overall, 4);
+      assert.equal(storedData.cardCount, 1);
+    });
   });
 
   describe('checkEvalGate - edge cases', () => {
@@ -729,7 +920,7 @@ describe('evaluation', () => {
       assert.equal(storedData.eval.scores.overall, 5);
       assert.equal(storedData.eval.scores.safety_flag, false);
       assert.equal(storedData.eval.model, '@cf/meta/llama-3-8b-instruct-awq');
-      assert.equal(storedData.eval.promptVersion, '1.1.0');
+      assert.equal(storedData.eval.promptVersion, '1.2.0');
 
       // Verify original metrics preserved
       assert.equal(storedData.requestId, 'integration-test-001');

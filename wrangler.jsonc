@@ -45,11 +45,16 @@
     "AZURE_OPENAI_USE_V1_FORMAT": "true",
     "AZURE_OPENAI_API_VERSION": "preview",
     "AZURE_OPENAI_RESPONSES_API_VERSION": "v1",
-    "EVAL_ENABLED": "false",
+    "EVAL_ENABLED": "true",
     "EVAL_MODEL": "@cf/meta/llama-3-8b-instruct-awq",
-    "EVAL_TIMEOUT_MS": "5000",
+    "EVAL_TIMEOUT_MS": "10000",
     "EVAL_GATE_ENABLED": "false",
-    "EVAL_GATEWAY_ID": ""
+    "EVAL_GATEWAY_ID": "",
+    // METRICS_STORAGE_MODE controls PII handling in stored metrics:
+    // - "redact" (default): Redact PII patterns from stored data
+    // - "minimal": Store only aggregate metrics, no user content
+    // - "full": Store complete data (DEVELOPMENT ONLY - contains PII)
+    "METRICS_STORAGE_MODE": "redact"
   },
   // ============================================================================
   // D1 Database

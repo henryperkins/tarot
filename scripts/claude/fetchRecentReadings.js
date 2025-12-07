@@ -158,7 +158,7 @@ async function fetchFromR2(count) {
 }
 
 function formatReadingForClaude(reading, index) {
-  const cards = reading.context?.cards || [];
+  const cards = reading.cardsInfo || reading.context?.cards || [];
   const cardsList = cards.map(c =>
     `  - ${c.position}: ${c.card} (${c.orientation})`
   ).join('\n');

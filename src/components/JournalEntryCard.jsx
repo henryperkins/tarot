@@ -125,26 +125,26 @@ function buildThemeInsights(entry) {
 const JournalCardListItem = memo(function JournalCardListItem({ card }) {
   const insightCard = buildCardInsightPayload(card);
   const isReversed = REVERSED_PATTERN.test(card?.orientation || '');
-  const suitIcon = renderSuitIcon(card.name, { className: 'w-3.5 h-3.5 text-secondary/60 shrink-0', 'aria-hidden': true });
+  const suitIcon = renderSuitIcon(card.name, { className: 'w-3.5 h-3.5 text-amber-200/70 shrink-0', 'aria-hidden': true });
 
   return (
-    <li className="group relative flex flex-col gap-2 rounded-xl bg-surface/50 ring-1 ring-white/5 p-3 transition-colors hover:bg-surface/60 shadow-[0_10px_26px_-20px_rgba(0,0,0,0.65)] sm:flex-row sm:items-center sm:justify-between">
+    <li className="group relative flex flex-col gap-2 rounded-xl border border-amber-300/15 bg-amber-200/5 p-3 transition-colors hover:bg-amber-200/10 shadow-[0_14px_36px_-24px_rgba(0,0,0,0.7)] sm:flex-row sm:items-center sm:justify-between">
       <div className="flex items-center gap-3 min-w-0 flex-1">
         {/* Position indicator bar */}
-        <div className="flex-shrink-0 w-1 self-stretch rounded-full bg-secondary/25 hidden sm:block" />
+        <div className="flex-shrink-0 w-1 self-stretch rounded-full bg-amber-300/30 hidden sm:block" />
 
         <div className="flex-1 min-w-0">
           {/* Position label */}
-          <span className="text-[10px] font-bold uppercase tracking-wider text-secondary/70 leading-tight">
+          <span className="text-[10px] font-bold uppercase tracking-wider text-amber-100/75 leading-tight">
             {card.position}
           </span>
           {/* Card name + orientation */}
           <div className="flex items-center gap-2 mt-0.5">
             {suitIcon}
-            <p className="text-sm font-medium text-main truncate">
+            <p className="text-sm font-medium text-amber-50 truncate">
               {card.name}
             </p>
-            <span className={`flex-shrink-0 text-[10px] ${isReversed ? 'font-semibold text-error/80 bg-error/10' : 'text-secondary/50'} px-1.5 py-0.5 rounded`}>
+            <span className={`flex-shrink-0 text-[10px] ${isReversed ? 'font-semibold text-error/80 bg-error/10' : 'text-amber-100/60 border border-amber-200/20'} px-1.5 py-0.5 rounded`}>
               {isReversed ? 'Rev' : 'Up'}
             </span>
           </div>
@@ -322,8 +322,6 @@ export const JournalEntryCard = memo(function JournalEntryCard({
     : [];
   const hasReflections = reflections.length > 0;
   const accentColor = CONTEXT_ACCENTS[entry?.context] || CONTEXT_ACCENTS.default;
-  const accentChipBg = `${accentColor}1f`;
-  const accentChipBorder = `${accentColor}66`;
   const collapsedHeaderPadding = compact ? 'px-3 py-2.5 sm:px-3.5 sm:py-3' : 'px-3.5 py-2.5';
   const expandedHeaderPadding = compact ? 'px-4 py-4 sm:px-5 sm:py-4' : 'px-4 py-3.5 sm:px-5 sm:py-4';
   const headerPadding = isExpanded ? expandedHeaderPadding : collapsedHeaderPadding;
@@ -363,13 +361,13 @@ export const JournalEntryCard = memo(function JournalEntryCard({
   const shareActionsDisabled = pendingAction === 'share-link-copy' || pendingAction === 'share-link-delete';
 
   const renderShareLinks = () => (
-    <div className="mt-3 rounded-xl border border-secondary/10 bg-surface/70 p-3">
+    <div className="mt-3 rounded-xl border border-amber-300/15 bg-amber-200/5 p-3 shadow-[0_14px_36px_-24px_rgba(0,0,0,0.8)]">
       <div className="flex items-center justify-between gap-2">
-        <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-secondary/70">Active share links</p>
+        <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-amber-100/75">Active share links</p>
         {shareLoading ? (
-          <CircleNotch className="h-3.5 w-3.5 animate-spin text-secondary/60" aria-label="Loading share links" />
+          <CircleNotch className="h-3.5 w-3.5 animate-spin text-amber-200/70" aria-label="Loading share links" />
         ) : (
-          <span className="text-[11px] text-secondary/60">
+          <span className="text-[11px] text-amber-100/60">
             {shareLinksPreview.length > 0 ? `${shareLinksPreview.length}${extraShareLinks ? '+' : ''} shown` : 'None'}
           </span>
         )}
@@ -380,12 +378,12 @@ export const JournalEntryCard = memo(function JournalEntryCard({
       {shareLoading && (
         <div className="mt-2 space-y-2" aria-live="polite">
           {[0, 1].map((skeleton) => (
-            <div key={skeleton} className="h-10 rounded-lg bg-white/5 animate-pulse" />
+            <div key={skeleton} className="h-10 rounded-lg bg-amber-200/10 animate-pulse" />
           ))}
         </div>
       )}
       {!shareLoading && !shareError && shareLinksPreview.length === 0 && (
-        <p className="mt-2 text-[12px] text-secondary/70">No active links for this reading yet—create one to share it.</p>
+        <p className="mt-2 text-[12px] text-amber-100/70">No active links for this reading yet—create one to share it.</p>
       )}
       {!shareLoading && shareLinksPreview.length > 0 && (
         <ul className="mt-2 space-y-2">
@@ -393,25 +391,25 @@ export const JournalEntryCard = memo(function JournalEntryCard({
             const meta = formatShareMeta(link);
             const isShareLinkPending = shareActionsDisabled;
             return (
-              <li key={link.token} className="rounded-lg border border-secondary/15 bg-surface/80 p-2.5 shadow-[0_10px_26px_-22px_rgba(0,0,0,0.7)]">
+              <li key={link.token} className="rounded-lg border border-amber-200/20 bg-amber-200/5 p-2.5 shadow-[0_10px_26px_-22px_rgba(0,0,0,0.7)]">
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0 space-y-0.5">
-                    <p className="truncate text-sm font-semibold text-main">{link.title || 'Untitled link'}</p>
-                    <p className="truncate text-[11px] text-secondary/65">{getShareScopeLabel(link)} · {meta}</p>
+                    <p className="truncate text-sm font-semibold text-amber-50">{link.title || 'Untitled link'}</p>
+                    <p className="truncate text-[11px] text-amber-100/65">{getShareScopeLabel(link)} · {meta}</p>
                   </div>
-                  <span className="text-[11px] text-secondary/60">{link.viewCount || 0} views</span>
+                  <span className="text-[11px] text-amber-100/60">{link.viewCount || 0} views</span>
                 </div>
                 <div className="mt-2 flex flex-wrap gap-2">
                   <button
                     type="button"
                     onClick={() => handleCopyShareLink(link.token)}
                     disabled={isShareLinkPending}
-                    className="inline-flex items-center gap-1 rounded-full border border-secondary/30 bg-surface/60 px-2.5 py-1 text-[11px] font-semibold text-secondary hover:border-secondary/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/40 disabled:opacity-60 disabled:cursor-not-allowed"
+                    className="inline-flex items-center gap-1 rounded-full border border-amber-300/30 bg-amber-200/10 px-2.5 py-1 text-[11px] font-semibold text-amber-50 hover:border-amber-300/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/40 disabled:opacity-60 disabled:cursor-not-allowed"
                   >
                     {pendingAction === 'share-link-copy' ? (
-                      <CircleNotch className="h-3 w-3 animate-spin text-secondary/70" aria-hidden="true" />
+                      <CircleNotch className="h-3 w-3 animate-spin text-amber-200/70" aria-hidden="true" />
                     ) : (
-                      <ClipboardText className="h-3.5 w-3.5 text-secondary/70" aria-hidden="true" />
+                      <ClipboardText className="h-3.5 w-3.5 text-amber-200/75" aria-hidden="true" />
                     )}
                     Copy
                   </button>
@@ -437,30 +435,32 @@ export const JournalEntryCard = memo(function JournalEntryCard({
         </ul>
       )}
       {extraShareLinks > 0 && (
-        <p className="mt-2 text-[11px] text-secondary/60">Showing the first {shareLinksPreview.length} of {entryShareLinks.length} links.</p>
+        <p className="mt-2 text-[11px] text-amber-100/60">Showing the first {shareLinksPreview.length} of {entryShareLinks.length} links.</p>
       )}
     </div>
   );
 
   return (
     <article
-      className="group relative overflow-visible rounded-2xl bg-surface/65 ring-1 ring-white/5 transition-all shadow-[0_24px_60px_-36px_rgba(0,0,0,0.85)] hover:shadow-[0_24px_70px_-30px_rgba(0,0,0,0.9)] animate-fade-in"
+      className="group relative overflow-hidden rounded-3xl border border-amber-300/15 bg-gradient-to-br from-[#0f0b16]/85 via-[#0c0a13]/85 to-[#0a0810]/90 ring-1 ring-amber-300/10 shadow-[0_22px_60px_-32px_rgba(0,0,0,0.9)] transition-all hover:shadow-[0_24px_70px_-26px_rgba(251,191,36,0.35)] animate-fade-in"
       style={{
-        borderLeft: `4px solid ${accentColor}66`,
-        backgroundImage: 'linear-gradient(145deg, rgba(255,255,255,0.02), rgba(255,255,255,0.04))'
+        borderLeft: `4px solid ${accentColor}66`
       }}
     >
-      <div className="absolute inset-y-0 left-0 w-1.5 bg-gradient-to-b from-transparent via-white/25 to-transparent pointer-events-none" aria-hidden="true" />
-      <div className={`${headerPadding} ${isExpanded ? 'border-b border-white/5' : ''}`}>
+      <div className="pointer-events-none absolute inset-0 opacity-60 mix-blend-screen" aria-hidden="true" style={{ backgroundImage: 'radial-gradient(circle at 12% 18%, rgba(251,191,36,0.08), transparent 32%), radial-gradient(circle at 86% 28%, rgba(56,189,248,0.08), transparent 30%), radial-gradient(circle at 58% 76%, rgba(167,139,250,0.08), transparent 32%)' }} />
+      <div className="pointer-events-none absolute -left-28 top-10 h-64 w-64 rounded-full bg-amber-500/12 blur-[110px]" aria-hidden="true" />
+      <div className="pointer-events-none absolute right-[-120px] top-1/3 h-72 w-72 rounded-full bg-cyan-400/10 blur-[110px]" aria-hidden="true" />
+      <div className="absolute inset-y-0 left-0 w-1.5 bg-gradient-to-b from-transparent via-amber-200/30 to-transparent pointer-events-none" aria-hidden="true" />
+      <div className={`relative z-10 ${headerPadding} ${isExpanded ? 'border-b border-amber-200/10' : ''}`}>
         <div className="flex items-start gap-2">
           <button
             type="button"
             onClick={() => setIsExpanded(prev => !prev)}
             aria-expanded={isExpanded}
             aria-controls={entryContentId}
-            className="flex flex-1 items-start gap-3 rounded-xl px-1 py-0.5 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/50"
+            className="flex flex-1 items-start gap-3 rounded-xl px-1 py-0.5 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/50"
           >
-            <span className="mt-0.5 flex h-7 w-7 items-center justify-center rounded-full bg-surface-muted/70 text-secondary/70 ring-1 ring-secondary/25">
+            <span className="mt-0.5 flex h-7 w-7 items-center justify-center rounded-full bg-amber-200/10 text-amber-200/80 ring-1 ring-amber-200/30 shadow-[0_10px_28px_-18px_rgba(251,191,36,0.5)]">
               {isExpanded ? (
                 <CaretUp className="h-3.5 w-3.5" aria-hidden="true" />
               ) : (
@@ -470,40 +470,33 @@ export const JournalEntryCard = memo(function JournalEntryCard({
 
             <div className="min-w-0 flex-1 space-y-1">
               <div className="flex items-center gap-2 min-w-0 flex-nowrap">
-                <h3 className={`font-serif ${compact ? 'text-base' : 'text-lg'} text-main flex-1 truncate`}>
+                <h3 className={`font-serif ${compact ? 'text-base' : 'text-lg'} text-amber-50 flex-1 truncate`}>
                   {entry.spread || 'Tarot Reading'}
                 </h3>
                 {entry.context && (
-                  <span
-                    className="inline-flex flex-shrink-0 items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-semibold leading-tight"
-                    style={{
-                      color: accentColor,
-                      backgroundColor: accentChipBg,
-                      borderColor: accentChipBorder
-                    }}
-                  >
+                  <span className="inline-flex flex-shrink-0 items-center gap-1 rounded-full border border-amber-200/25 bg-amber-200/10 px-2 py-0.5 text-[10px] font-semibold leading-tight text-amber-50">
                     {formatContextName(entry.context)}
                   </span>
                 )}
                 {hasReflections && (
-                  <span className="inline-flex flex-shrink-0 items-center gap-1 rounded-full bg-accent/12 ring-1 ring-accent/30 px-2 py-0.5 text-[10px] font-semibold text-accent/90">
-                    <Sparkle className="h-2.5 w-2.5" aria-hidden="true" />
+                  <span className="inline-flex flex-shrink-0 items-center gap-1 rounded-full border border-amber-300/25 bg-amber-300/15 px-2 py-0.5 text-[10px] font-semibold text-amber-50 shadow-[0_12px_30px_-18px_rgba(251,191,36,0.45)]">
+                    <Sparkle className="h-2.5 w-2.5 text-amber-200" aria-hidden="true" />
                     {reflections.length}
                   </span>
                 )}
               </div>
 
-              <div className="flex items-center gap-2 text-[11px] text-secondary/70 min-w-0">
+              <div className="flex items-center gap-2 text-[11px] text-amber-100/70 min-w-0">
                 <span className="truncate">{formattedTimestamp}</span>
                 {cards.length > 0 && (
-                  <span className="inline-flex flex-shrink-0 items-center gap-1 rounded-full bg-surface-muted/60 px-2 py-0.5 text-[11px] text-secondary/70">
+                  <span className="inline-flex flex-shrink-0 items-center gap-1 rounded-full border border-amber-200/20 bg-amber-200/5 px-2 py-0.5 text-[11px] text-amber-100/80">
                     {cards.length} cards
                   </span>
                 )}
               </div>
 
               {entry.question && (
-                <p className="text-sm text-secondary/80 line-clamp-1">
+                <p className="text-sm text-amber-100/75 line-clamp-1">
                   &ldquo;{entry.question}&rdquo;
                 </p>
               )}
@@ -515,7 +508,7 @@ export const JournalEntryCard = memo(function JournalEntryCard({
               type="button"
               ref={actionMenuButtonRef}
               onClick={() => setActionMenuOpen((prev) => !prev)}
-              className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-secondary/25 bg-surface/40 text-secondary/70 hover:border-secondary/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/40"
+              className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-amber-300/25 bg-amber-200/10 text-amber-100/75 hover:border-amber-300/50 hover:text-amber-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/40 shadow-[0_12px_30px_-20px_rgba(251,191,36,0.5)]"
               aria-haspopup="menu"
               aria-controls={actionMenuId}
               aria-expanded={actionMenuOpen}
@@ -531,7 +524,7 @@ export const JournalEntryCard = memo(function JournalEntryCard({
                 ref={actionMenuRef}
                 role="menu"
                 aria-label="Entry actions"
-                className="absolute right-0 top-full z-50 mt-2 w-72 max-h-[75vh] overflow-y-auto rounded-2xl border border-secondary/20 bg-surface/95 p-2 shadow-2xl backdrop-blur"
+                className="absolute right-0 top-full z-50 mt-2 w-72 max-h-[75vh] overflow-y-auto rounded-2xl border border-amber-300/20 bg-[#0b0d18]/95 p-2 shadow-[0_16px_48px_-30px_rgba(0,0,0,0.9)] backdrop-blur"
               >
                 <div className="space-y-1">
                   {actionMenuItems.map((item) => {
@@ -550,14 +543,14 @@ export const JournalEntryCard = memo(function JournalEntryCard({
                         className={`flex w-full items-center justify-between rounded-xl px-3 py-2 text-left text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 disabled:opacity-60 disabled:cursor-not-allowed ${
                           item.tone === 'danger'
                             ? 'text-error hover:bg-error/10 focus-visible:ring-error/40'
-                            : 'text-main/80 hover:bg-secondary/10 focus-visible:ring-secondary/40'
+                            : 'text-amber-50/80 hover:bg-amber-300/10 focus-visible:ring-amber-300/40'
                         }`}
                       >
                         <span className="flex items-center gap-2">
                           {isPending ? (
-                            <CircleNotch className="h-3.5 w-3.5 animate-spin text-secondary/70" aria-hidden="true" />
+                            <CircleNotch className="h-3.5 w-3.5 animate-spin text-amber-200/70" aria-hidden="true" />
                           ) : (
-                            <IconComponent className="h-4 w-4 text-secondary/70" aria-hidden="true" />
+                            <IconComponent className="h-4 w-4 text-amber-200/75" aria-hidden="true" />
                           )}
                           {item.label}
                         </span>
@@ -575,12 +568,12 @@ export const JournalEntryCard = memo(function JournalEntryCard({
 
       {/* Collapsible content */}
       {isExpanded && (
-        <div id={entryContentId} className={`${contentPadding} animate-slide-down`}>
+        <div id={entryContentId} className={`relative z-10 ${contentPadding} animate-slide-down`}>
           {/* Question */}
           {entry.question && (
             <div className="mb-4">
-              <p className="journal-eyebrow mb-1 text-secondary/80">Question</p>
-              <p className="journal-quote text-main/90">
+              <p className="journal-eyebrow mb-1 text-amber-100/75">Question</p>
+              <p className="journal-quote text-amber-50">
                 &ldquo;{entry.question}&rdquo;
               </p>
             </div>
@@ -590,22 +583,22 @@ export const JournalEntryCard = memo(function JournalEntryCard({
           <div className="mb-5">
             {/* Mobile: collapsible toggle */}
             {isSmallScreen && cards.length > 0 ? (
-              <div className="rounded-xl border border-secondary/15 bg-surface/30 overflow-hidden">
+              <div className="rounded-xl border border-amber-200/20 bg-amber-200/5 overflow-hidden">
                 <button
                   onClick={() => setShowCards(prev => !prev)}
                   aria-expanded={showCards}
                   aria-controls={cardsId}
-                  className="w-full flex flex-col items-start gap-2 px-3 py-3 text-left active:bg-secondary/10"
+                  className="w-full flex flex-col items-start gap-2 px-3 py-3 text-left active:bg-amber-200/10"
                 >
                   <div className="flex w-full items-center justify-between gap-2">
-                    <span className="text-[11px] font-semibold uppercase tracking-wider text-secondary/80">
+                    <span className="text-[11px] font-semibold uppercase tracking-wider text-amber-100/75">
                       View cards
-                      <span className="ml-1.5 text-secondary/60">({cards.length})</span>
+                      <span className="ml-1.5 text-amber-100/60">({cards.length})</span>
                     </span>
                     {showCards ? (
-                      <CaretUp className="h-5 w-5 text-secondary/60 flex-shrink-0" aria-hidden="true" />
+                      <CaretUp className="h-5 w-5 text-amber-100/60 flex-shrink-0" aria-hidden="true" />
                     ) : (
-                      <CaretDown className="h-5 w-5 text-secondary/60 flex-shrink-0" aria-hidden="true" />
+                      <CaretDown className="h-5 w-5 text-amber-100/60 flex-shrink-0" aria-hidden="true" />
                     )}
                   </div>
                   {!showCards && (
@@ -615,15 +608,15 @@ export const JournalEntryCard = memo(function JournalEntryCard({
                         return (
                           <span
                             key={`${card.name || 'card'}-${idx}`}
-                            className="inline-flex items-center gap-1 rounded-full bg-surface-muted/70 px-2.5 py-1 text-[12px] font-medium text-secondary ring-1 ring-secondary/20"
+                            className="inline-flex items-center gap-1 rounded-full border border-amber-200/20 bg-amber-200/5 px-2.5 py-1 text-[12px] font-medium text-amber-50"
                           >
-                            <Sparkle className="h-3 w-3 text-secondary/60" weight="fill" aria-hidden="true" />
+                            <Sparkle className="h-3 w-3 text-amber-200/70" weight="fill" aria-hidden="true" />
                             {name || 'Card'}
                           </span>
                         );
                       })}
                       {cards.length > 2 && (
-                        <span className="text-xs text-secondary/60">+{cards.length - 2} more</span>
+                        <span className="text-xs text-amber-100/60">+{cards.length - 2} more</span>
                       )}
                     </div>
                   )}
@@ -641,7 +634,7 @@ export const JournalEntryCard = memo(function JournalEntryCard({
             ) : (
               <>
                 {/* Desktop: always expanded */}
-                <p className="journal-eyebrow mb-2 text-secondary/80">Cards Drawn</p>
+                <p className="journal-eyebrow mb-2 text-amber-100/75">Cards Drawn</p>
                 {cards.length > 0 ? (
                   <ul className="grid gap-2 sm:grid-cols-2">
                     {cards.map((card, idx) => (
@@ -649,7 +642,7 @@ export const JournalEntryCard = memo(function JournalEntryCard({
                     ))}
                   </ul>
                 ) : (
-                  <p className="journal-prose text-sm text-secondary/70">No cards recorded for this entry.</p>
+                  <p className="journal-prose text-sm text-amber-100/65">No cards recorded for this entry.</p>
                 )}
               </>
             )}
@@ -657,12 +650,12 @@ export const JournalEntryCard = memo(function JournalEntryCard({
 
           {hasReflections && (
             <div className="mb-5">
-              <p className="journal-eyebrow mb-2 text-secondary/80">Reflections</p>
-              <ul className="journal-prose space-y-1.5 text-secondary/80">
+              <p className="journal-eyebrow mb-2 text-amber-100/75">Reflections</p>
+              <ul className="journal-prose space-y-1.5 text-amber-100/80">
                 {reflections.map(([position, note], index) => (
                   <li key={`${position || 'reflection'}-${index}`} className="flex items-start gap-2">
-                    <span className="font-medium text-main">{position || `Note ${index + 1}`}</span>
-                    <span className="text-secondary/70">{note}</span>
+                    <span className="font-medium text-amber-50">{position || `Note ${index + 1}`}</span>
+                    <span className="text-amber-100/65">{note}</span>
                   </li>
                 ))}
               </ul>
@@ -672,14 +665,14 @@ export const JournalEntryCard = memo(function JournalEntryCard({
           {/* Insights & Narrative */}
           <div className="space-y-4">
             {insights.length > 0 && (
-              <div className="rounded-xl bg-secondary/10 p-4">
-                <h4 className="mb-2 flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-secondary">
+              <div className="rounded-xl border border-amber-200/20 bg-amber-200/5 p-4">
+                <h4 className="mb-2 flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-amber-100/80">
                   <BookOpen className="h-3 w-3" />
                   Key Themes
                 </h4>
                 <ul className="space-y-1.5">
                   {insights.map((line, idx) => (
-                    <li key={idx} className="text-sm leading-relaxed text-secondary/80">
+                    <li key={idx} className="text-sm leading-relaxed text-amber-100/80">
                       • {line}
                     </li>
                   ))}
@@ -693,15 +686,15 @@ export const JournalEntryCard = memo(function JournalEntryCard({
                   onClick={() => setShowNarrative(!showNarrative)}
                   aria-expanded={showNarrative}
                   aria-controls={narrativeId}
-                  className="flex w-full items-center justify-between rounded-xl border border-secondary/20 bg-surface/30 px-4 py-3 text-sm font-medium text-main transition-colors hover:bg-surface/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/50"
+                  className="flex w-full items-center justify-between rounded-xl border border-amber-300/25 bg-amber-200/10 px-4 py-3 text-sm font-medium text-amber-50 transition-colors hover:-translate-y-0.5 hover:bg-amber-200/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/50"
                 >
                   <span>Reading Narrative</span>
-                  {showNarrative ? <CaretUp className="h-4 w-4" aria-hidden="true" /> : <CaretDown className="h-4 w-4" aria-hidden="true" />}
+                  {showNarrative ? <CaretUp className="h-4 w-4 text-amber-200/70" aria-hidden="true" /> : <CaretDown className="h-4 w-4 text-amber-200/70" aria-hidden="true" />}
                 </button>
 
                 {showNarrative && (
-                  <div id={narrativeId} className="mt-2 animate-slide-down rounded-xl border border-secondary/10 bg-surface/20 p-4">
-                    <div className="prose prose-invert prose-sm max-w-prose font-serif leading-relaxed text-muted">
+                  <div id={narrativeId} className="mt-2 animate-slide-down rounded-xl border border-amber-200/20 bg-amber-200/5 p-4">
+                    <div className="prose prose-invert prose-sm max-w-prose font-serif leading-relaxed text-amber-100/80">
                       <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]} skipHtml>
                         {entry.personalReading}
                       </ReactMarkdown>
@@ -714,7 +707,7 @@ export const JournalEntryCard = memo(function JournalEntryCard({
         </div>
       )}
 
-      <div className="border-t border-secondary/10 bg-surface/30 px-4 py-2 text-[11px] text-secondary/70">
+      <div className="border-t border-amber-200/15 bg-amber-200/5 px-4 py-2 text-[11px] text-amber-100/70">
         {hasReflections ? `${reflections.length} reflection${reflections.length === 1 ? '' : 's'}` : formattedTimestamp}
       </div>
       <div className="px-4 pb-3 pt-2" aria-live="polite">

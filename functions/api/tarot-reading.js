@@ -45,7 +45,11 @@ import {
   shouldPersistPrompts,
   redactPII
 } from '../lib/promptEngineering.js';
-import { scheduleEvaluation } from '../lib/evaluation.js';
+import {
+  scheduleEvaluation,
+  runSyncEvaluationGate,
+  generateSafeFallbackReading
+} from '../lib/evaluation.js';
 import { MAJOR_ARCANA } from '../../src/data/majorArcana.js';
 import { MINOR_ARCANA } from '../../src/data/minorArcana.js';
 import {
@@ -672,6 +676,65 @@ export const onRequestPost = async ({ request, env, waitUntil }) => {
       contextDiagnostics: diagnosticsPayload
     };
 
+    // EVALUATION GATE: When EVAL_GATE_ENABLED=true, run synchronous evaluation
+    // and block harmful readings before they reach the user
+    let evalGateResult = null;
+    let wasGateBlocked = false;
+
+    const evalParams = {
+      reading,
+      userQuestion,
+      cardsInfo,
+      spreadKey: analysis.spreadKey,
+      requestId
+    };
+
+    const gateResult = await runSyncEvaluationGate(
+      env,
+      evalParams,
+      baseNarrativeMetrics
+    );
+
+    evalGateResult = gateResult;
+
+    if (!gateResult.passed) {
+      // Gate blocked the reading - generate safe fallback
+      wasGateBlocked = true;
+      console.warn(`[${requestId}] Evaluation gate blocked reading, using safe fallback`);
+
+      reading = generateSafeFallbackReading({
+        spreadKey: analysis.spreadKey,
+        cardCount: cardsInfo.length,
+        reason: gateResult.gateResult?.reason
+      });
+      provider = 'safe-fallback';
+
+      // Log the blocked event for monitoring
+      if (env.METRICS_DB?.put) {
+        try {
+          const blockEvent = {
+            type: 'gate_block',
+            requestId,
+            timestamp: new Date().toISOString(),
+            reason: gateResult.gateResult?.reason,
+            spreadKey: analysis.spreadKey,
+            evalMode: gateResult.evalResult?.mode || 'model',
+            evalLatencyMs: gateResult.latencyMs,
+            scores: gateResult.evalResult?.scores
+          };
+          await env.METRICS_DB.put(`block:${requestId}`, JSON.stringify(blockEvent), {
+            metadata: {
+              type: 'gate_block',
+              reason: gateResult.gateResult?.reason,
+              timestamp: blockEvent.timestamp
+            }
+          });
+        } catch (err) {
+          console.warn(`[${requestId}] Failed to log gate block event: ${err.message}`);
+        }
+      }
+    }
+
     // Build prompt engineering payload if prompts were captured
     let promptEngineering = null;
     if (capturedPrompts && shouldPersistPrompts(env)) {
@@ -706,22 +769,33 @@ export const onRequestPost = async ({ request, env, waitUntil }) => {
       contextDiagnostics: diagnosticsPayload,
       // New: prompt engineering data
       promptEngineering,
-      llmUsage: capturedUsage
+      llmUsage: capturedUsage,
+      // Gate evaluation result (if gate was run)
+      evalGate: evalGateResult ? {
+        ran: true,
+        passed: evalGateResult.passed,
+        reason: evalGateResult.gateResult?.reason,
+        latencyMs: evalGateResult.latencyMs,
+        blocked: wasGateBlocked
+      } : { ran: false }
     };
 
     await persistReadingMetrics(env, metricsPayload);
 
+    const gateEval = evalGateResult?.evalResult || null;
+    const allowAsyncRetry = gateEval
+      ? (gateEval.mode === 'heuristic' || gateEval.error)
+      : false;
+
     scheduleEvaluation(
       env,
-      {
-        reading,
-        userQuestion,
-        cardsInfo,
-        spreadKey: analysis.spreadKey,
-        requestId
-      },
+      evalParams,
       metricsPayload,
-      { waitUntil }
+      {
+        waitUntil,
+        precomputedEvalResult: gateEval,
+        allowAsyncRetry
+      }
     );
 
     maybeLogEnhancementTelemetry(env, requestId, enhancementTelemetry);
@@ -746,7 +820,12 @@ export const onRequestPost = async ({ request, env, waitUntil }) => {
         spreadKey: analysis.spreadKey,
         // For spreads where analyzeX already returns normalized shape, prefer it directly
         ...(analysis.spreadAnalysis || {})
-      }
+      },
+      // Include gate status when reading was blocked and replaced
+      ...(wasGateBlocked ? {
+        gateBlocked: true,
+        gateReason: evalGateResult?.gateResult?.reason
+      } : {})
     });
   } catch (error) {
     const totalTime = Date.now() - startTime;

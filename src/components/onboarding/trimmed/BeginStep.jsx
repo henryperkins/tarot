@@ -41,7 +41,7 @@ export function BeginStep({ selectedSpread, question, onBegin, onBack }) {
         style={{ animationDelay: '0.1s' }}
       >
         <h2 className={`font-serif text-main ${isLandscape ? 'text-xl mb-1' : 'text-2xl mb-2'}`}>
-          You&apos;re Ready
+          You're Ready
         </h2>
         <p className={`text-muted max-w-xs mx-auto ${isLandscape ? 'text-sm' : ''}`}>
           Stay open to what feels true. The cards will meet you where you are.

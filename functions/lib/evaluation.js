@@ -5,9 +5,205 @@
  * Designed for async execution via waitUntil to avoid blocking user responses.
  */
 
-const EVAL_PROMPT_VERSION = '1.1.0';
+const EVAL_PROMPT_VERSION = '1.2.0';
 const DEFAULT_MODEL = '@cf/meta/llama-3-8b-instruct-awq';
 const DEFAULT_TIMEOUT_MS = 5000;
+
+// Input length limits to prevent context overflow and timeouts
+const MAX_READING_LENGTH = 4000;
+const MAX_QUESTION_LENGTH = 500;
+const MAX_CARDS_INFO_LENGTH = 1500;
+
+// Default setting for PII storage - set to 'redact' for production safety
+const DEFAULT_METRICS_STORAGE_MODE = 'redact';
+
+/**
+ * Redact potentially sensitive information from user question.
+ * Removes patterns that might contain PII like emails, phone numbers, names, etc.
+ *
+ * @param {string} text - Text to redact
+ * @returns {string} Redacted text
+ */
+function redactUserQuestion(text) {
+  if (!text || typeof text !== 'string') return '';
+
+  let redacted = text;
+
+  // Redact email addresses
+  redacted = redacted.replace(/\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b/g, '[EMAIL]');
+
+  // Redact phone numbers (various formats)
+  redacted = redacted.replace(/\b(?:\+?1[-.\s]?)?(?:\(?[0-9]{3}\)?[-.\s]?)?[0-9]{3}[-.\s]?[0-9]{4}\b/g, '[PHONE]');
+
+  // Redact dates (various formats) that might be birthdates
+  redacted = redacted.replace(/\b(?:0?[1-9]|1[0-2])[-/](?:0?[1-9]|[12][0-9]|3[01])[-/](?:19|20)?\d{2}\b/g, '[DATE]');
+
+  // Redact potential names (capitalized sequences of 2-4 words)
+  // Only in contexts like "my name is X" or "I'm X"
+  redacted = redacted.replace(/(?:my name is|i'm|i am|this is)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+){0,2})/gi,
+    (match, name) => match.replace(name, '[NAME]'));
+  // Additional name phrases
+  redacted = redacted.replace(/(?:call me|name's|name is|i go by)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+){0,2})/gi,
+    (match, name) => match.replace(name, '[NAME]'));
+
+  // Redact SSN patterns
+  redacted = redacted.replace(/\b\d{3}[-.\s]?\d{2}[-.\s]?\d{4}\b/g, '[SSN]');
+
+  return redacted;
+}
+
+/**
+ * Redact reading text for storage - removes any embedded PII patterns.
+ * Reading text should not normally contain PII, but models sometimes
+ * mirror back user-provided names.
+ *
+ * @param {string} text - Reading text to redact
+ * @returns {string} Redacted text
+ */
+function redactReadingText(text) {
+  if (!text || typeof text !== 'string') return '';
+
+  let redacted = text;
+
+  // Redact email addresses that might have been mirrored
+  redacted = redacted.replace(/\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b/g, '[EMAIL]');
+
+  // Redact phone numbers
+  redacted = redacted.replace(/\b(?:\+?1[-.\s]?)?(?:\(?[0-9]{3}\)?[-.\s]?)?[0-9]{3}[-.\s]?[0-9]{4}\b/g, '[PHONE]');
+
+  // Redact mirrored names that may have been echoed back
+  redacted = redacted.replace(/\b(?:dear|hello|hi|hey|thanks(?: you)?|remember|for you,?)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+){0,2})/gi,
+    (match, name) => match.replace(name, '[NAME]'));
+  redacted = redacted.replace(/\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+){0,2}),\s+(?:remember|consider|reflect|here)/g,
+    (match, name) => match.replace(name, '[NAME]'));
+
+  return redacted;
+}
+
+/**
+ * Sanitize cardsInfo for storage - keep only evaluation-relevant fields.
+ * Removes any user-added notes that might contain PII.
+ *
+ * @param {Array} cardsInfo - Array of card objects
+ * @returns {Array} Sanitized card objects
+ */
+function sanitizeCardsInfo(cardsInfo) {
+  if (!Array.isArray(cardsInfo)) return [];
+
+  return cardsInfo.map((card, index) => ({
+    position: card?.position || `Card ${index + 1}`,
+    card: card?.card || 'Unknown',
+    orientation: card?.orientation || 'unknown'
+    // Deliberately exclude: meaning, notes, reflections, or any user-added fields
+  }));
+}
+
+function sanitizeMetricsPayload(metricsPayload = {}, mode = DEFAULT_METRICS_STORAGE_MODE) {
+  if (mode === 'full') {
+    return { ...metricsPayload };
+  }
+
+  // Minimal: only retain routing identifiers + gate info
+  if (mode === 'minimal') {
+    return {
+      requestId: metricsPayload.requestId,
+      timestamp: metricsPayload.timestamp,
+      provider: metricsPayload.provider,
+      spreadKey: metricsPayload.spreadKey,
+      deckStyle: metricsPayload.deckStyle,
+      evalGate: metricsPayload.evalGate || null
+    };
+  }
+
+  // Redacted: keep non-PII, aggregate-friendly fields only
+  const whitelistedKeys = [
+    'requestId',
+    'timestamp',
+    'provider',
+    'spreadKey',
+    'deckStyle',
+    'narrative',
+    'narrativeEnhancements',
+    'graphRAG',
+    'promptMeta',
+    'promptTokens',
+    'promptSlimming',
+    'enhancementTelemetry',
+    'contextDiagnostics',
+    'llmUsage',
+    'evalGate'
+  ];
+
+  return whitelistedKeys.reduce((acc, key) => {
+    if (Object.prototype.hasOwnProperty.call(metricsPayload, key)) {
+      acc[key] = metricsPayload[key];
+    }
+    return acc;
+  }, {});
+}
+
+/**
+ * Build storage payload based on metrics storage mode.
+ *
+ * Modes:
+ * - 'full': Store complete data (for development/debugging only)
+ * - 'redact': Store redacted versions of sensitive fields (default)
+ * - 'minimal': Store only non-sensitive metadata (most privacy-preserving)
+ *
+ * @param {Object} options - Options
+ * @param {Object} options.metricsPayload - Base metrics payload
+ * @param {Object} options.evalPayload - Evaluation results
+ * @param {Object} options.evalParams - Original evaluation parameters
+ * @param {string} options.storageMode - Storage mode
+ * @returns {Object} Storage-safe payload
+ */
+function buildStoragePayload({ metricsPayload, evalPayload, evalParams, storageMode }) {
+  const mode = storageMode || DEFAULT_METRICS_STORAGE_MODE;
+
+  const sanitizedMetrics = sanitizeMetricsPayload(metricsPayload, mode);
+
+  // Base payload without sensitive fields
+  const basePayload = {
+    ...sanitizedMetrics,
+    eval: evalPayload
+  };
+
+  switch (mode) {
+    case 'full':
+      // WARNING: Only use in development - stores PII
+      return {
+        ...metricsPayload,
+        eval: evalPayload,
+        readingText: evalParams.reading,
+        cardsInfo: evalParams.cardsInfo,
+        userQuestion: evalParams.userQuestion,
+        _storageMode: 'full'
+      };
+
+    case 'minimal':
+      // Most privacy-preserving - no user content stored
+      return {
+        ...sanitizedMetrics,
+        eval: evalPayload,
+        _storageMode: 'minimal',
+        // Only store aggregate metrics for analysis
+        readingLength: evalParams.reading?.length || 0,
+        questionLength: evalParams.userQuestion?.length || 0,
+        cardCount: evalParams.cardsInfo?.length || 0
+      };
+
+    case 'redact':
+    default:
+      // Default: Store redacted versions for debugging while protecting PII
+      return {
+        ...basePayload,
+        readingText: redactReadingText(evalParams.reading),
+        cardsInfo: sanitizeCardsInfo(evalParams.cardsInfo),
+        userQuestion: redactUserQuestion(evalParams.userQuestion),
+        _storageMode: 'redact'
+      };
+  }
+}
 
 // Evaluation prompt tuned for tarot reading quality assessment
 const EVAL_SYSTEM_PROMPT = `You are an impartial quality reviewer for Mystic Tarot, a tarot reading application. Your task is to evaluate tarot readings for quality and safety.
@@ -68,8 +264,8 @@ function normalizeBooleanFlag(value) {
   return String(value).toLowerCase() === 'true';
 }
 
-function buildCardsList(cardsInfo = []) {
-  return (cardsInfo || [])
+function buildCardsList(cardsInfo = [], maxLength = MAX_CARDS_INFO_LENGTH) {
+  const fullList = (cardsInfo || [])
     .map((card, index) => {
       const position = card?.position || `Card ${index + 1}`;
       const name = card?.card || 'Unknown';
@@ -77,18 +273,75 @@ function buildCardsList(cardsInfo = []) {
       return `${position}: ${name} (${orientation})`;
     })
     .join(', ');
+
+  if (fullList.length <= maxLength) {
+    return { text: fullList, truncated: false };
+  }
+
+  return {
+    text: fullList.slice(0, maxLength) + '...[truncated]',
+    truncated: true
+  };
 }
 
-function buildUserPrompt({ spreadKey, cardsInfo, userQuestion, reading }) {
-  const cardsList = buildCardsList(cardsInfo);
+/**
+ * Truncate text to max length, preserving word boundaries where possible.
+ * @param {string} text - Text to truncate
+ * @param {number} maxLength - Maximum character length
+ * @returns {{ text: string, truncated: boolean, originalLength: number }}
+ */
+function truncateText(text, maxLength) {
+  if (!text || typeof text !== 'string') {
+    return { text: '', truncated: false, originalLength: 0 };
+  }
+
+  const originalLength = text.length;
+  if (originalLength <= maxLength) {
+    return { text, truncated: false, originalLength };
+  }
+
+  // Try to truncate at word boundary
+  let truncated = text.slice(0, maxLength);
+  const lastSpace = truncated.lastIndexOf(' ');
+  if (lastSpace > maxLength * 0.8) {
+    truncated = truncated.slice(0, lastSpace);
+  }
+
+  return {
+    text: truncated + '...[truncated]',
+    truncated: true,
+    originalLength
+  };
+}
+
+function buildUserPrompt({ spreadKey, cardsInfo, userQuestion, reading, requestId = 'unknown' }) {
+  const cardsResult = buildCardsList(cardsInfo, MAX_CARDS_INFO_LENGTH);
+  const questionResult = truncateText(userQuestion, MAX_QUESTION_LENGTH);
+  const readingResult = truncateText(reading, MAX_READING_LENGTH);
   const cardCount = Array.isArray(cardsInfo) ? cardsInfo.length : 0;
+
+  // Log truncation events for monitoring
+  const truncations = [];
+  if (cardsResult.truncated) {
+    truncations.push(`cards (${cardsInfo?.length || 0} items)`);
+  }
+  if (questionResult.truncated) {
+    truncations.push(`question (${questionResult.originalLength} chars → ${MAX_QUESTION_LENGTH})`);
+  }
+  if (readingResult.truncated) {
+    truncations.push(`reading (${readingResult.originalLength} chars → ${MAX_READING_LENGTH})`);
+  }
+
+  if (truncations.length > 0) {
+    console.warn(`[${requestId}] [eval] Input truncated: ${truncations.join(', ')}`);
+  }
 
   return EVAL_USER_TEMPLATE
     .replace('{{spreadKey}}', spreadKey || 'unknown')
     .replace('{{cardCount}}', String(cardCount))
-    .replace('{{cardsList}}', cardsList || '(none)')
-    .replace('{{userQuestion}}', userQuestion || '(no question provided)')
-    .replace('{{reading}}', reading || '');
+    .replace('{{cardsList}}', cardsResult.text || '(none)')
+    .replace('{{userQuestion}}', questionResult.text || '(no question provided)')
+    .replace('{{reading}}', readingResult.text || '');
 }
 
 /**
@@ -135,7 +388,8 @@ export async function runEvaluation(env, params = {}) {
       spreadKey,
       cardsInfo,
       userQuestion,
-      reading
+      reading,
+      requestId
     });
 
     console.log(`[${requestId}] [eval] Starting evaluation with ${model}`);
@@ -230,6 +484,8 @@ export async function runEvaluation(env, params = {}) {
 export function scheduleEvaluation(env, evalParams = {}, metricsPayload = {}, options = {}) {
   const requestId = evalParams?.requestId || metricsPayload?.requestId || 'unknown';
   const waitUntilFn = options.waitUntil || options.waitUntilFn;
+  const precomputedEvalResult = options.precomputedEvalResult || null;
+  const allowAsyncRetry = options.allowAsyncRetry === true;
 
   if (!normalizeBooleanFlag(env?.EVAL_ENABLED)) {
     return;
@@ -237,7 +493,27 @@ export function scheduleEvaluation(env, evalParams = {}, metricsPayload = {}, op
 
   const runner = async () => {
     try {
-      const evalResult = await runEvaluation(env, evalParams);
+      const fallbackEval = precomputedEvalResult || null;
+      let evalResult = precomputedEvalResult || null;
+
+      // If we only have a heuristic/error result from the gate, try an async model retry
+      const shouldAttemptRetry = allowAsyncRetry &&
+        fallbackEval &&
+        (fallbackEval.mode === 'heuristic' || fallbackEval.error);
+
+      if (shouldAttemptRetry) {
+        const retryResult = await runEvaluation(env, evalParams);
+        if (retryResult && !retryResult.error) {
+          evalResult = retryResult;
+        } else if (retryResult?.error && fallbackEval) {
+          evalResult = { ...fallbackEval, error: retryResult.error, latencyMs: retryResult.latencyMs, model: retryResult.model || fallbackEval.model };
+        } else {
+          evalResult = retryResult || fallbackEval;
+        }
+      } else if (!evalResult) {
+        evalResult = await runEvaluation(env, evalParams);
+      }
+
       const shouldFallback = (!evalResult || evalResult.error) && metricsPayload?.narrative;
       const heuristic = shouldFallback ? buildHeuristicScores(metricsPayload.narrative) : null;
 
@@ -273,21 +549,40 @@ export function scheduleEvaluation(env, evalParams = {}, metricsPayload = {}, op
         console.warn(`[${requestId}] [eval] Gateway patchLog failed: ${patchErr.message}`);
       }
 
-      const payload = { ...metricsPayload, eval: evalPayload };
+      // Build storage payload with appropriate redaction based on env config
+      // METRICS_STORAGE_MODE: 'full' (dev only), 'redact' (default), 'minimal' (max privacy)
+      const storageMode = env?.METRICS_STORAGE_MODE || DEFAULT_METRICS_STORAGE_MODE;
+      const payload = buildStoragePayload({
+        metricsPayload,
+        evalPayload,
+        evalParams,
+        storageMode
+      });
 
       if (env.METRICS_DB?.put) {
+        // Determine evaluation mode for accurate dashboard reporting
+        // - 'model': AI model evaluation succeeded
+        // - 'heuristic': Heuristic fallback was used
+        // - 'error': Evaluation failed completely
+        const evalMode = evalPayload.mode ||
+          (evalPayload.error ? 'error' : 'model');
+        const hasModelEval = evalMode === 'model' && !evalPayload.error;
+
         const metadata = {
           ...(metricsPayload?.metadata || {}),
           provider: metricsPayload?.provider,
           spreadKey: metricsPayload?.spreadKey,
           deckStyle: metricsPayload?.deckStyle,
           timestamp: metricsPayload?.timestamp,
-          hasEval: !evalPayload.error,
-          evalScore: evalPayload.scores?.overall ?? null
+          // hasEval now means "has model eval" (not heuristic)
+          hasEval: hasModelEval,
+          evalMode,  // 'model', 'heuristic', or 'error'
+          evalScore: evalPayload.scores?.overall ?? null,
+          safetyFlag: evalPayload.scores?.safety_flag ?? null
         };
 
         await env.METRICS_DB.put(`reading:${requestId}`, JSON.stringify(payload), { metadata });
-        console.log(`[${requestId}] [eval] Metrics updated with eval results`);
+        console.log(`[${requestId}] [eval] Metrics updated with eval results (mode: ${evalMode})`);
       }
 
       if (evalPayload?.scores?.safety_flag) {
@@ -340,22 +635,127 @@ export function checkEvalGate(evalResult) {
 }
 
 /**
+ * Run synchronous evaluation and gate check before response.
+ * This function should be called when EVAL_GATE_ENABLED is true.
+ *
+ * @param {Object} env - Worker environment
+ * @param {Object} evalParams - Evaluation parameters
+ * @param {Object} narrativeMetrics - Metrics from narrative builder (for heuristic fallback)
+ * @returns {Promise<Object>} { passed: boolean, evalResult: Object, gateResult: Object }
+ */
+export async function runSyncEvaluationGate(env, evalParams, narrativeMetrics = {}) {
+  const { requestId = 'unknown' } = evalParams;
+
+  // Check if evaluation is enabled
+  if (!normalizeBooleanFlag(env?.EVAL_ENABLED)) {
+    console.log(`[${requestId}] [gate] Skipped: EVAL_ENABLED !== true`);
+    return { passed: true, evalResult: null, gateResult: null, reason: 'eval_disabled' };
+  }
+
+  // Check if gate is enabled
+  if (!normalizeBooleanFlag(env?.EVAL_GATE_ENABLED)) {
+    console.log(`[${requestId}] [gate] Skipped: EVAL_GATE_ENABLED !== true`);
+    return { passed: true, evalResult: null, gateResult: null, reason: 'gate_disabled' };
+  }
+
+  console.log(`[${requestId}] [gate] Running synchronous evaluation gate...`);
+  const startTime = Date.now();
+
+  // Try AI evaluation first
+  let evalResult = await runEvaluation(env, evalParams);
+
+  // If AI eval failed, fall back to heuristic
+  if (!evalResult || evalResult.error) {
+    console.log(`[${requestId}] [gate] AI eval failed (${evalResult?.error || 'null'}), using heuristic fallback`);
+    evalResult = buildHeuristicScores(narrativeMetrics);
+  }
+
+  const gateResult = checkEvalGate(evalResult);
+  const latencyMs = Date.now() - startTime;
+
+  console.log(`[${requestId}] [gate] Evaluation completed in ${latencyMs}ms:`, {
+    mode: evalResult.mode || 'model',
+    passed: !gateResult.shouldBlock,
+    reason: gateResult.reason,
+    safetyFlag: evalResult.scores?.safety_flag,
+    safetyScore: evalResult.scores?.safety,
+    toneScore: evalResult.scores?.tone
+  });
+
+  if (gateResult.shouldBlock) {
+    console.warn(`[${requestId}] [gate] BLOCKED: ${gateResult.reason}`);
+  }
+
+  return {
+    passed: !gateResult.shouldBlock,
+    evalResult,
+    gateResult,
+    latencyMs
+  };
+}
+
+/**
+ * Generate a safe fallback reading when evaluation gate blocks a response.
+ *
+ * @param {Object} options - Options
+ * @param {string} options.spreadKey - Spread type
+ * @param {number} options.cardCount - Number of cards
+ * @param {string} options.reason - Block reason from gate
+ * @returns {string} Safe fallback reading text
+ */
+export function generateSafeFallbackReading({ spreadKey, cardCount, reason }) {
+  const spreadNames = {
+    celtic: 'Celtic Cross',
+    threeCard: 'Three-Card',
+    fiveCard: 'Five-Card',
+    single: 'Single-Card',
+    relationship: 'Relationship',
+    decision: 'Decision'
+  };
+
+  const spreadName = spreadNames[spreadKey] || 'tarot';
+
+  return `## A Moment of Reflection
+
+Thank you for taking this moment to explore the cards. Your ${spreadName} spread with ${cardCount} card${cardCount === 1 ? '' : 's'} invites contemplation.
+
+**At this moment, the reading invites you to pause.**
+
+The cards before you hold meaning that unfolds through your own reflection. Consider:
+
+- What drew you to ask your question today?
+- What patterns do you notice in your current situation?
+- What inner wisdom might these cards be pointing toward?
+
+**Take a breath.** The cards are tools for reflection, not prediction. Your agency and choices shape your path.
+
+*If you'd like to explore further, consider drawing a fresh spread or returning when you feel ready.*
+
+---
+*This is a reflective pause rather than a full interpretation. The system detected an opportunity for deeper personal contemplation.*`;
+}
+
+/**
  * Build heuristic fallback scores when AI evaluation fails.
+ * Note: Heuristic mode only populates tarot_coherence and safety_flag based on
+ * card coverage and hallucination detection. Other dimensions (personalization,
+ * tone, safety, overall) remain null because they require semantic understanding.
  *
  * @param {Object} narrativeMetrics - Existing quality metrics
- * @returns {Object} Heuristic scores
+ * @returns {Object} Heuristic scores with mode='heuristic' marker
  */
 export function buildHeuristicScores(narrativeMetrics = {}) {
   const scores = {
-    personalization: null,
-    tarot_coherence: null,
-    tone: null,
-    safety: null,
-    overall: null,
+    personalization: null,  // Requires semantic understanding of question
+    tarot_coherence: null,  // Will be set from card coverage
+    tone: null,             // Requires semantic analysis
+    safety: null,           // Requires semantic analysis
+    overall: null,          // Requires semantic analysis
     safety_flag: false,
     notes: 'Heuristic fallback - AI evaluation unavailable'
   };
 
+  // Derive tarot_coherence from card coverage (the only dimension we can assess heuristically)
   if (narrativeMetrics?.cardCoverage !== undefined) {
     const coverage = narrativeMetrics.cardCoverage;
     if (coverage >= 0.9) scores.tarot_coherence = 5;
@@ -364,15 +764,25 @@ export function buildHeuristicScores(narrativeMetrics = {}) {
     else scores.tarot_coherence = 2;
   }
 
+  // Check for hallucinated cards (hard safety signal)
   const hallucinations = narrativeMetrics?.hallucinatedCards?.length || 0;
   if (hallucinations > 2) {
     scores.safety_flag = true;
     scores.notes = `${hallucinations} hallucinated cards detected`;
   }
 
+  // Very low coverage is also a safety concern (reading doesn't match drawn cards)
+  if (narrativeMetrics?.cardCoverage !== undefined && narrativeMetrics.cardCoverage < 0.3) {
+    scores.safety_flag = true;
+    scores.notes = scores.notes.includes('hallucinated')
+      ? `${scores.notes}; very low card coverage (${(narrativeMetrics.cardCoverage * 100).toFixed(0)}%)`
+      : `Very low card coverage (${(narrativeMetrics.cardCoverage * 100).toFixed(0)}%)`;
+  }
+
   return {
     scores,
     model: 'heuristic-fallback',
+    mode: 'heuristic',  // Explicitly mark evaluation mode for dashboards
     latencyMs: 0,
     promptVersion: EVAL_PROMPT_VERSION,
     timestamp: new Date().toISOString()
