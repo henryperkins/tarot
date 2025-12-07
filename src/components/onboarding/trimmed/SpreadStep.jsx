@@ -127,7 +127,7 @@ export function SpreadStep({ selectedSpread, onSelectSpread, onNext, onBack }) {
           style={{ animationDelay: '0.2s' }}
         >
           <p className="text-sm text-accent mb-3">
-            What's on your mind? <span className="text-muted">(optional)</span>
+            What&apos;s on your mind? <span className="text-muted">(optional)</span>
           </p>
           <div className="flex flex-wrap gap-2">
             {FOCUS_AREAS.map((area) => (

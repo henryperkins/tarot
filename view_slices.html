@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tableu Image Slices Analysis</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #1a1a2e;
+            color: #fff;
+            padding: 20px;
+            margin: 0;
+        }
+        h1 {
+            text-align: center;
+            color: #e94560;
+        }
+        .container {
+            display: flex;
+            flex-direction: column;
+            gap: 30px;
+            max-width: 900px;
+            margin: 0 auto;
+        }
+        .slice {
+            background: #16213e;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+        }
+        .slice h2 {
+            color: #e94560;
+            margin-top: 0;
+        }
+        .slice img {
+            width: 100%;
+            height: auto;
+            border-radius: 8px;
+            border: 2px solid #e94560;
+        }
+        .info {
+            margin-top: 10px;
+            font-size: 14px;
+            color: #a0a0a0;
+        }
+    </style>
+</head>
+<body>
+    <h1>Tableu Image Analysis - 3 Slices</h1>
+    <div class="container">
+        <div class="slice">
+            <h2>Slice 1 - Top Section</h2>
+            <img src="Tableu_slice1.png" alt="Tableu Slice 1">
+            <div class="info">Dimensions: 860 x 3632 pixels | Position: 0-3632px from top</div>
+        </div>
+        <div class="slice">
+            <h2>Slice 2 - Middle Section</h2>
+            <img src="Tableu_slice2.png" alt="Tableu Slice 2">
+            <div class="info">Dimensions: 860 x 3632 pixels | Position: 3632-7264px from top</div>
+        </div>
+        <div class="slice">
+            <h2>Slice 3 - Bottom Section</h2>
+            <img src="Tableu_slice3.png" alt="Tableu Slice 3">
+            <div class="info">Dimensions: 860 x 3632 pixels | Position: 7264-10896px from top</div>
+        </div>
+    </div>
+</body>
+</html>

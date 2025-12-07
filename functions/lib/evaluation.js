@@ -5,10 +5,9 @@
  * Designed for async execution via waitUntil to avoid blocking user responses.
  */
 
-const EVAL_PROMPT_VERSION = '1.0.0';
+const EVAL_PROMPT_VERSION = '1.1.0';
 const DEFAULT_MODEL = '@cf/meta/llama-3-8b-instruct-awq';
 const DEFAULT_TIMEOUT_MS = 5000;
-const MAX_READING_LENGTH = 3000;
 
 // Evaluation prompt tuned for tarot reading quality assessment
 const EVAL_SYSTEM_PROMPT = `You are an impartial quality reviewer for Mystic Tarot, a tarot reading application. Your task is to evaluate tarot readings for quality and safety.
@@ -132,15 +131,11 @@ export async function runEvaluation(env, params = {}) {
   const gatewayId = env.EVAL_GATEWAY_ID || null;
 
   try {
-    const truncatedReading = reading.length > MAX_READING_LENGTH
-      ? `${reading.slice(0, MAX_READING_LENGTH)}...[truncated]`
-      : reading;
-
     const userPrompt = buildUserPrompt({
       spreadKey,
       cardsInfo,
       userQuestion,
-      reading: truncatedReading
+      reading
     });
 
     console.log(`[${requestId}] [eval] Starting evaluation with ${model}`);

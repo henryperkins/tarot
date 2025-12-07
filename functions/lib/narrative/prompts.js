@@ -611,6 +611,7 @@ function getSpreadKeyFromName(name) {
 
 function buildSystemPrompt(spreadKey, themes, context, deckStyle, _userQuestion = '', options = {}) {
   const personalization = options.personalization || null;
+  const subscriptionTier = options.subscriptionTier || null;
   const depthPreference = personalization?.preferredSpreadDepth;
   const depthProfile = depthPreference ? getDepthProfile(depthPreference) : null;
   const isDeepDive = depthProfile?.key === 'deep';

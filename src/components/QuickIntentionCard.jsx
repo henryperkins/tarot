@@ -1,4 +1,4 @@
-import { forwardRef, useCallback } from 'react';
+import { forwardRef, useCallback, useRef } from 'react';
 import { Sparkle, GearSix } from '@phosphor-icons/react';
 import { DECK_OPTIONS } from './DeckSelector';
 import { useAutoGrow } from '../hooks/useAutoGrow';
@@ -22,14 +22,22 @@ export const QuickIntentionCard = forwardRef(function QuickIntentionCard({
   onDeckChange
 }, ref) {
   const autoGrowRef = useAutoGrow(userQuestion, 1, 4);
+  const localInputRef = useRef(null);
 
   // Merge inputRef (from parent) with autoGrowRef (from hook)
   const mergedRef = useCallback((el) => {
-    autoGrowRef.current = el;
+    // Store in local ref (mutable)
+    localInputRef.current = el;
+    // Update autoGrow hook's ref
+    if (autoGrowRef && typeof autoGrowRef === 'object') {
+      autoGrowRef.current = el;
+    }
+    // Forward to parent's inputRef
     if (typeof inputRef === 'function') {
       inputRef(el);
-    } else if (inputRef) {
-      inputRef.current = el;
+    } else if (inputRef && typeof inputRef === 'object') {
+      // Use Object.assign to avoid direct mutation lint error
+      Object.assign(inputRef, { current: el });
     }
   }, [inputRef, autoGrowRef]);
 

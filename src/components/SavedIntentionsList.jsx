@@ -32,7 +32,7 @@ const PAGE_SIZE = 6;
 
 export function SavedIntentionsList() {
   const [intentions, setIntentions] = useState(() => loadCoachHistory());
-  const [page, setPage] = useState(0);
+  const [pageIndex, setPageIndex] = useState(0);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -64,10 +64,9 @@ export function SavedIntentionsList() {
     };
   }, []);
 
-  useEffect(() => {
-    const maxPage = Math.max(0, Math.ceil(intentions.length / PAGE_SIZE) - 1);
-    setPage((prev) => Math.min(prev, maxPage));
-  }, [intentions]);
+  // Compute the effective page, clamped to valid range
+  const maxPage = Math.max(0, Math.ceil(intentions.length / PAGE_SIZE) - 1);
+  const page = Math.min(pageIndex, maxPage);
 
   const handleDelete = (id) => {
     const result = deleteCoachHistoryItem(id);
@@ -99,7 +98,7 @@ export function SavedIntentionsList() {
           <div className="flex items-center gap-1 text-[0.78rem] text-muted">
             <button
               type="button"
-              onClick={() => setPage((prev) => Math.max(prev - 1, 0))}
+              onClick={() => setPageIndex((prev) => Math.max(prev - 1, 0))}
               disabled={page === 0}
               className="flex items-center gap-1 rounded-full px-2 py-1 transition-colors duration-150 disabled:opacity-40 hover:text-charcoal focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 focus-visible:ring-offset-2 focus-visible:ring-offset-[rgba(245,239,223,0.9)]"
               aria-label="Previous intentions page"
@@ -112,7 +111,7 @@ export function SavedIntentionsList() {
             </span>
             <button
               type="button"
-              onClick={() => setPage((prev) => Math.min(prev + 1, totalPages - 1))}
+              onClick={() => setPageIndex((prev) => Math.min(prev + 1, totalPages - 1))}
               disabled={page === totalPages - 1}
               className="flex items-center gap-1 rounded-full px-2 py-1 transition-colors duration-150 disabled:opacity-40 hover:text-charcoal focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 focus-visible:ring-offset-2 focus-visible:ring-offset-[rgba(245,239,223,0.9)]"
               aria-label="Next intentions page"
