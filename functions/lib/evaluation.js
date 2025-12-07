@@ -8,6 +8,7 @@
 const EVAL_PROMPT_VERSION = '1.2.0';
 const DEFAULT_MODEL = '@cf/meta/llama-3-8b-instruct-awq';
 const DEFAULT_TIMEOUT_MS = 5000;
+const MAX_SAFE_TIMEOUT_MS = 2147483647; // Max 32-bit signed int for timers
 
 // Input length limits to prevent context overflow and timeouts
 const MAX_READING_LENGTH = 4000;
@@ -255,6 +256,9 @@ const EVAL_USER_TEMPLATE = `Evaluate this tarot reading:
 **Cards drawn:** {{cardsList}}
 **User's question:** {{userQuestion}}
 
+Spread-specific checkpoints:
+{{spreadHints}}
+
 **Reading to evaluate:**
 {{reading}}
 
@@ -269,8 +273,29 @@ Return ONLY valid JSON in this exact format:
   "notes": "<one sentence explanation of lowest score>"
 }`;
 
+function buildSpreadEvaluationHints(spreadKey) {
+  switch (spreadKey) {
+    case 'celtic':
+      return '- Check Celtic Cross flow: nucleus vs staff should cohere; past → present → near future should be consistent.';
+    case 'relationship':
+      return '- Balance both parties; note shared dynamics and guidance, not a single-sided take.';
+    case 'decision':
+      return '- Compare both paths distinctly, connect each path to outcomes, and emphasize user agency in choosing.';
+    default:
+      return '- Ensure positions and outcomes are coherent and agency-forward.';
+  }
+}
+
 function normalizeBooleanFlag(value) {
   return String(value).toLowerCase() === 'true';
+}
+
+export function getEvaluationTimeoutMs(env) {
+  const raw = parseInt(env?.EVAL_TIMEOUT_MS, 10);
+  if (!Number.isFinite(raw) || raw <= 0) {
+    return DEFAULT_TIMEOUT_MS;
+  }
+  return Math.min(raw, MAX_SAFE_TIMEOUT_MS);
 }
 
 function buildCardsList(cardsInfo = [], maxLength = MAX_CARDS_INFO_LENGTH) {
@@ -328,6 +353,7 @@ function buildUserPrompt({ spreadKey, cardsInfo, userQuestion, reading, requestI
   const questionResult = truncateText(userQuestion, MAX_QUESTION_LENGTH);
   const readingResult = truncateText(reading, MAX_READING_LENGTH);
   const cardCount = Array.isArray(cardsInfo) ? cardsInfo.length : 0;
+  const spreadHints = buildSpreadEvaluationHints(spreadKey);
 
   // Log truncation events for monitoring
   const truncations = [];
@@ -350,6 +376,7 @@ function buildUserPrompt({ spreadKey, cardsInfo, userQuestion, reading, requestI
     .replace('{{cardCount}}', String(cardCount))
     .replace('{{cardsList}}', cardsResult.text || '(none)')
     .replace('{{userQuestion}}', questionResult.text || '(no question provided)')
+    .replace('{{spreadHints}}', spreadHints || '')
     .replace('{{reading}}', readingResult.text || '');
 
   return { prompt, truncations };
@@ -400,7 +427,7 @@ export async function runEvaluation(env, params = {}) {
 
   const startTime = Date.now();
   const model = env.EVAL_MODEL || DEFAULT_MODEL;
-  const timeoutMs = parseInt(env.EVAL_TIMEOUT_MS, 10) || DEFAULT_TIMEOUT_MS;
+  const timeoutMs = getEvaluationTimeoutMs(env);
   const gatewayId = env.EVAL_GATEWAY_ID || null;
 
   try {
@@ -536,7 +563,7 @@ export function scheduleEvaluation(env, evalParams = {}, metricsPayload = {}, op
       }
 
       const shouldFallback = (!evalResult || evalResult.error) && metricsPayload?.narrative;
-      const heuristic = shouldFallback ? buildHeuristicScores(metricsPayload.narrative) : null;
+      const heuristic = shouldFallback ? buildHeuristicScores(metricsPayload.narrative, metricsPayload.spreadKey) : null;
 
       let evalPayload = evalResult || heuristic;
       if (evalResult?.error && heuristic) {
@@ -690,7 +717,7 @@ export async function runSyncEvaluationGate(env, evalParams, narrativeMetrics = 
   const hasIncompleteScores = missingFields.length > 0;
 
   if (hasEvalError || hasIncompleteScores) {
-    const fallbackEval = hasEvalError ? buildHeuristicScores(narrativeMetrics) : evalResult;
+    const fallbackEval = hasEvalError ? buildHeuristicScores(narrativeMetrics, evalParams?.spreadKey) : evalResult;
     const reason = hasEvalError
       ? `eval_error_${(evalResult?.error || 'unavailable').replace(/\s+/g, '_')}`
       : `incomplete_scores_${missingFields.join('_')}`;
@@ -784,7 +811,7 @@ The cards before you hold meaning that unfolds through your own reflection. Cons
  * @param {Object} narrativeMetrics - Existing quality metrics
  * @returns {Object} Heuristic scores with mode='heuristic' marker
  */
-export function buildHeuristicScores(narrativeMetrics = {}) {
+export function buildHeuristicScores(narrativeMetrics = {}, spreadKey = null) {
   const scores = {
     personalization: null,  // Requires semantic understanding of question
     tarot_coherence: null,  // Will be set from card coverage
@@ -795,6 +822,9 @@ export function buildHeuristicScores(narrativeMetrics = {}) {
     notes: 'Heuristic fallback - AI evaluation unavailable'
   };
 
+  const notes = [];
+  const spread = narrativeMetrics?.spreadKey || spreadKey || 'general';
+
   // Derive tarot_coherence from card coverage (the only dimension we can assess heuristically)
   if (narrativeMetrics?.cardCoverage !== undefined) {
     const coverage = narrativeMetrics.cardCoverage;
@@ -802,22 +832,49 @@ export function buildHeuristicScores(narrativeMetrics = {}) {
     else if (coverage >= 0.7) scores.tarot_coherence = 4;
     else if (coverage >= 0.5) scores.tarot_coherence = 3;
     else scores.tarot_coherence = 2;
+
+    if (coverage < 0.5) {
+      notes.push(`Low card coverage ${(coverage * 100).toFixed(0)}%`);
+    }
   }
 
   // Check for hallucinated cards (hard safety signal)
   const hallucinations = narrativeMetrics?.hallucinatedCards?.length || 0;
   if (hallucinations > 2) {
     scores.safety_flag = true;
-    scores.notes = `${hallucinations} hallucinated cards detected`;
+    notes.push(`${hallucinations} hallucinated cards detected`);
   }
 
   // Very low coverage is also a safety concern (reading doesn't match drawn cards)
   if (narrativeMetrics?.cardCoverage !== undefined && narrativeMetrics.cardCoverage < 0.3) {
     scores.safety_flag = true;
-    scores.notes = scores.notes.includes('hallucinated')
-      ? `${scores.notes}; very low card coverage (${(narrativeMetrics.cardCoverage * 100).toFixed(0)}%)`
-      : `Very low card coverage (${(narrativeMetrics.cardCoverage * 100).toFixed(0)}%)`;
+    notes.push(`Very low card coverage (${(narrativeMetrics.cardCoverage * 100).toFixed(0)}%)`);
   }
+  // Spread-specific coherence nudges
+  if (spread === 'celtic' && narrativeMetrics?.spine) {
+    const total = narrativeMetrics.spine.totalSections || 0;
+    const complete = narrativeMetrics.spine.completeSections || 0;
+    if (total >= 4 && complete < Math.ceil(total * 0.6)) {
+      scores.tarot_coherence = Math.min(scores.tarot_coherence || 3, 2);
+      notes.push('Celtic Cross spine incomplete');
+    }
+  }
+
+  if (spread === 'relationship' && narrativeMetrics?.cardCoverage !== undefined && narrativeMetrics.cardCoverage < 0.6) {
+    scores.tarot_coherence = Math.min(scores.tarot_coherence || 3, 2);
+    notes.push('Relationship spread under-references both parties');
+  }
+
+  if (spread === 'decision' && narrativeMetrics?.cardCoverage !== undefined && narrativeMetrics.cardCoverage < 0.6) {
+    scores.tarot_coherence = Math.min(scores.tarot_coherence || 3, 2);
+    notes.push('Decision spread paths not both covered');
+  }
+
+  if (notes.length === 0) {
+    notes.push('Heuristic fallback - AI evaluation unavailable');
+  }
+
+  scores.notes = notes.join('; ');
 
   return {
     scores,

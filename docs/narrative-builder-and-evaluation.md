@@ -321,3 +321,133 @@ const MAX_SAFE_TIMEOUT = 2147483647; // Max 32-bit signed int
 const timeoutMs = Math.min(configuredTimeout, MAX_SAFE_TIMEOUT);
 ```
 
+---
+
+## Implementation Status (as of 2025-12-07)
+
+> **All 4 suggested improvements above remain UNIMPLEMENTED.** This section documents findings from a deep codebase investigation and provides specific fix guidance.
+
+### ❌ 1. Spread-Specific Eval Heuristics — NOT IMPLEMENTED
+
+**Evidence:**
+- [`functions/lib/evaluation.js:787-829`](../functions/lib/evaluation.js:787) — `buildHeuristicScores()` is completely spread-agnostic
+- The function only checks `cardCoverage` and `hallucinatedCards` with no spread-specific logic
+- [`EVAL_USER_TEMPLATE`](../functions/lib/evaluation.js:252) uses a generic rubric with no spread-aware checks
+
+**Fix guidance:**
+1. Add `spreadKey` parameter to `buildHeuristicScores(narrativeMetrics, spreadKey)`
+2. Add spread-specific validation logic:
+   ```javascript
+   // In buildHeuristicScores()
+   if (spreadKey === 'celtic') {
+     // Check nucleus↔staff relationship coherence
+     // Verify positions 0-1 (nucleus) relate to positions 6-9 (staff)
+   } else if (spreadKey === 'relationship') {
+     // Check both-parties balance (you vs them card coverage)
+     // Ensure positions 0 and 1 have roughly equal treatment
+   } else if (spreadKey === 'decision') {
+     // Check path-outcome logical flow
+     // Verify paths A and B (positions 1-2) connect to clarifier/free will
+   }
+   ```
+3. Extend `checkEvalGate()` with spread-keyed thresholds
+4. Add tests: `tests/evaluation.spread-specific.test.mjs`
+
+---
+
+### ❌ 2. Stricter Health-Context Gates — NOT IMPLEMENTED
+
+**Evidence:**
+- [`functions/lib/contextDetection.js:53-75`](../functions/lib/contextDetection.js:53) only has generic "self" context keywords like "mental health", "therapy"
+- No crisis detection patterns exist for self-harm, suicidal ideation, or acute medical symptoms
+- [`evaluation.js:247-249`](../functions/lib/evaluation.js:247) mentions "death predictions" but only in LLM prompt text — not as active code detection
+
+**Fix guidance:**
+1. Create a new function in `contextDetection.js` or a dedicated `crisisDetection.js`:
+   ```javascript
+   const CRISIS_PATTERNS = {
+     selfHarm: [
+       /\b(hurt|harm|cut|kill)\s*(my)?self\b/i,
+       /\bsuicid(e|al|ing)\b/i,
+       /\bwant(ing)?\s*to\s*die\b/i,
+       /\bend\s*(my|it\s*all)\b/i
+     ],
+     acuteMedical: [
+       /\bchest\s*pain\b/i,
+       /\bcan'?t\s*breathe\b/i,
+       /\bstroke\s*symptoms?\b/i,
+       /\bseizure\b/i
+     ]
+   };
+
+   export function detectCrisisPatterns(text) {
+     const triggered = [];
+     for (const [category, patterns] of Object.entries(CRISIS_PATTERNS)) {
+       if (patterns.some(p => p.test(text))) {
+         triggered.push(category);
+       }
+     }
+     return { hasCrisis: triggered.length > 0, categories: triggered };
+   }
+   ```
+2. Call early in `runSyncEvaluationGate()` or before backend selection in `tarot-reading.js`
+3. If triggered, short-circuit to `generateSafeFallbackReading()` with reason `'crisis_detected'`
+4. Add tests: `tests/crisisDetection.test.mjs`
+
+---
+
+### ❌ 3. GraphRAG Telemetry Alerts — NOT IMPLEMENTED
+
+**Evidence:**
+- [`functions/lib/narrative/prompts.js:545-594`](../functions/lib/narrative/prompts.js:545) captures GraphRAG telemetry in `promptMeta.graphRAG`:
+  - `includedInPrompt`, `passagesUsedInPrompt`, `truncatedPassages`, `semanticScoringFallback`
+- **However**, there are NO warning logs or alerts when these conditions are problematic
+- Telemetry is captured for metrics storage but not actively surfaced for observability
+
+**Fix guidance:**
+Add warning logs after prompt build (around line 594 in `prompts.js`):
+```javascript
+// After building promptMeta.graphRAG
+if (promptMeta.graphRAG) {
+  const g = promptMeta.graphRAG;
+  if (g.includedInPrompt === false && g.passagesProvided > 0) {
+    console.warn('[GraphRAG Alert] GraphRAG block dropped from prompt despite having passages');
+  }
+  if (g.truncatedPassages > g.passagesUsedInPrompt) {
+    console.warn(`[GraphRAG Alert] Heavy truncation: ${g.truncatedPassages} passages dropped, only ${g.passagesUsedInPrompt} used`);
+  }
+  if (g.semanticScoringFallback && g.passagesProvided > 0) {
+    console.warn('[GraphRAG Alert] Semantic scoring unavailable, fell back to keyword ranking');
+  }
+}
+```
+
+Optionally increment counters for observability dashboards if metrics system supports it.
+
+---
+
+### ❌ 4. TimeoutOverflowWarning Mitigation — NOT IMPLEMENTED
+
+**Evidence:**
+- [`functions/lib/evaluation.js:403`](../functions/lib/evaluation.js:403): `const timeoutMs = parseInt(env.EVAL_TIMEOUT_MS, 10) || DEFAULT_TIMEOUT_MS;`
+- [`functions/lib/evaluation.js:418`](../functions/lib/evaluation.js:418): `setTimeout(() => controller.abort(), timeoutMs);`
+- **No clamping** to `MAX_SAFE_TIMEOUT_MS` — very large env values can cause Node.js `TimeoutOverflowWarning`
+
+**Fix guidance:**
+```javascript
+// At top of evaluation.js (around line 10)
+const MAX_SAFE_TIMEOUT_MS = 2147483647; // Max 32-bit signed int
+
+// In runEvaluation() - replace line 403
+const rawTimeout = parseInt(env.EVAL_TIMEOUT_MS, 10) || DEFAULT_TIMEOUT_MS;
+const timeoutMs = Math.min(rawTimeout, MAX_SAFE_TIMEOUT_MS);
+```
+
+Add test in `tests/evaluation.test.mjs`:
+```javascript
+test('timeoutMs clamps to MAX_SAFE_TIMEOUT_MS', () => {
+  const result = runEvaluation({ EVAL_TIMEOUT_MS: '9999999999999' }, ...);
+  // Should not throw TimeoutOverflowWarning
+});
+```
+

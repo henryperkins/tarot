@@ -62,6 +62,8 @@ import { deriveEmotionalTone } from '../../src/data/emotionMapping.js';
 import { normalizeVisionLabel } from '../lib/visionLabels.js';
 import { getToneStyle, buildPersonalizedClosing, getDepthProfile } from '../lib/narrative/styleHelpers.js';
 import { buildOpening } from '../lib/narrative/helpers.js';
+import { detectCrisisSignals } from '../lib/safetyChecks.js';
+import { collectGraphRAGAlerts } from '../lib/graphRAGAlerts.js';
 import {
   escapeRegex,
   hasExplicitCardContext,
@@ -245,7 +247,7 @@ function shouldLogEnhancementTelemetry(env) {
  */
 function getSemanticScoringConfig(env) {
   if (!env) return null;
-  
+
   // Check explicit override
   if (env.ENABLE_SEMANTIC_SCORING !== undefined) {
     return normalizeBooleanFlag(env.ENABLE_SEMANTIC_SCORING);
@@ -253,7 +255,7 @@ function getSemanticScoringConfig(env) {
   if (env.GRAPHRAG_SEMANTIC_SCORING !== undefined) {
     return normalizeBooleanFlag(env.GRAPHRAG_SEMANTIC_SCORING);
   }
-  
+
   // Return null to let auto-detection based on API availability
   return null;
 }
@@ -530,6 +532,72 @@ export const onRequestPost = async ({ request, env, waitUntil }) => {
     });
     console.log(`[${requestId}] Context inferred: ${context}`);
 
+    const crisisCheck = detectCrisisSignals([userQuestion, reflectionsText].filter(Boolean).join(' '));
+    if (crisisCheck.matched) {
+      const crisisReason = `crisis_${crisisCheck.categories.join('_') || 'safety'}`;
+      const crisisMessage = `Crisis/health safety gate triggered (${crisisCheck.categories.join(', ') || 'unclassified'})`;
+      contextDiagnostics.push(crisisMessage);
+      console.warn(`[${requestId}] ${crisisMessage}; matches: ${crisisCheck.matches.join('; ')}`);
+
+      const graphRAGStats = analysis.graphRAGPayload?.retrievalSummary || null;
+      const narrativeMetrics = {
+        spine: { isValid: false, totalSections: 0, completeSections: 0, incompleteSections: 0, suggestions: [] },
+        cardCoverage: 0,
+        missingCards: (cardsInfo || []).map((c) => c?.card).filter(Boolean),
+        hallucinatedCards: []
+      };
+
+      const timestamp = new Date().toISOString();
+      const metricsPayload = {
+        requestId,
+        timestamp,
+        provider: 'safe-fallback',
+        deckStyle,
+        spreadKey: analysis.spreadKey,
+        context,
+        vision: null,
+        narrative: narrativeMetrics,
+        narrativeEnhancements: null,
+        graphRAG: graphRAGStats,
+        promptMeta: null,
+        enhancementTelemetry: null,
+        contextDiagnostics: {
+          messages: contextDiagnostics,
+          count: contextDiagnostics.length
+        },
+        promptEngineering: null,
+        llmUsage: null,
+        evalGate: { ran: false, blocked: true, reason: crisisReason }
+      };
+
+      await persistReadingMetrics(env, metricsPayload);
+
+      const emotionalTone = deriveEmotionalTone(analysis.themes);
+
+      return jsonResponse({
+        reading: generateSafeFallbackReading({
+          spreadKey: analysis.spreadKey,
+          cardCount: cardsInfo.length,
+          reason: crisisReason
+        }),
+        provider: 'safe-fallback',
+        requestId,
+        themes: analysis.themes,
+        emotionalTone,
+        context,
+        contextDiagnostics,
+        narrativeMetrics,
+        graphRAG: graphRAGStats,
+        spreadAnalysis: {
+          version: '1.0.0',
+          spreadKey: analysis.spreadKey,
+          ...(analysis.spreadAnalysis || {})
+        },
+        gateBlocked: true,
+        gateReason: crisisReason
+      });
+    }
+
     // STEP 2: Generate reading via configured narrative backends
     const narrativePayload = {
       spreadInfo,
@@ -538,15 +606,15 @@ export const onRequestPost = async ({ request, env, waitUntil }) => {
       reflectionsText,
       analysis,
       context,
-  contextDiagnostics,
-  visionInsights: sanitizedVisionInsights,
-  deckStyle,
-  personalization: personalization || null,
-  subscriptionTier,
-  narrativeEnhancements: [],
-  graphRAGPayload: analysis.graphRAGPayload || null,
-  promptMeta: null
-};
+      contextDiagnostics,
+      visionInsights: sanitizedVisionInsights,
+      deckStyle,
+      personalization: personalization || null,
+      subscriptionTier,
+      narrativeEnhancements: [],
+      graphRAGPayload: analysis.graphRAGPayload || null,
+      promptMeta: null
+    };
 
     let reading = null;
     let provider = 'local-composer';
@@ -558,7 +626,7 @@ export const onRequestPost = async ({ request, env, waitUntil }) => {
     // Track captured prompts for engineering persistence
     let capturedPrompts = null;
     let capturedUsage = null;
-    
+
     for (const backend of backendsToTry) {
       const attemptStart = Date.now();
       console.log(`[${requestId}] Attempting narrative backend ${backend.id} (${backend.label})...`);
@@ -566,12 +634,12 @@ export const onRequestPost = async ({ request, env, waitUntil }) => {
       narrativePayload.promptMeta = null;
       try {
         const backendResult = await runNarrativeBackend(backend.id, env, narrativePayload, requestId);
-        
+
         // Extract reading and prompts from result
         const result = typeof backendResult === 'object' && backendResult.reading
           ? backendResult.reading
           : backendResult;
-        
+
         if (!result || !result.toString().trim()) {
           throw new Error('Backend returned empty narrative.');
         }
@@ -580,6 +648,12 @@ export const onRequestPost = async ({ request, env, waitUntil }) => {
         if (typeof backendResult === 'object' && backendResult.prompts) {
           capturedPrompts = backendResult.prompts;
           capturedUsage = backendResult.usage;
+        }
+
+        const graphRAGAlerts = collectGraphRAGAlerts(narrativePayload.promptMeta || {});
+        if (graphRAGAlerts.length) {
+          graphRAGAlerts.forEach((msg) => console.warn(`[${requestId}] [${backend.id}] ${msg}`));
+          narrativePayload.contextDiagnostics = Array.from(new Set([...(narrativePayload.contextDiagnostics || []), ...graphRAGAlerts]));
         }
 
         // Quality gate: validate narrative structure and content before accepting
@@ -1245,7 +1319,7 @@ export function validatePayload({ spreadInfo, cardsInfo }) {
  */
 async function generateWithAzureGPT5Responses(env, payload, requestId = 'unknown') {
   const { spreadInfo, cardsInfo, userQuestion, reflectionsText, analysis, context, visionInsights, contextDiagnostics = [] } = payload;
-  
+
   // Track prompts for engineering analysis
   let capturedSystemPrompt = '';
   let capturedUserPrompt = '';
@@ -1306,7 +1380,7 @@ async function generateWithAzureGPT5Responses(env, payload, requestId = 'unknown
   // Capture prompts for persistence
   capturedSystemPrompt = systemPrompt;
   capturedUserPrompt = userPrompt;
-  
+
   console.log(`[${requestId}] System prompt length: ${systemPrompt.length}, User prompt length: ${userPrompt.length}`);
   maybeLogPromptPayload(
     env,
@@ -1445,11 +1519,11 @@ async function generateWithAzureGPT5Responses(env, payload, requestId = 'unknown
  */
 async function generateWithClaudeSonnet45Enhanced(env, payload, requestId = 'unknown') {
   const { spreadInfo, cardsInfo, userQuestion, reflectionsText, analysis, context, visionInsights, contextDiagnostics = [] } = payload;
-  
+
   // Track prompts for engineering analysis
   let capturedSystemPrompt = '';
   let capturedUserPrompt = '';
-  
+
   // Azure AI Foundry Anthropic endpoint
   // API key: prefer AZURE_ANTHROPIC_API_KEY, fall back to AZURE_OPENAI_API_KEY
   const apiKey = env.AZURE_ANTHROPIC_API_KEY || env.AZURE_OPENAI_API_KEY;
@@ -1497,7 +1571,7 @@ async function generateWithClaudeSonnet45Enhanced(env, payload, requestId = 'unk
   // Capture prompts for persistence
   capturedSystemPrompt = systemPrompt;
   capturedUserPrompt = userPrompt;
-  
+
   if (promptMeta) {
     payload.promptMeta = promptMeta;
   }
