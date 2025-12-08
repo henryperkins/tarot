@@ -583,19 +583,32 @@ export async function retrievePassagesWithQuality(graphKeys, options = {}) {
     env = null
   } = options;
 
-  // Quality filtering is always enabled - it selects the most relevant passages
-  // for the user's question. This is independent of prompt slimming (which controls
-  // whether entire sections are dropped from prompts for budget reasons).
+  // Quality filtering selects the most relevant passages for the user's question.
+  // This is independent of prompt slimming (which controls whether entire sections
+  // are dropped from prompts for budget reasons). Use DISABLE_QUALITY_FILTERING
+  // explicitly if you need to bypass relevance scoring and deduplication.
+  const disableQualityFiltering = env?.DISABLE_QUALITY_FILTERING === 'true' ||
+    env?.DISABLE_QUALITY_FILTERING === true;
 
-  // Get raw passages (retrieve 2x to allow for filtering)
+  // Get raw passages (retrieve 2x to allow for filtering unless explicitly disabled)
+  const retrievalLimit = disableQualityFiltering ? maxPassages : maxPassages * 2;
   const rawPassages = retrievePassages(graphKeys, {
-    maxPassages: maxPassages * 2,
+    maxPassages: retrievalLimit,
     userQuery,
     includeMetadata: true
   });
 
   if (!rawPassages || rawPassages.length === 0) {
     return [];
+  }
+
+  // If filtering is explicitly disabled, return raw passages with nominal scores
+  if (disableQualityFiltering) {
+    return rawPassages.map((p) => ({
+      ...p,
+      relevanceScore: 1.0,
+      _qualityFilteringDisabled: true
+    }));
   }
 
   // Score each passage for relevance

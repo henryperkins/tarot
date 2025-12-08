@@ -1,5 +1,8 @@
 import { useState, useMemo, useEffect, useRef, memo } from 'react';
-import { FileText, ArrowsClockwise, ChartBar, Sparkle, ShareNetwork, DownloadSimple, BookOpen, CircleNotch } from '@phosphor-icons/react';
+import { FileText, ArrowsClockwise, ChartBar, Sparkle, ShareNetwork, DownloadSimple, BookOpen, CircleNotch, Calendar } from '@phosphor-icons/react';
+import { CadenceChart } from './charts/CadenceChart';
+import { ContextTimelineRibbon } from './charts/ContextTimelineRibbon';
+import { JourneyStoryPanel } from './JourneyStoryPanel';
 import {
     LoveIcon,
     CareerIcon,
@@ -136,7 +139,7 @@ export const JournalInsightsPanel = memo(function JournalInsightsPanel({
     const primaryStats = stats || allStats;
     const frequentCards = primaryStats?.frequentCards || [];
     const contextBreakdown = primaryStats?.contextBreakdown || [];
-    const _monthlyCadence = primaryStats?.monthlyCadence || [];
+    const monthlyCadence = primaryStats?.monthlyCadence || [];
     const recentThemes = primaryStats?.recentThemes || [];
     const isFilteredView = Boolean(filtersActive && stats);
 
@@ -846,6 +849,22 @@ export const JournalInsightsPanel = memo(function JournalInsightsPanel({
             )}
 
                 <div className={`grid ${insightsGridLayout} lg:grid-cols-1 lg:gap-4`}>
+                    {/* Reading Rhythm - 6 Month Cadence Chart */}
+                    {monthlyCadence.length > 0 && (
+                        <div className={`relative overflow-hidden rounded-3xl border border-amber-300/12 bg-gradient-to-br from-[#0f0b16]/80 via-[#0c0a13]/80 to-[#0a0810]/85 ring-1 ring-amber-300/10 shadow-[0_18px_45px_-30px_rgba(0,0,0,0.8)] ${isLandscape ? 'p-3' : 'p-5'}`}>
+                            <h3 className={`flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-amber-200/75 ${isLandscape ? 'mb-2' : 'mb-4'}`}>
+                                <Calendar className="h-3 w-3" /> Reading Rhythm
+                            </h3>
+                            <CadenceChart
+                                data={monthlyCadence}
+                                height={isLandscape ? 60 : 80}
+                            />
+                            <p className="mt-2 text-xs text-amber-100/60">
+                                Your practice over the last 6 months
+                            </p>
+                        </div>
+                    )}
+
                     {/* Frequent Cards */}
                     {frequentCards.length > 0 && (
                         <div className={`relative overflow-hidden rounded-3xl border border-amber-300/12 bg-gradient-to-br from-[#0f0b16]/80 via-[#0c0a13]/80 to-[#0a0810]/85 ring-1 ring-amber-300/10 shadow-[0_18px_45px_-30px_rgba(0,0,0,0.8)] ${isLandscape ? 'p-3' : 'p-5'}`}>
@@ -881,6 +900,16 @@ export const JournalInsightsPanel = memo(function JournalInsightsPanel({
                                     );
                                 })}
                             </div>
+
+                            {/* Context Over Time Ribbon */}
+                            {baseEntries.length >= 4 && (
+                                <div className={`${isLandscape ? 'mt-2' : 'mt-4'} pt-3 border-t border-amber-200/10`}>
+                                    <p className="text-[10px] uppercase tracking-wider text-amber-200/50 mb-2">Focus over 6 months</p>
+                                    <div className="relative">
+                                        <ContextTimelineRibbon entries={baseEntries} />
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     )}
 
@@ -903,6 +932,16 @@ export const JournalInsightsPanel = memo(function JournalInsightsPanel({
                                 ))}
                             </ul>
                         </div>
+                    )}
+
+                    {/* Story of This Season - Prose Summary */}
+                    {baseEntries.length >= 3 && (
+                        <JourneyStoryPanel
+                            entries={baseEntries}
+                            stats={summaryStats}
+                            defaultExpanded={false}
+                            isLandscape={isLandscape}
+                        />
                     )}
 
                     {/* Emerging Interests (Preference Drift) - Phase 5.4 */}

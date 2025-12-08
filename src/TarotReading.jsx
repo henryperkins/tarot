@@ -6,7 +6,7 @@ import { ReadingPreparation } from './components/ReadingPreparation';
 import { ReadingDisplay } from './components/ReadingDisplay';
 import { GuidedIntentionCoach } from './components/GuidedIntentionCoach';
 import { loadCoachRecommendation, saveCoachRecommendation } from './lib/journalInsights';
-import { DeckSelector, DECK_OPTIONS } from './components/DeckSelector';
+import { DeckSelector } from './components/DeckSelector';
 import { MobileSettingsDrawer } from './components/MobileSettingsDrawer';
 import { MobileActionBar, MobileActionGroup } from './components/MobileActionBar';
 import { QuickIntentionCard } from './components/QuickIntentionCard';

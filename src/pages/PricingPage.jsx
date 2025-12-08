@@ -17,7 +17,6 @@ import {
   Moon,
   Graph,
   Stack,
-  PlusCircle,
   Lightbulb,
   Headset,
   Table

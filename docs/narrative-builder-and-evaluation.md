@@ -33,10 +33,11 @@
     - Encodes each position via `buildPositionCardText` and imagery hooks (`helpers.js` + `imageryHooks.js`).
     - Adds attention-weight notes and summaries for low-weight cards.
     - Injects GraphRAG “TRADITIONAL WISDOM” passages and optional ephemeris sections when enabled, following the “GraphRAG for archetype, Vision for visual texture” synthesis rule (`prompts.js:740`).
-- Prompt budgeting and slimming:
+- Prompt budgeting and slimming (**DISABLED by default**):
   - Token budget and hard caps come from `getPromptBudgetForTarget` / `getHardCapBudget` (`prompts.js:220`).
-  - A small pipeline of slimming steps progressively disables low-weight imagery, forecast, ephemeris, GraphRAG, deck context, and diagnostics if over budget (`prompts.js:296`), re-building prompts after each change.
-  - Final truncation is done structurally, at paragraph boundaries, with a “[...prompt truncated…]” note (`prompts.js:180`).
+  - Slimming is **opt-in only** via `ENABLE_PROMPT_SLIMMING=true`. Modern LLMs (GPT-5 ~128k, Claude ~200k) handle full prompts easily; slimming removes valuable context.
+  - When enabled, a pipeline progressively disables low-weight imagery, forecast, ephemeris, GraphRAG, deck context, and diagnostics if over budget (`prompts.js:296`).
+  - Final truncation is done structurally, at paragraph boundaries, with a "[...prompt truncated…]" note (`prompts.js:180`).
 - GraphRAG telemetry is explicitly surfaced:
   - After slimming, `promptMeta.graphRAG` records `semanticScoringRequested/Used/Fallback`, `passagesProvided`, `passagesUsedInPrompt`, `truncatedPassages`, and `includedInPrompt` (`prompts.js:520`).
   - This is what the AGENTS note refers to: the app can warn when GraphRAG was requested but dropped or trimmed for budget.
@@ -119,7 +120,7 @@ This section documents specific failure modes and the exact code paths that dete
 | File                                                                                | Function                     | What It Catches                                                                |
 | ----------------------------------------------------------------------------------- | ---------------------------- | ------------------------------------------------------------------------------ |
 | [`functions/lib/narrativeSpine.js:120`](../functions/lib/narrativeSpine.js:120)     | `enhanceSection()`           | Auto-injects missing WHAT/WHY/NEXT elements, card headers, and flow connectors |
-| [`functions/lib/narrativeSpine.js:210`](../functions/lib/narrativeSpine.js:210)     | `buildFlowNarrative()`       | Enforces causal connectors via `SPINE_TEMPLATES.FLOW_CONNECTORS`               |
+| [`functions/lib/narrativeSpine.js:403`](../functions/lib/narrativeSpine.js:403)     | `buildFlowNarrative()`       | Enforces causal connectors inline: `supportive` → "Building on this,"; `tension` → "However,"; `amplified` → "Intensifying further," |
 | [`functions/lib/narrativeSpine.js:280`](../functions/lib/narrativeSpine.js:280)     | `validateReadingNarrative()` | Returns `isValid: false` when sections are incomplete                          |
 | [`functions/lib/positionWeights.js`](../functions/lib/positionWeights.js)           | `getPositionWeight()`        | Controls emphasis depth per position (high/medium/low)                         |
 | [`functions/lib/narrative/helpers.js:75`](../functions/lib/narrative/helpers.js:75) | `buildPositionCardText()`    | Ensures position-appropriate card descriptions with context lenses             |
@@ -147,10 +148,10 @@ This section documents specific failure modes and the exact code paths that dete
 
 | File                                                                                  | Function                        | What It Catches                                                                                                                   |
 | ------------------------------------------------------------------------------------- | ------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
-| [`functions/lib/narrative/prompts.js:296`](../functions/lib/narrative/prompts.js:296) | `slimPromptForBudget()`         | Progressive slimming: disables imagery → forecast → ephemeris → GraphRAG → deck context                                           |
-| [`functions/lib/narrative/prompts.js:220`](../functions/lib/narrative/prompts.js:220) | `getPromptBudgetForTarget()`    | Calculates token budgets per model target (azure/claude)                                                                          |
-| [`functions/lib/narrative/prompts.js:180`](../functions/lib/narrative/prompts.js:180) | `truncateAtParagraphBoundary()` | Structural truncation with `"[...prompt truncated…]"` marker                                                                      |
-| [`functions/lib/narrative/prompts.js:520`](../functions/lib/narrative/prompts.js:520) | `buildPromptMeta()`             | Records GraphRAG telemetry: `semanticScoringRequested/Used/Fallback`, `passagesProvided`, `truncatedPassages`, `includedInPrompt` |
+| [`functions/lib/narrative/prompts.js:407`](../functions/lib/narrative/prompts.js:407) | `maybeSlim()` (inline callback) | Progressive slimming pipeline inside `buildEnhancedClaudePrompt`: disables imagery → forecast → ephemeris → GraphRAG → deck context |
+| [`functions/lib/narrative/prompts.js:135`](../functions/lib/narrative/prompts.js:135) | `getPromptBudgetForTarget()`    | Calculates token budgets per model target (azure/claude)                                                                          |
+| [`functions/lib/narrative/prompts.js:171`](../functions/lib/narrative/prompts.js:171) | `truncateToTokenBudget()`       | Structural truncation at paragraph boundary with `"[...prompt truncated to fit context window...]"` marker                        |
+| [`functions/lib/narrative/prompts.js:552`](../functions/lib/narrative/prompts.js:552) | Inline `promptMeta` construction | Records GraphRAG telemetry: `semanticScoringRequested/Used/Fallback`, `passagesProvided`, `truncatedPassages`, `includedInPrompt` |
 
 **Detection signals via `promptMeta.graphRAG`:**
 
@@ -162,7 +163,12 @@ This section documents specific failure modes and the exact code paths that dete
   passagesProvided: 8,               // How many passages retrieved?
   passagesUsedInPrompt: 3,           // How many made it into final prompt?
   truncatedPassages: 5,              // How many were cut?
-  includedInPrompt: false            // Was GraphRAG block included at all?
+  includedInPrompt: false,           // Was GraphRAG block included at all?
+  // Additional fields when budget trimming occurs:
+  truncatedForBudget: true,          // Was passage list trimmed for token budget?
+  budgetTrimmedFrom: 8,              // Original passage count before budget trim
+  budgetTrimmedTo: 3,                // Final passage count after budget trim
+  budgetTrimmedStrategy: 'semantic'  // Ranking strategy used (e.g., 'semantic', 'keyword')
 }
 ```
 
@@ -197,6 +203,45 @@ This section documents specific failure modes and the exact code paths that dete
 > 3. Eval scores or user feedback correlate negatively with prompt size
 >
 > Monitor `tokens.input` in metrics to track actual prompt sizes over time.
+
+#### GraphRAG Quality Filtering (ENABLED by default)
+
+**Distinct from prompt slimming**, GraphRAG quality filtering controls which retrieved passages are included based on relevance scoring. This is **always enabled** unless explicitly disabled.
+
+| Feature | Default | Environment Variable | Purpose |
+|---------|---------|---------------------|---------|
+| Quality Filtering | **ENABLED** | `DISABLE_QUALITY_FILTERING=true` to disable | Filter passages below relevance threshold |
+| Min Relevance Score | 0.3 (30%) | Hardcoded in `tarot-reading.js:1125` | Minimum keyword/semantic similarity score |
+| Semantic Scoring | ENABLED | Automatic when user provides question | Uses keyword overlap + optional embeddings |
+| Free Tier Passage Limit | **ENABLED** | Tier parameter in API | Halves passage count for free users |
+
+**How it works** (`functions/lib/graphRAG.js:576-651`):
+
+1. Retrieves 2× the target passage count (to allow for filtering)
+2. Scores each passage for relevance to user's question (keyword overlap + optional semantic similarity)
+3. Filters passages below `minRelevanceScore` threshold (default: 0.3)
+4. Deduplicates similar passages
+5. Ranks by relevance score and takes top N
+
+**Key distinction:**
+- **Prompt slimming** = Dropping entire prompt sections (GraphRAG block, ephemeris, imagery) when over token budget
+- **Quality filtering** = Selecting the most relevant GraphRAG passages regardless of budget
+
+**Disabling behavior:**
+```javascript
+// Quality filtering is independent of prompt slimming
+const disableQualityFiltering = env?.DISABLE_QUALITY_FILTERING === 'true';
+```
+
+**Free tier passage limits** (`functions/lib/graphRAG.js:42-67`):
+| Spread | Plus Tier | Free Tier |
+|--------|-----------|-----------|
+| Single | 1 | 1 |
+| Three-Card | 2 | 1 |
+| Five-Card | 3 | 1 |
+| Celtic Cross | 5 | 2 |
+| Decision | 3 | 1 |
+| Relationship | 2 | 1 |
 
 ---
 

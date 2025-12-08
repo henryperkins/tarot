@@ -211,7 +211,7 @@ async function storeArchivalSummary(bucket, results) {
  * @param {Env} env - Environment bindings
  * @param {ExecutionContext} ctx - Execution context
  */
-export async function handleScheduled(controller, env, ctx) {
+export async function handleScheduled(controller, env, _ctx) {
   const startTime = Date.now();
   const cron = controller.cron;
 

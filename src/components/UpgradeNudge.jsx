@@ -29,7 +29,7 @@ export function UpgradeNudge({
   const prefersReducedMotion = useReducedMotion();
 
   const tierConfig = SUBSCRIPTION_TIERS[requiredTier] || SUBSCRIPTION_TIERS.plus;
-  const currentTierConfig = SUBSCRIPTION_TIERS[tier] || SUBSCRIPTION_TIERS.free;
+  const _currentTierConfig = SUBSCRIPTION_TIERS[tier] || SUBSCRIPTION_TIERS.free;
 
   // Don't show if user already has the required tier or higher
   const tierOrder = { free: 0, plus: 1, pro: 2 };

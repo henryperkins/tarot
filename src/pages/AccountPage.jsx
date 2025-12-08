@@ -88,7 +88,7 @@ export default function AccountPage() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const { user, isAuthenticated, logout, loading: authLoading } = useAuth();
-  const { tier, subscription, loading: subLoading } = useSubscription();
+  const { tier, subscription: _subscription, loading: subLoading } = useSubscription();
   const { resetOnboarding } = usePreferences();
   const { publish } = useToast();
   const prefersReducedMotion = useReducedMotion();

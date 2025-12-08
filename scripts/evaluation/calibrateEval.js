@@ -13,7 +13,7 @@ const records = [];
 rl.on('line', (line) => {
   try {
     records.push(JSON.parse(line));
-  } catch (e) {
+  } catch (_e) {
     // Skip invalid lines
   }
 });

@@ -28,7 +28,7 @@ function assertEqual(actual, expected, message) {
   try {
     assert.strictEqual(actual, expected, message);
     testsPassed++;
-  } catch (err) {
+  } catch (_err) {
     testsFailed++;
     console.error(`❌ ASSERTION FAILED: ${message}`);
     console.error(`   Expected: ${expected}, Got: ${actual}`);

@@ -1,32 +1,126 @@
 # Complete Journal Data Report
 
 ## Table of Contents
-1. [Component Hierarchy](#1-component-hierarchy)
-2. [Data Displayed Per Component](#2-data-displayed-per-component)
-3. [Statistics Computation](#3-statistics-computation)
-   - [3.1 Entry Deduplication](#31-entry-deduplication)
-   - [3.2 computeJournalStats()](#32-computejournalstatsentries-from-sharedjournalstatsjs)
-   - [3.3 Theme Extraction Priority](#33-theme-extraction-priority)
-   - [3.4 Preference Drift Computation](#34-preference-drift-computation)
-   - [3.5 Journey Summary Builder](#35-journey-summary-builder)
-   - [3.6 Knowledge Graph Analysis](#36-knowledge-graph-analysis)
-4. [Export Data Formats](#4-export-data-formats)
-5. [Shared/External Data Exposure](#5-sharedexternal-data-exposure)
-   - [5.1 Share Link Creation](#51-share-link-creation-post-apishare)
-   - [5.2 Share Link View](#52-share-link-view-get-apisharetoken)
-   - [5.3 Share Link Management](#53-share-link-management-users-own-links)
-   - [5.4 API Endpoints](#54-api-endpoints)
-6. [Data Flow Diagram](#6-data-flow-diagram)
-   - [6.1 LocalStorage Schema](#61-localstorage-schema)
-   - [6.2 Database Schema](#62-database-schema)
-7. [Reading Save Process](#7-reading-save-process)
-8. [Coach Storage System](#8-coach-storage-system)
-9. [Summary: Complete Data Inventory](#9-summary-complete-data-inventory)
-10. [Computed but Not Surfaced in UI](#10-computed-but-not-surfaced-in-ui)
+1. [Source Files Reference](#1-source-files-reference)
+2. [Component Hierarchy](#2-component-hierarchy)
+3. [Data Displayed Per Component](#3-data-displayed-per-component)
+4. [Statistics Computation](#4-statistics-computation)
+   - [4.1 Entry Deduplication](#41-entry-deduplication)
+   - [4.2 computeJournalStats()](#42-computejournalstatsentries-from-sharedjournalstatsjs)
+   - [4.3 Theme Extraction Priority](#43-theme-extraction-priority)
+   - [4.4 Preference Drift Computation](#44-preference-drift-computation)
+   - [4.5 Journey Summary Builder](#45-journey-summary-builder)
+   - [4.6 Knowledge Graph Analysis](#46-knowledge-graph-analysis)
+5. [Export Data Formats](#5-export-data-formats)
+6. [Shared/External Data Exposure](#6-sharedexternal-data-exposure)
+   - [6.1 Share Link Creation](#61-share-link-creation-post-apishare)
+   - [6.2 Share Link View](#62-share-link-view-get-apisharetoken)
+   - [6.3 Share Link Management](#63-share-link-management-users-own-links)
+   - [6.4 API Endpoints](#64-api-endpoints)
+7. [Data Flow Diagram](#7-data-flow-diagram)
+   - [7.1 LocalStorage Schema](#71-localstorage-schema)
+   - [7.2 Database Schema](#72-database-schema)
+8. [Reading Save Process](#8-reading-save-process)
+9. [Coach Storage System](#9-coach-storage-system)
+10. [Summary: Complete Data Inventory](#10-summary-complete-data-inventory)
+11. [Computed but Not Surfaced in UI](#11-computed-but-not-surfaced-in-ui)
 
 ---
 
-## 1. Component Hierarchy
+## 1. Source Files Reference
+
+All files contributing to journal data recording, reporting, computation, and display:
+
+### 1.1 Frontend Components
+
+| File | Lines | Purpose |
+|------|-------|---------|
+| `src/components/Journal.jsx` | ~1,461 | Main journal page orchestrator |
+| `src/components/JournalFilters.jsx` | ~711 | Filter controls + constellation visualization |
+| `src/components/JournalEntryCard.jsx` | ~719 | Individual entry display |
+| `src/components/JournalInsightsPanel.jsx` | ~946 | Analytics dashboard |
+| `src/components/ArchetypeJourneySection.jsx` | ~561 | Card tracking gamification |
+| `src/components/CardSymbolInsights.jsx` | ~364 | Symbol tooltips/bottom sheets |
+| `src/components/CoachSuggestion.jsx` | ~132 | AI-powered recommendations |
+| `src/components/SavedIntentionsList.jsx` | ~191 | Coach history cards |
+| `src/components/GuidedIntentionCoach.jsx` | - | Intention coach modal (uses coachStorage) |
+| `src/components/QuestionInput.jsx` | - | Question input (records to coach history) |
+| `src/components/JourneyStoryPanel.jsx` | ~97 | Collapsible prose summary panel |
+| `src/components/charts/CadenceChart.jsx` | ~124 | 6-month reading cadence bar chart |
+| `src/components/charts/TrendSparkline.jsx` | ~157 | Mini sparklines and trend arrows for cards |
+| `src/components/charts/MajorArcanaChart.jsx` | ~160 | Major Arcana distribution visualization |
+| `src/components/charts/ContextTimelineRibbon.jsx` | ~185 | Context focus over time ribbon |
+
+### 1.2 React Hooks
+
+| File | Purpose |
+|------|---------|
+| `src/hooks/useJournal.js` | Core journal CRUD operations, auth routing, cloud migration |
+| `src/hooks/useSaveReading.js` | Reading save flow, entry construction, analytics tracking |
+
+### 1.3 Client Libraries
+
+| File | Purpose |
+|------|---------|
+| `src/lib/journalInsights.js` | Stats persistence, export functions, preference drift, share tokens |
+| `src/lib/coachStorage.js` | Coach templates and history storage |
+| `src/lib/cardInsights.js` | Build symbol insights for cards |
+| `src/lib/themeText.js` | Theme label normalization |
+
+### 1.4 Shared Modules (Client + Server)
+
+| File | Purpose |
+|------|---------|
+| `shared/journal/dedupe.js` | Entry deduplication by fingerprint |
+| `shared/journal/stats.js` | `computeJournalStats()`, `extractRecentThemes()` |
+| `shared/journal/summary.js` | `buildHeuristicJourneySummary()` for AI prompts |
+| `shared/symbols/symbolAnnotations.js` | Major Arcana symbol data |
+| `shared/vision/minorSymbolLexicon.js` | Minor Arcana symbol data |
+
+### 1.5 API Endpoints (Cloudflare Workers)
+
+| File | Endpoints | Purpose |
+|------|-----------|---------|
+| `functions/api/journal.js` | GET/POST `/api/journal` | List and create entries |
+| `functions/api/journal/[id].js` | DELETE `/api/journal/[id]` | Delete entry |
+| `functions/api/journal-summary.js` | POST `/api/journal-summary` | AI-generated summary |
+| `functions/api/journal-export.js` | GET `/api/journal-export` | PDF/text export |
+| `functions/api/share.js` | GET/POST `/api/share` | List and create share links |
+| `functions/api/share/[token].js` | GET/DELETE `/api/share/:token` | View and revoke shares |
+| `functions/api/share-notes/[token].js` | GET/POST `/api/share-notes/:token` | Collaboration notes |
+| `functions/api/archetype-journey.js` | Multiple | Analytics endpoints |
+| `functions/api/archetype-journey/[[path]].js` | - | Catch-all route handler |
+| `functions/api/archetype-journey-backfill.js` | POST | Backfill historical data |
+
+### 1.6 Server Libraries
+
+| File | Purpose |
+|------|---------|
+| `functions/lib/shareUtils.js` | `loadEntriesForUser()`, `buildShareMeta()` |
+| `functions/lib/shareData.js` | `loadShareRecord()`, `loadShareEntries()`, `loadShareNotes()` |
+| `functions/lib/spreadAnalysis.js` | Theme analysis, knowledge graph, GraphRAG |
+| `functions/lib/auth.js` | Session validation for authenticated endpoints |
+
+### 1.7 Static Data Files
+
+| File | Purpose |
+|------|---------|
+| `src/data/majorArcana.js` | Major Arcana card definitions |
+| `src/data/minorArcana.js` | Minor Arcana card definitions |
+| `src/data/spreads.js` | Spread configurations and position labels |
+| `src/data/knowledgeGraphData.js` | Triads, dyads, suit progressions |
+
+### 1.8 Context Providers
+
+| File | Purpose |
+|------|---------|
+| `src/contexts/ReadingContext.jsx` | Current reading state, journalStatus |
+| `src/contexts/PreferencesContext.jsx` | User preferences, nudge state, `incrementJournalSaveCount()` |
+| `src/contexts/AuthContext.jsx` | Authentication state for API routing |
+
+---
+
+## 2. Component Hierarchy
 
 ```
 Journal.jsx (1,461 lines) - Main orchestrator
@@ -41,9 +135,9 @@ Journal.jsx (1,461 lines) - Main orchestrator
 
 ---
 
-## 2. Data Displayed Per Component
+## 3. Data Displayed Per Component
 
-### 2.1 Journal.jsx - Main Dashboard
+### 3.1 Journal.jsx - Main Dashboard
 
 #### Summary Statistics ("Journal Pulse")
 
@@ -79,7 +173,7 @@ Journal.jsx (1,461 lines) - Main orchestrator
 
 ---
 
-### 2.2 JournalFilters.jsx - Filter Controls
+### 3.2 JournalFilters.jsx - Filter Controls
 
 #### Filter Options Available
 
@@ -112,7 +206,7 @@ Displays 6 filter nodes with values:
 
 ---
 
-### 2.3 JournalEntryCard.jsx - Individual Entry
+### 3.3 JournalEntryCard.jsx - Individual Entry
 
 #### Collapsed Header
 
@@ -172,7 +266,7 @@ Displays 6 filter nodes with values:
 
 ---
 
-### 2.4 CardSymbolInsights.jsx - Symbol Tooltips
+### 3.4 CardSymbolInsights.jsx - Symbol Tooltips
 
 #### Displayed Data
 
@@ -193,7 +287,7 @@ Displays 6 filter nodes with values:
 
 ---
 
-### 2.5 JournalInsightsPanel.jsx - Analytics Dashboard
+### 3.5 JournalInsightsPanel.jsx - Analytics Dashboard
 
 #### Header Stats
 
@@ -202,6 +296,14 @@ Filtered: 12 of 45 entries · 23% reversed
 // or when not filtered:
 45 entries · 156 cards · 18% reversed
 ```
+
+#### Reading Rhythm Section (NEW)
+
+| Field | Source |
+|-------|--------|
+| 6-month bar chart | `stats.monthlyCadence` via `CadenceChart` component |
+| Interactive tooltips | Month label + reading count on hover/tap |
+| Caption | "Your practice over the last 6 months" |
 
 #### Frequent Cards Section
 
@@ -218,11 +320,27 @@ Filtered: 12 of 45 entries · 23% reversed
 | Context name | Capitalized |
 | Count badge | Number of entries |
 
+#### Context Over Time Ribbon (NEW)
+
+| Field | Source |
+|-------|--------|
+| Colored dots | Dominant context per month (last 6 months) |
+| Color mapping | Love=pink, Career=blue, Self=violet, Spiritual=purple, Wellbeing=emerald |
+| Tooltip | Month label + context + reading count on hover/tap |
+
 #### Recent Themes Section
 
 | Source | Limit |
 |--------|-------|
 | `stats.recentThemes` | Up to 4 themes |
+
+#### Story of This Season (NEW)
+
+| Field | Source |
+|-------|--------|
+| Prose summary | `buildHeuristicJourneySummary(entries, stats)` |
+| Collapsible | Yes, with expand/collapse animation |
+| Preview | First 2 lines when collapsed |
 
 #### Emerging Interests (Preference Drift)
 
@@ -249,7 +367,7 @@ Consider updating your focus areas in Settings...
 
 ---
 
-### 2.6 ArchetypeJourneySection.jsx - Gamification
+### 3.6 ArchetypeJourneySection.jsx - Gamification
 
 #### Header Stats
 
@@ -266,6 +384,7 @@ Last analyzed Dec 4, 10:30 AM · 45 entries processed
 | Rank (1-5) | Numbered badges |
 | Card name | Full name |
 | Count | `X×` format |
+| Trend indicator (NEW) | Arrow (↑↓→) based on 6-month trend via `TrendArrow` component |
 
 #### Recent Patterns (Streaks)
 
@@ -283,6 +402,22 @@ Last analyzed Dec 4, 10:30 AM · 45 entries processed
 | Card name | `badge.card_name` |
 | Context | `badge.metadata.context` |
 
+#### Major Arcana Focus (NEW)
+
+| Field | Source |
+|-------|--------|
+| Top 3 Majors | `analytics.majorArcanaFrequency` via `MajorArcanaFocusTiles` |
+| Display | Pill badges with star icon, card name, count |
+| Caption | "The archetypal energies shaping your readings this month" |
+
+#### Six-Month Patterns (NEW)
+
+| Field | Source |
+|-------|--------|
+| Bar chart | Monthly totals from `analytics.trends` via `CadenceChart` |
+| Data | `computeMonthlyTotals(trends)` aggregates card counts per month |
+| Caption | "Total card appearances over the last 6 months" |
+
 #### Backfill Results (when triggered)
 
 ```
@@ -294,7 +429,7 @@ Backfill complete!
 
 ---
 
-### 2.7 SavedIntentionsList.jsx - Coach History
+### 3.7 SavedIntentionsList.jsx - Coach History
 
 #### Per Intention Card
 
@@ -311,9 +446,9 @@ Backfill complete!
 
 ---
 
-## 3. Statistics Computation
+## 4. Statistics Computation
 
-### 3.1 Entry Deduplication
+### 4.1 Entry Deduplication
 
 Before computing statistics, entries are deduplicated via `dedupeEntries()` from `shared/journal/dedupe.js`:
 
@@ -328,7 +463,7 @@ Before computing statistics, entries are deduplicated via `dedupeEntries()` from
 "past|the fool|upright;present|death|reversed;future|the star|upright"
 ```
 
-### 3.2 `computeJournalStats(entries)` from `shared/journal/stats.js`
+### 4.2 `computeJournalStats(entries)` from `shared/journal/stats.js`
 
 ```javascript
 {
@@ -348,7 +483,7 @@ Before computing statistics, entries are deduplicated via `dedupeEntries()` from
 }
 ```
 
-### 3.3 Theme Extraction Priority
+### 4.3 Theme Extraction Priority
 
 From `extractRecentThemes()` in `shared/journal/stats.js`:
 
@@ -358,7 +493,7 @@ From `extractRecentThemes()` in `shared/journal/stats.js`:
 4. `themes.reversalDescription.name`
 5. `entry.context`
 
-### 3.4 Preference Drift Computation
+### 4.4 Preference Drift Computation
 
 From `computePreferenceDrift()` in `src/lib/journalInsights.js`:
 
@@ -382,7 +517,7 @@ computePreferenceDrift(entries, focusAreas) → {
 | `creativity` | `career` |
 | `spirituality` | `spiritual` |
 
-### 3.5 Journey Summary Builder
+### 4.5 Journey Summary Builder
 
 `buildHeuristicJourneySummary(entries, statsOverride)` from `shared/journal/summary.js`:
 
@@ -398,9 +533,9 @@ Notice where these threads overlap and invite one grounded action to honor the e
 
 ---
 
-## 4. Export Data Formats
+## 5. Export Data Formats
 
-### 4.1 CSV Export (`buildJournalCsv`)
+### 5.1 CSV Export (`buildJournalCsv`)
 
 | Column | Source |
 |--------|--------|
@@ -417,7 +552,7 @@ Notice where these threads overlap and invite one grounded action to honor the e
 | Themes | JSON stringified |
 | Narrative | `entry.personalReading` |
 
-### 4.2 PDF Export (`exportJournalInsightsToPdf`)
+### 5.2 PDF Export (`exportJournalInsightsToPdf`)
 
 **Page 1 - Summary**:
 - Title: "Mystic Tarot · Journal Snapshot"
@@ -431,7 +566,7 @@ Notice where these threads overlap and invite one grounded action to honor the e
 - Intention/question
 - Cards list (up to 5): "Position: Name (Orientation)"
 
-### 4.3 SVG Visual (`downloadInsightsSvg`)
+### 5.3 SVG Visual (`downloadInsightsSvg`)
 
 ```svg
 - Header: "Mystic Tarot · Snapshot"
@@ -440,7 +575,7 @@ Notice where these threads overlap and invite one grounded action to honor the e
 - Dimensions: 640x360
 ```
 
-### 4.4 Clipboard Summary Formats
+### 5.4 Clipboard Summary Formats
 
 **Journal Summary** (`copyJournalShareSummary`):
 
@@ -463,7 +598,7 @@ Context: love
 When: 12/4/2024, 10:30 AM
 ```
 
-### 4.5 Knowledge Graph Analysis
+### 5.5 Knowledge Graph Analysis
 
 When `enableKnowledgeGraph` is true (default), `analyzeSpreadThemes()` in `functions/lib/spreadAnalysis.js` returns additional pattern data:
 
@@ -517,11 +652,22 @@ themes.knowledgeGraph: {
 }
 ```
 
+**Quality Filtering Behavior** (enabled by default):
+
+Passages are filtered before being included in prompts:
+- Retrieves 2× target count to allow filtering headroom
+- Filters passages below `minRelevanceScore` threshold (default: 0.3 / 30%)
+- Deduplicates similar passages
+- Free tier users receive half the passage count of Plus tier
+- Can be disabled via `DISABLE_QUALITY_FILTERING=true` environment variable
+
+See `docs/narrative-builder-and-evaluation.md` for full configuration details.
+
 ---
 
-## 5. Shared/External Data Exposure
+## 6. Shared/External Data Exposure
 
-### 5.1 Share Link Creation (`POST /api/share`)
+### 6.1 Share Link Creation (`POST /api/share`)
 
 **Request**:
 
@@ -540,7 +686,7 @@ themes.knowledgeGraph: {
 }
 ```
 
-### 5.2 Share Link View (`GET /api/share/:token`)
+### 6.2 Share Link View (`GET /api/share/:token`)
 
 **Data Exposed to External Viewers**:
 
@@ -565,7 +711,7 @@ themes.knowledgeGraph: {
 - `reflections_json`
 - `context`, `provider`, `session_seed`
 
-### 5.3 Share Link Management (User's own links)
+### 6.3 Share Link Management (User's own links)
 
 Displayed per share:
 
@@ -582,7 +728,7 @@ Displayed per share:
 
 ---
 
-### 5.4 API Endpoints
+### 6.4 API Endpoints
 
 #### Journal Endpoints
 
@@ -618,7 +764,7 @@ Displayed per share:
 
 ---
 
-## 6. Data Flow Diagram
+## 7. Data Flow Diagram
 
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
@@ -692,7 +838,7 @@ Displayed per share:
 
 ---
 
-### 6.1 LocalStorage Schema
+### 7.1 LocalStorage Schema
 
 | Key | Purpose | TTL | Max Items |
 |-----|---------|-----|-----------|
@@ -757,7 +903,7 @@ Displayed per share:
 
 ---
 
-### 6.2 Database Schema
+### 7.2 Database Schema
 
 The following D1 database tables store journal data for authenticated users:
 
@@ -817,11 +963,14 @@ The following D1 database tables store journal data for authenticated users:
 
 | Column | Type | Description |
 |--------|------|-------------|
-| `id` | TEXT | Primary key (UUID) |
+| `id` | INTEGER | Primary key (AUTOINCREMENT) |
 | `user_id` | TEXT | Foreign key to users |
 | `card_name` | TEXT | Canonical card name |
-| `appeared_at` | INTEGER | Unix timestamp |
-| `context` | TEXT | Reading context |
+| `card_number` | INTEGER | Major Arcana: 0-21, Minor: 22-77, null if unknown |
+| `year_month` | TEXT | YYYY-MM format (e.g., '2025-11') |
+| `count` | INTEGER | Number of appearances in this month |
+| `last_seen` | INTEGER | Unix timestamp of most recent appearance |
+| `first_seen` | INTEGER | Unix timestamp of first appearance in period |
 
 #### archetype_badges
 
@@ -846,11 +995,11 @@ The following D1 database tables store journal data for authenticated users:
 
 ---
 
-## 7. Reading Save Process
+## 8. Reading Save Process
 
 When a user saves a reading, `useSaveReading.js` constructs the entry:
 
-### 7.1 Entry Structure Created by `useSaveReading()`
+### 8.1 Entry Structure Created by `useSaveReading()`
 
 ```javascript
 {
@@ -883,7 +1032,7 @@ When a user saves a reading, `useSaveReading.js` constructs the entry:
 }
 ```
 
-### 7.2 Save Flow
+### 8.2 Save Flow
 
 1. **Validation**: Requires drawn cards and generated narrative
 2. **Duplicate Check**: Prevents re-saving same session (via `sessionSeed`)
@@ -895,18 +1044,18 @@ When a user saves a reading, `useSaveReading.js` constructs the entry:
 
 ---
 
-## 8. Coach Storage System
+## 9. Coach Storage System
 
 The Coach Storage System (`src/lib/coachStorage.js`) manages saved templates and question history for the Guided Intention Coach.
 
-### 8.1 Storage Keys
+### 9.1 Storage Keys
 
 | Key | Purpose | Max Items |
 |-----|---------|-----------|
 | `tarot_coach_templates` | Saved coach configuration presets | 8 |
 | `tarot_coach_history` | Recently used questions | 10 |
 
-### 8.2 Template Operations
+### 9.2 Template Operations
 
 ```javascript
 // Load all templates
@@ -919,7 +1068,7 @@ saveCoachTemplate(template) → { success, templates, template }
 deleteCoachTemplate(templateId) → { success, templates }
 ```
 
-### 8.3 History Operations
+### 9.3 History Operations
 
 ```javascript
 // Load question history
@@ -932,7 +1081,7 @@ recordCoachQuestion(question, limit?) → { success, history }
 deleteCoachHistoryItem(itemId) → { success, history }
 ```
 
-### 8.4 Cross-Tab Synchronization
+### 9.4 Cross-Tab Synchronization
 
 Changes dispatch a `coach-storage-sync` custom event for real-time updates across components:
 
@@ -945,7 +1094,7 @@ window.addEventListener('coach-storage-sync', (event) => {
 
 ---
 
-## 9. Summary: Complete Data Inventory
+## 10. Summary: Complete Data Inventory
 
 | Category | Data Points |
 |----------|-------------|
@@ -958,7 +1107,7 @@ window.addEventListener('coach-storage-sync', (event) => {
 | **Narrative** | Full AI-generated reading text |
 | **User Preferences** | user_preferences_json snapshot (readingTone, spiritualFrame, tarotExperience, preferredSpreadDepth, displayName) |
 | **Statistics** | totalReadings, totalCards, reversalRate, frequentCards, contextBreakdown, monthlyCadence, recentThemes |
-| **Archetype Journey** | topCards, streaks, badges, thisMonth, avgPerWeek, totalReadings, lastAnalyzedAt |
+| **Archetype Journey** | topCards, streaks, badges, thisMonth, avgPerWeek, totalReadings, lastAnalyzedAt, trends (6-month history), majorArcanaFrequency |
 | **Symbol Insights** | keywords, archetype, composition, symbols (object, position, meaning), colors (color, meaning) |
 | **Preference Drift** | expectedContexts, actualTopContexts, driftContexts, hasDrift |
 | **Share Links** | token, scope, title, createdAt, expiresAt, viewCount, entryCount, spreadKeys, contexts |
@@ -971,7 +1120,7 @@ window.addEventListener('coach-storage-sync', (event) => {
 
 ---
 
-## 10. Computed but Not Surfaced in UI
+## 11. Computed but Not Surfaced in UI
 
 The following data is computed server-side but not prominently displayed in journal components:
 

@@ -1,13 +1,12 @@
 // functions/lib/__tests__/telemetry.test.js
 // Tests for telemetry summaries, prompt budgeting, reversal formatting, and context diagnostics.
 
-import { describe, it, afterEach, mock } from 'node:test';
+import { describe, it, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
 
 import { summarizeNarrativeEnhancements } from '../../api/tarot-reading.js';
 import { buildEnhancedClaudePrompt } from '../narrative/prompts.js';
 import { formatReversalLens, normalizeContext } from '../narrative/helpers.js';
-import * as graphRAG from '../graphRAG.js';
 
 const ORIGINAL_ENV = { ...process.env };
 

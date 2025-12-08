@@ -341,20 +341,6 @@ function maybeLogNarrativeEnhancements(env, requestId, provider, summary) {
   console.log(`[${requestId}] [${provider}] Narrative enhancement summary:`, summary);
 }
 
-function redactPromptSegment(text, personalization) {
-  if (!text || typeof text !== 'string') return text;
-  const displayName = personalization?.displayName;
-  if (!displayName || typeof displayName !== 'string') return text;
-  const trimmed = displayName.trim();
-  if (!trimmed) return text;
-  try {
-    const matcher = new RegExp(escapeRegex(trimmed), 'gi');
-    return text.replace(matcher, '[REDACTED_NAME]');
-  } catch {
-    return text;
-  }
-}
-
 function maybeLogPromptPayload(env, requestId, backendLabel, systemPrompt, userPrompt, promptMeta, options = {}) {
   if (!shouldLogLLMPrompts(env)) return;
 
@@ -601,6 +587,7 @@ export const onRequestPost = async ({ request, env, waitUntil }) => {
     }
 
     // STEP 2: Generate reading via configured narrative backends
+    const baseContextDiagnostics = Array.isArray(contextDiagnostics) ? [...contextDiagnostics] : [];
     const narrativePayload = {
       spreadInfo,
       cardsInfo,
@@ -608,7 +595,7 @@ export const onRequestPost = async ({ request, env, waitUntil }) => {
       reflectionsText,
       analysis,
       context,
-      contextDiagnostics,
+      contextDiagnostics: [...baseContextDiagnostics],
       visionInsights: sanitizedVisionInsights,
       deckStyle,
       personalization: personalization || null,
@@ -634,6 +621,8 @@ export const onRequestPost = async ({ request, env, waitUntil }) => {
       console.log(`[${requestId}] Attempting narrative backend ${backend.id} (${backend.label})...`);
       narrativePayload.narrativeEnhancements = [];
       narrativePayload.promptMeta = null;
+      // Reset diagnostics each attempt to avoid carrying alerts across backends
+      narrativePayload.contextDiagnostics = [...baseContextDiagnostics];
       try {
         const backendResult = await runNarrativeBackend(backend.id, env, narrativePayload, requestId);
 
@@ -741,9 +730,12 @@ export const onRequestPost = async ({ request, env, waitUntil }) => {
     const promptTokens = promptMeta?.estimatedTokens || null;
     const promptSlimming = promptMeta?.slimmingSteps || [];
     const graphRAGStats = analysis.graphRAGPayload?.retrievalSummary || null;
+    const finalContextDiagnostics = Array.isArray(narrativePayload.contextDiagnostics)
+      ? narrativePayload.contextDiagnostics
+      : contextDiagnostics;
     const diagnosticsPayload = {
-      messages: contextDiagnostics,
-      count: contextDiagnostics.length
+      messages: finalContextDiagnostics,
+      count: finalContextDiagnostics.length
     };
 
     // Reuse quality metrics from the successful backend (computed during quality gate)
@@ -906,7 +898,7 @@ export const onRequestPost = async ({ request, env, waitUntil }) => {
       themes: analysis.themes,
       emotionalTone,
       context,
-      contextDiagnostics,
+      contextDiagnostics: finalContextDiagnostics,
       narrativeMetrics,
       graphRAG: graphRAGStats,
       spreadAnalysis: {

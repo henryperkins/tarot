@@ -84,6 +84,12 @@ lerna-debug.log*
 # Testing
 coverage/
 
+# Playwright
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/
+
 # Misc
 .cache/
 azure_reasoning.md

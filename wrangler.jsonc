@@ -55,6 +55,17 @@
     // - "minimal": Store only aggregate metrics, no user content
     // - "full": Store complete data (DEVELOPMENT ONLY - contains PII)
     "METRICS_STORAGE_MODE": "redact"
+    // -------------------------------------------------------------------------
+    // Prompt Budget & GraphRAG Settings (not set = use defaults)
+    // -------------------------------------------------------------------------
+    // ENABLE_PROMPT_SLIMMING: "false" (default) - When "true", enables token
+    //   budget slimming that progressively drops prompt sections when over budget.
+    //   Disabled because modern LLMs have large context windows and slimming
+    //   removes valuable interpretive context.
+    //
+    // DISABLE_QUALITY_FILTERING: "false" (default) - When "true", disables
+    //   GraphRAG passage relevance scoring. Passages are returned unfiltered.
+    //   These two features are independent.
   },
   // ============================================================================
   // D1 Database

@@ -48,6 +48,20 @@ const SUIT_ELEMENTS = {
 };
 
 const VISIBLE_ENTRY_BATCH = 10;
+
+const CARD_NODE_POSITIONS = {
+  entries: { x: 50, y: 50 },
+  reversal: { x: 78, y: 38 },
+  context: { x: 24, y: 36 },
+  'last-entry': { x: 52, y: 74 }
+};
+
+const CARD_NODE_FALLBACK = [
+  { x: 24, y: 36 },
+  { x: 78, y: 38 },
+  { x: 50, y: 50 },
+  { x: 52, y: 74 }
+];
 const MOBILE_LAYOUT_MAX = 1023;
 const AMBER_SHELL_CLASS = 'relative overflow-hidden rounded-3xl border border-amber-300/12 bg-gradient-to-br from-[#0b0c1d] via-[#0d1024] to-[#090a16] shadow-[0_24px_68px_-30px_rgba(0,0,0,0.9)]';
 const AMBER_CARD_CLASS = 'relative overflow-hidden rounded-2xl border border-amber-300/15 bg-gradient-to-br from-[#0f0b16]/85 via-[#0c0a13]/85 to-[#0a0810]/85 ring-1 ring-amber-300/10 shadow-[0_18px_45px_-30px_rgba(0,0,0,0.85)]';
@@ -348,7 +362,7 @@ export default function Journal() {
       image: getCardImage(card)
     }));
   }, [heroEntry, heroCardLimit]);
-  const summaryCardData = [
+  const summaryCardData = useMemo(() => [
     {
       id: 'entries',
       label: 'Entries logged',
@@ -373,23 +387,9 @@ export default function Journal() {
       value: summaryLastEntryLabel,
       hint: summaryLastEntrySecondary
     }
-  ];
+  ], [primaryEntryCount, entrySecondaryLabel, primaryReversalRate, reversalSecondary, topContextLabel, topContextSecondary, summaryLastEntryLabel, summaryLastEntrySecondary]);
   const showSummaryBand = !loading && hasEntries;
   const showInsightsContent = summaryExpanded && summaryInView;
-  const NOISE_TEXTURE =
-    "url('data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 160 160%22%3E%3Cfilter id=%22n%22%3E%3CfeTurbulence type=%22fractalNoise%22 baseFrequency=%220.9%22 numOctaves=%223%22 stitchTiles=%22stitch%22/%3E%3C/filter%3E%3Crect width=%22100%25%22 height=%22100%25%22 filter=%22url(%23n)%22 opacity=%220.35%22/%3E%3C/svg%3E')";
-  const CARD_NODE_POSITIONS = {
-    entries: { x: 50, y: 50 },
-    reversal: { x: 78, y: 38 },
-    context: { x: 24, y: 36 },
-    'last-entry': { x: 52, y: 74 }
-  };
-  const CARD_NODE_FALLBACK = [
-    { x: 24, y: 36 },
-    { x: 78, y: 38 },
-    { x: 50, y: 50 },
-    { x: 52, y: 74 }
-  ];
   const CARD_CONNECTORS = [
     ['entries', 'reversal'],
     ['entries', 'context'],
@@ -600,7 +600,7 @@ export default function Journal() {
           contexts={CONTEXT_FILTERS}
           spreads={SPREAD_FILTERS}
           decks={DECK_FILTERS}
-          variant="compact"
+          variant="full"
         />
       </div>
       {(allStats || filteredStats) && (
@@ -655,7 +655,7 @@ export default function Journal() {
   });
 
   const mobileRailContent = (!loading && hasEntries && isMobileLayout) ? (
-    <section className="mb-6 space-y-3 lg:hidden" aria-label="Journal filters and insights">
+    <section className="mb-6 space-y-3 lg:hidden" aria-label="Journal filters, insights, and journey">
       {renderMobileAccordionSection('filters', 'Filters', (
         <JournalFilters
           filters={filters}
@@ -665,7 +665,7 @@ export default function Journal() {
           decks={DECK_FILTERS}
           variant="compact"
         />
-      ), 'Search and narrow your journal')}
+      ), 'Narrow down your journal entries')}
 
       {(allStats || filteredStats) && renderMobileAccordionSection('insights', 'Insights', (
         <InsightsErrorBoundary>
@@ -1061,7 +1061,7 @@ export default function Journal() {
                     </svg>
 
                     {/* Positioned tarot cards */}
-                    {statNodes.map((stat, index) => {
+                    {statNodes.map((stat, _index) => {
                       const isHero = stat.id === 'entries';
                       // Check if this card should show the notebook illustration
                       const showNotebookIllustration = stat.id === 'context';
@@ -1314,8 +1314,8 @@ export default function Journal() {
               ))}
             </div>
           ) : (
-              <div className={hasEntries && hasRailContent ? 'lg:grid lg:grid-cols-[minmax(0,1fr)_360px] lg:gap-6' : ''}>
-                <div className="space-y-8">
+            <div className={hasEntries && hasRailContent ? 'lg:grid lg:grid-cols-[minmax(0,1fr)_360px] lg:gap-6' : ''}>
+              <div className="space-y-8">
                 <section id="today" className={`${AMBER_SHELL_CLASS} p-5`}>
                   <AmberStarfield />
                   <div className="relative z-10">
@@ -1327,49 +1327,58 @@ export default function Journal() {
                   </div>
                 </section>
 
-                    {hasEntries ? (
-                      <section id="history" className={`${AMBER_SHELL_CLASS} p-5 space-y-5`}>
-                        <AmberStarfield />
-                        <div className="relative z-10 space-y-5">
-                          <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-                            <div className="flex items-center gap-2">
-                              <h2 className="text-xl font-serif text-amber-50">Journal history</h2>
-                              <span className="inline-flex items-center rounded-full border border-amber-200/20 bg-amber-200/10 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-amber-100/75">
-                                History
-                              </span>
-                            </div>
-                            <span className="inline-flex items-center gap-2 rounded-full border border-amber-200/20 bg-amber-200/10 px-3 py-1 text-[11px] text-amber-100/70">
-                              Showing {visibleEntries.length} of {filteredEntries.length}
-                            </span>
-                          </div>
-
-                          {filteredEntries.length === 0 ? (
-                            <div className="relative overflow-hidden rounded-2xl border border-amber-300/15 bg-amber-200/5 p-8 text-center text-sm text-amber-100/75 shadow-[0_16px_40px_-30px_rgba(0,0,0,0.8)]">
-                              <NoFiltersIllustration className="mb-4" />
-                              <p className="journal-prose text-lg text-amber-50">No entries match your filters.</p>
-                              <p className="journal-prose mt-2 text-amber-100/70">Try adjusting the filters or reset to see the full journal.</p>
-                            </div>
-                          ) : (
-                            <>
-                              <div className={entryStackSpacingClass}>
-                                {renderedHistoryEntries}
-                              </div>
-                              {hasMoreEntries && (
-                                <div className="flex justify-center">
-                                  <button
-                                    type="button"
-                                    onClick={handleLoadMoreEntries}
-                                    className={`${OUTLINE_BUTTON_CLASS} min-h-[44px] px-4 py-2`}
-                                  >
-                                    Load {Math.min(VISIBLE_ENTRY_BATCH, filteredEntries.length - visibleEntries.length)} more
-                                  </button>
-                                </div>
-                              )}
-                            </>
-                          )}
+                {hasEntries ? (
+                  <section id="history" className={`${AMBER_SHELL_CLASS} p-5 space-y-5`}>
+                    <AmberStarfield />
+                    <div className="relative z-10 space-y-5">
+                      <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+                        <div className="flex items-center gap-2">
+                          <h2 className="text-xl font-serif text-amber-50">Journal history</h2>
+                          <span className="inline-flex items-center rounded-full border border-amber-200/20 bg-amber-200/10 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-amber-100/75">
+                            History
+                          </span>
                         </div>
-                      </section>
-                    ) : (
+                        <span className="inline-flex items-center gap-2 rounded-full border border-amber-200/20 bg-amber-200/10 px-3 py-1 text-[11px] text-amber-100/70">
+                          Showing {visibleEntries.length} of {filteredEntries.length}
+                        </span>
+                      </div>
+
+                      <JournalFilters
+                        filters={filters}
+                        onChange={setFilters}
+                        contexts={CONTEXT_FILTERS}
+                        spreads={SPREAD_FILTERS}
+                        decks={DECK_FILTERS}
+                        variant={isMobileLayout ? 'compact' : 'full'}
+                      />
+
+                      {filteredEntries.length === 0 ? (
+                        <div className="relative overflow-hidden rounded-2xl border border-amber-300/15 bg-amber-200/5 p-8 text-center text-sm text-amber-100/75 shadow-[0_16px_40px_-30px_rgba(0,0,0,0.8)]">
+                          <NoFiltersIllustration className="mb-4" />
+                          <p className="journal-prose text-lg text-amber-50">No entries match your filters.</p>
+                          <p className="journal-prose mt-2 text-amber-100/70">Try adjusting the filters or reset to see the full journal.</p>
+                        </div>
+                      ) : (
+                        <>
+                          <div className={entryStackSpacingClass}>
+                            {renderedHistoryEntries}
+                          </div>
+                          {hasMoreEntries && (
+                            <div className="flex justify-center">
+                              <button
+                                type="button"
+                                onClick={handleLoadMoreEntries}
+                                className={`${OUTLINE_BUTTON_CLASS} min-h-[44px] px-4 py-2`}
+                              >
+                                Load {Math.min(VISIBLE_ENTRY_BATCH, filteredEntries.length - visibleEntries.length)} more
+                              </button>
+                            </div>
+                          )}
+                        </>
+                      )}
+                    </div>
+                  </section>
+                ) : (
                   <div className={`${AMBER_SHELL_CLASS} animate-fade-in space-y-6 rounded-3xl p-8 text-center text-amber-50`}>
                     <AmberStarfield />
                     <div className="relative z-10 space-y-6">

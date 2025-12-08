@@ -343,7 +343,12 @@ export function ReadingDisplay({ sectionRef }) {
                     {/* Skeleton loading state during narrative generation */}
                     {isGenerating && !personalReading && (
                         <div className={`bg-surface/95 backdrop-blur-xl rounded-2xl border border-secondary/40 shadow-2xl shadow-secondary/40 max-w-full sm:max-w-5xl mx-auto ${isLandscape ? 'p-3' : 'px-3 xxs:px-4 py-4 xs:px-5 sm:p-6 md:p-8'}`}>
-                            <NarrativeSkeleton hasQuestion={Boolean(userQuestion)} />
+                            <NarrativeSkeleton
+                                hasQuestion={Boolean(userQuestion)}
+                                displayName={displayName}
+                                spreadName={spreadInfo?.name}
+                                cardCount={reading?.length || 3}
+                            />
                         </div>
                     )}
 

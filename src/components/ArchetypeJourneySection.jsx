@@ -1,7 +1,10 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { TrendUp, Medal, Fire, ArrowsClockwise, Sparkle } from '@phosphor-icons/react';
-import { normalizeAnalyticsShape, getBadgeIcon } from '../lib/archetypeJourney';
+import { TrendUp, Medal, Fire, ArrowsClockwise, Sparkle, Star, ChartLine } from '@phosphor-icons/react';
+import { normalizeAnalyticsShape, getBadgeIcon, getCardTrends, computeMonthlyTotals } from '../lib/archetypeJourney';
 import { ArchetypeEmptyIllustration } from './illustrations/ArchetypeEmptyIllustration';
+import { TrendArrow } from './charts/TrendSparkline';
+import { MajorArcanaFocusTiles } from './charts/MajorArcanaChart';
+import { CadenceChart } from './charts/CadenceChart';
 
 function parseTimestamp(value) {
   if (!value) return null;
@@ -411,22 +414,30 @@ export function ArchetypeJourneySection({ isAuthenticated, userId, showEmptyStat
             Top Cards
           </div>
           <ul className="space-y-2" aria-label="Your top 5 most frequently appearing cards this month">
-            {analytics.topCards.slice(0, 5).map((card, index) => (
-              <li key={`${card.card_name}-${index}`} className="flex items-center justify-between text-sm">
-                <div className="flex items-center gap-2">
-                  <span className="flex h-5 w-5 items-center justify-center rounded-full bg-amber-200/15 text-xs font-medium text-amber-100" aria-hidden="true">
-                    {index + 1}
-                  </span>
-                  <span className="text-amber-100/80">
-                    <span className="sr-only">Rank {index + 1}: </span>
-                    {card.card_name}
-                  </span>
-                </div>
-                <span className="text-amber-200/70" aria-label={`appeared ${card.count} times`}>
-                  {card.count}×
-                </span>
-              </li>
-            ))}
+            {analytics.topCards.slice(0, 5).map((card, index) => {
+              const cardTrends = getCardTrends(analytics.trends, card.card_name);
+              return (
+                <li key={`${card.card_name}-${index}`} className="flex items-center justify-between text-sm">
+                  <div className="flex items-center gap-2">
+                    <span className="flex h-5 w-5 items-center justify-center rounded-full bg-amber-200/15 text-xs font-medium text-amber-100" aria-hidden="true">
+                      {index + 1}
+                    </span>
+                    <span className="text-amber-100/80">
+                      <span className="sr-only">Rank {index + 1}: </span>
+                      {card.card_name}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {cardTrends.length >= 2 && (
+                      <TrendArrow data={cardTrends} />
+                    )}
+                    <span className="text-amber-200/70" aria-label={`appeared ${card.count} times`}>
+                      {card.count}×
+                    </span>
+                  </div>
+                </li>
+              );
+            })}
           </ul>
         </>
       )
@@ -500,6 +511,55 @@ export function ArchetypeJourneySection({ isAuthenticated, userId, showEmptyStat
               );
             })}
           </ul>
+        </>
+      )
+    });
+  }
+
+  // Major Arcana Focus section
+  const hasMajorArcana = analytics.majorArcanaFrequency && Object.keys(analytics.majorArcanaFrequency).length > 0;
+  if (hasMajorArcana) {
+    sectionBlocks.push({
+      key: 'majorArcana',
+      content: (
+        <>
+          <div className="mb-4 flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-amber-200/75">
+            <Star className="h-3 w-3" aria-hidden="true" />
+            Major Arcana Focus
+          </div>
+          <MajorArcanaFocusTiles frequency={analytics.majorArcanaFrequency} limit={3} />
+          <p className="mt-3 text-xs text-amber-100/60">
+            The archetypal energies shaping your readings this month
+          </p>
+        </>
+      )
+    });
+  }
+
+  // Six-Month Patterns section using trends data (limit to last 6 months)
+  const monthlyTotals = computeMonthlyTotals(analytics.trends).slice(-6);
+  if (monthlyTotals.length >= 2) {
+    const cadenceData = monthlyTotals.map(m => {
+      const [year, month] = m.year_month.split('-');
+      const date = new Date(parseInt(year, 10), parseInt(month, 10) - 1, 1);
+      return {
+        label: date.toLocaleDateString('default', { month: 'short', year: 'numeric' }),
+        count: m.total
+      };
+    });
+
+    sectionBlocks.push({
+      key: 'sixMonthPatterns',
+      content: (
+        <>
+          <div className="mb-4 flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-amber-200/75">
+            <ChartLine className="h-3 w-3" aria-hidden="true" />
+            Six-Month Patterns
+          </div>
+          <CadenceChart data={cadenceData} height={70} />
+          <p className="mt-2 text-xs text-amber-100/60">
+            Total card appearances over the last 6 months
+          </p>
         </>
       )
     });

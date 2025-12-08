@@ -183,6 +183,14 @@ Every AI-generated reading is automatically evaluated on quality dimensions usin
 | `EVAL_TIMEOUT_MS` | `"5000"` | Timeout for eval call |
 | `EVAL_GATE_ENABLED` | `"false"` | Block readings on low scores |
 
+**Prompt & GraphRAG configuration** (optional, not set = defaults):
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `ENABLE_PROMPT_SLIMMING` | `"false"` | Enable token budget slimming (drops sections when over budget) |
+| `DISABLE_QUALITY_FILTERING` | `"false"` | Disable GraphRAG passage relevance filtering |
+
+**Note:** Quality filtering is **enabled by default** and filters passages below 30% relevance score. Slimming is **disabled by default** because modern LLMs handle full prompts easily. These two features are independent.
+
 **Data pipeline:**
 1. Reading generated → quality gate → response sent
 2. `waitUntil()` runs evaluation asynchronously
@@ -206,11 +214,67 @@ cat readings.jsonl | node scripts/evaluation/calibrateEval.js
 
 ## Tests
 
+### Unit Tests
+
 ```bash
 npm test  # Runs tests in tests/
 ```
 
 Key test files: `deck.test.mjs`, `narrativeBuilder.*.test.mjs`, `narrativeSpine.test.mjs`, `evaluation.test.mjs`
+
+### E2E Tests (Playwright)
+
+Two test modes are available:
+
+| Mode | Command | Server | Use Case |
+|------|---------|--------|----------|
+| **Frontend** | `npm run test:e2e` | Vite only (5173) | UI flows, no API calls |
+| **Integration** | `npm run test:e2e:integration` | Full stack (8787) | API-dependent features |
+
+**Frontend tests** (default):
+```bash
+npm run test:e2e          # Run all E2E tests headless
+npm run test:e2e:ui       # Interactive UI mode (recommended for debugging)
+npm run test:e2e:headed   # Run with visible browser
+npm run test:e2e:debug    # Step-through debugging
+npm run test:e2e:report   # View HTML report after run
+```
+
+**Integration tests** (full stack):
+```bash
+npm run test:e2e:integration      # Run with Workers backend
+npm run test:e2e:integration:ui   # Interactive mode with backend
+```
+
+> **Note**: Integration tests require `.dev.vars` with API credentials. Frontend tests are faster and don't require credentials, but can't test narrative generation, journal sync, or other API-dependent features.
+
+**Test files** (`e2e/`):
+- `tarot-reading.spec.js` — Core reading flow (spread → ritual → reveal → narrative)
+- `journal-filters.spec.js` — Journal filter UI and functionality
+- `*.integration.spec.js` — Tests requiring Worker APIs (run only in integration mode)
+
+**Coverage** (28 tests):
+
+| Category | Desktop | Mobile | Description |
+|----------|---------|--------|-------------|
+| Reading Flow | 6 | 3 | Spread selection, ritual, reveal |
+| Ritual Mechanics | 3 | - | Knocks, cut slider, skip |
+| Journal Filters | 4 | 4 | Filter placement, sync, accordion |
+| Error Handling | 2 | - | Network errors, retry |
+| Accessibility | 3 | - | Keyboard nav, ARIA labels |
+| Performance | 2 | - | Load time, animations |
+
+**Projects**: Tests run on `desktop` (Chrome 1280×900) and `mobile` (iPhone 13 375×667) viewports via `@desktop`/`@mobile` tags.
+
+### Accessibility Tests
+
+```bash
+npm run test:a11y         # Run contrast + WCAG checks
+npm run test:contrast     # Color contrast validation
+npm run test:wcag         # Static ARIA/a11y analysis
+```
+
+See `tests/accessibility/README.md` for manual testing guides (axe DevTools, keyboard nav, screen readers).
 
 ## Working with This Repo
 

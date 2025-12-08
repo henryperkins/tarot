@@ -710,7 +710,7 @@ export async function runSyncEvaluationGate(env, evalParams, narrativeMetrics = 
   const startTime = Date.now();
 
   // Try AI evaluation first
-  let evalResult = await runEvaluation(env, evalParams);
+  const evalResult = await runEvaluation(env, evalParams);
 
   const missingFields = findMissingScoreFields(evalResult?.scores);
   const hasEvalError = !evalResult || Boolean(evalResult.error);
@@ -770,7 +770,7 @@ export async function runSyncEvaluationGate(env, evalParams, narrativeMetrics = 
  * @param {string} options.reason - Block reason from gate
  * @returns {string} Safe fallback reading text
  */
-export function generateSafeFallbackReading({ spreadKey, cardCount, reason }) {
+export function generateSafeFallbackReading({ spreadKey, cardCount, reason: _reason }) {
   const spreadNames = {
     celtic: 'Celtic Cross',
     threeCard: 'Three-Card',

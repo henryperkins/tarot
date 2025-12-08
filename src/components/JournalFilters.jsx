@@ -133,7 +133,7 @@ function FilterDropdown({ label, options, value, onChange, multiple = false }) {
           id={menuId}
           role="listbox"
           aria-multiselectable={multiple || undefined}
-          className="absolute left-0 top-full z-50 mt-2 w-64 origin-top-left rounded-xl border border-secondary/30 bg-main p-1.5 shadow-xl backdrop-blur-xl animate-in fade-in zoom-in-95 duration-100"
+          className="absolute left-0 top-full z-50 mt-2 w-64 origin-top-left rounded-xl border border-amber-200/30 bg-[#0a0d1a]/95 p-1.5 shadow-[0_20px_48px_-24px_rgba(0,0,0,0.75)] ring-1 ring-amber-200/15 backdrop-blur-xl backdrop-saturate-150 animate-in fade-in zoom-in-95 duration-100"
           onKeyDown={handleMenuKeyDown}
         >
           <div className="max-h-64 overflow-y-auto py-1">
@@ -199,11 +199,8 @@ export function JournalFilters({ filters, onChange, contexts = [], spreads = [],
     }
   }, [advancedOpen]);
 
-  useEffect(() => {
-    if (!isCompact && !advancedOpen) {
-      setAdvancedOpen(true);
-    }
-  }, [advancedOpen, isCompact]);
+  // Note: shouldShowAdvanced handles the display logic, so we don't need
+  // an effect to sync advancedOpen state when switching between compact modes.
 
   const normalizedFilters = () => ({
     ...DEFAULT_FILTERS,
@@ -265,8 +262,8 @@ export function JournalFilters({ filters, onChange, contexts = [], spreads = [],
   const shouldShowAdvanced = !isCompact || advancedOpen;
 
   const containerClass = isCompact
-    ? 'relative overflow-hidden rounded-3xl border border-amber-300/15 bg-gradient-to-br from-[#0b0a12] via-[#0d0a1a] to-[#0b0a12] p-5 lg:p-6 shadow-[0_22px_60px_-30px_rgba(0,0,0,0.9)] animate-fade-in'
-    : 'relative overflow-hidden rounded-3xl border border-amber-300/12 bg-gradient-to-br from-[#0b0c1d] via-[#0d1024] to-[#090a16] p-5 lg:p-7 shadow-[0_24px_68px_-30px_rgba(0,0,0,0.9)] animate-fade-in';
+    ? 'relative rounded-3xl border border-amber-300/15 bg-gradient-to-br from-[#0b0a12] via-[#0d0a1a] to-[#0b0a12] p-5 lg:p-6 shadow-[0_22px_60px_-30px_rgba(0,0,0,0.9)] animate-fade-in'
+    : 'relative rounded-3xl border border-amber-300/12 bg-gradient-to-br from-[#0b0c1d] via-[#0d1024] to-[#090a16] p-5 lg:p-7 shadow-[0_24px_68px_-30px_rgba(0,0,0,0.9)] animate-fade-in';
 
   return (
     <section
@@ -275,16 +272,16 @@ export function JournalFilters({ filters, onChange, contexts = [], spreads = [],
     >
       {/* Starfield + glows */}
       {!isCompact && (
-        <>
+        <div className="pointer-events-none absolute inset-0 overflow-hidden rounded-3xl">
           <div
-            className="pointer-events-none absolute inset-0 opacity-60 mix-blend-screen"
+            className="absolute inset-0 opacity-60 mix-blend-screen"
             aria-hidden="true"
             style={{
               backgroundImage:
                 'radial-gradient(circle at 10% 20%, rgba(251,191,36,0.08), transparent 32%), radial-gradient(circle at 82% 24%, rgba(56,189,248,0.07), transparent 30%), radial-gradient(circle at 55% 78%, rgba(167,139,250,0.08), transparent 32%)'
             }}
           />
-          <div className="pointer-events-none absolute inset-0" aria-hidden="true">
+          <div className="absolute inset-0" aria-hidden="true">
             {[
               { x: 6, y: 14, s: 1.4, o: 0.8 },
               { x: 18, y: 26, s: 1, o: 0.5 },
@@ -313,9 +310,9 @@ export function JournalFilters({ filters, onChange, contexts = [], spreads = [],
               />
             ))}
           </div>
-          <div className="pointer-events-none absolute -left-24 top-12 h-64 w-64 rounded-full bg-amber-500/12 blur-[110px]" aria-hidden="true" />
-          <div className="pointer-events-none absolute right-[-120px] top-1/3 h-72 w-72 rounded-full bg-cyan-400/10 blur-[110px]" aria-hidden="true" />
-        </>
+          <div className="absolute -left-24 top-12 h-64 w-64 rounded-full bg-amber-500/12 blur-[110px]" aria-hidden="true" />
+          <div className="absolute right-[-120px] top-1/3 h-72 w-72 rounded-full bg-cyan-400/10 blur-[110px]" aria-hidden="true" />
+        </div>
       )}
 
       {/* Foreground */}

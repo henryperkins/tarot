@@ -40,6 +40,7 @@ export default [
       'no-unused-vars': ['warn', {
         argsIgnorePattern: '^_',
         varsIgnorePattern: '^_',
+        caughtErrorsIgnorePattern: '^_',
       }],
       'no-console': 'off', // Allow console for debugging
       'prefer-const': 'warn',
@@ -132,6 +133,20 @@ export default [
     languageOptions: {
       globals: {
         ...globals.node,
+      },
+    },
+    rules: {
+      'no-unused-expressions': 'off', // Allow assertions
+    },
+  },
+
+  // E2E Playwright tests (run in browser context via page.evaluate)
+  {
+    files: ['e2e/**/*.{js,mjs,spec.js}'],
+    languageOptions: {
+      globals: {
+        ...globals.node, // Playwright runs in Node
+        ...globals.browser, // page.evaluate/addInitScript run in browser
       },
     },
     rules: {

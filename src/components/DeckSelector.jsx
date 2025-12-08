@@ -76,10 +76,14 @@ export const DECK_OPTIONS = [
   }
 ];
 
-function DeckPreviewImage({ preview, deckLabel }) {
+function DeckPreviewImage({ preview, deckLabel, priority = 'auto' }) {
   if (!preview?.src) {
     return null;
   }
+
+  const isHighPriority = priority === 'high';
+  const fetchPriority = isHighPriority ? 'high' : 'auto';
+  const loading = isHighPriority ? 'eager' : 'lazy';
 
   return (
     <div className="relative overflow-hidden rounded-[14px] bg-[#0f0c14] mb-1">
@@ -90,8 +94,9 @@ function DeckPreviewImage({ preview, deckLabel }) {
         sizes="(max-width: 640px) 88vw, (max-width: 1024px) 46vw, 340px"
         alt={preview.alt || `${deckLabel} deck preview`}
         className="w-full h-auto object-cover"
-        loading="lazy"
+        loading={loading}
         decoding="async"
+        fetchpriority={fetchPriority}
         onError={(e) => {
           e.currentTarget.style.display = 'none';
         }}
@@ -342,7 +347,11 @@ export function DeckSelector({ selectedDeck, onDeckChange }) {
                   </>
                 )}
 
-                <DeckPreviewImage preview={deck.preview} deckLabel={deck.label} />
+                <DeckPreviewImage
+                  preview={deck.preview}
+                  deckLabel={deck.label}
+                  priority={index === 0 ? 'high' : 'low'}
+                />
 
                 <div className="pr-1">
                   <div className="font-serif text-accent text-base leading-tight">

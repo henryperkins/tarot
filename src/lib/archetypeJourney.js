@@ -6,13 +6,16 @@
  */
 
 import { Heart } from '@phosphor-icons/react';
-import { 
-  FirstReadingBadge, 
-  TenReadingsBadge, 
-  FiftyReadingsBadge, 
-  StreakBadge, 
-  MasteryBadge 
+import {
+  FirstReadingBadge,
+  TenReadingsBadge,
+  FiftyReadingsBadge,
+  StreakBadge,
+  MasteryBadge
 } from '../components/illustrations/BadgeIllustrations';
+import { getCardTrends, computeMonthlyTotals } from '../../shared/journal/trends.js';
+
+export { getCardTrends, computeMonthlyTotals } from '../../shared/journal/trends.js';
 
 /**
  * Badge icons mapped by streak/achievement type
@@ -108,7 +111,25 @@ export function normalizeAnalyticsShape(rawData) {
       : [],
 
     // Journey stage for gamification
-    journeyStage: rawData.journeyStage || rawData.stage || 'beginner'
+    journeyStage: rawData.journeyStage || rawData.stage || 'beginner',
+
+    // Six-month trends data for visualizations
+    trends: Array.isArray(rawData.trends)
+      ? rawData.trends.map(t => ({
+          card_name: t.card_name || '',
+          card_number: t.card_number ?? null,
+          year_month: t.year_month || '',
+          count: t.count || 0
+        }))
+      : [],
+
+    // Major Arcana frequency distribution for current month
+    majorArcanaFrequency: rawData.majorArcanaFrequency && typeof rawData.majorArcanaFrequency === 'object'
+      ? rawData.majorArcanaFrequency
+      : {},
+
+    // Total readings this month (computed from card appearances)
+    totalReadingsThisMonth: rawData.totalReadingsThisMonth || 0
   };
 }
 
