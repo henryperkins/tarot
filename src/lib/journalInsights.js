@@ -300,6 +300,203 @@ export function exportJournalEntriesToCsv(entries, filename = 'tarot-journal.csv
   return true;
 }
 
+// ============================================================================
+// Markdown Export (for Obsidian, Notion, and other note-taking apps)
+// ============================================================================
+
+/**
+ * Format a timestamp for markdown display.
+ * @param {number} ts - Timestamp in milliseconds
+ * @returns {string} Formatted date string
+ */
+function formatMarkdownDate(ts) {
+  if (!ts) return '';
+  const date = new Date(ts);
+  return date.toLocaleDateString('en-US', {
+    weekday: 'long',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit'
+  });
+}
+
+/**
+ * Format a timestamp for YAML frontmatter (ISO date only).
+ * @param {number} ts - Timestamp in milliseconds
+ * @returns {string} ISO date string (YYYY-MM-DD)
+ */
+function formatFrontmatterDate(ts) {
+  if (!ts) return '';
+  return new Date(ts).toISOString().split('T')[0];
+}
+
+/**
+ * Build markdown for a single journal entry.
+ *
+ * @param {Object} entry - Journal entry object
+ * @param {Object} options - Export options
+ * @param {boolean} [options.frontmatter=true] - Include YAML frontmatter for Obsidian/Logseq
+ * @param {boolean} [options.includeNarrative=true] - Include AI-generated narrative
+ * @param {boolean} [options.includeReflections=true] - Include user reflections
+ * @param {boolean} [options.includeThemes=true] - Include theme analysis
+ * @returns {string} Markdown formatted entry
+ */
+export function buildEntryMarkdown(entry, options = {}) {
+  if (!entry) return '';
+
+  const {
+    frontmatter = true,
+    includeNarrative = true,
+    includeReflections = true,
+    includeThemes = true
+  } = options;
+
+  const lines = [];
+  const spread = entry.spread || entry.spreadName || 'Reading';
+  const cards = Array.isArray(entry.cards) ? entry.cards : [];
+
+  // YAML Frontmatter (for Obsidian/Logseq)
+  if (frontmatter) {
+    lines.push('---');
+    lines.push(`date: ${formatFrontmatterDate(entry.ts)}`);
+    lines.push(`spread: "${spread}"`);
+    if (entry.spreadKey) {
+      lines.push(`spread_key: ${entry.spreadKey}`);
+    }
+    lines.push(`context: ${entry.context || 'general'}`);
+    if (cards.length > 0) {
+      const cardNames = cards.map(c => `"${c.name}"`).join(', ');
+      lines.push(`cards: [${cardNames}]`);
+    }
+    lines.push('tags: [tarot, reading]');
+    if (entry.deckId) {
+      lines.push(`deck: ${entry.deckId}`);
+    }
+    lines.push('---');
+    lines.push('');
+  }
+
+  // Title
+  lines.push(`# ${spread}`);
+  lines.push(`*${formatMarkdownDate(entry.ts)}*`);
+  lines.push('');
+
+  // Context badge
+  if (entry.context) {
+    lines.push(`**Context:** ${entry.context.charAt(0).toUpperCase() + entry.context.slice(1)}`);
+    lines.push('');
+  }
+
+  // Question/Intention
+  if (entry.question) {
+    lines.push('## Question');
+    lines.push('');
+    lines.push(`> ${entry.question}`);
+    lines.push('');
+  }
+
+  // Cards Drawn
+  if (cards.length > 0) {
+    lines.push('## Cards Drawn');
+    lines.push('');
+    cards.forEach(card => {
+      const orientation = card.orientation === 'Reversed' ? ' ↺' : '';
+      const position = card.position ? `**${card.position}:** ` : '';
+      lines.push(`- ${position}${card.name}${orientation}`);
+    });
+    lines.push('');
+  }
+
+  // Key Themes
+  if (includeThemes && entry.themes) {
+    const themes = entry.themes;
+    const themeLines = [];
+
+    if (themes.suitFocus) themeLines.push(`- ${themes.suitFocus}`);
+    if (themes.elementalBalance) themeLines.push(`- ${themes.elementalBalance}`);
+    if (themes.archetypeDescription) themeLines.push(`- ${themes.archetypeDescription}`);
+    if (themes.reversalDescription?.name) themeLines.push(`- ${themes.reversalDescription.name}`);
+    if (themes.timingProfile) themeLines.push(`- Timing: ${themes.timingProfile}`);
+
+    if (themeLines.length > 0) {
+      lines.push('## Key Themes');
+      lines.push('');
+      lines.push(...themeLines);
+      lines.push('');
+    }
+  }
+
+  // Reading Narrative
+  if (includeNarrative && entry.personalReading) {
+    lines.push('## Reading');
+    lines.push('');
+    lines.push(entry.personalReading);
+    lines.push('');
+  }
+
+  // User Reflections
+  if (includeReflections && entry.reflections) {
+    const reflections = typeof entry.reflections === 'object' ? entry.reflections : {};
+    const reflectionEntries = Object.entries(reflections).filter(([, v]) => v && String(v).trim());
+
+    if (reflectionEntries.length > 0) {
+      lines.push('## My Reflections');
+      lines.push('');
+      reflectionEntries.forEach(([position, text]) => {
+        lines.push(`**${position}:** ${text}`);
+        lines.push('');
+      });
+    }
+  }
+
+  return lines.join('\n');
+}
+
+/**
+ * Build markdown for multiple journal entries.
+ *
+ * @param {Array} entries - Array of journal entries
+ * @param {Object} options - Export options (passed to buildEntryMarkdown)
+ * @returns {string} Markdown formatted journal
+ */
+export function buildJournalMarkdown(entries, options = {}) {
+  if (!Array.isArray(entries) || entries.length === 0) return '';
+
+  // Sort entries by timestamp (newest first)
+  const sorted = [...entries].sort((a, b) => (b.ts || 0) - (a.ts || 0));
+
+  return sorted
+    .map(entry => buildEntryMarkdown(entry, options))
+    .join('\n---\n\n');
+}
+
+/**
+ * Export journal entries to a markdown file download.
+ *
+ * @param {Array} entries - Array of journal entries
+ * @param {string} [filename='tarot-journal.md'] - Download filename
+ * @param {Object} [options] - Export options (passed to buildJournalMarkdown)
+ * @returns {boolean} True if export started successfully
+ */
+export function exportJournalEntriesToMarkdown(entries, filename = 'tarot-journal.md', options = {}) {
+  if (typeof document === 'undefined') return false;
+  const markdown = buildJournalMarkdown(entries, options);
+  if (!markdown) return false;
+
+  const blob = new Blob([markdown], { type: 'text/markdown;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.setAttribute('download', filename);
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+  return true;
+}
+
 export async function copyJournalEntriesToClipboard(entries) {
   if (!Array.isArray(entries) || entries.length === 0) return false;
   const csv = buildJournalCsv(entries);

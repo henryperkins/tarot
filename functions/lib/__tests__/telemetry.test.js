@@ -23,7 +23,7 @@ afterEach(() => {
 });
 
 describe('semantic scoring prefetch expectations', () => {
-  it('flags missing precomputed semantic payload and avoids injecting GraphRAG', () => {
+  it('flags missing precomputed semantic payload and falls back to keyword GraphRAG', () => {
     process.env.GRAPHRAG_ENABLED = 'true';
 
     const { promptMeta, contextDiagnostics } = buildEnhancedClaudePrompt({
@@ -59,11 +59,15 @@ describe('semantic scoring prefetch expectations', () => {
     assert.equal(promptMeta.graphRAG.semanticScoringRequested, true);
     assert.equal(promptMeta.graphRAG.semanticScoringUsed, false);
     assert.equal(promptMeta.graphRAG.semanticScoringFallback, true);
-    assert.equal(promptMeta.graphRAG.includedInPrompt, false);
+    assert.equal(promptMeta.graphRAG.reason, 'semantic-scoring-not-prefetched');
+    assert.equal(promptMeta.graphRAG.includedInPrompt, true);
+    assert.ok(promptMeta.graphRAG.passagesProvided >= 1, 'GraphRAG should inject keyword-ranked passages');
     assert.ok(
       Array.isArray(contextDiagnostics) &&
-      contextDiagnostics.some((d) => d.includes('Semantic scoring requested')),
-      'Diagnostics should flag missing precomputed semantic payload'
+      contextDiagnostics.some((d) =>
+        d.includes('Semantic scoring requested') && d.includes('keyword')
+      ),
+      'Diagnostics should flag semantic scoring fallback to keyword retrieval'
     );
   });
 });

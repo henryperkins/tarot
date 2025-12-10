@@ -701,7 +701,6 @@ Workers AI pricing: Llama 3 8B AWQ at $0.12/M input tokens, $0.27/M output token
 
 ## Related Documentation
 
-- [Implementation Plan](./automated-prompt-eval.md) — Original design document
 - [CLAUDE.md](../CLAUDE.md) — Project overview and ethical guidelines
 - [Cloudflare Docs: Workers AI](https://developers.cloudflare.com/workers-ai/)
 - [Cloudflare Docs: KV](https://developers.cloudflare.com/kv/)

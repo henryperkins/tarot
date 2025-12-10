@@ -1,7 +1,11 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import { buildJournalCsv } from '../src/lib/journalInsights.js';
+import {
+  buildJournalCsv,
+  buildEntryMarkdown,
+  buildJournalMarkdown
+} from '../src/lib/journalInsights.js';
 
 describe('journal CSV export', () => {
   it('includes all reading details per entry', () => {
@@ -55,5 +59,138 @@ describe('journal CSV export', () => {
     assert.match(row, /"{""notes"":""Felt accurate""}"/);
     assert.match(row, /"{""suitFocus"":""Cups & Swords"",""reversalFramework"":""blocked""}"/);
     assert.match(row, /Sample narrative/);
+  });
+});
+
+describe('journal Markdown export', () => {
+  const sampleEntry = {
+    ts: Date.parse('2024-09-01T12:00:00Z'),
+    spread: 'Three-Card Story',
+    spreadKey: 'threeCard',
+    question: 'How can I navigate this career transition?',
+    cards: [
+      { position: 'Past', name: 'Two of Wands', orientation: 'Upright' },
+      { position: 'Present', name: 'Three of Cups', orientation: 'Reversed' },
+      { position: 'Future', name: 'Six of Swords', orientation: 'Upright' }
+    ],
+    context: 'career',
+    deckId: 'rws-1909',
+    themes: {
+      suitFocus: 'Mixed suits emphasize balance',
+      elementalBalance: 'Fire and Water in tension'
+    },
+    reflections: {
+      Past: 'This resonated with my planning phase',
+      Present: 'Celebration feels blocked'
+    },
+    personalReading: 'The cards suggest a journey from planning to transition.'
+  };
+
+  it('includes YAML frontmatter by default', () => {
+    const md = buildEntryMarkdown(sampleEntry);
+    assert.match(md, /^---\n/);
+    assert.match(md, /date: 2024-09-01/);
+    assert.match(md, /spread: "Three-Card Story"/);
+    assert.match(md, /spread_key: threeCard/);
+    assert.match(md, /context: career/);
+    assert.match(md, /cards: \["Two of Wands", "Three of Cups", "Six of Swords"\]/);
+    assert.match(md, /tags: \[tarot, reading\]/);
+    assert.match(md, /deck: rws-1909/);
+    assert.match(md, /\n---\n/);
+  });
+
+  it('can omit frontmatter with option', () => {
+    const md = buildEntryMarkdown(sampleEntry, { frontmatter: false });
+    assert.doesNotMatch(md, /^---\n/);
+  });
+
+  it('includes title with spread and date', () => {
+    const md = buildEntryMarkdown(sampleEntry);
+    assert.match(md, /# Three-Card Story/);
+    assert.match(md, /September 1, 2024/);
+  });
+
+  it('includes context badge', () => {
+    const md = buildEntryMarkdown(sampleEntry);
+    assert.match(md, /\*\*Context:\*\* Career/);
+  });
+
+  it('includes question as blockquote', () => {
+    const md = buildEntryMarkdown(sampleEntry);
+    assert.match(md, /## Question/);
+    assert.match(md, /> How can I navigate this career transition\?/);
+  });
+
+  it('lists cards with positions and reversal markers', () => {
+    const md = buildEntryMarkdown(sampleEntry);
+    assert.match(md, /## Cards Drawn/);
+    assert.match(md, /- \*\*Past:\*\* Two of Wands/);
+    assert.match(md, /- \*\*Present:\*\* Three of Cups ↺/);
+    assert.match(md, /- \*\*Future:\*\* Six of Swords/);
+  });
+
+  it('includes key themes when present', () => {
+    const md = buildEntryMarkdown(sampleEntry);
+    assert.match(md, /## Key Themes/);
+    assert.match(md, /- Mixed suits emphasize balance/);
+    assert.match(md, /- Fire and Water in tension/);
+  });
+
+  it('can omit themes with option', () => {
+    const md = buildEntryMarkdown(sampleEntry, { includeThemes: false });
+    assert.doesNotMatch(md, /## Key Themes/);
+  });
+
+  it('includes reading narrative', () => {
+    const md = buildEntryMarkdown(sampleEntry);
+    assert.match(md, /## Reading/);
+    assert.match(md, /The cards suggest a journey from planning to transition\./);
+  });
+
+  it('can omit narrative with option', () => {
+    const md = buildEntryMarkdown(sampleEntry, { includeNarrative: false });
+    assert.doesNotMatch(md, /## Reading/);
+  });
+
+  it('includes reflections section', () => {
+    const md = buildEntryMarkdown(sampleEntry);
+    assert.match(md, /## My Reflections/);
+    assert.match(md, /\*\*Past:\*\* This resonated with my planning phase/);
+    assert.match(md, /\*\*Present:\*\* Celebration feels blocked/);
+  });
+
+  it('can omit reflections with option', () => {
+    const md = buildEntryMarkdown(sampleEntry, { includeReflections: false });
+    assert.doesNotMatch(md, /## My Reflections/);
+  });
+
+  it('buildJournalMarkdown combines multiple entries', () => {
+    const entry2 = {
+      ...sampleEntry,
+      ts: Date.parse('2024-09-02T12:00:00Z'),
+      spread: 'One-Card Insight'
+    };
+    const md = buildJournalMarkdown([sampleEntry, entry2]);
+
+    // Should contain both entries separated by ---
+    assert.match(md, /# One-Card Insight/);
+    assert.match(md, /# Three-Card Story/);
+    assert.match(md, /\n---\n\n/);
+  });
+
+  it('buildJournalMarkdown sorts entries by timestamp (newest first)', () => {
+    const older = { ...sampleEntry, ts: Date.parse('2024-08-01T12:00:00Z'), spread: 'Older Entry' };
+    const newer = { ...sampleEntry, ts: Date.parse('2024-09-15T12:00:00Z'), spread: 'Newer Entry' };
+
+    const md = buildJournalMarkdown([older, newer]);
+    const newerIndex = md.indexOf('# Newer Entry');
+    const olderIndex = md.indexOf('# Older Entry');
+
+    assert.ok(newerIndex < olderIndex, 'Newer entry should appear first');
+  });
+
+  it('returns empty string for empty entries array', () => {
+    assert.equal(buildJournalMarkdown([]), '');
+    assert.equal(buildEntryMarkdown(null), '');
   });
 });

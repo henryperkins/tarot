@@ -35,21 +35,23 @@ All files contributing to journal data recording, reporting, computation, and di
 
 | File | Lines | Purpose |
 |------|-------|---------|
-| `src/components/Journal.jsx` | ~1,461 | Main journal page orchestrator |
-| `src/components/JournalFilters.jsx` | ~711 | Filter controls + constellation visualization |
-| `src/components/JournalEntryCard.jsx` | ~719 | Individual entry display |
-| `src/components/JournalInsightsPanel.jsx` | ~946 | Analytics dashboard |
-| `src/components/ArchetypeJourneySection.jsx` | ~561 | Card tracking gamification |
+| `src/components/Journal.jsx` | ~1,470 | Main journal page orchestrator |
+| `src/components/JournalFilters.jsx` | ~707 | Filter controls + constellation visualization |
+| `src/components/JournalEntryCard.jsx` | ~718 | Individual entry display |
+| `src/components/JournalInsightsPanel.jsx` | ~984 | Analytics dashboard |
+| `src/components/ArchetypeJourney.jsx` | ~405 | Standalone archetype journey page |
+| `src/components/ArchetypeJourneySection.jsx` | ~620 | Card tracking gamification (embedded) |
 | `src/components/CardSymbolInsights.jsx` | ~364 | Symbol tooltips/bottom sheets |
 | `src/components/CoachSuggestion.jsx` | ~132 | AI-powered recommendations |
 | `src/components/SavedIntentionsList.jsx` | ~191 | Coach history cards |
 | `src/components/GuidedIntentionCoach.jsx` | - | Intention coach modal (uses coachStorage) |
 | `src/components/QuestionInput.jsx` | - | Question input (records to coach history) |
 | `src/components/JourneyStoryPanel.jsx` | ~97 | Collapsible prose summary panel |
-| `src/components/charts/CadenceChart.jsx` | ~124 | 6-month reading cadence bar chart |
-| `src/components/charts/TrendSparkline.jsx` | ~157 | Mini sparklines and trend arrows for cards |
-| `src/components/charts/MajorArcanaChart.jsx` | ~160 | Major Arcana distribution visualization |
-| `src/components/charts/ContextTimelineRibbon.jsx` | ~185 | Context focus over time ribbon |
+| `src/components/illustrations/BadgeIllustrations.jsx` | - | Badge SVG illustrations for gamification |
+| `src/components/charts/CadenceChart.jsx` | ~123 | 6-month reading cadence bar chart |
+| `src/components/charts/TrendSparkline.jsx` | ~156 | Mini sparklines and trend arrows for cards |
+| `src/components/charts/MajorArcanaChart.jsx` | ~159 | Major Arcana distribution visualization |
+| `src/components/charts/ContextTimelineRibbon.jsx` | ~187 | Context focus over time ribbon |
 
 ### 1.2 React Hooks
 
@@ -65,6 +67,7 @@ All files contributing to journal data recording, reporting, computation, and di
 | `src/lib/journalInsights.js` | Stats persistence, export functions, preference drift, share tokens |
 | `src/lib/coachStorage.js` | Coach templates and history storage |
 | `src/lib/cardInsights.js` | Build symbol insights for cards |
+| `src/lib/archetypeJourney.js` | Badge icons, analytics normalization, growth prompts |
 | `src/lib/themeText.js` | Theme label normalization |
 
 ### 1.4 Shared Modules (Client + Server)
@@ -74,6 +77,7 @@ All files contributing to journal data recording, reporting, computation, and di
 | `shared/journal/dedupe.js` | Entry deduplication by fingerprint |
 | `shared/journal/stats.js` | `computeJournalStats()`, `extractRecentThemes()` |
 | `shared/journal/summary.js` | `buildHeuristicJourneySummary()` for AI prompts |
+| `shared/journal/trends.js` | `computeMonthlyTotals()`, `getCardTrends()` |
 | `shared/symbols/symbolAnnotations.js` | Major Arcana symbol data |
 | `shared/vision/minorSymbolLexicon.js` | Minor Arcana symbol data |
 
@@ -91,6 +95,10 @@ All files contributing to journal data recording, reporting, computation, and di
 | `functions/api/archetype-journey.js` | Multiple | Analytics endpoints |
 | `functions/api/archetype-journey/[[path]].js` | - | Catch-all route handler |
 | `functions/api/archetype-journey-backfill.js` | POST | Backfill historical data |
+| `functions/api/create-checkout-session.js` | POST | Create Stripe checkout session |
+| `functions/api/webhooks/stripe.js` | POST | Stripe webhook handler |
+| `functions/api/health/tarot-reading.js` | GET | Health check for reading API |
+| `functions/api/health/tts.js` | GET | Health check for TTS API |
 
 ### 1.6 Server Libraries
 
@@ -123,14 +131,18 @@ All files contributing to journal data recording, reporting, computation, and di
 ## 2. Component Hierarchy
 
 ```
-Journal.jsx (1,461 lines) - Main orchestrator
-├── JournalFilters.jsx (711 lines) - Filter controls + constellation viz
-├── JournalEntryCard.jsx (719 lines) - Individual entry display
+Journal.jsx (1,470 lines) - Main orchestrator
+├── JournalFilters.jsx (707 lines) - Filter controls + constellation viz
+├── JournalEntryCard.jsx (718 lines) - Individual entry display
 │   └── CardSymbolInsights.jsx (365 lines) - Symbol tooltips/bottom sheets
-├── JournalInsightsPanel.jsx (946 lines) - Analytics dashboard
-│   ├── ArchetypeJourneySection.jsx (561 lines) - Card tracking gamification
-│   └── CoachSuggestion.jsx (133 lines) - AI-powered recommendations
-└── SavedIntentionsList.jsx (192 lines) - Coach history cards
+├── JournalInsightsPanel.jsx (984 lines) - Analytics dashboard
+│   ├── ArchetypeJourneySection.jsx (620 lines) - Card tracking gamification
+│   └── CoachSuggestion.jsx (132 lines) - AI-powered recommendations
+└── SavedIntentionsList.jsx (191 lines) - Coach history cards
+
+ArchetypeJourney.jsx (405 lines) - Standalone analytics page
+├── GrowthPromptModal - Growth prompts for recurring cards
+└── ConfirmModal - Reset confirmation
 ```
 
 ---
@@ -606,12 +618,12 @@ When `enableKnowledgeGraph` is true (default), `analyzeSpreadThemes()` in `funct
 themes.knowledgeGraph: {
   // From buildGraphContext()
   graphKeys: {
-    completeTriadIds: string[],    // e.g., ['death-temperance-star']
-    triadIds: string[],            // All detected triads (partial + complete)
-    foolsJourneyStageKey: string,  // e.g., 'integration', 'mastery'
+    completeTriadIds: string[],       // e.g., ['death-temperance-star']
+    triadIds: string[],               // All detected triads (partial + complete)
+    foolsJourneyStageKey: string,     // e.g., 'integration', 'mastery'
+    foolsJourneyStage: string,        // Human-readable stage label
     dyadPairs: [{
-      cards: number[],
-      names: string[],
+      cards: number[],                // Card numbers in the dyad
       significance: 'high' | 'medium',
       category: string
     }],
@@ -619,7 +631,15 @@ themes.knowledgeGraph: {
       suit: string,
       stage: string,
       significance: 'strong-progression' | 'moderate'
-    }]
+    }],
+    courtLineages: [{                 // Court card patterns (if detected)
+      suit: string,
+      significance: string
+    }],
+    // Deck-specific keys (when applicable):
+    thothSuits: string[],             // Thoth deck suit highlights
+    thothEntries: string[],           // Thoth deck card epithets
+    marseilleRanks: number[]          // Marseille numerology clusters
   },
   
   // From retrievePassages()
@@ -632,7 +652,10 @@ themes.knowledgeGraph: {
     text: string,                  // Passage content
     source: string,                // Attribution
     relevance: number,             // Keyword match score
-    relevanceScore?: number        // Semantic similarity (if enabled)
+    relevanceScore?: number,       // Semantic similarity (if enabled)
+    cardNumbers?: number[],        // For dyads: card numbers in the pair
+    cardNames?: string[],          // For dyads: card names from knowledge base
+    stage?: string                 // For Fool's Journey: developmental stage
   }]
 }
 ```
@@ -976,7 +999,7 @@ The following D1 database tables store journal data for authenticated users:
 
 | Column | Type | Description |
 |--------|------|-------------|
-| `id` | TEXT | Primary key (UUID) |
+| `id` | INTEGER | Primary key (AUTOINCREMENT) |
 | `user_id` | TEXT | Foreign key to users |
 | `badge_type` | TEXT | Badge category (e.g., 'streak') |
 | `badge_key` | TEXT | Unique badge identifier |
@@ -992,6 +1015,15 @@ The following D1 database tables store journal data for authenticated users:
 | `archetype_journey_enabled` | INTEGER | Boolean (0/1) |
 | `show_badges` | INTEGER | Boolean (0/1) |
 | `updated_at` | INTEGER | Unix timestamp |
+
+#### users (subscription columns)
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `subscription_tier` | TEXT | Tier level ('free', 'plus', etc.) |
+| `subscription_provider` | TEXT | 'stripe', 'google_play', 'api_key', etc. |
+| `subscription_status` | TEXT | 'active', 'canceled', 'past_due', etc. |
+| `stripe_customer_id` | TEXT | Stripe customer identifier (cus_...) |
 
 ---
 
@@ -1117,6 +1149,7 @@ window.addEventListener('coach-storage-sync', (event) => {
 | **Coach History** | id, question, createdAt |
 | **Saved Filters** | name, query, contexts[], spreads[], decks[], timeframe, onlyReversals |
 | **Analytics Prefs** | archetype_journey_enabled, show_badges |
+| **Subscription** | subscription_tier, subscription_provider, subscription_status, stripe_customer_id |
 
 ---
 
@@ -1137,4 +1170,4 @@ The following data is computed server-side but not prominently displayed in jour
 
 ---
 
-*Generated: December 2024 · Updated: December 7, 2024 · Verified against codebase*
+*Generated: December 2024 · Updated: December 8, 2024 · Verified against codebase (v1.1)*

@@ -19,6 +19,7 @@ import * as feedback from '../../functions/api/feedback.js';
 import * as generateQuestion from '../../functions/api/generate-question.js';
 import * as share from '../../functions/api/share.js';
 import * as shareToken from '../../functions/api/share/[token].js';
+import * as shareTokenOgImage from '../../functions/api/share/[token]/og-image.js';
 import * as shareNotes from '../../functions/api/share-notes/[token].js';
 import * as visionProof from '../../functions/api/vision-proof.js';
 import * as archetypeJourney from '../../functions/api/archetype-journey.js';
@@ -47,6 +48,118 @@ import { handleScheduled, onRequestPost as adminArchive } from '../../functions/
 // Utility functions
 import { jsonResponse } from '../../functions/lib/utils.js';
 
+// Share page OG meta tag injection
+import { loadShareRecord, loadShareEntries } from '../../functions/lib/shareData.js';
+
+/**
+ * Build OG meta tags for a share link.
+ * These tags enable rich previews when the link is shared on social media.
+ *
+ * @param {string} token - Share token
+ * @param {Object} shareRecord - Share record from database
+ * @param {Array} entries - Shared entries
+ * @param {string} baseUrl - Base URL of the site
+ * @returns {string} HTML meta tags
+ */
+function buildShareOgMetaTags(token, shareRecord, entries, baseUrl) {
+  const entry = entries?.[0];
+  const title = shareRecord?.title || entry?.spread || 'Tarot Reading';
+  const description = entry?.question
+    ? `"${entry.question.slice(0, 100)}${entry.question.length > 100 ? '...' : ''}"`
+    : `A ${entry?.spread || 'tarot'} reading shared via Mystic Tarot`;
+
+  const ogImageUrl = `${baseUrl}/api/share/${token}/og-image`;
+  const shareUrl = `${baseUrl}/share/${token}`;
+
+  // Escape HTML special characters
+  const escape = (str) => String(str || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+
+  return `
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="${escape(shareUrl)}">
+    <meta property="og:title" content="${escape(title)} | Mystic Tarot">
+    <meta property="og:description" content="${escape(description)}">
+    <meta property="og:image" content="${escape(ogImageUrl)}">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:site_name" content="Mystic Tarot">
+
+    <!-- Twitter -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:url" content="${escape(shareUrl)}">
+    <meta name="twitter:title" content="${escape(title)} | Mystic Tarot">
+    <meta name="twitter:description" content="${escape(description)}">
+    <meta name="twitter:image" content="${escape(ogImageUrl)}">
+  `;
+}
+
+/**
+ * Handle share page requests by injecting OG meta tags.
+ * This enables rich social media previews when share links are posted.
+ *
+ * @param {Request} request - Incoming request
+ * @param {Env} env - Environment bindings
+ * @param {string} token - Share token
+ * @returns {Promise<Response>} HTML response with OG tags
+ */
+async function handleSharePageWithOgTags(request, env, token) {
+  try {
+    // Load share data from database
+    const shareRecord = await loadShareRecord(env, token);
+
+    // If share doesn't exist or is expired, serve default page
+    if (!shareRecord) {
+      return env.ASSETS.fetch(request);
+    }
+
+    // Check expiry
+    if (shareRecord.expiresAt && Date.now() / 1000 > shareRecord.expiresAt) {
+      return env.ASSETS.fetch(request);
+    }
+
+    // Load entries for OG tag generation
+    const entries = await loadShareEntries(env, token);
+
+    // Fetch the base HTML from assets
+    const assetResponse = await env.ASSETS.fetch(request);
+    if (!assetResponse.ok) {
+      return assetResponse;
+    }
+
+    // Get the HTML content
+    let html = await assetResponse.text();
+
+    // Build OG meta tags
+    const url = new URL(request.url);
+    const baseUrl = `${url.protocol}//${url.host}`;
+    const ogTags = buildShareOgMetaTags(token, shareRecord, entries, baseUrl);
+
+    // Inject OG tags into the <head> section
+    // Insert after the opening <head> tag or before </head>
+    if (html.includes('</head>')) {
+      html = html.replace('</head>', `${ogTags}\n  </head>`);
+    }
+
+    // Return the modified HTML
+    return new Response(html, {
+      status: 200,
+      headers: {
+        'Content-Type': 'text/html; charset=utf-8',
+        'Cache-Control': 'public, max-age=300, s-maxage=3600'
+      }
+    });
+  } catch (error) {
+    console.error('Error injecting OG tags:', error);
+    // Fall back to serving the default page
+    return env.ASSETS.fetch(request);
+  }
+}
+
 /**
  * Route definitions mapping URL patterns to handlers
  * Each route can have GET, POST, PUT, DELETE, etc. handlers
@@ -63,6 +176,7 @@ const routes = [
   { pattern: /^\/api\/feedback$/, handlers: feedback },
   { pattern: /^\/api\/generate-question$/, handlers: generateQuestion },
   { pattern: /^\/api\/share$/, handlers: share },
+  { pattern: /^\/api\/share\/([^/]+)\/og-image$/, handlers: shareTokenOgImage, params: ['token'] },
   { pattern: /^\/api\/share\/([^/]+)$/, handlers: shareToken, params: ['token'] },
   { pattern: /^\/api\/share-notes\/([^/]+)$/, handlers: shareNotes, params: ['token'] },
   { pattern: /^\/api\/vision-proof$/, handlers: visionProof },
@@ -264,6 +378,12 @@ export default {
           { status: 500 }
         ), request);
       }
+    }
+
+    // Check for share page requests that need OG meta tag injection
+    const sharePageMatch = pathname.match(/^\/share\/([^/]+)$/);
+    if (sharePageMatch && method === 'GET') {
+      return handleSharePageWithOgTags(request, env, sharePageMatch[1]);
     }
 
     // For non-API routes, serve static assets

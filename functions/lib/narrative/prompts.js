@@ -262,29 +262,7 @@ export function buildEnhancedClaudePrompt({
     // log a warning since async retrieval is required for embeddings
     const requestedSemanticScoring = enableSemanticScoring === true;
 
-    if (requestedSemanticScoring) {
-      // Do not silently downgrade to keyword-only; require precomputed semantic payload.
-      const message = '[GraphRAG] Semantic scoring requested but graphRAGPayload not pre-computed. Skipping GraphRAG injection to avoid keyword-only fallback. Pre-compute with retrievePassagesWithQuality() in performSpreadAnalysis().';
-      console.warn(message);
-      diagnostics.push(message);
-
-      effectiveGraphRAGPayload = {
-        passages: [],
-        initialPassageCount: 0,
-        formattedBlock: null,
-        retrievalSummary: {
-          semanticScoringRequested: true,
-          semanticScoringUsed: false,
-          semanticScoringFallback: true,
-          reason: 'semantic-scoring-not-prefetched'
-        },
-        enableSemanticScoring: true,
-        rankingStrategy: 'semantic',
-        semanticScoringRequested: true,
-        semanticScoringUsed: false,
-        semanticScoringFallback: true
-      };
-    } else {
+    const buildKeywordPayload = ({ semanticRequested = false, reason = null } = {}) => {
       try {
         // Keyword-only synchronous retrieval
         // Semantic scoring requires async retrievePassagesWithQuality() which should
@@ -296,27 +274,63 @@ export function buildEnhancedClaudePrompt({
 
         const retrievalSummary = buildRetrievalSummary(activeThemes.knowledgeGraph.graphKeys, retrievedPassages);
         const semanticScoringUsed = Boolean(retrievalSummary?.qualityMetrics?.semanticScoringUsed);
-        const semanticScoringFallback = requestedSemanticScoring && !semanticScoringUsed;
+        const semanticScoringFallback = semanticRequested && !semanticScoringUsed;
+        const summary = {
+          ...retrievalSummary,
+          semanticScoringRequested: semanticRequested,
+          semanticScoringUsed,
+          semanticScoringFallback
+        };
 
-        effectiveGraphRAGPayload = {
+        if (reason) {
+          summary.reason = reason;
+        }
+
+        return {
           passages: retrievedPassages,
           initialPassageCount: retrievedPassages.length,
           formattedBlock: null,
-          retrievalSummary: {
-            ...retrievalSummary,
-            semanticScoringRequested: requestedSemanticScoring,
-            semanticScoringUsed,
-            semanticScoringFallback
-          },
-          // Track whether semantic scoring was requested vs what we could deliver
-          enableSemanticScoring: false,
+          retrievalSummary: summary,
+          maxPassages,
+          enableSemanticScoring: semanticRequested,
           rankingStrategy: 'keyword',
-          semanticScoringRequested: requestedSemanticScoring,
+          semanticScoringRequested: semanticRequested,
+          semanticScoringUsed,
           semanticScoringFallback
         };
       } catch (err) {
         console.error('[GraphRAG] Pre-fetch failed:', err.message);
+        return null;
       }
+    };
+
+    if (requestedSemanticScoring) {
+      const message = '[GraphRAG] Semantic scoring requested but graphRAGPayload not pre-computed. Falling back to keyword-ranked passages. Pre-compute with retrievePassagesWithQuality() in performSpreadAnalysis().';
+      console.warn(message);
+      diagnostics.push(message);
+
+      effectiveGraphRAGPayload = buildKeywordPayload({
+        semanticRequested: true,
+        reason: 'semantic-scoring-not-prefetched'
+      }) || {
+        passages: [],
+        initialPassageCount: 0,
+        formattedBlock: null,
+        retrievalSummary: {
+          semanticScoringRequested: true,
+          semanticScoringUsed: false,
+          semanticScoringFallback: true,
+          reason: 'semantic-scoring-not-prefetched'
+        },
+        maxPassages,
+        enableSemanticScoring: true,
+        rankingStrategy: 'keyword',
+        semanticScoringRequested: true,
+        semanticScoringUsed: false,
+        semanticScoringFallback: true
+      };
+    } else {
+      effectiveGraphRAGPayload = buildKeywordPayload({ semanticRequested: false });
     }
   }
 

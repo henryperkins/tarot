@@ -23,6 +23,7 @@ import {
 } from '../lib/pdfExport';
 import {
     exportJournalEntriesToCsv,
+    exportJournalEntriesToMarkdown,
     copyJournalShareSummary,
     saveCoachRecommendation,
     persistCoachStatsSnapshot,
@@ -242,6 +243,16 @@ export const JournalInsightsPanel = memo(function JournalInsightsPanel({
         showStatus({
             tone: result ? 'success' : 'error',
             message: result ? 'Export started—CSV download is on its way.' : 'Unable to export this view right now.'
+        });
+        return result;
+    });
+
+    const handleMarkdownExport = () => runToolbarAction('markdown', async () => {
+        const exportEntries = isFilteredAndEmpty && Array.isArray(allEntries) ? allEntries : summaryEntries;
+        const result = exportJournalEntriesToMarkdown(exportEntries);
+        showStatus({
+            tone: result ? 'success' : 'error',
+            message: result ? 'Markdown export started—great for Obsidian or Notion.' : 'Unable to export this view right now.'
         });
         return result;
     });
@@ -691,7 +702,16 @@ export const JournalInsightsPanel = memo(function JournalInsightsPanel({
                             disabled={pendingAction === 'export'}
                         >
                             {pendingAction === 'export' ? <CircleNotch className="h-4 w-4 animate-spin" /> : <FileText className="h-4 w-4" />}
-                            Export CSV
+                            CSV
+                        </button>
+                        <button
+                            type="button"
+                            onClick={handleMarkdownExport}
+                            className={OUTLINE_BUTTON_CLASS}
+                            disabled={pendingAction === 'markdown'}
+                        >
+                            {pendingAction === 'markdown' ? <CircleNotch className="h-4 w-4 animate-spin" /> : <BookOpen className="h-4 w-4" />}
+                            Markdown
                         </button>
                         <button
                             type="button"

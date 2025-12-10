@@ -62,6 +62,7 @@ import { deriveEmotionalTone } from '../../src/data/emotionMapping.js';
 import { normalizeVisionLabel } from '../lib/visionLabels.js';
 import { getToneStyle, buildPersonalizedClosing, getDepthProfile } from '../lib/narrative/styleHelpers.js';
 import { buildOpening } from '../lib/narrative/helpers.js';
+import { getPositionWeight } from '../lib/positionWeights.js';
 import { detectCrisisSignals } from '../lib/safetyChecks.js';
 import { collectGraphRAGAlerts } from '../lib/graphRAGAlerts.js';
 import {
@@ -180,6 +181,27 @@ function getAvailableNarrativeBackends(env) {
       return backend;
     })
     .filter(Boolean);
+}
+
+const HIGH_WEIGHT_POSITION_THRESHOLD = 0.75;
+
+function getQualityGateThresholds(spreadKey, cardCount) {
+  const normalizedSpread = (spreadKey || 'general').toLowerCase();
+  if (normalizedSpread === 'celtic') {
+    return { minCoverage: 0.75, maxHallucinations: 2, highWeightThreshold: HIGH_WEIGHT_POSITION_THRESHOLD };
+  }
+
+  if (['relationship', 'decision', 'threecard', 'fivecard', 'single'].includes(normalizedSpread)) {
+    return { minCoverage: 0.8, maxHallucinations: 1, highWeightThreshold: HIGH_WEIGHT_POSITION_THRESHOLD };
+  }
+
+  // Default: scale slightly by size; larger spreads allow a tiny bit more slack.
+  const isLargeSpread = cardCount >= 8;
+  return {
+    minCoverage: isLargeSpread ? 0.75 : 0.8,
+    maxHallucinations: isLargeSpread ? 2 : 1,
+    highWeightThreshold: HIGH_WEIGHT_POSITION_THRESHOLD
+  };
 }
 
 function normalizeBooleanFlag(value) {
@@ -651,19 +673,35 @@ export const onRequestPost = async ({ request, env, waitUntil }) => {
         const qualityMetrics = buildNarrativeMetrics(result, cardsInfo, deckStyle);
         const qualityIssues = [];
 
-        // Check for hallucinated cards (allow up to 2 for natural LLM comparisons)
-        // Only fail if excessive hallucinations suggest model is off-track
-        const maxAllowedHallucinations = Math.max(2, Math.floor(cardsInfo.length / 2));
-        if (qualityMetrics.hallucinatedCards && qualityMetrics.hallucinatedCards.length > maxAllowedHallucinations) {
-          qualityIssues.push(`excessive hallucinated cards (${qualityMetrics.hallucinatedCards.length}): ${qualityMetrics.hallucinatedCards.join(', ')}`);
+        const { minCoverage, maxHallucinations, highWeightThreshold } = getQualityGateThresholds(
+          analysis.spreadKey,
+          cardsInfo.length
+        );
+
+        // Check for hallucinated cards with spread-aware limits
+        if (qualityMetrics.hallucinatedCards && qualityMetrics.hallucinatedCards.length > maxHallucinations) {
+          qualityIssues.push(`excessive hallucinated cards (${qualityMetrics.hallucinatedCards.length} > ${maxHallucinations} allowed): ${qualityMetrics.hallucinatedCards.join(', ')}`);
         } else if (qualityMetrics.hallucinatedCards?.length > 0) {
-          // Log but don't fail for minor hallucinations (comparisons/examples)
           console.log(`[${requestId}] Minor hallucinations (allowed): ${qualityMetrics.hallucinatedCards.join(', ')}`);
         }
 
-        // Check card coverage (at least 50% of cards should be mentioned)
-        if (qualityMetrics.cardCoverage < 0.5) {
-          qualityIssues.push(`low card coverage: ${(qualityMetrics.cardCoverage * 100).toFixed(0)}%`);
+        // Check card coverage with higher bar for small/medium spreads
+        if (qualityMetrics.cardCoverage < minCoverage) {
+          qualityIssues.push(`low card coverage: ${(qualityMetrics.cardCoverage * 100).toFixed(0)}% (min ${(minCoverage * 100).toFixed(0)}%)`);
+        }
+
+        // Require high-weight positions to be covered explicitly
+        const missingSet = new Set(qualityMetrics.missingCards || []);
+        const highWeightMisses = (cardsInfo || []).reduce((acc, card, index) => {
+          if (!card || !card.card) return acc;
+          const weight = getPositionWeight(analysis.spreadKey, index) || 0;
+          if (weight >= highWeightThreshold && missingSet.has(card.card)) {
+            acc.push(card.card);
+          }
+          return acc;
+        }, []);
+        if (highWeightMisses.length > 0) {
+          qualityIssues.push(`missing high-weight positions: ${highWeightMisses.join(', ')}`);
         }
 
         // Enforce spine completeness beyond mere section presence
