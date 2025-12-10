@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, useEffect } from 'react';
+import { clearAllNarrativeCaches } from '../lib/safeStorage';
 
 const AuthContext = createContext(null);
 
@@ -97,6 +98,8 @@ export function AuthProvider({ children }) {
     } catch (err) {
       setError(err.message);
       return { success: false, error: err.message };
+    } finally {
+      clearAllNarrativeCaches();
     }
   };
 

@@ -398,19 +398,12 @@ body {
   flex: 1;
   display: flex;
   justify-content: center;
-  /* Balance padding to keep nav centered while making room for UserMenu */
-  /* Reduced for mobile to prevent overflow */
-  padding-left: 2.5rem;
-  padding-right: 2.5rem;
+  /* Mobile: UserMenu is fixed FAB, no padding needed */
+  padding-left: 0;
+  padding-right: 0;
 }
 
-@media (min-width: 400px) {
-  .header-sticky__nav {
-    padding-left: 4rem;
-    padding-right: 4rem;
-  }
-}
-
+/* Desktop (sm+): UserMenu is absolutely positioned in header row, need padding */
 @media (min-width: 640px) {
   .header-sticky__nav {
     padding-left: 6rem;
@@ -445,7 +438,9 @@ body {
   border-radius: 999px;
 }
 
-@media (max-width: 399px) {
+/* Mobile: UserMenu as fixed FAB to avoid overlap with nav buttons */
+/* Extended to sm breakpoint (639px) to cover all mobile sizes */
+@media (max-width: 639px) {
   .header-sticky__user--fab {
     position: fixed;
     top: max(0.75rem, env(safe-area-inset-top, 0.5rem));

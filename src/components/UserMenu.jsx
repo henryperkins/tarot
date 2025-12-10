@@ -149,7 +149,7 @@ export function UserMenu({ condensed = false }) {
                 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60
                 focus-visible:ring-offset-2 focus-visible:ring-offset-main
                 ${condensed
-                  ? 'h-11 w-11 justify-center px-0 bg-surface/80 border-accent/30 hover:bg-surface hover:border-accent/50 active:bg-surface-muted sm:h-auto sm:w-auto sm:px-3 sm:justify-start'
+                  ? 'h-11 w-11 max-w-11 justify-center px-0 overflow-hidden bg-surface/80 border-accent/30 hover:bg-surface hover:border-accent/50 active:bg-surface-muted sm:h-auto sm:w-auto sm:max-w-none sm:px-3 sm:justify-start sm:overflow-visible'
                   : 'px-2 sm:px-3 bg-surface/50 border-accent/20 hover:bg-surface hover:border-accent/40 active:bg-surface-muted'
                 }
               `}

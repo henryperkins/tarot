@@ -82,6 +82,20 @@ export function loadStoredJournalInsights() {
   }
 }
 
+export function loadCoachStatsSnapshot() {
+  if (typeof localStorage === 'undefined') return null;
+  try {
+    const raw = localStorage.getItem(COACH_STATS_SNAPSHOT_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (!parsed?.stats) return null;
+    return parsed;
+  } catch (error) {
+    console.warn('Unable to load coach stats snapshot:', error);
+    return null;
+  }
+}
+
 export function persistCoachStatsSnapshot(stats, meta = {}) {
   if (typeof localStorage === 'undefined') return;
   try {
@@ -102,20 +116,6 @@ export function persistCoachStatsSnapshot(stats, meta = {}) {
     localStorage.setItem(COACH_STATS_SNAPSHOT_KEY, JSON.stringify(payload));
   } catch (error) {
     console.warn('Unable to persist coach stats snapshot:', error);
-  }
-}
-
-export function loadCoachStatsSnapshot() {
-  if (typeof localStorage === 'undefined') return null;
-  try {
-    const raw = localStorage.getItem(COACH_STATS_SNAPSHOT_KEY);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw);
-    if (!parsed?.stats) return null;
-    return parsed;
-  } catch (error) {
-    console.warn('Unable to load coach stats snapshot:', error);
-    return null;
   }
 }
 
@@ -683,6 +683,297 @@ export function computePreferenceDrift(entries, currentFocusAreas = []) {
 export function formatContextName(context) {
   if (!context || typeof context !== 'string') return '';
   return context.charAt(0).toUpperCase() + context.slice(1);
+}
+
+// ============================================================================
+// Major Arcana Utilities for Unified Journey
+// ============================================================================
+
+/**
+ * Major Arcana card numbers (0-21) mapped to names.
+ * Used for computing heatmap data from entries.
+ */
+const MAJOR_ARCANA = [
+  { number: 0, name: 'The Fool' },
+  { number: 1, name: 'The Magician' },
+  { number: 2, name: 'The High Priestess' },
+  { number: 3, name: 'The Empress' },
+  { number: 4, name: 'The Emperor' },
+  { number: 5, name: 'The Hierophant' },
+  { number: 6, name: 'The Lovers' },
+  { number: 7, name: 'The Chariot' },
+  { number: 8, name: 'Strength' },
+  { number: 9, name: 'The Hermit' },
+  { number: 10, name: 'Wheel of Fortune' },
+  { number: 11, name: 'Justice' },
+  { number: 12, name: 'The Hanged Man' },
+  { number: 13, name: 'Death' },
+  { number: 14, name: 'Temperance' },
+  { number: 15, name: 'The Devil' },
+  { number: 16, name: 'The Tower' },
+  { number: 17, name: 'The Star' },
+  { number: 18, name: 'The Moon' },
+  { number: 19, name: 'The Sun' },
+  { number: 20, name: 'Judgement' },
+  { number: 21, name: 'The World' },
+];
+
+/**
+ * Check if a card name is a Major Arcana card.
+ * @param {string} cardName - Card name to check
+ * @returns {{ isMajor: boolean, number: number | null, name: string | null }}
+ */
+function identifyMajorArcana(cardName) {
+  if (!cardName || typeof cardName !== 'string') {
+    return { isMajor: false, number: null, name: null };
+  }
+
+  const normalizedName = cardName.toLowerCase().trim();
+
+  for (const major of MAJOR_ARCANA) {
+    if (normalizedName === major.name.toLowerCase() ||
+        normalizedName.includes(major.name.toLowerCase())) {
+      return { isMajor: true, number: major.number, name: major.name };
+    }
+  }
+
+  return { isMajor: false, number: null, name: null };
+}
+
+/**
+ * Compute Major Arcana frequency map from journal entries.
+ * Returns an array suitable for heatmap visualization.
+ *
+ * @param {Array} entries - Journal entries
+ * @returns {Array<{ cardNumber: number; name: string; count: number }>}
+ */
+export function computeMajorArcanaMapFromEntries(entries) {
+  if (!Array.isArray(entries) || entries.length === 0) {
+    return [];
+  }
+
+  // Initialize counts for all Major Arcana
+  const counts = new Map();
+  MAJOR_ARCANA.forEach(major => {
+    counts.set(major.number, { cardNumber: major.number, name: major.name, count: 0 });
+  });
+
+  // Count appearances
+  entries.forEach(entry => {
+    const cards = Array.isArray(entry?.cards)
+      ? entry.cards
+      : (() => {
+          try {
+            return entry?.cards_json ? JSON.parse(entry.cards_json) : [];
+          } catch {
+            return [];
+          }
+        })();
+
+    cards.forEach(card => {
+      const cardName = card?.name || card?.card || '';
+      const { isMajor, number } = identifyMajorArcana(cardName);
+
+      if (isMajor && number !== null) {
+        const existing = counts.get(number);
+        if (existing) {
+          existing.count += 1;
+        }
+      }
+    });
+  });
+
+  return Array.from(counts.values());
+}
+
+/**
+ * Compute reading streak (consecutive days with readings) from entries.
+ *
+ * Counts backwards from today. Missing readings break the streak, EXCEPT:
+ * - Today (i === 0) is given a "grace period" — if no reading today, we check
+ *   from yesterday. This prevents losing a streak at midnight before the user
+ *   has had a chance to do their daily reading.
+ *
+ * Example: If today is Dec 10 with no reading, but Dec 9, 8, 7 all have readings,
+ * the streak is 3 (not 0).
+ *
+ * Note: This may differ from backend `currentStreak` calculations. When displaying
+ * streak values, prefer server data for authenticated unfiltered views.
+ *
+ * @param {Array} entries - Journal entries (should have ts or created_at field)
+ * @returns {number} Current streak in days (0 if no consecutive days found)
+ */
+export function computeStreakFromEntries(entries) {
+  if (!Array.isArray(entries) || entries.length === 0) {
+    return 0;
+  }
+
+  // Extract dates and normalize to day boundaries
+  const readingDates = new Set();
+
+  entries.forEach(entry => {
+    const timestamp = entry?.ts || (entry?.created_at ? entry.created_at * 1000 : null);
+    if (!timestamp) return;
+
+    const date = new Date(timestamp);
+    if (Number.isNaN(date.getTime())) return;
+
+    // Normalize to YYYY-MM-DD
+    const dateKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+    readingDates.add(dateKey);
+  });
+
+  if (readingDates.size === 0) return 0;
+
+  // Check streak from today backwards
+  let streak = 0;
+  const today = new Date();
+
+  for (let i = 0; i < 365; i++) { // Check up to a year
+    const checkDate = new Date(today);
+    checkDate.setDate(checkDate.getDate() - i);
+
+    const dateKey = `${checkDate.getFullYear()}-${String(checkDate.getMonth() + 1).padStart(2, '0')}-${String(checkDate.getDate()).padStart(2, '0')}`;
+
+    if (readingDates.has(dateKey)) {
+      streak += 1;
+    } else if (i === 0) {
+      // No reading today is OK - check from yesterday
+      continue;
+    } else {
+      // Gap found - streak ends
+      break;
+    }
+  }
+
+  return streak;
+}
+
+/**
+ * Compute "virtual" badges for cards appearing 3+ times in entries.
+ * These are not persisted to D1, just computed for filtered views.
+ *
+ * @param {Array} entries - Journal entries
+ * @returns {Array<{ card_name: string; count: number; earned_at: number; badge_type: string }>}
+ */
+export function computeBadgesFromEntries(entries) {
+  if (!Array.isArray(entries) || entries.length === 0) {
+    return [];
+  }
+
+  // Count card appearances
+  const cardCounts = new Map();
+
+  entries.forEach(entry => {
+    const cards = Array.isArray(entry?.cards)
+      ? entry.cards
+      : (() => {
+          try {
+            return entry?.cards_json ? JSON.parse(entry.cards_json) : [];
+          } catch {
+            return [];
+          }
+        })();
+
+    cards.forEach(card => {
+      const cardName = card?.name || card?.card || '';
+      if (!cardName) return;
+
+      const existing = cardCounts.get(cardName) || { count: 0, lastSeen: 0 };
+      existing.count += 1;
+
+      const ts = entry?.ts || (entry?.created_at ? entry.created_at * 1000 : 0);
+      if (ts > existing.lastSeen) {
+        existing.lastSeen = ts;
+      }
+
+      cardCounts.set(cardName, existing);
+    });
+  });
+
+  // Filter to cards with 3+ appearances and format as badges
+  const badges = [];
+
+  cardCounts.forEach((data, cardName) => {
+    if (data.count >= 3) {
+      badges.push({
+        card_name: cardName,
+        count: data.count,
+        earned_at: data.lastSeen,
+        badge_type: 'fire', // Streak badge type
+        badge_key: `streak_${cardName.toLowerCase().replace(/\s+/g, '_')}`,
+      });
+    }
+  });
+
+  // Sort by count descending, then by earned_at descending
+  badges.sort((a, b) => {
+    if (b.count !== a.count) return b.count - a.count;
+    return (b.earned_at || 0) - (a.earned_at || 0);
+  });
+
+  return badges;
+}
+
+/**
+ * Generate a journey story prose narrative from entries.
+ * Returns null when insufficient data (< 3 entries).
+ *
+ * @param {Array} entries - Journal entries
+ * @param {Object} options - Generation options
+ * @param {Object} options.precomputedStats - Optional precomputed stats (avoid recomputing)
+ * @returns {string|null} Journey story prose or null
+ */
+export function generateJourneyStory(entries, options = {}) {
+  if (!Array.isArray(entries) || entries.length < 3) {
+    return null;
+  }
+
+  // For now, return null - full implementation TBD
+  // This would ideally use an LLM to generate prose, but we can
+  // add a template-based version later
+
+  // Placeholder: compute basic stats for a simple narrative
+  const stats = options.precomputedStats || computeJournalStats(entries);
+  if (!stats) return null;
+
+  const topCard = stats.frequentCards?.[0];
+  // Clone before sorting to avoid mutating shared stats
+  const topContext = stats.contextBreakdown
+    ? [...stats.contextBreakdown].sort((a, b) => b.count - a.count)[0]
+    : undefined;
+  const themes = stats.recentThemes || [];
+
+  if (!topCard && !topContext && themes.length === 0) {
+    return null;
+  }
+
+  // Build a simple template-based story
+  const parts = [];
+
+  if (stats.totalReadings >= 3) {
+    parts.push(`Over ${stats.totalReadings} readings, your journey has been taking shape.`);
+  }
+
+  if (topCard) {
+    parts.push(`${topCard.name} has appeared ${topCard.count} time${topCard.count > 1 ? 's' : ''}, suggesting it holds particular significance for you right now.`);
+  }
+
+  if (topContext) {
+    const contextName = topContext.name.charAt(0).toUpperCase() + topContext.name.slice(1);
+    parts.push(`Your readings have centered on ${contextName.toLowerCase()} matters, signaling where your energy flows.`);
+  }
+
+  if (themes.length > 0) {
+    const themeText = themes.slice(0, 2).join(' and ');
+    parts.push(`Themes of ${themeText.toLowerCase()} weave through your recent readings.`);
+  }
+
+  if (parts.length < 2) {
+    return null; // Not enough content for a meaningful story
+  }
+
+  return parts.join(' ');
 }
 
 export {

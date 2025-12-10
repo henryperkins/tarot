@@ -8,11 +8,11 @@ import { useAuth } from '../contexts/AuthContext';
 import { usePreferences } from '../contexts/PreferencesContext';
 import { useJournal } from '../hooks/useJournal';
 import { JournalFilters } from './JournalFilters.jsx';
-import { JournalInsightsPanel, OUTLINE_BUTTON_CLASS } from './JournalInsightsPanel.jsx';
 import { InsightsErrorBoundary } from './InsightsErrorBoundary.jsx';
 import { JournalEntryCard } from './JournalEntryCard.jsx';
 import { SavedIntentionsList } from './SavedIntentionsList.jsx';
-import { ArchetypeJourneySection } from './ArchetypeJourneySection.jsx';
+import { OUTLINE_BUTTON_CLASS } from '../styles/buttonClasses';
+import { ReadingJourney } from './ReadingJourney';
 import { EmptyJournalIllustration } from './illustrations/EmptyJournalIllustration';
 import { NoFiltersIllustration } from './illustrations/NoFiltersIllustration';
 import { computeJournalStats, formatContextName } from '../lib/journalInsights';
@@ -112,7 +112,7 @@ function getTopContext(stats) {
 
 export default function Journal() {
   const { isAuthenticated, user } = useAuth();
-  const { shouldShowAccountNudge, dismissAccountNudge } = usePreferences();
+  const { shouldShowAccountNudge, dismissAccountNudge, personalization } = usePreferences();
   const { entries, loading, deleteEntry, migrateToCloud, error: journalError } = useJournal();
   const [migrating, setMigrating] = useState(false);
   const [deleteConfirmModal, setDeleteConfirmModal] = useState({ isOpen: false, entryId: null });
@@ -141,13 +141,32 @@ export default function Journal() {
   const isMobileLayout = useSmallScreen(MOBILE_LAYOUT_MAX);
   const isSmallSummary = useSmallScreen(640);
   const summaryRef = useRef(null);
-  const [summaryExpanded, setSummaryExpanded] = useState(() => !isSmallSummary);
   const [summaryInView, setSummaryInView] = useState(!isSmallSummary);
   const { publish: showToast } = useToast();
 
-  const handleStartReading = () => {
-    navigate('/', { state: { focusSpread: true } });
+  const handleStartReading = (suggestion) => {
+    navigate('/', {
+      state: {
+        focusSpread: true,
+        suggestedSpread: suggestion?.spread,
+        suggestedQuestion: suggestion?.text
+      }
+    });
   };
+
+  const locale = useMemo(() => {
+    if (typeof navigator !== 'undefined' && navigator.language) {
+      return navigator.language;
+    }
+    return 'en-US';
+  }, []);
+
+  const timezone = useMemo(() => {
+    if (typeof Intl !== 'undefined' && typeof Intl.DateTimeFormat === 'function') {
+      return Intl.DateTimeFormat().resolvedOptions().timeZone;
+    }
+    return undefined;
+  }, []);
 
   const filteredEntries = useMemo(() => {
     if (!entries || entries.length === 0) {
@@ -224,7 +243,6 @@ export default function Journal() {
   }, [filterSignature, filteredEntries.length]);
 
   useEffect(() => {
-    setSummaryExpanded(!isSmallSummary);
     setSummaryInView(!isSmallSummary);
   }, [isSmallSummary]);
 
@@ -389,7 +407,6 @@ export default function Journal() {
     }
   ], [primaryEntryCount, entrySecondaryLabel, primaryReversalRate, reversalSecondary, topContextLabel, topContextSecondary, summaryLastEntryLabel, summaryLastEntrySecondary]);
   const showSummaryBand = !loading && hasEntries;
-  const showInsightsContent = summaryExpanded && summaryInView;
   const CARD_CONNECTORS = [
     ['entries', 'reversal'],
     ['entries', 'context'],
@@ -594,35 +611,22 @@ export default function Journal() {
   const desktopRailContent = (!loading && hasEntries && !isMobileLayout) ? (
     <div className="space-y-6 lg:space-y-8 w-full">
       <div className="w-full">
-        <JournalFilters
-          filters={filters}
-          onChange={setFilters}
-          contexts={CONTEXT_FILTERS}
-          spreads={SPREAD_FILTERS}
-          decks={DECK_FILTERS}
-          variant="full"
-        />
+        <InsightsErrorBoundary>
+          <ReadingJourney
+            entries={entries}
+            filteredEntries={filteredEntries}
+            filtersActive={filtersActive}
+            isAuthenticated={isAuthenticated}
+            userId={user?.id}
+            focusAreas={personalization?.focusAreas}
+            locale={locale}
+            timezone={timezone}
+            variant="sidebar"
+            onCreateShareLink={isAuthenticated ? createShareLink : null}
+            onStartReading={handleStartReading}
+          />
+        </InsightsErrorBoundary>
       </div>
-      {(allStats || filteredStats) && (
-        <div className="w-full">
-          <InsightsErrorBoundary>
-            <JournalInsightsPanel
-              stats={filteredStats}
-              allStats={allStats}
-              entries={filteredEntries}
-              allEntries={entries}
-              isAuthenticated={isAuthenticated}
-              filtersActive={filtersActive}
-              onCreateShareLink={isAuthenticated ? createShareLink : null}
-            />
-          </InsightsErrorBoundary>
-        </div>
-      )}
-      {isAuthenticated && (
-        <div className="w-full">
-          <ArchetypeJourneySection isAuthenticated={isAuthenticated} userId={user?.id} showEmptyState />
-        </div>
-      )}
     </div>
   ) : null;
   const hasRailContent = !loading && hasEntries;
@@ -655,35 +659,23 @@ export default function Journal() {
   });
 
   const mobileRailContent = (!loading && hasEntries && isMobileLayout) ? (
-    <section className="mb-6 space-y-3 lg:hidden" aria-label="Journal filters, insights, and journey">
-      {renderMobileAccordionSection('filters', 'Filters', (
-        <JournalFilters
-          filters={filters}
-          onChange={setFilters}
-          contexts={CONTEXT_FILTERS}
-          spreads={SPREAD_FILTERS}
-          decks={DECK_FILTERS}
-          variant="compact"
+    <section className="mb-6 space-y-3 lg:hidden" aria-label="Journal insights and journey">
+      {/* Filters moved to Journal history section to avoid duplication */}
+      <InsightsErrorBoundary>
+        <ReadingJourney
+          entries={entries}
+          filteredEntries={filteredEntries}
+          filtersActive={filtersActive}
+          isAuthenticated={isAuthenticated}
+          userId={user?.id}
+          focusAreas={personalization?.focusAreas}
+          locale={locale}
+          timezone={timezone}
+          variant="mobile"
+          onCreateShareLink={isAuthenticated ? createShareLink : null}
+          onStartReading={handleStartReading}
         />
-      ), 'Narrow down your journal entries')}
-
-      {(allStats || filteredStats) && renderMobileAccordionSection('insights', 'Insights', (
-        <InsightsErrorBoundary>
-          <JournalInsightsPanel
-            stats={filteredStats}
-            allStats={allStats}
-            entries={filteredEntries}
-            allEntries={entries}
-            isAuthenticated={isAuthenticated}
-            filtersActive={filtersActive}
-            onCreateShareLink={isAuthenticated ? createShareLink : null}
-          />
-        </InsightsErrorBoundary>
-      ), 'Share, export, and view analytics')}
-
-      {isAuthenticated && renderMobileAccordionSection('archetype', 'Archetype journey', (
-        <ArchetypeJourneySection isAuthenticated={isAuthenticated} userId={user?.id} showEmptyState />
-      ), 'Track recurring cards in your readings')}
+      </InsightsErrorBoundary>
     </section>
   ) : null;
 
@@ -759,7 +751,7 @@ export default function Journal() {
               ref={summaryRef}
               className="relative mb-6 overflow-hidden rounded-3xl border border-amber-300/10 bg-gradient-to-br from-[#07091a] via-[#0a0c1a] to-[#050714] shadow-[0_24px_64px_-24px_rgba(0,0,0,0.95)]"
             >
-              {summaryExpanded && summaryInView && (
+              {summaryInView && (
                 <>
                   {/* Dense star field */}
                   <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden="true">
@@ -798,199 +790,181 @@ export default function Journal() {
               )}
 
               <div className="relative p-5 sm:p-6 lg:p-8">
-                {/* Header */}
-                <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-6 lg:mb-4">
-                  <div className="space-y-1">
-                    <p className="text-[10px] uppercase tracking-[0.3em] text-amber-300/50">Journal Pulse</p>
-                    <h2 className="text-xl sm:text-2xl font-serif text-amber-50/90">Your practice at a glance</h2>
-                  </div>
-                  <div className="flex flex-wrap items-center justify-end gap-2 sm:gap-3">
-                    {isSmallSummary && (
-                      <button
-                        type="button"
-                        onClick={() => setSummaryExpanded(prev => !prev)}
-                        aria-expanded={summaryExpanded}
-                        className="inline-flex items-center gap-2 rounded-full border border-amber-300/35 bg-amber-300/10 px-3 py-1.5 text-xs font-semibold text-amber-50 shadow-[0_12px_30px_-18px_rgba(251,191,36,0.6)] transition hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/50"
-                      >
-                        <Sparkle className="h-4 w-4" weight="fill" aria-hidden />
-                        {summaryExpanded ? 'Hide insights' : 'Show insights'}
-                      </button>
-                    )}
-                    <label className="flex items-center gap-2 text-xs text-amber-100/50 cursor-pointer select-none">
-                      <input
-                        type="checkbox"
-                        className="h-3.5 w-3.5 rounded border-amber-200/30 bg-transparent text-amber-300 focus:ring-amber-200/40 focus:ring-offset-0"
-                        checked={compactList}
-                        onChange={(event) => setCompactList(event.target.checked)}
-                      />
-                      Compact
-                    </label>
-                    <button
-                      type="button"
-                      onClick={handleStartReading}
-                      className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-amber-300 to-amber-400 px-4 py-2 text-sm font-semibold text-slate-900 shadow-lg shadow-amber-400/20 transition hover:shadow-amber-300/30 hover:-translate-y-0.5 active:translate-y-0"
-                    >
-                      <Sparkle className="h-4 w-4" weight="fill" aria-hidden />
-                      New Reading
-                    </button>
-                  </div>
+                {/* Header - Clean and simple */}
+                <div className="mb-5 lg:mb-4">
+                  <p className="text-[10px] uppercase tracking-[0.3em] text-amber-300/50 mb-1">Journal Pulse</p>
+                  <h2 className="text-xl sm:text-2xl font-serif text-amber-50/90">Your practice at a glance</h2>
                 </div>
 
-                {!showInsightsContent && (
-                  <div className="mb-3 flex flex-wrap gap-2" aria-live="polite">
-                    {summaryCardData.slice(0, 2).map((card) => (
-                      <span
-                        key={card.id}
-                        className="inline-flex items-center gap-2 rounded-full border border-amber-300/20 bg-amber-300/10 px-3 py-1 text-xs font-semibold text-amber-50"
-                      >
-                        <Sparkle className="h-3.5 w-3.5 text-amber-200" aria-hidden />
-                        {card.label}: {card.value}
-                      </span>
-                    ))}
-                  </div>
-                )}
-
-                {heroEntry && heroCards.length > 0 && (
-                  <div className="mb-4 flex flex-wrap justify-center gap-2.5">
-                    {heroCards.map((card, index) => {
-                      const isExpanded = expandedCardIndex === index;
-                      const canonical = getCanonicalCard(card);
-                      const isReversed = (card.orientation || '').toLowerCase().includes('reversed');
-                      const meaning = isReversed ? canonical?.reversed : canonical?.upright;
-                      const suitInfo = canonical?.suit ? SUIT_ELEMENTS[canonical.suit] : null;
-                      const isMajor = canonical?.number !== undefined;
-
+                {/* Mobile: Clean organized layout */}
+                <div className="lg:hidden space-y-4">
+                  {/* Stats row - 2 clean cards */}
+                  <div className="grid grid-cols-2 gap-3">
+                    {summaryCardData.slice(0, 2).map((stat) => {
+                      const icon = stat.id === 'entries'
+                        ? <Sparkle className="h-4 w-4" weight="fill" aria-hidden />
+                        : <ChartLine className="h-4 w-4" aria-hidden />;
                       return (
-                        <div key={card.id} className="flex items-stretch">
-                          <button
-                            type="button"
-                            aria-expanded={isExpanded}
-                            aria-label={`${card.name}, ${card.orientation}. Tap for insight.`}
-                            onClick={() => setExpandedCardIndex(isExpanded ? null : index)}
-                            className={`relative w-24 sm:w-28 flex-shrink-0 overflow-hidden rounded-xl border transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/60 ${
-                              isExpanded
-                                ? 'border-amber-400/40 ring-1 ring-amber-400/20 rounded-r-none'
-                                : 'border-amber-300/20 hover:border-amber-300/30'
-                            } bg-gradient-to-b from-[#120f1f] via-[#0c0a14] to-[#0a0911] shadow-[0_12px_32px_-20px_rgba(251,191,36,0.35)]`}
-                          >
-                            <div className="relative aspect-[2/3] overflow-hidden">
-                              <img
-                                src={card.image}
-                                alt={card.name}
-                                className="h-full w-full object-cover"
-                                loading="lazy"
-                              />
-                              <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/50 via-black/5 to-transparent" />
-                              {index === 0 && heroDateLabel && (
-                                <div className="absolute left-1.5 top-1.5 rounded-full bg-amber-300/25 px-1.5 py-0.5 text-[8px] font-semibold text-amber-50">
-                                  {heroDateLabel}
-                                </div>
-                              )}
-                            </div>
-                            <div className="px-2 pb-2 pt-1.5">
-                              <p className="font-serif text-xs text-amber-50 leading-tight truncate">{card.name}</p>
-                              <p className="text-[9px] text-amber-100/55">{card.orientation}</p>
-                            </div>
-                          </button>
-
-                          {/* Slide-out insight panel */}
-                          <div
-                            className={`overflow-hidden transition-all duration-300 ease-out ${
-                              isExpanded ? 'w-36 sm:w-40 opacity-100' : 'w-0 opacity-0'
-                            }`}
-                          >
-                            <div className="w-36 sm:w-40 h-full rounded-r-xl border-y border-r border-amber-400/25 bg-gradient-to-br from-[#12101c] to-[#0a0912] p-2 flex flex-col">
-                              <p className="text-[9px] uppercase tracking-wider text-amber-300/50 mb-1">
-                                {suitInfo ? suitInfo.element : isMajor ? 'Major Arcana' : 'Insight'}
-                              </p>
-                              {suitInfo && (
-                                <p className="text-[9px] text-amber-200/50 mb-1.5 leading-tight">
-                                  {suitInfo.quality}
-                                </p>
-                              )}
-                              <p className="text-[10px] text-amber-100/80 leading-relaxed overflow-hidden flex-1" style={{ display: '-webkit-box', WebkitLineClamp: suitInfo ? 4 : 5, WebkitBoxOrient: 'vertical' }}>
-                                {meaning || 'Explore this card\'s traditional symbolism and personal significance in your reading.'}
-                              </p>
-                            </div>
+                        <div
+                          key={stat.id}
+                          className="rounded-xl border border-amber-300/15 bg-gradient-to-b from-[#0f0d18] to-[#0a0912] p-3 text-center"
+                        >
+                          <div className="mx-auto mb-2 flex h-8 w-8 items-center justify-center rounded-full bg-amber-200/10 text-amber-200/70">
+                            {icon}
                           </div>
+                          <p className="text-2xl font-serif text-amber-50">{stat.value}</p>
+                          <p className="text-[10px] uppercase tracking-wider text-amber-100/50 mt-1">{stat.label}</p>
                         </div>
                       );
                     })}
                   </div>
-                )}
 
-                {showInsightsContent && (
-                  <div className="relative">
-                    {/* Mobile: 2x2 grid */}
-                    <div className="grid grid-cols-2 gap-3 lg:hidden">
-                      {statNodes.map((stat) => {
-                        const isHero = stat.id === 'entries';
-                        const icon = (() => {
-                          if (stat.id === 'entries') return <Sparkle className="h-4 w-4" weight="fill" aria-hidden />;
-                          if (stat.id === 'reversal') return <ChartLine className="h-4 w-4" aria-hidden />;
-                          if (stat.id === 'context') return <BookOpen className="h-4 w-4" aria-hidden />;
-                          return <ClockCounterClockwise className="h-4 w-4" aria-hidden />;
-                        })();
+                  {/* Hero card - Latest reading with clear tap affordance */}
+                  {heroEntry && heroCards.length > 0 && (() => {
+                    const card = heroCards[0];
+                    const canonical = getCanonicalCard(card);
+                    const isReversed = (card.orientation || '').toLowerCase().includes('reversed');
+                    const meaning = isReversed ? canonical?.reversed : canonical?.upright;
+                    const isExpanded = expandedCardIndex === 0;
+
+                    return (
+                      <button
+                        type="button"
+                        onClick={() => setExpandedCardIndex(isExpanded ? null : 0)}
+                        aria-expanded={isExpanded}
+                        aria-label={`${card.name}, ${card.orientation}. Tap for insight.`}
+                        className="w-full rounded-xl border border-amber-300/15 bg-gradient-to-b from-[#0f0d18] to-[#0a0912] p-3 text-left transition-all hover:border-amber-300/25 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/60"
+                      >
+                        <div className="flex items-center gap-3">
+                          {/* Card thumbnail */}
+                          <div className="relative w-14 h-20 flex-shrink-0 overflow-hidden rounded-lg border border-amber-300/20">
+                            <img
+                              src={card.image}
+                              alt={card.name}
+                              className="h-full w-full object-cover"
+                              loading="lazy"
+                            />
+                          </div>
+                          {/* Card info */}
+                          <div className="flex-1 min-w-0">
+                            <p className="text-[9px] uppercase tracking-wider text-amber-100/50 mb-0.5">Latest card</p>
+                            <p className="font-serif text-base text-amber-50 truncate">{card.name}</p>
+                            <p className="text-xs text-amber-100/60">{card.orientation} · {heroDateLabel}</p>
+                          </div>
+                          {/* Chevron indicator */}
+                          <div className={`flex-shrink-0 text-amber-200/50 transition-transform ${isExpanded ? 'rotate-180' : ''}`}>
+                            <CaretDown className="h-5 w-5" aria-hidden />
+                          </div>
+                        </div>
+                        {/* Expandable insight */}
+                        {isExpanded && meaning && (
+                          <div className="mt-3 pt-3 border-t border-amber-200/10">
+                            <p className="text-xs text-amber-100/80 leading-relaxed">{meaning}</p>
+                          </div>
+                        )}
+                      </button>
+                    );
+                  })()}
+
+                  {/* CTAs - Clear actions */}
+                  <div className="flex gap-3">
+                    <button
+                      type="button"
+                      onClick={handleStartReading}
+                      className="flex-1 inline-flex items-center justify-center gap-2 rounded-full bg-gradient-to-r from-amber-300 to-amber-400 px-4 py-3 text-sm font-semibold text-slate-900 shadow-lg shadow-amber-400/20 transition hover:shadow-amber-300/30 hover:-translate-y-0.5 active:translate-y-0 min-h-[44px]"
+                    >
+                      <Sparkle className="h-4 w-4" weight="fill" aria-hidden />
+                      New Reading
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const journeySection = document.querySelector('[aria-label="Journal insights and journey"]');
+                        if (journeySection) {
+                          journeySection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                        }
+                      }}
+                      className="flex-1 inline-flex items-center justify-center gap-2 rounded-full border border-amber-300/30 bg-amber-200/5 px-4 py-3 text-sm font-medium text-amber-100 transition hover:bg-amber-200/10 hover:border-amber-300/40 min-h-[44px]"
+                    >
+                      See Journey
+                      <CaretDown className="h-4 w-4" aria-hidden />
+                    </button>
+                  </div>
+                </div>
+
+                {/* Desktop: Keep expanded hero cards for larger screens */}
+                <div className="hidden lg:block">
+                  {heroEntry && heroCards.length > 0 && (
+                    <div className="mb-4 flex flex-wrap justify-center gap-2.5">
+                      {heroCards.map((card, index) => {
+                        const isExpanded = expandedCardIndex === index;
+                        const canonical = getCanonicalCard(card);
+                        const isReversed = (card.orientation || '').toLowerCase().includes('reversed');
+                        const meaning = isReversed ? canonical?.reversed : canonical?.upright;
+                        const suitInfo = canonical?.suit ? SUIT_ELEMENTS[canonical.suit] : null;
+                        const isMajor = canonical?.number !== undefined;
 
                         return (
-                          <div key={stat.id} className="group relative">
-                            {/* Card glow */}
-                            {isHero && (
-                              <div className="pointer-events-none absolute -inset-2 rounded-lg bg-amber-400/10 blur-xl" aria-hidden="true" />
-                            )}
-                            {/* Tarot card */}
-                            <div className={`relative overflow-hidden rounded-lg ${isHero ? 'ring-1 ring-amber-400/30' : 'ring-1 ring-amber-200/10'}`}>
-                              {/* Outer decorative border area with pattern */}
-                              <div className={`absolute inset-0 ${isHero ? 'bg-gradient-to-b from-amber-900/40 via-amber-950/30 to-amber-900/40' : 'bg-gradient-to-b from-amber-900/20 via-amber-950/15 to-amber-900/20'}`}>
-                                {/* Geometric card-back pattern */}
-                                <svg className="absolute inset-0 w-full h-full opacity-[0.08]" aria-hidden="true">
-                                  <defs>
-                                    <pattern id={`cardPattern-mobile-${stat.id}`} x="0" y="0" width="16" height="16" patternUnits="userSpaceOnUse">
-                                      <path d="M8 0L16 8L8 16L0 8Z" fill="none" stroke="currentColor" strokeWidth="0.5" className="text-amber-300" />
-                                      <circle cx="8" cy="8" r="2" fill="none" stroke="currentColor" strokeWidth="0.5" className="text-amber-300" />
-                                    </pattern>
-                                  </defs>
-                                  <rect width="100%" height="100%" fill={`url(#cardPattern-mobile-${stat.id})`} />
-                                </svg>
-                              </div>
-                              {/* Inner card frame */}
-                              <div className={`relative m-1.5 rounded overflow-hidden ${isHero ? 'bg-gradient-to-b from-[#0f0d18] via-[#0a0912] to-[#0f0d18]' : 'bg-gradient-to-b from-[#0c0a14] via-[#08070e] to-[#0c0a14]'}`}>
-                                <div className={`absolute inset-0 rounded border ${isHero ? 'border-amber-400/25' : 'border-amber-200/10'}`} />
-                                {/* Corner ornaments */}
-                                <svg className="absolute top-0 left-0 w-4 h-4 text-amber-400/40" viewBox="0 0 16 16" aria-hidden="true">
-                                  <path d="M0 8L0 0L8 0" fill="none" stroke="currentColor" strokeWidth="1" />
-                                  <circle cx="2" cy="2" r="1" fill="currentColor" />
-                                </svg>
-                                <svg className="absolute top-0 right-0 w-4 h-4 text-amber-400/40" viewBox="0 0 16 16" aria-hidden="true">
-                                  <path d="M16 8L16 0L8 0" fill="none" stroke="currentColor" strokeWidth="1" />
-                                  <circle cx="14" cy="2" r="1" fill="currentColor" />
-                                </svg>
-                                <svg className="absolute bottom-0 left-0 w-4 h-4 text-amber-400/40" viewBox="0 0 16 16" aria-hidden="true">
-                                  <path d="M0 8L0 16L8 16" fill="none" stroke="currentColor" strokeWidth="1" />
-                                  <circle cx="2" cy="14" r="1" fill="currentColor" />
-                                </svg>
-                                <svg className="absolute bottom-0 right-0 w-4 h-4 text-amber-400/40" viewBox="0 0 16 16" aria-hidden="true">
-                                  <path d="M16 8L16 16L8 16" fill="none" stroke="currentColor" strokeWidth="1" />
-                                  <circle cx="14" cy="14" r="1" fill="currentColor" />
-                                </svg>
-                                {/* Card content */}
-                                <div className="relative p-3 text-center">
-                                  <div className={`mx-auto mb-2 flex h-8 w-8 items-center justify-center rounded-full ${isHero ? 'bg-amber-400/20 text-amber-300 ring-1 ring-amber-400/30' : 'bg-amber-200/10 text-amber-200/60 ring-1 ring-amber-200/15'}`}>
-                                    {icon}
+                          <div key={card.id} className="flex items-stretch">
+                            <button
+                              type="button"
+                              aria-expanded={isExpanded}
+                              aria-label={`${card.name}, ${card.orientation}. Tap for insight.`}
+                              onClick={() => setExpandedCardIndex(isExpanded ? null : index)}
+                              className={`relative w-24 sm:w-28 flex-shrink-0 overflow-hidden rounded-xl border transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/60 ${
+                                isExpanded
+                                  ? 'border-amber-400/40 ring-1 ring-amber-400/20 rounded-r-none'
+                                  : 'border-amber-300/20 hover:border-amber-300/30'
+                              } bg-gradient-to-b from-[#120f1f] via-[#0c0a14] to-[#0a0911] shadow-[0_12px_32px_-20px_rgba(251,191,36,0.35)]`}
+                            >
+                              <div className="relative aspect-[2/3] overflow-hidden">
+                                <img
+                                  src={card.image}
+                                  alt={card.name}
+                                  className="h-full w-full object-cover"
+                                  loading="lazy"
+                                />
+                                <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/50 via-black/5 to-transparent" />
+                                {index === 0 && heroDateLabel && (
+                                  <div className="absolute left-1.5 top-1.5 rounded-full bg-amber-300/25 px-1.5 py-0.5 text-[8px] font-semibold text-amber-50">
+                                    {heroDateLabel}
                                   </div>
-                                  <p className={`text-[9px] uppercase tracking-[0.15em] mb-1 ${isHero ? 'text-amber-300/60' : 'text-amber-100/40'}`}>{stat.label}</p>
-                                  <p className={`font-serif leading-tight ${isHero ? 'text-2xl text-amber-100' : 'text-xl text-amber-50/80'}`}>{stat.value}</p>
-                                  {stat.hint && <p className={`mt-1 text-[10px] leading-snug ${isHero ? 'text-amber-200/40' : 'text-amber-100/25'}`}>{stat.hint}</p>}
-                                </div>
+                                )}
+                              </div>
+                              <div className="px-2 pb-2 pt-1.5">
+                                <p className="font-serif text-xs text-amber-50 leading-tight truncate">{card.name}</p>
+                                <p className="text-[9px] text-amber-100/55">{card.orientation}</p>
+                              </div>
+                            </button>
+
+                            {/* Slide-out insight panel */}
+                            <div
+                              className={`overflow-hidden transition-all duration-300 ease-out ${
+                                isExpanded ? 'w-36 sm:w-40 opacity-100' : 'w-0 opacity-0'
+                              }`}
+                            >
+                              <div className="w-36 sm:w-40 h-full rounded-r-xl border-y border-r border-amber-400/25 bg-gradient-to-br from-[#12101c] to-[#0a0912] p-2 flex flex-col">
+                                <p className="text-[9px] uppercase tracking-wider text-amber-300/50 mb-1">
+                                  {suitInfo ? suitInfo.element : isMajor ? 'Major Arcana' : 'Insight'}
+                                </p>
+                                {suitInfo && (
+                                  <p className="text-[9px] text-amber-200/50 mb-1.5 leading-tight">
+                                    {suitInfo.quality}
+                                  </p>
+                                )}
+                                <p className="text-[10px] text-amber-100/80 leading-relaxed overflow-hidden flex-1" style={{ display: '-webkit-box', WebkitLineClamp: suitInfo ? 4 : 5, WebkitBoxOrient: 'vertical' }}>
+                                  {meaning || 'Explore this card\'s traditional symbolism and personal significance in your reading.'}
+                                </p>
                               </div>
                             </div>
                           </div>
                         );
                       })}
                     </div>
+                  )}
 
-                    {/* Desktop: Constellation layout */}
-                    <div className="hidden lg:block relative" style={{ height: '340px' }}>
+                {/* Desktop: Constellation layout - only visible on large screens */}
+                  <div className="relative" style={{ height: '340px' }}>
                     {/* SVG constellation lines */}
                     <svg className="absolute inset-0 w-full h-full" aria-hidden="true">
                       <defs>
@@ -1286,7 +1260,6 @@ export default function Journal() {
                     })}
                   </div>
                 </div>
-                )}
               </div>
             </section>
           )}
@@ -1331,16 +1304,27 @@ export default function Journal() {
                   <section id="history" className={`${AMBER_SHELL_CLASS} p-5 space-y-5`}>
                     <AmberStarfield />
                     <div className="relative z-10 space-y-5">
-                      <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+                      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                         <div className="flex items-center gap-2">
                           <h2 className="text-xl font-serif text-amber-50">Journal history</h2>
                           <span className="inline-flex items-center rounded-full border border-amber-200/20 bg-amber-200/10 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-amber-100/75">
                             History
                           </span>
                         </div>
-                        <span className="inline-flex items-center gap-2 rounded-full border border-amber-200/20 bg-amber-200/10 px-3 py-1 text-[11px] text-amber-100/70">
-                          Showing {visibleEntries.length} of {filteredEntries.length}
-                        </span>
+                        <div className="flex items-center gap-3">
+                          <label className="flex items-center gap-2 text-xs text-amber-100/60 cursor-pointer select-none min-h-[44px]">
+                            <input
+                              type="checkbox"
+                              className="h-4 w-4 rounded border-amber-200/30 bg-transparent text-amber-300 focus:ring-amber-200/40 focus:ring-offset-0"
+                              checked={compactList}
+                              onChange={(event) => setCompactList(event.target.checked)}
+                            />
+                            Compact view
+                          </label>
+                          <span className="inline-flex items-center gap-2 rounded-full border border-amber-200/20 bg-amber-200/10 px-3 py-1 text-[11px] text-amber-100/70">
+                            {visibleEntries.length} of {filteredEntries.length}
+                          </span>
+                        </div>
                       </div>
 
                       <JournalFilters

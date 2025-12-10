@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { persistJournalInsights } from '../lib/journalInsights';
+import { invalidateNarrativeCache } from '../lib/safeStorage';
 import { dedupeEntries } from '../../shared/journal/dedupe.js';
 
 const LOCALSTORAGE_KEY = 'tarot_journal';
@@ -15,7 +16,7 @@ const CACHE_KEY = 'tarot_journal_cache';
  * This provides backward compatibility while enabling cloud sync for auth users
  */
 export function useJournal({ autoLoad = true } = {}) {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
   const [entries, setEntries] = useState([]);
   const [loading, setLoading] = useState(autoLoad);
   const [error, setError] = useState(null);
@@ -161,6 +162,12 @@ export function useJournal({ autoLoad = true } = {}) {
           trackCardAppearances(entry.cards, newEntry.ts);
         }
 
+        // Invalidate narrative cache since entry data has changed
+        // Guard: only invalidate if we have a valid userId to avoid clearing all caches
+        if (user?.id) {
+          invalidateNarrativeCache(user.id);
+        }
+
         return { success: true, entry: newEntry };
       } else {
         // Save to localStorage
@@ -246,6 +253,12 @@ export function useJournal({ autoLoad = true } = {}) {
           }
           return next;
         });
+
+        // Invalidate narrative cache since entry data has changed
+        // Guard: only invalidate if we have a valid userId to avoid clearing all caches
+        if (user?.id) {
+          invalidateNarrativeCache(user.id);
+        }
 
         return { success: true };
       } else {
@@ -390,6 +403,12 @@ export function useJournal({ autoLoad = true } = {}) {
 
       // Reload entries from API
       await loadEntries();
+
+      // Invalidate narrative cache since entry data has changed
+      // Guard: only invalidate if we have a valid userId to avoid clearing all caches
+      if (migrated > 0 && user?.id) {
+        invalidateNarrativeCache(user.id);
+      }
 
       return {
         success: true,
