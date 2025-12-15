@@ -29,7 +29,12 @@ const SPINE_ELEMENTS = {
 };
 
 const MIN_SENTENCE_WORDS = 5;
-const CARD_HEADER_PATTERN = /^[\w\s]+[:\-–]/;
+// Match actual card headers, position indicators, or spine labels - NOT general sentences
+// Must be short (≤40 chars before colon) to avoid false positives like "You might experiment today:"
+// Supports optional bold markers (**) and common tarot header formats:
+//   "The Fool:", "**The Fool:**", "The Fool Upright:", "Ace of Cups:"
+//   "Position 1:", "Card 2:", "WHAT:", "**WHY:**", "WHAT'S NEXT:"
+const CARD_HEADER_PATTERN = /^(?:\*\*)?[\w\s']{1,40}(?:\*\*)?[:\-–]/;
 const MINOR_ARCANA_PATTERN = /\b(?:ace|two|three|four|five|six|seven|eight|nine|ten|page|knight|queen|king)\s+of\s+(?:wands|cups|swords|pentacles)\b/i;
 const MAJOR_ARCANA_NAMES = [
   'fool',

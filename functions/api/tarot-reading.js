@@ -657,11 +657,14 @@ export const onRequestPost = async ({ request, env, waitUntil }) => {
           throw new Error('Backend returned empty narrative.');
         }
 
-        // Capture prompts if available
-        if (typeof backendResult === 'object' && backendResult.prompts) {
-          capturedPrompts = backendResult.prompts;
-          capturedUsage = backendResult.usage;
-        }
+        // Capture prompt/usage for this attempt, but only associate it with the request
+        // AFTER the quality gate passes (prevents persisting prompts from a backend that we reject).
+        const attemptPrompts = (typeof backendResult === 'object' && backendResult.prompts)
+          ? backendResult.prompts
+          : null;
+        const attemptUsage = (typeof backendResult === 'object' && backendResult.usage)
+          ? backendResult.usage
+          : null;
 
         const graphRAGAlerts = collectGraphRAGAlerts(narrativePayload.promptMeta || {});
         if (graphRAGAlerts.length) {
@@ -705,9 +708,19 @@ export const onRequestPost = async ({ request, env, waitUntil }) => {
         }
 
         // Enforce spine completeness beyond mere section presence
+        // The prompt instructs the LLM to "LOOSELY follow" the spine structure, and explicitly
+        // says the Opening should have "felt experience BEFORE introducing frameworks".
+        // Spine labels (**WHAT**, **WHY**, **WHAT'S NEXT**) are specified for "card sections",
+        // not structural sections like Opening, Gentle Next Steps, and Closing.
+        // Therefore, we require 50% of sections to be complete (typically 2-3 card sections
+        // out of 5 total), not 100%.
         const spine = qualityMetrics.spine || null;
-        if (spine && spine.totalSections > 0 && spine.isValid === false) {
-          qualityIssues.push(`incomplete spine (${spine.completeSections || 0}/${spine.totalSections})`);
+        const MIN_SPINE_COMPLETION = 0.5;
+        if (spine && spine.totalSections > 0) {
+          const spineRatio = (spine.completeSections || 0) / spine.totalSections;
+          if (spineRatio < MIN_SPINE_COMPLETION) {
+            qualityIssues.push(`incomplete spine (${spine.completeSections || 0}/${spine.totalSections}, need ${Math.ceil(MIN_SPINE_COMPLETION * 100)}%)`);
+          }
         }
 
         // Check narrative has at least one section (basic structure validation)
@@ -719,6 +732,10 @@ export const onRequestPost = async ({ request, env, waitUntil }) => {
           console.warn(`[${requestId}] Backend ${backend.id} failed quality gate: ${qualityIssues.join('; ')}`);
           throw new Error(`Narrative failed quality checks: ${qualityIssues.join('; ')}`);
         }
+
+        // Associate captured prompts/usage with the accepted backend attempt only.
+        capturedPrompts = attemptPrompts;
+        capturedUsage = attemptUsage;
 
         reading = result;
         provider = backend.id;
