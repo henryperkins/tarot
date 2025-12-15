@@ -262,7 +262,7 @@ export async function callLlmApi(prompt, metadata, options = {}) {
  * @returns {Promise<Object>} { question: string, source: 'api'|'local' }
  */
 export async function buildCreativeQuestion({ topic, timeframe, depth, customFocus, seed, focusAreas }, options = {}) {
-  const { signal } = options;
+  const { signal, userId = null } = options;
   const topicData = INTENTION_TOPIC_OPTIONS.find(option => option.value === topic) || INTENTION_TOPIC_OPTIONS[0];
   const timeframeData = INTENTION_TIMEFRAME_OPTIONS.find(option => option.value === timeframe) || INTENTION_TIMEFRAME_OPTIONS[0];
   const depthData = INTENTION_DEPTH_OPTIONS.find(option => option.value === depth) || INTENTION_DEPTH_OPTIONS[0];
@@ -273,7 +273,7 @@ export async function buildCreativeQuestion({ topic, timeframe, depth, customFoc
     ? focusAreas.map(area => (typeof area === 'string' ? area.trim() : '')).filter(Boolean)
     : [];
 
-  const insights = loadStoredJournalInsights();
+  const insights = loadStoredJournalInsights(userId);
   const stats = insights?.stats || null;
   const recentThemes = stats?.recentThemes || [];
   const frequentCard = stats?.frequentCards?.[0]?.name || null;

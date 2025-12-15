@@ -1,7 +1,8 @@
 import { normalizeContext } from './narrative/helpers.js';
 
 const SPREAD_CONTEXT_DEFAULTS = {
-  relationship: 'love'
+  relationship: 'love',
+  decision: 'decision'
 };
 
 const CONTEXT_KEYWORDS = {
@@ -54,15 +55,9 @@ const CONTEXT_KEYWORDS = {
     'self',
     'myself',
     'personal',
-    'healing',
-    'heal',
-    'wellbeing',
-    'well-being',
-    'wellness',
     'growth',
     'confidence',
     'mindset',
-    'mental health',
     'boundary',
     'boundaries',
     'shadow',
@@ -94,6 +89,49 @@ const CONTEXT_KEYWORDS = {
     'guides',
     'universe',
     'divine'
+  ],
+  wellbeing: [
+    'wellbeing',
+    'well-being',
+    'wellness',
+    'health',
+    'healthy',
+    'healing',
+    'heal',
+    'mental health',
+    'physical',
+    'body',
+    'stress',
+    'anxiety',
+    'depression',
+    'rest',
+    'sleep',
+    'balance',
+    'burnout',
+    'exhaustion',
+    'recovery',
+    'self-care'
+  ],
+  decision: [
+    'decision',
+    'decide',
+    'deciding',
+    'choose',
+    'choice',
+    'choices',
+    'choosing',
+    'crossroads',
+    'path',
+    'direction',
+    'option',
+    'options',
+    'should i',
+    'which way',
+    'what to do',
+    'dilemma',
+    'uncertain',
+    'fork in the road',
+    'or should i'
   ]
 };
 
@@ -126,7 +164,9 @@ export function inferContext(userQuestion, spreadKey, options = {}) {
     love: 0,
     career: 0,
     self: 0,
-    spiritual: 0
+    spiritual: 0,
+    wellbeing: 0,
+    decision: 0
   };
 
   for (const [context, keywords] of Object.entries(CONTEXT_KEYWORDS)) {
@@ -146,8 +186,9 @@ export function inferContext(userQuestion, spreadKey, options = {}) {
       bestScore = score;
       bestContext = context;
     } else if (score === bestScore && score > 0) {
-      // Tie-breaker priority: love > career > self > spiritual
-      const priority = ['love', 'career', 'self', 'spiritual'];
+      // Tie-breaker priority: decision > wellbeing > love > career > self > spiritual
+      // decision/wellbeing first since they're more specific intents
+      const priority = ['decision', 'wellbeing', 'love', 'career', 'self', 'spiritual'];
       if (priority.indexOf(context) < priority.indexOf(bestContext)) {
         bestContext = context;
       }

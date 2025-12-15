@@ -306,3 +306,79 @@ describe('prompt builder resilience', () => {
     assert.equal(promptMeta.graphRAG.passagesProvided, 1);
   });
 });
+
+describe('cardsInfo validation guard', () => {
+  it('throws TypeError with clear message when cardsInfo is undefined', () => {
+    assert.throws(
+      () => buildEnhancedClaudePrompt({
+        spreadInfo: { name: 'One-Card Insight' },
+        cardsInfo: undefined,
+        userQuestion: 'test'
+      }),
+      {
+        name: 'TypeError',
+        message: /cardsInfo must be a non-empty array.*Received: undefined/
+      }
+    );
+  });
+
+  it('throws TypeError with clear message when cardsInfo is null', () => {
+    assert.throws(
+      () => buildEnhancedClaudePrompt({
+        spreadInfo: { name: 'One-Card Insight' },
+        cardsInfo: null,
+        userQuestion: 'test'
+      }),
+      {
+        name: 'TypeError',
+        message: /cardsInfo must be a non-empty array.*Received: null/
+      }
+    );
+  });
+
+  it('throws TypeError with clear message when cardsInfo is empty array', () => {
+    assert.throws(
+      () => buildEnhancedClaudePrompt({
+        spreadInfo: { name: 'One-Card Insight' },
+        cardsInfo: [],
+        userQuestion: 'test'
+      }),
+      {
+        name: 'TypeError',
+        message: /cardsInfo must be a non-empty array.*length: 0/
+      }
+    );
+  });
+
+  it('throws TypeError when cardsInfo is a non-array object', () => {
+    assert.throws(
+      () => buildEnhancedClaudePrompt({
+        spreadInfo: { name: 'One-Card Insight' },
+        cardsInfo: { card: 'The Fool' },
+        userQuestion: 'test'
+      }),
+      {
+        name: 'TypeError',
+        message: /cardsInfo must be a non-empty array/
+      }
+    );
+  });
+
+  it('accepts valid non-empty cardsInfo array', () => {
+    const { userPrompt } = buildEnhancedClaudePrompt({
+      spreadInfo: { name: 'One-Card Insight' },
+      cardsInfo: [
+        { card: 'The Fool', position: 'Theme', number: 0, orientation: 'Upright', meaning: 'New beginnings.' }
+      ],
+      userQuestion: 'test',
+      reflectionsText: '',
+      themes: null,
+      spreadAnalysis: null,
+      context: 'general',
+      visionInsights: [],
+      deckStyle: 'rws-1909'
+    });
+    assert.ok(userPrompt.length > 0, 'Valid cardsInfo should produce a prompt');
+    assert.ok(userPrompt.includes('The Fool'), 'Prompt should reference the card');
+  });
+});

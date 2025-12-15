@@ -3,11 +3,25 @@ import { buildThemeQuestion, normalizeThemeLabel } from './themeText.js';
 
 export { computeJournalStats, REVERSED_PATTERN };
 
-const JOURNAL_INSIGHTS_STORAGE_KEY = 'tarot_journal_insights';
+const JOURNAL_INSIGHTS_STORAGE_KEY_PREFIX = 'tarot_journal_insights';
 const SHARE_TOKEN_STORAGE_KEY = 'tarot_journal_share_tokens';
-const COACH_RECOMMENDATION_KEY = 'tarot_coach_recommendation';
-const COACH_STATS_SNAPSHOT_KEY = 'tarot_coach_stats_snapshot';
+const COACH_RECOMMENDATION_KEY_PREFIX = 'tarot_coach_recommendation';
+const COACH_STATS_SNAPSHOT_KEY_PREFIX = 'tarot_coach_stats_snapshot';
 const COACH_RECOMMENDATION_TTL = 24 * 60 * 60 * 1000; // 24 hours
+
+/**
+ * Get user-scoped storage key to prevent data leakage across accounts
+ * @param {string} prefix - Key prefix
+ * @param {string|null} userId - User ID or null for anonymous
+ * @returns {string} Scoped storage key
+ */
+function getScopedKey(prefix, userId) {
+  if (!userId) return `${prefix}_anon`;
+  return `${prefix}_${userId}`;
+}
+
+// Legacy key for backwards compatibility (will be migrated on first access)
+const LEGACY_JOURNAL_INSIGHTS_KEY = 'tarot_journal_insights';
 
 function normalizeCoachRecommendation(recommendation) {
   if (!recommendation || typeof recommendation !== 'object') return recommendation;
@@ -45,36 +59,97 @@ export function buildCardInsightPayload(card) {
   };
 }
 
-export function persistJournalInsights(entries) {
-  if (typeof localStorage === 'undefined') return null;
+/**
+ * Persist journal insights to user-scoped localStorage
+ * @param {Array} entries - Journal entries
+ * @param {string|null} userId - User ID for scoping (null for anonymous)
+ * @returns {{ payload: Object|null, error: Error|null }}
+ */
+export function persistJournalInsights(entries, userId = null) {
+  if (typeof localStorage === 'undefined') {
+    return { payload: null, error: new Error('localStorage not available') };
+  }
+  const storageKey = getScopedKey(JOURNAL_INSIGHTS_STORAGE_KEY_PREFIX, userId);
   const stats = computeJournalStats(entries);
   if (!stats) {
     try {
-      localStorage.removeItem(JOURNAL_INSIGHTS_STORAGE_KEY);
+      localStorage.removeItem(storageKey);
     } catch (error) {
       console.warn('Unable to clear journal insights cache:', error);
     }
-    return null;
+    return { payload: null, error: null };
   }
   const payload = {
     stats,
+    userId: userId || null,
     updatedAt: Date.now()
   };
   try {
-    localStorage.setItem(JOURNAL_INSIGHTS_STORAGE_KEY, JSON.stringify(payload));
+    localStorage.setItem(storageKey, JSON.stringify(payload));
+    return { payload, error: null };
   } catch (error) {
     console.warn('Unable to persist journal insights:', error);
+    return { payload: null, error };
   }
-  return payload;
 }
 
-export function loadStoredJournalInsights() {
+/**
+ * Clear journal insights cache for a specific user
+ * @param {string|null} userId - User ID to clear (null for anonymous)
+ */
+export function clearJournalInsightsCache(userId = null) {
+  if (typeof localStorage === 'undefined') return;
+  try {
+    const storageKey = getScopedKey(JOURNAL_INSIGHTS_STORAGE_KEY_PREFIX, userId);
+    localStorage.removeItem(storageKey);
+    // Clear legacy unscoped cache key (safety: avoid cross-account leakage).
+    localStorage.removeItem(LEGACY_JOURNAL_INSIGHTS_KEY);
+    // Also clear coach recommendation for this user
+    const coachKey = getScopedKey(COACH_RECOMMENDATION_KEY_PREFIX, userId);
+    localStorage.removeItem(coachKey);
+    const statsKey = getScopedKey(COACH_STATS_SNAPSHOT_KEY_PREFIX, userId);
+    localStorage.removeItem(statsKey);
+  } catch (error) {
+    console.warn('Unable to clear journal insights cache:', error);
+  }
+}
+
+/**
+ * Load stored journal insights for a user
+ * @param {string|null} userId - User ID for scoping (null for anonymous)
+ * @returns {Object|null} Stored insights or null
+ */
+export function loadStoredJournalInsights(userId = null) {
   if (typeof localStorage === 'undefined') return null;
   try {
-    const raw = localStorage.getItem(JOURNAL_INSIGHTS_STORAGE_KEY);
+    const storageKey = getScopedKey(JOURNAL_INSIGHTS_STORAGE_KEY_PREFIX, userId);
+    let raw = localStorage.getItem(storageKey);
+
+    // Legacy migration: only migrate unscoped data into the anonymous bucket.
+    // Never auto-assign legacy data to an authenticated userId, since the legacy
+    // cache could have been written by a different account on shared devices.
+    if (!raw && !userId) {
+      const legacyRaw = localStorage.getItem(LEGACY_JOURNAL_INSIGHTS_KEY);
+      if (legacyRaw) {
+        try {
+          localStorage.setItem(storageKey, legacyRaw);
+          localStorage.removeItem(LEGACY_JOURNAL_INSIGHTS_KEY);
+          raw = legacyRaw;
+        } catch (e) {
+          console.warn('Failed to migrate legacy insights:', e);
+        }
+      }
+    }
+
     if (!raw) return null;
     const parsed = JSON.parse(raw);
     if (!parsed?.stats) return null;
+    if (userId && parsed.userId !== userId) {
+      return null;
+    }
+    if (!userId && typeof parsed.userId === 'string') {
+      return null;
+    }
     return parsed;
   } catch (error) {
     console.warn('Unable to load journal insights cache:', error);
@@ -82,10 +157,16 @@ export function loadStoredJournalInsights() {
   }
 }
 
-export function loadCoachStatsSnapshot() {
+/**
+ * Load coach stats snapshot for a user
+ * @param {string|null} userId - User ID for scoping (null for anonymous)
+ * @returns {Object|null} Stored stats snapshot or null
+ */
+export function loadCoachStatsSnapshot(userId = null) {
   if (typeof localStorage === 'undefined') return null;
   try {
-    const raw = localStorage.getItem(COACH_STATS_SNAPSHOT_KEY);
+    const storageKey = getScopedKey(COACH_STATS_SNAPSHOT_KEY_PREFIX, userId);
+    const raw = localStorage.getItem(storageKey);
     if (!raw) return null;
     const parsed = JSON.parse(raw);
     if (!parsed?.stats) return null;
@@ -96,15 +177,23 @@ export function loadCoachStatsSnapshot() {
   }
 }
 
-export function persistCoachStatsSnapshot(stats, meta = {}) {
+/**
+ * Persist coach stats snapshot for a user
+ * @param {Object} stats - Stats to persist
+ * @param {Object} meta - Metadata
+ * @param {string|null} userId - User ID for scoping (null for anonymous)
+ */
+export function persistCoachStatsSnapshot(stats, meta = {}, userId = null) {
   if (typeof localStorage === 'undefined') return;
   try {
+    const storageKey = getScopedKey(COACH_STATS_SNAPSHOT_KEY_PREFIX, userId);
     if (!stats) {
-      localStorage.removeItem(COACH_STATS_SNAPSHOT_KEY);
+      localStorage.removeItem(storageKey);
       return;
     }
     const payload = {
       stats,
+      userId: userId || null,
       meta: {
         filtersActive: Boolean(meta.filtersActive),
         filterLabel: meta.filterLabel || null,
@@ -113,7 +202,7 @@ export function persistCoachStatsSnapshot(stats, meta = {}) {
       },
       updatedAt: Date.now()
     };
-    localStorage.setItem(COACH_STATS_SNAPSHOT_KEY, JSON.stringify(payload));
+    localStorage.setItem(storageKey, JSON.stringify(payload));
   } catch (error) {
     console.warn('Unable to persist coach stats snapshot:', error);
   }
@@ -248,32 +337,45 @@ export function revokeShareToken(token) {
   }
 }
 
-export function saveCoachRecommendation(recommendation) {
+/**
+ * Save coach recommendation for a user
+ * @param {Object} recommendation - Recommendation to save
+ * @param {string|null} userId - User ID for scoping (null for anonymous)
+ */
+export function saveCoachRecommendation(recommendation, userId = null) {
   if (typeof localStorage === 'undefined') return;
   try {
+    const storageKey = getScopedKey(COACH_RECOMMENDATION_KEY_PREFIX, userId);
     if (!recommendation) {
-      localStorage.removeItem(COACH_RECOMMENDATION_KEY);
+      localStorage.removeItem(storageKey);
       return;
     }
     const normalized = normalizeCoachRecommendation(recommendation);
     const payload = {
       ...normalized,
+      userId: userId || null,
       updatedAt: Date.now()
     };
-    localStorage.setItem(COACH_RECOMMENDATION_KEY, JSON.stringify(payload));
+    localStorage.setItem(storageKey, JSON.stringify(payload));
   } catch (error) {
     console.warn('Unable to save coach recommendation:', error);
   }
 }
 
-export function loadCoachRecommendation() {
+/**
+ * Load coach recommendation for a user
+ * @param {string|null} userId - User ID for scoping (null for anonymous)
+ * @returns {Object|null} Stored recommendation or null
+ */
+export function loadCoachRecommendation(userId = null) {
   if (typeof localStorage === 'undefined') return null;
   try {
-    const raw = localStorage.getItem(COACH_RECOMMENDATION_KEY);
+    const storageKey = getScopedKey(COACH_RECOMMENDATION_KEY_PREFIX, userId);
+    const raw = localStorage.getItem(storageKey);
     if (!raw) return null;
     const parsed = JSON.parse(raw);
     if (parsed?.updatedAt && (Date.now() - parsed.updatedAt) > COACH_RECOMMENDATION_TTL) {
-      localStorage.removeItem(COACH_RECOMMENDATION_KEY);
+      localStorage.removeItem(storageKey);
       return null;
     }
     return normalizeCoachRecommendation(parsed);
@@ -976,9 +1078,11 @@ export function generateJourneyStory(entries, options = {}) {
   return parts.join(' ');
 }
 
+// Export key prefixes for external clear operations (e.g., logout)
 export {
-  JOURNAL_INSIGHTS_STORAGE_KEY,
+  JOURNAL_INSIGHTS_STORAGE_KEY_PREFIX,
   SHARE_TOKEN_STORAGE_KEY,
-  COACH_RECOMMENDATION_KEY,
-  registerShareToken
+  COACH_RECOMMENDATION_KEY_PREFIX,
+  registerShareToken,
+  getScopedKey
 };

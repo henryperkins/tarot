@@ -46,6 +46,17 @@ export function useSaveReading() {
             return;
         }
         const spreadInfo = getSpreadInfo(selectedSpread);
+
+        // Ensure context is a string, not an object (graphContext can be an object)
+        // Prioritize analysisContext (string) over graphContext (object)
+        let contextValue = null;
+        if (typeof analysisContext === 'string' && analysisContext) {
+            contextValue = analysisContext;
+        } else if (typeof readingMeta?.context === 'string' && readingMeta.context) {
+            contextValue = readingMeta.context;
+        }
+        // Don't use graphContext as context - it's an object (knowledgeGraph data)
+
         const entry = {
             spread: spreadInfo?.name || 'Tarot Spread',
             spreadKey: selectedSpread,
@@ -63,10 +74,12 @@ export function useSaveReading() {
             personalReading: personalReading?.raw || personalReading?.normalized || '',
             themes: themes || null,
             reflections: reflections || {},
-            context: analysisContext || readingMeta?.graphContext || null,
+            context: contextValue,
             provider: personalReading?.provider || readingMeta?.provider || 'local',
             sessionSeed,
             deckId: deckStyleId,
+            // Request ID for API tracing/correlation
+            requestId: readingMeta?.requestId || null,
             // Snapshot of user preferences at the time of the reading (Phase 5.1)
             userPreferences: personalization ? {
                 readingTone: personalization.readingTone || 'balanced',

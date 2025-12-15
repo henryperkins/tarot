@@ -7,6 +7,17 @@ function normalizeEntriesArray(entries) {
   return entries.filter(Boolean);
 }
 
+function getEntryTimestampMs(entry) {
+  if (!entry) return null;
+  const ts = Number(entry.ts);
+  if (Number.isFinite(ts)) return ts;
+  const createdAt = Number(entry.created_at);
+  if (Number.isFinite(createdAt)) return createdAt * 1000;
+  const updatedAt = Number(entry.updated_at);
+  if (Number.isFinite(updatedAt)) return updatedAt * 1000;
+  return null;
+}
+
 export function extractRecentThemes(entries, limit = 4) {
   const safeEntries = normalizeEntriesArray(entries);
   if (safeEntries.length === 0) {
@@ -17,8 +28,8 @@ export function extractRecentThemes(entries, limit = 4) {
   const results = [];
 
   const sorted = [...safeEntries].sort((a, b) => {
-    const tsA = a?.ts || a?.created_at || 0;
-    const tsB = b?.ts || b?.created_at || 0;
+    const tsA = getEntryTimestampMs(a) || 0;
+    const tsB = getEntryTimestampMs(b) || 0;
     return tsB - tsA;
   });
 
@@ -64,11 +75,8 @@ export function computeJournalStats(entries) {
     const contextKey = entry?.context || 'general';
     contextMap.set(contextKey, (contextMap.get(contextKey) || 0) + 1);
 
-    const entryDate = entry?.ts
-      ? new Date(entry.ts)
-      : entry?.created_at
-        ? new Date(entry.created_at * 1000)
-        : null;
+    const entryTimestamp = getEntryTimestampMs(entry);
+    const entryDate = entryTimestamp ? new Date(entryTimestamp) : null;
 
     if (entryDate && !Number.isNaN(entryDate.getTime())) {
       const monthKey = `${entryDate.getFullYear()}-${String(entryDate.getMonth() + 1).padStart(2, '0')}`;

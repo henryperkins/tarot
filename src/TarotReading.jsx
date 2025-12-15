@@ -17,6 +17,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import './styles/tarot.css';
 
 // Hooks & Contexts
+import { useAuth } from './contexts/AuthContext';
 import { usePreferences } from './contexts/PreferencesContext';
 import { useReading } from './contexts/ReadingContext';
 import { useSaveReading } from './hooks/useSaveReading';
@@ -32,6 +33,9 @@ const STEP_PROGRESS_STEPS = [
 ];
 
 export default function TarotReading() {
+  const { user, loading: authLoading } = useAuth();
+  const userId = user?.id || null;
+
   // --- 1. Global Preferences (Context) ---
   const {
     // Theme
@@ -111,12 +115,7 @@ export default function TarotReading() {
   // --- 3. Local View State & Wiring ---
   // UI Specifics
   const [apiHealthBanner, setApiHealthBanner] = useState(null);
-  // Load coach recommendation from localStorage on initial render
-  const [coachRecommendation, setCoachRecommendation] = useState(() => {
-    if (typeof window === 'undefined') return null;
-    const rec = loadCoachRecommendation();
-    return rec?.question ? rec : null;
-  });
+  const [coachRecommendation, setCoachRecommendation] = useState(null);
   const [pendingCoachPrefill, setPendingCoachPrefill] = useState(null);
   const [isIntentionCoachOpen, setIsIntentionCoachOpen] = useState(false);
   const [placeholderIndex, setPlaceholderIndex] = useState(0);
@@ -137,6 +136,15 @@ export default function TarotReading() {
   const pendingFocusSpreadRef = useRef(false);
 
   // --- Effects & Helpers ---
+
+  // Load coach recommendation from localStorage once auth state resolves.
+  // Keeps recommendations scoped to the active account.
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    if (authLoading) return;
+    const rec = loadCoachRecommendation(userId);
+    setCoachRecommendation(rec?.question ? rec : null);
+  }, [authLoading, userId]);
 
   // Reset analysis state when Shuffle is triggered
   // (Handled in ReadingContext now, but we might need to clear local UI state if any)
@@ -325,14 +333,14 @@ export default function TarotReading() {
     }
     setPendingCoachPrefill(coachRecommendation);
     setIsIntentionCoachOpen(true);
-    saveCoachRecommendation(null);
+    saveCoachRecommendation(null, userId);
     setCoachRecommendation(null);
-  }, [coachRecommendation, selectSpread, setPendingCoachPrefill, setUserQuestion, setCoachRecommendation, setIsIntentionCoachOpen]);
+  }, [coachRecommendation, selectSpread, setPendingCoachPrefill, setUserQuestion, setCoachRecommendation, setIsIntentionCoachOpen, userId]);
 
   const dismissCoachRecommendation = useCallback(() => {
-    saveCoachRecommendation(null);
+    saveCoachRecommendation(null, userId);
     setCoachRecommendation(null);
-  }, []);
+  }, [userId]);
 
   const handleStepNav = useCallback((stepId) => {
     // On mobile (< 640px), open the settings drawer for intention/ritual steps

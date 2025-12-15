@@ -1,6 +1,31 @@
 const DEFAULT_TONE = 'balanced';
 const DEFAULT_FRAME = 'mixed';
 const DEFAULT_DEPTH = 'standard';
+const MAX_DISPLAY_NAME_LENGTH = 80;
+
+export function sanitizeDisplayName(displayName, { maxLength = MAX_DISPLAY_NAME_LENGTH } = {}) {
+  if (typeof displayName !== 'string') return '';
+
+  const limit = Number.isFinite(maxLength) && maxLength > 0 ? maxLength : MAX_DISPLAY_NAME_LENGTH;
+  let sanitized = displayName.trim();
+  if (!sanitized) return '';
+
+  // Defense-in-depth: prevent prompt/markdown injection and formatting breakage.
+  sanitized = sanitized
+    .replace(/\p{Cc}/gu, ' ')
+    .replace(/[#*_`>|]/g, ' ')
+    .replace(/[[\]{}<>]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  if (!sanitized) return '';
+
+  if (sanitized.length > limit) {
+    sanitized = sanitized.slice(0, limit).trim();
+  }
+
+  return sanitized;
+}
 
 export const TONE_STYLES = {
   gentle: {
@@ -155,8 +180,7 @@ export function buildPersonalizationBridge(personalization, { contextDescriptor 
 }
 
 export function buildNameClause(displayName, position = 'inline') {
-  if (typeof displayName !== 'string') return '';
-  const trimmed = displayName.trim();
+  const trimmed = sanitizeDisplayName(displayName);
   if (!trimmed) return '';
 
   switch (position) {

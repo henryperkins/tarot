@@ -47,6 +47,17 @@ const SUIT_ELEMENTS = {
   Pentacles: { element: 'Earth', quality: 'material, practical, grounded' }
 };
 
+// Fallback stats object when journal is empty or stats cannot be computed
+const EMPTY_STATS = {
+  totalReadings: 0,
+  totalCards: 0,
+  reversalRate: 0,
+  frequentCards: [],
+  contextBreakdown: [],
+  monthlyCadence: [],
+  recentThemes: []
+};
+
 const VISIBLE_ENTRY_BATCH = 10;
 
 const CARD_NODE_POSITIONS = {
@@ -270,8 +281,8 @@ export default function Journal() {
   const hasMoreEntries = filteredEntries.length > visibleCount;
 
   // Compute stats for both full journal and filtered view
-  const allStats = useMemo(() => computeJournalStats(entries), [entries]);
-  const filteredStats = useMemo(() => computeJournalStats(filteredEntries), [filteredEntries]);
+  const allStats = useMemo(() => computeJournalStats(entries) ?? EMPTY_STATS, [entries]);
+  const filteredStats = useMemo(() => computeJournalStats(filteredEntries) ?? EMPTY_STATS, [filteredEntries]);
   const filtersActive = Boolean(filters.query.trim()) || filters.contexts.length > 0 || filters.spreads.length > 0 || filters.decks.length > 0 || filters.timeframe !== 'all' || filters.onlyReversals;
   const hasEntries = entries.length > 0;
   const toggleMobilePanel = (panelId) => {

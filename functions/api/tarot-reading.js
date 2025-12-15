@@ -61,7 +61,7 @@ import {
 import { deriveEmotionalTone } from '../../src/data/emotionMapping.js';
 import { normalizeVisionLabel } from '../lib/visionLabels.js';
 import { getToneStyle, buildPersonalizedClosing, getDepthProfile } from '../lib/narrative/styleHelpers.js';
-import { buildOpening } from '../lib/narrative/helpers.js';
+import { buildOpening, setProseMode } from '../lib/narrative/helpers.js';
 import { getPositionWeight } from '../lib/positionWeights.js';
 import { detectCrisisSignals } from '../lib/safetyChecks.js';
 import { collectGraphRAGAlerts } from '../lib/graphRAGAlerts.js';
@@ -1742,46 +1742,55 @@ async function composeReadingEnhanced(payload) {
   const { themes, spreadAnalysis, spreadKey } = analysis;
   const collectedSections = [];
 
-  const readingText = await generateReadingFromAnalysis(
-    {
-      spreadKey,
-      spreadAnalysis,
-      cardsInfo,
-      userQuestion,
-      reflectionsText,
-      themes,
-      spreadInfo,
-      context
-    },
-    {
-      personalization,
-      collectValidation: (section) => {
-        if (!section) return;
-        collectedSections.push({
-          text: section.text || '',
-          metadata: section.metadata || {},
-          validation: section.validation || null
-        });
+  // Enable prose mode for local composer output (removes technical metadata)
+  setProseMode(true);
+
+  let readingText;
+  try {
+    readingText = await generateReadingFromAnalysis(
+      {
+        spreadKey,
+        spreadAnalysis,
+        cardsInfo,
+        userQuestion,
+        reflectionsText,
+        themes,
+        spreadInfo,
+        context
+      },
+      {
+        personalization,
+        collectValidation: (section) => {
+          if (!section) return;
+          collectedSections.push({
+            text: section.text || '',
+            metadata: section.metadata || {},
+            validation: section.validation || null
+          });
+        }
       }
+    );
+
+    payload.narrativeEnhancements = collectedSections;
+
+    if (!payload.promptMeta) {
+      payload.promptMeta = {
+        backend: 'local-composer',
+        estimatedTokens: null,
+        slimmingSteps: []
+      };
     }
-  );
 
-  payload.narrativeEnhancements = collectedSections;
-
-  if (!payload.promptMeta) {
-    payload.promptMeta = {
-      backend: 'local-composer',
-      estimatedTokens: null,
-      slimmingSteps: []
+    // Return reading with null prompts (local composer doesn't use LLM prompts)
+    return {
+      reading: readingText,
+      prompts: null,
+      usage: null
     };
+  } finally {
+    // Always reset prose mode to default after generation
+    setProseMode(false);
   }
-
-  // Return reading with null prompts (local composer doesn't use LLM prompts)
-  return {
-    reading: readingText,
-    prompts: null,
-    usage: null
-  };
 }
 
 async function runNarrativeBackend(backendId, env, payload, requestId) {

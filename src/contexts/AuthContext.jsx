@@ -1,7 +1,11 @@
 import { createContext, useContext, useState, useEffect } from 'react';
 import { clearAllNarrativeCaches } from '../lib/safeStorage';
+import { clearJournalInsightsCache } from '../lib/journalInsights';
 
 const AuthContext = createContext(null);
+
+// Cache key prefix for journal cache (must match useJournal.js)
+const JOURNAL_CACHE_KEY_PREFIX = 'tarot_journal_cache';
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
@@ -87,6 +91,7 @@ export function AuthProvider({ children }) {
 
   const logout = async () => {
     setError(null);
+    const logoutUserId = user?.id; // Capture before clearing
     try {
       await fetch('/api/auth/logout', {
         method: 'POST',
@@ -99,7 +104,22 @@ export function AuthProvider({ children }) {
       setError(err.message);
       return { success: false, error: err.message };
     } finally {
+      // Clear all user-specific caches to prevent data leakage
       clearAllNarrativeCaches();
+
+      // Clear journal cache and insights for the logged-out user
+      if (logoutUserId && typeof localStorage !== 'undefined') {
+        try {
+          // Clear user-scoped journal cache
+          const journalCacheKey = `${JOURNAL_CACHE_KEY_PREFIX}_${logoutUserId}`;
+          localStorage.removeItem(journalCacheKey);
+
+          // Clear journal insights and coach data
+          clearJournalInsightsCache(logoutUserId);
+        } catch (e) {
+          console.warn('Failed to clear user caches on logout:', e);
+        }
+      }
     }
   };
 

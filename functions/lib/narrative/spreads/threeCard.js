@@ -14,7 +14,8 @@ import {
   getContextDescriptor,
   buildReversalGuidance,
   DEFAULT_WEIGHT_DETAIL_THRESHOLD,
-  computeRemedyRotationIndex
+  computeRemedyRotationIndex,
+  getSectionHeader
 } from '../helpers.js';
 import { getToneStyle, getFrameVocabulary, buildNameClause, buildPersonalizedClosing } from '../styleHelpers.js';
 
@@ -68,7 +69,8 @@ export async function buildThreeCardReading({
     sections.push(attentionNote);
   }
 
-  let narrative = `### The Story\n\n`;
+  const storyHeader = getSectionHeader('threeCardStory');
+  let narrative = storyHeader ? `${storyHeader}\n\n` : '';
 
   const pastPosition = past.position || 'Past — influences that led here';
   const presentPosition = present.position || 'Present — where you stand now';
@@ -156,7 +158,8 @@ export async function buildThreeCardReading({
 }
 
 async function buildThreeCardSynthesis(cardsInfo, themes, userQuestion, context, rotationIndex = 0) {
-  let section = `### Guidance\n\n`;
+  const header = getSectionHeader('threeCardGuidance');
+  let section = header ? `${header}\n\n` : '';
 
   if (context && context !== 'general') {
     section += `Focus: Interpreting the path ahead through ${getContextDescriptor(context)}.\n\n`;

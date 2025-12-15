@@ -13,11 +13,70 @@ import {
 } from '../esotericMeta.js';
 import { getDeckAlias } from '../../../shared/vision/deckAssets.js';
 
+// Prose mode flag - when enabled, silences technical metadata in output
+let PROSE_MODE = false;
+
+export function setProseMode(enabled) {
+  PROSE_MODE = !!enabled;
+}
+
+export function isProseMode() {
+  return PROSE_MODE;
+}
+
+// Section header mappings for prose mode
+const SECTION_HEADERS = {
+  // Celtic Cross
+  nucleus: { technical: '### The Heart of the Matter (Nucleus)', prose: '### At the Heart of This Moment' },
+  timeline: { technical: '### The Timeline (Horizontal Axis)', prose: '### How You Arrived Here' },
+  consciousness: { technical: '### Consciousness Flow (Vertical Axis)', prose: '### What Moves Beneath the Surface' },
+  staff: { technical: '### The Staff (Context & Trajectory)', prose: '### The Path Forward' },
+  crossChecks: { technical: '### Key Relationships', prose: '### How the Cards Speak to Each Other' },
+  synthesis: { technical: '### Synthesis & Guidance', prose: '### Bringing It Together' },
+  supporting: { technical: '### Supporting Positions', prose: '' }, // Hidden in prose mode
+
+  // Three Card
+  threeCardStory: { technical: '### The Story', prose: '### Your Story' },
+  threeCardCards: { technical: '### The Cards', prose: '### The Cards' },
+  threeCardGuidance: { technical: '### Guidance', prose: '### Moving Forward' },
+
+  // Five Card
+  coreChallenge: { technical: '### Core & Challenge', prose: '### What You Face' },
+  hiddenInfluence: { technical: '### Hidden Influence', prose: '### What Lies Beneath' },
+  supportDirection: { technical: '### Support & Direction', prose: '### Your Path Forward' },
+  fiveCardGuidance: { technical: '### Guidance', prose: '### Bringing It Together' },
+
+  // Decision
+  theChoice: { technical: '### The Choice', prose: '### The Heart of Your Decision' },
+  pathA: { technical: '### Path A', prose: '### If You Choose This Way' },
+  pathB: { technical: '### Path B', prose: '### If You Choose That Way' },
+  clarityAgency: { technical: '### Clarity & Agency', prose: '### What Helps You Decide' },
+
+  // Relationship
+  youAndThem: { technical: '### You & Them', prose: '### The Two of You' },
+  theConnection: { technical: '### The Connection', prose: '### What Flows Between You' },
+  relationshipGuidance: { technical: '### Guidance', prose: '### Moving Forward Together' },
+  relationshipDynamics: { technical: '### Relationship Dynamics', prose: '### How You Move Together' },
+
+  // Common
+  reflections: { technical: '### Your Reflections', prose: '### Your Reflections' },
+  patterns: { technical: '### Deeper Patterns', prose: '### Deeper Patterns' },
+  opening: { technical: '', prose: '' } // Openings don't have headers
+};
+
+export function getSectionHeader(sectionKey) {
+  const headers = SECTION_HEADERS[sectionKey];
+  if (!headers) return `### ${sectionKey}`;
+  return PROSE_MODE ? headers.prose : headers.technical;
+}
+
 const CONTEXT_DESCRIPTORS = {
   love: 'relationships and heart-centered experiences',
   career: 'career, calling, and material pathways',
   self: 'personal growth and inner landscape',
   spiritual: 'spiritual practice and meaning-making',
+  wellbeing: 'health, balance, and holistic wellness',
+  decision: 'choices, crossroads, and clarity-seeking',
   general: 'overall life path'
 };
 
@@ -45,6 +104,18 @@ const SUIT_CONTEXT_LENSES = {
     Cups: 'In your spiritual practice, this deepens receptive listening and intuitive flow.',
     Swords: 'In your spiritual practice, this sharpens discernment, study, and sacred speech.',
     Pentacles: 'In your spiritual practice, this roots insight into ritual, service, and stewardship.'
+  },
+  wellbeing: {
+    Wands: 'For your wellbeing, this speaks to vital energy, movement, and activities that restore your spark.',
+    Cups: 'For your wellbeing, this centers emotional nourishment, rest, and heart-care practices.',
+    Swords: 'For your wellbeing, this supports mental hygiene, stress reduction, and clarity of mind.',
+    Pentacles: 'For your wellbeing, this recommends body care, nutrition, sleep, and grounding routines.'
+  },
+  decision: {
+    Wands: 'For this decision, consider which path ignites your passion and aligns with your authentic drive.',
+    Cups: 'For this decision, tune into your emotional truth and what your heart genuinely desires.',
+    Swords: 'For this decision, apply clear analysis, weigh the facts, and cut through confusion.',
+    Pentacles: 'For this decision, consider practical outcomes, resources, and long-term stability.'
   }
 };
 
@@ -52,7 +123,9 @@ const MAJOR_CONTEXT_LENSES = {
   love: 'In relationships, let this archetype illuminate the dynamics asking for attention.',
   career: 'In your career, treat this archetype as guidance for how you show up in your work and collaborations.',
   self: 'For personal growth, let this archetype mirror the inner work unfolding.',
-  spiritual: 'In your spiritual path, let this archetype frame the lesson seeking integration.'
+  spiritual: 'In your spiritual path, let this archetype frame the lesson seeking integration.',
+  wellbeing: 'For your wellbeing, let this archetype reveal what your body and mind are calling for.',
+  decision: 'For this decision, let this archetype illuminate the deeper currents shaping your choice.'
 };
 
 const CARD_SPECIFIC_CONTEXT = {
@@ -118,7 +191,7 @@ function pickOne(value) {
   return value;
 }
 
-const VALID_CONTEXTS = ['love', 'career', 'self', 'spiritual', 'general'];
+const VALID_CONTEXTS = ['love', 'career', 'self', 'spiritual', 'wellbeing', 'decision', 'general'];
 
 function normalizeContext(context, { onUnknown } = {}) {
   if (!context || typeof context !== 'string') return 'general';
@@ -189,12 +262,14 @@ function shouldEmphasizePosition(spreadKey, positionIndex, threshold = DEFAULT_W
 }
 
 function buildWeightNote(spreadKey, positionIndex, label) {
+  if (PROSE_MODE) return ''; // Silent in prose mode
   const weight = getPositionWeight(spreadKey, positionIndex);
   if (weight < DEFAULT_WEIGHT_DETAIL_THRESHOLD) return '';
   return `*${label} carries an attention weight of ${weight.toFixed(2)}, so it receives extended focus here.*`;
 }
 
 function buildWeightAttentionIntro(prioritized, spreadName, threshold = DEFAULT_WEIGHT_DETAIL_THRESHOLD) {
+  if (PROSE_MODE) return ''; // Silent in prose mode
   if (!Array.isArray(prioritized) || prioritized.length === 0) return '';
   const focal = prioritized.filter(card => card.weight >= threshold);
   if (!focal.length) return '';
@@ -206,6 +281,7 @@ function buildWeightAttentionIntro(prioritized, spreadName, threshold = DEFAULT_
 }
 
 function buildSupportingPositionsSummary(prioritized, spreadName, threshold = SUPPORTING_WEIGHT_THRESHOLD) {
+  if (PROSE_MODE) return ''; // Silent in prose mode
   if (!Array.isArray(prioritized)) return '';
   const supporting = prioritized.filter(card => card.card && card.weight < threshold);
   if (!supporting.length) return '';
@@ -949,7 +1025,40 @@ function buildCrossCheckSynthesis(crossCheck) {
   return synthesis;
 }
 
+/**
+ * Prose-friendly cross-check formatting for local composer output.
+ * Removes emoji indicators and uses natural language for relationships.
+ */
+function formatCrossCheckProse(label, crossCheck, themes) {
+  if (!crossCheck) return '';
+
+  const { position1, position2, elementalRelationship } = crossCheck;
+  if (!position1?.card || !position2?.card) return '';
+
+  const relationship = elementalRelationship?.relationship || 'neutral';
+
+  // Natural language mappings for elemental relationships
+  const relationshipProse = {
+    supportive: 'work together harmoniously',
+    tension: 'create productive friction that invites integration',
+    amplified: 'reinforce and intensify each other',
+    neutral: 'each contribute their own voice to this reading'
+  };
+
+  const relationshipText = relationshipProse[relationship] || relationshipProse.neutral;
+
+  // Build a flowing sentence
+  const card1Name = `**${position1.card}**`;
+  const card2Name = `**${position2.card}**`;
+  const pos1Short = position1.name?.replace(/\s*\(Card \d+\)/g, '') || position1.name;
+  const pos2Short = position2.name?.replace(/\s*\(Card \d+\)/g, '') || position2.name;
+
+  return `${card1Name} in ${pos1Short} and ${card2Name} in ${pos2Short} ${relationshipText}.`;
+}
+
 function formatCrossCheck(label, crossCheck, themes) {
+  if (PROSE_MODE) return formatCrossCheckProse(label, crossCheck, themes);
+
   if (!crossCheck) {
     return `${label}: No comparative insight available.`;
   }

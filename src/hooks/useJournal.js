@@ -1,11 +1,21 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { persistJournalInsights } from '../lib/journalInsights';
+import { persistJournalInsights, clearJournalInsightsCache } from '../lib/journalInsights';
 import { invalidateNarrativeCache } from '../lib/safeStorage';
 import { dedupeEntries } from '../../shared/journal/dedupe.js';
 
 const LOCALSTORAGE_KEY = 'tarot_journal';
-const CACHE_KEY = 'tarot_journal_cache';
+const CACHE_KEY_PREFIX = 'tarot_journal_cache';
+
+/**
+ * Get user-scoped cache key to prevent data leakage across accounts
+ * @param {string|null} userId - User ID or null for anonymous
+ * @returns {string} Scoped cache key
+ */
+function getCacheKey(userId) {
+  if (!userId) return `${CACHE_KEY_PREFIX}_anon`;
+  return `${CACHE_KEY_PREFIX}_${userId}`;
+}
 
 /**
  * Journal hook with automatic API/localStorage routing
@@ -21,6 +31,40 @@ export function useJournal({ autoLoad = true } = {}) {
   const [loading, setLoading] = useState(autoLoad);
   const [error, setError] = useState(null);
 
+  // Track previous user ID to detect account switches
+  const prevUserIdRef = useRef(user?.id);
+
+  const persistInsights = useCallback((entriesToPersist) => {
+    const result = persistJournalInsights(entriesToPersist, user?.id);
+    if (result?.error) {
+      console.warn('Unable to persist journal insights cache:', result.error);
+    }
+    return result;
+  }, [user?.id]);
+
+  // Clear stale cache when user changes (login/logout/switch accounts)
+  useEffect(() => {
+    const currentUserId = user?.id;
+    const prevUserId = prevUserIdRef.current;
+
+    if (prevUserId !== currentUserId) {
+      // Clear in-memory entries immediately to avoid showing prior account data.
+      setEntries([]);
+      setError(null);
+
+      // User changed - clear old user's cache to prevent leakage
+      if (prevUserId && typeof localStorage !== 'undefined') {
+        try {
+          localStorage.removeItem(getCacheKey(prevUserId));
+          clearJournalInsightsCache(prevUserId);
+        } catch (e) {
+          console.warn('Failed to clear previous user cache:', e);
+        }
+      }
+      prevUserIdRef.current = currentUserId;
+    }
+  }, [user?.id]);
+
   // Load entries on mount or when auth state changes
   useEffect(() => {
     if (!autoLoad && isAuthenticated) {
@@ -28,7 +72,7 @@ export function useJournal({ autoLoad = true } = {}) {
     }
     loadEntries();
     // eslint-disable-next-line react-hooks/exhaustive-deps -- loadEntries is stable, avoid infinite loop
-  }, [isAuthenticated, autoLoad]);
+  }, [isAuthenticated, autoLoad, user?.id]);
 
   const loadEntries = async () => {
     setLoading(true);
@@ -38,7 +82,8 @@ export function useJournal({ autoLoad = true } = {}) {
       if (isAuthenticated) {
         // Try loading from API first
         try {
-          const response = await fetch('/api/journal', {
+          // Use all=true for backward compatibility until frontend supports pagination
+          const response = await fetch('/api/journal?all=true', {
             credentials: 'include'
           });
 
@@ -50,20 +95,26 @@ export function useJournal({ autoLoad = true } = {}) {
           const apiEntries = dedupeEntries(data.entries || []);
           setEntries(apiEntries);
 
-          // Update cache
+          // Update user-scoped cache
           if (typeof localStorage !== 'undefined') {
-            localStorage.setItem(CACHE_KEY, JSON.stringify(apiEntries));
-            persistJournalInsights(apiEntries);
+            const cacheKey = getCacheKey(user?.id);
+            try {
+              localStorage.setItem(cacheKey, JSON.stringify(apiEntries));
+            } catch (quotaErr) {
+              console.warn('localStorage quota exceeded, skipping cache:', quotaErr);
+            }
+            persistInsights(apiEntries);
           }
         } catch (apiError) {
           console.warn('API load failed, falling back to cache:', apiError);
-          // Fallback to cache
+          // Fallback to user-scoped cache
           if (typeof localStorage !== 'undefined') {
-            const cached = localStorage.getItem(CACHE_KEY);
+            const cacheKey = getCacheKey(user?.id);
+            const cached = localStorage.getItem(cacheKey);
             if (cached) {
               const parsedCache = dedupeEntries(JSON.parse(cached));
               setEntries(parsedCache);
-              persistJournalInsights(parsedCache);
+              persistInsights(parsedCache);
               // Don't set error if we have cache, just warn
             } else {
               throw apiError;
@@ -77,7 +128,7 @@ export function useJournal({ autoLoad = true } = {}) {
         if (typeof localStorage === 'undefined') {
           setEntries([]);
           if (typeof window !== 'undefined') {
-            persistJournalInsights([]);
+            persistInsights([]);
           }
         } else {
           const stored = localStorage.getItem(LOCALSTORAGE_KEY);
@@ -87,19 +138,19 @@ export function useJournal({ autoLoad = true } = {}) {
               const safeEntries = dedupeEntries(Array.isArray(parsed) ? parsed : []);
               setEntries(safeEntries);
               if (typeof window !== 'undefined') {
-                persistJournalInsights(safeEntries);
+                persistInsights(safeEntries);
               }
             } catch (err) {
               console.error('Failed to parse localStorage journal:', err);
               setEntries([]);
               if (typeof window !== 'undefined') {
-                persistJournalInsights([]);
+                persistInsights([]);
               }
             }
           } else {
             setEntries([]);
             if (typeof window !== 'undefined') {
-              persistJournalInsights([]);
+              persistInsights([]);
             }
           }
         }
@@ -151,8 +202,13 @@ export function useJournal({ autoLoad = true } = {}) {
         setEntries(prev => {
           const next = [newEntry, ...prev];
           if (typeof window !== 'undefined') {
-            persistJournalInsights(next);
-            localStorage.setItem(CACHE_KEY, JSON.stringify(next));
+            persistInsights(next);
+            const cacheKey = getCacheKey(user?.id);
+            try {
+              localStorage.setItem(cacheKey, JSON.stringify(next));
+            } catch (quotaErr) {
+              console.warn('localStorage quota exceeded, skipping cache update:', quotaErr);
+            }
           }
           return next;
         });
@@ -191,7 +247,7 @@ export function useJournal({ autoLoad = true } = {}) {
         localStorage.setItem(LOCALSTORAGE_KEY, JSON.stringify(updated));
         setEntries(updated);
         if (typeof window !== 'undefined') {
-          persistJournalInsights(updated);
+          persistInsights(updated);
         }
 
         return { success: true, entry: newEntry };
@@ -248,8 +304,13 @@ export function useJournal({ autoLoad = true } = {}) {
         setEntries(prev => {
           const next = prev.filter(e => e.id !== entryId);
           if (typeof window !== 'undefined') {
-            persistJournalInsights(next);
-            localStorage.setItem(CACHE_KEY, JSON.stringify(next));
+            persistInsights(next);
+            const cacheKey = getCacheKey(user?.id);
+            try {
+              localStorage.setItem(cacheKey, JSON.stringify(next));
+            } catch (quotaErr) {
+              console.warn('localStorage quota exceeded, skipping cache update:', quotaErr);
+            }
           }
           return next;
         });
@@ -271,7 +332,7 @@ export function useJournal({ autoLoad = true } = {}) {
         localStorage.setItem(LOCALSTORAGE_KEY, JSON.stringify(updated));
         setEntries(updated);
         if (typeof window !== 'undefined') {
-          persistJournalInsights(updated);
+          persistInsights(updated);
         }
 
         return { success: true };
@@ -305,7 +366,7 @@ export function useJournal({ autoLoad = true } = {}) {
       }
 
       // Fetch existing cloud entries to check for duplicates
-      const existingResponse = await fetch('/api/journal', {
+      const existingResponse = await fetch('/api/journal?all=true', {
         credentials: 'include'
       });
 

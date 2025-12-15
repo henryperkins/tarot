@@ -10,6 +10,19 @@
 import { validateSession, getSessionFromCookie } from '../lib/auth.js';
 import { jsonResponse } from '../lib/utils.js';
 
+/**
+ * Safely parse JSON with fallback to prevent corrupt data from breaking exports
+ */
+function safeJsonParse(json, fallback) {
+  if (!json) return fallback;
+  try {
+    return JSON.parse(json);
+  } catch (e) {
+    console.warn('JSON parse failed in export:', e.message);
+    return fallback;
+  }
+}
+
 // PDF generation constants
 const PDF_PAGE_HEIGHT = 842; // A4 height in points
 const PDF_PAGE_WIDTH = 595;  // A4 width in points
@@ -322,10 +335,10 @@ export async function onRequestGet(context) {
         spread: entry.spread_name,
         spreadKey: entry.spread_key,
         question: entry.question,
-        cards: JSON.parse(entry.cards_json || '[]'),
+        cards: safeJsonParse(entry.cards_json, []),
         personalReading: entry.narrative,
-        themes: entry.themes_json ? JSON.parse(entry.themes_json) : null,
-        reflections: entry.reflections_json ? JSON.parse(entry.reflections_json) : {},
+        themes: safeJsonParse(entry.themes_json, null),
+        reflections: safeJsonParse(entry.reflections_json, {}),
         context: entry.context,
         provider: entry.provider
       }];
@@ -352,10 +365,10 @@ export async function onRequestGet(context) {
         spread: entry.spread_name,
         spreadKey: entry.spread_key,
         question: entry.question,
-        cards: JSON.parse(entry.cards_json || '[]'),
+        cards: safeJsonParse(entry.cards_json, []),
         personalReading: entry.narrative,
-        themes: entry.themes_json ? JSON.parse(entry.themes_json) : null,
-        reflections: entry.reflections_json ? JSON.parse(entry.reflections_json) : {},
+        themes: safeJsonParse(entry.themes_json, null),
+        reflections: safeJsonParse(entry.reflections_json, {}),
         context: entry.context,
         provider: entry.provider
       }));

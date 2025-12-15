@@ -17,6 +17,7 @@ import { useLandscape } from '../hooks/useLandscape';
 import { useReducedMotion } from '../hooks/useReducedMotion';
 import { useSwipeDismiss } from '../hooks/useSwipeDismiss';
 import { usePreferences } from '../contexts/PreferencesContext';
+import { useAuth } from '../contexts/AuthContext';
 import {
   INTENTION_TOPIC_OPTIONS,
   INTENTION_TIMEFRAME_OPTIONS,
@@ -260,6 +261,8 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply,
   const isLandscape = useLandscape();
   const prefersReducedMotion = useReducedMotion();
   const { personalization } = usePreferences();
+  const { user } = useAuth();
+  const userId = user?.id || null;
   const [step, setStep] = useState(0);
 
   // Determine suggested topic from focus areas, falling back to spread
@@ -718,7 +721,7 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply,
       setPrefillSource(null);
     }
 
-    const recommendation = prefillRecommendation?.question ? prefillRecommendation : loadCoachRecommendation();
+    const recommendation = prefillRecommendation?.question ? prefillRecommendation : loadCoachRecommendation(userId);
     if (recommendation?.question) {
       if (recommendation.topicValue) {
         setTopic(recommendation.topicValue);
@@ -736,7 +739,7 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply,
       setPrefillSource(recommendation);
       setAutoQuestionEnabled(false);
     }
-  }, [isOpen, suggestedTopic, prefillRecommendation]);
+  }, [isOpen, suggestedTopic, prefillRecommendation, userId]);
 
   // Load templates and history when modal opens
   useEffect(() => {
@@ -744,8 +747,8 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply,
     setTemplates(loadCoachTemplates());
     const history = loadCoachHistory();
     setQuestionHistory(history);
-    const insights = loadStoredJournalInsights();
-    const snapshot = loadCoachStatsSnapshot();
+    const insights = loadStoredJournalInsights(userId);
+    const snapshot = loadCoachStatsSnapshot(userId);
     if (snapshot?.stats) {
       setCoachStats(snapshot.stats);
       setCoachStatsMeta(snapshot.meta || null);
@@ -753,7 +756,7 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply,
       setCoachStats(insights?.stats || null);
       setCoachStatsMeta(null);
     }
-  }, [isOpen]);
+  }, [isOpen, userId]);
 
   // Build personalized suggestions when stats/history change
   useEffect(() => {
@@ -833,7 +836,7 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply,
           customFocus,
           seed: questionSeed,
           focusAreas: personalization?.focusAreas
-        }, { signal: controller.signal });
+        }, { signal: controller.signal, userId });
 
         if (isCancelled || controller.signal.aborted) {
           return;
@@ -881,7 +884,7 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply,
       if (timerId) clearTimeout(timerId);
       controller.abort();
     };
-  }, [guidedQuestion, useCreative, isOpen, autoQuestionEnabled, questionSeed, topic, timeframe, depth, customFocus, personalization?.focusAreas]);
+  }, [guidedQuestion, useCreative, isOpen, autoQuestionEnabled, questionSeed, topic, timeframe, depth, customFocus, personalization?.focusAreas, userId]);
 
   // ============================================================================
   // Render Helpers

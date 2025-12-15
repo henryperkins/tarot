@@ -176,8 +176,8 @@ export default function JourneyContent({
       filterLabel: journeyFiltersActive ? 'Filtered journal view' : 'Entire journal',
       entryCount,
       totalEntries,
-    });
-  }, [exportStats, journeyFiltersActive, scopedEntries, entries]);
+    }, userId);
+  }, [exportStats, journeyFiltersActive, scopedEntries, entries, userId]);
 
   // Render appropriate variant
   if (variant === 'mobile') {

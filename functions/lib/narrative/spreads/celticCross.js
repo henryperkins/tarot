@@ -15,7 +15,9 @@ import {
   formatCrossCheck,
   getContextDescriptor,
   DEFAULT_WEIGHT_DETAIL_THRESHOLD,
-  computeRemedyRotationIndex
+  computeRemedyRotationIndex,
+  getSectionHeader,
+  isProseMode
 } from '../helpers.js';
 import { buildPersonalizedClosing } from '../styleHelpers.js';
 
@@ -134,7 +136,8 @@ function buildNucleusSection(nucleus, cardsInfo, themes, context) {
   const present = cardsInfo[0];
   const challenge = cardsInfo[1];
 
-  let section = `### The Heart of the Matter (Nucleus)\n\n`;
+  const header = getSectionHeader('nucleus');
+  let section = header ? `${header}\n\n` : '';
 
   const presentPosition = present.position || 'Present — core situation (Card 1)';
   const challengePosition = challenge.position || 'Challenge — crossing / tension (Card 2)';
@@ -161,7 +164,8 @@ function buildTimelineSection(timeline, cardsInfo, themes, context) {
   const present = cardsInfo[0];
   const future = cardsInfo[3];
 
-  let section = `### The Timeline (Horizontal Axis)\n\n`;
+  const header = getSectionHeader('timeline');
+  let section = header ? `${header}\n\n` : '';
 
   const options = getPositionOptions(themes, context);
   const pastPosition = past.position || 'Past — what lies behind (Card 3)';
@@ -205,7 +209,8 @@ function buildConsciousnessSection(consciousness, cardsInfo, themes, context) {
   const subconscious = cardsInfo[5];
   const conscious = cardsInfo[4];
 
-  let section = `### Consciousness Flow (Vertical Axis)\n\n`;
+  const header = getSectionHeader('consciousness');
+  let section = header ? `${header}\n\n` : '';
 
   const subconsciousPosition = subconscious.position || 'Subconscious — roots / hidden forces (Card 6)';
   const consciousPosition = conscious.position || 'Conscious — goals & focus (Card 5)';
@@ -239,7 +244,8 @@ function buildStaffSection(staff, cardsInfo, themes, context) {
   const hopesFears = cardsInfo[8];
   const outcome = cardsInfo[9];
 
-  let section = `### The Staff (Context & Trajectory)\n\n`;
+  const header = getSectionHeader('staff');
+  let section = header ? `${header}\n\n` : '';
 
   const selfPosition = self.position || 'Self / Advice — how to meet this (Card 7)';
   const externalPosition = external.position || 'External Influences — people & environment (Card 8)';
@@ -264,7 +270,8 @@ function buildStaffSection(staff, cardsInfo, themes, context) {
     section += `\n\n${staffWeightNotes.join(' ')}`;
   }
 
-  if (shouldEmphasizePosition('celtic', 6) || shouldEmphasizePosition('celtic', 9)) {
+  // In non-prose mode, add extended staff note
+  if (!isProseMode() && (shouldEmphasizePosition('celtic', 6) || shouldEmphasizePosition('celtic', 9))) {
     section += `\n\n*Extended staff detail appears because the Advice/Outcome axis carries concentrated weighting.*`;
   }
 
@@ -272,16 +279,25 @@ function buildStaffSection(staff, cardsInfo, themes, context) {
 }
 
 function buildCrossChecksSection(crossChecks, themes) {
-  let section = `### Key Relationships\n\n`;
+  const header = getSectionHeader('crossChecks');
+  let section = header ? `${header}\n\n` : '';
 
-  section += 'This overview shows how core positions interact and compare.\n\n';
+  // Use different intro text based on prose mode
+  const introText = isProseMode()
+    ? 'Several cards in this spread echo and respond to each other.\n\n'
+    : 'This overview shows how core positions interact and compare.\n\n';
+  section += introText;
 
   section += formatCrossCheck('Conscious Goal vs Outcome', crossChecks.goalVsOutcome, themes);
   section += `\n\n${formatCrossCheck('Advice vs Outcome', crossChecks.adviceVsOutcome, themes)}`;
   section += `\n\n${formatCrossCheck('Near Future vs Outcome', crossChecks.nearFutureVsOutcome, themes)}`;
   section += `\n\n${formatCrossCheck('Subconscious vs Hopes & Fears', crossChecks.subconsciousVsHopesFears, themes)}`;
 
-  section += '\n\nTaken together, these cross-checks point toward how to translate the spread\'s insights into your next aligned step.';
+  // Use different closing text based on prose mode
+  const closingText = isProseMode()
+    ? '\n\nThese connections reveal how to translate the spread\'s wisdom into your next step.'
+    : '\n\nTaken together, these cross-checks point toward how to translate the spread\'s insights into your next aligned step.';
+  section += closingText;
 
   return section;
 }
@@ -293,9 +309,14 @@ function buildCrossChecksSection(crossChecks, themes) {
 
 
 async function buildSynthesisSection(cardsInfo, themes, celticAnalysis, userQuestion, context, rotationIndex = 0) {
-  let section = `### Synthesis & Guidance\n\n`;
+  const header = getSectionHeader('synthesis');
+  let section = header ? `${header}\n\n` : '';
 
-  section += 'This synthesis shows how the spread integrates into actionable guidance.\n\n';
+  // Use different intro text based on prose mode
+  const introText = isProseMode()
+    ? ''  // Skip technical intro in prose mode
+    : 'This synthesis shows how the spread integrates into actionable guidance.\n\n';
+  section += introText;
 
   if (context && context !== 'general') {
     section += `Focus: Interpreting this guidance through ${getContextDescriptor(context)}.\n\n`;
@@ -351,14 +372,16 @@ async function buildSynthesisSection(cardsInfo, themes, celticAnalysis, userQues
   section += `${buildPositionCardText(advice, advice.position || 'Self / Advice — how to meet this (Card 7)', options)}\n`;
   section += `${celticAnalysis.staff.adviceImpact}\n\n`;
 
-  if (adviceWeight >= DEFAULT_WEIGHT_DETAIL_THRESHOLD) {
+  // In non-prose mode, add weight note
+  if (!isProseMode() && adviceWeight >= DEFAULT_WEIGHT_DETAIL_THRESHOLD) {
     section += `*This Advice position sits at weight ${adviceWeight.toFixed(2)}, so it receives extended guidance above.*\n\n`;
   }
 
   section += `**Trajectory Reminder**\n${buildPositionCardText(outcome, outcome.position || 'Outcome — likely path if unchanged (Card 10)', options)}\n`;
   section += `Remember: The outcome shown by ${outcome.card} is a trajectory based on current patterns. Your choices, consciousness, and actions shape what unfolds. You are co-creating this path.`;
 
-  if (outcomeWeight >= DEFAULT_WEIGHT_DETAIL_THRESHOLD) {
+  // In non-prose mode, add weight note
+  if (!isProseMode() && outcomeWeight >= DEFAULT_WEIGHT_DETAIL_THRESHOLD) {
     section += `\n\n*Outcome receives extra attention because its weight clocks in at ${outcomeWeight.toFixed(2)}.*`;
   }
 

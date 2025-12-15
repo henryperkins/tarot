@@ -29,10 +29,11 @@
     - Spread-specific flow instructions (e.g. Celtic Cross section order, relationship flow).
     - Context and deck-style instructions, including Thoth/Marseille differences and visual-profile integration from Vision.
     - Length bands keyed to spread and depth profile, with recap behavior for deep dives.
+    - When enabled, injects GraphRAG “TRADITIONAL WISDOM” passages plus optional ephemeris weather/forecast sections, following the “GraphRAG for archetype, Vision for visual texture” synthesis rule (`prompts.js:878`).
   - A detailed **user prompt** that:
     - Encodes each position via `buildPositionCardText` and imagery hooks (`helpers.js` + `imageryHooks.js`).
     - Adds attention-weight notes and summaries for low-weight cards.
-    - Injects GraphRAG “TRADITIONAL WISDOM” passages and optional ephemeris sections when enabled, following the “GraphRAG for archetype, Vision for visual texture” synthesis rule (`prompts.js:740`).
+    - Includes spread-specific card order, archetypal pattern highlights, and compact ephemeris timing hints (e.g., transit resonances and timing bullets) when relevant.
 - Prompt budgeting and slimming (**DISABLED by default**):
   - Token budget and hard caps come from `getPromptBudgetForTarget` / `getHardCapBudget` (`prompts.js:220`).
   - Slimming is **opt-in only** via `ENABLE_PROMPT_SLIMMING=true`. Modern LLMs (GPT-5 ~128k, Claude ~200k) handle full prompts easily; slimming removes valuable context.
