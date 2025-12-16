@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 import { useRef, useState, useEffect, useCallback } from 'react';
 import { Check, CaretRight } from '@phosphor-icons/react';
 import { CarouselDots } from './CarouselDots';
@@ -96,7 +97,7 @@ function DeckPreviewImage({ preview, deckLabel, priority = 'auto' }) {
         className="w-full h-auto object-cover"
         loading={loading}
         decoding="async"
-        fetchpriority={fetchPriority}
+        fetchPriority={fetchPriority}
         onError={(e) => {
           e.currentTarget.style.display = 'none';
         }}

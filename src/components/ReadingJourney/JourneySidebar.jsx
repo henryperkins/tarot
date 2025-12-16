@@ -13,9 +13,7 @@ import {
   TrendUp,
   ChartBar,
   Export,
-  Fire,
-  Star,
-  ArrowsClockwise,
+  Fire
 } from '@phosphor-icons/react';
 import SeasonSummary from './sections/SeasonSummary';
 import CardsCallingYou from './sections/CardsCallingYou';
@@ -27,13 +25,6 @@ import JourneyStorySection from './sections/JourneyStorySection';
 import ExportSection from './sections/ExportSection';
 import EmptyState from './sections/EmptyState';
 import BackfillBanner from './sections/BackfillBanner';
-
-// Section definitions for collapsible panels
-const SECTIONS = [
-  { key: 'cards', label: 'Cards Calling You', icon: TrendUp },
-  { key: 'patterns', label: 'Patterns & Themes', icon: ChartBar },
-  { key: 'export', label: 'Export & Share', icon: Export },
-];
 
 /**
  * CollapsibleSection - Expandable section wrapper.
@@ -112,7 +103,7 @@ export default function JourneySidebar({
   onStartReading,
   locale = 'default',
   timezone,
-  variant = 'sidebar',
+  variant: _variant = 'sidebar',
 }) {
   // Section open/close state
   const [openSections, setOpenSections] = useState({

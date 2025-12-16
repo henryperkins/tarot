@@ -59,7 +59,6 @@ const EMPTY_ARCHETYPE = {
  * @param {Object} options.topContext - Top context { name, count }
  * @param {string} options.topTheme - Top theme string
  * @param {Array} options.badges - Badges array
- * @param {number} options.totalReadings - Total reading count
  * @param {Object} options.seasonWindow - { start: Date, end: Date }
  * @param {string} options.locale - Locale for date formatting (e.g., 'en-US', 'fr-FR')
  * @param {string} options.timezone - IANA timezone (e.g., 'America/New_York')
@@ -70,7 +69,6 @@ function generateSeasonNarrative({
   topContext,
   topTheme,
   badges,
-  totalReadings,
   seasonWindow,
   locale = 'en-US',
   timezone,

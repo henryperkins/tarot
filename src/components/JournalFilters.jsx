@@ -20,25 +20,42 @@ const TIMEFRAME_OPTIONS = [
 const DEFAULT_FILTERS = { query: '', contexts: [], spreads: [], decks: [], timeframe: 'all', onlyReversals: false };
 const SAVED_FILTERS_KEY = 'journal_saved_filters_v1';
 const ADVANCED_FILTERS_KEY = 'journal_filters_advanced_v1';
-const OUTLINE_FILTER_BASE = 'flex items-center gap-2 rounded-xl border px-3 py-2 text-sm font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/40';
+const OUTLINE_FILTER_BASE = 'flex min-h-[44px] items-center gap-2 rounded-xl border px-3 py-2.5 text-sm font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/40';
 const OUTLINE_FILTER_IDLE = 'border-amber-200/20 text-amber-100/60 hover:border-amber-200/35 hover:text-amber-100/80';
 const OUTLINE_FILTER_ACTIVE = 'border-amber-300/70 bg-amber-300/15 text-amber-50 shadow-[0_12px_30px_-18px_rgba(251,191,36,0.75)]';
 
-function FilterDropdown({ label, options, value, onChange, multiple = false }) {
+function FilterDropdown({ label, options, value, onChange, multiple = false, buttonRef: externalButtonRef }) {
   const [isOpen, setIsOpen] = useState(false);
+  const [alignRight, setAlignRight] = useState(false);
   const containerRef = useRef(null);
-  const buttonRef = useRef(null);
+  const internalButtonRef = useRef(null);
   const menuId = useId();
 
+  const setButtonRef = (node) => {
+    internalButtonRef.current = node;
+    if (externalButtonRef && typeof externalButtonRef === 'object') {
+      externalButtonRef.current = node;
+    }
+  };
+
   useEffect(() => {
-    const handleClickOutside = (event) => {
+    const handlePointerDown = (event) => {
       if (containerRef.current && !containerRef.current.contains(event.target)) {
         setIsOpen(false);
       }
     };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    document.addEventListener('pointerdown', handlePointerDown);
+    return () => document.removeEventListener('pointerdown', handlePointerDown);
   }, []);
+
+  const computeAlignRight = () => {
+    if (typeof window === 'undefined') return false;
+    const rect = containerRef.current?.getBoundingClientRect();
+    if (!rect) return false;
+    const menuWidth = 256;
+    const margin = 16;
+    return rect.left + menuWidth > window.innerWidth - margin;
+  };
 
   const focusFirstOption = () => {
     if (typeof window === 'undefined') return;
@@ -57,6 +74,7 @@ function FilterDropdown({ label, options, value, onChange, multiple = false }) {
     if (event.key === 'ArrowDown' || event.key === 'Enter' || event.key === ' ') {
       event.preventDefault();
       if (!isOpen) {
+        setAlignRight(computeAlignRight());
         setIsOpen(true);
         focusFirstOption();
       }
@@ -67,7 +85,7 @@ function FilterDropdown({ label, options, value, onChange, multiple = false }) {
     if (event.key === 'Escape') {
       event.preventDefault();
       setIsOpen(false);
-      buttonRef.current?.focus();
+      internalButtonRef.current?.focus();
     }
   };
 
@@ -81,7 +99,7 @@ function FilterDropdown({ label, options, value, onChange, multiple = false }) {
     } else {
       onChange(optionValue);
       setIsOpen(false);
-      buttonRef.current?.focus();
+      internalButtonRef.current?.focus();
     }
   };
 
@@ -101,10 +119,13 @@ function FilterDropdown({ label, options, value, onChange, multiple = false }) {
   return (
     <div className="relative" ref={containerRef}>
       <button
-        ref={buttonRef}
+        ref={setButtonRef}
         type="button"
         onClick={() => {
           const next = !isOpen;
+          if (next) {
+            setAlignRight(computeAlignRight());
+          }
           setIsOpen(next);
           if (next) {
             focusFirstOption();
@@ -115,6 +136,7 @@ function FilterDropdown({ label, options, value, onChange, multiple = false }) {
         aria-haspopup="listbox"
         aria-expanded={isOpen}
         aria-controls={isOpen ? menuId : undefined}
+        aria-label={!multiple ? label : undefined}
         aria-pressed={activeCount > 0}
       >
         {multiple && <span>{label}</span>}
@@ -133,7 +155,9 @@ function FilterDropdown({ label, options, value, onChange, multiple = false }) {
           id={menuId}
           role="listbox"
           aria-multiselectable={multiple || undefined}
-          className="absolute left-0 top-full z-50 mt-2 w-64 origin-top-left rounded-xl border border-amber-200/30 bg-[#0a0d1a]/95 p-1.5 shadow-[0_20px_48px_-24px_rgba(0,0,0,0.75)] ring-1 ring-amber-200/15 backdrop-blur-xl backdrop-saturate-150 animate-in fade-in zoom-in-95 duration-100"
+          className={`absolute top-full z-50 mt-2 w-[min(16rem,calc(100vw-2rem))] ${
+            alignRight ? 'right-0 origin-top-right' : 'left-0 origin-top-left'
+          } rounded-xl border border-amber-200/30 bg-[#0a0d1a]/95 p-1.5 shadow-[0_20px_48px_-24px_rgba(0,0,0,0.75)] ring-1 ring-amber-200/15 backdrop-blur-xl backdrop-saturate-150 animate-in fade-in zoom-in-95 duration-100`}
           onKeyDown={handleMenuKeyDown}
         >
           <div className="max-h-64 overflow-y-auto py-1">
@@ -179,6 +203,14 @@ export function JournalFilters({ filters, onChange, contexts = [], spreads = [],
     return !isCompact;
   });
   const [newFilterName, setNewFilterName] = useState('');
+  const [savePanelOpen, setSavePanelOpen] = useState(false);
+  const saveNameInputRef = useRef(null);
+  const searchInputRef = useRef(null);
+  const timeframeButtonRef = useRef(null);
+  const contextsButtonRef = useRef(null);
+  const spreadsButtonRef = useRef(null);
+  const decksButtonRef = useRef(null);
+  const reversalsButtonRef = useRef(null);
 
   const persistSavedFilters = (next) => {
     setSavedFilters(next);
@@ -239,10 +271,13 @@ export function JournalFilters({ filters, onChange, contexts = [], spreads = [],
 
     persistSavedFilters(next);
     setNewFilterName('');
+    setSavePanelOpen(false);
   };
 
   const handleApplySaved = (saved) => {
     if (!saved?.values) return;
+    setNewFilterName('');
+    setSavePanelOpen(false);
     onChange({ ...DEFAULT_FILTERS, ...saved.values });
   };
 
@@ -256,10 +291,79 @@ export function JournalFilters({ filters, onChange, contexts = [], spreads = [],
   };
 
   const clearFilters = () => {
+    setNewFilterName('');
+    setSavePanelOpen(false);
     onChange(DEFAULT_FILTERS);
   };
 
   const shouldShowAdvanced = !isCompact || advancedOpen;
+  const activeFilters = hasActiveFilters();
+  const showSavedFiltersPanel = shouldShowAdvanced && (savedFilters.length > 0 || activeFilters);
+
+  useEffect(() => {
+    if (!savePanelOpen) return;
+    saveNameInputRef.current?.focus();
+  }, [savePanelOpen]);
+
+  const scrollToControl = (element) => {
+    if (!element) return;
+    if (typeof element.scrollIntoView === 'function') {
+      try {
+        element.scrollIntoView({ block: 'center' });
+      } catch {
+        element.scrollIntoView();
+      }
+    }
+  };
+
+  const handleMapAction = (id) => {
+    if (id === 'query') {
+      const el = searchInputRef.current;
+      scrollToControl(el);
+      el?.focus();
+      return;
+    }
+
+    if (id === 'timeframe') {
+      const el = timeframeButtonRef.current;
+      scrollToControl(el);
+      el?.click();
+      el?.focus();
+      return;
+    }
+
+    if (id === 'contexts') {
+      const el = contextsButtonRef.current;
+      scrollToControl(el);
+      el?.click();
+      el?.focus();
+      return;
+    }
+
+    if (id === 'spreads') {
+      const el = spreadsButtonRef.current;
+      scrollToControl(el);
+      el?.click();
+      el?.focus();
+      return;
+    }
+
+    if (id === 'decks') {
+      const el = decksButtonRef.current;
+      scrollToControl(el);
+      el?.click();
+      el?.focus();
+      return;
+    }
+
+    if (id === 'reversals') {
+      const el = reversalsButtonRef.current;
+      scrollToControl(el);
+      el?.click();
+      el?.focus();
+      return;
+    }
+  };
 
   const containerClass = isCompact
     ? 'relative rounded-3xl border border-amber-300/15 bg-gradient-to-br from-[#0b0a12] via-[#0d0a1a] to-[#0b0a12] p-5 lg:p-6 shadow-[0_22px_60px_-30px_rgba(0,0,0,0.9)] animate-fade-in'
@@ -326,7 +430,8 @@ export function JournalFilters({ filters, onChange, contexts = [], spreads = [],
           <button
             type="button"
             onClick={clearFilters}
-            className="inline-flex items-center gap-2 rounded-full border border-amber-300/30 bg-amber-300/10 px-3 py-1.5 text-xs font-semibold text-amber-50 shadow-[0_12px_30px_-18px_rgba(251,191,36,0.6)] transition hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/50"
+            disabled={!activeFilters}
+            className="inline-flex items-center gap-2 rounded-full border border-amber-300/30 bg-amber-300/10 px-3 py-1.5 text-xs font-semibold text-amber-50 shadow-[0_12px_30px_-18px_rgba(251,191,36,0.6)] transition hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/50 disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none"
           >
             <Sparkle className="h-4 w-4" weight="fill" aria-hidden="true" />
             Reset view
@@ -338,7 +443,7 @@ export function JournalFilters({ filters, onChange, contexts = [], spreads = [],
             type="button"
             onClick={() => setAdvancedOpen(prev => !prev)}
             aria-expanded={advancedOpen}
-            className="flex w-full items-center justify-between rounded-xl border border-amber-300/20 bg-amber-300/5 px-3 py-2 text-sm font-semibold text-amber-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/40"
+            className="flex min-h-[44px] w-full items-center justify-between rounded-xl border border-amber-300/20 bg-amber-300/5 px-3 py-3 text-sm font-semibold text-amber-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/40"
           >
             <span>Advanced filters</span>
             <CaretDown className={`h-4 w-4 transition-transform ${advancedOpen ? 'rotate-180' : ''}`} aria-hidden="true" />
@@ -379,7 +484,8 @@ export function JournalFilters({ filters, onChange, contexts = [], spreads = [],
               hint: query ? 'Keyword active' : 'Type to filter',
               icon: <Sparkle className="h-5 w-5" weight="fill" aria-hidden />,
               isHero: true,
-              active: Boolean(query)
+              active: Boolean(query),
+              disabled: false
             },
             {
               id: 'timeframe',
@@ -387,7 +493,8 @@ export function JournalFilters({ filters, onChange, contexts = [], spreads = [],
               value: timeframeLabel,
               hint: filters.timeframe !== 'all' ? 'Scoped' : 'Any date',
               icon: <ClockCounterClockwise className="h-5 w-5" aria-hidden />,
-              active: filters.timeframe !== 'all'
+              active: filters.timeframe !== 'all',
+              disabled: false
             },
             {
               id: 'contexts',
@@ -395,7 +502,8 @@ export function JournalFilters({ filters, onChange, contexts = [], spreads = [],
               value: ctxCount > 0 ? `${ctxCount} selected` : 'Any',
               hint: ctxCount > 0 ? 'Focused themes' : 'All themes',
               icon: <BookOpen className="h-5 w-5" aria-hidden />,
-              active: ctxCount > 0
+              active: ctxCount > 0,
+              disabled: contexts.length === 0
             },
             {
               id: 'spreads',
@@ -403,7 +511,8 @@ export function JournalFilters({ filters, onChange, contexts = [], spreads = [],
               value: spreadCount > 0 ? `${spreadCount} chosen` : 'Any',
               hint: spreadCount > 0 ? 'Specific layouts' : 'All layouts',
               icon: <ChartLine className="h-5 w-5" aria-hidden />,
-              active: spreadCount > 0
+              active: spreadCount > 0,
+              disabled: spreads.length === 0
             },
             {
               id: 'decks',
@@ -411,7 +520,8 @@ export function JournalFilters({ filters, onChange, contexts = [], spreads = [],
               value: deckCount > 0 ? `${deckCount} deck${deckCount === 1 ? '' : 's'}` : 'Any',
               hint: deckCount > 0 ? 'Curated decks' : 'All decks',
               icon: <Cards className="h-5 w-5" aria-hidden />,
-              active: deckCount > 0
+              active: deckCount > 0,
+              disabled: decks.length === 0
             },
             {
               id: 'reversals',
@@ -419,7 +529,8 @@ export function JournalFilters({ filters, onChange, contexts = [], spreads = [],
               value: reversedOn ? 'Only reversed' : 'Include all',
               hint: reversedOn ? 'Focused' : 'Upright + reversed',
               icon: <ChartLine className="h-5 w-5" aria-hidden />,
-              active: reversedOn
+              active: reversedOn,
+              disabled: false
             }
           ];
 
@@ -427,7 +538,7 @@ export function JournalFilters({ filters, onChange, contexts = [], spreads = [],
             <>
               {/* Desktop constellation */}
               {!isCompact && (
-              <div className="relative hidden h-[260px] lg:block">
+              <div className="relative hidden h-[240px] xl:block">
                 <svg className="absolute inset-0 h-full w-full" aria-hidden="true">
                   <defs>
                     <linearGradient id="filters-line-1" x1="0%" y1="0%" x2="100%" y2="100%">
@@ -483,9 +594,15 @@ export function JournalFilters({ filters, onChange, contexts = [], spreads = [],
                   const pos = positions[node.id] || { x: 50, y: 50 };
                   const isHero = node.isHero;
                   return (
-                    <div
+                    <button
                       key={node.id}
-                      className="group absolute"
+                      type="button"
+                      onClick={() => handleMapAction(node.id)}
+                      disabled={node.disabled}
+                      aria-label={`Edit ${node.label} filter`}
+                      className={`group absolute text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/50 ${
+                        node.disabled ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'
+                      }`}
                       style={{
                         left: `${pos.x}%`,
                         top: `${pos.y}%`,
@@ -495,7 +612,7 @@ export function JournalFilters({ filters, onChange, contexts = [], spreads = [],
                       <div
                         className={`relative w-[160px] overflow-hidden rounded-xl border ${
                           isHero ? 'border-amber-300/40 shadow-[0_20px_60px_-24px_rgba(251,191,36,0.7)]' : 'border-amber-300/25 shadow-[0_16px_40px_-26px_rgba(251,191,36,0.45)]'
-                        } bg-gradient-to-b from-[#161728] via-[#0f1020] to-[#0c0d17] p-[1px]`}
+                        } bg-gradient-to-b from-[#161728] via-[#0f1020] to-[#0c0d17] p-[1px] transition-transform ${node.disabled ? '' : 'group-hover:-translate-y-0.5'}`}
                       >
                         <div className="relative h-full rounded-[11px] bg-gradient-to-b from-[#0c0d19] via-[#0b0c18] to-[#0a0b14]">
                           <div className="pointer-events-none absolute inset-0 opacity-10">
@@ -525,22 +642,26 @@ export function JournalFilters({ filters, onChange, contexts = [], spreads = [],
                           </div>
                         </div>
                       </div>
-                    </div>
+                    </button>
                   );
                 })}
               </div>
               )}
 
               {/* Mobile horizontal cards */}
-              <div className="flex gap-3 overflow-x-auto pb-1 lg:hidden">
+              <div className="flex gap-3 overflow-x-auto pb-1 pr-2 xl:hidden snap-x snap-mandatory">
                 {nodes.map((node) => (
-                  <div
+                  <button
                     key={node.id}
-                    className={`min-w-[150px] flex-1 rounded-xl border px-4 py-3 backdrop-blur-md ${
+                    type="button"
+                    onClick={() => handleMapAction(node.id)}
+                    disabled={node.disabled}
+                    aria-label={`Edit ${node.label} filter`}
+                    className={`min-w-[150px] flex-1 rounded-xl border px-4 py-3 text-left backdrop-blur-md snap-start focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/40 ${
                       node.isHero
                         ? 'border-amber-300/40 bg-amber-300/10 shadow-[0_14px_36px_-20px_rgba(251,191,36,0.6)]'
                         : 'border-amber-200/20 bg-white/5 shadow-[0_10px_30px_-24px_rgba(251,191,36,0.5)]'
-                    }`}
+                    } ${node.disabled ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'}`}
                   >
                     <div className="mb-2 flex items-center gap-2 text-[10px] uppercase tracking-[0.22em] text-amber-200/70">
                       {node.icon}
@@ -548,7 +669,7 @@ export function JournalFilters({ filters, onChange, contexts = [], spreads = [],
                     </div>
                     <p className="font-serif text-lg text-amber-50 leading-tight">{node.value}</p>
                     <p className="text-[11px] text-amber-100/50">{node.hint}</p>
-                  </div>
+                  </button>
                 ))}
               </div>
             </>
@@ -564,28 +685,26 @@ export function JournalFilters({ filters, onChange, contexts = [], spreads = [],
                   <Sparkle className="h-4 w-4" weight="fill" aria-hidden />
                 </div>
                 <input
+                  ref={searchInputRef}
                   type="search"
                   value={filters.query}
                   onChange={handleQueryChange}
                   placeholder="Search readings..."
-                  className="w-full rounded-xl border border-amber-200/20 bg-[#0f1124]/80 px-9 py-2 text-sm text-amber-50 placeholder:text-amber-100/45 focus:outline-none focus:ring-2 focus:ring-amber-300/50"
+                  className="w-full min-h-[44px] rounded-xl border border-amber-200/20 bg-[#0f1124]/80 px-9 py-2.5 text-sm text-amber-50 placeholder:text-amber-100/45 focus:outline-none focus:ring-2 focus:ring-amber-300/50"
                 />
               </div>
-              <button
-                type="button"
-                onClick={clearFilters}
-                className="text-xs font-semibold text-amber-100/80 underline decoration-dotted decoration-amber-200/40 hover:text-amber-50"
-              >
-                Clear filters
-              </button>
             </div>
 
-            {shouldShowAdvanced && (
+            {showSavedFiltersPanel && (
               <div className="mt-4 rounded-xl border border-amber-200/15 bg-[#0f1222]/70 p-3">
                 <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.25em] text-amber-200/70">
                   <BookmarkSimple className="h-4 w-4" />
-                  <span>Saved filters</span>
+                  <span>Saved views</span>
+                  {savedFilters.length > 0 && (
+                    <span className="ml-auto text-[11px] text-amber-100/55">{savedFilters.length} saved</span>
+                  )}
                 </div>
+
                 <div className="mt-2 flex flex-wrap items-center gap-2">
                   {savedFilters.length > 0 ? (
                     savedFilters.map((saved) => (
@@ -611,35 +730,55 @@ export function JournalFilters({ filters, onChange, contexts = [], spreads = [],
                       </div>
                     ))
                   ) : (
-                    <p className="text-xs text-amber-100/60">No saved filters yet—name a view to reuse it.</p>
+                    <p className="text-xs text-amber-100/60">No saved views yet.</p>
                   )}
                 </div>
-                <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
-                  <input
-                    type="text"
-                    value={newFilterName}
-                    onChange={(event) => setNewFilterName(event.target.value)}
-                    placeholder="Name this view"
-                    className="flex-1 rounded-xl border border-amber-200/25 bg-[#0b0d18]/70 px-4 py-2 text-sm text-amber-50 placeholder:text-amber-100/45 focus:outline-none focus:ring-2 focus:ring-amber-300/50"
-                  />
-                  <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={handleSaveCurrent}
-                      className={`${OUTLINE_FILTER_BASE} ${OUTLINE_FILTER_ACTIVE}`}
-                      disabled={!newFilterName.trim() || !hasActiveFilters()}
-                    >
-                      Save current
-                    </button>
-                    <button
-                      type="button"
-                      onClick={clearFilters}
-                      className={`${OUTLINE_FILTER_BASE} ${OUTLINE_FILTER_IDLE}`}
-                    >
-                      Reset
-                    </button>
+
+                {activeFilters && (
+                  <div className="mt-3">
+                    {!savePanelOpen ? (
+                      <button
+                        type="button"
+                        onClick={() => setSavePanelOpen(true)}
+                        className="inline-flex min-h-[44px] items-center gap-2 rounded-xl border border-amber-300/25 bg-amber-300/10 px-3 py-2.5 text-sm font-semibold text-amber-50 shadow-[0_12px_30px_-18px_rgba(251,191,36,0.55)] transition hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/50"
+                      >
+                        <BookmarkSimple className="h-4 w-4 text-amber-200/80" aria-hidden="true" />
+                        Save this view
+                      </button>
+                    ) : (
+                      <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
+                        <input
+                          ref={saveNameInputRef}
+                          type="text"
+                          value={newFilterName}
+                          onChange={(event) => setNewFilterName(event.target.value)}
+                          placeholder="Name this view"
+                          className="flex-1 min-h-[44px] rounded-xl border border-amber-200/25 bg-[#0b0d18]/70 px-4 py-2 text-sm text-amber-50 placeholder:text-amber-100/45 focus:outline-none focus:ring-2 focus:ring-amber-300/50"
+                        />
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={handleSaveCurrent}
+                            className={`${OUTLINE_FILTER_BASE} ${OUTLINE_FILTER_ACTIVE} disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none`}
+                            disabled={!newFilterName.trim() || !activeFilters}
+                          >
+                            Save current
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSavePanelOpen(false);
+                              setNewFilterName('');
+                            }}
+                            className={`${OUTLINE_FILTER_BASE} ${OUTLINE_FILTER_IDLE}`}
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      </div>
+                    )}
                   </div>
-                </div>
+                )}
               </div>
             )}
           </div>
@@ -651,6 +790,7 @@ export function JournalFilters({ filters, onChange, contexts = [], spreads = [],
                 label="Timeframe"
                 options={TIMEFRAME_OPTIONS}
                 value={filters.timeframe}
+                buttonRef={timeframeButtonRef}
                 onChange={(val) => onChange({ ...filters, timeframe: val })}
                 multiple={false}
               />
@@ -660,6 +800,7 @@ export function JournalFilters({ filters, onChange, contexts = [], spreads = [],
                   label="Context"
                   options={contexts}
                   value={filters.contexts}
+                  buttonRef={contextsButtonRef}
                   onChange={(val) => onChange({ ...filters, contexts: val })}
                   multiple={true}
                 />
@@ -670,6 +811,7 @@ export function JournalFilters({ filters, onChange, contexts = [], spreads = [],
                   label="Spread"
                   options={spreads}
                   value={filters.spreads}
+                  buttonRef={spreadsButtonRef}
                   onChange={(val) => onChange({ ...filters, spreads: val })}
                   multiple={true}
                 />
@@ -680,6 +822,7 @@ export function JournalFilters({ filters, onChange, contexts = [], spreads = [],
                   label="Deck"
                   options={decks}
                   value={filters.decks}
+                  buttonRef={decksButtonRef}
                   onChange={(val) => onChange({ ...filters, decks: val })}
                   multiple={true}
                 />
@@ -688,8 +831,10 @@ export function JournalFilters({ filters, onChange, contexts = [], spreads = [],
               <div className="hidden h-6 w-px bg-amber-200/15 sm:block" />
 
               <button
+                ref={reversalsButtonRef}
                 type="button"
                 onClick={() => onChange({ ...filters, onlyReversals: !filters.onlyReversals })}
+                aria-pressed={filters.onlyReversals}
                 className={`${OUTLINE_FILTER_BASE} ${filters.onlyReversals ? OUTLINE_FILTER_ACTIVE : OUTLINE_FILTER_IDLE}`}
               >
                 <span>Reversals</span>

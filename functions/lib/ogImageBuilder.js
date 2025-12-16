@@ -151,7 +151,6 @@ export function buildOgImageSvg(entries, shareRecord) {
 
   // Info panel position (right side)
   const infoX = cardsStartX + displayCards.length * (cardWidth + cardGap) + 40;
-  const infoWidth = width - infoX - 50;
 
   // Build context badge if present
   const contextBadge = context

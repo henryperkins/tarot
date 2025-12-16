@@ -143,7 +143,9 @@ export default function TarotReading() {
     if (typeof window === 'undefined') return;
     if (authLoading) return;
     const rec = loadCoachRecommendation(userId);
-    setCoachRecommendation(rec?.question ? rec : null);
+    const next = rec?.question ? rec : null;
+    const rafId = window.requestAnimationFrame(() => setCoachRecommendation(next));
+    return () => window.cancelAnimationFrame(rafId);
   }, [authLoading, userId]);
 
   // Reset analysis state when Shuffle is triggered

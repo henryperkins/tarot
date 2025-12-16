@@ -1,5 +1,5 @@
 import { useDeferredValue, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { CaretLeft, UploadSimple, ChartLine, Sparkle, BookOpen, CaretDown, CaretUp, ClockCounterClockwise } from '@phosphor-icons/react';
+import { CaretLeft, UploadSimple, ChartLine, Sparkle, BookOpen, CaretDown, ClockCounterClockwise } from '@phosphor-icons/react';
 import { useNavigate } from 'react-router-dom';
 import { GlobalNav } from './GlobalNav';
 import { UserMenu } from './UserMenu';
@@ -145,15 +145,21 @@ export default function Journal() {
   const [shareLoading, setShareLoading] = useState(false);
   const [shareError, setShareError] = useState('');
   const [compactList, setCompactList] = useState(false);
-  const [mobilePanelsOpen, setMobilePanelsOpen] = useState({ filters: false, insights: false, archetype: false });
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [expandedCardIndex, setExpandedCardIndex] = useState(null);
+  const [historyFiltersEl, setHistoryFiltersEl] = useState(null);
+  const [historyFiltersInView, setHistoryFiltersInView] = useState(true);
+  const [hasScrolled, setHasScrolled] = useState(false);
   const navigate = useNavigate();
   const isMobileLayout = useSmallScreen(MOBILE_LAYOUT_MAX);
   const isSmallSummary = useSmallScreen(640);
   const summaryRef = useRef(null);
   const [summaryInView, setSummaryInView] = useState(!isSmallSummary);
   const { publish: showToast } = useToast();
+
+  const registerHistoryFiltersEl = useCallback((node) => {
+    setHistoryFiltersEl(node);
+  }, []);
 
   const handleStartReading = (suggestion) => {
     navigate('/', {
@@ -164,6 +170,14 @@ export default function Journal() {
       }
     });
   };
+
+  const scrollToHistoryFilters = useCallback(() => {
+    const target = historyFiltersEl
+      || document.getElementById('journal-history-filters')
+      || document.getElementById('history');
+    if (!target) return;
+    target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, [historyFiltersEl]);
 
   const locale = useMemo(() => {
     if (typeof navigator !== 'undefined' && navigator.language) {
@@ -277,6 +291,28 @@ export default function Journal() {
     return () => observer.disconnect();
   }, [isSmallSummary]);
 
+  useEffect(() => {
+    if (!historyFiltersEl || typeof IntersectionObserver === 'undefined') return undefined;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          setHistoryFiltersInView(entry.isIntersecting);
+        });
+      },
+      { threshold: 0.15 }
+    );
+    observer.observe(historyFiltersEl);
+    return () => observer.disconnect();
+  }, [historyFiltersEl]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return undefined;
+    const handleScroll = () => setHasScrolled(window.scrollY > 200);
+    handleScroll();
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
   const visibleEntries = useMemo(() => filteredEntries.slice(0, visibleCount), [filteredEntries, visibleCount]);
   const hasMoreEntries = filteredEntries.length > visibleCount;
 
@@ -285,31 +321,6 @@ export default function Journal() {
   const filteredStats = useMemo(() => computeJournalStats(filteredEntries) ?? EMPTY_STATS, [filteredEntries]);
   const filtersActive = Boolean(filters.query.trim()) || filters.contexts.length > 0 || filters.spreads.length > 0 || filters.decks.length > 0 || filters.timeframe !== 'all' || filters.onlyReversals;
   const hasEntries = entries.length > 0;
-  const toggleMobilePanel = (panelId) => {
-    setMobilePanelsOpen((prev) => ({ ...prev, [panelId]: !prev[panelId] }));
-  };
-  const renderMobileAccordionSection = (id, label, content, helperText) => (
-    <div className={`${AMBER_SHELL_CLASS} p-1.5`}>
-      <AmberStarfield />
-      <button
-        type="button"
-        onClick={() => toggleMobilePanel(id)}
-        aria-expanded={Boolean(mobilePanelsOpen[id])}
-        className="relative z-10 flex w-full items-center justify-between rounded-2xl px-4 py-3 text-left text-amber-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/40"
-      >
-        <div>
-          <p className="text-[11px] uppercase tracking-[0.25em] text-amber-100/70">{label}</p>
-          {helperText && <p className="text-xs text-amber-100/60">{helperText}</p>}
-        </div>
-        {mobilePanelsOpen[id] ? <CaretUp className="h-4 w-4 text-amber-200/70" aria-hidden /> : <CaretDown className="h-4 w-4 text-amber-200/70" aria-hidden />}
-      </button>
-      {mobilePanelsOpen[id] && (
-        <div className="relative z-10 border-t border-amber-200/12 bg-[#0b0d18]/70 p-4 backdrop-blur-sm">
-          {content}
-        </div>
-      )}
-    </div>
-  );
 
   const latestAllEntryTs = useMemo(() => {
     if (!entries || entries.length === 0) return null;
@@ -349,6 +360,7 @@ export default function Journal() {
 
   const topContextAll = useMemo(() => getTopContext(allStats), [allStats]);
   const topContextFiltered = useMemo(() => getTopContext(filteredStats), [filteredStats]);
+  const isFilteredEmpty = filtersActive && filteredEntries.length === 0;
   const primaryEntryCount = filtersActive ? filteredEntries.length : entries.length;
   const entrySecondaryLabel = filtersActive ? `of ${entries.length} entries` : 'All time';
   const primaryReversalRate = filtersActive
@@ -359,7 +371,7 @@ export default function Journal() {
     : allStats?.totalCards
       ? `${allStats.totalCards} cards logged`
       : 'Log cards to see insights';
-  const summaryTopContext = filtersActive && topContextFiltered ? topContextFiltered : topContextAll;
+  const summaryTopContext = filtersActive ? topContextFiltered : topContextAll;
   const topContextLabel = summaryTopContext
     ? formatContextName(summaryTopContext.name)
     : filtersActive
@@ -373,11 +385,11 @@ export default function Journal() {
       ? `${entries.length} entries`
       : 'Log a reading';
   const summaryLastEntryTs = filtersActive && filteredEntries.length > 0 ? latestFilteredEntryTs : latestAllEntryTs;
-  const summaryLastEntryLabel = filtersActive && filteredEntries.length === 0
+  const summaryLastEntryLabel = isFilteredEmpty
     ? 'No matches'
     : formatSummaryDate(summaryLastEntryTs);
   const summaryLastEntrySecondary = filtersActive
-    ? (filteredEntries.length === 0 ? 'Showing whole journal' : `Journal: ${formatSummaryDate(latestAllEntryTs)}`)
+    ? (isFilteredEmpty ? 'Adjust filters to see matches' : `Journal: ${formatSummaryDate(latestAllEntryTs)}`)
     : 'Latest journal update';
   const heroDateLabel = heroEntry ? formatSummaryDate(getEntryTimestamp(heroEntry)) : null;
   const heroCardLimit = isSmallSummary ? 1 : 3;
@@ -696,7 +708,7 @@ export default function Journal() {
         <div className="skip-links">
           <a href="#journal-content" className="skip-link">Skip to journal content</a>
         </div>
-        <main id="journal-content" tabIndex={-1} className="journal-page max-w-5xl mx-auto px-4 sm:px-6 py-8">
+        <main id="journal-content" tabIndex={-1} className="journal-page max-w-7xl mx-auto px-4 sm:px-6 py-8">
           <GlobalNav />
 
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-6">
@@ -714,6 +726,19 @@ export default function Journal() {
           </div>
 
           <h1 className="text-3xl font-serif text-accent mb-4">Your Tarot Journal</h1>
+
+          {hasEntries && (
+            <div className="mb-5">
+              <button
+                type="button"
+                onClick={scrollToHistoryFilters}
+                className="inline-flex min-h-[44px] items-center gap-2 rounded-full border border-amber-200/25 bg-amber-200/5 px-5 py-2.5 text-sm font-semibold text-amber-50 shadow-[0_12px_30px_-18px_rgba(251,191,36,0.35)] transition hover:-translate-y-0.5 hover:border-amber-200/40 hover:bg-amber-200/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/40"
+              >
+                <Sparkle className="h-4 w-4 text-amber-200" weight="fill" aria-hidden="true" />
+                Find a reading
+              </button>
+            </div>
+          )}
 
           {isAuthenticated ? (
             <div className={`mb-6 ${AMBER_CARD_CLASS} p-5`}>
@@ -1298,7 +1323,7 @@ export default function Journal() {
               ))}
             </div>
           ) : (
-            <div className={hasEntries && hasRailContent ? 'lg:grid lg:grid-cols-[minmax(0,1fr)_360px] lg:gap-6' : ''}>
+            <div className={hasEntries && hasRailContent ? 'lg:grid lg:grid-cols-[minmax(0,1fr)_320px] lg:gap-6 xl:grid-cols-[minmax(0,1fr)_360px] xl:gap-8' : ''}>
               <div className="space-y-8">
                 <section id="today" className={`${AMBER_SHELL_CLASS} p-5`}>
                   <AmberStarfield />
@@ -1323,29 +1348,35 @@ export default function Journal() {
                           </span>
                         </div>
                         <div className="flex items-center gap-3">
-                          <label className="flex items-center gap-2 text-xs text-amber-100/60 cursor-pointer select-none min-h-[44px]">
+                          <label className="hidden sm:flex items-center gap-2 text-xs text-amber-100/60 cursor-pointer select-none min-h-[44px]">
                             <input
                               type="checkbox"
-                              className="h-4 w-4 rounded border-amber-200/30 bg-transparent text-amber-300 focus:ring-amber-200/40 focus:ring-offset-0"
+                              className="h-5 w-5 rounded border-amber-200/30 bg-transparent text-amber-300 focus:ring-amber-200/40 focus:ring-offset-0"
                               checked={compactList}
                               onChange={(event) => setCompactList(event.target.checked)}
                             />
                             Compact view
                           </label>
                           <span className="inline-flex items-center gap-2 rounded-full border border-amber-200/20 bg-amber-200/10 px-3 py-1 text-[11px] text-amber-100/70">
-                            {visibleEntries.length} of {filteredEntries.length}
+                            Showing {visibleEntries.length} of {filteredEntries.length}
                           </span>
                         </div>
                       </div>
 
-                      <JournalFilters
-                        filters={filters}
-                        onChange={setFilters}
-                        contexts={CONTEXT_FILTERS}
-                        spreads={SPREAD_FILTERS}
-                        decks={DECK_FILTERS}
-                        variant={isMobileLayout ? 'compact' : 'full'}
-                      />
+                      <div
+                        id="journal-history-filters"
+                        ref={registerHistoryFiltersEl}
+                        className="scroll-mt-24"
+                      >
+                        <JournalFilters
+                          filters={filters}
+                          onChange={setFilters}
+                          contexts={CONTEXT_FILTERS}
+                          spreads={SPREAD_FILTERS}
+                          decks={DECK_FILTERS}
+                          variant={isMobileLayout ? 'compact' : 'full'}
+                        />
+                      </div>
 
                       {filteredEntries.length === 0 ? (
                         <div className="relative overflow-hidden rounded-2xl border border-amber-300/15 bg-amber-200/5 p-8 text-center text-sm text-amber-100/75 shadow-[0_16px_40px_-30px_rgba(0,0,0,0.8)]">
@@ -1447,6 +1478,19 @@ export default function Journal() {
             </div>
           )}
         </main>
+
+        {hasEntries && hasScrolled && historyFiltersEl && !historyFiltersInView && (
+          <button
+            type="button"
+            onClick={scrollToHistoryFilters}
+            className="fixed z-40 right-4 sm:right-6 inline-flex min-h-[44px] items-center gap-2 rounded-full border border-amber-300/25 bg-[#0b0c1d]/90 px-4 py-3 text-sm font-semibold text-amber-50 shadow-[0_22px_55px_-28px_rgba(0,0,0,0.85)] backdrop-blur transition hover:-translate-y-0.5 hover:border-amber-300/40 hover:bg-[#0b0c1d]/95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/50"
+            style={{ bottom: 'max(1rem, env(safe-area-inset-bottom, 0px))' }}
+            aria-label="Jump to journal filters"
+          >
+            <Sparkle className="h-4 w-4 text-amber-200" weight="fill" aria-hidden="true" />
+            Filters
+          </button>
+        )}
       </div>
 
       <ConfirmModal

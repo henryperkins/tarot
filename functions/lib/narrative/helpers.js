@@ -1029,7 +1029,7 @@ function buildCrossCheckSynthesis(crossCheck) {
  * Prose-friendly cross-check formatting for local composer output.
  * Removes emoji indicators and uses natural language for relationships.
  */
-function formatCrossCheckProse(label, crossCheck, themes) {
+function formatCrossCheckProse(label, crossCheck, _themes) {
   if (!crossCheck) return '';
 
   const { position1, position2, elementalRelationship } = crossCheck;

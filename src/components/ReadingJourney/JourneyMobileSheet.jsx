@@ -19,7 +19,6 @@ import {
   Export,
 } from '@phosphor-icons/react';
 import { useModalA11y } from '../../hooks/useModalA11y';
-import SeasonSummary from './sections/SeasonSummary';
 import CardsCallingYou from './sections/CardsCallingYou';
 import ContextBreakdown from './sections/ContextBreakdown';
 import MajorArcanaMap from './sections/MajorArcanaMap';
@@ -50,9 +49,7 @@ export default function JourneyMobileSheet({
   cadence,
   totalReadings,
   totalCards,
-  reversalRate,
   currentStreak,
-  seasonNarrative,
   journeyStory,
   coachSuggestion,
   seasonWindow,
@@ -104,12 +101,17 @@ export default function JourneyMobileSheet({
 
   // Reset drag state when sheet closes
   useEffect(() => {
-    if (!isSheetOpen) {
+    if (typeof window === 'undefined') return;
+    if (isSheetOpen) return;
+
+    const rafId = window.requestAnimationFrame(() => {
       setDragOffset(0);
       setIsDragging(false);
       touchStartY.current = null;
       touchStartTime.current = null;
-    }
+    });
+
+    return () => window.cancelAnimationFrame(rafId);
   }, [isSheetOpen]);
 
   // Swipe-to-dismiss handlers
@@ -276,7 +278,6 @@ export default function JourneyMobileSheet({
   }
 
   const topCard = cardFrequency[0];
-  const topContext = [...contextBreakdown].sort((a, b) => b.count - a.count)[0];
 
   return (
     <>

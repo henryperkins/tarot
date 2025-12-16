@@ -87,6 +87,7 @@ coverage/
 # Playwright
 /test-results/
 /playwright-report/
+/playwright-report-integration/
 /blob-report/
 /playwright/.cache/
 

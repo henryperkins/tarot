@@ -4,8 +4,9 @@ import { test, expect } from '@playwright/test';
  * Journal Filters E2E Tests
  *
  * Verifies:
- * - Desktop: filters appear both above entries and in sticky rail
- * - Mobile: accordion filter opens/works before insights/journey
+ * - Desktop: filters appear in Journal History and are reachable via "Find a reading" + a floating "Filters" button
+ * - Desktop: sticky rail (Reading Journey) stays visible while scrolling
+ * - Mobile: filters render in Journal History (compact) and "Advanced filters" reveals filter-map shortcuts
  * - Filter functionality: context/spread/deck/timeframe/reversal/search
  * - Entry counts update correctly
  * - Load more works after filtering
@@ -77,48 +78,50 @@ test.describe('Journal Filters - Desktop @desktop', () => {
     await page.waitForSelector('[id="history"]', { timeout: 10000 });
   });
 
-  test('filters appear in both main content and sticky rail', async ({ page }) => {
-    // Main content area filters (inside #history section)
+  test('filters appear in journal history', async ({ page }) => {
     const mainFilters = page.locator('#history section[aria-label="Focus your journal"]');
     await expect(mainFilters).toBeVisible();
 
-    // Sticky rail filters (inside aside element)
-    const railFilters = page.locator('aside section[aria-label="Focus your journal"]');
-    await expect(railFilters).toBeVisible();
-
-    // Both should have search inputs
+    // Should only render one filters surface (no duplicate rail filters)
     const searchInputs = page.getByPlaceholder('Search readings...');
-    await expect(searchInputs).toHaveCount(2);
+    await expect(searchInputs).toHaveCount(1);
   });
 
-  test('sticky rail stays visible while scrolling', async ({ page }) => {
-    const railFilters = page.locator('aside section[aria-label="Focus your journal"]');
+  test('sticky rail journey stays visible while scrolling', async ({ page }) => {
+    const journeyHeading = page.locator('aside').getByRole('heading', { name: /Your Reading Journey/i });
+    await expect(journeyHeading).toBeVisible();
 
     // Scroll down the page
-    await page.evaluate(() => window.scrollTo(0, 500));
+    await page.evaluate(() => window.scrollTo(0, 800));
 
-    // Wait for scroll to complete and rail to remain in viewport
-    await expect(railFilters).toBeVisible();
-    await expect(railFilters).toBeInViewport();
+    // Rail should remain in viewport
+    await expect(journeyHeading).toBeVisible();
+    await expect(journeyHeading).toBeInViewport();
   });
 
-  test('filters in both locations stay in sync', async ({ page }) => {
-    // Get both search inputs
-    const mainSearch = page.locator('#history').getByPlaceholder('Search readings...');
-    const railSearch = page.locator('aside').getByPlaceholder('Search readings...');
+  test('"Find a reading" jumps to history filters', async ({ page }) => {
+    const jumpButton = page.getByRole('button', { name: /find a reading/i });
+    await expect(jumpButton).toBeVisible();
 
-    // Type in the main search
-    await mainSearch.fill('test query');
+    await jumpButton.click();
 
-    // Both inputs should have the same value (they share state)
-    await expect(mainSearch).toHaveValue('test query');
-    await expect(railSearch).toHaveValue('test query');
+    const filtersAnchor = page.locator('#journal-history-filters');
+    await expect(filtersAnchor).toBeInViewport();
+
+    const searchInput = filtersAnchor.getByPlaceholder('Search readings...');
+    await expect(searchInput).toBeVisible();
   });
 
-  test('insights panel appears in sticky rail', async ({ page }) => {
-    // Check for insights panel in the rail (header text is "Journal Insights")
-    const insightsPanel = page.locator('aside').getByText('Journal Insights');
-    await expect(insightsPanel).toBeVisible();
+  test('floating "Filters" button appears after scroll and jumps back to filters', async ({ page }) => {
+    await page.evaluate(() => window.scrollTo(0, 2500));
+
+    const floatingButton = page.getByRole('button', { name: 'Jump to journal filters' });
+    await expect(floatingButton).toBeVisible();
+
+    await floatingButton.click();
+
+    const filtersAnchor = page.locator('#journal-history-filters');
+    await expect(filtersAnchor).toBeInViewport();
   });
 });
 
@@ -132,50 +135,58 @@ test.describe('Journal Filters - Mobile @mobile', () => {
     await page.waitForSelector('[id="history"]', { timeout: 10000 });
   });
 
-  test('accordion sections appear in correct order', async ({ page }) => {
-    // Find the mobile accordion section
-    const accordionSection = page.locator('section[aria-label="Journal filters, insights, and journey"]');
-    await expect(accordionSection).toBeVisible();
+  test('"Find a reading" jumps to history filters', async ({ page }) => {
+    const jumpButton = page.getByRole('button', { name: /find a reading/i });
+    await expect(jumpButton).toBeVisible();
 
-    // Get all accordion buttons in order
-    const accordionButtons = accordionSection.getByRole('button');
-    const buttonTexts = await accordionButtons.allTextContents();
+    await jumpButton.click();
 
-    // Filters should come first
-    expect(buttonTexts[0]).toContain('Filters');
-  });
+    const filtersAnchor = page.locator('#journal-history-filters');
+    await expect(filtersAnchor).toBeInViewport();
 
-  test('filter accordion opens and shows filter controls', async ({ page }) => {
-    // Find and click the Filters accordion
-    const filtersAccordion = page.getByRole('button', { name: /filters/i }).first();
-    await expect(filtersAccordion).toBeVisible();
-
-    // Check it's collapsed initially (aria-expanded="false")
-    await expect(filtersAccordion).toHaveAttribute('aria-expanded', 'false');
-
-    // Open the accordion
-    await filtersAccordion.click();
-    await expect(filtersAccordion).toHaveAttribute('aria-expanded', 'true');
-
-    // Filter controls should now be visible
-    const searchInput = page.locator('section[aria-label="Journal filters, insights, and journey"]').getByPlaceholder('Search readings...');
+    const searchInput = filtersAnchor.getByPlaceholder('Search readings...');
     await expect(searchInput).toBeVisible();
   });
 
-  test('insights accordion exists after filters', async ({ page }) => {
-    // Look for insights accordion
-    const insightsAccordion = page.getByRole('button', { name: /insights/i });
-    await expect(insightsAccordion).toBeVisible();
-  });
-
-  test('main content also has compact filters', async ({ page }) => {
-    // The main content area should also have filters
+  test('main content has compact filters', async ({ page }) => {
     const mainFilters = page.locator('#history section[aria-label="Focus your journal"]');
     await expect(mainFilters).toBeVisible();
+
+    const advancedToggle = mainFilters.getByRole('button', { name: /advanced filters/i });
+    await expect(advancedToggle).toBeVisible();
+  });
+
+  test('advanced filters reveals filter map shortcuts', async ({ page }) => {
+    await page.getByRole('button', { name: /find a reading/i }).click();
+
+    const mainFilters = page.locator('#history section[aria-label="Focus your journal"]');
+    const advancedToggle = mainFilters.getByRole('button', { name: /advanced filters/i });
+
+    await advancedToggle.click();
+    await expect(advancedToggle).toHaveAttribute('aria-expanded', 'true');
+
+    const timeframeShortcut = mainFilters.getByRole('button', { name: 'Edit Timeframe filter' });
+    await expect(timeframeShortcut).toBeVisible();
+  });
+
+  test('filter map can open the timeframe dropdown', async ({ page }) => {
+    await page.getByRole('button', { name: /find a reading/i }).click();
+
+    const mainFilters = page.locator('#history section[aria-label="Focus your journal"]');
+    const advancedToggle = mainFilters.getByRole('button', { name: /advanced filters/i });
+
+    await advancedToggle.click();
+    await expect(advancedToggle).toHaveAttribute('aria-expanded', 'true');
+
+    const timeframeShortcut = mainFilters.getByRole('button', { name: 'Edit Timeframe filter' });
+    await timeframeShortcut.click();
+
+    const option30d = page.getByRole('option', { name: '30 days' });
+    await expect(option30d).toBeVisible();
   });
 });
 
-test.describe('Filter Functionality', () => {
+test.describe('Filter Functionality @desktop', () => {
   test.use({ viewport: { width: 1280, height: 800 } });
 
   test.beforeEach(async ({ page }) => {
@@ -193,14 +204,14 @@ test.describe('Filter Functionality', () => {
     const initialText = await countBadge.textContent();
 
     // Apply a context filter by clicking the Context dropdown
-    const contextDropdown = page.locator('#history').getByRole('button', { name: 'Context' });
+    const contextDropdown = page.locator('#history').getByRole('button', { name: 'Context', exact: true });
     await contextDropdown.click();
 
     // Select "Love" option
     await page.getByRole('option', { name: 'Love' }).click();
 
-    // Close dropdown by clicking elsewhere
-    await page.locator('#history h2').click();
+    // Close dropdown (multi-select stays open by design)
+    await page.keyboard.press('Escape');
 
     // Count should have changed (filtered to only "love" context entries)
     // With 15 entries cycling through 6 contexts, ~2-3 will be "love"
@@ -233,7 +244,7 @@ test.describe('Filter Functionality', () => {
     const initialText = await countBadge.textContent();
 
     // Click timeframe dropdown
-    const timeframeDropdown = page.locator('#history').getByRole('button', { name: /all time|timeframe/i });
+    const timeframeDropdown = page.locator('#history').getByRole('button', { name: 'Timeframe', exact: true });
     await timeframeDropdown.click();
 
     // Select "30 days" - should filter to only 5 entries (those within 30 days)
@@ -245,7 +256,7 @@ test.describe('Filter Functionality', () => {
 
   test('reversals toggle filter works', async ({ page }) => {
     // Find and click the Reversals toggle
-    const reversalsToggle = page.locator('#history').getByRole('button', { name: 'Reversals' });
+    const reversalsToggle = page.locator('#history').getByRole('button', { name: 'Reversals', exact: true });
     await reversalsToggle.click();
 
     // Button should now show active state (has check mark)
@@ -292,7 +303,7 @@ test.describe('Filter Functionality', () => {
   });
 });
 
-test.describe('Filter State Persistence', () => {
+test.describe('Filter State Persistence @desktop', () => {
   test.use({ viewport: { width: 1280, height: 800 } });
 
   test('saved filters can be created and applied', async ({ page }) => {
@@ -302,15 +313,17 @@ test.describe('Filter State Persistence', () => {
     await page.waitForSelector('[id="history"]', { timeout: 10000 });
 
     // Apply a filter first
-    const contextDropdown = page.locator('#history').getByRole('button', { name: 'Context' });
+    const contextDropdown = page.locator('#history').getByRole('button', { name: 'Context', exact: true });
     await contextDropdown.click();
     await page.getByRole('option', { name: 'Love' }).click();
-    await page.locator('#history h2').click();
+    await page.keyboard.press('Escape');
 
-    // Find the "Name this view" input - it should be visible after applying a filter
+    const saveViewButton = page.locator('#history').getByRole('button', { name: /save this view/i });
+    await expect(saveViewButton).toBeVisible();
+    await saveViewButton.click();
+
     const nameInput = page.locator('#history').getByPlaceholder('Name this view');
     await expect(nameInput).toBeVisible();
-
     await nameInput.fill('My Love Filter');
 
     const saveButton = page.locator('#history').getByRole('button', { name: /save current/i });
@@ -321,7 +334,7 @@ test.describe('Filter State Persistence', () => {
   });
 });
 
-test.describe('Empty and Edge States', () => {
+test.describe('Empty and Edge States @desktop', () => {
   test.use({ viewport: { width: 1280, height: 800 } });
 
   test('shows no results message when filters match nothing', async ({ page }) => {

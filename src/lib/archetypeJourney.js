@@ -13,7 +13,6 @@ import {
   StreakBadge,
   MasteryBadge
 } from '../components/illustrations/BadgeIllustrations';
-import { getCardTrends, computeMonthlyTotals } from '../../shared/journal/trends.js';
 
 export { getCardTrends, computeMonthlyTotals } from '../../shared/journal/trends.js';
 

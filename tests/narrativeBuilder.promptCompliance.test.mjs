@@ -20,7 +20,6 @@ import {
 import { validateReadingNarrative } from '../functions/lib/narrativeSpine.js';
 import {
   setProseMode,
-  isProseMode,
   buildWeightNote,
   buildWeightAttentionIntro,
   buildSupportingPositionsSummary,

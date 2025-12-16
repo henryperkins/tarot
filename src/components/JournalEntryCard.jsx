@@ -442,7 +442,7 @@ export const JournalEntryCard = memo(function JournalEntryCard({
 
   return (
     <article
-      className="group relative overflow-hidden rounded-3xl border border-amber-300/15 bg-gradient-to-br from-[#0f0b16]/85 via-[#0c0a13]/85 to-[#0a0810]/90 ring-1 ring-amber-300/10 shadow-[0_22px_60px_-32px_rgba(0,0,0,0.9)] transition-all hover:shadow-[0_24px_70px_-26px_rgba(251,191,36,0.35)] animate-fade-in"
+      className="group relative rounded-3xl border border-amber-300/15 bg-gradient-to-br from-[#0f0b16]/85 via-[#0c0a13]/85 to-[#0a0810]/90 ring-1 ring-amber-300/10 shadow-[0_22px_60px_-32px_rgba(0,0,0,0.9)] transition-all hover:shadow-[0_24px_70px_-26px_rgba(251,191,36,0.35)] animate-fade-in"
       style={{
         borderLeft: `4px solid ${accentColor}66`
       }}

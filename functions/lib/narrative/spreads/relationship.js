@@ -14,8 +14,7 @@ import {
   getConnector,
   buildInlineReversalNote,
   buildGuidanceActionPrompt,
-  computeRemedyRotationIndex,
-  getSectionHeader
+  computeRemedyRotationIndex
 } from '../helpers.js';
 import { getToneStyle, getFrameVocabulary, buildNameClause, buildPersonalizedClosing } from '../styleHelpers.js';
 

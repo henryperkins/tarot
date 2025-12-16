@@ -15,7 +15,7 @@ function JourneyStorySection({ story }) {
         Your Journey Story
       </p>
       <p className="text-sm text-amber-100/80 leading-relaxed italic">
-        "{story}"
+        &ldquo;{story}&rdquo;
       </p>
     </div>
   );

@@ -47,7 +47,8 @@ async function _enterQuestion(page, question) {
  */
 async function performKnocks(page, count = 3) {
   for (let i = 0; i < count; i++) {
-    const knockButton = page.getByRole('button', { name: /knock/i });
+    // Match the actual knock button (shows "Knock X of 3" pattern), not the accordion header
+    const knockButton = page.getByRole('button', { name: /knock \d+ of \d+|tap.*knock/i });
     await knockButton.click();
     // Small delay between knocks to simulate natural rhythm
     await page.waitForTimeout(150);
@@ -55,27 +56,41 @@ async function performKnocks(page, count = 3) {
 }
 
 /**
- * Apply the cut at current slider position
+ * Apply the cut at current slider position and deal the cards
  */
 async function applyCut(page) {
   const applyButton = page.getByRole('button', { name: /lock cut/i });
   if (await applyButton.isVisible()) {
     await applyButton.click();
   }
+
+  // After ritual is complete, click "Draw cards" to deal
+  const drawCardsButton = page.getByRole('button', { name: /draw cards/i });
+  if (await drawCardsButton.isVisible({ timeout: 2000 }).catch(() => false)) {
+    await drawCardsButton.click();
+  }
 }
 
 /**
- * Skip the ritual entirely
+ * Skip the ritual entirely and trigger shuffle/deal
  */
 async function skipRitual(page) {
-  const skipButton = page.getByRole('button', { name: /skip ritual/i });
-  if (await skipButton.isVisible()) {
-    await skipButton.click();
-    // Confirm skip if modal appears
-    const confirmButton = page.getByRole('button', { name: /confirm|yes|skip/i });
+  // Try the ritual section's skip button first (if ritual panel is expanded)
+  const ritualSkipButton = page.locator('button:has-text("Skip")').first();
+  if (await ritualSkipButton.isVisible({ timeout: 1000 }).catch(() => false)) {
+    await ritualSkipButton.click();
+    // Confirm skip if modal appears (button text is "Skip & draw")
+    const confirmButton = page.getByRole('button', { name: /skip.*draw|confirm|yes/i });
     if (await confirmButton.isVisible({ timeout: 1000 }).catch(() => false)) {
       await confirmButton.click();
+      return;
     }
+  }
+
+  // Fallback: click the "Draw cards" button directly
+  const drawCardsButton = page.getByRole('button', { name: /draw cards/i });
+  if (await drawCardsButton.isVisible({ timeout: 2000 }).catch(() => false)) {
+    await drawCardsButton.click();
   }
 }
 
@@ -132,7 +147,7 @@ async function areAllCardsRevealed(page, _expectedCount) {
  */
 async function _generateNarrative(page) {
   // Desktop button or mobile action bar button
-  const generateButton = page.getByRole('button', { name: /generate|get.*reading|receive.*reading/i }).first();
+  const generateButton = page.getByRole('button', { name: /generate|create.*narrative|get.*reading|receive.*reading/i }).first();
   await expect(generateButton).toBeVisible({ timeout: 5000 });
   await generateButton.click();
 }
@@ -169,8 +184,9 @@ async function _saveToJournal(page) {
  * Start a new reading (shuffle again)
  */
 async function startNewReading(page) {
-  const shuffleButton = page.getByRole('button', { name: /new reading|draw new|shuffle|reset/i });
-  await shuffleButton.click();
+  // Use aria-label to avoid matching "Reset reveals" button
+  const newReadingButton = page.getByRole('button', { name: /start a new reading|new reading.*reset this spread/i });
+  await newReadingButton.click();
 }
 
 // ============================================================================
@@ -181,6 +197,17 @@ test.describe('Tarot Reading Flow - Desktop @desktop', () => {
   test.use({ viewport: { width: 1280, height: 900 } });
 
   test.beforeEach(async ({ page }) => {
+    // Skip onboarding wizard and expand ritual section for testing
+    await page.addInitScript(() => {
+      localStorage.setItem('tarot-onboarding-complete', 'true');
+      // Expand ritual section in preparation panel (stored in sessionStorage)
+      sessionStorage.setItem('tarot-prepare-sections', JSON.stringify({
+        intention: false,
+        experience: false,
+        ritual: true,
+        audio: false
+      }));
+    });
     await page.goto('/');
     await waitForAppReady(page);
   });
@@ -209,7 +236,7 @@ test.describe('Tarot Reading Flow - Desktop @desktop', () => {
     }).toPass({ timeout: 3000 });
 
     // 7. Generate narrative button should appear
-    const generateButton = page.getByRole('button', { name: /generate|get.*reading|receive/i }).first();
+    const generateButton = page.getByRole('button', { name: /generate|create.*narrative|get.*reading|receive/i }).first();
     await expect(generateButton).toBeVisible({ timeout: 5000 });
   });
 
@@ -323,6 +350,17 @@ test.describe('Tarot Reading Flow - Mobile @mobile', () => {
   test.use({ viewport: { width: 375, height: 667 } });
 
   test.beforeEach(async ({ page }) => {
+    // Skip onboarding wizard and expand ritual section for testing
+    await page.addInitScript(() => {
+      localStorage.setItem('tarot-onboarding-complete', 'true');
+      // Expand ritual section in preparation panel (stored in sessionStorage)
+      sessionStorage.setItem('tarot-prepare-sections', JSON.stringify({
+        intention: false,
+        experience: false,
+        ritual: true,
+        audio: false
+      }));
+    });
     await page.goto('/');
     await waitForAppReady(page);
   });
@@ -379,6 +417,17 @@ test.describe('Ritual Mechanics @desktop', () => {
   test.use({ viewport: { width: 1280, height: 900 } });
 
   test.beforeEach(async ({ page }) => {
+    // Skip onboarding wizard and expand ritual section for testing
+    await page.addInitScript(() => {
+      localStorage.setItem('tarot-onboarding-complete', 'true');
+      // Expand ritual section in preparation panel (stored in sessionStorage)
+      sessionStorage.setItem('tarot-prepare-sections', JSON.stringify({
+        intention: false,
+        experience: false,
+        ritual: true,
+        audio: false
+      }));
+    });
     await page.goto('/');
     await waitForAppReady(page);
     await selectSpread(page, 'Three-Card');
@@ -421,6 +470,17 @@ test.describe('Deterministic Shuffle @desktop', () => {
   test('same question produces consistent shuffle', async ({ page }) => {
     const testQuestion = 'What does the universe want me to know?';
 
+    // Skip onboarding wizard and expand ritual section for testing
+    await page.addInitScript(() => {
+      localStorage.setItem('tarot-onboarding-complete', 'true');
+      sessionStorage.setItem('tarot-prepare-sections', JSON.stringify({
+        intention: false,
+        experience: false,
+        ritual: true,
+        audio: false
+      }));
+    });
+
     // First reading
     await page.goto('/');
     await waitForAppReady(page);
@@ -447,6 +507,16 @@ test.describe('Error Handling @desktop', () => {
   test.use({ viewport: { width: 1280, height: 900 } });
 
   test('handles network errors gracefully', async ({ page }) => {
+    // Skip onboarding wizard and expand ritual section for testing
+    await page.addInitScript(() => {
+      localStorage.setItem('tarot-onboarding-complete', 'true');
+      sessionStorage.setItem('tarot-prepare-sections', JSON.stringify({
+        intention: false,
+        experience: false,
+        ritual: true,
+        audio: false
+      }));
+    });
     await page.goto('/');
     await waitForAppReady(page);
     await selectSpread(page, 'One-Card');
@@ -471,6 +541,16 @@ test.describe('Error Handling @desktop', () => {
   });
 
   test('can retry after error', async ({ page }) => {
+    // Skip onboarding wizard and expand ritual section for testing
+    await page.addInitScript(() => {
+      localStorage.setItem('tarot-onboarding-complete', 'true');
+      sessionStorage.setItem('tarot-prepare-sections', JSON.stringify({
+        intention: false,
+        experience: false,
+        ritual: true,
+        audio: false
+      }));
+    });
     await page.goto('/');
     await waitForAppReady(page);
     await selectSpread(page, 'One-Card');
@@ -509,11 +589,22 @@ test.describe('Accessibility @desktop', () => {
   test.use({ viewport: { width: 1280, height: 900 } });
 
   test('spread selector is keyboard navigable', async ({ page }) => {
+    // Skip onboarding wizard and expand ritual section for testing
+    await page.addInitScript(() => {
+      localStorage.setItem('tarot-onboarding-complete', 'true');
+      sessionStorage.setItem('tarot-prepare-sections', JSON.stringify({
+        intention: false,
+        experience: false,
+        ritual: true,
+        audio: false
+      }));
+    });
     await page.goto('/');
     await waitForAppReady(page);
 
-    // Focus the spread selector
-    const firstSpread = page.getByRole('radio').first();
+    // Focus the first spread button in the spread selector
+    const spreadSelector = page.locator('[role="radiogroup"][aria-label="Spread selection"]');
+    const firstSpread = spreadSelector.getByRole('radio').first();
     await firstSpread.focus();
 
     // Navigate with arrow keys
@@ -523,12 +614,22 @@ test.describe('Accessibility @desktop', () => {
     // Select with Enter
     await page.keyboard.press('Enter');
 
-    // A spread should be selected
-    const selectedSpread = page.getByRole('radio', { checked: true });
+    // A spread should be selected in the spread selector
+    const selectedSpread = spreadSelector.getByRole('radio', { checked: true });
     await expect(selectedSpread).toBeVisible();
   });
 
   test('cards have proper ARIA labels', async ({ page }) => {
+    // Skip onboarding wizard and expand ritual section for testing
+    await page.addInitScript(() => {
+      localStorage.setItem('tarot-onboarding-complete', 'true');
+      sessionStorage.setItem('tarot-prepare-sections', JSON.stringify({
+        intention: false,
+        experience: false,
+        ritual: true,
+        audio: false
+      }));
+    });
     await page.goto('/');
     await waitForAppReady(page);
     await selectSpread(page, 'One-Card');
@@ -545,6 +646,16 @@ test.describe('Accessibility @desktop', () => {
   });
 
   test('step progress indicates current stage', async ({ page }) => {
+    // Skip onboarding wizard and expand ritual section for testing
+    await page.addInitScript(() => {
+      localStorage.setItem('tarot-onboarding-complete', 'true');
+      sessionStorage.setItem('tarot-prepare-sections', JSON.stringify({
+        intention: false,
+        experience: false,
+        ritual: true,
+        audio: false
+      }));
+    });
     await page.goto('/');
     await waitForAppReady(page);
 
@@ -562,6 +673,16 @@ test.describe('Performance @desktop', () => {
   test.use({ viewport: { width: 1280, height: 900 } });
 
   test('app loads within acceptable time', async ({ page }) => {
+    // Skip onboarding wizard and expand ritual section for testing
+    await page.addInitScript(() => {
+      localStorage.setItem('tarot-onboarding-complete', 'true');
+      sessionStorage.setItem('tarot-prepare-sections', JSON.stringify({
+        intention: false,
+        experience: false,
+        ritual: true,
+        audio: false
+      }));
+    });
     const startTime = Date.now();
     await page.goto('/');
     await waitForAppReady(page);
@@ -572,6 +693,16 @@ test.describe('Performance @desktop', () => {
   });
 
   test('shuffle animation completes smoothly', async ({ page }) => {
+    // Skip onboarding wizard and expand ritual section for testing
+    await page.addInitScript(() => {
+      localStorage.setItem('tarot-onboarding-complete', 'true');
+      sessionStorage.setItem('tarot-prepare-sections', JSON.stringify({
+        intention: false,
+        experience: false,
+        ritual: true,
+        audio: false
+      }));
+    });
     await page.goto('/');
     await waitForAppReady(page);
     await selectSpread(page, 'One-Card');

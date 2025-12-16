@@ -22,8 +22,8 @@ import { defineConfig, devices } from '@playwright/test';
 
 export default defineConfig({
   testDir: './e2e',
-  // Run integration tests specifically, or all tests if none exist yet
-  testMatch: ['**/*.integration.spec.js', '**/*.spec.js'],
+  // Run the full E2E suite (all specs) against the Workers backend
+  testMatch: ['**/*.spec.js'],
 
   fullyParallel: false, // Sequential for full-stack tests to avoid port conflicts
   forbidOnly: !!process.env.CI,

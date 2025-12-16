@@ -9,7 +9,6 @@ function SeasonSummary({
   narrative,
   topCard,
   currentStreak,
-  totalReadings,
   topContext,
   coachSuggestion,
   onStartReading,

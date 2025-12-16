@@ -12,8 +12,7 @@ import {
   buildReflectionsSection,
   buildPatternSynthesis,
   getConnector,
-  computeRemedyRotationIndex,
-  getSectionHeader
+  computeRemedyRotationIndex
 } from '../helpers.js';
 import { getToneStyle, getFrameVocabulary, buildNameClause, buildPersonalizedClosing } from '../styleHelpers.js';
 

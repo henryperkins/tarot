@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 import { useMemo, useSyncExternalStore } from 'react';
 import { Gear, Sparkle, ArrowsClockwise } from '@phosphor-icons/react';
 import { useLandscape } from '../hooks/useLandscape';
