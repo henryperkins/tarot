@@ -167,6 +167,9 @@ export function useJournal({ autoLoad = true } = {}) {
   const saveEntry = async (entry) => {
     setError(null);
 
+    // Capture userId before async operations to avoid stale closure issues
+    const userId = user?.id;
+
     try {
       if (isAuthenticated) {
         // Save to API
@@ -198,32 +201,20 @@ export function useJournal({ autoLoad = true } = {}) {
           return { success: true, entry: newEntry, deduplicated: true };
         }
 
-        // Add to local state only for genuinely new entries
+        // Add to local state - prepend and dedupe in one pass
         setEntries(prev => {
           const prevEntries = Array.isArray(prev) ? prev : [];
-          const cachedEntries = (() => {
-            if (typeof localStorage === 'undefined') return [];
-            if (!user?.id) return [];
-            try {
-              const cached = localStorage.getItem(getCacheKey(user.id));
-              if (!cached) return [];
-              const parsed = JSON.parse(cached);
-              return dedupeEntries(Array.isArray(parsed) ? parsed : []);
-            } catch (e) {
-              console.warn('Failed to parse cached journal entries:', e);
-              return [];
-            }
-          })();
+          const next = dedupeEntries([newEntry, ...prevEntries]);
 
-          const mergedExisting = dedupeEntries([...prevEntries, ...cachedEntries]);
-          const next = dedupeEntries([newEntry, ...mergedExisting]);
+          // Update cache
           if (typeof window !== 'undefined') {
             persistInsights(next);
-            const cacheKey = getCacheKey(user?.id);
-            try {
-              localStorage.setItem(cacheKey, JSON.stringify(next));
-            } catch (quotaErr) {
-              console.warn('localStorage quota exceeded, skipping cache update:', quotaErr);
+            if (userId) {
+              try {
+                localStorage.setItem(getCacheKey(userId), JSON.stringify(next));
+              } catch (quotaErr) {
+                console.warn('localStorage quota exceeded, skipping cache update:', quotaErr);
+              }
             }
           }
           return next;
@@ -235,44 +226,30 @@ export function useJournal({ autoLoad = true } = {}) {
         }
 
         // Invalidate narrative cache since entry data has changed
-        // Guard: only invalidate if we have a valid userId to avoid clearing all caches
-        if (user?.id) {
-          invalidateNarrativeCache(user.id);
+        if (userId) {
+          invalidateNarrativeCache(userId);
         }
 
         return { success: true, entry: newEntry };
       } else {
-        // Save to localStorage
+        // Save to localStorage (unauthenticated)
         if (typeof localStorage === 'undefined') {
           return { success: false, error: 'localStorage not available' };
         }
 
         const newEntry = {
-          id: crypto.randomUUID?.() || `local_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+          id: crypto.randomUUID?.() || `local_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`,
           ts: Date.now(),
           ...entry
         };
 
-        setEntries((prev) => {
+        setEntries(prev => {
           const prevEntries = Array.isArray(prev) ? prev : [];
-          const storedEntries = (() => {
-            try {
-              const stored = localStorage.getItem(LOCALSTORAGE_KEY);
-              if (!stored) return [];
-              const parsed = JSON.parse(stored);
-              return dedupeEntries(Array.isArray(parsed) ? parsed : []);
-            } catch (e) {
-              console.warn('Failed to parse localStorage journal:', e);
-              return [];
-            }
-          })();
-
-          const mergedExisting = dedupeEntries([...prevEntries, ...storedEntries]);
-          const next = dedupeEntries([newEntry, ...mergedExisting]);
+          let next = dedupeEntries([newEntry, ...prevEntries]);
 
           // Limit to 100 entries in localStorage
           if (next.length > 100) {
-            next.length = 100;
+            next = next.slice(0, 100);
           }
 
           try {
@@ -280,6 +257,7 @@ export function useJournal({ autoLoad = true } = {}) {
           } catch (quotaErr) {
             console.warn('localStorage quota exceeded, unable to persist journal:', quotaErr);
           }
+
           if (typeof window !== 'undefined') {
             persistInsights(next);
           }
@@ -364,12 +342,18 @@ export function useJournal({ autoLoad = true } = {}) {
           return { success: false, error: 'localStorage not available' };
         }
 
-        const updated = entries.filter(e => e.id !== entryId);
-        localStorage.setItem(LOCALSTORAGE_KEY, JSON.stringify(updated));
-        setEntries(updated);
-        if (typeof window !== 'undefined') {
-          persistInsights(updated);
-        }
+        setEntries(prev => {
+          const next = prev.filter(e => e.id !== entryId);
+          try {
+            localStorage.setItem(LOCALSTORAGE_KEY, JSON.stringify(next));
+          } catch (quotaErr) {
+            console.warn('localStorage quota exceeded, skipping storage update:', quotaErr);
+          }
+          if (typeof window !== 'undefined') {
+            persistInsights(next);
+          }
+          return next;
+        });
 
         return { success: true };
       }
