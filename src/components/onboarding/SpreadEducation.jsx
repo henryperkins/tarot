@@ -110,19 +110,27 @@ export function SpreadEducation({ selectedSpread, onSelectSpread, onNext, onBack
             const art = SPREAD_ART[spreadKey];
             const isSelected = selectedSpread === spreadKey;
             const isExpanded = expandedSpread === spreadKey;
+            const positionsId = `spread-${spreadKey}-positions`;
+
+            // Handle clicks on the card container - select spread unless clicking positions toggle
+            const handleCardClick = (e) => {
+              // Don't select if user clicked the positions toggle button
+              if (e.target.closest('[data-positions-toggle]')) return;
+              handleSpreadClick(spreadKey);
+            };
 
             return (
-              <button
+              <div
                 key={spreadKey}
-                type="button"
-                onClick={() => handleSpreadClick(spreadKey)}
-                className={`relative flex flex-col text-left rounded-2xl border overflow-hidden transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-main touch-manipulation ${
+                role="button"
+                tabIndex={-1}
+                onClick={handleCardClick}
+                className={`relative flex flex-col text-left rounded-2xl border overflow-hidden transition touch-manipulation cursor-pointer [&:has(:focus-visible)]:outline-none [&:has(:focus-visible)]:ring-2 [&:has(:focus-visible)]:ring-accent [&:has(:focus-visible)]:ring-offset-2 [&:has(:focus-visible)]:ring-offset-main ${
                   isSelected
                     ? 'border-accent bg-accent/10 ring-1 ring-accent/50'
                     : 'border-secondary/30 bg-surface/50 hover:border-accent/50 hover:bg-surface/70'
                 } ${prefersReducedMotion ? '' : 'animate-fade-in-up'}`}
                 style={{ animationDelay: `${index * 0.1}s` }}
-                aria-pressed={isSelected}
               >
                 {/* Selection indicator */}
                 {isSelected && (
@@ -131,84 +139,93 @@ export function SpreadEducation({ selectedSpread, onSelectSpread, onNext, onBack
                   </div>
                 )}
 
-                {/* Spread artwork */}
-                <div className="relative aspect-video sm:aspect-[16/10] bg-gradient-to-br from-surface to-main overflow-hidden">
-                  {art && (
-                    <img
-                      src={art.src}
-                      alt={art.alt}
-                      className="w-full h-full object-cover opacity-80"
-                      loading="lazy"
+                <button
+                  type="button"
+                  onClick={() => handleSpreadClick(spreadKey)}
+                  className="flex flex-col text-left focus-visible:outline-none touch-manipulation"
+                  aria-pressed={isSelected}
+                >
+                  {/* Spread artwork */}
+                  <div className="relative aspect-video sm:aspect-[16/10] bg-gradient-to-br from-surface to-main overflow-hidden">
+                    {art && (
+                      <img
+                        src={art.src}
+                        alt={art.alt}
+                        className="w-full h-full object-cover opacity-80"
+                        loading="lazy"
+                      />
+                    )}
+                    {/* Overlay gradient */}
+                    <div
+                      className="absolute inset-0 bg-gradient-to-t from-surface/90 via-transparent to-transparent"
+                      aria-hidden="true"
                     />
-                  )}
-                  {/* Overlay gradient */}
-                  <div
-                    className="absolute inset-0 bg-gradient-to-t from-surface/90 via-transparent to-transparent"
-                    aria-hidden="true"
-                  />
-                </div>
-
-                {/* Content */}
-                <div className="p-4 flex-1 flex flex-col">
-                  <div className="flex items-start justify-between gap-2">
-                    <div>
-                      <h3 className="font-serif text-main text-base sm:text-lg leading-tight">
-                        {spread.name}
-                      </h3>
-                      <p className="text-xs text-accent mt-0.5">{description.tagline}</p>
-                    </div>
-                    <span className="shrink-0 px-2 py-0.5 rounded-full bg-secondary/20 text-xs text-muted">
-                      {spread.count} {spread.count === 1 ? 'card' : 'cards'}
-                    </span>
                   </div>
 
-                  <p className={`text-xs xs:text-sm text-muted mt-2 leading-relaxed ${isLandscape ? 'hidden' : 'hidden xs:block'}`}>
-                    {description.explanation}
-                  </p>
-
-                  {/* Expandable positions info - mobile only */}
-                  {isSmallScreen && !isLandscape && (
-                    <>
-                      <button
-                        type="button"
-                        onClick={(e) => toggleExpanded(spreadKey, e)}
-                        className="flex items-center gap-1 mt-3 text-xs text-accent hover:text-main transition"
-                        aria-expanded={isExpanded}
-                      >
-                        <Info className="w-3.5 h-3.5" weight="bold" />
-                        {isExpanded ? 'Hide positions' : 'Show positions'}
-                      </button>
-
-                      {isExpanded && (
-                        <div className="mt-3 pt-3 border-t border-secondary/20 space-y-1.5">
-                          {description.positions.map((position, i) => (
-                            <div key={i} className="flex items-start gap-2 text-xs">
-                              <span className="w-5 h-5 shrink-0 rounded-full bg-accent/10 text-accent flex items-center justify-center font-medium">
-                                {i + 1}
-                              </span>
-                              <span className="text-muted pt-0.5">{position}</span>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </>
-                  )}
-
-                  {/* Desktop positions - always visible */}
-                  {!isSmallScreen && !isLandscape && (
-                    <div className="mt-3 pt-3 border-t border-secondary/20 space-y-1.5">
-                      {description.positions.map((position, i) => (
-                        <div key={i} className="flex items-start gap-2 text-xs">
-                          <span className="w-5 h-5 shrink-0 rounded-full bg-accent/10 text-accent flex items-center justify-center font-medium">
-                            {i + 1}
-                          </span>
-                          <span className="text-muted pt-0.5">{position}</span>
-                        </div>
-                      ))}
+                  {/* Content */}
+                  <div className="p-4 flex-1 flex flex-col">
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <h3 className="font-serif text-main text-base sm:text-lg leading-tight">
+                          {spread.name}
+                        </h3>
+                        <p className="text-xs text-accent mt-0.5">{description.tagline}</p>
+                      </div>
+                      <span className="shrink-0 px-2 py-0.5 rounded-full bg-secondary/20 text-xs text-muted">
+                        {spread.count} {spread.count === 1 ? 'card' : 'cards'}
+                      </span>
                     </div>
-                  )}
-                </div>
-              </button>
+
+                    <p className={`text-xs xs:text-sm text-muted mt-2 leading-relaxed ${isLandscape ? 'hidden' : 'hidden xs:block'}`}>
+                      {description.explanation}
+                    </p>
+
+                    {/* Desktop positions - always visible */}
+                    {!isSmallScreen && !isLandscape && (
+                      <div className="mt-3 pt-3 border-t border-secondary/20 space-y-1.5">
+                        {description.positions.map((position, i) => (
+                          <div key={i} className="flex items-start gap-2 text-xs">
+                            <span className="w-5 h-5 shrink-0 rounded-full bg-accent/10 text-accent flex items-center justify-center font-medium">
+                              {i + 1}
+                            </span>
+                            <span className="text-muted pt-0.5">{position}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </button>
+
+                {/* Expandable positions info - mobile only (not nested inside the selection button) */}
+                {isSmallScreen && !isLandscape && (
+                  <div className="px-4 pb-4 -mt-1">
+                    <button
+                      type="button"
+                      data-positions-toggle
+                      onClick={(e) => toggleExpanded(spreadKey, e)}
+                      className="flex items-center gap-1 text-xs text-accent hover:text-main transition touch-manipulation min-h-[44px] -my-2 py-2"
+                      aria-expanded={isExpanded}
+                      aria-controls={positionsId}
+                    >
+                      <Info className="w-3.5 h-3.5" weight="bold" />
+                      {isExpanded ? 'Hide positions' : 'Show positions'}
+                    </button>
+
+                    {isExpanded && (
+                      <div id={positionsId} className="mt-3 pt-3 border-t border-secondary/20 space-y-1.5">
+                        {description.positions.map((position, i) => (
+                          <div key={i} className="flex items-start gap-2 text-xs">
+                            <span className="w-5 h-5 shrink-0 rounded-full bg-accent/10 text-accent flex items-center justify-center font-medium">
+                              {i + 1}
+                            </span>
+                            <span className="text-muted pt-0.5">{position}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
             );
           })}
         </div>

@@ -196,18 +196,38 @@ export default function TarotReading() {
     };
   }, []);
 
-  // Process router state for initial question - clean up navigation state after consuming
+  // Process router state for initial question / journal suggestions.
+  // Clean up navigation state after consuming so we don't re-apply on rerender.
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
-    if (location.state?.initialQuestion) {
-      setUserQuestion(location.state.initialQuestion);
+    const suggestedSpreadRaw = location.state?.suggestedSpread;
+    const suggestedQuestionRaw = location.state?.suggestedQuestion;
+    const initialQuestionRaw = location.state?.initialQuestion;
+
+    const suggestedSpread = typeof suggestedSpreadRaw === 'string' ? suggestedSpreadRaw.trim() : '';
+    const suggestedQuestion = typeof suggestedQuestionRaw === 'string' ? suggestedQuestionRaw : '';
+    const initialQuestion = typeof initialQuestionRaw === 'string' ? initialQuestionRaw : '';
+
+    const nextQuestionCandidate = suggestedQuestion.trim() ? suggestedQuestion : initialQuestion;
+
+    if (suggestedSpread) {
+      selectSpread(suggestedSpread);
+    }
+
+    if (nextQuestionCandidate) {
+      setUserQuestion(nextQuestionCandidate);
+    }
+
+    if (suggestedSpread || nextQuestionCandidate) {
       const nextState = { ...location.state };
       delete nextState.initialQuestion;
+      delete nextState.suggestedSpread;
+      delete nextState.suggestedQuestion;
       const cleanedState = Object.keys(nextState).length > 0 ? nextState : null;
       navigate(location.pathname, { replace: true, state: cleanedState });
     }
-  }, [location.pathname, location.state, navigate, setUserQuestion]);
+  }, [location.pathname, location.state, navigate, selectSpread, setUserQuestion]);
 
   // Mobile keyboard avoidance for the bottom action bar
   useEffect(() => {

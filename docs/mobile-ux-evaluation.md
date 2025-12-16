@@ -1,5 +1,5 @@
 **Assumptions (So You Know What This Is Based On)**  
-- I’m evaluating the current mobile UX from the React/Tailwind codebase (not a native iOS/Android build). I’m assuming Mystic Tarot is used as a mobile web app / PWA / WebView wrapper.  
+- I’m evaluating the current mobile UX from the React/Tailwind codebase (not a native iOS/Android build). I’m assuming Tableu is used as a mobile web app / PWA / WebView wrapper.  
 - I’m focusing on the requested critical flows (onboarding → first reading → narrative → journal) and calling out only issues I can tie to specific screens/components.
 
 ---
@@ -19,7 +19,7 @@
 
 ## 2) Strengths & What to Preserve
 
-- **Mystic “premium” visual language** (gradients, surfaces, borders) feels cohesive across spreads, coach, and narrative panels—don’t flatten it.
+- **Tableu “premium” visual language** (gradients, surfaces, borders) feels cohesive across spreads, coach, and narrative panels—don’t flatten it.
 - **Bottom action bar as a state machine** (Draw → Reveal next → Create narrative → Save/New) is the right mobile pattern for this flow.
 - **Keyboard avoidance work is unusually thorough** (VisualViewport-based offset + safe-area padding) and should be preserved.
 - **Guided Intention Coach is genuinely differentiating** (templates, history, quality scoring, spread-aware suggestions). Keep it prominent.
@@ -159,4 +159,45 @@
 - Add an explicit **text size** control (Small/Default/Large) and a “reduce motion” in-app setting (in addition to OS).  
 - A more guided “first narrative” moment: highlight “Save” + “Journal reflection prompt” as a single flow to improve retention.
 
-If you want, I can turn this into a concrete “mobile UX audit checklist” mapped to the exact components/screens in your repo (so engineering can implement fixes in a sprint without interpretation).
+---
+
+## 5) Repo Map (Verified in Code)
+
+This is the “where do I change code?” map for each UX item (verified against the current repo as of **December 16, 2025**).
+
+- **UX-1 (Deck selection missing on mobile)**  
+  - **Code pointers:** `src/components/QuickIntentionCard.jsx`, `src/TarotReading.jsx`, `src/components/ReadingPreparation.jsx`, `src/components/ExperienceSettings.jsx`, `src/components/DeckSelector.jsx`  
+  - **Notes:** `DeckSelector` is gated behind `!isSmallScreen`, while mobile only exposes deck *scope* (Major/Full) via `ExperienceSettings`.
+
+- **UX-2 (Redundant step navigation patterns)**  
+  - **Code pointers:** `src/components/Header.jsx` (`StepProgress`), `src/components/StepProgress.jsx`, `src/TarotReading.jsx` (mobile `Spread/Question` nav), `src/components/MobileActionBar.jsx` (step badge + action labels)
+
+- **UX-3 (Spread selection → intention handoff)**  
+  - **Code pointers:** `src/components/SpreadSelector.jsx` (calls `onSpreadConfirm`), `src/TarotReading.jsx` (`scrollQuickIntentionIntoView` exists but isn’t called on spread select), `src/hooks/useTarotState.js` (`onSpreadConfirm`)
+
+- **UX-4 (“Draw cards” label / step mismatch)**  
+  - **Code pointers:** `src/components/MobileActionBar.jsx` (preparation mode uses `onShuffle` + “Draw cards”), `src/TarotReading.jsx` (step indicator labels), `src/hooks/useTarotState.js` (`shuffle` / confirmation flags)
+
+- **UX-5 (Settings/Coach access disappears mid-flow)**  
+  - **Code pointers:** `src/components/MobileActionBar.jsx` (utility buttons only render in preparation), `src/components/MobileSettingsDrawer.jsx`, `src/components/GuidedIntentionCoach.jsx`
+
+- **UX-6 (Touch targets < 44px)**  
+  - **Code pointers:** `src/components/PersonalizationBanner.jsx` (banner buttons), `src/components/ReadingDisplay.jsx` (narrative completion banner + action chips), `src/components/GuidedIntentionCoach.jsx` (template/history controls)
+
+- **UX-7 (Nested interactive controls in onboarding)**  
+  - **Code pointers:** `src/components/onboarding/SpreadEducation.jsx` (outer spread card is a `<button>` with an inner `<button>` for “Show positions”)
+
+- **UX-8 (“Set Preferences” reopens full onboarding)**  
+  - **Code pointers:** `src/components/PersonalizationBanner.jsx`, `src/TarotReading.jsx` (`handlePersonalizationBannerPersonalize` toggles onboarding), `src/components/onboarding` (wizard flow)
+
+- **UX-9 (Journal suggestions not applied in reading)**  
+  - **Code pointers:** `src/components/Journal.jsx` (passes `suggestedSpread`/`suggestedQuestion` via router state), `src/TarotReading.jsx` (currently consumes `initialQuestion` + `focusSpread`, not suggestions)
+
+- **UX-10 (Narrative actions split between card and action bar)**  
+  - **Code pointers:** `src/components/ReadingDisplay.jsx` (save/narrate/view journal buttons), `src/components/MobileActionBar.jsx` (save/new actions)
+
+- **UX-11 (Android back should close overlays first)**  
+  - **Code pointers:** `src/components/MobileSettingsDrawer.jsx`, `src/components/GuidedIntentionCoach.jsx`, `src/hooks/useModalA11y.js` (no `popstate`/history integration today)
+
+- **UX-12 (100vh / `min-h-screen` instability on mobile browsers)**  
+  - **Code pointers:** `src/TarotReading.jsx` (app shell uses `min-h-screen`), `src/styles/tarot.css` (currently applies `svh/dvh` only to `.onboarding-modal`)
