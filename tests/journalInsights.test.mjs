@@ -4,7 +4,10 @@ import { describe, it } from 'node:test';
 import {
   buildJournalCsv,
   buildEntryMarkdown,
-  buildJournalMarkdown
+  buildJournalMarkdown,
+  extractGentleNextSteps,
+  buildNextStepsIntentionQuestion,
+  computeNextStepsCoachSuggestion,
 } from '../src/lib/journalInsights.js';
 
 describe('journal CSV export', () => {
@@ -192,5 +195,94 @@ describe('journal Markdown export', () => {
   it('returns empty string for empty entries array', () => {
     assert.equal(buildJournalMarkdown([]), '');
     assert.equal(buildEntryMarkdown(null), '');
+  });
+});
+
+describe('Gentle Next Steps extraction', () => {
+  it('extracts list items under the Gentle Next Steps section', () => {
+    const narrative = [
+      '### Opening',
+      'A short opening.',
+      '',
+      '### Gentle Next Steps',
+      '- Set a boundary around your time and energy.',
+      '- Practice saying no once this week.',
+      '',
+      '### Closing',
+      'A short closing.'
+    ].join('\n');
+
+    const steps = extractGentleNextSteps(narrative);
+    assert.deepEqual(steps, [
+      'Set a boundary around your time and energy.',
+      'Practice saying no once this week.',
+    ]);
+  });
+
+  it('extracts numbered items when present', () => {
+    const narrative = [
+      '## Gentle Next Steps',
+      '1. Rest more.',
+      '2. Journal about your fear.',
+      '',
+      '## Closing',
+      'Done.'
+    ].join('\n');
+
+    const steps = extractGentleNextSteps(narrative);
+    assert.deepEqual(steps, ['Rest more.', 'Journal about your fear.']);
+  });
+});
+
+describe('Next steps suggestion', () => {
+  it('builds an intention question from a next step', () => {
+    const question = buildNextStepsIntentionQuestion('Set a boundary around your time.');
+    assert.equal(question, 'What would be a gentle next step for me around setting a boundary around my time?');
+  });
+
+  it('creates a coach suggestion from the latest next steps', () => {
+    const entries = [
+      {
+        ts: Date.parse('2024-09-03T12:00:00Z'),
+        personalReading: [
+          '### Opening',
+          '...',
+          '### Gentle Next Steps',
+          '- Set a boundary around your time.',
+          '- Rest more.',
+          '### Closing',
+          '...'
+        ].join('\n'),
+      },
+      {
+        ts: Date.parse('2024-09-02T12:00:00Z'),
+        personalReading: [
+          '### Gentle Next Steps',
+          '- Set a boundary at work.',
+          '### Closing'
+        ].join('\n'),
+      },
+      {
+        ts: Date.parse('2024-09-01T12:00:00Z'),
+        personalReading: [
+          '### Gentle Next Steps',
+          '- Rest more.',
+          '### Closing'
+        ].join('\n'),
+      },
+    ];
+
+    const suggestion = computeNextStepsCoachSuggestion(entries, { maxEntries: 3 });
+    assert.ok(suggestion);
+    assert.equal(suggestion.source, 'nextSteps');
+    assert.equal(suggestion.spread, 'threeCard');
+    assert.ok(suggestion.question.endsWith('?'));
+    assert.match(suggestion.question, /boundar/i);
+    assert.doesNotMatch(suggestion.question.toLowerCase(), /\byour\b/);
+  });
+
+  it('returns null when no next steps are available', () => {
+    const entries = [{ ts: Date.now(), personalReading: '### Opening\nNo steps.\n### Closing' }];
+    assert.equal(computeNextStepsCoachSuggestion(entries), null);
   });
 });

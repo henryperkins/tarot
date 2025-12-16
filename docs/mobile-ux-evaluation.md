@@ -6,13 +6,13 @@
 
 ## 1) Executive Summary (Top 5–10 Recommendations)
 
-- **Mobile deck selection is effectively missing** → Add the existing `DeckSelector` into the mobile settings drawer as a first-class “Deck” section (not just a label + “Change” link). **Impact:** higher personalization satisfaction, better retention, fewer “can’t change deck” drop-offs.
-- **Too many competing “where am I / what next” cues on mobile** (sticky step progress + extra 2-button step nav + bottom action bar) → Keep one step navigator (recommend: the sticky `StepProgress`) and remove/merge the redundant mobile 2-button step nav. **Impact:** lower cognitive load, faster first-reading completion.
-- **Spread selection doesn’t smoothly hand off to intention** (users must discover/scroll to the question area) → After selecting a spread, auto-scroll to the Quick Intention card and focus the field (or show an inline “Next: add your question” CTA anchored above it). **Impact:** improves onboarding-to-reading conversion.
+- **Mobile deck selection is now exposed on mobile** → Added `DeckSelector` to the mobile settings drawer as a first-class “Deck” tab and deep-linked it from the Quick Intention “Change” action. **Status:** Implemented (Dec 16, 2025). **Impact:** higher personalization satisfaction, better retention, fewer “can’t change deck” drop-offs.
+- **Too many competing “where am I / what next” cues on mobile** (sticky step progress + extra 2-button step nav + bottom action bar) → Removed the redundant mobile 2-button step nav and rely on the sticky `StepProgress` + bottom action bar. **Status:** Implemented (Dec 16, 2025). **Impact:** lower cognitive load, faster first-reading completion.
+- **Spread selection doesn’t smoothly hand off to intention** (users must discover/scroll to the question area) → On first mobile spread selection, auto-scroll to the Quick Intention card and briefly highlight it (no forced autofocus). **Status:** Implemented (Dec 16, 2025). **Impact:** improves onboarding-to-reading conversion.
 - **Touch targets are inconsistent (several <44px)** in key moments (banner CTAs, “Save to Journal” in the narrative card, some coach/template controls) → Standardize to 44px minimum touch targets everywhere on mobile. **Impact:** fewer mis-taps, better accessibility, better perceived polish.
 - **Settings/Coach access disappears mid-flow** (e.g., while revealing/generating) → Keep a persistent “More” affordance in the bottom action bar (overflow menu) across all modes (Reveal/Generate/Completed). **Impact:** fewer “I can’t find voice/theme/ritual” dead ends.
 - **Ritual intent is easy to skip unintentionally** because “Draw cards” is always the obvious primary CTA → Before first shuffle, make the action bar offer a clear fork: “Start draw” + a secondary “Ritual (optional)” that opens the ritual controls. **Impact:** better beginner guidance and higher feature discovery without slowing experts.
-- **Journal → Start Reading suggestions don’t appear to prefill** (state is passed but not consumed) → Ensure suggested spread + suggested question actually land in the reading setup UI. **Impact:** strengthens the journal loop (retention driver) and reduces “why didn’t it use my suggestion?” frustration.
+- **Journal → Start Reading suggestions now prefill** → The reading screen consumes `suggestedSpread` + `suggestedQuestion`, applies them, then clears router state. **Status:** Implemented (Dec 16, 2025). **Impact:** strengthens the journal loop (retention driver) and reduces “why didn’t it use my suggestion?” frustration.
 - **Viewport-height stability on iOS Safari can still bite** (the app shell uses `min-h-screen` / 100vh patterns) → Adopt `100dvh`/`100svh` for the main app shell (not only onboarding) to reduce jumpiness with browser chrome + keyboard. **Impact:** fewer layout jumps and accidental taps, especially in landscape.
 
 ---
@@ -32,30 +32,30 @@
 
 - **UX-1**  
   - **Location:** Reading setup (mobile) – Quick Intention card + Settings drawer  
-  - **Issue:** “Deck: … / Change” implies deck art can be changed on mobile, but the mobile drawer doesn’t expose `DeckSelector` (only theme/deck *scope*).  
+  - **Issue (pre-fix):** “Deck: … / Change” implied deck art could be changed on mobile, but the mobile drawer didn’t expose `DeckSelector` (only theme/deck *scope*).  
   - **Why:** Breaks user expectation (Nielsen: consistency + error prevention) and blocks a core personalization lever.  
   - **Severity:** **Critical**  
-  - **Fix:** Add a **Deck** section inside the mobile drawer (tab or top section) that reuses the existing deck carousel; keep “Change deck” as a direct deep-link to that section.  
+  - **Fix (implemented Dec 16, 2025):** Added a **Deck** tab inside the mobile drawer that renders `DeckSelector`, and wired Quick Intention “Change” to open the drawer on that tab.  
   - **Effort:** **Medium**  
-  - **Platform notes:** Both iOS/Android; more painful on phones because deck selector is currently desktop-only.
+  - **Platform notes:** Both iOS/Android.
 
 - **UX-2**  
   - **Location:** Reading – top sticky header (`StepProgress`) + mobile-only 2-step nav (`Spread / Question`)  
-  - **Issue:** Redundant step navigation patterns compete for attention; users get two different “progress” UIs.  
+  - **Issue (pre-fix):** Redundant step navigation patterns competed for attention; users got two different “progress” UIs.  
   - **Why:** Increases cognitive load and visual clutter; “recognition over recall” suffers when multiple controls represent the same concept.  
   - **Severity:** **High**  
-  - **Fix:** Pick one: keep `StepProgress` and remove the 2-button mini nav, or merge them by making `StepProgress` the only step navigator and making it open the drawer for “Question/Ritual” on mobile (already supported).  
+  - **Fix (implemented Dec 16, 2025):** Removed the mobile 2-button mini nav; `StepProgress` is now the single step navigator, and on mobile it opens the drawer on the correct tab for “Question/Ritual”.  
   - **Effort:** **Low–Medium**  
   - **Platform notes:** Both.
 
 - **UX-3**  
   - **Location:** Spread selection → Question entry (mobile)  
-  - **Issue:** After a spread tap, nothing “moves you forward”; users may not notice the Quick Intention card below.  
+  - **Issue (pre-fix):** After a spread tap, nothing “moved you forward”; users could miss the Quick Intention card below.  
   - **Why:** Break in flow momentum (Nielsen: visibility of system status + guidance).  
   - **Severity:** **High**  
-  - **Fix:** On spread select: auto-scroll to the Quick Intention card and focus the textarea; alternatively show a temporary anchored toast: “Next: add your question (optional)” with a “Go” button.  
+  - **Fix (implemented Dec 16, 2025):** On first mobile spread selection, auto-scroll to the Quick Intention card and briefly highlight it (avoids forced autofocus).  
   - **Effort:** **Low**  
-  - **Platform notes:** iOS auto-focus can trigger scroll/jump; consider focusing only after user taps “Next”.
+  - **Platform notes:** iOS autofocus can trigger scroll/jump; this implementation avoids forced focus.
 
 - **UX-4**  
   - **Location:** Mobile action bar – “Draw cards” in preparation mode  
@@ -86,10 +86,10 @@
 
 - **UX-7**  
   - **Location:** Onboarding → Spread Education – “Show positions” inside a spread card  
-  - **Issue:** An interactive control exists inside another interactive control (nested button). This often causes unpredictable tap/focus behavior.  
+  - **Issue (pre-fix):** An interactive control existed inside another interactive control (nested button), causing unpredictable tap/focus behavior.  
   - **Why:** Accessibility + interaction bug risk (VoiceOver/TalkBack focus order, accidental selection).  
   - **Severity:** **High**  
-  - **Fix:** Make the card container non-button (or use a single button with internal disclosure) and implement “Show positions” as a non-nested element (e.g., `<details>` or separate region).  
+  - **Fix (implemented Dec 16, 2025):** Restructured the spread card so selection is one button and “Show positions” is a sibling control (no nested buttons), with `aria-controls` for the expanded region.  
   - **Effort:** **Medium**  
   - **Platform notes:** TalkBack tends to expose nested controls more harshly than iOS.
 
@@ -104,10 +104,10 @@
 
 - **UX-9**  
   - **Location:** Journal → “Start reading” from suggestions / empty-state actions  
-  - **Issue:** The Journal passes suggested spread/question state, but the reading screen doesn’t apply it.  
+  - **Issue (pre-fix):** The Journal passed suggested spread/question state, but the reading screen didn’t apply it.  
   - **Why:** Broken promise; damages trust and reduces the value of “guided return” loops.  
   - **Severity:** **High**  
-  - **Fix:** On reading load, consume `suggestedSpread` + `suggestedQuestion` and (a) select the spread, (b) prefill intention, (c) optionally open Coach with that suggestion highlighted.  
+  - **Fix (implemented Dec 16, 2025):** On reading load, consume `suggestedSpread` + `suggestedQuestion` and apply them (spread selection + intention prefill), then clear the router state.  
   - **Effort:** **Low–Medium**  
   - **Platform notes:** Both.
 
@@ -143,9 +143,10 @@
 ## 4) Prioritized Roadmap
 
 **Phase 1 (Now / High Impact, Low–Medium Effort)**  
-- Add **Deck selection** into mobile settings drawer (fix UX-1).  
-- Fix **Journal → Start Reading** prefill so suggestions actually apply (UX-9).  
-- Remove/merge redundant **mobile step nav** (UX-2) and add post-spread “Next” handoff (UX-3).  
+- Add **Deck selection** into mobile settings drawer (fix UX-1). *(Done Dec 16, 2025)*  
+- Fix **Journal → Start Reading** prefill so suggestions actually apply (UX-9). *(Done Dec 16, 2025)*  
+- Remove/merge redundant **mobile step nav** (UX-2) and add post-spread “Next” handoff (UX-3). *(Done Dec 16, 2025)*  
+- Fix nested onboarding controls in Spread Education (UX-7). *(Done Dec 16, 2025)*  
 - Standardize **44px touch targets** for all mobile CTAs (UX-6).  
 - Keep **Settings/Coach access** available across action bar states via overflow (UX-5).
 
@@ -165,15 +166,17 @@
 
 This is the “where do I change code?” map for each UX item (verified against the current repo as of **December 16, 2025**).
 
-- **UX-1 (Deck selection missing on mobile)**  
-  - **Code pointers:** `src/components/QuickIntentionCard.jsx`, `src/TarotReading.jsx`, `src/components/ReadingPreparation.jsx`, `src/components/ExperienceSettings.jsx`, `src/components/DeckSelector.jsx`  
-  - **Notes:** `DeckSelector` is gated behind `!isSmallScreen`, while mobile only exposes deck *scope* (Major/Full) via `ExperienceSettings`.
+- **UX-1 (Deck selection on mobile)**  
+  - **Code pointers:** `src/components/ReadingPreparation.jsx`, `src/components/DeckSelector.jsx`, `src/components/QuickIntentionCard.jsx`, `src/TarotReading.jsx`  
+  - **Notes:** Implemented via a mobile drawer “Deck” tab (renders `DeckSelector`), with Quick Intention “Change” deep-linking to that tab.
 
 - **UX-2 (Redundant step navigation patterns)**  
-  - **Code pointers:** `src/components/Header.jsx` (`StepProgress`), `src/components/StepProgress.jsx`, `src/TarotReading.jsx` (mobile `Spread/Question` nav), `src/components/MobileActionBar.jsx` (step badge + action labels)
+  - **Code pointers:** `src/components/Header.jsx` (`StepProgress`), `src/components/StepProgress.jsx`, `src/TarotReading.jsx` (`handleStepNav` opens the drawer on mobile), `src/components/MobileActionBar.jsx` (step badge + action labels)
+  - **Notes:** Implemented by removing the redundant mobile `Spread/Question` nav so `StepProgress` is the single step navigator.
 
 - **UX-3 (Spread selection → intention handoff)**  
-  - **Code pointers:** `src/components/SpreadSelector.jsx` (calls `onSpreadConfirm`), `src/TarotReading.jsx` (`scrollQuickIntentionIntoView` exists but isn’t called on spread select), `src/hooks/useTarotState.js` (`onSpreadConfirm`)
+  - **Code pointers:** `src/TarotReading.jsx` (`handleSpreadSelection`, `scrollQuickIntentionIntoView`), `src/components/QuickIntentionCard.jsx` (highlight), `src/components/SpreadSelector.jsx`
+  - **Notes:** Implemented with auto-scroll + brief highlight on first mobile spread selection (no forced focus).
 
 - **UX-4 (“Draw cards” label / step mismatch)**  
   - **Code pointers:** `src/components/MobileActionBar.jsx` (preparation mode uses `onShuffle` + “Draw cards”), `src/TarotReading.jsx` (step indicator labels), `src/hooks/useTarotState.js` (`shuffle` / confirmation flags)
@@ -185,13 +188,15 @@ This is the “where do I change code?” map for each UX item (verified against
   - **Code pointers:** `src/components/PersonalizationBanner.jsx` (banner buttons), `src/components/ReadingDisplay.jsx` (narrative completion banner + action chips), `src/components/GuidedIntentionCoach.jsx` (template/history controls)
 
 - **UX-7 (Nested interactive controls in onboarding)**  
-  - **Code pointers:** `src/components/onboarding/SpreadEducation.jsx` (outer spread card is a `<button>` with an inner `<button>` for “Show positions”)
+  - **Code pointers:** `src/components/onboarding/SpreadEducation.jsx` (selection button + sibling “Show positions” control)
+  - **Notes:** Implemented by removing nested interactive controls and adding `aria-controls` for the expanded region.
 
 - **UX-8 (“Set Preferences” reopens full onboarding)**  
   - **Code pointers:** `src/components/PersonalizationBanner.jsx`, `src/TarotReading.jsx` (`handlePersonalizationBannerPersonalize` toggles onboarding), `src/components/onboarding` (wizard flow)
 
-- **UX-9 (Journal suggestions not applied in reading)**  
-  - **Code pointers:** `src/components/Journal.jsx` (passes `suggestedSpread`/`suggestedQuestion` via router state), `src/TarotReading.jsx` (currently consumes `initialQuestion` + `focusSpread`, not suggestions)
+- **UX-9 (Journal suggestions prefill in reading)**  
+  - **Code pointers:** `src/components/Journal.jsx` (passes `suggestedSpread`/`suggestedQuestion` via router state), `src/TarotReading.jsx` (consumes suggestions + clears router state)
+  - **Notes:** Implemented by applying `suggestedSpread` + `suggestedQuestion` on reading load.
 
 - **UX-10 (Narrative actions split between card and action bar)**  
   - **Code pointers:** `src/components/ReadingDisplay.jsx` (save/narrate/view journal buttons), `src/components/MobileActionBar.jsx` (save/new actions)

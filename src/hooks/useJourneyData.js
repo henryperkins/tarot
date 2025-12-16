@@ -20,6 +20,7 @@ import {
   computeStreakFromEntries,
   computeBadgesFromEntries,
   generateJourneyStory,
+  computeNextStepsCoachSuggestion,
 } from '../lib/journalInsights';
 import {
   buildSeasonKey,
@@ -137,7 +138,7 @@ function generateSeasonNarrative({
  * Badge ordering: badges array is expected to be pre-sorted by earned_at DESC
  * (most recent first). The hook sorts badges before passing to this function.
  *
- * Priority order:
+ * Priority order (after considering recent "Gentle Next Steps"):
  * 1. Preference drift (user exploring new contexts)
  * 2. Most recent badge card (if matches top card)
  * 3. Top theme from recent readings
@@ -151,12 +152,23 @@ function computeEnhancedCoachSuggestion({
   badges, // Pre-sorted: most recent first
   preferenceDrift,
 }) {
+  const contextQuestionMap = {
+    love: 'What do I need to understand about my relationships right now?',
+    career: 'What do I need to understand about my work path right now?',
+    self: 'What do I need to understand about myself right now?',
+    wellbeing: 'What do I need to understand about my wellbeing right now?',
+    spiritual: 'What do I need to understand about my spiritual path right now?',
+    decision: 'What do I need to understand about this decision right now?',
+  };
+
   // Priority 1: Drift detection (user exploring unexpected contexts)
   if (preferenceDrift?.hasDrift && preferenceDrift.driftContexts?.[0]) {
     const drift = preferenceDrift.driftContexts[0];
+    const question = `What draws me toward ${drift.context} right now?`;
     return {
       source: 'drift',
-      text: `You've been exploring ${drift.context} readings lately. What draws you there?`,
+      text: question,
+      question,
       spread: 'threeCard',
     };
   }
@@ -164,34 +176,45 @@ function computeEnhancedCoachSuggestion({
   // Priority 2: Most recent badge card (badges[0] is most recent due to pre-sort)
   const recentBadgeCard = badges?.[0]?.card_name;
   if (recentBadgeCard && topCard?.name === recentBadgeCard) {
+    const question = `What is ${topCard.name} trying to teach me?`;
     return {
       source: 'badge',
-      text: `What is ${topCard.name} trying to teach you?`,
+      text: question,
+      question,
       spread: 'single',
     };
   }
 
   // Priority 3: Top theme
   if (topTheme) {
+    const question = `How can I explore the theme of ${topTheme.toLowerCase()} more deeply?`;
     return {
       source: 'theme',
-      text: `Explore the theme of ${topTheme.toLowerCase()} in your next reading.`,
+      text: question,
+      question,
       spread: 'threeCard',
     };
   }
 
   // Priority 4: Top context
   if (topContext) {
+    const contextKey = String(topContext.name || '').toLowerCase();
+    const question =
+      contextQuestionMap[contextKey]
+      || `What do I need to understand about my ${contextKey || 'current'} situation right now?`;
     return {
       source: 'context',
-      text: `Continue your ${topContext.name.toLowerCase()} exploration.`,
+      text: question,
+      question,
       spread: 'threeCard',
     };
   }
 
+  const question = 'What do I most need to understand right now?';
   return {
     source: 'default',
-    text: 'What do I most need to understand right now?',
+    text: question,
+    question,
     spread: 'single',
   };
 }
@@ -565,7 +588,12 @@ export function useJourneyData({
   }, [scopedEntries, insightsStats]);
 
   // Enhanced coach suggestion - uses sorted badges (most recent first)
+  const nextStepsCoachSuggestion = useMemo(() => {
+    return computeNextStepsCoachSuggestion(activeEntries, { maxEntries: 3 });
+  }, [activeEntries]);
+
   const coachSuggestion = useMemo(() => {
+    if (nextStepsCoachSuggestion) return nextStepsCoachSuggestion;
     const topCard = cardFrequency[0];
     const topTheme = insightsStats.recentThemes?.[0];
 
@@ -577,6 +605,7 @@ export function useJourneyData({
       preferenceDrift,
     });
   }, [
+    nextStepsCoachSuggestion,
     cardFrequency,
     topContext,
     insightsStats.recentThemes,

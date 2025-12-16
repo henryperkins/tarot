@@ -385,6 +385,301 @@ export function loadCoachRecommendation(userId = null) {
   }
 }
 
+// ============================================================================
+// Coach Suggestions from Narrative "Gentle Next Steps"
+// ============================================================================
+
+const GENTLE_NEXT_STEPS_HEADING_PATTERN = /^#{2,4}\s*gentle next steps\b.*$/im;
+const MARKDOWN_HEADING_PATTERN = /^#{2,4}\s+\S+/m;
+const MARKDOWN_LIST_ITEM_PATTERN = /^\s*(?:[-*]|\d+\.)\s+(.+?)\s*$/gm;
+
+const NEXT_STEPS_STOPWORDS = new Set([
+  'a',
+  'an',
+  'and',
+  'are',
+  'as',
+  'at',
+  'be',
+  'but',
+  'by',
+  'can',
+  'for',
+  'from',
+  'have',
+  'if',
+  'in',
+  'into',
+  'is',
+  'it',
+  'just',
+  'like',
+  'may',
+  'maybe',
+  'more',
+  'most',
+  'not',
+  'of',
+  'on',
+  'or',
+  'our',
+  'out',
+  'so',
+  'that',
+  'the',
+  'their',
+  'then',
+  'this',
+  'to',
+  'too',
+  'try',
+  'up',
+  'we',
+  'what',
+  'when',
+  'where',
+  'who',
+  'why',
+  'with',
+  'you',
+  'your',
+]);
+
+const NEXT_STEPS_IMPERATIVE_VERBS = new Set([
+  'ask',
+  'breathe',
+  'build',
+  'call',
+  'choose',
+  'clarify',
+  'commit',
+  'create',
+  'decide',
+  'define',
+  'draft',
+  'focus',
+  'forgive',
+  'ground',
+  'honor',
+  'identify',
+  'journal',
+  'let',
+  'limit',
+  'listen',
+  'make',
+  'name',
+  'notice',
+  'offer',
+  'pause',
+  'plan',
+  'practice',
+  'protect',
+  'reach',
+  'reflect',
+  'release',
+  'rest',
+  'return',
+  'schedule',
+  'set',
+  'simplify',
+  'speak',
+  'start',
+  'take',
+  'try',
+  'write',
+]);
+
+function stripMarkdownInline(text) {
+  return String(text || '')
+    .replace(/!\[([^\]]*)\]\([^)]+\)/g, '$1')
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+    .replace(/`{1,3}([^`]+)`{1,3}/g, '$1')
+    .replace(/[*_]{1,3}/g, '')
+    .replace(/<[^>]+>/g, '')
+    .trim();
+}
+
+function normalizeNextStepsPhrase(text) {
+  let phrase = stripMarkdownInline(text)
+    .replace(/\s+/g, ' ')
+    .replace(/[.:\u2014-]+$/, '')
+    .trim();
+
+  phrase = phrase.replace(/^(?:if you can|if possible|if you feel able)\s*[,:\u2014-]?\s*/i, '');
+  phrase = phrase.replace(/^(?:try(?: to)?|consider)\s+(.+)$/i, '$1');
+
+  phrase = phrase
+    .replace(/\byou are\b/gi, 'I am')
+    .replace(/\byou're\b/gi, "I'm")
+    .replace(/\byou have\b/gi, 'I have')
+    .replace(/\byou've\b/gi, "I've")
+    .replace(/\byourself\b/gi, 'myself')
+    .replace(/\byours\b/gi, 'mine')
+    .replace(/\byour\b/gi, 'my')
+    .replace(/\byou\b/gi, 'I')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  return phrase;
+}
+
+function toGerund(verb) {
+  const cleaned = String(verb || '').toLowerCase();
+  if (!cleaned) return '';
+  if (cleaned.endsWith('ing')) return cleaned;
+  if (cleaned.endsWith('ie')) return `${cleaned.slice(0, -2)}ying`;
+  if (cleaned.endsWith('e') && !cleaned.endsWith('ee')) return `${cleaned.slice(0, -1)}ing`;
+  const consonantVowelConsonant = cleaned.length >= 3
+    && !/[aeiou]$/.test(cleaned)
+    && /[aeiou][^aeiou]$/.test(cleaned)
+    && !/[wxy]$/.test(cleaned);
+  if (consonantVowelConsonant) {
+    const last = cleaned.slice(-1);
+    return `${cleaned}${last}ing`;
+  }
+  return `${cleaned}ing`;
+}
+
+function looksLikeQuestion(text) {
+  if (!text) return false;
+  const normalized = text.trim();
+  if (!normalized.endsWith('?')) return false;
+  return /^(what|how|why|when|where|who|which)\b/i.test(normalized);
+}
+
+function looksLikeImperative(phrase) {
+  const words = phrase.split(/\s+/).filter(Boolean);
+  if (words.length < 2) return false;
+  const first = words[0].replace(/[^\p{L}\p{N}'-]/gu, '').toLowerCase();
+  const second = words[1].replace(/[^\p{L}\p{N}'-]/gu, '').toLowerCase();
+  if (!first) return false;
+
+  if (NEXT_STEPS_IMPERATIVE_VERBS.has(first)) return true;
+
+  const determiners = new Set(['a', 'an', 'the', 'my', 'this', 'that', 'these', 'those', 'one', 'two', 'three']);
+  return determiners.has(second);
+}
+
+function lowerFirst(text) {
+  if (!text) return '';
+  return text.charAt(0).toLowerCase() + text.slice(1);
+}
+
+export function extractGentleNextSteps(markdown) {
+  if (typeof markdown !== 'string' || !markdown.trim()) return [];
+  const headingMatch = GENTLE_NEXT_STEPS_HEADING_PATTERN.exec(markdown);
+  if (!headingMatch) return [];
+
+  const afterHeading = markdown.slice(headingMatch.index + headingMatch[0].length);
+  const nextHeadingMatch = MARKDOWN_HEADING_PATTERN.exec(afterHeading);
+  const section = (nextHeadingMatch ? afterHeading.slice(0, nextHeadingMatch.index) : afterHeading).trim();
+
+  const items = [];
+  let match;
+  while ((match = MARKDOWN_LIST_ITEM_PATTERN.exec(section)) !== null) {
+    const item = stripMarkdownInline(match[1]);
+    if (item) items.push(item);
+  }
+
+  if (items.length > 0) return items;
+
+  const fallbackLine = section.split('\n').map(line => stripMarkdownInline(line)).find(Boolean);
+  return fallbackLine ? [fallbackLine] : [];
+}
+
+export function buildNextStepsIntentionQuestion(stepText) {
+  const phrase = normalizeNextStepsPhrase(stepText);
+  if (!phrase) return '';
+  if (looksLikeQuestion(phrase)) return phrase;
+
+  const normalized = phrase.replace(/[.!]+$/, '').trim();
+  if (!normalized) return '';
+
+  const words = normalized.split(/\s+/).filter(Boolean);
+  let topic = normalized;
+  if (looksLikeImperative(normalized)) {
+    const firstWord = words[0].replace(/[^\p{L}\p{N}'-]/gu, '');
+    if (firstWord) {
+      const rest = words.slice(1).join(' ');
+      topic = `${toGerund(firstWord)}${rest ? ` ${rest}` : ''}`;
+    }
+  }
+
+  topic = lowerFirst(topic).replace(/[.]+$/, '').trim();
+  if (!topic) return '';
+  return `What would be a gentle next step for me around ${topic}?`;
+}
+
+function entryTimestampMs(entry) {
+  const ts = entry?.ts ?? entry?.timestamp ?? null;
+  if (typeof ts === 'number') return ts;
+  const createdSeconds = entry?.created_at ?? entry?.createdAt ?? null;
+  if (typeof createdSeconds === 'number') return createdSeconds * 1000;
+  return null;
+}
+
+function tokenizeForScoring(text) {
+  return String(text || '')
+    .toLowerCase()
+    .replace(/[^a-z0-9\s'-]/g, ' ')
+    .split(/\s+/)
+    .map(token => token.replace(/^[-']+|[-']+$/g, ''))
+    .filter(token => token.length >= 3 && !NEXT_STEPS_STOPWORDS.has(token));
+}
+
+export function computeNextStepsCoachSuggestion(entries, options = {}) {
+  if (!Array.isArray(entries) || entries.length === 0) return null;
+  const maxEntries = typeof options.maxEntries === 'number' ? Math.max(1, options.maxEntries) : 3;
+
+  const sortedByRecency = entries
+    .map((entry) => ({ entry, ts: entryTimestampMs(entry) }))
+    .filter(({ ts }) => typeof ts === 'number' && !Number.isNaN(ts))
+    .sort((a, b) => b.ts - a.ts)
+    .slice(0, maxEntries);
+
+  const stepCandidates = [];
+  sortedByRecency.forEach(({ entry }, index) => {
+    const rawNarrative = entry?.personalReading;
+    if (typeof rawNarrative !== 'string' || !rawNarrative.trim()) return;
+    const steps = extractGentleNextSteps(rawNarrative);
+    if (!steps.length) return;
+    const recencyWeight = 1 + ((maxEntries - 1 - index) * 0.15);
+    steps.forEach((step) => {
+      const cleaned = normalizeNextStepsPhrase(step);
+      if (!cleaned) return;
+      stepCandidates.push({ step: cleaned, weight: recencyWeight });
+    });
+  });
+
+  if (stepCandidates.length === 0) return null;
+
+  const tokenWeights = new Map();
+  stepCandidates.forEach(({ step, weight }) => {
+    tokenizeForScoring(step).forEach((token) => {
+      tokenWeights.set(token, (tokenWeights.get(token) || 0) + weight);
+    });
+  });
+
+  let best = null;
+  stepCandidates.forEach((candidate) => {
+    const uniqueTokens = Array.from(new Set(tokenizeForScoring(candidate.step)));
+    const score = uniqueTokens.reduce((acc, token) => acc + (tokenWeights.get(token) || 0), 0) + candidate.weight;
+    if (!best || score > best.score) {
+      best = { ...candidate, score };
+    }
+  });
+
+  const question = buildNextStepsIntentionQuestion(best?.step);
+  if (!question) return null;
+
+  return {
+    source: 'nextSteps',
+    text: question,
+    question,
+    spread: 'threeCard',
+  };
+}
+
 export function exportJournalEntriesToCsv(entries, filename = 'tarot-journal.csv') {
   if (typeof document === 'undefined') return false;
   const csv = buildJournalCsv(entries);

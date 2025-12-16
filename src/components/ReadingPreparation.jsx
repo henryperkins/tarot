@@ -1,14 +1,16 @@
 import { useState, useCallback, useRef } from 'react';
-import { CaretDown, CaretUp, TextAlignLeft, SpeakerHigh, Palette, Sparkle } from '@phosphor-icons/react';
+import { CaretDown, CaretUp, TextAlignLeft, SpeakerHigh, Palette, Sparkle, Stack } from '@phosphor-icons/react';
 import { QuestionInput } from './QuestionInput';
 import { AudioControls } from './AudioControls';
 import { ExperienceSettings } from './ExperienceSettings';
 import { CoachSuggestion } from './CoachSuggestion';
 import { RitualControls } from './RitualControls';
+import { DeckSelector } from './DeckSelector';
 
 // Mobile tab configuration
 const MOBILE_TABS = [
     { id: 'intention', label: 'Intent', icon: TextAlignLeft },
+    { id: 'deck', label: 'Deck', icon: Stack },
     { id: 'audio', label: 'Audio', icon: SpeakerHigh },
     { id: 'experience', label: 'Theme', icon: Palette },
     { id: 'ritual', label: 'Ritual', icon: Sparkle }
@@ -44,6 +46,9 @@ export function ReadingPreparation({
     knockCount,
     onSkipRitual,
     deckAnnouncement,
+    deckStyleId,
+    onDeckChange,
+    initialMobileTab = 'intention',
     sectionRef,
     shouldSkipRitual = false
 }) {
@@ -80,6 +85,21 @@ export function ReadingPreparation({
         if (section === 'experience') {
             return <ExperienceSettings />;
         }
+        if (section === 'deck') {
+            if (typeof onDeckChange !== 'function') {
+                return (
+                    <p className="text-sm text-muted">
+                        Deck selection is unavailable right now.
+                    </p>
+                );
+            }
+            return (
+                <DeckSelector
+                    selectedDeck={deckStyleId}
+                    onDeckChange={onDeckChange}
+                />
+            );
+        }
         if (section === 'ritual') {
             if (shouldSkipRitual) {
                 return (
@@ -106,7 +126,12 @@ export function ReadingPreparation({
     };
 
     // Mobile tabbed navigation state
-    const [activeTabRaw, setActiveTabRaw] = useState('intention');
+    const [activeTabRaw, setActiveTabRaw] = useState(() => {
+        const availableTabIds = new Set(mobileTabs.map(tab => tab.id));
+        const requested = typeof initialMobileTab === 'string' ? initialMobileTab : 'intention';
+        const normalizedRequested = (shouldSkipRitual && requested === 'ritual') ? 'intention' : requested;
+        return availableTabIds.has(normalizedRequested) ? normalizedRequested : 'intention';
+    });
     const tabRefs = useRef({});
 
     // Derive the effective active tab - if ritual is skipped and ritual was selected, fall back to intention
@@ -189,22 +214,26 @@ export function ReadingPreparation({
                 </div>
 
                 {/* Tab panel content */}
-                {mobileTabs.map((tab) => (
-                    <div
-                        key={tab.id}
-                        id={`mobile-panel-${tab.id}`}
-                        role="tabpanel"
-                        aria-labelledby={`mobile-tab-${tab.id}`}
-                        hidden={activeTab !== tab.id}
-                        className={activeTab === tab.id ? 'animate-fade-in' : ''}
-                    >
-                        {activeTab === tab.id && (
-                            <div className="rounded-2xl border border-secondary/20 bg-surface/40 p-4">
-                                {renderSectionContent(tab.id)}
-                            </div>
-                        )}
-                    </div>
-                ))}
+                    {mobileTabs.map((tab) => (
+                        <div
+                            key={tab.id}
+                            id={`mobile-panel-${tab.id}`}
+                            role="tabpanel"
+                            aria-labelledby={`mobile-tab-${tab.id}`}
+                            hidden={activeTab !== tab.id}
+                            className={activeTab === tab.id ? 'animate-fade-in' : ''}
+                        >
+                            {activeTab === tab.id && (
+                            tab.id === 'deck'
+                                ? renderSectionContent(tab.id)
+                                : (
+                                    <div className="rounded-2xl border border-secondary/20 bg-surface/40 p-4">
+                                        {renderSectionContent(tab.id)}
+                                    </div>
+                                )
+                            )}
+                        </div>
+                    ))}
             </div>
         );
     }

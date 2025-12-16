@@ -10,6 +10,7 @@ import { useAutoGrow } from '../hooks/useAutoGrow';
  * Extracted from TarotReading.jsx for reusability and landscape layouts.
  */
 export const QuickIntentionCard = forwardRef(function QuickIntentionCard({
+  highlight = false,
   userQuestion,
   onQuestionChange,
   placeholderQuestion,
@@ -52,7 +53,9 @@ export const QuickIntentionCard = forwardRef(function QuickIntentionCard({
   return (
     <div
       ref={ref}
-      className="rounded-2xl border border-secondary/30 bg-surface/70 px-4 py-3 shadow-lg shadow-main/20 flex flex-col gap-3"
+      className={`rounded-2xl border border-secondary/30 bg-surface/70 px-4 py-3 shadow-lg shadow-main/20 flex flex-col gap-3 transition ${
+        highlight ? 'ring-2 ring-accent/50 shadow-xl shadow-accent/10' : ''
+      }`}
     >
       <div className="flex items-center justify-between gap-2">
         <div>

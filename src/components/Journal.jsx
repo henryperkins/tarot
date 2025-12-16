@@ -166,7 +166,7 @@ export default function Journal() {
       state: {
         focusSpread: true,
         suggestedSpread: suggestion?.spread,
-        suggestedQuestion: suggestion?.text
+        suggestedQuestion: suggestion?.question || suggestion?.text
       }
     });
   };

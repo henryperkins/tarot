@@ -120,6 +120,8 @@ export default function TarotReading() {
   const [isIntentionCoachOpen, setIsIntentionCoachOpen] = useState(false);
   const [placeholderIndex, setPlaceholderIndex] = useState(0);
   const [isMobileSettingsOpen, setIsMobileSettingsOpen] = useState(false);
+  const [mobileSettingsTab, setMobileSettingsTab] = useState('intention');
+  const [highlightQuickIntention, setHighlightQuickIntention] = useState(false);
   const [keyboardOffset, setKeyboardOffset] = useState(0);
   const isOnboardingOpen = !onboardingComplete && !showPersonalizationBanner;
   // Only true overlays (modals/drawers) should hide the action bar - not the small personalization banner
@@ -132,6 +134,7 @@ export default function TarotReading() {
   const readingSectionRef = useRef(null);
   const quickIntentionCardRef = useRef(null);
   const quickIntentionInputRef = useRef(null);
+  const quickIntentionHighlightTimeoutRef = useRef(null);
   const hasAutoCompletedRef = useRef(false);
   const pendingFocusSpreadRef = useRef(false);
 
@@ -147,6 +150,14 @@ export default function TarotReading() {
     const rafId = window.requestAnimationFrame(() => setCoachRecommendation(next));
     return () => window.cancelAnimationFrame(rafId);
   }, [authLoading, userId]);
+
+  useEffect(() => {
+    return () => {
+      if (quickIntentionHighlightTimeoutRef.current) {
+        window.clearTimeout(quickIntentionHighlightTimeoutRef.current);
+      }
+    };
+  }, []);
 
   // Reset analysis state when Shuffle is triggered
   // (Handled in ReadingContext now, but we might need to clear local UI state if any)
@@ -307,10 +318,7 @@ export default function TarotReading() {
     setVisionResults([]);
     setVisionConflicts([]);
     resetVisionProof();
-    if (isSmallScreen) {
-      setIsMobileSettingsOpen(false);
-    }
-  }, [setDeckStyleId, setVisionResults, setVisionConflicts, resetVisionProof, isSmallScreen]);
+  }, [setDeckStyleId, setVisionResults, setVisionConflicts, resetVisionProof]);
 
   const scrollQuickIntentionIntoView = useCallback(() => {
     if (!isSmallScreen) return;
@@ -327,6 +335,7 @@ export default function TarotReading() {
   }, [isSmallScreen]);
 
   const handleSpreadSelection = useCallback((key) => {
+    const shouldPromptQuickIntention = isSmallScreen && !hasConfirmedSpread;
     // Use the centralized selectSpread from useTarotState
     selectSpread(key);
     // Reset narrative/analysis state
@@ -334,7 +343,18 @@ export default function TarotReading() {
     setJournalStatus(null);
     setReflections({});
     setIsGenerating(false);
-  }, [selectSpread, setPersonalReading, setJournalStatus, setReflections, setIsGenerating]);
+    if (shouldPromptQuickIntention) {
+      scrollQuickIntentionIntoView();
+      setHighlightQuickIntention(true);
+      if (quickIntentionHighlightTimeoutRef.current) {
+        window.clearTimeout(quickIntentionHighlightTimeoutRef.current);
+      }
+      quickIntentionHighlightTimeoutRef.current = window.setTimeout(() => {
+        setHighlightQuickIntention(false);
+        quickIntentionHighlightTimeoutRef.current = null;
+      }, 1500);
+    }
+  }, [hasConfirmedSpread, isSmallScreen, scrollQuickIntentionIntoView, selectSpread, setIsGenerating, setJournalStatus, setPersonalReading, setReflections]);
 
   const handleCoachClose = useCallback(() => {
     setIsIntentionCoachOpen(false);
@@ -370,6 +390,7 @@ export default function TarotReading() {
     const isMobile = typeof window !== 'undefined' && window.innerWidth < 640;
 
     if (isMobile && (stepId === 'intention' || stepId === 'ritual')) {
+      setMobileSettingsTab(stepId === 'ritual' ? 'ritual' : 'intention');
       setIsMobileSettingsOpen(true);
       return;
     }
@@ -665,51 +686,6 @@ export default function TarotReading() {
           <div className={isLandscape ? 'mb-2' : 'mb-4 sm:mb-5'}>
             <p className="text-xs-plus sm:text-sm uppercase tracking-[0.12em] text-accent">{stepIndicatorLabel}</p>
             {!isLandscape && <p className="mt-1 text-muted-high text-xs sm:text-sm">{stepIndicatorHint}</p>}
-            {isSmallScreen && (
-              <nav
-                className="mt-3 grid grid-cols-2 gap-2 sm:hidden"
-                aria-label="Reading setup steps"
-              >
-                <button
-                  type="button"
-                  onClick={() => handleStepNav('spread')}
-                  className={`min-h-[44px] rounded-full border px-3 py-2 text-[11px] uppercase tracking-[0.15em] font-semibold transition touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent ${
-                    activeStep === 'spread'
-                      ? 'border-accent bg-accent/15 text-accent'
-                      : 'border-secondary/30 bg-surface/70 text-secondary/80 hover:border-secondary/50'
-                  }`}
-                  aria-current={activeStep === 'spread' ? 'step' : undefined}
-                >
-                  <span className="flex items-center justify-center gap-1.5">
-                    <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[0.6rem] ${
-                      activeStep === 'spread' ? 'bg-accent text-surface' : 'bg-secondary/20 text-secondary'
-                    }`}>
-                      1
-                    </span>
-                    Spread
-                  </span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleStepNav('intention')}
-                  className={`min-h-[44px] rounded-full border px-3 py-2 text-[11px] uppercase tracking-[0.15em] font-semibold transition touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent ${
-                    activeStep === 'intention'
-                      ? 'border-accent bg-accent/15 text-accent'
-                      : 'border-secondary/30 bg-surface/70 text-secondary/80 hover:border-secondary/50'
-                  }`}
-                  aria-current={activeStep === 'intention' ? 'step' : undefined}
-                >
-                  <span className="flex items-center justify-center gap-1.5">
-                    <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[0.6rem] ${
-                      activeStep === 'intention' ? 'bg-accent text-surface' : 'bg-secondary/20 text-secondary'
-                    }`}>
-                      2
-                    </span>
-                    Question
-                  </span>
-                </button>
-              </nav>
-            )}
           </div>
 
           <div className={`max-w-5xl mx-auto ${isLandscape ? 'space-y-3' : 'space-y-6'}`}>
@@ -732,6 +708,7 @@ export default function TarotReading() {
               <div className="sm:hidden">
                 <QuickIntentionCard
                   ref={quickIntentionCardRef}
+                  highlight={highlightQuickIntention}
                   userQuestion={userQuestion}
                   onQuestionChange={setUserQuestion}
                   placeholderQuestion={EXAMPLE_QUESTIONS[placeholderIndex]}
@@ -741,10 +718,16 @@ export default function TarotReading() {
                     setPendingCoachPrefill(null);
                     setIsIntentionCoachOpen(true);
                   }}
-                  onMoreOpen={() => setIsMobileSettingsOpen(true)}
+                  onMoreOpen={() => {
+                    setMobileSettingsTab('intention');
+                    setIsMobileSettingsOpen(true);
+                  }}
                   deckStyleId={deckStyleId}
                   selectedSpread={selectedSpread}
-                  onDeckChange={() => setIsMobileSettingsOpen(true)}
+                  onDeckChange={() => {
+                    setMobileSettingsTab('deck');
+                    setIsMobileSettingsOpen(true);
+                  }}
                 />
               </div>
             )}
@@ -812,7 +795,10 @@ export default function TarotReading() {
         stepIndicatorLabel={stepIndicatorLabel}
         activeStep={activeStep}
         keyboardOffset={keyboardOffset}
-        onOpenSettings={() => setIsMobileSettingsOpen(true)}
+        onOpenSettings={() => {
+          setMobileSettingsTab(activeStep === 'ritual' ? 'ritual' : 'intention');
+          setIsMobileSettingsOpen(true);
+        }}
         onOpenCoach={() => {
           setPendingCoachPrefill(null);
           setIsIntentionCoachOpen(true);
@@ -869,6 +855,9 @@ export default function TarotReading() {
             setPendingCoachPrefill(null);
             setIsIntentionCoachOpen(true);
           }}
+          deckStyleId={deckStyleId}
+          onDeckChange={handleDeckChange}
+          initialMobileTab={mobileSettingsTab}
           hasKnocked={hasKnocked}
           handleKnock={handleKnock}
           cutIndex={cutIndex}
