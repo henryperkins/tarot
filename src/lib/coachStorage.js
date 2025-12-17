@@ -1,7 +1,7 @@
-export const TEMPLATE_STORAGE_KEY = 'tarot_coach_templates';
+const TEMPLATE_STORAGE_KEY = 'tarot_coach_templates';
 export const HISTORY_STORAGE_KEY = 'tarot_coach_history';
 export const MAX_TEMPLATES = 8;
-export const MAX_HISTORY_ITEMS = 10;
+const MAX_HISTORY_ITEMS = 10;
 export const COACH_STORAGE_SYNC_EVENT = 'coach-storage-sync';
 
 const dispatchCoachStorageEvent = (key) => {

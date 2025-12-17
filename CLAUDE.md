@@ -128,6 +128,17 @@ Key tables (see `migrations/`):
 - `share_tokens` — Reading sharing
 - `archetype_journey` — User's card history tracking
 
+### Migration Deploy Order
+
+**IMPORTANT:** Always apply D1 migrations BEFORE deploying code that uses new columns.
+The API will 500 if code references columns that don't exist yet.
+
+```bash
+# Safe deploy order:
+wrangler d1 execute tarot-db --remote --file=migrations/XXXX_new_migration.sql
+npm run deploy
+```
+
 ## Cloudflare Bindings
 
 Configured in `wrangler.jsonc`:
@@ -302,6 +313,7 @@ See `tests/accessibility/README.md` for manual testing guides (axe DevTools, key
 | `/api/auth/*` | Various | Login, logout, register, me |
 | `/api/keys` | GET/POST | API key management |
 | `/api/admin/archive` | POST | Manual archival trigger (requires ADMIN_API_KEY) |
+| `/api/coach-extraction-backfill` | GET/POST | Backfill AI extraction for coach suggestions (requires ADMIN_API_KEY) |
 
 ## Secrets (via `wrangler secret put`)
 

@@ -11,7 +11,7 @@ export function hashString(s) {
   return h >>> 0;
 }
 
-export function xorshift32(seed) {
+function xorshift32(seed) {
   let x = seed >>> 0 || 0x9e3779b9;
   return () => {
     x ^= x << 13;

@@ -8,6 +8,7 @@ import {
   extractGentleNextSteps,
   buildNextStepsIntentionQuestion,
   computeNextStepsCoachSuggestion,
+  computeCoachSuggestionWithEmbeddings,
 } from '../src/lib/journalInsights.js';
 
 describe('journal CSV export', () => {
@@ -284,5 +285,103 @@ describe('Next steps suggestion', () => {
   it('returns null when no next steps are available', () => {
     const entries = [{ ts: Date.now(), personalReading: '### Opening\nNo steps.\n### Closing' }];
     assert.equal(computeNextStepsCoachSuggestion(entries), null);
+  });
+});
+
+describe('Embedding-based coach suggestion', () => {
+  // Create mock embeddings - simple 4-dimensional vectors for testing
+  // Vectors with similar directions should cluster together
+  const mockEmbedding1 = [1, 0, 0, 0];  // "boundary" theme
+  const mockEmbedding2 = [0.9, 0.1, 0, 0];  // Similar to boundary
+  const mockEmbedding3 = [0, 1, 0, 0];  // "rest" theme (orthogonal)
+  const mockEmbedding4 = [0, 0.9, 0.1, 0];  // Similar to rest
+
+  it('uses pre-computed embeddings to cluster semantically similar steps', () => {
+    const entries = [
+      {
+        ts: Date.parse('2024-09-03T12:00:00Z'),
+        personalReading: '### Gentle Next Steps\n- Set a boundary\n### Closing',
+        extractedSteps: ['Set a boundary around my time', 'Practice saying no'],
+        stepEmbeddings: [mockEmbedding1, mockEmbedding2],
+      },
+      {
+        ts: Date.parse('2024-09-02T12:00:00Z'),
+        personalReading: '### Gentle Next Steps\n- Rest more\n### Closing',
+        extractedSteps: ['Rest more', 'Take breaks'],
+        stepEmbeddings: [mockEmbedding3, mockEmbedding4],
+      },
+    ];
+
+    const suggestion = computeCoachSuggestionWithEmbeddings(entries, { maxEntries: 5 });
+    assert.ok(suggestion);
+    assert.equal(suggestion.source, 'embeddings');
+    assert.ok(suggestion.question.endsWith('?'));
+    assert.ok(Array.isArray(suggestion.relatedSteps));
+    assert.ok(suggestion.relatedSteps.length >= 1);
+  });
+
+  it('falls back to heuristic when no embedding data is available', () => {
+    const entries = [
+      {
+        ts: Date.parse('2024-09-03T12:00:00Z'),
+        personalReading: [
+          '### Gentle Next Steps',
+          '- Set a boundary around your time.',
+          '### Closing',
+        ].join('\n'),
+        // No extractedSteps or stepEmbeddings
+      },
+    ];
+
+    const suggestion = computeCoachSuggestionWithEmbeddings(entries, { maxEntries: 3 });
+    // Should fall back to heuristic (source: 'nextSteps')
+    assert.ok(suggestion);
+    assert.equal(suggestion.source, 'nextSteps');
+  });
+
+  it('falls back to extractedSteps when embeddings are missing', () => {
+    const entries = [
+      {
+        ts: Date.parse('2024-09-03T12:00:00Z'),
+        personalReading: 'Narrative without a next steps section',
+        extractedSteps: ['Set a boundary around my time', 'Practice saying no'],
+        stepEmbeddings: null,
+      },
+    ];
+
+    const suggestion = computeCoachSuggestionWithEmbeddings(entries, { maxEntries: 5 });
+    assert.ok(suggestion);
+    assert.equal(suggestion.source, 'extractedSteps');
+    assert.ok(suggestion.question.endsWith('?'));
+  });
+
+  it('returns null when entries array is empty', () => {
+    assert.equal(computeCoachSuggestionWithEmbeddings([]), null);
+  });
+
+  it('returns null when entries have no valid data', () => {
+    const entries = [
+      { ts: Date.now(), personalReading: 'No steps section here' },
+    ];
+    assert.equal(computeCoachSuggestionWithEmbeddings(entries), null);
+  });
+
+  it('clusters steps with high cosine similarity together', () => {
+    // All embeddings are very similar (same direction)
+    const similarEmbedding = [1, 0, 0, 0];
+    const entries = [
+      {
+        ts: Date.parse('2024-09-03T12:00:00Z'),
+        personalReading: '### Gentle Next Steps\n- Step 1\n### Closing',
+        extractedSteps: ['Set a boundary', 'Protect your energy', 'Say no more often'],
+        stepEmbeddings: [similarEmbedding, similarEmbedding, similarEmbedding],
+      },
+    ];
+
+    const suggestion = computeCoachSuggestionWithEmbeddings(entries, { maxEntries: 5 });
+    assert.ok(suggestion);
+    // All steps should cluster together since they have identical embeddings
+    assert.equal(suggestion.relatedSteps.length, 3);
+    assert.equal(suggestion.clusterSize, 3);
   });
 });

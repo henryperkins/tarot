@@ -310,33 +310,6 @@ function registerShareToken(entries, scope = 'journal', meta = {}) {
   return token;
 }
 
-export function loadShareTokenHistory() {
-  if (typeof localStorage === 'undefined') return [];
-  try {
-    const raw = localStorage.getItem(SHARE_TOKEN_STORAGE_KEY);
-    if (!raw) return [];
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : [];
-  } catch (error) {
-    console.warn('Unable to load share tokens:', error);
-    return [];
-  }
-}
-
-export function revokeShareToken(token) {
-  if (typeof localStorage === 'undefined') return [];
-  try {
-    const raw = localStorage.getItem(SHARE_TOKEN_STORAGE_KEY);
-    const parsed = raw ? JSON.parse(raw) : [];
-    const next = Array.isArray(parsed) ? parsed.filter(record => record.token !== token) : [];
-    localStorage.setItem(SHARE_TOKEN_STORAGE_KEY, JSON.stringify(next));
-    return next;
-  } catch (error) {
-    console.warn('Unable to revoke share token:', error);
-    return [];
-  }
-}
-
 /**
  * Save coach recommendation for a user
  * @param {Object} recommendation - Recommendation to save
@@ -677,6 +650,221 @@ export function computeNextStepsCoachSuggestion(entries, options = {}) {
     text: question,
     question,
     spread: 'threeCard',
+  };
+}
+
+function computeExtractedStepsCoachSuggestionFromSorted(sortedByRecency, maxEntries) {
+  if (!Array.isArray(sortedByRecency) || sortedByRecency.length === 0) return null;
+
+  const stepCandidates = [];
+
+  sortedByRecency.forEach(({ entry }, index) => {
+    const steps = entry?.extractedSteps;
+    if (!Array.isArray(steps) || steps.length === 0) return;
+
+    const recencyWeight = 1 + ((maxEntries - 1 - index) * 0.15);
+    steps.forEach((step) => {
+      const cleaned = normalizeNextStepsPhrase(step);
+      if (!cleaned) return;
+      stepCandidates.push({ step: cleaned, weight: recencyWeight });
+    });
+  });
+
+  if (stepCandidates.length === 0) return null;
+
+  const tokenWeights = new Map();
+  stepCandidates.forEach(({ step, weight }) => {
+    tokenizeForScoring(step).forEach((token) => {
+      tokenWeights.set(token, (tokenWeights.get(token) || 0) + weight);
+    });
+  });
+
+  let best = null;
+  stepCandidates.forEach((candidate) => {
+    const uniqueTokens = Array.from(new Set(tokenizeForScoring(candidate.step)));
+    const score = uniqueTokens.reduce((acc, token) => acc + (tokenWeights.get(token) || 0), 0) + candidate.weight;
+    if (!best || score > best.score) {
+      best = { ...candidate, score };
+    }
+  });
+
+  const question = buildNextStepsIntentionQuestion(best?.step);
+  if (!question) return null;
+
+  return {
+    source: 'extractedSteps',
+    text: question,
+    question,
+    spread: 'threeCard',
+  };
+}
+
+// ============================================================================
+// Embedding-based Coach Suggestions (uses pre-computed AI data)
+// ============================================================================
+
+/**
+ * Compute cosine similarity between two embedding vectors.
+ * @param {number[]} a - First embedding vector
+ * @param {number[]} b - Second embedding vector
+ * @returns {number} Cosine similarity (-1 to 1)
+ */
+function cosineSimilarity(a, b) {
+  if (!Array.isArray(a) || !Array.isArray(b) || a.length !== b.length || a.length === 0) {
+    return 0;
+  }
+
+  let dot = 0;
+  let normA = 0;
+  let normB = 0;
+
+  for (let i = 0; i < a.length; i++) {
+    dot += a[i] * b[i];
+    normA += a[i] * a[i];
+    normB += b[i] * b[i];
+  }
+
+  const denominator = Math.sqrt(normA) * Math.sqrt(normB);
+  return denominator > 0 ? dot / denominator : 0;
+}
+
+/**
+ * Cluster steps by semantic similarity using pre-computed embeddings.
+ *
+ * @param {Array<{text: string, weight: number}>} steps - Steps with recency weights
+ * @param {number[][]} embeddings - Corresponding embedding vectors
+ * @param {number} threshold - Similarity threshold for clustering (0-1)
+ * @returns {Array<{steps: string[], indices: number[], score: number, theme: string}>}
+ */
+function clusterStepsByEmbedding(steps, embeddings, threshold = 0.75) {
+  if (!Array.isArray(steps) || !Array.isArray(embeddings) || steps.length !== embeddings.length) {
+    return [];
+  }
+
+  const clusters = [];
+  const assigned = new Set();
+
+  for (let i = 0; i < steps.length; i++) {
+    if (assigned.has(i)) continue;
+
+    const cluster = {
+      steps: [steps[i].text],
+      indices: [i],
+      weights: [steps[i].weight]
+    };
+    assigned.add(i);
+
+    // Find similar steps
+    for (let j = i + 1; j < steps.length; j++) {
+      if (assigned.has(j)) continue;
+
+      const similarity = cosineSimilarity(embeddings[i], embeddings[j]);
+      if (similarity >= threshold) {
+        cluster.steps.push(steps[j].text);
+        cluster.indices.push(j);
+        cluster.weights.push(steps[j].weight);
+        assigned.add(j);
+      }
+    }
+
+    clusters.push(cluster);
+  }
+
+  // Score clusters by total weight (size + recency)
+  clusters.forEach(cluster => {
+    cluster.score = cluster.weights.reduce((sum, w) => sum + w, 0);
+    // Use the shortest step as the theme (often the most distilled phrasing)
+    cluster.theme = cluster.steps.reduce((a, b) => a.length <= b.length ? a : b);
+  });
+
+  // Sort by score descending
+  clusters.sort((a, b) => b.score - a.score);
+
+  return clusters;
+}
+
+/**
+ * Compute coach suggestion using pre-extracted steps and embeddings.
+ * Falls back to text-based heuristic if extraction data is unavailable.
+ *
+ * This function is called client-side on journal load. It uses data that
+ * was pre-computed on the server when each reading was saved, enabling
+ * semantic clustering without AI inference on every page load.
+ *
+ * @param {Array} entries - Journal entries (should have extractedSteps and stepEmbeddings)
+ * @param {Object} options - Options
+ * @param {number} [options.maxEntries=5] - Maximum entries to consider
+ * @param {number} [options.similarityThreshold=0.75] - Embedding similarity threshold
+ * @returns {Object|null} Coach suggestion or null
+ */
+export function computeCoachSuggestionWithEmbeddings(entries, options = {}) {
+  if (!Array.isArray(entries) || entries.length === 0) return null;
+
+  const maxEntries = typeof options.maxEntries === 'number' ? Math.max(1, options.maxEntries) : 5;
+  const similarityThreshold = typeof options.similarityThreshold === 'number'
+    ? Math.max(0, Math.min(1, options.similarityThreshold))
+    : 0.75;
+
+  // Sort by recency and take top entries
+  const sortedByRecency = entries
+    .map((entry) => ({ entry, ts: entryTimestampMs(entry) }))
+    .filter(({ ts }) => typeof ts === 'number' && !Number.isNaN(ts))
+    .sort((a, b) => b.ts - a.ts)
+    .slice(0, maxEntries);
+
+  const extractedStepsFallback = computeExtractedStepsCoachSuggestionFromSorted(sortedByRecency, maxEntries);
+
+  // Gather pre-computed steps and embeddings
+  const allSteps = [];
+  const allEmbeddings = [];
+  let hasEmbeddingData = false;
+
+  sortedByRecency.forEach(({ entry }, index) => {
+    const steps = entry?.extractedSteps;
+    const embeddings = entry?.stepEmbeddings;
+
+    // Check if this entry has valid pre-computed data
+    if (Array.isArray(steps) && Array.isArray(embeddings) && steps.length > 0 && embeddings.length === steps.length) {
+      hasEmbeddingData = true;
+      const recencyWeight = 1 + ((maxEntries - 1 - index) * 0.15);
+
+      steps.forEach((stepText, i) => {
+        if (typeof stepText === 'string' && stepText.trim()) {
+          allSteps.push({ text: stepText.trim(), weight: recencyWeight });
+          allEmbeddings.push(embeddings[i]);
+        }
+      });
+    }
+  });
+
+  // Fall back to heuristic if no embedding data available
+  if (!hasEmbeddingData || allSteps.length < 2) {
+    return extractedStepsFallback || computeNextStepsCoachSuggestion(entries, { maxEntries });
+  }
+
+  // Cluster by embedding similarity
+  const clusters = clusterStepsByEmbedding(allSteps, allEmbeddings, similarityThreshold);
+
+  if (clusters.length === 0) {
+    return extractedStepsFallback || computeNextStepsCoachSuggestion(entries, { maxEntries });
+  }
+
+  const topCluster = clusters[0];
+
+  // Generate question from the theme
+  const question = buildNextStepsIntentionQuestion(topCluster.theme);
+  if (!question) {
+    return extractedStepsFallback || computeNextStepsCoachSuggestion(entries, { maxEntries });
+  }
+
+  return {
+    source: 'embeddings',
+    text: question,
+    question,
+    theme: topCluster.theme,
+    relatedSteps: topCluster.steps,
+    clusterSize: topCluster.steps.length,
+    spread: topCluster.steps.length > 2 ? 'threeCard' : 'single',
   };
 }
 

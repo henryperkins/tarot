@@ -9,6 +9,7 @@ import {
   getSessionFromCookie
 } from '../lib/auth.js';
 import { dedupeEntries } from '../../shared/journal/dedupe.js';
+import { scheduleCoachExtraction } from '../lib/coachSuggestion.js';
 
 /**
  * Safely parse JSON with fallback to prevent single corrupt row from breaking entire journal
@@ -24,6 +25,11 @@ function safeJsonParse(json, fallback) {
     console.warn('JSON parse failed:', e.message);
     return fallback;
   }
+}
+
+function isMissingColumnError(err) {
+  const message = String(err?.message || err || '');
+  return message.toLowerCase().includes('no such column');
 }
 
 /**
@@ -72,8 +78,37 @@ export async function onRequestGet(context) {
     ).bind(user.id).first();
     const total = countResult?.total || 0;
 
-    // Build query with optional pagination
-    let query = `
+    // Limit embedding data to recent entries to reduce response size.
+    // IMPORTANT: don't select step_embeddings for every row; fetch it only for the newest entries.
+    const MAX_ENTRIES_WITH_EMBEDDINGS = 10;
+
+    // Base query (exclude step_embeddings; it is large).
+    const query = `
+      SELECT
+        id,
+        created_at,
+        spread_key,
+        spread_name,
+        question,
+        cards_json,
+        narrative,
+        themes_json,
+        reflections_json,
+        context,
+        provider,
+        session_seed,
+        user_preferences_json,
+        deck_id,
+        request_id,
+        extracted_steps,
+        extraction_version
+      FROM journal_entries
+      WHERE user_id = ?
+      ORDER BY created_at DESC
+    `;
+
+    // Legacy base query for pre-migration databases.
+    const legacyQuery = `
       SELECT
         id,
         created_at,
@@ -96,18 +131,57 @@ export async function onRequestGet(context) {
     `;
 
     let entries;
-    if (fetchAll) {
-      // Backward compatibility: fetch all entries
-      entries = await env.DB.prepare(query).bind(user.id).all();
-    } else {
-      // Paginated query
-      query += ` LIMIT ? OFFSET ?`;
-      entries = await env.DB.prepare(query).bind(user.id, limit, offset).all();
+    let hasCoachColumns = true;
+    try {
+      if (fetchAll) {
+        entries = await env.DB.prepare(query).bind(user.id).all();
+      } else {
+        entries = await env.DB.prepare(`${query} LIMIT ? OFFSET ?`).bind(user.id, limit, offset).all();
+      }
+    } catch (err) {
+      if (!isMissingColumnError(err)) {
+        throw err;
+      }
+      // Database hasn't applied coach extraction migration yet.
+      hasCoachColumns = false;
+      if (fetchAll) {
+        entries = await env.DB.prepare(legacyQuery).bind(user.id).all();
+      } else {
+        entries = await env.DB.prepare(`${legacyQuery} LIMIT ? OFFSET ?`).bind(user.id, limit, offset).all();
+      }
+    }
+
+    const results = entries?.results || [];
+
+    // Fetch embeddings only for newest N entries (and only if the column exists).
+    const embeddingMap = new Map();
+    const idsForEmbeddings = results.slice(0, MAX_ENTRIES_WITH_EMBEDDINGS).map((entry) => entry?.id).filter(Boolean);
+
+    if (idsForEmbeddings.length > 0 && hasCoachColumns) {
+      try {
+        const placeholders = idsForEmbeddings.map(() => '?').join(', ');
+        const embeddingRows = await env.DB.prepare(
+          `SELECT id, step_embeddings FROM journal_entries WHERE user_id = ? AND id IN (${placeholders})`
+        ).bind(user.id, ...idsForEmbeddings).all();
+
+        (embeddingRows?.results || []).forEach((row) => {
+          embeddingMap.set(row.id, row.step_embeddings);
+        });
+      } catch (err) {
+        // If the migration is partially applied / column missing, degrade gracefully.
+        if (!isMissingColumnError(err)) {
+          console.warn('Failed to load journal embeddings:', err?.message || err);
+        }
+      }
     }
 
     // Parse JSON fields with per-row error handling to prevent single corrupt row from 500ing
-    const parsedEntries = entries.results.map(entry => {
+    const parsedEntries = results.map((entry, index) => {
       try {
+        // Only include embeddings for recent entries (results are sorted by created_at DESC)
+        const includeEmbeddings = index < MAX_ENTRIES_WITH_EMBEDDINGS;
+        const rawEmbeddings = includeEmbeddings ? embeddingMap.get(entry.id) : null;
+
         return {
           id: entry.id,
           ts: entry.created_at * 1000, // Convert to milliseconds for JS Date
@@ -123,7 +197,13 @@ export async function onRequestGet(context) {
           sessionSeed: entry.session_seed,
           userPreferences: entry.user_preferences_json ? safeJsonParse(entry.user_preferences_json, null) : null,
           deckId: entry.deck_id,
-          requestId: entry.request_id
+          requestId: entry.request_id,
+          // Pre-computed coach suggestion data (AI-extracted steps + embeddings)
+          // extractedSteps are small strings, always include
+          // stepEmbeddings are large (768 floats each), only include for recent entries
+          extractedSteps: entry.extracted_steps ? safeJsonParse(entry.extracted_steps, null) : null,
+          stepEmbeddings: rawEmbeddings ? safeJsonParse(rawEmbeddings, null) : null,
+          extractionVersion: entry.extraction_version || null
         };
       } catch (parseErr) {
         console.warn(`Failed to parse journal entry ${entry.id}:`, parseErr);
@@ -144,6 +224,9 @@ export async function onRequestGet(context) {
           userPreferences: null,
           deckId: entry.deck_id,
           requestId: entry.request_id,
+          extractedSteps: null,
+          stepEmbeddings: null,
+          extractionVersion: null,
           _parseError: true
         };
       }
@@ -183,7 +266,7 @@ export async function onRequestGet(context) {
  * Save a new journal entry for the authenticated user
  */
 export async function onRequestPost(context) {
-  const { request, env } = context;
+  const { request, env, waitUntil } = context;
 
   try {
     // Authenticate user
@@ -321,6 +404,14 @@ export async function onRequestPost(context) {
         requestId || null
       )
       .run();
+
+    // Schedule async extraction of coach suggestion data (steps + embeddings)
+    if (personalReading && waitUntil) {
+      scheduleCoachExtraction(env, entryId, personalReading, {
+        waitUntil,
+        requestId: requestId || entryId
+      });
+    }
 
     return new Response(
       JSON.stringify({

@@ -24,6 +24,7 @@ import * as shareNotes from '../../functions/api/share-notes/[token].js';
 import * as visionProof from '../../functions/api/vision-proof.js';
 import * as archetypeJourney from '../../functions/api/archetype-journey.js';
 import * as archetypeJourneyBackfill from '../../functions/api/archetype-journey-backfill.js';
+import * as coachExtractionBackfill from '../../functions/api/coach-extraction-backfill.js';
 
 // Auth handlers
 import * as authLogin from '../../functions/api/auth/login.js';
@@ -204,6 +205,7 @@ const routes = [
 
   // Admin endpoints
   { pattern: /^\/api\/admin\/archive$/, handlers: { onRequestPost: adminArchive } },
+  { pattern: /^\/api\/coach-extraction-backfill$/, handlers: coachExtractionBackfill },
 ];
 
 /**

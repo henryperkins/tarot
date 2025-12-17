@@ -20,7 +20,7 @@ import {
   computeStreakFromEntries,
   computeBadgesFromEntries,
   generateJourneyStory,
-  computeNextStepsCoachSuggestion,
+  computeCoachSuggestionWithEmbeddings,
 } from '../lib/journalInsights';
 import {
   buildSeasonKey,
@@ -587,9 +587,10 @@ export function useJourneyData({
     return generateJourneyStory(scopedEntries, { precomputedStats: insightsStats });
   }, [scopedEntries, insightsStats]);
 
-  // Enhanced coach suggestion - uses sorted badges (most recent first)
+  // Enhanced coach suggestion - uses pre-computed AI embeddings when available,
+  // falls back to heuristic text matching for entries without extraction data
   const nextStepsCoachSuggestion = useMemo(() => {
-    return computeNextStepsCoachSuggestion(activeEntries, { maxEntries: 3 });
+    return computeCoachSuggestionWithEmbeddings(activeEntries, { maxEntries: 5 });
   }, [activeEntries]);
 
   const coachSuggestion = useMemo(() => {
