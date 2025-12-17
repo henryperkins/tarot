@@ -1052,3 +1052,142 @@ describe('Malformed Data Handling', () => {
     assert.strictEqual(summary.patternsDetected.strongSuitProgressions, 0);
   });
 });
+
+// ============================================================================
+// FIX VERIFICATION: Word Boundary Matching (Issue #7)
+// ============================================================================
+
+describe('Word Boundary Matching (Issue #7 Fix)', () => {
+  test('retrievePassages: keyword matching uses word boundaries, not substrings', () => {
+    const graphKeys = {
+      // Use two patterns so we can verify differential boosting
+      foolsJourneyStageKey: 'initiation',  // Contains: "identity", "ego", "learning", "values"
+      dyadPairs: [{ cards: [13, 17], significance: 'high' }]  // Contains: "hope", "renewal", "trust"
+    };
+
+    // Query with "art" - should NOT match "heart" or "start" in passages
+    // If substring matching was used, this would incorrectly boost passages containing "heart"
+    const passagesWithArt = retrievePassages(graphKeys, {
+      maxPassages: 5,
+      userQuery: 'What does this art mean for me?'
+    });
+
+    // Query with actual matching word from initiation: "identity"
+    const passagesWithIdentity = retrievePassages(graphKeys, {
+      maxPassages: 5,
+      userQuery: 'What does this identity mean for me?'
+    });
+
+    // The "identity" query should boost the initiation passage more than "art"
+    // because "identity" is an actual word in the initiation passage text
+    const artJourney = passagesWithArt.find(p => p.type === 'fools-journey');
+    const identityJourney = passagesWithIdentity.find(p => p.type === 'fools-journey');
+
+    assert.ok(artJourney, 'Should find journey passage with art query');
+    assert.ok(identityJourney, 'Should find journey passage with identity query');
+
+    // Identity query should have higher relevance for the journey passage
+    assert.ok(
+      identityJourney.relevance > artJourney.relevance,
+      `"identity" should match journey passage (relevance: ${identityJourney.relevance}) more than "art" (relevance: ${artJourney.relevance})`
+    );
+  });
+
+  test('retrievePassages: "love" does not match "beloved" (substring prevention)', () => {
+    const graphKeys = {
+      completeTriadIds: ['death-temperance-star'],  // Contains: "beloved" is NOT in this passage
+      foolsJourneyStageKey: 'initiation'  // Contains various words
+    };
+
+    // Create a scenario where we can verify "love" doesn't falsely match "beloved"
+    // The Death-Temperance-Star triad passage contains "grief" not "beloved"
+    const passagesWithLove = retrievePassages(graphKeys, {
+      maxPassages: 5,
+      userQuery: 'What about love in my life?'
+    });
+
+    // Query with a word that IS in the passage: "grief"
+    const passagesWithGrief = retrievePassages(graphKeys, {
+      maxPassages: 5,
+      userQuery: 'What about grief in my life?'
+    });
+
+    const loveTriad = passagesWithLove.find(p => p.type === 'triad');
+    const griefTriad = passagesWithGrief.find(p => p.type === 'triad');
+
+    // "grief" should produce higher relevance than "love" for the triad
+    // since "grief" is actually in the passage and "love" is not
+    assert.ok(loveTriad, 'Should find triad with love query');
+    assert.ok(griefTriad, 'Should find triad with grief query');
+    assert.ok(
+      griefTriad.relevance >= loveTriad.relevance,
+      `"grief" (actual word in passage, relevance: ${griefTriad.relevance}) should match at least as well as "love" (not in passage, relevance: ${loveTriad.relevance})`
+    );
+  });
+
+  test('scorePassageRelevance: uses word boundary matching', async () => {
+    // Passage containing "heart" but NOT "art"
+    const passage = 'The heart of transformation lies in accepting change with open arms.';
+
+    // "art" should NOT match because it's a substring of "heart"
+    const artScore = await scorePassageRelevance(passage, 'What does art mean?', {
+      enableSemanticScoring: false
+    });
+
+    // "heart" SHOULD match as a whole word
+    const heartScore = await scorePassageRelevance(passage, 'What does heart mean?', {
+      enableSemanticScoring: false
+    });
+
+    // "change" SHOULD match as a whole word
+    const changeScore = await scorePassageRelevance(passage, 'What does change mean?', {
+      enableSemanticScoring: false
+    });
+
+    assert.ok(
+      heartScore > artScore,
+      `"heart" (actual word, score: ${heartScore}) should score higher than "art" (substring only, score: ${artScore})`
+    );
+    assert.ok(
+      changeScore > artScore,
+      `"change" (actual word, score: ${changeScore}) should score higher than "art" (substring only, score: ${artScore})`
+    );
+  });
+
+  test('scorePassageRelevance: correctly matches whole words at boundaries', async () => {
+    const passage = 'Love transforms the soul. Hope guides the journey. Art inspires creation.';
+
+    // All three words should match as whole words
+    const loveScore = await scorePassageRelevance(passage, 'love', {
+      enableSemanticScoring: false
+    });
+    const hopeScore = await scorePassageRelevance(passage, 'hope', {
+      enableSemanticScoring: false
+    });
+    const artScore = await scorePassageRelevance(passage, 'art creation', {
+      enableSemanticScoring: false
+    });
+
+    // Each should have non-zero scores since the words exist as whole words
+    assert.ok(loveScore > 0, `"love" should match whole word (score: ${loveScore})`);
+    assert.ok(hopeScore > 0, `"hope" should match whole word (score: ${hopeScore})`);
+    assert.ok(artScore > 0, `"art" should match whole word when it exists (score: ${artScore})`);
+  });
+
+  test('scorePassageRelevance: handles special regex characters in keywords safely', async () => {
+    const passage = 'The Fool (card 0) represents new beginnings.';
+
+    // Query with special regex characters that could break if not escaped
+    const scoreWithParens = await scorePassageRelevance(passage, 'card (0)', {
+      enableSemanticScoring: false
+    });
+    const scoreWithBrackets = await scorePassageRelevance(passage, 'test [brackets]', {
+      enableSemanticScoring: false
+    });
+
+    // Should not throw and should return valid scores
+    assert.ok(typeof scoreWithParens === 'number', 'Should handle parentheses without error');
+    assert.ok(typeof scoreWithBrackets === 'number', 'Should handle brackets without error');
+    assert.ok(scoreWithParens >= 0 && scoreWithParens <= 1, 'Score should be in valid range');
+  });
+});

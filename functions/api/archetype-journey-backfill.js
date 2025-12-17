@@ -95,6 +95,13 @@ export async function onRequest(context) {
       });
     }
 
+    if (user.auth_provider === 'api_key') {
+      return new Response(JSON.stringify({ error: 'Session authentication required' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
     const db = env.DB;
     const userId = user.id;
 

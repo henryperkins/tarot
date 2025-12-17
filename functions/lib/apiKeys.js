@@ -40,15 +40,48 @@ export async function validateApiKey(db, key) {
   if (!key || !key.startsWith('sk_')) return null;
 
   const hash = await hashApiKey(key);
-  
-  const result = await db.prepare(`
-    SELECT k.*, u.email, u.username
-    FROM api_keys k
-    JOIN users u ON k.user_id = u.id
-    WHERE k.key_hash = ? AND k.is_active = 1
-  `)
-  .bind(hash)
-  .first();
+
+  // Attempt subscription-aware lookup first; fall back if the subscription
+  // columns are not present yet (pre-0008 schema).
+  let result;
+  try {
+    result = await db.prepare(`
+      SELECT
+        k.*,
+        u.email,
+        u.username,
+        u.subscription_tier,
+        u.subscription_status,
+        u.subscription_provider,
+        u.stripe_customer_id
+      FROM api_keys k
+      JOIN users u ON k.user_id = u.id
+      WHERE k.key_hash = ? AND k.is_active = 1 AND u.is_active = 1
+    `)
+    .bind(hash)
+    .first();
+  } catch (error) {
+    const message = error?.message || '';
+    const missingSubscriptionColumns =
+      message.includes('no such column') &&
+      (message.includes('subscription_tier') ||
+        message.includes('subscription_status') ||
+        message.includes('subscription_provider') ||
+        message.includes('stripe_customer_id'));
+
+    if (!missingSubscriptionColumns) {
+      throw error;
+    }
+
+    result = await db.prepare(`
+      SELECT k.*, u.email, u.username
+      FROM api_keys k
+      JOIN users u ON k.user_id = u.id
+      WHERE k.key_hash = ? AND k.is_active = 1 AND u.is_active = 1
+    `)
+    .bind(hash)
+    .first();
+  }
 
   if (!result) return null;
 

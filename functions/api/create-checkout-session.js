@@ -16,6 +16,8 @@
  */
 
 import { getUserFromRequest } from '../lib/auth.js';
+import { jsonResponse, readJsonBody } from '../lib/utils.js';
+import { sanitizeRedirectUrl } from '../lib/urlSafety.js';
 
 // Stripe SDK is not available in Cloudflare Workers by default.
 // We use the Stripe REST API directly for compatibility.
@@ -84,15 +86,18 @@ export async function onRequestPost(context) {
     // Authenticate user
     const user = await getUserFromRequest(request, env);
     if (!user) {
-      return new Response(
-        JSON.stringify({ error: 'Authentication required' }),
-        { status: 401, headers: { 'Content-Type': 'application/json' } }
-      );
+      return jsonResponse({ error: 'Authentication required' }, { status: 401 });
+    }
+
+    if (user.auth_provider === 'api_key') {
+      return jsonResponse({ error: 'Session authentication required' }, { status: 401 });
     }
 
     // Parse request body
-    const body = await request.json();
-    const { tier, successUrl, cancelUrl } = body;
+    const body = await readJsonBody(request).catch(() => ({}));
+    const tier = body?.tier;
+    const successUrl = body?.successUrl;
+    const cancelUrl = body?.cancelUrl;
 
     // Validate tier
     const validTiers = ['plus', 'pro'];
@@ -119,9 +124,13 @@ export async function onRequestPost(context) {
     const customerId = await getOrCreateCustomer(env.DB, user, env.STRIPE_SECRET_KEY);
 
     // Determine URLs
-    const appUrl = env.APP_URL || 'https://tableu.app';
-    const finalSuccessUrl = successUrl || `${appUrl}/account?session_id={CHECKOUT_SESSION_ID}`;
-    const finalCancelUrl = cancelUrl || `${appUrl}/pricing`;
+    const finalSuccessUrl = sanitizeRedirectUrl(
+      successUrl,
+      request,
+      env,
+      '/account?session_id={CHECKOUT_SESSION_ID}&upgrade=success'
+    );
+    const finalCancelUrl = sanitizeRedirectUrl(cancelUrl, request, env, '/pricing');
 
     // Create Checkout Session
     const session = await stripeRequest('/checkout/sessions', 'POST', {
@@ -140,22 +149,13 @@ export async function onRequestPost(context) {
       'billing_address_collection': 'auto',
     }, env.STRIPE_SECRET_KEY);
 
-    return new Response(
-      JSON.stringify({
-        sessionId: session.id,
-        url: session.url
-      }),
-      {
-        status: 200,
-        headers: { 'Content-Type': 'application/json' }
-      }
-    );
+    return jsonResponse({ sessionId: session.id, url: session.url }, { status: 200 });
 
   } catch (error) {
     console.error('Create checkout session error:', error);
-    return new Response(
-      JSON.stringify({ error: error.message || 'Failed to create checkout session' }),
-      { status: 500, headers: { 'Content-Type': 'application/json' } }
+    return jsonResponse(
+      { error: error.message || 'Failed to create checkout session' },
+      { status: 500 }
     );
   }
 }
@@ -170,31 +170,22 @@ export async function onRequestGet(context) {
   try {
     const user = await getUserFromRequest(request, env);
     if (!user) {
-      return new Response(
-        JSON.stringify({ error: 'Authentication required' }),
-        { status: 401, headers: { 'Content-Type': 'application/json' } }
-      );
+      return jsonResponse({ error: 'Authentication required' }, { status: 401 });
     }
 
-    return new Response(
-      JSON.stringify({
+    return jsonResponse(
+      {
         subscription: {
           tier: user.subscription_tier || 'free',
           status: user.subscription_status || 'inactive',
           provider: user.subscription_provider || null
         }
-      }),
-      {
-        status: 200,
-        headers: { 'Content-Type': 'application/json' }
-      }
+      },
+      { status: 200 }
     );
 
   } catch (error) {
     console.error('Get subscription error:', error);
-    return new Response(
-      JSON.stringify({ error: 'Failed to get subscription info' }),
-      { status: 500, headers: { 'Content-Type': 'application/json' } }
-    );
+    return jsonResponse({ error: 'Failed to get subscription info' }, { status: 500 });
   }
 }

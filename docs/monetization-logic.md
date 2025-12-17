@@ -1,9 +1,16 @@
 # Monetization Logic Reference
 
 > **Generated:** 2025-12-16
+> **Last reviewed:** 2025-12-17
 > **Status:** Working implementations marked with ✅, placeholders/planned with ⏳
 
 This document consolidates all monetization-related logic across the Tableu codebase.
+
+It is intended to be the canonical reference for what is implemented today. For prioritization and rollout sequencing, see `docs/monetization-gaps-and-plan.md`.
+
+Phase 1–3 are complete ✅ (usage tracking + reading limits, API key gating, Stripe webhook idempotency, scheduled cleanup, API-key tier derivation, Stripe Customer Portal, and a basic usage meter). See `docs/monetization-gaps-and-plan.md` for deployment steps and a manual testing checklist.
+
+> Note: Avoid referencing this document by line number; prefer section headings (for example, “3.5 Reading Limits”). File line ranges in this doc are approximate and may drift.
 
 ---
 
@@ -77,7 +84,7 @@ export const SUBSCRIPTION_TIERS = {
 | AI Readings/month | 5 | 50 | Unlimited |
 | Voice Narrations/month | 3 | 50 | Unlimited |
 | Spreads | 3 core | All 6 | All + custom |
-| GraphRAG Context | Limited (50%) | Full | Full |
+| GraphRAG Context | Reduced (min 1; roughly half of base passages) | Full | Full |
 | AI Question Suggestions | ❌ | ✅ | ✅ |
 | Cloud Journal Sync | ❌ | ✅ | ✅ |
 | Advanced Insights | ❌ | ✅ | ✅ |
@@ -111,9 +118,27 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_users_stripe_customer_id
 | `subscription_provider` | `'stripe'`, `'google_play'`, `'api_key'`, `null` | Source of subscription |
 | `subscription_status` | `'active'`, `'canceled'`, `'past_due'`, `'incomplete'`, `'unpaid'`, `'paused'`, `'expired'`, `'inactive'` | Stripe status mapping |
 
+### Usage Tracking ✅
+
+**Source:** `migrations/0011_add_usage_tracking.sql`
+
+- Table: `usage_tracking` (primary key: `user_id`, `month`)
+- Month format: `YYYY-MM` (UTC calendar month)
+- Used for: monthly quota enforcement + usage meters (readings, authenticated TTS, Pro API calls)
+
+### Processed Webhook Events ✅
+
+**Source:** `migrations/0012_add_webhook_idempotency.sql`
+
+- Table: `processed_webhook_events` (primary key: `provider`, `event_id`)
+- Used for: Stripe webhook idempotency + duplicate suppression
+- Retention: scheduled cleanup deletes events older than 7 days (`functions/lib/scheduled.js`)
+
 ---
 
 ## 3. Backend Enforcement
+
+> Note: Backend and frontend gating now share an “effective tier” concept: inactive paid subscriptions behave as Free for entitlements. Active paid statuses include `active`, `trialing`, and `past_due` (grace period). Ensure Stripe webhook status mapping stays aligned with these semantics.
 
 ### 3.1 TTS Rate Limiting ✅
 
@@ -134,10 +159,11 @@ function getTTSLimits(tier) {
 
 // In onRequestPost:
 const user = await getUserFromRequest(request, env);
-const tier = user?.subscription_tier || 'free';
+const subscription = getSubscriptionContext(user);
+const tier = subscription.effectiveTier;
 const ttsLimits = getTTSLimits(tier);
 
-const rateLimitResult = await enforceTtsRateLimit(env, request, ttsLimits);
+const rateLimitResult = await enforceTtsRateLimit(env, request, user, ttsLimits);
 if (rateLimitResult?.limited) {
   const errorMessage = rateLimitResult.tierLimited
     ? `You've reached your monthly TTS limit (${ttsLimits.monthly}). Upgrade to Plus or Pro for more.`
@@ -151,9 +177,11 @@ if (rateLimitResult?.limited) {
 }
 ```
 
-**Rate Limit Storage:** Uses `RATELIMIT` KV namespace with keys:
-- Short-term: `tts-rate:{clientId}:{windowBucket}` (per-minute)
-- Monthly: `tts-monthly:{clientId}:{YYYY-MM}` (35-day TTL)
+**Rate Limit Storage:**
+- Short-term: `RATELIMIT` KV (`tts-rate:{clientId}:{windowBucket}`), per-minute, per IP.
+- Monthly:
+  - Authenticated users: D1 `usage_tracking.tts_count` (per user, UTC month).
+  - Anonymous fallback: `RATELIMIT` KV (`tts-monthly:{clientId}:{YYYY-MM}`), per IP, UTC month.
 
 ---
 
@@ -162,19 +190,10 @@ if (rateLimitResult?.limited) {
 **File:** `functions/api/generate-question.js:14-18, 284-300`
 
 ```javascript
-/**
- * Check if user has access to AI question generation.
- * Free tier users get local template fallback; paid tiers get Azure AI.
- */
-function canUseAIQuestions(user) {
-  if (!user) return false;
-  const tier = user.subscription_tier || 'free';
-  return tier === 'plus' || tier === 'pro';
-}
-
 // In onRequestPost:
 const user = await getUserFromRequest(request, env);
-const hasAIAccess = canUseAIQuestions(user);
+const subscription = getSubscriptionContext(user);
+const hasAIAccess = subscription.effectiveTier === 'plus' || subscription.effectiveTier === 'pro';
 
 // For free tier, skip Azure AI and use local template directly
 if (!hasAIAccess) {
@@ -251,71 +270,56 @@ console.log(`[${requestId}] GraphRAG passage limit: ${maxPassages} (tier: ${tier
 if (token && token.startsWith('sk_')) {
   const apiKeyRecord = await validateApiKey(env.DB, token);
   if (apiKeyRecord) {
-    // API keys are reserved for advanced / Pro-style integrations.
-    // Treat them as having an active "pro"-level subscription.
     return {
       id: apiKeyRecord.user_id,
       email: apiKeyRecord.email,
       username: apiKeyRecord.username,
-      subscription_tier: 'pro',          // Auto-granted Pro
-      subscription_status: 'active',
-      subscription_provider: 'api_key',
-      stripe_customer_id: null
+      subscription_tier: apiKeyRecord.subscription_tier || 'free',
+      subscription_status: apiKeyRecord.subscription_status || 'inactive',
+      subscription_provider: apiKeyRecord.subscription_provider || null,
+      stripe_customer_id: apiKeyRecord.stripe_customer_id || null,
+      auth_provider: 'api_key'
     };
   }
 }
 ```
 
+**Security note (Phase 2):** API keys no longer auto-grant Pro. Entitlements derive from the owning user’s current subscription tier/status, so a downgraded/canceled user cannot keep Pro access via a previously minted key.
+
 ---
 
-### 3.5 Reading Limits ⏳ NOT IMPLEMENTED
+### 3.5 Reading Limits ✅
 
-**Location:** `functions/api/tarot-reading.js`
+**File:** `functions/api/tarot-reading.js`
 
-**Current state:** Logs tier but does NOT enforce monthly reading limits.
+**Behavior (Phase 1):**
+- Free: 5/month, Plus: 50/month, Pro: unlimited
+- Enforcement uses D1 `usage_tracking` with calendar month (UTC) keyed by `(user_id, YYYY-MM)`
+- Anonymous users are enforced via KV (`RATELIMIT`) per IP/month when available (best-effort)
+- On limit exceeded: returns 429 with `tierLimited`, `currentTier`, `limit`, `used`, `resetAt`
+- On D1 error: fails open (allows reading) and logs
 
 ```javascript
-// Line 517-520 - Logs tier only, no enforcement
-const user = await getUserFromRequest(request, env);
-const subscriptionTier = user?.subscription_tier || 'free';
-console.log(`[${requestId}] User subscription tier: ${subscriptionTier}`);
-```
-
-**Required implementation:**
-```javascript
-// Suggested implementation
-async function enforceReadingLimit(env, user) {
-  if (!user) return { allowed: true }; // Anonymous users handled separately
-
-  const tier = user.subscription_tier || 'free';
-  const limits = { free: 5, plus: 50, pro: Infinity };
-  const monthlyLimit = limits[tier];
-
-  if (monthlyLimit === Infinity) return { allowed: true };
-
-  const now = new Date();
-  const monthKey = `readings:${user.id}:${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
-  const count = parseInt(await env.RATELIMIT.get(monthKey) || '0');
-
-  if (count >= monthlyLimit) {
-    return {
-      allowed: false,
-      tierLimited: true,
-      currentCount: count,
-      limit: monthlyLimit
-    };
-  }
-
-  await env.RATELIMIT.put(monthKey, String(count + 1), { expirationTtl: 35 * 24 * 60 * 60 });
-  return { allowed: true };
+const readingLimitResult = await enforceReadingLimit(env, request, user, subscription, requestId);
+if (!readingLimitResult.allowed) {
+  return jsonResponse({
+    error: readingLimitResult.message,
+    tierLimited: true,
+    currentTier: subscriptionTier,
+    accountTier: subscription.tier,
+    currentStatus: subscription.status,
+    limit: readingLimitResult.limit,
+    used: readingLimitResult.used,
+    resetAt: readingLimitResult.resetAt
+  }, { status: 429 });
 }
 ```
 
 ---
 
-### 3.6 Spread Access ⏳ NOT IMPLEMENTED
+### 3.6 Spread Access ✅
 
-**Frontend definition:** `src/contexts/SubscriptionContext.jsx:105-110`
+**Frontend definition:** `src/contexts/SubscriptionContext.jsx`
 
 ```javascript
 // Helper to check if a spread is available
@@ -327,7 +331,40 @@ canUseSpread: (spreadKey) => {
 }
 ```
 
-**Backend enforcement:** MISSING - would need to be added to `tarot-reading.js`
+**Backend enforcement:** `functions/api/tarot-reading.js`
+
+- Requests are validated against a known spread catalog (unknown spread names are rejected).
+- Spread access is enforced server-side based on the user’s effective tier:
+  - Free: `single`, `threeCard`, `fiveCard`
+  - Plus/Pro: all 6 spreads (adds `relationship`, `decision`, `celtic`)
+
+---
+
+### 3.7 Cloud Journal Sync ✅ ENFORCED
+
+**Files:** `functions/api/journal.js`, `functions/api/journal/[id].js`, `functions/api/journal-summary.js`
+
+**Current state:** Journal list/save/delete/summary endpoints require Plus/Pro entitlements (effective tier).
+
+**Notes:**
+- Frontend (`src/hooks/useJournal.js`) uses local journal storage for Free users (even when authenticated) and supports local→cloud migration after upgrading.
+- Export (`functions/api/journal-export.js`) remains auth-only for data portability.
+
+---
+
+### 3.8 API Key Issuance ✅
+
+**Files:** `functions/api/keys/index.js`, `functions/api/keys/[id].js`
+
+**Current state:**
+- `GET /api/keys` and `POST /api/keys` require Pro entitlements (`active`/`trialing`/`past_due`).
+- `DELETE /api/keys/:id` is allowed for any authenticated user (cleanup after downgrade).
+- API key usage is Pro-only and metered at 1,000 calls/month (D1 `usage_tracking.api_calls_count`).
+
+**Behavior (Phase 1):**
+- Requires authenticated session
+- Requires `subscription_tier === 'pro'` and `subscription_status` in `['active', 'trialing', 'past_due']`
+- Unauthorized: 403 with `tierLimited: true` and `requiredTier: 'pro'`
 
 ---
 
@@ -342,26 +379,26 @@ export function SubscriptionProvider({ children }) {
   const { user } = useAuth();
 
   const subscription = useMemo(() => {
-    const tier = user?.subscription_tier || 'free';
-    const status = user?.subscription_status || 'inactive';
-    const tierConfig = SUBSCRIPTION_TIERS[tier] || SUBSCRIPTION_TIERS.free;
-    const isActive = status === 'active' || tier === 'free';
-    const isPaid = tier === 'plus' || tier === 'pro';
+    const tier = normalizeTier(user?.subscription_tier);
+    const status = normalizeStatus(user?.subscription_status);
+    const effectiveTier = getEffectiveTier({ tier, status });
+    const tierConfig = getTierConfig(effectiveTier);
+    const isActive = isSubscriptionActive({ tier, status });
 
     return {
       tier,
       status,
+      effectiveTier,
       isActive,
-      isPaid,
       config: tierConfig,
 
       // Feature checks
-      canUseAIQuestions: isPaid && isActive,
+      canUseAIQuestions: hasTierAtLeast(effectiveTier, 'plus'),
       canUseTTS: true, // All tiers can use TTS, just with limits
-      canUseCloudJournal: isPaid && isActive,
-      canUseAdvancedInsights: isPaid && isActive,
-      canUseAPI: tier === 'pro' && isActive,
-      hasAdFreeExperience: isPaid && isActive,
+      canUseCloudJournal: hasTierAtLeast(effectiveTier, 'plus'),
+      canUseAdvancedInsights: hasTierAtLeast(effectiveTier, 'plus'),
+      canUseAPI: effectiveTier === 'pro',
+      hasAdFreeExperience: hasTierAtLeast(effectiveTier, 'plus'),
 
       // Limits
       monthlyReadingsLimit: tierConfig.monthlyReadings,
@@ -429,7 +466,7 @@ Three variants: `inline`, `banner`, `modal`
 | Component | Usage |
 |-----------|-------|
 | `UserMenu.jsx` | Shows tier badge, upgrade link |
-| `AccountPage.jsx` | Displays current plan, features list |
+| `AccountPage.jsx` | Displays current plan, usage meter, billing portal link |
 | `PricingPage.jsx` | Tier comparison, checkout flow |
 | `UpgradeNudge.jsx` | Feature gating UI |
 
@@ -479,6 +516,12 @@ export async function onRequestPost(context) {
 
 **File:** `functions/api/webhooks/stripe.js`
 
+**Idempotency (Phase 1):**
+- Checks D1 `processed_webhook_events` for `(provider='stripe', event_id=event.id)` before processing
+- On duplicate: returns `{ received: true, duplicate: true }`
+- After successful handling: records the event ID for future duplicate suppression
+- On D1 errors: logs warning and continues (fails open)
+
 ```javascript
 // Signature verification with replay attack prevention
 async function verifyStripeSignature(payload, signature, secret) {
@@ -507,7 +550,8 @@ function extractTierFromSubscription(subscription) {
   if (subscription.metadata?.tier) return subscription.metadata.tier;
 
   // 2. Price lookup_key
-  const lookupKey = subscription.items?.data?.[0]?.price?.lookup_key;
+  const item = subscription.items?.data?.[0];
+  const lookupKey = item?.price?.lookup_key;
   if (lookupKey?.includes('pro')) return 'pro';
   if (lookupKey?.includes('plus')) return 'plus';
 
@@ -548,31 +592,16 @@ wrangler secret put STRIPE_PRICE_ID_PLUS     # price_...
 wrangler secret put STRIPE_PRICE_ID_PRO      # price_...
 ```
 
-### 5.4 Customer Portal ⏳ NOT IMPLEMENTED
+### 5.4 Customer Portal ✅
 
-**Location:** `src/pages/AccountPage.jsx:337`
+**Backend:** `functions/api/create-portal-session.js`
 
-```jsx
-{/* TODO: Add Stripe Customer Portal link when available */}
-```
+- `POST /api/create-portal-session` returns `{ url }` for a Stripe Billing Portal session
+- Requires authenticated user with `stripe_customer_id`
 
-**Required implementation:**
-```javascript
-// functions/api/create-portal-session.js
-export async function onRequestPost({ request, env }) {
-  const user = await getUserFromRequest(request, env);
-  if (!user?.stripe_customer_id) {
-    return new Response(JSON.stringify({ error: 'No subscription found' }), { status: 400 });
-  }
+**Frontend:** `src/pages/AccountPage.jsx`
 
-  const session = await stripeRequest('/billing_portal/sessions', 'POST', {
-    customer: user.stripe_customer_id,
-    return_url: `${env.APP_URL}/account`
-  }, env.STRIPE_SECRET_KEY);
-
-  return new Response(JSON.stringify({ url: session.url }));
-}
-```
+- Paid users see a “Manage Billing” button that opens the Stripe-hosted portal and returns to `/account`
 
 ---
 
@@ -596,6 +625,13 @@ if (!adminKey || authHeader !== `Bearer ${adminKey}`) {
 | `POST /api/admin/archive` | Manual KV→R2 archival trigger |
 | `GET/POST /api/coach-extraction-backfill` | AI extraction backfill for coach suggestions |
 
+### 6.3 Scheduled Maintenance ✅
+
+**File:** `functions/lib/scheduled.js`
+
+- Deletes expired sessions from D1 (daily)
+- Deletes Stripe webhook events older than 7 days from `processed_webhook_events` (daily; handles missing table gracefully pre-migration)
+
 ---
 
 ## 7. Implementation Gaps
@@ -604,42 +640,29 @@ if (!adminKey || authHeader !== `Bearer ${adminKey}`) {
 
 | Feature | Frontend | Backend | Notes |
 |---------|----------|---------|-------|
-| Reading limits | ✅ Defined | ❌ Missing | Add monthly counter to tarot-reading.js |
-| Usage tracking table | N/A | ❌ Missing | Need migration for `usage_tracking` |
+| Anonymous reading quota | N/A | ✅ Implemented | Enforced via `RATELIMIT` KV per IP/month (best-effort) |
 
 ### Medium Priority (P1)
 
 | Feature | Frontend | Backend | Notes |
 |---------|----------|---------|-------|
-| Stripe Customer Portal | ⏳ TODO | ❌ Missing | Add portal session endpoint |
-| Spread access enforcement | ✅ `canUseSpread()` | ❌ Missing | Add to tarot-reading.js |
-| Webhook idempotency | N/A | ❌ Missing | Track processed event IDs |
+| Cloud Journal sync | ✅ Defined | ✅ Implemented | Journal list/save/delete/summary require Plus/Pro entitlements |
+| API call limits | ✅ Defined (Pro: 1,000/mo) | ✅ Implemented | Metered for API-key requests via D1 `usage_tracking.api_calls_count` |
+| Spread access enforcement | ✅ Defined | ✅ Implemented | Enforced server-side in `functions/api/tarot-reading.js` |
+| Usage tracking for TTS/API calls | ✅ Defined | ✅ Implemented | Authenticated users are metered in D1; anonymous TTS uses KV |
 
 ### Low Priority (P2)
 
 | Feature | Status | Notes |
 |---------|--------|-------|
 | Google Play Billing | ❌ Documented only | See `docs/enhanced-monetization.md` |
-| Usage dashboard | ❌ Not started | API usage for Pro tier |
+| Usage dashboard | ⏳ Partial | Account shows readings + TTS + API calls; add historical charts if desired |
 | Prompt tier differentiation | ⏳ Placeholder | Different prompt depth per tier |
 
-### Suggested Usage Tracking Migration
+### Implemented D1 migrations ✅
 
-```sql
--- migrations/00XX_add_usage_tracking.sql
-CREATE TABLE IF NOT EXISTS usage_tracking (
-  user_id TEXT NOT NULL,
-  month TEXT NOT NULL,            -- '2025-12'
-  readings_count INTEGER DEFAULT 0,
-  tts_count INTEGER DEFAULT 0,
-  api_calls_count INTEGER DEFAULT 0,
-  updated_at INTEGER NOT NULL,
-  PRIMARY KEY (user_id, month),
-  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-);
-
-CREATE INDEX IF NOT EXISTS idx_usage_month ON usage_tracking(month);
-```
+- `migrations/0011_add_usage_tracking.sql`
+- `migrations/0012_add_webhook_idempotency.sql`
 
 ---
 
@@ -647,16 +670,28 @@ CREATE INDEX IF NOT EXISTS idx_usage_month ON usage_tracking(month);
 
 | File | Contains |
 |------|----------|
-| `src/contexts/SubscriptionContext.jsx` | Tier definitions, feature flags, hooks |
+| `shared/monetization/subscription.js` | Canonical tier config + active status semantics |
+| `src/contexts/SubscriptionContext.jsx` | Frontend tier helpers (effective tier) |
 | `src/components/UpgradeNudge.jsx` | Upgrade UI components |
 | `src/pages/PricingPage.jsx` | Pricing page with Stripe checkout |
 | `src/pages/AccountPage.jsx` | Account management UI |
 | `functions/api/create-checkout-session.js` | Stripe checkout session creation |
+| `functions/api/create-portal-session.js` | Stripe Billing Portal session creation |
 | `functions/api/webhooks/stripe.js` | Stripe webhook handler |
+| `functions/api/usage.js` | Usage status endpoint (readings/TTS/API calls) |
 | `functions/api/tts.js` | TTS with tier-based rate limiting |
 | `functions/api/generate-question.js` | AI questions with tier gating |
 | `functions/api/tarot-reading.js` | Main reading endpoint (tier logging, GraphRAG limits) |
+| `functions/api/journal.js` | Cloud journal API (Plus/Pro-gated) |
+| `functions/api/keys/index.js` | API key list/create |
+| `functions/api/keys/[id].js` | API key revoke |
 | `functions/lib/auth.js` | Session validation with subscription metadata |
+| `functions/lib/entitlements.js` | Backend entitlement helpers (effective tier) |
+| `functions/lib/usageTracking.js` | D1 usage counter helpers |
+| `functions/lib/apiUsage.js` | Pro API call limit enforcement |
 | `functions/lib/graphRAG.js` | Tier-based passage limits |
+| `migrations/0004_add_api_keys.sql` | API key schema |
 | `migrations/0008_add_subscriptions.sql` | Subscription schema |
+| `migrations/0011_add_usage_tracking.sql` | Usage tracking schema |
+| `migrations/0012_add_webhook_idempotency.sql` | Webhook idempotency schema |
 | `docs/enhanced-monetization.md` | Strategy documentation |

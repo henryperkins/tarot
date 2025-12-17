@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import { useSubscription } from '../contexts/SubscriptionContext';
 import { persistJournalInsights, clearJournalInsightsCache } from '../lib/journalInsights';
 import { invalidateNarrativeCache } from '../lib/safeStorage';
 import { dedupeEntries } from '../../shared/journal/dedupe.js';
@@ -17,6 +18,11 @@ function getCacheKey(userId) {
   return `${CACHE_KEY_PREFIX}_${userId}`;
 }
 
+function getLocalJournalKey(userId) {
+  if (!userId) return LOCALSTORAGE_KEY;
+  return `${LOCALSTORAGE_KEY}_${userId}`;
+}
+
 /**
  * Journal hook with automatic API/localStorage routing
  *
@@ -27,6 +33,7 @@ function getCacheKey(userId) {
  */
 export function useJournal({ autoLoad = true } = {}) {
   const { isAuthenticated, user } = useAuth();
+  const { canUseCloudJournal } = useSubscription();
   const [entries, setEntries] = useState([]);
   const [loading, setLoading] = useState(autoLoad);
   const [error, setError] = useState(null);
@@ -72,14 +79,14 @@ export function useJournal({ autoLoad = true } = {}) {
     }
     loadEntries();
     // eslint-disable-next-line react-hooks/exhaustive-deps -- loadEntries is stable, avoid infinite loop
-  }, [isAuthenticated, autoLoad, user?.id]);
+  }, [isAuthenticated, canUseCloudJournal, autoLoad, user?.id]);
 
   const loadEntries = async () => {
     setLoading(true);
     setError(null);
 
     try {
-      if (isAuthenticated) {
+      if (isAuthenticated && canUseCloudJournal) {
         // Try loading from API first
         try {
           // Use all=true for backward compatibility until frontend supports pagination
@@ -124,14 +131,15 @@ export function useJournal({ autoLoad = true } = {}) {
           }
         }
       } else {
-        // Load from localStorage
+        // Load from localStorage (anonymous or authenticated without cloud entitlements)
         if (typeof localStorage === 'undefined') {
           setEntries([]);
           if (typeof window !== 'undefined') {
             persistInsights([]);
           }
         } else {
-          const stored = localStorage.getItem(LOCALSTORAGE_KEY);
+          const localKey = getLocalJournalKey(isAuthenticated ? user?.id : null);
+          const stored = localStorage.getItem(localKey);
           if (stored) {
             try {
               const parsed = JSON.parse(stored);
@@ -171,7 +179,7 @@ export function useJournal({ autoLoad = true } = {}) {
     const userId = user?.id;
 
     try {
-      if (isAuthenticated) {
+      if (isAuthenticated && canUseCloudJournal) {
         // Save to API
         const response = await fetch('/api/journal', {
           method: 'POST',
@@ -232,7 +240,7 @@ export function useJournal({ autoLoad = true } = {}) {
 
         return { success: true, entry: newEntry };
       } else {
-        // Save to localStorage (unauthenticated)
+        // Save to localStorage (anonymous or authenticated without cloud entitlements)
         if (typeof localStorage === 'undefined') {
           return { success: false, error: 'localStorage not available' };
         }
@@ -253,7 +261,8 @@ export function useJournal({ autoLoad = true } = {}) {
           }
 
           try {
-            localStorage.setItem(LOCALSTORAGE_KEY, JSON.stringify(next));
+            const localKey = getLocalJournalKey(isAuthenticated ? userId : null);
+            localStorage.setItem(localKey, JSON.stringify(next));
           } catch (quotaErr) {
             console.warn('localStorage quota exceeded, unable to persist journal:', quotaErr);
           }
@@ -303,7 +312,7 @@ export function useJournal({ autoLoad = true } = {}) {
     setError(null);
 
     try {
-      if (isAuthenticated) {
+      if (isAuthenticated && canUseCloudJournal) {
         // Delete from API
         const response = await fetch(`/api/journal/${entryId}`, {
           method: 'DELETE',
@@ -337,7 +346,7 @@ export function useJournal({ autoLoad = true } = {}) {
 
         return { success: true };
       } else {
-        // Delete from localStorage
+        // Delete from localStorage (anonymous or authenticated without cloud entitlements)
         if (typeof localStorage === 'undefined') {
           return { success: false, error: 'localStorage not available' };
         }
@@ -345,7 +354,8 @@ export function useJournal({ autoLoad = true } = {}) {
         setEntries(prev => {
           const next = prev.filter(e => e.id !== entryId);
           try {
-            localStorage.setItem(LOCALSTORAGE_KEY, JSON.stringify(next));
+            const localKey = getLocalJournalKey(isAuthenticated ? user?.id : null);
+            localStorage.setItem(localKey, JSON.stringify(next));
           } catch (quotaErr) {
             console.warn('localStorage quota exceeded, skipping storage update:', quotaErr);
           }
@@ -369,19 +379,34 @@ export function useJournal({ autoLoad = true } = {}) {
       return { success: false, error: 'Not authenticated', skipped: 0 };
     }
 
+    if (!canUseCloudJournal) {
+      return { success: false, error: 'Cloud journal sync requires Plus or Pro', skipped: 0 };
+    }
+
     if (typeof localStorage === 'undefined') {
       return { success: false, error: 'localStorage not available', skipped: 0 };
     }
 
     try {
-      // Get localStorage entries
-      const stored = localStorage.getItem(LOCALSTORAGE_KEY);
-      if (!stored) {
-        return { success: true, migrated: 0, skipped: 0 };
-      }
+      const candidateKeys = [
+        LOCALSTORAGE_KEY,
+        getLocalJournalKey(user?.id || null)
+      ].filter(Boolean);
 
-      const localEntries = JSON.parse(stored);
-      if (!Array.isArray(localEntries) || localEntries.length === 0) {
+      const localEntries = candidateKeys.flatMap((key) => {
+        try {
+          const stored = localStorage.getItem(key);
+          if (!stored) return [];
+          const parsed = JSON.parse(stored);
+          return Array.isArray(parsed) ? parsed : [];
+        } catch (error) {
+          console.warn('Failed to parse local journal storage during migration:', error);
+          return [];
+        }
+      });
+
+      const dedupedLocalEntries = dedupeEntries(localEntries);
+      if (!dedupedLocalEntries.length) {
         return { success: true, migrated: 0, skipped: 0 };
       }
 
@@ -415,7 +440,7 @@ export function useJournal({ autoLoad = true } = {}) {
       // Upload each entry to the API, skipping duplicates
       let migrated = 0;
       let skipped = 0;
-      for (const entry of localEntries) {
+      for (const entry of dedupedLocalEntries) {
         try {
           let isDuplicate = false;
 
@@ -477,9 +502,11 @@ export function useJournal({ autoLoad = true } = {}) {
       // skipped every entry in this batch. If some entries failed to upload
       // (e.g. due to a flaky network), keep the local copy so the user can
       // retry the migration later without losing data.
-      const totalLocal = Array.isArray(localEntries) ? localEntries.length : 0;
+      const totalLocal = dedupedLocalEntries.length;
       if (totalLocal > 0 && migrated + skipped === totalLocal) {
-        localStorage.removeItem(LOCALSTORAGE_KEY);
+        candidateKeys.forEach((key) => {
+          if (key) localStorage.removeItem(key);
+        });
       }
 
       // Reload entries from API

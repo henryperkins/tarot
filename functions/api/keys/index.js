@@ -5,6 +5,7 @@
 
 import { validateSession, getSessionFromCookie } from '../../lib/auth.js';
 import { generateApiKey, hashApiKey } from '../../lib/apiKeys.js';
+import { buildTierLimitedPayload, isEntitled } from '../../lib/entitlements.js';
 
 export async function onRequestGet(context) {
   const { request, env } = context;
@@ -17,6 +18,20 @@ export async function onRequestGet(context) {
 
     if (!user) {
       return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 });
+    }
+
+    // Pro tier check - API key management requires Pro entitlements
+    if (!isEntitled(user, 'pro')) {
+      return new Response(
+        JSON.stringify(
+          buildTierLimitedPayload({
+            message: 'API key management requires an active Pro subscription',
+            user,
+            requiredTier: 'pro'
+          })
+        ),
+        { status: 403 }
+      );
     }
 
     // List keys
@@ -49,6 +64,20 @@ export async function onRequestPost(context) {
 
     if (!user) {
       return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 });
+    }
+
+    // Pro tier check - API key creation requires Pro entitlements
+    if (!isEntitled(user, 'pro')) {
+      return new Response(
+        JSON.stringify(
+          buildTierLimitedPayload({
+            message: 'API key creation requires an active Pro subscription',
+            user,
+            requiredTier: 'pro'
+          })
+        ),
+        { status: 403 }
+      );
     }
 
     // Accept empty or invalid JSON bodies so callers can omit payloads.

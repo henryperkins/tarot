@@ -138,6 +138,43 @@ async function archiveKVToR2(kv, bucket, prefix, archiveType) {
 }
 
 /**
+ * Clean up old webhook events from D1
+ * Stripe retries for up to 3 days, so we keep 7 days for safety buffer
+ * @param {D1Database} db - D1 database binding
+ * @returns {Promise<number>} Number of events deleted
+ */
+async function cleanupOldWebhookEvents(db) {
+  if (!db) {
+    console.warn('Skipping webhook event cleanup: missing DB binding');
+    return 0;
+  }
+
+  try {
+    // Delete events older than 7 days
+    const sevenDaysAgo = Date.now() - (7 * 24 * 60 * 60 * 1000);
+
+    const result = await db
+      .prepare('DELETE FROM processed_webhook_events WHERE processed_at < ?')
+      .bind(sevenDaysAgo)
+      .run();
+
+    const deleted = result.meta?.changes || 0;
+    if (deleted > 0) {
+      console.log(`Cleaned up ${deleted} old webhook events`);
+    }
+    return deleted;
+  } catch (error) {
+    // Table might not exist yet if migration hasn't run
+    if (error.message?.includes('no such table')) {
+      console.log('Webhook events table not yet created, skipping cleanup');
+      return 0;
+    }
+    console.error('Webhook event cleanup failed:', error);
+    return 0;
+  }
+}
+
+/**
  * Clean up expired sessions from D1
  * @param {D1Database} db - D1 database binding
  * @returns {Promise<number>} Number of sessions deleted
@@ -183,6 +220,7 @@ async function storeArchivalSummary(bucket, results) {
     metrics: results.metrics,
     feedback: results.feedback,
     sessions: results.sessions,
+    webhookEvents: results.webhookEvents,
     totalArchived: (results.metrics?.archived || 0) + (results.feedback?.archived || 0),
     totalErrors: (results.metrics?.errors || 0) + (results.feedback?.errors || 0)
   };
@@ -221,7 +259,8 @@ export async function handleScheduled(controller, env, _ctx) {
   const results = {
     metrics: null,
     feedback: null,
-    sessions: null
+    sessions: null,
+    webhookEvents: null
   };
 
   try {
@@ -234,9 +273,13 @@ export async function handleScheduled(controller, env, _ctx) {
     results.metrics = metricsResult;
     results.feedback = feedbackResult;
 
-    // Clean up expired sessions
-    const sessionsDeleted = await cleanupExpiredSessions(env.DB);
+    // Clean up expired sessions and old webhook events
+    const [sessionsDeleted, webhookEventsDeleted] = await Promise.all([
+      cleanupExpiredSessions(env.DB),
+      cleanupOldWebhookEvents(env.DB)
+    ]);
     results.sessions = { deleted: sessionsDeleted };
+    results.webhookEvents = { deleted: webhookEventsDeleted };
 
     // Store summary in R2
     await storeArchivalSummary(env.LOGS_BUCKET, results);
@@ -276,12 +319,16 @@ export async function onRequestPost(context) {
       archiveKVToR2(env.FEEDBACK_KV, env.LOGS_BUCKET, FEEDBACK_PREFIX, 'feedback')
     ]);
 
-    const sessionsDeleted = await cleanupExpiredSessions(env.DB);
+    const [sessionsDeleted, webhookEventsDeleted] = await Promise.all([
+      cleanupExpiredSessions(env.DB),
+      cleanupOldWebhookEvents(env.DB)
+    ]);
 
     const results = {
       metrics: metricsResult,
       feedback: feedbackResult,
       sessions: { deleted: sessionsDeleted },
+      webhookEvents: { deleted: webhookEventsDeleted },
       duration: Date.now() - startTime
     };
 

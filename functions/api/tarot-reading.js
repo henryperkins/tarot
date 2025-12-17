@@ -73,6 +73,157 @@ import {
   TAROT_TERMINOLOGY_EXCLUSIONS
 } from '../lib/cardContextDetection.js';
 import { getUserFromRequest } from '../lib/auth.js';
+import { getClientIdentifier } from '../lib/clientId.js';
+import { enforceApiCallLimit } from '../lib/apiUsage.js';
+import { buildTierLimitedPayload, getSubscriptionContext } from '../lib/entitlements.js';
+import {
+  decrementUsageCounter,
+  getMonthKeyUtc,
+  getResetAtUtc,
+  getUsageRow,
+  incrementUsageCounter
+} from '../lib/usageTracking.js';
+
+// ============================================================================
+// Reading Limit Enforcement
+// ============================================================================
+
+const READINGS_MONTHLY_KEY_PREFIX = 'readings-monthly';
+const READINGS_MONTHLY_TTL_SECONDS = 35 * 24 * 60 * 60;
+
+async function releaseReadingReservation(env, reservation) {
+  if (!reservation) return;
+
+  try {
+    if (reservation.type === 'd1') {
+      await decrementUsageCounter(env.DB, {
+        userId: reservation.userId,
+        month: reservation.month,
+        counter: 'readings',
+        nowMs: Date.now()
+      });
+      return;
+    }
+
+    if (reservation.type === 'kv') {
+      const store = env?.RATELIMIT;
+      if (!store) return;
+
+      const existing = await store.get(reservation.key);
+      const currentCount = existing ? Number(existing) || 0 : 0;
+      const next = Math.max(0, currentCount - 1);
+
+      await store.put(reservation.key, String(next), {
+        expirationTtl: READINGS_MONTHLY_TTL_SECONDS
+      });
+    }
+  } catch (error) {
+    console.warn('Failed to release reading reservation:', error?.message || error);
+  }
+}
+
+async function enforceReadingLimit(env, request, user, subscription, requestId) {
+  const limit = subscription?.config?.monthlyReadings ?? 5;
+  const now = new Date();
+  const month = getMonthKeyUtc(now);
+  const resetAt = getResetAtUtc(now);
+
+  // Authenticated users: use D1 tracking (also tracks unlimited tiers for usage meter).
+  if (user?.id && env?.DB) {
+    try {
+      const nowMs = Date.now();
+
+      if (limit === Infinity) {
+        await incrementUsageCounter(env.DB, {
+          userId: user.id,
+          month,
+          counter: 'readings',
+          nowMs
+        });
+        const row = await getUsageRow(env.DB, user.id, month);
+        return {
+          allowed: true,
+          used: row?.readings_count || 0,
+          limit: null,
+          resetAt,
+          reservation: { type: 'd1', userId: user.id, month }
+        };
+      }
+
+      const incrementResult = await incrementUsageCounter(env.DB, {
+        userId: user.id,
+        month,
+        counter: 'readings',
+        limit,
+        nowMs
+      });
+
+      if (incrementResult.changed === 0) {
+        const row = await getUsageRow(env.DB, user.id, month);
+        const used = row?.readings_count || limit;
+        return {
+          allowed: false,
+          used,
+          limit,
+          resetAt,
+          message: `You've reached your monthly reading limit (${limit}). Upgrade for more readings.`
+        };
+      }
+
+      const row = await getUsageRow(env.DB, user.id, month);
+      const used = row?.readings_count || 0;
+      console.log(`[${requestId}] Reading usage: ${used}/${limit} (${subscription?.effectiveTier || subscription?.tier || 'free'})`);
+
+      return {
+        allowed: true,
+        used,
+        limit,
+        resetAt,
+        reservation: { type: 'd1', userId: user.id, month }
+      };
+    } catch (error) {
+      console.error(`[${requestId}] Usage tracking error (allowing request):`, error.message);
+      return { allowed: true, used: 0, limit: limit === Infinity ? null : limit, resetAt };
+    }
+  }
+
+  // Anonymous users: enforce IP-based monthly quota in KV when available.
+  if (limit !== Infinity && env?.RATELIMIT) {
+    try {
+      const clientId = getClientIdentifier(request);
+      const key = `${READINGS_MONTHLY_KEY_PREFIX}:${clientId}:${month}`;
+      const existing = await env.RATELIMIT.get(key);
+      const currentCount = existing ? Number(existing) || 0 : 0;
+
+      if (currentCount >= limit) {
+        return {
+          allowed: false,
+          used: currentCount,
+          limit,
+          resetAt,
+          message: `You've reached your monthly reading limit (${limit}). Upgrade for more readings.`
+        };
+      }
+
+      const nextCount = currentCount + 1;
+      await env.RATELIMIT.put(key, String(nextCount), {
+        expirationTtl: READINGS_MONTHLY_TTL_SECONDS
+      });
+
+      return {
+        allowed: true,
+        used: nextCount,
+        limit,
+        resetAt,
+        reservation: { type: 'kv', key }
+      };
+    } catch (error) {
+      console.warn(`[${requestId}] Guest usage tracking failed, allowing request:`, error?.message || error);
+    }
+  }
+
+  return { allowed: true, used: 0, limit: limit === Infinity ? null : limit, resetAt };
+}
 
 // Detect if question asks about future timeframe
 function detectForecastTimeframe(userQuestion) {
@@ -261,16 +412,19 @@ function shouldLogEnhancementTelemetry(env) {
 
 /**
  * Determine if semantic scoring should be enabled for GraphRAG retrieval.
- * Defaults to true if the embeddings API is configured, but can be
- * explicitly disabled via environment variable.
+ *
+ * Semantic scoring is enabled by default when the embeddings API is configured
+ * (AZURE_OPENAI_ENDPOINT + AZURE_OPENAI_API_KEY). This function only handles
+ * explicit env var overrides; auto-detection happens in the calling code.
  *
  * @param {Object} env - Environment variables
- * @returns {boolean|null} - true/false for explicit config, null for auto-detect
+ * @returns {boolean|null} - true/false for explicit env var config, null for auto-detect
  */
 function getSemanticScoringConfig(env) {
   if (!env) return null;
 
-  // Check explicit override
+  // Check explicit override via environment variables
+  // These allow operators to force-enable or force-disable semantic scoring
   if (env.ENABLE_SEMANTIC_SCORING !== undefined) {
     return normalizeBooleanFlag(env.ENABLE_SEMANTIC_SCORING);
   }
@@ -278,7 +432,8 @@ function getSemanticScoringConfig(env) {
     return normalizeBooleanFlag(env.GRAPHRAG_SEMANTIC_SCORING);
   }
 
-  // Return null to let auto-detection based on API availability
+  // Return null to enable auto-detection based on API availability
+  // Auto-detection logic: if AZURE_OPENAI_ENDPOINT + API_KEY are set, semantic scoring is enabled
   return null;
 }
 
@@ -420,6 +575,7 @@ export const onRequestGet = async ({ env }) => {
 export const onRequestPost = async ({ request, env, waitUntil }) => {
   const startTime = Date.now();
   const requestId = crypto.randomUUID ? crypto.randomUUID() : `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  let readingReservation = null;
 
   console.log(`[${requestId}] === TAROT READING REQUEST START ===`);
 
@@ -469,6 +625,43 @@ export const onRequestPost = async ({ request, env, waitUntil }) => {
     }
     console.log(`[${requestId}] Payload validation passed`);
 
+    const user = await getUserFromRequest(request, env);
+    const subscription = getSubscriptionContext(user);
+    const subscriptionTier = subscription.effectiveTier;
+
+    console.log(`[${requestId}] Subscription context:`, {
+      tier: subscription.tier,
+      status: subscription.status,
+      effectiveTier: subscriptionTier,
+      authProvider: user?.auth_provider || 'session_or_anonymous'
+    });
+
+    const requestedSpreadKey = getSpreadKey(spreadInfo.name);
+    const spreadsConfig = subscription.config?.spreads;
+    const spreadAllowed = spreadsConfig === 'all' ||
+      spreadsConfig === 'all+custom' ||
+      (Array.isArray(spreadsConfig) && spreadsConfig.includes(requestedSpreadKey));
+
+    if (!spreadAllowed) {
+      const requiredTier = ['relationship', 'decision', 'celtic'].includes(requestedSpreadKey) ? 'plus' : 'pro';
+      return jsonResponse(
+        buildTierLimitedPayload({
+          message: `The "${spreadInfo.name}" spread requires an active ${requiredTier === 'plus' ? 'Plus' : 'Pro'} subscription`,
+          user,
+          requiredTier
+        }),
+        { status: 403 }
+      );
+    }
+
+    // API key usage is Pro-only and subject to API call limits.
+    if (user?.auth_provider === 'api_key') {
+      const apiLimit = await enforceApiCallLimit(env, user);
+      if (!apiLimit.allowed) {
+        return jsonResponse(apiLimit.payload, { status: apiLimit.status });
+      }
+    }
+
     // Vision validation is OPTIONAL - used for research/development purposes only
     let sanitizedVisionInsights = [];
     let visionMetrics = null;
@@ -514,10 +707,23 @@ export const onRequestPost = async ({ request, env, waitUntil }) => {
     }
 
 
-    // Get user subscription tier for feature gating
-    const user = await getUserFromRequest(request, env);
-    const subscriptionTier = user?.subscription_tier || 'free';
-    console.log(`[${requestId}] User subscription tier: ${subscriptionTier}`);
+    // Enforce reading limits before expensive processing
+    const readingLimitResult = await enforceReadingLimit(env, request, user, subscription, requestId);
+    if (!readingLimitResult.allowed) {
+      console.log(`[${requestId}] Reading limit exceeded: ${readingLimitResult.used}/${readingLimitResult.limit}`);
+      return jsonResponse({
+        error: readingLimitResult.message,
+        tierLimited: true,
+        currentTier: subscriptionTier,
+        accountTier: subscription.tier,
+        currentStatus: subscription.status,
+        effectiveTier: subscriptionTier,
+        limit: readingLimitResult.limit,
+        used: readingLimitResult.used,
+        resetAt: readingLimitResult.resetAt
+      }, { status: 429 });
+    }
+    readingReservation = readingLimitResult.reservation || null;
 
     // STEP 1: Comprehensive spread analysis
     console.log(`[${requestId}] Starting spread analysis...`);
@@ -976,6 +1182,7 @@ export const onRequestPost = async ({ request, env, waitUntil }) => {
       stack: error.stack,
       name: error.name
     });
+    await releaseReadingReservation(env, readingReservation);
     console.log(`[${requestId}] === TAROT READING REQUEST END (ERROR) ===`);
 
     return jsonResponse(
@@ -1318,9 +1525,18 @@ export function validatePayload({ spreadInfo, cardsInfo }) {
     return 'No cards were provided for the reading.';
   }
 
-  const expectedCount = getExpectedCardCount(spreadInfo.name);
-  if (expectedCount !== null && cardsInfo.length !== expectedCount) {
-    return `Spread "${spreadInfo.name}" expects ${expectedCount} cards, but received ${cardsInfo.length}.`;
+  const def = getSpreadDefinition(spreadInfo.name);
+  if (!def) {
+    return `Unknown spread "${spreadInfo.name}". Please update your app and try again.`;
+  }
+
+  const providedKey = typeof spreadInfo.key === 'string' ? spreadInfo.key.trim() : '';
+  if (providedKey && providedKey !== def.key) {
+    return `Spread "${spreadInfo.name}" did not match its expected key. Please refresh and try again.`;
+  }
+
+  if (typeof def.count === 'number' && cardsInfo.length !== def.count) {
+    return `Spread "${spreadInfo.name}" expects ${def.count} cards, but received ${cardsInfo.length}.`;
   }
 
   const hasInvalidCard = cardsInfo.some(card => {

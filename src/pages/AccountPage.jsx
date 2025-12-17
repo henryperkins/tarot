@@ -98,6 +98,12 @@ export default function AccountPage() {
   const [prefsLoading, setPrefsLoading] = useState(false);
   const [prefsError, setPrefsError] = useState(null);
 
+  // Billing portal + usage dashboard
+  const [portalLoading, setPortalLoading] = useState(false);
+  const [usageStatus, setUsageStatus] = useState(null);
+  const [usageLoading, setUsageLoading] = useState(false);
+  const [usageError, setUsageError] = useState(null);
+
   // Handle upgrade success from Stripe redirect
   useEffect(() => {
     if (searchParams.get('upgrade') === 'success') {
@@ -150,6 +156,38 @@ export default function AccountPage() {
     return () => { cancelled = true; };
   }, [isAuthenticated, prefsLoading, analyticsEnabled]);
 
+  // Fetch usage status for the dashboard
+  useEffect(() => {
+    if (!isAuthenticated) return;
+
+    let cancelled = false;
+    const fetchUsage = async () => {
+      setUsageLoading(true);
+      setUsageError(null);
+      try {
+        const response = await fetch('/api/usage', { credentials: 'include' });
+        const data = await response.json().catch(() => ({}));
+
+        if (cancelled) return;
+
+        if (!response.ok) {
+          throw new Error(data.error || 'Unable to load usage');
+        }
+
+        setUsageStatus(data);
+      } catch (error) {
+        if (!cancelled) {
+          setUsageError(error.message || 'Unable to load usage');
+        }
+      } finally {
+        if (!cancelled) setUsageLoading(false);
+      }
+    };
+
+    fetchUsage();
+    return () => { cancelled = true; };
+  }, [isAuthenticated, tier]);
+
   const toggleAnalytics = useCallback(async () => {
     if (analyticsEnabled === null || prefsLoading) return;
     const next = !analyticsEnabled;
@@ -173,6 +211,39 @@ export default function AccountPage() {
       setPrefsLoading(false);
     }
   }, [analyticsEnabled, prefsLoading]);
+
+  const handleManageBilling = useCallback(async () => {
+    if (portalLoading) return;
+    setPortalLoading(true);
+    try {
+      const response = await fetch('/api/create-portal-session', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ returnUrl: `${window.location.origin}/account` })
+      });
+
+      const data = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Unable to open billing portal');
+      }
+
+      if (!data.url) {
+        throw new Error('No billing portal URL returned');
+      }
+
+      window.location.href = data.url;
+    } catch (error) {
+      publish({
+        title: 'Billing portal unavailable',
+        description: error.message || 'Unable to open billing portal. Please try again.',
+        type: 'error'
+      });
+    } finally {
+      setPortalLoading(false);
+    }
+  }, [portalLoading, publish]);
 
   const handleLogout = async () => {
     await logout();
@@ -202,6 +273,9 @@ export default function AccountPage() {
   const isPaid = tier === 'plus' || tier === 'pro';
   const tierIcons = { free: Moon, plus: Sparkle, pro: Crown };
   const TierIcon = tierIcons[tier] || Moon;
+  const readingUsage = usageStatus?.readings || null;
+  const ttsUsage = usageStatus?.tts || null;
+  const apiCallsUsage = usageStatus?.apiCalls || null;
 
   return (
     <div className="min-h-screen bg-main text-main">
@@ -304,6 +378,98 @@ export default function AccountPage() {
             </ul>
           </div>
 
+          {/* Usage dashboard */}
+          <div className="border-t border-secondary/20 pt-4 mb-4">
+            <p className="text-xs uppercase tracking-wider text-muted mb-2">Usage this month</p>
+
+            {usageLoading ? (
+              <div className="flex items-center gap-2 text-sm text-muted">
+                <CircleNotch className="h-4 w-4 animate-spin text-accent" />
+                Loading usage…
+              </div>
+            ) : usageError ? (
+              <p className="text-sm text-error">{usageError}</p>
+            ) : readingUsage ? (
+              <div className="space-y-2">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-secondary">AI readings</span>
+                  <span className="text-muted">
+                    {readingUsage.unlimited
+                      ? `${readingUsage.used} used · Unlimited`
+                      : `${readingUsage.used}/${readingUsage.limit}`}
+                  </span>
+                </div>
+
+                {!readingUsage.unlimited && typeof readingUsage.limit === 'number' && readingUsage.limit > 0 && (
+                  <div className="h-2 rounded-full bg-secondary/20 overflow-hidden">
+                    <div
+                      className="h-full bg-accent"
+                      style={{
+                        width: `${Math.min(100, Math.round((readingUsage.used / readingUsage.limit) * 100))}%`
+                      }}
+                    />
+                  </div>
+                )}
+
+                {ttsUsage && (
+                  <>
+                    <div className="flex items-center justify-between text-sm pt-2">
+                      <span className="text-secondary">Voice narrations</span>
+                      <span className="text-muted">
+                        {ttsUsage.unlimited
+                          ? `${ttsUsage.used} used · Unlimited`
+                          : `${ttsUsage.used}/${ttsUsage.limit}`}
+                      </span>
+                    </div>
+
+                    {!ttsUsage.unlimited && typeof ttsUsage.limit === 'number' && ttsUsage.limit > 0 && (
+                      <div className="h-2 rounded-full bg-secondary/20 overflow-hidden">
+                        <div
+                          className="h-full bg-accent"
+                          style={{
+                            width: `${Math.min(100, Math.round((ttsUsage.used / ttsUsage.limit) * 100))}%`
+                          }}
+                        />
+                      </div>
+                    )}
+                  </>
+                )}
+
+                {apiCallsUsage?.enabled && (
+                  <>
+                    <div className="flex items-center justify-between text-sm pt-2">
+                      <span className="text-secondary">API calls</span>
+                      <span className="text-muted">
+                        {typeof apiCallsUsage.limit === 'number'
+                          ? `${apiCallsUsage.used}/${apiCallsUsage.limit}`
+                          : apiCallsUsage.used}
+                      </span>
+                    </div>
+
+                    {typeof apiCallsUsage.limit === 'number' && apiCallsUsage.limit > 0 && (
+                      <div className="h-2 rounded-full bg-secondary/20 overflow-hidden">
+                        <div
+                          className="h-full bg-accent"
+                          style={{
+                            width: `${Math.min(100, Math.round((apiCallsUsage.used / apiCallsUsage.limit) * 100))}%`
+                          }}
+                        />
+                      </div>
+                    )}
+                  </>
+                )}
+
+                <p className="text-xs text-muted">
+                  Resets {usageStatus?.resetAt ? new Date(usageStatus.resetAt).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric', timeZone: 'UTC' }) : 'next month'} (UTC)
+                </p>
+              </div>
+            ) : (
+              <p className="text-sm text-muted">
+                Usage tracking unavailable.
+              </p>
+            )}
+          </div>
+
           {/* Upgrade/Manage buttons */}
           <div className="flex flex-col sm:flex-row gap-3">
             {!isPaid ? (
@@ -334,7 +500,26 @@ export default function AccountPage() {
                   View Plans
                   <CaretRight className="h-4 w-4" />
                 </Link>
-                {/* TODO: Add Stripe Customer Portal link when available */}
+                <button
+                  type="button"
+                  onClick={handleManageBilling}
+                  disabled={portalLoading}
+                  className={`
+                    flex-1 inline-flex items-center justify-center gap-2 rounded-full
+                    border border-accent/60 bg-transparent px-4 py-3 text-sm font-semibold text-main
+                    hover:bg-accent/10 transition
+                    ${portalLoading ? 'opacity-70 cursor-not-allowed' : ''}
+                    ${prefersReducedMotion ? '' : 'hover:scale-[1.02]'}
+                  `}
+                >
+                  <CreditCard className="h-4 w-4" weight="fill" />
+                  Manage Billing
+                  {portalLoading ? (
+                    <CircleNotch className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <CaretRight className="h-4 w-4" />
+                  )}
+                </button>
               </>
             )}
           </div>

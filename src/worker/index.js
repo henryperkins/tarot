@@ -25,12 +25,18 @@ import * as visionProof from '../../functions/api/vision-proof.js';
 import * as archetypeJourney from '../../functions/api/archetype-journey.js';
 import * as archetypeJourneyBackfill from '../../functions/api/archetype-journey-backfill.js';
 import * as coachExtractionBackfill from '../../functions/api/coach-extraction-backfill.js';
+import * as createCheckoutSession from '../../functions/api/create-checkout-session.js';
+import * as createPortalSession from '../../functions/api/create-portal-session.js';
+import * as usage from '../../functions/api/usage.js';
 
 // Auth handlers
 import * as authLogin from '../../functions/api/auth/login.js';
 import * as authLogout from '../../functions/api/auth/logout.js';
 import * as authRegister from '../../functions/api/auth/register.js';
 import * as authMe from '../../functions/api/auth/me.js';
+
+// Stripe webhook handler
+import * as stripeWebhook from '../../functions/api/webhooks/stripe.js';
 
 // API Keys handlers
 import * as keysIndex from '../../functions/api/keys/index.js';
@@ -171,11 +177,15 @@ const routes = [
   { pattern: /^\/api\/tts$/, handlers: tts },
   { pattern: /^\/api\/tts-hume$/, handlers: ttsHume },
   { pattern: /^\/api\/speech-token$/, handlers: speechToken },
+  { pattern: /^\/api\/usage$/, handlers: usage },
   { pattern: /^\/api\/journal$/, handlers: journal },
   { pattern: /^\/api\/journal\/([^/]+)$/, handlers: journalById, params: ['id'] },
   { pattern: /^\/api\/journal-summary$/, handlers: journalSummary },
   { pattern: /^\/api\/feedback$/, handlers: feedback },
   { pattern: /^\/api\/generate-question$/, handlers: generateQuestion },
+  { pattern: /^\/api\/create-checkout-session$/, handlers: createCheckoutSession },
+  { pattern: /^\/api\/create-portal-session$/, handlers: createPortalSession },
+  { pattern: /^\/api\/webhooks\/stripe$/, handlers: stripeWebhook },
   { pattern: /^\/api\/share$/, handlers: share },
   { pattern: /^\/api\/share\/([^/]+)\/og-image$/, handlers: shareTokenOgImage, params: ['token'] },
   { pattern: /^\/api\/share\/([^/]+)$/, handlers: shareToken, params: ['token'] },

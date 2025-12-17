@@ -1,6 +1,15 @@
 import { generateFallbackWaveform } from '../../shared/fallbackAudio.js';
 import { jsonResponse, readJsonBody } from '../lib/utils.js';
 import { getUserFromRequest } from '../lib/auth.js';
+import { getClientIdentifier } from '../lib/clientId.js';
+import {
+  getMonthKeyUtc,
+  getResetAtUtc,
+  getUsageRow,
+  incrementUsageCounter
+} from '../lib/usageTracking.js';
+import { enforceApiCallLimit } from '../lib/apiUsage.js';
+import { getSubscriptionContext } from '../lib/entitlements.js';
 
 /**
  * Cloudflare Pages Function that provides text-to-speech audio as a data URI or streaming response.
@@ -62,30 +71,10 @@ export const onRequestPost = async ({ request, env }) => {
 
     // Get user and subscription info
     const user = await getUserFromRequest(request, env);
-    const tier = user?.subscription_tier || 'free';
-    const ttsLimits = getTTSLimits(tier);
-
-    // Check tier-based rate limits (in addition to global rate limit)
-    const rateLimitResult = await enforceTtsRateLimit(env, request, ttsLimits);
-    if (rateLimitResult?.limited) {
-      const errorMessage = rateLimitResult.tierLimited
-        ? `You've reached your monthly TTS limit (${ttsLimits.monthly}). Upgrade to Plus or Pro for more.`
-        : 'Too many text-to-speech requests. Please wait a few moments and try again.';
-      
-      return jsonResponse(
-        {
-          error: errorMessage,
-          tierLimited: rateLimitResult.tierLimited || false,
-          currentTier: tier
-        },
-        {
-          status: 429,
-          headers: {
-            'retry-after': rateLimitResult.retryAfter.toString()
-          }
-        }
-      );
-    }
+    const subscription = getSubscriptionContext(user);
+    const tier = subscription.tier;
+    const effectiveTier = subscription.effectiveTier;
+    const ttsLimits = getTTSLimits(effectiveTier);
 
     const { text, context, voice, speed } = await readJsonBody(request);
     const sanitizedText = sanitizeText(text);
@@ -95,6 +84,39 @@ export const onRequestPost = async ({ request, env }) => {
       return jsonResponse(
         { error: 'The "text" field is required.' },
         { status: 400 }
+      );
+    }
+
+    // API key usage is Pro-only and subject to API call limits.
+    if (user?.auth_provider === 'api_key') {
+      const apiLimit = await enforceApiCallLimit(env, user);
+      if (!apiLimit.allowed) {
+        return jsonResponse(apiLimit.payload, { status: apiLimit.status });
+      }
+    }
+
+    // Check tier-based rate limits (in addition to global rate limit)
+    const rateLimitResult = await enforceTtsRateLimit(env, request, user, ttsLimits);
+    if (rateLimitResult?.limited) {
+      const errorMessage = rateLimitResult.tierLimited
+        ? `You've reached your monthly TTS limit (${ttsLimits.monthly}). Upgrade to Plus or Pro for more.`
+        : 'Too many text-to-speech requests. Please wait a few moments and try again.';
+
+      return jsonResponse(
+        {
+          error: errorMessage,
+          tierLimited: rateLimitResult.tierLimited || false,
+          currentTier: tier,
+          limit: rateLimitResult.limit ?? null,
+          used: rateLimitResult.used ?? null,
+          resetAt: rateLimitResult.resetAt ?? null
+        },
+        {
+          status: 429,
+          headers: {
+            'retry-after': rateLimitResult.retryAfter.toString()
+          }
+        }
       );
     }
 
@@ -387,7 +409,7 @@ const DEFAULT_RATE_LIMIT_WINDOW_SECONDS = 60;
 const TTS_RATE_LIMIT_KEY_PREFIX = 'tts-rate';
 const TTS_MONTHLY_KEY_PREFIX = 'tts-monthly';
 
-async function enforceTtsRateLimit(env, request, ttsLimits = { monthly: 3, premium: false }) {
+async function enforceTtsRateLimit(env, request, user, ttsLimits = { monthly: 3, premium: false }) {
   try {
     const store = env?.RATELIMIT;
     
@@ -414,24 +436,75 @@ async function enforceTtsRateLimit(env, request, ttsLimits = { monthly: 3, premi
       });
     }
 
-    // Monthly tier-based limit (skip for unlimited/Pro tier)
+    // Monthly tier-based limit (prefer D1 per-user counters; fall back to KV per IP).
+    const now = new Date();
+    const monthKey = getMonthKeyUtc(now);
+    const resetAt = getResetAtUtc(now);
+
+    if (user?.id && env?.DB) {
+      try {
+        const nowMs = Date.now();
+
+        if (ttsLimits.monthly === Infinity) {
+          await incrementUsageCounter(env.DB, {
+            userId: user.id,
+            month: monthKey,
+            counter: 'tts',
+            nowMs
+          });
+          return { limited: false };
+        }
+
+        const incrementResult = await incrementUsageCounter(env.DB, {
+          userId: user.id,
+          month: monthKey,
+          counter: 'tts',
+          limit: ttsLimits.monthly,
+          nowMs
+        });
+
+        if (incrementResult.changed === 0) {
+          const row = await getUsageRow(env.DB, user.id, monthKey);
+          const used = row?.tts_count || ttsLimits.monthly;
+          const retryAfter = Math.max(1, Math.ceil((Date.parse(resetAt) - now.getTime()) / 1000));
+          return {
+            limited: true,
+            tierLimited: true,
+            retryAfter,
+            used,
+            limit: ttsLimits.monthly,
+            resetAt
+          };
+        }
+
+        return { limited: false };
+      } catch (error) {
+        // If usage tracking isn't available yet (missing migration), fall back to KV.
+        if (!String(error?.message || '').includes('no such table')) {
+          throw error;
+        }
+      }
+    }
+
     if (store && ttsLimits.monthly !== Infinity) {
       const clientId = getClientIdentifier(request);
-      const now = new Date();
-      const monthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
       const monthlyKey = `${TTS_MONTHLY_KEY_PREFIX}:${clientId}:${monthKey}`;
 
       const monthlyCount = await store.get(monthlyKey);
       const currentMonthlyCount = monthlyCount ? Number(monthlyCount) || 0 : 0;
 
       if (currentMonthlyCount >= ttsLimits.monthly) {
-        // Monthly limit reached - suggest upgrade
-        const nextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
-        const retryAfter = Math.ceil((nextMonth.getTime() - now.getTime()) / 1000);
-        return { limited: true, tierLimited: true, retryAfter };
+        const retryAfter = Math.max(1, Math.ceil((Date.parse(resetAt) - now.getTime()) / 1000));
+        return {
+          limited: true,
+          tierLimited: true,
+          retryAfter,
+          used: currentMonthlyCount,
+          limit: ttsLimits.monthly,
+          resetAt
+        };
       }
 
-      // Increment monthly counter (expire after 35 days to cover month boundary)
       await store.put(monthlyKey, String(currentMonthlyCount + 1), {
         expirationTtl: 35 * 24 * 60 * 60
       });
@@ -442,26 +515,6 @@ async function enforceTtsRateLimit(env, request, ttsLimits = { monthly: 3, premi
     console.warn('Rate limit check failed, allowing request:', error);
     return { limited: false };
   }
-}
-
-function getClientIdentifier(request) {
-  const headerCandidates = [
-    'cf-connecting-ip',
-    'x-forwarded-for',
-    'x-real-ip'
-  ];
-
-  for (const header of headerCandidates) {
-    const value = request.headers.get(header);
-    if (value) {
-      if (header === 'x-forwarded-for') {
-        return value.split(',')[0].trim();
-      }
-      return value;
-    }
-  }
-
-  return 'anonymous';
 }
 
 function resolveEnv(env, key) {

@@ -22,6 +22,40 @@ import {
 } from './knowledgeBase.js';
 import { cosineSimilarity, embedText } from './embeddings.js';
 
+// ============================================================================
+// HELPER: Word Boundary Matching
+// ============================================================================
+
+/**
+ * Escape special regex characters in a string.
+ * @param {string} str - String to escape
+ * @returns {string} Escaped string safe for use in RegExp
+ */
+function escapeRegexChars(str) {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+/**
+ * Check if a keyword appears as a whole word in text.
+ * Uses word boundaries to avoid substring matches.
+ *
+ * @param {string} text - Text to search in (should be lowercase)
+ * @param {string} keyword - Keyword to find (should be lowercase)
+ * @returns {boolean} True if keyword appears as whole word
+ *
+ * @example
+ * matchesWholeWord('i love tarot', 'love')     // true
+ * matchesWholeWord('beloved cards', 'love')    // false (substring)
+ * matchesWholeWord('the art of reading', 'art') // true
+ * matchesWholeWord('heart and soul', 'art')    // false (substring)
+ */
+function matchesWholeWord(text, keyword) {
+  if (!text || !keyword) return false;
+  const escaped = escapeRegexChars(keyword);
+  const pattern = new RegExp(`\\b${escaped}\\b`);
+  return pattern.test(text);
+}
+
 /**
  * Determine the number of passages to retrieve based on spread complexity
  * and subscription tier. Centralized here so prompts and server-side
@@ -191,7 +225,9 @@ export function retrievePassages(graphKeys, options = {}) {
     p.relevance = 0;
     const text = (p.text + ' ' + (p.title || '') + ' ' + (p.theme || '')).toLowerCase();
     significantKeywords.forEach(kw => {
-      if (text.includes(kw)) p.relevance += 1;
+      // Use word boundary matching to avoid false positives from substrings
+      // e.g., "love" should not match "beloved", "art" should not match "heart"
+      if (matchesWholeWord(text, kw)) p.relevance += 1;
     });
   });
 
@@ -401,13 +437,14 @@ export async function scorePassageRelevance(passage, userQuery, options = {}) {
   }
 
   // Keyword overlap scoring (fast, cheap)
+  // Uses word boundary matching to avoid false positives from substrings
   const queryTerms = queryText
     .toLowerCase()
     .split(/\W+/)
     .filter((t) => t.length > 3);
   const passageLower = passageText.toLowerCase();
   const keywordMatches = queryTerms.filter((term) =>
-    passageLower.includes(term)
+    matchesWholeWord(passageLower, term)
   );
   const keywordScore =
     queryTerms.length > 0 ? keywordMatches.length / queryTerms.length : 0;
@@ -552,24 +589,39 @@ function comparePassagesForPrompt(a, b, strategy) {
  * - Quality threshold filtering
  * - Deduplication
  *
+ * Semantic scoring is enabled by default when the embeddings API is configured
+ * (AZURE_OPENAI_ENDPOINT + AZURE_OPENAI_API_KEY). Pass enableSemanticScoring: false
+ * to explicitly disable it.
+ *
  * @param {Object} graphKeys - Graph keys from buildGraphContext()
  * @param {Object} [options] - Retrieval options
  * @param {number} [options.maxPassages=5] - Maximum passages to return
  * @param {string} [options.userQuery=''] - User's question for relevance scoring
  * @param {number} [options.minRelevanceScore=0.3] - Minimum relevance to include
  * @param {boolean} [options.enableDeduplication=true] - Remove similar passages
- * @param {boolean} [options.enableSemanticScoring=false] - Use embeddings API
+ * @param {boolean} [options.enableSemanticScoring] - Use embeddings API (auto-detected if omitted)
  * @param {Object} [options.env] - Environment variables for API calls
  * @returns {Promise<Array<Object>>} Quality-filtered, scored passages
  *
  * @example
+ * // Semantic scoring auto-enabled when API is configured
  * const passages = await retrievePassagesWithQuality(
  *   themes.knowledgeGraph.graphKeys,
  *   {
  *     maxPassages: 5,
  *     userQuery: "What does this new chapter hold?",
- *     minRelevanceScore: 0.35,
- *     enableSemanticScoring: true
+ *     env: context.env  // Pass env to enable auto-detection
+ *   }
+ * );
+ *
+ * @example
+ * // Explicitly disable semantic scoring for faster retrieval
+ * const passages = await retrievePassagesWithQuality(
+ *   themes.knowledgeGraph.graphKeys,
+ *   {
+ *     maxPassages: 5,
+ *     userQuery: "What does this new chapter hold?",
+ *     enableSemanticScoring: false
  *   }
  * );
  */
@@ -579,9 +631,15 @@ export async function retrievePassagesWithQuality(graphKeys, options = {}) {
     userQuery = '',
     minRelevanceScore = 0.3,
     enableDeduplication = true,
-    enableSemanticScoring = false,
+    enableSemanticScoring: explicitSemanticScoring,
     env = null
   } = options;
+
+  // Auto-detect semantic scoring: enabled by default when API is available
+  // Can be explicitly disabled by passing enableSemanticScoring: false
+  const enableSemanticScoring = explicitSemanticScoring !== undefined
+    ? explicitSemanticScoring
+    : isSemanticScoringAvailable(env);
 
   // Quality filtering selects the most relevant passages for the user's question.
   // This is independent of prompt slimming (which controls whether entire sections

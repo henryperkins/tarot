@@ -11,6 +11,7 @@
 
 import { getSessionFromCookie, validateSession } from '../lib/auth.js';
 import { jsonResponse, readJsonBody } from '../lib/utils.js';
+import { buildTierLimitedPayload, isEntitled } from '../lib/entitlements.js';
 import { computeJournalStats } from '../../shared/journal/stats.js';
 import { buildHeuristicJourneySummary } from '../../shared/journal/summary.js';
 import { callAzureResponses } from '../lib/azureResponses.js';
@@ -166,6 +167,17 @@ export async function onRequestPost(context) {
       return jsonResponse(
         { error: 'Not authenticated' },
         { status: 401 }
+      );
+    }
+
+    if (!isEntitled(user, 'plus')) {
+      return jsonResponse(
+        buildTierLimitedPayload({
+          message: 'Cloud journal summaries require an active Plus or Pro subscription',
+          user,
+          requiredTier: 'plus'
+        }),
+        { status: 403 }
       );
     }
 

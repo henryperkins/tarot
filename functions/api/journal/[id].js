@@ -7,6 +7,7 @@ import {
   validateSession,
   getSessionFromCookie
 } from '../../lib/auth.js';
+import { buildTierLimitedPayload, isEntitled } from '../../lib/entitlements.js';
 
 /**
  * DELETE /api/journal/[id]
@@ -25,6 +26,19 @@ export async function onRequestDelete(context) {
       return new Response(
         JSON.stringify({ error: 'Not authenticated' }),
         { status: 401, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+
+    if (!isEntitled(user, 'plus')) {
+      return new Response(
+        JSON.stringify(
+          buildTierLimitedPayload({
+            message: 'Cloud journal sync requires an active Plus or Pro subscription',
+            user,
+            requiredTier: 'plus'
+          })
+        ),
+        { status: 403, headers: { 'Content-Type': 'application/json' } }
       );
     }
 

@@ -353,17 +353,20 @@ export async function getUserFromRequest(request, env) {
     if (token && token.startsWith('sk_')) {
       const apiKeyRecord = await validateApiKey(env.DB, token);
       if (apiKeyRecord) {
-        // API keys are reserved for advanced / Pro-style integrations.
-        // Treat them as having an active "pro"-level subscription by
-        // default so API usage can be gated separately from end-user tiers.
+        // API keys authenticate as their owning user. Subscription tier/status
+        // must be derived from the user record (not auto-granted), so keys
+        // cannot be used to bypass entitlements after downgrade/cancellation.
         return {
           id: apiKeyRecord.user_id,
           email: apiKeyRecord.email,
           username: apiKeyRecord.username,
-          subscription_tier: 'pro',
-          subscription_status: 'active',
-          subscription_provider: 'api_key',
-          stripe_customer_id: null
+          subscription_tier: apiKeyRecord.subscription_tier || 'free',
+          subscription_status: apiKeyRecord.subscription_status || 'inactive',
+          subscription_provider: apiKeyRecord.subscription_provider || null,
+          stripe_customer_id: apiKeyRecord.stripe_customer_id || null,
+          auth_provider: 'api_key',
+          api_key_id: apiKeyRecord.id,
+          api_key_prefix: apiKeyRecord.key_prefix
         };
       }
     }

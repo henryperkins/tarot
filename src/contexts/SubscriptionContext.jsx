@@ -1,54 +1,20 @@
 /* eslint-disable react-refresh/only-export-components */
 import { createContext, useContext, useMemo } from 'react';
 import { useAuth } from './AuthContext';
+import {
+  SUBSCRIPTION_TIERS,
+  getEffectiveTier,
+  getTierConfig,
+  hasTierAtLeast,
+  isSubscriptionActive,
+  normalizeStatus,
+  normalizeTier
+} from '../../shared/monetization/subscription.js';
 
 /**
  * Subscription tiers and their capabilities
  */
-export const SUBSCRIPTION_TIERS = {
-  free: {
-    name: 'Seeker',
-    label: 'Free',
-    monthlyReadings: 5,
-    monthlyTTS: 3,
-    spreads: ['single', 'threeCard', 'fiveCard'],
-    cloudJournal: false,
-    advancedInsights: false,
-    adFree: false,
-    apiAccess: false,
-    aiQuestions: false,
-    graphRAGDepth: 'limited'
-  },
-  plus: {
-    name: 'Enlightened',
-    label: 'Plus',
-    price: 7.99,
-    monthlyReadings: 50,
-    monthlyTTS: 50,
-    spreads: 'all',
-    cloudJournal: true,
-    advancedInsights: true,
-    adFree: true,
-    apiAccess: false,
-    aiQuestions: true,
-    graphRAGDepth: 'full'
-  },
-  pro: {
-    name: 'Mystic',
-    label: 'Pro',
-    price: 19.99,
-    monthlyReadings: Infinity,
-    monthlyTTS: Infinity,
-    spreads: 'all+custom',
-    cloudJournal: true,
-    advancedInsights: true,
-    adFree: true,
-    apiAccess: true,
-    apiCallsPerMonth: 1000,
-    aiQuestions: true,
-    graphRAGDepth: 'full'
-  }
-};
+export { SUBSCRIPTION_TIERS };
 
 /**
  * Stripe Price IDs - these should be configured in environment/config
@@ -72,12 +38,13 @@ export function SubscriptionProvider({ children }) {
 
   const subscription = useMemo(() => {
     // Default to free tier for unauthenticated or loading states
-    const tier = user?.subscription_tier || 'free';
-    const status = user?.subscription_status || 'inactive';
+    const tier = normalizeTier(user?.subscription_tier);
+    const status = normalizeStatus(user?.subscription_status);
     const provider = user?.subscription_provider || null;
 
-    const tierConfig = SUBSCRIPTION_TIERS[tier] || SUBSCRIPTION_TIERS.free;
-    const isActive = status === 'active' || tier === 'free';
+    const effectiveTier = getEffectiveTier({ tier, status });
+    const tierConfig = getTierConfig(effectiveTier);
+    const isActive = isSubscriptionActive({ tier, status });
     const isPaid = tier === 'plus' || tier === 'pro';
 
     return {
@@ -87,14 +54,15 @@ export function SubscriptionProvider({ children }) {
       isActive,
       isPaid,
       config: tierConfig,
+      effectiveTier,
       
       // Feature checks
-      canUseAIQuestions: isPaid && isActive,
+      canUseAIQuestions: hasTierAtLeast(effectiveTier, 'plus'),
       canUseTTS: true, // All tiers can use TTS, just with limits
-      canUseCloudJournal: isPaid && isActive,
-      canUseAdvancedInsights: isPaid && isActive,
-      canUseAPI: tier === 'pro' && isActive,
-      hasAdFreeExperience: isPaid && isActive,
+      canUseCloudJournal: hasTierAtLeast(effectiveTier, 'plus'),
+      canUseAdvancedInsights: hasTierAtLeast(effectiveTier, 'plus'),
+      canUseAPI: effectiveTier === 'pro',
+      hasAdFreeExperience: hasTierAtLeast(effectiveTier, 'plus'),
       
       // Limits
       monthlyReadingsLimit: tierConfig.monthlyReadings,
@@ -120,6 +88,7 @@ export function SubscriptionProvider({ children }) {
     tier: subscription.tier,
     isPaid: subscription.isPaid,
     isActive: subscription.isActive,
+    effectiveTier: subscription.effectiveTier,
     
     // Feature checks re-exported at top level for convenience
     canUseAIQuestions: subscription.canUseAIQuestions,
@@ -133,6 +102,9 @@ export function SubscriptionProvider({ children }) {
     isFreeTier: subscription.tier === 'free',
     isPlusTier: subscription.tier === 'plus',
     isProTier: subscription.tier === 'pro',
+    isEffectiveFreeTier: subscription.effectiveTier === 'free',
+    isEffectivePlusTier: subscription.effectiveTier === 'plus',
+    isEffectiveProTier: subscription.effectiveTier === 'pro',
     
     // Upgrade check: returns true if user would benefit from upgrading to target tier
     shouldUpgradeTo: (targetTier) => {

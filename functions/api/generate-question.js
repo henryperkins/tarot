@@ -4,16 +4,13 @@ import {
   formatForecastHighlights
 } from '../lib/ephemerisIntegration.js';
 import { getUserFromRequest } from '../lib/auth.js';
+import { enforceApiCallLimit } from '../lib/apiUsage.js';
+import { getSubscriptionContext } from '../lib/entitlements.js';
 
 const JSON_HEADERS = { 'Content-Type': 'application/json' };
 
-/**
- * Check if user has access to AI question generation.
- * Free tier users get local template fallback; paid tiers get Azure AI.
- */
-function canUseAIQuestions(user) {
-  if (!user) return false;
-  const tier = user.subscription_tier || 'free';
+function canUseAIQuestions(subscription) {
+  const tier = subscription?.effectiveTier || 'free';
   return tier === 'plus' || tier === 'pro';
 }
 
@@ -282,7 +279,19 @@ export async function onRequestPost({ request, env }) {
 
     // Check subscription tier for AI question access
     const user = await getUserFromRequest(request, env);
-    const hasAIAccess = canUseAIQuestions(user);
+    const subscription = getSubscriptionContext(user);
+    const hasAIAccess = canUseAIQuestions(subscription);
+
+    // API key usage is Pro-only and subject to API call limits.
+    if (user?.auth_provider === 'api_key') {
+      const apiLimit = await enforceApiCallLimit(env, user);
+      if (!apiLimit.allowed) {
+        return new Response(JSON.stringify(apiLimit.payload), {
+          status: apiLimit.status,
+          headers: JSON_HEADERS
+        });
+      }
+    }
 
     // For free tier, skip Azure AI and use local template directly
     if (!hasAIAccess) {

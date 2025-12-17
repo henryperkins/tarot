@@ -108,7 +108,7 @@ async function verifyStripeSignature(payload, signature, secret) {
 function mapSubscriptionStatus(stripeStatus) {
   const statusMap = {
     'active': 'active',
-    'trialing': 'active',
+    'trialing': 'trialing',
     'past_due': 'past_due',
     'canceled': 'canceled',
     'unpaid': 'unpaid',
@@ -224,7 +224,27 @@ export async function onRequestPost(context) {
 
     // Parse the event
     const event = JSON.parse(payload);
-    console.log(`Received Stripe webhook: ${event.type}`);
+    console.log(`Received Stripe webhook: ${event.type} (${event.id})`);
+
+    // Idempotency check - prevent duplicate event processing
+    // Stripe retries webhooks for up to 3 days; same event.id is sent on retries
+    try {
+      const eventExists = await env.DB.prepare(
+        'SELECT 1 FROM processed_webhook_events WHERE provider = ? AND event_id = ?'
+      ).bind('stripe', event.id).first();
+
+      if (eventExists) {
+        console.log(`[Stripe Webhook] Duplicate event ignored: ${event.id} (${event.type})`);
+        return new Response(
+          JSON.stringify({ received: true, duplicate: true }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } }
+        );
+      }
+    } catch (err) {
+      // If idempotency check fails, log but continue processing
+      // Better to potentially double-process than to fail silently
+      console.warn(`[Stripe Webhook] Idempotency check failed (continuing): ${err.message}`);
+    }
 
     // Handle the event
     switch (event.type) {
@@ -266,6 +286,18 @@ export async function onRequestPost(context) {
 
       default:
         console.log(`Unhandled event type: ${event.type}`);
+    }
+
+    // Record processed event for idempotency
+    // Do this after successful processing but before returning
+    try {
+      await env.DB.prepare(`
+        INSERT INTO processed_webhook_events (provider, event_id, event_type, processed_at)
+        VALUES (?, ?, ?, ?)
+      `).bind('stripe', event.id, event.type, Date.now()).run();
+    } catch (err) {
+      // Log but don't fail - worst case we might process a duplicate later
+      console.warn(`[Stripe Webhook] Failed to record event ${event.id}: ${err.message}`);
     }
 
     // Acknowledge receipt of the event
