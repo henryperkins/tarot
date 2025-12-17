@@ -276,8 +276,36 @@ export function ReadingProvider({ children }) {
 
             if (!response.ok) {
                 const errText = await response.text();
-                console.error('Tarot reading API error:', response.status, errText);
-                throw new Error('Failed to generate reading');
+                let errPayload = null;
+                try {
+                    errPayload = errText ? JSON.parse(errText) : null;
+                } catch {
+                    errPayload = null;
+                }
+
+                const serverMessage =
+                    typeof errPayload?.error === 'string'
+                        ? errPayload.error.trim()
+                        : '';
+
+                const fallbackByStatus = {
+                    401: 'Please sign in to generate a personal narrative.',
+                    403: 'This spread isn’t available on your current plan.',
+                    409: 'This request couldn’t be completed. Please refresh and try again.',
+                    429: 'You’ve reached your reading limit. Please try again later.'
+                };
+
+                const safeServerMessage = serverMessage && serverMessage.length <= 240 ? serverMessage : '';
+                const finalMessage =
+                    safeServerMessage ||
+                    fallbackByStatus[response.status] ||
+                    'Unable to generate reading at this time. Please try again in a moment.';
+
+                console.error('Tarot reading API error:', response.status, errPayload || errText);
+                const requestError = new Error(finalMessage);
+                requestError.status = response.status;
+                requestError.payload = errPayload;
+                throw requestError;
             }
 
             const data = await response.json();
@@ -329,16 +357,19 @@ export function ReadingProvider({ children }) {
                 return;
             }
             console.error('generatePersonalReading error:', error);
-            const errorMsg = 'Unable to generate reading at this time. Please try again in a moment.';
+            const errorMsg =
+                typeof error?.message === 'string' && error.message.trim()
+                    ? error.message.trim()
+                    : 'Unable to generate reading at this time. Please try again in a moment.';
             const formattedError = formatReading(errorMsg);
             formattedError.isError = true;
             setPersonalReading(formattedError);
             setJournalStatus({
                 type: 'error',
-                message: 'Unable to generate your narrative right now. Please try again shortly.'
+                message: errorMsg
             });
             setNarrativePhase('error');
-            setSrAnnouncement('Unable to generate your narrative right now.');
+            setSrAnnouncement(errorMsg);
         } finally {
             if (inFlightReadingRef.current?.controller === controller) {
                 inFlightReadingRef.current = null;

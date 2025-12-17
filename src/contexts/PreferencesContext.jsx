@@ -1,13 +1,20 @@
-import { createContext, useContext, useState, useEffect, useMemo } from 'react';
+import { createContext, useContext, useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { MAJOR_ARCANA } from '../data/majorArcana';
 import { getDeckPool } from '../lib/deck';
 import { initAudio, cleanupAudio, stopTTS, toggleAmbience } from '../lib/audio';
+import { useAuth } from './AuthContext';
+import {
+  DEFAULT_PERSONALIZATION,
+  LEGACY_PERSONALIZATION_STORAGE_KEY,
+  getPersonalizationStorageKey,
+  sanitizeGuestPersonalization,
+  loadPersonalizationFromStorage
+} from '../utils/personalizationStorage';
 
 const PreferencesContext = createContext(null);
 
 const PREPARE_SECTIONS_STORAGE_KEY = 'tarot-prepare-sections';
 const ONBOARDING_STORAGE_KEY = 'tarot-onboarding-complete';
-const PERSONALIZATION_STORAGE_KEY = 'tarot-personalization';
 const PERSONALIZATION_BANNER_KEY = 'tarot-personalization-banner';
 const NUDGE_STATE_STORAGE_KEY = 'tarot-nudge-state';
 const DEFAULT_PREPARE_SECTIONS = {
@@ -15,16 +22,6 @@ const DEFAULT_PREPARE_SECTIONS = {
   experience: false,
   ritual: false,
   audio: false
-};
-
-const DEFAULT_PERSONALIZATION = {
-  displayName: '',
-  tarotExperience: 'newbie',
-  readingTone: 'balanced',
-  focusAreas: [],
-  preferredSpreadDepth: 'standard',
-  spiritualFrame: 'mixed',
-  showRitualSteps: true
 };
 
 /** Nudge state for contextual discovery (trimmed onboarding) */
@@ -37,6 +34,14 @@ const DEFAULT_NUDGE_STATE = {
 };
 
 export function PreferencesProvider({ children }) {
+  const { user, loading: authLoading } = useAuth();
+  const userId = user?.id || null;
+  const personalizationStorageKey = useMemo(
+    () => getPersonalizationStorageKey(userId),
+    [userId]
+  );
+  const personalizationKeyRef = useRef(personalizationStorageKey);
+
   // --- Theme ---
   const [theme, setTheme] = useState(() => {
     if (typeof localStorage !== 'undefined') {
@@ -185,31 +190,64 @@ export function PreferencesProvider({ children }) {
   const [reversalFramework, setReversalFramework] = useState(null);
 
   // --- Personalization Preferences ---
-  const [personalization, setPersonalizationState] = useState(() => {
-    if (typeof localStorage !== 'undefined') {
+  const [personalization, setPersonalizationState] = useState(() =>
+    loadPersonalizationFromStorage(personalizationStorageKey)
+  );
+
+  // Handle auth transitions + migrate legacy device-scoped personalization storage.
+  useEffect(() => {
+    if (typeof localStorage === 'undefined') return;
+    if (authLoading) return;
+
+    const nextKey = personalizationStorageKey;
+    personalizationKeyRef.current = nextKey;
+
+    // Migrate legacy (non-scoped) personalization to the current scope.
+    const legacyRaw = localStorage.getItem(LEGACY_PERSONALIZATION_STORAGE_KEY);
+    if (legacyRaw) {
       try {
-        const stored = localStorage.getItem(PERSONALIZATION_STORAGE_KEY);
-        if (stored) {
-          const parsed = JSON.parse(stored);
-          return { ...DEFAULT_PERSONALIZATION, ...parsed };
+        const alreadyHasScoped = Boolean(localStorage.getItem(nextKey));
+        if (!alreadyHasScoped) {
+          if (userId) {
+            localStorage.setItem(nextKey, legacyRaw);
+          } else {
+            const parsed = JSON.parse(legacyRaw);
+            const sanitized = sanitizeGuestPersonalization(parsed);
+            localStorage.setItem(nextKey, JSON.stringify(sanitized));
+          }
         }
       } catch (error) {
-        console.debug('Unable to load personalization:', error);
+        console.debug('Unable to migrate legacy personalization:', error);
+      } finally {
+        // Always remove the legacy key to prevent cross-account leakage.
+        localStorage.removeItem(LEGACY_PERSONALIZATION_STORAGE_KEY);
       }
     }
-    return { ...DEFAULT_PERSONALIZATION };
-  });
+
+    setPersonalizationState(loadPersonalizationFromStorage(nextKey));
+  }, [authLoading, personalizationStorageKey, userId]);
 
   // Persist personalization changes
   useEffect(() => {
     if (typeof localStorage !== 'undefined') {
       try {
-        localStorage.setItem(PERSONALIZATION_STORAGE_KEY, JSON.stringify(personalization));
+        localStorage.setItem(personalizationKeyRef.current, JSON.stringify(personalization));
       } catch (error) {
         console.debug('Unable to persist personalization:', error);
       }
     }
   }, [personalization]);
+
+  const resetPersonalization = useCallback(() => {
+    setPersonalizationState({ ...DEFAULT_PERSONALIZATION });
+    if (typeof localStorage !== 'undefined') {
+      try {
+        localStorage.removeItem(personalizationKeyRef.current);
+      } catch (error) {
+        console.debug('Unable to clear personalization:', error);
+      }
+    }
+  }, []);
 
   // Individual setters for personalization fields
   const setDisplayName = (value) => {
@@ -419,6 +457,7 @@ export function PreferencesProvider({ children }) {
     resetOnboarding,
     showPersonalizationBanner,
     setShowPersonalizationBanner,
+    resetPersonalization,
     // Nudge state (contextual discovery)
     nudgeState,
     shouldShowRitualNudge,

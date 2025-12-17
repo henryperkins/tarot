@@ -3,7 +3,9 @@ import { computeSeed, drawSpread } from '../lib/deck';
 import { playFlip, unlockAudio } from '../lib/audio';
 import { DEFAULT_SPREAD_KEY, normalizeSpreadKey, getSpreadInfo } from '../data/spreads';
 import { usePreferences } from '../contexts/PreferencesContext';
+import { useSubscription } from '../contexts/SubscriptionContext';
 import { getSpreadFromDepth } from '../utils/personalization';
+import { resolveFallbackSpreadKey } from '../utils/spreadEntitlements';
 
 const SKIP_RITUAL_DEFAULTS = {
   knockTimes: [100, 200, 300],
@@ -12,6 +14,7 @@ const SKIP_RITUAL_DEFAULTS = {
 
 export function useTarotState(speak) {
   const { includeMinors, deckSize, personalization } = usePreferences();
+  const { subscription, loading: subscriptionLoading } = useSubscription();
   const [selectedSpreadState, setSelectedSpreadState] = useState(DEFAULT_SPREAD_KEY);
   const [hasUserSelectedSpread, setHasUserSelectedSpread] = useState(false);
   const autoSelectedSpread = (!hasUserSelectedSpread && personalization?.preferredSpreadDepth)
@@ -139,6 +142,18 @@ export function useTarotState(speak) {
     // Reset cut index to deck center
     setCutIndex(Math.floor(deckSize / 2));
   }, [setSelectedSpread, resetReadingState, deckSize]);
+
+  // Enforce spread entitlements (e.g., after logout/downgrade) to avoid hitting
+  // the reading API with a spread that isn't available on the current plan.
+  useEffect(() => {
+    if (subscriptionLoading) return;
+    if (!subscription?.canUseSpread) return;
+    if (subscription.canUseSpread(selectedSpread)) return;
+
+    const fallbackKey = resolveFallbackSpreadKey(selectedSpread, subscription?.config?.spreads);
+    if (!fallbackKey || fallbackKey === selectedSpread) return;
+    selectSpread(fallbackKey);
+  }, [subscriptionLoading, subscription, selectedSpread, selectSpread]);
 
   const shuffle = useCallback((onShuffleComplete) => {
     const currentSpread = selectedSpread;

@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import FocusTrap from 'focus-trap-react';
 import { X, Eye, EyeSlash } from '@phosphor-icons/react';
 import { useAuth } from '../contexts/AuthContext';
@@ -118,7 +119,7 @@ export default function AuthModal({ isOpen, onClose }) {
 
   const errorId = error || authError ? 'auth-error' : undefined;
   const overlayClasses = [
-    'fixed inset-0 z-[200] flex justify-center bg-main/90 backdrop-blur-sm animate-fade-in overflow-y-auto',
+    'fixed inset-0 z-[1300] flex justify-center bg-main/90 backdrop-blur-sm animate-fade-in overflow-y-auto',
     isSmallScreen ? 'items-start px-4 py-8' : 'items-center p-4',
   ].join(' ');
   const modalClasses = [
@@ -126,7 +127,7 @@ export default function AuthModal({ isOpen, onClose }) {
     isSmallScreen ? 'max-w-full mx-auto my-6' : 'max-w-md max-h-[90vh]',
   ].join(' ');
 
-  return (
+  const content = (
     <div className={overlayClasses} onClick={createBackdropHandler(onClose)}>
       <FocusTrap
         active={isOpen}
@@ -410,4 +411,9 @@ export default function AuthModal({ isOpen, onClose }) {
       </FocusTrap>
     </div>
   );
+
+  // Portal the modal to <body> so it can't be constrained by transformed/sticky parents
+  // (which can break `position: fixed` on mobile browsers).
+  if (typeof document === 'undefined') return null;
+  return createPortal(content, document.body);
 }
