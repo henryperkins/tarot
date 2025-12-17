@@ -389,7 +389,7 @@ export default function AccountPage() {
               </div>
             ) : usageError ? (
               <p className="text-sm text-error">{usageError}</p>
-            ) : readingUsage ? (
+            ) : readingUsage?.source ? (
               <div className="space-y-2">
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-secondary">AI readings</span>

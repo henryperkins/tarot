@@ -1,4 +1,5 @@
 import { validateApiKey } from './apiKeys.js';
+import { timingSafeEqual } from './crypto.js';
 
 /**
  * Authentication library for Mystic Tarot
@@ -83,7 +84,7 @@ export async function verifyPassword(password, storedHash, storedSalt) {
   const { hash } = await hashPassword(password, saltBytes);
 
   // Timing-safe comparison (prevents timing attacks)
-  return hash === storedHash;
+  return timingSafeEqual(hash, storedHash);
 }
 
 /**
@@ -343,6 +344,12 @@ export function isValidPassword(password) {
  * @returns {Promise<object|null>} User object or null if unauthenticated
  */
 export async function getUserFromRequest(request, env) {
+  // Defensive check: return null if DB is not available
+  // This prevents errors in routes that don't have DB binding
+  if (!env?.DB) {
+    return null;
+  }
+
   const authHeader = request.headers.get('Authorization');
 
   // Authorization: Bearer <token>

@@ -1,3 +1,6 @@
+import { timingSafeEqual } from '../../lib/crypto.js';
+import { isProductionEnvironment } from '../../lib/environment.js';
+
 /**
  * Stripe Webhook Handler
  * POST /api/webhooks/stripe
@@ -66,9 +69,13 @@ async function verifyStripeSignature(payload, signature, secret) {
 
   const parts = signature.split(',');
   const timestamp = parts.find(p => p.startsWith('t='))?.slice(2);
-  const v1Signature = parts.find(p => p.startsWith('v1='))?.slice(3);
+  // Stripe can include multiple v1= signatures during secret rotation
+  // We should accept if ANY of them match
+  const v1Signatures = parts
+    .filter(p => p.startsWith('v1='))
+    .map(p => p.slice(3));
 
-  if (!timestamp || !v1Signature) {
+  if (!timestamp || v1Signatures.length === 0) {
     return false;
   }
 
@@ -98,8 +105,9 @@ async function verifyStripeSignature(payload, signature, secret) {
     .map(b => b.toString(16).padStart(2, '0'))
     .join('');
 
-  // Timing-safe comparison
-  return expectedSignature === v1Signature;
+  // Use timing-safe comparison and accept if any v1 signature matches
+  // This supports Stripe's secret rotation where multiple signatures may be present
+  return v1Signatures.some(sig => timingSafeEqual(expectedSignature, sig));
 }
 
 /**
@@ -218,32 +226,46 @@ export async function onRequestPost(context) {
         );
       }
     } else {
-      // In development without webhook secret, log a warning
-      console.warn('STRIPE_WEBHOOK_SECRET not set - skipping signature verification');
+      // Fail closed in production - missing secret is a configuration error
+      if (isProductionEnvironment(env)) {
+        console.error('STRIPE_WEBHOOK_SECRET not configured in production - rejecting webhook');
+        return new Response(
+          JSON.stringify({ error: 'Webhook configuration error' }),
+          { status: 500, headers: { 'Content-Type': 'application/json' } }
+        );
+      }
+      // In development without webhook secret, log a warning but allow
+      console.warn('STRIPE_WEBHOOK_SECRET not set - dev mode, skipping signature verification');
     }
 
     // Parse the event
     const event = JSON.parse(payload);
     console.log(`Received Stripe webhook: ${event.type} (${event.id})`);
 
-    // Idempotency check - prevent duplicate event processing
-    // Stripe retries webhooks for up to 3 days; same event.id is sent on retries
+    // Idempotency: Use claim-first pattern to prevent race conditions
+    // INSERT OR IGNORE atomically claims the event; if it already exists, changes=0
+    // This is safer than SELECT-then-INSERT which can race under concurrent delivery
+    let eventClaimed = false;
     try {
-      const eventExists = await env.DB.prepare(
-        'SELECT 1 FROM processed_webhook_events WHERE provider = ? AND event_id = ?'
-      ).bind('stripe', event.id).first();
+      const claim = await env.DB.prepare(`
+        INSERT OR IGNORE INTO processed_webhook_events
+        (provider, event_id, event_type, processed_at)
+        VALUES (?, ?, ?, ?)
+      `).bind('stripe', event.id, event.type, Date.now()).run();
 
-      if (eventExists) {
+      if (claim.meta.changes === 0) {
+        // Another worker already claimed this event
         console.log(`[Stripe Webhook] Duplicate event ignored: ${event.id} (${event.type})`);
         return new Response(
           JSON.stringify({ received: true, duplicate: true }),
           { status: 200, headers: { 'Content-Type': 'application/json' } }
         );
       }
+      eventClaimed = true;
     } catch (err) {
-      // If idempotency check fails, log but continue processing
+      // If idempotency claim fails, log but continue processing
       // Better to potentially double-process than to fail silently
-      console.warn(`[Stripe Webhook] Idempotency check failed (continuing): ${err.message}`);
+      console.warn(`[Stripe Webhook] Idempotency claim failed (continuing): ${err.message}`);
     }
 
     // Handle the event
@@ -288,17 +310,12 @@ export async function onRequestPost(context) {
         console.log(`Unhandled event type: ${event.type}`);
     }
 
-    // Record processed event for idempotency
-    // Do this after successful processing but before returning
-    try {
-      await env.DB.prepare(`
-        INSERT INTO processed_webhook_events (provider, event_id, event_type, processed_at)
-        VALUES (?, ?, ?, ?)
-      `).bind('stripe', event.id, event.type, Date.now()).run();
-    } catch (err) {
-      // Log but don't fail - worst case we might process a duplicate later
-      console.warn(`[Stripe Webhook] Failed to record event ${event.id}: ${err.message}`);
-    }
+    // Note: Event was already recorded for idempotency before processing (claim-first pattern)
+    // If processing failed and we want Stripe to retry, we could delete the claim here:
+    // if (eventClaimed && processingFailed) {
+    //   await env.DB.prepare('DELETE FROM processed_webhook_events WHERE provider = ? AND event_id = ?')
+    //     .bind('stripe', event.id).run();
+    // }
 
     // Acknowledge receipt of the event
     return new Response(

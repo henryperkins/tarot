@@ -39,6 +39,16 @@ function escapeRegexChars(str) {
  * Check if a keyword appears as a whole word in text.
  * Uses word boundaries to avoid substring matches.
  *
+ * LIMITATION: JavaScript's \b word boundary is ASCII-only [A-Za-z0-9_].
+ * This means:
+ * - Accented characters (café, naïve, über) may not match correctly
+ * - Non-Latin scripts (Chinese, Japanese, Arabic) have no word boundaries
+ * - Hyphenated words like "self-love" treat hyphens as boundaries
+ *
+ * This is acceptable for English-centric tarot terminology but should be
+ * revisited if i18n support is needed. Consider using Unicode-aware regex
+ * with \p{L} character class or space-based splitting for broader support.
+ *
  * @param {string} text - Text to search in (should be lowercase)
  * @param {string} keyword - Keyword to find (should be lowercase)
  * @returns {boolean} True if keyword appears as whole word

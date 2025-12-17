@@ -24,6 +24,7 @@
  */
 
 import { extractAndEmbed } from '../lib/coachSuggestion.js';
+import { timingSafeEqual } from '../lib/crypto.js';
 
 // Keep batch sizes small - each entry can take ~13s worst-case (8s extraction + 5s embedding).
 // Requests are time-budgeted and will stop early to avoid HTTP timeouts.
@@ -39,11 +40,11 @@ export async function onRequestPost({ request, env }) {
   const requestId = crypto.randomUUID ? crypto.randomUUID() : `backfill_${Date.now()}`;
   const startTime = Date.now();
 
-  // Validate admin key
+  // Validate admin key with timing-safe comparison
   const authHeader = request.headers.get('Authorization') || '';
   const providedKey = authHeader.replace(/^Bearer\s+/i, '').trim();
 
-  if (!env.ADMIN_API_KEY || providedKey !== env.ADMIN_API_KEY) {
+  if (!env.ADMIN_API_KEY || !timingSafeEqual(providedKey, env.ADMIN_API_KEY)) {
     return new Response(JSON.stringify({ error: 'Unauthorized' }), {
       status: 401,
       headers: { 'Content-Type': 'application/json' }
@@ -219,11 +220,11 @@ export async function onRequestPost({ request, env }) {
 
 // GET endpoint for status check
 export async function onRequestGet({ request, env }) {
-  // Validate admin key
+  // Validate admin key with timing-safe comparison
   const authHeader = request.headers.get('Authorization') || '';
   const providedKey = authHeader.replace(/^Bearer\s+/i, '').trim();
 
-  if (!env.ADMIN_API_KEY || providedKey !== env.ADMIN_API_KEY) {
+  if (!env.ADMIN_API_KEY || !timingSafeEqual(providedKey, env.ADMIN_API_KEY)) {
     return new Response(JSON.stringify({ error: 'Unauthorized' }), {
       status: 401,
       headers: { 'Content-Type': 'application/json' }

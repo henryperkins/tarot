@@ -10,6 +10,7 @@ import {
 } from '../lib/usageTracking.js';
 import { enforceApiCallLimit } from '../lib/apiUsage.js';
 import { getSubscriptionContext } from '../lib/entitlements.js';
+import { getTierConfig } from '../../shared/monetization/subscription.js';
 
 /**
  * Cloudflare Pages Function that provides text-to-speech audio as a data URI or streaming response.
@@ -53,15 +54,15 @@ export const onRequestGet = async ({ env }) => {
 };
 
 /**
- * Get TTS limits based on subscription tier
+ * Get TTS limits based on subscription tier.
+ * Uses shared subscription config as single source of truth.
  */
 function getTTSLimits(tier) {
-  const limits = {
-    free: { monthly: 3, premium: false },
-    plus: { monthly: 50, premium: true },
-    pro: { monthly: Infinity, premium: true }
+  const config = getTierConfig(tier);
+  return {
+    monthly: config.monthlyTTS,
+    premium: tier === 'plus' || tier === 'pro'
   };
-  return limits[tier] || limits.free;
 }
 
 export const onRequestPost = async ({ request, env }) => {

@@ -1,3 +1,5 @@
+import { timingSafeEqual } from './crypto.js';
+
 /**
  * Scheduled Tasks Handler
  *
@@ -300,11 +302,11 @@ export async function handleScheduled(controller, env, _ctx) {
 export async function onRequestPost(context) {
   const { request, env } = context;
 
-  // Simple auth check - require admin API key
-  const authHeader = request.headers.get('Authorization');
+  // Simple auth check - require admin API key with timing-safe comparison
+  const authHeader = request.headers.get('Authorization') || '';
   const adminKey = env.ADMIN_API_KEY;
 
-  if (!adminKey || authHeader !== `Bearer ${adminKey}`) {
+  if (!adminKey || !timingSafeEqual(authHeader, `Bearer ${adminKey}`)) {
     return new Response(JSON.stringify({ error: 'Unauthorized' }), {
       status: 401,
       headers: { 'Content-Type': 'application/json' }
