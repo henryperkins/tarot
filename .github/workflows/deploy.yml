@@ -1,0 +1,91 @@
+name: Deploy
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  workflow_dispatch:
+    inputs:
+      migrations_only:
+        description: 'Only apply migrations (skip worker deployment)'
+        required: false
+        default: 'false'
+        type: boolean
+      dry_run:
+        description: 'Dry run (show what would be done without making changes)'
+        required: false
+        default: 'false'
+        type: boolean
+
+# Ensure only one deployment runs at a time
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  # Run CI checks first
+  ci:
+    uses: ./.github/workflows/ci.yml
+
+  deploy:
+    needs: ci
+    runs-on: ubuntu-latest
+    # Only deploy on pushes to main/master, not on PRs
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Apply migrations and deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          # Build the flags based on inputs
+          FLAGS=""
+          if [[ "${{ github.event.inputs.migrations_only }}" == "true" ]]; then
+            FLAGS="$FLAGS --migrations-only"
+          fi
+          if [[ "${{ github.event.inputs.dry_run }}" == "true" ]]; then
+            FLAGS="$FLAGS --dry-run"
+          fi
+
+          # Run the deployment script
+          node scripts/deploy.js --verbose $FLAGS
+
+      - name: Deployment summary
+        if: success()
+        run: |
+          echo "## Deployment Successful :rocket:" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Branch:** ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Commit:** ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Triggered by:** ${{ github.actor }}" >> $GITHUB_STEP_SUMMARY
+          if [[ "${{ github.event.inputs.migrations_only }}" == "true" ]]; then
+            echo "- **Mode:** Migrations only" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "- **Mode:** Full deployment" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Deployment failed
+        if: failure()
+        run: |
+          echo "## Deployment Failed :x:" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Check the logs above for details." >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Common issues:**" >> $GITHUB_STEP_SUMMARY
+          echo "- Missing CLOUDFLARE_API_TOKEN secret" >> $GITHUB_STEP_SUMMARY
+          echo "- Migration SQL syntax error" >> $GITHUB_STEP_SUMMARY
+          echo "- Build failure" >> $GITHUB_STEP_SUMMARY

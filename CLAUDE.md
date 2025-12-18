@@ -133,11 +133,40 @@ Key tables (see `migrations/`):
 **IMPORTANT:** Always apply D1 migrations BEFORE deploying code that uses new columns.
 The API will 500 if code references columns that don't exist yet.
 
+**Automated Deployment (Recommended):**
+
+The `npm run deploy` script automatically applies pending migrations before deploying:
+
 ```bash
-# Safe deploy order:
-wrangler d1 execute tarot-db --remote --file=migrations/XXXX_new_migration.sql
-npm run deploy
+npm run deploy              # Apply migrations + deploy (recommended)
+npm run deploy:dry-run      # Preview what would be done
+npm run migrations:status   # Check pending migrations
+npm run migrations:apply    # Apply migrations only (no deploy)
 ```
+
+**CI/CD:**
+
+The GitHub Actions `deploy.yml` workflow automatically:
+1. Runs CI tests
+2. Applies any pending migrations
+3. Deploys the worker
+
+Triggered on pushes to `main`/`master`. Requires `CLOUDFLARE_API_TOKEN` secret.
+
+**Manual Migration (if needed):**
+
+```bash
+# Apply a specific migration manually:
+wrangler d1 execute mystic-tarot-db --remote --file=migrations/XXXX_new_migration.sql
+
+# Then deploy without re-running migrations:
+npm run deploy:skip-migrations
+```
+
+**Migration Tracking:**
+
+Applied migrations are tracked in the `_migrations` table to prevent re-application.
+Migration files should be idempotent where possible (use `IF NOT EXISTS`).
 
 ## Cloudflare Bindings
 

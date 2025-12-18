@@ -6,6 +6,8 @@ on:
       - main
       - master
   pull_request:
+  # Allow this workflow to be called by other workflows (e.g., deploy.yml)
+  workflow_call:
 
 jobs:
   build:
