@@ -25,15 +25,15 @@ export function UpgradeNudge({
   className = ''
 }) {
   const [isDismissed, setIsDismissed] = useState(false);
-  const { tier, isAuthenticated } = useSubscription();
+  const { effectiveTier, isAuthenticated } = useSubscription();
   const prefersReducedMotion = useReducedMotion();
 
   const tierConfig = SUBSCRIPTION_TIERS[requiredTier] || SUBSCRIPTION_TIERS.plus;
-  const _currentTierConfig = SUBSCRIPTION_TIERS[tier] || SUBSCRIPTION_TIERS.free;
 
   // Don't show if user already has the required tier or higher
+  // Use effectiveTier: inactive paid subscriptions behave as free
   const tierOrder = { free: 0, plus: 1, pro: 2 };
-  if (tierOrder[tier] >= tierOrder[requiredTier]) {
+  if (tierOrder[effectiveTier] >= tierOrder[requiredTier]) {
     return null;
   }
 
@@ -246,10 +246,11 @@ export function FeatureGate({
   fallback,
   nudgeVariant = 'inline'
 }) {
-  const { tier } = useSubscription();
+  // Use effectiveTier: inactive paid subscriptions behave as free
+  const { effectiveTier } = useSubscription();
   
   const tierOrder = { free: 0, plus: 1, pro: 2 };
-  const hasAccess = tierOrder[tier] >= tierOrder[requiredTier];
+  const hasAccess = tierOrder[effectiveTier] >= tierOrder[requiredTier];
 
   if (hasAccess) {
     return children;

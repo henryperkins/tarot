@@ -16,15 +16,6 @@ import {
  */
 export { SUBSCRIPTION_TIERS };
 
-/**
- * Stripe Price IDs - these should be configured in environment/config
- * Placeholders until Stripe products are created
- */
-export const STRIPE_PRICE_IDS = {
-  plus_monthly: 'price_plus_monthly_placeholder',
-  pro_monthly: 'price_pro_monthly_placeholder'
-};
-
 const SubscriptionContext = createContext(null);
 
 /**
@@ -158,10 +149,11 @@ export function useFeatureGate(feature) {
   }
 
   const tierOrder = { free: 0, plus: 1, pro: 2 };
-  const currentTierLevel = tierOrder[subscription.tier] || 0;
+  // Use effectiveTier: inactive paid subscriptions behave as free
+  const currentTierLevel = tierOrder[subscription.effectiveTier] || 0;
   const requiredTierLevel = tierOrder[requirement.requiredTier] || 0;
   
-  const allowed = currentTierLevel >= requiredTierLevel && subscription.isActive;
+  const allowed = currentTierLevel >= requiredTierLevel;
 
   return {
     allowed,
