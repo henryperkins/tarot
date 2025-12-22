@@ -8,13 +8,14 @@
  */
 
 import { memo, useEffect, useState } from 'react';
-import { FilePdf, FileText, FileCsv, Share, Link as LinkIcon } from '@phosphor-icons/react';
+import { FilePdf, FileText, FileCsv, Link as LinkIcon } from '@phosphor-icons/react';
 import { exportJournalInsightsToPdf } from '../../../lib/pdfExport';
 import {
   exportJournalEntriesToCsv,
   exportJournalEntriesToMarkdown,
   copyJournalShareSummary,
 } from '../../../lib/journalInsights';
+import { JournalShareIcon } from '../../JournalIcons';
 
 const OUTLINE_BUTTON_CLASS = `
   flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium
@@ -199,7 +200,7 @@ function ExportSection({ isAuthenticated, onCreateShareLink, entries, stats }) {
               disabled={isCreatingLink}
               className={`${OUTLINE_BUTTON_CLASS} ${isCreatingLink ? 'opacity-50 cursor-wait' : ''}`}
             >
-              <Share className="h-4 w-4" />
+              <JournalShareIcon className="h-4 w-4" aria-hidden="true" />
               {isCreatingLink ? 'Creating...' : 'Create Share Link'}
             </button>
           )}
@@ -219,7 +220,7 @@ function ExportSection({ isAuthenticated, onCreateShareLink, entries, stats }) {
           className={OUTLINE_BUTTON_CLASS}
           title={stats ? 'Copy a summary to clipboard' : 'No data to share'}
         >
-          <Share className="h-4 w-4" />
+          <JournalShareIcon className="h-4 w-4" aria-hidden="true" />
           Copy snapshot
         </button>
         {shareStatus && (

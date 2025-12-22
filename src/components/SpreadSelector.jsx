@@ -1,5 +1,5 @@
 import { useRef, useState, useEffect, useCallback } from 'react';
-import { Sparkle, Check, Star, CaretRight } from './icons';
+import { Sparkle, Check, Star, CaretRight, Lock } from './icons';
 import { Icon } from './Icon';
 import { SPREADS } from '../data/spreads';
 import { SpreadPatternThumbnail } from './SpreadPatternThumbnail';
@@ -8,6 +8,8 @@ import { useReducedMotion } from '../hooks/useReducedMotion';
 import { useLandscape } from '../hooks/useLandscape';
 import { useSmallScreen } from '../hooks/useSmallScreen';
 import { usePreferences } from '../contexts/PreferencesContext';
+import { useSubscription } from '../contexts/SubscriptionContext';
+import { UpgradeNudge } from './UpgradeNudge';
 import { getSpreadFromDepth } from '../utils/personalization';
 import oneCardArt from '../../selectorimages/onecard.png';
 import oneCard640Avif from '../../selectorimages/onecard-640.avif';
@@ -223,10 +225,13 @@ export function SpreadSelector({
   const [activeIndex, setActiveIndex] = useState(0);
   const [showLeftFade, setShowLeftFade] = useState(false);
   const [showRightFade, setShowRightFade] = useState(true);
+  const [lockedSpreadKey, setLockedSpreadKey] = useState(null);
   const prefersReducedMotion = useReducedMotion();
   const isLandscape = useLandscape();
   const _isSmallScreen = useSmallScreen();
   const { personalization } = usePreferences();
+  const { subscription } = useSubscription();
+  const canUseSpread = subscription?.canUseSpread ?? (() => true);
   const recommendedSpread = getSpreadFromDepth(personalization?.preferredSpreadDepth);
   const isExperienced = personalization?.tarotExperience === 'experienced';
 
@@ -303,6 +308,12 @@ export function SpreadSelector({
   };
 
   const handleSpreadSelection = key => {
+    // Check if spread is locked (requires subscription)
+    if (!canUseSpread(key)) {
+      setLockedSpreadKey(key);
+      return;
+    }
+
     const selectedIndex = spreadKeys.indexOf(key);
     if (selectedIndex !== -1) {
       scrollToIndex(selectedIndex);
@@ -313,6 +324,10 @@ export function SpreadSelector({
     if (onSpreadConfirm) {
       onSpreadConfirm(key);
     }
+  };
+
+  const handleUpgradeDismiss = () => {
+    setLockedSpreadKey(null);
   };
 
   const handleCardKeyDown = (event, key) => {
@@ -491,6 +506,20 @@ export function SpreadSelector({
                     </div>
                   </>
                 )}
+                {/* Lock indicator for premium-only spreads */}
+                {!isActive && !canUseSpread(key) && (
+                  <div className="absolute top-3 right-3 z-20">
+                    <div
+                      className="w-7 h-7 rounded-full flex items-center justify-center border border-amber-400/40 bg-amber-500/20 backdrop-blur-sm"
+                      style={{
+                        boxShadow: '0 8px 20px -12px rgba(251, 191, 36, 0.4)'
+                      }}
+                      aria-label="Premium spread - requires subscription"
+                    >
+                      <Lock className="w-3.5 h-3.5 text-amber-300" weight="fill" aria-hidden="true" />
+                    </div>
+                  </div>
+                )}
 
                 <SpreadPatternThumbnail
                   spreadKey={key}
@@ -550,6 +579,17 @@ export function SpreadSelector({
         </div>
 
       </div>
+
+      {/* Upgrade modal for locked spreads */}
+      {lockedSpreadKey && (
+        <UpgradeNudge
+          feature={`${SPREADS[lockedSpreadKey]?.name || 'Advanced Spread'} layout`}
+          requiredTier="plus"
+          variant="modal"
+          dismissible={true}
+          onDismiss={handleUpgradeDismiss}
+        />
+      )}
     </section>
   );
 }

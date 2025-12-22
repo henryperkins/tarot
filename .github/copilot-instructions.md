@@ -1,73 +1,39 @@
-# Tableau – AI coding guide
+# Tableau (Tarot) – Copilot Instructions
 
-## Architecture & entrypoints
-- React+Vite SPA in `src/` with routes defined in `src/main.jsx` (`/` → `TarotReading.jsx`, `/journal` → `components/Journal.jsx`).
-- Cloudflare Pages Functions in `functions/api/`:
-  - `tarot-reading.js` – spread analysis + narrative generation.
-  - `tts.js` – Azure OpenAI TTS bridge with local waveform fallback.
-- Card data and spreads live in `src/data/`; analysis and narrative logic live server-side under `functions/lib/` (including `narrative/`, `spreadAnalysis.js`, `knowledgeGraph.js`).
+## Architecture (Workers + SPA)
 
-## Dev & test workflow
-- Node ESM everywhere (`"type": "module"`); use `import`/`export` and `.test.mjs` for tests.
-- Frontend dev: `npm run dev` (Vite at 5173). Full stack: `npm run build` then `npx wrangler pages dev dist` (uses `.dev.vars`).
-- Tests: `npm test` (Node’s test runner over `tests/*.test.mjs`, e.g. `deck.test.mjs`, `api.validatePayload.test.mjs`, `narrativeSpine.test.mjs`). Add new tests here and keep them fast and deterministic.
+- Frontend: React 18 + Vite SPA in `src/` (routes in `src/main.jsx`), built to `dist/`.
+- Backend: a single Cloudflare Worker (`src/worker/index.js`) that:
+  - serves `dist/` via the `ASSETS` binding (see `wrangler.jsonc`), and
+  - routes `/api/*` to modules in `functions/api/*`.
+- API handlers follow the Pages-style shape (`export async function onRequestGet/onRequestPost(...)`) and must return a `Response`.
+- Shared cross-runtime code lives in `shared/` (e.g. `shared/journal/dedupe.js`). Tarot canon is in `src/data/`; images/audio in `public/`.
 
-## Tarot flow on the client (`TarotReading.jsx`)
-- Builds spreads via `SPREADS` (`src/data/spreads.js`) and deck helpers in `src/lib/deck.js` (`computeSeed`, `drawSpread`, `computeRelationships`); preserve seeded determinism (question + knocks + cut) for reproducible draws.
-- Manages question, ritual, reveal state, reflections, and then POSTs to `/api/tarot-reading` with `{ spreadInfo: { name }, cardsInfo: [...] }`.
-- Persists user state in localStorage (`tarot-voice-enabled`, `tarot-ambience-enabled`, `tarot-theme`, `tarot_journal`); do not change these shapes without migration logic.
+## Hard boundaries (don’t cross-import)
 
-## `functions/api/tarot-reading.js` contract & pipeline
-- Payload validation is centralized in `validatePayload()` (card counts via `SPREAD_NAME_MAP`, required fields on `cardsInfo[]`). When adding spreads, update `SPREAD_NAME_MAP` and `tests/api.validatePayload.test.mjs`.
-- `performSpreadAnalysis()` is the canonical analyzer:
-  - Builds `themes` (suits, elements, reversals, timing) and per-spread `spreadAnalysis` using `functions/lib/spreadAnalysis.js` and `functions/lib/knowledgeGraph.js`.
-  - Response shape includes `{ reading, provider, themes, context, spreadAnalysis }`; the UI should trust these server fields instead of re-deriving analysis.
-- Narrative generation:
-  - Primary: `generateWithAzureGPT5Responses()` (Azure Responses API; env: `AZURE_OPENAI_ENDPOINT`, `AZURE_OPENAI_API_KEY`, `AZURE_OPENAI_GPT5_MODEL`, optional `AZURE_OPENAI_API_VERSION`).
-  - Fallback: `composeReadingEnhanced()` → spread builders in `functions/lib/narrative/spreads/*.js` + `narrativeSpine.js` to enforce the “what / why / what’s next” story spine.
-  - Keep prompts and builders aligned with `CLAUDE.md` ethics: no invented cards, no absolute predictions, and no medical/legal/financial or crisis advice.
+- `src/lib/*` = browser-only (DOM/localStorage/etc).
+- `functions/lib/*` + `functions/api/*` = Worker/server-only (`env` bindings: D1/KV/R2/secrets).
+- `scripts/*` = Node.js tooling.
 
-## Knowledge graph & tarot semantics
-- Tarot pattern system is documented in `docs/knowledge-graph/*.md` and implemented in `functions/lib/knowledgeGraph.js` (+ `functions/lib/spreadAnalysis.js`).
-- `detectAllPatterns()` + `getPriorityPatternNarratives()` select at most a small set of high-value patterns (triads, Fool’s Journey stage, dyads); avoid adding APIs that flood the UI with low-signal combinations.
-- When extending patterns or spread analysis, update the docs and tests (`functions/lib/__tests__/knowledgeGraph.test.js`) so new behavior is well-specified.
+## Local dev / build / deploy
 
-## Audio, UX, and safety
-- Audio: `src/lib/audio.js` orchestrates ambience and narration against `/api/tts`; `functions/api/tts.js` prefers Azure GPT‑4o‑mini TTS (`AZURE_OPENAI_TTS_ENDPOINT`, `AZURE_OPENAI_TTS_API_KEY`, `AZURE_OPENAI_GPT_AUDIO_MINI_DEPLOYMENT`) and falls back to a local WAV tone. Preserve the `GET /api/tts` health response shape `{ status, provider, timestamp }`.
-- UI: `Card.jsx`, `ReadingGrid.jsx`, and `styles/tarot.css` intentionally avoid copyrighted deck art; keep geometry/typography–only visuals and existing ARIA / reduced-motion behaviors.
-- Ethics: treat readings as reflective guidance. Any new copy, prompts, or features should:
-  - Emphasize agency and free will, not fixed fate.
-  - Avoid diagnosing, prescribing, or replacing professional help for health, safety, legal, or financial issues.
-  - Stay inclusive and trauma‑aware in tone (see `CLAUDE.md` for reference language).
+- `npm run dev` runs `dev.sh`: Vite HMR on 5173/5174 + Wrangler dev on 8787.
+- Use the Vite URL for UI work; `/api` is proxied to 8787 (see `vite.config.js`).
+- Wrangler serves static assets from `dist/`; if you test the full Worker-served app at 8787, rebuild after UI changes.
+- `npm run deploy` uses `scripts/deploy.js` (applies D1 migrations, then deploys with `wrangler`).
 
-## React & styling conventions
-- Components: functional React with hooks only; keep `TarotReading.jsx` as the orchestration layer and keep `src/components/*` mostly presentational (receive props, no global side effects).
-- Styling: Tailwind-first via `src/styles/tailwind.css` with small, semantic utility classes in `tarot.css` (`.modern-surface`, `.ai-panel-modern`, `.tarot-card-*`, `.cc-grid`). Prefer composing existing classes over introducing new ad-hoc colors or globals.
-- Cards: `Card.jsx` expects the `.tarot-card-*` CSS hooks and CSS variable suit accents; if you adjust card layout, keep the back/face split, upright vs reversed classes, and `isMinor`/`getMinorPipCount` logic intact.
-- Layout: use the Celtic Cross grid utilities (`.cc-grid` + `.cc-*` areas) for 10-card layouts; don’t re-encode grid rules in JSX—lean on the existing responsive CSS.
-- Theming & motion: theme toggling is done by toggling `light` on `<html>`; add light-mode overrides in `tarot.css` alongside existing ones. Respect `prefers-reduced-motion` (see `flipCard` keyframes and scroll-behavior) and the focus-visible ring styles when adding interactive elements.
+## D1 migrations & “degrade gracefully” pattern
 
-## Environment setup
-- Copy `.dev.vars.example` to `.dev.vars` and fill in secrets (never commit populated `.dev.vars`).
-- Required secrets for full functionality:
-  - `AZURE_OPENAI_ENDPOINT`, `AZURE_OPENAI_API_KEY`, `AZURE_OPENAI_GPT5_MODEL` — reading generation
-  - `AZURE_OPENAI_TTS_ENDPOINT`, `AZURE_OPENAI_TTS_API_KEY`, `AZURE_OPENAI_GPT_AUDIO_MINI_DEPLOYMENT` — TTS (optional)
-  - `VISION_PROOF_SECRET` — vision research mode (optional)
-- Run `npm run config:check` to verify environment configuration.
-- For production, use `wrangler pages secret put <NAME> --project-name=tableau`.
+- DB schema lives in `migrations/*.sql`; apply migrations before shipping code that depends on new columns.
+- Many endpoints guard against partial rollouts (e.g. "no such column" fallback + per-row JSON parsing in `functions/api/journal.js`). Keep that resiliency when editing queries.
 
-## Security & compliance
-- Never commit secrets or API keys; use `.dev.vars` locally and Cloudflare secrets in production.
-- Never log API keys, secrets, or PII in server functions.
-- Validate all API inputs using the `validatePayload()` pattern.
-- Rate limit sensitive endpoints using Cloudflare KV.
-- Sanitize user-provided content before rendering (XSS prevention).
-- When adding dependencies, check for known vulnerabilities with `npm audit`.
+## Tarot reading invariants
 
-## Contribution guidelines
-- Follow Conventional Commits: `feat:`, `fix:`, `chore:`, `docs:`, `test:` prefixes.
-- Run `npm test` before pushing changes.
-- Run `npm run lint` to check code style.
-- If touching vision/narrative code, run `npm run gate:vision` or `npm run gate:narrative`.
-- Include screenshots for UI changes in PR descriptions.
-- Keep PRs focused; avoid bundling unrelated changes.
+- Deterministic draws: `computeSeed()` + `drawSpread()` in `src/lib/deck.js` (seed depends on question + knocks + cut).
+- The narrative must only reference the provided cards/positions; tarot payload validation is in `validatePayload()` in `functions/api/tarot-reading.js`.
+
+## Tests & gates
+
+- Unit: `npm test` (Node test runner; `tests/*.test.mjs`).
+- E2E: `npm run test:e2e` (frontend-only) or `npm run test:e2e:integration` (full stack; requires `.dev.vars`).
+- If touching vision/narrative evaluation flows: run `npm run gate:vision` / `npm run gate:narrative`.

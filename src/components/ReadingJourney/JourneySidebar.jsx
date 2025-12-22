@@ -25,6 +25,7 @@ import JourneyStorySection from './sections/JourneyStorySection';
 import ExportSection from './sections/ExportSection';
 import EmptyState from './sections/EmptyState';
 import BackfillBanner from './sections/BackfillBanner';
+import PatternAlertBanner from '../PatternAlertBanner';
 
 /**
  * CollapsibleSection - Expandable section wrapper.
@@ -250,6 +251,9 @@ export default function JourneySidebar({
             )}
           </h3>
         </div>
+
+        {/* Pattern Alerts */}
+        <PatternAlertBanner isAuthenticated={isAuthenticated} />
 
         {/* Backfill banner - shown when D1 sync is needed but doesn't block insights */}
         {needsBackfill && !hasBackfilled && (

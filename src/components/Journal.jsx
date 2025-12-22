@@ -1,5 +1,5 @@
 import { useDeferredValue, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { CaretLeft, UploadSimple, ChartLine, Sparkle, BookOpen, CaretDown, ClockCounterClockwise } from '@phosphor-icons/react';
+import { CaretLeft, UploadSimple, CaretDown } from '@phosphor-icons/react';
 import { useNavigate } from 'react-router-dom';
 import { GlobalNav } from './GlobalNav';
 import { UserMenu } from './UserMenu';
@@ -23,6 +23,16 @@ import { useSmallScreen } from '../hooks/useSmallScreen';
 import { useToast } from '../contexts/ToastContext.jsx';
 import AuthModal from './AuthModal';
 import { AccountNudge } from './nudges';
+import {
+  JournalBookIcon,
+  JournalCardsAddIcon,
+  JournalCommentAddIcon,
+  JournalPercentCircleIcon,
+  JournalPlusCircleIcon,
+  JournalRefreshIcon,
+  JournalSearchIcon,
+  JournalSlidersIcon
+} from './JournalIcons';
 
 const CONTEXT_FILTERS = [
   { value: 'love', label: 'Love' },
@@ -734,7 +744,7 @@ export default function Journal() {
                 onClick={scrollToHistoryFilters}
                 className="inline-flex min-h-[44px] items-center gap-2 rounded-full border border-amber-200/25 bg-amber-200/5 px-5 py-2.5 text-sm font-semibold text-amber-50 shadow-[0_12px_30px_-18px_rgba(251,191,36,0.35)] transition hover:-translate-y-0.5 hover:border-amber-200/40 hover:bg-amber-200/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/40"
               >
-                <Sparkle className="h-4 w-4 text-amber-200" weight="fill" aria-hidden="true" />
+                <JournalSearchIcon className="h-4 w-4 text-amber-200" aria-hidden="true" />
                 Find a reading
               </button>
             </div>
@@ -838,8 +848,8 @@ export default function Journal() {
                   <div className="grid grid-cols-2 gap-3">
                     {summaryCardData.slice(0, 2).map((stat) => {
                       const icon = stat.id === 'entries'
-                        ? <Sparkle className="h-4 w-4" weight="fill" aria-hidden />
-                        : <ChartLine className="h-4 w-4" aria-hidden />;
+                        ? <JournalCardsAddIcon className="h-4 w-4" aria-hidden />
+                        : <JournalPercentCircleIcon className="h-4 w-4" aria-hidden />;
                       return (
                         <div
                           key={stat.id}
@@ -909,7 +919,7 @@ export default function Journal() {
                       onClick={handleStartReading}
                       className="flex-1 inline-flex items-center justify-center gap-2 rounded-full bg-gradient-to-r from-amber-300 to-amber-400 px-4 py-3 text-sm font-semibold text-slate-900 shadow-lg shadow-amber-400/20 transition hover:shadow-amber-300/30 hover:-translate-y-0.5 active:translate-y-0 min-h-[44px]"
                     >
-                      <Sparkle className="h-4 w-4" weight="fill" aria-hidden />
+                      <JournalPlusCircleIcon className="h-4 w-4" aria-hidden />
                       New Reading
                     </button>
                     <button
@@ -1076,10 +1086,10 @@ export default function Journal() {
                       // Check if this card should show the notebook illustration
                       const showNotebookIllustration = stat.id === 'context';
                       const icon = (() => {
-                        if (stat.id === 'entries') return <Sparkle className="h-5 w-5" weight="fill" aria-hidden />;
-                        if (stat.id === 'reversal') return <ChartLine className="h-5 w-5" aria-hidden />;
-                        if (stat.id === 'context') return <BookOpen className="h-5 w-5" aria-hidden />;
-                        return <ClockCounterClockwise className="h-5 w-5" aria-hidden />;
+                        if (stat.id === 'entries') return <JournalCardsAddIcon className="h-5 w-5" aria-hidden />;
+                        if (stat.id === 'reversal') return <JournalPercentCircleIcon className="h-5 w-5" aria-hidden />;
+                        if (stat.id === 'context') return <JournalBookIcon className="h-5 w-5" aria-hidden />;
+                        return <JournalRefreshIcon className="h-5 w-5" aria-hidden />;
                       })();
                       const rotation = { entries: 0, context: -3, reversal: 2.5, 'last-entry': -1.5 }[stat.id] || 0;
                       const pos = statNodeMap[stat.id]
@@ -1417,21 +1427,21 @@ export default function Journal() {
                       </div>
                       <div className="grid gap-3 text-left text-sm text-amber-100/75 sm:grid-cols-3">
                         <div className="flex items-start gap-2">
-                          <Sparkle className="mt-0.5 h-4 w-4 text-amber-200" />
+                          <JournalSearchIcon className="mt-0.5 h-4 w-4 text-amber-200" aria-hidden="true" />
                           <div className="journal-prose">
                             <p className="text-amber-50 font-semibold">Spot recurring themes</p>
                             <p>Surface repeaters and spreads that resonate most.</p>
                           </div>
                         </div>
                         <div className="flex items-start gap-2">
-                          <ChartLine className="mt-0.5 h-4 w-4 text-amber-200" />
+                          <JournalPercentCircleIcon className="mt-0.5 h-4 w-4 text-amber-200" aria-hidden="true" />
                           <div className="journal-prose">
                             <p className="text-amber-50 font-semibold">Measure your growth</p>
                             <p>See how questions evolve and which cards guide you.</p>
                           </div>
                         </div>
                         <div className="flex items-start gap-2">
-                          <BookOpen className="mt-0.5 h-4 w-4 text-amber-200" />
+                          <JournalCommentAddIcon className="mt-0.5 h-4 w-4 text-amber-200" aria-hidden="true" />
                           <div className="journal-prose">
                             <p className="text-amber-50 font-semibold">Capture reflections</p>
                             <p>Keep notes beside each position to revisit later.</p>
@@ -1487,7 +1497,7 @@ export default function Journal() {
             style={{ bottom: 'max(1rem, env(safe-area-inset-bottom, 0px))' }}
             aria-label="Jump to journal filters"
           >
-            <Sparkle className="h-4 w-4 text-amber-200" weight="fill" aria-hidden="true" />
+            <JournalSlidersIcon className="h-4 w-4 text-amber-200" aria-hidden="true" />
             Filters
           </button>
         )}

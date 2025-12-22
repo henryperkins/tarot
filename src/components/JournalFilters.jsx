@@ -1,14 +1,17 @@
 import { useState, useRef, useEffect, useId } from 'react';
 import {
   CaretDown,
-  Check,
-  BookmarkSimple,
-  ClockCounterClockwise,
-  BookOpen,
-  Cards,
-  ChartLine,
-  Sparkle
+  Check
 } from '@phosphor-icons/react';
+import {
+  JournalBookIcon,
+  JournalBookmarkIcon,
+  JournalCardAddIcon,
+  JournalCardsAddIcon,
+  JournalPercentCircleIcon,
+  JournalRefreshIcon,
+  JournalSearchIcon
+} from './JournalIcons';
 
 const TIMEFRAME_OPTIONS = [
   { value: 'all', label: 'All time' },
@@ -433,7 +436,7 @@ export function JournalFilters({ filters, onChange, contexts = [], spreads = [],
             disabled={!activeFilters}
             className="inline-flex items-center gap-2 rounded-full border border-amber-300/30 bg-amber-300/10 px-3 py-1.5 text-xs font-semibold text-amber-50 shadow-[0_12px_30px_-18px_rgba(251,191,36,0.6)] transition hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/50 disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none"
           >
-            <Sparkle className="h-4 w-4" weight="fill" aria-hidden="true" />
+            <JournalRefreshIcon className="h-4 w-4" aria-hidden="true" />
             Reset view
           </button>
         </div>
@@ -482,7 +485,7 @@ export function JournalFilters({ filters, onChange, contexts = [], spreads = [],
               label: 'Search',
               value: query ? truncatedQuery : 'All readings',
               hint: query ? 'Keyword active' : 'Type to filter',
-              icon: <Sparkle className="h-5 w-5" weight="fill" aria-hidden />,
+              icon: <JournalSearchIcon className="h-5 w-5" aria-hidden />,
               isHero: true,
               active: Boolean(query),
               disabled: false
@@ -492,7 +495,7 @@ export function JournalFilters({ filters, onChange, contexts = [], spreads = [],
               label: 'Timeframe',
               value: timeframeLabel,
               hint: filters.timeframe !== 'all' ? 'Scoped' : 'Any date',
-              icon: <ClockCounterClockwise className="h-5 w-5" aria-hidden />,
+              icon: <JournalRefreshIcon className="h-5 w-5" aria-hidden />,
               active: filters.timeframe !== 'all',
               disabled: false
             },
@@ -501,7 +504,7 @@ export function JournalFilters({ filters, onChange, contexts = [], spreads = [],
               label: 'Contexts',
               value: ctxCount > 0 ? `${ctxCount} selected` : 'Any',
               hint: ctxCount > 0 ? 'Focused themes' : 'All themes',
-              icon: <BookOpen className="h-5 w-5" aria-hidden />,
+              icon: <JournalBookIcon className="h-5 w-5" aria-hidden />,
               active: ctxCount > 0,
               disabled: contexts.length === 0
             },
@@ -510,7 +513,7 @@ export function JournalFilters({ filters, onChange, contexts = [], spreads = [],
               label: 'Spreads',
               value: spreadCount > 0 ? `${spreadCount} chosen` : 'Any',
               hint: spreadCount > 0 ? 'Specific layouts' : 'All layouts',
-              icon: <ChartLine className="h-5 w-5" aria-hidden />,
+              icon: <JournalCardAddIcon className="h-5 w-5" aria-hidden />,
               active: spreadCount > 0,
               disabled: spreads.length === 0
             },
@@ -519,7 +522,7 @@ export function JournalFilters({ filters, onChange, contexts = [], spreads = [],
               label: 'Decks',
               value: deckCount > 0 ? `${deckCount} deck${deckCount === 1 ? '' : 's'}` : 'Any',
               hint: deckCount > 0 ? 'Curated decks' : 'All decks',
-              icon: <Cards className="h-5 w-5" aria-hidden />,
+              icon: <JournalCardsAddIcon className="h-5 w-5" aria-hidden />,
               active: deckCount > 0,
               disabled: decks.length === 0
             },
@@ -528,7 +531,7 @@ export function JournalFilters({ filters, onChange, contexts = [], spreads = [],
               label: 'Reversals',
               value: reversedOn ? 'Only reversed' : 'Include all',
               hint: reversedOn ? 'Focused' : 'Upright + reversed',
-              icon: <ChartLine className="h-5 w-5" aria-hidden />,
+              icon: <JournalPercentCircleIcon className="h-5 w-5" aria-hidden />,
               active: reversedOn,
               disabled: false
             }
@@ -682,7 +685,7 @@ export function JournalFilters({ filters, onChange, contexts = [], spreads = [],
             <div className="flex flex-wrap items-center gap-3">
               <div className="relative flex-1 min-w-[220px]">
                 <div className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-amber-200/60">
-                  <Sparkle className="h-4 w-4" weight="fill" aria-hidden />
+                  <JournalSearchIcon className="h-4 w-4" aria-hidden />
                 </div>
                 <input
                   ref={searchInputRef}
@@ -698,7 +701,7 @@ export function JournalFilters({ filters, onChange, contexts = [], spreads = [],
             {showSavedFiltersPanel && (
               <div className="mt-4 rounded-xl border border-amber-200/15 bg-[#0f1222]/70 p-3">
                 <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.25em] text-amber-200/70">
-                  <BookmarkSimple className="h-4 w-4" />
+                  <JournalBookmarkIcon className="h-4 w-4" aria-hidden="true" />
                   <span>Saved views</span>
                   {savedFilters.length > 0 && (
                     <span className="ml-auto text-[11px] text-amber-100/55">{savedFilters.length} saved</span>
@@ -742,7 +745,7 @@ export function JournalFilters({ filters, onChange, contexts = [], spreads = [],
                         onClick={() => setSavePanelOpen(true)}
                         className="inline-flex min-h-[44px] items-center gap-2 rounded-xl border border-amber-300/25 bg-amber-300/10 px-3 py-2.5 text-sm font-semibold text-amber-50 shadow-[0_12px_30px_-18px_rgba(251,191,36,0.55)] transition hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/50"
                       >
-                        <BookmarkSimple className="h-4 w-4 text-amber-200/80" aria-hidden="true" />
+                        <JournalBookmarkIcon className="h-4 w-4 text-amber-200/80" aria-hidden="true" />
                         Save this view
                       </button>
                     ) : (

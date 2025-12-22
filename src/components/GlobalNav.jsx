@@ -1,7 +1,8 @@
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Sparkle, BookOpen } from './icons';
+import { Sparkle } from './icons';
 import { Icon, ICON_SIZES } from './Icon';
 import { UserMenu } from './UserMenu';
+import { JournalBookIcon } from './JournalIcons';
 
 export function GlobalNav({ condensed = false, withUserChip = false }) {
   const location = useLocation();
@@ -66,7 +67,7 @@ export function GlobalNav({ condensed = false, withUserChip = false }) {
             className={`${baseButtonClasses} ${buttonPadding} ${buttonWidth} ${isJournal ? activeClasses : inactiveClasses}`}
             aria-current={isJournal ? 'page' : undefined}
           >
-            <Icon icon={BookOpen} size={condensed ? ICON_SIZES.md : ICON_SIZES.lg} decorative />
+            <Icon icon={JournalBookIcon} size={condensed ? ICON_SIZES.md : ICON_SIZES.lg} decorative />
             <span>Journal</span>
           </button>
         </div>
