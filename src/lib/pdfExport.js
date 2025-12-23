@@ -30,7 +30,7 @@ export function exportJournalInsightsToPdf(stats, entries = []) {
 
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(20);
-  doc.text('Mystic Tarot · Journal Snapshot', margin, cursorY);
+  doc.text('Tableu · Journal Snapshot', margin, cursorY);
   cursorY += 28;
 
   doc.setFontSize(11);
@@ -83,5 +83,5 @@ export function exportJournalInsightsToPdf(stats, entries = []) {
     });
   }
 
-  doc.save('mystic-tarot-journal.pdf');
+  doc.save('tableu-journal.pdf');
 }

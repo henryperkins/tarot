@@ -146,7 +146,7 @@ export function MobileSettingsDrawer({ isOpen, onClose, children, footer = null 
 
   return (
     <div
-      className="fixed inset-0 z-[70] flex items-end justify-center sm:hidden"
+      className="fixed inset-0 z-[70] flex items-end justify-center"
       style={{ paddingTop: 'max(16px, env(safe-area-inset-top, 16px))' }}
     >
       <div

@@ -48,7 +48,7 @@ const ui = {
     'text-[color:var(--text-muted)]',
 
   iconButton:
-    'inline-flex h-8 w-8 items-center justify-center rounded-full border border-[color:var(--border-warm-light)] ' +
+    'inline-flex min-h-[44px] min-w-[44px] h-11 w-11 items-center justify-center rounded-full border border-[color:var(--border-warm-light)] ' +
     'bg-[color:rgba(232,218,195,0.04)] text-[color:var(--text-muted)] ' +
     'hover:bg-[color:rgba(212,184,150,0.10)] hover:text-[color:var(--brand-accent)] transition ' +
     'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:rgba(232,218,195,0.45)]',

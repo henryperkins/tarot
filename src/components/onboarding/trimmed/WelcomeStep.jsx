@@ -52,7 +52,7 @@ export function WelcomeStep({ onNext }) {
           aria-hidden="true"
         />
         <h2 className={`font-serif text-main ${isLandscape ? 'text-2xl mb-1' : 'text-3xl mb-2'}`}>
-          Welcome to Tableau
+          Welcome to Tableu
         </h2>
         <p className="text-muted text-sm">A space for reflection, clarity, and insight</p>
       </div>

@@ -1115,7 +1115,7 @@ export async function copyJournalEntriesToClipboard(entries) {
 export async function copyJournalShareSummary(stats) {
   if (!stats) return false;
   const summaryLines = [
-    'Mystic Tarot Journal Snapshot',
+    'Tableu Journal Snapshot',
     `Entries: ${stats.totalReadings}`,
     `Cards logged: ${stats.totalCards}`,
     `Reversal rate: ${stats.reversalRate}%`
@@ -1134,7 +1134,7 @@ export async function copyJournalShareSummary(stats) {
 
   try {
     if (navigator?.share) {
-      await navigator.share({ text: summary, title: 'Mystic Tarot Journal Snapshot' });
+      await navigator.share({ text: summary, title: 'Tableu Journal Snapshot' });
       return true;
     }
     if (navigator?.clipboard?.writeText) {

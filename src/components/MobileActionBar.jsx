@@ -253,7 +253,7 @@ function renderActions(mode, options) {
     }
 
     case 'preparation': {
-      const drawLabel = isLandscape ? 'Draw' : 'Draw cards';
+      const drawLabel = isLandscape ? 'Shuffle' : 'Shuffle & draw';
       return (
         <>
           {showUtilityButtons && (
@@ -459,7 +459,7 @@ export function MobileActionBar({ keyboardOffset = 0, isOverlayActive = false, .
 
   return (
     <nav
-      className={`mobile-action-bar sm:hidden ${isOverlayActive ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}
+      className={`mobile-action-bar ${isOverlayActive ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}
       aria-label="Primary mobile actions"
       style={barStyle}
       aria-hidden={isOverlayActive}
@@ -472,7 +472,7 @@ export function MobileActionBar({ keyboardOffset = 0, isOverlayActive = false, .
 
 export function MobileActionGroup({ showUtilityButtons = false, ...props }) {
   return (
-    <div className="mobile-action-group sm:hidden" aria-label="Inline mobile actions">
+    <div className="mobile-action-group" aria-label="Inline mobile actions">
       <MobileActionContents variant="inline" showUtilityButtons={showUtilityButtons} {...props} />
     </div>
   );
