@@ -124,6 +124,7 @@ export default function TarotReading() {
   const [pendingCoachPrefill, setPendingCoachPrefill] = useState(null);
   const [isIntentionCoachOpen, setIsIntentionCoachOpen] = useState(false);
   const [placeholderIndex, setPlaceholderIndex] = useState(0);
+  const [isQuestionFocused, setIsQuestionFocused] = useState(false);
   const [isMobileSettingsOpen, setIsMobileSettingsOpen] = useState(false);
   const [mobileSettingsTab, setMobileSettingsTab] = useState('intention');
   const [highlightQuickIntention, setHighlightQuickIntention] = useState(false);
@@ -295,14 +296,14 @@ export default function TarotReading() {
   // Placeholder Cycle - cycles example questions when user has no question entered
   useEffect(() => {
     const trimmedQuestion = userQuestion.trim();
-    if (trimmedQuestion) {
+    if (trimmedQuestion || isQuestionFocused) {
       return undefined;
     }
     const interval = setInterval(() => {
       setPlaceholderIndex(prev => (prev + 1) % EXAMPLE_QUESTIONS.length);
     }, 4000);
     return () => clearInterval(interval);
-  }, [userQuestion]);
+  }, [userQuestion, isQuestionFocused]);
 
   // Clear Journal Status Timeout
   useEffect(() => {
@@ -338,6 +339,19 @@ export default function TarotReading() {
       }
     });
   }, [isHandset]);
+
+  const handleQuestionFocus = useCallback(() => {
+    setIsQuestionFocused(true);
+  }, []);
+
+  const handleQuestionBlur = useCallback(() => {
+    setIsQuestionFocused(false);
+  }, []);
+
+  const handleQuickIntentionFocus = useCallback(() => {
+    setIsQuestionFocused(true);
+    scrollQuickIntentionIntoView();
+  }, [scrollQuickIntentionIntoView]);
 
   const handleSpreadSelection = useCallback((key) => {
     const shouldPromptQuickIntention = isHandset && !hasConfirmedSpread;
@@ -715,7 +729,8 @@ export default function TarotReading() {
                 onQuestionChange={setUserQuestion}
                 placeholderQuestion={EXAMPLE_QUESTIONS[placeholderIndex]}
                 inputRef={quickIntentionInputRef}
-                onInputFocus={scrollQuickIntentionIntoView}
+                onInputFocus={handleQuickIntentionFocus}
+                onInputBlur={handleQuestionBlur}
                 onCoachOpen={() => {
                   setPendingCoachPrefill(null);
                   setIsIntentionCoachOpen(true);
@@ -740,6 +755,8 @@ export default function TarotReading() {
                 setUserQuestion={setUserQuestion}
                 placeholderIndex={placeholderIndex}
                 onPlaceholderRefresh={() => setPlaceholderIndex(prev => (prev + 1) % EXAMPLE_QUESTIONS.length)}
+                onQuestionFocus={handleQuestionFocus}
+                onQuestionBlur={handleQuestionBlur}
                 coachRecommendation={coachRecommendation}
                 applyCoachRecommendation={applyCoachRecommendation}
                 dismissCoachRecommendation={dismissCoachRecommendation}
@@ -850,6 +867,8 @@ export default function TarotReading() {
               setUserQuestion={setUserQuestion}
               placeholderIndex={placeholderIndex}
               onPlaceholderRefresh={() => setPlaceholderIndex(prev => (prev + 1) % EXAMPLE_QUESTIONS.length)}
+              onQuestionFocus={handleQuestionFocus}
+              onQuestionBlur={handleQuestionBlur}
               coachRecommendation={coachRecommendation}
               applyCoachRecommendation={() => { applyCoachRecommendation(); setIsMobileSettingsOpen(false); }}
               dismissCoachRecommendation={dismissCoachRecommendation}

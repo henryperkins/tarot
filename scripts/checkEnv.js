@@ -2,21 +2,46 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
-const REQUIRED_SECRETS = [
+// NOTE: The app can run with local fallbacks when these are missing.
+// This script is intended to help you verify that AI-powered features and
+// integration tests have the credentials they need.
+
+const REQUIRED_FOR_AI_READINGS = [
   'AZURE_OPENAI_ENDPOINT',
   'AZURE_OPENAI_API_KEY',
-  'AZURE_OPENAI_GPT5_MODEL',
+  'AZURE_OPENAI_GPT5_MODEL'
+];
+
+const OPTIONAL_FOR_CLAUDE_FALLBACK = [
+  'AZURE_ANTHROPIC_ENDPOINT',
+  'AZURE_ANTHROPIC_API_KEY',
+  'AZURE_ANTHROPIC_MODEL'
+];
+
+const OPTIONAL_FOR_TTS = [
+  // TTS requires a deployment; endpoint/key may fall back to AZURE_OPENAI_*.
+  'AZURE_OPENAI_GPT_AUDIO_MINI_DEPLOYMENT',
   'AZURE_OPENAI_TTS_ENDPOINT',
   'AZURE_OPENAI_TTS_API_KEY',
-  'AZURE_OPENAI_GPT_AUDIO_MINI_DEPLOYMENT',
-  'VISION_PROOF_SECRET',
-  'ANTHROPIC_API_KEY'
+  'AZURE_OPENAI_GPT_AUDIO_MINI_FORMAT',
+  'AZURE_OPENAI_USE_V1_FORMAT'
+];
+
+const OPTIONAL_FOR_VISION_RESEARCH = [
+  'VISION_PROOF_SECRET'
 ];
 
 const OPTIONAL_FLAGS = [
   'VITE_ENABLE_VISION_RESEARCH',
+  'VITE_NEW_DECK_INTERFACE',
+  'VITE_SYMBOL_DETECTOR_MODEL',
   'LOG_LLM_PROMPTS',
+  'LOG_NARRATIVE_ENHANCEMENTS',
   'LOG_ENHANCEMENT_TELEMETRY',
+  'GRAPHRAG_ENABLED',
+  'ENABLE_PROMPT_SLIMMING',
+  'DISABLE_QUALITY_FILTERING',
+  'PERSIST_PROMPTS',
   'PROMPT_BUDGET_AZURE',
   'PROMPT_BUDGET_CLAUDE',
   'PROMPT_BUDGET_DEFAULT'
@@ -54,34 +79,93 @@ function resolveVariable(key, envVars, fileVars) {
   return null;
 }
 
+function resolveValue(key, envVars, fileVars) {
+  return resolveVariable(key, envVars, fileVars)?.value ?? null;
+}
+
+function isTruthyFlag(value) {
+  if (typeof value !== 'string') return false;
+  const normalized = value.trim().toLowerCase();
+  return normalized === 'true' || normalized === '1' || normalized === 'yes';
+}
+
 function run() {
   const devVarsPath = path.resolve(process.cwd(), '.dev.vars');
   const fileVars = parseDevVars(devVarsPath);
   const results = {};
 
-  const missing = [];
-  for (const key of REQUIRED_SECRETS) {
+  const missingAi = [];
+  for (const key of REQUIRED_FOR_AI_READINGS) {
     const resolved = resolveVariable(key, process.env, fileVars);
     results[key] = resolved;
-    if (!resolved) {
-      missing.push(key);
+    if (!resolved) missingAi.push(key);
+  }
+
+  // Conditional: vision proof secret is only required when the vision UI is enabled.
+  const visionEnabledValue = resolveValue('VITE_ENABLE_VISION_RESEARCH', process.env, fileVars);
+  const visionEnabled = isTruthyFlag(visionEnabledValue);
+  const missingVision = [];
+  if (visionEnabled) {
+    for (const key of OPTIONAL_FOR_VISION_RESEARCH) {
+      const resolved = resolveVariable(key, process.env, fileVars);
+      results[key] = resolved;
+      if (!resolved) missingVision.push(key);
     }
+  }
+
+  // Conditional: treat TTS as "wanted" if a deployment is set.
+  const ttsDeployment = resolveValue('AZURE_OPENAI_GPT_AUDIO_MINI_DEPLOYMENT', process.env, fileVars);
+  const ttsEnabled = typeof ttsDeployment === 'string' && ttsDeployment.trim().length > 0;
+  const missingTts = [];
+  if (ttsEnabled) {
+    // Deployment is already truthy here; check whether we have *some* endpoint+key.
+    const endpoint = resolveValue('AZURE_OPENAI_TTS_ENDPOINT', process.env, fileVars)
+      || resolveValue('AZURE_OPENAI_ENDPOINT', process.env, fileVars);
+    const apiKey = resolveValue('AZURE_OPENAI_TTS_API_KEY', process.env, fileVars)
+      || resolveValue('AZURE_OPENAI_API_KEY', process.env, fileVars);
+    if (!endpoint) missingTts.push('AZURE_OPENAI_TTS_ENDPOINT (or AZURE_OPENAI_ENDPOINT)');
+    if (!apiKey) missingTts.push('AZURE_OPENAI_TTS_API_KEY (or AZURE_OPENAI_API_KEY)');
   }
 
   console.log('🔐 Environment prerequisite check');
   console.log(`- Loaded ${Object.keys(fileVars).length} entries from ${path.basename(devVarsPath)}${fs.existsSync(devVarsPath) ? '' : ' (file not present)'}`);
 
-  for (const [key, entry] of Object.entries(results)) {
-    if (entry) {
-      console.log(`✔ ${key} (${entry.source})`);
-    } else {
-      console.log(`✖ ${key} (missing)`);
+  console.log('\nAI-generated readings (Azure OpenAI):');
+  for (const key of REQUIRED_FOR_AI_READINGS) {
+    const entry = results[key];
+    if (entry) console.log(`✔ ${key} (${entry.source})`);
+    else console.log(`✖ ${key} (missing)`);
+  }
+
+  if (visionEnabled) {
+    console.log('\nVision research mode is ENABLED (VITE_ENABLE_VISION_RESEARCH=true):');
+    for (const key of OPTIONAL_FOR_VISION_RESEARCH) {
+      const entry = results[key];
+      if (entry) console.log(`✔ ${key} (${entry.source})`);
+      else console.log(`✖ ${key} (missing)`);
     }
   }
 
-  if (missing.length > 0) {
-    console.error('\nMissing required secrets:', missing.join(', '));
-    console.error('Populate .dev.vars (or export env vars) before running dev.sh.');
+  if (ttsEnabled) {
+    console.log('\nText-to-speech looks ENABLED (AZURE_OPENAI_GPT_AUDIO_MINI_DEPLOYMENT set):');
+    if (missingTts.length === 0) {
+      console.log('✔ TTS endpoint/key appear configured (via AZURE_OPENAI_TTS_* or fallback to AZURE_OPENAI_*)');
+    } else {
+      console.log(`✖ Missing TTS prerequisites: ${missingTts.join(', ')}`);
+    }
+  }
+
+  if (missingAi.length > 0) {
+    console.error(`\nMissing Azure OpenAI credentials: ${missingAi.join(', ')}`);
+    console.error('Populate .dev.vars (or export env vars) to enable AI-generated readings.');
+    console.error('Note: `npm run dev` will still run, but API-powered features may fall back to local generators.');
+    process.exitCode = 1;
+    return;
+  }
+
+  if (missingVision.length > 0) {
+    console.error(`\nMissing vision prerequisites: ${missingVision.join(', ')}`);
+    console.error('Populate .dev.vars (or export env vars) to use vision research mode.');
     process.exitCode = 1;
     return;
   }
@@ -98,7 +182,25 @@ function run() {
     });
   }
 
-  console.log('\nAll required environment variables are present. You are ready to run dev.sh 🙌');
+  if (OPTIONAL_FOR_CLAUDE_FALLBACK.length > 0) {
+    console.log('\nOptional: Claude fallback (Azure AI Foundry Anthropic):');
+    OPTIONAL_FOR_CLAUDE_FALLBACK.forEach((key) => {
+      const entry = resolveVariable(key, process.env, fileVars);
+      if (entry) console.log(`• ${key} (${entry.source})`);
+      else console.log(`• ${key} (not set)`);
+    });
+  }
+
+  if (OPTIONAL_FOR_TTS.length > 0) {
+    console.log('\nOptional: Azure OpenAI TTS variables:');
+    OPTIONAL_FOR_TTS.forEach((key) => {
+      const entry = resolveVariable(key, process.env, fileVars);
+      if (entry) console.log(`• ${key} (${entry.source})`);
+      else console.log(`• ${key} (not set)`);
+    });
+  }
+
+  console.log('\nAll required environment variables for AI-generated readings are present. You are ready to run dev.sh 🙌');
 }
 
 run();

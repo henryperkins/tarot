@@ -23,6 +23,8 @@ export function ReadingPreparation({
     setUserQuestion,
     placeholderIndex,
     onPlaceholderRefresh,
+    onQuestionFocus,
+    onQuestionBlur,
 
     // Coach
     coachRecommendation,
@@ -68,6 +70,8 @@ export function ReadingPreparation({
                         setUserQuestion={setUserQuestion}
                         placeholderIndex={placeholderIndex}
                         onPlaceholderRefresh={onPlaceholderRefresh}
+                        onFocus={onQuestionFocus}
+                        onBlur={onQuestionBlur}
                         onLaunchCoach={onLaunchCoach}
                     />
                     <CoachSuggestion

@@ -16,6 +16,7 @@ export const QuickIntentionCard = forwardRef(function QuickIntentionCard({
   placeholderQuestion,
   inputRef,
   onInputFocus,
+  onInputBlur,
   onCoachOpen,
   onMoreOpen,
   deckStyleId,
@@ -79,6 +80,7 @@ export const QuickIntentionCard = forwardRef(function QuickIntentionCard({
           onChange={(event) => onQuestionChange(event.target.value)}
           onKeyDown={handleKeyDown}
           onFocus={onInputFocus}
+          onBlur={onInputBlur}
           placeholder={placeholderQuestion}
           rows={1}
           className="flex-1 min-h-[44px] rounded-xl border border-secondary/30 bg-surface px-3 py-2 text-base text-main placeholder:text-secondary/50 focus:border-secondary focus:outline-none focus:ring-1 focus:ring-secondary/50 resize-none"

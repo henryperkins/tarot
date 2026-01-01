@@ -44,6 +44,11 @@ export function DeckRitual({
   const [localCutIndex, setLocalCutIndex] = useState(cutIndex);
   const deckRef = useRef(null);
   const knockComplete = knockCount >= 3;
+  const isIdleBreathing = !prefersReducedMotion &&
+    !isShuffling &&
+    knockCount === 0 &&
+    revealedCount === 0 &&
+    cardsRemaining === totalCards;
 
   // Sync local cut index with prop
   useEffect(() => {
@@ -138,6 +143,11 @@ export function DeckRitual({
     setShowCutSlider(false);
     vibrate([20, 30, 20]);
   }, [onCutConfirm, vibrate]);
+
+  const idleBreathAnimation = isIdleBreathing ? { scale: [1, 1.02, 1] } : { scale: 1 };
+  const idleBreathTransition = isIdleBreathing
+    ? { duration: 3.8, ease: 'easeInOut', repeat: Infinity }
+    : { duration: 0.2, ease: 'easeOut' };
 
   return (
     <div className={`deck-ritual-container relative ${isLandscape ? 'py-3' : 'py-4 xs:py-5 sm:py-8'}`}>
@@ -235,6 +245,8 @@ export function DeckRitual({
               background: 'linear-gradient(145deg, var(--bg-surface), var(--bg-surface-muted))',
               boxShadow: '0 20px 40px rgba(0,0,0,0.3), 0 0 30px color-mix(in srgb, var(--brand-primary) 10%, transparent)'
             }}
+            animate={idleBreathAnimation}
+            transition={idleBreathTransition}
             whileHover={prefersReducedMotion ? {} : { y: -4, rotateX: 5 }}
             whileTap={prefersReducedMotion ? {} : { scale: 0.98 }}
           >

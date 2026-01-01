@@ -304,7 +304,12 @@ function addCorsHeaders(response, request) {
  * @property {string} AZURE_OPENAI_ENDPOINT - Azure OpenAI endpoint
  * @property {string} AZURE_OPENAI_API_KEY - Azure OpenAI API key
  * @property {string} AZURE_OPENAI_GPT5_MODEL - GPT-5 model deployment name
- * @property {string} ANTHROPIC_API_KEY - Anthropic API key
+ * @property {string} AZURE_ANTHROPIC_ENDPOINT - Azure AI Foundry Anthropic endpoint
+ * @property {string} AZURE_ANTHROPIC_API_KEY - Azure AI Foundry Anthropic API key (optional; may fall back to AZURE_OPENAI_API_KEY)
+ * @property {string} AZURE_ANTHROPIC_MODEL - Anthropic deployment name (default handled in code)
+ * @property {string} AZURE_OPENAI_TTS_ENDPOINT - Optional dedicated Azure OpenAI TTS endpoint
+ * @property {string} AZURE_OPENAI_TTS_API_KEY - Optional dedicated Azure OpenAI TTS API key
+ * @property {string} AZURE_OPENAI_GPT_AUDIO_MINI_DEPLOYMENT - Azure OpenAI TTS deployment name
  * @property {string} VISION_PROOF_SECRET - Vision proof signing secret
  * @property {string} HUME_API_KEY - Hume AI API key
  * @property {string} ADMIN_API_KEY - Admin API key for manual archival

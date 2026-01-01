@@ -18,14 +18,14 @@
 
 ## 🛠 Tech Stack
 
-| Layer | Technology |
-|-------|------------|
-| Frontend | React 18, Vite, Tailwind CSS |
-| Backend | Cloudflare Workers (serverless) |
-| AI | Azure OpenAI (GPT-5.1, GPT-4o-mini TTS), Anthropic Claude |
-| Database | Cloudflare D1 (SQLite) |
-| Caching/Rate Limiting | Cloudflare KV |
-| Storage | Cloudflare R2 |
+| Layer                 | Technology                                                |
+| --------------------- | --------------------------------------------------------- |
+| Frontend              | React 18, Vite, Tailwind CSS                              |
+| Backend               | Cloudflare Workers (serverless)                           |
+| AI                    | Azure OpenAI (GPT-5.1, GPT-4o-mini TTS), Anthropic Claude |
+| Database              | Cloudflare D1 (SQLite)                                    |
+| Caching/Rate Limiting | Cloudflare KV                                             |
+| Storage               | Cloudflare R2                                             |
 
 ## 📁 Project Structure
 
@@ -72,11 +72,13 @@ npm install
 ### Environment Setup
 
 1. Copy the example environment file:
+
    ```bash
    cp .dev.vars.example .dev.vars
    ```
 
 2. Fill in the required secrets in `.dev.vars`:
+
    ```bash
    # Azure OpenAI (required for AI-generated readings)
    AZURE_OPENAI_ENDPOINT=https://your-resource.openai.azure.com
@@ -89,7 +91,9 @@ npm install
    AZURE_OPENAI_GPT_AUDIO_MINI_DEPLOYMENT=gpt-4o-mini-tts
 
    # Anthropic (optional, for Claude fallback)
-   ANTHROPIC_API_KEY=sk-ant-your-key
+   AZURE_ANTHROPIC_ENDPOINT=https://<resource>.services.ai.azure.com/anthropic
+   AZURE_ANTHROPIC_API_KEY=your-azure-foundry-key  # optional; can fall back to AZURE_OPENAI_API_KEY
+   AZURE_ANTHROPIC_MODEL=claude-opus-4-5
 
    # Vision research mode (optional)
    VISION_PROOF_SECRET=your-secret-key
@@ -114,22 +118,22 @@ This starts both the Vite dev server and Wrangler proxy. Access the app at **htt
 
 ### Available Scripts
 
-| Command | Description |
-|---------|-------------|
-| `npm run dev` | Start full-stack development server |
+| Command                | Description                         |
+| ---------------------- | ----------------------------------- |
+| `npm run dev`          | Start full-stack development server |
 | `npm run dev:frontend` | Start Vite dev server only (no API) |
-| `npm run dev:wrangler` | Start Wrangler Workers dev server |
-| `npm run build` | Build for production |
-| `npm run preview` | Preview production build |
-| `npm test` | Run tests |
-| `npm run lint` | Run ESLint |
-| `npm run lint:fix` | Fix linting issues |
+| `npm run dev:wrangler` | Start Wrangler Workers dev server   |
+| `npm run build`        | Build for production                |
+| `npm run preview`      | Preview production build            |
+| `npm test`             | Run tests                           |
+| `npm run lint`         | Run ESLint                          |
+| `npm run lint:fix`     | Fix linting issues                  |
 
 ### Important URLs During Development
 
-| URL | Purpose |
-|-----|---------|
-| http://localhost:8788 | Full app with API ✅ |
+| URL                   | Purpose                |
+| --------------------- | ---------------------- |
+| http://localhost:8788 | Full app with API ✅   |
 | http://localhost:5173 | Frontend only (no API) |
 
 ## 🧪 Testing
@@ -165,9 +169,9 @@ npm run deploy
 ### Set Production Secrets
 
 ```bash
-wrangler pages secret put AZURE_OPENAI_ENDPOINT --project-name=tableau
-wrangler pages secret put AZURE_OPENAI_API_KEY --project-name=tableau
-wrangler pages secret put AZURE_OPENAI_GPT5_MODEL --project-name=tableau
+wrangler secret put AZURE_OPENAI_ENDPOINT --config wrangler.jsonc
+wrangler secret put AZURE_OPENAI_API_KEY --config wrangler.jsonc
+wrangler secret put AZURE_OPENAI_GPT5_MODEL --config wrangler.jsonc
 # ... add other secrets as needed
 ```
 
@@ -197,14 +201,14 @@ Detailed documentation is available in the `docs/` directory:
 
 ## 🃏 Spreads
 
-| Spread | Cards | Description |
-|--------|-------|-------------|
-| One-Card Insight | 1 | Quick guidance for a focused question |
-| Three-Card Story | 3 | Past, Present, Future narrative |
-| Five-Card Clarity | 5 | Core, Challenge, Hidden, Support, Direction |
-| Decision/Two-Path | 5 | Compare two options with clarity |
-| Relationship Snapshot | 3 | You, Them, Connection dynamic |
-| Celtic Cross | 10 | Classic deep dive for complex questions |
+| Spread                | Cards | Description                                 |
+| --------------------- | ----- | ------------------------------------------- |
+| One-Card Insight      | 1     | Quick guidance for a focused question       |
+| Three-Card Story      | 3     | Past, Present, Future narrative             |
+| Five-Card Clarity     | 5     | Core, Challenge, Hidden, Support, Direction |
+| Decision/Two-Path     | 5     | Compare two options with clarity            |
+| Relationship Snapshot | 3     | You, Them, Connection dynamic               |
+| Celtic Cross          | 10    | Classic deep dive for complex questions     |
 
 ## ⚖️ Ethics
 
