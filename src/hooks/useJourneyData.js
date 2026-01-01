@@ -481,6 +481,12 @@ export function useJourneyData({
     // Unfiltered view: use D1 data, enrich with client reversals
     return archetypeData.topCards.map(d1Card => {
       const normalized = normalizeD1Card(d1Card, sortedBadges);
+      
+      // Attach trend data for sparklines
+      if (archetypeData.getCardTrends) {
+        normalized.trendData = archetypeData.getCardTrends(d1Card.card_name);
+      }
+
       // Enrich with client-side reversal data if available
       const clientMatch = insightsStats.frequentCards?.find(
         c => c.name === normalized.name
@@ -493,6 +499,7 @@ export function useJourneyData({
   }, [
     useServerData,
     archetypeData.topCards,
+    archetypeData.getCardTrends,
     sortedBadges,
     insightsStats.frequentCards,
     normalizeD1Card,

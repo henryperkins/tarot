@@ -341,7 +341,7 @@ export function OnboardingWizard({ isOpen, onComplete, onSelectSpread, initialSp
           >
             <div className="flex flex-wrap items-center gap-2 xs:gap-3 px-2 xxs:px-3 sm:px-6 pl-safe-left pr-safe-right">
               <h1 id={titleId} className="sr-only">
-                Welcome to Mystic Tarot
+                Welcome to Tableu
               </h1>
               <button
                 ref={closeButtonRef}

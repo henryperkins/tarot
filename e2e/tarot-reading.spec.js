@@ -270,12 +270,12 @@ test.describe('Tarot Reading Flow - Desktop @desktop', () => {
   });
 
   test('spread selection changes theme colors', async ({ page }) => {
-    // Select Celtic Cross - should have distinct theme
-    await selectSpread(page, 'Celtic');
+    // Select Five-Card - should have distinct theme (uses free-tier spread)
+    await selectSpread(page, 'Five-Card');
 
     // Verify the spread is selected
-    const celticButton = page.getByRole('radio', { name: /celtic/i });
-    await expect(celticButton).toHaveAttribute('aria-checked', 'true');
+    const fiveCardButton = page.getByRole('radio', { name: /five-card/i });
+    await expect(fiveCardButton).toHaveAttribute('aria-checked', 'true');
 
     // Select Three-Card - different theme
     await selectSpread(page, 'Three-Card');
@@ -283,7 +283,32 @@ test.describe('Tarot Reading Flow - Desktop @desktop', () => {
     // Verify selection changed
     const threeCardButton = page.getByRole('radio', { name: /three-card/i });
     await expect(threeCardButton).toHaveAttribute('aria-checked', 'true');
+    await expect(fiveCardButton).toHaveAttribute('aria-checked', 'false');
+  });
+
+  test('premium spreads show lock indicator for free users', async ({ page }) => {
+    // Celtic Cross is a premium spread (requires Plus subscription)
+    const celticButton = page.getByRole('radio', { name: /celtic/i });
+
+    // Should show lock indicator
+    const lockIcon = celticButton.locator('[aria-label="Premium spread - requires subscription"]');
+    await expect(lockIcon).toBeVisible();
+
+    // Clicking should show upgrade modal, not select the spread
+    await celticButton.click();
+
+    // Upgrade modal should appear
+    const upgradeModal = page.locator('text=Unlock Celtic Cross');
+    await expect(upgradeModal).toBeVisible({ timeout: 3000 });
+
+    // Spread should NOT be selected
     await expect(celticButton).toHaveAttribute('aria-checked', 'false');
+
+    // Close the modal
+    const closeButton = page.getByLabel('Close');
+    if (await closeButton.isVisible({ timeout: 1000 }).catch(() => false)) {
+      await closeButton.click();
+    }
   });
 
   test('reveal all cards button works', async ({ page }) => {

@@ -1,0 +1,1048 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tableau Theme Swatch</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      /* Neutral Foundation */
+      --color-black: #0F0E13;
+      --color-charcoal: #1C1A22;
+      --color-slate-dark: #2A2730;
+      --color-slate-mid: #4A4640;
+      --color-slate-light: #6E6760;
+      --color-gray-light: #9B9388;
+      --color-gray-pale: #CCC5BD;
+      --color-white: #E8E6E3;
+
+      /* Gold Accents */
+      --color-gold-champagne: #D4B896;
+      --color-gold-muted: #B59976;
+      --color-gold-soft: #E8DAC3;
+      --color-silver: #A8A39E;
+
+      /* Suit Colors */
+      --color-wands: #C9A876;
+      --color-cups: #8B95A5;
+      --color-swords: #6B7280;
+      --color-pentacles: #8A9985;
+
+      /* Status */
+      --color-success: #6B9E78;
+      --color-error: #C97676;
+
+      /* Semantic */
+      --bg-main: #0F0E13;
+      --bg-surface: #1C1A22;
+      --bg-surface-muted: #2A2730;
+      --text-main: #E8E6E3;
+      --text-muted: #CCC5B9;
+      --brand-primary: #D4B896;
+      --brand-secondary: #A89D92;
+      --brand-accent: #E8DAC3;
+
+      /* Panel Colors */
+      --panel-dark-1: #0d0a14;
+      --panel-dark-2: #151020;
+      --panel-dark-3: #0f0b17;
+
+      /* Glow Effects */
+      --glow-gold: rgba(244, 207, 150, 0.1);
+      --glow-blue: rgba(120, 161, 255, 0.08);
+      --glow-pink: rgba(255, 132, 178, 0.07);
+
+      /* Borders */
+      --border-warm: rgba(232, 218, 195, 0.22);
+      --border-warm-light: rgba(232, 218, 195, 0.2);
+
+      /* Drawer Gold */
+      --drawer-gold: #e5c48e;
+
+      /* Animation Timing */
+      --duration-fast: 160ms;
+      --duration-normal: 200ms;
+      --duration-medium: 260ms;
+      --duration-slow: 400ms;
+      --duration-slower: 600ms;
+      --ease-out: cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background: var(--bg-main);
+      color: var(--text-main);
+      padding: 2rem;
+      min-height: 100vh;
+      line-height: 1.6;
+    }
+
+    .header {
+      text-align: center;
+      margin-bottom: 3rem;
+      padding-bottom: 2rem;
+      border-bottom: 1px solid var(--border-warm);
+    }
+
+    h1 {
+      font-family: 'Cormorant Garamond', Georgia, serif;
+      font-size: 3rem;
+      font-weight: 400;
+      color: var(--brand-primary);
+      letter-spacing: 0.15em;
+      margin-bottom: 0.5rem;
+    }
+
+    .subtitle {
+      color: var(--color-gray-light);
+      font-size: 0.75rem;
+      letter-spacing: 0.3em;
+      text-transform: uppercase;
+    }
+
+    .section {
+      margin-bottom: 3rem;
+    }
+
+    .section-title {
+      font-size: 0.7rem;
+      letter-spacing: 0.3em;
+      text-transform: uppercase;
+      color: var(--brand-primary);
+      margin-bottom: 1.25rem;
+      padding-bottom: 0.75rem;
+      border-bottom: 1px solid var(--color-slate-dark);
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .section-title::before {
+      content: '';
+      width: 6px;
+      height: 6px;
+      background: var(--brand-primary);
+      border-radius: 50%;
+    }
+
+    /* Swatch Grid */
+    .swatch-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1rem;
+    }
+
+    .swatch {
+      display: flex;
+      flex-direction: column;
+      width: 100px;
+    }
+
+    .swatch-color {
+      width: 100%;
+      height: 70px;
+      border-radius: 10px;
+      border: 1px solid var(--color-slate-dark);
+    }
+
+    .swatch-info {
+      padding: 0.5rem 0;
+    }
+
+    .swatch-name {
+      font-size: 0.7rem;
+      color: var(--text-main);
+      margin-bottom: 0.2rem;
+    }
+
+    .swatch-hex {
+      font-size: 0.6rem;
+      color: var(--color-gray-light);
+      font-family: 'SF Mono', Monaco, monospace;
+    }
+
+    /* Gradient Bars */
+    .gradient-showcase {
+      display: grid;
+      gap: 1.25rem;
+    }
+
+    .gradient-item {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    .gradient-bar {
+      height: 60px;
+      border-radius: 12px;
+      border: 1px solid var(--color-slate-dark);
+    }
+
+    .gradient-label {
+      font-size: 0.65rem;
+      color: var(--color-gray-light);
+      letter-spacing: 0.05em;
+    }
+
+    .gradient-code {
+      font-size: 0.55rem;
+      color: var(--color-slate-light);
+      font-family: 'SF Mono', Monaco, monospace;
+      word-break: break-all;
+    }
+
+    /* Specific Gradients */
+    .gradient-neutral {
+      background: linear-gradient(to right, #0F0E13, #1C1A22, #2A2730, #4A4640, #6E6760, #9B9388, #CCC5BD, #E8E6E3);
+    }
+
+    .gradient-gold {
+      background: linear-gradient(to right, #B59976, #D4B896, #E8DAC3);
+    }
+
+    .gradient-mystic-panel {
+      background:
+        radial-gradient(circle at 0% 18%, var(--glow-gold), transparent 40%),
+        radial-gradient(circle at 100% 0%, var(--glow-blue), transparent 38%),
+        radial-gradient(circle at 52% 115%, var(--glow-pink), transparent 46%),
+        linear-gradient(135deg, var(--panel-dark-1), var(--panel-dark-2) 55%, var(--panel-dark-3));
+    }
+
+    .gradient-surface {
+      background: linear-gradient(to bottom, var(--bg-surface-muted), var(--bg-main));
+    }
+
+    .gradient-ambient {
+      background:
+        radial-gradient(circle at 20% 18%, rgba(212, 184, 150, 0.35) 0%, transparent 52%),
+        radial-gradient(circle at 80% 0%, rgba(212, 184, 150, 0.24) 0%, transparent 50%),
+        linear-gradient(165deg, rgba(255, 255, 255, 0.04), transparent);
+    }
+
+    .gradient-drawer {
+      background:
+        radial-gradient(circle at 16% -8%, rgba(229, 196, 142, 0.18), transparent 46%),
+        radial-gradient(circle at 88% -12%, rgba(124, 164, 255, 0.16), transparent 50%),
+        linear-gradient(170deg, rgba(24, 18, 33, 0.96), rgba(10, 8, 16, 0.98));
+    }
+
+    .gradient-card-back {
+      background:
+        radial-gradient(circle at 50% 15%, rgba(232, 230, 227, 0.08), transparent 60%),
+        radial-gradient(circle at 50% 85%, rgba(232, 230, 227, 0.08), transparent 60%),
+        repeating-radial-gradient(circle at 50% 50%, var(--brand-secondary), var(--brand-secondary) 1px, transparent 1px, transparent 4px),
+        var(--bg-main);
+    }
+
+    /* Glow Effects */
+    .glow-showcase {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 1.5rem;
+    }
+
+    .glow-item {
+      padding: 1.5rem;
+      border-radius: 16px;
+      background: var(--bg-surface);
+      text-align: center;
+    }
+
+    .glow-gold-demo {
+      box-shadow: 0 0 30px rgba(212, 184, 150, 0.4), 0 0 60px rgba(212, 184, 150, 0.2);
+      border: 1px solid rgba(212, 184, 150, 0.3);
+    }
+
+    .glow-blue-demo {
+      box-shadow: 0 0 30px rgba(120, 161, 255, 0.3), 0 0 60px rgba(120, 161, 255, 0.15);
+      border: 1px solid rgba(120, 161, 255, 0.2);
+    }
+
+    .glow-pink-demo {
+      box-shadow: 0 0 30px rgba(255, 132, 178, 0.3), 0 0 60px rgba(255, 132, 178, 0.15);
+      border: 1px solid rgba(255, 132, 178, 0.2);
+    }
+
+    .glow-mystic-demo {
+      box-shadow:
+        0 24px 64px -40px rgba(0, 0, 0, 0.8),
+        0 0 26px var(--brand-primary),
+        inset 0 1px 0 rgba(255, 255, 255, 0.03);
+      border: 1px solid var(--border-warm);
+    }
+
+    .glow-label {
+      font-size: 0.7rem;
+      color: var(--text-muted);
+      margin-top: 0.75rem;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+    }
+
+    /* Texture Demo */
+    .texture-demo {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1.5rem;
+    }
+
+    .texture-item {
+      height: 120px;
+      border-radius: 16px;
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      align-items: flex-end;
+      padding: 1rem;
+    }
+
+    .texture-noise {
+      background: var(--bg-surface);
+    }
+
+    .texture-noise::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200' viewBox='0 0 200 200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)' opacity='0.22'/%3E%3C/svg%3E");
+      mix-blend-mode: soft-light;
+      opacity: 0.28;
+      pointer-events: none;
+    }
+
+    .texture-label {
+      position: relative;
+      z-index: 1;
+      font-size: 0.65rem;
+      color: var(--text-muted);
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+    }
+
+    /* Border Showcase */
+    .border-showcase {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1.5rem;
+    }
+
+    .border-item {
+      padding: 1.25rem;
+      border-radius: 12px;
+      background: var(--bg-surface);
+    }
+
+    .border-warm-demo { border: 1px solid rgba(232, 218, 195, 0.22); }
+    .border-light-demo { border: 1px solid rgba(232, 218, 195, 0.12); }
+    .border-subtle-demo { border: 1px solid rgba(255, 255, 255, 0.06); }
+    .border-accent-demo { border: 2px solid var(--brand-primary); }
+
+    .border-label {
+      font-size: 0.65rem;
+      color: var(--text-muted);
+      letter-spacing: 0.05em;
+    }
+
+    .border-code {
+      font-size: 0.55rem;
+      color: var(--color-slate-light);
+      font-family: 'SF Mono', Monaco, monospace;
+      margin-top: 0.5rem;
+    }
+
+    /* Animation Timing */
+    .timing-showcase {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    .timing-item {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .timing-bar {
+      height: 8px;
+      background: var(--brand-primary);
+      border-radius: 4px;
+      transform-origin: left;
+      animation: timing-demo 2s var(--ease-out) infinite;
+    }
+
+    .timing-fast { width: 60px; animation-duration: 0.16s; animation-iteration-count: infinite; animation-delay: 0s; }
+    .timing-normal { width: 80px; animation-duration: 0.2s; }
+    .timing-medium { width: 100px; animation-duration: 0.26s; }
+    .timing-slow { width: 140px; animation-duration: 0.4s; }
+    .timing-slower { width: 180px; animation-duration: 0.6s; }
+
+    @keyframes timing-demo {
+      0%, 100% { transform: scaleX(0.3); opacity: 0.4; }
+      50% { transform: scaleX(1); opacity: 1; }
+    }
+
+    .timing-label {
+      font-size: 0.65rem;
+      color: var(--text-muted);
+      min-width: 100px;
+    }
+
+    .timing-value {
+      font-size: 0.6rem;
+      color: var(--color-slate-light);
+      font-family: 'SF Mono', Monaco, monospace;
+    }
+
+    /* Keyframe Animations */
+    .animation-showcase {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 1.5rem;
+    }
+
+    .animation-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 1rem;
+      padding: 1.5rem 1rem;
+      background: var(--bg-surface);
+      border-radius: 16px;
+      border: 1px solid var(--border-warm);
+    }
+
+    .animation-dot {
+      width: 24px;
+      height: 24px;
+      background: var(--brand-primary);
+      border-radius: 50%;
+    }
+
+    .anim-fade-in { animation: fadeIn 1.5s ease-out infinite; }
+    .anim-slide-up { animation: slideUp 1.5s ease-out infinite; }
+    .anim-pop-in { animation: popIn 1.5s ease-out infinite; }
+    .anim-float { animation: floatGentle 3s ease-in-out infinite; }
+    .anim-pulse { animation: pulseSlow 2s ease-in-out infinite; }
+    .anim-ink { animation: inkSpread 2s cubic-bezier(0.4, 0, 0.2, 1) infinite; }
+
+    @keyframes fadeIn {
+      0%, 100% { opacity: 0; }
+      50% { opacity: 1; }
+    }
+
+    @keyframes slideUp {
+      0%, 100% { transform: translateY(10px); opacity: 0; }
+      50% { transform: translateY(0); opacity: 1; }
+    }
+
+    @keyframes popIn {
+      0%, 100% { transform: scale(0.8); opacity: 0; }
+      50% { transform: scale(1); opacity: 1; }
+    }
+
+    @keyframes floatGentle {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-8px); }
+    }
+
+    @keyframes pulseSlow {
+      0%, 100% { opacity: 0.4; }
+      50% { opacity: 1; }
+    }
+
+    @keyframes inkSpread {
+      0%, 100% { opacity: 0; filter: blur(8px); transform: scale(0.9); }
+      50% { opacity: 1; filter: blur(0); transform: scale(1); }
+    }
+
+    .animation-label {
+      font-size: 0.6rem;
+      color: var(--text-muted);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    /* Surface Layering */
+    .surface-stack {
+      display: flex;
+      gap: 2rem;
+      align-items: flex-end;
+      padding: 2rem;
+      background: var(--bg-main);
+      border-radius: 20px;
+      border: 1px solid var(--color-slate-dark);
+    }
+
+    .surface-layer {
+      padding: 1.5rem;
+      border-radius: 16px;
+      min-width: 140px;
+      text-align: center;
+    }
+
+    .surface-main {
+      background: var(--bg-main);
+      border: 1px dashed var(--color-slate-mid);
+    }
+
+    .surface-surface {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-warm);
+      box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+    }
+
+    .surface-muted {
+      background: var(--bg-surface-muted);
+      border: 1px solid var(--border-warm);
+      box-shadow: 0 15px 40px rgba(0,0,0,0.4);
+    }
+
+    .surface-label {
+      font-size: 0.65rem;
+      color: var(--text-muted);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      margin-bottom: 0.5rem;
+    }
+
+    .surface-hex {
+      font-size: 0.55rem;
+      color: var(--color-slate-light);
+      font-family: 'SF Mono', Monaco, monospace;
+    }
+
+    /* Card Component Demo */
+    .card-demo-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 1.5rem;
+    }
+
+    .demo-card {
+      position: relative;
+      overflow: hidden;
+      border-radius: 20px;
+      padding: 1.5rem;
+      background:
+        radial-gradient(circle at 0% 18%, var(--glow-gold), transparent 40%),
+        radial-gradient(circle at 100% 0%, var(--glow-blue), transparent 38%),
+        radial-gradient(circle at 52% 115%, var(--glow-pink), transparent 46%),
+        linear-gradient(135deg, var(--panel-dark-1), var(--panel-dark-2) 55%, var(--panel-dark-3));
+      border: 1px solid var(--border-warm);
+      box-shadow: 0 24px 64px -40px rgba(0, 0, 0, 0.8), inset 0 1px 0 rgba(255, 255, 255, 0.03);
+      transition: transform var(--duration-normal) var(--ease-out), box-shadow var(--duration-normal) var(--ease-out);
+    }
+
+    .demo-card::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200' viewBox='0 0 200 200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)' opacity='0.22'/%3E%3C/svg%3E");
+      mix-blend-mode: soft-light;
+      opacity: 0.28;
+      pointer-events: none;
+    }
+
+    .demo-card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 32px 80px -40px rgba(0, 0, 0, 0.9), 0 0 30px rgba(212, 184, 150, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+    }
+
+    .demo-card-content {
+      position: relative;
+      z-index: 1;
+    }
+
+    .demo-card-title {
+      font-family: 'Cormorant Garamond', Georgia, serif;
+      font-size: 1.25rem;
+      color: var(--brand-primary);
+      margin-bottom: 0.5rem;
+    }
+
+    .demo-card-text {
+      font-size: 0.875rem;
+      color: var(--text-muted);
+      line-height: 1.6;
+    }
+
+    .demo-card-badge {
+      display: inline-block;
+      font-size: 0.6rem;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      padding: 0.35rem 0.75rem;
+      border-radius: 999px;
+      background: var(--brand-primary);
+      color: var(--bg-main);
+      margin-top: 1rem;
+    }
+
+    /* Typography */
+    .typography-showcase {
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+      padding: 2rem;
+      background: var(--bg-surface);
+      border-radius: 20px;
+      border: 1px solid var(--border-warm);
+    }
+
+    .typo-heading {
+      font-family: 'Cormorant Garamond', Georgia, serif;
+      font-size: 2rem;
+      color: var(--brand-primary);
+      letter-spacing: 0.1em;
+    }
+
+    .typo-subheading {
+      font-size: 0.7rem;
+      letter-spacing: 0.25em;
+      text-transform: uppercase;
+      color: var(--brand-accent);
+    }
+
+    .typo-body {
+      font-size: 1rem;
+      line-height: 1.75;
+      color: var(--text-main);
+    }
+
+    .typo-muted {
+      font-size: 0.875rem;
+      line-height: 1.6;
+      color: var(--text-muted);
+    }
+
+    .typo-eyebrow {
+      font-size: 0.7rem;
+      font-weight: 600;
+      letter-spacing: 0.3em;
+      text-transform: uppercase;
+      color: var(--color-gray-light);
+    }
+
+    /* Suit Colors Demo */
+    .suit-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 1rem;
+    }
+
+    .suit-card {
+      padding: 1.25rem;
+      border-radius: 12px;
+      text-align: center;
+      background: var(--bg-surface);
+    }
+
+    .suit-wands {
+      border: 2px solid var(--color-wands);
+      box-shadow: inset 0 0 20px rgba(201, 168, 118, 0.15);
+    }
+
+    .suit-cups {
+      border: 2px solid var(--color-cups);
+      box-shadow: inset 0 0 20px rgba(139, 149, 165, 0.15);
+    }
+
+    .suit-swords {
+      border: 2px solid var(--color-swords);
+      box-shadow: inset 0 0 20px rgba(107, 114, 128, 0.15);
+    }
+
+    .suit-pentacles {
+      border: 2px solid var(--color-pentacles);
+      box-shadow: inset 0 0 20px rgba(138, 153, 133, 0.15);
+    }
+
+    .suit-icon {
+      font-size: 1.5rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .suit-name {
+      font-size: 0.7rem;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      margin-bottom: 0.25rem;
+    }
+
+    .suit-hex {
+      font-size: 0.55rem;
+      color: var(--color-slate-light);
+      font-family: 'SF Mono', Monaco, monospace;
+    }
+
+    /* Z-Index Scale */
+    .z-scale {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    .z-item {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      padding: 0.75rem 1rem;
+      background: var(--bg-surface);
+      border-radius: 8px;
+      border-left: 3px solid var(--brand-primary);
+    }
+
+    .z-value {
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--brand-primary);
+      min-width: 30px;
+    }
+
+    .z-name {
+      font-size: 0.7rem;
+      color: var(--text-muted);
+    }
+  </style>
+</head>
+<body>
+  <header class="header">
+    <h1>Tableau</h1>
+    <p class="subtitle">Complete Theme Swatch & Design System</p>
+  </header>
+
+  <!-- Core Colors -->
+  <section class="section">
+    <h2 class="section-title">Neutral Foundation</h2>
+    <div class="gradient-item" style="margin-bottom: 1.5rem;">
+      <div class="gradient-bar gradient-neutral"></div>
+    </div>
+    <div class="swatch-row">
+      <div class="swatch">
+        <div class="swatch-color" style="background: #0F0E13;"></div>
+        <div class="swatch-info"><div class="swatch-name">Black</div><div class="swatch-hex">#0F0E13</div></div>
+      </div>
+      <div class="swatch">
+        <div class="swatch-color" style="background: #1C1A22;"></div>
+        <div class="swatch-info"><div class="swatch-name">Charcoal</div><div class="swatch-hex">#1C1A22</div></div>
+      </div>
+      <div class="swatch">
+        <div class="swatch-color" style="background: #2A2730;"></div>
+        <div class="swatch-info"><div class="swatch-name">Slate Dark</div><div class="swatch-hex">#2A2730</div></div>
+      </div>
+      <div class="swatch">
+        <div class="swatch-color" style="background: #4A4640;"></div>
+        <div class="swatch-info"><div class="swatch-name">Slate Mid</div><div class="swatch-hex">#4A4640</div></div>
+      </div>
+      <div class="swatch">
+        <div class="swatch-color" style="background: #6E6760;"></div>
+        <div class="swatch-info"><div class="swatch-name">Slate Light</div><div class="swatch-hex">#6E6760</div></div>
+      </div>
+      <div class="swatch">
+        <div class="swatch-color" style="background: #9B9388;"></div>
+        <div class="swatch-info"><div class="swatch-name">Gray Light</div><div class="swatch-hex">#9B9388</div></div>
+      </div>
+      <div class="swatch">
+        <div class="swatch-color" style="background: #CCC5BD;"></div>
+        <div class="swatch-info"><div class="swatch-name">Gray Pale</div><div class="swatch-hex">#CCC5BD</div></div>
+      </div>
+      <div class="swatch">
+        <div class="swatch-color" style="background: #E8E6E3;"></div>
+        <div class="swatch-info"><div class="swatch-name">Off-White</div><div class="swatch-hex">#E8E6E3</div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Gold Accents -->
+  <section class="section">
+    <h2 class="section-title">Gold & Metallic Accents</h2>
+    <div class="gradient-item" style="margin-bottom: 1.5rem;">
+      <div class="gradient-bar gradient-gold"></div>
+    </div>
+    <div class="swatch-row">
+      <div class="swatch">
+        <div class="swatch-color" style="background: #B59976;"></div>
+        <div class="swatch-info"><div class="swatch-name">Gold Muted</div><div class="swatch-hex">#B59976</div></div>
+      </div>
+      <div class="swatch">
+        <div class="swatch-color" style="background: #D4B896;"></div>
+        <div class="swatch-info"><div class="swatch-name">Champagne</div><div class="swatch-hex">#D4B896</div></div>
+      </div>
+      <div class="swatch">
+        <div class="swatch-color" style="background: #E8DAC3;"></div>
+        <div class="swatch-info"><div class="swatch-name">Gold Soft</div><div class="swatch-hex">#E8DAC3</div></div>
+      </div>
+      <div class="swatch">
+        <div class="swatch-color" style="background: #e5c48e;"></div>
+        <div class="swatch-info"><div class="swatch-name">Drawer Gold</div><div class="swatch-hex">#e5c48e</div></div>
+      </div>
+      <div class="swatch">
+        <div class="swatch-color" style="background: #A8A39E;"></div>
+        <div class="swatch-info"><div class="swatch-name">Silver</div><div class="swatch-hex">#A8A39E</div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Suit Colors -->
+  <section class="section">
+    <h2 class="section-title">Tarot Suit Colors</h2>
+    <div class="suit-grid">
+      <div class="suit-card suit-wands">
+        <div class="suit-icon">🔥</div>
+        <div class="suit-name" style="color: #C9A876;">Wands</div>
+        <div class="suit-hex">#C9A876</div>
+      </div>
+      <div class="suit-card suit-cups">
+        <div class="suit-icon">💧</div>
+        <div class="suit-name" style="color: #8B95A5;">Cups</div>
+        <div class="suit-hex">#8B95A5</div>
+      </div>
+      <div class="suit-card suit-swords">
+        <div class="suit-icon">🌬️</div>
+        <div class="suit-name" style="color: #6B7280;">Swords</div>
+        <div class="suit-hex">#6B7280</div>
+      </div>
+      <div class="suit-card suit-pentacles">
+        <div class="suit-icon">🌍</div>
+        <div class="suit-name" style="color: #8A9985;">Pentacles</div>
+        <div class="suit-hex">#8A9985</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Status Colors -->
+  <section class="section">
+    <h2 class="section-title">Status Colors</h2>
+    <div class="swatch-row">
+      <div class="swatch">
+        <div class="swatch-color" style="background: #6B9E78;"></div>
+        <div class="swatch-info"><div class="swatch-name">Success</div><div class="swatch-hex">#6B9E78</div></div>
+      </div>
+      <div class="swatch">
+        <div class="swatch-color" style="background: #C97676;"></div>
+        <div class="swatch-info"><div class="swatch-name">Error</div><div class="swatch-hex">#C97676</div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Gradients -->
+  <section class="section">
+    <h2 class="section-title">Mystic Gradients</h2>
+    <div class="gradient-showcase">
+      <div class="gradient-item">
+        <div class="gradient-bar gradient-mystic-panel"></div>
+        <div class="gradient-label">Mystic Panel — Primary surface gradient with ambient glows</div>
+        <div class="gradient-code">radial-gradient(glow-gold) + radial-gradient(glow-blue) + radial-gradient(glow-pink) + linear-gradient(panel-darks)</div>
+      </div>
+      <div class="gradient-item">
+        <div class="gradient-bar gradient-drawer"></div>
+        <div class="gradient-label">Mobile Drawer — Warm gold + cool blue ambient</div>
+        <div class="gradient-code">radial-gradient(drawer-gold 18%) + radial-gradient(blue 16%) + linear-gradient(170deg, surfaces)</div>
+      </div>
+      <div class="gradient-item">
+        <div class="gradient-bar gradient-ambient"></div>
+        <div class="gradient-label">Card Ambient — Subtle surface lighting</div>
+        <div class="gradient-code">radial-gradient(champagne 35%) + radial-gradient(champagne 24%) + linear-gradient(white 4%)</div>
+      </div>
+      <div class="gradient-item">
+        <div class="gradient-bar gradient-surface"></div>
+        <div class="gradient-label">Surface Fade — Vertical depth</div>
+        <div class="gradient-code">linear-gradient(to bottom, bg-surface-muted, bg-main)</div>
+      </div>
+      <div class="gradient-item">
+        <div class="gradient-bar gradient-card-back"></div>
+        <div class="gradient-label">Tarot Card Back — Concentric ritual pattern</div>
+        <div class="gradient-code">repeating-radial-gradient(brand-secondary rings) + radial-gradient(star halos)</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Glow Effects -->
+  <section class="section">
+    <h2 class="section-title">Glow Effects</h2>
+    <div class="glow-showcase">
+      <div class="glow-item glow-gold-demo">
+        <div class="glow-label">Gold Glow</div>
+      </div>
+      <div class="glow-item glow-blue-demo">
+        <div class="glow-label">Blue Glow</div>
+      </div>
+      <div class="glow-item glow-pink-demo">
+        <div class="glow-label">Pink Glow</div>
+      </div>
+      <div class="glow-item glow-mystic-demo">
+        <div class="glow-label">Mystic Card</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Noise Texture -->
+  <section class="section">
+    <h2 class="section-title">Noise Texture Overlay</h2>
+    <div class="texture-demo">
+      <div class="texture-item texture-noise">
+        <span class="texture-label">Fractal Noise @ 28% opacity, soft-light blend</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- Border Styles -->
+  <section class="section">
+    <h2 class="section-title">Border Styles</h2>
+    <div class="border-showcase">
+      <div class="border-item border-warm-demo">
+        <div class="border-label">Warm Border</div>
+        <div class="border-code">rgba(232, 218, 195, 0.22)</div>
+      </div>
+      <div class="border-item border-light-demo">
+        <div class="border-label">Light Border</div>
+        <div class="border-code">rgba(232, 218, 195, 0.12)</div>
+      </div>
+      <div class="border-item border-subtle-demo">
+        <div class="border-label">Subtle Border</div>
+        <div class="border-code">rgba(255, 255, 255, 0.06)</div>
+      </div>
+      <div class="border-item border-accent-demo">
+        <div class="border-label">Accent Border</div>
+        <div class="border-code">2px solid brand-primary</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Surface Layering -->
+  <section class="section">
+    <h2 class="section-title">Surface Layering</h2>
+    <div class="surface-stack">
+      <div class="surface-layer surface-main">
+        <div class="surface-label">bg-main</div>
+        <div class="surface-hex">#0F0E13</div>
+      </div>
+      <div class="surface-layer surface-surface">
+        <div class="surface-label">bg-surface</div>
+        <div class="surface-hex">#1C1A22</div>
+      </div>
+      <div class="surface-layer surface-muted">
+        <div class="surface-label">bg-surface-muted</div>
+        <div class="surface-hex">#2A2730</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Animation Timing -->
+  <section class="section">
+    <h2 class="section-title">Animation Timing Scale</h2>
+    <div class="timing-showcase">
+      <div class="timing-item">
+        <span class="timing-label">Fast (hover, focus)</span>
+        <div class="timing-bar timing-fast"></div>
+        <span class="timing-value">160ms</span>
+      </div>
+      <div class="timing-item">
+        <span class="timing-label">Normal</span>
+        <div class="timing-bar timing-normal"></div>
+        <span class="timing-value">200ms</span>
+      </div>
+      <div class="timing-item">
+        <span class="timing-label">Medium (card transforms)</span>
+        <div class="timing-bar timing-medium"></div>
+        <span class="timing-value">260ms</span>
+      </div>
+      <div class="timing-item">
+        <span class="timing-label">Slow (complex)</span>
+        <div class="timing-bar timing-slow"></div>
+        <span class="timing-value">400ms</span>
+      </div>
+      <div class="timing-item">
+        <span class="timing-label">Slower (card dealing)</span>
+        <div class="timing-bar timing-slower"></div>
+        <span class="timing-value">600ms</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- Keyframe Animations -->
+  <section class="section">
+    <h2 class="section-title">Keyframe Animations</h2>
+    <div class="animation-showcase">
+      <div class="animation-item">
+        <div class="animation-dot anim-fade-in"></div>
+        <span class="animation-label">Fade In</span>
+      </div>
+      <div class="animation-item">
+        <div class="animation-dot anim-slide-up"></div>
+        <span class="animation-label">Slide Up</span>
+      </div>
+      <div class="animation-item">
+        <div class="animation-dot anim-pop-in"></div>
+        <span class="animation-label">Pop In</span>
+      </div>
+      <div class="animation-item">
+        <div class="animation-dot anim-float"></div>
+        <span class="animation-label">Float Gentle</span>
+      </div>
+      <div class="animation-item">
+        <div class="animation-dot anim-pulse"></div>
+        <span class="animation-label">Pulse Slow</span>
+      </div>
+      <div class="animation-item">
+        <div class="animation-dot anim-ink"></div>
+        <span class="animation-label">Ink Spread</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- Z-Index Scale -->
+  <section class="section">
+    <h2 class="section-title">Z-Index Scale</h2>
+    <div class="z-scale">
+      <div class="z-item"><span class="z-value">80</span><span class="z-name">Skip Links (highest)</span></div>
+      <div class="z-item"><span class="z-value">70</span><span class="z-name">Modals & Drawers</span></div>
+      <div class="z-item"><span class="z-value">60</span><span class="z-name">Modal Backdrops</span></div>
+      <div class="z-item"><span class="z-value">50</span><span class="z-name">Fixed Elements</span></div>
+      <div class="z-item"><span class="z-value">20</span><span class="z-name">Sticky Headers</span></div>
+      <div class="z-item"><span class="z-value">10</span><span class="z-name">Dropdowns & Tooltips</span></div>
+      <div class="z-item"><span class="z-value">1</span><span class="z-name">Content (above pseudo)</span></div>
+      <div class="z-item"><span class="z-value">0</span><span class="z-name">Base</span></div>
+    </div>
+  </section>
+
+  <!-- Typography -->
+  <section class="section">
+    <h2 class="section-title">Typography</h2>
+    <div class="typography-showcase">
+      <div class="typo-eyebrow">Eyebrow Label</div>
+      <h3 class="typo-heading">Cormorant Garamond Heading</h3>
+      <p class="typo-subheading">Subheading with wide tracking</p>
+      <p class="typo-body">Body text in system-ui with comfortable line height for reading long passages of mystical narrative content.</p>
+      <p class="typo-muted">Muted text for secondary information and descriptions that complement primary content.</p>
+    </div>
+  </section>
+
+  <!-- Component Demo -->
+  <section class="section">
+    <h2 class="section-title">Component Example: Mystic Card</h2>
+    <div class="card-demo-grid">
+      <div class="demo-card">
+        <div class="demo-card-content">
+          <h3 class="demo-card-title">The Fool's Journey</h3>
+          <p class="demo-card-text">A mystic panel component featuring radial gradient glows, noise texture overlay, warm borders, and hover elevation.</p>
+          <span class="demo-card-badge">Major Arcana</span>
+        </div>
+      </div>
+      <div class="demo-card">
+        <div class="demo-card-content">
+          <h3 class="demo-card-title">Celtic Cross Spread</h3>
+          <p class="demo-card-text">Ten-card layout revealing past, present, future, and the forces shaping your path forward.</p>
+          <span class="demo-card-badge">10 Cards</span>
+        </div>
+      </div>
+    </div>
+  </section>
+</body>
+</html>

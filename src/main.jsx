@@ -4,6 +4,7 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import './styles/tailwind.css';
 import TarotReading from './TarotReading.jsx';
 import Journal from './components/Journal.jsx';
+import CardGalleryPage from './pages/CardGalleryPage.jsx';
 import ShareReading from './pages/ShareReading.jsx';
 import PricingPage from './pages/PricingPage.jsx';
 import AccountPage from './pages/AccountPage.jsx';
@@ -23,6 +24,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
               <BrowserRouter>
                 <Routes>
                   <Route path="/" element={<TarotReading />} />
+                  <Route path="/journal/gallery" element={<CardGalleryPage />} />
                   <Route path="/journal" element={<Journal />} />
                   <Route path="/pricing" element={<PricingPage />} />
                   <Route path="/account" element={<AccountPage />} />

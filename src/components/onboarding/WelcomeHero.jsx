@@ -68,7 +68,7 @@ export function WelcomeHero({ onNext, onSkip }) {
               isLandscape ? 'text-2xl' : 'text-3xl sm:text-4xl'
             }`}
           >
-            Welcome to Mystic Tarot
+            Welcome to Tableu
           </h2>
           <p
             className={`text-muted max-w-md mx-auto leading-relaxed ${

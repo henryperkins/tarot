@@ -3,7 +3,9 @@
  */
 
 import { memo } from 'react';
-import { Fire, TrendUp, TrendDown, Minus } from '@phosphor-icons/react';
+import { Link } from 'react-router-dom';
+import { Fire, TrendUp, TrendDown, Minus, ArrowRight } from '@phosphor-icons/react';
+import TrendSparkline from '../../charts/TrendSparkline';
 
 function TrendIndicator({ trend }) {
   if (trend === 'up') {
@@ -38,25 +40,32 @@ function CardsCallingYou({ cards = [], badges = [] }) {
               key={`${card.name}-${index}`}
               className="flex items-center justify-between text-sm rounded-lg bg-amber-200/5 px-3 py-2 hover:bg-amber-200/10 transition-colors"
             >
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 min-w-0 flex-1">
                 <span
-                  className="flex h-5 w-5 items-center justify-center rounded-full bg-amber-200/15 text-xs font-medium text-amber-100"
+                  className="flex h-5 w-5 items-center justify-center rounded-full bg-amber-200/15 text-xs font-medium text-amber-100 flex-shrink-0"
                   aria-hidden="true"
                 >
                   {index + 1}
                 </span>
-                <span className="text-amber-100/85">
+                <span className="text-amber-100/85 truncate">
                   <span className="sr-only">Rank {index + 1}: </span>
                   {card.name}
                 </span>
                 {hasBadge && (
                   <Fire
-                    className="h-3.5 w-3.5 text-orange-400"
+                    className="h-3.5 w-3.5 text-orange-400 flex-shrink-0"
                     aria-label="streak badge earned"
                   />
                 )}
               </div>
-              <div className="flex items-center gap-2">
+
+              {card.trendData && (
+                <div className="mx-2 hidden sm:block">
+                  <TrendSparkline data={card.trendData} height={24} color="var(--brand-primary)" />
+                </div>
+              )}
+
+              <div className="flex items-center gap-2 flex-shrink-0">
                 {card.trend && card.trend !== 'stable' && (
                   <TrendIndicator trend={card.trend} />
                 )}
@@ -79,11 +88,19 @@ function CardsCallingYou({ cards = [], badges = [] }) {
           );
         })}
       </ul>
-      {cards.length > 5 && (
-        <p className="mt-2 text-xs text-amber-100/50">
-          +{cards.length - 5} more cards
-        </p>
-      )}
+      
+      <div className="mt-3 pt-2 border-t border-amber-200/10 flex items-center justify-between text-xs">
+        <span className="text-amber-100/50">
+          {cards.length > 5 ? `+${cards.length - 5} more` : 'Explore deck'}
+        </span>
+        <Link 
+          to="/journal/gallery" 
+          className="flex items-center gap-1 text-amber-200/70 hover:text-amber-100 transition-colors"
+        >
+          View Collection
+          <ArrowRight className="w-3 h-3" />
+        </Link>
+      </div>
     </div>
   );
 }

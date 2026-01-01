@@ -1,8 +1,8 @@
 /* ==========================================================================
-   TAROT.CSS - Mystic Tarot Application Styles
+   TAROT.CSS - Tableu Application Styles
    ==========================================================================
 
-   This file contains all custom styles for the Mystic Tarot application,
+   This file contains all custom styles for the Tableu application,
    organized into logical sections. Uses CSS custom properties for theming
    and responsive breakpoints optimized for modern iPhones (15-17 series).
 
@@ -2504,5 +2504,250 @@ input[type="range"]:focus::-webkit-slider-thumb {
   .narrative-skeleton [class*="bg-gradient-to-r"] {
     background: var(--brand-secondary);
     opacity: 0.2;
+  }
+}
+
+/* ==========================================================================
+   15. GUIDED COACH — POST-IT NOTE CARD
+   ==========================================================================
+   Paper-like post-it note styling for coach suggestions.
+   Matches reference design: tape at top, paper curl at bottom-right,
+   warm cream paper with ruled lines.
+   ========================================================================== */
+
+.coach-note {
+  position: relative;
+  border-radius: 12px;
+  background:
+    /* warm paper gradient */
+    linear-gradient(
+      180deg,
+      #f5efdf 0%,
+      #efe7d5 50%,
+      #e8dcc8 100%
+    );
+  box-shadow:
+    0 20px 50px -15px rgba(0, 0, 0, 0.5),
+    0 8px 20px -8px rgba(0, 0, 0, 0.3);
+  color: #1a1815;
+  overflow: visible;
+}
+
+/* Faint ruled lines */
+.coach-note::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 12px;
+  background:
+    repeating-linear-gradient(
+      to bottom,
+      transparent 0px,
+      transparent 23px,
+      rgba(180, 170, 155, 0.25) 23px,
+      rgba(180, 170, 155, 0.25) 24px
+    );
+  background-position: 0 40px;
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* Subtle noise texture */
+.coach-note::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 12px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200' viewBox='0 0 200 200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)' opacity='0.08'/%3E%3C/svg%3E");
+  mix-blend-mode: multiply;
+  opacity: 0.5;
+  pointer-events: none;
+  z-index: 2;
+}
+
+/* Tape strip at top center */
+.coach-note__tape {
+  position: absolute;
+  top: -4px;
+  left: 50%;
+  transform: translateX(-50%) rotate(0.5deg);
+  width: 56px;
+  height: 18px;
+  background: linear-gradient(
+    180deg,
+    rgba(215, 185, 130, 0.92) 0%,
+    rgba(200, 168, 110, 0.88) 100%
+  );
+  border-radius: 2px;
+  box-shadow:
+    0 2px 6px rgba(0, 0, 0, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.3),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.1);
+  z-index: 10;
+}
+
+/* Paper curl effect at bottom-right */
+.coach-note__curl {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 40px;
+  height: 40px;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 5;
+}
+
+.coach-note__curl::before {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 0;
+  height: 0;
+  border-style: solid;
+  border-width: 0 0 40px 40px;
+  border-color: transparent transparent var(--bg-main, #0F0E13) transparent;
+  border-bottom-right-radius: 12px;
+}
+
+.coach-note__curl::after {
+  content: "";
+  position: absolute;
+  bottom: 4px;
+  right: 4px;
+  width: 32px;
+  height: 32px;
+  background: linear-gradient(
+    135deg,
+    #e0d4c0 0%,
+    #d4c8b4 50%,
+    #c8bca8 100%
+  );
+  box-shadow:
+    -3px -3px 8px rgba(0, 0, 0, 0.15),
+    inset 1px 1px 2px rgba(255, 255, 255, 0.4);
+  clip-path: polygon(100% 0, 100% 100%, 0 100%);
+}
+
+.coach-note__inner {
+  position: relative;
+  z-index: 3;
+  padding: 28px 20px 20px;
+}
+
+/* Label at top - plain text style, no pill */
+.coach-note__label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 12px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgba(90, 80, 65, 0.85);
+}
+
+.coach-note__label svg {
+  width: 12px;
+  height: 12px;
+  color: rgba(180, 155, 100, 0.9);
+}
+
+/* Main question/title text */
+.coach-note__title {
+  font-family: "Cormorant Garamond", Georgia, serif;
+  font-size: 17px;
+  font-weight: 500;
+  line-height: 1.45;
+  color: rgba(28, 24, 20, 0.92);
+  margin: 0 0 16px 0;
+  padding-right: 24px; /* space for curl */
+}
+
+/* Date at bottom left */
+.coach-note__date {
+  font-size: 11px;
+  font-weight: 500;
+  color: rgba(90, 80, 65, 0.7);
+  letter-spacing: 0.02em;
+}
+
+/* Interactive state - entire card is clickable */
+.coach-note--interactive {
+  cursor: pointer;
+  transition:
+    transform 200ms cubic-bezier(0.4, 0, 0.2, 1),
+    box-shadow 200ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.coach-note--interactive:hover {
+  transform: translateY(-4px) rotate(-0.5deg);
+  box-shadow:
+    0 28px 60px -15px rgba(0, 0, 0, 0.55),
+    0 12px 28px -8px rgba(0, 0, 0, 0.35);
+}
+
+.coach-note--interactive:focus-visible {
+  outline: 2px solid rgba(180, 155, 100, 0.8);
+  outline-offset: 3px;
+}
+
+.coach-note--interactive:active {
+  transform: translateY(-2px) rotate(-0.3deg);
+}
+
+/* Delete button - small, top-right, only on hover */
+.coach-note__delete {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 15;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  border: none;
+  background: rgba(0, 0, 0, 0.06);
+  color: rgba(90, 80, 65, 0.6);
+  cursor: pointer;
+  opacity: 0;
+  transition:
+    opacity 150ms ease,
+    background 150ms ease,
+    color 150ms ease;
+}
+
+.coach-note:hover .coach-note__delete,
+.coach-note__delete:focus-visible {
+  opacity: 1;
+}
+
+.coach-note__delete:hover {
+  background: rgba(200, 100, 100, 0.15);
+  color: rgba(180, 80, 80, 0.9);
+}
+
+.coach-note__delete:focus-visible {
+  outline: 2px solid rgba(180, 100, 100, 0.6);
+  outline-offset: 2px;
+}
+
+.coach-note__delete svg {
+  width: 14px;
+  height: 14px;
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  .coach-note--interactive {
+    transition: none;
+  }
+  .coach-note__delete {
+    opacity: 1;
+    transition: none;
   }
 }

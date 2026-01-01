@@ -9,6 +9,7 @@
  */
 
 import { getUserFromRequest } from '../lib/auth.js';
+import { trackPatterns } from '../lib/patternTracking.js';
 
 function buildCorsHeaders(request) {
   const origin = request.headers.get('Origin');
@@ -199,7 +200,7 @@ async function handleGetAnalytics(db, userId, corsHeaders) {
  * Track card appearances from a reading
  */
 async function handleTrackCards(db, userId, body, corsHeaders) {
-  const { cards, timestamp } = body;
+  const { cards, timestamp, entryId, themes } = body;
 
   if (!Array.isArray(cards) || cards.length === 0) {
     return new Response(JSON.stringify({
@@ -227,6 +228,11 @@ async function handleTrackCards(db, userId, body, corsHeaders) {
           count = count + 1,
           last_seen = ?
       `).bind(userId, cardName, cardNumber, yearMonth, now, now, now).run();
+    }
+
+    // Track archetypal patterns
+    if (entryId && themes) {
+      await trackPatterns(db, userId, entryId, themes);
     }
 
     // Check for new badges (streaks)

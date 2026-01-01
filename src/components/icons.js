@@ -79,6 +79,8 @@ export {
   SignIn,
   SignOut,
   User,
+  Lock,
+  Crown,
 } from '@phosphor-icons/react';
 
 // Actions & Operations

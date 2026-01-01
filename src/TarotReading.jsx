@@ -63,6 +63,11 @@ export default function TarotReading() {
   const prefersReducedMotion = useReducedMotion();
   const isSmallScreen = useSmallScreen();
   const isLandscape = useLandscape();
+  // Handset mode should include:
+  // - narrow portrait phones (width-constrained)
+  // - height-constrained landscape phones ("small landscape")
+  // This keeps mobile patterns (bottom action bar + settings drawer + quick intention) available.
+  const isHandset = isSmallScreen || isLandscape;
 
   // --- 2. Reading Context ---
   const {
@@ -321,7 +326,7 @@ export default function TarotReading() {
   }, [setDeckStyleId, setVisionResults, setVisionConflicts, resetVisionProof]);
 
   const scrollQuickIntentionIntoView = useCallback(() => {
-    if (!isSmallScreen) return;
+    if (!isHandset) return;
     const target = quickIntentionCardRef.current || quickIntentionInputRef.current;
     if (!target) return;
 
@@ -332,10 +337,10 @@ export default function TarotReading() {
         // Silently ignore scroll failures (e.g., Safari quirks)
       }
     });
-  }, [isSmallScreen]);
+  }, [isHandset]);
 
   const handleSpreadSelection = useCallback((key) => {
-    const shouldPromptQuickIntention = isSmallScreen && !hasConfirmedSpread;
+    const shouldPromptQuickIntention = isHandset && !hasConfirmedSpread;
     // Use the centralized selectSpread from useTarotState
     selectSpread(key);
     // Reset narrative/analysis state
@@ -354,7 +359,7 @@ export default function TarotReading() {
         quickIntentionHighlightTimeoutRef.current = null;
       }, 1500);
     }
-  }, [hasConfirmedSpread, isSmallScreen, scrollQuickIntentionIntoView, selectSpread, setIsGenerating, setJournalStatus, setPersonalReading, setReflections]);
+  }, [hasConfirmedSpread, isHandset, scrollQuickIntentionIntoView, selectSpread, setIsGenerating, setJournalStatus, setPersonalReading, setReflections]);
 
   const handleCoachClose = useCallback(() => {
     setIsIntentionCoachOpen(false);
@@ -387,9 +392,7 @@ export default function TarotReading() {
   const handleStepNav = useCallback((stepId) => {
     // On mobile (< 640px), open the settings drawer for intention/ritual steps
     // since the prep section is hidden on mobile
-    const isMobile = typeof window !== 'undefined' && window.innerWidth < 640;
-
-    if (isMobile && (stepId === 'intention' || stepId === 'ritual')) {
+    if (isHandset && (stepId === 'intention' || stepId === 'ritual')) {
       setMobileSettingsTab(stepId === 'ritual' ? 'ritual' : 'intention');
       setIsMobileSettingsOpen(true);
       return;
@@ -409,7 +412,7 @@ export default function TarotReading() {
         block: 'start'
       });
     }
-  }, [prefersReducedMotion]);
+  }, [isHandset, prefersReducedMotion]);
 
   // Handle navigation requests passed via router state (e.g., from Journal empty state)
   useEffect(() => {
@@ -690,7 +693,7 @@ export default function TarotReading() {
 
           <div className={`max-w-5xl mx-auto ${isLandscape ? 'space-y-3' : 'space-y-6'}`}>
             <div aria-label="Choose your physical deck">
-              {!isSmallScreen && (
+              {!isHandset && (
                 <DeckSelector selectedDeck={deckStyleId} onDeckChange={handleDeckChange} />
               )}
             </div>
@@ -704,35 +707,33 @@ export default function TarotReading() {
             </div>
 
             {/* Mobile quick intention entry keeps the question visible without opening the drawer */}
-            {isSmallScreen && (
-              <div className="sm:hidden">
-                <QuickIntentionCard
-                  ref={quickIntentionCardRef}
-                  highlight={highlightQuickIntention}
-                  userQuestion={userQuestion}
-                  onQuestionChange={setUserQuestion}
-                  placeholderQuestion={EXAMPLE_QUESTIONS[placeholderIndex]}
-                  inputRef={quickIntentionInputRef}
-                  onInputFocus={scrollQuickIntentionIntoView}
-                  onCoachOpen={() => {
-                    setPendingCoachPrefill(null);
-                    setIsIntentionCoachOpen(true);
-                  }}
-                  onMoreOpen={() => {
-                    setMobileSettingsTab('intention');
-                    setIsMobileSettingsOpen(true);
-                  }}
-                  deckStyleId={deckStyleId}
-                  selectedSpread={selectedSpread}
-                  onDeckChange={() => {
-                    setMobileSettingsTab('deck');
-                    setIsMobileSettingsOpen(true);
-                  }}
-                />
-              </div>
+            {isHandset && (
+              <QuickIntentionCard
+                ref={quickIntentionCardRef}
+                highlight={highlightQuickIntention}
+                userQuestion={userQuestion}
+                onQuestionChange={setUserQuestion}
+                placeholderQuestion={EXAMPLE_QUESTIONS[placeholderIndex]}
+                inputRef={quickIntentionInputRef}
+                onInputFocus={scrollQuickIntentionIntoView}
+                onCoachOpen={() => {
+                  setPendingCoachPrefill(null);
+                  setIsIntentionCoachOpen(true);
+                }}
+                onMoreOpen={() => {
+                  setMobileSettingsTab('intention');
+                  setIsMobileSettingsOpen(true);
+                }}
+                deckStyleId={deckStyleId}
+                selectedSpread={selectedSpread}
+                onDeckChange={() => {
+                  setMobileSettingsTab('deck');
+                  setIsMobileSettingsOpen(true);
+                }}
+              />
             )}
 
-            {!isSmallScreen && (
+            {!isHandset && (
               <ReadingPreparation
                 sectionRef={prepareSectionRef}
                 userQuestion={userQuestion}
@@ -780,42 +781,13 @@ export default function TarotReading() {
         <ReadingDisplay sectionRef={readingSectionRef} />
       </main>
 
-      {/* Mobile Nav - visually obscured when full-screen surfaces are open */}
-      <MobileActionBar
-        isOverlayActive={isMobileOverlayActive}
-        isSettingsOpen={isMobileSettingsOpen}
-        isCoachOpen={isIntentionCoachOpen}
-        isShuffling={isShuffling}
-        reading={reading}
-        revealedCards={revealedCards}
-        dealIndex={dealIndex}
-        isGenerating={isGenerating}
-        personalReading={personalReading}
-        needsNarrativeGeneration={needsNarrativeGeneration}
-        stepIndicatorLabel={stepIndicatorLabel}
-        activeStep={activeStep}
-        keyboardOffset={keyboardOffset}
-        onOpenSettings={() => {
-          setMobileSettingsTab(activeStep === 'ritual' ? 'ritual' : 'intention');
-          setIsMobileSettingsOpen(true);
-        }}
-        onOpenCoach={() => {
-          setPendingCoachPrefill(null);
-          setIsIntentionCoachOpen(true);
-        }}
-        onShuffle={handleShuffle}
-        onDealNext={dealNext}
-        onRevealAll={handleRevealAll}
-        onGenerateNarrative={generatePersonalReading}
-        onSaveReading={saveReading}
-        onNewReading={handleShuffle}
-      />
-
-      <MobileSettingsDrawer
-        isOpen={isMobileSettingsOpen}
-        onClose={() => setIsMobileSettingsOpen(false)}
-        footer={(
-          <MobileActionGroup
+      {isHandset && (
+        <>
+          {/* Mobile Nav - visually obscured when full-screen surfaces are open */}
+          <MobileActionBar
+            isOverlayActive={isMobileOverlayActive}
+            isSettingsOpen={isMobileSettingsOpen}
+            isCoachOpen={isIntentionCoachOpen}
             isShuffling={isShuffling}
             reading={reading}
             revealedCards={revealedCards}
@@ -825,10 +797,12 @@ export default function TarotReading() {
             needsNarrativeGeneration={needsNarrativeGeneration}
             stepIndicatorLabel={stepIndicatorLabel}
             activeStep={activeStep}
-            showUtilityButtons={false}
-            onOpenSettings={() => setIsMobileSettingsOpen(false)}
+            keyboardOffset={keyboardOffset}
+            onOpenSettings={() => {
+              setMobileSettingsTab(activeStep === 'ritual' ? 'ritual' : 'intention');
+              setIsMobileSettingsOpen(true);
+            }}
             onOpenCoach={() => {
-              setIsMobileSettingsOpen(false);
               setPendingCoachPrefill(null);
               setIsIntentionCoachOpen(true);
             }}
@@ -839,40 +813,71 @@ export default function TarotReading() {
             onSaveReading={saveReading}
             onNewReading={handleShuffle}
           />
-        )}
-      >
-        <ReadingPreparation
-          variant="mobile"
-          userQuestion={userQuestion}
-          setUserQuestion={setUserQuestion}
-          placeholderIndex={placeholderIndex}
-          onPlaceholderRefresh={() => setPlaceholderIndex(prev => (prev + 1) % EXAMPLE_QUESTIONS.length)}
-          coachRecommendation={coachRecommendation}
-          applyCoachRecommendation={() => { applyCoachRecommendation(); setIsMobileSettingsOpen(false); }}
-          dismissCoachRecommendation={dismissCoachRecommendation}
-          onLaunchCoach={() => {
-            setIsMobileSettingsOpen(false);
-            setPendingCoachPrefill(null);
-            setIsIntentionCoachOpen(true);
-          }}
-          deckStyleId={deckStyleId}
-          onDeckChange={handleDeckChange}
-          initialMobileTab={mobileSettingsTab}
-          hasKnocked={hasKnocked}
-          handleKnock={handleKnock}
-          cutIndex={cutIndex}
-          setCutIndex={setCutIndex}
-          hasCut={hasCut}
-          applyCut={applyCut}
-          knockCount={knockCount}
-          onSkipRitual={() => {
-            handleShuffle();
-            setIsMobileSettingsOpen(false);
-          }}
-          deckAnnouncement={deckAnnouncement}
-          shouldSkipRitual={shouldSkipRitual}
-        />
-      </MobileSettingsDrawer>
+
+          <MobileSettingsDrawer
+            isOpen={isMobileSettingsOpen}
+            onClose={() => setIsMobileSettingsOpen(false)}
+            footer={(
+              <MobileActionGroup
+                isShuffling={isShuffling}
+                reading={reading}
+                revealedCards={revealedCards}
+                dealIndex={dealIndex}
+                isGenerating={isGenerating}
+                personalReading={personalReading}
+                needsNarrativeGeneration={needsNarrativeGeneration}
+                stepIndicatorLabel={stepIndicatorLabel}
+                activeStep={activeStep}
+                showUtilityButtons={false}
+                onOpenSettings={() => setIsMobileSettingsOpen(false)}
+                onOpenCoach={() => {
+                  setIsMobileSettingsOpen(false);
+                  setPendingCoachPrefill(null);
+                  setIsIntentionCoachOpen(true);
+                }}
+                onShuffle={handleShuffle}
+                onDealNext={dealNext}
+                onRevealAll={handleRevealAll}
+                onGenerateNarrative={generatePersonalReading}
+                onSaveReading={saveReading}
+                onNewReading={handleShuffle}
+              />
+            )}
+          >
+            <ReadingPreparation
+              variant="mobile"
+              userQuestion={userQuestion}
+              setUserQuestion={setUserQuestion}
+              placeholderIndex={placeholderIndex}
+              onPlaceholderRefresh={() => setPlaceholderIndex(prev => (prev + 1) % EXAMPLE_QUESTIONS.length)}
+              coachRecommendation={coachRecommendation}
+              applyCoachRecommendation={() => { applyCoachRecommendation(); setIsMobileSettingsOpen(false); }}
+              dismissCoachRecommendation={dismissCoachRecommendation}
+              onLaunchCoach={() => {
+                setIsMobileSettingsOpen(false);
+                setPendingCoachPrefill(null);
+                setIsIntentionCoachOpen(true);
+              }}
+              deckStyleId={deckStyleId}
+              onDeckChange={handleDeckChange}
+              initialMobileTab={mobileSettingsTab}
+              hasKnocked={hasKnocked}
+              handleKnock={handleKnock}
+              cutIndex={cutIndex}
+              setCutIndex={setCutIndex}
+              hasCut={hasCut}
+              applyCut={applyCut}
+              knockCount={knockCount}
+              onSkipRitual={() => {
+                handleShuffle();
+                setIsMobileSettingsOpen(false);
+              }}
+              deckAnnouncement={deckAnnouncement}
+              shouldSkipRitual={shouldSkipRitual}
+            />
+          </MobileSettingsDrawer>
+        </>
+      )}
 
       {isIntentionCoachOpen && (
         <GuidedIntentionCoach

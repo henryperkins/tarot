@@ -1,4 +1,4 @@
-import { Sparkle, ArrowRight } from '@phosphor-icons/react';
+import { Sparkle, ArrowRight, Trash } from '@phosphor-icons/react';
 
 /**
  * Get headline text from recommendation with proper fallback chain
@@ -26,23 +26,110 @@ function getJournalContent(recommendation) {
     };
 }
 
+/**
+ * Format date for note variant display
+ */
+function formatNoteDate(recommendation) {
+    const raw =
+        recommendation?.createdAt ??
+        recommendation?.created_at ??
+        recommendation?.timestamp ??
+        recommendation?.date;
+
+    if (!raw) return null;
+    const d = new Date(raw);
+    if (Number.isNaN(d.getTime())) return null;
+
+    return d.toLocaleDateString(undefined, { month: 'numeric', day: 'numeric', year: 'numeric' });
+}
+
 export function CoachSuggestion({
     recommendation,
     onApply,
     onDismiss,
     className = "",
     showTitle = true,
-    variant = 'default' // 'default' | 'journal'
+    variant = 'default' // 'default' | 'journal' | 'note'
 }) {
     if (!recommendation) return null;
 
     const isJournalVariant = variant === 'journal';
+    const isNoteVariant = variant === 'note';
+
     const headlineText = getHeadline(recommendation);
+    const noteDate = isNoteVariant ? formatNoteDate(recommendation) : null;
+
     const { subtitle: journalSubtitle, helper: journalHelper } = isJournalVariant
         ? getJournalContent(recommendation)
         : { subtitle: null, helper: null };
 
-    // Styles that match the Journal Insights Panel design
+    // NOTE VARIANT (post-it card matching reference image)
+    if (isNoteVariant) {
+        const handleCardClick = (e) => {
+            // Don't trigger if clicking delete button
+            if (e.target.closest('.coach-note__delete')) return;
+            onApply?.();
+        };
+
+        const handleDelete = (e) => {
+            e.stopPropagation();
+            onDismiss?.();
+        };
+
+        return (
+            <article
+                className={`coach-note coach-note--interactive ${className}`}
+                role="button"
+                tabIndex={0}
+                aria-label={`Use suggestion: ${headlineText}`}
+                onClick={handleCardClick}
+                onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        handleCardClick(e);
+                    }
+                }}
+            >
+                {/* Tape decoration at top */}
+                <span className="coach-note__tape" aria-hidden="true" />
+
+                {/* Paper curl at bottom-right */}
+                <span className="coach-note__curl" aria-hidden="true" />
+
+                {/* Delete button (shows on hover) */}
+                {onDismiss && (
+                    <button
+                        type="button"
+                        className="coach-note__delete"
+                        onClick={handleDelete}
+                        aria-label="Delete this suggestion"
+                    >
+                        <Trash aria-hidden="true" />
+                    </button>
+                )}
+
+                <div className="coach-note__inner">
+                    {/* Label */}
+                    <div className="coach-note__label">
+                        <Sparkle weight="fill" aria-hidden="true" />
+                        <span>Guided Coach</span>
+                    </div>
+
+                    {/* Question/title */}
+                    {headlineText && (
+                        <p className="coach-note__title">{headlineText}</p>
+                    )}
+
+                    {/* Date at bottom */}
+                    {noteDate && (
+                        <div className="coach-note__date">{noteDate}</div>
+                    )}
+                </div>
+            </article>
+        );
+    }
+
+    // Existing variants (default and journal)
     const containerClasses = isJournalVariant
         ? `rounded-3xl border border-secondary/20 bg-surface/40 p-5 ${className}`
         : `mt-3 rounded-xl border border-primary/30 bg-primary/5 p-4 ${className}`;

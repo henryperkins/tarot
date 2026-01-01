@@ -73,7 +73,7 @@ function buildShareOgMetaTags(token, shareRecord, entries, baseUrl) {
   const title = shareRecord?.title || entry?.spread || 'Tarot Reading';
   const description = entry?.question
     ? `"${entry.question.slice(0, 100)}${entry.question.length > 100 ? '...' : ''}"`
-    : `A ${entry?.spread || 'tarot'} reading shared via Mystic Tarot`;
+    : `A ${entry?.spread || 'tarot'} reading shared via Tableu`;
 
   const ogImageUrl = `${baseUrl}/api/share/${token}/og-image`;
   const shareUrl = `${baseUrl}/share/${token}`;
@@ -89,17 +89,17 @@ function buildShareOgMetaTags(token, shareRecord, entries, baseUrl) {
     <!-- Open Graph / Facebook -->
     <meta property="og:type" content="website">
     <meta property="og:url" content="${escape(shareUrl)}">
-    <meta property="og:title" content="${escape(title)} | Mystic Tarot">
+    <meta property="og:title" content="${escape(title)} | Tableu">
     <meta property="og:description" content="${escape(description)}">
     <meta property="og:image" content="${escape(ogImageUrl)}">
     <meta property="og:image:width" content="1200">
     <meta property="og:image:height" content="630">
-    <meta property="og:site_name" content="Mystic Tarot">
+    <meta property="og:site_name" content="Tableu">
 
     <!-- Twitter -->
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:url" content="${escape(shareUrl)}">
-    <meta name="twitter:title" content="${escape(title)} | Mystic Tarot">
+    <meta name="twitter:title" content="${escape(title)} | Tableu">
     <meta name="twitter:description" content="${escape(description)}">
     <meta name="twitter:image" content="${escape(ogImageUrl)}">
   `;
