@@ -131,10 +131,10 @@ This starts both the Vite dev server and Wrangler Workers dev server. Access the
 
 ### Important URLs During Development
 
-| URL                   | Purpose                |
-| --------------------- | ---------------------- |
+| URL                   | Purpose                                |
+| --------------------- | -------------------------------------- |
 | http://localhost:5173 | Full app with API (HMR + `/api` proxy) |
-| http://localhost:8787 | Workers preview (serves `dist/`)      |
+| http://localhost:8787 | Workers preview (serves `dist/`)       |
 
 ## 🧪 Testing
 

@@ -6,13 +6,13 @@ Guidance for Claude Code when working with this repository.
 
 **Tableu** — React + Vite tarot reading app deployed to Cloudflare Workers. Designed to feel like sitting with a practiced reader, not a generic card widget.
 
-| Layer | Tech | Location |
-|-------|------|----------|
-| Frontend | React + Vite | `src/` |
-| Backend | Cloudflare Workers | `src/worker/index.js` → `functions/api/` |
-| AI | Claude Sonnet 4.5 (fallback: local composer) | `functions/api/tarot-reading.js` |
-| Database | Cloudflare D1 | `migrations/*.sql` |
-| Storage | Cloudflare KV + R2 | Metrics, feedback, exports, archives |
+| Layer    | Tech                                         | Location                                 |
+| -------- | -------------------------------------------- | ---------------------------------------- |
+| Frontend | React + Vite                                 | `src/`                                   |
+| Backend  | Cloudflare Workers                           | `src/worker/index.js` → `functions/api/` |
+| AI       | Claude Sonnet 4.5 (fallback: local composer) | `functions/api/tarot-reading.js`         |
+| Database | Cloudflare D1                                | `migrations/*.sql`                       |
+| Storage  | Cloudflare KV + R2                           | Metrics, feedback, exports, archives     |
 
 **Deck**: 78 cards (22 Major + 56 Minor Arcana) with 1909 Rider-Waite public domain images.
 
@@ -28,21 +28,23 @@ npm run deploy   # Deploy to Cloudflare Workers
 
 ### Three `lib/` Folders (Important!)
 
-| Path | Environment | Access |
-|------|-------------|--------|
-| `src/lib/` | Browser | DOM, window APIs |
-| `functions/lib/` | Cloudflare Workers | env, D1, KV, R2, secrets |
-| `scripts/evaluation/lib/` | Node.js | Development tooling |
+| Path                      | Environment        | Access                   |
+| ------------------------- | ------------------ | ------------------------ |
+| `src/lib/`                | Browser            | DOM, window APIs         |
+| `functions/lib/`          | Cloudflare Workers | env, D1, KV, R2, secrets |
+| `scripts/evaluation/lib/` | Node.js            | Development tooling      |
 
 ### Key Files
 
 **Frontend (`src/`)**
+
 - `TarotReading.jsx` — Main orchestration (ritual → spread → draw → reading)
 - `data/spreads.js` — Spread definitions (source of truth for positions)
 - `data/majorArcana.js`, `data/minorArcana.js` — Card data with meanings
 - `lib/deck.js` — Seeded shuffle, `drawSpread()`, `computeSeed()`
 
 **Backend (`functions/`)**
+
 - `api/tarot-reading.js` — Main endpoint: validates payload, calls Claude or local composer
 - `api/tts.js` — Azure TTS with rate limiting
 - `api/journal.js` — Reading history (dedup by `session_seed`)
@@ -55,12 +57,14 @@ npm run deploy   # Deploy to Cloudflare Workers
 - `lib/scheduled.js` — Cron tasks: KV→R2 archival, session cleanup
 
 **Scripts (`scripts/`)**
+
 - `lib/dataAccess.js` — Shared R2/KV/D1 access helpers
 - `training/exportReadings.js` — Export training data (journal + feedback + metrics + eval)
 - `evaluation/exportEvalData.js` — Export eval-only data for calibration
 - `evaluation/calibrateEval.js` — Analyze score distributions
 
 **Shared (`shared/`)**
+
 - `vision/` — Physical deck recognition pipeline
 - `symbols/symbolAnnotations.js` — Symbol meanings database
 
@@ -74,14 +78,14 @@ Auth: `AuthModal.jsx`, `GlobalNav.jsx`, `UserMenu.jsx`
 
 ## Spreads (from `src/data/spreads.js`)
 
-| Key | Name | Cards | Positions |
-|-----|------|-------|-----------|
-| `single` | One-Card Insight | 1 | Theme/Guidance |
-| `threeCard` | Three-Card Story | 3 | Past → Present → Future |
-| `fiveCard` | Five-Card Clarity | 5 | Core, Challenge, Hidden, Support, Direction |
-| `decision` | Decision/Two-Path | 5 | Heart, Path A, Path B, Clarity, Free Will |
-| `relationship` | Relationship Snapshot | 3 | You, Them, Connection |
-| `celtic` | Celtic Cross | 10 | Present, Challenge, Past, Near Future, Conscious, Subconscious, Advice, External, Hopes/Fears, Outcome |
+| Key            | Name                  | Cards | Positions                                                                                              |
+| -------------- | --------------------- | ----- | ------------------------------------------------------------------------------------------------------ |
+| `single`       | One-Card Insight      | 1     | Theme/Guidance                                                                                         |
+| `threeCard`    | Three-Card Story      | 3     | Past → Present → Future                                                                                |
+| `fiveCard`     | Five-Card Clarity     | 5     | Core, Challenge, Hidden, Support, Direction                                                            |
+| `decision`     | Decision/Two-Path     | 5     | Heart, Path A, Path B, Clarity, Free Will                                                              |
+| `relationship` | Relationship Snapshot | 3     | You, Them, Connection                                                                                  |
+| `celtic`       | Celtic Cross          | 10    | Present, Challenge, Past, Near Future, Conscious, Subconscious, Advice, External, Hopes/Fears, Outcome |
 
 **Constraint**: Position meanings are used by `buildCardsSection` and frontend text. Don't change casually.
 
@@ -98,6 +102,7 @@ Auth: `AuthModal.jsx`, `GlobalNav.jsx`, `UserMenu.jsx`
 **Position-first**: Same card reads differently in "Challenge" vs "Advice" vs "Outcome"
 
 **Reversals** (pick ONE model per reading):
+
 - Blocked/delayed expression
 - Excess or deficiency
 - Internalized process
@@ -123,6 +128,7 @@ Auth: `AuthModal.jsx`, `GlobalNav.jsx`, `UserMenu.jsx`
 ## Database Schema
 
 Key tables (see `migrations/`):
+
 - `users`, `sessions` — Auth
 - `journal_entries` — Saved readings (dedup index on `user_id, session_seed`)
 - `share_tokens` — Reading sharing
@@ -147,6 +153,7 @@ npm run migrations:apply    # Apply migrations only (no deploy)
 **CI/CD:**
 
 The GitHub Actions `deploy.yml` workflow automatically:
+
 1. Runs CI tests
 2. Applies any pending migrations
 3. Deploys the worker
@@ -172,15 +179,15 @@ Migration files should be idempotent where possible (use `IF NOT EXISTS`).
 
 Configured in `wrangler.jsonc`:
 
-| Binding | Type | Purpose |
-|---------|------|---------|
-| `DB` | D1 | Main database (users, sessions, journal, etc.) |
-| `AI` | Workers AI | Automated reading evaluation (Llama 3 8B) |
-| `RATELIMIT` | KV | Rate limiting counters (auto-expires) |
-| `METRICS_DB` | KV | Reading metrics + eval scores (archived to R2 daily) |
-| `FEEDBACK_KV` | KV | User feedback (archived to R2 daily) |
-| `LOGS_BUCKET` | R2 | Archives, exports, logs storage |
-| `ASSETS` | Assets | Static frontend files |
+| Binding       | Type       | Purpose                                              |
+| ------------- | ---------- | ---------------------------------------------------- |
+| `DB`          | D1         | Main database (users, sessions, journal, etc.)       |
+| `AI`          | Workers AI | Automated reading evaluation (Llama 3 8B)            |
+| `RATELIMIT`   | KV         | Rate limiting counters (auto-expires)                |
+| `METRICS_DB`  | KV         | Reading metrics + eval scores (archived to R2 daily) |
+| `FEEDBACK_KV` | KV         | User feedback (archived to R2 daily)                 |
+| `LOGS_BUCKET` | R2         | Archives, exports, logs storage                      |
+| `ASSETS`      | Assets     | Static frontend files                                |
 
 ### R2 Bucket Structure (`tarot-logs`)
 
@@ -198,6 +205,7 @@ tarot-logs/
 ### Scheduled Tasks (Cron)
 
 Daily at 3 AM UTC (`0 3 * * *`):
+
 1. Archive `METRICS_DB` keys to R2 and delete from KV
 2. Archive `FEEDBACK_KV` keys to R2 and delete from KV
 3. Clean up expired sessions from D1
@@ -208,6 +216,7 @@ Daily at 3 AM UTC (`0 3 * * *`):
 Every AI-generated reading is automatically evaluated on quality dimensions using Workers AI (Llama 3 8B). The evaluation runs asynchronously via `waitUntil()` so it doesn't block user responses.
 
 **Scoring dimensions** (1-5 scale):
+
 - `personalization` — Does the reading address the user's specific question?
 - `tarot_coherence` — Accuracy to cards, positions, traditional meanings
 - `tone` — Empowering, agency-preserving language
@@ -232,6 +241,7 @@ Every AI-generated reading is automatically evaluated on quality dimensions usin
 **Note:** Quality filtering is **enabled by default** and filters passages below 30% relevance score. Slimming is **disabled by default** because modern LLMs handle full prompts easily. These two features are independent.
 
 **Data pipeline:**
+
 1. Reading generated → quality gate → response sent
 2. `waitUntil()` runs evaluation asynchronously
 3. Scores stored in `METRICS_DB` with reading metrics
@@ -239,6 +249,7 @@ Every AI-generated reading is automatically evaluated on quality dimensions usin
 5. Export scripts pull from R2 for analysis
 
 **Export & calibration:**
+
 ```bash
 # Full training export with eval scores
 node scripts/training/exportReadings.js --metrics-source r2 --out readings.jsonl
@@ -266,12 +277,13 @@ Key test files: `deck.test.mjs`, `narrativeBuilder.*.test.mjs`, `narrativeSpine.
 
 Two test modes are available:
 
-| Mode | Command | Server | Use Case |
-|------|---------|--------|----------|
-| **Frontend** | `npm run test:e2e` | Vite only (5173) | UI flows, no API calls |
+| Mode            | Command                        | Server            | Use Case               |
+| --------------- | ------------------------------ | ----------------- | ---------------------- |
+| **Frontend**    | `npm run test:e2e`             | Vite only (5173)  | UI flows, no API calls |
 | **Integration** | `npm run test:e2e:integration` | Full stack (8787) | API-dependent features |
 
 **Frontend tests** (default):
+
 ```bash
 npm run test:e2e          # Run all E2E tests headless
 npm run test:e2e:ui       # Interactive UI mode (recommended for debugging)
@@ -281,6 +293,7 @@ npm run test:e2e:report   # View HTML report after run
 ```
 
 **Integration tests** (full stack):
+
 ```bash
 npm run test:e2e:integration      # Run with Workers backend
 npm run test:e2e:integration:ui   # Interactive mode with backend
@@ -289,20 +302,21 @@ npm run test:e2e:integration:ui   # Interactive mode with backend
 > **Note**: Integration tests require `.dev.vars` with API credentials. Frontend tests are faster and don't require credentials, but can't test narrative generation, journal sync, or other API-dependent features.
 
 **Test files** (`e2e/`):
+
 - `tarot-reading.spec.js` — Core reading flow (spread → ritual → reveal → narrative)
 - `journal-filters.spec.js` — Journal filter UI and functionality
 - `*.integration.spec.js` — Tests requiring Worker APIs (run only in integration mode)
 
 **Coverage** (28 tests):
 
-| Category | Desktop | Mobile | Description |
-|----------|---------|--------|-------------|
-| Reading Flow | 6 | 3 | Spread selection, ritual, reveal |
-| Ritual Mechanics | 3 | - | Knocks, cut slider, skip |
-| Journal Filters | 4 | 4 | Filter placement, sync, accordion |
-| Error Handling | 2 | - | Network errors, retry |
-| Accessibility | 3 | - | Keyboard nav, ARIA labels |
-| Performance | 2 | - | Load time, animations |
+| Category         | Desktop | Mobile | Description                       |
+| ---------------- | ------- | ------ | --------------------------------- |
+| Reading Flow     | 6       | 3      | Spread selection, ritual, reveal  |
+| Ritual Mechanics | 3       | -      | Knocks, cut slider, skip          |
+| Journal Filters  | 4       | 4      | Filter placement, sync, accordion |
+| Error Handling   | 2       | -      | Network errors, retry             |
+| Accessibility    | 3       | -      | Keyboard nav, ARIA labels         |
+| Performance      | 2       | -      | Load time, animations             |
 
 **Projects**: Tests run on `desktop` (Chrome 1280×900) and `mobile` (iPhone 13 375×667) viewports via `@desktop`/`@mobile` tags.
 
@@ -326,23 +340,23 @@ See `tests/accessibility/README.md` for manual testing guides (axe DevTools, key
 
 ## API Endpoints
 
-| Endpoint | Method | Purpose |
-|----------|--------|---------|
-| `/api/tarot-reading` | POST | Generate a reading |
-| `/api/tts` | POST | Text-to-speech |
-| `/api/journal` | GET/POST | List/save journal entries |
-| `/api/journal/:id` | GET/DELETE | Get/delete single entry |
-| `/api/journal-export` | GET | Export journal as PDF/txt/json |
-| `/api/journal-export/:id` | GET | Export single reading |
-| `/api/share` | POST | Create share link |
-| `/api/share/:token` | GET/DELETE | View/revoke share |
-| `/api/feedback` | POST | Submit feedback |
-| `/api/archetype-journey` | GET/POST/PUT | Analytics: GET data, POST track cards, PUT preferences |
-| `/api/archetype-journey-backfill` | POST | Backfill card_appearances from existing journal entries |
-| `/api/auth/*` | Various | Login, logout, register, me |
-| `/api/keys` | GET/POST | API key management |
-| `/api/admin/archive` | POST | Manual archival trigger (requires ADMIN_API_KEY) |
-| `/api/coach-extraction-backfill` | GET/POST | Backfill AI extraction for coach suggestions (requires ADMIN_API_KEY) |
+| Endpoint                          | Method       | Purpose                                                               |
+| --------------------------------- | ------------ | --------------------------------------------------------------------- |
+| `/api/tarot-reading`              | POST         | Generate a reading                                                    |
+| `/api/tts`                        | POST         | Text-to-speech                                                        |
+| `/api/journal`                    | GET/POST     | List/save journal entries                                             |
+| `/api/journal/:id`                | GET/DELETE   | Get/delete single entry                                               |
+| `/api/journal-export`             | GET          | Export journal as PDF/txt/json                                        |
+| `/api/journal-export/:id`         | GET          | Export single reading                                                 |
+| `/api/share`                      | POST         | Create share link                                                     |
+| `/api/share/:token`               | GET/DELETE   | View/revoke share                                                     |
+| `/api/feedback`                   | POST         | Submit feedback                                                       |
+| `/api/archetype-journey`          | GET/POST/PUT | Analytics: GET data, POST track cards, PUT preferences                |
+| `/api/archetype-journey-backfill` | POST         | Backfill card_appearances from existing journal entries               |
+| `/api/auth/*`                     | Various      | Login, logout, register, me                                           |
+| `/api/keys`                       | GET/POST     | API key management                                                    |
+| `/api/admin/archive`              | POST         | Manual archival trigger (requires ADMIN_API_KEY)                      |
+| `/api/coach-extraction-backfill`  | GET/POST     | Backfill AI extraction for coach suggestions (requires ADMIN_API_KEY) |
 
 ## Secrets (via `wrangler secret put`)
 

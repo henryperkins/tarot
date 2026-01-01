@@ -498,8 +498,7 @@ export function useJourneyData({
     });
   }, [
     useServerData,
-    archetypeData.topCards,
-    archetypeData.getCardTrends,
+    archetypeData,
     sortedBadges,
     insightsStats.frequentCards,
     normalizeD1Card,

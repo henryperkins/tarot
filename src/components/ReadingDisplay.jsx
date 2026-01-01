@@ -16,11 +16,13 @@ import { NarrativeSkeleton } from './NarrativeSkeleton';
 import { DeckPile } from './DeckPile';
 import { DeckRitual } from './DeckRitual';
 import { RitualNudge, JournalNudge } from './nudges';
+import { MoonPhaseIndicator } from './MoonPhaseIndicator';
 import { useReading } from '../contexts/ReadingContext';
 import { usePreferences } from '../contexts/PreferencesContext';
 import { useSaveReading } from '../hooks/useSaveReading';
 import { useFeatureFlags } from '../hooks/useFeatureFlags';
 import { useAuth } from '../contexts/AuthContext';
+import { useToast } from '../contexts/ToastContext.jsx';
 import { useSmallScreen } from '../hooks/useSmallScreen';
 import { useLandscape } from '../hooks/useLandscape';
 import { useReducedMotion } from '../hooks/useReducedMotion';
@@ -28,6 +30,7 @@ import { useReducedMotion } from '../hooks/useReducedMotion';
 export function ReadingDisplay({ sectionRef }) {
     const navigate = useNavigate();
     const { saveReading, isSaving } = useSaveReading();
+    const { publish: publishToast } = useToast();
 
     // --- Contexts ---
     const {
@@ -204,20 +207,67 @@ export function ReadingDisplay({ sectionRef }) {
         return pos ? pos.split('—')[0].trim() : `Card ${nextIndex + 1}`;
     }, [reading, revealedCards, spreadInfo]);
 
-    // Track first completed reading for nudge system
     useEffect(() => {
-        // Increment reading count when first narrative completes successfully
-        if (personalReading && !personalReading.isError && nudgeState.readingCount === 0) {
-            incrementReadingCount();
+        if (!personalReading || personalReading.isError) return;
+        if (narrativePhase !== 'complete') return;
+
+        const requestId = readingMeta?.requestId || personalReading?.requestId || null;
+        if (!requestId) return;
+
+        // Persist dedupe to PreferencesContext so navigating away/back doesn’t re-count.
+        if (nudgeState?.lastCountedReadingRequestId === requestId) return;
+
+        const currentCount = Number(nudgeState?.readingCount) || 0;
+        const nextCount = currentCount + 1;
+
+        incrementReadingCount(requestId);
+
+        const milestoneCopy = {
+            1: {
+                title: 'Your first reading is complete',
+                description: 'Trust what resonated. If you’d like to revisit later, save it to your journal.'
+            },
+            10: {
+                title: '10 readings ✨',
+                description: 'A pattern is forming. Your intuition is getting louder.'
+            },
+            25: {
+                title: '25 readings',
+                description: 'Consistency is magic. You’re building real self-knowledge.'
+            },
+            50: {
+                title: '50 readings',
+                description: 'You’ve developed a strong relationship with the cards—keep following the thread.'
+            },
+            100: {
+                title: '100 readings',
+                description: 'Centennial insight unlocked. Your inner compass is well-trained.'
+            }
+        };
+
+        const copy = milestoneCopy[nextCount];
+        if (copy) {
+            publishToast({
+                type: 'success',
+                title: copy.title,
+                description: copy.description,
+                duration: nextCount === 1 ? 5200 : 4200
+            });
         }
-    }, [personalReading, nudgeState.readingCount, incrementReadingCount]);
+    }, [personalReading, personalReading?.requestId, readingMeta?.requestId, narrativePhase, nudgeState?.readingCount, nudgeState?.lastCountedReadingRequestId, incrementReadingCount, publishToast]);
 
     return (
         <section ref={sectionRef} id="step-reading" tabIndex={-1} className="scroll-mt-[6.5rem] sm:scroll-mt-[7.5rem]" aria-label="Draw and explore your reading">
             <div className={isLandscape ? 'mb-2' : 'mb-4 sm:mb-5'}>
-                <p className="text-xs-plus sm:text-sm uppercase tracking-[0.12em] text-accent">
-                    {displayName ? `Reading for ${displayName}` : 'Reading'}
-                </p>
+                <div className="flex items-center justify-between gap-3">
+                    <p className="text-xs-plus sm:text-sm uppercase tracking-[0.12em] text-accent">
+                        {displayName ? `Reading for ${displayName}` : 'Reading'}
+                    </p>
+                    <MoonPhaseIndicator
+                        ephemeris={readingMeta?.ephemeris}
+                        variant={isCompactScreen ? 'icon' : 'compact'}
+                    />
+                </div>
             </div>
             {/* Primary CTA */}
             {!reading && (

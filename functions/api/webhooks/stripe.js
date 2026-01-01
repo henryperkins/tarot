@@ -245,7 +245,7 @@ export async function onRequestPost(context) {
     // Idempotency: Use claim-first pattern to prevent race conditions
     // INSERT OR IGNORE atomically claims the event; if it already exists, changes=0
     // This is safer than SELECT-then-INSERT which can race under concurrent delivery
-    let eventClaimed = false;
+    let _eventClaimed = false;
     try {
       const claim = await env.DB.prepare(`
         INSERT OR IGNORE INTO processed_webhook_events
@@ -261,7 +261,7 @@ export async function onRequestPost(context) {
           { status: 200, headers: { 'Content-Type': 'application/json' } }
         );
       }
-      eventClaimed = true;
+      _eventClaimed = true;
     } catch (err) {
       // If idempotency claim fails, log but continue processing
       // Better to potentially double-process than to fail silently

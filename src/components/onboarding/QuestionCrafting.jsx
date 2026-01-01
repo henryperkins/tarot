@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { ArrowLeft, ArrowRight, Sparkle, Lightning, Check, X } from '@phosphor-icons/react';
 import { EXAMPLE_QUESTIONS } from '../../data/exampleQuestions';
 import { scoreQuestion, getQualityLevel } from '../../lib/questionQuality';
@@ -46,6 +46,26 @@ export function QuestionCrafting({ question, onQuestionChange, onNext, onBack })
 
   const quality = useMemo(() => scoreQuestion(question), [question]);
   const qualityLevel = useMemo(() => getQualityLevel(quality.score), [quality.score]);
+
+  // Celebrate when user reaches "Excellent" question quality.
+  const [showExcellentBurst, setShowExcellentBurst] = useState(false);
+  const prevScoreRef = useRef(quality.score);
+
+  useEffect(() => {
+    const prev = prevScoreRef.current;
+    prevScoreRef.current = quality.score;
+
+    if (prefersReducedMotion) return;
+    if (prev < 85 && quality.score >= 85) {
+      // Defer setState to avoid synchronous call in effect (satisfies react-hooks/set-state-in-effect)
+      const showTimeout = setTimeout(() => setShowExcellentBurst(true), 0);
+      const hideTimeout = setTimeout(() => setShowExcellentBurst(false), 650);
+      return () => {
+        clearTimeout(showTimeout);
+        clearTimeout(hideTimeout);
+      };
+    }
+  }, [quality.score, prefersReducedMotion]);
 
   const handleExampleClick = (example) => {
     onQuestionChange(example);
@@ -97,7 +117,16 @@ export function QuestionCrafting({ question, onQuestionChange, onNext, onBack })
             <div className="flex items-center justify-between mb-2">
               <span className="text-xs text-muted">Question quality</span>
               <span className="flex items-center gap-1 text-sm font-medium">
-                <span>{qualityLevel.emoji}</span>
+                <span className="relative inline-flex items-center">
+                  <span>{qualityLevel.emoji}</span>
+                  {showExcellentBurst && (
+                    <Sparkle
+                      className="absolute -top-2 -right-2 w-3.5 h-3.5 text-accent motion-safe:animate-ping"
+                      weight="fill"
+                      aria-hidden="true"
+                    />
+                  )}
+                </span>
                 <span className="text-main">{qualityLevel.label}</span>
               </span>
             </div>

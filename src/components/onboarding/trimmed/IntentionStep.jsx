@@ -1,5 +1,5 @@
-import { useMemo } from 'react';
-import { ArrowLeft } from '@phosphor-icons/react';
+import { useMemo, useEffect, useRef, useState } from 'react';
+import { ArrowLeft, Sparkle } from '@phosphor-icons/react';
 import { scoreQuestion, getQualityLevel } from '../../../lib/questionQuality';
 import { useReducedMotion } from '../../../hooks/useReducedMotion';
 import { useLandscape } from '../../../hooks/useLandscape';
@@ -23,6 +23,25 @@ export function IntentionStep({ question, onQuestionChange, onNext, onBack }) {
 
   const quality = useMemo(() => scoreQuestion(question), [question]);
   const qualityLevel = useMemo(() => getQualityLevel(quality.score), [quality.score]);
+
+  const [showExcellentBurst, setShowExcellentBurst] = useState(false);
+  const prevScoreRef = useRef(quality.score);
+
+  useEffect(() => {
+    const prev = prevScoreRef.current;
+    prevScoreRef.current = quality.score;
+
+    if (prefersReducedMotion) return;
+    if (prev < 85 && quality.score >= 85) {
+      // Defer setState to avoid synchronous call in effect (satisfies react-hooks/set-state-in-effect)
+      const showTimeout = setTimeout(() => setShowExcellentBurst(true), 0);
+      const hideTimeout = setTimeout(() => setShowExcellentBurst(false), 650);
+      return () => {
+        clearTimeout(showTimeout);
+        clearTimeout(hideTimeout);
+      };
+    }
+  }, [quality.score, prefersReducedMotion]);
 
   const hasQuestion = question.trim().length > 0;
   const showQualityIndicator = question.trim().length > 5;
@@ -66,7 +85,16 @@ export function IntentionStep({ question, onQuestionChange, onNext, onBack }) {
             role="status"
             aria-live="polite"
           >
-            <span aria-hidden="true">{qualityLevel.emoji}</span>
+            <span className="relative inline-flex items-center" aria-hidden="true">
+              <span>{qualityLevel.emoji}</span>
+              {showExcellentBurst && (
+                <Sparkle
+                  className="absolute -top-2 -right-2 h-3.5 w-3.5 text-accent motion-safe:animate-ping"
+                  weight="fill"
+                  aria-hidden="true"
+                />
+              )}
+            </span>
             <span className="text-muted">{qualityLevel.label}</span>
             {quality.feedback.length > 0 && (
               <span className="text-muted/70 text-xs hidden xs:inline">

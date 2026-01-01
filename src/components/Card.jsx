@@ -155,7 +155,8 @@ export function Card({
 
     if (!isVisuallyRevealed || prev) {
       if (!isVisuallyRevealed) {
-        setElementFlashActive(false);
+        // Defer to next frame to avoid synchronous setState cascade
+        requestAnimationFrame(() => setElementFlashActive(false));
       }
       return;
     }
@@ -163,8 +164,11 @@ export function Card({
     if (prefersReducedMotion) return;
     if (!suitAccentColor || !suitAccentSoft) return;
 
-    setElementFlashKey(k => k + 1);
-    setElementFlashActive(true);
+    // These are deferred via the animation callback timing
+    requestAnimationFrame(() => {
+      setElementFlashKey(k => k + 1);
+      setElementFlashActive(true);
+    });
     if (elementFlashTimeoutRef.current) {
       window.clearTimeout(elementFlashTimeoutRef.current);
     }

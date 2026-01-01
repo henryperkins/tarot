@@ -412,6 +412,22 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply,
     [questionQuality.score]
   );
 
+  // Celebrate when the coached question reaches "Excellent" quality.
+  const [showExcellentBurst, setShowExcellentBurst] = useState(false);
+  const prevQualityScoreRef = useRef(questionQuality.score);
+
+  useEffect(() => {
+    const prev = prevQualityScoreRef.current;
+    prevQualityScoreRef.current = questionQuality.score;
+
+    if (prefersReducedMotion) return;
+    if (prev < 85 && questionQuality.score >= 85) {
+      setShowExcellentBurst(true);
+      const timeout = setTimeout(() => setShowExcellentBurst(false), 650);
+      return () => clearTimeout(timeout);
+    }
+  }, [questionQuality.score, prefersReducedMotion]);
+
   const summary = getCoachSummary({ topic, timeframe, depth });
 
   const questionContextChips = useMemo(() => {
@@ -1137,7 +1153,17 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply,
                   Question quality
                 </span>
                 <span className="text-xs font-semibold text-secondary">
-                  {qualityLevel.emoji} {qualityLevel.label}
+                  <span className="relative inline-flex items-center">
+                    <span aria-hidden="true">{qualityLevel.emoji}</span>
+                    {showExcellentBurst && (
+                      <Sparkle
+                        className="absolute -top-2 -right-2 h-3.5 w-3.5 text-accent motion-safe:animate-ping"
+                        weight="fill"
+                        aria-hidden="true"
+                      />
+                    )}
+                  </span>
+                  <span className="ml-1">{qualityLevel.label}</span>
                 </span>
               </div>
               <div className="h-2 w-full rounded-full bg-surface-muted/80 overflow-hidden">

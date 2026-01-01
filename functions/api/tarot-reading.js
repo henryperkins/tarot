@@ -250,6 +250,32 @@ function detectForecastTimeframe(userQuestion) {
   return null;
 }
 
+// Return a minimal, UI-friendly ephemeris payload.
+// We intentionally do NOT ship full planet/aspect arrays to keep payload size small.
+function buildEphemerisClientPayload(ephemerisContext) {
+  if (!ephemerisContext?.available) {
+    return {
+      available: false,
+      error: ephemerisContext?.error || null
+    };
+  }
+
+  const moon = ephemerisContext.moonPhase || null;
+  return {
+    available: true,
+    timestamp: ephemerisContext.timestamp || null,
+    source: ephemerisContext.source || null,
+    summary: getEphemerisSummary(ephemerisContext),
+    moonPhase: moon ? {
+      phaseName: moon.phaseName || null,
+      illumination: typeof moon.illumination === 'number' ? moon.illumination : null,
+      sign: moon.sign || null,
+      isWaxing: typeof moon.isWaxing === 'boolean' ? moon.isWaxing : null,
+      interpretation: moon.interpretation || null
+    } : null
+  };
+}
+
 const SPREAD_NAME_MAP = {
   'Celtic Cross (Classic 10-Card)': { key: 'celtic', count: 10 },
   'Three-Card Story (Past · Present · Future)': { key: 'threeCard', count: 3 },
@@ -284,7 +310,7 @@ function getSpreadDefinition(spreadName) {
   return SPREAD_NAME_MAP[spreadName] || null;
 }
 
-function getExpectedCardCount(spreadName) {
+function _getExpectedCardCount(spreadName) {
   const def = getSpreadDefinition(spreadName);
   return def?.count ?? null;
 }
@@ -800,6 +826,7 @@ export const onRequestPost = async ({ request, env, waitUntil }) => {
         requestId,
         themes: analysis.themes,
         emotionalTone,
+        ephemeris: buildEphemerisClientPayload(analysis.ephemerisContext),
         context,
         contextDiagnostics,
         narrativeMetrics,
@@ -1158,6 +1185,7 @@ export const onRequestPost = async ({ request, env, waitUntil }) => {
       backendErrors: backendErrors.length > 0 ? backendErrors : undefined,
       themes: analysis.themes,
       emotionalTone,
+      ephemeris: buildEphemerisClientPayload(analysis.ephemerisContext),
       context,
       contextDiagnostics: finalContextDiagnostics,
       narrativeMetrics,

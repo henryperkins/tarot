@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { GridFour, Question, Sparkle, Eye } from '@phosphor-icons/react';
+import { useReducedMotion } from '../hooks/useReducedMotion';
 
 const STEP_ICONS = {
   'spread': GridFour,
@@ -21,6 +22,28 @@ export function StepProgress({ steps = [], activeStep, onSelect, condensed = fal
   const tooltipTimeoutRef = useRef(null);
   const buttonRefs = useRef({});
   const isTouchActiveRef = useRef(false);
+  const prefersReducedMotion = useReducedMotion();
+
+  // Micro-celebration when advancing steps.
+  const [celebrateStepId, setCelebrateStepId] = useState(null);
+  const prevActiveStepRef = useRef(activeStep);
+
+  useEffect(() => {
+    const prev = prevActiveStepRef.current;
+    prevActiveStepRef.current = activeStep;
+
+    if (prefersReducedMotion) return;
+    if (!activeStep) return;
+    if (!prev || prev === activeStep) return;
+
+    // Defer setState to avoid synchronous call in effect (satisfies react-hooks/set-state-in-effect)
+    const showTimeout = setTimeout(() => setCelebrateStepId(activeStep), 0);
+    const hideTimeout = setTimeout(() => setCelebrateStepId(null), 350);
+    return () => {
+      clearTimeout(showTimeout);
+      clearTimeout(hideTimeout);
+    };
+  }, [activeStep, prefersReducedMotion]);
 
   // Clear tooltip timeout on unmount
   useEffect(() => {
@@ -113,10 +136,11 @@ export function StepProgress({ steps = [], activeStep, onSelect, condensed = fal
       >
         {steps.map((step, index) => {
           const isActive = step.id === activeStep;
+          const isCelebrating = step.id === celebrateStepId;
           const StepIcon = STEP_ICONS[step.id];
           const shortLabel = STEP_SHORT_LABELS[step.id] || step.label;
           const isTooltipVisible = activeTooltip === step.id;
-          
+
           // Calculate tooltip position adjustment for edge items
           const isFirstStep = index === 0;
           const isLastStep = index === steps.length - 1;
@@ -132,6 +156,7 @@ export function StepProgress({ steps = [], activeStep, onSelect, condensed = fal
                   focus-visible:ring-offset-2 focus-visible:ring-offset-main
                   touch-manipulation active:scale-[0.97]
                   min-h-[44px]
+                  ${isCelebrating ? 'motion-safe:animate-pop-in' : ''}
                   ${condensed
                     ? 'px-1.5 xs:px-2 sm:px-3 py-2 text-[0.7rem] xs:text-[0.75rem]'
                     : 'px-2 xs:px-3 sm:px-4 py-2 xs:py-2.5 text-[0.72rem] xs:text-[0.78rem] sm:text-sm'
@@ -184,10 +209,10 @@ export function StepProgress({ steps = [], activeStep, onSelect, condensed = fal
                   px-2.5 xs:px-3 py-1.5 bg-main border border-secondary/40 rounded-lg
                   shadow-lg whitespace-nowrap z-50
                   transition-all duration-200
-                  ${isFirstStep 
-                    ? 'left-0' 
-                    : isLastStep 
-                    ? 'right-0' 
+                  ${isFirstStep
+                    ? 'left-0'
+                    : isLastStep
+                    ? 'right-0'
                     : 'left-1/2 -translate-x-1/2'
                   }
                   ${isTooltipVisible
@@ -201,10 +226,10 @@ export function StepProgress({ steps = [], activeStep, onSelect, condensed = fal
                 {/* Arrow - positioned based on tooltip alignment */}
                 <div
                   className={`absolute top-full -mt-1 border-4 border-transparent border-t-main ${
-                    isFirstStep 
-                      ? 'left-4' 
-                      : isLastStep 
-                      ? 'right-4' 
+                    isFirstStep
+                      ? 'left-4'
+                      : isLastStep
+                      ? 'right-4'
                       : 'left-1/2 -translate-x-1/2'
                   }`}
                   style={{ filter: 'drop-shadow(0 1px 0 rgba(0,0,0,0.1))' }}

@@ -81,7 +81,8 @@ export function ReadingProvider({ children }) {
         spreadName: null,
         deckStyle: null,
         userQuestion: null,
-        graphContext: null
+        graphContext: null,
+        ephemeris: null
     });
 
     // 5. UI State
@@ -151,7 +152,7 @@ export function ReadingProvider({ children }) {
         setJournalStatus(null);
         setNarrativePhase('analyzing');
         setSrAnnouncement('Step 1 of 3: Analyzing your spread, positions, and reflections.');
-        setReadingMeta((prev) => ({ ...prev, requestId: null }));
+        setReadingMeta((prev) => ({ ...prev, requestId: null, ephemeris: null }));
         setLastCardsForFeedback([]);
 
         try {
@@ -349,7 +350,8 @@ export function ReadingProvider({ children }) {
                 spreadName: spreadInfo.name,
                 deckStyle: deckStyleId,
                 userQuestion,
-                graphContext: data.themes?.knowledgeGraph || null
+                graphContext: data.themes?.knowledgeGraph || null,
+                ephemeris: data.ephemeris || null
             });
         } catch (error) {
             if (error?.name === 'AbortError') {

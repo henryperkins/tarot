@@ -30,7 +30,10 @@ const DEFAULT_NUDGE_STATE = {
   hasSeenJournalNudge: false,
   hasDismissedAccountNudge: false,
   readingCount: 0,
-  journalSaveCount: 0
+  journalSaveCount: 0,
+  // Prevent double-counting the same narrative completion across UI remounts.
+  // (e.g. navigate away/back while ReadingProvider keeps the same personalReading)
+  lastCountedReadingRequestId: null
 };
 
 export function PreferencesProvider({ children }) {
@@ -405,8 +408,21 @@ export function PreferencesProvider({ children }) {
     setNudgeStateInternal(prev => ({ ...prev, hasDismissedAccountNudge: true }));
   };
 
-  const incrementReadingCount = () => {
-    setNudgeStateInternal(prev => ({ ...prev, readingCount: prev.readingCount + 1 }));
+  const incrementReadingCount = (requestId = null) => {
+    setNudgeStateInternal(prev => {
+      const safeRequestId = typeof requestId === 'string' && requestId.trim().length ? requestId.trim() : null;
+
+      // If we know the requestId, only count it once.
+      if (safeRequestId && prev.lastCountedReadingRequestId === safeRequestId) {
+        return prev;
+      }
+
+      return {
+        ...prev,
+        readingCount: prev.readingCount + 1,
+        lastCountedReadingRequestId: safeRequestId ? safeRequestId : prev.lastCountedReadingRequestId
+      };
+    });
   };
 
   const incrementJournalSaveCount = () => {
@@ -415,7 +431,9 @@ export function PreferencesProvider({ children }) {
 
   // Computed nudge visibility helpers
   const shouldShowRitualNudge = nudgeState.readingCount === 0 && !nudgeState.hasSeenRitualNudge;
-  const shouldShowJournalNudge = nudgeState.readingCount === 0 && !nudgeState.hasSeenJournalNudge;
+  // Journal nudge is shown after the first narrative completes.
+  // readingCount increments on completion, so first completion => readingCount === 1.
+  const shouldShowJournalNudge = nudgeState.readingCount === 1 && !nudgeState.hasSeenJournalNudge;
   const shouldShowAccountNudge = nudgeState.journalSaveCount >= 3 && !nudgeState.hasDismissedAccountNudge;
 
   const value = {

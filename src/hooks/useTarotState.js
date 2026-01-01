@@ -152,7 +152,8 @@ export function useTarotState(speak) {
 
     const fallbackKey = resolveFallbackSpreadKey(selectedSpread, subscription?.config?.spreads);
     if (!fallbackKey || fallbackKey === selectedSpread) return;
-    selectSpread(fallbackKey);
+    // Defer to next frame to avoid synchronous setState cascade
+    requestAnimationFrame(() => selectSpread(fallbackKey));
   }, [subscriptionLoading, subscription, selectedSpread, selectSpread]);
 
   const shuffle = useCallback((onShuffleComplete) => {
