@@ -36,6 +36,21 @@ export async function onRequestPost(context) {
       }
     );
   } catch (error) {
+    const message = String(error?.message || '');
+    if (message.includes('no such table')) {
+      // If auth tables aren't available yet, treat logout as a no-op.
+      return new Response(
+        JSON.stringify({ success: true, skipped: true }),
+        {
+          status: 200,
+          headers: {
+            'Content-Type': 'application/json',
+            'Set-Cookie': clearSessionCookie()
+          }
+        }
+      );
+    }
+
     console.error('Logout error:', error);
     return new Response(
       JSON.stringify({ error: 'Internal server error' }),

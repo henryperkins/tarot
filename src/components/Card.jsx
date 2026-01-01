@@ -10,6 +10,36 @@ import { useLandscape } from '../hooks/useLandscape';
 
 import { useHaptic } from '../hooks/useHaptic';
 
+const SUIT_ACCENTS = {
+  wands: {
+    accent: 'var(--wands-accent)',
+    soft: 'var(--wands-accent-soft)'
+  },
+  cups: {
+    accent: 'var(--cups-accent)',
+    soft: 'var(--cups-accent-soft)'
+  },
+  swords: {
+    accent: 'var(--swords-accent)',
+    soft: 'var(--swords-accent-soft)'
+  },
+  pentacles: {
+    accent: 'var(--pentacles-accent)',
+    soft: 'var(--pentacles-accent-soft)'
+  }
+};
+
+function normalizeSuitKey(suit) {
+  if (!suit || typeof suit !== 'string') return null;
+  const trimmed = suit.trim().toLowerCase();
+  if (!trimmed) return null;
+  if (trimmed === 'wands') return 'wands';
+  if (trimmed === 'cups') return 'cups';
+  if (trimmed === 'swords') return 'swords';
+  if (trimmed === 'pentacles') return 'pentacles';
+  return null;
+}
+
 export function Card({
   card,
   index,
@@ -31,6 +61,37 @@ export function Card({
   const prefersReducedMotion = useReducedMotion();
   const isSmallScreen = useSmallScreen(640); // < sm breakpoint
   const isLandscape = useLandscape();
+
+  // Suit/element accents (Minors only) - uses CSS variables defined in `src/styles/tarot.css`.
+  const canonicalCard = CARD_LOOKUP[card?.name] || card;
+  const suitKey = useMemo(
+    () => normalizeSuitKey(canonicalCard?.suit || card?.suit),
+    [canonicalCard?.suit, card?.suit]
+  );
+  const suitAccent = suitKey ? SUIT_ACCENTS[suitKey] : null;
+  const suitAccentColor = suitAccent?.accent || null;
+  const suitAccentSoft = suitAccent?.soft || null;
+
+  const suitImageStyle = useMemo(() => {
+    if (!suitAccentColor || !suitAccentSoft) return undefined;
+    return {
+      borderColor: suitAccentColor,
+      boxShadow: `0 0 0 1px ${suitAccentSoft}, 0 10px 24px rgba(0,0,0,0.25)`
+    };
+  }, [suitAccentColor, suitAccentSoft]);
+
+  const suitFrameStyle = useMemo(() => {
+    if (!suitAccentColor || !suitAccentSoft) return undefined;
+    return {
+      boxShadow: `0 0 0 1px ${suitAccentSoft}, 0 0 18px ${suitAccentSoft}`
+    };
+  }, [suitAccentColor, suitAccentSoft]);
+
+  // Brief “element flash” on reveal (skips when reduced motion is preferred).
+  const [elementFlashKey, setElementFlashKey] = useState(0);
+  const [elementFlashActive, setElementFlashActive] = useState(false);
+  const elementFlashTimeoutRef = useRef(null);
+  const prevVisuallyRevealedRef = useRef(isRevealed);
 
   // Mobile: collapsible reflection section (starts collapsed unless has content)
   // This is local state that is authoritative on desktop, or when mobile has no coordination
@@ -78,6 +139,40 @@ export function Card({
       hasMounted.current = true;
     }
   }, [controls, prefersReducedMotion]);
+
+  useEffect(() => {
+    return () => {
+      if (elementFlashTimeoutRef.current) {
+        window.clearTimeout(elementFlashTimeoutRef.current);
+        elementFlashTimeoutRef.current = null;
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    const prev = prevVisuallyRevealedRef.current;
+    prevVisuallyRevealedRef.current = isVisuallyRevealed;
+
+    if (!isVisuallyRevealed || prev) {
+      if (!isVisuallyRevealed) {
+        setElementFlashActive(false);
+      }
+      return;
+    }
+
+    if (prefersReducedMotion) return;
+    if (!suitAccentColor || !suitAccentSoft) return;
+
+    setElementFlashKey(k => k + 1);
+    setElementFlashActive(true);
+    if (elementFlashTimeoutRef.current) {
+      window.clearTimeout(elementFlashTimeoutRef.current);
+    }
+    elementFlashTimeoutRef.current = window.setTimeout(() => {
+      setElementFlashActive(false);
+      elementFlashTimeoutRef.current = null;
+    }, 650);
+  }, [isVisuallyRevealed, prefersReducedMotion, suitAccentColor, suitAccentSoft]);
 
   useEffect(() => {
     if (isRevealed && userInitiatedRevealRef.current) {
@@ -282,7 +377,7 @@ export function Card({
   }, [isRevealed, staggerDelay, controls, index, prefersReducedMotion]);
 
   // Get card meaning
-  const originalCard = CARD_LOOKUP[card.name] || card;
+  const originalCard = canonicalCard;
   const meaning = card.isReversed ? originalCard.reversed : originalCard.upright;
 
   // Character count warning thresholds
@@ -328,7 +423,7 @@ export function Card({
               onTouchMove={handleTouchMove}
               onTouchEnd={handleTouchEnd}
               aria-label={`${position}. Tap to reveal.`}
-              className={`card-swipe-container relative h-full ${isLandscape ? 'min-h-[200px] max-h-[280px]' : 'min-h-[40vh] min-h-[40svh] max-h-[55vh] max-h-[55svh]'} sm:min-h-[24rem] sm:max-h-none flex flex-col items-center justify-center gap-4 p-4 sm:p-6 w-full cursor-pointer hover:bg-surface-muted/70 hover:scale-105 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70 focus-visible:ring-offset-2 focus-visible:ring-offset-main`}
+              className={`card-swipe-container relative h-full ${isLandscape ? 'min-h-[200px] max-h-[280px]' : 'min-h-[40vh] supports-[height:1svh]:min-h-[40svh] max-h-[55vh] supports-[height:1svh]:max-h-[55svh]'} sm:min-h-[24rem] sm:max-h-none flex flex-col items-center justify-center gap-4 p-4 sm:p-6 w-full cursor-pointer hover:bg-surface-muted/70 hover:scale-105 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70 focus-visible:ring-offset-2 focus-visible:ring-offset-main`}
             >
               {/* Card back with mystical design */}
               <div
@@ -364,7 +459,7 @@ export function Card({
               </div>
             </button>
           ) : (
-            <div className={`transition-all relative h-full ${isLandscape ? 'min-h-[200px] max-h-[280px]' : 'min-h-[40vh] min-h-[40svh] max-h-[55vh] max-h-[55svh]'} sm:min-h-[24rem] sm:max-h-none flex flex-col items-center`}>
+            <div className={`transition-all relative h-full ${isLandscape ? 'min-h-[200px] max-h-[280px]' : 'min-h-[40vh] supports-[height:1svh]:min-h-[40svh] max-h-[55vh] supports-[height:1svh]:max-h-[55svh]'} sm:min-h-[24rem] sm:max-h-none flex flex-col items-center`}>
               {/* Card content area - restructured to avoid nested interactives */}
               <div className="relative w-full">
                 {/* Zoom Icon - primary keyboard target for modal */}
@@ -387,11 +482,12 @@ export function Card({
                     layoutId={`card-image-${index}`}
                     className={`mx-auto mb-3 max-w-[65%] sm:max-w-[280px] ${card.isReversed ? 'rotate-180' : ''}`}
                   >
-                    <div className="relative aspect-[2/3]">
+                    <div className="relative aspect-[2/3] rounded-lg" style={suitFrameStyle}>
                       <img
                         src={cardImage}
                         alt={`${card.name}${card.isReversed ? ' (Reversed)' : ''}`}
                         className="w-full h-full object-cover rounded-lg shadow-lg border-2 border-primary/30"
+                        style={suitImageStyle}
                         loading="lazy"
                         decoding="async"
                         onError={event => {
@@ -402,6 +498,23 @@ export function Card({
                           target.src = FALLBACK_IMAGE;
                         }}
                       />
+
+                      {elementFlashActive && suitAccentColor && suitAccentSoft && (
+                        <motion.div
+                          // Key forces a fresh animation per reveal.
+                          key={`element-flash-${index}-${elementFlashKey}`}
+                          className="absolute inset-0 rounded-lg pointer-events-none"
+                          initial={{ opacity: 0.6, scale: 0.92 }}
+                          animate={{ opacity: 0, scale: 1.12 }}
+                          transition={{ duration: 0.55, ease: 'easeOut' }}
+                          style={{
+                            border: `2px solid ${suitAccentColor}`,
+                            background: `radial-gradient(circle at 50% 35%, ${suitAccentSoft} 0%, transparent 60%)`
+                          }}
+                          aria-hidden="true"
+                        />
+                      )}
+
                       {/* Interactive symbol overlay */}
                       <InteractiveCardOverlay card={card} />
                     </div>

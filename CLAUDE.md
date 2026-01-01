@@ -19,7 +19,7 @@ Guidance for Claude Code when working with this repository.
 ## Commands
 
 ```bash
-npm run dev      # Vite dev server at localhost:5173
+npm run dev      # Full-stack dev (Vite 5173/5174 + Worker/API 8787)
 npm run build    # Production build to dist/
 npm run deploy   # Deploy to Cloudflare Workers
 ```

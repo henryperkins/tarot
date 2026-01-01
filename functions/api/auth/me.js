@@ -54,6 +54,18 @@ export async function onRequestGet(context) {
       }
     );
   } catch (error) {
+    const message = String(error?.message || '');
+    if (message.includes('no such table')) {
+      return new Response(
+        JSON.stringify({
+          error: 'Database not initialized',
+          code: 'db_not_initialized',
+          hint: 'Run `npm run migrations:apply:local` (or apply D1 migrations)'
+        }),
+        { status: 503, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+
     console.error('Get user error:', error);
     return new Response(
       JSON.stringify({ error: 'Internal server error' }),

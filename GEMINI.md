@@ -26,7 +26,7 @@
 
 ## Building and Running
 *   **Install Dependencies:** `npm install`
-*   **Development Server:** `npm run dev` (Starts Vite and Wrangler proxy)
+*   **Development Server:** `npm run dev` (Starts Vite and Wrangler Workers dev)
 *   **Frontend Only:** `npm run dev:frontend`
 *   **Build for Production:** `npm run build`
 *   **Deploy:** `npm run deploy`

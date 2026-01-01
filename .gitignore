@@ -98,6 +98,10 @@ azure_responses.md
 MysticTarot2.png
 .env
 
+# Local debug scratchpad
+/tmp/*.txt
+/tmp/*.sql
+
 # Design reference dumps (local-only large binaries)
 /IMG_*.PNG
 /IMG_*.HEIC

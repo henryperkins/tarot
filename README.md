@@ -114,7 +114,7 @@ npm install
 npm run dev
 ```
 
-This starts both the Vite dev server and Wrangler proxy. Access the app at **http://localhost:8788**.
+This starts both the Vite dev server and Wrangler Workers dev server. Access the app at **http://localhost:5173** (or 5174 if 5173 is in use). Vite proxies `/api` requests to Workers on 8787.
 
 ### Available Scripts
 
@@ -133,8 +133,8 @@ This starts both the Vite dev server and Wrangler proxy. Access the app at **htt
 
 | URL                   | Purpose                |
 | --------------------- | ---------------------- |
-| http://localhost:8788 | Full app with API ✅   |
-| http://localhost:5173 | Frontend only (no API) |
+| http://localhost:5173 | Full app with API (HMR + `/api` proxy) |
+| http://localhost:8787 | Workers preview (serves `dist/`)      |
 
 ## 🧪 Testing
 

@@ -46,6 +46,7 @@
 
 - **Context API:** Used sparingly.
   - **`AuthContext`** (AuthContext.jsx): Manages user session, login/register/logout methods, and loading state. Wraps the entire application in main.jsx.
+  - Auth endpoints return `503` with `db_not_initialized` for login/register/me when D1 tables are missing; logout is a no-op that returns `200` with `skipped: true` and clears the cookie.
 
 **Server State & Data Fetching**
 

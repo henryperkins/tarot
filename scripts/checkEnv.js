@@ -200,7 +200,7 @@ function run() {
     });
   }
 
-  console.log('\nAll required environment variables for AI-generated readings are present. You are ready to run dev.sh 🙌');
+  console.log('\nAll required environment variables for AI-generated readings are present. You are ready to run `npm run dev` 🙌');
 }
 
 run();

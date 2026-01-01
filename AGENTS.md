@@ -8,7 +8,7 @@
 
 ## Build, Test, and Development Commands
 
-- `npm run dev` — runs `dev.sh`; starts Vite HMR (5173/5174) and Wrangler Workers dev on 8787.
+- `npm run dev` — starts Vite HMR (5173/5174), builds `dist/`, and runs Wrangler Workers dev on 8787 (cross-platform).
 - `npm run dev:frontend` for UI-only work; `npm run dev:wrangler`/`dev:workers` to run the Worker dev server.
 - `npm run build` → `dist/`; `npm run preview` serves the built bundle locally; `npm run deploy` publishes the Worker (`tableau`) via wrangler.
 - `npm test` executes Node tests. Quality gates for ML flows: `npm run gate:vision` and `npm run gate:narrative` when touching vision or narrative code.

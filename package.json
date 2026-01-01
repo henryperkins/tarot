@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "./dev.sh",
+    "dev": "node scripts/dev.mjs",
     "dev:wrangler": "wrangler dev --config wrangler.jsonc",
     "dev:frontend": "vite",
     "dev:workers": "wrangler dev --config wrangler.jsonc --live-reload",

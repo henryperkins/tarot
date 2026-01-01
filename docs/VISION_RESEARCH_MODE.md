@@ -122,7 +122,7 @@ To verify the changes work correctly:
 
 ### Test 1: Reading Without Vision Proof
 ```bash
-curl -X POST http://localhost:8788/api/tarot-reading \
+curl -X POST http://localhost:8787/api/tarot-reading \
   -H "Content-Type: application/json" \
   -d '{
     "spreadInfo": {"name": "One-Card Insight"},
@@ -136,7 +136,7 @@ curl -X POST http://localhost:8788/api/tarot-reading \
 ### Test 2: Reading With Vision Proof
 ```bash
 # First get a vision proof
-curl -X POST http://localhost:8788/api/vision-proof \
+curl -X POST http://localhost:8787/api/vision-proof \
   -H "Content-Type: application/json" \
   -d '{
     "deckStyle": "rws-1909",
@@ -144,7 +144,7 @@ curl -X POST http://localhost:8788/api/vision-proof \
   }'
 
 # Then use it in reading request
-curl -X POST http://localhost:8788/api/tarot-reading \
+curl -X POST http://localhost:8787/api/tarot-reading \
   -H "Content-Type: application/json" \
   -d '{
     "spreadInfo": {"name": "One-Card Insight"},

@@ -19,7 +19,7 @@
  *   Migration failures are fatal and will abort deployment.
  */
 
-import { execSync, spawnSync } from 'child_process';
+import { spawnSync } from 'child_process';
 import { readdirSync, readFileSync } from 'fs';
 import { createHash } from 'crypto';
 import { fileURLToPath } from 'url';
@@ -70,45 +70,74 @@ function logError(message) {
 }
 
 /**
- * Execute a wrangler command and return the result
+ * Execute a wrangler command and return the result.
+ *
+ * IMPORTANT (Windows):
+ * - Avoid shell-quoting problems by passing argv arrays.
+ * - Invoke `npx` via cmd.exe to avoid Node spawn() EINVAL on .cmd shims.
  */
-function wrangler(command, options = {}) {
+function wrangler(args, options = {}) {
   const remoteFlag = LOCAL ? '--local' : '--remote';
-  const fullCommand = `npx wrangler ${command} --config ${WRANGLER_CONFIG} ${remoteFlag}`;
+  const fullArgs = ['wrangler', ...args, '--config', WRANGLER_CONFIG, remoteFlag];
 
   if (VERBOSE) {
-    log(`  $ ${fullCommand}`, 'dim');
+    const printable = ['npx', ...fullArgs]
+      .map((part) => (String(part).includes(' ') ? `"${part}"` : String(part)))
+      .join(' ');
+    log(`  $ ${printable}`, 'dim');
   }
 
   if (DRY_RUN && !options.allowInDryRun) {
-    log(`  [DRY RUN] Would execute: ${fullCommand}`, 'yellow');
+    log('  [DRY RUN] Would execute wrangler command', 'yellow');
     return { success: true, output: '', dryRun: true };
   }
 
-  try {
-    const output = execSync(fullCommand, {
-      cwd: ROOT_DIR,
-      encoding: 'utf-8',
-      stdio: options.capture ? 'pipe' : ['pipe', 'pipe', 'pipe'],
-      env: { ...process.env, FORCE_COLOR: '0' }
-    });
-    return { success: true, output: output || '' };
-  } catch (error) {
-    return {
-      success: false,
-      output: error.stdout || '',
-      error: error.stderr || error.message
-    };
+  const spawnOptions = {
+    cwd: ROOT_DIR,
+    env: { ...process.env, FORCE_COLOR: '0' },
+    encoding: 'utf-8'
+  };
+
+  const capture = !!options.capture;
+  const stdio = capture ? ['ignore', 'pipe', 'pipe'] : 'inherit';
+
+  // On Windows, `npx` is a .cmd shim. Execute via cmd.exe to avoid Node
+  // CreateProcess() quirks with .cmd shims (can throw EINVAL on newer Node).
+  const result = process.platform === 'win32'
+    ? spawnSync('cmd.exe', ['/d', '/s', '/c', 'npx', ...fullArgs], { ...spawnOptions, stdio })
+    : spawnSync('npx', fullArgs, { ...spawnOptions, stdio });
+
+  if (result.status === 0) {
+    return { success: true, output: capture ? (result.stdout || '') : '' };
   }
+
+  return {
+    success: false,
+    output: capture ? (result.stdout || '') : '',
+    error: capture ? (result.stderr || `wrangler exited with code ${result.status}`) : `wrangler exited with code ${result.status}`
+  };
+}
+
+function spawnCommand(command, args, options = {}) {
+  const spawnOptions = {
+    cwd: ROOT_DIR,
+    stdio: 'inherit',
+    ...options
+  };
+
+  return process.platform === 'win32'
+    ? spawnSync('cmd.exe', ['/d', '/s', '/c', command, ...args], spawnOptions)
+    : spawnSync(command, args, spawnOptions);
 }
 
 /**
  * Execute a D1 SQL query and return results
  */
 function d1Query(sql, options = {}) {
-  // Escape the SQL for shell
-  const escapedSql = sql.replace(/'/g, "'\\''");
-  const result = wrangler(`d1 execute mystic-tarot-db --command '${escapedSql}'`, {
+  // Pass SQL as an argv value to avoid platform-specific shell quoting.
+  const normalizedSql = String(sql).replace(/\s+/g, ' ').trim();
+  // `--json` makes output parseable across platforms.
+  const result = wrangler(['d1', 'execute', 'mystic-tarot-db', '--command', normalizedSql, '--json'], {
     capture: true,
     ...options
   });
@@ -124,7 +153,7 @@ function d1Query(sql, options = {}) {
  * Execute a migration file
  */
 function d1ExecuteFile(filePath) {
-  const result = wrangler(`d1 execute mystic-tarot-db --file "${filePath}"`, {
+  const result = wrangler(['d1', 'execute', 'mystic-tarot-db', '--file', filePath], {
     capture: true
   });
   return result;
@@ -183,17 +212,32 @@ async function getAppliedMigrations() {
     return new Map();
   }
 
-  // Parse the output - wrangler d1 execute returns JSON-like output
+  // Parse the output - we request `--json` for a stable shape.
   const applied = new Map();
   try {
-    // Try to parse JSON output
-    const output = queryResult.output;
-    const jsonMatch = output.match(/\[[\s\S]*\]/);
-    if (jsonMatch) {
-      const rows = JSON.parse(jsonMatch[0]);
-      for (const row of rows) {
-        applied.set(row.name, row.checksum);
-      }
+    const output = String(queryResult.output || '').trim();
+    if (!output) return applied;
+
+    const parsed = JSON.parse(output);
+
+    // Wrangler --json shape for D1 execute is usually:
+    //   [ { results: [ {col: val, ...}, ... ], success: true, meta: {...} } ]
+    // But we also support other shapes defensively.
+    let rows = [];
+    if (Array.isArray(parsed)) {
+      if (Array.isArray(parsed[0]?.results)) rows = parsed[0].results;
+      else rows = parsed;
+    } else if (Array.isArray(parsed?.results)) {
+      rows = parsed.results;
+    } else if (Array.isArray(parsed?.result)) {
+      rows = parsed.result;
+    } else if (Array.isArray(parsed?.data)) {
+      rows = parsed.data;
+    }
+
+    for (const row of rows) {
+      if (!row?.name) continue;
+      applied.set(row.name, row.checksum);
     }
   } catch (e) {
     // If parsing fails, assume no migrations applied
@@ -304,10 +348,8 @@ function deployWorker() {
 
   // Build first
   log('  Building frontend...', 'dim');
-  const buildResult = spawnSync('npm', ['run', 'build'], {
-    cwd: ROOT_DIR,
-    stdio: 'inherit',
-    shell: true
+  const buildResult = spawnCommand('npm', ['run', 'build'], {
+    env: process.env
   });
 
   if (buildResult.status !== 0) {
@@ -317,10 +359,8 @@ function deployWorker() {
 
   // Deploy
   log('  Deploying to Cloudflare Workers...', 'dim');
-  const deployResult = spawnSync('npx', ['wrangler', 'deploy', '--config', WRANGLER_CONFIG], {
-    cwd: ROOT_DIR,
-    stdio: 'inherit',
-    shell: true
+  const deployResult = spawnCommand('npx', ['wrangler', 'deploy', '--config', WRANGLER_CONFIG], {
+    env: process.env
   });
 
   if (deployResult.status !== 0) {

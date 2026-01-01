@@ -17,7 +17,7 @@
 
 ## Local dev / build / deploy
 
-- `npm run dev` runs `dev.sh`: Vite HMR on 5173/5174 + Wrangler dev on 8787.
+- `npm run dev` runs a cross-platform dev runner: Vite HMR on 5173/5174 + build `dist/` + Wrangler dev on 8787.
 - Use the Vite URL for UI work; `/api` is proxied to 8787 (see `vite.config.js`).
 - Wrangler serves static assets from `dist/`; if you test the full Worker-served app at 8787, rebuild after UI changes.
 - `npm run deploy` uses `scripts/deploy.js` (applies D1 migrations, then deploys with `wrangler`).
