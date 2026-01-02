@@ -1,4 +1,5 @@
-import { memo, useEffect, useId, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkBreaks from 'remark-breaks';
@@ -252,6 +253,50 @@ export const JournalEntryCard = memo(function JournalEntryCard({
   const { status: inlineStatus, showStatus, clearStatus } = useInlineStatus();
   const actionMenuRef = useRef(null);
   const actionMenuButtonRef = useRef(null);
+  const [menuPlacement, setMenuPlacement] = useState(null);
+
+  const canUseDom = typeof window !== 'undefined' && typeof document !== 'undefined';
+  const MENU_WIDTH = 288; // Tailwind w-72
+
+  const updateMenuPlacement = useCallback(() => {
+    if (!canUseDom) return;
+    const btn = actionMenuButtonRef.current;
+    if (!btn) return;
+    const rect = btn.getBoundingClientRect();
+
+    // Anchor to the button's right edge, clamped to viewport.
+    const anchorRight = Math.min(Math.max(rect.right, MENU_WIDTH + 8), window.innerWidth - 8);
+
+    const availableBelow = window.innerHeight - rect.bottom;
+    const availableAbove = rect.top;
+    const direction = (availableBelow < 260 && availableAbove > availableBelow) ? 'up' : 'down';
+    const top = direction === 'down' ? (rect.bottom + 8) : (rect.top - 8);
+
+    setMenuPlacement({
+      left: anchorRight,
+      top,
+      direction,
+    });
+  }, [canUseDom]);
+
+  useEffect(() => {
+    if (!actionMenuOpen) return;
+    updateMenuPlacement();
+  }, [actionMenuOpen, updateMenuPlacement]);
+
+  useEffect(() => {
+    if (!actionMenuOpen) return undefined;
+    if (!canUseDom) return undefined;
+
+    const handle = () => updateMenuPlacement();
+    window.addEventListener('resize', handle);
+    // Capture scroll events from nested scrollers too.
+    window.addEventListener('scroll', handle, true);
+    return () => {
+      window.removeEventListener('resize', handle);
+      window.removeEventListener('scroll', handle, true);
+    };
+  }, [actionMenuOpen, canUseDom, updateMenuPlacement]);
 
   useEffect(() => {
     if (!actionMenuOpen) return;
@@ -440,6 +485,85 @@ export const JournalEntryCard = memo(function JournalEntryCard({
   const extraShareLinks = Math.max(0, entryShareLinks.length - shareLinksPreview.length);
   const shareActionsDisabled = pendingAction === 'share-link-copy' || pendingAction === 'share-link-delete';
 
+  const actionMenuClassName = useMemo(() => (
+    // Use a mostly-opaque surface so text remains readable regardless of what's behind it.
+    'fixed z-[200] w-72 max-h-[75vh] overflow-y-auto rounded-2xl border border-[color:var(--border-warm)] ' +
+    'bg-[color:rgba(10,10,14,0.96)] p-2 shadow-[0_18px_60px_-34px_rgba(0,0,0,0.95)]'
+  ), []);
+
+  const menuStyle = useMemo(() => {
+    if (!menuPlacement) return null;
+    const transform = menuPlacement.direction === 'down'
+      ? 'translateX(-100%)'
+      : 'translate(-100%, -100%)';
+    return {
+      left: menuPlacement.left,
+      top: menuPlacement.top,
+      transform,
+    };
+  }, [menuPlacement]);
+
+  const renderActionMenu = () => {
+    if (!actionMenuOpen) return null;
+
+    const menu = (
+      <div
+        id={actionMenuId}
+        ref={actionMenuRef}
+        role="menu"
+        aria-label="Entry actions"
+        className={actionMenuClassName}
+        style={menuStyle || undefined}
+      >
+        <div className="space-y-1">
+          {actionMenuItems.map((item) => {
+            const IconComponent = item.icon;
+            const isPending = pendingAction === item.key;
+            return (
+              <button
+                key={item.key}
+                type="button"
+                role="menuitem"
+                onClick={() => {
+                  setActionMenuOpen(false);
+                  item.onSelect();
+                }}
+                disabled={isPending}
+                className={`flex w-full items-center justify-between rounded-xl px-3 py-2 text-left text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 disabled:opacity-60 disabled:cursor-not-allowed ${
+                  item.tone === 'danger'
+                    ? 'text-[color:var(--status-error)] hover:bg-[color:color-mix(in_srgb,var(--status-error)_12%,transparent)] focus-visible:ring-[color:color-mix(in_srgb,var(--status-error)_45%,transparent)]'
+                    : 'text-[color:var(--text-main)] hover:bg-[color:rgba(255,255,255,0.06)] focus-visible:ring-[color:rgba(232,218,195,0.45)]'
+                }`}
+              >
+                <span className="flex items-center gap-2">
+                  {isPending ? (
+                    <CircleNotch className="h-3.5 w-3.5 animate-spin text-[color:var(--text-muted)]" aria-hidden="true" />
+                  ) : (
+                    <IconComponent
+                      className={`h-4 w-4 ${item.tone === 'danger' ? 'text-[color:var(--status-error)]' : 'text-[color:var(--brand-primary)]'}`}
+                      aria-hidden="true"
+                    />
+                  )}
+                  {item.label}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+
+        {renderShareLinks()}
+      </div>
+    );
+
+    // If we can, portal to <body> so the menu is not clipped by overflow-hidden on the card.
+    if (canUseDom) {
+      return createPortal(menu, document.body);
+    }
+
+    // Fallback for non-DOM environments.
+    return menu;
+  };
+
   const renderShareLinks = () => (
     <div className="mt-3 rounded-xl border border-[color:var(--border-warm)] bg-[color:rgba(15,14,19,0.35)] p-3 shadow-[0_14px_36px_-24px_rgba(0,0,0,0.8)]">
       <div className="flex items-center justify-between gap-2">
@@ -586,7 +710,19 @@ export const JournalEntryCard = memo(function JournalEntryCard({
               ref={actionMenuButtonRef}
               onClick={(event) => {
                 event.stopPropagation();
-                setActionMenuOpen((prev) => !prev);
+                setActionMenuOpen((prev) => {
+                  const next = !prev;
+                  // Ensure we compute placement on open.
+                  if (next) {
+                    // Defer to next frame to ensure layout is stable.
+                    if (typeof requestAnimationFrame !== 'undefined') {
+                      requestAnimationFrame(() => updateMenuPlacement());
+                    } else {
+                      updateMenuPlacement();
+                    }
+                  }
+                  return next;
+                });
               }}
               className={ui.iconButton}
               aria-haspopup="menu"
@@ -598,53 +734,7 @@ export const JournalEntryCard = memo(function JournalEntryCard({
               <span className="sr-only">Open entry actions</span>
             </button>
 
-            {actionMenuOpen && (
-              <div
-                id={actionMenuId}
-                ref={actionMenuRef}
-                role="menu"
-                aria-label="Entry actions"
-                className="absolute right-0 top-full z-50 mt-2 w-72 max-h-[75vh] overflow-y-auto rounded-2xl border border-[color:var(--border-warm)] bg-[color:var(--panel-dark-1)] p-2 shadow-[0_16px_48px_-30px_rgba(0,0,0,0.9)] backdrop-blur"
-              >
-                <div className="space-y-1">
-                  {actionMenuItems.map((item) => {
-                    const IconComponent = item.icon;
-                    const isPending = pendingAction === item.key;
-                    return (
-                      <button
-                        key={item.key}
-                        type="button"
-                        role="menuitem"
-                        onClick={() => {
-                          setActionMenuOpen(false);
-                          item.onSelect();
-                        }}
-                        disabled={isPending}
-                        className={`flex w-full items-center justify-between rounded-xl px-3 py-2 text-left text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 disabled:opacity-60 disabled:cursor-not-allowed ${
-                          item.tone === 'danger'
-                            ? 'text-[color:var(--status-error)] hover:bg-[color:color-mix(in_srgb,var(--status-error)_12%,transparent)] focus-visible:ring-[color:color-mix(in_srgb,var(--status-error)_45%,transparent)]'
-                            : 'text-[color:var(--text-main)] hover:bg-[color:rgba(255,255,255,0.04)] focus-visible:ring-[color:rgba(232,218,195,0.45)]'
-                        }`}
-                      >
-                        <span className="flex items-center gap-2">
-                          {isPending ? (
-                            <CircleNotch className="h-3.5 w-3.5 animate-spin text-[color:var(--text-muted)]" aria-hidden="true" />
-                          ) : (
-                            <IconComponent
-                              className={`h-4 w-4 ${item.tone === 'danger' ? 'text-[color:var(--status-error)]' : 'text-[color:var(--brand-primary)]'}`}
-                              aria-hidden="true"
-                            />
-                          )}
-                          {item.label}
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
-
-                {renderShareLinks()}
-              </div>
-            )}
+            {renderActionMenu()}
           </div>
         </div>
       </div>
@@ -783,9 +873,9 @@ export const JournalEntryCard = memo(function JournalEntryCard({
 
           {entry.themes?.knowledgeGraph?.graphKeys && (
             <section className={`${ui.section} mt-4`}>
-              <CardRelationshipGraph 
-                cards={cards} 
-                graphKeys={entry.themes.knowledgeGraph.graphKeys} 
+              <CardRelationshipGraph
+                cards={cards}
+                graphKeys={entry.themes.knowledgeGraph.graphKeys}
               />
             </section>
           )}

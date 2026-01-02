@@ -1,10 +1,11 @@
 import { useDeferredValue, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { CaretLeft, UploadSimple, CaretDown } from '@phosphor-icons/react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { GlobalNav } from './GlobalNav';
 import { UserMenu } from './UserMenu';
 import { ConfirmModal } from './ConfirmModal';
 import { useAuth } from '../contexts/AuthContext';
+import { useSubscription } from '../contexts/SubscriptionContext';
 import { usePreferences } from '../contexts/PreferencesContext';
 import { useJournal } from '../hooks/useJournal';
 import { JournalFilters } from './JournalFilters.jsx';
@@ -133,9 +134,18 @@ function getTopContext(stats) {
 
 export default function Journal() {
   const { isAuthenticated, user } = useAuth();
+  const { canUseCloudJournal } = useSubscription();
   const { shouldShowAccountNudge, dismissAccountNudge, personalization } = usePreferences();
-  const { entries, loading, deleteEntry, migrateToCloud, error: journalError } = useJournal();
+  const {
+    entries,
+    loading,
+    deleteEntry,
+    migrateToCloud,
+    importLegacyLocalEntries,
+    error: journalError
+  } = useJournal();
   const [migrating, setMigrating] = useState(false);
+  const [importingLegacy, setImportingLegacy] = useState(false);
   const [deleteConfirmModal, setDeleteConfirmModal] = useState({ isOpen: false, entryId: null });
   const [filters, setFilters] = useState({ query: '', contexts: [], spreads: [], decks: [], timeframe: 'all', onlyReversals: false });
   const deferredQuery = useDeferredValue(filters.query);
@@ -161,11 +171,39 @@ export default function Journal() {
   const [historyFiltersInView, setHistoryFiltersInView] = useState(true);
   const [hasScrolled, setHasScrolled] = useState(false);
   const navigate = useNavigate();
+  const location = useLocation();
+  const [pendingHighlightEntryId, setPendingHighlightEntryId] = useState(null);
   const isMobileLayout = useSmallScreen(MOBILE_LAYOUT_MAX);
   const isSmallSummary = useSmallScreen(640);
   const summaryRef = useRef(null);
   const [summaryInView, setSummaryInView] = useState(!isSmallSummary);
   const { publish: showToast } = useToast();
+
+  // Allow other pages (e.g. Card Collection) to deep-link into the journal.
+  // Supported state:
+  //  - prefillQuery: string -> sets the journal search query
+  //  - highlightEntryId: string/number -> scrolls to and briefly highlights a specific entry
+  useEffect(() => {
+    const state = location?.state || {};
+    const prefillQuery = typeof state?.prefillQuery === 'string' ? state.prefillQuery : '';
+    const highlightEntryId = state?.highlightEntryId ?? null;
+
+    if (!prefillQuery && !highlightEntryId) return;
+
+    if (prefillQuery) {
+      setFilters((prev) => ({
+        ...prev,
+        query: prefillQuery,
+      }));
+    }
+
+    if (highlightEntryId) {
+      setPendingHighlightEntryId(highlightEntryId);
+    }
+
+    // Clear the navigation state so back/forward doesn't keep re-applying.
+    navigate(location.pathname, { replace: true, state: null });
+  }, [location.key, location.pathname, location.state, navigate]);
 
   const registerHistoryFiltersEl = useCallback((node) => {
     setHistoryFiltersEl(node);
@@ -325,6 +363,37 @@ export default function Journal() {
 
   const visibleEntries = useMemo(() => filteredEntries.slice(0, visibleCount), [filteredEntries, visibleCount]);
   const hasMoreEntries = filteredEntries.length > visibleCount;
+
+  // If an entry is requested, ensure it's rendered (increase visibleCount) and scroll it into view.
+  useEffect(() => {
+    if (!pendingHighlightEntryId) return undefined;
+    if (typeof window === 'undefined' || typeof document === 'undefined') return undefined;
+
+    const targetId = String(pendingHighlightEntryId);
+
+    const index = filteredEntries.findIndex((entry) => String(entry?.id || '') === targetId);
+    if (index >= 0 && index >= visibleCount) {
+      setVisibleCount((prev) => Math.max(prev, Math.min(filteredEntries.length, index + 1)));
+    }
+
+    // Next tick: scroll to the entry container.
+    const id = `journal-entry-${targetId}`;
+    const handle = window.setTimeout(() => {
+      const el = document.getElementById(id);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    }, 50);
+
+    const clearHandle = window.setTimeout(() => {
+      setPendingHighlightEntryId(null);
+    }, 3200);
+
+    return () => {
+      window.clearTimeout(handle);
+      window.clearTimeout(clearHandle);
+    };
+  }, [pendingHighlightEntryId, filteredEntries, visibleCount]);
 
   // Compute stats for both full journal and filtered view
   const allStats = useMemo(() => computeJournalStats(entries) ?? EMPTY_STATS, [entries]);
@@ -592,6 +661,28 @@ export default function Journal() {
     setMigrating(false);
   };
 
+  const handleImportLegacy = async () => {
+    setImportingLegacy(true);
+
+    const result = await importLegacyLocalEntries({ removeLegacy: true });
+
+    if (result.success) {
+      showToast({
+        type: 'success',
+        title: 'Imported local entries',
+        description: `Imported ${result.imported} entries${result.skipped ? `, skipped ${result.skipped}` : ''}.`
+      });
+    } else {
+      showToast({
+        type: 'error',
+        title: 'Import failed',
+        description: result.error || 'We could not import your local entries.'
+      });
+    }
+
+    setImportingLegacy(false);
+  };
+
   const handleDeleteRequest = (entryId) => {
     setDeleteConfirmModal({ isOpen: true, entryId });
   };
@@ -628,18 +719,40 @@ export default function Journal() {
     setVisibleCount((prev) => Math.min(filteredEntries.length, prev + VISIBLE_ENTRY_BATCH));
   };
 
-  // Check if we have localStorage entries that can be migrated
-  const hasLocalStorageEntries = () => {
+  // Check if we have localStorage entries that can be migrated/imported.
+  // - legacy: tarot_journal (anonymous)
+  // - user-scoped: tarot_journal_<userId>
+  const getLocalStorageEntryPresence = () => {
     if (typeof localStorage === 'undefined') return false;
-    const stored = localStorage.getItem('tarot_journal');
-    if (!stored) return false;
-    try {
-      const parsed = JSON.parse(stored);
-      return Array.isArray(parsed) && parsed.length > 0;
-    } catch {
-      return false;
+    const state = {
+      hasLegacy: false,
+      hasScoped: false,
+    };
+
+    const legacyKey = 'tarot_journal';
+    const scopedKey = user?.id ? `tarot_journal_${user.id}` : null;
+
+    const keysToCheck = [legacyKey, scopedKey].filter(Boolean);
+    for (const key of keysToCheck) {
+      const stored = localStorage.getItem(key);
+      if (!stored) continue;
+      try {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          if (key === legacyKey) state.hasLegacy = true;
+          if (scopedKey && key === scopedKey) state.hasScoped = true;
+        }
+      } catch {
+        // Ignore malformed cache and keep scanning other keys.
+      }
     }
+
+    return state;
   };
+
+  // Compute each render so it updates after import/migration without needing
+  // brittle dependency tracking.
+  const localStoragePresence = getLocalStorageEntryPresence();
 
   const desktopRailContent = (!loading && hasEntries && !isMobileLayout) ? (
     <div className="space-y-6 lg:space-y-8 w-full">
@@ -671,8 +784,14 @@ export default function Journal() {
     const showDivider = monthLabel !== lastMonthLabel;
     lastMonthLabel = monthLabel;
     const key = entry.id || `${timestamp || 'entry'}-${index}`;
+    const isHighlighted = pendingHighlightEntryId && String(entry?.id || '') === String(pendingHighlightEntryId);
+    const anchorId = entry?.id ? `journal-entry-${String(entry.id)}` : undefined;
     return (
-      <div key={key} className="space-y-2">
+      <div
+        id={anchorId}
+        key={key}
+        className={`space-y-2 ${isHighlighted ? 'rounded-2xl ring-2 ring-amber-300/35 bg-amber-300/[0.03] p-2' : ''}`}
+      >
         {showDivider && (
           <p className="text-[11px] uppercase tracking-[0.3em] text-amber-100/60">{monthLabel}</p>
         )}
@@ -754,14 +873,36 @@ export default function Journal() {
             <div className={`mb-6 ${AMBER_CARD_CLASS} p-5`}>
               <AmberStarfield />
               <div className="relative z-10 space-y-2">
-                <p className="journal-prose text-amber-100/85">✓ Signed in — Your journal is synced across devices</p>
-                {hasLocalStorageEntries() && !migrating && (
+                <p className="journal-prose text-amber-100/85">
+                  ✓ Signed in — {canUseCloudJournal ? 'Your journal is synced across devices' : 'Your journal is stored on this device'}
+                </p>
+
+                {/* Signed-in, no-cloud: offer explicit import from legacy unscoped local journal. */}
+                {!canUseCloudJournal && localStoragePresence?.hasLegacy && (
+                  <div className="space-y-2">
+                    <p className="text-sm text-amber-100/70">
+                      We found local journal entries saved before you signed in.
+                      They aren&rsquo;t shown automatically to protect against shared-device mixups.
+                    </p>
+                    <button
+                      onClick={handleImportLegacy}
+                      disabled={importingLegacy}
+                      className={`${OUTLINE_BUTTON_CLASS} mt-1`}
+                    >
+                      <UploadSimple className="w-4 h-4" />
+                      {importingLegacy ? 'Importing...' : 'Import local entries into this account'}
+                    </button>
+                  </div>
+                )}
+
+                {/* Signed-in, cloud: migrate any local entries (legacy or scoped) into D1. */}
+                {canUseCloudJournal && (localStoragePresence?.hasLegacy || localStoragePresence?.hasScoped) && !migrating && (
                   <button
                     onClick={handleMigrate}
                     className={`${OUTLINE_BUTTON_CLASS} mt-1`}
                   >
                     <UploadSimple className="w-4 h-4" />
-                    Migrate localStorage entries
+                    Migrate local entries to cloud
                   </button>
                 )}
                 {migrating && (

@@ -1,4 +1,25 @@
 import { getUserFromRequest } from '../../lib/auth.js';
+import { enforceApiCallLimit } from '../../lib/apiUsage.js';
+
+async function getUserPreferences(db, userId) {
+  const result = await db.prepare(`
+    SELECT archetype_journey_enabled, show_badges
+    FROM user_analytics_prefs
+    WHERE user_id = ?
+  `).bind(userId).first();
+
+  if (!result) {
+    return {
+      archetype_journey_enabled: true,
+      show_badges: true
+    };
+  }
+
+  return {
+    archetype_journey_enabled: result.archetype_journey_enabled === 1,
+    show_badges: result.show_badges === 1
+  };
+}
 
 export async function onRequestGet(context) {
   const { request, env } = context;
@@ -20,6 +41,28 @@ export async function onRequestGet(context) {
     if (!user) {
       return new Response(JSON.stringify({ error: 'Unauthorized' }), {
         status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
+    if (user.auth_provider === 'api_key') {
+      // Allow API key clients, but enforce Pro tier + monthly API call limits.
+      const apiLimit = await enforceApiCallLimit(env, user);
+      if (!apiLimit.allowed) {
+        return new Response(JSON.stringify(apiLimit.payload), {
+          status: apiLimit.status,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      }
+    }
+
+    const prefs = await getUserPreferences(env.DB, user.id);
+    if (!prefs.archetype_journey_enabled) {
+      return new Response(JSON.stringify({
+        error: 'Analytics disabled',
+        enabled: false
+      }), {
+        status: 403,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       });
     }

@@ -125,7 +125,7 @@ export function SpreadPatterns({ themes, spreadHighlights = [], passages = [] })
         onClick={() => setIsExpanded(prev => !prev)}
         className="sm:hidden w-full flex items-center justify-between gap-2 mb-0 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70 rounded"
         aria-expanded={isExpanded}
-        aria-controls="spread-patterns-content-mobile"
+        aria-controls="spread-patterns-content"
       >
         <div className="flex items-center gap-2">
           <Star className="w-5 h-5 text-accent" aria-hidden="true" />
@@ -145,10 +145,10 @@ export function SpreadPatterns({ themes, spreadHighlights = [], passages = [] })
         <span className="text-accent text-lg font-serif">Spread Insights</span>
       </div>
 
-      {/* Mobile: Collapsible content */}
+      {/* Unified content: collapsed on mobile (unless expanded), always visible on desktop */}
       <div
-        id="spread-patterns-content-mobile"
-        className={`sm:hidden mt-3 space-y-4 ${isExpanded ? '' : 'hidden'}`}
+        id="spread-patterns-content"
+        className={`${isExpanded ? '' : 'hidden'} sm:block mt-3 sm:mt-0 space-y-4`}
       >
         {/* Spread Highlights Section */}
         {hasSpreadHighlights && (
@@ -169,7 +169,7 @@ export function SpreadPatterns({ themes, spreadHighlights = [], passages = [] })
 
         {/* Archetypal Patterns Section */}
         {hasArchetypes && (
-          <div className={hasSpreadHighlights ? 'pt-3 border-t border-secondary/30' : ''}>
+          <div className={hasSpreadHighlights ? 'pt-3 sm:pt-4 border-t border-secondary/30' : ''}>
             <h4 className="text-sm font-semibold text-accent/90 mb-3">Archetypal Patterns</h4>
             <ul className="pattern-list space-y-2" role="list" aria-label="Detected archetypal patterns">
               {archetypeHighlights.map((highlight, index) => (
@@ -180,91 +180,17 @@ export function SpreadPatterns({ themes, spreadHighlights = [], passages = [] })
                   <span className="pattern-icon flex-shrink-0 mt-0.5" aria-hidden="true">
                     {getPatternIcon(highlight.type, highlight.suit)}
                   </span>
-                  <ReactMarkdown
-                    className="pattern-text text-sm text-main/90 leading-relaxed"
-                    components={{
-                      p: ({ children }) => <span>{children}</span>,
-                      strong: ({ children }) => <strong className="font-semibold text-accent">{children}</strong>,
-                      em: ({ children }) => <em className="italic">{children}</em>
-                    }}
-                  >
-                    {highlight.text || ''}
-                  </ReactMarkdown>
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
-
-        {/* Traditional Wisdom Section */}
-        {hasPassages && (
-          <div className={(hasSpreadHighlights || hasArchetypes) ? 'pt-3 border-t border-secondary/30' : ''}>
-            <div className="flex items-center gap-2 mb-3">
-              <BookOpen className="w-4 h-4 text-accent flex-shrink-0" aria-hidden="true" />
-              <h4 className="text-sm font-semibold text-accent/90">Traditional Wisdom</h4>
-            </div>
-            <div className="space-y-3" role="list">
-              {passages.map((passage, i) => (
-                <article
-                  key={generatePassageKey(passage, i)}
-                  className="text-sm text-main/90 leading-relaxed bg-secondary/10 p-3 rounded border border-secondary/20"
-                >
-                  <p className="font-medium text-accent mb-1">{passage.title || passage.theme}</p>
-                  <p className="italic opacity-90 mb-1">
-                    &ldquo;{truncateText(passage.text)}&rdquo;
-                  </p>
-                  {passage.source && (
-                    <p className="text-muted text-xs text-right mt-1">— {passage.source}</p>
-                  )}
-                </article>
-              ))}
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Desktop: Always visible content */}
-      <div className="hidden sm:block space-y-4">
-        {/* Spread Highlights Section */}
-        {hasSpreadHighlights && (
-          <div className="space-y-3">
-            <h4 className="text-sm font-semibold text-accent/90">Highlights</h4>
-            <ul className="space-y-2" role="list" aria-label="Spread highlights">
-              {spreadHighlights.map((item, index) => (
-                <li key={generateHighlightKey(item, index, 'spread-')} className="flex items-start gap-3">
-                  <div className="text-accent mt-0.5 flex-shrink-0" aria-hidden="true">{item.icon}</div>
-                  <div className="text-muted text-sm leading-snug">
-                    <span className="font-semibold text-accent">{item.title}</span> {item.text}
-                  </div>
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
-
-        {/* Archetypal Patterns Section */}
-        {hasArchetypes && (
-          <div className={hasSpreadHighlights ? 'pt-4 border-t border-secondary/30' : ''}>
-            <h4 className="text-sm font-semibold text-accent/90 mb-3">Archetypal Patterns</h4>
-            <ul className="pattern-list space-y-2" role="list" aria-label="Detected archetypal patterns">
-              {archetypeHighlights.map((highlight, index) => (
-                <li
-                  key={generateHighlightKey(highlight, index, 'archetype-')}
-                  className={`pattern pattern-${highlight.type || 'default'} flex items-start gap-2`}
-                >
-                  <span className="pattern-icon flex-shrink-0 mt-0.5" aria-hidden="true">
-                    {getPatternIcon(highlight.type, highlight.suit)}
+                  <span className="pattern-text text-sm text-main/90 leading-relaxed">
+                    <ReactMarkdown
+                      components={{
+                        p: ({ children }) => <span>{children}</span>,
+                        strong: ({ children }) => <strong className="font-semibold text-accent">{children}</strong>,
+                        em: ({ children }) => <em className="italic">{children}</em>
+                      }}
+                    >
+                      {highlight.text || ''}
+                    </ReactMarkdown>
                   </span>
-                  <ReactMarkdown
-                    className="pattern-text text-sm text-main/90 leading-relaxed"
-                    components={{
-                      p: ({ children }) => <span>{children}</span>,
-                      strong: ({ children }) => <strong className="font-semibold text-accent">{children}</strong>,
-                      em: ({ children }) => <em className="italic">{children}</em>
-                    }}
-                  >
-                    {highlight.text || ''}
-                  </ReactMarkdown>
                 </li>
               ))}
             </ul>
@@ -273,7 +199,7 @@ export function SpreadPatterns({ themes, spreadHighlights = [], passages = [] })
 
         {/* Traditional Wisdom Section */}
         {hasPassages && (
-          <div className={(hasSpreadHighlights || hasArchetypes) ? 'pt-4 border-t border-secondary/30' : ''}>
+          <div className={(hasSpreadHighlights || hasArchetypes) ? 'pt-3 sm:pt-4 border-t border-secondary/30' : ''}>
             <div className="flex items-center gap-2 mb-3">
               <BookOpen className="w-4 h-4 text-accent flex-shrink-0" aria-hidden="true" />
               <h4 className="text-sm font-semibold text-accent/90">Traditional Wisdom</h4>

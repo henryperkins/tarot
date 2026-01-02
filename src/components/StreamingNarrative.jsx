@@ -1,7 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { ArrowRight } from '@phosphor-icons/react';
 import { MarkdownRenderer } from './MarkdownRenderer';
 import { useReducedMotion } from '../hooks/useReducedMotion';
 import { useSmallScreen } from '../hooks/useSmallScreen';
+import {
+  normalizeHighlightPhrases,
+  computeHighlightRanges
+} from '../lib/highlightUtils';
 
 const LONG_MOBILE_WORD_THRESHOLD = 280;
 const LONG_DESKTOP_WORD_THRESHOLD = 600; // Guardrail for very long narratives on any device
@@ -21,6 +26,37 @@ function splitIntoWords(text) {
   return parts.filter(part => part && part.length > 0);
 }
 
+function buildTokenMeta(tokens, highlightRanges) {
+  const safeTokens = Array.isArray(tokens) ? tokens : [];
+  const safeRanges = Array.isArray(highlightRanges) ? highlightRanges : [];
+
+  const meta = new Array(safeTokens.length);
+  let cursor = 0;
+  let rangeIndex = 0;
+
+  for (let i = 0; i < safeTokens.length; i++) {
+    const token = safeTokens[i] || '';
+    const start = cursor;
+    const end = cursor + token.length;
+    cursor = end;
+
+    const isWhitespace = /^\s+$/.test(token);
+    let isHighlighted = false;
+
+    if (!isWhitespace && safeRanges.length > 0) {
+      while (rangeIndex < safeRanges.length && safeRanges[rangeIndex][1] <= start) {
+        rangeIndex += 1;
+      }
+      const activeRange = safeRanges[rangeIndex];
+      isHighlighted = Boolean(activeRange && start < activeRange[1] && end > activeRange[0]);
+    }
+
+    meta[i] = { isWhitespace, isHighlighted };
+  }
+
+  return meta;
+}
+
 export function StreamingNarrative({
   text,
   useMarkdown = false,
@@ -30,11 +66,18 @@ export function StreamingNarrative({
   autoNarrate = false,
   onNarrationStart,
   displayName = '',
+  highlightPhrases = [],
+  withAtmosphere = false,
 }) {
   const narrativeText = useMemo(() => (typeof text === 'string' ? text : ''), [text]);
   const prefersReducedMotion = useReducedMotion();
   const isSmallScreen = useSmallScreen();
   const wrapperClassName = className ? `narrative-stream ${className}` : 'narrative-stream';
+
+  const normalizedHighlightPhrases = useMemo(
+    () => normalizeHighlightPhrases(highlightPhrases),
+    [highlightPhrases]
+  );
 
   // Split text into reveal units (words)
   const units = useMemo(() => {
@@ -85,7 +128,7 @@ export function StreamingNarrative({
   if (narrativeText !== prevNarrativeText) {
     setPrevNarrativeText(narrativeText);
     setMobileStreamingOptIn(false);
-    
+
     // Compute what streamingActive will be after mobileStreamingOptIn resets to false
     const newStreamingActive = Boolean(
       isStreamingEnabled &&
@@ -94,7 +137,7 @@ export function StreamingNarrative({
       !isVeryLongNarrative &&
       !isLongMobileNarrative // mobileStreamingOptIn will be false
     );
-    
+
     if (!newStreamingActive) {
       setVisibleCount(units.length);
     } else {
@@ -221,6 +264,18 @@ export function StreamingNarrative({
   };
 
   const visibleWords = units.slice(0, visibleCount);
+  const visiblePlainText = useMemo(() => {
+    if (!visibleWords.length) return '';
+    return visibleWords.join('');
+  }, [visibleWords]);
+
+  const highlightRanges = useMemo(() => {
+    if (useMarkdown) return [];
+    if (!normalizedHighlightPhrases.length) return [];
+    if (!visiblePlainText) return [];
+    return computeHighlightRanges(visiblePlainText, normalizedHighlightPhrases);
+  }, [useMarkdown, normalizedHighlightPhrases, visiblePlainText]);
+
   const showSkipButton = streamingActive && !isComplete;
   const textBottomPaddingClass = showSkipButton ? 'pb-16 sm:pb-10' : 'pb-6 sm:pb-6';
 
@@ -234,6 +289,11 @@ export function StreamingNarrative({
   const settledWordStyle = useMemo(() => ({
     willChange: 'auto'
   }), []);
+
+  const tokenMeta = useMemo(() => {
+    if (useMarkdown) return [];
+    return buildTokenMeta(visibleWords, highlightRanges);
+  }, [useMarkdown, visibleWords, highlightRanges]);
 
   const streamingOptInNotice = streamingSuppressedForMobile ? (
     <div className="sm:hidden mb-3 rounded-xl border border-secondary/40 bg-surface/80 px-3 xxs:px-4 py-3 text-center">
@@ -264,8 +324,8 @@ export function StreamingNarrative({
         {streamingOptInNotice}
         {personalizedIntro}
         {/* Container with min-height to prevent layout shift during streaming */}
-        <div className={`prose prose-sm xxs:prose-base md:prose-lg max-w-[min(34rem,calc(100vw-2.75rem))] xxs:max-w-[40ch] sm:max-w-[70ch] w-full min-h-[6rem] xxs:min-h-[7.5rem] md:min-h-[10rem] px-3 xxs:px-4 sm:px-1 mx-auto rounded-2xl bg-surface/70 border border-secondary/30 shadow-md narrative-stream__text narrative-stream__text--md ${textBottomPaddingClass}`}>
-          <MarkdownRenderer content={visibleText} />
+        <div className={`prose prose-sm xxs:prose-base md:prose-lg max-w-[min(34rem,calc(100vw-2.75rem))] xxs:max-w-[40ch] sm:max-w-[70ch] w-full min-h-[6rem] xxs:min-h-[7.5rem] md:min-h-[10rem] px-3 xxs:px-4 sm:px-1 mx-auto rounded-2xl bg-surface/70 border border-secondary/30 shadow-md narrative-stream__text narrative-stream__text--md ${withAtmosphere ? 'narrative-atmosphere' : ''} ${textBottomPaddingClass}`}>
+          <MarkdownRenderer content={visibleText} highlightPhrases={normalizedHighlightPhrases} />
         </div>
 
         {showSkipButton && (
@@ -276,7 +336,10 @@ export function StreamingNarrative({
               className="min-h-[44px] w-full max-w-sm sm:max-w-none px-4 xs:px-5 py-2.5 text-sm font-semibold rounded-full bg-surface-muted/90 border border-secondary/40 text-secondary hover:bg-surface-muted hover:border-secondary/60 shadow-lg sm:shadow-sm backdrop-blur-sm transition-all touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary focus-visible:ring-offset-2"
               aria-label="Show full narrative immediately"
             >
-              Show all now →
+              <span className="inline-flex items-center justify-center gap-2">
+                <span>Show all now</span>
+                <ArrowRight className="h-4 w-4" aria-hidden="true" />
+              </span>
             </button>
           </div>
         )}
@@ -287,30 +350,31 @@ export function StreamingNarrative({
   // For plain text: render words with ink-spreading effect
   // Only apply willChange to recently revealed words to avoid GPU memory exhaustion
   const RECENT_WORDS_THRESHOLD = 10;
+  const EMPHASIS_POP_THRESHOLD = 8;
 
   return (
     <div className={wrapperClassName} aria-live="polite">
       {streamingOptInNotice}
       {personalizedIntro}
       {/* Mobile-optimized text with good line height and spacing - min-height prevents layout shift */}
-      <div className={`text-main text-[1rem] xxs:text-[1.05rem] md:text-lg leading-[1.85] md:leading-loose max-w-[min(34rem,calc(100vw-2.75rem))] xxs:max-w-[40ch] sm:max-w-[68ch] mx-auto text-left min-h-[5.5rem] xxs:min-h-[7.5rem] md:min-h-[10rem] px-3 xxs:px-4 sm:px-1 rounded-2xl bg-surface/70 border border-secondary/30 shadow-md narrative-stream__text narrative-stream__text--plain ${textBottomPaddingClass}`}>
+      <div className={`text-main text-[1rem] xxs:text-[1.05rem] md:text-lg leading-[1.85] md:leading-loose max-w-[min(34rem,calc(100vw-2.75rem))] xxs:max-w-[40ch] sm:max-w-[68ch] mx-auto text-left min-h-[5.5rem] xxs:min-h-[7.5rem] md:min-h-[10rem] px-3 xxs:px-4 sm:px-1 rounded-2xl bg-surface/70 border border-secondary/30 shadow-md narrative-stream__text narrative-stream__text--plain ${withAtmosphere ? 'narrative-atmosphere' : ''} ${textBottomPaddingClass}`}>
         {visibleWords.map((word, idx) => {
-          // Check if this is whitespace (space, newline, etc.)
-          const isWhitespace = /^\s+$/.test(word);
+          const meta = tokenMeta[idx] || { isWhitespace: /^\s+$/.test(word), isHighlighted: false };
 
-          if (isWhitespace) {
+          if (meta.isWhitespace) {
             // Render whitespace without animation
             return <span key={idx}>{word}</span>;
           }
 
           // Only recent words get willChange hint to avoid exhausting GPU memory
           const isRecentWord = idx >= visibleCount - RECENT_WORDS_THRESHOLD;
+          const shouldPop = meta.isHighlighted && idx >= visibleCount - EMPHASIS_POP_THRESHOLD;
 
           // Render word with ink-spreading animation
           return (
             <span
               key={idx}
-              className={`inline-block ${prefersReducedMotion ? '' : 'animate-ink-spread'}`}
+              className={`inline-block ${prefersReducedMotion ? '' : 'animate-ink-spread'} ${meta.isHighlighted ? 'narrative-emphasis' : ''} ${shouldPop ? 'narrative-emphasis--pop' : ''}`}
               style={prefersReducedMotion ? undefined : (isRecentWord ? recentWordStyle : settledWordStyle)}
             >
               {word}
@@ -327,7 +391,10 @@ export function StreamingNarrative({
             className="min-h-[44px] w-full max-w-sm sm:max-w-none px-4 xs:px-5 py-2.5 text-sm font-semibold rounded-full bg-surface-muted/90 border border-secondary/40 text-secondary hover:bg-surface-muted hover:border-secondary/60 shadow-lg sm:shadow-sm backdrop-blur-sm transition-all touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary focus-visible:ring-offset-2"
             aria-label="Show full narrative immediately"
           >
-            Show all now →
+            <span className="inline-flex items-center justify-center gap-2">
+              <span>Show all now</span>
+              <ArrowRight className="h-4 w-4" aria-hidden="true" />
+            </span>
           </button>
         </div>
       )}

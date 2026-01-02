@@ -1,5 +1,10 @@
+import { Children, cloneElement, isValidElement } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import {
+  normalizeHighlightPhrases,
+  passesWordBoundary
+} from '../lib/highlightUtils';
 
 // Mobile-optimized typography: 65-75 character line length, good paragraph spacing
 // Using 16px (text-base) as minimum for accessibility and iOS zoom prevention
@@ -7,52 +12,153 @@ const paragraphClass = 'text-base md:text-lg leading-relaxed xs:leading-7 md:lea
 const headingClass = 'font-serif text-lg sm:text-xl text-secondary mt-5 xs:mt-6 mb-2 xs:mb-3';
 const listClass = 'list-disc pl-4 sm:pl-5 space-y-1.5 xs:space-y-2';
 
-export function MarkdownRenderer({ content }) {
+function splitTextWithHighlights(text, phrases) {
+  if (!text || typeof text !== 'string') return text;
+  if (!phrases || phrases.length === 0) return text;
+
+  const lower = text.toLowerCase();
+  const phrasesLower = phrases.map(p => p.toLowerCase());
+  const parts = [];
+  let i = 0;
+  let key = 0;
+
+  while (i < text.length) {
+    let bestIndex = -1;
+    let bestPhraseIndex = -1;
+
+    // Find the earliest match among phrases.
+    for (let p = 0; p < phrasesLower.length; p++) {
+      const idx = lower.indexOf(phrasesLower[p], i);
+      if (idx === -1) continue;
+      if (bestIndex === -1 || idx < bestIndex) {
+        bestIndex = idx;
+        bestPhraseIndex = p;
+      }
+    }
+
+    if (bestIndex === -1 || bestPhraseIndex === -1) {
+      parts.push(text.slice(i));
+      break;
+    }
+
+    // If the match isn't a word-boundary hit, advance by one character and keep scanning.
+    const phrase = phrases[bestPhraseIndex];
+    const start = bestIndex;
+    const end = bestIndex + phrase.length;
+    if (!passesWordBoundary(text, start, end)) {
+      parts.push(text.slice(i, bestIndex + 1));
+      i = bestIndex + 1;
+      continue;
+    }
+
+    if (bestIndex > i) {
+      parts.push(text.slice(i, bestIndex));
+    }
+
+    parts.push(
+      <span key={`hl-${key++}-${bestIndex}`} className="narrative-emphasis">
+        {text.slice(start, end)}
+      </span>
+    );
+    i = end;
+  }
+
+  return parts;
+}
+
+function highlightChildren(children, phrases) {
+  if (!phrases || phrases.length === 0) return children;
+  return Children.map(children, (child) => {
+    if (typeof child === 'string') {
+      return splitTextWithHighlights(child, phrases);
+    }
+
+    if (!isValidElement(child)) {
+      return child;
+    }
+
+    // Avoid highlighting inside code blocks / inline code.
+    if (child.type === 'code' || child.type === 'pre') {
+      return child;
+    }
+
+    const nextChildren = highlightChildren(child.props?.children, phrases);
+    if (nextChildren === child.props?.children) {
+      return child;
+    }
+    return cloneElement(child, { ...child.props, children: nextChildren });
+  });
+}
+
+export function MarkdownRenderer({ content, highlightPhrases = [] }) {
   if (!content || typeof content !== 'string') {
     return null;
   }
+
+  const normalizedPhrases = normalizeHighlightPhrases(highlightPhrases);
+
+  const renderHeading = (Tag, props, className) => (
+    <div className="narrative-section">
+      <div className="narrative-section__divider" aria-hidden="true"><span>✦</span></div>
+      <Tag {...props} className={className}>
+        {highlightChildren(props.children, normalizedPhrases)}
+      </Tag>
+    </div>
+  );
 
   return (
     // max-w-prose ensures 65-75 character line length for optimal readability
     // Using calc for very small screens to prevent text touching edges
     <div className="text-main space-y-4 xs:space-y-5 md:space-y-6 max-w-[calc(100vw-1.5rem)] xs:max-w-sm sm:max-w-prose mx-auto text-left px-1 xs:px-2 sm:px-4 lg:px-6">
-      <ReactMarkdown
-        remarkPlugins={[remarkGfm]}
-        skipHtml
-        className="space-y-3 xs:space-y-4"
-        components={{
+      <div className="space-y-3 xs:space-y-4">
+        <ReactMarkdown
+          remarkPlugins={[remarkGfm]}
+          skipHtml
+          components={{
           h1: ({ node: _node, ...props }) => (
-            <h1 {...props} className={`${headingClass} text-xl xs:text-2xl`} />
+            <h1 {...props} className={`${headingClass} text-xl xs:text-2xl`}>
+              {highlightChildren(props.children, normalizedPhrases)}
+            </h1>
           ),
-          h2: ({ node: _node, ...props }) => (
-            <h2 {...props} className={`${headingClass} text-lg xs:text-xl`} />
-          ),
-          h3: ({ node: _node, ...props }) => (
-            <h3 {...props} className={`${headingClass} text-base xs:text-lg`} />
-          ),
+          h2: ({ node: _node, ...props }) => renderHeading('h2', props, `${headingClass} text-lg xs:text-xl`),
+          h3: ({ node: _node, ...props }) => renderHeading('h3', props, `${headingClass} text-base xs:text-lg`),
           p: ({ node: _node, ...props }) => (
-            <p {...props} className={paragraphClass} />
+            <p {...props} className={paragraphClass}>
+              {highlightChildren(props.children, normalizedPhrases)}
+            </p>
           ),
           strong: ({ node: _node, ...props }) => (
-            <strong {...props} className="text-main font-semibold" />
+            <strong {...props} className="text-main font-semibold">
+              {highlightChildren(props.children, normalizedPhrases)}
+            </strong>
           ),
           em: ({ node: _node, ...props }) => (
-            <em {...props} className="italic text-main/90" />
+            <em {...props} className="italic text-main/90">
+              {highlightChildren(props.children, normalizedPhrases)}
+            </em>
           ),
           ul: ({ node: _node, ...props }) => (
-            <ul {...props} className={`${listClass} ${paragraphClass}`} />
+            <ul {...props} className={`${listClass} ${paragraphClass}`}>
+              {highlightChildren(props.children, normalizedPhrases)}
+            </ul>
           ),
           ol: ({ node: _node, ...props }) => (
-            <ol {...props} className={`list-decimal pl-5 space-y-1.5 xs:space-y-2 ${paragraphClass}`} />
+            <ol {...props} className={`list-decimal pl-5 space-y-1.5 xs:space-y-2 ${paragraphClass}`}>
+              {highlightChildren(props.children, normalizedPhrases)}
+            </ol>
           ),
           li: ({ node: _node, ...props }) => (
-            <li {...props} className="marker:text-secondary pl-1" />
+            <li {...props} className="marker:text-secondary pl-1">
+              {highlightChildren(props.children, normalizedPhrases)}
+            </li>
           ),
           blockquote: ({ node: _node, ...props }) => (
             <blockquote
               {...props}
               className={`${paragraphClass} border-l-2 border-secondary/40 pl-4 xs:pl-5 italic text-accent/85 my-4 xs:my-5`}
-            />
+            >
+              {highlightChildren(props.children, normalizedPhrases)}
+            </blockquote>
           ),
           a: ({ node: _node, ...props }) => (
             <a
@@ -115,10 +221,11 @@ export function MarkdownRenderer({ content }) {
           td: ({ node: _node, ...props }) => (
             <td {...props} className="border border-secondary/30 px-2 xs:px-3 py-1.5 xs:py-2" />
           )
-        }}
-      >
-        {content}
-      </ReactMarkdown>
+          }}
+        >
+          {content}
+        </ReactMarkdown>
+      </div>
     </div>
   );
 }

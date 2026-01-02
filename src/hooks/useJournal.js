@@ -23,6 +23,38 @@ function getLocalJournalKey(userId) {
   return `${LOCALSTORAGE_KEY}_${userId}`;
 }
 
+function normalizeTimestampMs(value) {
+  if (typeof value !== 'number') return null;
+  // Heuristic: seconds epoch values are ~1e9-1e10; ms epoch values are ~1e12-1e13.
+  // Treat anything less than year ~2001 in ms (1e12) as seconds.
+  if (value > 0 && value < 1_000_000_000_000) {
+    return value * 1000;
+  }
+  return value;
+}
+
+function sortEntriesNewestFirst(entries) {
+  return (Array.isArray(entries) ? entries : []).slice().sort((a, b) => {
+    const aTs = normalizeTimestampMs(a?.ts) ?? 0;
+    const bTs = normalizeTimestampMs(b?.ts) ?? 0;
+    return bTs - aTs;
+  });
+}
+
+function readLocalJournalArray(key) {
+  if (typeof localStorage === 'undefined') return [];
+  if (!key) return [];
+  try {
+    const stored = localStorage.getItem(key);
+    if (!stored) return [];
+    const parsed = JSON.parse(stored);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (error) {
+    console.warn('Failed to parse localStorage journal key:', key, error);
+    return [];
+  }
+}
+
 /**
  * Journal hook with automatic API/localStorage routing
  *
@@ -228,9 +260,14 @@ export function useJournal({ autoLoad = true } = {}) {
           return next;
         });
 
-        // Track card appearances for archetype journey analytics
+        // Track card appearances for archetype journey analytics.
+        // Include entryId + minimal themes payload so server can track knowledge-graph patterns.
         if (Array.isArray(entry.cards) && entry.cards.length > 0) {
-          trackCardAppearances(entry.cards, newEntry.ts);
+          const graphKeys = entry?.themes?.knowledgeGraph?.graphKeys;
+          const themesForTracking = graphKeys
+            ? { knowledgeGraph: { graphKeys } }
+            : null;
+          trackCardAppearances(entry.cards, newEntry.ts, newEntry.id, themesForTracking);
         }
 
         // Invalidate narrative cache since entry data has changed
@@ -285,7 +322,7 @@ export function useJournal({ autoLoad = true } = {}) {
   /**
    * Track card appearances for archetype journey analytics
    */
-  const trackCardAppearances = async (cards, timestamp) => {
+  const trackCardAppearances = async (cards, timestamp, entryId, themes) => {
     if (!isAuthenticated) {
       return; // Only track for authenticated users
     }
@@ -299,7 +336,9 @@ export function useJournal({ autoLoad = true } = {}) {
         credentials: 'include',
         body: JSON.stringify({
           cards,
-          timestamp
+          timestamp,
+          entryId,
+          themes
         })
       });
       // Silent failure - don't block reading save if tracking fails
@@ -372,6 +411,69 @@ export function useJournal({ autoLoad = true } = {}) {
       setError(err.message);
       return { success: false, error: err.message };
     }
+  };
+
+  /**
+   * Import legacy unscoped localStorage entries into the authenticated user's
+   * scoped localStorage bucket.
+   *
+   * This is intentionally NOT automatic to avoid cross-account leakage on
+   * shared devices. The user must explicitly trigger this import.
+   */
+  const importLegacyLocalEntries = async ({ removeLegacy = true } = {}) => {
+    if (!isAuthenticated) {
+      return { success: false, error: 'Not authenticated', imported: 0, skipped: 0 };
+    }
+
+    // If the user has cloud journal, the correct path is migrateToCloud().
+    if (canUseCloudJournal) {
+      return { success: false, error: 'Cloud journal enabled; use migration to cloud', imported: 0, skipped: 0 };
+    }
+
+    if (typeof localStorage === 'undefined') {
+      return { success: false, error: 'localStorage not available', imported: 0, skipped: 0 };
+    }
+
+    const userId = user?.id;
+    if (!userId) {
+      return { success: false, error: 'Missing user id', imported: 0, skipped: 0 };
+    }
+
+    const legacyEntriesRaw = readLocalJournalArray(LOCALSTORAGE_KEY);
+    const legacyEntries = dedupeEntries(legacyEntriesRaw);
+    if (!legacyEntries.length) {
+      return { success: true, imported: 0, skipped: 0 };
+    }
+
+    const scopedKey = getLocalJournalKey(userId);
+    const scopedExistingRaw = readLocalJournalArray(scopedKey);
+    const scopedExisting = dedupeEntries(scopedExistingRaw);
+
+    const merged = dedupeEntries([...legacyEntries, ...scopedExisting]);
+    const ordered = sortEntriesNewestFirst(merged);
+
+    // Keep local journal bounded to avoid quota issues.
+    const next = ordered.slice(0, 100);
+
+    try {
+      localStorage.setItem(scopedKey, JSON.stringify(next));
+      if (removeLegacy) {
+        localStorage.removeItem(LOCALSTORAGE_KEY);
+      }
+    } catch (error) {
+      console.warn('Failed to import legacy local journal entries:', error);
+      return { success: false, error: 'Unable to write localStorage', imported: 0, skipped: 0 };
+    }
+
+    setEntries(next);
+    if (typeof window !== 'undefined') {
+      persistInsights(next);
+    }
+
+    const imported = Math.max(0, next.length - scopedExisting.length);
+    const skipped = Math.max(0, legacyEntries.length - imported);
+
+    return { success: true, imported, skipped };
   };
 
   const migrateToCloud = async () => {
@@ -536,6 +638,7 @@ export function useJournal({ autoLoad = true } = {}) {
     saveEntry,
     deleteEntry,
     migrateToCloud,
+    importLegacyLocalEntries,
     reload: loadEntries
   };
 }

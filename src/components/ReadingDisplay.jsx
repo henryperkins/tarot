@@ -150,6 +150,14 @@ export function ReadingDisplay({ sectionRef }) {
         }
         return personalReading.normalized || personalReading.raw || '';
     }, [personalReading]);
+
+    const narrativeHighlightPhrases = useMemo(() => {
+        if (!Array.isArray(reading) || reading.length === 0) return [];
+        const names = reading
+            .map(card => (typeof card?.name === 'string' ? card.name.trim() : ''))
+            .filter(Boolean);
+        return Array.from(new Set(names));
+    }, [reading]);
     const shouldStreamNarrative = Boolean(personalReading && !personalReading.isError);
     const hasPatternHighlights = Boolean(!isPersonalReadingError && themes?.knowledgeGraph?.narrativeHighlights?.length);
     const hasTraditionalInsights = Boolean(readingMeta?.graphContext?.retrievedPassages?.length);
@@ -427,10 +435,10 @@ export function ReadingDisplay({ sectionRef }) {
                                     </div>
                                 </div>
                             )}
-                            <h3 className="text-base xxs:text-lg xs:text-xl sm:text-2xl font-serif text-accent mb-2 flex items-center gap-2 leading-tight"><Sparkle className="w-5 h-5 sm:w-6 sm:h-6 text-secondary" />Your Personalized Narrative</h3>
-                            <HelperToggle className="mt-3 max-w-2xl mx-auto" defaultOpen={isNewbie}>
+                            <HelperToggle className="mb-3 max-w-2xl" defaultOpen={false}>
                                 <p>This narrative braids together your spread positions, card meanings, and reflections into a single through-line. Read slowly, notice what resonates, and treat it as a mirror—not a script. Let your own sense of meaning carry as much weight as any description.</p>
                             </HelperToggle>
+                            <h3 className="text-base xxs:text-lg xs:text-xl sm:text-2xl font-serif text-accent mb-4 flex items-center gap-2 leading-tight"><Sparkle className="w-5 h-5 sm:w-6 sm:h-6 text-secondary" />Your Personalized Narrative</h3>
                             {userQuestion && (
                                 <div className="bg-surface/85 rounded-lg px-3 xxs:px-4 py-3 mb-4 border border-secondary/40">
                                     <p className="text-accent/85 text-xs sm:text-sm italic">Anchor: {userQuestion}</p>
@@ -456,6 +464,8 @@ export function ReadingDisplay({ sectionRef }) {
                                 autoNarrate={voiceOn && autoNarrate}
                                 onNarrationStart={handleNarrationWrapper}
                                 displayName={displayName}
+                                highlightPhrases={narrativeHighlightPhrases}
+                                withAtmosphere
                             />
                             <div className="flex flex-col items-center justify-center gap-2 sm:gap-3 mt-3 sm:mt-4">
                                 {reading && personalReading && !isPersonalReadingError && (

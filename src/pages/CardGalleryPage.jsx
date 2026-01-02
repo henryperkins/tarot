@@ -1,33 +1,132 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { CaretLeft, Funnel, SortAscending, LockKey } from '@phosphor-icons/react';
 import { useNavigate } from 'react-router-dom';
+import { AnimatePresence } from 'framer-motion';
 import { GlobalNav } from '../components/GlobalNav';
+import { CardModal } from '../components/CardModal';
 import { MAJOR_ARCANA } from '../data/majorArcana';
 import { MINOR_ARCANA } from '../data/minorArcana';
 import { useAuth } from '../contexts/AuthContext';
+import { useJournal } from '../hooks/useJournal';
+import { getCanonicalCard } from '../lib/cardLookup';
 
 const ALL_CARDS = [...MAJOR_ARCANA, ...MINOR_ARCANA];
 
-function CardItem({ card, stats }) {
+function toTimestampSeconds(entry) {
+  if (!entry) return null;
+  if (typeof entry.created_at === 'number') return entry.created_at;
+  if (typeof entry.updated_at === 'number') return entry.updated_at;
+  if (typeof entry.ts === 'number') {
+    // entry.ts is typically ms; handle seconds defensively
+    return entry.ts < 1e12 ? Math.floor(entry.ts) : Math.floor(entry.ts / 1000);
+  }
+  return null;
+}
+
+function normalizeCardName(name) {
+  if (!name || typeof name !== 'string') return null;
+  const canonical = getCanonicalCard(name);
+  return canonical?.name || name.trim();
+}
+
+function safeGetEntryCards(entry) {
+  if (!entry) return [];
+  if (Array.isArray(entry.cards)) return entry.cards;
+  try {
+    return entry?.cards_json ? JSON.parse(entry.cards_json) : [];
+  } catch {
+    return [];
+  }
+}
+
+function buildRelatedEntries(entries, cardName) {
+  if (!Array.isArray(entries) || entries.length === 0) return [];
+  if (!cardName) return [];
+
+  const normalizedTarget = normalizeCardName(cardName);
+  if (!normalizedTarget) return [];
+
+  const matches = [];
+  for (const entry of entries) {
+    const cards = safeGetEntryCards(entry);
+    const hasCard = cards.some((card) => {
+      const rawName = card?.name || card?.card || '';
+      const normalized = normalizeCardName(rawName);
+      return normalized && normalized === normalizedTarget;
+    });
+    if (!hasCard) continue;
+
+    // Use seconds consistently to avoid mixed ms/seconds ordering bugs.
+    const tsSeconds = toTimestampSeconds(entry);
+    matches.push({
+      id: entry?.id,
+      ts: tsSeconds,
+      question: entry?.question,
+      spread: entry?.spread,
+    });
+  }
+
+  // Most recent first
+  matches.sort((a, b) => (b?.ts || 0) - (a?.ts || 0));
+  return matches;
+}
+
+function buildLocalCardStats(entries) {
+  if (!Array.isArray(entries) || entries.length === 0) return {};
+
+  const map = {};
+
+  entries.forEach((entry) => {
+    const ts = toTimestampSeconds(entry);
+    if (!ts) return;
+
+    const cards = Array.isArray(entry?.cards)
+      ? entry.cards
+      : (() => {
+          try {
+            return entry?.cards_json ? JSON.parse(entry.cards_json) : [];
+          } catch {
+            return [];
+          }
+        })();
+
+    cards.forEach((card) => {
+      const rawName = card?.name || card?.card || '';
+      const cardName = normalizeCardName(rawName);
+      if (!cardName) return;
+
+      const existing = map[cardName] || {
+        card_name: cardName,
+        total_count: 0,
+        last_seen: ts,
+        first_seen: ts,
+      };
+
+      existing.total_count += 1;
+      existing.last_seen = Math.max(existing.last_seen || ts, ts);
+      existing.first_seen = Math.min(existing.first_seen || ts, ts);
+      map[cardName] = existing;
+    });
+  });
+
+  return map;
+}
+
+function CardItem({ card, stats, onSelect }) {
   const isFound = !!stats;
   const count = stats?.total_count || 0;
-  
+
   // Format last seen date
-  const lastSeenLabel = stats?.last_seen 
+  const lastSeenLabel = stats?.last_seen
     ? new Date(stats.last_seen * 1000).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
     : null;
 
-  return (
-    <div className={`group relative aspect-[2/3] rounded-xl border transition-all duration-300 overflow-hidden
-      ${isFound 
-        ? 'border-amber-300/20 bg-gradient-to-b from-[#120f1f] via-[#0c0a14] to-[#0a0911] shadow-lg hover:-translate-y-1 hover:border-amber-300/40 hover:shadow-amber-300/10' 
-        : 'border-white/5 bg-white/[0.02] opacity-60 grayscale hover:opacity-80'
-      }`}
-    >
+  const content = (
+    <>
       {/* Card Image */}
       <div className="absolute inset-0">
-        <img 
-          src={card.image} 
+        <img
+          src={card.image}
           alt={card.name}
           className={`h-full w-full object-cover transition-opacity duration-500 ${isFound ? 'opacity-90 group-hover:opacity-100' : 'opacity-30'}`}
           loading="lazy"
@@ -60,6 +159,28 @@ function CardItem({ card, stats }) {
           )}
         </div>
       </div>
+    </>
+  );
+
+  if (isFound) {
+    return (
+      <button
+        type="button"
+        onClick={() => onSelect?.(card)}
+        className="group relative aspect-[2/3] rounded-xl border transition-all duration-300 overflow-hidden text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/60 focus-visible:ring-offset-2 focus-visible:ring-offset-main border-amber-300/20 bg-gradient-to-b from-[#120f1f] via-[#0c0a14] to-[#0a0911] shadow-lg hover:-translate-y-1 hover:border-amber-300/40 hover:shadow-amber-300/10"
+        aria-label={`Open details for ${card.name}`}
+      >
+        {content}
+      </button>
+    );
+  }
+
+  return (
+    <div
+      className="group relative aspect-[2/3] rounded-xl border transition-all duration-300 overflow-hidden border-white/5 bg-white/[0.02] opacity-60 grayscale hover:opacity-80"
+      aria-label={`${card.name} (not yet discovered)`}
+    >
+      {content}
     </div>
   );
 }
@@ -67,45 +188,85 @@ function CardItem({ card, stats }) {
 export default function CardGalleryPage() {
   const { isAuthenticated } = useAuth();
   const navigate = useNavigate();
-  const [stats, setStats] = useState({});
-  const [loading, setLoading] = useState(true);
-  
+  const { entries, loading: journalLoading } = useJournal();
+
+  const [selected, setSelected] = useState(null);
+
+  const [remoteStats, setRemoteStats] = useState(null);
+  const [remoteLoading, setRemoteLoading] = useState(false);
+  const [analyticsDisabled, setAnalyticsDisabled] = useState(false);
+
   // Filters
   const [filterSuit, setFilterSuit] = useState('all'); // all, major, wands, cups, swords, pentacles
   const [filterStatus, setFilterStatus] = useState('all'); // all, found, missing
   const [sortBy, setSortBy] = useState('deck'); // deck, count_desc, count_asc, recency
 
   useEffect(() => {
-    if (!isAuthenticated) {
-      setLoading(false);
-      return;
-    }
-
     async function fetchStats() {
+      if (!isAuthenticated) return;
+
       try {
-        const res = await fetch('/api/archetype-journey/card-frequency');
+        setRemoteLoading(true);
+        setAnalyticsDisabled(false);
+
+        const res = await fetch('/api/archetype-journey/card-frequency', {
+          credentials: 'include'
+        });
+
+        if (res.status === 403) {
+          setAnalyticsDisabled(true);
+          setRemoteStats(null);
+          return;
+        }
+
         if (res.ok) {
           const data = await res.json();
           // Convert array to map for O(1) lookup
           const map = {};
-          data.cards.forEach(c => {
-            map[c.card_name] = c;
+          (data.cards || []).forEach(c => {
+            const cardName = normalizeCardName(c.card_name);
+            if (!cardName) return;
+            map[cardName] = {
+              ...c,
+              card_name: cardName,
+            };
           });
-          setStats(map);
+          setRemoteStats(map);
+        } else {
+          // Non-fatal: fall back to local computation.
+          setRemoteStats(null);
         }
       } catch (err) {
         console.error('Failed to load card stats', err);
+        setRemoteStats(null);
       } finally {
-        setLoading(false);
+        setRemoteLoading(false);
       }
     }
 
     fetchStats();
   }, [isAuthenticated]);
 
+  const localStats = useMemo(() => buildLocalCardStats(entries), [entries]);
+
+  const stats = useMemo(() => {
+    if (analyticsDisabled) return {};
+    const hasRemote = remoteStats && Object.keys(remoteStats).length > 0;
+    return hasRemote ? remoteStats : localStats;
+  }, [analyticsDisabled, remoteStats, localStats]);
+
+  const loading = useMemo(() => {
+    if (analyticsDisabled) return false;
+    // If remote succeeds, don't wait for local entries.
+    const hasRemote = remoteStats && Object.keys(remoteStats).length > 0;
+    if (hasRemote) return remoteLoading;
+    return remoteLoading || journalLoading;
+  }, [analyticsDisabled, remoteLoading, journalLoading, remoteStats]);
+
   // Derived state
-  const totalFound = Object.keys(stats).length;
-  const progressPercent = Math.round((totalFound / 78) * 100);
+  const deckSize = ALL_CARDS.length;
+  const totalFound = ALL_CARDS.reduce((sum, card) => sum + (stats[card.name] ? 1 : 0), 0);
+  const progressPercent = deckSize ? Math.round((totalFound / deckSize) * 100) : 0;
 
   const filteredCards = useMemo(() => {
     let result = [...ALL_CARDS];
@@ -134,7 +295,7 @@ export default function CardGalleryPage() {
     result.sort((a, b) => {
       const statA = stats[a.name];
       const statB = stats[b.name];
-      
+
       if (sortBy === 'count_desc') {
         return (statB?.total_count || 0) - (statA?.total_count || 0);
       }
@@ -146,60 +307,78 @@ export default function CardGalleryPage() {
       }
       // Default: Deck order (Major 0-21, then Minors by suit/rank)
       // The ALL_CARDS array is already in deck order.
-      return 0; 
+      return 0;
     });
 
     return result;
   }, [filterSuit, filterStatus, sortBy, stats]);
 
-  if (!isAuthenticated) {
-    return (
-      <div className="min-h-screen bg-main text-main p-8 flex items-center justify-center">
-        <div className="text-center">
-          <h2 className="text-xl font-serif text-accent mb-2">Sign in required</h2>
-          <p className="text-muted mb-4">Please sign in to view your card collection.</p>
-          <button 
-            onClick={() => navigate('/')}
-            className="px-4 py-2 rounded-full border border-accent/30 text-accent hover:bg-accent/10"
-          >
-            Go Home
-          </button>
-        </div>
-      </div>
-    );
-  }
+  const handleSelectCard = useCallback((card) => {
+    if (!card) return;
+    const stat = stats[card.name];
+    if (!stat) return;
+
+    const related = buildRelatedEntries(entries, card.name);
+    setSelected({
+      card,
+      stats: stat,
+      relatedEntries: related,
+    });
+  }, [stats, entries]);
+
+  const handleViewAllInJournal = useCallback((cardName) => {
+    navigate('/journal', {
+      state: {
+        prefillQuery: cardName,
+      }
+    });
+  }, [navigate]);
+
+  const handleOpenEntry = useCallback((entry, cardName) => {
+    navigate('/journal', {
+      state: {
+        prefillQuery: cardName,
+        highlightEntryId: entry?.id,
+      }
+    });
+  }, [navigate]);
 
   return (
     <div className="min-h-screen bg-main text-main animate-fade-in">
       <GlobalNav />
-      
+
       <main className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
         {/* Header */}
         <div className="mb-8">
-          <button 
+          <button
             onClick={() => navigate('/journal')}
             className="flex items-center text-sm text-accent hover:text-main mb-4 transition-colors"
           >
             <CaretLeft className="w-4 h-4 mr-1" />
             Back to Journal
           </button>
-          
+
           <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
             <div>
               <h1 className="text-3xl font-serif text-accent mb-2">Card Collection</h1>
               <p className="text-muted text-sm">
                 Discover the full deck through your readings.
               </p>
+              {!isAuthenticated && (
+                <p className="mt-2 text-xs text-amber-100/60">
+                  You&apos;re viewing a local collection. Sign in to sync your journal across devices.
+                </p>
+              )}
             </div>
-            
+
             {/* Progress Bar */}
             <div className="w-full md:w-64">
               <div className="flex justify-between text-xs text-muted mb-1.5 uppercase tracking-wider font-medium">
                 <span>Progress</span>
-                <span>{totalFound} / 78</span>
+                <span>{totalFound} / {deckSize}</span>
               </div>
               <div className="h-2 bg-white/5 rounded-full overflow-hidden border border-white/5">
-                <div 
+                <div
                   className="h-full bg-gradient-to-r from-amber-400 to-amber-600 transition-all duration-1000 ease-out"
                   style={{ width: `${progressPercent}%` }}
                 />
@@ -268,7 +447,21 @@ export default function CardGalleryPage() {
         </div>
 
         {/* Grid */}
-        {loading ? (
+        {analyticsDisabled ? (
+          <div className="rounded-2xl border border-amber-300/15 bg-amber-200/5 p-6 text-center">
+            <h2 className="text-lg font-serif text-amber-50 mb-2">Collection tracking is disabled</h2>
+            <p className="text-sm text-amber-100/70 mb-4">
+              Enable Journey analytics in your account settings to track your card collection.
+            </p>
+            <button
+              type="button"
+              onClick={() => navigate('/account')}
+              className="px-4 py-2 rounded-full border border-amber-200/25 text-amber-50 hover:bg-amber-200/10"
+            >
+              Go to Account Settings
+            </button>
+          </div>
+        ) : loading ? (
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
             {[...Array(12)].map((_, i) => (
               <div key={i} className="aspect-[2/3] rounded-xl bg-white/5 animate-pulse" />
@@ -277,10 +470,11 @@ export default function CardGalleryPage() {
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4 sm:gap-6">
             {filteredCards.map(card => (
-              <CardItem 
-                key={card.name} 
-                card={card} 
-                stats={stats[card.name]} 
+              <CardItem
+                key={card.name}
+                card={card}
+                stats={stats[card.name]}
+                onSelect={handleSelectCard}
               />
             ))}
           </div>
@@ -289,7 +483,7 @@ export default function CardGalleryPage() {
         {!loading && filteredCards.length === 0 && (
           <div className="text-center py-20 text-muted">
             <p>No cards match your filters.</p>
-            <button 
+            <button
               onClick={() => { setFilterSuit('all'); setFilterStatus('all'); }}
               className="mt-4 text-accent hover:underline text-sm"
             >
@@ -298,6 +492,22 @@ export default function CardGalleryPage() {
           </div>
         )}
       </main>
+
+      <AnimatePresence>
+        {selected?.card && (
+          <CardModal
+            card={selected.card}
+            position="In your collection"
+            stats={selected.stats}
+            relatedEntries={selected.relatedEntries}
+            isOpen={!!selected}
+            onClose={() => setSelected(null)}
+            layoutId={`gallery-${(selected.card?.name || 'card').toLowerCase().replace(/\s+/g, '-')}`}
+            onViewAllInJournal={() => handleViewAllInJournal(selected.card?.name)}
+            onOpenEntry={(entry) => handleOpenEntry(entry, selected.card?.name)}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 }

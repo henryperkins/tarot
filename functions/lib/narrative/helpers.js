@@ -786,7 +786,7 @@ function buildPositionCardText(cardInfo, position, options = {}) {
 
   // Add imagery hook for Major Arcana if enabled
   let imagery = '';
-  if (template.useImagery && isMajorArcana(cardInfo.number)) {
+  if (template.useImagery && isMajorArcana(cardInfo)) {
     const hook = getImageryHook(cardInfo.number, cardInfo.orientation);
     if (hook && hook.interpretation) {
       imagery = ` ${hook.interpretation}`;
@@ -795,7 +795,7 @@ function buildPositionCardText(cardInfo, position, options = {}) {
 
   // Minor Arcana: suit/rank-aware enrichment plus optional light imagery hook.
   let minorContextText = '';
-  if (!isMajorArcana(cardInfo.number)) {
+  if (!isMajorArcana(cardInfo)) {
     const minorSummary = buildMinorSummary({
       card: cardInfo.card,
       name: cardInfo.card,
@@ -1094,7 +1094,7 @@ function buildReflectionsSection(reflectionsText) {
 }
 
 function buildOccultFlavor(cardInfo) {
-  if (!cardInfo || !isMajorArcana(cardInfo.number)) return '';
+  if (!cardInfo || !isMajorArcana(cardInfo)) return '';
 
   const astro = getAstroForCard(cardInfo);
   const qabalah = getQabalahForCard(cardInfo);

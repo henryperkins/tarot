@@ -1,4 +1,4 @@
-import { PIP_NUMEROLOGY, SUIT_THEMES } from './minorMeta.js';
+import { PIP_NUMEROLOGY, SUIT_THEMES, getMinorContext } from './minorMeta.js';
 
 /**
  * Imagery Hooks for Major Arcana
@@ -526,10 +526,51 @@ export function getImageryHook(cardNumber, orientation = 'upright') {
 }
 
 /**
- * Check if a card is a Major Arcana (0-21)
+ * Check if a card is a Major Arcana.
+ *
+ * Accepts either:
+ * - a Major Arcana number (0–21)
+ * - a card-like object (preferred), where we can also guard against
+ *   misclassifying Minor Arcana that may carry a numeric `number` field.
  */
-export function isMajorArcana(cardNumber) {
-  return cardNumber !== undefined && cardNumber >= 0 && cardNumber <= 21;
+export function isMajorArcana(cardOrNumber) {
+  // Support existing call sites that pass just a number.
+  const isObject = typeof cardOrNumber === 'object' && cardOrNumber !== null;
+  let cardNumber = isObject
+    ? (
+      cardOrNumber.number ??
+      cardOrNumber.cardNumber ??
+      cardOrNumber.card_number
+    )
+    : cardOrNumber;
+
+  // Be permissive about numeric strings (e.g. "14"), but never about empty strings.
+  if (typeof cardNumber === 'string') {
+    const trimmed = cardNumber.trim();
+    if (!trimmed) return false;
+    cardNumber = Number(trimmed);
+  }
+
+  // Avoid JS coercion pitfalls (null/''/true) by requiring an integer.
+  if (!Number.isInteger(cardNumber) || cardNumber < 0 || cardNumber > 21) {
+    return false;
+  }
+
+  // If we have a card-like object, ensure it doesn't look like a Minor.
+  // This protects against legacy payloads that might set `number` to a pip value.
+  if (isObject) {
+    // Fast path: explicit Minor structure.
+    if (cardOrNumber.suit || cardOrNumber.rank || Number.isInteger(cardOrNumber.rankValue)) {
+      return false;
+    }
+
+    // Slow path: infer Minor context from name if needed.
+    if (getMinorContext(cardOrNumber)) {
+      return false;
+    }
+  }
+
+  return true;
 }
 
 /**

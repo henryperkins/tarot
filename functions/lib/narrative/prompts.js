@@ -1340,7 +1340,7 @@ function buildCardWithImagery(cardInfo, position, options, prefix = '') {
   const allowImagery = !safeOptions.omitImagery;
 
   // Add imagery hook if Major Arcana
-  if (allowImagery && isMajorArcana(cardInfo.number)) {
+  if (allowImagery && isMajorArcana(cardInfo)) {
     const hook = getImageryHook(cardInfo.number, cardInfo.orientation);
     if (hook) {
       text += `*Imagery: ${hook.visual}*\n`;

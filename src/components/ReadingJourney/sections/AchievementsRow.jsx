@@ -9,6 +9,7 @@ import { Medal, Fire, Star, Trophy, Sparkle } from '@phosphor-icons/react';
 const BADGE_ICONS = {
   fire: Fire,
   flame: Fire,
+  streak: Fire,
   star: Star,
   medal: Medal,
   trophy: Trophy,
@@ -19,6 +20,7 @@ const BADGE_ICONS = {
 const BADGE_COLORS = {
   fire: 'text-orange-400 bg-orange-500/15 border-orange-500/30',
   flame: 'text-orange-400 bg-orange-500/15 border-orange-500/30',
+  streak: 'text-orange-400 bg-orange-500/15 border-orange-500/30',
   star: 'text-yellow-400 bg-yellow-500/15 border-yellow-500/30',
   medal: 'text-amber-400 bg-amber-500/15 border-amber-500/30',
   trophy: 'text-yellow-300 bg-yellow-500/15 border-yellow-500/30',
@@ -50,6 +52,8 @@ function AchievementsRow({ badges = [] }) {
         {badges.slice(0, 6).map((badge, index) => {
           const Icon = getBadgeIcon(badge.badge_type);
           const colors = getBadgeColors(badge.badge_type);
+          const count = badge?.count ?? badge?.metadata?.count ?? null;
+          const title = badge?.metadata?.context || badge?.card_name || 'Achievement';
 
           return (
             <div
@@ -58,14 +62,14 @@ function AchievementsRow({ badges = [] }) {
                 flex-shrink-0 flex items-center gap-1.5 rounded-full
                 border px-2.5 py-1.5 min-h-[32px] ${colors}
               `}
-              title={badge.card_name || 'Achievement'}
+              title={title}
             >
               <Icon className="h-3.5 w-3.5" aria-hidden="true" />
               <span className="text-xs font-medium whitespace-nowrap">
                 {badge.card_name || 'Badge'}
               </span>
-              {badge.count && (
-                <span className="text-[10px] opacity-70">×{badge.count}</span>
+              {typeof count === 'number' && Number.isFinite(count) && (
+                <span className="text-[10px] opacity-70">×{count}</span>
               )}
             </div>
           );

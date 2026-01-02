@@ -83,7 +83,6 @@ function DeckPreviewImage({ preview, deckLabel, priority = 'auto' }) {
   }
 
   const isHighPriority = priority === 'high';
-  const fetchPriority = isHighPriority ? 'high' : 'auto';
   const loading = isHighPriority ? 'eager' : 'lazy';
 
   return (
@@ -97,7 +96,6 @@ function DeckPreviewImage({ preview, deckLabel, priority = 'auto' }) {
         className="w-full h-auto object-cover"
         loading={loading}
         decoding="async"
-        fetchPriority={fetchPriority}
         onError={(e) => {
           e.currentTarget.style.display = 'none';
         }}

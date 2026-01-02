@@ -40,10 +40,21 @@ export const COURT_ARCHETYPES = {
 export function parseMinorName(name) {
   if (!name || typeof name !== 'string') return null;
   const match = name.match(
-    /^(\w+)\s+of\s+(Wands|Cups|Swords|Pentacles)$/
+    /^\s*([A-Za-z]+)\s+of\s+(Wands|Cups|Swords|Pentacles)\s*$/i
   );
   if (!match) return null;
-  const [, rank, suit] = match;
+  const [, rawRank, rawSuit] = match;
+
+  const suitMap = {
+    wands: 'Wands',
+    cups: 'Cups',
+    swords: 'Swords',
+    pentacles: 'Pentacles'
+  };
+  const suit = suitMap[String(rawSuit).toLowerCase()];
+  if (!suit) return null;
+
+  const rank = String(rawRank).slice(0, 1).toUpperCase() + String(rawRank).slice(1).toLowerCase();
   return { rank, suit };
 }
 

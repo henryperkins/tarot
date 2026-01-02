@@ -72,6 +72,7 @@ export default function JourneyMobileSheet({
   onStartReading,
   locale = 'default',
   timezone,
+  _dataSource,
 }) {
   const [isSheetOpen, setIsSheetOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('cards');
@@ -278,6 +279,9 @@ export default function JourneyMobileSheet({
   }
 
   const topCard = cardFrequency[0];
+  const topCardScopeLabel = filtersActive
+    ? 'in filtered view'
+    : (_dataSource === 'server' ? 'this month' : 'in your journal');
 
   return (
     <>
@@ -334,7 +338,7 @@ export default function JourneyMobileSheet({
               <div className="text-2xl mb-1">🃏</div>
               <p className="text-lg font-serif text-amber-50">{topCard.name}</p>
               <p className="text-xs text-amber-100/70">
-                appeared {topCard.count}× {filtersActive ? 'in filtered view' : 'this month'}
+                appeared {topCard.count}× {topCardScopeLabel}
               </p>
               {topCard.hasBadge && (
                 <p className="mt-2 inline-flex items-center gap-1 text-xs text-orange-300">
