@@ -668,6 +668,35 @@ export function identifyTensions(cardsInfo) {
         });
       });
     }
+
+    // Timeline pairs (Past↔Present, Present↔Future) for selectReasoningConnector
+    const timelinePairs = [
+      { from: 2, to: 0, labels: ['Past', 'Present'] },
+      { from: 0, to: 3, labels: ['Present', 'Near Future'] }
+    ];
+
+    // Additional thematic pairs
+    const thematicPairs = [
+      { from: 4, to: 6, labels: ['Conscious Goals', 'Advice'],
+        significance: 'What you consciously want and how to engage with it.' },
+      { from: 8, to: 9, labels: ['Hopes & Fears', 'Outcome'],
+        significance: 'Your deepest concerns meet the likely trajectory.' }
+    ];
+
+    [...timelinePairs, ...thematicPairs].forEach(pair => {
+      const tensions = detectTensionBetweenCards(cardsInfo[pair.from], cardsInfo[pair.to]);
+      if (tensions) {
+        tensions.forEach(t => {
+          allTensions.push({
+            ...t,
+            positions: [pair.from, pair.to],
+            cards: [cardsInfo[pair.from].card, cardsInfo[pair.to].card],
+            positionLabels: pair.labels,
+            significance: pair.significance || t.significance
+          });
+        });
+      }
+    });
   }
 
   // Sort by intensity and key tension status

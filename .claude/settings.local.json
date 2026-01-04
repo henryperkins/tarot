@@ -3,7 +3,8 @@
     "allow": [
       "Bash(cat:*)",
       "Bash(npm run lint)",
-      "Bash(node -e:*)"
+      "Bash(node -e:*)",
+      "Bash(npm test)"
     ]
   }
 }

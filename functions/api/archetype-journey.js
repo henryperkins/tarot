@@ -80,6 +80,8 @@ export async function onRequest(context) {
     // Route to appropriate handler
     if (url.pathname === '/api/archetype-journey' && method === 'GET') {
       return await handleGetAnalytics(env.DB, user.id, corsHeaders);
+    } else if (url.pathname === '/api/archetype-journey/card-frequency' && method === 'GET') {
+      return await handleGetCardFrequency(env.DB, user.id, corsHeaders);
     } else if (url.pathname === '/api/archetype-journey/track' && method === 'POST') {
       const body = await request.json();
       return await handleTrackCards(env.DB, user.id, body, corsHeaders);
@@ -104,6 +106,46 @@ export async function onRequest(context) {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });
   }
+}
+
+/**
+ * Get per-card frequency across all tracked months.
+ *
+ * Shape is designed for the Card Collection UI:
+ * {
+ *   success: true,
+ *   cards: [{ card_name, card_number, total_count, first_seen, last_seen }, ...]
+ * }
+ */
+async function handleGetCardFrequency(db, userId, corsHeaders) {
+  // Aggregate across all months. Note that card_appearances stores one row per
+  // (user_id, card_name, year_month), with per-month first_seen/last_seen.
+  // We collapse to all-time stats by summing counts and taking min/max timestamps.
+  const query = await db.prepare(`
+    SELECT
+      card_name,
+      MAX(card_number) AS card_number,
+      SUM(count) AS total_count,
+      MIN(first_seen) AS first_seen,
+      MAX(last_seen) AS last_seen
+    FROM card_appearances
+    WHERE user_id = ?
+    GROUP BY card_name
+    ORDER BY total_count DESC, last_seen DESC
+  `).bind(userId).all();
+
+  const cards = (query.results || []).map((row) => ({
+    card_name: row.card_name,
+    card_number: row.card_number,
+    total_count: row.total_count,
+    first_seen: row.first_seen,
+    last_seen: row.last_seen
+  }));
+
+  return new Response(JSON.stringify({ success: true, cards }), {
+    status: 200,
+    headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+  });
 }
 
 /**
@@ -178,6 +220,108 @@ async function handleGetAnalytics(db, userId, corsHeaders) {
       return acc;
     }, {});
 
+  // ---------------------------------------------------------------------------
+  // Backfill diagnostics
+  // ---------------------------------------------------------------------------
+  // Reading Journey uses card_appearances for server-side analytics.
+  // Older journal_entries (pre-analytics rollout, imports, migrations, etc.)
+  // are not reflected in card_appearances unless the user runs backfill.
+  //
+  // We compute lightweight metadata so the UI can accurately decide whether
+  // a backfill prompt should be shown (instead of relying on “topCards this month”).
+  let stats = {
+    needsBackfill: null,
+    entriesProcessed: null,
+    lastAnalyzedAt: null,
+    totalJournalEntries: null,
+    firstJournalMonth: null,
+    lastJournalMonth: null,
+    trackedCardRows: null,
+    firstTrackedMonth: null,
+    lastTrackedMonth: null,
+  };
+
+  try {
+    const journalMeta = await db.prepare(`
+      SELECT
+        COUNT(*) AS total_entries,
+        MIN(created_at) AS first_entry_at,
+        MAX(created_at) AS last_entry_at
+      FROM journal_entries
+      WHERE user_id = ?
+    `).bind(userId).first();
+
+    const appearancesMeta = await db.prepare(`
+      SELECT
+        COUNT(*) AS tracked_rows,
+        MIN(year_month) AS first_tracked_month,
+        MAX(year_month) AS last_tracked_month,
+        MAX(last_seen) AS last_analyzed_at
+      FROM card_appearances
+      WHERE user_id = ?
+    `).bind(userId).first();
+
+    const totalEntries = typeof journalMeta?.total_entries === 'number'
+      ? journalMeta.total_entries
+      : Number(journalMeta?.total_entries || 0);
+
+    const firstEntryAt = typeof journalMeta?.first_entry_at === 'number'
+      ? journalMeta.first_entry_at
+      : (journalMeta?.first_entry_at ? Number(journalMeta.first_entry_at) : null);
+
+    const lastEntryAt = typeof journalMeta?.last_entry_at === 'number'
+      ? journalMeta.last_entry_at
+      : (journalMeta?.last_entry_at ? Number(journalMeta.last_entry_at) : null);
+
+    const firstJournalMonth = firstEntryAt
+      ? new Date(firstEntryAt * 1000).toISOString().slice(0, 7)
+      : null;
+
+    const lastJournalMonth = lastEntryAt
+      ? new Date(lastEntryAt * 1000).toISOString().slice(0, 7)
+      : null;
+
+    const trackedRows = typeof appearancesMeta?.tracked_rows === 'number'
+      ? appearancesMeta.tracked_rows
+      : Number(appearancesMeta?.tracked_rows || 0);
+
+    const firstTrackedMonth = appearancesMeta?.first_tracked_month || null;
+    const lastTrackedMonth = appearancesMeta?.last_tracked_month || null;
+    const lastAnalyzedAt = appearancesMeta?.last_analyzed_at || null;
+
+    // Determine if backfill is needed.
+    // - If the user has journal entries but no tracked rows, backfill is required.
+    // - If we have tracked rows but the earliest tracked month is later than the
+    //   earliest journal month, we are missing historical data.
+    let needsBackfill = false;
+    if (totalEntries > 0) {
+      if (!trackedRows) {
+        needsBackfill = true;
+      } else if (firstJournalMonth && firstTrackedMonth && firstTrackedMonth > firstJournalMonth) {
+        needsBackfill = true;
+      }
+    }
+
+    // If we're confident tracking covers history, expose entriesProcessed as
+    // a “best effort” count for UI captions.
+    const entriesProcessed = (!needsBackfill && totalEntries > 0) ? totalEntries : null;
+
+    stats = {
+      needsBackfill,
+      entriesProcessed,
+      lastAnalyzedAt,
+      totalJournalEntries: totalEntries,
+      firstJournalMonth,
+      lastJournalMonth,
+      trackedCardRows: trackedRows,
+      firstTrackedMonth,
+      lastTrackedMonth,
+    };
+  } catch (err) {
+    // Degrade gracefully; analytics should still work without diagnostics.
+    console.warn('Failed to compute archetype analytics stats:', err?.message || err);
+  }
+
   return new Response(JSON.stringify({
     success: true,
     analytics: {
@@ -188,7 +332,8 @@ async function handleGetAnalytics(db, userId, corsHeaders) {
       badges,
       trends,
       majorArcanaFrequency: majorArcanaFreq,
-      totalReadingsThisMonth: allCards.reduce((sum, card) => sum + card.count, 0)
+      totalReadingsThisMonth: allCards.reduce((sum, card) => sum + card.count, 0),
+      stats
     }
   }), {
     status: 200,

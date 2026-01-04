@@ -15,6 +15,12 @@ import {
   computeRemedyRotationIndex
 } from '../helpers.js';
 import { getToneStyle, getFrameVocabulary, buildNameClause, buildPersonalizedClosing } from '../styleHelpers.js';
+import {
+  selectReasoningConnector,
+  buildReasoningAwareOpening,
+  enhanceCardTextWithReasoning,
+  buildReasoningSynthesis
+} from '../reasoningIntegration.js';
 
 export async function buildDecisionReading({
   cardsInfo,
@@ -29,6 +35,7 @@ export async function buildDecisionReading({
     typeof options.collectValidation === 'function'
       ? options.collectValidation
       : null;
+  const reasoning = options.reasoning || null;
 
   const recordSection = (text, metadata = {}) => {
     const result = enhanceSection(text, metadata);
@@ -47,15 +54,13 @@ export async function buildDecisionReading({
   const frameVocab = getFrameVocabulary(personalization?.spiritualFrame);
   const nameInline = buildNameClause(personalization?.displayName, 'inline');
 
-  sections.push(
-    buildOpening(
-      spreadName,
-      userQuestion ||
-      'This spread illuminates the heart of your decision, two possible paths, clarifying insight, and a reminder of your agency.',
-      context,
-      { personalization: options.personalization }
-    )
-  );
+  // Use reasoning-aware opening if available
+  const openingQuestion = userQuestion ||
+    'This spread illuminates the heart of your decision, two possible paths, clarifying insight, and a reminder of your agency.';
+  const opening = reasoning
+    ? buildReasoningAwareOpening(spreadName, openingQuestion, context, reasoning, { personalization: options.personalization })
+    : buildOpening(spreadName, openingQuestion, context, { personalization: options.personalization });
+  sections.push(opening);
 
   const normalizedCards = Array.isArray(cardsInfo) ? cardsInfo : [];
   if (normalizedCards.length < 5) {
@@ -76,11 +81,12 @@ export async function buildDecisionReading({
   let choice = `### The Choice\n\n`;
   const heartPosition = heart?.position || 'Heart of the decision';
   if (heart) {
-    choice += buildPositionCardText(
-      heart,
-      heartPosition,
-      positionOptions
-    );
+    let heartText = buildPositionCardText(heart, heartPosition, positionOptions);
+    if (reasoning) {
+      const enhanced = enhanceCardTextWithReasoning(heartText, 0, reasoning);
+      if (enhanced.enhanced) heartText = enhanced.text;
+    }
+    choice += heartText;
     choice += '\n\nThis position stands at the center of your decision and points toward what truly matters as you weigh each path.';
   } else {
     choice += 'This position has not been revealed yet, so the core of the decision is still taking shape.';
@@ -103,12 +109,12 @@ export async function buildDecisionReading({
   let aSection = `### Path A\n\n`;
   const pathAPosition = pathA?.position || 'Path A — energy & likely outcome';
   if (pathA) {
-    const pathAConnector = getConnector(pathAPosition, 'toPrev');
-    const pathAText = buildPositionCardText(
-      pathA,
-      pathAPosition,
-      positionOptions
-    );
+    const pathAConnector = (reasoning && selectReasoningConnector(reasoning, 0, 1)) || getConnector(pathAPosition, 'toPrev');
+    let pathAText = buildPositionCardText(pathA, pathAPosition, positionOptions);
+    if (reasoning) {
+      const enhanced = enhanceCardTextWithReasoning(pathAText, 1, reasoning);
+      if (enhanced.enhanced) pathAText = enhanced.text;
+    }
     aSection += pathAConnector ? `${pathAConnector} ${pathAText}` : pathAText;
     aSection += '\n\nThis path suggests one possible trajectory if you commit to this direction.';
 
@@ -130,12 +136,12 @@ export async function buildDecisionReading({
   let bSection = `### Path B\n\n`;
   const pathBPosition = pathB?.position || 'Path B — energy & likely outcome';
   if (pathB) {
-    const pathBConnector = getConnector(pathBPosition, 'toPrev');
-    const pathBText = buildPositionCardText(
-      pathB,
-      pathBPosition,
-      positionOptions
-    );
+    const pathBConnector = (reasoning && selectReasoningConnector(reasoning, 1, 2)) || getConnector(pathBPosition, 'toPrev');
+    let pathBText = buildPositionCardText(pathB, pathBPosition, positionOptions);
+    if (reasoning) {
+      const enhanced = enhanceCardTextWithReasoning(pathBText, 2, reasoning);
+      if (enhanced.enhanced) pathBText = enhanced.text;
+    }
     bSection += pathBConnector ? `${pathBConnector} ${pathBText}` : pathBText;
     bSection += '\n\nThis path suggests an alternate trajectory, inviting you to compare how each route aligns with your values.';
 
@@ -158,12 +164,12 @@ export async function buildDecisionReading({
 
   if (clarifier) {
     const clarifierPosition = clarifier.position || 'What clarifies the best path';
-    const clarifierConnector = getConnector(clarifierPosition, 'toPrev');
-    const clarifierText = buildPositionCardText(
-      clarifier,
-      clarifierPosition,
-      positionOptions
-    );
+    const clarifierConnector = (reasoning && selectReasoningConnector(reasoning, 2, 3)) || getConnector(clarifierPosition, 'toPrev');
+    let clarifierText = buildPositionCardText(clarifier, clarifierPosition, positionOptions);
+    if (reasoning) {
+      const enhanced = enhanceCardTextWithReasoning(clarifierText, 3, reasoning);
+      if (enhanced.enhanced) clarifierText = enhanced.text;
+    }
     clarity += clarifierConnector ? `${clarifierConnector} ${clarifierText}` : clarifierText;
     clarity += '\n\n';
 
@@ -184,12 +190,12 @@ export async function buildDecisionReading({
 
   if (freeWill) {
     const freeWillPosition = freeWill.position || 'What to remember about your free will';
-    const freeWillConnector = getConnector(freeWillPosition, 'toPrev');
-    const freeWillText = buildPositionCardText(
-      freeWill,
-      freeWillPosition,
-      positionOptions
-    );
+    const freeWillConnector = (reasoning && selectReasoningConnector(reasoning, 3, 4)) || getConnector(freeWillPosition, 'toPrev');
+    let freeWillText = buildPositionCardText(freeWill, freeWillPosition, positionOptions);
+    if (reasoning) {
+      const enhanced = enhanceCardTextWithReasoning(freeWillText, 4, reasoning);
+      if (enhanced.enhanced) freeWillText = enhanced.text;
+    }
     clarity += freeWillConnector ? `${freeWillConnector} ${freeWillText}` : freeWillText;
     clarity += '\n\n';
 
@@ -220,9 +226,12 @@ export async function buildDecisionReading({
     sections.push(buildReflectionsSection(reflectionsText));
   }
 
-  const patternSection = buildPatternSynthesis(themes);
-  if (patternSection) {
-    sections.push(patternSection);
+  // Use reasoning synthesis if available, otherwise fall back to pattern synthesis
+  const synthesisSection = reasoning
+    ? buildReasoningSynthesis(normalizedCards, reasoning, themes, userQuestion, context)
+    : buildPatternSynthesis(themes);
+  if (synthesisSection) {
+    sections.push(synthesisSection);
   }
 
   // Guidance synthesis with elemental remedies

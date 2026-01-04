@@ -83,7 +83,7 @@ function SeasonSummary({
             {currentStreak}-day streak
           </span>
         )}
-        {topContext && (
+        {topContext?.name && (
           <span className="inline-flex items-center gap-1 rounded-full bg-cyan-500/15 px-2.5 py-1 text-xs text-cyan-100">
             {topContext.name.charAt(0).toUpperCase() + topContext.name.slice(1)}
           </span>

@@ -17,6 +17,12 @@ import {
   computeRemedyRotationIndex
 } from '../helpers.js';
 import { getToneStyle, getFrameVocabulary, buildNameClause, buildPersonalizedClosing } from '../styleHelpers.js';
+import {
+  selectReasoningConnector,
+  buildReasoningAwareOpening,
+  enhanceCardTextWithReasoning,
+  buildReasoningSynthesis
+} from '../reasoningIntegration.js';
 
 export async function buildRelationshipReading({
   cardsInfo,
@@ -31,6 +37,7 @@ export async function buildRelationshipReading({
     typeof options.collectValidation === 'function'
       ? options.collectValidation
       : null;
+  const reasoning = options.reasoning || null;
 
   const recordSection = (text, metadata = {}) => {
     const result = enhanceSection(text, metadata);
@@ -49,15 +56,13 @@ export async function buildRelationshipReading({
   const frameVocab = getFrameVocabulary(personalization?.spiritualFrame);
   const nameInline = buildNameClause(personalization?.displayName, 'inline');
 
-  sections.push(
-    buildOpening(
-      spreadName,
-      userQuestion ||
-      'This spread explores your energy, their energy, the connection between you, and guidance for relating with agency and care.',
-      context,
-      { personalization: options.personalization }
-    )
-  );
+  // Use reasoning-aware opening if available
+  const openingQuestion = userQuestion ||
+    'This spread explores your energy, their energy, the connection between you, and guidance for relating with agency and care.';
+  const opening = reasoning
+    ? buildReasoningAwareOpening(spreadName, openingQuestion, context, reasoning, { personalization: options.personalization })
+    : buildOpening(spreadName, openingQuestion, context, { personalization: options.personalization });
+  sections.push(opening);
 
   const normalizedCards = Array.isArray(cardsInfo) ? cardsInfo : [];
   const prioritized = sortCardsByImportance(normalizedCards, 'relationship');
@@ -79,11 +84,11 @@ export async function buildRelationshipReading({
 
   if (youCard) {
     const youPosition = youCard.position || 'You / your energy';
-    const youText = buildPositionCardText(
-      youCard,
-      youPosition,
-      positionOptions
-    );
+    let youText = buildPositionCardText(youCard, youPosition, positionOptions);
+    if (reasoning) {
+      const enhanced = enhanceCardTextWithReasoning(youText, 0, reasoning);
+      if (enhanced.enhanced) youText = enhanced.text;
+    }
     youThem += youText;
 
     const youReversalNote = buildInlineReversalNote(youCard, themes, {
@@ -106,12 +111,12 @@ export async function buildRelationshipReading({
 
   if (themCard) {
     const themPosition = themCard.position || 'Them / their energy';
-    const themConnector = getConnector(themPosition, 'toPrev');
-    const themText = buildPositionCardText(
-      themCard,
-      themPosition,
-      positionOptions
-    );
+    const themConnector = (reasoning && selectReasoningConnector(reasoning, 0, 1)) || getConnector(themPosition, 'toPrev');
+    let themText = buildPositionCardText(themCard, themPosition, positionOptions);
+    if (reasoning) {
+      const enhanced = enhanceCardTextWithReasoning(themText, 1, reasoning);
+      if (enhanced.enhanced) themText = enhanced.text;
+    }
     youThem += themConnector ? `${themConnector} ${themText}` : themText;
 
     const themReversalNote = buildInlineReversalNote(themCard, themes, {
@@ -160,12 +165,12 @@ export async function buildRelationshipReading({
     let connection = `### The Connection\n\n`;
     connection += 'This position shows what the bond is asking for right now.\n\n';
     const connectionPosition = connectionCard.position || 'The connection / shared lesson';
-    const connectionConnector = getConnector(connectionPosition, 'toPrev');
-    const connectionText = buildPositionCardText(
-      connectionCard,
-      connectionPosition,
-      positionOptions
-    );
+    const connectionConnector = (reasoning && selectReasoningConnector(reasoning, 1, 2)) || getConnector(connectionPosition, 'toPrev');
+    let connectionText = buildPositionCardText(connectionCard, connectionPosition, positionOptions);
+    if (reasoning) {
+      const enhanced = enhanceCardTextWithReasoning(connectionText, 2, reasoning);
+      if (enhanced.enhanced) connectionText = enhanced.text;
+    }
     connection += connectionConnector ? `${connectionConnector} ${connectionText}` : connectionText;
 
     const connectionReversalNote = buildInlineReversalNote(connectionCard, themes, {
@@ -283,9 +288,12 @@ export async function buildRelationshipReading({
     sections.push(buildReflectionsSection(reflectionsText));
   }
 
-  const patternSection = buildPatternSynthesis(themes);
-  if (patternSection) {
-    sections.push(patternSection);
+  // Use reasoning synthesis if available, otherwise fall back to pattern synthesis
+  const synthesisSection = reasoning
+    ? buildReasoningSynthesis(normalizedCards, reasoning, themes, userQuestion, context)
+    : buildPatternSynthesis(themes);
+  if (synthesisSection) {
+    sections.push(synthesisSection);
   }
 
   // Additional guidance with elemental remedies

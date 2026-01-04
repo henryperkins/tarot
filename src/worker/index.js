@@ -14,6 +14,7 @@ import * as ttsHume from '../../functions/api/tts-hume.js';
 import * as speechToken from '../../functions/api/speech-token.js';
 import * as journal from '../../functions/api/journal.js';
 import * as journalById from '../../functions/api/journal/[id].js';
+import * as journalPatternAlerts from '../../functions/api/journal/pattern-alerts.js';
 import * as journalSummary from '../../functions/api/journal-summary.js';
 import * as feedback from '../../functions/api/feedback.js';
 import * as generateQuestion from '../../functions/api/generate-question.js';
@@ -179,6 +180,7 @@ const routes = [
   { pattern: /^\/api\/speech-token$/, handlers: speechToken },
   { pattern: /^\/api\/usage$/, handlers: usage },
   { pattern: /^\/api\/journal$/, handlers: journal },
+  { pattern: /^\/api\/journal\/pattern-alerts$/, handlers: journalPatternAlerts },
   { pattern: /^\/api\/journal\/([^/]+)$/, handlers: journalById, params: ['id'] },
   { pattern: /^\/api\/journal-summary$/, handlers: journalSummary },
   { pattern: /^\/api\/feedback$/, handlers: feedback },

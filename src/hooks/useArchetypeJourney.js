@@ -113,9 +113,9 @@ export function useArchetypeJourney(userId, enabled = true) {
       const next = shouldReset
         ? { lastAnalyzedAt: null, entriesProcessed: null }
         : {
-            lastAnalyzedAt: incoming.lastAnalyzedAt ?? prev.lastAnalyzedAt ?? null,
-            entriesProcessed: incoming.entriesProcessed ?? prev.entriesProcessed ?? null
-          };
+          lastAnalyzedAt: incoming.lastAnalyzedAt ?? prev.lastAnalyzedAt ?? null,
+          entriesProcessed: incoming.entriesProcessed ?? prev.entriesProcessed ?? null
+        };
 
       // Only persist if we have a valid user-scoped key
       if (safeStorage.isAvailable && userId) {
@@ -287,8 +287,18 @@ export function useArchetypeJourney(userId, enabled = true) {
   // Compute current streak from analytics
   const currentStreak = analytics?.stats?.currentStreak || 0;
 
-  // Check if analytics has backfilled data
-  const hasBackfilled = !!(analytics && topCards.length > 0);
+  // Check if analytics has backfilled data.
+  // Prefer explicit server signal when present (helps detect partial rollouts / historical imports).
+  const hasBackfilled = (() => {
+    const needsBackfill = analytics?.stats?.needsBackfill;
+    if (typeof needsBackfill === 'boolean') {
+      return needsBackfill === false;
+    }
+
+    // Fallback heuristic (legacy API shape): treat presence of any analytics payload
+    // as “backfilled enough” to avoid nagging users.
+    return !!(analytics && (topCards.length > 0 || trends.length > 0 || badges.length > 0));
+  })();
 
   // Run caption for display
   const topCardWithLastSeen = topCards.find((card) => card.last_seen);

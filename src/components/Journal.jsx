@@ -202,8 +202,8 @@ export default function Journal() {
     }
 
     // Clear the navigation state so back/forward doesn't keep re-applying.
-    navigate(location.pathname, { replace: true, state: null });
-  }, [location.key, location.pathname, location.state, navigate]);
+    navigate(`${location.pathname}${location.search || ''}${location.hash || ''}`, { replace: true, state: null });
+  }, [location.key, location.pathname, location.search, location.hash, location.state, navigate]);
 
   const registerHistoryFiltersEl = useCallback((node) => {
     setHistoryFiltersEl(node);

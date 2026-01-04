@@ -20,6 +20,12 @@ import {
   isProseMode
 } from '../helpers.js';
 import { buildPersonalizedClosing } from '../styleHelpers.js';
+import {
+  selectReasoningConnector,
+  buildReasoningAwareOpening,
+  enhanceCardTextWithReasoning,
+  buildReasoningSynthesis
+} from '../reasoningIntegration.js';
 
 export async function buildCelticCrossReading({
   cardsInfo,
@@ -34,6 +40,7 @@ export async function buildCelticCrossReading({
   const sections = [];
   const personalization = options.personalization || null;
   const collectValidation = typeof options.collectValidation === 'function' ? options.collectValidation : null;
+  const reasoning = options.reasoning || null;
   const remedyRotationIndex = computeRemedyRotationIndex({ cardsInfo, userQuestion, spreadInfo });
 
   const recordEnhancedSection = (sectionText, metadata = {}) => {
@@ -48,15 +55,22 @@ export async function buildCelticCrossReading({
     sections.push(result.text);
   };
 
-  // Opening
-  sections.push(
-    buildOpening(
-      'Celtic Cross (Classic 10-Card)',
-      userQuestion,
-      context,
-      { personalization: options.personalization }
-    )
-  );
+  // Use reasoning-aware opening if available
+  const opening = reasoning
+    ? buildReasoningAwareOpening(
+        'Celtic Cross (Classic 10-Card)',
+        userQuestion,
+        context,
+        reasoning,
+        { personalization: options.personalization }
+      )
+    : buildOpening(
+        'Celtic Cross (Classic 10-Card)',
+        userQuestion,
+        context,
+        { personalization: options.personalization }
+      );
+  sections.push(opening);
 
   const attentionNote = buildWeightAttentionIntro(prioritized, 'Celtic Cross');
   if (attentionNote) {
@@ -65,7 +79,7 @@ export async function buildCelticCrossReading({
 
   // 1. NUCLEUS - The Heart of the Matter (Cards 1-2)
   recordEnhancedSection(
-    buildNucleusSection(celticAnalysis.nucleus, cardsInfo, themes, context),
+    buildNucleusSection(celticAnalysis.nucleus, cardsInfo, themes, context, reasoning),
     {
       type: 'nucleus',
       cards: [cardsInfo[0], cardsInfo[1]],
@@ -75,7 +89,7 @@ export async function buildCelticCrossReading({
 
   // 2. TIMELINE - Past, Present, Future (Cards 3-1-4)
   recordEnhancedSection(
-    buildTimelineSection(celticAnalysis.timeline, cardsInfo, themes, context),
+    buildTimelineSection(celticAnalysis.timeline, cardsInfo, themes, context, reasoning),
     { type: 'timeline' }
   );
 
@@ -102,9 +116,12 @@ export async function buildCelticCrossReading({
     sections.push(buildReflectionsSection(reflectionsText));
   }
 
-  const patternSection = buildPatternSynthesis(themes);
-  if (patternSection) {
-    sections.push(patternSection);
+  // Use reasoning synthesis if available, otherwise fall back to pattern synthesis
+  const synthesisSection = reasoning
+    ? buildReasoningSynthesis(cardsInfo, reasoning, themes, userQuestion, context)
+    : buildPatternSynthesis(themes);
+  if (synthesisSection) {
+    sections.push(synthesisSection);
   }
 
   // 7. SYNTHESIS - Actionable integration
@@ -132,7 +149,7 @@ export async function buildCelticCrossReading({
 
 
 
-function buildNucleusSection(nucleus, cardsInfo, themes, context) {
+function buildNucleusSection(nucleus, cardsInfo, themes, context, reasoning = null) {
   const present = cardsInfo[0];
   const challenge = cardsInfo[1];
 
@@ -142,8 +159,19 @@ function buildNucleusSection(nucleus, cardsInfo, themes, context) {
   const presentPosition = present.position || 'Present — core situation (Card 1)';
   const challengePosition = challenge.position || 'Challenge — crossing / tension (Card 2)';
 
-  section += `${buildPositionCardText(present, presentPosition, getPositionOptions(themes, context))}\n\n`;
-  section += `${buildPositionCardText(challenge, challengePosition, getPositionOptions(themes, context))}\n\n`;
+  let presentText = buildPositionCardText(present, presentPosition, getPositionOptions(themes, context));
+  if (reasoning) {
+    const enhanced = enhanceCardTextWithReasoning(presentText, 0, reasoning);
+    if (enhanced.enhanced) presentText = enhanced.text;
+  }
+  section += `${presentText}\n\n`;
+
+  let challengeText = buildPositionCardText(challenge, challengePosition, getPositionOptions(themes, context));
+  if (reasoning) {
+    const enhanced = enhanceCardTextWithReasoning(challengeText, 1, reasoning);
+    if (enhanced.enhanced) challengeText = enhanced.text;
+  }
+  section += `${challengeText}\n\n`;
 
   section += nucleus.synthesis;
 
@@ -159,7 +187,7 @@ function buildNucleusSection(nucleus, cardsInfo, themes, context) {
   return section;
 }
 
-function buildTimelineSection(timeline, cardsInfo, themes, context) {
+function buildTimelineSection(timeline, cardsInfo, themes, context, reasoning = null) {
   const past = cardsInfo[2];
   const present = cardsInfo[0];
   const future = cardsInfo[3];
@@ -173,23 +201,38 @@ function buildTimelineSection(timeline, cardsInfo, themes, context) {
   const futurePosition = future.position || 'Near Future — what lies before (Card 4)';
 
   // Past card
-  section += `${buildPositionCardText(past, pastPosition, options)}\n\n`;
+  let pastText = buildPositionCardText(past, pastPosition, options);
+  if (reasoning) {
+    const enhanced = enhanceCardTextWithReasoning(pastText, 2, reasoning);
+    if (enhanced.enhanced) pastText = enhanced.text;
+  }
+  section += `${pastText}\n\n`;
 
   // Present card with connector and elemental imagery
   const pastToPresent = timeline.pastToPresent;
-  const presentConnector = getConnector(presentPosition, 'toPrev');
-  section += `${presentConnector} ${buildPositionCardText(present, presentPosition, {
+  const presentConnector = (reasoning && selectReasoningConnector(reasoning, 2, 0)) || getConnector(presentPosition, 'toPrev');
+  let presentText = buildPositionCardText(present, presentPosition, {
     ...options,
     prevElementalRelationship: pastToPresent
-  })}\n\n`;
+  });
+  if (reasoning) {
+    const enhanced = enhanceCardTextWithReasoning(presentText, 0, reasoning);
+    if (enhanced.enhanced) presentText = enhanced.text;
+  }
+  section += `${presentConnector} ${presentText}\n\n`;
 
   // Future card with connector and elemental imagery
   const presentToFuture = timeline.presentToFuture;
-  const futureConnector = getConnector(futurePosition, 'toPrev');
-  section += `${futureConnector} ${buildPositionCardText(future, futurePosition, {
+  const futureConnector = (reasoning && selectReasoningConnector(reasoning, 0, 3)) || getConnector(futurePosition, 'toPrev');
+  let futureText = buildPositionCardText(future, futurePosition, {
     ...options,
     prevElementalRelationship: presentToFuture
-  })}\n\n`;
+  });
+  if (reasoning) {
+    const enhanced = enhanceCardTextWithReasoning(futureText, 3, reasoning);
+    if (enhanced.enhanced) futureText = enhanced.text;
+  }
+  section += `${futureConnector} ${futureText}\n\n`;
 
   section += timeline.causality;
 

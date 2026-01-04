@@ -62,6 +62,11 @@ import { deriveEmotionalTone } from '../../src/data/emotionMapping.js';
 import { normalizeVisionLabel } from '../lib/visionLabels.js';
 import { getToneStyle, buildPersonalizedClosing, getDepthProfile } from '../lib/narrative/styleHelpers.js';
 import { buildOpening, setProseMode } from '../lib/narrative/helpers.js';
+import { buildReadingReasoning } from '../lib/narrative/reasoning.js';
+import {
+  buildReasoningAwareOpening,
+  buildReasoningSynthesis
+} from '../lib/narrative/reasoningIntegration.js';
 import { getPositionWeight } from '../lib/positionWeights.js';
 import { detectCrisisSignals } from '../lib/safetyChecks.js';
 import { collectGraphRAGAlerts } from '../lib/graphRAGAlerts.js';
@@ -2003,6 +2008,15 @@ async function composeReadingEnhanced(payload) {
   const { themes, spreadAnalysis, spreadKey } = analysis;
   const collectedSections = [];
 
+  // Build reasoning chain for cross-card coherence
+  const reasoning = buildReadingReasoning(
+    cardsInfo,
+    userQuestion,
+    context,
+    themes,
+    spreadKey
+  );
+
   // Enable prose mode for local composer output (removes technical metadata)
   setProseMode(true);
 
@@ -2021,6 +2035,7 @@ async function composeReadingEnhanced(payload) {
       },
       {
         personalization,
+        reasoning,
         collectValidation: (section) => {
           if (!section) return;
           collectedSections.push({
@@ -2108,7 +2123,7 @@ function buildGenericReading(
   { spreadInfo, cardsInfo, userQuestion, reflectionsText, themes, context },
   options = {}
 ) {
-  const { collectValidation, personalization = null } = options;
+  const { collectValidation, personalization = null, reasoning = null } = options;
   const spreadName = spreadInfo?.name?.trim() || 'your chosen spread';
   const entries = [];
   const safeCards = Array.isArray(cardsInfo) ? cardsInfo : [];
@@ -2120,8 +2135,10 @@ function buildGenericReading(
   const tone = getToneStyle(personalization?.readingTone);
   const depthProfile = getDepthProfile(personalization?.preferredSpreadDepth);
 
-  // Opening
-  const composedOpening = buildOpening(spreadName, userQuestion, context, { personalization });
+  // Use reasoning-aware opening if available
+  const composedOpening = reasoning
+    ? buildReasoningAwareOpening(spreadName, userQuestion, context, reasoning, { personalization })
+    : buildOpening(spreadName, userQuestion, context, { personalization });
   const openingText = depthProfile?.openingPreface
     ? `${depthProfile.openingPreface}\n\n${composedOpening}`.trim()
     : composedOpening;
@@ -2153,13 +2170,16 @@ function buildGenericReading(
     });
   }
 
-  // Synthesis with enhanced themes
+  // Use reasoning synthesis if available, otherwise fall back to enhanced synthesis
   const finalCard = safeCards.length > 0 ? safeCards[safeCards.length - 1] : null;
+  const synthesisText = reasoning
+    ? buildReasoningSynthesis(safeCards, reasoning, themes, userQuestion, context)
+    : buildEnhancedSynthesis(safeCards, themes, userQuestion, context, {
+        rotationIndex: remedyRotationIndex,
+        depthProfile
+      });
   entries.push({
-    text: buildEnhancedSynthesis(safeCards, themes, userQuestion, context, {
-      rotationIndex: remedyRotationIndex,
-      depthProfile
-    }),
+    text: synthesisText,
     metadata: { type: 'synthesis', cards: finalCard ? [finalCard] : [] }
   });
 

@@ -157,6 +157,13 @@ export function Tooltip({
     lg: 'min-w-[48px] min-h-[48px] w-12 h-12'
   };
 
+  // If the caller supplies custom children (e.g., a pill or chip), do not force a
+  // fixed square size (w-11 h-11) which can truncate the effective hit target.
+  // Keep the minimum touch size, but allow the trigger to expand naturally.
+  const resolvedTouchTargetClass = children
+    ? 'min-w-[44px] min-h-[44px]'
+    : touchTargetClasses[size];
+
   const positionClasses = {
     top: 'bottom-full left-1/2 -translate-x-1/2 mb-2',
     bottom: 'top-full left-1/2 -translate-x-1/2 mt-2',
@@ -277,7 +284,7 @@ export function Tooltip({
           type="button"
           {...triggerProps}
           aria-label={ariaLabel}
-          className={`${triggerBaseClass} ${touchTargetClasses[size]} ${triggerClassName}`.trim()}
+          className={`${triggerBaseClass} ${resolvedTouchTargetClass} ${triggerClassName}`.trim()}
         >
           {children || <Info className={iconSizeClasses[size]} />}
         </button>
@@ -296,7 +303,7 @@ export function Tooltip({
             className={`absolute z-50 ${positionClasses[effectivePosition]} max-w-xs`}
             style={horizontalOffset ? { transform: `translateX(calc(-50% + ${horizontalOffset}px))` } : undefined}
           >
-            <div className="relative bg-surface-muted text-main text-xs rounded-lg px-3 py-2 shadow-xl border border-primary/20 whitespace-normal">
+            <div className="relative bg-surface-muted text-main text-xs rounded-lg px-3 py-2 shadow-xl border border-primary/20 whitespace-pre-line">
               {showCloseButton && (
                 <button
                   type="button"

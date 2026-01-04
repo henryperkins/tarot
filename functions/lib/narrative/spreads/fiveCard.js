@@ -14,6 +14,12 @@ import {
   computeRemedyRotationIndex
 } from '../helpers.js';
 import { getToneStyle, getFrameVocabulary, buildNameClause, buildPersonalizedClosing } from '../styleHelpers.js';
+import {
+  selectReasoningConnector,
+  buildReasoningAwareOpening,
+  enhanceCardTextWithReasoning,
+  buildReasoningSynthesis
+} from '../reasoningIntegration.js';
 
 export async function buildFiveCardReading({
   cardsInfo,
@@ -33,6 +39,7 @@ export async function buildFiveCardReading({
     typeof options.collectValidation === 'function'
       ? options.collectValidation
       : null;
+  const reasoning = options.reasoning || null;
 
   const recordSection = (text, metadata = {}) => {
     const result = enhanceSection(text, metadata);
@@ -47,16 +54,13 @@ export async function buildFiveCardReading({
   };
   const spreadName = 'Five-Card Clarity';
 
-  // Opening
-  sections.push(
-    buildOpening(
-      spreadName,
-      userQuestion ||
-      'This spread clarifies the core issue, the challenge, hidden influences, support, and where things are heading if nothing shifts.',
-      context,
-      { personalization: options.personalization }
-    )
-  );
+  // Use reasoning-aware opening if available
+  const openingQuestion = userQuestion ||
+    'This spread clarifies the core issue, the challenge, hidden influences, support, and where things are heading if nothing shifts.';
+  const opening = reasoning
+    ? buildReasoningAwareOpening(spreadName, openingQuestion, context, reasoning, { personalization: options.personalization })
+    : buildOpening(spreadName, openingQuestion, context, { personalization: options.personalization });
+  sections.push(opening);
 
   if (!Array.isArray(cardsInfo) || cardsInfo.length < 5) {
     return 'This five-card spread is incomplete; please redraw or ensure all five cards are present.';
@@ -75,15 +79,16 @@ export async function buildFiveCardReading({
   // Core + Challenge section
   let coreSection = `### Five-Card Clarity — Core & Challenge\n\n`;
   const corePosition = core.position || 'Core of the matter';
-  coreSection += buildPositionCardText(
-    core,
-    corePosition,
-    positionOptions
-  );
+  let coreText = buildPositionCardText(core, corePosition, positionOptions);
+  if (reasoning) {
+    const enhanced = enhanceCardTextWithReasoning(coreText, 0, reasoning);
+    if (enhanced.enhanced) coreText = enhanced.text;
+  }
+  coreSection += coreText;
   coreSection += '\n\n';
   const challengePosition = challenge.position || 'Challenge or tension';
-  const challengeConnector = getConnector(challengePosition, 'toPrev');
-  const challengeText = buildPositionCardText(
+  const challengeConnector = (reasoning && selectReasoningConnector(reasoning, 0, 1)) || getConnector(challengePosition, 'toPrev');
+  let challengeText = buildPositionCardText(
     challenge,
     challengePosition,
     {
@@ -91,6 +96,10 @@ export async function buildFiveCardReading({
       prevElementalRelationship: fiveCardAnalysis?.coreVsChallenge
     }
   );
+  if (reasoning) {
+    const enhanced = enhanceCardTextWithReasoning(challengeText, 1, reasoning);
+    if (enhanced.enhanced) challengeText = enhanced.text;
+  }
   coreSection += challengeConnector ? `${challengeConnector} ${challengeText}` : challengeText;
   coreSection += '\n\n';
 
@@ -117,12 +126,12 @@ export async function buildFiveCardReading({
   // Hidden influence
   let hiddenSection = `### Hidden Influence\n\n`;
   const hiddenPosition = hidden.position || 'Hidden / subconscious influence';
-  const hiddenConnector = getConnector(hiddenPosition, 'toPrev');
-  const hiddenText = buildPositionCardText(
-    hidden,
-    hiddenPosition,
-    positionOptions
-  );
+  const hiddenConnector = (reasoning && selectReasoningConnector(reasoning, 1, 2)) || getConnector(hiddenPosition, 'toPrev');
+  let hiddenText = buildPositionCardText(hidden, hiddenPosition, positionOptions);
+  if (reasoning) {
+    const enhanced = enhanceCardTextWithReasoning(hiddenText, 2, reasoning);
+    if (enhanced.enhanced) hiddenText = enhanced.text;
+  }
   hiddenSection += hiddenConnector ? `${hiddenConnector} ${hiddenText}` : hiddenText;
 
   const hiddenWeightNote = buildWeightNote('fiveCard', 2, hiddenPosition);
@@ -139,12 +148,12 @@ export async function buildFiveCardReading({
   // Support
   let supportSection = `### Supporting Energies\n\n`;
   const supportPosition = support.position || 'Support / helpful energy';
-  const supportConnector = getConnector(supportPosition, 'toPrev');
-  const supportText = buildPositionCardText(
-    support,
-    supportPosition,
-    positionOptions
-  );
+  const supportConnector = (reasoning && selectReasoningConnector(reasoning, 2, 3)) || getConnector(supportPosition, 'toPrev');
+  let supportText = buildPositionCardText(support, supportPosition, positionOptions);
+  if (reasoning) {
+    const enhanced = enhanceCardTextWithReasoning(supportText, 3, reasoning);
+    if (enhanced.enhanced) supportText = enhanced.text;
+  }
   supportSection += supportConnector ? `${supportConnector} ${supportText}` : supportText;
 
   const supportWeightNote = buildWeightNote('fiveCard', 3, supportPosition);
@@ -161,8 +170,8 @@ export async function buildFiveCardReading({
   // Direction
   let directionSection = `### Direction on Your Current Path\n\n`;
   const directionPosition = direction.position || 'Likely direction on current path';
-  const directionConnector = getConnector(directionPosition, 'toPrev');
-  const directionText = buildPositionCardText(
+  const directionConnector = (reasoning && selectReasoningConnector(reasoning, 3, 4)) || getConnector(directionPosition, 'toPrev');
+  let directionText = buildPositionCardText(
     direction,
     directionPosition,
     {
@@ -170,6 +179,10 @@ export async function buildFiveCardReading({
       prevElementalRelationship: fiveCardAnalysis?.supportVsDirection
     }
   );
+  if (reasoning) {
+    const enhanced = enhanceCardTextWithReasoning(directionText, 4, reasoning);
+    if (enhanced.enhanced) directionText = enhanced.text;
+  }
   directionSection += directionConnector ? `${directionConnector} ${directionText}` : directionText;
 
   if (fiveCardAnalysis?.synthesis) {
@@ -199,9 +212,12 @@ export async function buildFiveCardReading({
     sections.push(buildReflectionsSection(reflectionsText));
   }
 
-  const patternSection = buildPatternSynthesis(themes);
-  if (patternSection) {
-    sections.push(patternSection);
+  // Use reasoning synthesis if available, otherwise fall back to pattern synthesis
+  const synthesisSection = reasoning
+    ? buildReasoningSynthesis(cardsInfo, reasoning, themes, userQuestion, context)
+    : buildPatternSynthesis(themes);
+  if (synthesisSection) {
+    sections.push(synthesisSection);
   }
 
   // Guidance synthesis with elemental remedies

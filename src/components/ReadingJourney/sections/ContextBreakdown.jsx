@@ -31,7 +31,7 @@ function ContextBreakdown({ data = [], preferenceDrift }) {
       <p className="text-xs text-amber-100/60 mb-3">Your Focus Areas</p>
 
       <div className="space-y-2">
-        {sorted.slice(0, 4).map((item) => {
+        {sorted.slice(0, 4).filter(item => item?.name).map((item) => {
           const percentage = total > 0 ? Math.round((item.count / total) * 100) : 0;
           const contextName = item.name.charAt(0).toUpperCase() + item.name.slice(1);
 
@@ -58,7 +58,7 @@ function ContextBreakdown({ data = [], preferenceDrift }) {
       </div>
 
       {/* Preference drift indicator */}
-      {preferenceDrift?.hasDrift && preferenceDrift.driftContexts?.[0] && (
+      {preferenceDrift?.hasDrift && preferenceDrift.driftContexts?.[0]?.context && (
         <div className="mt-3 flex items-start gap-2 rounded-lg bg-cyan-500/10 p-2 border border-cyan-500/20">
           <Lightning className="h-3.5 w-3.5 text-cyan-400 mt-0.5 flex-shrink-0" />
           <p className="text-xs text-cyan-100/80">

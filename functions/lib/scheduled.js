@@ -4,8 +4,8 @@ import { timingSafeEqual } from './crypto.js';
  * Scheduled Tasks Handler
  *
  * Handles cron-triggered tasks for the Mystic Tarot application:
- * - Archive metrics from METRICS_DB KV to R2
- * - Archive feedback from FEEDBACK_KV to R2
+ * - Archive metrics from METRICS_DB KV to D1
+ * - Archive feedback from FEEDBACK_KV to D1
  * - Clean up expired sessions from D1
  *
  * Cron schedule (configured in wrangler.jsonc):
@@ -18,20 +18,27 @@ const METRICS_PREFIX = 'reading:';
 const FEEDBACK_PREFIX = 'feedback:';
 
 /**
- * Archive KV data to R2 bucket with full pagination support
+ * Archive KV data to D1 database with full pagination support
  * @param {KVNamespace} kv - Source KV namespace
- * @param {R2Bucket} bucket - Destination R2 bucket
+ * @param {D1Database} db - Destination D1 database
  * @param {string} prefix - KV key prefix to archive
- * @param {string} archiveType - Type identifier for archive path
+ * @param {string} archiveType - Type identifier ('metrics' or 'feedback')
+ * @param {object} [options]
+ * @param {R2Bucket} [options.bucket] - Optional bucket to store raw JSON archives
+ * @param {string} [options.dateStr] - Optional YYYY-MM-DD date for archive keys
  * @returns {Promise<{archived: number, deleted: number, errors: number, batches: number}>}
  */
-async function archiveKVToR2(kv, bucket, prefix, archiveType) {
+async function archiveKVToD1(kv, db, prefix, archiveType, options = {}) {
   const stats = { archived: 0, deleted: 0, errors: 0, batches: 0 };
 
-  if (!kv || !bucket) {
-    console.warn(`Skipping ${archiveType} archival: missing KV or R2 binding`);
+  if (!kv || !db) {
+    console.warn(`Skipping ${archiveType} archival: missing KV or DB binding`);
     return stats;
   }
+
+  const now = Date.now();
+  const bucket = options.bucket || null;
+  const dateStr = options.dateStr || new Date().toISOString().split('T')[0];
 
   try {
     let cursor = null;
@@ -60,60 +67,70 @@ async function archiveKVToR2(kv, bucket, prefix, archiveType) {
       console.log(`Processing batch ${stats.batches}: ${keys.length} ${archiveType} keys`);
 
       // Collect records for this batch
-      const records = [];
       const keysToDelete = [];
 
       for (const key of keys) {
         try {
           const value = await kv.get(key.name, 'json');
           if (value) {
-            records.push({
-              key: key.name,
-              metadata: key.metadata || {},
-              data: value,
-              archivedAt: new Date().toISOString()
-            });
+            // Store a raw JSON copy in R2 when available.
+            // This is best-effort and should never block D1 archival.
+            if (bucket) {
+              try {
+                await bucket.put(
+                  `archives/${archiveType}/${dateStr}/${key.name}.json`,
+                  JSON.stringify(value),
+                  {
+                    httpMetadata: { contentType: 'application/json; charset=utf-8' }
+                  }
+                );
+              } catch (bucketErr) {
+                console.warn(`Failed to write ${archiveType} archive to bucket for ${key.name}:`, bucketErr?.message || bucketErr);
+              }
+            }
+
+            // Extract ID from key (e.g., "reading:abc123" -> "abc123")
+            const id = key.name.replace(prefix, '');
+
+            if (archiveType === 'metrics') {
+              // Insert into metrics_archive
+              await db.prepare(`
+                INSERT OR REPLACE INTO metrics_archive
+                (request_id, kv_key, provider, spread_key, deck_style, data, archived_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+              `).bind(
+                id,
+                key.name,
+                value.provider || null,
+                value.spreadKey || null,
+                value.deckStyle || null,
+                JSON.stringify(value),
+                now
+              ).run();
+            } else {
+              // Insert into feedback_archive
+              await db.prepare(`
+                INSERT OR REPLACE INTO feedback_archive
+                (feedback_id, request_id, data, archived_at)
+                VALUES (?, ?, ?, ?)
+              `).bind(
+                id,
+                value.requestId || null,
+                JSON.stringify(value),
+                now
+              ).run();
+            }
+
             keysToDelete.push(key.name);
             stats.archived++;
           }
         } catch (err) {
-          console.error(`Failed to read ${key.name}:`, err.message);
+          console.error(`Failed to archive ${key.name}:`, err.message);
           stats.errors++;
         }
       }
 
-      if (records.length === 0) {
-        continue;
-      }
-
-      // Create archive file in R2 for this batch
-      const now = new Date();
-      const dateStr = now.toISOString().split('T')[0];
-      const timestamp = now.getTime();
-      const batchSuffix = stats.batches > 1 ? `-batch${stats.batches}` : '';
-      const archivePath = `archives/${archiveType}/${dateStr}/${timestamp}${batchSuffix}.json`;
-
-      const archiveData = {
-        type: archiveType,
-        archivedAt: now.toISOString(),
-        batch: stats.batches,
-        recordCount: records.length,
-        records
-      };
-
-      await bucket.put(archivePath, JSON.stringify(archiveData, null, 2), {
-        httpMetadata: {
-          contentType: 'application/json'
-        },
-        customMetadata: {
-          archiveType,
-          recordCount: records.length.toString(),
-          batch: stats.batches.toString(),
-          dateArchived: dateStr
-        }
-      });
-
-      console.log(`Archived ${records.length} ${archiveType} records to ${archivePath}`);
+      console.log(`Archived ${keysToDelete.length} ${archiveType} records to D1`);
 
       // Delete archived keys from KV
       for (const keyName of keysToDelete) {
@@ -205,39 +222,36 @@ async function cleanupExpiredSessions(db) {
 }
 
 /**
- * Generate daily archival summary
- * @param {R2Bucket} bucket - R2 bucket for storing summary
+ * Store daily archival summary in D1
+ * @param {D1Database} db - D1 database
  * @param {object} results - Archival results
  */
-async function storeArchivalSummary(bucket, results) {
-  if (!bucket) return;
+async function storeArchivalSummary(db, results) {
+  if (!db) return;
 
   const now = new Date();
   const dateStr = now.toISOString().split('T')[0];
-  const summaryPath = `archives/summaries/${dateStr}.json`;
-
-  const summary = {
-    date: dateStr,
-    completedAt: now.toISOString(),
-    metrics: results.metrics,
-    feedback: results.feedback,
-    sessions: results.sessions,
-    webhookEvents: results.webhookEvents,
-    totalArchived: (results.metrics?.archived || 0) + (results.feedback?.archived || 0),
-    totalErrors: (results.metrics?.errors || 0) + (results.feedback?.errors || 0)
-  };
 
   try {
-    await bucket.put(summaryPath, JSON.stringify(summary, null, 2), {
-      httpMetadata: {
-        contentType: 'application/json'
-      },
-      customMetadata: {
-        type: 'archival-summary',
-        date: dateStr
-      }
-    });
-    console.log(`Stored archival summary at ${summaryPath}`);
+    await db.prepare(`
+      INSERT OR REPLACE INTO archival_summaries
+      (date, completed_at, metrics_archived, metrics_deleted, metrics_errors,
+       feedback_archived, feedback_deleted, feedback_errors,
+       sessions_deleted, webhook_events_deleted)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).bind(
+      dateStr,
+      now.toISOString(),
+      results.metrics?.archived || 0,
+      results.metrics?.deleted || 0,
+      results.metrics?.errors || 0,
+      results.feedback?.archived || 0,
+      results.feedback?.deleted || 0,
+      results.feedback?.errors || 0,
+      results.sessions?.deleted || 0,
+      results.webhookEvents?.deleted || 0
+    ).run();
+    console.log(`Stored archival summary for ${dateStr}`);
   } catch (error) {
     console.error('Failed to store archival summary:', error);
   }
@@ -255,6 +269,8 @@ export async function handleScheduled(controller, env, _ctx) {
   const startTime = Date.now();
   const cron = controller.cron;
 
+  const dateStr = new Date().toISOString().split('T')[0];
+
   console.log(`Scheduled task triggered at ${new Date().toISOString()}`);
   console.log(`Cron pattern: ${cron}`);
 
@@ -266,10 +282,16 @@ export async function handleScheduled(controller, env, _ctx) {
   };
 
   try {
-    // Run archival tasks in parallel
+    // Run archival tasks in parallel (KV -> D1)
     const [metricsResult, feedbackResult] = await Promise.all([
-      archiveKVToR2(env.METRICS_DB, env.LOGS_BUCKET, METRICS_PREFIX, 'metrics'),
-      archiveKVToR2(env.FEEDBACK_KV, env.LOGS_BUCKET, FEEDBACK_PREFIX, 'feedback')
+      archiveKVToD1(env.METRICS_DB, env.DB, METRICS_PREFIX, 'metrics', {
+        bucket: env.LOGS_BUCKET,
+        dateStr
+      }),
+      archiveKVToD1(env.FEEDBACK_KV, env.DB, FEEDBACK_PREFIX, 'feedback', {
+        bucket: env.LOGS_BUCKET,
+        dateStr
+      })
     ]);
 
     results.metrics = metricsResult;
@@ -283,8 +305,28 @@ export async function handleScheduled(controller, env, _ctx) {
     results.sessions = { deleted: sessionsDeleted };
     results.webhookEvents = { deleted: webhookEventsDeleted };
 
-    // Store summary in R2
-    await storeArchivalSummary(env.LOGS_BUCKET, results);
+    // Store summary in D1
+    await storeArchivalSummary(env.DB, results);
+
+    // Store daily summary JSON in R2 when available.
+    if (env.LOGS_BUCKET) {
+      try {
+        const totalArchived = (results.metrics?.archived || 0) + (results.feedback?.archived || 0);
+        await env.LOGS_BUCKET.put(
+          `archives/summaries/${dateStr}.json`,
+          JSON.stringify({
+            date: dateStr,
+            totalArchived,
+            ...results
+          }),
+          {
+            httpMetadata: { contentType: 'application/json; charset=utf-8' }
+          }
+        );
+      } catch (bucketErr) {
+        console.warn('Failed to write archival summary to bucket:', bucketErr?.message || bucketErr);
+      }
+    }
 
     const duration = Date.now() - startTime;
     console.log(`Scheduled tasks completed in ${duration}ms`);
@@ -317,8 +359,8 @@ export async function onRequestPost(context) {
 
   try {
     const [metricsResult, feedbackResult] = await Promise.all([
-      archiveKVToR2(env.METRICS_DB, env.LOGS_BUCKET, METRICS_PREFIX, 'metrics'),
-      archiveKVToR2(env.FEEDBACK_KV, env.LOGS_BUCKET, FEEDBACK_PREFIX, 'feedback')
+      archiveKVToD1(env.METRICS_DB, env.DB, METRICS_PREFIX, 'metrics'),
+      archiveKVToD1(env.FEEDBACK_KV, env.DB, FEEDBACK_PREFIX, 'feedback')
     ]);
 
     const [sessionsDeleted, webhookEventsDeleted] = await Promise.all([
@@ -334,7 +376,7 @@ export async function onRequestPost(context) {
       duration: Date.now() - startTime
     };
 
-    await storeArchivalSummary(env.LOGS_BUCKET, results);
+    await storeArchivalSummary(env.DB, results);
 
     return new Response(JSON.stringify({
       success: true,

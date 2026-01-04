@@ -48,9 +48,22 @@ export function shouldIncludeAstroInsights(cardsInfo = [], themes = {}, userQues
   const graphKeys = themes?.knowledgeGraph?.graphKeys || {};
   const hasGraphCombos = Boolean((graphKeys.completeTriadIds?.length || 0) > 0 || graphKeys.foolsJourneyStageKey);
 
-  // Timing profile hints at longer arcs (weekly/seasonal) where astro adds value
-  const timingType = themes?.timingProfile?.type;
-  const timingSuggestsAstro = ['seasonal', 'long', 'medium'].includes(timingType);
+  // Timing profile hints at longer arcs (chapter/seasonal) where astro adds value.
+  // `themes.timingProfile` is typically a string from `functions/lib/timingMeta.js`
+  // (e.g. 'near-term-tilt' | 'developing-arc' | 'longer-arc-tilt'), but we also
+  // support legacy object forms like `{ type: 'seasonal' }`.
+  const timingProfile = themes?.timingProfile;
+  const timingType = typeof timingProfile === 'string'
+    ? timingProfile
+    : timingProfile?.type;
+  const timingSuggestsAstro = [
+    'developing-arc',
+    'longer-arc-tilt',
+    // legacy-ish types
+    'seasonal',
+    'long',
+    'medium'
+  ].includes(timingType);
 
   // User intent: explicit astro/time keywords force opt-in
   const intent = (userQuestion || '').toLowerCase();
@@ -695,7 +708,8 @@ function buildSystemPrompt(spreadKey, themes, context, deckStyle, _userQuestion 
     '',
     'CORE PRINCIPLES',
     '- Keep the querent’s agency and consent at the center. Emphasize trajectories and choices, not fixed fate.',
-    '- In each section, loosely follow a story spine: name what is happening (WHAT), why it matters or how it arose (WHY), and what might be next in terms of options or small steps (WHAT’S NEXT). You can signal these shifts with connective phrases such as "Because...", "Therefore...", or "However..." where helpful.',
+    '- In each section, loosely follow a story spine: name what is happening (WHAT), why it matters or how it arose (WHY), and what might be next in terms of options or small steps (WHAT’S NEXT). IMPORTANT: treat WHAT/WHY/WHAT’S NEXT as an internal checklist for natural flow, not as repeated literal labels.',
+    '- Vary the cadence: sometimes blend WHAT+WHY in one sentence; sometimes start with the felt experience; sometimes open with the invitation/next step and then backfill the insight. Avoid repeating the same connector words ("Because", "Therefore", "However") in every card—rotate phrasing ("which is how", "so", "this is why", "in practice", "the consequence is", "from here").',
     '- Begin the Opening with 2–3 sentences naming the felt experience before introducing frameworks (elemental map, spread overview, positional lenses).',
     '- Speak in warm, grounded language. Avoid heavy jargon; use brief astrological or Qabalah notes only when they clearly support the card\'s core Rider–Waite–Smith meaning.',
     '- Only reference cards explicitly provided in the spread. Do not introduce or imply additional cards (e.g., never claim The Fool appears unless it is actually in the spread).',
@@ -715,7 +729,7 @@ function buildSystemPrompt(spreadKey, themes, context, deckStyle, _userQuestion 
     '- For multi-card spreads, aim for ~120–160 words per card while respecting the total length guidance.',
     '- Prefer 4–6 moderately sized paragraphs plus one short bullet list of practical steps. Avoid filler.',
     '- Keep paragraphs to about 2–4 sentences; break up anything longer for readability.',
-    '- Within each card section, you may use mini labels **WHAT**, **WHY**, **WHAT’S NEXT** to signal the spine; vary at least one card by opening with WHAT’S NEXT before backfilling WHAT and WHY to avoid a repetitive cadence.',
+    '- Do NOT format card sections as a rigid template like “WHAT: … WHY: … WHAT’S NEXT: …” for every card. Keep the spine, but express it as natural prose. If you use explicit mini labels at all, use them sparingly (at most once in the entire reading) and only when it improves clarity.',
     '- OUTPUT STYLE: Do NOT preface the reading with "Here is your reading" or "I have analyzed the cards." Start directly with the Opening section or the first header.'
   );
 
@@ -724,6 +738,7 @@ function buildSystemPrompt(spreadKey, themes, context, deckStyle, _userQuestion 
     'ESOTERIC LAYERS (OPTIONAL)',
     '- You may briefly reference astrology or Qabalah only when it clarifies the card’s core meaning for this querent.',
     '- For very practical questions (for example, career logistics or daily check-ins), prioritize concrete, grounded language over esoteric detail.',
+    '- If CURRENT ASTROLOGICAL CONTEXT is provided, treat it as ambient “weather.” Mention the moon phase or a key transit at most once (Opening or Synthesis) in one short sentence—do not repeat the same lunar formula for every card.',
     '- When you do mention these correspondences, keep them to one short sentence and avoid repeating the same formula for every card.',
     '- If the depth preference is deep, weave at most one reinforcing esoteric thread across the spread; otherwise keep esoteric notes optional and minimal.'
   );

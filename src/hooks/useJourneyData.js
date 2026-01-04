@@ -481,7 +481,7 @@ export function useJourneyData({
     // Unfiltered view: use D1 data, enrich with client reversals
     return archetypeData.topCards.map(d1Card => {
       const normalized = normalizeD1Card(d1Card, sortedBadges);
-      
+
       // Attach trend data for sparklines
       if (archetypeData.getCardTrends) {
         normalized.trendData = archetypeData.getCardTrends(d1Card.card_name);
@@ -620,8 +620,10 @@ export function useJourneyData({
     preferenceDrift,
   ]);
 
-  // Backfill state with loading guard
-  const needsBackfill = useMemo(() => {
+  // Backfill state with loading guard.
+  // Intentionally *not* wrapped in useMemo: React Compiler lint requires manual memoization
+  // to be perfectly preservable, and this boolean is cheap to compute.
+  const needsBackfill = (() => {
     // Don't show backfill prompt for filtered views - backfill is for D1 server data
     // which isn't used when filters are active. Filtered views use client-side stats.
     if (filtersActive) return false;
@@ -631,9 +633,16 @@ export function useJourneyData({
     if (!isAuthenticated) return false;
     // Respect user's analytics opt-out preference (403 from API)
     if (archetypeData.isDisabled) return false;
-    // Check if backfill has been done
+
+    // Prefer explicit server diagnostic when available.
+    const explicitNeedsBackfill = archetypeData?.stats?.needsBackfill;
+    if (typeof explicitNeedsBackfill === 'boolean') {
+      return explicitNeedsBackfill;
+    }
+
+    // Fallback heuristic: if we have entries but archetype data isn't populated.
     return !archetypeData.hasBackfilled && entries?.length > 0;
-  }, [filtersActive, isAuthenticated, archetypeData.isLoading, archetypeData.isDisabled, archetypeData.hasBackfilled, entries]);
+  })();
 
   // Analytics disabled state (user opted out)
   const isAnalyticsDisabled = archetypeData.isDisabled;

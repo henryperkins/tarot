@@ -7,6 +7,10 @@ import {
   buildReflectionsSection
 } from '../helpers.js';
 import { getToneStyle, getFrameVocabulary, buildNameClause, buildPersonalizedClosing } from '../styleHelpers.js';
+import {
+  buildReasoningAwareOpening,
+  buildReasoningSynthesis
+} from '../reasoningIntegration.js';
 
 export function buildSingleCardReading({
   cardsInfo,
@@ -20,6 +24,7 @@ export function buildSingleCardReading({
       ? options.collectValidation
       : null;
   const personalization = options.personalization || null;
+  const reasoning = options.reasoning || null;
   const tone = getToneStyle(personalization?.readingTone);
   const frameVocab = getFrameVocabulary(personalization?.spiritualFrame);
   const nameOpening = buildNameClause(personalization?.displayName, 'opening');
@@ -32,19 +37,32 @@ export function buildSingleCardReading({
   const card = cardsInfo[0];
   const positionOptions = getPositionOptions(themes, context);
 
-  let narrative = `### One-Card Insight\n\n`;
+  let narrative = '';
 
-  if (userQuestion && userQuestion.trim()) {
-    const subject = nameOpening ? `${nameOpening}this card` : 'This card';
-    narrative += `${subject} offers a ${tone.openingAdjectives[0] || 'thoughtful'} snapshot on your question "${userQuestion.trim()}".\n\n`;
+  // Use reasoning-aware opening if available
+  if (reasoning) {
+    narrative = buildReasoningAwareOpening(
+      'One-Card Insight',
+      userQuestion,
+      context,
+      reasoning,
+      { personalization }
+    );
+    narrative += '\n\n';
   } else {
-    const subject = nameOpening ? `${nameOpening}this single card` : 'This single card';
-    narrative += `${subject} offers a ${tone.openingAdjectives[0] || 'grounded'} glimpse of the energy around you right now.\n\n`;
-  }
+    narrative = `### One-Card Insight\n\n`;
+    if (userQuestion && userQuestion.trim()) {
+      const subject = nameOpening ? `${nameOpening}this card` : 'This card';
+      narrative += `${subject} offers a ${tone.openingAdjectives[0] || 'thoughtful'} snapshot on your question "${userQuestion.trim()}".\n\n`;
+    } else {
+      const subject = nameOpening ? `${nameOpening}this single card` : 'This single card';
+      narrative += `${subject} offers a ${tone.openingAdjectives[0] || 'grounded'} glimpse of the energy around you right now.\n\n`;
+    }
 
-  const contextReminder = buildContextReminder(context);
-  if (contextReminder) {
-    narrative += `${contextReminder}\n\n`;
+    const contextReminder = buildContextReminder(context);
+    if (contextReminder) {
+      narrative += `${contextReminder}\n\n`;
+    }
   }
 
   // Core section with WHAT → WHY → WHAT'S NEXT flavor
@@ -60,6 +78,20 @@ export function buildSingleCardReading({
 
   if (reflectionsText && reflectionsText.trim()) {
     narrative += `\n\n${buildReflectionsSection(reflectionsText)}`;
+  }
+
+  // Add reasoning synthesis if available
+  if (reasoning) {
+    const synthesis = buildReasoningSynthesis(
+      cardsInfo,
+      reasoning,
+      themes,
+      userQuestion,
+      context
+    );
+    if (synthesis) {
+      narrative += `\n\n${synthesis}`;
+    }
   }
 
   const closing = buildPersonalizedClosing(personalization);

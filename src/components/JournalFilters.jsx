@@ -23,9 +23,9 @@ const TIMEFRAME_OPTIONS = [
 const DEFAULT_FILTERS = { query: '', contexts: [], spreads: [], decks: [], timeframe: 'all', onlyReversals: false };
 const SAVED_FILTERS_KEY = 'journal_saved_filters_v1';
 const ADVANCED_FILTERS_KEY = 'journal_filters_advanced_v1';
-const OUTLINE_FILTER_BASE = 'flex min-h-[44px] items-center gap-2 rounded-xl border px-3 py-2.5 text-sm font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/40';
-const OUTLINE_FILTER_IDLE = 'border-amber-200/20 text-amber-100/60 hover:border-amber-200/35 hover:text-amber-100/80';
-const OUTLINE_FILTER_ACTIVE = 'border-amber-300/70 bg-amber-300/15 text-amber-50 shadow-[0_12px_30px_-18px_rgba(251,191,36,0.75)]';
+const OUTLINE_FILTER_BASE = 'flex min-h-[44px] items-center gap-2 rounded-xl border px-3 py-2.5 text-sm font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:rgba(232,218,195,0.45)]';
+const OUTLINE_FILTER_IDLE = 'border-[color:var(--border-warm-light)] text-[color:var(--text-muted)] hover:border-[color:var(--border-warm)] hover:text-[color:var(--text-main)]';
+const OUTLINE_FILTER_ACTIVE = 'border-[color:var(--brand-primary)] bg-[color:rgba(212,184,150,0.15)] text-[color:var(--text-main)] shadow-[0_12px_30px_-18px_rgba(212,184,150,0.75)]';
 
 function FilterDropdown({ label, options, value, onChange, multiple = false, buttonRef: externalButtonRef }) {
   const [isOpen, setIsOpen] = useState(false);
@@ -143,10 +143,10 @@ function FilterDropdown({ label, options, value, onChange, multiple = false, but
         aria-pressed={activeCount > 0}
       >
         {multiple && <span>{label}</span>}
-        {!multiple && <span className={value !== 'all' ? 'text-secondary' : ''}>{displayLabel}</span>}
+        {!multiple && <span className={value !== 'all' ? 'text-[color:var(--brand-primary)]' : ''}>{displayLabel}</span>}
 
         {multiple && activeCount > 0 && (
-          <span className="flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-secondary/20 px-1 text-[10px]">
+          <span className="flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-[color:rgba(212,184,150,0.20)] px-1 text-[10px]">
             {activeCount}
           </span>
         )}
@@ -160,7 +160,7 @@ function FilterDropdown({ label, options, value, onChange, multiple = false, but
           aria-multiselectable={multiple || undefined}
           className={`absolute top-full z-50 mt-2 w-[min(16rem,calc(100vw-2rem))] ${
             alignRight ? 'right-0 origin-top-right' : 'left-0 origin-top-left'
-          } rounded-xl border border-amber-200/30 bg-[#0a0d1a]/95 p-1.5 shadow-[0_20px_48px_-24px_rgba(0,0,0,0.75)] ring-1 ring-amber-200/15 backdrop-blur-xl backdrop-saturate-150 animate-in fade-in zoom-in-95 duration-100`}
+          } rounded-xl border border-[color:var(--border-warm)] bg-[color:rgba(15,14,19,0.96)] p-1.5 shadow-[0_20px_48px_-24px_rgba(0,0,0,0.75)] ring-1 ring-[color:var(--border-warm-light)] backdrop-blur-xl backdrop-saturate-150 animate-in fade-in zoom-in-95 duration-100`}
           onKeyDown={handleMenuKeyDown}
         >
           <div className="max-h-64 overflow-y-auto py-1">
@@ -172,10 +172,10 @@ function FilterDropdown({ label, options, value, onChange, multiple = false, but
                 data-dropdown-option="true"
                 role="option"
                 aria-selected={isSelected(option.value)}
-                className="flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-sm text-muted hover:bg-secondary/10 hover:text-secondary transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-secondary/40"
+                className="flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-sm text-[color:var(--text-muted)] hover:bg-[color:rgba(212,184,150,0.10)] hover:text-[color:var(--brand-primary)] transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[color:rgba(232,218,195,0.45)]"
               >
                 <span>{option.label}</span>
-                {isSelected(option.value) && <Check className="h-3.5 w-3.5 text-secondary" />}
+                {isSelected(option.value) && <Check className="h-3.5 w-3.5 text-[color:var(--brand-primary)]" />}
               </button>
             ))}
           </div>
@@ -369,8 +369,8 @@ export function JournalFilters({ filters, onChange, contexts = [], spreads = [],
   };
 
   const containerClass = isCompact
-    ? 'relative rounded-3xl border border-amber-300/15 bg-gradient-to-br from-[#0b0a12] via-[#0d0a1a] to-[#0b0a12] p-5 lg:p-6 shadow-[0_22px_60px_-30px_rgba(0,0,0,0.9)] animate-fade-in'
-    : 'relative rounded-3xl border border-amber-300/12 bg-gradient-to-br from-[#0b0c1d] via-[#0d1024] to-[#090a16] p-5 lg:p-7 shadow-[0_24px_68px_-30px_rgba(0,0,0,0.9)] animate-fade-in';
+    ? 'relative rounded-3xl border border-[color:var(--border-warm-light)] bg-gradient-to-br from-[var(--panel-dark-1)] via-[var(--panel-dark-2)] to-[var(--panel-dark-3)] p-5 lg:p-6 shadow-[0_22px_60px_-30px_rgba(0,0,0,0.9)] animate-fade-in'
+    : 'relative rounded-3xl border border-[color:var(--border-warm-light)] bg-gradient-to-br from-[var(--panel-dark-1)] via-[var(--panel-dark-2)] to-[var(--panel-dark-3)] p-5 lg:p-7 shadow-[0_24px_68px_-30px_rgba(0,0,0,0.9)] animate-fade-in';
 
   return (
     <section
@@ -385,7 +385,7 @@ export function JournalFilters({ filters, onChange, contexts = [], spreads = [],
             aria-hidden="true"
             style={{
               backgroundImage:
-                'radial-gradient(circle at 10% 20%, rgba(251,191,36,0.08), transparent 32%), radial-gradient(circle at 82% 24%, rgba(56,189,248,0.07), transparent 30%), radial-gradient(circle at 55% 78%, rgba(167,139,250,0.08), transparent 32%)'
+                'radial-gradient(circle at 10% 20%, var(--glow-gold), transparent 32%), radial-gradient(circle at 82% 24%, var(--glow-blue), transparent 30%), radial-gradient(circle at 55% 78%, var(--glow-pink), transparent 32%)'
             }}
           />
           <div className="absolute inset-0" aria-hidden="true">
@@ -405,20 +405,20 @@ export function JournalFilters({ filters, onChange, contexts = [], spreads = [],
             ].map((star, i) => (
               <div
                 key={i}
-                className="absolute rounded-full bg-amber-100"
+                className="absolute rounded-full bg-[color:var(--color-gold-soft)]"
                 style={{
                   left: `${star.x}%`,
                   top: `${star.y}%`,
                   width: star.s,
                   height: star.s,
                   opacity: star.o,
-                  boxShadow: `0 0 ${star.s * 4}px ${star.s}px rgba(251,191,36,${star.o * 0.45})`
+                  boxShadow: `0 0 ${star.s * 4}px ${star.s}px rgba(212,184,150,${star.o * 0.45})`
                 }}
               />
             ))}
           </div>
-          <div className="absolute -left-24 top-12 h-64 w-64 rounded-full bg-amber-500/12 blur-[110px]" aria-hidden="true" />
-          <div className="absolute right-[-120px] top-1/3 h-72 w-72 rounded-full bg-cyan-400/10 blur-[110px]" aria-hidden="true" />
+          <div className="absolute -left-24 top-12 h-64 w-64 rounded-full bg-[color:rgba(212,184,150,0.12)] blur-[110px]" aria-hidden="true" />
+          <div className="absolute right-[-120px] top-1/3 h-72 w-72 rounded-full bg-[color:rgba(120,161,255,0.10)] blur-[110px]" aria-hidden="true" />
         </div>
       )}
 
@@ -426,15 +426,15 @@ export function JournalFilters({ filters, onChange, contexts = [], spreads = [],
       <div className="relative z-10 space-y-6">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <p className="text-[10px] uppercase tracking-[0.32em] text-amber-200/55">Filters</p>
-            <h2 className="text-2xl font-serif text-amber-50">Focus your journal</h2>
-            <p className="text-sm text-amber-100/65">Shape your readings with a constellation of filters.</p>
+            <p className="text-[10px] uppercase tracking-[0.32em] text-[color:var(--color-gray-light)]">Filters</p>
+            <h2 className="text-2xl font-serif text-[color:var(--text-main)]">Focus your journal</h2>
+            <p className="text-sm text-[color:var(--text-muted)]">Shape your readings with a constellation of filters.</p>
           </div>
           <button
             type="button"
             onClick={clearFilters}
             disabled={!activeFilters}
-            className="inline-flex items-center gap-2 rounded-full border border-amber-300/30 bg-amber-300/10 px-3 py-1.5 text-xs font-semibold text-amber-50 shadow-[0_12px_30px_-18px_rgba(251,191,36,0.6)] transition hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/50 disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none"
+            className="inline-flex items-center gap-2 rounded-full border border-[color:var(--border-warm)] bg-[color:rgba(212,184,150,0.10)] px-3 py-1.5 text-xs font-semibold text-[color:var(--text-main)] shadow-[0_12px_30px_-18px_rgba(212,184,150,0.6)] transition hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:rgba(232,218,195,0.50)] disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none"
           >
             <JournalRefreshIcon className="h-4 w-4" aria-hidden="true" />
             Reset view
@@ -446,7 +446,7 @@ export function JournalFilters({ filters, onChange, contexts = [], spreads = [],
             type="button"
             onClick={() => setAdvancedOpen(prev => !prev)}
             aria-expanded={advancedOpen}
-            className="flex min-h-[44px] w-full items-center justify-between rounded-xl border border-amber-300/20 bg-amber-300/5 px-3 py-3 text-sm font-semibold text-amber-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/40"
+            className="flex min-h-[44px] w-full items-center justify-between rounded-xl border border-[color:var(--border-warm-light)] bg-[color:rgba(212,184,150,0.05)] px-3 py-3 text-sm font-semibold text-[color:var(--text-main)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:rgba(232,218,195,0.45)]"
           >
             <span>Advanced filters</span>
             <CaretDown className={`h-4 w-4 transition-transform ${advancedOpen ? 'rotate-180' : ''}`} aria-hidden="true" />
@@ -545,13 +545,13 @@ export function JournalFilters({ filters, onChange, contexts = [], spreads = [],
                 <svg className="absolute inset-0 h-full w-full" aria-hidden="true">
                   <defs>
                     <linearGradient id="filters-line-1" x1="0%" y1="0%" x2="100%" y2="100%">
-                      <stop offset="0%" stopColor="rgba(251,191,36,0.48)" />
-                      <stop offset="100%" stopColor="rgba(251,191,36,0.12)" />
+                      <stop offset="0%" stopColor="rgba(212,184,150,0.48)" />
+                      <stop offset="100%" stopColor="rgba(212,184,150,0.12)" />
                     </linearGradient>
                     <radialGradient id="filters-node" cx="50%" cy="50%" r="50%">
-                      <stop offset="0%" stopColor="rgba(251,191,36,0.9)" />
-                      <stop offset="60%" stopColor="rgba(251,191,36,0.35)" />
-                      <stop offset="100%" stopColor="rgba(251,191,36,0)" />
+                      <stop offset="0%" stopColor="rgba(212,184,150,0.9)" />
+                      <stop offset="60%" stopColor="rgba(212,184,150,0.35)" />
+                      <stop offset="100%" stopColor="rgba(212,184,150,0)" />
                     </radialGradient>
                     <filter id="filters-glow">
                       <feGaussianBlur stdDeviation="2" result="blur" />
@@ -586,7 +586,7 @@ export function JournalFilters({ filters, onChange, contexts = [], spreads = [],
                         cx={`${positions[node.id].x}%`}
                         cy={`${positions[node.id].y}%`}
                         r={node.isHero ? 4.2 : 3.4}
-                        fill="rgba(251,191,36,0.6)"
+                        fill="rgba(212,184,150,0.6)"
                         filter="url(#filters-glow)"
                       />
                     </g>
@@ -603,7 +603,7 @@ export function JournalFilters({ filters, onChange, contexts = [], spreads = [],
                       onClick={() => handleMapAction(node.id)}
                       disabled={node.disabled}
                       aria-label={`Edit ${node.label} filter`}
-                      className={`group absolute text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/50 ${
+                      className={`group absolute text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:rgba(232,218,195,0.50)] ${
                         node.disabled ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'
                       }`}
                       style={{
@@ -614,34 +614,34 @@ export function JournalFilters({ filters, onChange, contexts = [], spreads = [],
                     >
                       <div
                         className={`relative w-[160px] overflow-hidden rounded-xl border ${
-                          isHero ? 'border-amber-300/40 shadow-[0_20px_60px_-24px_rgba(251,191,36,0.7)]' : 'border-amber-300/25 shadow-[0_16px_40px_-26px_rgba(251,191,36,0.45)]'
-                        } bg-gradient-to-b from-[#161728] via-[#0f1020] to-[#0c0d17] p-[1px] transition-transform ${node.disabled ? '' : 'group-hover:-translate-y-0.5'}`}
+                          isHero ? 'border-[color:var(--border-warm)] shadow-[0_20px_60px_-24px_rgba(212,184,150,0.7)]' : 'border-[color:var(--border-warm-light)] shadow-[0_16px_40px_-26px_rgba(212,184,150,0.45)]'
+                        } bg-gradient-to-b from-[var(--bg-surface-muted)] via-[var(--bg-surface)] to-[var(--bg-main)] p-[1px] transition-transform ${node.disabled ? '' : 'group-hover:-translate-y-0.5'}`}
                       >
-                        <div className="relative h-full rounded-[11px] bg-gradient-to-b from-[#0c0d19] via-[#0b0c18] to-[#0a0b14]">
+                        <div className="relative h-full rounded-[11px] bg-gradient-to-b from-[var(--bg-surface)] via-[var(--bg-surface)] to-[var(--bg-main)]">
                           <div className="pointer-events-none absolute inset-0 opacity-10">
                             <svg className="h-full w-full" aria-hidden="true">
                               <defs>
                                 <pattern id={`filters-card-${node.id}`} width="18" height="18" patternUnits="userSpaceOnUse">
-                                  <path d="M9 0L18 9L9 18L0 9Z" fill="none" stroke="currentColor" strokeWidth="0.5" className="text-amber-300" />
-                                  <circle cx="9" cy="9" r="2.5" fill="none" stroke="currentColor" strokeWidth="0.5" className="text-amber-300" />
+                                  <path d="M9 0L18 9L9 18L0 9Z" fill="none" stroke="currentColor" strokeWidth="0.5" className="text-[color:var(--brand-primary)]" />
+                                  <circle cx="9" cy="9" r="2.5" fill="none" stroke="currentColor" strokeWidth="0.5" className="text-[color:var(--brand-primary)]" />
                                 </pattern>
                               </defs>
                               <rect width="100%" height="100%" fill={`url(#filters-card-${node.id})`} />
                             </svg>
                           </div>
-                          <div className={`relative flex flex-col items-center gap-1 px-4 py-4 text-center ${isHero ? 'bg-amber-300/[0.01]' : ''}`}>
+                          <div className={`relative flex flex-col items-center gap-1 px-4 py-4 text-center ${isHero ? 'bg-[color:rgba(212,184,150,0.01)]' : ''}`}>
                             <div
                               className={`mb-1 flex h-10 w-10 items-center justify-center rounded-full ${
                                 node.active
-                                  ? 'bg-amber-300/20 text-amber-200 ring-1 ring-amber-300/40'
-                                  : 'bg-amber-200/10 text-amber-100/70 ring-1 ring-amber-200/25'
+                                  ? 'bg-[color:rgba(212,184,150,0.20)] text-[color:var(--brand-accent)] ring-1 ring-[color:var(--border-warm)]'
+                                  : 'bg-[color:rgba(232,218,195,0.10)] text-[color:var(--text-muted)] ring-1 ring-[color:var(--border-warm-light)]'
                               }`}
                             >
                               {node.icon}
                             </div>
-                            <p className={`text-[9px] uppercase tracking-[0.24em] ${isHero ? 'text-amber-200/80' : 'text-amber-200/60'}`}>{node.label}</p>
-                            <p className={`font-serif leading-tight ${isHero ? 'text-amber-50 text-xl' : 'text-amber-50/90 text-lg'}`}>{node.value}</p>
-                            <p className="text-[10px] text-amber-100/45">{node.hint}</p>
+                            <p className={`text-[9px] uppercase tracking-[0.24em] ${isHero ? 'text-[color:var(--brand-accent)]' : 'text-[color:var(--text-muted)]'}`}>{node.label}</p>
+                            <p className={`font-serif leading-tight ${isHero ? 'text-[color:var(--text-main)] text-xl' : 'text-[color:var(--text-main)] text-lg'}`}>{node.value}</p>
+                            <p className="text-[10px] text-[color:var(--color-gray-light)]">{node.hint}</p>
                           </div>
                         </div>
                       </div>
@@ -660,18 +660,18 @@ export function JournalFilters({ filters, onChange, contexts = [], spreads = [],
                     onClick={() => handleMapAction(node.id)}
                     disabled={node.disabled}
                     aria-label={`Edit ${node.label} filter`}
-                    className={`min-w-[150px] flex-1 rounded-xl border px-4 py-3 text-left backdrop-blur-md snap-start focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/40 ${
+                    className={`min-w-[150px] flex-1 rounded-xl border px-4 py-3 text-left backdrop-blur-md snap-start focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:rgba(232,218,195,0.45)] ${
                       node.isHero
-                        ? 'border-amber-300/40 bg-amber-300/10 shadow-[0_14px_36px_-20px_rgba(251,191,36,0.6)]'
-                        : 'border-amber-200/20 bg-white/5 shadow-[0_10px_30px_-24px_rgba(251,191,36,0.5)]'
+                        ? 'border-[color:var(--border-warm)] bg-[color:rgba(212,184,150,0.10)] shadow-[0_14px_36px_-20px_rgba(212,184,150,0.6)]'
+                        : 'border-[color:var(--border-warm-light)] bg-[color:rgba(255,255,255,0.05)] shadow-[0_10px_30px_-24px_rgba(212,184,150,0.5)]'
                     } ${node.disabled ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'}`}
                   >
-                    <div className="mb-2 flex items-center gap-2 text-[10px] uppercase tracking-[0.22em] text-amber-200/70">
+                    <div className="mb-2 flex items-center gap-2 text-[10px] uppercase tracking-[0.22em] text-[color:var(--text-muted)]">
                       {node.icon}
                       <span>{node.label}</span>
                     </div>
-                    <p className="font-serif text-lg text-amber-50 leading-tight">{node.value}</p>
-                    <p className="text-[11px] text-amber-100/50">{node.hint}</p>
+                    <p className="font-serif text-lg text-[color:var(--text-main)] leading-tight">{node.value}</p>
+                    <p className="text-[11px] text-[color:var(--color-gray-light)]">{node.hint}</p>
                   </button>
                 ))}
               </div>
@@ -681,10 +681,10 @@ export function JournalFilters({ filters, onChange, contexts = [], spreads = [],
 
         <div className={isCompact ? 'flex flex-col gap-4' : 'grid gap-4 lg:grid-cols-[1.05fr_0.95fr]'}>
           {/* Search + saved filters */}
-          <div className="rounded-2xl border border-amber-300/15 bg-gradient-to-br from-[#0e0b18]/80 via-[#0c0a14]/80 to-[#0d0a16]/80 p-4 ring-1 ring-amber-300/10 shadow-[0_18px_45px_-30px_rgba(0,0,0,0.8)]">
+          <div className="rounded-2xl border border-[color:var(--border-warm-light)] bg-gradient-to-br from-[var(--panel-dark-1)] via-[var(--panel-dark-2)] to-[var(--panel-dark-3)] p-4 ring-1 ring-[color:var(--border-warm-light)] shadow-[0_18px_45px_-30px_rgba(0,0,0,0.8)]">
             <div className="flex flex-wrap items-center gap-3">
               <div className="relative flex-1 min-w-[220px]">
-                <div className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-amber-200/60">
+                <div className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-[color:var(--text-muted)]">
                   <JournalSearchIcon className="h-4 w-4" aria-hidden />
                 </div>
                 <input
@@ -693,18 +693,18 @@ export function JournalFilters({ filters, onChange, contexts = [], spreads = [],
                   value={filters.query}
                   onChange={handleQueryChange}
                   placeholder="Search readings..."
-                  className="w-full min-h-[44px] rounded-xl border border-amber-200/20 bg-[#0f1124]/80 px-9 py-2.5 text-sm text-amber-50 placeholder:text-amber-100/45 focus:outline-none focus:ring-2 focus:ring-amber-300/50"
+                  className="w-full min-h-[44px] rounded-xl border border-[color:var(--border-warm-light)] bg-[color:rgba(15,14,19,0.80)] px-9 py-2.5 text-sm text-[color:var(--text-main)] placeholder:text-[color:var(--color-gray-light)] focus:outline-none focus:ring-2 focus:ring-[color:rgba(232,218,195,0.50)]"
                 />
               </div>
             </div>
 
             {showSavedFiltersPanel && (
-              <div className="mt-4 rounded-xl border border-amber-200/15 bg-[#0f1222]/70 p-3">
-                <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.25em] text-amber-200/70">
+              <div className="mt-4 rounded-xl border border-[color:var(--border-warm-light)] bg-[color:rgba(15,14,19,0.70)] p-3">
+                <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.25em] text-[color:var(--text-muted)]">
                   <JournalBookmarkIcon className="h-4 w-4" aria-hidden="true" />
                   <span>Saved views</span>
                   {savedFilters.length > 0 && (
-                    <span className="ml-auto text-[11px] text-amber-100/55">{savedFilters.length} saved</span>
+                    <span className="ml-auto text-[11px] text-[color:var(--color-gray-light)]">{savedFilters.length} saved</span>
                   )}
                 </div>
 
@@ -713,19 +713,19 @@ export function JournalFilters({ filters, onChange, contexts = [], spreads = [],
                     savedFilters.map((saved) => (
                       <div
                         key={saved.id}
-                        className="inline-flex items-center gap-2 rounded-full border border-amber-200/25 bg-amber-200/5 px-3 py-1 text-xs text-amber-100"
+                        className="inline-flex items-center gap-2 rounded-full border border-[color:var(--border-warm-light)] bg-[color:rgba(232,218,195,0.05)] px-3 py-1 text-xs text-[color:var(--text-muted)]"
                       >
                         <button
                           type="button"
                           onClick={() => handleApplySaved(saved)}
-                          className="flex items-center gap-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/40"
+                          className="flex items-center gap-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:rgba(232,218,195,0.45)]"
                         >
-                          <span className="font-semibold text-amber-50">{saved.name}</span>
+                          <span className="font-semibold text-[color:var(--text-main)]">{saved.name}</span>
                         </button>
                         <button
                           type="button"
                           onClick={() => handleDeleteSaved(saved.id)}
-                          className="rounded-full px-1 text-amber-100/60 hover:text-error focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/40"
+                          className="rounded-full px-1 text-[color:var(--color-gray-light)] hover:text-[color:var(--color-error)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:rgba(232,218,195,0.45)]"
                           aria-label={`Delete saved filter ${saved.name}`}
                         >
                           <span aria-hidden="true">×</span>
@@ -733,7 +733,7 @@ export function JournalFilters({ filters, onChange, contexts = [], spreads = [],
                       </div>
                     ))
                   ) : (
-                    <p className="text-xs text-amber-100/60">No saved views yet.</p>
+                    <p className="text-xs text-[color:var(--color-gray-light)]">No saved views yet.</p>
                   )}
                 </div>
 
@@ -743,9 +743,9 @@ export function JournalFilters({ filters, onChange, contexts = [], spreads = [],
                       <button
                         type="button"
                         onClick={() => setSavePanelOpen(true)}
-                        className="inline-flex min-h-[44px] items-center gap-2 rounded-xl border border-amber-300/25 bg-amber-300/10 px-3 py-2.5 text-sm font-semibold text-amber-50 shadow-[0_12px_30px_-18px_rgba(251,191,36,0.55)] transition hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/50"
+                        className="inline-flex min-h-[44px] items-center gap-2 rounded-xl border border-[color:var(--border-warm)] bg-[color:rgba(212,184,150,0.10)] px-3 py-2.5 text-sm font-semibold text-[color:var(--text-main)] shadow-[0_12px_30px_-18px_rgba(212,184,150,0.55)] transition hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:rgba(232,218,195,0.50)]"
                       >
-                        <JournalBookmarkIcon className="h-4 w-4 text-amber-200/80" aria-hidden="true" />
+                        <JournalBookmarkIcon className="h-4 w-4 text-[color:var(--brand-accent)]" aria-hidden="true" />
                         Save this view
                       </button>
                     ) : (
@@ -756,7 +756,7 @@ export function JournalFilters({ filters, onChange, contexts = [], spreads = [],
                           value={newFilterName}
                           onChange={(event) => setNewFilterName(event.target.value)}
                           placeholder="Name this view"
-                          className="flex-1 min-h-[44px] rounded-xl border border-amber-200/25 bg-[#0b0d18]/70 px-4 py-2 text-sm text-amber-50 placeholder:text-amber-100/45 focus:outline-none focus:ring-2 focus:ring-amber-300/50"
+                          className="flex-1 min-h-[44px] rounded-xl border border-[color:var(--border-warm-light)] bg-[color:rgba(15,14,19,0.70)] px-4 py-2 text-sm text-[color:var(--text-main)] placeholder:text-[color:var(--color-gray-light)] focus:outline-none focus:ring-2 focus:ring-[color:rgba(232,218,195,0.50)]"
                         />
                         <div className="flex items-center gap-2">
                           <button
@@ -787,7 +787,7 @@ export function JournalFilters({ filters, onChange, contexts = [], spreads = [],
           </div>
 
           {/* Filter toggles */}
-          <div className="rounded-2xl border border-amber-300/12 bg-gradient-to-br from-[#0f0b16]/80 via-[#0c0a13]/80 to-[#0a0810]/85 p-4 ring-1 ring-amber-300/10 shadow-[0_18px_45px_-30px_rgba(0,0,0,0.8)]">
+          <div className="rounded-2xl border border-[color:var(--border-warm-light)] bg-gradient-to-br from-[var(--panel-dark-1)] via-[var(--panel-dark-2)] to-[var(--panel-dark-3)] p-4 ring-1 ring-[color:var(--border-warm-light)] shadow-[0_18px_45px_-30px_rgba(0,0,0,0.8)]">
             <div className="flex flex-wrap items-center gap-3">
               <FilterDropdown
                 label="Timeframe"
@@ -831,7 +831,7 @@ export function JournalFilters({ filters, onChange, contexts = [], spreads = [],
                 />
               )}
 
-              <div className="hidden h-6 w-px bg-amber-200/15 sm:block" />
+              <div className="hidden h-6 w-px bg-[color:var(--border-warm-light)] sm:block" />
 
               <button
                 ref={reversalsButtonRef}
@@ -844,7 +844,7 @@ export function JournalFilters({ filters, onChange, contexts = [], spreads = [],
                 {filters.onlyReversals && <Check className="h-3 w-3" />}
               </button>
             </div>
-            <p className="mt-3 text-[11px] uppercase tracking-[0.22em] text-amber-100/50">
+            <p className="mt-3 text-[11px] uppercase tracking-[0.22em] text-[color:var(--color-gray-light)]">
               Tip: combine filters to surface exact readings you want.
             </p>
           </div>

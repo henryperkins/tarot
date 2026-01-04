@@ -98,18 +98,22 @@
     }
   ],
   // ============================================================================
-  // R2 Buckets (for log storage and exports)
+  // R2 Buckets (disabled - archival moved to D1)
   // ============================================================================
-  "r2_buckets": [
-    {
-      "binding": "LOGS_BUCKET",
-      "bucket_name": "tarot-logs"
-    }
-  ],
+  // Previously used for metrics/feedback archival and PDF caching.
+  // Archival now uses D1 tables: metrics_archive, feedback_archive, archival_summaries
+  // PDF export caching disabled (PDFs generated on-demand)
+  // To re-enable R2, uncomment below and run: wrangler r2 bucket create tarot-logs
+  // "r2_buckets": [
+  //   {
+  //     "binding": "LOGS_BUCKET",
+  //     "bucket_name": "tarot-logs"
+  //   }
+  // ],
   // ============================================================================
   // Cron Triggers (Scheduled Tasks)
   // ============================================================================
-  // Archive metrics/feedback from KV to R2 and cleanup expired sessions
+  // Archive metrics/feedback from KV to D1 and cleanup expired sessions
   "triggers": {
     "crons": [
       "0 3 * * *"

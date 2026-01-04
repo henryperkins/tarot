@@ -7,8 +7,14 @@ export function collectGraphRAGAlerts(promptMeta = {}) {
 
     if (!graphMeta) return alerts;
 
-    if (graphMeta.includedInPrompt === false) {
-        alerts.push('GraphRAG requested but omitted from prompt');
+    // Only warn when GraphRAG had something to contribute but was omitted.
+    // If no passages were retrieved (e.g. no graph keys/patterns), omission is expected.
+    const passagesProvided =
+        (typeof graphMeta.passagesProvided === 'number' ? graphMeta.passagesProvided : null) ??
+        (typeof graphMeta.passagesRetrieved === 'number' ? graphMeta.passagesRetrieved : 0);
+
+    if (graphMeta.includedInPrompt === false && passagesProvided > 0) {
+        alerts.push('GraphRAG passages were retrieved but omitted from prompt');
     }
 
     const passagesUsed = graphMeta.passagesUsedInPrompt;
@@ -17,7 +23,8 @@ export function collectGraphRAGAlerts(promptMeta = {}) {
         alerts.push(`GraphRAG passages heavily truncated (${truncated} trimmed vs ${passagesUsed} kept)`);
     }
 
-    if (graphMeta.semanticScoringFallback) {
+    const semanticRequested = graphMeta.semanticScoringRequested === true;
+    if (semanticRequested && graphMeta.semanticScoringFallback) {
         alerts.push('GraphRAG semantic scoring fell back to keyword ranking');
     }
 

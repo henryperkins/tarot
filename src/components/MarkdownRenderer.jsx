@@ -78,7 +78,21 @@ function highlightChildren(children, phrases) {
     }
 
     // Avoid highlighting inside code blocks / inline code.
-    if (child.type === 'code' || child.type === 'pre') {
+    // react-markdown will often pass custom renderer *functions* as element types,
+    // so we also inspect the node metadata it provides.
+    const tagName = child.props?.node?.tagName;
+    const nodeType = child.props?.node?.type;
+    const isInlineCode = Boolean(child.props?.inline);
+    const isCodeLike =
+      child.type === 'code' ||
+      child.type === 'pre' ||
+      tagName === 'code' ||
+      tagName === 'pre' ||
+      nodeType === 'code' ||
+      nodeType === 'inlineCode' ||
+      isInlineCode;
+
+    if (isCodeLike) {
       return child;
     }
 

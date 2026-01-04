@@ -11,6 +11,8 @@ import {
   buildReadingReasoning
 } from './reasoning.js';
 
+import { sanitizeDisplayName } from './styleHelpers.js';
+
 // ============================================================================
 // REASONING-INFORMED TEMPLATE SELECTION
 // ============================================================================
@@ -215,9 +217,9 @@ export function buildReasoningAwareOpening(spreadName, userQuestion, context, re
   }
 
   // Add personalization bridge if available
-  if (options.personalization?.displayName) {
-    const name = options.personalization.displayName;
-    parts.push(`${name}, let's explore what the cards reveal.`);
+  const safeName = sanitizeDisplayName(options.personalization?.displayName);
+  if (safeName) {
+    parts.push(`${safeName}, let's explore what the cards reveal.`);
   }
 
   return parts.join('\n\n');

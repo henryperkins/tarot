@@ -18,6 +18,12 @@ import {
   getSectionHeader
 } from '../helpers.js';
 import { getToneStyle, getFrameVocabulary, buildNameClause, buildPersonalizedClosing } from '../styleHelpers.js';
+import {
+  selectReasoningConnector,
+  buildReasoningAwareOpening,
+  enhanceCardTextWithReasoning,
+  buildReasoningSynthesis
+} from '../reasoningIntegration.js';
 
 export async function buildThreeCardReading({
   cardsInfo,
@@ -37,6 +43,7 @@ export async function buildThreeCardReading({
     typeof options.collectValidation === 'function'
       ? options.collectValidation
       : null;
+  const reasoning = options.reasoning || null;
 
   const recordSection = (text, metadata = {}) => {
     const result = enhanceSection(text, metadata);
@@ -50,14 +57,22 @@ export async function buildThreeCardReading({
     return result.text;
   };
 
-  sections.push(
-    buildOpening(
-      'Three-Card Story (Past · Present · Future)',
-      userQuestion,
-      context,
-      { personalization: options.personalization }
-    )
-  );
+  // Use reasoning-aware opening if available
+  const opening = reasoning
+    ? buildReasoningAwareOpening(
+        'Three-Card Story (Past · Present · Future)',
+        userQuestion,
+        context,
+        reasoning,
+        { personalization: options.personalization }
+      )
+    : buildOpening(
+        'Three-Card Story (Past · Present · Future)',
+        userQuestion,
+        context,
+        { personalization: options.personalization }
+      );
+  sections.push(opening);
 
   const [past, present, future] = cardsInfo;
   const prioritized = sortCardsByImportance(cardsInfo, 'threeCard');
@@ -77,7 +92,12 @@ export async function buildThreeCardReading({
   const futurePosition = future.position || 'Future — trajectory if nothing shifts';
 
   // Past card
-  narrative += `${buildPositionCardText(past, pastPosition, positionOptions)}\n\n`;
+  let pastText = buildPositionCardText(past, pastPosition, positionOptions);
+  if (reasoning) {
+    const enhanced = enhanceCardTextWithReasoning(pastText, 0, reasoning);
+    if (enhanced.enhanced) pastText = enhanced.text;
+  }
+  narrative += `${pastText}\n\n`;
   const pastWeightNote = buildWeightNote('threeCard', 0, pastPosition);
   if (pastWeightNote) {
     narrative += `${pastWeightNote}\n\n`;
@@ -85,11 +105,16 @@ export async function buildThreeCardReading({
 
   // Present card with connector and elemental imagery
   const firstToSecond = threeCardAnalysis?.transitions?.firstToSecond;
-  const presentConnector = getConnector(presentPosition, 'toPrev');
-  narrative += `${presentConnector} ${buildPositionCardText(present, presentPosition, {
+  const presentConnector = (reasoning && selectReasoningConnector(reasoning, 0, 1)) || getConnector(presentPosition, 'toPrev');
+  let presentText = buildPositionCardText(present, presentPosition, {
     ...positionOptions,
     prevElementalRelationship: firstToSecond
-  })}\n\n`;
+  });
+  if (reasoning) {
+    const enhanced = enhanceCardTextWithReasoning(presentText, 1, reasoning);
+    if (enhanced.enhanced) presentText = enhanced.text;
+  }
+  narrative += `${presentConnector} ${presentText}\n\n`;
   const presentWeightNote = buildWeightNote('threeCard', 1, presentPosition);
   if (presentWeightNote) {
     narrative += `${presentWeightNote}\n\n`;
@@ -97,11 +122,16 @@ export async function buildThreeCardReading({
 
   // Future card with connector and elemental imagery
   const secondToThird = threeCardAnalysis?.transitions?.secondToThird;
-  const futureConnector = getConnector(futurePosition, 'toPrev');
-  narrative += `${futureConnector} ${buildPositionCardText(future, futurePosition, {
+  const futureConnector = (reasoning && selectReasoningConnector(reasoning, 1, 2)) || getConnector(futurePosition, 'toPrev');
+  let futureText = buildPositionCardText(future, futurePosition, {
     ...positionOptions,
     prevElementalRelationship: secondToThird
-  })}\n\n`;
+  });
+  if (reasoning) {
+    const enhanced = enhanceCardTextWithReasoning(futureText, 2, reasoning);
+    if (enhanced.enhanced) futureText = enhanced.text;
+  }
+  narrative += `${futureConnector} ${futureText}\n\n`;
   const futureWeightNote = buildWeightNote('threeCard', 2, futurePosition);
   if (futureWeightNote) {
     narrative += `${futureWeightNote}\n\n`;
@@ -122,9 +152,12 @@ export async function buildThreeCardReading({
     sections.push(buildReflectionsSection(reflectionsText));
   }
 
-  const patternSection = buildPatternSynthesis(themes);
-  if (patternSection) {
-    sections.push(patternSection);
+  // Use reasoning synthesis if available, otherwise fall back to pattern synthesis
+  const synthesisSection = reasoning
+    ? buildReasoningSynthesis(cardsInfo, reasoning, themes, userQuestion, context)
+    : buildPatternSynthesis(themes);
+  if (synthesisSection) {
+    sections.push(synthesisSection);
   }
 
   const supportingSummary = buildSupportingPositionsSummary(prioritized, 'Three-Card Story');
