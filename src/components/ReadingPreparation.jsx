@@ -1,18 +1,15 @@
 import { useState, useCallback, useRef } from 'react';
-import { CaretDown, CaretUp, TextAlignLeft, SpeakerHigh, Palette, Sparkle, Stack } from '@phosphor-icons/react';
+import { Link } from 'react-router-dom';
+import { CaretDown, CaretUp, TextAlignLeft, Sparkle, Stack } from '@phosphor-icons/react';
 import { QuestionInput } from './QuestionInput';
-import { AudioControls } from './AudioControls';
-import { ExperienceSettings } from './ExperienceSettings';
 import { CoachSuggestion } from './CoachSuggestion';
 import { RitualControls } from './RitualControls';
 import { DeckSelector } from './DeckSelector';
 
-// Mobile tab configuration
+// Mobile tab configuration (Audio/Theme settings moved to Account page)
 const MOBILE_TABS = [
     { id: 'intention', label: 'Intent', icon: TextAlignLeft },
     { id: 'deck', label: 'Deck', icon: Stack },
-    { id: 'audio', label: 'Audio', icon: SpeakerHigh },
-    { id: 'experience', label: 'Theme', icon: Palette },
     { id: 'ritual', label: 'Ritual', icon: Sparkle }
 ];
 
@@ -57,9 +54,10 @@ export function ReadingPreparation({
     const mobileTabs = shouldSkipRitual
         ? MOBILE_TABS.filter(tab => tab.id !== 'ritual')
         : MOBILE_TABS;
+    // Audio/Theme settings moved to Account page - only ritual remains as collapsible section
     const sectionOrder = shouldSkipRitual
-        ? ['audio', 'experience']
-        : ['audio', 'experience', 'ritual'];
+        ? []
+        : ['ritual'];
 
     const renderSectionContent = (section) => {
         if (section === 'intention') {
@@ -82,12 +80,6 @@ export function ReadingPreparation({
                     />
                 </>
             );
-        }
-        if (section === 'audio') {
-            return <AudioControls />;
-        }
-        if (section === 'experience') {
-            return <ExperienceSettings />;
         }
         if (section === 'deck') {
             if (typeof onDeckChange !== 'function') {
@@ -217,6 +209,16 @@ export function ReadingPreparation({
                     })}
                 </div>
 
+                <div className="rounded-xl border border-secondary/20 bg-surface/40 px-3 py-2 text-[0.7rem] text-muted flex items-center justify-between gap-2">
+                    <span>Audio and appearance live in Settings.</span>
+                    <Link
+                        to="/account"
+                        className="text-accent underline underline-offset-2 text-[0.7rem] font-semibold"
+                    >
+                        Open Settings
+                    </Link>
+                </div>
+
                 {/* Tab panel content */}
                     {mobileTabs.map((tab) => (
                         <div
@@ -254,7 +256,7 @@ export function ReadingPreparation({
                     <div>
                         <p className="text-[0.68rem] uppercase tracking-[0.22em] text-gold-soft">Prepare Your Reading</p>
                         <p className="text-xs text-muted max-w-2xl">
-                            Capture an intention, tune experience controls, and complete the ritual setup inside one textured command center.
+                            Set your intention, choose your deck, and complete the ritual before drawing.
                         </p>
                     </div>
                     <div className="hidden sm:flex items-center gap-2 rounded-full border border-gold-soft/50 bg-black/30 px-3 py-1 text-[0.7rem] text-accent backdrop-blur">
@@ -265,8 +267,6 @@ export function ReadingPreparation({
 
                 <div className="prepare-summary-chip">
                     <span>{prepareSummaries.intention}</span>
-                    <span aria-hidden="true">·</span>
-                    <span>{prepareSummaries.experience}</span>
                     {!shouldSkipRitual && (
                         <>
                             <span aria-hidden="true">·</span>
@@ -320,7 +320,13 @@ export function ReadingPreparation({
 
                 <div className="deck-panel-footnote prepare-panel-footnote">
                     <p className="text-[0.72rem] leading-relaxed text-muted">
-                        <strong className="text-accent">Tip:</strong> Keep these steps updated before drawing to help the AI align narration tone, audio, and ritual cues.
+                        <strong className="text-accent">Tip:</strong> Complete preparation before drawing to help the AI craft a personalized reading.
+                    </p>
+                    <p className="text-[0.72rem] leading-relaxed text-muted">
+                        Audio and appearance live in{' '}
+                        <Link to="/account" className="text-accent underline underline-offset-2 font-semibold">
+                            Settings
+                        </Link>.
                     </p>
                 </div>
             </div>

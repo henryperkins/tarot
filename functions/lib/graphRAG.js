@@ -184,16 +184,34 @@ export function retrievePassages(graphKeys, options = {}) {
       .filter((dyad) => dyad.significance === 'high')
       .forEach((dyad) => {
         const dyadKey = dyad.cards.join('-');
-        const entry = getPassagesForPattern('dyad', dyadKey);
+        let entry = getPassagesForPattern('dyad', dyadKey);
+        if (!entry && Array.isArray(dyad.cards)) {
+          const sortedKey = [...dyad.cards].sort((a, b) => a - b).join('-');
+          if (sortedKey !== dyadKey) {
+            entry = getPassagesForPattern('dyad', sortedKey);
+          }
+        }
         if (entry && entry.passages && entry.passages.length > 0) {
           const passage = entry.passages[0];
+          let cardNames = entry.names;
+          if (Array.isArray(entry.cards) && Array.isArray(entry.names)) {
+            const nameMap = new Map(
+              entry.cards.map((cardNum, index) => [cardNum, entry.names[index]])
+            );
+            const orderedNames = dyad.cards
+              .map((cardNum) => nameMap.get(cardNum))
+              .filter(Boolean);
+            if (orderedNames.length === dyad.cards.length) {
+              cardNames = orderedNames;
+            }
+          }
           passages.push({
             priority: 3,
             type: 'dyad',
             patternId: dyadKey,
             theme: entry.theme,
             cardNumbers: dyad.cards,
-            cardNames: entry.names,
+            cardNames,
             ...passage,
             ...(includeMetadata
               ? { metadata: { cards: dyad.cards, category: dyad.category } }

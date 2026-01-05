@@ -318,6 +318,21 @@ export function UserMenu({ condensed = false }) {
                 <BookOpen className="w-4 h-4" aria-hidden="true" />
               </button>
             )}
+            <Link
+              to="/account"
+              className="
+                flex items-center gap-1.5 px-3 sm:px-4 min-h-[44px]
+                rounded-full border border-accent/30 text-accent
+                hover:bg-surface hover:border-accent/50 active:bg-surface-muted
+                transition text-xs-plus font-semibold touch-manipulation
+                focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60
+                focus-visible:ring-offset-2 focus-visible:ring-offset-main
+              "
+              aria-label="Open settings"
+            >
+              <Gear className="w-4 h-4" aria-hidden="true" />
+              <span className="hidden xs:inline">Settings</span>
+            </Link>
             <button
               onClick={() => setShowAuthModal(true)}
               className="

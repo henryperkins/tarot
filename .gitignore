@@ -101,6 +101,7 @@ MysticTarot2.png
 # Local debug scratchpad
 /tmp/*.txt
 /tmp/*.sql
+/tmp/*.mjs
 
 # Design reference dumps (local-only large binaries)
 /IMG_*.PNG

@@ -22,6 +22,7 @@ import {
   getPassagesForPattern,
   getKnowledgeBaseStats
 } from '../functions/lib/knowledgeBase.js';
+import { ARCHETYPAL_DYADS } from '../src/data/knowledgeGraphData.js';
 
 describe('GraphRAG Knowledge Base', () => {
   test('getKnowledgeBaseStats returns correct counts', () => {
@@ -70,6 +71,26 @@ describe('GraphRAG Knowledge Base', () => {
     assert.deepStrictEqual(entry.names, ['Death', 'The Star']);
     assert.ok(entry.theme.includes('hope') || entry.theme.includes('transformation'));
     assert.ok(entry.passages.length > 0);
+  });
+
+  test('high-significance dyads have passages', () => {
+    const missing = [];
+    ARCHETYPAL_DYADS
+      .filter((dyad) => dyad.significance === 'high')
+      .forEach((dyad) => {
+        const key = dyad.cards.join('-');
+        const entry = getPassagesForPattern('dyad', key);
+        if (!entry || !Array.isArray(entry.passages) || entry.passages.length === 0) {
+          missing.push(key);
+        }
+      });
+
+    assert.strictEqual(missing.length, 0, `Missing dyad passages for: ${missing.join(', ')}`);
+  });
+
+  test('dyad names preserve canonical articles', () => {
+    const entry = getPassagesForPattern('dyad', '9-2');
+    assert.ok(entry?.names?.includes('The High Priestess'), 'Should include The High Priestess');
   });
 
   test('getPassagesForPattern: suit progression retrieval', () => {

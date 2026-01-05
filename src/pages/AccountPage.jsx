@@ -14,7 +14,11 @@ import {
   Check,
   CaretRight,
   Envelope,
-  ChartLine
+  ChartLine,
+  SpeakerHigh,
+  Waveform,
+  ArrowCounterClockwise,
+  Palette
 } from '@phosphor-icons/react';
 import { useAuth } from '../contexts/AuthContext';
 import { useSubscription, SUBSCRIPTION_TIERS } from '../contexts/SubscriptionContext';
@@ -88,8 +92,26 @@ export default function AccountPage() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const { user, isAuthenticated, logout, loading: authLoading } = useAuth();
-  const { tier, subscription: _subscription, loading: subLoading } = useSubscription();
-  const { resetOnboarding } = usePreferences();
+  const { tier, subscription: _subscription, loading: _subLoading } = useSubscription();
+  const {
+    resetOnboarding,
+    // Audio settings
+    voiceOn,
+    setVoiceOn,
+    autoNarrate,
+    setAutoNarrate,
+    ambienceOn,
+    setAmbienceOn,
+    ttsProvider,
+    setTtsProvider,
+    // Theme/experience settings
+    theme,
+    setTheme,
+    includeMinors,
+    setIncludeMinors,
+    reversalFramework,
+    setReversalFramework
+  } = usePreferences();
   const { publish } = useToast();
   const prefersReducedMotion = useReducedMotion();
 
@@ -117,12 +139,7 @@ export default function AccountPage() {
     }
   }, [searchParams, setSearchParams, publish]);
 
-  // Redirect to home if not authenticated
-  useEffect(() => {
-    if (!authLoading && !isAuthenticated) {
-      navigate('/', { replace: true });
-    }
-  }, [authLoading, isAuthenticated, navigate]);
+  // No redirect - guests can access settings sections
 
   // Fetch analytics preference
   useEffect(() => {
@@ -255,18 +272,13 @@ export default function AccountPage() {
     navigate('/');
   };
 
-  // Loading state
-  if (authLoading || subLoading) {
+  // Loading state - only wait for auth, not subscription (guests don't need it)
+  if (authLoading) {
     return (
       <div className="min-h-screen bg-main flex items-center justify-center">
         <CircleNotch className="h-8 w-8 text-accent animate-spin" />
       </div>
     );
-  }
-
-  // Not authenticated (will redirect)
-  if (!isAuthenticated) {
-    return null;
   }
 
   const tierConfig = SUBSCRIPTION_TIERS[tier] || SUBSCRIPTION_TIERS.free;
@@ -300,11 +312,14 @@ export default function AccountPage() {
       <main className="mx-auto max-w-2xl px-4 py-8 space-y-6">
         {/* Page Title */}
         <div>
-          <h1 className="font-serif text-3xl text-main">Account</h1>
-          <p className="text-sm text-muted mt-1">Manage your profile and subscription</p>
+          <h1 className="font-serif text-3xl text-main">{isAuthenticated ? 'Account' : 'Settings'}</h1>
+          <p className="text-sm text-muted mt-1">
+            {isAuthenticated ? 'Manage your profile, subscription, and preferences' : 'Customize your reading experience'}
+          </p>
         </div>
 
-        {/* Profile Section */}
+        {/* Profile Section - Auth only */}
+        {isAuthenticated && (
         <SectionCard title="Profile" icon={User}>
           <div className="flex items-center gap-4">
             <div className="h-16 w-16 rounded-full bg-accent/20 flex items-center justify-center">
@@ -321,8 +336,10 @@ export default function AccountPage() {
             </div>
           </div>
         </SectionCard>
+        )}
 
-        {/* Subscription Section */}
+        {/* Subscription Section - Auth only */}
+        {isAuthenticated && (
         <SectionCard title="Subscription" icon={CreditCard}>
           <div className="flex items-center gap-4 mb-4">
             <div className={`h-12 w-12 rounded-full flex items-center justify-center ${isPaid ? 'bg-accent/20' : 'bg-secondary/20'}`}>
@@ -524,9 +541,126 @@ export default function AccountPage() {
             )}
           </div>
         </SectionCard>
+        )}
 
-        {/* Settings Section */}
-        <SectionCard title="Settings" icon={ChartLine}>
+        {/* Audio Settings Section - Available to all users */}
+        <SectionCard title="Audio" icon={SpeakerHigh}>
+          <div className="divide-y divide-secondary/20">
+            <SettingsToggle
+              id="voice-toggle"
+              label="Reader Voice"
+              description="AI narration for card reveals and full readings"
+              enabled={voiceOn}
+              onChange={() => setVoiceOn(!voiceOn)}
+            />
+            <SettingsToggle
+              id="auto-narrate-toggle"
+              label="Auto-Narrate"
+              description={voiceOn ? "Automatically play narration as readings stream in" : "Enable Reader Voice first"}
+              enabled={autoNarrate && voiceOn}
+              onChange={() => setAutoNarrate(!autoNarrate)}
+              loading={!voiceOn}
+            />
+            <SettingsToggle
+              id="ambience-toggle"
+              label="Table Ambience"
+              description="Soft shuffle, candle crackle, and mystic room tone"
+              enabled={ambienceOn}
+              onChange={() => setAmbienceOn(!ambienceOn)}
+            />
+          </div>
+
+          {/* Voice Engine Selector */}
+          {voiceOn && (
+            <div className="mt-4 pt-4 border-t border-secondary/20">
+              <div className="flex items-center gap-2 mb-3">
+                <Waveform className="h-4 w-4 text-accent" />
+                <span className="text-xs font-semibold text-muted uppercase tracking-wide">Voice Engine</span>
+              </div>
+              <div className="grid grid-cols-3 gap-2" role="radiogroup" aria-label="Select voice engine">
+                {[
+                  { id: 'hume', label: 'Hume AI', desc: 'Expressive' },
+                  { id: 'azure', label: 'Azure', desc: 'Clear' },
+                  { id: 'azure-sdk', label: 'Azure SDK', desc: 'Word sync' }
+                ].map(engine => (
+                  <button
+                    key={engine.id}
+                    type="button"
+                    role="radio"
+                    aria-checked={ttsProvider === engine.id}
+                    onClick={() => setTtsProvider(engine.id)}
+                    className={`
+                      px-3 py-2.5 rounded-xl text-center transition-all touch-manipulation
+                      ${ttsProvider === engine.id
+                        ? 'bg-accent/20 border-2 border-accent text-main'
+                        : 'bg-surface-muted/50 border border-secondary/30 text-muted hover:text-main hover:border-secondary/50'
+                      }
+                    `}
+                  >
+                    <span className="block text-xs font-semibold">{engine.label}</span>
+                    <span className="block text-[0.65rem] opacity-75">{engine.desc}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+        </SectionCard>
+
+        {/* Theme & Experience Section */}
+        <SectionCard title="Appearance" icon={Palette}>
+          <div className="divide-y divide-secondary/20">
+            <SettingsToggle
+              id="theme-toggle"
+              label="Light Mode"
+              description="Switch to high contrast light theme"
+              enabled={theme === 'light'}
+              onChange={() => setTheme(theme === 'light' ? 'dark' : 'light')}
+            />
+            <SettingsToggle
+              id="deck-toggle"
+              label="Full Deck"
+              description="Include Minor Arcana (78 cards vs 22 Major only)"
+              enabled={includeMinors}
+              onChange={() => setIncludeMinors(!includeMinors)}
+            />
+          </div>
+
+          {/* Reversal Framework Selector */}
+          <div className="mt-4 pt-4 border-t border-secondary/20">
+            <div className="flex items-center gap-2 mb-3">
+              <ArrowCounterClockwise className="h-4 w-4 text-accent" />
+              <span className="text-xs font-semibold text-muted uppercase tracking-wide">Reversal Lens</span>
+            </div>
+            <select
+              id="reversal-framework-select"
+              value={reversalFramework || 'auto'}
+              onChange={e => setReversalFramework(e.target.value === 'auto' ? null : e.target.value)}
+              className="
+                w-full rounded-xl border border-secondary/30 bg-surface-muted/50
+                px-3 py-2.5 text-sm text-main
+                focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent
+                transition
+              "
+              aria-describedby="reversal-description"
+            >
+              <option value="auto">Auto (recommended)</option>
+              <option value="blocked">Blocked energy</option>
+              <option value="delayed">Timing & delays</option>
+              <option value="internalized">Internal process</option>
+              <option value="contextual">Context-based</option>
+              <option value="shadow">Shadow Integration (Jungian)</option>
+              <option value="mirror">Mirror / reflection</option>
+              <option value="potentialBlocked">Unrealized potential</option>
+            </select>
+            <p id="reversal-description" className="mt-2 text-xs text-muted">
+              How reversed cards are interpreted in AI readings
+            </p>
+          </div>
+        </SectionCard>
+
+        {/* Analytics Settings Section - Auth only (requires API) */}
+        {isAuthenticated && (
+        <SectionCard title="Analytics" icon={ChartLine}>
           <div className="divide-y divide-secondary/20">
             <SettingsToggle
               id="analytics-toggle"
@@ -539,8 +673,10 @@ export default function AccountPage() {
             />
           </div>
         </SectionCard>
+        )}
 
-        {/* Actions Section */}
+        {/* Actions Section - Auth only */}
+        {isAuthenticated && (
         <SectionCard>
           <div className="space-y-1">
             <button
@@ -572,6 +708,7 @@ export default function AccountPage() {
             </button>
           </div>
         </SectionCard>
+        )}
 
         {/* Back to Reading */}
         <div className="text-center pt-4">
