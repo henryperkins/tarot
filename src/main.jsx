@@ -8,6 +8,7 @@ import CardGalleryPage from './pages/CardGalleryPage.jsx';
 import ShareReading from './pages/ShareReading.jsx';
 import PricingPage from './pages/PricingPage.jsx';
 import AccountPage from './pages/AccountPage.jsx';
+import AdminDashboard from './pages/AdminDashboard.jsx';
 import { AuthProvider } from './contexts/AuthContext.jsx';
 import { SubscriptionProvider } from './contexts/SubscriptionContext.jsx';
 import { PreferencesProvider } from './contexts/PreferencesContext.jsx';
@@ -28,6 +29,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
                   <Route path="/journal" element={<Journal />} />
                   <Route path="/pricing" element={<PricingPage />} />
                   <Route path="/account" element={<AccountPage />} />
+                  <Route path="/admin" element={<AdminDashboard />} />
                   <Route path="/share/:token" element={<ShareReading />} />
                   <Route path="*" element={<TarotReading />} />
                 </Routes>

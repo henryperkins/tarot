@@ -53,6 +53,9 @@ import * as journalExport from '../../functions/api/journal-export.js';
 // Scheduled tasks
 import { handleScheduled, onRequestPost as adminArchive } from '../../functions/lib/scheduled.js';
 
+// Admin handlers
+import * as adminQualityStats from '../../functions/api/admin/quality-stats.js';
+
 // Utility functions
 import { jsonResponse } from '../../functions/lib/utils.js';
 
@@ -217,6 +220,7 @@ const routes = [
 
   // Admin endpoints
   { pattern: /^\/api\/admin\/archive$/, handlers: { onRequestPost: adminArchive } },
+  { pattern: /^\/api\/admin\/quality-stats$/, handlers: adminQualityStats },
   { pattern: /^\/api\/coach-extraction-backfill$/, handlers: coachExtractionBackfill },
 ];
 

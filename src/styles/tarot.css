@@ -2836,6 +2836,166 @@ input[type="range"]:focus::-webkit-slider-thumb {
   animation: skeleton-fade-in 0.3s ease-out;
 }
 
+.narrative-skeleton__ritual {
+  position: relative;
+  margin-bottom: 1rem;
+  padding: 0.9rem 1.1rem;
+  border-radius: 1rem;
+  border: 1px solid color-mix(in srgb, var(--brand-secondary) 30%, transparent);
+  background:
+    radial-gradient(
+      circle at 18% 18%,
+      color-mix(in srgb, var(--brand-secondary) 18%, transparent),
+      transparent 60%
+    ),
+    radial-gradient(
+      circle at 80% 78%,
+      color-mix(in srgb, var(--brand-accent) 14%, transparent),
+      transparent 58%
+    ),
+    linear-gradient(
+      140deg,
+      color-mix(in srgb, var(--bg-surface) 82%, transparent),
+      color-mix(in srgb, var(--bg-main) 35%, transparent)
+    );
+  overflow: hidden;
+}
+
+.narrative-skeleton__cards {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 0.65rem;
+  margin-bottom: 0.65rem;
+}
+
+.narrative-skeleton__card {
+  --card-rotate: 0deg;
+  --card-offset: 0px;
+  --card-delay: 0s;
+  width: 2.4rem;
+  height: 3.3rem;
+  border-radius: 0.6rem;
+  border: 1px solid color-mix(in srgb, var(--brand-secondary) 35%, transparent);
+  background: linear-gradient(
+    160deg,
+    color-mix(in srgb, var(--brand-secondary) 25%, transparent),
+    color-mix(in srgb, var(--bg-surface) 85%, transparent)
+  );
+  box-shadow: 0 12px 22px color-mix(in srgb, var(--bg-main) 45%, transparent);
+  position: relative;
+  overflow: hidden;
+  transform: translateY(var(--card-offset)) rotate(var(--card-rotate));
+}
+
+.narrative-skeleton__card::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    120deg,
+    transparent 20%,
+    color-mix(in srgb, var(--brand-accent) 22%, transparent),
+    transparent 75%
+  );
+  opacity: 0.55;
+}
+
+.narrative-skeleton__card:nth-child(1) {
+  --card-rotate: -10deg;
+  --card-offset: 6px;
+  --card-delay: 0s;
+}
+
+.narrative-skeleton__card:nth-child(2) {
+  --card-rotate: -4deg;
+  --card-offset: 2px;
+  --card-delay: 0.2s;
+}
+
+.narrative-skeleton__card:nth-child(3) {
+  --card-rotate: 4deg;
+  --card-offset: 0px;
+  --card-delay: 0.4s;
+}
+
+.narrative-skeleton__card:nth-child(4) {
+  --card-rotate: 10deg;
+  --card-offset: 4px;
+  --card-delay: 0.6s;
+}
+
+.narrative-skeleton__card:nth-child(5) {
+  --card-rotate: 16deg;
+  --card-offset: 10px;
+  --card-delay: 0.8s;
+}
+
+.narrative-skeleton__steps {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.5rem 1.1rem;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  letter-spacing: 0.01em;
+}
+
+.narrative-skeleton__step {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.narrative-skeleton__step-dot {
+  width: 0.45rem;
+  height: 0.45rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--text-muted) 40%, transparent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--text-muted) 30%, transparent);
+}
+
+.narrative-skeleton__step.is-active .narrative-skeleton__step-dot {
+  background: color-mix(in srgb, var(--brand-secondary) 55%, transparent);
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--brand-secondary) 45%, transparent),
+    0 0 8px color-mix(in srgb, var(--brand-secondary) 28%, transparent);
+}
+
+.narrative-skeleton__step.is-current .narrative-skeleton__step-dot {
+  background: color-mix(in srgb, var(--brand-accent) 65%, transparent);
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--brand-accent) 55%, transparent),
+    0 0 12px color-mix(in srgb, var(--brand-accent) 35%, transparent);
+}
+
+.narrative-skeleton__step.is-current .narrative-skeleton__step-label {
+  color: color-mix(in srgb, var(--text-main) 85%, transparent);
+  font-weight: 600;
+}
+
+@keyframes skeleton-card-float {
+  0%,
+  100% {
+    transform: translateY(var(--card-offset)) rotate(var(--card-rotate));
+  }
+  50% {
+    transform: translateY(calc(var(--card-offset) - 10px)) rotate(var(--card-rotate));
+  }
+}
+
+@keyframes skeleton-step-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 0.75;
+  }
+  50% {
+    transform: scale(1.25);
+    opacity: 1;
+  }
+}
+
 @keyframes skeleton-fade-in {
   from {
     opacity: 0;
@@ -2861,6 +3021,15 @@ input[type="range"]:focus::-webkit-slider-thumb {
   .narrative-skeleton [class*="bg-gradient-to-r"] {
     background-size: 200% 100%;
     animation: skeleton-shimmer 2s ease-in-out infinite;
+  }
+
+  .narrative-skeleton__card {
+    animation: skeleton-card-float 6s ease-in-out infinite;
+    animation-delay: var(--card-delay);
+  }
+
+  .narrative-skeleton__step.is-current .narrative-skeleton__step-dot {
+    animation: skeleton-step-pulse 2.6s ease-in-out infinite;
   }
 
   /* Staggered bounce for dots */

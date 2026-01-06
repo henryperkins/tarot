@@ -69,6 +69,15 @@ const LINE_CONFIGS = {
 };
 
 /**
+ * Narrative generation step labels for visual progress.
+ */
+const STEP_LABELS = [
+  'Reading the spread',
+  'Finding the connections',
+  'Weaving the narrative',
+];
+
+/**
  * Select line configuration based on card count.
  * @param {number} cardCount - Number of cards in the spread
  * @param {boolean} isLandscape - Whether in landscape orientation
@@ -140,6 +149,12 @@ export function NarrativeSkeleton({
   const messages = isExtendedWait ? PHASE_MESSAGES.extended : PHASE_MESSAGES.initial;
   const currentMessage = messages[messageIndex % messages.length];
 
+  const stepIndex = useMemo(() => {
+    if (elapsedMs >= 9000) return 2;
+    if (elapsedMs >= 4500) return 1;
+    return 0;
+  }, [elapsedMs]);
+
   // Build personalized status message
   const statusMessage = useMemo(() => {
     if (displayName && spreadName) {
@@ -153,6 +168,13 @@ export function NarrativeSkeleton({
     }
     return currentMessage;
   }, [displayName, spreadName, currentMessage]);
+
+  const cardSlots = useMemo(() => {
+    if (isLandscape) return Array.from({ length: 3 }, (_, index) => index);
+    if (cardCount <= 3) return Array.from({ length: 3 }, (_, index) => index);
+    if (cardCount <= 6) return Array.from({ length: 4 }, (_, index) => index);
+    return Array.from({ length: 5 }, (_, index) => index);
+  }, [cardCount, isLandscape]);
 
   // Get appropriate line configuration
   const displayLines = useMemo(
@@ -191,6 +213,35 @@ export function NarrativeSkeleton({
         />
       </div>
 
+      {/* Ritual stage */}
+      <div className="narrative-skeleton__ritual narrative-atmosphere">
+        <div className="narrative-skeleton__cards" aria-hidden="true">
+          {cardSlots.map((slot) => (
+            <div key={slot} className="narrative-skeleton__card" />
+          ))}
+        </div>
+        <div className="narrative-skeleton__steps" role="list" aria-label="Narrative generation progress">
+          {STEP_LABELS.map((label, index) => {
+            const isCurrent = index === stepIndex;
+            const isActive = index <= stepIndex;
+            return (
+              <div
+                key={label}
+                role="listitem"
+                className={`narrative-skeleton__step ${isActive ? 'is-active' : ''} ${isCurrent ? 'is-current' : ''}`}
+                aria-current={isCurrent ? 'step' : undefined}
+              >
+                <span className="narrative-skeleton__step-dot" aria-hidden="true" />
+                <span className="narrative-skeleton__step-label">{label}</span>
+              </div>
+            );
+          })}
+        </div>
+        <p className="narrative-skeleton__hint text-xs text-muted text-center mt-2">
+          Let your attention rest on the card that feels loudest.
+        </p>
+      </div>
+
       {/* Question anchor skeleton - only if question was provided */}
       {hasQuestion && (
         <div
@@ -203,7 +254,7 @@ export function NarrativeSkeleton({
       )}
 
       {/* Narrative text skeleton */}
-      <div className="rounded-2xl bg-surface/70 border border-secondary/30 shadow-md px-4 py-5 sm:px-6 sm:py-6">
+      <div className="narrative-skeleton__panel narrative-atmosphere rounded-2xl bg-surface/70 border border-secondary/30 shadow-md px-4 py-5 sm:px-6 sm:py-6">
         <div className="max-w-[68ch] mx-auto space-y-3">
           {displayLines.map((line, index) => {
             if (line.isBreak) {
@@ -249,6 +300,7 @@ export function NarrativeSkeleton({
               className={`text-sm transition-colors duration-300 ${
                 isExtendedWait ? 'text-primary/80' : 'text-muted'
               }`}
+              aria-hidden="true"
             >
               {statusMessage}
             </span>

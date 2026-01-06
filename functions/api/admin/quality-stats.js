@@ -62,6 +62,8 @@ export async function onRequestGet(context) {
   try {
     const url = new URL(request.url);
     const days = parseInt(url.searchParams.get('days') || '30', 10);
+    const reviewDays = parseInt(url.searchParams.get('reviewDays') || String(days), 10);
+    const reviewLimit = parseInt(url.searchParams.get('reviewLimit') || '25', 10);
     const includeExperiments = url.searchParams.get('experiments') !== 'false';
 
     // Get recent quality stats
@@ -69,6 +71,12 @@ export async function onRequestGet(context) {
 
     // Get unacknowledged alerts
     const alerts = await getUnacknowledgedAlerts(env.DB, { limit: 50 });
+
+    // Build human review queue
+    const reviewQueue = await getReviewQueue(env.DB, {
+      days: reviewDays,
+      limit: reviewLimit
+    });
 
     // Get active experiments if requested
     let experiments = null;
@@ -84,8 +92,9 @@ export async function onRequestGet(context) {
       summary,
       stats,
       alerts,
+      reviewQueue,
       experiments,
-      queryParams: { days, includeExperiments },
+      queryParams: { days, reviewDays, reviewLimit, includeExperiments },
     }), {
       headers: { 'Content-Type': 'application/json' },
     });
@@ -209,10 +218,12 @@ function computeSummary(stats) {
   }
 
   const totalReadings = stats.reduce((sum, s) => sum + (s.reading_count || 0), 0);
-  const withOverall = stats.filter((s) => s.avg_overall !== null);
-  const avgOverall = withOverall.length > 0
-    ? withOverall.reduce((sum, s) => sum + s.avg_overall, 0) / withOverall.length
-    : null;
+
+  // Weighted average by reading_count to avoid low-volume slices skewing the result
+  const withOverall = stats.filter((s) => s.avg_overall !== null && (s.reading_count || 0) > 0);
+  const weightedSum = withOverall.reduce((sum, s) => sum + s.avg_overall * (s.reading_count || 0), 0);
+  const weightedCount = withOverall.reduce((sum, s) => sum + (s.reading_count || 0), 0);
+  const avgOverall = weightedCount > 0 ? weightedSum / weightedCount : null;
 
   const totalSafetyFlags = stats.reduce((sum, s) => sum + (s.safety_flag_count || 0), 0);
   const safetyFlagRate = totalReadings > 0 ? totalSafetyFlags / totalReadings : null;
@@ -234,4 +245,217 @@ function computeSummary(stats) {
     versions,
     variants,
   };
+}
+
+function clampNumber(value, min, max) {
+  if (!Number.isFinite(value)) return min;
+  return Math.min(Math.max(value, min), max);
+}
+
+function coerceNumber(value) {
+  const num = Number(value);
+  return Number.isFinite(num) ? num : null;
+}
+
+function coerceBoolean(value) {
+  if (value === true || value === 1 || value === '1' || value === 'true') {
+    return true;
+  }
+  return false;
+}
+
+function parseJsonArray(value) {
+  if (Array.isArray(value)) return value;
+  if (typeof value === 'string') {
+    try {
+      const parsed = JSON.parse(value);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  }
+  return [];
+}
+
+function normalizeTimestamp(primary, fallbackMs) {
+  if (primary && typeof primary === 'string') {
+    return primary;
+  }
+  if (primary instanceof Date) {
+    return primary.toISOString();
+  }
+  if (fallbackMs) {
+    const date = new Date(Number(fallbackMs));
+    if (!Number.isNaN(date.getTime())) {
+      return date.toISOString();
+    }
+  }
+  return null;
+}
+
+function buildExcerpt(value, maxLength = 240) {
+  if (!value) return null;
+  const text = String(value).replace(/\s+/g, ' ').trim();
+  if (text.length <= maxLength) return text;
+  return `${text.slice(0, Math.max(0, maxLength - 3)).trim()}...`;
+}
+
+function normalizeReviewRow(row) {
+  const hallucinatedCards = parseJsonArray(row.hallucinated_cards);
+  const safetyFlag = coerceBoolean(row.safety_flag);
+  const safety = coerceNumber(row.safety);
+  const tone = coerceNumber(row.tone);
+  const overall = coerceNumber(row.overall);
+  const cardCoverage = coerceNumber(row.card_coverage);
+
+  const reasons = [];
+  if (safetyFlag) reasons.push('safety-flag');
+  if (safety !== null && safety < 3) reasons.push('low-safety');
+  if (tone !== null && tone < 3) reasons.push('low-tone');
+  if (hallucinatedCards.length > 0) reasons.push('hallucinated-cards');
+
+  return {
+    requestId: row.request_id,
+    provider: row.provider || null,
+    spreadKey: row.spread_key || null,
+    deckStyle: row.deck_style || null,
+    timestamp: normalizeTimestamp(row.timestamp, row.archived_at),
+    overall,
+    safety,
+    tone,
+    safetyFlag,
+    cardCoverage,
+    hallucinatedCards,
+    notes: row.notes || null,
+    readingExcerpt: buildExcerpt(row.reading_text, 260),
+    questionExcerpt: buildExcerpt(row.user_question, 180),
+    readingPromptVersion: row.reading_prompt_version || null,
+    evalPromptVersion: row.eval_prompt_version || null,
+    variantId: row.variant_id || null,
+    reasons
+  };
+}
+
+async function getReviewQueue(db, options = {}) {
+  if (!db) {
+    return {
+      items: [],
+      counts: {
+        total: 0,
+        safetyFlag: 0,
+        lowSafety: 0,
+        lowTone: 0,
+        hallucinations: 0
+      },
+      query: { days: 0, limit: 0 }
+    };
+  }
+
+  const days = clampNumber(Number(options.days || 7), 1, 90);
+  const limit = clampNumber(Number(options.limit || 25), 1, 100);
+  const window = `-${days} days`;
+
+  // D1 doesn't support json_length(), so check for non-empty array via string comparison
+  const hasHallucinations = `(
+    json_extract(data, '$.narrative.hallucinatedCards') IS NOT NULL
+    AND json_extract(data, '$.narrative.hallucinatedCards') NOT IN ('[]', 'null', '')
+  )`;
+
+  const baseWhere = `
+    date(COALESCE(
+      json_extract(data, '$.timestamp'),
+      datetime(archived_at/1000, 'unixepoch')
+    )) >= date('now', ?)
+    AND (
+      json_extract(data, '$.eval.scores.safety_flag') = 1 OR
+      json_extract(data, '$.eval.scores.safety') < 3 OR
+      json_extract(data, '$.eval.scores.tone') < 3 OR
+      ${hasHallucinations}
+    )
+  `;
+
+  const listQuery = `
+    SELECT
+      request_id,
+      provider,
+      spread_key,
+      deck_style,
+      archived_at,
+      json_extract(data, '$.timestamp') as timestamp,
+      json_extract(data, '$.eval.scores.overall') as overall,
+      json_extract(data, '$.eval.scores.safety') as safety,
+      json_extract(data, '$.eval.scores.tone') as tone,
+      json_extract(data, '$.eval.scores.safety_flag') as safety_flag,
+      json_extract(data, '$.eval.scores.notes') as notes,
+      json_extract(data, '$.narrative.cardCoverage') as card_coverage,
+      json_extract(data, '$.narrative.hallucinatedCards') as hallucinated_cards,
+      json_extract(data, '$.readingText') as reading_text,
+      json_extract(data, '$.userQuestion') as user_question,
+      json_extract(data, '$.readingPromptVersion') as reading_prompt_version,
+      json_extract(data, '$.eval.promptVersion') as eval_prompt_version,
+      json_extract(data, '$.variantId') as variant_id
+    FROM metrics_archive
+    WHERE ${baseWhere}
+    ORDER BY archived_at DESC
+    LIMIT ?
+  `;
+
+  const countQuery = `
+    SELECT
+      COUNT(*) as total,
+      SUM(CASE WHEN json_extract(data, '$.eval.scores.safety_flag') = 1 THEN 1 ELSE 0 END) as safety_flag_count,
+      SUM(CASE WHEN json_extract(data, '$.eval.scores.safety') < 3 THEN 1 ELSE 0 END) as low_safety_count,
+      SUM(CASE WHEN json_extract(data, '$.eval.scores.tone') < 3 THEN 1 ELSE 0 END) as low_tone_count,
+      SUM(CASE WHEN ${hasHallucinations} THEN 1 ELSE 0 END) as hallucination_count
+    FROM metrics_archive
+    WHERE ${baseWhere}
+  `;
+
+  try {
+    const [listResult, countResult] = await Promise.all([
+      db.prepare(listQuery).bind(window, limit).all(),
+      db.prepare(countQuery).bind(window).first()
+    ]);
+
+    const items = (listResult.results || []).map(normalizeReviewRow);
+
+    return {
+      items,
+      counts: {
+        total: countResult?.total || 0,
+        safetyFlag: countResult?.safety_flag_count || 0,
+        lowSafety: countResult?.low_safety_count || 0,
+        lowTone: countResult?.low_tone_count || 0,
+        hallucinations: countResult?.hallucination_count || 0
+      },
+      query: { days, limit }
+    };
+  } catch (err) {
+    if (err.message?.includes('no such table')) {
+      return {
+        items: [],
+        counts: {
+          total: 0,
+          safetyFlag: 0,
+          lowSafety: 0,
+          lowTone: 0,
+          hallucinations: 0
+        },
+        query: { days, limit }
+      };
+    }
+    console.error('[admin/quality-stats] Review queue error:', err.message);
+    return {
+      items: [],
+      counts: {
+        total: 0,
+        safetyFlag: 0,
+        lowSafety: 0,
+        lowTone: 0,
+        hallucinations: 0
+      },
+      query: { days, limit },
+      error: err.message
+    };
+  }
 }
