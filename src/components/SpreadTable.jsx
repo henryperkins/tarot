@@ -192,8 +192,8 @@ export function SpreadTable({
                         }}
                       />
                       {/* Mini label overlay */}
-                      <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-0.5 xs:p-1 sm:p-1">
-                        <span className={`${compact ? 'text-[0.5rem] xs:text-[0.55rem]' : 'text-[0.55rem] xs:text-[0.6rem] sm:text-[0.65rem]'} text-white font-semibold leading-tight block truncate`}>
+                      <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-main/80 to-transparent p-0.5 xs:p-1 sm:p-1">
+                        <span className={`${compact ? 'text-[0.5rem] xs:text-[0.55rem]' : 'text-[0.55rem] xs:text-[0.6rem] sm:text-[0.65rem]'} text-main font-semibold leading-tight block truncate`}>
                           {card.name.replace(/^The /, '')}
                         </span>
                       </div>

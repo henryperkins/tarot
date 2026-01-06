@@ -50,7 +50,7 @@ export function ConfirmModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm animate-fade-in p-3 xs:p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-main/70 backdrop-blur-sm animate-fade-in p-3 xs:p-4"
       onClick={createBackdropHandler(onClose)}
       style={{
         paddingTop: 'max(0.75rem, env(safe-area-inset-top))',

@@ -42,7 +42,7 @@ const CardRelationshipGraph = memo(function CardRelationshipGraph({ cards = [], 
   };
 
   return (
-    <div className="w-full flex flex-col items-center bg-black/20 rounded-xl p-4 border border-amber-200/5">
+    <div className="w-full flex flex-col items-center bg-surface/40 rounded-xl p-4 border border-amber-200/5">
       <h4 className="text-xs font-bold uppercase tracking-widest text-amber-200/60 mb-2">Pattern Web</h4>
       <div style={{ width: '100%', height: '180px' }}>
         <svg width="100%" height="100%" viewBox={`0 0 ${width} ${height}`} className="overflow-visible">

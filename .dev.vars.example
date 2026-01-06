@@ -44,7 +44,12 @@ VITE_ENABLE_VISION_RESEARCH="false"
 VITE_NEW_DECK_INTERFACE="false"
 VITE_SYMBOL_DETECTOR_MODEL=""
 GRAPHRAG_ENABLED="true"
+GRAPHRAG_SEMANTIC_SCORING="false"
+ENABLE_SEMANTIC_SCORING="false"
+ENABLE_PROMPT_SLIMMING="false"
+DISABLE_QUALITY_FILTERING="false"
 LOG_LLM_PROMPTS="false"
+LOG_NARRATIVE_ENHANCEMENTS="false"
 LOG_ENHANCEMENT_TELEMETRY="false"
 PERSIST_PROMPTS="false"
 PROMPT_BUDGET_AZURE=""   # Approx token cap for Azure prompts (chars/4 heuristic)
@@ -71,3 +76,37 @@ TTS_RATE_LIMIT_WINDOW=""
 # --- Alternative TTS provider (optional) ---
 HUME_API_KEY=""
 
+# --- Email alerts (optional; quality regression notifications) ---
+RESEND_API_KEY=""
+ALERT_EMAIL_TO=""
+
+# --- Automated evaluation system (optional; see wrangler.jsonc for defaults) ---
+EVAL_ENABLED="true"
+EVAL_MODEL="@cf/meta/llama-3-8b-instruct-awq"
+EVAL_TIMEOUT_MS="10000"
+EVAL_GATE_ENABLED="false"
+EVAL_GATEWAY_ID=""
+METRICS_STORAGE_MODE="redact"  # Options: "redact", "minimal", "full"
+
+# --- Quality alert thresholds (optional; see wrangler.jsonc for defaults) ---
+QUALITY_ALERT_ENABLED="false"
+QUALITY_REGRESSION_THRESHOLD="-0.3"
+QUALITY_CRITICAL_THRESHOLD="-0.5"
+QUALITY_SAFETY_SPIKE_THRESHOLD="0.02"
+QUALITY_ALERT_MIN_READINGS="20"
+ALERT_EMAIL_FROM="alerts@tarot.app"
+
+# --- A/B testing (optional) ---
+AB_TESTING_ENABLED="false"
+
+# --- Astrology plugin (optional; only for tarot-astro-plugins) ---
+SE_EPHE_PATH=""
+
+# --- Vision fine-tuning (optional; development only) ---
+VISION_ADAPTER_PATH=""
+
+# --- R2 bucket access (optional; for export scripts only) ---
+CF_ACCOUNT_ID=""
+R2_ACCESS_KEY_ID=""
+R2_SECRET_ACCESS_KEY=""
+R2_BUCKET="tarot-logs"

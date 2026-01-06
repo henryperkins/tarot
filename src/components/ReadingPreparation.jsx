@@ -259,7 +259,7 @@ export function ReadingPreparation({
                             Set your intention, choose your deck, and complete the ritual before drawing.
                         </p>
                     </div>
-                    <div className="hidden sm:flex items-center gap-2 rounded-full border border-gold-soft/50 bg-black/30 px-3 py-1 text-[0.7rem] text-accent backdrop-blur">
+                    <div className="hidden sm:flex items-center gap-2 rounded-full border border-gold-soft/50 bg-surface/60 px-3 py-1 text-[0.7rem] text-accent backdrop-blur">
                         <span className="w-1.5 h-1.5 rounded-full bg-gold-soft animate-pulse" aria-hidden="true" />
                         <span>All-in-one prep</span>
                     </div>

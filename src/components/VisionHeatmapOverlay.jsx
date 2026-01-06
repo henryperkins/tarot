@@ -60,7 +60,7 @@ export function VisionHeatmapOverlay({ attention, imageSrc, label }) {
           {visible ? 'Hide' : 'Show'}
         </button>
       </div>
-      <div className="mt-2 rounded-lg border border-secondary/40 bg-black/20 p-2">
+      <div className="mt-2 rounded-lg border border-secondary/40 bg-surface/40 p-2">
         <div className="relative">
           <img
             src={imageSrc}

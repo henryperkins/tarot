@@ -398,7 +398,7 @@ export function SpreadSelector({
               </p>
             )}
           </div>
-          <div className="hidden sm:flex items-center gap-2 rounded-full border border-gold-soft/50 bg-black/30 px-3 py-1 text-xs-plus text-accent backdrop-blur">
+          <div className="hidden sm:flex items-center gap-2 rounded-full border border-gold-soft/50 bg-surface/60 px-3 py-1 text-xs-plus text-accent backdrop-blur">
             <Sparkle className="w-3 h-3" aria-hidden="true" />
             <span>Guided layouts</span>
           </div>
@@ -470,7 +470,7 @@ export function SpreadSelector({
                 aria-checked={isActive}
                 onClick={() => handleSpreadSelection(key)}
                 onKeyDown={event => handleCardKeyDown(event, key)}
-                className={`spread-card relative flex h-full flex-col ${isLandscape ? 'gap-2' : 'gap-3'} cursor-pointer select-none shrink-0 ${cardBasisClass} snap-center snap-always sm:basis-auto sm:shrink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--spread-ring)] focus-visible:ring-offset-2 focus-visible:ring-offset-[#0f0c13] ${isActive ? 'spread-card--active' : ''}`}
+                className={`spread-card relative flex h-full flex-col ${isLandscape ? 'gap-2' : 'gap-3'} cursor-pointer select-none shrink-0 ${cardBasisClass} snap-center snap-always sm:basis-auto sm:shrink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--spread-ring)] focus-visible:ring-offset-2 focus-visible:ring-offset-main ${isActive ? 'spread-card--active' : ''}`}
                 style={{
                   '--spread-accent': theme.accent || FALLBACK_SPREAD_THEME.accent,
                   '--spread-border': resolvedBorder,
@@ -483,7 +483,7 @@ export function SpreadSelector({
                   <>
                     <div className="absolute top-3 right-3 z-20">
                       <div
-                        className="w-7 h-7 rounded-full flex items-center justify-center border border-white/30"
+                        className="w-7 h-7 rounded-full flex items-center justify-center border border-[color:var(--border-warm-light)]"
                         style={{
                           backgroundColor: 'var(--spread-accent)',
                           boxShadow: '0 12px 26px -18px var(--spread-glow, rgba(212, 184, 150, 0.4))'

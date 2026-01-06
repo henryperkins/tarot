@@ -1292,7 +1292,7 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply,
                           tabIndex={index === step ? 0 : -1}
                           className={`rounded-full px-3 py-1 min-h-[44px] min-w-[44px] touch-manipulation transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/70 focus-visible:ring-offset-2 focus-visible:ring-offset-surface ${
                             index === step
-                              ? 'bg-accent text-main shadow-lg shadow-accent/20'
+                              ? 'bg-accent text-surface shadow-lg shadow-accent/20'
                               : 'bg-surface-muted text-muted hover:bg-surface-muted/80 hover:text-accent'
                           }`}
                           onClick={() => setStep(index)}
@@ -1383,7 +1383,7 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply,
                     type="button"
                     onClick={handleApply}
                     disabled={(!questionText && !guidedQuestion) || questionLoading}
-                    className={`inline-flex items-center justify-center gap-2 rounded-full border border-secondary/60 bg-secondary/80 text-sm font-semibold text-white transition disabled:opacity-50 min-h-[44px] sm:min-h-0 touch-manipulation ${isLandscape ? 'px-4 py-2 flex-none' : 'px-5 py-2.5 sm:py-2 flex-1 sm:flex-none'}`}
+                    className={`inline-flex items-center justify-center gap-2 rounded-full border border-secondary/60 bg-secondary/80 text-sm font-semibold text-surface transition disabled:opacity-50 min-h-[44px] sm:min-h-0 touch-manipulation ${isLandscape ? 'px-4 py-2 flex-none' : 'px-5 py-2.5 sm:py-2 flex-1 sm:flex-none'}`}
                   >
                     <span>{isLandscape ? 'Use' : 'Use question'}</span>
                     <Sparkle className="h-4 w-4" />

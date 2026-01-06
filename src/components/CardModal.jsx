@@ -104,7 +104,7 @@ export function CardModal({
             >
                 <button
                     onClick={onClose}
-                    className="absolute top-3 right-3 p-3 text-accent/70 hover:text-main hover:bg-white/10 rounded-full transition-colors z-10 touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                    className="absolute top-3 right-3 p-3 text-accent/70 hover:text-main hover:bg-surface-muted/50 rounded-full transition-colors z-10 touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
                     style={{
                         // Ensure close button respects safe area
                         top: 'max(0.75rem, env(safe-area-inset-top))',
@@ -149,19 +149,19 @@ export function CardModal({
                                 <h4 className="text-accent font-semibold mb-3 text-sm uppercase tracking-wider">Your history with this card</h4>
 
                                 <dl className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                                    <div className="rounded-lg border border-primary/10 bg-black/10 p-3">
+                                    <div className="rounded-lg border border-primary/10 bg-surface-muted/40 p-3">
                                         <dt className="text-[11px] uppercase tracking-wider text-muted">Times drawn</dt>
                                         <dd className="mt-1 text-lg font-semibold text-main">
                                             {history.totalCount ?? '—'}
                                         </dd>
                                     </div>
-                                    <div className="rounded-lg border border-primary/10 bg-black/10 p-3">
+                                    <div className="rounded-lg border border-primary/10 bg-surface-muted/40 p-3">
                                         <dt className="text-[11px] uppercase tracking-wider text-muted">First seen</dt>
                                         <dd className="mt-1 text-sm font-semibold text-main">
                                             {history.firstSeen ?? '—'}
                                         </dd>
                                     </div>
-                                    <div className="rounded-lg border border-primary/10 bg-black/10 p-3">
+                                    <div className="rounded-lg border border-primary/10 bg-surface-muted/40 p-3">
                                         <dt className="text-[11px] uppercase tracking-wider text-muted">Last seen</dt>
                                         <dd className="mt-1 text-sm font-semibold text-main">
                                             {history.lastSeen ?? '—'}
@@ -198,7 +198,7 @@ export function CardModal({
                                                             key={entry?.id || `${entry?.ts || 'entry'}-${subtitle}`}
                                                             type="button"
                                                             onClick={() => onOpenEntry?.(entry)}
-                                                            className="w-full rounded-lg border border-primary/10 bg-black/10 p-3 text-left hover:bg-black/20 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                                                            className="w-full rounded-lg border border-primary/10 bg-surface-muted/40 p-3 text-left hover:bg-surface-muted/60 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
                                                         >
                                                             <div className="flex items-baseline justify-between gap-3">
                                                                 <p className="text-sm font-semibold text-main">{label}</p>

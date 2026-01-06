@@ -353,7 +353,7 @@ export default function AuthModal({ isOpen, onClose }) {
               className="
                 mt-6 w-full px-6 py-3 min-h-[48px]
                 bg-primary hover:bg-primary/90 active:bg-primary/80
-                text-white font-medium rounded-lg
+                text-surface font-medium rounded-lg
                 transition touch-manipulation
                 disabled:opacity-50 disabled:cursor-not-allowed
                 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60
@@ -363,7 +363,7 @@ export default function AuthModal({ isOpen, onClose }) {
               {loading ? (
                 <span className="flex items-center justify-center">
                   <svg
-                    className="animate-spin -ml-1 mr-3 h-5 w-5 text-white"
+                    className="animate-spin -ml-1 mr-3 h-5 w-5 text-surface"
                     xmlns="http://www.w3.org/2000/svg"
                     fill="none"
                     viewBox="0 0 24 24"

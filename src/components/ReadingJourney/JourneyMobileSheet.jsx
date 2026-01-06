@@ -414,7 +414,7 @@ export default function JourneyMobileSheet({
         >
           {/* Backdrop with fade animation */}
           <div
-            className="absolute inset-0 bg-black/60 backdrop-blur-sm animate-fade-in"
+            className="absolute inset-0 bg-main/70 backdrop-blur-sm animate-fade-in"
             onClick={handleClose}
             aria-hidden="true"
           />

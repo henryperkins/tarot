@@ -169,7 +169,7 @@ export function UserMenu({ condensed = false }) {
               <>
                 {/* Backdrop for mobile */}
                 <div
-                  className="fixed inset-0 z-40 bg-black/20 sm:bg-transparent"
+                  className="fixed inset-0 z-40 bg-main/40 sm:bg-transparent"
                   onClick={closeDropdown}
                   aria-hidden="true"
                 />
@@ -252,7 +252,7 @@ export function UserMenu({ condensed = false }) {
                       >
                         <span
                           className={`
-                            inline-block h-5 w-5 transform rounded-full bg-white shadow-sm
+                            inline-block h-5 w-5 transform rounded-full bg-[color:var(--color-white)] shadow-sm
                             transition-transform duration-200
                             ${analyticsEnabled ? 'translate-x-6' : 'translate-x-1'}
                           `}

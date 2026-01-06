@@ -86,7 +86,7 @@ function DeckPreviewImage({ preview, deckLabel, priority = 'auto' }) {
   const loading = isHighPriority ? 'eager' : 'lazy';
 
   return (
-    <div className="relative overflow-hidden rounded-[14px] bg-[#0f0c14] mb-1">
+    <div className="relative overflow-hidden rounded-[14px] bg-main mb-1">
       <img
         src={preview.src}
         width={preview.width || 640}
@@ -101,7 +101,7 @@ function DeckPreviewImage({ preview, deckLabel, priority = 'auto' }) {
         }}
       />
       <div
-        className="pointer-events-none absolute inset-0 rounded-[14px] border border-white/10 shadow-[0_0_0_1px_rgba(232,218,195,0.08)]"
+        className="pointer-events-none absolute inset-0 rounded-[14px] border border-[color:var(--border-warm-light)] shadow-[0_0_0_1px_rgba(232,218,195,0.08)]"
         aria-hidden="true"
       />
     </div>
@@ -246,7 +246,7 @@ export function DeckSelector({ selectedDeck, onDeckChange }) {
               Select the deck art for today&apos;s reading. Match it to your physical deck if you&apos;re contributing photos to the vision study.
             </p>
           </div>
-          <div className="hidden sm:flex items-center gap-2 rounded-full border border-gold-soft/50 bg-black/30 px-3 py-1 text-[0.7rem] text-accent backdrop-blur">
+          <div className="hidden sm:flex items-center gap-2 rounded-full border border-gold-soft/50 bg-surface/60 px-3 py-1 text-[0.7rem] text-accent backdrop-blur">
             <span className="w-1.5 h-1.5 rounded-full bg-gold-soft animate-pulse" aria-hidden="true" />
             <span>Curated editions</span>
           </div>
@@ -309,7 +309,7 @@ export function DeckSelector({ selectedDeck, onDeckChange }) {
                 tabIndex={isTabbable ? 0 : -1}
                 onClick={() => onDeckChange(deck.id)}
                 onKeyDown={(e) => handleKeyDown(e, deck.id)}
-                className={`deck-card relative flex h-full flex-col gap-3 rounded-2xl px-4 py-4 sm:px-5 sm:py-5 text-left transition-all cursor-pointer select-none shrink-0 basis-[82%] xs:basis-[70%] snap-center sm:basis-auto sm:shrink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--deck-ring)] focus-visible:ring-offset-2 focus-visible:ring-offset-[#0f0c13] ${isSelected ? 'deck-card--active' : ''}`}
+                className={`deck-card relative flex h-full flex-col gap-3 rounded-2xl px-4 py-4 sm:px-5 sm:py-5 text-left transition-all cursor-pointer select-none shrink-0 basis-[82%] xs:basis-[70%] snap-center sm:basis-auto sm:shrink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--deck-ring)] focus-visible:ring-offset-2 focus-visible:ring-offset-main ${isSelected ? 'deck-card--active' : ''}`}
                 style={{
                   '--deck-accent': deck.accent,
                   '--deck-border': isSelected ? deck.borderActive : deck.border,
@@ -322,7 +322,7 @@ export function DeckSelector({ selectedDeck, onDeckChange }) {
                   <>
                     <div className="absolute top-3 right-3 z-20">
                       <div
-                        className="w-7 h-7 rounded-full flex items-center justify-center border border-white/30"
+                        className="w-7 h-7 rounded-full flex items-center justify-center border border-[color:var(--border-warm-light)]"
                         style={{
                           backgroundColor: 'var(--deck-accent)',
                           boxShadow: `0 12px 26px -18px var(--deck-glow, rgba(212, 184, 150, 0.4))`

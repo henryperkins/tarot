@@ -111,7 +111,7 @@ export function QuestionInput({
           onKeyDown={handleKeyDown}
           placeholder={EXAMPLE_QUESTIONS[placeholderIndex]}
           rows={1}
-          className="w-full bg-surface border border-primary/40 rounded-lg px-3 xs:px-4 py-3 pr-12 text-base text-main placeholder-muted focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/70 transition-all resize-none"
+          className="w-full bg-surface border border-primary/40 rounded-lg px-3 xs:px-4 py-3 pr-12 text-base text-main placeholder:text-muted focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/70 transition-all resize-none"
           // text-base (16px) prevents iOS zoom on focus
           onFocus={onFocus}
           onBlur={onBlur}

@@ -15,15 +15,15 @@ export function JournalNudge({ onSave, onDismiss }) {
 
   return (
     <div
-      className={`rounded-2xl border border-emerald-500/30 bg-emerald-500/5 p-4 ${
+      className={`rounded-2xl border border-success/30 bg-success/5 p-4 ${
         prefersReducedMotion ? '' : 'animate-fade-in-up'
       }`}
       role="region"
       aria-label="Journal introduction"
     >
       <div className="flex items-start gap-3">
-        <div className="shrink-0 w-10 h-10 rounded-full bg-emerald-500/10 flex items-center justify-center">
-          <Notebook className="w-5 h-5 text-emerald-500" weight="duotone" aria-hidden="true" />
+        <div className="shrink-0 w-10 h-10 rounded-full bg-success/10 flex items-center justify-center">
+          <Notebook className="w-5 h-5 text-success" weight="duotone" aria-hidden="true" />
         </div>
         <div className="flex-1 min-w-0">
           <h4 className="font-medium text-main text-sm">Save to your journal?</h4>
@@ -35,7 +35,7 @@ export function JournalNudge({ onSave, onDismiss }) {
             <button
               type="button"
               onClick={onSave}
-              className="min-h-[36px] px-4 py-1.5 rounded-full bg-emerald-500 text-white text-xs font-medium transition hover:bg-emerald-600 active:scale-[0.98] touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2"
+              className="min-h-[36px] px-4 py-1.5 rounded-full bg-success text-surface text-xs font-medium transition hover:bg-success/90 active:scale-[0.98] touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-success/60 focus-visible:ring-offset-2"
             >
               Save reading
             </button>

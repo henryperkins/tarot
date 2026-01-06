@@ -55,7 +55,7 @@ export function PhotoInputModal({ onTakePhoto, onChooseFromLibrary, onCancel }) 
           <button
             type="button"
             onClick={onTakePhoto}
-            className="w-full flex items-center gap-3 px-4 py-3 min-h-[48px] text-white bg-secondary hover:bg-secondary/90 active:bg-secondary/80 rounded-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary focus-visible:ring-offset-2 focus-visible:ring-offset-surface touch-manipulation"
+            className="w-full flex items-center gap-3 px-4 py-3 min-h-[48px] text-surface bg-secondary hover:bg-secondary/90 active:bg-secondary/80 rounded-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary focus-visible:ring-offset-2 focus-visible:ring-offset-surface touch-manipulation"
           >
             <Camera className="w-5 h-5" aria-hidden="true" />
             <span className="font-medium">Take Photo</span>
@@ -64,7 +64,7 @@ export function PhotoInputModal({ onTakePhoto, onChooseFromLibrary, onCancel }) 
           <button
             type="button"
             onClick={onChooseFromLibrary}
-            className="w-full flex items-center gap-3 px-4 py-3 min-h-[48px] text-white bg-primary hover:bg-primary/90 active:bg-primary/80 rounded-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-surface touch-manipulation"
+            className="w-full flex items-center gap-3 px-4 py-3 min-h-[48px] text-surface bg-primary hover:bg-primary/90 active:bg-primary/80 rounded-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-surface touch-manipulation"
           >
             <Images className="w-5 h-5" aria-hidden="true" />
             <span className="font-medium">Choose from Library</span>

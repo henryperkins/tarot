@@ -335,7 +335,7 @@ export function OnboardingWizard({ isOpen, onComplete, onSelectSpread, initialSp
 
           {/* Header with close button and progress */}
           <header
-            className={`sticky top-0 z-30 pt-safe-top bg-main/95 backdrop-blur supports-[backdrop-filter]:backdrop-blur-lg border-b border-white/5 shadow-lg shadow-main/40 ${
+            className={`sticky top-0 z-30 pt-safe-top bg-main/95 backdrop-blur supports-[backdrop-filter]:backdrop-blur-lg border-b border-secondary/10 shadow-lg shadow-main/40 ${
               isLandscape ? 'py-1.5' : 'py-3 xs:py-4'
             }`}
           >
