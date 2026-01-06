@@ -1,4 +1,6 @@
 import { timingSafeEqual } from './crypto.js';
+import { runQualityAnalysis } from './qualityAnalysis.js';
+import { dispatchAlerts } from './qualityAlerts.js';
 
 /**
  * Scheduled Tasks Handler
@@ -270,6 +272,7 @@ export async function handleScheduled(controller, env, _ctx) {
   const cron = controller.cron;
 
   const dateStr = new Date().toISOString().split('T')[0];
+  const analysisDateStr = new Date(Date.now() - (24 * 60 * 60 * 1000)).toISOString().split('T')[0];
 
   console.log(`Scheduled task triggered at ${new Date().toISOString()}`);
   console.log(`Cron pattern: ${cron}`);
@@ -278,7 +281,9 @@ export async function handleScheduled(controller, env, _ctx) {
     metrics: null,
     feedback: null,
     sessions: null,
-    webhookEvents: null
+    webhookEvents: null,
+    quality: null,
+    alertsDispatched: null
   };
 
   try {
@@ -307,6 +312,26 @@ export async function handleScheduled(controller, env, _ctx) {
 
     // Store summary in D1
     await storeArchivalSummary(env.DB, results);
+
+    // Run quality analysis on archived data (detects regressions, creates alerts)
+    if (env.QUALITY_ALERT_ENABLED === 'true') {
+      try {
+        const qualityResults = await runQualityAnalysis(env, analysisDateStr);
+        results.quality = qualityResults;
+
+        // Dispatch any alerts that were detected
+        if (qualityResults.alerts && qualityResults.alerts.length > 0) {
+          const alertResults = await dispatchAlerts(env, qualityResults.alerts, { dateStr: analysisDateStr });
+          results.alertsDispatched = alertResults;
+          console.log(`[quality] Dispatched ${alertResults.sent} alerts`);
+        }
+      } catch (qualityErr) {
+        console.error('[quality] Quality analysis failed:', qualityErr.message);
+        results.quality = { error: qualityErr.message };
+      }
+    } else {
+      console.log('[quality] Quality alerting disabled (QUALITY_ALERT_ENABLED != true)');
+    }
 
     // Store daily summary JSON in R2 when available.
     if (env.LOGS_BUCKET) {
@@ -368,15 +393,34 @@ export async function onRequestPost(context) {
       cleanupOldWebhookEvents(env.DB)
     ]);
 
+    const dateStr = new Date().toISOString().split('T')[0];
+
     const results = {
       metrics: metricsResult,
       feedback: feedbackResult,
       sessions: { deleted: sessionsDeleted },
       webhookEvents: { deleted: webhookEventsDeleted },
+      quality: null,
+      alertsDispatched: null,
       duration: Date.now() - startTime
     };
 
     await storeArchivalSummary(env.DB, results);
+
+    // Run quality analysis if enabled
+    if (env.QUALITY_ALERT_ENABLED === 'true') {
+      try {
+        const qualityResults = await runQualityAnalysis(env, dateStr);
+        results.quality = qualityResults;
+
+        if (qualityResults.alerts && qualityResults.alerts.length > 0) {
+          const alertResults = await dispatchAlerts(env, qualityResults.alerts, { dateStr });
+          results.alertsDispatched = alertResults;
+        }
+      } catch (qualityErr) {
+        results.quality = { error: qualityErr.message };
+      }
+    }
 
     return new Response(JSON.stringify({
       success: true,

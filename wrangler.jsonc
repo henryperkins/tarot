@@ -54,7 +54,24 @@
     // - "redact" (default): Redact PII patterns from stored data
     // - "minimal": Store only aggregate metrics, no user content
     // - "full": Store complete data (DEVELOPMENT ONLY - contains PII)
-    "METRICS_STORAGE_MODE": "redact"
+    "METRICS_STORAGE_MODE": "redact",
+    // -------------------------------------------------------------------------
+    // Quality Alerting & A/B Testing
+    // -------------------------------------------------------------------------
+    // QUALITY_ALERT_ENABLED: Enable automatic quality regression detection
+    "QUALITY_ALERT_ENABLED": "false",
+    // QUALITY_REGRESSION_THRESHOLD: Score drop to trigger warning (default: -0.3)
+    "QUALITY_REGRESSION_THRESHOLD": "-0.3",
+    // QUALITY_SAFETY_SPIKE_THRESHOLD: Safety flag rate to trigger alert (default: 0.02)
+    "QUALITY_SAFETY_SPIKE_THRESHOLD": "0.02",
+    // QUALITY_ALERT_MIN_READINGS: Minimum readings required to trigger alerting (default: 20)
+    "QUALITY_ALERT_MIN_READINGS": "20",
+    // ALERT_EMAIL_FROM: Sender email for quality alerts
+    "ALERT_EMAIL_FROM": "alerts@tarot.app",
+    // ALERT_EMAIL_TO: Recipient email for quality alerts (set via secret for production)
+    "ALERT_EMAIL_TO": "",
+    // AB_TESTING_ENABLED: Enable A/B testing variant assignment
+    "AB_TESTING_ENABLED": "false"
     // -------------------------------------------------------------------------
     // Prompt Budget & GraphRAG Settings (not set = use defaults)
     // -------------------------------------------------------------------------

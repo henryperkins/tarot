@@ -141,7 +141,11 @@ function sanitizeMetricsPayload(metricsPayload = {}, mode = DEFAULT_METRICS_STOR
     'enhancementTelemetry',
     'contextDiagnostics',
     'llmUsage',
-    'evalGate'
+    'evalGate',
+    // Quality tracking fields
+    'readingPromptVersion',
+    'variantId',
+    'experimentId'
   ];
 
   return whitelistedKeys.reduce((acc, key) => {
@@ -626,7 +630,11 @@ export function scheduleEvaluation(env, evalParams = {}, metricsPayload = {}, op
           hasEval: hasModelEval,
           evalMode,  // 'model', 'heuristic', or 'error'
           evalScore: evalPayload.scores?.overall ?? null,
-          safetyFlag: evalPayload.scores?.safety_flag ?? null
+          safetyFlag: evalPayload.scores?.safety_flag ?? null,
+          // Quality tracking for regression detection
+          readingPromptVersion: metricsPayload?.readingPromptVersion ||
+            metricsPayload?.promptMeta?.readingPromptVersion || null,
+          variantId: metricsPayload?.variantId || null
         };
 
         await env.METRICS_DB.put(`reading:${requestId}`, JSON.stringify(payload), { metadata });

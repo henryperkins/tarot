@@ -29,6 +29,7 @@ import {
 import { getPositionWeight } from '../positionWeights.js';
 import { formatVisionLabelForPrompt } from '../visionLabels.js';
 import { getDepthProfile, sanitizeDisplayName } from './styleHelpers.js';
+import { getReadingPromptVersion } from '../promptVersioning.js';
 
 // Heuristic: decide when astrological context is relevant enough to surface
 // in the reading prompts. Uses card anchors + spread/graph signals + user intent
@@ -242,7 +243,8 @@ export function buildEnhancedClaudePrompt({
   promptBudgetEnv = null,
   personalization = null,
   enableSemanticScoring = null,
-  subscriptionTier = null
+  subscriptionTier = null,
+  variantOverrides = null
 }) {
   // Fast guard: validate cardsInfo before branching into spread-specific builders.
   // Without this, callers receive unhelpful TypeErrors deep in spread builders
@@ -371,7 +373,8 @@ export function buildEnhancedClaudePrompt({
     includeDiagnostics: true,
     omitLowWeightImagery: false,
     enableSemanticScoring,
-    env: promptBudgetEnv
+    env: promptBudgetEnv,
+    variantOverrides
   };
 
   const buildWithControls = (controls) => {
@@ -589,6 +592,8 @@ export function buildEnhancedClaudePrompt({
   }
 
   const promptMeta = {
+    // Reading prompt version for quality tracking and A/B testing correlation
+    readingPromptVersion: getReadingPromptVersion(),
     // Token estimates only present when slimming is enabled (for budget decisions)
     // Use llmUsage.input_tokens from API response for actual token counts
     estimatedTokens,
@@ -699,9 +704,16 @@ function getSpreadKeyFromName(name) {
 function buildSystemPrompt(spreadKey, themes, context, deckStyle, _userQuestion = '', options = {}) {
   const personalization = options.personalization || null;
   const subscriptionTier = options.subscriptionTier || null;
+  const variantOverrides = options.variantOverrides || null;
   const depthPreference = personalization?.preferredSpreadDepth;
   const depthProfile = depthPreference ? getDepthProfile(depthPreference) : null;
   const isDeepDive = depthProfile?.key === 'deep';
+  const rawLengthModifier = variantOverrides?.lengthModifier;
+  const lengthModifier = Number.isFinite(rawLengthModifier)
+    ? Math.min(Math.max(rawLengthModifier, 0.6), 1.6)
+    : 1;
+  const perCardMin = Math.max(60, Math.round(120 * lengthModifier));
+  const perCardMax = Math.max(perCardMin, Math.round(160 * lengthModifier));
 
   const lines = [
     'You are an agency-forward, trauma-informed tarot storyteller.',
@@ -719,6 +731,10 @@ function buildSystemPrompt(spreadKey, themes, context, deckStyle, _userQuestion 
     '- If depth and brevity ever conflict, favor depth and clarity (especially for deep-dive preferences); hit the spirit of the guidance even if the exact word target flexes.'
   ];
 
+  if (variantOverrides?.toneEmphasis) {
+    lines.push(`- Tone emphasis: Lean ${variantOverrides.toneEmphasis} while staying grounded and compassionate.`);
+  }
+
   const includeDeckContext = options.includeDeckContext !== false;
 
   lines.push(
@@ -726,7 +742,7 @@ function buildSystemPrompt(spreadKey, themes, context, deckStyle, _userQuestion 
     'FORMATTING',
     '- Use Markdown with clear `###` section headings for major beats (for example, “### Opening”, “### The Story”, “### Guidance”, “### Gentle Next Steps”, “### Closing”).',
     '- Bold each card name the first time it appears.',
-    '- For multi-card spreads, aim for ~120–160 words per card while respecting the total length guidance.',
+    `- For multi-card spreads, aim for ~${perCardMin}–${perCardMax} words per card while respecting the total length guidance.`,
     '- Prefer 4–6 moderately sized paragraphs plus one short bullet list of practical steps. Avoid filler.',
     '- Keep paragraphs to about 2–4 sentences; break up anything longer for readability.',
     '- Do NOT format card sections as a rigid template like “WHAT: … WHY: … WHAT’S NEXT: …” for every card. Keep the spine, but express it as natural prose. If you use explicit mini labels at all, use them sparingly (at most once in the entire reading) and only when it improves clarity.',
@@ -742,6 +758,10 @@ function buildSystemPrompt(spreadKey, themes, context, deckStyle, _userQuestion 
     '- When you do mention these correspondences, keep them to one short sentence and avoid repeating the same formula for every card.',
     '- If the depth preference is deep, weave at most one reinforcing esoteric thread across the spread; otherwise keep esoteric notes optional and minimal.'
   );
+
+  if (variantOverrides?.includeMoreEsoteric) {
+    lines.push('- Experiment note: include a slightly richer layer of esoteric symbolism where it supports the core meaning.');
+  }
 
   // Spread-specific flow hints
   if (spreadKey === 'celtic') {
@@ -762,25 +782,39 @@ function buildSystemPrompt(spreadKey, themes, context, deckStyle, _userQuestion 
   }
 
   // Spread-proportional length guidance
-  const SPREAD_LENGTH_GUIDANCE = {
-    single: 'LENGTH: This is a single-card reading. Aim for ~300-400 words total—a focused insight rather than an exhaustive essay.',
-    threeCard: 'LENGTH: This is a 3-card spread. Aim for ~500-700 words total—enough depth for each position without excessive elaboration.',
-    fiveCard: 'LENGTH: This is a 5-card spread. Aim for ~700-900 words total—give each card meaningful attention while maintaining narrative flow.',
-    decision: 'LENGTH: This is a 5-card decision spread. Aim for ~700-900 words total—ensure both paths receive balanced treatment.',
-    relationship: 'LENGTH: This is a 3-card relationship spread. Aim for ~500-700 words total—explore each energy with care but stay concise.',
-    celtic: 'LENGTH: This is a 10-card Celtic Cross. Aim for ~1000-1400 words total—weave the positions into a cohesive narrative rather than ten separate mini-readings.'
+  const SPREAD_LENGTH_BANDS = {
+    single: { min: 300, max: 400, label: 'single-card reading', note: 'a focused insight rather than an exhaustive essay.' },
+    threeCard: { min: 500, max: 700, label: '3-card spread', note: 'enough depth for each position without excessive elaboration.' },
+    fiveCard: { min: 700, max: 900, label: '5-card spread', note: 'give each card meaningful attention while maintaining narrative flow.' },
+    decision: { min: 700, max: 900, label: '5-card decision spread', note: 'ensure both paths receive balanced treatment.' },
+    relationship: { min: 500, max: 700, label: '3-card relationship spread', note: 'explore each energy with care but stay concise.' },
+    celtic: { min: 1000, max: 1400, label: '10-card Celtic Cross', note: 'weave the positions into a cohesive narrative rather than ten separate mini-readings.' }
   };
-  const lengthGuidance = SPREAD_LENGTH_GUIDANCE[spreadKey];
+  const lengthBand = SPREAD_LENGTH_BANDS[spreadKey];
+  const lengthGuidance = lengthBand
+    ? `LENGTH: This is a ${lengthBand.label}. Aim for ~${Math.round(lengthBand.min * lengthModifier)}-${Math.round(lengthBand.max * lengthModifier)} words total—${lengthBand.note}`
+    : null;
   if (lengthGuidance) {
     lines.push('', lengthGuidance);
     if (isDeepDive) {
+      const deepMin = Math.round(1500 * lengthModifier);
+      const deepMax = Math.round(1900 * lengthModifier);
+      const recapMin = Math.round(120 * lengthModifier);
+      const recapMax = Math.round(150 * lengthModifier);
       lines.push(
-        'DEEP DIVE LENGTH: When the querent prefers deep dives, allow ~1500–1900 words. If the narrative exceeds ~1000 words, append a 120–150 word **Concise Recap** summarizing the arc and next steps.',
+        `DEEP DIVE LENGTH: When the querent prefers deep dives, allow ~${deepMin}–${deepMax} words. If the narrative exceeds ~1000 words, append a ${recapMin}–${recapMax} word **Concise Recap** summarizing the arc and next steps.`,
         'LENGTH PRIORITY: If depth and brevity conflict, prioritize depth and clarity over strict counts.'
       );
     } else {
       lines.push('LENGTH PRIORITY: If depth and brevity conflict, preserve clarity while staying close to the target band.');
     }
+    if (lengthModifier !== 1) {
+      lines.push(`LENGTH MODIFIER: Target approximately ${(lengthModifier * 100).toFixed(0)}% of the baseline length guidance for this variant.`);
+    }
+  }
+
+  if (variantOverrides?.systemPromptAddition) {
+    lines.push('', 'EXPERIMENT OVERRIDE', variantOverrides.systemPromptAddition);
   }
 
   const reversalLens = formatReversalLens(themes, { includeExamples: true, includeReminder: true });

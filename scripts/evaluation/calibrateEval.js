@@ -104,4 +104,134 @@ rl.on('close', () => {
       console.log('  Consider: Reviewing coherence scoring criteria\n');
     }
   }
+
+  // === Version-Stratified Analysis ===
+  console.log('\n=== Version Analysis ===\n');
+
+  // Group by reading prompt version
+  const versionGroups = {};
+  records.forEach((r) => {
+    const version = r.readingPromptVersion ||
+      r.promptMeta?.readingPromptVersion ||
+      'unknown';
+    if (!versionGroups[version]) {
+      versionGroups[version] = [];
+    }
+    versionGroups[version].push(r);
+  });
+
+  const versionCount = Object.keys(versionGroups).length;
+  if (versionCount > 1) {
+    console.log(`Found ${versionCount} reading prompt versions:\n`);
+
+    Object.entries(versionGroups)
+      .sort((a, b) => b[1].length - a[1].length) // Sort by count descending
+      .forEach(([version, recs]) => {
+        const withScores = recs.filter((r) => r.eval?.scores?.overall != null);
+        if (withScores.length === 0) {
+          console.log(`  ${version}: n=${recs.length}, no eval scores`);
+          return;
+        }
+
+        const mean = withScores.reduce((a, r) => a + r.eval.scores.overall, 0) / withScores.length;
+        const safetyCount = recs.filter((r) => r.eval?.scores?.safety_flag).length;
+        const safetyRate = ((safetyCount / recs.length) * 100).toFixed(1);
+
+        console.log(`  ${version}:`);
+        console.log(`    Readings: ${recs.length}, Evaluated: ${withScores.length}`);
+        console.log(`    Mean overall: ${mean.toFixed(2)}, Safety flags: ${safetyCount} (${safetyRate}%)`);
+      });
+  } else {
+    console.log('Single version detected (or no version tracking)');
+    const version = Object.keys(versionGroups)[0] || 'unknown';
+    console.log(`  Version: ${version}`);
+  }
+
+  // === A/B Testing Analysis ===
+  console.log('\n=== A/B Testing Analysis ===\n');
+
+  // Group by variant
+  const variantGroups = {};
+  records.forEach((r) => {
+    const variant = r.variantId || 'control';
+    if (!variantGroups[variant]) {
+      variantGroups[variant] = [];
+    }
+    variantGroups[variant].push(r);
+  });
+
+  const variantCount = Object.keys(variantGroups).length;
+  if (variantCount > 1) {
+    console.log(`Found ${variantCount} variants:\n`);
+
+    Object.entries(variantGroups)
+      .sort((a, b) => b[1].length - a[1].length)
+      .forEach(([variant, recs]) => {
+        const withScores = recs.filter((r) => r.eval?.scores?.overall != null);
+        if (withScores.length === 0) {
+          console.log(`  ${variant}: n=${recs.length}, no eval scores`);
+          return;
+        }
+
+        const mean = withScores.reduce((a, r) => a + r.eval.scores.overall, 0) / withScores.length;
+        const toneScores = withScores.filter((r) => r.eval?.scores?.tone != null);
+        const meanTone = toneScores.length > 0
+          ? toneScores.reduce((a, r) => a + r.eval.scores.tone, 0) / toneScores.length
+          : null;
+
+        console.log(`  ${variant}:`);
+        console.log(`    Readings: ${recs.length}, Evaluated: ${withScores.length}`);
+        console.log(`    Mean overall: ${mean.toFixed(2)}${meanTone ? `, Mean tone: ${meanTone.toFixed(2)}` : ''}`);
+      });
+
+    // Statistical comparison hint
+    if (variantCount === 2) {
+      const variants = Object.keys(variantGroups);
+      const group1 = variantGroups[variants[0]].filter((r) => r.eval?.scores?.overall != null);
+      const group2 = variantGroups[variants[1]].filter((r) => r.eval?.scores?.overall != null);
+
+      if (group1.length >= 10 && group2.length >= 10) {
+        const mean1 = group1.reduce((a, r) => a + r.eval.scores.overall, 0) / group1.length;
+        const mean2 = group2.reduce((a, r) => a + r.eval.scores.overall, 0) / group2.length;
+        const diff = Math.abs(mean1 - mean2);
+
+        console.log('\n  Comparison:');
+        console.log(`    Δ overall: ${diff.toFixed(2)} (${variants[0]} vs ${variants[1]})`);
+        if (diff >= 0.3) {
+          console.log('    ⚠️  Significant difference detected (Δ ≥ 0.3)');
+        } else if (diff >= 0.15) {
+          console.log('    📊 Moderate difference (0.15 ≤ Δ < 0.3) - may need more data');
+        } else {
+          console.log('    ✓ Small difference (Δ < 0.15) - variants performing similarly');
+        }
+      }
+    }
+  } else {
+    console.log('No A/B testing variants detected (all readings in control)');
+  }
+
+  // === Spread Analysis ===
+  console.log('\n=== Spread Analysis ===\n');
+
+  const spreadGroups = {};
+  records.forEach((r) => {
+    const spread = r.spreadKey || 'unknown';
+    if (!spreadGroups[spread]) {
+      spreadGroups[spread] = [];
+    }
+    spreadGroups[spread].push(r);
+  });
+
+  Object.entries(spreadGroups)
+    .sort((a, b) => b[1].length - a[1].length)
+    .forEach(([spread, recs]) => {
+      const withScores = recs.filter((r) => r.eval?.scores?.overall != null);
+      if (withScores.length === 0) {
+        console.log(`  ${spread}: n=${recs.length}, no eval scores`);
+        return;
+      }
+
+      const mean = withScores.reduce((a, r) => a + r.eval.scores.overall, 0) / withScores.length;
+      console.log(`  ${spread}: n=${recs.length}, mean_overall=${mean.toFixed(2)}`);
+    });
 });

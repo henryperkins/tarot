@@ -82,6 +82,12 @@ import { getClientIdentifier } from '../lib/clientId.js';
 import { enforceApiCallLimit } from '../lib/apiUsage.js';
 import { buildTierLimitedPayload, getSubscriptionContext } from '../lib/entitlements.js';
 import {
+  loadActiveExperiments,
+  getABAssignment,
+  getVariantPromptOverrides,
+  recordExperimentAssignment
+} from '../lib/abTesting.js';
+import {
   decrementUsageCounter,
   getMonthKeyUtc,
   getResetAtUtc,
@@ -779,6 +785,17 @@ export const onRequestPost = async ({ request, env, waitUntil }) => {
     });
     console.log(`[${requestId}] Context inferred: ${context}`);
 
+    // A/B Testing: Load active experiments (assignment happens per provider attempt)
+    let abAssignment = null;
+    let activeExperiments = [];
+    if (env.AB_TESTING_ENABLED === 'true' && env.DB) {
+      try {
+        activeExperiments = await loadActiveExperiments(env.DB);
+      } catch (abErr) {
+        console.warn(`[${requestId}] A/B testing experiment load failed: ${abErr.message}`);
+      }
+    }
+
     const crisisCheck = detectCrisisSignals([userQuestion, reflectionsText].filter(Boolean).join(' '));
     if (crisisCheck.matched) {
       const crisisReason = `crisis_${crisisCheck.categories.join('_') || 'safety'}`;
@@ -883,6 +900,17 @@ export const onRequestPost = async ({ request, env, waitUntil }) => {
       narrativePayload.promptMeta = null;
       // Reset diagnostics each attempt to avoid carrying alerts across backends
       narrativePayload.contextDiagnostics = [...baseContextDiagnostics];
+      // A/B Testing: assign per-provider so targeting is accurate
+      const attemptAssignment = activeExperiments.length
+        ? getABAssignment(requestId, activeExperiments, {
+          spreadKey: analysis.spreadKey,
+          provider: backend.id
+        })
+        : null;
+      narrativePayload.abAssignment = attemptAssignment;
+      narrativePayload.variantPromptOverrides = attemptAssignment
+        ? getVariantPromptOverrides(attemptAssignment.variantId)
+        : null;
       try {
         const backendResult = await runNarrativeBackend(backend.id, env, narrativePayload, requestId);
 
@@ -978,6 +1006,14 @@ export const onRequestPost = async ({ request, env, waitUntil }) => {
         reading = result;
         provider = backend.id;
         acceptedQualityMetrics = qualityMetrics; // Store for reuse in response
+        if (attemptAssignment) {
+          abAssignment = attemptAssignment;
+          console.log(`[${requestId}] A/B assignment: ${abAssignment.experimentId} → ${abAssignment.variantId} (provider: ${backend.id})`);
+          const recordPromise = recordExperimentAssignment(env.DB, abAssignment.experimentId);
+          if (typeof waitUntil === 'function') {
+            waitUntil(recordPromise);
+          }
+        }
         console.log(`[${requestId}] Backend ${backend.id} succeeded in ${Date.now() - attemptStart}ms, reading length: ${reading.length}, coverage: ${(qualityMetrics.cardCoverage * 100).toFixed(0)}%`);
         break;
       } catch (err) {
@@ -1137,6 +1173,11 @@ export const onRequestPost = async ({ request, env, waitUntil }) => {
       deckStyle,
       spreadKey: analysis.spreadKey,
       context,
+      // Quality tracking: reading prompt version for regression correlation
+      readingPromptVersion: promptMeta?.readingPromptVersion || null,
+      // A/B testing: variant assignment (null if not in experiment)
+      variantId: abAssignment?.variantId || null,
+      experimentId: abAssignment?.experimentId || null,
       // Token usage from API response (authoritative - uses model's native tokenizer)
       tokens,
       vision: visionMetrics,
@@ -1677,7 +1718,8 @@ async function generateWithAzureGPT5Responses(env, payload, requestId = 'unknown
     promptBudgetEnv: env,
     personalization: payload.personalization,
     enableSemanticScoring,
-    subscriptionTier: payload.subscriptionTier
+    subscriptionTier: payload.subscriptionTier,
+    variantOverrides: payload.variantPromptOverrides
   });
 
   if (promptMeta) {
@@ -1876,7 +1918,8 @@ async function generateWithClaudeSonnet45Enhanced(env, payload, requestId = 'unk
     promptBudgetEnv: env,
     personalization: payload.personalization,
     enableSemanticScoring,
-    subscriptionTier: payload.subscriptionTier
+    subscriptionTier: payload.subscriptionTier,
+    variantOverrides: payload.variantPromptOverrides
   });
 
   // Capture prompts for persistence

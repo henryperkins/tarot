@@ -95,13 +95,13 @@ export async function buildCelticCrossReading({
 
   // 3. CONSCIOUSNESS - Subconscious, Center, Conscious (Cards 6-1-5)
   recordEnhancedSection(
-    buildConsciousnessSection(celticAnalysis.consciousness, cardsInfo, themes, context),
+    buildConsciousnessSection(celticAnalysis.consciousness, cardsInfo, themes, context, reasoning),
     { type: 'consciousness' }
   );
 
   // 4. STAFF - Self, External, Hopes/Fears, Outcome (Cards 7-10)
   recordEnhancedSection(
-    buildStaffSection(celticAnalysis.staff, cardsInfo, themes, context),
+    buildStaffSection(celticAnalysis.staff, cardsInfo, themes, context, reasoning),
     { type: 'staff' }
   );
 
@@ -248,7 +248,7 @@ function buildTimelineSection(timeline, cardsInfo, themes, context, reasoning = 
   return section;
 }
 
-function buildConsciousnessSection(consciousness, cardsInfo, themes, context) {
+function buildConsciousnessSection(consciousness, cardsInfo, themes, context, reasoning = null) {
   const subconscious = cardsInfo[5];
   const conscious = cardsInfo[4];
 
@@ -258,8 +258,19 @@ function buildConsciousnessSection(consciousness, cardsInfo, themes, context) {
   const subconsciousPosition = subconscious.position || 'Subconscious — roots / hidden forces (Card 6)';
   const consciousPosition = conscious.position || 'Conscious — goals & focus (Card 5)';
 
-  section += `${buildPositionCardText(subconscious, subconsciousPosition, getPositionOptions(themes, context))}\n\n`;
-  section += `${buildPositionCardText(conscious, consciousPosition, getPositionOptions(themes, context))}\n\n`;
+  let subconsciousText = buildPositionCardText(subconscious, subconsciousPosition, getPositionOptions(themes, context));
+  if (reasoning) {
+    const enhanced = enhanceCardTextWithReasoning(subconsciousText, 5, reasoning);
+    if (enhanced.enhanced) subconsciousText = enhanced.text;
+  }
+  section += `${subconsciousText}\n\n`;
+
+  let consciousText = buildPositionCardText(conscious, consciousPosition, getPositionOptions(themes, context));
+  if (reasoning) {
+    const enhanced = enhanceCardTextWithReasoning(consciousText, 4, reasoning);
+    if (enhanced.enhanced) consciousText = enhanced.text;
+  }
+  section += `${consciousText}\n\n`;
 
   section += consciousness.synthesis;
 
@@ -281,7 +292,7 @@ function buildConsciousnessSection(consciousness, cardsInfo, themes, context) {
   return section;
 }
 
-function buildStaffSection(staff, cardsInfo, themes, context) {
+function buildStaffSection(staff, cardsInfo, themes, context, reasoning = null) {
   const self = cardsInfo[6];
   const external = cardsInfo[7];
   const hopesFears = cardsInfo[8];
@@ -295,10 +306,33 @@ function buildStaffSection(staff, cardsInfo, themes, context) {
   const hopesFearsPosition = hopesFears.position || 'Hopes & Fears — deepest wishes & worries (Card 9)';
   const outcomePosition = outcome.position || 'Outcome — likely path if unchanged (Card 10)';
 
-  section += `${buildPositionCardText(self, selfPosition, getPositionOptions(themes, context))}\n\n`;
-  section += `${buildPositionCardText(external, externalPosition, getPositionOptions(themes, context))}\n\n`;
-  section += `${buildPositionCardText(hopesFears, hopesFearsPosition, getPositionOptions(themes, context))}\n\n`;
-  section += `${buildPositionCardText(outcome, outcomePosition, getPositionOptions(themes, context))}\n\n`;
+  let selfText = buildPositionCardText(self, selfPosition, getPositionOptions(themes, context));
+  if (reasoning) {
+    const enhanced = enhanceCardTextWithReasoning(selfText, 6, reasoning);
+    if (enhanced.enhanced) selfText = enhanced.text;
+  }
+  section += `${selfText}\n\n`;
+
+  let externalText = buildPositionCardText(external, externalPosition, getPositionOptions(themes, context));
+  if (reasoning) {
+    const enhanced = enhanceCardTextWithReasoning(externalText, 7, reasoning);
+    if (enhanced.enhanced) externalText = enhanced.text;
+  }
+  section += `${externalText}\n\n`;
+
+  let hopesFearsText = buildPositionCardText(hopesFears, hopesFearsPosition, getPositionOptions(themes, context));
+  if (reasoning) {
+    const enhanced = enhanceCardTextWithReasoning(hopesFearsText, 8, reasoning);
+    if (enhanced.enhanced) hopesFearsText = enhanced.text;
+  }
+  section += `${hopesFearsText}\n\n`;
+
+  let outcomeText = buildPositionCardText(outcome, outcomePosition, getPositionOptions(themes, context));
+  if (reasoning) {
+    const enhanced = enhanceCardTextWithReasoning(outcomeText, 9, reasoning);
+    if (enhanced.enhanced) outcomeText = enhanced.text;
+  }
+  section += `${outcomeText}\n\n`;
 
   section += staff.adviceImpact;
 
