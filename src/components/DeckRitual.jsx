@@ -6,6 +6,7 @@ import { useSmallScreen } from '../hooks/useSmallScreen';
 import { useReducedMotion } from '../hooks/useReducedMotion';
 import { useLandscape } from '../hooks/useLandscape';
 import { useHaptic } from '../hooks/useHaptic';
+import { getSuitGlowColor, getSuitBorderColor } from '../lib/suitColors';
 
 const CARD_STACK_COUNT = 7; // Visual stack layers
 
@@ -33,7 +34,10 @@ export function DeckRitual({
   totalCards = 0,
 
   // Deal action
-  onDeal
+  onDeal,
+
+  // Cards dealt for minimap suit coloring
+  cards = []
 }) {
   const isSmallScreen = useSmallScreen();
   const prefersReducedMotion = useReducedMotion();
@@ -49,6 +53,7 @@ export function DeckRitual({
     knockCount === 0 &&
     revealedCount === 0 &&
     cardsRemaining === totalCards;
+  const canShuffleGesture = !isShuffling && revealedCount === 0 && cardsRemaining === totalCards;
 
   // Sync local cut index with prop
   useEffect(() => {
@@ -64,6 +69,26 @@ export function DeckRitual({
     opacity: 1 - (i * 0.08)
   }));
 
+  // Deal animation - card flies from deck
+  const handleDealWithAnimation = useCallback(() => {
+    if (cardsRemaining <= 0 || isShuffling) return;
+    vibrate(10);
+    onDeal?.();
+  }, [cardsRemaining, isShuffling, onDeal, vibrate]);
+
+  const triggerKnock = useCallback(() => {
+    onKnock?.();
+    vibrate([15, 30, 15]);
+
+    // Visual pulse on knock
+    if (!prefersReducedMotion) {
+      deckControls.start({
+        scale: [1, 0.96, 1.02, 1],
+        transition: { duration: 0.25 }
+      });
+    }
+  }, [onKnock, vibrate, prefersReducedMotion, deckControls]);
+
   // Tap / double-tap handler (handles knock + shuffle within same flow to avoid browser dblclick delay)
   const lastTapRef = useRef(0);
   const handleDeckTap = useCallback(() => {
@@ -75,26 +100,26 @@ export function DeckRitual({
 
     if (withinDoubleTap) {
       lastTapRef.current = 0;
-      onShuffle?.();
-      vibrate([20, 50, 20, 50, 20]);
+      if (knockCount < 3) {
+        triggerKnock();
+        return;
+      }
+      if (canShuffleGesture) {
+        onShuffle?.();
+        vibrate([20, 50, 20, 50, 20]);
+      }
       return;
     }
 
     lastTapRef.current = now;
 
     if (knockCount < 3) {
-      onKnock?.();
-      vibrate([15, 30, 15]);
-
-      // Visual pulse on knock
-      if (!prefersReducedMotion) {
-        deckControls.start({
-          scale: [1, 0.96, 1.02, 1],
-          transition: { duration: 0.25 }
-        });
-      }
+      triggerKnock();
+      return;
     }
-  }, [knockCount, onKnock, onShuffle, showCutSlider, prefersReducedMotion, deckControls, vibrate]);
+
+    handleDealWithAnimation();
+  }, [canShuffleGesture, handleDealWithAnimation, knockCount, onShuffle, showCutSlider, triggerKnock, vibrate]);
 
   // Long-press to reveal cut slider (disabled once cut is done to reduce accidental opens)
   const longPressTimerRef = useRef(null);
@@ -123,13 +148,6 @@ export function DeckRitual({
     }
   }, [isShuffling, deckControls, prefersReducedMotion]);
 
-  // Deal animation - card flies from deck
-  const handleDealWithAnimation = useCallback(() => {
-    if (cardsRemaining <= 0 || isShuffling) return;
-    vibrate(10);
-    onDeal?.();
-  }, [cardsRemaining, isShuffling, onDeal, vibrate]);
-
   // Handle local cut slider change
   const handleCutSliderChange = useCallback((e) => {
     const value = parseInt(e.target.value, 10);
@@ -148,6 +166,18 @@ export function DeckRitual({
   const idleBreathTransition = isIdleBreathing
     ? { duration: 3.8, ease: 'easeInOut', repeat: Infinity }
     : { duration: 0.2, ease: 'easeOut' };
+  const drawLabel = nextPosition ? `Tap to draw card for ${nextPosition}.` : 'Tap to draw the next card.';
+  const knockLabel = `Tap to knock (${knockCount}/3).`;
+  const cutLabel = hasCut ? '' : ' Hold to cut.';
+  const shuffleLabel = canShuffleGesture ? ' Double-tap to shuffle.' : '';
+  const deckAriaLabel = cardsRemaining > 0
+    ? knockComplete
+      ? `${drawLabel}${cutLabel}${shuffleLabel}`
+      : `${knockLabel}${cutLabel}${shuffleLabel}`
+    : 'All cards dealt';
+  const gestureHint = knockComplete
+    ? `Tap deck to draw${hasCut ? '' : ' · Hold to cut'}${canShuffleGesture ? ' · Double-tap to shuffle' : ''}`
+    : `Tap deck to knock · Hold to cut${canShuffleGesture ? ' · Double-tap to shuffle' : ''}`;
 
   return (
     <div className={`deck-ritual-container relative ${isLandscape ? 'py-3' : 'py-4 xs:py-5 sm:py-8'}`}>
@@ -184,11 +214,7 @@ export function DeckRitual({
           onMouseDown={handleTouchStart}
           onMouseUp={handleTouchEnd}
           role="button"
-          aria-label={
-            cardsRemaining > 0
-              ? `Draw card for ${nextPosition || 'next position'}. Tap to knock (${knockCount}/3), double-tap to shuffle, long-press to cut.`
-              : 'All cards dealt'
-          }
+          aria-label={deckAriaLabel}
           tabIndex={0}
           onKeyDown={(e) => {
             if (e.key === 'Enter' || e.key === ' ') {
@@ -412,7 +438,7 @@ export function DeckRitual({
       {!isLandscape && (
         <p className="hidden xs:block mt-2 xs:mt-3 text-center text-[0.65rem] xs:text-[0.7rem] text-muted/70 px-4">
           <span className="hidden sm:inline">Gestures: </span>
-          Tap deck to knock · Hold to cut · Double-tap to shuffle
+          {gestureHint}
         </p>
       )}
 
@@ -438,8 +464,8 @@ export function DeckRitual({
         <div className={`flex justify-center px-3 xs:px-4 ${isLandscape ? 'mt-3' : 'mt-4 xs:mt-5 sm:mt-6'}`}>
           <SpreadMinimap
             positions={spreadPositions}
-            revealedCount={revealedCount}
-            nextIndex={totalCards - cardsRemaining}
+            cards={cards}
+            totalCards={totalCards}
           />
         </div>
       )}
@@ -448,32 +474,66 @@ export function DeckRitual({
 }
 
 // Minimap showing spread positions with current progress
-function SpreadMinimap({ positions, revealedCount, nextIndex }) {
+// Now supports suit-colored indicators when cards are revealed
+function SpreadMinimap({ positions, cards = [], totalCards }) {
+  // Find the first unrevealed position (handles out-of-order reveals via ReadingBoard)
+  // A position is revealed if it has a card in the cards array
+  const nextIndex = (() => {
+    for (let i = 0; i < totalCards; i++) {
+      if (!cards[i]) return i;
+    }
+    return -1; // All cards revealed
+  })();
+
   return (
     <div
-      className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 rounded-full bg-surface/60 border border-accent/20"
+      className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 rounded-full border"
+      style={{
+        background: `
+          linear-gradient(145deg, rgba(24, 18, 33, 0.85), rgba(10, 8, 16, 0.9))
+        `,
+        borderColor: 'var(--border-warm-light)'
+      }}
       role="list"
       aria-label="Spread position progress"
     >
       {positions.map((pos, i) => {
-        const isRevealed = i < revealedCount;
+        // A position is revealed if it has a card (supports out-of-order reveals)
+        const isRevealed = Boolean(cards[i]);
         const isNext = i === nextIndex;
+        const card = cards?.[i] || null;
         const label = typeof pos === 'string' ? pos.split(' — ')[0] : `Position ${i + 1}`;
+        
+        // Get suit-specific colors for revealed cards
+        const glowColor = isRevealed && card ? getSuitGlowColor(card, 0.5) : null;
+        const borderColor = isRevealed && card ? getSuitBorderColor(card) : null;
 
         return (
-          <div
+          <motion.div
             key={i}
             className={`w-2.5 h-3.5 sm:w-3 sm:h-4 rounded-sm transition-all ${
               isRevealed
-                ? 'bg-secondary shadow-sm'
+                ? ''
                 : isNext
-                ? 'bg-primary animate-pulse'
+                ? 'bg-primary'
                 : 'bg-surface-muted border border-accent/30'
             }`}
-            style={isRevealed ? { boxShadow: '0 0 6px color-mix(in srgb, var(--brand-secondary) 30%, transparent)' } : {}}
+            style={isRevealed ? {
+              backgroundColor: borderColor || 'var(--brand-secondary)',
+              boxShadow: `0 0 8px ${glowColor || 'rgba(var(--brand-secondary), 0.3)'}`
+            } : {}}
+            animate={isNext ? {
+              scale: [1, 1.15, 1],
+              opacity: [0.8, 1, 0.8]
+            } : {}}
+            transition={isNext ? {
+              duration: 1.5,
+              repeat: Infinity,
+              ease: 'easeInOut'
+            } : {}}
             title={label}
             role="listitem"
-            aria-label={`${label}: ${isRevealed ? 'revealed' : isNext ? 'next to draw' : 'pending'}`}
+            aria-label={`${label}: ${isRevealed ? `${card?.name || 'revealed'}` : isNext ? 'next to draw' : 'pending'}`}
           />
         );
       })}

@@ -48,6 +48,9 @@
     "EVAL_ENABLED": "true",
     "EVAL_MODEL": "@cf/meta/llama-3-8b-instruct-awq",
     "EVAL_TIMEOUT_MS": "10000",
+    // EVAL_GATE_ENABLED: When "true", readings that fail quality evaluation are
+    // replaced with a safe fallback. CAUTION: If eval model is unavailable,
+    // ALL readings will show fallback. Set to "false" for production safety.
     "EVAL_GATE_ENABLED": "false",
     "EVAL_GATEWAY_ID": "",
     // METRICS_STORAGE_MODE controls PII handling in stored metrics:
@@ -56,10 +59,21 @@
     // - "full": Store complete data (DEVELOPMENT ONLY - contains PII)
     "METRICS_STORAGE_MODE": "redact",
     // -------------------------------------------------------------------------
+    // Diagnostics & Logging
+    // WARNING: LOG_LLM_PROMPTS and PERSIST_PROMPTS capture user questions and
+    // personalization data. Enable only for debugging, disable in production.
+    // -------------------------------------------------------------------------
+    "LOG_LLM_PROMPTS": "false",
+    "LOG_NARRATIVE_ENHANCEMENTS": "false",
+    "LOG_ENHANCEMENT_TELEMETRY": "true",
+    "PERSIST_PROMPTS": "false",
+    "ENABLE_TTS_DEBUG_LOGGING": "false",
+    "ENABLE_SPEECH_TOKEN_DEBUG": "false",
+    // -------------------------------------------------------------------------
     // Quality Alerting & A/B Testing
     // -------------------------------------------------------------------------
     // QUALITY_ALERT_ENABLED: Enable automatic quality regression detection
-    "QUALITY_ALERT_ENABLED": "false",
+    "QUALITY_ALERT_ENABLED": "true",
     // QUALITY_REGRESSION_THRESHOLD: Score drop to trigger warning (default: -0.3)
     "QUALITY_REGRESSION_THRESHOLD": "-0.3",
     // QUALITY_SAFETY_SPIKE_THRESHOLD: Safety flag rate to trigger alert (default: 0.02)

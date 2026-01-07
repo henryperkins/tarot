@@ -113,7 +113,6 @@ function MobileActionContents({
   isShuffling,
   reading,
   revealedCards,
-  dealIndex = 0,
   isGenerating,
   personalReading,
   needsNarrativeGeneration,
@@ -168,7 +167,7 @@ function MobileActionContents({
         variant,
         showUtilityButtons,
         readingLength,
-        dealIndex,
+        revealedCount,
         stepBadge,
         stepIndicatorLabel,
         hasNarrative,
@@ -200,7 +199,7 @@ function renderActions(mode, options) {
     variant,
     showUtilityButtons,
     readingLength,
-    dealIndex,
+    revealedCount,
     stepBadge,
     stepIndicatorLabel,
     hasNarrative,
@@ -298,9 +297,10 @@ function renderActions(mode, options) {
     }
 
     case 'revealing': {
+      const nextCount = Math.min(revealedCount + 1, readingLength);
       const nextLabel = isLandscape
-        ? `${Math.min(dealIndex + 1, readingLength)}/${readingLength}`
-        : `Reveal next (${Math.min(dealIndex + 1, readingLength)}/${readingLength})`;
+        ? `${nextCount}/${readingLength}`
+        : `Reveal next (${nextCount}/${readingLength})`;
       const revealAllLabel = isLandscape ? 'All' : 'Reveal all';
       return (
         <>

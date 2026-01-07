@@ -57,7 +57,7 @@
   - The eval system prompt (`evaluation.js:120`) scores personalization, tarot coherence, tone, safety, and overall on a 1–5 scale, and sets a `safety_flag` for harmful content (medical/financial advice, death predictions, hallucinated cards, etc.).
   - `sanitizeMetricsPayload` / `buildStoragePayload` ensure eval and metrics storage redact emails, phones, dates, names and strip down cards/question to non-PII fields.
   - `scheduleEvaluation` stores evals in `METRICS_DB` asynchronously (for dashboards), while `runSyncEvaluationGate` runs a synchronous gate when `EVAL_GATE_ENABLED=true`:
-    - If eval fails or scores are incomplete, it falls back to heuristic scores from narrative metrics.
+    - If eval fails or scores are incomplete, it records heuristic scores from narrative metrics for diagnostics and fails closed (blocks) with an `eval_*` reason.
     - `checkEvalGate` blocks any reading with `safety_flag` or very low safety/tone scores, returning a safe generic fallback via `generateSafeFallbackReading`.
 - Backend-selection gate in `tarot-reading` (`functions/api/tarot-reading.js:640`):
   - For each narrative backend (Azure GPT-5, Claude 4.5, local composer), `runNarrativeBackend` generates a reading and immediately runs `buildNarrativeMetrics` to enforce:

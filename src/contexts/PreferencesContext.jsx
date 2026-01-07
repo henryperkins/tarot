@@ -17,6 +17,7 @@ const PREPARE_SECTIONS_STORAGE_KEY = 'tarot-prepare-sections';
 const ONBOARDING_STORAGE_KEY = 'tarot-onboarding-complete';
 const PERSONALIZATION_BANNER_KEY = 'tarot-personalization-banner';
 const NUDGE_STATE_STORAGE_KEY = 'tarot-nudge-state';
+const LOCATION_JOURNAL_CONSENT_KEY = 'tarot-location-journal-consent';
 const DEFAULT_PREPARE_SECTIONS = {
   intention: false,
   experience: false,
@@ -436,6 +437,39 @@ export function PreferencesProvider({ children }) {
   const shouldShowJournalNudge = nudgeState.readingCount === 1 && !nudgeState.hasSeenJournalNudge;
   const shouldShowAccountNudge = nudgeState.journalSaveCount >= 3 && !nudgeState.hasDismissedAccountNudge;
 
+  // --- Location Preferences ---
+  // locationEnabled: session-level toggle for location-aware readings (not persisted)
+  const [locationEnabled, setLocationEnabled] = useState(false);
+
+  // cachedLocation: transient location data (not persisted for privacy)
+  const [cachedLocation, setCachedLocation] = useState(null);
+
+  // persistLocationToJournal: explicit consent to store location with journal entries
+  const [persistLocationToJournal, setPersistLocationToJournalState] = useState(() => {
+    if (typeof localStorage !== 'undefined') {
+      return localStorage.getItem(LOCATION_JOURNAL_CONSENT_KEY) === 'true';
+    }
+    return false;
+  });
+
+  // Persist journal location consent to localStorage
+  useEffect(() => {
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem(LOCATION_JOURNAL_CONSENT_KEY, persistLocationToJournal.toString());
+    }
+  }, [persistLocationToJournal]);
+
+  const setPersistLocationToJournal = useCallback((value) => {
+    setPersistLocationToJournalState(Boolean(value));
+  }, []);
+
+  // Clear cached location when location is disabled
+  useEffect(() => {
+    if (!locationEnabled) {
+      setCachedLocation(null);
+    }
+  }, [locationEnabled]);
+
   const value = {
     theme,
     setTheme,
@@ -485,7 +519,14 @@ export function PreferencesProvider({ children }) {
     markJournalNudgeSeen,
     dismissAccountNudge,
     incrementReadingCount,
-    incrementJournalSaveCount
+    incrementJournalSaveCount,
+    // Location preferences
+    locationEnabled,
+    setLocationEnabled,
+    cachedLocation,
+    setCachedLocation,
+    persistLocationToJournal,
+    setPersistLocationToJournal
   };
 
   return (

@@ -7,7 +7,6 @@ import { InteractiveCardOverlay } from './InteractiveCardOverlay';
 import { useReducedMotion } from '../hooks/useReducedMotion';
 import { useSmallScreen } from '../hooks/useSmallScreen';
 import { useLandscape } from '../hooks/useLandscape';
-
 import { useHaptic } from '../hooks/useHaptic';
 
 const SUIT_ACCENTS = {
@@ -325,8 +324,11 @@ export function Card({
         console.log(`Card ${index} starting reveal sequence. Stagger: ${staggerDelay}`);
       }
 
-      const duration = prefersReducedMotion ? 0 : 0.25;
-      const springTransition = prefersReducedMotion ? { duration: 0 } : { type: "spring", stiffness: 260, damping: 20 };
+      // Enhanced timing for ink-spread reveal effect
+      const inkDuration = prefersReducedMotion ? 0 : 0.35;
+      const revealTransition = prefersReducedMotion
+        ? { duration: 0 }
+        : { duration: 0.4, ease: [0.4, 0, 0.2, 1] };
 
       if (staggerDelay > 0 && !prefersReducedMotion) {
         await new Promise(resolve => {
@@ -340,12 +342,16 @@ export function Card({
 
       if (!isActive) return;
       if (import.meta.env.DEV) {
-        console.log(`Card ${index} starting Phase 1 (rotate 90)`);
+        console.log(`Card ${index} starting Phase 1 (ink blur out)`);
       }
+      
+      // Phase 1: Ink blur-out (card fades with blur as if dissolving)
       await controls.start({
         rotateY: 90,
-        opacity: 0.8,
-        transition: { duration: duration, ease: "easeIn" }
+        opacity: 0.6,
+        filter: prefersReducedMotion ? 'blur(0px)' : 'blur(8px)',
+        scale: 0.95,
+        transition: { duration: inkDuration, ease: "easeIn" }
       });
       if (!isActive) return;
 
@@ -356,12 +362,16 @@ export function Card({
       if (!isActive) return;
 
       if (import.meta.env.DEV) {
-        console.log(`Card ${index} starting Phase 3 (rotate 0)`);
+        console.log(`Card ${index} starting Phase 3 (ink spread in)`);
       }
+      
+      // Phase 2: Ink spread-in (card emerges from blur with scale)
       await controls.start({
         rotateY: 0,
         opacity: 1,
-        transition: springTransition
+        filter: 'blur(0px)',
+        scale: 1,
+        transition: revealTransition
       });
 
       if (import.meta.env.DEV) {

@@ -488,7 +488,7 @@ async function findExistingAlertId(db, periodKey, alert) {
  * @param {Object} options - Options
  * @returns {Promise<Object>} Analysis results
  */
-export async function runQualityAnalysis(env, dateStr, options = {}) {
+export async function runQualityAnalysis(env, dateStr, _options = {}) {
   const db = env.DB;
   if (!db) {
     console.warn('[quality] No DB binding, skipping quality analysis');

@@ -2358,6 +2358,33 @@ input[type="range"]:focus::-webkit-slider-thumb {
   }
 }
 
+/* Ink spread reveal animation - used for card reveal on spread table */
+@keyframes inkSpread {
+  0% {
+    opacity: 0;
+    filter: blur(8px);
+    transform: scale(0.9);
+  }
+  100% {
+    opacity: 1;
+    filter: blur(0);
+    transform: scale(1);
+  }
+}
+
+.card-ink-reveal {
+  animation: inkSpread var(--duration-slow, 400ms) var(--ease-out) forwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card-ink-reveal {
+    animation: none;
+    opacity: 1;
+    filter: none;
+    transform: none;
+  }
+}
+
 /* Swipe-to-reveal card styles */
 .card-swipe-container {
   touch-action: pan-y;

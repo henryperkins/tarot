@@ -27,13 +27,20 @@ export function ReadingProvider({ children }) {
         userQuestion,
         revealedCards,
         shuffle,
-        dealIndex,
         dealNext: baseDealNext,
         revealCard: baseRevealCard,
         revealAll: baseRevealAll,
         sessionSeed
     } = tarotState;
-    const { deckStyleId, includeMinors, reversalFramework, personalization } = usePreferences();
+    const {
+        deckStyleId,
+        includeMinors,
+        reversalFramework,
+        personalization,
+        locationEnabled,
+        cachedLocation,
+        persistLocationToJournal
+    } = usePreferences();
 
     // 3. Vision Analysis
     const visionAnalysis = useVisionAnalysis(reading);
@@ -256,6 +263,17 @@ export function ReadingProvider({ children }) {
             if (personalizationForRequest) {
                 payload.personalization = personalizationForRequest;
             }
+            // Include location data if enabled and available
+            // Use explicit null/undefined checks - 0° lat/long are valid coordinates (equator/prime meridian)
+            if (locationEnabled && cachedLocation?.latitude != null && cachedLocation?.longitude != null) {
+                payload.location = {
+                    latitude: cachedLocation.latitude,
+                    longitude: cachedLocation.longitude,
+                    timezone: cachedLocation.timezone || null,
+                    source: cachedLocation.source || 'browser'
+                };
+                payload.persistLocationToJournal = Boolean(persistLocationToJournal);
+            }
             const normalizedPayload = safeParseReadingRequest(payload);
             if (!normalizedPayload.success) {
                 setIsGenerating(false);
@@ -394,7 +412,10 @@ export function ReadingProvider({ children }) {
         setVisionConflicts,
         ensureVisionProof,
         cancelInFlightReading,
-        personalizationForRequest
+        personalizationForRequest,
+        locationEnabled,
+        cachedLocation,
+        persistLocationToJournal
     ]);
 
     // --- Logic: Analysis Highlights ---
@@ -524,13 +545,15 @@ export function ReadingProvider({ children }) {
     }, [reading, selectedSpread]);
 
     const dealNext = useCallback(() => {
-        if (!reading || dealIndex >= reading.length) return;
-        const description = describeCardAtIndex(dealIndex);
+        if (!reading) return;
+        const nextIndex = reading.findIndex((_, index) => !revealedCards.has(index));
+        if (nextIndex < 0) return;
+        const description = describeCardAtIndex(nextIndex);
         if (description) {
             setSrAnnouncement(`Revealed ${description}.`);
         }
         baseDealNext();
-    }, [baseDealNext, dealIndex, describeCardAtIndex, reading]);
+    }, [baseDealNext, describeCardAtIndex, reading, revealedCards]);
 
     const revealCard = useCallback((index) => {
         if (!reading || !reading[index]) return;

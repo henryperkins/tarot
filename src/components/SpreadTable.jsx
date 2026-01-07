@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { SPREADS } from '../data/spreads';
 import { useReducedMotion } from '../hooks/useReducedMotion';
 import { getCardImage, FALLBACK_IMAGE } from '../lib/cardLookup';
+import { getSuitBorderColor, getRevealedCardGlow } from '../lib/suitColors';
 
 /**
  * Spread layout definitions (x, y as percentage of container)
@@ -61,7 +62,8 @@ export function SpreadTable({
   onCardClick,
   onCardReveal,
   nextDealIndex = 0,
-  compact = false
+  compact = false,
+  size = 'default'
 }) {
   const prefersReducedMotion = useReducedMotion();
   const layout = SPREAD_LAYOUTS[spreadKey] || SPREAD_LAYOUTS.single;
@@ -83,25 +85,38 @@ export function SpreadTable({
   // Aspect ratio based on spread type
   const aspectRatio = spreadKey === 'celtic' ? '4/3' : '3/2';
 
+  const sizeClass = compact
+    ? 'w-11 h-[60px] xs:w-12 xs:h-16 sm:w-14 sm:h-[76px]'
+    : size === 'large'
+      ? 'w-20 h-[120px] xs:w-24 xs:h-[140px] sm:w-28 sm:h-[160px] md:w-32 md:h-[180px]'
+      : 'w-14 h-[76px] xs:w-16 xs:h-[88px] sm:w-[72px] sm:h-24 md:w-20 md:h-28';
+
   return (
     <div
-      className={`spread-table relative w-full rounded-2xl sm:rounded-3xl border border-accent/20 overflow-hidden ${
+      className={`spread-table panel-mystic relative w-full rounded-2xl sm:rounded-3xl border overflow-hidden ${
         compact ? 'p-3' : 'p-4 sm:p-6'
       }`}
       style={{
         aspectRatio,
-        background: 'linear-gradient(145deg, var(--bg-surface), var(--bg-surface-muted))',
-        boxShadow: 'inset 0 0 60px color-mix(in srgb, var(--brand-accent) 6%, transparent)'
+        background: `
+          radial-gradient(circle at 0% 18%, var(--glow-gold), transparent 40%),
+          radial-gradient(circle at 100% 0%, var(--glow-blue), transparent 38%),
+          radial-gradient(circle at 52% 115%, var(--glow-pink), transparent 46%),
+          linear-gradient(135deg, var(--panel-dark-1), var(--panel-dark-2) 55%, var(--panel-dark-3))
+        `,
+        borderColor: 'var(--border-warm)',
+        boxShadow: '0 24px 64px -40px rgba(0, 0, 0, 0.8), inset 0 1px 0 rgba(255, 255, 255, 0.03)'
       }}
       role="region"
       aria-label={`${spreadInfo?.name || 'Spread'} layout`}
     >
-      {/* Table surface texture */}
+      {/* Noise texture overlay - matches theme swatch */}
       <div
-        className="absolute inset-0 opacity-[0.04] pointer-events-none"
+        className="absolute inset-0 pointer-events-none rounded-2xl sm:rounded-3xl overflow-hidden"
         style={{
-          backgroundImage: `radial-gradient(circle at 50% 50%, var(--brand-accent) 1px, transparent 1px)`,
-          backgroundSize: '20px 20px'
+          backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200' viewBox='0 0 200 200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)' opacity='0.22'/%3E%3C/svg%3E")`,
+          mixBlendMode: 'soft-light',
+          opacity: 0.28
         }}
         aria-hidden="true"
       />
@@ -110,7 +125,7 @@ export function SpreadTable({
       {layout.map((pos, i) => {
         const card = cards?.[i];
         const isRevealed = revealedIndices?.has?.(i) || false;
-        const isNext = i === nextDealIndex && !card;
+        const isNext = i === nextDealIndex && !isRevealed;
         const positionLabel = getPositionLabel(i);
         const cardImage = card ? getCardImage(card) : null;
 
@@ -132,7 +147,7 @@ export function SpreadTable({
               // Empty placeholder - min 44px touch target on mobile
               <div
                 className={`
-                  ${compact ? 'w-11 h-[60px] xs:w-12 xs:h-16 sm:w-14 sm:h-[76px]' : 'w-14 h-[76px] xs:w-16 xs:h-[88px] sm:w-[72px] sm:h-24 md:w-20 md:h-28'}
+                  ${sizeClass}
                   rounded-lg border-2 border-dashed
                   flex items-center justify-center
                   transition-all
@@ -156,22 +171,41 @@ export function SpreadTable({
               <AnimatePresence mode="wait">
                 <motion.button
                   key={card.name}
-                  initial={prefersReducedMotion ? { opacity: 1 } : { scale: 0, rotate: -180 }}
-                  animate={{ scale: pos.scale || 1, rotate: pos.rotate || 0, opacity: 1 }}
-                  exit={prefersReducedMotion ? { opacity: 0 } : { scale: 0, rotate: 180 }}
-                  transition={prefersReducedMotion ? { duration: 0.1 } : { type: 'spring', stiffness: 300, damping: 20 }}
+                  initial={prefersReducedMotion ? { opacity: 1 } : {
+                    opacity: 0,
+                    filter: 'blur(8px)',
+                    scale: 0.9
+                  }}
+                  animate={{
+                    opacity: 1,
+                    filter: 'blur(0px)',
+                    scale: pos.scale || 1,
+                    rotate: pos.rotate || 0
+                  }}
+                  exit={prefersReducedMotion ? { opacity: 0 } : {
+                    opacity: 0,
+                    filter: 'blur(8px)',
+                    scale: 0.9
+                  }}
+                  transition={prefersReducedMotion ? { duration: 0.1 } : {
+                    duration: 0.4,
+                    ease: [0.4, 0, 0.2, 1]
+                  }}
                   className={`
-                    ${compact ? 'w-11 h-[60px] xs:w-12 xs:h-16 sm:w-14 sm:h-[76px]' : 'w-14 h-[76px] xs:w-16 xs:h-[88px] sm:w-[72px] sm:h-24 md:w-20 md:h-28'}
+                    ${sizeClass}
                     rounded-lg border-2 cursor-pointer overflow-hidden
                     transition-all touch-manipulation
                     focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70 focus-visible:ring-offset-2 focus-visible:ring-offset-main
                     ${isRevealed
-                      ? 'border-secondary/60 shadow-lg'
-                      : 'border-primary/40 hover:border-primary/60 active:scale-95'
+                      ? 'shadow-lg'
+                      : isNext
+                        ? 'border-primary/70 ring-2 ring-primary/30 shadow-md shadow-primary/20 hover:border-primary/80 active:scale-95'
+                        : 'border-primary/40 hover:border-primary/60 active:scale-95'
                     }
                   `}
                   style={isRevealed ? {
-                    boxShadow: '0 4px 12px color-mix(in srgb, var(--brand-secondary) 20%, transparent)'
+                    borderColor: getSuitBorderColor(card),
+                    boxShadow: getRevealedCardGlow(card)
                   } : {}}
                   onClick={() => isRevealed ? onCardClick?.(card, positionLabel, i) : onCardReveal?.(i)}
                   aria-label={isRevealed
@@ -199,8 +233,16 @@ export function SpreadTable({
                       </div>
                     </div>
                   ) : (
-                    <div className="w-full h-full bg-surface-muted flex items-center justify-center">
-                      <span className={`${compact ? 'text-[0.55rem] xs:text-[0.6rem]' : 'text-[0.6rem] xs:text-[0.65rem] sm:text-xs'} text-muted`}>Tap</span>
+                    <div className="w-full h-full bg-surface-muted flex items-center justify-center relative">
+                      <img
+                        src="/cardback.png"
+                        alt="Card back"
+                        className="w-full h-full object-cover opacity-90"
+                        loading="lazy"
+                      />
+                      <span className={`${compact ? 'text-[0.5rem] xs:text-[0.55rem]' : 'text-[0.6rem] xs:text-[0.65rem] sm:text-xs'} text-main/90 font-semibold absolute bottom-1 right-1 px-1.5 py-0.5 rounded bg-main/70`}>
+                        Tap
+                      </span>
                     </div>
                   )}
                 </motion.button>

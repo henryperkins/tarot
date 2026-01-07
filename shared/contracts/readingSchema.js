@@ -78,6 +78,17 @@ const personalizationSchema = z
   })
   .catchall(z.unknown());
 
+const locationSchema = z
+  .object({
+    latitude: z.number().min(-90).max(90),
+    longitude: z.number().min(-180).max(180),
+    timezone: z.string().min(1).max(64).optional(),
+    accuracy: z.number().positive().optional(),
+    source: z.enum(['browser', 'manual']).optional()
+  })
+  .strict()
+  .optional();
+
 export const readingRequestSchema = z.object({
   spreadInfo: spreadInfoSchema,
   cardsInfo: z.array(cardInfoSchema).min(1, 'cardsInfo must include at least one card'),
@@ -86,7 +97,9 @@ export const readingRequestSchema = z.object({
   reversalFrameworkOverride: optionalCleanString(),
   deckStyle: optionalCleanString(),
   visionProof: optionalVisionProofSchema.optional(),
-  personalization: personalizationSchema.optional()
+  personalization: personalizationSchema.optional(),
+  location: locationSchema,
+  persistLocationToJournal: z.boolean().optional()
 });
 
 export const readingResponseSchema = z.object({

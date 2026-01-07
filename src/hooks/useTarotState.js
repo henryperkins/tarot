@@ -229,12 +229,12 @@ export function useTarotState(speak) {
 
   const dealNext = useCallback(() => {
     if (!reading) return;
-    if (dealIndex >= reading.length) return;
+    const next = reading.findIndex((_, index) => !revealedCards.has(index));
+    if (next < 0) return;
 
     void unlockAudio();
-    const next = dealIndex;
     setRevealedCards(prev => new Set([...prev, next]));
-    setDealIndex(next + 1);
+    setDealIndex(prev => Math.max(prev, next + 1));
 
     if (typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function') {
       navigator.vibrate(10);
@@ -247,7 +247,7 @@ export function useTarotState(speak) {
     if (speak) {
       void speak(shortLineForCard(reading[next], position), 'card-reveal');
     }
-  }, [reading, dealIndex, selectedSpread, speak, shortLineForCard]);
+  }, [reading, revealedCards, selectedSpread, speak, shortLineForCard]);
 
   const revealCard = useCallback((index) => {
     if (!reading || !reading[index]) return;

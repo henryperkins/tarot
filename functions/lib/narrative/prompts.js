@@ -669,11 +669,14 @@ export function buildEnhancedClaudePrompt({
   }
 
   if (controls.ephemerisContext?.available) {
+    const locationContext = controls.ephemerisContext.locationContext || {};
     promptMeta.ephemeris = {
       available: true,
       moonPhase: controls.ephemerisContext.moonPhase?.phaseName,
       retrogradeCount: controls.ephemerisContext.retrogrades?.length || 0,
-      transitResonances: controls.transitResonances?.length || 0
+      transitResonances: controls.transitResonances?.length || 0,
+      locationUsed: Boolean(locationContext.locationUsed),
+      timezone: locationContext.timezone || 'UTC'
     };
   }
 

@@ -82,3 +82,72 @@ test('safeParseReadingRequest surfaces orientation errors', () => {
   assert.equal(result.success, false, 'orientation mismatch should fail');
   assert.match(result.error, /orientation/i);
 });
+
+// Location schema tests
+test('safeParseReadingRequest accepts valid location object', () => {
+  const payload = {
+    ...basePayload,
+    location: {
+      latitude: 40.7128,
+      longitude: -74.0060,
+      timezone: 'America/New_York',
+      accuracy: 100,
+      source: 'browser'
+    },
+    persistLocationToJournal: true
+  };
+
+  const result = safeParseReadingRequest(payload);
+  assert.equal(result.success, true, result.error || 'payload with location should be valid');
+  assert.equal(result.data.location.latitude, 40.7128);
+  assert.equal(result.data.location.longitude, -74.0060);
+  assert.equal(result.data.location.timezone, 'America/New_York');
+  assert.equal(result.data.persistLocationToJournal, true);
+});
+
+test('safeParseReadingRequest accepts payload without location', () => {
+  const result = safeParseReadingRequest(basePayload);
+  assert.equal(result.success, true, result.error || 'payload without location should be valid');
+  assert.equal(result.data.location, undefined);
+});
+
+test('safeParseReadingRequest rejects invalid latitude out of range', () => {
+  const invalidPayload = {
+    ...basePayload,
+    location: {
+      latitude: 91, // Invalid: must be -90 to 90
+      longitude: -74.0060
+    }
+  };
+
+  const result = safeParseReadingRequest(invalidPayload);
+  assert.equal(result.success, false, 'latitude > 90 should fail');
+});
+
+test('safeParseReadingRequest rejects invalid longitude out of range', () => {
+  const invalidPayload = {
+    ...basePayload,
+    location: {
+      latitude: 40.7128,
+      longitude: 181 // Invalid: must be -180 to 180
+    }
+  };
+
+  const result = safeParseReadingRequest(invalidPayload);
+  assert.equal(result.success, false, 'longitude > 180 should fail');
+});
+
+test('safeParseReadingRequest accepts location with minimal fields', () => {
+  const minimalPayload = {
+    ...basePayload,
+    location: {
+      latitude: 51.5074,
+      longitude: -0.1278
+    }
+  };
+
+  const result = safeParseReadingRequest(minimalPayload);
+  assert.equal(result.success, true, result.error || 'minimal location should be valid');
+  assert.equal(result.data.location.latitude, 51.5074);
+  assert.equal(result.data.location.timezone, undefined);
+});

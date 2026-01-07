@@ -115,7 +115,11 @@ export async function onRequestGet(context) {
         deck_id,
         request_id,
         extracted_steps,
-        extraction_version
+        extraction_version,
+        location_latitude,
+        location_longitude,
+        location_timezone,
+        location_consent
       FROM journal_entries
       WHERE user_id = ?
       ORDER BY created_at DESC
@@ -196,6 +200,16 @@ export async function onRequestGet(context) {
         const includeEmbeddings = index < MAX_ENTRIES_WITH_EMBEDDINGS;
         const rawEmbeddings = includeEmbeddings ? embeddingMap.get(entry.id) : null;
 
+        // Only include location if consent was given and data exists
+        const hasLocation = entry.location_consent === 1 &&
+                           entry.location_latitude != null &&
+                           entry.location_longitude != null;
+        const location = hasLocation ? {
+          latitude: entry.location_latitude,
+          longitude: entry.location_longitude,
+          timezone: entry.location_timezone || null
+        } : null;
+
         return {
           id: entry.id,
           ts: entry.created_at * 1000, // Convert to milliseconds for JS Date
@@ -217,7 +231,9 @@ export async function onRequestGet(context) {
           // stepEmbeddings are large (768 floats each), only include for recent entries
           extractedSteps: entry.extracted_steps ? safeJsonParse(entry.extracted_steps, null) : null,
           stepEmbeddings: rawEmbeddings ? safeJsonParse(rawEmbeddings, null) : null,
-          extractionVersion: entry.extraction_version || null
+          extractionVersion: entry.extraction_version || null,
+          // Location (only present if user consented to storage)
+          location
         };
       } catch (parseErr) {
         console.warn(`Failed to parse journal entry ${entry.id}:`, parseErr);
@@ -328,7 +344,10 @@ export async function onRequestPost(context) {
       // Deck style identifier (rws1909, marseille, thoth, etc.)
       deckId,
       // Request ID for API tracing/correlation
-      requestId
+      requestId,
+      // Location data (only persisted if user explicitly consents)
+      location,
+      persistLocationConsent
     } = body;
 
     // Validate required fields
@@ -389,6 +408,15 @@ export async function onRequestPost(context) {
     // Ensure context is a string (not an object) to prevent "[object Object]" storage
     const normalizedContext = (typeof context === 'string') ? context : null;
 
+    // Location persistence: only store if BOTH location provided AND user explicitly consents
+    const shouldPersistLocation = location?.latitude != null &&
+                                  location?.longitude != null &&
+                                  persistLocationConsent === true;
+    const locationLatitude = shouldPersistLocation ? location.latitude : null;
+    const locationLongitude = shouldPersistLocation ? location.longitude : null;
+    const locationTimezone = shouldPersistLocation ? (location.timezone || null) : null;
+    const locationConsent = shouldPersistLocation ? 1 : 0;
+
     await env.DB.prepare(`
       INSERT INTO journal_entries (
         id,
@@ -407,9 +435,13 @@ export async function onRequestPost(context) {
         session_seed,
         user_preferences_json,
         deck_id,
-        request_id
+        request_id,
+        location_latitude,
+        location_longitude,
+        location_timezone,
+        location_consent
       )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `)
       .bind(
         entryId,
@@ -428,7 +460,11 @@ export async function onRequestPost(context) {
         sessionSeed || null,
         userPreferences ? JSON.stringify(userPreferences) : null,
         deckId || null,
-        requestId || null
+        requestId || null,
+        locationLatitude,
+        locationLongitude,
+        locationTimezone,
+        locationConsent
       )
       .run();
 

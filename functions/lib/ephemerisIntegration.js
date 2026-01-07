@@ -62,15 +62,45 @@ function parseAstroLabel(label) {
 }
 
 /**
+ * Format a date in the user's local timezone for display
+ * @param {Date} date - The date to format
+ * @param {string} timezone - IANA timezone string (e.g., 'America/New_York')
+ * @returns {string|null} Formatted local time or null if invalid
+ */
+function formatLocalTime(date, timezone) {
+  if (!timezone) return null;
+
+  try {
+    const formatter = new Intl.DateTimeFormat('en-US', {
+      timeZone: timezone,
+      hour: 'numeric',
+      minute: '2-digit',
+      timeZoneName: 'short'
+    });
+    return formatter.format(date);
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Fetch ephemeris context using Workers-compatible astronomy-engine
  * Pure JavaScript - no native addons, works in V8 isolates
+ *
+ * @param {string|null} timestamp - ISO timestamp or null for now
+ * @param {Object} options - Options including location
+ * @param {Object} options.location - Optional location { latitude, longitude, timezone }
  */
-export async function fetchEphemerisContext(timestamp = null, _options = {}) {
+export async function fetchEphemerisContext(timestamp = null, options = {}) {
+  const { location } = options;
+
   try {
     const date = timestamp ? new Date(timestamp) : new Date();
     const isoTimestamp = date.toISOString();
 
     // Use Workers-compatible ephemeris module (astronomy-engine)
+    // Note: Astronomical calculations are inherently in UTC;
+    // location affects timezone display and local interpretation
     const [positionsPayload, moonPhase, aspects, retrogrades] = await Promise.all([
       Promise.resolve(ephemerisWorkers.getCurrentPositions(isoTimestamp)),
       Promise.resolve(ephemerisWorkers.getMoonPhase(isoTimestamp)),
@@ -84,6 +114,19 @@ export async function fetchEphemerisContext(timestamp = null, _options = {}) {
       timestamp: positionsPayload.timestamp
     } : null;
 
+    // Build location context for prompt building
+    // Use explicit null/undefined checks - 0° lat/long are valid coordinates (equator/prime meridian)
+    const hasValidLocation = location?.latitude != null && location?.longitude != null;
+    const locationContext = hasValidLocation ? {
+      timezone: location.timezone || 'UTC',
+      localTimeDescription: formatLocalTime(date, location.timezone),
+      locationUsed: true
+    } : {
+      timezone: 'UTC',
+      localTimeDescription: null,
+      locationUsed: false
+    };
+
     return {
       timestamp: isoTimestamp,
       positions: planetPositions,
@@ -92,7 +135,8 @@ export async function fetchEphemerisContext(timestamp = null, _options = {}) {
       aspects,
       retrogrades,
       available: true,
-      source: 'astronomy-engine' // Indicates pure JS source
+      source: 'astronomy-engine', // Indicates pure JS source
+      locationContext
     };
   } catch (err) {
     console.warn('[ephemerisIntegration] Failed to fetch ephemeris data:', err.message);
@@ -103,7 +147,8 @@ export async function fetchEphemerisContext(timestamp = null, _options = {}) {
       aspects: null,
       retrogrades: null,
       available: false,
-      error: err.message
+      error: err.message,
+      locationContext: { timezone: 'UTC', localTimeDescription: null, locationUsed: false }
     };
   }
 }
@@ -256,7 +301,13 @@ export function buildAstrologicalWeatherSection(ephemerisContext) {
   }
 
   const lines = ['## CURRENT ASTROLOGICAL CONTEXT'];
-  const { moonPhase, retrogrades, aspects, positions } = ephemerisContext;
+  const { moonPhase, retrogrades, aspects, positions, locationContext } = ephemerisContext;
+
+  // Location-aware intro if user provided location
+  if (locationContext?.locationUsed && locationContext?.localTimeDescription) {
+    lines.push(`*Reading cast for your local time: ${locationContext.localTimeDescription}*`);
+    lines.push('');
+  }
 
   // Moon phase
   if (moonPhase) {

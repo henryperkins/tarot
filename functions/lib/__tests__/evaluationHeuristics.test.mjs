@@ -15,25 +15,95 @@ describe('getEvaluationTimeoutMs', () => {
 });
 
 describe('buildHeuristicScores', () => {
-    it('downgrades coherence for low coverage decision spread', () => {
-        const result = buildHeuristicScores({ cardCoverage: 0.4, hallucinatedCards: [] }, 'decision');
-        assert.equal(result.scores.tarot_coherence, 2);
-        assert.ok(result.scores.notes.includes('Decision spread'));
+    describe('conservative defaults for non-assessable dimensions', () => {
+        it('provides default score of 3 for personalization', () => {
+            const result = buildHeuristicScores({ cardCoverage: 0.8 }, 'general');
+            assert.equal(result.scores.personalization, 3);
+        });
+
+        it('provides default score of 3 for tone', () => {
+            const result = buildHeuristicScores({ cardCoverage: 0.8 }, 'general');
+            assert.equal(result.scores.tone, 3);
+        });
+
+        it('provides default score of 3 for safety', () => {
+            const result = buildHeuristicScores({ cardCoverage: 0.8 }, 'general');
+            assert.equal(result.scores.safety, 3);
+        });
+
+        it('sets overall based on tarot_coherence', () => {
+            const result = buildHeuristicScores({ cardCoverage: 0.95 }, 'general');
+            // High coverage = tarot_coherence 5, but overall capped at min(3, 5) = 3
+            assert.equal(result.scores.tarot_coherence, 5);
+            assert.equal(result.scores.overall, 3);
+        });
+
+        it('lowers overall when tarot_coherence is low', () => {
+            const result = buildHeuristicScores({ cardCoverage: 0.4 }, 'general');
+            // Low coverage = tarot_coherence 2, overall = min(3, 2) = 2
+            assert.equal(result.scores.tarot_coherence, 2);
+            assert.equal(result.scores.overall, 2);
+        });
     });
 
-    it('flags hallucinations as safety risks', () => {
-        const result = buildHeuristicScores({ cardCoverage: 0.8, hallucinatedCards: ['A', 'B', 'C'] }, 'general');
-        assert.equal(result.scores.safety_flag, true);
-        assert.ok(result.scores.notes.includes('hallucinated'));
+    describe('spread-specific adjustments', () => {
+        it('downgrades coherence for low coverage decision spread', () => {
+            const result = buildHeuristicScores({ cardCoverage: 0.4, hallucinatedCards: [] }, 'decision');
+            assert.equal(result.scores.tarot_coherence, 2);
+            assert.ok(result.scores.notes.includes('Decision spread'));
+        });
+
+        it('notes incomplete Celtic spine', () => {
+            const result = buildHeuristicScores({
+                cardCoverage: 0.8,
+                hallucinatedCards: [],
+                spine: { totalSections: 6, completeSections: 2 }
+            }, 'celtic');
+            assert.equal(result.scores.tarot_coherence, 2);
+            assert.ok(result.scores.notes.includes('Celtic Cross'));
+        });
+
+        it('downgrades relationship spread with low coverage', () => {
+            const result = buildHeuristicScores({ cardCoverage: 0.5, hallucinatedCards: [] }, 'relationship');
+            assert.equal(result.scores.tarot_coherence, 2);
+            assert.ok(result.scores.notes.includes('Relationship spread'));
+        });
     });
 
-    it('notes incomplete Celtic spine', () => {
-        const result = buildHeuristicScores({
-            cardCoverage: 0.8,
-            hallucinatedCards: [],
-            spine: { totalSections: 6, completeSections: 2 }
-        }, 'celtic');
-        assert.equal(result.scores.tarot_coherence, 2);
-        assert.ok(result.scores.notes.includes('Celtic Cross'));
+    describe('safety flag detection', () => {
+        it('flags hallucinations as safety risks', () => {
+            const result = buildHeuristicScores({ cardCoverage: 0.8, hallucinatedCards: ['A', 'B', 'C'] }, 'general');
+            assert.equal(result.scores.safety_flag, true);
+            assert.ok(result.scores.notes.includes('hallucinated'));
+        });
+
+        it('flags very low coverage as safety concern', () => {
+            const result = buildHeuristicScores({ cardCoverage: 0.2, hallucinatedCards: [] }, 'general');
+            assert.equal(result.scores.safety_flag, true);
+            assert.ok(result.scores.notes.includes('Very low card coverage'));
+        });
+
+        it('does not flag acceptable coverage', () => {
+            const result = buildHeuristicScores({ cardCoverage: 0.7, hallucinatedCards: [] }, 'general');
+            assert.equal(result.scores.safety_flag, false);
+        });
+    });
+
+    describe('mode and metadata', () => {
+        it('marks mode as heuristic', () => {
+            const result = buildHeuristicScores({ cardCoverage: 0.8 }, 'general');
+            assert.equal(result.mode, 'heuristic');
+        });
+
+        it('uses heuristic-fallback as model identifier', () => {
+            const result = buildHeuristicScores({ cardCoverage: 0.8 }, 'general');
+            assert.equal(result.model, 'heuristic-fallback');
+        });
+
+        it('includes timestamp', () => {
+            const result = buildHeuristicScores({ cardCoverage: 0.8 }, 'general');
+            assert.ok(result.timestamp);
+            assert.ok(new Date(result.timestamp).getTime() > 0);
+        });
     });
 });

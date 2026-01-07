@@ -267,11 +267,14 @@ function buildEphemerisClientPayload(ephemerisContext) {
   if (!ephemerisContext?.available) {
     return {
       available: false,
-      error: ephemerisContext?.error || null
+      error: ephemerisContext?.error || null,
+      locationUsed: false
     };
   }
 
   const moon = ephemerisContext.moonPhase || null;
+  const locationContext = ephemerisContext.locationContext || {};
+
   return {
     available: true,
     timestamp: ephemerisContext.timestamp || null,
@@ -283,7 +286,9 @@ function buildEphemerisClientPayload(ephemerisContext) {
       sign: moon.sign || null,
       isWaxing: typeof moon.isWaxing === 'boolean' ? moon.isWaxing : null,
       interpretation: moon.interpretation || null
-    } : null
+    } : null,
+    locationUsed: Boolean(locationContext.locationUsed),
+    timezone: locationContext.timezone || 'UTC'
   };
 }
 
@@ -637,9 +642,26 @@ export const onRequestPost = async ({ request, env, waitUntil }) => {
       reversalFrameworkOverride,
       visionProof,
       deckStyle: requestDeckStyle,
-      personalization
+      personalization,
+      location: rawLocation,
+      persistLocationToJournal: _persistLocationToJournal // Used by journal endpoint, not reading
     } = normalizedPayload;
     const deckStyle = requestDeckStyle || spreadInfo?.deckStyle || 'rws-1909';
+
+    // Sanitize location: validate ranges, strip excess fields, keep only needed data
+    let sanitizedLocation = null;
+    if (rawLocation?.latitude != null && rawLocation?.longitude != null) {
+      const lat = rawLocation.latitude;
+      const lon = rawLocation.longitude;
+      if (lat >= -90 && lat <= 90 && lon >= -180 && lon <= 180) {
+        sanitizedLocation = {
+          latitude: lat,
+          longitude: lon,
+          timezone: rawLocation.timezone || null,
+          source: rawLocation.source || 'browser'
+        };
+      }
+    }
 
     console.log(`[${requestId}] Payload parsed:`, {
       spreadName: spreadInfo?.name,
@@ -649,7 +671,9 @@ export const onRequestPost = async ({ request, env, waitUntil }) => {
       reversalOverride: reversalFrameworkOverride,
       deckStyle,
       hasVisionProof: !!visionProof,
-      hasPersonalization: Boolean(personalization)
+      hasPersonalization: Boolean(personalization),
+      hasLocation: Boolean(sanitizedLocation),
+      locationTimezone: sanitizedLocation?.timezone || null
     });
 
     const validationError = validatePayload(normalizedPayload);
@@ -769,7 +793,8 @@ export const onRequestPost = async ({ request, env, waitUntil }) => {
       reversalFrameworkOverride,
       deckStyle,
       userQuestion,
-      subscriptionTier
+      subscriptionTier,
+      location: sanitizedLocation
     }, requestId, env);
     const analysisTime = Date.now() - analysisStart;
     console.log(`[${requestId}] Spread analysis completed in ${analysisTime}ms:`, {
@@ -1548,7 +1573,7 @@ async function performSpreadAnalysis(spreadInfo, cardsInfo, options = {}, reques
 
   try {
     console.log(`[${requestId}] Fetching ephemeris context...`);
-    ephemerisContext = await fetchEphemerisContext();
+    ephemerisContext = await fetchEphemerisContext(null, { location: options.location });
 
     if (ephemerisContext?.available) {
       console.log(`[${requestId}] Ephemeris context available:`, getEphemerisSummary(ephemerisContext));

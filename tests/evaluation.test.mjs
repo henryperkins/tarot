@@ -212,6 +212,28 @@ describe('evaluation', () => {
       assert.ok(result.timestamp);
       assert.ok(new Date(result.timestamp).getTime() > 0);
     });
+
+    test('provides conservative defaults for non-assessable dimensions', () => {
+      const result = buildHeuristicScores({ cardCoverage: 0.8 });
+      assert.equal(result.scores.personalization, 3);
+      assert.equal(result.scores.tone, 3);
+      assert.equal(result.scores.safety, 3);
+    });
+
+    test('sets overall score based on minimum of default and tarot_coherence', () => {
+      // High coverage: overall = min(3, 5) = 3
+      const highResult = buildHeuristicScores({ cardCoverage: 0.95 });
+      assert.equal(highResult.scores.overall, 3);
+
+      // Low coverage: overall = min(3, 2) = 2
+      const lowResult = buildHeuristicScores({ cardCoverage: 0.4 });
+      assert.equal(lowResult.scores.overall, 2);
+    });
+
+    test('marks mode as heuristic', () => {
+      const result = buildHeuristicScores({ cardCoverage: 0.8 });
+      assert.equal(result.mode, 'heuristic');
+    });
   });
 
   describe('runEvaluation - timeout handling', () => {
@@ -857,7 +879,7 @@ describe('evaluation', () => {
   });
 
   describe('runSyncEvaluationGate', () => {
-    test('blocks when evaluation returns an error', async () => {
+    test('blocks when evaluation returns an error (fail closed)', async () => {
       const failingAI = {
         run: async () => ({ response: 'not json' })
       };
@@ -865,14 +887,34 @@ describe('evaluation', () => {
       const result = await runSyncEvaluationGate(
         { AI: failingAI, EVAL_ENABLED: 'true', EVAL_GATE_ENABLED: 'true' },
         { reading: 'test', userQuestion: 'test', cardsInfo: [], spreadKey: 'test', requestId: 'gate-error' },
-        { cardCoverage: 1.0 }
+        { cardCoverage: 1.0 }  // Good coverage = no safety flag
       );
 
+      // With good coverage, heuristic fallback still blocks due to eval failure
       assert.equal(result.passed, false);
-      assert.ok(result.gateResult.reason.includes('eval_error'));
+      assert.equal(result.evalResult.mode, 'heuristic');
+      assert.ok(result.evalResult.fallbackReason.includes('eval_error'));
+      assert.equal(result.gateResult.reason, 'eval_unavailable');
     });
 
-    test('blocks when evaluation scores are incomplete', async () => {
+    test('blocks with heuristic fallback when safety flag is triggered', async () => {
+      const failingAI = {
+        run: async () => ({ response: 'not json' })
+      };
+
+      const result = await runSyncEvaluationGate(
+        { AI: failingAI, EVAL_ENABLED: 'true', EVAL_GATE_ENABLED: 'true' },
+        { reading: 'test', userQuestion: 'test', cardsInfo: [], spreadKey: 'test', requestId: 'gate-safety' },
+        { cardCoverage: 0.2, hallucinatedCards: ['A', 'B', 'C'] }  // Triggers safety flag
+      );
+
+      // Heuristic fallback with safety issues should still block
+      assert.equal(result.passed, false);
+      assert.equal(result.evalResult.mode, 'heuristic');
+      assert.equal(result.gateResult.reason, 'safety_flag');
+    });
+
+    test('blocks when evaluation scores are incomplete (fail closed)', async () => {
       const missingFieldAI = {
         run: async () => ({
           response: JSON.stringify({
@@ -881,6 +923,7 @@ describe('evaluation', () => {
             tone: 4,
             overall: 4,
             safety_flag: false
+            // Missing 'safety' field
           })
         })
       };
@@ -888,11 +931,38 @@ describe('evaluation', () => {
       const result = await runSyncEvaluationGate(
         { AI: missingFieldAI, EVAL_ENABLED: 'true', EVAL_GATE_ENABLED: 'true' },
         { reading: 'test', userQuestion: 'test', cardsInfo: [], spreadKey: 'test', requestId: 'gate-missing' },
+        { cardCoverage: 0.9 }  // Good coverage
+      );
+
+      // Falls back to heuristic but still blocks due to incomplete scores
+      assert.equal(result.passed, false);
+      assert.equal(result.evalResult.mode, 'heuristic');
+      assert.ok(result.evalResult.fallbackReason.includes('incomplete_scores'));
+      assert.equal(result.gateResult.reason, 'eval_incomplete_scores');
+    });
+
+    test('blocks on low safety score from AI evaluation', async () => {
+      const unsafeAI = {
+        run: async () => ({
+          response: JSON.stringify({
+            personalization: 4,
+            tarot_coherence: 4,
+            tone: 4,
+            safety: 1,  // Very low safety
+            overall: 3,
+            safety_flag: false
+          })
+        })
+      };
+
+      const result = await runSyncEvaluationGate(
+        { AI: unsafeAI, EVAL_ENABLED: 'true', EVAL_GATE_ENABLED: 'true' },
+        { reading: 'test', userQuestion: 'test', cardsInfo: [], spreadKey: 'test', requestId: 'gate-unsafe' },
         { cardCoverage: 0.9 }
       );
 
       assert.equal(result.passed, false);
-      assert.ok(result.gateResult.reason.includes('incomplete_scores'));
+      assert.equal(result.gateResult.reason, 'safety_score_1');
     });
 
     test('generates a safe fallback reading with spread context', () => {

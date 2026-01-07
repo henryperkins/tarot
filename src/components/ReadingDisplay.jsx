@@ -3,7 +3,7 @@ import { AnimatePresence } from 'framer-motion';
 import { Sparkle, ArrowCounterClockwise, Star, CheckCircle, BookmarkSimple } from '@phosphor-icons/react';
 import { useNavigate } from 'react-router-dom';
 import { getSpreadInfo, normalizeSpreadKey } from '../data/spreads';
-import { ReadingGrid } from './ReadingGrid';
+import { ReadingBoard } from './ReadingBoard';
 import { StreamingNarrative } from './StreamingNarrative';
 import { HelperToggle } from './HelperToggle';
 import { Tooltip } from './Tooltip';
@@ -105,6 +105,13 @@ export function ReadingDisplay({ sectionRef }) {
     const setSelectedCardData = useCallback((value) => {
         setSelectionState({ key: readingIdentity, value });
     }, [readingIdentity]);
+    const [focusedCardData, setFocusedCardData] = useState(null);
+    const activeFocusedCardData = useMemo(() => {
+        if (!focusedCardData) return null;
+        if (focusedCardData.readingKey && focusedCardData.readingKey !== readingIdentity) return null;
+        if (!revealedCards.has(focusedCardData.index)) return null;
+        return focusedCardData;
+    }, [focusedCardData, readingIdentity, revealedCards]);
 
     const {
         voiceOn,
@@ -203,7 +210,14 @@ export function ReadingDisplay({ sectionRef }) {
     }, [setRevealedCards, setDealIndex]);
 
     const handleCardClick = useCallback((card, position, index) => {
-        setSelectedCardData({ card, position, index });
+        if (!revealedCards.has(index)) return;
+        const payload = { card, position, index, readingKey: readingIdentity };
+        setFocusedCardData(payload);
+    }, [readingIdentity, revealedCards]);
+
+    const handleOpenModalFromPanel = useCallback((cardData) => {
+        if (!cardData) return;
+        setSelectedCardData(cardData);
     }, [setSelectedCardData]);
 
     // Memoize next label computation to avoid IIFE in render
@@ -353,6 +367,8 @@ export function ReadingDisplay({ sectionRef }) {
                                 totalCards={reading.length}
                                 // Deal action
                                 onDeal={dealNext}
+                                // Minimap suit coloring (revealed cards)
+                                cards={reading}
                             />
                         ) : (
                             <DeckPile
@@ -364,14 +380,17 @@ export function ReadingDisplay({ sectionRef }) {
                         )
                     )}
 
-                    <ReadingGrid
-                        selectedSpread={selectedSpread}
+                    <ReadingBoard
+                        spreadKey={safeSpreadKey}
                         reading={reading}
                         revealedCards={revealedCards}
                         revealCard={revealCard}
+                        onCardClick={handleCardClick}
+                        focusedCardData={activeFocusedCardData}
+                        onCloseDetail={() => setFocusedCardData(null)}
                         reflections={reflections}
                         setReflections={setReflections}
-                        onCardClick={handleCardClick}
+                        onOpenModal={handleOpenModalFromPanel}
                     />
 
                     {!personalReading && !isGenerating && revealedCards.size === reading.length && (

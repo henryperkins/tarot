@@ -1,9 +1,10 @@
-import { useId } from 'react';
-import { Sun, Moon, Stack, ArrowCounterClockwise, Info } from '@phosphor-icons/react';
+import { useId, useCallback } from 'react';
+import { Sun, Moon, Stack, ArrowCounterClockwise, Info, MapPin } from '@phosphor-icons/react';
 import { Tooltip } from './Tooltip';
 import { GlowToggle } from './GlowToggle';
 import { HelperToggle } from './HelperToggle';
 import { usePreferences } from '../contexts/PreferencesContext';
+import { useLocation } from '../hooks/useLocation';
 
 /**
  * ExperienceSettings - Non-audio reading preferences
@@ -16,8 +17,30 @@ export function ExperienceSettings({ className = '' }) {
     includeMinors,
     setIncludeMinors,
     reversalFramework,
-    setReversalFramework
+    setReversalFramework,
+    locationEnabled,
+    setLocationEnabled,
+    setCachedLocation,
+    persistLocationToJournal,
+    setPersistLocationToJournal
   } = usePreferences();
+
+  const { requestLocation, status: locationStatus } = useLocation();
+
+  // Handle location toggle - request geolocation when enabling
+  const handleLocationToggle = useCallback(async (enabled) => {
+    if (enabled) {
+      const location = await requestLocation();
+      if (location) {
+        setCachedLocation(location);
+        setLocationEnabled(true);
+      }
+      // If location request fails, don't enable the toggle
+    } else {
+      setLocationEnabled(false);
+      setCachedLocation(null);
+    }
+  }, [requestLocation, setCachedLocation, setLocationEnabled]);
 
   const idPrefix = useId();
   const getId = suffix => `${idPrefix}-${suffix}`;
@@ -207,6 +230,88 @@ export function ExperienceSettings({ className = '' }) {
           </div>
         </HelperToggle>
       )}
+
+      {/* Location-aware timing */}
+      <div className="mt-3 pt-3 border-t border-secondary/20">
+        <div
+          className={`${tileBaseClass} ${locationEnabled ? activeTileClass : inactiveTileClass}`}
+        >
+          <span
+            className={`${iconWrapperBase} ${locationEnabled ? activeIconWrapper : inactiveIconWrapper}`}
+            aria-hidden="true"
+          >
+            <MapPin className="h-4 w-4" />
+          </span>
+
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-1.5">
+              <span id={getId('location-label')} className="text-sm font-semibold text-main">
+                Local timing
+              </span>
+              <Tooltip
+                content="Adjust moon phases and astrological context for your timezone"
+                position="top"
+                triggerClassName={infoButtonClass}
+                ariaLabel="About location-aware timing"
+              >
+                <Info className="h-3.5 w-3.5" />
+              </Tooltip>
+            </div>
+            <span className="text-[0.68rem] text-muted">
+              {locationStatus === 'requesting' ? 'Requesting location...' :
+               locationEnabled ? 'Astro timing adjusted for your timezone' :
+               'Use your location for local moon phases'}
+            </span>
+          </div>
+
+          <GlowToggle
+            checked={locationEnabled}
+            onChange={handleLocationToggle}
+            labelId={getId('location-label')}
+            describedBy={getId('location-description')}
+            disabled={locationStatus === 'requesting'}
+          />
+        </div>
+
+        <span id={getId('location-description')} className="sr-only">
+          Enable location-aware readings. Moon phases and astrological timing will be adjusted for your local timezone.
+        </span>
+
+        {/* Journal storage consent (only shown if location is enabled) */}
+        {locationEnabled && (
+          <div className={`${tileBaseClass} ${persistLocationToJournal ? activeTileClass : inactiveTileClass} mt-2 ml-4`}>
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-1.5">
+                <span id={getId('journal-location-label')} className="text-sm font-semibold text-main">
+                  Save with readings
+                </span>
+                <Tooltip
+                  content="Store your location with journal entries (optional)"
+                  position="top"
+                  triggerClassName={infoButtonClass}
+                  ariaLabel="About saving location with readings"
+                >
+                  <Info className="h-3.5 w-3.5" />
+                </Tooltip>
+              </div>
+              <span className="text-[0.68rem] text-muted">
+                {persistLocationToJournal ? 'Location saved with journal entries' : 'Location used but not stored'}
+              </span>
+            </div>
+
+            <GlowToggle
+              checked={persistLocationToJournal}
+              onChange={setPersistLocationToJournal}
+              labelId={getId('journal-location-label')}
+              describedBy={getId('journal-location-description')}
+            />
+          </div>
+        )}
+
+        <span id={getId('journal-location-description')} className="sr-only">
+          When enabled, your location will be stored with journal entries for future reference.
+        </span>
+      </div>
     </div>
   );
 }

@@ -113,7 +113,7 @@ function sanitizeMetricsPayload(metricsPayload = {}, mode = DEFAULT_METRICS_STOR
     return { ...metricsPayload };
   }
 
-  // Minimal: only retain routing identifiers + gate info
+  // Minimal: only retain routing identifiers + gate info (no location data)
   if (mode === 'minimal') {
     return {
       requestId: metricsPayload.requestId,
@@ -148,12 +148,25 @@ function sanitizeMetricsPayload(metricsPayload = {}, mode = DEFAULT_METRICS_STOR
     'experimentId'
   ];
 
-  return whitelistedKeys.reduce((acc, key) => {
+  const sanitized = whitelistedKeys.reduce((acc, key) => {
     if (Object.prototype.hasOwnProperty.call(metricsPayload, key)) {
       acc[key] = metricsPayload[key];
     }
     return acc;
   }, {});
+
+  // For 'redact' mode: preserve location metadata (timezone, locationUsed) but strip coordinates
+  // Coordinates are PII; timezone is analytics-safe
+  // Use explicit null/undefined checks - 0° lat/long are valid coordinates (equator/prime meridian)
+  if (metricsPayload.location) {
+    sanitized.location = {
+      locationUsed: metricsPayload.location.latitude != null && metricsPayload.location.longitude != null,
+      timezone: metricsPayload.location.timezone || null
+      // latitude/longitude deliberately excluded
+    };
+  }
+
+  return sanitized;
 }
 
 /**
@@ -720,41 +733,50 @@ export async function runSyncEvaluationGate(env, evalParams, narrativeMetrics = 
   // Try AI evaluation first
   const evalResult = await runEvaluation(env, evalParams);
 
-  const missingFields = findMissingScoreFields(evalResult?.scores);
   const hasEvalError = !evalResult || Boolean(evalResult.error);
+  const missingFields = hasEvalError ? [] : findMissingScoreFields(evalResult?.scores);
   const hasIncompleteScores = missingFields.length > 0;
 
+  // When AI evaluation fails or returns incomplete scores, use heuristic fallback
+  // for diagnostics, but fail closed unless the heuristic itself flags a block.
+  let effectiveEvalResult = evalResult;
+  let evalMode = 'model';
+  let gateResult = null;
+
   if (hasEvalError || hasIncompleteScores) {
-    const fallbackEval = hasEvalError ? buildHeuristicScores(narrativeMetrics, evalParams?.spreadKey) : evalResult;
-    const reason = hasEvalError
+    const fallbackEval = buildHeuristicScores(narrativeMetrics, evalParams?.spreadKey);
+    const fallbackReason = hasEvalError
       ? `eval_error_${(evalResult?.error || 'unavailable').replace(/\s+/g, '_')}`
       : `incomplete_scores_${missingFields.join('_')}`;
-    const latencyMs = Date.now() - startTime;
+    const blockReason = hasEvalError ? 'eval_unavailable' : 'eval_incomplete_scores';
 
-    const gateResult = { shouldBlock: true, reason };
+    console.log(`[${requestId}] [gate] AI evaluation unavailable (${fallbackReason}), using heuristic fallback`);
 
-    return {
-      passed: false,
-      evalResult: {
-        ...(fallbackEval || {}),
-        mode: hasEvalError ? 'error' : (fallbackEval?.mode || 'model'),
-        error: evalResult?.error || fallbackEval?.error || 'eval_unavailable'
-      },
-      gateResult,
-      latencyMs
+    effectiveEvalResult = {
+      ...fallbackEval,
+      mode: 'heuristic',
+      fallbackReason,
+      originalError: evalResult?.error || null
     };
-  }
+    evalMode = 'heuristic';
 
-  const gateResult = checkEvalGate(evalResult);
+    const heuristicGate = checkEvalGate(effectiveEvalResult);
+    gateResult = heuristicGate.shouldBlock
+      ? heuristicGate
+      : { shouldBlock: true, reason: blockReason };
+  } else {
+    // Run gate check on the effective result (AI or heuristic)
+    gateResult = checkEvalGate(effectiveEvalResult);
+  }
   const latencyMs = Date.now() - startTime;
 
   console.log(`[${requestId}] [gate] Evaluation completed in ${latencyMs}ms:`, {
-    mode: evalResult.mode || 'model',
+    mode: evalMode,
     passed: !gateResult.shouldBlock,
     reason: gateResult.reason,
-    safetyFlag: evalResult.scores?.safety_flag,
-    safetyScore: evalResult.scores?.safety,
-    toneScore: evalResult.scores?.tone
+    safetyFlag: effectiveEvalResult.scores?.safety_flag,
+    safetyScore: effectiveEvalResult.scores?.safety,
+    toneScore: effectiveEvalResult.scores?.tone
   });
 
   if (gateResult.shouldBlock) {
@@ -763,7 +785,7 @@ export async function runSyncEvaluationGate(env, evalParams, narrativeMetrics = 
 
   return {
     passed: !gateResult.shouldBlock,
-    evalResult,
+    evalResult: effectiveEvalResult,
     gateResult,
     latencyMs
   };
@@ -812,20 +834,29 @@ The cards before you hold meaning that unfolds through your own reflection. Cons
 
 /**
  * Build heuristic fallback scores when AI evaluation fails.
- * Note: Heuristic mode only populates tarot_coherence and safety_flag based on
- * card coverage and hallucination detection. Other dimensions (personalization,
- * tone, safety, overall) remain null because they require semantic understanding.
+ *
+ * Heuristic mode provides conservative defaults for all dimensions:
+ * - tarot_coherence: Derived from card coverage (the only dimension we can assess)
+ * - safety_flag: Set based on hallucinations and very low coverage
+ * - Other dimensions: Set to 3 (neutral) as we cannot assess them without AI
+ *
+ * This provides a conservative fallback when AI evaluation is unavailable,
+ * supporting telemetry and structural checks without assuming content safety.
  *
  * @param {Object} narrativeMetrics - Existing quality metrics
+ * @param {string} spreadKey - Spread type for spread-specific adjustments
  * @returns {Object} Heuristic scores with mode='heuristic' marker
  */
 export function buildHeuristicScores(narrativeMetrics = {}, spreadKey = null) {
+  // Conservative defaults: 3 = neutral/acceptable for dimensions we can't assess
+  // This keeps defaults neutral when AI is unavailable while still surfacing
+  // structural issues through tarot_coherence and safety_flag
   const scores = {
-    personalization: null,  // Requires semantic understanding of question
-    tarot_coherence: null,  // Will be set from card coverage
-    tone: null,             // Requires semantic analysis
-    safety: null,           // Requires semantic analysis
-    overall: null,          // Requires semantic analysis
+    personalization: 3,     // Cannot assess without AI; assume acceptable
+    tarot_coherence: null,  // Will be set from card coverage below
+    tone: 3,                // Cannot assess without AI; assume acceptable
+    safety: 3,              // Cannot assess without AI; assume acceptable
+    overall: 3,             // Will be adjusted based on tarot_coherence
     safety_flag: false,
     notes: 'Heuristic fallback - AI evaluation unavailable'
   };
@@ -877,6 +908,15 @@ export function buildHeuristicScores(narrativeMetrics = {}, spreadKey = null) {
     scores.tarot_coherence = Math.min(scores.tarot_coherence || 3, 2);
     notes.push('Decision spread paths not both covered');
   }
+
+  // Ensure tarot_coherence has a value (default to 3 if not set from coverage)
+  if (scores.tarot_coherence === null) {
+    scores.tarot_coherence = 3;
+  }
+
+  // Set overall based on tarot_coherence (the only dimension we can assess)
+  // If tarot_coherence is low, overall should reflect that
+  scores.overall = Math.min(scores.overall, scores.tarot_coherence);
 
   if (notes.length === 0) {
     notes.push('Heuristic fallback - AI evaluation unavailable');

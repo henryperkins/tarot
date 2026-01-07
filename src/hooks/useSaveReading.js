@@ -18,7 +18,14 @@ export function useSaveReading() {
         readingMeta
     } = useReading();
 
-    const { deckStyleId, personalization, incrementJournalSaveCount } = usePreferences();
+    const {
+        deckStyleId,
+        personalization,
+        incrementJournalSaveCount,
+        cachedLocation,
+        persistLocationToJournal,
+        locationEnabled
+    } = usePreferences();
     const { saveEntry } = useJournal({ autoLoad: false });
 
     // Prevent double-saves from rapid clicks or network retries
@@ -89,7 +96,18 @@ export function useSaveReading() {
                 preferredSpreadDepth: personalization.preferredSpreadDepth || 'standard',
                 // Store displayName only if set (avoid null/empty)
                 ...(personalization.displayName?.trim() ? { displayName: personalization.displayName.trim() } : {})
-            } : null
+            } : null,
+            // Location data (only included if enabled and consent given)
+            // Use explicit null/undefined checks - 0° lat/long are valid coordinates
+            ...(locationEnabled && persistLocationToJournal &&
+                cachedLocation?.latitude != null && cachedLocation?.longitude != null ? {
+                location: {
+                    latitude: cachedLocation.latitude,
+                    longitude: cachedLocation.longitude,
+                    timezone: cachedLocation.timezone || null
+                },
+                persistLocationConsent: true
+            } : {})
         };
         setIsSaving(true);
         try {
@@ -120,7 +138,8 @@ export function useSaveReading() {
     }, [
         isSaving, sessionSeed, reading, personalReading, selectedSpread,
         userQuestion, themes, reflections, analysisContext, readingMeta,
-        deckStyleId, personalization, saveEntry, setJournalStatus, incrementJournalSaveCount
+        deckStyleId, personalization, saveEntry, setJournalStatus, incrementJournalSaveCount,
+        locationEnabled, cachedLocation, persistLocationToJournal
     ]);
 
     return { saveReading, isSaving };

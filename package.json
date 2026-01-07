@@ -15,6 +15,8 @@
     "preview": "vite preview",
     "preview:worker": "npm run build && wrangler dev --config wrangler.jsonc",
     "preview:workers": "npm run build && wrangler dev --config wrangler.jsonc --local",
+    "chrome:debug": "node scripts/chrome-debug.mjs",
+    "chrome:debug:headed": "node scripts/chrome-debug.mjs --headed",
     "deploy": "node scripts/deploy.js",
     "deploy:dry-run": "node scripts/deploy.js --dry-run",
     "deploy:migrations-only": "node scripts/deploy.js --migrations-only",

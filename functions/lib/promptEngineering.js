@@ -55,6 +55,8 @@ const PII_PATTERNS = [
   { pattern: /https?:\/\/[^\s]+/gi, replacement: '[URL]' },
   // IP addresses
   { pattern: /\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b/g, replacement: '[IP]' },
+  // Geographic coordinates (high-precision decimals like 40.7128 or -74.0060)
+  { pattern: /\b-?\d{1,3}\.\d{4,}\b/g, replacement: '[COORD]' },
 ];
 
 /**
