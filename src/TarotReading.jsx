@@ -13,6 +13,7 @@ import { QuickIntentionCard } from './components/QuickIntentionCard';
 import { Header } from './components/Header';
 import { OnboardingWizard } from './components/onboarding';
 import { PersonalizationBanner } from './components/PersonalizationBanner';
+import { GestureCoachOverlay } from './components/GestureCoachOverlay';
 import { useNavigate, useLocation } from 'react-router-dom';
 import './styles/tarot.css';
 
@@ -56,7 +57,10 @@ export default function TarotReading() {
     setOnboardingComplete,
     setOnboardingSpreadKey,
     showPersonalizationBanner,
-    setShowPersonalizationBanner
+    setShowPersonalizationBanner,
+    // Gesture coach
+    shouldShowGestureCoach,
+    markGestureCoachSeen
   } = usePreferences();
 
   // Accessibility: reduced motion preference
@@ -130,6 +134,7 @@ export default function TarotReading() {
   const [highlightQuickIntention, setHighlightQuickIntention] = useState(false);
   const [keyboardOffset, setKeyboardOffset] = useState(0);
   const [onboardingDeferred, setOnboardingDeferred] = useState(false);
+  const [gestureCoachOpen, setGestureCoachOpen] = useState(false);
   const isOnboardingOpen = !onboardingComplete && !showPersonalizationBanner && !onboardingDeferred;
   // Only true overlays (modals/drawers) should hide the action bar - not the small personalization banner
   const isMobileOverlayActive = isIntentionCoachOpen || isMobileSettingsOpen || isOnboardingOpen;
@@ -317,6 +322,18 @@ export default function TarotReading() {
   useEffect(() => {
     setShowAllHighlights(false);
   }, [selectedSpread, reading, setShowAllHighlights]);
+
+  // Show gesture coach for first-time users after spread is confirmed
+  useEffect(() => {
+    if (shouldShowGestureCoach && hasConfirmedSpread && !reading && !isOnboardingOpen) {
+      setGestureCoachOpen(true);
+    }
+  }, [shouldShowGestureCoach, hasConfirmedSpread, reading, isOnboardingOpen]);
+
+  const handleGestureCoachDismiss = useCallback(() => {
+    setGestureCoachOpen(false);
+    markGestureCoachSeen();
+  }, [markGestureCoachSeen]);
 
   // --- Handlers ---
 
@@ -922,6 +939,12 @@ export default function TarotReading() {
         onSelectSpread={handleOnboardingSpreadSelect}
         initialSpread={selectedSpread}
         initialQuestion={userQuestion}
+      />
+
+      {/* Gesture coach for first-time ritual education */}
+      <GestureCoachOverlay
+        isOpen={gestureCoachOpen}
+        onDismiss={handleGestureCoachDismiss}
       />
     </div>
   );

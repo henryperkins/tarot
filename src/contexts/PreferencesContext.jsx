@@ -29,6 +29,7 @@ const DEFAULT_PREPARE_SECTIONS = {
 const DEFAULT_NUDGE_STATE = {
   hasSeenRitualNudge: false,
   hasSeenJournalNudge: false,
+  hasSeenGestureCoach: false,
   hasDismissedAccountNudge: false,
   readingCount: 0,
   journalSaveCount: 0,
@@ -405,6 +406,10 @@ export function PreferencesProvider({ children }) {
     setNudgeStateInternal(prev => ({ ...prev, hasSeenJournalNudge: true }));
   };
 
+  const markGestureCoachSeen = () => {
+    setNudgeStateInternal(prev => ({ ...prev, hasSeenGestureCoach: true }));
+  };
+
   const dismissAccountNudge = () => {
     setNudgeStateInternal(prev => ({ ...prev, hasDismissedAccountNudge: true }));
   };
@@ -436,6 +441,8 @@ export function PreferencesProvider({ children }) {
   // readingCount increments on completion, so first completion => readingCount === 1.
   const shouldShowJournalNudge = nudgeState.readingCount === 1 && !nudgeState.hasSeenJournalNudge;
   const shouldShowAccountNudge = nudgeState.journalSaveCount >= 3 && !nudgeState.hasDismissedAccountNudge;
+  // Gesture coach is shown on first reading attempt (before any readings completed)
+  const shouldShowGestureCoach = nudgeState.readingCount === 0 && !nudgeState.hasSeenGestureCoach;
 
   // --- Location Preferences ---
   // locationEnabled: session-level toggle for location-aware readings (not persisted)
@@ -515,8 +522,10 @@ export function PreferencesProvider({ children }) {
     shouldShowRitualNudge,
     shouldShowJournalNudge,
     shouldShowAccountNudge,
+    shouldShowGestureCoach,
     markRitualNudgeSeen,
     markJournalNudgeSeen,
+    markGestureCoachSeen,
     dismissAccountNudge,
     incrementReadingCount,
     incrementJournalSaveCount,

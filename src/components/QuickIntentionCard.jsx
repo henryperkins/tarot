@@ -104,7 +104,7 @@ export const QuickIntentionCard = forwardRef(function QuickIntentionCard({
         <button
           type="button"
           onClick={onDeckChange}
-          className="text-[12px] font-semibold text-secondary underline underline-offset-4"
+          className="min-h-[44px] min-w-[44px] px-3 py-2 text-[12px] font-semibold text-secondary underline underline-offset-4 rounded-lg hover:bg-secondary/10 active:bg-secondary/20 transition touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
         >
           Change
         </button>
