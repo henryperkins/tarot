@@ -129,7 +129,8 @@ export default function TarotReading() {
   const [mobileSettingsTab, setMobileSettingsTab] = useState('intention');
   const [highlightQuickIntention, setHighlightQuickIntention] = useState(false);
   const [keyboardOffset, setKeyboardOffset] = useState(0);
-  const isOnboardingOpen = !onboardingComplete && !showPersonalizationBanner;
+  const [onboardingDeferred, setOnboardingDeferred] = useState(false);
+  const isOnboardingOpen = !onboardingComplete && !showPersonalizationBanner && !onboardingDeferred;
   // Only true overlays (modals/drawers) should hide the action bar - not the small personalization banner
   const isMobileOverlayActive = isIntentionCoachOpen || isMobileSettingsOpen || isOnboardingOpen;
 
@@ -494,12 +495,18 @@ export default function TarotReading() {
     }
     setShowPersonalizationBanner(false);
     setOnboardingComplete(false);
-  }, [setShowPersonalizationBanner, setOnboardingComplete]);
+    setOnboardingDeferred(false);
+  }, [setShowPersonalizationBanner, setOnboardingComplete, setOnboardingDeferred]);
 
   // --- Onboarding Handler ---
 
   const handleOnboardingComplete = useCallback((selections) => {
-    setOnboardingComplete(true);
+    if (selections?.resumeLater) {
+      setOnboardingDeferred(true);
+    } else {
+      setOnboardingComplete(true);
+      setOnboardingDeferred(false);
+    }
     if (selections?.selectedSpread) {
       setOnboardingSpreadKey(selections.selectedSpread);
       selectSpread(selections.selectedSpread);
@@ -507,7 +514,7 @@ export default function TarotReading() {
     if (selections?.question) {
       setUserQuestion(selections.question);
     }
-  }, [selectSpread, setOnboardingComplete, setOnboardingSpreadKey, setUserQuestion]);
+  }, [selectSpread, setOnboardingComplete, setOnboardingDeferred, setOnboardingSpreadKey, setUserQuestion]);
 
   const handleOnboardingSpreadSelect = useCallback((spreadKey) => {
     setOnboardingSpreadKey(spreadKey);
@@ -910,7 +917,7 @@ export default function TarotReading() {
 
       {/* Onboarding wizard for first-time visitors */}
       <OnboardingWizard
-        isOpen={!onboardingComplete && !showPersonalizationBanner}
+        isOpen={isOnboardingOpen}
         onComplete={handleOnboardingComplete}
         onSelectSpread={handleOnboardingSpreadSelect}
         initialSpread={selectedSpread}

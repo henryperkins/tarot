@@ -225,22 +225,31 @@ export function SpreadSelector({
   const [activeIndex, setActiveIndex] = useState(0);
   const [showLeftFade, setShowLeftFade] = useState(false);
   const [showRightFade, setShowRightFade] = useState(true);
+  const [swipeHintDismissed, setSwipeHintDismissed] = useState(false);
   const [lockedSpreadKey, setLockedSpreadKey] = useState(null);
   const prefersReducedMotion = useReducedMotion();
   const isLandscape = useLandscape();
-  const _isSmallScreen = useSmallScreen();
+  const isSmallScreen = useSmallScreen();
   const { personalization } = usePreferences();
   const { subscription } = useSubscription();
   const canUseSpread = subscription?.canUseSpread ?? (() => true);
   const recommendedSpread = getSpreadFromDepth(personalization?.preferredSpreadDepth);
   const isExperienced = personalization?.tarotExperience === 'experienced';
+  const shouldDeferConfirm = Boolean(onSpreadConfirm) && isSmallScreen;
 
   // In landscape: smaller cards to fit more on screen
   const cardBasisClass = isLandscape
     ? 'basis-[55%] xs:basis-[45%]'
     : 'basis-[82%] xs:basis-[70%]';
 
-  const isCompactCopy = _isSmallScreen && !isLandscape;
+  const isCompactCopy = isSmallScreen && !isLandscape;
+
+  // Derive swipe hint visibility from screen size and dismissal state
+  const showSwipeHint = isSmallScreen && !isLandscape && !swipeHintDismissed;
+
+  const hideSwipeHint = useCallback(() => {
+    setSwipeHintDismissed(true);
+  }, []);
 
   // Update edge fade visibility based on scroll position
   const updateEdgeFades = useCallback((el) => {
@@ -262,10 +271,10 @@ export function SpreadSelector({
     if (!el || spreadKeys.length <= 1) return undefined;
 
     const handleScroll = () => {
+      hideSwipeHint();
       const cards = Array.from(el.children);
       if (cards.length === 0) return;
 
-      // Find the card whose center is closest to the viewport center
       const viewportCenter = el.scrollLeft + el.clientWidth / 2;
       let closestIndex = 0;
       let closestDistance = Infinity;
@@ -283,10 +292,11 @@ export function SpreadSelector({
       updateEdgeFades(el);
     };
 
+    // Initialize on mount
     handleScroll();
     el.addEventListener('scroll', handleScroll, { passive: true });
     return () => el.removeEventListener('scroll', handleScroll);
-  }, [spreadKeys.length, updateEdgeFades]);
+  }, [hideSwipeHint, spreadKeys.length, updateEdgeFades]);
 
   const scrollToIndex = (index) => {
     const clamped = Math.min(spreadKeys.length - 1, Math.max(0, index));
@@ -304,6 +314,7 @@ export function SpreadSelector({
         left: Math.max(0, scrollTarget),
         behavior: prefersReducedMotion ? 'auto' : 'smooth'
       });
+      updateEdgeFades(el);
     }
   };
 
@@ -321,7 +332,7 @@ export function SpreadSelector({
     if (onSelectSpread) {
       onSelectSpread(key);
     }
-    if (onSpreadConfirm) {
+    if (onSpreadConfirm && !shouldDeferConfirm) {
       onSpreadConfirm(key);
     }
   };
@@ -386,6 +397,21 @@ export function SpreadSelector({
     </div>
   );
 
+  const handleArrowNav = direction => {
+    const nextIndex = direction === 'next' ? activeIndex + 1 : activeIndex - 1;
+    scrollToIndex(nextIndex);
+    hideSwipeHint();
+  };
+
+  const handleConfirmSelection = () => {
+    if (!selectedSpread || !onSpreadConfirm) return;
+    if (!canUseSpread(selectedSpread)) {
+      setLockedSpreadKey(selectedSpread);
+      return;
+    }
+    onSpreadConfirm(selectedSpread);
+  };
+
   return (
     <section className="panel-mystic spread-selector-panel animate-fade-in mb-6 sm:mb-8">
       <div className="relative z-10 space-y-5">
@@ -403,6 +429,38 @@ export function SpreadSelector({
             <span>Guided layouts</span>
           </div>
         </header>
+
+        {isSmallScreen && (
+          <div className="flex items-center justify-between gap-3 rounded-xl border border-secondary/20 bg-surface/70 px-3 py-2.5 text-xs text-muted sm:hidden">
+            <div className="flex items-center gap-2">
+              <CaretRight
+                className="w-4 h-4 text-accent"
+                weight="fill"
+                aria-hidden="true"
+              />
+              <span className="font-medium text-main">Swipe to explore spreads</span>
+              <span className="text-muted">or use arrows</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                onClick={() => handleArrowNav('prev')}
+                className="min-w-[44px] min-h-[44px] rounded-full border border-secondary/40 bg-surface/80 text-main hover:border-secondary/60 transition touch-manipulation flex items-center justify-center"
+                aria-label="Previous spread"
+              >
+                <CaretRight className="w-4 h-4 rotate-180" weight="bold" />
+              </button>
+              <button
+                type="button"
+                onClick={() => handleArrowNav('next')}
+                className="min-w-[44px] min-h-[44px] rounded-full border border-secondary/40 bg-surface/80 text-main hover:border-secondary/60 transition touch-manipulation flex items-center justify-center"
+                aria-label="Next spread"
+              >
+                <CaretRight className="w-4 h-4" weight="bold" />
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Carousel wrapper with edge fade indicators */}
         <div className="relative">
@@ -435,10 +493,35 @@ export function SpreadSelector({
             aria-hidden="true"
           >
             <CaretRight
-              className="w-5 h-5 text-accent/70 animate-pulse drop-shadow-md"
+              className={`w-5 h-5 text-accent/70 drop-shadow-md ${showSwipeHint ? 'animate-pulse' : ''}`}
               weight="bold"
             />
           </div>
+
+          {isSmallScreen && (
+            <>
+              <div className="absolute inset-y-2 left-0 z-20 flex items-center pl-2 sm:hidden pointer-events-none">
+                <button
+                  type="button"
+                  onClick={() => handleArrowNav('prev')}
+                  className="pointer-events-auto min-w-[44px] min-h-[44px] rounded-full bg-main/80 border border-secondary/40 text-main shadow-lg shadow-main/40 hover:border-secondary/60 transition touch-manipulation"
+                  aria-label="Previous spread"
+                >
+                  <CaretRight className="w-5 h-5 rotate-180 mx-auto" weight="bold" />
+                </button>
+              </div>
+              <div className="absolute inset-y-2 right-0 z-20 flex items-center pr-2 sm:hidden pointer-events-none">
+                <button
+                  type="button"
+                  onClick={() => handleArrowNav('next')}
+                  className="pointer-events-auto min-w-[44px] min-h-[44px] rounded-full bg-main/80 border border-secondary/40 text-main shadow-lg shadow-main/40 hover:border-secondary/60 transition touch-manipulation"
+                  aria-label="Next spread"
+                >
+                  <CaretRight className="w-5 h-5 mx-auto" weight="bold" />
+                </button>
+              </div>
+            </>
+          )}
 
           <div
             ref={carouselRef}
@@ -501,12 +584,12 @@ export function SpreadSelector({
                         boxShadow: '0 12px 28px -20px rgba(0,0,0,0.7)'
                       }}
                     >
-                      <Sparkle className="h-3.5 w-3.5" weight="fill" aria-hidden="true" />
-                      <span>Selected</span>
-                    </div>
-                  </>
-                )}
-                {/* Lock indicator for premium-only spreads */}
+                    <Sparkle className="h-3.5 w-3.5" weight="fill" aria-hidden="true" />
+                    <span>Selected</span>
+                  </div>
+                </>
+              )}
+              {/* Lock indicator for premium-only spreads */}
                 {!isActive && !canUseSpread(key) && (
                   <div className="absolute top-3 right-3 z-20">
                     <div
@@ -531,6 +614,12 @@ export function SpreadSelector({
                 <div className="spread-card__body">
                   <div className="spread-card__title font-serif font-semibold text-accent text-base leading-tight flex flex-wrap items-center gap-2">
                     <span className="spread-card__title-text">{spread.name}</span>
+                    {!canUseSpread(key) && (
+                      <span className="inline-flex items-center gap-1 rounded-full border border-amber-300/40 bg-amber-500/10 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-amber-200">
+                        <Lock className="w-3 h-3" weight="fill" aria-hidden="true" />
+                        Requires Plus
+                      </span>
+                    )}
                     {key === recommendedSpread && (
                       <span className="text-xs uppercase tracking-[0.16em] text-amber-200 bg-amber-500/15 border border-amber-300/40 px-2 py-0.5 rounded-full">
                         Recommended
@@ -577,6 +666,27 @@ export function SpreadSelector({
             variant="compact"
           />
         </div>
+
+        {shouldDeferConfirm && (
+          <div className="sm:hidden flex items-center justify-between gap-3 rounded-xl border border-secondary/25 bg-surface/70 px-3 py-3">
+            <div className="text-xs-plus text-muted">
+              <div className="font-semibold text-main">Selected spread</div>
+              <div>{SPREADS[selectedSpread]?.name || 'None selected'}</div>
+            </div>
+            <button
+              type="button"
+              onClick={handleConfirmSelection}
+              disabled={!selectedSpread || !canUseSpread(selectedSpread)}
+              className={`min-w-[132px] min-h-[44px] rounded-lg px-3 py-2 text-sm font-semibold transition touch-manipulation ${
+                !selectedSpread || !canUseSpread(selectedSpread)
+                  ? 'bg-secondary/20 text-muted cursor-not-allowed'
+                  : 'bg-gradient-to-r from-accent/80 to-primary/80 text-main shadow-lg shadow-primary/40 hover:from-accent hover:to-primary'
+              }`}
+            >
+              Use this spread
+            </button>
+          </div>
+        )}
 
       </div>
 

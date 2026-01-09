@@ -738,6 +738,15 @@ function buildSystemPrompt(spreadKey, themes, context, deckStyle, _userQuestion 
     lines.push(`- Tone emphasis: Lean ${variantOverrides.toneEmphasis} while staying grounded and compassionate.`);
   }
 
+  lines.push(
+    '',
+    'SPECIFICITY',
+    '- Prioritize specificity over generality. Anchor every paragraph to at least one concrete detail from the spread (card name/position/orientation, imagery hook, elemental cue, visual profile, or querent reflection).',
+    '- If a line could fit most readings, rewrite it to name the card/position and how it touches the user\'s question or focus areas.',
+    '- Use the question as the throughline; explicitly reference it in the Opening and Synthesis when provided.',
+    '- Advice must be specific: include 2-4 actionable, low-stakes steps tied to the question or focus areas; avoid generic affirmations.'
+  );
+
   const includeDeckContext = options.includeDeckContext !== false;
 
   lines.push(
@@ -1123,6 +1132,9 @@ function buildUserPrompt(
   prompt += `\nPlease now write the reading following the system prompt guidelines. Ensure you:
 - Do not introduce any card names beyond the provided spread; treat Fool’s Journey references as stage context only.
 - Reference each card by name at least once
+- Tie each card's insight to its position and at least one concrete anchor (imagery, element, visual profile, or reflection)
+- Use the question and focus areas as the throughline; avoid generic platitudes
+- Offer 2-4 specific, low-stakes next steps linked to the question or focus areas
 - Close with a trajectory reminder (choices shape outcomes)
 - Apply the reversal lens consistently throughout`;
 

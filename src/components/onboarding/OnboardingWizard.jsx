@@ -4,6 +4,7 @@ import { X } from '@phosphor-icons/react';
 import { useModalA11y, createBackdropHandler } from '../../hooks/useModalA11y';
 import { useReducedMotion } from '../../hooks/useReducedMotion';
 import { useLandscape } from '../../hooks/useLandscape';
+import { useSmallScreen } from '../../hooks/useSmallScreen';
 import { useSwipeNavigation } from '../../hooks/useSwipeNavigation';
 // Control variant components (7 steps)
 import { WelcomeHero } from './WelcomeHero';
@@ -16,6 +17,7 @@ import { JourneyBegin } from './JourneyBegin';
 // Trimmed variant components (4 steps)
 import { WelcomeStep, SpreadStep, IntentionStep, BeginStep } from './trimmed';
 import { OnboardingProgress } from './OnboardingProgress';
+import { ConfirmModal } from '../ConfirmModal';
 // A/B test utilities
 import { getOnboardingVariant, getStepLabels, getTotalSteps } from '../../lib/onboardingVariant';
 import { startOnboardingTimer } from '../../lib/onboardingMetrics';
@@ -42,6 +44,7 @@ export function OnboardingWizard({ isOpen, onComplete, onSelectSpread, initialSp
   const [currentStep, setCurrentStep] = useState(1);
   const [selectedSpread, setSelectedSpread] = useState(initialSpread || 'single');
   const [question, setQuestion] = useState(initialQuestion || '');
+  const [exitIntent, setExitIntent] = useState(null);
 
   // Track previous isOpen to detect open transitions
   const [prevIsOpen, setPrevIsOpen] = useState(isOpen);
@@ -76,16 +79,35 @@ export function OnboardingWizard({ isOpen, onComplete, onSelectSpread, initialSp
   // for syncing state with prop changes. See: https://react.dev/learn/you-might-not-need-an-effect
   // Note: Ref mutations must NOT happen here - they are handled in useEffect above.
   if (isOpen && !prevIsOpen) {
+    let nextStep = 1;
+    let nextSpread = initialSpread || 'single';
+    let nextQuestion = initialQuestion || '';
+
+    if (typeof window !== 'undefined') {
+      try {
+        const saved = localStorage.getItem('tableau-onboarding-progress');
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          nextStep = Math.min(getTotalSteps(variant), Math.max(1, parsed.step || 1));
+          nextSpread = parsed.selectedSpread || nextSpread;
+          nextQuestion = parsed.question ?? nextQuestion;
+        }
+      } catch (error) {
+        console.debug('Unable to load onboarding progress', error);
+      }
+    }
+
     setPrevIsOpen(true);
-    setCurrentStep(1);
-    setSelectedSpread(initialSpread || 'single');
-    setQuestion(initialQuestion || '');
+    setCurrentStep(nextStep);
+    setSelectedSpread(nextSpread);
+    setQuestion(nextQuestion);
   } else if (!isOpen && prevIsOpen) {
     setPrevIsOpen(false);
   }
 
   const prefersReducedMotion = useReducedMotion();
   const isLandscape = useLandscape();
+  const isSmallScreen = useSmallScreen();
 
   const modalRef = useRef(null);
   const closeButtonRef = useRef(null);
@@ -96,11 +118,26 @@ export function OnboardingWizard({ isOpen, onComplete, onSelectSpread, initialSp
   // more robust handling for complex modals with dynamic step content, where focusable elements
   // change between steps. This matches the pattern used in GuidedIntentionCoach and ConfirmModal.
   useModalA11y(isOpen, {
-    onClose: () => handleSkip(),
+    onClose: () => handleSkipRequest(),
     containerRef: modalRef,
     trapFocus: false, // Disabled - FocusTrap library handles focus trapping
     initialFocusRef: closeButtonRef,
   });
+
+  useEffect(() => {
+    if (!isOpen) {
+      setExitIntent(null);
+    }
+  }, [isOpen]);
+
+  const clearSavedProgress = useCallback(() => {
+    if (typeof localStorage === 'undefined') return;
+    try {
+      localStorage.removeItem('tableau-onboarding-progress');
+    } catch (error) {
+      console.debug('Unable to clear onboarding progress', error);
+    }
+  }, []);
 
   const handleNext = useCallback(() => {
     if (currentStep < totalSteps) {
@@ -118,11 +155,68 @@ export function OnboardingWizard({ isOpen, onComplete, onSelectSpread, initialSp
 
   const handleSkip = useCallback(() => {
     // Record metrics as skipped
-    metricsTimerRef.current?.complete({ skipped: true });
+    metricsTimerRef.current?.complete({ skipped: true, reason: 'skip' });
     metricsTimerRef.current = null;
+    clearSavedProgress();
     // Mark onboarding as complete and close, passing any selections made so far
     onComplete?.({ selectedSpread, question });
-  }, [onComplete, selectedSpread, question]);
+  }, [clearSavedProgress, onComplete, selectedSpread, question]);
+
+  const handleResumeLater = useCallback(() => {
+    metricsTimerRef.current?.complete({ skipped: true, reason: 'resume-later' });
+    metricsTimerRef.current = null;
+
+    if (typeof localStorage !== 'undefined') {
+      try {
+        localStorage.setItem('tableau-onboarding-progress', JSON.stringify({
+          step: currentStep,
+          selectedSpread,
+          question,
+          variant
+        }));
+      } catch (error) {
+        console.debug('Unable to persist onboarding progress', error);
+      }
+    }
+
+    onComplete?.({
+      selectedSpread,
+      question,
+      resumeLater: true,
+      step: currentStep
+    });
+  }, [currentStep, onComplete, question, selectedSpread, variant]);
+
+  const handleSkipRequest = useCallback(() => {
+    if (isSmallScreen) {
+      setExitIntent('skip');
+      return;
+    }
+    handleSkip();
+  }, [handleSkip, isSmallScreen]);
+
+  const handleResumeRequest = useCallback(() => {
+    setExitIntent('resume');
+  }, []);
+
+  useEffect(() => {
+    if (!isOpen || !isSmallScreen || typeof window === 'undefined' || !window.history?.pushState) {
+      return undefined;
+    }
+
+    const guardState = { onboardingGuard: true, ts: Date.now() };
+    window.history.pushState(guardState, document.title);
+
+    const handlePopState = () => {
+      setExitIntent(intent => intent || 'resume');
+      window.history.pushState(guardState, document.title);
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => {
+      window.removeEventListener('popstate', handlePopState);
+    };
+  }, [isOpen, isSmallScreen]);
 
   const handleSpreadSelect = useCallback((spreadKey) => {
     setSelectedSpread(spreadKey);
@@ -135,11 +229,12 @@ export function OnboardingWizard({ isOpen, onComplete, onSelectSpread, initialSp
 
   const handleSkipRitual = useCallback(() => {
     // Record metrics as skipped (user skipped from ritual step)
-    metricsTimerRef.current?.complete({ skipped: true });
+    metricsTimerRef.current?.complete({ skipped: true, reason: 'skip-ritual' });
     metricsTimerRef.current = null;
+    clearSavedProgress();
     // Complete onboarding immediately - user wants to start reading now
     onComplete?.({ selectedSpread, question });
-  }, [onComplete, selectedSpread, question]);
+  }, [clearSavedProgress, onComplete, selectedSpread, question]);
 
   const handleBegin = useCallback(() => {
     // Record successful completion metrics
@@ -153,8 +248,9 @@ export function OnboardingWizard({ isOpen, onComplete, onSelectSpread, initialSp
       });
     }
     // Complete onboarding and pass selections to parent
+    clearSavedProgress();
     onComplete?.({ selectedSpread, question });
-  }, [onComplete, selectedSpread, question, variant]);
+  }, [clearSavedProgress, onComplete, selectedSpread, question, variant]);
 
   const handleStepSelect = useCallback((step) => {
     // Allow navigation to previously visited steps only
@@ -163,6 +259,19 @@ export function OnboardingWizard({ isOpen, onComplete, onSelectSpread, initialSp
       setCurrentStep(step);
     }
   }, [currentStep]);
+
+  const handleExitConfirm = useCallback(() => {
+    if (exitIntent === 'resume') {
+      handleResumeLater();
+    } else {
+      handleSkip();
+    }
+    setExitIntent(null);
+  }, [exitIntent, handleResumeLater, handleSkip]);
+
+  const handleExitCancel = useCallback(() => {
+    setExitIntent(null);
+  }, []);
 
   // Swipe navigation between steps (mobile gesture support)
   const swipeHandlers = useSwipeNavigation({
@@ -194,7 +303,7 @@ export function OnboardingWizard({ isOpen, onComplete, onSelectSpread, initialSp
         return (
           <WelcomeHero
             onNext={handleNext}
-            onSkip={handleSkip}
+            onSkip={handleSkipRequest}
           />
         );
       case 2:
@@ -292,96 +401,141 @@ export function OnboardingWizard({ isOpen, onComplete, onSelectSpread, initialSp
   // Select render function based on variant
   const renderStep = variant === 'trimmed' ? renderTrimmedStep : renderControlStep;
 
+  const exitTitle = exitIntent === 'resume' ? 'Save and resume later?' : 'Skip onboarding?';
+  const exitMessage = exitIntent === 'resume'
+    ? 'We will remember your current step, spread, and question so you can pick up where you left off.'
+    : `You are on step ${currentStep} of ${totalSteps}. You can restart onboarding anytime from settings.`;
+  const exitConfirmText = exitIntent === 'resume' ? 'Save & close' : 'Skip now';
+
   return (
-    <div
-      className={`fixed inset-0 z-[100] flex items-stretch sm:items-center justify-center bg-main/95 backdrop-blur-sm px-safe-left px-safe-right py-safe-top pb-safe-bottom ${
-        prefersReducedMotion ? '' : 'animate-fade-in'
-      }`}
-      // eslint-disable-next-line react-hooks/refs -- handleSkip only reads ref when invoked (event handler), not during render
-      onClick={createBackdropHandler(handleSkip)}
-    >
-      <FocusTrap
-        active={isOpen}
-        focusTrapOptions={{
-          initialFocus: () => closeButtonRef.current,
-          escapeDeactivates: false,
-          clickOutsideDeactivates: false,
-          returnFocusOnDeactivate: false,
-          allowOutsideClick: true,
-        }}
+    <>
+      <div
+        className={`fixed inset-0 z-[100] flex items-stretch sm:items-center justify-center bg-main/95 backdrop-blur-sm px-safe-left px-safe-right py-safe-top pb-safe-bottom ${
+          prefersReducedMotion ? '' : 'animate-fade-in'
+        }`}
+        // eslint-disable-next-line react-hooks/refs -- handleSkipRequest only reads ref when invoked (event handler), not during render
+        onClick={isSmallScreen ? undefined : createBackdropHandler(handleSkipRequest)}
       >
-        <div
-          ref={modalRef}
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby={titleId}
-          className={`relative w-full h-full onboarding-modal overflow-hidden bg-main flex flex-col ${
-            prefersReducedMotion ? '' : 'animate-pop-in'
-          }`}
-          onClick={(e) => e.stopPropagation()}
+        <FocusTrap
+          active={isOpen}
+          focusTrapOptions={{
+            initialFocus: () => closeButtonRef.current,
+            escapeDeactivates: false,
+            clickOutsideDeactivates: false,
+            returnFocusOnDeactivate: false,
+            allowOutsideClick: !isSmallScreen,
+          }}
         >
-          {/* Mystical background gradient */}
           <div
-            className="absolute inset-0 pointer-events-none"
-            style={{
-              background: `
-                radial-gradient(ellipse at 20% 0%, rgba(244, 207, 150, 0.08) 0%, transparent 50%),
-                radial-gradient(ellipse at 80% 100%, rgba(169, 146, 255, 0.06) 0%, transparent 50%),
-                radial-gradient(ellipse at 50% 50%, rgba(240, 143, 177, 0.04) 0%, transparent 60%)
-              `,
-            }}
-            aria-hidden="true"
-          />
-
-          {/* Header with close button and progress */}
-          <header
-            className={`sticky top-0 z-30 pt-safe-top bg-main/95 backdrop-blur supports-[backdrop-filter]:backdrop-blur-lg border-b border-secondary/10 shadow-lg shadow-main/40 ${
-              isLandscape ? 'py-1.5' : 'py-3 xs:py-4'
+            ref={modalRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby={titleId}
+            className={`relative w-full h-full onboarding-modal overflow-hidden bg-main flex flex-col ${
+              prefersReducedMotion ? '' : 'animate-pop-in'
             }`}
+            onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex flex-wrap items-center gap-2 xs:gap-3 px-2 xxs:px-3 sm:px-6 pl-safe-left pr-safe-right">
-              <h1 id={titleId} className="sr-only">
-                Welcome to Tableu
-              </h1>
-              <button
-                ref={closeButtonRef}
-                type="button"
-                onClick={handleSkip}
-                className="order-1 sm:order-2 self-start sm:self-center ml-auto sm:ml-0 flex items-center justify-center min-w-[44px] min-h-[44px] rounded-full text-muted hover:text-main hover:bg-surface/50 transition touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-main"
-                aria-label="Skip onboarding"
-              >
-                <X className="w-5 h-5" weight="bold" />
-              </button>
-              <div className="order-2 sm:order-1 flex-1 min-w-0 w-full sm:w-auto">
-                <OnboardingProgress
-                  currentStep={currentStep}
-                  totalSteps={totalSteps}
-                  stepLabels={stepLabels}
-                  onStepSelect={handleStepSelect}
-                  allowNavigation={true}
-                />
-              </div>
-            </div>
-          </header>
+            {/* Mystical background gradient */}
+            <div
+              className="absolute inset-0 pointer-events-none"
+              style={{
+                background: `
+                  radial-gradient(ellipse at 20% 0%, rgba(244, 207, 150, 0.08) 0%, transparent 50%),
+                  radial-gradient(ellipse at 80% 100%, rgba(169, 146, 255, 0.06) 0%, transparent 50%),
+                  radial-gradient(ellipse at 50% 50%, rgba(240, 143, 177, 0.04) 0%, transparent 60%)
+                `,
+              }}
+              aria-hidden="true"
+            />
 
-          {/* Main content area - scrollable with swipe navigation */}
-          <main
-            className="relative z-10 flex-1 overflow-y-auto overflow-x-hidden scroll-smooth pt-safe-top pb-safe-bottom pl-safe-left pr-safe-right onboarding-modal__scroll"
-            style={{
-              scrollPaddingTop: 'calc(4.5rem + env(safe-area-inset-top, 0.75rem))',
-              scrollPaddingBottom: 'calc(2rem + env(safe-area-inset-bottom, 1rem))',
-              scrollbarGutter: 'stable both-edges',
-              overscrollBehavior: 'contain',
-              WebkitOverflowScrolling: 'touch'
-            }}
-            {...swipeHandlers}
-          >
-            <div className={`w-full max-w-3xl mx-auto min-h-full ${isLandscape ? 'px-2 xxs:px-3 py-2 sm:px-4' : 'px-3 xxs:px-4 md:px-6 py-4 xs:py-5 md:py-8'}`}>
-              {renderStep()}
-            </div>
-          </main>
-        </div>
-      </FocusTrap>
-    </div>
+            {/* Header with close button and progress */}
+            <header
+              className={`sticky top-0 z-30 pt-safe-top bg-main/95 backdrop-blur supports-[backdrop-filter]:backdrop-blur-lg border-b border-secondary/10 shadow-lg shadow-main/40 ${
+                isLandscape ? 'py-1.5' : 'py-3 xs:py-4'
+              }`}
+            >
+              <div className="flex flex-wrap items-center gap-2 xs:gap-3 px-2 xxs:px-3 sm:px-6 pl-safe-left pr-safe-right">
+                <h1 id={titleId} className="sr-only">
+                  Welcome to Tableu
+                </h1>
+                <button
+                  ref={closeButtonRef}
+                  type="button"
+                  onClick={handleSkipRequest}
+                  className="order-1 sm:order-2 self-start sm:self-center ml-auto sm:ml-0 flex items-center justify-center min-w-[44px] min-h-[44px] rounded-full text-muted hover:text-main hover:bg-surface/50 transition touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-main"
+                  aria-label="Skip onboarding"
+                >
+                  <X className="w-5 h-5" weight="bold" />
+                </button>
+                <div className="order-2 sm:order-1 flex-1 min-w-0 w-full sm:w-auto">
+                  <OnboardingProgress
+                    currentStep={currentStep}
+                    totalSteps={totalSteps}
+                    stepLabels={stepLabels}
+                    onStepSelect={handleStepSelect}
+                    allowNavigation={true}
+                  />
+                </div>
+              </div>
+            </header>
+
+            {isSmallScreen && (
+              <div className="z-20 flex flex-wrap items-center gap-2 px-3 xxs:px-4 sm:px-6 py-2 bg-surface/80 border-b border-secondary/15">
+                <div className="flex items-center gap-2">
+                  <span className="rounded-full border border-secondary/40 bg-main/60 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-main">
+                    Step {currentStep} of {totalSteps}
+                  </span>
+                  <span className="text-[11px] text-muted">Progress auto-saves</span>
+                </div>
+                <div className="flex items-center gap-2 ml-auto flex-wrap">
+                  <button
+                    type="button"
+                    onClick={handleSkipRequest}
+                    className="min-h-[44px] rounded-full border border-secondary/30 px-3 text-xs-plus font-semibold text-muted hover:text-main hover:border-secondary/50 transition touch-manipulation"
+                  >
+                    Skip for now
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleResumeRequest}
+                    className="min-h-[44px] rounded-full bg-gradient-to-r from-accent/80 to-primary/80 px-3 text-xs-plus font-semibold text-main shadow-md shadow-primary/30 hover:from-accent hover:to-primary transition touch-manipulation"
+                  >
+                    Save & resume later
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Main content area - scrollable with swipe navigation */}
+            <main
+              className="relative z-10 flex-1 overflow-y-auto overflow-x-hidden scroll-smooth pt-safe-top pb-safe-bottom pl-safe-left pr-safe-right onboarding-modal__scroll"
+              style={{
+                scrollPaddingTop: 'calc(4.5rem + env(safe-area-inset-top, 0.75rem))',
+                scrollPaddingBottom: 'calc(2rem + env(safe-area-inset-bottom, 1rem))',
+                scrollbarGutter: 'stable both-edges',
+                overscrollBehavior: 'contain',
+                WebkitOverflowScrolling: 'touch'
+              }}
+              {...swipeHandlers}
+            >
+              <div className={`w-full max-w-3xl mx-auto min-h-full ${isLandscape ? 'px-2 xxs:px-3 py-2 sm:px-4' : 'px-3 xxs:px-4 md:px-6 py-4 xs:py-5 md:py-8'}`}>
+                {renderStep()}
+              </div>
+            </main>
+          </div>
+        </FocusTrap>
+      </div>
+
+      <ConfirmModal
+        isOpen={Boolean(exitIntent)}
+        onClose={handleExitCancel}
+        onConfirm={handleExitConfirm}
+        title={exitTitle}
+        message={exitMessage}
+        confirmText={exitConfirmText}
+        cancelText="Stay here"
+      />
+    </>
   );
 }

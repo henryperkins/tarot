@@ -66,6 +66,7 @@ export function normalizeAnalyticsShape(rawData) {
       totalReadings: rawData.stats?.totalReadings || rawData.totalReadings || rawData.totalReadingsThisMonth || 0,
       thisMonth: rawData.stats?.thisMonth || rawData.totalReadingsThisMonth || 0,
       avgPerWeek: rawData.stats?.avgPerWeek || 0,
+      currentStreak: rawData.stats?.currentStreak ?? rawData.currentStreak ?? 0,
       entriesProcessed: rawData.stats?.entriesProcessed ?? rawData.entriesProcessed ?? null,
       lastAnalyzedAt: rawData.stats?.lastAnalyzedAt ?? rawData.stats?.lastRunAt ?? rawData.lastAnalyzedAt ?? rawData.lastRunAt ?? null,
       needsBackfill: rawData.stats?.needsBackfill ?? rawData.needsBackfill ?? null,
@@ -104,4 +105,3 @@ export function normalizeAnalyticsShape(rawData) {
     totalReadingsThisMonth: rawData.totalReadingsThisMonth || 0
   };
 }
-

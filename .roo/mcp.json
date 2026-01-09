@@ -1,0 +1,15 @@
+{
+  "mcpServers": {
+    "puppeteer": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-puppeteer"
+      ]
+    },
+    "microsoft-learn": {
+      "type": "streamable-http",
+      "url": "https://learn.microsoft.com/api/mcp"
+    }
+  }
+}

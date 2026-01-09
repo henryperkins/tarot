@@ -240,7 +240,7 @@ async function checkAndAwardBadges(db, userId, yearMonth) {
 
   // Get current month's card counts
   const cardsQuery = await db.prepare(`
-    SELECT card_name, count
+    SELECT card_name, count, last_seen
     FROM card_appearances
     WHERE user_id = ? AND year_month = ?
   `).bind(userId, yearMonth).all();
@@ -258,10 +258,15 @@ async function checkAndAwardBadges(db, userId, yearMonth) {
         context: `${card.card_name} appeared ${card.count} times in ${yearMonth}`
       });
 
+      const lastSeen = typeof card.last_seen === 'number'
+        ? card.last_seen
+        : Number(card.last_seen || 0);
+      const earnedAt = Number.isFinite(lastSeen) && lastSeen > 0 ? lastSeen : now;
+
       await db.prepare(`
         INSERT INTO archetype_badges (user_id, badge_type, badge_key, card_name, earned_at, metadata_json)
         VALUES (?, 'streak', ?, ?, ?, ?)
-      `).bind(userId, badgeKey, card.card_name, now, metadata).run();
+      `).bind(userId, badgeKey, card.card_name, earnedAt, metadata).run();
 
       awarded++;
     }

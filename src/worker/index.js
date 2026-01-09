@@ -25,6 +25,7 @@ import * as shareNotes from '../../functions/api/share-notes/[token].js';
 import * as visionProof from '../../functions/api/vision-proof.js';
 import * as archetypeJourney from '../../functions/api/archetype-journey.js';
 import * as archetypeJourneyBackfill from '../../functions/api/archetype-journey-backfill.js';
+import * as archetypeJourneyCardFrequency from '../../functions/api/archetype-journey/card-frequency.js';
 import * as coachExtractionBackfill from '../../functions/api/coach-extraction-backfill.js';
 import * as createCheckoutSession from '../../functions/api/create-checkout-session.js';
 import * as createPortalSession from '../../functions/api/create-portal-session.js';
@@ -196,6 +197,7 @@ const routes = [
   { pattern: /^\/api\/share\/([^/]+)$/, handlers: shareToken, params: ['token'] },
   { pattern: /^\/api\/share-notes\/([^/]+)$/, handlers: shareNotes, params: ['token'] },
   { pattern: /^\/api\/vision-proof$/, handlers: visionProof },
+  { pattern: /^\/api\/archetype-journey\/card-frequency$/, handlers: archetypeJourneyCardFrequency },
   { pattern: /^\/api\/archetype-journey$/, handlers: archetypeJourney },
   { pattern: /^\/api\/archetype-journey\/(.*)$/, handlers: archetypeJourney, params: ['path'] },
   { pattern: /^\/api\/archetype-journey-backfill$/, handlers: archetypeJourneyBackfill },

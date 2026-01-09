@@ -141,6 +141,7 @@ export function ReadingDisplay({ sectionRef }) {
     const { visionResearch: visionResearchEnabled, newDeckInterface } = useFeatureFlags();
     const isCompactScreen = useSmallScreen(768);
     const isLandscape = useLandscape();
+    const isHandset = isCompactScreen || isLandscape;
     const prefersReducedMotion = useReducedMotion();
     const safeSpreadKey = normalizeSpreadKey(selectedSpread);
     const spreadInfo = getSpreadInfo(safeSpreadKey);
@@ -395,12 +396,9 @@ export function ReadingDisplay({ sectionRef }) {
 
                     {!personalReading && !isGenerating && revealedCards.size === reading.length && (
                         <div className="text-center space-y-3">
-                            {isCompactScreen ? (
+                            {isHandset ? (
                                 <div className="space-y-2">
-                                    <button onClick={generatePersonalReading} className="bg-accent hover:bg-accent/90 text-surface font-semibold px-5 sm:px-8 py-3 sm:py-4 rounded-xl shadow-xl shadow-accent/20 transition-all flex items-center gap-2 sm:gap-3 mx-auto text-sm sm:text-base md:text-lg">
-                                        <Sparkle className="w-4 h-4 sm:w-5 sm:h-5" />
-                                        <span>Create Personal Narrative</span>
-                                    </button>
+                                    <p className="text-xs text-muted">Use the action bar below to create your narrative.</p>
                                     <MobileInfoSection title="How we style your narrative">
                                         <p className="text-sm text-muted leading-snug">{narrativeStyleTooltip}</p>
                                     </MobileInfoSection>
@@ -439,18 +437,24 @@ export function ReadingDisplay({ sectionRef }) {
                                             <CheckCircle className="w-5 h-5 text-primary flex-shrink-0" weight="fill" />
                                             <div>
                                                 <p className="text-sm font-semibold text-main">Your narrative is ready</p>
-                                                <p className="text-xs text-muted">Save to your journal. Use controls below for narration.</p>
+                                                <p className="text-xs text-muted">
+                                                    {isHandset
+                                                        ? 'Use the action bar below to save or start a new reading.'
+                                                        : 'Save to your journal. Use controls below for narration.'}
+                                                </p>
                                             </div>
                                         </div>
-                                        <button
-                                            type="button"
-                                            onClick={saveReading}
-                                            disabled={isSaving}
-                                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-accent/20 border border-accent/40 text-accent text-xs font-semibold hover:bg-accent/30 transition touch-manipulation disabled:opacity-50 disabled:cursor-not-allowed"
-                                        >
-                                            <BookmarkSimple className="w-3.5 h-3.5" weight="fill" />
-                                            <span>{isSaving ? 'Saving...' : 'Save to Journal'}</span>
-                                        </button>
+                                        {!isHandset && (
+                                            <button
+                                                type="button"
+                                                onClick={saveReading}
+                                                disabled={isSaving}
+                                                className="inline-flex min-h-[44px] items-center gap-1.5 px-3 py-1.5 rounded-full bg-accent/20 border border-accent/40 text-accent text-xs font-semibold hover:bg-accent/30 transition touch-manipulation disabled:opacity-50 disabled:cursor-not-allowed"
+                                            >
+                                                <BookmarkSimple className="w-3.5 h-3.5" weight="fill" />
+                                                <span>{isSaving ? 'Saving...' : 'Save to Journal'}</span>
+                                            </button>
+                                        )}
                                     </div>
                                 </div>
                             )}

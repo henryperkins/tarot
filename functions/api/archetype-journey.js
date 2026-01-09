@@ -10,6 +10,72 @@
 
 import { getUserFromRequest } from '../lib/auth.js';
 import { trackPatterns } from '../lib/patternTracking.js';
+import { enforceApiCallLimit } from '../lib/apiUsage.js';
+
+function toMillis(value) {
+  if (typeof value === 'number') {
+    return value < 1e12 ? value * 1000 : value;
+  }
+  if (typeof value === 'string' && /^\d+$/.test(value)) {
+    const numeric = Number(value);
+    return Number.isFinite(numeric) ? (numeric < 1e12 ? numeric * 1000 : numeric) : null;
+  }
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date.getTime();
+}
+
+function formatDateKey(tsMillis) {
+  if (!tsMillis) return null;
+  const date = new Date(tsMillis);
+  if (Number.isNaN(date.getTime())) return null;
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
+async function computeCurrentStreak(db, userId) {
+  // Limit rows to keep the query cheap while covering a year of history.
+  const readingsQuery = await db.prepare(`
+    SELECT created_at
+    FROM journal_entries
+    WHERE user_id = ?
+    ORDER BY created_at DESC
+    LIMIT 400
+  `).bind(userId).all();
+
+  const results = readingsQuery.results || [];
+  if (!results.length) return 0;
+
+  const readingDates = new Set();
+  for (const row of results) {
+    const millis = toMillis(row.created_at);
+    const key = formatDateKey(millis);
+    if (key) readingDates.add(key);
+  }
+
+  if (readingDates.size === 0) return 0;
+
+  let streak = 0;
+  const today = new Date();
+
+  for (let i = 0; i < 365; i++) {
+    const checkDate = new Date(today);
+    checkDate.setDate(checkDate.getDate() - i);
+    const key = formatDateKey(checkDate.getTime());
+
+    if (readingDates.has(key)) {
+      streak += 1;
+    } else if (i === 0) {
+      // Grace period for “no reading yet today”
+      continue;
+    } else {
+      break;
+    }
+  }
+
+  return streak;
+}
 
 function buildCorsHeaders(request) {
   const origin = request.headers.get('Origin');
@@ -40,6 +106,7 @@ export async function onRequest(context) {
   const { request, env } = context;
   const url = new URL(request.url);
   const method = request.method;
+  const isCardFrequency = url.pathname === '/api/archetype-journey/card-frequency';
 
   // CORS headers (credential-friendly)
   const corsHeaders = buildCorsHeaders(request);
@@ -59,10 +126,20 @@ export async function onRequest(context) {
     }
 
     if (user.auth_provider === 'api_key') {
-      return new Response(JSON.stringify({ error: 'Session authentication required' }), {
-        status: 401,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      });
+      // Only allow API key access for card frequency; enforce plan/usage limits.
+      if (!isCardFrequency) {
+        return new Response(JSON.stringify({ error: 'Session authentication required' }), {
+          status: 401,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      }
+      const apiLimit = await enforceApiCallLimit(env, user);
+      if (!apiLimit.allowed) {
+        return new Response(JSON.stringify(apiLimit.payload), {
+          status: apiLimit.status,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      }
     }
 
     // Check user preferences
@@ -322,6 +399,13 @@ async function handleGetAnalytics(db, userId, corsHeaders) {
     console.warn('Failed to compute archetype analytics stats:', err?.message || err);
   }
 
+  let currentStreak = 0;
+  try {
+    currentStreak = await computeCurrentStreak(db, userId);
+  } catch (err) {
+    console.warn('Failed to compute current streak:', err?.message || err);
+  }
+
   return new Response(JSON.stringify({
     success: true,
     analytics: {
@@ -333,7 +417,10 @@ async function handleGetAnalytics(db, userId, corsHeaders) {
       trends,
       majorArcanaFrequency: majorArcanaFreq,
       totalReadingsThisMonth: allCards.reduce((sum, card) => sum + card.count, 0),
-      stats
+      stats: {
+        ...stats,
+        currentStreak
+      }
     }
   }), {
     status: 200,

@@ -14,13 +14,22 @@
  * - PATCH: Bug fixes, minor tweaks
  */
 
-export const READING_PROMPT_VERSION = '1.0.0';
+export const READING_PROMPT_VERSION = '1.1.0';
 
 /**
  * Version history for documentation and debugging.
  * Add entry when incrementing version.
  */
 export const VERSION_HISTORY = [
+  {
+    version: '1.1.0',
+    date: '2026-01-07',
+    notes: 'Tighten prompt specificity to reduce generic readings.',
+    changes: [
+      'Added specificity guardrails in system prompt guidance.',
+      'Reinforced user prompt instructions to anchor advice in question and card details.',
+    ],
+  },
   {
     version: '1.0.0',
     date: '2026-01-06',

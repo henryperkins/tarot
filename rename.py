@@ -47,11 +47,14 @@ def should_ignore(path, ignore_patterns):
             return True
     return False
 
-def rename_and_modify_files_to_md(directory, recursive=False, dry_run=False, log_callback=None):
+def rename_and_modify_files_to_md(directory, recursive=False, dry_run=False, log_callback=None, no_gitignore=False, exclude_patterns=None):
     """
     Renames all supported files in the specified directory to .md
     and wraps their contents in Markdown code fences, while respecting .gitignore.
     """
+    if exclude_patterns is None:
+        exclude_patterns = []
+
     if not os.path.isdir(directory):
         msg = f"Error: The path '{directory}' is not a valid directory."
         if log_callback:
@@ -60,8 +63,15 @@ def rename_and_modify_files_to_md(directory, recursive=False, dry_run=False, log
             print(msg)
         return
 
-    gitignore_path = os.path.join(directory, '.gitignore')
-    ignore_patterns = parse_gitignore(gitignore_path)
+    # Get gitignore patterns unless --no-gitignore is set
+    if no_gitignore:
+        ignore_patterns = []
+    else:
+        gitignore_path = os.path.join(directory, '.gitignore')
+        ignore_patterns = parse_gitignore(gitignore_path)
+
+    # Add user-provided exclude patterns
+    ignore_patterns.extend(exclude_patterns)
 
     if recursive:
         walker = os.walk(directory)
@@ -177,11 +187,33 @@ def clone_github_repo(repo_url, destination, log_callback=None):
             print(msg)
         return False
 
-def create_directory_copy(original_dir, output_dir=None, log_callback=None):
+def create_ignore_function(exclude_patterns, gitignore_patterns):
+    """
+    Creates an ignore function for shutil.copytree that filters out excluded patterns.
+    """
+    all_patterns = list(exclude_patterns) + list(gitignore_patterns)
+
+    def ignore_func(directory, contents):
+        ignored = set()
+        for item in contents:
+            item_path = os.path.join(directory, item)
+            for pattern in all_patterns:
+                if fnmatch.fnmatch(item, pattern) or fnmatch.fnmatch(item_path, pattern):
+                    ignored.add(item)
+                    break
+        return ignored
+
+    return ignore_func
+
+def create_directory_copy(original_dir, output_dir=None, log_callback=None, exclude_patterns=None, no_gitignore=False):
     """
     Creates a copy of the specified directory. If output_dir is provided, copies to that location.
     Otherwise, appends '_renamed' to the original directory name.
+    Excludes files/directories matching exclude_patterns and .gitignore rules.
     """
+    if exclude_patterns is None:
+        exclude_patterns = []
+
     if output_dir:
         copy_dir = os.path.abspath(output_dir)
     else:
@@ -197,8 +229,17 @@ def create_directory_copy(original_dir, output_dir=None, log_callback=None):
             print(msg)
         shutil.rmtree(copy_dir)
 
+    # Get gitignore patterns if applicable
+    if no_gitignore:
+        gitignore_patterns = []
+    else:
+        gitignore_path = os.path.join(original_dir, '.gitignore')
+        gitignore_patterns = parse_gitignore(gitignore_path)
+
+    ignore_func = create_ignore_function(exclude_patterns, gitignore_patterns)
+
     try:
-        shutil.copytree(original_dir, copy_dir)
+        shutil.copytree(original_dir, copy_dir, ignore=ignore_func)
         msg = f"Created a copy of '{original_dir}' at '{copy_dir}'."
         if log_callback:
             log_callback(msg)
@@ -213,10 +254,13 @@ def create_directory_copy(original_dir, output_dir=None, log_callback=None):
             print(msg)
         return None
 
-def process_input(input_path_or_url, is_url, output_dir=None, log_callback=None):
+def process_input(input_path_or_url, is_url, output_dir=None, log_callback=None, exclude_patterns=None, no_gitignore=False):
     """
     Processes the input, cloning if it's a GitHub URL or using the local directory.
     """
+    if exclude_patterns is None:
+        exclude_patterns = []
+
     if is_url:
         temp_dir = tempfile.mkdtemp()
         success = clone_github_repo(input_path_or_url, temp_dir, log_callback)
@@ -233,7 +277,7 @@ def process_input(input_path_or_url, is_url, output_dir=None, log_callback=None)
                 print(msg)
             return None
 
-    copied_dir = create_directory_copy(original_dir, output_dir, log_callback)
+    copied_dir = create_directory_copy(original_dir, output_dir, log_callback, exclude_patterns, no_gitignore)
     return copied_dir
 
 def run_cli(args):
@@ -252,7 +296,12 @@ def run_cli(args):
 
     output_dir = args.output
 
-    directory_to_process = process_input(input_path_or_url, is_url, output_dir, log_callback=print)
+    directory_to_process = process_input(
+        input_path_or_url, is_url, output_dir,
+        log_callback=print,
+        exclude_patterns=args.exclude,
+        no_gitignore=args.no_gitignore
+    )
     if directory_to_process is None:
         print("Processing aborted due to errors.")
         sys.exit(1)
@@ -261,7 +310,9 @@ def run_cli(args):
         directory=directory_to_process,
         recursive=args.recursive,
         dry_run=args.dry_run,
-        log_callback=print
+        log_callback=print,
+        no_gitignore=args.no_gitignore,
+        exclude_patterns=args.exclude
     )
 
 def build_supported_extensions_description():
@@ -278,6 +329,10 @@ def main():
                         help="Recursively rename supported files in subdirectories")
     parser.add_argument("--dry-run", action="store_true",
                         help="Show what would be renamed and modified without making any changes")
+    parser.add_argument("--no-gitignore", action="store_true",
+                        help="Ignore .gitignore rules and process all files")
+    parser.add_argument("--exclude", action="append", default=[],
+                        help="Pattern to exclude (can be used multiple times, supports globs like *.png)")
 
     args = parser.parse_args()
 

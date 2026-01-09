@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import { computeMonthlyTotals } from '../shared/journal/trends.js';
+import { normalizeAnalyticsShape } from '../src/lib/archetypeJourney.js';
 
 /**
  * Tests for archetype journey utilities.
@@ -177,5 +178,31 @@ describe('Edge cases for analytics trends', () => {
     assert.strictEqual(result.length, 1);
     assert.strictEqual(result[0].total, 14); // 5 + 3 + 2 + 4
     assert.strictEqual(result[0].majorCount, 8); // 5 + 3 (only Fool and Magician)
+  });
+});
+
+describe('normalizeAnalyticsShape current streak propagation', () => {
+  it('preserves currentStreak from stats', () => {
+    const normalized = normalizeAnalyticsShape({
+      currentMonth: '2024-12',
+      topCards: [],
+      streaks: [],
+      badges: [],
+      trends: [],
+      majorArcanaFrequency: {},
+      stats: { currentStreak: 5 }
+    });
+
+    assert.strictEqual(normalized.stats.currentStreak, 5);
+    assert.strictEqual(normalized.currentStreak || undefined, undefined);
+  });
+
+  it('defaults currentStreak to 0 when missing', () => {
+    const normalized = normalizeAnalyticsShape({
+      currentMonth: '2024-12',
+      stats: {}
+    });
+
+    assert.strictEqual(normalized.stats.currentStreak, 0);
   });
 });

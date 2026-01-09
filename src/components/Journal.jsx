@@ -1631,16 +1631,31 @@ export default function Journal() {
         </main>
 
         {hasEntries && hasScrolled && historyFiltersEl && !historyFiltersInView && (
-          <button
-            type="button"
-            onClick={scrollToHistoryFilters}
-            className="fixed z-40 right-4 sm:right-6 inline-flex min-h-[44px] items-center gap-2 rounded-full border border-amber-300/25 bg-[#0b0c1d]/90 px-4 py-3 text-sm font-semibold text-amber-50 shadow-[0_22px_55px_-28px_rgba(0,0,0,0.85)] backdrop-blur transition hover:-translate-y-0.5 hover:border-amber-300/40 hover:bg-[#0b0c1d]/95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/50"
+          <div
+            className="fixed z-40 right-4 sm:right-6 flex flex-col items-end gap-2"
             style={{ bottom: 'max(1rem, env(safe-area-inset-bottom, 0px))' }}
-            aria-label="Jump to journal filters"
           >
-            <JournalSlidersIcon className="h-4 w-4 text-amber-200" aria-hidden="true" />
-            Filters
-          </button>
+            {isMobileLayout && (
+              <button
+                type="button"
+                onClick={() => handleStartReading()}
+                className="inline-flex min-h-[44px] items-center gap-2 rounded-full bg-gradient-to-r from-amber-300 to-amber-400 px-4 py-3 text-sm font-semibold text-slate-900 shadow-[0_22px_55px_-28px_rgba(251,191,36,0.8)] transition hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/60"
+                aria-label="Start a new reading"
+              >
+                <JournalPlusCircleIcon className="h-4 w-4" aria-hidden="true" />
+                New Reading
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={scrollToHistoryFilters}
+              className="inline-flex min-h-[44px] items-center gap-2 rounded-full border border-amber-300/25 bg-[#0b0c1d]/90 px-4 py-3 text-sm font-semibold text-amber-50 shadow-[0_22px_55px_-28px_rgba(0,0,0,0.85)] backdrop-blur transition hover:-translate-y-0.5 hover:border-amber-300/40 hover:bg-[#0b0c1d]/95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/50"
+              aria-label="Jump to journal filters"
+            >
+              <JournalSlidersIcon className="h-4 w-4 text-amber-200" aria-hidden="true" />
+              Filters
+            </button>
+          </div>
         )}
       </div>
 
