@@ -1,7 +1,7 @@
 import assert from 'node:assert';
 import test from 'node:test';
 
-import { generatePDF } from '../functions/api/journal-export.js';
+import { generatePDF } from '../functions/api/journal-export/index.js';
 
 test('generatePDF does not flag truncation at exact page limit', () => {
   const linesPerPage = 50; // Derived from PDF_TOP_Y, PDF_BOTTOM_Y, and PDF_LINE_HEIGHT

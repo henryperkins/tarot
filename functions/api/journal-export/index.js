@@ -7,8 +7,8 @@
  * Generates PDF documents and optionally stores them in R2 for caching.
  */
 
-import { validateSession, getSessionFromCookie } from '../lib/auth.js';
-import { jsonResponse } from '../lib/utils.js';
+import { validateSession, getSessionFromCookie } from '../../lib/auth.js';
+import { jsonResponse } from '../../lib/utils.js';
 
 /**
  * Safely parse JSON with fallback to prevent corrupt data from breaking exports

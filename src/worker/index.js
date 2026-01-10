@@ -49,10 +49,11 @@ import * as healthTarotReading from '../../functions/api/health/tarot-reading.js
 import * as healthTts from '../../functions/api/health/tts.js';
 
 // Export handlers
-import * as journalExport from '../../functions/api/journal-export.js';
+import * as journalExport from '../../functions/api/journal-export/index.js';
 
 // Scheduled tasks
-import { handleScheduled, onRequestPost as adminArchive } from '../../functions/lib/scheduled.js';
+import { handleScheduled } from '../../functions/lib/scheduled.js';
+import * as adminArchive from '../../functions/api/admin/archive.js';
 
 // Admin handlers
 import * as adminQualityStats from '../../functions/api/admin/quality-stats.js';
@@ -221,7 +222,7 @@ const routes = [
   { pattern: /^\/api\/journal-export\/([^/]+)$/, handlers: journalExport, params: ['id'] },
 
   // Admin endpoints
-  { pattern: /^\/api\/admin\/archive$/, handlers: { onRequestPost: adminArchive } },
+  { pattern: /^\/api\/admin\/archive$/, handlers: adminArchive },
   { pattern: /^\/api\/admin\/quality-stats$/, handlers: adminQualityStats },
   { pattern: /^\/api\/coach-extraction-backfill$/, handlers: coachExtractionBackfill },
 ];

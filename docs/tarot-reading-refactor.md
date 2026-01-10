@@ -1,4 +1,19 @@
-## ✅ What’s actually required (and what I’m going to do)
+# Tarot Reading Refactor Plan
+
+> ⚠️ **STATUS: DESIGN DOCUMENT — NOT IMPLEMENTED**
+>
+> This document describes a proposed refactor to split `functions/api/tarot-reading.js` into modular files under `functions/lib/tarotReading/`. **This refactor was never implemented.** The codebase still uses the monolithic `tarot-reading.js` file.
+>
+> The todo items marked `[x]` below represent the original plan, not actual implementation status. If you're looking for the current implementation, see:
+> - [`functions/api/tarot-reading.js`](../functions/api/tarot-reading.js) — Main endpoint (current implementation)
+> - [`functions/lib/narrativeBuilder.js`](../functions/lib/narrativeBuilder.js) — Narrative generation
+> - [`functions/lib/narrative/`](../functions/lib/narrative/) — Spread-specific composers
+>
+> **Last reviewed:** 2026-01-10
+
+---
+
+## ✅ What's actually required (and what I'm going to do)
 
 tarot-reading.js is currently ~2,500+ lines and is imported by:
 

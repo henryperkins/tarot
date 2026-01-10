@@ -10,6 +10,14 @@ tags:
   - "clippings"
 ---
 
+> ⚠️ **EXTERNAL DOCUMENTATION — MAY BE OUTDATED**
+>
+> This file was clipped from Microsoft Learn documentation on **2025-12-03** and may have drifted from the upstream source.
+>
+> **Authoritative source**: [Azure OpenAI REST API v1 Preview Reference](https://learn.microsoft.com/en-us/azure/ai-foundry/openai/reference-preview-latest?view=foundry-classic)
+>
+> Before relying on this document for implementation, **always check the source link above** for the latest version. Microsoft APIs evolve frequently.
+
 ## Azure OpenAI in Microsoft Foundry Models REST API v1 preview reference
 
 This article provides details on the inference REST API endpoints for Azure OpenAI.

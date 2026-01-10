@@ -355,7 +355,7 @@ src/components/CardGallery.jsx (~400 lines)
 Generate shareable images for readings with card visuals, spread layout, and key stats for social media preview (Open Graph).
 
 ### Existing Infrastructure
-- [`functions/api/journal-export.js`](../functions/api/journal-export.js) - PDF export endpoint
+- [`functions/api/journal-export/index.js`](../functions/api/journal-export/index.js) - PDF export endpoint
 - Share links: `/api/share/:token` - Already shares readings
 - Card images available per deck style
 

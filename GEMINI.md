@@ -1,8 +1,8 @@
-# Mystic Tarot - Gemini Context
+# Tableu - Gemini Context
 
 ## Project Overview
 
-**Mystic Tarot** is an advanced AI-powered tarot reading application. It combines traditional tarot symbolism with modern Large Language Models (LLMs) to generate context-aware, empathetic, and structured readings. It features a React frontend and a serverless backend hosted on Cloudflare Pages.
+**Tableu** is an advanced AI-powered tarot reading application. It combines traditional tarot symbolism with modern Large Language Models (LLMs) to generate context-aware, empathetic, and structured readings. It features a React frontend and a serverless backend hosted on Cloudflare Pages.
 
 ## Key Technologies
 
@@ -57,8 +57,8 @@
 ## Key Files
 
 - `package.json`: Dependency and script management.
-- `wrangler.toml`: Cloudflare configuration (bindings, environment variables).
-- `SYSTEM_ARCHITECTURE.md`: Comprehensive architectural overview.
+- `wrangler.jsonc`: Cloudflare configuration (bindings, environment variables).
+- `CLAUDE.md`: Comprehensive project guidance and architecture.
 - `AGENTS.md`: Specific instructions for AI agents (persona, tone).
 - `src/main.jsx`: Frontend entry point.
 - `functions/api/tarot-reading.js`: Main logic for generating readings.

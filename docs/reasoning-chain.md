@@ -1,6 +1,9 @@
 # Reasoning Chain for Local Composer
 
-> **Status:** Prototype
+> ⚠️ **STATUS: PROTOTYPE — NOT IN PRODUCTION**
+>
+> This feature is implemented but **not yet integrated into the production reading flow**. The code exists at the locations below, but the main [`functions/api/tarot-reading.js`](../functions/api/tarot-reading.js) endpoint does not currently invoke it.
+>
 > **Location:** `functions/lib/narrative/reasoning.js`, `functions/lib/narrative/reasoningIntegration.js`
 > **Purpose:** Add explicit "thinking" to the local composer fallback for more coherent, cross-card-aware readings without requiring an LLM.
 

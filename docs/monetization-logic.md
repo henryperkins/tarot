@@ -348,7 +348,7 @@ canUseSpread: (spreadKey) => {
 
 **Notes:**
 - Frontend (`src/hooks/useJournal.js`) uses local journal storage for Free users (even when authenticated) and supports local→cloud migration after upgrading.
-- Export (`functions/api/journal-export.js`) remains auth-only for data portability.
+- Export (`functions/api/journal-export/index.js`) remains auth-only for data portability.
 
 ---
 

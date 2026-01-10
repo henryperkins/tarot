@@ -48,7 +48,7 @@ npm run deploy   # Deploy to Cloudflare Workers
 - `api/tarot-reading.js` — Main endpoint: validates payload, calls Claude or local composer
 - `api/tts.js` — Azure TTS with rate limiting
 - `api/journal.js` — Reading history (dedup by `session_seed`)
-- `api/journal-export.js` — PDF/text export of readings (stores in R2)
+- `api/journal-export/index.js` — PDF/text export of readings (stores in R2)
 - `api/feedback.js` — User feedback (stored in KV)
 - `lib/narrative/` — Spread-specific narrative builders
 - `lib/spreadAnalysis.js` — Card relationship detection
@@ -72,9 +72,10 @@ npm run deploy   # Deploy to Cloudflare Workers
 
 Core: `Card.jsx`, `ReadingGrid.jsx`, `SpreadSelector.jsx`, `RitualControls.jsx`, `QuestionInput.jsx`
 Settings: `AudioControls.jsx`, `ExperienceSettings.jsx`
-Journal: `Journal.jsx`, `JournalEntryCard.jsx`, `JournalInsightsPanel.jsx`
+Journal: `Journal.jsx`, `JournalEntryCard.jsx`, `JournalFilters.jsx`
 Vision: `PhotoInputModal.jsx`, `VisionValidationPanel.jsx`, `CameraCapture.jsx`
 Auth: `AuthModal.jsx`, `GlobalNav.jsx`, `UserMenu.jsx`
+Charts: `charts/CardRelationshipGraph.jsx`, `charts/TrendSparkline.jsx`
 
 ## Spreads (from `src/data/spreads.js`)
 
@@ -127,12 +128,42 @@ Auth: `AuthModal.jsx`, `GlobalNav.jsx`, `UserMenu.jsx`
 
 ## Database Schema
 
-Key tables (see `migrations/`):
+Tables organized by migration (see `migrations/`):
 
-- `users`, `sessions` — Auth
+**Core Auth & Content:**
+- `users` — User accounts with subscription info (tier, status, stripe_customer_id)
+- `sessions` — Auth sessions
 - `journal_entries` — Saved readings (dedup index on `user_id, session_seed`)
-- `share_tokens` — Reading sharing
-- `archetype_journey` — User's card history tracking
+
+**Sharing:**
+- `share_tokens` — Reading share links
+- `share_token_entries` — Links share tokens to journal entries
+- `share_notes` — Collaborative notes on shared readings
+
+**Analytics & Journey:**
+- `card_appearances` — Card occurrence tracking per user
+- `archetype_badges` — Badge achievement tracking
+- `user_analytics_prefs` — User preferences for analytics features
+- `pattern_occurrences` — Recurring archetypal pattern tracking
+
+**Subscriptions & Usage:**
+- `api_keys` — API key management for programmatic access
+- `usage_tracking` — Monthly quota enforcement per user
+- `processed_webhook_events` — Stripe webhook idempotency
+
+**Quality & Evaluation:**
+- `quality_stats` — Daily/weekly quality score aggregates
+- `quality_alerts` — Quality regression and safety alerts
+- `ab_experiments` — A/B testing experiment configuration
+
+**Archival:**
+- `metrics_archive` — D1 archive of KV metrics
+- `feedback_archive` — D1 archive of KV feedback
+- `archival_summaries` — Daily archival summary logs
+
+**Legacy (pre-auth, still present):**
+- `readings`, `cards`, `reading_stats` — Anonymous reading analytics
+- `_migrations` — Migration tracking
 
 ### Migration Deploy Order
 
@@ -340,23 +371,76 @@ See `tests/accessibility/README.md` for manual testing guides (axe DevTools, key
 
 ## API Endpoints
 
-| Endpoint                          | Method       | Purpose                                                               |
-| --------------------------------- | ------------ | --------------------------------------------------------------------- |
-| `/api/tarot-reading`              | POST         | Generate a reading                                                    |
-| `/api/tts`                        | POST         | Text-to-speech                                                        |
-| `/api/journal`                    | GET/POST     | List/save journal entries                                             |
-| `/api/journal/:id`                | GET/DELETE   | Get/delete single entry                                               |
-| `/api/journal-export`             | GET          | Export journal as PDF/txt/json                                        |
-| `/api/journal-export/:id`         | GET          | Export single reading                                                 |
-| `/api/share`                      | POST         | Create share link                                                     |
-| `/api/share/:token`               | GET/DELETE   | View/revoke share                                                     |
-| `/api/feedback`                   | POST         | Submit feedback                                                       |
-| `/api/archetype-journey`          | GET/POST/PUT | Analytics: GET data, POST track cards, PUT preferences                |
-| `/api/archetype-journey-backfill` | POST         | Backfill card_appearances from existing journal entries               |
-| `/api/auth/*`                     | Various      | Login, logout, register, me                                           |
-| `/api/keys`                       | GET/POST     | API key management                                                    |
-| `/api/admin/archive`              | POST         | Manual archival trigger (requires ADMIN_API_KEY)                      |
-| `/api/coach-extraction-backfill`  | GET/POST     | Backfill AI extraction for coach suggestions (requires ADMIN_API_KEY) |
+**Core Reading:**
+| Endpoint                 | Method   | Purpose                                           |
+| ------------------------ | -------- | ------------------------------------------------- |
+| `/api/tarot-reading`     | POST     | Generate a reading                                |
+| `/api/generate-question` | POST     | AI-powered question suggestions (Plus/Pro only)   |
+| `/api/tts`               | POST     | Azure text-to-speech                              |
+| `/api/tts-hume`          | POST     | Hume AI TTS with emotional expression             |
+| `/api/speech-token`      | GET      | Azure Speech SDK authorization token              |
+| `/api/feedback`          | POST     | Submit reading feedback                           |
+
+**Journal:**
+| Endpoint                     | Method     | Purpose                                     |
+| ---------------------------- | ---------- | ------------------------------------------- |
+| `/api/journal`               | GET/POST   | List/save journal entries                   |
+| `/api/journal/:id`           | GET/DELETE | Get/delete single entry                     |
+| `/api/journal-export`        | GET        | Export journal as PDF/txt/json              |
+| `/api/journal-export/:id`    | GET        | Export single reading                       |
+| `/api/journal-summary`       | POST       | Generate AI summary of journal              |
+| `/api/journal/pattern-alerts`| GET        | Recurring pattern alerts (last 90 days)     |
+
+**Sharing:**
+| Endpoint                     | Method     | Purpose                                     |
+| ---------------------------- | ---------- | ------------------------------------------- |
+| `/api/share`                 | POST       | Create share link                           |
+| `/api/share/:token`          | GET/DELETE | View/revoke share                           |
+| `/api/share/:token/og-image` | GET        | Generate OpenGraph image for social sharing |
+| `/api/share-notes/:token`    | GET/POST   | Manage notes on shared readings             |
+
+**Analytics & Journey:**
+| Endpoint                          | Method       | Purpose                                         |
+| --------------------------------- | ------------ | ----------------------------------------------- |
+| `/api/archetype-journey`          | GET/POST/PUT | GET data, POST track cards, PUT preferences     |
+| `/api/archetype-journey/card-frequency` | GET    | Card frequency statistics                       |
+| `/api/archetype-journey-backfill` | POST         | Backfill card_appearances from journal          |
+
+**Auth & Account:**
+| Endpoint                     | Method     | Purpose                                     |
+| ---------------------------- | ---------- | ------------------------------------------- |
+| `/api/auth/login`            | POST       | User login                                  |
+| `/api/auth/logout`           | POST       | User logout                                 |
+| `/api/auth/register`         | POST       | User registration                           |
+| `/api/auth/me`               | GET        | Current user info                           |
+| `/api/keys`                  | GET/POST   | API key management                          |
+| `/api/keys/:id`              | DELETE     | Delete API key                              |
+| `/api/usage`                 | GET        | Current month usage counters                |
+
+**Subscriptions (Stripe):**
+| Endpoint                     | Method     | Purpose                                     |
+| ---------------------------- | ---------- | ------------------------------------------- |
+| `/api/create-checkout-session` | POST     | Create Stripe Checkout session              |
+| `/api/create-portal-session` | POST       | Create Stripe Billing Portal session        |
+| `/api/webhooks/stripe`       | POST       | Handle Stripe webhook events                |
+
+**Vision:**
+| Endpoint                     | Method     | Purpose                                     |
+| ---------------------------- | ---------- | ------------------------------------------- |
+| `/api/vision-proof`          | POST       | Validate physical deck recognition          |
+
+**Admin (requires ADMIN_API_KEY):**
+| Endpoint                          | Method     | Purpose                                     |
+| --------------------------------- | ---------- | ------------------------------------------- |
+| `/api/admin/archive`              | POST       | Manual archival trigger                     |
+| `/api/admin/quality-stats`        | GET/POST   | Quality statistics and alert management     |
+| `/api/coach-extraction-backfill`  | GET/POST   | Backfill AI extraction for coach suggestions|
+
+**Health Checks:**
+| Endpoint                     | Method     | Purpose                                     |
+| ---------------------------- | ---------- | ------------------------------------------- |
+| `/api/health/tarot-reading`  | GET        | Tarot reading service health                |
+| `/api/health/tts`            | GET        | TTS service health                          |
 
 ## Secrets (via `wrangler secret put`)
 

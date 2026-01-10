@@ -184,12 +184,16 @@ wrangler secret put AZURE_OPENAI_GPT5_MODEL --config wrangler.jsonc
 
 Detailed documentation is available in the `docs/` directory:
 
-- [Developer Onboarding](docs/DEVELOPER_ONBOARDING.md) - Getting started guide
+- [Developer Onboarding](docs/DEVELOPER_ONBOARDING.md) - Getting started guide with setup instructions
 - [Development Setup](docs/DEV_SETUP.md) - Local development instructions
-- [Deployment Guide](docs/DEPLOYMENT.md) - Production deployment
-- [System Architecture](docs/SYSTEM_ARCHITECTURE.md) - Technical architecture
-- [Vision Pipeline](docs/VISION_PIPELINE.md) - Physical card recognition
-- [Knowledge Graph](docs/knowledge-graph/) - Tarot pattern documentation
+- [Deployment Guide](docs/DEPLOYMENT.md) - Production deployment steps
+- [System Architecture](docs/SYSTEM_ARCHITECTURE.md) - Technical architecture overview
+- [Vision Pipeline](docs/VISION_PIPELINE.md) - Physical card recognition system
+- [Knowledge Graph](docs/knowledge-graph/) - Tarot pattern and archetype documentation
+- [Evaluation System](docs/evaluation-system.md) - Automated reading quality evaluation
+- [Narrative Builder](docs/narrative-builder-and-evaluation.md) - AI narrative generation architecture
+
+For comprehensive project guidance, see [CLAUDE.md](CLAUDE.md).
 
 ## 🤝 Contributing
 

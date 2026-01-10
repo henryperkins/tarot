@@ -17,6 +17,7 @@ import { DeckPile } from './DeckPile';
 import { DeckRitual } from './DeckRitual';
 import { RitualNudge, JournalNudge } from './nudges';
 import { MoonPhaseIndicator } from './MoonPhaseIndicator';
+import FollowUpSection from './FollowUpSection';
 import { useReading } from '../contexts/ReadingContext';
 import { usePreferences } from '../contexts/PreferencesContext';
 import { useSaveReading } from '../hooks/useSaveReading';
@@ -562,6 +563,13 @@ export function ReadingDisplay({ sectionRef }) {
                                 cards={lastCardsForFeedback}
                                 visionSummary={feedbackVisionSummary}
                             />
+                        </div>
+                    )}
+
+                    {/* Follow-Up Questions - shown after narrative is complete */}
+                    {personalReading && !isPersonalReadingError && narrativePhase === 'complete' && (
+                        <div className="w-full max-w-2xl mx-auto">
+                            <FollowUpSection />
                         </div>
                     )}
 

@@ -1,5 +1,13 @@
 # Enhanced Monetization Strategy for Tableu
 
+> 📋 **DOCUMENT TYPE: Planning / Strategy**
+>
+> This is a high-level strategy and implementation plan. For the authoritative technical documentation of the **implemented** monetization features, see:
+> - [`docs/monetization-logic.md`](./monetization-logic.md) — Current implementation details and tier logic
+> - [`shared/monetization/subscription.js`](../shared/monetization/subscription.js) — Runtime subscription utilities
+>
+> Not all features proposed below have been implemented. Check `monetization-logic.md` for current status.
+
 **Author:** Manus AI
 **Date:** December 05, 2025
 
