@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { describe, test, beforeEach } from 'node:test';
+import { describe, test } from 'node:test';
 
 import { buildFollowUpPrompt } from '../functions/lib/followUpPrompt.js';
 import { 
@@ -25,15 +25,15 @@ class MockDB {
 }
 
 // Mock AI class for embeddings
-class MockAI {
-  constructor() {
-    this.runReturn = [[0.1, 0.2, 0.3]]; // Mock embedding vector
-  }
+  class MockAI {
+    constructor() {
+      this.runReturn = [[0.1, 0.2, 0.3]]; // Mock embedding vector
+    }
 
-  async run(model, params) {
-    return this.runReturn;
+    async run() {
+      return { data: this.runReturn };
+    }
   }
-}
 
 describe('buildFollowUpPrompt', () => {
   test('builds basic system prompt with guidelines', () => {
@@ -76,8 +76,8 @@ describe('buildFollowUpPrompt', () => {
       }
     });
 
-    assert.ok(systemPrompt.includes('TONE:'));
-    assert.ok(systemPrompt.includes('INTERPRETIVE FRAME:'));
+    assert.ok(systemPrompt.includes('## TONE'));
+    assert.ok(systemPrompt.includes('## INTERPRETIVE FRAME'));
   });
 
   test('includes journal context patterns when provided', () => {
@@ -102,7 +102,7 @@ describe('buildFollowUpPrompt', () => {
       }
     });
 
-    assert.ok(systemPrompt.includes('JOURNAL CONTEXT:'));
+    assert.ok(systemPrompt.includes('## JOURNAL CONTEXT'));
     assert.ok(systemPrompt.includes('The Tower has appeared 4 times'));
     assert.ok(systemPrompt.includes('career, relationships'));
     assert.ok(systemPrompt.includes('Frame connections gently'));
@@ -121,9 +121,9 @@ describe('buildFollowUpPrompt', () => {
       ]
     });
 
-    assert.ok(userPrompt.includes('CONVERSATION SO FAR:'));
-    assert.ok(userPrompt.includes('Querent: Tell me more about The Star'));
-    assert.ok(userPrompt.includes('Reader: The Star represents hope'));
+    assert.ok(userPrompt.includes('## CONVERSATION SO FAR'));
+    assert.ok(userPrompt.includes('**Querent**: Tell me more about The Star'));
+    assert.ok(userPrompt.includes('**Reader**: The Star represents hope'));
     assert.ok(userPrompt.includes('What about timing?'));
   });
 
@@ -172,7 +172,7 @@ describe('buildFollowUpPrompt', () => {
       followUpQuestion: 'test'
     });
 
-    assert.ok(systemPrompt.includes('ETHICS:'));
+    assert.ok(systemPrompt.includes('## ETHICS'));
     assert.ok(systemPrompt.includes('medical, mental health'));
     assert.ok(systemPrompt.includes('choice and agency'));
   });
@@ -264,7 +264,7 @@ describe('journalSearch utilities', () => {
             id: '2',
             question: 'Different question',
             narrative: 'Different narrative',
-            step_embeddings: JSON.stringify([[0.9, 0.9, 0.9]]), // Very different
+            step_embeddings: JSON.stringify([[-0.1, -0.2, -0.3]]), // Very different
             cards_json: JSON.stringify([{ name: 'The Tower' }]),
             created_at: Date.now() / 1000
           }
@@ -272,7 +272,7 @@ describe('journalSearch utilities', () => {
       });
 
       const mockAI = new MockAI();
-      mockAI.run = async () => [[0.1, 0.2, 0.3]]; // Same as first entry
+      mockAI.run = async () => ({ data: [[0.1, 0.2, 0.3]] }); // Same as first entry
 
       const results = await findSimilarJournalEntries(
         { AI: mockAI, DB: mockDB },
@@ -356,8 +356,8 @@ describe('journalSearch utilities', () => {
         ['The Fool', 'The Magician']
       );
 
-      // The Fool appears 3 times, The Magician appears 1 time (below threshold of 2)
-      const foolPattern = results.find(p => p.card === 'The Fool');
+      // Fool appears 3 times, Magician appears 1 time (below threshold of 2)
+      const foolPattern = results.find(p => p.card === 'Fool');
       assert.ok(foolPattern);
       assert.equal(foolPattern.count, 3);
       assert.ok(foolPattern.contexts.includes('career'));

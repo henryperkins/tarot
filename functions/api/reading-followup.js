@@ -24,7 +24,7 @@ const FOLLOW_UP_LIMITS = {
 /**
  * Health check endpoint
  */
-export const onRequestGet = async ({ env }) => {
+export const onRequestGet = async () => {
   return jsonResponse({
     status: 'ok',
     endpoint: 'reading-followup',
@@ -42,6 +42,10 @@ export const onRequestPost = async ({ request, env }) => {
   console.log(`[${requestId}] === FOLLOW-UP REQUEST START ===`);
   
   try {
+    if (env?.FEATURE_FOLLOW_UP_ENABLED !== 'true') {
+      return jsonResponse({ error: 'Feature not available' }, { status: 404 });
+    }
+
     // Auth check
     const cookieHeader = request.headers.get('Cookie');
     const token = getSessionFromCookie(cookieHeader);
@@ -63,6 +67,8 @@ export const onRequestPost = async ({ request, env }) => {
       readingContext,
       options = {}
     } = body;
+
+    const journalContextEnabled = env?.FEATURE_FOLLOW_UP_JOURNAL_CONTEXT === 'true';
     
     // Validate required fields
     if (!followUpQuestion || typeof followUpQuestion !== 'string' || followUpQuestion.trim().length < 3) {
@@ -82,8 +88,20 @@ export const onRequestPost = async ({ request, env }) => {
     
     console.log(`[${requestId}] User tier: ${tier}, limits: ${JSON.stringify(limits)}`);
     
-    // Check per-reading limit
-    const turnNumber = conversationHistory.length + 1;
+    // Check per-reading limit using server-side tracking (not client-provided history)
+    let turnNumber;
+    if (readingRequestId) {
+      // Use database to get actual turn count - prevents client manipulation
+      const actualTurns = await getPerReadingFollowUpCount(env.DB, user.id, readingRequestId);
+      turnNumber = actualTurns + 1;
+      console.log(`[${requestId}] Server-verified turn: ${turnNumber}/${limits.perReading} (DB count: ${actualTurns})`);
+    } else {
+      // Fallback to client history if no readingRequestId (less secure, but functional)
+      const previousUserTurns = conversationHistory.filter(m => m.role === 'user').length;
+      turnNumber = previousUserTurns + 1;
+      console.log(`[${requestId}] Client-based turn: ${turnNumber}/${limits.perReading} (no readingRequestId)`);
+    }
+
     if (turnNumber > limits.perReading) {
       console.log(`[${requestId}] Per-reading limit exceeded: ${turnNumber}/${limits.perReading}`);
       return jsonResponse(
@@ -111,18 +129,31 @@ export const onRequestPost = async ({ request, env }) => {
     }
     
     // Fetch original reading context if requestId provided
+    // Merge stored context with client-provided context (stored wins, client fills gaps)
     let effectiveContext = readingContext;
     if (readingRequestId) {
       const storedContext = await fetchReadingContext(env, readingRequestId, user.id);
       if (storedContext) {
-        effectiveContext = storedContext;
-        console.log(`[${requestId}] Loaded stored reading context for ${readingRequestId}`);
+        effectiveContext = {
+          cardsInfo: storedContext.cardsInfo?.length ? storedContext.cardsInfo : readingContext?.cardsInfo,
+          userQuestion: storedContext.userQuestion || readingContext?.userQuestion,
+          narrative: storedContext.narrative || readingContext?.narrative,
+          themes: storedContext.themes || readingContext?.themes || {},
+          spreadKey: storedContext.spreadKey || readingContext?.spreadKey,
+          deckStyle: storedContext.deckStyle || readingContext?.deckStyle
+        };
+        console.log(`[${requestId}] Merged stored context for ${readingRequestId}`);
       }
     }
     
     // Journal context (Plus+ only)
+    const shouldIncludeJournalContext =
+      Boolean(options.includeJournalContext) &&
+      journalContextEnabled &&
+      isEntitled(user, 'plus');
+
     let journalContext = null;
-    if (options.includeJournalContext && isEntitled(user, 'plus')) {
+    if (shouldIncludeJournalContext) {
       console.log(`[${requestId}] Building journal context...`);
       journalContext = await buildJournalContext(env, user.id, {
         question: followUpQuestion,
@@ -149,7 +180,6 @@ export const onRequestPost = async ({ request, env }) => {
     
     // Call LLM
     let responseText;
-    let usage = null;
     
     try {
       responseText = await callAzureResponses(env, {
@@ -208,15 +238,34 @@ export const onRequestPost = async ({ request, env }) => {
 };
 
 /**
+ * Get count of follow-up questions for a specific reading (server-side tracking)
+ * This prevents clients from manipulating conversation history to bypass limits
+ */
+async function getPerReadingFollowUpCount(db, userId, readingRequestId) {
+  if (!db || !readingRequestId) return 0;
+
+  try {
+    const result = await db.prepare(`
+      SELECT COUNT(*) as count FROM follow_up_usage
+      WHERE user_id = ? AND reading_request_id = ?
+    `).bind(userId, readingRequestId).first();
+    return result?.count || 0;
+  } catch (error) {
+    console.warn(`[getPerReadingFollowUpCount] Error: ${error.message}`);
+    return 0;
+  }
+}
+
+/**
  * Get count of follow-up questions used today by user
  */
 async function getDailyFollowUpCount(db, userId) {
   if (!db) return 0;
-  
+
   try {
     const today = new Date().toISOString().split('T')[0];
     const result = await db.prepare(`
-      SELECT COUNT(*) as count FROM follow_up_usage 
+      SELECT COUNT(*) as count FROM follow_up_usage
       WHERE user_id = ? AND DATE(datetime(created_at, 'unixepoch')) = ?
     `).bind(userId, today).first();
     return result?.count || 0;
@@ -261,7 +310,8 @@ async function fetchReadingContext(env, requestId, userId) {
           return {
             cardsInfo: parsed.cardsInfo || [],
             userQuestion: parsed.userQuestion,
-            narrative: parsed.narrative,
+            // METRICS_DB stores narrative as "readingText" per evaluation.js
+            narrative: parsed.narrative || parsed.readingText,
             themes: parsed.themes || {},
             spreadKey: parsed.spreadKey,
             deckStyle: parsed.deckStyle
@@ -352,7 +402,7 @@ async function getUserPreferences(db, userId) {
       preferredSpreadDepth: result.preferred_spread_depth
     };
   } catch (error) {
-    // Columns may not exist yet
+    console.warn(`[getUserPreferences] Error: ${error.message}`);
     return null;
   }
 }

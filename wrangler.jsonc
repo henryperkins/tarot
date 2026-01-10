@@ -85,7 +85,12 @@
     // ALERT_EMAIL_TO: Recipient email for quality alerts (set via secret for production)
     "ALERT_EMAIL_TO": "",
     // AB_TESTING_ENABLED: Enable A/B testing variant assignment
-    "AB_TESTING_ENABLED": "false"
+    "AB_TESTING_ENABLED": "false",
+    // -------------------------------------------------------------------------
+    // Follow-up Questions Feature Flags
+    // -------------------------------------------------------------------------
+    "FEATURE_FOLLOW_UP_ENABLED": "true",
+    "FEATURE_FOLLOW_UP_JOURNAL_CONTEXT": "true",
     // -------------------------------------------------------------------------
     // Prompt Budget & GraphRAG Settings (not set = use defaults)
     // -------------------------------------------------------------------------

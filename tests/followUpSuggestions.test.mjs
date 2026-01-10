@@ -328,7 +328,7 @@ describe('generateFollowUpSuggestions', () => {
       const suggestions = generateFollowUpSuggestions([], themes, {});
 
       // Look for any suggestion mentioning the dominant suit
-      const suitSuggestion = suggestions.find(s => 
+      const hasSuitSuggestion = suggestions.some(s => 
         s.type === 'suit' || 
         (s.text && s.text.toLowerCase().includes('wand'))
       );
@@ -336,6 +336,7 @@ describe('generateFollowUpSuggestions', () => {
       // This is optional behavior - may or may not be implemented
       // Just verify we don't crash
       assert.ok(Array.isArray(suggestions));
+      assert.strictEqual(typeof hasSuitSuggestion, 'boolean');
     });
   });
 });

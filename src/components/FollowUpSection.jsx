@@ -32,7 +32,7 @@ export default function FollowUpSection() {
     readingMeta,
     userQuestion 
   } = useReading();
-  const { user, isAuthenticated } = useAuth();
+  const { isAuthenticated } = useAuth();
   const { effectiveTier } = useSubscription();
   
   const [isExpanded, setIsExpanded] = useState(false);
@@ -63,6 +63,7 @@ export default function FollowUpSection() {
   
   const turnsUsed = messages.filter(m => m.role === 'user').length;
   const canAskMore = turnsUsed < followUpLimit;
+  const hasValidReading = Boolean(personalReading) && !personalReading.isError;
   
   // Auto-scroll to latest message
   useEffect(() => {
@@ -71,11 +72,8 @@ export default function FollowUpSection() {
     }
   }, [messages]);
   
-  // Don't render if no reading available
-  if (!personalReading || personalReading.isError) return null;
-  
   const askFollowUp = useCallback(async (question) => {
-    if (!question?.trim() || isLoading || !canAskMore) return;
+    if (!question?.trim() || isLoading || !canAskMore || !hasValidReading) return;
     
     setError(null);
     setIsLoading(true);
@@ -144,7 +142,7 @@ export default function FollowUpSection() {
       setIsLoading(false);
     }
   }, [
-    isLoading, canAskMore, readingMeta, messages, reading, 
+    isLoading, canAskMore, hasValidReading, readingMeta, messages, reading, 
     userQuestion, personalReading, themes, includeJournal, canUseJournal
   ]);
   
@@ -173,6 +171,11 @@ export default function FollowUpSection() {
       setTimeout(() => inputRef.current?.focus(), 100);
     }
   };
+
+  // Don't render if no reading available
+  if (!hasValidReading) {
+    return null;
+  }
   
   return (
     <section 

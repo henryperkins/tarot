@@ -97,7 +97,7 @@ export async function findSimilarJournalEntries(env, userId, query, options = {}
             created_at: entry.created_at,
             similarity: maxSim
           };
-        } catch (e) {
+        } catch {
           return null;
         }
       })
@@ -172,7 +172,7 @@ export async function getRecurringCardPatterns(db, userId, cardNames, options = 
           }
           stats.dates.push(entry.created_at);
         });
-      } catch (e) {
+      } catch {
         // Skip malformed entries
       }
     });
@@ -251,7 +251,7 @@ export async function getTopRecurringCards(db, userId, options = {}) {
             stats.contexts.add(entry.context);
           }
         });
-      } catch (e) {
+      } catch {
         // Skip malformed entries
       }
     });

@@ -9,6 +9,7 @@
 
 // API Route Handlers (imported from existing functions)
 import * as tarotReading from '../../functions/api/tarot-reading.js';
+import * as readingFollowup from '../../functions/api/reading-followup.js';
 import * as tts from '../../functions/api/tts.js';
 import * as ttsHume from '../../functions/api/tts-hume.js';
 import * as speechToken from '../../functions/api/speech-token.js';
@@ -180,6 +181,7 @@ async function handleSharePageWithOgTags(request, env, token) {
 const routes = [
   // Main API endpoints
   { pattern: /^\/api\/tarot-reading$/, handlers: tarotReading },
+  { pattern: /^\/api\/reading-followup$/, handlers: readingFollowup },
   { pattern: /^\/api\/tts$/, handlers: tts },
   { pattern: /^\/api\/tts-hume$/, handlers: ttsHume },
   { pattern: /^\/api\/speech-token$/, handlers: speechToken },
