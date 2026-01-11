@@ -407,24 +407,16 @@ export function buildEnhancedClaudePrompt({
       }
     );
 
-    // Only estimate tokens when slimming is enabled (needed for budget decisions)
-    // When slimming is disabled, skip estimation - actual tokens come from API response
-    const needsEstimation = promptBudgetEnv?.ENABLE_PROMPT_SLIMMING === 'true' ||
-      promptBudgetEnv?.ENABLE_PROMPT_SLIMMING === true;
-
-    if (needsEstimation) {
-      const systemTokens = estimateTokenCount(systemPrompt);
-      const userTokens = estimateTokenCount(userPrompt);
-      return {
-        systemPrompt,
-        userPrompt,
-        systemTokens,
-        userTokens,
-        totalTokens: systemTokens + userTokens
-      };
-    }
-
-    return { systemPrompt, userPrompt, systemTokens: null, userTokens: null, totalTokens: null };
+    // Always estimate tokens to enforce hard caps even when slimming is disabled
+    const systemTokens = estimateTokenCount(systemPrompt);
+    const userTokens = estimateTokenCount(userPrompt);
+    return {
+      systemPrompt,
+      userPrompt,
+      systemTokens,
+      userTokens,
+      totalTokens: systemTokens + userTokens
+    };
   };
 
   let controls = { ...baseControls };
@@ -532,16 +524,14 @@ export function buildEnhancedClaudePrompt({
     controls = { ...controls, includeDiagnostics: false };
   });
 
-  // Step 7: HARD CAP - If still over budget after all slimming, truncate
-  // This ensures we never send prompts that exceed context windows
+  // Step 7: HARD CAP - Always enforce context window limits even when slimming is disabled
   const hardCap = getHardCapBudget(budgetTarget);
   let finalSystem = built.systemPrompt;
   let finalUser = built.userPrompt;
   let systemTruncated = false;
   let userTruncated = false;
 
-  // Skip hard cap truncation when slimming is disabled
-  if (!disableSlimming && built.totalTokens > hardCap) {
+  if (built.totalTokens > hardCap) {
     console.warn(`[Prompt Budget] Exceeded hard cap after slimming: ${built.totalTokens} > ${hardCap} tokens`);
 
     // Calculate how many tokens we need to shed
@@ -619,13 +609,14 @@ export function buildEnhancedClaudePrompt({
   if (controls.graphRAGPayload?.retrievalSummary) {
     const payload = controls.graphRAGPayload;
     const retrievalSummary = { ...payload.retrievalSummary };
+    const graphragEnabled = isGraphRAGEnabled(controls.env);
     const passagesAfterSlimming = Array.isArray(payload.passages)
       ? payload.passages.length
       : 0;
     const initialPassageCount = typeof payload.initialPassageCount === 'number'
       ? payload.initialPassageCount
       : passagesAfterSlimming;
-    const graphRAGIncluded = controls.includeGraphRAG !== false && passagesAfterSlimming > 0;
+    const graphRAGIncluded = graphragEnabled && controls.includeGraphRAG !== false && passagesAfterSlimming > 0;
     const passagesUsed = graphRAGIncluded ? passagesAfterSlimming : 0;
     const trimmedCount = Math.max(0, initialPassageCount - passagesUsed);
 
@@ -663,6 +654,7 @@ export function buildEnhancedClaudePrompt({
         retrievalSummary.budgetTrimmedStrategy = payload.rankingStrategy;
       }
     }
+    retrievalSummary.disabledByEnv = !graphragEnabled;
     retrievalSummary.includedInPrompt = graphRAGIncluded;
 
     promptMeta.graphRAG = retrievalSummary;

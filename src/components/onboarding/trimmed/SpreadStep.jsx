@@ -1,32 +1,9 @@
 import { useState } from 'react';
 import { ArrowLeft } from '@phosphor-icons/react';
 import { usePreferences } from '../../../contexts/PreferencesContext';
+import { BEGINNER_SPREADS } from '../../../data/spreadBrowse';
 import { useReducedMotion } from '../../../hooks/useReducedMotion';
 import { useLandscape } from '../../../hooks/useLandscape';
-
-const BEGINNER_SPREADS = [
-  {
-    key: 'single',
-    name: 'One Card',
-    tagline: 'Quick clarity',
-    time: '2 min',
-    cardCount: 1
-  },
-  {
-    key: 'threeCard',
-    name: 'Three Cards',
-    tagline: 'Past · Present · Future',
-    time: '5 min',
-    cardCount: 3
-  },
-  {
-    key: 'decision',
-    name: 'Decision',
-    tagline: 'Compare two paths',
-    time: '8 min',
-    cardCount: 5
-  }
-];
 
 const FOCUS_AREAS = ['Love', 'Career', 'Growth', 'Decision'];
 
@@ -89,34 +66,39 @@ export function SpreadStep({ selectedSpread, onSelectSpread, onNext, onBack }) {
           }`}
           style={{ animationDelay: '0.1s' }}
         >
-          {BEGINNER_SPREADS.map((spread) => (
-            <button
-              key={spread.key}
-              type="button"
-              onClick={() => onSelectSpread(spread.key)}
-              className={`flex-shrink-0 w-[140px] snap-center rounded-2xl border p-4 text-left transition touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent ${
-                selectedSpread === spread.key
-                  ? 'border-accent bg-accent/10 ring-1 ring-accent'
-                  : 'border-secondary/30 bg-surface/50 hover:border-accent/50'
-              }`}
-              aria-pressed={selectedSpread === spread.key}
-            >
-              {/* Card count visualization */}
-              <div className="flex gap-1 mb-3" aria-hidden="true">
-                {Array.from({ length: spread.cardCount }).map((_, i) => (
-                  <div
-                    key={i}
-                    className={`w-4 h-6 rounded-sm transition ${
-                      selectedSpread === spread.key ? 'bg-accent' : 'bg-secondary/40'
-                    }`}
-                  />
-                ))}
-              </div>
-              <h3 className="font-medium text-main text-sm">{spread.name}</h3>
-              <p className="text-xs text-muted mt-0.5">{spread.tagline}</p>
-              <p className="text-xs text-accent mt-2">~{spread.time}</p>
-            </button>
-          ))}
+          {BEGINNER_SPREADS.map((spread) => {
+            const cardCount = spread.spread?.count || 0;
+            const displayName = spread.shortName || spread.spread?.name || spread.key;
+
+            return (
+              <button
+                key={spread.key}
+                type="button"
+                onClick={() => onSelectSpread(spread.key)}
+                className={`flex-shrink-0 w-[140px] snap-center rounded-2xl border p-4 text-left transition touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent ${
+                  selectedSpread === spread.key
+                    ? 'border-accent bg-accent/10 ring-1 ring-accent'
+                    : 'border-secondary/30 bg-surface/50 hover:border-accent/50'
+                }`}
+                aria-pressed={selectedSpread === spread.key}
+              >
+                {/* Card count visualization */}
+                <div className="flex gap-1 mb-3" aria-hidden="true">
+                  {Array.from({ length: cardCount }).map((_, i) => (
+                    <div
+                      key={i}
+                      className={`w-4 h-6 rounded-sm transition ${
+                        selectedSpread === spread.key ? 'bg-accent' : 'bg-secondary/40'
+                      }`}
+                    />
+                  ))}
+                </div>
+                <h3 className="font-medium text-main text-sm">{displayName}</h3>
+                <p className="text-xs text-muted mt-0.5">{spread.tagline}</p>
+                <p className="text-xs text-accent mt-2">~{spread.time}</p>
+              </button>
+            );
+          })}
         </div>
 
         {/* Optional focus area - single select for simplicity */}

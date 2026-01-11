@@ -551,21 +551,6 @@ export function ReadingDisplay({ sectionRef }) {
                         </div>
                     )}
 
-                    {personalReading && (
-                        <div className="w-full max-w-2xl mx-auto">
-                            <FeedbackPanel
-                                requestId={readingMeta.requestId}
-                                spreadKey={readingMeta.spreadKey || selectedSpread}
-                                spreadName={readingMeta.spreadName || spreadInfo?.name}
-                                deckStyle={readingMeta.deckStyle || deckStyleId}
-                                provider={readingMeta.provider}
-                                userQuestion={readingMeta.userQuestion || userQuestion}
-                                cards={lastCardsForFeedback}
-                                visionSummary={feedbackVisionSummary}
-                            />
-                        </div>
-                    )}
-
                     {/* Follow-Up Questions - shown after narrative is complete */}
                     {personalReading && !isPersonalReadingError && narrativePhase === 'complete' && (
                         <div className="w-full max-w-2xl mx-auto">
@@ -585,6 +570,21 @@ export function ReadingDisplay({ sectionRef }) {
                             <span className="xs:hidden">{isShuffling ? 'Shuffling...' : 'Reset spread'}</span>
                         </button>
                     </div>
+
+                    {personalReading && (
+                        <div className="w-full max-w-2xl mx-auto mt-6 sm:mt-8">
+                            <FeedbackPanel
+                                requestId={readingMeta.requestId}
+                                spreadKey={readingMeta.spreadKey || selectedSpread}
+                                spreadName={readingMeta.spreadName || spreadInfo?.name}
+                                deckStyle={readingMeta.deckStyle || deckStyleId}
+                                provider={readingMeta.provider}
+                                userQuestion={readingMeta.userQuestion || userQuestion}
+                                cards={lastCardsForFeedback}
+                                visionSummary={feedbackVisionSummary}
+                            />
+                        </div>
+                    )}
                 </div>
             )}
 

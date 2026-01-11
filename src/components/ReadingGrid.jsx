@@ -57,16 +57,31 @@ const CELTIC_MINIMAP_POSITIONS = [
   { x: 3, y: 0.5, label: '10' } // Outcome (staff top)
 ];
 
-// Grid dimensions for mini-map positioning
-const MINIMAP_GRID_WIDTH = 3.5;
-const MINIMAP_GRID_HEIGHT = 2.5;
+const MINIMAP_PADDING = 0.25;
+const MINIMAP_BOUNDS = CELTIC_MINIMAP_POSITIONS.reduce((acc, pos) => ({
+  minX: Math.min(acc.minX, pos.x),
+  maxX: Math.max(acc.maxX, pos.x),
+  minY: Math.min(acc.minY, pos.y),
+  maxY: Math.max(acc.maxY, pos.y)
+}), {
+  minX: Number.POSITIVE_INFINITY,
+  maxX: Number.NEGATIVE_INFINITY,
+  minY: Number.POSITIVE_INFINITY,
+  maxY: Number.NEGATIVE_INFINITY
+});
+const MINIMAP_GRID_WIDTH = (MINIMAP_BOUNDS.maxX - MINIMAP_BOUNDS.minX) + MINIMAP_PADDING * 2;
+const MINIMAP_GRID_HEIGHT = (MINIMAP_BOUNDS.maxY - MINIMAP_BOUNDS.minY) + MINIMAP_PADDING * 2;
 
 // Mini-map showing Celtic Cross layout with current position highlighted
 function CelticCrossMiniMap({ activeIndex, totalCards }) {
   return (
     <div className="flex items-center gap-3 px-4 py-2 bg-surface/80 backdrop-blur rounded-xl border border-secondary/30">
       {/* Mini grid visualization */}
-      <div className="relative w-16 h-12 flex-shrink-0" aria-hidden="true">
+      <div
+        className="relative w-16 flex-shrink-0"
+        style={{ aspectRatio: `${MINIMAP_GRID_WIDTH} / ${MINIMAP_GRID_HEIGHT}` }}
+        aria-hidden="true"
+      >
         {CELTIC_MINIMAP_POSITIONS.slice(0, totalCards).map((pos, idx) => {
           // Build transform string - avoid compounding from className
           const transforms = ['translate(-50%, -50%)'];
@@ -85,8 +100,8 @@ function CelticCrossMiniMap({ activeIndex, totalCards }) {
                   : 'bg-secondary/40'
               }`}
               style={{
-                left: `${(pos.x / MINIMAP_GRID_WIDTH) * 100}%`,
-                top: `${(pos.y / MINIMAP_GRID_HEIGHT) * 100}%`,
+                left: `${((pos.x - MINIMAP_BOUNDS.minX + MINIMAP_PADDING) / MINIMAP_GRID_WIDTH) * 100}%`,
+                top: `${((pos.y - MINIMAP_BOUNDS.minY + MINIMAP_PADDING) / MINIMAP_GRID_HEIGHT) * 100}%`,
                 transform: transforms.join(' ')
               }}
             />

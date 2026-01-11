@@ -97,11 +97,19 @@ export function generateFollowUpSuggestions(reading, themes, readingMeta) {
   }
   
   // 4. Major Arcana emphasis
+  // Major Arcana cards have arcana === 'major' OR no suit property OR arcanaNumber 0-21
   const majorCards = cards.filter(c => {
-    const num = c.number ?? c.arcanaNumber ?? -1;
-    return num >= 0 && num <= 21;
+    // Explicit major arcana flag
+    if (c.arcana === 'major' || c.isMajor) return true;
+    // No suit means Major Arcana (Minor always have suits)
+    if (c.suit === undefined || c.suit === null || c.suit === '') {
+      // But verify it's not just missing data - check for known Major indicators
+      const num = c.arcanaNumber ?? c.number;
+      return num !== undefined && num >= 0 && num <= 21;
+    }
+    return false;
   });
-  
+
   if (majorCards.length >= 3) {
     suggestions.push({
       text: 'What life lesson do these Major Arcana cards emphasize?',
@@ -141,21 +149,30 @@ export function generateFollowUpSuggestions(reading, themes, readingMeta) {
     }
   }
   
-  // 6. Shadow/challenge questions (always useful)
+  // 6. Question-focused (connects reading back to their original question)
+  if (readingMeta?.userQuestion && readingMeta.userQuestion.length > 10) {
+    suggestions.push({
+      text: 'What\'s the most direct answer to my question here?',
+      type: 'question',
+      priority: 2
+    });
+  }
+
+  // 7. Shadow/challenge questions (always useful)
   suggestions.push({
     text: 'What might be blocking me from moving forward?',
     type: 'shadow',
     priority: 5
   });
-  
-  // 7. Action-oriented (always include as fallback)
+
+  // 8. Action-oriented (always include as fallback)
   suggestions.push({
     text: 'What\'s the single most important thing I should focus on?',
     type: 'action',
     priority: 5
   });
-  
-  // 8. Relationship between cards question (for multi-card spreads)
+
+  // 9. Relationship between cards question (for multi-card spreads)
   if (cards.length >= 2) {
     suggestions.push({
       text: 'How do these cards speak to each other?',
@@ -189,6 +206,7 @@ export function getQuestionTypeLabel(type) {
     elemental: 'Elemental Balance',
     archetype: 'Archetypal/Major Arcana',
     suit: 'Suit Focus',
+    question: 'Original Question',
     shadow: 'Shadow/Blocks',
     action: 'Action-Oriented',
     synthesis: 'Card Relationships'

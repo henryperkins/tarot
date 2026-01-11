@@ -70,6 +70,21 @@ export function getSectionHeader(sectionKey) {
   return PROSE_MODE ? headers.prose : headers.technical;
 }
 
+/**
+ * Sanitize user-provided strings before inserting into prompts to avoid prompt
+ * injection via custom positions/meanings. Removes markdown control chars and
+ * collapses whitespace while preserving readable text.
+ */
+export function sanitizePromptValue(text, maxLength = 500) {
+  if (!text || typeof text !== 'string') return '';
+  const trimmed = text.slice(0, maxLength);
+  return trimmed
+    .replace(/[`#*_>]/g, '')   // strip markdown/control symbols
+    .replace(/\r?\n+/g, ' ')   // flatten newlines
+    .replace(/\s+/g, ' ')      // collapse whitespace
+    .trim();
+}
+
 const CONTEXT_DESCRIPTORS = {
   love: 'relationships and heart-centered experiences',
   career: 'career, calling, and material pathways',
@@ -737,26 +752,27 @@ function buildPositionCardText(cardInfo, position, options = {}) {
 
   if (!template) {
     // Fallback for unknown positions (defensive defaults)
-    const safeCard = deckAwareCardName(cardInfo, options.deckStyle);
+    const safeCard = sanitizePromptValue(deckAwareCardName(cardInfo, options.deckStyle), 160);
+    const safePosition = sanitizePromptValue(position, 200);
     const safeOrientation =
       typeof cardInfo.orientation === 'string' && cardInfo.orientation.trim()
-        ? ` ${cardInfo.orientation}`
+        ? ` ${sanitizePromptValue(cardInfo.orientation, 80)}`
         : '';
-    const meaning = formatMeaningForPosition(cardInfo.meaning || '', position);
-    return `${position}: ${safeCard}${safeOrientation}. ${meaning}`;
+    const meaning = sanitizePromptValue(formatMeaningForPosition(cardInfo.meaning || '', position), 700);
+    return `${safePosition}: ${safeCard}${safeOrientation}. ${meaning}`;
   }
 
-  const safeCard = deckAwareCardName(cardInfo, options.deckStyle);
+  const safeCard = sanitizePromptValue(deckAwareCardName(cardInfo, options.deckStyle), 160);
   const safeOrientation =
     typeof cardInfo.orientation === 'string' && cardInfo.orientation.trim()
-      ? cardInfo.orientation
+      ? sanitizePromptValue(cardInfo.orientation, 80)
       : '';
   const introTemplate = pickOne(template.intro);
   const intro =
     typeof introTemplate === 'function'
       ? introTemplate(safeCard, safeOrientation)
-      : introTemplate || `${position}: ${safeCard} ${safeOrientation}.`;
-  const meaning = formatMeaningForPosition(cardInfo.meaning || '', position);
+      : introTemplate || `${sanitizePromptValue(position, 200)}: ${safeCard} ${safeOrientation}.`;
+  const meaning = sanitizePromptValue(formatMeaningForPosition(cardInfo.meaning || '', position), 700);
 
   const contextClause = buildContextualClause(cardInfo, options.context);
 

@@ -15,7 +15,6 @@ import { ChatCircle, PaperPlaneTilt, SpinnerGap, Lightning, Lock, CaretDown } fr
 import clsx from 'clsx';
 
 const MAX_MESSAGE_LENGTH = 500;
-const MAX_VISIBLE_MESSAGES = 10;
 
 // Tier-based follow-up limits (matches backend)
 const FOLLOW_UP_LIMITS = {
@@ -41,6 +40,7 @@ export default function FollowUpSection() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
   const [includeJournal, setIncludeJournal] = useState(true);
+  const [showSuggestions, setShowSuggestions] = useState(false);
   
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
@@ -74,10 +74,15 @@ export default function FollowUpSection() {
   
   const askFollowUp = useCallback(async (question) => {
     if (!question?.trim() || isLoading || !canAskMore || !hasValidReading) return;
+    if (!isAuthenticated) {
+      setError('Please sign in to ask follow-up questions.');
+      return;
+    }
     
     setError(null);
     setIsLoading(true);
     setInputValue('');
+    setShowSuggestions(false);
     
     // Add user message immediately
     const userMessage = { role: 'user', content: question.trim() };
@@ -143,7 +148,7 @@ export default function FollowUpSection() {
     }
   }, [
     isLoading, canAskMore, hasValidReading, readingMeta, messages, reading, 
-    userQuestion, personalReading, themes, includeJournal, canUseJournal
+    userQuestion, personalReading, themes, includeJournal, canUseJournal, isAuthenticated
   ]);
   
   const handleSubmit = (e) => {
@@ -152,8 +157,9 @@ export default function FollowUpSection() {
   };
   
   const handleSuggestionClick = (suggestion) => {
-    if (!isLoading && canAskMore) {
+    if (!isLoading && canAskMore && isAuthenticated) {
       askFollowUp(suggestion.text);
+      setShowSuggestions(false);
     }
   };
   
@@ -182,13 +188,15 @@ export default function FollowUpSection() {
       className="mt-8 border-t border-secondary/30 pt-6"
       aria-labelledby="follow-up-heading"
     >
-      {/* Collapsed state - toggle button */}
+      {/* Collapsed state - elevated CTA-style toggle */}
       <button 
         id="follow-up-heading"
         onClick={toggleExpanded}
         className={clsx(
-          "flex items-center gap-2 text-accent hover:text-main transition-colors",
-          "focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 rounded-lg px-2 py-1 -ml-2"
+          "w-full text-left flex items-center gap-3 rounded-2xl border border-accent/30",
+          "bg-gradient-to-r from-accent/15 via-accent/10 to-transparent",
+          "hover:border-accent hover:shadow-md transition-all px-4 py-3",
+          "focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/50"
         )}
         aria-expanded={isExpanded}
         aria-controls="follow-up-content"
@@ -198,19 +206,26 @@ export default function FollowUpSection() {
           weight={isExpanded ? 'fill' : 'regular'} 
           aria-hidden="true"
         />
-        <span className="font-medium">
-          {isExpanded ? 'Close follow-up questions' : 'Have a question about your reading?'}
-        </span>
-        {!isExpanded && turnsUsed > 0 && (
-          <span className="text-xs text-muted">({turnsUsed}/{followUpLimit} used)</span>
-        )}
-        <CaretDown 
-          className={clsx(
-            "w-4 h-4 transition-transform duration-200",
-            isExpanded && "rotate-180"
-          )}
-          aria-hidden="true"
-        />
+        <div className="flex-1 min-w-0">
+          <p className="font-semibold text-main truncate">
+            {isExpanded ? 'Close follow-up questions' : 'Continue the conversation about this reading'}
+          </p>
+          <p className="text-xs text-muted mt-0.5 truncate">
+            Clarify symbols, positions, or next steps — tailored to this spread.
+          </p>
+        </div>
+        <div className="flex items-center gap-2 text-xs text-muted">
+          <span className="rounded-full bg-surface px-2 py-1 border border-secondary/40">
+            {turnsUsed}/{followUpLimit} used
+          </span>
+          <CaretDown 
+            className={clsx(
+              "w-4 h-4 transition-transform duration-200",
+              isExpanded && "rotate-180"
+            )}
+            aria-hidden="true"
+          />
+        </div>
       </button>
       
       {/* Expanded state */}
@@ -219,14 +234,14 @@ export default function FollowUpSection() {
           id="follow-up-content"
           className="mt-4 space-y-4 animate-fade-in"
         >
-          {/* Suggestions (show only if no messages yet) */}
-          {messages.length === 0 && (
+          {/* Suggestions (initial or on-demand) */}
+          {(messages.length === 0 || showSuggestions) && (
             <div className="flex flex-wrap gap-2" role="list" aria-label="Suggested questions">
               {suggestions.map((suggestion, idx) => (
                 <button
                   key={idx}
                   onClick={() => handleSuggestionClick(suggestion)}
-                  disabled={isLoading || !canAskMore}
+                  disabled={isLoading || !canAskMore || !isAuthenticated}
                   className={clsx(
                     "px-3 py-1.5 text-sm rounded-full border transition-all",
                     "border-accent/30 hover:border-accent hover:bg-accent/10",
@@ -249,7 +264,7 @@ export default function FollowUpSection() {
               aria-label="Conversation history"
               aria-live="polite"
             >
-              {messages.slice(-MAX_VISIBLE_MESSAGES).map((msg, idx) => (
+              {messages.map((msg, idx) => (
                 <div 
                   key={idx} 
                   className={clsx(
@@ -296,22 +311,38 @@ export default function FollowUpSection() {
               {error}
             </div>
           )}
-          
+
+          {/* Suggestions re-entry CTA */}
+          {messages.length > 0 && suggestions.length > 0 && !showSuggestions && (
+            <div className="flex justify-start">
+              <button
+                type="button"
+                onClick={() => setShowSuggestions(true)}
+                className={clsx(
+                  "text-xs px-3 py-1.5 rounded-full border border-secondary/50 text-muted",
+                  "hover:border-accent hover:text-main focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/40"
+                )}
+              >
+                Need ideas? Show suggestions
+              </button>
+            </div>
+          )}
+
           {/* Input form */}
           {canAskMore ? (
             <form onSubmit={handleSubmit} className="flex gap-2">
               <div className="flex-1 relative">
-                <input
+                <textarea
                   ref={inputRef}
-                  type="text"
+                  rows={3}
                   value={inputValue}
                   onChange={(e) => setInputValue(e.target.value.slice(0, MAX_MESSAGE_LENGTH))}
                   onKeyDown={handleKeyDown}
-                  placeholder="Ask a follow-up question..."
-                  disabled={isLoading}
+                  placeholder={isAuthenticated ? 'Ask a follow-up question... (Shift+Enter for a new line)' : 'Sign in to ask a follow-up'}
+                  disabled={isLoading || !isAuthenticated}
                   aria-label="Follow-up question"
                   className={clsx(
-                    "w-full px-4 py-2.5 pr-16 rounded-xl border transition-all",
+                    "w-full px-4 py-2.5 pr-16 rounded-xl border transition-all resize-none",
                     "border-secondary/40 bg-surface/80",
                     "focus:border-accent focus:ring-2 focus:ring-accent/20 focus:outline-none",
                     "placeholder:text-muted/60",
@@ -319,7 +350,7 @@ export default function FollowUpSection() {
                   )}
                 />
                 <span 
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted pointer-events-none"
+                  className="absolute right-3 top-3 text-xs text-muted pointer-events-none"
                   aria-hidden="true"
                 >
                   {inputValue.length}/{MAX_MESSAGE_LENGTH}
@@ -328,10 +359,10 @@ export default function FollowUpSection() {
               
               <button
                 type="submit"
-                disabled={!inputValue.trim() || isLoading}
+                disabled={!inputValue.trim() || isLoading || !isAuthenticated}
                 aria-label="Send question"
                 className={clsx(
-                  "px-4 py-2.5 bg-accent text-surface rounded-xl transition-all",
+                  "px-4 py-2.5 bg-accent text-surface rounded-xl transition-all h-full",
                   "hover:bg-accent/90 active:scale-95",
                   "disabled:opacity-50 disabled:cursor-not-allowed",
                   "focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/50"

@@ -28,6 +28,19 @@ const SUIT_ACCENTS = {
   }
 };
 
+const ELEMENT_FLASH_DURATION = 0.4;
+const ELEMENT_FLASH_TIMEOUT_MS = Math.round(ELEMENT_FLASH_DURATION * 1000);
+const SWIPE_THRESHOLD_RULES = [
+  { maxWidth: 375, distanceThreshold: 35, timeThreshold: 350 },
+  { maxWidth: 440, distanceThreshold: 42, timeThreshold: 320 },
+  { maxWidth: Infinity, distanceThreshold: 50, timeThreshold: 300 }
+];
+
+function getSwipeThresholds(viewportWidth) {
+  const rule = SWIPE_THRESHOLD_RULES.find(({ maxWidth }) => viewportWidth < maxWidth);
+  return rule || SWIPE_THRESHOLD_RULES[SWIPE_THRESHOLD_RULES.length - 1];
+}
+
 function normalizeSuitKey(suit) {
   if (!suit || typeof suit !== 'string') return null;
   const trimmed = suit.trim().toLowerCase();
@@ -174,7 +187,7 @@ export function Card({
     elementFlashTimeoutRef.current = window.setTimeout(() => {
       setElementFlashActive(false);
       elementFlashTimeoutRef.current = null;
-    }, 650);
+    }, ELEMENT_FLASH_TIMEOUT_MS);
   }, [isVisuallyRevealed, prefersReducedMotion, suitAccentColor, suitAccentSoft]);
 
   useEffect(() => {
@@ -256,10 +269,7 @@ export function Card({
 
     // Responsive swipe thresholds (more forgiving on small screens)
     const vw = typeof window !== 'undefined' ? window.innerWidth : 1024;
-    const isVerySmall = vw < 375;
-    const isSmall = vw < 440;
-    const distanceThreshold = isVerySmall ? 35 : isSmall ? 42 : 50;
-    const timeThreshold = isVerySmall ? 350 : isSmall ? 320 : 300;
+    const { distanceThreshold, timeThreshold } = getSwipeThresholds(vw);
     const horizontalAdvantage = isSmallScreen ? 1.2 : 1.5;
 
     const horizontalDominant = Math.abs(dx) > Math.abs(dy) * horizontalAdvantage;
@@ -520,7 +530,7 @@ export function Card({
                           className="absolute inset-0 rounded-lg pointer-events-none"
                           initial={{ opacity: 0.6, scale: 0.92 }}
                           animate={{ opacity: 0, scale: 1.12 }}
-                          transition={{ duration: 0.55, ease: 'easeOut' }}
+                          transition={{ duration: ELEMENT_FLASH_DURATION, ease: 'easeOut' }}
                           style={{
                             border: `2px solid ${suitAccentColor}`,
                             background: `radial-gradient(circle at 50% 35%, ${suitAccentSoft} 0%, transparent 60%)`

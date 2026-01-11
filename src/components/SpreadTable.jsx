@@ -52,6 +52,37 @@ const SPREAD_LAYOUTS = {
 };
 
 const CARD_ASPECT = 2 / 3;
+const CELTIC_CHALLENGE_OFFSET = {
+  minPx: 18,
+  maxPx: 44,
+  cardRatio: 0.22
+};
+
+const getMaxCardWidth = (layout, bounds) => {
+  const width = bounds.width;
+  const height = bounds.height;
+  if (!width || !height) return null;
+  let maxWidth = Infinity;
+
+  layout.forEach((pos) => {
+    const offsetX = pos.offsetX || 0;
+    const x = ((pos.x + offsetX) / 100) * width;
+    const y = (pos.y / 100) * height;
+    const scale = pos.scale || 1;
+    const isRotated = pos.rotate && Math.abs(pos.rotate) % 180 === 90;
+    const aspect = isRotated ? 1 / CARD_ASPECT : CARD_ASPECT;
+    const xLimit = 2 * Math.min(x, width - x);
+    const yLimit = 2 * Math.min(y, height - y);
+    const widthLimit = Math.min(xLimit, yLimit * aspect) / scale;
+
+    if (widthLimit < maxWidth) {
+      maxWidth = widthLimit;
+    }
+  });
+
+  if (!Number.isFinite(maxWidth)) return null;
+  return Math.max(0, maxWidth);
+};
 
 /**
  * SpreadTable - Visual spread layout showing where cards will land
@@ -68,7 +99,7 @@ export function SpreadTable({
   size = 'default'
 }) {
   const prefersReducedMotion = useReducedMotion();
-  const layout = SPREAD_LAYOUTS[spreadKey] || SPREAD_LAYOUTS.single;
+  const baseLayout = SPREAD_LAYOUTS[spreadKey] || SPREAD_LAYOUTS.single;
   const spreadInfo = SPREADS[spreadKey];
   const tableRef = useRef(null);
   const [tableBounds, setTableBounds] = useState({ width: 0, height: 0 });
@@ -82,9 +113,32 @@ export function SpreadTable({
         const shortLabel = fullPosition.split(' — ')[0].split(' (')[0];
         return shortLabel;
       }
-      return layout[index]?.label || `Card ${index + 1}`;
+      return baseLayout[index]?.label || `Card ${index + 1}`;
     };
-  }, [spreadInfo, layout]);
+  }, [spreadInfo, baseLayout]);
+
+  const baseMaxCardWidth = useMemo(
+    () => getMaxCardWidth(baseLayout, tableBounds),
+    [baseLayout, tableBounds.height, tableBounds.width]
+  );
+
+  const resolvedLayout = useMemo(() => {
+    if (spreadKey !== 'celtic') return baseLayout;
+    const width = tableBounds.width;
+    if (!width || !baseMaxCardWidth) return baseLayout;
+
+    const targetOffsetPx = Math.min(
+      CELTIC_CHALLENGE_OFFSET.maxPx,
+      Math.max(CELTIC_CHALLENGE_OFFSET.minPx, baseMaxCardWidth * CELTIC_CHALLENGE_OFFSET.cardRatio)
+    );
+    const offsetPercent = (targetOffsetPx / width) * 100;
+
+    return baseLayout.map((pos) => {
+      if (pos.label !== 'Challenge') return pos;
+      const baseOffset = pos.offsetX || 0;
+      return { ...pos, offsetX: Math.max(baseOffset, offsetPercent) };
+    });
+  }, [baseLayout, baseMaxCardWidth, spreadKey, tableBounds.width]);
 
   useEffect(() => {
     const element = tableRef.current;
@@ -114,31 +168,10 @@ export function SpreadTable({
     return () => observer.disconnect();
   }, []);
 
-  const maxCardWidth = useMemo(() => {
-    if (!tableBounds.width || !tableBounds.height) return null;
-    const width = tableBounds.width;
-    const height = tableBounds.height;
-    let maxWidth = Infinity;
-
-    layout.forEach((pos) => {
-      const offsetX = pos.offsetX || 0;
-      const x = ((pos.x + offsetX) / 100) * width;
-      const y = (pos.y / 100) * height;
-      const scale = pos.scale || 1;
-      const isRotated = pos.rotate && Math.abs(pos.rotate) % 180 === 90;
-      const aspect = isRotated ? 1 / CARD_ASPECT : CARD_ASPECT;
-      const xLimit = 2 * Math.min(x, width - x);
-      const yLimit = 2 * Math.min(y, height - y);
-      const widthLimit = Math.min(xLimit, yLimit * aspect) / scale;
-
-      if (widthLimit < maxWidth) {
-        maxWidth = widthLimit;
-      }
-    });
-
-    if (!Number.isFinite(maxWidth)) return null;
-    return Math.max(0, maxWidth);
-  }, [layout, tableBounds.height, tableBounds.width]);
+  const maxCardWidth = useMemo(
+    () => getMaxCardWidth(resolvedLayout, tableBounds),
+    [resolvedLayout, tableBounds.height, tableBounds.width]
+  );
 
   const cardSizeStyle = useMemo(() => {
     if (!maxCardWidth || maxCardWidth <= 0) return null;
@@ -189,7 +222,7 @@ export function SpreadTable({
       />
 
       {/* Position placeholders */}
-      {layout.map((pos, i) => {
+      {resolvedLayout.map((pos, i) => {
         const card = cards?.[i];
         const isRevealed = revealedIndices?.has?.(i) || false;
         const isNext = i === nextDealIndex && !isRevealed;
@@ -219,15 +252,12 @@ export function SpreadTable({
                   flex items-center justify-center
                   transition-all
                   ${isNext
-                    ? 'border-primary/60 bg-primary/10'
+                    ? 'border-primary/60 bg-primary/10 card-placeholder-next'
                     : 'border-accent/30 bg-surface/30'
                   }
                 `}
                 style={{
-                  ...(cardSizeStyle || {}),
-                  ...(isNext && !prefersReducedMotion
-                    ? { animation: 'placeholderPulse 1.5s ease-in-out infinite' }
-                    : {})
+                  ...(cardSizeStyle || {})
                 }}
                 role="img"
                 aria-label={`${positionLabel}: waiting for card`}

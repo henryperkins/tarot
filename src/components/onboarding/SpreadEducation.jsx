@@ -1,48 +1,12 @@
 import { useState } from 'react';
 import { ArrowLeft, ArrowRight, Check, Info } from '@phosphor-icons/react';
-import { SPREADS } from '../../data/spreads';
+import { BEGINNER_SPREADS } from '../../data/spreadBrowse';
 import { useReducedMotion } from '../../hooks/useReducedMotion';
 import { useLandscape } from '../../hooks/useLandscape';
 import { useSmallScreen } from '../../hooks/useSmallScreen';
 import { usePreferences } from '../../contexts/PreferencesContext';
-
-// Import spread artwork
-import oneCardArt from '../../../selectorimages/onecard.png';
-import threeCardArt from '../../../selectorimages/3card.png';
-import decisionArt from '../../../selectorimages/decision.png';
-
-// Beginner-friendly spreads for onboarding
-const BEGINNER_SPREADS = ['single', 'threeCard', 'decision'];
-
-const SPREAD_ART = {
-  single: { src: oneCardArt, alt: 'One-card spread layout' },
-  threeCard: { src: threeCardArt, alt: 'Three-card spread layout' },
-  decision: { src: decisionArt, alt: 'Decision spread layout' },
-};
-
-const SPREAD_DESCRIPTIONS = {
-  single: {
-    tagline: 'Perfect for beginners',
-    explanation: 'Draw a single card to focus on the core energy of your question. Simple and powerful.',
-    positions: ['One card representing the central theme or guidance'],
-  },
-  threeCard: {
-    tagline: 'Tell your story',
-    explanation: 'Three cards reveal past influences, present situation, and future possibilities.',
-    positions: ['Past — what led you here', 'Present — where you stand', 'Future — potential ahead'],
-  },
-  decision: {
-    tagline: 'Compare your paths',
-    explanation: 'When facing a choice, see the energy and outcomes of different options.',
-    positions: [
-      'Heart of the decision',
-      'Path A — energy & likely outcome',
-      'Path B — energy & likely outcome',
-      'What clarifies the best path',
-      'What to remember about your free will',
-    ],
-  },
-};
+import { ResponsiveSpreadArt } from '../ResponsiveSpreadArt';
+import { getSpreadArt } from '../../utils/spreadArt';
 
 const SPREAD_DEPTH_OPTIONS = [
   { value: 'short', label: 'Quick check-ins (1–2 cards)' },
@@ -58,6 +22,19 @@ const FOCUS_AREA_OPTIONS = [
   { value: 'creativity', label: 'Creativity & projects' },
   { value: 'spirituality', label: 'Spiritual path' },
 ];
+
+const buildResponsiveSources = (sources = {}) => (
+  Object.entries(sources).map(([format, entries]) => {
+    const list = Array.isArray(entries) ? entries : [];
+    const srcSet = list
+      .filter((item) => item?.src)
+      .map((item) => (item.width ? `${item.src} ${item.width}w` : item.src))
+      .join(', ');
+    if (!srcSet) return null;
+    const type = format.startsWith('image/') ? format : `image/${format}`;
+    return { type, srcSet };
+  }).filter(Boolean)
+);
 
 /**
  * SpreadEducation - Step 3 of onboarding
@@ -104,13 +81,25 @@ export function SpreadEducation({ selectedSpread, onSelectSpread, onNext, onBack
       <div className="flex-1 overflow-y-auto">
         {/* Use 2 columns in landscape on small screens to prevent cramped cards */}
         <div className={`grid gap-3 xs:gap-4 ${isLandscape ? 'grid-cols-2 lg:grid-cols-3' : 'grid-cols-1 md:grid-cols-3'}`}>
-          {BEGINNER_SPREADS.map((spreadKey, index) => {
-            const spread = SPREADS[spreadKey];
-            const description = SPREAD_DESCRIPTIONS[spreadKey];
-            const art = SPREAD_ART[spreadKey];
+          {BEGINNER_SPREADS.map((spreadEntry, index) => {
+            const spreadKey = spreadEntry.key;
+            const spread = spreadEntry.spread;
+            const description = spreadEntry.education || {};
+            const positions = Array.isArray(description.positions)
+              ? description.positions
+              : (spread?.positions || []);
+            const art = getSpreadArt(spreadKey, { alt: spreadEntry.artAlt }) || spread?.preview;
+            const responsiveSources = art?.sources ? buildResponsiveSources(art.sources) : [];
+            const artSizes = art?.sizes || '(max-width: 640px) 88vw, (max-width: 1024px) 46vw, 340px';
+            const artAspectRatio = art?.aspectRatio
+              || (art?.width && art?.height ? `${art.width} / ${art.height}` : '16 / 9');
             const isSelected = selectedSpread === spreadKey;
             const isExpanded = expandedSpread === spreadKey;
             const positionsId = `spread-${spreadKey}-positions`;
+            const spreadName = spread?.name || spreadEntry.shortName || spreadKey;
+            const spreadCount = spread?.count || 0;
+            const tagline = description.tagline || spread?.tag || '';
+            const explanation = description.explanation || spread?.description || '';
 
             // Handle clicks on the card container - select spread unless clicking positions toggle
             const handleCardClick = (e) => {
@@ -147,14 +136,25 @@ export function SpreadEducation({ selectedSpread, onSelectSpread, onNext, onBack
                 >
                   {/* Spread artwork */}
                   <div className="relative aspect-video sm:aspect-[16/10] bg-gradient-to-br from-surface to-main overflow-hidden">
-                    {art && (
+                    {art && responsiveSources.length > 0 ? (
+                      <ResponsiveSpreadArt
+                        alt={art.alt || `${spreadName} spread layout`}
+                        aspectRatio={artAspectRatio}
+                        sources={responsiveSources}
+                        fallbackSrc={art.src}
+                        fallbackWidth={art.width}
+                        fallbackHeight={art.height}
+                        sizes={artSizes}
+                        className="opacity-80"
+                      />
+                    ) : art ? (
                       <img
                         src={art.src}
-                        alt={art.alt}
+                        alt={art.alt || `${spreadName} spread layout`}
                         className="w-full h-full object-cover opacity-80"
                         loading="lazy"
                       />
-                    )}
+                    ) : null}
                     {/* Overlay gradient */}
                     <div
                       className="absolute inset-0 bg-gradient-to-t from-surface/90 via-transparent to-transparent"
@@ -167,23 +167,23 @@ export function SpreadEducation({ selectedSpread, onSelectSpread, onNext, onBack
                     <div className="flex items-start justify-between gap-2">
                       <div>
                         <h3 className="font-serif text-main text-base sm:text-lg leading-tight">
-                          {spread.name}
+                          {spreadName}
                         </h3>
-                        <p className="text-xs text-accent mt-0.5">{description.tagline}</p>
+                        <p className="text-xs text-accent mt-0.5">{tagline}</p>
                       </div>
                       <span className="shrink-0 px-2 py-0.5 rounded-full bg-secondary/20 text-xs text-muted">
-                        {spread.count} {spread.count === 1 ? 'card' : 'cards'}
+                        {spreadCount} {spreadCount === 1 ? 'card' : 'cards'}
                       </span>
                     </div>
 
                     <p className={`text-xs xs:text-sm text-muted mt-2 leading-relaxed ${isLandscape ? 'hidden' : 'hidden xs:block'}`}>
-                      {description.explanation}
+                      {explanation}
                     </p>
 
                     {/* Desktop positions - always visible */}
                     {!isSmallScreen && !isLandscape && (
                       <div className="mt-3 pt-3 border-t border-secondary/20 space-y-1.5">
-                        {description.positions.map((position, i) => (
+                        {positions.map((position, i) => (
                           <div key={i} className="flex items-start gap-2 text-xs">
                             <span className="w-5 h-5 shrink-0 rounded-full bg-accent/10 text-accent flex items-center justify-center font-medium">
                               {i + 1}
@@ -213,7 +213,7 @@ export function SpreadEducation({ selectedSpread, onSelectSpread, onNext, onBack
 
                     {isExpanded && (
                       <div id={positionsId} className="mt-3 pt-3 border-t border-secondary/20 space-y-1.5">
-                        {description.positions.map((position, i) => (
+                        {positions.map((position, i) => (
                           <div key={i} className="flex items-start gap-2 text-xs">
                             <span className="w-5 h-5 shrink-0 rounded-full bg-accent/10 text-accent flex items-center justify-center font-medium">
                               {i + 1}

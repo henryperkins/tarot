@@ -185,7 +185,7 @@ export const onRequestPost = async ({ request, env }) => {
       responseText = await callAzureResponses(env, {
         instructions: systemPrompt,
         input: userPrompt,
-        maxTokens: 600,
+        maxTokens: 400,  // ~250-300 words, aligned with response format guidance
         reasoningEffort: 'low',
         verbosity: 'medium'
       });

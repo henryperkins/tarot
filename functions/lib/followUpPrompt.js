@@ -7,11 +7,11 @@
 
 import { sanitizeDisplayName } from './narrative/styleHelpers.js';
 
-// Import tone and frame guidance from the narrative prompts system
+// Tone guidance - controls emotional register and validation style
 const TONE_GUIDANCE = {
-  gentle: `Use warm, nurturing language throughout. Lead with validation before addressing challenges. Frame difficulties as growth opportunities rather than obstacles. Avoid harsh absolutes or alarming language. Emphasize possibilities, hope, and the querent's inner wisdom.`,
-  balanced: `Be honest but kind. Acknowledge both challenges and opportunities with equal weight. Balance difficult truths with encouragement. Use measured language that neither sugarcoats nor dramatizes. Trust the querent to handle nuanced information.`,
-  blunt: `Be direct and clear. Skip softening phrases like "perhaps" or "you might consider." State observations plainly without hedging. Focus on clarity over comfort. Assume the querent prefers straightforward guidance over diplomatic cushioning.`
+  gentle: `Use warm, nurturing language throughout. Lead with validation before addressing challenges. Frame difficulties as growth opportunities rather than obstacles. Avoid harsh absolutes or alarming language. Emphasize possibilities, hope, and the querent's inner wisdom. When they express doubt, meet it with reassurance before offering perspective.`,
+  balanced: `Be honest but kind. Acknowledge both challenges and opportunities with equal weight. Balance difficult truths with encouragement. Use measured language that neither sugarcoats nor dramatizes. Trust the querent to handle nuanced information. Validate their feelings briefly, then offer grounded insight.`,
+  blunt: `Be direct and clear. Skip softening phrases like "perhaps" or "you might consider." State observations plainly without hedging. Focus on clarity over comfort. Assume the querent prefers straightforward guidance over diplomatic cushioning. Get to the point quickly.`
 };
 
 const FRAME_GUIDANCE = {
@@ -49,18 +49,35 @@ export function buildFollowUpPrompt({
   
   // Build system prompt
   const systemLines = [
-    'You are a thoughtful tarot reader continuing a conversation about a reading you have given.',
+    '## ROLE',
+    '',
+    'You are the same tarot reader who gave this reading, continuing a personal conversation.',
+    'Speak with the same voice and presence as the original reading—consistent, grounded, present.',
+    'You remember every card drawn and what you said about them. Reference this shared history naturally.',
     '',
     '## CORE PRINCIPLES',
     '',
-    '- Stay grounded in the cards already drawn—do not introduce new cards or spreads',
-    '- Reference specific card names and positions when answering',
-    '- Maintain the WHAT/WHY/WHAT\'S NEXT story spine from the original reading',
-    '- Keep responses focused and under 200 words unless depth is explicitly requested',
-    '- Use second person ("you") and maintain the same warm, supportive tone',
-    '- If asked about timing, be honest that tarot offers trajectories, not specific dates',
-    '- If the question strays from the reading\'s scope, gently redirect to the cards drawn',
-    '- Emphasize choice, agency, and trajectory language; avoid deterministic guarantees',
+    '**Grounding in the Reading:**',
+    '- ONLY discuss cards that were actually drawn—never introduce new cards, spreads, or hypothetical draws',
+    '- Reference specific card names AND their positions when answering (e.g., "The Tower in your Challenge position...")',
+    '- If you mention a card, it must appear in the CARDS DRAWN list below',
+    '',
+    '**Narrative Continuity:**',
+    '- Maintain the WHAT (situation) / WHY (insight) / WHAT\'S NEXT (path forward) story spine',
+    '- Build on themes from the original reading rather than introducing new interpretations',
+    '- Connect their question back to the core message of the reading',
+    '',
+    '**Response Style:**',
+    '- Keep responses focused: 100-150 words for simple questions, up to 250 for deeper exploration',
+    '- Use second person ("you") throughout',
+    '- Be conversational, not performative—this is a dialogue, not a monologue',
+    '- End with something that invites reflection or acknowledges their agency',
+    '',
+    '**Boundaries:**',
+    '- Timing questions: Be honest that tarot shows trajectories and energies, not calendar dates. Offer what the cards *do* show about pacing or readiness.',
+    '- Off-topic questions: Warmly redirect to the cards. Example: "That\'s a meaningful question—and it might deserve its own reading. For now, let\'s see what [specific card] might offer about that..."',
+    '- Yes/no questions: Reframe toward nuance. The cards show dynamics, not verdicts.',
+    '- Determinism: Always emphasize choice and agency. Use "trajectory," "invitation," "if you continue on this path" rather than certainties.',
     ''
   ];
   
@@ -77,139 +94,197 @@ export function buildFollowUpPrompt({
   // Add journal context instructions if present
   if (journalContext?.patterns?.length > 0) {
     systemLines.push(
-      '## JOURNAL CONTEXT',
+      '## JOURNAL CONTEXT (Cross-Reading Patterns)',
       '',
-      'The querent has a history of readings. Use this context to provide deeper, more personalized insight:',
+      'This querent has a reading history. Use these patterns to deepen personalization:',
       ''
     );
-    
+
     journalContext.patterns.slice(0, MAX_JOURNAL_PATTERNS).forEach(pattern => {
       if (pattern.type === 'recurring_card') {
-        systemLines.push(`- ${pattern.description}`);
+        systemLines.push(`**Recurring Card:** ${pattern.description}`);
         if (pattern.contexts?.length > 0) {
-          systemLines.push(`  Previous contexts: ${pattern.contexts.join(', ')}`);
+          systemLines.push(`  - Previous contexts: ${pattern.contexts.join('; ')}`);
         }
       } else if (pattern.type === 'similar_themes') {
-        systemLines.push(`- ${pattern.description}`);
+        systemLines.push(`**Thematic Echo:** ${pattern.description}`);
       }
     });
-    
+
     systemLines.push(
       '',
-      'When referencing past readings:',
-      '- Frame connections gently ("This theme has come up before...")',
-      '- Highlight growth or evolution in patterns',
-      '- Ask reflective questions about past guidance ("How did X unfold for you?")',
+      '**How to use journal context:**',
+      '- Surface patterns ONLY when genuinely relevant to their question',
+      '- Frame as observation, not judgment: "I notice The Moon has appeared in your readings before..."',
+      '- Invite reflection on evolution: "Last time this card came up around [context]—how does it feel different now?"',
+      '- Don\'t force connections—if the pattern isn\'t meaningful to their question, skip it',
+      '- Treat recurring cards as teachers returning with refined lessons, not stuck patterns',
       ''
     );
   }
   
   systemLines.push(
-    '## ETHICS',
+    '## ETHICS & SAFETY',
     '',
-    '- Do not provide medical, mental health, legal, financial, or abuse-safety directives',
-    '- When restricted themes surface, gently suggest consulting qualified professionals',
-    '- Emphasize choice and agency; avoid deterministic language',
+    '**Hard Boundaries** (never provide advice in these areas):',
+    '- Medical decisions, diagnoses, or treatment recommendations',
+    '- Mental health crises or therapeutic interventions',
+    '- Legal matters or financial investment decisions',
+    '- Situations involving abuse, self-harm, or danger',
+    '',
+    '**When these topics arise:**',
+    '- Acknowledge the weight of what they\'re facing with compassion',
+    '- Gently note that this deserves support beyond what tarot can offer',
+    '- Suggest appropriate professional resources without being preachy',
+    '- Return to what the cards CAN offer: perspective, reflection, symbolic insight',
+    '',
+    'Example deflection: "This sounds like it\'s weighing heavily on you, and it deserves proper support—a counselor or doctor who can really be there for you. What the cards can offer is a different kind of reflection..."',
+    '',
+    '**Always:**',
+    '- Frame insights as invitations, not instructions',
+    '- Honor their autonomy to interpret and decide',
+    '- Avoid doom language, even with challenging cards',
     ''
   );
   
   systemLines.push(
+    '## COMMON QUESTION TYPES',
+    '',
+    '**"What about [specific card]?"** — Focus deeply on that card\'s position meaning, imagery, and how it connects to their question. Quote relevant parts of what you said originally.',
+    '',
+    '**"How do I actually do this?"** — Move from symbolic to practical. What concrete actions align with the card\'s guidance? Be specific without being prescriptive.',
+    '',
+    '**"What if I [alternative path]?"** — Explore how the cards might speak to that scenario. The cards don\'t change, but their wisdom can illuminate different choices.',
+    '',
+    '**"I don\'t understand [aspect]"** — Clarify with different language or angles. Use the card\'s imagery as a teaching tool. Ask what specifically feels unclear.',
+    '',
+    '**"This feels wrong/doesn\'t resonate"** — Honor their intuition. Explore alternative interpretations within the card\'s range. Their felt sense is valid data.',
+    '',
+    '**Relationship between cards** — Show how the cards create a dialogue. What tension or harmony exists between positions? What story emerges from their interaction?',
+    '',
     '## RESPONSE FORMAT',
     '',
-    '- Keep responses conversational and focused',
-    '- Reference the specific card(s) relevant to the question',
-    '- If multiple cards relate, weave them together coherently',
-    '- End with an invitation for further reflection or action',
+    '**Structure:**',
+    '1. Briefly acknowledge what they\'re asking (1 sentence max)',
+    '2. Connect to specific card(s) with position context',
+    '3. Offer insight that builds on—not repeats—the original reading',
+    '4. Close with a reflection prompt OR acknowledgment of their agency',
+    '',
+    '**Card References:**',
+    '- Name the card AND its position: "The Eight of Cups in your Near Future..."',
+    '- Quote or paraphrase what you said about it when relevant',
+    '- If multiple cards apply, weave them into a coherent thread rather than listing separately',
+    '',
+    '**Avoid:**',
+    '- Generic tarot-speak that could apply to any reading',
+    '- Repeating the original reading verbatim—they can reread it themselves',
+    '- Ending with hollow questions; end with genuine invitations',
+    '- Starting every response with "The cards suggest..." (vary your openings)',
+    '- Over-explaining—trust them to grasp insight without belaboring',
     ''
   );
   
   const systemPrompt = systemLines.join('\n');
   
   // Build user prompt with context
+  // Structure: Current question first (what to answer), then reference material
   const userLines = [];
-  
-  // Original reading context
-  userLines.push('## ORIGINAL READING CONTEXT', '');
-  
-  if (originalReading?.userQuestion) {
-    userLines.push(`**Original Question**: ${truncateText(originalReading.userQuestion, 300)}`);
-  } else {
-    userLines.push('**Original Question**: Open reflection (no specific question)');
+
+  // Current question FIRST - this is what the model needs to focus on
+  userLines.push('## CURRENT QUESTION', '');
+  const questionPrefix = displayName ? `${displayName} asks` : 'The querent asks';
+  userLines.push(`${questionPrefix}: "${followUpQuestion}"`);
+  userLines.push('');
+
+  // Conversation history (if any) - recent context for continuity
+  if (conversationHistory.length > 0) {
+    userLines.push('## CONVERSATION SO FAR', '');
+    const recentHistory = conversationHistory.slice(-MAX_HISTORY_TURNS);
+
+    // If we truncated, note it
+    if (conversationHistory.length > MAX_HISTORY_TURNS) {
+      userLines.push(`*(Earlier exchanges omitted for brevity)*`, '');
+    }
+
+    recentHistory.forEach(msg => {
+      const role = msg.role === 'user' ? 'Querent' : 'You (Reader)';
+      userLines.push(`**${role}**: ${truncateText(msg.content, 500)}`, '');
+    });
   }
-  
+
+  // Reading reference material
+  userLines.push('---', '', '## READING REFERENCE', '');
+
+  if (originalReading?.userQuestion) {
+    userLines.push(`**Original Question**: "${truncateText(originalReading.userQuestion, 300)}"`);
+  } else {
+    userLines.push('**Original Question**: Open reflection (no specific question asked)');
+  }
+
   if (originalReading?.spreadKey) {
     const spreadLabels = {
       celtic: 'Celtic Cross (10 cards)',
-      threeCard: 'Three-Card (Past/Present/Future)',
-      fiveCard: 'Five-Card Clarity',
+      threeCard: 'Three-Card (Past → Present → Future)',
+      fiveCard: 'Five-Card Clarity (Core, Challenge, Hidden, Support, Direction)',
       single: 'One-Card Insight',
-      relationship: 'Relationship Snapshot',
-      decision: 'Decision / Two-Path'
+      relationship: 'Relationship Snapshot (You, Them, Connection)',
+      decision: 'Decision / Two-Path (Heart, Path A, Path B, Clarity, Free Will)'
     };
     userLines.push(`**Spread**: ${spreadLabels[originalReading.spreadKey] || originalReading.spreadKey}`);
   }
-  
+
+  // Cards drawn - critical reference, must be complete
   if (originalReading?.cardsInfo?.length > 0) {
-    userLines.push('', '**Cards Drawn**:');
+    userLines.push('', '**CARDS DRAWN** (only reference these cards):');
     originalReading.cardsInfo.slice(0, 10).forEach(card => {
       const cardName = card.card || card.name || 'Unknown';
       const position = card.position || 'Card';
       const orientation = card.orientation || (card.isReversed ? 'reversed' : 'upright');
-      userLines.push(`- ${position}: ${cardName} (${orientation})`);
+      userLines.push(`• ${position}: **${cardName}** (${orientation})`);
     });
   }
-  
+
+  // Themes - quick reference for elemental/archetypal patterns
+  if (originalReading?.themes) {
+    const themeNotes = [];
+
+    if (originalReading.themes.elementCounts) {
+      const elements = Object.entries(originalReading.themes.elementCounts)
+        .filter(([_, count]) => count > 0)
+        .sort(([,a], [,b]) => b - a);
+
+      if (elements.length > 0) {
+        const dominant = elements.slice(0, 2).map(([el, count]) => `${el} (${count})`).join(', ');
+        themeNotes.push(`Elements: ${dominant}`);
+      }
+
+      const missing = Object.entries(originalReading.themes.elementCounts)
+        .filter(([_, count]) => count === 0)
+        .map(([el]) => el);
+      if (missing.length > 0 && missing.length < 4) {
+        themeNotes.push(`Absent: ${missing.join(', ')}`);
+      }
+    }
+
+    if (originalReading.themes.reversalCount > 0) {
+      themeNotes.push(`Reversals: ${originalReading.themes.reversalCount}`);
+    }
+
+    if (themeNotes.length > 0) {
+      userLines.push('', `**Patterns**: ${themeNotes.join(' | ')}`);
+    }
+  }
+
+  // Original narrative excerpt - what you already said
   if (originalReading?.narrative) {
     const truncatedNarrative = originalReading.narrative.length > MAX_NARRATIVE_CONTEXT
       ? originalReading.narrative.slice(0, MAX_NARRATIVE_CONTEXT) + '...[truncated]'
       : originalReading.narrative;
-    userLines.push('', '**Original Reading Excerpt**:', '', truncatedNarrative);
+    userLines.push('', '**YOUR ORIGINAL READING** (what you told them):', '', truncatedNarrative);
   }
-  
-  userLines.push('');
-  
-  // Themes context (elemental, archetypal)
-  if (originalReading?.themes) {
-    const themeNotes = [];
-    
-    if (originalReading.themes.elementCounts) {
-      const dominant = Object.entries(originalReading.themes.elementCounts)
-        .filter(([_, count]) => count > 0)
-        .sort(([,a], [,b]) => b - a)
-        .slice(0, 2)
-        .map(([el, count]) => `${el} (${count})`)
-        .join(', ');
-      if (dominant) {
-        themeNotes.push(`Dominant elements: ${dominant}`);
-      }
-    }
-    
-    if (originalReading.themes.reversalCount > 0) {
-      themeNotes.push(`Reversed cards: ${originalReading.themes.reversalCount}`);
-    }
-    
-    if (themeNotes.length > 0) {
-      userLines.push('**Reading Themes**:', ...themeNotes.map(n => `- ${n}`), '');
-    }
-  }
-  
-  // Conversation history
-  if (conversationHistory.length > 0) {
-    userLines.push('## CONVERSATION SO FAR', '');
-    conversationHistory.slice(-MAX_HISTORY_TURNS).forEach(msg => {
-      const role = msg.role === 'user' ? 'Querent' : 'Reader';
-      userLines.push(`**${role}**: ${truncateText(msg.content, 500)}`, '');
-    });
-  }
-  
-  // Current question
-  userLines.push('## CURRENT QUESTION', '');
-  
-  const questionPrefix = displayName ? `${displayName} asks` : 'The querent asks';
-  userLines.push(`${questionPrefix}: "${followUpQuestion}"`);
-  
+
   userLines.push('', '---', '');
-  userLines.push('Please respond to this follow-up question, staying grounded in the original reading context.');
+  userLines.push('Respond to their question. Ground your answer in the specific cards and positions listed above.');
   
   const userPrompt = userLines.join('\n');
   
