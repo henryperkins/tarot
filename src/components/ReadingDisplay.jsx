@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState, useEffect } from 'react';
-import { AnimatePresence } from 'framer-motion';
+import { AnimatePresence, motion } from 'framer-motion';
 import { Sparkle, ArrowCounterClockwise, Star, CheckCircle, BookmarkSimple, ChatCircle } from '@phosphor-icons/react';
 import { useNavigate } from 'react-router-dom';
 import { getSpreadInfo, normalizeSpreadKey } from '../data/spreads';
@@ -80,9 +80,11 @@ export function ReadingDisplay({ sectionRef }) {
         // Reading Generation & UI
         personalReading,
         isGenerating,
+        isReadingStreamActive,
         narrativePhase,
         themes,
         emotionalTone,
+        reasoningSummary,
         readingMeta,
         journalStatus,
         setJournalStatus: _setJournalStatus,
@@ -151,7 +153,11 @@ export function ReadingDisplay({ sectionRef }) {
 
     // --- Derived State ---
     const isPersonalReadingError = Boolean(personalReading?.isError);
-    const fullReadingText = !isPersonalReadingError ? personalReading?.raw || personalReading?.normalized || '' : '';
+    const isReadingStreaming = Boolean(isReadingStreamActive || personalReading?.isStreaming);
+    const isServerStreamed = Boolean(personalReading?.isServerStreamed);
+    const fullReadingText = !isPersonalReadingError && !isReadingStreaming
+        ? personalReading?.raw || personalReading?.normalized || ''
+        : '';
     const narrativeText = useMemo(() => {
         if (!personalReading) return '';
         if (personalReading.hasMarkdown) return personalReading.raw || personalReading.normalized || '';
@@ -168,13 +174,14 @@ export function ReadingDisplay({ sectionRef }) {
             .filter(Boolean);
         return Array.from(new Set(names));
     }, [reading]);
-    const shouldStreamNarrative = Boolean(personalReading && !personalReading.isError);
+    const shouldStreamNarrative = Boolean(personalReading && !personalReading.isError && !isReadingStreaming && !isServerStreamed);
     const hasPatternHighlights = Boolean(!isPersonalReadingError && themes?.knowledgeGraph?.narrativeHighlights?.length);
     const hasTraditionalInsights = Boolean(readingMeta?.graphContext?.retrievedPassages?.length);
     const hasHighlightPanel = Boolean(highlightItems?.length && revealedCards.size === reading?.length);
     const hasInsightPanels = hasPatternHighlights || hasTraditionalInsights || hasHighlightPanel || canShowVisionPanel;
     const focusToggleAvailable = hasInsightPanels && (isCompactScreen || isNarrativeFocus);
     const shouldShowSpreadInsights = !isNarrativeFocus && (hasPatternHighlights || hasHighlightPanel || hasTraditionalInsights);
+    const canAutoNarrate = voiceOn && autoNarrate && narrativePhase === 'complete' && !isReadingStreaming;
 
     // Track previous hasInsightPanels for render-time state adjustment
     const [prevHasInsightPanels, setPrevHasInsightPanels] = useState(hasInsightPanels);
@@ -418,16 +425,27 @@ export function ReadingDisplay({ sectionRef }) {
                     )}
 
                     {/* Skeleton loading state during narrative generation */}
-                    {isGenerating && !personalReading && (
-                        <div className={`bg-surface/95 backdrop-blur-xl rounded-2xl border border-secondary/40 shadow-2xl shadow-secondary/40 max-w-full sm:max-w-5xl mx-auto ${isLandscape ? 'p-3' : 'px-3 xxs:px-4 py-4 xs:px-5 sm:p-6 md:p-8'}`}>
-                            <NarrativeSkeleton
-                                hasQuestion={Boolean(userQuestion)}
-                                displayName={displayName}
-                                spreadName={spreadInfo?.name}
-                                cardCount={reading?.length || 3}
-                            />
-                        </div>
-                    )}
+                    <AnimatePresence mode="wait">
+                        {isGenerating && !personalReading && (
+                            <motion.div
+                                key="narrative-skeleton"
+                                initial={prefersReducedMotion ? false : { opacity: 0, y: 8 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                exit={prefersReducedMotion ? { opacity: 0 } : { opacity: 0, y: -8 }}
+                                transition={{ duration: prefersReducedMotion ? 0 : 0.25, ease: 'easeOut' }}
+                                className={`bg-surface/95 backdrop-blur-xl rounded-2xl border border-secondary/40 shadow-2xl shadow-secondary/40 max-w-full sm:max-w-5xl mx-auto ${isLandscape ? 'p-3' : 'px-3 xxs:px-4 py-4 xs:px-5 sm:p-6 md:p-8'}`}
+                            >
+                                <NarrativeSkeleton
+                                    hasQuestion={Boolean(userQuestion)}
+                                    displayName={displayName}
+                                    spreadName={spreadInfo?.name}
+                                    cardCount={reading?.length || 3}
+                                    reasoningSummary={reasoningSummary}
+                                    narrativePhase={narrativePhase}
+                                />
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
 
                     {personalReading && (
                         <div className={`bg-surface/95 backdrop-blur-xl rounded-2xl border border-secondary/40 shadow-2xl shadow-secondary/40 max-w-full sm:max-w-5xl mx-auto ${isLandscape ? 'p-3' : 'px-3 xxs:px-4 py-4 xs:px-5 sm:p-6 md:p-8'}`}>
@@ -486,7 +504,7 @@ export function ReadingDisplay({ sectionRef }) {
                                 text={narrativeText}
                                 useMarkdown={Boolean(personalReading?.hasMarkdown)}
                                 isStreamingEnabled={shouldStreamNarrative}
-                                autoNarrate={voiceOn && autoNarrate}
+                                autoNarrate={canAutoNarrate}
                                 onNarrationStart={handleNarrationWrapper}
                                 displayName={displayName}
                                 highlightPhrases={narrativeHighlightPhrases}

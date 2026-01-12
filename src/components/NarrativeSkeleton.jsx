@@ -111,6 +111,8 @@ function getLineConfig(cardCount, isLandscape) {
  * @param {string} [props.displayName] - User's display name for personalized messaging
  * @param {string} [props.spreadName] - Name of the spread being interpreted
  * @param {number} [props.cardCount=3] - Number of cards in the spread
+ * @param {string} [props.reasoningSummary] - AI reasoning summary to display during generation
+ * @param {string} [props.narrativePhase] - Current narrative generation phase ('analyzing'|'drafting'|'polishing')
  */
 export function NarrativeSkeleton({
   className = '',
@@ -118,15 +120,16 @@ export function NarrativeSkeleton({
   displayName = '',
   spreadName = '',
   cardCount = 3,
+  reasoningSummary = '',
+  narrativePhase = '',
 }) {
   const prefersReducedMotion = useReducedMotion();
   const isLandscape = useLandscape();
 
-  // Track elapsed time for phase transitions
+  // Track elapsed time for phase transitions and message rotation
   const [elapsedMs, setElapsedMs] = useState(0);
-  const [messageIndex, setMessageIndex] = useState(0);
 
-  // Increment elapsed time
+  // Single interval for elapsed time - message rotation derived from this
   useEffect(() => {
     const interval = setInterval(() => {
       setElapsedMs(prev => prev + 1000);
@@ -134,26 +137,27 @@ export function NarrativeSkeleton({
     return () => clearInterval(interval);
   }, []);
 
-  // Rotate through messages
-  useEffect(() => {
-    if (prefersReducedMotion) return;
-
-    const interval = setInterval(() => {
-      setMessageIndex(prev => prev + 1);
-    }, PHASE_TIMING.messageRotation);
-    return () => clearInterval(interval);
-  }, [prefersReducedMotion]);
+  // Derive message index from elapsed time (changes every messageRotation ms)
+  const messageIndex = prefersReducedMotion
+    ? 0
+    : Math.floor(elapsedMs / PHASE_TIMING.messageRotation);
 
   // Determine current phase and message
   const isExtendedWait = elapsedMs >= PHASE_TIMING.extendedWait;
   const messages = isExtendedWait ? PHASE_MESSAGES.extended : PHASE_MESSAGES.initial;
   const currentMessage = messages[messageIndex % messages.length];
 
+  // Determine step index from narrative phase (SSE-driven) with time-based fallback
   const stepIndex = useMemo(() => {
+    // Use actual narrative phase when available
+    if (narrativePhase === 'polishing') return 2;
+    if (narrativePhase === 'drafting') return 1;
+    if (narrativePhase === 'analyzing') return 0;
+    // Fallback to time-based progression if phase not provided
     if (elapsedMs >= 9000) return 2;
     if (elapsedMs >= 4500) return 1;
     return 0;
-  }, [elapsedMs]);
+  }, [narrativePhase, elapsedMs]);
 
   // Build personalized status message
   const statusMessage = useMemo(() => {
@@ -240,6 +244,16 @@ export function NarrativeSkeleton({
         <p className="narrative-skeleton__hint text-xs text-muted text-center mt-2">
           Let your attention rest on the card that feels loudest.
         </p>
+
+        {/* AI Reasoning Summary - shown while generating */}
+        {reasoningSummary && (
+          <div className="narrative-skeleton__reasoning mt-4 px-3 py-2 rounded-lg bg-surface/50 border border-secondary/20">
+            <p className="text-xs text-muted/80 italic leading-relaxed">
+              <span className="font-medium text-secondary/70 not-italic">Considering: </span>
+              {reasoningSummary.length > 200 ? `${reasoningSummary.slice(0, 200)}...` : reasoningSummary}
+            </p>
+          </div>
+        )}
       </div>
 
       {/* Question anchor skeleton - only if question was provided */}
@@ -254,7 +268,7 @@ export function NarrativeSkeleton({
       )}
 
       {/* Narrative text skeleton */}
-      <div className="narrative-skeleton__panel narrative-atmosphere rounded-2xl bg-surface/70 border border-secondary/30 shadow-md px-4 py-5 sm:px-6 sm:py-6">
+      <div className="narrative-skeleton__panel narrative-atmosphere rounded-2xl bg-surface/70 border border-secondary/30 shadow-md px-3 xxs:px-4 sm:px-6 py-5 sm:py-6 min-h-[6rem] xxs:min-h-[7.5rem] md:min-h-[10rem]">
         <div className="max-w-[68ch] mx-auto space-y-3">
           {displayLines.map((line, index) => {
             if (line.isBreak) {

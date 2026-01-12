@@ -76,11 +76,13 @@ export function ReadingProvider({ children }) {
     // 4. Reading Generation State
     const [personalReading, setPersonalReading] = useState(null);
     const [isGenerating, setIsGenerating] = useState(false);
+    const [isReadingStreamActive, setIsReadingStreamActive] = useState(false);
     const [narrativePhase, setNarrativePhase] = useState('idle');
     const [spreadAnalysis, setSpreadAnalysis] = useState(null);
     const [themes, setThemes] = useState(null);
     const [emotionalTone, setEmotionalTone] = useState(null);
     const [analysisContext, setAnalysisContext] = useState(null);
+    const [reasoningSummary, setReasoningSummary] = useState(null);
     const [followUps, setFollowUps] = useState([]);
     const [readingMeta, setReadingMeta] = useState({
         requestId: null,
@@ -119,7 +121,9 @@ export function ReadingProvider({ children }) {
             setEmotionalTone(null);
             setSpreadAnalysis(null);
             setAnalysisContext(null);
+            setReasoningSummary(null);
             setIsGenerating(false);
+            setIsReadingStreamActive(false);
             setNarrativePhase('idle');
             setJournalStatus(null);
             setReflections({});
@@ -141,6 +145,8 @@ export function ReadingProvider({ children }) {
             const errorMsg = 'Please draw your cards before requesting a personalized reading.';
             const formattedError = formatReading(errorMsg);
             formattedError.isError = true;
+            formattedError.isStreaming = false;
+            formattedError.isServerStreamed = false;
             setPersonalReading(formattedError);
             setJournalStatus({
                 type: 'error',
@@ -157,6 +163,7 @@ export function ReadingProvider({ children }) {
         inFlightReadingRef.current = { controller, sessionSeed };
 
         setIsGenerating(true);
+        setIsReadingStreamActive(false);
         setPersonalReading(null);
         setJournalStatus(null);
         setNarrativePhase('analyzing');
@@ -242,7 +249,10 @@ export function ReadingProvider({ children }) {
 
             const requestPayload = {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'text/event-stream'
+                },
                 body: null,
                 signal: controller.signal
             };
@@ -293,9 +303,12 @@ export function ReadingProvider({ children }) {
             setNarrativePhase('drafting');
             setSrAnnouncement('Step 2 of 3: Drafting narrative insights.');
 
-            const response = await fetch('/api/tarot-reading', requestPayload);
+            const response = await fetch('/api/tarot-reading?stream=true', requestPayload);
 
-            if (!response.ok) {
+            const contentType = response.headers.get('content-type') || '';
+            const isSSE = contentType.includes('text/event-stream');
+
+            if (!response.ok && !isSSE) {
                 const errText = await response.text();
                 let errPayload = null;
                 try {
@@ -329,6 +342,194 @@ export function ReadingProvider({ children }) {
                 throw requestError;
             }
 
+            if (isSSE) {
+                setIsReadingStreamActive(true);
+                const reader = response.body?.getReader();
+                if (!reader) {
+                    throw new Error('Streaming response missing body.');
+                }
+
+                const decoder = new TextDecoder();
+                let buffer = '';
+                let streamedText = '';
+                let doneReceived = false;
+                let streamMeta = null;
+                let lastFlush = 0;
+
+                const isActiveRequest = () =>
+                    !controller.signal.aborted &&
+                    inFlightReadingRef.current &&
+                    inFlightReadingRef.current.controller === controller;
+
+                const flushStreamedText = (force = false) => {
+                    if (!isActiveRequest()) return;
+                    const now = Date.now();
+                    if (!force && now - lastFlush < 120) {
+                        return;
+                    }
+                    lastFlush = now;
+                    const formatted = formatReading(streamedText);
+                    formatted.isError = false;
+                    formatted.isStreaming = true;
+                    formatted.isServerStreamed = true;
+                    if (streamMeta?.provider) {
+                        formatted.provider = streamMeta.provider;
+                    }
+                    if (streamMeta?.requestId) {
+                        formatted.requestId = streamMeta.requestId;
+                    }
+                    setPersonalReading(formatted);
+                };
+
+                while (true) {
+                    const { done, value } = await reader.read();
+
+                    if (done) break;
+
+                    if (controller.signal.aborted) {
+                        reader.cancel().catch(() => null);
+                        return;
+                    }
+
+                    buffer += decoder.decode(value, { stream: true });
+                    const events = buffer.split('\n\n');
+                    buffer = events.pop() || '';
+
+                    for (const eventBlock of events) {
+                        if (!eventBlock.trim()) continue;
+
+                        const lines = eventBlock.split('\n');
+                        let eventType = '';
+                        let eventData = '';
+
+                        for (const line of lines) {
+                            if (line.startsWith('event:')) {
+                                eventType = line.slice(6).trim();
+                            } else if (line.startsWith('data:')) {
+                                eventData = line.slice(5).trim();
+                            }
+                        }
+
+                        if (!eventType || !eventData) continue;
+
+                        try {
+                            const data = JSON.parse(eventData);
+
+                            if (eventType === 'meta') {
+                                streamMeta = data;
+                                if (data?.themes !== undefined) {
+                                    setThemes(data.themes || null);
+                                }
+                                if (data?.emotionalTone !== undefined) {
+                                    setEmotionalTone(data.emotionalTone || null);
+                                }
+                                if (data?.spreadAnalysis !== undefined) {
+                                    setSpreadAnalysis(data.spreadAnalysis || null);
+                                }
+                                if (data?.context !== undefined) {
+                                    setAnalysisContext(data.context || null);
+                                }
+                                if (isActiveRequest()) {
+                                    setReadingMeta({
+                                        requestId: data.requestId || null,
+                                        provider: data.provider || 'local',
+                                        spreadKey: safeSpreadKey,
+                                        spreadName: spreadInfo.name,
+                                        deckStyle: deckStyleId,
+                                        userQuestion,
+                                        graphContext: data.themes?.knowledgeGraph || null,
+                                        ephemeris: data.ephemeris || null
+                                    });
+                                }
+                            } else if (eventType === 'delta') {
+                                streamedText += data.text || '';
+                                flushStreamedText();
+                            } else if (eventType === 'reasoning') {
+                                // Handle reasoning summary from AI
+                                if (data.text && isActiveRequest()) {
+                                    setReasoningSummary(data.text);
+                                }
+                            } else if (eventType === 'done') {
+                                doneReceived = true;
+                                const finalText = (data.fullText || streamedText || '').trim();
+                                if (!finalText) {
+                                    throw new Error('Empty reading returned');
+                                }
+
+                                if (!isActiveRequest()) {
+                                    return;
+                                }
+
+                                setNarrativePhase('polishing');
+                                setSrAnnouncement('Step 3 of 3: Final polishing and assembling your narrative.');
+
+                                const formatted = formatReading(finalText);
+                                formatted.isError = false;
+                                formatted.isStreaming = false;
+                                formatted.isServerStreamed = true;
+                                formatted.provider = data.provider || streamMeta?.provider || 'local-composer';
+                                formatted.requestId = data.requestId || streamMeta?.requestId || null;
+                                setPersonalReading(formatted);
+                                setIsReadingStreamActive(false);
+                                setNarrativePhase('complete');
+                                setReasoningSummary(null);
+                                setLastCardsForFeedback(
+                                    cardsInfo.map((card) => ({
+                                        position: card.position,
+                                        card: card.card,
+                                        orientation: card.orientation
+                                    }))
+                                );
+                                setReadingMeta((prev) => ({
+                                    ...prev,
+                                    requestId: formatted.requestId,
+                                    provider: formatted.provider || prev?.provider || 'local'
+                                }));
+                            } else if (eventType === 'error') {
+                                throw new Error(data.message || 'Streaming error occurred');
+                            }
+                        } catch (parseError) {
+                            if (parseError.message && !parseError.message.includes('JSON')) {
+                                throw parseError;
+                            }
+                            console.warn('Failed to parse SSE event:', eventData);
+                        }
+                    }
+                }
+
+                if (!doneReceived && streamedText && isActiveRequest()) {
+                    const finalText = streamedText.trim();
+                    if (finalText) {
+                        setNarrativePhase('polishing');
+                        setSrAnnouncement('Step 3 of 3: Final polishing and assembling your narrative.');
+                        const formatted = formatReading(finalText);
+                        formatted.isError = false;
+                        formatted.isStreaming = false;
+                        formatted.isServerStreamed = true;
+                        formatted.provider = streamMeta?.provider || 'local-composer';
+                        formatted.requestId = streamMeta?.requestId || null;
+                        setPersonalReading(formatted);
+                        setIsReadingStreamActive(false);
+                        setNarrativePhase('complete');
+                        setReasoningSummary(null);
+                        setLastCardsForFeedback(
+                            cardsInfo.map((card) => ({
+                                position: card.position,
+                                card: card.card,
+                                orientation: card.orientation
+                            }))
+                        );
+                        setReadingMeta((prev) => ({
+                            ...prev,
+                            requestId: formatted.requestId,
+                            provider: formatted.provider || prev?.provider || 'local'
+                        }));
+                    }
+                }
+
+                return;
+            }
+
             const data = await response.json();
             if (!data?.reading || !data.reading.trim()) {
                 throw new Error('Empty reading returned');
@@ -352,10 +553,13 @@ export function ReadingProvider({ children }) {
 
             const formatted = formatReading(data.reading.trim());
             formatted.isError = false;
+            formatted.isStreaming = false;
+            formatted.isServerStreamed = false;
             formatted.provider = data.provider || 'local-composer';
             formatted.requestId = data.requestId || null;
             setPersonalReading(formatted);
             setNarrativePhase('complete');
+            setReasoningSummary(null);
             setLastCardsForFeedback(
                 cardsInfo.map((card) => ({
                     position: card.position,
@@ -385,6 +589,8 @@ export function ReadingProvider({ children }) {
                     : 'Unable to generate reading at this time. Please try again in a moment.';
             const formattedError = formatReading(errorMsg);
             formattedError.isError = true;
+            formattedError.isStreaming = false;
+            formattedError.isServerStreamed = false;
             setPersonalReading(formattedError);
             setJournalStatus({
                 type: 'error',
@@ -396,6 +602,7 @@ export function ReadingProvider({ children }) {
             if (inFlightReadingRef.current?.controller === controller) {
                 inFlightReadingRef.current = null;
             }
+            setIsReadingStreamActive(false);
             setIsGenerating(false);
         }
     }, [
@@ -595,11 +802,13 @@ export function ReadingProvider({ children }) {
         revealAll,
         personalReading, setPersonalReading,
         isGenerating, setIsGenerating,
+        isReadingStreamActive,
         narrativePhase, setNarrativePhase,
         spreadAnalysis, setSpreadAnalysis,
         themes, setThemes,
         emotionalTone, setEmotionalTone,
         analysisContext, setAnalysisContext,
+        reasoningSummary, setReasoningSummary,
         readingMeta, setReadingMeta,
         journalStatus, setJournalStatus,
         reflections, setReflections,
@@ -619,11 +828,13 @@ export function ReadingProvider({ children }) {
         revealAll,
         personalReading,
         isGenerating,
+        isReadingStreamActive,
         narrativePhase,
         spreadAnalysis,
         themes,
         emotionalTone,
         analysisContext,
+        reasoningSummary,
         readingMeta,
         journalStatus,
         reflections,
