@@ -12,6 +12,7 @@ import {
 } from './reasoning.js';
 
 import { sanitizeDisplayName } from './styleHelpers.js';
+import { pickOne } from './helpers.js';
 
 // ============================================================================
 // REASONING-INFORMED TEMPLATE SELECTION
@@ -130,14 +131,6 @@ export function selectReasoningConnector(reasoning, currentIndex, nextIndex) {
   }
 
   return null; // Let the default connector system handle it
-}
-
-/**
- * Pick a random element from an array
- */
-function pickOne(arr) {
-  if (!Array.isArray(arr) || arr.length === 0) return '';
-  return arr[Math.floor(Math.random() * arr.length)];
 }
 
 // ============================================================================

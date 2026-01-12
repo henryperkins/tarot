@@ -24,6 +24,7 @@ import { useMemo } from 'react';
  * @param {string} envVar - Environment variable name
  * @param {boolean} defaultValue - Default if no source sets the flag
  * @param {boolean} userOverridable - If false, only env var is checked (ops-only flag)
+ * @returns {boolean} The resolved flag value
  */
 function getFlag(flagKey, envVar, defaultValue = false, userOverridable = false) {
   // For ops-only flags, skip URL/localStorage and only check env var
@@ -35,8 +36,8 @@ function getFlag(flagKey, envVar, defaultValue = false, userOverridable = false)
         const urlValue = params.get(`ff_${flagKey}`);
         if (urlValue === 'true') return true;
         if (urlValue === 'false') return false;
-      } catch {
-        // Ignore URL parsing errors
+      } catch (_urlParseError) {
+        // URL parsing errors are non-fatal; fall through to other sources
       }
     }
 
@@ -46,8 +47,8 @@ function getFlag(flagKey, envVar, defaultValue = false, userOverridable = false)
         const localValue = localStorage.getItem(`ff_${flagKey}`);
         if (localValue === 'true') return true;
         if (localValue === 'false') return false;
-      } catch {
-        // Ignore localStorage errors
+      } catch (_storageError) {
+        // localStorage errors (e.g., private browsing) are non-fatal; fall through
       }
     }
   }
@@ -87,18 +88,4 @@ export function useFeatureFlags() {
  */
 export function isVisionResearchEnabled() {
   return getFlag('vision_research', 'VITE_ENABLE_VISION_RESEARCH', false, false);
-}
-
-/**
- * Check if new deck interface is enabled (ops-only)
- */
-export function isNewDeckInterfaceEnabled() {
-  return getFlag('new_deck_interface', 'VITE_NEW_DECK_INTERFACE', false, false);
-}
-
-/**
- * Check if unified journey is enabled (always true - legacy panels deprecated)
- */
-export function isUnifiedJourneyEnabled() {
-  return true;
 }

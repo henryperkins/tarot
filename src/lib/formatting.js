@@ -6,6 +6,8 @@
  * tone while avoiding "asterisk asterisk" and rigid headings.
  */
 
+import { djb2Hash } from './utils.js';
+
 /**
  * Normalize reading text by stripping or softening Markdown markers
  *
@@ -253,15 +255,7 @@ export function createTextCacheKey(text) {
   // Normalize first to ensure consistent keys
   const normalized = normalizeReadingText(text);
 
-  // Simple hash function (same as used in audio.js)
-  let hash = 0;
-  for (let i = 0; i < normalized.length; i++) {
-    const char = normalized.charCodeAt(i);
-    hash = ((hash << 5) - hash) + char;
-    hash = hash & hash; // Convert to 32-bit integer
-  }
-
-  return `tts_${Math.abs(hash).toString(36)}`;
+  return `tts_${djb2Hash(normalized).toString(36)}`;
 }
 
 /**

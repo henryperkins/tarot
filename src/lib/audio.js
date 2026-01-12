@@ -1,5 +1,7 @@
 import { normalizeReadingText, prepareForTTS } from './formatting.js';
 import { generateFallbackWaveform } from '../../shared/fallbackAudio.js';
+import { djb2Hash } from './utils.js';
+import { safeStorage } from './safeStorage.js';
 
 let flipAudio = null;
 let ambienceAudio = null;
@@ -19,7 +21,6 @@ let currentNarrationRequestId = 0;
 let activeNarrationId = null;
 let cancelledUpToRequestId = 0;
 let audioUnlocked = false;
-const _audioUnlockPromise = null;
 let unlockListenersRegistered = false;
 const TTS_CACHE_PREFIX = 'tts_cache_';
 const TTS_CACHE_MAX_ENTRIES = 50;
@@ -455,18 +456,12 @@ async function tryPlayLocalFallback({ requestId, context, fallbackText }) {
 
 /**
  * Generate a cache key from text, context, voice, and speed.
- * Uses simple hash to keep localStorage keys reasonable.
+ * Uses djb2 hash to keep localStorage keys reasonable.
  */
 function generateCacheKey(text, context, voice, speed) {
   const speedKey = speed !== undefined ? speed : 'default';
   const content = `${text}|${context}|${voice}|${speedKey}`;
-  let hash = 0;
-  for (let i = 0; i < content.length; i++) {
-    const char = content.charCodeAt(i);
-    hash = ((hash << 5) - hash) + char;
-    hash = hash & hash; // Convert to 32bit integer
-  }
-  return `${TTS_CACHE_PREFIX}${Math.abs(hash).toString(36)}`;
+  return `${TTS_CACHE_PREFIX}${djb2Hash(content).toString(36)}`;
 }
 
 /**
@@ -475,9 +470,9 @@ function generateCacheKey(text, context, voice, speed) {
  */
 function getCachedAudio(key) {
   try {
-    if (typeof localStorage === 'undefined') return null;
+    if (!safeStorage.isAvailable) return null;
 
-    const cached = localStorage.getItem(key);
+    const cached = safeStorage.getItem(key);
     if (!cached) return null;
 
     const data = JSON.parse(cached);
@@ -486,7 +481,7 @@ function getCachedAudio(key) {
 
     // Invalidate stale cache
     if (cacheAge > CACHE_MAX_AGE_MS) {
-      localStorage.removeItem(key);
+      safeStorage.removeItem(key);
       return null;
     }
 
@@ -503,7 +498,7 @@ function getCachedAudio(key) {
  */
 function cacheAudio(key, audioDataUri, provider = null) {
   try {
-    if (typeof localStorage === 'undefined') return;
+    if (!safeStorage.isAvailable) return;
 
     const data = {
       audio: audioDataUri,
@@ -520,7 +515,7 @@ function cacheAudio(key, audioDataUri, provider = null) {
     }
 
     try {
-      localStorage.setItem(key, payload);
+      safeStorage.setItem(key, payload);
     } catch (err) {
       if (isQuotaExceededError(err)) {
         entries = collectCacheEntries();
@@ -532,7 +527,7 @@ function cacheAudio(key, audioDataUri, provider = null) {
         }
 
         try {
-          localStorage.setItem(key, payload);
+          safeStorage.setItem(key, payload);
           return;
         } catch (retryErr) {
           console.warn('Unable to cache TTS audio after eviction:', retryErr);
@@ -549,13 +544,13 @@ function cacheAudio(key, audioDataUri, provider = null) {
 
 export function clearTTSCache({ keepLatest = 0 } = {}) {
   try {
-    if (typeof localStorage === 'undefined') return;
+    if (!safeStorage.isAvailable) return;
     const entries = collectCacheEntries();
     if (!entries.length) return;
 
     if (keepLatest <= 0) {
       for (const entry of entries) {
-        localStorage.removeItem(entry.key);
+        safeStorage.removeItem(entry.key);
       }
       return;
     }
@@ -566,7 +561,7 @@ export function clearTTSCache({ keepLatest = 0 } = {}) {
 
     const removeCount = entries.length - keepLatest;
     for (let i = 0; i < removeCount; i += 1) {
-      localStorage.removeItem(entries[i].key);
+      safeStorage.removeItem(entries[i].key);
     }
   } catch (err) {
     console.warn('Failed to clear TTS cache:', err);
@@ -574,13 +569,14 @@ export function clearTTSCache({ keepLatest = 0 } = {}) {
 }
 
 function collectCacheEntries() {
-  if (typeof localStorage === 'undefined') return [];
+  if (!safeStorage.isAvailable) return [];
 
+  // Need direct localStorage access for Object.keys()
   return Object.keys(localStorage)
     .filter(key => key.startsWith(TTS_CACHE_PREFIX))
     .map(key => {
       try {
-        const value = JSON.parse(localStorage.getItem(key));
+        const value = JSON.parse(safeStorage.getItem(key));
         return { key, timestamp: value?.timestamp || 0 };
       } catch {
         return { key, timestamp: 0 };
@@ -590,10 +586,10 @@ function collectCacheEntries() {
 }
 
 function evictOldestEntries(entries, count) {
-  if (typeof localStorage === 'undefined') return;
+  if (!safeStorage.isAvailable) return;
   const toRemove = Math.min(count, entries.length);
   for (let i = 0; i < toRemove; i += 1) {
-    localStorage.removeItem(entries[i].key);
+    safeStorage.removeItem(entries[i].key);
   }
 }
 

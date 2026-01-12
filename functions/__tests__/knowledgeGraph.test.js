@@ -1,6 +1,6 @@
-// functions/lib/__tests__/knowledgeGraph.test.js
+// functions/__tests__/knowledgeGraph.test.js
 // Unit tests for Knowledge Graph pattern detection
-// Run with: node --test functions/lib/__tests__/knowledgeGraph.test.js
+// Run with: node --test functions/__tests__/knowledgeGraph.test.js
 
 import { describe, it } from 'node:test';
 import assert from 'node:assert';
@@ -12,7 +12,7 @@ import {
   detectSuitProgressions,
   detectAllPatterns,
   getPriorityPatternNarratives
-} from '../knowledgeGraph.js';
+} from '../lib/knowledgeGraph.js';
 
 describe('detectFoolsJourneyStage', () => {
   it('detects initiation stage (3+ cards from 0-7)', () => {

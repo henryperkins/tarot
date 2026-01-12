@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { detectCrisisSignals } from '../safetyChecks.js';
+import { detectCrisisSignals } from '../lib/safetyChecks.js';
 
 describe('detectCrisisSignals', () => {
     describe('true positives - should detect genuine crisis', () => {

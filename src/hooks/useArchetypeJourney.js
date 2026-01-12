@@ -13,8 +13,6 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { normalizeAnalyticsShape, getCardTrends, computeMonthlyTotals } from '../lib/archetypeJourney';
 import { safeStorage, invalidateNarrativeCache } from '../lib/safeStorage';
 
-export { getCardTrends, computeMonthlyTotals };
-
 const RUN_META_KEY_PREFIX = 'archetype_run_meta';
 
 /**
@@ -45,7 +43,7 @@ function parseTimestamp(value) {
 /**
  * Format a timestamp for display.
  */
-export function formatTimestampLabel(value) {
+function formatTimestampLabel(value) {
   const ms = parseTimestamp(value);
   if (!ms) return null;
   const date = new Date(ms);

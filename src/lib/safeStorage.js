@@ -8,6 +8,8 @@
  * - Manages narrative cache with TTL and user isolation
  */
 
+import { djb2Hash } from './utils.js';
+
 const NARRATIVE_CACHE_KEY = 'journey_narrative_cache';
 const NARRATIVE_CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours
 
@@ -55,19 +57,6 @@ export const safeStorage = {
   },
 };
 
-/**
- * Compute a simple hash of a string for cache key generation.
- * @param {string} str - String to hash
- * @returns {string} Hex hash string
- */
-function hashString(str) {
-  let hash = 0;
-  for (let i = 0; i < str.length; i++) {
-    hash = ((hash << 5) - hash) + str.charCodeAt(i);
-    hash |= 0;
-  }
-  return Math.abs(hash).toString(16);
-}
 
 /**
  * Compute a filter hash from filtered entries for cache key uniqueness.
@@ -80,7 +69,7 @@ export function computeFilterHash(filteredEntries) {
     return '000000';
   }
   const ids = filteredEntries.map(e => e?.id || '').filter(Boolean).sort().join(',');
-  return hashString(ids).slice(0, 6).padStart(6, '0');
+  return djb2Hash(ids).toString(16).slice(0, 6).padStart(6, '0');
 }
 
 /**

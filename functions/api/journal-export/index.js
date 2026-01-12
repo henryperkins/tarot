@@ -8,20 +8,7 @@
  */
 
 import { validateSession, getSessionFromCookie } from '../../lib/auth.js';
-import { jsonResponse } from '../../lib/utils.js';
-
-/**
- * Safely parse JSON with fallback to prevent corrupt data from breaking exports
- */
-function safeJsonParse(json, fallback) {
-  if (!json) return fallback;
-  try {
-    return JSON.parse(json);
-  } catch (e) {
-    console.warn('JSON parse failed in export:', e.message);
-    return fallback;
-  }
-}
+import { jsonResponse, safeJsonParse } from '../../lib/utils.js';
 
 // PDF generation constants
 const PDF_PAGE_HEIGHT = 842; // A4 height in points

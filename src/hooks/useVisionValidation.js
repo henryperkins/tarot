@@ -1,4 +1,5 @@
 import { useCallback, useRef, useState, useEffect } from 'react';
+import { generateId } from '../lib/utils';
 
 function fileToDataUrl(file) {
   return new Promise((resolve, reject) => {
@@ -7,16 +8,6 @@ function fileToDataUrl(file) {
     reader.onerror = reject;
     reader.readAsDataURL(file);
   });
-}
-
-const hasCryptoUUID = typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function';
-
-function generateUploadId(prefix = 'vision-upload') {
-  if (hasCryptoUUID) {
-    return `${prefix}-${crypto.randomUUID()}`;
-  }
-  const random = Math.random().toString(36).slice(2, 10);
-  return `${prefix}-${Date.now()}-${random}`;
 }
 
 function getFileLabel(file, fallback) {
@@ -71,7 +62,7 @@ export function useVisionValidation({ deckStyle = 'rws-1909' } = {}) {
       const uploadsMetadata = files.map((file, index) => ({
         file,
         label: getFileLabel(file, `upload-${index + 1}`),
-        uploadId: file?.__visionUploadId || generateUploadId()
+        uploadId: file?.__visionUploadId || generateId('vision-upload')
       }));
       const dataUrls = await Promise.all(files.map(fileToDataUrl));
       const pipeline = await ensurePipeline();

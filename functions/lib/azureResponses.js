@@ -1,5 +1,22 @@
+/**
+ * Validate and normalize Azure OpenAI configuration
+ *
+ * Normalizes endpoint URL to prevent double-pathing issues:
+ * - Strips trailing slashes
+ * - Removes /openai/v1 suffix if present
+ * - Removes /openai suffix if present
+ *
+ * @param {Object} env - Environment bindings
+ * @returns {Object} Normalized config { endpoint, apiKey, model, apiVersion }
+ * @throws {Error} If required configuration is missing
+ */
 export function ensureAzureConfig(env) {
-  const endpoint = (env.AZURE_OPENAI_ENDPOINT || '').replace(/\/+$/, '');
+  const rawEndpoint = env.AZURE_OPENAI_ENDPOINT || '';
+  const endpoint = rawEndpoint
+    .replace(/\/+$/, '')                    // Remove trailing slashes
+    .replace(/\/openai\/v1\/?$/, '')        // Remove /openai/v1 suffix if present
+    .replace(/\/openai\/?$/, '');           // Remove /openai suffix if present
+
   const apiKey = env.AZURE_OPENAI_API_KEY;
   const model = env.AZURE_OPENAI_GPT5_MODEL;
 
@@ -17,35 +34,81 @@ export function ensureAzureConfig(env) {
   };
 }
 
-export async function callAzureResponses(env, { instructions, input, maxTokens = 900, reasoningEffort = 'medium', verbosity = 'medium' }) {
+/**
+ * Determine reasoning effort based on model capabilities
+ *
+ * GPT-5.1 and GPT-5-Pro models benefit from 'high' reasoning effort.
+ * Other models use 'medium' as a balanced default.
+ *
+ * @param {string} modelName - Azure deployment/model name
+ * @returns {string} Reasoning effort level ('low', 'medium', or 'high')
+ */
+export function getReasoningEffort(modelName) {
+  if (!modelName) return 'medium';
+  const normalized = modelName.toLowerCase();
+  if (normalized.includes('gpt-5-pro') || normalized.includes('gpt-5.1')) {
+    return 'high';
+  }
+  return 'medium';
+}
+
+/**
+ * Call Azure OpenAI Responses API
+ *
+ * @param {Object} env - Environment bindings
+ * @param {Object} options - Request options
+ * @param {string} options.instructions - System instructions
+ * @param {string} options.input - User input
+ * @param {number|null} options.maxTokens - Max output tokens (null = no limit, default: 900)
+ * @param {string|null} options.reasoningEffort - Reasoning effort level (null = omit, 'low'/'medium'/'high')
+ * @param {string} options.verbosity - Text verbosity level ('low', 'medium', 'high')
+ * @param {boolean} options.returnFullResponse - When true, return { text, usage } instead of just text
+ * @returns {Promise<string|Object>} Response text or { text, usage } if returnFullResponse=true
+ */
+export async function callAzureResponses(env, {
+  instructions,
+  input,
+  maxTokens = 900,
+  reasoningEffort = null,
+  verbosity = 'medium',
+  returnFullResponse = false
+}) {
   const { endpoint, apiKey, model, apiVersion } = ensureAzureConfig(env);
   const url = `${endpoint}/openai/v1/responses?api-version=${encodeURIComponent(apiVersion)}`;
 
-  // NOTE:
-  // We intentionally DO NOT set the `reasoning` field here.
-  // When `reasoning` is enabled, the model can consume the entire
-  // `max_output_tokens` budget on reasoning tokens only, returning
-  // only a `reasoning` block with `status: "incomplete"` and no
-  // `output_text` / message content (as seen in the logs).
-  //
-  // For this endpoint we just want the final question text, so we
-  // rely on the default behavior and request only text output.
+  // Build request body
+  // NOTE: When reasoningEffort is null, we intentionally omit the `reasoning` block.
+  // When `reasoning` is enabled with a token limit, the model can consume the entire
+  // `max_output_tokens` budget on reasoning tokens only, returning only a `reasoning`
+  // block with `status: "incomplete"` and no `output_text` / message content.
+  // For short outputs (follow-ups, questions), omit reasoning. For full readings
+  // (no token limit), reasoning is beneficial.
   const body = {
     model,
     instructions,
     input,
-    max_output_tokens: maxTokens,
     text: { verbosity }
   };
+
+  // Only include max_output_tokens if maxTokens is not null
+  if (maxTokens !== null) {
+    body.max_output_tokens = maxTokens;
+  }
+
+  // Only include reasoning block if effort is specified
+  if (reasoningEffort !== null) {
+    body.reasoning = { effort: reasoningEffort };
+  }
 
   // Debug logging for request metadata (no secrets)
   console.log('[azureResponses] Requesting Responses API', {
     url,
     model,
     apiVersion,
-    maxTokens,
-    reasoningEffort,
-    verbosity
+    maxTokens: maxTokens ?? 'unlimited',
+    reasoningEffort: reasoningEffort ?? 'omitted',
+    verbosity,
+    returnFullResponse
   });
 
   const response = await fetch(url, {
@@ -85,24 +148,42 @@ export async function callAzureResponses(env, { instructions, input, maxTokens =
     console.warn('[azureResponses] Failed to log Azure payload snapshot', logError);
   }
 
+  // Extract text content from response
+  let text = null;
+
   if (data.output && Array.isArray(data.output)) {
     for (const block of data.output) {
       if (block.type === 'message') {
         const messagePieces = Array.isArray(block.content) ? block.content : [];
         for (const piece of messagePieces) {
           if (piece.type === 'output_text' && piece.text) {
-            return piece.text.trim();
+            text = piece.text.trim();
+            break;
           }
         }
+        if (text) break;
       }
     }
   }
 
-  if (typeof data.output_text === 'string' && data.output_text.trim()) {
-    return data.output_text.trim();
+  // Fallback: try output_text property (some models use this)
+  if (!text && typeof data.output_text === 'string' && data.output_text.trim()) {
+    text = data.output_text.trim();
   }
 
-  const serialized = JSON.stringify(data, null, 2);
-  console.warn('[azureResponses] No output_text returned. Raw payload:', serialized?.slice(0, 2000));
-  throw new Error('Azure Responses API returned no text content.');
+  if (!text) {
+    const serialized = JSON.stringify(data, null, 2);
+    console.warn('[azureResponses] No output_text returned. Raw payload:', serialized?.slice(0, 2000));
+    throw new Error('Azure Responses API returned no text content.');
+  }
+
+  // Return full response object or just text based on flag
+  if (returnFullResponse) {
+    return {
+      text,
+      usage: data.usage || null
+    };
+  }
+
+  return text;
 }

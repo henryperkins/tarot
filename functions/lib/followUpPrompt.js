@@ -5,7 +5,12 @@
  * Maintains consistency with original reading while enabling deeper exploration.
  */
 
-import { sanitizeDisplayName } from './narrative/styleHelpers.js';
+import {
+  sanitizeDisplayName,
+  resolveToneKey,
+  resolveFrameKey
+} from './narrative/styleHelpers.js';
+import { sanitizeText } from './utils.js';
 
 // Tone guidance - controls emotional register and validation style
 const TONE_GUIDANCE = {
@@ -44,8 +49,10 @@ export function buildFollowUpPrompt({
   personalization = null
 }) {
   const displayName = sanitizeDisplayName(personalization?.displayName);
-  const toneKey = personalization?.readingTone || 'balanced';
-  const frameKey = personalization?.spiritualFrame || 'mixed';
+  const toneKey = resolveToneKey(personalization?.readingTone);
+  const frameKey = resolveFrameKey(personalization?.spiritualFrame);
+  const condensedContext = buildCondensedContext(originalReading);
+  const safeQuestion = sanitizeText(followUpQuestion, { maxLength: 500, stripMarkdown: true, stripControlChars: true });
   
   // Build system prompt
   const systemLines = [
@@ -102,12 +109,19 @@ export function buildFollowUpPrompt({
 
     journalContext.patterns.slice(0, MAX_JOURNAL_PATTERNS).forEach(pattern => {
       if (pattern.type === 'recurring_card') {
-        systemLines.push(`**Recurring Card:** ${pattern.description}`);
+        const safeDescription = sanitizeText(pattern.description, { maxLength: 200, stripMarkdown: true, stripControlChars: true });
+        systemLines.push(`**Recurring Card:** ${safeDescription}`);
         if (pattern.contexts?.length > 0) {
-          systemLines.push(`  - Previous contexts: ${pattern.contexts.join('; ')}`);
+          const safeContexts = pattern.contexts
+            .map(context => sanitizeText(context, { maxLength: 120, stripMarkdown: true, stripControlChars: true }))
+            .filter(Boolean);
+          if (safeContexts.length > 0) {
+            systemLines.push(`  - Previous contexts: ${safeContexts.join('; ')}`);
+          }
         }
       } else if (pattern.type === 'similar_themes') {
-        systemLines.push(`**Thematic Echo:** ${pattern.description}`);
+        const safeDescription = sanitizeText(pattern.description, { maxLength: 200, stripMarkdown: true, stripControlChars: true });
+        systemLines.push(`**Thematic Echo:** ${safeDescription}`);
       }
     });
 
@@ -181,7 +195,8 @@ export function buildFollowUpPrompt({
     '- Ending with hollow questions; end with genuine invitations',
     '- Starting every response with "The cards suggest..." (vary your openings)',
     '- Over-explaining—trust them to grasp insight without belaboring',
-    ''
+    '',
+    'If the CARDS DRAWN list is missing or empty, say you need the original reading context (cards and positions) to continue and invite them to rerun their reading. Do not invent cards or positions.'
   );
   
   const systemPrompt = systemLines.join('\n');
@@ -193,7 +208,8 @@ export function buildFollowUpPrompt({
   // Current question FIRST - this is what the model needs to focus on
   userLines.push('## CURRENT QUESTION', '');
   const questionPrefix = displayName ? `${displayName} asks` : 'The querent asks';
-  userLines.push(`${questionPrefix}: "${followUpQuestion}"`);
+  const questionLine = safeQuestion ? `${questionPrefix}: "${safeQuestion}"` : `${questionPrefix}: [question unavailable]`;
+  userLines.push(questionLine);
   userLines.push('');
 
   // Conversation history (if any) - recent context for continuity
@@ -208,7 +224,8 @@ export function buildFollowUpPrompt({
 
     recentHistory.forEach(msg => {
       const role = msg.role === 'user' ? 'Querent' : 'You (Reader)';
-      userLines.push(`**${role}**: ${truncateText(msg.content, 500)}`, '');
+      const safeContent = sanitizeText(msg.content, { maxLength: 500, stripMarkdown: true, stripControlChars: true }) || '[message omitted]';
+      userLines.push(`**${role}**: ${safeContent}`, '');
     });
   }
 
@@ -216,7 +233,8 @@ export function buildFollowUpPrompt({
   userLines.push('---', '', '## READING REFERENCE', '');
 
   if (originalReading?.userQuestion) {
-    userLines.push(`**Original Question**: "${truncateText(originalReading.userQuestion, 300)}"`);
+    const safeOriginalQuestion = sanitizeText(originalReading.userQuestion, { maxLength: 300, stripMarkdown: true, stripControlChars: true });
+    userLines.push(`**Original Question**: "${safeOriginalQuestion || 'Open reflection (no specific question asked)'}"`);
   } else {
     userLines.push('**Original Question**: Open reflection (no specific question asked)');
   }
@@ -283,6 +301,13 @@ export function buildFollowUpPrompt({
     userLines.push('', '**YOUR ORIGINAL READING** (what you told them):', '', truncatedNarrative);
   }
 
+  if (condensedContext) {
+    const shouldAddCondensedContext = !originalReading?.narrative || originalReading.narrative.length > MAX_NARRATIVE_CONTEXT;
+    if (shouldAddCondensedContext) {
+      userLines.push('', '**CONDENSED CONTEXT**:', condensedContext);
+    }
+  }
+
   userLines.push('', '---', '');
   userLines.push('Respond to their question. Ground your answer in the specific cards and positions listed above.');
   
@@ -291,22 +316,7 @@ export function buildFollowUpPrompt({
   return { systemPrompt, userPrompt };
 }
 
-/**
- * Truncate text to a maximum length, preserving word boundaries
- */
-function truncateText(text, maxLength) {
-  if (!text || typeof text !== 'string') return '';
-  if (text.length <= maxLength) return text;
-  
-  const truncated = text.slice(0, maxLength);
-  const lastSpace = truncated.lastIndexOf(' ');
-  
-  if (lastSpace > maxLength * 0.7) {
-    return truncated.slice(0, lastSpace) + '...';
-  }
-  
-  return truncated + '...';
-}
+// sanitizeUserText replaced by sanitizeText from ./utils.js
 
 /**
  * Build a condensed context summary for token-constrained scenarios
@@ -330,7 +340,8 @@ export function buildCondensedContext(originalReading) {
   }
   
   if (originalReading.userQuestion) {
-    lines.push(`Question: ${truncateText(originalReading.userQuestion, 100)}`);
+    const safeQuestion = sanitizeText(originalReading.userQuestion, { maxLength: 100, stripMarkdown: true, stripControlChars: true });
+    lines.push(`Question: ${safeQuestion}`);
   }
   
   return lines.join(' | ');

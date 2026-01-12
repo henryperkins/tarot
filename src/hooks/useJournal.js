@@ -3,6 +3,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useSubscription } from '../contexts/SubscriptionContext';
 import { persistJournalInsights, clearJournalInsightsCache } from '../lib/journalInsights';
 import { invalidateNarrativeCache } from '../lib/safeStorage';
+import { generateId } from '../lib/utils';
 import { dedupeEntries } from '../../shared/journal/dedupe.js';
 
 const LOCALSTORAGE_KEY = 'tarot_journal';
@@ -283,7 +284,7 @@ export function useJournal({ autoLoad = true } = {}) {
         }
 
         const newEntry = {
-          id: crypto.randomUUID?.() || `local_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`,
+          id: generateId('local'),
           ts: Date.now(),
           ...entry
         };

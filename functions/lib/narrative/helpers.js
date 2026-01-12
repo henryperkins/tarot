@@ -1508,5 +1508,6 @@ export {
   buildElementalRemedies,
   shouldOfferElementalRemedies,
   selectContextAwareRemedy,
-  computeRemedyRotationIndex
+  computeRemedyRotationIndex,
+  pickOne
 };

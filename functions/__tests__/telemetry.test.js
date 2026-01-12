@@ -1,12 +1,12 @@
-// functions/lib/__tests__/telemetry.test.js
+// functions/__tests__/telemetry.test.js
 // Tests for telemetry summaries, prompt budgeting, reversal formatting, and context diagnostics.
 
 import { describe, it, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { summarizeNarrativeEnhancements } from '../../api/tarot-reading.js';
-import { buildEnhancedClaudePrompt } from '../narrative/prompts.js';
-import { formatReversalLens, normalizeContext } from '../narrative/helpers.js';
+import { summarizeNarrativeEnhancements } from '../api/tarot-reading.js';
+import { buildEnhancedClaudePrompt } from '../lib/narrative/prompts.js';
+import { formatReversalLens, normalizeContext } from '../lib/narrative/helpers.js';
 
 const ORIGINAL_ENV = { ...process.env };
 
@@ -272,7 +272,7 @@ describe('prompt builder resilience', () => {
 
     const graphRAGPayload = {
       passages: [
-        { title: 'Triad Wisdom', text: 'Insight about the Fool’s Journey.', source: 'Arcana Anthology', priority: 1, type: 'triad' }
+        { title: 'Triad Wisdom', text: "Insight about the Fool's Journey.", source: 'Arcana Anthology', priority: 1, type: 'triad' }
       ],
       initialPassageCount: 1,
       formattedBlock: null,

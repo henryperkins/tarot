@@ -30,6 +30,7 @@ import { getPositionWeight } from '../positionWeights.js';
 import { formatVisionLabelForPrompt } from '../visionLabels.js';
 import { getDepthProfile, sanitizeDisplayName } from './styleHelpers.js';
 import { getReadingPromptVersion } from '../promptVersioning.js';
+import { sanitizeText } from '../utils.js';
 
 // Heuristic: decide when astrological context is relevant enough to surface
 // in the reading prompts. Uses card anchors + spread/graph signals + user intent
@@ -1000,7 +1001,7 @@ function buildUserPrompt(
   const includeDiagnostics = promptOptions.includeDiagnostics !== false;
 
   // Question
-  const safeQuestion = userQuestion ? sanitizeAndTruncate(userQuestion, MAX_QUESTION_TEXT_LENGTH) : '';
+  const safeQuestion = userQuestion ? sanitizeText(userQuestion, { maxLength: MAX_QUESTION_TEXT_LENGTH, addEllipsis: true, stripMarkdown: true }) : '';
   let questionLine = safeQuestion || '(No explicit question; speak to the energy most present for the querent.)';
   if (displayName && safeQuestion) {
     questionLine = `${displayName}, you asked: ${safeQuestion}`;
@@ -1034,7 +1035,7 @@ function buildUserPrompt(
   if (Array.isArray(personalization?.focusAreas) && personalization.focusAreas.length > 0) {
     const focusList = personalization.focusAreas
       .slice(0, 5)
-      .map((entry) => (typeof entry === 'string' ? sanitizeAndTruncate(entry, 40) : ''))
+      .map((entry) => (typeof entry === 'string' ? sanitizeText(entry, { maxLength: 40, addEllipsis: true, stripMarkdown: true }) : ''))
       .filter(Boolean)
       .join(', ');
     thematicLines.push(`- Focus areas (from onboarding): ${focusList}`);
@@ -1109,7 +1110,7 @@ function buildUserPrompt(
   // Reflections (Fallback for legacy/aggregate usage)
   const hasPerCardReflections = cardsInfo.some(c => c.userReflection);
   if (!hasPerCardReflections && reflectionsText && reflectionsText.trim()) {
-    const sanitizedReflections = sanitizeAndTruncate(reflectionsText, MAX_REFLECTION_TEXT_LENGTH);
+    const sanitizedReflections = sanitizeText(reflectionsText, { maxLength: MAX_REFLECTION_TEXT_LENGTH, addEllipsis: true, stripMarkdown: true });
     if (sanitizedReflections) {
       prompt += `\n**Querent's Reflections**:\n${sanitizedReflections}\n\n`;
     }
@@ -1223,15 +1224,7 @@ function buildVisionValidationSection(visionInsights, options = {}) {
   return `${lines.join('\n')}\n`;
 }
 
-function sanitizeAndTruncate(text = '', maxLength = 100) {
-  if (!text || typeof text !== 'string') return '';
-  const truncated = text.length > maxLength
-    ? text.slice(0, maxLength).trim() + '...'
-    : text.trim();
-  return truncated
-    .replace(/[#*`_[\]]/g, '')
-    .replace(/\s+/g, ' ');
-}
+// sanitizeAndTruncate replaced by sanitizeText from ../utils.js
 
 function buildCelticCrossPromptCards(cardsInfo, analysis, themes, context, userQuestion, visionInsights, promptOptions = {}) {
   const baseOptions = { ...getPositionOptions(themes, context), visionInsights };
@@ -1280,7 +1273,7 @@ function buildCelticCrossPromptCards(cardsInfo, analysis, themes, context, userQ
   cards += buildCardWithImagery(cardsInfo[8], cardsInfo[8].position || 'Hopes & Fears — deepest wishes & worries (Card 9)', optionsFor(8));
 
   const outcomeLabel = userQuestion
-    ? `Outcome — likely path for "${sanitizeAndTruncate(userQuestion)}" if unchanged (Card 10)`
+    ? `Outcome — likely path for "${sanitizeText(userQuestion, { maxLength: 100, addEllipsis: true, stripMarkdown: true })}" if unchanged (Card 10)`
     : 'Outcome — likely path if unchanged (Card 10)';
 
   cards += buildCardWithImagery(cardsInfo[9], cardsInfo[9].position || outcomeLabel, optionsFor(9));
@@ -1333,7 +1326,7 @@ function buildThreeCardPromptCards(cardsInfo, analysis, themes, context, userQue
   );
 
   const futureLabel = userQuestion
-    ? `Future — likely trajectory for "${sanitizeAndTruncate(userQuestion)}" if nothing shifts`
+    ? `Future — likely trajectory for "${sanitizeText(userQuestion, { maxLength: 100, addEllipsis: true, stripMarkdown: true })}" if nothing shifts`
     : 'Future — trajectory if nothing shifts';
 
   const futurePosition = future.position || futureLabel;
@@ -1434,7 +1427,7 @@ function buildCardWithImagery(cardInfo, position, options, prefix = '') {
   }
 
   if (cardInfo.userReflection) {
-    text += `*Querent's Reflection: "${sanitizeAndTruncate(cardInfo.userReflection)}"*\n`;
+    text += `*Querent's Reflection: "${sanitizeText(cardInfo.userReflection, { maxLength: 100, addEllipsis: true, stripMarkdown: true })}"*\n`;
   }
 
   return text;

@@ -1,6 +1,6 @@
 /* eslint-disable react-refresh/only-export-components */
-import { useMemo, useSyncExternalStore } from 'react';
-import { Gear, Sparkle, ArrowsClockwise } from '@phosphor-icons/react';
+import { useMemo, useSyncExternalStore, useEffect, useRef } from 'react';
+import { Gear, Sparkle, ArrowsClockwise, ChatCircle } from '@phosphor-icons/react';
 import { useLandscape } from '../hooks/useLandscape';
 
 // Subscribe to visualViewport changes for keyboard avoidance
@@ -30,6 +30,7 @@ export function getServerViewportOffset() {
 
 export const MOBILE_SETTINGS_DIALOG_ID = 'mobile-settings-drawer';
 export const MOBILE_COACH_DIALOG_ID = 'guided-intention-coach';
+export const MOBILE_FOLLOWUP_DIALOG_ID = 'mobile-followup-drawer';
 
 // Shared button styles - reduced height in landscape while maintaining touch target
 const BTN_BASE = 'inline-flex items-center justify-center rounded-xl font-semibold transition touch-manipulation';
@@ -116,10 +117,13 @@ function MobileActionContents({
   isGenerating,
   personalReading,
   needsNarrativeGeneration,
+  showFollowUp = false,
+  isFollowUpOpen = false,
   stepIndicatorLabel,
   activeStep = 'spread',
   onOpenSettings,
   onOpenCoach,
+  onOpenFollowUp,
   onShuffle,
   onDealNext,
   onRevealAll,
@@ -172,6 +176,9 @@ function MobileActionContents({
         stepIndicatorLabel,
         hasNarrative,
         isLandscape,
+        showFollowUp,
+        isFollowUpOpen,
+        onOpenFollowUp,
         isSettingsOpen,
         isCoachOpen,
         settingsDialogId,
@@ -204,6 +211,9 @@ function renderActions(mode, options) {
     stepIndicatorLabel,
     hasNarrative,
     isLandscape,
+    showFollowUp,
+    isFollowUpOpen,
+    onOpenFollowUp,
     isSettingsOpen,
     isCoachOpen,
     settingsDialogId,
@@ -223,7 +233,7 @@ function renderActions(mode, options) {
     primary: variant === 'inline' ? 'w-full' : isLandscape ? 'flex-1 min-w-[4rem]' : 'flex-1 min-w-[7.5rem]',
     prepPrimary: variant === 'inline' ? 'w-full' : isLandscape ? 'flex-1 min-w-[3.5rem]' : 'flex-1 min-w-[6rem]',
     secondary: variant === 'inline' ? 'w-full' : isLandscape ? 'flex-1 min-w-[4rem]' : 'flex-1 min-w-[7.5rem]',
-    tertiary: variant === 'inline' ? 'w-full' : isLandscape ? 'flex-1 min-w-[3rem]' : 'flex-1 min-w-[7.5rem]',
+    tertiary: variant === 'inline' ? 'w-full' : isLandscape ? 'flex-1 min-w-[3rem]' : 'flex-1 min-w-[6.5rem]',
     icon: variant === 'inline' ? 'w-full' : 'flex-none min-w-[44px]',
     coach: variant === 'inline' ? 'w-full' : 'flex-none'
   };
@@ -423,6 +433,20 @@ function renderActions(mode, options) {
               {isLandscape ? 'Save' : 'Save reading'}
             </ActionButton>
           )}
+          {showFollowUp && (
+            <ActionButton
+              variant="tertiary"
+              icon={ChatCircle}
+              onClick={onOpenFollowUp}
+              ariaLabel="Open follow-up chat"
+              ariaControls={MOBILE_FOLLOWUP_DIALOG_ID}
+              ariaExpanded={isFollowUpOpen}
+              className={`${widthClasses.tertiary} ${px}`}
+              isLandscape={isLandscape}
+            >
+              {isLandscape ? 'Chat' : 'Chat'}
+            </ActionButton>
+          )}
           <ActionButton
             variant="secondary"
             onClick={onNewReading}
@@ -441,6 +465,7 @@ function renderActions(mode, options) {
 }
 
 export function MobileActionBar({ keyboardOffset = 0, isOverlayActive = false, ...props }) {
+  const barRef = useRef(null);
   // Use useSyncExternalStore for visualViewport subscription (React-recommended pattern for browser APIs)
   const viewportOffset = useSyncExternalStore(
     subscribeToViewport,
@@ -457,8 +482,41 @@ export function MobileActionBar({ keyboardOffset = 0, isOverlayActive = false, .
     willChange: effectiveOffset > 0 ? 'bottom' : 'auto'
   }), [effectiveOffset]);
 
+  useEffect(() => {
+    if (typeof document === 'undefined') return;
+    document.documentElement.style.setProperty('--mobile-action-bar-offset', `${effectiveOffset}px`);
+  }, [effectiveOffset]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || !barRef.current) return undefined;
+
+    const updateHeight = () => {
+      const height = barRef.current?.offsetHeight || 0;
+      document.documentElement.style.setProperty('--mobile-action-bar-height', `${height}px`);
+    };
+
+    updateHeight();
+
+    let observer;
+    if (typeof ResizeObserver !== 'undefined') {
+      observer = new ResizeObserver(updateHeight);
+      observer.observe(barRef.current);
+    } else {
+      window.addEventListener('resize', updateHeight);
+    }
+
+    return () => {
+      if (observer) {
+        observer.disconnect();
+      } else {
+        window.removeEventListener('resize', updateHeight);
+      }
+    };
+  }, []);
+
   return (
     <nav
+      ref={barRef}
       className={`mobile-action-bar ${isOverlayActive ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}
       aria-label="Primary mobile actions"
       style={barStyle}

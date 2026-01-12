@@ -5,6 +5,8 @@
  * The control (7-step) variant can still be accessed via URL param for testing.
  */
 
+import { safeStorage } from './safeStorage.js';
+
 const VARIANT_STORAGE_KEY = 'tarot-onboarding-variant';
 const VALID_VARIANTS = ['control', 'trimmed'];
 
@@ -41,11 +43,7 @@ export function getOnboardingVariant({ forceVariant } = {}) {
  * Useful for testing or allowing users to re-experience onboarding.
  */
 export function clearOnboardingVariant() {
-  try {
-    localStorage.removeItem(VARIANT_STORAGE_KEY);
-  } catch {
-    // Ignore localStorage errors
-  }
+  safeStorage.removeItem(VARIANT_STORAGE_KEY);
 }
 
 /**

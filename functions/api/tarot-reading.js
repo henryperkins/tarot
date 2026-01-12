@@ -94,6 +94,10 @@ import {
   getUsageRow,
   incrementUsageCounter
 } from '../lib/usageTracking.js';
+import {
+  callAzureResponses,
+  getReasoningEffort
+} from '../lib/azureResponses.js';
 
 // ============================================================================
 // Reading Limit Enforcement
@@ -326,19 +330,9 @@ function getSpreadDefinition(spreadName) {
   return SPREAD_NAME_MAP[spreadName] || null;
 }
 
-function _getExpectedCardCount(spreadName) {
-  const def = getSpreadDefinition(spreadName);
-  return def?.count ?? null;
-}
-
 function getSpreadKey(spreadName) {
   const def = getSpreadDefinition(spreadName);
   return def?.key || 'general';
-}
-
-function requiresHighReasoningEffort(modelName = '') {
-  const normalized = modelName.toLowerCase();
-  return normalized.includes('gpt-5-pro') || normalized.includes('gpt-5.1');
 }
 
 const NARRATIVE_BACKEND_ORDER = ['azure-gpt5', 'claude-sonnet45', 'local-composer'];
@@ -1689,33 +1683,16 @@ export function validatePayload({ spreadInfo, cardsInfo }) {
 /**
  * Generate reading using Azure OpenAI GPT-5/5.1 via Responses API
  *
- * The Responses API is the recommended API for GPT-5 family models, bringing together
- * the best capabilities from chat completions and assistants API.
- *
+ * Uses the consolidated callAzureResponses helper for API interaction.
  * API Reference: https://learn.microsoft.com/en-us/azure/ai-foundry/openai/how-to/responses
  */
 async function generateWithAzureGPT5Responses(env, payload, requestId = 'unknown') {
   const { spreadInfo, cardsInfo, userQuestion, reflectionsText, analysis, context, visionInsights, contextDiagnostics = [] } = payload;
 
-  // Track prompts for engineering analysis
-  let capturedSystemPrompt = '';
-  let capturedUserPrompt = '';
-  // Normalize endpoint: strip trailing slashes and any existing /openai/v1 path
-  // to avoid double-pathing when constructing the full URL
-  const rawEndpoint = env.AZURE_OPENAI_ENDPOINT || '';
-  const endpoint = rawEndpoint
-    .replace(/\/+$/, '')                    // Remove trailing slashes
-    .replace(/\/openai\/v1\/?$/, '')        // Remove /openai/v1 suffix if present
-    .replace(/\/openai\/?$/, '');           // Remove /openai suffix if present
-  const apiKey = env.AZURE_OPENAI_API_KEY;
-  const deploymentName = env.AZURE_OPENAI_GPT5_MODEL; // Azure deployment name (often mirrors the base model name)
-  // Responses API requires v1 path format - use dedicated Responses version binding
-  // (same pattern as functions/lib/azureResponses.js)
-  const apiVersion = env.AZURE_OPENAI_RESPONSES_API_VERSION || env.AZURE_OPENAI_API_VERSION || 'v1';
+  const deploymentName = env.AZURE_OPENAI_GPT5_MODEL;
   const deckStyle = spreadInfo?.deckStyle || analysis?.themes?.deckStyle || cardsInfo?.[0]?.deckStyle || 'rws-1909';
 
   console.log(`[${requestId}] Building Azure GPT-5 prompts...`);
-  console.log(`[${requestId}] Azure config: endpoint=${endpoint ? 'set' : 'missing'}, apiKey=${apiKey ? 'set' : 'missing'}, model=${deploymentName}, apiVersion=${apiVersion}`);
 
   // Determine semantic scoring configuration
   const semanticScoringConfig = getSemanticScoringConfig(env);
@@ -1755,10 +1732,6 @@ async function generateWithAzureGPT5Responses(env, payload, requestId = 'unknown
     payload.contextDiagnostics = Array.from(new Set([...(payload.contextDiagnostics || []), ...promptDiagnostics]));
   }
 
-  // Capture prompts for persistence
-  capturedSystemPrompt = systemPrompt;
-  capturedUserPrompt = userPrompt;
-
   console.log(`[${requestId}] System prompt length: ${systemPrompt.length}, User prompt length: ${userPrompt.length}`);
   maybeLogPromptPayload(
     env,
@@ -1770,125 +1743,47 @@ async function generateWithAzureGPT5Responses(env, payload, requestId = 'unknown
     { personalization: payload.personalization }
   );
 
-  // Azure OpenAI Responses API endpoint format (v1 API):
-  // POST {endpoint}/openai/v1/responses?api-version=v1
-  // Model is passed in the request body, NOT in the URL path
-  const url = `${endpoint}/openai/v1/responses?api-version=${encodeURIComponent(apiVersion)}`;
-
-  // Log endpoint normalization for debugging
-  if (rawEndpoint !== endpoint) {
-    console.log(`[${requestId}] Endpoint normalized: "${rawEndpoint}" -> "${endpoint}"`);
-  }
-  console.log(`[${requestId}] Making Azure GPT-5 Responses API request to: ${url}`);
-  console.log(`[${requestId}] Using deployment: ${deploymentName}, api-version: ${apiVersion}`);
-
-  // Dynamic reasoning effort based on model capabilities
-  // - gpt-5-pro, gpt-5.1: Use 'high' reasoning effort for best results
-  // - gpt-5-codex: supports low/medium/high (not minimal)
-  // - gpt-5: supports low/medium/high
-  // - Other GPT-5 family models: support low/medium/high
-  let reasoningEffort = 'medium'; // Default for most models
-  if (deploymentName && requiresHighReasoningEffort(deploymentName)) {
-    reasoningEffort = 'high';
+  // Determine reasoning effort based on model
+  const reasoningEffort = getReasoningEffort(deploymentName);
+  if (reasoningEffort === 'high') {
     console.log(`[${requestId}] Detected ${deploymentName} deployment, using 'high' reasoning effort`);
   }
 
-  // Responses API uses a different structure than Chat Completions
-  // System prompts go in "instructions", user content in "input"
-  // Note: Responses API does NOT support temperature parameter
-  const requestBody = {
-    model: deploymentName,
-    instructions: systemPrompt,
-    input: userPrompt,
-    // max_output_tokens: 3000, // Removed to allow full model context length
-    reasoning: {
-      effort: reasoningEffort // Dynamically set based on model
-    },
-    text: {
-      verbosity: 'medium' // low, medium, or high - controls output conciseness
-    }
-  };
-
   console.log(`[${requestId}] Request config:`, {
     deployment: deploymentName,
-    max_output_tokens: requestBody.max_output_tokens,
-    reasoning_effort: requestBody.reasoning.effort,
-    verbosity: requestBody.text.verbosity
+    max_output_tokens: 'unlimited',
+    reasoning_effort: reasoningEffort,
+    verbosity: 'medium'
   });
 
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: {
-      'api-key': apiKey,
-      'content-type': 'application/json'
-    },
-    body: JSON.stringify(requestBody)
+  // Call Azure Responses API using consolidated helper
+  const result = await callAzureResponses(env, {
+    instructions: systemPrompt,
+    input: userPrompt,
+    maxTokens: null,          // No limit for full readings
+    reasoningEffort,          // 'high' for gpt-5.1/gpt-5-pro, 'medium' otherwise
+    verbosity: 'medium',
+    returnFullResponse: true  // Get usage data
   });
 
-  console.log(`[${requestId}] Azure Responses API response status: ${response.status}`);
-
-  if (!response.ok) {
-    const errText = await response.text().catch(() => '');
-    console.error(`[${requestId}] Azure Responses API error response:`, errText);
-    throw new Error(`Azure OpenAI GPT-5 Responses API error ${response.status}: ${errText}`);
-  }
-
-  const data = await response.json();
-  console.log(`[${requestId}] Azure Responses API raw response:`, JSON.stringify(data, null, 2));
-  console.log(`[${requestId}] Azure Responses API response received:`, {
-    id: data.id,
-    model: data.model,
-    status: data.status,
-    outputCount: data.output?.length,
-    usage: data.usage
-  });
-
-  // Responses API returns output as an array of output items
-  // Extract text from message output items
-  let content = '';
-  if (data.output && Array.isArray(data.output)) {
-    for (const item of data.output) {
-      // Handle message output type
-      if (item.type === 'message' && item.content) {
-        for (const contentItem of item.content) {
-          if (contentItem.type === 'output_text' && contentItem.text) {
-            content += contentItem.text;
-          }
-        }
-      }
-    }
-  }
-
-  // Fallback: try output_text property (some models use this)
-  if (!content && data.output_text) {
-    content = data.output_text;
-  }
-
-  if (!content || typeof content !== 'string' || !content.trim()) {
-    console.error(`[${requestId}] Empty or invalid response from Azure GPT-5:`, {
-      hasOutput: !!data.output,
-      outputLength: data.output?.length,
-      status: data.status
+  console.log(`[${requestId}] Generated reading length: ${result.text.length} characters`);
+  if (result.usage) {
+    console.log(`[${requestId}] Token usage:`, {
+      input_tokens: result.usage.input_tokens,
+      output_tokens: result.usage.output_tokens,
+      reasoning_tokens: result.usage.output_tokens_details?.reasoning_tokens,
+      total_tokens: result.usage.total_tokens
     });
-    throw new Error('Empty response from Azure OpenAI GPT-5 Responses API');
   }
-
-  console.log(`[${requestId}] Generated reading length: ${content.length} characters`);
-  console.log(`[${requestId}] Token usage:`, {
-    input_tokens: data.usage?.input_tokens,
-    output_tokens: data.usage?.output_tokens,
-    reasoning_tokens: data.usage?.output_tokens_details?.reasoning_tokens,
-    total_tokens: data.usage?.total_tokens
-  });
 
   // Return reading with captured prompts for engineering analysis
   return {
-    reading: content.trim(),
+    reading: result.text,
     prompts: {
-      system: capturedSystemPrompt,
-      user: capturedUserPrompt
+      system: systemPrompt,
+      user: userPrompt
     },
-    usage: data.usage
+    usage: result.usage
   };
 }
 

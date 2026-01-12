@@ -5,6 +5,9 @@
  * achieves the target 50-60% reduction in completion time.
  */
 
+import { safeStorage } from './safeStorage.js';
+import { safeParse } from './utils.js';
+
 const METRICS_STORAGE_KEY = 'tarot-onboarding-metrics';
 const MAX_STORED_ENTRIES = 50;
 
@@ -108,12 +111,13 @@ function getDeviceInfo() {
  * Store metrics to localStorage
  */
 function storeMetrics(metrics) {
+  if (!safeStorage.isAvailable) return;
   try {
-    const existing = JSON.parse(localStorage.getItem(METRICS_STORAGE_KEY) || '[]');
+    const existing = safeParse(safeStorage.getItem(METRICS_STORAGE_KEY), []);
     existing.push(metrics);
     // Keep only the last N entries to prevent unbounded growth
     const trimmed = existing.slice(-MAX_STORED_ENTRIES);
-    localStorage.setItem(METRICS_STORAGE_KEY, JSON.stringify(trimmed));
+    safeStorage.setItem(METRICS_STORAGE_KEY, JSON.stringify(trimmed));
   } catch (e) {
     // localStorage not available or quota exceeded - silently fail
     console.debug('Failed to store onboarding metrics:', e);

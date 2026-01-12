@@ -1,8 +1,9 @@
 /**
- * Environment Detection Utilities
+ * Environment Detection and Resolution Utilities
  *
- * Provides helpers for detecting the runtime environment (production vs development)
- * for security-sensitive decisions like fail-open vs fail-closed behavior.
+ * Provides helpers for:
+ * - Detecting the runtime environment (production vs development)
+ * - Resolving environment variables across Cloudflare Workers and Node.js
  */
 
 /**
@@ -55,4 +56,58 @@ export function isProductionEnvironment(env) {
  */
 export function isDevelopmentEnvironment(env) {
   return !isProductionEnvironment(env);
+}
+
+/**
+ * Resolve an environment variable from Cloudflare Workers env or Node.js process.env.
+ *
+ * Checks Cloudflare Workers env object first, then falls back to process.env.
+ * Returns undefined if the key is not found in either location.
+ *
+ * Note: This treats null and undefined as "not set", but will return
+ * other falsy values like empty strings or 0. For stricter behavior
+ * that treats all falsy values as missing, use resolveEnvStrict.
+ *
+ * @param {Object} env - Cloudflare Workers environment bindings
+ * @param {string} key - Environment variable name
+ * @returns {string | undefined} The environment variable value or undefined
+ *
+ * @example
+ * const apiKey = resolveEnv(env, 'AZURE_OPENAI_API_KEY');
+ * if (!apiKey) {
+ *   throw new Error('AZURE_OPENAI_API_KEY is required');
+ * }
+ */
+export function resolveEnv(env, key) {
+  if (env && typeof env[key] !== 'undefined' && env[key] !== null) {
+    return env[key];
+  }
+
+  if (typeof process !== 'undefined' && process.env && typeof process.env[key] !== 'undefined') {
+    return process.env[key];
+  }
+
+  return undefined;
+}
+
+/**
+ * Resolve an environment variable, treating all falsy values as missing.
+ *
+ * Similar to resolveEnv but returns undefined for empty strings, 0, false, etc.
+ * Use this when you want stricter validation of environment variables.
+ *
+ * @param {Object} env - Cloudflare Workers environment bindings
+ * @param {string} key - Environment variable name
+ * @returns {string | undefined} The environment variable value or undefined
+ *
+ * @example
+ * const apiKey = resolveEnvStrict(env, 'HUME_API_KEY');
+ * // Returns undefined if HUME_API_KEY is '', 0, false, null, or undefined
+ */
+export function resolveEnvStrict(env, key) {
+  if (env?.[key]) return env[key];
+  if (typeof process !== 'undefined' && process.env?.[key]) {
+    return process.env[key];
+  }
+  return undefined;
 }

@@ -13,27 +13,7 @@
 import { getUserFromRequest } from '../lib/auth.js';
 import { jsonResponse, readJsonBody } from '../lib/utils.js';
 import { sanitizeRedirectUrl } from '../lib/urlSafety.js';
-
-const STRIPE_API_BASE = 'https://api.stripe.com/v1';
-
-async function stripeRequest(endpoint, method, body, secretKey) {
-  const response = await fetch(`${STRIPE_API_BASE}${endpoint}`, {
-    method,
-    headers: {
-      Authorization: `Bearer ${secretKey}`,
-      'Content-Type': 'application/x-www-form-urlencoded'
-    },
-    body: body ? new URLSearchParams(body).toString() : undefined
-  });
-
-  const data = await response.json();
-
-  if (!response.ok) {
-    throw new Error(data.error?.message || 'Stripe API error');
-  }
-
-  return data;
-}
+import { stripeRequest } from '../lib/stripe.js';
 
 export async function onRequestPost(context) {
   const { request, env } = context;

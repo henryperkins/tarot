@@ -1,5 +1,6 @@
-import { jsonResponse, readJsonBody } from '../lib/utils.js';
+import { jsonResponse, readJsonBody, sanitizeText } from '../lib/utils.js';
 import { getActingInstructions, EMOTION_DESCRIPTIONS } from '../../src/data/emotionMapping.js';
+import { resolveEnvStrict } from '../lib/environment.js';
 
 /**
  * Cloudflare Pages Function that provides text-to-speech audio using Hume AI's Octave TTS.
@@ -66,7 +67,7 @@ const CONTEXT_DESCRIPTIONS = {
 
 export const onRequestGet = async ({ env }) => {
   // Health check endpoint
-  const hasHumeKey = !!resolveEnv(env, 'HUME_API_KEY');
+  const hasHumeKey = !!resolveEnvStrict(env, 'HUME_API_KEY');
   return jsonResponse({
     status: 'ok',
     provider: hasHumeKey ? 'hume-ai' : 'unavailable',
@@ -87,7 +88,7 @@ export const onRequestPost = async ({ request, env }) => {
       trailingSilence
     } = await readJsonBody(request);
 
-    const sanitizedText = sanitizeText(text);
+    const sanitizedText = sanitizeText(text, { maxLength: 5000, collapseWhitespace: false });
 
     if (!sanitizedText) {
       return jsonResponse(
@@ -97,7 +98,7 @@ export const onRequestPost = async ({ request, env }) => {
     }
 
     // Check for Hume API key
-    const humeApiKey = resolveEnv(env, 'HUME_API_KEY');
+    const humeApiKey = resolveEnvStrict(env, 'HUME_API_KEY');
     if (!humeApiKey) {
       return jsonResponse(
         { error: 'Hume AI is not configured. Please set HUME_API_KEY environment variable.' },
@@ -231,17 +232,4 @@ export const onRequestPost = async ({ request, env }) => {
   }
 };
 
-function sanitizeText(text) {
-  if (typeof text !== 'string') return '';
-  // Hume supports up to 5000 characters per utterance
-  return text.trim().slice(0, 5000);
-}
-
-function resolveEnv(env, key) {
-  // Handle both Cloudflare Workers env object and process.env
-  if (env?.[key]) return env[key];
-  if (typeof process !== 'undefined' && process.env?.[key]) {
-    return process.env[key];
-  }
-  return undefined;
-}
+// sanitizeText is now imported from ../lib/utils.js

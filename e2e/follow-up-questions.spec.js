@@ -41,26 +41,65 @@ async function mockFollowUp(page, options = {}) {
       await onRequest(body);
     }
 
-    const responseBody = status === 200
-      ? {
-          response: responseText,
-          turn: 1,
-          journalContext,
-          meta: {
-            provider: 'mock',
-            latencyMs: 12,
-            requestId: 'mock-follow-up'
-          }
-        }
-      : {
-          error: 'Not authenticated'
-        };
+    // Check if streaming is requested
+    const isStreaming = body?.options?.stream === true;
 
-    await route.fulfill({
-      status,
-      contentType: 'application/json',
-      body: JSON.stringify(responseBody)
-    });
+    if (status !== 200) {
+      // Error responses are always JSON
+      await route.fulfill({
+        status,
+        contentType: 'application/json',
+        body: JSON.stringify({ error: 'Not authenticated' })
+      });
+      return;
+    }
+
+    if (isStreaming) {
+      // Return SSE stream format
+      const metaEvent = `event: meta\ndata: ${JSON.stringify({
+        turn: 1,
+        journalContext,
+        provider: 'mock-stream',
+        requestId: 'mock-follow-up-stream'
+      })}\n\n`;
+
+      // Simulate streaming by sending text in chunks
+      const words = responseText.split(' ');
+      let deltaEvents = '';
+      for (const word of words) {
+        deltaEvents += `event: delta\ndata: ${JSON.stringify({ text: word + ' ' })}\n\n`;
+      }
+
+      const doneEvent = `event: done\ndata: ${JSON.stringify({ fullText: responseText })}\n\n`;
+
+      await route.fulfill({
+        status: 200,
+        contentType: 'text/event-stream',
+        headers: {
+          'Cache-Control': 'no-cache',
+          'Connection': 'keep-alive'
+        },
+        body: metaEvent + deltaEvents + doneEvent
+      });
+    } else {
+      // Non-streaming JSON response (fallback for older clients)
+      const responseBody = {
+        response: responseText,
+        turn: 1,
+        journalContext,
+        meta: {
+          provider: 'mock',
+          latencyMs: 12,
+          requestId: 'mock-follow-up'
+        }
+      };
+
+      await route.fulfill({
+        status,
+        contentType: 'application/json',
+        body: JSON.stringify(responseBody)
+      });
+    }
   });
 }
 
@@ -73,6 +112,35 @@ async function seedOnboardingState(page) {
       ritual: true,
       audio: false
     }));
+    // Suppress the gesture coach overlay that blocks UI interactions
+    localStorage.setItem('tarot-nudge-state', JSON.stringify({
+      hasSeenRitualNudge: true,
+      hasSeenJournalNudge: true,
+      hasSeenGestureCoach: true,
+      hasDismissedAccountNudge: true,
+      readingCount: 1,
+      journalSaveCount: 0,
+      lastCountedReadingRequestId: null
+    }));
+  });
+}
+
+async function mockAuth(page, tier = 'free') {
+  await page.route('**/api/auth/me', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        user: {
+          id: `user-${tier}`,
+          email: `${tier}@example.com`,
+          username: `${tier}-user`,
+          subscription_tier: tier,
+          subscription_status: tier === 'free' ? 'inactive' : 'active',
+          subscription_provider: tier === 'free' ? null : 'stripe'
+        }
+      })
+    });
   });
 }
 
@@ -148,11 +216,18 @@ async function completeReading(page, question = 'What should I focus on?') {
   await expect(page.getByText('Your narrative is ready')).toBeVisible({ timeout: 10000 });
 }
 
-async function openFollowUp(page) {
-  const toggleButton = page.getByRole('button', { name: /have a question about your reading/i });
-  await expect(toggleButton).toBeVisible({ timeout: 5000 });
-  await toggleButton.click();
-  await expect(page.locator('#follow-up-content')).toBeVisible();
+async function openFollowUpModal(page) {
+  const openButton = page.getByRole('button', { name: /open chat/i });
+  await expect(openButton).toBeVisible({ timeout: 5000 });
+  await openButton.click();
+  await expect(page.getByRole('dialog', { name: /follow-up chat/i })).toBeVisible();
+}
+
+async function openFollowUpDrawer(page) {
+  const openButton = page.getByRole('button', { name: /open follow-up chat/i });
+  await expect(openButton).toBeVisible({ timeout: 5000 });
+  await openButton.click();
+  await expect(page.getByRole('dialog', { name: /follow-up chat/i })).toBeVisible();
 }
 
 test.describe('Follow-up questions - Desktop @desktop', () => {
@@ -162,15 +237,16 @@ test.describe('Follow-up questions - Desktop @desktop', () => {
     await mockTarotReading(page);
     await completeReading(page);
 
-    const followUpButton = page.getByRole('button', { name: /have a question about your reading/i });
+    const followUpButton = page.getByRole('button', { name: /open chat/i });
     await expect(followUpButton).toBeVisible();
   });
 
   test('suggested question submits and renders response', async ({ page }) => {
+    await mockAuth(page);
     await mockTarotReading(page);
     await mockFollowUp(page, { responseText: 'Mocked follow-up answer.' });
     await completeReading(page);
-    await openFollowUp(page);
+    await openFollowUpModal(page);
 
     const suggestionList = page.getByRole('list', { name: /suggested questions/i });
     const firstSuggestion = suggestionList.getByRole('listitem').first();
@@ -185,12 +261,13 @@ test.describe('Follow-up questions - Desktop @desktop', () => {
   });
 
   test('free-form input submits and shows response', async ({ page }) => {
+    await mockAuth(page);
     await mockTarotReading(page);
     await mockFollowUp(page, { responseText: 'Free-form response.' });
     await completeReading(page);
-    await openFollowUp(page);
+    await openFollowUpModal(page);
 
-    const input = page.getByLabel('Follow-up question');
+    const input = page.getByRole('textbox', { name: 'Follow-up question' });
     await input.fill('Can you clarify the main lesson?');
     await input.press('Enter');
 
@@ -198,37 +275,23 @@ test.describe('Follow-up questions - Desktop @desktop', () => {
   });
 
   test('free tier limit disables additional questions', async ({ page }) => {
+    await mockAuth(page);
     await mockTarotReading(page);
     await mockFollowUp(page, { responseText: 'First follow-up response.' });
     await completeReading(page);
-    await openFollowUp(page);
+    await openFollowUpModal(page);
 
-    const input = page.getByLabel('Follow-up question');
+    const input = page.getByRole('textbox', { name: 'Follow-up question' });
     await input.fill('First follow-up question.');
     await input.press('Enter');
 
     await expect(page.getByText('First follow-up response.')).toBeVisible();
     await expect(page.getByText(/used all 1 follow-up question/i)).toBeVisible();
-    await expect(page.getByLabel('Follow-up question')).toHaveCount(0);
+    await expect(page.getByRole('textbox', { name: 'Follow-up question' })).toHaveCount(0);
   });
 
   test('journal context toggle affects request payload for Plus users', async ({ page }) => {
-    await page.route('**/api/auth/me', async (route) => {
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({
-          user: {
-            id: 'user-plus',
-            email: 'plus@example.com',
-            username: 'plus-user',
-            subscription_tier: 'plus',
-            subscription_status: 'active',
-            subscription_provider: 'stripe'
-          }
-        })
-      });
-    });
+    await mockAuth(page, 'plus');
 
     let includeJournalContext = null;
     await mockTarotReading(page);
@@ -240,13 +303,13 @@ test.describe('Follow-up questions - Desktop @desktop', () => {
     });
 
     await completeReading(page);
-    await openFollowUp(page);
+    await openFollowUpModal(page);
 
     const journalToggle = page.getByRole('checkbox', { name: /include insights from my journal history/i });
     await expect(journalToggle).toBeVisible();
     await journalToggle.uncheck();
 
-    const input = page.getByLabel('Follow-up question');
+    const input = page.getByRole('textbox', { name: 'Follow-up question' });
     await input.fill('Test journal toggle.');
     await input.press('Enter');
 
@@ -255,10 +318,12 @@ test.describe('Follow-up questions - Desktop @desktop', () => {
   });
 
   test('error states display when follow-up fails', async ({ page }) => {
+    // Mock auth to enable UI buttons, but API returns 401 (simulating expired session)
+    await mockAuth(page);
     await mockTarotReading(page);
     await mockFollowUp(page, { status: 401 });
     await completeReading(page);
-    await openFollowUp(page);
+    await openFollowUpModal(page);
 
     const suggestionList = page.getByRole('list', { name: /suggested questions/i });
     await suggestionList.getByRole('listitem').first().click();
@@ -267,18 +332,74 @@ test.describe('Follow-up questions - Desktop @desktop', () => {
     await expect(alert).toContainText('Please sign in to ask follow-up questions.');
     await expect(page.getByRole('log', { name: /conversation history/i })).toHaveCount(0);
   });
+
+  test('SSE error events display error message to user', async ({ page }) => {
+    await mockAuth(page);
+    await mockTarotReading(page);
+
+    // Mock SSE response with an error event
+    await page.route('**/api/reading-followup', async (route) => {
+      const metaEvent = `event: meta\ndata: ${JSON.stringify({ turn: 1, provider: 'mock' })}\n\n`;
+      const errorEvent = `event: error\ndata: ${JSON.stringify({ message: 'Service temporarily unavailable' })}\n\n`;
+
+      await route.fulfill({
+        status: 200,
+        contentType: 'text/event-stream',
+        headers: { 'Cache-Control': 'no-cache' },
+        body: metaEvent + errorEvent
+      });
+    });
+
+    await completeReading(page);
+    await openFollowUpModal(page);
+
+    const input = page.getByRole('textbox', { name: 'Follow-up question' });
+    await input.fill('Test SSE error handling');
+    await input.press('Enter');
+
+    const alert = page.getByRole('alert');
+    await expect(alert).toContainText('Service temporarily unavailable');
+  });
+
+  test('non-OK SSE response shows error from stream', async ({ page }) => {
+    await mockAuth(page);
+    await mockTarotReading(page);
+
+    // Mock non-OK status but with SSE content-type containing error
+    await page.route('**/api/reading-followup', async (route) => {
+      const errorEvent = `event: error\ndata: ${JSON.stringify({ message: 'Rate limit exceeded, please wait' })}\n\n`;
+
+      await route.fulfill({
+        status: 503,
+        contentType: 'text/event-stream',
+        headers: { 'Cache-Control': 'no-cache' },
+        body: errorEvent
+      });
+    });
+
+    await completeReading(page);
+    await openFollowUpModal(page);
+
+    const input = page.getByRole('textbox', { name: 'Follow-up question' });
+    await input.fill('Test non-OK SSE response');
+    await input.press('Enter');
+
+    const alert = page.getByRole('alert');
+    await expect(alert).toContainText('Rate limit exceeded');
+  });
 });
 
 test.describe('Follow-up questions - Mobile @mobile', () => {
   test.use({ viewport: { width: 375, height: 667 } });
 
   test('follow-up UI remains usable on mobile', async ({ page }) => {
+    await mockAuth(page);
     await mockTarotReading(page);
     await completeReading(page, 'Mobile follow-up test');
 
-    await openFollowUp(page);
+    await openFollowUpDrawer(page);
 
     await expect(page.getByRole('list', { name: /suggested questions/i })).toBeVisible();
-    await expect(page.getByLabel('Follow-up question')).toBeVisible();
+    await expect(page.getByRole('textbox', { name: 'Follow-up question' })).toBeVisible();
   });
 });

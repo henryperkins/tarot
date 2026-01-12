@@ -1,8 +1,9 @@
 import { validateSession, getSessionFromCookie } from '../lib/auth.js';
 import { loadEntriesForUser, loadRecentEntries, buildShareMeta } from '../lib/shareUtils.js';
+import { safeJsonParse } from '../lib/utils.js';
 
 function buildShareResponseRow(row) {
-  const meta = row.meta_json ? safeJson(row.meta_json, {}) : {};
+  const meta = row.meta_json ? safeJsonParse(row.meta_json, {}, { silent: true }) : {};
   return {
     token: row.token,
     scope: row.scope,
@@ -15,15 +16,6 @@ function buildShareResponseRow(row) {
     contexts: Array.isArray(meta.contexts) ? meta.contexts : [],
     lastEntryTs: typeof meta.lastEntryTs === 'number' ? meta.lastEntryTs : null
   };
-}
-
-function safeJson(value, fallback) {
-  if (!value) return fallback;
-  try {
-    return JSON.parse(value);
-  } catch {
-    return fallback;
-  }
 }
 
 export async function onRequestGet(context) {

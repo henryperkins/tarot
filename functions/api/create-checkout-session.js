@@ -18,32 +18,7 @@
 import { getUserFromRequest } from '../lib/auth.js';
 import { jsonResponse, readJsonBody } from '../lib/utils.js';
 import { sanitizeRedirectUrl } from '../lib/urlSafety.js';
-
-// Stripe SDK is not available in Cloudflare Workers by default.
-// We use the Stripe REST API directly for compatibility.
-const STRIPE_API_BASE = 'https://api.stripe.com/v1';
-
-/**
- * Make a request to the Stripe API
- */
-async function stripeRequest(endpoint, method, body, secretKey) {
-  const response = await fetch(`${STRIPE_API_BASE}${endpoint}`, {
-    method,
-    headers: {
-      'Authorization': `Bearer ${secretKey}`,
-      'Content-Type': 'application/x-www-form-urlencoded',
-    },
-    body: body ? new URLSearchParams(body).toString() : undefined,
-  });
-
-  const data = await response.json();
-
-  if (!response.ok) {
-    throw new Error(data.error?.message || 'Stripe API error');
-  }
-
-  return data;
-}
+import { stripeRequest } from '../lib/stripe.js';
 
 /**
  * Get or create a Stripe customer for the user

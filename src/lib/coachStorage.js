@@ -1,3 +1,6 @@
+import { safeStorage } from './safeStorage.js';
+import { generateId, safeParse } from './utils.js';
+
 const TEMPLATE_STORAGE_KEY = 'tarot_coach_templates';
 export const HISTORY_STORAGE_KEY = 'tarot_coach_history';
 export const MAX_TEMPLATES = 8;
@@ -15,46 +18,22 @@ const dispatchCoachStorageEvent = (key) => {
   }
 };
 
-function safeParse(value, fallback) {
-  try {
-    return value ? JSON.parse(value) : fallback;
-  } catch (error) {
-    console.warn('Failed to parse coach storage payload:', error);
-    return fallback;
-  }
-}
-
 function readFromStorage(key) {
-  if (typeof localStorage === 'undefined') {
-    return null;
-  }
-  try {
-    return localStorage.getItem(key);
-  } catch (error) {
-    console.warn('Unable to read coach storage payload:', error);
-    return null;
-  }
+  return safeStorage.getItem(key);
 }
 
 function writeToStorage(key, value) {
-  if (typeof localStorage === 'undefined') {
+  if (!safeStorage.isAvailable) {
     return { success: false, error: 'Coach storage is unavailable in this environment.' };
   }
   try {
-    localStorage.setItem(key, JSON.stringify(value));
+    safeStorage.setItem(key, JSON.stringify(value));
     dispatchCoachStorageEvent(key);
     return { success: true };
   } catch (error) {
     console.warn('Unable to persist coach storage payload:', error);
     return { success: false, error: 'We could not update your coach data. Please check storage settings and try again.' };
   }
-}
-
-function generateId(prefix) {
-  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
-    return crypto.randomUUID();
-  }
-  return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 }
 
 export function loadCoachTemplates() {

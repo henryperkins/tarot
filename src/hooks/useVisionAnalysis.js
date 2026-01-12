@@ -1,18 +1,10 @@
 import { useState, useMemo, useCallback } from 'react';
 import { canonicalCardKey } from '../../shared/vision/cardNameMapping.js';
 import { usePreferences } from '../contexts/PreferencesContext';
+import { generateId } from '../lib/utils';
 import { isVisionResearchEnabled } from './useFeatureFlags';
 
 const MAX_VISION_UPLOADS = 5;
-const supportsBrowserUUID = typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function';
-
-const generateVisionUploadId = () => {
-  if (supportsBrowserUUID) {
-    return crypto.randomUUID();
-  }
-  const random = Math.random().toString(36).slice(2, 10);
-  return `vision-upload-${Date.now()}-${random}`;
-};
 
 const getVisionConflictsForCards = (cardsInfoList = [], results = [], deckStyle = 'rws-1909') => {
   if (!Array.isArray(results) || results.length === 0) return [];
@@ -84,7 +76,7 @@ const deriveVisionLabel = (entry) => {
 const normalizeVisionEntry = (entry) => {
   if (!entry || typeof entry !== 'object') return null;
   const normalizedLabel = deriveVisionLabel(entry);
-  const uploadId = entry.uploadId || entry?.userFile?.__visionUploadId || generateVisionUploadId();
+  const uploadId = entry.uploadId || entry?.userFile?.__visionUploadId || generateId('vision-upload');
   return {
     ...entry,
     label: normalizedLabel,
@@ -244,14 +236,14 @@ export function useVisionAnalysis(reading = []) {
   }, [deckStyleId, visionProof, visionResults]);
 
   const checkConflicts = useCallback((cardsInfo) => {
-      const conflicts = getVisionConflictsForCards(cardsInfo, visionResults, deckStyleId);
-      setVisionConflicts(conflicts);
-      return conflicts;
+    const conflicts = getVisionConflictsForCards(cardsInfo, visionResults, deckStyleId);
+    setVisionConflicts(conflicts);
+    return conflicts;
   }, [visionResults, deckStyleId]);
-  
-   const clearConflicts = useCallback(() => {
-       setVisionConflicts([]);
-   }, []);
+
+  const clearConflicts = useCallback(() => {
+    setVisionConflicts([]);
+  }, []);
 
   return {
     visionResults,

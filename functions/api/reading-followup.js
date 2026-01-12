@@ -8,11 +8,17 @@
  */
 
 import { validateSession, getSessionFromCookie } from '../lib/auth.js';
-import { jsonResponse, readJsonBody } from '../lib/utils.js';
+import { jsonResponse, readJsonBody, safeJsonParse } from '../lib/utils.js';
 import { buildTierLimitedPayload, isEntitled, getSubscriptionContext } from '../lib/entitlements.js';
 import { buildFollowUpPrompt } from '../lib/followUpPrompt.js';
 import { findSimilarJournalEntries, getRecurringCardPatterns } from '../lib/journalSearch.js';
 import { callAzureResponses } from '../lib/azureResponses.js';
+import {
+  callAzureResponsesStream,
+  transformAzureStream,
+  createSSEResponse,
+  createSSEErrorResponse
+} from '../lib/azureResponsesStream.js';
 
 // Rate limits by tier
 const FOLLOW_UP_LIMITS = {
@@ -146,6 +152,15 @@ export const onRequestPost = async ({ request, env }) => {
       }
     }
     
+    // Require card context to keep follow-ups grounded
+    if (!effectiveContext?.cardsInfo || effectiveContext.cardsInfo.length === 0) {
+      console.log(`[${requestId}] Missing card context after merge; rejecting follow-up`);
+      return jsonResponse(
+        { error: 'Reading context unavailable. Please regenerate your reading before asking follow-up questions.' },
+        { status: 400 }
+      );
+    }
+    
     // Journal context (Plus+ only)
     const shouldIncludeJournalContext =
       Boolean(options.includeJournalContext) &&
@@ -177,57 +192,113 @@ export const onRequestPost = async ({ request, env }) => {
     });
     
     console.log(`[${requestId}] Prompt built: system=${systemPrompt.length}chars, user=${userPrompt.length}chars`);
-    
-    // Call LLM
-    let responseText;
-    
-    try {
-      responseText = await callAzureResponses(env, {
-        instructions: systemPrompt,
-        input: userPrompt,
-        maxTokens: 400,  // ~250-300 words, aligned with response format guidance
-        reasoningEffort: 'low',
-        verbosity: 'medium'
-      });
-      
-      console.log(`[${requestId}] LLM response received: ${responseText?.length || 0} chars`);
-    } catch (llmError) {
-      console.error(`[${requestId}] LLM error: ${llmError.message}`);
-      return jsonResponse(
-        { error: 'Failed to generate response. Please try again.' },
-        { status: 503 }
-      );
-    }
-    
-    // Track usage
-    await trackFollowUpUsage(env.DB, {
-      userId: user.id,
-      requestId,
-      readingRequestId: readingRequestId || null,
-      turnNumber,
-      questionLength: followUpQuestion.length,
-      responseLength: responseText?.length || 0,
-      journalContextUsed: Boolean(journalContext),
-      patternsFound: journalContext?.patterns?.length || 0
-    });
-    
-    const latencyMs = Date.now() - startTime;
-    console.log(`[${requestId}] Follow-up completed in ${latencyMs}ms`);
-    console.log(`[${requestId}] === FOLLOW-UP REQUEST END ===`);
-    
-    return jsonResponse({
-      response: responseText,
-      turn: turnNumber,
-      journalContext: journalContext ? {
-        entriesSearched: journalContext.entriesSearched,
-        patternsFound: journalContext.patterns
-      } : null,
-      meta: {
-        provider: 'azure-responses',
-        latencyMs,
-        requestId
+
+    // Check if streaming is requested
+    const useStreaming = options.stream === true;
+
+    if (useStreaming) {
+      // === STREAMING PATH ===
+      console.log(`[${requestId}] Using streaming response`);
+
+      try {
+        const azureStream = await callAzureResponsesStream(env, {
+          instructions: systemPrompt,
+          input: userPrompt,
+          maxTokens: 400,
+          verbosity: 'medium'
+        });
+
+        // Transform Azure SSE stream to our simplified format
+        const transformedStream = transformAzureStream(azureStream);
+
+        // Wrap with metadata injection and usage tracking
+        const wrappedStream = wrapStreamWithMetadata(transformedStream, {
+          turn: turnNumber,
+          journalContext: journalContext ? {
+            entriesSearched: journalContext.entriesSearched,
+            patternsFound: journalContext.patterns
+          } : null,
+          meta: {
+            provider: 'azure-responses-stream',
+            requestId
+          },
+          // Usage tracking callback - will be called when stream completes
+          onComplete: async (fullText) => {
+            const latencyMs = Date.now() - startTime;
+            console.log(`[${requestId}] Streaming completed in ${latencyMs}ms, ${fullText.length} chars`);
+
+            await trackFollowUpUsage(env.DB, {
+              userId: user.id,
+              requestId,
+              readingRequestId: readingRequestId || null,
+              turnNumber,
+              questionLength: followUpQuestion.length,
+              responseLength: fullText.length,
+              journalContextUsed: Boolean(journalContext),
+              patternsFound: journalContext?.patterns?.length || 0
+            });
+          }
+        });
+
+        return createSSEResponse(wrappedStream);
+
+      } catch (streamError) {
+        console.error(`[${requestId}] Streaming error: ${streamError.message}`);
+        return createSSEErrorResponse('Failed to generate response. Please try again.', 503);
       }
-    });
+
+    } else {
+      // === NON-STREAMING PATH (existing behavior) ===
+      let responseText;
+
+      try {
+        responseText = await callAzureResponses(env, {
+          instructions: systemPrompt,
+          input: userPrompt,
+          maxTokens: 400,  // ~250-300 words, aligned with response format guidance
+          reasoningEffort: 'low',
+          verbosity: 'medium'
+        });
+
+        console.log(`[${requestId}] LLM response received: ${responseText?.length || 0} chars`);
+      } catch (llmError) {
+        console.error(`[${requestId}] LLM error: ${llmError.message}`);
+        return jsonResponse(
+          { error: 'Failed to generate response. Please try again.' },
+          { status: 503 }
+        );
+      }
+
+      // Track usage
+      await trackFollowUpUsage(env.DB, {
+        userId: user.id,
+        requestId,
+        readingRequestId: readingRequestId || null,
+        turnNumber,
+        questionLength: followUpQuestion.length,
+        responseLength: responseText?.length || 0,
+        journalContextUsed: Boolean(journalContext),
+        patternsFound: journalContext?.patterns?.length || 0
+      });
+
+      const latencyMs = Date.now() - startTime;
+      console.log(`[${requestId}] Follow-up completed in ${latencyMs}ms`);
+      console.log(`[${requestId}] === FOLLOW-UP REQUEST END ===`);
+
+      return jsonResponse({
+        response: responseText,
+        turn: turnNumber,
+        journalContext: journalContext ? {
+          entriesSearched: journalContext.entriesSearched,
+          patternsFound: journalContext.patterns
+        } : null,
+        meta: {
+          provider: 'azure-responses',
+          latencyMs,
+          requestId
+        }
+      });
+    }
     
   } catch (error) {
     const latencyMs = Date.now() - startTime;
@@ -450,13 +521,95 @@ async function trackFollowUpUsage(db, data) {
 }
 
 /**
- * Safely parse JSON with fallback
+ * Wrap a transformed SSE stream with metadata and completion tracking
+ *
+ * Adds:
+ * - Initial 'meta' event with turn/journalContext info
+ * - Passes through 'delta' events
+ * - Tracks full text for usage logging
+ * - Calls onComplete callback when done
+ *
+ * @param {ReadableStream} stream - Transformed SSE stream
+ * @param {Object} options - Wrapper options
+ * @param {number} options.turn - Turn number
+ * @param {Object} options.journalContext - Journal context info
+ * @param {Object} options.meta - Response metadata
+ * @param {Function} options.onComplete - Callback(fullText) when stream ends
+ * @returns {ReadableStream} Wrapped SSE stream
  */
-function safeJsonParse(str, fallback) {
-  if (!str) return fallback;
-  try {
-    return JSON.parse(str);
-  } catch {
-    return fallback;
-  }
+function wrapStreamWithMetadata(stream, { turn, journalContext, meta, onComplete }) {
+  const encoder = new TextEncoder();
+  const decoder = new TextDecoder();
+
+  let fullText = '';
+
+  return new ReadableStream({
+    async start(controller) {
+      // Send initial metadata event
+      const metaEvent = formatSSEEvent('meta', {
+        turn,
+        journalContext,
+        ...meta
+      });
+      controller.enqueue(encoder.encode(metaEvent));
+
+      const reader = stream.getReader();
+
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+
+          if (done) {
+            // Call completion callback (non-blocking)
+            if (onComplete) {
+              onComplete(fullText).catch(err => {
+                console.warn('[wrapStreamWithMetadata] onComplete error:', err.message);
+              });
+            }
+            controller.close();
+            break;
+          }
+
+          // Decode the chunk and extract text for tracking
+          const chunk = decoder.decode(value, { stream: true });
+
+          // Extract text from delta events for usage tracking
+          const deltaMatches = chunk.matchAll(/event: delta\ndata: ({[^}]+})/g);
+          for (const match of deltaMatches) {
+            try {
+              const data = JSON.parse(match[1]);
+              if (data.text) {
+                fullText += data.text;
+              }
+            } catch {
+              // Ignore parse errors
+            }
+          }
+
+          // Pass through the chunk unchanged
+          controller.enqueue(value);
+        }
+      } catch (error) {
+        console.error('[wrapStreamWithMetadata] Stream error:', error.message);
+
+        // Send error event
+        const errorEvent = formatSSEEvent('error', { message: error.message });
+        controller.enqueue(encoder.encode(errorEvent));
+
+        // Do NOT call onComplete on errors - usage should only be tracked for successful responses
+        // This prevents users from losing follow-up turns due to server errors
+
+        controller.close();
+      } finally {
+        reader.releaseLock();
+      }
+    }
+  });
+}
+
+/**
+ * Format an SSE event string
+ */
+function formatSSEEvent(event, data) {
+  return `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
 }

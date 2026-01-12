@@ -1,13 +1,13 @@
 /**
  * Follow-Up Question Suggestions Generator
- * 
+ *
  * Generates contextual follow-up question suggestions based on the reading.
- * Used by FollowUpSection component to provide quick-tap question options.
+ * Used by FollowUpChat component to provide quick-tap question options.
  */
 
 /**
  * Generate contextual follow-up question suggestions based on the reading
- * 
+ *
  * @param {Array} reading - Array of card objects from the reading
  * @param {Object} themes - Theme analysis (elementCounts, reversalCount, etc.)
  * @param {Object} readingMeta - Reading metadata (spreadKey, etc.)
@@ -16,15 +16,15 @@
 export function generateFollowUpSuggestions(reading, themes, readingMeta) {
   const suggestions = [];
   const spreadKey = readingMeta?.spreadKey || 'general';
-  
+
   // Normalize reading array
   const cards = Array.isArray(reading) ? reading : [];
-  
+
   // 1. Reversed card exploration (high priority)
-  const reversedCards = cards.filter(c => 
+  const reversedCards = cards.filter(c =>
     c.isReversed || c.orientation === 'reversed'
   );
-  
+
   if (reversedCards.length === 1) {
     const cardName = reversedCards[0].name || reversedCards[0].card || 'this card';
     suggestions.push({
@@ -39,7 +39,7 @@ export function generateFollowUpSuggestions(reading, themes, readingMeta) {
       priority: 1
     });
   }
-  
+
   // 2. Spread-specific questions
   const spreadQuestions = {
     celtic: [
@@ -65,20 +65,20 @@ export function generateFollowUpSuggestions(reading, themes, readingMeta) {
       { text: 'How does the support card help address the challenge?', priority: 2 }
     ]
   };
-  
+
   if (spreadQuestions[spreadKey]) {
     spreadQuestions[spreadKey].forEach(q => {
       suggestions.push({ ...q, type: 'spread' });
     });
   }
-  
+
   // 3. Elemental imbalance questions
   if (themes?.elementCounts) {
     const elements = Object.entries(themes.elementCounts);
-    const sorted = elements.sort(([,a], [,b]) => b - a);
+    const sorted = elements.sort(([, a], [, b]) => b - a);
     const dominant = sorted[0];
-    const missing = elements.filter(([,count]) => count === 0).map(([el]) => el);
-    
+    const missing = elements.filter(([, count]) => count === 0).map(([el]) => el);
+
     if (dominant && dominant[1] >= 3) {
       suggestions.push({
         text: `What does the strong ${dominant[0]} energy suggest I need?`,
@@ -86,7 +86,7 @@ export function generateFollowUpSuggestions(reading, themes, readingMeta) {
         priority: 3
       });
     }
-    
+
     if (missing.length > 0 && missing.length < 4) {
       suggestions.push({
         text: `What might the absence of ${missing[0]} energy mean?`,
@@ -95,19 +95,31 @@ export function generateFollowUpSuggestions(reading, themes, readingMeta) {
       });
     }
   }
-  
+
   // 4. Major Arcana emphasis
-  // Major Arcana cards have arcana === 'major' OR no suit property OR arcanaNumber 0-21
-  const majorCards = cards.filter(c => {
-    // Explicit major arcana flag
+  // Be conservative: lots of call sites/tests omit `suit` for Minors.
+  // Use explicit major flags when available; otherwise, fall back to name + 0–21 guard.
+  const looksLikeMinorByName = (name) => {
+    if (!name || typeof name !== 'string') return false;
+    return /^(ace|two|three|four|five|six|seven|eight|nine|ten|page|knight|queen|king)\s+of\s+/i.test(name.trim());
+  };
+
+  const majorCards = cards.filter((c) => {
+    if (!c || typeof c !== 'object') return false;
+
+    // Explicit major arcana flag.
     if (c.arcana === 'major' || c.isMajor) return true;
-    // No suit means Major Arcana (Minor always have suits)
-    if (c.suit === undefined || c.suit === null || c.suit === '') {
-      // But verify it's not just missing data - check for known Major indicators
-      const num = c.arcanaNumber ?? c.number;
-      return num !== undefined && num >= 0 && num <= 21;
-    }
-    return false;
+
+    // If suit is present, treat as Minor.
+    const suit = typeof c.suit === 'string' ? c.suit.trim() : '';
+    if (suit) return false;
+
+    const candidateName = (c.name || c.card || '').trim();
+    if (!candidateName) return false;
+    if (looksLikeMinorByName(candidateName)) return false;
+
+    const num = c.arcanaNumber ?? c.number;
+    return typeof num === 'number' && num >= 0 && num <= 21;
   });
 
   if (majorCards.length >= 3) {
@@ -116,20 +128,13 @@ export function generateFollowUpSuggestions(reading, themes, readingMeta) {
       type: 'archetype',
       priority: 2
     });
-  } else if (majorCards.length === 1) {
-    const cardName = majorCards[0].name || majorCards[0].card || 'the Major Arcana card';
-    suggestions.push({
-      text: `What deeper significance does ${cardName} hold here?`,
-      type: 'archetype',
-      priority: 3
-    });
   }
-  
+
   // 5. Suit-focused questions (when one suit dominates)
   if (themes?.suitCounts) {
     const suitEntries = Object.entries(themes.suitCounts);
-    const dominantSuit = suitEntries.sort(([,a], [,b]) => b - a)[0];
-    
+    const dominantSuit = suitEntries.sort(([, a], [, b]) => b - a)[0];
+
     if (dominantSuit && dominantSuit[1] >= 3) {
       const suitQuestions = {
         cups: 'How can I better honor my emotional needs right now?',
@@ -137,7 +142,7 @@ export function generateFollowUpSuggestions(reading, themes, readingMeta) {
         swords: 'What mental patterns or communications need attention?',
         pentacles: 'What practical steps would ground this guidance?'
       };
-      
+
       const suitKey = dominantSuit[0].toLowerCase();
       if (suitQuestions[suitKey]) {
         suggestions.push({
@@ -148,7 +153,7 @@ export function generateFollowUpSuggestions(reading, themes, readingMeta) {
       }
     }
   }
-  
+
   // 6. Question-focused (connects reading back to their original question)
   if (readingMeta?.userQuestion && readingMeta.userQuestion.length > 10) {
     suggestions.push({
@@ -180,7 +185,7 @@ export function generateFollowUpSuggestions(reading, themes, readingMeta) {
       priority: 4
     });
   }
-  
+
   // Sort by priority and deduplicate by text
   const seen = new Set();
   return suggestions
@@ -195,7 +200,7 @@ export function generateFollowUpSuggestions(reading, themes, readingMeta) {
 
 /**
  * Get question type description for analytics
- * 
+ *
  * @param {string} type - Question type
  * @returns {string} Human-readable description
  */
@@ -217,7 +222,7 @@ export function getQuestionTypeLabel(type) {
 /**
  * Generate position-specific questions for a card
  * Used for "Tell me more about X" style follow-ups
- * 
+ *
  * @param {Object} card - Card object with position info
  * @param {string} spreadKey - Type of spread
  * @returns {Array<string>} Position-specific questions
@@ -225,13 +230,13 @@ export function getQuestionTypeLabel(type) {
 export function getPositionQuestions(card, spreadKey) {
   const cardName = card?.name || card?.card || 'this card';
   const position = card?.position || 'this position';
-  
+
   // Generic questions that work for any position
   const generic = [
     `What does ${cardName} want me to understand about ${position}?`,
     `How does ${cardName} relate to my original question?`
   ];
-  
+
   // Position-specific questions for Celtic Cross
   const celticPositions = {
     'Present Situation': [
@@ -267,7 +272,7 @@ export function getPositionQuestions(card, spreadKey) {
       `What is ${cardName} suggesting about where this leads?`
     ]
   };
-  
+
   // Position-specific for Three-Card
   const threeCardPositions = {
     'Past': [
@@ -280,7 +285,7 @@ export function getPositionQuestions(card, spreadKey) {
       `What is ${cardName} inviting me toward?`
     ]
   };
-  
+
   // Select appropriate position questions
   let positionSpecific = [];
   if (spreadKey === 'celtic' && celticPositions[position]) {
@@ -288,7 +293,7 @@ export function getPositionQuestions(card, spreadKey) {
   } else if (spreadKey === 'threeCard' && threeCardPositions[position]) {
     positionSpecific = threeCardPositions[position];
   }
-  
+
   return [...positionSpecific, ...generic].slice(0, 3);
 }
 

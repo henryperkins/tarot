@@ -1,7 +1,8 @@
 import { EXAMPLE_QUESTIONS } from '../data/exampleQuestions.js';
 import { loadStoredJournalInsights } from './journalInsights.js';
 import { loadCoachHistory } from './coachStorage.js';
-import { hashString } from './deck.js';
+import { djb2Hash } from './utils.js';
+import { ensureQuestionMark } from './themeText.js';
 
 const STOP_PHRASES = [' this week', ' this relationship', ' right now', ' with clarity'];
 
@@ -34,7 +35,7 @@ function pickVariantDeterministic(list, seed) {
   if (!Array.isArray(list) || list.length === 0) return '';
 
   // Convert seed to number if it's a string
-  const numericSeed = typeof seed === 'string' ? hashString(seed) : (seed >>> 0);
+  const numericSeed = typeof seed === 'string' ? djb2Hash(seed) : (seed >>> 0);
 
   // Use simple modulo for deterministic selection
   return list[numericSeed % list.length];
@@ -50,14 +51,8 @@ function pickVariantDeterministic(list, seed) {
  */
 function pickVariant(list, seedBase = '') {
   if (!Array.isArray(list) || list.length === 0) return '';
-  const seed = hashString(`${seedBase}|${Date.now()}|${Math.random()}`);
+  const seed = djb2Hash(`${seedBase}|${Date.now()}|${Math.random()}`);
   return list[seed % list.length];
-}
-
-function ensureQuestionMark(text) {
-  if (!text) return '';
-  const trimmed = text.trim();
-  return trimmed.endsWith('?') ? trimmed : `${trimmed}?`;
 }
 
 export const INTENTION_TOPIC_OPTIONS = [

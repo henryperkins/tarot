@@ -2,9 +2,9 @@ import assert from 'node:assert/strict';
 import { describe, test } from 'node:test';
 
 import { buildFollowUpPrompt } from '../functions/lib/followUpPrompt.js';
-import { 
-  findSimilarJournalEntries, 
-  getRecurringCardPatterns 
+import {
+  findSimilarJournalEntries,
+  getRecurringCardPatterns
 } from '../functions/lib/journalSearch.js';
 
 // Mock DB class for testing
@@ -25,15 +25,15 @@ class MockDB {
 }
 
 // Mock AI class for embeddings
-  class MockAI {
-    constructor() {
-      this.runReturn = [[0.1, 0.2, 0.3]]; // Mock embedding vector
-    }
-
-    async run() {
-      return { data: this.runReturn };
-    }
+class MockAI {
+  constructor() {
+    this.runReturn = [[0.1, 0.2, 0.3]]; // Mock embedding vector
   }
+
+  async run() {
+    return { data: this.runReturn };
+  }
+}
 
 describe('buildFollowUpPrompt', () => {
   test('builds basic system prompt with guidelines', () => {
@@ -51,14 +51,14 @@ describe('buildFollowUpPrompt', () => {
     });
 
     // Check system prompt contains core principles
-    assert.ok(systemPrompt.includes('thoughtful tarot reader'));
-    assert.ok(systemPrompt.includes('do not introduce new cards'));
-    assert.ok(systemPrompt.includes('WHAT/WHY/WHAT\'S NEXT'));
-    assert.ok(systemPrompt.includes('under 200 words'));
+    assert.ok(systemPrompt.includes('You are the same tarot reader'));
+    assert.ok(systemPrompt.includes('never introduce new cards'));
+    assert.ok(systemPrompt.includes("WHAT (situation) / WHY (insight) / WHAT'S NEXT"));
+    assert.ok(systemPrompt.includes('100-150 words'));
 
     // Check user prompt contains reading context
     assert.ok(userPrompt.includes('What should I focus on?'));
-    assert.ok(userPrompt.includes('threeCard'));
+    assert.ok(userPrompt.includes('Three-Card'));
     assert.ok(userPrompt.includes('The Fool'));
     assert.ok(userPrompt.includes('What does the Fool mean for my career?'));
   });
@@ -104,8 +104,8 @@ describe('buildFollowUpPrompt', () => {
 
     assert.ok(systemPrompt.includes('## JOURNAL CONTEXT'));
     assert.ok(systemPrompt.includes('The Tower has appeared 4 times'));
-    assert.ok(systemPrompt.includes('career, relationships'));
-    assert.ok(systemPrompt.includes('Frame connections gently'));
+    assert.ok(systemPrompt.includes('career; relationships'));
+    assert.ok(systemPrompt.includes('Frame as observation'));
   });
 
   test('includes conversation history in user prompt', () => {
@@ -123,7 +123,7 @@ describe('buildFollowUpPrompt', () => {
 
     assert.ok(userPrompt.includes('## CONVERSATION SO FAR'));
     assert.ok(userPrompt.includes('**Querent**: Tell me more about The Star'));
-    assert.ok(userPrompt.includes('**Reader**: The Star represents hope'));
+    assert.ok(userPrompt.includes('**You (Reader)**: The Star represents hope'));
     assert.ok(userPrompt.includes('What about timing?'));
   });
 
@@ -173,7 +173,8 @@ describe('buildFollowUpPrompt', () => {
     });
 
     assert.ok(systemPrompt.includes('## ETHICS'));
-    assert.ok(systemPrompt.includes('medical, mental health'));
+    assert.ok(systemPrompt.includes('Medical decisions'));
+    assert.ok(systemPrompt.includes('Mental health'));
     assert.ok(systemPrompt.includes('choice and agency'));
   });
 
@@ -207,9 +208,9 @@ describe('buildFollowUpPrompt', () => {
       followUpQuestion: 'test'
     });
 
-    assert.ok(userPrompt.includes('Past: The Moon (reversed)'));
-    assert.ok(userPrompt.includes('Present: The Sun (upright)'));
-    assert.ok(userPrompt.includes('Future: The World (reversed)'));
+    assert.ok(userPrompt.includes('• Past: **The Moon** (reversed)'));
+    assert.ok(userPrompt.includes('• Present: **The Sun** (upright)'));
+    assert.ok(userPrompt.includes('• Future: **The World** (reversed)'));
   });
 });
 

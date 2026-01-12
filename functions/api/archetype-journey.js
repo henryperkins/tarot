@@ -11,6 +11,7 @@
 import { getUserFromRequest } from '../lib/auth.js';
 import { trackPatterns } from '../lib/patternTracking.js';
 import { enforceApiCallLimit } from '../lib/apiUsage.js';
+import { buildCorsHeaders } from '../lib/utils.js';
 
 function toMillis(value) {
   if (typeof value === 'number') {
@@ -75,28 +76,6 @@ async function computeCurrentStreak(db, userId) {
   }
 
   return streak;
-}
-
-function buildCorsHeaders(request) {
-  const origin = request.headers.get('Origin');
-  const base = {
-    'Access-Control-Allow-Methods': 'GET, POST, PUT, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type, Authorization'
-  };
-
-  if (origin) {
-    return {
-      ...base,
-      'Access-Control-Allow-Origin': origin,
-      'Access-Control-Allow-Credentials': 'true',
-      'Vary': 'Origin'
-    };
-  }
-
-  return {
-    ...base,
-    'Access-Control-Allow-Origin': '*'
-  };
 }
 
 /**
@@ -219,7 +198,19 @@ async function handleGetCardFrequency(db, userId, corsHeaders) {
     last_seen: row.last_seen
   }));
 
-  return new Response(JSON.stringify({ success: true, cards }), {
+  // Compute aggregate stats for Card Collection UI
+  const uniqueCardsSeen = cards.length;
+  const totalDraws = cards.reduce((sum, c) => sum + (c.total_count || 0), 0);
+
+  return new Response(JSON.stringify({
+    success: true,
+    cards,
+    stats: {
+      uniqueCardsSeen,
+      totalDraws,
+      totalDeckSize: 78 // Standard tarot deck
+    }
+  }), {
     status: 200,
     headers: { ...corsHeaders, 'Content-Type': 'application/json' }
   });
@@ -229,7 +220,6 @@ async function handleGetCardFrequency(db, userId, corsHeaders) {
  * Get analytics data for user
  */
 async function handleGetAnalytics(db, userId, corsHeaders) {
-  const _now = Math.floor(Date.now() / 1000);
   const currentMonth = new Date().toISOString().slice(0, 7); // YYYY-MM
 
   // Get top 5 cards this month
@@ -491,6 +481,15 @@ async function handleTrackCards(db, userId, body, corsHeaders) {
 
 /**
  * Check for and award new badges based on card frequencies
+ *
+ * NOTE: This incremental version differs intentionally from the backfill version:
+ * - Awards ONLY when count === 3 (exact match) to trigger badge once
+ * - Checks for existing badge before awarding to prevent duplicates
+ *
+ * The backfill version (archetype-journey-backfill.js) uses count >= 3 and
+ * skips the existence check because it deletes all badges first for idempotency.
+ * Both produce the same badges when run correctly, but use different strategies
+ * suited to their use cases (incremental tracking vs bulk reconstruction).
  */
 async function checkAndAwardBadges(db, userId, yearMonth, now) {
   // Get current month's card counts

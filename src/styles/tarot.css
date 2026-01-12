@@ -213,6 +213,10 @@
   --z-modal-backdrop: 60; /* Modal/drawer backdrops */
   --z-modal: 70; /* Modals and drawers */
   --z-skip-link: 80; /* Skip links (highest) */
+
+  /* Mobile action bar sizing (updated at runtime) */
+  --mobile-action-bar-height: 0px;
+  --mobile-action-bar-offset: 0px;
 }
 
 /* Override soft variants with color-mix() for modern browsers */

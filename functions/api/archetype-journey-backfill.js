@@ -10,28 +10,7 @@
  */
 
 import { getUserFromRequest } from '../lib/auth.js';
-
-function buildCorsHeaders(request) {
-  const origin = request.headers.get('Origin');
-  const base = {
-    'Access-Control-Allow-Methods': 'POST, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type, Authorization'
-  };
-
-  if (origin) {
-    return {
-      ...base,
-      'Access-Control-Allow-Origin': origin,
-      'Access-Control-Allow-Credentials': 'true',
-      'Vary': 'Origin'
-    };
-  }
-
-  return {
-    ...base,
-    'Access-Control-Allow-Origin': '*'
-  };
-}
+import { buildCorsHeaders } from '../lib/utils.js';
 
 /**
  * Parse cards from journal entry
@@ -72,7 +51,7 @@ function getCardNumber(card) {
 export async function onRequest(context) {
   const { request, env } = context;
   const method = request.method;
-  const corsHeaders = buildCorsHeaders(request);
+  const corsHeaders = buildCorsHeaders(request, { methods: 'POST, OPTIONS' });
 
   if (method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -231,8 +210,14 @@ export async function onRequest(context) {
  * Check for and award badges based on card frequencies
  * Returns count of new badges awarded
  *
- * Note: This is called after all badges have been deleted for idempotency,
- * so we insert directly without checking for existing badges.
+ * NOTE: This backfill version differs intentionally from the incremental version:
+ * - Uses count >= 3 (awards for any qualifying count, not just exactly 3)
+ * - Skips existence check because all badges are deleted before backfill
+ *
+ * The incremental version (archetype-journey.js) awards only when count === 3
+ * and checks for existing badges to prevent duplicates during live tracking.
+ * Both produce the same badges when run correctly, but use different strategies
+ * suited to their use cases (bulk reconstruction vs incremental tracking).
  */
 async function checkAndAwardBadges(db, userId, yearMonth) {
   const now = Math.floor(Date.now() / 1000);

@@ -9,6 +9,7 @@ import { loadCoachRecommendation, saveCoachRecommendation } from './lib/journalI
 import { DeckSelector } from './components/DeckSelector';
 import { MobileSettingsDrawer } from './components/MobileSettingsDrawer';
 import { MobileActionBar, MobileActionGroup } from './components/MobileActionBar';
+import FollowUpDrawer from './components/FollowUpDrawer';
 import { QuickIntentionCard } from './components/QuickIntentionCard';
 import { Header } from './components/Header';
 import { OnboardingWizard } from './components/onboarding';
@@ -112,6 +113,7 @@ export default function TarotReading() {
     // Reading Generation & UI
     personalReading,
     setPersonalReading,
+    narrativePhase,
     isGenerating,
     setIsGenerating,
     journalStatus,
@@ -127,6 +129,7 @@ export default function TarotReading() {
   const [coachRecommendation, setCoachRecommendation] = useState(null);
   const [pendingCoachPrefill, setPendingCoachPrefill] = useState(null);
   const [isIntentionCoachOpen, setIsIntentionCoachOpen] = useState(false);
+  const [isFollowUpOpen, setIsFollowUpOpen] = useState(false);
   const [placeholderIndex, setPlaceholderIndex] = useState(0);
   const [isQuestionFocused, setIsQuestionFocused] = useState(false);
   const [isMobileSettingsOpen, setIsMobileSettingsOpen] = useState(false);
@@ -136,7 +139,7 @@ export default function TarotReading() {
   const [onboardingDeferred, setOnboardingDeferred] = useState(false);
   const isOnboardingOpen = !onboardingComplete && !showPersonalizationBanner && !onboardingDeferred;
   // Only true overlays (modals/drawers) should hide the action bar - not the small personalization banner
-  const isMobileOverlayActive = isIntentionCoachOpen || isMobileSettingsOpen || isOnboardingOpen;
+  const isMobileOverlayActive = isIntentionCoachOpen || isMobileSettingsOpen || isOnboardingOpen || isFollowUpOpen;
   const shouldShowGestureCoachOverlay = shouldShowGestureCoach && hasConfirmedSpread && !reading && !isOnboardingOpen;
 
   const navigate = useNavigate();
@@ -575,6 +578,13 @@ export default function TarotReading() {
   const narrativeInProgress = isGenerating && !personalReading;
   const needsNarrativeGeneration = allCardsRevealed && (!personalReading || personalReading.isError);
   const _isPersonalReadingError = Boolean(personalReading?.isError);
+  const showFollowUpButton = isHandset && personalReading && !personalReading.isError && narrativePhase === 'complete';
+
+  useEffect(() => {
+    if (!showFollowUpButton && isFollowUpOpen) {
+      setIsFollowUpOpen(false);
+    }
+  }, [showFollowUpButton, isFollowUpOpen]);
 
   // Compute the highest milestone achieved (not affected by which panel user views)
   // This ensures the step indicator stays consistent once progress is made
@@ -821,6 +831,8 @@ export default function TarotReading() {
             isOverlayActive={isMobileOverlayActive}
             isSettingsOpen={isMobileSettingsOpen}
             isCoachOpen={isIntentionCoachOpen}
+            showFollowUp={showFollowUpButton}
+            isFollowUpOpen={isFollowUpOpen}
             isShuffling={isShuffling}
             reading={reading}
             revealedCards={revealedCards}
@@ -839,12 +851,17 @@ export default function TarotReading() {
               setPendingCoachPrefill(null);
               setIsIntentionCoachOpen(true);
             }}
+            onOpenFollowUp={() => setIsFollowUpOpen(true)}
             onShuffle={handleShuffle}
             onDealNext={dealNext}
             onRevealAll={handleRevealAll}
             onGenerateNarrative={generatePersonalReading}
             onSaveReading={saveReading}
             onNewReading={handleShuffle}
+          />
+          <FollowUpDrawer
+            isOpen={isFollowUpOpen}
+            onClose={() => setIsFollowUpOpen(false)}
           />
 
           <MobileSettingsDrawer

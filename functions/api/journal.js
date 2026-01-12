@@ -11,22 +11,7 @@ import {
 import { buildTierLimitedPayload, isEntitled } from '../lib/entitlements.js';
 import { dedupeEntries } from '../../shared/journal/dedupe.js';
 import { scheduleCoachExtraction } from '../lib/coachSuggestion.js';
-
-/**
- * Safely parse JSON with fallback to prevent single corrupt row from breaking entire journal
- * @param {string} json - JSON string to parse
- * @param {any} fallback - Fallback value if parsing fails
- * @returns {any} Parsed value or fallback
- */
-function safeJsonParse(json, fallback) {
-  if (!json) return fallback;
-  try {
-    return JSON.parse(json);
-  } catch (e) {
-    console.warn('JSON parse failed:', e.message);
-    return fallback;
-  }
-}
+import { safeJsonParse } from '../lib/utils.js';
 
 function isMissingColumnError(err) {
   const message = String(err?.message || err || '');

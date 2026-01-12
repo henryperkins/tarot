@@ -1,4 +1,5 @@
 import { jsonResponse } from '../lib/utils.js';
+import { resolveEnv } from '../lib/environment.js';
 
 /**
  * Speech Token Endpoint for Azure Cognitive Services Speech SDK
@@ -71,18 +72,6 @@ export async function onRequestGet(context) {
       { status: 500 }
     );
   }
-}
-
-function resolveEnv(env, key) {
-  if (env && typeof env[key] !== 'undefined' && env[key] !== null) {
-    return env[key];
-  }
-
-  if (typeof process !== 'undefined' && process.env && typeof process.env[key] !== 'undefined') {
-    return process.env[key];
-  }
-
-  return undefined;
 }
 
 function isDebugEnabled(env) {

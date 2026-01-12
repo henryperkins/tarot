@@ -1,5 +1,5 @@
 import { generateFallbackWaveform } from '../../shared/fallbackAudio.js';
-import { jsonResponse, readJsonBody } from '../lib/utils.js';
+import { jsonResponse, readJsonBody, sanitizeText } from '../lib/utils.js';
 import { getUserFromRequest } from '../lib/auth.js';
 import { getClientIdentifier } from '../lib/clientId.js';
 import {
@@ -11,6 +11,7 @@ import {
 import { enforceApiCallLimit } from '../lib/apiUsage.js';
 import { getSubscriptionContext } from '../lib/entitlements.js';
 import { getTierConfig } from '../../shared/monetization/subscription.js';
+import { resolveEnv } from '../lib/environment.js';
 
 /**
  * Cloudflare Pages Function that provides text-to-speech audio as a data URI or streaming response.
@@ -78,7 +79,7 @@ export const onRequestPost = async ({ request, env }) => {
     const ttsLimits = getTTSLimits(effectiveTier);
 
     const { text, context, voice, speed } = await readJsonBody(request);
-    const sanitizedText = sanitizeText(text);
+    const sanitizedText = sanitizeText(text, { maxLength: 4000, collapseWhitespace: false });
     const debugLoggingEnabled = isTtsDebugLoggingEnabled(env);
 
     if (!sanitizedText) {
@@ -189,10 +190,7 @@ export const onRequestPost = async ({ request, env }) => {
   }
 };
 
-function sanitizeText(text) {
-  if (typeof text !== 'string') return '';
-  return text.trim().slice(0, 4000); // Increased for full readings; gpt-4o-mini-tts handles longer text well
-}
+// sanitizeText is now imported from ../lib/utils.js
 
 /**
  * Convert Uint8Array to base64 string.
@@ -516,18 +514,6 @@ async function enforceTtsRateLimit(env, request, user, ttsLimits = { monthly: 3,
     console.warn('Rate limit check failed, allowing request:', error);
     return { limited: false };
   }
-}
-
-function resolveEnv(env, key) {
-  if (env && typeof env[key] !== 'undefined' && env[key] !== null) {
-    return env[key];
-  }
-
-  if (typeof process !== 'undefined' && process.env && typeof process.env[key] !== 'undefined') {
-    return process.env[key];
-  }
-
-  return undefined;
 }
 
 function parseBooleanFlag(value) {

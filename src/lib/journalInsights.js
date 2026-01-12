@@ -1,5 +1,8 @@
 import { computeJournalStats, REVERSED_PATTERN } from '../../shared/journal/stats.js';
 import { buildThemeQuestion, normalizeThemeLabel } from './themeText.js';
+import { safeStorage } from './safeStorage.js';
+import { generateId } from './utils.js';
+import { MAJOR_ARCANA } from '../data/majorArcana.js';
 
 export { computeJournalStats, REVERSED_PATTERN };
 
@@ -66,17 +69,13 @@ export function buildCardInsightPayload(card) {
  * @returns {{ payload: Object|null, error: Error|null }}
  */
 export function persistJournalInsights(entries, userId = null) {
-  if (typeof localStorage === 'undefined') {
+  if (!safeStorage.isAvailable) {
     return { payload: null, error: new Error('localStorage not available') };
   }
   const storageKey = getScopedKey(JOURNAL_INSIGHTS_STORAGE_KEY_PREFIX, userId);
   const stats = computeJournalStats(entries);
   if (!stats) {
-    try {
-      localStorage.removeItem(storageKey);
-    } catch (error) {
-      console.warn('Unable to clear journal insights cache:', error);
-    }
+    safeStorage.removeItem(storageKey);
     return { payload: null, error: null };
   }
   const payload = {
@@ -85,7 +84,7 @@ export function persistJournalInsights(entries, userId = null) {
     updatedAt: Date.now()
   };
   try {
-    localStorage.setItem(storageKey, JSON.stringify(payload));
+    safeStorage.setItem(storageKey, JSON.stringify(payload));
     return { payload, error: null };
   } catch (error) {
     console.warn('Unable to persist journal insights:', error);
@@ -98,17 +97,17 @@ export function persistJournalInsights(entries, userId = null) {
  * @param {string|null} userId - User ID to clear (null for anonymous)
  */
 export function clearJournalInsightsCache(userId = null) {
-  if (typeof localStorage === 'undefined') return;
+  if (!safeStorage.isAvailable) return;
   try {
     const storageKey = getScopedKey(JOURNAL_INSIGHTS_STORAGE_KEY_PREFIX, userId);
-    localStorage.removeItem(storageKey);
+    safeStorage.removeItem(storageKey);
     // Clear legacy unscoped cache key (safety: avoid cross-account leakage).
-    localStorage.removeItem(LEGACY_JOURNAL_INSIGHTS_KEY);
+    safeStorage.removeItem(LEGACY_JOURNAL_INSIGHTS_KEY);
     // Also clear coach recommendation for this user
     const coachKey = getScopedKey(COACH_RECOMMENDATION_KEY_PREFIX, userId);
-    localStorage.removeItem(coachKey);
+    safeStorage.removeItem(coachKey);
     const statsKey = getScopedKey(COACH_STATS_SNAPSHOT_KEY_PREFIX, userId);
-    localStorage.removeItem(statsKey);
+    safeStorage.removeItem(statsKey);
   } catch (error) {
     console.warn('Unable to clear journal insights cache:', error);
   }
@@ -120,20 +119,20 @@ export function clearJournalInsightsCache(userId = null) {
  * @returns {Object|null} Stored insights or null
  */
 export function loadStoredJournalInsights(userId = null) {
-  if (typeof localStorage === 'undefined') return null;
+  if (!safeStorage.isAvailable) return null;
   try {
     const storageKey = getScopedKey(JOURNAL_INSIGHTS_STORAGE_KEY_PREFIX, userId);
-    let raw = localStorage.getItem(storageKey);
+    let raw = safeStorage.getItem(storageKey);
 
     // Legacy migration: only migrate unscoped data into the anonymous bucket.
     // Never auto-assign legacy data to an authenticated userId, since the legacy
     // cache could have been written by a different account on shared devices.
     if (!raw && !userId) {
-      const legacyRaw = localStorage.getItem(LEGACY_JOURNAL_INSIGHTS_KEY);
+      const legacyRaw = safeStorage.getItem(LEGACY_JOURNAL_INSIGHTS_KEY);
       if (legacyRaw) {
         try {
-          localStorage.setItem(storageKey, legacyRaw);
-          localStorage.removeItem(LEGACY_JOURNAL_INSIGHTS_KEY);
+          safeStorage.setItem(storageKey, legacyRaw);
+          safeStorage.removeItem(LEGACY_JOURNAL_INSIGHTS_KEY);
           raw = legacyRaw;
         } catch (e) {
           console.warn('Failed to migrate legacy insights:', e);
@@ -163,10 +162,10 @@ export function loadStoredJournalInsights(userId = null) {
  * @returns {Object|null} Stored stats snapshot or null
  */
 export function loadCoachStatsSnapshot(userId = null) {
-  if (typeof localStorage === 'undefined') return null;
+  if (!safeStorage.isAvailable) return null;
   try {
     const storageKey = getScopedKey(COACH_STATS_SNAPSHOT_KEY_PREFIX, userId);
-    const raw = localStorage.getItem(storageKey);
+    const raw = safeStorage.getItem(storageKey);
     if (!raw) return null;
     const parsed = JSON.parse(raw);
     if (!parsed?.stats) return null;
@@ -184,11 +183,11 @@ export function loadCoachStatsSnapshot(userId = null) {
  * @param {string|null} userId - User ID for scoping (null for anonymous)
  */
 export function persistCoachStatsSnapshot(stats, meta = {}, userId = null) {
-  if (typeof localStorage === 'undefined') return;
+  if (!safeStorage.isAvailable) return;
   try {
     const storageKey = getScopedKey(COACH_STATS_SNAPSHOT_KEY_PREFIX, userId);
     if (!stats) {
-      localStorage.removeItem(storageKey);
+      safeStorage.removeItem(storageKey);
       return;
     }
     const payload = {
@@ -202,7 +201,7 @@ export function persistCoachStatsSnapshot(stats, meta = {}, userId = null) {
       },
       updatedAt: Date.now()
     };
-    localStorage.setItem(storageKey, JSON.stringify(payload));
+    safeStorage.setItem(storageKey, JSON.stringify(payload));
   } catch (error) {
     console.warn('Unable to persist coach stats snapshot:', error);
   }
@@ -277,19 +276,16 @@ ${rows.join('\n')}`;
 }
 
 function generateShareToken() {
-  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
-    return crypto.randomUUID();
-  }
-  return `share_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+  return generateId('share');
 }
 
 function persistShareTokenRecord(record) {
-  if (typeof localStorage === 'undefined') return;
+  if (!safeStorage.isAvailable) return;
   try {
-    const raw = localStorage.getItem(SHARE_TOKEN_STORAGE_KEY);
+    const raw = safeStorage.getItem(SHARE_TOKEN_STORAGE_KEY);
     const existing = raw ? JSON.parse(raw) : [];
     const next = [record, ...existing].slice(0, 50);
-    localStorage.setItem(SHARE_TOKEN_STORAGE_KEY, JSON.stringify(next));
+    safeStorage.setItem(SHARE_TOKEN_STORAGE_KEY, JSON.stringify(next));
   } catch (error) {
     console.warn('Unable to persist share token record:', error);
   }
@@ -316,11 +312,11 @@ function registerShareToken(entries, scope = 'journal', meta = {}) {
  * @param {string|null} userId - User ID for scoping (null for anonymous)
  */
 export function saveCoachRecommendation(recommendation, userId = null) {
-  if (typeof localStorage === 'undefined') return;
+  if (!safeStorage.isAvailable) return;
   try {
     const storageKey = getScopedKey(COACH_RECOMMENDATION_KEY_PREFIX, userId);
     if (!recommendation) {
-      localStorage.removeItem(storageKey);
+      safeStorage.removeItem(storageKey);
       return;
     }
     const normalized = normalizeCoachRecommendation(recommendation);
@@ -329,7 +325,7 @@ export function saveCoachRecommendation(recommendation, userId = null) {
       userId: userId || null,
       updatedAt: Date.now()
     };
-    localStorage.setItem(storageKey, JSON.stringify(payload));
+    safeStorage.setItem(storageKey, JSON.stringify(payload));
   } catch (error) {
     console.warn('Unable to save coach recommendation:', error);
   }
@@ -341,14 +337,14 @@ export function saveCoachRecommendation(recommendation, userId = null) {
  * @returns {Object|null} Stored recommendation or null
  */
 export function loadCoachRecommendation(userId = null) {
-  if (typeof localStorage === 'undefined') return null;
+  if (!safeStorage.isAvailable) return null;
   try {
     const storageKey = getScopedKey(COACH_RECOMMENDATION_KEY_PREFIX, userId);
-    const raw = localStorage.getItem(storageKey);
+    const raw = safeStorage.getItem(storageKey);
     if (!raw) return null;
     const parsed = JSON.parse(raw);
     if (parsed?.updatedAt && (Date.now() - parsed.updatedAt) > COACH_RECOMMENDATION_TTL) {
-      localStorage.removeItem(storageKey);
+      safeStorage.removeItem(storageKey);
       return null;
     }
     return normalizeCoachRecommendation(parsed);
@@ -1275,35 +1271,6 @@ export function formatContextName(context) {
 // ============================================================================
 
 /**
- * Major Arcana card numbers (0-21) mapped to names.
- * Used for computing heatmap data from entries.
- */
-const MAJOR_ARCANA = [
-  { number: 0, name: 'The Fool' },
-  { number: 1, name: 'The Magician' },
-  { number: 2, name: 'The High Priestess' },
-  { number: 3, name: 'The Empress' },
-  { number: 4, name: 'The Emperor' },
-  { number: 5, name: 'The Hierophant' },
-  { number: 6, name: 'The Lovers' },
-  { number: 7, name: 'The Chariot' },
-  { number: 8, name: 'Strength' },
-  { number: 9, name: 'The Hermit' },
-  { number: 10, name: 'Wheel of Fortune' },
-  { number: 11, name: 'Justice' },
-  { number: 12, name: 'The Hanged Man' },
-  { number: 13, name: 'Death' },
-  { number: 14, name: 'Temperance' },
-  { number: 15, name: 'The Devil' },
-  { number: 16, name: 'The Tower' },
-  { number: 17, name: 'The Star' },
-  { number: 18, name: 'The Moon' },
-  { number: 19, name: 'The Sun' },
-  { number: 20, name: 'Judgement' },
-  { number: 21, name: 'The World' },
-];
-
-/**
  * Check if a card name is a Major Arcana card.
  * @param {string} cardName - Card name to check
  * @returns {{ isMajor: boolean, number: number | null, name: string | null }}
@@ -1566,6 +1533,5 @@ export {
   JOURNAL_INSIGHTS_STORAGE_KEY_PREFIX,
   SHARE_TOKEN_STORAGE_KEY,
   COACH_RECOMMENDATION_KEY_PREFIX,
-  registerShareToken,
   getScopedKey
 };

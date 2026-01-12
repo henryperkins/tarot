@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { REVERSAL_FRAMEWORKS, selectReversalFramework } from '../spreadAnalysis.js';
+import { REVERSAL_FRAMEWORKS, selectReversalFramework } from '../lib/spreadAnalysis.js';
 
 describe('Reversal Frameworks', () => {
   it('should have all expected frameworks defined', () => {

@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { getEvaluationTimeoutMs, buildHeuristicScores } from '../evaluation.js';
+import { getEvaluationTimeoutMs, buildHeuristicScores } from '../lib/evaluation.js';
 
 describe('getEvaluationTimeoutMs', () => {
     it('clamps to MAX_SAFE_TIMEOUT_MS when configured value is too large', () => {
