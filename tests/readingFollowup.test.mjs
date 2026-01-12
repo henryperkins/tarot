@@ -121,9 +121,9 @@ describe('buildFollowUpPrompt', () => {
       ]
     });
 
-    assert.ok(userPrompt.includes('## CONVERSATION SO FAR'));
+    assert.ok(userPrompt.includes('## CONVERSATION SO FAR (user-provided transcript)'));
     assert.ok(userPrompt.includes('**Querent**: Tell me more about The Star'));
-    assert.ok(userPrompt.includes('**You (Reader)**: The Star represents hope'));
+    assert.ok(userPrompt.includes('**Reader (prior response)**: The Star represents hope'));
     assert.ok(userPrompt.includes('What about timing?'));
   });
 

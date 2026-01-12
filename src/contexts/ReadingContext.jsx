@@ -81,6 +81,7 @@ export function ReadingProvider({ children }) {
     const [themes, setThemes] = useState(null);
     const [emotionalTone, setEmotionalTone] = useState(null);
     const [analysisContext, setAnalysisContext] = useState(null);
+    const [followUps, setFollowUps] = useState([]);
     const [readingMeta, setReadingMeta] = useState({
         requestId: null,
         provider: null,
@@ -122,6 +123,7 @@ export function ReadingProvider({ children }) {
             setNarrativePhase('idle');
             setJournalStatus(null);
             setReflections({});
+            setFollowUps([]);
             visionAnalysis.setVisionResults([]);
             visionAnalysis.setVisionConflicts([]);
             visionAnalysis.resetVisionProof();
@@ -601,6 +603,7 @@ export function ReadingProvider({ children }) {
         readingMeta, setReadingMeta,
         journalStatus, setJournalStatus,
         reflections, setReflections,
+        followUps, setFollowUps,
         lastCardsForFeedback, setLastCardsForFeedback,
         showAllHighlights, setShowAllHighlights,
         generatePersonalReading,
@@ -624,6 +627,7 @@ export function ReadingProvider({ children }) {
         readingMeta,
         journalStatus,
         reflections,
+        followUps,
         lastCardsForFeedback,
         showAllHighlights,
         generatePersonalReading,

@@ -64,6 +64,8 @@ export function useModalA11y(isOpen, {
   initialFocusRef = null,
 } = {}) {
   const previousFocusRef = useRef(null);
+  const inertFallbackRef = useRef([]);
+  const supportsInert = typeof HTMLElement !== 'undefined' && 'inert' in HTMLElement.prototype;
 
   // Body scroll lock
   useBodyScrollLock(isOpen, { strategy: scrollLockStrategy });
@@ -111,6 +113,33 @@ export function useModalA11y(isOpen, {
     const timer = setTimeout(setInitialFocus, 50);
     return () => clearTimeout(timer);
   }, [isOpen, initialFocusRef, containerRef]);
+
+  // Fallback focus blocking when inert is unsupported
+  useEffect(() => {
+    if (supportsInert || !containerRef?.current) return;
+
+    if (isOpen) {
+      inertFallbackRef.current.forEach(({ element, tabIndex }) => {
+        if (!element?.isConnected) return;
+        if (tabIndex === null) {
+          element.removeAttribute('tabindex');
+        } else {
+          element.setAttribute('tabindex', tabIndex);
+        }
+      });
+      inertFallbackRef.current = [];
+      return;
+    }
+
+    const focusable = containerRef.current.querySelectorAll(FOCUSABLE_SELECTORS);
+    inertFallbackRef.current = Array.from(focusable).map(element => ({
+      element,
+      tabIndex: element.getAttribute('tabindex')
+    }));
+    inertFallbackRef.current.forEach(({ element }) => {
+      element.setAttribute('tabindex', '-1');
+    });
+  }, [isOpen, containerRef, supportsInert]);
 
   // Keyboard handling (Escape + Tab focus trap)
   const handleKeyDown = useCallback((event) => {

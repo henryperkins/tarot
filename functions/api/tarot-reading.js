@@ -1326,6 +1326,13 @@ async function performSpreadAnalysis(spreadInfo, cardsInfo, options = {}, reques
       reversalCount: themes.reversalCount,
       framework: themes.reversalFramework
     });
+
+    // Enable symbol annotations for premium tiers (plus/pro)
+    // Adds archetype and key visual symbols to position text
+    const tier = options.subscriptionTier || 'free';
+    if (tier === 'plus' || tier === 'pro') {
+      themes.includeSymbols = true;
+    }
   } catch (err) {
     console.error(`[${requestId}] performSpreadAnalysis: analyzeSpreadThemes failed, using minimal fallback themes.`, err);
     themes = {

@@ -11,6 +11,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useSubscription } from '../contexts/SubscriptionContext';
 import { generateFollowUpSuggestions } from '../lib/followUpSuggestions';
 import { MarkdownRenderer } from './MarkdownRenderer';
+import { SPREADS } from '../data/spreads';
 import clsx from 'clsx';
 
 const MAX_MESSAGE_LENGTH = 500;
@@ -36,7 +37,10 @@ export default function FollowUpChat({
     personalReading,
     themes,
     readingMeta,
-    userQuestion
+    userQuestion,
+    sessionSeed,
+    selectedSpread,
+    setFollowUps
   } = useReading();
   const { isAuthenticated } = useAuth();
   const { effectiveTier } = useSubscription();
@@ -47,8 +51,11 @@ export default function FollowUpChat({
   const [error, setError] = useState(null);
   const [includeJournal, setIncludeJournal] = useState(true);
   const [showSuggestions, setShowSuggestions] = useState(false);
+  const [serverTurn, setServerTurn] = useState(null); // Synced from meta.turn
+  const [isAtBottom, setIsAtBottom] = useState(true);
 
   const messagesEndRef = useRef(null);
+  const conversationRef = useRef(null);
   const inputRef = useRef(null);
   const isDock = variant === 'dock';
   const isDrawer = variant === 'drawer';
@@ -69,26 +76,89 @@ export default function FollowUpChat({
     return FOLLOW_UP_LIMITS[effectiveTier] || FOLLOW_UP_LIMITS.free;
   }, [effectiveTier]);
 
-  const turnsUsed = messages.filter(m => m.role === 'user').length;
+  // Use server turn count when available, fall back to local message count
+  const localTurns = messages.filter(m => m.role === 'user').length;
+  const turnsUsed = serverTurn !== null ? serverTurn : localTurns;
   const canAskMore = turnsUsed < followUpLimit;
   const hasValidReading = Boolean(personalReading) && !personalReading.isError;
 
-  // Auto-scroll to latest message
+  const upsertFollowUp = useCallback((payload) => {
+    const question = payload?.question?.trim();
+    const answer = payload?.answer?.trim();
+    if (!question || !answer) return;
+
+    setFollowUps((prev) => {
+      const current = Array.isArray(prev) ? [...prev] : [];
+      const turnNumber = Number.isFinite(payload?.turnNumber) ? Number(payload.turnNumber) : null;
+      const existingIndex = current.findIndex((item) => {
+        if (turnNumber && item?.turnNumber === turnNumber) return true;
+        return item?.question === question && item?.answer === answer;
+      });
+
+      const normalized = {
+        question,
+        answer,
+        turnNumber: turnNumber || (current.length + 1),
+        journalContext: payload?.journalContext || null,
+        createdAt: payload?.createdAt || Date.now()
+      };
+
+      if (existingIndex >= 0) {
+        current[existingIndex] = { ...current[existingIndex], ...normalized };
+      } else {
+        current.push(normalized);
+      }
+
+      return current;
+    });
+  }, [setFollowUps]);
+
+  // Reset chat state when reading changes (prevents stale context leaking across readings)
+  // Use requestId as primary signal, sessionSeed as fallback for offline/error paths
+  const resetKey = readingMeta?.requestId || sessionSeed || null;
+  const prevResetKeyRef = useRef(resetKey);
+
   useEffect(() => {
-    if (messagesEndRef.current && messages.length > 0) {
-      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    if (prevResetKeyRef.current !== resetKey && resetKey !== null) {
+      // Reading changed - clear all chat state
+      setMessages([]);
+      setError(null);
+      setInputValue('');
+      setShowSuggestions(false);
+      setServerTurn(null); // Reset server turn on new reading
+      setIsAtBottom(true);
+      setFollowUps([]);
+      prevResetKeyRef.current = resetKey;
     }
-  }, [messages]);
+  }, [resetKey, setFollowUps]);
+
+  const scrollToBottom = useCallback((behavior = 'smooth') => {
+    if (messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior, block: 'end' });
+    }
+  }, []);
+
+  const hasStreamingMessage = useMemo(
+    () => messages.some(msg => msg.isStreaming),
+    [messages]
+  );
+
+  // Auto-scroll to latest message (only if user is at the bottom)
+  useEffect(() => {
+    if (!isAtBottom || messages.length === 0) return;
+    scrollToBottom(hasStreamingMessage ? 'auto' : 'smooth');
+  }, [messages, isAtBottom, hasStreamingMessage, scrollToBottom]);
 
   // Focus input when panel becomes active
   useEffect(() => {
-    if (!isActive) return;
+    if (!isActive || isDrawer) return;
     const timer = setTimeout(() => inputRef.current?.focus(), 120);
     return () => clearTimeout(timer);
-  }, [isActive]);
+  }, [isActive, isDrawer]);
 
   const askFollowUp = useCallback(async (question) => {
-    if (!question?.trim() || isLoading || !canAskMore || !hasValidReading) return;
+    const trimmedQuestion = question?.trim();
+    if (!trimmedQuestion || isLoading || !canAskMore || !hasValidReading) return;
     if (!isAuthenticated) {
       setError('Please sign in to ask follow-up questions.');
       return;
@@ -98,9 +168,10 @@ export default function FollowUpChat({
     setIsLoading(true);
     setInputValue('');
     setShowSuggestions(false);
+    setIsAtBottom(true);
 
     // Add user message immediately
-    const userMessage = { role: 'user', content: question.trim() };
+    const userMessage = { role: 'user', content: trimmedQuestion };
     setMessages(prev => [...prev, userMessage]);
 
     // Add placeholder assistant message for streaming
@@ -119,10 +190,15 @@ export default function FollowUpChat({
         credentials: 'include',
         body: JSON.stringify({
           requestId: readingMeta?.requestId,
-          followUpQuestion: question.trim(),
+          followUpQuestion: trimmedQuestion,
           conversationHistory: messages,
           readingContext: {
-            cardsInfo: reading,
+            // Enrich cards with position labels for better follow-up context
+            cardsInfo: reading?.map((card, idx) => {
+              const spread = SPREADS[readingMeta?.spreadKey || selectedSpread];
+              const position = spread?.positions?.[idx] || `Card ${idx + 1}`;
+              return { ...card, position };
+            }),
             userQuestion,
             narrative: personalReading?.raw || (typeof personalReading === 'string' ? personalReading : ''),
             themes,
@@ -138,21 +214,32 @@ export default function FollowUpChat({
 
       // Check for non-streaming error responses
       const contentType = response.headers.get('content-type') || '';
-      if (!response.ok || !contentType.includes('text/event-stream')) {
-        // Fallback to JSON error handling
+      const isSSE = contentType.includes('text/event-stream');
+
+      if (!response.ok && !isSSE) {
+        // Non-SSE error response - parse as JSON
         const errorData = await response.json().catch(() => ({}));
 
         if (response.status === 401) {
           throw new Error('Please sign in to ask follow-up questions.');
         }
         if (response.status === 403) {
+          // Lock input immediately - server says limit reached
+          setServerTurn(followUpLimit);
           throw new Error(errorData.message || 'You\'ve reached your follow-up limit for this reading.');
         }
         if (response.status === 429) {
+          // Lock input immediately - daily limit reached
+          setServerTurn(followUpLimit);
           throw new Error(errorData.message || 'Daily follow-up limit reached. Try again tomorrow.');
         }
 
         throw new Error(errorData.message || errorData.error || 'Failed to get response');
+      }
+
+      if (!isSSE) {
+        // Not SSE content-type - unexpected format
+        throw new Error('Unexpected response format');
       }
 
       // Process SSE stream
@@ -161,6 +248,8 @@ export default function FollowUpChat({
       let buffer = '';
       let streamedText = '';
       let journalContext = null;
+      let resolvedTurn = null;
+      let followUpPersisted = false;
 
       while (true) {
         const { done, value } = await reader.read();
@@ -196,6 +285,11 @@ export default function FollowUpChat({
             if (eventType === 'meta') {
               // Capture metadata (turn, journalContext, etc.)
               journalContext = data.journalContext || null;
+              // Sync turn count from server to keep UI accurate across devices
+              if (typeof data.turn === 'number') {
+                setServerTurn(data.turn);
+                resolvedTurn = data.turn;
+              }
             } else if (eventType === 'delta') {
               // Append text delta
               streamedText += data.text || '';
@@ -219,6 +313,15 @@ export default function FollowUpChat({
                     }
                   : msg
               ));
+              const turnNumberForSave = resolvedTurn || data.turn || serverTurn || (turnsUsed + 1);
+              upsertFollowUp({
+                question: trimmedQuestion,
+                answer: finalText,
+                turnNumber: turnNumberForSave,
+                journalContext,
+                createdAt: Date.now()
+              });
+              followUpPersisted = true;
             } else if (eventType === 'error') {
               throw new Error(data.message || 'Streaming error occurred');
             }
@@ -238,17 +341,30 @@ export default function FollowUpChat({
           : msg
       ));
 
+      if (!followUpPersisted && streamedText) {
+        const turnNumberForSave = resolvedTurn || serverTurn || (turnsUsed + 1);
+        upsertFollowUp({
+          question: trimmedQuestion,
+          answer: streamedText,
+          turnNumber: turnNumberForSave,
+          journalContext,
+          createdAt: Date.now()
+        });
+      }
+
     } catch (err) {
       console.error('Follow-up error:', err);
       setError(err.message || 'Something went wrong. Please try again.');
       // Remove both user message and incomplete assistant message on error
       setMessages(prev => prev.slice(0, -2));
+      setInputValue(trimmedQuestion);
     } finally {
       setIsLoading(false);
     }
   }, [
     isLoading, canAskMore, hasValidReading, readingMeta, messages, reading,
-    userQuestion, personalReading, themes, includeJournal, canUseJournal, isAuthenticated
+    userQuestion, personalReading, themes, includeJournal, canUseJournal, isAuthenticated,
+    selectedSpread, followUpLimit, upsertFollowUp, serverTurn
   ]);
 
   const handleSubmit = (e) => {
@@ -264,6 +380,8 @@ export default function FollowUpChat({
   };
 
   const handleKeyDown = (e) => {
+    const isComposing = e.isComposing || e.nativeEvent?.isComposing || e.keyCode === 229;
+    if (isComposing) return;
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSubmit(e);
@@ -275,11 +393,18 @@ export default function FollowUpChat({
     return null;
   }
 
-  const conversationHeight = isDock ? 'max-h-[38vh]' : isDrawer ? 'max-h-[52vh]' : 'max-h-[45vh]';
+  const conversationHeight = isDock ? 'max-h-[38vh]' : isDrawer ? 'flex-1 min-h-0' : 'max-h-[45vh]';
   const chipText = isDock ? 'text-xs' : 'text-sm';
   const headerTitle = isDock ? 'text-sm' : 'text-base';
   const headerSubtitle = isDock ? 'text-xs' : 'text-sm';
   const badgeText = isDock ? 'text-[0.65rem]' : 'text-xs';
+
+  const handleConversationScroll = (event) => {
+    const { scrollTop, scrollHeight, clientHeight } = event.currentTarget;
+    const threshold = 24;
+    const atBottom = scrollHeight - scrollTop - clientHeight <= threshold;
+    setIsAtBottom(atBottom);
+  };
 
   return (
     <div className={clsx('flex flex-col gap-4', className)}>
@@ -359,6 +484,8 @@ export default function FollowUpChat({
             'bg-[color:var(--surface-88)] p-3 pr-2',
             conversationHeight
           )}
+          ref={conversationRef}
+          onScroll={handleConversationScroll}
           role="log"
           aria-label="Conversation history"
           aria-live="polite"

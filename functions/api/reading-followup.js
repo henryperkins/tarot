@@ -12,6 +12,7 @@ import { jsonResponse, readJsonBody, safeJsonParse } from '../lib/utils.js';
 import { buildTierLimitedPayload, isEntitled, getSubscriptionContext } from '../lib/entitlements.js';
 import { buildFollowUpPrompt } from '../lib/followUpPrompt.js';
 import { findSimilarJournalEntries, getRecurringCardPatterns } from '../lib/journalSearch.js';
+import { insertFollowUps } from '../lib/journalFollowups.js';
 import { callAzureResponses } from '../lib/azureResponses.js';
 import {
   callAzureResponsesStream,
@@ -41,7 +42,7 @@ export const onRequestGet = async () => {
 /**
  * Main follow-up question handler
  */
-export const onRequestPost = async ({ request, env }) => {
+export const onRequestPost = async ({ request, env, ctx }) => {
   const startTime = Date.now();
   const requestId = crypto.randomUUID();
   
@@ -81,32 +82,37 @@ export const onRequestPost = async ({ request, env }) => {
       console.log(`[${requestId}] Invalid follow-up question`);
       return jsonResponse({ error: 'Invalid follow-up question' }, { status: 400 });
     }
-    
-    if (!readingContext && !readingRequestId) {
-      console.log(`[${requestId}] Missing reading context`);
-      return jsonResponse({ error: 'Either requestId or readingContext required' }, { status: 400 });
+
+    // Enforce max length to prevent prompt inflation/abuse (matches frontend 500-char cap)
+    const MAX_QUESTION_LENGTH = 500;
+    if (followUpQuestion.length > MAX_QUESTION_LENGTH) {
+      console.log(`[${requestId}] Follow-up question too long: ${followUpQuestion.length} chars`);
+      return jsonResponse({ error: `Question too long (max ${MAX_QUESTION_LENGTH} characters)` }, { status: 400 });
     }
     
+    // readingRequestId is required for authoritative per-reading limit tracking
+    if (!readingRequestId) {
+      console.log(`[${requestId}] Missing readingRequestId`);
+      return jsonResponse({ error: 'readingRequestId is required' }, { status: 400 });
+    }
+
+    if (!readingContext) {
+      console.log(`[${requestId}] Missing reading context`);
+      return jsonResponse({ error: 'readingContext is required' }, { status: 400 });
+    }
+
     // Get user tier and check limits
     const subscription = getSubscriptionContext(user);
     const tier = subscription.effectiveTier || 'free';
     const limits = FOLLOW_UP_LIMITS[tier] || FOLLOW_UP_LIMITS.free;
-    
+    const canPersistFollowups = isEntitled(user, 'plus');
+
     console.log(`[${requestId}] User tier: ${tier}, limits: ${JSON.stringify(limits)}`);
-    
-    // Check per-reading limit using server-side tracking (not client-provided history)
-    let turnNumber;
-    if (readingRequestId) {
-      // Use database to get actual turn count - prevents client manipulation
-      const actualTurns = await getPerReadingFollowUpCount(env.DB, user.id, readingRequestId);
-      turnNumber = actualTurns + 1;
-      console.log(`[${requestId}] Server-verified turn: ${turnNumber}/${limits.perReading} (DB count: ${actualTurns})`);
-    } else {
-      // Fallback to client history if no readingRequestId (less secure, but functional)
-      const previousUserTurns = conversationHistory.filter(m => m.role === 'user').length;
-      turnNumber = previousUserTurns + 1;
-      console.log(`[${requestId}] Client-based turn: ${turnNumber}/${limits.perReading} (no readingRequestId)`);
-    }
+
+    // Check per-reading limit using server-side tracking (prevents client manipulation)
+    const actualTurns = await getPerReadingFollowUpCount(env.DB, user.id, readingRequestId);
+    const turnNumber = actualTurns + 1;
+    console.log(`[${requestId}] Server-verified turn: ${turnNumber}/${limits.perReading} (DB count: ${actualTurns})`);
 
     if (turnNumber > limits.perReading) {
       console.log(`[${requestId}] Per-reading limit exceeded: ${turnNumber}/${limits.perReading}`);
@@ -222,21 +228,34 @@ export const onRequestPost = async ({ request, env }) => {
             provider: 'azure-responses-stream',
             requestId
           },
+          ctx, // Pass context for waitUntil
           // Usage tracking callback - will be called when stream completes
           onComplete: async (fullText) => {
             const latencyMs = Date.now() - startTime;
             console.log(`[${requestId}] Streaming completed in ${latencyMs}ms, ${fullText.length} chars`);
 
-            await trackFollowUpUsage(env.DB, {
+            const trackingPromise = trackFollowUpUsage(env.DB, {
               userId: user.id,
               requestId,
-              readingRequestId: readingRequestId || null,
+              readingRequestId,
               turnNumber,
               questionLength: followUpQuestion.length,
               responseLength: fullText.length,
               journalContextUsed: Boolean(journalContext),
               patternsFound: journalContext?.patterns?.length || 0
             });
+
+            const persistPromise = canPersistFollowups
+              ? persistFollowUpToJournal(env, user.id, readingRequestId, {
+                  turnNumber,
+                  question: followUpQuestion,
+                  answer: fullText,
+                  journalContext,
+                  requestId
+                })
+              : Promise.resolve();
+
+            await Promise.allSettled([trackingPromise, persistPromise]);
           }
         });
 
@@ -270,7 +289,7 @@ export const onRequestPost = async ({ request, env }) => {
       }
 
       // Track usage
-      await trackFollowUpUsage(env.DB, {
+      const trackingPromise = trackFollowUpUsage(env.DB, {
         userId: user.id,
         requestId,
         readingRequestId: readingRequestId || null,
@@ -280,6 +299,23 @@ export const onRequestPost = async ({ request, env }) => {
         journalContextUsed: Boolean(journalContext),
         patternsFound: journalContext?.patterns?.length || 0
       });
+
+      const persistPromise = canPersistFollowups
+        ? persistFollowUpToJournal(env, user.id, readingRequestId, {
+            turnNumber,
+            question: followUpQuestion,
+            answer: responseText,
+            journalContext,
+            requestId
+          })
+        : Promise.resolve();
+
+      const combined = Promise.allSettled([trackingPromise, persistPromise]);
+      if (ctx?.waitUntil) {
+        ctx.waitUntil(combined);
+      } else {
+        await combined;
+      }
 
       const latencyMs = Date.now() - startTime;
       console.log(`[${requestId}] Follow-up completed in ${latencyMs}ms`);
@@ -370,27 +406,12 @@ async function fetchReadingContext(env, requestId, userId) {
         deckStyle: journalEntry.deck_id
       };
     }
-    
-    // Try METRICS_DB if available
-    if (env.METRICS_DB?.get) {
-      const metricsKey = `reading:${requestId}`;
-      const metricsData = await env.METRICS_DB.get(metricsKey);
-      if (metricsData) {
-        const parsed = safeJsonParse(metricsData, null);
-        if (parsed) {
-          return {
-            cardsInfo: parsed.cardsInfo || [],
-            userQuestion: parsed.userQuestion,
-            // METRICS_DB stores narrative as "readingText" per evaluation.js
-            narrative: parsed.narrative || parsed.readingText,
-            themes: parsed.themes || {},
-            spreadKey: parsed.spreadKey,
-            deckStyle: parsed.deckStyle
-          };
-        }
-      }
-    }
-    
+
+    // NOTE: We intentionally do NOT fall back to METRICS_DB here.
+    // METRICS_DB keys are not user-scoped, so reading from them would allow
+    // any authenticated user who knows a requestId to retrieve another user's
+    // reading context. The client always provides readingContext as a fallback.
+
     return null;
   } catch (error) {
     console.warn(`[fetchReadingContext] Error: ${error.message}`);
@@ -521,27 +542,53 @@ async function trackFollowUpUsage(db, data) {
 }
 
 /**
+ * Persist a follow-up turn to the matching journal entry (if it exists).
+ */
+async function persistFollowUpToJournal(env, userId, readingRequestId, followUp) {
+  if (!env?.DB || !userId || !readingRequestId) return;
+
+  try {
+    const entry = await env.DB.prepare(`
+      SELECT id FROM journal_entries WHERE user_id = ? AND request_id = ?
+    `).bind(userId, readingRequestId).first();
+
+    if (!entry?.id) return;
+
+    await insertFollowUps(env.DB, userId, entry.id, [followUp], {
+      readingRequestId,
+      requestId: followUp?.requestId || null
+    });
+  } catch (error) {
+    console.warn('[persistFollowUpToJournal] Error:', error?.message || error);
+  }
+}
+
+/**
  * Wrap a transformed SSE stream with metadata and completion tracking
  *
  * Adds:
  * - Initial 'meta' event with turn/journalContext info
  * - Passes through 'delta' events
  * - Tracks full text for usage logging
- * - Calls onComplete callback when done
+ * - Calls onComplete callback when done (via waitUntil for guaranteed execution)
  *
  * @param {ReadableStream} stream - Transformed SSE stream
  * @param {Object} options - Wrapper options
  * @param {number} options.turn - Turn number
  * @param {Object} options.journalContext - Journal context info
  * @param {Object} options.meta - Response metadata
+ * @param {Object} options.ctx - Request context for waitUntil
  * @param {Function} options.onComplete - Callback(fullText) when stream ends
  * @returns {ReadableStream} Wrapped SSE stream
  */
-function wrapStreamWithMetadata(stream, { turn, journalContext, meta, onComplete }) {
+function wrapStreamWithMetadata(stream, { turn, journalContext, meta, ctx, onComplete }) {
   const encoder = new TextEncoder();
   const decoder = new TextDecoder();
 
   let fullText = '';
+  let sawError = false;
+  // Buffer for detecting error events that may be split across chunks
+  let eventBuffer = '';
 
   return new ReadableStream({
     async start(controller) {
@@ -560,11 +607,24 @@ function wrapStreamWithMetadata(stream, { turn, journalContext, meta, onComplete
           const { done, value } = await reader.read();
 
           if (done) {
-            // Call completion callback (non-blocking)
-            if (onComplete) {
-              onComplete(fullText).catch(err => {
+            // Check buffer for any remaining error event
+            if (!sawError && eventBuffer.length > 0) {
+              sawError = /event:\s*error\r?\n/.test(eventBuffer);
+            }
+
+            // Only call completion callback if no error was seen
+            // This prevents users from losing follow-up turns due to provider errors
+            if (onComplete && !sawError) {
+              // Use waitUntil to guarantee the usage tracking completes
+              // even if the client disconnects
+              const trackingPromise = onComplete(fullText).catch(err => {
                 console.warn('[wrapStreamWithMetadata] onComplete error:', err.message);
               });
+              if (ctx?.waitUntil) {
+                ctx.waitUntil(trackingPromise);
+              }
+            } else if (sawError) {
+              console.log('[wrapStreamWithMetadata] Skipping usage tracking due to error event');
             }
             controller.close();
             break;
@@ -573,8 +633,12 @@ function wrapStreamWithMetadata(stream, { turn, journalContext, meta, onComplete
           // Decode the chunk and extract text for tracking
           const chunk = decoder.decode(value, { stream: true });
 
+          // Accumulate in buffer for error detection (handles chunk splits and CRLF)
+          eventBuffer += chunk;
+
           // Extract text from delta events for usage tracking
-          const deltaMatches = chunk.matchAll(/event: delta\ndata: ({[^}]+})/g);
+          // Use flexible regex for LF or CRLF
+          const deltaMatches = chunk.matchAll(/event:\s*delta\r?\ndata:\s*({[^}]+})/g);
           for (const match of deltaMatches) {
             try {
               const data = JSON.parse(match[1]);
@@ -584,6 +648,17 @@ function wrapStreamWithMetadata(stream, { turn, journalContext, meta, onComplete
             } catch {
               // Ignore parse errors
             }
+          }
+
+          // Detect error events in buffer (handles chunk splits and CRLF)
+          // Pattern matches "event: error" followed by LF or CRLF
+          if (!sawError && /event:\s*error\r?\n/.test(eventBuffer)) {
+            sawError = true;
+          }
+
+          // Trim buffer to avoid unbounded growth - keep last 100 chars for boundary detection
+          if (eventBuffer.length > 200) {
+            eventBuffer = eventBuffer.slice(-100);
           }
 
           // Pass through the chunk unchanged

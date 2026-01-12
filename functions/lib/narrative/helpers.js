@@ -12,6 +12,9 @@ import {
   shouldSurfaceQabalahLens
 } from '../esotericMeta.js';
 import { getDeckAlias } from '../../../shared/vision/deckAssets.js';
+import { THOTH_MINOR_TITLES, MARSEILLE_NUMERICAL_THEMES } from '../../../src/data/knowledgeGraphData.js';
+import { SYMBOL_ANNOTATIONS } from '../symbolAnnotations.js';
+import { getMinorSymbolAnnotation } from '../../../shared/vision/minorSymbolLexicon.js';
 
 // Prose mode flag - when enabled, silences technical metadata in output
 let PROSE_MODE = false;
@@ -168,6 +171,30 @@ const CARD_SPECIFIC_CONTEXT = {
     'the hermit': 'In your spiritual path, this deepens the call toward contemplative retreat, sacred study, and inner guidance.',
     'wheel of fortune': 'In your spiritual path, this points to trusting the greater pattern and aligning with the turning of time.',
     'temperance': 'In your spiritual path, this celebrates alchemy, ritual balance, and embodied integration.'
+  },
+  wellbeing: {
+    'five of pentacles': 'For your wellbeing, this acknowledges a season of struggle while pointing toward support systems waiting to be accessed.',
+    'four of swords': 'For your wellbeing, this validates the need for rest and recovery—healing requires intentional pause.',
+    'six of swords': 'For your wellbeing, this signals a transition toward calmer waters and gradual healing.',
+    'nine of swords': 'For your wellbeing, this highlights the weight of anxious thoughts and invites grounding practices and compassionate support.',
+    'three of swords': 'For your wellbeing, this acknowledges grief or heartache that needs tending with patience and honest processing.',
+    'the star': 'For your wellbeing, this brings hope and renewal—a sign that replenishment and spiritual nourishment are available.',
+    'temperance': 'For your wellbeing, this emphasizes balance, moderation, and the integration of body, mind, and spirit.',
+    'the hermit': 'For your wellbeing, this supports taking sacred retreat time for self-care and inner restoration.',
+    'ace of cups': 'For your wellbeing, this opens a channel for emotional renewal, self-love, and fresh beginnings in how you nurture yourself.',
+    'ten of pentacles': 'For your wellbeing, this points to stable support systems, family bonds, and the security that sustains long-term health.'
+  },
+  decision: {
+    'two of swords': 'For this decision, this reveals a stalemate—removing the blindfold may show what you already know but hesitate to see.',
+    'seven of cups': 'For this decision, this cautions against getting lost in too many options—ground your choice in what is real and actionable.',
+    'justice': 'For this decision, this calls for fair evaluation, weighing evidence carefully, and accepting the consequences of your choice.',
+    'the hanged man': 'For this decision, this suggests pausing to gain a new perspective before committing—rushing may miss the deeper insight.',
+    'the chariot': 'For this decision, this encourages decisive action and confident commitment once your direction is clear.',
+    'wheel of fortune': 'For this decision, this reminds you that timing and external factors play a role—read the currents before acting.',
+    'six of wands': 'For this decision, this suggests confidence in your choice and readiness to move forward publicly.',
+    'four of cups': 'For this decision, this warns that apathy or disengagement may be blocking you from seeing a valuable opportunity.',
+    'ace of swords': 'For this decision, this brings mental clarity and breakthrough insight—cut through confusion to the core truth.',
+    'the lovers': 'For this decision, this emphasizes alignment with your deepest values—choose what resonates with who you truly are.'
   }
 };
 
@@ -234,6 +261,40 @@ function resolveSuitForContext(cardInfo = {}) {
   }
   const name = typeof cardInfo.card === 'string' ? cardInfo.card : '';
   return MINOR_SUITS.find(suit => name.includes(suit)) || null;
+}
+
+/**
+ * Get key symbol annotations for a card.
+ * Returns archetype and top 2-3 symbols for prompt enrichment.
+ * @param {Object} cardInfo - Card data with number (Major) or suit/rank (Minor)
+ * @returns {Object|null} - { archetype, symbols: [{object, meaning}], composition }
+ */
+function getKeySymbols(cardInfo) {
+  if (!cardInfo) return null;
+
+  let annotation = null;
+
+  // Major Arcana: use card number (0-21)
+  if (typeof cardInfo.number === 'number' && cardInfo.number >= 0 && cardInfo.number <= 21) {
+    annotation = SYMBOL_ANNOTATIONS[cardInfo.number];
+  }
+  // Minor Arcana: use suit and rank
+  else if (cardInfo.suit && cardInfo.rank) {
+    annotation = getMinorSymbolAnnotation(cardInfo);
+  }
+
+  if (!annotation) return null;
+
+  // Extract top 2-3 symbols (prioritize first ones which are usually most iconic)
+  const symbols = Array.isArray(annotation.symbols)
+    ? annotation.symbols.slice(0, 3).map(s => ({ object: s.object, meaning: s.meaning }))
+    : [];
+
+  return {
+    archetype: annotation.archetype || null,
+    symbols,
+    composition: annotation.composition || null
+  };
 }
 
 function buildContextualClause(cardInfo = {}, context) {
@@ -832,6 +893,45 @@ function buildPositionCardText(cardInfo, position, options = {}) {
     if (minorHook && minorHook.visual) {
       minorContextText += ` Picture ${minorHook.visual}—this subtly colors how this suit's lesson shows up here.`;
     }
+
+    // Add Thoth epithet for Minor Arcana when using Thoth deck
+    if (options.deckStyle === 'thoth-a1' && cardInfo.rank && cardInfo.suit) {
+      const thothKey = `${cardInfo.rank} of ${cardInfo.suit}`;
+      const thothInfo = THOTH_MINOR_TITLES[thothKey];
+      if (thothInfo && thothInfo.title) {
+        const astroNote = thothInfo.astrology ? ` (${thothInfo.astrology})` : '';
+        minorContextText += ` *Thoth: ${thothInfo.title}${astroNote}*`;
+      }
+    }
+
+    // Add Marseille pip geometry for numbered cards when using Marseille deck
+    if (options.deckStyle === 'marseille-classic' && cardInfo.rankValue && cardInfo.rankValue <= 10) {
+      const marseilleInfo = MARSEILLE_NUMERICAL_THEMES[cardInfo.rankValue];
+      if (marseilleInfo && marseilleInfo.keyword) {
+        minorContextText += ` *Marseille Pip ${cardInfo.rankValue}: ${marseilleInfo.keyword}—${marseilleInfo.geometry}*`;
+      }
+    }
+  }
+
+  // Add symbol annotations when enabled (provides archetype and key visual symbols)
+  let symbolText = '';
+  if (options.includeSymbols) {
+    const keySymbols = getKeySymbols(cardInfo);
+    if (keySymbols) {
+      const parts = [];
+      if (keySymbols.archetype) {
+        parts.push(`Archetype: ${keySymbols.archetype}`);
+      }
+      if (keySymbols.symbols && keySymbols.symbols.length > 0) {
+        const symbolList = keySymbols.symbols
+          .map(s => `${s.object} (${s.meaning})`)
+          .join(', ');
+        parts.push(`Key symbols: ${symbolList}`);
+      }
+      if (parts.length > 0) {
+        symbolText = ` *${parts.join('. ')}.*`;
+      }
+    }
   }
 
   // Add elemental sensory imagery if elemental relationship exists
@@ -847,7 +947,7 @@ function buildPositionCardText(cardInfo, position, options = {}) {
   const frameText = pickOne(template.frame) || '';
   const safeElemental = elementalImagery || '';
   const positionLabel = position ? `${position}: ` : '';
-  return `${positionLabel}${intro} ${enrichedMeaning}${imagery}${minorContextText} ${frameText}${safeElemental}`;
+  return `${positionLabel}${intro} ${enrichedMeaning}${imagery}${minorContextText}${symbolText} ${frameText}${safeElemental}`;
 }
 
 function buildReversalGuidance(reversalDescription) {
@@ -915,6 +1015,10 @@ function getPositionOptions(themes, context) {
   }
   if (typeof context !== 'undefined') {
     options.context = context;
+  }
+  // Enable symbol annotations for deep readings or when explicitly requested
+  if (themes && themes.includeSymbols) {
+    options.includeSymbols = true;
   }
   return options;
 }
@@ -1509,5 +1613,6 @@ export {
   shouldOfferElementalRemedies,
   selectContextAwareRemedy,
   computeRemedyRotationIndex,
-  pickOne
+  pickOne,
+  getKeySymbols
 };

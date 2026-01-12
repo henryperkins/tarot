@@ -22,7 +22,7 @@ export default function FollowUpDrawer({ isOpen, onClose }) {
     isOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
   );
   const drawerClasses = clsx(
-    'mobile-drawer relative w-full flex flex-col animate-slide-up transition duration-200',
+    'mobile-drawer relative w-full flex flex-col min-h-0 animate-slide-up transition duration-200',
     isOpen ? 'opacity-100 translate-y-0 pointer-events-auto' : 'opacity-0 translate-y-6 pointer-events-none'
   );
 
@@ -49,6 +49,7 @@ export default function FollowUpDrawer({ isOpen, onClose }) {
         aria-labelledby={titleId}
         onClick={(event) => event.stopPropagation()}
         style={{ maxHeight: 'calc(100% - 8px)' }}
+        inert={!isOpen ? '' : undefined}
       >
         <div className="mobile-drawer__handle" aria-hidden="true" />
         <div className="mobile-drawer__header px-4 pt-3 pb-3">
@@ -70,11 +71,12 @@ export default function FollowUpDrawer({ isOpen, onClose }) {
             </button>
           </div>
         </div>
-        <div className="mobile-drawer__body p-4 space-y-4 overflow-y-auto overscroll-contain">
+        <div className="mobile-drawer__body p-4 flex flex-col min-h-0">
           <FollowUpChat
             variant="drawer"
             isActive={isOpen}
             showHeader={false}
+            className="flex-1 min-h-0"
           />
         </div>
       </div>

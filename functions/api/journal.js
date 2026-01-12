@@ -12,6 +12,7 @@ import { buildTierLimitedPayload, isEntitled } from '../lib/entitlements.js';
 import { dedupeEntries } from '../../shared/journal/dedupe.js';
 import { scheduleCoachExtraction } from '../lib/coachSuggestion.js';
 import { safeJsonParse } from '../lib/utils.js';
+import { insertFollowUps, loadFollowUpsByEntry, sanitizeFollowUps } from '../lib/journalFollowups.js';
 
 function isMissingColumnError(err) {
   const message = String(err?.message || err || '');
@@ -26,6 +27,7 @@ function isMissingColumnError(err) {
  *   - limit: Max entries to return (default: 100, max: 500)
  *   - offset: Number of entries to skip (default: 0)
  *   - all: If "true", returns all entries (for backward compatibility)
+ *   - includeFollowups: If "true", include saved follow-up conversations
  */
 export async function onRequestGet(context) {
   const { request, env } = context;
@@ -60,6 +62,7 @@ export async function onRequestGet(context) {
     const url = new URL(request.url);
     const allParam = url.searchParams.get('all');
     const fetchAll = allParam === 'true' || allParam === '1';
+    const includeFollowups = url.searchParams.get('includeFollowups') === 'true';
 
     // Default limit: 100, max: 500 (unless fetching all)
     const DEFAULT_LIMIT = 100;
@@ -249,6 +252,17 @@ export async function onRequestGet(context) {
 
     const dedupedEntries = dedupeEntries(parsedEntries);
 
+    // Optionally attach follow-up conversations
+    if (includeFollowups && dedupedEntries.length > 0) {
+      const followupMap = await loadFollowUpsByEntry(env.DB, user.id, dedupedEntries.map(entry => entry.id));
+      dedupedEntries.forEach((entry) => {
+        const followUps = followupMap.get(entry.id);
+        if (followUps?.length) {
+          entry.followUps = followUps;
+        }
+      });
+    }
+
     // Build response with pagination metadata
     const response = {
       entries: dedupedEntries,
@@ -330,6 +344,8 @@ export async function onRequestPost(context) {
       deckId,
       // Request ID for API tracing/correlation
       requestId,
+      // Optional: saved follow-up conversation (array of {question, answer, turnNumber, createdAt, journalContext})
+      followUps,
       // Location data (only persisted if user explicitly consents)
       location,
       persistLocationConsent
@@ -342,6 +358,7 @@ export async function onRequestPost(context) {
         { status: 400, headers: { 'Content-Type': 'application/json' } }
       );
     }
+    const sanitizedFollowUps = sanitizeFollowUps(followUps);
 
     // Deduplicate by session_seed to prevent double-saves
     if (sessionSeed) {
@@ -350,6 +367,12 @@ export async function onRequestPost(context) {
       ).bind(user.id, sessionSeed).first();
 
       if (existing) {
+        if (sanitizedFollowUps.length) {
+          await insertFollowUps(env.DB, user.id, existing.id, sanitizedFollowUps, {
+            readingRequestId: requestId,
+            requestId
+          });
+        }
         // Return existing entry instead of creating duplicate
         return new Response(
           JSON.stringify({
@@ -452,6 +475,13 @@ export async function onRequestPost(context) {
         locationConsent
       )
       .run();
+
+    if (sanitizedFollowUps.length) {
+      await insertFollowUps(env.DB, user.id, entryId, sanitizedFollowUps, {
+        readingRequestId: requestId,
+        requestId
+      });
+    }
 
     // Schedule async extraction of coach suggestion data (steps + embeddings)
     if (personalReading && waitUntil) {

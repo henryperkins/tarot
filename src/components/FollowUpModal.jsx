@@ -43,6 +43,7 @@ export default function FollowUpModal({ isOpen, onClose, isVisible = true }) {
         className={panelClasses}
         onClick={(event) => event.stopPropagation()}
         tabIndex={-1}
+        inert={!isOpen ? '' : undefined}
       >
         <div className="p-5 sm:p-6">
           <FollowUpChat

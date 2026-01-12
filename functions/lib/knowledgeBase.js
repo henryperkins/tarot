@@ -326,6 +326,132 @@ export const DYAD_PASSAGES = {
                 tags: ['intuition', 'solitude', 'inner-wisdom']
             }
         ]
+    },
+
+    '12-13': {
+        cards: [12, 13],
+        names: ['The Hanged Man', 'Death'],
+        theme: 'Surrender enabling transformation',
+        passages: [
+            {
+                source: 'Tableu Tarot Canon',
+                text:
+                    'When you stop resisting the pause, transformation arrives with less friction. The Hanged Man teaches that some endings cannot be rushed—they must be allowed. Surrender is the bridge to genuine release.',
+                tags: ['surrender', 'transformation', 'patience', 'release']
+            }
+        ]
+    },
+
+    '8-11': {
+        cards: [8, 11],
+        names: ['Strength', 'Justice'],
+        theme: 'Compassion balanced with accountability',
+        passages: [
+            {
+                source: 'Tableu Tarot Canon',
+                text:
+                    'True strength holds space for others while still honoring what is fair. Be both kind and honest—compassion does not mean avoiding responsibility. Balance gentle persuasion with clear boundaries.',
+                tags: ['compassion', 'accountability', 'balance', 'integrity']
+            }
+        ]
+    },
+
+    '2-5': {
+        cards: [2, 5],
+        names: ['The High Priestess', 'The Hierophant'],
+        theme: 'Inner knowing versus outer teaching',
+        passages: [
+            {
+                source: 'Tableu Tarot Canon',
+                text:
+                    'Sometimes your inner voice and received wisdom point different directions. The High Priestess trusts intuition; the Hierophant trusts tradition. Find where they align, and question where they diverge.',
+                tags: ['intuition', 'tradition', 'wisdom', 'discernment']
+            }
+        ]
+    },
+
+    '4-3': {
+        cards: [4, 3],
+        names: ['The Emperor', 'The Empress'],
+        theme: 'Structure and abundance in dialogue',
+        passages: [
+            {
+                source: 'Tableu Tarot Canon',
+                text:
+                    'Order and fertility need each other. The Emperor provides structure; the Empress provides flow. Honor both—discipline without nurture is barren, abundance without form is chaotic.',
+                tags: ['balance', 'structure', 'nurture', 'creation']
+            }
+        ]
+    },
+
+    '5-15': {
+        cards: [5, 15],
+        names: ['The Hierophant', 'The Devil'],
+        theme: 'Tradition becoming restriction',
+        passages: [
+            {
+                source: 'Tableu Tarot Canon',
+                text:
+                    'What once guided can also bind. The Hierophant offers wisdom, but the Devil reveals where doctrine has become a cage. Discern which inherited beliefs still serve you and which now limit your freedom.',
+                tags: ['tradition', 'restriction', 'freedom', 'discernment']
+            }
+        ]
+    },
+
+    '18-19': {
+        cards: [18, 19],
+        names: ['The Moon', 'The Sun'],
+        theme: 'Mystery yielding to illumination',
+        passages: [
+            {
+                source: 'Tableu Tarot Canon',
+                text:
+                    'What is hidden will come to light. The Moon walks through shadow and uncertainty; the Sun reveals the simple truth that was there all along. Trust the process—clarity follows honest confusion.',
+                tags: ['mystery', 'clarity', 'truth', 'cycles']
+            }
+        ]
+    },
+
+    '0-21': {
+        cards: [0, 21],
+        names: ['The Fool', 'The World'],
+        theme: 'Beginning contains ending',
+        passages: [
+            {
+                source: 'Tableu Tarot Canon',
+                text:
+                    'Every ending opens a new beginning. The Fool leaps into the unknown; the World celebrates completion. Together they remind you that the journey is circular—mastery returns to wonder, and wonder leads to mastery.',
+                tags: ['cycles', 'completion', 'beginnings', 'journey']
+            }
+        ]
+    },
+
+    '13-14': {
+        cards: [13, 14],
+        names: ['Death', 'Temperance'],
+        theme: 'Transformation finding integration',
+        passages: [
+            {
+                source: 'Tableu Tarot Canon',
+                text:
+                    'After the clearing, the blending. Death clears what no longer serves; Temperance integrates what remains into a new wholeness. Give yourself time to absorb the change before rushing forward.',
+                tags: ['transformation', 'integration', 'healing', 'patience']
+            }
+        ]
+    },
+
+    '11-12': {
+        cards: [11, 12],
+        names: ['Justice', 'The Hanged Man'],
+        theme: 'Truth requiring surrender',
+        passages: [
+            {
+                source: 'Tableu Tarot Canon',
+                text:
+                    'Justice reveals what is true; the Hanged Man asks you to accept it. Seeing clearly is only the first step—wisdom lies in surrendering to what truth demands of you.',
+                tags: ['truth', 'surrender', 'acceptance', 'wisdom']
+            }
+        ]
     }
 };
 

@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkBreaks from 'remark-breaks';
-import { DownloadSimple, CaretDown, CaretUp, ClipboardText, CircleNotch, DotsThreeVertical, FileText } from '@phosphor-icons/react';
+import { DownloadSimple, CaretDown, CaretUp, ClipboardText, CircleNotch, DotsThreeVertical, FileText, Lightning } from '@phosphor-icons/react';
 import { CardSymbolInsights } from './CardSymbolInsights';
 import { buildCardInsightPayload, exportJournalEntriesToCsv, exportJournalEntriesToMarkdown, copyJournalEntrySummary, copyJournalEntriesToClipboard, REVERSED_PATTERN, formatContextName } from '../lib/journalInsights';
 import { useSmallScreen } from '../hooks/useSmallScreen';
@@ -113,6 +113,17 @@ function getSuitAccentVar(suitName) {
 function normalizeTimestamp(value) {
   if (!Number.isFinite(value)) return null;
   return value < 1e12 ? value * 1000 : value;
+}
+
+function formatFollowUpTimestamp(value) {
+  const ts = normalizeTimestamp(value);
+  if (!ts) return null;
+  return new Date(ts).toLocaleString(undefined, {
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  });
 }
 
 function deriveTimestamp(entry) {
@@ -443,6 +454,8 @@ export const JournalEntryCard = memo(function JournalEntryCard({
     ? Object.entries(entry.reflections).filter(([, note]) => typeof note === 'string' && note.trim())
     : [];
   const hasReflections = reflections.length > 0;
+  const followUps = Array.isArray(entry?.followUps) ? entry.followUps : [];
+  const hasFollowUps = followUps.length > 0;
   const accentColor = getSuitAccentVar(entry?.themes?.dominantSuit)
     || CONTEXT_ACCENTS[entry?.context]
     || CONTEXT_ACCENTS.default;
@@ -877,6 +890,58 @@ export const JournalEntryCard = memo(function JournalEntryCard({
                 cards={cards}
                 graphKeys={entry.themes.knowledgeGraph.graphKeys}
               />
+            </section>
+          )}
+
+          {hasFollowUps && (
+            <section className={`${ui.section} mt-4`}>
+              <header className={ui.sectionHeader}>
+                <div className="flex items-center gap-2">
+                  <Lightning className="h-4 w-4 text-[color:var(--brand-primary)]" aria-hidden="true" />
+                  <div className={ui.sectionLabel}>Follow-up chat</div>
+                </div>
+                <span className="text-[12px] text-[color:var(--text-muted)]">{followUps.length}</span>
+              </header>
+              <div className={ui.bodyPad}>
+                <ol className="space-y-3">
+                  {followUps.map((turn, idx) => {
+                    const key = turn.turnNumber || idx;
+                    const turnLabel = turn.turnNumber ? `Turn ${turn.turnNumber}` : `Turn ${idx + 1}`;
+                    const tsLabel = formatFollowUpTimestamp(turn.createdAt);
+                    const patterns = turn.journalContext?.patterns || [];
+                    return (
+                      <li
+                        key={key}
+                        className="rounded-xl border border-[color:rgba(255,255,255,0.08)] bg-[color:rgba(15,14,19,0.25)] p-3 shadow-[0_10px_26px_-22px_rgba(0,0,0,0.7)]"
+                      >
+                        <div className="flex items-start justify-between gap-2 text-[12px] text-[color:var(--text-muted)]">
+                          <span className="flex items-center gap-2">
+                            <span className="font-semibold text-[color:var(--text-main)]">{turnLabel}</span>
+                            {tsLabel && <span aria-hidden="true">•</span>}
+                            {tsLabel && <span>{tsLabel}</span>}
+                          </span>
+                          {patterns.length > 0 && (
+                            <span className="inline-flex items-center gap-1 text-[11px] text-[color:var(--brand-primary)]">
+                              <Lightning className="h-3 w-3" weight="fill" aria-hidden="true" />
+                              {patterns.length} pattern{patterns.length === 1 ? '' : 's'}
+                            </span>
+                          )}
+                        </div>
+                        <div className="mt-2 space-y-2">
+                          <p className="text-sm font-semibold text-[color:var(--text-main)]">
+                            Q: {turn.question}
+                          </p>
+                          <div className="prose prose-invert prose-sm max-w-none text-[color:var(--text-main)] prose-a:text-[color:var(--brand-primary)] prose-strong:text-[color:var(--text-main)]">
+                            <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]} skipHtml>
+                              {turn.answer || ''}
+                            </ReactMarkdown>
+                          </div>
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ol>
+              </div>
             </section>
           )}
 

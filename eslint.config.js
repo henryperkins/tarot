@@ -10,6 +10,8 @@ export default [
     ignores: [
       'dist/**',
       'node_modules/**',
+      '.vscode-server/**',
+      '.vscode-server-insiders/**',
       '.wrangler/**',
       '.worker/**',
       'public/**',

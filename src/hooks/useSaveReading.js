@@ -15,7 +15,8 @@ export function useSaveReading() {
         userQuestion,
         selectedSpread,
         setJournalStatus,
-        readingMeta
+        readingMeta,
+        followUps
     } = useReading();
 
     const {
@@ -85,6 +86,7 @@ export function useSaveReading() {
             provider: personalReading?.provider || readingMeta?.provider || 'local',
             sessionSeed,
             deckId: deckStyleId,
+            followUps: Array.isArray(followUps) && followUps.length ? followUps : undefined,
             // Request ID for API tracing/correlation
             requestId: readingMeta?.requestId || null,
             // Snapshot of user preferences at the time of the reading (Phase 5.1)
@@ -139,7 +141,7 @@ export function useSaveReading() {
         isSaving, sessionSeed, reading, personalReading, selectedSpread,
         userQuestion, themes, reflections, analysisContext, readingMeta,
         deckStyleId, personalization, saveEntry, setJournalStatus, incrementJournalSaveCount,
-        locationEnabled, cachedLocation, persistLocationToJournal
+        locationEnabled, cachedLocation, persistLocationToJournal, followUps
     ]);
 
     return { saveReading, isSaving };

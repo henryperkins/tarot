@@ -1,0 +1,28 @@
+{
+    // Editor-only configuration for the JS/React workspace.
+    // This constrains the TypeScript/JavaScript language service so it doesn't
+    // crawl or surface diagnostics from non-project directories (e.g. node_modules).
+    "compilerOptions": {
+        "jsx": "react-jsx",
+        "checkJs": false,
+        // Avoid surfacing errors from third-party .d.ts files.
+        "skipLibCheck": true,
+        // Don't type-check JS inside node_modules.
+        "maxNodeModuleJsDepth": 0,
+        // Helps module resolution match modern bundlers (Vite).
+        "module": "ESNext",
+        "moduleResolution": "Bundler",
+        "baseUrl": "."
+    },
+    "exclude": [
+        "node_modules",
+        "dist",
+        ".wrangler",
+        ".worker",
+        "public",
+        "data",
+        "venv",
+        ".vscode-server",
+        ".vscode-server-insiders"
+    ]
+}

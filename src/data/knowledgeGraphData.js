@@ -472,6 +472,39 @@ export const ARCHETYPAL_DYADS = [
     narrative:
       'Your focused effort is leading to complete achievement and mastery.',
     significance: 'high'
+  },
+  {
+    cards: [0, 21],
+    names: ['The Fool', 'The World'],
+    theme: 'Beginning contains ending',
+    category: 'journey',
+    description:
+      'The first step holds the final destination. Completion circles back to fresh potential.',
+    narrative:
+      'Every ending is a new beginning. You stand at both the start and the finish of a great cycle.',
+    significance: 'high'
+  },
+  {
+    cards: [13, 14],
+    names: ['Death', 'Temperance'],
+    theme: 'Transformation finding integration',
+    category: 'transformation',
+    description:
+      'Deep change followed by gentle blending. What has ended now seeks balanced integration.',
+    narrative:
+      'After the clearing comes the healing. Let what has changed be gently integrated into your life.',
+    significance: 'high'
+  },
+  {
+    cards: [11, 12],
+    names: ['Justice', 'The Hanged Man'],
+    theme: 'Truth requiring surrender',
+    category: 'wisdom-intuition',
+    description:
+      'Honest assessment leading to necessary pause. Seeing clearly, then letting go.',
+    narrative:
+      'Once you see the truth clearly, surrender to what it asks of you.',
+    significance: 'medium-high'
   }
 ];
 

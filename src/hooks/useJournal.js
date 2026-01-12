@@ -123,7 +123,7 @@ export function useJournal({ autoLoad = true } = {}) {
         // Try loading from API first
         try {
           // Use all=true for backward compatibility until frontend supports pagination
-          const response = await fetch('/api/journal?all=true', {
+          const response = await fetch('/api/journal?all=true&includeFollowups=true', {
             credentials: 'include'
           });
 
@@ -514,7 +514,7 @@ export function useJournal({ autoLoad = true } = {}) {
       }
 
       // Fetch existing cloud entries to check for duplicates
-      const existingResponse = await fetch('/api/journal?all=true', {
+      const existingResponse = await fetch('/api/journal?all=true&includeFollowups=true', {
         credentials: 'include'
       });
 
