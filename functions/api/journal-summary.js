@@ -157,6 +157,7 @@ async function generateLLMSummary(env, entries) {
 
 export async function onRequestPost(context) {
   const { request, env } = context;
+  const requestId = crypto.randomUUID();
 
   try {
     const cookieHeader = request.headers.get('Cookie');
@@ -239,7 +240,7 @@ export async function onRequestPost(context) {
       summary = await generateLLMSummary(env, entries);
       provider = 'azure-responses';
     } catch (error) {
-      console.warn('LLM journal summary failed, falling back to heuristic summary:', error?.message || error);
+      console.warn(`[${requestId}] [journal] LLM summary failed, falling back to heuristic:`, error?.message || error);
     }
 
     if (!summary) {
@@ -256,7 +257,7 @@ export async function onRequestPost(context) {
       }
     });
   } catch (error) {
-    console.error('Journal summary error:', error);
+    console.error(`[${requestId}] [journal] Summary error:`, error);
     return jsonResponse(
       { error: 'Unable to generate summary' },
       { status: 500 }

@@ -2,7 +2,6 @@ import { computeJournalStats, REVERSED_PATTERN } from '../../shared/journal/stat
 import { getTimestamp } from '../../shared/journal/utils.js';
 import { buildThemeQuestion, normalizeThemeLabel } from './themeText.js';
 import { safeStorage } from './safeStorage.js';
-import { generateId } from './utils.js';
 import { MAJOR_ARCANA } from '../data/majorArcana.js';
 
 export { computeJournalStats, REVERSED_PATTERN };
@@ -274,37 +273,6 @@ export function buildJournalCsv(entries) {
   });
   return `${header.join(',')}
 ${rows.join('\n')}`;
-}
-
-function generateShareToken() {
-  return generateId('share');
-}
-
-function persistShareTokenRecord(record) {
-  if (!safeStorage.isAvailable) return;
-  try {
-    const raw = safeStorage.getItem(SHARE_TOKEN_STORAGE_KEY);
-    const existing = raw ? JSON.parse(raw) : [];
-    const next = [record, ...existing].slice(0, 50);
-    safeStorage.setItem(SHARE_TOKEN_STORAGE_KEY, JSON.stringify(next));
-  } catch (error) {
-    console.warn('Unable to persist share token record:', error);
-  }
-}
-
-function registerShareToken(entries, scope = 'journal', meta = {}) {
-  if (!Array.isArray(entries) || entries.length === 0) return null;
-  const entryIds = entries.map(entry => entry?.id).filter(Boolean);
-  const token = generateShareToken();
-  persistShareTokenRecord({
-    token,
-    scope,
-    entryIds,
-    count: entries.length,
-    createdAt: Date.now(),
-    meta
-  });
-  return token;
 }
 
 /**

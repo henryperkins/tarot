@@ -387,7 +387,7 @@ export default function FollowUpChat({
   }, [
     isLoading, canAskMore, hasValidReading, readingMeta, messages, reading,
     userQuestion, personalReading, themes, includeJournal, canUseJournal, isAuthenticated,
-    selectedSpread, followUpLimit, upsertFollowUp, serverTurn
+    selectedSpread, followUpLimit, upsertFollowUp, serverTurn, turnsUsed
   ]);
 
   const handleSubmit = (e) => {

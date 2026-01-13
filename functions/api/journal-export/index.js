@@ -280,6 +280,7 @@ function formatEntryAsText(entry) {
  */
 export async function onRequestGet(context) {
   const { request, env, params } = context;
+  const requestId = crypto.randomUUID();
 
   try {
     // Authenticate user
@@ -403,7 +404,7 @@ export async function onRequestGet(context) {
             }
           });
         } catch (err) {
-          console.warn('Failed to cache PDF in R2:', err.message);
+          console.warn(`[${requestId}] [journal] Failed to cache PDF in R2:`, err.message);
         }
       }
 
@@ -441,7 +442,7 @@ export async function onRequestGet(context) {
       return jsonResponse({ error: 'Invalid format. Use pdf, txt, or json.' }, { status: 400 });
     }
   } catch (error) {
-    console.error('Journal export error:', error);
+    console.error(`[${requestId}] [journal] Export error:`, error);
     return jsonResponse({ error: 'Export failed', message: error.message }, { status: 500 });
   }
 }

@@ -62,7 +62,7 @@ function buildPrototypeKeyMap(adapterCards) {
     // Major Arcana pattern: "RWS1909   XX Name" (e.g., "RWS1909   00 Fool")
     const majorMatch = key.match(/^RWS1909\s+(\d{2})\s+(.+)$/);
     if (majorMatch) {
-      const [, numStr, shortName] = majorMatch;
+      const [, numStr] = majorMatch;
       const num = parseInt(numStr, 10);
       // Find the Major Arcana card by number
       const card = MAJOR_ARCANA.find(c => c.number === num);

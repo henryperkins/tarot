@@ -7,6 +7,7 @@ import { insertFollowUps, sanitizeFollowUps } from '../../lib/journalFollowups.j
 
 export async function onRequestPost(context) {
   const { request, env, params } = context;
+  const logRequestId = crypto.randomUUID();
 
   try {
     const cookieHeader = request.headers.get('Cookie');
@@ -82,7 +83,7 @@ export async function onRequestPost(context) {
       headers: { 'Content-Type': 'application/json' }
     });
   } catch (error) {
-    console.error('Append journal follow-ups error:', error);
+    console.error(`[${logRequestId}] [journal] Append follow-ups error:`, error);
     return new Response(JSON.stringify({ error: 'Internal server error' }), {
       status: 500,
       headers: { 'Content-Type': 'application/json' }

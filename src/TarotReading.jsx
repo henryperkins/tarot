@@ -138,8 +138,6 @@ export default function TarotReading() {
   const [keyboardOffset, setKeyboardOffset] = useState(0);
   const [onboardingDeferred, setOnboardingDeferred] = useState(false);
   const isOnboardingOpen = !onboardingComplete && !showPersonalizationBanner && !onboardingDeferred;
-  // Only true overlays (modals/drawers) should hide the action bar - not the small personalization banner
-  const isMobileOverlayActive = isIntentionCoachOpen || isMobileSettingsOpen || isOnboardingOpen || isFollowUpOpen;
   const shouldShowGestureCoachOverlay = shouldShowGestureCoach && hasConfirmedSpread && !reading && !isOnboardingOpen;
 
   const navigate = useNavigate();
@@ -177,6 +175,7 @@ export default function TarotReading() {
   // Reset analysis state when Shuffle is triggered
   // (Handled in ReadingContext now, but we might need to clear local UI state if any)
   const handleShuffle = useCallback(() => {
+    setIsFollowUpOpen(false);
     shuffle(); // Context handles the resets
   }, [shuffle]);
 
@@ -579,12 +578,23 @@ export default function TarotReading() {
   const needsNarrativeGeneration = allCardsRevealed && (!personalReading || personalReading.isError || personalReading.isStreaming);
   const _isPersonalReadingError = Boolean(personalReading?.isError);
   const showFollowUpButton = isHandset && personalReading && !personalReading.isError && !personalReading.isStreaming && narrativePhase === 'complete';
+  const isFollowUpVisible = showFollowUpButton && isFollowUpOpen;
+  // Only true overlays (modals/drawers) should hide the action bar - not the small personalization banner
+  const isMobileOverlayActive = isIntentionCoachOpen || isMobileSettingsOpen || isOnboardingOpen || isFollowUpVisible;
 
-  useEffect(() => {
-    if (!showFollowUpButton && isFollowUpOpen) {
-      setIsFollowUpOpen(false);
-    }
-  }, [showFollowUpButton, isFollowUpOpen]);
+  const handleOpenFollowUp = useCallback(() => {
+    if (!showFollowUpButton) return;
+    setIsFollowUpOpen(true);
+  }, [showFollowUpButton]);
+
+  const handleCloseFollowUp = useCallback(() => {
+    setIsFollowUpOpen(false);
+  }, []);
+
+  const handleGeneratePersonalReading = useCallback(() => {
+    setIsFollowUpOpen(false);
+    return generatePersonalReading();
+  }, [generatePersonalReading]);
 
   // Compute the highest milestone achieved (not affected by which panel user views)
   // This ensures the step indicator stays consistent once progress is made
@@ -832,7 +842,7 @@ export default function TarotReading() {
             isSettingsOpen={isMobileSettingsOpen}
             isCoachOpen={isIntentionCoachOpen}
             showFollowUp={showFollowUpButton}
-            isFollowUpOpen={isFollowUpOpen}
+            isFollowUpOpen={isFollowUpVisible}
             isShuffling={isShuffling}
             reading={reading}
             revealedCards={revealedCards}
@@ -851,17 +861,17 @@ export default function TarotReading() {
               setPendingCoachPrefill(null);
               setIsIntentionCoachOpen(true);
             }}
-            onOpenFollowUp={() => setIsFollowUpOpen(true)}
+            onOpenFollowUp={handleOpenFollowUp}
             onShuffle={handleShuffle}
             onDealNext={dealNext}
             onRevealAll={handleRevealAll}
-            onGenerateNarrative={generatePersonalReading}
+            onGenerateNarrative={handleGeneratePersonalReading}
             onSaveReading={saveReading}
             onNewReading={handleShuffle}
           />
           <FollowUpDrawer
-            isOpen={isFollowUpOpen}
-            onClose={() => setIsFollowUpOpen(false)}
+            isOpen={isFollowUpVisible}
+            onClose={handleCloseFollowUp}
           />
 
           <MobileSettingsDrawer
@@ -888,7 +898,7 @@ export default function TarotReading() {
                 onShuffle={handleShuffle}
                 onDealNext={dealNext}
                 onRevealAll={handleRevealAll}
-                onGenerateNarrative={generatePersonalReading}
+                onGenerateNarrative={handleGeneratePersonalReading}
                 onSaveReading={saveReading}
                 onNewReading={handleShuffle}
               />

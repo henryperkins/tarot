@@ -19,7 +19,6 @@ import {
   callAzureResponsesStreamWithConversation,
   buildToolContinuationConversation,
   transformAzureStream,
-  transformAzureStreamWithTools,
   createSSEResponse,
   createSSEErrorResponse
 } from '../lib/azureResponsesStream.js';

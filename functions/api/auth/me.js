@@ -12,6 +12,7 @@ import {
 
 export async function onRequestGet(context) {
   const { request, env } = context;
+  const requestId = crypto.randomUUID();
 
   try {
     // Get session token from cookie
@@ -66,7 +67,7 @@ export async function onRequestGet(context) {
       );
     }
 
-    console.error('Get user error:', error);
+    console.error(`[${requestId}] [auth] Get user error:`, error);
     return new Response(
       JSON.stringify({ error: 'Internal server error' }),
       { status: 500, headers: { 'Content-Type': 'application/json' } }

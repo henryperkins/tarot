@@ -163,11 +163,11 @@ function extractTierFromSubscription(subscription) {
 /**
  * Update user subscription in database
  */
-async function updateUserSubscription(db, customerId, subscription) {
+async function updateUserSubscription(db, customerId, subscription, requestId) {
   const tier = extractTierFromSubscription(subscription);
   const status = mapSubscriptionStatus(subscription.status);
 
-  console.log(`Updating subscription for customer ${customerId}: tier=${tier}, status=${status}`);
+  console.log(`[${requestId}] [stripe] Updating subscription for customer ${customerId}: tier=${tier}, status=${status}`);
 
   const result = await db
     .prepare(`
@@ -181,7 +181,7 @@ async function updateUserSubscription(db, customerId, subscription) {
     .run();
 
   if (result.meta.changes === 0) {
-    console.warn(`No user found with stripe_customer_id: ${customerId}`);
+    console.warn(`[${requestId}] [stripe] No user found with stripe_customer_id: ${customerId}`);
     return false;
   }
 
@@ -191,8 +191,8 @@ async function updateUserSubscription(db, customerId, subscription) {
 /**
  * Handle subscription cancellation
  */
-async function handleSubscriptionCanceled(db, customerId) {
-  console.log(`Canceling subscription for customer ${customerId}`);
+async function handleSubscriptionCanceled(db, customerId, requestId) {
+  console.log(`[${requestId}] [stripe] Canceling subscription for customer ${customerId}`);
 
   const result = await db
     .prepare(`
@@ -209,6 +209,7 @@ async function handleSubscriptionCanceled(db, customerId) {
 
 export async function onRequestPost(context) {
   const { request, env } = context;
+  const requestId = crypto.randomUUID();
 
   try {
     // Get the raw body for signature verification
@@ -219,7 +220,7 @@ export async function onRequestPost(context) {
     if (env.STRIPE_WEBHOOK_SECRET) {
       const isValid = await verifyStripeSignature(payload, signature, env.STRIPE_WEBHOOK_SECRET);
       if (!isValid) {
-        console.error('Invalid Stripe webhook signature');
+        console.error(`[${requestId}] [stripe] Invalid webhook signature`);
         return new Response(
           JSON.stringify({ error: 'Invalid signature' }),
           { status: 400, headers: { 'Content-Type': 'application/json' } }
@@ -228,19 +229,19 @@ export async function onRequestPost(context) {
     } else {
       // Fail closed in production - missing secret is a configuration error
       if (isProductionEnvironment(env)) {
-        console.error('STRIPE_WEBHOOK_SECRET not configured in production - rejecting webhook');
+        console.error(`[${requestId}] [stripe] STRIPE_WEBHOOK_SECRET not configured in production - rejecting webhook`);
         return new Response(
           JSON.stringify({ error: 'Webhook configuration error' }),
           { status: 500, headers: { 'Content-Type': 'application/json' } }
         );
       }
       // In development without webhook secret, log a warning but allow
-      console.warn('STRIPE_WEBHOOK_SECRET not set - dev mode, skipping signature verification');
+      console.warn(`[${requestId}] [stripe] STRIPE_WEBHOOK_SECRET not set - dev mode, skipping signature verification`);
     }
 
     // Parse the event
     const event = JSON.parse(payload);
-    console.log(`Received Stripe webhook: ${event.type} (${event.id})`);
+    console.log(`[${requestId}] [stripe] Received webhook: ${event.type} (${event.id})`);
 
     // Idempotency: Use claim-first pattern to prevent race conditions
     // INSERT OR IGNORE atomically claims the event; if it already exists, changes=0
@@ -255,7 +256,7 @@ export async function onRequestPost(context) {
 
       if (claim.meta.changes === 0) {
         // Another worker already claimed this event
-        console.log(`[Stripe Webhook] Duplicate event ignored: ${event.id} (${event.type})`);
+        console.log(`[${requestId}] [stripe] Duplicate event ignored: ${event.id} (${event.type})`);
         return new Response(
           JSON.stringify({ received: true, duplicate: true }),
           { status: 200, headers: { 'Content-Type': 'application/json' } }
@@ -265,7 +266,7 @@ export async function onRequestPost(context) {
     } catch (err) {
       // If idempotency claim fails, log but continue processing
       // Better to potentially double-process than to fail silently
-      console.warn(`[Stripe Webhook] Idempotency claim failed (continuing): ${err.message}`);
+      console.warn(`[${requestId}] [stripe] Idempotency claim failed (continuing): ${err.message}`);
     }
 
     // Handle the event
@@ -274,40 +275,40 @@ export async function onRequestPost(context) {
       case 'customer.subscription.updated': {
         const subscription = event.data.object;
         const customerId = subscription.customer;
-        await updateUserSubscription(env.DB, customerId, subscription);
+        await updateUserSubscription(env.DB, customerId, subscription, requestId);
         break;
       }
 
       case 'customer.subscription.deleted': {
         const subscription = event.data.object;
         const customerId = subscription.customer;
-        await handleSubscriptionCanceled(env.DB, customerId);
+        await handleSubscriptionCanceled(env.DB, customerId, requestId);
         break;
       }
 
       case 'invoice.payment_succeeded': {
         const invoice = event.data.object;
         // Log successful payment - could be used for analytics or credits
-        console.log(`Payment succeeded for customer ${invoice.customer}: $${(invoice.amount_paid / 100).toFixed(2)}`);
+        console.log(`[${requestId}] [stripe] Payment succeeded for customer ${invoice.customer}: $${(invoice.amount_paid / 100).toFixed(2)}`);
         break;
       }
 
       case 'invoice.payment_failed': {
         const invoice = event.data.object;
-        console.warn(`Payment failed for customer ${invoice.customer}`);
+        console.warn(`[${requestId}] [stripe] Payment failed for customer ${invoice.customer}`);
         // Could trigger notification to user or grace period handling
         break;
       }
 
       case 'customer.subscription.trial_will_end': {
         const subscription = event.data.object;
-        console.log(`Trial ending soon for customer ${subscription.customer}`);
+        console.log(`[${requestId}] [stripe] Trial ending soon for customer ${subscription.customer}`);
         // Could trigger notification to user
         break;
       }
 
       default:
-        console.log(`Unhandled event type: ${event.type}`);
+        console.log(`[${requestId}] [stripe] Unhandled event type: ${event.type}`);
     }
 
     // Note: Event was already recorded for idempotency before processing (claim-first pattern)
@@ -324,7 +325,7 @@ export async function onRequestPost(context) {
     );
 
   } catch (error) {
-    console.error('Stripe webhook error:', error);
+    console.error(`[${requestId}] [stripe] Webhook error:`, error);
     return new Response(
       JSON.stringify({ error: 'Webhook handler failed' }),
       { status: 500, headers: { 'Content-Type': 'application/json' } }

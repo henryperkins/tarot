@@ -76,6 +76,7 @@ export const onRequestGet = async ({ env }) => {
 };
 
 export const onRequestPost = async ({ request, env }) => {
+  const requestId = crypto.randomUUID();
   try {
     const {
       text,
@@ -169,7 +170,7 @@ export const onRequestPost = async ({ request, env }) => {
 
       if (!response.ok) {
         const errorText = await response.text();
-        console.error('Hume AI TTS error:', response.status, errorText);
+        console.error(`[${requestId}] [tts-hume] API error:`, response.status, errorText);
         
         // Try to parse error message from Hume
         let errorMessage = `Hume TTS failed (${response.status})`;
@@ -216,7 +217,7 @@ export const onRequestPost = async ({ request, env }) => {
       });
 
     } catch (error) {
-      console.error('Hume AI TTS generation failed:', error);
+      console.error(`[${requestId}] [tts-hume] Generation failed:`, error);
       return jsonResponse(
         { error: 'Unable to generate audio with Hume AI at this time.' },
         { status: 500 }
@@ -224,7 +225,7 @@ export const onRequestPost = async ({ request, env }) => {
     }
 
   } catch (error) {
-    console.error('tts-hume function error:', error);
+    console.error(`[${requestId}] [tts-hume] Function error:`, error);
     return jsonResponse(
       { error: 'Unable to process TTS request.' },
       { status: 500 }

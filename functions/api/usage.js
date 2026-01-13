@@ -14,6 +14,7 @@ import { getMonthKeyUtc, getResetAtUtc, getUsageRow } from '../lib/usageTracking
 
 export async function onRequestGet(context) {
   const { request, env } = context;
+  const requestId = crypto.randomUUID();
 
   try {
     const user = await getUserFromRequest(request, env);
@@ -50,7 +51,7 @@ export async function onRequestGet(context) {
       if (error.message?.includes('no such table')) {
         trackingAvailable = false;
       } else {
-        console.warn('Usage lookup failed:', error.message);
+        console.warn(`[${requestId}] [usage] Lookup failed:`, error.message);
         trackingAvailable = false;
       }
       readingsUsed = 0;
@@ -102,7 +103,7 @@ export async function onRequestGet(context) {
       }
     });
   } catch (error) {
-    console.error('Usage endpoint error:', error);
+    console.error(`[${requestId}] [usage] Endpoint error:`, error);
     return jsonResponse(
       { error: 'Failed to load usage status' },
       { status: 500 }

@@ -18,6 +18,7 @@ import {
 
 export async function onRequestPost(context) {
   const { request, env } = context;
+  const requestId = crypto.randomUUID();
 
   try {
     // Parse request body
@@ -133,7 +134,7 @@ export async function onRequestPost(context) {
       );
     }
 
-    console.error('Registration error:', error);
+    console.error(`[${requestId}] [auth] Registration error:`, error);
     return new Response(
       JSON.stringify({ error: 'Internal server error' }),
       { status: 500, headers: { 'Content-Type': 'application/json' } }

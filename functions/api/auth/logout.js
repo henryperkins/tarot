@@ -14,6 +14,7 @@ import {
 
 export async function onRequestPost(context) {
   const { request, env } = context;
+  const requestId = crypto.randomUUID();
 
   try {
     // Get session token from cookie
@@ -55,7 +56,7 @@ export async function onRequestPost(context) {
       );
     }
 
-    console.error('Logout error:', error);
+    console.error(`[${requestId}] [auth] Logout error:`, error);
     return new Response(
       JSON.stringify({ error: 'Internal server error' }),
       { status: 500, headers: { 'Content-Type': 'application/json' } }

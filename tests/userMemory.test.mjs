@@ -4,8 +4,6 @@ import { describe, test, beforeEach } from 'node:test';
 import {
   saveMemory,
   getMemories,
-  consolidateSessionMemories,
-  pruneMemories,
   deleteMemory,
   clearAllMemories,
   formatMemoriesForPrompt,

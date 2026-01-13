@@ -42,7 +42,7 @@ export function ensureAzureConfig(env) {
  * @param {string} modelName - Azure deployment/model name
  * @returns {string} Reasoning effort level ('low', 'medium', or 'high')
  */
-export function getReasoningEffort(modelName) {
+export function getReasoningEffort(_modelName) {
   return 'medium';
 }
 

@@ -221,7 +221,10 @@ export function transformAzureStream(azureStream) {
               }
               // Ignore other event types (response.created, response.in_progress, etc.)
             } catch (parseError) {
-              console.warn('[azureResponsesStream] Failed to parse event:', eventData?.slice(0, 200));
+              console.warn('[azureResponsesStream] Failed to parse event:', {
+                event: eventData?.slice(0, 200),
+                error: parseError?.message
+              });
             }
           }
         }
@@ -320,7 +323,7 @@ export function transformAzureStreamWithTools(azureStream, { onToolCall = null }
   // Tool call accumulation
   const toolCalls = new Map(); // callId -> { name, arguments }
   let currentCallId = null;
-  let pendingToolCalls = [];
+  const pendingToolCalls = [];
 
   const stream = new ReadableStream({
     async start(controller) {
@@ -450,7 +453,10 @@ export function transformAzureStreamWithTools(azureStream, { onToolCall = null }
                 controller.enqueue(encoder.encode(errorEvent));
               }
             } catch (parseError) {
-              console.warn('[azureResponsesStream] Failed to parse event:', eventData?.slice(0, 200));
+              console.warn('[azureResponsesStream] Failed to parse event:', {
+                event: eventData?.slice(0, 200),
+                error: parseError?.message
+              });
             }
           }
         }

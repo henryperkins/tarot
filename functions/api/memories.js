@@ -28,6 +28,7 @@ import {
  * - limit: max memories to return (default: 50)
  */
 export const onRequestGet = async ({ request, env }) => {
+  const requestId = crypto.randomUUID();
   try {
     // Auth check
     const cookieHeader = request.headers.get('Cookie');
@@ -65,7 +66,7 @@ export const onRequestGet = async ({ request, env }) => {
       categories: MEMORY_CONSTANTS.VALID_CATEGORIES
     });
   } catch (error) {
-    console.error('[memories] GET error:', error.message);
+    console.error(`[${requestId}] [memories] GET error:`, error.message);
     return jsonResponse({ error: 'Failed to fetch memories' }, { status: 500 });
   }
 };
@@ -80,6 +81,7 @@ export const onRequestGet = async ({ request, env }) => {
  * - category: string (required)
  */
 export const onRequestPost = async ({ request, env }) => {
+  const requestId = crypto.randomUUID();
   try {
     // Auth check
     const cookieHeader = request.headers.get('Cookie');
@@ -130,7 +132,7 @@ export const onRequestPost = async ({ request, env }) => {
       deduplicated: result.deduplicated || false
     }, { status: 201 });
   } catch (error) {
-    console.error('[memories] POST error:', error.message);
+    console.error(`[${requestId}] [memories] POST error:`, error.message);
     return jsonResponse({ error: 'Failed to create memory' }, { status: 500 });
   }
 };
@@ -144,6 +146,7 @@ export const onRequestPost = async ({ request, env }) => {
  * - all: 'true' to clear all memories (requires confirmation)
  */
 export const onRequestDelete = async ({ request, env }) => {
+  const requestId = crypto.randomUUID();
   try {
     // Auth check
     const cookieHeader = request.headers.get('Cookie');
@@ -182,7 +185,7 @@ export const onRequestDelete = async ({ request, env }) => {
       deleted: true
     });
   } catch (error) {
-    console.error('[memories] DELETE error:', error.message);
+    console.error(`[${requestId}] [memories] DELETE error:`, error.message);
     return jsonResponse({ error: 'Failed to delete memory' }, { status: 500 });
   }
 };

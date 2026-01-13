@@ -15,6 +15,7 @@ import { buildTierLimitedPayload, isEntitled } from '../../lib/entitlements.js';
  */
 export async function onRequestDelete(context) {
   const { request, env, params } = context;
+  const requestId = crypto.randomUUID();
 
   try {
     // Authenticate user
@@ -85,7 +86,7 @@ export async function onRequestDelete(context) {
       }
     );
   } catch (error) {
-    console.error('Delete journal entry error:', error);
+    console.error(`[${requestId}] [journal] Delete entry error:`, error);
     return new Response(
       JSON.stringify({ error: 'Internal server error' }),
       { status: 500, headers: { 'Content-Type': 'application/json' } }

@@ -31,6 +31,7 @@ function isMissingColumnError(err) {
  */
 export async function onRequestGet(context) {
   const { request, env } = context;
+  const requestId = crypto.randomUUID();
 
   try {
     // Authenticate user
@@ -176,7 +177,7 @@ export async function onRequestGet(context) {
       } catch (err) {
         // If the migration is partially applied / column missing, degrade gracefully.
         if (!isMissingColumnError(err)) {
-          console.warn('Failed to load journal embeddings:', err?.message || err);
+          console.warn(`[${requestId}] [journal] Failed to load embeddings:`, err?.message || err);
         }
       }
     }
@@ -224,7 +225,7 @@ export async function onRequestGet(context) {
           location
         };
       } catch (parseErr) {
-        console.warn(`Failed to parse journal entry ${entry.id}:`, parseErr);
+        console.warn(`[${requestId}] [journal] Failed to parse entry ${entry.id}:`, parseErr);
         // Return a minimal valid entry so the journal doesn't break completely
         return {
           id: entry.id,
@@ -282,7 +283,7 @@ export async function onRequestGet(context) {
       }
     );
   } catch (error) {
-    console.error('Get journal entries error:', error);
+    console.error(`[${requestId}] [journal] Get entries error:`, error);
     return new Response(
       JSON.stringify({ error: 'Internal server error' }),
       { status: 500, headers: { 'Content-Type': 'application/json' } }
@@ -296,6 +297,7 @@ export async function onRequestGet(context) {
  */
 export async function onRequestPost(context) {
   const { request, env, waitUntil } = context;
+  const requestId = crypto.randomUUID();
 
   try {
     // Authenticate user
@@ -505,7 +507,7 @@ export async function onRequestPost(context) {
       }
     );
   } catch (error) {
-    console.error('Save journal entry error:', error);
+    console.error(`[${requestId}] [journal] Save entry error:`, error);
     return new Response(
       JSON.stringify({ error: 'Internal server error' }),
       { status: 500, headers: { 'Content-Type': 'application/json' } }

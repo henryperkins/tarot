@@ -3,7 +3,6 @@ import { describe, it } from 'node:test';
 
 import {
   normalizeTimestamp,
-  normalizeTimestampSeconds,
   getTimestamp,
   getTimestampSeconds
 } from '../shared/journal/utils.js';

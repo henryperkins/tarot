@@ -119,7 +119,7 @@ export function SpreadTable({
 
   const baseMaxCardWidth = useMemo(
     () => getMaxCardWidth(baseLayout, tableBounds),
-    [baseLayout, tableBounds.height, tableBounds.width]
+    [baseLayout, tableBounds]
   );
 
   const resolvedLayout = useMemo(() => {
@@ -138,7 +138,7 @@ export function SpreadTable({
       const baseOffset = pos.offsetX || 0;
       return { ...pos, offsetX: Math.max(baseOffset, offsetPercent) };
     });
-  }, [baseLayout, baseMaxCardWidth, spreadKey, tableBounds.width]);
+  }, [baseLayout, baseMaxCardWidth, spreadKey, tableBounds]);
 
   useEffect(() => {
     const element = tableRef.current;
@@ -170,7 +170,7 @@ export function SpreadTable({
 
   const maxCardWidth = useMemo(
     () => getMaxCardWidth(resolvedLayout, tableBounds),
-    [resolvedLayout, tableBounds.height, tableBounds.width]
+    [resolvedLayout, tableBounds]
   );
 
   const cardSizeStyle = useMemo(() => {

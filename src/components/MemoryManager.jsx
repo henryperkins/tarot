@@ -227,7 +227,7 @@ export function MemoryManager({ className = '' }) {
           <Brain className="w-8 h-8 mx-auto mb-2 text-muted/40" />
           <p className="text-sm text-muted">No memories yet</p>
           <p className="text-xs text-muted/60 mt-1">
-            As you chat with the reader, they'll remember what's important to you.
+            {'As you chat with the reader, they\'ll remember what\'s important to you.'}
           </p>
         </div>
       )}

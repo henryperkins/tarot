@@ -67,6 +67,7 @@ function getTTSLimits(tier) {
 }
 
 export const onRequestPost = async ({ request, env }) => {
+  const requestId = crypto.randomUUID();
   try {
     const url = new URL(request.url);
     const stream = url.searchParams.get('stream') === 'true';
@@ -98,7 +99,7 @@ export const onRequestPost = async ({ request, env }) => {
     }
 
     // Check tier-based rate limits (in addition to global rate limit)
-    const rateLimitResult = await enforceTtsRateLimit(env, request, user, ttsLimits);
+    const rateLimitResult = await enforceTtsRateLimit(env, request, user, ttsLimits, requestId);
     if (rateLimitResult?.limited) {
       const errorMessage = rateLimitResult.tierLimited
         ? `You've reached your monthly TTS limit (${ttsLimits.monthly}). Upgrade to Plus or Pro for more.`
@@ -157,7 +158,7 @@ export const onRequestPost = async ({ request, env }) => {
           }
         }
       } catch (error) {
-        console.error('Azure OpenAI gpt-4o-mini-tts failed, falling back to local waveform:', error);
+        console.error(`[${requestId}] [tts] Azure gpt-4o-mini-tts failed, falling back to local waveform:`, error);
       }
     }
 
@@ -182,7 +183,7 @@ export const onRequestPost = async ({ request, env }) => {
 
     return jsonResponse({ audio: fallbackAudio, provider: 'fallback' });
   } catch (error) {
-    console.error('tts function error:', error);
+    console.error(`[${requestId}] [tts] Function error:`, error);
     return jsonResponse(
       { error: 'Unable to generate audio at this time.' },
       { status: 500 }
@@ -408,7 +409,7 @@ const DEFAULT_RATE_LIMIT_WINDOW_SECONDS = 60;
 const TTS_RATE_LIMIT_KEY_PREFIX = 'tts-rate';
 const TTS_MONTHLY_KEY_PREFIX = 'tts-monthly';
 
-async function enforceTtsRateLimit(env, request, user, ttsLimits = { monthly: 3, premium: false }) {
+async function enforceTtsRateLimit(env, request, user, ttsLimits = { monthly: 3, premium: false }, requestId = 'unknown') {
   try {
     const store = env?.RATELIMIT;
     
@@ -511,7 +512,7 @@ async function enforceTtsRateLimit(env, request, user, ttsLimits = { monthly: 3,
 
     return { limited: false };
   } catch (error) {
-    console.warn('Rate limit check failed, allowing request:', error);
+    console.warn(`[${requestId}] [tts] Rate limit check failed, allowing request:`, error);
     return { limited: false };
   }
 }
