@@ -1,8 +1,11 @@
 import { computeJournalStats } from './stats.js';
+import { getTimestamp, safeJsonParse } from './utils.js';
 
 function formatCardList(entry) {
-  const cards = Array.isArray(entry?.cards) ? entry.cards : [];
-  if (cards.length === 0) return '';
+  // Handle both parsed arrays and JSON strings
+  const cardsRaw = entry?.cards || entry?.cards_json;
+  const cards = safeJsonParse(cardsRaw, []);
+  if (!Array.isArray(cards) || cards.length === 0) return '';
   return cards
     .slice(0, 4)
     .map(card => `${card.name}${card.orientation ? ` (${card.orientation})` : ''}`)
@@ -35,14 +38,20 @@ export function buildHeuristicJourneySummary(entries, statsOverride) {
     ? `Recent themes whisper about ${stats.recentThemes.slice(0, 3).join(', ')}.`
     : '';
 
+  // Sort entries by timestamp (most recent first) and take top 3
   const highlightEntries = Array.isArray(entries)
-    ? entries.slice(0, 3).map(entry => {
-        const when = entry?.ts ? new Date(entry.ts).toLocaleDateString() : 'recently';
-        const context = entry?.context ? `${entry.context} lens` : 'open lens';
-        const spread = entry?.spread || entry?.spreadName || 'Reading';
-        const cards = formatCardList(entry);
-        return `• ${spread} (${context}) on ${when}${cards ? ` featured ${cards}` : ''}.`;
-      })
+    ? entries
+        .slice()
+        .sort((a, b) => (getTimestamp(b) || 0) - (getTimestamp(a) || 0))
+        .slice(0, 3)
+        .map(entry => {
+          const ts = getTimestamp(entry);
+          const when = ts ? new Date(ts).toLocaleDateString() : 'recently';
+          const context = entry?.context ? `${entry.context} lens` : 'open lens';
+          const spread = entry?.spread || entry?.spreadName || entry?.spread_name || 'Reading';
+          const cards = formatCardList(entry);
+          return `• ${spread} (${context}) on ${when}${cards ? ` featured ${cards}` : ''}.`;
+        })
     : [];
 
   const closing = 'Notice where these threads overlap and invite one grounded action to honor the energy.';

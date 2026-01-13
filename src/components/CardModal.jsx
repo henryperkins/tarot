@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { X } from '@phosphor-icons/react';
 import { FALLBACK_IMAGE, getCardImage, getCanonicalCard } from '../lib/cardLookup';
 import { CardSymbolInsights } from './CardSymbolInsights';
+import { InteractiveCardOverlay } from './InteractiveCardOverlay';
 import { useModalA11y } from '../hooks/useModalA11y';
 
 function toMillis(ts) {
@@ -134,6 +135,8 @@ export function CardModal({
                                 event.currentTarget.src = FALLBACK_IMAGE;
                             }}
                         />
+                        {/* Interactive symbol overlay - tap symbols to learn meanings */}
+                        <InteractiveCardOverlay card={card} />
                     </motion.div>
 
                     <div className="w-full space-y-6 text-left">

@@ -7,6 +7,11 @@
  * - JSON parsing with safety
  */
 
+import { safeJsonParse as _safeJsonParse } from '../../shared/utils.js';
+
+// Re-export from canonical location
+export { safeJsonParse } from '../../shared/utils.js';
+
 /**
  * djb2 hash algorithm - fast string hashing for cache keys.
  * Used for TTS cache, narrative cache, and filter hashes.
@@ -40,17 +45,12 @@ export function generateId(prefix = 'id') {
 /**
  * Safely parse JSON with fallback value.
  * Prevents crashes from malformed JSON in localStorage.
+ * This is a backward-compatible wrapper that logs warnings by default.
  *
  * @param {string|null} value - JSON string to parse
  * @param {*} fallback - Fallback value if parsing fails
  * @returns {*} Parsed value or fallback
  */
 export function safeParse(value, fallback) {
-  if (!value) return fallback;
-  try {
-    return JSON.parse(value);
-  } catch (error) {
-    console.warn('Failed to parse JSON:', error);
-    return fallback;
-  }
+  return _safeJsonParse(value, fallback, { silent: false });
 }

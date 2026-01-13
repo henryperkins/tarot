@@ -9,19 +9,10 @@ import { MINOR_ARCANA } from '../data/minorArcana';
 import { useAuth } from '../contexts/AuthContext';
 import { useJournal } from '../hooks/useJournal';
 import { getCanonicalCard } from '../lib/cardLookup';
+import { getTimestampSeconds, safeJsonParse } from '../../shared/journal/utils.js';
+import { pickStats, computeGalleryLoading } from './cardGallerySelectors';
 
 const ALL_CARDS = [...MAJOR_ARCANA, ...MINOR_ARCANA];
-
-function toTimestampSeconds(entry) {
-  if (!entry) return null;
-  if (typeof entry.created_at === 'number') return entry.created_at;
-  if (typeof entry.updated_at === 'number') return entry.updated_at;
-  if (typeof entry.ts === 'number') {
-    // entry.ts is typically ms; handle seconds defensively
-    return entry.ts < 1e12 ? Math.floor(entry.ts) : Math.floor(entry.ts / 1000);
-  }
-  return null;
-}
 
 function normalizeCardName(name) {
   if (!name || typeof name !== 'string') return null;
@@ -32,11 +23,7 @@ function normalizeCardName(name) {
 function safeGetEntryCards(entry) {
   if (!entry) return [];
   if (Array.isArray(entry.cards)) return entry.cards;
-  try {
-    return entry?.cards_json ? JSON.parse(entry.cards_json) : [];
-  } catch {
-    return [];
-  }
+  return safeJsonParse(entry?.cards_json, []);
 }
 
 function buildRelatedEntries(entries, cardName) {
@@ -57,7 +44,7 @@ function buildRelatedEntries(entries, cardName) {
     if (!hasCard) continue;
 
     // Use seconds consistently to avoid mixed ms/seconds ordering bugs.
-    const tsSeconds = toTimestampSeconds(entry);
+    const tsSeconds = getTimestampSeconds(entry);
     matches.push({
       id: entry?.id,
       ts: tsSeconds,
@@ -77,7 +64,7 @@ function buildLocalCardStats(entries) {
   const map = {};
 
   entries.forEach((entry) => {
-    const ts = toTimestampSeconds(entry);
+    const ts = getTimestampSeconds(entry);
     if (!ts) return;
 
     const cards = Array.isArray(entry?.cards)
@@ -186,7 +173,7 @@ function CardItem({ card, stats, onSelect }) {
 }
 
 export default function CardGalleryPage() {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
   const navigate = useNavigate();
   const { entries, loading: journalLoading } = useJournal();
 
@@ -200,6 +187,13 @@ export default function CardGalleryPage() {
   const [filterSuit, setFilterSuit] = useState('all'); // all, major, wands, cups, swords, pentacles
   const [filterStatus, setFilterStatus] = useState('all'); // all, found, missing
   const [sortBy, setSortBy] = useState('deck'); // deck, count_desc, count_asc, recency
+
+  // Reset remote state when auth status or user changes to avoid cross-account leakage.
+  useEffect(() => {
+    setRemoteStats(null);
+    setRemoteLoading(false);
+    setAnalyticsDisabled(false);
+  }, [isAuthenticated, user?.id]);
 
   useEffect(() => {
     async function fetchStats() {
@@ -245,23 +239,24 @@ export default function CardGalleryPage() {
     }
 
     fetchStats();
-  }, [isAuthenticated]);
+  }, [isAuthenticated, user?.id]);
 
   const localStats = useMemo(() => buildLocalCardStats(entries), [entries]);
 
-  const stats = useMemo(() => {
-    if (analyticsDisabled) return {};
-    const hasRemote = remoteStats && Object.keys(remoteStats).length > 0;
-    return hasRemote ? remoteStats : localStats;
-  }, [analyticsDisabled, remoteStats, localStats]);
+  const stats = useMemo(() => pickStats({
+    isAuthenticated,
+    analyticsDisabled,
+    remoteStats,
+    localStats
+  }), [analyticsDisabled, isAuthenticated, localStats, remoteStats]);
 
-  const loading = useMemo(() => {
-    if (analyticsDisabled) return false;
-    // If remote succeeds, don't wait for local entries.
-    const hasRemote = remoteStats && Object.keys(remoteStats).length > 0;
-    if (hasRemote) return remoteLoading;
-    return remoteLoading || journalLoading;
-  }, [analyticsDisabled, remoteLoading, journalLoading, remoteStats]);
+  const loading = useMemo(() => computeGalleryLoading({
+    isAuthenticated,
+    analyticsDisabled,
+    remoteStats,
+    remoteLoading,
+    journalLoading
+  }), [analyticsDisabled, isAuthenticated, journalLoading, remoteLoading, remoteStats]);
 
   // Derived state
   const deckSize = ALL_CARDS.length;

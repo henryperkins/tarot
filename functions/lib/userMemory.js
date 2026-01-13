@@ -6,6 +6,8 @@
  * and communication styles across sessions.
  */
 
+import { truncateText } from '../../shared/utils.js';
+
 // Limits
 const MAX_MEMORY_TEXT_LENGTH = 200;
 const MAX_KEYWORDS = 5;
@@ -43,14 +45,9 @@ const INSTRUCTION_PATTERNS = [
   /\[.*\]\(.*\)/,  // Markdown links
 ];
 
-/**
- * Clamp text to max length, adding ellipsis if truncated
- */
+// Wrapper using shared truncateText (default behavior matches original)
 function clampText(value, max = MAX_MEMORY_TEXT_LENGTH) {
-  if (typeof value !== 'string') return '';
-  const trimmed = value.trim();
-  if (trimmed.length <= max) return trimmed;
-  return `${trimmed.slice(0, max - 1)}…`;
+  return truncateText(value, max);
 }
 
 /**

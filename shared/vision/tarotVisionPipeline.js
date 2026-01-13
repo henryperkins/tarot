@@ -45,6 +45,49 @@ const CARD_LOOKUP = (() => {
   return map;
 })();
 
+/**
+ * Build a mapping from canonical card names to prototype keys.
+ * Prototype keys use format: "RWS1909   XX Name" for Major, "RWS1909   Suit XX" for Minor.
+ * @param {Object} adapterCards - The cards object from prototype data
+ * @returns {Map} - Map from lowercase canonical name to prototype key
+ */
+function buildPrototypeKeyMap(adapterCards) {
+  if (!adapterCards || typeof adapterCards !== 'object') return new Map();
+
+  const keyMap = new Map();
+  const prototypeKeys = Object.keys(adapterCards);
+
+  // Build reverse lookup from prototype key patterns to canonical names
+  for (const key of prototypeKeys) {
+    // Major Arcana pattern: "RWS1909   XX Name" (e.g., "RWS1909   00 Fool")
+    const majorMatch = key.match(/^RWS1909\s+(\d{2})\s+(.+)$/);
+    if (majorMatch) {
+      const [, numStr, shortName] = majorMatch;
+      const num = parseInt(numStr, 10);
+      // Find the Major Arcana card by number
+      const card = MAJOR_ARCANA.find(c => c.number === num);
+      if (card) {
+        keyMap.set(card.name.toLowerCase(), key);
+      }
+      continue;
+    }
+
+    // Minor Arcana pattern: "RWS1909   Suit XX" (e.g., "RWS1909   Cups 01")
+    const minorMatch = key.match(/^RWS1909\s+(Wands|Cups|Swords|Pentacles)\s+(\d{2})$/);
+    if (minorMatch) {
+      const [, suit, rankStr] = minorMatch;
+      const rankValue = parseInt(rankStr, 10);
+      // Find the Minor Arcana card by suit and rankValue
+      const card = MINOR_ARCANA.find(c => c.suit === suit && c.rankValue === rankValue);
+      if (card) {
+        keyMap.set(card.name.toLowerCase(), key);
+      }
+    }
+  }
+
+  return keyMap;
+}
+
 function normalizeAssetPath(pathCandidate) {
   if (!pathCandidate) return null;
   if (IS_BROWSER) {
@@ -429,6 +472,9 @@ export class TarotVisionPipeline {
         const embeddings = [];
         const adapterData = await loadFineTunedPrototypes(this.deckProfile.id);
         const adapterCards = adapterData?.cards || {};
+        // Build a map from canonical names to prototype keys
+        const prototypeKeyMap = buildPrototypeKeyMap(adapterCards);
+
         for (const card of this.cardLibrary) {
           const textVector = await this._embedPrompt(card.prompt);
           let imageVector = null;
@@ -441,8 +487,12 @@ export class TarotVisionPipeline {
             }
           }
 
-          const canonicalKey = card.canonicalName || card.cardName;
-          const adapterEntry = adapterCards[canonicalKey] || adapterCards[card.cardName];
+          // Look up adapter entry using the prototype key map, with fallbacks for legacy key shapes
+          const canonicalKey = (card.canonicalName || card.cardName || '').toLowerCase();
+          const prototypeKey = prototypeKeyMap.get(canonicalKey);
+          const adapterEntry = prototypeKey
+            ? adapterCards[prototypeKey]
+            : adapterCards[card.canonicalName] || adapterCards[card.cardName] || null;
           const adapterVector = adapterEntry?.embedding ? normalizeVector(adapterEntry.embedding) : null;
 
           embeddings.push({

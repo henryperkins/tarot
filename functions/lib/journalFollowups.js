@@ -1,20 +1,13 @@
 import { safeJsonParse } from './utils.js';
+import { normalizeTimestampSeconds } from '../../shared/journal/utils.js';
+import { truncateText } from '../../shared/utils.js';
 
 const MAX_FOLLOWUPS_PER_ENTRY = 50;
 const MAX_TEXT_LENGTH = 4000; // prevent oversized payloads
 
+// Wrapper to preserve original behavior (ellipsis not counted in max)
 function clampText(value, max = MAX_TEXT_LENGTH) {
-  if (typeof value !== 'string') return '';
-  const trimmed = value.trim();
-  if (trimmed.length <= max) return trimmed;
-  return `${trimmed.slice(0, max)}…`;
-}
-
-function normalizeTimestamp(value) {
-  if (!Number.isFinite(value)) return null;
-  // Accept seconds or milliseconds epoch; normalize to seconds
-  if (value > 0 && value < 1_000_000_000_000) return Math.floor(value);
-  return Math.floor(value / 1000);
+  return truncateText(value, max, { accountForEllipsis: false });
 }
 
 /**
@@ -50,7 +43,7 @@ export function sanitizeFollowUps(followUps, { max = MAX_FOLLOWUPS_PER_ENTRY } =
       seenTurns.add(turnNumber);
     }
 
-    const createdAt = normalizeTimestamp(item.createdAt);
+    const createdAt = normalizeTimestampSeconds(item.createdAt);
 
     const journalContext = item.journalContext && typeof item.journalContext === 'object'
       ? item.journalContext

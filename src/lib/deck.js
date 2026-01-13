@@ -2,34 +2,14 @@ import { MAJOR_ARCANA } from '../data/majorArcana.js';
 import { SPREADS } from '../data/spreads.js';
 import { MINOR_ARCANA } from '../data/minorArcana.js';
 
-export function hashString(s) {
-  let h = 2166136261 >>> 0;
-  for (let i = 0; i < s.length; i++) {
-    h ^= s.charCodeAt(i);
-    h = Math.imul(h, 16777619);
-  }
-  return h >>> 0;
-}
+// Import from canonical shared location and re-export for backward compatibility
+import {
+  hashString,
+  xorshift32,
+  seededShuffle
+} from '../../shared/utils.js';
 
-function xorshift32(seed) {
-  let x = seed >>> 0 || 0x9e3779b9;
-  return () => {
-    x ^= x << 13;
-    x ^= x >>> 17;
-    x ^= x << 5;
-    return (x >>> 0) / 0x100000000;
-  };
-}
-
-export function seededShuffle(arr, seed) {
-  const copy = arr.slice();
-  const rand = xorshift32(seed >>> 0);
-  for (let i = copy.length - 1; i > 0; i--) {
-    const j = Math.floor(rand() * (i + 1));
-    [copy[i], copy[j]] = [copy[j], copy[i]];
-  }
-  return copy;
-}
+export { hashString, seededShuffle };
 
 export function cryptoShuffle(arr) {
   const copy = arr.slice();

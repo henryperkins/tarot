@@ -24,6 +24,7 @@ import { useSmallScreen } from '../hooks/useSmallScreen';
 import { useToast } from '../contexts/ToastContext.jsx';
 import AuthModal from './AuthModal';
 import { AccountNudge } from './nudges';
+import { getTimestamp } from '../../shared/journal/utils.js';
 import {
   JournalBookIcon,
   JournalCardsAddIcon,
@@ -103,14 +104,6 @@ function AmberStarfield() {
       <div className="pointer-events-none absolute right-[-120px] top-1/3 h-72 w-72 rounded-full bg-cyan-400/10 blur-[110px]" aria-hidden="true" />
     </>
   );
-}
-
-function getEntryTimestamp(entry) {
-  if (!entry) return null;
-  if (typeof entry.ts === 'number') return entry.ts;
-  if (entry?.created_at) return entry.created_at * 1000;
-  if (entry?.updated_at) return entry.updated_at * 1000;
-  return null;
 }
 
 function getMonthHeader(timestamp) {
@@ -404,7 +397,7 @@ export default function Journal() {
   const latestAllEntryTs = useMemo(() => {
     if (!entries || entries.length === 0) return null;
     return entries.reduce((latest, entry) => {
-      const ts = getEntryTimestamp(entry);
+      const ts = getTimestamp(entry);
       if (!ts) return latest;
       if (!latest || ts > latest) return ts;
       return latest;
@@ -415,8 +408,8 @@ export default function Journal() {
     const source = (filtersActive && filteredEntries.length > 0) ? filteredEntries : entries;
     if (!Array.isArray(source) || source.length === 0) return null;
     const sorted = [...source].sort((a, b) => {
-      const aTs = getEntryTimestamp(a) || 0;
-      const bTs = getEntryTimestamp(b) || 0;
+      const aTs = getTimestamp(a) || 0;
+      const bTs = getTimestamp(b) || 0;
       return bTs - aTs;
     });
     return sorted[0] || null;
@@ -430,7 +423,7 @@ export default function Journal() {
   const latestFilteredEntryTs = useMemo(() => {
     if (!filteredEntries || filteredEntries.length === 0) return null;
     return filteredEntries.reduce((latest, entry) => {
-      const ts = getEntryTimestamp(entry);
+      const ts = getTimestamp(entry);
       if (!ts) return latest;
       if (!latest || ts > latest) return ts;
       return latest;
@@ -470,7 +463,7 @@ export default function Journal() {
   const summaryLastEntrySecondary = filtersActive
     ? (isFilteredEmpty ? 'Adjust filters to see matches' : `Journal: ${formatSummaryDate(latestAllEntryTs)}`)
     : 'Latest journal update';
-  const heroDateLabel = heroEntry ? formatSummaryDate(getEntryTimestamp(heroEntry)) : null;
+  const heroDateLabel = heroEntry ? formatSummaryDate(getTimestamp(heroEntry)) : null;
   const heroCardLimit = isSmallSummary ? 1 : 3;
   const heroCards = useMemo(() => {
     if (!heroEntry || !Array.isArray(heroEntry.cards)) return [];
@@ -779,7 +772,7 @@ export default function Journal() {
   const entryStackSpacingClass = compactList ? 'space-y-3.5' : 'space-y-5';
   let lastMonthLabel = null;
   const renderedHistoryEntries = visibleEntries.map((entry, index) => {
-    const timestamp = getEntryTimestamp(entry);
+    const timestamp = getTimestamp(entry);
     const monthLabel = getMonthHeader(timestamp);
     const showDivider = monthLabel !== lastMonthLabel;
     lastMonthLabel = monthLabel;

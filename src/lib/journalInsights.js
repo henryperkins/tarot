@@ -1,4 +1,5 @@
 import { computeJournalStats, REVERSED_PATTERN } from '../../shared/journal/stats.js';
+import { getTimestamp } from '../../shared/journal/utils.js';
 import { buildThemeQuestion, normalizeThemeLabel } from './themeText.js';
 import { safeStorage } from './safeStorage.js';
 import { generateId } from './utils.js';
@@ -579,14 +580,6 @@ export function buildNextStepsIntentionQuestion(stepText) {
   return `What would be a gentle next step for me around ${topic}?`;
 }
 
-function entryTimestampMs(entry) {
-  const ts = entry?.ts ?? entry?.timestamp ?? null;
-  if (typeof ts === 'number') return ts;
-  const createdSeconds = entry?.created_at ?? entry?.createdAt ?? null;
-  if (typeof createdSeconds === 'number') return createdSeconds * 1000;
-  return null;
-}
-
 function tokenizeForScoring(text) {
   return String(text || '')
     .toLowerCase()
@@ -601,7 +594,7 @@ export function computeNextStepsCoachSuggestion(entries, options = {}) {
   const maxEntries = typeof options.maxEntries === 'number' ? Math.max(1, options.maxEntries) : 3;
 
   const sortedByRecency = entries
-    .map((entry) => ({ entry, ts: entryTimestampMs(entry) }))
+    .map((entry) => ({ entry, ts: getTimestamp(entry) }))
     .filter(({ ts }) => typeof ts === 'number' && !Number.isNaN(ts))
     .sort((a, b) => b.ts - a.ts)
     .slice(0, maxEntries);
@@ -803,7 +796,7 @@ export function computeCoachSuggestionWithEmbeddings(entries, options = {}) {
 
   // Sort by recency and take top entries
   const sortedByRecency = entries
-    .map((entry) => ({ entry, ts: entryTimestampMs(entry) }))
+    .map((entry) => ({ entry, ts: getTimestamp(entry) }))
     .filter(({ ts }) => typeof ts === 'number' && !Number.isNaN(ts))
     .sort((a, b) => b.ts - a.ts)
     .slice(0, maxEntries);

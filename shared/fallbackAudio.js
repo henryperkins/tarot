@@ -54,10 +54,12 @@ function writeString(view, offset, string) {
 }
 
 function uint8ToBase64(uint8Array) {
+  // Node.js / Cloudflare Workers environment
   if (typeof Buffer !== 'undefined') {
     return Buffer.from(uint8Array).toString('base64');
   }
 
+  // Browser environment - build binary string in chunks to avoid stack overflow
   let binary = '';
   const chunkSize = 0x8000;
   for (let i = 0; i < uint8Array.length; i += chunkSize) {
@@ -67,8 +69,6 @@ function uint8ToBase64(uint8Array) {
   if (typeof btoa === 'function') {
     return btoa(binary);
   }
-  if (typeof Buffer !== 'undefined') {
-    return Buffer.from(binary, 'binary').toString('base64');
-  }
+
   throw new Error('No base64 encoder available in this environment.');
 }

@@ -12,6 +12,7 @@ import { useInlineStatus } from '../hooks/useInlineStatus';
 import { CupsIcon, WandsIcon, SwordsIcon, PentaclesIcon, MajorIcon } from './illustrations/SuitIcons';
 import { JournalBookIcon, JournalCommentAddIcon, JournalPlusCircleIcon, JournalShareIcon, JournalTrashIcon } from './JournalIcons';
 import CardRelationshipGraph from './charts/CardRelationshipGraph';
+import { normalizeTimestamp, getTimestamp } from '../../shared/journal/utils.js';
 
 const CONTEXT_SUMMARIES = {
     love: 'Relationship lens — center relational reciprocity and communication.',
@@ -110,11 +111,6 @@ function getSuitAccentVar(suitName) {
   return null;
 }
 
-function normalizeTimestamp(value) {
-  if (!Number.isFinite(value)) return null;
-  return value < 1e12 ? value * 1000 : value;
-}
-
 function formatFollowUpTimestamp(value) {
   const ts = normalizeTimestamp(value);
   if (!ts) return null;
@@ -124,11 +120,6 @@ function formatFollowUpTimestamp(value) {
     hour: '2-digit',
     minute: '2-digit'
   });
-}
-
-function deriveTimestamp(entry) {
-  const tsCandidates = [entry?.ts, entry?.created_at, entry?.updated_at].map(normalizeTimestamp);
-  return tsCandidates.find(Boolean) || null;
 }
 
 function getSuitIcon(cardName) {
@@ -438,7 +429,7 @@ export const JournalEntryCard = memo(function JournalEntryCard({
       }
     });
 
-  const timestamp = deriveTimestamp(entry);
+  const timestamp = getTimestamp(entry);
   const formattedTimestamp = timestamp
     ? new Date(timestamp).toLocaleString(undefined, {
       weekday: 'short',

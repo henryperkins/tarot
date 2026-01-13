@@ -3,6 +3,10 @@
  * user-friendly labels/questions for the intention coach.
  */
 
+// Import and re-export for backward compatibility
+import { ensureQuestionMark } from '../../shared/utils.js';
+export { ensureQuestionMark };
+
 /**
  * Normalize verbose theme sentences (e.g., narrative summaries)
  * into short labels that read cleanly inside questions and chips.
@@ -73,14 +77,3 @@ export function buildThemeQuestion(theme) {
   return ensureQuestionMark(`How can I explore ${label} more deeply`);
 }
 
-/**
- * Ensure the text ends with a question mark.
- *
- * @param {string} text
- * @returns {string}
- */
-export function ensureQuestionMark(text) {
-  if (!text) return '';
-  const trimmed = text.trim();
-  return trimmed.endsWith('?') ? trimmed : `${trimmed}?`;
-}

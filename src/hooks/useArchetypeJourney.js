@@ -12,6 +12,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { normalizeAnalyticsShape, getCardTrends, computeMonthlyTotals } from '../lib/archetypeJourney';
 import { safeStorage, invalidateNarrativeCache } from '../lib/safeStorage';
+import { normalizeTimestamp } from '../../shared/journal/utils.js';
 
 const RUN_META_KEY_PREFIX = 'archetype_run_meta';
 
@@ -24,27 +25,10 @@ function getRunMetaKey(userId) {
 }
 
 /**
- * Parse a timestamp into milliseconds.
- * Handles both seconds and milliseconds timestamps.
- */
-function parseTimestamp(value) {
-  if (!value) return null;
-  if (typeof value === 'number') {
-    return value < 1e12 ? value * 1000 : value;
-  }
-  if (typeof value === 'string' && /^\d+$/.test(value)) {
-    const numeric = Number(value);
-    return Number.isFinite(numeric) ? (numeric < 1e12 ? numeric * 1000 : numeric) : null;
-  }
-  const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? null : date.getTime();
-}
-
-/**
  * Format a timestamp for display.
  */
 function formatTimestampLabel(value) {
-  const ms = parseTimestamp(value);
+  const ms = normalizeTimestamp(value);
   if (!ms) return null;
   const date = new Date(ms);
   if (Number.isNaN(date.getTime())) return null;

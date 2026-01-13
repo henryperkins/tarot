@@ -5,6 +5,7 @@ import { persistJournalInsights, clearJournalInsightsCache } from '../lib/journa
 import { invalidateNarrativeCache } from '../lib/safeStorage';
 import { generateId } from '../lib/utils';
 import { dedupeEntries } from '../../shared/journal/dedupe.js';
+import { normalizeTimestamp } from '../../shared/journal/utils.js';
 
 const LOCALSTORAGE_KEY = 'tarot_journal';
 const CACHE_KEY_PREFIX = 'tarot_journal_cache';
@@ -24,20 +25,10 @@ function getLocalJournalKey(userId) {
   return `${LOCALSTORAGE_KEY}_${userId}`;
 }
 
-function normalizeTimestampMs(value) {
-  if (typeof value !== 'number') return null;
-  // Heuristic: seconds epoch values are ~1e9-1e10; ms epoch values are ~1e12-1e13.
-  // Treat anything less than year ~2001 in ms (1e12) as seconds.
-  if (value > 0 && value < 1_000_000_000_000) {
-    return value * 1000;
-  }
-  return value;
-}
-
 function sortEntriesNewestFirst(entries) {
   return (Array.isArray(entries) ? entries : []).slice().sort((a, b) => {
-    const aTs = normalizeTimestampMs(a?.ts) ?? 0;
-    const bTs = normalizeTimestampMs(b?.ts) ?? 0;
+    const aTs = normalizeTimestamp(a?.ts) ?? 0;
+    const bTs = normalizeTimestamp(b?.ts) ?? 0;
     return bTs - aTs;
   });
 }

@@ -1,4 +1,6 @@
 import { computeJournalStats } from '../../shared/journal/stats.js';
+import { getTimestamp } from '../../shared/journal/utils.js';
+import { safeJsonParse } from './utils.js';
 
 export function hydrateJournalEntry(row) {
   if (!row) return null;
@@ -16,15 +18,6 @@ export function hydrateJournalEntry(row) {
     provider: row.provider,
     sessionSeed: row.session_seed
   };
-}
-
-function safeJsonParse(value, fallback) {
-  if (!value) return fallback;
-  try {
-    return JSON.parse(value);
-  } catch {
-    return fallback;
-  }
 }
 
 export async function loadEntriesForUser(env, userId, entryIds) {
@@ -76,11 +69,7 @@ function buildContextBreakdown(entries) {
 
 function deriveLastEntryTimestamp(entries) {
   return entries.reduce((latest, entry) => {
-    const ts = typeof entry?.ts === 'number'
-      ? entry.ts
-      : entry?.created_at
-        ? entry.created_at * 1000
-        : 0;
+    const ts = getTimestamp(entry) || 0;
     return ts > latest ? ts : latest;
   }, 0);
 }

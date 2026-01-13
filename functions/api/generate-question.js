@@ -6,6 +6,7 @@ import {
 import { getUserFromRequest } from '../lib/auth.js';
 import { enforceApiCallLimit } from '../lib/apiUsage.js';
 import { getSubscriptionContext } from '../lib/entitlements.js';
+import { hashString, ensureQuestionMark } from '../../shared/utils.js';
 
 const JSON_HEADERS = { 'Content-Type': 'application/json' };
 
@@ -17,23 +18,6 @@ function canUseAIQuestions(subscription) {
 function sanitizeSnippet(value, fallback) {
   if (!value || typeof value !== 'string') return fallback;
   return value.trim();
-}
-
-function ensureQuestionMark(text) {
-  if (!text) return '';
-  return text.trim().endsWith('?') ? text.trim() : `${text.trim()}?`;
-}
-
-/**
- * FNV-1a hash function (matches deck.js implementation)
- */
-function hashString(str) {
-  let h = 2166136261 >>> 0;
-  for (let i = 0; i < str.length; i++) {
-    h ^= str.charCodeAt(i);
-    h = Math.imul(h, 16777619);
-  }
-  return h >>> 0;
 }
 
 /**

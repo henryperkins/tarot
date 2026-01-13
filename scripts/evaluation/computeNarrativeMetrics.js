@@ -3,6 +3,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 
 import { validateReadingNarrative } from '../../functions/lib/narrativeSpine.js';
+import { normalizeCardName } from '../../functions/lib/cardContextDetection.js';
 import { MAJOR_ARCANA } from '../../src/data/majorArcana.js';
 import { MINOR_ARCANA } from '../../src/data/minorArcana.js';
 import { parseCsv, stringifyRow } from './lib/csv.js';
@@ -106,10 +107,6 @@ function containsPattern(text, patterns) {
 
 function escapeRegex(text) {
   return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-}
-
-function normalizeCardName(value = '') {
-  return value.trim().toLowerCase();
 }
 
 function analyzeCardCoverage(reading, cardsInfo = []) {

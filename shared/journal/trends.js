@@ -15,8 +15,8 @@ export function computeMonthlyTotals(trends) {
     const existing = monthMap.get(month) || { year_month: month, total: 0, majorCount: 0 };
     existing.total += t.count || 0;
 
-    // Card numbers 0-21 are Major Arcana (null/undefined are ignored)
-    if (t.card_number != null && t.card_number <= 21) {
+    // Card numbers 0-21 are Major Arcana (null/undefined/negative are ignored)
+    if (t.card_number != null && t.card_number >= 0 && t.card_number <= 21) {
       existing.majorCount += t.count || 0;
     }
 

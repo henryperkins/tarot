@@ -46,31 +46,10 @@ export function jsonResponse(data, init = {}) {
   });
 }
 
-/**
- * Safely parse JSON with fallback to prevent single corrupt row from breaking entire responses.
- * Useful for parsing JSON columns from D1 where a single corrupt row shouldn't crash the endpoint.
- *
- * @param {string | null | undefined} json - JSON string to parse
- * @param {any} fallback - Fallback value if parsing fails or input is null/undefined
- * @param {Object} [options] - Optional configuration
- * @param {boolean} [options.silent=false] - If true, suppress console warnings on parse failure
- * @returns {any} Parsed value or fallback
- *
- * @example
- * const cards = safeJsonParse(entry.cards_json, []);
- * const themes = safeJsonParse(entry.themes_json, null, { silent: true });
- */
-export function safeJsonParse(json, fallback, options = {}) {
-  if (!json) return fallback;
-  try {
-    return JSON.parse(json);
-  } catch (e) {
-    if (!options.silent) {
-      console.warn('JSON parse failed:', e.message);
-    }
-    return fallback;
-  }
-}
+// Re-export safeJsonParse from canonical shared location.
+// Note: The shared version defaults to silent=true. Workers code that wants warnings
+// should explicitly pass { silent: false }.
+export { safeJsonParse } from '../../shared/utils.js';
 
 /**
  * Build CORS headers that support credentials when an Origin is provided.

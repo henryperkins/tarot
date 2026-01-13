@@ -1,3 +1,5 @@
+import { getTimestamp, safeJsonParse } from './utils.js';
+
 export const REVERSED_PATTERN = /reversed/i;
 
 function normalizeEntriesArray(entries) {
@@ -5,17 +7,6 @@ function normalizeEntriesArray(entries) {
     return [];
   }
   return entries.filter(Boolean);
-}
-
-function getEntryTimestampMs(entry) {
-  if (!entry) return null;
-  const ts = Number(entry.ts);
-  if (Number.isFinite(ts)) return ts;
-  const createdAt = Number(entry.created_at);
-  if (Number.isFinite(createdAt)) return createdAt * 1000;
-  const updatedAt = Number(entry.updated_at);
-  if (Number.isFinite(updatedAt)) return updatedAt * 1000;
-  return null;
 }
 
 export function extractRecentThemes(entries, limit = 4) {
@@ -28,14 +19,16 @@ export function extractRecentThemes(entries, limit = 4) {
   const results = [];
 
   const sorted = [...safeEntries].sort((a, b) => {
-    const tsA = getEntryTimestampMs(a) || 0;
-    const tsB = getEntryTimestampMs(b) || 0;
+    const tsA = getTimestamp(a) || 0;
+    const tsB = getTimestamp(b) || 0;
     return tsB - tsA;
   });
 
   for (const entry of sorted) {
     if (results.length >= limit) break;
-    const themes = entry?.themes || entry?.themes_json || {};
+    // Parse themes_json if it's a string (from DB or localStorage)
+    const themesRaw = entry?.themes || entry?.themes_json;
+    const themes = safeJsonParse(themesRaw, {});
     const candidates = [
       themes?.archetypeDescription,
       themes?.suitFocus,
@@ -75,7 +68,7 @@ export function computeJournalStats(entries) {
     const contextKey = entry?.context || 'general';
     contextMap.set(contextKey, (contextMap.get(contextKey) || 0) + 1);
 
-    const entryTimestamp = getEntryTimestampMs(entry);
+    const entryTimestamp = getTimestamp(entry);
     const entryDate = entryTimestamp ? new Date(entryTimestamp) : null;
 
     if (entryDate && !Number.isNaN(entryDate.getTime())) {
@@ -86,15 +79,9 @@ export function computeJournalStats(entries) {
       monthMap.set(monthKey, existing);
     }
 
-    const cards = Array.isArray(entry?.cards)
-      ? entry.cards
-      : (() => {
-          try {
-            return entry?.cards_json ? JSON.parse(entry.cards_json) : [];
-          } catch {
-            return [];
-          }
-        })();
+    // Parse cards_json if it's a string (from DB or localStorage)
+    const cardsRaw = entry?.cards || entry?.cards_json;
+    const cards = Array.isArray(cardsRaw) ? cardsRaw : safeJsonParse(cardsRaw, []);
 
     cards.forEach((card) => {
       if (!card) return;

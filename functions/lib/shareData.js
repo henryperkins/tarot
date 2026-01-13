@@ -1,13 +1,5 @@
 import { hydrateJournalEntry } from './shareUtils.js';
-
-function safeJson(value, fallback) {
-  if (!value) return fallback;
-  try {
-    return JSON.parse(value);
-  } catch {
-    return fallback;
-  }
-}
+import { safeJsonParse } from './utils.js';
 
 export async function loadShareRecord(env, token) {
   const row = await env.DB.prepare(`
@@ -24,7 +16,7 @@ export async function loadShareRecord(env, token) {
     createdAt: row.created_at,
     expiresAt: row.expires_at,
     viewCount: row.view_count || 0,
-    meta: safeJson(row.meta_json, {})
+    meta: safeJsonParse(row.meta_json, {})
   };
 }
 

@@ -25,6 +25,7 @@ import {
   executeD1Query,
   runWranglerCommand
 } from '../lib/dataAccess.js';
+import { safeJsonParse } from '../../shared/utils.js';
 
 const DEFAULT_OUTPUT = 'training/readings.jsonl';
 const DEFAULT_JOURNAL_FILE = 'data/journal/export.json';
@@ -340,10 +341,10 @@ async function fetchJournalFromD1(options) {
     spreadKey: row.spread_key,
     spreadName: row.spread_name,
     question: row.question || '',
-    cards: safeParseJson(row.cards_json, []),
+    cards: safeJsonParse(row.cards_json, []),
     readingText: row.narrative || '',
-    themes: safeParseJson(row.themes_json, null),
-    reflections: safeParseJson(row.reflections_json, {}),
+    themes: safeJsonParse(row.themes_json, null),
+    reflections: safeJsonParse(row.reflections_json, {}),
     context: row.context || null,
     provider: row.provider || null,
     sessionSeed: row.session_seed || null,
@@ -544,15 +545,6 @@ async function writeJsonl(records, outputPath) {
   await fs.mkdir(path.dirname(absPath), { recursive: true });
   const lines = records.map((record) => JSON.stringify(record));
   await fs.writeFile(absPath, `${lines.join('\n')}\n`);
-}
-
-function safeParseJson(value, fallback = null) {
-  if (!value || typeof value !== 'string') return fallback;
-  try {
-    return JSON.parse(value);
-  } catch {
-    return fallback;
-  }
 }
 
 /**

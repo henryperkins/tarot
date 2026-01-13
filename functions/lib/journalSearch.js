@@ -1,11 +1,12 @@
 /**
  * Journal Search Utilities
- * 
+ *
  * Semantic search utilities for journal entries.
  * Enables pattern recognition across a user's reading history.
  */
 
 import { generateEmbeddings } from './coachSuggestion.js';
+import { safeJsonParse } from './utils.js';
 
 const DEFAULT_SEARCH_LIMIT = 3;
 const DEFAULT_MIN_SIMILARITY = 0.65;
@@ -317,18 +318,6 @@ function normalizeCardName(name) {
     .split(' ')
     .map(word => word.charAt(0).toUpperCase() + word.slice(1))
     .join(' ');
-}
-
-/**
- * Safely parse JSON with fallback
- */
-function safeJsonParse(str, fallback) {
-  if (!str) return fallback;
-  try {
-    return JSON.parse(str);
-  } catch {
-    return fallback;
-  }
 }
 
 export default {

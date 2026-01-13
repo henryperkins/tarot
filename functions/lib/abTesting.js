@@ -8,6 +8,8 @@
  * - No external dependencies
  */
 
+import { safeJsonParse } from './utils.js';
+
 /**
  * Simple hash function for deterministic assignment.
  * Uses FNV-1a algorithm for good distribution.
@@ -43,9 +45,9 @@ export async function loadActiveExperiments(db) {
 
     return (result.results || []).map((exp) => ({
       ...exp,
-      treatment_variants: safeParseJSON(exp.treatment_variants, []),
-      spread_keys: safeParseJSON(exp.spread_keys, null),
-      providers: safeParseJSON(exp.providers, null),
+      treatment_variants: safeJsonParse(exp.treatment_variants, []),
+      spread_keys: safeJsonParse(exp.spread_keys, null),
+      providers: safeJsonParse(exp.providers, null),
     }));
   } catch (err) {
     // Table might not exist yet
@@ -316,20 +318,9 @@ export async function getExperimentResults(db, experimentId) {
   return {
     experiment: {
       ...experiment,
-      treatment_variants: safeParseJSON(experiment.treatment_variants, []),
+      treatment_variants: safeJsonParse(experiment.treatment_variants, []),
     },
     results: stats.results || [],
   };
 }
 
-/**
- * Safe JSON parse with fallback.
- */
-function safeParseJSON(str, fallback) {
-  if (!str) return fallback;
-  try {
-    return JSON.parse(str);
-  } catch {
-    return fallback;
-  }
-}

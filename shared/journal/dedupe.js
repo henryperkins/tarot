@@ -1,3 +1,5 @@
+import { getTimestamp, safeJsonParse } from './utils.js';
+
 /**
  * Deduplicate journal entries by stable keys.
  * Priority:
@@ -11,12 +13,6 @@ export function dedupeEntries(entries) {
 
   const seen = new Set();
   const normalized = [];
-
-  const getTimestamp = (entry) => {
-    const candidates = [entry?.ts, entry?.created_at, entry?.updated_at]
-      .map((value) => (Number.isFinite(value) ? (value < 1e12 ? value * 1000 : value) : null));
-    return candidates.find(Boolean) || null;
-  };
 
   const buildCardsSignature = (cards = []) => {
     if (!Array.isArray(cards) || cards.length === 0) return '';
@@ -35,7 +31,10 @@ export function dedupeEntries(entries) {
     if (!entry) return;
     const ts = getTimestamp(entry);
     const sessionSeed = entry.sessionSeed || entry.session_seed || null;
-    const cardsSig = buildCardsSignature(entry.cards || entry.cards_json || []);
+    // Parse cards_json if it's a string (from localStorage or legacy data)
+    const cardsRaw = entry.cards || entry.cards_json;
+    const cards = safeJsonParse(cardsRaw, []);
+    const cardsSig = buildCardsSignature(cards);
     const question = (entry.question || entry.prompt || '').trim().toLowerCase();
     const spreadKey = (entry.spreadKey || entry.spread_key || '').toLowerCase();
     const fingerprint = sessionSeed

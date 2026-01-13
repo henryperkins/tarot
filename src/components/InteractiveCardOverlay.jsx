@@ -1,24 +1,29 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { CaretDown, CaretUp, Lightbulb } from '@phosphor-icons/react';
 import { SYMBOL_COORDINATES } from '../data/symbolCoordinates';
+import { findRelatedCards } from '../../shared/symbols/symbolIndex';
+import { getRandomReflection } from '../../shared/symbols/symbolReflections';
 import { useReducedMotion } from '../hooks/useReducedMotion';
 import { titleCase } from '../lib/textUtils';
 
 // Estimated tooltip dimensions for collision detection
-const TOOLTIP_WIDTH = 220;
-const TOOLTIP_HEIGHT = 120;
+const TOOLTIP_WIDTH = 280;
+const TOOLTIP_HEIGHT_COLLAPSED = 140;
+const TOOLTIP_HEIGHT_EXPANDED = 260;
 const VIEWPORT_PADDING = 16;
 
 /**
  * Calculate tooltip position with viewport collision detection
  */
-function calculateTooltipPosition(rect) {
+function calculateTooltipPosition(rect, isExpanded = false) {
   let x = rect.left + rect.width / 2;
   let y = rect.bottom + 8;
   let placement = 'below';
 
   const viewportWidth = window.innerWidth;
   const viewportHeight = window.innerHeight;
+  const tooltipHeight = isExpanded ? TOOLTIP_HEIGHT_EXPANDED : TOOLTIP_HEIGHT_COLLAPSED;
 
   // Check if tooltip would overflow right edge
   if (x + TOOLTIP_WIDTH / 2 > viewportWidth - VIEWPORT_PADDING) {
@@ -31,13 +36,13 @@ function calculateTooltipPosition(rect) {
   }
 
   // Check if tooltip would overflow bottom - flip to top
-  if (y + TOOLTIP_HEIGHT > viewportHeight - VIEWPORT_PADDING) {
-    y = rect.top - TOOLTIP_HEIGHT - 8;
+  if (y + tooltipHeight > viewportHeight - VIEWPORT_PADDING) {
+    y = rect.top - tooltipHeight - 8;
     placement = 'above';
 
     // If flipped tooltip would also overflow top, center it vertically
     if (y < VIEWPORT_PADDING) {
-      y = Math.max(VIEWPORT_PADDING, (viewportHeight - TOOLTIP_HEIGHT) / 2);
+      y = Math.max(VIEWPORT_PADDING, (viewportHeight - tooltipHeight) / 2);
       placement = 'center';
     }
   }
@@ -52,12 +57,25 @@ function calculateTooltipPosition(rect) {
  */
 export function InteractiveCardOverlay({ card }) {
   const [activeSymbol, setActiveSymbol] = useState(null);
+  const [isExpanded, setIsExpanded] = useState(false);
   const [tooltipPosition, setTooltipPosition] = useState({ x: 0, y: 0, placement: 'below' });
+  const [activeRect, setActiveRect] = useState(null);
   const prefersReducedMotion = useReducedMotion();
 
   // Get card number for coordinate lookup
   const cardNumber = card.number ?? null;
   const coordinates = SYMBOL_COORDINATES[cardNumber];
+
+  // Memoize related cards and reflection for active symbol
+  const relatedCards = useMemo(() => {
+    if (!activeSymbol) return [];
+    return findRelatedCards(activeSymbol.object, cardNumber, 3);
+  }, [activeSymbol, cardNumber]);
+
+  const reflection = useMemo(() => {
+    if (!activeSymbol) return null;
+    return getRandomReflection(activeSymbol.object);
+  }, [activeSymbol]);
 
   // Close tooltip on scroll, resize, or clicking outside
   useEffect(() => {
@@ -107,14 +125,28 @@ export function InteractiveCardOverlay({ card }) {
     // Toggle tooltip - close if clicking same symbol, open if different
     if (activeSymbol?.object === symbol.object) {
       setActiveSymbol(null);
+      setIsExpanded(false);
     } else {
       // Calculate position with collision detection
       const rect = event.currentTarget.getBoundingClientRect();
-      const position = calculateTooltipPosition(rect);
+      const position = calculateTooltipPosition(rect, false);
       setTooltipPosition(position);
+      setActiveRect(rect);
       setActiveSymbol(symbol);
+      setIsExpanded(false);
     }
   }, [activeSymbol]);
+
+  const handleToggleExpand = useCallback((event) => {
+    event.stopPropagation();
+    const newExpanded = !isExpanded;
+    setIsExpanded(newExpanded);
+    // Recalculate position for new height
+    if (activeRect) {
+      const position = calculateTooltipPosition(activeRect, newExpanded);
+      setTooltipPosition(position);
+    }
+  }, [isExpanded, activeRect]);
 
   const handleKeyDown = useCallback((symbol, event) => {
     if (event.key === 'Enter' || event.key === ' ') {
@@ -220,17 +252,83 @@ export function InteractiveCardOverlay({ card }) {
             }`}
             style={{ maxWidth: `${TOOLTIP_WIDTH}px` }}
           >
-            <p className="text-sm font-semibold text-accent mb-1">
-              {titleCase(activeSymbol.object)}
-            </p>
-            {activeSymbol.color && (
-              <p className="text-xs text-secondary/80 mb-1">
-                Color: {activeSymbol.color}
-              </p>
-            )}
-            <p className="text-xs text-main/90 leading-relaxed whitespace-normal">
+            {/* Header with symbol name */}
+            <div className="flex items-start justify-between gap-2">
+              <div>
+                <p className="text-sm font-semibold text-accent">
+                  {titleCase(activeSymbol.object)}
+                </p>
+                {activeSymbol.color && (
+                  <p className="text-xs text-secondary/70">
+                    {activeSymbol.color}
+                  </p>
+                )}
+              </div>
+              {(reflection || relatedCards.length > 0) && (
+                <button
+                  onClick={handleToggleExpand}
+                  className="flex items-center gap-1 text-xs text-secondary/70 hover:text-accent transition-colors p-1 -m-1"
+                  aria-expanded={isExpanded}
+                  aria-label={isExpanded ? 'Show less' : 'Explore deeper'}
+                >
+                  {isExpanded ? (
+                    <CaretUp className="w-3.5 h-3.5" />
+                  ) : (
+                    <CaretDown className="w-3.5 h-3.5" />
+                  )}
+                </button>
+              )}
+            </div>
+
+            {/* Meaning */}
+            <p className="text-xs text-main/90 leading-relaxed whitespace-normal mt-1.5">
               {activeSymbol.meaning}
             </p>
+
+            {/* Expanded content */}
+            {isExpanded && (
+              <div className={`mt-3 pt-3 border-t border-secondary/20 space-y-3 ${
+                prefersReducedMotion ? '' : 'animate-in fade-in slide-in-from-top-2 duration-200'
+              }`}>
+                {/* Reflective question */}
+                {reflection && (
+                  <div className="flex gap-2">
+                    <Lightbulb className="w-3.5 h-3.5 text-accent/70 flex-shrink-0 mt-0.5" />
+                    <p className="text-xs text-main/80 italic leading-relaxed">
+                      {reflection}
+                    </p>
+                  </div>
+                )}
+
+                {/* Related cards */}
+                {relatedCards.length > 0 && (
+                  <div>
+                    <p className="text-xs text-secondary/60 mb-1.5">Also appears in:</p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {relatedCards.map(({ cardNumber: num, cardName }) => (
+                        <span
+                          key={num}
+                          className="text-xs px-2 py-0.5 rounded-full bg-secondary/10 text-secondary/80 border border-secondary/20"
+                        >
+                          {cardName}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Expand hint when collapsed */}
+            {!isExpanded && (reflection || relatedCards.length > 0) && (
+              <button
+                onClick={handleToggleExpand}
+                className="mt-2 text-xs text-secondary/50 hover:text-accent transition-colors flex items-center gap-1"
+              >
+                <span>Explore deeper</span>
+                <CaretDown className="w-3 h-3" />
+              </button>
+            )}
 
             {/* Visual arrow indicator based on placement */}
             <div
