@@ -235,10 +235,17 @@ async function cleanupStaleMemories(db) {
     totalDeleted += orphanedResult?.meta?.changes || 0;
 
     // 4. Trim users with too many memories (keep max 100 per user)
-    const usersWithTooMany = await db.prepare(`
-      SELECT user_id, COUNT(*) as cnt FROM user_memories
-      GROUP BY user_id HAVING cnt > 100
-    `).all();
+    let usersWithTooMany = { results: [] };
+    try {
+      const stmt = db.prepare(`
+        SELECT user_id, COUNT(*) as cnt FROM user_memories
+        GROUP BY user_id HAVING cnt > 100
+      `);
+      // D1 returns { results: [...] } from .all()
+      usersWithTooMany = await stmt.all();
+    } catch (allErr) {
+      console.warn('Memory trim query failed:', allErr?.message || allErr);
+    }
 
     let usersProcessed = 0;
     for (const row of (usersWithTooMany?.results || [])) {

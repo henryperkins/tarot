@@ -2141,6 +2141,14 @@ export function validatePayload({ spreadInfo, cardsInfo }) {
     return 'One or more cards are missing required details.';
   }
 
+  // Validate spread card count for known spreads
+  const spreadDefinition = getSpreadDefinition(spreadInfo.name);
+  if (spreadDefinition && typeof spreadDefinition.count === 'number') {
+    if (cardsInfo.length !== spreadDefinition.count) {
+      return `Spread "${spreadInfo.name}" expects ${spreadDefinition.count} cards, but received ${cardsInfo.length}.`;
+    }
+  }
+
   // Warn (without rejecting) if Minor Arcana cards are missing suit/rank metadata.
   const minorMetadataIssues = [];
   cardsInfo.forEach((card, index) => {
@@ -2509,53 +2517,50 @@ async function composeReadingEnhanced(payload) {
     spreadKey
   );
 
-  let readingText;
-  try {
-    const composerOptions = {
-      personalization,
-      reasoning,
-      proseMode: true,
-      collectValidation: (section) => {
-        if (!section) return;
-        collectedSections.push({
-          text: section.text || '',
-          metadata: section.metadata || {},
-          validation: section.validation || null
-        });
-      }
-    };
-
-    readingText = await generateReadingFromAnalysis(
-      {
-        spreadKey,
-        spreadAnalysis,
-        cardsInfo,
-        userQuestion,
-        reflectionsText,
-        themes,
-        spreadInfo,
-        context
-      },
-      composerOptions
-    );
-
-    payload.narrativeEnhancements = collectedSections;
-
-    if (!payload.promptMeta) {
-      payload.promptMeta = {
-        backend: 'local-composer',
-        estimatedTokens: null,
-        slimmingSteps: []
-      };
+  const composerOptions = {
+    personalization,
+    reasoning,
+    proseMode: true,
+    collectValidation: (section) => {
+      if (!section) return;
+      collectedSections.push({
+        text: section.text || '',
+        metadata: section.metadata || {},
+        validation: section.validation || null
+      });
     }
+  };
 
-    // Return reading with null prompts (local composer doesn't use LLM prompts)
-    return {
-      reading: readingText,
-      prompts: null,
-      usage: null
+  const readingText = await generateReadingFromAnalysis(
+    {
+      spreadKey,
+      spreadAnalysis,
+      cardsInfo,
+      userQuestion,
+      reflectionsText,
+      themes,
+      spreadInfo,
+      context
+    },
+    composerOptions
+  );
+
+  payload.narrativeEnhancements = collectedSections;
+
+  if (!payload.promptMeta) {
+    payload.promptMeta = {
+      backend: 'local-composer',
+      estimatedTokens: null,
+      slimmingSteps: []
     };
   }
+
+  // Return reading with null prompts (local composer doesn't use LLM prompts)
+  return {
+    reading: readingText,
+    prompts: null,
+    usage: null
+  };
 }
 
 async function runNarrativeBackend(backendId, env, payload, requestId) {
@@ -2664,9 +2669,9 @@ function buildGenericReading(
   const synthesisText = reasoning
     ? buildReasoningSynthesis(safeCards, reasoning, themes, userQuestion, context)
     : buildEnhancedSynthesis(safeCards, themes, userQuestion, context, {
-        rotationIndex: remedyRotationIndex,
-        depthProfile
-      });
+      rotationIndex: remedyRotationIndex,
+      depthProfile
+    });
   entries.push({
     text: synthesisText,
     metadata: { type: 'synthesis', cards: finalCard ? [finalCard] : [] }
