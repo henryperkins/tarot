@@ -55,6 +55,7 @@ export async function buildRelationshipReading({
   const tone = getToneStyle(personalization?.readingTone);
   const frameVocab = getFrameVocabulary(personalization?.spiritualFrame);
   const nameInline = buildNameClause(personalization?.displayName, 'inline');
+  const proseOptions = { proseMode: options.proseMode === true };
 
   // Use reasoning-aware opening if available
   const openingQuestion = userQuestion ||
@@ -73,7 +74,7 @@ export async function buildRelationshipReading({
   const positionOptions = getPositionOptions(themes, context);
   let reversalReminderEmbedded = false;
 
-  const attentionNote = buildWeightAttentionIntro(prioritized, spreadName);
+  const attentionNote = buildWeightAttentionIntro(prioritized, spreadName, undefined, proseOptions);
   if (attentionNote) {
     sections.push(attentionNote);
   }
@@ -103,7 +104,7 @@ export async function buildRelationshipReading({
 
     youThem += '\n\n';
 
-    const youWeightNote = buildWeightNote('relationship', 0, youPosition);
+    const youWeightNote = buildWeightNote('relationship', 0, youPosition, proseOptions);
     if (youWeightNote) {
       youThem += `${youWeightNote}\n\n`;
     }
@@ -129,7 +130,7 @@ export async function buildRelationshipReading({
       }
     }
 
-    const themWeightNote = buildWeightNote('relationship', 1, themPosition);
+    const themWeightNote = buildWeightNote('relationship', 1, themPosition, proseOptions);
     if (themWeightNote) {
       youThem += `\n\n${themWeightNote}`;
     }
@@ -183,7 +184,7 @@ export async function buildRelationshipReading({
       }
     }
 
-    const connectionWeightNote = buildWeightNote('relationship', 2, connectionPosition);
+    const connectionWeightNote = buildWeightNote('relationship', 2, connectionPosition, proseOptions);
     if (connectionWeightNote) {
       connection += `\n\n${connectionWeightNote}`;
     }
@@ -236,7 +237,7 @@ export async function buildRelationshipReading({
 
     const fallbackIndex = normalizedCards.findIndex(card => card === fallbackGuidanceCard);
     if (fallbackIndex >= 0) {
-      const guidanceWeightNote = buildWeightNote('relationship', fallbackIndex, fallbackPosition);
+      const guidanceWeightNote = buildWeightNote('relationship', fallbackIndex, fallbackPosition, proseOptions);
       if (guidanceWeightNote) {
         guidance += `${guidanceWeightNote}\n\n`;
       }
@@ -253,7 +254,7 @@ export async function buildRelationshipReading({
 
   if (dynamicsCard) {
     const dynamicsPosition = dynamicsCard.position || 'Dynamics / guidance';
-    const dynamicsWeightNote = buildWeightNote('relationship', 3, dynamicsPosition);
+    const dynamicsWeightNote = buildWeightNote('relationship', 3, dynamicsPosition, proseOptions);
     if (dynamicsWeightNote) {
       guidance += `${dynamicsWeightNote}\n\n`;
     }
@@ -261,7 +262,7 @@ export async function buildRelationshipReading({
 
   if (outcomeCard) {
     const outcomePosition = outcomeCard.position || 'Outcome / what this can become';
-    const outcomeWeightNote = buildWeightNote('relationship', 4, outcomePosition);
+    const outcomeWeightNote = buildWeightNote('relationship', 4, outcomePosition, proseOptions);
     if (outcomeWeightNote) {
       guidance += `${outcomeWeightNote}\n\n`;
     }
@@ -279,7 +280,7 @@ export async function buildRelationshipReading({
     })
   );
 
-  const supportingSummary = buildSupportingPositionsSummary(prioritized, spreadName);
+  const supportingSummary = buildSupportingPositionsSummary(prioritized, spreadName, undefined, proseOptions);
   if (supportingSummary) {
     sections.push(supportingSummary);
   }

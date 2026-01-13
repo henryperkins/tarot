@@ -43,7 +43,7 @@ function CardDetailContent({ focusedCardData, reflections, setReflections, onOpe
           <button
             type="button"
             onClick={() => onOpenModal?.(focusedCardData)}
-            className="mt-3 inline-flex items-center justify-center rounded-full border border-secondary/40 px-3 py-1.5 text-xs font-semibold text-muted hover:text-main hover:border-secondary/60 transition"
+            className="mt-3 inline-flex min-h-[44px] items-center justify-center rounded-full border border-secondary/40 px-4 py-2 text-xs font-semibold text-muted hover:text-main hover:border-secondary/60 transition touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/50"
           >
             Open full card
           </button>

@@ -697,7 +697,7 @@ export default function TarotReading() {
         {apiHealthBanner && (
           <div className="mb-6 p-4 bg-primary/10 border border-primary/30 rounded-lg backdrop-blur">
             <div className="flex items-center gap-3">
-              <div className="w-3 h-3 rounded-full bg-primary animate-pulse"></div>
+              <div className="w-3 h-3 rounded-full bg-primary animate-pulse motion-reduce:animate-none"></div>
               <div className="text-accent text-xs sm:text-sm">
                 <span className="font-semibold">Service Status:</span>{' '}
                 <span className="sm:hidden">Local fallbacks active</span>
@@ -715,7 +715,7 @@ export default function TarotReading() {
         {minorsDataIncomplete && (
           <div className="mb-6 p-4 bg-error/10 border border-error/40 rounded-lg backdrop-blur">
             <div className="flex items-center gap-3">
-              <div className="w-3 h-3 rounded-full bg-error animate-pulse"></div>
+              <div className="w-3 h-3 rounded-full bg-error animate-pulse motion-reduce:animate-none"></div>
               <div className="text-error text-xs sm:text-sm">
                 <span className="font-semibold">Deck Data Warning:</span> Minor Arcana data incomplete. Using Major Arcana only.
               </div>

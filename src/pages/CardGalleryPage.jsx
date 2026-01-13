@@ -347,10 +347,10 @@ export default function CardGalleryPage() {
         <div className="mb-8">
           <button
             onClick={() => navigate('/journal')}
-            className="flex items-center text-sm text-accent hover:text-main mb-4 transition-colors"
+            className="inline-flex min-h-[44px] items-center gap-2 rounded-full px-3 py-2 text-accent hover:text-main hover:bg-surface-muted/30 transition touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/50 mb-4"
           >
-            <CaretLeft className="w-4 h-4 mr-1" />
-            Back to Journal
+            <CaretLeft className="w-5 h-5" />
+            <span>Back to Journal</span>
           </button>
 
           <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
@@ -386,10 +386,13 @@ export default function CardGalleryPage() {
         <div className="sticky top-4 z-20 mb-6 p-1 rounded-xl bg-black/40 backdrop-blur-md border border-white/5 flex flex-wrap gap-2 items-center">
           {/* Suit Filter */}
           <div className="relative group">
+            <label htmlFor="suit-filter" className="sr-only">Filter by suit</label>
             <select
+              id="suit-filter"
+              aria-label="Filter by suit"
               value={filterSuit}
               onChange={(e) => setFilterSuit(e.target.value)}
-              className="appearance-none bg-white/5 border border-white/10 rounded-lg pl-3 pr-8 py-2 text-sm text-main focus:ring-1 focus:ring-accent/50 outline-none cursor-pointer hover:bg-white/10"
+              className="appearance-none min-h-[44px] bg-white/5 border border-white/10 rounded-lg pl-3 pr-8 py-2 text-sm text-main focus:ring-1 focus:ring-accent/50 outline-none cursor-pointer hover:bg-white/10 touch-manipulation"
             >
               <option value="all">All Suits</option>
               <option value="major">Major Arcana</option>
@@ -398,26 +401,33 @@ export default function CardGalleryPage() {
               <option value="swords">Swords</option>
               <option value="pentacles">Pentacles</option>
             </select>
-            <Funnel className="absolute right-2.5 top-2.5 w-4 h-4 text-muted pointer-events-none" />
+            <Funnel className="absolute right-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted pointer-events-none" />
           </div>
 
           {/* Status Filter */}
-          <div className="flex bg-white/5 rounded-lg p-1 border border-white/10">
+          <div
+            className="flex bg-white/5 rounded-lg p-1 border border-white/10"
+            role="group"
+            aria-label="Filter by card status"
+          >
             <button
               onClick={() => setFilterStatus('all')}
-              className={`px-3 py-1 text-xs font-medium rounded-md transition-all ${filterStatus === 'all' ? 'bg-accent/20 text-accent' : 'text-muted hover:text-main'}`}
+              aria-pressed={filterStatus === 'all'}
+              className={`min-h-[44px] px-4 py-2 text-xs font-medium rounded-md transition-all touch-manipulation ${filterStatus === 'all' ? 'bg-accent/20 text-accent' : 'text-muted hover:text-main'}`}
             >
               All
             </button>
             <button
               onClick={() => setFilterStatus('found')}
-              className={`px-3 py-1 text-xs font-medium rounded-md transition-all ${filterStatus === 'found' ? 'bg-accent/20 text-accent' : 'text-muted hover:text-main'}`}
+              aria-pressed={filterStatus === 'found'}
+              className={`min-h-[44px] px-4 py-2 text-xs font-medium rounded-md transition-all touch-manipulation ${filterStatus === 'found' ? 'bg-accent/20 text-accent' : 'text-muted hover:text-main'}`}
             >
               Found
             </button>
             <button
               onClick={() => setFilterStatus('missing')}
-              className={`px-3 py-1 text-xs font-medium rounded-md transition-all ${filterStatus === 'missing' ? 'bg-accent/20 text-accent' : 'text-muted hover:text-main'}`}
+              aria-pressed={filterStatus === 'missing'}
+              className={`min-h-[44px] px-4 py-2 text-xs font-medium rounded-md transition-all touch-manipulation ${filterStatus === 'missing' ? 'bg-accent/20 text-accent' : 'text-muted hover:text-main'}`}
             >
               Missing
             </button>
@@ -427,17 +437,20 @@ export default function CardGalleryPage() {
 
           {/* Sort */}
           <div className="relative">
+            <label htmlFor="sort-by" className="sr-only">Sort cards by</label>
             <select
+              id="sort-by"
+              aria-label="Sort cards by"
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value)}
-              className="appearance-none bg-white/5 border border-white/10 rounded-lg pl-3 pr-8 py-2 text-sm text-main focus:ring-1 focus:ring-accent/50 outline-none cursor-pointer hover:bg-white/10"
+              className="appearance-none min-h-[44px] bg-white/5 border border-white/10 rounded-lg pl-3 pr-8 py-2 text-sm text-main focus:ring-1 focus:ring-accent/50 outline-none cursor-pointer hover:bg-white/10 touch-manipulation"
             >
               <option value="deck">Deck Order</option>
               <option value="count_desc">Most Frequent</option>
               <option value="count_asc">Rarely Drawn</option>
               <option value="recency">Recently Seen</option>
             </select>
-            <SortAscending className="absolute right-2.5 top-2.5 w-4 h-4 text-muted pointer-events-none" />
+            <SortAscending className="absolute right-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted pointer-events-none" />
           </div>
         </div>
 

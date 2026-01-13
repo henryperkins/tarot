@@ -341,7 +341,7 @@ export function ReadingDisplay({ sectionRef }) {
                     )}
                     {revealedCards.size > 0 && (
                         <div className="text-center mt-3 sm:mt-4">
-                            <button type="button" onClick={handleResetReveals} className="inline-flex items-center justify-center px-4 py-2 rounded-full border border-accent/50 text-muted text-xs sm:text-sm hover:text-main hover:border-accent/70 transition">
+                            <button type="button" onClick={handleResetReveals} className="inline-flex items-center justify-center min-h-[44px] px-4 py-2 rounded-full border border-accent/50 text-muted text-xs sm:text-sm hover:text-main hover:border-accent/70 transition touch-manipulation">
                                 <span className="hidden xs:inline">Reset reveals (keep this spread)</span><span className="xs:hidden">Reset reveals</span>
                             </button>
                         </div>

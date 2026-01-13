@@ -2,8 +2,8 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Mystic Tarot · Offline</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>Tableu · Offline</title>
     <style>
       body {
         font-family: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
@@ -15,7 +15,9 @@
         align-items: center;
         justify-content: center;
         padding: 2rem;
+        padding: env(safe-area-inset-top, 2rem) env(safe-area-inset-right, 2rem) env(safe-area-inset-bottom, 2rem) env(safe-area-inset-left, 2rem);
         text-align: center;
+        box-sizing: border-box;
       }
       .card {
         border: 1px solid rgba(16, 185, 129, 0.4);
@@ -35,14 +37,46 @@
         line-height: 1.5;
         color: rgba(248, 250, 252, 0.85);
       }
-      button {
+      .actions {
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
         margin-top: 1.5rem;
+      }
+      @media (min-width: 400px) {
+        .actions {
+          flex-direction: row;
+          justify-content: center;
+        }
+      }
+      .btn {
+        min-height: 44px;
         padding: 0.85rem 1.5rem;
         border-radius: 999px;
         border: 1px solid rgba(248, 250, 252, 0.4);
         background: transparent;
         color: inherit;
         font-weight: 600;
+        font-size: 0.95rem;
+        cursor: pointer;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        transition: background-color 0.15s ease;
+      }
+      .btn:hover, .btn:focus {
+        background: rgba(248, 250, 252, 0.1);
+      }
+      .btn:active {
+        background: rgba(248, 250, 252, 0.2);
+      }
+      .btn-primary {
+        background: rgba(16, 185, 129, 0.2);
+        border-color: rgba(16, 185, 129, 0.5);
+      }
+      .btn-primary:hover, .btn-primary:focus {
+        background: rgba(16, 185, 129, 0.3);
       }
     </style>
   </head>
@@ -50,10 +84,13 @@
     <main class="card">
       <h1>Offline for now</h1>
       <p>
-        Mystic Tarot can run offline once your spreads and journal load at least once.
+        Tableu can run offline once your spreads and journal load at least once.
         Please reconnect to sync the latest decks, AI insights, and audio features.
       </p>
-      <button type="button" onclick="window.location.reload()">Try again</button>
+      <div class="actions">
+        <a href="/journal" class="btn btn-primary">Open Journal</a>
+        <button type="button" class="btn" onclick="window.location.reload()">Retry connection</button>
+      </div>
     </main>
   </body>
 </html>

@@ -23,7 +23,10 @@ export function setProseMode(enabled) {
   PROSE_MODE = !!enabled;
 }
 
-export function isProseMode() {
+export function isProseMode(options = {}) {
+  if (typeof options.proseMode === 'boolean') {
+    return options.proseMode;
+  }
   return PROSE_MODE;
 }
 
@@ -67,10 +70,10 @@ const SECTION_HEADERS = {
   opening: { technical: '', prose: '' } // Openings don't have headers
 };
 
-export function getSectionHeader(sectionKey) {
+export function getSectionHeader(sectionKey, options = {}) {
   const headers = SECTION_HEADERS[sectionKey];
   if (!headers) return `### ${sectionKey}`;
-  return PROSE_MODE ? headers.prose : headers.technical;
+  return isProseMode(options) ? headers.prose : headers.technical;
 }
 
 /**
@@ -337,15 +340,15 @@ function shouldEmphasizePosition(spreadKey, positionIndex, threshold = DEFAULT_W
   return getPositionWeight(spreadKey, positionIndex) >= threshold;
 }
 
-function buildWeightNote(spreadKey, positionIndex, label) {
-  if (PROSE_MODE) return ''; // Silent in prose mode
+function buildWeightNote(spreadKey, positionIndex, label, options = {}) {
+  if (isProseMode(options)) return ''; // Silent in prose mode
   const weight = getPositionWeight(spreadKey, positionIndex);
   if (weight < DEFAULT_WEIGHT_DETAIL_THRESHOLD) return '';
   return `*${label} carries an attention weight of ${weight.toFixed(2)}, so it receives extended focus here.*`;
 }
 
-function buildWeightAttentionIntro(prioritized, spreadName, threshold = DEFAULT_WEIGHT_DETAIL_THRESHOLD) {
-  if (PROSE_MODE) return ''; // Silent in prose mode
+function buildWeightAttentionIntro(prioritized, spreadName, threshold = DEFAULT_WEIGHT_DETAIL_THRESHOLD, options = {}) {
+  if (isProseMode(options)) return ''; // Silent in prose mode
   if (!Array.isArray(prioritized) || prioritized.length === 0) return '';
   const focal = prioritized.filter(card => card.weight >= threshold);
   if (!focal.length) return '';
@@ -356,8 +359,8 @@ function buildWeightAttentionIntro(prioritized, spreadName, threshold = DEFAULT_
   return `*Attention weighting (${spreadName}): ${cardMentions}. Lower-weight cards filter into synthesis summaries so the narrative mirrors what matters most.*`;
 }
 
-function buildSupportingPositionsSummary(prioritized, spreadName, threshold = SUPPORTING_WEIGHT_THRESHOLD) {
-  if (PROSE_MODE) return ''; // Silent in prose mode
+function buildSupportingPositionsSummary(prioritized, spreadName, threshold = SUPPORTING_WEIGHT_THRESHOLD, options = {}) {
+  if (isProseMode(options)) return ''; // Silent in prose mode
   if (!Array.isArray(prioritized)) return '';
   const supporting = prioritized.filter(card => card.card && card.weight < threshold);
   if (!supporting.length) return '';
@@ -1176,8 +1179,8 @@ function formatCrossCheckProse(label, crossCheck, _themes) {
   return `${card1Name} in ${pos1Short} and ${card2Name} in ${pos2Short} ${relationshipText}.`;
 }
 
-function formatCrossCheck(label, crossCheck, themes) {
-  if (PROSE_MODE) return formatCrossCheckProse(label, crossCheck, themes);
+function formatCrossCheck(label, crossCheck, themes, options = {}) {
+  if (isProseMode(options)) return formatCrossCheckProse(label, crossCheck, themes);
 
   if (!crossCheck) {
     return `${label}: No comparative insight available.`;

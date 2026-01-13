@@ -39,6 +39,7 @@ export async function buildThreeCardReading({
   const tone = getToneStyle(personalization?.readingTone);
   const frameVocab = getFrameVocabulary(personalization?.spiritualFrame);
   const nameInline = buildNameClause(personalization?.displayName, 'inline');
+  const proseOptions = { proseMode: options.proseMode === true };
   const collectValidation =
     typeof options.collectValidation === 'function'
       ? options.collectValidation
@@ -79,12 +80,12 @@ export async function buildThreeCardReading({
   const positionOptions = getPositionOptions(themes, context);
   const remedyRotationIndex = computeRemedyRotationIndex({ cardsInfo, userQuestion, spreadInfo });
 
-  const attentionNote = buildWeightAttentionIntro(prioritized, 'Three-Card Story');
+  const attentionNote = buildWeightAttentionIntro(prioritized, 'Three-Card Story', DEFAULT_WEIGHT_DETAIL_THRESHOLD, proseOptions);
   if (attentionNote) {
     sections.push(attentionNote);
   }
 
-  const storyHeader = getSectionHeader('threeCardStory');
+  const storyHeader = getSectionHeader('threeCardStory', proseOptions);
   let narrative = storyHeader ? `${storyHeader}\n\n` : '';
 
   const pastPosition = past.position || 'Past — influences that led here';
@@ -98,7 +99,7 @@ export async function buildThreeCardReading({
     if (enhanced.enhanced) pastText = enhanced.text;
   }
   narrative += `${pastText}\n\n`;
-  const pastWeightNote = buildWeightNote('threeCard', 0, pastPosition);
+  const pastWeightNote = buildWeightNote('threeCard', 0, pastPosition, proseOptions);
   if (pastWeightNote) {
     narrative += `${pastWeightNote}\n\n`;
   }
@@ -115,7 +116,7 @@ export async function buildThreeCardReading({
     if (enhanced.enhanced) presentText = enhanced.text;
   }
   narrative += `${presentConnector} ${presentText}\n\n`;
-  const presentWeightNote = buildWeightNote('threeCard', 1, presentPosition);
+  const presentWeightNote = buildWeightNote('threeCard', 1, presentPosition, proseOptions);
   if (presentWeightNote) {
     narrative += `${presentWeightNote}\n\n`;
   }
@@ -132,7 +133,7 @@ export async function buildThreeCardReading({
     if (enhanced.enhanced) futureText = enhanced.text;
   }
   narrative += `${futureConnector} ${futureText}\n\n`;
-  const futureWeightNote = buildWeightNote('threeCard', 2, futurePosition);
+  const futureWeightNote = buildWeightNote('threeCard', 2, futurePosition, proseOptions);
   if (futureWeightNote) {
     narrative += `${futureWeightNote}\n\n`;
   }
@@ -160,12 +161,12 @@ export async function buildThreeCardReading({
     sections.push(synthesisSection);
   }
 
-  const supportingSummary = buildSupportingPositionsSummary(prioritized, 'Three-Card Story');
+  const supportingSummary = buildSupportingPositionsSummary(prioritized, 'Three-Card Story', undefined, proseOptions);
   if (supportingSummary) {
     sections.push(supportingSummary);
   }
 
-  let guidanceSection = await buildThreeCardSynthesis(cardsInfo, themes, userQuestion, context, remedyRotationIndex);
+  let guidanceSection = await buildThreeCardSynthesis(cardsInfo, themes, userQuestion, context, remedyRotationIndex, proseOptions);
   if (guidanceSection) {
     const tonePhrase = tone.challengeFraming || 'clear next step';
     const frameWord = frameVocab[0] || 'insight';
@@ -190,8 +191,8 @@ export async function buildThreeCardReading({
   return appendReversalReminder(narrativeWithClosing, cardsInfo, themes);
 }
 
-async function buildThreeCardSynthesis(cardsInfo, themes, userQuestion, context, rotationIndex = 0) {
-  const header = getSectionHeader('threeCardGuidance');
+async function buildThreeCardSynthesis(cardsInfo, themes, userQuestion, context, rotationIndex = 0, proseOptions = {}) {
+  const header = getSectionHeader('threeCardGuidance', proseOptions);
   let section = header ? `${header}\n\n` : '';
 
   if (context && context !== 'general') {

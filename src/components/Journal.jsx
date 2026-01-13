@@ -836,10 +836,10 @@ export default function Journal() {
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-6">
             <button
               onClick={() => navigate('/')}
-              className="flex items-center text-accent hover:text-main self-start"
+              className="inline-flex min-h-[44px] items-center gap-2 rounded-full px-3 py-2 text-accent hover:text-main hover:bg-surface-muted/30 transition touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/50 self-start"
             >
-              <CaretLeft className="w-5 h-5 mr-2" />
-              Back to Reading
+              <CaretLeft className="w-5 h-5" />
+              <span>Back to Reading</span>
             </button>
 
             <div className="flex items-center gap-4">
@@ -972,7 +972,7 @@ export default function Journal() {
               <div className="relative p-5 sm:p-6 lg:p-8">
                 {/* Header - Clean and simple */}
                 <div className="mb-5 lg:mb-4">
-                  <p className="text-[10px] uppercase tracking-[0.3em] text-amber-300/50 mb-1">Journal Pulse</p>
+                  <p className="text-xs uppercase tracking-[0.2em] text-amber-300/50 mb-1">Journal Pulse</p>
                   <h2 className="text-xl sm:text-2xl font-serif text-amber-50/90">Your practice at a glance</h2>
                 </div>
 
@@ -993,7 +993,7 @@ export default function Journal() {
                             {icon}
                           </div>
                           <p className="text-2xl font-serif text-amber-50">{stat.value}</p>
-                          <p className="text-[10px] uppercase tracking-wider text-amber-100/50 mt-1">{stat.label}</p>
+                          <p className="text-xs uppercase tracking-wide text-amber-100/50 mt-1">{stat.label}</p>
                         </div>
                       );
                     })}
@@ -1027,7 +1027,7 @@ export default function Journal() {
                           </div>
                           {/* Card info */}
                           <div className="flex-1 min-w-0">
-                            <p className="text-[9px] uppercase tracking-wider text-amber-100/50 mb-0.5">Latest card</p>
+                            <p className="text-xs uppercase tracking-wide text-amber-100/50 mb-0.5">Latest card</p>
                             <p className="font-serif text-base text-amber-50 truncate">{card.name}</p>
                             <p className="text-xs text-amber-100/60">{card.orientation} · {heroDateLabel}</p>
                           </div>

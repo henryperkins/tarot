@@ -1,4 +1,4 @@
-const CACHE_NAME = 'mystic-tarot-shell-v1';
+const CACHE_NAME = 'tableu-shell-v2';
 const OFFLINE_URL = '/offline.html';
 const PLACEHOLDER_IMAGE = '/images/cards/RWS1909_-_00_Fool.jpeg';
 const PRECACHE_URLS = [
@@ -6,8 +6,8 @@ const PRECACHE_URLS = [
   '/journal',
   OFFLINE_URL,
   '/manifest.webmanifest',
-  '/icons/icon-192.svg',
-  '/icons/icon-512.svg',
+  '/icons/icon-192.png',
+  '/icons/icon-512.png',
   PLACEHOLDER_IMAGE
 ];
 

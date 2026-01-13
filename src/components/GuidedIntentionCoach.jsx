@@ -13,6 +13,7 @@ import {
 } from '@phosphor-icons/react';
 import { useModalA11y, createBackdropHandler } from '../hooks/useModalA11y';
 import { useSmallScreen } from '../hooks/useSmallScreen';
+import { useAndroidBackGuard } from '../hooks/useAndroidBackGuard';
 import { useLandscape } from '../hooks/useLandscape';
 import { useReducedMotion } from '../hooks/useReducedMotion';
 import { useSwipeDismiss } from '../hooks/useSwipeDismiss';
@@ -339,6 +340,13 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply,
     onDismiss: onClose,
     threshold: 120,
     resistance: 0.5
+  });
+
+  // Android back button dismisses coach on mobile
+  useAndroidBackGuard(isOpen, {
+    onBack: onClose,
+    enabled: isSmallScreen,
+    guardId: 'intentionCoach'
   });
 
   // Clear step button refs on each render to prevent stale references

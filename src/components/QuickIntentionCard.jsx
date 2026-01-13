@@ -76,6 +76,8 @@ export const QuickIntentionCard = forwardRef(function QuickIntentionCard({
       <div className="flex items-start gap-2">
         <textarea
           ref={mergedRef}
+          id="quick-intention"
+          aria-label="Your question or intention (optional)"
           value={userQuestion}
           onChange={(event) => onQuestionChange(event.target.value)}
           onKeyDown={handleKeyDown}

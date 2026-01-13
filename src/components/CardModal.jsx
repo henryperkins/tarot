@@ -5,6 +5,8 @@ import { FALLBACK_IMAGE, getCardImage, getCanonicalCard } from '../lib/cardLooku
 import { CardSymbolInsights } from './CardSymbolInsights';
 import { InteractiveCardOverlay } from './InteractiveCardOverlay';
 import { useModalA11y } from '../hooks/useModalA11y';
+import { useAndroidBackGuard } from '../hooks/useAndroidBackGuard';
+import { useSmallScreen } from '../hooks/useSmallScreen';
 
 function toMillis(ts) {
     if (!ts) return null;
@@ -44,6 +46,14 @@ export function CardModal({
         onClose,
         containerRef: modalRef,
         scrollLockStrategy: 'fixed', // Prevents iOS bounce
+    });
+
+    // Android back button dismisses modal on mobile
+    const isSmallScreen = useSmallScreen();
+    useAndroidBackGuard(isOpen, {
+        onBack: onClose,
+        enabled: isSmallScreen,
+        guardId: 'cardModal'
     });
 
     // Shared-element animation is only wired for the in-reading flow where:

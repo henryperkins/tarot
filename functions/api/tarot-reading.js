@@ -61,7 +61,7 @@ import {
 import { deriveEmotionalTone } from '../../src/data/emotionMapping.js';
 import { normalizeVisionLabel } from '../lib/visionLabels.js';
 import { getToneStyle, buildPersonalizedClosing, getDepthProfile } from '../lib/narrative/styleHelpers.js';
-import { buildOpening, setProseMode } from '../lib/narrative/helpers.js';
+import { buildOpening } from '../lib/narrative/helpers.js';
 import { buildReadingReasoning } from '../lib/narrative/reasoning.js';
 import {
   buildReasoningAwareOpening,
@@ -148,6 +148,8 @@ async function enforceReadingLimit(env, request, user, subscription, requestId) 
   const now = new Date();
   const month = getMonthKeyUtc(now);
   const resetAt = getResetAtUtc(now);
+  const rawClientId = getClientIdentifier(request) || 'unknown';
+  const clientId = rawClientId.length > 128 ? rawClientId.slice(0, 128) : rawClientId;
 
   // Authenticated users: use D1 tracking (also tracks unlimited tiers for usage meter).
   if (user?.id && env?.DB) {
@@ -208,10 +210,50 @@ async function enforceReadingLimit(env, request, user, subscription, requestId) 
     }
   }
 
+  // Anonymous users: prefer D1 for atomic increments when available
+  if (!user?.id && env?.DB && limit !== Infinity) {
+    try {
+      const guestUserId = `guest:${clientId}`;
+      const nowMs = Date.now();
+      const incrementResult = await incrementUsageCounter(env.DB, {
+        userId: guestUserId,
+        month,
+        counter: 'readings',
+        limit,
+        nowMs
+      });
+
+      if (incrementResult.changed === 0) {
+        const row = await getUsageRow(env.DB, guestUserId, month);
+        const used = row?.readings_count || limit;
+        return {
+          allowed: false,
+          used,
+          limit,
+          resetAt,
+          message: `You've reached your monthly reading limit (${limit}). Upgrade for more readings.`
+        };
+      }
+
+      const row = await getUsageRow(env.DB, guestUserId, month);
+      const used = row?.readings_count || 0;
+      console.log(`[${requestId}] Guest reading usage: ${used}/${limit}`);
+
+      return {
+        allowed: true,
+        used,
+        limit,
+        resetAt,
+        reservation: { type: 'd1', userId: guestUserId, month }
+      };
+    } catch (error) {
+      console.warn(`[${requestId}] Guest usage tracking error (DB), falling back to KV:`, error?.message || error);
+    }
+  }
+
   // Anonymous users: enforce IP-based monthly quota in KV when available.
   if (limit !== Infinity && env?.RATELIMIT) {
     try {
-      const clientId = getClientIdentifier(request);
       const key = `${READINGS_MONTHLY_KEY_PREFIX}:${clientId}:${month}`;
       const existing = await env.RATELIMIT.get(key);
       const currentCount = existing ? Number(existing) || 0 : 0;
@@ -336,9 +378,13 @@ function getSpreadDefinition(spreadName) {
   return SPREAD_NAME_MAP[spreadName] || null;
 }
 
-function getSpreadKey(spreadName) {
+function getSpreadKey(spreadName, fallbackKey = null) {
   const def = getSpreadDefinition(spreadName);
-  return def?.key || 'general';
+  if (def?.key) return def.key;
+  if (typeof fallbackKey === 'string' && fallbackKey.trim()) {
+    return fallbackKey.trim();
+  }
+  return 'general';
 }
 
 const NARRATIVE_BACKEND_ORDER = ['azure-gpt5', 'claude-sonnet45', 'local-composer'];
@@ -693,7 +739,7 @@ function wrapReadingStreamWithMetadata(stream, { meta, ctx, onComplete }) {
   const encoder = new TextEncoder();
   const decoder = new TextDecoder();
 
-  let fullText = '';
+  const fullTextChunks = [];
   let sawError = false;
   // Buffer for SSE events that may be split across chunks
   let sseBuffer = '';
@@ -703,6 +749,7 @@ function wrapReadingStreamWithMetadata(stream, { meta, ctx, onComplete }) {
     const events = buffer.split(/\r?\n\r?\n/);
     // Keep the last element as potential incomplete event (unless final)
     const remainder = isFinal ? '' : (events.pop() || '');
+    const forwardEvents = [];
 
     for (const eventBlock of events) {
       if (!eventBlock.trim()) continue;
@@ -719,6 +766,11 @@ function wrapReadingStreamWithMetadata(stream, { meta, ctx, onComplete }) {
         }
       }
 
+      // Drop upstream meta events to avoid duplicate meta payloads
+      if (eventType === 'meta') {
+        continue;
+      }
+
       // Check for error events
       if (eventType === 'error') {
         sawError = true;
@@ -729,15 +781,17 @@ function wrapReadingStreamWithMetadata(stream, { meta, ctx, onComplete }) {
         try {
           const data = JSON.parse(eventData);
           if (data.text) {
-            fullText += data.text;
+            fullTextChunks.push(data.text);
           }
         } catch {
           // Ignore parse errors
         }
       }
+
+      forwardEvents.push(eventBlock);
     }
 
-    return remainder;
+    return { remainder, forwardEvents };
   }
 
   return new ReadableStream({
@@ -754,11 +808,13 @@ function wrapReadingStreamWithMetadata(stream, { meta, ctx, onComplete }) {
           if (done) {
             // Process any remaining buffered content
             if (sseBuffer.length > 0) {
-              processCompleteEvents(sseBuffer, true);
+              const { forwardEvents } = processCompleteEvents(sseBuffer, true);
+              forwardEvents.forEach((ev) => controller.enqueue(encoder.encode(`${ev}\n\n`)));
             }
 
             if (!sawError && onComplete) {
-              const trackingPromise = onComplete(fullText).catch(err => {
+              const mergedText = fullTextChunks.join('');
+              const trackingPromise = onComplete(mergedText).catch(err => {
                 console.warn('[wrapReadingStreamWithMetadata] onComplete error:', err.message);
               });
               if (ctx?.waitUntil) {
@@ -777,10 +833,11 @@ function wrapReadingStreamWithMetadata(stream, { meta, ctx, onComplete }) {
 
           // Process complete SSE events, keeping any trailing incomplete event
           // This handles events that span multiple chunks (common on slow networks)
-          sseBuffer = processCompleteEvents(sseBuffer, false);
+          const { remainder, forwardEvents } = processCompleteEvents(sseBuffer, false);
+          sseBuffer = remainder;
 
-          // Pass through the chunk unchanged to the client
-          controller.enqueue(value);
+          // Forward only non-meta events to the client
+          forwardEvents.forEach((ev) => controller.enqueue(encoder.encode(`${ev}\n\n`)));
         }
       } catch (error) {
         console.error('[wrapReadingStreamWithMetadata] Stream error:', error.message);
@@ -818,6 +875,8 @@ async function finalizeReading({
   acceptedQualityMetrics = null,
   allowGateBlocking = true
 }) {
+  const originalReading = reading;
+  const originalProvider = provider;
   const totalTime = Date.now() - startTime;
   console.log(`[${requestId}] Request completed successfully in ${totalTime}ms using provider: ${provider}`);
   console.log(`[${requestId}] === TAROT READING REQUEST END ===`);
@@ -851,26 +910,21 @@ async function finalizeReading({
     count: finalContextDiagnostics.length
   };
 
-  const baseNarrativeMetrics = acceptedQualityMetrics || buildNarrativeMetrics(reading, cardsInfo, deckStyle);
-  const narrativeMetrics = {
-    ...baseNarrativeMetrics,
-    enhancementTelemetry,
-    promptTokens,
-    promptSlimming,
-    graphRAG: graphRAGStats,
-    contextDiagnostics: diagnosticsPayload
-  };
-
   let evalGateResult = null;
   let wasGateBlocked = false;
+  let finalReading = originalReading;
+  let finalProvider = originalProvider;
 
   const evalParams = {
-    reading,
+    reading: originalReading,
     userQuestion,
     cardsInfo,
     spreadKey: analysis.spreadKey,
     requestId
   };
+
+  const baseNarrativeMetrics = acceptedQualityMetrics || buildNarrativeMetrics(originalReading, cardsInfo, deckStyle);
+  let finalNarrativeMetrics = baseNarrativeMetrics;
 
   const gateResult = await runSyncEvaluationGate(
     env,
@@ -885,12 +939,13 @@ async function finalizeReading({
     if (allowGateBlocking) {
       console.warn(`[${requestId}] Evaluation gate blocked reading, using safe fallback`);
 
-      reading = generateSafeFallbackReading({
+      finalReading = generateSafeFallbackReading({
         spreadKey: analysis.spreadKey,
         cardCount: cardsInfo.length,
         reason: gateResult.gateResult?.reason
       });
-      provider = 'safe-fallback';
+      finalProvider = 'safe-fallback';
+      finalNarrativeMetrics = buildNarrativeMetrics(finalReading, cardsInfo, deckStyle);
 
       if (env.METRICS_DB?.put) {
         try {
@@ -920,13 +975,22 @@ async function finalizeReading({
     }
   }
 
+  const narrativeMetrics = {
+    ...finalNarrativeMetrics,
+    enhancementTelemetry,
+    promptTokens,
+    promptSlimming,
+    graphRAG: graphRAGStats,
+    contextDiagnostics: diagnosticsPayload
+  };
+
   let promptEngineering = null;
   if (capturedPrompts && shouldPersistPrompts(env)) {
     try {
       promptEngineering = await buildPromptEngineeringPayload({
         systemPrompt: capturedPrompts.system,
         userPrompt: capturedPrompts.user,
-        response: reading,
+        response: finalReading,
         redactionOptions: {
           displayName: personalization?.displayName
         }
@@ -948,7 +1012,7 @@ async function finalizeReading({
   const metricsPayload = {
     requestId,
     timestamp,
-    provider,
+    provider: finalProvider,
     deckStyle,
     spreadKey: analysis.spreadKey,
     context,
@@ -974,6 +1038,11 @@ async function finalizeReading({
     } : { ran: false }
   };
 
+  if (wasGateBlocked && allowGateBlocking) {
+    metricsPayload.evalOriginalPreview = trimForTelemetry(originalReading, 2000);
+    metricsPayload.evalProviderOriginal = originalProvider;
+  }
+
   await persistReadingMetrics(env, metricsPayload);
 
   const gateEval = evalGateResult?.evalResult || null;
@@ -997,8 +1066,8 @@ async function finalizeReading({
   const emotionalTone = deriveEmotionalTone(analysis.themes);
 
   const responsePayload = {
-    reading,
-    provider,
+    reading: finalReading,
+    provider: finalProvider,
     requestId,
     backendErrors: backendErrors.length > 0 ? backendErrors : undefined,
     themes: analysis.themes,
@@ -1124,14 +1193,20 @@ export const onRequestPost = async ({ request, env, waitUntil }) => {
       authProvider: user?.auth_provider || 'session_or_anonymous'
     });
 
-    const requestedSpreadKey = getSpreadKey(spreadInfo.name);
+    const spreadDefinition = getSpreadDefinition(spreadInfo.name);
+    const requestedSpreadKey = getSpreadKey(spreadInfo.name, spreadInfo?.key || 'custom');
+    const isCustomSpread = !spreadDefinition;
     const spreadsConfig = subscription.config?.spreads;
     const spreadAllowed = spreadsConfig === 'all' ||
       spreadsConfig === 'all+custom' ||
-      (Array.isArray(spreadsConfig) && spreadsConfig.includes(requestedSpreadKey));
+      (Array.isArray(spreadsConfig) && (
+        spreadsConfig.includes(requestedSpreadKey) ||
+        (isCustomSpread && spreadsConfig.includes('custom'))
+      ));
 
     if (!spreadAllowed) {
-      const requiredTier = ['relationship', 'decision', 'celtic'].includes(requestedSpreadKey) ? 'plus' : 'pro';
+      const entitlementKey = isCustomSpread ? 'custom' : requestedSpreadKey;
+      const requiredTier = ['relationship', 'decision', 'celtic'].includes(entitlementKey) ? 'plus' : 'pro';
       return jsonResponse(
         buildTierLimitedPayload({
           message: `The "${spreadInfo.name}" spread requires an active ${requiredTier === 'plus' ? 'Plus' : 'Pro'} subscription`,
@@ -1140,6 +1215,31 @@ export const onRequestPost = async ({ request, env, waitUntil }) => {
         }),
         { status: 403 }
       );
+    }
+
+    if (!spreadDefinition && spreadsConfig !== 'all' && spreadsConfig !== 'all+custom' &&
+      !(Array.isArray(spreadsConfig) && spreadsConfig.includes('custom'))) {
+      return jsonResponse(
+        { error: `Unknown spread "${spreadInfo.name}". Please update your app and try again.` },
+        { status: 400 }
+      );
+    }
+
+    if (spreadDefinition) {
+      const providedKey = typeof spreadInfo.key === 'string' ? spreadInfo.key.trim() : '';
+      if (providedKey && providedKey !== spreadDefinition.key) {
+        return jsonResponse(
+          { error: `Spread "${spreadInfo.name}" did not match its expected key. Please refresh and try again.` },
+          { status: 400 }
+        );
+      }
+
+      if (typeof spreadDefinition.count === 'number' && cardsInfo.length !== spreadDefinition.count) {
+        return jsonResponse(
+          { error: `Spread "${spreadInfo.name}" expects ${spreadDefinition.count} cards, but received ${cardsInfo.length}.` },
+          { status: 400 }
+        );
+      }
     }
 
     // API key usage is Pro-only and subject to API call limits.
@@ -1287,6 +1387,8 @@ export const onRequestPost = async ({ request, env, waitUntil }) => {
       };
 
       await persistReadingMetrics(env, metricsPayload);
+      await releaseReadingReservation(env, readingReservation);
+      readingReservation = null;
 
       const emotionalTone = deriveEmotionalTone(analysis.themes);
 
@@ -1755,7 +1857,7 @@ async function performSpreadAnalysis(spreadInfo, cardsInfo, options = {}, reques
   let graphRAGPayload = null;
 
   try {
-    spreadKey = getSpreadKey(spreadInfo.name);
+    spreadKey = getSpreadKey(spreadInfo.name, spreadInfo?.key || 'custom');
     console.log(`[${requestId}] Spread key identified: ${spreadKey}`);
 
     if (spreadKey === 'celtic' && cardsInfo.length === 10) {
@@ -2024,20 +2126,6 @@ export function validatePayload({ spreadInfo, cardsInfo }) {
 
   if (!Array.isArray(cardsInfo) || cardsInfo.length === 0) {
     return 'No cards were provided for the reading.';
-  }
-
-  const def = getSpreadDefinition(spreadInfo.name);
-  if (!def) {
-    return `Unknown spread "${spreadInfo.name}". Please update your app and try again.`;
-  }
-
-  const providedKey = typeof spreadInfo.key === 'string' ? spreadInfo.key.trim() : '';
-  if (providedKey && providedKey !== def.key) {
-    return `Spread "${spreadInfo.name}" did not match its expected key. Please refresh and try again.`;
-  }
-
-  if (typeof def.count === 'number' && cardsInfo.length !== def.count) {
-    return `Spread "${spreadInfo.name}" expects ${def.count} cards, but received ${cardsInfo.length}.`;
   }
 
   const hasInvalidCard = cardsInfo.some(card => {
@@ -2321,10 +2409,23 @@ async function generateWithClaudeSonnet45Enhanced(env, payload, requestId = 'unk
   }
 
   const data = await response.json();
-  console.log(`[${requestId}] Azure Foundry Claude raw response:`, JSON.stringify(data, null, 2));
   const content = Array.isArray(data.content)
     ? data.content.map(part => part.text || '').join('').trim()
     : (data.content?.toString?.() || '').trim();
+
+  if (shouldLogLLMPrompts(env)) {
+    const redactionOptions = { displayName: payload?.personalization?.displayName };
+    const redactedContent = redactPII(content, redactionOptions);
+    console.log(
+      `[${requestId}] Azure Foundry Claude response (redacted):`,
+      JSON.stringify({
+        id: data.id,
+        model: data.model || model,
+        usage: data.usage,
+        textPreview: trimForTelemetry(redactedContent, 1200)
+      }, null, 2)
+    );
+  }
 
   if (!content) {
     throw new Error('Empty response from Azure Claude Opus 4.5');
@@ -2408,11 +2509,22 @@ async function composeReadingEnhanced(payload) {
     spreadKey
   );
 
-  // Enable prose mode for local composer output (removes technical metadata)
-  setProseMode(true);
-
   let readingText;
   try {
+    const composerOptions = {
+      personalization,
+      reasoning,
+      proseMode: true,
+      collectValidation: (section) => {
+        if (!section) return;
+        collectedSections.push({
+          text: section.text || '',
+          metadata: section.metadata || {},
+          validation: section.validation || null
+        });
+      }
+    };
+
     readingText = await generateReadingFromAnalysis(
       {
         spreadKey,
@@ -2424,18 +2536,7 @@ async function composeReadingEnhanced(payload) {
         spreadInfo,
         context
       },
-      {
-        personalization,
-        reasoning,
-        collectValidation: (section) => {
-          if (!section) return;
-          collectedSections.push({
-            text: section.text || '',
-            metadata: section.metadata || {},
-            validation: section.validation || null
-          });
-        }
-      }
+      composerOptions
     );
 
     payload.narrativeEnhancements = collectedSections;
@@ -2454,9 +2555,6 @@ async function composeReadingEnhanced(payload) {
       prompts: null,
       usage: null
     };
-  } finally {
-    // Always reset prose mode to default after generation
-    setProseMode(false);
   }
 }
 

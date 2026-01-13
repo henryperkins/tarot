@@ -35,6 +35,7 @@ export async function buildFiveCardReading({
   const tone = getToneStyle(personalization?.readingTone);
   const frameVocab = getFrameVocabulary(personalization?.spiritualFrame);
   const nameInline = buildNameClause(personalization?.displayName, 'inline');
+  const proseOptions = { proseMode: options.proseMode === true };
   const collectValidation =
     typeof options.collectValidation === 'function'
       ? options.collectValidation
@@ -71,7 +72,7 @@ export async function buildFiveCardReading({
   const positionOptions = getPositionOptions(themes, context);
   const remedyRotationIndex = computeRemedyRotationIndex({ cardsInfo, userQuestion, spreadInfo });
 
-  const attentionNote = buildWeightAttentionIntro(prioritized, spreadName);
+  const attentionNote = buildWeightAttentionIntro(prioritized, spreadName, undefined, proseOptions);
   if (attentionNote) {
     sections.push(attentionNote);
   }
@@ -108,8 +109,8 @@ export async function buildFiveCardReading({
   }
 
   const coreWeightNotes = [
-    buildWeightNote('fiveCard', 0, corePosition),
-    buildWeightNote('fiveCard', 1, challengePosition)
+    buildWeightNote('fiveCard', 0, corePosition, proseOptions),
+    buildWeightNote('fiveCard', 1, challengePosition, proseOptions)
   ].filter(Boolean);
   if (coreWeightNotes.length > 0) {
     coreSection += `\n\n${coreWeightNotes.join(' ')}`;
@@ -134,7 +135,7 @@ export async function buildFiveCardReading({
   }
   hiddenSection += hiddenConnector ? `${hiddenConnector} ${hiddenText}` : hiddenText;
 
-  const hiddenWeightNote = buildWeightNote('fiveCard', 2, hiddenPosition);
+  const hiddenWeightNote = buildWeightNote('fiveCard', 2, hiddenPosition, proseOptions);
   if (hiddenWeightNote) {
     hiddenSection += `\n\n${hiddenWeightNote}`;
   }
@@ -156,7 +157,7 @@ export async function buildFiveCardReading({
   }
   supportSection += supportConnector ? `${supportConnector} ${supportText}` : supportText;
 
-  const supportWeightNote = buildWeightNote('fiveCard', 3, supportPosition);
+  const supportWeightNote = buildWeightNote('fiveCard', 3, supportPosition, proseOptions);
   if (supportWeightNote) {
     supportSection += `\n\n${supportWeightNote}`;
   }
@@ -189,7 +190,7 @@ export async function buildFiveCardReading({
     directionSection += `\n\n${fiveCardAnalysis.synthesis}`;
   }
 
-  const directionWeightNote = buildWeightNote('fiveCard', 4, directionPosition);
+  const directionWeightNote = buildWeightNote('fiveCard', 4, directionPosition, proseOptions);
   if (directionWeightNote) {
     directionSection += `\n\n${directionWeightNote}`;
   }
@@ -202,7 +203,7 @@ export async function buildFiveCardReading({
     })
   );
 
-  const supportingSummary = buildSupportingPositionsSummary(prioritized, spreadName);
+  const supportingSummary = buildSupportingPositionsSummary(prioritized, spreadName, undefined, proseOptions);
   if (supportingSummary) {
     sections.push(supportingSummary);
   }

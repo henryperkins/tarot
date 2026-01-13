@@ -192,15 +192,15 @@ export function StepProgress({ steps = [], activeStep, onSelect, condensed = fal
                   <span className={`
                     font-semibold truncate
                     ${condensed
-                      ? 'text-[0.65rem] xs:text-[0.7rem] text-secondary'
-                      : 'text-[0.68rem] xs:text-[0.72rem] sm:text-[0.82rem]'
+                      ? 'text-[0.7rem] xs:text-xs text-secondary'
+                      : 'text-[0.7rem] xs:text-xs sm:text-[0.82rem]'
                     }
                     ${isActive ? 'text-main' : 'text-muted-high'}
                   `}>
                     <span className="sm:hidden">
                       {shortLabel}
                       {OPTIONAL_STEPS.has(step.id) && (
-                        <span className="text-muted/60 ml-0.5 text-[0.55rem] xs:text-[0.6rem]">(opt)</span>
+                        <span className="text-muted/70 ml-0.5 text-[0.65rem] xs:text-[0.7rem]">(opt)</span>
                       )}
                     </span>
                     <span className="hidden sm:inline">{step.label}</span>

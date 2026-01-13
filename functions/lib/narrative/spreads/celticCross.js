@@ -42,6 +42,7 @@ export async function buildCelticCrossReading({
   const collectValidation = typeof options.collectValidation === 'function' ? options.collectValidation : null;
   const reasoning = options.reasoning || null;
   const remedyRotationIndex = computeRemedyRotationIndex({ cardsInfo, userQuestion, spreadInfo });
+  const proseOptions = { proseMode: options.proseMode === true };
 
   const recordEnhancedSection = (sectionText, metadata = {}) => {
     const result = enhanceSection(sectionText, metadata);
@@ -72,14 +73,14 @@ export async function buildCelticCrossReading({
       );
   sections.push(opening);
 
-  const attentionNote = buildWeightAttentionIntro(prioritized, 'Celtic Cross');
+  const attentionNote = buildWeightAttentionIntro(prioritized, 'Celtic Cross', DEFAULT_WEIGHT_DETAIL_THRESHOLD, proseOptions);
   if (attentionNote) {
     sections.push(attentionNote);
   }
 
   // 1. NUCLEUS - The Heart of the Matter (Cards 1-2)
   recordEnhancedSection(
-    buildNucleusSection(celticAnalysis.nucleus, cardsInfo, themes, context, reasoning),
+    buildNucleusSection(celticAnalysis.nucleus, cardsInfo, themes, context, reasoning, proseOptions),
     {
       type: 'nucleus',
       cards: [cardsInfo[0], cardsInfo[1]],
@@ -89,25 +90,25 @@ export async function buildCelticCrossReading({
 
   // 2. TIMELINE - Past, Present, Future (Cards 3-1-4)
   recordEnhancedSection(
-    buildTimelineSection(celticAnalysis.timeline, cardsInfo, themes, context, reasoning),
+    buildTimelineSection(celticAnalysis.timeline, cardsInfo, themes, context, reasoning, proseOptions),
     { type: 'timeline' }
   );
 
   // 3. CONSCIOUSNESS - Subconscious, Center, Conscious (Cards 6-1-5)
   recordEnhancedSection(
-    buildConsciousnessSection(celticAnalysis.consciousness, cardsInfo, themes, context, reasoning),
+    buildConsciousnessSection(celticAnalysis.consciousness, cardsInfo, themes, context, reasoning, proseOptions),
     { type: 'consciousness' }
   );
 
   // 4. STAFF - Self, External, Hopes/Fears, Outcome (Cards 7-10)
   recordEnhancedSection(
-    buildStaffSection(celticAnalysis.staff, cardsInfo, themes, context, reasoning),
+    buildStaffSection(celticAnalysis.staff, cardsInfo, themes, context, reasoning, proseOptions),
     { type: 'staff' }
   );
 
   // 5. CROSS-CHECKS - Key position comparisons
   recordEnhancedSection(
-    buildCrossChecksSection(celticAnalysis.crossChecks, themes),
+    buildCrossChecksSection(celticAnalysis.crossChecks, themes, proseOptions),
     { type: 'relationships' }
   );
 
@@ -126,11 +127,11 @@ export async function buildCelticCrossReading({
 
   // 7. SYNTHESIS - Actionable integration
   recordEnhancedSection(
-    await buildSynthesisSection(cardsInfo, themes, celticAnalysis, userQuestion, context, remedyRotationIndex),
+    await buildSynthesisSection(cardsInfo, themes, celticAnalysis, userQuestion, context, remedyRotationIndex, proseOptions),
     { type: 'outcome' }
   );
 
-  const supportingSummary = buildSupportingPositionsSummary(prioritized, 'Celtic Cross');
+  const supportingSummary = buildSupportingPositionsSummary(prioritized, 'Celtic Cross', undefined, proseOptions);
   if (supportingSummary) {
     sections.push(supportingSummary);
   }
@@ -149,11 +150,11 @@ export async function buildCelticCrossReading({
 
 
 
-function buildNucleusSection(nucleus, cardsInfo, themes, context, reasoning = null) {
+function buildNucleusSection(nucleus, cardsInfo, themes, context, reasoning = null, proseOptions = {}) {
   const present = cardsInfo[0];
   const challenge = cardsInfo[1];
 
-  const header = getSectionHeader('nucleus');
+  const header = getSectionHeader('nucleus', proseOptions);
   let section = header ? `${header}\n\n` : '';
 
   const presentPosition = present.position || 'Present — core situation (Card 1)';
@@ -176,8 +177,8 @@ function buildNucleusSection(nucleus, cardsInfo, themes, context, reasoning = nu
   section += nucleus.synthesis;
 
   const emphasisNotes = [
-    buildWeightNote('celtic', 0, presentPosition),
-    buildWeightNote('celtic', 1, challengePosition)
+    buildWeightNote('celtic', 0, presentPosition, proseOptions),
+    buildWeightNote('celtic', 1, challengePosition, proseOptions)
   ].filter(Boolean);
 
   if (emphasisNotes.length > 0) {
@@ -187,12 +188,12 @@ function buildNucleusSection(nucleus, cardsInfo, themes, context, reasoning = nu
   return section;
 }
 
-function buildTimelineSection(timeline, cardsInfo, themes, context, reasoning = null) {
+function buildTimelineSection(timeline, cardsInfo, themes, context, reasoning = null, proseOptions = {}) {
   const past = cardsInfo[2];
   const present = cardsInfo[0];
   const future = cardsInfo[3];
 
-  const header = getSectionHeader('timeline');
+  const header = getSectionHeader('timeline', proseOptions);
   let section = header ? `${header}\n\n` : '';
 
   const options = getPositionOptions(themes, context);
@@ -237,8 +238,8 @@ function buildTimelineSection(timeline, cardsInfo, themes, context, reasoning = 
   section += timeline.causality;
 
   const timelineWeightNotes = [
-    buildWeightNote('celtic', 0, presentPosition),
-    buildWeightNote('celtic', 3, futurePosition)
+    buildWeightNote('celtic', 0, presentPosition, proseOptions),
+    buildWeightNote('celtic', 3, futurePosition, proseOptions)
   ].filter(Boolean);
 
   if (timelineWeightNotes.length > 0) {
@@ -248,11 +249,11 @@ function buildTimelineSection(timeline, cardsInfo, themes, context, reasoning = 
   return section;
 }
 
-function buildConsciousnessSection(consciousness, cardsInfo, themes, context, reasoning = null) {
+function buildConsciousnessSection(consciousness, cardsInfo, themes, context, reasoning = null, proseOptions = {}) {
   const subconscious = cardsInfo[5];
   const conscious = cardsInfo[4];
 
-  const header = getSectionHeader('consciousness');
+  const header = getSectionHeader('consciousness', proseOptions);
   let section = header ? `${header}\n\n` : '';
 
   const subconsciousPosition = subconscious.position || 'Subconscious — roots / hidden forces (Card 6)';
@@ -281,8 +282,8 @@ function buildConsciousnessSection(consciousness, cardsInfo, themes, context, re
   }
 
   const consciousnessWeightNotes = [
-    buildWeightNote('celtic', 5, subconsciousPosition),
-    buildWeightNote('celtic', 4, consciousPosition)
+    buildWeightNote('celtic', 5, subconsciousPosition, proseOptions),
+    buildWeightNote('celtic', 4, consciousPosition, proseOptions)
   ].filter(Boolean);
 
   if (consciousnessWeightNotes.length > 0) {
@@ -292,13 +293,13 @@ function buildConsciousnessSection(consciousness, cardsInfo, themes, context, re
   return section;
 }
 
-function buildStaffSection(staff, cardsInfo, themes, context, reasoning = null) {
+function buildStaffSection(staff, cardsInfo, themes, context, reasoning = null, proseOptions = {}) {
   const self = cardsInfo[6];
   const external = cardsInfo[7];
   const hopesFears = cardsInfo[8];
   const outcome = cardsInfo[9];
 
-  const header = getSectionHeader('staff');
+  const header = getSectionHeader('staff', proseOptions);
   let section = header ? `${header}\n\n` : '';
 
   const selfPosition = self.position || 'Self / Advice — how to meet this (Card 7)';
@@ -337,10 +338,10 @@ function buildStaffSection(staff, cardsInfo, themes, context, reasoning = null) 
   section += staff.adviceImpact;
 
   const staffWeightNotes = [
-    buildWeightNote('celtic', 6, selfPosition),
-    buildWeightNote('celtic', 7, externalPosition),
-    buildWeightNote('celtic', 8, hopesFearsPosition),
-    buildWeightNote('celtic', 9, outcomePosition)
+    buildWeightNote('celtic', 6, selfPosition, proseOptions),
+    buildWeightNote('celtic', 7, externalPosition, proseOptions),
+    buildWeightNote('celtic', 8, hopesFearsPosition, proseOptions),
+    buildWeightNote('celtic', 9, outcomePosition, proseOptions)
   ].filter(Boolean);
 
   if (staffWeightNotes.length > 0) {
@@ -348,30 +349,30 @@ function buildStaffSection(staff, cardsInfo, themes, context, reasoning = null) 
   }
 
   // In non-prose mode, add extended staff note
-  if (!isProseMode() && (shouldEmphasizePosition('celtic', 6) || shouldEmphasizePosition('celtic', 9))) {
+  if (!isProseMode(proseOptions) && (shouldEmphasizePosition('celtic', 6) || shouldEmphasizePosition('celtic', 9))) {
     section += `\n\n*Extended staff detail appears because the Advice/Outcome axis carries concentrated weighting.*`;
   }
 
   return section;
 }
 
-function buildCrossChecksSection(crossChecks, themes) {
-  const header = getSectionHeader('crossChecks');
+function buildCrossChecksSection(crossChecks, themes, proseOptions = {}) {
+  const header = getSectionHeader('crossChecks', proseOptions);
   let section = header ? `${header}\n\n` : '';
 
   // Use different intro text based on prose mode
-  const introText = isProseMode()
+  const introText = isProseMode(proseOptions)
     ? 'Several cards in this spread echo and respond to each other.\n\n'
     : 'This overview shows how core positions interact and compare.\n\n';
   section += introText;
 
-  section += formatCrossCheck('Conscious Goal vs Outcome', crossChecks.goalVsOutcome, themes);
-  section += `\n\n${formatCrossCheck('Advice vs Outcome', crossChecks.adviceVsOutcome, themes)}`;
-  section += `\n\n${formatCrossCheck('Near Future vs Outcome', crossChecks.nearFutureVsOutcome, themes)}`;
-  section += `\n\n${formatCrossCheck('Subconscious vs Hopes & Fears', crossChecks.subconsciousVsHopesFears, themes)}`;
+  section += formatCrossCheck('Conscious Goal vs Outcome', crossChecks.goalVsOutcome, themes, proseOptions);
+  section += `\n\n${formatCrossCheck('Advice vs Outcome', crossChecks.adviceVsOutcome, themes, proseOptions)}`;
+  section += `\n\n${formatCrossCheck('Near Future vs Outcome', crossChecks.nearFutureVsOutcome, themes, proseOptions)}`;
+  section += `\n\n${formatCrossCheck('Subconscious vs Hopes & Fears', crossChecks.subconsciousVsHopesFears, themes, proseOptions)}`;
 
   // Use different closing text based on prose mode
-  const closingText = isProseMode()
+  const closingText = isProseMode(proseOptions)
     ? '\n\nThese connections reveal how to translate the spread\'s wisdom into your next step.'
     : '\n\nTaken together, these cross-checks point toward how to translate the spread\'s insights into your next aligned step.';
   section += closingText;
@@ -385,12 +386,12 @@ function buildCrossChecksSection(crossChecks, themes) {
 
 
 
-async function buildSynthesisSection(cardsInfo, themes, celticAnalysis, userQuestion, context, rotationIndex = 0) {
-  const header = getSectionHeader('synthesis');
+async function buildSynthesisSection(cardsInfo, themes, celticAnalysis, userQuestion, context, rotationIndex = 0, proseOptions = {}) {
+  const header = getSectionHeader('synthesis', proseOptions);
   let section = header ? `${header}\n\n` : '';
 
   // Use different intro text based on prose mode
-  const introText = isProseMode()
+  const introText = isProseMode(proseOptions)
     ? ''  // Skip technical intro in prose mode
     : 'This synthesis shows how the spread integrates into actionable guidance.\n\n';
   section += introText;
@@ -450,7 +451,7 @@ async function buildSynthesisSection(cardsInfo, themes, celticAnalysis, userQues
   section += `${celticAnalysis.staff.adviceImpact}\n\n`;
 
   // In non-prose mode, add weight note
-  if (!isProseMode() && adviceWeight >= DEFAULT_WEIGHT_DETAIL_THRESHOLD) {
+  if (!isProseMode(proseOptions) && adviceWeight >= DEFAULT_WEIGHT_DETAIL_THRESHOLD) {
     section += `*This Advice position sits at weight ${adviceWeight.toFixed(2)}, so it receives extended guidance above.*\n\n`;
   }
 
@@ -458,7 +459,7 @@ async function buildSynthesisSection(cardsInfo, themes, celticAnalysis, userQues
   section += `Remember: The outcome shown by ${outcome.card} is a trajectory based on current patterns. Your choices, consciousness, and actions shape what unfolds. You are co-creating this path.`;
 
   // In non-prose mode, add weight note
-  if (!isProseMode() && outcomeWeight >= DEFAULT_WEIGHT_DETAIL_THRESHOLD) {
+  if (!isProseMode(proseOptions) && outcomeWeight >= DEFAULT_WEIGHT_DETAIL_THRESHOLD) {
     section += `\n\n*Outcome receives extra attention because its weight clocks in at ${outcomeWeight.toFixed(2)}.*`;
   }
 

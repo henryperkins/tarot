@@ -2,6 +2,7 @@ import { useRef } from 'react';
 import clsx from 'clsx';
 import { X } from '@phosphor-icons/react';
 import { useModalA11y } from '../hooks/useModalA11y';
+import { useAndroidBackGuard } from '../hooks/useAndroidBackGuard';
 import FollowUpChat from './FollowUpChat';
 import { MOBILE_FOLLOWUP_DIALOG_ID } from './MobileActionBar';
 
@@ -15,6 +16,13 @@ export default function FollowUpDrawer({ isOpen, onClose }) {
     containerRef: drawerRef,
     initialFocusRef: closeButtonRef,
     scrollLockStrategy: 'simple'
+  });
+
+  // Android back button dismisses drawer (mobile-only component, always enabled)
+  useAndroidBackGuard(isOpen, {
+    onBack: onClose,
+    enabled: true,
+    guardId: 'followUpDrawer'
   });
 
   const overlayClasses = clsx(

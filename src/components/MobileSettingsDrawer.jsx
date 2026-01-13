@@ -1,6 +1,7 @@
 import { useRef, useCallback, useState, useEffect, useSyncExternalStore } from 'react';
 import { Sparkle, X } from '@phosphor-icons/react';
 import { useModalA11y } from '../hooks/useModalA11y';
+import { useAndroidBackGuard } from '../hooks/useAndroidBackGuard';
 import { MOBILE_SETTINGS_DIALOG_ID } from './MobileActionBar';
 
 // Subscribe to visualViewport changes for keyboard-aware padding
@@ -44,6 +45,13 @@ export function MobileSettingsDrawer({ isOpen, onClose, children, footer = null 
     containerRef: drawerRef,
     initialFocusRef: closeButtonRef,
     scrollLockStrategy: 'simple', // Simple strategy for drawers
+  });
+
+  // Android back button dismisses drawer (mobile-only component, always enabled)
+  useAndroidBackGuard(isOpen, {
+    onBack: onClose,
+    enabled: true,
+    guardId: 'settingsDrawer'
   });
 
   // Handle swipe-to-dismiss with velocity and visual feedback

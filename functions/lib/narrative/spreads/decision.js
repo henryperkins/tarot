@@ -53,6 +53,7 @@ export async function buildDecisionReading({
   const tone = getToneStyle(personalization?.readingTone);
   const frameVocab = getFrameVocabulary(personalization?.spiritualFrame);
   const nameInline = buildNameClause(personalization?.displayName, 'inline');
+  const proseOptions = { proseMode: options.proseMode === true };
 
   // Use reasoning-aware opening if available
   const openingQuestion = userQuestion ||
@@ -72,7 +73,7 @@ export async function buildDecisionReading({
   const positionOptions = getPositionOptions(themes, context);
   const remedyRotationIndex = computeRemedyRotationIndex({ cardsInfo: normalizedCards, userQuestion, spreadInfo });
 
-  const attentionNote = buildWeightAttentionIntro(prioritized, spreadName);
+  const attentionNote = buildWeightAttentionIntro(prioritized, spreadName, undefined, proseOptions);
   if (attentionNote) {
     sections.push(attentionNote);
   }
@@ -93,7 +94,7 @@ export async function buildDecisionReading({
   }
 
   if (heart) {
-    const heartWeightNote = buildWeightNote('decision', 0, heartPosition);
+    const heartWeightNote = buildWeightNote('decision', 0, heartPosition, proseOptions);
     if (heartWeightNote) {
       choice += `\n\n${heartWeightNote}`;
     }
@@ -118,7 +119,7 @@ export async function buildDecisionReading({
     aSection += pathAConnector ? `${pathAConnector} ${pathAText}` : pathAText;
     aSection += '\n\nThis path suggests one possible trajectory if you commit to this direction.';
 
-    const pathAWeightNote = buildWeightNote('decision', 1, pathAPosition);
+    const pathAWeightNote = buildWeightNote('decision', 1, pathAPosition, proseOptions);
     if (pathAWeightNote) {
       aSection += `\n\n${pathAWeightNote}`;
     }
@@ -145,7 +146,7 @@ export async function buildDecisionReading({
     bSection += pathBConnector ? `${pathBConnector} ${pathBText}` : pathBText;
     bSection += '\n\nThis path suggests an alternate trajectory, inviting you to compare how each route aligns with your values.';
 
-    const pathBWeightNote = buildWeightNote('decision', 2, pathBPosition);
+    const pathBWeightNote = buildWeightNote('decision', 2, pathBPosition, proseOptions);
     if (pathBWeightNote) {
       bSection += `\n\n${pathBWeightNote}`;
     }
@@ -173,7 +174,7 @@ export async function buildDecisionReading({
     clarity += clarifierConnector ? `${clarifierConnector} ${clarifierText}` : clarifierText;
     clarity += '\n\n';
 
-    const clarifierWeightNote = buildWeightNote('decision', 3, clarifierPosition);
+    const clarifierWeightNote = buildWeightNote('decision', 3, clarifierPosition, proseOptions);
     if (clarifierWeightNote) {
       clarity += `${clarifierWeightNote}\n\n`;
     }
@@ -199,7 +200,7 @@ export async function buildDecisionReading({
     clarity += freeWillConnector ? `${freeWillConnector} ${freeWillText}` : freeWillText;
     clarity += '\n\n';
 
-    const freeWillWeightNote = buildWeightNote('decision', 4, freeWillPosition);
+    const freeWillWeightNote = buildWeightNote('decision', 4, freeWillPosition, proseOptions);
     if (freeWillWeightNote) {
       clarity += `${freeWillWeightNote}\n\n`;
     }
@@ -217,7 +218,7 @@ export async function buildDecisionReading({
     })
   );
 
-  const supportingSummary = buildSupportingPositionsSummary(prioritized, spreadName);
+  const supportingSummary = buildSupportingPositionsSummary(prioritized, spreadName, undefined, proseOptions);
   if (supportingSummary) {
     sections.push(supportingSummary);
   }
