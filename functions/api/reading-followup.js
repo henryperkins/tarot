@@ -16,10 +16,15 @@ import { insertFollowUps } from '../lib/journalFollowups.js';
 import { callAzureResponses } from '../lib/azureResponses.js';
 import {
   callAzureResponsesStream,
+  callAzureResponsesStreamWithConversation,
+  buildToolContinuationConversation,
   transformAzureStream,
+  transformAzureStreamWithTools,
   createSSEResponse,
   createSSEErrorResponse
 } from '../lib/azureResponsesStream.js';
+import { getMemories, consolidateSessionMemories } from '../lib/userMemory.js';
+import { MEMORY_TOOL_AZURE_RESPONSES_FORMAT, handleMemoryToolCall } from '../lib/memoryTool.js';
 
 // Rate limits by tier
 const FOLLOW_UP_LIMITS = {
@@ -63,7 +68,7 @@ export const onRequestPost = async ({ request, env, ctx }) => {
       return jsonResponse({ error: 'Not authenticated' }, { status: 401 });
     }
     
-    console.log(`[${requestId}] User authenticated: ${user.id}`);
+    console.log(`[${requestId}] User authenticated`);
     
     // Parse request body
     const body = await readJsonBody(request);
@@ -76,6 +81,7 @@ export const onRequestPost = async ({ request, env, ctx }) => {
     } = body;
 
     const journalContextEnabled = env?.FEATURE_FOLLOW_UP_JOURNAL_CONTEXT === 'true';
+    const memoryEnabled = env?.FEATURE_FOLLOW_UP_MEMORY !== 'false'; // Enabled by default
     
     // Validate required fields
     if (!followUpQuestion || typeof followUpQuestion !== 'string' || followUpQuestion.trim().length < 3) {
@@ -116,6 +122,24 @@ export const onRequestPost = async ({ request, env, ctx }) => {
 
     if (turnNumber > limits.perReading) {
       console.log(`[${requestId}] Per-reading limit exceeded: ${turnNumber}/${limits.perReading}`);
+
+      // Note: Memory consolidation now happens after each successful follow-up (see onComplete).
+      // This redundant call ensures any stragglers are caught if user hits limit on a failed request.
+      if (memoryEnabled && readingRequestId) {
+        const consolidationPromise = consolidateSessionMemories(env.DB, user.id, readingRequestId)
+          .then(result => {
+            if (result.promoted > 0 || result.pruned > 0) {
+              console.log(`[${requestId}] Final consolidation: promoted=${result.promoted}, pruned=${result.pruned}`);
+            }
+          })
+          .catch(err => {
+            console.warn(`[${requestId}] Memory consolidation failed:`, err.message);
+          });
+        if (ctx?.waitUntil) {
+          ctx.waitUntil(consolidationPromise);
+        }
+      }
+
       return jsonResponse(
         buildTierLimitedPayload({
           message: `You've reached the ${limits.perReading} follow-up limit for this reading`,
@@ -187,14 +211,33 @@ export const onRequestPost = async ({ request, env, ctx }) => {
     
     // Get user preferences for personalization
     const personalization = await getUserPreferences(env.DB, user.id);
-    
+
+    // Fetch persistent memories for personalization
+    let memories = [];
+    if (memoryEnabled) {
+      try {
+        memories = await getMemories(env.DB, user.id, {
+          scope: 'all',
+          sessionId: readingRequestId,
+          limit: 10
+        });
+        console.log(`[${requestId}] Fetched ${memories.length} memories for personalization`);
+      } catch (memErr) {
+        console.warn(`[${requestId}] Memory fetch failed (non-fatal):`, memErr.message);
+      }
+    }
+
     // Build prompt with all context
     const { systemPrompt, userPrompt } = buildFollowUpPrompt({
       originalReading: effectiveContext,
       followUpQuestion: followUpQuestion.trim(),
       conversationHistory,
       journalContext,
-      personalization
+      personalization,
+      memories,
+      memoryOptions: {
+        includeMemoryTool: memoryEnabled // Enable tool-based memory capture
+      }
     });
     
     console.log(`[${requestId}] Prompt built: system=${systemPrompt.length}chars, user=${userPrompt.length}chars`);
@@ -202,20 +245,73 @@ export const onRequestPost = async ({ request, env, ctx }) => {
     // Check if streaming is requested
     const useStreaming = options.stream === true;
 
+    // Memory tool only works with streaming (tool calls require the streaming API)
+    const enableMemoryTool = memoryEnabled && useStreaming;
+
+    // Rebuild prompt if memory tool availability changed
+    // (non-streaming shouldn't tell the model about tools it can't use)
+    let effectiveSystemPrompt = systemPrompt;
+    let effectiveUserPrompt = userPrompt;
+    if (memoryEnabled && !useStreaming) {
+      // Rebuild without memory tool instructions for non-streaming
+      const rebuiltPrompts = buildFollowUpPrompt({
+        originalReading: effectiveContext,
+        followUpQuestion: followUpQuestion.trim(),
+        conversationHistory,
+        journalContext,
+        personalization,
+        memories,
+        memoryOptions: {
+          includeMemoryTool: false // No tool support in non-streaming
+        }
+      });
+      effectiveSystemPrompt = rebuiltPrompts.systemPrompt;
+      effectiveUserPrompt = rebuiltPrompts.userPrompt;
+    }
+
     if (useStreaming) {
       // === STREAMING PATH ===
       console.log(`[${requestId}] Using streaming response`);
 
       try {
-        const azureStream = await callAzureResponsesStream(env, {
-          instructions: systemPrompt,
-          input: userPrompt,
-          maxTokens: 400,
-          verbosity: 'medium'
-        });
+        // Prepare tools array if memory is enabled
+        const tools = enableMemoryTool ? [MEMORY_TOOL_AZURE_RESPONSES_FORMAT] : null;
 
-        // Transform Azure SSE stream to our simplified format
-        const transformedStream = transformAzureStream(azureStream);
+        // If memory tool is enabled, we need to handle potential tool round-trips
+        // The model might call save_memory_note, and we need to:
+        // 1. Execute the tool
+        // 2. Send the result back to Azure
+        // 3. Get the continuation response with actual text
+        let transformedStream;
+
+        if (enableMemoryTool) {
+          // Create a stream that handles tool calls with proper round-trip
+          transformedStream = await createToolRoundTripStream(env, {
+            instructions: effectiveSystemPrompt,
+            userInput: effectiveUserPrompt,
+            tools,
+            maxTokens: 400,
+            verbosity: 'medium',
+            requestId,
+            onToolCall: async (callId, name, args) => {
+              if (name === 'save_memory_note') {
+                console.log(`[${requestId}] Memory tool called: category=${args?.category || 'unknown'}, len=${args?.text?.length || 0}`);
+                const result = await handleMemoryToolCall(env.DB, user.id, readingRequestId, args);
+                return result;
+              }
+              return { success: false, message: 'Unknown tool' };
+            }
+          });
+        } else {
+          const azureStream = await callAzureResponsesStream(env, {
+            instructions: effectiveSystemPrompt,
+            input: effectiveUserPrompt,
+            maxTokens: 400,
+            verbosity: 'medium',
+            tools: null
+          });
+          transformedStream = transformAzureStream(azureStream);
+        }
 
         // Wrap with metadata injection and usage tracking
         const wrappedStream = wrapStreamWithMetadata(transformedStream, {
@@ -224,15 +320,22 @@ export const onRequestPost = async ({ request, env, ctx }) => {
             entriesSearched: journalContext.entriesSearched,
             patternsFound: journalContext.patterns
           } : null,
+          memoryEnabled,
           meta: {
             provider: 'azure-responses-stream',
             requestId
           },
           ctx, // Pass context for waitUntil
-          // Usage tracking callback - will be called when stream completes
+          // Usage tracking callback - will be called when stream completes successfully
           onComplete: async (fullText) => {
             const latencyMs = Date.now() - startTime;
             console.log(`[${requestId}] Streaming completed in ${latencyMs}ms, ${fullText.length} chars`);
+
+            // Defensive guard: don't track/persist empty responses (e.g., tool-only)
+            if (!fullText || !fullText.trim()) {
+              console.log(`[${requestId}] Skipping tracking - empty response`);
+              return;
+            }
 
             const trackingPromise = trackFollowUpUsage(env.DB, {
               userId: user.id,
@@ -255,7 +358,22 @@ export const onRequestPost = async ({ request, env, ctx }) => {
                 })
               : Promise.resolve();
 
-            await Promise.allSettled([trackingPromise, persistPromise]);
+            // Consolidate session memories to global scope after each successful follow-up.
+            // This ensures memories are promoted even if user doesn't hit their turn limit.
+            // Without this, session memories would expire after 24h and never personalize future readings.
+            const consolidationPromise = memoryEnabled && readingRequestId
+              ? consolidateSessionMemories(env.DB, user.id, readingRequestId)
+                  .then(result => {
+                    if (result.promoted > 0 || result.pruned > 0) {
+                      console.log(`[${requestId}] Memory consolidation: promoted=${result.promoted}, pruned=${result.pruned}`);
+                    }
+                  })
+                  .catch(err => {
+                    console.warn(`[${requestId}] Memory consolidation failed:`, err.message);
+                  })
+              : Promise.resolve();
+
+            await Promise.allSettled([trackingPromise, persistPromise, consolidationPromise]);
           }
         });
 
@@ -272,8 +390,8 @@ export const onRequestPost = async ({ request, env, ctx }) => {
 
       try {
         responseText = await callAzureResponses(env, {
-          instructions: systemPrompt,
-          input: userPrompt,
+          instructions: effectiveSystemPrompt,
+          input: effectiveUserPrompt,
           maxTokens: 400,  // ~250-300 words, aligned with response format guidance
           reasoningEffort: 'low',
           verbosity: 'medium'
@@ -564,6 +682,220 @@ async function persistFollowUpToJournal(env, userId, readingRequestId, followUp)
 }
 
 /**
+ * Create a stream that handles tool calls with proper Azure round-trips
+ *
+ * When the model calls a tool (e.g., save_memory_note), we need to:
+ * 1. Collect all text and tool calls from the initial response
+ * 2. Execute tool calls locally
+ * 3. Send tool results back to Azure for a continuation
+ * 4. Stream the continuation response (which contains the actual answer)
+ *
+ * @param {Object} env - Environment bindings
+ * @param {Object} options - Stream options
+ * @param {string} options.instructions - System prompt
+ * @param {string} options.userInput - User's follow-up question
+ * @param {Array} options.tools - Tool definitions for Azure
+ * @param {number} options.maxTokens - Max output tokens
+ * @param {string} options.verbosity - Text verbosity
+ * @param {string} options.requestId - Request ID for logging
+ * @param {Function} options.onToolCall - Callback to execute tool calls
+ * @returns {ReadableStream} Transformed SSE stream with tool round-trip handled
+ */
+async function createToolRoundTripStream(env, {
+  instructions,
+  userInput,
+  tools,
+  maxTokens,
+  verbosity,
+  requestId,
+  onToolCall
+}) {
+  const encoder = new TextEncoder();
+
+  // Helper to format SSE events
+  const formatSSE = (event, data) => `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
+
+  // Make initial request with tools
+  const azureStream = await callAzureResponsesStream(env, {
+    instructions,
+    input: userInput,
+    maxTokens,
+    verbosity,
+    tools
+  });
+
+  // We need to consume the stream to check for tool calls
+  // Collect all events, then decide how to proceed
+  const decoder = new TextDecoder();
+  const reader = azureStream.getReader();
+
+  let buffer = '';
+  let initialText = '';
+  const toolCalls = [];
+  let currentCallId = null;
+  const toolCallArgs = new Map();
+
+  // Consume the initial stream
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+
+      // Process complete SSE events
+      const events = buffer.split('\n\n');
+      buffer = events.pop() || '';
+
+      for (const eventBlock of events) {
+        if (!eventBlock.trim()) continue;
+
+        const lines = eventBlock.split('\n');
+        let eventType = '';
+        let eventData = '';
+
+        for (const line of lines) {
+          if (line.startsWith('event:')) eventType = line.slice(6).trim();
+          else if (line.startsWith('data:')) eventData = line.slice(5).trim();
+        }
+
+        if (!eventData) continue;
+
+        try {
+          const parsed = JSON.parse(eventData);
+          const dataType = parsed.type || eventType;
+
+          // Collect text deltas
+          if (dataType === 'response.output_text.delta') {
+            const delta = parsed.delta || '';
+            if (delta) initialText += delta;
+          }
+          // Track function call items
+          else if (dataType === 'response.output_item.added' && parsed.item?.type === 'function_call') {
+            currentCallId = parsed.item.call_id;
+            toolCallArgs.set(currentCallId, { name: parsed.item.name || '', arguments: '' });
+          }
+          // Accumulate function call arguments
+          else if (dataType === 'response.function_call_arguments.delta') {
+            const callId = parsed.call_id || currentCallId;
+            if (callId && toolCallArgs.has(callId)) {
+              toolCallArgs.get(callId).arguments += parsed.delta || '';
+            }
+          }
+          // Function call complete
+          else if (dataType === 'response.function_call_arguments.done') {
+            const callId = parsed.call_id || currentCallId;
+            if (callId && toolCallArgs.has(callId)) {
+              const tc = toolCallArgs.get(callId);
+              let parsedArgs = {};
+              try { parsedArgs = JSON.parse(tc.arguments || '{}'); } catch { /* ignore */ }
+              toolCalls.push({ callId, name: tc.name, arguments: parsedArgs });
+            }
+          }
+        } catch { /* ignore parse errors */ }
+      }
+    }
+  } finally {
+    reader.releaseLock();
+  }
+
+  console.log(`[${requestId}] Initial stream consumed: text=${initialText.length} chars, toolCalls=${toolCalls.length}`);
+
+  // If no tool calls, just return a simple stream with the collected text
+  if (toolCalls.length === 0) {
+    return new ReadableStream({
+      start(controller) {
+        if (initialText) {
+          controller.enqueue(encoder.encode(formatSSE('delta', { text: initialText })));
+        }
+        const isEmpty = !initialText || !initialText.trim();
+        controller.enqueue(encoder.encode(formatSSE('done', { fullText: initialText, isEmpty })));
+        controller.close();
+      }
+    });
+  }
+
+  // Execute tool calls
+  console.log(`[${requestId}] Executing ${toolCalls.length} tool call(s)`);
+  const toolResults = [];
+  for (const tc of toolCalls) {
+    try {
+      const result = await onToolCall(tc.callId, tc.name, tc.arguments);
+      toolResults.push({ callId: tc.callId, result });
+    } catch (err) {
+      console.warn(`[${requestId}] Tool call error:`, err.message);
+      toolResults.push({ callId: tc.callId, result: { success: false, message: err.message } });
+    }
+  }
+
+  // Build continuation conversation and request
+  const conversation = buildToolContinuationConversation(userInput, toolCalls, toolResults);
+  console.log(`[${requestId}] Making continuation request with ${conversation.length} conversation items`);
+
+  const continuationStream = await callAzureResponsesStreamWithConversation(env, {
+    instructions,
+    conversation,
+    maxTokens,
+    verbosity
+  });
+
+  // Transform the continuation stream, prepending any initial text
+  const transformedContinuation = transformAzureStream(continuationStream);
+
+  // Create a composite stream: initial text (if any) + continuation
+  return new ReadableStream({
+    async start(controller) {
+      // First, emit any text from the initial response
+      if (initialText) {
+        controller.enqueue(encoder.encode(formatSSE('delta', { text: initialText })));
+      }
+
+      // Then stream the continuation
+      const contReader = transformedContinuation.getReader();
+      let continuationText = '';
+
+      try {
+        while (true) {
+          const { done, value } = await contReader.read();
+          if (done) break;
+
+          // Parse and accumulate continuation text for the final fullText
+          const chunk = decoder.decode(value, { stream: true });
+
+          // Pass through directly
+          controller.enqueue(value);
+
+          // Extract text for fullText accumulation
+          const events = chunk.split('\n\n');
+          for (const eventBlock of events) {
+            if (!eventBlock.trim()) continue;
+            const lines = eventBlock.split('\n');
+            let eventData = '';
+            for (const line of lines) {
+              if (line.startsWith('data:')) eventData = line.slice(5).trim();
+            }
+            if (eventData) {
+              try {
+                const parsed = JSON.parse(eventData);
+                if (parsed.text) continuationText += parsed.text;
+              } catch { /* ignore */ }
+            }
+          }
+        }
+      } finally {
+        contReader.releaseLock();
+      }
+
+      // Final done event with combined text
+      const fullText = initialText + continuationText;
+      const isEmpty = !fullText || !fullText.trim();
+      controller.enqueue(encoder.encode(formatSSE('done', { fullText, isEmpty })));
+      controller.close();
+    }
+  });
+}
+
+/**
  * Wrap a transformed SSE stream with metadata and completion tracking
  *
  * Adds:
@@ -587,8 +919,50 @@ function wrapStreamWithMetadata(stream, { turn, journalContext, meta, ctx, onCom
 
   let fullText = '';
   let sawError = false;
-  // Buffer for detecting error events that may be split across chunks
-  let eventBuffer = '';
+  // Buffer for SSE events that may be split across chunks
+  let sseBuffer = '';
+
+  // Helper to process complete SSE events from buffer
+  function processCompleteEvents(buffer, isFinal = false) {
+    const events = buffer.split(/\r?\n\r?\n/);
+    // Keep the last element as potential incomplete event (unless final)
+    const remainder = isFinal ? '' : (events.pop() || '');
+
+    for (const eventBlock of events) {
+      if (!eventBlock.trim()) continue;
+
+      const lines = eventBlock.split(/\r?\n/);
+      let eventType = '';
+      let eventData = '';
+
+      for (const line of lines) {
+        if (line.startsWith('event:')) {
+          eventType = line.slice(6).trim();
+        } else if (line.startsWith('data:')) {
+          eventData = line.slice(5).trim();
+        }
+      }
+
+      // Check for error events
+      if (eventType === 'error') {
+        sawError = true;
+      }
+
+      // Extract text from delta events
+      if (eventType === 'delta' && eventData) {
+        try {
+          const data = JSON.parse(eventData);
+          if (data.text) {
+            fullText += data.text;
+          }
+        } catch {
+          // Ignore parse errors
+        }
+      }
+    }
+
+    return remainder;
+  }
 
   return new ReadableStream({
     async start(controller) {
@@ -607,14 +981,17 @@ function wrapStreamWithMetadata(stream, { turn, journalContext, meta, ctx, onCom
           const { done, value } = await reader.read();
 
           if (done) {
-            // Check buffer for any remaining error event
-            if (!sawError && eventBuffer.length > 0) {
-              sawError = /event:\s*error\r?\n/.test(eventBuffer);
+            // Process any remaining buffered content
+            if (sseBuffer.length > 0) {
+              processCompleteEvents(sseBuffer, true);
             }
 
-            // Only call completion callback if no error was seen
-            // This prevents users from losing follow-up turns due to provider errors
-            if (onComplete && !sawError) {
+            // Only call completion callback if no error was seen AND we have content
+            // This prevents:
+            // 1. Users losing follow-up turns due to provider errors
+            // 2. Empty responses being tracked when model only made tool calls
+            const hasContent = fullText && fullText.trim().length > 0;
+            if (onComplete && !sawError && hasContent) {
               // Use waitUntil to guarantee the usage tracking completes
               // even if the client disconnects
               const trackingPromise = onComplete(fullText).catch(err => {
@@ -625,43 +1002,22 @@ function wrapStreamWithMetadata(stream, { turn, journalContext, meta, ctx, onCom
               }
             } else if (sawError) {
               console.log('[wrapStreamWithMetadata] Skipping usage tracking due to error event');
+            } else if (!hasContent) {
+              console.log('[wrapStreamWithMetadata] Skipping usage tracking - empty response (tool-only?)');
             }
             controller.close();
             break;
           }
 
-          // Decode the chunk and extract text for tracking
+          // Decode the chunk and add to buffer
           const chunk = decoder.decode(value, { stream: true });
+          sseBuffer += chunk;
 
-          // Accumulate in buffer for error detection (handles chunk splits and CRLF)
-          eventBuffer += chunk;
+          // Process complete SSE events, keeping any trailing incomplete event
+          // This handles events that span multiple chunks (common on slow networks)
+          sseBuffer = processCompleteEvents(sseBuffer, false);
 
-          // Extract text from delta events for usage tracking
-          // Use flexible regex for LF or CRLF
-          const deltaMatches = chunk.matchAll(/event:\s*delta\r?\ndata:\s*({[^}]+})/g);
-          for (const match of deltaMatches) {
-            try {
-              const data = JSON.parse(match[1]);
-              if (data.text) {
-                fullText += data.text;
-              }
-            } catch {
-              // Ignore parse errors
-            }
-          }
-
-          // Detect error events in buffer (handles chunk splits and CRLF)
-          // Pattern matches "event: error" followed by LF or CRLF
-          if (!sawError && /event:\s*error\r?\n/.test(eventBuffer)) {
-            sawError = true;
-          }
-
-          // Trim buffer to avoid unbounded growth - keep last 100 chars for boundary detection
-          if (eventBuffer.length > 200) {
-            eventBuffer = eventBuffer.slice(-100);
-          }
-
-          // Pass through the chunk unchanged
+          // Pass through the chunk unchanged to the client
           controller.enqueue(value);
         }
       } catch (error) {

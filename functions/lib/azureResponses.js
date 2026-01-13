@@ -37,18 +37,12 @@ export function ensureAzureConfig(env) {
 /**
  * Determine reasoning effort based on model capabilities
  *
- * GPT-5.1 and GPT-5-Pro models benefit from 'high' reasoning effort.
- * Other models use 'medium' as a balanced default.
+ * Default to 'medium' to balance latency and cost across models.
  *
  * @param {string} modelName - Azure deployment/model name
  * @returns {string} Reasoning effort level ('low', 'medium', or 'high')
  */
 export function getReasoningEffort(modelName) {
-  if (!modelName) return 'medium';
-  const normalized = modelName.toLowerCase();
-  if (normalized.includes('gpt-5-pro') || normalized.includes('gpt-5.1')) {
-    return 'high';
-  }
   return 'medium';
 }
 
@@ -60,7 +54,8 @@ export function getReasoningEffort(modelName) {
  * @param {string} options.instructions - System instructions
  * @param {string} options.input - User input
  * @param {number|null} options.maxTokens - Max output tokens (null = no limit, default: 900)
- * @param {string|null} options.reasoningEffort - Reasoning effort level (null = omit, 'low'/'medium'/'high')
+ * @param {string|null} options.reasoningEffort - Reasoning effort level (null = omit, 'none'|'minimal'|'low'|'medium'|'high'|'xhigh')
+ * @param {string|null} options.reasoningSummary - Reasoning summary mode (null = omit, 'auto'|'concise'|'detailed')
  * @param {string} options.verbosity - Text verbosity level ('low', 'medium', 'high')
  * @param {boolean} options.returnFullResponse - When true, return { text, usage } instead of just text
  * @returns {Promise<string|Object>} Response text or { text, usage } if returnFullResponse=true
@@ -70,6 +65,7 @@ export async function callAzureResponses(env, {
   input,
   maxTokens = 900,
   reasoningEffort = null,
+  reasoningSummary = null,
   verbosity = 'medium',
   returnFullResponse = false
 }) {
@@ -95,9 +91,15 @@ export async function callAzureResponses(env, {
     body.max_output_tokens = maxTokens;
   }
 
-  // Only include reasoning block if effort is specified
-  if (reasoningEffort !== null) {
-    body.reasoning = { effort: reasoningEffort };
+  // Only include reasoning block if effort or summary is specified
+  if (reasoningEffort !== null || reasoningSummary !== null) {
+    body.reasoning = {};
+    if (reasoningEffort !== null) {
+      body.reasoning.effort = reasoningEffort;
+    }
+    if (reasoningSummary !== null) {
+      body.reasoning.summary = reasoningSummary;
+    }
   }
 
   // Debug logging for request metadata (no secrets)
@@ -107,6 +109,7 @@ export async function callAzureResponses(env, {
     apiVersion,
     maxTokens: maxTokens ?? 'unlimited',
     reasoningEffort: reasoningEffort ?? 'omitted',
+    reasoningSummary: reasoningSummary ?? 'omitted',
     verbosity,
     returnFullResponse
   });

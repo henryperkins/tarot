@@ -53,6 +53,10 @@ export function useSaveReading() {
             setJournalStatus({ type: 'error', message: 'Generate a personalized narrative before saving to the journal.' });
             return;
         }
+        if (personalReading?.isStreaming) {
+            setJournalStatus({ type: 'error', message: 'Please wait for the narrative to finish before saving.' });
+            return;
+        }
         const spreadInfo = getSpreadInfo(selectedSpread);
 
         // Ensure context is a string, not an object (graphContext can be an object)

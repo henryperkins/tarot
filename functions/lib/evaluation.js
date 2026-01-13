@@ -11,7 +11,7 @@ const DEFAULT_TIMEOUT_MS = 5000;
 const MAX_SAFE_TIMEOUT_MS = 2147483647; // Max 32-bit signed int for timers
 
 // Input length limits to prevent context overflow and timeouts
-const MAX_READING_LENGTH = 4000;
+const MAX_READING_LENGTH = 10000;
 const MAX_QUESTION_LENGTH = 500;
 const MAX_CARDS_INFO_LENGTH = 1500;
 

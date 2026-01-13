@@ -45,6 +45,8 @@
     "AZURE_OPENAI_USE_V1_FORMAT": "true",
     "AZURE_OPENAI_API_VERSION": "preview",
     "AZURE_OPENAI_RESPONSES_API_VERSION": "v1",
+    "AZURE_OPENAI_STREAMING_ENABLED": "true",
+    "ALLOW_STREAMING_WITH_EVAL_GATE": "true",
     "EVAL_ENABLED": "true",
     "EVAL_MODEL": "@cf/meta/llama-3-8b-instruct-awq",
     "EVAL_TIMEOUT_MS": "10000",

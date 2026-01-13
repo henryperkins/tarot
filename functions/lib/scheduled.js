@@ -196,6 +196,83 @@ async function cleanupOldWebhookEvents(db) {
 }
 
 /**
+ * Clean up expired and stale memories from D1
+ * Runs globally to prune memories for all users
+ * @param {D1Database} db - D1 database binding
+ * @returns {Promise<{deleted: number, usersProcessed: number}>}
+ */
+async function cleanupStaleMemories(db) {
+  if (!db) {
+    console.warn('Skipping memory cleanup: missing DB binding');
+    return { deleted: 0, usersProcessed: 0 };
+  }
+
+  try {
+    const nowSeconds = Math.floor(Date.now() / 1000);
+    let totalDeleted = 0;
+
+    // 1. Delete expired session memories (TTL passed)
+    const expiredResult = await db.prepare(`
+      DELETE FROM user_memories
+      WHERE expires_at IS NOT NULL AND expires_at < ?
+    `).bind(nowSeconds).run();
+    totalDeleted += expiredResult?.meta?.changes || 0;
+
+    // 2. Delete very old memories (> 1 year)
+    const oneYearAgo = nowSeconds - (365 * 24 * 60 * 60);
+    const oldResult = await db.prepare(`
+      DELETE FROM user_memories
+      WHERE scope = 'global' AND created_at < ?
+    `).bind(oneYearAgo).run();
+    totalDeleted += oldResult?.meta?.changes || 0;
+
+    // 3. Delete orphaned session memories (session ended > 7 days ago)
+    const sevenDaysAgo = nowSeconds - (7 * 24 * 60 * 60);
+    const orphanedResult = await db.prepare(`
+      DELETE FROM user_memories
+      WHERE scope = 'session' AND created_at < ?
+    `).bind(sevenDaysAgo).run();
+    totalDeleted += orphanedResult?.meta?.changes || 0;
+
+    // 4. Trim users with too many memories (keep max 100 per user)
+    const usersWithTooMany = await db.prepare(`
+      SELECT user_id, COUNT(*) as cnt FROM user_memories
+      GROUP BY user_id HAVING cnt > 100
+    `).all();
+
+    let usersProcessed = 0;
+    for (const row of (usersWithTooMany?.results || [])) {
+      const excess = row.cnt - 100;
+      const trimResult = await db.prepare(`
+        DELETE FROM user_memories
+        WHERE id IN (
+          SELECT id FROM user_memories
+          WHERE user_id = ?
+          ORDER BY created_at ASC
+          LIMIT ?
+        )
+      `).bind(row.user_id, excess).run();
+      totalDeleted += trimResult?.meta?.changes || 0;
+      usersProcessed++;
+    }
+
+    if (totalDeleted > 0) {
+      console.log(`Cleaned up ${totalDeleted} stale memories (${usersProcessed} users trimmed)`);
+    }
+
+    return { deleted: totalDeleted, usersProcessed };
+  } catch (error) {
+    // Table might not exist yet
+    if (error.message?.includes('no such table')) {
+      console.log('User memories table not yet created, skipping cleanup');
+      return { deleted: 0, usersProcessed: 0 };
+    }
+    console.error('Memory cleanup failed:', error);
+    return { deleted: 0, usersProcessed: 0 };
+  }
+}
+
+/**
  * Clean up expired sessions from D1
  * @param {D1Database} db - D1 database binding
  * @returns {Promise<number>} Number of sessions deleted
@@ -282,6 +359,7 @@ export async function handleScheduled(controller, env, _ctx) {
     feedback: null,
     sessions: null,
     webhookEvents: null,
+    memories: null,
     quality: null,
     alertsDispatched: null
   };
@@ -302,13 +380,15 @@ export async function handleScheduled(controller, env, _ctx) {
     results.metrics = metricsResult;
     results.feedback = feedbackResult;
 
-    // Clean up expired sessions and old webhook events
-    const [sessionsDeleted, webhookEventsDeleted] = await Promise.all([
+    // Clean up expired sessions, old webhook events, and stale memories
+    const [sessionsDeleted, webhookEventsDeleted, memoriesResult] = await Promise.all([
       cleanupExpiredSessions(env.DB),
-      cleanupOldWebhookEvents(env.DB)
+      cleanupOldWebhookEvents(env.DB),
+      cleanupStaleMemories(env.DB)
     ]);
     results.sessions = { deleted: sessionsDeleted };
     results.webhookEvents = { deleted: webhookEventsDeleted };
+    results.memories = memoriesResult;
 
     // Store summary in D1
     await storeArchivalSummary(env.DB, results);
@@ -388,9 +468,10 @@ export async function onRequestPost(context) {
       archiveKVToD1(env.FEEDBACK_KV, env.DB, FEEDBACK_PREFIX, 'feedback')
     ]);
 
-    const [sessionsDeleted, webhookEventsDeleted] = await Promise.all([
+    const [sessionsDeleted, webhookEventsDeleted, memoriesResult] = await Promise.all([
       cleanupExpiredSessions(env.DB),
-      cleanupOldWebhookEvents(env.DB)
+      cleanupOldWebhookEvents(env.DB),
+      cleanupStaleMemories(env.DB)
     ]);
 
     const dateStr = new Date().toISOString().split('T')[0];
@@ -400,6 +481,7 @@ export async function onRequestPost(context) {
       feedback: feedbackResult,
       sessions: { deleted: sessionsDeleted },
       webhookEvents: { deleted: webhookEventsDeleted },
+      memories: memoriesResult,
       quality: null,
       alertsDispatched: null,
       duration: Date.now() - startTime

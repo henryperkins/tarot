@@ -146,6 +146,9 @@ Tables organized by migration (see `migrations/`):
 - `user_analytics_prefs` — User preferences for analytics features
 - `pattern_occurrences` — Recurring archetypal pattern tracking
 
+**Personalization:**
+- `user_memories` — AI-captured insights for follow-up personalization (theme, card_affinity, communication, life_context)
+
 **Subscriptions & Usage:**
 - `api_keys` — API key management for programmatic access
 - `usage_tracking` — Monthly quota enforcement per user
@@ -268,6 +271,13 @@ Every AI-generated reading is automatically evaluated on quality dimensions usin
 |----------|---------|-------------|
 | `ENABLE_PROMPT_SLIMMING` | `"false"` | Enable token budget slimming (drops sections when over budget) |
 | `DISABLE_QUALITY_FILTERING` | `"false"` | Disable GraphRAG passage relevance filtering |
+
+**Feature flags:**
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `FEATURE_FOLLOW_UP_MEMORY` | `"true"` (enabled) | AI memory capture in follow-up conversations |
+| `AZURE_OPENAI_STREAMING_ENABLED` | `"false"` | Enable real-time token streaming for readings |
+| `ALLOW_STREAMING_WITH_EVAL_GATE` | `"false"` | Allow streaming even when eval gate is enabled |
 
 **Note:** Quality filtering is **enabled by default** and filters passages below 30% relevance score. Slimming is **disabled by default** because modern LLMs handle full prompts easily. These two features are independent.
 
@@ -405,6 +415,14 @@ See `tests/accessibility/README.md` for manual testing guides (axe DevTools, key
 | `/api/archetype-journey`          | GET/POST/PUT | GET data, POST track cards, PUT preferences     |
 | `/api/archetype-journey/card-frequency` | GET    | Card frequency statistics                       |
 | `/api/archetype-journey-backfill` | POST         | Backfill card_appearances from journal          |
+
+**Personalization (Memories):**
+| Endpoint                     | Method       | Purpose                                     |
+| ---------------------------- | ------------ | ------------------------------------------- |
+| `/api/memories`              | GET          | List user's memories (global scope)         |
+| `/api/memories`              | POST         | Create a new memory (user-initiated)        |
+| `/api/memories?id=<id>`      | DELETE       | Delete a specific memory                    |
+| `/api/memories?all=true`     | DELETE       | Clear all user memories                     |
 
 **Auth & Account:**
 | Endpoint                     | Method     | Purpose                                     |

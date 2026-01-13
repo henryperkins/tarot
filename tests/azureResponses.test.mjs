@@ -131,20 +131,14 @@ describe('ensureAzureConfig', () => {
 });
 
 describe('getReasoningEffort', () => {
-  test('returns high for gpt-5.1 models', () => {
-    assert.strictEqual(getReasoningEffort('gpt-5.1'), 'high');
-    assert.strictEqual(getReasoningEffort('GPT-5.1'), 'high');
-    assert.strictEqual(getReasoningEffort('gpt-5.1-preview'), 'high');
-    assert.strictEqual(getReasoningEffort('my-gpt-5.1-deployment'), 'high');
-  });
-
-  test('returns high for gpt-5-pro models', () => {
-    assert.strictEqual(getReasoningEffort('gpt-5-pro'), 'high');
-    assert.strictEqual(getReasoningEffort('GPT-5-PRO'), 'high');
-    assert.strictEqual(getReasoningEffort('gpt-5-pro-latest'), 'high');
-  });
-
-  test('returns medium for other GPT-5 models', () => {
+  test('returns medium for GPT-5 variants', () => {
+    assert.strictEqual(getReasoningEffort('gpt-5.1'), 'medium');
+    assert.strictEqual(getReasoningEffort('GPT-5.1'), 'medium');
+    assert.strictEqual(getReasoningEffort('gpt-5.1-preview'), 'medium');
+    assert.strictEqual(getReasoningEffort('my-gpt-5.1-deployment'), 'medium');
+    assert.strictEqual(getReasoningEffort('gpt-5-pro'), 'medium');
+    assert.strictEqual(getReasoningEffort('GPT-5-PRO'), 'medium');
+    assert.strictEqual(getReasoningEffort('gpt-5-pro-latest'), 'medium');
     assert.strictEqual(getReasoningEffort('gpt-5'), 'medium');
     assert.strictEqual(getReasoningEffort('gpt-5-turbo'), 'medium');
     assert.strictEqual(getReasoningEffort('gpt-5-codex'), 'medium');

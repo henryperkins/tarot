@@ -1,6 +1,6 @@
 /**
  * Follow-Up Prompt Builder
- * 
+ *
  * Prompt engineering for follow-up questions about tarot readings.
  * Maintains consistency with original reading while enabling deeper exploration.
  */
@@ -11,6 +11,8 @@ import {
   resolveFrameKey
 } from './narrative/styleHelpers.js';
 import { sanitizeText } from './utils.js';
+import { formatMemoriesForPrompt } from './userMemory.js';
+import { MEMORY_TOOL_INSTRUCTIONS } from './memoryTool.js';
 
 // Tone guidance - controls emotional register and validation style
 const TONE_GUIDANCE = {
@@ -62,13 +64,16 @@ function buildCardLine(card) {
 
 /**
  * Build prompts for follow-up question responses
- * 
+ *
  * @param {Object} options
  * @param {Object} options.originalReading - Original reading context
  * @param {string} options.followUpQuestion - User's follow-up question
  * @param {Array} options.conversationHistory - Previous follow-up exchanges
  * @param {Object} options.journalContext - Optional journal patterns/similar entries
  * @param {Object} options.personalization - User preferences (tone, frame, name)
+ * @param {Array} options.memories - User memories for personalization
+ * @param {Object} options.memoryOptions - Memory feature options
+ * @param {boolean} options.memoryOptions.includeMemoryTool - Whether to include memory tool instructions
  * @returns {{ systemPrompt: string, userPrompt: string }}
  */
 export function buildFollowUpPrompt({
@@ -76,7 +81,9 @@ export function buildFollowUpPrompt({
   followUpQuestion,
   conversationHistory = [],
   journalContext = null,
-  personalization = null
+  personalization = null,
+  memories = [],
+  memoryOptions = {}
 }) {
   const displayName = sanitizeDisplayName(personalization?.displayName);
   const toneKey = resolveToneKey(personalization?.readingTone);
@@ -171,7 +178,32 @@ export function buildFollowUpPrompt({
       ''
     );
   }
-  
+
+  // Add memory context section if memories are present
+  const formattedMemories = formatMemoriesForPrompt(memories);
+  if (formattedMemories) {
+    systemLines.push(
+      '## MEMORY CONTEXT (What You Know About This Querent)',
+      '',
+      'You have remembered the following about this person from past interactions:',
+      '',
+      formattedMemories,
+      '',
+      '**Memory Usage Guidelines:**',
+      '- Reference memories naturally when relevant to their question',
+      '- Don\'t explicitly say "I remember that..." - weave it into your response organically',
+      '- If a memory conflicts with what they\'re saying now, trust their current words',
+      '- Use memories to personalize tone and recommendations, not to make assumptions',
+      '- Memories are advisory context, not constraints on your reading',
+      ''
+    );
+  }
+
+  // Add memory tool instructions if enabled
+  if (memoryOptions?.includeMemoryTool) {
+    systemLines.push(MEMORY_TOOL_INSTRUCTIONS, '');
+  }
+
   systemLines.push(
     '## ETHICS & SAFETY',
     '',

@@ -80,7 +80,7 @@ export default function FollowUpChat({
   const localTurns = messages.filter(m => m.role === 'user').length;
   const turnsUsed = serverTurn !== null ? serverTurn : localTurns;
   const canAskMore = turnsUsed < followUpLimit;
-  const hasValidReading = Boolean(personalReading) && !personalReading.isError;
+  const hasValidReading = Boolean(personalReading) && !personalReading.isError && !personalReading.isStreaming;
 
   const upsertFollowUp = useCallback((payload) => {
     const question = payload?.question?.trim();
@@ -285,9 +285,9 @@ export default function FollowUpChat({
             if (eventType === 'meta') {
               // Capture metadata (turn, journalContext, etc.)
               journalContext = data.journalContext || null;
-              // Sync turn count from server to keep UI accurate across devices
+              // Store turn locally but DON'T update serverTurn yet - wait for successful completion
+              // This prevents locking out turns when the stream errors after meta is received
               if (typeof data.turn === 'number') {
-                setServerTurn(data.turn);
                 resolvedTurn = data.turn;
               }
             } else if (eventType === 'delta') {
@@ -303,25 +303,48 @@ export default function FollowUpChat({
             } else if (eventType === 'done') {
               // Stream complete - finalize the message
               const finalText = data.fullText || streamedText;
-              setMessages(prev => prev.map(msg =>
-                msg.id === assistantMessageId
-                  ? {
-                      ...msg,
-                      content: finalText,
-                      isStreaming: false,
-                      journalContext
-                    }
-                  : msg
-              ));
+              const isEmpty = data.isEmpty || (!finalText || !finalText.trim());
+
+              // Only commit serverTurn on successful completion with actual content
+              // This ensures UI turn count stays in sync with server's usage tracking
               const turnNumberForSave = resolvedTurn || data.turn || serverTurn || (turnsUsed + 1);
-              upsertFollowUp({
-                question: trimmedQuestion,
-                answer: finalText,
-                turnNumber: turnNumberForSave,
-                journalContext,
-                createdAt: Date.now()
-              });
-              followUpPersisted = true;
+              if (!isEmpty) {
+                setServerTurn(turnNumberForSave);
+              }
+
+              // If empty response (tool-only), show a fallback message and don't count the turn
+              if (isEmpty) {
+                setMessages(prev => prev.map(msg =>
+                  msg.id === assistantMessageId
+                    ? {
+                        ...msg,
+                        content: '*The reader noted something about your question but didn\'t have more to add. Feel free to ask another question.*',
+                        isStreaming: false,
+                        isSystemMessage: true
+                      }
+                    : msg
+                ));
+                // Don't persist empty responses or count the turn
+              } else {
+                setMessages(prev => prev.map(msg =>
+                  msg.id === assistantMessageId
+                    ? {
+                        ...msg,
+                        content: finalText,
+                        isStreaming: false,
+                        journalContext
+                      }
+                    : msg
+                ));
+                upsertFollowUp({
+                  question: trimmedQuestion,
+                  answer: finalText,
+                  turnNumber: turnNumberForSave,
+                  journalContext,
+                  createdAt: Date.now()
+                });
+                followUpPersisted = true;
+              }
             } else if (eventType === 'error') {
               throw new Error(data.message || 'Streaming error occurred');
             }

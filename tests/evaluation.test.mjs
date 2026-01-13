@@ -323,7 +323,7 @@ describe('evaluation', () => {
         }
       };
 
-      const longReading = 'A'.repeat(5000);  // Exceeds 4000 char limit
+      const longReading = 'A'.repeat(12000);  // Exceeds 10000 char limit
 
       await runEvaluation(
         { AI: capturingMockAI, EVAL_ENABLED: 'true' },
@@ -338,8 +338,8 @@ describe('evaluation', () => {
 
       // Verify truncation occurs for long readings
       assert.ok(capturedPrompt.includes('[truncated]'), 'Long reading should be truncated');
-      assert.ok(!capturedPrompt.includes('A'.repeat(5000)), 'Full 5000 chars should not be present');
-      assert.ok(capturedPrompt.includes('A'.repeat(3000)), 'At least 3000 chars should be preserved');
+      assert.ok(!capturedPrompt.includes('A'.repeat(12000)), 'Full 12000 chars should not be present');
+      assert.ok(capturedPrompt.includes('A'.repeat(8000)), 'At least 8000 chars should be preserved');
     });
 
     test('truncates very long user questions to prevent context overflow', async () => {
@@ -476,7 +476,7 @@ describe('evaluation', () => {
         })
       });
 
-      const longReading = 'B'.repeat(4500);
+      const longReading = 'B'.repeat(12000);  // Exceeds 10000 char limit
       const longQuestion = 'C'.repeat(800);
 
       const result = await runEvaluation(
@@ -491,7 +491,7 @@ describe('evaluation', () => {
       );
 
       assert.ok(Array.isArray(result.truncations));
-      assert.ok(result.truncations.some((entry) => entry.includes('reading (4500 chars')), 'Missing reading truncation entry');
+      assert.ok(result.truncations.some((entry) => entry.includes('reading (12000 chars')), 'Missing reading truncation entry');
       assert.ok(result.truncations.some((entry) => entry.includes('question (800 chars')), 'Missing question truncation entry');
     });
   });

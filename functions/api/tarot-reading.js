@@ -98,6 +98,12 @@ import {
   callAzureResponses,
   getReasoningEffort
 } from '../lib/azureResponses.js';
+import {
+  callAzureResponsesStream,
+  transformAzureStream,
+  createSSEResponse,
+  createSSEErrorResponse
+} from '../lib/azureResponsesStream.js';
 
 // ============================================================================
 // Reading Limit Enforcement
@@ -397,6 +403,32 @@ function normalizeBooleanFlag(value) {
   return String(value).toLowerCase() === 'true';
 }
 
+function isEvalGateEnabled(env) {
+  return normalizeBooleanFlag(env?.EVAL_ENABLED) && normalizeBooleanFlag(env?.EVAL_GATE_ENABLED);
+}
+
+function isAzureTokenStreamingEnabled(env) {
+  if (!env) return false;
+  if (env.AZURE_OPENAI_STREAMING_ENABLED !== undefined) {
+    return normalizeBooleanFlag(env.AZURE_OPENAI_STREAMING_ENABLED);
+  }
+  if (env.ENABLE_AZURE_TOKEN_STREAMING !== undefined) {
+    return normalizeBooleanFlag(env.ENABLE_AZURE_TOKEN_STREAMING);
+  }
+  return false;
+}
+
+function allowStreamingWithEvalGate(env) {
+  if (!env) return false;
+  if (env.ALLOW_STREAMING_WITH_EVAL_GATE !== undefined) {
+    return normalizeBooleanFlag(env.ALLOW_STREAMING_WITH_EVAL_GATE);
+  }
+  if (env.ALLOW_UNGATED_STREAMING !== undefined) {
+    return normalizeBooleanFlag(env.ALLOW_UNGATED_STREAMING);
+  }
+  return false;
+}
+
 function shouldLogLLMPrompts(env) {
   if (!env) return false;
 
@@ -599,6 +631,401 @@ function maybeLogEnhancementTelemetry(env, requestId, telemetry) {
   }
 }
 
+function formatSSEEvent(event, data) {
+  return `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
+}
+
+function chunkTextForStreaming(text, chunkSize = 160) {
+  if (!text || typeof text !== 'string') return [];
+  const size = Number.isFinite(chunkSize) && chunkSize > 0 ? Math.floor(chunkSize) : 160;
+  const chunks = [];
+  for (let i = 0; i < text.length; i += size) {
+    chunks.push(text.slice(i, i + size));
+  }
+  return chunks;
+}
+
+function createReadingStream(responsePayload, options = {}) {
+  const encoder = new TextEncoder();
+  const readingText = typeof responsePayload?.reading === 'string' ? responsePayload.reading : '';
+  const chunks = chunkTextForStreaming(readingText, options.chunkSize);
+  const meta = {
+    requestId: responsePayload?.requestId || null,
+    provider: responsePayload?.provider || null,
+    themes: responsePayload?.themes || null,
+    emotionalTone: responsePayload?.emotionalTone || null,
+    ephemeris: responsePayload?.ephemeris || null,
+    context: responsePayload?.context || null,
+    contextDiagnostics: responsePayload?.contextDiagnostics || [],
+    graphRAG: responsePayload?.graphRAG || null,
+    spreadAnalysis: responsePayload?.spreadAnalysis || null,
+    gateBlocked: responsePayload?.gateBlocked || false,
+    gateReason: responsePayload?.gateReason || null,
+    backendErrors: responsePayload?.backendErrors || null
+  };
+  const donePayload = {
+    fullText: readingText,
+    provider: responsePayload?.provider || null,
+    requestId: responsePayload?.requestId || null,
+    gateBlocked: responsePayload?.gateBlocked || false,
+    gateReason: responsePayload?.gateReason || null
+  };
+  const streamEvents = [
+    formatSSEEvent('meta', meta),
+    ...chunks.map((chunk) => formatSSEEvent('delta', { text: chunk })),
+    formatSSEEvent('done', donePayload)
+  ];
+  let index = 0;
+
+  return new ReadableStream({
+    pull(controller) {
+      if (index >= streamEvents.length) {
+        controller.close();
+        return;
+      }
+      controller.enqueue(encoder.encode(streamEvents[index]));
+      index += 1;
+    }
+  });
+}
+
+function wrapReadingStreamWithMetadata(stream, { meta, ctx, onComplete }) {
+  const encoder = new TextEncoder();
+  const decoder = new TextDecoder();
+
+  let fullText = '';
+  let sawError = false;
+  // Buffer for SSE events that may be split across chunks
+  let sseBuffer = '';
+
+  // Helper to process complete SSE events from buffer
+  function processCompleteEvents(buffer, isFinal = false) {
+    const events = buffer.split(/\r?\n\r?\n/);
+    // Keep the last element as potential incomplete event (unless final)
+    const remainder = isFinal ? '' : (events.pop() || '');
+
+    for (const eventBlock of events) {
+      if (!eventBlock.trim()) continue;
+
+      const lines = eventBlock.split(/\r?\n/);
+      let eventType = '';
+      let eventData = '';
+
+      for (const line of lines) {
+        if (line.startsWith('event:')) {
+          eventType = line.slice(6).trim();
+        } else if (line.startsWith('data:')) {
+          eventData = line.slice(5).trim();
+        }
+      }
+
+      // Check for error events
+      if (eventType === 'error') {
+        sawError = true;
+      }
+
+      // Extract text from delta events
+      if (eventType === 'delta' && eventData) {
+        try {
+          const data = JSON.parse(eventData);
+          if (data.text) {
+            fullText += data.text;
+          }
+        } catch {
+          // Ignore parse errors
+        }
+      }
+    }
+
+    return remainder;
+  }
+
+  return new ReadableStream({
+    async start(controller) {
+      const metaEvent = formatSSEEvent('meta', meta);
+      controller.enqueue(encoder.encode(metaEvent));
+
+      const reader = stream.getReader();
+
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+
+          if (done) {
+            // Process any remaining buffered content
+            if (sseBuffer.length > 0) {
+              processCompleteEvents(sseBuffer, true);
+            }
+
+            if (!sawError && onComplete) {
+              const trackingPromise = onComplete(fullText).catch(err => {
+                console.warn('[wrapReadingStreamWithMetadata] onComplete error:', err.message);
+              });
+              if (ctx?.waitUntil) {
+                ctx.waitUntil(trackingPromise);
+              }
+            } else if (sawError) {
+              console.log('[wrapReadingStreamWithMetadata] Skipping completion due to error event');
+            }
+            controller.close();
+            break;
+          }
+
+          // Decode the chunk and add to buffer
+          const chunk = decoder.decode(value, { stream: true });
+          sseBuffer += chunk;
+
+          // Process complete SSE events, keeping any trailing incomplete event
+          // This handles events that span multiple chunks (common on slow networks)
+          sseBuffer = processCompleteEvents(sseBuffer, false);
+
+          // Pass through the chunk unchanged to the client
+          controller.enqueue(value);
+        }
+      } catch (error) {
+        console.error('[wrapReadingStreamWithMetadata] Stream error:', error.message);
+
+        const errorEvent = formatSSEEvent('error', { message: error.message });
+        controller.enqueue(encoder.encode(errorEvent));
+        controller.close();
+      } finally {
+        reader.releaseLock();
+      }
+    }
+  });
+}
+
+async function finalizeReading({
+  env,
+  requestId,
+  startTime,
+  reading,
+  provider,
+  deckStyle,
+  analysis,
+  narrativePayload,
+  contextDiagnostics,
+  cardsInfo,
+  userQuestion,
+  context,
+  visionMetrics,
+  abAssignment,
+  capturedPrompts,
+  capturedUsage,
+  waitUntil,
+  personalization,
+  backendErrors = [],
+  acceptedQualityMetrics = null,
+  allowGateBlocking = true
+}) {
+  const totalTime = Date.now() - startTime;
+  console.log(`[${requestId}] Request completed successfully in ${totalTime}ms using provider: ${provider}`);
+  console.log(`[${requestId}] === TAROT READING REQUEST END ===`);
+
+  const narrativeEnhancementSummary = summarizeNarrativeEnhancements(
+    Array.isArray(narrativePayload.narrativeEnhancements)
+      ? narrativePayload.narrativeEnhancements
+      : []
+  );
+  maybeLogNarrativeEnhancements(env, requestId, provider, narrativeEnhancementSummary);
+  const enhancementSections = (narrativePayload.narrativeEnhancements || []).map((section, index) => ({
+    name: section?.metadata?.name || section?.metadata?.type || `section-${index + 1}`,
+    type: section?.metadata?.type || null,
+    text: trimForTelemetry(section?.text, 500),
+    validation: section?.validation || null
+  }));
+
+  const enhancementTelemetry = narrativeEnhancementSummary
+    ? { summary: narrativeEnhancementSummary, sections: enhancementSections }
+    : null;
+
+  const promptMeta = narrativePayload.promptMeta || null;
+  const promptTokens = promptMeta?.estimatedTokens || null;
+  const promptSlimming = promptMeta?.slimmingSteps || [];
+  const graphRAGStats = analysis.graphRAGPayload?.retrievalSummary || null;
+  const finalContextDiagnostics = Array.isArray(narrativePayload.contextDiagnostics)
+    ? narrativePayload.contextDiagnostics
+    : contextDiagnostics;
+  const diagnosticsPayload = {
+    messages: finalContextDiagnostics,
+    count: finalContextDiagnostics.length
+  };
+
+  const baseNarrativeMetrics = acceptedQualityMetrics || buildNarrativeMetrics(reading, cardsInfo, deckStyle);
+  const narrativeMetrics = {
+    ...baseNarrativeMetrics,
+    enhancementTelemetry,
+    promptTokens,
+    promptSlimming,
+    graphRAG: graphRAGStats,
+    contextDiagnostics: diagnosticsPayload
+  };
+
+  let evalGateResult = null;
+  let wasGateBlocked = false;
+
+  const evalParams = {
+    reading,
+    userQuestion,
+    cardsInfo,
+    spreadKey: analysis.spreadKey,
+    requestId
+  };
+
+  const gateResult = await runSyncEvaluationGate(
+    env,
+    evalParams,
+    baseNarrativeMetrics
+  );
+
+  evalGateResult = gateResult;
+
+  if (!gateResult.passed) {
+    wasGateBlocked = true;
+    if (allowGateBlocking) {
+      console.warn(`[${requestId}] Evaluation gate blocked reading, using safe fallback`);
+
+      reading = generateSafeFallbackReading({
+        spreadKey: analysis.spreadKey,
+        cardCount: cardsInfo.length,
+        reason: gateResult.gateResult?.reason
+      });
+      provider = 'safe-fallback';
+
+      if (env.METRICS_DB?.put) {
+        try {
+          const blockEvent = {
+            type: 'gate_block',
+            requestId,
+            timestamp: new Date().toISOString(),
+            reason: gateResult.gateResult?.reason,
+            spreadKey: analysis.spreadKey,
+            evalMode: gateResult.evalResult?.mode || 'model',
+            evalLatencyMs: gateResult.latencyMs,
+            scores: gateResult.evalResult?.scores
+          };
+          await env.METRICS_DB.put(`block:${requestId}`, JSON.stringify(blockEvent), {
+            metadata: {
+              type: 'gate_block',
+              reason: gateResult.gateResult?.reason,
+              timestamp: blockEvent.timestamp
+            }
+          });
+        } catch (err) {
+          console.warn(`[${requestId}] Failed to log gate block event: ${err.message}`);
+        }
+      }
+    } else {
+      console.warn(`[${requestId}] Evaluation gate would have blocked streaming response (${gateResult.gateResult?.reason || 'unknown'})`);
+    }
+  }
+
+  let promptEngineering = null;
+  if (capturedPrompts && shouldPersistPrompts(env)) {
+    try {
+      promptEngineering = await buildPromptEngineeringPayload({
+        systemPrompt: capturedPrompts.system,
+        userPrompt: capturedPrompts.user,
+        response: reading,
+        redactionOptions: {
+          displayName: personalization?.displayName
+        }
+      });
+    } catch (err) {
+      console.warn(`[${requestId}] Failed to build prompt engineering payload: ${err.message}`);
+    }
+  }
+
+  const timestamp = new Date().toISOString();
+
+  const tokens = capturedUsage ? {
+    input: capturedUsage.input_tokens,
+    output: capturedUsage.output_tokens,
+    total: capturedUsage.total_tokens || (capturedUsage.input_tokens + capturedUsage.output_tokens),
+    source: 'api'
+  } : null;
+
+  const metricsPayload = {
+    requestId,
+    timestamp,
+    provider,
+    deckStyle,
+    spreadKey: analysis.spreadKey,
+    context,
+    readingPromptVersion: promptMeta?.readingPromptVersion || null,
+    variantId: abAssignment?.variantId || null,
+    experimentId: abAssignment?.experimentId || null,
+    tokens,
+    vision: visionMetrics,
+    narrative: narrativeMetrics,
+    narrativeEnhancements: narrativeEnhancementSummary,
+    graphRAG: graphRAGStats,
+    promptMeta,
+    enhancementTelemetry,
+    contextDiagnostics: diagnosticsPayload,
+    promptEngineering,
+    llmUsage: capturedUsage,
+    evalGate: evalGateResult ? {
+      ran: true,
+      passed: evalGateResult.passed,
+      reason: evalGateResult.gateResult?.reason,
+      latencyMs: evalGateResult.latencyMs,
+      blocked: wasGateBlocked
+    } : { ran: false }
+  };
+
+  await persistReadingMetrics(env, metricsPayload);
+
+  const gateEval = evalGateResult?.evalResult || null;
+  const allowAsyncRetry = gateEval
+    ? (gateEval.mode === 'heuristic' || gateEval.error)
+    : false;
+
+  scheduleEvaluation(
+    env,
+    evalParams,
+    metricsPayload,
+    {
+      waitUntil,
+      precomputedEvalResult: gateEval,
+      allowAsyncRetry
+    }
+  );
+
+  maybeLogEnhancementTelemetry(env, requestId, enhancementTelemetry);
+
+  const emotionalTone = deriveEmotionalTone(analysis.themes);
+
+  const responsePayload = {
+    reading,
+    provider,
+    requestId,
+    backendErrors: backendErrors.length > 0 ? backendErrors : undefined,
+    themes: analysis.themes,
+    emotionalTone,
+    ephemeris: buildEphemerisClientPayload(analysis.ephemerisContext),
+    context,
+    contextDiagnostics: finalContextDiagnostics,
+    narrativeMetrics,
+    graphRAG: graphRAGStats,
+    spreadAnalysis: {
+      version: '1.0.0',
+      spreadKey: analysis.spreadKey,
+      ...(analysis.spreadAnalysis || {})
+    },
+    ...(allowGateBlocking && wasGateBlocked ? {
+      gateBlocked: true,
+      gateReason: evalGateResult?.gateResult?.reason
+    } : {})
+  };
+
+  return {
+    responsePayload,
+    evalGateResult,
+    wasGateBlocked
+  };
+}
+
 export const onRequestGet = async ({ env }) => {
   // Health check endpoint
   return jsonResponse({
@@ -612,8 +1039,14 @@ export const onRequestPost = async ({ request, env, waitUntil }) => {
   const startTime = Date.now();
   const requestId = crypto.randomUUID ? crypto.randomUUID() : `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
   let readingReservation = null;
+  const url = new URL(request.url);
+  const acceptHeader = request.headers.get('accept') || '';
+  const useStreaming = url.searchParams.get('stream') === 'true' || acceptHeader.includes('text/event-stream');
 
   console.log(`[${requestId}] === TAROT READING REQUEST START ===`);
+  if (useStreaming) {
+    console.log(`[${requestId}] Streaming response requested`);
+  }
 
   try {
     console.log(`[${requestId}] Reading request body...`);
@@ -901,6 +1334,158 @@ export const onRequestPost = async ({ request, env, waitUntil }) => {
       promptMeta: null
     };
 
+    const tokenStreamingEnabled = isAzureTokenStreamingEnabled(env);
+    const evalGateEnabled = isEvalGateEnabled(env);
+    const allowStreamingGateBypass = allowStreamingWithEvalGate(env);
+    const azureStreamingAvailable = Boolean(NARRATIVE_BACKENDS['azure-gpt5']?.isAvailable(env));
+    const canUseAzureStreaming = useStreaming &&
+      tokenStreamingEnabled &&
+      azureStreamingAvailable &&
+      (!evalGateEnabled || allowStreamingGateBypass);
+
+    if (useStreaming && tokenStreamingEnabled && evalGateEnabled && !allowStreamingGateBypass) {
+      console.warn(`[${requestId}] Token streaming disabled while eval gate is enabled; falling back to buffered streaming.`);
+    }
+
+    if (useStreaming && tokenStreamingEnabled && !azureStreamingAvailable) {
+      console.warn(`[${requestId}] Token streaming requested but Azure GPT-5 is unavailable; falling back to buffered streaming.`);
+    }
+
+    if (canUseAzureStreaming) {
+      const streamProvider = 'azure-gpt5';
+
+      // A/B Testing: assign per-provider so targeting is accurate
+      const attemptAssignment = activeExperiments.length
+        ? getABAssignment(requestId, activeExperiments, {
+          spreadKey: analysis.spreadKey,
+          provider: streamProvider
+        })
+        : null;
+      narrativePayload.abAssignment = attemptAssignment;
+      narrativePayload.variantPromptOverrides = attemptAssignment
+        ? getVariantPromptOverrides(attemptAssignment.variantId)
+        : null;
+
+      if (attemptAssignment) {
+        abAssignment = attemptAssignment;
+        console.log(`[${requestId}] A/B assignment: ${abAssignment.experimentId} → ${abAssignment.variantId} (provider: ${streamProvider})`);
+        const recordPromise = recordExperimentAssignment(env.DB, abAssignment.experimentId);
+        if (typeof waitUntil === 'function') {
+          waitUntil(recordPromise);
+        }
+      }
+
+      const { systemPrompt, userPrompt } = buildAzureGPT5Prompts(env, narrativePayload, requestId);
+      const graphRAGAlerts = collectGraphRAGAlerts(narrativePayload.promptMeta || {});
+      if (graphRAGAlerts.length) {
+        graphRAGAlerts.forEach((msg) => console.warn(`[${requestId}] [${streamProvider}] ${msg}`));
+        narrativePayload.contextDiagnostics = Array.from(new Set([...(narrativePayload.contextDiagnostics || []), ...graphRAGAlerts]));
+      }
+
+      const reasoningEffort = getReasoningEffort(env.AZURE_OPENAI_GPT5_MODEL);
+      if (reasoningEffort === 'high') {
+        console.log(`[${requestId}] Detected ${env.AZURE_OPENAI_GPT5_MODEL} deployment, using 'high' reasoning effort`);
+      }
+
+      console.log(`[${requestId}] Streaming request config:`, {
+        deployment: env.AZURE_OPENAI_GPT5_MODEL,
+        max_output_tokens: 'unlimited',
+        reasoning_effort: reasoningEffort,
+        reasoning_summary: 'auto',
+        verbosity: 'medium',
+        stream: true
+      });
+
+      try {
+        const azureStream = await callAzureResponsesStream(env, {
+          instructions: systemPrompt,
+          input: userPrompt,
+          maxTokens: null,
+          reasoningEffort,
+          reasoningSummary: 'auto',
+          verbosity: 'medium'
+        });
+
+        const transformedStream = transformAzureStream(azureStream);
+
+        const graphRAGStats = analysis.graphRAGPayload?.retrievalSummary || null;
+        const finalContextDiagnostics = Array.isArray(narrativePayload.contextDiagnostics)
+          ? narrativePayload.contextDiagnostics
+          : contextDiagnostics;
+        const emotionalTone = deriveEmotionalTone(analysis.themes);
+
+        const streamMeta = {
+          requestId,
+          provider: streamProvider,
+          themes: analysis.themes,
+          emotionalTone,
+          ephemeris: buildEphemerisClientPayload(analysis.ephemerisContext),
+          context,
+          contextDiagnostics: finalContextDiagnostics,
+          graphRAG: graphRAGStats,
+          spreadAnalysis: {
+            version: '1.0.0',
+            spreadKey: analysis.spreadKey,
+            ...(analysis.spreadAnalysis || {})
+          },
+          gateBlocked: false,
+          gateReason: null,
+          backendErrors: null
+        };
+
+        const capturedPrompts = {
+          system: systemPrompt,
+          user: userPrompt
+        };
+
+        const wrappedStream = wrapReadingStreamWithMetadata(transformedStream, {
+          meta: streamMeta,
+          ctx: { waitUntil },
+          onComplete: async (fullText) => {
+            const finalText = (fullText || '').trim();
+            if (!finalText) {
+              console.warn(`[${requestId}] Streaming completed with empty reading text - releasing quota`);
+              // Release the reading reservation so user doesn't lose a quota slot for an empty response
+              // This can happen if Azure returns only tool calls, errors, or empty content
+              await releaseReadingReservation(env, readingReservation);
+              return;
+            }
+
+            await finalizeReading({
+              env,
+              requestId,
+              startTime,
+              reading: finalText,
+              provider: streamProvider,
+              deckStyle,
+              analysis,
+              narrativePayload,
+              contextDiagnostics,
+              cardsInfo,
+              userQuestion,
+              context,
+              visionMetrics,
+              abAssignment,
+              capturedPrompts,
+              capturedUsage: null,
+              waitUntil,
+              personalization,
+              backendErrors: [],
+              acceptedQualityMetrics: null,
+              allowGateBlocking: false
+            });
+          }
+        });
+
+        return createSSEResponse(wrappedStream);
+      } catch (streamError) {
+        console.error(`[${requestId}] Streaming error: ${streamError.message}`);
+        // Release the reading reservation - user shouldn't lose quota for failed streaming
+        await releaseReadingReservation(env, readingReservation);
+        return createSSEErrorResponse('Failed to generate reading.', 503);
+      }
+    }
+
     let reading = null;
     let provider = 'local-composer';
     let acceptedQualityMetrics = null; // Store metrics from successful backend to avoid recomputation
@@ -1043,231 +1628,43 @@ export const onRequestPost = async ({ request, env, waitUntil }) => {
 
     if (!reading) {
       console.error(`[${requestId}] All narrative backends failed.`, backendErrors);
+      // Release the reading reservation - user shouldn't lose quota when all backends fail
+      await releaseReadingReservation(env, readingReservation);
       return jsonResponse(
         { error: 'All narrative providers are currently unavailable. Please try again shortly.' },
         { status: 503 }
       );
     }
 
-    // STEP 3: Return structured response with server-centric analysis
-    // - spreadAnalysis: canonical source for patterns/highlights
-    // - themes: shared thematic summary
-    // Frontend should trust these when present, and only fall back locally if missing.
-    const totalTime = Date.now() - startTime;
-    console.log(`[${requestId}] Request completed successfully in ${totalTime}ms using provider: ${provider}`);
-    console.log(`[${requestId}] === TAROT READING REQUEST END ===`);
-
-    const narrativeEnhancementSummary = summarizeNarrativeEnhancements(
-      Array.isArray(narrativePayload.narrativeEnhancements)
-        ? narrativePayload.narrativeEnhancements
-        : []
-    );
-    maybeLogNarrativeEnhancements(env, requestId, provider, narrativeEnhancementSummary);
-    const enhancementSections = (narrativePayload.narrativeEnhancements || []).map((section, index) => ({
-      name: section?.metadata?.name || section?.metadata?.type || `section-${index + 1}`,
-      type: section?.metadata?.type || null,
-      text: trimForTelemetry(section?.text, 500),
-      validation: section?.validation || null
-    }));
-
-    const enhancementTelemetry = narrativeEnhancementSummary
-      ? { summary: narrativeEnhancementSummary, sections: enhancementSections }
-      : null;
-
-    const promptMeta = narrativePayload.promptMeta || null;
-    const promptTokens = promptMeta?.estimatedTokens || null;
-    const promptSlimming = promptMeta?.slimmingSteps || [];
-    const graphRAGStats = analysis.graphRAGPayload?.retrievalSummary || null;
-    const finalContextDiagnostics = Array.isArray(narrativePayload.contextDiagnostics)
-      ? narrativePayload.contextDiagnostics
-      : contextDiagnostics;
-    const diagnosticsPayload = {
-      messages: finalContextDiagnostics,
-      count: finalContextDiagnostics.length
-    };
-
-    // Reuse quality metrics from the successful backend (computed during quality gate)
-    // to avoid redundant computation
-    const baseNarrativeMetrics = acceptedQualityMetrics || buildNarrativeMetrics(reading, cardsInfo, deckStyle);
-    const narrativeMetrics = {
-      ...baseNarrativeMetrics,
-      enhancementTelemetry,
-      promptTokens,
-      promptSlimming,
-      graphRAG: graphRAGStats,
-      contextDiagnostics: diagnosticsPayload
-    };
-
-    // EVALUATION GATE: When EVAL_GATE_ENABLED=true, run synchronous evaluation
-    // and block harmful readings before they reach the user
-    let evalGateResult = null;
-    let wasGateBlocked = false;
-
-    const evalParams = {
-      reading,
-      userQuestion,
-      cardsInfo,
-      spreadKey: analysis.spreadKey,
-      requestId
-    };
-
-    const gateResult = await runSyncEvaluationGate(
+    const { responsePayload } = await finalizeReading({
       env,
-      evalParams,
-      baseNarrativeMetrics
-    );
-
-    evalGateResult = gateResult;
-
-    if (!gateResult.passed) {
-      // Gate blocked the reading - generate safe fallback
-      wasGateBlocked = true;
-      console.warn(`[${requestId}] Evaluation gate blocked reading, using safe fallback`);
-
-      reading = generateSafeFallbackReading({
-        spreadKey: analysis.spreadKey,
-        cardCount: cardsInfo.length,
-        reason: gateResult.gateResult?.reason
-      });
-      provider = 'safe-fallback';
-
-      // Log the blocked event for monitoring
-      if (env.METRICS_DB?.put) {
-        try {
-          const blockEvent = {
-            type: 'gate_block',
-            requestId,
-            timestamp: new Date().toISOString(),
-            reason: gateResult.gateResult?.reason,
-            spreadKey: analysis.spreadKey,
-            evalMode: gateResult.evalResult?.mode || 'model',
-            evalLatencyMs: gateResult.latencyMs,
-            scores: gateResult.evalResult?.scores
-          };
-          await env.METRICS_DB.put(`block:${requestId}`, JSON.stringify(blockEvent), {
-            metadata: {
-              type: 'gate_block',
-              reason: gateResult.gateResult?.reason,
-              timestamp: blockEvent.timestamp
-            }
-          });
-        } catch (err) {
-          console.warn(`[${requestId}] Failed to log gate block event: ${err.message}`);
-        }
-      }
-    }
-
-    // Build prompt engineering payload if prompts were captured
-    let promptEngineering = null;
-    if (capturedPrompts && shouldPersistPrompts(env)) {
-      try {
-        promptEngineering = await buildPromptEngineeringPayload({
-          systemPrompt: capturedPrompts.system,
-          userPrompt: capturedPrompts.user,
-          response: reading,
-          redactionOptions: {
-            displayName: personalization?.displayName
-          }
-        });
-      } catch (err) {
-        console.warn(`[${requestId}] Failed to build prompt engineering payload: ${err.message}`);
-      }
-    }
-
-    const timestamp = new Date().toISOString();
-
-    // Token counts: use actual values from API response (authoritative)
-    // promptMeta.estimatedTokens is only present when slimming is enabled
-    const tokens = capturedUsage ? {
-      input: capturedUsage.input_tokens,
-      output: capturedUsage.output_tokens,
-      total: capturedUsage.total_tokens || (capturedUsage.input_tokens + capturedUsage.output_tokens),
-      source: 'api'  // Authoritative: from model's native tokenizer
-    } : null;
-
-    const metricsPayload = {
       requestId,
-      timestamp,
+      startTime,
+      reading,
       provider,
       deckStyle,
-      spreadKey: analysis.spreadKey,
+      analysis,
+      narrativePayload,
+      contextDiagnostics,
+      cardsInfo,
+      userQuestion,
       context,
-      // Quality tracking: reading prompt version for regression correlation
-      readingPromptVersion: promptMeta?.readingPromptVersion || null,
-      // A/B testing: variant assignment (null if not in experiment)
-      variantId: abAssignment?.variantId || null,
-      experimentId: abAssignment?.experimentId || null,
-      // Token usage from API response (authoritative - uses model's native tokenizer)
-      tokens,
-      vision: visionMetrics,
-      narrative: narrativeMetrics,
-      narrativeEnhancements: narrativeEnhancementSummary,
-      graphRAG: graphRAGStats,
-      // promptMeta.estimatedTokens only present when ENABLE_PROMPT_SLIMMING=true
-      promptMeta,
-      enhancementTelemetry,
-      contextDiagnostics: diagnosticsPayload,
-      promptEngineering,
-      // Raw API usage data (kept for backwards compatibility)
-      llmUsage: capturedUsage,
-      // Gate evaluation result (if gate was run)
-      evalGate: evalGateResult ? {
-        ran: true,
-        passed: evalGateResult.passed,
-        reason: evalGateResult.gateResult?.reason,
-        latencyMs: evalGateResult.latencyMs,
-        blocked: wasGateBlocked
-      } : { ran: false }
-    };
-
-    await persistReadingMetrics(env, metricsPayload);
-
-    const gateEval = evalGateResult?.evalResult || null;
-    const allowAsyncRetry = gateEval
-      ? (gateEval.mode === 'heuristic' || gateEval.error)
-      : false;
-
-    scheduleEvaluation(
-      env,
-      evalParams,
-      metricsPayload,
-      {
-        waitUntil,
-        precomputedEvalResult: gateEval,
-        allowAsyncRetry
-      }
-    );
-
-    maybeLogEnhancementTelemetry(env, requestId, enhancementTelemetry);
-
-    // Derive emotional tone from GraphRAG patterns for TTS
-    const emotionalTone = deriveEmotionalTone(analysis.themes);
-
-    return jsonResponse({
-      reading,
-      provider,
-      requestId,
-      backendErrors: backendErrors.length > 0 ? backendErrors : undefined,
-      themes: analysis.themes,
-      emotionalTone,
-      ephemeris: buildEphemerisClientPayload(analysis.ephemerisContext),
-      context,
-      contextDiagnostics: finalContextDiagnostics,
-      narrativeMetrics,
-      graphRAG: graphRAGStats,
-      spreadAnalysis: {
-        // Normalize top-level metadata for all spreads
-        version: '1.0.0',
-        spreadKey: analysis.spreadKey,
-        // For spreads where analyzeX already returns normalized shape, prefer it directly
-        ...(analysis.spreadAnalysis || {})
-      },
-      // Include gate status when reading was blocked and replaced
-      ...(wasGateBlocked ? {
-        gateBlocked: true,
-        gateReason: evalGateResult?.gateResult?.reason
-      } : {})
+      visionMetrics,
+      abAssignment,
+      capturedPrompts,
+      capturedUsage,
+      waitUntil,
+      personalization,
+      backendErrors,
+      acceptedQualityMetrics,
+      allowGateBlocking: true
     });
+
+    if (useStreaming) {
+      return createSSEResponse(createReadingStream(responsePayload));
+    }
+
+    return jsonResponse(responsePayload);
   } catch (error) {
     const totalTime = Date.now() - startTime;
     console.error(`[${requestId}] FATAL ERROR after ${totalTime}ms:`, {
@@ -1277,6 +1674,10 @@ export const onRequestPost = async ({ request, env, waitUntil }) => {
     });
     await releaseReadingReservation(env, readingReservation);
     console.log(`[${requestId}] === TAROT READING REQUEST END (ERROR) ===`);
+
+    if (useStreaming) {
+      return createSSEErrorResponse('Failed to generate reading.', 500);
+    }
 
     return jsonResponse(
       { error: 'Failed to generate reading.' },
@@ -1693,10 +2094,18 @@ export function validatePayload({ spreadInfo, cardsInfo }) {
  * Uses the consolidated callAzureResponses helper for API interaction.
  * API Reference: https://learn.microsoft.com/en-us/azure/ai-foundry/openai/how-to/responses
  */
-async function generateWithAzureGPT5Responses(env, payload, requestId = 'unknown') {
-  const { spreadInfo, cardsInfo, userQuestion, reflectionsText, analysis, context, visionInsights, contextDiagnostics = [] } = payload;
+function buildAzureGPT5Prompts(env, payload, requestId = 'unknown') {
+  const {
+    spreadInfo,
+    cardsInfo,
+    userQuestion,
+    reflectionsText,
+    analysis,
+    context,
+    visionInsights,
+    contextDiagnostics = []
+  } = payload;
 
-  const deploymentName = env.AZURE_OPENAI_GPT5_MODEL;
   const deckStyle = spreadInfo?.deckStyle || analysis?.themes?.deckStyle || cardsInfo?.[0]?.deckStyle || 'rws-1909';
 
   console.log(`[${requestId}] Building Azure GPT-5 prompts...`);
@@ -1750,6 +2159,17 @@ async function generateWithAzureGPT5Responses(env, payload, requestId = 'unknown
     { personalization: payload.personalization }
   );
 
+  return {
+    systemPrompt,
+    userPrompt,
+    promptMeta
+  };
+}
+
+async function generateWithAzureGPT5Responses(env, payload, requestId = 'unknown') {
+  const deploymentName = env.AZURE_OPENAI_GPT5_MODEL;
+  const { systemPrompt, userPrompt } = buildAzureGPT5Prompts(env, payload, requestId);
+
   // Determine reasoning effort based on model
   const reasoningEffort = getReasoningEffort(deploymentName);
   if (reasoningEffort === 'high') {
@@ -1768,7 +2188,8 @@ async function generateWithAzureGPT5Responses(env, payload, requestId = 'unknown
     instructions: systemPrompt,
     input: userPrompt,
     maxTokens: null,          // No limit for full readings
-    reasoningEffort,          // 'high' for gpt-5.1/gpt-5-pro, 'medium' otherwise
+    reasoningEffort,          // Default to 'medium' to balance latency and cost
+    reasoningSummary: 'auto', // Get reasoning summary in response
     verbosity: 'medium',
     returnFullResponse: true  // Get usage data
   });

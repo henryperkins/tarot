@@ -20,6 +20,7 @@ import {
   ArrowCounterClockwise,
   Palette
 } from '@phosphor-icons/react';
+import { MemoryManager } from '../components/MemoryManager';
 import { useAuth } from '../contexts/AuthContext';
 import { useSubscription, SUBSCRIPTION_TIERS } from '../contexts/SubscriptionContext';
 import { usePreferences } from '../contexts/PreferencesContext';
@@ -674,6 +675,9 @@ export default function AccountPage() {
           </div>
         </SectionCard>
         )}
+
+        {/* Reader Memory Section - Auth only */}
+        {isAuthenticated && <MemoryManager />}
 
         {/* Actions Section - Auth only */}
         {isAuthenticated && (

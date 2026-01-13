@@ -8,7 +8,8 @@
 import {
   deleteSession,
   getSessionFromCookie,
-  clearSessionCookie
+  clearSessionCookie,
+  isSecureRequest
 } from '../../lib/auth.js';
 
 export async function onRequestPost(context) {
@@ -24,6 +25,8 @@ export async function onRequestPost(context) {
       await deleteSession(env.DB, token);
     }
 
+    const isHttps = isSecureRequest(request);
+
     // Return success with cleared cookie
     return new Response(
       JSON.stringify({ success: true }),
@@ -31,7 +34,7 @@ export async function onRequestPost(context) {
         status: 200,
         headers: {
           'Content-Type': 'application/json',
-          'Set-Cookie': clearSessionCookie()
+          'Set-Cookie': clearSessionCookie({ secure: isHttps })
         }
       }
     );
@@ -39,13 +42,14 @@ export async function onRequestPost(context) {
     const message = String(error?.message || '');
     if (message.includes('no such table')) {
       // If auth tables aren't available yet, treat logout as a no-op.
+      const isHttps = isSecureRequest(request);
       return new Response(
         JSON.stringify({ success: true, skipped: true }),
         {
           status: 200,
           headers: {
             'Content-Type': 'application/json',
-            'Set-Cookie': clearSessionCookie()
+            'Set-Cookie': clearSessionCookie({ secure: isHttps })
           }
         }
       );

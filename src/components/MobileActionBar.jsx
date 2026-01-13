@@ -141,7 +141,7 @@ function MobileActionContents({
   const readingLength = reading?.length || 0;
   const revealedCount = revealedCards?.size || 0;
   const allRevealed = readingLength > 0 && revealedCount === readingLength;
-  const hasNarrative = Boolean(personalReading && !personalReading.isError);
+  const hasNarrative = Boolean(personalReading && !personalReading.isError && !personalReading.isStreaming);
   const isError = Boolean(personalReading?.isError);
   // Preserve the ability to retry even if upstream flags temporarily clear needsNarrativeGeneration
   const needsNarrative = needsNarrativeGeneration || isError;

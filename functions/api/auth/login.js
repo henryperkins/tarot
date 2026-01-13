@@ -9,7 +9,8 @@ import {
   verifyPassword,
   createSession,
   createSessionCookie,
-  validateSession
+  validateSession,
+  isSecureRequest
 } from '../../lib/auth.js';
 
 export async function onRequestPost(context) {
@@ -81,6 +82,9 @@ export async function onRequestPost(context) {
       throw new Error('Session validation failed after login');
     }
 
+    const isHttps = isSecureRequest(request);
+    const cookie = createSessionCookie(token, expiresAt, { secure: isHttps });
+
     // Return success with session cookie
     return new Response(
       JSON.stringify({
@@ -99,7 +103,7 @@ export async function onRequestPost(context) {
         status: 200,
         headers: {
           'Content-Type': 'application/json',
-          'Set-Cookie': createSessionCookie(token, expiresAt)
+          'Set-Cookie': cookie
         }
       }
     );

@@ -284,27 +284,53 @@ export function getSessionFromCookie(cookieHeader) {
  * Create a secure session cookie header
  * @param {string} token - Session token
  * @param {number} expiresAt - Unix timestamp when session expires
+ * @param {Object} [options] - Cookie options
+ * @param {boolean} [options.secure=true] - Include Secure flag (set false for HTTP localhost)
  * @returns {string} Set-Cookie header value
  */
-export function createSessionCookie(token, expiresAt) {
+export function createSessionCookie(token, expiresAt, { secure = true } = {}) {
   const maxAge = expiresAt - Math.floor(Date.now() / 1000);
 
-  return [
+  const parts = [
     `session=${token}`,
     'HttpOnly',
     'SameSite=Lax',
-    'Secure',
     `Max-Age=${maxAge}`,
     'Path=/'
-  ].join('; ');
+  ];
+
+  if (secure) {
+    parts.splice(3, 0, 'Secure');
+  }
+
+  return parts.join('; ');
 }
 
 /**
  * Create a cookie to clear the session
+ * @param {Object} [options] - Cookie options
+ * @param {boolean} [options.secure=true] - Include Secure flag (set false for HTTP localhost)
  * @returns {string} Set-Cookie header value
  */
-export function clearSessionCookie() {
-  return 'session=; HttpOnly; SameSite=Lax; Secure; Max-Age=0; Path=/';
+export function clearSessionCookie({ secure = true } = {}) {
+  const secureFlag = secure ? ' Secure;' : '';
+  return `session=; HttpOnly; SameSite=Lax;${secureFlag} Max-Age=0; Path=/`;
+}
+
+/**
+ * Detect if request is over HTTPS
+ * Checks X-Forwarded-Proto, CF-Visitor header, and URL scheme
+ * @param {Request} request - The incoming request
+ * @returns {boolean} True if the connection is secure (HTTPS)
+ */
+export function isSecureRequest(request) {
+  const forwardedProto = request.headers.get('X-Forwarded-Proto');
+  const cfVisitor = request.headers.get('CF-Visitor');
+  const urlScheme = new URL(request.url).protocol;
+
+  return forwardedProto === 'https' ||
+         cfVisitor?.includes('"scheme":"https"') ||
+         urlScheme === 'https:';
 }
 
 /**

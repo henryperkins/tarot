@@ -574,11 +574,11 @@ export default function TarotReading() {
   const hasQuestion = Boolean(userQuestion && userQuestion.trim().length > 0);
   const hasReading = Boolean(reading && reading.length > 0);
   const allCardsRevealed = hasReading && revealedCards.size === reading.length;
-  const hasNarrative = Boolean(personalReading && !personalReading.isError);
-  const narrativeInProgress = isGenerating && !personalReading;
-  const needsNarrativeGeneration = allCardsRevealed && (!personalReading || personalReading.isError);
+  const hasNarrative = Boolean(personalReading && !personalReading.isError && !personalReading.isStreaming);
+  const narrativeInProgress = isGenerating && (!personalReading || personalReading.isStreaming);
+  const needsNarrativeGeneration = allCardsRevealed && (!personalReading || personalReading.isError || personalReading.isStreaming);
   const _isPersonalReadingError = Boolean(personalReading?.isError);
-  const showFollowUpButton = isHandset && personalReading && !personalReading.isError && narrativePhase === 'complete';
+  const showFollowUpButton = isHandset && personalReading && !personalReading.isError && !personalReading.isStreaming && narrativePhase === 'complete';
 
   useEffect(() => {
     if (!showFollowUpButton && isFollowUpOpen) {
