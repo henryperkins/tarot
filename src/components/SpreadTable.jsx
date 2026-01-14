@@ -366,6 +366,8 @@ export function SpreadTable({
                   `}
                   style={{
                     ...(cardSizeStyle || {}),
+                    perspective: '900px',
+                    WebkitPerspective: '900px',
                     ...(isRevealed
                       ? {
                         borderColor: getSuitBorderColor(card),
@@ -382,14 +384,22 @@ export function SpreadTable({
                   {numberBadge}
                   <motion.div
                     className="w-full h-full relative"
-                    style={{ transformStyle: 'preserve-3d' }}
+                    style={{
+                      transformStyle: 'preserve-3d',
+                      WebkitTransformStyle: 'preserve-3d',
+                      willChange: prefersReducedMotion ? undefined : 'transform'
+                    }}
                     animate={{ rotateY: isRevealed ? 0 : 180 }}
                     initial={false}
                     transition={prefersReducedMotion ? { duration: 0 } : { duration: 0.42, ease: [0.32, 0.72, 0, 1] }}
                   >
                     <div
                       className={`absolute inset-0 bg-surface flex items-center justify-center ${card.isReversed ? 'rotate-180' : ''}`}
-                      style={{ backfaceVisibility: 'hidden' }}
+                      style={{
+                        backfaceVisibility: 'hidden',
+                        WebkitBackfaceVisibility: 'hidden',
+                        transform: 'translateZ(0.1px)'
+                      }}
                     >
                       <img
                         src={cardImage}
@@ -417,7 +427,11 @@ export function SpreadTable({
                     </div>
                     <div
                       className="absolute inset-0 bg-surface-muted flex items-center justify-center"
-                      style={{ backfaceVisibility: 'hidden', transform: 'rotateY(180deg)' }}
+                      style={{
+                        backfaceVisibility: 'hidden',
+                        WebkitBackfaceVisibility: 'hidden',
+                        transform: 'rotateY(180deg) translateZ(0.1px)'
+                      }}
                     >
                       <img
                         src="/cardback.png"

@@ -257,6 +257,11 @@ export function Card({
     setSwipeOffset(Math.max(-100, Math.min(100, dx)));
   }, [isRevealed]);
 
+  const handleTouchCancel = useCallback(() => {
+    if (isRevealed) return;
+    setSwipeOffset(0);
+  }, [isRevealed]);
+
   const handleTouchEnd = useCallback((e) => {
     if (isRevealed) return;
 
@@ -428,10 +433,12 @@ export function Card({
           className={`transition-all duration-500 transform rounded-lg ${!isVisuallyRevealed ? '' : 'group'}`}
           style={{
             transformStyle: 'preserve-3d',
+            WebkitTransformStyle: 'preserve-3d',
             position: 'relative',
             zIndex: isVisuallyRevealed ? 1 : 'auto',
             backfaceVisibility: 'visible',
-            WebkitBackfaceVisibility: 'visible'
+            WebkitBackfaceVisibility: 'visible',
+            willChange: prefersReducedMotion ? undefined : 'transform, opacity, filter'
           }}
         >
           {!isVisuallyRevealed ? (
@@ -446,6 +453,7 @@ export function Card({
               onTouchStart={handleTouchStart}
               onTouchMove={handleTouchMove}
               onTouchEnd={handleTouchEnd}
+              onTouchCancel={handleTouchCancel}
               aria-label={`${position}. Tap to reveal.`}
               className={`card-swipe-container relative h-full ${isLandscape ? 'min-h-[200px] max-h-[280px]' : 'min-h-[40vh] supports-[height:1svh]:min-h-[40svh] max-h-[55vh] supports-[height:1svh]:max-h-[55svh]'} sm:min-h-[24rem] sm:max-h-none flex flex-col items-center justify-center gap-4 p-4 sm:p-6 w-full cursor-pointer hover:bg-surface-muted/70 hover:scale-105 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70 focus-visible:ring-offset-2 focus-visible:ring-offset-main`}
             >

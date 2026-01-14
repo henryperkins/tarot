@@ -36,31 +36,40 @@ import { useReducedMotion } from '../hooks/useReducedMotion';
  */
 function GhostCard({ startRect, endRect, onComplete }) {
   const duration = 0.35; // 350ms
+    const safeStartWidth = Math.max(1, startRect?.width || 0);
+    const safeStartHeight = Math.max(1, startRect?.height || 0);
+    const endScaleX = Math.max(0.01, (endRect?.width || 0) / safeStartWidth);
+    const endScaleY = Math.max(0.01, (endRect?.height || 0) / safeStartHeight);
 
   return createPortal(
     <motion.div
-      className="fixed pointer-events-none z-[200]"
-      initial={{
-        left: startRect.left,
-        top: startRect.top,
-        width: startRect.width,
-        height: startRect.height,
-        opacity: 1,
-        scale: 1,
-      }}
-      animate={{
-        left: endRect.left,
-        top: endRect.top,
-        width: endRect.width,
-        height: endRect.height,
-        opacity: 0,
-        scale: 0.95,
-      }}
+            className="fixed left-0 top-0 pointer-events-none z-[200]"
+            style={{
+                width: safeStartWidth,
+                height: safeStartHeight,
+                transformOrigin: '0 0',
+                willChange: 'transform, opacity'
+            }}
+            initial={{
+                x: startRect.left,
+                y: startRect.top,
+                opacity: 1,
+                scaleX: 1,
+                scaleY: 1
+            }}
+            animate={{
+                x: endRect.left,
+                y: endRect.top,
+                opacity: 0,
+                scaleX: endScaleX * 0.95,
+                scaleY: endScaleY * 0.95
+            }}
       transition={{
         duration,
         ease: [0.32, 0.72, 0, 1], // Custom ease-out curve
         opacity: { duration: duration * 0.4, delay: duration * 0.6 },
-        scale: { duration: duration * 0.3, delay: duration * 0.7 },
+                scaleX: { duration: duration * 0.3, delay: duration * 0.7 },
+                scaleY: { duration: duration * 0.3, delay: duration * 0.7 }
       }}
       onAnimationComplete={onComplete}
     >

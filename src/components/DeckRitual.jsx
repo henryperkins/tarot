@@ -206,7 +206,7 @@ export function DeckRitual({
       </div>
 
       {/* The Deck - responsive sizing for different screen sizes */}
-      <div className="relative flex justify-center" style={{ perspective: '1200px' }}>
+      <div className="relative flex justify-center" style={{ perspective: '1200px', WebkitPerspective: '1200px' }}>
         <motion.div
           ref={deckRef}
           animate={deckControls}
@@ -214,8 +214,10 @@ export function DeckRitual({
           onClick={handleDeckTap}
           onTouchStart={handleTouchStart}
           onTouchEnd={handleTouchEnd}
+          onTouchCancel={handleTouchEnd}
           onMouseDown={handleTouchStart}
           onMouseUp={handleTouchEnd}
+          onMouseLeave={handleTouchEnd}
           role="button"
           aria-label={deckAriaLabel}
           tabIndex={0}
@@ -239,7 +241,7 @@ export function DeckRitual({
               setShowCutSlider(prev => !prev);
             }
           }}
-          style={{ transformStyle: 'preserve-3d' }}
+          style={{ transformStyle: 'preserve-3d', WebkitTransformStyle: 'preserve-3d' }}
         >
           {/* Stack of cards - optimized for very small screens (<375px) */}
           {stackCards.map((card) => (
