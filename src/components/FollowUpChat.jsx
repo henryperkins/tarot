@@ -372,11 +372,11 @@ export default function FollowUpChat({
                 setMessages(prev => prev.map(msg =>
                   msg.id === assistantMessageId
                     ? {
-                        ...msg,
-                        content: '*The reader noted something about your question but didn\'t have more to add. Feel free to ask another question.*',
-                        isStreaming: false,
-                        isSystemMessage: true
-                      }
+                      ...msg,
+                      content: '*The reader noted something about your question but didn\'t have more to add. Feel free to ask another question.*',
+                      isStreaming: false,
+                      isSystemMessage: true
+                    }
                     : msg
                 ));
                 // Don't persist empty responses or count the turn
@@ -384,11 +384,11 @@ export default function FollowUpChat({
                 setMessages(prev => prev.map(msg =>
                   msg.id === assistantMessageId
                     ? {
-                        ...msg,
-                        content: finalText,
-                        isStreaming: false,
-                        journalContext
-                      }
+                      ...msg,
+                      content: finalText,
+                      isStreaming: false,
+                      journalContext
+                    }
                     : msg
                 ));
                 upsertFollowUp({
