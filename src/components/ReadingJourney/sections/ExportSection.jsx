@@ -18,11 +18,11 @@ import {
 import { JournalShareIcon } from '../../JournalIcons';
 
 const OUTLINE_BUTTON_CLASS = `
-  flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium
+  flex items-center gap-1.5 px-4 py-2.5 min-h-[44px] rounded-lg text-sm font-medium
   border border-amber-300/20 text-amber-100/80 bg-amber-200/5
   hover:bg-amber-200/10 hover:border-amber-300/30
   focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/50
-  transition-colors disabled:opacity-50 disabled:cursor-not-allowed
+  transition-colors disabled:opacity-50 disabled:cursor-not-allowed touch-manipulation
 `;
 
 /**
@@ -229,7 +229,7 @@ function ExportSection({ isAuthenticated, onCreateShareLink, entries, allEntries
     <div className="space-y-4">
       {/* Export buttons */}
       <div>
-        <p className="text-xs text-amber-100/60 mb-2">Export Your Journal</p>
+        <p className="text-sm sm:text-xs text-amber-100/60 mb-2">Export Your Journal</p>
         <div className="flex flex-wrap gap-2">
           <button
             onClick={handleExportPdf}
@@ -266,20 +266,20 @@ function ExportSection({ isAuthenticated, onCreateShareLink, entries, allEntries
             <div className="flex items-start gap-2">
               <Warning className="h-4 w-4 text-amber-300 flex-shrink-0 mt-0.5" aria-hidden="true" />
               <div className="flex-1">
-                <p className="text-xs text-amber-100 font-medium">Large export</p>
-                <p className="text-[11px] text-amber-100/70 mt-1">
+                <p className="text-sm sm:text-xs text-amber-100 font-medium">Large export</p>
+                <p className="text-xs sm:text-[11px] text-amber-100/70 mt-1">
                   You&apos;re about to export {pendingLargeExport.count} entries. This may take a moment and use significant memory.
                 </p>
                 <div className="flex gap-2 mt-3">
                   <button
                     onClick={handleConfirmLargeExport}
-                    className="px-3 py-1.5 rounded text-xs font-medium bg-amber-300/20 text-amber-100 hover:bg-amber-300/30 transition-colors"
+                    className="min-h-[44px] px-4 py-2.5 rounded text-sm font-medium bg-amber-300/20 text-amber-100 hover:bg-amber-300/30 transition-colors touch-manipulation"
                   >
                     Continue
                   </button>
                   <button
                     onClick={handleCancelLargeExport}
-                    className="px-3 py-1.5 rounded text-xs text-amber-100/70 hover:text-amber-100 transition-colors"
+                    className="min-h-[44px] px-4 py-2.5 rounded text-sm text-amber-100/70 hover:text-amber-100 transition-colors touch-manipulation"
                   >
                     Cancel
                   </button>
@@ -292,32 +292,32 @@ function ExportSection({ isAuthenticated, onCreateShareLink, entries, allEntries
         {/* Export status feedback */}
         {exportStatus && (
           <p
-            className={`mt-2 text-xs ${exportStatus.type === 'success' ? 'text-emerald-300' : 'text-red-300'
+            className={`mt-2 text-sm sm:text-xs ${exportStatus.type === 'success' ? 'text-emerald-300' : 'text-red-300'
               }`}
           >
             {exportStatus.message}
           </p>
         )}
         {!hasEntries && (
-          <p className="mt-2 text-[10px] text-amber-100/50">
+          <p className="mt-2 text-xs sm:text-[10px] text-amber-100/50">
             No entries to export in the current view
           </p>
         )}
       </div>
 
-      <div className="rounded-lg border border-amber-300/15 bg-amber-200/5 px-3 py-2 text-[11px] text-amber-100/70">
+      <div className="rounded-lg border border-amber-300/15 bg-amber-200/5 px-3 py-2 text-xs sm:text-[11px] text-amber-100/70">
         Exporting {hasEntries ? entries.length : 0} entr{hasEntries && entries.length === 1 ? 'y' : 'ies'} · Scope: {scopeLabel}
       </div>
 
       {/* Share link (authenticated only) */}
       {isAuthenticated && onCreateShareLink && (
         <div>
-          <p className="text-xs text-amber-100/60 mb-2">Share Journal Entries</p>
+          <p className="text-sm sm:text-xs text-amber-100/60 mb-2">Share Journal Entries</p>
 
-          <div className="mb-3 space-y-3 rounded-lg border border-amber-300/15 bg-amber-200/5 p-3 text-[12px] text-amber-100/80">
+          <div className="mb-3 space-y-3 rounded-lg border border-amber-300/15 bg-amber-200/5 p-3 text-sm sm:text-[12px] text-amber-100/80">
             {/* Scope selection */}
             <fieldset className="space-y-2">
-              <legend className="text-[10px] uppercase tracking-wider text-amber-100/50 mb-1">What to share</legend>
+              <legend className="text-xs sm:text-[10px] uppercase tracking-wider text-amber-100/50 mb-1">What to share</legend>
 
               <label className={`flex items-start gap-2 p-2 rounded-lg cursor-pointer transition-colors ${shareScope === 'recent' ? 'bg-amber-200/10' : 'hover:bg-amber-200/5'}`}>
                 <input
@@ -326,11 +326,12 @@ function ExportSection({ isAuthenticated, onCreateShareLink, entries, allEntries
                   value="recent"
                   checked={shareScope === 'recent'}
                   onChange={() => setShareScope('recent')}
-                  className="mt-0.5 h-4 w-4 border-amber-200/30 bg-transparent text-amber-300 focus:ring-amber-200/40 focus:ring-offset-0"
+                  className="mt-0.5 h-5 w-5 border-amber-200/30 bg-transparent text-amber-300 focus:ring-amber-200/40 focus:ring-offset-0 touch-manipulation"
+                  aria-label="Share most recent readings"
                 />
                 <div>
                   <span className="font-medium">Most recent readings</span>
-                  <p className="text-[11px] text-amber-100/60 mt-0.5">
+                  <p className="text-xs sm:text-[11px] text-amber-100/60 mt-0.5">
                     Share your {effectiveShareLimit} most recent entries ({hasAllEntries ? allEntries.length : 0} total)
                   </p>
                 </div>
@@ -344,11 +345,12 @@ function ExportSection({ isAuthenticated, onCreateShareLink, entries, allEntries
                     value="filtered"
                     checked={shareScope === 'filtered'}
                     onChange={() => setShareScope('filtered')}
-                    className="mt-0.5 h-4 w-4 border-amber-200/30 bg-transparent text-amber-300 focus:ring-amber-200/40 focus:ring-offset-0"
+                    className="mt-0.5 h-5 w-5 border-amber-200/30 bg-transparent text-amber-300 focus:ring-amber-200/40 focus:ring-offset-0 touch-manipulation"
+                    aria-label="Share current filtered view"
                   />
                   <div>
                     <span className="font-medium">Current filtered view</span>
-                    <p className="text-[11px] text-amber-100/60 mt-0.5">
+                    <p className="text-xs sm:text-[11px] text-amber-100/60 mt-0.5">
                       Share entries matching your filters ({hasEntries ? entries.length : 0} entries)
                     </p>
                   </div>
@@ -358,19 +360,23 @@ function ExportSection({ isAuthenticated, onCreateShareLink, entries, allEntries
 
             {/* Limit control */}
             <div className="flex items-center justify-between gap-2 pt-1 border-t border-amber-200/10">
-              <span className="text-[11px] text-amber-100/70">Max entries to share</span>
+              <label htmlFor="share-limit" className="text-xs sm:text-[11px] text-amber-100/70">Max entries to share</label>
               <input
+                id="share-limit"
                 type="number"
+                inputMode="numeric"
+                pattern="[0-9]*"
                 min="1"
                 max="10"
                 value={effectiveShareLimit}
                 onChange={(event) => setShareLimit(event.target.value)}
-                className="w-16 rounded border border-amber-200/25 bg-amber-200/5 px-2 py-1 text-xs text-amber-50 text-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/40"
+                className="w-20 min-h-[44px] rounded border border-amber-200/25 bg-amber-200/5 px-3 py-2 text-sm text-amber-50 text-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/40 touch-manipulation"
+                aria-label="Maximum number of entries to share"
               />
             </div>
 
             {/* Summary */}
-            <div className="rounded bg-amber-200/5 px-2 py-1.5 text-[11px] text-amber-100/70">
+            <div className="rounded bg-amber-200/5 px-2 py-1.5 text-xs sm:text-[11px] text-amber-100/70">
               Will share <span className="font-semibold text-amber-50">{shareEntryCount}</span> entr{shareEntryCount === 1 ? 'y' : 'ies'}
               {shareScope === 'filtered' ? ' from filtered view' : ' (most recent)'}
             </div>
@@ -378,7 +384,7 @@ function ExportSection({ isAuthenticated, onCreateShareLink, entries, allEntries
 
           {linkCreated ? (
             <div className="rounded-lg bg-emerald-500/10 border border-emerald-500/20 p-3">
-              <p className="text-xs text-emerald-100 mb-2 flex items-center gap-1">
+              <p className="text-sm sm:text-xs text-emerald-100 mb-2 flex items-center gap-1">
                 <LinkIcon className="h-3 w-3" />
                 {linkCopyStatus?.message || 'Link ready'}
               </p>
@@ -386,12 +392,13 @@ function ExportSection({ isAuthenticated, onCreateShareLink, entries, allEntries
                 type="text"
                 value={linkCreated}
                 readOnly
-                className="w-full text-xs bg-transparent text-emerald-100/80"
+                className="w-full min-h-[44px] px-3 py-2 text-sm sm:text-xs bg-transparent text-emerald-100/80 rounded border border-emerald-400/20 touch-manipulation"
                 onClick={(e) => e.target.select()}
+                aria-label="Share link - tap to select and copy"
               />
               <button
                 onClick={() => setLinkCreated(null)}
-                className="mt-2 text-xs text-emerald-200/70 hover:text-emerald-200"
+                className="mt-2 min-h-[44px] px-3 py-2 text-sm sm:text-xs text-emerald-200/70 hover:text-emerald-200 touch-manipulation"
               >
                 Create another
               </button>
@@ -407,7 +414,7 @@ function ExportSection({ isAuthenticated, onCreateShareLink, entries, allEntries
             </button>
           )}
 
-          <p className="mt-2 text-[10px] text-amber-100/50">
+          <p className="mt-2 text-xs sm:text-[10px] text-amber-100/50">
             Share your recent readings with a secure link
           </p>
         </div>
@@ -415,7 +422,7 @@ function ExportSection({ isAuthenticated, onCreateShareLink, entries, allEntries
 
       {/* Snapshot sharing (available to everyone) */}
       <div>
-        <p className="text-xs text-amber-100/60 mb-2">Share a snapshot</p>
+        <p className="text-sm sm:text-xs text-amber-100/60 mb-2">Share a snapshot</p>
         <button
           onClick={handleCopySnapshot}
           disabled={!stats}
@@ -427,14 +434,14 @@ function ExportSection({ isAuthenticated, onCreateShareLink, entries, allEntries
         </button>
         {shareStatus && (
           <p
-            className={`mt-2 text-[10px] ${shareStatus.type === 'success' ? 'text-emerald-300' : 'text-red-300'
+            className={`mt-2 text-xs sm:text-[10px] ${shareStatus.type === 'success' ? 'text-emerald-300' : 'text-red-300'
               }`}
           >
             {shareStatus.message}
           </p>
         )}
         {!isAuthenticated && (
-          <p className="text-xs text-amber-100/50 italic mt-1">
+          <p className="text-sm sm:text-xs text-amber-100/50 italic mt-1">
             Sign in to create share links; snapshot copy works for guests
           </p>
         )}

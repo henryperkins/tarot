@@ -28,7 +28,7 @@ function CardsCallingYou({ cards = [], badges = [] }) {
 
   return (
     <div>
-      <p className="text-xs text-amber-100/60 mb-3">
+      <p className="text-sm sm:text-xs text-amber-100/60 mb-3">
         These cards keep appearing in your readings
       </p>
       <ul className="space-y-2" aria-label="Your top most frequently appearing cards">
@@ -38,7 +38,7 @@ function CardsCallingYou({ cards = [], badges = [] }) {
           return (
             <li
               key={`${card.name}-${index}`}
-              className="flex items-center justify-between text-sm rounded-lg bg-amber-200/5 px-3 py-2 hover:bg-amber-200/10 transition-colors"
+              className="flex items-center justify-between text-sm rounded-lg bg-amber-200/5 px-3 py-3 min-h-[44px] hover:bg-amber-200/10 transition-colors"
             >
               <div className="flex items-center gap-2 min-w-0 flex-1">
                 <span
@@ -89,13 +89,14 @@ function CardsCallingYou({ cards = [], badges = [] }) {
         })}
       </ul>
       
-      <div className="mt-3 pt-2 border-t border-amber-200/10 flex items-center justify-between text-xs">
+      <div className="mt-3 pt-2 border-t border-amber-200/10 flex items-center justify-between text-sm sm:text-xs">
         <span className="text-amber-100/50">
           {cards.length > 5 ? `+${cards.length - 5} more` : 'Explore deck'}
         </span>
         <Link 
           to="/journal/gallery" 
-          className="flex items-center gap-1 text-amber-200/70 hover:text-amber-100 transition-colors"
+          className="flex items-center gap-1 min-h-[44px] py-2 px-2 -m-2 text-amber-200/70 hover:text-amber-100 transition-colors touch-manipulation"
+          aria-label="View your card collection"
         >
           View Collection
           <ArrowRight className="w-3 h-3" />

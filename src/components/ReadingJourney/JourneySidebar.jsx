@@ -43,11 +43,11 @@ function CollapsibleSection({
     <div className="border-t border-amber-200/10">
       <button
         onClick={onToggle}
-        className="flex w-full items-center justify-between py-3 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/50 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0b0c1d]"
+        className="flex w-full items-center justify-between min-h-[44px] py-3.5 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/50 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0b0c1d] touch-manipulation"
         aria-expanded={isOpen}
       >
         <span className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-amber-200/75">
-          <Icon className="h-3 w-3" aria-hidden="true" />
+          <Icon className="h-4 w-4 sm:h-3 sm:w-3" aria-hidden="true" />
           {label}
           {badge && (
             <span className="ml-1 rounded-full bg-amber-300/20 px-1.5 py-0.5 text-[10px] font-medium text-amber-100">
@@ -56,9 +56,9 @@ function CollapsibleSection({
           )}
         </span>
         {isOpen ? (
-          <CaretUp className="h-3 w-3 text-amber-200/50" />
+          <CaretUp className="h-4 w-4 sm:h-3 sm:w-3 text-amber-200/50" />
         ) : (
-          <CaretDown className="h-3 w-3 text-amber-200/50" />
+          <CaretDown className="h-4 w-4 sm:h-3 sm:w-3 text-amber-200/50" />
         )}
       </button>
       {isOpen && <div className="pb-4">{children}</div>}
@@ -292,11 +292,11 @@ export default function JourneySidebar({
         <div className="flex flex-wrap gap-3 text-center">
           <div className="flex-1 min-w-[60px] rounded-lg bg-amber-200/5 px-3 py-2">
             <p className="text-lg font-medium text-amber-50">{totalReadings}</p>
-            <p className="text-[10px] text-amber-100/60">readings</p>
+            <p className="text-xs text-amber-100/60">readings</p>
           </div>
           <div className="flex-1 min-w-[60px] rounded-lg bg-amber-200/5 px-3 py-2">
             <p className="text-lg font-medium text-amber-50">{totalCards}</p>
-            <p className="text-[10px] text-amber-100/60">cards</p>
+            <p className="text-xs text-amber-100/60">cards</p>
           </div>
           {currentStreak > 0 && (
             <div className="flex-1 min-w-[60px] rounded-lg bg-amber-200/5 px-3 py-2">
@@ -304,13 +304,13 @@ export default function JourneySidebar({
                 <Fire className="h-3.5 w-3.5 text-orange-400" />
                 {currentStreak}
               </p>
-              <p className="text-[10px] text-amber-100/60">streak</p>
+              <p className="text-xs text-amber-100/60">streak</p>
             </div>
           )}
           {reversalRate > 0 && (
             <div className="flex-1 min-w-[60px] rounded-lg bg-amber-200/5 px-3 py-2">
               <p className="text-lg font-medium text-amber-50">{reversalRate}%</p>
-              <p className="text-[10px] text-amber-100/60">reversed</p>
+              <p className="text-xs text-amber-100/60">reversed</p>
             </div>
           )}
         </div>
