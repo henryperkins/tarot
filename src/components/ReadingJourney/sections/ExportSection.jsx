@@ -327,7 +327,6 @@ function ExportSection({ isAuthenticated, onCreateShareLink, entries, allEntries
                   checked={shareScope === 'recent'}
                   onChange={() => setShareScope('recent')}
                   className="mt-0.5 h-5 w-5 border-amber-200/30 bg-transparent text-amber-300 focus:ring-amber-200/40 focus:ring-offset-0 touch-manipulation"
-                  aria-label="Share most recent readings"
                 />
                 <div>
                   <span className="font-medium">Most recent readings</span>
@@ -346,7 +345,6 @@ function ExportSection({ isAuthenticated, onCreateShareLink, entries, allEntries
                     checked={shareScope === 'filtered'}
                     onChange={() => setShareScope('filtered')}
                     className="mt-0.5 h-5 w-5 border-amber-200/30 bg-transparent text-amber-300 focus:ring-amber-200/40 focus:ring-offset-0 touch-manipulation"
-                    aria-label="Share current filtered view"
                   />
                   <div>
                     <span className="font-medium">Current filtered view</span>
@@ -371,7 +369,6 @@ function ExportSection({ isAuthenticated, onCreateShareLink, entries, allEntries
                 value={effectiveShareLimit}
                 onChange={(event) => setShareLimit(event.target.value)}
                 className="w-20 min-h-[44px] rounded border border-amber-200/25 bg-amber-200/5 px-3 py-2 text-sm text-amber-50 text-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/40 touch-manipulation"
-                aria-label="Maximum number of entries to share"
               />
             </div>
 
