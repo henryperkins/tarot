@@ -131,7 +131,10 @@ export default function TarotReading() {
     setFollowUps,
     setReflections,
     setShowAllHighlights,
-    generatePersonalReading
+    generatePersonalReading,
+    startGuidedReveal,
+    stopGuidedReveal,
+    isGuidedRevealActive
   } = useReading();
 
   // --- 3. Local View State & Wiring ---
@@ -325,6 +328,7 @@ export default function TarotReading() {
       userQuestion: question || prev.userQuestion,
       provider: provider || prev.provider
     }));
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional: syncing UI state from router state
     setIsFollowUpOpen(true);
 
     const nextState = { ...location.state };
@@ -581,10 +585,21 @@ export default function TarotReading() {
   }, [hasConfirmedSpread]);
 
   const handleRevealAll = useCallback(() => {
+    stopGuidedReveal(false);
     revealAll();
     const behavior = prefersReducedMotion ? 'auto' : 'smooth';
     readingSectionRef.current?.scrollIntoView({ behavior, block: 'start' });
-  }, [prefersReducedMotion, revealAll]);
+  }, [prefersReducedMotion, revealAll, stopGuidedReveal]);
+
+  const handleStartGuidedReveal = useCallback(() => {
+    startGuidedReveal();
+    const behavior = prefersReducedMotion ? 'auto' : 'smooth';
+    readingSectionRef.current?.scrollIntoView({ behavior, block: 'start' });
+  }, [prefersReducedMotion, startGuidedReveal]);
+
+  const handleSkipGuidedReveal = useCallback(() => {
+    stopGuidedReveal(true);
+  }, [stopGuidedReveal]);
 
   const handlePersonalizationBannerDismiss = useCallback(() => {
     setShowPersonalizationBanner(false);
@@ -966,6 +981,9 @@ export default function TarotReading() {
             onShuffle={handleShuffle}
             onDealNext={dealNext}
             onRevealAll={handleRevealAll}
+            onStartGuidedReveal={handleStartGuidedReveal}
+            onSkipGuidedReveal={handleSkipGuidedReveal}
+            isGuidedRevealActive={isGuidedRevealActive}
             onGenerateNarrative={handleGeneratePersonalReading}
             onSaveReading={saveReading}
             onNewReading={handleShuffle}
@@ -999,6 +1017,9 @@ export default function TarotReading() {
                 onShuffle={handleShuffle}
                 onDealNext={dealNext}
                 onRevealAll={handleRevealAll}
+                onStartGuidedReveal={handleStartGuidedReveal}
+                onSkipGuidedReveal={handleSkipGuidedReveal}
+                isGuidedRevealActive={isGuidedRevealActive}
                 onGenerateNarrative={handleGeneratePersonalReading}
                 onSaveReading={saveReading}
                 onNewReading={handleShuffle}

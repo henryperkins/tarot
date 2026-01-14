@@ -471,7 +471,7 @@ export const JournalEntryCard = memo(function JournalEntryCard({
     ? Object.entries(entry.reflections).filter(([, note]) => typeof note === 'string' && note.trim())
     : [];
   const hasReflections = reflections.length > 0;
-  const followUps = Array.isArray(entry?.followUps) ? entry.followUps : [];
+  const followUps = useMemo(() => Array.isArray(entry?.followUps) ? entry.followUps : [], [entry?.followUps]);
   const hasFollowUps = followUps.length > 0;
   const accentColor = getSuitAccentVar(entry?.themes?.dominantSuit)
     || CONTEXT_ACCENTS[entry?.context]

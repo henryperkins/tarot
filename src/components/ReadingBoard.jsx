@@ -37,6 +37,8 @@ const CELTIC_MAP_POSITIONS = [
 ];
 
 function CardDetailContent({ focusedCardData, reflections, setReflections, onOpenModal, showHeading = true }) {
+  const [isMeaningExpanded, setIsMeaningExpanded] = useState(false);
+
   if (!focusedCardData) return null;
 
   const { card, position, index } = focusedCardData;
@@ -68,7 +70,16 @@ function CardDetailContent({ focusedCardData, reflections, setReflections, onOpe
               </h4>
             </>
           )}
-          <p className="text-sm text-main/90 mt-2 line-clamp-4">{meaning}</p>
+          <p className={`text-sm text-main/90 mt-2 ${isMeaningExpanded ? '' : 'line-clamp-4'}`}>{meaning}</p>
+          {!isMeaningExpanded && meaning && meaning.length > 140 && (
+            <button
+              type="button"
+              onClick={() => setIsMeaningExpanded(true)}
+              className="text-xs font-semibold text-accent hover:text-main underline underline-offset-4 mt-1"
+            >
+              Expand meaning
+            </button>
+          )}
           <button
             type="button"
             onClick={() => onOpenModal?.(focusedCardData)}

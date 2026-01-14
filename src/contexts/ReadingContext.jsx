@@ -1,9 +1,10 @@
 /* eslint-disable react-refresh/only-export-components */
-import { createContext, useContext, useState, useCallback, useMemo, useRef } from 'react';
+import { createContext, useContext, useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import { useTarotState } from '../hooks/useTarotState';
 import { useVisionAnalysis } from '../hooks/useVisionAnalysis';
 import { useAudioController } from '../hooks/useAudioController';
 import { usePreferences } from './PreferencesContext';
+import { useReducedMotion } from '../hooks/useReducedMotion';
 import { getSpreadInfo, normalizeSpreadKey } from '../data/spreads';
 import { MAJOR_ARCANA } from '../data/majorArcana';
 import { MINOR_ARCANA } from '../data/minorArcana';
@@ -45,6 +46,7 @@ export function ReadingProvider({ children }) {
     // 3. Vision Analysis
     const visionAnalysis = useVisionAnalysis(reading);
     const { visionResults, visionConflicts, resetVisionProof: _resetVisionProof, ensureVisionProof, getVisionConflictsForCards, setVisionConflicts } = visionAnalysis;
+    const prefersReducedMotion = useReducedMotion();
 
     const personalizationForRequest = useMemo(() => {
         if (!personalization || typeof personalization !== 'object') {
@@ -101,9 +103,11 @@ export function ReadingProvider({ children }) {
     const [lastCardsForFeedback, setLastCardsForFeedback] = useState([]);
     const [showAllHighlights, setShowAllHighlights] = useState(false);
     const [srAnnouncement, setSrAnnouncement] = useState('');
+    const [isGuidedRevealActive, setIsGuidedRevealActive] = useState(false);
 
     const visionResearchEnabled = import.meta.env?.VITE_ENABLE_VISION_RESEARCH === 'true';
     const inFlightReadingRef = useRef(null);
+    const guidedRevealTimerRef = useRef(null);
 
     const cancelInFlightReading = useCallback(() => {
         if (inFlightReadingRef.current?.controller) {
@@ -792,6 +796,51 @@ export function ReadingProvider({ children }) {
         baseRevealAll();
     }, [baseRevealAll, describeCardAtIndex, reading, revealedCards]);
 
+    const stopGuidedReveal = useCallback((revealRemaining = false) => {
+        if (guidedRevealTimerRef.current) {
+            window.clearTimeout(guidedRevealTimerRef.current);
+            guidedRevealTimerRef.current = null;
+        }
+        setIsGuidedRevealActive(false);
+        if (revealRemaining) {
+            revealAll();
+        }
+    }, [revealAll]);
+
+    const startGuidedReveal = useCallback(() => {
+        if (!reading || reading.length === 0) return;
+        if (revealedCards.size === reading.length) return;
+        stopGuidedReveal(false);
+        setIsGuidedRevealActive(true);
+    }, [reading, revealedCards, stopGuidedReveal]);
+
+    useEffect(() => {
+        if (!isGuidedRevealActive) return undefined;
+        if (!reading || reading.length === 0) {
+            setIsGuidedRevealActive(false);
+            return undefined;
+        }
+
+        const nextIndex = reading.findIndex((_, index) => !revealedCards.has(index));
+        if (nextIndex < 0) {
+            setIsGuidedRevealActive(false);
+            return undefined;
+        }
+
+        const delay = prefersReducedMotion ? 0 : 350 + Math.random() * 80;
+        const timerId = window.setTimeout(() => {
+            revealCard(nextIndex);
+        }, delay);
+        guidedRevealTimerRef.current = timerId;
+
+        return () => {
+            if (guidedRevealTimerRef.current) {
+                window.clearTimeout(guidedRevealTimerRef.current);
+                guidedRevealTimerRef.current = null;
+            }
+        };
+    }, [isGuidedRevealActive, prefersReducedMotion, reading, revealedCards, revealCard]);
+
     const value = useMemo(() => ({
         ...audioController,
         ...tarotState,
@@ -817,7 +866,10 @@ export function ReadingProvider({ children }) {
         showAllHighlights, setShowAllHighlights,
         generatePersonalReading,
         highlightItems,
-        srAnnouncement, setSrAnnouncement
+        srAnnouncement, setSrAnnouncement,
+        startGuidedReveal,
+        stopGuidedReveal,
+        isGuidedRevealActive
     }), [
         audioController,
         tarotState,
@@ -843,8 +895,15 @@ export function ReadingProvider({ children }) {
         showAllHighlights,
         generatePersonalReading,
         highlightItems,
-        srAnnouncement
+        srAnnouncement,
+        startGuidedReveal,
+        stopGuidedReveal,
+        isGuidedRevealActive
     ]);
+
+    useEffect(() => {
+        return () => stopGuidedReveal(false);
+    }, [stopGuidedReveal]);
 
     return (
         <ReadingContext.Provider value={value}>

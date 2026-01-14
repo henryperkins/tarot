@@ -127,6 +127,9 @@ function MobileActionContents({
   onShuffle,
   onDealNext,
   onRevealAll,
+  onStartGuidedReveal,
+  onSkipGuidedReveal,
+  isGuidedRevealActive,
   onGenerateNarrative,
   onSaveReading,
   onNewReading,
@@ -188,6 +191,9 @@ function MobileActionContents({
         onShuffle,
         onDealNext,
         onRevealAll,
+        onStartGuidedReveal,
+        onSkipGuidedReveal,
+        isGuidedRevealActive,
         onGenerateNarrative,
         onSaveReading,
         onNewReading
@@ -223,6 +229,9 @@ function renderActions(mode, options) {
     onShuffle,
     onDealNext,
     onRevealAll,
+    onStartGuidedReveal,
+    onSkipGuidedReveal,
+    isGuidedRevealActive,
     onGenerateNarrative,
     onSaveReading,
     onNewReading
@@ -311,7 +320,7 @@ function renderActions(mode, options) {
       const nextLabel = isLandscape
         ? `${nextCount}/${readingLength}`
         : `Reveal next (${nextCount}/${readingLength})`;
-      const revealAllLabel = isLandscape ? 'All' : 'Reveal all';
+      const revealAllLabel = isLandscape ? 'All' : 'Reveal instantly';
       return (
         <>
           <ActionButton
@@ -324,6 +333,17 @@ function renderActions(mode, options) {
           >
             {nextLabel}
           </ActionButton>
+          {readingLength > 1 && (
+            <ActionButton
+              variant="secondary"
+              onClick={isGuidedRevealActive ? onSkipGuidedReveal : onStartGuidedReveal}
+              ariaLabel={withStepContext(isGuidedRevealActive ? 'Skip guided reveal' : 'Guided reveal all cards', stepIndicatorLabel)}
+              className={`${widthClasses.secondary} ${px}`}
+              isLandscape={isLandscape}
+            >
+              {isGuidedRevealActive ? 'Skip animation' : 'Guided reveal'}
+            </ActionButton>
+          )}
           {readingLength > 1 && (
             <ActionButton
               variant="tertiary"

@@ -117,7 +117,7 @@ export function useJournal({ autoLoad = true } = {}) {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- loadEntries is stable, avoid infinite loop
   }, [isAuthenticated, canUseCloudJournal, autoLoad, user?.id]);
 
-  const buildApiUrl = (cursor) => {
+  const buildApiUrl = useCallback((cursor) => {
     const params = new URLSearchParams();
     params.set('limit', String(PAGE_SIZE));
     params.set('includeFollowups', 'true');
@@ -125,7 +125,7 @@ export function useJournal({ autoLoad = true } = {}) {
       params.set('cursor', String(cursor));
     }
     return `/api/journal?${params.toString()}`;
-  };
+  }, []);
 
   const loadEntries = async () => {
     prefetchedOnceRef.current = false;

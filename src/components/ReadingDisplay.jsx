@@ -157,7 +157,10 @@ export function ReadingDisplay({ sectionRef }) {
         setReflections,
         lastCardsForFeedback,
         generatePersonalReading,
-        highlightItems
+        highlightItems,
+        startGuidedReveal,
+        stopGuidedReveal,
+        isGuidedRevealActive
     } = useReading();
 
     const readingIdentity = useMemo(() => {
@@ -182,6 +185,10 @@ export function ReadingDisplay({ sectionRef }) {
         if (!revealedCards.has(focusedCardData.index)) return null;
         return focusedCardData;
     }, [focusedCardData, readingIdentity, revealedCards]);
+
+    useEffect(() => {
+        stopGuidedReveal(false);
+    }, [readingIdentity, stopGuidedReveal]);
 
     // Ghost card animation state for deck-to-slot fly animation
     const deckRef = useRef(null);
@@ -282,14 +289,25 @@ export function ReadingDisplay({ sectionRef }) {
     }, [handleVoicePromptEnable, fullReadingText, emotionalTone]);
 
     const handleRevealAllWithScroll = useCallback(() => {
+        stopGuidedReveal(false);
         revealAll();
         sectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }, [revealAll, sectionRef]);
+    }, [revealAll, sectionRef, stopGuidedReveal]);
 
     const handleResetReveals = useCallback(() => {
+        stopGuidedReveal(false);
         setRevealedCards(new Set());
         setDealIndex(0);
-    }, [setRevealedCards, setDealIndex]);
+    }, [setRevealedCards, setDealIndex, stopGuidedReveal]);
+
+    const handleStartGuidedReveal = useCallback(() => {
+        startGuidedReveal();
+        sectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, [sectionRef, startGuidedReveal]);
+
+    const handleSkipGuidedReveal = useCallback(() => {
+        stopGuidedReveal(true);
+    }, [stopGuidedReveal]);
 
     // Ghost card animation handlers for deck-to-slot fly effect
     const handleAnimatedDeal = useCallback(() => {
@@ -513,11 +531,38 @@ export function ReadingDisplay({ sectionRef }) {
                     {reading.length > 1 && !isLandscape && (<p className="text-center text-muted text-xs-plus sm:text-sm mb-4">Reveal in order for a narrative flow, or follow your intuition and reveal randomly.</p>)}
 
                     {revealedCards.size < reading.length && (
-                        <div className="hidden sm:block text-center">
-                            <button type="button" onClick={handleRevealAllWithScroll} className="bg-primary hover:bg-primary/90 text-surface font-semibold px-4 sm:px-6 py-2.5 sm:py-3 rounded-full shadow-lg shadow-primary/30 transition-all flex items-center gap-2 sm:gap-3 mx-auto text-sm sm:text-base">
-                                <Star className="w-4 h-4 sm:w-5 sm:h-5" /><span>Reveal All Cards</span>
-                            </button>
-                            <p className="text-accent/80 text-xs sm:text-sm mt-2 sm:mt-3">{revealedCards.size} of {reading.length} cards revealed</p>
+                        <div className="hidden sm:block text-center space-y-2">
+                            <div className="flex items-center justify-center gap-3">
+                                <button
+                                    type="button"
+                                    onClick={handleStartGuidedReveal}
+                                    className="bg-primary hover:bg-primary/90 text-surface font-semibold px-4 sm:px-6 py-2.5 sm:py-3 rounded-full shadow-lg shadow-primary/30 transition-all flex items-center gap-2 sm:gap-3 text-sm sm:text-base"
+                                    disabled={isGuidedRevealActive}
+                                >
+                                    <Star className="w-4 h-4 sm:w-5 sm:h-5" /><span>{isGuidedRevealActive ? 'Guided reveal in progress' : 'Reveal all (guided)'}</span>
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={handleRevealAllWithScroll}
+                                    className="min-h-[44px] px-4 sm:px-5 py-2.5 sm:py-3 rounded-full border border-secondary/40 text-sm sm:text-base text-muted hover:text-main hover:border-secondary/60 transition"
+                                >
+                                    Reveal instantly
+                                </button>
+                            </div>
+                            {isGuidedRevealActive ? (
+                                <div className="flex items-center justify-center gap-3 text-xs sm:text-sm text-muted">
+                                    <span>Sequential reveal is playing.</span>
+                                    <button
+                                        type="button"
+                                        onClick={handleSkipGuidedReveal}
+                                        className="inline-flex items-center gap-1 text-primary font-semibold hover:text-primary/80 underline underline-offset-4"
+                                    >
+                                        Skip animation
+                                    </button>
+                                </div>
+                            ) : (
+                                <p className="text-accent/80 text-xs sm:text-sm">{revealedCards.size} of {reading.length} cards revealed</p>
+                            )}
                         </div>
                     )}
                     {revealedCards.size > 0 && (
@@ -560,6 +605,7 @@ export function ReadingDisplay({ sectionRef }) {
                                 onDeal={handleAnimatedDeal}
                                 // Minimap suit coloring (revealed cards)
                                 cards={reading}
+                                revealedIndices={revealedCards}
                                 // Ref for ghost card animation coordination
                                 externalDeckRef={deckRef}
                             />

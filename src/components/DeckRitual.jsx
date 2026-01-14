@@ -38,6 +38,7 @@ export function DeckRitual({
 
   // Cards dealt for minimap suit coloring
   cards = [],
+  revealedIndices,
 
   // External ref for ghost card animation coordination
   externalDeckRef
@@ -488,6 +489,7 @@ export function DeckRitual({
             positions={spreadPositions}
             cards={cards}
             totalCards={totalCards}
+            revealedIndices={revealedIndices}
           />
         </div>
       )}
@@ -497,14 +499,21 @@ export function DeckRitual({
 
 // Minimap showing spread positions with current progress
 // Now supports suit-colored indicators when cards are revealed
-function SpreadMinimap({ positions, cards = [], totalCards }) {
+function SpreadMinimap({ positions, cards = [], totalCards, revealedIndices }) {
+  const revealedSet = revealedIndices instanceof Set ? revealedIndices : null;
   // Find the first unrevealed position (handles out-of-order reveals via ReadingBoard)
   // A position is revealed if it has a card in the cards array
   const nextIndex = (() => {
+    if (revealedSet) {
+      for (let i = 0; i < totalCards; i++) {
+        if (!revealedSet.has(i)) return i;
+      }
+      return -1;
+    }
     for (let i = 0; i < totalCards; i++) {
       if (!cards[i]) return i;
     }
-    return -1; // All cards revealed
+    return -1; // All cards revealed (fallback when set not provided)
   })();
 
   return (
@@ -521,7 +530,7 @@ function SpreadMinimap({ positions, cards = [], totalCards }) {
     >
       {positions.map((pos, i) => {
         // A position is revealed if it has a card (supports out-of-order reveals)
-        const isRevealed = Boolean(cards[i]);
+        const isRevealed = revealedSet ? revealedSet.has(i) : Boolean(cards[i]);
         const isNext = i === nextIndex;
         const card = cards?.[i] || null;
         const label = typeof pos === 'string' ? pos.split(' — ')[0] : `Position ${i + 1}`;

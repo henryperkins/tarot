@@ -6,6 +6,7 @@ import { getCardImage, FALLBACK_IMAGE } from '../lib/cardLookup';
 import { getSuitBorderColor, getRevealedCardGlow } from '../lib/suitColors';
 import { extractShortLabel, getPositionLabel } from './readingBoardUtils';
 import { HandTap } from '@phosphor-icons/react';
+import { useHaptic } from '../hooks/useHaptic';
 
 /**
  * Spread layout definitions (x, y as percentage of container)
@@ -103,10 +104,13 @@ export function SpreadTable({
   hideLegend = false
 }) {
   const prefersReducedMotion = useReducedMotion();
+  const { vibrate } = useHaptic();
   const baseLayout = SPREAD_LAYOUTS[spreadKey] || SPREAD_LAYOUTS.single;
   const spreadInfo = SPREADS[spreadKey];
   const tableRef = useRef(null);
   const [tableBounds, setTableBounds] = useState({ width: 0, height: 0 });
+  const revealHintDismissedRef = useRef(false);
+  const prevRevealedRef = useRef(new Set());
 
 
   const baseMaxCardWidth = useMemo(
@@ -182,12 +186,45 @@ export function SpreadTable({
       ? 'w-20 h-[120px] xs:w-24 xs:h-[140px] sm:w-28 sm:h-[160px] md:w-32 md:h-[180px]'
       : 'w-14 h-[76px] xs:w-16 xs:h-[88px] sm:w-[72px] sm:h-24 md:w-20 md:h-28';
 
+  useEffect(() => {
+    if (!revealedIndices || !(revealedIndices instanceof Set)) return;
+    if (revealedIndices.size === 0) {
+      revealHintDismissedRef.current = false;
+      prevRevealedRef.current = new Set();
+    }
+    if (revealedIndices.size > 0) {
+      revealHintDismissedRef.current = true;
+    }
+    const newlyRevealed = [];
+    revealedIndices.forEach((index) => {
+      if (!prevRevealedRef.current.has(index)) {
+        newlyRevealed.push(index);
+      }
+    });
+    prevRevealedRef.current = new Set(revealedIndices);
+
+    if (!newlyRevealed.length) return;
+    const timerId = window.setTimeout(() => vibrate(12), prefersReducedMotion ? 0 : 180);
+    return () => window.clearTimeout(timerId);
+  }, [revealedIndices, vibrate, prefersReducedMotion]);
+
   // Keep next slot in view on mobile after deal/reveal
   useEffect(() => {
     if (nextDealIndex == null || nextDealIndex < 0) return;
     const el = tableRef.current?.querySelector?.(`[data-slot-index="${nextDealIndex}"]`);
     if (!el || typeof el.scrollIntoView !== 'function') return;
-    el.scrollIntoView({ behavior: prefersReducedMotion ? 'auto' : 'smooth', block: 'center', inline: 'center' });
+    const rect = el.getBoundingClientRect();
+    const viewportHeight = typeof window !== 'undefined' ? window.innerHeight : 0;
+    const viewportWidth = typeof window !== 'undefined' ? window.innerWidth : 0;
+    const isVisible = rect &&
+      rect.top >= 0 &&
+      rect.left >= 0 &&
+      rect.bottom <= viewportHeight &&
+      rect.right <= viewportWidth;
+
+    if (!isVisible) {
+      el.scrollIntoView({ behavior: prefersReducedMotion ? 'auto' : 'smooth', block: 'center', inline: 'center' });
+    }
   }, [nextDealIndex, prefersReducedMotion]);
 
   return (
@@ -221,6 +258,8 @@ export function SpreadTable({
         const shortLabel = extractShortLabel(positionLabel, 20) || positionLabel;
         const cardImage = card ? getCardImage(card) : null;
         const shouldHighlightReturn = recentlyClosedIndex === i;
+        const showRevealPill = !isRevealed && (isNext || (!revealHintDismissedRef.current && i === 0));
+        const showGlowHint = !isRevealed && !showRevealPill;
         const numberBadge = (
           <div
             className={`
@@ -320,9 +359,9 @@ export function SpreadTable({
                     focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70 focus-visible:ring-offset-2 focus-visible:ring-offset-main
                     ${isRevealed
                       ? 'shadow-lg'
-                      : isNext
+                      : showRevealPill
                         ? 'border-primary/70 ring-2 ring-primary/30 shadow-md shadow-primary/20 hover:border-primary/80 active:scale-95'
-                        : 'border-primary/40 hover:border-primary/60 active:scale-95'
+                        : 'border-primary/35 shadow-[0_0_16px_rgba(244,223,175,0.12)] hover:border-primary/50 active:scale-95'
                     }
                   `}
                   style={{
@@ -341,8 +380,17 @@ export function SpreadTable({
                   }
                 >
                   {numberBadge}
-                  {isRevealed ? (
-                    <div className={`w-full h-full bg-surface flex items-center justify-center relative ${card.isReversed ? 'rotate-180' : ''}`}>
+                  <motion.div
+                    className="w-full h-full relative"
+                    style={{ transformStyle: 'preserve-3d' }}
+                    animate={{ rotateY: isRevealed ? 0 : 180 }}
+                    initial={false}
+                    transition={prefersReducedMotion ? { duration: 0 } : { duration: 0.42, ease: [0.32, 0.72, 0, 1] }}
+                  >
+                    <div
+                      className={`absolute inset-0 bg-surface flex items-center justify-center ${card.isReversed ? 'rotate-180' : ''}`}
+                      style={{ backfaceVisibility: 'hidden' }}
+                    >
                       <img
                         src={cardImage}
                         alt={card.name}
@@ -353,7 +401,6 @@ export function SpreadTable({
                           e.target.src = FALLBACK_IMAGE;
                         }}
                       />
-                      {/* Mini label overlay */}
                       <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-main/80 to-transparent p-0.5 xs:p-1 sm:p-1">
                         <span className={`${compact ? 'text-[0.5rem] xs:text-[0.55rem]' : 'text-[0.55rem] xs:text-[0.6rem] sm:text-[0.65rem]'} text-main font-semibold leading-tight block truncate`}>
                           {card.name.replace(/^The /, '')}
@@ -368,8 +415,10 @@ export function SpreadTable({
                         />
                       )}
                     </div>
-                  ) : (
-                    <div className="w-full h-full bg-surface-muted flex items-center justify-center relative">
+                    <div
+                      className="absolute inset-0 bg-surface-muted flex items-center justify-center"
+                      style={{ backfaceVisibility: 'hidden', transform: 'rotateY(180deg)' }}
+                    >
                       <img
                         src="/cardback.png"
                         alt="Card back"
@@ -377,13 +426,19 @@ export function SpreadTable({
                         loading="lazy"
                       />
                       <div className="absolute inset-0 pointer-events-none flex items-end justify-end p-1.5">
-                        <span className={`${compact ? 'text-[0.55rem] xs:text-[0.6rem]' : 'text-[0.65rem] xs:text-[0.7rem] sm:text-xs-plus'} inline-flex items-center gap-1 rounded-full bg-main/85 text-main font-semibold px-2.5 py-1 shadow-lg border border-primary/30`}>
-                          <HandTap className="w-3.5 h-3.5" weight="fill" />
-                          Tap to reveal
-                        </span>
+                        {showRevealPill ? (
+                          <span className={`${compact ? 'text-[0.55rem] xs:text-[0.6rem]' : 'text-[0.65rem] xs:text-[0.7rem] sm:text-xs-plus'} inline-flex items-center gap-1 rounded-full bg-main/85 text-main font-semibold px-2.5 py-1 shadow-lg border border-primary/30`}>
+                            <HandTap className="w-3.5 h-3.5" weight="fill" />
+                            Tap to reveal
+                          </span>
+                        ) : showGlowHint ? (
+                          <span className="inline-flex items-center gap-1 rounded-full bg-main/70 text-primary/80 text-[0.6rem] sm:text-[0.65rem] font-semibold px-2 py-1 border border-primary/25 shadow-[0_0_12px_rgba(244,223,175,0.22)]">
+                            Ready
+                          </span>
+                        ) : null}
                       </div>
                     </div>
-                  )}
+                  </motion.div>
                 </motion.button>
               </AnimatePresence>
             )}
