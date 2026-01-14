@@ -370,27 +370,13 @@ export function useJourneyData({
       return filterEntriesToWindow(entries, effectiveSeasonWindow);
     }
 
-    return activeEntries;
+    return activeEntries || [];
   }, [filtersActive, seasonWindow, useServerData, entries, activeEntries, effectiveSeasonWindow]);
 
   // Export entries: for exports, use the full journal when unfiltered to preserve
   // the previous behavior. Users expect "Export Journal" to export everything
   // when no filters are active, not just the current month's stats window.
-  const exportEntries = useMemo(() => {
-    // Determine base entries (respects filters if active)
-    const baseEntries = filtersActive ? filteredEntries : entries;
-
-    // If custom seasonWindow is provided, filter to that window
-    // This applies on top of any active filters
-    if (seasonWindow) {
-      return filterEntriesToWindow(baseEntries, seasonWindow);
-    }
-
-    // No custom window: return baseEntries as-is
-    // - If filters active: filtered entries
-    // - If unfiltered: full journal (not month-scoped like scopedEntries)
-    return baseEntries;
-  }, [filtersActive, filteredEntries, seasonWindow, entries]);
+  const exportEntries = useMemo(() => scopedEntries || [], [scopedEntries]);
 
   // Client-side stats with null guard
   // Uses scopedEntries to match the time window of D1 data when applicable

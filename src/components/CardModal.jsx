@@ -1,6 +1,6 @@
-import { useMemo, useRef } from 'react';
+import { useCallback, useMemo, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { X } from '@phosphor-icons/react';
+import { X, CaretLeft, CaretRight } from '@phosphor-icons/react';
 import { FALLBACK_IMAGE, getCardImage, getCanonicalCard } from '../lib/cardLookup';
 import { CardSymbolInsights } from './CardSymbolInsights';
 import { InteractiveCardOverlay } from './InteractiveCardOverlay';
@@ -36,6 +36,11 @@ export function CardModal({
     relatedEntries,
     onOpenEntry,
     onViewAllInJournal,
+    // Navigation props
+    onNavigate,
+    canNavigatePrev,
+    canNavigateNext,
+    navigationLabel,
 }) {
     const modalRef = useRef(null);
     const titleId = `card-modal-title-${layoutId || 'default'}`;
@@ -55,6 +60,36 @@ export function CardModal({
         enabled: isSmallScreen,
         guardId: 'cardModal'
     });
+
+    // Swipe gesture tracking for navigation
+    const touchStartX = useRef(null);
+    const touchStartTime = useRef(null);
+
+    const handleTouchStart = useCallback((event) => {
+        touchStartX.current = event.touches[0].clientX;
+        touchStartTime.current = Date.now();
+    }, []);
+
+    const handleTouchEnd = useCallback((event) => {
+        if (touchStartX.current === null || touchStartTime.current === null) return;
+
+        const touchEndX = event.changedTouches[0].clientX;
+        const deltaX = touchEndX - touchStartX.current;
+        const elapsed = Date.now() - touchStartTime.current;
+
+        // Reset refs
+        touchStartX.current = null;
+        touchStartTime.current = null;
+
+        // Check if swipe is valid: >50px horizontal, <300ms
+        if (Math.abs(deltaX) > 50 && elapsed < 300) {
+            if (deltaX > 0 && canNavigatePrev) {
+                onNavigate?.('prev');
+            } else if (deltaX < 0 && canNavigateNext) {
+                onNavigate?.('next');
+            }
+        }
+    }, [canNavigatePrev, canNavigateNext, onNavigate]);
 
     // Shared-element animation is only wired for the in-reading flow where:
     // - Card.jsx uses `layoutId={\`card-image-${index}\`}`
@@ -81,6 +116,7 @@ export function CardModal({
     const originalCard = getCanonicalCard(card);
     const meaning = card.isReversed ? originalCard.reversed : originalCard.upright;
     const cardImage = getCardImage(card);
+    const hasNavigation = canNavigatePrev || canNavigateNext;
 
     return (
         <div
@@ -105,6 +141,8 @@ export function CardModal({
                 className="relative w-full max-w-lg max-h-[85dvh] overflow-y-auto bg-surface border border-primary/30 rounded-2xl shadow-2xl shadow-black/50 flex flex-col"
                 tabIndex={-1}
                 role="document"
+                onTouchStart={handleTouchStart}
+                onTouchEnd={handleTouchEnd}
                 style={{
                     // Safe area padding for notch/Dynamic Island
                     paddingTop: 'max(1.5rem, env(safe-area-inset-top))',
@@ -125,6 +163,33 @@ export function CardModal({
                 >
                     <X className="w-6 h-6" />
                 </button>
+
+                {/* Navigation bar */}
+                {hasNavigation && (
+                    <div className="flex items-center justify-between px-6 sm:px-8 pt-2 pb-2 border-b border-primary/10">
+                        <button
+                            type="button"
+                            onClick={() => onNavigate?.('prev')}
+                            disabled={!canNavigatePrev}
+                            className="flex items-center gap-1.5 text-sm text-muted hover:text-main disabled:opacity-30 disabled:cursor-not-allowed transition touch-manipulation min-h-[44px] px-2 -ml-2"
+                            aria-label="Previous card"
+                        >
+                            <CaretLeft className="w-5 h-5" />
+                            <span>Prev</span>
+                        </button>
+                        <span className="text-xs text-muted font-medium">{navigationLabel}</span>
+                        <button
+                            type="button"
+                            onClick={() => onNavigate?.('next')}
+                            disabled={!canNavigateNext}
+                            className="flex items-center gap-1.5 text-sm text-muted hover:text-main disabled:opacity-30 disabled:cursor-not-allowed transition touch-manipulation min-h-[44px] px-2 -mr-2"
+                            aria-label="Next card"
+                        >
+                            <span>Next</span>
+                            <CaretRight className="w-5 h-5" />
+                        </button>
+                    </div>
+                )}
 
                 <div className="p-6 sm:p-8 flex flex-col items-center text-center">
                     <h3 className="text-accent font-serif text-lg sm:text-xl mb-2">{position}</h3>

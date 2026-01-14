@@ -73,6 +73,7 @@ export default function JourneyMobileSheet({
   locale = 'default',
   timezone,
   _dataSource,
+  scopeLabel,
 }) {
   const [isSheetOpen, setIsSheetOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('cards');
@@ -311,6 +312,11 @@ export default function JourneyMobileSheet({
             {filtersActive && (
               <span className="text-[10px] text-amber-100/50">(filtered)</span>
             )}
+            {scopeLabel && (
+              <span className="rounded-full border border-amber-200/15 bg-amber-200/5 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-amber-100/70">
+                Scope: {scopeLabel}
+              </span>
+            )}
           </h3>
 
           {/* Backfill banner - shown when D1 sync is needed but doesn't block insights */}
@@ -546,6 +552,7 @@ export default function JourneyMobileSheet({
                   onCreateShareLink={onCreateShareLink}
                   entries={activeEntries}
                   stats={exportStats}
+                  scopeLabel={scopeLabel}
                 />
               )}
             </div>

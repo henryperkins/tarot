@@ -59,6 +59,21 @@ const SUIT_ELEMENTS = {
   Pentacles: { element: 'Earth', quality: 'material, practical, grounded' }
 };
 
+const DEFAULT_FILTERS = { query: '', contexts: [], spreads: [], decks: [], timeframe: 'all', onlyReversals: false };
+
+const SCOPE_OPTIONS = [
+  { value: 'month', label: 'This month' },
+  { value: 'all', label: 'All time' },
+  { value: 'filters', label: 'Current filters' },
+  { value: 'custom', label: 'Custom' }
+];
+
+const TIMEFRAME_LABELS = {
+  '30d': 'Last 30d',
+  '90d': 'Last 90d',
+  ytd: 'Year to date'
+};
+
 // Fallback stats object when journal is empty or stats cannot be computed
 const EMPTY_STATS = {
   totalReadings: 0,
@@ -88,6 +103,8 @@ const CARD_NODE_FALLBACK = [
 const MOBILE_LAYOUT_MAX = 1023;
 const AMBER_SHELL_CLASS = 'relative overflow-hidden rounded-3xl border border-amber-300/12 bg-gradient-to-br from-[#0b0c1d] via-[#0d1024] to-[#090a16] shadow-[0_24px_68px_-30px_rgba(0,0,0,0.9)]';
 const AMBER_CARD_CLASS = 'relative overflow-hidden rounded-2xl border border-amber-300/15 bg-gradient-to-br from-[#0f0b16]/85 via-[#0c0a13]/85 to-[#0a0810]/85 ring-1 ring-amber-300/10 shadow-[0_18px_45px_-30px_rgba(0,0,0,0.85)]';
+const AMBER_SHELL_MOBILE_CLASS = 'relative overflow-hidden rounded-3xl border border-amber-300/10 bg-[#0d1020] shadow-[0_18px_48px_-34px_rgba(0,0,0,0.78)]';
+const AMBER_CARD_MOBILE_CLASS = 'relative overflow-hidden rounded-2xl border border-amber-300/12 bg-[#11162b] ring-1 ring-amber-300/8 shadow-[0_16px_38px_-32px_rgba(0,0,0,0.75)]';
 
 function AmberStarfield() {
   return (
@@ -125,6 +142,59 @@ function getTopContext(stats) {
   return stats.contextBreakdown.slice().sort((a, b) => b.count - a.count)[0];
 }
 
+function getCurrentMonthWindow(now = new Date()) {
+  const start = new Date(now.getFullYear(), now.getMonth(), 1);
+  const end = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+  return { start, end };
+}
+
+function parseDateInput(value) {
+  if (!value) return null;
+  const ts = Date.parse(value);
+  if (Number.isNaN(ts)) return null;
+  const date = new Date(ts);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function getTimeframeWindow(timeframe) {
+  const now = new Date();
+  const end = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+  switch (timeframe) {
+    case '30d': {
+      const start = new Date(end.getTime() - 30 * 24 * 60 * 60 * 1000);
+      return { start, end };
+    }
+    case '90d': {
+      const start = new Date(end.getTime() - 90 * 24 * 60 * 60 * 1000);
+      return { start, end };
+    }
+    case 'ytd': {
+      const start = new Date(now.getFullYear(), 0, 1);
+      return { start, end };
+    }
+    default:
+      return null;
+  }
+}
+
+function filterEntriesToWindow(entries, window) {
+  if (!Array.isArray(entries)) return [];
+  if (!window?.start || !window?.end) return entries;
+  const start = window.start.getTime();
+  const end = window.end.getTime();
+  return entries.filter((entry) => {
+    const ts = getTimestamp(entry);
+    if (!ts) return false;
+    return ts >= start && ts <= end;
+  });
+}
+
+function formatWindowLabel(window) {
+  if (!window?.start || !window?.end) return '';
+  const formatter = new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+  return `${formatter.format(window.start)} – ${formatter.format(window.end)}`;
+}
+
 export default function Journal() {
   const { isAuthenticated, user } = useAuth();
   const { canUseCloudJournal } = useSubscription();
@@ -132,15 +202,34 @@ export default function Journal() {
   const {
     entries,
     loading,
+    loadingMore,
     deleteEntry,
     migrateToCloud,
     importLegacyLocalEntries,
-    error: journalError
+    loadMoreEntries,
+    hasMoreEntries: hasMoreServerEntries,
+    totalEntries,
+    error: journalError,
+    lastSyncAt,
+    syncSource,
+    reload: reloadJournal
   } = useJournal();
   const [migrating, setMigrating] = useState(false);
   const [importingLegacy, setImportingLegacy] = useState(false);
   const [deleteConfirmModal, setDeleteConfirmModal] = useState({ isOpen: false, entryId: null });
-  const [filters, setFilters] = useState({ query: '', contexts: [], spreads: [], decks: [], timeframe: 'all', onlyReversals: false });
+  const [filters, setFilters] = useState(() => ({ ...DEFAULT_FILTERS }));
+  const [analyticsScope, setAnalyticsScope] = useState('month');
+  const [customScope, setCustomScope] = useState({ start: '', end: '' });
+  const [hasUserSelectedScope, setHasUserSelectedScope] = useState(false);
+  const [scopeError, setScopeError] = useState('');
+  const handleScopeSelect = (value) => {
+    setHasUserSelectedScope(true);
+    setAnalyticsScope(value);
+  };
+  const handleCustomScopeChange = (key, value) => {
+    setHasUserSelectedScope(true);
+    setCustomScope((prev) => ({ ...prev, [key]: value }));
+  };
   const deferredQuery = useDeferredValue(filters.query);
   const filterSignature = useMemo(
     () =>
@@ -168,8 +257,11 @@ export default function Journal() {
   const [pendingHighlightEntryId, setPendingHighlightEntryId] = useState(null);
   const isMobileLayout = useSmallScreen(MOBILE_LAYOUT_MAX);
   const isSmallSummary = useSmallScreen(640);
+  const shellClass = isMobileLayout ? AMBER_SHELL_MOBILE_CLASS : AMBER_SHELL_CLASS;
+  const cardClass = isMobileLayout ? AMBER_CARD_MOBILE_CLASS : AMBER_CARD_CLASS;
   const summaryRef = useRef(null);
   const [summaryInView, setSummaryInView] = useState(!isSmallSummary);
+  const [journeyReady, setJourneyReady] = useState(false);
   const { publish: showToast } = useToast();
 
   // Allow other pages (e.g. Card Collection) to deep-link into the journal.
@@ -233,6 +325,18 @@ export default function Journal() {
     }
     return undefined;
   }, []);
+  const contextLabelMap = useMemo(
+    () => Object.fromEntries(CONTEXT_FILTERS.map((context) => [context.value, context.label])),
+    []
+  );
+  const spreadLabelMap = useMemo(
+    () => Object.fromEntries(SPREAD_FILTERS.map((spread) => [spread.value, spread.label])),
+    []
+  );
+  const deckLabelMap = useMemo(
+    () => Object.fromEntries(DECK_FILTERS.map((deck) => [deck.value, deck.label])),
+    []
+  );
 
   const filteredEntries = useMemo(() => {
     if (!entries || entries.length === 0) {
@@ -306,7 +410,7 @@ export default function Journal() {
 
   useEffect(() => {
     setVisibleCount(VISIBLE_ENTRY_BATCH);
-  }, [filterSignature, filteredEntries.length]);
+  }, [filterSignature]);
 
   useEffect(() => {
     setSummaryInView(!isSmallSummary);
@@ -355,7 +459,8 @@ export default function Journal() {
   }, []);
 
   const visibleEntries = useMemo(() => filteredEntries.slice(0, visibleCount), [filteredEntries, visibleCount]);
-  const hasMoreEntries = filteredEntries.length > visibleCount;
+  const localRemaining = Math.max(filteredEntries.length - visibleEntries.length, 0);
+  const hasMoreEntries = filteredEntries.length > visibleCount || hasMoreServerEntries;
 
   // If an entry is requested, ensure it's rendered (increase visibleCount) and scroll it into view.
   useEffect(() => {
@@ -388,12 +493,109 @@ export default function Journal() {
     };
   }, [pendingHighlightEntryId, filteredEntries, visibleCount]);
 
-  // Compute stats for both full journal and filtered view
-  const allStats = useMemo(() => computeJournalStats(entries) ?? EMPTY_STATS, [entries]);
-  const filteredStats = useMemo(() => computeJournalStats(filteredEntries) ?? EMPTY_STATS, [filteredEntries]);
   const filtersActive = Boolean(filters.query.trim()) || filters.contexts.length > 0 || filters.spreads.length > 0 || filters.decks.length > 0 || filters.timeframe !== 'all' || filters.onlyReversals;
-  const hasEntries = entries.length > 0;
 
+  useEffect(() => {
+    if (hasUserSelectedScope) return;
+    if (filtersActive && analyticsScope !== 'filters') {
+      setAnalyticsScope('filters');
+    }
+    if (!filtersActive && analyticsScope === 'filters') {
+      setAnalyticsScope('month');
+    }
+  }, [filtersActive, analyticsScope, hasUserSelectedScope]);
+
+  const hasEntries = entries.length > 0;
+  const overallTotalEntries = totalEntries ?? entries.length;
+
+  useEffect(() => {
+    if (!hasEntries) return undefined;
+    const activate = () => setJourneyReady(true);
+    if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
+      const idleId = window.requestIdleCallback(activate, { timeout: 600 });
+      return () => window.cancelIdleCallback(idleId);
+    }
+    const timer = typeof window !== 'undefined' ? window.setTimeout(activate, 250) : null;
+    return () => {
+      if (timer) {
+        window.clearTimeout(timer);
+      }
+    };
+  }, [hasEntries]);
+
+  const monthWindow = useMemo(() => getCurrentMonthWindow(), []);
+  const timeframeWindow = useMemo(() => (filters.timeframe !== 'all' ? getTimeframeWindow(filters.timeframe) : null), [filters.timeframe]);
+  const allTimeWindow = useMemo(() => {
+    if (!entries || entries.length === 0) return null;
+    const timestamps = entries
+      .map((entry) => getTimestamp(entry))
+      .filter(Boolean);
+    if (!timestamps.length) return null;
+    return {
+      start: new Date(Math.min(...timestamps)),
+      end: new Date(Math.max(...timestamps))
+    };
+  }, [entries]);
+  const customWindow = useMemo(() => {
+    if (analyticsScope !== 'custom') return null;
+    const start = parseDateInput(customScope.start);
+    const end = parseDateInput(customScope.end);
+    if (!start || !end) return null;
+    const normalizedEnd = end.getTime() < start.getTime() ? start : end;
+    return { start, end: normalizedEnd };
+  }, [analyticsScope, customScope]);
+
+  useEffect(() => {
+    if (analyticsScope !== 'custom') {
+      setScopeError('');
+      return;
+    }
+    const start = parseDateInput(customScope.start);
+    const end = parseDateInput(customScope.end);
+    if (start && end) {
+      setScopeError('');
+    } else if (customScope.start || customScope.end) {
+      setScopeError('Select a valid start and end date for custom scope.');
+    } else {
+      setScopeError('');
+    }
+  }, [analyticsScope, customScope]);
+
+  const scopeWindow = useMemo(() => {
+    switch (analyticsScope) {
+      case 'month':
+        return monthWindow;
+      case 'filters':
+        return timeframeWindow;
+      case 'custom':
+        return customWindow;
+      case 'all':
+        return allTimeWindow;
+      default:
+        return null;
+    }
+  }, [analyticsScope, monthWindow, timeframeWindow, customWindow, allTimeWindow]);
+
+  const scopedStatsEntries = useMemo(() => {
+    if (analyticsScope === 'filters' && filtersActive) {
+      return filteredEntries;
+    }
+    const baseEntries = entries;
+    return filterEntriesToWindow(baseEntries, scopeWindow);
+  }, [analyticsScope, filtersActive, filteredEntries, entries, scopeWindow]);
+
+  const scopeStats = useMemo(() => computeJournalStats(scopedStatsEntries) ?? EMPTY_STATS, [scopedStatsEntries]);
+  const baselineStats = useMemo(() => computeJournalStats(entries) ?? EMPTY_STATS, [entries]);
+  const topContextScope = useMemo(() => getTopContext(scopeStats), [scopeStats]);
+  const latestScopeEntryTs = useMemo(() => {
+    if (!scopedStatsEntries || scopedStatsEntries.length === 0) return null;
+    return scopedStatsEntries.reduce((latest, entry) => {
+      const ts = getTimestamp(entry);
+      if (!ts) return latest;
+      if (!latest || ts > latest) return ts;
+      return latest;
+    }, null);
+  }, [scopedStatsEntries]);
   const latestAllEntryTs = useMemo(() => {
     if (!entries || entries.length === 0) return null;
     return entries.reduce((latest, entry) => {
@@ -404,65 +606,59 @@ export default function Journal() {
     }, null);
   }, [entries]);
 
+  const scopeLabel = useMemo(() => {
+    if (analyticsScope === 'custom') {
+      return customWindow ? `Custom · ${formatWindowLabel(customWindow)}` : 'Custom range';
+    }
+    if (analyticsScope === 'filters') {
+      return filtersActive ? 'Current filters' : 'All entries';
+    }
+    if (analyticsScope === 'month') return 'This month';
+    if (analyticsScope === 'all') return 'All time';
+    return 'All time';
+  }, [analyticsScope, customWindow, filtersActive]);
+
+  const heroEntrySource = scopedStatsEntries.length > 0 ? scopedStatsEntries : entries;
   const heroEntry = useMemo(() => {
-    const source = (filtersActive && filteredEntries.length > 0) ? filteredEntries : entries;
-    if (!Array.isArray(source) || source.length === 0) return null;
-    const sorted = [...source].sort((a, b) => {
+    if (!Array.isArray(heroEntrySource) || heroEntrySource.length === 0) return null;
+    const sorted = [...heroEntrySource].sort((a, b) => {
       const aTs = getTimestamp(a) || 0;
       const bTs = getTimestamp(b) || 0;
       return bTs - aTs;
     });
     return sorted[0] || null;
-  }, [entries, filteredEntries, filtersActive]);
+  }, [heroEntrySource]);
 
   // Reset expanded card when the hero entry changes (new reading, filter change)
   useEffect(() => {
     setExpandedCardIndex(null);
   }, [heroEntry?.id, heroEntry?.sessionSeed]);
 
-  const latestFilteredEntryTs = useMemo(() => {
-    if (!filteredEntries || filteredEntries.length === 0) return null;
-    return filteredEntries.reduce((latest, entry) => {
-      const ts = getTimestamp(entry);
-      if (!ts) return latest;
-      if (!latest || ts > latest) return ts;
-      return latest;
-    }, null);
-  }, [filteredEntries]);
-
-  const topContextAll = useMemo(() => getTopContext(allStats), [allStats]);
-  const topContextFiltered = useMemo(() => getTopContext(filteredStats), [filteredStats]);
   const isFilteredEmpty = filtersActive && filteredEntries.length === 0;
-  const primaryEntryCount = filtersActive ? filteredEntries.length : entries.length;
-  const entrySecondaryLabel = filtersActive ? `of ${entries.length} entries` : 'All time';
-  const primaryReversalRate = filtersActive
-    ? (filteredStats ? filteredStats.reversalRate : 0)
-    : (allStats?.reversalRate ?? 0);
-  const reversalSecondary = filtersActive
-    ? `Journal avg ${allStats?.reversalRate ?? 0}%`
-    : allStats?.totalCards
-      ? `${allStats.totalCards} cards logged`
-      : 'Log cards to see insights';
-  const summaryTopContext = filtersActive ? topContextFiltered : topContextAll;
+  const scopeEntryCount = scopedStatsEntries.length;
+  const journeyFiltersActive = analyticsScope === 'filters' && filtersActive;
+  const entrySecondaryLabel = `${scopeLabel}${scopeEntryCount !== overallTotalEntries ? ` · ${overallTotalEntries} total` : ''}`;
+  const primaryReversalRate = scopeStats?.reversalRate ?? 0;
+  const reversalSecondary = baselineStats?.totalCards
+    ? `Journal avg ${baselineStats?.reversalRate ?? 0}%`
+    : 'Log cards to see insights';
+  const summaryTopContext = topContextScope;
   const topContextLabel = summaryTopContext
     ? formatContextName(summaryTopContext.name)
-    : filtersActive
-      ? 'No match'
-      : 'No context yet';
-  const topContextSecondary = filtersActive
-    ? summaryTopContext
-      ? 'Filtered view'
-      : 'Adjust filters to resurface contexts'
+    : scopeEntryCount > 0
+      ? 'No context yet'
+      : filtersActive
+        ? 'No match'
+        : 'No entries';
+  const topContextSecondary = summaryTopContext
+    ? scopeLabel
     : hasEntries
-      ? `${entries.length} entries`
+      ? `${overallTotalEntries} entries`
       : 'Log a reading';
-  const summaryLastEntryTs = filtersActive && filteredEntries.length > 0 ? latestFilteredEntryTs : latestAllEntryTs;
   const summaryLastEntryLabel = isFilteredEmpty
     ? 'No matches'
-    : formatSummaryDate(summaryLastEntryTs);
-  const summaryLastEntrySecondary = filtersActive
-    ? (isFilteredEmpty ? 'Adjust filters to see matches' : `Journal: ${formatSummaryDate(latestAllEntryTs)}`)
-    : 'Latest journal update';
+    : formatSummaryDate(latestScopeEntryTs || latestAllEntryTs);
+  const summaryLastEntrySecondary = scopeLabel;
   const heroDateLabel = heroEntry ? formatSummaryDate(getTimestamp(heroEntry)) : null;
   const heroCardLimit = isSmallSummary ? 1 : 3;
   const heroCards = useMemo(() => {
@@ -479,7 +675,7 @@ export default function Journal() {
     {
       id: 'entries',
       label: 'Entries logged',
-      value: primaryEntryCount,
+      value: scopeEntryCount,
       hint: entrySecondaryLabel
     },
     {
@@ -500,7 +696,7 @@ export default function Journal() {
       value: summaryLastEntryLabel,
       hint: summaryLastEntrySecondary
     }
-  ], [primaryEntryCount, entrySecondaryLabel, primaryReversalRate, reversalSecondary, topContextLabel, topContextSecondary, summaryLastEntryLabel, summaryLastEntrySecondary]);
+  ], [scopeEntryCount, entrySecondaryLabel, primaryReversalRate, reversalSecondary, topContextLabel, topContextSecondary, summaryLastEntryLabel, summaryLastEntrySecondary]);
   const showSummaryBand = !loading && hasEntries;
   const CARD_CONNECTORS = [
     ['entries', 'reversal'],
@@ -528,6 +724,39 @@ export default function Journal() {
     () => Object.fromEntries(statNodes.map((node) => [node.id, node])),
     [statNodes]
   );
+  const activeFilterChips = useMemo(() => {
+    const chips = [];
+    const trimmedQuery = filters.query.trim();
+    if (trimmedQuery) {
+      chips.push({ key: 'query', label: `“${trimmedQuery}”` });
+    }
+    if (filters.contexts.length > 0) {
+      const labels = filters.contexts.map((context) => contextLabelMap[context] || formatContextName(context));
+      chips.push({ key: 'contexts', label: labels.length === 1 ? labels[0] : `${labels.length} contexts` });
+    }
+    if (filters.spreads.length > 0) {
+      const labels = filters.spreads.map((spread) => spreadLabelMap[spread] || spread);
+      chips.push({ key: 'spreads', label: labels.length === 1 ? labels[0] : `${labels.length} spreads` });
+    }
+    if (filters.decks.length > 0) {
+      const labels = filters.decks.map((deck) => deckLabelMap[deck] || deck);
+      chips.push({ key: 'decks', label: labels.length === 1 ? labels[0] : `${labels.length} decks` });
+    }
+    if (filters.timeframe !== 'all') {
+      chips.push({ key: 'timeframe', label: TIMEFRAME_LABELS[filters.timeframe] || filters.timeframe });
+    }
+    if (filters.onlyReversals) {
+      chips.push({ key: 'reversals', label: 'Reversals on' });
+    }
+    return chips;
+  }, [filters, contextLabelMap, spreadLabelMap, deckLabelMap]);
+  const handleResetFilters = useCallback(() => {
+    setFilters({ ...DEFAULT_FILTERS });
+    if (analyticsScope === 'filters') {
+      setHasUserSelectedScope(true);
+      setAnalyticsScope('month');
+    }
+  }, [analyticsScope]);
 
   const fetchShareLinks = useCallback(async () => {
     if (!isAuthenticated) return;
@@ -708,8 +937,19 @@ export default function Journal() {
     setDeleteConfirmModal({ isOpen: false, entryId: null });
   };
 
-  const handleLoadMoreEntries = () => {
-    setVisibleCount((prev) => Math.min(filteredEntries.length, prev + VISIBLE_ENTRY_BATCH));
+  const handleLoadMoreEntries = async () => {
+    if (loadingMore) return;
+    if (filteredEntries.length > visibleCount) {
+      setVisibleCount((prev) => Math.min(filteredEntries.length, prev + VISIBLE_ENTRY_BATCH));
+      return;
+    }
+    if (hasMoreServerEntries) {
+      const result = await loadMoreEntries();
+      const appended = result?.appended || 0;
+      if (appended > 0) {
+        setVisibleCount((prev) => prev + Math.min(VISIBLE_ENTRY_BATCH, appended));
+      }
+    }
   };
 
   // Check if we have localStorage entries that can be migrated/imported.
@@ -747,14 +987,14 @@ export default function Journal() {
   // brittle dependency tracking.
   const localStoragePresence = getLocalStorageEntryPresence();
 
-  const desktopRailContent = (!loading && hasEntries && !isMobileLayout) ? (
+  const desktopRailContent = (journeyReady && !loading && hasEntries && !isMobileLayout) ? (
     <div className="space-y-6 lg:space-y-8 w-full">
       <div className="w-full">
         <InsightsErrorBoundary>
           <ReadingJourney
             entries={entries}
             filteredEntries={filteredEntries}
-            filtersActive={filtersActive}
+            filtersActive={journeyFiltersActive}
             isAuthenticated={isAuthenticated}
             userId={user?.id}
             focusAreas={personalization?.focusAreas}
@@ -763,12 +1003,14 @@ export default function Journal() {
             variant="sidebar"
             onCreateShareLink={isAuthenticated ? createShareLink : null}
             onStartReading={handleStartReading}
+            seasonWindow={scopeWindow}
+            scopeLabel={scopeLabel}
           />
         </InsightsErrorBoundary>
       </div>
     </div>
   ) : null;
-  const hasRailContent = !loading && hasEntries;
+  const hasRailContent = !loading && hasEntries && journeyReady;
   const entryStackSpacingClass = compactList ? 'space-y-3.5' : 'space-y-5';
   let lastMonthLabel = null;
   const renderedHistoryEntries = visibleEntries.map((entry, index) => {
@@ -803,14 +1045,14 @@ export default function Journal() {
     );
   });
 
-  const mobileRailContent = (!loading && hasEntries && isMobileLayout) ? (
+  const mobileRailContent = (journeyReady && !loading && hasEntries && isMobileLayout) ? (
     <section className="mb-6 space-y-3 lg:hidden" aria-label="Journal insights and journey">
       {/* Filters moved to Journal history section to avoid duplication */}
       <InsightsErrorBoundary>
         <ReadingJourney
           entries={entries}
           filteredEntries={filteredEntries}
-          filtersActive={filtersActive}
+          filtersActive={journeyFiltersActive}
           isAuthenticated={isAuthenticated}
           userId={user?.id}
           focusAreas={personalization?.focusAreas}
@@ -819,6 +1061,8 @@ export default function Journal() {
           variant="mobile"
           onCreateShareLink={isAuthenticated ? createShareLink : null}
           onStartReading={handleStartReading}
+          seasonWindow={scopeWindow}
+          scopeLabel={scopeLabel}
         />
       </InsightsErrorBoundary>
     </section>
@@ -863,12 +1107,54 @@ export default function Journal() {
           )}
 
           {isAuthenticated ? (
-            <div className={`mb-6 ${AMBER_CARD_CLASS} p-5`}>
+            <div className={`mb-6 ${cardClass} p-5`}>
               <AmberStarfield />
               <div className="relative z-10 space-y-2">
-                <p className="journal-prose text-amber-100/85">
-                  ✓ Signed in — {canUseCloudJournal ? 'Your journal is synced across devices' : 'Your journal is stored on this device'}
-                </p>
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                  <p className="journal-prose text-amber-100/85">
+                    ✓ Signed in — {canUseCloudJournal ? 'Your journal is synced across devices' : 'Your journal is stored on this device'}
+                  </p>
+                  {/* Last sync timestamp for cloud users */}
+                  {canUseCloudJournal && lastSyncAt && syncSource === 'api' && (
+                    <span className="text-[11px] text-amber-100/50">
+                      Synced {new Date(lastSyncAt).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}
+                    </span>
+                  )}
+                  {/* Cache fallback warning */}
+                  {canUseCloudJournal && syncSource === 'cache' && (
+                    <span className="text-[11px] text-amber-200/70">
+                      Using cached data
+                    </span>
+                  )}
+                </div>
+
+                {/* Upgrade CTA for users without cloud journal */}
+                {!canUseCloudJournal && (
+                  <div className="flex items-center gap-3 pt-1">
+                    <button
+                      onClick={() => navigate('/settings/subscription')}
+                      className="inline-flex items-center gap-1.5 rounded-full border border-amber-300/30 bg-amber-300/10 px-3 py-1.5 text-xs font-medium text-amber-100 transition hover:bg-amber-300/15 hover:border-amber-300/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/40"
+                    >
+                      Upgrade to Cloud Journal
+                    </button>
+                    <span className="text-[11px] text-amber-100/50">Sync across devices &amp; never lose a reading</span>
+                  </div>
+                )}
+
+                {/* Sync error with retry */}
+                {journalError && canUseCloudJournal && (
+                  <div className="flex items-center gap-2 pt-1">
+                    <span className="text-xs text-amber-200/70">Sync issue</span>
+                    <button
+                      onClick={() => reloadJournal()}
+                      disabled={loading}
+                      className="inline-flex items-center gap-1 rounded-full border border-amber-200/25 bg-amber-200/10 px-2.5 py-1 text-[11px] font-medium text-amber-100 transition hover:bg-amber-200/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/40 disabled:opacity-50"
+                    >
+                      <JournalRefreshIcon className="h-3 w-3" aria-hidden="true" />
+                      {loading ? 'Retrying...' : 'Retry'}
+                    </button>
+                  </div>
+                )}
 
                 {/* Signed-in, no-cloud: offer explicit import from legacy unscoped local journal. */}
                 {!canUseCloudJournal && localStoragePresence?.hasLegacy && (
@@ -904,7 +1190,7 @@ export default function Journal() {
               </div>
             </div>
           ) : (
-            <div className={`mb-6 ${AMBER_CARD_CLASS} p-5`}>
+            <div className={`mb-6 ${cardClass} p-5`}>
               <AmberStarfield />
               <div className="relative z-10 space-y-3 text-sm text-amber-100/80 journal-prose">
                 <p>Your journal is currently stored locally in this browser only. Use the Sign In button in the header to sync across devices.</p>
@@ -920,7 +1206,8 @@ export default function Journal() {
             </div>
           )}
 
-          {journalError && (
+          {/* Show standalone error only when not handled in the banner (non-cloud authenticated users) */}
+          {journalError && !(isAuthenticated && canUseCloudJournal) && (
             <div className="mb-4 rounded-lg border border-error/40 bg-error/10 p-3 text-sm text-error">
               {journalError}
             </div>
@@ -929,7 +1216,11 @@ export default function Journal() {
           {showSummaryBand && (
             <section
               ref={summaryRef}
-              className="relative mb-6 overflow-hidden rounded-3xl border border-amber-300/10 bg-gradient-to-br from-[#07091a] via-[#0a0c1a] to-[#050714] shadow-[0_24px_64px_-24px_rgba(0,0,0,0.95)]"
+              className={`relative mb-6 overflow-hidden rounded-3xl border border-amber-300/10 ${
+                isMobileLayout
+                  ? 'bg-[#0c0f1d]'
+                  : 'bg-gradient-to-br from-[#07091a] via-[#0a0c1a] to-[#050714]'
+              } shadow-[0_24px_64px_-24px_rgba(0,0,0,0.95)]`}
             >
               {summaryInView && (
                 <>
@@ -971,9 +1262,64 @@ export default function Journal() {
 
               <div className="relative p-5 sm:p-6 lg:p-8">
                 {/* Header - Clean and simple */}
-                <div className="mb-5 lg:mb-4">
-                  <p className="text-xs uppercase tracking-[0.2em] text-amber-300/50 mb-1">Journal Pulse</p>
-                  <h2 className="text-xl sm:text-2xl font-serif text-amber-50/90">Your practice at a glance</h2>
+                <div className="mb-5 lg:mb-4 space-y-2">
+                  <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                      <p className="text-xs uppercase tracking-[0.2em] text-amber-300/50 mb-1">Journal Pulse</p>
+                      <h2 className="text-xl sm:text-2xl font-serif text-amber-50/90">Your practice at a glance</h2>
+                    </div>
+                    <div className="flex flex-col items-start gap-1 sm:items-end">
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <span className="text-[10px] uppercase tracking-[0.18em] text-amber-100/60">Scope</span>
+                        {SCOPE_OPTIONS.map((option) => {
+                          const isActive = analyticsScope === option.value;
+                          return (
+                            <button
+                              key={option.value}
+                              type="button"
+                              onClick={() => handleScopeSelect(option.value)}
+                              className={`inline-flex items-center gap-1 rounded-full border px-3 py-1 text-[11px] font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/40 ${
+                                isActive
+                                  ? 'border-amber-300/60 bg-amber-300/15 text-amber-50 shadow-[0_8px_26px_-16px_rgba(251,191,36,0.45)]'
+                                  : 'border-amber-300/20 bg-amber-200/5 text-amber-100/75 hover:border-amber-300/35 hover:bg-amber-200/10'
+                              }`}
+                            >
+                              {option.label}
+                            </button>
+                          );
+                        })}
+                      </div>
+                      <p className="text-[11px] text-amber-100/60">
+                        Active: {scopeLabel} · {scopeEntryCount} entr{scopeEntryCount === 1 ? 'y' : 'ies'}
+                      </p>
+                    </div>
+                  </div>
+
+                  {analyticsScope === 'custom' && (
+                    <div className="flex flex-wrap items-center gap-2 text-[12px] text-amber-100/80">
+                      <label className="flex items-center gap-1">
+                        From
+                        <input
+                          type="date"
+                          value={customScope.start}
+                          onChange={(event) => handleCustomScopeChange('start', event.target.value)}
+                          className="rounded border border-amber-200/30 bg-amber-200/5 px-2 py-1 text-xs text-amber-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/40"
+                        />
+                      </label>
+                      <label className="flex items-center gap-1">
+                        To
+                        <input
+                          type="date"
+                          value={customScope.end}
+                          onChange={(event) => handleCustomScopeChange('end', event.target.value)}
+                          className="rounded border border-amber-200/30 bg-amber-200/5 px-2 py-1 text-xs text-amber-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/40"
+                        />
+                      </label>
+                      {scopeError && (
+                        <span className="text-[11px] text-red-200">{scopeError}</span>
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 {/* Mobile: Clean organized layout */}
@@ -1469,7 +1815,7 @@ export default function Journal() {
           ) : (
             <div className={hasEntries && hasRailContent ? 'lg:grid lg:grid-cols-[minmax(0,1fr)_320px] lg:gap-6 xl:grid-cols-[minmax(0,1fr)_360px] xl:gap-8' : ''}>
               <div className="space-y-8">
-                <section id="today" className={`${AMBER_SHELL_CLASS} p-5`}>
+                <section id="today" className={`${shellClass} p-5`}>
                   <AmberStarfield />
                   <div className="relative z-10">
                     <div className="mb-4">
@@ -1481,7 +1827,7 @@ export default function Journal() {
                 </section>
 
                 {hasEntries ? (
-                  <section id="history" className={`${AMBER_SHELL_CLASS} p-5 space-y-5`}>
+                  <section id="history" className={`${shellClass} p-5 space-y-5`}>
                     <AmberStarfield />
                     <div className="relative z-10 space-y-5">
                       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
@@ -1491,20 +1837,10 @@ export default function Journal() {
                             History
                           </span>
                         </div>
-                        <div className="flex items-center gap-3">
-                          <label className="hidden sm:flex items-center gap-2 text-xs text-amber-100/60 cursor-pointer select-none min-h-[44px]">
-                            <input
-                              type="checkbox"
-                              className="h-5 w-5 rounded border-amber-200/30 bg-transparent text-amber-300 focus:ring-amber-200/40 focus:ring-offset-0"
-                              checked={compactList}
-                              onChange={(event) => setCompactList(event.target.checked)}
-                            />
-                            Compact view
-                          </label>
-                          <span className="inline-flex items-center gap-2 rounded-full border border-amber-200/20 bg-amber-200/10 px-3 py-1 text-[11px] text-amber-100/70">
-                            Showing {visibleEntries.length} of {filteredEntries.length}
-                          </span>
-                        </div>
+                        <span className="inline-flex items-center gap-2 rounded-full border border-amber-200/20 bg-amber-200/10 px-3 py-1 text-[11px] text-amber-100/70">
+                          Showing {visibleEntries.length} of {filteredEntries.length}
+                          {hasMoreEntries ? '+' : ''}
+                        </span>
                       </div>
 
                       <div
@@ -1512,6 +1848,26 @@ export default function Journal() {
                         ref={registerHistoryFiltersEl}
                         className="scroll-mt-24"
                       >
+                        {filtersActive && (
+                          <div className="mb-3 flex flex-wrap items-center gap-2 rounded-xl border border-amber-300/12 bg-amber-200/5 px-3 py-2 text-[12px] text-amber-100/80">
+                            {activeFilterChips.map((chip) => (
+                              <span
+                                key={chip.key}
+                                className="inline-flex items-center gap-1 rounded-full border border-amber-200/20 bg-amber-200/10 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-amber-100/80"
+                              >
+                                {chip.label}
+                              </span>
+                            ))}
+                            <button
+                              type="button"
+                              onClick={handleResetFilters}
+                              className="inline-flex items-center gap-1 rounded-full border border-amber-200/25 bg-amber-200/10 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-amber-50 hover:border-amber-200/40 hover:bg-amber-200/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/40"
+                            >
+                              Reset
+                            </button>
+                          </div>
+                        )}
+
                         <JournalFilters
                           filters={filters}
                           onChange={setFilters}
@@ -1519,6 +1875,8 @@ export default function Journal() {
                           spreads={SPREAD_FILTERS}
                           decks={DECK_FILTERS}
                           variant={isMobileLayout ? 'compact' : 'full'}
+                          viewMode={compactList ? 'compact' : 'comfortable'}
+                          onViewModeChange={(mode) => setCompactList(mode === 'compact')}
                         />
                       </div>
 
@@ -1533,14 +1891,19 @@ export default function Journal() {
                           <div className={entryStackSpacingClass}>
                             {renderedHistoryEntries}
                           </div>
-                          {hasMoreEntries && (
+                          {(hasMoreEntries || filteredEntries.length > visibleEntries.length) && (
                             <div className="flex justify-center">
                               <button
                                 type="button"
                                 onClick={handleLoadMoreEntries}
-                                className={`${OUTLINE_BUTTON_CLASS} min-h-[44px] px-4 py-2`}
+                                disabled={loadingMore}
+                                className={`${OUTLINE_BUTTON_CLASS} min-h-[44px] px-4 py-2 ${loadingMore ? 'cursor-wait opacity-60' : ''}`}
                               >
-                                Load {Math.min(VISIBLE_ENTRY_BATCH, filteredEntries.length - visibleEntries.length)} more
+                                {loadingMore
+                                  ? 'Loading...'
+                                  : hasMoreServerEntries
+                                    ? 'Load more entries'
+                                    : `Load ${Math.min(VISIBLE_ENTRY_BATCH, localRemaining)} more`}
                               </button>
                             </div>
                           )}
@@ -1549,7 +1912,7 @@ export default function Journal() {
                     </div>
                   </section>
                 ) : (
-                  <div className={`${AMBER_SHELL_CLASS} animate-fade-in space-y-6 rounded-3xl p-8 text-center text-amber-50`}>
+                  <div className={`${shellClass} animate-fade-in space-y-6 rounded-3xl p-8 text-center text-amber-50`}>
                     <AmberStarfield />
                     <div className="relative z-10 space-y-6">
                       <EmptyJournalIllustration className="mx-auto mb-2 w-40" />
@@ -1628,6 +1991,28 @@ export default function Journal() {
             className="fixed z-40 right-4 sm:right-6 flex flex-col items-end gap-2"
             style={{ bottom: 'max(1rem, env(safe-area-inset-bottom, 0px))' }}
           >
+            {filtersActive && activeFilterChips.length > 0 && (
+              <div className="max-w-sm rounded-2xl border border-amber-300/15 bg-[#0b0c1d]/90 px-3 py-2 text-[11px] text-amber-100/75 shadow-[0_22px_55px_-28px_rgba(0,0,0,0.85)] backdrop-blur">
+                <p className="mb-1 text-[10px] uppercase tracking-[0.16em] text-amber-100/60">Filters</p>
+                <div className="flex flex-wrap items-center gap-1.5">
+                  {activeFilterChips.map((chip) => (
+                    <span
+                      key={`floating-${chip.key}`}
+                      className="inline-flex items-center gap-1 rounded-full border border-amber-200/20 bg-amber-200/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-amber-100/80"
+                    >
+                      {chip.label}
+                    </span>
+                  ))}
+                  <button
+                    type="button"
+                    onClick={handleResetFilters}
+                    className="inline-flex items-center gap-1 rounded-full border border-amber-200/25 bg-amber-200/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-amber-50 hover:border-amber-200/40 hover:bg-amber-200/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/40"
+                  >
+                    Reset
+                  </button>
+                </div>
+              </div>
+            )}
             {isMobileLayout && (
               <button
                 type="button"

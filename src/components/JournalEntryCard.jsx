@@ -1,4 +1,5 @@
 import { memo, useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { createPortal } from 'react-dom';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -13,6 +14,7 @@ import { CupsIcon, WandsIcon, SwordsIcon, PentaclesIcon, MajorIcon } from './ill
 import { JournalBookIcon, JournalCommentAddIcon, JournalPlusCircleIcon, JournalShareIcon, JournalTrashIcon } from './JournalIcons';
 import CardRelationshipGraph from './charts/CardRelationshipGraph';
 import { normalizeTimestamp, getTimestamp } from '../../shared/journal/utils.js';
+import { DECK_OPTIONS } from './DeckSelector';
 
 const CONTEXT_SUMMARIES = {
     love: 'Relationship lens — center relational reciprocity and communication.',
@@ -102,6 +104,8 @@ const CONTEXT_ACCENTS = {
   default: 'var(--brand-primary)'
 };
 
+const DECK_LABEL_MAP = Object.fromEntries((DECK_OPTIONS || []).map((deck) => [deck.id, deck.label]));
+
 function getSuitAccentVar(suitName) {
   const lower = (suitName || '').toLowerCase();
   if (lower.includes('wands')) return 'var(--color-wands)';
@@ -120,6 +124,25 @@ function formatFollowUpTimestamp(value) {
     hour: '2-digit',
     minute: '2-digit'
   });
+}
+
+function formatRelativeTimeFromNow(value) {
+  const ts = normalizeTimestamp(value);
+  if (!ts) return null;
+  const diff = ts - Date.now();
+  const ranges = [
+    { unit: 'day', ms: 24 * 60 * 60 * 1000 },
+    { unit: 'hour', ms: 60 * 60 * 1000 },
+    { unit: 'minute', ms: 60 * 1000 },
+  ];
+  const formatter = new Intl.RelativeTimeFormat(undefined, { numeric: 'auto' });
+  for (const range of ranges) {
+    const delta = diff / range.ms;
+    if (Math.abs(delta) >= 1) {
+      return formatter.format(Math.round(delta), range.unit);
+    }
+  }
+  return 'just now';
 }
 
 function getSuitIcon(cardName) {
@@ -440,6 +463,9 @@ export const JournalEntryCard = memo(function JournalEntryCard({
     })
     : 'Date unavailable';
   const cards = Array.isArray(entry?.cards) ? entry.cards : [];
+  const deckLabel = entry?.deckName || (entry?.deckId && DECK_LABEL_MAP[entry.deckId]) || entry?.deck || '';
+  const relativeTimeLabel = formatRelativeTimeFromNow(timestamp);
+  const cardPreview = cards.slice(0, 2);
   const narrativeText = entry?.personalReading || entry?.reading || entry?.narrative || '';
   const reflections = entry?.reflections && typeof entry.reflections === 'object'
     ? Object.entries(entry.reflections).filter(([, note]) => typeof note === 'string' && note.trim())
@@ -506,6 +532,31 @@ export const JournalEntryCard = memo(function JournalEntryCard({
       transform,
     };
   }, [menuPlacement]);
+  const navigate = useNavigate();
+
+  const handleAskFollowUp = useCallback(() => {
+    const followUpPayload = {
+      id: entry?.id || null,
+      question: entry?.question || '',
+      cards: Array.isArray(entry?.cards) ? entry.cards : [],
+      personalReading: entry?.personalReading || '',
+      themes: entry?.themes || null,
+      spreadKey: entry?.spreadKey || null,
+      spreadName: entry?.spread || entry?.spreadName || null,
+      context: entry?.context || null,
+      deckId: entry?.deckId || null,
+      followUps: hasFollowUps ? followUps : [],
+      sessionSeed: entry?.sessionSeed || null,
+      requestId: entry?.requestId || null
+    };
+
+    navigate('/', {
+      state: {
+        followUpEntry: followUpPayload,
+        openFollowUp: true
+      }
+    });
+  }, [entry, followUps, hasFollowUps, navigate]);
 
   const renderActionMenu = () => {
     if (!actionMenuOpen) return null;
@@ -648,100 +699,259 @@ export const JournalEntryCard = memo(function JournalEntryCard({
     </div>
   );
 
-  return (
-    <article
-      className={`${ui.cardShell} ${actionMenuOpen ? 'z-50' : 'z-0'}`}
-      style={{
-        ...ui.cardBgStyle,
-        borderLeft: `4px solid ${accentColor}`
-      }}
-    >
-      <div className={`relative z-10 ${headerPadding} ${isExpanded ? 'border-b border-[color:rgba(255,255,255,0.06)]' : ''}`}>
-        <div className="flex items-start gap-2">
-          <button
-            type="button"
-            onClick={() => setIsExpanded(prev => !prev)}
-            aria-expanded={isExpanded}
-            aria-controls={entryContentId}
-            className="flex flex-1 items-start gap-3 rounded-xl px-1 py-0.5 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:rgba(232,218,195,0.45)]"
-          >
-            <span className="mt-0.5 flex h-7 w-7 items-center justify-center rounded-full border border-[color:var(--border-warm-light)] bg-[color:rgba(232,218,195,0.05)] text-[color:var(--text-muted)] shadow-[0_10px_28px_-18px_rgba(0,0,0,0.65)]">
-              {isExpanded ? (
-                <CaretUp className="h-3.5 w-3.5" aria-hidden="true" />
-              ) : (
-                <CaretDown className="h-3.5 w-3.5" aria-hidden="true" />
-              )}
-            </span>
+  // Determine if we should use compact styling (only when collapsed)
+  const useCompactStyle = compact && !isExpanded;
 
-            <div className="min-w-0 flex-1 space-y-1">
-              <div className="flex items-center gap-2 min-w-0 flex-nowrap">
-                <h3 className={`font-[Cormorant_Garamond] ${compact ? 'text-base' : 'text-lg'} text-[color:var(--brand-primary)] flex-1 truncate tracking-[0.04em]`}>
-                  {entry.spread || entry.spreadName || 'Tarot Reading'}
-                </h3>
-                {entry.context && (
-                  <span className={ui.pill}>
-                    {formatContextName(entry.context)}
-                  </span>
-                )}
-                {hasReflections && (
-                  <span className={ui.pill}>
-                    <JournalCommentAddIcon className="h-3 w-3 text-[color:var(--brand-primary)]" aria-hidden="true" />
-                    {reflections.length}
-                  </span>
-                )}
-              </div>
+  // Compact collapsed view - minimal 2-3 line list style
+  const renderCompactHeader = () => (
+    <div className="relative z-10 px-3 py-2.5">
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          onClick={() => setIsExpanded(prev => !prev)}
+          aria-expanded={isExpanded}
+          aria-controls={entryContentId}
+          className="flex flex-1 items-center gap-2.5 min-w-0 rounded-lg py-0.5 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:rgba(232,218,195,0.45)]"
+        >
+          <span className="flex h-5 w-5 items-center justify-center text-[color:var(--text-muted)] flex-shrink-0">
+            <CaretDown className="h-3.5 w-3.5" aria-hidden="true" />
+          </span>
 
-              <div className="flex items-center gap-2 text-[11px] text-[color:var(--text-muted)] min-w-0">
-                <span className="truncate">{formattedTimestamp}</span>
-                {cards.length > 0 && (
-                  <span className={ui.pill}>
-                    {cards.length} cards
-                  </span>
-                )}
-              </div>
-
-              {entry.question && (
-                <p className="text-sm text-[color:var(--text-muted)] line-clamp-1">
-                  &ldquo;{entry.question}&rdquo;
-                </p>
+          <div className="min-w-0 flex-1">
+            {/* Line 1: Spread name + metadata */}
+            <div className="flex items-center gap-2 min-w-0">
+              <h3 className="text-[13px] font-semibold text-[color:var(--brand-primary)] truncate flex-1">
+                {entry.spread || entry.spreadName || 'Reading'}
+              </h3>
+              <span className="text-[10px] text-[color:var(--text-muted)] flex-shrink-0 tabular-nums">
+                {cards.length} {cards.length === 1 ? 'card' : 'cards'}
+              </span>
+              {entry.context && (
+                <span className="text-[10px] text-[color:var(--text-muted)] flex-shrink-0 hidden sm:inline">
+                  · {formatContextName(entry.context)}
+                </span>
               )}
             </div>
+
+            {/* Line 2: Card chips + deck badge for quick scanning */}
+            {(cardPreview.length > 0 || deckLabel) && (
+              <div className="flex flex-wrap items-center gap-1 mt-1">
+                {cardPreview.slice(0, 2).map((card, idx) => {
+                  const name = (card.name || 'Card').replace(/^The\s+/i, '');
+                  const reversed = REVERSED_PATTERN.test(card?.orientation || '') || card?.isReversed;
+                  return (
+                    <span
+                      key={`compact-${card.name || 'card'}-${idx}`}
+                      className="inline-flex items-center gap-0.5 rounded-full border border-[color:rgba(255,255,255,0.10)] bg-[color:rgba(15,14,19,0.4)] px-1.5 py-0.5 text-[10px] text-[color:var(--text-muted)]"
+                    >
+                      <span className="text-[color:var(--text-main)] font-medium truncate max-w-[72px]">{name}</span>
+                      {reversed && (
+                        <span className="text-[9px] text-[color:var(--status-error)] font-semibold">R</span>
+                      )}
+                    </span>
+                  );
+                })}
+                {cards.length > 2 && (
+                  <span className="text-[10px] text-[color:var(--text-muted)]">+{cards.length - 2}</span>
+                )}
+                {deckLabel && (
+                  <span className="text-[10px] text-[color:var(--text-muted)] opacity-70 truncate max-w-[60px]">
+                    {deckLabel}
+                  </span>
+                )}
+              </div>
+            )}
+
+            {/* Line 3: Question (truncated) */}
+            {entry.question && (
+              <p className="text-[11px] text-[color:var(--text-muted)] truncate mt-0.5 leading-snug">
+                {entry.question}
+              </p>
+            )}
+          </div>
+
+          {/* Right side: relative time */}
+          <span className="text-[10px] text-[color:var(--text-muted)] flex-shrink-0 tabular-nums whitespace-nowrap">
+            {relativeTimeLabel || formattedTimestamp}
+          </span>
+        </button>
+
+        <button
+          type="button"
+          ref={actionMenuButtonRef}
+          onClick={(event) => {
+            event.stopPropagation();
+            setActionMenuOpen((prev) => {
+              const next = !prev;
+              if (next) {
+                if (typeof requestAnimationFrame !== 'undefined') {
+                  requestAnimationFrame(() => updateMenuPlacement());
+                } else {
+                  updateMenuPlacement();
+                }
+              }
+              return next;
+            });
+          }}
+          className="flex h-8 w-8 items-center justify-center rounded-full text-[color:var(--text-muted)] hover:bg-[color:rgba(232,218,195,0.08)] hover:text-[color:var(--brand-accent)] transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:rgba(232,218,195,0.45)] flex-shrink-0"
+          aria-haspopup="menu"
+          aria-controls={actionMenuId}
+          aria-expanded={actionMenuOpen}
+          title="Entry actions"
+        >
+          <DotsThreeVertical className="h-4 w-4" aria-hidden="true" />
+          <span className="sr-only">Open entry actions</span>
+        </button>
+
+        {renderActionMenu()}
+      </div>
+    </div>
+  );
+
+  // Comfortable collapsed/expanded header - full card style with pills and previews
+  const renderComfortableHeader = () => (
+    <div className={`relative z-10 ${headerPadding} ${isExpanded ? 'border-b border-[color:rgba(255,255,255,0.06)]' : ''}`}>
+      <div className="flex items-start gap-2">
+        <button
+          type="button"
+          onClick={() => setIsExpanded(prev => !prev)}
+          aria-expanded={isExpanded}
+          aria-controls={entryContentId}
+          className="flex flex-1 items-start gap-3 rounded-xl px-1 py-0.5 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:rgba(232,218,195,0.45)]"
+        >
+          <span className="mt-0.5 flex h-7 w-7 items-center justify-center rounded-full border border-[color:var(--border-warm-light)] bg-[color:rgba(232,218,195,0.05)] text-[color:var(--text-muted)] shadow-[0_10px_28px_-18px_rgba(0,0,0,0.65)]">
+            {isExpanded ? (
+              <CaretUp className="h-3.5 w-3.5" aria-hidden="true" />
+            ) : (
+              <CaretDown className="h-3.5 w-3.5" aria-hidden="true" />
+            )}
+          </span>
+
+          <div className="min-w-0 flex-1 space-y-1">
+            <div className="flex items-center gap-2 min-w-0 flex-nowrap">
+              <h3 className="font-[Cormorant_Garamond] text-lg text-[color:var(--brand-primary)] flex-1 truncate tracking-[0.04em]">
+                {entry.spread || entry.spreadName || 'Tarot Reading'}
+              </h3>
+              {entry.context && (
+                <span className={ui.pill}>
+                  {formatContextName(entry.context)}
+                </span>
+              )}
+              {hasReflections && (
+                <span className={ui.pill}>
+                  <JournalCommentAddIcon className="h-3 w-3 text-[color:var(--brand-primary)]" aria-hidden="true" />
+                  {reflections.length}
+                </span>
+              )}
+            </div>
+
+            <div className="flex items-center gap-2 text-[11px] text-[color:var(--text-muted)] min-w-0">
+              <span className="truncate">{formattedTimestamp}</span>
+              {cards.length > 0 && (
+                <span className={ui.pill}>
+                  {cards.length} cards
+                </span>
+              )}
+            </div>
+
+            {(cardPreview.length > 0 || deckLabel || relativeTimeLabel) && (
+              <div className="flex flex-wrap items-center gap-1.5 text-[11px] text-[color:var(--text-muted)]">
+                {cardPreview.map((card, idx) => {
+                  const name = (card.name || 'Card').replace(/^The\\s+/i, '');
+                  const reversed = REVERSED_PATTERN.test(card?.orientation || '') || card?.isReversed;
+                  return (
+                    <span
+                      key={`${card.name || 'card'}-${idx}`}
+                      className="inline-flex items-center gap-1 rounded-full border border-[color:rgba(255,255,255,0.12)] bg-[color:rgba(15,14,19,0.3)] px-2.5 py-1 font-semibold text-[color:var(--text-muted)]"
+                    >
+                      <JournalPlusCircleIcon className="h-3 w-3 text-[color:var(--text-muted)]" aria-hidden="true" />
+                      <span className="text-[11px] text-[color:var(--text-main)]">{name}</span>
+                      {reversed && (
+                        <span className="rounded border border-[color:color-mix(in_srgb,var(--status-error)_45%,transparent)] bg-[color:color-mix(in_srgb,var(--status-error)_12%,transparent)] px-1.5 py-0.5 text-[10px] font-semibold text-[color:var(--status-error)]">
+                          Rev
+                        </span>
+                      )}
+                    </span>
+                  );
+                })}
+                {cards.length > cardPreview.length && (
+                  <span className="text-[11px] text-[color:var(--text-muted)]">+{cards.length - cardPreview.length} more</span>
+                )}
+                {deckLabel && (
+                  <span className="inline-flex items-center gap-1 rounded-full border border-[color:rgba(255,255,255,0.12)] bg-[color:rgba(15,14,19,0.3)] px-2.5 py-1 font-semibold text-[color:var(--text-muted)]">
+                    Deck: <span className="text-[color:var(--text-main)]">{deckLabel}</span>
+                  </span>
+                )}
+                {relativeTimeLabel && (
+                  <span className="inline-flex items-center gap-1 rounded-full border border-[color:rgba(255,255,255,0.12)] bg-[color:rgba(15,14,19,0.3)] px-2 py-0.5 font-semibold text-[10px] text-[color:var(--text-muted)]">
+                    {relativeTimeLabel}
+                  </span>
+                )}
+              </div>
+            )}
+
+            {entry.question && (
+              <p className="text-sm text-[color:var(--text-muted)] line-clamp-1">
+                &ldquo;{entry.question}&rdquo;
+              </p>
+            )}
+          </div>
+        </button>
+
+        <div className="relative flex-shrink-0 self-start">
+          <button
+            type="button"
+            ref={actionMenuButtonRef}
+            onClick={(event) => {
+              event.stopPropagation();
+              setActionMenuOpen((prev) => {
+                const next = !prev;
+                // Ensure we compute placement on open.
+                if (next) {
+                  // Defer to next frame to ensure layout is stable.
+                  if (typeof requestAnimationFrame !== 'undefined') {
+                    requestAnimationFrame(() => updateMenuPlacement());
+                  } else {
+                    updateMenuPlacement();
+                  }
+                }
+                return next;
+              });
+            }}
+            className={ui.iconButton}
+            aria-haspopup="menu"
+            aria-controls={actionMenuId}
+            aria-expanded={actionMenuOpen}
+            title="Entry actions"
+          >
+            <DotsThreeVertical className="h-4 w-4" aria-hidden="true" />
+            <span className="sr-only">Open entry actions</span>
           </button>
 
-          <div className="relative flex-shrink-0 self-start">
-            <button
-              type="button"
-              ref={actionMenuButtonRef}
-              onClick={(event) => {
-                event.stopPropagation();
-                setActionMenuOpen((prev) => {
-                  const next = !prev;
-                  // Ensure we compute placement on open.
-                  if (next) {
-                    // Defer to next frame to ensure layout is stable.
-                    if (typeof requestAnimationFrame !== 'undefined') {
-                      requestAnimationFrame(() => updateMenuPlacement());
-                    } else {
-                      updateMenuPlacement();
-                    }
-                  }
-                  return next;
-                });
-              }}
-              className={ui.iconButton}
-              aria-haspopup="menu"
-              aria-controls={actionMenuId}
-              aria-expanded={actionMenuOpen}
-              title="Entry actions"
-            >
-              <DotsThreeVertical className="h-4 w-4" aria-hidden="true" />
-              <span className="sr-only">Open entry actions</span>
-            </button>
-
-            {renderActionMenu()}
-          </div>
+          {renderActionMenu()}
         </div>
       </div>
+    </div>
+  );
+
+  return (
+    <article
+      className={`${useCompactStyle
+        ? 'group relative overflow-hidden rounded-xl border border-[color:var(--border-warm)] text-[color:var(--text-main)] shadow-[0_4px_12px_-8px_rgba(0,0,0,0.5)] transition-all hover:bg-[color:rgba(232,218,195,0.02)] animate-fade-in'
+        : ui.cardShell
+      } ${actionMenuOpen ? 'z-50' : 'z-0'}`}
+      style={useCompactStyle
+        ? {
+            background: 'linear-gradient(135deg, var(--panel-dark-1), var(--panel-dark-2))',
+            borderLeft: `3px solid ${accentColor}`
+          }
+        : {
+            ...ui.cardBgStyle,
+            borderLeft: `4px solid ${accentColor}`
+          }
+      }
+    >
+      {useCompactStyle ? renderCompactHeader() : renderComfortableHeader()}
 
       {/* Collapsible content */}
       {isExpanded && (
@@ -932,6 +1142,17 @@ export const JournalEntryCard = memo(function JournalEntryCard({
                     );
                   })}
                 </ol>
+                <div className="mt-3 flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={handleAskFollowUp}
+                    className="inline-flex items-center gap-2 rounded-full border border-[color:var(--border-warm-light)] bg-[color:rgba(232,218,195,0.06)] px-3 py-1.5 text-[12px] font-semibold text-[color:var(--text-main)] hover:border-[color:var(--border-warm)] hover:bg-[color:rgba(232,218,195,0.12)] transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:rgba(232,218,195,0.45)]"
+                  >
+                    <Lightning className="h-3.5 w-3.5 text-[color:var(--brand-primary)]" aria-hidden="true" />
+                    Ask a follow-up
+                  </button>
+                  <span className="text-[11px] text-[color:var(--text-muted)]">Opens chat with this reading</span>
+                </div>
               </div>
             </section>
           )}
@@ -963,12 +1184,18 @@ export const JournalEntryCard = memo(function JournalEntryCard({
         </div>
       )}
 
-      <div className="border-t border-[color:rgba(255,255,255,0.06)] bg-[color:rgba(15,14,19,0.25)] px-4 py-2 text-[11px] text-[color:var(--text-muted)]">
-        {hasReflections ? `${reflections.length} reflection${reflections.length === 1 ? '' : 's'}` : formattedTimestamp}
-      </div>
-      <div className="px-4 pb-3 pt-2" aria-live="polite">
-        <InlineStatus tone={inlineStatus.tone} message={inlineStatus.message} />
-      </div>
+      {/* Footer - hidden in compact collapsed view */}
+      {!useCompactStyle && (
+        <div className="border-t border-[color:rgba(255,255,255,0.06)] bg-[color:rgba(15,14,19,0.25)] px-4 py-2 text-[11px] text-[color:var(--text-muted)]">
+          {hasReflections ? `${reflections.length} reflection${reflections.length === 1 ? '' : 's'}` : formattedTimestamp}
+        </div>
+      )}
+      {/* Inline status - always show when there's a message, otherwise respect compact style */}
+      {(inlineStatus.message || !useCompactStyle) && (
+        <div className={`${useCompactStyle ? 'px-3 pb-2' : 'px-4 pb-3 pt-2'}`} aria-live="polite">
+          <InlineStatus tone={inlineStatus.tone} message={inlineStatus.message} />
+        </div>
+      )}
     </article>
   );
 });

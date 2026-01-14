@@ -1,4 +1,5 @@
-import { useCallback, useMemo, useState, useEffect } from 'react';
+import { useCallback, useMemo, useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Sparkle, ArrowCounterClockwise, Star, CheckCircle, BookmarkSimple, ChatCircle } from '@phosphor-icons/react';
 import { useNavigate } from 'react-router-dom';
@@ -28,6 +29,69 @@ import { useSmallScreen } from '../hooks/useSmallScreen';
 import { useLandscape } from '../hooks/useLandscape';
 import { useHandsetLayout } from '../hooks/useHandsetLayout';
 import { useReducedMotion } from '../hooks/useReducedMotion';
+
+/**
+ * Ghost card component for deck-to-slot fly animation.
+ * Renders via portal to animate in screen space above all other content.
+ */
+function GhostCard({ startRect, endRect, onComplete }) {
+  const duration = 0.35; // 350ms
+
+  return createPortal(
+    <motion.div
+      className="fixed pointer-events-none z-[200]"
+      initial={{
+        left: startRect.left,
+        top: startRect.top,
+        width: startRect.width,
+        height: startRect.height,
+        opacity: 1,
+        scale: 1,
+      }}
+      animate={{
+        left: endRect.left,
+        top: endRect.top,
+        width: endRect.width,
+        height: endRect.height,
+        opacity: 0,
+        scale: 0.95,
+      }}
+      transition={{
+        duration,
+        ease: [0.32, 0.72, 0, 1], // Custom ease-out curve
+        opacity: { duration: duration * 0.4, delay: duration * 0.6 },
+        scale: { duration: duration * 0.3, delay: duration * 0.7 },
+      }}
+      onAnimationComplete={onComplete}
+    >
+      {/* Card back visual */}
+      <div
+        className="w-full h-full rounded-xl border-2 border-primary/40 overflow-hidden"
+        style={{
+          background: 'linear-gradient(145deg, var(--bg-surface), var(--bg-surface-muted))',
+          boxShadow: '0 20px 40px rgba(0,0,0,0.4), 0 0 30px color-mix(in srgb, var(--brand-primary) 15%, transparent)',
+        }}
+      >
+        {/* Pattern overlay */}
+        <div
+          className="absolute inset-0 opacity-10"
+          style={{
+            backgroundImage: 'radial-gradient(circle at 50% 50%, var(--brand-secondary) 1px, transparent 1px)',
+            backgroundSize: '12px 12px',
+          }}
+        />
+        {/* Center glow */}
+        <div
+          className="absolute inset-0 flex items-center justify-center"
+          style={{
+            background: 'radial-gradient(circle at 50% 50%, rgba(var(--brand-primary-rgb), 0.15), transparent 70%)',
+          }}
+        />
+      </div>
+    </motion.div>,
+    document.body
+  );
+}
 
 export function ReadingDisplay({ sectionRef }) {
     const navigate = useNavigate();
@@ -118,6 +182,10 @@ export function ReadingDisplay({ sectionRef }) {
         if (!revealedCards.has(focusedCardData.index)) return null;
         return focusedCardData;
     }, [focusedCardData, readingIdentity, revealedCards]);
+
+    // Ghost card animation state for deck-to-slot fly animation
+    const deckRef = useRef(null);
+    const [ghostAnimation, setGhostAnimation] = useState(null);
 
     const {
         voiceOn,
@@ -223,6 +291,48 @@ export function ReadingDisplay({ sectionRef }) {
         setDealIndex(0);
     }, [setRevealedCards, setDealIndex]);
 
+    // Ghost card animation handlers for deck-to-slot fly effect
+    const handleAnimatedDeal = useCallback(() => {
+        // Skip animation if reduced motion is preferred
+        if (prefersReducedMotion) {
+            dealNext();
+            return;
+        }
+
+        // Find next slot index
+        const nextIndex = reading?.findIndex((_, i) => !revealedCards.has(i)) ?? -1;
+        if (nextIndex < 0) {
+            dealNext();
+            return;
+        }
+
+        // Get deck position from ref
+        const deckEl = deckRef.current;
+        const deckRect = deckEl?.getBoundingClientRect();
+
+        // Get target slot position
+        const slotEl = document.getElementById(`spread-slot-${nextIndex}`);
+        const slotRect = slotEl?.getBoundingClientRect();
+
+        // Fallback to immediate deal if we can't get positions
+        if (!deckRect || !slotRect) {
+            dealNext();
+            return;
+        }
+
+        // Start ghost animation
+        setGhostAnimation({
+            startRect: deckRect,
+            endRect: slotRect,
+            targetIndex: nextIndex
+        });
+    }, [dealNext, reading, revealedCards, prefersReducedMotion]);
+
+    const handleGhostComplete = useCallback(() => {
+        setGhostAnimation(null);
+        dealNext();
+    }, [dealNext]);
+
     const handleCardClick = useCallback((card, position, index) => {
         if (!revealedCards.has(index)) return;
         const payload = { card, position, index, readingKey: readingIdentity };
@@ -248,6 +358,59 @@ export function ReadingDisplay({ sectionRef }) {
         }
         window.setTimeout(() => setRecentlyClosedIndex(-1), 900);
     }, [focusedCardData, prefersReducedMotion, setSelectedCardData]);
+
+    // --- Card Navigation Logic ---
+    // Compute revealed indices sorted by position order for navigation
+    const revealedIndicesSorted = useMemo(() => {
+        if (!reading || !revealedCards) return [];
+        return Array.from(revealedCards).sort((a, b) => a - b);
+    }, [reading, revealedCards]);
+
+    // Navigation state computed from focused/selected card
+    const navigationData = useMemo(() => {
+        const currentIndex = activeFocusedCardData?.index ?? selectedCardData?.index ?? -1;
+        if (currentIndex < 0 || revealedIndicesSorted.length === 0) {
+            return { canPrev: false, canNext: false, label: '', currentPos: -1 };
+        }
+        const posInList = revealedIndicesSorted.indexOf(currentIndex);
+        if (posInList < 0) {
+            return { canPrev: false, canNext: false, label: '', currentPos: -1 };
+        }
+        const canPrev = posInList > 0;
+        const canNext = posInList < revealedIndicesSorted.length - 1;
+        const label = `${posInList + 1} of ${revealedIndicesSorted.length}`;
+        return { canPrev, canNext, label, currentPos: posInList };
+    }, [activeFocusedCardData, selectedCardData, revealedIndicesSorted]);
+
+    // Handler for navigation (used by both CardDetailSheet and CardModal)
+    const handleNavigateCard = useCallback((direction) => {
+        const { currentPos, canPrev, canNext } = navigationData;
+        if (currentPos < 0) return;
+
+        let nextPos = currentPos;
+        if (direction === 'prev' && canPrev) {
+            nextPos = currentPos - 1;
+        } else if (direction === 'next' && canNext) {
+            nextPos = currentPos + 1;
+        } else {
+            return;
+        }
+
+        const nextIndex = revealedIndicesSorted[nextPos];
+        if (nextIndex == null || !reading?.[nextIndex]) return;
+
+        const card = reading[nextIndex];
+        const position = spreadInfo?.positions?.[nextIndex] || `Position ${nextIndex + 1}`;
+        const payload = { card, position, index: nextIndex, readingKey: readingIdentity };
+
+        // Update both focused and selected to handle both sheet and modal
+        if (activeFocusedCardData) {
+            setFocusedCardData(payload);
+        }
+        if (selectedCardData) {
+            setSelectedCardData(payload);
+        }
+    }, [navigationData, revealedIndicesSorted, reading, spreadInfo, readingIdentity, activeFocusedCardData, selectedCardData, setSelectedCardData]);
 
     // Memoize next label computation to avoid IIFE in render
     const nextLabel = useMemo(() => {
@@ -393,10 +556,12 @@ export function ReadingDisplay({ sectionRef }) {
                                 spreadPositions={spreadInfo?.positions || []}
                                 revealedCount={revealedCards.size}
                                 totalCards={reading.length}
-                                // Deal action
-                                onDeal={dealNext}
+                                // Deal action with ghost card animation
+                                onDeal={handleAnimatedDeal}
                                 // Minimap suit coloring (revealed cards)
                                 cards={reading}
+                                // Ref for ghost card animation coordination
+                                externalDeckRef={deckRef}
                             />
                         ) : (
                             <DeckPile
@@ -420,6 +585,10 @@ export function ReadingDisplay({ sectionRef }) {
                         reflections={reflections}
                         setReflections={setReflections}
                         onOpenModal={handleOpenModalFromPanel}
+                        onNavigateCard={handleNavigateCard}
+                        canNavigatePrev={navigationData.canPrev}
+                        canNavigateNext={navigationData.canNext}
+                        navigationLabel={navigationData.label}
                     />
 
                     {!personalReading && !isGenerating && revealedCards.size === reading.length && (
@@ -653,9 +822,22 @@ export function ReadingDisplay({ sectionRef }) {
                         isOpen={!!selectedCardData}
                         onClose={handleCloseDetail}
                         layoutId={`card-${selectedCardData.index}`}
+                        onNavigate={handleNavigateCard}
+                        canNavigatePrev={navigationData.canPrev}
+                        canNavigateNext={navigationData.canNext}
+                        navigationLabel={navigationData.label}
                     />
                 )}
             </AnimatePresence>
+
+            {/* Ghost card animation - deck to slot fly effect */}
+            {ghostAnimation && (
+                <GhostCard
+                    startRect={ghostAnimation.startRect}
+                    endRect={ghostAnimation.endRect}
+                    onComplete={handleGhostComplete}
+                />
+            )}
         </section>
     );
 }

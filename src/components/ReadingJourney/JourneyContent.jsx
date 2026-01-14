@@ -27,6 +27,7 @@ export default function JourneyContent({
   timezone,
   onCreateShareLink,
   onStartReading,
+  scopeLabel,
 }) {
   const journeyData = useJourneyData({
     entries,
@@ -124,6 +125,7 @@ export default function JourneyContent({
     userId,
     onCreateShareLink,
     onStartReading,
+    scopeLabel,
     // For export functionality - use exportEntries to preserve full journal when unfiltered
     activeEntries: exportEntries,
     exportStats,
@@ -160,6 +162,7 @@ export default function JourneyContent({
     userId,
     onCreateShareLink,
     onStartReading,
+    scopeLabel,
     exportEntries,
     exportStats,
     locale,
@@ -173,11 +176,11 @@ export default function JourneyContent({
     const totalEntries = Array.isArray(entries) ? entries.length : null;
     persistCoachStatsSnapshot(exportStats, {
       filtersActive: journeyFiltersActive,
-      filterLabel: journeyFiltersActive ? 'Filtered journal view' : 'Entire journal',
+      filterLabel: scopeLabel || (journeyFiltersActive ? 'Filtered journal view' : 'Entire journal'),
       entryCount,
       totalEntries,
     }, userId);
-  }, [exportStats, journeyFiltersActive, scopedEntries, entries, userId]);
+  }, [exportStats, journeyFiltersActive, scopedEntries, entries, userId, scopeLabel]);
 
   // Render appropriate variant
   if (variant === 'mobile') {

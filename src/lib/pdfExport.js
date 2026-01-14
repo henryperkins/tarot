@@ -22,8 +22,16 @@ function drawContextBars(doc, contexts, startX, startY, width) {
   return cursorY;
 }
 
-export function exportJournalInsightsToPdf(stats, entries = []) {
+/**
+ * Export journal insights and entries to PDF.
+ * @param {Object} stats - Journal statistics
+ * @param {Array} entries - Journal entries to include
+ * @param {Object} options - Export options
+ * @param {string} options.scopeLabel - Human-readable scope label (e.g., "This month", "All time")
+ */
+export function exportJournalInsightsToPdf(stats, entries = [], options = {}) {
   if (!stats) return;
+  const { scopeLabel } = options;
   const doc = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'letter' });
   const margin = 48;
   let cursorY = margin;
@@ -33,8 +41,18 @@ export function exportJournalInsightsToPdf(stats, entries = []) {
   doc.text('Tableu · Journal Snapshot', margin, cursorY);
   cursorY += 28;
 
-  doc.setFontSize(11);
+  // Show scope and entry count
+  doc.setFontSize(10);
   doc.setFont('helvetica', 'normal');
+  doc.setTextColor(100, 100, 100);
+  const scopeLine = scopeLabel
+    ? `Scope: ${scopeLabel} · ${entries.length} entries`
+    : `${entries.length} entries`;
+  doc.text(scopeLine, margin, cursorY);
+  cursorY += 16;
+
+  doc.setTextColor(0, 0, 0);
+  doc.setFontSize(11);
   cursorY = addWrappedText(
     doc,
     `Entries: ${stats.totalReadings} · Cards Logged: ${stats.totalCards} · Reversal Rate: ${stats.reversalRate}%`,

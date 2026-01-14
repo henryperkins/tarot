@@ -148,6 +148,7 @@ export function SpreadSelector({
   const [showLeftFade, setShowLeftFade] = useState(false);
   const [showRightFade, setShowRightFade] = useState(true);
   const [lockedSpreadKey, setLockedSpreadKey] = useState(null);
+  const [previewKey, setPreviewKey] = useState(null);
   const prefersReducedMotion = useReducedMotion();
   const isLandscape = useLandscape();
   const isSmallScreen = useSmallScreen();
@@ -156,6 +157,10 @@ export function SpreadSelector({
   const canUseSpread = subscription?.canUseSpread ?? (() => true);
   const recommendedSpread = getSpreadFromDepth(personalization?.preferredSpreadDepth);
   const isExperienced = personalization?.tarotExperience === 'experienced';
+
+  // Get preview spread info for CTA bar
+  const previewSpread = previewKey ? SPREADS[previewKey] : null;
+  const previewPositions = previewSpread?.positions || [];
 
   // In landscape: smaller cards to fit more on screen
   const cardBasisClass = isLandscape
@@ -241,11 +246,27 @@ export function SpreadSelector({
     if (selectedIndex !== -1) {
       scrollToIndex(selectedIndex);
     }
+
+    // Set preview state - don't confirm yet
+    setPreviewKey(key);
+
+    // Update parent's selection state (for visual feedback)
     if (onSelectSpread) {
       onSelectSpread(key);
     }
-    if (onSpreadConfirm) {
-      onSpreadConfirm(key);
+  };
+
+  const handleConfirmPreview = () => {
+    if (previewKey && onSpreadConfirm) {
+      onSpreadConfirm(previewKey);
+    }
+    setPreviewKey(null);
+  };
+
+  const handleCancelPreview = () => {
+    setPreviewKey(null);
+    if (onSelectSpread) {
+      onSelectSpread(null);
     }
   };
 
@@ -529,6 +550,70 @@ export function SpreadSelector({
           dismissible={true}
           onDismiss={handleUpgradeDismiss}
         />
+      )}
+
+      {/* Preview CTA bar - shows when a spread is being previewed */}
+      {previewKey && previewSpread && (
+        <div className="fixed bottom-0 left-0 right-0 z-50 bg-surface/95 backdrop-blur-md border-t border-secondary/30 shadow-2xl shadow-black/50 safe-area-pb">
+          <div className="max-w-3xl mx-auto px-4 py-3 sm:py-4">
+            <div className="flex flex-col gap-3">
+              {/* Spread info */}
+              <div className="flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-xs text-muted uppercase tracking-wider mb-0.5">Previewing</p>
+                  <h3 className="text-base sm:text-lg font-serif text-accent truncate">
+                    {previewSpread.name}
+                    <span className="ml-2 text-sm text-muted font-normal">
+                      · {previewSpread.count} cards
+                    </span>
+                  </h3>
+                </div>
+              </div>
+
+              {/* Position chips preview */}
+              <div className="flex flex-wrap gap-1.5 max-h-[4.5rem] overflow-y-auto scrollbar-thin">
+                {previewPositions.slice(0, 6).map((pos, i) => {
+                  // Extract short label (before the em-dash)
+                  const shortLabel = pos.split('—')[0].trim();
+                  return (
+                    <span
+                      key={`preview-pos-${i}`}
+                      className="inline-flex items-center gap-1 text-[0.65rem] sm:text-xs text-muted bg-surface/80 border border-secondary/30 rounded-full px-2 py-0.5 whitespace-nowrap"
+                    >
+                      <span className="w-4 h-4 rounded-full bg-primary/20 text-primary font-semibold flex items-center justify-center text-[0.55rem]">
+                        {i + 1}
+                      </span>
+                      <span className="max-w-[12ch] truncate">{shortLabel}</span>
+                    </span>
+                  );
+                })}
+                {previewPositions.length > 6 && (
+                  <span className="text-xs text-muted">
+                    +{previewPositions.length - 6} more
+                  </span>
+                )}
+              </div>
+
+              {/* Action buttons */}
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={handleCancelPreview}
+                  className="flex-1 sm:flex-none min-h-[44px] px-4 py-2 rounded-full border border-secondary/40 text-sm text-muted hover:text-main hover:border-secondary/60 transition touch-manipulation"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleConfirmPreview}
+                  className="flex-1 sm:flex-none min-h-[44px] px-6 py-2 rounded-full bg-primary text-surface font-semibold text-sm hover:bg-primary/90 transition touch-manipulation shadow-lg shadow-primary/30"
+                >
+                  Use This Spread
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </section>
   );

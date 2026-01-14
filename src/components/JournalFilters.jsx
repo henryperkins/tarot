@@ -1,7 +1,9 @@
 import { useState, useRef, useEffect, useId } from 'react';
 import {
   CaretDown,
-  Check
+  Check,
+  ListBullets,
+  SquaresFour
 } from '@phosphor-icons/react';
 import {
   JournalBookIcon,
@@ -185,7 +187,7 @@ function FilterDropdown({ label, options, value, onChange, multiple = false, but
   );
 }
 
-export function JournalFilters({ filters, onChange, contexts = [], spreads = [], decks = [], variant = 'full' }) {
+export function JournalFilters({ filters, onChange, contexts = [], spreads = [], decks = [], variant = 'full', viewMode = 'comfortable', onViewModeChange }) {
   const isCompact = variant === 'compact';
   const [savedFilters, setSavedFilters] = useState(() => {
     if (typeof window === 'undefined') return [];
@@ -843,6 +845,48 @@ export function JournalFilters({ filters, onChange, contexts = [], spreads = [],
                 <span>Reversals</span>
                 {filters.onlyReversals && <Check className="h-3 w-3" />}
               </button>
+
+              {onViewModeChange && (
+                <>
+                  <div className="hidden h-6 w-px bg-[color:var(--border-warm-light)] sm:block" />
+
+                  {/* View mode toggle */}
+                  <div
+                    className="inline-flex rounded-xl border border-[color:var(--border-warm-light)] bg-[color:rgba(15,14,19,0.5)] p-0.5"
+                    role="group"
+                    aria-label="List view mode"
+                  >
+                    <button
+                      type="button"
+                      onClick={() => onViewModeChange('comfortable')}
+                      aria-pressed={viewMode === 'comfortable'}
+                      title="Comfortable view"
+                      className={`flex min-h-[40px] items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:rgba(232,218,195,0.45)] ${
+                        viewMode === 'comfortable'
+                          ? 'bg-[color:rgba(212,184,150,0.15)] text-[color:var(--text-main)] shadow-[0_4px_12px_-6px_rgba(212,184,150,0.5)]'
+                          : 'text-[color:var(--text-muted)] hover:text-[color:var(--text-main)]'
+                      }`}
+                    >
+                      <SquaresFour className="h-4 w-4" aria-hidden="true" />
+                      <span className="hidden sm:inline">Comfortable</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => onViewModeChange('compact')}
+                      aria-pressed={viewMode === 'compact'}
+                      title="Compact view"
+                      className={`flex min-h-[40px] items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:rgba(232,218,195,0.45)] ${
+                        viewMode === 'compact'
+                          ? 'bg-[color:rgba(212,184,150,0.15)] text-[color:var(--text-main)] shadow-[0_4px_12px_-6px_rgba(212,184,150,0.5)]'
+                          : 'text-[color:var(--text-muted)] hover:text-[color:var(--text-main)]'
+                      }`}
+                    >
+                      <ListBullets className="h-4 w-4" aria-hidden="true" />
+                      <span className="hidden sm:inline">Compact</span>
+                    </button>
+                  </div>
+                </>
+              )}
             </div>
             <p className="mt-3 text-[11px] uppercase tracking-[0.22em] text-[color:var(--color-gray-light)]">
               Tip: combine filters to surface exact readings you want.

@@ -1069,14 +1069,33 @@ export async function copyJournalEntriesToClipboard(entries) {
   }
 }
 
-export async function copyJournalShareSummary(stats) {
+/**
+ * Copy a journal snapshot summary to clipboard or share sheet.
+ * @param {Object} stats - Journal statistics
+ * @param {Object} options - Options
+ * @param {string} options.scopeLabel - Human-readable scope label (e.g., "This month", "All time")
+ * @param {number} options.entryCount - Number of entries in the export
+ * @returns {Promise<boolean>} Success status
+ */
+export async function copyJournalShareSummary(stats, options = {}) {
   if (!stats) return false;
-  const summaryLines = [
-    'Tableu Journal Snapshot',
+  const { scopeLabel, entryCount } = options;
+
+  const summaryLines = ['Tableu Journal Snapshot'];
+
+  // Add scope information if provided
+  if (scopeLabel) {
+    const scopeLine = typeof entryCount === 'number'
+      ? `Scope: ${scopeLabel} (${entryCount} entries)`
+      : `Scope: ${scopeLabel}`;
+    summaryLines.push(scopeLine);
+  }
+
+  summaryLines.push(
     `Entries: ${stats.totalReadings}`,
     `Cards logged: ${stats.totalCards}`,
     `Reversal rate: ${stats.reversalRate}%`
-  ];
+  );
 
   if (Array.isArray(stats.frequentCards) && stats.frequentCards.length > 0) {
     const top = stats.frequentCards.map(card => `${card.name} (${card.count}×)`).join(', ');

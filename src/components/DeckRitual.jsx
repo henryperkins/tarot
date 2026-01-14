@@ -37,7 +37,10 @@ export function DeckRitual({
   onDeal,
 
   // Cards dealt for minimap suit coloring
-  cards = []
+  cards = [],
+
+  // External ref for ghost card animation coordination
+  externalDeckRef
 }) {
   const isSmallScreen = useSmallScreen();
   const prefersReducedMotion = useReducedMotion();
@@ -46,7 +49,9 @@ export function DeckRitual({
   const deckControls = useAnimation();
   const [showCutSlider, setShowCutSlider] = useState(false);
   const [localCutIndex, setLocalCutIndex] = useState(cutIndex);
-  const deckRef = useRef(null);
+  const internalDeckRef = useRef(null);
+  // Use external ref if provided (for parent to coordinate ghost card animation)
+  const deckRef = externalDeckRef || internalDeckRef;
   const knockComplete = knockCount >= 3;
   const isIdleBreathing = !prefersReducedMotion &&
     !isShuffling &&

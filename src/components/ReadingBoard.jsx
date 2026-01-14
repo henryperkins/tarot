@@ -1,12 +1,40 @@
-import { useMemo, useRef } from 'react';
-import { X } from '@phosphor-icons/react';
+import { useCallback, useMemo, useRef, useState } from 'react';
+import { X, CaretLeft, CaretRight, CaretDown, CaretUp, MapTrifold } from '@phosphor-icons/react';
 import { getSpreadInfo } from '../data/spreads';
 import { getCardImage, getOrientationMeaning } from '../lib/cardLookup';
 import { getDrawerGradient } from '../lib/suitColors';
 import { useModalA11y } from '../hooks/useModalA11y';
 import { useHandsetLayout } from '../hooks/useHandsetLayout';
 import { SpreadTable } from './SpreadTable';
-import { getNextUnrevealedIndex, getPositionLabel } from './readingBoardUtils';
+import { getNextUnrevealedIndex, getPositionLabel, extractShortLabel } from './readingBoardUtils';
+
+// Celtic Cross position short labels for map overlay
+const CELTIC_POSITION_LABELS = [
+  'Present',
+  'Challenge',
+  'Past',
+  'Future',
+  'Conscious',
+  'Subconscious',
+  'Advice',
+  'External',
+  'Hopes/Fears',
+  'Outcome'
+];
+
+// Celtic Cross map overlay positions (percentage-based for responsive layout)
+const CELTIC_MAP_POSITIONS = [
+  { x: 35, y: 50 },        // 1: Present (center)
+  { x: 35, y: 50, rotated: true }, // 2: Challenge (crossing)
+  { x: 15, y: 50 },        // 3: Past
+  { x: 55, y: 50 },        // 4: Future
+  { x: 35, y: 20 },        // 5: Conscious
+  { x: 35, y: 80 },        // 6: Subconscious
+  { x: 80, y: 80 },        // 7: Advice
+  { x: 80, y: 60 },        // 8: External
+  { x: 80, y: 40 },        // 9: Hopes/Fears
+  { x: 80, y: 20 }         // 10: Outcome
+];
 
 function CardDetailContent({ focusedCardData, reflections, setReflections, onOpenModal, showHeading = true }) {
   if (!focusedCardData) return null;
@@ -140,11 +168,20 @@ function CardDetailSheet({
   focusedCardData,
   reflections,
   setReflections,
-  onOpenModal
+  onOpenModal,
+  // Navigation props
+  onNavigate,
+  canNavigatePrev,
+  canNavigateNext,
+  positionLabel
 }) {
   const sheetRef = useRef(null);
   const closeButtonRef = useRef(null);
   const titleId = `card-detail-sheet-title-${focusedCardData?.index ?? 'unknown'}`;
+
+  // Swipe gesture tracking
+  const touchStartX = useRef(null);
+  const touchStartTime = useRef(null);
 
   useModalA11y(isOpen, {
     onClose,
@@ -153,9 +190,36 @@ function CardDetailSheet({
     scrollLockStrategy: 'simple'
   });
 
+  const handleTouchStart = useCallback((event) => {
+    touchStartX.current = event.touches[0].clientX;
+    touchStartTime.current = Date.now();
+  }, []);
+
+  const handleTouchEnd = useCallback((event) => {
+    if (touchStartX.current === null || touchStartTime.current === null) return;
+
+    const touchEndX = event.changedTouches[0].clientX;
+    const deltaX = touchEndX - touchStartX.current;
+    const elapsed = Date.now() - touchStartTime.current;
+
+    // Reset refs
+    touchStartX.current = null;
+    touchStartTime.current = null;
+
+    // Check if swipe is valid: >50px horizontal, <300ms
+    if (Math.abs(deltaX) > 50 && elapsed < 300) {
+      if (deltaX > 0 && canNavigatePrev) {
+        onNavigate?.('prev');
+      } else if (deltaX < 0 && canNavigateNext) {
+        onNavigate?.('next');
+      }
+    }
+  }, [canNavigatePrev, canNavigateNext, onNavigate]);
+
   if (!isOpen || !focusedCardData) return null;
 
   const { card, position } = focusedCardData;
+  const hasNavigation = canNavigatePrev || canNavigateNext;
 
   return (
     <div
@@ -174,9 +238,37 @@ function CardDetailSheet({
         aria-modal="true"
         aria-labelledby={titleId}
         onClick={(event) => event.stopPropagation()}
+        onTouchStart={handleTouchStart}
+        onTouchEnd={handleTouchEnd}
         style={{ maxHeight: 'calc(100% - 8px)' }}
       >
         <div className="mobile-drawer__handle" aria-hidden="true" />
+        {/* Navigation bar */}
+        {hasNavigation && (
+          <div className="flex items-center justify-between px-4 pt-2 pb-1 border-b border-secondary/20">
+            <button
+              type="button"
+              onClick={() => onNavigate?.('prev')}
+              disabled={!canNavigatePrev}
+              className="flex items-center gap-1 text-sm text-muted hover:text-main disabled:opacity-30 disabled:cursor-not-allowed transition touch-manipulation min-h-[44px] px-2"
+              aria-label="Previous card"
+            >
+              <CaretLeft className="w-5 h-5" />
+              <span className="sr-only xs:not-sr-only">Prev</span>
+            </button>
+            <span className="text-xs text-muted font-medium">{positionLabel}</span>
+            <button
+              type="button"
+              onClick={() => onNavigate?.('next')}
+              disabled={!canNavigateNext}
+              className="flex items-center gap-1 text-sm text-muted hover:text-main disabled:opacity-30 disabled:cursor-not-allowed transition touch-manipulation min-h-[44px] px-2"
+              aria-label="Next card"
+            >
+              <span className="sr-only xs:not-sr-only">Next</span>
+              <CaretRight className="w-5 h-5" />
+            </button>
+          </div>
+        )}
         <div className="mobile-drawer__header px-4 pt-3 pb-3">
           <div className="flex items-start justify-between gap-3">
             <div className="space-y-1">
@@ -210,6 +302,115 @@ function CardDetailSheet({
   );
 }
 
+/**
+ * Celtic Cross map overlay - shows numbered position layout
+ * Helps users understand the complex Celtic Cross layout on mobile
+ */
+function CelticCrossMapOverlay({ onClose }) {
+  return (
+    <div
+      className="absolute inset-0 z-20 rounded-2xl sm:rounded-3xl overflow-hidden"
+      onClick={onClose}
+      role="dialog"
+      aria-modal="true"
+      aria-label="Celtic Cross position map"
+    >
+      {/* Semi-transparent backdrop */}
+      <div className="absolute inset-0 bg-main/90 backdrop-blur-sm" />
+
+      {/* Position markers */}
+      <div className="relative w-full h-full">
+        {CELTIC_MAP_POSITIONS.map((pos, i) => (
+          <div
+            key={`map-pos-${i}`}
+            className="absolute transform -translate-x-1/2 -translate-y-1/2 flex flex-col items-center gap-0.5"
+            style={{
+              left: `${pos.x}%`,
+              top: `${pos.y}%`,
+              // Offset Challenge card slightly to show it's crossing
+              marginLeft: pos.rotated ? '8px' : 0
+            }}
+          >
+            <span
+              className={`w-7 h-7 rounded-full bg-primary/90 text-surface font-bold text-sm flex items-center justify-center shadow-lg ${
+                pos.rotated ? 'ring-2 ring-accent/60' : ''
+              }`}
+            >
+              {i + 1}
+            </span>
+            <span className="text-[0.6rem] text-main font-medium bg-surface/80 px-1.5 py-0.5 rounded whitespace-nowrap">
+              {CELTIC_POSITION_LABELS[i]}
+            </span>
+          </div>
+        ))}
+      </div>
+
+      {/* Tap to close instruction */}
+      <div className="absolute bottom-4 left-1/2 -translate-x-1/2">
+        <span className="text-xs text-muted bg-surface/60 px-3 py-1.5 rounded-full">
+          Tap anywhere to close
+        </span>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Collapsible position legend tray - shows position names below the spread table
+ * Prevents legend from occluding bottom-positioned cards
+ */
+function PositionLegendTray({ spreadInfo, isExpanded, onToggle }) {
+  if (!spreadInfo?.positions?.length) return null;
+
+  const positions = spreadInfo.positions;
+
+  return (
+    <div className="max-w-5xl mx-auto px-3 xs:px-4 sm:px-0">
+      <div className="rounded-xl border border-secondary/20 bg-surface/60 overflow-hidden">
+        <button
+          type="button"
+          onClick={onToggle}
+          className="w-full flex items-center justify-between gap-2 px-4 py-2.5 text-sm text-muted hover:text-main transition touch-manipulation"
+          aria-expanded={isExpanded}
+          aria-controls="position-legend-content"
+        >
+          <span className="font-medium">
+            {isExpanded ? 'Hide positions' : 'Show positions'}
+          </span>
+          {isExpanded ? (
+            <CaretUp className="w-4 h-4" />
+          ) : (
+            <CaretDown className="w-4 h-4" />
+          )}
+        </button>
+        {isExpanded && (
+          <div
+            id="position-legend-content"
+            className="px-4 pb-3 pt-1 border-t border-secondary/15"
+          >
+            <div className="flex flex-wrap gap-1.5 sm:gap-2 overflow-x-auto scrollbar-thin">
+              {positions.map((pos, i) => {
+                const shortLabel = extractShortLabel(pos, 22) || pos;
+                return (
+                  <span
+                    key={`legend-${i}`}
+                    className="inline-flex items-center gap-1.5 text-[0.65rem] sm:text-[0.7rem] text-muted bg-surface/80 border border-secondary/30 rounded-full px-2.5 py-1 whitespace-nowrap"
+                  >
+                    <span className="w-5 h-5 rounded-full bg-primary/20 text-primary font-semibold flex items-center justify-center border border-primary/40 text-[0.6rem]">
+                      {i + 1}
+                    </span>
+                    <span className="max-w-[14ch] sm:max-w-[18ch] truncate">{shortLabel}</span>
+                  </span>
+                );
+              })}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export function ReadingBoard({
   spreadKey,
   reading,
@@ -221,12 +422,26 @@ export function ReadingBoard({
   recentlyClosedIndex = -1,
   reflections,
   setReflections,
-  onOpenModal
+  onOpenModal,
+  // Navigation props for CardDetailSheet
+  onNavigateCard,
+  canNavigatePrev,
+  canNavigateNext,
+  navigationLabel
 }) {
   const isHandsetLayout = useHandsetLayout();
   const spreadInfo = useMemo(() => getSpreadInfo(spreadKey), [spreadKey]);
   const nextIndex = getNextUnrevealedIndex(reading, revealedCards);
   const nextLabel = nextIndex >= 0 ? getPositionLabel(spreadInfo, nextIndex) : null;
+
+  // Legend tray state - expanded by default on desktop, collapsed on mobile
+  const [legendExpanded, setLegendExpanded] = useState(!isHandsetLayout);
+
+  // Celtic Cross map overlay state
+  const [showCelticMap, setShowCelticMap] = useState(false);
+  const isCelticCross = spreadKey === 'celtic';
+  const showMapToggle = isCelticCross && isHandsetLayout;
+
   // Handset: keep card sizes a bit smaller to reduce overlap (especially Celtic Cross).
   const tableSize = isHandsetLayout ? 'default' : 'large';
   const hasSelection = Boolean(
@@ -237,10 +452,23 @@ export function ReadingBoard({
 
   return (
     <div className="space-y-3">
-      <p className="px-4 text-center text-xs-plus text-muted" aria-live="polite">
-        Tap positions to reveal. {nextLabel ? `Next: ${nextLabel}.` : 'All cards revealed.'}
-      </p>
-      <div className="max-w-5xl mx-auto px-3 xs:px-4 sm:px-0">
+      <div className="px-4 flex items-center justify-center gap-3">
+        <p className="text-xs-plus text-muted" aria-live="polite">
+          Tap positions to reveal. {nextLabel ? `Next: ${nextLabel}.` : 'All cards revealed.'}
+        </p>
+        {showMapToggle && (
+          <button
+            type="button"
+            onClick={() => setShowCelticMap(true)}
+            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-surface/60 border border-secondary/30 text-xs text-muted hover:text-main hover:border-secondary/50 transition touch-manipulation"
+            aria-label="Show Celtic Cross position map"
+          >
+            <MapTrifold className="w-4 h-4" />
+            <span>Map</span>
+          </button>
+        )}
+      </div>
+      <div className="max-w-5xl mx-auto px-3 xs:px-4 sm:px-0 relative">
         <SpreadTable
           spreadKey={spreadKey}
           cards={reading}
@@ -249,10 +477,20 @@ export function ReadingBoard({
           onCardReveal={revealCard}
           nextDealIndex={nextIndex}
           recentlyClosedIndex={recentlyClosedIndex}
-          hideLegend={isHandsetLayout && spreadKey === 'celtic'}
+          hideLegend={true}
           size={tableSize}
         />
+        {/* Celtic Cross map overlay */}
+        {showCelticMap && isCelticCross && (
+          <CelticCrossMapOverlay onClose={() => setShowCelticMap(false)} />
+        )}
       </div>
+      {/* Position legend tray - moved outside SpreadTable to prevent occlusion */}
+      <PositionLegendTray
+        spreadInfo={spreadInfo}
+        isExpanded={legendExpanded}
+        onToggle={() => setLegendExpanded(prev => !prev)}
+      />
       {!isHandsetLayout && (
         <CardDetailPanel
           focusedCardData={focusedCardData}
@@ -270,6 +508,10 @@ export function ReadingBoard({
           reflections={reflections}
           setReflections={setReflections}
           onOpenModal={onOpenModal}
+          onNavigate={onNavigateCard}
+          canNavigatePrev={canNavigatePrev}
+          canNavigateNext={canNavigateNext}
+          positionLabel={navigationLabel}
         />
       )}
     </div>

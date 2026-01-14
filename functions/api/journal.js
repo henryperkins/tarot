@@ -26,6 +26,7 @@ function isMissingColumnError(err) {
  * Query params:
  *   - limit: Max entries to return (default: 100, max: 500)
  *   - offset: Number of entries to skip (default: 0)
+ *   - cursor: Optional timestamp (ms) to fetch entries created before this time (descending)
  *   - all: If "true", returns all entries (for backward compatibility)
  *   - includeFollowups: If "true", include saved follow-up conversations
  */
@@ -64,6 +65,9 @@ export async function onRequestGet(context) {
     const allParam = url.searchParams.get('all');
     const fetchAll = allParam === 'true' || allParam === '1';
     const includeFollowups = url.searchParams.get('includeFollowups') === 'true';
+    const cursorParam = url.searchParams.get('cursor');
+    const cursorMs = cursorParam ? Number(cursorParam) : null;
+    const cursorSeconds = Number.isFinite(cursorMs) ? Math.floor(cursorMs / 1000) : null;
 
     // Default limit: 100, max: 500 (unless fetching all)
     const DEFAULT_LIMIT = 100;
@@ -86,7 +90,7 @@ export async function onRequestGet(context) {
     const MAX_ENTRIES_WITH_EMBEDDINGS = 10;
 
     // Base query (exclude step_embeddings; it is large).
-    const query = `
+    const baseSelect = `
       SELECT
         id,
         created_at,
@@ -111,11 +115,12 @@ export async function onRequestGet(context) {
         location_consent
       FROM journal_entries
       WHERE user_id = ?
+      ${cursorSeconds ? 'AND created_at < ?' : ''}
       ORDER BY created_at DESC
     `;
 
     // Legacy base query for pre-migration databases.
-    const legacyQuery = `
+    const legacyBaseSelect = `
       SELECT
         id,
         created_at,
@@ -134,16 +139,22 @@ export async function onRequestGet(context) {
         request_id
       FROM journal_entries
       WHERE user_id = ?
+      ${cursorSeconds ? 'AND created_at < ?' : ''}
       ORDER BY created_at DESC
     `;
 
     let entries;
     let hasCoachColumns = true;
+    const selectParams = cursorSeconds ? [user.id, cursorSeconds] : [user.id];
     try {
       if (fetchAll) {
-        entries = await env.DB.prepare(query).bind(user.id).all();
+        entries = await env.DB.prepare(baseSelect).bind(...selectParams).all();
       } else {
-        entries = await env.DB.prepare(`${query} LIMIT ? OFFSET ?`).bind(user.id, limit, offset).all();
+        if (cursorSeconds) {
+          entries = await env.DB.prepare(`${baseSelect} LIMIT ?`).bind(...selectParams, limit).all();
+        } else {
+          entries = await env.DB.prepare(`${baseSelect} LIMIT ? OFFSET ?`).bind(user.id, limit, offset).all();
+        }
       }
     } catch (err) {
       if (!isMissingColumnError(err)) {
@@ -152,9 +163,13 @@ export async function onRequestGet(context) {
       // Database hasn't applied coach extraction migration yet.
       hasCoachColumns = false;
       if (fetchAll) {
-        entries = await env.DB.prepare(legacyQuery).bind(user.id).all();
+        entries = await env.DB.prepare(legacyBaseSelect).bind(...selectParams).all();
       } else {
-        entries = await env.DB.prepare(`${legacyQuery} LIMIT ? OFFSET ?`).bind(user.id, limit, offset).all();
+        if (cursorSeconds) {
+          entries = await env.DB.prepare(`${legacyBaseSelect} LIMIT ?`).bind(...selectParams, limit).all();
+        } else {
+          entries = await env.DB.prepare(`${legacyBaseSelect} LIMIT ? OFFSET ?`).bind(user.id, limit, offset).all();
+        }
       }
     }
 
@@ -265,13 +280,23 @@ export async function onRequestGet(context) {
     }
 
     // Build response with pagination metadata
+    const lastEntry = dedupedEntries[dedupedEntries.length - 1];
+    const nextCursor = !fetchAll && lastEntry ? lastEntry.ts : null;
+    const hasMore = fetchAll
+      ? false
+      : cursorSeconds
+        ? dedupedEntries.length === limit
+        : (offset + dedupedEntries.length) < total;
+
     const response = {
       entries: dedupedEntries,
       pagination: {
         total,
         limit: fetchAll ? total : limit,
-        offset,
-        hasMore: !fetchAll && (offset + dedupedEntries.length) < total
+        offset: cursorSeconds ? null : offset,
+        cursor: cursorSeconds ? cursorMs : null,
+        nextCursor,
+        hasMore
       }
     };
 

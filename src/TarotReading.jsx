@@ -9,6 +9,7 @@ import { loadCoachRecommendation, saveCoachRecommendation } from './lib/journalI
 import { DeckSelector } from './components/DeckSelector';
 import { MobileSettingsDrawer } from './components/MobileSettingsDrawer';
 import { MobileActionBar, MobileActionGroup } from './components/MobileActionBar';
+import { formatReading } from './lib/formatting';
 import FollowUpDrawer from './components/FollowUpDrawer';
 import { QuickIntentionCard } from './components/QuickIntentionCard';
 import { Header } from './components/Header';
@@ -85,17 +86,22 @@ export default function TarotReading() {
     setSelectedSpread: _setSelectedSpread,
     selectSpread,
     reading,
+    setReading,
     isShuffling,
     revealedCards,
+    setRevealedCards,
     dealIndex,
+    setDealIndex,
     hasKnocked,
     knockCount,
     hasCut,
     cutIndex,
     setCutIndex,
     hasConfirmedSpread,
+    setHasConfirmedSpread,
     userQuestion,
     setUserQuestion,
+    setSessionSeed,
     deckAnnouncement,
     shouldSkipRitual,
     shuffle,
@@ -113,11 +119,16 @@ export default function TarotReading() {
     // Reading Generation & UI
     personalReading,
     setPersonalReading,
+    setThemes,
+    setNarrativePhase,
     narrativePhase,
     isGenerating,
     setIsGenerating,
+    setAnalysisContext,
+    setReadingMeta,
     journalStatus,
     setJournalStatus,
+    setFollowUps,
     setReflections,
     setShowAllHighlights,
     generatePersonalReading
@@ -253,6 +264,96 @@ export default function TarotReading() {
       navigate(location.pathname, { replace: true, state: cleanedState });
     }
   }, [location.pathname, location.state, navigate, selectSpread, setUserQuestion]);
+
+  // Hydrate reading + open follow-up chat when launched from Journal
+  useEffect(() => {
+    const followUpEntry = location.state?.followUpEntry;
+    if (!followUpEntry) return;
+
+    const {
+      cards = [],
+      question = '',
+      personalReading: entryNarrative = '',
+      themes: entryThemes = null,
+      spreadKey,
+      spreadName,
+      context: entryContext,
+      deckId,
+      followUps = [],
+      sessionSeed: entrySessionSeed,
+      requestId,
+      provider
+    } = followUpEntry;
+
+    const normalizedSpread = spreadKey || selectedSpread;
+    if (normalizedSpread) {
+      selectSpread(normalizedSpread);
+      setHasConfirmedSpread(true);
+    }
+
+    const normalizedCards = Array.isArray(cards)
+      ? cards.map((card) => ({
+        name: card?.name || 'Card',
+        suit: card?.suit ?? null,
+        rank: card?.rank ?? null,
+        rankValue: card?.rankValue ?? null,
+        number: card?.number ?? null,
+        isReversed: typeof card?.orientation === 'string'
+          ? card.orientation.toLowerCase().includes('revers')
+          : Boolean(card?.isReversed)
+      }))
+      : [];
+
+    setReading(normalizedCards);
+    setRevealedCards(new Set(normalizedCards.map((_, index) => index)));
+    setDealIndex(normalizedCards.length);
+    setSessionSeed(entrySessionSeed || null);
+    setUserQuestion(question || '');
+    setThemes(entryThemes || null);
+    setAnalysisContext(entryContext || null);
+    setPersonalReading(formatReading(entryNarrative || ''));
+    setNarrativePhase('complete');
+    setIsGenerating(false);
+    setJournalStatus(null);
+    setFollowUps(Array.isArray(followUps) ? followUps : []);
+    setReadingMeta((prev) => ({
+      ...prev,
+      requestId: requestId || prev.requestId,
+      spreadKey: normalizedSpread || prev.spreadKey,
+      spreadName: spreadName || prev.spreadName,
+      deckStyle: deckId || prev.deckStyle,
+      userQuestion: question || prev.userQuestion,
+      provider: provider || prev.provider
+    }));
+    setIsFollowUpOpen(true);
+
+    const nextState = { ...location.state };
+    delete nextState.followUpEntry;
+    delete nextState.openFollowUp;
+    const cleanedState = Object.keys(nextState).length > 0 ? nextState : null;
+    navigate(location.pathname, { replace: true, state: cleanedState });
+  }, [
+    location.pathname,
+    location.state,
+    navigate,
+    selectedSpread,
+    selectSpread,
+    setAnalysisContext,
+    setDealIndex,
+    setFollowUps,
+    setHasConfirmedSpread,
+    setIsGenerating,
+    setNarrativePhase,
+    setPersonalReading,
+    setReading,
+    setReadingMeta,
+    setRevealedCards,
+    setSessionSeed,
+    setThemes,
+    setUserQuestion,
+    setJournalStatus,
+    setIsFollowUpOpen
+  ]);
 
   // Mobile keyboard avoidance for the bottom action bar
   useEffect(() => {

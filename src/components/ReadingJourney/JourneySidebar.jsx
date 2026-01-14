@@ -105,6 +105,7 @@ export default function JourneySidebar({
   locale = 'default',
   timezone,
   variant: _variant = 'sidebar',
+  scopeLabel,
 }) {
   // Section open/close state
   const [openSections, setOpenSections] = useState({
@@ -249,6 +250,11 @@ export default function JourneySidebar({
             {filtersActive && (
               <span className="text-[10px] text-amber-100/50">(filtered)</span>
             )}
+            {scopeLabel && (
+              <span className="ml-2 rounded-full border border-amber-200/15 bg-amber-200/5 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-amber-100/70">
+                Scope: {scopeLabel}
+              </span>
+            )}
           </h3>
         </div>
 
@@ -388,6 +394,7 @@ export default function JourneySidebar({
               onCreateShareLink={onCreateShareLink}
               entries={activeEntries}
               stats={exportStats}
+              scopeLabel={scopeLabel}
             />
           </CollapsibleSection>
         </div>

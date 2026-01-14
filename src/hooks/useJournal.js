@@ -9,6 +9,7 @@ import { normalizeTimestamp } from '../../shared/journal/utils.js';
 
 const LOCALSTORAGE_KEY = 'tarot_journal';
 const CACHE_KEY_PREFIX = 'tarot_journal_cache';
+const PAGE_SIZE = 25;
 
 /**
  * Get user-scoped cache key to prevent data leakage across accounts
@@ -60,7 +61,18 @@ export function useJournal({ autoLoad = true } = {}) {
   const { canUseCloudJournal } = useSubscription();
   const [entries, setEntries] = useState([]);
   const [loading, setLoading] = useState(autoLoad);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState(null);
+  const [pagination, setPagination] = useState({
+    hasMore: false,
+    nextCursor: null,
+    total: null
+  });
+  // Track sync state for UX feedback
+  const [lastSyncAt, setLastSyncAt] = useState(null);
+  const [syncSource, setSyncSource] = useState(null); // 'api' | 'cache' | 'local'
+  const hasMoreEntries = pagination.hasMore;
+  const prefetchedOnceRef = useRef(false);
 
   // Track previous user ID to detect account switches
   const prevUserIdRef = useRef(user?.id);
@@ -105,16 +117,31 @@ export function useJournal({ autoLoad = true } = {}) {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- loadEntries is stable, avoid infinite loop
   }, [isAuthenticated, canUseCloudJournal, autoLoad, user?.id]);
 
+  const buildApiUrl = (cursor) => {
+    const params = new URLSearchParams();
+    params.set('limit', String(PAGE_SIZE));
+    params.set('includeFollowups', 'true');
+    if (cursor) {
+      params.set('cursor', String(cursor));
+    }
+    return `/api/journal?${params.toString()}`;
+  };
+
   const loadEntries = async () => {
+    prefetchedOnceRef.current = false;
     setLoading(true);
     setError(null);
+    setPagination({
+      hasMore: false,
+      nextCursor: null,
+      total: null
+    });
 
     try {
       if (isAuthenticated && canUseCloudJournal) {
         // Try loading from API first
         try {
-          // Use all=true for backward compatibility until frontend supports pagination
-          const response = await fetch('/api/journal?all=true&includeFollowups=true', {
+          const response = await fetch(buildApiUrl(), {
             credentials: 'include'
           });
 
@@ -125,6 +152,15 @@ export function useJournal({ autoLoad = true } = {}) {
           const data = await response.json();
           const apiEntries = dedupeEntries(data.entries || []);
           setEntries(apiEntries);
+          setPagination({
+            hasMore: Boolean(data?.pagination?.hasMore),
+            nextCursor: data?.pagination?.nextCursor || null,
+            total: data?.pagination?.total ?? apiEntries.length
+          });
+
+          // Track successful API sync
+          setLastSyncAt(Date.now());
+          setSyncSource('api');
 
           // Update user-scoped cache
           if (typeof localStorage !== 'undefined') {
@@ -147,6 +183,13 @@ export function useJournal({ autoLoad = true } = {}) {
               setEntries(parsedCache);
               persistInsights(parsedCache);
               // Don't set error if we have cache, just warn
+              setPagination({
+                hasMore: false,
+                nextCursor: null,
+                total: parsedCache.length
+              });
+              // Mark as cache fallback (stale data)
+              setSyncSource('cache');
             } else {
               throw apiError;
             }
@@ -156,6 +199,7 @@ export function useJournal({ autoLoad = true } = {}) {
         }
       } else {
         // Load from localStorage (anonymous or authenticated without cloud entitlements)
+        setSyncSource('local');
         if (typeof localStorage === 'undefined') {
           setEntries([]);
           if (typeof window !== 'undefined') {
@@ -172,18 +216,33 @@ export function useJournal({ autoLoad = true } = {}) {
               if (typeof window !== 'undefined') {
                 persistInsights(safeEntries);
               }
+              setPagination({
+                hasMore: false,
+                nextCursor: null,
+                total: safeEntries.length
+              });
             } catch (err) {
               console.error('Failed to parse localStorage journal:', err);
               setEntries([]);
               if (typeof window !== 'undefined') {
                 persistInsights([]);
               }
+              setPagination({
+                hasMore: false,
+                nextCursor: null,
+                total: 0
+              });
             }
           } else {
             setEntries([]);
             if (typeof window !== 'undefined') {
               persistInsights([]);
             }
+            setPagination({
+              hasMore: false,
+              nextCursor: null,
+              total: 0
+            });
           }
         }
       }
@@ -191,10 +250,87 @@ export function useJournal({ autoLoad = true } = {}) {
       console.error('Failed to load journal entries:', err);
       setError(err.message);
       setEntries([]);
+      setPagination({
+        hasMore: false,
+        nextCursor: null,
+        total: 0
+      });
     } finally {
       setLoading(false);
     }
   };
+
+  const loadMoreEntries = useCallback(async ({ prefetch = false } = {}) => {
+    if (!isAuthenticated || !canUseCloudJournal) return { success: false, appended: 0 };
+    if (!pagination.hasMore || !pagination.nextCursor) return { success: true, appended: 0 };
+    if (loadingMore) return { success: true, appended: 0 };
+
+    if (!prefetch) {
+      prefetchedOnceRef.current = false;
+    }
+
+    setLoadingMore(true);
+    try {
+      const response = await fetch(buildApiUrl(pagination.nextCursor), { credentials: 'include' });
+      if (!response.ok) {
+        throw new Error('Failed to load more entries');
+      }
+      const data = await response.json();
+      const newEntries = Array.isArray(data?.entries) ? data.entries : [];
+      setEntries((prev) => {
+        const next = dedupeEntries([...(Array.isArray(prev) ? prev : []), ...newEntries]);
+        if (typeof window !== 'undefined') {
+          persistInsights(next);
+          if (user?.id) {
+            try {
+              localStorage.setItem(getCacheKey(user.id), JSON.stringify(next));
+            } catch (quotaErr) {
+              console.warn('localStorage quota exceeded, skipping cache update:', quotaErr);
+            }
+          }
+        }
+        return next;
+      });
+      setPagination({
+        hasMore: Boolean(data?.pagination?.hasMore),
+        nextCursor: data?.pagination?.nextCursor || null,
+        total: data?.pagination?.total ?? pagination.total
+      });
+      return { success: true, appended: newEntries.length };
+    } catch (err) {
+      if (!prefetch) {
+        console.error('Failed to load more journal entries:', err);
+        setError(err.message || 'Unable to load more entries');
+      }
+      return { success: false, appended: 0 };
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [buildApiUrl, canUseCloudJournal, isAuthenticated, loadingMore, pagination.hasMore, pagination.nextCursor, pagination.total, persistInsights, user?.id]);
+
+  // Prefetch the next page on idle to reduce perceived latency on long histories
+  useEffect(() => {
+    if (prefetchedOnceRef.current) return;
+    if (!pagination.hasMore || loading || loadingMore) return;
+    if (!isAuthenticated || !canUseCloudJournal) return;
+
+    const schedule = () => {
+      prefetchedOnceRef.current = true;
+      void loadMoreEntries({ prefetch: true });
+    };
+
+    if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
+      const idleId = window.requestIdleCallback(schedule, { timeout: 800 });
+      return () => {
+        if (typeof window.cancelIdleCallback === 'function') {
+          window.cancelIdleCallback(idleId);
+        }
+      };
+    }
+
+    const timer = setTimeout(schedule, 500);
+    return () => clearTimeout(timer);
+  }, [canUseCloudJournal, isAuthenticated, loadMoreEntries, loading, loadingMore, pagination.hasMore]);
 
   const saveEntry = async (entry) => {
     setError(null);
@@ -237,6 +373,11 @@ export function useJournal({ autoLoad = true } = {}) {
         setEntries(prev => {
           const prevEntries = Array.isArray(prev) ? prev : [];
           const next = dedupeEntries([newEntry, ...prevEntries]);
+
+          setPagination((prevPag) => ({
+            ...prevPag,
+            total: typeof prevPag?.total === 'number' ? prevPag.total + 1 : next.length
+          }));
 
           // Update cache
           if (typeof window !== 'undefined') {
@@ -283,6 +424,11 @@ export function useJournal({ autoLoad = true } = {}) {
         setEntries(prev => {
           const prevEntries = Array.isArray(prev) ? prev : [];
           let next = dedupeEntries([newEntry, ...prevEntries]);
+
+          setPagination((prevPag) => ({
+            ...prevPag,
+            total: typeof prevPag?.total === 'number' ? prevPag.total + 1 : next.length
+          }));
 
           // Limit to 100 entries in localStorage
           if (next.length > 100) {
@@ -357,6 +503,10 @@ export function useJournal({ autoLoad = true } = {}) {
         // Remove from local state
         setEntries(prev => {
           const next = prev.filter(e => e.id !== entryId);
+          setPagination((prevPag) => ({
+            ...prevPag,
+            total: typeof prevPag?.total === 'number' && prevPag.total > 0 ? prevPag.total - 1 : Math.max(0, next.length)
+          }));
           if (typeof window !== 'undefined') {
             persistInsights(next);
             const cacheKey = getCacheKey(user?.id);
@@ -384,6 +534,10 @@ export function useJournal({ autoLoad = true } = {}) {
 
         setEntries(prev => {
           const next = prev.filter(e => e.id !== entryId);
+          setPagination((prevPag) => ({
+            ...prevPag,
+            total: typeof prevPag?.total === 'number' && prevPag.total > 0 ? prevPag.total - 1 : Math.max(0, next.length)
+          }));
           try {
             const localKey = getLocalJournalKey(isAuthenticated ? user?.id : null);
             localStorage.setItem(localKey, JSON.stringify(next));
@@ -626,11 +780,20 @@ export function useJournal({ autoLoad = true } = {}) {
   return {
     entries,
     loading,
+    loadingMore,
     error,
+    pageSize: PAGE_SIZE,
+    hasMoreEntries,
+    totalEntries: pagination.total ?? entries.length,
+    // Sync state for UX feedback
+    lastSyncAt,
+    syncSource,
     saveEntry,
     deleteEntry,
     migrateToCloud,
     importLegacyLocalEntries,
-    reload: loadEntries
+    reload: loadEntries,
+    loadEntries,
+    loadMoreEntries
   };
 }
