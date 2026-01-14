@@ -123,7 +123,10 @@ export default function FollowUpChat({
   // Track which reading the current follow-ups belong to.
   useEffect(() => {
     if (Array.isArray(followUps) && followUps.length > 0) {
-      followUpsKeyRef.current = resetKey;
+      // IMPORTANT: do not bind follow-ups to a *new* resetKey during the brief window
+      // where a reading has changed but stale followUps haven't been cleared yet.
+      // Using prevResetKeyRef keeps the association stable and avoids accidental carryover.
+      followUpsKeyRef.current = prevResetKeyRef.current;
     }
   }, [followUps]);
 
@@ -145,7 +148,7 @@ export default function FollowUpChat({
       }
       prevResetKeyRef.current = resetKey;
     }
-  }, [resetKey, setFollowUps]);
+  }, [resetKey, followUps, setFollowUps]);
 
   // Hydrate chat history from journal follow-ups when available.
   useEffect(() => {

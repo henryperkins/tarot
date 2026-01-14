@@ -268,7 +268,7 @@ function ExportSection({ isAuthenticated, onCreateShareLink, entries, allEntries
               <div className="flex-1">
                 <p className="text-xs text-amber-100 font-medium">Large export</p>
                 <p className="text-[11px] text-amber-100/70 mt-1">
-                  You're about to export {pendingLargeExport.count} entries. This may take a moment and use significant memory.
+                  You&apos;re about to export {pendingLargeExport.count} entries. This may take a moment and use significant memory.
                 </p>
                 <div className="flex gap-2 mt-3">
                   <button
