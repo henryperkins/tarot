@@ -4,6 +4,8 @@ import { SPREADS } from '../data/spreads';
 import { useReducedMotion } from '../hooks/useReducedMotion';
 import { getCardImage, FALLBACK_IMAGE } from '../lib/cardLookup';
 import { getSuitBorderColor, getRevealedCardGlow } from '../lib/suitColors';
+import { extractShortLabel, getPositionLabel } from './readingBoardUtils';
+import { HandTap } from '@phosphor-icons/react';
 
 /**
  * Spread layout definitions (x, y as percentage of container)
@@ -41,11 +43,11 @@ const SPREAD_LAYOUTS = {
     { x: 35, y: 50, label: 'Present' },
     { x: 35, y: 50, label: 'Challenge', rotate: 90, offsetX: 3 },
     { x: 15, y: 50, label: 'Past' },
-    { x: 55, y: 50, label: 'Future' },
-    { x: 35, y: 20, label: 'Above' },
-    { x: 35, y: 80, label: 'Below' },
-    { x: 80, y: 80, label: 'Self' },
-    { x: 80, y: 60, label: 'Environment' },
+    { x: 55, y: 50, label: 'Near Future' },
+    { x: 35, y: 20, label: 'Conscious' },
+    { x: 35, y: 80, label: 'Subconscious' },
+    { x: 80, y: 80, label: 'Self/Advice' },
+    { x: 80, y: 60, label: 'External' },
     { x: 80, y: 40, label: 'Hopes/Fears' },
     { x: 80, y: 20, label: 'Outcome' }
   ]
@@ -96,7 +98,9 @@ export function SpreadTable({
   onCardReveal,
   nextDealIndex = 0,
   compact = false,
-  size = 'default'
+  size = 'default',
+  recentlyClosedIndex = -1,
+  hideLegend = false
 }) {
   const prefersReducedMotion = useReducedMotion();
   const baseLayout = SPREAD_LAYOUTS[spreadKey] || SPREAD_LAYOUTS.single;
@@ -104,18 +108,6 @@ export function SpreadTable({
   const tableRef = useRef(null);
   const [tableBounds, setTableBounds] = useState({ width: 0, height: 0 });
 
-  // Get position labels from spread definition or layout
-  const getPositionLabel = useMemo(() => {
-    return (index) => {
-      if (spreadInfo?.positions?.[index]) {
-        // Extract short label from full position text
-        const fullPosition = spreadInfo.positions[index];
-        const shortLabel = fullPosition.split(' — ')[0].split(' (')[0];
-        return shortLabel;
-      }
-      return baseLayout[index]?.label || `Card ${index + 1}`;
-    };
-  }, [spreadInfo, baseLayout]);
 
   const baseMaxCardWidth = useMemo(
     () => getMaxCardWidth(baseLayout, tableBounds),
@@ -190,6 +182,14 @@ export function SpreadTable({
       ? 'w-20 h-[120px] xs:w-24 xs:h-[140px] sm:w-28 sm:h-[160px] md:w-32 md:h-[180px]'
       : 'w-14 h-[76px] xs:w-16 xs:h-[88px] sm:w-[72px] sm:h-24 md:w-20 md:h-28';
 
+  // Keep next slot in view on mobile after deal/reveal
+  useEffect(() => {
+    if (nextDealIndex == null || nextDealIndex < 0) return;
+    const el = tableRef.current?.querySelector?.(`[data-slot-index="${nextDealIndex}"]`);
+    if (!el || typeof el.scrollIntoView !== 'function') return;
+    el.scrollIntoView({ behavior: prefersReducedMotion ? 'auto' : 'smooth', block: 'center', inline: 'center' });
+  }, [nextDealIndex, prefersReducedMotion]);
+
   return (
     <div
       ref={tableRef}
@@ -210,24 +210,29 @@ export function SpreadTable({
       role="region"
       aria-label={`${spreadInfo?.name || 'Spread'} layout`}
     >
-      {/* Noise texture overlay - matches theme swatch */}
-      <div
-        className="absolute inset-0 pointer-events-none rounded-2xl sm:rounded-3xl overflow-hidden"
-        style={{
-          backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200' viewBox='0 0 200 200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)' opacity='0.22'/%3E%3C/svg%3E")`,
-          mixBlendMode: 'soft-light',
-          opacity: 0.28
-        }}
-        aria-hidden="true"
-      />
+      {/* Noise texture provided by .panel-mystic::after */}
 
       {/* Position placeholders */}
       {resolvedLayout.map((pos, i) => {
         const card = cards?.[i];
         const isRevealed = revealedIndices?.has?.(i) || false;
         const isNext = i === nextDealIndex && !isRevealed;
-        const positionLabel = getPositionLabel(i);
+        const positionLabel = getPositionLabel(spreadInfo, i, pos);
+        const shortLabel = extractShortLabel(positionLabel, 20) || positionLabel;
         const cardImage = card ? getCardImage(card) : null;
+        const shouldHighlightReturn = recentlyClosedIndex === i;
+        const numberBadge = (
+          <div
+            className={`
+              absolute -top-2 -left-2 rounded-full border px-2 py-1
+              text-[0.65rem] font-semibold tracking-wide shadow-lg
+              ${isRevealed ? 'bg-secondary/80 border-secondary/60 text-main' : 'bg-primary/80 border-primary/60 text-main'}
+            `}
+            aria-hidden="true"
+          >
+            {i + 1}
+          </div>
+        );
 
         return (
           <motion.div
@@ -239,6 +244,8 @@ export function SpreadTable({
               zIndex: isRevealed ? 10 : card ? 5 : 1,
               marginLeft: pos.offsetX ? `${pos.offsetX}%` : 0
             }}
+            data-slot-index={i}
+            id={`spread-slot-${i}`}
             initial={false}
             animate={isNext && !prefersReducedMotion ? { scale: [1, 1.05, 1] } : {}}
             transition={{ repeat: Infinity, duration: 1.5 }}
@@ -248,9 +255,9 @@ export function SpreadTable({
               <div
                 className={`
                   ${sizeClass}
-                  rounded-lg border-2 border-dashed
+                  relative rounded-lg border-2 border-dashed
                   flex items-center justify-center
-                  transition-all
+                  transition-all overflow-visible
                   ${isNext
                     ? 'border-primary/60 bg-primary/10 card-placeholder-next'
                     : 'border-accent/30 bg-surface/30'
@@ -262,8 +269,23 @@ export function SpreadTable({
                 role="img"
                 aria-label={`${positionLabel}: waiting for card`}
               >
+                {numberBadge}
+                {isNext && (
+                  <motion.div
+                    className="absolute inset-[-10%] rounded-xl border-2 border-primary/50 pointer-events-none"
+                    animate={!prefersReducedMotion ? { scale: [1, 1.08, 1], opacity: [0.65, 1, 0.65] } : {}}
+                    transition={{ duration: 1.6, repeat: Infinity, ease: 'easeInOut' }}
+                  />
+                )}
+                {shouldHighlightReturn && (
+                  <motion.div
+                    className="absolute inset-[-12%] rounded-xl border-2 border-secondary/60 pointer-events-none"
+                    animate={!prefersReducedMotion ? { opacity: [0.9, 0.4, 0] } : { opacity: 0.5 }}
+                    transition={{ duration: prefersReducedMotion ? 0.6 : 1.2, repeat: 0 }}
+                  />
+                )}
                 <span className={`${compact ? 'text-[0.55rem] xs:text-[0.6rem]' : 'text-[0.6rem] xs:text-[0.65rem] sm:text-xs'} text-muted text-center px-1 leading-tight`}>
-                  {positionLabel}
+                  {shortLabel}
                 </span>
               </div>
             ) : (
@@ -293,7 +315,7 @@ export function SpreadTable({
                   }}
                   className={`
                     ${sizeClass}
-                    rounded-lg border-2 cursor-pointer overflow-hidden
+                    relative rounded-lg border-2 cursor-pointer overflow-hidden
                     transition-all touch-manipulation
                     focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70 focus-visible:ring-offset-2 focus-visible:ring-offset-main
                     ${isRevealed
@@ -318,6 +340,7 @@ export function SpreadTable({
                     : `Card in ${positionLabel} position. Click to reveal.`
                   }
                 >
+                  {numberBadge}
                   {isRevealed ? (
                     <div className={`w-full h-full bg-surface flex items-center justify-center relative ${card.isReversed ? 'rotate-180' : ''}`}>
                       <img
@@ -336,6 +359,14 @@ export function SpreadTable({
                           {card.name.replace(/^The /, '')}
                         </span>
                       </div>
+                      {shouldHighlightReturn && (
+                        <motion.div
+                          className="absolute inset-[-8%] rounded-xl border-2 border-secondary/70 pointer-events-none"
+                          initial={{ opacity: 0.8 }}
+                          animate={{ opacity: [0.8, 0.35, 0], scale: [1, 1.03, 1.05] }}
+                          transition={{ duration: prefersReducedMotion ? 0.5 : 1.1 }}
+                        />
+                      )}
                     </div>
                   ) : (
                     <div className="w-full h-full bg-surface-muted flex items-center justify-center relative">
@@ -345,9 +376,12 @@ export function SpreadTable({
                         className="w-full h-full object-cover opacity-90"
                         loading="lazy"
                       />
-                      <span className={`${compact ? 'text-[0.5rem] xs:text-[0.55rem]' : 'text-[0.6rem] xs:text-[0.65rem] sm:text-xs'} text-main/90 font-semibold absolute bottom-1 right-1 px-1.5 py-0.5 rounded bg-main/70`}>
-                        Tap
-                      </span>
+                      <div className="absolute inset-0 pointer-events-none flex items-end justify-end p-1.5">
+                        <span className={`${compact ? 'text-[0.55rem] xs:text-[0.6rem]' : 'text-[0.65rem] xs:text-[0.7rem] sm:text-xs-plus'} inline-flex items-center gap-1 rounded-full bg-main/85 text-main font-semibold px-2.5 py-1 shadow-lg border border-primary/30`}>
+                          <HandTap className="w-3.5 h-3.5" weight="fill" />
+                          Tap to reveal
+                        </span>
+                      </div>
                     </div>
                   )}
                 </motion.button>
@@ -358,11 +392,34 @@ export function SpreadTable({
       })}
 
       {/* Spread name indicator */}
-      <div className="absolute bottom-2 left-1/2 -translate-x-1/2">
+      <div className="pointer-events-none absolute bottom-2 left-1/2 -translate-x-1/2">
         <span className={`${compact ? 'text-[0.6rem] px-2.5 py-1' : 'text-xs px-3 py-1'} text-muted/70 bg-surface/60 rounded-full border border-accent/10`}>
           {spreadInfo?.tag || spreadKey}
         </span>
       </div>
+
+      {/* Legend for quick position reference */}
+      {!compact && !hideLegend && (
+        <div className="absolute left-1/2 -translate-x-1/2 bottom-3 w-[92%] sm:w-[86%]">
+          <div className="flex flex-wrap justify-center gap-1.5 sm:gap-2 rounded-full bg-main/65 border border-secondary/30 px-3 py-2 backdrop-blur">
+            {resolvedLayout.map((pos, i) => {
+              const label = getPositionLabel(spreadInfo, i, pos);
+              const short = extractShortLabel(label, 22) || label;
+              return (
+                <span
+                  key={`legend-${i}`}
+                  className="inline-flex items-center gap-1.5 text-[0.65rem] sm:text-[0.7rem] text-muted bg-surface/70 border border-secondary/30 rounded-full px-2.5 py-1"
+                >
+                  <span className="w-5 h-5 rounded-full bg-primary/20 text-primary font-semibold flex items-center justify-center border border-primary/40">
+                    {i + 1}
+                  </span>
+                  <span className="max-w-[12ch] sm:max-w-[16ch] truncate">{short}</span>
+                </span>
+              );
+            })}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -370,7 +427,7 @@ export function SpreadTable({
 /**
  * Compact horizontal spread preview for mobile
  */
-export function SpreadTableCompact({ spreadKey, cards = [], revealedIndices = new Set(), onCardClick: _onCardClick }) {
+export function SpreadTableCompact({ spreadKey, cards = [], revealedIndices = new Set() }) {
   const layout = SPREAD_LAYOUTS[spreadKey] || SPREAD_LAYOUTS.single;
   const spreadInfo = SPREADS[spreadKey];
 

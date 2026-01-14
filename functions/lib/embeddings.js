@@ -117,9 +117,10 @@ async function fetchAzureEmbedding(text, env) {
   const endpoint = env?.AZURE_OPENAI_ENDPOINT;
   const apiKey = env?.AZURE_OPENAI_API_KEY;
   const embeddingModel = env?.AZURE_OPENAI_EMBEDDING_MODEL || 'text-embedding-3-large';
-  // Azure OpenAI v1 embeddings path requires api-version=preview (literal string)
-  // This is different from deployment-based paths which use date-based versions
-  const apiVersion = env?.AZURE_OPENAI_EMBEDDINGS_API_VERSION || 'preview';
+  // Azure OpenAI embeddings path uses the Foundry v1 API; allow explicit override
+  const explicitApiVersion =
+    env?.AZURE_OPENAI_EMBEDDINGS_API_VERSION || env?.AZURE_OPENAI_API_VERSION;
+  const apiVersion = (explicitApiVersion && String(explicitApiVersion).trim()) || 'v1';
 
   if (!endpoint || !apiKey) {
     return null;

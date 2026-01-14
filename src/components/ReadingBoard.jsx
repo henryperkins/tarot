@@ -2,8 +2,9 @@ import { useMemo, useRef } from 'react';
 import { X } from '@phosphor-icons/react';
 import { getSpreadInfo } from '../data/spreads';
 import { getCardImage, getOrientationMeaning } from '../lib/cardLookup';
+import { getDrawerGradient } from '../lib/suitColors';
 import { useModalA11y } from '../hooks/useModalA11y';
-import { useSmallScreen } from '../hooks/useSmallScreen';
+import { useHandsetLayout } from '../hooks/useHandsetLayout';
 import { SpreadTable } from './SpreadTable';
 import { getNextUnrevealedIndex, getPositionLabel } from './readingBoardUtils';
 
@@ -87,11 +88,7 @@ function CardDetailPanel({
 }) {
   // Shared panel styles matching theme swatch mystic drawer gradient
   const panelStyle = {
-    background: `
-      radial-gradient(circle at 16% -8%, rgba(229, 196, 142, 0.18), transparent 46%),
-      radial-gradient(circle at 88% -12%, rgba(124, 164, 255, 0.16), transparent 50%),
-      linear-gradient(170deg, rgba(24, 18, 33, 0.96), rgba(10, 8, 16, 0.98))
-    `,
+    background: getDrawerGradient(),
     borderColor: 'var(--border-warm)',
     boxShadow: '0 24px 64px -40px rgba(0, 0, 0, 0.8), inset 0 1px 0 rgba(255, 255, 255, 0.03)'
   };
@@ -221,26 +218,29 @@ export function ReadingBoard({
   onCardClick,
   focusedCardData,
   onCloseDetail,
+  recentlyClosedIndex = -1,
   reflections,
   setReflections,
   onOpenModal
 }) {
-  const isCompactScreen = useSmallScreen(768);
+  const isHandsetLayout = useHandsetLayout();
   const spreadInfo = useMemo(() => getSpreadInfo(spreadKey), [spreadKey]);
   const nextIndex = getNextUnrevealedIndex(reading, revealedCards);
   const nextLabel = nextIndex >= 0 ? getPositionLabel(spreadInfo, nextIndex) : null;
+  // Handset: keep card sizes a bit smaller to reduce overlap (especially Celtic Cross).
+  const tableSize = isHandsetLayout ? 'default' : 'large';
   const hasSelection = Boolean(
     focusedCardData &&
-    revealedCards?.has?.(focusedCardData.index)
+    revealedCards?.has(focusedCardData.index)
   );
   if (!reading) return null;
 
   return (
     <div className="space-y-3">
-      <p className="text-center text-xs text-muted">
+      <p className="px-4 text-center text-xs-plus text-muted" aria-live="polite">
         Tap positions to reveal. {nextLabel ? `Next: ${nextLabel}.` : 'All cards revealed.'}
       </p>
-      <div className="max-w-5xl mx-auto">
+      <div className="max-w-5xl mx-auto px-3 xs:px-4 sm:px-0">
         <SpreadTable
           spreadKey={spreadKey}
           cards={reading}
@@ -248,10 +248,12 @@ export function ReadingBoard({
           onCardClick={onCardClick}
           onCardReveal={revealCard}
           nextDealIndex={nextIndex}
-          size="large"
+          recentlyClosedIndex={recentlyClosedIndex}
+          hideLegend={isHandsetLayout && spreadKey === 'celtic'}
+          size={tableSize}
         />
       </div>
-      {!isCompactScreen && (
+      {!isHandsetLayout && (
         <CardDetailPanel
           focusedCardData={focusedCardData}
           hasSelection={hasSelection}
@@ -260,7 +262,7 @@ export function ReadingBoard({
           onOpenModal={onOpenModal}
         />
       )}
-      {isCompactScreen && (
+      {isHandsetLayout && (
         <CardDetailSheet
           isOpen={hasSelection}
           onClose={onCloseDetail}

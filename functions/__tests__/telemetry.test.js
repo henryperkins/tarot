@@ -4,7 +4,7 @@
 import { describe, it, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { summarizeNarrativeEnhancements } from '../api/tarot-reading.js';
+import { summarizeNarrativeEnhancements } from '../lib/readingTelemetry.js';
 import { buildEnhancedClaudePrompt } from '../lib/narrative/prompts.js';
 import { formatReversalLens, normalizeContext } from '../lib/narrative/helpers.js';
 

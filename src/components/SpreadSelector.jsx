@@ -12,6 +12,7 @@ import { useSubscription } from '../contexts/SubscriptionContext';
 import { UpgradeNudge } from './UpgradeNudge';
 import { getSpreadFromDepth } from '../utils/personalization';
 import { getSpreadArt } from '../utils/spreadArt';
+import { extractShortLabel } from './readingBoardUtils';
 
 const STAR_TOTAL = 3;
 
@@ -397,6 +398,12 @@ export function SpreadSelector({
               ? (theme.borderActive || FALLBACK_SPREAD_THEME.borderActive)
               : (theme.border || FALLBACK_SPREAD_THEME.border);
             const previewArt = SPREAD_ART_OVERRIDES[key] || spread.preview;
+            const orderPreview = Array.isArray(spread.positions)
+              ? spread.positions.slice(0, 4).map((pos, idx) => {
+                const short = extractShortLabel(pos, 16) || `Card ${idx + 1}`;
+                return short;
+              }).join(' \u2192 ')
+              : null;
 
             return (
               <button
@@ -502,6 +509,12 @@ export function SpreadSelector({
                       <span className="text-xs-plus text-muted">Card Count</span>
                       <span className="text-sm font-semibold text-accent">{spread.count}</span>
                     </div>
+                    {orderPreview && (
+                      <div className="col-span-2 mt-2 rounded-full bg-surface/70 border border-secondary/40 px-3 py-1.5 text-[11px] text-muted flex items-center gap-2">
+                        <span className="uppercase tracking-[0.2em] text-gold-soft/80">Order</span>
+                        <span className="truncate">{orderPreview}</span>
+                      </div>
+                    )}
                   </div>
                 </div>
               </button>

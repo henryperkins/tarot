@@ -700,7 +700,7 @@ async function persistFollowUpToJournal(env, userId, readingRequestId, followUp)
  * @param {Function} options.onToolCall - Callback to execute tool calls
  * @returns {ReadableStream} Transformed SSE stream with tool round-trip handled
  */
-async function createToolRoundTripStream(env, {
+function createToolRoundTripStream(env, {
   instructions,
   userInput,
   tools,
@@ -710,185 +710,185 @@ async function createToolRoundTripStream(env, {
   onToolCall
 }) {
   const encoder = new TextEncoder();
-
-  // Helper to format SSE events
-  const formatSSE = (event, data) => `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
-
-  // Make initial request with tools
-  const azureStream = await callAzureResponsesStream(env, {
-    instructions,
-    input: userInput,
-    maxTokens,
-    verbosity,
-    tools
-  });
-
-  // We need to consume the stream to check for tool calls
-  // Collect all events, then decide how to proceed
   const decoder = new TextDecoder();
-  const reader = azureStream.getReader();
 
-  let buffer = '';
-  let initialText = '';
-  const toolCalls = [];
-  let currentCallId = null;
-  const toolCallArgs = new Map();
+  return new ReadableStream({
+    async start(controller) {
+      let initialText = '';
+      let continuationText = '';
+      const toolCalls = [];
+      const toolCallArgs = new Map();
+      let currentCallId = null;
 
-  // Consume the initial stream
-  try {
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
+      const processAzureChunk = (chunkText, { emitDeltas }) => {
+        const events = chunkText.split(/\r?\n\r?\n/);
+        const remainder = events.pop() || '';
+        let deltaText = '';
 
-      buffer += decoder.decode(value, { stream: true });
+        for (const eventBlock of events) {
+          if (!eventBlock.trim()) continue;
 
-      // Process complete SSE events
-      const events = buffer.split('\n\n');
-      buffer = events.pop() || '';
+          const lines = eventBlock.split(/\r?\n/);
+          let eventType = '';
+          const dataLines = [];
 
-      for (const eventBlock of events) {
-        if (!eventBlock.trim()) continue;
+          for (const line of lines) {
+            if (line.startsWith('event:')) {
+              eventType = line.slice(6).trim();
+            } else if (line.startsWith('data:')) {
+              dataLines.push(line.slice(5).trim());
+            }
+          }
 
-        const lines = eventBlock.split('\n');
-        let eventType = '';
-        let eventData = '';
+          const eventData = dataLines.join('\n');
+          if (!eventData) continue;
 
-        for (const line of lines) {
-          if (line.startsWith('event:')) eventType = line.slice(6).trim();
-          else if (line.startsWith('data:')) eventData = line.slice(5).trim();
-        }
+          let parsed;
+          try {
+            parsed = JSON.parse(eventData);
+          } catch {
+            continue;
+          }
 
-        if (!eventData) continue;
-
-        try {
-          const parsed = JSON.parse(eventData);
           const dataType = parsed.type || eventType;
 
-          // Collect text deltas
           if (dataType === 'response.output_text.delta') {
             const delta = parsed.delta || '';
-            if (delta) initialText += delta;
-          }
-          // Track function call items
-          else if (dataType === 'response.output_item.added' && parsed.item?.type === 'function_call') {
+            if (delta) {
+              if (emitDeltas) {
+                controller.enqueue(encoder.encode(formatSSEEvent('delta', { text: delta })));
+              }
+              deltaText += delta;
+            }
+          } else if (dataType === 'response.output_item.added' && parsed.item?.type === 'function_call') {
             currentCallId = parsed.item.call_id;
             toolCallArgs.set(currentCallId, { name: parsed.item.name || '', arguments: '' });
-          }
-          // Accumulate function call arguments
-          else if (dataType === 'response.function_call_arguments.delta') {
+          } else if (dataType === 'response.function_call_arguments.delta') {
             const callId = parsed.call_id || currentCallId;
             if (callId && toolCallArgs.has(callId)) {
               toolCallArgs.get(callId).arguments += parsed.delta || '';
             }
-          }
-          // Function call complete
-          else if (dataType === 'response.function_call_arguments.done') {
+          } else if (dataType === 'response.function_call_arguments.done') {
             const callId = parsed.call_id || currentCallId;
             if (callId && toolCallArgs.has(callId)) {
               const tc = toolCallArgs.get(callId);
               let parsedArgs = {};
-              try { parsedArgs = JSON.parse(tc.arguments || '{}'); } catch { /* ignore */ }
+              try {
+                parsedArgs = JSON.parse(tc.arguments || '{}');
+              } catch {
+                parsedArgs = {};
+              }
               toolCalls.push({ callId, name: tc.name, arguments: parsedArgs });
             }
+          } else if (dataType === 'response.error' || eventType === 'error') {
+            const errorMsg = parsed?.error?.message || parsed?.message || 'Unknown error';
+            controller.enqueue(encoder.encode(formatSSEEvent('error', { message: errorMsg })));
+            controller.close();
+            return { remainder: '', closed: true };
           }
-        } catch { /* ignore parse errors */ }
-      }
-    }
-  } finally {
-    reader.releaseLock();
-  }
-
-  console.log(`[${requestId}] Initial stream consumed: text=${initialText.length} chars, toolCalls=${toolCalls.length}`);
-
-  // If no tool calls, just return a simple stream with the collected text
-  if (toolCalls.length === 0) {
-    return new ReadableStream({
-      start(controller) {
-        if (initialText) {
-          controller.enqueue(encoder.encode(formatSSE('delta', { text: initialText })));
         }
-        const isEmpty = !initialText || !initialText.trim();
-        controller.enqueue(encoder.encode(formatSSE('done', { fullText: initialText, isEmpty })));
+
+        return { remainder, deltaText };
+      };
+
+      let azureStream;
+      try {
+        azureStream = await callAzureResponsesStream(env, {
+          instructions,
+          input: userInput,
+          maxTokens,
+          verbosity,
+          tools
+        });
+      } catch (err) {
+        controller.enqueue(encoder.encode(formatSSEEvent('error', { message: err?.message || 'Failed to start stream' })));
         controller.close();
-      }
-    });
-  }
-
-  // Execute tool calls
-  console.log(`[${requestId}] Executing ${toolCalls.length} tool call(s)`);
-  const toolResults = [];
-  for (const tc of toolCalls) {
-    try {
-      const result = await onToolCall(tc.callId, tc.name, tc.arguments);
-      toolResults.push({ callId: tc.callId, result });
-    } catch (err) {
-      console.warn(`[${requestId}] Tool call error:`, err.message);
-      toolResults.push({ callId: tc.callId, result: { success: false, message: err.message } });
-    }
-  }
-
-  // Build continuation conversation and request
-  const conversation = buildToolContinuationConversation(userInput, toolCalls, toolResults);
-  console.log(`[${requestId}] Making continuation request with ${conversation.length} conversation items`);
-
-  const continuationStream = await callAzureResponsesStreamWithConversation(env, {
-    instructions,
-    conversation,
-    maxTokens,
-    verbosity
-  });
-
-  // Transform the continuation stream, prepending any initial text
-  const transformedContinuation = transformAzureStream(continuationStream);
-
-  // Create a composite stream: initial text (if any) + continuation
-  return new ReadableStream({
-    async start(controller) {
-      // First, emit any text from the initial response
-      if (initialText) {
-        controller.enqueue(encoder.encode(formatSSE('delta', { text: initialText })));
+        return;
       }
 
-      // Then stream the continuation
-      const contReader = transformedContinuation.getReader();
-      let continuationText = '';
+      const reader = azureStream.getReader();
+      let buffer = '';
+
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          buffer += decoder.decode(value, { stream: true });
+          const result = processAzureChunk(buffer, { emitDeltas: true });
+          if (result?.closed) {
+            return;
+          }
+
+          initialText += result?.deltaText || '';
+          buffer = result.remainder || '';
+        }
+      } finally {
+        reader.releaseLock();
+      }
+
+      console.log(`[${requestId}] Initial stream completed: text=${initialText.length} chars, toolCalls=${toolCalls.length}`);
+
+      if (toolCalls.length === 0) {
+        const isEmpty = !initialText || !initialText.trim();
+        controller.enqueue(encoder.encode(formatSSEEvent('done', { fullText: initialText, isEmpty })));
+        controller.close();
+        return;
+      }
+
+      console.log(`[${requestId}] Executing ${toolCalls.length} tool call(s)`);
+      const toolResults = [];
+      for (const tc of toolCalls) {
+        try {
+          const result = await onToolCall(tc.callId, tc.name, tc.arguments);
+          toolResults.push({ callId: tc.callId, result });
+        } catch (err) {
+          console.warn(`[${requestId}] Tool call error:`, err.message);
+          toolResults.push({ callId: tc.callId, result: { success: false, message: err.message } });
+        }
+      }
+
+      const conversation = buildToolContinuationConversation(userInput, toolCalls, toolResults);
+      console.log(`[${requestId}] Making continuation request with ${conversation.length} conversation items`);
+
+      let continuationStream;
+      try {
+        continuationStream = await callAzureResponsesStreamWithConversation(env, {
+          instructions,
+          conversation,
+          maxTokens,
+          verbosity
+        });
+      } catch (err) {
+        controller.enqueue(encoder.encode(formatSSEEvent('error', { message: err?.message || 'Continuation request failed' })));
+        controller.close();
+        return;
+      }
+
+      const contReader = continuationStream.getReader();
+      buffer = '';
 
       try {
         while (true) {
           const { done, value } = await contReader.read();
           if (done) break;
 
-          // Parse and accumulate continuation text for the final fullText
-          const chunk = decoder.decode(value, { stream: true });
-
-          // Pass through directly
-          controller.enqueue(value);
-
-          // Extract text for fullText accumulation
-          const events = chunk.split('\n\n');
-          for (const eventBlock of events) {
-            if (!eventBlock.trim()) continue;
-            const lines = eventBlock.split('\n');
-            let eventData = '';
-            for (const line of lines) {
-              if (line.startsWith('data:')) eventData = line.slice(5).trim();
-            }
-            if (eventData) {
-              try {
-                const parsed = JSON.parse(eventData);
-                if (parsed.text) continuationText += parsed.text;
-              } catch { /* ignore */ }
-            }
+          buffer += decoder.decode(value, { stream: true });
+          const result = processAzureChunk(buffer, { emitDeltas: true });
+          if (result?.closed) {
+            return;
           }
+
+          continuationText += result?.deltaText || '';
+          buffer = result.remainder || '';
         }
       } finally {
         contReader.releaseLock();
       }
 
-      // Final done event with combined text
-      const fullText = initialText + continuationText;
+      const fullText = `${initialText}${continuationText}`;
       const isEmpty = !fullText || !fullText.trim();
-      controller.enqueue(encoder.encode(formatSSE('done', { fullText, isEmpty })));
+      controller.enqueue(encoder.encode(formatSSEEvent('done', { fullText, isEmpty })));
       controller.close();
     }
   });
@@ -1043,3 +1043,4 @@ function wrapStreamWithMetadata(stream, { turn, journalContext, meta, ctx, onCom
 function formatSSEEvent(event, data) {
   return `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
 }
+export { createToolRoundTripStream };

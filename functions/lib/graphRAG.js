@@ -451,7 +451,11 @@ export function getKnowledgeBaseInfo() {
  * // Returns ~0.75 (high relevance)
  */
 export async function scorePassageRelevance(passage, userQuery, options = {}) {
-  const { keywordWeight = 0.3, semanticWeight = 0.7 } = options;
+  const {
+    keywordWeight = 0.3,
+    semanticWeight = 0.7,
+    semanticStatus = null
+  } = options;
 
   if (!userQuery || !passage) {
     return 0.5; // Default neutral score
@@ -480,14 +484,23 @@ export async function scorePassageRelevance(passage, userQuery, options = {}) {
   // Semantic similarity (requires embeddings API)
   let semanticScore = 0.5; // Default to neutral if semantic scoring disabled/fails
   if (options.enableSemanticScoring) {
+    if (semanticStatus) {
+      semanticStatus.attempted = true;
+    }
     try {
       const [queryEmbed, passageEmbed] = await Promise.all([
         embedText(queryText, { env: options.env }),
         embedText(passageText.slice(0, 500), { env: options.env }) // Truncate for efficiency
       ]);
       semanticScore = cosineSimilarity(queryEmbed, passageEmbed);
+      if (semanticStatus) {
+        semanticStatus.succeeded = true;
+      }
     } catch (err) {
       console.warn('[GraphRAG] Semantic scoring failed:', err.message);
+      if (semanticStatus) {
+        semanticStatus.succeeded = false;
+      }
       // Fall back to keyword-only scoring
       return keywordScore;
     }
@@ -700,19 +713,23 @@ export async function retrievePassagesWithQuality(graphKeys, options = {}) {
   // Score each passage for relevance
   const scoredPassages = await Promise.all(
     rawPassages.map(async (passage) => {
+      const semanticStatus = { attempted: false, succeeded: false };
       const relevanceScore = await scorePassageRelevance(
         passage.text,
         userQuery,
         {
           enableSemanticScoring,
-          env
+          env,
+          semanticStatus
         }
       );
       return {
         ...passage,
         relevanceScore,
         // Track whether semantic scoring was enabled for this retrieval
-        _semanticScoringEnabled: enableSemanticScoring
+        _semanticScoringEnabled: enableSemanticScoring,
+        _semanticScoringAttempted: semanticStatus.attempted,
+        _semanticScoringSucceeded: semanticStatus.succeeded
       };
     })
   );
@@ -750,7 +767,8 @@ export function buildQualityRetrievalSummary(graphKeys, passages) {
     averageRelevance: 0,
     minRelevance: 0,
     maxRelevance: 0,
-    semanticScoringUsed: false
+    semanticScoringUsed: false,
+    semanticScoringAttempted: false
   };
 
   if (Array.isArray(passages) && passages.length > 0) {
@@ -766,9 +784,12 @@ export function buildQualityRetrievalSummary(graphKeys, passages) {
     }
 
     // Check if semantic scoring was enabled for any passage retrieval
-    // Uses the _semanticScoringEnabled flag set by retrievePassagesWithQuality
+    // Uses the status flags set by retrievePassagesWithQuality
+    qualityMetrics.semanticScoringAttempted = passages.some(
+      (p) => p._semanticScoringAttempted === true
+    );
     qualityMetrics.semanticScoringUsed = passages.some(
-      (p) => p._semanticScoringEnabled === true
+      (p) => p._semanticScoringSucceeded === true
     );
   }
 

@@ -12,12 +12,12 @@ AZURE_OPENAI_API_KEY=""
 AZURE_OPENAI_GPT5_MODEL=""
 
 # Optional API versions
-AZURE_OPENAI_API_VERSION="preview"
+AZURE_OPENAI_API_VERSION="v1"
 AZURE_OPENAI_RESPONSES_API_VERSION="v1"
 
 # Optional embeddings (GraphRAG semantic scoring)
 AZURE_OPENAI_EMBEDDING_MODEL="text-embedding-3-large"
-AZURE_OPENAI_EMBEDDINGS_API_VERSION="preview"
+AZURE_OPENAI_EMBEDDINGS_API_VERSION="v1"
 
 # --- Azure AI Foundry Anthropic (Claude fallback; optional) ---
 AZURE_ANTHROPIC_ENDPOINT=""

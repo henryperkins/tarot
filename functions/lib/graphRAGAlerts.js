@@ -30,3 +30,28 @@ export function collectGraphRAGAlerts(promptMeta = {}) {
 
     return alerts;
 }
+
+/**
+ * Apply GraphRAG alerts to narrative payload and log warnings.
+ *
+ * Collects alerts from promptMeta, logs them, and merges into contextDiagnostics.
+ * Returns the alerts for potential further processing.
+ *
+ * @param {Object} narrativePayload - Payload with promptMeta and contextDiagnostics
+ * @param {string} requestId - Request ID for log correlation
+ * @param {string} providerId - Backend provider ID for logging
+ * @returns {string[]} Array of alert messages
+ */
+export function applyGraphRAGAlerts(narrativePayload, requestId, providerId) {
+    const alerts = collectGraphRAGAlerts(narrativePayload?.promptMeta || {});
+
+    if (alerts.length > 0) {
+        alerts.forEach(msg => console.warn(`[${requestId}] [${providerId}] ${msg}`));
+        narrativePayload.contextDiagnostics = Array.from(new Set([
+            ...(narrativePayload.contextDiagnostics || []),
+            ...alerts
+        ]));
+    }
+
+    return alerts;
+}

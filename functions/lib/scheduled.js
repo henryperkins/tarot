@@ -280,6 +280,52 @@ async function cleanupStaleMemories(db) {
 }
 
 /**
+ * Clean up old guest usage tracking rows from D1
+ *
+ * Guest usage rows are identified by user_id starting with 'guest:'.
+ * These are hashed IP identifiers used for anonymous rate limiting.
+ * We prune rows older than 90 days to limit PII retention.
+ *
+ * @param {D1Database} db - D1 database binding
+ * @returns {Promise<number>} Number of rows deleted
+ */
+async function cleanupOldGuestUsage(db) {
+  if (!db) {
+    console.warn('Skipping guest usage cleanup: missing DB binding');
+    return 0;
+  }
+
+  try {
+    // Delete guest usage rows older than 90 days
+    // This balances rate limiting effectiveness with privacy
+    const ninetyDaysAgoMs = Date.now() - (90 * 24 * 60 * 60 * 1000);
+
+    const result = await db
+      .prepare(`
+        DELETE FROM usage_tracking
+        WHERE user_id LIKE 'guest:%'
+        AND updated_at < ?
+      `)
+      .bind(ninetyDaysAgoMs)
+      .run();
+
+    const deleted = result.meta?.changes || 0;
+    if (deleted > 0) {
+      console.log(`Cleaned up ${deleted} old guest usage tracking rows`);
+    }
+    return deleted;
+  } catch (error) {
+    // Table might not exist yet if migration hasn't run
+    if (error.message?.includes('no such table')) {
+      console.log('Usage tracking table not yet created, skipping guest cleanup');
+      return 0;
+    }
+    console.error('Guest usage cleanup failed:', error);
+    return 0;
+  }
+}
+
+/**
  * Clean up expired sessions from D1
  * @param {D1Database} db - D1 database binding
  * @returns {Promise<number>} Number of sessions deleted
@@ -367,6 +413,7 @@ export async function handleScheduled(controller, env, _ctx) {
     sessions: null,
     webhookEvents: null,
     memories: null,
+    guestUsage: null,
     quality: null,
     alertsDispatched: null
   };
@@ -387,15 +434,17 @@ export async function handleScheduled(controller, env, _ctx) {
     results.metrics = metricsResult;
     results.feedback = feedbackResult;
 
-    // Clean up expired sessions, old webhook events, and stale memories
-    const [sessionsDeleted, webhookEventsDeleted, memoriesResult] = await Promise.all([
+    // Clean up expired sessions, old webhook events, stale memories, and old guest usage
+    const [sessionsDeleted, webhookEventsDeleted, memoriesResult, guestUsageDeleted] = await Promise.all([
       cleanupExpiredSessions(env.DB),
       cleanupOldWebhookEvents(env.DB),
-      cleanupStaleMemories(env.DB)
+      cleanupStaleMemories(env.DB),
+      cleanupOldGuestUsage(env.DB)
     ]);
     results.sessions = { deleted: sessionsDeleted };
     results.webhookEvents = { deleted: webhookEventsDeleted };
     results.memories = memoriesResult;
+    results.guestUsage = { deleted: guestUsageDeleted };
 
     // Store summary in D1
     await storeArchivalSummary(env.DB, results);
@@ -475,10 +524,11 @@ export async function onRequestPost(context) {
       archiveKVToD1(env.FEEDBACK_KV, env.DB, FEEDBACK_PREFIX, 'feedback')
     ]);
 
-    const [sessionsDeleted, webhookEventsDeleted, memoriesResult] = await Promise.all([
+    const [sessionsDeleted, webhookEventsDeleted, memoriesResult, guestUsageDeleted] = await Promise.all([
       cleanupExpiredSessions(env.DB),
       cleanupOldWebhookEvents(env.DB),
-      cleanupStaleMemories(env.DB)
+      cleanupStaleMemories(env.DB),
+      cleanupOldGuestUsage(env.DB)
     ]);
 
     const dateStr = new Date().toISOString().split('T')[0];
@@ -489,6 +539,7 @@ export async function onRequestPost(context) {
       sessions: { deleted: sessionsDeleted },
       webhookEvents: { deleted: webhookEventsDeleted },
       memories: memoriesResult,
+      guestUsage: { deleted: guestUsageDeleted },
       quality: null,
       alertsDispatched: null,
       duration: Date.now() - startTime

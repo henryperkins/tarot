@@ -271,7 +271,7 @@ const disableQualityFiltering = env?.DISABLE_QUALITY_FILTERING === 'true';
 **Backend selection flow:**
 
 1. Try `azure-gpt5` → run `buildNarrativeMetrics()` → check thresholds
-2. If quality gate fails, try `claude-sonnet45` → repeat
+2. If quality gate fails, try `claude-opus45` → repeat
 3. If quality gate fails, try `local-composer` → repeat
 4. If all backends fail, return 503
 

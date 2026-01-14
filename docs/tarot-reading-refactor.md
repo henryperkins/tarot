@@ -1378,7 +1378,7 @@ function requiresHighReasoningEffort(modelName = "") {
 
 const NARRATIVE_BACKEND_ORDER = [
   "azure-gpt5",
-  "claude-sonnet45",
+  "claude-opus45",
   "local-composer",
 ];
 
@@ -1393,8 +1393,8 @@ const NARRATIVE_BACKENDS = {
           env?.AZURE_OPENAI_GPT5_MODEL
       ),
   },
-  "claude-sonnet45": {
-    id: "claude-sonnet45",
+  "claude-opus45": {
+    id: "claude-opus45",
     label: "Claude Opus 4.5 (Azure Foundry)",
     isAvailable: (env) =>
       Boolean(
@@ -1635,7 +1635,7 @@ async function generateWithClaudeSonnet45Enhanced(
   maybeLogPromptPayload(
     env,
     requestId,
-    "claude-sonnet45",
+    "claude-opus45",
     systemPrompt,
     userPrompt,
     promptMeta,
@@ -2139,7 +2139,7 @@ export async function runNarrativeBackend(backendId, env, payload, requestId) {
   switch (backendId) {
     case "azure-gpt5":
       return generateWithAzureGPT5Responses(env, payload, requestId);
-    case "claude-sonnet45":
+    case "claude-opus45":
       return generateWithClaudeSonnet45Enhanced(env, payload, requestId);
     case "local-composer":
     default:

@@ -26,6 +26,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext.jsx';
 import { useSmallScreen } from '../hooks/useSmallScreen';
 import { useLandscape } from '../hooks/useLandscape';
+import { useHandsetLayout } from '../hooks/useHandsetLayout';
 import { useReducedMotion } from '../hooks/useReducedMotion';
 
 export function ReadingDisplay({ sectionRef }) {
@@ -110,6 +111,7 @@ export function ReadingDisplay({ sectionRef }) {
         setSelectionState({ key: readingIdentity, value });
     }, [readingIdentity]);
     const [focusedCardData, setFocusedCardData] = useState(null);
+    const [recentlyClosedIndex, setRecentlyClosedIndex] = useState(-1);
     const activeFocusedCardData = useMemo(() => {
         if (!focusedCardData) return null;
         if (focusedCardData.readingKey && focusedCardData.readingKey !== readingIdentity) return null;
@@ -145,7 +147,8 @@ export function ReadingDisplay({ sectionRef }) {
     const { visionResearch: visionResearchEnabled, newDeckInterface } = useFeatureFlags();
     const isCompactScreen = useSmallScreen(768);
     const isLandscape = useLandscape();
-    const isHandset = isCompactScreen || isLandscape;
+    const isHandsetLayout = useHandsetLayout();
+    const isHandset = isCompactScreen || isLandscape || isHandsetLayout;
     const prefersReducedMotion = useReducedMotion();
     const safeSpreadKey = normalizeSpreadKey(selectedSpread);
     const spreadInfo = getSpreadInfo(safeSpreadKey);
@@ -179,7 +182,7 @@ export function ReadingDisplay({ sectionRef }) {
     const hasTraditionalInsights = Boolean(readingMeta?.graphContext?.retrievedPassages?.length);
     const hasHighlightPanel = Boolean(highlightItems?.length && revealedCards.size === reading?.length);
     const hasInsightPanels = hasPatternHighlights || hasTraditionalInsights || hasHighlightPanel || canShowVisionPanel;
-    const focusToggleAvailable = hasInsightPanels && (isCompactScreen || isNarrativeFocus);
+    const focusToggleAvailable = hasInsightPanels && (isHandset || isNarrativeFocus);
     const shouldShowSpreadInsights = !isNarrativeFocus && (hasPatternHighlights || hasHighlightPanel || hasTraditionalInsights);
     const canAutoNarrate = voiceOn && autoNarrate && narrativePhase === 'complete' && !isReadingStreaming;
 
@@ -229,6 +232,21 @@ export function ReadingDisplay({ sectionRef }) {
         if (!cardData) return;
         setSelectedCardData(cardData);
     }, [setSelectedCardData]);
+    const handleCloseDetail = useCallback(() => {
+        if (!focusedCardData) {
+            setSelectedCardData(null);
+            return;
+        }
+        const idx = focusedCardData.index;
+        setFocusedCardData(null);
+        setSelectedCardData(null);
+        setRecentlyClosedIndex(idx);
+        const target = document.getElementById(`spread-slot-${idx}`);
+        if (target?.scrollIntoView) {
+            target.scrollIntoView({ behavior: prefersReducedMotion ? 'auto' : 'smooth', block: 'center', inline: 'center' });
+        }
+        window.setTimeout(() => setRecentlyClosedIndex(-1), 900);
+    }, [focusedCardData, prefersReducedMotion, setSelectedCardData]);
 
     // Memoize next label computation to avoid IIFE in render
     const nextLabel = useMemo(() => {
@@ -297,7 +315,7 @@ export function ReadingDisplay({ sectionRef }) {
                     </p>
                     <MoonPhaseIndicator
                         ephemeris={readingMeta?.ephemeris}
-                        variant={isCompactScreen ? 'icon' : 'compact'}
+                        variant={isHandset ? 'icon' : 'compact'}
                     />
                 </div>
             </div>
@@ -397,7 +415,8 @@ export function ReadingDisplay({ sectionRef }) {
                         revealCard={revealCard}
                         onCardClick={handleCardClick}
                         focusedCardData={activeFocusedCardData}
-                        onCloseDetail={() => setFocusedCardData(null)}
+                        onCloseDetail={handleCloseDetail}
+                        recentlyClosedIndex={recentlyClosedIndex}
                         reflections={reflections}
                         setReflections={setReflections}
                         onOpenModal={handleOpenModalFromPanel}
@@ -632,7 +651,7 @@ export function ReadingDisplay({ sectionRef }) {
                         card={selectedCardData.card}
                         position={selectedCardData.position}
                         isOpen={!!selectedCardData}
-                        onClose={() => setSelectedCardData(null)}
+                        onClose={handleCloseDetail}
                         layoutId={`card-${selectedCardData.index}`}
                     />
                 )}
