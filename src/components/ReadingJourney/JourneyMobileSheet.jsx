@@ -552,7 +552,7 @@ export default function JourneyMobileSheet({
               {activeTab === 'summary' && (
                 <JournalSummarySection
                   isAuthenticated={isAuthenticated}
-                  entryCount={activeEntries?.length || 0}
+                  entryCount={allEntries?.length || 0}
                 />
               )}
 

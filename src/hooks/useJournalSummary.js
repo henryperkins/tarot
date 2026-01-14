@@ -5,7 +5,7 @@
  * Includes debouncing to prevent rapid re-generation.
  */
 
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 
 const COOLDOWN_MS = 5000; // 5 second cooldown between requests
 
@@ -41,9 +41,19 @@ export function useJournalSummary() {
   const [result, setResult] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
-  const lastRequestTime = useRef(0);
+  const [cooldownActive, setCooldownActive] = useState(false);
+  const cooldownTimerRef = useRef(null);
 
-  const canGenerate = Date.now() - lastRequestTime.current > COOLDOWN_MS;
+  // Clean up timer on unmount
+  useEffect(() => {
+    return () => {
+      if (cooldownTimerRef.current) {
+        clearTimeout(cooldownTimerRef.current);
+      }
+    };
+  }, []);
+
+  const canGenerate = !cooldownActive;
 
   /**
    * Generate a journal summary.
@@ -55,14 +65,19 @@ export function useJournalSummary() {
    */
   const generate = useCallback(async ({ entryIds, limit = 10 } = {}) => {
     // Cooldown check
-    if (Date.now() - lastRequestTime.current < COOLDOWN_MS) {
+    if (cooldownActive) {
       setError('Please wait a moment before generating another summary.');
       return null;
     }
 
     setIsLoading(true);
     setError(null);
-    lastRequestTime.current = Date.now();
+
+    // Start cooldown with timer that triggers re-render when it expires
+    setCooldownActive(true);
+    cooldownTimerRef.current = setTimeout(() => {
+      setCooldownActive(false);
+    }, COOLDOWN_MS);
 
     try {
       const body = {};
@@ -116,7 +131,7 @@ export function useJournalSummary() {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [cooldownActive]);
 
   /**
    * Clear the current summary and error state.

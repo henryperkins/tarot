@@ -8,7 +8,7 @@
  */
 
 import { memo, useEffect, useState } from 'react';
-import { FilePdf, FileText, FileCsv, Link as LinkIcon } from '@phosphor-icons/react';
+import { FilePdf, FileText, FileCsv, Link as LinkIcon, Warning } from '@phosphor-icons/react';
 import { exportJournalInsightsToPdf } from '../../../lib/pdfExport';
 import {
   exportJournalEntriesToCsv,
@@ -35,6 +35,8 @@ const OUTLINE_BUTTON_CLASS = `
  * @param {string} props.scopeLabel - Human-friendly label for current scope
  * @param {boolean} props.filtersActive - Whether filters are currently active
  */
+const LARGE_EXPORT_THRESHOLD = 50; // Warn user before exporting more than this many entries
+
 function ExportSection({ isAuthenticated, onCreateShareLink, entries, allEntries, stats, scopeLabel = 'Current view', filtersActive = false }) {
   const [isCreatingLink, setIsCreatingLink] = useState(false);
   const [linkCreated, setLinkCreated] = useState(null);
@@ -44,6 +46,8 @@ function ExportSection({ isAuthenticated, onCreateShareLink, entries, allEntries
   // Share scope: 'recent' (most recent N from all), 'filtered' (current filtered view)
   const [shareScope, setShareScope] = useState('recent');
   const [shareLimit, setShareLimit] = useState(5);
+  // Confirmation for large exports
+  const [pendingLargeExport, setPendingLargeExport] = useState(null);
 
   const hasEntries = Array.isArray(entries) && entries.length > 0;
   const hasAllEntries = Array.isArray(allEntries) && allEntries.length > 0;
@@ -61,15 +65,37 @@ function ExportSection({ isAuthenticated, onCreateShareLink, entries, allEntries
 
   const shareEntryCount = shareEntryIds.length;
 
-  const handleExportPdf = () => {
-    if (!hasEntries) return;
+  const executeExportPdf = (entriesToExport) => {
     try {
-      exportJournalInsightsToPdf(stats, entries, { scopeLabel });
+      exportJournalInsightsToPdf(stats, entriesToExport, { scopeLabel });
       setExportStatus({ type: 'success', message: 'PDF download started' });
     } catch (err) {
       console.error('PDF export failed:', err);
       setExportStatus({ type: 'error', message: 'PDF export failed' });
     }
+  };
+
+  const handleExportPdf = () => {
+    if (!hasEntries) return;
+
+    // For large exports, show confirmation first
+    if (entries.length > LARGE_EXPORT_THRESHOLD) {
+      setPendingLargeExport({ type: 'pdf', count: entries.length });
+      return;
+    }
+
+    executeExportPdf(entries);
+  };
+
+  const handleConfirmLargeExport = () => {
+    if (pendingLargeExport?.type === 'pdf') {
+      executeExportPdf(entries);
+    }
+    setPendingLargeExport(null);
+  };
+
+  const handleCancelLargeExport = () => {
+    setPendingLargeExport(null);
   };
 
   const handleExportMarkdown = () => {
@@ -233,6 +259,36 @@ function ExportSection({ isAuthenticated, onCreateShareLink, entries, allEntries
             CSV
           </button>
         </div>
+
+        {/* Large export confirmation */}
+        {pendingLargeExport && (
+          <div className="mt-3 rounded-lg border border-amber-400/30 bg-amber-400/10 p-3">
+            <div className="flex items-start gap-2">
+              <Warning className="h-4 w-4 text-amber-300 flex-shrink-0 mt-0.5" aria-hidden="true" />
+              <div className="flex-1">
+                <p className="text-xs text-amber-100 font-medium">Large export</p>
+                <p className="text-[11px] text-amber-100/70 mt-1">
+                  You're about to export {pendingLargeExport.count} entries. This may take a moment and use significant memory.
+                </p>
+                <div className="flex gap-2 mt-3">
+                  <button
+                    onClick={handleConfirmLargeExport}
+                    className="px-3 py-1.5 rounded text-xs font-medium bg-amber-300/20 text-amber-100 hover:bg-amber-300/30 transition-colors"
+                  >
+                    Continue
+                  </button>
+                  <button
+                    onClick={handleCancelLargeExport}
+                    className="px-3 py-1.5 rounded text-xs text-amber-100/70 hover:text-amber-100 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Export status feedback */}
         {exportStatus && (
           <p
