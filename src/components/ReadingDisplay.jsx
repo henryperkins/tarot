@@ -182,7 +182,8 @@ export function ReadingDisplay({ sectionRef }) {
     const hasTraditionalInsights = Boolean(readingMeta?.graphContext?.retrievedPassages?.length);
     const hasHighlightPanel = Boolean(highlightItems?.length && revealedCards.size === reading?.length);
     const hasInsightPanels = hasPatternHighlights || hasTraditionalInsights || hasHighlightPanel || canShowVisionPanel;
-    const focusToggleAvailable = hasInsightPanels && (isHandset || isNarrativeFocus);
+    // Only show focus toggle on desktop; on mobile, panels are below the narrative so users can scroll past them
+    const focusToggleAvailable = hasInsightPanels && !isHandset;
     const shouldShowSpreadInsights = !isNarrativeFocus && (hasPatternHighlights || hasHighlightPanel || hasTraditionalInsights);
     const canAutoNarrate = voiceOn && autoNarrate && narrativePhase === 'complete' && !isReadingStreaming;
 
@@ -345,7 +346,6 @@ export function ReadingDisplay({ sectionRef }) {
             {/* Reading Display */}
             {reading && (
                 <div className={isLandscape ? 'space-y-4' : 'space-y-8'}>
-                    {userQuestion && !isLandscape && (<div className="text-center"><p className="text-muted text-sm italic">Intention: {userQuestion}</p></div>)}
                     <div className={`text-center text-accent font-serif mb-2 ${isLandscape ? 'text-lg' : 'text-2xl'}`}>{spreadInfo?.name || 'Tarot Spread'}</div>
                     {reading.length > 1 && !isLandscape && (<p className="text-center text-muted text-xs-plus sm:text-sm mb-4">Reveal in order for a narrative flow, or follow your intuition and reveal randomly.</p>)}
 

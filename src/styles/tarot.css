@@ -1078,9 +1078,8 @@ body {
 .spread-card__meta {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  flex-wrap: wrap;
   gap: 0.5rem;
-  flex-wrap: nowrap;
   margin-top: auto;
   padding-top: 0.75rem;
   border-top: 1px solid rgba(255, 255, 255, 0.05);
@@ -1104,20 +1103,6 @@ body {
 /* Hide "Complexity" label on mobile to save space - keep stars and level label */
 @media (max-width: 639px) {
   .spread-card__complexity > span:first-child {
-    display: none;
-  }
-}
-
-.spread-card__count {
-  display: flex;
-  flex-direction: column;
-  text-align: right;
-  flex-shrink: 0;
-}
-
-/* Hide count label on mobile since it's redundant with the tag */
-@media (max-width: 639px) {
-  .spread-card__count > span:first-child {
     display: none;
   }
 }

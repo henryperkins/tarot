@@ -1050,7 +1050,7 @@ export default function Journal() {
                   <div className="flex gap-3">
                     <button
                       type="button"
-                      onClick={handleStartReading}
+                      onClick={() => handleStartReading()}
                       className="flex-1 inline-flex items-center justify-center gap-2 rounded-full bg-gradient-to-r from-amber-300 to-amber-400 px-4 py-3 text-sm font-semibold text-slate-900 shadow-lg shadow-amber-400/20 transition hover:shadow-amber-300/30 hover:-translate-y-0.5 active:translate-y-0 min-h-[44px]"
                     >
                       <JournalPlusCircleIcon className="h-4 w-4" aria-hidden />
@@ -1594,7 +1594,7 @@ export default function Journal() {
                       <div className="flex flex-wrap items-center justify-center gap-3 pt-1">
                         <button
                           type="button"
-                          onClick={handleStartReading}
+                          onClick={() => handleStartReading()}
                           className={`${OUTLINE_BUTTON_CLASS} px-5 py-2.5 text-sm`}
                         >
                           Start a reading

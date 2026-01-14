@@ -139,7 +139,7 @@ const FOCUS_AREA_TO_TOPIC = {
 };
 
 const baseOptionClass =
-  'text-left rounded-2xl border bg-surface-muted/50 px-4 py-4 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-main';
+  'text-left rounded-2xl border bg-surface-muted/50 px-4 py-4 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-surface';
 
 // ============================================================================
 // Helper Functions
@@ -1233,7 +1233,7 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply,
           role="dialog"
           aria-modal="true"
           aria-labelledby={titleId}
-          className={`relative w-full h-full sm:h-auto ${isLandscape ? 'max-h-[98vh]' : 'sm:max-h-[90vh]'} sm:max-w-3xl sm:mx-4 sm:rounded-3xl border-0 sm:border border-accent/30 bg-surface shadow-2xl focus:outline-none flex flex-col ${prefersReducedMotion ? '' : 'animate-pop-in'}`}
+          className={`relative w-full h-full sm:h-auto ${isLandscape ? 'max-h-[98vh]' : 'sm:max-h-[90vh]'} sm:max-w-3xl sm:mx-4 sm:rounded-3xl border-0 sm:border border-secondary/30 bg-surface shadow-2xl focus:outline-none flex flex-col ${prefersReducedMotion ? '' : 'animate-pop-in'}`}
           style={isSmallScreen ? swipeDismissStyle : undefined}
           {...(isSmallScreen ? swipeDismissHandlers : {})}
         >
@@ -1250,7 +1250,7 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply,
             ref={closeButtonRef}
             type="button"
             onClick={onClose}
-            className="absolute right-3 top-3 min-h-[44px] min-w-[44px] flex items-center justify-center rounded-full text-accent/80 hover:text-main hover:bg-surface-muted/50 z-10 touch-manipulation transition-colors"
+            className="absolute right-3 top-3 min-h-[44px] min-w-[44px] flex items-center justify-center rounded-full text-muted hover:text-main hover:bg-surface-muted/50 z-10 touch-manipulation transition-colors"
             aria-label="Close intention coach"
           >
             <X className="h-5 w-5" />
@@ -1264,7 +1264,7 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply,
             >
               {/* Header */}
               <div>
-                <div className="flex items-center gap-2 text-secondary">
+                <div className="flex items-center gap-2 text-primary">
                   <Sparkle className="h-4 w-4" />
                   <span className="text-xs uppercase tracking-[0.2em]">Guided Intention Coach</span>
                 </div>

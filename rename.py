@@ -14,6 +14,7 @@ EXTENSION_LANGS = {
     '.js': 'javascript',
     '.jsx': 'javascript',
     '.cjs': 'javascript',
+    '.mjs': 'javascript',
     '.json': 'json',
     '.html': 'html',
     '.css': 'css',

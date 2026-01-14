@@ -1,4 +1,4 @@
-import { memo } from 'react';
+import { memo, useId } from 'react';
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis } from 'recharts';
 
 /**
@@ -14,6 +14,11 @@ const TrendSparkline = memo(function TrendSparkline({
   color = 'var(--brand-primary)',
   height = 32
 }) {
+  // We render many sparklines on the same page; SVG ids must be unique.
+  // React's useId is stable across hydration.
+  const uid = useId();
+  const gradientId = `sparkGradient-${String(uid).replace(/:/g, '')}`;
+
   if (!data || data.length < 2) return null;
 
   // Sort by date just in case
@@ -24,7 +29,7 @@ const TrendSparkline = memo(function TrendSparkline({
       <ResponsiveContainer width="100%" height="100%">
         <AreaChart data={sortedData}>
           <defs>
-            <linearGradient id="sparkGradient" x1="0" y1="0" x2="0" y2="1">
+            <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
               <stop offset="5%" stopColor={color} stopOpacity={0.3} />
               <stop offset="95%" stopColor={color} stopOpacity={0} />
             </linearGradient>
@@ -35,7 +40,7 @@ const TrendSparkline = memo(function TrendSparkline({
             type="monotone"
             dataKey="count"
             stroke={color}
-            fill="url(#sparkGradient)"
+            fill={`url(#${gradientId})`}
             strokeWidth={1.5}
             isAnimationActive={false}
           />
