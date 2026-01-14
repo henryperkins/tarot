@@ -118,7 +118,7 @@ function generateSeasonNarrative({
   }
 
   if (topCard) {
-    narrative += `${topCard.name} appeared ${topCard.count}× — your most persistent messenger`;
+    narrative += `${topCard.name} appeared ${topCard.count}x - your most persistent messenger`;
     if (hasBadge) {
       narrative += `, earning you a streak badge`;
     }
@@ -376,7 +376,14 @@ export function useJourneyData({
   // Export entries: for exports, use the full journal when unfiltered to preserve
   // the previous behavior. Users expect "Export Journal" to export everything
   // when no filters are active, not just the current month's stats window.
-  const exportEntries = useMemo(() => scopedEntries || [], [scopedEntries]);
+  const exportEntries = useMemo(() => {
+    // When filters are active, export the filtered/scoped entries
+    if (filtersActive) {
+      return scopedEntries || [];
+    }
+    // When unfiltered, export the full journal (not just current month scope)
+    return entries || [];
+  }, [filtersActive, scopedEntries, entries]);
 
   // Client-side stats with null guard
   // Uses scopedEntries to match the time window of D1 data when applicable

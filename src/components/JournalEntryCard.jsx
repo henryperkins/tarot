@@ -473,6 +473,9 @@ export const JournalEntryCard = memo(function JournalEntryCard({
   const hasReflections = reflections.length > 0;
   const followUps = useMemo(() => Array.isArray(entry?.followUps) ? entry.followUps : [], [entry?.followUps]);
   const hasFollowUps = followUps.length > 0;
+  const followUpPreviewCount = isSmallScreen ? 1 : 2;
+  const followUpPreview = hasFollowUps ? followUps.slice(-followUpPreviewCount) : [];
+  const hasHiddenFollowUps = followUps.length > followUpPreview.length;
   const accentColor = getSuitAccentVar(entry?.themes?.dominantSuit)
     || CONTEXT_ACCENTS[entry?.context]
     || CONTEXT_ACCENTS.default;
@@ -1105,9 +1108,10 @@ export const JournalEntryCard = memo(function JournalEntryCard({
               </header>
               <div className={ui.bodyPad}>
                 <ol className="space-y-3">
-                  {followUps.map((turn, idx) => {
+                  {followUpPreview.map((turn, idx) => {
                     const key = turn.turnNumber || idx;
-                    const turnLabel = turn.turnNumber ? `Turn ${turn.turnNumber}` : `Turn ${idx + 1}`;
+                    const fallbackTurnNumber = followUps.length - followUpPreview.length + idx + 1;
+                    const turnLabel = turn.turnNumber ? `Turn ${turn.turnNumber}` : `Turn ${fallbackTurnNumber}`;
                     const tsLabel = formatFollowUpTimestamp(turn.createdAt);
                     const patterns = turn.journalContext?.patterns || [];
                     return (
@@ -1142,6 +1146,11 @@ export const JournalEntryCard = memo(function JournalEntryCard({
                     );
                   })}
                 </ol>
+                {hasHiddenFollowUps && (
+                  <p className="mt-3 text-[11px] text-[color:var(--text-muted)]">
+                    Showing the most recent {followUpPreview.length} of {followUps.length} turns.
+                  </p>
+                )}
                 <div className="mt-3 flex flex-wrap items-center gap-2">
                   <button
                     type="button"
@@ -1151,6 +1160,15 @@ export const JournalEntryCard = memo(function JournalEntryCard({
                     <Lightning className="h-3.5 w-3.5 text-[color:var(--brand-primary)]" aria-hidden="true" />
                     Ask a follow-up
                   </button>
+                  {hasHiddenFollowUps && (
+                    <button
+                      type="button"
+                      onClick={handleAskFollowUp}
+                      className="inline-flex items-center gap-2 rounded-full border border-[color:var(--border-warm-light)] bg-transparent px-3 py-1.5 text-[12px] font-semibold text-[color:var(--text-muted)] hover:border-[color:var(--border-warm)] hover:bg-[color:rgba(232,218,195,0.08)] hover:text-[color:var(--text-main)] transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:rgba(232,218,195,0.45)]"
+                    >
+                      View all in chat
+                    </button>
+                  )}
                   <span className="text-[11px] text-[color:var(--text-muted)]">Opens chat with this reading</span>
                 </div>
               </div>

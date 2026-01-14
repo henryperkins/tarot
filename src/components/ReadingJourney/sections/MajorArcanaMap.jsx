@@ -95,7 +95,7 @@ function MajorArcanaMap({ data = [] }) {
                   ${getHeatColor(count, maxCount)}
                   ${count > 0 ? 'text-amber-100' : 'text-amber-100/30'}
                 `}
-                title={`${MAJOR_ARCANA_NAMES[index]}: ${count}×`}
+                title={`${MAJOR_ARCANA_NAMES[index]}: ${count}x`}
                 aria-label={`${MAJOR_ARCANA_NAMES[index]}: appeared ${count} times`}
               >
                 {numeral}
@@ -118,7 +118,7 @@ function MajorArcanaMap({ data = [] }) {
                   ${getHeatColor(count, maxCount)}
                   ${count > 0 ? 'text-amber-100' : 'text-amber-100/30'}
                 `}
-                title={`${MAJOR_ARCANA_NAMES[index]}: ${count}×`}
+                title={`${MAJOR_ARCANA_NAMES[index]}: ${count}x`}
                 aria-label={`${MAJOR_ARCANA_NAMES[index]}: appeared ${count} times`}
               >
                 {numeral}

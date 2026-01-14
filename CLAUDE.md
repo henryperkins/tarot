@@ -9,7 +9,7 @@ Guidance for Claude Code when working with this repository.
 | Layer    | Tech                                         | Location                                 |
 | -------- | -------------------------------------------- | ---------------------------------------- |
 | Frontend | React + Vite                                 | `src/`                                   |
-| Backend  | Cloudflare Workers                           | `src/worker/index.js` → `functions/api/` |
+| Backend  | Cloudflare Workers                           | `functions/api/`                         |
 | AI       | Claude Sonnet 4.5 (fallback: local composer) | `functions/api/tarot-reading.js`         |
 | Database | Cloudflare D1                                | `migrations/*.sql`                       |
 | Storage  | Cloudflare KV + R2                           | Metrics, feedback, exports, archives     |
@@ -39,34 +39,44 @@ npm run deploy   # Deploy to Cloudflare Workers
 **Frontend (`src/`)**
 
 - `TarotReading.jsx` — Main orchestration (ritual → spread → draw → reading)
-- `data/spreads.js` — Spread definitions (source of truth for positions)
+- `data/spreads.js` — Spread definitions (source of truth for positions and roleKeys)
 - `data/majorArcana.js`, `data/minorArcana.js` — Card data with meanings
+- `data/knowledgeGraphData.js` — Archetypal patterns (triads, dyads, Fool's Journey, progressions)
 - `lib/deck.js` — Seeded shuffle, `drawSpread()`, `computeSeed()`
+- `lib/archetypeJourney.js` — Client-side archetype tracking utilities
 
 **Backend (`functions/`)**
 
 - `api/tarot-reading.js` — Main endpoint: validates payload, calls Claude or local composer
+- `api/reading-followup.js` — Follow-up conversation with memory
 - `api/tts.js` — Azure TTS with rate limiting
 - `api/journal.js` — Reading history (dedup by `session_seed`)
 - `api/journal-export/index.js` — PDF/text export of readings (stores in R2)
 - `api/feedback.js` — User feedback (stored in KV)
 - `lib/narrative/` — Spread-specific narrative builders
-- `lib/spreadAnalysis.js` — Card relationship detection
-- `lib/knowledgeGraph.js` — Archetypal relationships
+- `lib/narrative/prompts.js` — `buildEnhancedClaudePrompt()` for AI prompt construction
+- `lib/spreadAnalysis.js` — Elemental dignities, theme analysis, reversal framework selection
+- `lib/knowledgeGraph.js` — Pattern detection: triads, dyads, Fool's Journey, suit progressions
+- `lib/graphContext.js` — Builds graph context for prompt injection
+- `lib/graphRAG.js` — Retrieval-augmented generation from knowledge base
+- `lib/knowledgeBase.js` — Curated passages for GraphRAG retrieval
 - `lib/evaluation.js` — Automated reading quality evaluation (Workers AI)
 - `lib/scheduled.js` — Cron tasks: KV→R2 archival, session cleanup
 
 **Scripts (`scripts/`)**
 
-- `lib/dataAccess.js` — Shared R2/KV/D1 access helpers
+- `lib/dataAccess.js` — Shared R2/KV/D1 access helpers (Node.js environment)
 - `training/exportReadings.js` — Export training data (journal + feedback + metrics + eval)
 - `evaluation/exportEvalData.js` — Export eval-only data for calibration
 - `evaluation/calibrateEval.js` — Analyze score distributions
+- `evaluation/lib/` — Node.js evaluation tooling
 
 **Shared (`shared/`)**
 
 - `vision/` — Physical deck recognition pipeline
+- `vision/deckAssets.js` — Deck-specific asset mappings and aliases
 - `symbols/symbolAnnotations.js` — Symbol meanings database
+- `journal/summary.js` — Shared journal summary logic
 
 ### Components (`src/components/`)
 
@@ -86,7 +96,7 @@ Charts: `charts/CardRelationshipGraph.jsx`, `charts/TrendSparkline.jsx`
 | `fiveCard`     | Five-Card Clarity     | 5     | Core, Challenge, Hidden, Support, Direction                                                            |
 | `decision`     | Decision/Two-Path     | 5     | Heart, Path A, Path B, Clarity, Free Will                                                              |
 | `relationship` | Relationship Snapshot | 3     | You, Them, Connection                                                                                  |
-| `celtic`       | Celtic Cross          | 10    | Present, Challenge, Past, Near Future, Conscious, Subconscious, Advice, External, Hopes/Fears, Outcome |
+| `celtic`       | Celtic Cross          | 10    | Present, Challenge, Past, Near Future, Conscious, Subconscious, Self/Advice, External, Hopes/Fears, Outcome |
 
 **Constraint**: Position meanings are used by `buildCardsSection` and frontend text. Don't change casually.
 
@@ -110,6 +120,144 @@ Charts: `charts/CardRelationshipGraph.jsx`, `charts/TrendSparkline.jsx`
 - Opposite meaning (when narrative supports)
 
 **Synthesis**: Identify tension → map causes → offer practical steps
+
+## Narrative Generation Pipeline
+
+The reading generation flows through multiple analysis layers before reaching the AI:
+
+```
+User Question + Ritual (knocks, cut) → computeSeed()
+                    ↓
+        drawSpread() (seeded shuffle)
+                    ↓
+              cardsInfo[] with positions, orientations
+                    ↓
+    ┌───────────────┴───────────────┐
+    ↓                               ↓
+spreadAnalysis.js              knowledgeGraph.js
+- Elemental dignities          - Fool's Journey stage
+- Suit/element counts          - Archetypal triads
+- Reversal framework           - Archetypal dyads
+- Spread-specific analysis     - Suit progressions
+    ↓                               ↓
+    └───────────────┬───────────────┘
+                    ↓
+            graphContext.js
+            (builds unified context)
+                    ↓
+            graphRAG.js
+            (retrieves relevant passages)
+                    ↓
+        narrative/prompts.js
+        buildEnhancedClaudePrompt()
+                    ↓
+        Claude Sonnet 4.5 (or local composer)
+                    ↓
+            evaluation.js
+            (async quality scoring via waitUntil)
+```
+
+## Knowledge Graph & Pattern Detection
+
+Pattern detection in `functions/lib/knowledgeGraph.js` identifies archetypal combinations. Data definitions live in `src/data/knowledgeGraphData.js`.
+
+**Fool's Journey** (`FOOLS_JOURNEY`):
+| Stage | Cards | Theme |
+|-------|-------|-------|
+| Initiation | 0-7 | Building ego, learning identity, establishing in the world |
+| Integration | 8-14 | Shadow work, surrender, necessary endings, finding balance |
+| Culmination | 15-21 | Shadow confrontation, revelation, cosmic consciousness |
+
+**Archetypal Triads** (`ARCHETYPAL_TRIADS`):
+Complete 3-card narrative arcs with partial support:
+- `death-temperance-star` — Healing Arc (ending → integration → hope)
+- `devil-tower-sun` — Liberation Arc (bondage → rupture → freedom)
+- `hermit-hangedman-moon` — Inner Work Arc (solitude → surrender → mystery)
+- `magician-chariot-world` — Mastery Arc (skill → action → achievement)
+- `fool-magician-world` — Complete Manifestation Cycle
+
+**Archetypal Dyads** (`ARCHETYPAL_DYADS`):
+Powerful 2-card synergies with significance levels (`high`, `medium-high`, `medium`):
+- Death + Star — Transformation clearing into hope
+- Tower + Sun — Upheaval revealing clarity
+- Devil + Lovers — Attachment patterns affecting choice
+- Hermit + High Priestess — Solitary wisdom accessing intuition
+
+**Suit Progressions** (`SUIT_PROGRESSIONS`):
+Minor Arcana developmental arcs within each suit:
+| Stage | Ranks | Theme |
+|-------|-------|-------|
+| Beginning | 1-3 | Ignition, opening, foundation |
+| Challenge | 4-7 | Testing, complexity, management |
+| Mastery | 8-10 | Culmination, crisis, completion |
+
+**Court Family Patterns** (`COURT_FAMILY_PATTERNS`):
+When 2+ court cards from the same suit appear, indicating lineage dynamics.
+
+## GraphRAG (Retrieval-Augmented Generation)
+
+`functions/lib/graphRAG.js` retrieves relevant passages from the curated knowledge base based on detected patterns.
+
+**Retrieval Priority**:
+1. Complete triads (highest narrative value)
+2. Fool's Journey stage (developmental context)
+3. High-significance dyads
+4. Strong suit progressions
+
+**Passage Limits by Spread** (adjustable by subscription tier):
+| Spread | Free | Plus/Pro |
+|--------|------|----------|
+| single | 1 | 1 |
+| threeCard | 1 | 2 |
+| fiveCard | 1 | 3 |
+| celtic | 2 | 5 |
+| decision | 1 | 3 |
+| relationship | 1 | 2 |
+
+**Quality Filtering** (enabled by default):
+- Keyword overlap scoring
+- Optional semantic similarity via embeddings
+- Deduplication of similar passages
+- Relevance threshold: 30% minimum
+
+## Reversal Frameworks
+
+Reversal interpretation is selected per-reading based on spread size, reversal ratio, and question keywords. Defined in `functions/lib/spreadAnalysis.js:REVERSAL_FRAMEWORKS`.
+
+| Framework | When Selected | Interpretation Model |
+|-----------|---------------|---------------------|
+| `none` | All cards upright | N/A |
+| `blocked` | High reversal ratio (≥60%) or 2+ reversed Majors | Energy meeting resistance/obstacles |
+| `delayed` | Moderate ratio (≥40%) | Timing not ripe; patience needed |
+| `internalized` | Moderate ratio with introspection signals | Inner work, private processing |
+| `contextual` | Low ratio (≥20%) or default | Position-specific interpretation |
+| `shadow` | Question contains shadow keywords (fear, avoid, hidden) | Disowned emotions surfacing for healing |
+| `mirror` | Question contains reflection keywords (pattern, repeat) | Projection/unconscious behavior |
+| `potentialBlocked` | Question contains potential keywords (talent, gift) | Latent strengths awaiting activation |
+
+**Spread-Size Adjustments**: Small spreads (≤5 cards) use adjusted thresholds to avoid over-triggering stronger frameworks.
+
+## Deck Variations
+
+The `deckStyle` parameter affects card names, court titles, and deck-specific features. Configured in `src/data/knowledgeGraphData.js:DECK_STYLE_OVERRIDES`.
+
+| Style | Display Name | Court Titles | Special Features |
+|-------|--------------|--------------|------------------|
+| `rws-1909` | Rider-Waite-Smith 1909 | Page, Knight, Queen, King | Default; standard meanings |
+| `thoth-a1` | Thoth | Princess, Prince, Queen, Knight | Minor Arcana epithets (e.g., "Dominion", "Virtue"), decan astrology |
+| `marseille-classic` | Tarot de Marseille | Valet, Chevalier, Reine, Roi | Numerology themes, pip geometry |
+
+**Thoth Minor Titles** (`THOTH_MINOR_TITLES`):
+Each pip card has a title and astrological correspondence:
+- Two of Wands → "Dominion" (Mars in Aries)
+- Three of Cups → "Abundance" (Mercury in Cancer)
+- Eight of Swords → "Interference" (Jupiter in Gemini)
+
+**Marseille Numerology** (`MARSEILLE_NUMERICAL_THEMES`):
+Pip numbers carry symbolic geometry:
+- 1: Essence (vertical axis)
+- 5: Vital Shift (disruption)
+- 10: Threshold (portal to new cycle)
 
 ## Ethics (Non-Negotiable)
 
@@ -375,9 +523,25 @@ See `tests/accessibility/README.md` for manual testing guides (axe DevTools, key
 
 1. **Spreads/cards** in `src/data/` are the source of truth
 2. **Narratives** must derive from actual `cardsInfo` — never invent cards
-3. **New spreads** need: position definitions, narrative builder in `functions/lib/narrative/spreads/`
-4. **Visual changes** must preserve A11y (labels, focus, ARIA)
-5. Keep the authentic tarot feel — this isn't a generic card app
+3. **New spreads** need:
+   - Position definitions in `src/data/spreads.js` with `positions` and `roleKeys`
+   - Spread-specific analysis in `functions/lib/spreadAnalysis.js` (optional)
+   - Narrative builder in `functions/lib/narrative/spreads/`
+4. **New archetypal patterns** need entries in `src/data/knowledgeGraphData.js` and corresponding passages in `functions/lib/knowledgeBase.js`
+5. **Visual changes** must preserve A11y (labels, focus, ARIA)
+6. **Deck-aware code** should accept `deckStyle` parameter and use helpers from `knowledgeGraph.js`
+7. **Evaluation impact**: Changes affecting reading output may impact quality scores; test with evaluation enabled
+8. Keep the authentic tarot feel — this isn't a generic card app
+
+### Environment Boundaries (Critical)
+
+| Path | Environment | Can Access | Cannot Access |
+|------|-------------|------------|---------------|
+| `src/lib/` | Browser | DOM, window, localStorage, React | env, D1, KV, R2, secrets |
+| `functions/lib/` | Cloudflare Workers | env, D1, KV, R2, AI binding | DOM, window, React |
+| `scripts/*/lib/` | Node.js | fs, process, node modules | DOM, Cloudflare bindings |
+
+**Never import browser code into Workers or vice versa.** Shared logic goes in `shared/`.
 
 ## API Endpoints
 

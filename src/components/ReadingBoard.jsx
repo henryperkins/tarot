@@ -1,12 +1,12 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
-import { X, CaretLeft, CaretRight, CaretDown, CaretUp, MapTrifold } from '@phosphor-icons/react';
+import { X, CaretLeft, CaretRight, MapTrifold } from '@phosphor-icons/react';
 import { getSpreadInfo } from '../data/spreads';
 import { getCardImage, getOrientationMeaning } from '../lib/cardLookup';
 import { getDrawerGradient } from '../lib/suitColors';
 import { useModalA11y } from '../hooks/useModalA11y';
 import { useHandsetLayout } from '../hooks/useHandsetLayout';
 import { SpreadTable } from './SpreadTable';
-import { getNextUnrevealedIndex, getPositionLabel, extractShortLabel } from './readingBoardUtils';
+import { getNextUnrevealedIndex, getPositionLabel } from './readingBoardUtils';
 
 // Celtic Cross position short labels for map overlay
 const CELTIC_POSITION_LABELS = [
@@ -366,61 +366,6 @@ function CelticCrossMapOverlay({ onClose }) {
   );
 }
 
-/**
- * Collapsible position legend tray - shows position names below the spread table
- * Prevents legend from occluding bottom-positioned cards
- */
-function PositionLegendTray({ spreadInfo, isExpanded, onToggle }) {
-  if (!spreadInfo?.positions?.length) return null;
-
-  const positions = spreadInfo.positions;
-
-  return (
-    <div className="max-w-5xl mx-auto px-3 xs:px-4 sm:px-0">
-      <div className="rounded-xl border border-secondary/20 bg-surface/60 overflow-hidden">
-        <button
-          type="button"
-          onClick={onToggle}
-          className="w-full flex items-center justify-between gap-2 px-4 py-2.5 text-sm text-muted hover:text-main transition touch-manipulation"
-          aria-expanded={isExpanded}
-          aria-controls="position-legend-content"
-        >
-          <span className="font-medium">
-            {isExpanded ? 'Hide positions' : 'Show positions'}
-          </span>
-          {isExpanded ? (
-            <CaretUp className="w-4 h-4" />
-          ) : (
-            <CaretDown className="w-4 h-4" />
-          )}
-        </button>
-        {isExpanded && (
-          <div
-            id="position-legend-content"
-            className="px-4 pb-3 pt-1 border-t border-secondary/15"
-          >
-            <div className="flex flex-wrap gap-1.5 sm:gap-2 overflow-x-auto scrollbar-thin">
-              {positions.map((pos, i) => {
-                const shortLabel = extractShortLabel(pos, 22) || pos;
-                return (
-                  <span
-                    key={`legend-${i}`}
-                    className="inline-flex items-center gap-1.5 text-[0.65rem] sm:text-[0.7rem] text-muted bg-surface/80 border border-secondary/30 rounded-full px-2.5 py-1 whitespace-nowrap"
-                  >
-                    <span className="w-5 h-5 rounded-full bg-primary/20 text-primary font-semibold flex items-center justify-center border border-primary/40 text-[0.6rem]">
-                      {i + 1}
-                    </span>
-                    <span className="max-w-[14ch] sm:max-w-[18ch] truncate">{shortLabel}</span>
-                  </span>
-                );
-              })}
-            </div>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
 
 export function ReadingBoard({
   spreadKey,
@@ -445,8 +390,6 @@ export function ReadingBoard({
   const nextIndex = getNextUnrevealedIndex(reading, revealedCards);
   const nextLabel = nextIndex >= 0 ? getPositionLabel(spreadInfo, nextIndex) : null;
 
-  // Legend tray state - expanded by default on desktop, collapsed on mobile
-  const [legendExpanded, setLegendExpanded] = useState(!isHandsetLayout);
 
   // Celtic Cross map overlay state
   const [showCelticMap, setShowCelticMap] = useState(false);
@@ -496,12 +439,6 @@ export function ReadingBoard({
           <CelticCrossMapOverlay onClose={() => setShowCelticMap(false)} />
         )}
       </div>
-      {/* Position legend tray - moved outside SpreadTable to prevent occlusion */}
-      <PositionLegendTray
-        spreadInfo={spreadInfo}
-        isExpanded={legendExpanded}
-        onToggle={() => setLegendExpanded(prev => !prev)}
-      />
       {!isHandsetLayout && (
         <CardDetailPanel
           focusedCardData={focusedCardData}

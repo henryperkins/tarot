@@ -9,6 +9,7 @@
 
 import { validateSession, getSessionFromCookie } from '../../lib/auth.js';
 import { jsonResponse, safeJsonParse } from '../../lib/utils.js';
+import { loadFollowUpsByEntry } from '../../lib/journalFollowups.js';
 
 // PDF generation constants
 const PDF_PAGE_HEIGHT = 842; // A4 height in points
@@ -66,8 +67,8 @@ export function generatePDF(content) {
 
     for (const line of pageLines) {
       const isHeader = line.startsWith('# ') ||
-                       line.startsWith('## ') ||
-                       line.startsWith('### ');
+        line.startsWith('## ') ||
+        line.startsWith('### ');
 
       if (isHeader) {
         streamContent += 'ET\nBT\n/F1 14 Tf\n';
@@ -213,7 +214,7 @@ export function generatePDF(content) {
 /**
  * Format a journal entry as readable text for PDF
  */
-function formatEntryAsText(entry) {
+export function formatEntryAsText(entry) {
   const lines = [];
   const date = new Date(entry.ts).toLocaleString('en-US', {
     weekday: 'long',
@@ -255,6 +256,21 @@ function formatEntryAsText(entry) {
     const paragraphs = entry.personalReading.split(/\n\n+/);
     for (const para of paragraphs) {
       lines.push(para.replace(/\n/g, ' ').trim());
+      lines.push('');
+    }
+  }
+
+  if (Array.isArray(entry.followUps) && entry.followUps.length) {
+    lines.push('## Follow-up Conversation');
+    for (const turn of entry.followUps) {
+      const turnNumber = Number.isFinite(turn?.turnNumber) ? turn.turnNumber : null;
+      const header = turnNumber ? `Turn ${turnNumber}` : 'Turn';
+      lines.push(header);
+
+      const question = typeof turn?.question === 'string' ? turn.question.trim() : '';
+      const answer = typeof turn?.answer === 'string' ? turn.answer.trim() : '';
+      if (question) lines.push(`Q: ${question.replace(/\n/g, ' ')}`);
+      if (answer) lines.push(`A: ${answer.replace(/\n/g, ' ')}`);
       lines.push('');
     }
   }
@@ -364,6 +380,18 @@ export async function onRequestGet(context) {
 
     if (entries.length === 0) {
       return jsonResponse({ error: 'No entries to export' }, { status: 404 });
+    }
+
+    // Attach follow-up conversations when available (degrades gracefully if table missing).
+    try {
+      const followupMap = await loadFollowUpsByEntry(env.DB, user.id, entries.map((e) => e.id));
+      entries = entries.map((entry) => ({
+        ...entry,
+        followUps: followupMap.get(entry.id) || []
+      }));
+    } catch (err) {
+      // Non-fatal; export should still succeed without follow-ups.
+      console.warn(`[${requestId}] [journal] Failed to load follow-ups:`, err?.message || err);
     }
 
     // Generate content

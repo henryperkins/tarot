@@ -618,16 +618,17 @@ export default function Journal() {
     return 'All time';
   }, [analyticsScope, customWindow, filtersActive]);
 
-  const heroEntrySource = scopedStatsEntries.length > 0 ? scopedStatsEntries : entries;
+  // Hero entry must match the current scope - no fallback to all entries
+  // This prevents showing an unrelated reading when filters/scope yield no results
   const heroEntry = useMemo(() => {
-    if (!Array.isArray(heroEntrySource) || heroEntrySource.length === 0) return null;
-    const sorted = [...heroEntrySource].sort((a, b) => {
+    if (!Array.isArray(scopedStatsEntries) || scopedStatsEntries.length === 0) return null;
+    const sorted = [...scopedStatsEntries].sort((a, b) => {
       const aTs = getTimestamp(a) || 0;
       const bTs = getTimestamp(b) || 0;
       return bTs - aTs;
     });
     return sorted[0] || null;
-  }, [heroEntrySource]);
+  }, [scopedStatsEntries]);
 
   // Reset expanded card when the hero entry changes (new reading, filter change)
   useEffect(() => {
@@ -1079,11 +1080,20 @@ export default function Journal() {
 
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-6">
             <button
-              onClick={() => navigate('/')}
+              onClick={() => {
+                // Use browser history when available, otherwise navigate to home.
+                // history.length > 2 accounts for the initial page load + at least one navigation.
+                // We don't rely on document.referrer as it can be empty for same-origin navigation.
+                if (window.history.length > 2) {
+                  navigate(-1);
+                } else {
+                  navigate('/');
+                }
+              }}
               className="inline-flex min-h-[44px] items-center gap-2 rounded-full px-3 py-2 text-accent hover:text-main hover:bg-surface-muted/30 transition touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/50 self-start"
             >
               <CaretLeft className="w-5 h-5" />
-              <span>Back to Reading</span>
+              <span>Back</span>
             </button>
 
             <div className="flex items-center gap-4">
@@ -1112,32 +1122,52 @@ export default function Journal() {
               <div className="relative z-10 space-y-2">
                 <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
                   <p className="journal-prose text-amber-100/85">
-                    ✓ Signed in — {canUseCloudJournal ? 'Your journal is synced across devices' : 'Your journal is stored on this device'}
+                    ✓ Signed in - {canUseCloudJournal ? 'Your journal is synced across devices' : 'Your journal is stored on this device'}
                   </p>
-                  {/* Last sync timestamp for cloud users */}
+                  {/* Last sync timestamp for cloud users - show full date and time */}
                   {canUseCloudJournal && lastSyncAt && syncSource === 'api' && (
                     <span className="text-[11px] text-amber-100/50">
-                      Synced {new Date(lastSyncAt).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}
+                      Synced {new Date(lastSyncAt).toLocaleString(undefined, {
+                        month: 'short',
+                        day: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                      })}
                     </span>
                   )}
-                  {/* Cache fallback warning */}
+                  {/* Cache fallback warning with timestamp and refresh CTA */}
                   {canUseCloudJournal && syncSource === 'cache' && (
-                    <span className="text-[11px] text-amber-200/70">
-                      Using cached data
+                    <span className="inline-flex items-center gap-2 text-[11px] text-amber-200/70">
+                      {lastSyncAt
+                        ? `Cached from ${new Date(lastSyncAt).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}`
+                        : 'Using cached data'}
+                      <button
+                        type="button"
+                        onClick={() => reloadJournal()}
+                        disabled={loading}
+                        className="underline hover:text-amber-100 focus-visible:outline-none focus-visible:text-amber-100"
+                      >
+                        Refresh
+                      </button>
                     </span>
                   )}
                 </div>
 
-                {/* Upgrade CTA for users without cloud journal */}
+                {/* Upgrade CTA for users without cloud journal - mention storage limit */}
                 {!canUseCloudJournal && (
-                  <div className="flex items-center gap-3 pt-1">
-                    <button
-                      onClick={() => navigate('/settings/subscription')}
-                      className="inline-flex items-center gap-1.5 rounded-full border border-amber-300/30 bg-amber-300/10 px-3 py-1.5 text-xs font-medium text-amber-100 transition hover:bg-amber-300/15 hover:border-amber-300/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/40"
-                    >
-                      Upgrade to Cloud Journal
-                    </button>
-                    <span className="text-[11px] text-amber-100/50">Sync across devices &amp; never lose a reading</span>
+                  <div className="flex flex-col gap-2 pt-1">
+                    <div className="flex items-center gap-3">
+                      <button
+                        onClick={() => navigate('/settings/subscription')}
+                        className="inline-flex items-center gap-1.5 rounded-full border border-amber-300/30 bg-amber-300/10 px-3 py-1.5 text-xs font-medium text-amber-100 transition hover:bg-amber-300/15 hover:border-amber-300/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/40"
+                      >
+                        Upgrade to Cloud Journal
+                      </button>
+                      <span className="text-[11px] text-amber-100/50">Sync across devices and never lose a reading</span>
+                    </div>
+                    <p className="text-[11px] text-amber-100/45">
+                      Local storage holds up to 100 entries on this device only.
+                    </p>
                   </div>
                 )}
 
@@ -1877,14 +1907,35 @@ export default function Journal() {
                           variant={isMobileLayout ? 'compact' : 'full'}
                           viewMode={compactList ? 'compact' : 'comfortable'}
                           onViewModeChange={(mode) => setCompactList(mode === 'compact')}
+                          resultCount={filteredEntries.length}
+                          totalCount={entries.length}
                         />
                       </div>
 
                       {filteredEntries.length === 0 ? (
                         <div className="relative overflow-hidden rounded-2xl border border-amber-300/15 bg-amber-200/5 p-8 text-center text-sm text-amber-100/75 shadow-[0_16px_40px_-30px_rgba(0,0,0,0.8)]">
                           <NoFiltersIllustration className="mb-4" />
-                          <p className="journal-prose text-lg text-amber-50">No entries match your filters.</p>
-                          <p className="journal-prose mt-2 text-amber-100/70">Try adjusting the filters or reset to see the full journal.</p>
+                          <p className="journal-prose text-lg text-amber-50">
+                            {hasMoreServerEntries
+                              ? `No matches in the most recent ${entries.length} entries.`
+                              : 'No entries match your filters.'}
+                          </p>
+                          <p className="journal-prose mt-2 text-amber-100/70">
+                            {hasMoreServerEntries
+                              ? 'Search older entries or adjust your filters.'
+                              : 'Try adjusting the filters or reset to see the full journal.'}
+                          </p>
+                          {hasMoreServerEntries && (
+                            <button
+                              type="button"
+                              onClick={handleLoadMoreEntries}
+                              disabled={loadingMore}
+                              className={`${OUTLINE_BUTTON_CLASS} mt-4 min-h-[44px] px-4 py-2 ${loadingMore ? 'cursor-wait opacity-60' : ''}`}
+                            >
+                              <JournalSearchIcon className="h-4 w-4" aria-hidden="true" />
+                              {loadingMore ? 'Searching...' : 'Search older entries'}
+                            </button>
+                          )}
                         </div>
                       ) : (
                         <>

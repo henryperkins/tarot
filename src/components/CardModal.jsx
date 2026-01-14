@@ -1,12 +1,13 @@
-import { useCallback, useMemo, useRef } from 'react';
-import { motion } from 'framer-motion';
-import { X, CaretLeft, CaretRight } from '@phosphor-icons/react';
+import { useCallback, useMemo, useRef, useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { X, CaretLeft, CaretRight, CaretDown, Clock, Sparkle } from '@phosphor-icons/react';
 import { FALLBACK_IMAGE, getCardImage, getCanonicalCard } from '../lib/cardLookup';
 import { CardSymbolInsights } from './CardSymbolInsights';
 import { InteractiveCardOverlay } from './InteractiveCardOverlay';
 import { useModalA11y } from '../hooks/useModalA11y';
 import { useAndroidBackGuard } from '../hooks/useAndroidBackGuard';
 import { useSmallScreen } from '../hooks/useSmallScreen';
+import { useReducedMotion } from '../hooks/useReducedMotion';
 
 function toMillis(ts) {
     if (!ts) return null;
@@ -23,6 +24,53 @@ function formatDate(ts) {
     } catch {
         return null;
     }
+}
+
+/**
+ * Collapsible section component for compact modal layout
+ */
+function CollapsibleSection({ title, icon: Icon, badge, children, defaultOpen = false }) {
+    const [isOpen, setIsOpen] = useState(defaultOpen);
+    const prefersReducedMotion = useReducedMotion();
+    const contentId = `collapsible-${title.replace(/\s+/g, '-').toLowerCase()}`;
+
+    return (
+        <div className="border border-primary/10 rounded-lg overflow-hidden">
+            <button
+                type="button"
+                onClick={() => setIsOpen(!isOpen)}
+                className="w-full flex items-center justify-between gap-2 px-3 py-2 bg-surface-muted/30 hover:bg-surface-muted/50 transition-colors text-left min-h-[40px]"
+                aria-expanded={isOpen}
+                aria-controls={contentId}
+            >
+                <span className="flex items-center gap-2 text-xs font-semibold text-accent uppercase tracking-wider">
+                    {Icon && <Icon className="w-3.5 h-3.5" />}
+                    {title}
+                    {badge && <span className="text-muted font-normal normal-case">({badge})</span>}
+                </span>
+                <CaretDown
+                    className={`w-4 h-4 text-muted transition-transform ${isOpen ? 'rotate-180' : ''}`}
+                    style={{ transitionDuration: prefersReducedMotion ? '0ms' : '200ms' }}
+                />
+            </button>
+            <AnimatePresence initial={false}>
+                {isOpen && (
+                    <motion.div
+                        id={contentId}
+                        initial={prefersReducedMotion ? false : { height: 0, opacity: 0 }}
+                        animate={{ height: 'auto', opacity: 1 }}
+                        exit={prefersReducedMotion ? { opacity: 0 } : { height: 0, opacity: 0 }}
+                        transition={{ duration: prefersReducedMotion ? 0 : 0.2 }}
+                        className="overflow-hidden"
+                    >
+                        <div className="px-3 py-2.5 border-t border-primary/10">
+                            {children}
+                        </div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+        </div>
+    );
 }
 
 export function CardModal({
@@ -45,6 +93,7 @@ export function CardModal({
     const modalRef = useRef(null);
     const titleId = `card-modal-title-${layoutId || 'default'}`;
     const descId = `card-modal-desc-${layoutId || 'default'}`;
+    const prefersReducedMotion = useReducedMotion();
 
     // Shared modal accessibility: scroll lock, escape key, focus trap, focus restoration
     useModalA11y(isOpen, {
@@ -111,6 +160,8 @@ export function CardModal({
         return { totalCount, firstSeen, lastSeen, entries, entryCount };
     }, [stats, relatedEntries]);
 
+    const hasHistory = history.totalCount || history.firstSeen || history.lastSeen || history.entryCount > 0 || onViewAllInJournal;
+
     if (!isOpen || !card) return null;
 
     const originalCard = getCanonicalCard(card);
@@ -120,17 +171,17 @@ export function CardModal({
 
     return (
         <div
-            className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6"
+            className="fixed inset-0 z-[100] flex items-center justify-center p-2 sm:p-4"
             role="dialog"
             aria-modal="true"
             aria-labelledby={titleId}
             aria-describedby={descId}
         >
             <motion.div
-                initial={{ opacity: 0 }}
+                initial={prefersReducedMotion ? false : { opacity: 0 }}
                 animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                className="absolute inset-0 bg-main/90 backdrop-blur-sm"
+                exit={prefersReducedMotion ? { opacity: 0 } : { opacity: 0 }}
+                className="absolute inset-0 bg-main/85 backdrop-blur-sm"
                 onClick={onClose}
                 aria-hidden="true"
             />
@@ -138,68 +189,63 @@ export function CardModal({
             <motion.div
                 layoutId={layoutId}
                 ref={modalRef}
-                className="relative w-full max-w-lg max-h-[85dvh] overflow-y-auto bg-surface border border-primary/30 rounded-2xl shadow-2xl shadow-black/50 flex flex-col"
+                className="relative w-full max-w-md max-h-[80dvh] overflow-y-auto bg-surface border border-primary/30 rounded-xl shadow-2xl shadow-black/50 flex flex-col"
                 tabIndex={-1}
                 role="document"
                 onTouchStart={handleTouchStart}
                 onTouchEnd={handleTouchEnd}
                 style={{
                     // Safe area padding for notch/Dynamic Island
-                    paddingTop: 'max(1.5rem, env(safe-area-inset-top))',
-                    paddingRight: 'max(1rem, env(safe-area-inset-right))',
-                    paddingBottom: 'max(1.5rem, env(safe-area-inset-bottom))',
-                    paddingLeft: 'max(1rem, env(safe-area-inset-left))'
+                    paddingTop: 'max(0.75rem, env(safe-area-inset-top))',
+                    paddingRight: 'max(0.75rem, env(safe-area-inset-right))',
+                    paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))',
+                    paddingLeft: 'max(0.75rem, env(safe-area-inset-left))'
                 }}
             >
-                <button
-                    onClick={onClose}
-                    className="absolute top-3 right-3 p-3 text-accent/70 hover:text-main hover:bg-surface-muted/50 rounded-full transition-colors z-10 touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-                    style={{
-                        // Ensure close button respects safe area
-                        top: 'max(0.75rem, env(safe-area-inset-top))',
-                        right: 'max(0.75rem, env(safe-area-inset-right))'
-                    }}
-                    aria-label="Close modal"
-                >
-                    <X className="w-6 h-6" />
-                </button>
+                {/* Compact header with integrated navigation and close */}
+                <div className="flex items-center justify-between gap-2 px-1 pb-2 border-b border-primary/10">
+                    {hasNavigation ? (
+                        <>
+                            <button
+                                type="button"
+                                onClick={() => onNavigate?.('prev')}
+                                disabled={!canNavigatePrev}
+                                className="flex items-center gap-1 text-xs text-muted hover:text-main disabled:opacity-30 disabled:cursor-not-allowed transition touch-manipulation min-h-[36px] min-w-[36px] px-1"
+                                aria-label="Previous card"
+                            >
+                                <CaretLeft className="w-4 h-4" />
+                                <span className="hidden xs:inline">Prev</span>
+                            </button>
+                            <span className="text-[11px] text-muted font-medium">{navigationLabel}</span>
+                            <button
+                                type="button"
+                                onClick={() => onNavigate?.('next')}
+                                disabled={!canNavigateNext}
+                                className="flex items-center gap-1 text-xs text-muted hover:text-main disabled:opacity-30 disabled:cursor-not-allowed transition touch-manipulation min-h-[36px] min-w-[36px] px-1"
+                                aria-label="Next card"
+                            >
+                                <span className="hidden xs:inline">Next</span>
+                                <CaretRight className="w-4 h-4" />
+                            </button>
+                        </>
+                    ) : (
+                        <div className="flex-1" />
+                    )}
+                    <button
+                        onClick={onClose}
+                        className="p-1.5 text-accent/70 hover:text-main hover:bg-surface-muted/50 rounded-full transition-colors touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ml-auto"
+                        aria-label="Close modal"
+                    >
+                        <X className="w-5 h-5" />
+                    </button>
+                </div>
 
-                {/* Navigation bar */}
-                {hasNavigation && (
-                    <div className="flex items-center justify-between px-6 sm:px-8 pt-2 pb-2 border-b border-primary/10">
-                        <button
-                            type="button"
-                            onClick={() => onNavigate?.('prev')}
-                            disabled={!canNavigatePrev}
-                            className="flex items-center gap-1.5 text-sm text-muted hover:text-main disabled:opacity-30 disabled:cursor-not-allowed transition touch-manipulation min-h-[44px] px-2 -ml-2"
-                            aria-label="Previous card"
-                        >
-                            <CaretLeft className="w-5 h-5" />
-                            <span>Prev</span>
-                        </button>
-                        <span className="text-xs text-muted font-medium">{navigationLabel}</span>
-                        <button
-                            type="button"
-                            onClick={() => onNavigate?.('next')}
-                            disabled={!canNavigateNext}
-                            className="flex items-center gap-1.5 text-sm text-muted hover:text-main disabled:opacity-30 disabled:cursor-not-allowed transition touch-manipulation min-h-[44px] px-2 -mr-2"
-                            aria-label="Next card"
-                        >
-                            <span>Next</span>
-                            <CaretRight className="w-5 h-5" />
-                        </button>
-                    </div>
-                )}
-
-                <div className="p-6 sm:p-8 flex flex-col items-center text-center">
-                    <h3 className="text-accent font-serif text-lg sm:text-xl mb-2">{position}</h3>
-                    <h2 id={titleId} className="text-2xl sm:text-3xl font-serif text-main mb-6">
-                        {card.name} {card.isReversed && <span className="text-primary/60 text-lg align-middle">(Reversed)</span>}
-                    </h2>
-
+                {/* Compact horizontal layout: image left, content right */}
+                <div className="p-3 flex gap-3">
+                    {/* Card image - smaller and on the left */}
                     <motion.div
                         layoutId={imageLayoutId}
-                        className={`relative w-full max-w-[300px] aspect-[2/3] mb-8 rounded-xl shadow-2xl border-2 border-primary/20 overflow-hidden ${card.isReversed ? 'rotate-180' : ''}`}
+                        className={`relative flex-shrink-0 w-20 sm:w-28 aspect-[2/3] rounded-lg shadow-lg border border-primary/20 overflow-hidden ${card.isReversed ? 'rotate-180' : ''}`}
                     >
                         <img
                             src={cardImage}
@@ -210,97 +256,105 @@ export function CardModal({
                                 event.currentTarget.src = FALLBACK_IMAGE;
                             }}
                         />
-                        {/* Interactive symbol overlay - tap symbols to learn meanings */}
-                        <InteractiveCardOverlay card={card} />
+                        {/* Interactive symbol overlay - only on larger screens where it's usable */}
+                        {!isSmallScreen && <InteractiveCardOverlay card={card} />}
                     </motion.div>
 
-                    <div className="w-full space-y-6 text-left">
-                        <div className="bg-surface-muted/50 rounded-xl p-5 border border-primary/10">
-                            <h4 className="text-accent font-semibold mb-2 text-sm uppercase tracking-wider">Meaning</h4>
-                            <p id={descId} className="text-main/90 leading-relaxed text-lg">
-                                {meaning}
-                            </p>
-                        </div>
+                    {/* Card info - right side */}
+                    <div className="flex-1 min-w-0">
+                        <p className="text-[10px] uppercase tracking-widest text-muted">{position}</p>
+                        <h2 id={titleId} className="text-base sm:text-lg font-serif text-main leading-tight">
+                            {card.name}
+                            {card.isReversed && (
+                                <span className="ml-1.5 text-xs text-primary/70 font-normal">(Rev)</span>
+                            )}
+                        </h2>
+                        <p id={descId} className="mt-2 text-sm text-main/90 leading-relaxed">
+                            {meaning}
+                        </p>
+                    </div>
+                </div>
 
-                        {(history.totalCount || history.firstSeen || history.lastSeen || history.entryCount > 0 || onViewAllInJournal) && (
-                            <div className="bg-surface-muted/30 rounded-xl p-5 border border-primary/10">
-                                <h4 className="text-accent font-semibold mb-3 text-sm uppercase tracking-wider">Your history with this card</h4>
+                {/* Collapsible sections */}
+                <div className="px-3 pb-3 space-y-2">
+                    {/* History section - collapsed by default */}
+                    {hasHistory && (
+                        <CollapsibleSection
+                            title="History"
+                            icon={Clock}
+                            badge={history.totalCount ? `${history.totalCount}x` : null}
+                        >
+                            <div className="space-y-2.5">
+                                {/* Compact stats row */}
+                                <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs">
+                                    {history.totalCount != null && (
+                                        <span className="text-muted">
+                                            Drawn <span className="font-semibold text-main">{history.totalCount}</span> time{history.totalCount !== 1 ? 's' : ''}
+                                        </span>
+                                    )}
+                                    {history.firstSeen && (
+                                        <span className="text-muted">
+                                            First: <span className="text-main">{history.firstSeen}</span>
+                                        </span>
+                                    )}
+                                    {history.lastSeen && (
+                                        <span className="text-muted">
+                                            Last: <span className="text-main">{history.lastSeen}</span>
+                                        </span>
+                                    )}
+                                </div>
 
-                                <dl className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                                    <div className="rounded-lg border border-primary/10 bg-surface-muted/40 p-3">
-                                        <dt className="text-[11px] uppercase tracking-wider text-muted">Times drawn</dt>
-                                        <dd className="mt-1 text-lg font-semibold text-main">
-                                            {history.totalCount ?? '—'}
-                                        </dd>
-                                    </div>
-                                    <div className="rounded-lg border border-primary/10 bg-surface-muted/40 p-3">
-                                        <dt className="text-[11px] uppercase tracking-wider text-muted">First seen</dt>
-                                        <dd className="mt-1 text-sm font-semibold text-main">
-                                            {history.firstSeen ?? '—'}
-                                        </dd>
-                                    </div>
-                                    <div className="rounded-lg border border-primary/10 bg-surface-muted/40 p-3">
-                                        <dt className="text-[11px] uppercase tracking-wider text-muted">Last seen</dt>
-                                        <dd className="mt-1 text-sm font-semibold text-main">
-                                            {history.lastSeen ?? '—'}
-                                        </dd>
-                                    </div>
-                                </dl>
-
+                                {/* Journal entries */}
                                 {(history.entryCount > 0 || onViewAllInJournal) && (
-                                    <div className="mt-4">
-                                        <div className="flex items-center justify-between gap-3">
-                                            <p className="text-sm text-main/80">
-                                                Appears in <span className="font-semibold text-main">{history.entryCount}</span> journal entr{history.entryCount === 1 ? 'y' : 'ies'}
+                                    <div className="pt-1 border-t border-primary/10">
+                                        <div className="flex items-center justify-between gap-2 mb-1.5">
+                                            <p className="text-xs text-muted">
+                                                In <span className="font-semibold text-main">{history.entryCount}</span> journal entr{history.entryCount === 1 ? 'y' : 'ies'}
                                             </p>
                                             {onViewAllInJournal && (
                                                 <button
                                                     type="button"
                                                     onClick={onViewAllInJournal}
-                                                    className="text-xs font-semibold text-accent hover:text-main underline underline-offset-4"
+                                                    className="text-[11px] font-semibold text-accent hover:text-main underline underline-offset-2"
                                                 >
-                                                    View in Journal
+                                                    View all
                                                 </button>
                                             )}
                                         </div>
-
                                         {history.entryCount > 0 && (
-                                            <div className="mt-3 space-y-2">
-                                                {history.entries.slice(0, 6).map((entry) => {
-                                                    const label = formatDate(entry?.ts) || 'Journal entry';
-                                                    const question = (entry?.question || '').trim();
+                                            <div className="space-y-1">
+                                                {history.entries.slice(0, 3).map((entry) => {
+                                                    const label = formatDate(entry?.ts) || 'Entry';
                                                     const spread = (entry?.spread || '').trim();
-                                                    const subtitle = [spread, question].filter(Boolean).join(' · ');
                                                     return (
                                                         <button
-                                                            key={entry?.id || `${entry?.ts || 'entry'}-${subtitle}`}
+                                                            key={entry?.id || `${entry?.ts || 'entry'}-${spread}`}
                                                             type="button"
                                                             onClick={() => onOpenEntry?.(entry)}
-                                                            className="w-full rounded-lg border border-primary/10 bg-surface-muted/40 p-3 text-left hover:bg-surface-muted/60 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                                                            className="w-full flex items-center justify-between gap-2 rounded border border-primary/10 bg-surface-muted/30 px-2 py-1.5 text-left hover:bg-surface-muted/50 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
                                                         >
-                                                            <div className="flex items-baseline justify-between gap-3">
-                                                                <p className="text-sm font-semibold text-main">{label}</p>
-                                                                <p className="text-[11px] text-muted">Open</p>
-                                                            </div>
-                                                            {subtitle && (
-                                                                <p className="mt-1 text-xs text-main/75 line-clamp-2">
-                                                                    {subtitle}
-                                                                </p>
-                                                            )}
+                                                            <span className="text-xs text-main truncate">{label}</span>
+                                                            {spread && <span className="text-[10px] text-muted truncate">{spread}</span>}
                                                         </button>
                                                     );
                                                 })}
+                                                {history.entryCount > 3 && (
+                                                    <p className="text-[10px] text-muted text-center">+{history.entryCount - 3} more</p>
+                                                )}
                                             </div>
                                         )}
                                     </div>
                                 )}
                             </div>
-                        )}
+                        </CollapsibleSection>
+                    )}
 
+                    {/* Symbol insights - collapsed by default */}
+                    <CollapsibleSection title="Symbols" icon={Sparkle}>
                         <div className="flex justify-center">
                             <CardSymbolInsights card={card} position={position} />
                         </div>
-                    </div>
+                    </CollapsibleSection>
                 </div>
             </motion.div>
         </div>

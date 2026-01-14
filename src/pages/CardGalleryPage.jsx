@@ -127,7 +127,7 @@ function CardItem({ card, stats, onSelect }) {
         <div className="flex justify-between items-start">
           {isFound ? (
             <span className="inline-flex items-center justify-center min-w-[1.5rem] h-6 px-1.5 rounded-full bg-amber-300/90 text-[10px] font-bold text-slate-900 shadow-sm">
-              {count}×
+              {count}x
             </span>
           ) : (
             <LockKey className="w-4 h-4 text-white/30" />

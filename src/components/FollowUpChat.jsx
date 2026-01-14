@@ -40,6 +40,7 @@ export default function FollowUpChat({
     userQuestion,
     sessionSeed,
     selectedSpread,
+    followUps,
     setFollowUps
   } = useReading();
   const { isAuthenticated } = useAuth();
@@ -117,6 +118,14 @@ export default function FollowUpChat({
   // Use requestId as primary signal, sessionSeed as fallback for offline/error paths
   const resetKey = readingMeta?.requestId || sessionSeed || null;
   const prevResetKeyRef = useRef(resetKey);
+  const followUpsKeyRef = useRef(resetKey);
+
+  // Track which reading the current follow-ups belong to.
+  useEffect(() => {
+    if (Array.isArray(followUps) && followUps.length > 0) {
+      followUpsKeyRef.current = resetKey;
+    }
+  }, [followUps]);
 
   useEffect(() => {
     if (prevResetKeyRef.current !== resetKey && resetKey !== null) {
@@ -127,10 +136,53 @@ export default function FollowUpChat({
       setShowSuggestions(false);
       setServerTurn(null); // Reset server turn on new reading
       setIsAtBottom(true);
-      setFollowUps([]);
+      const preserveFollowUps =
+        Array.isArray(followUps) &&
+        followUps.length > 0 &&
+        followUpsKeyRef.current === resetKey;
+      if (!preserveFollowUps) {
+        setFollowUps([]);
+      }
       prevResetKeyRef.current = resetKey;
     }
   }, [resetKey, setFollowUps]);
+
+  // Hydrate chat history from journal follow-ups when available.
+  useEffect(() => {
+    if (!Array.isArray(followUps) || followUps.length === 0) return;
+    if (messages.length > 0) return;
+
+    const hydratedMessages = [];
+    const turnNumbers = [];
+
+    followUps.forEach((turn, idx) => {
+      const turnNumber = Number.isFinite(turn?.turnNumber) ? Number(turn.turnNumber) : idx + 1;
+      turnNumbers.push(turnNumber);
+      if (turn?.question) {
+        hydratedMessages.push({
+          id: `followup-${turnNumber}-q`,
+          role: 'user',
+          content: turn.question
+        });
+      }
+      if (turn?.answer) {
+        hydratedMessages.push({
+          id: `followup-${turnNumber}-a`,
+          role: 'assistant',
+          content: turn.answer,
+          journalContext: turn?.journalContext || null
+        });
+      }
+    });
+
+    if (hydratedMessages.length > 0) {
+      setMessages(hydratedMessages);
+      setShowSuggestions(false);
+      setIsAtBottom(true);
+      const maxTurn = turnNumbers.length ? Math.max(...turnNumbers) : followUps.length;
+      setServerTurn(maxTurn);
+    }
+  }, [followUps, messages.length]);
 
   const scrollToBottom = useCallback((behavior = 'smooth') => {
     if (messagesEndRef.current) {

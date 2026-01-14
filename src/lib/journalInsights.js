@@ -1098,7 +1098,7 @@ export async function copyJournalShareSummary(stats, options = {}) {
   );
 
   if (Array.isArray(stats.frequentCards) && stats.frequentCards.length > 0) {
-    const top = stats.frequentCards.map(card => `${card.name} (${card.count}×)`).join(', ');
+    const top = stats.frequentCards.map(card => `${card.name} (${card.count}x)`).join(', ');
     summaryLines.push(`Top cards: ${top}`);
   }
 

@@ -187,7 +187,7 @@ function FilterDropdown({ label, options, value, onChange, multiple = false, but
   );
 }
 
-export function JournalFilters({ filters, onChange, contexts = [], spreads = [], decks = [], variant = 'full', viewMode = 'comfortable', onViewModeChange }) {
+export function JournalFilters({ filters, onChange, contexts = [], spreads = [], decks = [], variant = 'full', viewMode = 'comfortable', onViewModeChange, resultCount, totalCount }) {
   const isCompact = variant === 'compact';
   const [savedFilters, setSavedFilters] = useState(() => {
     if (typeof window === 'undefined') return [];
@@ -450,7 +450,7 @@ export function JournalFilters({ filters, onChange, contexts = [], spreads = [],
             aria-expanded={advancedOpen}
             className="flex min-h-[44px] w-full items-center justify-between rounded-xl border border-[color:var(--border-warm-light)] bg-[color:rgba(212,184,150,0.05)] px-3 py-3 text-sm font-semibold text-[color:var(--text-main)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:rgba(232,218,195,0.45)]"
           >
-            <span>Advanced filters</span>
+            <span>More filters</span>
             <CaretDown className={`h-4 w-4 transition-transform ${advancedOpen ? 'rotate-180' : ''}`} aria-hidden="true" />
           </button>
         )}
@@ -684,8 +684,8 @@ export function JournalFilters({ filters, onChange, contexts = [], spreads = [],
         <div className={isCompact ? 'flex flex-col gap-4' : 'grid gap-4 lg:grid-cols-[1.05fr_0.95fr]'}>
           {/* Search + saved filters */}
           <div className="rounded-2xl border border-[color:var(--border-warm-light)] bg-gradient-to-br from-[var(--panel-dark-1)] via-[var(--panel-dark-2)] to-[var(--panel-dark-3)] p-4 ring-1 ring-[color:var(--border-warm-light)] shadow-[0_18px_45px_-30px_rgba(0,0,0,0.8)]">
-            <div className="flex flex-wrap items-center gap-3">
-              <div className="relative flex-1 min-w-[220px]">
+            <div className="space-y-2">
+              <div className="relative min-w-[220px]">
                 <div className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-[color:var(--text-muted)]">
                   <JournalSearchIcon className="h-4 w-4" aria-hidden />
                 </div>
@@ -698,6 +698,28 @@ export function JournalFilters({ filters, onChange, contexts = [], spreads = [],
                   className="w-full min-h-[44px] rounded-xl border border-[color:var(--border-warm-light)] bg-[color:rgba(15,14,19,0.80)] px-9 py-2.5 text-sm text-[color:var(--text-main)] placeholder:text-[color:var(--color-gray-light)] focus:outline-none focus:ring-2 focus:ring-[color:rgba(232,218,195,0.50)]"
                 />
               </div>
+
+              {/* Search feedback: result count */}
+              {filters.query.trim() && typeof resultCount === 'number' && typeof totalCount === 'number' && (
+                <div className="text-xs text-[color:var(--text-muted)]">
+                  Found <span className="font-semibold text-[color:var(--text-main)]">{resultCount}</span> of {totalCount} readings
+                  {resultCount === 0 && ' - try different keywords'}
+                </div>
+              )}
+
+              {/* Search scope help */}
+              <details className="text-[11px] text-[color:var(--color-gray-light)]">
+                <summary className="cursor-pointer hover:text-[color:var(--text-muted)] transition-colors">
+                  What fields are searched?
+                </summary>
+                <ul className="mt-1.5 space-y-0.5 pl-4 text-[color:var(--text-muted)]">
+                  <li>Questions you asked</li>
+                  <li>Cards drawn (names, positions)</li>
+                  <li>AI reading narratives</li>
+                  <li>Your reflections and notes</li>
+                  <li>Spread and context types</li>
+                </ul>
+              </details>
             </div>
 
             {showSavedFiltersPanel && (
@@ -860,7 +882,7 @@ export function JournalFilters({ filters, onChange, contexts = [], spreads = [],
                       type="button"
                       onClick={() => onViewModeChange('comfortable')}
                       aria-pressed={viewMode === 'comfortable'}
-                      title="Comfortable view"
+                      title="Comfortable view - shows more details"
                       className={`flex min-h-[40px] items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:rgba(232,218,195,0.45)] ${
                         viewMode === 'comfortable'
                           ? 'bg-[color:rgba(212,184,150,0.15)] text-[color:var(--text-main)] shadow-[0_4px_12px_-6px_rgba(212,184,150,0.5)]'
@@ -868,13 +890,14 @@ export function JournalFilters({ filters, onChange, contexts = [], spreads = [],
                       }`}
                     >
                       <SquaresFour className="h-4 w-4" aria-hidden="true" />
+                      <span className="sm:hidden">Cards</span>
                       <span className="hidden sm:inline">Comfortable</span>
                     </button>
                     <button
                       type="button"
                       onClick={() => onViewModeChange('compact')}
                       aria-pressed={viewMode === 'compact'}
-                      title="Compact view"
+                      title="Compact view - shows more entries"
                       className={`flex min-h-[40px] items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:rgba(232,218,195,0.45)] ${
                         viewMode === 'compact'
                           ? 'bg-[color:rgba(212,184,150,0.15)] text-[color:var(--text-main)] shadow-[0_4px_12px_-6px_rgba(212,184,150,0.5)]'
@@ -882,6 +905,7 @@ export function JournalFilters({ filters, onChange, contexts = [], spreads = [],
                       }`}
                     >
                       <ListBullets className="h-4 w-4" aria-hidden="true" />
+                      <span className="sm:hidden">List</span>
                       <span className="hidden sm:inline">Compact</span>
                     </button>
                   </div>

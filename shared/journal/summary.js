@@ -30,7 +30,7 @@ export function buildHeuristicJourneySummary(entries, statsOverride) {
 
   const cardLine = stats.frequentCards.length > 0
     ? `Recurring cards: ${stats.frequentCards
-        .map(card => `${card.name}${card.reversed ? ` · ${card.reversed} rev` : ''}`)
+        .map(card => `${card.name}${card.reversed ? ` - ${card.reversed} rev` : ''}`)
         .join(', ')}.`
     : '';
 

@@ -30,36 +30,36 @@ const OUTLINE_BUTTON_CLASS = `
  * @param {boolean} props.isAuthenticated - User auth state
  * @param {Function} props.onCreateShareLink - Callback for share links (auth only)
  * @param {Array} props.entries - Entries to export (respects filters)
+ * @param {Array} props.allEntries - All entries (unfiltered) for "recent" scope
  * @param {Object} props.stats - Stats for PDF export
  * @param {string} props.scopeLabel - Human-friendly label for current scope
+ * @param {boolean} props.filtersActive - Whether filters are currently active
  */
-function ExportSection({ isAuthenticated, onCreateShareLink, entries, stats, scopeLabel = 'Current view' }) {
+function ExportSection({ isAuthenticated, onCreateShareLink, entries, allEntries, stats, scopeLabel = 'Current view', filtersActive = false }) {
   const [isCreatingLink, setIsCreatingLink] = useState(false);
   const [linkCreated, setLinkCreated] = useState(null);
+  const [linkCopyStatus, setLinkCopyStatus] = useState(null);
   const [exportStatus, setExportStatus] = useState(null);
   const [shareStatus, setShareStatus] = useState(null);
-  const [useScopedEntries, setUseScopedEntries] = useState(true);
-  const [shareLimit, setShareLimit] = useState(() => Math.min(5, Math.max(1, (entries?.length || 5))));
+  // Share scope: 'recent' (most recent N from all), 'filtered' (current filtered view)
+  const [shareScope, setShareScope] = useState('recent');
+  const [shareLimit, setShareLimit] = useState(5);
 
   const hasEntries = Array.isArray(entries) && entries.length > 0;
-  const scopedEntryIds = Array.isArray(entries)
-    ? entries
+  const hasAllEntries = Array.isArray(allEntries) && allEntries.length > 0;
+  const effectiveShareLimit = Number.isFinite(Number(shareLimit)) ? Math.max(1, Math.min(10, Number(shareLimit))) : 5;
+
+  // Compute share entry IDs based on selected scope
+  const shareEntryIds = (() => {
+    const sourceEntries = shareScope === 'filtered' ? entries : allEntries;
+    if (!Array.isArray(sourceEntries)) return [];
+    return sourceEntries
       .map((entry) => (entry?.id ? String(entry.id) : '').trim())
       .filter(Boolean)
-    : [];
-  const effectiveShareLimit = Number.isFinite(Number(shareLimit)) ? Math.max(1, Math.min(10, Number(shareLimit))) : 5;
-  const scopedShareIds = useScopedEntries && scopedEntryIds.length > 0
-    ? scopedEntryIds.slice(0, Math.min(effectiveShareLimit, scopedEntryIds.length))
-    : [];
+      .slice(0, effectiveShareLimit);
+  })();
 
-  useEffect(() => {
-    const nextDefault = Math.min(5, Math.max(1, entries?.length || 5));
-    setShareLimit((prev) => {
-      const numeric = Number(prev);
-      if (!Number.isFinite(numeric)) return nextDefault;
-      return Math.min(Math.max(numeric, 1), 10);
-    });
-  }, [entries?.length]);
+  const shareEntryCount = shareEntryIds.length;
 
   const handleExportPdf = () => {
     if (!hasEntries) return;
@@ -110,16 +110,65 @@ function ExportSection({ isAuthenticated, onCreateShareLink, entries, stats, sco
     }
 
     setIsCreatingLink(true);
+    setLinkCopyStatus(null);
     try {
       const result = await onCreateShareLink({
         scope: 'journal',
-        entryIds: scopedShareIds,
-        limit: scopedShareIds.length ? undefined : effectiveShareLimit,
+        entryIds: shareEntryIds,
+        limit: shareEntryIds.length ? undefined : effectiveShareLimit,
       });
       if (result?.url) {
-        setLinkCreated(result.url);
-        // Copy to clipboard
-        await navigator.clipboard?.writeText(result.url);
+        const makeAbsoluteUrl = (value) => {
+          if (!value || typeof value !== 'string') return '';
+          const trimmed = value.trim();
+          if (!trimmed) return '';
+          if (/^https?:\/\//i.test(trimmed)) return trimmed;
+          if (typeof window === 'undefined') return trimmed;
+          const path = trimmed.startsWith('/') ? trimmed : `/${trimmed}`;
+          return `${window.location.origin}${path}`;
+        };
+
+        const copyToClipboard = async (text) => {
+          if (typeof navigator === 'undefined' || typeof document === 'undefined') return false;
+          if (!text) return false;
+          try {
+            if (navigator?.clipboard?.writeText) {
+              await navigator.clipboard.writeText(text);
+              return true;
+            }
+          } catch (error) {
+            console.warn('Clipboard writeText failed:', error);
+          }
+
+          // Fallback for older browsers / permission issues
+          try {
+            const textarea = document.createElement('textarea');
+            textarea.value = text;
+            textarea.setAttribute('readonly', '');
+            textarea.style.position = 'fixed';
+            textarea.style.top = '0';
+            textarea.style.left = '0';
+            textarea.style.opacity = '0';
+            document.body.appendChild(textarea);
+            textarea.focus();
+            textarea.select();
+            const ok = document.execCommand('copy');
+            document.body.removeChild(textarea);
+            return ok;
+          } catch (error) {
+            console.warn('Clipboard fallback copy failed:', error);
+            return false;
+          }
+        };
+
+        const fullUrl = makeAbsoluteUrl(result.url);
+        setLinkCreated(fullUrl || result.url);
+        const copied = await copyToClipboard(fullUrl || result.url);
+        setLinkCopyStatus(
+          copied
+            ? { type: 'success', message: 'Link copied to clipboard!' }
+            : { type: 'info', message: 'Link created — tap to select and copy.' }
+        );
       }
     } catch (error) {
       console.error('Failed to create share link:', error);
@@ -142,6 +191,13 @@ function ExportSection({ isAuthenticated, onCreateShareLink, entries, stats, sco
     const timer = setTimeout(() => setShareStatus(null), 3000);
     return () => clearTimeout(timer);
   }, [shareStatus]);
+
+  // Reset link copy status after brief display
+  useEffect(() => {
+    if (!linkCopyStatus) return undefined;
+    const timer = setTimeout(() => setLinkCopyStatus(null), 3000);
+    return () => clearTimeout(timer);
+  }, [linkCopyStatus]);
 
   return (
     <div className="space-y-4">
@@ -180,9 +236,8 @@ function ExportSection({ isAuthenticated, onCreateShareLink, entries, stats, sco
         {/* Export status feedback */}
         {exportStatus && (
           <p
-            className={`mt-2 text-xs ${
-              exportStatus.type === 'success' ? 'text-emerald-300' : 'text-red-300'
-            }`}
+            className={`mt-2 text-xs ${exportStatus.type === 'success' ? 'text-emerald-300' : 'text-red-300'
+              }`}
           >
             {exportStatus.message}
           </p>
@@ -201,50 +256,81 @@ function ExportSection({ isAuthenticated, onCreateShareLink, entries, stats, sco
       {/* Share link (authenticated only) */}
       {isAuthenticated && onCreateShareLink && (
         <div>
-          <p className="text-xs text-amber-100/60 mb-2">Share a Reading</p>
+          <p className="text-xs text-amber-100/60 mb-2">Share Journal Entries</p>
 
-          <div className="mb-3 space-y-2 rounded-lg border border-amber-300/15 bg-amber-200/5 p-3 text-[12px] text-amber-100/80">
-            <div className="flex items-center justify-between gap-2">
-              <label className="flex items-center gap-2">
+          <div className="mb-3 space-y-3 rounded-lg border border-amber-300/15 bg-amber-200/5 p-3 text-[12px] text-amber-100/80">
+            {/* Scope selection */}
+            <fieldset className="space-y-2">
+              <legend className="text-[10px] uppercase tracking-wider text-amber-100/50 mb-1">What to share</legend>
+
+              <label className={`flex items-start gap-2 p-2 rounded-lg cursor-pointer transition-colors ${shareScope === 'recent' ? 'bg-amber-200/10' : 'hover:bg-amber-200/5'}`}>
                 <input
-                  type="checkbox"
-                  className="h-4 w-4 rounded border-amber-200/30 bg-transparent text-amber-300 focus:ring-amber-200/40 focus:ring-offset-0"
-                  checked={useScopedEntries}
-                  onChange={(event) => setUseScopedEntries(event.target.checked)}
+                  type="radio"
+                  name="shareScope"
+                  value="recent"
+                  checked={shareScope === 'recent'}
+                  onChange={() => setShareScope('recent')}
+                  className="mt-0.5 h-4 w-4 border-amber-200/30 bg-transparent text-amber-300 focus:ring-amber-200/40 focus:ring-offset-0"
                 />
-                Use current filters ({hasEntries ? entries.length : 0})
+                <div>
+                  <span className="font-medium">Most recent readings</span>
+                  <p className="text-[11px] text-amber-100/60 mt-0.5">
+                    Share your {effectiveShareLimit} most recent entries ({hasAllEntries ? allEntries.length : 0} total)
+                  </p>
+                </div>
               </label>
-              <label className="flex items-center gap-1 text-[11px] text-amber-100/70">
-                Limit
-                <input
-                  type="number"
-                  min="1"
-                  max="10"
-                  value={effectiveShareLimit}
-                  onChange={(event) => setShareLimit(event.target.value)}
-                  className="w-16 rounded border border-amber-200/25 bg-amber-200/5 px-2 py-1 text-xs text-amber-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/40"
-                />
-              </label>
+
+              {filtersActive && (
+                <label className={`flex items-start gap-2 p-2 rounded-lg cursor-pointer transition-colors ${shareScope === 'filtered' ? 'bg-amber-200/10' : 'hover:bg-amber-200/5'}`}>
+                  <input
+                    type="radio"
+                    name="shareScope"
+                    value="filtered"
+                    checked={shareScope === 'filtered'}
+                    onChange={() => setShareScope('filtered')}
+                    className="mt-0.5 h-4 w-4 border-amber-200/30 bg-transparent text-amber-300 focus:ring-amber-200/40 focus:ring-offset-0"
+                  />
+                  <div>
+                    <span className="font-medium">Current filtered view</span>
+                    <p className="text-[11px] text-amber-100/60 mt-0.5">
+                      Share entries matching your filters ({hasEntries ? entries.length : 0} entries)
+                    </p>
+                  </div>
+                </label>
+              )}
+            </fieldset>
+
+            {/* Limit control */}
+            <div className="flex items-center justify-between gap-2 pt-1 border-t border-amber-200/10">
+              <span className="text-[11px] text-amber-100/70">Max entries to share</span>
+              <input
+                type="number"
+                min="1"
+                max="10"
+                value={effectiveShareLimit}
+                onChange={(event) => setShareLimit(event.target.value)}
+                className="w-16 rounded border border-amber-200/25 bg-amber-200/5 px-2 py-1 text-xs text-amber-50 text-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/40"
+              />
             </div>
-            <p className="text-[11px] text-amber-100/60">
-              {useScopedEntries && scopedShareIds.length > 0
-                ? `Will include ${scopedShareIds.length} entr${scopedShareIds.length === 1 ? 'y' : 'ies'} from this view`
-                : 'Shares the most recent readings (up to limit)'}
-            </p>
-            <p className="text-[11px] text-amber-100/60">Scope: {scopeLabel}</p>
+
+            {/* Summary */}
+            <div className="rounded bg-amber-200/5 px-2 py-1.5 text-[11px] text-amber-100/70">
+              Will share <span className="font-semibold text-amber-50">{shareEntryCount}</span> entr{shareEntryCount === 1 ? 'y' : 'ies'}
+              {shareScope === 'filtered' ? ' from filtered view' : ' (most recent)'}
+            </div>
           </div>
 
           {linkCreated ? (
             <div className="rounded-lg bg-emerald-500/10 border border-emerald-500/20 p-3">
               <p className="text-xs text-emerald-100 mb-2 flex items-center gap-1">
                 <LinkIcon className="h-3 w-3" />
-                Link copied to clipboard!
+                {linkCopyStatus?.message || 'Link ready'}
               </p>
               <input
                 type="text"
                 value={linkCreated}
                 readOnly
-                className="w-full text-xs bg-transparent text-emerald-100/80 truncate"
+                className="w-full text-xs bg-transparent text-emerald-100/80"
                 onClick={(e) => e.target.select()}
               />
               <button
@@ -285,9 +371,8 @@ function ExportSection({ isAuthenticated, onCreateShareLink, entries, stats, sco
         </button>
         {shareStatus && (
           <p
-            className={`mt-2 text-[10px] ${
-              shareStatus.type === 'success' ? 'text-emerald-300' : 'text-red-300'
-            }`}
+            className={`mt-2 text-[10px] ${shareStatus.type === 'success' ? 'text-emerald-300' : 'text-red-300'
+              }`}
           >
             {shareStatus.message}
           </p>

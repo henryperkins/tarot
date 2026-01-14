@@ -128,6 +128,8 @@ export default function JourneyContent({
     scopeLabel,
     // For export functionality - use exportEntries to preserve full journal when unfiltered
     activeEntries: exportEntries,
+    // All entries (unfiltered) for share scope "most recent" option
+    allEntries: entries,
     exportStats,
     locale,
     timezone,
@@ -164,6 +166,7 @@ export default function JourneyContent({
     onStartReading,
     scopeLabel,
     exportEntries,
+    entries,
     exportStats,
     locale,
     timezone,

@@ -26,12 +26,14 @@ import AchievementsRow from './sections/AchievementsRow';
 import CadenceSection from './sections/CadenceSection';
 import JourneyStorySection from './sections/JourneyStorySection';
 import ExportSection from './sections/ExportSection';
+import JournalSummarySection from './sections/JournalSummarySection';
 import EmptyState from './sections/EmptyState';
 import BackfillBanner from './sections/BackfillBanner';
 
 const TABS = [
   { key: 'cards', label: 'Cards', icon: TrendUp },
   { key: 'patterns', label: 'Patterns', icon: ChartBar },
+  { key: 'summary', label: 'Summary', icon: Sparkle },
   { key: 'export', label: 'Export', icon: Export },
 ];
 
@@ -65,6 +67,7 @@ export default function JourneyMobileSheet({
   handleBackfill,
   // For export functionality
   activeEntries,
+  allEntries,
   exportStats,
   // Other props
   isAuthenticated,
@@ -344,7 +347,7 @@ export default function JourneyMobileSheet({
               <div className="text-2xl mb-1">🃏</div>
               <p className="text-lg font-serif text-amber-50">{topCard.name}</p>
               <p className="text-xs text-amber-100/70">
-                appeared {topCard.count}× {topCardScopeLabel}
+                appeared {topCard.count}x {topCardScopeLabel}
               </p>
               {topCard.hasBadge && (
                 <p className="mt-2 inline-flex items-center gap-1 text-xs text-orange-300">
@@ -546,13 +549,22 @@ export default function JourneyMobileSheet({
                 </>
               )}
 
+              {activeTab === 'summary' && (
+                <JournalSummarySection
+                  isAuthenticated={isAuthenticated}
+                  entryCount={activeEntries?.length || 0}
+                />
+              )}
+
               {activeTab === 'export' && (
                 <ExportSection
                   isAuthenticated={isAuthenticated}
                   onCreateShareLink={onCreateShareLink}
                   entries={activeEntries}
+                  allEntries={allEntries}
                   stats={exportStats}
                   scopeLabel={scopeLabel}
+                  filtersActive={filtersActive}
                 />
               )}
             </div>

@@ -69,7 +69,7 @@ function AchievementsRow({ badges = [] }) {
                 {badge.card_name || 'Badge'}
               </span>
               {typeof count === 'number' && Number.isFinite(count) && (
-                <span className="text-[10px] opacity-70">×{count}</span>
+                <span className="text-[10px] opacity-70">x{count}</span>
               )}
             </div>
           );

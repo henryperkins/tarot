@@ -71,7 +71,7 @@ function SeasonSummary({
         {topCard && (
           <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-300/15 px-2.5 py-1 text-xs text-amber-100">
             <span className="text-amber-200/80">🃏</span>
-            {topCard.name}: {topCard.count}×
+            {topCard.name}: {topCard.count}x
             {topCard.hasBadge && (
               <Fire className="h-3 w-3 text-orange-400" aria-label="streak badge" />
             )}

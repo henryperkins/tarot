@@ -73,7 +73,7 @@ function CardsCallingYou({ cards = [], badges = [] }) {
                   className="text-amber-200/70 tabular-nums"
                   aria-label={`appeared ${card.count} times`}
                 >
-                  {card.count}×
+                  {card.count}x
                 </span>
                 {card.reversedCount > 0 && (
                   <span

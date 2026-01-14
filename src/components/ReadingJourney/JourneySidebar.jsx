@@ -23,6 +23,7 @@ import AchievementsRow from './sections/AchievementsRow';
 import CadenceSection from './sections/CadenceSection';
 import JourneyStorySection from './sections/JourneyStorySection';
 import ExportSection from './sections/ExportSection';
+import JournalSummarySection from './sections/JournalSummarySection';
 import EmptyState from './sections/EmptyState';
 import BackfillBanner from './sections/BackfillBanner';
 import PatternAlertBanner from '../PatternAlertBanner';
@@ -97,6 +98,7 @@ export default function JourneySidebar({
   handleBackfill,
   // For export functionality
   activeEntries,
+  allEntries,
   exportStats,
   // Other props
   isAuthenticated,
@@ -111,6 +113,7 @@ export default function JourneySidebar({
   const [openSections, setOpenSections] = useState({
     cards: true,
     patterns: false,
+    summary: false,
     export: false,
   });
 
@@ -382,6 +385,19 @@ export default function JourneySidebar({
             </div>
           </CollapsibleSection>
 
+          {/* AI Summary Section */}
+          <CollapsibleSection
+            isOpen={openSections.summary}
+            onToggle={() => toggleSection('summary')}
+            icon={Sparkle}
+            label="AI Summary"
+          >
+            <JournalSummarySection
+              isAuthenticated={isAuthenticated}
+              entryCount={activeEntries?.length || 0}
+            />
+          </CollapsibleSection>
+
           {/* Export Section */}
           <CollapsibleSection
             isOpen={openSections.export}
@@ -393,8 +409,10 @@ export default function JourneySidebar({
               isAuthenticated={isAuthenticated}
               onCreateShareLink={onCreateShareLink}
               entries={activeEntries}
+              allEntries={allEntries}
               stats={exportStats}
               scopeLabel={scopeLabel}
+              filtersActive={filtersActive}
             />
           </CollapsibleSection>
         </div>

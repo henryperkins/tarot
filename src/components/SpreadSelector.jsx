@@ -347,10 +347,6 @@ export function SpreadSelector({
               </p>
             )}
           </div>
-          <div className="hidden sm:flex items-center gap-2 rounded-full border border-gold-soft/50 bg-surface/60 px-3 py-1 text-xs-plus text-accent backdrop-blur">
-            <Sparkle className="w-3 h-3" aria-hidden="true" />
-            <span>Guided layouts</span>
-          </div>
         </header>
 
         {/* Carousel wrapper with edge fade indicators and navigation */}
