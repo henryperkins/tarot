@@ -797,6 +797,12 @@ export function checkEvalGate(evalResult) {
 export async function runSyncEvaluationGate(env, evalParams, narrativeMetrics = {}) {
   const { requestId = 'unknown' } = evalParams;
 
+  // Ensure narrativeMetrics is included
+  const enrichedParams = {
+    ...evalParams,
+    narrativeMetrics: evalParams.narrativeMetrics || narrativeMetrics
+  };
+
   // Check if evaluation is enabled
   if (!normalizeBooleanFlag(env?.EVAL_ENABLED)) {
     console.log(`[${requestId}] [gate] Skipped: EVAL_ENABLED !== true`);
@@ -813,7 +819,7 @@ export async function runSyncEvaluationGate(env, evalParams, narrativeMetrics = 
   const startTime = Date.now();
 
   // Try AI evaluation first
-  const evalResult = await runEvaluation(env, evalParams);
+  const evalResult = await runEvaluation(env, enrichedParams);
 
   const hasEvalError = !evalResult || Boolean(evalResult.error);
   const missingFields = hasEvalError ? [] : findMissingScoreFields(evalResult?.scores);
