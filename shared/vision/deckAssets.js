@@ -23,7 +23,7 @@ export const THOTH_MAJOR_ALIASES = {
   21: 'The Universe'
 };
 
-const THOTH_MINOR_TITLES = {
+export const THOTH_MINOR_TITLES = {
   Wands: {
     1: 'Root of Fire',
     2: 'Dominion',
@@ -74,14 +74,14 @@ const THOTH_MINOR_TITLES = {
   }
 };
 
-const THOTH_SUIT_ALIASES = {
+export const THOTH_SUIT_ALIASES = {
   Pentacles: 'Disks',
   Wands: 'Wands',
   Cups: 'Cups',
   Swords: 'Swords'
 };
 
-const THOTH_COURT_ALIASES = {
+export const THOTH_COURT_ALIASES = {
   Page: 'Princess',
   Knight: 'Prince',
   Queen: 'Queen',
@@ -133,14 +133,14 @@ const MARSEILLE_SUIT_PREFIX = {
   Pentacles: 'coins'
 };
 
-const MARSEILLE_SUIT_ALIASES = {
+export const MARSEILLE_SUIT_ALIASES = {
   Wands: 'Batons',
   Cups: 'Coupes',
   Swords: 'Epees',
   Pentacles: 'Coins'
 };
 
-const MARSEILLE_COURT_ALIASES = {
+export const MARSEILLE_COURT_ALIASES = {
   Page: 'Valet',
   Knight: 'Chevalier',
   Queen: 'Reine',

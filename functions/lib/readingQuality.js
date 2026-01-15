@@ -16,10 +16,211 @@ import {
   TAROT_TERMINOLOGY_EXCLUSIONS
 } from './cardContextDetection.js';
 import { canonicalizeCardName, canonicalCardKey } from '../../shared/vision/cardNameMapping.js';
+import {
+  THOTH_MAJOR_ALIASES,
+  THOTH_MINOR_TITLES,
+  THOTH_SUIT_ALIASES,
+  THOTH_COURT_ALIASES,
+  MARSEILLE_MAJOR_ALIASES,
+  MARSEILLE_SUIT_ALIASES,
+  MARSEILLE_COURT_ALIASES
+} from '../../shared/vision/deckAssets.js';
 import { validateReadingNarrative } from './narrativeSpine.js';
 import { normalizeVisionLabel } from './visionLabels.js';
 import { MAJOR_ARCANA } from '../../src/data/majorArcana.js';
 import { MINOR_ARCANA } from '../../src/data/minorArcana.js';
+
+// ============================================================================
+// Ambiguous Thoth Epithets
+// ============================================================================
+
+/**
+ * Thoth minor arcana epithets that are common English words.
+ * These require explicit card context (like AMBIGUOUS_CARD_NAMES) to avoid
+ * false positives in hallucination detection.
+ *
+ * Note: "Strength" is already in AMBIGUOUS_CARD_NAMES as a Major Arcana name.
+ */
+export const AMBIGUOUS_THOTH_EPITHETS = new Set([
+  'love',           // Two of Cups
+  'abundance',      // Three of Cups
+  'luxury',         // Four of Cups
+  'pleasure',       // Six of Cups
+  'happiness',      // Nine of Cups
+  'peace',          // Two of Swords
+  'sorrow',         // Three of Swords
+  'truce',          // Four of Swords
+  'defeat',         // Five of Swords
+  'science',        // Six of Swords
+  'ruin',           // Ten of Swords
+  'dominion',       // Two of Wands
+  'virtue',         // Three of Wands
+  'completion',     // Four of Wands
+  'strife',         // Five of Wands
+  'victory',        // Six of Wands
+  'valour',         // Seven of Wands
+  'swiftness',      // Eight of Wands
+  'oppression',     // Ten of Wands
+  'change',         // Two of Pentacles/Disks
+  'works',          // Three of Pentacles/Disks
+  'power',          // Four of Pentacles/Disks
+  'worry',          // Five of Pentacles/Disks
+  'success',        // Six of Pentacles/Disks
+  'failure',        // Seven of Pentacles/Disks
+  'prudence',       // Eight of Pentacles/Disks
+  'gain',           // Nine of Pentacles/Disks
+  'wealth'          // Ten of Pentacles/Disks
+]);
+
+// ============================================================================
+// Deck-Aware Alias Building
+// ============================================================================
+
+/**
+ * Build all valid textual representations for a card given a deck style.
+ *
+ * For RWS, returns just the canonical name.
+ * For Thoth/Marseille, returns both the canonical name AND deck-specific aliases.
+ *
+ * @param {Object} card - Card object with name, suit, rank, rankValue, number properties
+ * @param {string} deckStyle - Deck style identifier
+ * @returns {string[]} Array of valid names for the card
+ */
+export function buildCardAliases(card, deckStyle = 'rws-1909') {
+  if (!card?.name) return [];
+
+  const aliases = [card.name];
+
+  if (deckStyle === 'thoth-a1') {
+    // Major Arcana Thoth aliases
+    if (typeof card.number === 'number') {
+      const thothName = THOTH_MAJOR_ALIASES[card.number];
+      if (thothName && thothName !== card.name) {
+        aliases.push(thothName);
+      }
+    }
+    // Minor Arcana Thoth aliases
+    else if (card.suit && typeof card.rankValue === 'number') {
+      const suitAlias = THOTH_SUIT_ALIASES[card.suit] || card.suit;
+
+      // Court cards: Page→Princess, Knight→Prince, King→Knight
+      if (card.rankValue >= 11) {
+        const courtMap = { 11: 'Page', 12: 'Knight', 13: 'Queen', 14: 'King' };
+        const baseRank = courtMap[card.rankValue];
+        const thothRank = THOTH_COURT_ALIASES[baseRank] || baseRank;
+        const thothCourtName = `${thothRank} of ${suitAlias}`;
+        if (thothCourtName !== card.name) {
+          aliases.push(thothCourtName);
+        }
+      }
+      // Pip cards: include epithet forms
+      else {
+        const epithet = THOTH_MINOR_TITLES[card.suit]?.[card.rankValue];
+        if (epithet) {
+          // Full form: "Dominion (Two of Wands)"
+          const rankLabels = { 1: 'Ace', 2: 'Two', 3: 'Three', 4: 'Four', 5: 'Five',
+                               6: 'Six', 7: 'Seven', 8: 'Eight', 9: 'Nine', 10: 'Ten' };
+          const rankLabel = rankLabels[card.rankValue] || card.rank;
+          aliases.push(`${epithet} (${rankLabel} of ${suitAlias})`);
+          // Epithet-only form (for matching "the Dominion card")
+          aliases.push(epithet);
+        }
+        // Suit alias form: "Two of Disks" instead of "Two of Pentacles"
+        if (suitAlias !== card.suit) {
+          aliases.push(`${card.rank} of ${suitAlias}`);
+        }
+      }
+    }
+  } else if (deckStyle === 'marseille-classic') {
+    // Major Arcana Marseille aliases
+    if (typeof card.number === 'number') {
+      const marseilleName = MARSEILLE_MAJOR_ALIASES[card.number];
+      if (marseilleName && marseilleName !== card.name) {
+        aliases.push(marseilleName);
+        // Also add the parenthetical form that getMarseilleAlias produces
+        aliases.push(`${marseilleName} (RWS: ${card.name})`);
+      }
+    }
+    // Minor Arcana Marseille aliases
+    else if (card.suit && card.rank) {
+      const suitAlias = MARSEILLE_SUIT_ALIASES[card.suit] || card.suit;
+      const rankAlias = MARSEILLE_COURT_ALIASES[card.rank] || card.rank;
+      const marseilleMinorName = `${rankAlias} of ${suitAlias}`;
+      if (marseilleMinorName !== card.name) {
+        aliases.push(marseilleMinorName);
+      }
+    }
+  }
+
+  return aliases;
+}
+
+/**
+ * Lookup map from card name (lowercase) → full card object.
+ * @type {Map<string, Object>}
+ */
+const cardLookupMap = new Map(
+  [...MAJOR_ARCANA, ...MINOR_ARCANA].map((card) => [card.name.toLowerCase(), card])
+);
+
+/**
+ * Look up full card object by name.
+ *
+ * @param {string} name - Card name to look up
+ * @returns {Object|null} Full card object or null if not found
+ */
+export function lookupCardByName(name) {
+  if (!name || typeof name !== 'string') return null;
+  return cardLookupMap.get(name.toLowerCase()) || null;
+}
+
+/**
+ * Cache for deck-aware pattern sets.
+ * @type {Map<string, Array<{name: string, canonical: string, pattern: RegExp, isEpithet: boolean}>>}
+ */
+const deckPatternCache = new Map();
+
+/**
+ * Build deck-aware card name patterns for hallucination detection.
+ *
+ * Returns patterns for all 78 cards in both RWS and deck-specific forms,
+ * each mapped to its canonical RWS name.
+ *
+ * @param {string} deckStyle - Deck style identifier
+ * @returns {Array<{name: string, canonical: string, pattern: RegExp, isEpithet: boolean}>}
+ */
+export function buildDeckAwarePatterns(deckStyle = 'rws-1909') {
+  if (deckPatternCache.has(deckStyle)) {
+    return deckPatternCache.get(deckStyle);
+  }
+
+  const patterns = [];
+  const allCards = [...MAJOR_ARCANA, ...MINOR_ARCANA];
+
+  for (const card of allCards) {
+    const aliases = buildCardAliases(card, deckStyle);
+
+    for (const alias of aliases) {
+      // Skip empty aliases
+      if (!alias || typeof alias !== 'string') continue;
+
+      // Check if this alias is a Thoth epithet (single-word common vocabulary)
+      const normalized = normalizeCardName(alias);
+      const isEpithet = AMBIGUOUS_THOTH_EPITHETS.has(normalized);
+
+      patterns.push({
+        name: alias,
+        canonical: card.name,
+        normalized,
+        pattern: new RegExp(`\\b${escapeRegex(alias)}\\b`, 'i'),
+        isEpithet
+      });
+    }
+  }
+
+  deckPatternCache.set(deckStyle, patterns);
+  return patterns;
+}
 
 // ============================================================================
 // Spread Definitions
@@ -150,23 +351,40 @@ export function getQualityGateThresholds(spreadKey, cardCount) {
 /**
  * Analyze how many drawn cards are mentioned in the reading text.
  *
+ * Deck-aware: checks for both RWS canonical names AND deck-specific aliases.
+ * For example, with Thoth deck, "Princess of Cups" counts as coverage for
+ * "Page of Cups".
+ *
  * @param {string} readingText - Generated reading narrative
  * @param {Array} cardsInfo - Array of card objects with .card property
+ * @param {string} deckStyle - Deck style for alias resolution
  * @returns {Object} { coverage: number, missingCards: string[] }
  */
-export function analyzeCardCoverage(readingText, cardsInfo = []) {
+export function analyzeCardCoverage(readingText, cardsInfo = [], deckStyle = 'rws-1909') {
   if (!Array.isArray(cardsInfo) || cardsInfo.length === 0) {
     return { coverage: 1, missingCards: [] };
   }
 
   const text = typeof readingText === 'string' ? readingText : '';
+
   const missingCards = cardsInfo
     .filter((card) => card && typeof card.card === 'string')
-    .map((card) => card.card)
+    .map((cardInfo) => cardInfo.card)
     .filter((name) => {
       if (!name) return true;
-      const pattern = new RegExp(escapeRegex(name), 'i');
-      return !pattern.test(text);
+
+      // Look up full card object to build all valid aliases
+      const fullCard = lookupCardByName(name);
+      const aliasesToCheck = fullCard
+        ? buildCardAliases(fullCard, deckStyle)
+        : [name];
+
+      // Card is present if ANY valid name/alias appears in the text
+      return !aliasesToCheck.some((alias) => {
+        if (!alias) return false;
+        const pattern = new RegExp(`\\b${escapeRegex(alias)}\\b`, 'i');
+        return pattern.test(text);
+      });
     });
 
   const presentCount = cardsInfo.length - missingCards.length;
@@ -200,15 +418,19 @@ function looksLikeCardNameCase(matchText) {
 /**
  * Detect cards mentioned in reading that weren't in the drawn spread.
  *
+ * Deck-aware: recognizes both RWS names and deck-specific aliases (Thoth, Marseille).
+ * For example, "Princess of Cups" in a Thoth reading maps to "Page of Cups" canonical.
+ *
  * Uses context awareness to avoid false positives:
  * - Filters out tarot terminology (e.g., "Fool's Journey")
  * - Requires title case for ambiguous names (Justice, Strength, etc.)
+ * - Requires explicit card context for Thoth epithets (Love, Dominion, etc.)
  * - Cross-references against deck-specific canonical names
  *
  * @param {string} readingText - Generated reading narrative
  * @param {Array} cardsInfo - Array of drawn cards
  * @param {string} deckStyle - Deck style for name canonicalization
- * @returns {string[]} Array of hallucinated card names
+ * @returns {string[]} Array of hallucinated card names (canonical RWS names)
  */
 export function detectHallucinatedCards(readingText, cardsInfo = [], deckStyle = 'rws-1909') {
   if (!readingText) return [];
@@ -222,7 +444,7 @@ export function detectHallucinatedCards(readingText, cardsInfo = [], deckStyle =
     text = text.replace(pattern, '[TERMINOLOGY]');
   });
 
-  // Track both canonical deck-aware keys and normalized literal names for drawn cards.
+  // Track canonical keys for drawn cards (always RWS canonical names, lowercased)
   const drawnKeys = new Set(
     safeCards
       .filter((card) => card && typeof card.card === 'string')
@@ -234,8 +456,12 @@ export function detectHallucinatedCards(readingText, cardsInfo = [], deckStyle =
   );
 
   const hallucinated = [];
+  const seenCanonicals = new Set();
 
-  CARD_NAME_PATTERNS.forEach(({ name, normalized, pattern }) => {
+  // Use deck-aware patterns that include both RWS and deck-specific aliases
+  const patterns = buildDeckAwarePatterns(deckStyle);
+
+  patterns.forEach(({ name, canonical, normalized, pattern, isEpithet }) => {
     const flags = pattern.flags.includes('g') ? pattern.flags : `${pattern.flags}g`;
     const matches = Array.from(text.matchAll(new RegExp(pattern.source, flags)));
     if (!matches.length) {
@@ -248,9 +474,15 @@ export function detectHallucinatedCards(readingText, cardsInfo = [], deckStyle =
       ? matches.some((match) => looksLikeCardNameCase(match[0]))
       : true;
 
-    // For names that are also common vocabulary (Justice, Strength, Temperance, Death, Judgement),
-    // only treat them as card mentions when there is explicit card-like context in the text.
+    // For RWS names that are common vocabulary (Justice, Strength, etc.),
+    // only treat them as card mentions when there is explicit card-like context.
     if (AMBIGUOUS_CARD_NAMES.has(normalized) && !hasContext) {
+      return;
+    }
+
+    // For Thoth epithets (Love, Dominion, Victory, etc.), also require context
+    // since these are common English words
+    if (isEpithet && !hasContext) {
       return;
     }
 
@@ -258,16 +490,24 @@ export function detectHallucinatedCards(readingText, cardsInfo = [], deckStyle =
       return;
     }
 
-    const canonical = canonicalCardKey(name, deckStyle);
-    const key = canonical || normalized;
+    // Use the canonical RWS name for comparison
+    const canonicalKey = canonical.toLowerCase();
 
-    if (!drawnKeys.has(key)) {
-      hallucinated.push(name);
+    // Skip if this card is in the drawn spread
+    if (drawnKeys.has(canonicalKey)) {
+      return;
     }
+
+    // Avoid duplicate reports for the same canonical card
+    if (seenCanonicals.has(canonicalKey)) {
+      return;
+    }
+
+    seenCanonicals.add(canonicalKey);
+    hallucinated.push(canonical);
   });
 
-  // De-duplicate while preserving insertion order
-  return [...new Set(hallucinated)];
+  return hallucinated;
 }
 
 // ============================================================================
@@ -289,7 +529,7 @@ export function buildNarrativeMetrics(readingText, cardsInfo, deckStyle = 'rws-1
   const text = typeof readingText === 'string' ? readingText : '';
   const safeCards = Array.isArray(cardsInfo) ? cardsInfo : [];
   const spine = validateReadingNarrative(text);
-  const coverage = analyzeCardCoverage(text, safeCards);
+  const coverage = analyzeCardCoverage(text, safeCards, deckStyle);
   const hallucinatedCards = detectHallucinatedCards(text, safeCards, deckStyle);
 
   return {
