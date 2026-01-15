@@ -841,7 +841,8 @@ export function normalizePositionKey(position) {
  * Build a position-aware card description with optional imagery hooks
  */
 function buildPositionCardText(cardInfo, position, options = {}) {
-  const template = POSITION_LANGUAGE[position];
+  const normalizedPosition = normalizePositionKey(position);
+  const template = POSITION_LANGUAGE[normalizedPosition];
   const prevElementalRelationship = options.prevElementalRelationship; // For elemental imagery
   const normalizedContext = normalizeContext(options.context);
 

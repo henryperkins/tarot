@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import { normalizePositionKey } from '../functions/lib/narrative/helpers.js';
+import { normalizePositionKey, buildPositionCardText } from '../functions/lib/narrative/helpers.js';
 
 describe('normalizePositionKey', () => {
   describe('Celtic Cross positions', () => {
@@ -53,5 +53,41 @@ describe('normalizePositionKey', () => {
         'Custom Position'
       );
     });
+  });
+});
+
+describe('buildPositionCardText with Celtic Cross positions', () => {
+  it('uses position-specific template for normalized Celtic Cross position', () => {
+    const cardInfo = {
+      card: 'The Magician',
+      number: 1,
+      orientation: 'Upright',
+      meaning: 'Willpower and manifestation.'
+    };
+
+    // Position from spreads.js (without Card #)
+    const result = buildPositionCardText(cardInfo, 'Present — core situation', {});
+
+    // Should contain position-specific intro (not generic fallback)
+    assert.ok(
+      result.includes('At the heart of this moment') ||
+      result.includes('Right now, your story') ||
+      result.includes('The core tone of this moment'),
+      `Expected position-specific intro, got: ${result.substring(0, 200)}`
+    );
+  });
+
+  it('still handles unknown positions with fallback', () => {
+    const cardInfo = {
+      card: 'The Fool',
+      number: 0,
+      orientation: 'Reversed',
+      meaning: 'New beginnings with caution.'
+    };
+
+    const result = buildPositionCardText(cardInfo, 'Unknown Custom Position', {});
+
+    // Should contain the position name (fallback behavior)
+    assert.ok(result.includes('Unknown Custom Position'));
   });
 });
