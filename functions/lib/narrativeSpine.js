@@ -62,6 +62,72 @@ const MAJOR_ARCANA_NAMES = [
   'world'
 ];
 const MAJOR_ARCANA_PATTERN = new RegExp(`\\b(?:the\\s+)?(?:${MAJOR_ARCANA_NAMES.join('|')})\\b`, 'i');
+
+/**
+ * Headers that indicate structural sections (not card-specific).
+ * These sections don't require WHAT/WHY/WHAT'S NEXT spine structure.
+ */
+const STRUCTURAL_HEADERS = new Set([
+  'opening',
+  'closing',
+  'synthesis',
+  'summary',
+  'next steps',
+  'gentle next steps',
+  'reflection',
+  'reflections',
+  'final thoughts',
+  'closing thoughts',
+  'invitation',
+  'final invitation'
+]);
+
+const STRUCTURAL_HEADER_PREFIXES = [
+  'opening',
+  'closing',
+  'synthesis',
+  'summary',
+  'guidance',
+  'next steps',
+  'gentle next steps',
+  'reflection'
+];
+
+/**
+ * Determine if a section is a card section vs structural section.
+ * Card sections should follow spine structure; structural sections don't need it.
+ *
+ * @param {string} header - Section header text
+ * @param {string} content - Section content
+ * @returns {boolean} True if this is a card section
+ */
+export function isCardSection(header, content) {
+  if (!header || typeof header !== 'string') return false;
+
+  const normalizedHeader = header.toLowerCase().trim();
+
+  // Known structural sections
+  if (STRUCTURAL_HEADERS.has(normalizedHeader)) return false;
+  if (STRUCTURAL_HEADER_PREFIXES.some(prefix => normalizedHeader.startsWith(prefix))) {
+    return false;
+  }
+
+  // Check for card name in header
+  if (MAJOR_ARCANA_PATTERN.test(header) || MINOR_ARCANA_PATTERN.test(header)) {
+    return true;
+  }
+
+  // Check for card name in content
+  if (content && typeof content === 'string') {
+    if (MAJOR_ARCANA_PATTERN.test(content) || MINOR_ARCANA_PATTERN.test(content)) {
+      return true;
+    }
+  }
+
+  // Default to structural (conservative - avoids false spine failures)
+  return false;
+}
+
 const CARD_CONTEXT_PATTERN = /\b(?:card|position|energy|situation|scene|story|thread|theme|anchor|nucleus|timeline|past|present|future|influence|lesson|moment|lens|reflection|reflections|synthesis|guidance|reminder|insight)\b/i;
 const DESCRIPTIVE_VERB_PATTERN = /\b(?:is|are|feels|brings|ushers|marks|signals|casts|delivers|grounds|anchors|establishes|opens|presents|reveals|shows|illustrates|demonstrates|highlights|frames|illuminates|expresses|focuses|rests|sits|holds|carries|offers|spotlights|reminds|echoes|emerges|unfolds)\b/i;
 const WHY_PATTERNS = [
@@ -79,6 +145,40 @@ const WHATS_NEXT_PATTERNS = [
   /\b(?:guidance|advice|trajectory|path|action|step|practice)\b/i,
   /\b(?:you can|you might|you could)\s+(?:now|next|begin|take|start)\b/i
 ];
+
+const COLON_HEADER_STOP_WORDS = new Set([
+  'of',
+  'for',
+  'and',
+  'the',
+  'a',
+  'an',
+  'in',
+  'with',
+  'from',
+  'your'
+]);
+
+function isLikelyColonHeader(header = '') {
+  const words = header.trim().split(/\s+/).filter(Boolean);
+  if (words.length === 0 || words.length > 5) return false;
+
+  let hasCapitalizedWord = false;
+  for (const word of words) {
+    const cleaned = word.replace(/[^A-Za-z']/g, '');
+    if (!cleaned) return false;
+    const lower = cleaned.toLowerCase();
+    if (COLON_HEADER_STOP_WORDS.has(lower)) {
+      continue;
+    }
+    const isAllCaps = cleaned === cleaned.toUpperCase();
+    const startsUpper = /^[A-Z]/.test(cleaned);
+    if (!isAllCaps && !startsUpper) return false;
+    hasCapitalizedWord = true;
+  }
+
+  return hasCapitalizedWord;
+}
 
 function segmentSentences(text) {
   if (!text || typeof text !== 'string') return [];
@@ -350,13 +450,19 @@ export function validateReadingNarrative(readingText) {
 
   // Split by major section headers
   // Match: ### Markdown headers OR **Bold text at start of line** (not inline bold)
-  const sectionPattern = /(^[ \t]*\*\*([^*]+)\*\*[ \t]*$)|(^#{2,6}\s+(.+)$)/gm;
+  // OR plain headings ending with ":" on their own line (e.g., "Opening:")
+  const sectionPattern = /(^[ \t]*\*\*([^*]+)\*\*[ \t]*$)|(^#{2,6}\s+(.+)$)|(^[ \t]*([A-Za-z][^:\n]{0,60}):[ \t]*$)/gm;
   const sections = [];
   let match;
   let lastIndex = 0;
 
   while ((match = sectionPattern.exec(readingText)) !== null) {
-    const header = (match[2] || match[4] || '').trim();
+    const colonHeader = match[6] || '';
+    if (colonHeader && !isLikelyColonHeader(colonHeader)) {
+      continue;
+    }
+
+    const header = (match[2] || match[4] || colonHeader || '').trim();
     if (!header) {
       lastIndex = sectionPattern.lastIndex;
       continue;
@@ -381,22 +487,56 @@ export function validateReadingNarrative(readingText) {
     sections[sections.length - 1].content = readingText.substring(lastIndex).trim();
   }
 
-  // Analyze each section
-  const analyses = sections.map(section => ({
-    header: section.header,
-    analysis: analyzeSpineCompleteness(section.content)
-  }));
+  if (sections.length === 0) {
+    const paragraphs = readingText
+      .split(/\n\s*\n+/)
+      .map(section => section.trim())
+      .filter(Boolean);
 
-  const incompleteCount = analyses.filter(a => !a.analysis.isComplete).length;
+    const fallbackSections = paragraphs.length > 0 ? paragraphs : [readingText.trim()];
+    fallbackSections
+      .filter(Boolean)
+      .forEach((content, index) => {
+        sections.push({
+          header: `Section ${index + 1}`,
+          start: 0,
+          content
+        });
+      });
+  }
+
+  // Analyze each section and classify as card vs structural
+  const analyses = sections.map(section => {
+    const isCard = isCardSection(section.header, section.content);
+    return {
+      header: section.header,
+      isCardSection: isCard,
+      analysis: analyzeSpineCompleteness(section.content)
+    };
+  });
+
+  const cardAnalyses = analyses.filter(a => a.isCardSection);
+  const structuralAnalyses = analyses.filter(a => !a.isCardSection);
+
+  const cardComplete = cardAnalyses.filter(a => a.analysis.isComplete).length;
+  const cardIncomplete = cardAnalyses.length - cardComplete;
+  const completeSections = analyses.filter(a => a.analysis.isComplete).length;
+  const incompleteSections = analyses.length - completeSections;
 
   return {
-    isValid: incompleteCount === 0,
+    isValid: cardIncomplete === 0,
     totalSections: sections.length,
-    completeSections: sections.length - incompleteCount,
-    incompleteSections: incompleteCount,
+    // New fields for card-aware gating
+    cardSections: cardAnalyses.length,
+    cardComplete,
+    cardIncomplete,
+    structuralSections: structuralAnalyses.length,
+    // Legacy fields for backward compatibility
+    completeSections,
+    incompleteSections,
     sectionAnalyses: analyses,
-    suggestions: incompleteCount > 0
-      ? ["Review incomplete sections and ensure they include: what is happening, why/how (connector), and what's next"]
+    suggestions: cardIncomplete > 0
+      ? ["Review incomplete card sections and ensure they include: what is happening, why/how (connector), and what's next"]
       : []
   };
 }

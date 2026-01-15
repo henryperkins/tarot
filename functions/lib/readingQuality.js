@@ -72,6 +72,65 @@ export const AMBIGUOUS_THOTH_EPITHETS = new Set([
   'wealth'          // Ten of Pentacles/Disks
 ]);
 
+const ROMAN_NUMERALS = {
+  1: 'I',
+  2: 'II',
+  3: 'III',
+  4: 'IV',
+  5: 'V',
+  6: 'VI',
+  7: 'VII',
+  8: 'VIII',
+  9: 'IX',
+  10: 'X'
+};
+
+const COURT_RANK_ABBREVIATIONS = {
+  Page: ['Pg'],
+  Knight: ['Kn'],
+  Queen: ['Q'],
+  King: ['K']
+};
+
+function getSuitAliasesForShorthand(suit, deckStyle) {
+  const suits = new Set();
+  if (suit) suits.add(suit);
+
+  if (deckStyle === 'thoth-a1') {
+    suits.add(THOTH_SUIT_ALIASES[suit] || suit);
+  } else if (deckStyle === 'marseille-classic') {
+    suits.add(MARSEILLE_SUIT_ALIASES[suit] || suit);
+  }
+
+  return Array.from(suits).filter(Boolean);
+}
+
+function addMinorShorthandAliases(aliases, card, deckStyle) {
+  if (!card?.suit || typeof card.rankValue !== 'number') return;
+
+  const suitAliases = getSuitAliasesForShorthand(card.suit, deckStyle);
+
+  if (card.rankValue <= 10) {
+    const roman = ROMAN_NUMERALS[card.rankValue];
+    suitAliases.forEach((suitAlias) => {
+      aliases.push(`${card.rankValue} of ${suitAlias}`);
+      if (roman) {
+        aliases.push(`${roman} of ${suitAlias}`);
+      }
+    });
+    return;
+  }
+
+  const abbreviations = COURT_RANK_ABBREVIATIONS[card.rank];
+  if (!abbreviations || abbreviations.length === 0) return;
+
+  suitAliases.forEach((suitAlias) => {
+    abbreviations.forEach((abbr) => {
+      aliases.push(`${abbr} of ${suitAlias}`);
+    });
+  });
+}
+
 // ============================================================================
 // Deck-Aware Alias Building
 // ============================================================================
@@ -152,7 +211,9 @@ export function buildCardAliases(card, deckStyle = 'rws-1909') {
     }
   }
 
-  return aliases;
+  addMinorShorthandAliases(aliases, card, deckStyle);
+
+  return Array.from(new Set(aliases));
 }
 
 /**
@@ -220,6 +281,192 @@ export function buildDeckAwarePatterns(deckStyle = 'rws-1909') {
 
   deckPatternCache.set(deckStyle, patterns);
   return patterns;
+}
+
+// ============================================================================
+// Fuzzy Matching (Typo Tolerance)
+// ============================================================================
+
+const FUZZY_MIN_LENGTH = 4;
+const FUZZY_MAX_WORDS = 5;
+const FUZZY_MAX_LENGTH = 60;
+const fuzzyAliasCache = new Map();
+
+function normalizeForFuzzy(value = '') {
+  if (!value || typeof value !== 'string') return '';
+  return value.toLowerCase().replace(/[^a-z0-9]/g, '');
+}
+
+function getFuzzyMaxDistance(length) {
+  if (length <= 4) return 0;
+  if (length <= 7) return 1;
+  return 2;
+}
+
+function levenshteinDistance(a, b) {
+  if (a === b) return 0;
+  const aLen = a.length;
+  const bLen = b.length;
+  if (aLen === 0) return bLen;
+  if (bLen === 0) return aLen;
+
+  let prev = new Array(bLen + 1).fill(0);
+  let curr = new Array(bLen + 1).fill(0);
+
+  for (let j = 0; j <= bLen; j += 1) {
+    prev[j] = j;
+  }
+
+  for (let i = 1; i <= aLen; i += 1) {
+    curr[0] = i;
+    const aChar = a[i - 1];
+    for (let j = 1; j <= bLen; j += 1) {
+      const cost = aChar === b[j - 1] ? 0 : 1;
+      curr[j] = Math.min(
+        prev[j] + 1,
+        curr[j - 1] + 1,
+        prev[j - 1] + cost
+      );
+    }
+    [prev, curr] = [curr, prev];
+  }
+
+  return prev[bLen];
+}
+
+function isFuzzyCandidateAllowed(candidate, entry) {
+  if (!candidate?.explicit) {
+    if (entry.isEpithet) return false;
+    if (AMBIGUOUS_CARD_NAMES.has(entry.normalizedAlias)) return false;
+  }
+  return true;
+}
+
+function extractCardCandidates(text = '') {
+  if (!text || typeof text !== 'string') return [];
+
+  const candidates = new Map();
+
+  const addCandidate = (raw, explicit) => {
+    const cleaned = raw.replace(/[*_`]/g, '').replace(/\s+/g, ' ').trim();
+    if (!cleaned) return;
+    if (cleaned.length > FUZZY_MAX_LENGTH) return;
+    const words = cleaned.split(/\s+/).filter(Boolean);
+    if (words.length === 0 || words.length > FUZZY_MAX_WORDS) return;
+
+    const normalized = normalizeForFuzzy(cleaned);
+    if (!normalized || normalized.length < FUZZY_MIN_LENGTH) return;
+
+    const existing = candidates.get(normalized);
+    if (existing) {
+      existing.explicit = existing.explicit || explicit;
+      return;
+    }
+
+    candidates.set(normalized, {
+      text: cleaned,
+      normalized,
+      explicit: Boolean(explicit)
+    });
+  };
+
+  const boldPattern = /\*\*([^*]{2,80})\*\*/g;
+  let match;
+  while ((match = boldPattern.exec(text)) !== null) {
+    addCandidate(match[1], true);
+  }
+
+  const ofPattern = /\b([A-Za-z]{1,12}|\d+|[IVX]{1,6})\s+of\s+([A-Za-z]{2,15})\b/gi;
+  while ((match = ofPattern.exec(text)) !== null) {
+    addCandidate(`${match[1]} of ${match[2]}`, true);
+  }
+
+  const thePattern = /\bThe\s+([A-Z][a-z]{2,}(?:\s+[A-Z][a-z]{2,}){0,2})\b/g;
+  while ((match = thePattern.exec(text)) !== null) {
+    addCandidate(`The ${match[1]}`, true);
+  }
+
+  const contextPattern = /\b(?:card|position|present|past|future|outcome|challenge|advice|anchor|theme|guidance|lesson|insight)\s*[:\-]\s*([A-Za-z][A-Za-z\s']{2,50})/gi;
+  while ((match = contextPattern.exec(text)) !== null) {
+    addCandidate(match[1], true);
+  }
+
+  return Array.from(candidates.values());
+}
+
+function buildFuzzyAliasEntries(deckStyle = 'rws-1909') {
+  if (fuzzyAliasCache.has(deckStyle)) {
+    return fuzzyAliasCache.get(deckStyle);
+  }
+
+  const entries = [];
+  const seen = new Set();
+  const patterns = buildDeckAwarePatterns(deckStyle);
+
+  patterns.forEach(({ name, canonical, isEpithet }) => {
+    const normalized = normalizeForFuzzy(name);
+    if (!normalized || normalized.length < FUZZY_MIN_LENGTH) return;
+    const normalizedAlias = normalizeCardName(name);
+    const key = `${canonical.toLowerCase()}::${normalized}`;
+    if (seen.has(key)) return;
+    seen.add(key);
+    entries.push({
+      alias: name,
+      canonical,
+      normalized,
+      normalizedAlias,
+      isEpithet
+    });
+  });
+
+  fuzzyAliasCache.set(deckStyle, entries);
+  return entries;
+}
+
+function buildFuzzyAliasEntriesForAliases(aliases = []) {
+  const entries = [];
+  const seen = new Set();
+
+  aliases.forEach((alias) => {
+    const normalized = normalizeForFuzzy(alias);
+    if (!normalized || normalized.length < FUZZY_MIN_LENGTH) return;
+    const normalizedAlias = normalizeCardName(alias);
+    const key = `${normalizedAlias}::${normalized}`;
+    if (seen.has(key)) return;
+    seen.add(key);
+    entries.push({
+      alias,
+      normalized,
+      normalizedAlias,
+      isEpithet: AMBIGUOUS_THOTH_EPITHETS.has(normalizedAlias)
+    });
+  });
+
+  return entries;
+}
+
+function findBestFuzzyAliasMatch(candidate, aliasEntries) {
+  if (!candidate?.normalized) return null;
+  let best = null;
+
+  aliasEntries.forEach((entry) => {
+    if (!isFuzzyCandidateAllowed(candidate, entry)) return;
+    const maxDistance = getFuzzyMaxDistance(entry.normalized.length);
+    if (maxDistance === 0) return;
+    if (Math.abs(candidate.normalized.length - entry.normalized.length) > maxDistance) return;
+
+    const distance = levenshteinDistance(candidate.normalized, entry.normalized);
+    if (distance <= maxDistance && (!best || distance < best.distance)) {
+      best = { entry, distance };
+    }
+  });
+
+  return best ? best.entry : null;
+}
+
+function hasFuzzyAliasMatch(candidates, aliasEntries) {
+  if (!candidates.length || !aliasEntries.length) return false;
+  return candidates.some(candidate => Boolean(findBestFuzzyAliasMatch(candidate, aliasEntries)));
 }
 
 // ============================================================================
@@ -366,6 +613,7 @@ export function analyzeCardCoverage(readingText, cardsInfo = [], deckStyle = 'rw
   }
 
   const text = typeof readingText === 'string' ? readingText : '';
+  const candidates = extractCardCandidates(text);
 
   const missingCards = cardsInfo
     .filter((card) => card && typeof card.card === 'string')
@@ -380,11 +628,22 @@ export function analyzeCardCoverage(readingText, cardsInfo = [], deckStyle = 'rw
         : [name];
 
       // Card is present if ANY valid name/alias appears in the text
-      return !aliasesToCheck.some((alias) => {
+      const hasExactMatch = aliasesToCheck.some((alias) => {
         if (!alias) return false;
         const pattern = new RegExp(`\\b${escapeRegex(alias)}\\b`, 'i');
         return pattern.test(text);
       });
+
+      if (hasExactMatch) return false;
+
+      if (candidates.length > 0) {
+        const aliasEntries = buildFuzzyAliasEntriesForAliases(aliasesToCheck);
+        if (hasFuzzyAliasMatch(candidates, aliasEntries)) {
+          return false;
+        }
+      }
+
+      return true;
     });
 
   const presentCount = cardsInfo.length - missingCards.length;
@@ -507,6 +766,22 @@ export function detectHallucinatedCards(readingText, cardsInfo = [], deckStyle =
     hallucinated.push(canonical);
   });
 
+  const candidates = extractCardCandidates(text);
+  if (candidates.length > 0) {
+    const aliasEntries = buildFuzzyAliasEntries(deckStyle);
+    candidates.forEach((candidate) => {
+      const match = findBestFuzzyAliasMatch(candidate, aliasEntries);
+      if (!match) return;
+
+      const canonicalKey = match.canonical.toLowerCase();
+      if (drawnKeys.has(canonicalKey)) return;
+      if (seenCanonicals.has(canonicalKey)) return;
+
+      seenCanonicals.add(canonicalKey);
+      hallucinated.push(match.canonical);
+    });
+  }
+
   return hallucinated;
 }
 
@@ -538,6 +813,10 @@ export function buildNarrativeMetrics(readingText, cardsInfo, deckStyle = 'rws-1
       totalSections: spine.totalSections || 0,
       completeSections: spine.completeSections || 0,
       incompleteSections: spine.incompleteSections || 0,
+      cardSections: spine.cardSections || 0,
+      cardComplete: spine.cardComplete || 0,
+      cardIncomplete: spine.cardIncomplete || 0,
+      structuralSections: spine.structuralSections || 0,
       suggestions: spine.suggestions || []
     },
     cardCoverage: coverage.coverage,
@@ -609,7 +888,14 @@ export function annotateVisionInsights(proofInsights, cardsInfo = [], deckStyle 
         matches,
         attention: entry.attention || null,
         symbolVerification: entry.symbolVerification || null,
-        visualProfile: entry.visualProfile || null
+        visualProfile: entry.visualProfile || null,
+        orientation: typeof entry.orientation === 'string' ? entry.orientation : null,
+        reasoning: typeof entry.reasoning === 'string' ? entry.reasoning : null,
+        visualDetails: Array.isArray(entry.visualDetails) ? entry.visualDetails : null,
+        mergeSource: typeof entry.mergeSource === 'string' ? entry.mergeSource : null,
+        componentScores: entry.componentScores && typeof entry.componentScores === 'object'
+          ? entry.componentScores
+          : null
       };
     })
     .filter(Boolean)

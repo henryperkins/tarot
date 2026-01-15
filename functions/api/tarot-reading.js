@@ -50,7 +50,8 @@ import {
 } from '../lib/readingLimits.js';
 import {
   createReadingStream,
-  wrapReadingStreamWithMetadata
+  wrapReadingStreamWithMetadata,
+  collectSSEStreamText
 } from '../lib/readingStream.js';
 import {
   isEvalGateEnabled,
@@ -282,6 +283,7 @@ async function finalizeReading({
     contextDiagnostics: diagnosticsPayload,
     promptEngineering,
     llmUsage: capturedUsage,
+    backendErrors: backendErrors.length > 0 ? backendErrors : undefined,
     evalGate: evalGateResult ? {
       ran: true,
       passed: evalGateResult.passed,
@@ -679,16 +681,17 @@ export const onRequestPost = async ({ request, env, waitUntil }) => {
     const evalGateEnabled = isEvalGateEnabled(env);
     const allowStreamingGateBypass = allowStreamingWithEvalGate(env);
     const azureStreamingAvailable = Boolean(NARRATIVE_BACKENDS['azure-gpt5']?.isAvailable(env));
-    const canUseAzureStreaming = useStreaming &&
-      tokenStreamingEnabled &&
-      azureStreamingAvailable &&
-      !evalGateEnabled;
+    const wantsAzureStreaming = useStreaming && tokenStreamingEnabled && azureStreamingAvailable;
+    const canUseAzureStreaming = wantsAzureStreaming && allowStreamingGateBypass;
+    const shouldGateStreaming = canUseAzureStreaming && evalGateEnabled;
 
-    if (useStreaming && tokenStreamingEnabled && evalGateEnabled) {
-      const overrideNote = allowStreamingGateBypass
-        ? ' (ALLOW_STREAMING_WITH_EVAL_GATE ignored; gate requires buffering)'
-        : '';
-      console.warn(`[${requestId}] Token streaming disabled while eval gate is enabled; falling back to buffered streaming.${overrideNote}`);
+    if (useStreaming && tokenStreamingEnabled && !allowStreamingGateBypass) {
+      const reason = evalGateEnabled
+        ? 'eval gate is enabled'
+        : 'ALLOW_UNGATED_STREAMING/ALLOW_STREAMING_WITH_EVAL_GATE is false';
+      console.warn(`[${requestId}] Token streaming disabled (${reason}); falling back to buffered streaming.`);
+    } else if (useStreaming && tokenStreamingEnabled && evalGateEnabled && allowStreamingGateBypass) {
+      console.warn(`[${requestId}] Token streaming enabled with eval gate; buffering output before streaming to enforce gate.`);
     }
 
     if (useStreaming && tokenStreamingEnabled && !azureStreamingAvailable) {
@@ -737,6 +740,11 @@ export const onRequestPost = async ({ request, env, waitUntil }) => {
         stream: true
       });
 
+      const capturedPrompts = {
+        system: systemPrompt,
+        user: userPrompt
+      };
+
       try {
         const azureStream = await callAzureResponsesStream(env, {
           instructions: systemPrompt,
@@ -748,6 +756,50 @@ export const onRequestPost = async ({ request, env, waitUntil }) => {
         });
 
         const transformedStream = transformAzureStream(azureStream);
+
+        if (shouldGateStreaming) {
+          // Buffer streamed output so the eval gate can block before we emit SSE.
+          const collected = await collectSSEStreamText(transformedStream);
+          if (collected.error || collected.sawError) {
+            console.error(`[${requestId}] Streaming error: ${collected.error || 'unknown'}`);
+            await releaseReadingReservation(env, readingReservation);
+            return createSSEErrorResponse('Failed to generate reading.', 503);
+          }
+
+          const finalText = (collected.fullText || '').trim();
+          if (!finalText) {
+            console.warn(`[${requestId}] Streaming completed with empty reading text - releasing quota`);
+            await releaseReadingReservation(env, readingReservation);
+            return createSSEErrorResponse('Failed to generate reading.', 503);
+          }
+
+          const { responsePayload } = await finalizeReading({
+            env,
+            requestId,
+            startTime,
+            reading: finalText,
+            provider: streamProvider,
+            deckStyle,
+            analysis,
+            narrativePayload,
+            contextDiagnostics,
+            cardsInfo,
+            userQuestion,
+            reflectionsText,
+            context,
+            visionMetrics,
+            abAssignment,
+            capturedPrompts,
+            capturedUsage: null,
+            waitUntil,
+            personalization,
+            backendErrors: [],
+            acceptedQualityMetrics: null,
+            allowGateBlocking: true
+          });
+
+          return createSSEResponse(createReadingStream(responsePayload));
+        }
 
         const graphRAGStats = resolveGraphRAGStats(analysis, narrativePayload.promptMeta);
         const finalContextDiagnostics = Array.isArray(narrativePayload.contextDiagnostics)
@@ -768,11 +820,6 @@ export const onRequestPost = async ({ request, env, waitUntil }) => {
           gateBlocked: false,
           gateReason: null,
           backendErrors: null
-        };
-
-        const capturedPrompts = {
-          system: systemPrompt,
-          user: userPrompt
         };
 
         const wrappedStream = wrapReadingStreamWithMetadata(transformedStream, {
@@ -911,19 +958,22 @@ export const onRequestPost = async ({ request, env, waitUntil }) => {
           qualityIssues.push(`missing high-weight positions: ${highWeightMisses.join(', ')}`);
         }
 
-        // Enforce spine completeness beyond mere section presence
-        // The prompt instructs the LLM to "LOOSELY follow" the spine structure, and explicitly
-        // says the Opening should have "felt experience BEFORE introducing frameworks".
-        // Spine labels (**WHAT**, **WHY**, **WHAT'S NEXT**) are specified for "card sections",
-        // not structural sections like Opening, Gentle Next Steps, and Closing.
-        // Therefore, we require 50% of sections to be complete (typically 2-3 card sections
-        // out of 5 total), not 100%.
+        // Enforce spine completeness for card sections only
+        // Structural sections (Opening, Closing, Next Steps) don't need WHAT/WHY/WHAT'S NEXT
         const spine = qualityMetrics.spine || null;
         const MIN_SPINE_COMPLETION = 0.5;
-        if (spine && spine.totalSections > 0) {
-          const spineRatio = (spine.completeSections || 0) / spine.totalSections;
-          if (spineRatio < MIN_SPINE_COMPLETION) {
-            qualityIssues.push(`incomplete spine (${spine.completeSections || 0}/${spine.totalSections}, need ${Math.ceil(MIN_SPINE_COMPLETION * 100)}%)`);
+        if (spine) {
+          const cardSections = typeof spine.cardSections === 'number'
+            ? spine.cardSections
+            : spine.totalSections;
+          const cardComplete = typeof spine.cardComplete === 'number'
+            ? spine.cardComplete
+            : spine.completeSections;
+          if (cardSections > 0) {
+            const spineRatio = (cardComplete || 0) / cardSections;
+            if (spineRatio < MIN_SPINE_COMPLETION) {
+              qualityIssues.push(`incomplete spine (${cardComplete || 0}/${cardSections} card sections, need ${Math.ceil(MIN_SPINE_COMPLETION * 100)}%)`);
+            }
           }
         }
 
@@ -934,7 +984,9 @@ export const onRequestPost = async ({ request, env, waitUntil }) => {
 
         if (qualityIssues.length > 0) {
           console.warn(`[${requestId}] Backend ${backend.id} failed quality gate: ${qualityIssues.join('; ')}`);
-          throw new Error(`Narrative failed quality checks: ${qualityIssues.join('; ')}`);
+          const qualityError = new Error(`Narrative failed quality checks: ${qualityIssues.join('; ')}`);
+          qualityError.qualityIssues = qualityIssues;
+          throw qualityError;
         }
 
         // Associate captured prompts/usage with the accepted backend attempt only.
@@ -955,7 +1007,11 @@ export const onRequestPost = async ({ request, env, waitUntil }) => {
         console.log(`[${requestId}] Backend ${backend.id} succeeded in ${Date.now() - attemptStart}ms, reading length: ${reading.length}, coverage: ${(qualityMetrics.cardCoverage * 100).toFixed(0)}%`);
         break;
       } catch (err) {
-        backendErrors.push({ backend: backend.id, error: err.message });
+        const errorEntry = { backend: backend.id, error: err.message };
+        if (Array.isArray(err.qualityIssues) && err.qualityIssues.length > 0) {
+          errorEntry.qualityIssues = err.qualityIssues;
+        }
+        backendErrors.push(errorEntry);
         console.error(`[${requestId}] Backend ${backend.id} failed:`, err.message);
       }
     }
