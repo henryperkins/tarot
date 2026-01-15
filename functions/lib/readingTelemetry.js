@@ -65,10 +65,13 @@ export function isAzureTokenStreamingEnabled(env) {
 }
 
 /**
- * Check if streaming is allowed when eval gate is enabled.
+ * Check if ungated token streaming is explicitly allowed.
+ *
+ * This flag permits real-time streaming even when eval/quality gates
+ * cannot block the response. Use only when unvetted output is acceptable.
  *
  * @param {Object} env - Cloudflare environment bindings
- * @returns {boolean} Whether streaming can bypass eval gate
+ * @returns {boolean} Whether streaming can bypass safety gates
  */
 export function allowStreamingWithEvalGate(env) {
   if (!env) return false;
@@ -367,4 +370,32 @@ export function trimForTelemetry(text = '', limit = 500) {
   if (!text || typeof text !== 'string') return '';
   const trimmed = text.trim();
   return trimmed.length > limit ? `${trimmed.slice(0, limit)}...` : trimmed;
+}
+
+/**
+ * Resolve GraphRAG statistics for telemetry.
+ * Prefers promptMeta (authoritative about injection) over analysis summary.
+ * When falling back to analysis, explicitly marks as not injected.
+ *
+ * @param {Object} analysis - Spread analysis with graphRAGPayload
+ * @param {Object} promptMeta - Prompt metadata from buildEnhancedClaudePrompt
+ * @returns {Object|null} GraphRAG stats with injection status
+ */
+export function resolveGraphRAGStats(analysis, promptMeta = null) {
+  // Prefer promptMeta - it's authoritative about what was injected
+  if (promptMeta?.graphRAG) {
+    return promptMeta.graphRAG;
+  }
+
+  // Fallback to analysis summary, but mark as not injected
+  const summary = analysis?.graphRAGPayload?.retrievalSummary;
+  if (summary) {
+    return {
+      ...summary,
+      injectedIntoPrompt: false,
+      source: 'analysis-fallback'
+    };
+  }
+
+  return null;
 }

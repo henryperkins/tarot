@@ -60,7 +60,8 @@ import {
   summarizeNarrativeEnhancements,
   maybeLogNarrativeEnhancements,
   maybeLogEnhancementTelemetry,
-  trimForTelemetry
+  trimForTelemetry,
+  resolveGraphRAGStats
 } from '../lib/readingTelemetry.js';
 import {
   NARRATIVE_BACKENDS,
@@ -82,10 +83,6 @@ import {
   buildEphemerisClientPayload,
   buildSpreadAnalysisPayload
 } from '../lib/spreadAnalysisOrchestrator.js';
-
-function resolveGraphRAGStats(analysis, promptMeta = null) {
-  return promptMeta?.graphRAG || analysis?.graphRAGPayload?.retrievalSummary || null;
-}
 
 async function finalizeReading({
   env,
