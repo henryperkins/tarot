@@ -3,6 +3,8 @@ import { generateId, safeParse } from './utils.js';
 
 const TEMPLATE_STORAGE_KEY = 'tarot_coach_templates';
 export const HISTORY_STORAGE_KEY = 'tarot_coach_history';
+const LEGACY_TEMPLATE_STORAGE_KEY = TEMPLATE_STORAGE_KEY;
+const LEGACY_HISTORY_STORAGE_KEY = HISTORY_STORAGE_KEY;
 export const MAX_TEMPLATES = 8;
 const MAX_HISTORY_ITEMS = 10;
 export const COACH_STORAGE_SYNC_EVENT = 'coach-storage-sync';
@@ -16,6 +18,11 @@ const dispatchCoachStorageEvent = (key) => {
   } catch {
     // CustomEvent or dispatch can fail in older browsers; swallow to avoid crashing.
   }
+};
+
+const getScopedKey = (prefix, userId) => {
+  if (!userId) return `${prefix}_anon`;
+  return `${prefix}_${userId}`;
 };
 
 function readFromStorage(key) {
@@ -36,13 +43,33 @@ function writeToStorage(key, value) {
   }
 }
 
-export function loadCoachTemplates() {
-  const raw = readFromStorage(TEMPLATE_STORAGE_KEY);
-  const templates = safeParse(raw, []);
-  return Array.isArray(templates) ? templates : [];
+function loadScopedArray(prefix, userId, fallback = []) {
+  const scopedKey = getScopedKey(prefix, userId);
+  let raw = readFromStorage(scopedKey);
+
+  if (!raw && !userId) {
+    const legacyRaw = readFromStorage(prefix);
+    if (legacyRaw) {
+      const legacyParsed = safeParse(legacyRaw, fallback);
+      if (Array.isArray(legacyParsed)) {
+        const persistence = writeToStorage(scopedKey, legacyParsed);
+        if (persistence.success && safeStorage.isAvailable) {
+          safeStorage.removeItem(prefix);
+        }
+        return legacyParsed;
+      }
+    }
+  }
+
+  const parsed = safeParse(raw, fallback);
+  return Array.isArray(parsed) ? parsed : fallback;
 }
 
-export function saveCoachTemplate(template) {
+export function loadCoachTemplates(userId = null) {
+  return loadScopedArray(LEGACY_TEMPLATE_STORAGE_KEY, userId, []);
+}
+
+export function saveCoachTemplate(template, userId = null) {
   if (!template || !template.label) {
     return { success: false, error: 'Template requires a label.' };
   }
@@ -50,7 +77,7 @@ export function saveCoachTemplate(template) {
   if (!trimmedLabel) {
     return { success: false, error: 'Template label cannot be empty.' };
   }
-  const existing = loadCoachTemplates();
+  const existing = loadCoachTemplates(userId);
   const filtered = existing.filter(item => item.label.toLowerCase() !== trimmedLabel.toLowerCase());
   const entry = {
     id: template.id || generateId('template'),
@@ -64,20 +91,22 @@ export function saveCoachTemplate(template) {
     updatedAt: Date.now()
   };
   const next = [entry, ...filtered].slice(0, MAX_TEMPLATES);
-  const persistence = writeToStorage(TEMPLATE_STORAGE_KEY, next);
+  const storageKey = getScopedKey(TEMPLATE_STORAGE_KEY, userId);
+  const persistence = writeToStorage(storageKey, next);
   if (!persistence.success) {
     return { success: false, error: persistence.error || 'Unable to save template right now.' };
   }
   return { success: true, templates: next, template: entry };
 }
 
-export function deleteCoachTemplate(templateId) {
+export function deleteCoachTemplate(templateId, userId = null) {
   if (!templateId) {
-    return { success: false, templates: loadCoachTemplates() };
+    return { success: false, templates: loadCoachTemplates(userId) };
   }
-  const existing = loadCoachTemplates();
+  const existing = loadCoachTemplates(userId);
   const next = existing.filter(template => template.id !== templateId);
-  const persistence = writeToStorage(TEMPLATE_STORAGE_KEY, next);
+  const storageKey = getScopedKey(TEMPLATE_STORAGE_KEY, userId);
+  const persistence = writeToStorage(storageKey, next);
   if (!persistence.success) {
     return {
       success: false,
@@ -88,9 +117,8 @@ export function deleteCoachTemplate(templateId) {
   return { success: true, templates: next };
 }
 
-export function loadCoachHistory(limit = MAX_HISTORY_ITEMS) {
-  const raw = readFromStorage(HISTORY_STORAGE_KEY);
-  const history = safeParse(raw, []);
+export function loadCoachHistory(limit = MAX_HISTORY_ITEMS, userId = null) {
+  const history = loadScopedArray(LEGACY_HISTORY_STORAGE_KEY, userId, []);
   if (!Array.isArray(history)) {
     return [];
   }
@@ -98,10 +126,10 @@ export function loadCoachHistory(limit = MAX_HISTORY_ITEMS) {
   return typeof limit === 'number' ? normalized.slice(0, limit) : normalized;
 }
 
-export function recordCoachQuestion(question, limit = MAX_HISTORY_ITEMS) {
+export function recordCoachQuestion(question, limit = MAX_HISTORY_ITEMS, userId = null) {
   const trimmed = (question || '').trim();
   const normalizedLimit = typeof limit === 'number' && limit > 0 ? limit : MAX_HISTORY_ITEMS;
-  const historyPool = loadCoachHistory(normalizedLimit * 2);
+  const historyPool = loadCoachHistory(normalizedLimit * 2, userId);
   const currentHistory = historyPool.slice(0, normalizedLimit);
 
   if (!trimmed) {
@@ -115,7 +143,8 @@ export function recordCoachQuestion(question, limit = MAX_HISTORY_ITEMS) {
     createdAt: Date.now()
   };
   const next = [entry, ...filtered].slice(0, normalizedLimit);
-  const persistence = writeToStorage(HISTORY_STORAGE_KEY, next);
+  const storageKey = getScopedKey(HISTORY_STORAGE_KEY, userId);
+  const persistence = writeToStorage(storageKey, next);
   if (!persistence.success) {
     return {
       success: false,
@@ -126,13 +155,14 @@ export function recordCoachQuestion(question, limit = MAX_HISTORY_ITEMS) {
   return { success: true, history: next };
 }
 
-export function deleteCoachHistoryItem(itemId) {
+export function deleteCoachHistoryItem(itemId, userId = null) {
   if (!itemId) {
-    return { success: false, history: loadCoachHistory() };
+    return { success: false, history: loadCoachHistory(undefined, userId) };
   }
-  const existing = loadCoachHistory(100); // Load more to ensure we don't lose items unnecessarily, though we usually cap at MAX_HISTORY_ITEMS
+  const existing = loadCoachHistory(100, userId); // Load more to ensure we don't lose items unnecessarily, though we usually cap at MAX_HISTORY_ITEMS
   const next = existing.filter(item => item.id !== itemId);
-  const persistence = writeToStorage(HISTORY_STORAGE_KEY, next);
+  const storageKey = getScopedKey(HISTORY_STORAGE_KEY, userId);
+  const persistence = writeToStorage(storageKey, next);
   if (!persistence.success) {
     return {
       success: false,

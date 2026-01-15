@@ -764,8 +764,8 @@ function buildSystemPrompt(spreadKey, themes, context, deckStyle, _userQuestion 
     'FORMATTING',
     '- Use Markdown with clear `###` section headings for major beats (for example, “### Opening”, “### The Story”, “### Guidance”, “### Gentle Next Steps”, “### Closing”).',
     '- Bold each card name the first time it appears.',
-    `- For multi-card spreads, aim for ~${perCardMin}–${perCardMax} words per card while respecting the total length guidance.`,
-    '- Prefer 4–6 moderately sized paragraphs plus one short bullet list of practical steps. Avoid filler.',
+    `- For multi-card spreads, use ~${perCardMin}–${perCardMax} words per card as a soft target; total length guidance is primary.`,
+    '- Use paragraphs/sections that fit the spread size; paragraph count should flex to meet the length band. Include one short bullet list of practical steps. Avoid filler.',
     '- Keep paragraphs to about 2–4 sentences; break up anything longer for readability.',
     '- Do NOT format card sections as a rigid template like “WHAT: … WHY: … WHAT’S NEXT: …” for every card. Keep the spine, but express it as natural prose. If you use explicit mini labels at all, use them sparingly (at most once in the entire reading) and only when it improves clarity.',
     '- OUTPUT STYLE: Do NOT preface the reading with "Here is your reading" or "I have analyzed the cards." Start directly with the Opening section or the first header.'
@@ -825,10 +825,10 @@ function buildSystemPrompt(spreadKey, themes, context, deckStyle, _userQuestion 
       const recapMax = Math.round(150 * lengthModifier);
       lines.push(
         `DEEP DIVE LENGTH: When the querent prefers deep dives, allow ~${deepMin}–${deepMax} words. If the narrative exceeds ~1000 words, append a ${recapMin}–${recapMax} word **Concise Recap** summarizing the arc and next steps.`,
-        'LENGTH PRIORITY: If depth and brevity conflict, prioritize depth and clarity over strict counts.'
+        'LENGTH PRIORITY: Total length band is primary; per-card and paragraph guidance is flexible. If depth and brevity conflict, prioritize depth and clarity over strict counts.'
       );
     } else {
-      lines.push('LENGTH PRIORITY: If depth and brevity conflict, preserve clarity while staying close to the target band.');
+      lines.push('LENGTH PRIORITY: Total length band is primary; per-card and paragraph guidance is flexible. Preserve clarity while staying close to the target band.');
     }
     if (lengthModifier !== 1) {
       lines.push(`LENGTH MODIFIER: Target approximately ${(lengthModifier * 100).toFixed(0)}% of the baseline length guidance for this variant.`);
@@ -959,12 +959,12 @@ function buildSystemPrompt(spreadKey, themes, context, deckStyle, _userQuestion 
 
   lines.push(
     '',
-    'SYNTHESIS RULE: Use the **Traditional Wisdom** (GraphRAG) to understand the core archetype (the "What"). Use the **Visual Profile** (Vision) to determine the specific manifestation or emotional texture (the "How"). If the Visual Profile contradicts the Traditional Wisdom (e.g., a dark Sun card), explicitly acknowledge this tension in the narrative if it adds depth—interpret it as the archetype expressing itself through that specific visual lens (e.g., "joy found in darkness").',
+    'SYNTHESIS RULE: If a **Traditional Wisdom** (GraphRAG) section is present, use it to understand the core archetype (the "What"). If **Visual Profile** cues are present in the card notes or Vision Validation, use them to determine the specific manifestation or emotional texture (the "How"). If either source is missing, rely on standard Rider–Waite–Smith meanings and the provided imagery; do not invent passages or visual details. If the Visual Profile contradicts the Traditional Wisdom (e.g., a dark Sun card), explicitly acknowledge this tension in the narrative if it adds depth—interpret it as the archetype expressing itself through that specific visual lens (e.g., "joy found in darkness").',
     '',
     'MODEL DIRECTIVES:',
     '- PLAN FIRST (INTERNAL): Before drafting, quickly plan the arc (sections, card order, actionable bulleted micro-steps). Do not output this plan; output only the final reading.',
     '- PERSIST UNTIL COMPLETE: Carry the reading through analysis, synthesis, and a short closing encouragement without stopping early or punting back to the user unless critical information is missing.',
-    '- SELF-VERIFY (INTERNAL): After composing, quickly scan to ensure each referenced card/position is accurate, reversal instructions are obeyed, and the specific *visual profile* (tone/emotion) of the user\'s deck is reflected in the descriptive language before producing the final answer.'
+    '- SELF-VERIFY (INTERNAL): After composing, quickly scan to ensure each referenced card/position is accurate, reversal instructions are obeyed, and any provided *visual profile* (tone/emotion) is reflected in the descriptive language before producing the final answer.'
   );
 
   const toneKey = personalization?.readingTone;
@@ -1019,16 +1019,12 @@ function buildUserPrompt(
 
   // Question
   const safeQuestion = userQuestion ? sanitizeText(userQuestion, { maxLength: MAX_QUESTION_TEXT_LENGTH, addEllipsis: true, stripMarkdown: true }) : '';
-  let questionLine = safeQuestion || '(No explicit question; speak to the energy most present for the querent.)';
-  if (displayName && safeQuestion) {
-    questionLine = `${displayName}, you asked: ${safeQuestion}`;
-  } else if (displayName && !safeQuestion) {
-    questionLine = `${displayName} did not pose a question—attune to the energy most present for them.`;
-  }
+  const questionLine = safeQuestion || '(No explicit question; speak to the energy most present for the querent.)';
   prompt += `**Question**: ${questionLine}\n\n`;
 
   if (displayName) {
-    prompt += `**Name Usage**:\n- Weave the querent's name naturally in key transitions (for example, "For you, ${displayName}, this suggests...").\n- Open with a direct acknowledgement such as "${displayName}, you asked..." and close with "Remember, ${displayName}, ..." to keep the reading personal without overusing the name.\n\n`;
+    prompt += `**Querent Name**: ${displayName}\n\n`;
+    prompt += `**Name Usage**:\n- Weave the querent's name naturally in key transitions (for example, "For you, ${displayName}, this suggests...").\n- If you acknowledge the question, do so after the opening felt-experience sentences; avoid rigid openers.\n- Close with "Remember, ${displayName}, ..." to keep the reading personal without overusing the name.\n\n`;
   }
 
   if (depthProfile && depthProfile.promptReminder && depthProfile.key !== 'standard') {
@@ -1098,7 +1094,7 @@ function buildUserPrompt(
       timingHints.forEach(hint => {
         prompt += `- ${hint}\n`;
       });
-      prompt += '\n';
+      prompt += '- Use at most one of these hints in the final narrative (Opening or Synthesis).\n\n';
     }
   }
 

@@ -3,6 +3,7 @@ import { ArrowsClockwise, Sparkle } from '@phosphor-icons/react';
 import { EXAMPLE_QUESTIONS } from '../data/exampleQuestions';
 import { recordCoachQuestion } from '../lib/coachStorage';
 import { usePreferences } from '../contexts/PreferencesContext';
+import { useAuth } from '../contexts/AuthContext';
 import { useAutoGrow } from '../hooks/useAutoGrow';
 
 export function QuestionInput({
@@ -19,6 +20,8 @@ export function QuestionInput({
   const [saveError, setSaveError] = useState('');
   const timeoutRefs = useRef([]);
   const { personalization } = usePreferences();
+  const { user } = useAuth();
+  const userId = user?.id || null;
   const textareaRef = useAutoGrow(userQuestion, 1, 4);
   const isExperienced = personalization?.tarotExperience === 'experienced';
   const isNewbie = personalization?.tarotExperience === 'newbie';
@@ -47,7 +50,7 @@ export function QuestionInput({
   const handleSaveIntention = () => {
     const trimmed = userQuestion.trim();
     if (!trimmed) return;
-    const result = recordCoachQuestion(trimmed);
+    const result = recordCoachQuestion(trimmed, undefined, userId);
     if (result.success) {
       setSavedNotice(true);
       setSaveError('');

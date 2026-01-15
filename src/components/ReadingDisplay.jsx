@@ -409,7 +409,7 @@ export function ReadingDisplay({ sectionRef }) {
         return { canPrev, canNext, label, currentPos: posInList };
     }, [activeFocusedCardData, selectedCardData, revealedIndicesSorted]);
 
-    // Handler for navigation (used by both CardDetailSheet and CardModal)
+    // Handler for navigation (used by both CardFocusOverlay and CardModal)
     const handleNavigateCard = useCallback((direction) => {
         const { currentPos, canPrev, canNext } = navigationData;
         if (currentPos < 0) return;

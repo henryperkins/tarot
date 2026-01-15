@@ -24,7 +24,7 @@ import {
   computeRemedyRotationIndex
 } from './narrativeBuilder.js';
 import { enhanceSection } from './narrativeSpine.js';
-import { callAzureResponses, getReasoningEffort } from './azureResponses.js';
+import { callAzureResponses, getReasoningEffort, getTextVerbosity } from './azureResponses.js';
 import { buildReadingReasoning } from './narrative/reasoning.js';
 import {
   buildReasoningAwareOpening,
@@ -239,7 +239,8 @@ export async function generateWithAzureGPT5Responses(env, payload, requestId = '
   const { systemPrompt, userPrompt } = buildAzureGPT5Prompts(env, payload, requestId);
 
   // Determine reasoning effort based on model
-  const reasoningEffort = getReasoningEffort(deploymentName);
+  const reasoningEffort = getReasoningEffort(env, deploymentName);
+  const verbosity = getTextVerbosity(env, deploymentName);
   if (reasoningEffort === 'high') {
     console.log(`[${requestId}] Detected ${deploymentName} deployment, using 'high' reasoning effort`);
   }
@@ -248,7 +249,7 @@ export async function generateWithAzureGPT5Responses(env, payload, requestId = '
     deployment: deploymentName,
     max_output_tokens: 'unlimited',
     reasoning_effort: reasoningEffort,
-    verbosity: 'medium'
+    verbosity
   });
 
   // Call Azure Responses API using consolidated helper
@@ -256,9 +257,9 @@ export async function generateWithAzureGPT5Responses(env, payload, requestId = '
     instructions: systemPrompt,
     input: userPrompt,
     maxTokens: null,          // No limit for full readings
-    reasoningEffort,          // Default to 'medium' to balance latency and cost
+    reasoningEffort,          // Env override or model default
     reasoningSummary: 'auto', // Get reasoning summary in response
-    verbosity: 'medium',
+    verbosity,
     returnFullResponse: true  // Get usage data
   });
 

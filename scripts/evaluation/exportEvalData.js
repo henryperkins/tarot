@@ -1,20 +1,15 @@
 #!/usr/bin/env node
 /**
- * Export evaluation data from R2 archives for analysis
+ * Export evaluation data from D1 for analysis
  *
  * Usage: node scripts/evaluation/exportEvalData.js --days=7 [--output eval-data.jsonl]
  */
 
 import fs from 'node:fs/promises';
-import { createR2Client, listJsonFromR2 } from '../lib/dataAccess.js';
-
-const R2_ACCOUNT_ID = process.env.CF_ACCOUNT_ID;
-const R2_ACCESS_KEY = process.env.R2_ACCESS_KEY_ID;
-const R2_SECRET_KEY = process.env.R2_SECRET_ACCESS_KEY;
-const BUCKET = process.env.R2_BUCKET || 'tarot-logs';
+import { executeD1Query } from '../lib/dataAccess.js';
 
 function parseArgs(rawArgs = []) {
-  const options = { days: 7, output: null };
+  const options = { days: 7, output: null, d1Name: 'mystic-tarot-db', target: 'remote' };
 
   rawArgs.forEach((arg, index) => {
     if (arg.startsWith('--days=')) {
@@ -25,8 +20,24 @@ function parseArgs(rawArgs = []) {
       options.output = arg.split('=')[1];
     } else if (arg === '--output') {
       options.output = rawArgs[index + 1];
+    } else if (arg.startsWith('--d1-name=')) {
+      options.d1Name = arg.split('=')[1];
+    } else if (arg === '--d1-name') {
+      options.d1Name = rawArgs[index + 1];
+    } else if (arg === '--local') {
+      options.target = 'local';
+    } else if (arg === '--remote') {
+      options.target = 'remote';
     } else if (arg === '--help' || arg === '-h') {
-      console.log('Usage: node scripts/evaluation/exportEvalData.js --days=7 [--output eval-data.jsonl]');
+      console.log(`Usage: node scripts/evaluation/exportEvalData.js --days=7 [--output eval-data.jsonl]
+
+Options:
+  --days=N        Export records from the last N days (default: 7)
+  --output=FILE   Write to file instead of stdout
+  --d1-name=NAME  D1 database name (default: mystic-tarot-db)
+  --local         Use local D1 database
+  --remote        Use remote D1 database (default)
+`);
       process.exit(0);
     }
   });
@@ -38,36 +49,60 @@ function parseArgs(rawArgs = []) {
   return options;
 }
 
-async function exportEvalData(days = 7) {
-  const client = createR2Client({
-    accountId: R2_ACCOUNT_ID,
-    accessKeyId: R2_ACCESS_KEY,
-    secretAccessKey: R2_SECRET_KEY
-  });
+async function exportEvalData(options) {
+  const { days, d1Name, target } = options;
+
+  // Calculate cutoff date
   const cutoff = new Date();
   cutoff.setDate(cutoff.getDate() - days);
+  const cutoffStr = cutoff.toISOString().replace('T', ' ').split('.')[0];
 
-  const records = [];
-  const objects = await listJsonFromR2(client, {
-    bucket: BUCKET,
-    prefix: 'archives/metrics/',
-    cutoffDate: cutoff
-  });
+  const sql = `
+    SELECT
+      request_id,
+      created_at,
+      spread_key,
+      provider,
+      eval_mode,
+      overall_score,
+      safety_flag,
+      card_coverage,
+      reading_prompt_version,
+      variant_id,
+      payload
+    FROM eval_metrics
+    WHERE created_at >= '${cutoffStr}'
+    ORDER BY created_at DESC
+  `;
 
-  for (const obj of objects) {
-    const data = obj?.data;
-    if (data?.eval) {
-      records.push({
-        requestId: data.requestId,
-        timestamp: data.timestamp,
-        provider: data.provider,
-        spreadKey: data.spreadKey,
-        eval: data.eval,
-        cardCoverage: data.narrative?.cardCoverage,
-        hallucinatedCards: data.narrative?.hallucinatedCards?.length || 0
-      });
+  const rows = await executeD1Query({ dbName: d1Name, sql, target });
+
+  const records = rows.map((row) => {
+    let payload = {};
+    try {
+      payload = JSON.parse(row.payload || '{}');
+    } catch {
+      // ignore parse errors
     }
-  }
+
+    return {
+      requestId: row.request_id,
+      timestamp: row.created_at,
+      provider: row.provider,
+      spreadKey: row.spread_key,
+      eval: payload.eval || {
+        scores: {
+          overall: row.overall_score,
+          safety_flag: row.safety_flag === 1
+        },
+        mode: row.eval_mode
+      },
+      cardCoverage: row.card_coverage ?? payload.narrative?.cardCoverage,
+      hallucinatedCards: payload.narrative?.hallucinatedCards?.length || 0,
+      readingPromptVersion: row.reading_prompt_version,
+      variantId: row.variant_id
+    };
+  });
 
   return records;
 }
@@ -83,9 +118,9 @@ async function writeOutput(records, output, days) {
 }
 
 async function main() {
-  const { days, output } = parseArgs(process.argv.slice(2));
-  const records = await exportEvalData(days);
-  await writeOutput(records, output, days);
+  const options = parseArgs(process.argv.slice(2));
+  const records = await exportEvalData(options);
+  await writeOutput(records, options.output, options.days);
 }
 
 main().catch((err) => {

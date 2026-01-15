@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useLayoutEffect, useMemo, useRef, useState, useId, useSyncExternalStore } from 'react';
+import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useId, useSyncExternalStore } from 'react';
 import FocusTrap from 'focus-trap-react';
 import {
   ChartLine,
@@ -38,7 +38,7 @@ import {
   MAX_TEMPLATES
 } from '../lib/coachStorage';
 import { MOBILE_COACH_DIALOG_ID } from './MobileActionBar';
-import { normalizeThemeLabel } from '../lib/themeText';
+import { buildThemeQuestion, normalizeThemeLabel } from '../lib/themeText';
 import { subscribeToViewport, getViewportOffset, getServerViewportOffset } from './MobileActionBar';
 
 // ============================================================================
@@ -138,6 +138,51 @@ const FOCUS_AREA_TO_TOPIC = {
   spirituality: 'growth'
 };
 
+const FOCUS_AREA_SUGGESTIONS = {
+  love: {
+    label: 'Love & relationships',
+    topic: 'relationships',
+    timeframe: 'week',
+    depth: 'guided',
+    customFocus: 'my closest relationships'
+  },
+  career: {
+    label: 'Career & money',
+    topic: 'career',
+    timeframe: 'month',
+    depth: 'guided',
+    customFocus: 'my career direction and finances'
+  },
+  self_worth: {
+    label: 'Self-worth & confidence',
+    topic: 'growth',
+    timeframe: 'month',
+    depth: 'lesson',
+    customFocus: 'my self-worth and confidence'
+  },
+  healing: {
+    label: 'Healing & growth',
+    topic: 'wellbeing',
+    timeframe: 'season',
+    depth: 'lesson',
+    customFocus: 'my healing and balance'
+  },
+  creativity: {
+    label: 'Creativity & projects',
+    topic: 'career',
+    timeframe: 'month',
+    depth: 'guided',
+    customFocus: 'my creative projects'
+  },
+  spirituality: {
+    label: 'Spiritual path',
+    topic: 'growth',
+    timeframe: 'season',
+    depth: 'deep',
+    customFocus: 'my spiritual path'
+  }
+};
+
 const baseOptionClass =
   'text-left rounded-2xl border bg-surface-muted/50 px-4 py-4 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-surface';
 
@@ -177,8 +222,13 @@ function describePrefillSource(source) {
   return 'your journal insights';
 }
 
-function buildPersonalizedSuggestions(stats, history = []) {
+function buildPersonalizedSuggestions(stats, history = [], focusAreas = []) {
   const suggestions = [];
+  const hasJournalSignals = Boolean(
+    (Array.isArray(stats?.frequentCards) && stats.frequentCards.length > 0)
+    || (Array.isArray(stats?.recentThemes) && stats.recentThemes.length > 0)
+    || (Array.isArray(stats?.contextBreakdown) && stats.contextBreakdown.length > 0)
+  );
 
   if (stats?.frequentCards?.length) {
     stats.frequentCards.slice(0, 2).forEach((card, idx) => {
@@ -201,13 +251,15 @@ function buildPersonalizedSuggestions(stats, history = []) {
     stats.recentThemes.slice(0, 2).forEach((theme, idx) => {
       const label = normalizeThemeLabel(theme);
       if (!label) return;
+      const themeQuestion = buildThemeQuestion(label);
       suggestions.push({
         id: `theme-${idx}`,
         label: `Lean into: ${label}`,
         helper: 'Recent journal theme',
+        question: themeQuestion,
         topic: 'growth',
-        timeframe: 'month',
-        depth: 'guided',
+        timeframe: 'open',
+        depth: 'lesson',
         customFocus: label
       });
     });
@@ -227,6 +279,26 @@ function buildPersonalizedSuggestions(stats, history = []) {
         customFocus: hint.customFocus
       });
     }
+  }
+
+  if (!hasJournalSignals) {
+    const normalizedFocusAreas = Array.isArray(focusAreas)
+      ? focusAreas.map(area => (typeof area === 'string' ? area.trim() : '')).filter(Boolean)
+      : [];
+
+    normalizedFocusAreas.slice(0, 3).forEach((area, idx) => {
+      const suggestion = FOCUS_AREA_SUGGESTIONS[area];
+      if (!suggestion) return;
+      suggestions.push({
+        id: `focus-${area}-${idx}`,
+        label: suggestion.label,
+        helper: 'Based on your focus areas',
+        topic: suggestion.topic,
+        timeframe: suggestion.timeframe,
+        depth: suggestion.depth,
+        customFocus: suggestion.customFocus
+      });
+    });
   }
 
   if (Array.isArray(history) && history.length > 0) {
@@ -365,6 +437,12 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply,
     }
   };
 
+  const clearAstroForecast = useCallback(() => {
+    setAstroHighlights([]);
+    setAstroWindowDays(null);
+    setAstroSource(null);
+  }, []);
+
   const scheduleTimeout = (callback, delay) => {
     const id = setTimeout(() => {
       timeoutRefs.current = timeoutRefs.current.filter(timeoutId => timeoutId !== id);
@@ -392,7 +470,7 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply,
   );
 
   const _refreshSuggestions = () => {
-    setPersonalizedSuggestions(buildPersonalizedSuggestions(coachStats, questionHistory));
+    setPersonalizedSuggestions(buildPersonalizedSuggestions(coachStats, questionHistory, personalization?.focusAreas));
     setSuggestionsPage(0);
   };
 
@@ -414,6 +492,8 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply,
     () => scoreQuestion(questionText || guidedQuestion || ''),
     [questionText, guidedQuestion]
   );
+
+  const isManualQuestion = !autoQuestionEnabled && Boolean((questionText || '').trim());
 
   const qualityLevel = useMemo(
     () => getQualityLevel(questionQuality.score),
@@ -437,9 +517,48 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply,
   }, [questionQuality.score, prefersReducedMotion]);
 
   const summary = getCoachSummary({ topic, timeframe, depth });
+  const footerSummary = isManualQuestion
+    ? 'Custom question'
+    : `${summary.topicLabel} · ${summary.timeframeLabel} · ${summary.depthLabel}`;
+  const footerSummaryCompact = isManualQuestion
+    ? 'Custom question'
+    : `${summary.topicLabel} · ${summary.timeframeLabel}`;
+
+  const buildSuggestionPreview = useCallback((suggestion) => {
+    if (!suggestion) return '';
+    if (suggestion.question) return suggestion.question;
+
+    const suggestionTopic = suggestion.topic || topic;
+    const suggestionTimeframe = suggestion.timeframe || timeframe;
+    const suggestionDepth = suggestion.depth || depth;
+    const suggestionFocus = typeof suggestion.customFocus === 'string' ? suggestion.customFocus.trim() : '';
+    const suggestionSeed = [
+      'suggestion',
+      suggestion.id || suggestion.label || 'preview',
+      suggestionTopic,
+      suggestionTimeframe,
+      suggestionDepth,
+      suggestionFocus
+    ].join('|');
+
+    return buildGuidedQuestion({
+      topic: suggestionTopic,
+      timeframe: suggestionTimeframe,
+      depth: suggestionDepth,
+      customFocus: suggestionFocus || undefined,
+      seed: suggestionSeed
+    });
+  }, [topic, timeframe, depth]);
 
   const questionContextChips = useMemo(() => {
     const chips = [];
+    if (isManualQuestion) {
+      chips.push({ label: 'Custom question', type: 'Mode' });
+      if (customFocus?.trim()) {
+        chips.push({ label: customFocus.trim(), type: 'Detail', action: 'focus' });
+      }
+      return chips;
+    }
     if (summary.topicLabel) {
       chips.push({ label: summary.topicLabel, type: 'Topic', step: 0 });
     }
@@ -453,7 +572,7 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply,
       chips.push({ label: customFocus.trim(), type: 'Detail', action: 'focus' });
     }
     return chips;
-  }, [summary.topicLabel, summary.timeframeLabel, summary.depthLabel, customFocus]);
+  }, [summary.topicLabel, summary.timeframeLabel, summary.depthLabel, customFocus, isManualQuestion]);
 
   const qualityHelperText = useMemo(() => {
     if (questionQuality.score >= 85) return 'Ready to anchor into your spread.';
@@ -464,12 +583,12 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply,
 
   const normalizedQualityScore = Math.min(Math.max(questionQuality.score, 0), 100);
 
-  const _suggestionPageCount = useMemo(() => {
+  const suggestionPageCount = useMemo(() => {
     if (personalizedSuggestions.length === 0) return 0;
     return Math.ceil(personalizedSuggestions.length / SUGGESTIONS_PER_PAGE);
   }, [personalizedSuggestions.length]);
 
-  const _visibleSuggestions = useMemo(() => {
+  const visibleSuggestions = useMemo(() => {
     if (personalizedSuggestions.length === 0) return [];
     const start = suggestionsPage * SUGGESTIONS_PER_PAGE;
     return personalizedSuggestions.slice(start, start + SUGGESTIONS_PER_PAGE);
@@ -502,7 +621,7 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply,
       useCreative,
       savedQuestion: trimmedQuestion
     };
-    const result = saveCoachTemplate(payload);
+    const result = saveCoachTemplate(payload, userId);
     if (result.success) {
       setTemplates(result.templates);
       const archivedOldest =
@@ -540,6 +659,7 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply,
     if (template.savedQuestion) {
       setQuestionText(template.savedQuestion);
       setAutoQuestionEnabled(false);
+      clearAstroForecast();
     } else {
       setAutoQuestionEnabled(true);
     }
@@ -552,7 +672,7 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply,
   };
 
   const handleDeleteTemplate = (templateId) => {
-    const result = deleteCoachTemplate(templateId);
+    const result = deleteCoachTemplate(templateId, userId);
     if (result.success) {
       setTemplates(result.templates);
       setTemplateStatus('Template removed');
@@ -584,6 +704,7 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply,
     if (suggestion.question) {
       setQuestionText(suggestion.question);
       setAutoQuestionEnabled(false);
+      clearAstroForecast();
     } else {
       setAutoQuestionEnabled(true);
     }
@@ -593,6 +714,11 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply,
       source: 'suggestion',
       label: suggestion.label
     });
+  };
+
+  const handleSuggestionPick = (suggestion) => {
+    handleApplySuggestion(suggestion);
+    setStep(2);
   };
 
   const handleApplyHistoryQuestion = (historyItem) => {
@@ -656,13 +782,13 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply,
     if (!finalQuestion) return;
 
     // Record question, but don't block apply if storage fails
-    const historyResult = recordCoachQuestion(finalQuestion);
+    const historyResult = recordCoachQuestion(finalQuestion, undefined, userId);
 
     // Update history state with the new list
     if (historyResult?.history) {
       setQuestionHistory(historyResult.history);
       // Refresh suggestions with the NEW history immediately
-      setPersonalizedSuggestions(buildPersonalizedSuggestions(coachStats, historyResult.history));
+      setPersonalizedSuggestions(buildPersonalizedSuggestions(coachStats, historyResult.history, personalization?.focusAreas));
       setSuggestionsPage(0);
     }
 
@@ -762,14 +888,15 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply,
       setQuestionText(recommendation.question);
       setPrefillSource(recommendation);
       setAutoQuestionEnabled(false);
+      clearAstroForecast();
     }
-  }, [isOpen, suggestedTopic, prefillRecommendation, userId]);
+  }, [isOpen, suggestedTopic, prefillRecommendation, userId, clearAstroForecast]);
 
   // Load templates and history when modal opens
   useEffect(() => {
     if (!isOpen) return;
-    setTemplates(loadCoachTemplates());
-    const history = loadCoachHistory();
+    setTemplates(loadCoachTemplates(userId));
+    const history = loadCoachHistory(undefined, userId);
     setQuestionHistory(history);
     const insights = loadStoredJournalInsights(userId);
     const snapshot = loadCoachStatsSnapshot(userId);
@@ -785,9 +912,9 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply,
   // Build personalized suggestions when stats/history change
   useEffect(() => {
     if (!isOpen) return;
-    setPersonalizedSuggestions(buildPersonalizedSuggestions(coachStats, questionHistory));
+    setPersonalizedSuggestions(buildPersonalizedSuggestions(coachStats, questionHistory, personalization?.focusAreas));
     setSuggestionsPage(0);
-  }, [coachStats, questionHistory, isOpen]);
+  }, [coachStats, questionHistory, isOpen, personalization?.focusAreas]);
 
   // Keep pagination in range when suggestion count changes
   useEffect(() => {
@@ -1098,6 +1225,9 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply,
                   Remix
                 </button>
               </div>
+              <p className="text-[0.65rem] text-secondary/70">
+                Creative mode uses journal themes and recent questions when available.
+              </p>
             </div>
 
             {prefillSource && prefillSourceDescription && (
@@ -1277,6 +1407,82 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply,
                 )}
               </div>
 
+              {personalizedSuggestions.length > 0 && (
+                <section className="rounded-2xl border border-secondary/30 bg-surface-muted/40 p-4 space-y-3">
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                      <p className="text-xs uppercase tracking-[0.3em] text-secondary">Suggested for you</p>
+                      <p className="text-xs text-muted">
+                        Based on your journal trends and recent questions.
+                      </p>
+                    </div>
+                    {suggestionPageCount > 1 && (
+                      <div className="flex items-center gap-2 text-xs text-secondary">
+                        <button
+                          type="button"
+                          onClick={() => setSuggestionsPage(prev => (prev - 1 + suggestionPageCount) % suggestionPageCount)}
+                          className="inline-flex items-center justify-center rounded-full border border-secondary/40 px-2 py-1 hover:bg-secondary/10 transition"
+                          aria-label="Previous suggestions"
+                        >
+                          <ArrowLeft className="h-3 w-3" aria-hidden="true" />
+                        </button>
+                        <span className="text-[0.65rem] uppercase tracking-[0.3em] text-secondary/70">
+                          {suggestionsPage + 1}/{suggestionPageCount}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => setSuggestionsPage(prev => (prev + 1) % suggestionPageCount)}
+                          className="inline-flex items-center justify-center rounded-full border border-secondary/40 px-2 py-1 hover:bg-secondary/10 transition"
+                          aria-label="Next suggestions"
+                        >
+                          <ArrowRight className="h-3 w-3" aria-hidden="true" />
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    {visibleSuggestions.map(suggestion => {
+                      const preview = buildSuggestionPreview(suggestion);
+                      const chips = [
+                        getTopicLabel(suggestion.topic),
+                        getTimeframeLabel(suggestion.timeframe),
+                        getDepthLabel(suggestion.depth)
+                      ].filter(Boolean);
+                      return (
+                        <button
+                          key={suggestion.id || suggestion.label}
+                          type="button"
+                          onClick={() => handleSuggestionPick(suggestion)}
+                          className="rounded-2xl border border-accent/20 bg-surface/70 p-3 text-left transition hover:border-secondary/60 hover:bg-surface-muted/60"
+                        >
+                          <div className="flex items-start justify-between gap-2">
+                            <div>
+                              <p className="text-sm font-semibold text-main">{suggestion.label}</p>
+                              {suggestion.helper && (
+                                <p className="text-xs text-secondary/80 mt-1">{suggestion.helper}</p>
+                              )}
+                            </div>
+                            <span className="text-[0.6rem] uppercase tracking-[0.3em] text-secondary/70">Use</span>
+                          </div>
+                          {preview && (
+                            <p className="mt-2 text-sm text-main/90">{preview}</p>
+                          )}
+                          {chips.length > 0 && (
+                            <div className="mt-2 flex flex-wrap gap-2 text-[0.6rem] uppercase tracking-[0.3em] text-secondary/60">
+                              {chips.map(chip => (
+                                <span key={`${suggestion.id || suggestion.label}-${chip}`} className="rounded-full border border-secondary/30 px-2 py-1">
+                                  {chip}
+                                </span>
+                              ))}
+                            </div>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </section>
+              )}
+
               {/* Step Navigation & Content */}
               <div className="flex flex-col gap-3">
                 {/* Step Progress Indicator */}
@@ -1361,9 +1567,7 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply,
             <div className={`flex sm:flex-row sm:items-center sm:justify-between ${isLandscape ? 'flex-row items-center gap-2' : 'flex-col gap-3'}`}>
               <div className={`text-xs text-muted ${isLandscape ? 'block' : 'hidden sm:block'}`}>
                 <p>
-                  {isLandscape
-                    ? `${summary.topicLabel} · ${summary.timeframeLabel}`
-                    : `${summary.topicLabel} · ${summary.timeframeLabel} · ${summary.depthLabel}`}
+                  {isLandscape ? footerSummaryCompact : footerSummary}
                 </p>
               </div>
               <div className={`flex items-center w-full sm:w-auto ${isLandscape ? 'gap-2 flex-1 justify-end' : 'gap-3'}`}>

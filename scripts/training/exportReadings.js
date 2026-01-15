@@ -66,7 +66,7 @@ function parseArgs(argv, wranglerConfig) {
     journalFile: DEFAULT_JOURNAL_FILE,
     feedbackSource: 'kv',
     feedbackFile: DEFAULT_FEEDBACK_FILE,
-    metricsSource: 'kv',
+    metricsSource: 'd1',
     metricsFile: DEFAULT_METRICS_FILE,
     limit: null,
     wranglerTarget: 'remote',
@@ -165,7 +165,7 @@ Options:
   --journal-file <path>        JSON file to read journal entries when using file source
   --feedback-source <kv|file|none>  Source for feedback records (default: kv)
   --feedback-file <path>       JSON file for feedback when using file source
-  --metrics-source <kv|file|none>   Source for metrics (default: kv)
+  --metrics-source <d1|kv|r2|file|none>   Source for metrics (default: d1)
   --metrics-file <path>        JSONL/JSON file for metrics when using file source
   --metrics-days <number>      When metrics-source=r2, include archives from the last N days (default: 7)
   --r2-bucket <name>           R2 bucket for metrics archives (default: env R2_BUCKET or tarot-logs)
@@ -208,6 +208,10 @@ async function loadMetricsRecords(options) {
     return readMetricsFromFile(options.metricsFile);
   }
 
+  if (options.metricsSource === 'd1') {
+    return fetchMetricsFromD1(options);
+  }
+
   if (options.metricsSource === 'r2') {
     return fetchMetricsFromR2(options);
   }
@@ -221,6 +225,37 @@ async function loadMetricsRecords(options) {
     namespaceId: options.metricsNamespace,
     target: options.wranglerTarget
   });
+}
+
+async function fetchMetricsFromD1(options) {
+  const { d1Name, wranglerTarget, metricsDays } = options;
+  const days = Number.isFinite(metricsDays) ? metricsDays : 7;
+
+  // Calculate cutoff date
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - days);
+  const cutoffStr = cutoff.toISOString().replace('T', ' ').split('.')[0];
+
+  const sql = `
+    SELECT request_id, payload
+    FROM eval_metrics
+    WHERE created_at >= '${cutoffStr}'
+  `;
+
+  try {
+    const rows = await executeD1Query({ dbName: d1Name, sql, target: wranglerTarget });
+    return rows.map((row) => {
+      try {
+        const data = JSON.parse(row.payload || '{}');
+        return { ...data, requestId: row.request_id };
+      } catch {
+        return { requestId: row.request_id };
+      }
+    }).filter(Boolean);
+  } catch (err) {
+    console.warn(`[export] Failed to fetch metrics from D1: ${err.message}`);
+    return [];
+  }
 }
 
 async function readJournalFromFile(filePath, { optional = false } = {}) {

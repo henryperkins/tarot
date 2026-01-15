@@ -36,7 +36,15 @@ const CELTIC_MAP_POSITIONS = [
   { x: 80, y: 20 }         // 10: Outcome
 ];
 
-function CardDetailContent({ focusedCardData, reflections, setReflections, onOpenModal, showHeading = true }) {
+function CardDetailContent({
+  focusedCardData,
+  reflections,
+  setReflections,
+  onOpenModal,
+  showHeading = true,
+  layout = 'panel',
+  headingId
+}) {
   const [isMeaningExpanded, setIsMeaningExpanded] = useState(false);
 
   if (!focusedCardData) return null;
@@ -47,12 +55,33 @@ function CardDetailContent({ focusedCardData, reflections, setReflections, onOpe
   const reflectionValue = reflections?.[index] ?? '';
   const charCount = reflectionValue.length;
   const charCountClass = charCount > 480 ? 'text-error' : charCount > 450 ? 'text-warning' : 'text-accent/70';
+  const isFocusLayout = layout === 'focus';
+  const containerClass = isFocusLayout ? 'space-y-6' : 'space-y-4';
+  const headerClass = isFocusLayout ? 'flex flex-col items-center text-center gap-4' : 'flex flex-col sm:flex-row gap-4';
+  const imageWrapClass = isFocusLayout
+    ? 'w-36 xs:w-40 sm:w-44 max-w-[70%] flex-shrink-0 mx-auto'
+    : 'w-24 sm:w-28 flex-shrink-0 mx-auto sm:mx-0';
+  const headingWrapClass = isFocusLayout ? 'flex-1 min-w-0 text-center' : 'flex-1 min-w-0';
+  const positionClass = isFocusLayout ? 'text-[0.7rem] uppercase tracking-[0.2em] text-muted' : 'text-xs text-muted';
+  const headingClass = isFocusLayout ? 'text-xl font-serif text-accent' : 'text-base font-semibold text-accent';
+  const meaningClass = isFocusLayout ? 'text-base text-main/90 leading-relaxed mt-3' : 'text-sm text-main/90 mt-2';
+  const meaningClampClass = isMeaningExpanded ? '' : isFocusLayout ? 'line-clamp-6' : 'line-clamp-4';
+  const imageFrameClass = isFocusLayout
+    ? 'aspect-[2/3] rounded-xl border border-primary/30 overflow-hidden shadow-xl'
+    : 'aspect-[2/3] rounded-lg border border-primary/30 overflow-hidden';
+  const expandButtonClass = isFocusLayout
+    ? 'text-xs font-semibold text-accent hover:text-main underline underline-offset-4 mt-2'
+    : 'text-xs font-semibold text-accent hover:text-main underline underline-offset-4 mt-1';
+  const openButtonClass = isFocusLayout
+    ? 'mt-4 inline-flex w-full min-h-[48px] items-center justify-center rounded-full border border-secondary/40 px-4 py-2 text-xs font-semibold text-muted hover:text-main hover:border-secondary/60 transition touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/50'
+    : 'mt-3 inline-flex min-h-[44px] items-center justify-center rounded-full border border-secondary/40 px-4 py-2 text-xs font-semibold text-muted hover:text-main hover:border-secondary/60 transition touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/50';
+  const reflectionLabelClass = isFocusLayout ? 'text-muted text-sm block mb-1' : 'text-muted text-xs-plus sm:text-sm block mb-1';
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-col sm:flex-row gap-4">
-        <div className="w-24 sm:w-28 flex-shrink-0 mx-auto sm:mx-0">
-          <div className={`aspect-[2/3] rounded-lg border border-primary/30 overflow-hidden ${card.isReversed ? 'rotate-180' : ''}`}>
+    <div className={containerClass}>
+      <div className={headerClass}>
+        <div className={imageWrapClass}>
+          <div className={`${imageFrameClass} ${card.isReversed ? 'rotate-180' : ''}`}>
             <img
               src={cardImage}
               alt={card.name}
@@ -61,21 +90,28 @@ function CardDetailContent({ focusedCardData, reflections, setReflections, onOpe
             />
           </div>
         </div>
-        <div className="flex-1 min-w-0">
+        <div className={headingWrapClass}>
           {showHeading && (
             <>
-              <p className="text-xs text-muted">{position}</p>
-              <h4 className="text-base font-semibold text-accent">
+              {isFocusLayout ? (
+                <>
+                  <p className={positionClass}>Selected card</p>
+                  <p className="text-xs text-muted">{position}</p>
+                </>
+              ) : (
+                <p className={positionClass}>{position}</p>
+              )}
+              <h4 id={headingId} className={headingClass}>
                 {card.name} {card.isReversed ? '(Reversed)' : ''}
               </h4>
             </>
           )}
-          <p className={`text-sm text-main/90 mt-2 ${isMeaningExpanded ? '' : 'line-clamp-4'}`}>{meaning}</p>
+          <p className={`${meaningClass} ${meaningClampClass}`}>{meaning}</p>
           {!isMeaningExpanded && meaning && meaning.length > 140 && (
             <button
               type="button"
               onClick={() => setIsMeaningExpanded(true)}
-              className="text-xs font-semibold text-accent hover:text-main underline underline-offset-4 mt-1"
+              className={expandButtonClass}
             >
               Expand meaning
             </button>
@@ -83,14 +119,14 @@ function CardDetailContent({ focusedCardData, reflections, setReflections, onOpe
           <button
             type="button"
             onClick={() => onOpenModal?.(focusedCardData)}
-            className="mt-3 inline-flex min-h-[44px] items-center justify-center rounded-full border border-secondary/40 px-4 py-2 text-xs font-semibold text-muted hover:text-main hover:border-secondary/60 transition touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/50"
+            className={openButtonClass}
           >
             Open full card
           </button>
         </div>
       </div>
       <div>
-        <label htmlFor={`reflection-panel-${index}`} className="text-muted text-xs-plus sm:text-sm block mb-1">
+        <label htmlFor={`reflection-panel-${index}`} className={reflectionLabelClass}>
           What resonates for you?
         </label>
         <textarea
@@ -100,7 +136,7 @@ function CardDetailContent({ focusedCardData, reflections, setReflections, onOpe
             if (!setReflections) return;
             setReflections(prev => ({ ...prev, [index]: event.target.value }));
           }}
-          rows={3}
+          rows={isFocusLayout ? 4 : 3}
           maxLength={500}
           className="w-full bg-surface/85 border border-secondary/40 rounded p-2 min-h-[3.5rem] resize-y text-main text-base leading-relaxed focus:outline-none focus:ring-1 focus:ring-secondary/55"
           placeholder="What resonates? (optional)"
@@ -173,7 +209,7 @@ function CardDetailPanel({
   );
 }
 
-function CardDetailSheet({
+function CardFocusOverlay({
   isOpen,
   onClose,
   focusedCardData,
@@ -186,9 +222,9 @@ function CardDetailSheet({
   canNavigateNext,
   positionLabel
 }) {
-  const sheetRef = useRef(null);
+  const overlayRef = useRef(null);
   const closeButtonRef = useRef(null);
-  const titleId = `card-detail-sheet-title-${focusedCardData?.index ?? 'unknown'}`;
+  const titleId = `card-focus-title-${focusedCardData?.index ?? 'unknown'}`;
 
   // Swipe gesture tracking
   const touchStartX = useRef(null);
@@ -196,9 +232,9 @@ function CardDetailSheet({
 
   useModalA11y(isOpen, {
     onClose,
-    containerRef: sheetRef,
+    containerRef: overlayRef,
     initialFocusRef: closeButtonRef,
-    scrollLockStrategy: 'simple'
+    scrollLockStrategy: 'fixed'
   });
 
   const handleTouchStart = useCallback((event) => {
@@ -229,83 +265,83 @@ function CardDetailSheet({
 
   if (!isOpen || !focusedCardData) return null;
 
-  const { card, position } = focusedCardData;
   const hasNavigation = canNavigatePrev || canNavigateNext;
 
   return (
     <div
-      className="fixed inset-0 z-[80] flex items-end justify-center"
-      style={{ paddingTop: 'max(16px, env(safe-area-inset-top, 16px))' }}
+      className="fixed inset-0 z-[85] animate-fade-in"
+      style={{ background: getDrawerGradient() }}
     >
       <div
-        className="mobile-drawer-overlay absolute inset-0 animate-fade-in"
-        onClick={onClose}
+        className="absolute inset-0 pointer-events-none"
+        style={{
+          backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200' viewBox='0 0 200 200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)' opacity='0.22'/%3E%3C/svg%3E")`,
+          mixBlendMode: 'soft-light',
+          opacity: 0.28
+        }}
         aria-hidden="true"
       />
       <div
-        ref={sheetRef}
-        className="mobile-drawer relative w-full flex flex-col animate-slide-up"
+        ref={overlayRef}
+        className="relative z-10 flex h-full flex-col focus:outline-none"
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
-        onClick={(event) => event.stopPropagation()}
         onTouchStart={handleTouchStart}
         onTouchEnd={handleTouchEnd}
-        style={{ maxHeight: 'calc(100% - 8px)' }}
+        tabIndex={-1}
+        style={{
+          paddingTop: 'max(10px, env(safe-area-inset-top, 10px))',
+          paddingBottom: 'max(12px, env(safe-area-inset-bottom, 12px))'
+        }}
       >
-        <div className="mobile-drawer__handle" aria-hidden="true" />
-        {/* Navigation bar */}
-        {hasNavigation && (
-          <div className="flex items-center justify-between px-4 pt-2 pb-1 border-b border-secondary/20">
-            <button
-              type="button"
-              onClick={() => onNavigate?.('prev')}
-              disabled={!canNavigatePrev}
-              className="flex items-center gap-1 text-sm text-muted hover:text-main disabled:opacity-30 disabled:cursor-not-allowed transition touch-manipulation min-h-[44px] px-2"
-              aria-label="Previous card"
-            >
-              <CaretLeft className="w-5 h-5" />
-              <span className="sr-only xs:not-sr-only">Prev</span>
-            </button>
-            <span className="text-xs text-muted font-medium">{positionLabel}</span>
-            <button
-              type="button"
-              onClick={() => onNavigate?.('next')}
-              disabled={!canNavigateNext}
-              className="flex items-center gap-1 text-sm text-muted hover:text-main disabled:opacity-30 disabled:cursor-not-allowed transition touch-manipulation min-h-[44px] px-2"
-              aria-label="Next card"
-            >
-              <span className="sr-only xs:not-sr-only">Next</span>
-              <CaretRight className="w-5 h-5" />
-            </button>
-          </div>
-        )}
-        <div className="mobile-drawer__header px-4 pt-3 pb-3">
-          <div className="flex items-start justify-between gap-3">
-            <div className="space-y-1">
-              <p className="text-[0.7rem] uppercase tracking-[0.2em] text-muted">Selected card</p>
-              <p className="text-xs text-muted">{position}</p>
-              <h2 id={titleId} className="text-lg font-serif text-accent">
-                {card.name} {card.isReversed ? '(Reversed)' : ''}
-              </h2>
-            </div>
+        <div className="sticky top-0 z-20 border-b border-secondary/20 bg-main/70 backdrop-blur-sm">
+          <div className="flex items-center justify-between gap-2 px-4 py-2">
             <button
               ref={closeButtonRef}
+              type="button"
               onClick={onClose}
-              className="mobile-drawer__close"
-              aria-label="Close card details"
+              className="inline-flex items-center gap-2 min-h-[44px] rounded-full border border-secondary/30 bg-surface/40 px-3 text-xs font-semibold text-muted hover:text-main hover:border-secondary/50 transition touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/50"
+              aria-label="Back to spread"
             >
-              <X className="w-5 h-5" />
+              <X className="w-4 h-4" />
+              <span>Back to spread</span>
             </button>
           </div>
+          {hasNavigation && (
+            <div className="flex items-center justify-between px-4 pb-2">
+              <button
+                type="button"
+                onClick={() => onNavigate?.('prev')}
+                disabled={!canNavigatePrev}
+                className="flex items-center gap-1 text-xs text-muted hover:text-main disabled:opacity-30 disabled:cursor-not-allowed transition touch-manipulation min-h-[44px] px-2"
+                aria-label="Previous card"
+              >
+                <CaretLeft className="w-5 h-5" />
+                <span className="sr-only xs:not-sr-only">Prev</span>
+              </button>
+              <span className="text-xs text-muted font-medium">{positionLabel}</span>
+              <button
+                type="button"
+                onClick={() => onNavigate?.('next')}
+                disabled={!canNavigateNext}
+                className="flex items-center gap-1 text-xs text-muted hover:text-main disabled:opacity-30 disabled:cursor-not-allowed transition touch-manipulation min-h-[44px] px-2"
+                aria-label="Next card"
+              >
+                <span className="sr-only xs:not-sr-only">Next</span>
+                <CaretRight className="w-5 h-5" />
+              </button>
+            </div>
+          )}
         </div>
-        <div className="mobile-drawer__body p-4 space-y-6 overflow-y-auto overscroll-contain">
+        <div className="flex-1 overflow-y-auto overscroll-contain px-4 pb-6 pt-5">
           <CardDetailContent
             focusedCardData={focusedCardData}
             reflections={reflections}
             setReflections={setReflections}
             onOpenModal={onOpenModal}
-            showHeading={false}
+            layout="focus"
+            headingId={titleId}
           />
         </div>
       </div>
@@ -379,7 +415,7 @@ export function ReadingBoard({
   reflections,
   setReflections,
   onOpenModal,
-  // Navigation props for CardDetailSheet
+  // Navigation props for CardFocusOverlay
   onNavigateCard,
   canNavigatePrev,
   canNavigateNext,
@@ -409,6 +445,7 @@ export function ReadingBoard({
       <div className="px-4 flex items-center justify-center gap-3">
         <p className="text-xs-plus text-muted" aria-live="polite">
           Tap positions to reveal. {nextLabel ? `Next: ${nextLabel}.` : 'All cards revealed.'}
+          {isHandsetLayout ? ' Tap a revealed card to focus.' : ''}
         </p>
         {showMapToggle && (
           <button
@@ -449,7 +486,7 @@ export function ReadingBoard({
         />
       )}
       {isHandsetLayout && (
-        <CardDetailSheet
+        <CardFocusOverlay
           isOpen={hasSelection}
           onClose={onCloseDetail}
           focusedCardData={focusedCardData}

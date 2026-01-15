@@ -1,27 +1,7 @@
-import { EXAMPLE_QUESTIONS } from '../data/exampleQuestions.js';
 import { loadStoredJournalInsights } from './journalInsights.js';
 import { loadCoachHistory } from './coachStorage.js';
 import { djb2Hash } from './utils.js';
 import { ensureQuestionMark } from './themeText.js';
-
-const STOP_PHRASES = [' this week', ' this relationship', ' right now', ' with clarity'];
-
-function deriveOpener(seed) {
-  if (!seed) return 'How can I';
-  let opener = seed.replace(/\?$/, '').trim();
-  for (const phrase of STOP_PHRASES) {
-    if (opener.endsWith(phrase)) {
-      opener = opener.slice(0, -phrase.length).trim();
-      break;
-    }
-  }
-  return opener || 'How can I';
-}
-
-const focusSeed = EXAMPLE_QUESTIONS[0] || 'What should I focus on this week?';
-const navigateSeed = EXAMPLE_QUESTIONS[1] || 'How can I navigate this relationship?';
-const lessonSeed = EXAMPLE_QUESTIONS[3] || 'What lesson am I meant to learn?';
-const claritySeed = EXAMPLE_QUESTIONS[4] || 'How can I move forward with clarity?';
 
 /**
  * Deterministically picks a variant from a list based on a seed.
@@ -107,7 +87,6 @@ export const INTENTION_DEPTH_OPTIONS = [
     value: 'pulse',
     label: 'Quick pulse',
     description: 'Gentle check-in on the energy.',
-    opener: deriveOpener(focusSeed),
     pattern: 'support',
     closing: 'with calm awareness'
   },
@@ -115,7 +94,6 @@ export const INTENTION_DEPTH_OPTIONS = [
     value: 'guided',
     label: 'Focused guidance',
     description: 'Clarify the next move or plan.',
-    opener: deriveOpener(navigateSeed),
     pattern: 'navigate',
     closing: 'with confidence'
   },
@@ -123,7 +101,6 @@ export const INTENTION_DEPTH_OPTIONS = [
     value: 'lesson',
     label: 'Lesson & insight',
     description: 'Zoom out for the deeper teaching.',
-    opener: deriveOpener(lessonSeed),
     pattern: 'lesson',
     closing: ''
   },
@@ -131,7 +108,6 @@ export const INTENTION_DEPTH_OPTIONS = [
     value: 'deep',
     label: 'Deep dive',
     description: 'Transformational, soulful work.',
-    opener: deriveOpener(claritySeed),
     pattern: 'transform',
     closing: 'honor my growth'
   }
@@ -274,7 +250,7 @@ export async function buildCreativeQuestion({ topic, timeframe, depth, customFoc
   const frequentCard = stats?.frequentCards?.[0]?.name || null;
   const leadingContext = stats?.contextBreakdown?.[0]?.name || null;
   const reversalRate = typeof stats?.reversalRate === 'number' ? `${stats.reversalRate}% reversals logged` : null;
-  const recentQuestions = loadCoachHistory(3)
+  const recentQuestions = loadCoachHistory(3, userId)
     .map(entry => (typeof entry?.question === 'string' ? entry.question.trim() : ''))
     .filter(Boolean);
 

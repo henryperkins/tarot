@@ -414,26 +414,41 @@ export function buildVisionMetrics(insights, avgConfidence, mismatchCount) {
 // ============================================================================
 
 /**
- * Persist reading metrics to KV storage for telemetry.
+ * Persist reading metrics to D1 storage for telemetry.
  *
  * @param {Object} env - Cloudflare environment bindings
  * @param {Object} payload - Metrics payload to persist
  */
 export async function persistReadingMetrics(env, payload) {
-  if (!env?.METRICS_DB?.put) {
+  if (!env?.DB?.prepare) {
     return;
   }
 
   try {
-    const key = `reading:${payload.requestId}`;
-    await env.METRICS_DB.put(key, JSON.stringify(payload), {
-      metadata: {
-        provider: payload.provider,
-        spreadKey: payload.spreadKey,
-        deckStyle: payload.deckStyle,
-        timestamp: payload.timestamp
-      }
-    });
+    await env.DB.prepare(`
+      INSERT INTO eval_metrics (
+        request_id, spread_key, deck_style, provider,
+        card_coverage, reading_prompt_version, variant_id, payload
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      ON CONFLICT(request_id) DO UPDATE SET
+        updated_at = datetime('now'),
+        spread_key = excluded.spread_key,
+        deck_style = excluded.deck_style,
+        provider = excluded.provider,
+        card_coverage = excluded.card_coverage,
+        reading_prompt_version = excluded.reading_prompt_version,
+        variant_id = excluded.variant_id,
+        payload = excluded.payload
+    `).bind(
+      payload.requestId,
+      payload.spreadKey || null,
+      payload.deckStyle || null,
+      payload.provider || null,
+      payload.narrative?.cardCoverage ?? null,
+      payload.readingPromptVersion || payload.promptMeta?.readingPromptVersion || null,
+      payload.variantId || null,
+      JSON.stringify(payload)
+    ).run();
   } catch (err) {
     console.warn(`[${payload.requestId}] Failed to persist reading metrics: ${err.message}`);
   }

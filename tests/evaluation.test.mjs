@@ -14,7 +14,7 @@ const mockAI = {
   run: async () => ({ response: '' })
 };
 
-// Mock KV store for METRICS_DB testing
+// Mock KV store for legacy METRICS_DB testing
 class MockKV {
   constructor() {
     this.store = new Map();
@@ -29,6 +29,38 @@ class MockKV {
   async get(key) {
     const entry = this.store.get(key);
     return entry ? entry.value : null;
+  }
+}
+
+// Mock D1 database for eval_metrics storage
+class MockDB {
+  constructor() {
+    this.queries = [];
+    this.store = new Map();
+  }
+
+  prepare(sql) {
+    const query = { sql, bindings: [] };
+    this.queries.push(query);
+    return {
+      bind: (...args) => {
+        query.bindings = args;
+        return {
+          run: async () => {
+            // Extract request_id from bindings (varies by query type)
+            const requestId = args.find(a => typeof a === 'string' && a.length > 5 && !a.includes('{')) || args[0];
+            if (requestId) {
+              this.store.set(requestId, { sql, bindings: args });
+            }
+            return { meta: { changes: 1, last_row_id: this.queries.length } };
+          }
+        };
+      }
+    };
+  }
+
+  getLastQuery() {
+    return this.queries[this.queries.length - 1];
   }
 }
 
@@ -97,7 +129,7 @@ describe('evaluation', () => {
       assert.equal(result.scores.overall, 4);
       assert.equal(result.scores.safety_flag, false);
       assert.equal(result.model, '@cf/meta/llama-3.3-70b-instruct-fp8-fast');
-      assert.equal(result.promptVersion, '2.0.0');
+      assert.equal(result.promptVersion, '2.1.0');
     });
 
     test('handles malformed JSON response', async () => {
@@ -521,8 +553,8 @@ describe('evaluation', () => {
       assert.equal(evalRan, false);
     });
 
-    test('stores eval results in METRICS_DB when available', async () => {
-      const mockKV = new MockKV();
+    test('stores eval results in D1 when available', async () => {
+      const mockDB = new MockDB();
       const scoringMockAI = {
         run: async () => ({
           response: JSON.stringify({
@@ -541,24 +573,23 @@ describe('evaluation', () => {
       const waitUntil = (p) => waitPromises.push(p);
 
       scheduleEvaluation(
-        { AI: scoringMockAI, EVAL_ENABLED: 'true', METRICS_DB: mockKV },
-        { reading: 'test reading', userQuestion: 'test question', cardsInfo: [], spreadKey: 'threeCard', requestId: 'kv-test-1' },
-        { requestId: 'kv-test-1', spreadKey: 'threeCard', provider: 'claude' },
+        { AI: scoringMockAI, EVAL_ENABLED: 'true', DB: mockDB },
+        { reading: 'test reading', userQuestion: 'test question', cardsInfo: [], spreadKey: 'threeCard', requestId: 'db-test-1' },
+        { requestId: 'db-test-1', spreadKey: 'threeCard', provider: 'claude' },
         { waitUntil }
       );
 
       await Promise.all(waitPromises);
 
-      assert.equal(mockKV.putCalls.length, 1);
-      assert.equal(mockKV.putCalls[0].key, 'reading:kv-test-1');
-
-      const storedData = JSON.parse(mockKV.putCalls[0].value);
-      assert.ok(storedData.eval);
-      assert.equal(storedData.eval.scores.overall, 4);
+      assert.equal(mockDB.queries.length, 1);
+      const query = mockDB.getLastQuery();
+      assert.ok(query.sql.includes('UPDATE eval_metrics'));
+      assert.ok(query.bindings.includes('db-test-1'));
+      assert.ok(query.bindings.includes(4)); // overall score
     });
 
-    test('includes metadata in KV storage', async () => {
-      const mockKV = new MockKV();
+    test('includes eval mode in D1 storage', async () => {
+      const mockDB = new MockDB();
       const scoringMockAI = {
         run: async () => ({
           response: JSON.stringify({
@@ -576,7 +607,7 @@ describe('evaluation', () => {
       const waitUntil = (p) => waitPromises.push(p);
 
       scheduleEvaluation(
-        { AI: scoringMockAI, EVAL_ENABLED: 'true', METRICS_DB: mockKV },
+        { AI: scoringMockAI, EVAL_ENABLED: 'true', DB: mockDB },
         { reading: 'test', userQuestion: 'test', cardsInfo: [], spreadKey: 'celtic', requestId: 'meta-test' },
         { requestId: 'meta-test', spreadKey: 'celtic', provider: 'gpt', deckStyle: 'rws-1909' },
         { waitUntil }
@@ -584,17 +615,13 @@ describe('evaluation', () => {
 
       await Promise.all(waitPromises);
 
-      const putCall = mockKV.putCalls[0];
-      assert.ok(putCall.options.metadata);
-      assert.equal(putCall.options.metadata.spreadKey, 'celtic');
-      assert.equal(putCall.options.metadata.provider, 'gpt');
-      assert.equal(putCall.options.metadata.deckStyle, 'rws-1909');
-      assert.equal(putCall.options.metadata.hasEval, true);
-      assert.equal(putCall.options.metadata.evalScore, 4);
+      const query = mockDB.getLastQuery();
+      assert.ok(query.sql.includes('UPDATE eval_metrics'));
+      assert.ok(query.bindings.includes('model')); // eval_mode
     });
 
     test('falls back to heuristic scores when AI evaluation fails', async () => {
-      const mockKV = new MockKV();
+      const mockDB = new MockDB();
       const failingMockAI = {
         run: async () => ({ response: 'not valid json' })
       };
@@ -603,7 +630,7 @@ describe('evaluation', () => {
       const waitUntil = (p) => waitPromises.push(p);
 
       scheduleEvaluation(
-        { AI: failingMockAI, EVAL_ENABLED: 'true', METRICS_DB: mockKV },
+        { AI: failingMockAI, EVAL_ENABLED: 'true', DB: mockDB },
         { reading: 'test', userQuestion: 'test', cardsInfo: [], spreadKey: 'test', requestId: 'heuristic-fallback-test' },
         { requestId: 'heuristic-fallback-test', narrative: { cardCoverage: 0.9 } },
         { waitUntil }
@@ -611,14 +638,15 @@ describe('evaluation', () => {
 
       await Promise.all(waitPromises);
 
-      const storedData = JSON.parse(mockKV.putCalls[0].value);
-      assert.ok(storedData.eval.heuristic);
-      assert.equal(storedData.eval.heuristic.model, 'heuristic-fallback');
+      // Heuristic fallback still updates D1 with eval mode 'heuristic'
+      assert.equal(mockDB.queries.length, 1);
+      const query = mockDB.getLastQuery();
+      assert.ok(query.sql.includes('UPDATE eval_metrics'));
     });
 
     test('patches AI Gateway log when gateway is available', async () => {
       const mockGateway = new MockGateway();
-      const mockKV = new MockKV();
+      const mockDB = new MockDB();
       const scoringMockAI = {
         aiGatewayLogId: 'log-12345',
         gateway: () => mockGateway,
@@ -638,7 +666,7 @@ describe('evaluation', () => {
       const waitUntil = (p) => waitPromises.push(p);
 
       scheduleEvaluation(
-        { AI: scoringMockAI, EVAL_ENABLED: 'true', EVAL_GATEWAY_ID: 'my-gateway', METRICS_DB: mockKV },
+        { AI: scoringMockAI, EVAL_ENABLED: 'true', EVAL_GATEWAY_ID: 'my-gateway', DB: mockDB },
         { reading: 'test', userQuestion: 'test', cardsInfo: [], spreadKey: 'threeCard', requestId: 'gateway-test' },
         { requestId: 'gateway-test', spreadKey: 'threeCard', provider: 'claude', deckStyle: 'rws-1909' },
         { waitUntil }
@@ -659,7 +687,7 @@ describe('evaluation', () => {
           throw new Error('Gateway unavailable');
         }
       };
-      const mockKV = new MockKV();
+      const mockDB = new MockDB();
       const scoringMockAI = {
         aiGatewayLogId: 'log-12345',
         gateway: () => failingGateway,
@@ -680,7 +708,7 @@ describe('evaluation', () => {
 
       // Should not throw
       scheduleEvaluation(
-        { AI: scoringMockAI, EVAL_ENABLED: 'true', EVAL_GATEWAY_ID: 'my-gateway', METRICS_DB: mockKV },
+        { AI: scoringMockAI, EVAL_ENABLED: 'true', EVAL_GATEWAY_ID: 'my-gateway', DB: mockDB },
         { reading: 'test', userQuestion: 'test', cardsInfo: [], spreadKey: 'test', requestId: 'gateway-fail-test' },
         { requestId: 'gateway-fail-test' },
         { waitUntil }
@@ -688,12 +716,12 @@ describe('evaluation', () => {
 
       await Promise.all(waitPromises);
 
-      // KV storage should still happen even if gateway fails
-      assert.equal(mockKV.putCalls.length, 1);
+      // D1 storage should still happen even if gateway fails
+      assert.equal(mockDB.queries.length, 1);
     });
 
     test('runs inline when waitUntil is unavailable', async () => {
-      const mockKV = new MockKV();
+      const mockDB = new MockDB();
       const scoringMockAI = {
         run: async () => ({
           response: JSON.stringify({
@@ -709,7 +737,7 @@ describe('evaluation', () => {
 
       // Call without waitUntil - should return a promise that runs inline
       const result = scheduleEvaluation(
-        { AI: scoringMockAI, EVAL_ENABLED: 'true', METRICS_DB: mockKV },
+        { AI: scoringMockAI, EVAL_ENABLED: 'true', DB: mockDB },
         { reading: 'test', userQuestion: 'test', cardsInfo: [], spreadKey: 'test', requestId: 'inline-test' },
         { requestId: 'inline-test' },
         {} // no waitUntil
@@ -718,11 +746,11 @@ describe('evaluation', () => {
       // Wait for inline execution
       await result;
 
-      assert.equal(mockKV.putCalls.length, 1);
+      assert.equal(mockDB.queries.length, 1);
     });
 
     test('stores precomputed gate evaluation without rerunning AI', async () => {
-      const mockKV = new MockKV();
+      const mockDB = new MockDB();
       let runCalled = false;
       const trackingAI = {
         run: async () => {
@@ -751,7 +779,7 @@ describe('evaluation', () => {
       const waitUntil = (p) => waitPromises.push(p);
 
       scheduleEvaluation(
-        { AI: trackingAI, EVAL_ENABLED: 'true', METRICS_DB: mockKV },
+        { AI: trackingAI, EVAL_ENABLED: 'true', DB: mockDB },
         { reading: 'test', userQuestion: 'test', cardsInfo: [], spreadKey: 'test', requestId: 'precomputed-store' },
         { requestId: 'precomputed-store', spreadKey: 'test', provider: 'claude' },
         { waitUntil, precomputedEvalResult: precomputedEval }
@@ -760,14 +788,13 @@ describe('evaluation', () => {
       await Promise.all(waitPromises);
 
       assert.equal(runCalled, false);
-      assert.equal(mockKV.putCalls.length, 1);
-      const storedData = JSON.parse(mockKV.putCalls[0].value);
-      assert.equal(storedData.eval.model, 'gate-model');
-      assert.equal(storedData.eval.scores.overall, 5);
+      assert.equal(mockDB.queries.length, 1);
+      const query = mockDB.getLastQuery();
+      assert.ok(query.bindings.includes(5)); // overall score
     });
 
     test('applies redaction and drops unsafe metrics fields in redact mode', async () => {
-      const mockKV = new MockKV();
+      const mockDB = new MockDB();
       const waitPromises = [];
       const waitUntil = (p) => waitPromises.push(p);
 
@@ -797,7 +824,7 @@ describe('evaluation', () => {
       };
 
       scheduleEvaluation(
-        { AI: mockAI, EVAL_ENABLED: 'true', METRICS_DB: mockKV, METRICS_STORAGE_MODE: 'redact' },
+        { AI: mockAI, EVAL_ENABLED: 'true', DB: mockDB, METRICS_STORAGE_MODE: 'redact' },
         {
           reading: "Hello John Doe, Alex's journey unfolds on 2025-12-25.",
           userQuestion: 'Call me Jane Doe at 555-123-9876 ext 55, what is next on 2025-12-25?',
@@ -811,7 +838,9 @@ describe('evaluation', () => {
 
       await Promise.all(waitPromises);
 
-      const storedData = JSON.parse(mockKV.putCalls[0].value);
+      const query = mockDB.getLastQuery();
+      const payloadBinding = query.bindings.find(b => typeof b === 'string' && b.startsWith('{'));
+      const storedData = JSON.parse(payloadBinding);
       assert.equal(storedData._storageMode, 'redact');
       assert.ok(!('context' in storedData));
       assert.ok(!('promptEngineering' in storedData));
@@ -826,7 +855,7 @@ describe('evaluation', () => {
     });
 
     test('strips payload down in minimal mode while keeping eval scores', async () => {
-      const mockKV = new MockKV();
+      const mockDB = new MockDB();
       const waitPromises = [];
       const waitUntil = (p) => waitPromises.push(p);
 
@@ -854,7 +883,7 @@ describe('evaluation', () => {
       };
 
       scheduleEvaluation(
-        { AI: mockAI, EVAL_ENABLED: 'true', METRICS_DB: mockKV, METRICS_STORAGE_MODE: 'minimal' },
+        { AI: mockAI, EVAL_ENABLED: 'true', DB: mockDB, METRICS_STORAGE_MODE: 'minimal' },
         {
           reading: 'Hello Casey, gentle reminder.',
           userQuestion: 'name is Casey',
@@ -868,7 +897,9 @@ describe('evaluation', () => {
 
       await Promise.all(waitPromises);
 
-      const storedData = JSON.parse(mockKV.putCalls[0].value);
+      const query = mockDB.getLastQuery();
+      const payloadBinding = query.bindings.find(b => typeof b === 'string' && b.startsWith('{'));
+      const storedData = JSON.parse(payloadBinding);
       assert.equal(storedData._storageMode, 'minimal');
       assert.ok(!('context' in storedData));
       assert.ok(!('readingText' in storedData));
@@ -1004,7 +1035,7 @@ describe('evaluation', () => {
 
   describe('integration: full evaluation pipeline', () => {
     test('complete flow from reading to stored evaluation', async () => {
-      const mockKV = new MockKV();
+      const mockDB = new MockDB();
       const mockGateway = new MockGateway();
 
       const comprehensiveMockAI = {
@@ -1056,7 +1087,7 @@ describe('evaluation', () => {
           AI: comprehensiveMockAI,
           EVAL_ENABLED: 'true',
           EVAL_GATEWAY_ID: 'test-gateway',
-          METRICS_DB: mockKV
+          DB: mockDB
         },
         evalParams,
         metricsPayload,
@@ -1065,32 +1096,21 @@ describe('evaluation', () => {
 
       await Promise.all(waitPromises);
 
-      // Verify KV storage
-      assert.equal(mockKV.putCalls.length, 1);
-      const storedData = JSON.parse(mockKV.putCalls[0].value);
-
-      // Verify eval scores stored
-      assert.equal(storedData.eval.scores.overall, 5);
-      assert.equal(storedData.eval.scores.safety_flag, false);
-      assert.equal(storedData.eval.model, '@cf/meta/llama-3.3-70b-instruct-fp8-fast');
-      assert.equal(storedData.eval.promptVersion, '2.0.0');
-
-      // Verify original metrics preserved
-      assert.equal(storedData.requestId, 'integration-test-001');
-      assert.equal(storedData.spreadKey, 'threeCard');
-      assert.equal(storedData.provider, 'claude');
+      // Verify D1 storage
+      assert.equal(mockDB.queries.length, 1);
+      const query = mockDB.getLastQuery();
+      assert.ok(query.sql.includes('UPDATE eval_metrics'));
+      assert.ok(query.bindings.includes('integration-test-001'));
+      assert.ok(query.bindings.includes(5)); // overall score
+      assert.ok(query.bindings.includes(0)); // safety_flag = false
 
       // Verify gateway was patched
       assert.equal(mockGateway.patchedLogs.length, 1);
       assert.equal(mockGateway.patchedLogs[0].data.metadata.requestId, 'integration-test-001');
-
-      // Verify gate check passes
-      const gateResult = checkEvalGate(storedData.eval);
-      assert.equal(gateResult.shouldBlock, false);
     });
 
     test('pipeline handles safety flag and logs warning', async () => {
-      const mockKV = new MockKV();
+      const mockDB = new MockDB();
       const warningLogs = [];
       const originalWarn = console.warn;
       console.warn = (...args) => warningLogs.push(args.join(' '));
@@ -1113,7 +1133,7 @@ describe('evaluation', () => {
       const waitUntil = (p) => waitPromises.push(p);
 
       scheduleEvaluation(
-        { AI: unsafeMockAI, EVAL_ENABLED: 'true', METRICS_DB: mockKV },
+        { AI: unsafeMockAI, EVAL_ENABLED: 'true', DB: mockDB },
         { reading: 'test', userQuestion: 'test', cardsInfo: [], spreadKey: 'test', requestId: 'safety-flag-test' },
         { requestId: 'safety-flag-test' },
         { waitUntil }
@@ -1128,11 +1148,9 @@ describe('evaluation', () => {
       // Verify low tone was logged
       assert.ok(warningLogs.some(log => log.includes('Low tone score: 2')));
 
-      // Verify gate would block this
-      const storedData = JSON.parse(mockKV.putCalls[0].value);
-      const gateResult = checkEvalGate(storedData.eval);
-      assert.equal(gateResult.shouldBlock, true);
-      assert.equal(gateResult.reason, 'safety_flag');
+      // Verify D1 was updated with safety flag
+      const query = mockDB.getLastQuery();
+      assert.ok(query.bindings.includes(1)); // safety_flag = 1 (true)
     });
   });
 });

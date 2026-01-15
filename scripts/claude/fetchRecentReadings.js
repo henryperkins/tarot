@@ -2,11 +2,11 @@
 /**
  * Fetch recent tarot readings for Claude Code live evaluation.
  *
- * This script pulls the last N readings from METRICS_DB (KV) or R2 archives
- * and formats them for Claude to analyze interactively.
+ * This script pulls the last N readings from D1 (eval_metrics table),
+ * with fallback to legacy KV or R2 sources.
  *
  * Usage:
- *   node scripts/claude/fetchRecentReadings.js [--count=5] [--source=kv|r2]
+ *   node scripts/claude/fetchRecentReadings.js [--count=5] [--source=d1|kv|r2]
  *
  * Environment variables (for R2):
  *   CF_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY
@@ -17,7 +17,7 @@ import path from 'node:path';
 import fs from 'node:fs/promises';
 
 const DEFAULT_COUNT = 5;
-const DEFAULT_SOURCE = 'kv';
+const DEFAULT_SOURCE = 'd1';
 
 function parseArgs(argv) {
   const options = { count: DEFAULT_COUNT, source: DEFAULT_SOURCE };
@@ -28,7 +28,12 @@ function parseArgs(argv) {
     } else if (arg.startsWith('--source=')) {
       options.source = arg.split('=')[1].toLowerCase();
     } else if (arg === '--help' || arg === '-h') {
-      console.log(`Usage: node scripts/claude/fetchRecentReadings.js [--count=5] [--source=kv|r2]`);
+      console.log(`Usage: node scripts/claude/fetchRecentReadings.js [--count=5] [--source=d1|kv|r2]
+
+Options:
+  --count=N     Number of readings to fetch (default: 5)
+  --source=SRC  Data source: d1 (default), kv (legacy), r2 (legacy archives)
+`);
       process.exit(0);
     }
   }
@@ -63,6 +68,49 @@ async function runCommand(command, args) {
       }
     });
   });
+}
+
+async function fetchFromD1(dbName, count) {
+  const sql = `SELECT request_id, created_at, spread_key, provider, eval_mode, overall_score, safety_flag, payload FROM eval_metrics ORDER BY created_at DESC LIMIT ${count}`;
+
+  const args = [
+    'wrangler', 'd1', 'execute', dbName,
+    '--remote',
+    '--json',
+    '--command', sql
+  ];
+
+  try {
+    const output = await runCommand('npx', args);
+    const result = JSON.parse(output);
+    const rows = result?.[0]?.results || [];
+
+    return rows.map(row => {
+      let payload = {};
+      try {
+        payload = JSON.parse(row.payload || '{}');
+      } catch {
+        // ignore
+      }
+      return {
+        requestId: row.request_id,
+        timestamp: row.created_at,
+        spreadKey: row.spread_key,
+        provider: row.provider,
+        eval: payload.eval || {
+          scores: {
+            overall: row.overall_score,
+            safety_flag: row.safety_flag === 1
+          },
+          mode: row.eval_mode
+        },
+        ...payload
+      };
+    });
+  } catch (err) {
+    console.error(`Failed to fetch from D1: ${err.message}`);
+    return [];
+  }
 }
 
 async function fetchFromKV(namespaceId, count) {
@@ -216,7 +264,11 @@ async function main() {
 
   let readings = [];
 
-  if (source === 'kv') {
+  if (source === 'd1') {
+    const config = await loadWranglerConfig();
+    const dbName = config?.d1_databases?.[0]?.database_name || 'mystic-tarot-db';
+    readings = await fetchFromD1(dbName, count);
+  } else if (source === 'kv') {
     const config = await loadWranglerConfig();
     const metricsNs = config?.kv_namespaces?.find(ns => ns.binding === 'METRICS_DB');
     if (!metricsNs?.id) {
@@ -227,7 +279,7 @@ async function main() {
   } else if (source === 'r2') {
     readings = await fetchFromR2(count);
   } else {
-    console.error(`Unknown source: ${source}. Use 'kv' or 'r2'.`);
+    console.error(`Unknown source: ${source}. Use 'd1', 'kv', or 'r2'.`);
     process.exit(1);
   }
 

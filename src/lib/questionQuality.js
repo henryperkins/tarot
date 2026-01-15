@@ -29,7 +29,8 @@ const CONCRETE_SUBJECTS = [
 const TIMEFRAME_WORDS = [
   'today', 'tonight', 'this week', 'this month', 'this year',
   'next week', 'next month', 'next year', 'soon', 'immediately',
-  'short-term', 'long-term', 'over the next', 'coming weeks', 'coming months'
+  'short-term', 'long-term', 'over the next', 'coming weeks', 'coming months',
+  'right now', 'current moment', 'this moment'
 ];
 
 const REFLECTIVE_VERBS = [

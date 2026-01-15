@@ -37,7 +37,7 @@ import {
   getVariantPromptOverrides,
   recordExperimentAssignment
 } from '../lib/abTesting.js';
-import { getReasoningEffort } from '../lib/azureResponses.js';
+import { getReasoningEffort, getTextVerbosity } from '../lib/azureResponses.js';
 import {
   callAzureResponsesStream,
   transformAzureStream,
@@ -177,7 +177,7 @@ async function finalizeReading({
       finalProvider = 'safe-fallback';
       finalNarrativeMetrics = buildNarrativeMetrics(finalReading, cardsInfo, deckStyle);
 
-      if (env.METRICS_DB?.put) {
+      if (env.DB?.prepare) {
         try {
           const blockEvent = {
             type: 'gate_block',
@@ -189,13 +189,28 @@ async function finalizeReading({
             evalLatencyMs: gateResult.latencyMs,
             scores: gateResult.evalResult?.scores
           };
-          await env.METRICS_DB.put(`block:${requestId}`, JSON.stringify(blockEvent), {
-            metadata: {
-              type: 'gate_block',
-              reason: gateResult.gateResult?.reason,
-              timestamp: blockEvent.timestamp
-            }
-          });
+          // Insert minimal row with block info; persistReadingMetrics will update with full payload
+          await env.DB.prepare(`
+            INSERT INTO eval_metrics (
+              request_id, spread_key, blocked, block_reason,
+              eval_mode, overall_score, safety_flag, payload
+            ) VALUES (?, ?, 1, ?, ?, ?, ?, ?)
+            ON CONFLICT(request_id) DO UPDATE SET
+              updated_at = datetime('now'),
+              blocked = 1,
+              block_reason = excluded.block_reason,
+              eval_mode = excluded.eval_mode,
+              overall_score = excluded.overall_score,
+              safety_flag = excluded.safety_flag
+          `).bind(
+            requestId,
+            analysis.spreadKey || null,
+            gateResult.gateResult?.reason || null,
+            gateResult.evalResult?.mode || 'model',
+            gateResult.evalResult?.scores?.overall ?? null,
+            gateResult.evalResult?.scores?.safety_flag ? 1 : 0,
+            JSON.stringify(blockEvent)
+          ).run();
         } catch (err) {
           console.warn(`[${requestId}] Failed to log gate block event: ${err.message}`);
         }
@@ -696,7 +711,8 @@ export const onRequestPost = async ({ request, env, waitUntil }) => {
       const { systemPrompt, userPrompt } = buildAzureGPT5Prompts(env, narrativePayload, requestId);
       applyGraphRAGAlerts(narrativePayload, requestId, streamProvider);
 
-      const reasoningEffort = getReasoningEffort(env.AZURE_OPENAI_GPT5_MODEL);
+      const reasoningEffort = getReasoningEffort(env, env.AZURE_OPENAI_GPT5_MODEL);
+      const verbosity = getTextVerbosity(env, env.AZURE_OPENAI_GPT5_MODEL);
       if (reasoningEffort === 'high') {
         console.log(`[${requestId}] Detected ${env.AZURE_OPENAI_GPT5_MODEL} deployment, using 'high' reasoning effort`);
       }
@@ -706,7 +722,7 @@ export const onRequestPost = async ({ request, env, waitUntil }) => {
         max_output_tokens: 'unlimited',
         reasoning_effort: reasoningEffort,
         reasoning_summary: 'auto',
-        verbosity: 'medium',
+        verbosity,
         stream: true
       });
 
@@ -717,7 +733,7 @@ export const onRequestPost = async ({ request, env, waitUntil }) => {
           maxTokens: null,
           reasoningEffort,
           reasoningSummary: 'auto',
-          verbosity: 'medium'
+          verbosity
         });
 
         const transformedStream = transformAzureStream(azureStream);

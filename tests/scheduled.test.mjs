@@ -43,9 +43,11 @@ class FakeBucket {
 class FakeDB {
   constructor(deleted = 0) {
     this.deleted = deleted;
+    this.prepareCount = 0;
   }
 
   prepare() {
+    this.prepareCount++;
     const self = this;
     return {
       bind() {
@@ -85,7 +87,7 @@ function mockDate() {
   };
 }
 
-test('handleScheduled archives KV data and writes summary', async (t) => {
+test('handleScheduled archives KV data to D1', async (t) => {
   mockDate();
   t.after(() => {
     global.Date = RealDate;
@@ -98,26 +100,18 @@ test('handleScheduled archives KV data and writes summary', async (t) => {
   const feedbackKV = new FakeKV([
     ['feedback:1', { message: 'Great' }]
   ]);
-  const bucket = new FakeBucket();
   const db = new FakeDB(2);
 
   await handleScheduled(
     { cron: '0 3 * * *' },
-    { METRICS_DB: metricsKV, FEEDBACK_KV: feedbackKV, LOGS_BUCKET: bucket, DB: db },
+    { METRICS_DB: metricsKV, FEEDBACK_KV: feedbackKV, DB: db },
     { waitUntil: (promise) => promise }
   );
 
+  // KV keys should be deleted after archival to D1
   assert.strictEqual(metricsKV.map.size, 0, 'metrics KV keys should be deleted');
   assert.strictEqual(feedbackKV.map.size, 0, 'feedback KV keys should be deleted');
 
-  const keys = bucket.objects.map(obj => obj.key);
-  assert.ok(keys.some(key => key.startsWith('archives/metrics/2025-02-01/')));
-  assert.ok(keys.some(key => key.startsWith('archives/feedback/2025-02-01/')));
-  assert.ok(keys.includes('archives/summaries/2025-02-01.json'));
-
-  const summaryObj = bucket.objects.find(obj => obj.key === 'archives/summaries/2025-02-01.json');
-  const summary = JSON.parse(summaryObj.value);
-
-  assert.strictEqual(summary.totalArchived, 3);
-  assert.strictEqual(summary.sessions.deleted, 2);
+  // Verify D1 was called (FakeDB tracks prepare calls)
+  assert.ok(db.prepareCount > 0, 'D1 prepare should have been called');
 });

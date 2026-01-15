@@ -9,31 +9,43 @@ import {
 import { useNavigate } from 'react-router-dom';
 import { CoachSuggestion } from './CoachSuggestion';
 import { JournalPlusCircleIcon, JournalRefreshIcon } from './JournalIcons';
+import { useAuth } from '../contexts/AuthContext';
 
 const PAGE_SIZE = 6;
 
 export function SavedIntentionsList() {
-  const [intentions, setIntentions] = useState(() => loadCoachHistory());
+  const { user } = useAuth();
+  const userId = user?.id || null;
+  const [intentions, setIntentions] = useState(() => loadCoachHistory(undefined, userId));
   const [pageIndex, setPageIndex] = useState(0);
   const navigate = useNavigate();
+
+  useEffect(() => {
+    setIntentions(loadCoachHistory(undefined, userId));
+    setPageIndex(0);
+  }, [userId]);
 
   useEffect(() => {
     if (typeof window === 'undefined') {
       return undefined;
     }
 
-    const relevantKeys = new Set([HISTORY_STORAGE_KEY]);
-    const refreshHistory = () => setIntentions(loadCoachHistory());
+    const isRelevantKey = (key) => {
+      if (!key) return true;
+      if (typeof key !== 'string') return false;
+      return key.startsWith(HISTORY_STORAGE_KEY);
+    };
+    const refreshHistory = () => setIntentions(loadCoachHistory(undefined, userId));
 
     const handleStorage = (event) => {
-      if (!event.key || relevantKeys.has(event.key)) {
+      if (isRelevantKey(event.key)) {
         refreshHistory();
       }
     };
 
     const handleCoachSync = (event) => {
       const detailKey = event?.detail?.key;
-      if (!detailKey || relevantKeys.has(detailKey)) {
+      if (isRelevantKey(detailKey)) {
         refreshHistory();
       }
     };
@@ -44,14 +56,14 @@ export function SavedIntentionsList() {
       window.removeEventListener('storage', handleStorage);
       window.removeEventListener(COACH_STORAGE_SYNC_EVENT, handleCoachSync);
     };
-  }, []);
+  }, [userId]);
 
   // Compute the effective page, clamped to valid range
   const maxPage = Math.max(0, Math.ceil(intentions.length / PAGE_SIZE) - 1);
   const page = Math.min(pageIndex, maxPage);
 
   const handleDelete = (id) => {
-    const result = deleteCoachHistoryItem(id);
+    const result = deleteCoachHistoryItem(id, userId);
     if (result.success) {
       setIntentions(result.history);
     }

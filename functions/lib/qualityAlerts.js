@@ -34,26 +34,25 @@ export async function dispatchAlert(env, alert, options = {}) {
   console[level](`[QUALITY ALERT] ${message}`);
   results.console = 'logged';
 
-  // 2. KV flag for dashboard polling
-  if (env.METRICS_DB) {
+  // 2. D1 storage for dashboard polling
+  if (env.DB?.prepare) {
     try {
-      const flagKey = `alert:${dateStr}:${alert.type}:${Date.now()}`;
-      await env.METRICS_DB.put(flagKey, JSON.stringify({
-        ...alert,
+      const insertResult = await env.DB.prepare(`
+        INSERT INTO quality_alerts (
+          date_str, alert_type, severity, metric, payload
+        ) VALUES (?, ?, ?, ?, ?)
+      `).bind(
         dateStr,
-        createdAt: new Date().toISOString(),
-      }), {
-        expirationTtl: 7 * 24 * 60 * 60, // 7 days
-        metadata: {
-          type: alert.type,
-          severity: alert.severity,
-          metric: alert.metric,
-          acknowledged: 'false',
-        },
-      });
+        alert.type,
+        alert.severity || null,
+        alert.metric || null,
+        JSON.stringify({ ...alert, dateStr, createdAt: new Date().toISOString() })
+      ).run();
+      // Attach the inserted ID to the alert for email status updates
+      alert.id = insertResult.meta?.last_row_id;
       results.kv = 'set';
     } catch (err) {
-      console.error(`[alert] KV storage failed: ${err.message}`);
+      console.error(`[alert] D1 storage failed: ${err.message}`);
       results.kv = `error: ${err.message}`;
     }
   }

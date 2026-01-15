@@ -25,12 +25,9 @@ const FEEDBACK_PREFIX = 'feedback:';
  * @param {D1Database} db - Destination D1 database
  * @param {string} prefix - KV key prefix to archive
  * @param {string} archiveType - Type identifier ('metrics' or 'feedback')
- * @param {object} [options]
- * @param {R2Bucket} [options.bucket] - Optional bucket to store raw JSON archives
- * @param {string} [options.dateStr] - Optional YYYY-MM-DD date for archive keys
  * @returns {Promise<{archived: number, deleted: number, errors: number, batches: number}>}
  */
-async function archiveKVToD1(kv, db, prefix, archiveType, options = {}) {
+async function archiveKVToD1(kv, db, prefix, archiveType) {
   const stats = { archived: 0, deleted: 0, errors: 0, batches: 0 };
 
   if (!kv || !db) {
@@ -39,8 +36,6 @@ async function archiveKVToD1(kv, db, prefix, archiveType, options = {}) {
   }
 
   const now = Date.now();
-  const bucket = options.bucket || null;
-  const dateStr = options.dateStr || new Date().toISOString().split('T')[0];
 
   try {
     let cursor = null;
@@ -75,22 +70,6 @@ async function archiveKVToD1(kv, db, prefix, archiveType, options = {}) {
         try {
           const value = await kv.get(key.name, 'json');
           if (value) {
-            // Store a raw JSON copy in R2 when available.
-            // This is best-effort and should never block D1 archival.
-            if (bucket) {
-              try {
-                await bucket.put(
-                  `archives/${archiveType}/${dateStr}/${key.name}.json`,
-                  JSON.stringify(value),
-                  {
-                    httpMetadata: { contentType: 'application/json; charset=utf-8' }
-                  }
-                );
-              } catch (bucketErr) {
-                console.warn(`Failed to write ${archiveType} archive to bucket for ${key.name}:`, bucketErr?.message || bucketErr);
-              }
-            }
-
             // Extract ID from key (e.g., "reading:abc123" -> "abc123")
             const id = key.name.replace(prefix, '');
 
@@ -401,7 +380,6 @@ export async function handleScheduled(controller, env, _ctx) {
   const startTime = Date.now();
   const cron = controller.cron;
 
-  const dateStr = new Date().toISOString().split('T')[0];
   const analysisDateStr = new Date(Date.now() - (24 * 60 * 60 * 1000)).toISOString().split('T')[0];
 
   console.log(`Scheduled task triggered at ${new Date().toISOString()}`);
@@ -420,15 +398,10 @@ export async function handleScheduled(controller, env, _ctx) {
 
   try {
     // Run archival tasks in parallel (KV -> D1)
+    // Note: Metrics now go directly to eval_metrics table; this archives any legacy KV keys
     const [metricsResult, feedbackResult] = await Promise.all([
-      archiveKVToD1(env.METRICS_DB, env.DB, METRICS_PREFIX, 'metrics', {
-        bucket: env.LOGS_BUCKET,
-        dateStr
-      }),
-      archiveKVToD1(env.FEEDBACK_KV, env.DB, FEEDBACK_PREFIX, 'feedback', {
-        bucket: env.LOGS_BUCKET,
-        dateStr
-      })
+      archiveKVToD1(env.METRICS_DB, env.DB, METRICS_PREFIX, 'metrics'),
+      archiveKVToD1(env.FEEDBACK_KV, env.DB, FEEDBACK_PREFIX, 'feedback')
     ]);
 
     results.metrics = metricsResult;
@@ -467,26 +440,6 @@ export async function handleScheduled(controller, env, _ctx) {
       }
     } else {
       console.log('[quality] Quality alerting disabled (QUALITY_ALERT_ENABLED != true)');
-    }
-
-    // Store daily summary JSON in R2 when available.
-    if (env.LOGS_BUCKET) {
-      try {
-        const totalArchived = (results.metrics?.archived || 0) + (results.feedback?.archived || 0);
-        await env.LOGS_BUCKET.put(
-          `archives/summaries/${dateStr}.json`,
-          JSON.stringify({
-            date: dateStr,
-            totalArchived,
-            ...results
-          }),
-          {
-            httpMetadata: { contentType: 'application/json; charset=utf-8' }
-          }
-        );
-      } catch (bucketErr) {
-        console.warn('Failed to write archival summary to bucket:', bucketErr?.message || bucketErr);
-      }
     }
 
     const duration = Date.now() - startTime;

@@ -34,15 +34,52 @@ export function ensureAzureConfig(env) {
   };
 }
 
+const VALID_REASONING_EFFORTS = new Set(['none', 'minimal', 'low', 'medium', 'high', 'xhigh']);
+const VALID_VERBOSITY_LEVELS = new Set(['low', 'medium', 'high']);
+
 /**
- * Determine reasoning effort based on model capabilities
+ * Determine reasoning effort based on env overrides and model defaults.
  *
- * Default to 'medium' to balance latency and cost across models.
- *
+ * @param {Object} env - Environment bindings
  * @param {string} modelName - Azure deployment/model name
- * @returns {string} Reasoning effort level ('low', 'medium', or 'high')
+ * @returns {string} Reasoning effort level ('none'|'minimal'|'low'|'medium'|'high'|'xhigh')
  */
-export function getReasoningEffort(_modelName) {
+export function getReasoningEffort(env = null, modelName = '') {
+  const rawOverride = typeof env?.AZURE_OPENAI_REASONING_EFFORT === 'string'
+    ? env.AZURE_OPENAI_REASONING_EFFORT.trim().toLowerCase()
+    : null;
+  if (rawOverride && VALID_REASONING_EFFORTS.has(rawOverride)) {
+    return rawOverride;
+  }
+
+  const normalizedModel = typeof modelName === 'string' ? modelName.toLowerCase() : '';
+  if (normalizedModel.includes('gpt-5')) {
+    return 'none';
+  }
+
+  return 'medium';
+}
+
+/**
+ * Determine verbosity based on env overrides and model defaults.
+ *
+ * @param {Object} env - Environment bindings
+ * @param {string} modelName - Azure deployment/model name
+ * @returns {string} Verbosity level ('low'|'medium'|'high')
+ */
+export function getTextVerbosity(env = null, modelName = '') {
+  const rawOverride = typeof env?.AZURE_OPENAI_VERBOSITY === 'string'
+    ? env.AZURE_OPENAI_VERBOSITY.trim().toLowerCase()
+    : null;
+  if (rawOverride && VALID_VERBOSITY_LEVELS.has(rawOverride)) {
+    return rawOverride;
+  }
+
+  const normalizedModel = typeof modelName === 'string' ? modelName.toLowerCase() : '';
+  if (normalizedModel.includes('gpt-5')) {
+    return 'low';
+  }
+
   return 'medium';
 }
 

@@ -22,6 +22,7 @@ import {
   generateJourneyStory,
   computeCoachSuggestionWithEmbeddings,
 } from '../lib/journalInsights';
+import { buildThemeQuestion } from '../lib/themeText';
 import {
   buildSeasonKey,
   getCachedNarrative,
@@ -187,13 +188,15 @@ function computeEnhancedCoachSuggestion({
 
   // Priority 3: Top theme
   if (topTheme) {
-    const question = `How can I explore the theme of ${topTheme.toLowerCase()} more deeply?`;
-    return {
-      source: 'theme',
-      text: question,
-      question,
-      spread: 'threeCard',
-    };
+    const themeQuestion = buildThemeQuestion(topTheme);
+    if (themeQuestion) {
+      return {
+        source: 'theme',
+        text: themeQuestion,
+        question: themeQuestion,
+        spread: 'threeCard',
+      };
+    }
   }
 
   // Priority 4: Top context
