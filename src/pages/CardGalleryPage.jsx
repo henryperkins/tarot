@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { CaretLeft, Funnel, SortAscending, LockKey } from '@phosphor-icons/react';
 import { useNavigate } from 'react-router-dom';
-import { AnimatePresence } from 'framer-motion';
+import { AnimatePresence, motion } from 'framer-motion';
 import { GlobalNav } from '../components/GlobalNav';
 import { CardModal } from '../components/CardModal';
 import { MAJOR_ARCANA } from '../data/majorArcana';
@@ -11,6 +11,7 @@ import { useJournal } from '../hooks/useJournal';
 import { getCanonicalCard } from '../lib/cardLookup';
 import { getTimestampSeconds, safeJsonParse } from '../../shared/journal/utils.js';
 import { pickStats, computeGalleryLoading } from './cardGallerySelectors';
+import { useReducedMotion } from '../hooks/useReducedMotion';
 
 const ALL_CARDS = [...MAJOR_ARCANA, ...MINOR_ARCANA];
 
@@ -99,7 +100,8 @@ function buildLocalCardStats(entries) {
   return map;
 }
 
-function CardItem({ card, stats, onSelect }) {
+function CardItem({ card, stats, onSelect, index = 0 }) {
+  const prefersReducedMotion = useReducedMotion();
   const isFound = !!stats;
   const count = stats?.total_count || 0;
 
@@ -149,26 +151,50 @@ function CardItem({ card, stats, onSelect }) {
     </>
   );
 
+  const animationVariants = prefersReducedMotion ? {
+    initial: { opacity: 0 },
+    animate: { opacity: 1 }
+  } : {
+    initial: { opacity: 0, y: 20, scale: 0.9 },
+    animate: { opacity: 1, y: 0, scale: 1 }
+  };
+
   if (isFound) {
     return (
-      <button
+      <motion.button
         type="button"
         onClick={() => onSelect?.(card)}
         className="group relative aspect-[2/3] rounded-xl border transition-all duration-300 overflow-hidden text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/60 focus-visible:ring-offset-2 focus-visible:ring-offset-main border-amber-300/20 bg-gradient-to-b from-[#120f1f] via-[#0c0a14] to-[#0a0911] shadow-lg hover:-translate-y-1 hover:border-amber-300/40 hover:shadow-amber-300/10"
         aria-label={`Open details for ${card.name}`}
+        variants={animationVariants}
+        initial="initial"
+        animate="animate"
+        transition={{
+          duration: prefersReducedMotion ? 0.15 : 0.4,
+          delay: prefersReducedMotion ? 0 : index * 0.03,
+          ease: [0.4, 0, 0.2, 1]
+        }}
       >
         {content}
-      </button>
+      </motion.button>
     );
   }
 
   return (
-    <div
+    <motion.div
       className="group relative aspect-[2/3] rounded-xl border transition-all duration-300 overflow-hidden border-white/5 bg-white/[0.02] opacity-60 grayscale hover:opacity-80"
       aria-label={`${card.name} (not yet discovered)`}
+      variants={animationVariants}
+      initial="initial"
+      animate="animate"
+      transition={{
+        duration: prefersReducedMotion ? 0.15 : 0.4,
+        delay: prefersReducedMotion ? 0 : index * 0.03,
+        ease: [0.4, 0, 0.2, 1]
+      }}
     >
       {content}
-    </div>
+    </motion.div>
   );
 }
 
@@ -472,17 +498,28 @@ export default function CardGalleryPage() {
         ) : loading ? (
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
             {[...Array(12)].map((_, i) => (
-              <div key={i} className="aspect-[2/3] rounded-xl bg-white/5 animate-pulse" />
+              <motion.div 
+                key={i} 
+                className="aspect-[2/3] rounded-xl bg-white/5 animate-pulse"
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ 
+                  duration: 0.3, 
+                  delay: i * 0.05,
+                  ease: [0.4, 0, 0.2, 1]
+                }}
+              />
             ))}
           </div>
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4 sm:gap-6">
-            {filteredCards.map(card => (
+            {filteredCards.map((card, index) => (
               <CardItem
                 key={card.name}
                 card={card}
                 stats={stats[card.name]}
                 onSelect={handleSelectCard}
+                index={index}
               />
             ))}
           </div>
