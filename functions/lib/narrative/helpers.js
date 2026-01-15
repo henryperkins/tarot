@@ -1141,7 +1141,8 @@ function appendReversalReminder(text, cardsInfo, themes) {
 }
 
 function getConnector(position, direction = 'toPrev') {
-  const template = POSITION_LANGUAGE[position];
+  const normalizedPosition = normalizePositionKey(position);
+  const template = POSITION_LANGUAGE[normalizedPosition];
   if (!template) return '';
 
   if (direction === 'toPrev' && template.connectorToPrev) {

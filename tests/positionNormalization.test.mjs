@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import { normalizePositionKey, buildPositionCardText } from '../functions/lib/narrative/helpers.js';
+import { normalizePositionKey, buildPositionCardText, getConnector } from '../functions/lib/narrative/helpers.js';
 
 describe('normalizePositionKey', () => {
   describe('Celtic Cross positions', () => {
@@ -89,5 +89,24 @@ describe('buildPositionCardText with Celtic Cross positions', () => {
 
     // Should contain the position name (fallback behavior)
     assert.ok(result.includes('Unknown Custom Position'));
+  });
+});
+
+describe('getConnector with Celtic Cross positions', () => {
+  it('returns connector for normalized Celtic Cross position', () => {
+    // 'Past — what lies behind' has connectorToNext defined
+    const connector = getConnector('Past — what lies behind', 'toNext');
+
+    assert.ok(
+      connector === 'Because of this,' ||
+      connector === 'Because of this history,' ||
+      connector === 'Because of this groundwork,',
+      `Expected a valid connector, got: "${connector}"`
+    );
+  });
+
+  it('returns empty string for unknown position', () => {
+    const connector = getConnector('Unknown Position', 'toPrev');
+    assert.strictEqual(connector, '');
   });
 });
