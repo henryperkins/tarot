@@ -807,6 +807,37 @@ const POSITION_LANGUAGE = {
 };
 
 /**
+ * Maps positions from spreads.js (without Card #) to POSITION_LANGUAGE keys (with Card #)
+ * Only needed for Celtic Cross where the source-of-truth positions differ from template keys.
+ */
+const CELTIC_CROSS_POSITION_MAP = {
+  'Present — core situation': 'Present — core situation (Card 1)',
+  'Challenge — crossing / tension': 'Challenge — crossing / tension (Card 2)',
+  'Past — what lies behind': 'Past — what lies behind (Card 3)',
+  'Near Future — what lies before': 'Near Future — what lies before (Card 4)',
+  'Conscious — goals & focus': 'Conscious — goals & focus (Card 5)',
+  'Subconscious — roots / hidden forces': 'Subconscious — roots / hidden forces (Card 6)',
+  'Self / Advice — how to meet this': 'Self / Advice — how to meet this (Card 7)',
+  'External Influences — people & environment': 'External Influences — people & environment (Card 8)',
+  'Hopes & Fears — deepest wishes & worries': 'Hopes & Fears — deepest wishes & worries (Card 9)',
+  'Outcome — likely path if unchanged': 'Outcome — likely path if unchanged (Card 10)'
+};
+
+/**
+ * Normalize a position string to its canonical POSITION_LANGUAGE key.
+ * Handles Celtic Cross positions that arrive without "(Card N)" suffix.
+ *
+ * @param {string} position - Position string from cardsInfo
+ * @returns {string} Canonical position key for POSITION_LANGUAGE lookup
+ */
+export function normalizePositionKey(position) {
+  if (!position || typeof position !== 'string') {
+    return position;
+  }
+  return CELTIC_CROSS_POSITION_MAP[position] || position;
+}
+
+/**
  * Build a position-aware card description with optional imagery hooks
  */
 function buildPositionCardText(cardInfo, position, options = {}) {
