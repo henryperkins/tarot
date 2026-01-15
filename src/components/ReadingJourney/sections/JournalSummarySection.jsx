@@ -14,9 +14,9 @@ import { useJournalSummary } from '../../../hooks/useJournalSummary';
 import { useSubscription } from '../../../contexts/SubscriptionContext';
 
 const BUTTON_CLASS = `
-  flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium
+  flex items-center gap-2 px-4 py-2.5 min-h-[44px] rounded-xl text-sm font-medium
   transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/50
-  disabled:opacity-50 disabled:cursor-not-allowed
+  disabled:opacity-50 disabled:cursor-not-allowed touch-manipulation
 `;
 
 const PRIMARY_BUTTON_CLASS = `
@@ -131,9 +131,9 @@ function SummaryDisplay({ summary, meta, onClear }) {
             h1: ({ children }) => <h3 className="text-base font-semibold text-amber-50 mt-4 mb-2 first:mt-0">{children}</h3>,
             h2: ({ children }) => <h4 className="text-sm font-semibold text-amber-50 mt-3 mb-1.5">{children}</h4>,
             h3: ({ children }) => <h5 className="text-sm font-medium text-amber-100 mt-2 mb-1">{children}</h5>,
-            p: ({ children }) => <p className="text-[13px] leading-relaxed mb-2 last:mb-0">{children}</p>,
-            ul: ({ children }) => <ul className="list-disc list-inside space-y-1 text-[13px] mb-2">{children}</ul>,
-            ol: ({ children }) => <ol className="list-decimal list-inside space-y-1 text-[13px] mb-2">{children}</ol>,
+            p: ({ children }) => <p className="text-sm sm:text-[13px] leading-relaxed mb-2 last:mb-0">{children}</p>,
+            ul: ({ children }) => <ul className="list-disc list-inside space-y-1 text-sm sm:text-[13px] mb-2">{children}</ul>,
+            ol: ({ children }) => <ol className="list-decimal list-inside space-y-1 text-sm sm:text-[13px] mb-2">{children}</ol>,
             li: ({ children }) => <li className="text-amber-100/80">{children}</li>,
             strong: ({ children }) => <strong className="font-semibold text-amber-50">{children}</strong>,
           }}
@@ -217,15 +217,22 @@ function JournalSummarySection({ isAuthenticated, entryCount = 0 }) {
   // Default: show generate UI
   return (
     <div className="space-y-3">
+      {/* Info text - positioned before selector for better screen reader flow */}
+      <p id="summary-info" className="text-xs sm:text-[10px] text-amber-100/50">
+        AI analyzes your readings to surface patterns, themes, and guidance.
+      </p>
+
       {/* Limit selector */}
       <div className="flex items-center justify-between gap-2">
-        <label className="text-xs text-amber-100/70">
+        <label htmlFor="summary-limit" className="text-sm sm:text-xs text-amber-100/70">
           Summarize recent entries
         </label>
         <select
+          id="summary-limit"
           value={limit}
           onChange={(e) => setLimit(Number(e.target.value))}
-          className="rounded-lg border border-amber-200/20 bg-amber-200/5 px-2 py-1 text-xs text-amber-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/40"
+          className="min-h-[44px] rounded-lg border border-amber-200/20 bg-amber-200/5 px-3 py-2 text-sm text-amber-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/40 touch-manipulation"
+          aria-describedby="summary-info"
         >
           {[3, 5, 7, 10].map((n) => (
             <option key={n} value={n}>
@@ -248,15 +255,10 @@ function JournalSummarySection({ isAuthenticated, entryCount = 0 }) {
 
       {/* Error display */}
       {error && (
-        <p className="text-xs text-red-300/80 mt-2">
+        <p className="text-sm sm:text-xs text-red-300/80 mt-2">
           {error}
         </p>
       )}
-
-      {/* Info text */}
-      <p className="text-[10px] text-amber-100/50">
-        AI analyzes your readings to surface patterns, themes, and guidance.
-      </p>
     </div>
   );
 }

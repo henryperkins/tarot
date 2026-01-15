@@ -52,16 +52,16 @@ function SeasonSummary({
     <div className="rounded-xl bg-gradient-to-br from-amber-500/10 via-amber-600/5 to-transparent p-4 border border-amber-300/10">
       {/* Season Label */}
       {seasonWindow && (
-        <p className="text-xs text-amber-100/60 mb-2">{formatSeasonLabel()}</p>
+        <p className="text-sm sm:text-xs text-amber-100/60 mb-2">{formatSeasonLabel()}</p>
       )}
 
       {/* Narrative */}
       {narrative ? (
-        <p className="text-sm text-amber-100/85 leading-relaxed mb-3">
+        <p className="text-base sm:text-sm text-amber-100/85 leading-relaxed mb-3">
           {narrative}
         </p>
       ) : (
-        <p className="text-sm text-amber-100/70 mb-3">
+        <p className="text-base sm:text-sm text-amber-100/70 mb-3">
           Start tracking your journey with more readings.
         </p>
       )}
@@ -93,14 +93,14 @@ function SeasonSummary({
       {/* Coach suggestion CTA */}
       {coachSuggestion && onStartReading && (
         <div className="rounded-lg bg-amber-200/5 p-3 border border-amber-300/10">
-          <p className="text-xs text-amber-100/70 mb-2">
+          <p className="text-sm sm:text-xs text-amber-100/70 mb-2">
             💡 {coachSuggestion.text}
           </p>
           <button
             onClick={handleStartReading}
             className="
-              inline-flex items-center gap-1.5 text-xs font-medium text-amber-200
-              hover:text-amber-100 transition-colors
+              inline-flex items-center gap-1.5 min-h-[44px] px-3 py-2 text-xs font-medium text-amber-200
+              hover:text-amber-100 transition-colors touch-manipulation
               focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/50
             "
           >

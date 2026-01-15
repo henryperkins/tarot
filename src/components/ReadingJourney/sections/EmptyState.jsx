@@ -4,6 +4,7 @@
 
 import { Sparkle, ArrowsClockwise } from '@phosphor-icons/react';
 import { ArchetypeEmptyIllustration } from '../../illustrations/ArchetypeEmptyIllustration';
+import { useReducedMotion } from '../../../hooks/useReducedMotion';
 
 export default function EmptyState({
   onBackfill,
@@ -12,6 +13,7 @@ export default function EmptyState({
   isAuthenticated,
   hasEntries,
 }) {
+  const prefersReducedMotion = useReducedMotion();
   return (
     <section
       className="relative overflow-hidden rounded-3xl border border-amber-300/12 bg-gradient-to-br from-[#0b0c1d] via-[#0d1024] to-[#090a16] p-5 shadow-[0_24px_68px_-30px_rgba(0,0,0,0.9)]"
@@ -89,24 +91,24 @@ export default function EmptyState({
                   disabled={isBackfilling}
                   aria-label="Analyze journal for reading journey"
                   className={`
-                    flex items-center gap-2 px-4 py-2 rounded-full text-xs font-medium
+                    flex items-center gap-2 min-h-[44px] px-4 py-2 rounded-full text-sm sm:text-xs font-medium
                     border border-amber-300/40 text-amber-50 bg-amber-300/10
                     shadow-[0_16px_36px_-22px_rgba(251,191,36,0.65)]
                     hover:-translate-y-0.5 hover:border-amber-300/60
                     active:bg-amber-300/20
                     focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/50
                     disabled:opacity-50 disabled:cursor-not-allowed disabled:translate-y-0
-                    transition
+                    transition touch-manipulation
                   `}
                 >
                   <ArrowsClockwise
-                    className={`h-3.5 w-3.5 ${isBackfilling ? 'animate-spin' : ''}`}
+                    className={`h-3.5 w-3.5 ${isBackfilling && !prefersReducedMotion ? 'animate-spin' : ''}`}
                     aria-hidden="true"
                   />
                   {isBackfilling ? 'Analyzing readings...' : 'Analyze past readings'}
                 </button>
 
-                <p className="mt-3 text-[11px] text-amber-100/55">
+                <p className="mt-3 text-xs sm:text-[11px] text-amber-100/55">
                   This will scan your journal entries and build your card frequency data.
                 </p>
               </>
