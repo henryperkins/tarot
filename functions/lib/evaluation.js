@@ -439,12 +439,13 @@ function truncateText(text, maxLength) {
   };
 }
 
-function buildUserPrompt({ spreadKey, cardsInfo, userQuestion, reading, requestId = 'unknown' }) {
+function buildUserPrompt({ spreadKey, cardsInfo, userQuestion, reading, narrativeMetrics = {}, requestId = 'unknown' }) {
   const cardsResult = buildCardsList(cardsInfo, MAX_CARDS_INFO_LENGTH);
   const questionResult = truncateText(userQuestion, MAX_QUESTION_LENGTH);
   const readingResult = truncateText(reading, MAX_READING_LENGTH);
   const cardCount = Array.isArray(cardsInfo) ? cardsInfo.length : 0;
   const spreadHints = buildSpreadEvaluationHints(spreadKey);
+  const structuralMetrics = buildStructuralMetricsSection(narrativeMetrics);
 
   // Log truncation events for monitoring
   const truncations = [];
@@ -467,6 +468,7 @@ function buildUserPrompt({ spreadKey, cardsInfo, userQuestion, reading, requestI
     .replace('{{cardCount}}', String(cardCount))
     .replace('{{cardsList}}', cardsResult.text || '(none)')
     .replace('{{userQuestion}}', questionResult.text || '(no question provided)')
+    .replace('{{structuralMetrics}}', structuralMetrics)
     .replace('{{spreadHints}}', spreadHints || '')
     .replace('{{reading}}', readingResult.text || '');
 
