@@ -259,7 +259,7 @@ graph TB
         promptEng["promptEngineering.js<br>Prompt Construction"]
         promptVer["promptVersioning.js<br>Version Management"]
         azureResp["azureResponses.js<br>API Handling"]
-        
+
         subgraph NarrativeHelpers["Narrative Helpers"]
             nHelpers["helpers.js"]
             nPrompts["prompts.js"]
@@ -267,7 +267,7 @@ graph TB
             nReasoningInt["reasoningIntegration.js"]
             nStyle["styleHelpers.js"]
         end
-        
+
         subgraph SpreadNarratives["Spread-Specific"]
             sSingle["singleCard.js"]
             sThree["threeCard.js"]
@@ -540,14 +540,14 @@ sequenceDiagram
     Evaluation->>QualityAnalysis: analyzeScores(scores)
     QualityAnalysis->>KV_Metrics: Store metrics
     QualityAnalysis->>QualityAlerts: checkThresholds(metrics)
-    
+
     alt Score below threshold
         QualityAlerts->>EmailService: sendAlertEmail()
         EmailService->>Email: Dispatch alert
     end
-    
+
     QualityAnalysis-->>ReadingAPI: Analysis complete
-    
+
     AdminDash->>QualityAnalysis: GET /api/admin/quality-stats
     QualityAnalysis->>KV_Metrics: Read metrics
     KV_Metrics-->>QualityAnalysis: Historical data
@@ -604,7 +604,7 @@ sequenceDiagram
     PatternTracking->>D1: UPDATE pattern_tracking
     PatternTracking-->>JournalAPI: Pattern results
     JournalAPI-->>JournalComp: Entry saved
-    
+
     JournalComp->>PatternAlerts: GET /api/journal/pattern-alerts
     PatternAlerts->>D1: Query recent patterns
     PatternAlerts-->>JournalComp: Active alerts
@@ -680,15 +680,15 @@ erDiagram
     users ||--o{ api_keys : owns
     users ||--o{ archetype_journey : tracks
     users ||--o{ user_preferences : configures
-    
+
     readings ||--o{ reading_cards : contains
     readings ||--o{ shares : generates
     readings ||--o{ quality_tracking : measured_by
-    
+
     journals ||--o{ journal_tags : tagged_with
-    
+
     shares ||--o{ share_notes : has
-    
+
     users {
         int id PK
         string email
@@ -696,13 +696,13 @@ erDiagram
         string password_hash
         timestamp created_at
     }
-    
+
     sessions {
         string token PK
         int user_id FK
         timestamp expires_at
     }
-    
+
     journals {
         int id PK
         int user_id FK
@@ -714,7 +714,7 @@ erDiagram
         float longitude
         timestamp created_at
     }
-    
+
     readings {
         string request_id PK
         int user_id FK
@@ -724,7 +724,7 @@ erDiagram
         json evaluation
         timestamp created_at
     }
-    
+
     subscriptions {
         int id PK
         int user_id FK
@@ -734,7 +734,7 @@ erDiagram
         string plan
         timestamp current_period_end
     }
-    
+
     archetype_journey {
         int id PK
         int user_id FK
@@ -743,7 +743,7 @@ erDiagram
         json journey_data
         timestamp last_seen
     }
-    
+
     quality_tracking {
         int id PK
         string reading_id FK
@@ -753,7 +753,7 @@ erDiagram
         string prompt_version
         timestamp created_at
     }
-    
+
     pattern_tracking {
         int id PK
         int user_id FK
@@ -763,7 +763,7 @@ erDiagram
         timestamp first_seen
         timestamp last_seen
     }
-    
+
     shares {
         string token PK
         int reading_id FK
@@ -771,7 +771,7 @@ erDiagram
         timestamp expires_at
         timestamp created_at
     }
-    
+
     api_keys {
         int id PK
         int user_id FK
@@ -867,13 +867,13 @@ graph TB
     Components --> FrontLibs
     Components --> Utils
     FrontLibs --> Data
-    
+
     WorkerEntry --> APIs
     APIs --> BackendLibs
-    
+
     FrontLibs -.-> SharedMods
     BackendLibs -.-> SharedMods
-    
+
     APIs --> Cloudflare
     APIs --> Azure
     APIs --> Stripe
@@ -897,3 +897,75 @@ graph TB
 | Worker | Backend Libraries | 50+ |
 | Shared | Modules | 18+ |
 | External | Services | 12 |
+x`
+## 11. CodeViz System Architecture Export
+
+```mermaid
+graph TD
+
+    base.cv::user["**End User**<br>[External]"]
+    base.cv::d1_db["**Cloudflare D1 Database**<br>wrangler.jsonc `d1_databases`, migrations/0001_initial_schema.sql"]
+    base.cv::kv_ratelimit["**Cloudflare KV: Ratelimit**<br>wrangler.jsonc `kv_namespaces` `RATELIMIT`"]
+    base.cv::kv_feedback["**Cloudflare KV: Feedback**<br>wrangler.jsonc `kv_namespaces` `FEEDBACK_KV`"]
+    base.cv::kv_metrics["**Cloudflare KV: Metrics**<br>wrangler.jsonc `kv_namespaces` `METRICS_DB`"]
+    base.cv::cloudflare_ai["**Cloudflare Workers AI**<br>wrangler.jsonc `ai`, package.json `@xenova/transformers`"]
+    base.cv::azure_openai["**Azure OpenAI Service**<br>wrangler.jsonc `AZURE_OPENAI_ENDPOINT`, wrangler.jsonc `AZURE_OPENAI_API_KEY`"]
+    base.cv::azure_anthropic["**Azure AI Foundry Anthropic**<br>wrangler.jsonc `AZURE_ANTHROPIC_ENDPOINT`"]
+    base.cv::azure_tts["**Azure Text-to-Speech**<br>wrangler.jsonc `AZURE_OPENAI_TTS_ENDPOINT`"]
+    base.cv::azure_speech_sdk["**Azure Speech SDK**<br>wrangler.jsonc `AZURE_SPEECH_KEY`, package.json `microsoft-cognitiveservices-speech-sdk`"]
+    base.cv::admin["**Administrator**<br>wrangler.jsonc `ADMIN_API_KEY`"]
+    base.cv::cloudflare_log_obs["**Cloudflare Logging & Observability**<br>wrangler.jsonc `logpush`, wrangler.jsonc `observability`"]
+    base.cv::email_service["**Email Service**<br>wrangler.jsonc `ALERT_EMAIL_TO`"]
+    subgraph base.cv::frontend_app["**Tarot Frontend**<br>package.json `react`, vite.config.js, src/main.jsx"]
+        base.cv::web_browser["**Web Browser**<br>src/main.jsx `ReactDOM.createRoot`, index.html"]
+        base.cv::service_worker["**Service Worker**<br>src/main.jsx `navigator.serviceWorker.register`, public/sw.js"]
+        %% Edges at this level (grouped by source)
+        base.cv::web_browser["**Web Browser**<br>src/main.jsx `ReactDOM.createRoot`, index.html"] -->|"Delegates network requests to"| base.cv::service_worker["**Service Worker**<br>src/main.jsx `navigator.serviceWorker.register`, public/sw.js"]
+    end
+    subgraph base.cv::cloudflare_worker["**Tarot Backend Worker**<br>package.json `wrangler`, wrangler.jsonc, .worker/index.js, functions/api/index.js"]
+        base.cv::worker_runtime["**Cloudflare Worker Runtime**<br>wrangler.jsonc `main` `.src/worker/index.js`, .worker/index.js, functions/api/index.js"]
+    end
+    %% Edges at this level (grouped by source)
+    base.cv::user["**End User**<br>[External]"] -->|"Uses"| base.cv::frontend_app["**Tarot Frontend**<br>package.json `react`, vite.config.js, src/main.jsx"]
+    base.cv::user["**End User**<br>[External]"] -->|"Uses"| base.cv::web_browser["**Web Browser**<br>src/main.jsx `ReactDOM.createRoot`, index.html"]
+    base.cv::frontend_app["**Tarot Frontend**<br>package.json `react`, vite.config.js, src/main.jsx"] -->|"Makes API calls to"| base.cv::cloudflare_worker["**Tarot Backend Worker**<br>package.json `wrangler`, wrangler.jsonc, .worker/index.js, functions/api/index.js"]
+    base.cv::cloudflare_worker["**Tarot Backend Worker**<br>package.json `wrangler`, wrangler.jsonc, .worker/index.js, functions/api/index.js"] -->|"Reads from and writes to"| base.cv::d1_db["**Cloudflare D1 Database**<br>wrangler.jsonc `d1_databases`, migrations/0001_initial_schema.sql"]
+    base.cv::cloudflare_worker["**Tarot Backend Worker**<br>package.json `wrangler`, wrangler.jsonc, .worker/index.js, functions/api/index.js"] -->|"Reads from and writes to"| base.cv::kv_ratelimit["**Cloudflare KV: Ratelimit**<br>wrangler.jsonc `kv_namespaces` `RATELIMIT`"]
+    base.cv::cloudflare_worker["**Tarot Backend Worker**<br>package.json `wrangler`, wrangler.jsonc, .worker/index.js, functions/api/index.js"] -->|"Writes feedback to"| base.cv::kv_feedback["**Cloudflare KV: Feedback**<br>wrangler.jsonc `kv_namespaces` `FEEDBACK_KV`"]
+    base.cv::cloudflare_worker["**Tarot Backend Worker**<br>package.json `wrangler`, wrangler.jsonc, .worker/index.js, functions/api/index.js"] -->|"Writes metrics to"| base.cv::kv_metrics["**Cloudflare KV: Metrics**<br>wrangler.jsonc `kv_namespaces` `METRICS_DB`"]
+    base.cv::cloudflare_worker["**Tarot Backend Worker**<br>package.json `wrangler`, wrangler.jsonc, .worker/index.js, functions/api/index.js"] -->|"Invokes AI models on"| base.cv::cloudflare_ai["**Cloudflare Workers AI**<br>wrangler.jsonc `ai`, package.json `@xenova/transformers`"]
+    base.cv::cloudflare_worker["**Tarot Backend Worker**<br>package.json `wrangler`, wrangler.jsonc, .worker/index.js, functions/api/index.js"] -->|"Generates narratives using"| base.cv::azure_openai["**Azure OpenAI Service**<br>wrangler.jsonc `AZURE_OPENAI_ENDPOINT`, wrangler.jsonc `AZURE_OPENAI_API_KEY`"]
+    base.cv::cloudflare_worker["**Tarot Backend Worker**<br>package.json `wrangler`, wrangler.jsonc, .worker/index.js, functions/api/index.js"] -->|"Generates narratives using (fallback)"| base.cv::azure_anthropic["**Azure AI Foundry Anthropic**<br>wrangler.jsonc `AZURE_ANTHROPIC_ENDPOINT`"]
+    base.cv::cloudflare_worker["**Tarot Backend Worker**<br>package.json `wrangler`, wrangler.jsonc, .worker/index.js, functions/api/index.js"] -->|"Generates audio for"| base.cv::azure_tts["**Azure Text-to-Speech**<br>wrangler.jsonc `AZURE_OPENAI_TTS_ENDPOINT`"]
+    base.cv::cloudflare_worker["**Tarot Backend Worker**<br>package.json `wrangler`, wrangler.jsonc, .worker/index.js, functions/api/index.js"] -->|"Uses for speech processing"| base.cv::azure_speech_sdk["**Azure Speech SDK**<br>wrangler.jsonc `AZURE_SPEECH_KEY`, package.json `microsoft-cognitiveservices-speech-sdk`"]
+    base.cv::cloudflare_worker["**Tarot Backend Worker**<br>package.json `wrangler`, wrangler.jsonc, .worker/index.js, functions/api/index.js"] -->|"Performs scheduled archiving and cleanup"| base.cv::d1_db["**Cloudflare D1 Database**<br>wrangler.jsonc `d1_databases`, migrations/0001_initial_schema.sql"]
+    base.cv::cloudflare_worker["**Tarot Backend Worker**<br>package.json `wrangler`, wrangler.jsonc, .worker/index.js, functions/api/index.js"] -->|"Performs scheduled cleanup"| base.cv::kv_ratelimit["**Cloudflare KV: Ratelimit**<br>wrangler.jsonc `kv_namespaces` `RATELIMIT`"]
+    base.cv::cloudflare_worker["**Tarot Backend Worker**<br>package.json `wrangler`, wrangler.jsonc, .worker/index.js, functions/api/index.js"] -->|"Performs scheduled archival"| base.cv::kv_feedback["**Cloudflare KV: Feedback**<br>wrangler.jsonc `kv_namespaces` `FEEDBACK_KV`"]
+    base.cv::cloudflare_worker["**Tarot Backend Worker**<br>package.json `wrangler`, wrangler.jsonc, .worker/index.js, functions/api/index.js"] -->|"Performs scheduled archival"| base.cv::kv_metrics["**Cloudflare KV: Metrics**<br>wrangler.jsonc `kv_namespaces` `METRICS_DB`"]
+    base.cv::cloudflare_worker["**Tarot Backend Worker**<br>package.json `wrangler`, wrangler.jsonc, .worker/index.js, functions/api/index.js"] -->|"Sends logs and metrics to"| base.cv::cloudflare_log_obs["**Cloudflare Logging & Observability**<br>wrangler.jsonc `logpush`, wrangler.jsonc `observability`"]
+    base.cv::cloudflare_worker["**Tarot Backend Worker**<br>package.json `wrangler`, wrangler.jsonc, .worker/index.js, functions/api/index.js"] -->|"Sends alerts via"| base.cv::email_service["**Email Service**<br>wrangler.jsonc `ALERT_EMAIL_TO`"]
+    base.cv::admin["**Administrator**<br>wrangler.jsonc `ADMIN_API_KEY`"] -->|"Manages and monitors"| base.cv::cloudflare_worker["**Tarot Backend Worker**<br>package.json `wrangler`, wrangler.jsonc, .worker/index.js, functions/api/index.js"]
+    base.cv::admin["**Administrator**<br>wrangler.jsonc `ADMIN_API_KEY`"] -->|"Manages and monitors"| base.cv::worker_runtime["**Cloudflare Worker Runtime**<br>wrangler.jsonc `main` `.src/worker/index.js`, .worker/index.js, functions/api/index.js"]
+    base.cv::web_browser["**Web Browser**<br>src/main.jsx `ReactDOM.createRoot`, index.html"] -->|"Makes API calls to"| base.cv::worker_runtime["**Cloudflare Worker Runtime**<br>wrangler.jsonc `main` `.src/worker/index.js`, .worker/index.js, functions/api/index.js"]
+    base.cv::service_worker["**Service Worker**<br>src/main.jsx `navigator.serviceWorker.register`, public/sw.js"] -->|"Fetches assets and API data from"| base.cv::worker_runtime["**Cloudflare Worker Runtime**<br>wrangler.jsonc `main` `.src/worker/index.js`, .worker/index.js, functions/api/index.js"]
+    base.cv::worker_runtime["**Cloudflare Worker Runtime**<br>wrangler.jsonc `main` `.src/worker/index.js`, .worker/index.js, functions/api/index.js"] -->|"Reads from and writes to"| base.cv::d1_db["**Cloudflare D1 Database**<br>wrangler.jsonc `d1_databases`, migrations/0001_initial_schema.sql"]
+    base.cv::worker_runtime["**Cloudflare Worker Runtime**<br>wrangler.jsonc `main` `.src/worker/index.js`, .worker/index.js, functions/api/index.js"] -->|"Reads from and writes to"| base.cv::kv_ratelimit["**Cloudflare KV: Ratelimit**<br>wrangler.jsonc `kv_namespaces` `RATELIMIT`"]
+    base.cv::worker_runtime["**Cloudflare Worker Runtime**<br>wrangler.jsonc `main` `.src/worker/index.js`, .worker/index.js, functions/api/index.js"] -->|"Writes feedback to"| base.cv::kv_feedback["**Cloudflare KV: Feedback**<br>wrangler.jsonc `kv_namespaces` `FEEDBACK_KV`"]
+    base.cv::worker_runtime["**Cloudflare Worker Runtime**<br>wrangler.jsonc `main` `.src/worker/index.js`, .worker/index.js, functions/api/index.js"] -->|"Writes metrics to"| base.cv::kv_metrics["**Cloudflare KV: Metrics**<br>wrangler.jsonc `kv_namespaces` `METRICS_DB`"]
+    base.cv::worker_runtime["**Cloudflare Worker Runtime**<br>wrangler.jsonc `main` `.src/worker/index.js`, .worker/index.js, functions/api/index.js"] -->|"Invokes AI models on"| base.cv::cloudflare_ai["**Cloudflare Workers AI**<br>wrangler.jsonc `ai`, package.json `@xenova/transformers`"]
+    base.cv::worker_runtime["**Cloudflare Worker Runtime**<br>wrangler.jsonc `main` `.src/worker/index.js`, .worker/index.js, functions/api/index.js"] -->|"Generates narratives using"| base.cv::azure_openai["**Azure OpenAI Service**<br>wrangler.jsonc `AZURE_OPENAI_ENDPOINT`, wrangler.jsonc `AZURE_OPENAI_API_KEY`"]
+    base.cv::worker_runtime["**Cloudflare Worker Runtime**<br>wrangler.jsonc `main` `.src/worker/index.js`, .worker/index.js, functions/api/index.js"] -->|"Generates narratives using (fallback)"| base.cv::azure_anthropic["**Azure AI Foundry Anthropic**<br>wrangler.jsonc `AZURE_ANTHROPIC_ENDPOINT`"]
+    base.cv::worker_runtime["**Cloudflare Worker Runtime**<br>wrangler.jsonc `main` `.src/worker/index.js`, .worker/index.js, functions/api/index.js"] -->|"Generates audio for"| base.cv::azure_tts["**Azure Text-to-Speech**<br>wrangler.jsonc `AZURE_OPENAI_TTS_ENDPOINT`"]
+    base.cv::worker_runtime["**Cloudflare Worker Runtime**<br>wrangler.jsonc `main` `.src/worker/index.js`, .worker/index.js, functions/api/index.js"] -->|"Uses for speech processing"| base.cv::azure_speech_sdk["**Azure Speech SDK**<br>wrangler.jsonc `AZURE_SPEECH_KEY`, package.json `microsoft-cognitiveservices-speech-sdk`"]
+    base.cv::worker_runtime["**Cloudflare Worker Runtime**<br>wrangler.jsonc `main` `.src/worker/index.js`, .worker/index.js, functions/api/index.js"] -->|"Performs scheduled archiving and cleanup"| base.cv::d1_db["**Cloudflare D1 Database**<br>wrangler.jsonc `d1_databases`, migrations/0001_initial_schema.sql"]
+    base.cv::worker_runtime["**Cloudflare Worker Runtime**<br>wrangler.jsonc `main` `.src/worker/index.js`, .worker/index.js, functions/api/index.js"] -->|"Performs scheduled cleanup"| base.cv::kv_ratelimit["**Cloudflare KV: Ratelimit**<br>wrangler.jsonc `kv_namespaces` `RATELIMIT`"]
+    base.cv::worker_runtime["**Cloudflare Worker Runtime**<br>wrangler.jsonc `main` `.src/worker/index.js`, .worker/index.js, functions/api/index.js"] -->|"Performs scheduled archival"| base.cv::kv_feedback["**Cloudflare KV: Feedback**<br>wrangler.jsonc `kv_namespaces` `FEEDBACK_KV`"]
+    base.cv::worker_runtime["**Cloudflare Worker Runtime**<br>wrangler.jsonc `main` `.src/worker/index.js`, .worker/index.js, functions/api/index.js"] -->|"Performs scheduled archival"| base.cv::kv_metrics["**Cloudflare KV: Metrics**<br>wrangler.jsonc `kv_namespaces` `METRICS_DB`"]
+    base.cv::worker_runtime["**Cloudflare Worker Runtime**<br>wrangler.jsonc `main` `.src/worker/index.js`, .worker/index.js, functions/api/index.js"] -->|"Sends logs and metrics to"| base.cv::cloudflare_log_obs["**Cloudflare Logging & Observability**<br>wrangler.jsonc `logpush`, wrangler.jsonc `observability`"]
+    base.cv::worker_runtime["**Cloudflare Worker Runtime**<br>wrangler.jsonc `main` `.src/worker/index.js`, .worker/index.js, functions/api/index.js"] -->|"Sends alerts via"| base.cv::email_service["**Email Service**<br>wrangler.jsonc `ALERT_EMAIL_TO`"]
+    base.cv::worker_runtime["**Cloudflare Worker Runtime**<br>wrangler.jsonc `main` `.src/worker/index.js`, .worker/index.js, functions/api/index.js"] -->|"Serves static assets and API responses"| base.cv::web_browser["**Web Browser**<br>src/main.jsx `ReactDOM.createRoot`, index.html"]
+
+```
+
+---
+*Generated by [CodeViz.ai](https://codeviz.ai) on 1/14/2026, 3:19:18 PM*
