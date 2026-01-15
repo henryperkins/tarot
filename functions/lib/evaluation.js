@@ -506,7 +506,7 @@ function findMissingScoreFields(scores) {
  * @returns {Promise<Object|null>} Evaluation results or null on skip
  */
 export async function runEvaluation(env, params = {}) {
-  const { reading = '', userQuestion, cardsInfo, spreadKey, requestId = 'unknown' } = params;
+  const { reading = '', userQuestion, cardsInfo, spreadKey, narrativeMetrics = {}, requestId = 'unknown' } = params;
 
   if (!env?.AI) {
     console.log(`[${requestId}] [eval] Skipped: AI binding not available`);
@@ -529,6 +529,7 @@ export async function runEvaluation(env, params = {}) {
       cardsInfo,
       userQuestion,
       reading,
+      narrativeMetrics,
       requestId
     });
 
