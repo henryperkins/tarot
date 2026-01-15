@@ -10,6 +10,59 @@ import {
   buildSingleCardReading,
   buildEnhancedClaudePrompt
 } from '../functions/lib/narrativeBuilder.js';
+
+// ──────────────────────────────────────────────────────────
+// Spread-Key Resolution Tests
+// ──────────────────────────────────────────────────────────
+describe('spread-key resolution', () => {
+  it('uses spreadInfo.key when display name is unrecognized', async () => {
+    const customSpread = {
+      name: 'My Custom Spread',
+      key: 'threeCard',
+      positions: [
+        { name: 'Past', roleKey: 'past' },
+        { name: 'Present', roleKey: 'present' },
+        { name: 'Future', roleKey: 'future' }
+      ]
+    };
+
+    const result = buildEnhancedClaudePrompt({
+      spreadInfo: customSpread,
+      cardsInfo: [
+        { card: 'The Fool', position: 'Past', orientation: 'upright' },
+        { card: 'The Magician', position: 'Present', orientation: 'upright' },
+        { card: 'The High Priestess', position: 'Future', orientation: 'upright' }
+      ],
+      userQuestion: 'What does my week look like?',
+      themes: {},
+      context: {}
+    });
+
+    // Should use threeCard structure, not general
+    assert.equal(result.promptMeta.spreadKey, 'threeCard');
+  });
+
+  it('still resolves standard spreads by display name', async () => {
+    const celticCross = {
+      name: 'Celtic Cross (Classic 10-Card)',
+      key: 'celtic'
+    };
+
+    const result = buildEnhancedClaudePrompt({
+      spreadInfo: celticCross,
+      cardsInfo: Array(10).fill(null).map((_, i) => ({
+        card: 'The Fool',
+        position: `Position ${i + 1}`,
+        orientation: 'upright'
+      })),
+      userQuestion: 'General guidance',
+      themes: {},
+      context: {}
+    });
+
+    assert.equal(result.promptMeta.spreadKey, 'celtic');
+  });
+});
 import { formatVisionLabelForPrompt } from '../functions/lib/visionLabels.js';
 import {
   analyzeCelticCross,
@@ -817,7 +870,7 @@ describe('Prompt budget telemetry', () => {
     assert.ok(metaWithSlimming.estimatedTokens.total > 0);
   });
 
-  it('includes estimated tokens when hard-cap truncation occurs without slimming', async () => {
+  it('drops optional sections before hard-cap truncation when slimming is disabled', async () => {
     const cardsInfo = [
       major('The Fool', 0, 'Past — influences that led here', 'Upright'),
       major('The Magician', 1, 'Present — where you stand now', 'Upright'),
@@ -838,7 +891,7 @@ describe('Prompt budget telemetry', () => {
 
     const threeCardAnalysis = await analyzeThreeCard(cardsInfo);
 
-    const { promptMeta } = buildEnhancedClaudePrompt({
+    const { promptMeta, systemPrompt, userPrompt } = buildEnhancedClaudePrompt({
       spreadInfo: { name: 'Three-Card Story (Past · Present · Future)' },
       cardsInfo,
       userQuestion: 'How do I keep momentum?',
@@ -850,9 +903,16 @@ describe('Prompt budget telemetry', () => {
     });
 
     assert.equal(promptMeta.slimmingEnabled, false);
-    assert.ok(promptMeta.truncation, 'hard-cap truncation should be recorded');
-    assert.ok(promptMeta.estimatedTokens, 'estimatedTokens should exist when truncation occurs');
-    assert.equal(promptMeta.estimatedTokens.truncated, true);
+    assert.ok(promptMeta.hardCap, 'hard-cap steps should be recorded');
+    assert.ok(promptMeta.hardCap.steps.includes('hard-cap-drop-graphrag-block'), 'GraphRAG should drop before truncation');
+    assert.ok(!promptMeta.truncation, 'hard-cap trimming should avoid truncation when optional blocks can drop');
+    assert.ok(promptMeta.estimatedTokens, 'estimatedTokens should exist when hard-cap adjustments occur');
+    assert.equal(promptMeta.estimatedTokens.truncated, false);
+    assert.ok(!systemPrompt.includes('TRADITIONAL WISDOM (GraphRAG)'), 'GraphRAG block should be removed under hard cap');
+    assert.ok(systemPrompt.includes('REVERSAL FRAMEWORK'), 'Core system prompt sections should remain intact');
+    assert.ok(systemPrompt.includes('ETHICS'), 'Ethics section should remain intact');
+    assert.ok(systemPrompt.includes('Do NOT provide diagnosis'), 'Ethics guardrail should remain intact');
+    assert.ok(userPrompt.includes('The Fool'), 'Card list should remain intact');
   });
 });
 

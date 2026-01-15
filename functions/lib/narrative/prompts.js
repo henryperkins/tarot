@@ -31,6 +31,7 @@ import { formatVisionLabelForPrompt } from '../visionLabels.js';
 import { getDepthProfile, sanitizeDisplayName } from './styleHelpers.js';
 import { getReadingPromptVersion } from '../promptVersioning.js';
 import { sanitizeText } from '../utils.js';
+import { getSpreadKey } from '../readingQuality.js';
 
 // Heuristic: decide when astrological context is relevant enough to surface
 // in the reading prompts. Uses card anchors + spread/graph signals + user intent
@@ -221,7 +222,7 @@ function truncateToTokenBudget(text, maxTokens) {
     truncated = truncated.slice(0, lastParagraph);
   }
 
-  truncated = truncated.trim() + '\n\n[...prompt truncated to fit context window...]';
+  truncated = truncated.trim();
 
   return {
     text: truncated,
@@ -279,7 +280,7 @@ export function buildEnhancedClaudePrompt({
     ? baseThemes
     : { ...baseThemes, reversalDescription: { ...DEFAULT_REVERSAL_DESCRIPTION } };
 
-  const spreadKey = getSpreadKeyFromName(spreadInfo.name);
+  const spreadKey = getSpreadKey(spreadInfo?.name, spreadInfo?.key);
   const diagnostics = Array.isArray(contextDiagnostics) ? contextDiagnostics : [];
 
   const normalizedContext = normalizeContext(context, {
@@ -465,26 +466,10 @@ export function buildEnhancedClaudePrompt({
     slimmingSteps.push(label);
   };
 
-  // Step 1: Drop imagery/vision sub-points for lower-weight cards
-  maybeSlim('drop-low-weight-imagery', () => {
-    controls = { ...controls, omitLowWeightImagery: true };
-  });
-
-  // Step 2: Remove forecast (future events) if over budget
-  maybeSlim('drop-forecast', () => {
-    controls = { ...controls, includeForecast: false };
-  });
-
-  // Step 3: Remove ephemeris/astrological context if over budget
-  maybeSlim('drop-ephemeris', () => {
-    controls = { ...controls, includeEphemeris: false };
-  });
-
-  // Step 3.5: Trim GraphRAG passages before dropping the block entirely
-  maybeSlim('trim-graphrag-passages', () => {
-    if (controls.includeGraphRAG === false) return;
+  const trimGraphRAGPassages = () => {
+    if (controls.includeGraphRAG === false) return false;
     const payload = controls.graphRAGPayload;
-    if (!payload?.passages || payload.passages.length <= 1) return;
+    if (!payload?.passages || payload.passages.length <= 1) return false;
 
     const effectiveSpreadKey = spreadKey || 'general';
     const baselineMax = payload.maxPassages || getPassageCountForSpread(effectiveSpreadKey, subscriptionTier);
@@ -494,13 +479,13 @@ export function buildEnhancedClaudePrompt({
       Math.min(currentCount - 1, Math.ceil(baselineMax / 2))
     );
 
-    if (targetCount >= currentCount) return;
+    if (targetCount >= currentCount) return false;
 
     const { passages: rankedPassages, strategy } = rankPassagesForPrompt(payload.passages, {
       limit: targetCount
     });
 
-    if (!rankedPassages || rankedPassages.length >= currentCount) return;
+    if (!rankedPassages || rankedPassages.length >= currentCount) return false;
 
     const trimmedCount = currentCount - rankedPassages.length;
     const initialPassageCount =
@@ -525,6 +510,28 @@ export function buildEnhancedClaudePrompt({
         rankingStrategy: strategy || payload.rankingStrategy || null
       }
     };
+
+    return true;
+  };
+
+  // Step 1: Drop imagery/vision sub-points for lower-weight cards
+  maybeSlim('drop-low-weight-imagery', () => {
+    controls = { ...controls, omitLowWeightImagery: true };
+  });
+
+  // Step 2: Remove forecast (future events) if over budget
+  maybeSlim('drop-forecast', () => {
+    controls = { ...controls, includeForecast: false };
+  });
+
+  // Step 3: Remove ephemeris/astrological context if over budget
+  maybeSlim('drop-ephemeris', () => {
+    controls = { ...controls, includeEphemeris: false };
+  });
+
+  // Step 3.5: Trim GraphRAG passages before dropping the block entirely
+  maybeSlim('trim-graphrag-passages', () => {
+    trimGraphRAGPassages();
   });
 
   // Step 4: Remove GraphRAG block if still over budget
@@ -549,9 +556,61 @@ export function buildEnhancedClaudePrompt({
   let systemTruncated = false;
   let userTruncated = false;
 
+  const applyHardCapTrim = (label, updater) => {
+    if (built.totalTokens <= hardCap) return false;
+    const didUpdate = updater();
+    if (!didUpdate) return false;
+    built = buildWithControls(controls);
+    slimmingSteps.push(label);
+    return true;
+  };
+
   if (built.totalTokens > hardCap) {
     console.warn(`[Prompt Budget] Exceeded hard cap after slimming: ${built.totalTokens} > ${hardCap} tokens`);
 
+    applyHardCapTrim('hard-cap-drop-low-weight-imagery', () => {
+      if (controls.omitLowWeightImagery) return false;
+      controls = { ...controls, omitLowWeightImagery: true };
+      return true;
+    });
+
+    applyHardCapTrim('hard-cap-drop-forecast', () => {
+      if (controls.includeForecast === false) return false;
+      controls = { ...controls, includeForecast: false };
+      return true;
+    });
+
+    applyHardCapTrim('hard-cap-drop-ephemeris', () => {
+      if (controls.includeEphemeris === false) return false;
+      controls = { ...controls, includeEphemeris: false };
+      return true;
+    });
+
+    applyHardCapTrim('hard-cap-trim-graphrag-passages', () => trimGraphRAGPassages());
+
+    applyHardCapTrim('hard-cap-drop-graphrag-block', () => {
+      if (controls.includeGraphRAG === false) return false;
+      controls = { ...controls, includeGraphRAG: false };
+      return true;
+    });
+
+    applyHardCapTrim('hard-cap-drop-deck-geometry', () => {
+      if (controls.includeDeckContext === false) return false;
+      controls = { ...controls, includeDeckContext: false };
+      return true;
+    });
+
+    applyHardCapTrim('hard-cap-drop-diagnostics', () => {
+      if (controls.includeDiagnostics === false) return false;
+      controls = { ...controls, includeDiagnostics: false };
+      return true;
+    });
+  }
+
+  finalSystem = built.systemPrompt;
+  finalUser = built.userPrompt;
+
+  if (built.totalTokens > hardCap) {
     // Calculate how many tokens we need to shed
     const excessTokens = built.totalTokens - hardCap;
 
@@ -578,11 +637,14 @@ export function buildEnhancedClaudePrompt({
     slimmingSteps.push('hard-cap-truncation');
   }
 
-  // Only include token estimates when slimming is enabled or a hard-cap truncation occurred.
+  const hardCapSteps = slimmingSteps.filter(step => step.startsWith('hard-cap-'));
+  const hardCapApplied = hardCapSteps.length > 0;
+
+  // Only include token estimates when slimming is enabled or a hard-cap adjustment occurred.
   // Actual token counts come from llmUsage in API response (authoritative).
   const slimmingEnabled = !disableSlimming;
   const truncationApplied = systemTruncated || userTruncated;
-  const shouldEstimateTokens = slimmingEnabled || truncationApplied;
+  const shouldEstimateTokens = slimmingEnabled || truncationApplied || hardCapApplied;
   let estimatedTokens = null;
 
   if (shouldEstimateTokens) {
@@ -604,11 +666,14 @@ export function buildEnhancedClaudePrompt({
   const promptMeta = {
     // Reading prompt version for quality tracking and A/B testing correlation
     readingPromptVersion: getReadingPromptVersion(),
-    // Token estimates present when slimming is enabled or hard-cap truncation occurs.
+    // Spread key used for prompt structure selection (from getSpreadKey)
+    spreadKey,
+    // Token estimates present when slimming is enabled or hard-cap adjustments occur.
     // Use llmUsage.input_tokens from API response for actual token counts.
     estimatedTokens,
     slimmingEnabled,
     slimmingSteps,
+    hardCap: hardCapApplied ? { steps: hardCapSteps } : null,
     appliedOptions: {
       omitLowWeightImagery: Boolean(controls.omitLowWeightImagery),
       includeForecast: Boolean(controls.includeForecast),
@@ -702,18 +767,6 @@ export function buildEnhancedClaudePrompt({
 
   // Return final prompts (potentially truncated to fit hard cap)
   return { systemPrompt: finalSystem, userPrompt: finalUser, promptMeta, contextDiagnostics: diagnostics };
-}
-
-function getSpreadKeyFromName(name) {
-  const map = {
-    'Celtic Cross (Classic 10-Card)': 'celtic',
-    'Three-Card Story (Past · Present · Future)': 'threeCard',
-    'Five-Card Clarity': 'fiveCard',
-    'One-Card Insight': 'single',
-    'Relationship Snapshot': 'relationship',
-    'Decision / Two-Path': 'decision'
-  };
-  return map[name] || 'general';
 }
 
 function buildSystemPrompt(spreadKey, themes, context, deckStyle, _userQuestion = '', options = {}) {
@@ -1194,6 +1247,7 @@ function buildVisionValidationSection(visionInsights, options = {}) {
       // Skip symbol verification and secondary matches for mismatched cards -
       // this data relates to the wrong card and could prime hallucinations.
       // Visual profile (tone/emotion) may still be useful for the actual image's mood.
+      // Do NOT include reasoning/visualDetails for mismatches to avoid off-spread priming.
       if (entry.visualProfile) {
         const tone = Array.isArray(entry.visualProfile.tone) ? entry.visualProfile.tone.slice(0, 2).join(', ') : '';
         const emotion = Array.isArray(entry.visualProfile.emotion) ? entry.visualProfile.emotion.slice(0, 2).join(', ') : '';
@@ -1213,6 +1267,56 @@ function buildVisionValidationSection(visionInsights, options = {}) {
       validationNote = ' [unverified upload]';
     }
     lines.push(`- ${safeLabel}: recognized as ${entry.predictedCard}${basisText} (${confidenceText})${validationNote}`);
+
+    if (entry.orientation) {
+      lines.push(`  · Orientation: ${entry.orientation}`);
+    }
+
+    if (entry.reasoning) {
+      const safeReasoning = sanitizeText(entry.reasoning, {
+        maxLength: 240,
+        stripMarkdown: true,
+        stripControlChars: true
+      });
+      if (safeReasoning) {
+        lines.push(`  · Vision reasoning: ${safeReasoning}`);
+      }
+    }
+
+    if (entry.visualDetails) {
+      const details = Array.isArray(entry.visualDetails)
+        ? entry.visualDetails
+        : (typeof entry.visualDetails === 'string' ? entry.visualDetails.split(/[\n;]+/g) : []);
+      const safeDetails = details
+        .map((detail) => sanitizeText(detail, { maxLength: 80, stripMarkdown: true, stripControlChars: true }))
+        .filter(Boolean)
+        .slice(0, 4);
+      if (safeDetails.length) {
+        lines.push(`  · Visual details: ${safeDetails.join('; ')}`);
+      }
+    }
+
+    if (entry.mergeSource || entry.componentScores) {
+      const mergeParts = [];
+      if (entry.mergeSource) {
+        mergeParts.push(`source: ${entry.mergeSource}`);
+      }
+      if (entry.componentScores && typeof entry.componentScores === 'object') {
+        const scoreParts = [];
+        if (Number.isFinite(entry.componentScores.clip)) {
+          scoreParts.push(`clip ${(entry.componentScores.clip * 100).toFixed(1)}%`);
+        }
+        if (Number.isFinite(entry.componentScores.llama)) {
+          scoreParts.push(`llama ${(entry.componentScores.llama * 100).toFixed(1)}%`);
+        }
+        if (scoreParts.length) {
+          mergeParts.push(`scores: ${scoreParts.join(' / ')}`);
+        }
+      }
+      if (mergeParts.length) {
+        lines.push(`  · Merge: ${mergeParts.join(' | ')}`);
+      }
+    }
 
     if (entry.symbolVerification && typeof entry.symbolVerification === 'object') {
       const sv = entry.symbolVerification;
