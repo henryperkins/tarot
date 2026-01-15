@@ -3,7 +3,7 @@
 
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
-import { redactPII, stripUserContent } from '../functions/lib/promptEngineering.js';
+import { redactPII, stripUserContent, buildPromptEngineeringPayload } from '../functions/lib/promptEngineering.js';
 
 describe('redactPII', () => {
   test('redacts display name tokens without overmatching inside other words', () => {
@@ -25,6 +25,65 @@ describe('redactPII', () => {
     const result = redactPII(text, { displayName: 'Ana' });
 
     assert.strictEqual(result, "[NAME] insight and [NAME] path were both logged.");
+  });
+});
+
+describe('redactPII - international phone numbers', () => {
+  test('redacts UK phone numbers', () => {
+    const text = 'Call me at +44 20 7946 0958 tomorrow.';
+    const result = redactPII(text, {});
+
+    assert.strictEqual(result, 'Call me at [PHONE] tomorrow.');
+  });
+
+  test('redacts French phone numbers', () => {
+    const text = 'Contact: +33 1 42 68 53 00';
+    const result = redactPII(text, {});
+
+    assert.strictEqual(result, 'Contact: [PHONE]');
+  });
+
+  test('redacts German phone numbers', () => {
+    const text = 'Reach me at +49 89 123456 or 089-123456';
+    const result = redactPII(text, {});
+
+    assert.ok(!result.includes('123456'), 'German numbers should be redacted');
+  });
+
+  test('redacts Japanese phone numbers', () => {
+    const text = 'Office: +81-3-1234-5678';
+    const result = redactPII(text, {});
+
+    assert.strictEqual(result, 'Office: [PHONE]');
+  });
+
+  test('redacts Australian phone numbers', () => {
+    const text = 'Call +61 2 9876 5432 for support.';
+    const result = redactPII(text, {});
+
+    assert.strictEqual(result, 'Call [PHONE] for support.');
+  });
+
+  test('redacts international format without country code', () => {
+    const text = 'My number is 020 7946 0958 in London.';
+    const result = redactPII(text, {});
+
+    assert.ok(!result.includes('7946'), 'UK local format should be redacted');
+  });
+
+  test('does not false-positive on short digit sequences', () => {
+    const text = 'Order #12345 was placed on 2024-01-15.';
+    const result = redactPII(text, {});
+
+    assert.ok(result.includes('12345'), 'Short order numbers should remain');
+  });
+
+  test('does not false-positive on year ranges', () => {
+    const text = 'I worked there from 2018 to 2022.';
+    const result = redactPII(text, {});
+
+    assert.ok(result.includes('2018'), 'Years should remain');
+    assert.ok(result.includes('2022'), 'Years should remain');
   });
 });
 
@@ -104,6 +163,14 @@ The isolation period was so difficult.
       assert.ok(result.includes('[USER_REFLECTION_REDACTED]'), 'Reflection should be redacted');
       assert.ok(!result.includes('mother'), 'Personal content should not remain');
     });
+
+    test('strips inline reflection with smart quotes and nested quotes', () => {
+      const text = 'Some text *Querent\u2019s Reflection: \u201cHe said \u2018stay\u2019 and I froze\u201d* more text';
+      const result = stripUserContent(text);
+
+      assert.ok(result.includes('[USER_REFLECTION_REDACTED]'), 'Reflection should be redacted');
+      assert.ok(!result.includes('stay'), 'Nested quote content should not remain');
+    });
   });
 
   describe('card label question embedding', () => {
@@ -132,6 +199,14 @@ The isolation period was so difficult.
       assert.ok(!result.includes('Google'), 'Company name should not remain');
       assert.ok(!result.includes('job offer'), 'Question content should not remain');
     });
+
+    test('strips question from Outcome position label with smart quotes', () => {
+      const text = 'Outcome — likely path for \u201cShould I leave this role for something calmer?\u201d if unchanged';
+      const result = stripUserContent(text);
+
+      assert.ok(result.includes('[USER_QUESTION_REDACTED]'), 'Question should be redacted');
+      assert.ok(!result.includes('calmer'), 'Question content should not remain');
+    });
   });
 
   describe('displayName-prefixed questions', () => {
@@ -151,6 +226,19 @@ The isolation period was so difficult.
       assert.ok(result.includes('[USER_QUESTION_REDACTED]'), 'Question should be redacted');
       assert.ok(!result.includes('trauma'), 'Question content should not remain');
       assert.ok(!result.includes('accident'), 'Personal detail should not remain');
+    });
+  });
+
+  describe('focus area handling', () => {
+    test('strips onboarding focus areas line', () => {
+      const text = `**Thematic Context**:
+- Focus areas (from onboarding): career clarity, grief support
+- Reversal framework: shadow work`;
+      const result = stripUserContent(text);
+
+      assert.ok(result.includes('[FOCUS_AREAS_REDACTED]'), 'Focus areas should be redacted');
+      assert.ok(!result.includes('grief'), 'Focus area details should not remain');
+      assert.ok(result.includes('- Reversal framework'), 'Other thematic lines should remain');
     });
   });
 
@@ -188,5 +276,20 @@ This card scares me.
       assert.ok(!result.includes('career question'), 'Outcome label question should be redacted');
       assert.ok(result.includes('**Cards**: The Tower'), 'Non-user content should remain');
     });
+  });
+});
+
+describe('buildPromptEngineeringPayload', () => {
+  test('redacts echoed third-party names from responses using user question hints', async () => {
+    const payload = await buildPromptEngineeringPayload({
+      systemPrompt: 'System prompt',
+      userPrompt: '**Question**: How can I communicate with Alex more clearly?',
+      response: 'Alex may need reassurance before opening up.',
+      userQuestion: 'How can I communicate with Alex more clearly?',
+      redactionOptions: { displayName: 'Sam' }
+    });
+
+    assert.ok(payload.redacted.response.includes('[NAME]'), 'Response should redact hinted name');
+    assert.ok(!payload.redacted.response.includes('Alex'), 'Response should not include raw name');
   });
 });
