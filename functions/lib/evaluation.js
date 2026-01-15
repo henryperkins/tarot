@@ -333,6 +333,50 @@ function buildSpreadEvaluationHints(spreadKey) {
   }
 }
 
+/**
+ * Build structural metrics section for evaluation prompt.
+ * @param {Object} narrativeMetrics - Pre-computed narrative quality metrics
+ * @returns {string} Formatted metrics section
+ */
+function buildStructuralMetricsSection(narrativeMetrics = {}) {
+  const lines = [];
+
+  // Spine validity
+  if (narrativeMetrics?.spine) {
+    const { isValid, totalSections, completeSections } = narrativeMetrics.spine;
+    const status = isValid ? 'valid' : 'INCOMPLETE';
+    lines.push(`- Story spine: ${status} (${completeSections}/${totalSections} sections)`);
+  } else {
+    lines.push('- Story spine: not analyzed');
+  }
+
+  // Card coverage
+  if (narrativeMetrics?.cardCoverage !== undefined) {
+    const pct = (narrativeMetrics.cardCoverage * 100).toFixed(0);
+    const status = narrativeMetrics.cardCoverage >= 0.9 ? 'good' :
+                   narrativeMetrics.cardCoverage >= 0.7 ? 'partial' : 'LOW';
+    lines.push(`- Card coverage: ${pct}% (${status})`);
+  } else {
+    lines.push('- Card coverage: not analyzed');
+  }
+
+  // Hallucinated cards
+  const hallucinations = narrativeMetrics?.hallucinatedCards || [];
+  if (hallucinations.length > 0) {
+    lines.push(`- Hallucinated cards: ${hallucinations.join(', ')} (CRITICAL)`);
+  } else {
+    lines.push('- Hallucinated cards: none detected');
+  }
+
+  // Missing cards
+  const missing = narrativeMetrics?.missingCards || [];
+  if (missing.length > 0) {
+    lines.push(`- Missing cards: ${missing.join(', ')}`);
+  }
+
+  return lines.join('\n');
+}
+
 function normalizeBooleanFlag(value) {
   return String(value).toLowerCase() === 'true';
 }
