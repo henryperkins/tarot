@@ -1,6 +1,8 @@
 /* eslint-disable react-refresh/only-export-components */
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { CheckCircle, Info, WarningCircle, X, XCircle } from '@phosphor-icons/react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { useReducedMotion } from '../hooks/useReducedMotion';
 
 const ToastContext = createContext(null);
 
@@ -93,14 +95,13 @@ export function useToast() {
 }
 
 function ToastViewport({ toasts, onDismiss }) {
-  if (!toasts.length) {
-    return null;
-  }
   return (
     <div className="pointer-events-none fixed inset-x-0 top-4 z-[1200] flex flex-col items-center gap-3 px-4 sm:top-6 sm:items-end sm:px-6">
-      {toasts.map((toast) => (
-        <ToastItem key={toast.id} toast={toast} onDismiss={onDismiss} />
-      ))}
+      <AnimatePresence mode="popLayout">
+        {toasts.map((toast) => (
+          <ToastItem key={toast.id} toast={toast} onDismiss={onDismiss} />
+        ))}
+      </AnimatePresence>
     </div>
   );
 }
@@ -109,15 +110,51 @@ function ToastItem({ toast, onDismiss }) {
   const Icon = ICONS[toast.type] || Info;
   const variant = VARIANTS[toast.type] || VARIANTS.info;
   const role = toast.type === 'error' ? 'alert' : 'status';
+  const prefersReducedMotion = useReducedMotion();
+
+  const toastVariants = prefersReducedMotion ? {
+    initial: { opacity: 0 },
+    animate: { opacity: 1 },
+    exit: { opacity: 0 }
+  } : {
+    initial: { opacity: 0, y: -20, scale: 0.95 },
+    animate: { opacity: 1, y: 0, scale: 1 },
+    exit: { opacity: 0, x: 100, scale: 0.95 }
+  };
+
+  const iconVariants = prefersReducedMotion ? {
+    initial: { opacity: 0 },
+    animate: { opacity: 1 }
+  } : {
+    initial: { scale: 0 },
+    animate: { scale: 1 }
+  };
 
   return (
-    <div
+    <motion.div
+      layout
+      variants={toastVariants}
+      initial="initial"
+      animate="animate"
+      exit="exit"
+      transition={prefersReducedMotion ? { duration: 0.15 } : {
+        type: "spring",
+        stiffness: 350,
+        damping: 25
+      }}
       role={role}
       aria-live={toast.type === 'error' ? 'assertive' : 'polite'}
       className={`pointer-events-auto w-full max-w-sm rounded-2xl border px-4 py-3 text-sm shadow-xl backdrop-blur ${variant.container}`}
     >
       <div className="flex items-start gap-3">
-        <Icon className={`h-5 w-5 flex-shrink-0 ${variant.icon}`} aria-hidden="true" />
+        <motion.div
+          variants={iconVariants}
+          initial="initial"
+          animate="animate"
+          transition={prefersReducedMotion ? { duration: 0.15 } : { delay: 0.1, type: "spring", stiffness: 400, damping: 20 }}
+        >
+          <Icon className={`h-5 w-5 flex-shrink-0 ${variant.icon}`} aria-hidden="true" />
+        </motion.div>
         <div className="flex-1 space-y-1">
           {toast.title && <p className="font-semibold leading-tight">{toast.title}</p>}
           {toast.description && <p className={`text-sm leading-snug ${variant.description}`}>{toast.description}</p>}
@@ -125,12 +162,12 @@ function ToastItem({ toast, onDismiss }) {
         <button
           type="button"
           onClick={() => onDismiss(toast.id)}
-          className="rounded-full p-1 text-sm text-white/70 transition hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/50"
+          className="rounded-full p-1 text-sm text-white/70 transition-all duration-200 hover:scale-110 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/50"
           aria-label="Dismiss notification"
         >
           <X className="h-4 w-4" weight="bold" />
         </button>
       </div>
-    </div>
+    </motion.div>
   );
 }

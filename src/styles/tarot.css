@@ -1256,6 +1256,7 @@ textarea:focus-visible {
   outline: 2px solid var(--focus-ring-color);
   /* slightly stronger accent for contrast */
   outline-offset: 3px;
+  transition: outline-offset var(--duration-fast) ease, box-shadow var(--duration-fast) ease;
 }
 
 .spread-card:focus-visible,
@@ -1263,6 +1264,8 @@ textarea:focus-visible {
 .header-sticky__user:focus-visible {
   outline: 2px solid var(--focus-ring-color);
   outline-offset: 4px;
+  box-shadow: 0 0 0 4px rgba(212, 184, 150, 0.15), 0 4px 12px rgba(212, 184, 150, 0.2);
+  transition: outline-offset var(--duration-fast) ease, box-shadow var(--duration-fast) ease;
 }
 
 /* Authentic tarot card styling inspired by classic decks like Rider–Waite–Smith.
