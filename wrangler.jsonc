@@ -48,7 +48,7 @@
     "AZURE_OPENAI_STREAMING_ENABLED": "true",
     "ALLOW_STREAMING_WITH_EVAL_GATE": "true",
     "EVAL_ENABLED": "true",
-    "EVAL_MODEL": "@cf/meta/llama-3-8b-instruct-awq",
+    "EVAL_MODEL": "@cf/meta/llama-3.3-70b-instruct-fp8-fast",
     "EVAL_TIMEOUT_MS": "10000",
     // EVAL_GATE_ENABLED: When "true", readings that fail quality evaluation are
     // replaced with a safe fallback. CAUTION: If eval model is unavailable,

@@ -96,8 +96,8 @@ describe('evaluation', () => {
 
       assert.equal(result.scores.overall, 4);
       assert.equal(result.scores.safety_flag, false);
-      assert.equal(result.model, '@cf/meta/llama-3-8b-instruct-awq');
-      assert.equal(result.promptVersion, '1.2.0');
+      assert.equal(result.model, '@cf/meta/llama-3.3-70b-instruct-fp8-fast');
+      assert.equal(result.promptVersion, '2.0.0');
     });
 
     test('handles malformed JSON response', async () => {
@@ -1072,8 +1072,8 @@ describe('evaluation', () => {
       // Verify eval scores stored
       assert.equal(storedData.eval.scores.overall, 5);
       assert.equal(storedData.eval.scores.safety_flag, false);
-      assert.equal(storedData.eval.model, '@cf/meta/llama-3-8b-instruct-awq');
-      assert.equal(storedData.eval.promptVersion, '1.2.0');
+      assert.equal(storedData.eval.model, '@cf/meta/llama-3.3-70b-instruct-fp8-fast');
+      assert.equal(storedData.eval.promptVersion, '2.0.0');
 
       // Verify original metrics preserved
       assert.equal(storedData.requestId, 'integration-test-001');

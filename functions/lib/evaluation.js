@@ -5,8 +5,8 @@
  * Designed for async execution via waitUntil to avoid blocking user responses.
  */
 
-const EVAL_PROMPT_VERSION = '1.2.0';
-const DEFAULT_MODEL = '@cf/meta/llama-3-8b-instruct-awq';
+const EVAL_PROMPT_VERSION = '2.0.0';
+const DEFAULT_MODEL = '@cf/meta/llama-3.3-70b-instruct-fp8-fast';
 const DEFAULT_TIMEOUT_MS = 5000;
 const MAX_SAFE_TIMEOUT_MS = 2147483647; // Max 32-bit signed int for timers
 
