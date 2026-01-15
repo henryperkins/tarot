@@ -1,6 +1,7 @@
 import { memo, useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { createPortal } from 'react-dom';
+import { motion } from 'framer-motion';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkBreaks from 'remark-breaks';
@@ -36,7 +37,7 @@ const ui = {
   cardShell:
     'group relative overflow-hidden rounded-3xl border border-[color:var(--border-warm)] ' +
     'text-[color:var(--text-main)] shadow-[0_24px_64px_-40px_rgba(0,0,0,0.85)] ' +
-    'transition-all hover:translate-y-[-2px] animate-fade-in',
+    'transition-all duration-300 hover:translate-y-[-2px] hover:shadow-[0_28px_72px_-40px_rgba(0,0,0,0.95)] animate-fade-in',
 
   cardBgStyle: {
     background:
@@ -54,8 +55,8 @@ const ui = {
   iconButton:
     'inline-flex min-h-[44px] min-w-[44px] h-11 w-11 items-center justify-center rounded-full border border-[color:var(--border-warm-light)] ' +
     'bg-[color:rgba(232,218,195,0.04)] text-[color:var(--text-muted)] ' +
-    'hover:bg-[color:rgba(212,184,150,0.10)] hover:text-[color:var(--brand-accent)] transition ' +
-    'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:rgba(232,218,195,0.45)]',
+    'hover:bg-[color:rgba(212,184,150,0.10)] hover:text-[color:var(--brand-accent)] hover:scale-105 transition-all duration-200 ' +
+    'active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:rgba(232,218,195,0.45)]',
 
   section:
     'rounded-2xl border border-[color:var(--border-warm)] bg-[color:rgba(15,14,19,0.35)] ' +

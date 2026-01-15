@@ -1,6 +1,7 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
+import { AnimatePresence } from 'framer-motion';
 import './styles/tailwind.css';
 import TarotReading from './TarotReading.jsx';
 import Journal from './components/Journal.jsx';
@@ -15,6 +16,25 @@ import { PreferencesProvider } from './contexts/PreferencesContext.jsx';
 import { ReadingProvider } from './contexts/ReadingContext.jsx';
 import { ToastProvider } from './contexts/ToastContext.jsx';
 
+function AnimatedRoutes() {
+  const location = useLocation();
+  
+  return (
+    <AnimatePresence mode="wait" initial={false}>
+      <Routes location={location} key={location.pathname}>
+        <Route path="/" element={<TarotReading />} />
+        <Route path="/journal/gallery" element={<CardGalleryPage />} />
+        <Route path="/journal" element={<Journal />} />
+        <Route path="/pricing" element={<PricingPage />} />
+        <Route path="/account" element={<AccountPage />} />
+        <Route path="/admin" element={<AdminDashboard />} />
+        <Route path="/share/:token" element={<ShareReading />} />
+        <Route path="*" element={<TarotReading />} />
+      </Routes>
+    </AnimatePresence>
+  );
+}
+
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <AuthProvider>
@@ -23,16 +43,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
           <ReadingProvider>
             <ToastProvider>
               <BrowserRouter>
-                <Routes>
-                  <Route path="/" element={<TarotReading />} />
-                  <Route path="/journal/gallery" element={<CardGalleryPage />} />
-                  <Route path="/journal" element={<Journal />} />
-                  <Route path="/pricing" element={<PricingPage />} />
-                  <Route path="/account" element={<AccountPage />} />
-                  <Route path="/admin" element={<AdminDashboard />} />
-                  <Route path="/share/:token" element={<ShareReading />} />
-                  <Route path="*" element={<TarotReading />} />
-                </Routes>
+                <AnimatedRoutes />
               </BrowserRouter>
             </ToastProvider>
           </ReadingProvider>

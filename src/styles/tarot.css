@@ -1256,6 +1256,7 @@ textarea:focus-visible {
   outline: 2px solid var(--focus-ring-color);
   /* slightly stronger accent for contrast */
   outline-offset: 3px;
+  transition: outline-offset var(--duration-fast) ease, box-shadow var(--duration-fast) ease;
 }
 
 .spread-card:focus-visible,
@@ -1263,6 +1264,8 @@ textarea:focus-visible {
 .header-sticky__user:focus-visible {
   outline: 2px solid var(--focus-ring-color);
   outline-offset: 4px;
+  box-shadow: 0 0 0 4px rgba(212, 184, 150, 0.15), 0 4px 12px rgba(212, 184, 150, 0.2);
+  transition: outline-offset var(--duration-fast) ease, box-shadow var(--duration-fast) ease;
 }
 
 /* Authentic tarot card styling inspired by classic decks like Rider–Waite–Smith.
@@ -3267,5 +3270,66 @@ input[type="range"]:focus::-webkit-slider-thumb {
   .coach-note__delete {
     opacity: 1;
     transition: none;
+  }
+}
+
+/* ==========================================================================
+   Additional Animation Utilities
+   ========================================================================== */
+
+/* Stagger delay utilities for list items */
+.stagger-delay-1 { animation-delay: 0.05s; }
+.stagger-delay-2 { animation-delay: 0.1s; }
+.stagger-delay-3 { animation-delay: 0.15s; }
+.stagger-delay-4 { animation-delay: 0.2s; }
+.stagger-delay-5 { animation-delay: 0.25s; }
+
+/* Hover lift effect for interactive cards */
+.hover-lift {
+  transition: transform var(--duration-normal) ease, box-shadow var(--duration-normal) ease;
+}
+
+.hover-lift:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+}
+
+/* Subtle scale on hover for buttons and icons */
+.hover-scale {
+  transition: transform var(--duration-fast) ease;
+}
+
+.hover-scale:hover {
+  transform: scale(1.05);
+}
+
+.hover-scale:active {
+  transform: scale(0.95);
+}
+
+/* Glow on hover for accent elements */
+.hover-glow {
+  transition: box-shadow var(--duration-normal) ease, transform var(--duration-normal) ease;
+}
+
+.hover-glow:hover {
+  box-shadow: 0 0 20px rgba(212, 184, 150, 0.3), 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+/* Respect reduced motion for animation utilities */
+@media (prefers-reduced-motion: reduce) {
+  .stagger-delay-1,
+  .stagger-delay-2,
+  .stagger-delay-3,
+  .stagger-delay-4,
+  .stagger-delay-5 {
+    animation-delay: 0s !important;
+  }
+  
+  .hover-lift:hover,
+  .hover-scale:hover,
+  .hover-glow:hover {
+    transform: none !important;
+    box-shadow: none !important;
   }
 }

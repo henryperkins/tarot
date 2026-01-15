@@ -6,6 +6,13 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Smooth scroll behavior - disabled for users who prefer reduced motion */
+@media (prefers-reduced-motion: no-preference) {
+  html {
+    scroll-behavior: smooth;
+  }
+}
+
 /* Modern Mystic theme overrides */
 body {
   @apply bg-main text-main antialiased;
