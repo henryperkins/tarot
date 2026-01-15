@@ -15,6 +15,7 @@ import { SubscriptionProvider } from './contexts/SubscriptionContext.jsx';
 import { PreferencesProvider } from './contexts/PreferencesContext.jsx';
 import { ReadingProvider } from './contexts/ReadingContext.jsx';
 import { ToastProvider } from './contexts/ToastContext.jsx';
+import { PageTransition } from './components/PageTransition.jsx';
 
 function AnimatedRoutes() {
   const location = useLocation();
@@ -22,14 +23,14 @@ function AnimatedRoutes() {
   return (
     <AnimatePresence mode="wait" initial={false}>
       <Routes location={location} key={location.pathname}>
-        <Route path="/" element={<TarotReading />} />
-        <Route path="/journal/gallery" element={<CardGalleryPage />} />
-        <Route path="/journal" element={<Journal />} />
-        <Route path="/pricing" element={<PricingPage />} />
-        <Route path="/account" element={<AccountPage />} />
-        <Route path="/admin" element={<AdminDashboard />} />
-        <Route path="/share/:token" element={<ShareReading />} />
-        <Route path="*" element={<TarotReading />} />
+        <Route path="/" element={<PageTransition><TarotReading /></PageTransition>} />
+        <Route path="/journal/gallery" element={<PageTransition><CardGalleryPage /></PageTransition>} />
+        <Route path="/journal" element={<PageTransition><Journal /></PageTransition>} />
+        <Route path="/pricing" element={<PageTransition><PricingPage /></PageTransition>} />
+        <Route path="/account" element={<PageTransition><AccountPage /></PageTransition>} />
+        <Route path="/admin" element={<PageTransition><AdminDashboard /></PageTransition>} />
+        <Route path="/share/:token" element={<PageTransition><ShareReading /></PageTransition>} />
+        <Route path="*" element={<PageTransition><TarotReading /></PageTransition>} />
       </Routes>
     </AnimatePresence>
   );

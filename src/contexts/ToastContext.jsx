@@ -2,6 +2,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { CheckCircle, Info, WarningCircle, X, XCircle } from '@phosphor-icons/react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useReducedMotion } from '../hooks/useReducedMotion';
 
 const ToastContext = createContext(null);
 
@@ -109,14 +110,34 @@ function ToastItem({ toast, onDismiss }) {
   const Icon = ICONS[toast.type] || Info;
   const variant = VARIANTS[toast.type] || VARIANTS.info;
   const role = toast.type === 'error' ? 'alert' : 'status';
+  const prefersReducedMotion = useReducedMotion();
+
+  const toastVariants = prefersReducedMotion ? {
+    initial: { opacity: 0 },
+    animate: { opacity: 1 },
+    exit: { opacity: 0 }
+  } : {
+    initial: { opacity: 0, y: -20, scale: 0.95 },
+    animate: { opacity: 1, y: 0, scale: 1 },
+    exit: { opacity: 0, x: 100, scale: 0.95 }
+  };
+
+  const iconVariants = prefersReducedMotion ? {
+    initial: { opacity: 0 },
+    animate: { opacity: 1 }
+  } : {
+    initial: { scale: 0 },
+    animate: { scale: 1 }
+  };
 
   return (
     <motion.div
       layout
-      initial={{ opacity: 0, y: -20, scale: 0.95 }}
-      animate={{ opacity: 1, y: 0, scale: 1 }}
-      exit={{ opacity: 0, x: 100, scale: 0.95 }}
-      transition={{
+      variants={toastVariants}
+      initial="initial"
+      animate="animate"
+      exit="exit"
+      transition={prefersReducedMotion ? { duration: 0.15 } : {
         type: "spring",
         stiffness: 350,
         damping: 25
@@ -127,9 +148,10 @@ function ToastItem({ toast, onDismiss }) {
     >
       <div className="flex items-start gap-3">
         <motion.div
-          initial={{ scale: 0 }}
-          animate={{ scale: 1 }}
-          transition={{ delay: 0.1, type: "spring", stiffness: 400, damping: 20 }}
+          variants={iconVariants}
+          initial="initial"
+          animate="animate"
+          transition={prefersReducedMotion ? { duration: 0.15 } : { delay: 0.1, type: "spring", stiffness: 400, damping: 20 }}
         >
           <Icon className={`h-5 w-5 flex-shrink-0 ${variant.icon}`} aria-hidden="true" />
         </motion.div>

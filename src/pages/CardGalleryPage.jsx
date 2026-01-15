@@ -202,6 +202,7 @@ export default function CardGalleryPage() {
   const { isAuthenticated, user } = useAuth();
   const navigate = useNavigate();
   const { entries, loading: journalLoading } = useJournal();
+  const prefersReducedMotion = useReducedMotion();
 
   const [selected, setSelected] = useState(null);
 
@@ -497,19 +498,30 @@ export default function CardGalleryPage() {
           </div>
         ) : loading ? (
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
-            {[...Array(12)].map((_, i) => (
-              <motion.div 
-                key={i} 
-                className="aspect-[2/3] rounded-xl bg-white/5 animate-pulse"
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ 
-                  duration: 0.3, 
-                  delay: i * 0.05,
-                  ease: [0.4, 0, 0.2, 1]
-                }}
-              />
-            ))}
+            {[...Array(12)].map((_, i) => {
+              const skeletonVariants = prefersReducedMotion ? {
+                initial: { opacity: 0 },
+                animate: { opacity: 1 }
+              } : {
+                initial: { opacity: 0, scale: 0.9 },
+                animate: { opacity: 1, scale: 1 }
+              };
+              
+              return (
+                <motion.div 
+                  key={i} 
+                  className="aspect-[2/3] rounded-xl bg-white/5 animate-pulse"
+                  variants={skeletonVariants}
+                  initial="initial"
+                  animate="animate"
+                  transition={{ 
+                    duration: prefersReducedMotion ? 0.15 : 0.3, 
+                    delay: prefersReducedMotion ? 0 : i * 0.05,
+                    ease: [0.4, 0, 0.2, 1]
+                  }}
+                />
+              );
+            })}
           </div>
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4 sm:gap-6">
