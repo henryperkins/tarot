@@ -2,7 +2,7 @@
  * useJournalFilters - Manages filter state, filtered entries, and active filter chips
  */
 
-import { useDeferredValue, useCallback, useMemo, useState } from 'react';
+import { useDeferredValue, useCallback, useMemo, useRef, useState } from 'react';
 import { formatContextName } from '../lib/journalInsights';
 import {
   CONTEXT_FILTERS,
@@ -13,8 +13,15 @@ import {
 } from '../lib/journal/constants';
 
 export function useJournalFilters(entries) {
-  const [filters, setFilters] = useState(() => ({ ...DEFAULT_FILTERS }));
+  const [filters, setFiltersInternal] = useState(() => ({ ...DEFAULT_FILTERS }));
   const deferredQuery = useDeferredValue(filters.query);
+
+  // Capture timestamp when filters change (in event handler context, not during render)
+  const filterTimestampRef = useRef(0);
+  const setFilters = useCallback((update) => {
+    filterTimestampRef.current = Date.now();
+    setFiltersInternal(update);
+  }, []);
 
   // Label maps for display
   const contextLabelMap = useMemo(
@@ -44,6 +51,12 @@ export function useJournalFilters(entries) {
     [filters]
   );
 
+  // filterTimestamp provides a stable reference for timeframe filtering
+  // The ref is updated via setFilters callback; initial value uses Date.now() which is
+  // acceptable for initial render as it provides correct filtering behavior
+  // eslint-disable-next-line react-hooks/purity -- Initial timestamp needed for first render
+  const filterTimestamp = filterTimestampRef.current || Date.now();
+
   // Compute filtered entries
   const filteredEntries = useMemo(() => {
     if (!entries || entries.length === 0) {
@@ -54,14 +67,14 @@ export function useJournalFilters(entries) {
     const spreadSet = new Set(filters.spreads);
     const deckSet = new Set(filters.decks);
     const timeframeCutoff = (() => {
-      const now = Date.now();
+      const now = filterTimestamp;
       switch (filters.timeframe) {
         case '30d':
           return now - 30 * 24 * 60 * 60 * 1000;
         case '90d':
           return now - 90 * 24 * 60 * 60 * 1000;
         case 'ytd': {
-          const yearStart = new Date(new Date().getFullYear(), 0, 1).getTime();
+          const yearStart = new Date(new Date(now).getFullYear(), 0, 1).getTime();
           return yearStart;
         }
         default:
@@ -111,7 +124,7 @@ export function useJournalFilters(entries) {
       }
       return true;
     });
-  }, [entries, deferredQuery, filters.contexts, filters.spreads, filters.decks, filters.timeframe, filters.onlyReversals]);
+  }, [entries, deferredQuery, filters.contexts, filters.spreads, filters.decks, filters.timeframe, filters.onlyReversals, filterTimestamp]);
 
   // Check if any filters are active
   const filtersActive = Boolean(filters.query.trim()) ||
@@ -152,7 +165,7 @@ export function useJournalFilters(entries) {
   // Reset filters to defaults
   const handleResetFilters = useCallback(() => {
     setFilters({ ...DEFAULT_FILTERS });
-  }, []);
+  }, [setFilters]);
 
   return {
     filters,

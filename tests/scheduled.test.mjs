@@ -30,7 +30,7 @@ class FakeKV {
   }
 }
 
-class FakeBucket {
+class _FakeBucket {
   constructor() {
     this.objects = [];
   }

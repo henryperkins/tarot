@@ -335,6 +335,156 @@ describe('Vision validation prompt context', () => {
     assert.match(userPrompt, /Tone: \[shadowy, muted\]/);
     assert.match(userPrompt, /Emotion: \[mysterious, melancholic\]/);
   });
+
+  it('masks mismatched card names to prevent hallucination priming', async () => {
+    const cardsInfo = [
+      major('The Fool', 0, 'One-Card Insight', 'Upright')
+    ];
+    const themes = await buildThemes(cardsInfo, 'blocked');
+
+    const { userPrompt } = buildEnhancedClaudePrompt({
+      spreadInfo: { name: 'One-Card Insight' },
+      cardsInfo,
+      userQuestion: 'What should I know?',
+      reflectionsText: '',
+      themes,
+      spreadAnalysis: null,
+      context: 'general',
+      visionInsights: [
+        {
+          label: 'IMG_WRONG',
+          predictedCard: 'Ten of Swords', // NOT in the drawn spread
+          confidence: 0.85,
+          basis: 'image',
+          matchesDrawnCard: false,
+          symbolVerification: {
+            matchRate: 0.7,
+            missingSymbols: ['fool figure']
+          }
+        }
+      ]
+    });
+
+    // The mismatched card name should NOT appear in the prompt
+    assert.ok(
+      !userPrompt.includes('Ten of Swords'),
+      'Mismatched card name should be masked to prevent hallucination priming'
+    );
+    // Instead, a generic mismatch indicator should be present
+    assert.match(userPrompt, /\[mismatch\]/);
+    assert.match(userPrompt, /vision detected a card not in the drawn spread/);
+    // Symbol verification for wrong cards should NOT be included
+    assert.ok(
+      !userPrompt.includes('Symbol check'),
+      'Symbol verification should be omitted for mismatched entries'
+    );
+  });
+
+  it('still includes visual profile for mismatched entries', async () => {
+    const cardsInfo = [
+      major('The Star', 17, 'One-Card Insight', 'Upright')
+    ];
+    const themes = await buildThemes(cardsInfo, 'blocked');
+
+    const { userPrompt } = buildEnhancedClaudePrompt({
+      spreadInfo: { name: 'One-Card Insight' },
+      cardsInfo,
+      userQuestion: 'What guidance is here?',
+      reflectionsText: '',
+      themes,
+      spreadAnalysis: null,
+      context: 'general',
+      visionInsights: [
+        {
+          label: 'IMG_MISREAD',
+          predictedCard: 'The Tower', // Wrong card
+          confidence: 0.72,
+          basis: 'image',
+          matchesDrawnCard: false,
+          visualProfile: {
+            tone: ['vibrant', 'warm'],
+            emotion: ['hopeful', 'serene']
+          }
+        }
+      ]
+    });
+
+    // Card name should be masked
+    assert.ok(!userPrompt.includes('The Tower'), 'Wrong card name should not appear');
+    // But visual profile is still useful for the image's actual mood
+    assert.match(userPrompt, /Visual Profile:/);
+    assert.match(userPrompt, /Tone: \[vibrant, warm\]/);
+  });
+
+  it('does not mask secondary matches for verified entries', async () => {
+    const cardsInfo = [
+      major('The Moon', 18, 'One-Card Insight', 'Upright')
+    ];
+    const themes = await buildThemes(cardsInfo, 'blocked');
+
+    const { userPrompt } = buildEnhancedClaudePrompt({
+      spreadInfo: { name: 'One-Card Insight' },
+      cardsInfo,
+      userQuestion: 'What illusions surround me?',
+      reflectionsText: '',
+      themes,
+      spreadAnalysis: null,
+      context: 'general',
+      visionInsights: [
+        {
+          label: 'IMG_VERIFIED',
+          predictedCard: 'The Moon',
+          confidence: 0.91,
+          basis: 'image',
+          matchesDrawnCard: true,
+          matches: [
+            { card: 'The High Priestess', score: 0.65 },
+            { card: 'The Star', score: 0.42 }
+          ]
+        }
+      ]
+    });
+
+    // For verified entries, secondary matches are fine to include
+    assert.match(userPrompt, /Secondary matches:/);
+    assert.match(userPrompt, /The High Priestess/);
+  });
+
+  it('omits secondary matches for mismatched entries', async () => {
+    const cardsInfo = [
+      major('The Fool', 0, 'One-Card Insight', 'Upright')
+    ];
+    const themes = await buildThemes(cardsInfo, 'blocked');
+
+    const { userPrompt } = buildEnhancedClaudePrompt({
+      spreadInfo: { name: 'One-Card Insight' },
+      cardsInfo,
+      userQuestion: 'Starting fresh?',
+      reflectionsText: '',
+      themes,
+      spreadAnalysis: null,
+      context: 'general',
+      visionInsights: [
+        {
+          label: 'IMG_BAD',
+          predictedCard: 'Death',
+          confidence: 0.78,
+          basis: 'image',
+          matchesDrawnCard: false,
+          matches: [
+            { card: 'The Tower', score: 0.55 },
+            { card: 'Ten of Swords', score: 0.32 }
+          ]
+        }
+      ]
+    });
+
+    // Mismatched entry should not leak any card names
+    assert.ok(!userPrompt.includes('Death'), 'Primary mismatched card should be masked');
+    assert.ok(!userPrompt.includes('The Tower'), 'Secondary match should not appear for mismatched entry');
+    assert.ok(!userPrompt.includes('Ten of Swords'), 'Secondary match should not appear for mismatched entry');
+    assert.ok(!userPrompt.includes('Secondary matches'), 'Secondary matches section should be omitted');
+  });
 });
 
 describe('Prompt safety: user input sanitization', () => {
@@ -623,7 +773,7 @@ describe('Other spread builders prompt-engineering compliance', () => {
 });
 
 describe('Prompt budget telemetry', () => {
-  it('returns estimated tokens only when slimming is enabled', async () => {
+  it('returns estimated tokens only when slimming is enabled (no truncation)', async () => {
     const cardsInfo = [
       major('The Fool', 0, 'Past — influences that led here', 'Upright'),
       major('The Magician', 1, 'Present — where you stand now', 'Upright'),
@@ -665,6 +815,44 @@ describe('Prompt budget telemetry', () => {
     assert.ok(metaWithSlimming.estimatedTokens, 'estimatedTokens should exist when slimming enabled');
     assert.equal(metaWithSlimming.estimatedTokens.budget, 90);
     assert.ok(metaWithSlimming.estimatedTokens.total > 0);
+  });
+
+  it('includes estimated tokens when hard-cap truncation occurs without slimming', async () => {
+    const cardsInfo = [
+      major('The Fool', 0, 'Past — influences that led here', 'Upright'),
+      major('The Magician', 1, 'Present — where you stand now', 'Upright'),
+      major('The High Priestess', 2, 'Future — trajectory if nothing shifts', 'Upright')
+    ];
+
+    const themes = await buildThemes(cardsInfo, 'blocked');
+    themes.knowledgeGraph = { graphKeys: { stub: true } };
+
+    const hugePassage = 'A'.repeat(140000);
+    const graphRAGPayload = {
+      passages: [
+        { title: 'Test Passage', text: hugePassage, source: 'Test Source' }
+      ],
+      retrievalSummary: { graphKeysProvided: true },
+      maxPassages: 1
+    };
+
+    const threeCardAnalysis = await analyzeThreeCard(cardsInfo);
+
+    const { promptMeta } = buildEnhancedClaudePrompt({
+      spreadInfo: { name: 'Three-Card Story (Past · Present · Future)' },
+      cardsInfo,
+      userQuestion: 'How do I keep momentum?',
+      reflectionsText: '',
+      themes,
+      spreadAnalysis: threeCardAnalysis,
+      context: 'general',
+      graphRAGPayload
+    });
+
+    assert.equal(promptMeta.slimmingEnabled, false);
+    assert.ok(promptMeta.truncation, 'hard-cap truncation should be recorded');
+    assert.ok(promptMeta.estimatedTokens, 'estimatedTokens should exist when truncation occurs');
+    assert.equal(promptMeta.estimatedTokens.truncated, true);
   });
 });
 

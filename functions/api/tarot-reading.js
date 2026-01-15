@@ -82,6 +82,10 @@ import {
   buildSpreadAnalysisPayload
 } from '../lib/spreadAnalysisOrchestrator.js';
 
+function resolveGraphRAGStats(analysis, promptMeta = null) {
+  return promptMeta?.graphRAG || analysis?.graphRAGPayload?.retrievalSummary || null;
+}
+
 async function finalizeReading({
   env,
   requestId,
@@ -94,6 +98,7 @@ async function finalizeReading({
   contextDiagnostics,
   cardsInfo,
   userQuestion,
+  reflectionsText,
   context,
   visionMetrics,
   abAssignment,
@@ -131,7 +136,7 @@ async function finalizeReading({
   const promptMeta = narrativePayload.promptMeta || null;
   const promptTokens = promptMeta?.estimatedTokens || null;
   const promptSlimming = promptMeta?.slimmingSteps || [];
-  const graphRAGStats = analysis.graphRAGPayload?.retrievalSummary || null;
+  const graphRAGStats = resolveGraphRAGStats(analysis, promptMeta);
   const finalContextDiagnostics = Array.isArray(narrativePayload.contextDiagnostics)
     ? narrativePayload.contextDiagnostics
     : contextDiagnostics;
@@ -150,7 +155,8 @@ async function finalizeReading({
     userQuestion,
     cardsInfo,
     spreadKey: analysis.spreadKey,
-    requestId
+    requestId,
+    displayName: personalization?.displayName
   };
 
   const baseNarrativeMetrics = acceptedQualityMetrics || buildNarrativeMetrics(originalReading, cardsInfo, deckStyle);
@@ -236,6 +242,8 @@ async function finalizeReading({
         systemPrompt: capturedPrompts.system,
         userPrompt: capturedPrompts.user,
         response: finalReading,
+        userQuestion,
+        reflectionsText,
         redactionOptions: {
           displayName: personalization?.displayName
         }
@@ -590,7 +598,7 @@ export const onRequestPost = async ({ request, env, waitUntil }) => {
       contextDiagnostics.push(crisisMessage);
       console.warn(`[${requestId}] ${crisisMessage}; matches: ${crisisCheck.matches.join('; ')}`);
 
-      const graphRAGStats = analysis.graphRAGPayload?.retrievalSummary || null;
+      const graphRAGStats = resolveGraphRAGStats(analysis);
       const narrativeMetrics = {
         spine: { isValid: false, totalSections: 0, completeSections: 0, incompleteSections: 0, suggestions: [] },
         cardCoverage: 0,
@@ -674,10 +682,13 @@ export const onRequestPost = async ({ request, env, waitUntil }) => {
     const canUseAzureStreaming = useStreaming &&
       tokenStreamingEnabled &&
       azureStreamingAvailable &&
-      (!evalGateEnabled || allowStreamingGateBypass);
+      !evalGateEnabled;
 
-    if (useStreaming && tokenStreamingEnabled && evalGateEnabled && !allowStreamingGateBypass) {
-      console.warn(`[${requestId}] Token streaming disabled while eval gate is enabled; falling back to buffered streaming.`);
+    if (useStreaming && tokenStreamingEnabled && evalGateEnabled) {
+      const overrideNote = allowStreamingGateBypass
+        ? ' (ALLOW_STREAMING_WITH_EVAL_GATE ignored; gate requires buffering)'
+        : '';
+      console.warn(`[${requestId}] Token streaming disabled while eval gate is enabled; falling back to buffered streaming.${overrideNote}`);
     }
 
     if (useStreaming && tokenStreamingEnabled && !azureStreamingAvailable) {
@@ -738,7 +749,7 @@ export const onRequestPost = async ({ request, env, waitUntil }) => {
 
         const transformedStream = transformAzureStream(azureStream);
 
-        const graphRAGStats = analysis.graphRAGPayload?.retrievalSummary || null;
+        const graphRAGStats = resolveGraphRAGStats(analysis, narrativePayload.promptMeta);
         const finalContextDiagnostics = Array.isArray(narrativePayload.contextDiagnostics)
           ? narrativePayload.contextDiagnostics
           : contextDiagnostics;
@@ -789,6 +800,7 @@ export const onRequestPost = async ({ request, env, waitUntil }) => {
               contextDiagnostics,
               cardsInfo,
               userQuestion,
+              reflectionsText,
               context,
               visionMetrics,
               abAssignment,
@@ -970,6 +982,7 @@ export const onRequestPost = async ({ request, env, waitUntil }) => {
       contextDiagnostics,
       cardsInfo,
       userQuestion,
+      reflectionsText,
       context,
       visionMetrics,
       abAssignment,

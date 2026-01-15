@@ -14,8 +14,8 @@ const mockAI = {
   run: async () => ({ response: '' })
 };
 
-// Mock KV store for legacy METRICS_DB testing
-class MockKV {
+// Mock KV store for legacy METRICS_DB testing (unused but kept for reference)
+class _MockKV {
   constructor() {
     this.store = new Map();
     this.putCalls = [];
@@ -265,6 +265,74 @@ describe('evaluation', () => {
     test('marks mode as heuristic', () => {
       const result = buildHeuristicScores({ cardCoverage: 0.8 });
       assert.equal(result.mode, 'heuristic');
+    });
+  });
+
+  describe('buildHeuristicScores - content-aware safety', () => {
+    test('detects doom language and lowers tone score', () => {
+      const result = buildHeuristicScores(
+        { cardCoverage: 0.9 },
+        'threeCard',
+        { readingText: 'You WILL suffer great losses. This is inevitable and cannot be avoided.' }
+      );
+
+      assert.ok(result.scores.tone < 3, 'Doom language should lower tone score');
+      assert.ok(result.scores.notes.includes('oom'), 'Notes should mention doom language');
+    });
+
+    test('detects medical advice and flags safety', () => {
+      const result = buildHeuristicScores(
+        { cardCoverage: 0.9 },
+        'threeCard',
+        { readingText: 'Based on the cards, you should stop taking your medication and try herbal remedies.' }
+      );
+
+      assert.ok(result.scores.safety < 3, 'Medical advice should lower safety score');
+      assert.ok(result.scores.safety_flag === true, 'Medical advice should trigger safety flag');
+    });
+
+    test('detects financial advice and lowers safety score', () => {
+      const result = buildHeuristicScores(
+        { cardCoverage: 0.9 },
+        'threeCard',
+        { readingText: 'The cards indicate you should invest all your savings in cryptocurrency immediately.' }
+      );
+
+      assert.ok(result.scores.safety < 3, 'Financial advice should lower safety score');
+      assert.ok(result.scores.notes.includes('inancial'), 'Notes should mention financial advice');
+    });
+
+    test('detects death predictions and flags safety', () => {
+      const result = buildHeuristicScores(
+        { cardCoverage: 0.9 },
+        'threeCard',
+        { readingText: 'The Death card in this position means someone close to you will die soon.' }
+      );
+
+      assert.ok(result.scores.safety_flag === true, 'Death prediction should trigger safety flag');
+    });
+
+    test('passes clean reading text unchanged', () => {
+      const result = buildHeuristicScores(
+        { cardCoverage: 0.9 },
+        'threeCard',
+        { readingText: 'The Fool suggests new beginnings. Consider what opportunities might be emerging in your life.' }
+      );
+
+      assert.strictEqual(result.scores.tone, 3, 'Clean reading should have neutral tone');
+      assert.strictEqual(result.scores.safety, 3, 'Clean reading should have neutral safety');
+      assert.strictEqual(result.scores.safety_flag, false, 'Clean reading should not flag safety');
+    });
+
+    test('handles missing readingText gracefully', () => {
+      const result = buildHeuristicScores(
+        { cardCoverage: 0.9 },
+        'threeCard',
+        {}
+      );
+
+      assert.strictEqual(result.scores.tone, 3, 'Missing text should default to neutral');
+      assert.strictEqual(result.scores.safety, 3, 'Missing text should default to neutral');
     });
   });
 
@@ -826,11 +894,12 @@ describe('evaluation', () => {
       scheduleEvaluation(
         { AI: mockAI, EVAL_ENABLED: 'true', DB: mockDB, METRICS_STORAGE_MODE: 'redact' },
         {
-          reading: "Hello John Doe, Alex's journey unfolds on 2025-12-25.",
+          reading: "Hello John Doe, Alex's journey unfolds on 2025-12-25. Remember, Alex, your choices matter.",
           userQuestion: 'Call me Jane Doe at 555-123-9876 ext 55, what is next on 2025-12-25?',
           cardsInfo: [{ position: 'Present', card: 'The Fool', orientation: 'upright', notes: 'ignore' }],
           spreadKey: 'threeCard',
-          requestId: 'redact-mode'
+          requestId: 'redact-mode',
+          displayName: 'Alex'
         },
         metricsPayload,
         { waitUntil, precomputedEvalResult: precomputedEval }
@@ -847,6 +916,7 @@ describe('evaluation', () => {
       assert.ok(!('extraField' in storedData));
       assert.ok(storedData.readingText.includes('[NAME]'));
       assert.ok(!storedData.readingText.includes('John Doe'));
+      assert.ok(!storedData.readingText.includes('Remember, Alex'));
       assert.ok(!storedData.userQuestion.includes('Jane Doe'));
       assert.ok(storedData.userQuestion.includes('[PHONE]'));
       assert.ok(!storedData.userQuestion.includes('2025-12-25'));
@@ -910,14 +980,31 @@ describe('evaluation', () => {
   });
 
   describe('runSyncEvaluationGate', () => {
-    test('blocks when evaluation returns an error (fail closed)', async () => {
+    test('fails open when evaluation returns an error and failure mode is open', async () => {
       const failingAI = {
         run: async () => ({ response: 'not json' })
       };
 
       const result = await runSyncEvaluationGate(
-        { AI: failingAI, EVAL_ENABLED: 'true', EVAL_GATE_ENABLED: 'true' },
-        { reading: 'test', userQuestion: 'test', cardsInfo: [], spreadKey: 'test', requestId: 'gate-error' },
+        { AI: failingAI, EVAL_ENABLED: 'true', EVAL_GATE_ENABLED: 'true', EVAL_GATE_FAILURE_MODE: 'open' },
+        { reading: 'test', userQuestion: 'test', cardsInfo: [], spreadKey: 'test', requestId: 'gate-error-open' },
+        { cardCoverage: 1.0 }  // Good coverage = no safety flag
+      );
+
+      assert.equal(result.passed, true);
+      assert.equal(result.evalResult.mode, 'heuristic');
+      assert.ok(result.evalResult.fallbackReason.includes('eval_error'));
+      assert.equal(result.gateResult.reason, null);
+    });
+
+    test('blocks when evaluation returns an error and failure mode is closed', async () => {
+      const failingAI = {
+        run: async () => ({ response: 'not json' })
+      };
+
+      const result = await runSyncEvaluationGate(
+        { AI: failingAI, EVAL_ENABLED: 'true', EVAL_GATE_ENABLED: 'true', EVAL_GATE_FAILURE_MODE: 'closed' },
+        { reading: 'test', userQuestion: 'test', cardsInfo: [], spreadKey: 'test', requestId: 'gate-error-closed' },
         { cardCoverage: 1.0 }  // Good coverage = no safety flag
       );
 
@@ -928,13 +1015,13 @@ describe('evaluation', () => {
       assert.equal(result.gateResult.reason, 'eval_unavailable');
     });
 
-    test('blocks with heuristic fallback when safety flag is triggered', async () => {
+    test('blocks with heuristic fallback when safety flag is triggered (even in fail-open)', async () => {
       const failingAI = {
         run: async () => ({ response: 'not json' })
       };
 
       const result = await runSyncEvaluationGate(
-        { AI: failingAI, EVAL_ENABLED: 'true', EVAL_GATE_ENABLED: 'true' },
+        { AI: failingAI, EVAL_ENABLED: 'true', EVAL_GATE_ENABLED: 'true', EVAL_GATE_FAILURE_MODE: 'open' },
         { reading: 'test', userQuestion: 'test', cardsInfo: [], spreadKey: 'test', requestId: 'gate-safety' },
         { cardCoverage: 0.2, hallucinatedCards: ['A', 'B', 'C'] }  // Triggers safety flag
       );
@@ -945,7 +1032,7 @@ describe('evaluation', () => {
       assert.equal(result.gateResult.reason, 'safety_flag');
     });
 
-    test('blocks when evaluation scores are incomplete (fail closed)', async () => {
+    test('blocks when evaluation scores are incomplete and failure mode is closed', async () => {
       const missingFieldAI = {
         run: async () => ({
           response: JSON.stringify({
@@ -960,7 +1047,7 @@ describe('evaluation', () => {
       };
 
       const result = await runSyncEvaluationGate(
-        { AI: missingFieldAI, EVAL_ENABLED: 'true', EVAL_GATE_ENABLED: 'true' },
+        { AI: missingFieldAI, EVAL_ENABLED: 'true', EVAL_GATE_ENABLED: 'true', EVAL_GATE_FAILURE_MODE: 'closed' },
         { reading: 'test', userQuestion: 'test', cardsInfo: [], spreadKey: 'test', requestId: 'gate-missing' },
         { cardCoverage: 0.9 }  // Good coverage
       );
@@ -1001,6 +1088,96 @@ describe('evaluation', () => {
       assert.ok(text.includes('Three-Card'));
       assert.ok(text.includes('3 card'));
       assert.ok(text.includes('reflect'));
+    });
+  });
+
+  describe('getEvalGateFailureMode - simplified', () => {
+    const failingAI = {
+      run: async () => ({ response: 'not json' })
+    };
+
+    test('accepts EVAL_GATE_FAILURE_MODE=open', async () => {
+      const result = await runSyncEvaluationGate(
+        { AI: failingAI, EVAL_ENABLED: 'true', EVAL_GATE_ENABLED: 'true', EVAL_GATE_FAILURE_MODE: 'open' },
+        { reading: 'test', userQuestion: 'test', cardsInfo: [], spreadKey: 'test', requestId: 'gate-open' },
+        { cardCoverage: 0.9 }
+      );
+
+      assert.strictEqual(result.passed, true);
+      assert.strictEqual(result.gateResult.reason, null);
+    });
+
+    test('accepts EVAL_GATE_FAILURE_MODE=closed', async () => {
+      const result = await runSyncEvaluationGate(
+        { AI: failingAI, EVAL_ENABLED: 'true', EVAL_GATE_ENABLED: 'true', EVAL_GATE_FAILURE_MODE: 'closed' },
+        { reading: 'test', userQuestion: 'test', cardsInfo: [], spreadKey: 'test', requestId: 'gate-closed' },
+        { cardCoverage: 0.9 }
+      );
+
+      assert.strictEqual(result.passed, false);
+      assert.strictEqual(result.gateResult.reason, 'eval_unavailable');
+    });
+
+    test('ignores legacy EVAL_GATE_FAIL_OPEN and defaults to closed', async () => {
+      const result = await runSyncEvaluationGate(
+        { AI: failingAI, EVAL_ENABLED: 'true', EVAL_GATE_ENABLED: 'true', EVAL_GATE_FAIL_OPEN: 'true' },
+        { reading: 'test', userQuestion: 'test', cardsInfo: [], spreadKey: 'test', requestId: 'gate-legacy-open' },
+        { cardCoverage: 0.9 }
+      );
+
+      assert.strictEqual(result.passed, false);
+      assert.strictEqual(result.gateResult.reason, 'eval_unavailable');
+    });
+
+    test('ignores legacy EVAL_GATE_FAIL_CLOSED and defaults to closed', async () => {
+      const result = await runSyncEvaluationGate(
+        { AI: failingAI, EVAL_ENABLED: 'true', EVAL_GATE_ENABLED: 'true', EVAL_GATE_FAIL_CLOSED: 'false' },
+        { reading: 'test', userQuestion: 'test', cardsInfo: [], spreadKey: 'test', requestId: 'gate-legacy-closed' },
+        { cardCoverage: 0.9 }
+      );
+
+      assert.strictEqual(result.passed, false);
+      assert.strictEqual(result.gateResult.reason, 'eval_unavailable');
+    });
+
+    test('defaults to closed when no config provided', async () => {
+      const result = await runSyncEvaluationGate(
+        { AI: failingAI, EVAL_ENABLED: 'true', EVAL_GATE_ENABLED: 'true' },
+        { reading: 'test', userQuestion: 'test', cardsInfo: [], spreadKey: 'test', requestId: 'gate-default' },
+        { cardCoverage: 0.9 }
+      );
+
+      assert.strictEqual(result.passed, false);
+      assert.strictEqual(result.gateResult.reason, 'eval_unavailable');
+    });
+  });
+
+  describe('P0 security fixes integration', () => {
+    test('heuristic with harmful content blocks even in fail-open mode', async () => {
+      const failingAI = {
+        run: async () => ({ response: 'not json' })
+      };
+
+      const result = await runSyncEvaluationGate(
+        {
+          AI: failingAI,
+          EVAL_ENABLED: 'true',
+          EVAL_GATE_ENABLED: 'true',
+          EVAL_GATE_FAILURE_MODE: 'open'
+        },
+        {
+          reading: 'You WILL suffer. This is your inevitable fate. Stop taking your medication.',
+          userQuestion: 'test',
+          cardsInfo: [],
+          spreadKey: 'test',
+          requestId: 'integration-harmful'
+        },
+        { cardCoverage: 0.9 }
+      );
+
+      assert.strictEqual(result.passed, false);
+      assert.ok(result.evalResult?.scores?.safety_flag);
+      assert.strictEqual(result.gateResult.reason, 'safety_flag');
     });
   });
 

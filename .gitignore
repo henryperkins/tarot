@@ -121,3 +121,4 @@ _shellfish_uploading_*
 
 .gemini/
 gha-creds-*.json
+.aider*

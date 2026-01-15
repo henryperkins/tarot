@@ -2,10 +2,10 @@
  * useJournalAnalytics - Manages scope selection, stats computation, and summary data
  */
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { getTimestamp } from '../../shared/journal/utils.js';
 import { computeJournalStats, formatContextName } from '../lib/journalInsights';
-import { getCardImage, getCanonicalCard } from '../lib/cardLookup';
+import { getCardImage } from '../lib/cardLookup';
 import {
   EMPTY_STATS,
   CARD_NODE_POSITIONS,
@@ -49,16 +49,19 @@ export function useJournalAnalytics(entries, filteredEntries, filters, { isSmall
     setCustomScope((prev) => ({ ...prev, [key]: value }));
   }, []);
 
-  // Auto-switch to filters scope when filters become active
-  useEffect(() => {
-    if (hasUserSelectedScope) return;
+  // Track previous filtersActive state for render-time updates
+  const [prevFiltersActive, setPrevFiltersActive] = useState(filtersActive);
+
+  // Auto-switch to filters scope when filters become active (render-time pattern)
+  if (!hasUserSelectedScope && prevFiltersActive !== filtersActive) {
+    setPrevFiltersActive(filtersActive);
     if (filtersActive && analyticsScope !== 'filters') {
       setAnalyticsScope('filters');
     }
     if (!filtersActive && analyticsScope === 'filters') {
       setAnalyticsScope('month');
     }
-  }, [filtersActive, analyticsScope, hasUserSelectedScope]);
+  }
 
   // Compute date windows
   const monthWindow = useMemo(() => getCurrentMonthWindow(), []);
@@ -76,22 +79,25 @@ export function useJournalAnalytics(entries, filteredEntries, filters, { isSmall
     return { start, end: normalizedEnd };
   }, [analyticsScope, customScope]);
 
-  // Validate custom scope
-  useEffect(() => {
+  // Compute scope error as derived state (avoids setState in useEffect)
+  const computedScopeError = useMemo(() => {
     if (analyticsScope !== 'custom') {
-      setScopeError('');
-      return;
+      return '';
     }
     const start = parseDateInput(customScope.start);
     const end = parseDateInput(customScope.end);
     if (start && end) {
-      setScopeError('');
+      return '';
     } else if (customScope.start || customScope.end) {
-      setScopeError('Select a valid start and end date for custom scope.');
-    } else {
-      setScopeError('');
+      return 'Select a valid start and end date for custom scope.';
     }
+    return '';
   }, [analyticsScope, customScope]);
+
+  // Update scopeError state when computed value changes (render-time pattern)
+  if (scopeError !== computedScopeError) {
+    setScopeError(computedScopeError);
+  }
 
   // Determine active scope window
   const scopeWindow = useMemo(() => {
@@ -162,10 +168,17 @@ export function useJournalAnalytics(entries, filteredEntries, filters, { isSmall
     return sorted[0] || null;
   }, [scopedStatsEntries]);
 
-  // Reset expanded card when hero entry changes
-  useEffect(() => {
+  // Track previous hero entry for render-time reset
+  const [prevHeroKey, setPrevHeroKey] = useState(() =>
+    heroEntry ? `${heroEntry.id}-${heroEntry.sessionSeed}` : null
+  );
+  const currentHeroKey = heroEntry ? `${heroEntry.id}-${heroEntry.sessionSeed}` : null;
+
+  // Reset expanded card when hero entry changes (render-time pattern)
+  if (prevHeroKey !== currentHeroKey) {
+    setPrevHeroKey(currentHeroKey);
     setExpandedCardIndex(null);
-  }, [heroEntry?.id, heroEntry?.sessionSeed]);
+  }
 
   // Hero cards for display
   const heroCardLimit = isSmallSummary ? 1 : 3;

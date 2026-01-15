@@ -578,12 +578,14 @@ export function buildEnhancedClaudePrompt({
     slimmingSteps.push('hard-cap-truncation');
   }
 
-  // Only include token estimates when slimming is enabled
-  // Actual token counts come from llmUsage in API response (authoritative)
+  // Only include token estimates when slimming is enabled or a hard-cap truncation occurred.
+  // Actual token counts come from llmUsage in API response (authoritative).
   const slimmingEnabled = !disableSlimming;
+  const truncationApplied = systemTruncated || userTruncated;
+  const shouldEstimateTokens = slimmingEnabled || truncationApplied;
   let estimatedTokens = null;
 
-  if (slimmingEnabled) {
+  if (shouldEstimateTokens) {
     const finalSystemTokens = estimateTokenCount(finalSystem);
     const finalUserTokens = estimateTokenCount(finalUser);
     const finalTotalTokens = finalSystemTokens + finalUserTokens;
@@ -595,15 +597,15 @@ export function buildEnhancedClaudePrompt({
       hardCap,
       budgetTarget,
       overBudget: Boolean(promptBudget && finalTotalTokens > promptBudget),
-      truncated: systemTruncated || userTruncated
+      truncated: truncationApplied
     };
   }
 
   const promptMeta = {
     // Reading prompt version for quality tracking and A/B testing correlation
     readingPromptVersion: getReadingPromptVersion(),
-    // Token estimates only present when slimming is enabled (for budget decisions)
-    // Use llmUsage.input_tokens from API response for actual token counts
+    // Token estimates present when slimming is enabled or hard-cap truncation occurs.
+    // Use llmUsage.input_tokens from API response for actual token counts.
     estimatedTokens,
     slimmingEnabled,
     slimmingSteps,
@@ -1183,10 +1185,31 @@ function buildVisionValidationSection(visionInsights, options = {}) {
       ? `${(entry.confidence * 100).toFixed(1)}%`
       : 'confidence unavailable';
     const basisText = entry.basis ? ` via ${entry.basis}` : '';
-    let validationNote = '';
+
+    // IMPORTANT: For mismatched cards, omit the predicted card name entirely to avoid
+    // priming the AI with off-spread card names that could trigger hallucinations.
+    // The model should only see card names that are actually in the drawn spread.
     if (entry.matchesDrawnCard === false) {
-      validationNote = ' [not in drawn spread]';
-    } else if (entry.matchesDrawnCard === null || typeof entry.matchesDrawnCard === 'undefined') {
+      lines.push(`- ${safeLabel}: vision detected a card not in the drawn spread (${confidenceText}) [mismatch]`);
+      // Skip symbol verification and secondary matches for mismatched cards -
+      // this data relates to the wrong card and could prime hallucinations.
+      // Visual profile (tone/emotion) may still be useful for the actual image's mood.
+      if (entry.visualProfile) {
+        const tone = Array.isArray(entry.visualProfile.tone) ? entry.visualProfile.tone.slice(0, 2).join(', ') : '';
+        const emotion = Array.isArray(entry.visualProfile.emotion) ? entry.visualProfile.emotion.slice(0, 2).join(', ') : '';
+        const profileParts = [];
+        if (tone) profileParts.push(`Tone: [${tone}]`);
+        if (emotion) profileParts.push(`Emotion: [${emotion}]`);
+        if (profileParts.length > 0) {
+          lines.push(`  · Visual Profile: ${profileParts.join(' | ')}`);
+        }
+      }
+      return; // Skip remaining details for mismatched entries
+    }
+
+    // For verified and unverified entries, include full details
+    let validationNote = '';
+    if (entry.matchesDrawnCard === null || typeof entry.matchesDrawnCard === 'undefined') {
       validationNote = ' [unverified upload]';
     }
     lines.push(`- ${safeLabel}: recognized as ${entry.predictedCard}${basisText} (${confidenceText})${validationNote}`);

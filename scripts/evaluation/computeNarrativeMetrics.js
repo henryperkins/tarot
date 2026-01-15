@@ -2,10 +2,7 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 
-import { validateReadingNarrative } from '../../functions/lib/narrativeSpine.js';
-import { normalizeCardName } from '../../functions/lib/cardContextDetection.js';
-import { MAJOR_ARCANA } from '../../src/data/majorArcana.js';
-import { MINOR_ARCANA } from '../../src/data/minorArcana.js';
+import { buildNarrativeMetrics } from '../../functions/lib/readingQuality.js';
 import { parseCsv, stringifyRow } from './lib/csv.js';
 
 const DEFAULT_INPUT = 'data/evaluations/narrative-samples.json';
@@ -63,12 +60,6 @@ const HARSH_TONE_PATTERNS = [
   /\bmust not\b/i
 ];
 
-const ALL_CARD_NAME_PATTERNS = [...MAJOR_ARCANA, ...MINOR_ARCANA].map((card) => card.name).map((name) => ({
-  name,
-  normalized: normalizeCardName(name),
-  pattern: new RegExp(`\\b${escapeRegex(name)}\\b`, 'i')
-}));
-
 function usage() {
   console.log('Usage: node scripts/evaluation/computeNarrativeMetrics.js [--in file] [--metrics-out file] [--review-out file]');
 }
@@ -103,46 +94,6 @@ function parseArgs(rawArgs) {
 function containsPattern(text, patterns) {
   if (!text) return false;
   return patterns.some((pattern) => pattern.test(text));
-}
-
-function escapeRegex(text) {
-  return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-}
-
-function analyzeCardCoverage(reading, cardsInfo = []) {
-  if (!Array.isArray(cardsInfo) || cardsInfo.length === 0) {
-    return { coverage: 1, missingCards: [] };
-  }
-
-  const missingCards = [];
-  cardsInfo.forEach((card) => {
-    const pattern = new RegExp(escapeRegex(card.card), 'i');
-    if (!pattern.test(reading)) {
-      missingCards.push(card.card);
-    }
-  });
-
-  const presentCount = cardsInfo.length - missingCards.length;
-  return {
-    coverage: cardsInfo.length ? presentCount / cardsInfo.length : 1,
-    missingCards
-  };
-}
-
-function detectHallucinatedCards(reading, cardsInfo = []) {
-  if (!reading) return [];
-  const cleanedReading = reading.replace(/(?:the\s+)?fool['’]?s?\s+journey/gi, '');
-  const drawn = new Set((cardsInfo || []).map((card) => normalizeCardName(card.card)));
-  const hallucinated = [];
-
-  ALL_CARD_NAME_PATTERNS.forEach(({ name, normalized, pattern }) => {
-    if (!pattern.test(cleanedReading)) return;
-    if (!drawn.has(normalized)) {
-      hallucinated.push(name);
-    }
-  });
-
-  return [...new Set(hallucinated)];
 }
 
 function analyzeToneSignals(reading = '') {
@@ -210,11 +161,16 @@ function getIssuesForQueue(result) {
 
 function summarizeSample(sample) {
   const reading = sample.reading || '';
-  const spine = validateReadingNarrative(reading);
-  const cardCoverage = analyzeCardCoverage(reading, sample.cardsInfo || []);
+  const deckStyle = sample.deckStyle || 'rws-1909';
+  const runtimeMetrics = buildNarrativeMetrics(reading, sample.cardsInfo || [], deckStyle);
+  const spine = runtimeMetrics.spine || { isValid: false, totalSections: 0, completeSections: 0, incompleteSections: 0 };
+  const cardCoverage = {
+    coverage: runtimeMetrics.cardCoverage ?? 1,
+    missingCards: runtimeMetrics.missingCards || []
+  };
   const deterministicLanguage = containsPattern(reading, DETERMINISTIC_PATTERNS);
   const hasAgencyLanguage = containsPattern(reading, AGENCY_PATTERNS);
-  const hallucinatedCards = detectHallucinatedCards(reading, sample.cardsInfo || []);
+  const hallucinatedCards = runtimeMetrics.hallucinatedCards || [];
   const tone = analyzeToneSignals(reading);
   const issueFlags = buildIssueFlags({
     spine,

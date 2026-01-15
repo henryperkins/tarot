@@ -45,7 +45,7 @@ function writeToStorage(key, value) {
 
 function loadScopedArray(prefix, userId, fallback = []) {
   const scopedKey = getScopedKey(prefix, userId);
-  let raw = readFromStorage(scopedKey);
+  const raw = readFromStorage(scopedKey);
 
   if (!raw && !userId) {
     const legacyRaw = readFromStorage(prefix);

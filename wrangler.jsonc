@@ -54,6 +54,8 @@
     // replaced with a safe fallback. CAUTION: If eval model is unavailable,
     // ALL readings will show fallback. Set to "false" for production safety.
     "EVAL_GATE_ENABLED": "false",
+    // EVAL_GATE_FAILURE_MODE: "open" or "closed" (legacy *_FAIL_* vars deprecated)
+    "EVAL_GATE_FAILURE_MODE": "closed",
     "EVAL_GATEWAY_ID": "",
     // METRICS_STORAGE_MODE controls PII handling in stored metrics:
     // - "redact" (default): Redact PII patterns from stored data

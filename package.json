@@ -52,7 +52,7 @@
     "ci:vision-check": "npm run eval:vision:all && npm run eval:vision:metrics && npm run gate:vision",
     "review:vision": "node scripts/evaluation/processVisionReviews.js",
     "eval:narrative": "node scripts/evaluation/runNarrativeSamples.js && node scripts/evaluation/computeNarrativeMetrics.js",
-    "gate:narrative": "node scripts/evaluation/verifyNarrativeGate.js",
+    "gate:narrative": "node scripts/evaluation/verifyNarrativeGate.js && node scripts/evaluation/verifyNarrativePromptAssembly.js",
     "ci:narrative-check": "npm run eval:narrative && npm run gate:narrative",
     "review:narrative": "node scripts/evaluation/processNarrativeReviews.js",
     "training:export": "node scripts/training/exportReadings.js",

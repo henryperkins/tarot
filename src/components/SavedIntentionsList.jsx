@@ -16,14 +16,17 @@ const PAGE_SIZE = 6;
 export function SavedIntentionsList() {
   const { user } = useAuth();
   const userId = user?.id || null;
+  const [prevUserId, setPrevUserId] = useState(userId);
   const [intentions, setIntentions] = useState(() => loadCoachHistory(undefined, userId));
   const [pageIndex, setPageIndex] = useState(0);
   const navigate = useNavigate();
 
-  useEffect(() => {
+  // Reset state when userId changes (React's render-time update pattern)
+  if (prevUserId !== userId) {
+    setPrevUserId(userId);
     setIntentions(loadCoachHistory(undefined, userId));
     setPageIndex(0);
-  }, [userId]);
+  }
 
   useEffect(() => {
     if (typeof window === 'undefined') {

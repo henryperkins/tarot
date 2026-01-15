@@ -5,23 +5,13 @@ import path from 'node:path';
 import { MAJOR_ARCANA } from '../../src/data/majorArcana.js';
 import { MINOR_ARCANA } from '../../src/data/minorArcana.js';
 import { SPREADS } from '../../src/data/spreads.js';
-import {
-  analyzeSpreadThemes,
-  analyzeCelticCross,
-  analyzeThreeCard,
-  analyzeFiveCard,
-  analyzeRelationship,
-  analyzeDecision
-} from '../../functions/lib/spreadAnalysis.js';
-import {
-  buildCelticCrossReading,
-  buildThreeCardReading,
-  buildFiveCardReading,
-  buildRelationshipReading,
-  buildDecisionReading,
-  buildSingleCardReading
-} from '../../functions/lib/narrativeBuilder.js';
 import { inferContext } from '../../functions/lib/contextDetection.js';
+import { performSpreadAnalysis } from '../../functions/lib/spreadAnalysisOrchestrator.js';
+import {
+  NARRATIVE_BACKENDS,
+  getAvailableNarrativeBackends,
+  runNarrativeBackend
+} from '../../functions/lib/narrativeBackends.js';
 
 const CARD_LOOKUP = new Map([
   ...MAJOR_ARCANA.map((card) => [card.name, card]),
@@ -29,6 +19,7 @@ const CARD_LOOKUP = new Map([
 ]);
 
 const DEFAULT_OUTPUT = 'data/evaluations/narrative-samples.json';
+const DEFAULT_BACKEND = process.env.NARRATIVE_EVAL_BACKEND || 'auto';
 
 const SAMPLE_DEFINITIONS = [
   {
@@ -96,11 +87,11 @@ const SAMPLE_DEFINITIONS = [
 ];
 
 function usage() {
-  console.log(`Usage: node scripts/evaluation/runNarrativeSamples.js [--out ${DEFAULT_OUTPUT}] [--sample sample-id]`);
+  console.log(`Usage: node scripts/evaluation/runNarrativeSamples.js [--out ${DEFAULT_OUTPUT}] [--sample sample-id] [--backend auto|local-composer|azure-gpt5|claude-opus45]`);
 }
 
 function parseArgs(rawArgs) {
-  const options = { output: DEFAULT_OUTPUT, sampleIds: null };
+  const options = { output: DEFAULT_OUTPUT, sampleIds: null, backend: DEFAULT_BACKEND };
   for (let i = 0; i < rawArgs.length; i += 1) {
     const arg = rawArgs[i];
     if (arg === '--out') {
@@ -113,6 +104,9 @@ function parseArgs(rawArgs) {
       }
       options.sampleIds = options.sampleIds || new Set();
       options.sampleIds.add(id);
+      i += 1;
+    } else if (arg === '--backend') {
+      options.backend = rawArgs[i + 1] || DEFAULT_BACKEND;
       i += 1;
     } else if (arg === '--help' || arg === '-h') {
       usage();
@@ -148,42 +142,32 @@ function buildCardEntry(baseCard, position, orientation) {
   };
 }
 
-async function buildSpreadAnalysis(spreadKey, cardsInfo) {
-  switch (spreadKey) {
-    case 'celtic':
-      return analyzeCelticCross(cardsInfo);
-    case 'threeCard':
-      return analyzeThreeCard(cardsInfo);
-    case 'fiveCard':
-      return analyzeFiveCard(cardsInfo);
-    case 'relationship':
-      return analyzeRelationship(cardsInfo);
-    case 'decision':
-      return analyzeDecision(cardsInfo);
-    default:
-      return null;
-  }
+function normalizeBackendId(value) {
+  const normalized = String(value || '').trim().toLowerCase();
+  if (!normalized || normalized === 'auto') return 'auto';
+  if (normalized === 'local') return 'local-composer';
+  return normalized;
 }
 
-async function buildReadingFromAnalysis(spreadKey, { spreadAnalysis, cardsInfo, userQuestion, reflectionsText, themes, spreadInfo, context }) {
-  switch (spreadKey) {
-    case 'celtic':
-      return buildCelticCrossReading({ cardsInfo, userQuestion, reflectionsText, celticAnalysis: spreadAnalysis, themes, spreadInfo, context });
-    case 'threeCard':
-      return buildThreeCardReading({ cardsInfo, userQuestion, reflectionsText, threeCardAnalysis: spreadAnalysis, themes, spreadInfo, context });
-    case 'fiveCard':
-      return buildFiveCardReading({ cardsInfo, userQuestion, reflectionsText, fiveCardAnalysis: spreadAnalysis, themes, spreadInfo, context });
-    case 'relationship':
-      return buildRelationshipReading({ cardsInfo, userQuestion, reflectionsText, themes, spreadInfo, context });
-    case 'decision':
-      return buildDecisionReading({ cardsInfo, userQuestion, reflectionsText, decisionAnalysis: spreadAnalysis, themes, spreadInfo, context });
-    case 'single':
-    default:
-      return buildSingleCardReading({ cardsInfo, userQuestion, reflectionsText, themes, spreadInfo, context });
+function resolveBackendId(requestedBackend, env) {
+  const normalized = normalizeBackendId(requestedBackend);
+  if (normalized === 'auto') {
+    const available = getAvailableNarrativeBackends(env);
+    return available.length ? available[0].id : 'local-composer';
   }
+
+  if (!NARRATIVE_BACKENDS[normalized]) {
+    throw new Error(`Unknown backend "${requestedBackend}"`);
+  }
+
+  if (!NARRATIVE_BACKENDS[normalized].isAvailable(env)) {
+    throw new Error(`Backend "${normalized}" is not available (missing configuration).`);
+  }
+
+  return normalized;
 }
 
-async function generateSample(sample) {
+async function generateSample(sample, { env, backendId }) {
   const spreadInfo = SPREADS[sample.spreadKey];
   if (!spreadInfo) {
     throw new Error(`Unknown spread key: ${sample.spreadKey}`);
@@ -200,18 +184,39 @@ async function generateSample(sample) {
     return buildCardEntry(baseCard, position, orientation);
   });
 
-  const themes = await analyzeSpreadThemes(cardsInfo);
-  const spreadAnalysis = await buildSpreadAnalysis(sample.spreadKey, cardsInfo);
-  const context = sample.context || inferContext(sample.userQuestion, sample.spreadKey);
-  const reading = await buildReadingFromAnalysis(sample.spreadKey, {
-    spreadAnalysis,
+  const deckStyle = sample.deckStyle || spreadInfo.deckStyle || 'rws-1909';
+  const analysis = await performSpreadAnalysis(
+    spreadInfo,
+    cardsInfo,
+    {
+      deckStyle,
+      userQuestion: sample.userQuestion,
+      subscriptionTier: sample.subscriptionTier || 'pro'
+    },
+    `eval-${sample.id}`,
+    env
+  );
+
+  const context = sample.context || inferContext(sample.userQuestion, analysis.spreadKey || sample.spreadKey);
+  const narrativePayload = {
+    spreadInfo,
     cardsInfo,
     userQuestion: sample.userQuestion,
     reflectionsText: sample.reflectionsText || '',
-    themes,
-    spreadInfo,
-    context
-  });
+    analysis,
+    context,
+    contextDiagnostics: [],
+    visionInsights: [],
+    deckStyle,
+    personalization: sample.personalization || null,
+    subscriptionTier: sample.subscriptionTier || 'pro',
+    narrativeEnhancements: [],
+    graphRAGPayload: analysis.graphRAGPayload || null,
+    promptMeta: null,
+    variantPromptOverrides: null
+  };
+
+  const { reading } = await runNarrativeBackend(backendId, env, narrativePayload, `eval-${sample.id}`);
 
   if (!reading || !reading.trim()) {
     throw new Error(`Reading generation failed for sample ${sample.id}`);
@@ -225,17 +230,20 @@ async function generateSample(sample) {
     reflectionsText: sample.reflectionsText || '',
     context,
     cardsInfo,
+    deckStyle,
     reading,
     themesSummary: {
-      reversalFramework: themes.reversalFramework,
-      suitFocus: themes.suitFocus || null,
-      archetypeDescription: themes.archetypeDescription || null
+      reversalFramework: analysis.themes?.reversalFramework,
+      suitFocus: analysis.themes?.suitFocus || null,
+      archetypeDescription: analysis.themes?.archetypeDescription || null
     }
   };
 }
 
 async function main() {
   const options = parseArgs(process.argv.slice(2));
+  const env = { ...process.env };
+  const backendId = resolveBackendId(options.backend, env);
   const selectedSamples = SAMPLE_DEFINITIONS.filter((sample) => {
     if (!options.sampleIds) return true;
     return options.sampleIds.has(sample.id);
@@ -248,12 +256,13 @@ async function main() {
 
   const generated = [];
   for (const sample of selectedSamples) {
-    generated.push(await generateSample(sample));
+    generated.push(await generateSample(sample, { env, backendId }));
   }
 
   const payload = {
     generatedAt: new Date().toISOString(),
-    model: 'local-composer',
+    model: backendId,
+    backendLabel: NARRATIVE_BACKENDS[backendId]?.label || backendId,
     sampleCount: generated.length,
     samples: generated
   };

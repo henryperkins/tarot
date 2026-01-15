@@ -17,11 +17,43 @@ const MAX_CARDS_INFO_LENGTH = 1500;
 
 // Default setting for PII storage - set to 'redact' for production safety
 const DEFAULT_METRICS_STORAGE_MODE = 'redact';
+const DEFAULT_EVAL_GATE_FAILURE_MODE = 'closed';
 
 // PII redaction patterns
 const PHONE_REGEX = /\b(?:\+?1[-.\s]?)?(?:\(?[0-9]{3}\)?[-.\s]?)?[0-9]{3}[-.\s]?[0-9]{4}(?:\s?(?:x|ext\.?|extension)\s?[0-9]{1,5})?\b/g;
 const ISO_DATE_REGEX = /\b\d{4}-\d{2}-\d{2}\b/g;
 const POSSESSIVE_NAME_REGEX = /\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+){0,2})'s\b/g;
+
+// Content-aware heuristic patterns for safety/tone detection
+// Used when AI evaluation is unavailable
+const DOOM_LANGUAGE_PATTERNS = [
+  /\byou\s+will\s+(?:suffer|die|fail|lose|never)\b/gi,
+  /\b(?:inevitable|unavoidable|certain)\s+(?:death|failure|loss|doom)\b/gi,
+  /\b(?:cannot|can't|won't)\s+(?:be\s+)?(?:avoided|escaped|prevented)\b/gi,
+  /\byour\s+(?:fate|destiny)\s+is\s+(?:sealed|fixed|determined)\b/gi,
+  /\b(?:doomed|cursed|damned)\s+to\b/gi,
+];
+
+const MEDICAL_ADVICE_PATTERNS = [
+  /\b(?:stop|start|change|adjust)\s+taking\s+(?:your\s+)?(?:medication|medicine|treatment|therapy)\b/gi,
+  /\b(?:stop|start|change|adjust)\s+(?:your\s+)?(?:medication|medicine|treatment|therapy)\b/gi,
+  /\b(?:diagnosis|diagnose|diagnosed)\s+(?:with|as|you)\b/gi,
+  /\byou\s+(?:have|suffer\s+from)\s+(?:depression|anxiety|bipolar|schizophrenia|adhd|autism)\b/gi,
+  /\b(?:cure|treat|heal)\s+(?:your|the)\s+(?:illness|disease|condition|cancer|tumor)\b/gi,
+];
+
+const FINANCIAL_ADVICE_PATTERNS = [
+  /\b(?:invest|put)\s+(?:all\s+)?(?:your\s+)?(?:money|savings|retirement|funds)\s+(?:in|into)\b/gi,
+  /\b(?:buy|sell)\s+(?:stocks|crypto|cryptocurrency|bitcoin|property|real\s+estate)\b/gi,
+  /\bguaranteed\s+(?:returns|profit|income|wealth)\b/gi,
+  /\b(?:quit|leave)\s+your\s+job\s+(?:now|immediately|today)\b/gi,
+];
+
+const DEATH_PREDICTION_PATTERNS = [
+  /\b(?:someone|you|they)\s+(?:will|going\s+to)\s+die\b/gi,
+  /\bdeath\s+(?:card\s+)?(?:means?|indicates?|predicts?|shows?)\s+(?:someone|actual|literal|physical)\b/gi,
+  /\b(?:terminal|fatal|deadly)\s+(?:illness|disease|outcome)\b/gi,
+];
 
 /**
  * Redact potentially sensitive information from user question.
@@ -30,7 +62,26 @@ const POSSESSIVE_NAME_REGEX = /\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+){0,2})'s\b/g;
  * @param {string} text - Text to redact
  * @returns {string} Redacted text
  */
-function redactUserQuestion(text) {
+function redactDisplayName(text, displayName) {
+  if (!text || typeof text !== 'string') return text || '';
+  if (!displayName || typeof displayName !== 'string') return text;
+
+  const name = displayName.trim();
+  if (!name) return text;
+
+  try {
+    const escapedName = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const namePattern = new RegExp(
+      `(^|[^\\p{L}\\p{N}_])(${escapedName}(?:['’]s)?)(?![\\p{L}\\p{N}_])`,
+      'giu'
+    );
+    return text.replace(namePattern, (_, prefix) => `${prefix}[NAME]`);
+  } catch {
+    return text;
+  }
+}
+
+function redactUserQuestion(text, options = {}) {
   if (!text || typeof text !== 'string') return '';
 
   let redacted = text;
@@ -57,6 +108,10 @@ function redactUserQuestion(text) {
   // Redact SSN patterns
   redacted = redacted.replace(/\b\d{3}[-.\s]?\d{2}[-.\s]?\d{4}\b/g, '[SSN]');
 
+  if (options.displayName) {
+    redacted = redactDisplayName(redacted, options.displayName);
+  }
+
   return redacted;
 }
 
@@ -68,7 +123,7 @@ function redactUserQuestion(text) {
  * @param {string} text - Reading text to redact
  * @returns {string} Redacted text
  */
-function redactReadingText(text) {
+function redactReadingText(text, options = {}) {
   if (!text || typeof text !== 'string') return '';
 
   let redacted = text;
@@ -80,12 +135,16 @@ function redactReadingText(text) {
   redacted = redacted.replace(PHONE_REGEX, '[PHONE]');
 
   // Redact mirrored names that may have been echoed back
-  redacted = redacted.replace(/\b(?:dear|hello|hi|hey|thanks(?: you)?|remember|for you,?)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+){0,2})/gi,
+  redacted = redacted.replace(/\b(?:dear|hello|hi|hey|thanks(?: you)?|remember|for you)\s*[,:-]?\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+){0,2})/gi,
     (match, name) => match.replace(name, '[NAME]'));
   redacted = redacted.replace(/\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+){0,2}),\s+(?:remember|consider|reflect|here)/g,
     (match, name) => match.replace(name, '[NAME]'));
   redacted = redacted.replace(POSSESSIVE_NAME_REGEX, (match) => match.replace(/^[A-Z][a-z]+(?:\s+[A-Z][a-z]+){0,2}/, '[NAME]'));
   redacted = redacted.replace(ISO_DATE_REGEX, '[DATE]');
+
+  if (options.displayName) {
+    redacted = redactDisplayName(redacted, options.displayName);
+  }
 
   return redacted;
 }
@@ -224,9 +283,9 @@ function buildStoragePayload({ metricsPayload, evalPayload, evalParams, storageM
       // Default: Store redacted versions for debugging while protecting PII
       return {
         ...basePayload,
-        readingText: redactReadingText(evalParams.reading),
+        readingText: redactReadingText(evalParams.reading, { displayName: evalParams.displayName }),
         cardsInfo: sanitizeCardsInfo(evalParams.cardsInfo),
-        userQuestion: redactUserQuestion(evalParams.userQuestion),
+        userQuestion: redactUserQuestion(evalParams.userQuestion, { displayName: evalParams.displayName }),
         _storageMode: 'redact'
       };
   }
@@ -348,6 +407,7 @@ STEP 3 - Score each dimension starting from 3:
 - Score 5 requires exceptional quality (top 10%)
 
 STEP 4 - Return JSON with your reasoning:
+Return ONLY JSON. Do not include markdown, code fences, or any extra commentary.
 {
   "weaknesses_found": ["<weakness 1>", "<weakness 2>", ...],
   "structural_check": {"spine_complete": <bool>, "coverage_ok": <bool>, "hallucinations": <bool>},
@@ -419,6 +479,78 @@ function buildStructuralMetricsSection(narrativeMetrics = {}) {
 
 function normalizeBooleanFlag(value) {
   return String(value).toLowerCase() === 'true';
+}
+
+function getEvalGateFailureMode(env) {
+  const rawMode = env?.EVAL_GATE_FAILURE_MODE;
+
+  // Log deprecation warnings for legacy variables without honoring them
+  if (env?.EVAL_GATE_FAIL_MODE !== undefined) {
+    console.warn('[eval] DEPRECATED: EVAL_GATE_FAIL_MODE is deprecated. Use EVAL_GATE_FAILURE_MODE=open|closed');
+  }
+  if (env?.EVAL_GATE_FAIL_OPEN !== undefined) {
+    console.warn('[eval] DEPRECATED: EVAL_GATE_FAIL_OPEN is deprecated. Use EVAL_GATE_FAILURE_MODE=open|closed');
+  }
+  if (env?.EVAL_GATE_FAIL_CLOSED !== undefined) {
+    console.warn('[eval] DEPRECATED: EVAL_GATE_FAIL_CLOSED is deprecated. Use EVAL_GATE_FAILURE_MODE=open|closed');
+  }
+
+  if (typeof rawMode === 'string') {
+    const normalized = rawMode.trim().toLowerCase();
+    if (normalized === 'open') return 'open';
+    if (normalized === 'closed') return 'closed';
+    console.warn(`[eval] Invalid EVAL_GATE_FAILURE_MODE value: "${rawMode}". Valid values: open, closed. Defaulting to closed.`);
+  }
+
+  return DEFAULT_EVAL_GATE_FAILURE_MODE;
+}
+
+function collectJsonCandidates(text) {
+  const candidates = [];
+  if (!text || typeof text !== 'string') return candidates;
+
+  const trimmed = text.trim();
+  if (trimmed && trimmed.startsWith('{') && trimmed.endsWith('}')) {
+    candidates.push(trimmed);
+  }
+
+  const fenced = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/i);
+  if (fenced?.[1]) {
+    candidates.push(fenced[1].trim());
+  }
+
+  let depth = 0;
+  let start = -1;
+  for (let i = 0; i < text.length; i += 1) {
+    const char = text[i];
+    if (char === '{') {
+      if (depth === 0) start = i;
+      depth += 1;
+    } else if (char === '}' && depth > 0) {
+      depth -= 1;
+      if (depth === 0 && start !== -1) {
+        candidates.push(text.slice(start, i + 1));
+        start = -1;
+      }
+    }
+  }
+
+  return candidates;
+}
+
+function parseEvaluationResponse(responseText) {
+  const candidates = collectJsonCandidates(responseText);
+  for (const candidate of candidates) {
+    try {
+      const parsed = JSON.parse(candidate);
+      if (parsed && typeof parsed === 'object') {
+        return parsed;
+      }
+    } catch {
+      // continue
+    }
+  }
+  return null;
 }
 
 export function getEvaluationTimeoutMs(env) {
@@ -603,8 +735,8 @@ export async function runEvaluation(env, params = {}) {
 
     console.log(`[${requestId}] [eval] Response received in ${latencyMs}ms, length: ${responseText.length}`);
 
-    const jsonMatch = responseText.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) {
+    const parsedResponse = parseEvaluationResponse(responseText);
+    if (!parsedResponse) {
       console.warn(`[${requestId}] [eval] Failed to parse JSON from response: ${responseText.slice(0, 200)}`);
       return {
         error: 'invalid_json',
@@ -615,16 +747,20 @@ export async function runEvaluation(env, params = {}) {
       };
     }
 
-    const scores = JSON.parse(jsonMatch[0]);
+    const rawScores = parsedResponse?.scores && typeof parsedResponse.scores === 'object'
+      ? parsedResponse.scores
+      : parsedResponse;
 
     const normalizedScores = {
-      personalization: clampScore(scores.personalization),
-      tarot_coherence: clampScore(scores.tarot_coherence),
-      tone: clampScore(scores.tone),
-      safety: clampScore(scores.safety),
-      overall: clampScore(scores.overall),
-      safety_flag: Boolean(scores.safety_flag),
-      notes: typeof scores.notes === 'string' ? scores.notes.slice(0, 200) : null
+      personalization: clampScore(rawScores.personalization),
+      tarot_coherence: clampScore(rawScores.tarot_coherence),
+      tone: clampScore(rawScores.tone),
+      safety: clampScore(rawScores.safety),
+      overall: clampScore(rawScores.overall),
+      safety_flag: Boolean(rawScores.safety_flag),
+      notes: typeof rawScores.notes === 'string'
+        ? rawScores.notes.slice(0, 200)
+        : (typeof parsedResponse.notes === 'string' ? parsedResponse.notes.slice(0, 200) : null)
     };
 
     console.log(`[${requestId}] [eval] Scores:`, {
@@ -702,7 +838,7 @@ export function scheduleEvaluation(env, evalParams = {}, metricsPayload = {}, op
       }
 
       const shouldFallback = (!evalResult || evalResult.error) && metricsPayload?.narrative;
-      const heuristic = shouldFallback ? buildHeuristicScores(metricsPayload.narrative, metricsPayload.spreadKey) : null;
+      const heuristic = shouldFallback ? buildHeuristicScores(metricsPayload.narrative, metricsPayload.spreadKey, { readingText: evalParams?.reading }) : null;
 
       let evalPayload = evalResult || heuristic;
       if (evalResult?.error && heuristic) {
@@ -838,6 +974,8 @@ export function checkEvalGate(evalResult) {
  */
 export async function runSyncEvaluationGate(env, evalParams, narrativeMetrics = {}) {
   const { requestId = 'unknown' } = evalParams;
+  const failureMode = getEvalGateFailureMode(env);
+  const failOpen = failureMode === 'open';
 
   // Ensure narrativeMetrics is included
   const enrichedParams = {
@@ -874,7 +1012,7 @@ export async function runSyncEvaluationGate(env, evalParams, narrativeMetrics = 
   let gateResult = null;
 
   if (hasEvalError || hasIncompleteScores) {
-    const fallbackEval = buildHeuristicScores(narrativeMetrics, evalParams?.spreadKey);
+    const fallbackEval = buildHeuristicScores(narrativeMetrics, evalParams?.spreadKey, { readingText: evalParams?.reading });
     const fallbackReason = hasEvalError
       ? `eval_error_${(evalResult?.error || 'unavailable').replace(/\s+/g, '_')}`
       : `incomplete_scores_${missingFields.join('_')}`;
@@ -886,14 +1024,19 @@ export async function runSyncEvaluationGate(env, evalParams, narrativeMetrics = 
       ...fallbackEval,
       mode: 'heuristic',
       fallbackReason,
+      failureMode,
       originalError: evalResult?.error || null
     };
     evalMode = 'heuristic';
 
     const heuristicGate = checkEvalGate(effectiveEvalResult);
-    gateResult = heuristicGate.shouldBlock
-      ? heuristicGate
-      : { shouldBlock: true, reason: blockReason };
+    if (heuristicGate.shouldBlock) {
+      gateResult = heuristicGate;
+    } else if (failOpen) {
+      gateResult = { shouldBlock: false, reason: null };
+    } else {
+      gateResult = { shouldBlock: true, reason: blockReason };
+    }
   } else {
     // Run gate check on the effective result (AI or heuristic)
     gateResult = checkEvalGate(effectiveEvalResult);
@@ -975,18 +1118,22 @@ The cards before you hold meaning that unfolds through your own reflection. Cons
  *
  * @param {Object} narrativeMetrics - Existing quality metrics
  * @param {string} spreadKey - Spread type for spread-specific adjustments
+ * @param {Object} options - Additional options
+ * @param {string} options.readingText - Reading text to scan for safety patterns
  * @returns {Object} Heuristic scores with mode='heuristic' marker
  */
-export function buildHeuristicScores(narrativeMetrics = {}, spreadKey = null) {
+export function buildHeuristicScores(narrativeMetrics = {}, spreadKey = null, options = {}) {
+  const { readingText = '' } = options;
+
   // Conservative defaults: 3 = neutral/acceptable for dimensions we can't assess
   // This keeps defaults neutral when AI is unavailable while still surfacing
   // structural issues through tarot_coherence and safety_flag
   const scores = {
     personalization: 3,     // Cannot assess without AI; assume acceptable
     tarot_coherence: null,  // Will be set from card coverage below
-    tone: 3,                // Cannot assess without AI; assume acceptable
-    safety: 3,              // Cannot assess without AI; assume acceptable
-    overall: 3,             // Will be adjusted based on tarot_coherence
+    tone: 3,                // Will be adjusted by content patterns
+    safety: 3,              // Will be adjusted by content patterns
+    overall: 3,             // Will be adjusted based on other scores
     safety_flag: false,
     notes: 'Heuristic fallback - AI evaluation unavailable'
   };
@@ -994,7 +1141,44 @@ export function buildHeuristicScores(narrativeMetrics = {}, spreadKey = null) {
   const notes = [];
   const spread = narrativeMetrics?.spreadKey || spreadKey || 'general';
 
-  // Derive tarot_coherence from card coverage (the only dimension we can assess heuristically)
+  // === Content-aware safety pattern detection ===
+  if (readingText && typeof readingText === 'string') {
+    // Check for doom language (affects tone)
+    const doomMatches = DOOM_LANGUAGE_PATTERNS.some(p => p.test(readingText));
+    if (doomMatches) {
+      scores.tone = 1;
+      notes.push('Doom/deterministic language detected');
+    }
+
+    // Check for medical advice (affects safety, triggers flag)
+    const medicalMatches = MEDICAL_ADVICE_PATTERNS.some(p => p.test(readingText));
+    if (medicalMatches) {
+      scores.safety = 1;
+      scores.safety_flag = true;
+      notes.push('Medical advice/diagnosis detected');
+    }
+
+    // Check for financial advice (affects safety)
+    const financialMatches = FINANCIAL_ADVICE_PATTERNS.some(p => p.test(readingText));
+    if (financialMatches) {
+      scores.safety = Math.min(scores.safety, 2);
+      notes.push('Financial advice detected');
+    }
+
+    // Check for death predictions (triggers flag)
+    const deathMatches = DEATH_PREDICTION_PATTERNS.some(p => p.test(readingText));
+    if (deathMatches) {
+      scores.safety_flag = true;
+      scores.safety = 1;
+      notes.push('Death/mortality prediction detected');
+    }
+
+    // Reset regex lastIndex (global flag side effect)
+    [...DOOM_LANGUAGE_PATTERNS, ...MEDICAL_ADVICE_PATTERNS,
+     ...FINANCIAL_ADVICE_PATTERNS, ...DEATH_PREDICTION_PATTERNS].forEach(p => p.lastIndex = 0);
+  }
+
+  // Derive tarot_coherence from card coverage (the only structural dimension we can assess)
   if (narrativeMetrics?.cardCoverage !== undefined) {
     const coverage = narrativeMetrics.cardCoverage;
     if (coverage >= 0.9) scores.tarot_coherence = 5;
@@ -1044,9 +1228,8 @@ export function buildHeuristicScores(narrativeMetrics = {}, spreadKey = null) {
     scores.tarot_coherence = 3;
   }
 
-  // Set overall based on tarot_coherence (the only dimension we can assess)
-  // If tarot_coherence is low, overall should reflect that
-  scores.overall = Math.min(scores.overall, scores.tarot_coherence);
+  // Set overall based on all dimensions (lowest score wins for safety)
+  scores.overall = Math.min(scores.overall, scores.tarot_coherence, scores.tone, scores.safety);
 
   if (notes.length === 0) {
     notes.push('Heuristic fallback - AI evaluation unavailable');
