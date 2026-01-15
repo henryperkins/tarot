@@ -12,6 +12,7 @@ Integration plugin for the Tableu tarot reading web app, providing evaluation mo
 | `/tableu:review-flagged` | Interactive review of safety-flagged or low-scoring readings |
 | `/tableu:export` | Export evaluation data in JSONL, CSV, or training formats |
 | `/tableu:quality-gate` | Test if a reading would pass/fail the quality gate |
+| `/tableu:prompt-preview` | Preview the prompt structure that would be sent to the LLM |
 
 ### Agents
 
@@ -19,6 +20,7 @@ Integration plugin for the Tableu tarot reading web app, providing evaluation mo
 |-------|---------|
 | `eval-analyst` | Analyzes metrics patterns, detects regressions, suggests calibration |
 | `quality-investigator` | Deep dives on individual readings to explain scores |
+| `prompt-analyzer` | Correlates scores with prompt sections, suggests improvements |
 
 ### Skills
 
@@ -61,14 +63,39 @@ The plugin automatically detects whether you're running locally (wrangler dev on
    /tableu:quality-gate abc123
    ```
 
+## Prompt Development
+
+The plugin also helps with prompt engineering:
+
+1. **Preview prompt structure:**
+   ```
+   /tableu:prompt-preview threeCard What should I focus on?
+   ```
+
+2. **Analyze prompt-to-score relationships:**
+   Ask: "Which parts of our prompt affect personalization scores?"
+   (Triggers `prompt-analyzer` agent)
+
+3. **Get improvement suggestions:**
+   Ask: "Tarot coherence scores are low, how can we fix the prompt?"
+   (Triggers `prompt-analyzer` agent)
+
 ## Key Files
 
 The plugin integrates with these codebase files:
 
+**Evaluation:**
 - `functions/lib/evaluation.js` - Core evaluation engine
 - `functions/lib/readingQuality.js` - Narrative metrics computation
 - `functions/lib/qualityAlerts.js` - Alert dispatch system
 - `scripts/evaluation/*.js` - Evaluation workflow scripts
+
+**Prompt Construction:**
+- `functions/lib/narrative/prompts.js` - Main prompt builder
+- `functions/lib/narrative/spreads/*.js` - Spread-specific formatting
+- `functions/lib/spreadAnalysis.js` - Analysis and reversal framework
+- `functions/lib/knowledgeGraph.js` - Pattern detection
+- `functions/lib/graphRAG.js` - Knowledge retrieval
 
 ## Database
 

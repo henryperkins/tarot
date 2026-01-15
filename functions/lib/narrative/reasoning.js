@@ -168,11 +168,12 @@ export function getEmotionalQuality(valence) {
 const QUESTION_PATTERNS = {
   decision: {
     patterns: [
-      /should i/i,
-      /which .* (choose|pick|select)/i,
-      /between .* (and|or)/i,
-      /what('s| is) the (right|best) (choice|decision|path)/i,
-      /either .* or/i
+      /should i (?:choose|pick|select|go with|take|stay|leave|accept|reject|quit|keep|continue|stop)\b/i,
+      /which (?:one|option|path|way|route|direction)? ?(should i |to )?(choose|pick|select|take)/i,
+      /between .* (and|or|which|what)/i,
+      /what('s| is) the (right|best|better) (choice|decision|path|option)/i,
+      /either .* or/i,
+      /\bor\b.+\?$/i  // Questions ending with "X or Y?"
     ],
     description: 'seeking guidance on a choice'
   },
