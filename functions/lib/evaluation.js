@@ -629,6 +629,11 @@ export function scheduleEvaluation(env, evalParams = {}, metricsPayload = {}, op
   const precomputedEvalResult = options.precomputedEvalResult || null;
   const allowAsyncRetry = options.allowAsyncRetry === true;
 
+  // Ensure narrativeMetrics is available in evalParams (may come from metricsPayload)
+  if (!evalParams.narrativeMetrics && metricsPayload?.narrative) {
+    evalParams = { ...evalParams, narrativeMetrics: metricsPayload.narrative };
+  }
+
   if (!normalizeBooleanFlag(env?.EVAL_ENABLED)) {
     return;
   }
