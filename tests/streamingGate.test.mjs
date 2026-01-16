@@ -148,4 +148,43 @@ describe('streaming gate metadata', () => {
       globalThis.fetch = originalFetch;
     }
   });
+
+  it('buffers output and applies safety scan when eval gate is off', async () => {
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = async () => new Response(
+      createAzureStream(['You should hurt him to make a point.']),
+      { status: 200, headers: { 'content-type': 'text/event-stream' } }
+    );
+
+    const env = {
+      AZURE_OPENAI_API_KEY: 'test-key',
+      AZURE_OPENAI_ENDPOINT: 'https://example.com',
+      AZURE_OPENAI_GPT5_MODEL: 'gpt-5',
+      AZURE_OPENAI_STREAMING_ENABLED: 'true',
+      ALLOW_STREAMING_WITH_EVAL_GATE: 'true',
+      EVAL_ENABLED: 'false',
+      EVAL_GATE_ENABLED: 'false',
+      GRAPHRAG_ENABLED: 'false'
+    };
+
+    try {
+      const request = makeRequest(BASE_PAYLOAD);
+      const response = await onRequestPost({ request, env });
+
+      assert.equal(response.status, 200);
+      assert.ok(response.headers.get('content-type')?.includes('text/event-stream'));
+
+      const events = await collectSSEEvents(response);
+      const meta = events.find((evt) => evt.event === 'meta');
+      const done = events.find((evt) => evt.event === 'done');
+
+      assert.ok(meta, 'meta event should be present');
+      assert.equal(meta.data.gateBlocked, true);
+      assert.equal(meta.data.gateReason, 'safety_flag');
+      assert.ok(done.data.fullText.includes('A Moment of Reflection'));
+      assert.equal(done.data.gateBlocked, true);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
 });

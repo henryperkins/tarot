@@ -161,6 +161,49 @@ describe('prompt slimming respects budget order', () => {
   });
 });
 
+describe('hard-cap truncation', () => {
+  it('preserves safety sections and marks truncation metadata', () => {
+    const spreadInfo = { name: 'One-Card Insight' };
+    const cardsInfo = [
+      { card: 'The Star', position: 'Theme', number: 17, orientation: 'Upright', meaning: 'Hope and healing.' }
+    ];
+    const themes = {
+      reversalCount: 0,
+      reversalDescription: {
+        name: 'All Upright',
+        description: 'No reversals present.',
+        guidance: 'Read cards in their upright flow.'
+      },
+      knowledgeGraph: {},
+      suitCounts: {},
+      elementCounts: {}
+    };
+
+    const hugeAddition = 'X'.repeat(80000);
+    const { systemPrompt, promptMeta } = buildEnhancedClaudePrompt({
+      spreadInfo,
+      cardsInfo,
+      userQuestion: 'What should I focus on this week?',
+      reflectionsText: '',
+      themes,
+      spreadAnalysis: null,
+      context: 'self',
+      visionInsights: [],
+      deckStyle: 'rws-1909',
+      budgetTarget: 'default',
+      promptBudgetEnv: { ENABLE_PROMPT_SLIMMING: 'false' },
+      variantOverrides: { systemPromptAddition: hugeAddition }
+    });
+
+    assert.ok(promptMeta.truncation, 'truncation metadata should be present');
+    assert.ok(promptMeta.truncation.systemTruncated || promptMeta.truncation.userTruncated, 'prompt should be truncated');
+    assert.ok(promptMeta.slimmingSteps.includes('hard-cap-truncation'));
+    assert.ok(systemPrompt.includes('ETHICS'));
+    assert.ok(systemPrompt.includes('CORE PRINCIPLES'));
+    assert.ok(systemPrompt.includes('MODEL DIRECTIVES:'));
+  });
+});
+
 describe('reversal formatter', () => {
   it('produces cached, multi-line reversal description', () => {
     const themes = {

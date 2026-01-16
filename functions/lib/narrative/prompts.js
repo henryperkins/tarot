@@ -296,8 +296,9 @@ function truncateSystemPromptSafely(text, maxTokens) {
   }
 
   // Extract critical sections that must be preserved
-  const { sections: criticalSections, totalChars: criticalChars } = extractCriticalSections(text);
-  const criticalTokens = estimateTokenCount(text.slice(0, criticalChars)); // Rough estimate
+  const { sections: criticalSections } = extractCriticalSections(text);
+  const criticalText = criticalSections.map((section) => section.content).join('\n\n');
+  const criticalTokens = estimateTokenCount(criticalText); // Rough estimate
 
   // If critical sections alone exceed budget, we have a serious problem - log and do basic truncation
   if (criticalTokens > maxTokens * 0.8) {
@@ -417,7 +418,10 @@ export function buildEnhancedClaudePrompt({
 
   // Pre-fetch GraphRAG payload if not already provided
   // This ensures a single retrieval even across slimming passes
-  let effectiveGraphRAGPayload = graphRAGPayload;
+  let effectiveGraphRAGPayload =
+    graphRAGPayload ||
+    activeThemes?.knowledgeGraph?.graphRAGPayload ||
+    null;
   if (!effectiveGraphRAGPayload && isGraphRAGEnabled(promptBudgetEnv) && activeThemes?.knowledgeGraph?.graphKeys) {
     const effectiveSpreadKey = spreadKey || 'general';
     const maxPassages = getPassageCountForSpread(effectiveSpreadKey, subscriptionTier);
@@ -1226,7 +1230,7 @@ function buildUserPrompt(
   if (Array.isArray(personalization?.focusAreas) && personalization.focusAreas.length > 0) {
     const focusList = personalization.focusAreas
       .slice(0, 5)
-      .map((entry) => (typeof entry === 'string' ? sanitizeText(entry, { maxLength: 40, addEllipsis: true, stripMarkdown: true }) : ''))
+      .map((entry) => (typeof entry === 'string' ? sanitizeText(entry, { maxLength: 40, addEllipsis: true, stripMarkdown: true, filterInstructions: true }) : ''))
       .filter(Boolean)
       .join(', ');
     thematicLines.push(`- Focus areas (from onboarding): ${focusList}`);
@@ -1536,7 +1540,7 @@ function buildCelticCrossPromptCards(cardsInfo, analysis, themes, context, userQ
   cards += buildCardWithImagery(cardsInfo[8], cardsInfo[8].position || 'Hopes & Fears — deepest wishes & worries (Card 9)', optionsFor(8));
 
   const outcomeLabel = userQuestion
-    ? `Outcome — likely path for "${sanitizeText(userQuestion, { maxLength: 100, addEllipsis: true, stripMarkdown: true })}" if unchanged (Card 10)`
+    ? `Outcome — likely path for "${sanitizeText(userQuestion, { maxLength: 100, addEllipsis: true, stripMarkdown: true, filterInstructions: true })}" if unchanged (Card 10)`
     : 'Outcome — likely path if unchanged (Card 10)';
 
   cards += buildCardWithImagery(cardsInfo[9], cardsInfo[9].position || outcomeLabel, optionsFor(9));
@@ -1588,11 +1592,20 @@ function buildThreeCardPromptCards(cardsInfo, analysis, themes, context, userQue
     getConnector(presentPosition, 'toPrev')
   );
 
-  const futureLabel = userQuestion
-    ? `Future — likely trajectory for "${sanitizeText(userQuestion, { maxLength: 100, addEllipsis: true, stripMarkdown: true })}" if nothing shifts`
+  const sanitizedQuestion = userQuestion
+    ? sanitizeText(userQuestion, { maxLength: 100, addEllipsis: true, stripMarkdown: true, filterInstructions: true })
+    : '';
+  const futureLabel = sanitizedQuestion
+    ? `Future — likely trajectory for "${sanitizedQuestion}" if nothing shifts`
     : 'Future — trajectory if nothing shifts';
 
-  const futurePosition = future.position || futureLabel;
+  const baseFuturePosition = future.position || '';
+  const hasGenericFuturePosition = /future\s*[—–-]\s*trajectory\s+if\s+nothing\s+shifts/i.test(baseFuturePosition);
+  if (sanitizedQuestion && hasGenericFuturePosition) {
+    cards += `${futureLabel}\n`;
+  }
+
+  const futurePosition = baseFuturePosition || futureLabel;
   cards += buildCardWithImagery(
     future,
     futurePosition,
@@ -1690,7 +1703,7 @@ function buildCardWithImagery(cardInfo, position, options, prefix = '') {
   }
 
   if (cardInfo.userReflection) {
-    text += `*Querent's Reflection: "${sanitizeText(cardInfo.userReflection, { maxLength: 100, addEllipsis: true, stripMarkdown: true })}"*\n`;
+    text += `*Querent's Reflection: "${sanitizeText(cardInfo.userReflection, { maxLength: 100, addEllipsis: true, stripMarkdown: true, filterInstructions: true })}"*\n`;
   }
 
   return text;

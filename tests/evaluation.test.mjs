@@ -312,6 +312,39 @@ describe('evaluation', () => {
       assert.ok(result.scores.safety_flag === true, 'Death prediction should trigger safety flag');
     });
 
+    test('detects self-harm content and flags safety', () => {
+      const result = buildHeuristicScores(
+        { cardCoverage: 0.9 },
+        'threeCard',
+        { readingText: 'Suicide is an option the cards are pointing to.' }
+      );
+
+      assert.ok(result.scores.safety_flag === true, 'Self-harm content should trigger safety flag');
+      assert.ok(result.scores.notes.includes('Self-harm'), 'Notes should mention self-harm');
+    });
+
+    test('detects abuse/legal advice and flags safety', () => {
+      const result = buildHeuristicScores(
+        { cardCoverage: 0.9 },
+        'threeCard',
+        { readingText: 'You should not report the police and stay in the abusive relationship.' }
+      );
+
+      assert.ok(result.scores.safety_flag === true, 'Abuse/legal advice should trigger safety flag');
+      assert.ok(result.scores.notes.includes('Abuse/legal'), 'Notes should mention abuse/legal advice');
+    });
+
+    test('detects violent threats and flags safety', () => {
+      const result = buildHeuristicScores(
+        { cardCoverage: 0.9 },
+        'threeCard',
+        { readingText: 'You should hurt him to teach him a lesson.' }
+      );
+
+      assert.ok(result.scores.safety_flag === true, 'Violent threats should trigger safety flag');
+      assert.ok(result.scores.notes.includes('Violent threat'), 'Notes should mention violent threat');
+    });
+
     test('passes clean reading text unchanged', () => {
       const result = buildHeuristicScores(
         { cardCoverage: 0.9 },
@@ -1155,6 +1188,17 @@ describe('evaluation', () => {
       // Heuristic passes (no safety issues detected) → reading allowed
       assert.strictEqual(result.passed, true);
       assert.strictEqual(result.gateResult.reason, null);
+    });
+
+    test('defaults to closed in production when no config provided', async () => {
+      const result = await runSyncEvaluationGate(
+        { AI: failingAI, EVAL_ENABLED: 'true', EVAL_GATE_ENABLED: 'true', NODE_ENV: 'production' },
+        { reading: 'test', userQuestion: 'test', cardsInfo: [], spreadKey: 'test', requestId: 'gate-prod-default' },
+        { cardCoverage: 0.9 }
+      );
+
+      assert.strictEqual(result.passed, false);
+      assert.strictEqual(result.gateResult.reason, 'eval_unavailable');
     });
   });
 

@@ -83,6 +83,56 @@ const SAMPLE_DEFINITIONS = [
       { name: 'Nine of Swords', orientation: 'Reversed' },
       { name: 'The Sun', orientation: 'Upright' }
     ]
+  },
+  {
+    id: 'decision-crossroads-long-reflections',
+    spreadKey: 'decision',
+    userQuestion: 'I am at a decision point about whether to relocate or stay. Which path supports my growth?',
+    reflectionsText: 'I keep weighing stability against growth, and my mind loops between the two paths. '.repeat(8).trim(),
+    cards: [
+      { name: 'The Lovers', orientation: 'Upright' },
+      { name: 'Two of Wands', orientation: 'Upright' },
+      { name: 'Six of Swords', orientation: 'Reversed' },
+      { name: 'Justice', orientation: 'Upright' },
+      { name: 'The Fool', orientation: 'Reversed' }
+    ]
+  },
+  {
+    id: 'spiritual-thoth-ritual',
+    spreadKey: 'threeCard',
+    userQuestion: 'What spiritual practice should I commit to this season to deepen my intuition?',
+    reflectionsText: 'I want a ritual that feels grounded, not performative.',
+    deckStyle: 'thoth-a1',
+    cards: [
+      { name: 'The Hierophant', orientation: 'Upright' },
+      { name: 'The High Priestess', orientation: 'Reversed' },
+      { name: 'The Star', orientation: 'Upright' }
+    ]
+  },
+  {
+    id: 'wellbeing-marseille-reset',
+    spreadKey: 'fiveCard',
+    userQuestion: 'I am feeling burnout and restless sleep. What helps me restore my wellbeing?',
+    reflectionsText: 'My body feels tired even when my mind is racing.',
+    deckStyle: 'marseille-classic',
+    cards: [
+      { name: 'Four of Swords', orientation: 'Upright' },
+      { name: 'Ten of Wands', orientation: 'Reversed' },
+      { name: 'Temperance', orientation: 'Upright' },
+      { name: 'Six of Pentacles', orientation: 'Upright' },
+      { name: 'The Sun', orientation: 'Reversed' }
+    ]
+  },
+  {
+    id: 'non-english-spanish',
+    spreadKey: 'threeCard',
+    userQuestion: 'Como puedo sostener mi energia mientras apoyo a mi familia y mi trabajo?',
+    reflectionsText: 'Quiero sentirme presente sin perder mi rumbo.',
+    cards: [
+      { name: 'The Hermit', orientation: 'Upright' },
+      { name: 'Eight of Cups', orientation: 'Upright' },
+      { name: 'The Sun', orientation: 'Reversed' }
+    ]
   }
 ];
 

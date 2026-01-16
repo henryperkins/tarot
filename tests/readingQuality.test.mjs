@@ -215,6 +215,14 @@ describe('analyzeCardCoverage', () => {
       const result = analyzeCardCoverage(text, cardsInfo, 'thoth-a1');
       assert.strictEqual(result.coverage, 1, '4 of Disks should count for Four of Pentacles');
     });
+
+    it('uses canonicalName when deck-specific labels are provided', () => {
+      const text = 'Justice brings balance back into the situation.';
+      const cardsInfo = [{ card: 'Adjustment', canonicalName: 'Justice', position: 'Present' }];
+
+      const result = analyzeCardCoverage(text, cardsInfo, 'thoth-a1');
+      assert.strictEqual(result.coverage, 1, 'Canonical name should count as coverage');
+    });
   });
 
   describe('Marseille deck', () => {
@@ -460,7 +468,7 @@ describe('persistReadingMetrics', () => {
       ]
     };
 
-    await persistReadingMetrics({ DB: mockDB }, payload);
+    await persistReadingMetrics({ DB: mockDB, METRICS_STORAGE_MODE: 'full' }, payload);
 
     const query = mockDB.getLastQuery();
     const payloadBinding = query.bindings.find(binding => typeof binding === 'string' && binding.startsWith('{'));
@@ -468,5 +476,28 @@ describe('persistReadingMetrics', () => {
 
     assert.deepStrictEqual(storedPayload.backendErrors, payload.backendErrors);
     assert.deepStrictEqual(storedPayload.backendErrors[0].qualityIssues, ['low card coverage']);
+  });
+
+  it('redacts payload fields by default', async () => {
+    const mockDB = new MockDB();
+    const payload = {
+      requestId: 'metrics-redact-test',
+      spreadKey: 'threeCard',
+      deckStyle: 'rws-1909',
+      provider: 'azure-gpt5',
+      promptEngineering: { system: 'secret', user: 'secret' },
+      backendErrors: [{ backend: 'azure-gpt5', error: 'Nope' }],
+      narrative: { cardCoverage: 0.9 }
+    };
+
+    await persistReadingMetrics({ DB: mockDB }, payload);
+
+    const query = mockDB.getLastQuery();
+    const payloadBinding = query.bindings.find(binding => typeof binding === 'string' && binding.startsWith('{'));
+    const storedPayload = JSON.parse(payloadBinding);
+
+    assert.ok(!('promptEngineering' in storedPayload), 'promptEngineering should be stripped in redacted mode');
+    assert.ok(!('backendErrors' in storedPayload), 'backendErrors should be stripped in redacted mode');
+    assert.ok(storedPayload.narrative, 'narrative metrics should be preserved');
   });
 });

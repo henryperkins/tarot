@@ -25,6 +25,7 @@ import {
   MARSEILLE_SUIT_ALIASES,
   MARSEILLE_COURT_ALIASES
 } from '../../shared/vision/deckAssets.js';
+import { sanitizeMetricsPayload } from './evaluation.js';
 import { validateReadingNarrative } from './narrativeSpine.js';
 import { normalizeVisionLabel } from './visionLabels.js';
 import { MAJOR_ARCANA } from '../../src/data/majorArcana.js';
@@ -616,8 +617,8 @@ export function analyzeCardCoverage(readingText, cardsInfo = [], deckStyle = 'rw
   const candidates = extractCardCandidates(text);
 
   const missingCards = cardsInfo
-    .filter((card) => card && typeof card.card === 'string')
-    .map((cardInfo) => cardInfo.card)
+    .filter((card) => card && (typeof card.canonicalName === 'string' || typeof card.card === 'string'))
+    .map((cardInfo) => cardInfo.canonicalName || cardInfo.card)
     .filter((name) => {
       if (!name) return true;
 
@@ -706,10 +707,11 @@ export function detectHallucinatedCards(readingText, cardsInfo = [], deckStyle =
   // Track canonical keys for drawn cards (always RWS canonical names, lowercased)
   const drawnKeys = new Set(
     safeCards
-      .filter((card) => card && typeof card.card === 'string')
+      .filter((card) => card && (typeof card.canonicalName === 'string' || typeof card.card === 'string'))
       .map((card) => {
-        const canonical = canonicalCardKey(card.card, deckStyle);
-        return canonical || normalizeCardName(card.card);
+        const sourceName = card.canonicalName || card.card;
+        const canonical = canonicalCardKey(sourceName, deckStyle);
+        return canonical || normalizeCardName(sourceName);
       })
       .filter(Boolean)
   );
@@ -951,6 +953,8 @@ export async function persistReadingMetrics(env, payload) {
   }
 
   try {
+    const storageMode = env?.METRICS_STORAGE_MODE;
+    const sanitizedPayload = sanitizeMetricsPayload(payload, storageMode);
     await env.DB.prepare(`
       INSERT INTO eval_metrics (
         request_id, spread_key, deck_style, provider,
@@ -973,7 +977,7 @@ export async function persistReadingMetrics(env, payload) {
       payload.narrative?.cardCoverage ?? null,
       payload.readingPromptVersion || payload.promptMeta?.readingPromptVersion || null,
       payload.variantId || null,
-      JSON.stringify(payload)
+      JSON.stringify(sanitizedPayload)
     ).run();
   } catch (err) {
     console.warn(`[${payload.requestId}] Failed to persist reading metrics: ${err.message}`);

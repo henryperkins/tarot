@@ -5,6 +5,8 @@
  * Designed for async execution via waitUntil to avoid blocking user responses.
  */
 
+import { isProductionEnvironment } from './environment.js';
+
 const EVAL_PROMPT_VERSION = '2.1.0';
 const DEFAULT_MODEL = '@cf/openai/gpt-oss-120b';
 const DEFAULT_TIMEOUT_MS = 5000;
@@ -19,12 +21,13 @@ const MAX_CARDS_INFO_LENGTH = 1500;
 const DEFAULT_METRICS_STORAGE_MODE = 'redact';
 
 // Eval gate failure mode: 'open' or 'closed'
-// - 'open' (default): When AI evaluation fails/times out, trust the heuristic fallback.
+// - 'open' (default in dev): When AI evaluation fails/times out, trust the heuristic fallback.
 //   The heuristic checks for doom language, medical/financial/death advice, hallucinations,
 //   and structural coverage. If heuristic passes, the reading is allowed through.
 //   This preserves availability during Workers AI instability while maintaining safety.
-// - 'closed': Block readings whenever AI evaluation is unavailable, even if heuristic passes.
-//   Use this for maximum safety at the cost of availability during AI outages.
+// - 'closed' (default in production): Block readings whenever AI evaluation is unavailable,
+//   even if heuristic passes. Use this for maximum safety at the cost of availability
+//   during AI outages.
 const DEFAULT_EVAL_GATE_FAILURE_MODE = 'open';
 
 // PII redaction patterns
@@ -71,11 +74,28 @@ const SELF_HARM_RESPONSE_PATTERNS = [
   /\bending\s+(?:your|one's)\s+life\s+(?:is|might|could|would)\b/gi,
 ];
 
+// Broader self-harm patterns for heuristic safety scans (more conservative).
+const SELF_HARM_OUTPUT_PATTERNS = [
+  ...SELF_HARM_RESPONSE_PATTERNS,
+  /\b(?:suicide|suicidal)\b/gi,
+  /\bself[-\s]?harm\b/gi,
+  /\bself[-\s]?injur(?:y|e)\b/gi,
+  /\b(?:kill|harm)\s+(?:yourself|myself|themself|herself|himself)\b/gi,
+  /\b(?:end|take)\s+(?:my|your|their)\s+life\b/gi
+];
+
 // Legal/abuse patterns that models should deflect, not advise on
 const LEGAL_ABUSE_PATTERNS = [
   /\byou\s+should\s+(?:not\s+)?(?:report|tell|inform)\s+(?:the\s+)?(?:police|authorities|cops)\b/gi,
   /\b(?:stay|remain)\s+(?:with|in)\s+(?:the|your)\s+(?:abusive|violent)\s+(?:relationship|partner|situation)\b/gi,
   /\b(?:don't|do\s+not)\s+(?:leave|get\s+out|escape)\b/gi,
+];
+
+// Violent threat/encouragement patterns
+const VIOLENT_THREAT_PATTERNS = [
+  /\b(?:you\s+(?:should|must|need\s+to|have\s+to|ought\s+to|consider|try)|it's\s+time\s+to)\s+(?:hurt|harm|kill|murder|attack|assault|stab|shoot)\s+(?:him|her|them|someone|anyone|that\s+person)\b/gi,
+  /\b(?:hurt|harm|kill|murder|attack|assault|stab|shoot)\s+(?:them|him|her|someone|anyone)\s+(?:so|to)\s+(?:get|make|teach|punish)\b/gi,
+  /\b(?:you|they|someone)\s+(?:will|are\s+going\s+to|might|could)\s+(?:hurt|harm|kill|attack|assault)\s+(?:you|them|him|her)\b/gi
 ];
 
 /**
@@ -108,6 +128,12 @@ export function checkFollowUpSafety(responseText) {
     severity = 'critical';
   }
 
+  // Critical: Violent threats or encouragement
+  if (VIOLENT_THREAT_PATTERNS.some(p => p.test(responseText))) {
+    issues.push('violent-threat');
+    severity = 'critical';
+  }
+
   // Warning: Medical advice (should deflect, not advise)
   if (MEDICAL_ADVICE_PATTERNS.some(p => p.test(responseText))) {
     issues.push('medical-advice');
@@ -134,8 +160,9 @@ export function checkFollowUpSafety(responseText) {
 
   // Reset regex lastIndex (global flag side effect)
   [...SELF_HARM_RESPONSE_PATTERNS, ...DEATH_PREDICTION_PATTERNS,
-   ...MEDICAL_ADVICE_PATTERNS, ...FINANCIAL_ADVICE_PATTERNS,
-   ...LEGAL_ABUSE_PATTERNS, ...DOOM_LANGUAGE_PATTERNS].forEach(p => p.lastIndex = 0);
+   ...VIOLENT_THREAT_PATTERNS, ...MEDICAL_ADVICE_PATTERNS,
+   ...FINANCIAL_ADVICE_PATTERNS, ...LEGAL_ABUSE_PATTERNS,
+   ...DOOM_LANGUAGE_PATTERNS].forEach(p => p.lastIndex = 0);
 
   return {
     safe: severity !== 'critical',
@@ -271,7 +298,7 @@ function sanitizeCardsInfo(cardsInfo) {
   }));
 }
 
-function sanitizeMetricsPayload(metricsPayload = {}, mode = DEFAULT_METRICS_STORAGE_MODE) {
+export function sanitizeMetricsPayload(metricsPayload = {}, mode = DEFAULT_METRICS_STORAGE_MODE) {
   if (mode === 'full') {
     return { ...metricsPayload };
   }
@@ -587,6 +614,7 @@ function normalizeBooleanFlag(value) {
 
 function getEvalGateFailureMode(env) {
   const rawMode = env?.EVAL_GATE_FAILURE_MODE;
+  const defaultMode = isProductionEnvironment(env) ? 'closed' : DEFAULT_EVAL_GATE_FAILURE_MODE;
 
   // Log deprecation warnings for legacy variables without honoring them
   if (env?.EVAL_GATE_FAIL_MODE !== undefined) {
@@ -603,10 +631,10 @@ function getEvalGateFailureMode(env) {
     const normalized = rawMode.trim().toLowerCase();
     if (normalized === 'open') return 'open';
     if (normalized === 'closed') return 'closed';
-    console.warn(`[eval] Invalid EVAL_GATE_FAILURE_MODE value: "${rawMode}". Valid values: open, closed. Defaulting to closed.`);
+    console.warn(`[eval] Invalid EVAL_GATE_FAILURE_MODE value: "${rawMode}". Valid values: open, closed. Defaulting to ${defaultMode}.`);
   }
 
-  return DEFAULT_EVAL_GATE_FAILURE_MODE;
+  return defaultMode;
 }
 
 function collectJsonCandidates(text) {
@@ -1283,9 +1311,35 @@ export function buildHeuristicScores(narrativeMetrics = {}, spreadKey = null, op
       notes.push('Death/mortality prediction detected');
     }
 
+    // Check for self-harm content (triggers flag)
+    const selfHarmMatches = SELF_HARM_OUTPUT_PATTERNS.some(p => p.test(readingText));
+    if (selfHarmMatches) {
+      scores.safety_flag = true;
+      scores.safety = 1;
+      notes.push('Self-harm content detected');
+    }
+
+    // Check for violent threats/encouragement (triggers flag)
+    const violentMatches = VIOLENT_THREAT_PATTERNS.some(p => p.test(readingText));
+    if (violentMatches) {
+      scores.safety_flag = true;
+      scores.safety = 1;
+      notes.push('Violent threat detected');
+    }
+
+    // Check for legal/abuse advice (triggers flag)
+    const abuseMatches = LEGAL_ABUSE_PATTERNS.some(p => p.test(readingText));
+    if (abuseMatches) {
+      scores.safety_flag = true;
+      scores.safety = Math.min(scores.safety, 2);
+      notes.push('Abuse/legal advice detected');
+    }
+
     // Reset regex lastIndex (global flag side effect)
     [...DOOM_LANGUAGE_PATTERNS, ...MEDICAL_ADVICE_PATTERNS,
-     ...FINANCIAL_ADVICE_PATTERNS, ...DEATH_PREDICTION_PATTERNS].forEach(p => p.lastIndex = 0);
+     ...FINANCIAL_ADVICE_PATTERNS, ...DEATH_PREDICTION_PATTERNS,
+     ...SELF_HARM_OUTPUT_PATTERNS, ...VIOLENT_THREAT_PATTERNS,
+     ...LEGAL_ABUSE_PATTERNS].forEach(p => p.lastIndex = 0);
   }
 
   // Derive tarot_coherence from card coverage (the only structural dimension we can assess)

@@ -21,6 +21,8 @@ import {
 } from '../lib/promptEngineering.js';
 import {
   scheduleEvaluation,
+  buildHeuristicScores,
+  checkEvalGate,
   runSyncEvaluationGate,
   generateSafeFallbackReading
 } from '../lib/evaluation.js';
@@ -31,6 +33,7 @@ import { applyGraphRAGAlerts } from '../lib/graphRAGAlerts.js';
 import { getUserFromRequest } from '../lib/auth.js';
 import { enforceApiCallLimit } from '../lib/apiUsage.js';
 import { buildTierLimitedPayload, getSubscriptionContext } from '../lib/entitlements.js';
+import { canonicalCardKey, canonicalizeCardName } from '../../shared/vision/cardNameMapping.js';
 import {
   loadActiveExperiments,
   getABAssignment,
@@ -106,7 +109,8 @@ async function finalizeReading({
   personalization,
   backendErrors = [],
   acceptedQualityMetrics = null,
-  allowGateBlocking = true
+  allowGateBlocking = true,
+  gateOverride = null
 }) {
   const originalReading = reading;
   const originalProvider = provider;
@@ -160,18 +164,26 @@ async function finalizeReading({
   const baseNarrativeMetrics = acceptedQualityMetrics || buildNarrativeMetrics(originalReading, cardsInfo, deckStyle);
   let finalNarrativeMetrics = baseNarrativeMetrics;
 
-  const gateResult = await runSyncEvaluationGate(
-    env,
-    evalParams,
-    baseNarrativeMetrics
-  );
+  const gateResult = gateOverride?.blocked
+    ? {
+      passed: false,
+      evalResult: gateOverride.evalResult || null,
+      gateResult: { reason: gateOverride.reason || 'stream_safety' },
+      latencyMs: gateOverride.latencyMs || 0
+    }
+    : await runSyncEvaluationGate(
+      env,
+      evalParams,
+      baseNarrativeMetrics
+    );
 
   evalGateResult = gateResult;
 
   if (!gateResult.passed) {
     wasGateBlocked = true;
     if (allowGateBlocking) {
-      console.warn(`[${requestId}] Evaluation gate blocked reading, using safe fallback`);
+      const gateLabel = gateOverride?.blocked ? 'Safety scan' : 'Evaluation gate';
+      console.warn(`[${requestId}] ${gateLabel} blocked reading, using safe fallback`);
 
       finalReading = generateSafeFallbackReading({
         spreadKey: analysis.spreadKey,
@@ -380,7 +392,7 @@ export const onRequestPost = async ({ request, env, waitUntil }) => {
     const normalizedPayload = schemaResult.data;
     const {
       spreadInfo,
-      cardsInfo,
+      cardsInfo: rawCardsInfo,
       userQuestion,
       reflectionsText,
       reversalFrameworkOverride,
@@ -391,6 +403,20 @@ export const onRequestPost = async ({ request, env, waitUntil }) => {
       persistLocationToJournal: _persistLocationToJournal // Used by journal endpoint, not reading
     } = normalizedPayload;
     const deckStyle = requestDeckStyle || spreadInfo?.deckStyle || 'rws-1909';
+    const cardsInfo = rawCardsInfo.map((card) => {
+      const canonicalName = card?.canonicalName ||
+        canonicalizeCardName(card?.card, deckStyle) ||
+        card?.card ||
+        null;
+      const canonicalKey = card?.canonicalKey ||
+        canonicalCardKey(canonicalName || card?.card, deckStyle) ||
+        null;
+      return {
+        ...card,
+        canonicalName,
+        canonicalKey
+      };
+    });
 
     // Sanitize location: validate ranges, strip excess fields, keep only needed data
     let sanitizedLocation = null;
@@ -681,6 +707,7 @@ export const onRequestPost = async ({ request, env, waitUntil }) => {
     const wantsAzureStreaming = useStreaming && tokenStreamingEnabled && azureStreamingAvailable;
     const canUseAzureStreaming = wantsAzureStreaming && allowStreamingGateBypass;
     const shouldGateStreaming = canUseAzureStreaming && evalGateEnabled;
+    const shouldSafetyScanStreaming = canUseAzureStreaming && !evalGateEnabled;
 
     if (useStreaming && tokenStreamingEnabled && !allowStreamingGateBypass) {
       const reason = evalGateEnabled
@@ -689,6 +716,8 @@ export const onRequestPost = async ({ request, env, waitUntil }) => {
       console.warn(`[${requestId}] Token streaming disabled (${reason}); falling back to buffered streaming.`);
     } else if (useStreaming && tokenStreamingEnabled && evalGateEnabled && allowStreamingGateBypass) {
       console.warn(`[${requestId}] Token streaming enabled with eval gate; buffering output before streaming to enforce gate.`);
+    } else if (useStreaming && tokenStreamingEnabled && !evalGateEnabled && allowStreamingGateBypass) {
+      console.warn(`[${requestId}] Token streaming enabled without eval gate; buffering output for safety scan.`);
     }
 
     if (useStreaming && tokenStreamingEnabled && !azureStreamingAvailable) {
@@ -754,7 +783,7 @@ export const onRequestPost = async ({ request, env, waitUntil }) => {
 
         const transformedStream = transformAzureStream(azureStream);
 
-        if (shouldGateStreaming) {
+        if (shouldGateStreaming || shouldSafetyScanStreaming) {
           // Buffer streamed output so the eval gate can block before we emit SSE.
           const collected = await collectSSEStreamText(transformedStream);
           if (collected.error || collected.sawError) {
@@ -768,6 +797,20 @@ export const onRequestPost = async ({ request, env, waitUntil }) => {
             console.warn(`[${requestId}] Streaming completed with empty reading text - releasing quota`);
             await releaseReadingReservation(env, readingReservation);
             return createSSEErrorResponse('Failed to generate reading.', 503);
+          }
+
+          let gateOverride = null;
+          if (shouldSafetyScanStreaming) {
+            const safetyEval = buildHeuristicScores({}, analysis.spreadKey, { readingText: finalText });
+            const safetyGate = checkEvalGate(safetyEval);
+            if (safetyGate.shouldBlock) {
+              gateOverride = {
+                blocked: true,
+                reason: safetyGate.reason,
+                evalResult: safetyEval
+              };
+              console.warn(`[${requestId}] Streaming safety scan blocked output (${safetyGate.reason})`);
+            }
           }
 
           const { responsePayload } = await finalizeReading({
@@ -792,7 +835,8 @@ export const onRequestPost = async ({ request, env, waitUntil }) => {
             personalization,
             backendErrors: [],
             acceptedQualityMetrics: null,
-            allowGateBlocking: true
+            allowGateBlocking: true,
+            gateOverride
           });
 
           return createSSEResponse(createReadingStream(responsePayload));

@@ -38,6 +38,13 @@ describe('checkFollowUpSafety', () => {
       assert.equal(result.severity, 'critical');
       assert.ok(result.issues.includes('death-prediction'));
     });
+
+    it('flags violent threats as critical', () => {
+      const result = checkFollowUpSafety('You should hurt him to make a point');
+      assert.equal(result.safe, false);
+      assert.equal(result.severity, 'critical');
+      assert.ok(result.issues.includes('violent-threat'));
+    });
   });
 
   describe('warning-level safety issues', () => {

@@ -298,7 +298,7 @@ export function buildFollowUpPrompt({
 
     recentHistory.forEach(msg => {
       const role = msg.role === 'user' ? 'Querent' : 'Reader (prior response)';
-      const safeContent = sanitizePromptValue(msg.content, { maxLength: MAX_HISTORY_MESSAGE_LENGTH }) || '[message omitted]';
+      const safeContent = sanitizePromptValue(msg.content, { maxLength: MAX_HISTORY_MESSAGE_LENGTH, filterInstructions: true }) || '[message omitted]';
       userLines.push(`**${role}**: ${safeContent}`, '');
     });
   }
@@ -308,7 +308,7 @@ export function buildFollowUpPrompt({
   const cardsInfo = Array.isArray(originalReading?.cardsInfo) ? originalReading.cardsInfo : [];
 
   if (originalReading?.userQuestion) {
-    const safeOriginalQuestion = sanitizePromptValue(originalReading.userQuestion, { maxLength: 300 });
+    const safeOriginalQuestion = sanitizePromptValue(originalReading.userQuestion, { maxLength: 300, filterInstructions: true });
     userLines.push(`**Original Question**: "${safeOriginalQuestion || 'Open reflection (no specific question asked)'}"`);
   } else {
     userLines.push('**Original Question**: Open reflection (no specific question asked)');
@@ -434,7 +434,7 @@ export function buildCondensedContext(originalReading) {
   }
   
   if (typeof originalReading.userQuestion === 'string' && originalReading.userQuestion.trim()) {
-    const safeQuestion = sanitizePromptValue(originalReading.userQuestion, { maxLength: 100 });
+    const safeQuestion = sanitizePromptValue(originalReading.userQuestion, { maxLength: 100, filterInstructions: true });
     lines.push(`Question: ${safeQuestion}`);
   }
   

@@ -11,6 +11,7 @@ import {
   shouldSurfaceAstroLens,
   shouldSurfaceQabalahLens
 } from '../esotericMeta.js';
+import { filterInstructionPatterns } from '../utils.js';
 import { getDeckAlias } from '../../../shared/vision/deckAssets.js';
 import { THOTH_MINOR_TITLES, MARSEILLE_NUMERICAL_THEMES } from '../../../src/data/knowledgeGraphData.js';
 import { SYMBOL_ANNOTATIONS } from '../symbolAnnotations.js';
@@ -83,7 +84,8 @@ export function getSectionHeader(sectionKey, options = {}) {
  */
 export function sanitizePromptValue(text, maxLength = 500) {
   if (!text || typeof text !== 'string') return '';
-  const trimmed = text.slice(0, maxLength);
+  let trimmed = text.slice(0, maxLength);
+  trimmed = filterInstructionPatterns(trimmed);
   return trimmed
     .replace(/[`#*_>]/g, '')   // strip markdown/control symbols
     .replace(/\r?\n+/g, ' ')   // flatten newlines

@@ -176,6 +176,12 @@ export function buildAzureGPT5Prompts(env, payload, requestId = 'unknown') {
     analysis.graphRAGPayload?.enableSemanticScoring ?? null
   );
 
+  const effectiveGraphRAGPayload =
+    analysis?.graphRAGPayload ||
+    payload?.graphRAGPayload ||
+    analysis?.themes?.knowledgeGraph?.graphRAGPayload ||
+    null;
+
   // Build enhanced prompts using narrative builder
   const { systemPrompt, userPrompt, promptMeta, contextDiagnostics: promptDiagnostics } = buildEnhancedClaudePrompt({
     spreadInfo,
@@ -187,7 +193,7 @@ export function buildAzureGPT5Prompts(env, payload, requestId = 'unknown') {
     context,
     visionInsights,
     deckStyle,
-    graphRAGPayload: analysis.graphRAGPayload,
+    graphRAGPayload: effectiveGraphRAGPayload,
     ephemerisContext: analysis.ephemerisContext,
     ephemerisForecast: analysis.ephemerisForecast,
     transitResonances: analysis.transitResonances,
@@ -324,6 +330,12 @@ export async function generateWithClaudeOpus45(env, payload, requestId = 'unknow
     analysis.graphRAGPayload?.enableSemanticScoring ?? null
   );
 
+  const effectiveGraphRAGPayload =
+    analysis?.graphRAGPayload ||
+    payload?.graphRAGPayload ||
+    analysis?.themes?.knowledgeGraph?.graphRAGPayload ||
+    null;
+
   // Build enhanced prompts using narrative builder
   const { systemPrompt, userPrompt, promptMeta, contextDiagnostics: promptDiagnostics } = buildEnhancedClaudePrompt({
     spreadInfo,
@@ -335,7 +347,7 @@ export async function generateWithClaudeOpus45(env, payload, requestId = 'unknow
     context,
     visionInsights,
     deckStyle,
-    graphRAGPayload: analysis.graphRAGPayload,
+    graphRAGPayload: effectiveGraphRAGPayload,
     ephemerisContext: analysis.ephemerisContext,
     ephemerisForecast: analysis.ephemerisForecast,
     transitResonances: analysis.transitResonances,
