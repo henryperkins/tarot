@@ -24,7 +24,9 @@ export function MobileInfoSection({
   children,
   variant = 'inline',
   defaultOpen = false,
-  className = ''
+  className = '',
+  buttonClassName = '',
+  contentClassName = ''
 }) {
   const [isOpen, setIsOpen] = useState(defaultOpen);
   const contentId = useId();
@@ -61,12 +63,16 @@ export function MobileInfoSection({
     ? 'opacity-100 max-h-[500px] mt-2'
     : 'opacity-0 max-h-0 overflow-hidden';
 
+  const mergedButtonClass = isInline
+    ? `${baseButtonClass} ${buttonClassName}`
+    : `${blockButtonClass} ${buttonClassName}`;
+
   return (
     <div className={`${className}`}>
       <button
         type="button"
         onClick={() => setIsOpen(prev => !prev)}
-        className={isInline ? baseButtonClass : blockButtonClass}
+        className={mergedButtonClass}
         aria-expanded={isOpen}
         aria-controls={contentId}
       >
@@ -105,6 +111,7 @@ export function MobileInfoSection({
           px-3 py-2.5
           text-sm text-muted leading-relaxed
           ${isInline ? '' : 'ml-7'}
+          ${contentClassName}
         `}>
           {children}
         </div>

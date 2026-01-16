@@ -210,7 +210,7 @@ export function useVisionAnalysis(reading = []) {
     const response = await fetch('/api/vision-proof', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ deckStyle: deckStyleId, evidence })
+      body: JSON.stringify({ deckStyle: deckStyleId, evidence, backendId: 'clip-default' })
     });
 
     if (!response.ok) {

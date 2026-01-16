@@ -213,7 +213,7 @@ async function completeReading(page, question = 'What should I focus on?') {
   await expect(generateButton).toBeVisible({ timeout: 8000 });
   await generateButton.click();
 
-  await expect(page.getByText('Your narrative is ready')).toBeVisible({ timeout: 10000 });
+  await expect(page.getByRole('button', { name: /open (follow-up )?chat/i })).toBeVisible({ timeout: 10000 });
 }
 
 async function openFollowUpModal(page) {

@@ -113,6 +113,95 @@ export function createReadingStream(responsePayload, options = {}) {
 }
 
 // ============================================================================
+// Stream Collection (Buffered Gate Support)
+// ============================================================================
+
+/**
+ * Collect full text from an SSE stream that emits delta/done/error events.
+ *
+ * @param {ReadableStream} stream - SSE stream with delta/done events
+ * @returns {Promise<{ fullText: string, error: string|null, sawError: boolean, donePayload: Object|null }>}
+ */
+export async function collectSSEStreamText(stream) {
+  const decoder = new TextDecoder();
+  let buffer = '';
+  let fullText = '';
+  let donePayload = null;
+  let errorMessage = null;
+  let sawError = false;
+
+  const reader = stream.getReader();
+
+  const processEventBlock = (eventBlock) => {
+    if (!eventBlock.trim()) return;
+
+    const lines = eventBlock.split(/\r?\n/);
+    let eventType = '';
+    let eventData = '';
+
+    for (const line of lines) {
+      if (line.startsWith('event:')) {
+        eventType = line.slice(6).trim();
+      } else if (line.startsWith('data:')) {
+        eventData = line.slice(5).trim();
+      }
+    }
+
+    if (!eventType || !eventData) return;
+
+    try {
+      const data = JSON.parse(eventData);
+      if (eventType === 'delta' && data?.text) {
+        fullText += data.text;
+      } else if (eventType === 'done') {
+        donePayload = data;
+        if (typeof data?.fullText === 'string') {
+          fullText = data.fullText;
+        }
+      } else if (eventType === 'error') {
+        sawError = true;
+        errorMessage = data?.message || 'Streaming error';
+      }
+    } catch {
+      // Ignore parse errors for malformed events
+    }
+  };
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+      const events = buffer.split(/\r?\n\r?\n/);
+      buffer = events.pop() || '';
+
+      events.forEach(processEventBlock);
+    }
+
+    const finalChunk = decoder.decode();
+    if (finalChunk) {
+      buffer += finalChunk;
+    }
+    if (buffer.trim()) {
+      processEventBlock(buffer);
+    }
+  } catch (error) {
+    sawError = true;
+    errorMessage = error?.message || 'Streaming error';
+  } finally {
+    reader.releaseLock();
+  }
+
+  return {
+    fullText,
+    error: errorMessage,
+    sawError,
+    donePayload
+  };
+}
+
+// ============================================================================
 // Real-time Stream Wrapping
 // ============================================================================
 

@@ -125,7 +125,8 @@ export function sanitizeText(text, options = {}) {
     addEllipsis = false,
     stripMarkdown = false,
     stripControlChars = false,
-    collapseWhitespace = true
+    collapseWhitespace = true,
+    filterInstructions = false
   } = options;
 
   if (typeof text !== 'string') return '';
@@ -142,6 +143,12 @@ export function sanitizeText(text, options = {}) {
     result = result.replace(/[#*_`>|[\]{}<>]/g, ' ');
   }
 
+  // Filter prompt injection patterns if requested
+  // Removes common patterns used to override system instructions
+  if (filterInstructions) {
+    result = filterInstructionPatterns(result);
+  }
+
   // Collapse whitespace (newlines, multiple spaces) to single space
   if (collapseWhitespace) {
     result = result.replace(/\s+/g, ' ');
@@ -155,6 +162,58 @@ export function sanitizeText(text, options = {}) {
     if (addEllipsis) {
       result += '...';
     }
+  }
+
+  return result;
+}
+
+/**
+ * Patterns that indicate prompt injection attempts.
+ * These are filtered from user input to prevent instruction override attacks.
+ */
+const INSTRUCTION_OVERRIDE_PATTERNS = [
+  // Direct instruction overrides
+  /ignore\s+(?:all\s+)?(?:the\s+)?(?:previous|prior|above|system|developer)\s+(?:instructions?|prompts?|rules?|guidelines?)/gi,
+  /disregard\s+(?:all\s+)?(?:the\s+)?(?:previous|prior|above|system|developer)\s+(?:instructions?|prompts?|rules?|guidelines?)/gi,
+  /forget\s+(?:all\s+)?(?:the\s+)?(?:previous|prior|above|system|developer)\s+(?:instructions?|prompts?|rules?|guidelines?)/gi,
+  /override\s+(?:all\s+)?(?:the\s+)?(?:previous|prior|above|system|developer)\s+(?:instructions?|prompts?|rules?|guidelines?)/gi,
+
+  // Role/persona injection
+  /you\s+are\s+now\s+(?:a\s+)?(?:different|new|evil|unrestricted)/gi,
+  /pretend\s+(?:you(?:'re|\s+are)\s+)?(?:a\s+)?(?:different|new|evil|unrestricted)/gi,
+  /act\s+as\s+(?:if\s+)?(?:you(?:'re|\s+are)\s+)?(?:a\s+)?(?:different|new)/gi,
+
+  // System prompt extraction
+  /(?:reveal|show|display|print|output)\s+(?:your\s+)?(?:system\s+)?(?:prompt|instructions?|rules?)/gi,
+  /what\s+(?:are\s+)?your\s+(?:system\s+)?(?:instructions?|rules?|guidelines?)/gi,
+
+  // Jailbreak patterns
+  /\bdan\s+mode\b/gi,
+  /\bjailbreak\b/gi,
+  /\bdeveloper\s+mode\b/gi,
+  /\bunrestricted\s+mode\b/gi,
+
+  // Boundary markers that might confuse the model
+  /```\s*system\b/gi,
+  /\[system\]/gi,
+  /\[developer\]/gi,
+  /<\s*system\s*>/gi
+];
+
+/**
+ * Filter prompt injection patterns from user input.
+ * Replaces matched patterns with neutral placeholder text.
+ *
+ * @param {string} text - User input text
+ * @returns {string} Filtered text with injection patterns removed
+ */
+export function filterInstructionPatterns(text) {
+  if (!text || typeof text !== 'string') return '';
+
+  let result = text;
+  for (const pattern of INSTRUCTION_OVERRIDE_PATTERNS) {
+    result = result.replace(pattern, '[filtered]');
+    pattern.lastIndex = 0; // Reset global regex state
   }
 
   return result;

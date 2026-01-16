@@ -3,6 +3,7 @@
  * Displays scope selector, hero cards, stats constellation, and mobile layout
  */
 
+import { useEffect, useState } from 'react';
 import { CaretDown } from '@phosphor-icons/react';
 import { getCanonicalCard } from '../../lib/cardLookup';
 import {
@@ -39,6 +40,14 @@ export function JournalSummaryBand({
   onExpandedCardChange,
   onStartReading
 }) {
+  const [isExpanded, setIsExpanded] = useState(!isMobileLayout);
+
+  useEffect(() => {
+    if (!isMobileLayout) {
+      setIsExpanded(true);
+    }
+  }, [isMobileLayout]);
+
   return (
     <section
       ref={summaryRef}
@@ -150,73 +159,77 @@ export function JournalSummaryBand({
 
         {/* Mobile: Clean organized layout */}
         <div className="lg:hidden space-y-4">
-          {/* Stats row - 2 clean cards */}
-          <div className="grid grid-cols-2 gap-3">
-            {summaryCardData.slice(0, 2).map((stat) => {
-              const icon = stat.id === 'entries'
-                ? <JournalCardsAddIcon className="h-4 w-4" aria-hidden />
-                : <JournalPercentCircleIcon className="h-4 w-4" aria-hidden />;
-              return (
-                <div
-                  key={stat.id}
-                  className="rounded-xl border border-amber-300/15 bg-gradient-to-b from-[#0f0d18] to-[#0a0912] p-3 text-center"
-                >
-                  <div className="mx-auto mb-2 flex h-8 w-8 items-center justify-center rounded-full bg-amber-200/10 text-amber-200/70">
-                    {icon}
-                  </div>
-                  <p className="text-2xl font-serif text-amber-50">{stat.value}</p>
-                  <p className="text-xs uppercase tracking-wide text-amber-100/50 mt-1">{stat.label}</p>
-                </div>
-              );
-            })}
-          </div>
+          {isExpanded && (
+            <>
+              {/* Stats row - 2 clean cards */}
+              <div className="grid grid-cols-2 gap-3">
+                {summaryCardData.slice(0, 2).map((stat) => {
+                  const icon = stat.id === 'entries'
+                    ? <JournalCardsAddIcon className="h-4 w-4" aria-hidden />
+                    : <JournalPercentCircleIcon className="h-4 w-4" aria-hidden />;
+                  return (
+                    <div
+                      key={stat.id}
+                      className="rounded-xl border border-amber-300/15 bg-gradient-to-b from-[#0f0d18] to-[#0a0912] p-3 text-center"
+                    >
+                      <div className="mx-auto mb-2 flex h-8 w-8 items-center justify-center rounded-full bg-amber-200/10 text-amber-200/70">
+                        {icon}
+                      </div>
+                      <p className="text-2xl font-serif text-amber-50">{stat.value}</p>
+                      <p className="text-xs uppercase tracking-wide text-amber-100/50 mt-1">{stat.label}</p>
+                    </div>
+                  );
+                })}
+              </div>
 
-          {/* Hero card - Latest reading with clear tap affordance */}
-          {heroEntry && heroCards.length > 0 && (() => {
-            const card = heroCards[0];
-            const canonical = getCanonicalCard(card);
-            const isReversed = (card.orientation || '').toLowerCase().includes('reversed');
-            const meaning = isReversed ? canonical?.reversed : canonical?.upright;
-            const isExpanded = expandedCardIndex === 0;
+              {/* Hero card - Latest reading with clear tap affordance */}
+              {heroEntry && heroCards.length > 0 && (() => {
+                const card = heroCards[0];
+                const canonical = getCanonicalCard(card);
+                const isReversed = (card.orientation || '').toLowerCase().includes('reversed');
+                const meaning = isReversed ? canonical?.reversed : canonical?.upright;
+                const isCardExpanded = expandedCardIndex === 0;
 
-            return (
-              <button
-                type="button"
-                onClick={() => onExpandedCardChange(isExpanded ? null : 0)}
-                aria-expanded={isExpanded}
-                aria-label={`${card.name}, ${card.orientation}. Tap for insight.`}
-                className="w-full rounded-xl border border-amber-300/15 bg-gradient-to-b from-[#0f0d18] to-[#0a0912] p-3 text-left transition-all hover:border-amber-300/25 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/60"
-              >
-                <div className="flex items-center gap-3">
-                  {/* Card thumbnail */}
-                  <div className="relative w-14 h-20 flex-shrink-0 overflow-hidden rounded-lg border border-amber-300/20">
-                    <img
-                      src={card.image}
-                      alt={card.name}
-                      className="h-full w-full object-cover"
-                      loading="lazy"
-                    />
-                  </div>
-                  {/* Card info */}
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs uppercase tracking-wide text-amber-100/50 mb-0.5">Latest card</p>
-                    <p className="font-serif text-base text-amber-50 truncate">{card.name}</p>
-                    <p className="text-xs text-amber-100/60">{card.orientation} · {heroDateLabel}</p>
-                  </div>
-                  {/* Chevron indicator */}
-                  <div className={`flex-shrink-0 text-amber-200/50 transition-transform ${isExpanded ? 'rotate-180' : ''}`}>
-                    <CaretDown className="h-5 w-5" aria-hidden />
-                  </div>
-                </div>
-                {/* Expandable insight */}
-                {isExpanded && meaning && (
-                  <div className="mt-3 pt-3 border-t border-amber-200/10">
-                    <p className="text-xs text-amber-100/80 leading-relaxed">{meaning}</p>
-                  </div>
-                )}
-              </button>
-            );
-          })()}
+                return (
+                  <button
+                    type="button"
+                    onClick={() => onExpandedCardChange(isCardExpanded ? null : 0)}
+                    aria-expanded={isCardExpanded}
+                    aria-label={`${card.name}, ${card.orientation}. Tap for insight.`}
+                    className="w-full rounded-xl border border-amber-300/15 bg-gradient-to-b from-[#0f0d18] to-[#0a0912] p-3 text-left transition-all hover:border-amber-300/25 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/60"
+                  >
+                    <div className="flex items-center gap-3">
+                      {/* Card thumbnail */}
+                      <div className="relative w-14 h-20 flex-shrink-0 overflow-hidden rounded-lg border border-amber-300/20">
+                        <img
+                          src={card.image}
+                          alt={card.name}
+                          className="h-full w-full object-cover"
+                          loading="lazy"
+                        />
+                      </div>
+                      {/* Card info */}
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs uppercase tracking-wide text-amber-100/50 mb-0.5">Latest card</p>
+                        <p className="font-serif text-base text-amber-50 truncate">{card.name}</p>
+                        <p className="text-xs text-amber-100/60">{card.orientation} · {heroDateLabel}</p>
+                      </div>
+                      {/* Chevron indicator */}
+                      <div className={`flex-shrink-0 text-amber-200/50 transition-transform ${isCardExpanded ? 'rotate-180' : ''}`}>
+                        <CaretDown className="h-5 w-5" aria-hidden />
+                      </div>
+                    </div>
+                    {/* Expandable insight */}
+                    {isCardExpanded && meaning && (
+                      <div className="mt-3 pt-3 border-t border-amber-200/10">
+                        <p className="text-xs text-amber-100/80 leading-relaxed">{meaning}</p>
+                      </div>
+                    )}
+                  </button>
+                );
+              })()}
+            </>
+          )}
 
           {/* CTAs - Clear actions */}
           <div className="flex gap-3">
@@ -228,19 +241,30 @@ export function JournalSummaryBand({
               <JournalPlusCircleIcon className="h-4 w-4" aria-hidden />
               New Reading
             </button>
-            <button
-              type="button"
-              onClick={() => {
-                const journeySection = document.querySelector('[aria-label="Journal insights and journey"]');
-                if (journeySection) {
-                  journeySection.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                }
-              }}
-              className="flex-1 inline-flex items-center justify-center gap-2 rounded-full border border-amber-300/30 bg-amber-200/5 px-4 py-3 text-sm font-medium text-amber-100 transition hover:bg-amber-200/10 hover:border-amber-300/40 min-h-[44px]"
-            >
-              See Journey
-              <CaretDown className="h-4 w-4" aria-hidden />
-            </button>
+            {isExpanded ? (
+              <button
+                type="button"
+                onClick={() => {
+                  const journeySection = document.querySelector('[aria-label="Journal insights and journey"]');
+                  if (journeySection) {
+                    journeySection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                  }
+                }}
+                className="flex-1 inline-flex items-center justify-center gap-2 rounded-full border border-amber-300/30 bg-amber-200/5 px-4 py-3 text-sm font-medium text-amber-100 transition hover:bg-amber-200/10 hover:border-amber-300/40 min-h-[44px]"
+              >
+                See Journey
+                <CaretDown className="h-4 w-4" aria-hidden />
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setIsExpanded(true)}
+                className="flex-1 inline-flex items-center justify-center gap-2 rounded-full border border-amber-300/30 bg-amber-200/5 px-4 py-3 text-sm font-medium text-amber-100 transition hover:bg-amber-200/10 hover:border-amber-300/40 min-h-[44px]"
+              >
+                Show Details
+                <CaretDown className="h-4 w-4" aria-hidden />
+              </button>
+            )}
           </div>
         </div>
 

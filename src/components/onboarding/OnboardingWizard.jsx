@@ -478,34 +478,33 @@ export function OnboardingWizard({ isOpen, onComplete, onSelectSpread, initialSp
                   />
                 </div>
               </div>
+              {isSmallScreen && (
+                <div className="mt-2 flex flex-wrap items-center gap-2 px-2 xxs:px-3 sm:px-6 pb-2 pl-safe-left pr-safe-right">
+                  <div className="flex items-center gap-2">
+                    <span className="rounded-full border border-secondary/40 bg-main/60 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-main">
+                      Step {currentStep} of {totalSteps}
+                    </span>
+                    <span className="text-[11px] text-muted">Progress auto-saves</span>
+                  </div>
+                  <div className="flex items-center gap-2 ml-auto flex-wrap">
+                    <button
+                      type="button"
+                      onClick={handleSkipRequest}
+                      className="min-h-[44px] rounded-full border border-secondary/30 px-3 text-xs-plus font-semibold text-muted hover:text-main hover:border-secondary/50 transition touch-manipulation"
+                    >
+                      Skip for now
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleResumeRequest}
+                      className="min-h-[44px] rounded-full bg-gradient-to-r from-accent/80 to-primary/80 px-3 text-xs-plus font-semibold text-main shadow-md shadow-primary/30 hover:from-accent hover:to-primary transition touch-manipulation"
+                    >
+                      Save & resume later
+                    </button>
+                  </div>
+                </div>
+              )}
             </header>
-
-            {isSmallScreen && (
-              <div className="z-20 flex flex-wrap items-center gap-2 px-3 xxs:px-4 sm:px-6 py-2 bg-surface/80 border-b border-secondary/15">
-                <div className="flex items-center gap-2">
-                  <span className="rounded-full border border-secondary/40 bg-main/60 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-main">
-                    Step {currentStep} of {totalSteps}
-                  </span>
-                  <span className="text-[11px] text-muted">Progress auto-saves</span>
-                </div>
-                <div className="flex items-center gap-2 ml-auto flex-wrap">
-                  <button
-                    type="button"
-                    onClick={handleSkipRequest}
-                    className="min-h-[44px] rounded-full border border-secondary/30 px-3 text-xs-plus font-semibold text-muted hover:text-main hover:border-secondary/50 transition touch-manipulation"
-                  >
-                    Skip for now
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleResumeRequest}
-                    className="min-h-[44px] rounded-full bg-gradient-to-r from-accent/80 to-primary/80 px-3 text-xs-plus font-semibold text-main shadow-md shadow-primary/30 hover:from-accent hover:to-primary transition touch-manipulation"
-                  >
-                    Save & resume later
-                  </button>
-                </div>
-              </div>
-            )}
 
             {/* Main content area - scrollable with swipe navigation */}
             <main

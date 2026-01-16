@@ -231,6 +231,125 @@ function truncateToTokenBudget(text, maxTokens) {
   };
 }
 
+/**
+ * Critical sections that MUST be preserved during system prompt truncation.
+ * These contain safety, ethics, and core behavior guidance.
+ * Ordered by priority (highest first).
+ */
+const CRITICAL_SECTION_MARKERS = [
+  { start: 'ETHICS', end: null },           // Ethics guidance - never truncate
+  { start: 'CORE PRINCIPLES', end: null },  // Core behavior rules - never truncate
+  { start: 'MODEL DIRECTIVES:', end: null } // Model behavior directives - never truncate
+];
+
+/**
+ * Extract critical sections from a system prompt that must be preserved.
+ *
+ * @param {string} text - System prompt text
+ * @returns {{ sections: Array<{marker: string, content: string, startIdx: number}>, totalChars: number }}
+ */
+function extractCriticalSections(text) {
+  if (!text) return { sections: [], totalChars: 0 };
+
+  const sections = [];
+  let totalChars = 0;
+
+  for (const marker of CRITICAL_SECTION_MARKERS) {
+    const startIdx = text.indexOf(marker.start);
+    if (startIdx === -1) continue;
+
+    // Find the end of this section (next major section or end of text)
+    let endIdx = text.length;
+    const searchStart = startIdx + marker.start.length;
+
+    // Look for next section marker (common patterns: all-caps line or ## heading)
+    const nextSectionMatch = text.slice(searchStart).match(/\n(?:[A-Z][A-Z\s]+:?\n|## )/);
+    if (nextSectionMatch) {
+      endIdx = searchStart + nextSectionMatch.index;
+    }
+
+    const content = text.slice(startIdx, endIdx).trim();
+    sections.push({ marker: marker.start, content, startIdx });
+    totalChars += content.length;
+  }
+
+  return { sections, totalChars };
+}
+
+/**
+ * Section-aware truncation for system prompts.
+ * Preserves critical safety sections (ETHICS, CORE PRINCIPLES, MODEL DIRECTIVES)
+ * even when aggressive truncation is needed.
+ *
+ * @param {string} text - System prompt text to truncate
+ * @param {number} maxTokens - Maximum tokens allowed
+ * @returns {{ text: string, truncated: boolean, originalTokens: number, preservedSections: string[] }}
+ */
+function truncateSystemPromptSafely(text, maxTokens) {
+  if (!text || typeof text !== 'string') {
+    return { text: '', truncated: false, originalTokens: 0, preservedSections: [] };
+  }
+
+  const originalTokens = estimateTokenCount(text);
+  if (originalTokens <= maxTokens) {
+    return { text, truncated: false, originalTokens, preservedSections: [] };
+  }
+
+  // Extract critical sections that must be preserved
+  const { sections: criticalSections, totalChars: criticalChars } = extractCriticalSections(text);
+  const criticalTokens = estimateTokenCount(text.slice(0, criticalChars)); // Rough estimate
+
+  // If critical sections alone exceed budget, we have a serious problem - log and do basic truncation
+  if (criticalTokens > maxTokens * 0.8) {
+    console.error('[prompts] CRITICAL: Safety sections exceed 80% of token budget - truncation may compromise safety guidance');
+    return truncateToTokenBudget(text, maxTokens);
+  }
+
+  // Budget for non-critical content
+  const availableForOther = maxTokens - criticalTokens;
+  const targetChars = Math.floor(availableForOther * TOKEN_ESTIMATE_DIVISOR * 0.95);
+
+  // Build truncated text: keep beginning (role/context) + critical sections
+  // Remove middle content (optional sections like ESOTERIC LAYERS, LENGTH, DECK STYLE)
+  let result = '';
+  let lastIncludedEnd = 0;
+  const preservedSections = [];
+
+  // Include content from start up to first critical section or target chars
+  const firstCriticalIdx = criticalSections.length > 0
+    ? Math.min(...criticalSections.map(s => s.startIdx))
+    : text.length;
+
+  const introEnd = Math.min(firstCriticalIdx, targetChars);
+  result = text.slice(0, introEnd);
+
+  // Find a clean break point
+  const lastBreak = result.lastIndexOf('\n\n');
+  if (lastBreak > result.length * 0.6) {
+    result = result.slice(0, lastBreak);
+  }
+
+  // Append all critical sections
+  for (const section of criticalSections) {
+    if (!result.includes(section.marker)) {
+      result += '\n\n' + section.content;
+      preservedSections.push(section.marker);
+    }
+  }
+
+  result = result.trim();
+
+  // Log truncation event for monitoring
+  console.log(`[prompts] Section-aware truncation: ${originalTokens} -> ~${estimateTokenCount(result)} tokens, preserved: [${preservedSections.join(', ')}]`);
+
+  return {
+    text: result,
+    truncated: true,
+    originalTokens,
+    preservedSections
+  };
+}
+
 function getDeckStyleNotes(deckStyle = 'rws-1909') {
   const profile = getDeckProfile(deckStyle);
   if (!profile) return null;
@@ -625,13 +744,17 @@ export function buildEnhancedClaudePrompt({
     userTruncated = userResult.truncated;
 
     // If user truncation wasn't enough, truncate system prompt too
+    // Use section-aware truncation to preserve ETHICS/CORE PRINCIPLES/MODEL DIRECTIVES
     const newUserTokens = estimateTokenCount(finalUser);
     const remainingBudget = hardCap - newUserTokens;
 
     if (built.systemTokens > remainingBudget) {
-      const systemResult = truncateToTokenBudget(built.systemPrompt, remainingBudget);
+      const systemResult = truncateSystemPromptSafely(built.systemPrompt, remainingBudget);
       finalSystem = systemResult.text;
       systemTruncated = systemResult.truncated;
+      if (systemResult.preservedSections?.length > 0) {
+        slimmingSteps.push(`preserved-sections:${systemResult.preservedSections.join(',')}`);
+      }
     }
 
     slimmingSteps.push('hard-cap-truncation');
@@ -1072,8 +1195,8 @@ function buildUserPrompt(
   const includeDeckContext = promptOptions.includeDeckContext !== false;
   const includeDiagnostics = promptOptions.includeDiagnostics !== false;
 
-  // Question
-  const safeQuestion = userQuestion ? sanitizeText(userQuestion, { maxLength: MAX_QUESTION_TEXT_LENGTH, addEllipsis: true, stripMarkdown: true }) : '';
+  // Question - filter instruction patterns to prevent prompt injection
+  const safeQuestion = userQuestion ? sanitizeText(userQuestion, { maxLength: MAX_QUESTION_TEXT_LENGTH, addEllipsis: true, stripMarkdown: true, filterInstructions: true }) : '';
   const questionLine = safeQuestion || '(No explicit question; speak to the energy most present for the querent.)';
   prompt += `**Question**: ${questionLine}\n\n`;
 
@@ -1175,10 +1298,10 @@ function buildUserPrompt(
     prompt += deckSpecificContext;
   }
 
-  // Reflections (Fallback for legacy/aggregate usage)
+  // Reflections (Fallback for legacy/aggregate usage) - filter instruction patterns
   const hasPerCardReflections = cardsInfo.some(c => c.userReflection);
   if (!hasPerCardReflections && reflectionsText && reflectionsText.trim()) {
-    const sanitizedReflections = sanitizeText(reflectionsText, { maxLength: MAX_REFLECTION_TEXT_LENGTH, addEllipsis: true, stripMarkdown: true });
+    const sanitizedReflections = sanitizeText(reflectionsText, { maxLength: MAX_REFLECTION_TEXT_LENGTH, addEllipsis: true, stripMarkdown: true, filterInstructions: true });
     if (sanitizedReflections) {
       prompt += `\n**Querent's Reflections**:\n${sanitizedReflections}\n\n`;
     }

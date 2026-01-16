@@ -15,8 +15,9 @@
   // Routes - custom domain configuration
   "routes": [
     {
-      "pattern": "tarot.lakefrontdev.com/*",
-      "zone_name": "lakefrontdev.com"
+      "pattern": "tarot.lakefrontdev.com",
+      "zone_name": "lakefrontdev.com",
+      "custom_domain": true
     }
   ],
   // Main worker entry point (unified router)
@@ -37,6 +38,11 @@
   "observability": {
     "enabled": true
   },
+  "tail_consumers": [
+    {
+      "service": "azure-search-mcp-tail"
+    }
+  ],
   // ============================================================================
   // Environment Variables (Non-Secret)
   // ============================================================================
@@ -48,7 +54,7 @@
     "AZURE_OPENAI_STREAMING_ENABLED": "true",
     "ALLOW_STREAMING_WITH_EVAL_GATE": "true",
     "EVAL_ENABLED": "true",
-    "EVAL_MODEL": "@cf/meta/llama-3.3-70b-instruct-fp8-fast",
+    "EVAL_MODEL": "@cf/openai/gpt-oss-120b",
     "EVAL_TIMEOUT_MS": "10000",
     // EVAL_GATE_ENABLED: When "true", readings that fail quality evaluation are
     // replaced with a safe fallback. CAUTION: If eval model is unavailable,
@@ -73,6 +79,11 @@
     "PERSIST_PROMPTS": "false",
     "ENABLE_TTS_DEBUG_LOGGING": "false",
     "ENABLE_SPEECH_TOKEN_DEBUG": "false",
+    // -------------------------------------------------------------------------
+    // Vision validation backend settings (server-side only; UI still pins clip-default)
+    // -------------------------------------------------------------------------
+    "VISION_TIMEOUT_MS": "12000",
+    "VISION_BACKEND_DEFAULT": "clip-default",
     // -------------------------------------------------------------------------
     // Quality Alerting & A/B Testing
     // -------------------------------------------------------------------------
@@ -138,18 +149,33 @@
     }
   ],
   // ============================================================================
-  // R2 Buckets (disabled - archival moved to D1)
+  // Durable Objects
   // ============================================================================
-  // Previously used for metrics/feedback archival and PDF caching.
-  // Archival now uses D1 tables: metrics_archive, feedback_archive, archival_summaries
-  // PDF export caching disabled (PDFs generated on-demand)
-  // To re-enable R2, uncomment below and run: wrangler r2 bucket create tarot-logs
-  // "r2_buckets": [
-  //   {
-  //     "binding": "LOGS_BUCKET",
-  //     "bucket_name": "tarot-logs"
-  //   }
-  // ],
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "READING_JOBS",
+        "class_name": "ReadingJob"
+      }
+    ]
+  },
+  "migrations": [
+    {
+      "tag": "reading-jobs-v1",
+      "new_sqlite_classes": [
+        "ReadingJob"
+      ]
+    }
+  ],
+  // ============================================================================
+  // R2 Buckets
+  // ============================================================================
+  "r2_buckets": [
+    {
+      "binding": "R2_LOGS",
+      "bucket_name": "tarot-logs"
+    }
+  ],
   // ============================================================================
   // Cron Triggers (Scheduled Tasks)
   // ============================================================================

@@ -219,6 +219,13 @@ export default function FollowUpChat({
       return;
     }
 
+    // Validate that we have an identifier to associate with the follow-up
+    // Either requestId (new readings) or sessionSeed (all readings including old ones)
+    if (!readingMeta?.requestId && !sessionSeed) {
+      setError('Unable to link follow-up to this reading. Please generate a new reading first.');
+      return;
+    }
+
     setError(null);
     setIsLoading(true);
     setInputValue('');
@@ -245,6 +252,7 @@ export default function FollowUpChat({
         credentials: 'include',
         body: JSON.stringify({
           requestId: readingMeta?.requestId,
+          sessionSeed,
           followUpQuestion: trimmedQuestion,
           conversationHistory: messages,
           readingContext: {
@@ -442,7 +450,7 @@ export default function FollowUpChat({
   }, [
     isLoading, canAskMore, hasValidReading, readingMeta, messages, reading,
     userQuestion, personalReading, themes, includeJournal, canUseJournal, isAuthenticated,
-    selectedSpread, followUpLimit, upsertFollowUp, serverTurn, turnsUsed
+    selectedSpread, followUpLimit, upsertFollowUp, serverTurn, turnsUsed, sessionSeed
   ]);
 
   const handleSubmit = (e) => {

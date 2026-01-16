@@ -101,7 +101,8 @@ export function SpreadTable({
   compact = false,
   size = 'default',
   recentlyClosedIndex = -1,
-  hideLegend = false
+  hideLegend = false,
+  disableReveal = false
 }) {
   const prefersReducedMotion = useReducedMotion();
   const { vibrate } = useHaptic();
@@ -254,12 +255,13 @@ export function SpreadTable({
         const card = cards?.[i];
         const isRevealed = revealedIndices?.has?.(i) || false;
         const isNext = i === nextDealIndex && !isRevealed;
+        const isRevealDisabled = disableReveal && !isRevealed;
         const positionLabel = getPositionLabel(spreadInfo, i, pos);
         const shortLabel = extractShortLabel(positionLabel, 20) || positionLabel;
         const cardImage = card ? getCardImage(card) : null;
         const shouldHighlightReturn = recentlyClosedIndex === i;
-        const showRevealPill = !isRevealed && (isNext || (!revealHintDismissedRef.current && i === 0));
-        const showGlowHint = !isRevealed && !showRevealPill;
+        const showRevealPill = !disableReveal && !isRevealed && (isNext || (!revealHintDismissedRef.current && i === 0));
+        const showGlowHint = !disableReveal && !isRevealed && !showRevealPill;
         const numberBadge = (
           <div
             className={`
@@ -357,6 +359,7 @@ export function SpreadTable({
                     relative rounded-lg border-2 cursor-pointer overflow-hidden
                     transition-all touch-manipulation
                     focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70 focus-visible:ring-offset-2 focus-visible:ring-offset-main
+                    disabled:opacity-60 disabled:cursor-not-allowed
                     ${isRevealed
                       ? 'shadow-lg'
                       : showRevealPill
@@ -375,10 +378,21 @@ export function SpreadTable({
                       }
                       : {})
                   }}
-                  onClick={() => isRevealed ? onCardClick?.(card, positionLabel, i) : onCardReveal?.(i)}
+                  onClick={() => {
+                    if (isRevealed) {
+                      onCardClick?.(card, positionLabel, i);
+                      return;
+                    }
+                    if (disableReveal) return;
+                    onCardReveal?.(i);
+                  }}
+                  disabled={isRevealDisabled}
+                  aria-disabled={isRevealDisabled}
                   aria-label={isRevealed
                     ? `${card.name} in ${positionLabel} position. Click to view details.`
-                    : `Card in ${positionLabel} position. Click to reveal.`
+                    : disableReveal
+                      ? `${positionLabel} position. Draw from the deck to reveal.`
+                      : `Card in ${positionLabel} position. Click to reveal.`
                   }
                 >
                   {numberBadge}

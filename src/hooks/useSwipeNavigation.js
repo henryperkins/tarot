@@ -12,10 +12,11 @@ import { useRef, useCallback } from 'react';
  * @param {number} options.threshold - Minimum swipe distance in pixels (default: 60)
  * @returns {Object} Touch event handlers to spread onto the swipeable element
  */
-export function useSwipeNavigation({ onSwipeLeft, onSwipeRight, threshold = 60 }) {
+export function useSwipeNavigation({ onSwipeLeft, onSwipeRight, threshold = 60, verticalThreshold } = {}) {
   const startX = useRef(null);
   const startY = useRef(null);
   const preventedScroll = useRef(false);
+  const resolvedVerticalThreshold = Math.max(24, verticalThreshold || threshold * 0.45);
 
   const handleTouchStart = useCallback((event) => {
     startX.current = event.touches[0].clientX;
@@ -29,14 +30,18 @@ export function useSwipeNavigation({ onSwipeLeft, onSwipeRight, threshold = 60 }
     const deltaX = event.touches[0].clientX - startX.current;
     const deltaY = event.touches[0].clientY - startY.current;
 
+    const absX = Math.abs(deltaX);
+    const absY = Math.abs(deltaY);
+    const hasHorizontalIntent = absX > absY * 1.5 && absY < resolvedVerticalThreshold;
+
     // Once horizontal intent is clear, prevent native scroll to avoid cancelling the swipe
-    if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) >= threshold * 0.5) {
+    if (hasHorizontalIntent && absX >= threshold * 0.5) {
       if (event.cancelable) {
         event.preventDefault();
         preventedScroll.current = true;
       }
     }
-  }, [threshold]);
+  }, [resolvedVerticalThreshold, threshold]);
 
   const handleTouchEnd = useCallback((event) => {
     if (startX.current === null || startY.current === null) return;
@@ -44,9 +49,12 @@ export function useSwipeNavigation({ onSwipeLeft, onSwipeRight, threshold = 60 }
     const deltaX = event.changedTouches[0].clientX - startX.current;
     const deltaY = event.changedTouches[0].clientY - startY.current;
 
-    // Only trigger if horizontal movement is greater than vertical
-    // This prevents swipe detection during vertical scrolling
-    if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) >= threshold) {
+    const absX = Math.abs(deltaX);
+    const absY = Math.abs(deltaY);
+    const hasHorizontalIntent = absX > absY * 1.5 && absY < resolvedVerticalThreshold;
+
+    // Only trigger if horizontal movement clearly dominates
+    if (hasHorizontalIntent && absX >= threshold) {
       if (deltaX < 0) {
         onSwipeLeft?.();
       } else {

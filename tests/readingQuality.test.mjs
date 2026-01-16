@@ -7,8 +7,32 @@ import {
   buildCardAliases,
   buildDeckAwarePatterns,
   lookupCardByName,
-  AMBIGUOUS_THOTH_EPITHETS
+  AMBIGUOUS_THOTH_EPITHETS,
+  persistReadingMetrics
 } from '../functions/lib/readingQuality.js';
+
+class MockDB {
+  constructor() {
+    this.queries = [];
+  }
+
+  prepare(sql) {
+    const query = { sql, bindings: [] };
+    this.queries.push(query);
+    return {
+      bind: (...args) => {
+        query.bindings = args;
+        return {
+          run: async () => ({ meta: { changes: 1 } })
+        };
+      }
+    };
+  }
+
+  getLastQuery() {
+    return this.queries[this.queries.length - 1];
+  }
+}
 
 // =============================================================================
 // buildCardAliases tests
@@ -25,13 +49,16 @@ describe('buildCardAliases', () => {
     it('returns only canonical name for Minor Arcana', () => {
       const card = lookupCardByName('Two of Cups');
       const aliases = buildCardAliases(card, 'rws-1909');
-      assert.deepStrictEqual(aliases, ['Two of Cups']);
+      assert.ok(aliases.includes('Two of Cups'));
+      assert.ok(aliases.includes('2 of Cups'));
+      assert.ok(aliases.includes('II of Cups'));
     });
 
     it('returns only canonical name for court cards', () => {
       const card = lookupCardByName('Page of Cups');
       const aliases = buildCardAliases(card, 'rws-1909');
-      assert.deepStrictEqual(aliases, ['Page of Cups']);
+      assert.ok(aliases.includes('Page of Cups'));
+      assert.ok(aliases.includes('Pg of Cups'));
     });
   });
 
@@ -121,6 +148,30 @@ describe('analyzeCardCoverage', () => {
       assert.strictEqual(result.coverage, 0);
       assert.deepStrictEqual(result.missingCards, ['Page of Cups']);
     });
+
+    it('recognizes numeric and roman shorthand for pip cards', () => {
+      const text = 'The **IV of Cups** invites a quiet pause before moving on.';
+      const cardsInfo = [{ card: 'Four of Cups', position: 'Present' }];
+
+      const result = analyzeCardCoverage(text, cardsInfo, 'rws-1909');
+      assert.strictEqual(result.coverage, 1, 'IV of Cups should count as Four of Cups');
+    });
+
+    it('tolerates minor misspellings in card names', () => {
+      const text = '**The Magican** urges deliberate action.';
+      const cardsInfo = [{ card: 'The Magician', position: 'Present' }];
+
+      const result = analyzeCardCoverage(text, cardsInfo, 'rws-1909');
+      assert.strictEqual(result.coverage, 1, 'Minor misspellings should count as coverage');
+    });
+
+    it('recognizes abbreviated court shorthand', () => {
+      const text = 'The **K of Wands** pushes you toward bold leadership.';
+      const cardsInfo = [{ card: 'King of Wands', position: 'Present' }];
+
+      const result = analyzeCardCoverage(text, cardsInfo, 'rws-1909');
+      assert.strictEqual(result.coverage, 1, 'K of Wands should count as King of Wands');
+    });
   });
 
   describe('Thoth deck', () => {
@@ -156,6 +207,14 @@ describe('analyzeCardCoverage', () => {
       const result = analyzeCardCoverage(text, cardsInfo, 'thoth-a1');
       assert.strictEqual(result.coverage, 1, 'Three of Disks should count for Three of Pentacles');
     });
+
+    it('recognizes numeric shorthand with Thoth suit aliases', () => {
+      const text = 'The **4 of Disks** shows protective boundaries.';
+      const cardsInfo = [{ card: 'Four of Pentacles', position: 'Present' }];
+
+      const result = analyzeCardCoverage(text, cardsInfo, 'thoth-a1');
+      assert.strictEqual(result.coverage, 1, '4 of Disks should count for Four of Pentacles');
+    });
   });
 
   describe('Marseille deck', () => {
@@ -173,6 +232,14 @@ describe('analyzeCardCoverage', () => {
 
       const result = analyzeCardCoverage(text, cardsInfo, 'marseille-classic');
       assert.strictEqual(result.coverage, 1, 'Valet of Epees should count for Page of Swords');
+    });
+
+    it('recognizes roman shorthand with Marseille suit aliases', () => {
+      const text = 'The **IV of Coins** highlights conservation.';
+      const cardsInfo = [{ card: 'Four of Pentacles', position: 'Present' }];
+
+      const result = analyzeCardCoverage(text, cardsInfo, 'marseille-classic');
+      assert.strictEqual(result.coverage, 1, 'IV of Coins should count for Four of Pentacles');
     });
   });
 });
@@ -202,6 +269,30 @@ describe('detectHallucinatedCards', () => {
 
       const result = detectHallucinatedCards(text, cardsInfo, 'rws-1909');
       assert.deepStrictEqual(result, []);
+    });
+
+    it('flags shorthand mentions as hallucinations when absent', () => {
+      const text = 'The **IV of Cups** signals withdrawal.';
+      const cardsInfo = [{ card: 'The Fool', position: 'Present' }];
+
+      const result = detectHallucinatedCards(text, cardsInfo, 'rws-1909');
+      assert.ok(result.includes('Four of Cups'), 'IV of Cups should map to Four of Cups');
+    });
+
+    it('does not flag misspelled drawn cards as hallucinations', () => {
+      const text = '**The Hie Priestess** guides intuition.';
+      const cardsInfo = [{ card: 'The High Priestess', position: 'Present' }];
+
+      const result = detectHallucinatedCards(text, cardsInfo, 'rws-1909');
+      assert.deepStrictEqual(result, []);
+    });
+
+    it('flags misspelled hallucinated cards', () => {
+      const text = '**The Empresss** signals a surge of creative abundance.';
+      const cardsInfo = [{ card: 'The Fool', position: 'Present' }];
+
+      const result = detectHallucinatedCards(text, cardsInfo, 'rws-1909');
+      assert.ok(result.includes('The Empress'), 'Misspelled Empress should be flagged');
     });
   });
 
@@ -344,5 +435,38 @@ describe('AMBIGUOUS_THOTH_EPITHETS', () => {
     // There are 40 pip epithets total, and most are common words
     assert.ok(AMBIGUOUS_THOTH_EPITHETS.size >= 20, 'Should have at least 20 ambiguous epithets');
     assert.ok(AMBIGUOUS_THOTH_EPITHETS.size <= 40, 'Should not exceed total pip count');
+  });
+});
+
+// =============================================================================
+// persistReadingMetrics tests
+// =============================================================================
+
+describe('persistReadingMetrics', () => {
+  it('persists backend error details and quality issues', async () => {
+    const mockDB = new MockDB();
+    const payload = {
+      requestId: 'metrics-test',
+      spreadKey: 'threeCard',
+      deckStyle: 'rws-1909',
+      provider: 'azure-gpt5',
+      narrative: { cardCoverage: 0.4 },
+      backendErrors: [
+        {
+          backend: 'azure-gpt5',
+          error: 'Narrative failed quality checks',
+          qualityIssues: ['low card coverage']
+        }
+      ]
+    };
+
+    await persistReadingMetrics({ DB: mockDB }, payload);
+
+    const query = mockDB.getLastQuery();
+    const payloadBinding = query.bindings.find(binding => typeof binding === 'string' && binding.startsWith('{'));
+    const storedPayload = JSON.parse(payloadBinding);
+
+    assert.deepStrictEqual(storedPayload.backendErrors, payload.backendErrors);
+    assert.deepStrictEqual(storedPayload.backendErrors[0].qualityIssues, ['low card coverage']);
   });
 });

@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { GridFour, Question, Sparkle, Eye } from '@phosphor-icons/react';
 import { useReducedMotion } from '../hooks/useReducedMotion';
+import { useSmallScreen } from '../hooks/useSmallScreen';
 
 const STEP_ICONS = {
   'spread': GridFour,
@@ -26,6 +27,8 @@ export function StepProgress({ steps = [], activeStep, onSelect, condensed = fal
   const buttonRefs = useRef({});
   const isTouchActiveRef = useRef(false);
   const prefersReducedMotion = useReducedMotion();
+  const isSmallScreen = useSmallScreen();
+  const showTooltips = !isSmallScreen;
 
   // Micro-celebration when advancing steps.
   const [celebrateStepId, setCelebrateStepId] = useState(null);
@@ -58,20 +61,23 @@ export function StepProgress({ steps = [], activeStep, onSelect, condensed = fal
   }, []);
 
   const showTooltip = useCallback((stepId) => {
+    if (!showTooltips) return;
     if (tooltipTimeoutRef.current) {
       clearTimeout(tooltipTimeoutRef.current);
     }
     setActiveTooltip(stepId);
-  }, []);
+  }, [showTooltips]);
 
   const hideTooltip = useCallback(() => {
+    if (!showTooltips) return;
     if (tooltipTimeoutRef.current) {
       clearTimeout(tooltipTimeoutRef.current);
     }
     setActiveTooltip(null);
-  }, []);
+  }, [showTooltips]);
 
   const hideTooltipWithDelay = useCallback((delay = 1500) => {
+    if (!showTooltips) return;
     if (tooltipTimeoutRef.current) {
       clearTimeout(tooltipTimeoutRef.current);
     }
@@ -79,35 +85,40 @@ export function StepProgress({ steps = [], activeStep, onSelect, condensed = fal
       setActiveTooltip(null);
       isTouchActiveRef.current = false;
     }, delay);
-  }, []);
+  }, [showTooltips]);
 
   // Handle touch start - show tooltip and mark touch as active
   const handleTouchStart = useCallback((stepId) => {
+    if (!showTooltips) return;
     isTouchActiveRef.current = true;
     showTooltip(stepId);
-  }, [showTooltip]);
+  }, [showTooltips, showTooltip]);
 
   // Handle touch end - hide tooltip after delay
   const handleTouchEnd = useCallback(() => {
+    if (!showTooltips) return;
     hideTooltipWithDelay(1500);
-  }, [hideTooltipWithDelay]);
+  }, [showTooltips, hideTooltipWithDelay]);
 
   // Mouse handlers that respect touch state to avoid race conditions
   const handleMouseEnter = useCallback((stepId) => {
     // Ignore mouse events during active touch interaction
     if (isTouchActiveRef.current) return;
+    if (!showTooltips) return;
     showTooltip(stepId);
-  }, [showTooltip]);
+  }, [showTooltips, showTooltip]);
 
   const handleMouseLeave = useCallback(() => {
     // Ignore mouse events during active touch interaction
     if (isTouchActiveRef.current) return;
+    if (!showTooltips) return;
     hideTooltip();
-  }, [hideTooltip]);
+  }, [showTooltips, hideTooltip]);
 
   // Handle click outside to close tooltip
   useEffect(() => {
     if (!activeTooltip) return;
+    if (!showTooltips) return;
 
     const handleClickOutside = (event) => {
       const activeButton = buttonRefs.current[activeTooltip];
@@ -129,7 +140,12 @@ export function StepProgress({ steps = [], activeStep, onSelect, condensed = fal
       document.removeEventListener('pointerdown', handleClickOutside);
       document.removeEventListener('keydown', handleEscape);
     };
-  }, [activeTooltip, hideTooltip]);
+  }, [activeTooltip, hideTooltip, showTooltips]);
+
+  useEffect(() => {
+    if (showTooltips) return;
+    setActiveTooltip(null);
+  }, [showTooltips]);
 
   return (
     <nav aria-label="Tarot reading progress" className="w-full animate-fade-in">
@@ -161,8 +177,8 @@ export function StepProgress({ steps = [], activeStep, onSelect, condensed = fal
                   min-h-[44px]
                   ${isCelebrating ? 'motion-safe:animate-pop-in' : ''}
                   ${condensed
-                    ? 'px-1.5 xs:px-2 sm:px-3 py-2 text-[0.7rem] xs:text-[0.75rem]'
-                    : 'px-2 xs:px-3 sm:px-4 py-2 xs:py-2.5 text-[0.72rem] xs:text-[0.78rem] sm:text-sm'
+                    ? 'px-1.5 xs:px-2 sm:px-3 py-2 text-xs-plus'
+                    : 'px-2 xs:px-3 sm:px-4 py-2 xs:py-2.5 text-xs-plus sm:text-sm'
                   }
                   ${isActive
                     ? 'bg-primary/20 border-primary/80 text-main shadow-md shadow-primary/35'
@@ -179,7 +195,7 @@ export function StepProgress({ steps = [], activeStep, onSelect, condensed = fal
                 onTouchCancel={() => { isTouchActiveRef.current = false; hideTooltip(); }}
                 aria-current={isActive ? 'step' : undefined}
                 aria-label={`Step ${index + 1}: ${step.label}`}
-                aria-describedby={isTooltipVisible ? `step-tooltip-${step.id}` : undefined}
+                aria-describedby={showTooltips && isTooltipVisible ? `step-tooltip-${step.id}` : undefined}
               >
                 <div className="flex items-center justify-center gap-1 xs:gap-1.5 sm:gap-2">
                   {StepIcon && (
@@ -192,15 +208,15 @@ export function StepProgress({ steps = [], activeStep, onSelect, condensed = fal
                   <span className={`
                     font-semibold truncate
                     ${condensed
-                      ? 'text-[0.7rem] xs:text-xs text-secondary'
-                      : 'text-[0.7rem] xs:text-xs sm:text-[0.82rem]'
+                      ? 'text-xs-plus text-secondary'
+                      : 'text-xs-plus sm:text-sm'
                     }
                     ${isActive ? 'text-main' : 'text-muted-high'}
                   `}>
                     <span className="sm:hidden">
-                      {shortLabel}
+                      {index + 1}. {shortLabel}
                       {OPTIONAL_STEPS.has(step.id) && (
-                        <span className="text-muted/70 ml-0.5 text-[0.65rem] xs:text-[0.7rem]">(opt)</span>
+                        <span className="text-muted/70 ml-0.5 text-xs">(opt)</span>
                       )}
                     </span>
                     <span className="hidden sm:inline">{step.label}</span>
@@ -213,6 +229,7 @@ export function StepProgress({ steps = [], activeStep, onSelect, condensed = fal
                 id={`step-tooltip-${step.id}`}
                 role="tooltip"
                 className={`
+                  ${showTooltips ? '' : 'hidden'}
                   absolute bottom-full mb-2
                   px-2.5 xs:px-3 py-1.5 bg-main border border-secondary/40 rounded-lg
                   shadow-lg whitespace-nowrap z-50
@@ -230,7 +247,7 @@ export function StepProgress({ steps = [], activeStep, onSelect, condensed = fal
                 `}
               >
                 <div className="text-[0.7rem] xs:text-xs font-serif text-accent">{step.label}</div>
-                <div className="text-[0.6rem] xs:text-[0.65rem] text-muted mt-0.5">Step {index + 1} of {steps.length}</div>
+                <div className="text-[0.7rem] xs:text-xs text-muted mt-0.5">Step {index + 1} of {steps.length}</div>
                 {/* Arrow - positioned based on tooltip alignment */}
                 <div
                   className={`absolute top-full -mt-1 border-4 border-transparent border-t-main ${

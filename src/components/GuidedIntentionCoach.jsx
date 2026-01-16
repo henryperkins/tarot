@@ -375,6 +375,7 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply,
   const [_coachStatsMeta, setCoachStatsMeta] = useState(null);
   const [personalizedSuggestions, setPersonalizedSuggestions] = useState([]);
   const [suggestionsPage, setSuggestionsPage] = useState(0);
+  const [isSuggestionsExpanded, setSuggestionsExpanded] = useState(false);
   const [isTemplatePanelOpen, setTemplatePanelOpen] = useState(false);
   const [remixCount, setRemixCount] = useState(0);
   const [astroHighlights, setAstroHighlights] = useState([]);
@@ -413,6 +414,11 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply,
     threshold: 120,
     resistance: 0.5
   });
+
+  useEffect(() => {
+    if (!isOpen) return;
+    setSuggestionsExpanded(!isSmallScreen);
+  }, [isOpen, isSmallScreen]);
 
   // Android back button dismisses coach on mobile
   useAndroidBackGuard(isOpen, {
@@ -1380,7 +1386,11 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply,
             ref={closeButtonRef}
             type="button"
             onClick={onClose}
-            className="absolute right-3 top-3 min-h-[44px] min-w-[44px] flex items-center justify-center rounded-full text-muted hover:text-main hover:bg-surface-muted/50 z-10 touch-manipulation transition-colors"
+            className="absolute min-h-[44px] min-w-[44px] flex items-center justify-center rounded-full text-muted hover:text-main hover:bg-surface-muted/50 z-10 touch-manipulation transition-colors"
+            style={{
+              top: 'max(0.75rem, env(safe-area-inset-top, 0.5rem))',
+              right: 'max(0.75rem, env(safe-area-inset-right, 0.5rem))'
+            }}
             aria-label="Close intention coach"
           >
             <X className="h-5 w-5" />
@@ -1413,73 +1423,88 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply,
                     <div>
                       <p className="text-xs uppercase tracking-[0.3em] text-secondary">Suggested for you</p>
                       <p className="text-xs text-muted">
-                        Based on your journal trends and recent questions.
+                        {isSuggestionsExpanded
+                          ? 'Based on your journal trends and recent questions.'
+                          : `${personalizedSuggestions.length} suggestions ready. Tap to peek.`}
                       </p>
                     </div>
-                    {suggestionPageCount > 1 && (
-                      <div className="flex items-center gap-2 text-xs text-secondary">
-                        <button
-                          type="button"
-                          onClick={() => setSuggestionsPage(prev => (prev - 1 + suggestionPageCount) % suggestionPageCount)}
-                          className="inline-flex items-center justify-center rounded-full border border-secondary/40 px-2 py-1 hover:bg-secondary/10 transition"
-                          aria-label="Previous suggestions"
-                        >
-                          <ArrowLeft className="h-3 w-3" aria-hidden="true" />
-                        </button>
-                        <span className="text-[0.65rem] uppercase tracking-[0.3em] text-secondary/70">
-                          {suggestionsPage + 1}/{suggestionPageCount}
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => setSuggestionsPage(prev => (prev + 1) % suggestionPageCount)}
-                          className="inline-flex items-center justify-center rounded-full border border-secondary/40 px-2 py-1 hover:bg-secondary/10 transition"
-                          aria-label="Next suggestions"
-                        >
-                          <ArrowRight className="h-3 w-3" aria-hidden="true" />
-                        </button>
-                      </div>
-                    )}
+                    <div className="flex items-center gap-2 text-xs text-secondary">
+                      {isSuggestionsExpanded && suggestionPageCount > 1 && (
+                        <div className="flex items-center gap-2 text-xs text-secondary">
+                          <button
+                            type="button"
+                            onClick={() => setSuggestionsPage(prev => (prev - 1 + suggestionPageCount) % suggestionPageCount)}
+                            className="inline-flex items-center justify-center rounded-full border border-secondary/40 px-2 py-1 hover:bg-secondary/10 transition"
+                            aria-label="Previous suggestions"
+                          >
+                            <ArrowLeft className="h-3 w-3" aria-hidden="true" />
+                          </button>
+                          <span className="text-[0.65rem] uppercase tracking-[0.3em] text-secondary/70">
+                            {suggestionsPage + 1}/{suggestionPageCount}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => setSuggestionsPage(prev => (prev + 1) % suggestionPageCount)}
+                            className="inline-flex items-center justify-center rounded-full border border-secondary/40 px-2 py-1 hover:bg-secondary/10 transition"
+                            aria-label="Next suggestions"
+                          >
+                            <ArrowRight className="h-3 w-3" aria-hidden="true" />
+                          </button>
+                        </div>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => setSuggestionsExpanded(prev => !prev)}
+                        aria-expanded={isSuggestionsExpanded}
+                        aria-controls="coach-suggestions"
+                        className="inline-flex items-center justify-center rounded-full border border-secondary/40 px-3 py-1 hover:bg-secondary/10 transition"
+                      >
+                        {isSuggestionsExpanded ? 'Hide' : 'Show'}
+                      </button>
+                    </div>
                   </div>
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    {visibleSuggestions.map(suggestion => {
-                      const preview = buildSuggestionPreview(suggestion);
-                      const chips = [
-                        getTopicLabel(suggestion.topic),
-                        getTimeframeLabel(suggestion.timeframe),
-                        getDepthLabel(suggestion.depth)
-                      ].filter(Boolean);
-                      return (
-                        <button
-                          key={suggestion.id || suggestion.label}
-                          type="button"
-                          onClick={() => handleSuggestionPick(suggestion)}
-                          className="rounded-2xl border border-accent/20 bg-surface/70 p-3 text-left transition hover:border-secondary/60 hover:bg-surface-muted/60"
-                        >
-                          <div className="flex items-start justify-between gap-2">
-                            <div>
-                              <p className="text-sm font-semibold text-main">{suggestion.label}</p>
-                              {suggestion.helper && (
-                                <p className="text-xs text-secondary/80 mt-1">{suggestion.helper}</p>
-                              )}
+                  {isSuggestionsExpanded && (
+                    <div id="coach-suggestions" className="grid gap-3 sm:grid-cols-2 max-h-[16rem] sm:max-h-[20rem] overflow-y-auto pr-1">
+                      {visibleSuggestions.map(suggestion => {
+                        const preview = buildSuggestionPreview(suggestion);
+                        const chips = [
+                          getTopicLabel(suggestion.topic),
+                          getTimeframeLabel(suggestion.timeframe),
+                          getDepthLabel(suggestion.depth)
+                        ].filter(Boolean);
+                        return (
+                          <button
+                            key={suggestion.id || suggestion.label}
+                            type="button"
+                            onClick={() => handleSuggestionPick(suggestion)}
+                            className="rounded-2xl border border-accent/20 bg-surface/70 p-3 text-left transition hover:border-secondary/60 hover:bg-surface-muted/60"
+                          >
+                            <div className="flex items-start justify-between gap-2">
+                              <div>
+                                <p className="text-sm font-semibold text-main">{suggestion.label}</p>
+                                {suggestion.helper && (
+                                  <p className="text-xs text-secondary/80 mt-1">{suggestion.helper}</p>
+                                )}
+                              </div>
+                              <span className="text-[0.6rem] uppercase tracking-[0.3em] text-secondary/70">Use</span>
                             </div>
-                            <span className="text-[0.6rem] uppercase tracking-[0.3em] text-secondary/70">Use</span>
-                          </div>
-                          {preview && (
-                            <p className="mt-2 text-sm text-main/90">{preview}</p>
-                          )}
-                          {chips.length > 0 && (
-                            <div className="mt-2 flex flex-wrap gap-2 text-[0.6rem] uppercase tracking-[0.3em] text-secondary/60">
-                              {chips.map(chip => (
-                                <span key={`${suggestion.id || suggestion.label}-${chip}`} className="rounded-full border border-secondary/30 px-2 py-1">
-                                  {chip}
-                                </span>
-                              ))}
-                            </div>
-                          )}
-                        </button>
-                      );
-                    })}
-                  </div>
+                            {preview && (
+                              <p className="mt-2 text-sm text-main/90">{preview}</p>
+                            )}
+                            {chips.length > 0 && (
+                              <div className="mt-2 flex flex-wrap gap-2 text-[0.6rem] uppercase tracking-[0.3em] text-secondary/60">
+                                {chips.map(chip => (
+                                  <span key={`${suggestion.id || suggestion.label}-${chip}`} className="rounded-full border border-secondary/30 px-2 py-1">
+                                    {chip}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
                 </section>
               )}
 

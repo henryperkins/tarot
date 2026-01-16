@@ -9,6 +9,10 @@
 
 // API Route Handlers (imported from existing functions)
 import * as tarotReading from '../../functions/api/tarot-reading.js';
+import * as tarotReadingJobStart from '../../functions/api/tarot-reading-job-start.js';
+import * as tarotReadingJobStatus from '../../functions/api/tarot-reading-job-status.js';
+import * as tarotReadingJobStream from '../../functions/api/tarot-reading-job-stream.js';
+import * as tarotReadingJobCancel from '../../functions/api/tarot-reading-job-cancel.js';
 import * as readingFollowup from '../../functions/api/reading-followup.js';
 import * as tts from '../../functions/api/tts.js';
 import * as ttsHume from '../../functions/api/tts-hume.js';
@@ -181,6 +185,10 @@ async function handleSharePageWithOgTags(request, env, token) {
  */
 const routes = [
   // Main API endpoints
+  { pattern: /^\/api\/tarot-reading\/jobs$/, handlers: tarotReadingJobStart },
+  { pattern: /^\/api\/tarot-reading\/jobs\/([^/]+)\/stream$/, handlers: tarotReadingJobStream, params: ['id'] },
+  { pattern: /^\/api\/tarot-reading\/jobs\/([^/]+)\/cancel$/, handlers: tarotReadingJobCancel, params: ['id'] },
+  { pattern: /^\/api\/tarot-reading\/jobs\/([^/]+)$/, handlers: tarotReadingJobStatus, params: ['id'] },
   { pattern: /^\/api\/tarot-reading$/, handlers: tarotReading },
   { pattern: /^\/api\/reading-followup$/, handlers: readingFollowup },
   { pattern: /^\/api\/tts$/, handlers: tts },
@@ -312,7 +320,8 @@ function addCorsHeaders(response, request) {
  * @property {KVNamespace} RATELIMIT - Rate limiting KV
  * @property {KVNamespace} METRICS_DB - Metrics storage KV
  * @property {KVNamespace} FEEDBACK_KV - Feedback storage KV
- * @property {R2Bucket} LOGS_BUCKET - R2 bucket for logs, archives, and exports
+ * @property {DurableObjectNamespace} READING_JOBS - Durable Object namespace for reading jobs
+ * @property {R2Bucket} R2_LOGS - R2 bucket for logs, archives, and exports
  * @property {*} AI - Workers AI binding for evaluation
  * @property {string} AZURE_OPENAI_ENDPOINT - Azure OpenAI endpoint
  * @property {string} AZURE_OPENAI_API_KEY - Azure OpenAI API key
@@ -324,6 +333,8 @@ function addCorsHeaders(response, request) {
  * @property {string} AZURE_OPENAI_TTS_API_KEY - Optional dedicated Azure OpenAI TTS API key
  * @property {string} AZURE_OPENAI_GPT_AUDIO_MINI_DEPLOYMENT - Azure OpenAI TTS deployment name
  * @property {string} VISION_PROOF_SECRET - Vision proof signing secret
+ * @property {string} VISION_BACKEND_DEFAULT - Default vision backend id for server-side proofs
+ * @property {string} VISION_TIMEOUT_MS - Vision backend timeout in milliseconds
  * @property {string} HUME_API_KEY - Hume AI API key
  * @property {string} ADMIN_API_KEY - Admin API key for manual archival
  * @property {string} EVAL_ENABLED - Enable evaluation (string flag)
@@ -421,3 +432,5 @@ export default {
     return env.ASSETS.fetch(request);
   },
 };
+
+export { ReadingJob } from './readingJob.js';

@@ -6,7 +6,7 @@
 
 **Architecture:** Surgical fixes at each issue's source. Spread-key uses existing `getSpreadKey()` from readingQuality.js. Spine classification adds `isCardSection()` helper to only apply spine ratio to card sections. GraphRAG telemetry adds explicit `injectedIntoPrompt` flag when falling back to analysis summary.
 
-**Tech Stack:** Cloudflare Workers, ES modules, Vitest
+**Tech Stack:** Cloudflare Workers, ES modules, Node test runner (`node:test`)
 
 ---
 
@@ -23,7 +23,7 @@ Add to `tests/narrativeBuilder.promptCompliance.test.mjs`:
 
 ```javascript
 describe('spread-key resolution', () => {
-  it('should use spreadInfo.key when display name is unrecognized', async () => {
+  it('uses spreadInfo.key when display name is unrecognized', async () => {
     const customSpread = {
       name: 'My Custom Spread',
       key: 'threeCard',
@@ -37,9 +37,9 @@ describe('spread-key resolution', () => {
     const result = await buildEnhancedClaudePrompt({
       spreadInfo: customSpread,
       cardsInfo: [
-        { name: 'The Fool', position: 'Past', orientation: 'upright' },
-        { name: 'The Magician', position: 'Present', orientation: 'upright' },
-        { name: 'The High Priestess', position: 'Future', orientation: 'upright' }
+        { card: 'The Fool', position: 'Past', orientation: 'upright' },
+        { card: 'The Magician', position: 'Present', orientation: 'upright' },
+        { card: 'The High Priestess', position: 'Future', orientation: 'upright' }
       ],
       userQuestion: 'What does my week look like?',
       themes: {},
@@ -47,10 +47,10 @@ describe('spread-key resolution', () => {
     });
 
     // Should use threeCard structure, not general
-    expect(result.promptMeta.spreadKey).toBe('threeCard');
+    assert.equal(result.promptMeta.spreadKey, 'threeCard');
   });
 
-  it('should still resolve standard spreads by display name', async () => {
+  it('still resolves standard spreads by display name', async () => {
     const celticCross = {
       name: 'Celtic Cross (Classic 10-Card)',
       key: 'celtic'
@@ -59,7 +59,7 @@ describe('spread-key resolution', () => {
     const result = await buildEnhancedClaudePrompt({
       spreadInfo: celticCross,
       cardsInfo: Array(10).fill(null).map((_, i) => ({
-        name: 'The Fool',
+        card: 'The Fool',
         position: `Position ${i + 1}`,
         orientation: 'upright'
       })),
@@ -68,14 +68,14 @@ describe('spread-key resolution', () => {
       context: {}
     });
 
-    expect(result.promptMeta.spreadKey).toBe('celtic');
+    assert.equal(result.promptMeta.spreadKey, 'celtic');
   });
 });
 ```
 
 **Step 2: Run test to verify it fails**
 
-Run: `npm test -- tests/narrativeBuilder.promptCompliance.test.mjs -t "spread-key resolution"`
+Run: `node --test tests/narrativeBuilder.promptCompliance.test.mjs --test-name-pattern "spread-key resolution"`
 
 Expected: FAIL - custom spread resolves to `"general"` instead of `"threeCard"`
 
@@ -98,10 +98,26 @@ const spreadKey = getSpreadKeyFromName(spreadInfo.name);
 To:
 
 ```javascript
-const spreadKey = getSpreadKey(spreadInfo.name, spreadInfo.key);
+const spreadKey = getSpreadKey(spreadInfo?.name, spreadInfo?.key);
 ```
 
-**Step 5: Delete unused function**
+**Step 5: Store spreadKey in prompt metadata**
+
+In `functions/lib/narrative/prompts.js`, add `spreadKey` to `promptMeta`:
+
+```javascript
+const promptMeta = {
+  // Reading prompt version for quality tracking and A/B testing correlation
+  readingPromptVersion: getReadingPromptVersion(),
+  spreadKey,
+  // Token estimates present when slimming is enabled or hard-cap adjustments occur.
+  // Use llmUsage.input_tokens from API response for actual token counts.
+  estimatedTokens,
+  ...
+};
+```
+
+**Step 6: Delete unused function**
 
 Remove `getSpreadKeyFromName()` function (lines 769-779):
 
@@ -120,23 +136,25 @@ function getSpreadKeyFromName(name) {
 }
 ```
 
-**Step 6: Run test to verify it passes**
+**Step 7: Run test to verify it passes**
 
-Run: `npm test -- tests/narrativeBuilder.promptCompliance.test.mjs -t "spread-key resolution"`
+Run: `node --test tests/narrativeBuilder.promptCompliance.test.mjs --test-name-pattern "spread-key resolution"`
 
 Expected: PASS
 
-**Step 7: Run full test suite**
+**Step 8: Run full test suite + narrative gate**
 
 Run: `npm test`
 
+Run: `npm run gate:narrative`
+
 Expected: All tests pass
 
-**Step 8: Commit**
+**Step 9: Commit**
 
 ```bash
 git add functions/lib/narrative/prompts.js tests/narrativeBuilder.promptCompliance.test.mjs
-git commit -m "fix(narrative): use getSpreadKey for spread-key resolution
+git commit -m "fix(narrative): align spread-key resolution with readingQuality
 
 Replaces getSpreadKeyFromName() which only matched display names with
 getSpreadKey() from readingQuality.js which also accepts fallback key.
@@ -153,6 +171,7 @@ Fixes spread-key drift between prompt intent and gate logic."
 
 **Files:**
 - Modify: `functions/lib/narrativeSpine.js` (add `isCardSection()`, update return)
+- Modify: `functions/lib/readingQuality.js` (thread card/structural counts into metrics)
 - Modify: `functions/api/tarot-reading.js:969-975` (update gate logic)
 - Test: `tests/narrativeSpine.test.mjs`
 
@@ -165,63 +184,71 @@ import { isCardSection } from '../functions/lib/narrativeSpine.js';
 
 describe('isCardSection', () => {
   describe('structural sections', () => {
-    it('should return false for Opening', () => {
-      expect(isCardSection('Opening', 'Welcome to your reading...')).toBe(false);
+    it('returns false for Opening', () => {
+      assert.equal(isCardSection('Opening', 'Welcome to your reading...'), false);
     });
 
-    it('should return false for Closing', () => {
-      expect(isCardSection('Closing', 'Thank you for this session...')).toBe(false);
+    it('returns false for Closing', () => {
+      assert.equal(isCardSection('Closing', 'Thank you for this session...'), false);
     });
 
-    it('should return false for Next Steps', () => {
-      expect(isCardSection('Next Steps', 'Consider journaling about...')).toBe(false);
+    it('returns false for Next Steps', () => {
+      assert.equal(isCardSection('Next Steps', 'Consider journaling about...'), false);
     });
 
-    it('should return false for Gentle Next Steps', () => {
-      expect(isCardSection('Gentle Next Steps', 'You might try...')).toBe(false);
+    it('returns false for Gentle Next Steps', () => {
+      assert.equal(isCardSection('Gentle Next Steps', 'You might try...'), false);
     });
 
-    it('should return false for Synthesis', () => {
-      expect(isCardSection('Synthesis', 'Bringing these threads together...')).toBe(false);
+    it('returns false for Synthesis', () => {
+      assert.equal(isCardSection('Synthesis', 'Bringing these threads together...'), false);
     });
 
-    it('should return false for Reflection', () => {
-      expect(isCardSection('Reflection', 'As you sit with this reading...')).toBe(false);
+    it('returns false for Reflection', () => {
+      assert.equal(isCardSection('Reflection', 'As you sit with this reading...'), false);
+    });
+
+    it('returns false for Guidance for This Connection', () => {
+      assert.equal(isCardSection('Guidance for This Connection', 'Consider journaling about...'), false);
+    });
+
+    it('returns false for Synthesis & Guidance', () => {
+      assert.equal(isCardSection('Synthesis & Guidance', 'Bringing these threads together...'), false);
     });
   });
 
   describe('card sections by header', () => {
-    it('should return true for Major Arcana in header', () => {
-      expect(isCardSection('The Fool', 'New beginnings await...')).toBe(true);
+    it('returns true for Major Arcana in header', () => {
+      assert.equal(isCardSection('The Fool', 'New beginnings await...'), true);
     });
 
-    it('should return true for Minor Arcana in header', () => {
-      expect(isCardSection('Three of Cups', 'Celebration and joy...')).toBe(true);
+    it('returns true for Minor Arcana in header', () => {
+      assert.equal(isCardSection('Three of Cups', 'Celebration and joy...'), true);
     });
 
-    it('should return true for card with position context', () => {
-      expect(isCardSection('The Tower (Challenge)', 'Sudden change...')).toBe(true);
+    it('returns true for card with position context', () => {
+      assert.equal(isCardSection('The Tower (Challenge)', 'Sudden change...'), true);
     });
   });
 
   describe('card sections by content', () => {
-    it('should return true when content contains Major Arcana', () => {
-      expect(isCardSection('Present Situation', 'The Tower crashes through...')).toBe(true);
+    it('returns true when content contains Major Arcana', () => {
+      assert.equal(isCardSection('Present Situation', 'The Tower crashes through...'), true);
     });
 
-    it('should return true when content contains Minor Arcana', () => {
-      expect(isCardSection('Your Challenge', 'The Five of Swords appears here...')).toBe(true);
+    it('returns true when content contains Minor Arcana', () => {
+      assert.equal(isCardSection('Your Challenge', 'The Five of Swords appears here...'), true);
     });
   });
 
   describe('edge cases', () => {
-    it('should return false for unknown header without card content', () => {
-      expect(isCardSection('Final Thoughts', 'Remember to breathe...')).toBe(false);
+    it('returns false for unknown header without card content', () => {
+      assert.equal(isCardSection('Final Thoughts', 'Remember to breathe...'), false);
     });
 
-    it('should handle case-insensitive matching', () => {
-      expect(isCardSection('OPENING', 'Welcome...')).toBe(false);
-      expect(isCardSection('the fool', 'New beginnings...')).toBe(true);
+    it('handles case-insensitive matching', () => {
+      assert.equal(isCardSection('OPENING', 'Welcome...'), false);
+      assert.equal(isCardSection('the fool', 'New beginnings...'), true);
     });
   });
 });
@@ -229,11 +256,11 @@ describe('isCardSection', () => {
 
 **Step 2: Run test to verify it fails**
 
-Run: `npm test -- tests/narrativeSpine.test.mjs -t "isCardSection"`
+Run: `node --test tests/narrativeSpine.test.mjs --test-name-pattern "isCardSection"`
 
 Expected: FAIL - `isCardSection` is not exported
 
-### Step 3: Add STRUCTURAL_HEADERS constant
+### Step 3: Add structural header constants
 
 In `functions/lib/narrativeSpine.js`, after the existing constants (around line 65), add:
 
@@ -256,6 +283,17 @@ const STRUCTURAL_HEADERS = new Set([
   'invitation',
   'final invitation'
 ]);
+
+const STRUCTURAL_HEADER_PREFIXES = [
+  'opening',
+  'closing',
+  'synthesis',
+  'summary',
+  'guidance',
+  'next steps',
+  'gentle next steps',
+  'reflection'
+];
 ```
 
 ### Step 4: Add isCardSection function
@@ -278,6 +316,9 @@ export function isCardSection(header, content) {
 
   // Known structural sections
   if (STRUCTURAL_HEADERS.has(normalizedHeader)) return false;
+  if (STRUCTURAL_HEADER_PREFIXES.some(prefix => normalizedHeader.startsWith(prefix))) {
+    return false;
+  }
 
   // Check for card name in header
   if (MAJOR_ARCANA_PATTERN.test(header) || MINOR_ARCANA_PATTERN.test(header)) {
@@ -298,7 +339,7 @@ export function isCardSection(header, content) {
 
 ### Step 5: Run section classification tests
 
-Run: `npm test -- tests/narrativeSpine.test.mjs -t "isCardSection"`
+Run: `node --test tests/narrativeSpine.test.mjs --test-name-pattern "isCardSection"`
 
 Expected: PASS
 
@@ -332,16 +373,17 @@ Journal about what "beginning" means to you.
 
     const result = validateReadingNarrative(reading);
 
-    expect(result.cardSections).toBe(2); // Fool, Magician
-    expect(result.structuralSections).toBe(3); // Opening, Synthesis, Next Steps
-    expect(result.cardComplete).toBeGreaterThanOrEqual(1);
+    assert.equal(result.cardSections, 2); // Fool, Magician
+    assert.equal(result.structuralSections, 3); // Opening, Synthesis, Next Steps
+    assert.ok(result.cardComplete >= 1);
+    assert.equal(result.totalSections, 5);
   });
 });
 ```
 
 **Step 7: Run test to verify it fails**
 
-Run: `npm test -- tests/narrativeSpine.test.mjs -t "card section tracking"`
+Run: `node --test tests/narrativeSpine.test.mjs --test-name-pattern "card section tracking"`
 
 Expected: FAIL - `cardSections` is undefined
 
@@ -367,6 +409,8 @@ Replace the analysis and return block with:
 
   const cardComplete = cardAnalyses.filter(a => a.analysis.isComplete).length;
   const cardIncomplete = cardAnalyses.length - cardComplete;
+  const completeSections = analyses.filter(a => a.analysis.isComplete).length;
+  const incompleteSections = analyses.length - completeSections;
 
   return {
     isValid: cardIncomplete === 0,
@@ -374,10 +418,11 @@ Replace the analysis and return block with:
     // New fields for card-aware gating
     cardSections: cardAnalyses.length,
     cardComplete,
+    cardIncomplete,
     structuralSections: structuralAnalyses.length,
     // Legacy fields for backward compatibility
-    completeSections: cardComplete,
-    incompleteSections: cardIncomplete,
+    completeSections,
+    incompleteSections,
     sectionAnalyses: analyses,
     suggestions: cardIncomplete > 0
       ? ["Review incomplete card sections and ensure they include: what is happening, why/how (connector), and what's next"]
@@ -385,13 +430,36 @@ Replace the analysis and return block with:
   };
 ```
 
-### Step 9: Run tests to verify they pass
+### Step 9: Thread card/structural counts into narrative metrics
 
-Run: `npm test -- tests/narrativeSpine.test.mjs`
+In `functions/lib/readingQuality.js`, update `buildNarrativeMetrics()` to include card-aware fields:
+
+```javascript
+  return {
+    spine: {
+      isValid: spine.isValid,
+      totalSections: spine.totalSections || 0,
+      completeSections: spine.completeSections || 0,
+      incompleteSections: spine.incompleteSections || 0,
+      cardSections: spine.cardSections || 0,
+      cardComplete: spine.cardComplete || 0,
+      cardIncomplete: spine.cardIncomplete || 0,
+      structuralSections: spine.structuralSections || 0,
+      suggestions: spine.suggestions || []
+    },
+    cardCoverage: coverage.coverage,
+    missingCards: coverage.missingCards,
+    hallucinatedCards
+  };
+```
+
+### Step 10: Run tests to verify they pass
+
+Run: `node --test tests/narrativeSpine.test.mjs`
 
 Expected: All tests pass
 
-### Step 10: Update gate logic in tarot-reading.js
+### Step 11: Update gate logic in tarot-reading.js
 
 In `functions/api/tarot-reading.js`, update the spine gate logic (around line 969-975).
 
@@ -415,24 +483,34 @@ With:
         // Structural sections (Opening, Closing, Next Steps) don't need WHAT/WHY/WHAT'S NEXT
         const spine = qualityMetrics.spine || null;
         const MIN_SPINE_COMPLETION = 0.5;
-        if (spine && spine.cardSections > 0) {
-          const spineRatio = (spine.cardComplete || 0) / spine.cardSections;
-          if (spineRatio < MIN_SPINE_COMPLETION) {
-            qualityIssues.push(`incomplete spine (${spine.cardComplete || 0}/${spine.cardSections} card sections, need ${Math.ceil(MIN_SPINE_COMPLETION * 100)}%)`);
+        if (spine) {
+          const cardSections = typeof spine.cardSections === 'number'
+            ? spine.cardSections
+            : spine.totalSections;
+          const cardComplete = typeof spine.cardComplete === 'number'
+            ? spine.cardComplete
+            : spine.completeSections;
+          if (cardSections > 0) {
+            const spineRatio = (cardComplete || 0) / cardSections;
+            if (spineRatio < MIN_SPINE_COMPLETION) {
+              qualityIssues.push(`incomplete spine (${cardComplete || 0}/${cardSections} card sections, need ${Math.ceil(MIN_SPINE_COMPLETION * 100)}%)`);
+            }
           }
         }
 ```
 
-### Step 11: Run full test suite
+### Step 12: Run full test suite + narrative gate
 
 Run: `npm test`
 
+Run: `npm run gate:narrative`
+
 Expected: All tests pass
 
-### Step 12: Commit
+### Step 13: Commit
 
 ```bash
-git add functions/lib/narrativeSpine.js functions/api/tarot-reading.js tests/narrativeSpine.test.mjs
+git add functions/lib/narrativeSpine.js functions/lib/readingQuality.js functions/api/tarot-reading.js tests/narrativeSpine.test.mjs
 git commit -m "fix(narrative): apply spine ratio only to card sections
 
 Adds isCardSection() to classify sections as card-specific vs structural.
@@ -451,7 +529,8 @@ Maintains backward compat: completeSections, incompleteSections still present"
 ## Task 3: GraphRAG Telemetry Fix
 
 **Files:**
-- Modify: `functions/api/tarot-reading.js:86-88` (update `resolveGraphRAGStats`)
+- Modify: `functions/lib/readingTelemetry.js` (export `resolveGraphRAGStats`)
+- Modify: `functions/api/tarot-reading.js` (import helper, remove local function)
 - Test: `tests/tarotReading.telemetry.test.mjs` (new file)
 
 ### Step 1: Create test file with failing tests
@@ -459,31 +538,13 @@ Maintains backward compat: completeSections, incompleteSections still present"
 Create `tests/tarotReading.telemetry.test.mjs`:
 
 ```javascript
-import { describe, it, expect } from 'vitest';
+import assert from 'node:assert/strict';
+import { describe, it } from 'node:test';
 
-// We'll test the function directly after extracting it
-// For now, test the expected behavior
+import { resolveGraphRAGStats } from '../functions/lib/readingTelemetry.js';
 
 describe('resolveGraphRAGStats', () => {
-  // Import the function - will be extracted for testability
-  const resolveGraphRAGStats = (analysis, promptMeta = null) => {
-    if (promptMeta?.graphRAG) {
-      return promptMeta.graphRAG;
-    }
-
-    const summary = analysis?.graphRAGPayload?.retrievalSummary;
-    if (summary) {
-      return {
-        ...summary,
-        injectedIntoPrompt: false,
-        source: 'analysis-fallback'
-      };
-    }
-
-    return null;
-  };
-
-  it('should return promptMeta.graphRAG when available', () => {
+  it('returns promptMeta.graphRAG when available', () => {
     const promptMeta = {
       graphRAG: {
         passagesRetrieved: 3,
@@ -498,11 +559,11 @@ describe('resolveGraphRAGStats', () => {
 
     const result = resolveGraphRAGStats(analysis, promptMeta);
 
-    expect(result).toEqual(promptMeta.graphRAG);
-    expect(result.includedInPrompt).toBe(true);
+    assert.deepEqual(result, promptMeta.graphRAG);
+    assert.equal(result.includedInPrompt, true);
   });
 
-  it('should add injectedIntoPrompt: false when falling back to analysis', () => {
+  it('adds injectedIntoPrompt: false when falling back to analysis', () => {
     const analysis = {
       graphRAGPayload: {
         retrievalSummary: {
@@ -514,18 +575,18 @@ describe('resolveGraphRAGStats', () => {
 
     const result = resolveGraphRAGStats(analysis, null);
 
-    expect(result.injectedIntoPrompt).toBe(false);
-    expect(result.source).toBe('analysis-fallback');
-    expect(result.passagesRetrieved).toBe(3);
+    assert.equal(result.injectedIntoPrompt, false);
+    assert.equal(result.source, 'analysis-fallback');
+    assert.equal(result.passagesRetrieved, 3);
   });
 
-  it('should return null when neither promptMeta nor analysis available', () => {
-    expect(resolveGraphRAGStats(null, null)).toBeNull();
-    expect(resolveGraphRAGStats({}, null)).toBeNull();
-    expect(resolveGraphRAGStats({ graphRAGPayload: {} }, null)).toBeNull();
+  it('returns null when neither promptMeta nor analysis available', () => {
+    assert.equal(resolveGraphRAGStats(null, null), null);
+    assert.equal(resolveGraphRAGStats({}, null), null);
+    assert.equal(resolveGraphRAGStats({ graphRAGPayload: {} }, null), null);
   });
 
-  it('should preserve all original summary fields when falling back', () => {
+  it('preserves original summary fields when falling back', () => {
     const analysis = {
       graphRAGPayload: {
         retrievalSummary: {
@@ -538,33 +599,23 @@ describe('resolveGraphRAGStats', () => {
 
     const result = resolveGraphRAGStats(analysis, null);
 
-    expect(result.passagesRetrieved).toBe(2);
-    expect(result.topPatterns).toEqual(['death-star']);
-    expect(result.relevanceScores).toEqual([0.8, 0.6]);
-    expect(result.injectedIntoPrompt).toBe(false);
+    assert.equal(result.passagesRetrieved, 2);
+    assert.deepEqual(result.topPatterns, ['death-star']);
+    assert.deepEqual(result.relevanceScores, [0.8, 0.6]);
+    assert.equal(result.injectedIntoPrompt, false);
   });
 });
 ```
 
-### Step 2: Run test to verify expected behavior is documented
+### Step 2: Run test to verify it fails
 
-Run: `npm test -- tests/tarotReading.telemetry.test.mjs`
+Run: `node --test tests/tarotReading.telemetry.test.mjs`
 
-Expected: PASS (tests define expected behavior with inline implementation)
+Expected: FAIL - `resolveGraphRAGStats` is not exported yet
 
-### Step 3: Update resolveGraphRAGStats in tarot-reading.js
+### Step 3: Extract resolveGraphRAGStats into readingTelemetry
 
-In `functions/api/tarot-reading.js`, update `resolveGraphRAGStats` (lines 86-88).
-
-Replace:
-
-```javascript
-function resolveGraphRAGStats(analysis, promptMeta = null) {
-  return promptMeta?.graphRAG || analysis?.graphRAGPayload?.retrievalSummary || null;
-}
-```
-
-With:
+In `functions/lib/readingTelemetry.js`, add:
 
 ```javascript
 /**
@@ -576,7 +627,7 @@ With:
  * @param {Object} promptMeta - Prompt metadata from buildEnhancedClaudePrompt
  * @returns {Object|null} GraphRAG stats with injection status
  */
-function resolveGraphRAGStats(analysis, promptMeta = null) {
+export function resolveGraphRAGStats(analysis, promptMeta = null) {
   // Prefer promptMeta - it's authoritative about what was injected
   if (promptMeta?.graphRAG) {
     return promptMeta.graphRAG;
@@ -596,16 +647,27 @@ function resolveGraphRAGStats(analysis, promptMeta = null) {
 }
 ```
 
-### Step 4: Run full test suite
+### Step 4: Update tarot-reading.js to use shared helper
+
+In `functions/api/tarot-reading.js`, import `resolveGraphRAGStats` from `functions/lib/readingTelemetry.js`
+and remove the local function definition.
+
+### Step 5: Run telemetry test
+
+Run: `node --test tests/tarotReading.telemetry.test.mjs`
+
+Expected: PASS
+
+### Step 6: Run full test suite
 
 Run: `npm test`
 
 Expected: All tests pass
 
-### Step 5: Commit
+### Step 7: Commit
 
 ```bash
-git add functions/api/tarot-reading.js tests/tarotReading.telemetry.test.mjs
+git add functions/lib/readingTelemetry.js functions/api/tarot-reading.js tests/tarotReading.telemetry.test.mjs
 git commit -m "fix(telemetry): add injectedIntoPrompt flag for GraphRAG fallback
 
 When promptMeta is absent (e.g., local composer), telemetry now explicitly
@@ -628,13 +690,19 @@ Run: `npm test`
 
 Expected: All tests pass
 
-### Step 2: Run E2E tests (optional)
+### Step 2: Run narrative gate
+
+Run: `npm run gate:narrative`
+
+Expected: Narrative gate passes
+
+### Step 3: Run E2E tests (optional)
 
 Run: `npm run test:e2e`
 
 Expected: All E2E tests pass
 
-### Step 3: Final commit with all changes
+### Step 4: Final commit with all changes
 
 ```bash
 git log --oneline -5
@@ -648,9 +716,11 @@ Verify the three commits are present.
 
 | File | Change |
 |------|--------|
-| `functions/lib/narrative/prompts.js` | Import `getSpreadKey`, replace resolution call, delete `getSpreadKeyFromName()` |
-| `functions/lib/narrativeSpine.js` | Add `STRUCTURAL_HEADERS`, `isCardSection()`, update `validateReadingNarrative()` return |
-| `functions/api/tarot-reading.js` | Update spine gate to use `cardSections`, fix `resolveGraphRAGStats()` |
+| `functions/lib/narrative/prompts.js` | Use `getSpreadKey`, store `spreadKey` in `promptMeta`, delete `getSpreadKeyFromName()` |
+| `functions/lib/narrativeSpine.js` | Add structural header constants, `isCardSection()`, update `validateReadingNarrative()` with card/structural counts |
+| `functions/lib/readingQuality.js` | Thread card/structural spine fields into `buildNarrativeMetrics()` |
+| `functions/lib/readingTelemetry.js` | Export `resolveGraphRAGStats()` |
+| `functions/api/tarot-reading.js` | Update spine gate to use card-aware ratio (with fallback), consume shared `resolveGraphRAGStats()` |
 | `tests/narrativeBuilder.promptCompliance.test.mjs` | Add spread-key resolution tests |
 | `tests/narrativeSpine.test.mjs` | Add `isCardSection` and card section tracking tests |
-| `tests/tarotReading.telemetry.test.mjs` | New file with GraphRAG telemetry tests |
+| `tests/tarotReading.telemetry.test.mjs` | New telemetry tests for `resolveGraphRAGStats` |

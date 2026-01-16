@@ -4,6 +4,52 @@ const encoder = new TextEncoder();
 const _decoder = typeof TextDecoder === 'function' ? new TextDecoder() : null;
 const DEFAULT_TTL_MS = 5 * 60 * 1000; // 5 minutes
 const MAX_INSIGHTS = 10;
+const MAX_REASONING_CHARS = 600;
+const MAX_VISUAL_DETAILS = 6;
+const MAX_VISUAL_DETAIL_CHARS = 120;
+
+function normalizeOrientation(orientation) {
+  if (typeof orientation !== 'string') return null;
+  const normalized = orientation.trim().toLowerCase();
+  if (normalized.startsWith('upright')) return 'upright';
+  if (normalized.startsWith('reversed') || normalized.startsWith('reverse')) return 'reversed';
+  if (normalized === 'unknown') return 'unknown';
+  return null;
+}
+
+function truncateText(value, maxChars) {
+  if (typeof value !== 'string') return null;
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  if (!maxChars || trimmed.length <= maxChars) return trimmed;
+  return trimmed.slice(0, maxChars).trim();
+}
+
+function normalizeVisualDetails(details) {
+  if (!details) return null;
+  const items = Array.isArray(details)
+    ? details
+    : (typeof details === 'string' ? details.split(/[\n;]+/g) : []);
+  const normalized = items
+    .map((item) => truncateText(item, MAX_VISUAL_DETAIL_CHARS))
+    .filter(Boolean)
+    .slice(0, MAX_VISUAL_DETAILS);
+  return normalized.length ? normalized : null;
+}
+
+function normalizeMergeSource(mergeSource) {
+  if (typeof mergeSource !== 'string') return null;
+  const trimmed = mergeSource.trim();
+  return trimmed ? trimmed.slice(0, 40) : null;
+}
+
+function normalizeComponentScores(componentScores) {
+  if (!componentScores || typeof componentScores !== 'object') return null;
+  const clip = typeof componentScores.clip === 'number' ? componentScores.clip : null;
+  const llama = typeof componentScores.llama === 'number' ? componentScores.llama : null;
+  if (clip == null && llama == null) return null;
+  return { clip, llama };
+}
 
 function getSubtle() {
   if (globalThis.crypto?.subtle) {
@@ -73,7 +119,12 @@ export function trimInsights(rawInsights = [], deckStyle = 'rws-1909') {
       matches: Array.isArray(insight.matches) ? insight.matches.slice(0, 3) : [],
       attention: insight.attention || null,
       symbolVerification: insight.symbolVerification || null,
-      visualProfile: insight.visualProfile || null
+      visualProfile: insight.visualProfile || null,
+      orientation: normalizeOrientation(insight.orientation),
+      reasoning: truncateText(insight.reasoning, MAX_REASONING_CHARS),
+      visualDetails: normalizeVisualDetails(insight.visualDetails),
+      mergeSource: normalizeMergeSource(insight.mergeSource),
+      componentScores: normalizeComponentScores(insight.componentScores)
     }));
 }
 

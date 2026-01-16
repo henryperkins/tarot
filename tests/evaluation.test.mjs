@@ -128,7 +128,7 @@ describe('evaluation', () => {
 
       assert.equal(result.scores.overall, 4);
       assert.equal(result.scores.safety_flag, false);
-      assert.equal(result.model, '@cf/meta/llama-3.3-70b-instruct-fp8-fast');
+      assert.equal(result.model, '@cf/openai/gpt-oss-120b');
       assert.equal(result.promptVersion, '2.1.0');
     });
 
@@ -1118,37 +1118,43 @@ describe('evaluation', () => {
       assert.strictEqual(result.gateResult.reason, 'eval_unavailable');
     });
 
-    test('ignores legacy EVAL_GATE_FAIL_OPEN and defaults to closed', async () => {
+    test('ignores legacy EVAL_GATE_FAIL_OPEN and defaults to open', async () => {
+      // Legacy env vars are ignored; default is now 'open' which trusts heuristic when AI fails
       const result = await runSyncEvaluationGate(
         { AI: failingAI, EVAL_ENABLED: 'true', EVAL_GATE_ENABLED: 'true', EVAL_GATE_FAIL_OPEN: 'true' },
         { reading: 'test', userQuestion: 'test', cardsInfo: [], spreadKey: 'test', requestId: 'gate-legacy-open' },
         { cardCoverage: 0.9 }
       );
 
-      assert.strictEqual(result.passed, false);
-      assert.strictEqual(result.gateResult.reason, 'eval_unavailable');
+      // With fail-open (default), heuristic passes → reading allowed
+      assert.strictEqual(result.passed, true);
+      assert.strictEqual(result.gateResult.reason, null);
     });
 
-    test('ignores legacy EVAL_GATE_FAIL_CLOSED and defaults to closed', async () => {
+    test('ignores legacy EVAL_GATE_FAIL_CLOSED and defaults to open', async () => {
+      // Legacy env vars are ignored; default is now 'open'
       const result = await runSyncEvaluationGate(
         { AI: failingAI, EVAL_ENABLED: 'true', EVAL_GATE_ENABLED: 'true', EVAL_GATE_FAIL_CLOSED: 'false' },
         { reading: 'test', userQuestion: 'test', cardsInfo: [], spreadKey: 'test', requestId: 'gate-legacy-closed' },
         { cardCoverage: 0.9 }
       );
 
-      assert.strictEqual(result.passed, false);
-      assert.strictEqual(result.gateResult.reason, 'eval_unavailable');
+      // With fail-open (default), heuristic passes → reading allowed
+      assert.strictEqual(result.passed, true);
+      assert.strictEqual(result.gateResult.reason, null);
     });
 
-    test('defaults to closed when no config provided', async () => {
+    test('defaults to open when no config provided', async () => {
+      // Default failure mode is 'open' - trusts heuristic safety checks when AI fails
       const result = await runSyncEvaluationGate(
         { AI: failingAI, EVAL_ENABLED: 'true', EVAL_GATE_ENABLED: 'true' },
         { reading: 'test', userQuestion: 'test', cardsInfo: [], spreadKey: 'test', requestId: 'gate-default' },
         { cardCoverage: 0.9 }
       );
 
-      assert.strictEqual(result.passed, false);
-      assert.strictEqual(result.gateResult.reason, 'eval_unavailable');
+      // Heuristic passes (no safety issues detected) → reading allowed
+      assert.strictEqual(result.passed, true);
+      assert.strictEqual(result.gateResult.reason, null);
     });
   });
 

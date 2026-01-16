@@ -1,7 +1,14 @@
 import { useId, useState, useRef, useEffect } from 'react';
 import { CaretDown } from '@phosphor-icons/react';
 
-export function HelperToggle({ children, label = 'More information', className = '', defaultOpen = false }) {
+export function HelperToggle({
+  children,
+  label = 'More information',
+  className = '',
+  defaultOpen = false,
+  buttonClassName = '',
+  contentClassName = ''
+}) {
   const [isOpen, setIsOpen] = useState(defaultOpen);
   const contentId = useId();
   const contentRef = useRef(null);
@@ -39,15 +46,20 @@ export function HelperToggle({ children, label = 'More information', className =
     setIsOpen(prev => !prev);
   };
 
+  const buttonClass = `
+    inline-flex items-center gap-1.5 px-3 py-1.5 min-h-[44px] text-xs text-muted/80 transition-all duration-200
+    hover:text-secondary
+    focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/50 focus-visible:ring-offset-2 focus-visible:ring-offset-main
+    touch-manipulation
+    ${buttonClassName}
+  `;
+
   return (
     <div className={className}>
       <button
         type="button"
         onClick={handleToggle}
-        className="inline-flex items-center gap-1.5 px-3 py-1.5 min-h-[44px] text-xs text-muted/80 transition-all duration-200
-          hover:text-secondary
-          focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/50 focus-visible:ring-offset-2 focus-visible:ring-offset-main
-          touch-manipulation"
+        className={buttonClass}
         aria-expanded={isOpen}
         aria-controls={contentId}
         aria-label={isOpen ? `Hide ${label.toLowerCase()}` : label}
@@ -71,7 +83,7 @@ export function HelperToggle({ children, label = 'More information', className =
         }}
         aria-hidden={!isOpen}
       >
-        <div className="text-[clamp(0.85rem,2.4vw,0.95rem)] leading-snug text-muted bg-surface/70 border border-secondary/25 rounded-lg p-3">
+        <div className={`text-[clamp(0.85rem,2.4vw,0.95rem)] leading-snug text-muted bg-surface/70 border border-secondary/25 rounded-lg p-3 ${contentClassName}`}>
           {children}
         </div>
       </div>

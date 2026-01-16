@@ -40,6 +40,9 @@ export function DeckRitual({
   cards = [],
   revealedIndices,
 
+  // Reveal staging (deck-first vs board-first on mobile)
+  revealStage = 'action',
+
   // External ref for ghost card animation coordination
   externalDeckRef
 }) {
@@ -60,6 +63,7 @@ export function DeckRitual({
     revealedCount === 0 &&
     cardsRemaining === totalCards;
   const canShuffleGesture = !isShuffling && revealedCount === 0 && cardsRemaining === totalCards;
+  const isDeckPrimary = revealStage !== 'spread';
 
   // Sync local cut index with prop
   useEffect(() => {
@@ -359,7 +363,7 @@ export function DeckRitual({
       </AnimatePresence>
 
       {/* Quick draw CTA placed nearer to the deck on mobile */}
-      {cardsRemaining > 0 && (
+      {isDeckPrimary && cardsRemaining > 0 && (
         <div className={`text-center px-3 xs:px-4 ${isLandscape ? 'mt-3' : 'mt-4 xs:mt-5'} sm:hidden`}>
           <motion.button
             onClick={handleDealWithAnimation}
@@ -440,35 +444,37 @@ export function DeckRitual({
       </div>
 
       {/* Gesture hints with icons for better discoverability */}
-      <div className={`flex flex-wrap justify-center px-3 xs:px-4 ${isLandscape ? 'mt-2 gap-1.5' : 'mt-2 xs:mt-3 gap-1.5 xs:gap-2'}`}>
-        {!knockComplete && (
-          <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full bg-surface/60 border border-accent/20 text-muted ${isLandscape ? 'text-[0.55rem]' : 'text-[0.6rem] xs:text-[0.65rem]'}`}>
-            <HandTap className="w-3 h-3" weight="duotone" aria-hidden="true" />
-            <span>Tap to knock</span>
-          </span>
-        )}
-        {!hasCut && (
-          <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full bg-surface/60 border border-accent/20 text-muted ${isLandscape ? 'text-[0.55rem]' : 'text-[0.6rem] xs:text-[0.65rem]'}`}>
-            <Scissors className="w-3 h-3" weight="duotone" aria-hidden="true" />
-            <span>Hold to cut</span>
-          </span>
-        )}
-        {canShuffleGesture && (
-          <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full bg-surface/60 border border-accent/20 text-muted ${isLandscape ? 'text-[0.55rem]' : 'text-[0.6rem] xs:text-[0.65rem]'}`}>
-            <ArrowsClockwise className="w-3 h-3" weight="duotone" aria-hidden="true" />
-            <span>2x tap shuffle</span>
-          </span>
-        )}
-        {knockComplete && cardsRemaining > 0 && (
-          <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full bg-primary/20 border border-primary/30 text-main ${isLandscape ? 'text-[0.55rem]' : 'text-[0.6rem] xs:text-[0.65rem]'}`}>
-            <HandTap className="w-3 h-3" weight="fill" aria-hidden="true" />
-            <span>Tap to draw</span>
-          </span>
-        )}
-      </div>
+      {isDeckPrimary && (
+        <div className={`flex flex-wrap justify-center px-3 xs:px-4 ${isLandscape ? 'mt-2 gap-1.5' : 'mt-2 xs:mt-3 gap-1.5 xs:gap-2'}`}>
+          {!knockComplete && (
+            <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full bg-surface/60 border border-accent/20 text-muted ${isLandscape ? 'text-[0.55rem]' : 'text-[0.6rem] xs:text-[0.65rem]'}`}>
+              <HandTap className="w-3 h-3" weight="duotone" aria-hidden="true" />
+              <span>Tap to knock</span>
+            </span>
+          )}
+          {!hasCut && (
+            <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full bg-surface/60 border border-accent/20 text-muted ${isLandscape ? 'text-[0.55rem]' : 'text-[0.6rem] xs:text-[0.65rem]'}`}>
+              <Scissors className="w-3 h-3" weight="duotone" aria-hidden="true" />
+              <span>Hold to cut</span>
+            </span>
+          )}
+          {canShuffleGesture && (
+            <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full bg-surface/60 border border-accent/20 text-muted ${isLandscape ? 'text-[0.55rem]' : 'text-[0.6rem] xs:text-[0.65rem]'}`}>
+              <ArrowsClockwise className="w-3 h-3" weight="duotone" aria-hidden="true" />
+              <span>2x tap shuffle</span>
+            </span>
+          )}
+          {knockComplete && cardsRemaining > 0 && (
+            <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full bg-primary/20 border border-primary/30 text-main ${isLandscape ? 'text-[0.55rem]' : 'text-[0.6rem] xs:text-[0.65rem]'}`}>
+              <HandTap className="w-3 h-3" weight="fill" aria-hidden="true" />
+              <span>Tap to draw</span>
+            </span>
+          )}
+        </div>
+      )}
 
       {/* Draw CTA - optimized for small screens */}
-      {cardsRemaining > 0 && (
+      {isDeckPrimary && cardsRemaining > 0 && (
         <div className={`text-center px-3 xs:px-4 ${isLandscape ? 'mt-3' : 'mt-4 xs:mt-5 sm:mt-6 hidden sm:block'}`}>
           <motion.button
             onClick={handleDealWithAnimation}

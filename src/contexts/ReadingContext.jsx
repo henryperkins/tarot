@@ -4,7 +4,6 @@ import { useTarotState } from '../hooks/useTarotState';
 import { useVisionAnalysis } from '../hooks/useVisionAnalysis';
 import { useAudioController } from '../hooks/useAudioController';
 import { usePreferences } from './PreferencesContext';
-import { useReducedMotion } from '../hooks/useReducedMotion';
 import { getSpreadInfo, normalizeSpreadKey } from '../data/spreads';
 import { MAJOR_ARCANA } from '../data/majorArcana';
 import { MINOR_ARCANA } from '../data/minorArcana';
@@ -46,7 +45,6 @@ export function ReadingProvider({ children }) {
     // 3. Vision Analysis
     const visionAnalysis = useVisionAnalysis(reading);
     const { visionResults, visionConflicts, resetVisionProof: _resetVisionProof, ensureVisionProof, getVisionConflictsForCards, setVisionConflicts } = visionAnalysis;
-    const prefersReducedMotion = useReducedMotion();
 
     const personalizationForRequest = useMemo(() => {
         if (!personalization || typeof personalization !== 'object') {
@@ -103,18 +101,109 @@ export function ReadingProvider({ children }) {
     const [lastCardsForFeedback, setLastCardsForFeedback] = useState([]);
     const [showAllHighlights, setShowAllHighlights] = useState(false);
     const [srAnnouncement, setSrAnnouncement] = useState('');
-    const [isGuidedRevealActive, setIsGuidedRevealActive] = useState(false);
 
     const visionResearchEnabled = import.meta.env?.VITE_ENABLE_VISION_RESEARCH === 'true';
     const inFlightReadingRef = useRef(null);
-    const guidedRevealTimerRef = useRef(null);
+    const readingJobRef = useRef({
+        jobId: null,
+        jobToken: null,
+        cursor: 0,
+        readingKey: null
+    });
+    const cursorPersistRef = useRef({
+        lastPersistAt: 0,
+        eventCount: 0,
+        lastJobId: null
+    });
+    const cardsInfoRef = useRef([]);
+
+    const readingJobStorageKey = 'tarot:reading-job';
+
+    const persistReadingJob = useCallback((nextState) => {
+        if (typeof window === 'undefined' || !window.sessionStorage) return;
+        try {
+            window.sessionStorage.setItem(readingJobStorageKey, JSON.stringify(nextState));
+        } catch {
+            // Ignore storage failures (private mode, quota, etc.)
+        }
+    }, []);
+
+    const setReadingJob = useCallback((updates) => {
+        const nextState = { ...readingJobRef.current, ...updates };
+        readingJobRef.current = nextState;
+        persistReadingJob(nextState);
+    }, [persistReadingJob]);
+
+    const updateReadingJobCursor = useCallback((eventId, { force = false } = {}) => {
+        const currentJobId = readingJobRef.current?.jobId || null;
+        if (!currentJobId) return;
+        if (cursorPersistRef.current.lastJobId !== currentJobId) {
+            cursorPersistRef.current = {
+                lastPersistAt: 0,
+                eventCount: 0,
+                lastJobId: currentJobId
+            };
+        }
+        let nextCursor = readingJobRef.current?.cursor || 0;
+        if (Number.isFinite(eventId) && eventId > nextCursor) {
+            nextCursor = eventId;
+            readingJobRef.current = { ...readingJobRef.current, cursor: nextCursor };
+        } else if (!force) {
+            return;
+        }
+        const now = Date.now();
+        if (force) {
+            cursorPersistRef.current.lastPersistAt = now;
+            cursorPersistRef.current.eventCount = 0;
+            persistReadingJob(readingJobRef.current);
+            return;
+        }
+        cursorPersistRef.current.eventCount += 1;
+        const shouldPersist =
+            cursorPersistRef.current.eventCount >= 5 ||
+            now - cursorPersistRef.current.lastPersistAt >= 1000;
+        if (!shouldPersist) return;
+        cursorPersistRef.current.lastPersistAt = now;
+        cursorPersistRef.current.eventCount = 0;
+        persistReadingJob(readingJobRef.current);
+    }, [persistReadingJob]);
+
+    const clearReadingJob = useCallback(() => {
+        readingJobRef.current = {
+            jobId: null,
+            jobToken: null,
+            cursor: 0,
+            readingKey: null
+        };
+        cursorPersistRef.current = {
+            lastPersistAt: 0,
+            eventCount: 0,
+            lastJobId: null
+        };
+        if (typeof window === 'undefined' || !window.sessionStorage) return;
+        try {
+            window.sessionStorage.removeItem(readingJobStorageKey);
+        } catch {
+            // Ignore storage failures.
+        }
+    }, []);
 
     const cancelInFlightReading = useCallback(() => {
         if (inFlightReadingRef.current?.controller) {
             inFlightReadingRef.current.controller.abort();
         }
         inFlightReadingRef.current = null;
-    }, []);
+
+        const { jobId, jobToken } = readingJobRef.current || {};
+        if (jobId && jobToken) {
+            fetch(`/api/tarot-reading/jobs/${jobId}/cancel`, {
+                method: 'POST',
+                headers: { 'X-Job-Token': jobToken }
+            }).catch(() => null);
+        }
+
+        clearReadingJob();
+    }, [clearReadingJob]);
 
     // Reset analysis state when Shuffle is triggered
     const handleShuffle = useCallback(() => {
@@ -132,6 +221,7 @@ export function ReadingProvider({ children }) {
             setJournalStatus(null);
             setReflections({});
             setFollowUps([]);
+            cardsInfoRef.current = [];
             visionAnalysis.setVisionResults([]);
             visionAnalysis.setVisionConflicts([]);
             visionAnalysis.resetVisionProof();
@@ -139,6 +229,361 @@ export function ReadingProvider({ children }) {
             setSrAnnouncement('');
         });
     }, [shuffle, visionAnalysis, cancelInFlightReading]);
+
+    const pauseReadingStream = useCallback((message = 'Finishing your narrative in the background.') => {
+        setIsReadingStreamActive(false);
+        setSrAnnouncement(message);
+    }, []);
+
+    const buildReadingKey = useCallback(() => {
+        const count = reading?.length ?? 0;
+        const fingerprint = Array.isArray(reading)
+            ? reading.map((card) => {
+                const name = typeof card?.name === 'string' ? card.name : '';
+                const reversed = card?.isReversed ? 'R' : 'U';
+                return `${name}:${reversed}`;
+            }).join('|')
+            : '';
+        return JSON.stringify({
+            spreadKey: normalizeSpreadKey(selectedSpread),
+            count,
+            seed: sessionSeed || null,
+            fingerprint: fingerprint || null
+        });
+    }, [reading, selectedSpread, sessionSeed]);
+
+    const streamReadingJob = useCallback(async ({ jobId, jobToken, cursor = 0, resume = false }) => {
+        if (!jobId || !jobToken) return;
+
+        if (inFlightReadingRef.current?.controller) {
+            inFlightReadingRef.current.controller.abort();
+        }
+
+        const controller = new AbortController();
+        inFlightReadingRef.current = { controller, jobId };
+
+        const isActiveRequest = () =>
+            !controller.signal.aborted &&
+            readingJobRef.current?.jobId === jobId &&
+            inFlightReadingRef.current?.controller === controller;
+
+        const safeSpreadKey = normalizeSpreadKey(selectedSpread);
+        const spreadInfo = getSpreadInfo(safeSpreadKey);
+
+        setIsReadingStreamActive(true);
+        setIsGenerating(true);
+
+        try {
+            const response = await fetch(`/api/tarot-reading/jobs/${jobId}/stream?cursor=${cursor}`, {
+                headers: {
+                    'Accept': 'text/event-stream',
+                    'X-Job-Token': jobToken
+                },
+                signal: controller.signal
+            });
+
+            const contentType = response.headers.get('content-type') || '';
+            const isSSE = contentType.includes('text/event-stream');
+
+            if (!response.ok || !isSSE) {
+                const errText = await response.text();
+                let errPayload = null;
+                try {
+                    errPayload = errText ? JSON.parse(errText) : null;
+                } catch {
+                    errPayload = null;
+                }
+
+                const serverMessage =
+                    typeof errPayload?.error === 'string'
+                        ? errPayload.error.trim()
+                        : '';
+
+                const fallbackByStatus = {
+                    401: 'Please sign in to generate a personal narrative.',
+                    403: 'This request couldn’t be resumed. Please try again.',
+                    404: 'This request couldn’t be resumed. Please try again.',
+                    409: 'This request couldn’t be completed. Please refresh and try again.',
+                    410: 'This request expired. Please generate a new narrative.',
+                    429: 'You’ve reached your reading limit. Please try again later.'
+                };
+
+                const safeServerMessage = serverMessage && serverMessage.length <= 240 ? serverMessage : '';
+                const finalMessage =
+                    safeServerMessage ||
+                    fallbackByStatus[response.status] ||
+                    'Unable to generate reading at this time. Please try again in a moment.';
+
+                throw new Error(finalMessage);
+            }
+
+            const reader = response.body?.getReader();
+            if (!reader) {
+                throw new Error('Streaming response missing body.');
+            }
+
+            const decoder = new TextDecoder();
+            let buffer = '';
+            let streamedText = resume
+                ? (personalReading?.raw || personalReading?.normalized || '')
+                : '';
+            let doneReceived = false;
+            let streamMeta = null;
+            let lastFlush = 0;
+
+            const updateCursor = (eventId) => {
+                if (!isActiveRequest()) return;
+                updateReadingJobCursor(eventId);
+            };
+
+            const flushStreamedText = (force = false) => {
+                if (!isActiveRequest()) return;
+                const now = Date.now();
+                if (!force && now - lastFlush < 120) {
+                    return;
+                }
+                lastFlush = now;
+                const formatted = formatReading(streamedText);
+                formatted.isError = false;
+                formatted.isStreaming = true;
+                formatted.isServerStreamed = true;
+                if (streamMeta?.provider) {
+                    formatted.provider = streamMeta.provider;
+                }
+                if (streamMeta?.requestId) {
+                    formatted.requestId = streamMeta.requestId;
+                }
+                setPersonalReading(formatted);
+            };
+
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+
+                if (controller.signal.aborted) {
+                    reader.cancel().catch(() => null);
+                    return;
+                }
+
+                buffer += decoder.decode(value, { stream: true });
+                const events = buffer.split('\n\n');
+                buffer = events.pop() || '';
+
+                for (const eventBlock of events) {
+                    if (!eventBlock.trim()) continue;
+
+                    const lines = eventBlock.split('\n');
+                    let eventType = '';
+                    let eventData = '';
+
+                    for (const line of lines) {
+                        if (line.startsWith('event:')) {
+                            eventType = line.slice(6).trim();
+                        } else if (line.startsWith('data:')) {
+                            eventData = line.slice(5).trim();
+                        }
+                    }
+
+                    if (!eventType || !eventData) continue;
+
+                    try {
+                        const data = JSON.parse(eventData);
+                        updateCursor(data?.eventId);
+
+                        if (eventType === 'meta') {
+                            streamMeta = data;
+                            if (data?.themes !== undefined) {
+                                setThemes(data.themes || null);
+                            }
+                            if (data?.emotionalTone !== undefined) {
+                                setEmotionalTone(data.emotionalTone || null);
+                            }
+                            if (data?.spreadAnalysis !== undefined) {
+                                setSpreadAnalysis(data.spreadAnalysis || null);
+                            }
+                            if (data?.context !== undefined) {
+                                setAnalysisContext(data.context || null);
+                            }
+                            if (isActiveRequest()) {
+                                setReadingMeta({
+                                    requestId: data.requestId || null,
+                                    provider: data.provider || 'local',
+                                    spreadKey: safeSpreadKey,
+                                    spreadName: spreadInfo?.name || null,
+                                    deckStyle: deckStyleId,
+                                    userQuestion,
+                                    graphContext: data.themes?.knowledgeGraph || null,
+                                    ephemeris: data.ephemeris || null
+                                });
+                            }
+                        } else if (eventType === 'delta') {
+                            streamedText += data.text || '';
+                            flushStreamedText();
+                        } else if (eventType === 'reasoning') {
+                            if (data.text && isActiveRequest()) {
+                                setReasoningSummary(data.text);
+                            }
+                        } else if (eventType === 'done') {
+                            doneReceived = true;
+                            const finalText = (data.fullText || streamedText || '').trim();
+                            if (!finalText) {
+                                throw new Error('Empty reading returned');
+                            }
+
+                            if (!isActiveRequest()) {
+                                return;
+                            }
+
+                            setNarrativePhase('polishing');
+                            setSrAnnouncement('Step 3 of 3: Final polishing and assembling your narrative.');
+
+                            const formatted = formatReading(finalText);
+                            formatted.isError = false;
+                            formatted.isStreaming = false;
+                            formatted.isServerStreamed = true;
+                            formatted.provider = data.provider || streamMeta?.provider || 'local-composer';
+                            formatted.requestId = data.requestId || streamMeta?.requestId || null;
+                            setPersonalReading(formatted);
+                            setIsReadingStreamActive(false);
+                            setNarrativePhase('complete');
+                            setReasoningSummary(null);
+                            setLastCardsForFeedback(
+                                (cardsInfoRef.current || []).map((card) => ({
+                                    position: card.position,
+                                    card: card.card,
+                                    orientation: card.orientation
+                                }))
+                            );
+                            setReadingMeta((prev) => ({
+                                ...prev,
+                                requestId: formatted.requestId,
+                                provider: formatted.provider || prev?.provider || 'local'
+                            }));
+                            clearReadingJob();
+                            setIsGenerating(false);
+                        } else if (eventType === 'error') {
+                            throw new Error(data.message || 'Streaming error occurred');
+                        }
+                    } catch (parseError) {
+                        if (parseError.message && !parseError.message.includes('JSON')) {
+                            throw parseError;
+                        }
+                        console.warn('Failed to parse SSE event:', eventData);
+                    }
+                }
+            }
+
+            if (!doneReceived && isActiveRequest()) {
+                updateReadingJobCursor(readingJobRef.current?.cursor || 0, { force: true });
+                pauseReadingStream();
+            }
+        } catch (error) {
+            if (error?.name === 'AbortError') {
+                updateReadingJobCursor(readingJobRef.current?.cursor || 0, { force: true });
+                pauseReadingStream();
+                return;
+            }
+
+            const isHidden = typeof document !== 'undefined' && document.visibilityState === 'hidden';
+            if (isHidden) {
+                updateReadingJobCursor(readingJobRef.current?.cursor || 0, { force: true });
+                pauseReadingStream();
+                return;
+            }
+
+            const errorMsg =
+                typeof error?.message === 'string' && error.message.trim()
+                    ? error.message.trim()
+                    : 'Unable to generate reading at this time. Please try again in a moment.';
+            const formattedError = formatReading(errorMsg);
+            formattedError.isError = true;
+            formattedError.isStreaming = false;
+            formattedError.isServerStreamed = false;
+            setPersonalReading(formattedError);
+            setJournalStatus({
+                type: 'error',
+                message: errorMsg
+            });
+            setNarrativePhase('error');
+            setSrAnnouncement(errorMsg);
+            setIsGenerating(false);
+            clearReadingJob();
+        } finally {
+            if (inFlightReadingRef.current?.controller === controller) {
+                inFlightReadingRef.current = null;
+                setIsReadingStreamActive(false);
+            }
+        }
+    }, [
+        clearReadingJob,
+        deckStyleId,
+        personalReading,
+        pauseReadingStream,
+        selectedSpread,
+        updateReadingJobCursor,
+        userQuestion
+    ]);
+
+    useEffect(() => {
+        if (typeof window === 'undefined' || !window.sessionStorage) return;
+        const stored = window.sessionStorage.getItem(readingJobStorageKey);
+        if (!stored) return;
+        try {
+            const parsed = JSON.parse(stored);
+            if (!parsed?.jobId || !parsed?.jobToken) return;
+            if (parsed.readingKey && parsed.readingKey !== buildReadingKey()) {
+                clearReadingJob();
+                return;
+            }
+            const parsedCursor = Number.parseInt(parsed.cursor, 10);
+            const cursor = Number.isFinite(parsedCursor) ? parsedCursor : 0;
+            readingJobRef.current = {
+                jobId: parsed.jobId,
+                jobToken: parsed.jobToken,
+                cursor,
+                readingKey: parsed.readingKey || null
+            };
+            if (!isReadingStreamActive && narrativePhase !== 'complete' && !personalReading?.isError) {
+                streamReadingJob({
+                    jobId: parsed.jobId,
+                    jobToken: parsed.jobToken,
+                    cursor,
+                    resume: true
+                });
+            }
+        } catch {
+            clearReadingJob();
+        }
+    }, [buildReadingKey, clearReadingJob, isReadingStreamActive, narrativePhase, personalReading, streamReadingJob]);
+
+    useEffect(() => {
+        if (typeof document === 'undefined') return;
+
+        const handleVisibilityChange = () => {
+            const { jobId, jobToken, cursor } = readingJobRef.current || {};
+            if (!jobId || !jobToken) return;
+
+            if (document.visibilityState === 'hidden') {
+                if (inFlightReadingRef.current?.controller) {
+                    inFlightReadingRef.current.controller.abort();
+                }
+                updateReadingJobCursor(readingJobRef.current?.cursor || 0, { force: true });
+                pauseReadingStream();
+                return;
+            }
+
+            if (document.visibilityState === 'visible' && !isReadingStreamActive && narrativePhase !== 'complete' && !personalReading?.isError) {
+                streamReadingJob({ jobId, jobToken, cursor, resume: true });
+            }
+        };
+
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+        window.addEventListener('pagehide', handleVisibilityChange);
+        return () => {
+            document.removeEventListener('visibilitychange', handleVisibilityChange);
+            window.removeEventListener('pagehide', handleVisibilityChange);
+        };
+    }, [isReadingStreamActive, narrativePhase, pauseReadingStream, personalReading, streamReadingJob, updateReadingJobCursor]);
 
     // Generate Personal Reading Logic
     const generatePersonalReading = useCallback(async () => {
@@ -163,8 +608,8 @@ export function ReadingProvider({ children }) {
         if (isGenerating) return;
 
         cancelInFlightReading();
-        const controller = new AbortController();
-        inFlightReadingRef.current = { controller, sessionSeed };
+        const startController = new AbortController();
+        inFlightReadingRef.current = { controller: startController, sessionSeed };
 
         setIsGenerating(true);
         setIsReadingStreamActive(false);
@@ -251,16 +696,6 @@ export function ReadingProvider({ children }) {
                 }
             }
 
-            const requestPayload = {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Accept': 'text/event-stream'
-                },
-                body: null,
-                signal: controller.signal
-            };
-
             const payload = {
                 spreadInfo: {
                     name: spreadInfo.name,
@@ -302,18 +737,20 @@ export function ReadingProvider({ children }) {
                 return;
             }
 
-            requestPayload.body = JSON.stringify(normalizedPayload.data);
-
             setNarrativePhase('drafting');
             setSrAnnouncement('Step 2 of 3: Drafting narrative insights.');
 
-            const response = await fetch('/api/tarot-reading?stream=true', requestPayload);
+            const startResponse = await fetch('/api/tarot-reading/jobs', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(normalizedPayload.data),
+                signal: startController.signal
+            });
 
-            const contentType = response.headers.get('content-type') || '';
-            const isSSE = contentType.includes('text/event-stream');
-
-            if (!response.ok && !isSSE) {
-                const errText = await response.text();
+            if (!startResponse.ok) {
+                const errText = await startResponse.text();
                 let errPayload = null;
                 try {
                     errPayload = errText ? JSON.parse(errText) : null;
@@ -336,251 +773,31 @@ export function ReadingProvider({ children }) {
                 const safeServerMessage = serverMessage && serverMessage.length <= 240 ? serverMessage : '';
                 const finalMessage =
                     safeServerMessage ||
-                    fallbackByStatus[response.status] ||
+                    fallbackByStatus[startResponse.status] ||
                     'Unable to generate reading at this time. Please try again in a moment.';
 
-                console.error('Tarot reading API error:', response.status, errPayload || errText);
-                const requestError = new Error(finalMessage);
-                requestError.status = response.status;
-                requestError.payload = errPayload;
-                throw requestError;
+                console.error('Tarot reading job start error:', startResponse.status, errPayload || errText);
+                throw new Error(finalMessage);
             }
 
-            if (isSSE) {
-                setIsReadingStreamActive(true);
-                const reader = response.body?.getReader();
-                if (!reader) {
-                    throw new Error('Streaming response missing body.');
-                }
-
-                const decoder = new TextDecoder();
-                let buffer = '';
-                let streamedText = '';
-                let doneReceived = false;
-                let streamMeta = null;
-                let lastFlush = 0;
-
-                const isActiveRequest = () =>
-                    !controller.signal.aborted &&
-                    inFlightReadingRef.current &&
-                    inFlightReadingRef.current.controller === controller;
-
-                const flushStreamedText = (force = false) => {
-                    if (!isActiveRequest()) return;
-                    const now = Date.now();
-                    if (!force && now - lastFlush < 120) {
-                        return;
-                    }
-                    lastFlush = now;
-                    const formatted = formatReading(streamedText);
-                    formatted.isError = false;
-                    formatted.isStreaming = true;
-                    formatted.isServerStreamed = true;
-                    if (streamMeta?.provider) {
-                        formatted.provider = streamMeta.provider;
-                    }
-                    if (streamMeta?.requestId) {
-                        formatted.requestId = streamMeta.requestId;
-                    }
-                    setPersonalReading(formatted);
-                };
-
-                while (true) {
-                    const { done, value } = await reader.read();
-
-                    if (done) break;
-
-                    if (controller.signal.aborted) {
-                        reader.cancel().catch(() => null);
-                        return;
-                    }
-
-                    buffer += decoder.decode(value, { stream: true });
-                    const events = buffer.split('\n\n');
-                    buffer = events.pop() || '';
-
-                    for (const eventBlock of events) {
-                        if (!eventBlock.trim()) continue;
-
-                        const lines = eventBlock.split('\n');
-                        let eventType = '';
-                        let eventData = '';
-
-                        for (const line of lines) {
-                            if (line.startsWith('event:')) {
-                                eventType = line.slice(6).trim();
-                            } else if (line.startsWith('data:')) {
-                                eventData = line.slice(5).trim();
-                            }
-                        }
-
-                        if (!eventType || !eventData) continue;
-
-                        try {
-                            const data = JSON.parse(eventData);
-
-                            if (eventType === 'meta') {
-                                streamMeta = data;
-                                if (data?.themes !== undefined) {
-                                    setThemes(data.themes || null);
-                                }
-                                if (data?.emotionalTone !== undefined) {
-                                    setEmotionalTone(data.emotionalTone || null);
-                                }
-                                if (data?.spreadAnalysis !== undefined) {
-                                    setSpreadAnalysis(data.spreadAnalysis || null);
-                                }
-                                if (data?.context !== undefined) {
-                                    setAnalysisContext(data.context || null);
-                                }
-                                if (isActiveRequest()) {
-                                    setReadingMeta({
-                                        requestId: data.requestId || null,
-                                        provider: data.provider || 'local',
-                                        spreadKey: safeSpreadKey,
-                                        spreadName: spreadInfo.name,
-                                        deckStyle: deckStyleId,
-                                        userQuestion,
-                                        graphContext: data.themes?.knowledgeGraph || null,
-                                        ephemeris: data.ephemeris || null
-                                    });
-                                }
-                            } else if (eventType === 'delta') {
-                                streamedText += data.text || '';
-                                flushStreamedText();
-                            } else if (eventType === 'reasoning') {
-                                // Handle reasoning summary from AI
-                                if (data.text && isActiveRequest()) {
-                                    setReasoningSummary(data.text);
-                                }
-                            } else if (eventType === 'done') {
-                                doneReceived = true;
-                                const finalText = (data.fullText || streamedText || '').trim();
-                                if (!finalText) {
-                                    throw new Error('Empty reading returned');
-                                }
-
-                                if (!isActiveRequest()) {
-                                    return;
-                                }
-
-                                setNarrativePhase('polishing');
-                                setSrAnnouncement('Step 3 of 3: Final polishing and assembling your narrative.');
-
-                                const formatted = formatReading(finalText);
-                                formatted.isError = false;
-                                formatted.isStreaming = false;
-                                formatted.isServerStreamed = true;
-                                formatted.provider = data.provider || streamMeta?.provider || 'local-composer';
-                                formatted.requestId = data.requestId || streamMeta?.requestId || null;
-                                setPersonalReading(formatted);
-                                setIsReadingStreamActive(false);
-                                setNarrativePhase('complete');
-                                setReasoningSummary(null);
-                                setLastCardsForFeedback(
-                                    cardsInfo.map((card) => ({
-                                        position: card.position,
-                                        card: card.card,
-                                        orientation: card.orientation
-                                    }))
-                                );
-                                setReadingMeta((prev) => ({
-                                    ...prev,
-                                    requestId: formatted.requestId,
-                                    provider: formatted.provider || prev?.provider || 'local'
-                                }));
-                            } else if (eventType === 'error') {
-                                throw new Error(data.message || 'Streaming error occurred');
-                            }
-                        } catch (parseError) {
-                            if (parseError.message && !parseError.message.includes('JSON')) {
-                                throw parseError;
-                            }
-                            console.warn('Failed to parse SSE event:', eventData);
-                        }
-                    }
-                }
-
-                if (!doneReceived && streamedText && isActiveRequest()) {
-                    const finalText = streamedText.trim();
-                    if (finalText) {
-                        setNarrativePhase('polishing');
-                        setSrAnnouncement('Step 3 of 3: Final polishing and assembling your narrative.');
-                        const formatted = formatReading(finalText);
-                        formatted.isError = false;
-                        formatted.isStreaming = false;
-                        formatted.isServerStreamed = true;
-                        formatted.provider = streamMeta?.provider || 'local-composer';
-                        formatted.requestId = streamMeta?.requestId || null;
-                        setPersonalReading(formatted);
-                        setIsReadingStreamActive(false);
-                        setNarrativePhase('complete');
-                        setReasoningSummary(null);
-                        setLastCardsForFeedback(
-                            cardsInfo.map((card) => ({
-                                position: card.position,
-                                card: card.card,
-                                orientation: card.orientation
-                            }))
-                        );
-                        setReadingMeta((prev) => ({
-                            ...prev,
-                            requestId: formatted.requestId,
-                            provider: formatted.provider || prev?.provider || 'local'
-                        }));
-                    }
-                }
-
-                return;
+            const startData = await startResponse.json();
+            const jobId = startData?.jobId;
+            const jobToken = startData?.jobToken;
+            if (!jobId || !jobToken) {
+                throw new Error('Unable to start reading at this time. Please try again.');
             }
 
-            const data = await response.json();
-            if (!data?.reading || !data.reading.trim()) {
-                throw new Error('Empty reading returned');
-            }
+            const readingKey = buildReadingKey();
 
-            if (
-                controller.signal.aborted ||
-                !inFlightReadingRef.current ||
-                inFlightReadingRef.current.controller !== controller
-            ) {
-                return;
-            }
-
-            setNarrativePhase('polishing');
-            setSrAnnouncement('Step 3 of 3: Final polishing and assembling your narrative.');
-
-            setThemes(data.themes || null);
-            setEmotionalTone(data.emotionalTone || null);
-            setSpreadAnalysis(data.spreadAnalysis || null);
-            setAnalysisContext(data.context || null);
-
-            const formatted = formatReading(data.reading.trim());
-            formatted.isError = false;
-            formatted.isStreaming = false;
-            formatted.isServerStreamed = false;
-            formatted.provider = data.provider || 'local-composer';
-            formatted.requestId = data.requestId || null;
-            setPersonalReading(formatted);
-            setNarrativePhase('complete');
-            setReasoningSummary(null);
-            setLastCardsForFeedback(
-                cardsInfo.map((card) => ({
-                    position: card.position,
-                    card: card.card,
-                    orientation: card.orientation
-                }))
-            );
-            setReadingMeta({
-                requestId: data.requestId || null,
-                provider: data.provider || 'local',
-                spreadKey: safeSpreadKey,
-                spreadName: spreadInfo.name,
-                deckStyle: deckStyleId,
-                userQuestion,
-                graphContext: data.themes?.knowledgeGraph || null,
-                ephemeris: data.ephemeris || null
+            cardsInfoRef.current = cardsInfo;
+            setReadingJob({
+                jobId,
+                jobToken,
+                cursor: 0,
+                readingKey
             });
+
+            await streamReadingJob({ jobId, jobToken, cursor: 0, resume: false });
         } catch (error) {
             if (error?.name === 'AbortError') {
                 console.debug('generatePersonalReading aborted');
@@ -603,11 +820,13 @@ export function ReadingProvider({ children }) {
             setNarrativePhase('error');
             setSrAnnouncement(errorMsg);
         } finally {
-            if (inFlightReadingRef.current?.controller === controller) {
+            if (inFlightReadingRef.current?.controller === startController) {
                 inFlightReadingRef.current = null;
             }
-            setIsReadingStreamActive(false);
-            setIsGenerating(false);
+            if (!readingJobRef.current?.jobId) {
+                setIsReadingStreamActive(false);
+                setIsGenerating(false);
+            }
         }
     }, [
         reading,
@@ -628,7 +847,10 @@ export function ReadingProvider({ children }) {
         personalizationForRequest,
         locationEnabled,
         cachedLocation,
-        persistLocationToJournal
+        persistLocationToJournal,
+        buildReadingKey,
+        setReadingJob,
+        streamReadingJob
     ]);
 
     // --- Logic: Analysis Highlights ---
@@ -796,51 +1018,6 @@ export function ReadingProvider({ children }) {
         baseRevealAll();
     }, [baseRevealAll, describeCardAtIndex, reading, revealedCards]);
 
-    const stopGuidedReveal = useCallback((revealRemaining = false) => {
-        if (guidedRevealTimerRef.current) {
-            window.clearTimeout(guidedRevealTimerRef.current);
-            guidedRevealTimerRef.current = null;
-        }
-        setIsGuidedRevealActive(false);
-        if (revealRemaining) {
-            revealAll();
-        }
-    }, [revealAll]);
-
-    const startGuidedReveal = useCallback(() => {
-        if (!reading || reading.length === 0) return;
-        if (revealedCards.size === reading.length) return;
-        stopGuidedReveal(false);
-        setIsGuidedRevealActive(true);
-    }, [reading, revealedCards, stopGuidedReveal]);
-
-    useEffect(() => {
-        if (!isGuidedRevealActive) return undefined;
-        if (!reading || reading.length === 0) {
-            setIsGuidedRevealActive(false);
-            return undefined;
-        }
-
-        const nextIndex = reading.findIndex((_, index) => !revealedCards.has(index));
-        if (nextIndex < 0) {
-            setIsGuidedRevealActive(false);
-            return undefined;
-        }
-
-        const delay = prefersReducedMotion ? 0 : 350 + Math.random() * 80;
-        const timerId = window.setTimeout(() => {
-            revealCard(nextIndex);
-        }, delay);
-        guidedRevealTimerRef.current = timerId;
-
-        return () => {
-            if (guidedRevealTimerRef.current) {
-                window.clearTimeout(guidedRevealTimerRef.current);
-                guidedRevealTimerRef.current = null;
-            }
-        };
-    }, [isGuidedRevealActive, prefersReducedMotion, reading, revealedCards, revealCard]);
-
     const value = useMemo(() => ({
         ...audioController,
         ...tarotState,
@@ -866,10 +1043,7 @@ export function ReadingProvider({ children }) {
         showAllHighlights, setShowAllHighlights,
         generatePersonalReading,
         highlightItems,
-        srAnnouncement, setSrAnnouncement,
-        startGuidedReveal,
-        stopGuidedReveal,
-        isGuidedRevealActive
+        srAnnouncement, setSrAnnouncement
     }), [
         audioController,
         tarotState,
@@ -895,15 +1069,8 @@ export function ReadingProvider({ children }) {
         showAllHighlights,
         generatePersonalReading,
         highlightItems,
-        srAnnouncement,
-        startGuidedReveal,
-        stopGuidedReveal,
-        isGuidedRevealActive
+        srAnnouncement
     ]);
-
-    useEffect(() => {
-        return () => stopGuidedReveal(false);
-    }, [stopGuidedReveal]);
 
     return (
         <ReadingContext.Provider value={value}>

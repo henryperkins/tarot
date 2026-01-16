@@ -228,6 +228,7 @@ function CardFocusOverlay({
 
   // Swipe gesture tracking
   const touchStartX = useRef(null);
+  const touchStartY = useRef(null);
   const touchStartTime = useRef(null);
 
   useModalA11y(isOpen, {
@@ -239,22 +240,30 @@ function CardFocusOverlay({
 
   const handleTouchStart = useCallback((event) => {
     touchStartX.current = event.touches[0].clientX;
+    touchStartY.current = event.touches[0].clientY;
     touchStartTime.current = Date.now();
   }, []);
 
   const handleTouchEnd = useCallback((event) => {
-    if (touchStartX.current === null || touchStartTime.current === null) return;
+    if (touchStartX.current === null || touchStartY.current === null || touchStartTime.current === null) return;
 
     const touchEndX = event.changedTouches[0].clientX;
+    const touchEndY = event.changedTouches[0].clientY;
     const deltaX = touchEndX - touchStartX.current;
+    const deltaY = touchEndY - touchStartY.current;
     const elapsed = Date.now() - touchStartTime.current;
 
     // Reset refs
     touchStartX.current = null;
+    touchStartY.current = null;
     touchStartTime.current = null;
 
-    // Check if swipe is valid: >50px horizontal, <300ms
-    if (Math.abs(deltaX) > 50 && elapsed < 300) {
+    const absX = Math.abs(deltaX);
+    const absY = Math.abs(deltaY);
+    const hasHorizontalIntent = absX > absY * 1.5 && absY < 32;
+
+    // Check if swipe is valid: dominant horizontal, short duration
+    if (hasHorizontalIntent && absX > 50 && elapsed < 300) {
       if (deltaX > 0 && canNavigatePrev) {
         onNavigate?.('prev');
       } else if (deltaX < 0 && canNavigateNext) {
@@ -419,12 +428,14 @@ export function ReadingBoard({
   onNavigateCard,
   canNavigatePrev,
   canNavigateNext,
-  navigationLabel
+  navigationLabel,
+  revealStage = 'action'
 }) {
   const isHandsetLayout = useHandsetLayout();
   const spreadInfo = useMemo(() => getSpreadInfo(spreadKey), [spreadKey]);
   const nextIndex = getNextUnrevealedIndex(reading, revealedCards);
   const nextLabel = nextIndex >= 0 ? getPositionLabel(spreadInfo, nextIndex) : null;
+  const allowBoardReveal = revealStage !== 'deck';
 
 
   // Celtic Cross map overlay state
@@ -444,8 +455,10 @@ export function ReadingBoard({
     <div className="space-y-3">
       <div className="px-4 flex items-center justify-center gap-3">
         <p className="text-xs-plus text-muted" aria-live="polite">
-          Tap positions to reveal. {nextLabel ? `Next: ${nextLabel}.` : 'All cards revealed.'}
-          {isHandsetLayout ? ' Tap a revealed card to focus.' : ''}
+          {allowBoardReveal
+            ? `Tap positions to reveal. ${nextLabel ? `Next: ${nextLabel}.` : 'All cards revealed.'}`
+            : `Draw from the deck to place your first card.${nextLabel ? ` Next: ${nextLabel}.` : ''}`}
+          {isHandsetLayout && allowBoardReveal ? ' Tap a revealed card to focus.' : ''}
         </p>
         {showMapToggle && (
           <button
@@ -468,6 +481,7 @@ export function ReadingBoard({
           onCardReveal={revealCard}
           nextDealIndex={nextIndex}
           recentlyClosedIndex={recentlyClosedIndex}
+          disableReveal={!allowBoardReveal}
           hideLegend={true}
           size={tableSize}
         />

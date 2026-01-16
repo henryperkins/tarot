@@ -73,6 +73,7 @@ export default function JourneyMobileSheet({
   isAuthenticated,
   onCreateShareLink,
   onStartReading,
+  showStartReadingCta = true,
   locale = 'default',
   timezone,
   _dataSource,
@@ -385,7 +386,7 @@ export default function JourneyMobileSheet({
               <p className="text-xs text-amber-100/80">
                 💡 {coachSuggestion.text}
               </p>
-              {onStartReading && (
+              {onStartReading && showStartReadingCta && (
                 <button
                   onClick={() => onStartReading(coachSuggestion)}
                   className="mt-2 text-xs font-medium text-amber-200 hover:text-amber-100 min-h-[44px] -mb-2 -ml-1 px-1"

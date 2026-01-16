@@ -17,13 +17,27 @@ export function escapeRegex(text = '') {
 /**
  * Card names that are also common vocabulary and prone to false positives
  * when scanning free-form narrative text.
+ *
+ * These require explicit card context (see hasExplicitCardContext) to be
+ * counted as card references. This prevents phrases like "restore a sense
+ * of justice" from being flagged as hallucinations of the Justice card.
+ *
+ * Astronomical terms (the moon, the sun, the star, the world) are included
+ * because they commonly appear in ephemeris/astrological context without
+ * referring to the corresponding tarot cards.
  */
 export const AMBIGUOUS_CARD_NAMES = new Set([
   'justice',
   'strength',
   'temperance',
   'death',
-  'judgement'
+  'judgement',
+  // Astronomical terms that overlap with card names
+  // These commonly appear in ephemeris context ("The Moon is full tonight")
+  'the moon',
+  'the sun',
+  'the star',
+  'the world'
 ]);
 
 /**

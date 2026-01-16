@@ -440,6 +440,7 @@ export default function Journal() {
             variant="sidebar"
             onCreateShareLink={isAuthenticated ? createShareLink : null}
             onStartReading={handleStartReading}
+            showStartReadingCta={true}
             seasonWindow={scopeWindow}
             scopeLabel={scopeLabel}
           />
@@ -498,6 +499,7 @@ export default function Journal() {
           variant="mobile"
           onCreateShareLink={isAuthenticated ? createShareLink : null}
           onStartReading={handleStartReading}
+          showStartReadingCta={false}
           seasonWindow={scopeWindow}
           scopeLabel={scopeLabel}
         />

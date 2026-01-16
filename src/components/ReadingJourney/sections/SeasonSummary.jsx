@@ -12,6 +12,7 @@ function SeasonSummary({
   topContext,
   coachSuggestion,
   onStartReading,
+  showStartReadingCta = true,
   seasonWindow,
   locale = 'default',
   timezone,
@@ -91,7 +92,7 @@ function SeasonSummary({
       </div>
 
       {/* Coach suggestion CTA */}
-      {coachSuggestion && onStartReading && (
+      {coachSuggestion && onStartReading && showStartReadingCta && (
         <div className="rounded-lg bg-amber-200/5 p-3 border border-amber-300/10">
           <p className="text-sm sm:text-xs text-amber-100/70 mb-2">
             💡 {coachSuggestion.text}

@@ -6,7 +6,7 @@
  */
 
 const EVAL_PROMPT_VERSION = '2.1.0';
-const DEFAULT_MODEL = '@cf/meta/llama-3.3-70b-instruct-fp8-fast';
+const DEFAULT_MODEL = '@cf/openai/gpt-oss-120b';
 const DEFAULT_TIMEOUT_MS = 5000;
 const MAX_SAFE_TIMEOUT_MS = 2147483647; // Max 32-bit signed int for timers
 
@@ -17,7 +17,15 @@ const MAX_CARDS_INFO_LENGTH = 1500;
 
 // Default setting for PII storage - set to 'redact' for production safety
 const DEFAULT_METRICS_STORAGE_MODE = 'redact';
-const DEFAULT_EVAL_GATE_FAILURE_MODE = 'closed';
+
+// Eval gate failure mode: 'open' or 'closed'
+// - 'open' (default): When AI evaluation fails/times out, trust the heuristic fallback.
+//   The heuristic checks for doom language, medical/financial/death advice, hallucinations,
+//   and structural coverage. If heuristic passes, the reading is allowed through.
+//   This preserves availability during Workers AI instability while maintaining safety.
+// - 'closed': Block readings whenever AI evaluation is unavailable, even if heuristic passes.
+//   Use this for maximum safety at the cost of availability during AI outages.
+const DEFAULT_EVAL_GATE_FAILURE_MODE = 'open';
 
 // PII redaction patterns
 const PHONE_REGEX = /\b(?:\+?1[-.\s]?)?(?:\(?[0-9]{3}\)?[-.\s]?)?[0-9]{3}[-.\s]?[0-9]{4}(?:\s?(?:x|ext\.?|extension)\s?[0-9]{1,5})?\b/g;
@@ -54,6 +62,102 @@ const DEATH_PREDICTION_PATTERNS = [
   /\bdeath\s+(?:card\s+)?(?:means?|indicates?|predicts?|shows?)\s+(?:someone|actual|literal|physical)\b/gi,
   /\b(?:terminal|fatal|deadly)\s+(?:illness|disease|outcome)\b/gi,
 ];
+
+// Self-harm/crisis patterns for follow-up response screening
+// These catch problematic LLM outputs that bypass prompt instructions
+const SELF_HARM_RESPONSE_PATTERNS = [
+  /\b(?:you\s+should|consider|try)\s+(?:harming|hurting|cutting)\s+yourself\b/gi,
+  /\b(?:suicide|suicidal)\s+(?:is|might\s+be|could\s+be)\s+(?:an?\s+)?(?:option|answer|solution)\b/gi,
+  /\bending\s+(?:your|one's)\s+life\s+(?:is|might|could|would)\b/gi,
+];
+
+// Legal/abuse patterns that models should deflect, not advise on
+const LEGAL_ABUSE_PATTERNS = [
+  /\byou\s+should\s+(?:not\s+)?(?:report|tell|inform)\s+(?:the\s+)?(?:police|authorities|cops)\b/gi,
+  /\b(?:stay|remain)\s+(?:with|in)\s+(?:the|your)\s+(?:abusive|violent)\s+(?:relationship|partner|situation)\b/gi,
+  /\b(?:don't|do\s+not)\s+(?:leave|get\s+out|escape)\b/gi,
+];
+
+/**
+ * Lightweight heuristic safety check for follow-up responses.
+ *
+ * This is a fast, synchronous check that can run on streaming responses
+ * without blocking. It catches the most critical safety violations that
+ * could slip through prompt instructions.
+ *
+ * @param {string} responseText - LLM response text to check
+ * @returns {{ safe: boolean, issues: string[], severity: 'critical'|'warning'|null }}
+ */
+export function checkFollowUpSafety(responseText) {
+  if (!responseText || typeof responseText !== 'string') {
+    return { safe: true, issues: [], severity: null };
+  }
+
+  const issues = [];
+  let severity = null;
+
+  // Critical: Self-harm encouragement (immediate block)
+  if (SELF_HARM_RESPONSE_PATTERNS.some(p => p.test(responseText))) {
+    issues.push('self-harm-encouragement');
+    severity = 'critical';
+  }
+
+  // Critical: Death predictions
+  if (DEATH_PREDICTION_PATTERNS.some(p => p.test(responseText))) {
+    issues.push('death-prediction');
+    severity = 'critical';
+  }
+
+  // Warning: Medical advice (should deflect, not advise)
+  if (MEDICAL_ADVICE_PATTERNS.some(p => p.test(responseText))) {
+    issues.push('medical-advice');
+    severity = severity || 'warning';
+  }
+
+  // Warning: Financial advice
+  if (FINANCIAL_ADVICE_PATTERNS.some(p => p.test(responseText))) {
+    issues.push('financial-advice');
+    severity = severity || 'warning';
+  }
+
+  // Warning: Legal/abuse advice
+  if (LEGAL_ABUSE_PATTERNS.some(p => p.test(responseText))) {
+    issues.push('legal-abuse-advice');
+    severity = severity || 'warning';
+  }
+
+  // Warning: Doom language
+  if (DOOM_LANGUAGE_PATTERNS.some(p => p.test(responseText))) {
+    issues.push('doom-language');
+    severity = severity || 'warning';
+  }
+
+  // Reset regex lastIndex (global flag side effect)
+  [...SELF_HARM_RESPONSE_PATTERNS, ...DEATH_PREDICTION_PATTERNS,
+   ...MEDICAL_ADVICE_PATTERNS, ...FINANCIAL_ADVICE_PATTERNS,
+   ...LEGAL_ABUSE_PATTERNS, ...DOOM_LANGUAGE_PATTERNS].forEach(p => p.lastIndex = 0);
+
+  return {
+    safe: severity !== 'critical',
+    issues,
+    severity
+  };
+}
+
+/**
+ * Generate a safe fallback response for follow-up questions when safety gate triggers.
+ *
+ * @param {string} reason - Block reason from safety check
+ * @returns {string} Safe fallback response
+ */
+export function generateSafeFollowUpFallback(reason) {
+  // Don't reveal the specific reason to avoid gaming
+  return `I want to make sure I'm being helpful in the right way here. This question touches on something that deserves more specialized support than a tarot reading can offer.
+
+If you're navigating something difficult, please consider reaching out to someone who can really be there for you—whether that's a trusted friend, counselor, or professional resource.
+
+Is there something about your reading's cards or themes I can help you explore instead?`;
+}
 
 /**
  * Redact potentially sensitive information from user question.
@@ -1018,7 +1122,7 @@ export async function runSyncEvaluationGate(env, evalParams, narrativeMetrics = 
       : `incomplete_scores_${missingFields.join('_')}`;
     const blockReason = hasEvalError ? 'eval_unavailable' : 'eval_incomplete_scores';
 
-    console.log(`[${requestId}] [gate] AI evaluation unavailable (${fallbackReason}), using heuristic fallback`);
+    console.log(`[${requestId}] [gate] AI evaluation unavailable (${fallbackReason}), using heuristic fallback (mode: ${failureMode})`);
 
     effectiveEvalResult = {
       ...fallbackEval,
@@ -1031,10 +1135,16 @@ export async function runSyncEvaluationGate(env, evalParams, narrativeMetrics = 
 
     const heuristicGate = checkEvalGate(effectiveEvalResult);
     if (heuristicGate.shouldBlock) {
+      // Heuristic detected safety issues - block regardless of failure mode
+      console.log(`[${requestId}] [gate] Heuristic detected safety issue: ${heuristicGate.reason}`);
       gateResult = heuristicGate;
     } else if (failOpen) {
+      // Heuristic passed and we're in open mode - allow the reading
+      console.log(`[${requestId}] [gate] Heuristic passed, allowing reading (fail-open mode)`);
       gateResult = { shouldBlock: false, reason: null };
     } else {
+      // Heuristic passed but we're in closed mode - block anyway
+      console.log(`[${requestId}] [gate] Heuristic passed but blocking (fail-closed mode)`);
       gateResult = { shouldBlock: true, reason: blockReason };
     }
   } else {

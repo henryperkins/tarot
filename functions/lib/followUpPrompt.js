@@ -39,12 +39,13 @@ const MAX_SPREAD_LABEL_LENGTH = 60;
 const MAX_THEME_LABEL_LENGTH = 20;
 const MAX_HISTORY_MESSAGE_LENGTH = 500;
 
-function sanitizePromptValue(value, { maxLength = null, collapseWhitespace = true } = {}) {
+function sanitizePromptValue(value, { maxLength = null, collapseWhitespace = true, filterInstructions = false } = {}) {
   return sanitizeText(value, {
     maxLength,
     stripMarkdown: true,
     stripControlChars: true,
-    collapseWhitespace
+    collapseWhitespace,
+    filterInstructions
   });
 }
 
@@ -89,7 +90,8 @@ export function buildFollowUpPrompt({
   const toneKey = resolveToneKey(personalization?.readingTone);
   const frameKey = resolveFrameKey(personalization?.spiritualFrame);
   const condensedContext = buildCondensedContext(originalReading);
-  const safeQuestion = sanitizePromptValue(followUpQuestion, { maxLength: 500 });
+  // Filter instruction patterns from follow-up questions to prevent prompt injection
+  const safeQuestion = sanitizePromptValue(followUpQuestion, { maxLength: 500, filterInstructions: true });
   
   // Build system prompt
   const systemLines = [

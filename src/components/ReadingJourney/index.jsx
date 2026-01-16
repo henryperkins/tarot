@@ -68,6 +68,7 @@ function JourneyFallback() {
  * @param {string} props.timezone - User timezone
  * @param {Function} props.onCreateShareLink - Callback for creating share links
  * @param {Function} props.onStartReading - Callback for starting a new reading
+ * @param {boolean} props.showStartReadingCta - Toggle "Start Reading" CTAs inside journey panels
  */
 export function ReadingJourney(props) {
   // SSR guard: render skeleton on server, lazy load on client

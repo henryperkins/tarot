@@ -104,6 +104,7 @@ export default function JourneySidebar({
   isAuthenticated,
   onCreateShareLink,
   onStartReading,
+  showStartReadingCta = true,
   locale = 'default',
   timezone,
   variant: _variant = 'sidebar',
@@ -283,6 +284,7 @@ export default function JourneySidebar({
           topContext={[...contextBreakdown].sort((a, b) => b.count - a.count)[0]}
           coachSuggestion={coachSuggestion}
           onStartReading={onStartReading}
+          showStartReadingCta={showStartReadingCta}
           locale={locale}
           timezone={timezone}
           seasonWindow={seasonWindow}

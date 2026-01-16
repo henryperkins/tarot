@@ -77,10 +77,8 @@ test.describe('Save to journal flow @integration', () => {
     await expect(generateButton).toBeVisible({ timeout: 10000 });
     await generateButton.click();
 
-    await expect(page.getByText('Your narrative is ready')).toBeVisible({ timeout: 60000 });
-
     const saveButton = page.getByRole('button', { name: /save to journal/i }).first();
-    await expect(saveButton).toBeVisible({ timeout: 10000 });
+    await expect(saveButton).toBeVisible({ timeout: 60000 });
     await saveButton.click();
 
     await expect(

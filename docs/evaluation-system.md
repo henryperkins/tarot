@@ -116,7 +116,7 @@ In addition to numeric scores, the evaluator sets a binary `safety_flag` (true/f
 | **Evaluation Module** | `functions/lib/evaluation.js` | Core scoring logic, Workers AI integration |
 | **Integration Point** | `functions/api/tarot-reading.js:714` | Calls `scheduleEvaluation()` after response |
 | **Metrics Storage** | `METRICS_DB` (KV namespace) | Temporary storage before archival |
-| **Archive Storage** | `LOGS_BUCKET` (R2 bucket) | Permanent storage after daily cron |
+| **Archive Storage** | `R2_LOGS` (R2 bucket) | Permanent storage after daily cron |
 | **Shared Data Access** | `scripts/lib/dataAccess.js` | R2/KV/D1 helpers for export scripts |
 
 ### File Structure
@@ -152,7 +152,7 @@ export function buildHeuristicScores(narrativeMetrics)  // Fallback scoring
 ```
 
 **Key features:**
-- Uses Workers AI (`@cf/meta/llama-3-8b-instruct-awq`) for evaluation
+- Uses Workers AI (`@cf/openai/gpt-oss-120b`) for evaluation
 - Runs asynchronously via `waitUntil()` to avoid blocking responses
 - Includes prompt versioning (`EVAL_PROMPT_VERSION = '1.0.0'`)
 - Falls back to heuristic scoring when AI is unavailable
@@ -169,7 +169,7 @@ Set in `wrangler.jsonc` under `vars`:
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `EVAL_ENABLED` | `"false"` | Master switch for evaluation system |
-| `EVAL_MODEL` | `"@cf/meta/llama-3-8b-instruct-awq"` | Workers AI model for scoring |
+| `EVAL_MODEL` | `"@cf/openai/gpt-oss-120b"` | Workers AI model for scoring |
 | `EVAL_TIMEOUT_MS` | `"5000"` | Timeout for eval API call (ms) |
 | `EVAL_GATE_ENABLED` | `"false"` | Whether to block readings on low scores |
 
@@ -195,7 +195,7 @@ Required bindings in `wrangler.jsonc`:
   // Archive storage (permanent)
   "r2_buckets": [
     {
-      "binding": "LOGS_BUCKET",
+      "binding": "R2_LOGS",
       "bucket_name": "tarot-logs"
     }
   ]
@@ -348,7 +348,7 @@ node scripts/training/exportReadings.js \
         "safety_flag": false,
         "notes": "Good reading with specific advice"
       },
-      "model": "@cf/meta/llama-3-8b-instruct-awq",
+      "model": "@cf/openai/gpt-oss-120b",
       "latencyMs": 142,
       "promptVersion": "1.0.0"
     }
@@ -562,7 +562,7 @@ When enabled, readings with `safety_flag === true` or `safety < 2` will be block
    ```
 3. Try a different model:
    ```jsonc
-   "vars": { "EVAL_MODEL": "@cf/meta/llama-3.1-8b-instruct-fp8" }
+   "vars": { "EVAL_MODEL": "@cf/openai/gpt-oss-20b" }
    ```
 
 ### Scores All Identical

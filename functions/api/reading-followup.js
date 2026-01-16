@@ -24,6 +24,8 @@ import {
 } from '../lib/azureResponsesStream.js';
 import { getMemories, consolidateSessionMemories } from '../lib/userMemory.js';
 import { MEMORY_TOOL_AZURE_RESPONSES_FORMAT, handleMemoryToolCall } from '../lib/memoryTool.js';
+import { detectCrisisSignals } from '../lib/safetyChecks.js';
+import { checkFollowUpSafety, generateSafeFollowUpFallback } from '../lib/evaluation.js';
 
 // Rate limits by tier
 const FOLLOW_UP_LIMITS = {
@@ -73,6 +75,7 @@ export const onRequestPost = async ({ request, env, ctx }) => {
     const body = await readJsonBody(request);
     const {
       requestId: readingRequestId,
+      sessionSeed,
       followUpQuestion,
       conversationHistory = [],
       readingContext,
@@ -81,7 +84,7 @@ export const onRequestPost = async ({ request, env, ctx }) => {
 
     const journalContextEnabled = env?.FEATURE_FOLLOW_UP_JOURNAL_CONTEXT === 'true';
     const memoryEnabled = env?.FEATURE_FOLLOW_UP_MEMORY !== 'false'; // Enabled by default
-    
+
     // Validate required fields
     if (!followUpQuestion || typeof followUpQuestion !== 'string' || followUpQuestion.trim().length < 3) {
       console.log(`[${requestId}] Invalid follow-up question`);
@@ -94,12 +97,42 @@ export const onRequestPost = async ({ request, env, ctx }) => {
       console.log(`[${requestId}] Follow-up question too long: ${followUpQuestion.length} chars`);
       return jsonResponse({ error: `Question too long (max ${MAX_QUESTION_LENGTH} characters)` }, { status: 400 });
     }
-    
-    // readingRequestId is required for authoritative per-reading limit tracking
-    if (!readingRequestId) {
-      console.log(`[${requestId}] Missing readingRequestId`);
-      return jsonResponse({ error: 'readingRequestId is required' }, { status: 400 });
+
+    // Crisis detection on follow-up question (matches tarot-reading.js pattern)
+    const crisisCheck = detectCrisisSignals(followUpQuestion);
+    if (crisisCheck.matched) {
+      console.warn(`[${requestId}] Crisis signals in follow-up: ${crisisCheck.categories.join(', ')}`);
+      // Return a compassionate response that redirects to appropriate resources
+      // Note: turnNumber is unknown at this point, so we omit it from the response
+      return jsonResponse({
+        response: `I can hear that you're going through something really difficult right now. What you're describing deserves more support than a tarot reading can offer.
+
+Please consider reaching out to someone who can really be there for you:
+- **Crisis Text Line**: Text HOME to 741741
+- **National Suicide Prevention Lifeline**: 988 (US)
+- **International Association for Suicide Prevention**: https://www.iasp.info/resources/Crisis_Centres/
+
+Your cards will be here when you're ready. Right now, please take care of yourself. 💙`,
+        meta: {
+          provider: 'safety-gate',
+          crisisCategories: crisisCheck.categories,
+          requestId
+        }
+      });
     }
+
+    // Require either readingRequestId or sessionSeed to identify the reading
+    // sessionSeed is available for ALL readings (including old ones without requestId)
+    if (!readingRequestId && !sessionSeed) {
+      console.log(`[${requestId}] Missing both readingRequestId and sessionSeed`);
+      return jsonResponse({ error: 'Either requestId or sessionSeed is required' }, { status: 400 });
+    }
+
+    // Use readingRequestId if available, otherwise fall back to sessionSeed
+    // This identifier is used for rate limiting, context fetching, and follow-up persistence
+    const readingIdentifier = readingRequestId || sessionSeed;
+    const identifierType = readingRequestId ? 'requestId' : 'sessionSeed';
+    console.log(`[${requestId}] Using ${identifierType}: ${readingIdentifier}`);
 
     if (!readingContext) {
       console.log(`[${requestId}] Missing reading context`);
@@ -115,7 +148,7 @@ export const onRequestPost = async ({ request, env, ctx }) => {
     console.log(`[${requestId}] User tier: ${tier}, limits: ${JSON.stringify(limits)}`);
 
     // Check per-reading limit using server-side tracking (prevents client manipulation)
-    const actualTurns = await getPerReadingFollowUpCount(env.DB, user.id, readingRequestId);
+    const actualTurns = await getPerReadingFollowUpCount(env.DB, user.id, readingIdentifier);
     const turnNumber = actualTurns + 1;
     console.log(`[${requestId}] Server-verified turn: ${turnNumber}/${limits.perReading} (DB count: ${actualTurns})`);
 
@@ -124,8 +157,8 @@ export const onRequestPost = async ({ request, env, ctx }) => {
 
       // Note: Memory consolidation now happens after each successful follow-up (see onComplete).
       // This redundant call ensures any stragglers are caught if user hits limit on a failed request.
-      if (memoryEnabled && readingRequestId) {
-        const consolidationPromise = consolidateSessionMemories(env.DB, user.id, readingRequestId)
+      if (memoryEnabled && readingIdentifier) {
+        const consolidationPromise = consolidateSessionMemories(env.DB, user.id, readingIdentifier)
           .then(result => {
             if (result.promoted > 0 || result.pruned > 0) {
               console.log(`[${requestId}] Final consolidation: promoted=${result.promoted}, pruned=${result.pruned}`);
@@ -163,22 +196,24 @@ export const onRequestPost = async ({ request, env, ctx }) => {
       );
     }
     
-    // Fetch original reading context if requestId provided
+    // Fetch original reading context using requestId or sessionSeed
     // Merge stored context with client-provided context (stored wins, client fills gaps)
     let effectiveContext = readingContext;
-    if (readingRequestId) {
-      const storedContext = await fetchReadingContext(env, readingRequestId, user.id);
-      if (storedContext) {
-        effectiveContext = {
-          cardsInfo: storedContext.cardsInfo?.length ? storedContext.cardsInfo : readingContext?.cardsInfo,
-          userQuestion: storedContext.userQuestion || readingContext?.userQuestion,
-          narrative: storedContext.narrative || readingContext?.narrative,
-          themes: storedContext.themes || readingContext?.themes || {},
-          spreadKey: storedContext.spreadKey || readingContext?.spreadKey,
-          deckStyle: storedContext.deckStyle || readingContext?.deckStyle
-        };
-        console.log(`[${requestId}] Merged stored context for ${readingRequestId}`);
-      }
+    const storedContext = await fetchReadingContext(env, {
+      requestId: readingRequestId,
+      sessionSeed,
+      userId: user.id
+    });
+    if (storedContext) {
+      effectiveContext = {
+        cardsInfo: storedContext.cardsInfo?.length ? storedContext.cardsInfo : readingContext?.cardsInfo,
+        userQuestion: storedContext.userQuestion || readingContext?.userQuestion,
+        narrative: storedContext.narrative || readingContext?.narrative,
+        themes: storedContext.themes || readingContext?.themes || {},
+        spreadKey: storedContext.spreadKey || readingContext?.spreadKey,
+        deckStyle: storedContext.deckStyle || readingContext?.deckStyle
+      };
+      console.log(`[${requestId}] Merged stored context for ${readingIdentifier}`);
     }
     
     // Require card context to keep follow-ups grounded
@@ -217,7 +252,7 @@ export const onRequestPost = async ({ request, env, ctx }) => {
       try {
         memories = await getMemories(env.DB, user.id, {
           scope: 'all',
-          sessionId: readingRequestId,
+          sessionId: readingIdentifier,
           limit: 10
         });
         console.log(`[${requestId}] Fetched ${memories.length} memories for personalization`);
@@ -295,7 +330,7 @@ export const onRequestPost = async ({ request, env, ctx }) => {
             onToolCall: async (callId, name, args) => {
               if (name === 'save_memory_note') {
                 console.log(`[${requestId}] Memory tool called: category=${args?.category || 'unknown'}, len=${args?.text?.length || 0}`);
-                const result = await handleMemoryToolCall(env.DB, user.id, readingRequestId, args);
+                const result = await handleMemoryToolCall(env.DB, user.id, readingIdentifier, args);
                 return result;
               }
               return { success: false, message: 'Unknown tool' };
@@ -336,10 +371,20 @@ export const onRequestPost = async ({ request, env, ctx }) => {
               return;
             }
 
+            // Safety check for streaming responses (post-hoc logging for monitoring)
+            // Note: For streaming, we can't block after sending, but we log for alerting/analysis
+            const safetyCheck = checkFollowUpSafety(fullText);
+            if (!safetyCheck.safe) {
+              console.error(`[${requestId}] CRITICAL: Streamed unsafe follow-up response: ${safetyCheck.issues.join(', ')}`);
+            } else if (safetyCheck.issues.length > 0) {
+              console.warn(`[${requestId}] Follow-up safety warnings (streamed): ${safetyCheck.issues.join(', ')}`);
+            }
+
             const trackingPromise = trackFollowUpUsage(env.DB, {
               userId: user.id,
               requestId,
-              readingRequestId,
+              readingIdentifier,
+              identifierType,
               turnNumber,
               questionLength: followUpQuestion.length,
               responseLength: fullText.length,
@@ -348,7 +393,10 @@ export const onRequestPost = async ({ request, env, ctx }) => {
             });
 
             const persistPromise = canPersistFollowups
-              ? persistFollowUpToJournal(env, user.id, readingRequestId, {
+              ? persistFollowUpToJournal(env, user.id, {
+                  requestId: readingRequestId,
+                  sessionSeed
+                }, {
                   turnNumber,
                   question: followUpQuestion,
                   answer: fullText,
@@ -360,8 +408,8 @@ export const onRequestPost = async ({ request, env, ctx }) => {
             // Consolidate session memories to global scope after each successful follow-up.
             // This ensures memories are promoted even if user doesn't hit their turn limit.
             // Without this, session memories would expire after 24h and never personalize future readings.
-            const consolidationPromise = memoryEnabled && readingRequestId
-              ? consolidateSessionMemories(env.DB, user.id, readingRequestId)
+            const consolidationPromise = memoryEnabled && readingIdentifier
+              ? consolidateSessionMemories(env.DB, user.id, readingIdentifier)
                   .then(result => {
                     if (result.promoted > 0 || result.pruned > 0) {
                       console.log(`[${requestId}] Memory consolidation: promoted=${result.promoted}, pruned=${result.pruned}`);
@@ -397,6 +445,16 @@ export const onRequestPost = async ({ request, env, ctx }) => {
         });
 
         console.log(`[${requestId}] LLM response received: ${responseText?.length || 0} chars`);
+
+        // Safety gate: check response for critical safety issues
+        const safetyCheck = checkFollowUpSafety(responseText);
+        if (!safetyCheck.safe) {
+          console.warn(`[${requestId}] Follow-up safety gate triggered: ${safetyCheck.issues.join(', ')}`);
+          responseText = generateSafeFollowUpFallback(safetyCheck.issues[0]);
+        } else if (safetyCheck.issues.length > 0) {
+          // Log warnings but allow response through
+          console.log(`[${requestId}] Follow-up safety warnings (allowed): ${safetyCheck.issues.join(', ')}`);
+        }
       } catch (llmError) {
         console.error(`[${requestId}] LLM error: ${llmError.message}`);
         return jsonResponse(
@@ -409,7 +467,8 @@ export const onRequestPost = async ({ request, env, ctx }) => {
       const trackingPromise = trackFollowUpUsage(env.DB, {
         userId: user.id,
         requestId,
-        readingRequestId: readingRequestId || null,
+        readingIdentifier,
+        identifierType,
         turnNumber,
         questionLength: followUpQuestion.length,
         responseLength: responseText?.length || 0,
@@ -418,7 +477,10 @@ export const onRequestPost = async ({ request, env, ctx }) => {
       });
 
       const persistPromise = canPersistFollowups
-        ? persistFollowUpToJournal(env, user.id, readingRequestId, {
+        ? persistFollowUpToJournal(env, user.id, {
+            requestId: readingRequestId,
+            sessionSeed
+          }, {
             turnNumber,
             question: followUpQuestion,
             answer: responseText,
@@ -464,15 +526,21 @@ export const onRequestPost = async ({ request, env, ctx }) => {
 /**
  * Get count of follow-up questions for a specific reading (server-side tracking)
  * This prevents clients from manipulating conversation history to bypass limits
+ *
+ * @param {D1Database} db - Database binding
+ * @param {string} userId - User ID
+ * @param {string} readingIdentifier - Either requestId or sessionSeed
  */
-async function getPerReadingFollowUpCount(db, userId, readingRequestId) {
-  if (!db || !readingRequestId) return 0;
+async function getPerReadingFollowUpCount(db, userId, readingIdentifier) {
+  if (!db || !readingIdentifier) return 0;
 
   try {
+    // The reading_request_id column stores whichever identifier is used for the reading
+    // (requestId for new readings, sessionSeed for old readings without requestId)
     const result = await db.prepare(`
       SELECT COUNT(*) as count FROM follow_up_usage
       WHERE user_id = ? AND reading_request_id = ?
-    `).bind(userId, readingRequestId).first();
+    `).bind(userId, readingIdentifier).first();
     return result?.count || 0;
   } catch (error) {
     console.warn(`[getPerReadingFollowUpCount] Error: ${error.message}`);
@@ -500,19 +568,38 @@ async function getDailyFollowUpCount(db, userId) {
 }
 
 /**
- * Fetch reading context from journal or metrics store
+ * Fetch reading context from journal using requestId or sessionSeed
+ *
+ * @param {Object} env - Environment bindings
+ * @param {Object} identifiers - Reading identifiers
+ * @param {string} identifiers.requestId - Request ID (preferred, may be null for old readings)
+ * @param {string} identifiers.sessionSeed - Session seed (always available)
+ * @param {string} identifiers.userId - User ID for authorization
  */
-async function fetchReadingContext(env, requestId, userId) {
+async function fetchReadingContext(env, { requestId, sessionSeed, userId }) {
   if (!env?.DB) return null;
-  
+
   try {
-    // Try journal_entries first (most common case)
-    const journalEntry = await env.DB.prepare(`
-      SELECT cards_json, question, narrative, themes_json, spread_key, deck_id
-      FROM journal_entries 
-      WHERE request_id = ? AND user_id = ?
-    `).bind(requestId, userId).first();
-    
+    let journalEntry = null;
+
+    // Try request_id first (most specific, but may be null for old entries)
+    if (requestId) {
+      journalEntry = await env.DB.prepare(`
+        SELECT cards_json, question, narrative, themes_json, spread_key, deck_id
+        FROM journal_entries
+        WHERE request_id = ? AND user_id = ?
+      `).bind(requestId, userId).first();
+    }
+
+    // Fall back to session_seed (available for all entries, has unique index)
+    if (!journalEntry && sessionSeed) {
+      journalEntry = await env.DB.prepare(`
+        SELECT cards_json, question, narrative, themes_json, spread_key, deck_id
+        FROM journal_entries
+        WHERE session_seed = ? AND user_id = ?
+      `).bind(sessionSeed, userId).first();
+    }
+
     if (journalEntry) {
       return {
         cardsInfo: safeJsonParse(journalEntry.cards_json, []),
@@ -621,19 +708,22 @@ async function getUserPreferences(db, userId) {
  */
 async function trackFollowUpUsage(db, data) {
   if (!db) return;
-  
+
   const {
     userId,
     requestId,
-    readingRequestId,
+    readingIdentifier,
+    identifierType,
     turnNumber,
     questionLength,
     responseLength,
     journalContextUsed,
     patternsFound
   } = data;
-  
+
   try {
+    // Store readingIdentifier in reading_request_id column
+    // (could be requestId or sessionSeed depending on identifierType)
     await db.prepare(`
       INSERT INTO follow_up_usage (
         id, user_id, request_id, reading_request_id,
@@ -644,7 +734,7 @@ async function trackFollowUpUsage(db, data) {
       crypto.randomUUID(),
       userId,
       requestId,
-      readingRequestId,
+      readingIdentifier,
       turnNumber,
       questionLength,
       responseLength,
@@ -660,19 +750,39 @@ async function trackFollowUpUsage(db, data) {
 
 /**
  * Persist a follow-up turn to the matching journal entry (if it exists).
+ *
+ * @param {Object} env - Environment bindings
+ * @param {string} userId - User ID
+ * @param {Object} identifiers - Reading identifiers
+ * @param {string} identifiers.requestId - Request ID (may be null for old readings)
+ * @param {string} identifiers.sessionSeed - Session seed (always available)
+ * @param {Object} followUp - Follow-up data to persist
  */
-async function persistFollowUpToJournal(env, userId, readingRequestId, followUp) {
-  if (!env?.DB || !userId || !readingRequestId) return;
+async function persistFollowUpToJournal(env, userId, identifiers, followUp) {
+  const { requestId, sessionSeed } = identifiers || {};
+  if (!env?.DB || !userId || (!requestId && !sessionSeed)) return;
 
   try {
-    const entry = await env.DB.prepare(`
-      SELECT id FROM journal_entries WHERE user_id = ? AND request_id = ?
-    `).bind(userId, readingRequestId).first();
+    let entry = null;
+
+    // Try request_id first
+    if (requestId) {
+      entry = await env.DB.prepare(`
+        SELECT id FROM journal_entries WHERE user_id = ? AND request_id = ?
+      `).bind(userId, requestId).first();
+    }
+
+    // Fall back to session_seed
+    if (!entry && sessionSeed) {
+      entry = await env.DB.prepare(`
+        SELECT id FROM journal_entries WHERE user_id = ? AND session_seed = ?
+      `).bind(userId, sessionSeed).first();
+    }
 
     if (!entry?.id) return;
 
     await insertFollowUps(env.DB, userId, entry.id, [followUp], {
-      readingRequestId,
+      readingRequestId: requestId || sessionSeed,
       requestId: followUp?.requestId || null
     });
   } catch (error) {

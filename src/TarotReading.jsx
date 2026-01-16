@@ -27,6 +27,8 @@ import { useSaveReading } from './hooks/useSaveReading';
 import { useReducedMotion } from './hooks/useReducedMotion';
 import { useSmallScreen } from './hooks/useSmallScreen';
 import { useLandscape } from './hooks/useLandscape';
+import { useHandsetLayout } from './hooks/useHandsetLayout';
+import { useFeatureFlags } from './hooks/useFeatureFlags';
 
 const STEP_PROGRESS_STEPS = [
   { id: 'spread', label: 'Spread' },
@@ -69,11 +71,14 @@ export default function TarotReading() {
   const prefersReducedMotion = useReducedMotion();
   const isSmallScreen = useSmallScreen();
   const isLandscape = useLandscape();
+  const isHandsetLayout = useHandsetLayout();
+  const { newDeckInterface } = useFeatureFlags();
   // Handset mode should include:
   // - narrow portrait phones (width-constrained)
   // - height-constrained landscape phones ("small landscape")
+  // - touch-first layouts that report tablet widths
   // This keeps mobile patterns (bottom action bar + settings drawer + quick intention) available.
-  const isHandset = isSmallScreen || isLandscape;
+  const isHandset = isSmallScreen || isLandscape || isHandsetLayout;
 
   // --- 2. Reading Context ---
   const {
@@ -132,14 +137,13 @@ export default function TarotReading() {
     setReflections,
     setShowAllHighlights,
     generatePersonalReading,
-    startGuidedReveal,
-    stopGuidedReveal,
-    isGuidedRevealActive
+
   } = useReading();
 
   // --- 3. Local View State & Wiring ---
   // UI Specifics
   const [apiHealthBanner, setApiHealthBanner] = useState(null);
+  const [connectionBanner, setConnectionBanner] = useState(null);
   const [coachRecommendation, setCoachRecommendation] = useState(null);
   const [pendingCoachPrefill, setPendingCoachPrefill] = useState(null);
   const [isIntentionCoachOpen, setIsIntentionCoachOpen] = useState(false);
@@ -193,36 +197,58 @@ export default function TarotReading() {
     shuffle(); // Context handles the resets
   }, [shuffle]);
 
-  // Check API health - runs on mount and when tab becomes visible
-  useEffect(() => {
-    async function checkApiHealth() {
-      try {
-        const [tarotHealth, ttsHealth] = await Promise.all([
-          fetch('/api/health/tarot-reading', { method: 'GET', cache: 'no-store' }).catch(() => null),
-          fetch('/api/health/tts', { method: 'GET', cache: 'no-store' }).catch(() => null)
-        ]);
-        const anthropicAvailable = tarotHealth?.ok ?? false;
-        const azureAvailable = ttsHealth?.ok ?? false;
-        if (!anthropicAvailable || !azureAvailable) {
-          setApiHealthBanner({
-            anthropic: anthropicAvailable,
-            azure: azureAvailable,
-            message: 'Using local services' +
-              (!anthropicAvailable ? ' (Claude unavailable)' : '') +
-              (!azureAvailable ? ' (Azure TTS unavailable)' : '')
-          });
-        } else {
-          setApiHealthBanner(null);
-        }
-      } catch (err) {
-        console.debug('API health check failed:', err);
-      }
+  const checkApiHealth = useCallback(async () => {
+    const isOffline = typeof navigator !== 'undefined' && navigator.onLine === false;
+    if (isOffline) {
+      setApiHealthBanner({ status: 'offline', message: 'Offline mode' });
+      setConnectionBanner({
+        status: 'offline',
+        message: 'You appear to be offline. Check your connection, then retry.',
+        actionLabel: 'Retry'
+      });
+      return;
     }
 
-    // Initial check
+    try {
+      const [tarotHealth, ttsHealth] = await Promise.all([
+        fetch('/api/health/tarot-reading', { method: 'GET', cache: 'no-store' }).catch(() => null),
+        fetch('/api/health/tts', { method: 'GET', cache: 'no-store' }).catch(() => null)
+      ]);
+      const anthropicAvailable = tarotHealth?.ok ?? false;
+      const azureAvailable = ttsHealth?.ok ?? false;
+      if (!anthropicAvailable || !azureAvailable) {
+        setApiHealthBanner({
+          status: 'degraded',
+          anthropic: anthropicAvailable,
+          azure: azureAvailable,
+          message: 'Using local services' +
+            (!anthropicAvailable ? ' (Claude unavailable)' : '') +
+            (!azureAvailable ? ' (Azure TTS unavailable)' : '')
+        });
+        setConnectionBanner({
+          status: 'degraded',
+          message: 'Service check failed. Using local fallback.',
+          actionLabel: 'Retry'
+        });
+      } else {
+        setApiHealthBanner(null);
+        setConnectionBanner(null);
+      }
+    } catch (err) {
+      console.debug('API health check failed:', err);
+      setApiHealthBanner({ status: 'offline', message: 'Offline mode' });
+      setConnectionBanner({
+        status: 'offline',
+        message: 'Connection issue. Check your network, then retry.',
+        actionLabel: 'Retry'
+      });
+    }
+  }, []);
+
+  // Check API health - runs on mount and when tab becomes visible
+  useEffect(() => {
     checkApiHealth();
 
-    // Re-check when tab becomes visible (handles recovery/outage scenarios)
     function handleVisibilityChange() {
       if (document.visibilityState === 'visible') {
         checkApiHealth();
@@ -233,7 +259,28 @@ export default function TarotReading() {
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, []);
+  }, [checkApiHealth]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return undefined;
+
+    const handleOnline = () => checkApiHealth();
+    const handleOffline = () => {
+      setApiHealthBanner({ status: 'offline', message: 'Offline mode' });
+      setConnectionBanner({
+        status: 'offline',
+        message: 'You appear to be offline. Check your connection, then retry.',
+        actionLabel: 'Retry'
+      });
+    };
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, [checkApiHealth]);
 
   // Process router state for initial question / journal suggestions.
   // Clean up navigation state after consuming so we don't re-apply on rerender.
@@ -406,18 +453,6 @@ export default function TarotReading() {
     };
   }, [isIntentionCoachOpen, setPendingCoachPrefill]);
 
-  // Placeholder Cycle - cycles example questions when user has no question entered
-  useEffect(() => {
-    const trimmedQuestion = userQuestion.trim();
-    if (trimmedQuestion || isQuestionFocused) {
-      return undefined;
-    }
-    const interval = setInterval(() => {
-      setPlaceholderIndex(prev => (prev + 1) % EXAMPLE_QUESTIONS.length);
-    }, 4000);
-    return () => clearInterval(interval);
-  }, [userQuestion, isQuestionFocused]);
-
   // Clear Journal Status Timeout
   useEffect(() => {
     if (!journalStatus) return;
@@ -585,21 +620,10 @@ export default function TarotReading() {
   }, [hasConfirmedSpread]);
 
   const handleRevealAll = useCallback(() => {
-    stopGuidedReveal(false);
     revealAll();
     const behavior = prefersReducedMotion ? 'auto' : 'smooth';
     readingSectionRef.current?.scrollIntoView({ behavior, block: 'start' });
-  }, [prefersReducedMotion, revealAll, stopGuidedReveal]);
-
-  const handleStartGuidedReveal = useCallback(() => {
-    startGuidedReveal();
-    const behavior = prefersReducedMotion ? 'auto' : 'smooth';
-    readingSectionRef.current?.scrollIntoView({ behavior, block: 'start' });
-  }, [prefersReducedMotion, startGuidedReveal]);
-
-  const handleSkipGuidedReveal = useCallback(() => {
-    stopGuidedReveal(true);
-  }, [stopGuidedReveal]);
+  }, [prefersReducedMotion, revealAll]);
 
   const handlePersonalizationBannerDismiss = useCallback(() => {
     setShowPersonalizationBanner(false);
@@ -697,6 +721,18 @@ export default function TarotReading() {
   const isFollowUpVisible = showFollowUpButton && isFollowUpOpen;
   // Only true overlays (modals/drawers) should hide the action bar - not the small personalization banner
   const isMobileOverlayActive = isIntentionCoachOpen || isMobileSettingsOpen || isOnboardingOpen || isFollowUpVisible;
+  const revealFocus = isHandset && newDeckInterface && reading && revealedCards.size < reading.length
+    ? (revealedCards.size === 0 ? 'deck' : 'spread')
+    : 'action';
+  const connectionTone = connectionBanner?.status === 'offline'
+    ? 'border-error/40'
+    : 'border-primary/40';
+  const connectionText = connectionBanner?.status === 'offline'
+    ? 'text-error'
+    : 'text-primary';
+  const connectionBg = connectionBanner?.status === 'offline'
+    ? 'bg-error/10'
+    : 'bg-primary/10';
 
   const handleOpenFollowUp = useCallback(() => {
     if (!showFollowUpButton) return;
@@ -811,19 +847,39 @@ export default function TarotReading() {
         />
 
         {apiHealthBanner && (
-          <div className="mb-6 p-4 bg-primary/10 border border-primary/30 rounded-lg backdrop-blur">
+          <div className={`mb-6 p-4 rounded-lg backdrop-blur ${
+            apiHealthBanner.status === 'offline'
+              ? 'bg-error/10 border border-error/40'
+              : 'bg-primary/10 border border-primary/30'
+          }`}
+          >
             <div className="flex items-center gap-3">
-              <div className="w-3 h-3 rounded-full bg-primary animate-pulse motion-reduce:animate-none"></div>
+              <div className={`w-3 h-3 rounded-full animate-pulse motion-reduce:animate-none ${
+                apiHealthBanner.status === 'offline' ? 'bg-error' : 'bg-primary'
+              }`}
+              />
               <div className="text-accent text-xs sm:text-sm">
                 <span className="font-semibold">Service Status:</span>{' '}
-                <span className="sm:hidden">Local fallbacks active</span>
-                <span className="hidden sm:inline">{apiHealthBanner.message}</span>
+                {apiHealthBanner.status === 'offline' ? (
+                  <span>Offline - check your connection</span>
+                ) : (
+                  <>
+                    <span className="sm:hidden">Local fallbacks active</span>
+                    <span className="hidden sm:inline">{apiHealthBanner.message}</span>
+                  </>
+                )}
               </div>
             </div>
             <div className="mt-2 text-muted text-xs">
-              {!apiHealthBanner.anthropic && <div>• Claude AI: Using local composer</div>}
-              {!apiHealthBanner.azure && <div>• Azure TTS: Using local audio</div>}
-              <div className="mt-1">All readings remain fully functional with local fallbacks.</div>
+              {apiHealthBanner.status === 'offline' ? (
+                <div>We will retry automatically when you are back online.</div>
+              ) : (
+                <>
+                  {!apiHealthBanner.anthropic && <div>• Claude AI: Using local composer</div>}
+                  {!apiHealthBanner.azure && <div>• Azure TTS: Using local audio</div>}
+                  <div className="mt-1">All readings remain fully functional with local fallbacks.</div>
+                </>
+              )}
             </div>
           </div>
         )}
@@ -876,10 +932,12 @@ export default function TarotReading() {
             {isHandset && (
               <QuickIntentionCard
                 ref={quickIntentionCardRef}
+                variant={isLandscape ? 'compact' : 'full'}
                 highlight={highlightQuickIntention}
                 userQuestion={userQuestion}
                 onQuestionChange={setUserQuestion}
                 placeholderQuestion={EXAMPLE_QUESTIONS[placeholderIndex]}
+                onPlaceholderRefresh={() => setPlaceholderIndex(prev => (prev + 1) % EXAMPLE_QUESTIONS.length)}
                 inputRef={quickIntentionInputRef}
                 onInputFocus={handleQuickIntentionFocus}
                 onInputBlur={handleQuestionBlur}
@@ -947,7 +1005,10 @@ export default function TarotReading() {
           </div>
         </section>
 
-        <ReadingDisplay sectionRef={readingSectionRef} />
+        <ReadingDisplay
+          sectionRef={readingSectionRef}
+          onOpenFollowUp={showFollowUpButton ? handleOpenFollowUp : null}
+        />
       </main>
 
       {isHandset && (
@@ -968,6 +1029,7 @@ export default function TarotReading() {
             needsNarrativeGeneration={needsNarrativeGeneration}
             stepIndicatorLabel={stepIndicatorLabel}
             activeStep={activeStep}
+            revealFocus={revealFocus}
             keyboardOffset={keyboardOffset}
             onOpenSettings={() => {
               setMobileSettingsTab(activeStep === 'ritual' ? 'ritual' : 'intention');
@@ -981,13 +1043,31 @@ export default function TarotReading() {
             onShuffle={handleShuffle}
             onDealNext={dealNext}
             onRevealAll={handleRevealAll}
-            onStartGuidedReveal={handleStartGuidedReveal}
-            onSkipGuidedReveal={handleSkipGuidedReveal}
-            isGuidedRevealActive={isGuidedRevealActive}
             onGenerateNarrative={handleGeneratePersonalReading}
             onSaveReading={saveReading}
             onNewReading={handleShuffle}
           />
+          {connectionBanner && !isMobileOverlayActive && (
+            <div
+              className="fixed left-0 right-0 z-[60] flex justify-center px-3"
+              style={{
+                bottom: 'calc(var(--mobile-action-bar-height, 0px) + var(--mobile-action-bar-offset, 0px) + 0.75rem)'
+              }}
+              aria-live="polite"
+            >
+              <div className={`pointer-events-auto flex flex-wrap items-center gap-2 rounded-full border ${connectionBg} ${connectionTone} px-3 py-2 text-xs shadow-lg backdrop-blur`}>
+                <span className={`text-[10px] font-semibold uppercase tracking-[0.2em] ${connectionText}`}>Connection</span>
+                <span className="text-main/90">{connectionBanner.message}</span>
+                <button
+                  type="button"
+                  onClick={checkApiHealth}
+                  className={`ml-auto inline-flex min-h-[32px] items-center rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] ${connectionTone} ${connectionText} hover:text-main hover:border-secondary/60 transition`}
+                >
+                  {connectionBanner.actionLabel || 'Retry'}
+                </button>
+              </div>
+            </div>
+          )}
           <FollowUpDrawer
             isOpen={isFollowUpVisible}
             onClose={handleCloseFollowUp}
@@ -1007,6 +1087,7 @@ export default function TarotReading() {
                 needsNarrativeGeneration={needsNarrativeGeneration}
                 stepIndicatorLabel={stepIndicatorLabel}
                 activeStep={activeStep}
+                revealFocus={revealFocus}
                 showUtilityButtons={false}
                 onOpenSettings={() => setIsMobileSettingsOpen(false)}
                 onOpenCoach={() => {
@@ -1017,9 +1098,6 @@ export default function TarotReading() {
                 onShuffle={handleShuffle}
                 onDealNext={dealNext}
                 onRevealAll={handleRevealAll}
-                onStartGuidedReveal={handleStartGuidedReveal}
-                onSkipGuidedReveal={handleSkipGuidedReveal}
-                isGuidedRevealActive={isGuidedRevealActive}
                 onGenerateNarrative={handleGeneratePersonalReading}
                 onSaveReading={saveReading}
                 onNewReading={handleShuffle}

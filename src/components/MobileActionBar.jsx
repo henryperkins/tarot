@@ -121,15 +121,13 @@ function MobileActionContents({
   isFollowUpOpen = false,
   stepIndicatorLabel,
   activeStep = 'spread',
+  revealFocus = 'action',
   onOpenSettings,
   onOpenCoach,
   onOpenFollowUp,
   onShuffle,
   onDealNext,
   onRevealAll,
-  onStartGuidedReveal,
-  onSkipGuidedReveal,
-  isGuidedRevealActive,
   onGenerateNarrative,
   onSaveReading,
   onNewReading,
@@ -181,6 +179,7 @@ function MobileActionContents({
         isLandscape,
         showFollowUp,
         isFollowUpOpen,
+        revealFocus,
         onOpenFollowUp,
         isSettingsOpen,
         isCoachOpen,
@@ -191,9 +190,6 @@ function MobileActionContents({
         onShuffle,
         onDealNext,
         onRevealAll,
-        onStartGuidedReveal,
-        onSkipGuidedReveal,
-        isGuidedRevealActive,
         onGenerateNarrative,
         onSaveReading,
         onNewReading
@@ -219,6 +215,7 @@ function renderActions(mode, options) {
     isLandscape,
     showFollowUp,
     isFollowUpOpen,
+    revealFocus,
     onOpenFollowUp,
     isSettingsOpen,
     isCoachOpen,
@@ -229,9 +226,6 @@ function renderActions(mode, options) {
     onShuffle,
     onDealNext,
     onRevealAll,
-    onStartGuidedReveal,
-    onSkipGuidedReveal,
-    isGuidedRevealActive,
     onGenerateNarrative,
     onSaveReading,
     onNewReading
@@ -317,14 +311,20 @@ function renderActions(mode, options) {
 
     case 'revealing': {
       const nextCount = Math.min(revealedCount + 1, readingLength);
+      const isDeckPrimary = revealFocus === 'deck';
+      const isSpreadPrimary = revealFocus === 'spread';
       const nextLabel = isLandscape
         ? `${nextCount}/${readingLength}`
-        : `Reveal next (${nextCount}/${readingLength})`;
+        : isDeckPrimary
+          ? `Draw next (${nextCount}/${readingLength})`
+          : `Reveal next (${nextCount}/${readingLength})`;
+      const revealVariant = (isDeckPrimary || isSpreadPrimary) ? 'secondary' : 'primary';
       const revealAllLabel = isLandscape ? 'All' : 'Reveal instantly';
+      const showRevealAll = readingLength > 1 && !isDeckPrimary;
       return (
         <>
           <ActionButton
-            variant="primary"
+            variant={revealVariant}
             onClick={onDealNext}
             stepLabel={stepBadge}
             ariaLabel={withStepContext(nextLabel, stepIndicatorLabel)}
@@ -333,18 +333,7 @@ function renderActions(mode, options) {
           >
             {nextLabel}
           </ActionButton>
-          {readingLength > 1 && (
-            <ActionButton
-              variant="secondary"
-              onClick={isGuidedRevealActive ? onSkipGuidedReveal : onStartGuidedReveal}
-              ariaLabel={withStepContext(isGuidedRevealActive ? 'Skip guided reveal' : 'Guided reveal all cards', stepIndicatorLabel)}
-              className={`${widthClasses.secondary} ${px}`}
-              isLandscape={isLandscape}
-            >
-              {isGuidedRevealActive ? 'Skip animation' : 'Guided reveal'}
-            </ActionButton>
-          )}
-          {readingLength > 1 && (
+          {showRevealAll && (
             <ActionButton
               variant="tertiary"
               onClick={onRevealAll}

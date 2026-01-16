@@ -412,11 +412,11 @@ export async function onRequestGet(context) {
         ? `exports/readings/${user.id}/${entryId}.pdf`
         : `exports/journals/${user.id}/${Date.now()}.pdf`;
 
-      if (shouldCache && env.LOGS_BUCKET) {
+      if (shouldCache && env.R2_LOGS) {
         try {
           const cacheTtlDays = 30;
           const expiresAt = new Date(Date.now() + cacheTtlDays * 24 * 60 * 60 * 1000).toISOString();
-          await env.LOGS_BUCKET.put(cacheKey, pdf, {
+          await env.R2_LOGS.put(cacheKey, pdf, {
             httpMetadata: {
               contentType: 'application/pdf',
               cacheControl: `private, max-age=${cacheTtlDays * 24 * 60 * 60}`

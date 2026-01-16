@@ -368,7 +368,7 @@ Configured in `wrangler.jsonc`:
 | `RATELIMIT`   | KV         | Rate limiting counters (auto-expires)                |
 | `METRICS_DB`  | KV         | Reading metrics + eval scores (archived to R2 daily) |
 | `FEEDBACK_KV` | KV         | User feedback (archived to R2 daily)                 |
-| `LOGS_BUCKET` | R2         | Archives, exports, logs storage                      |
+| `R2_LOGS`     | R2         | Archives, exports, logs storage                      |
 | `ASSETS`      | Assets     | Static frontend files                                |
 
 ### R2 Bucket Structure (`tarot-logs`)
@@ -410,7 +410,7 @@ Every AI-generated reading is automatically evaluated on quality dimensions usin
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `EVAL_ENABLED` | `"false"` | Master switch for evaluation |
-| `EVAL_MODEL` | `"@cf/meta/llama-3-8b-instruct-awq"` | Workers AI model |
+| `EVAL_MODEL` | `"@cf/openai/gpt-oss-120b"` | Workers AI model |
 | `EVAL_TIMEOUT_MS` | `"5000"` | Timeout for eval call |
 | `EVAL_GATE_ENABLED` | `"false"` | Block readings on low scores |
 

@@ -27,6 +27,7 @@ export default function JourneyContent({
   timezone,
   onCreateShareLink,
   onStartReading,
+  showStartReadingCta = true,
   scopeLabel,
 }) {
   const journeyData = useJourneyData({
@@ -125,6 +126,7 @@ export default function JourneyContent({
     userId,
     onCreateShareLink,
     onStartReading,
+    showStartReadingCta,
     scopeLabel,
     // For export functionality - use exportEntries to preserve full journal when unfiltered
     activeEntries: exportEntries,
@@ -164,6 +166,7 @@ export default function JourneyContent({
     userId,
     onCreateShareLink,
     onStartReading,
+    showStartReadingCta,
     scopeLabel,
     exportEntries,
     entries,

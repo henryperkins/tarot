@@ -12,7 +12,7 @@
  */
 
 const EXTRACTION_MODEL = '@cf/meta/llama-3-8b-instruct-awq';
-const EMBEDDING_MODEL = '@cf/baai/bge-base-en-v1.5';
+const EMBEDDING_MODEL = '@cf/qwen/qwen3-embedding-0.6b';
 const DEFAULT_TIMEOUT_MS = 8000;
 const EXTRACTION_VERSION = 'v1';
 
