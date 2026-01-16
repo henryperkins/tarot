@@ -4,6 +4,7 @@
  * Endpoints:
  * - GET /api/archetype-journey - Get analytics data for authenticated user
  * - POST /api/archetype-journey/track - Track card appearances (called automatically on reading save)
+ * - GET /api/archetype-journey/preferences - Read analytics preferences
  * - PUT /api/archetype-journey/preferences - Update analytics preferences
  * - POST /api/archetype-journey/reset - Reset all analytics data
  */
@@ -12,6 +13,8 @@ import { getUserFromRequest } from '../lib/auth.js';
 import { trackPatterns } from '../lib/patternTracking.js';
 import { enforceApiCallLimit } from '../lib/apiUsage.js';
 import { buildCorsHeaders } from '../lib/utils.js';
+
+const defaultDeps = { getUserFromRequest };
 
 function toMillis(value) {
   if (typeof value === 'number') {
@@ -81,8 +84,9 @@ async function computeCurrentStreak(db, userId) {
 /**
  * Main handler for archetype journey endpoints
  */
-export async function onRequest(context) {
+export async function onRequest(context, deps = defaultDeps) {
   const { request, env } = context;
+  const { getUserFromRequest: getUser } = deps;
   const url = new URL(request.url);
   const method = request.method;
   const isCardFrequency = url.pathname === '/api/archetype-journey/card-frequency';
@@ -96,7 +100,7 @@ export async function onRequest(context) {
 
   try {
     // Get authenticated user
-    const user = await getUserFromRequest(request, env);
+    const user = await getUser(request, env);
     if (!user) {
       return new Response(JSON.stringify({ error: 'Unauthorized' }), {
         status: 401,
@@ -123,7 +127,7 @@ export async function onRequest(context) {
 
     // Check user preferences
     const prefs = await getUserPreferences(env.DB, user.id);
-    if (!prefs.archetype_journey_enabled && !url.pathname.includes('/preferences')) {
+    if (!prefs.archetype_journey_enabled && !url.pathname.includes('/preferences') && !url.pathname.includes('/reset')) {
       return new Response(JSON.stringify({
         error: 'Analytics disabled',
         enabled: false
@@ -138,6 +142,8 @@ export async function onRequest(context) {
       return await handleGetAnalytics(env.DB, user.id, corsHeaders);
     } else if (url.pathname === '/api/archetype-journey/card-frequency' && method === 'GET') {
       return await handleGetCardFrequency(env.DB, user.id, corsHeaders);
+    } else if (url.pathname === '/api/archetype-journey/preferences' && method === 'GET') {
+      return await handleGetPreferences(env.DB, user.id, corsHeaders);
     } else if (url.pathname === '/api/archetype-journey/track' && method === 'POST') {
       const body = await request.json();
       return await handleTrackCards(env.DB, user.id, body, corsHeaders);
@@ -567,6 +573,31 @@ async function handleUpdatePreferences(db, userId, body, corsHeaders) {
     console.error('Failed to update preferences:', error);
     return new Response(JSON.stringify({
       error: 'Failed to update preferences',
+      message: error.message
+    }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+  }
+}
+
+/**
+ * Get user analytics preferences
+ */
+async function handleGetPreferences(db, userId, corsHeaders) {
+  try {
+    const prefs = await getUserPreferences(db, userId);
+    return new Response(JSON.stringify({
+      success: true,
+      preferences: prefs
+    }), {
+      status: 200,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+  } catch (error) {
+    console.error('Failed to load preferences:', error);
+    return new Response(JSON.stringify({
+      error: 'Failed to load preferences',
       message: error.message
     }), {
       status: 500,

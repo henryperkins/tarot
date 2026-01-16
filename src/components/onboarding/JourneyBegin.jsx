@@ -13,15 +13,15 @@ const SPREAD_DEPTH_LABELS = {
 };
 
 const READING_TONE_LABELS = {
-  gentle: 'gentle & encouraging',
-  balanced: 'honest but kind',
+  gentle: 'gentle',
+  balanced: 'balanced',
   blunt: 'blunt',
 };
 
 const SPIRITUAL_FRAME_LABELS = {
   psychological: 'psychological',
   spiritual: 'spiritual',
-  mixed: 'balanced',
+  mixed: 'mixed',
   playful: 'playful',
 };
 
@@ -115,7 +115,7 @@ export function JourneyBegin({ selectedSpread, question, onBegin, onBack }) {
           <div className="rounded-2xl border border-accent/30 bg-surface/60 backdrop-blur-sm p-4 sm:p-5 text-left">
             <h3 className="text-xs uppercase tracking-widest text-accent mb-3 flex items-center gap-2">
               <Sparkle className="w-3.5 h-3.5" weight="fill" />
-              Your Personalized Setup
+              Quick recap
             </h3>
 
             <div className="space-y-2">
@@ -173,9 +173,12 @@ export function JourneyBegin({ selectedSpread, question, onBegin, onBack }) {
               <div className="flex items-start gap-2 text-sm">
                 <Check className="w-4 h-4 text-accent shrink-0 mt-0.5" weight="bold" aria-hidden="true" />
                 <span className="text-muted">
-                  Your journal is{' '}
+                  Journal:{' '}
                   <span className="text-main font-medium">
-                    {isAuthenticated ? 'synced to your account' : 'saved locally'}
+                    {isAuthenticated ? 'synced to your account' : 'local on this device'}
+                  </span>
+                  <span className="block text-xs text-muted mt-1">
+                    Local on this device unless Sync is on.
                   </span>
                 </span>
               </div>
@@ -184,7 +187,7 @@ export function JourneyBegin({ selectedSpread, question, onBegin, onBack }) {
             {/* Settings note */}
             <p className="mt-3 pt-3 border-t border-secondary/20 text-xs text-muted flex items-center gap-1">
               <GearSix className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
-              You can tweak all of this anytime in Settings → &quot;Reading style&quot;
+              Change anytime via Menu &gt; Replay Tutorial.
             </p>
           </div>
         </div>
@@ -234,7 +237,7 @@ export function JourneyBegin({ selectedSpread, question, onBegin, onBack }) {
         <button
           type="button"
           onClick={onBack}
-          className="flex items-center justify-center gap-1 min-h-[48px] px-4 py-3 rounded-xl border border-secondary/40 text-muted hover:text-main hover:border-secondary/60 transition touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary focus-visible:ring-offset-2 focus-visible:ring-offset-main"
+          className="flex items-center justify-center gap-1 min-h-[48px] px-4 py-3 rounded-xl border border-secondary/40 text-muted hover:text-main hover:border-secondary/60 transition motion-reduce:transition-none motion-reduce:transform-none touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary focus-visible:ring-offset-2 focus-visible:ring-offset-main"
         >
           <ArrowLeft className="w-4 h-4" />
           <span className="hidden xs:inline">Back</span>
@@ -242,7 +245,7 @@ export function JourneyBegin({ selectedSpread, question, onBegin, onBack }) {
         <button
           type="button"
           onClick={onBegin}
-          className="flex-1 flex items-center justify-center gap-2 min-h-[52px] px-6 py-3 rounded-xl bg-gradient-to-r from-accent to-gold text-surface font-bold text-lg shadow-lg shadow-accent/25 transition hover:shadow-xl hover:shadow-accent/30 active:scale-[0.98] touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-main"
+          className="flex-1 flex items-center justify-center gap-2 min-h-[52px] px-6 py-3 rounded-xl bg-gradient-to-r from-accent to-gold text-surface font-bold text-lg shadow-lg shadow-accent/25 transition hover:shadow-xl hover:shadow-accent/30 active:scale-[0.98] motion-reduce:transition-none motion-reduce:transform-none touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-main"
         >
           <Play className="w-5 h-5" weight="fill" />
           Begin Your Reading

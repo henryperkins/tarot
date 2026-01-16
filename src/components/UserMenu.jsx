@@ -5,6 +5,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useSubscription, SUBSCRIPTION_TIERS } from '../contexts/SubscriptionContext';
 import { usePreferences } from '../contexts/PreferencesContext';
 import AuthModal from './AuthModal';
+import { ConfirmModal } from './ConfirmModal';
 
 export function UserMenu({ condensed = false }) {
   const { isAuthenticated, user, logout } = useAuth();
@@ -12,6 +13,10 @@ export function UserMenu({ condensed = false }) {
   const { resetOnboarding, onboardingComplete } = usePreferences();
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showDropdown, setShowDropdown] = useState(false);
+  const [journeyEnabled, setJourneyEnabled] = useState(null);
+  const [journeyLoading, setJourneyLoading] = useState(false);
+  const [journeyError, setJourneyError] = useState(null);
+  const [tutorialResetOpen, setTutorialResetOpen] = useState(false);
   const dropdownRef = useRef(null);
   const triggerRef = useRef(null);
 
@@ -25,9 +30,68 @@ export function UserMenu({ condensed = false }) {
   };
 
   const handleReplayTutorial = () => {
-    resetOnboarding();
     closeDropdown();
+    setTutorialResetOpen(true);
   };
+
+  const confirmReplayTutorial = useCallback(() => {
+    resetOnboarding();
+    setTutorialResetOpen(false);
+    closeDropdown();
+  }, [resetOnboarding, closeDropdown]);
+
+  const fetchJourneyPreference = useCallback(async (force = false) => {
+    if (!isAuthenticated || journeyLoading) return;
+    if (!force && journeyEnabled !== null) return;
+    setJourneyLoading(true);
+    setJourneyError(null);
+    try {
+      const response = await fetch('/api/archetype-journey/preferences', { credentials: 'include' });
+      const data = await response.json().catch(() => ({}));
+      if (response.status === 403) {
+        setJourneyEnabled(false);
+      } else if (response.ok) {
+        const enabled = data?.preferences?.archetype_journey_enabled;
+        setJourneyEnabled(enabled === undefined ? null : Boolean(enabled));
+      } else {
+        setJourneyError('Could not load preference. Retry.');
+        setJourneyEnabled(null);
+      }
+    } catch {
+      setJourneyError('Could not load preference. Retry.');
+      setJourneyEnabled(null);
+    } finally {
+      setJourneyLoading(false);
+    }
+  }, [isAuthenticated, journeyLoading, journeyEnabled]);
+
+  const handleRetryJourney = useCallback(() => {
+    fetchJourneyPreference(true);
+  }, [fetchJourneyPreference]);
+
+  const handleToggleJourney = useCallback(async () => {
+    if (journeyEnabled === null || journeyLoading) return;
+    const next = !journeyEnabled;
+    setJourneyLoading(true);
+    setJourneyError(null);
+    try {
+      const response = await fetch('/api/archetype-journey/preferences', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ archetype_journey_enabled: next })
+      });
+      if (!response.ok) {
+        throw new Error('Failed to update preference');
+      }
+      const data = await response.json().catch(() => ({}));
+      setJourneyEnabled(data?.preferences?.archetype_journey_enabled ?? next);
+    } catch {
+      setJourneyError('Failed to update. Retry.');
+    } finally {
+      setJourneyLoading(false);
+    }
+  }, [journeyEnabled, journeyLoading]);
 
   // Handle Escape key and click outside
   useEffect(() => {
@@ -61,6 +125,18 @@ export function UserMenu({ condensed = false }) {
       document.removeEventListener('pointerdown', handleClickOutside);
     };
   }, [showDropdown, closeDropdown]);
+
+  useEffect(() => {
+    if (!showDropdown) return;
+    fetchJourneyPreference();
+  }, [showDropdown, fetchJourneyPreference]);
+
+  useEffect(() => {
+    if (isAuthenticated) return;
+    setJourneyEnabled(null);
+    setJourneyError(null);
+    setJourneyLoading(false);
+  }, [isAuthenticated]);
 
   // Get display name - show first initial on very small screens, truncated username on larger
   const getDisplayName = () => {
@@ -142,6 +218,67 @@ export function UserMenu({ condensed = false }) {
                         {SUBSCRIPTION_TIERS[tier]?.name || 'Seeker'} Plan
                       </span>
                     </div>
+                  </div>
+
+                  {/* Archetype Journey toggle */}
+                  <div className="px-4 py-3 border-b border-accent/10">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold text-main">
+                          Archetype Journey <span className="text-[11px] text-muted">(optional)</span>
+                        </p>
+                        <p className="text-[11px] text-muted mt-0.5">
+                          Track recurring cards and patterns.
+                        </p>
+                        <div className="mt-1 flex flex-wrap items-center gap-3">
+                          <Link
+                            to="/journal"
+                            onClick={closeDropdown}
+                            className="text-[11px] text-accent hover:text-accent/80"
+                          >
+                            View Journey
+                          </Link>
+                          {journeyError && (
+                            <button
+                              type="button"
+                              onClick={handleRetryJourney}
+                              className="text-[11px] text-muted hover:text-main"
+                            >
+                              Retry
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        role="switch"
+                        aria-checked={journeyEnabled === true}
+                        aria-label="Toggle Archetype Journey"
+                        onClick={handleToggleJourney}
+                        disabled={journeyEnabled === null || journeyLoading}
+                        className={`
+                          min-h-[44px] min-w-[44px] flex items-center justify-center
+                          ${journeyEnabled === null || journeyLoading ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'}
+                        `}
+                      >
+                        <span
+                          className={`
+                            relative inline-flex h-6 w-11 items-center rounded-full transition-colors
+                            ${journeyEnabled ? 'bg-accent' : 'bg-secondary/30'}
+                          `}
+                        >
+                          <span
+                            className={`
+                              inline-block h-4 w-4 transform rounded-full bg-white shadow-sm transition-transform
+                              ${journeyEnabled ? 'translate-x-5' : 'translate-x-1'}
+                            `}
+                          />
+                        </span>
+                      </button>
+                    </div>
+                    {journeyError && (
+                      <p className="text-[11px] text-error mt-2">{journeyError}</p>
+                    )}
                   </div>
 
                   {/* Upgrade CTA */}
@@ -280,6 +417,15 @@ export function UserMenu({ condensed = false }) {
       </div>
 
       <AuthModal isOpen={showAuthModal} onClose={() => setShowAuthModal(false)} />
+      <ConfirmModal
+        isOpen={tutorialResetOpen}
+        onClose={() => setTutorialResetOpen(false)}
+        onConfirm={confirmReplayTutorial}
+        title="Replay tutorial?"
+        message="This restarts the onboarding walkthrough and tips."
+        confirmText="Replay tutorial"
+        cancelText="Cancel"
+      />
     </>
   );
 }

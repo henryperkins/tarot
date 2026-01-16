@@ -15,7 +15,9 @@ export function getResetAtUtc(date = new Date()) {
 export async function getUsageRow(db, userId, month) {
   return db
     .prepare(
-      'SELECT readings_count, tts_count, api_calls_count FROM usage_tracking WHERE user_id = ? AND month = ?'
+      `SELECT readings_count, tts_count, api_calls_count, created_at, updated_at
+       FROM usage_tracking
+       WHERE user_id = ? AND month = ?`
     )
     .bind(userId, month)
     .first();
@@ -66,4 +68,3 @@ export async function decrementUsageCounter(db, { userId, month, counter, nowMs 
 
   return { changed: result.meta?.changes || 0 };
 }
-

@@ -15,34 +15,49 @@ import { jsonResponse, readJsonBody } from '../lib/utils.js';
 import { sanitizeRedirectUrl } from '../lib/urlSafety.js';
 import { stripeRequest } from '../lib/stripe.js';
 
-export async function onRequestPost(context) {
+const defaultDeps = {
+  getUserFromRequest,
+  jsonResponse,
+  readJsonBody,
+  sanitizeRedirectUrl,
+  stripeRequest
+};
+
+export async function onRequestPost(context, deps = defaultDeps) {
   const { request, env } = context;
+  const {
+    getUserFromRequest: getUser,
+    jsonResponse: toJson,
+    readJsonBody: readBody,
+    sanitizeRedirectUrl: sanitizeUrl,
+    stripeRequest: callStripe
+  } = deps;
 
   try {
     if (!env.STRIPE_SECRET_KEY) {
       console.error('STRIPE_SECRET_KEY not configured');
-      return jsonResponse({ error: 'Payment system not configured' }, { status: 500 });
+      return toJson({ error: 'Payment system not configured', code: 'STRIPE_NOT_CONFIGURED' }, { status: 500 });
     }
 
-    const user = await getUserFromRequest(request, env);
+    const user = await getUser(request, env);
     if (!user) {
-      return jsonResponse({ error: 'Authentication required' }, { status: 401 });
+      return toJson({ error: 'Authentication required', code: 'AUTH_REQUIRED' }, { status: 401 });
     }
 
     if (user.auth_provider === 'api_key') {
-      return jsonResponse({ error: 'Session authentication required' }, { status: 401 });
+      return toJson({ error: 'Session authentication required', code: 'SESSION_REQUIRED' }, { status: 401 });
     }
 
     if (!user.stripe_customer_id) {
-      return jsonResponse({ error: 'No Stripe customer found for this account' }, { status: 400 });
+      return toJson({ error: 'No Stripe customer found for this account', code: 'NO_STRIPE_CUSTOMER' }, { status: 400 });
     }
 
-    const body = await readJsonBody(request).catch(() => ({}));
+    const body = await readBody(request).catch(() => ({}));
     const requestedReturnUrl = typeof body.returnUrl === 'string' ? body.returnUrl.trim() : '';
 
-    const returnUrl = sanitizeRedirectUrl(requestedReturnUrl, request, env, '/account');
+    const returnUrl = sanitizeUrl(requestedReturnUrl, request, env, '/account');
 
-    const session = await stripeRequest(
+    const session = await callStripe(
       '/billing_portal/sessions',
       'POST',
       {
@@ -52,11 +67,11 @@ export async function onRequestPost(context) {
       env.STRIPE_SECRET_KEY
     );
 
-    return jsonResponse({ url: session.url }, { status: 200 });
+    return toJson({ url: session.url }, { status: 200 });
   } catch (error) {
     console.error('Create portal session error:', error);
-    return jsonResponse(
-      { error: error.message || 'Failed to create portal session' },
+    return toJson(
+      { error: error.message || 'Failed to create portal session', code: 'PORTAL_ERROR' },
       { status: 500 }
     );
   }

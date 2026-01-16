@@ -197,7 +197,7 @@ export function getQualityLevel(score) {
     };
   }
   return {
-    label: 'Needs work',
+    label: 'Needs clarity',
     color: 'orange',
     emoji: '🔧'
   };

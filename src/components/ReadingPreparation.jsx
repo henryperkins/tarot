@@ -202,7 +202,7 @@ export function ReadingPreparation({
                 <div className="rounded-xl border border-secondary/20 bg-surface/40 px-3 py-2 text-[0.7rem] text-muted flex items-center justify-between gap-2">
                     <span>Audio and appearance live in Settings.</span>
                     <Link
-                        to="/account"
+                        to="/account#audio"
                         className="text-accent underline underline-offset-2 text-[0.7rem] font-semibold"
                     >
                         Open Settings

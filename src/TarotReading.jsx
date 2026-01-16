@@ -1,5 +1,4 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import { SPREADS } from './data/spreads';
 import { EXAMPLE_QUESTIONS } from './data/exampleQuestions';
 import { SpreadSelector } from './components/SpreadSelector';
 import { ReadingPreparation } from './components/ReadingPreparation';
@@ -28,6 +27,7 @@ import { useSmallScreen } from './hooks/useSmallScreen';
 import { useLandscape } from './hooks/useLandscape';
 import { useHandsetLayout } from './hooks/useHandsetLayout';
 import { useFeatureFlags } from './hooks/useFeatureFlags';
+import { loadCoachRecommendation, saveCoachRecommendation } from './lib/journalInsights';
 
 const STEP_PROGRESS_STEPS = [
   { id: 'spread', label: 'Spread' },
@@ -37,7 +37,7 @@ const STEP_PROGRESS_STEPS = [
 ];
 
 export default function TarotReading() {
-  const { user, loading: authLoading } = useAuth();
+  const { user } = useAuth();
   const userId = user?.id || null;
 
   // --- 1. Global Preferences (Context) ---
@@ -144,6 +144,7 @@ export default function TarotReading() {
   const [apiHealthBanner, setApiHealthBanner] = useState(null);
   const [connectionBanner, setConnectionBanner] = useState(null);
   const [pendingCoachPrefill, setPendingCoachPrefill] = useState(null);
+  const [coachRecommendationVersion, setCoachRecommendationVersion] = useState(0);
   const [isIntentionCoachOpen, setIsIntentionCoachOpen] = useState(false);
   const [isFollowUpOpen, setIsFollowUpOpen] = useState(false);
   const [placeholderIndex, setPlaceholderIndex] = useState(0);
@@ -165,9 +166,14 @@ export default function TarotReading() {
   const quickIntentionHighlightTimeoutRef = useRef(null);
   const hasAutoCompletedRef = useRef(false);
   const pendingFocusSpreadRef = useRef(false);
+  const coachRecommendation = useMemo(() => {
+    if (typeof window === 'undefined') return null;
+    const recommendation = loadCoachRecommendation(userId);
+    // coachRecommendationVersion forces a re-read after persistence changes
+    return coachRecommendationVersion ? recommendation : recommendation;
+  }, [userId, coachRecommendationVersion]);
 
   // --- Effects & Helpers ---
-
   useEffect(() => {
     return () => {
       if (quickIntentionHighlightTimeoutRef.current) {
@@ -175,6 +181,14 @@ export default function TarotReading() {
       }
     };
   }, []);
+  const refreshCoachRecommendation = useCallback(() => {
+    setCoachRecommendationVersion((version) => version + 1);
+  }, []);
+  const openIntentionCoach = useCallback(() => {
+    refreshCoachRecommendation();
+    setPendingCoachPrefill(null);
+    setIsIntentionCoachOpen(true);
+  }, [refreshCoachRecommendation]);
 
   // Reset analysis state when Shuffle is triggered
   // (Handled in ReadingContext now, but we might need to clear local UI state if any)
@@ -432,15 +446,14 @@ export default function TarotReading() {
 
       if ((event.key === 'g' || event.key === 'G') && event.shiftKey) {
         event.preventDefault();
-        setPendingCoachPrefill(null);
-        setIsIntentionCoachOpen(true);
+        openIntentionCoach();
       }
     }
     window.addEventListener('keydown', handleCoachShortcut);
     return () => {
       window.removeEventListener('keydown', handleCoachShortcut);
     };
-  }, [isIntentionCoachOpen, setPendingCoachPrefill]);
+  }, [isIntentionCoachOpen, openIntentionCoach]);
 
   // Clear Journal Status Timeout
   useEffect(() => {
@@ -517,6 +530,22 @@ export default function TarotReading() {
     setIsIntentionCoachOpen(false);
     setPendingCoachPrefill(null);
   }, []);
+
+  const clearCoachRecommendation = useCallback(() => {
+    saveCoachRecommendation(null, userId);
+    refreshCoachRecommendation();
+  }, [refreshCoachRecommendation, userId]);
+
+  const applyCoachRecommendation = useCallback(() => {
+    const nextQuestion = coachRecommendation?.question || coachRecommendation?.customFocus;
+    if (!nextQuestion) return;
+    setUserQuestion(nextQuestion);
+    clearCoachRecommendation();
+  }, [clearCoachRecommendation, coachRecommendation, setUserQuestion]);
+
+  const dismissCoachRecommendation = useCallback(() => {
+    clearCoachRecommendation();
+  }, [clearCoachRecommendation]);
 
   const handleCoachApply = (guidedQuestion) => {
     if (!guidedQuestion) return;
@@ -910,10 +939,7 @@ export default function TarotReading() {
                 inputRef={quickIntentionInputRef}
                 onInputFocus={handleQuickIntentionFocus}
                 onInputBlur={handleQuestionBlur}
-                onCoachOpen={() => {
-                  setPendingCoachPrefill(null);
-                  setIsIntentionCoachOpen(true);
-                }}
+                onCoachOpen={openIntentionCoach}
                 onMoreOpen={() => {
                   setMobileSettingsTab('intention');
                   setIsMobileSettingsOpen(true);
@@ -936,10 +962,7 @@ export default function TarotReading() {
                 onPlaceholderRefresh={() => setPlaceholderIndex(prev => (prev + 1) % EXAMPLE_QUESTIONS.length)}
                 onQuestionFocus={handleQuestionFocus}
                 onQuestionBlur={handleQuestionBlur}
-                onLaunchCoach={() => {
-                  setPendingCoachPrefill(null);
-                  setIsIntentionCoachOpen(true);
-                }}
+                onLaunchCoach={openIntentionCoach}
                 prepareSectionsOpen={prepareSectionsOpen}
                 togglePrepareSection={togglePrepareSection}
                 prepareSummaries={prepareSummaries}
@@ -1001,10 +1024,7 @@ export default function TarotReading() {
               setMobileSettingsTab(activeStep === 'ritual' ? 'ritual' : 'intention');
               setIsMobileSettingsOpen(true);
             }}
-            onOpenCoach={() => {
-              setPendingCoachPrefill(null);
-              setIsIntentionCoachOpen(true);
-            }}
+            onOpenCoach={openIntentionCoach}
             onOpenFollowUp={handleOpenFollowUp}
             onShuffle={handleShuffle}
             onDealNext={dealNext}
@@ -1058,8 +1078,7 @@ export default function TarotReading() {
                 onOpenSettings={() => setIsMobileSettingsOpen(false)}
                 onOpenCoach={() => {
                   setIsMobileSettingsOpen(false);
-                  setPendingCoachPrefill(null);
-                  setIsIntentionCoachOpen(true);
+                  openIntentionCoach();
                 }}
                 onShuffle={handleShuffle}
                 onDealNext={dealNext}
@@ -1083,8 +1102,7 @@ export default function TarotReading() {
               dismissCoachRecommendation={dismissCoachRecommendation}
               onLaunchCoach={() => {
                 setIsMobileSettingsOpen(false);
-                setPendingCoachPrefill(null);
-                setIsIntentionCoachOpen(true);
+                openIntentionCoach();
               }}
               deckStyleId={deckStyleId}
               onDeckChange={handleDeckChange}

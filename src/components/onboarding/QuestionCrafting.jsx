@@ -1,10 +1,11 @@
 import { useState, useMemo, useEffect, useRef } from 'react';
-import { ArrowLeft, ArrowRight, Sparkle, Lightning, Check, X } from '@phosphor-icons/react';
+import { ArrowLeft, ArrowRight, Sparkle, Lightning, Check, X, Info } from '@phosphor-icons/react';
 import { EXAMPLE_QUESTIONS } from '../../data/exampleQuestions';
 import { scoreQuestion, getQualityLevel } from '../../lib/questionQuality';
 import { useReducedMotion } from '../../hooks/useReducedMotion';
 import { useLandscape } from '../../hooks/useLandscape';
 import { usePreferences } from '../../contexts/PreferencesContext';
+import { Tooltip } from '../Tooltip';
 
 // Additional example questions for onboarding
 const ONBOARDING_EXAMPLES = [
@@ -19,16 +20,16 @@ const ONBOARDING_EXAMPLES = [
 const MAX_ADDITIONAL_EXAMPLES = 2;
 
 const READING_TONE_OPTIONS = [
-  { value: 'gentle', label: 'Gentle & encouraging' },
-  { value: 'balanced', label: 'Honest but kind' },
-  { value: 'blunt', label: 'Blunt, no sugar-coating' },
+  { value: 'gentle', label: 'Gentle', sublabel: 'Softer phrasing' },
+  { value: 'balanced', label: 'Balanced', sublabel: 'Clear and kind' },
+  { value: 'blunt', label: 'Blunt', sublabel: 'Direct wording' },
 ];
 
 const SPIRITUAL_FRAME_OPTIONS = [
-  { value: 'psychological', label: 'Mostly self-reflection / psychology' },
-  { value: 'spiritual', label: 'Spiritual & intuitive' },
-  { value: 'mixed', label: 'Mix of both' },
-  { value: 'playful', label: 'Just vibes & fun' },
+  { value: 'psychological', label: 'Psychological', sublabel: 'Self-reflection' },
+  { value: 'spiritual', label: 'Spiritual', sublabel: 'Intuitive' },
+  { value: 'mixed', label: 'Mixed', sublabel: 'Both lenses' },
+  { value: 'playful', label: 'Playful', sublabel: 'Just for fun' },
 ];
 
 /**
@@ -43,6 +44,8 @@ export function QuestionCrafting({ question, onQuestionChange, onNext, onBack })
   const prefersReducedMotion = useReducedMotion();
   const isLandscape = useLandscape();
   const { personalization, setReadingTone, setSpiritualFrame } = usePreferences();
+  const infoButtonClass =
+    'inline-flex min-w-[44px] min-h-[44px] items-center justify-center rounded-full text-muted/60 transition hover:text-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 touch-manipulation -ml-2 -mr-3';
 
   const quality = useMemo(() => scoreQuestion(question), [question]);
   const qualityLevel = useMemo(() => getQualityLevel(quality.score), [quality.score]);
@@ -80,10 +83,10 @@ export function QuestionCrafting({ question, onQuestionChange, onNext, onBack })
         className={`text-center mb-4 sm:mb-6 ${prefersReducedMotion ? '' : 'animate-fade-in-up'}`}
       >
         <h2 className={`font-serif text-main ${isLandscape ? 'text-xl' : 'text-2xl sm:text-3xl'}`}>
-          Craft Your Question
+          Craft a clear question
         </h2>
         <p className={`text-muted mt-2 max-w-md mx-auto ${isLandscape ? 'text-sm' : ''}`}>
-          A clear, open-ended question helps the cards speak to what matters most.
+          Open-ended, specific questions get clearer readings.
         </p>
       </div>
 
@@ -114,8 +117,18 @@ export function QuestionCrafting({ question, onQuestionChange, onNext, onBack })
               prefersReducedMotion ? '' : 'animate-fade-in'
             }`}
           >
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-xs text-muted">Question quality</span>
+            <div className="flex items-center justify-between mb-1">
+              <div className="flex items-center gap-1.5">
+                <span className="text-xs text-muted">Clarity check</span>
+                <Tooltip
+                  content="Checks for open-ended wording, specificity, and timeframe."
+                  position="top"
+                  triggerClassName={infoButtonClass}
+                  ariaLabel="About clarity check"
+                >
+                  <Info className="h-3.5 w-3.5" />
+                </Tooltip>
+              </div>
               <span className="flex items-center gap-1 text-sm font-medium">
                 <span className="relative inline-flex items-center">
                   <span>{qualityLevel.emoji}</span>
@@ -130,6 +143,9 @@ export function QuestionCrafting({ question, onQuestionChange, onNext, onBack })
                 <span className="text-main">{qualityLevel.label}</span>
               </span>
             </div>
+            <p className="text-xs text-muted">
+              We look for open-ended, specific, time-bound wording.
+            </p>
 
             {/* Progress bar */}
             <div className="h-2 w-full rounded-full bg-surface-muted/80 overflow-hidden">
@@ -185,6 +201,12 @@ export function QuestionCrafting({ question, onQuestionChange, onNext, onBack })
                 )}
               </div>
             )}
+
+            <p className="mt-3 text-xs text-muted">
+              <span className="text-main font-medium">Good:</span> &quot;Why am I stuck?&quot;{' '}
+              <span className="text-main font-medium">Better:</span> &quot;What is one step I can
+              take this week at work?&quot;
+            </p>
           </div>
         )}
 
@@ -270,9 +292,12 @@ export function QuestionCrafting({ question, onQuestionChange, onNext, onBack })
           } ${isLandscape ? 'mt-4 p-4' : ''}`}
           style={{ animationDelay: '0.4s' }}
         >
-          <p className="text-sm text-accent mb-3">
-            How do you like your readings?
-          </p>
+          <div className="mb-3">
+            <p className="text-sm text-accent">Reading tone</p>
+            <p className="text-xs text-muted">
+              Changes how direct the reading sounds, not the card meanings.
+            </p>
+          </div>
           <div className="flex flex-wrap gap-2">
             {READING_TONE_OPTIONS.map((option) => {
               const isSelected = personalization.readingTone === option.value;
@@ -281,14 +306,21 @@ export function QuestionCrafting({ question, onQuestionChange, onNext, onBack })
                   key={option.value}
                   type="button"
                   onClick={() => setReadingTone(option.value)}
-                  className={`min-h-[44px] px-4 py-2 rounded-full border text-sm font-medium transition touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-main ${
+                  className={`min-h-[44px] px-4 py-2 rounded-2xl border text-left transition touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-main ${
                     isSelected
                       ? 'bg-accent text-surface border-accent'
                       : 'bg-surface/50 text-muted border-secondary/30 hover:border-accent/50 hover:text-main'
                   }`}
                   aria-pressed={isSelected}
                 >
-                  {option.label}
+                  <span className="block text-sm font-semibold">{option.label}</span>
+                  <span
+                    className={`block text-[0.65rem] ${
+                      isSelected ? 'text-surface/80' : 'text-muted'
+                    }`}
+                  >
+                    {option.sublabel}
+                  </span>
                 </button>
               );
             })}
@@ -296,46 +328,58 @@ export function QuestionCrafting({ question, onQuestionChange, onNext, onBack })
         </div>
 
         {/* Personalization: Spiritual Framing */}
-        {!isLandscape && (
-          <div
-            className={`mt-4 rounded-2xl border border-accent/20 bg-surface/50 p-5 ${
-              prefersReducedMotion ? '' : 'animate-fade-in-up'
-            }`}
-            style={{ animationDelay: '0.5s' }}
-          >
-            <p className="text-sm text-accent mb-3">
-              How should we frame things?
+        <div
+          className={`mt-4 rounded-2xl border border-accent/20 bg-surface/50 p-5 ${
+            prefersReducedMotion ? '' : 'animate-fade-in-up'
+          } ${isLandscape ? 'p-4' : ''}`}
+          style={{ animationDelay: '0.5s' }}
+        >
+          <div className="mb-3">
+            <p className="text-sm text-accent">Interpretation lens</p>
+            <p className="text-xs text-muted">
+              Choose the lens you&apos;re comfortable with. Switch anytime.
             </p>
-            <div className="flex flex-wrap gap-2">
-              {SPIRITUAL_FRAME_OPTIONS.map((option) => {
-                const isSelected = personalization.spiritualFrame === option.value;
-                return (
-                  <button
-                    key={option.value}
-                    type="button"
-                    onClick={() => setSpiritualFrame(option.value)}
-                    className={`min-h-[44px] px-4 py-2 rounded-full border text-sm font-medium transition touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-main ${
-                      isSelected
-                        ? 'bg-accent text-surface border-accent'
-                        : 'bg-surface/50 text-muted border-secondary/30 hover:border-accent/50 hover:text-main'
-                    }`}
-                    aria-pressed={isSelected}
-                  >
-                    {option.label}
-                  </button>
-                );
-              })}
-            </div>
           </div>
-        )}
+          <div className="flex flex-wrap gap-2">
+            {SPIRITUAL_FRAME_OPTIONS.map((option) => {
+              const isSelected = personalization.spiritualFrame === option.value;
+              return (
+                <button
+                  key={option.value}
+                  type="button"
+                  onClick={() => setSpiritualFrame(option.value)}
+                  className={`min-h-[44px] px-4 py-2 rounded-2xl border text-left transition touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-main ${
+                    isSelected
+                      ? 'bg-accent text-surface border-accent'
+                      : 'bg-surface/50 text-muted border-secondary/30 hover:border-accent/50 hover:text-main'
+                  }`}
+                  aria-pressed={isSelected}
+                >
+                  <span className="block text-sm font-semibold">{option.label}</span>
+                  <span
+                    className={`block text-[0.65rem] ${
+                      isSelected ? 'text-surface/80' : 'text-muted'
+                    }`}
+                  >
+                    {option.sublabel}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
       </div>
 
       {/* Navigation */}
-      <div className={`flex gap-3 pt-4 pb-safe-bottom ${isLandscape ? 'pt-2' : 'pt-6'}`}>
+      <div className={`pt-4 pb-safe-bottom ${isLandscape ? 'pt-2' : 'pt-6'}`}>
+        <p className="text-xs text-muted text-center mb-2">
+          Prefer less motion? Use your device&apos;s Reduce Motion setting.
+        </p>
+        <div className="flex gap-3">
         <button
           type="button"
           onClick={onBack}
-          className="flex items-center justify-center gap-1 min-h-[48px] px-4 py-3 rounded-xl border border-secondary/40 text-muted hover:text-main hover:border-secondary/60 transition touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary focus-visible:ring-offset-2 focus-visible:ring-offset-main"
+          className="flex items-center justify-center gap-1 min-h-[48px] px-4 py-3 rounded-xl border border-secondary/40 text-muted hover:text-main hover:border-secondary/60 transition motion-reduce:transition-none motion-reduce:transform-none touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary focus-visible:ring-offset-2 focus-visible:ring-offset-main"
         >
           <ArrowLeft className="w-4 h-4" />
           <span className="hidden xs:inline">Back</span>
@@ -343,11 +387,12 @@ export function QuestionCrafting({ question, onQuestionChange, onNext, onBack })
         <button
           type="button"
           onClick={onNext}
-          className="flex-1 flex items-center justify-center gap-2 min-h-[48px] px-6 py-3 rounded-xl bg-accent text-surface font-semibold text-base transition hover:bg-accent/90 active:scale-[0.98] touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-main"
+          className="flex-1 flex items-center justify-center gap-2 min-h-[48px] px-6 py-3 rounded-xl bg-accent text-surface font-semibold text-base transition hover:bg-accent/90 active:scale-[0.98] motion-reduce:transition-none motion-reduce:transform-none touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-main"
         >
           {question.trim() ? 'Continue' : 'Skip'}
           <ArrowRight className="w-5 h-5" weight="bold" />
         </button>
+        </div>
       </div>
     </div>
   );

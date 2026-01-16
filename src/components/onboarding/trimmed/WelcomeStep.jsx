@@ -11,9 +11,9 @@ const EXPERIENCE_OPTIONS = [
 ];
 
 const TONE_OPTIONS = [
-  { value: 'gentle', label: 'Gentle' },
-  { value: 'balanced', label: 'Balanced' },
-  { value: 'blunt', label: 'Direct' }
+  { value: 'gentle', label: 'Gentle', sublabel: 'Softer phrasing' },
+  { value: 'balanced', label: 'Balanced', sublabel: 'Clear and kind' },
+  { value: 'blunt', label: 'Blunt', sublabel: 'Direct wording' }
 ];
 
 /**
@@ -113,21 +113,31 @@ export function WelcomeStep({ onNext }) {
           className={prefersReducedMotion ? '' : 'animate-fade-in-up'}
           style={{ animationDelay: '0.3s' }}
         >
-          <p className="text-sm text-accent mb-2">Reading tone preference</p>
+          <p className="text-sm text-accent">Reading tone</p>
+          <p className="text-xs text-muted mb-2">
+            Changes how direct the reading sounds, not the card meanings.
+          </p>
           <div className="flex gap-2">
             {TONE_OPTIONS.map((opt) => (
               <button
                 key={opt.value}
                 type="button"
                 onClick={() => setTone(opt.value)}
-                className={`flex-1 min-h-[44px] py-3 px-2 rounded-xl text-sm font-medium transition touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-main ${
+                className={`flex-1 min-h-[44px] py-2.5 px-2 rounded-xl text-left transition touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-main ${
                   tone === opt.value
                     ? 'bg-accent text-surface'
                     : 'bg-surface border border-secondary/30 text-muted hover:border-accent/50'
                 }`}
                 aria-pressed={tone === opt.value}
               >
-                {opt.label}
+                <span className="block text-sm font-semibold">{opt.label}</span>
+                <span
+                  className={`block text-[0.65rem] ${
+                    tone === opt.value ? 'text-surface/80' : 'text-muted'
+                  }`}
+                >
+                  {opt.sublabel}
+                </span>
               </button>
             ))}
           </div>
@@ -139,7 +149,7 @@ export function WelcomeStep({ onNext }) {
         <button
           type="button"
           onClick={handleContinue}
-          className="w-full min-h-[52px] rounded-xl bg-accent text-surface font-semibold text-lg transition hover:bg-accent/90 active:scale-[0.98] touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-main"
+          className="w-full min-h-[52px] rounded-xl bg-accent text-surface font-semibold text-lg transition hover:bg-accent/90 active:scale-[0.98] motion-reduce:transition-none motion-reduce:transform-none touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-main"
         >
           Continue
         </button>

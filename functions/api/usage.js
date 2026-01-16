@@ -12,26 +12,45 @@ import { enforceApiCallLimit } from '../lib/apiUsage.js';
 import { getSubscriptionContext } from '../lib/entitlements.js';
 import { getMonthKeyUtc, getResetAtUtc, getUsageRow } from '../lib/usageTracking.js';
 
-export async function onRequestGet(context) {
+const defaultDeps = {
+  getUserFromRequest,
+  jsonResponse,
+  enforceApiCallLimit,
+  getSubscriptionContext,
+  getMonthKeyUtc,
+  getResetAtUtc,
+  getUsageRow
+};
+
+export async function onRequestGet(context, deps = defaultDeps) {
   const { request, env } = context;
+  const {
+    getUserFromRequest: getUser,
+    jsonResponse: toJson,
+    enforceApiCallLimit: enforceLimit,
+    getSubscriptionContext: getContext,
+    getMonthKeyUtc: getMonthKey,
+    getResetAtUtc: getResetAt,
+    getUsageRow: loadUsageRow
+  } = deps;
   const requestId = crypto.randomUUID();
 
   try {
-    const user = await getUserFromRequest(request, env);
+    const user = await getUser(request, env);
     if (!user) {
-      return jsonResponse({ error: 'Authentication required' }, { status: 401 });
+      return toJson({ error: 'Authentication required' }, { status: 401 });
     }
 
     if (user.auth_provider === 'api_key') {
-      const apiLimit = await enforceApiCallLimit(env, user);
+      const apiLimit = await enforceLimit(env, user);
       if (!apiLimit.allowed) {
-        return jsonResponse(apiLimit.payload, { status: apiLimit.status });
+        return toJson(apiLimit.payload, { status: apiLimit.status });
       }
     }
 
-    const month = getMonthKeyUtc();
-    const resetAt = getResetAtUtc();
-    const subscription = getSubscriptionContext(user);
+    const month = getMonthKey();
+    const resetAt = getResetAt();
+    const subscription = getContext(user);
     const tier = subscription.tier;
     const effectiveTier = subscription.effectiveTier;
     const status = subscription.status;
@@ -40,13 +59,15 @@ export async function onRequestGet(context) {
     let readingsUsed = 0;
     let ttsUsed = 0;
     let apiCallsUsed = 0;
+    let updatedAt = null;
     let trackingAvailable = true;
 
     try {
-      const row = await getUsageRow(env.DB, user.id, month);
+      const row = await loadUsageRow(env.DB, user.id, month);
       readingsUsed = row?.readings_count || 0;
       ttsUsed = row?.tts_count || 0;
       apiCallsUsed = row?.api_calls_count || 0;
+      updatedAt = row?.updated_at || row?.created_at || null;
     } catch (error) {
       if (error.message?.includes('no such table')) {
         trackingAvailable = false;
@@ -57,6 +78,7 @@ export async function onRequestGet(context) {
       readingsUsed = 0;
       ttsUsed = 0;
       apiCallsUsed = 0;
+      updatedAt = null;
     }
 
     const readingsLimit = config.monthlyReadings;
@@ -72,13 +94,18 @@ export async function onRequestGet(context) {
     const apiCallsUnlimited = apiCallsLimit === Infinity;
     const apiCallsRemaining =
       apiCallsLimit === null ? null : Math.max(0, apiCallsLimit - apiCallsUsed);
+    const updatedAtIso = trackingAvailable && updatedAt
+      ? new Date(updatedAt).toISOString()
+      : null;
 
-    return jsonResponse({
+    return toJson({
       month,
       resetAt,
+      updatedAt: updatedAtIso,
       tier,
       status,
       effectiveTier,
+      trackingAvailable,
       readings: {
         used: readingsUsed,
         limit: readingsUnlimited ? null : readingsLimit,
@@ -104,7 +131,7 @@ export async function onRequestGet(context) {
     });
   } catch (error) {
     console.error(`[${requestId}] [usage] Endpoint error:`, error);
-    return jsonResponse(
+    return toJson(
       { error: 'Failed to load usage status' },
       { status: 500 }
     );

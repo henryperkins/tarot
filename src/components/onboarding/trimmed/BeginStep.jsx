@@ -1,6 +1,7 @@
 import { Star, Check, ArrowLeft } from '@phosphor-icons/react';
 import { SPREADS } from '../../../data/spreads';
 import { usePreferences } from '../../../contexts/PreferencesContext';
+import { useAuth } from '../../../contexts/AuthContext';
 import { useReducedMotion } from '../../../hooks/useReducedMotion';
 import { useLandscape } from '../../../hooks/useLandscape';
 
@@ -13,11 +14,25 @@ import { useLandscape } from '../../../hooks/useLandscape';
  */
 export function BeginStep({ selectedSpread, question, onBegin, onBack }) {
   const { personalization } = usePreferences();
+  const { isAuthenticated } = useAuth();
   const prefersReducedMotion = useReducedMotion();
   const isLandscape = useLandscape();
 
   const spread = SPREADS[selectedSpread];
-  const toneLabel = personalization.readingTone || 'balanced';
+  const toneLabelMap = {
+    gentle: 'Gentle',
+    balanced: 'Balanced',
+    blunt: 'Blunt'
+  };
+  const lensLabelMap = {
+    psychological: 'Psychological',
+    spiritual: 'Spiritual',
+    mixed: 'Mixed',
+    playful: 'Playful'
+  };
+  const toneLabel = toneLabelMap[personalization.readingTone] || 'Balanced';
+  const lensValue = personalization.spiritualFrame || 'mixed';
+  const lensLabel = `${lensLabelMap[lensValue] || 'Mixed'}${lensValue === 'mixed' ? ' (default)' : ''}`;
   const hasQuestion = question?.trim().length > 0;
 
   return (
@@ -55,17 +70,27 @@ export function BeginStep({ selectedSpread, question, onBegin, onBack }) {
         }`}
         style={{ animationDelay: '0.2s' }}
       >
+        <h3 className="text-xs uppercase tracking-widest text-accent mb-2">Quick recap</h3>
         <div className="flex items-center gap-2 text-sm mb-2">
           <Check className="w-4 h-4 text-accent shrink-0" weight="bold" aria-hidden="true" />
           <span className="text-muted">
             {spread?.name || 'Your spread'} · {toneLabel} tone
           </span>
         </div>
+        <div className="flex flex-wrap gap-2 pl-6 text-xs text-muted">
+          <span className="rounded-full bg-surface/70 border border-secondary/20 px-2 py-1">
+            Lens: {lensLabel}
+          </span>
+          <span className="rounded-full bg-surface/70 border border-secondary/20 px-2 py-1">
+            {isAuthenticated ? 'Journal: Synced to your account' : 'Journal: Local unless Sync is on'}
+          </span>
+        </div>
         {hasQuestion && (
-          <p className="text-xs text-muted italic line-clamp-2 pl-6">
+          <p className="text-xs text-muted italic line-clamp-2 pl-6 mt-2">
             &ldquo;{question}&rdquo;
           </p>
         )}
+        <p className="mt-3 text-xs text-muted pl-6">Change anytime via Menu &gt; Replay Tutorial.</p>
       </div>
 
       {/* Actions */}
@@ -75,7 +100,7 @@ export function BeginStep({ selectedSpread, question, onBegin, onBack }) {
         <button
           type="button"
           onClick={onBegin}
-          className={`w-full rounded-xl bg-accent text-surface font-bold transition hover:bg-accent/90 active:scale-[0.98] touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-main ${
+          className={`w-full rounded-xl bg-accent text-surface font-bold transition hover:bg-accent/90 active:scale-[0.98] motion-reduce:transition-none motion-reduce:transform-none touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-main ${
             isLandscape ? 'min-h-[48px] text-base' : 'min-h-[56px] text-lg'
           }`}
         >
@@ -84,7 +109,7 @@ export function BeginStep({ selectedSpread, question, onBegin, onBack }) {
         <button
           type="button"
           onClick={onBack}
-          className="w-full min-h-[44px] py-3 text-muted text-sm flex items-center justify-center gap-1 transition hover:text-main touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-xl"
+          className="w-full min-h-[44px] py-3 text-muted text-sm flex items-center justify-center gap-1 transition hover:text-main motion-reduce:transition-none motion-reduce:transform-none touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-xl"
         >
           <ArrowLeft className="w-4 h-4" weight="bold" aria-hidden="true" />
           Go back

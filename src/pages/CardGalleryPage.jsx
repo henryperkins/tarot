@@ -490,7 +490,7 @@ export default function CardGalleryPage() {
             </p>
             <button
               type="button"
-              onClick={() => navigate('/account')}
+              onClick={() => navigate('/account#privacy')}
               className="px-4 py-2 rounded-full border border-amber-200/25 text-amber-50 hover:bg-amber-200/10"
             >
               Go to Settings
@@ -506,16 +506,16 @@ export default function CardGalleryPage() {
                 initial: { opacity: 0, scale: 0.9 },
                 animate: { opacity: 1, scale: 1 }
               };
-              
+
               return (
-                <motion.div 
-                  key={i} 
+                <motion.div
+                  key={i}
                   className="aspect-[2/3] rounded-xl bg-white/5 animate-pulse"
                   variants={skeletonVariants}
                   initial="initial"
                   animate="animate"
-                  transition={{ 
-                    duration: prefersReducedMotion ? 0.15 : 0.3, 
+                  transition={{
+                    duration: prefersReducedMotion ? 0.15 : 0.3,
                     delay: prefersReducedMotion ? 0 : i * 0.05,
                     ease: [0.4, 0, 0.2, 1]
                   }}

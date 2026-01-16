@@ -1,7 +1,8 @@
-import { ArrowLeft, ArrowRight, Notebook, ClockCounterClockwise, Sparkle, MagnifyingGlass, PencilLine, CloudCheck, HardDrive, UserPlus } from '@phosphor-icons/react';
+import { ArrowLeft, ArrowRight, Notebook, ClockCounterClockwise, Sparkle, MagnifyingGlass, PencilLine, CloudCheck, HardDrive, UserPlus, Info } from '@phosphor-icons/react';
 import { useReducedMotion } from '../../hooks/useReducedMotion';
 import { useLandscape } from '../../hooks/useLandscape';
 import { useAuth } from '../../contexts/AuthContext';
+import { Tooltip } from '../Tooltip';
 
 /**
  * JournalIntro - Step 6 of onboarding
@@ -13,6 +14,8 @@ export function JournalIntro({ onNext, onBack, onGoToStep }) {
   const prefersReducedMotion = useReducedMotion();
   const isLandscape = useLandscape();
   const { isAuthenticated } = useAuth();
+  const infoButtonClass =
+    'inline-flex min-w-[44px] min-h-[44px] items-center justify-center rounded-full text-muted/60 transition hover:text-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 touch-manipulation -ml-2 -mr-3';
 
   const journalBenefits = [
     {
@@ -109,6 +112,18 @@ export function JournalIntro({ onNext, onBack, onGoToStep }) {
           } ${prefersReducedMotion ? '' : 'animate-fade-in-up'}`}
           style={{ animationDelay: '0.3s' }}
         >
+          <div className="flex items-center gap-1.5 mb-1">
+            <p className="text-xs uppercase tracking-[0.2em] text-muted">Journal storage</p>
+            <Tooltip
+              content="Local stays on this device. Sync stores a copy in your account."
+              position="top"
+              triggerClassName={infoButtonClass}
+              ariaLabel="About journal storage"
+            >
+              <Info className="h-3.5 w-3.5" />
+            </Tooltip>
+          </div>
+          <p className="text-xs text-muted mb-3">Local on this device unless Sync is on.</p>
           <div className="flex items-center gap-3">
             {isAuthenticated ? (
               <>
@@ -126,7 +141,7 @@ export function JournalIntro({ onNext, onBack, onGoToStep }) {
                   <HardDrive className="w-5 h-5 text-muted" weight="duotone" aria-hidden="true" />
                 </div>
                 <div>
-                  <p className="text-sm font-medium text-main">Saved locally on this device</p>
+                  <p className="text-sm font-medium text-main">Local on this device</p>
                   <p className="text-xs text-muted">
                     Your journal stays private on this browser.
                   </p>
@@ -152,7 +167,7 @@ export function JournalIntro({ onNext, onBack, onGoToStep }) {
         <button
           type="button"
           onClick={onBack}
-          className="flex items-center justify-center gap-1 min-h-[48px] px-4 py-3 rounded-xl border border-secondary/40 text-muted hover:text-main hover:border-secondary/60 transition touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary focus-visible:ring-offset-2 focus-visible:ring-offset-main"
+          className="flex items-center justify-center gap-1 min-h-[48px] px-4 py-3 rounded-xl border border-secondary/40 text-muted hover:text-main hover:border-secondary/60 transition motion-reduce:transition-none motion-reduce:transform-none touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary focus-visible:ring-offset-2 focus-visible:ring-offset-main"
         >
           <ArrowLeft className="w-4 h-4" />
           <span className="hidden xs:inline">Back</span>
@@ -160,7 +175,7 @@ export function JournalIntro({ onNext, onBack, onGoToStep }) {
         <button
           type="button"
           onClick={onNext}
-          className="flex-1 flex items-center justify-center gap-2 min-h-[48px] px-6 py-3 rounded-xl bg-accent text-surface font-semibold text-base transition hover:bg-accent/90 active:scale-[0.98] touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-main"
+          className="flex-1 flex items-center justify-center gap-2 min-h-[48px] px-6 py-3 rounded-xl bg-accent text-surface font-semibold text-base transition hover:bg-accent/90 active:scale-[0.98] motion-reduce:transition-none motion-reduce:transform-none touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-main"
         >
           {isAuthenticated ? 'Start your first reading' : 'Continue'}
           <ArrowRight className="w-5 h-5" weight="bold" />

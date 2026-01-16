@@ -81,26 +81,37 @@ export function IntentionStep({ question, onQuestionChange, onNext, onBack }) {
         {/* Quality indicator - only show when typing */}
         {showQualityIndicator && (
           <div
-            className="flex items-center gap-2 text-sm"
+            className="rounded-xl border border-secondary/20 bg-surface/40 p-3"
             role="status"
             aria-live="polite"
           >
-            <span className="relative inline-flex items-center" aria-hidden="true">
-              <span>{qualityLevel.emoji}</span>
-              {showExcellentBurst && (
-                <Sparkle
-                  className="absolute -top-2 -right-2 h-3.5 w-3.5 text-accent motion-safe:animate-ping"
-                  weight="fill"
-                  aria-hidden="true"
-                />
-              )}
-            </span>
-            <span className="text-muted">{qualityLevel.label}</span>
-            {quality.feedback.length > 0 && (
-              <span className="text-muted/70 text-xs hidden xs:inline">
-                — {quality.feedback[0]}
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-muted">Clarity check</span>
+              <span className="flex items-center gap-1 text-sm font-medium">
+                <span className="relative inline-flex items-center" aria-hidden="true">
+                  <span>{qualityLevel.emoji}</span>
+                  {showExcellentBurst && (
+                    <Sparkle
+                      className="absolute -top-2 -right-2 h-3.5 w-3.5 text-accent motion-safe:animate-ping"
+                      weight="fill"
+                      aria-hidden="true"
+                    />
+                  )}
+                </span>
+                <span className="text-main">{qualityLevel.label}</span>
               </span>
+            </div>
+            <p className="text-xs text-muted mt-1">
+              Clear questions are open-ended and time-bound.
+            </p>
+            {quality.feedback.length > 0 && (
+              <p className="text-xs text-muted/80 mt-1">{quality.feedback[0]}</p>
             )}
+            <p className="text-xs text-muted mt-2">
+              <span className="text-main font-medium">Good:</span> &quot;Why am I stuck?&quot;{' '}
+              <span className="text-main font-medium">Better:</span> &quot;What is one step I can
+              take this week at work?&quot;
+            </p>
           </div>
         )}
 
@@ -132,7 +143,7 @@ export function IntentionStep({ question, onQuestionChange, onNext, onBack }) {
         <button
           type="button"
           onClick={onBack}
-          className="min-h-[44px] min-w-[44px] px-4 py-3 text-muted flex items-center gap-1 transition hover:text-main touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-xl"
+          className="min-h-[44px] min-w-[44px] px-4 py-3 text-muted flex items-center gap-1 transition hover:text-main motion-reduce:transition-none motion-reduce:transform-none touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-xl"
           aria-label="Go back"
         >
           <ArrowLeft className="w-4 h-4" weight="bold" aria-hidden="true" />
@@ -141,7 +152,7 @@ export function IntentionStep({ question, onQuestionChange, onNext, onBack }) {
         <button
           type="button"
           onClick={onNext}
-          className="flex-1 min-h-[52px] rounded-xl bg-accent text-surface font-semibold transition hover:bg-accent/90 active:scale-[0.98] touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-main"
+          className="flex-1 min-h-[52px] rounded-xl bg-accent text-surface font-semibold transition hover:bg-accent/90 active:scale-[0.98] motion-reduce:transition-none motion-reduce:transform-none touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-main"
         >
           {hasQuestion ? 'Continue' : 'Skip for now'}
         </button>
