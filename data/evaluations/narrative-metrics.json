@@ -1,7 +1,7 @@
 {
-  "generatedAt": "2026-01-12T07:26:29.820Z",
+  "generatedAt": "2026-01-16T15:42:36.520Z",
   "sourceFile": "data/evaluations/narrative-samples.json",
-  "totalSamples": 5,
+  "totalSamples": 9,
   "spinePassRate": 1,
   "avgCardCoverage": 1,
   "deterministicLanguageCount": 0,
@@ -12,7 +12,7 @@
   "flaggedSampleCount": 0,
   "avgRubricScores": {
     "accuracy": 1,
-    "coherence": 1,
+    "coherence": 0.8656926406926406,
     "agency": 1,
     "compassion": 1
   },
@@ -24,8 +24,8 @@
       "question": "What guiding energy should I bring into this new leadership role?",
       "spine": {
         "isValid": true,
-        "totalSections": 2,
-        "completeSections": 2,
+        "totalSections": 3,
+        "completeSections": 3,
         "incompleteSections": 0
       },
       "cardCoverage": 1,
@@ -51,9 +51,9 @@
       "question": "How can I navigate the transition after leaving my hometown?",
       "spine": {
         "isValid": true,
-        "totalSections": 4,
+        "totalSections": 5,
         "completeSections": 4,
-        "incompleteSections": 0
+        "incompleteSections": 1
       },
       "cardCoverage": 1,
       "missingCards": [],
@@ -66,7 +66,7 @@
       "issuesPresent": false,
       "rubric": {
         "accuracy": 1,
-        "coherence": 1,
+        "coherence": 0.8,
         "agency": 1,
         "compassion": 1
       }
@@ -78,9 +78,9 @@
       "question": "What should I know about launching my creative project this quarter?",
       "spine": {
         "isValid": true,
-        "totalSections": 7,
+        "totalSections": 8,
         "completeSections": 7,
-        "incompleteSections": 0
+        "incompleteSections": 1
       },
       "cardCoverage": 1,
       "missingCards": [],
@@ -93,7 +93,7 @@
       "issuesPresent": false,
       "rubric": {
         "accuracy": 1,
-        "coherence": 1,
+        "coherence": 0.875,
         "agency": 1,
         "compassion": 1
       }
@@ -105,9 +105,9 @@
       "question": "What should I understand about the energetic exchange between me and Alex?",
       "spine": {
         "isValid": true,
-        "totalSections": 5,
-        "completeSections": 5,
-        "incompleteSections": 0
+        "totalSections": 7,
+        "completeSections": 6,
+        "incompleteSections": 1
       },
       "cardCoverage": 1,
       "missingCards": [],
@@ -120,7 +120,7 @@
       "issuesPresent": false,
       "rubric": {
         "accuracy": 1,
-        "coherence": 1,
+        "coherence": 0.8571428571428571,
         "agency": 1,
         "compassion": 1
       }
@@ -133,8 +133,8 @@
       "spine": {
         "isValid": true,
         "totalSections": 11,
-        "completeSections": 11,
-        "incompleteSections": 0
+        "completeSections": 10,
+        "incompleteSections": 1
       },
       "cardCoverage": 1,
       "missingCards": [],
@@ -147,7 +147,115 @@
       "issuesPresent": false,
       "rubric": {
         "accuracy": 1,
-        "coherence": 1,
+        "coherence": 0.9090909090909091,
+        "agency": 1,
+        "compassion": 1
+      }
+    },
+    {
+      "id": "decision-crossroads-long-reflections",
+      "spreadKey": "decision",
+      "spreadName": "Decision / Two-Path",
+      "question": "I am at a decision point about whether to relocate or stay. Which path supports my growth?",
+      "spine": {
+        "isValid": true,
+        "totalSections": 8,
+        "completeSections": 7,
+        "incompleteSections": 1
+      },
+      "cardCoverage": 1,
+      "missingCards": [],
+      "deterministicLanguage": false,
+      "hasAgencyLanguage": true,
+      "hallucinatedCards": [],
+      "hasSupportiveTone": true,
+      "hasHarshTone": false,
+      "issueFlags": [],
+      "issuesPresent": false,
+      "rubric": {
+        "accuracy": 1,
+        "coherence": 0.875,
+        "agency": 1,
+        "compassion": 1
+      }
+    },
+    {
+      "id": "spiritual-thoth-ritual",
+      "spreadKey": "threeCard",
+      "spreadName": "Three-Card Story (Past · Present · Future)",
+      "question": "What spiritual practice should I commit to this season to deepen my intuition?",
+      "spine": {
+        "isValid": true,
+        "totalSections": 5,
+        "completeSections": 4,
+        "incompleteSections": 1
+      },
+      "cardCoverage": 1,
+      "missingCards": [],
+      "deterministicLanguage": false,
+      "hasAgencyLanguage": true,
+      "hallucinatedCards": [],
+      "hasSupportiveTone": true,
+      "hasHarshTone": false,
+      "issueFlags": [],
+      "issuesPresent": false,
+      "rubric": {
+        "accuracy": 1,
+        "coherence": 0.8,
+        "agency": 1,
+        "compassion": 1
+      }
+    },
+    {
+      "id": "wellbeing-marseille-reset",
+      "spreadKey": "fiveCard",
+      "spreadName": "Five-Card Clarity",
+      "question": "I am feeling burnout and restless sleep. What helps me restore my wellbeing?",
+      "spine": {
+        "isValid": true,
+        "totalSections": 8,
+        "completeSections": 7,
+        "incompleteSections": 1
+      },
+      "cardCoverage": 1,
+      "missingCards": [],
+      "deterministicLanguage": false,
+      "hasAgencyLanguage": true,
+      "hallucinatedCards": [],
+      "hasSupportiveTone": true,
+      "hasHarshTone": false,
+      "issueFlags": [],
+      "issuesPresent": false,
+      "rubric": {
+        "accuracy": 1,
+        "coherence": 0.875,
+        "agency": 1,
+        "compassion": 1
+      }
+    },
+    {
+      "id": "non-english-spanish",
+      "spreadKey": "threeCard",
+      "spreadName": "Three-Card Story (Past · Present · Future)",
+      "question": "Como puedo sostener mi energia mientras apoyo a mi familia y mi trabajo?",
+      "spine": {
+        "isValid": true,
+        "totalSections": 5,
+        "completeSections": 4,
+        "incompleteSections": 1
+      },
+      "cardCoverage": 1,
+      "missingCards": [],
+      "deterministicLanguage": false,
+      "hasAgencyLanguage": true,
+      "hallucinatedCards": [],
+      "hasSupportiveTone": true,
+      "hasHarshTone": false,
+      "issueFlags": [],
+      "issuesPresent": false,
+      "rubric": {
+        "accuracy": 1,
+        "coherence": 0.8,
         "agency": 1,
         "compassion": 1
       }

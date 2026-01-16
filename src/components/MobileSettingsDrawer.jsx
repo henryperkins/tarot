@@ -38,6 +38,13 @@ export function MobileSettingsDrawer({ isOpen, onClose, children, footer = null 
     getServerViewportOffset
   );
   const effectiveOffset = Math.max(0, viewportOffset);
+  const wrapperStyle = {
+    paddingTop: 'max(16px, env(safe-area-inset-top, 16px))',
+    paddingBottom: effectiveOffset ? `${effectiveOffset}px` : undefined
+  };
+  const bodyStyle = footer
+    ? undefined
+    : { paddingBottom: 'calc(1rem + env(safe-area-inset-bottom, 0px))' };
 
   // Shared modal accessibility: scroll lock, escape key, focus trap, focus restoration
   useModalA11y(isOpen, {
@@ -155,7 +162,7 @@ export function MobileSettingsDrawer({ isOpen, onClose, children, footer = null 
   return (
     <div
       className="fixed inset-0 z-[70] flex items-end justify-center"
-      style={{ paddingTop: 'max(16px, env(safe-area-inset-top, 16px))' }}
+      style={wrapperStyle}
     >
       <div
         className="mobile-drawer-overlay absolute inset-0 animate-fade-in"
@@ -208,15 +215,14 @@ export function MobileSettingsDrawer({ isOpen, onClose, children, footer = null 
         </div>
 
         <div
-          className="mobile-drawer__body p-4 space-y-8 overflow-y-auto overscroll-contain"
-          style={{ paddingBottom: effectiveOffset ? `calc(1rem + env(safe-area-inset-bottom) + ${effectiveOffset}px)` : undefined }}
+          className="mobile-drawer__body p-4 space-y-8 overflow-y-auto overscroll-contain flex-1 min-h-0"
+          style={bodyStyle}
         >
           {children}
         </div>
         {footer && (
           <div
             className="mobile-drawer__footer"
-            style={effectiveOffset ? { paddingBottom: `calc(1rem + ${effectiveOffset}px)` } : undefined}
           >
             {footer}
           </div>

@@ -44,7 +44,9 @@ export function JournalSummaryBand({
 
   useEffect(() => {
     if (!isMobileLayout) {
-      setIsExpanded(true);
+      if (typeof window === 'undefined') return undefined;
+      const frameId = window.requestAnimationFrame(() => setIsExpanded(true));
+      return () => window.cancelAnimationFrame(frameId);
     }
   }, [isMobileLayout]);
 

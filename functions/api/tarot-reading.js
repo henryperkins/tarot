@@ -64,7 +64,8 @@ import {
   maybeLogNarrativeEnhancements,
   maybeLogEnhancementTelemetry,
   trimForTelemetry,
-  resolveGraphRAGStats
+  resolveGraphRAGStats,
+  normalizeBooleanFlag
 } from '../lib/readingTelemetry.js';
 import {
   NARRATIVE_BACKENDS,
@@ -703,11 +704,15 @@ export const onRequestPost = async ({ request, env, waitUntil }) => {
     const tokenStreamingEnabled = isAzureTokenStreamingEnabled(env);
     const evalGateEnabled = isEvalGateEnabled(env);
     const allowStreamingGateBypass = allowStreamingWithEvalGate(env);
+    // Default on to preserve safety buffering when eval gate is disabled.
+    const safetyScanStreamingEnabled = env?.STREAMING_SAFETY_SCAN_ENABLED === undefined
+      ? true
+      : normalizeBooleanFlag(env?.STREAMING_SAFETY_SCAN_ENABLED);
     const azureStreamingAvailable = Boolean(NARRATIVE_BACKENDS['azure-gpt5']?.isAvailable(env));
     const wantsAzureStreaming = useStreaming && tokenStreamingEnabled && azureStreamingAvailable;
     const canUseAzureStreaming = wantsAzureStreaming && allowStreamingGateBypass;
     const shouldGateStreaming = canUseAzureStreaming && evalGateEnabled;
-    const shouldSafetyScanStreaming = canUseAzureStreaming && !evalGateEnabled;
+    const shouldSafetyScanStreaming = canUseAzureStreaming && !evalGateEnabled && safetyScanStreamingEnabled;
 
     if (useStreaming && tokenStreamingEnabled && !allowStreamingGateBypass) {
       const reason = evalGateEnabled
@@ -716,8 +721,10 @@ export const onRequestPost = async ({ request, env, waitUntil }) => {
       console.warn(`[${requestId}] Token streaming disabled (${reason}); falling back to buffered streaming.`);
     } else if (useStreaming && tokenStreamingEnabled && evalGateEnabled && allowStreamingGateBypass) {
       console.warn(`[${requestId}] Token streaming enabled with eval gate; buffering output before streaming to enforce gate.`);
-    } else if (useStreaming && tokenStreamingEnabled && !evalGateEnabled && allowStreamingGateBypass) {
-      console.warn(`[${requestId}] Token streaming enabled without eval gate; buffering output for safety scan.`);
+    } else if (useStreaming && tokenStreamingEnabled && !evalGateEnabled && allowStreamingGateBypass && safetyScanStreamingEnabled) {
+      console.warn(`[${requestId}] Token streaming enabled without eval gate; buffering output for safety scan (STREAMING_SAFETY_SCAN_ENABLED).`);
+    } else if (useStreaming && tokenStreamingEnabled && allowStreamingGateBypass && !evalGateEnabled && !safetyScanStreamingEnabled) {
+      console.log(`[${requestId}] Token streaming enabled; sending live SSE without safety buffer.`);
     }
 
     if (useStreaming && tokenStreamingEnabled && !azureStreamingAvailable) {

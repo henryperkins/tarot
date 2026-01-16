@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   User,
@@ -14,18 +14,28 @@ import {
   Check,
   CaretRight,
   Envelope,
-  ChartLine,
+  ShieldCheck,
   SpeakerHigh,
   Waveform,
   ArrowCounterClockwise,
-  Palette
+  Palette,
+  FileArrowDown,
+  DownloadSimple,
+  Trash,
+  PencilSimple,
+  Lock,
+  ArrowClockwise
 } from '@phosphor-icons/react';
+import { ConfirmModal } from '../components/ConfirmModal';
 import { MemoryManager } from '../components/MemoryManager';
 import { useAuth } from '../contexts/AuthContext';
 import { useSubscription, SUBSCRIPTION_TIERS } from '../contexts/SubscriptionContext';
 import { usePreferences } from '../contexts/PreferencesContext';
 import { useToast } from '../contexts/ToastContext';
+import { useJournal } from '../hooks/useJournal';
 import { useReducedMotion } from '../hooks/useReducedMotion';
+import { exportJournalInsightsToPdf } from '../lib/pdfExport';
+import { computeJournalStats, exportJournalEntriesToCsv } from '../lib/journalInsights';
 
 /**
  * Settings toggle component - matches UserMenu style
@@ -92,7 +102,7 @@ function SectionCard({ title, icon: Icon, children }) {
 export default function AccountPage() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { user, isAuthenticated, logout, loading: authLoading } = useAuth();
+  const { user, isAuthenticated, logout, loading: authLoading, checkAuth } = useAuth();
   const { tier, subscription: _subscription, loading: _subLoading } = useSubscription();
   const {
     resetOnboarding,
@@ -115,17 +125,52 @@ export default function AccountPage() {
   } = usePreferences();
   const { publish } = useToast();
   const prefersReducedMotion = useReducedMotion();
+  const {
+    entries: journalEntries,
+    loading: journalLoading,
+    error: journalError,
+    hasMoreEntries: hasMoreJournalEntries,
+    loadEntries: loadJournalEntries,
+    loadMoreEntries: loadMoreJournalEntries
+  } = useJournal({ autoLoad: false });
 
   // Analytics preferences state (mirrored from UserMenu)
   const [analyticsEnabled, setAnalyticsEnabled] = useState(null);
   const [prefsLoading, setPrefsLoading] = useState(false);
   const [prefsError, setPrefsError] = useState(null);
 
+  // Profile & password management
+  const [profileEditing, setProfileEditing] = useState(false);
+  const [profileForm, setProfileForm] = useState({ username: '', email: '' });
+  const [profileSaving, setProfileSaving] = useState(false);
+  const [profileError, setProfileError] = useState(null);
+  const [profileSuccess, setProfileSuccess] = useState(null);
+  const [passwordEditing, setPasswordEditing] = useState(false);
+  const [passwordForm, setPasswordForm] = useState({ current: '', next: '', confirm: '' });
+  const [passwordSaving, setPasswordSaving] = useState(false);
+  const [passwordError, setPasswordError] = useState(null);
+  const [passwordSuccess, setPasswordSuccess] = useState(null);
+
+  // Subscription details + restore
+  const [subscriptionDetails, setSubscriptionDetails] = useState(null);
+  const [subscriptionDetailsLoading, setSubscriptionDetailsLoading] = useState(false);
+  const [subscriptionDetailsError, setSubscriptionDetailsError] = useState(null);
+  const [restoreLoading, setRestoreLoading] = useState(false);
+
   // Billing portal + usage dashboard
   const [portalLoading, setPortalLoading] = useState(false);
   const [usageStatus, setUsageStatus] = useState(null);
   const [usageLoading, setUsageLoading] = useState(false);
   const [usageError, setUsageError] = useState(null);
+
+  // Export + delete account
+  const [exportLoading, setExportLoading] = useState(false);
+  const [exportError, setExportError] = useState(null);
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [deleteLoading, setDeleteLoading] = useState(false);
+
+  const journalEntriesRef = useRef(journalEntries);
+  const hasMoreEntriesRef = useRef(hasMoreJournalEntries);
 
   // Handle upgrade success from Stripe redirect
   useEffect(() => {
@@ -139,6 +184,22 @@ export default function AccountPage() {
       setSearchParams({}, { replace: true });
     }
   }, [searchParams, setSearchParams, publish]);
+
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    setProfileForm({
+      username: user?.username || '',
+      email: user?.email || ''
+    });
+  }, [isAuthenticated, user?.username, user?.email]);
+
+  useEffect(() => {
+    journalEntriesRef.current = journalEntries;
+  }, [journalEntries]);
+
+  useEffect(() => {
+    hasMoreEntriesRef.current = hasMoreJournalEntries;
+  }, [hasMoreJournalEntries]);
 
   // No redirect - guests can access settings sections
 
@@ -173,6 +234,33 @@ export default function AccountPage() {
     fetchPrefs();
     return () => { cancelled = true; };
   }, [isAuthenticated, prefsLoading, analyticsEnabled]);
+
+  // Fetch subscription details (renewal date, provider sync)
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    let cancelled = false;
+    const fetchSubscriptionDetails = async () => {
+      setSubscriptionDetailsLoading(true);
+      setSubscriptionDetailsError(null);
+      try {
+        const response = await fetch('/api/subscription', { credentials: 'include' });
+        const data = await response.json().catch(() => ({}));
+        if (cancelled) return;
+        if (!response.ok) {
+          throw new Error(data.error || 'Unable to load subscription details');
+        }
+        setSubscriptionDetails(data.subscription || null);
+      } catch (error) {
+        if (!cancelled) {
+          setSubscriptionDetailsError(error.message || 'Unable to load subscription details');
+        }
+      } finally {
+        if (!cancelled) setSubscriptionDetailsLoading(false);
+      }
+    };
+    fetchSubscriptionDetails();
+    return () => { cancelled = true; };
+  }, [isAuthenticated, tier]);
 
   // Fetch usage status for the dashboard
   useEffect(() => {
@@ -230,6 +318,252 @@ export default function AccountPage() {
     }
   }, [analyticsEnabled, prefsLoading]);
 
+  const handleProfileSave = useCallback(async () => {
+    if (profileSaving) return;
+    const nextUsername = profileForm.username.trim();
+    const nextEmail = profileForm.email.trim();
+    const updates = {};
+
+    if (nextUsername && nextUsername !== user?.username) {
+      updates.username = nextUsername;
+    }
+    if (nextEmail && nextEmail.toLowerCase() !== user?.email) {
+      updates.email = nextEmail.toLowerCase();
+    }
+
+    if (!Object.keys(updates).length) {
+      setProfileError('No changes to save.');
+      return;
+    }
+
+    setProfileSaving(true);
+    setProfileError(null);
+    setProfileSuccess(null);
+    try {
+      const response = await fetch('/api/account/profile', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(updates)
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to update profile');
+      }
+      await checkAuth();
+      setProfileEditing(false);
+      setProfileSuccess('Profile updated.');
+    } catch (error) {
+      setProfileError(error.message || 'Failed to update profile');
+    } finally {
+      setProfileSaving(false);
+    }
+  }, [profileSaving, profileForm, user?.username, user?.email, checkAuth]);
+
+  const handlePasswordUpdate = useCallback(async () => {
+    if (passwordSaving) return;
+    if (!passwordForm.current || !passwordForm.next) {
+      setPasswordError('Enter your current and new password.');
+      return;
+    }
+    if (passwordForm.next !== passwordForm.confirm) {
+      setPasswordError('New passwords do not match.');
+      return;
+    }
+
+    setPasswordSaving(true);
+    setPasswordError(null);
+    setPasswordSuccess(null);
+    try {
+      const response = await fetch('/api/account/password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          currentPassword: passwordForm.current,
+          newPassword: passwordForm.next
+        })
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to update password');
+      }
+      setPasswordForm({ current: '', next: '', confirm: '' });
+      setPasswordSuccess('Password updated.');
+    } catch (error) {
+      setPasswordError(error.message || 'Failed to update password');
+    } finally {
+      setPasswordSaving(false);
+    }
+  }, [passwordSaving, passwordForm]);
+
+  const loadAllJournalEntries = useCallback(async () => {
+    if (journalLoading) return journalEntriesRef.current;
+    setExportLoading(true);
+    setExportError(null);
+    try {
+      await loadJournalEntries();
+      await new Promise(resolve => setTimeout(resolve, 0));
+      let safety = 0;
+      while (hasMoreEntriesRef.current && safety < 20) {
+        const result = await loadMoreJournalEntries();
+        if (!result?.appended) break;
+        safety += 1;
+        await new Promise(resolve => setTimeout(resolve, 0));
+      }
+      return journalEntriesRef.current;
+    } finally {
+      setExportLoading(false);
+    }
+  }, [journalLoading, loadJournalEntries, loadMoreJournalEntries]);
+
+  const handleExportPdf = useCallback(async () => {
+    const entries = await loadAllJournalEntries();
+    if (!entries?.length) {
+      setExportError('No journal entries available to export.');
+      return;
+    }
+    const stats = computeJournalStats(entries);
+    if (!stats) {
+      setExportError('No journal entries available to export.');
+      return;
+    }
+    exportJournalInsightsToPdf(stats, entries, { scopeLabel: 'Account export' });
+    publish({
+      title: 'PDF export started',
+      description: 'Your journal export is downloading.',
+      type: 'success'
+    });
+  }, [loadAllJournalEntries, publish]);
+
+  const handleExportCsv = useCallback(async () => {
+    const entries = await loadAllJournalEntries();
+    if (!entries?.length) {
+      setExportError('No journal entries available to export.');
+      return;
+    }
+    const success = exportJournalEntriesToCsv(entries);
+    if (!success) {
+      setExportError('CSV export failed.');
+      return;
+    }
+    publish({
+      title: 'CSV export started',
+      description: 'Your journal export is downloading.',
+      type: 'success'
+    });
+  }, [loadAllJournalEntries, publish]);
+
+  const handleDownloadAccountData = useCallback(() => {
+    if (typeof document === 'undefined') return;
+    const payload = {
+      exportedAt: new Date().toISOString(),
+      user: {
+        id: user?.id || null,
+        email: user?.email || null,
+        username: user?.username || null
+      },
+      subscription: {
+        tier,
+        status: _subscription?.status || null,
+        provider: _subscription?.provider || null
+      },
+      preferences: {
+        theme,
+        includeMinors,
+        reversalFramework,
+        voiceOn,
+        autoNarrate,
+        ambienceOn,
+        ttsProvider
+      }
+    };
+
+    try {
+      const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', 'tableu-account-data.json');
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      publish({
+        title: 'Account data ready',
+        description: 'Your data export is downloading.',
+        type: 'success'
+      });
+    } catch {
+      publish({
+        title: 'Download failed',
+        description: 'Unable to download account data.',
+        type: 'error'
+      });
+    }
+  }, [
+    user?.id,
+    user?.email,
+    user?.username,
+    tier,
+    _subscription?.status,
+    _subscription?.provider,
+    theme,
+    includeMinors,
+    reversalFramework,
+    voiceOn,
+    autoNarrate,
+    ambienceOn,
+    ttsProvider,
+    publish
+  ]);
+
+  const handleRestorePurchases = useCallback(async () => {
+    if (restoreLoading) return;
+    const provider = subscriptionDetails?.provider || _subscription?.provider || null;
+    const storeUrls = {
+      apple: 'https://apps.apple.com/account/subscriptions',
+      app_store: 'https://apps.apple.com/account/subscriptions',
+      ios: 'https://apps.apple.com/account/subscriptions',
+      google_play: 'https://play.google.com/store/account/subscriptions'
+    };
+    if (provider && storeUrls[provider]) {
+      window.open(storeUrls[provider], '_blank', 'noopener');
+      publish({
+        title: 'Restore purchases',
+        description: 'Use your app store subscriptions page to restore purchases.',
+        type: 'info'
+      });
+      return;
+    }
+    setRestoreLoading(true);
+    try {
+      const response = await fetch('/api/subscription/restore', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include'
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(data.error || 'Unable to restore purchases');
+      }
+      await checkAuth();
+      publish({
+        title: 'Purchases restored',
+        description: 'We refreshed your subscription status.',
+        type: 'success'
+      });
+    } catch (error) {
+      publish({
+        title: 'Restore failed',
+        description: error.message || 'Unable to restore purchases.',
+        type: 'error'
+      });
+    } finally {
+      setRestoreLoading(false);
+    }
+  }, [restoreLoading, subscriptionDetails?.provider, _subscription?.provider, checkAuth, publish]);
+
   const handleManageBilling = useCallback(async () => {
     if (portalLoading) return;
     setPortalLoading(true);
@@ -263,6 +597,65 @@ export default function AccountPage() {
     }
   }, [portalLoading, publish]);
 
+  const handleManageSubscription = useCallback(() => {
+    const provider = subscriptionDetails?.provider || _subscription?.provider || null;
+    if (!provider || provider === 'stripe') {
+      handleManageBilling();
+      return;
+    }
+
+    const providerUrls = {
+      apple: 'https://apps.apple.com/account/subscriptions',
+      app_store: 'https://apps.apple.com/account/subscriptions',
+      ios: 'https://apps.apple.com/account/subscriptions',
+      google_play: 'https://play.google.com/store/account/subscriptions'
+    };
+
+    const url = providerUrls[provider];
+    if (url) {
+      window.open(url, '_blank', 'noopener');
+      return;
+    }
+
+    publish({
+      title: 'Manage subscription',
+      description: 'Use your billing provider to manage this subscription.',
+      type: 'info'
+    });
+  }, [subscriptionDetails?.provider, _subscription?.provider, handleManageBilling, publish]);
+
+  const handleDeleteAccount = useCallback(async () => {
+    if (deleteLoading) return;
+    setDeleteLoading(true);
+    try {
+      const response = await fetch('/api/account/delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ confirm: true })
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(data.error || 'Unable to delete account');
+      }
+      await logout();
+      publish({
+        title: 'Account deleted',
+        description: 'Your data has been removed.',
+        type: 'success'
+      });
+      navigate('/', { replace: true });
+    } catch (error) {
+      publish({
+        title: 'Delete failed',
+        description: error.message || 'Unable to delete account.',
+        type: 'error'
+      });
+    } finally {
+      setDeleteLoading(false);
+    }
+  }, [deleteLoading, logout, publish, navigate]);
+
   const handleLogout = async () => {
     await logout();
     navigate('/', { replace: true });
@@ -289,6 +682,52 @@ export default function AccountPage() {
   const readingUsage = usageStatus?.readings || null;
   const ttsUsage = usageStatus?.tts || null;
   const apiCallsUsage = usageStatus?.apiCalls || null;
+  const subscriptionProvider = subscriptionDetails?.provider || _subscription?.provider || null;
+  const providerLabels = {
+    stripe: 'Stripe',
+    apple: 'Apple App Store',
+    app_store: 'Apple App Store',
+    ios: 'Apple App Store',
+    google_play: 'Google Play'
+  };
+  const providerLabel = subscriptionProvider
+    ? (providerLabels[subscriptionProvider] || subscriptionProvider.replace(/_/g, ' '))
+    : null;
+  const stripeMeta = subscriptionDetails?.stripe || null;
+  const statusValue = stripeMeta?.status || subscriptionDetails?.status || _subscription?.status || 'inactive';
+  const statusLabels = {
+    active: 'Active',
+    trialing: 'Trialing',
+    past_due: 'Past due',
+    canceled: 'Canceled',
+    unpaid: 'Unpaid',
+    incomplete: 'Incomplete',
+    expired: 'Expired',
+    paused: 'Paused',
+    inactive: 'Inactive'
+  };
+  const statusLabel = statusLabels[statusValue] || statusValue;
+  const formatDate = (timestampMs) => (
+    timestampMs
+      ? new Date(timestampMs).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })
+      : null
+  );
+  let statusDate = null;
+  if (statusValue === 'trialing' && stripeMeta?.trialEnd) {
+    statusDate = `Trial ends ${formatDate(stripeMeta.trialEnd)}`;
+  } else if ((statusValue === 'canceled' || statusValue === 'expired') && (stripeMeta?.cancelAt || stripeMeta?.currentPeriodEnd)) {
+    statusDate = `Ends ${formatDate(stripeMeta.cancelAt || stripeMeta.currentPeriodEnd)}`;
+  } else if (stripeMeta?.cancelAtPeriodEnd && stripeMeta?.currentPeriodEnd) {
+    statusDate = `Ends ${formatDate(stripeMeta.currentPeriodEnd)}`;
+  } else if (stripeMeta?.currentPeriodEnd) {
+    statusDate = `Renews ${formatDate(stripeMeta.currentPeriodEnd)}`;
+  }
+  const statusLineParts = [statusLabel, statusDate, providerLabel ? `Billed via ${providerLabel}` : null].filter(Boolean);
+  const shouldShowStatusLine = isPaid || providerLabel || Boolean(statusDate);
+  const subscriptionStatusLine = shouldShowStatusLine ? statusLineParts.join(' · ') : null;
+  const manageLabel = subscriptionProvider && subscriptionProvider !== 'stripe'
+    ? `Manage in ${providerLabel}`
+    : 'Manage Billing';
 
   return (
     <div className="min-h-screen bg-main text-main">
@@ -335,7 +774,177 @@ export default function AccountPage() {
                 {user?.email}
               </p>
             </div>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setProfileEditing((prev) => !prev);
+                  setProfileError(null);
+                  setProfileSuccess(null);
+                }}
+                className="inline-flex items-center gap-1.5 rounded-full border border-secondary/40 px-3 py-1.5 text-xs text-muted hover:text-main hover:border-secondary/60 transition"
+              >
+                <PencilSimple className="h-3.5 w-3.5" />
+                {profileEditing ? 'Cancel' : 'Edit'}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setPasswordEditing((prev) => !prev);
+                  setPasswordError(null);
+                  setPasswordSuccess(null);
+                }}
+                className="inline-flex items-center gap-1.5 rounded-full border border-secondary/40 px-3 py-1.5 text-xs text-muted hover:text-main hover:border-secondary/60 transition"
+              >
+                <Lock className="h-3.5 w-3.5" />
+                {passwordEditing ? 'Close' : 'Password'}
+              </button>
+            </div>
           </div>
+
+          {profileEditing && (
+            <div className="mt-4 space-y-3">
+              <div>
+                <label htmlFor="profile-username" className="text-xs text-muted block mb-1">
+                  Username
+                </label>
+                <input
+                  id="profile-username"
+                  type="text"
+                  value={profileForm.username}
+                  onChange={(event) => setProfileForm((prev) => ({ ...prev, username: event.target.value }))}
+                  className="
+                    w-full rounded-xl border border-secondary/30 bg-surface-muted/50
+                    px-3 py-2.5 text-sm text-main
+                    focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent
+                    transition
+                  "
+                />
+              </div>
+              <div>
+                <label htmlFor="profile-email" className="text-xs text-muted block mb-1">
+                  Email
+                </label>
+                <input
+                  id="profile-email"
+                  type="email"
+                  value={profileForm.email}
+                  onChange={(event) => setProfileForm((prev) => ({ ...prev, email: event.target.value }))}
+                  className="
+                    w-full rounded-xl border border-secondary/30 bg-surface-muted/50
+                    px-3 py-2.5 text-sm text-main
+                    focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent
+                    transition
+                  "
+                />
+              </div>
+              {profileError && <p className="text-xs text-error">{profileError}</p>}
+              {profileSuccess && <p className="text-xs text-emerald-300">{profileSuccess}</p>}
+              <div className="flex flex-col sm:flex-row gap-2">
+                <button
+                  type="button"
+                  onClick={handleProfileSave}
+                  disabled={profileSaving}
+                  className={`
+                    flex-1 inline-flex items-center justify-center gap-2 rounded-full
+                    border border-accent/60 bg-accent/10 px-4 py-2.5 text-xs font-semibold text-main
+                    hover:bg-accent/20 transition
+                    ${profileSaving ? 'opacity-70 cursor-not-allowed' : ''}
+                  `}
+                >
+                  Save changes
+                  {profileSaving && <CircleNotch className="h-4 w-4 animate-spin" />}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setProfileEditing(false);
+                    setProfileForm({ username: user?.username || '', email: user?.email || '' });
+                    setProfileError(null);
+                  }}
+                  className="
+                    flex-1 inline-flex items-center justify-center rounded-full
+                    border border-secondary/40 bg-transparent px-4 py-2.5 text-xs font-semibold text-main
+                    hover:bg-secondary/10 transition
+                  "
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
+
+          {passwordEditing && (
+            <div className="mt-4 space-y-3">
+              <div>
+                <label htmlFor="password-current" className="text-xs text-muted block mb-1">
+                  Current password
+                </label>
+                <input
+                  id="password-current"
+                  type="password"
+                  value={passwordForm.current}
+                  onChange={(event) => setPasswordForm((prev) => ({ ...prev, current: event.target.value }))}
+                  className="
+                    w-full rounded-xl border border-secondary/30 bg-surface-muted/50
+                    px-3 py-2.5 text-sm text-main
+                    focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent
+                    transition
+                  "
+                />
+              </div>
+              <div>
+                <label htmlFor="password-next" className="text-xs text-muted block mb-1">
+                  New password (8+ characters)
+                </label>
+                <input
+                  id="password-next"
+                  type="password"
+                  value={passwordForm.next}
+                  onChange={(event) => setPasswordForm((prev) => ({ ...prev, next: event.target.value }))}
+                  className="
+                    w-full rounded-xl border border-secondary/30 bg-surface-muted/50
+                    px-3 py-2.5 text-sm text-main
+                    focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent
+                    transition
+                  "
+                />
+              </div>
+              <div>
+                <label htmlFor="password-confirm" className="text-xs text-muted block mb-1">
+                  Confirm new password
+                </label>
+                <input
+                  id="password-confirm"
+                  type="password"
+                  value={passwordForm.confirm}
+                  onChange={(event) => setPasswordForm((prev) => ({ ...prev, confirm: event.target.value }))}
+                  className="
+                    w-full rounded-xl border border-secondary/30 bg-surface-muted/50
+                    px-3 py-2.5 text-sm text-main
+                    focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent
+                    transition
+                  "
+                />
+              </div>
+              {passwordError && <p className="text-xs text-error">{passwordError}</p>}
+              {passwordSuccess && <p className="text-xs text-emerald-300">{passwordSuccess}</p>}
+              <button
+                type="button"
+                onClick={handlePasswordUpdate}
+                disabled={passwordSaving}
+                className={`
+                  w-full inline-flex items-center justify-center gap-2 rounded-full
+                  border border-accent/60 bg-accent/10 px-4 py-2.5 text-xs font-semibold text-main
+                  hover:bg-accent/20 transition
+                  ${passwordSaving ? 'opacity-70 cursor-not-allowed' : ''}
+                `}
+              >
+                Update password
+                {passwordSaving && <CircleNotch className="h-4 w-4 animate-spin" />}
+              </button>
+            </div>
+          )}
         </SectionCard>
         )}
 
@@ -360,6 +969,14 @@ export default function AccountPage() {
                   'Free plan'
                 )}
               </p>
+              {subscriptionDetailsLoading ? (
+                <p className="text-xs text-muted mt-1">Loading subscription status…</p>
+              ) : subscriptionStatusLine ? (
+                <p className="text-xs text-muted mt-1">{subscriptionStatusLine}</p>
+              ) : null}
+              {subscriptionDetailsError && (
+                <p className="text-xs text-error mt-1">{subscriptionDetailsError}</p>
+              )}
             </div>
           </div>
 
@@ -520,7 +1137,7 @@ export default function AccountPage() {
                 </Link>
                 <button
                   type="button"
-                  onClick={handleManageBilling}
+                  onClick={handleManageSubscription}
                   disabled={portalLoading}
                   className={`
                     flex-1 inline-flex items-center justify-center gap-2 rounded-full
@@ -531,7 +1148,7 @@ export default function AccountPage() {
                   `}
                 >
                   <CreditCard className="h-4 w-4" weight="fill" />
-                  Manage Billing
+                  {manageLabel}
                   {portalLoading ? (
                     <CircleNotch className="h-4 w-4 animate-spin" />
                   ) : (
@@ -540,6 +1157,26 @@ export default function AccountPage() {
                 </button>
               </>
             )}
+          </div>
+          <div className="mt-3">
+            <button
+              type="button"
+              onClick={handleRestorePurchases}
+              disabled={restoreLoading}
+              className={`
+                w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-full
+                border border-secondary/50 bg-transparent px-4 py-2.5 text-xs font-semibold text-main
+                hover:bg-secondary/10 transition
+                ${restoreLoading ? 'opacity-70 cursor-not-allowed' : ''}
+              `}
+            >
+              <ArrowClockwise className="h-4 w-4" />
+              Restore purchases
+              {restoreLoading && <CircleNotch className="h-4 w-4 animate-spin" />}
+            </button>
+            <p className="text-xs text-muted mt-1">
+              Use this if you upgraded on another device or storefront.
+            </p>
           </div>
         </SectionCard>
         )}
@@ -607,8 +1244,8 @@ export default function AccountPage() {
           )}
         </SectionCard>
 
-        {/* Theme & Experience Section */}
-        <SectionCard title="Appearance" icon={Palette}>
+        {/* Display Section */}
+        <SectionCard title="Display" icon={Palette}>
           <div className="divide-y divide-secondary/20">
             <SettingsToggle
               id="theme-toggle"
@@ -617,6 +1254,12 @@ export default function AccountPage() {
               enabled={theme === 'light'}
               onChange={() => setTheme(theme === 'light' ? 'dark' : 'light')}
             />
+          </div>
+        </SectionCard>
+
+        {/* Reading Preferences Section */}
+        <SectionCard title="Reading Preferences" icon={Sparkle}>
+          <div className="divide-y divide-secondary/20">
             <SettingsToggle
               id="deck-toggle"
               label="Full Deck"
@@ -659,19 +1302,95 @@ export default function AccountPage() {
           </div>
         </SectionCard>
 
-        {/* Analytics Settings Section - Auth only (requires API) */}
+        {/* Privacy & Data Section - Auth only */}
         {isAuthenticated && (
-        <SectionCard title="Analytics" icon={ChartLine}>
-          <div className="divide-y divide-secondary/20">
-            <SettingsToggle
-              id="analytics-toggle"
-              label="Archetype Journey"
-              description="Track recurring cards and patterns across your readings"
-              enabled={analyticsEnabled}
-              loading={prefsLoading}
-              onChange={toggleAnalytics}
-              error={prefsError}
-            />
+        <SectionCard title="Privacy & Data" icon={ShieldCheck}>
+          <div className="space-y-4">
+            <p className="text-xs text-muted">
+              We store your readings and preferences to sync across devices. Analytics are optional, and you can export
+              or delete your data anytime.
+            </p>
+
+            <div className="divide-y divide-secondary/20">
+              <SettingsToggle
+                id="analytics-toggle"
+                label="Archetype Journey"
+                description="Track recurring cards and patterns across your readings"
+                enabled={analyticsEnabled}
+                loading={prefsLoading}
+                onChange={toggleAnalytics}
+                error={prefsError}
+              />
+            </div>
+
+            <div className="pt-4 border-t border-secondary/20">
+              <p className="text-xs uppercase tracking-wider text-muted mb-2">Export</p>
+              <div className="flex flex-col sm:flex-row gap-2">
+                <button
+                  type="button"
+                  onClick={handleExportPdf}
+                  disabled={exportLoading || journalLoading}
+                  className={`
+                    flex-1 inline-flex items-center justify-center gap-2 rounded-full
+                    border border-secondary/50 bg-transparent px-4 py-2.5 text-xs font-semibold text-main
+                    hover:bg-secondary/10 transition
+                    ${exportLoading || journalLoading ? 'opacity-70 cursor-not-allowed' : ''}
+                  `}
+                >
+                  <FileArrowDown className="h-4 w-4" />
+                  Export PDF
+                </button>
+                <button
+                  type="button"
+                  onClick={handleExportCsv}
+                  disabled={exportLoading || journalLoading}
+                  className={`
+                    flex-1 inline-flex items-center justify-center gap-2 rounded-full
+                    border border-secondary/50 bg-transparent px-4 py-2.5 text-xs font-semibold text-main
+                    hover:bg-secondary/10 transition
+                    ${exportLoading || journalLoading ? 'opacity-70 cursor-not-allowed' : ''}
+                  `}
+                >
+                  <FileArrowDown className="h-4 w-4" />
+                  Export CSV
+                </button>
+              </div>
+              {exportError && <p className="text-xs text-error mt-2">{exportError}</p>}
+              {journalError && <p className="text-xs text-error mt-2">{journalError}</p>}
+            </div>
+
+            <div className="pt-4 border-t border-secondary/20">
+              <p className="text-xs uppercase tracking-wider text-muted mb-2">Account data</p>
+              <div className="flex flex-col sm:flex-row gap-2">
+                <button
+                  type="button"
+                  onClick={handleDownloadAccountData}
+                  className="
+                    flex-1 inline-flex items-center justify-center gap-2 rounded-full
+                    border border-secondary/50 bg-transparent px-4 py-2.5 text-xs font-semibold text-main
+                    hover:bg-secondary/10 transition
+                  "
+                >
+                  <DownloadSimple className="h-4 w-4" />
+                  Download account data
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setDeleteModalOpen(true)}
+                  className="
+                    flex-1 inline-flex items-center justify-center gap-2 rounded-full
+                    border border-error/40 bg-error/10 px-4 py-2.5 text-xs font-semibold text-error
+                    hover:bg-error/20 transition
+                  "
+                >
+                  <Trash className="h-4 w-4" />
+                  Delete account
+                </button>
+              </div>
+              <p className="text-xs text-muted mt-2">
+                Deleting your account removes your synced journal, analytics, and memories. This cannot be undone.
+              </p>
+            </div>
           </div>
         </SectionCard>
         )}
@@ -713,6 +1432,17 @@ export default function AccountPage() {
           </div>
         </SectionCard>
         )}
+
+        <ConfirmModal
+          isOpen={deleteModalOpen}
+          onClose={() => setDeleteModalOpen(false)}
+          onConfirm={handleDeleteAccount}
+          title="Delete account?"
+          message="This permanently deletes your synced journal, analytics, and memories. You will lose access immediately."
+          confirmText={deleteLoading ? 'Deleting...' : 'Delete account'}
+          cancelText="Keep account"
+          variant="danger"
+        />
 
         {/* Back to Reading */}
         <div className="text-center pt-4">

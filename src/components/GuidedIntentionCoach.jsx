@@ -19,6 +19,7 @@ import { useReducedMotion } from '../hooks/useReducedMotion';
 import { useSwipeDismiss } from '../hooks/useSwipeDismiss';
 import { usePreferences } from '../contexts/PreferencesContext';
 import { useAuth } from '../contexts/AuthContext';
+import { useSubscription } from '../contexts/SubscriptionContext';
 import {
   INTENTION_TOPIC_OPTIONS,
   INTENTION_TIMEFRAME_OPTIONS,
@@ -335,6 +336,7 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply,
   const prefersReducedMotion = useReducedMotion();
   const { personalization } = usePreferences();
   const { user } = useAuth();
+  const { canUseAIQuestions } = useSubscription();
   const userId = user?.id || null;
   const [step, setStep] = useState(0);
 
@@ -824,9 +826,8 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply,
     // Apply the question regardless of storage outcome
     onApply?.(finalQuestion);
 
-    if (historyResult?.success) {
-      onClose?.();
-    }
+    // Always close after applying; history failure is non-blocking
+    onClose?.();
   };
 
   // ============================================================================
@@ -1001,7 +1002,7 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply,
 
         if (creative) {
           safeSetState(setQuestionText, creative);
-          const isLocalFallback = source === 'local' || source === 'local-fallback' || source === 'api-fallback';
+          const isLocalFallback = source === 'local' || source === 'local-fallback' || source === 'api-fallback' || source === 'local-template';
           safeSetState(setQuestionError, isLocalFallback ? 'Using on-device generator for now.' : '');
 
           if (forecast?.highlights?.length) {
@@ -1201,22 +1202,30 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply,
               )}
 
               <div className="flex flex-wrap items-center gap-2 pt-1">
-                <label className="inline-flex items-center gap-2 rounded-full border border-secondary/40 bg-surface/50 px-3 py-1.5 text-[0.7rem] text-secondary cursor-pointer select-none hover:bg-secondary/5 transition">
-                  <input
-                    type="checkbox"
-                    className="h-4 w-4 rounded border-secondary/60 bg-transparent text-secondary focus:ring-secondary"
-                    checked={useCreative}
-                    onChange={event => {
-                      releasePrefill();
-                      setUseCreative(event.target.checked);
-                      setAutoQuestionEnabled(true);
-                    }}
-                  />
-                  <span className="inline-flex items-center gap-1 font-medium">
-                    <MagicWand className="h-3.5 w-3.5 text-secondary" aria-hidden="true" />
-                    Personalize with AI
+                {canUseAIQuestions ? (
+                  <label className="inline-flex items-center gap-2 rounded-full border border-secondary/40 bg-surface/50 px-3 py-1.5 text-[0.7rem] text-secondary cursor-pointer select-none hover:bg-secondary/5 transition">
+                    <input
+                      type="checkbox"
+                      className="h-4 w-4 rounded border-secondary/60 bg-transparent text-secondary focus:ring-secondary"
+                      checked={useCreative}
+                      onChange={event => {
+                        releasePrefill();
+                        setUseCreative(event.target.checked);
+                        setAutoQuestionEnabled(true);
+                      }}
+                    />
+                    <span className="inline-flex items-center gap-1 font-medium">
+                      <MagicWand className="h-3.5 w-3.5 text-secondary" aria-hidden="true" />
+                      Personalize with AI
+                    </span>
+                  </label>
+                ) : (
+                  <span className="inline-flex items-center gap-2 rounded-full border border-secondary/20 bg-surface/30 px-3 py-1.5 text-[0.7rem] text-secondary/60 select-none" title="Upgrade to Plus or Pro for AI-powered personalization">
+                    <MagicWand className="h-3.5 w-3.5 opacity-50" aria-hidden="true" />
+                    <span className="font-medium">AI Personalization</span>
+                    <span className="rounded bg-accent/20 px-1.5 py-0.5 text-[0.6rem] font-bold uppercase tracking-wider text-accent">Plus</span>
                   </span>
-                </label>
+                )}
                 <button
                   type="button"
                   onClick={() => {

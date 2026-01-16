@@ -131,18 +131,88 @@ export function transformAzureStream(azureStream) {
   let buffer = '';
   let fullText = '';
   let reasoningSummary = '';
-  let eventType = '';
-  let eventData = '';
+  let reader = null;
+
+  const processEventBlock = (eventBlock, controller) => {
+    if (!eventBlock.trim()) return;
+
+    const lines = eventBlock.split(/\r?\n/);
+    let eventType = '';
+    const dataLines = [];
+
+    for (const line of lines) {
+      if (line.startsWith('event:')) {
+        eventType = line.slice(6).trim();
+      } else if (line.startsWith('data:')) {
+        dataLines.push(line.slice(5).trim());
+      }
+    }
+
+    const eventData = dataLines.join('\n');
+    if (!eventType && !eventData) return;
+
+    try {
+      const parsed = eventData ? JSON.parse(eventData) : {};
+      const dataType = parsed.type || eventType;
+
+      if (dataType === 'response.output_text.delta') {
+        const delta = typeof parsed.delta === 'string' ? parsed.delta : (parsed.text || '');
+        if (delta) {
+          fullText += delta;
+          const deltaEvent = formatSSE('delta', { text: delta });
+          controller.enqueue(encoder.encode(deltaEvent));
+        }
+      } else if (dataType === 'response.output_text.done') {
+        if (typeof parsed.text === 'string' && parsed.text.length > 0) {
+          fullText = parsed.text;
+        }
+      } else if (dataType === 'response.reasoning_summary_text.delta') {
+        const delta = typeof parsed.delta === 'string' ? parsed.delta : '';
+        if (delta) {
+          reasoningSummary += delta;
+          const reasoningEvent = formatSSE('reasoning', { text: delta, partial: true });
+          controller.enqueue(encoder.encode(reasoningEvent));
+        }
+      } else if (dataType === 'response.reasoning_summary_text.done') {
+        if (parsed.text) {
+          reasoningSummary = parsed.text;
+        }
+        const reasoningEvent = formatSSE('reasoning', { text: reasoningSummary, partial: false });
+        controller.enqueue(encoder.encode(reasoningEvent));
+      } else if (dataType === 'response.completed') {
+        console.log('[azureResponsesStream] Response completed event received');
+      } else if (dataType === 'response.error' || dataType === 'error') {
+        const errorMsg = parsed.error?.message || parsed.message || 'Unknown error';
+        const errorEvent = formatSSE('error', { message: errorMsg });
+        controller.enqueue(encoder.encode(errorEvent));
+      }
+      // Ignore other event types (response.created, response.in_progress, etc.)
+    } catch (parseError) {
+      console.warn('[azureResponsesStream] Failed to parse event:', {
+        event: eventData?.slice(0, 200),
+        error: parseError?.message
+      });
+    }
+  };
 
   return new ReadableStream({
     async start(controller) {
-      const reader = azureStream.getReader();
+      reader = azureStream.getReader();
 
       try {
         while (true) {
           const { done, value } = await reader.read();
 
           if (done) {
+            const finalChunk = decoder.decode();
+            if (finalChunk) {
+              buffer += finalChunk;
+            }
+
+            const trailingEvents = buffer.split(/\r?\n\r?\n/);
+            buffer = '';
+            trailingEvents.forEach((eventBlock) => processEventBlock(eventBlock, controller));
+
             // Stream ended - send done event with full text and reasoning
             // Include isEmpty flag so consumers know if this was a tool-only response
             const isEmpty = !fullText || !fullText.trim();
@@ -155,77 +225,11 @@ export function transformAzureStream(azureStream) {
           buffer += decoder.decode(value, { stream: true });
 
           // Process complete SSE events (separated by double newline)
-          const events = buffer.split('\n\n');
+          const events = buffer.split(/\r?\n\r?\n/);
           buffer = events.pop() || ''; // Keep incomplete event in buffer
 
           for (const eventBlock of events) {
-            if (!eventBlock.trim()) continue;
-
-            // Parse SSE event
-            const lines = eventBlock.split('\n');
-            eventType = '';
-            eventData = '';
-
-            for (const line of lines) {
-              if (line.startsWith('event:')) {
-                eventType = line.slice(6).trim();
-              } else if (line.startsWith('data:')) {
-                eventData = line.slice(5).trim();
-              }
-            }
-
-            // Skip empty events
-            if (!eventType && !eventData) continue;
-
-            // Handle different event types
-            try {
-              if (eventType === 'response.output_text.delta' ||
-                  (eventData && eventData.includes('"type":"response.output_text.delta"'))) {
-                const parsed = JSON.parse(eventData);
-                const delta = parsed.delta || '';
-                if (delta) {
-                  fullText += delta;
-                  const deltaEvent = formatSSE('delta', { text: delta });
-                  controller.enqueue(encoder.encode(deltaEvent));
-                }
-              } else if (eventType === 'response.reasoning_summary_text.delta' ||
-                         (eventData && eventData.includes('"type":"response.reasoning_summary_text.delta"'))) {
-                // Handle reasoning summary delta events
-                const parsed = JSON.parse(eventData);
-                const delta = parsed.delta || '';
-                if (delta) {
-                  reasoningSummary += delta;
-                  const reasoningEvent = formatSSE('reasoning', { text: delta, partial: true });
-                  controller.enqueue(encoder.encode(reasoningEvent));
-                }
-              } else if (eventType === 'response.reasoning_summary_text.done' ||
-                         (eventData && eventData.includes('"type":"response.reasoning_summary_text.done"'))) {
-                // Reasoning summary complete
-                const parsed = JSON.parse(eventData);
-                if (parsed.text) {
-                  reasoningSummary = parsed.text;
-                }
-                const reasoningEvent = formatSSE('reasoning', { text: reasoningSummary, partial: false });
-                controller.enqueue(encoder.encode(reasoningEvent));
-              } else if (eventType === 'response.completed' ||
-                         (eventData && eventData.includes('"type":"response.completed"'))) {
-                // Response completed - we'll send done event after stream ends
-                console.log('[azureResponsesStream] Response completed event received');
-              } else if (eventType === 'response.error' ||
-                         eventType === 'error' ||
-                         (eventData && eventData.includes('"type":"response.error"'))) {
-                const parsed = JSON.parse(eventData);
-                const errorMsg = parsed.error?.message || parsed.message || 'Unknown error';
-                const errorEvent = formatSSE('error', { message: errorMsg });
-                controller.enqueue(encoder.encode(errorEvent));
-              }
-              // Ignore other event types (response.created, response.in_progress, etc.)
-            } catch (parseError) {
-              console.warn('[azureResponsesStream] Failed to parse event:', {
-                event: eventData?.slice(0, 200),
-                error: parseError?.message
-              });
-            }
+            processEventBlock(eventBlock, controller);
           }
         }
       } catch (error) {
@@ -234,7 +238,14 @@ export function transformAzureStream(azureStream) {
         controller.enqueue(encoder.encode(errorEvent));
         controller.close();
       } finally {
-        reader.releaseLock();
+        reader?.releaseLock();
+      }
+    },
+    cancel(reason) {
+      if (reader) {
+        reader.cancel(reason).catch(() => {
+          // Ignore cancel errors - upstream may already be closed
+        });
       }
     }
   });
@@ -319,6 +330,8 @@ export function transformAzureStreamWithTools(azureStream, { onToolCall = null }
 
   let buffer = '';
   let fullText = '';
+  let reader = null;
+  let cancelled = false;
 
   // Tool call accumulation
   const toolCalls = new Map(); // callId -> { name, arguments }
@@ -327,15 +340,110 @@ export function transformAzureStreamWithTools(azureStream, { onToolCall = null }
 
   const stream = new ReadableStream({
     async start(controller) {
-      const reader = azureStream.getReader();
+      reader = azureStream.getReader();
 
       try {
         while (true) {
           const { done, value } = await reader.read();
 
           if (done) {
+            const finalChunk = decoder.decode();
+            if (finalChunk) {
+              buffer += finalChunk;
+            }
+
+            const trailingEvents = buffer.split(/\r?\n\r?\n/);
+            buffer = '';
+            for (const eventBlock of trailingEvents) {
+              if (!eventBlock.trim()) continue;
+              if (cancelled) break;
+
+              // Parse SSE event
+              const lines = eventBlock.split(/\r?\n/);
+              let eventType = '';
+              const dataLines = [];
+
+              for (const line of lines) {
+                if (line.startsWith('event:')) {
+                  eventType = line.slice(6).trim();
+                } else if (line.startsWith('data:')) {
+                  dataLines.push(line.slice(5).trim());
+                }
+              }
+
+              const eventData = dataLines.join('\n');
+              if (!eventType && !eventData) continue;
+
+              try {
+                const parsed = eventData ? JSON.parse(eventData) : {};
+                const dataType = parsed.type || eventType;
+
+                if (dataType === 'response.output_text.delta') {
+                  const delta = typeof parsed.delta === 'string' ? parsed.delta : (parsed.text || '');
+                  if (delta) {
+                    fullText += delta;
+                    const deltaEvent = formatSSE('delta', { text: delta });
+                    controller.enqueue(encoder.encode(deltaEvent));
+                  }
+                } else if (dataType === 'response.output_text.done') {
+                  if (typeof parsed.text === 'string' && parsed.text.length > 0) {
+                    fullText = parsed.text;
+                  }
+                } else if (dataType === 'response.output_item.added') {
+                  if (parsed.item?.type === 'function_call') {
+                    currentCallId = parsed.item.call_id;
+                    toolCalls.set(currentCallId, {
+                      name: parsed.item.name || '',
+                      arguments: ''
+                    });
+                  }
+                } else if (dataType === 'response.function_call_arguments.delta') {
+                  const callId = parsed.call_id || currentCallId;
+                  const argDelta = parsed.delta || '';
+                  if (callId && toolCalls.has(callId)) {
+                    toolCalls.get(callId).arguments += argDelta;
+                  }
+                } else if (dataType === 'response.function_call_arguments.done') {
+                  const callId = parsed.call_id || currentCallId;
+                  if (callId && toolCalls.has(callId)) {
+                    const tc = toolCalls.get(callId);
+                    let parsedArgs = {};
+                    try {
+                      parsedArgs = JSON.parse(tc.arguments || '{}');
+                    } catch {
+                      parsedArgs = {};
+                    }
+                    pendingToolCalls.push({
+                      callId,
+                      name: tc.name,
+                      arguments: parsedArgs
+                    });
+
+                    // Emit tool_call event
+                    const toolCallEvent = formatSSE('tool_call', {
+                      callId,
+                      name: tc.name,
+                      arguments: parsedArgs
+                    });
+                    controller.enqueue(encoder.encode(toolCallEvent));
+                  }
+                } else if (dataType === 'response.completed') {
+                  console.log('[azureResponsesStream] Response completed');
+                } else if (dataType === 'response.error' || dataType === 'error') {
+                  const errorMsg = parsed.error?.message || parsed.message || 'Unknown error';
+                  const errorEvent = formatSSE('error', { message: errorMsg });
+                  controller.enqueue(encoder.encode(errorEvent));
+                }
+              } catch (parseError) {
+                console.warn('[azureResponsesStream] Failed to parse event:', {
+                  event: eventData?.slice(0, 200),
+                  error: parseError?.message
+                });
+              }
+            }
+
             // Process any pending tool calls before closing
-            if (pendingToolCalls.length > 0 && onToolCall) {
+            if (!cancelled && pendingToolCalls.length > 0 && onToolCall) {
               for (const tc of pendingToolCalls) {
                 try {
                   const result = await onToolCall(tc.callId, tc.name, tc.arguments);
@@ -364,25 +472,27 @@ export function transformAzureStreamWithTools(azureStream, { onToolCall = null }
           buffer += decoder.decode(value, { stream: true });
 
           // Process complete SSE events (separated by double newline)
-          const events = buffer.split('\n\n');
+          const events = buffer.split(/\r?\n\r?\n/);
           buffer = events.pop() || '';
 
           for (const eventBlock of events) {
             if (!eventBlock.trim()) continue;
+            if (cancelled) break;
 
             // Parse SSE event
-            const lines = eventBlock.split('\n');
+            const lines = eventBlock.split(/\r?\n/);
             let eventType = '';
-            let eventData = '';
+            const dataLines = [];
 
             for (const line of lines) {
               if (line.startsWith('event:')) {
                 eventType = line.slice(6).trim();
               } else if (line.startsWith('data:')) {
-                eventData = line.slice(5).trim();
+                dataLines.push(line.slice(5).trim());
               }
             }
 
+            const eventData = dataLines.join('\n');
             if (!eventType && !eventData) continue;
 
             try {
@@ -391,11 +501,17 @@ export function transformAzureStreamWithTools(azureStream, { onToolCall = null }
 
               // Handle text deltas
               if (dataType === 'response.output_text.delta') {
-                const delta = parsed.delta || '';
+                const delta = typeof parsed.delta === 'string' ? parsed.delta : (parsed.text || '');
                 if (delta) {
                   fullText += delta;
                   const deltaEvent = formatSSE('delta', { text: delta });
                   controller.enqueue(encoder.encode(deltaEvent));
+                }
+              }
+              // Handle output text done
+              else if (dataType === 'response.output_text.done') {
+                if (typeof parsed.text === 'string' && parsed.text.length > 0) {
+                  fullText = parsed.text;
                 }
               }
               // Handle function call output item added
@@ -447,7 +563,7 @@ export function transformAzureStreamWithTools(azureStream, { onToolCall = null }
                 console.log('[azureResponsesStream] Response completed');
               }
               // Handle errors
-              else if (dataType === 'response.error' || eventType === 'error') {
+              else if (dataType === 'response.error' || dataType === 'error') {
                 const errorMsg = parsed.error?.message || parsed.message || 'Unknown error';
                 const errorEvent = formatSSE('error', { message: errorMsg });
                 controller.enqueue(encoder.encode(errorEvent));
@@ -466,7 +582,15 @@ export function transformAzureStreamWithTools(azureStream, { onToolCall = null }
         controller.enqueue(encoder.encode(errorEvent));
         controller.close();
       } finally {
-        reader.releaseLock();
+        reader?.releaseLock();
+      }
+    },
+    cancel(reason) {
+      cancelled = true;
+      if (reader) {
+        reader.cancel(reason).catch(() => {
+          // Ignore cancel errors - upstream may already be closed
+        });
       }
     }
   });

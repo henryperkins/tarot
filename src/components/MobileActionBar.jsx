@@ -20,7 +20,8 @@ export function getViewportOffset() {
   if (typeof window === 'undefined' || !window.visualViewport) {
     return 0;
   }
-  const offset = window.innerHeight - window.visualViewport.height;
+  const offsetTop = window.visualViewport.offsetTop || 0;
+  const offset = window.innerHeight - window.visualViewport.height - offsetTop;
   return offset > 50 ? offset : 0;
 }
 
@@ -495,6 +496,14 @@ export function MobileActionBar({ keyboardOffset = 0, isOverlayActive = false, .
     if (typeof document === 'undefined') return;
     document.documentElement.style.setProperty('--mobile-action-bar-offset', `${effectiveOffset}px`);
   }, [effectiveOffset]);
+
+  useEffect(() => {
+    if (typeof document === 'undefined') return undefined;
+    return () => {
+      document.documentElement.style.setProperty('--mobile-action-bar-offset', '0px');
+      document.documentElement.style.setProperty('--mobile-action-bar-height', '0px');
+    };
+  }, []);
 
   useEffect(() => {
     if (typeof window === 'undefined' || !barRef.current) return undefined;

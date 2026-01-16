@@ -8,7 +8,7 @@ const MAJOR_ARCANA_ASTRO = {
     focus: 'supporting skillful communication and intentional manifestation'
   },
   2: {
-    label: 'The Moon',
+    label: 'Moon (astrology)',
     focus: 'drawing you toward intuition, dreams, and liminal wisdom'
   },
   3: {

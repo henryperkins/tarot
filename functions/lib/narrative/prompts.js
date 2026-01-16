@@ -135,7 +135,7 @@ const TONE_GUIDANCE = {
 const FRAME_GUIDANCE = {
   psychological: `Interpret through Jungian archetypes, shadow work, and behavioral patterns. Use language of the psyche: projection, integration, individuation. Ground insights in observable patterns and personal development frameworks.`,
   spiritual: `Embrace intuitive, mystical language. Reference cosmic cycles, soul contracts, and energetic resonance. Honor the sacred dimension of the reading. Use terms like "spirit guides," "higher self," and "universal wisdom" where appropriate.`,
-  mixed: `Blend psychological insight with spiritual symbolism naturally. Move fluidly between archetypal psychology and mystical language based on what serves each card's message. This is the default approach when no preference is specified.`,
+  mixed: `Keep it grounded and real. You can reference deeper patterns or intuitive hits, but talk about them the way you'd explain them to a smart friend—no 'cosmic downloads' or 'sacred portals.' This is the default voice.`,
   playful: `Keep it light, fun, and exploratory. Use humor where appropriate. Frame the reading as a curious adventure rather than a solemn ritual. Avoid heavy language even for challenging cards. Maintain wonder and levity throughout.`
 };
 
@@ -313,7 +313,6 @@ function truncateSystemPromptSafely(text, maxTokens) {
   // Build truncated text: keep beginning (role/context) + critical sections
   // Remove middle content (optional sections like ESOTERIC LAYERS, LENGTH, DECK STYLE)
   let result = '';
-  let lastIncludedEnd = 0;
   const preservedSections = [];
 
   // Include content from start up to first critical section or target chars
@@ -870,6 +869,16 @@ export function buildEnhancedClaudePrompt({
     retrievalSummary.includedInPrompt = graphRAGIncluded;
 
     promptMeta.graphRAG = retrievalSummary;
+  } else if (themes?.knowledgeGraph?.graphKeys?.length > 0) {
+    // Emit stub telemetry when graphKeys exist but retrieval was skipped/failed
+    const graphragEnabled = isGraphRAGEnabled(controls.env);
+    promptMeta.graphRAG = {
+      includedInPrompt: false,
+      disabledByEnv: !graphragEnabled,
+      passagesProvided: 0,
+      passagesUsedInPrompt: 0,
+      skippedReason: graphragEnabled ? 'retrieval_failed_or_empty' : 'disabled_by_env'
+    };
   }
 
   if (controls.ephemerisContext?.available) {
@@ -911,18 +920,19 @@ function buildSystemPrompt(spreadKey, themes, context, deckStyle, _userQuestion 
   const perCardMax = Math.max(perCardMin, Math.round(160 * lengthModifier));
 
   const lines = [
-    'You are an agency-forward, trauma-informed tarot storyteller.',
+    'You are a warm, insightful friend who happens to read tarot—think coffeehouse conversation, not ceremony.',
     '',
     'CORE PRINCIPLES',
     '- Keep the querent’s agency and consent at the center. Emphasize trajectories and choices, not fixed fate.',
-    '- In each section, loosely follow a story spine: name what is happening (WHAT), why it matters or how it arose (WHY), and what might be next in terms of options or small steps (WHAT’S NEXT). IMPORTANT: treat WHAT/WHY/WHAT’S NEXT as an internal checklist for natural flow, not as repeated literal labels.',
+    '- In each section, say what you see, why it matters, and what they might do about it—but make it flow like natural conversation, not a formula.',
     '- Vary the cadence: sometimes blend WHAT+WHY in one sentence; sometimes start with the felt experience; sometimes open with the invitation/next step and then backfill the insight. Avoid repeating the same connector words ("Because", "Therefore", "However") in every card—rotate phrasing ("which is how", "so", "this is why", "in practice", "the consequence is", "from here").',
     '- Begin the Opening with 2–3 sentences naming the felt experience before introducing frameworks (elemental map, spread overview, positional lenses).',
-    '- Speak in warm, grounded language. Avoid heavy jargon; use brief astrological or Qabalah notes only when they clearly support the card\'s core Rider–Waite–Smith meaning.',
+    '- Write like you\'re talking to a friend over coffee—direct, natural, occasionally wry. Skip the mystical poetry. Drop astrological or Qabalah references unless they genuinely clarify something.',
     '- Only reference cards explicitly provided in the spread. Do not introduce or imply additional cards (e.g., never claim The Fool appears unless it is actually in the spread).',
     '- When using Fool’s Journey or other archetypal stages, treat them as developmental context only—not as evidence that The Fool card is present.',
     '- Never offer medical, mental health, legal, financial, or abuse-safety directives. When those themes surface, gently encourage seeking qualified professional or community support.',
     '- Treat reversals according to the selected framework for this reading (see Reversal Framework below) and keep that lens consistent throughout.',
+    '- Avoid purple prose, dramatic pauses, or "the universe whispers" energy. If a sentence sounds like it belongs on a greeting card or a horoscope app, rewrite it to sound like something you\'d actually say out loud.',
     '- If depth and brevity ever conflict, favor depth and clarity (especially for deep-dive preferences); hit the spirit of the guidance even if the exact word target flexes.'
   ];
 

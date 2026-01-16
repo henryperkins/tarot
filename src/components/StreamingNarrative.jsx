@@ -278,6 +278,9 @@ export function StreamingNarrative({
 
   const showSkipButton = streamingActive && !isComplete;
   const textBottomPaddingClass = showSkipButton ? 'pb-16 sm:pb-10' : 'pb-6 sm:pb-6';
+  const stickyActionStyle = {
+    bottom: 'calc(var(--mobile-action-bar-height, 0px) + var(--mobile-action-bar-offset, 0px) + max(1rem, env(safe-area-inset-bottom, 1rem)))'
+  };
 
   // Memoize willChange styles to avoid creating new objects per word per render
   // Animation timing now controlled solely by Tailwind's animate-ink-spread class
@@ -329,7 +332,7 @@ export function StreamingNarrative({
         </div>
 
         {showSkipButton && (
-          <div className="mt-4 xs:mt-5 sticky bottom-[max(1rem,env(safe-area-inset-bottom,1rem))] sm:static flex justify-center px-3 xxs:px-4 sm:px-0 narrative-stream__actions">
+          <div className="mt-4 xs:mt-5 sticky sm:static flex justify-center px-3 xxs:px-4 sm:px-0 narrative-stream__actions" style={stickyActionStyle}>
             <button
               type="button"
               onClick={handleSkip}
@@ -384,7 +387,7 @@ export function StreamingNarrative({
       </div>
 
       {showSkipButton && (
-        <div className="mt-4 xs:mt-5 sticky bottom-[max(1rem,env(safe-area-inset-bottom,1rem))] sm:static flex justify-center px-3 xxs:px-4 sm:px-0 narrative-stream__actions">
+        <div className="mt-4 xs:mt-5 sticky sm:static flex justify-center px-3 xxs:px-4 sm:px-0 narrative-stream__actions" style={stickyActionStyle}>
           <button
             type="button"
             onClick={handleSkip}

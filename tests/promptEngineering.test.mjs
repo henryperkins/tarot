@@ -292,4 +292,29 @@ describe('buildPromptEngineeringPayload', () => {
     assert.ok(payload.redacted.response.includes('[NAME]'), 'Response should redact hinted name');
     assert.ok(!payload.redacted.response.includes('Alex'), 'Response should not include raw name');
   });
+
+  test('redacts lowercase third-party names from responses', async () => {
+    const payload = await buildPromptEngineeringPayload({
+      systemPrompt: 'System prompt',
+      userPrompt: '**Question**: How can I improve things between alex and jamie?',
+      response: 'alex may need space, and jamie should practice patience.',
+      userQuestion: 'How can I improve things between alex and jamie?',
+      redactionOptions: { displayName: 'Sam' }
+    });
+
+    assert.ok(!payload.redacted.response.includes('alex'), 'Response should not include lowercase name "alex"');
+    assert.ok(!payload.redacted.response.includes('jamie'), 'Response should not include lowercase name "jamie"');
+  });
+
+  test('redacts lowercase possessive names', async () => {
+    const payload = await buildPromptEngineeringPayload({
+      systemPrompt: 'System prompt',
+      userPrompt: '**Question**: What about my partner marcus\'s career?',
+      response: 'marcus\'s path forward requires patience.',
+      userQuestion: 'What about my partner marcus\'s career?',
+      redactionOptions: { displayName: 'Taylor' }
+    });
+
+    assert.ok(!payload.redacted.response.includes('marcus'), 'Response should not include lowercase possessive name');
+  });
 });

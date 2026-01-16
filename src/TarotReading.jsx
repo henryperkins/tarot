@@ -5,7 +5,6 @@ import { SpreadSelector } from './components/SpreadSelector';
 import { ReadingPreparation } from './components/ReadingPreparation';
 import { ReadingDisplay } from './components/ReadingDisplay';
 import { GuidedIntentionCoach } from './components/GuidedIntentionCoach';
-import { loadCoachRecommendation, saveCoachRecommendation } from './lib/journalInsights';
 import { DeckSelector } from './components/DeckSelector';
 import { MobileSettingsDrawer } from './components/MobileSettingsDrawer';
 import { MobileActionBar, MobileActionGroup } from './components/MobileActionBar';
@@ -144,12 +143,10 @@ export default function TarotReading() {
   // UI Specifics
   const [apiHealthBanner, setApiHealthBanner] = useState(null);
   const [connectionBanner, setConnectionBanner] = useState(null);
-  const [coachRecommendation, setCoachRecommendation] = useState(null);
   const [pendingCoachPrefill, setPendingCoachPrefill] = useState(null);
   const [isIntentionCoachOpen, setIsIntentionCoachOpen] = useState(false);
   const [isFollowUpOpen, setIsFollowUpOpen] = useState(false);
   const [placeholderIndex, setPlaceholderIndex] = useState(0);
-  const [isQuestionFocused, setIsQuestionFocused] = useState(false);
   const [isMobileSettingsOpen, setIsMobileSettingsOpen] = useState(false);
   const [mobileSettingsTab, setMobileSettingsTab] = useState('intention');
   const [highlightQuickIntention, setHighlightQuickIntention] = useState(false);
@@ -170,17 +167,6 @@ export default function TarotReading() {
   const pendingFocusSpreadRef = useRef(false);
 
   // --- Effects & Helpers ---
-
-  // Load coach recommendation from localStorage once auth state resolves.
-  // Keeps recommendations scoped to the active account.
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    if (authLoading) return;
-    const rec = loadCoachRecommendation(userId);
-    const next = rec?.question ? rec : null;
-    const rafId = window.requestAnimationFrame(() => setCoachRecommendation(next));
-    return () => window.cancelAnimationFrame(rafId);
-  }, [authLoading, userId]);
 
   useEffect(() => {
     return () => {
@@ -247,7 +233,9 @@ export default function TarotReading() {
 
   // Check API health - runs on mount and when tab becomes visible
   useEffect(() => {
-    checkApiHealth();
+    const rafId = window.requestAnimationFrame(() => {
+      checkApiHealth();
+    });
 
     function handleVisibilityChange() {
       if (document.visibilityState === 'visible') {
@@ -257,6 +245,7 @@ export default function TarotReading() {
 
     document.addEventListener('visibilitychange', handleVisibilityChange);
     return () => {
+      window.cancelAnimationFrame(rafId);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
   }, [checkApiHealth]);
@@ -493,15 +482,12 @@ export default function TarotReading() {
   }, [isHandset]);
 
   const handleQuestionFocus = useCallback(() => {
-    setIsQuestionFocused(true);
   }, []);
 
   const handleQuestionBlur = useCallback(() => {
-    setIsQuestionFocused(false);
   }, []);
 
   const handleQuickIntentionFocus = useCallback(() => {
-    setIsQuestionFocused(true);
     scrollQuickIntentionIntoView();
   }, [scrollQuickIntentionIntoView]);
 
@@ -537,23 +523,6 @@ export default function TarotReading() {
     setUserQuestion(guidedQuestion);
     handleCoachClose();
   };
-
-  const applyCoachRecommendation = useCallback(() => {
-    if (!coachRecommendation) return;
-    setUserQuestion(coachRecommendation.question || '');
-    if (coachRecommendation.spreadKey && SPREADS[coachRecommendation.spreadKey]) {
-      selectSpread(coachRecommendation.spreadKey);
-    }
-    setPendingCoachPrefill(coachRecommendation);
-    setIsIntentionCoachOpen(true);
-    saveCoachRecommendation(null, userId);
-    setCoachRecommendation(null);
-  }, [coachRecommendation, selectSpread, setPendingCoachPrefill, setUserQuestion, setCoachRecommendation, setIsIntentionCoachOpen, userId]);
-
-  const dismissCoachRecommendation = useCallback(() => {
-    saveCoachRecommendation(null, userId);
-    setCoachRecommendation(null);
-  }, [userId]);
 
   const handleStepNav = useCallback((stepId) => {
     // On mobile (< 640px), open the settings drawer for intention/ritual steps
@@ -967,9 +936,6 @@ export default function TarotReading() {
                 onPlaceholderRefresh={() => setPlaceholderIndex(prev => (prev + 1) % EXAMPLE_QUESTIONS.length)}
                 onQuestionFocus={handleQuestionFocus}
                 onQuestionBlur={handleQuestionBlur}
-                coachRecommendation={coachRecommendation}
-                applyCoachRecommendation={applyCoachRecommendation}
-                dismissCoachRecommendation={dismissCoachRecommendation}
                 onLaunchCoach={() => {
                   setPendingCoachPrefill(null);
                   setIsIntentionCoachOpen(true);

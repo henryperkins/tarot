@@ -2,7 +2,6 @@ import { useState, useCallback, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { CaretDown, CaretUp, TextAlignLeft, Sparkle, Stack } from '@phosphor-icons/react';
 import { QuestionInput } from './QuestionInput';
-import { CoachSuggestion } from './CoachSuggestion';
 import { RitualControls } from './RitualControls';
 import { DeckSelector } from './DeckSelector';
 
@@ -24,9 +23,6 @@ export function ReadingPreparation({
     onQuestionBlur,
 
     // Coach
-    coachRecommendation,
-    applyCoachRecommendation,
-    dismissCoachRecommendation,
     onLaunchCoach,
 
     // UI State
@@ -71,12 +67,6 @@ export function ReadingPreparation({
                         onFocus={onQuestionFocus}
                         onBlur={onQuestionBlur}
                         onLaunchCoach={onLaunchCoach}
-                    />
-                    <CoachSuggestion
-                        recommendation={coachRecommendation}
-                        onApply={applyCoachRecommendation}
-                        onDismiss={dismissCoachRecommendation}
-                        showTitle={false}
                     />
                 </>
             );

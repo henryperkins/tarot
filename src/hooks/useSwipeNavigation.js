@@ -65,7 +65,7 @@ export function useSwipeNavigation({ onSwipeLeft, onSwipeRight, threshold = 60, 
     startX.current = null;
     startY.current = null;
     preventedScroll.current = false;
-  }, [onSwipeLeft, onSwipeRight, threshold]);
+  }, [onSwipeLeft, onSwipeRight, resolvedVerticalThreshold, threshold]);
 
   const handleTouchCancel = useCallback(() => {
     startX.current = null;

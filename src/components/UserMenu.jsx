@@ -12,9 +12,6 @@ export function UserMenu({ condensed = false }) {
   const { resetOnboarding, onboardingComplete } = usePreferences();
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showDropdown, setShowDropdown] = useState(false);
-  const [analyticsEnabled, setAnalyticsEnabled] = useState(null);
-  const [prefsLoading, setPrefsLoading] = useState(false);
-  const [prefsError, setPrefsError] = useState(null);
   const dropdownRef = useRef(null);
   const triggerRef = useRef(null);
 
@@ -25,8 +22,6 @@ export function UserMenu({ condensed = false }) {
   const handleLogout = async () => {
     await logout();
     closeDropdown();
-    setAnalyticsEnabled(null);
-    setPrefsError(null);
   };
 
   const handleReplayTutorial = () => {
@@ -67,62 +62,6 @@ export function UserMenu({ condensed = false }) {
     };
   }, [showDropdown, closeDropdown]);
 
-  // Fetch analytics preference when dropdown opens
-  useEffect(() => {
-    if (!isAuthenticated || !showDropdown || prefsLoading || analyticsEnabled !== null) return;
-    let cancelled = false;
-    const fetchPrefs = async () => {
-      setPrefsLoading(true);
-      setPrefsError(null);
-      try {
-        const response = await fetch('/api/archetype-journey', { credentials: 'include' });
-        if (cancelled) return;
-        if (response.status === 403) {
-          await response.json().catch(() => ({}));
-          setAnalyticsEnabled(false);
-        } else if (response.ok) {
-          setAnalyticsEnabled(true);
-        } else {
-          setPrefsError('Unable to load analytics preference');
-          setAnalyticsEnabled(false);
-        }
-      } catch {
-        if (!cancelled) {
-          setPrefsError('Unable to load analytics preference');
-          setAnalyticsEnabled(false);
-        }
-      } finally {
-        if (!cancelled) setPrefsLoading(false);
-      }
-    };
-    fetchPrefs();
-    return () => { cancelled = true; };
-  }, [isAuthenticated, showDropdown, prefsLoading, analyticsEnabled]);
-
-  const toggleAnalytics = async () => {
-    if (analyticsEnabled === null || prefsLoading) return;
-    const next = !analyticsEnabled;
-    setPrefsLoading(true);
-    setPrefsError(null);
-    try {
-      const response = await fetch('/api/archetype-journey/preferences', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ archetype_journey_enabled: next })
-      });
-      if (!response.ok) {
-        throw new Error('Failed to update preference');
-      }
-      const data = await response.json().catch(() => ({}));
-      setAnalyticsEnabled(data?.preferences?.archetype_journey_enabled ?? next);
-    } catch {
-      setPrefsError('Failed to update');
-    } finally {
-      setPrefsLoading(false);
-    }
-  };
-
   // Get display name - show first initial on very small screens, truncated username on larger
   const getDisplayName = () => {
     if (!user?.username) return '';
@@ -133,6 +72,9 @@ export function UserMenu({ condensed = false }) {
     if (!user?.username) return '?';
     return user.username.charAt(0).toUpperCase();
   };
+
+  const nextTier = tier === 'free' ? 'plus' : tier === 'plus' ? 'pro' : null;
+  const nextTierConfig = nextTier ? SUBSCRIPTION_TIERS[nextTier] : null;
 
   return (
     <>
@@ -199,17 +141,40 @@ export function UserMenu({ condensed = false }) {
                       <span className={`text-[11px] font-medium ${isPaid ? 'text-accent' : 'text-muted'}`}>
                         {SUBSCRIPTION_TIERS[tier]?.name || 'Seeker'} Plan
                       </span>
-                      {!isPaid && (
-                        <Link
-                          to="/pricing"
-                          onClick={closeDropdown}
-                          className="ml-auto text-[11px] font-semibold text-primary hover:text-primary/80"
-                        >
-                          Upgrade
-                        </Link>
-                      )}
                     </div>
                   </div>
+
+                  {/* Upgrade CTA */}
+                  {nextTierConfig && (
+                    <Link
+                      to="/pricing"
+                      onClick={closeDropdown}
+                      className="
+                        w-full px-4 py-3 min-h-[44px]
+                        text-sm text-main hover:bg-accent/10 active:bg-accent/20
+                        flex items-center justify-between gap-3 touch-manipulation
+                        focus-visible:outline-none focus-visible:bg-accent/10
+                        border-b border-accent/10
+                      "
+                    >
+                      <div className="flex items-center gap-2">
+                        {nextTier === 'pro' ? (
+                          <Crown className="h-4 w-4 text-accent" weight="fill" />
+                        ) : (
+                          <Sparkle className="h-4 w-4 text-accent" weight="fill" />
+                        )}
+                        <div>
+                          <p className="text-sm font-semibold text-accent">
+                            Upgrade to {nextTierConfig.label}
+                          </p>
+                          <p className="text-[11px] text-muted">
+                            ${nextTierConfig.price}/month
+                          </p>
+                        </div>
+                      </div>
+                      <span className="text-xs text-muted">View</span>
+                    </Link>
+                  )}
 
                   {/* Account Settings Link */}
                   <Link
@@ -224,46 +189,8 @@ export function UserMenu({ condensed = false }) {
                     "
                   >
                     <Gear className="w-4 h-4" aria-hidden="true" />
-                    Account Settings
+                    Settings
                   </Link>
-
-                  {/* Analytics toggle */}
-                  <div className="px-4 py-3 border-b border-accent/10 space-y-2">
-                    <div className="flex items-center justify-between gap-3">
-                      <label htmlFor="analytics-toggle" className="flex-1 min-w-0">
-                        <p className="text-sm font-semibold text-accent">Archetype Journey</p>
-                        <p className="text-[11px] text-muted leading-tight">Track recurring cards</p>
-                      </label>
-                      <button
-                        id="analytics-toggle"
-                        role="switch"
-                        onClick={toggleAnalytics}
-                        disabled={prefsLoading || analyticsEnabled === null}
-                        className={`
-                          relative inline-flex h-7 w-12 shrink-0 items-center rounded-full
-                          transition-colors touch-manipulation
-                          focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60
-                          focus-visible:ring-offset-2 focus-visible:ring-offset-surface
-                          ${analyticsEnabled ? 'bg-primary' : 'bg-secondary/30'}
-                          ${prefsLoading || analyticsEnabled === null ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'}
-                        `}
-                        aria-checked={analyticsEnabled === true}
-                        aria-label="Toggle archetype journey analytics"
-                      >
-                        <span
-                          className={`
-                            inline-block h-5 w-5 transform rounded-full bg-[color:var(--color-white)] shadow-sm
-                            transition-transform duration-200
-                            ${analyticsEnabled ? 'translate-x-6' : 'translate-x-1'}
-                          `}
-                          aria-hidden="true"
-                        />
-                      </button>
-                    </div>
-                    {prefsError && (
-                      <p className="text-[11px] text-error" role="alert">{prefsError}</p>
-                    )}
-                  </div>
 
                   {/* Replay Tutorial */}
                   <button

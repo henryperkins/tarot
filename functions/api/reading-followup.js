@@ -713,7 +713,6 @@ async function trackFollowUpUsage(db, data) {
     userId,
     requestId,
     readingIdentifier,
-    identifierType,
     turnNumber,
     questionLength,
     responseLength,
@@ -821,19 +820,32 @@ function createToolRoundTripStream(env, {
 }) {
   const encoder = new TextEncoder();
   const decoder = new TextDecoder();
+  let reader = null;
+  let contReader = null;
+  let cancelled = false;
 
   return new ReadableStream({
     async start(controller) {
       let initialText = '';
       let continuationText = '';
+      let initialDoneText = null;
+      let continuationDoneText = null;
       const toolCalls = [];
       const toolCallArgs = new Map();
       let currentCallId = null;
 
-      const processAzureChunk = (chunkText, { emitDeltas }) => {
+      const processAzureChunk = (chunkText, { emitDeltas, isFinal = false }) => {
+        if (cancelled) {
+          return { remainder: '', closed: true };
+        }
         const events = chunkText.split(/\r?\n\r?\n/);
-        const remainder = events.pop() || '';
+        let remainder = events.pop() || '';
+        if (isFinal && remainder.trim()) {
+          events.push(remainder);
+          remainder = '';
+        }
         let deltaText = '';
+        let doneText = null;
 
         for (const eventBlock of events) {
           if (!eventBlock.trim()) continue;
@@ -863,12 +875,18 @@ function createToolRoundTripStream(env, {
           const dataType = parsed.type || eventType;
 
           if (dataType === 'response.output_text.delta') {
-            const delta = parsed.delta || '';
+            const delta = typeof parsed.delta === 'string' ? parsed.delta : (parsed.text || '');
             if (delta) {
               if (emitDeltas) {
-                controller.enqueue(encoder.encode(formatSSEEvent('delta', { text: delta })));
+                if (!cancelled) {
+                  controller.enqueue(encoder.encode(formatSSEEvent('delta', { text: delta })));
+                }
               }
               deltaText += delta;
+            }
+          } else if (dataType === 'response.output_text.done') {
+            if (typeof parsed.text === 'string' && parsed.text.length > 0) {
+              doneText = parsed.text;
             }
           } else if (dataType === 'response.output_item.added' && parsed.item?.type === 'function_call') {
             currentCallId = parsed.item.call_id;
@@ -890,15 +908,17 @@ function createToolRoundTripStream(env, {
               }
               toolCalls.push({ callId, name: tc.name, arguments: parsedArgs });
             }
-          } else if (dataType === 'response.error' || eventType === 'error') {
+          } else if (dataType === 'response.error' || dataType === 'error') {
             const errorMsg = parsed?.error?.message || parsed?.message || 'Unknown error';
-            controller.enqueue(encoder.encode(formatSSEEvent('error', { message: errorMsg })));
-            controller.close();
+            if (!cancelled) {
+              controller.enqueue(encoder.encode(formatSSEEvent('error', { message: errorMsg })));
+              controller.close();
+            }
             return { remainder: '', closed: true };
           }
         }
 
-        return { remainder, deltaText };
+        return { remainder, deltaText, doneText };
       };
 
       let azureStream;
@@ -911,18 +931,21 @@ function createToolRoundTripStream(env, {
           tools
         });
       } catch (err) {
-        controller.enqueue(encoder.encode(formatSSEEvent('error', { message: err?.message || 'Failed to start stream' })));
-        controller.close();
+        if (!cancelled) {
+          controller.enqueue(encoder.encode(formatSSEEvent('error', { message: err?.message || 'Failed to start stream' })));
+          controller.close();
+        }
         return;
       }
 
-      const reader = azureStream.getReader();
+      reader = azureStream.getReader();
       let buffer = '';
 
       try {
         while (true) {
           const { done, value } = await reader.read();
           if (done) break;
+          if (cancelled) return;
 
           buffer += decoder.decode(value, { stream: true });
           const result = processAzureChunk(buffer, { emitDeltas: true });
@@ -931,22 +954,46 @@ function createToolRoundTripStream(env, {
           }
 
           initialText += result?.deltaText || '';
+          if (typeof result?.doneText === 'string' && result.doneText.length > 0) {
+            initialDoneText = result.doneText;
+          }
           buffer = result.remainder || '';
         }
+        const finalChunk = decoder.decode();
+        if (finalChunk) {
+          buffer += finalChunk;
+        }
+        if (buffer.length > 0) {
+          const finalResult = processAzureChunk(buffer, { emitDeltas: true, isFinal: true });
+          if (finalResult?.closed) {
+            return;
+          }
+          initialText += finalResult?.deltaText || '';
+          if (typeof finalResult?.doneText === 'string' && finalResult.doneText.length > 0) {
+            initialDoneText = finalResult.doneText;
+          }
+        }
       } finally {
-        reader.releaseLock();
+        reader?.releaseLock();
       }
 
       console.log(`[${requestId}] Initial stream completed: text=${initialText.length} chars, toolCalls=${toolCalls.length}`);
 
+      if (typeof initialDoneText === 'string' && initialDoneText.length > 0) {
+        initialText = initialDoneText;
+      }
+
       if (toolCalls.length === 0) {
         const isEmpty = !initialText || !initialText.trim();
-        controller.enqueue(encoder.encode(formatSSEEvent('done', { fullText: initialText, isEmpty })));
-        controller.close();
+        if (!cancelled) {
+          controller.enqueue(encoder.encode(formatSSEEvent('done', { fullText: initialText, isEmpty })));
+          controller.close();
+        }
         return;
       }
 
       console.log(`[${requestId}] Executing ${toolCalls.length} tool call(s)`);
+      if (cancelled) return;
       const toolResults = [];
       for (const tc of toolCalls) {
         try {
@@ -970,18 +1017,21 @@ function createToolRoundTripStream(env, {
           verbosity
         });
       } catch (err) {
-        controller.enqueue(encoder.encode(formatSSEEvent('error', { message: err?.message || 'Continuation request failed' })));
-        controller.close();
+        if (!cancelled) {
+          controller.enqueue(encoder.encode(formatSSEEvent('error', { message: err?.message || 'Continuation request failed' })));
+          controller.close();
+        }
         return;
       }
 
-      const contReader = continuationStream.getReader();
+      contReader = continuationStream.getReader();
       buffer = '';
 
       try {
         while (true) {
           const { done, value } = await contReader.read();
           if (done) break;
+          if (cancelled) return;
 
           buffer += decoder.decode(value, { stream: true });
           const result = processAzureChunk(buffer, { emitDeltas: true });
@@ -990,16 +1040,50 @@ function createToolRoundTripStream(env, {
           }
 
           continuationText += result?.deltaText || '';
+          if (typeof result?.doneText === 'string' && result.doneText.length > 0) {
+            continuationDoneText = result.doneText;
+          }
           buffer = result.remainder || '';
         }
+        const finalChunk = decoder.decode();
+        if (finalChunk) {
+          buffer += finalChunk;
+        }
+        if (buffer.length > 0) {
+          const finalResult = processAzureChunk(buffer, { emitDeltas: true, isFinal: true });
+          if (finalResult?.closed) {
+            return;
+          }
+          continuationText += finalResult?.deltaText || '';
+          if (typeof finalResult?.doneText === 'string' && finalResult.doneText.length > 0) {
+            continuationDoneText = finalResult.doneText;
+          }
+        }
       } finally {
-        contReader.releaseLock();
+        contReader?.releaseLock();
+      }
+
+      if (typeof continuationDoneText === 'string' && continuationDoneText.length > 0) {
+        continuationText = continuationDoneText;
       }
 
       const fullText = `${initialText}${continuationText}`;
       const isEmpty = !fullText || !fullText.trim();
-      controller.enqueue(encoder.encode(formatSSEEvent('done', { fullText, isEmpty })));
-      controller.close();
+      if (!cancelled) {
+        controller.enqueue(encoder.encode(formatSSEEvent('done', { fullText, isEmpty })));
+        controller.close();
+      }
+    },
+    cancel(reason) {
+      cancelled = true;
+      const cancellations = [];
+      if (reader) {
+        cancellations.push(reader.cancel(reason).catch(() => null));
+      }
+      if (contReader) {
+        cancellations.push(contReader.cancel(reason).catch(() => null));
+      }
+      return Promise.allSettled(cancellations);
     }
   });
 }
@@ -1030,6 +1114,8 @@ function wrapStreamWithMetadata(stream, { turn, journalContext, meta, ctx, onCom
   let sawError = false;
   // Buffer for SSE events that may be split across chunks
   let sseBuffer = '';
+  let reader = null;
+  let cancelled = false;
 
   // Helper to process complete SSE events from buffer
   function processCompleteEvents(buffer, isFinal = false) {
@@ -1083,7 +1169,7 @@ function wrapStreamWithMetadata(stream, { turn, journalContext, meta, ctx, onCom
       });
       controller.enqueue(encoder.encode(metaEvent));
 
-      const reader = stream.getReader();
+      reader = stream.getReader();
 
       try {
         while (true) {
@@ -1100,7 +1186,7 @@ function wrapStreamWithMetadata(stream, { turn, journalContext, meta, ctx, onCom
             // 1. Users losing follow-up turns due to provider errors
             // 2. Empty responses being tracked when model only made tool calls
             const hasContent = fullText && fullText.trim().length > 0;
-            if (onComplete && !sawError && hasContent) {
+            if (!cancelled && onComplete && !sawError && hasContent) {
               // Use waitUntil to guarantee the usage tracking completes
               // even if the client disconnects
               const trackingPromise = onComplete(fullText).catch(err => {
@@ -1130,6 +1216,9 @@ function wrapStreamWithMetadata(stream, { turn, journalContext, meta, ctx, onCom
           controller.enqueue(value);
         }
       } catch (error) {
+        if (cancelled) {
+          return;
+        }
         console.error('[wrapStreamWithMetadata] Stream error:', error.message);
 
         // Send error event
@@ -1141,7 +1230,13 @@ function wrapStreamWithMetadata(stream, { turn, journalContext, meta, ctx, onCom
 
         controller.close();
       } finally {
-        reader.releaseLock();
+        reader?.releaseLock();
+      }
+    },
+    cancel(reason) {
+      cancelled = true;
+      if (reader) {
+        reader.cancel(reason).catch(() => null);
       }
     }
   });

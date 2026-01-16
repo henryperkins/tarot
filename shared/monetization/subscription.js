@@ -2,6 +2,8 @@ export const SUBSCRIPTION_TIERS = {
   free: {
     name: 'Seeker',
     label: 'Free',
+    trialDays: 0,
+    annual: null,
     monthlyReadings: 5,
     monthlyTTS: 3,
     spreads: ['single', 'threeCard', 'fiveCard'],
@@ -16,6 +18,8 @@ export const SUBSCRIPTION_TIERS = {
     name: 'Enlightened',
     label: 'Plus',
     price: 7.99,
+    trialDays: 0,
+    annual: null,
     monthlyReadings: 50,
     monthlyTTS: 50,
     spreads: 'all',
@@ -30,6 +34,8 @@ export const SUBSCRIPTION_TIERS = {
     name: 'Mystic',
     label: 'Pro',
     price: 19.99,
+    trialDays: 0,
+    annual: null,
     monthlyReadings: Infinity,
     monthlyTTS: Infinity,
     spreads: 'all+custom',
@@ -91,4 +97,3 @@ export function hasTierAtLeast(tier, requiredTier) {
 export function getTierConfig(tier) {
   return SUBSCRIPTION_TIERS[normalizeTier(tier)] || SUBSCRIPTION_TIERS.free;
 }
-

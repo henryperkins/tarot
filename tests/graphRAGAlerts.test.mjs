@@ -87,3 +87,44 @@ describe('GraphRAG alert heuristics', () => {
         );
     });
 });
+
+describe('GraphRAG stub telemetry', () => {
+    it('processes stub telemetry when graphRAG disabled by env', () => {
+        // Stub telemetry shape emitted when graphKeys exist but retrieval skipped
+        const stubMeta = {
+            graphRAG: {
+                includedInPrompt: false,
+                disabledByEnv: true,
+                passagesProvided: 0,
+                passagesUsedInPrompt: 0,
+                skippedReason: 'disabled_by_env'
+            }
+        };
+
+        const alerts = collectGraphRAGAlerts(stubMeta);
+        // Should not produce misleading alerts for intentionally-disabled retrieval
+        assert.ok(
+            !alerts.some((a) => a.includes('omitted') && a.includes('retrieved')),
+            'Should not warn about omitted passages when disabled by env'
+        );
+    });
+
+    it('processes stub telemetry when retrieval failed', () => {
+        const stubMeta = {
+            graphRAG: {
+                includedInPrompt: false,
+                disabledByEnv: false,
+                passagesProvided: 0,
+                passagesUsedInPrompt: 0,
+                skippedReason: 'retrieval_failed_or_empty'
+            }
+        };
+
+        const alerts = collectGraphRAGAlerts(stubMeta);
+        // Empty retrieval should not produce misleading "omitted" alerts
+        assert.ok(
+            !alerts.some((a) => a.includes('omitted')),
+            'Should not warn about omitted passages when none were retrieved'
+        );
+    });
+});

@@ -188,9 +188,10 @@ def clone_github_repo(repo_url, destination, log_callback=None):
             print(msg)
         return False
 
-def create_ignore_function(exclude_patterns, gitignore_patterns):
+def create_ignore_function(exclude_patterns, gitignore_patterns, source_only=False):
     """
     Creates an ignore function for shutil.copytree that filters out excluded patterns.
+    If source_only is True, only copies files with extensions in EXTENSION_LANGS.
     """
     all_patterns = list(exclude_patterns) + list(gitignore_patterns)
 
@@ -198,19 +199,30 @@ def create_ignore_function(exclude_patterns, gitignore_patterns):
         ignored = set()
         for item in contents:
             item_path = os.path.join(directory, item)
+            item_is_dir = os.path.isdir(item_path)
+            
+            # Check exclude patterns
             for pattern in all_patterns:
                 if fnmatch.fnmatch(item, pattern) or fnmatch.fnmatch(item_path, pattern):
                     ignored.add(item)
                     break
+            
+            # If source_only mode, exclude files without supported extensions
+            if source_only and item not in ignored and not item_is_dir:
+                file_ext = os.path.splitext(item)[1].lower()
+                if file_ext not in EXTENSION_LANGS:
+                    ignored.add(item)
+        
         return ignored
 
     return ignore_func
 
-def create_directory_copy(original_dir, output_dir=None, log_callback=None, exclude_patterns=None, no_gitignore=False):
+def create_directory_copy(original_dir, output_dir=None, log_callback=None, exclude_patterns=None, no_gitignore=False, source_only=False):
     """
     Creates a copy of the specified directory. If output_dir is provided, copies to that location.
     Otherwise, appends '_renamed' to the original directory name.
     Excludes files/directories matching exclude_patterns and .gitignore rules.
+    If source_only is True, only copies files with extensions in EXTENSION_LANGS.
     """
     if exclude_patterns is None:
         exclude_patterns = []
@@ -237,7 +249,7 @@ def create_directory_copy(original_dir, output_dir=None, log_callback=None, excl
         gitignore_path = os.path.join(original_dir, '.gitignore')
         gitignore_patterns = parse_gitignore(gitignore_path)
 
-    ignore_func = create_ignore_function(exclude_patterns, gitignore_patterns)
+    ignore_func = create_ignore_function(exclude_patterns, gitignore_patterns, source_only)
 
     try:
         shutil.copytree(original_dir, copy_dir, ignore=ignore_func)
@@ -255,7 +267,7 @@ def create_directory_copy(original_dir, output_dir=None, log_callback=None, excl
             print(msg)
         return None
 
-def process_input(input_path_or_url, is_url, output_dir=None, log_callback=None, exclude_patterns=None, no_gitignore=False):
+def process_input(input_path_or_url, is_url, output_dir=None, log_callback=None, exclude_patterns=None, no_gitignore=False, source_only=False):
     """
     Processes the input, cloning if it's a GitHub URL or using the local directory.
     """
@@ -278,7 +290,7 @@ def process_input(input_path_or_url, is_url, output_dir=None, log_callback=None,
                 print(msg)
             return None
 
-    copied_dir = create_directory_copy(original_dir, output_dir, log_callback, exclude_patterns, no_gitignore)
+    copied_dir = create_directory_copy(original_dir, output_dir, log_callback, exclude_patterns, no_gitignore, source_only)
     return copied_dir
 
 def run_cli(args):
@@ -301,7 +313,8 @@ def run_cli(args):
         input_path_or_url, is_url, output_dir,
         log_callback=print,
         exclude_patterns=args.exclude,
-        no_gitignore=args.no_gitignore
+        no_gitignore=args.no_gitignore,
+        source_only=args.source_only
     )
     if directory_to_process is None:
         print("Processing aborted due to errors.")
@@ -334,6 +347,8 @@ def main():
                         help="Ignore .gitignore rules and process all files")
     parser.add_argument("--exclude", action="append", default=[],
                         help="Pattern to exclude (can be used multiple times, supports globs like *.png)")
+    parser.add_argument("--source-only", action="store_true",
+                        help="Only copy files with supported source code extensions")
 
     args = parser.parse_args()
 

@@ -493,7 +493,7 @@ export default function CardGalleryPage() {
               onClick={() => navigate('/account')}
               className="px-4 py-2 rounded-full border border-amber-200/25 text-amber-50 hover:bg-amber-200/10"
             >
-              Go to Account Settings
+              Go to Settings
             </button>
           </div>
         ) : loading ? (

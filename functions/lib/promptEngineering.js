@@ -76,9 +76,14 @@ const PII_PATTERNS = [
   { pattern: /\b-?\d{1,3}\.\d{4,}\b/g, replacement: '[COORD]' },
 ];
 
-const NAME_TOKEN = String.raw`\p{Lu}[\p{L}\p{M}]+(?:['’\-][\p{L}\p{M}]+)*`;
+const NAME_TOKEN = String.raw`\p{Lu}[\p{L}\p{M}]+(?:[''\-][\p{L}\p{M}]+)*`;
+// Lowercase name token: starts with lowercase letter, at least 2 letters total
+const LOWERCASE_NAME_TOKEN = String.raw`\p{Ll}[\p{L}\p{M}]+(?:[''\-][\p{L}\p{M}]+)*`;
 const NAME_SEQUENCE = `${NAME_TOKEN}(?:\\s+${NAME_TOKEN}){0,2}`;
+// Lowercase name sequence: allows all-lowercase names like "alex" or "jamie smith"
+const LOWERCASE_NAME_SEQUENCE = `(?:${LOWERCASE_NAME_TOKEN})(?:\\s+(?:${LOWERCASE_NAME_TOKEN})){0,2}`;
 const CAPITALIZED_TOKEN_PATTERN = new RegExp(String.raw`^${NAME_TOKEN}$`, 'u');
+const LOWERCASE_TOKEN_PATTERN = new RegExp(String.raw`^${LOWERCASE_NAME_TOKEN}$`, 'u');
 const NAME_HINT_PATTERNS = [
   new RegExp(
     String.raw`\bbetween\s+(${NAME_SEQUENCE})\s+and\s+(${NAME_SEQUENCE})`,
@@ -89,8 +94,28 @@ const NAME_HINT_PATTERNS = [
     'giu'
   ),
   new RegExp(String.raw`(${NAME_SEQUENCE})\s+and\s+(?:me|I)\b`, 'giu'),
-  new RegExp(String.raw`(${NAME_SEQUENCE})['’]s\\b`, 'giu')
+  new RegExp(String.raw`(${NAME_SEQUENCE})['']s\\b`, 'giu')
 ];
+// Lowercase name patterns for fallback extraction (restrictive to avoid false positives)
+const LOWERCASE_NAME_HINT_PATTERNS = [
+  // "between alex and jamie" - high confidence name context
+  new RegExp(
+    String.raw`\bbetween\s+(${LOWERCASE_NAME_SEQUENCE})\s+and\s+(${LOWERCASE_NAME_SEQUENCE})`,
+    'giu'
+  ),
+  // "my partner/friend/etc marcus" - relationship + name
+  new RegExp(
+    String.raw`\bmy\s+(?:partner|spouse|friend|mother|father|sister|brother|boss|manager|coworker|colleague|mentor|client|child|son|daughter|ex|roommate)\s+(${LOWERCASE_NAME_SEQUENCE})`,
+    'giu'
+  ),
+  // "alex and me/I" - name paired with self-reference
+  new RegExp(String.raw`(${LOWERCASE_NAME_SEQUENCE})\s+and\s+(?:me|I)\b`, 'giu'),
+  // "me/I and alex" - self-reference paired with name
+  new RegExp(String.raw`(?:\bme\s+and|\bI\s+and)\s+(${LOWERCASE_NAME_SEQUENCE})`, 'giu'),
+  // "alex's" - possessive form (strong name signal)
+  new RegExp(String.raw`\b(${LOWERCASE_NAME_SEQUENCE})['']s\b`, 'giu')
+];
+
 
 const NAME_HINT_BLOCKLIST = new Set([
   'i',
@@ -123,6 +148,54 @@ function trimToCapitalizedSequence(value) {
   return kept.join(' ');
 }
 
+// Common words that shouldn't be treated as names (expanded for lowercase extraction)
+const LOWERCASE_SKIP_WORDS = new Set([
+  'my', 'your', 'our', 'their', 'his', 'her', 'its',
+  'partner', 'spouse', 'friend', 'mother', 'father', 'sister', 'brother',
+  'boss', 'manager', 'coworker', 'colleague', 'mentor', 'client',
+  'child', 'son', 'daughter', 'ex', 'roommate',
+  // Common verbs/articles/prepositions that end sequences
+  'is', 'are', 'was', 'were', 'has', 'have', 'had', 'will', 'would', 'could', 'should',
+  'and', 'or', 'but', 'the', 'a', 'an', 'in', 'on', 'at', 'to', 'for', 'of', 'with',
+  'about', 'from', 'into', 'through', 'during', 'before', 'after', 'above', 'below',
+  'between', 'under', 'again', 'further', 'then', 'once', 'here', 'there', 'when',
+  'where', 'why', 'how', 'all', 'each', 'few', 'more', 'most', 'other', 'some',
+  'such', 'no', 'nor', 'not', 'only', 'own', 'same', 'so', 'than', 'too', 'very',
+  'just', 'can', 'may', 'might', 'must', 'need', 'want', 'like', 'know', 'think',
+  'feel', 'see', 'hear', 'say', 'tell', 'ask', 'use', 'find', 'give', 'take',
+  'come', 'go', 'make', 'get', 'do', 'be', 'been', 'being', 'this', 'that'
+]);
+
+/**
+ * Trim and title-case a lowercase name sequence for redaction
+ * @param {string} value - Lowercase name sequence
+ * @returns {string} Title-cased name for consistent redaction
+ */
+function trimToLowercaseSequence(value) {
+  const tokens = normalizeNameHint(value).split(' ');
+  const kept = [];
+  let foundName = false;
+  for (const token of tokens) {
+    if (LOWERCASE_TOKEN_PATTERN.test(token)) {
+      const lower = token.toLowerCase();
+      // Skip common context words at the start (my, partner, etc.)
+      if (!foundName && LOWERCASE_SKIP_WORDS.has(lower)) {
+        continue;
+      }
+      // Stop at common words that indicate end of name sequence
+      if (foundName && LOWERCASE_SKIP_WORDS.has(lower)) {
+        break;
+      }
+      foundName = true;
+      // Title-case for consistent redaction matching
+      kept.push(token.charAt(0).toUpperCase() + token.slice(1));
+    } else {
+      break;
+    }
+  }
+  return kept.join(' ');
+}
+
 function shouldKeepNameHint(value) {
   if (!value) return false;
   const normalized = normalizeNameHint(value);
@@ -137,11 +210,25 @@ function extractNameHints(text) {
   if (!text || typeof text !== 'string') return [];
 
   const hints = new Set();
+  // Extract capitalized names
   for (const pattern of NAME_HINT_PATTERNS) {
     for (const match of text.matchAll(pattern)) {
       const captured = match.slice(1).filter(Boolean);
       captured.forEach((name) => {
         const normalized = trimToCapitalizedSequence(name);
+        if (shouldKeepNameHint(normalized)) {
+          hints.add(normalized);
+        }
+      });
+    }
+  }
+
+  // Extract lowercase names (title-cased for consistent redaction)
+  for (const pattern of LOWERCASE_NAME_HINT_PATTERNS) {
+    for (const match of text.matchAll(pattern)) {
+      const captured = match.slice(1).filter(Boolean);
+      captured.forEach((name) => {
+        const normalized = trimToLowercaseSequence(name);
         if (shouldKeepNameHint(normalized)) {
           hints.add(normalized);
         }

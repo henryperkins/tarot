@@ -10,7 +10,6 @@ import {
   Eye,
   CloudArrowUp,
   Microphone,
-  Code,
   ArrowRight,
   CircleNotch,
   Cards,
@@ -19,12 +18,16 @@ import {
   Stack,
   Lightbulb,
   Headset,
-  Table
+  Table,
+  Info,
+  Code
 } from '@phosphor-icons/react';
 import { useAuth } from '../contexts/AuthContext';
 import { useSubscription, SUBSCRIPTION_TIERS } from '../contexts/SubscriptionContext';
 import { useReducedMotion } from '../hooks/useReducedMotion';
 import AuthModal from '../components/AuthModal';
+import { MobileInfoSection } from '../components/MobileInfoSection';
+import { useToast } from '../contexts/ToastContext';
 
 function formatCount(value) {
   if (value === Infinity) return 'Unlimited';
@@ -40,6 +43,12 @@ function TierCard({ tierKey, config, isCurrent, onSelect, isLoading, disabled })
   const prefersReducedMotion = useReducedMotion();
   const isFree = tierKey === 'free';
   const isPaid = !isFree;
+  const trialDays = Number.isFinite(config.trialDays) ? config.trialDays : 0;
+  const primaryBillingLine = trialDays > 0 ? `Free ${trialDays}-day trial` : 'Billed today';
+  const secondaryBillingLine = trialDays > 0
+    ? 'Billed monthly · Total due today: $0'
+    : `Billed monthly · Total due today: $${config.price}`;
+  const policyLine = isPaid ? 'Cancel anytime · 7-day refund on first purchase' : null;
 
   const iconMap = {
     free: Moon,
@@ -77,6 +86,13 @@ function TierCard({ tierKey, config, isCurrent, onSelect, isLoading, disabled })
               <span className="text-3xl font-bold">${config.price}</span>
               <span className="ml-1 text-sm text-muted">/month</span>
             </p>
+          )}
+          {isPaid && (
+            <div className="mt-1 text-[11px] text-muted space-y-0.5">
+              <p>{primaryBillingLine}</p>
+              <p>{secondaryBillingLine}</p>
+              <p>{policyLine}</p>
+            </div>
           )}
         </div>
       </div>
@@ -125,8 +141,13 @@ function TierCard({ tierKey, config, isCurrent, onSelect, isLoading, disabled })
         {/* GraphRAG depth */}
         <li className="flex items-center gap-2">
           <Graph className="h-4 w-4 text-accent" weight="fill" />
-          <span className="text-secondary">
-            {config.graphRAGDepth === 'full' ? 'Full GraphRAG context' : 'Limited context depth'}
+          <span className="text-secondary inline-flex items-center gap-1">
+            {config.graphRAGDepth === 'full' ? 'Deep context memory' : 'Essential context memory'}
+            <Info
+              className="h-3.5 w-3.5 text-muted"
+              title="GraphRAG keeps more of your reading history in context."
+              aria-label="GraphRAG keeps more of your reading history in context."
+            />
           </span>
         </li>
 
@@ -174,8 +195,13 @@ function TierCard({ tierKey, config, isCurrent, onSelect, isLoading, disabled })
         {config.apiAccess && (
           <li className="flex items-center gap-2">
             <Code className="h-4 w-4 text-accent" weight="fill" />
-            <span className="text-secondary">
-              API access · {config.apiCallsPerMonth?.toLocaleString()} calls/mo
+            <span className="text-secondary inline-flex items-center gap-1">
+              Developer access · {config.apiCallsPerMonth?.toLocaleString()} calls/mo
+              <Info
+                className="h-3.5 w-3.5 text-muted"
+                title="Includes API access for integrating Tableu into your workflows."
+                aria-label="Includes API access for integrating Tableu into your workflows."
+              />
             </span>
           </li>
         )}
@@ -216,7 +242,7 @@ function TierCard({ tierKey, config, isCurrent, onSelect, isLoading, disabled })
 
 const heroBenefits = [
   {
-    label: 'Paid plans keep GraphRAG context intact',
+    label: 'Paid plans keep full context intact',
     icon: Eye
   },
   {
@@ -224,7 +250,7 @@ const heroBenefits = [
     icon: Sparkle
   },
   {
-    label: 'Pro adds unlimited readings and API',
+    label: 'Pro adds unlimited readings and developer tools',
     icon: Lightning
   }
 ];
@@ -233,14 +259,32 @@ const comparisonFeatures = [
   { key: 'monthlyReadings', label: 'AI readings/month', type: 'count' },
   { key: 'monthlyTTS', label: 'Voice narrations/month', type: 'count' },
   { key: 'spreads', label: 'Spread layouts', type: 'spreads' },
-  { key: 'graphRAGDepth', label: 'GraphRAG context', type: 'graphRAG' },
+  {
+    key: 'graphRAGDepth',
+    label: 'Context memory',
+    type: 'graphRAG',
+    tooltip: 'GraphRAG keeps more of your reading history in context.'
+  },
   { key: 'aiQuestions', label: 'Guided AI questions', type: 'boolean' },
   { key: 'advancedInsights', label: 'Advanced insights & patterns', type: 'boolean' },
   { key: 'cloudJournal', label: 'Cloud-synced journal', type: 'boolean' },
   { key: 'adFree', label: 'Ad-free experience', type: 'boolean' },
-  { key: 'apiAccess', label: 'API access', type: 'api' },
+  {
+    key: 'apiAccess',
+    label: 'Developer access',
+    type: 'api',
+    tooltip: 'Includes API access for integrating Tableu into your workflows.'
+  },
   { key: 'prioritySupport', label: 'Priority support', type: 'tier-check', tiers: ['pro'] },
   { key: 'refundWindow', label: 'Refund window', type: 'refund' }
+];
+
+const mobileTopDifferences = [
+  { title: 'Readings per month', detail: 'Seeker 5 · Plus 50 · Pro unlimited' },
+  { title: 'Voice narration', detail: 'Seeker 3 · Plus 50 · Pro unlimited' },
+  { title: 'Spread layouts', detail: 'Seeker 3 core · Plus all · Pro all + custom' },
+  { title: 'Context memory', detail: 'Essential on Seeker · Deep on Plus/Pro' },
+  { title: 'Developer access', detail: 'Pro includes developer tools' }
 ];
 
 function ComparisonModal({ isOpen, onClose }) {
@@ -353,7 +397,16 @@ function ComparisonModal({ isOpen, onClose }) {
                   key={feature.key}
                   className={idx < comparisonFeatures.length - 1 ? 'border-b border-secondary/20' : ''}
                 >
-                  <td className="px-4 py-2.5 text-secondary">{feature.label}</td>
+                  <td className="px-4 py-2.5 text-secondary">
+                    <span className="inline-flex items-center gap-1.5">
+                      {feature.label}
+                      {feature.tooltip && (
+                        <span title={feature.tooltip} aria-label={feature.tooltip}>
+                          <Info className="h-3.5 w-3.5 text-muted" />
+                        </span>
+                      )}
+                    </span>
+                  </td>
                   {tiers.map((tier) => (
                     <td key={tier} className="px-4 py-2.5 text-center text-main">
                       {renderValue(feature, tier)}
@@ -434,11 +487,14 @@ export default function PricingPage() {
   const { isAuthenticated } = useAuth();
   const { tier: currentTier, loading: subscriptionLoading } = useSubscription();
   const prefersReducedMotion = useReducedMotion();
+  const { publish } = useToast();
 
   const [loadingTier, setLoadingTier] = useState(null);
   const [error, setError] = useState('');
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [pendingTier, setPendingTier] = useState(null);
+  const [pendingRestore, setPendingRestore] = useState(false);
+  const [restoreLoading, setRestoreLoading] = useState(false);
   const [showComparisonModal, setShowComparisonModal] = useState(false);
 
   const tiers = ['free', 'plus', 'pro'];
@@ -502,13 +558,52 @@ export default function PricingPage() {
     [isAuthenticated, currentTier, navigate]
   );
 
+  const handleRestorePurchases = useCallback(async () => {
+    if (restoreLoading) return;
+    if (!isAuthenticated) {
+      setPendingRestore(true);
+      setShowAuthModal(true);
+      return;
+    }
+
+    setRestoreLoading(true);
+    try {
+      const response = await fetch('/api/subscription/restore', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include'
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(data.error || 'Unable to restore purchases');
+      }
+      publish({
+        title: 'Purchases restored',
+        description: 'We refreshed your subscription status.',
+        type: 'success'
+      });
+    } catch (err) {
+      publish({
+        title: 'Restore failed',
+        description: err.message || 'Unable to restore purchases.',
+        type: 'error'
+      });
+    } finally {
+      setRestoreLoading(false);
+    }
+  }, [restoreLoading, isAuthenticated, publish]);
+
   const handleAuthModalClose = useCallback(() => {
     setShowAuthModal(false);
     if (pendingTier && isAuthenticated) {
       handleSelectTier(pendingTier);
     }
+    if (pendingRestore && isAuthenticated) {
+      handleRestorePurchases();
+    }
     setPendingTier(null);
-  }, [pendingTier, isAuthenticated, handleSelectTier]);
+    setPendingRestore(false);
+  }, [pendingTier, pendingRestore, isAuthenticated, handleSelectTier, handleRestorePurchases]);
 
   // Only show sticky CTA for confirmed free-tier users (not during loading)
   const showMobileSticky = !subscriptionLoading && currentTier === 'free';
@@ -541,15 +636,15 @@ export default function PricingPage() {
         <section className="mb-10 grid gap-10 lg:grid-cols-[minmax(0,1.25fr)_minmax(0,0.9fr)] lg:items-center">
           <div className="space-y-6">
             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-accent">
-              Monetization ready
+              Plans for deeper practice
             </p>
             <div className="space-y-3">
               <h1 className="font-serif text-3xl leading-tight sm:text-4xl md:text-5xl">
-                Earn while keeping seekers grounded
+                Keep every reading grounded and growing
               </h1>
               <p className="max-w-2xl text-sm text-muted sm:text-base">
-                Let new seekers try a full reading on Seeker, then invite them into Plus and Pro for deeper
-                context, cloud journals, and voice rituals every month.
+                Start on Seeker, then step into Plus and Pro for deeper context, cloud-synced journals, and
+                voice rituals each month.
               </p>
             </div>
 
@@ -595,6 +690,15 @@ export default function PricingPage() {
               className="mt-1 text-xs text-muted underline underline-offset-4"
             >
               Or stay on the Seeker plan for free
+            </button>
+
+            <button
+              type="button"
+              onClick={handleRestorePurchases}
+              disabled={restoreLoading}
+              className="text-xs text-muted underline underline-offset-4"
+            >
+              {restoreLoading ? 'Restoring purchases…' : 'Restore purchases'}
             </button>
 
             <div className="mt-4 grid gap-3 sm:grid-cols-2">
@@ -701,6 +805,20 @@ export default function PricingPage() {
           </div>
         </section>
 
+        {/* Mobile differences accordion */}
+        <section className="mb-10 lg:hidden">
+          <h2 className="mb-4 text-xs font-semibold uppercase tracking-[0.2em] text-muted">
+            Top differences
+          </h2>
+          <div className="space-y-2">
+            {mobileTopDifferences.map((item) => (
+              <MobileInfoSection key={item.title} title={item.title} variant="block">
+                {item.detail}
+              </MobileInfoSection>
+            ))}
+          </div>
+        </section>
+
         {/* Compare Features Button */}
         <div className="mb-10 flex justify-center">
           <button
@@ -725,7 +843,7 @@ export default function PricingPage() {
               Keep context sacred
             </h3>
             <p className="text-sm text-muted">
-              Plus and Pro preserve full GraphRAG depth so returning seekers feel seen without you repeating
+              Plus and Pro preserve deep context memory so returning seekers feel seen without you repeating
               setup every time.
             </p>
           </div>
@@ -784,6 +902,14 @@ export default function PricingPage() {
               Start a Reading Now
             </Link>
           </div>
+          <button
+            type="button"
+            onClick={handleRestorePurchases}
+            disabled={restoreLoading}
+            className="mt-4 text-xs text-muted underline underline-offset-4"
+          >
+            {restoreLoading ? 'Restoring purchases…' : 'Restore purchases'}
+          </button>
         </section>
       </main>
 

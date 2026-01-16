@@ -1,4 +1,4 @@
-import { useRef } from 'react';
+import { useRef, useSyncExternalStore } from 'react';
 import clsx from 'clsx';
 import { X } from '@phosphor-icons/react';
 import { useModalA11y } from '../hooks/useModalA11y';
@@ -6,10 +6,49 @@ import { useAndroidBackGuard } from '../hooks/useAndroidBackGuard';
 import FollowUpChat from './FollowUpChat';
 import { MOBILE_FOLLOWUP_DIALOG_ID } from './MobileActionBar';
 
+// Subscribe to visualViewport changes for keyboard-aware padding
+function subscribeToViewport(callback) {
+  if (typeof window === 'undefined' || !window.visualViewport) {
+    return () => {};
+  }
+  window.visualViewport.addEventListener('resize', callback);
+  window.visualViewport.addEventListener('scroll', callback);
+  return () => {
+    window.visualViewport.removeEventListener('resize', callback);
+    window.visualViewport.removeEventListener('scroll', callback);
+  };
+}
+
+function getViewportOffset() {
+  if (typeof window === 'undefined' || !window.visualViewport) {
+    return 0;
+  }
+  const offsetTop = window.visualViewport.offsetTop || 0;
+  const offset = window.innerHeight - window.visualViewport.height - offsetTop;
+  return offset > 50 ? offset : 0;
+}
+
+function getServerViewportOffset() {
+  return 0;
+}
+
 export default function FollowUpDrawer({ isOpen, onClose }) {
   const drawerRef = useRef(null);
   const closeButtonRef = useRef(null);
   const titleId = 'follow-up-drawer-title';
+  const viewportOffset = useSyncExternalStore(
+    subscribeToViewport,
+    getViewportOffset,
+    getServerViewportOffset
+  );
+  const effectiveOffset = Math.max(0, viewportOffset);
+  const wrapperStyle = {
+    paddingTop: 'max(16px, env(safe-area-inset-top, 16px))',
+    paddingBottom: effectiveOffset ? `${effectiveOffset}px` : undefined
+  };
+  const bodyStyle = {
+    paddingBottom: 'calc(1rem + env(safe-area-inset-bottom, 0px))'
+  };
 
   useModalA11y(isOpen, {
     onClose,
@@ -40,7 +79,7 @@ export default function FollowUpDrawer({ isOpen, onClose }) {
         'fixed inset-0 z-[80] flex items-end justify-center transition-opacity duration-200',
         isOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'
       )}
-      style={{ paddingTop: 'max(16px, env(safe-area-inset-top, 16px))' }}
+      style={wrapperStyle}
       aria-hidden={!isOpen}
     >
       <div
@@ -79,7 +118,7 @@ export default function FollowUpDrawer({ isOpen, onClose }) {
             </button>
           </div>
         </div>
-        <div className="mobile-drawer__body p-4 flex flex-col min-h-0">
+        <div className="mobile-drawer__body p-4 flex flex-col min-h-0" style={bodyStyle}>
           <FollowUpChat
             variant="drawer"
             isActive={isOpen}

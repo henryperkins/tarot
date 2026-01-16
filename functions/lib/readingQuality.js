@@ -387,7 +387,7 @@ function extractCardCandidates(text = '') {
     addCandidate(`The ${match[1]}`, true);
   }
 
-  const contextPattern = /\b(?:card|position|present|past|future|outcome|challenge|advice|anchor|theme|guidance|lesson|insight)\s*[:\-]\s*([A-Za-z][A-Za-z\s']{2,50})/gi;
+  const contextPattern = /\b(?:card|position|present|past|future|outcome|challenge|advice|anchor|theme|guidance|lesson|insight)\s*[:-]\s*([A-Za-z][A-Za-z\s']{2,50})/gi;
   while ((match = contextPattern.exec(text)) !== null) {
     addCandidate(match[1], true);
   }

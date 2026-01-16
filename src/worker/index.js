@@ -36,6 +36,11 @@ import * as coachExtractionBackfill from '../../functions/api/coach-extraction-b
 import * as createCheckoutSession from '../../functions/api/create-checkout-session.js';
 import * as createPortalSession from '../../functions/api/create-portal-session.js';
 import * as usage from '../../functions/api/usage.js';
+import * as subscription from '../../functions/api/subscription.js';
+import * as subscriptionRestore from '../../functions/api/subscription/restore.js';
+import * as accountProfile from '../../functions/api/account/profile.js';
+import * as accountPassword from '../../functions/api/account/password.js';
+import * as accountDelete from '../../functions/api/account/delete.js';
 
 // Auth handlers
 import * as authLogin from '../../functions/api/auth/login.js';
@@ -195,6 +200,11 @@ const routes = [
   { pattern: /^\/api\/tts-hume$/, handlers: ttsHume },
   { pattern: /^\/api\/speech-token$/, handlers: speechToken },
   { pattern: /^\/api\/usage$/, handlers: usage },
+  { pattern: /^\/api\/subscription$/, handlers: subscription },
+  { pattern: /^\/api\/subscription\/restore$/, handlers: subscriptionRestore },
+  { pattern: /^\/api\/account\/profile$/, handlers: accountProfile },
+  { pattern: /^\/api\/account\/password$/, handlers: accountPassword },
+  { pattern: /^\/api\/account\/delete$/, handlers: accountDelete },
   { pattern: /^\/api\/journal$/, handlers: journal },
   { pattern: /^\/api\/journal\/pattern-alerts$/, handlers: journalPatternAlerts },
   { pattern: /^\/api\/journal\/([^/]+)\/followups$/, handlers: journalFollowups, params: ['id'] },

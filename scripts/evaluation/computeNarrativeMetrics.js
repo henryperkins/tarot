@@ -23,12 +23,12 @@ const DETERMINISTIC_PATTERNS = [
 
 const AGENCY_PATTERNS = [
   /\bfree will\b/i,
-  /\bchoice\b/i,
+  /\bchoices?\b/i,
   /\bchoose\b/i,
   /\bagency\b/i,
   /\byou decide\b/i,
   /\byou direct\b/i,
-  /\bco-creating\b/i,
+  /\bco-?creat(?:e|ing)\b/i,
   /\byou can shape\b/i
 ];
 

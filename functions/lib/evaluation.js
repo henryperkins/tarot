@@ -177,7 +177,7 @@ export function checkFollowUpSafety(responseText) {
  * @param {string} reason - Block reason from safety check
  * @returns {string} Safe fallback response
  */
-export function generateSafeFollowUpFallback(reason) {
+export function generateSafeFollowUpFallback(_reason) {
   // Don't reveal the specific reason to avoid gaming
   return `I want to make sure I'm being helpful in the right way here. This question touches on something that deserves more specialized support than a tarot reading can offer.
 

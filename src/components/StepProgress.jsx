@@ -144,7 +144,9 @@ export function StepProgress({ steps = [], activeStep, onSelect, condensed = fal
 
   useEffect(() => {
     if (showTooltips) return;
-    setActiveTooltip(null);
+    if (typeof window === 'undefined') return undefined;
+    const frameId = window.requestAnimationFrame(() => setActiveTooltip(null));
+    return () => window.cancelAnimationFrame(frameId);
   }, [showTooltips]);
 
   return (
