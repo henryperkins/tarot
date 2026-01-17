@@ -1,0 +1,21 @@
+
+> tableau@1.0.0 lint
+> eslint .
+
+
+/home/runner/work/tarot/tarot/src/components/Card.jsx
+  577:17  error  Parsing error: Expected corresponding JSX closing tag for <button>
+
+/home/runner/work/tarot/tarot/src/components/Journal.jsx
+  5:10  warning  'UserMenu' is defined but never used. Allowed unused vars must match /^_/u  no-unused-vars
+
+/home/runner/work/tarot/tarot/src/pages/PricingPage.jsx
+  29:10  warning  'UserMenu' is defined but never used. Allowed unused vars must match /^_/u  no-unused-vars
+
+/home/runner/work/tarot/tarot/tests/qualityAnalysis.test.mjs
+   4:24  warning  'beforeEach' is defined but never used. Allowed unused vars must match /^_/u            no-unused-vars
+   4:36  warning  'mock' is defined but never used. Allowed unused vars must match /^_/u                  no-unused-vars
+  44:3   warning  'getBaseline' is assigned a value but never used. Allowed unused vars must match /^_/u  no-unused-vars
+
+✖ 6 problems (1 error, 5 warnings)
+

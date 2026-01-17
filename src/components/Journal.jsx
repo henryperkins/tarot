@@ -2,7 +2,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { CaretLeft, Warning } from '@phosphor-icons/react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { GlobalNav } from './GlobalNav';
-import { UserMenu } from './UserMenu';
 import { ConfirmModal } from './ConfirmModal';
 import { useAuth } from '../contexts/AuthContext';
 import { useSubscription } from '../contexts/SubscriptionContext';
@@ -715,8 +714,22 @@ export default function Journal() {
         <div className="skip-links">
           <a href="#journal-content" className="skip-link">Skip to journal content</a>
         </div>
-        <main id="journal-content" tabIndex={-1} className="journal-page max-w-7xl mx-auto px-4 sm:px-6 py-8">
-          <GlobalNav />
+        
+        {/* Sticky navigation header with safe-area padding */}
+        <header 
+          className="sticky top-0 z-40 bg-main/95 backdrop-blur-sm border-b border-secondary/20"
+          style={{
+            paddingTop: 'max(env(safe-area-inset-top, 0px), 0.75rem)',
+            paddingLeft: 'max(env(safe-area-inset-left, 0px), 1rem)',
+            paddingRight: 'max(env(safe-area-inset-right, 0px), 1rem)',
+          }}
+        >
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3">
+            <GlobalNav withUserChip />
+          </div>
+        </header>
+
+        <main id="journal-content" tabIndex={-1} className="journal-page max-w-7xl mx-auto px-4 sm:px-6 py-8 pb-32 lg:pb-8">
 
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-6">
             {fromReading && (
@@ -734,10 +747,6 @@ export default function Journal() {
                 <span>Back to Reading</span>
               </button>
             )}
-
-            <div className="flex items-center gap-4 sm:ml-auto">
-              <UserMenu />
-            </div>
           </div>
 
           <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between mb-4">

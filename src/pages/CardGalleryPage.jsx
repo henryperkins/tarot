@@ -384,7 +384,19 @@ export default function CardGalleryPage() {
 
   return (
     <div className="min-h-screen bg-main text-main animate-fade-in">
-      <GlobalNav />
+      {/* Sticky navigation header with safe-area padding */}
+      <header 
+        className="sticky top-0 z-40 bg-main/95 backdrop-blur-sm border-b border-secondary/20"
+        style={{
+          paddingTop: 'max(env(safe-area-inset-top, 0px), 0.75rem)',
+          paddingLeft: 'max(env(safe-area-inset-left, 0px), 1rem)',
+          paddingRight: 'max(env(safe-area-inset-right, 0px), 1rem)',
+        }}
+      >
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3">
+          <GlobalNav withUserChip />
+        </div>
+      </header>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
         {/* Header */}

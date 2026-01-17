@@ -28,6 +28,7 @@ import {
   ArrowClockwise
 } from '@phosphor-icons/react';
 import { ConfirmModal } from '../components/ConfirmModal';
+import { GlobalNav } from '../components/GlobalNav';
 import AuthModal from '../components/AuthModal';
 import { MemoryManager } from '../components/MemoryManager';
 import { useAuth } from '../contexts/AuthContext';
@@ -1012,28 +1013,17 @@ export default function AccountPage() {
 
   return (
     <div className="min-h-screen bg-main text-main">
-      {/* Header */}
-      <header className="border-b border-secondary/20">
-        <div className="mx-auto max-w-2xl px-4 py-4 flex items-center justify-between">
-          <Link to="/" className="flex items-center gap-2 text-accent hover:text-accent/80 transition">
-            <Eye className="h-6 w-6" weight="duotone" />
-            <span className="font-serif text-xl">Tableu</span>
-          </Link>
-          <nav className="flex items-center gap-4">
-            <Link to="/" className="text-sm text-muted hover:text-main transition">
-              Reading
-            </Link>
-            <Link to="/journal" className="text-sm text-muted hover:text-main transition">
-              Journal
-            </Link>
-            <Link
-              to="/account"
-              className="text-sm text-accent font-semibold"
-              aria-current="page"
-            >
-              Account & Settings
-            </Link>
-          </nav>
+      {/* Unified header with GlobalNav (includes UserMenu via withUserChip) - sticky with safe-area padding */}
+      <header 
+        className="sticky top-0 z-40 border-b border-secondary/20 bg-main/95 backdrop-blur-sm"
+        style={{
+          paddingTop: 'max(env(safe-area-inset-top, 0px), 0.75rem)',
+          paddingLeft: 'max(env(safe-area-inset-left, 0px), 1rem)',
+          paddingRight: 'max(env(safe-area-inset-right, 0px), 1rem)',
+        }}
+      >
+        <div className="mx-auto max-w-2xl px-4 py-3">
+          <GlobalNav condensed withUserChip />
         </div>
       </header>
 

@@ -25,6 +25,7 @@ import {
 import { useAuth } from '../contexts/AuthContext';
 import { useSubscription, SUBSCRIPTION_TIERS } from '../contexts/SubscriptionContext';
 import { useReducedMotion } from '../hooks/useReducedMotion';
+import { GlobalNav } from '../components/GlobalNav';
 import AuthModal from '../components/AuthModal';
 import { MobileInfoSection } from '../components/MobileInfoSection';
 import { useToast } from '../contexts/ToastContext';
@@ -610,24 +611,17 @@ export default function PricingPage() {
 
   return (
     <div className="min-h-screen bg-main text-main">
-      {/* Header */}
-      <header className="border-b border-secondary/20">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-4">
-          <Link to="/" className="flex items-center gap-2 text-accent transition hover:text-accent/80">
-            <Eye className="h-6 w-6" weight="duotone" />
-            <span className="font-serif text-xl">Tableu</span>
-          </Link>
-          <nav className="flex items-center gap-4">
-            <Link to="/" className="text-sm text-muted transition hover:text-main">
-              Reading
-            </Link>
-            <Link to="/journal" className="text-sm text-muted transition hover:text-main">
-              Journal
-            </Link>
-            <Link to="/pricing" className="text-sm font-medium text-main">
-              Pricing
-            </Link>
-          </nav>
+      {/* Unified header with GlobalNav (includes UserMenu via withUserChip) - sticky with safe-area padding */}
+      <header 
+        className="sticky top-0 z-40 border-b border-secondary/20 bg-main/95 backdrop-blur-sm"
+        style={{
+          paddingTop: 'max(env(safe-area-inset-top, 0px), 0.75rem)',
+          paddingLeft: 'max(env(safe-area-inset-left, 0px), 1rem)',
+          paddingRight: 'max(env(safe-area-inset-right, 0px), 1rem)',
+        }}
+      >
+        <div className="mx-auto max-w-6xl px-4 py-3">
+          <GlobalNav condensed withUserChip />
         </div>
       </header>
 
