@@ -821,6 +821,7 @@ export function buildNarrativeMetrics(readingText, cardsInfo, deckStyle = 'rws-1
       structuralSections: spine.structuralSections || 0,
       suggestions: spine.suggestions || []
     },
+    cardCount: safeCards.length,
     cardCoverage: coverage.coverage,
     missingCards: coverage.missingCards,
     hallucinatedCards
@@ -955,17 +956,23 @@ export async function persistReadingMetrics(env, payload) {
   try {
     const storageMode = env?.METRICS_STORAGE_MODE;
     const sanitizedPayload = sanitizeMetricsPayload(payload, storageMode);
+    const cardCoverage = payload.narrativeOriginal?.cardCoverage ?? payload.narrative?.cardCoverage ?? null;
+    const hallucinatedCards = payload.narrativeOriginal?.hallucinatedCards ?? payload.narrative?.hallucinatedCards ?? null;
+    const hallucinationCount = Array.isArray(hallucinatedCards) ? hallucinatedCards.length : null;
     await env.DB.prepare(`
       INSERT INTO eval_metrics (
         request_id, spread_key, deck_style, provider,
-        card_coverage, reading_prompt_version, variant_id, payload
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        card_coverage, hallucinated_cards, hallucination_count,
+        reading_prompt_version, variant_id, payload
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       ON CONFLICT(request_id) DO UPDATE SET
         updated_at = datetime('now'),
         spread_key = excluded.spread_key,
         deck_style = excluded.deck_style,
         provider = excluded.provider,
         card_coverage = excluded.card_coverage,
+        hallucinated_cards = excluded.hallucinated_cards,
+        hallucination_count = excluded.hallucination_count,
         reading_prompt_version = excluded.reading_prompt_version,
         variant_id = excluded.variant_id,
         payload = excluded.payload
@@ -974,7 +981,9 @@ export async function persistReadingMetrics(env, payload) {
       payload.spreadKey || null,
       payload.deckStyle || null,
       payload.provider || null,
-      payload.narrative?.cardCoverage ?? null,
+      cardCoverage,
+      hallucinatedCards ? JSON.stringify(hallucinatedCards) : null,
+      hallucinationCount,
       payload.readingPromptVersion || payload.promptMeta?.readingPromptVersion || null,
       payload.variantId || null,
       JSON.stringify(sanitizedPayload)

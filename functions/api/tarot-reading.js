@@ -88,6 +88,85 @@ import {
   buildSpreadAnalysisPayload
 } from '../lib/spreadAnalysisOrchestrator.js';
 
+function evaluateQualityGate({ readingText, cardsInfo, deckStyle, analysis, requestId }) {
+  const text = typeof readingText === 'string' ? readingText : '';
+  const safeCards = Array.isArray(cardsInfo) ? cardsInfo : [];
+  const spreadKey = analysis?.spreadKey || null;
+  const qualityMetrics = buildNarrativeMetrics(text, safeCards, deckStyle);
+  const qualityIssues = [];
+
+  const { minCoverage, maxHallucinations, highWeightThreshold } = getQualityGateThresholds(
+    spreadKey,
+    safeCards.length
+  );
+
+  if (qualityMetrics.hallucinatedCards && qualityMetrics.hallucinatedCards.length > maxHallucinations) {
+    qualityIssues.push(
+      `excessive hallucinated cards (${qualityMetrics.hallucinatedCards.length} > ${maxHallucinations} allowed): ${qualityMetrics.hallucinatedCards.join(', ')}`
+    );
+  } else if (qualityMetrics.hallucinatedCards?.length > 0 && requestId) {
+    console.log(
+      `[${requestId}] Minor hallucinations (allowed): ${qualityMetrics.hallucinatedCards.join(', ')}`
+    );
+  }
+
+  if (qualityMetrics.cardCoverage < minCoverage) {
+    qualityIssues.push(
+      `low card coverage: ${(qualityMetrics.cardCoverage * 100).toFixed(0)}% (min ${(minCoverage * 100).toFixed(0)}%)`
+    );
+  }
+
+  const missingKeySet = new Set();
+  const missingNameSet = new Set();
+  (qualityMetrics.missingCards || []).forEach((missing) => {
+    if (!missing) return;
+    const missingKey = canonicalCardKey(missing, deckStyle);
+    if (missingKey) missingKeySet.add(missingKey);
+    missingNameSet.add(String(missing).toLowerCase());
+  });
+  const highWeightMisses = safeCards.reduce((acc, card, index) => {
+    if (!card) return acc;
+    const weight = getPositionWeight(spreadKey, index) || 0;
+    if (weight < highWeightThreshold) return acc;
+    const cardKey = card.canonicalKey || canonicalCardKey(card.canonicalName || card.card, deckStyle);
+    const cardName = (card.canonicalName || card.card || '').toLowerCase();
+    const isMissing = (cardKey && missingKeySet.has(cardKey)) ||
+      (cardName && missingNameSet.has(cardName));
+    if (isMissing) {
+      acc.push(card.canonicalName || card.card);
+    }
+    return acc;
+  }, []);
+  if (highWeightMisses.length > 0) {
+    qualityIssues.push(`missing high-weight positions: ${highWeightMisses.join(', ')}`);
+  }
+
+  const spine = qualityMetrics.spine || null;
+  const MIN_SPINE_COMPLETION = 0.5;
+  if (spine) {
+    const cardSections = typeof spine.cardSections === 'number'
+      ? spine.cardSections
+      : spine.totalSections;
+    const cardComplete = typeof spine.cardComplete === 'number'
+      ? spine.cardComplete
+      : spine.completeSections;
+    if (cardSections > 0) {
+      const spineRatio = (cardComplete || 0) / cardSections;
+      if (spineRatio < MIN_SPINE_COMPLETION) {
+        qualityIssues.push(
+          `incomplete spine (${cardComplete || 0}/${cardSections} card sections, need ${Math.ceil(MIN_SPINE_COMPLETION * 100)}%)`
+        );
+      }
+    }
+  }
+
+  if (qualityMetrics.spine && qualityMetrics.spine.totalSections === 0) {
+    qualityIssues.push('no narrative sections detected');
+  }
+
+  return { qualityMetrics, qualityIssues, thresholds: { minCoverage, maxHallucinations, highWeightThreshold } };
+}
+
 async function finalizeReading({
   env,
   requestId,
@@ -111,7 +190,8 @@ async function finalizeReading({
   backendErrors = [],
   acceptedQualityMetrics = null,
   allowGateBlocking = true,
-  gateOverride = null
+  gateOverride = null,
+  gateNotice = null
 }) {
   const originalReading = reading;
   const originalProvider = provider;
@@ -153,17 +233,18 @@ async function finalizeReading({
   let finalReading = originalReading;
   let finalProvider = originalProvider;
 
+  const baseNarrativeMetrics = acceptedQualityMetrics || buildNarrativeMetrics(originalReading, cardsInfo, deckStyle);
+  let finalNarrativeMetrics = baseNarrativeMetrics;
+
   const evalParams = {
     reading: originalReading,
     userQuestion,
     cardsInfo,
     spreadKey: analysis.spreadKey,
     requestId,
-    displayName: personalization?.displayName
+    displayName: personalization?.displayName,
+    narrativeMetrics: baseNarrativeMetrics
   };
-
-  const baseNarrativeMetrics = acceptedQualityMetrics || buildNarrativeMetrics(originalReading, cardsInfo, deckStyle);
-  let finalNarrativeMetrics = baseNarrativeMetrics;
 
   const gateResult = gateOverride?.blocked
     ? {
@@ -273,6 +354,9 @@ async function finalizeReading({
     source: 'api'
   } : null;
 
+  const evalGateReason = evalGateResult?.gateResult?.reason || evalGateResult?.reason || null;
+  const evalGateRan = evalGateResult ? Boolean(evalGateResult.gateResult) : false;
+
   const metricsPayload = {
     requestId,
     timestamp,
@@ -286,6 +370,7 @@ async function finalizeReading({
     tokens,
     vision: visionMetrics,
     narrative: narrativeMetrics,
+    ...(wasGateBlocked && allowGateBlocking ? { narrativeOriginal: baseNarrativeMetrics } : {}),
     narrativeEnhancements: narrativeEnhancementSummary,
     graphRAG: graphRAGStats,
     promptMeta,
@@ -295,10 +380,10 @@ async function finalizeReading({
     llmUsage: capturedUsage,
     backendErrors: backendErrors.length > 0 ? backendErrors : undefined,
     evalGate: evalGateResult ? {
-      ran: true,
+      ran: evalGateRan,
       passed: evalGateResult.passed,
-      reason: evalGateResult.gateResult?.reason,
-      latencyMs: evalGateResult.latencyMs,
+      reason: evalGateReason,
+      latencyMs: evalGateResult.latencyMs ?? null,
       blocked: wasGateBlocked
     } : { ran: false }
   };
@@ -330,6 +415,16 @@ async function finalizeReading({
 
   const emotionalTone = deriveEmotionalTone(analysis.themes);
 
+  const responseGateStatus = (allowGateBlocking && wasGateBlocked)
+    ? {
+      gateBlocked: true,
+      gateReason: evalGateResult?.gateResult?.reason
+    }
+    : (gateNotice?.blocked ? {
+      gateBlocked: true,
+      gateReason: gateNotice.reason || null
+    } : {});
+
   const responsePayload = {
     reading: finalReading,
     provider: finalProvider,
@@ -343,10 +438,7 @@ async function finalizeReading({
     narrativeMetrics,
     graphRAG: graphRAGStats,
     spreadAnalysis: buildSpreadAnalysisPayload(analysis),
-    ...(allowGateBlocking && wasGateBlocked ? {
-      gateBlocked: true,
-      gateReason: evalGateResult?.gateResult?.reason
-    } : {})
+    ...responseGateStatus
   };
 
   return {
@@ -701,6 +793,8 @@ export const onRequestPost = async ({ request, env, waitUntil }) => {
       promptMeta: null
     };
 
+    const backendErrors = [];
+
     const tokenStreamingEnabled = isAzureTokenStreamingEnabled(env);
     const evalGateEnabled = isEvalGateEnabled(env);
     const allowStreamingGateBypass = allowStreamingWithEvalGate(env);
@@ -708,11 +802,18 @@ export const onRequestPost = async ({ request, env, waitUntil }) => {
     const safetyScanStreamingEnabled = env?.STREAMING_SAFETY_SCAN_ENABLED === undefined
       ? true
       : normalizeBooleanFlag(env?.STREAMING_SAFETY_SCAN_ENABLED);
+    const qualityGateStreamingEnabled = env?.STREAMING_QUALITY_GATE_ENABLED === undefined
+      ? true
+      : normalizeBooleanFlag(env?.STREAMING_QUALITY_GATE_ENABLED);
     const azureStreamingAvailable = Boolean(NARRATIVE_BACKENDS['azure-gpt5']?.isAvailable(env));
     const wantsAzureStreaming = useStreaming && tokenStreamingEnabled && azureStreamingAvailable;
     const canUseAzureStreaming = wantsAzureStreaming && allowStreamingGateBypass;
     const shouldGateStreaming = canUseAzureStreaming && evalGateEnabled;
     const shouldSafetyScanStreaming = canUseAzureStreaming && !evalGateEnabled && safetyScanStreamingEnabled;
+    const shouldQualityGateStreaming = canUseAzureStreaming && qualityGateStreamingEnabled;
+    const shouldBufferStreaming = canUseAzureStreaming && (
+      shouldGateStreaming || shouldSafetyScanStreaming || shouldQualityGateStreaming
+    );
 
     if (useStreaming && tokenStreamingEnabled && !allowStreamingGateBypass) {
       const reason = evalGateEnabled
@@ -720,16 +821,21 @@ export const onRequestPost = async ({ request, env, waitUntil }) => {
         : 'ALLOW_UNGATED_STREAMING/ALLOW_STREAMING_WITH_EVAL_GATE is false';
       console.warn(`[${requestId}] Token streaming disabled (${reason}); falling back to buffered streaming.`);
     } else if (useStreaming && tokenStreamingEnabled && evalGateEnabled && allowStreamingGateBypass) {
-      console.warn(`[${requestId}] Token streaming enabled with eval gate; buffering output before streaming to enforce gate.`);
+      console.warn(`[${requestId}] Token streaming enabled with eval gate; buffering output before streaming to enforce gate + quality checks.`);
     } else if (useStreaming && tokenStreamingEnabled && !evalGateEnabled && allowStreamingGateBypass && safetyScanStreamingEnabled) {
-      console.warn(`[${requestId}] Token streaming enabled without eval gate; buffering output for safety scan (STREAMING_SAFETY_SCAN_ENABLED).`);
-    } else if (useStreaming && tokenStreamingEnabled && allowStreamingGateBypass && !evalGateEnabled && !safetyScanStreamingEnabled) {
-      console.log(`[${requestId}] Token streaming enabled; sending live SSE without safety buffer.`);
+      console.warn(`[${requestId}] Token streaming enabled without eval gate; buffering output for safety scan + quality checks (STREAMING_SAFETY_SCAN_ENABLED).`);
+    } else if (useStreaming && tokenStreamingEnabled && allowStreamingGateBypass && !evalGateEnabled && !safetyScanStreamingEnabled && qualityGateStreamingEnabled) {
+      console.warn(`[${requestId}] Token streaming enabled without eval gate; buffering output for quality checks.`);
+    } else if (useStreaming && tokenStreamingEnabled && allowStreamingGateBypass && !evalGateEnabled && !safetyScanStreamingEnabled && !qualityGateStreamingEnabled) {
+      console.log(`[${requestId}] Token streaming enabled; sending live SSE without safety/quality buffer.`);
     }
 
     if (useStreaming && tokenStreamingEnabled && !azureStreamingAvailable) {
       console.warn(`[${requestId}] Token streaming requested but Azure GPT-5 is unavailable; falling back to buffered streaming.`);
     }
+
+    let streamingFallback = false;
+    let streamingGateNotice = null;
 
     if (canUseAzureStreaming) {
       const streamProvider = 'azure-gpt5';
@@ -790,7 +896,7 @@ export const onRequestPost = async ({ request, env, waitUntil }) => {
 
         const transformedStream = transformAzureStream(azureStream);
 
-        if (shouldGateStreaming || shouldSafetyScanStreaming) {
+        if (shouldBufferStreaming) {
           // Buffer streamed output so the eval gate can block before we emit SSE.
           const collected = await collectSSEStreamText(transformedStream);
           if (collected.error || collected.sawError) {
@@ -806,84 +912,51 @@ export const onRequestPost = async ({ request, env, waitUntil }) => {
             return createSSEErrorResponse('Failed to generate reading.', 503);
           }
 
-          let gateOverride = null;
-          if (shouldSafetyScanStreaming) {
-            const safetyEval = buildHeuristicScores({}, analysis.spreadKey, { readingText: finalText });
-            const safetyGate = checkEvalGate(safetyEval);
-            if (safetyGate.shouldBlock) {
-              gateOverride = {
-                blocked: true,
-                reason: safetyGate.reason,
-                evalResult: safetyEval
-              };
-              console.warn(`[${requestId}] Streaming safety scan blocked output (${safetyGate.reason})`);
-            }
-          }
-
-          const { responsePayload } = await finalizeReading({
-            env,
-            requestId,
-            startTime,
-            reading: finalText,
-            provider: streamProvider,
+          const { qualityMetrics, qualityIssues } = evaluateQualityGate({
+            readingText: finalText,
+            cardsInfo,
             deckStyle,
             analysis,
-            narrativePayload,
-            contextDiagnostics,
-            cardsInfo,
-            userQuestion,
-            reflectionsText,
-            context,
-            visionMetrics,
-            abAssignment,
-            capturedPrompts,
-            capturedUsage: null,
-            waitUntil,
-            personalization,
-            backendErrors: [],
-            acceptedQualityMetrics: null,
-            allowGateBlocking: true,
-            gateOverride
+            requestId
           });
 
-          return createSSEResponse(createReadingStream(responsePayload));
-        }
+          if (qualityIssues.length > 0) {
+            console.warn(`[${requestId}] Streaming backend ${streamProvider} failed quality gate: ${qualityIssues.join('; ')}`);
+            backendErrors.push({
+              backend: streamProvider,
+              error: `Narrative failed quality checks: ${qualityIssues.join('; ')}`,
+              qualityIssues
+            });
+            streamingFallback = true;
+            streamingGateNotice = {
+              blocked: true,
+              reason: 'quality_gate_streaming'
+            };
+          }
 
-        const graphRAGStats = resolveGraphRAGStats(analysis, narrativePayload.promptMeta);
-        const finalContextDiagnostics = Array.isArray(narrativePayload.contextDiagnostics)
-          ? narrativePayload.contextDiagnostics
-          : contextDiagnostics;
-        const emotionalTone = deriveEmotionalTone(analysis.themes);
-
-        const streamMeta = {
-          requestId,
-          provider: streamProvider,
-          themes: analysis.themes,
-          emotionalTone,
-          ephemeris: buildEphemerisClientPayload(analysis.ephemerisContext),
-          context,
-          contextDiagnostics: finalContextDiagnostics,
-          graphRAG: graphRAGStats,
-          spreadAnalysis: buildSpreadAnalysisPayload(analysis),
-          gateBlocked: false,
-          gateReason: null,
-          backendErrors: null
-        };
-
-        const wrappedStream = wrapReadingStreamWithMetadata(transformedStream, {
-          meta: streamMeta,
-          ctx: { waitUntil },
-          onComplete: async (fullText) => {
-            const finalText = (fullText || '').trim();
-            if (!finalText) {
-              console.warn(`[${requestId}] Streaming completed with empty reading text - releasing quota`);
-              // Release the reading reservation so user doesn't lose a quota slot for an empty response
-              // This can happen if Azure returns only tool calls, errors, or empty content
-              await releaseReadingReservation(env, readingReservation);
-              return;
+          if (streamingFallback) {
+            console.warn(`[${requestId}] Streaming quality gate failed; falling back to buffered backends.`);
+            // fall through to non-streaming backend loop
+          } else {
+            let gateOverride = null;
+            if (shouldSafetyScanStreaming) {
+              const safetyEval = buildHeuristicScores(
+                qualityMetrics,
+                analysis.spreadKey,
+                { readingText: finalText, cardCount: cardsInfo.length }
+              );
+              const safetyGate = checkEvalGate(safetyEval);
+              if (safetyGate.shouldBlock) {
+                gateOverride = {
+                  blocked: true,
+                  reason: safetyGate.reason,
+                  evalResult: safetyEval
+                };
+                console.warn(`[${requestId}] Streaming safety scan blocked output (${safetyGate.reason})`);
+              }
             }
 
-            await finalizeReading({
+            const { responsePayload } = await finalizeReading({
               env,
               requestId,
               startTime,
@@ -904,13 +977,81 @@ export const onRequestPost = async ({ request, env, waitUntil }) => {
               waitUntil,
               personalization,
               backendErrors: [],
-              acceptedQualityMetrics: null,
-              allowGateBlocking: false
+              acceptedQualityMetrics: qualityMetrics,
+              allowGateBlocking: true,
+              gateOverride
             });
-          }
-        });
 
-        return createSSEResponse(wrappedStream);
+            return createSSEResponse(createReadingStream(responsePayload));
+          }
+        }
+
+        if (streamingFallback) {
+          // Skip live streaming when we need to fall back to buffered backends.
+        } else if (!shouldBufferStreaming) {
+          const graphRAGStats = resolveGraphRAGStats(analysis, narrativePayload.promptMeta);
+          const finalContextDiagnostics = Array.isArray(narrativePayload.contextDiagnostics)
+            ? narrativePayload.contextDiagnostics
+            : contextDiagnostics;
+          const emotionalTone = deriveEmotionalTone(analysis.themes);
+
+          const streamMeta = {
+            requestId,
+            provider: streamProvider,
+            themes: analysis.themes,
+            emotionalTone,
+            ephemeris: buildEphemerisClientPayload(analysis.ephemerisContext),
+            context,
+            contextDiagnostics: finalContextDiagnostics,
+            graphRAG: graphRAGStats,
+            spreadAnalysis: buildSpreadAnalysisPayload(analysis),
+            gateBlocked: false,
+            gateReason: null,
+            backendErrors: null
+          };
+
+          const wrappedStream = wrapReadingStreamWithMetadata(transformedStream, {
+            meta: streamMeta,
+            ctx: { waitUntil },
+            onComplete: async (fullText) => {
+              const finalText = (fullText || '').trim();
+              if (!finalText) {
+                console.warn(`[${requestId}] Streaming completed with empty reading text - releasing quota`);
+                // Release the reading reservation so user doesn't lose a quota slot for an empty response
+                // This can happen if Azure returns only tool calls, errors, or empty content
+                await releaseReadingReservation(env, readingReservation);
+                return;
+              }
+
+              await finalizeReading({
+                env,
+                requestId,
+                startTime,
+                reading: finalText,
+                provider: streamProvider,
+                deckStyle,
+                analysis,
+                narrativePayload,
+                contextDiagnostics,
+                cardsInfo,
+                userQuestion,
+                reflectionsText,
+                context,
+                visionMetrics,
+                abAssignment,
+                capturedPrompts,
+                capturedUsage: null,
+                waitUntil,
+                personalization,
+                backendErrors: [],
+                acceptedQualityMetrics: null,
+                allowGateBlocking: false
+              });
+            }
+          });
+
+          return createSSEResponse(wrappedStream);
+        }
       } catch (streamError) {
         console.error(`[${requestId}] Streaming error: ${streamError.message}`);
         // Release the reading reservation - user shouldn't lose quota for failed streaming
@@ -922,7 +1063,6 @@ export const onRequestPost = async ({ request, env, waitUntil }) => {
     let reading = null;
     let provider = 'local-composer';
     let acceptedQualityMetrics = null; // Store metrics from successful backend to avoid recomputation
-    const backendErrors = [];
     const candidateBackends = getAvailableNarrativeBackends(env);
     const backendsToTry = candidateBackends.length ? candidateBackends : [NARRATIVE_BACKENDS['local-composer']];
 
@@ -972,63 +1112,13 @@ export const onRequestPost = async ({ request, env, waitUntil }) => {
         applyGraphRAGAlerts(narrativePayload, requestId, backend.id);
 
         // Quality gate: validate narrative structure and content before accepting
-        const qualityMetrics = buildNarrativeMetrics(result, cardsInfo, deckStyle);
-        const qualityIssues = [];
-
-        const { minCoverage, maxHallucinations, highWeightThreshold } = getQualityGateThresholds(
-          analysis.spreadKey,
-          cardsInfo.length
-        );
-
-        // Check for hallucinated cards with spread-aware limits
-        if (qualityMetrics.hallucinatedCards && qualityMetrics.hallucinatedCards.length > maxHallucinations) {
-          qualityIssues.push(`excessive hallucinated cards (${qualityMetrics.hallucinatedCards.length} > ${maxHallucinations} allowed): ${qualityMetrics.hallucinatedCards.join(', ')}`);
-        } else if (qualityMetrics.hallucinatedCards?.length > 0) {
-          console.log(`[${requestId}] Minor hallucinations (allowed): ${qualityMetrics.hallucinatedCards.join(', ')}`);
-        }
-
-        // Check card coverage with higher bar for small/medium spreads
-        if (qualityMetrics.cardCoverage < minCoverage) {
-          qualityIssues.push(`low card coverage: ${(qualityMetrics.cardCoverage * 100).toFixed(0)}% (min ${(minCoverage * 100).toFixed(0)}%)`);
-        }
-
-        // Require high-weight positions to be covered explicitly
-        const missingSet = new Set(qualityMetrics.missingCards || []);
-        const highWeightMisses = (cardsInfo || []).reduce((acc, card, index) => {
-          if (!card || !card.card) return acc;
-          const weight = getPositionWeight(analysis.spreadKey, index) || 0;
-          if (weight >= highWeightThreshold && missingSet.has(card.card)) {
-            acc.push(card.card);
-          }
-          return acc;
-        }, []);
-        if (highWeightMisses.length > 0) {
-          qualityIssues.push(`missing high-weight positions: ${highWeightMisses.join(', ')}`);
-        }
-
-        // Enforce spine completeness for card sections only
-        // Structural sections (Opening, Closing, Next Steps) don't need WHAT/WHY/WHAT'S NEXT
-        const spine = qualityMetrics.spine || null;
-        const MIN_SPINE_COMPLETION = 0.5;
-        if (spine) {
-          const cardSections = typeof spine.cardSections === 'number'
-            ? spine.cardSections
-            : spine.totalSections;
-          const cardComplete = typeof spine.cardComplete === 'number'
-            ? spine.cardComplete
-            : spine.completeSections;
-          if (cardSections > 0) {
-            const spineRatio = (cardComplete || 0) / cardSections;
-            if (spineRatio < MIN_SPINE_COMPLETION) {
-              qualityIssues.push(`incomplete spine (${cardComplete || 0}/${cardSections} card sections, need ${Math.ceil(MIN_SPINE_COMPLETION * 100)}%)`);
-            }
-          }
-        }
-
-        // Check narrative has at least one section (basic structure validation)
-        if (qualityMetrics.spine && qualityMetrics.spine.totalSections === 0) {
-          qualityIssues.push('no narrative sections detected');
-        }
+        const { qualityMetrics, qualityIssues } = evaluateQualityGate({
+          readingText: result,
+          cardsInfo,
+          deckStyle,
+          analysis,
+          requestId
+        });
 
         if (qualityIssues.length > 0) {
           console.warn(`[${requestId}] Backend ${backend.id} failed quality gate: ${qualityIssues.join('; ')}`);
@@ -1074,6 +1164,24 @@ export const onRequestPost = async ({ request, env, waitUntil }) => {
       );
     }
 
+    let gateOverride = null;
+    if (useStreaming && !evalGateEnabled && safetyScanStreamingEnabled) {
+      const safetyEval = buildHeuristicScores(
+        acceptedQualityMetrics || buildNarrativeMetrics(reading, cardsInfo, deckStyle),
+        analysis.spreadKey,
+        { readingText: reading, cardCount: cardsInfo.length }
+      );
+      const safetyGate = checkEvalGate(safetyEval);
+      if (safetyGate.shouldBlock) {
+        gateOverride = {
+          blocked: true,
+          reason: safetyGate.reason,
+          evalResult: safetyEval
+        };
+        console.warn(`[${requestId}] Streaming safety scan blocked buffered backend output (${safetyGate.reason})`);
+      }
+    }
+
     const { responsePayload } = await finalizeReading({
       env,
       requestId,
@@ -1096,7 +1204,9 @@ export const onRequestPost = async ({ request, env, waitUntil }) => {
       personalization,
       backendErrors,
       acceptedQualityMetrics,
-      allowGateBlocking: true
+      gateNotice: streamingGateNotice,
+      allowGateBlocking: true,
+      gateOverride
     });
 
     if (useStreaming) {

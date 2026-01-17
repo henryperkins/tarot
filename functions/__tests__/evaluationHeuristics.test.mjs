@@ -77,6 +77,15 @@ describe('buildHeuristicScores', () => {
             assert.ok(result.scores.notes.includes('hallucinated'));
         });
 
+        it('does not flag minor hallucinations within allowance', () => {
+            const result = buildHeuristicScores(
+                { cardCoverage: 0.9, hallucinatedCards: ['A'], cardCount: 3 },
+                'general'
+            );
+            assert.equal(result.scores.safety_flag, false);
+            assert.ok(result.scores.notes.includes('within allowance'));
+        });
+
         it('flags very low coverage as safety concern', () => {
             const result = buildHeuristicScores({ cardCoverage: 0.2, hallucinatedCards: [] }, 'general');
             assert.equal(result.scores.safety_flag, true);

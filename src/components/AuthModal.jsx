@@ -6,10 +6,10 @@ import { useAuth } from '../contexts/AuthContext';
 import { useModalA11y, createBackdropHandler } from '../hooks/useModalA11y';
 import { useSmallScreen } from '../hooks/useSmallScreen';
 
-export default function AuthModal({ isOpen, onClose }) {
+export default function AuthModal({ isOpen, onClose, initialMode = 'login' }) {
   const { register, login, error: authError } = useAuth();
   const isSmallScreen = useSmallScreen();
-  const [mode, setMode] = useState('login'); // 'login' or 'register'
+  const [mode, setMode] = useState(initialMode); // 'login' or 'register'
   const [email, setEmail] = useState('');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -30,6 +30,13 @@ export default function AuthModal({ isOpen, onClose }) {
     trapFocus: false,
     initialFocusRef: firstInputRef,
   });
+
+  // Sync mode with initialMode when modal opens
+  useEffect(() => {
+    if (isOpen) {
+      setMode(initialMode);
+    }
+  }, [isOpen, initialMode]);
 
   // Reset password visibility when mode changes
   useEffect(() => {

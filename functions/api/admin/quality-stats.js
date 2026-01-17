@@ -11,7 +11,8 @@ import { timingSafeEqual } from '../../lib/crypto.js';
 import {
   getRecentStats,
   getUnacknowledgedAlerts,
-  acknowledgeAlert
+  acknowledgeAlert,
+  runQualityAnalysis
 } from '../../lib/qualityAnalysis.js';
 import {
   getExperimentResults,
@@ -183,10 +184,26 @@ export async function onRequestPost(context) {
         });
       }
 
+      case 'run-analysis': {
+        // Manual trigger for quality analysis (debugging)
+        const { date } = body;
+        const dateStr = date || new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+        console.log(`[admin] Manually triggering quality analysis for ${dateStr}`);
+        
+        const analysisResults = await runQualityAnalysis(env, dateStr);
+        return new Response(JSON.stringify({
+          success: true,
+          date: dateStr,
+          results: analysisResults,
+        }), {
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+
       default:
         return new Response(JSON.stringify({
           error: 'Unknown action',
-          validActions: ['acknowledge', 'experiment-results'],
+          validActions: ['acknowledge', 'experiment-results', 'run-analysis'],
         }), {
           status: 400,
           headers: { 'Content-Type': 'application/json' },
@@ -285,6 +302,12 @@ function normalizeTimestamp(primary, fallbackMs) {
     return primary.toISOString();
   }
   if (fallbackMs) {
+    if (typeof fallbackMs === 'string') {
+      const dateFromString = new Date(fallbackMs);
+      if (!Number.isNaN(dateFromString.getTime())) {
+        return dateFromString.toISOString();
+      }
+    }
     const date = new Date(Number(fallbackMs));
     if (!Number.isNaN(date.getTime())) {
       return date.toISOString();
@@ -319,7 +342,7 @@ function normalizeReviewRow(row) {
     provider: row.provider || null,
     spreadKey: row.spread_key || null,
     deckStyle: row.deck_style || null,
-    timestamp: normalizeTimestamp(row.timestamp, row.archived_at),
+    timestamp: normalizeTimestamp(row.timestamp, row.created_at),
     overall,
     safety,
     tone,
@@ -355,21 +378,25 @@ async function getReviewQueue(db, options = {}) {
   const limit = clampNumber(Number(options.limit || 25), 1, 100);
   const window = `-${days} days`;
 
-  // D1 doesn't support json_length(), so check for non-empty array via string comparison
-  const hasHallucinations = `(
-    json_extract(data, '$.narrative.hallucinatedCards') IS NOT NULL
-    AND json_extract(data, '$.narrative.hallucinatedCards') NOT IN ('[]', 'null', '')
-  )`;
+  const hallucinationCountExpr = `
+    COALESCE(
+      hallucination_count,
+      json_array_length(json_extract(payload, '$.narrative.hallucinatedCards')),
+      json_array_length(json_extract(payload, '$.narrativeOriginal.hallucinatedCards')),
+      0
+    )
+  `;
+  const hasHallucinations = `(${hallucinationCountExpr} > 0)`;
 
   const baseWhere = `
     date(COALESCE(
-      json_extract(data, '$.timestamp'),
-      datetime(archived_at/1000, 'unixepoch')
+      json_extract(payload, '$.timestamp'),
+      created_at
     )) >= date('now', ?)
     AND (
-      json_extract(data, '$.eval.scores.safety_flag') = 1 OR
-      json_extract(data, '$.eval.scores.safety') < 3 OR
-      json_extract(data, '$.eval.scores.tone') < 3 OR
+      COALESCE(safety_flag, json_extract(payload, '$.eval.scores.safety_flag')) = 1 OR
+      json_extract(payload, '$.eval.scores.safety') < 3 OR
+      json_extract(payload, '$.eval.scores.tone') < 3 OR
       ${hasHallucinations}
     )
   `;
@@ -377,37 +404,49 @@ async function getReviewQueue(db, options = {}) {
   const listQuery = `
     SELECT
       request_id,
-      provider,
-      spread_key,
-      deck_style,
-      archived_at,
-      json_extract(data, '$.timestamp') as timestamp,
-      json_extract(data, '$.eval.scores.overall') as overall,
-      json_extract(data, '$.eval.scores.safety') as safety,
-      json_extract(data, '$.eval.scores.tone') as tone,
-      json_extract(data, '$.eval.scores.safety_flag') as safety_flag,
-      json_extract(data, '$.eval.scores.notes') as notes,
-      json_extract(data, '$.narrative.cardCoverage') as card_coverage,
-      json_extract(data, '$.narrative.hallucinatedCards') as hallucinated_cards,
-      json_extract(data, '$.readingText') as reading_text,
-      json_extract(data, '$.userQuestion') as user_question,
-      json_extract(data, '$.readingPromptVersion') as reading_prompt_version,
-      json_extract(data, '$.eval.promptVersion') as eval_prompt_version,
-      json_extract(data, '$.variantId') as variant_id
-    FROM metrics_archive
+      COALESCE(provider, json_extract(payload, '$.provider')) as provider,
+      COALESCE(spread_key, json_extract(payload, '$.spreadKey')) as spread_key,
+      COALESCE(deck_style, json_extract(payload, '$.deckStyle')) as deck_style,
+      created_at,
+      json_extract(payload, '$.timestamp') as timestamp,
+      json_extract(payload, '$.eval.scores.overall') as overall,
+      json_extract(payload, '$.eval.scores.safety') as safety,
+      json_extract(payload, '$.eval.scores.tone') as tone,
+      COALESCE(safety_flag, json_extract(payload, '$.eval.scores.safety_flag')) as safety_flag,
+      json_extract(payload, '$.eval.scores.notes') as notes,
+      COALESCE(
+        card_coverage,
+        json_extract(payload, '$.narrative.cardCoverage'),
+        json_extract(payload, '$.narrativeOriginal.cardCoverage')
+      ) as card_coverage,
+      COALESCE(
+        hallucinated_cards,
+        json_extract(payload, '$.narrative.hallucinatedCards'),
+        json_extract(payload, '$.narrativeOriginal.hallucinatedCards')
+      ) as hallucinated_cards,
+      json_extract(payload, '$.readingText') as reading_text,
+      json_extract(payload, '$.userQuestion') as user_question,
+      COALESCE(
+        reading_prompt_version,
+        json_extract(payload, '$.readingPromptVersion'),
+        json_extract(payload, '$.promptMeta.readingPromptVersion')
+      ) as reading_prompt_version,
+      json_extract(payload, '$.eval.promptVersion') as eval_prompt_version,
+      COALESCE(variant_id, json_extract(payload, '$.variantId')) as variant_id
+    FROM eval_metrics
     WHERE ${baseWhere}
-    ORDER BY archived_at DESC
+    ORDER BY COALESCE(json_extract(payload, '$.timestamp'), created_at) DESC
     LIMIT ?
   `;
 
   const countQuery = `
     SELECT
       COUNT(*) as total,
-      SUM(CASE WHEN json_extract(data, '$.eval.scores.safety_flag') = 1 THEN 1 ELSE 0 END) as safety_flag_count,
-      SUM(CASE WHEN json_extract(data, '$.eval.scores.safety') < 3 THEN 1 ELSE 0 END) as low_safety_count,
-      SUM(CASE WHEN json_extract(data, '$.eval.scores.tone') < 3 THEN 1 ELSE 0 END) as low_tone_count,
+      SUM(CASE WHEN COALESCE(safety_flag, json_extract(payload, '$.eval.scores.safety_flag')) = 1 THEN 1 ELSE 0 END) as safety_flag_count,
+      SUM(CASE WHEN json_extract(payload, '$.eval.scores.safety') < 3 THEN 1 ELSE 0 END) as low_safety_count,
+      SUM(CASE WHEN json_extract(payload, '$.eval.scores.tone') < 3 THEN 1 ELSE 0 END) as low_tone_count,
       SUM(CASE WHEN ${hasHallucinations} THEN 1 ELSE 0 END) as hallucination_count
-    FROM metrics_archive
+    FROM eval_metrics
     WHERE ${baseWhere}
   `;
 

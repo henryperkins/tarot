@@ -10,7 +10,7 @@
  */
 
 import { useState, useCallback, useRef, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import {
   Sparkle,
   Fire,
@@ -18,6 +18,7 @@ import {
   TrendUp,
   ChartBar,
   Export,
+  Gear,
 } from '@phosphor-icons/react';
 import { useModalA11y } from '../../hooks/useModalA11y';
 import CardsCallingYou from './sections/CardsCallingYou';
@@ -82,7 +83,6 @@ export default function JourneyMobileSheet({
   scopeLabel,
   filtersApplied,
   analyticsScope,
-  onScopeSelect,
 }) {
   const navigate = useNavigate();
   const [isSheetOpen, setIsSheetOpen] = useState(false);
@@ -206,7 +206,6 @@ export default function JourneyMobileSheet({
     abortControllerRef.current = new AbortController();
     handleBackfill(abortControllerRef.current.signal);
   }, [handleBackfill]);
-  const showFiltersMismatch = filtersApplied && !filtersActive;
 
   // Show loading skeleton
   if (isLoading) {
@@ -329,30 +328,12 @@ export default function JourneyMobileSheet({
           >
             <Sparkle className="h-3 w-3" aria-hidden="true" />
             Your Journey
-            {filtersActive && (
-              <span className="text-[10px] text-amber-100/50">(filtered)</span>
-            )}
             {scopeLabel && (
               <span className="rounded-full border border-amber-200/15 bg-amber-200/5 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-amber-100/70">
                 Scope: {scopeLabel}
               </span>
             )}
           </h3>
-
-          {showFiltersMismatch && (
-            <div className="flex flex-wrap items-center justify-between gap-2 rounded-full border border-amber-200/25 bg-amber-200/5 px-3 py-1.5 text-[11px] text-amber-100/80">
-              <span>Filters not applied to insights</span>
-              {onScopeSelect && (
-                <button
-                  type="button"
-                  onClick={() => onScopeSelect('filters')}
-                  className="font-semibold text-amber-50 underline underline-offset-2 hover:text-amber-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/40"
-                >
-                  Apply filters
-                </button>
-              )}
-            </div>
-          )}
 
           {/* Backfill banner - shown when D1 sync is needed but doesn't block insights */}
           {needsBackfill && !hasBackfilled && (
@@ -498,21 +479,30 @@ export default function JourneyMobileSheet({
                   </span>
                 )}
               </div>
-              <button
-                ref={closeButtonRef}
-                onClick={handleClose}
-                className="
-                  flex items-center justify-center
-                  min-h-[44px] min-w-[44px] -mr-2
-                  rounded-lg text-amber-100/60
-                  hover:text-amber-100 hover:bg-amber-200/10
-                  focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/50
-                  transition-colors
-                "
-                aria-label="Close journey panel"
-              >
-                <X className="h-5 w-5" />
-              </button>
+              <div className="flex items-center gap-1">
+                <Link
+                  to="/account#analytics"
+                  className="flex items-center justify-center min-h-[44px] min-w-[44px] rounded-lg text-amber-100/60 hover:text-amber-100 hover:bg-amber-200/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/50 transition-colors"
+                  aria-label="Journey settings"
+                >
+                  <Gear className="h-5 w-5" />
+                </Link>
+                <button
+                  ref={closeButtonRef}
+                  onClick={handleClose}
+                  className="
+                    flex items-center justify-center
+                    min-h-[44px] min-w-[44px] -mr-2
+                    rounded-lg text-amber-100/60
+                    hover:text-amber-100 hover:bg-amber-200/10
+                    focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/50
+                    transition-colors
+                  "
+                  aria-label="Close journey panel"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
             </div>
 
             {/* Tabs with proper touch targets */}

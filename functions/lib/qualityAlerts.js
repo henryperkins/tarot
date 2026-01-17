@@ -229,7 +229,7 @@ function formatConsoleMessage(alert) {
     alert.type,
     `${alert.metric}=${formatValue(alert.metric, alert.observed)}`,
     `baseline=${formatValue(alert.metric, alert.baseline)}`,
-    `delta=${formatDelta(alert.delta)}`,
+    `delta=${formatDelta(alert.metric, alert.delta)}`,
   ];
 
   if (alert.dimensions?.reading_prompt_version) {
@@ -258,7 +258,7 @@ function formatSummaryEmail(alerts, options = {}) {
       <td style="padding: 8px; border-bottom: 1px solid #e5e7eb;">${alert.metric}</td>
       <td style="padding: 8px; border-bottom: 1px solid #e5e7eb;">${formatValue(alert.metric, alert.observed)}</td>
       <td style="padding: 8px; border-bottom: 1px solid #e5e7eb;">${formatValue(alert.metric, alert.baseline)}</td>
-      <td style="padding: 8px; border-bottom: 1px solid #e5e7eb;">${formatDelta(alert.delta)}</td>
+      <td style="padding: 8px; border-bottom: 1px solid #e5e7eb;">${formatDelta(alert.metric, alert.delta)}</td>
     </tr>
   `).join('');
 
@@ -412,10 +412,10 @@ function formatValue(metric, value) {
   return value.toFixed(2);
 }
 
-function formatDelta(delta) {
+function formatDelta(metric, delta) {
   if (delta === null || delta === undefined) return 'N/A';
   const sign = delta >= 0 ? '+' : '';
-  if (Math.abs(delta) < 1) {
+  if (metric && (metric.includes('rate') || metric === 'card_coverage')) {
     return `${sign}${(delta * 100).toFixed(1)}%`;
   }
   return `${sign}${delta.toFixed(2)}`;

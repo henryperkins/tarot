@@ -52,6 +52,8 @@ export const AlertCard = memo(function AlertCard({
 
   const styles = SEVERITY_STYLES[alert.severity] || SEVERITY_STYLES.warning;
   const typeLabel = TYPE_LABELS[alert.alert_type] || alert.alert_type;
+  const readingCount = Number.isFinite(alert.reading_count) ? alert.reading_count : null;
+  const sampleLabel = alert.metric_name === 'card_coverage' ? 'readings' : 'eval samples';
 
   const handleAcknowledge = () => {
     onAcknowledge(alert.id, notes);
@@ -88,7 +90,7 @@ export const AlertCard = memo(function AlertCard({
                   )}
                 </p>
                 <p className="text-xs text-muted">
-                  {alert.period_key} &middot; {alert.reading_count?.toLocaleString()} readings
+                  {alert.period_key} &middot; {readingCount !== null ? readingCount.toLocaleString() : '--'} {sampleLabel}
                 </p>
               </div>
             </div>

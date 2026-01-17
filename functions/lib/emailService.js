@@ -147,7 +147,7 @@ export function formatAlertEmail(alert, options = {}) {
         <div class="metric-value">${formatMetricValue(alert.metric, alert.observed)}</div>
         <div class="metric-baseline">
           Baseline: ${formatMetricValue(alert.metric, alert.baseline)}
-          (Δ ${formatDelta(alert.delta)})
+          (Δ ${formatDelta(alert.metric, alert.delta)})
         </div>
       </div>
 
@@ -197,12 +197,14 @@ function formatMetricValue(metric, value) {
   return value.toFixed(2);
 }
 
-function formatDelta(delta) {
+function formatDelta(metric, delta) {
   if (delta === null || delta === undefined) return 'N/A';
   const sign = delta >= 0 ? '+' : '';
-  if (Math.abs(delta) < 1) {
+  // Format as percentage only for rate metrics and coverage (0-1 scale)
+  if (metric && (metric.includes('rate') || metric === 'card_coverage')) {
     return `${sign}${(delta * 100).toFixed(1)}%`;
   }
+  // Score metrics (1-5 scale) show as decimal
   return `${sign}${delta.toFixed(2)}`;
 }
 

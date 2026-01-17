@@ -129,7 +129,7 @@ describe('evaluation', () => {
       assert.equal(result.scores.overall, 4);
       assert.equal(result.scores.safety_flag, false);
       assert.equal(result.model, '@cf/openai/gpt-oss-120b');
-      assert.equal(result.promptVersion, '2.1.0');
+      assert.equal(result.promptVersion, '2.2.0');
     });
 
     test('normalizes string safety_flag values', async () => {
@@ -242,13 +242,13 @@ describe('evaluation', () => {
       assert.equal(result.scores.safety_flag, true);
     });
 
-    test('flags single hallucinated card and caps tarot coherence', () => {
+    test('flags single hallucinated card within allowance and caps tarot coherence', () => {
       const result = buildHeuristicScores({
         cardCoverage: 0.95,
         hallucinatedCards: ['The Sun']
       });
       assert.equal(result.scores.safety_flag, true);
-      assert.equal(result.scores.tarot_coherence, 2);
+      assert.equal(result.scores.tarot_coherence, 3);
     });
 
     test('scores medium card coverage as 4', () => {
@@ -775,6 +775,13 @@ describe('evaluation', () => {
       assert.equal(mockDB.queries.length, 1);
       const query = mockDB.getLastQuery();
       assert.ok(query.sql.includes('UPDATE eval_metrics'));
+      assert.ok(query.bindings.includes('heuristic'));
+      assert.ok(query.bindings.includes(3)); // overall score from heuristic fallback
+      const payloadBinding = query.bindings.find(b => typeof b === 'string' && b.startsWith('{'));
+      const storedData = JSON.parse(payloadBinding);
+      assert.equal(storedData.eval?.mode, 'heuristic');
+      assert.equal(storedData.eval?.scores?.overall, 3);
+      assert.ok(storedData.eval?.fallbackReason?.startsWith('eval_error_'));
     });
 
     test('falls back to heuristic scores when AI evaluation is incomplete', async () => {

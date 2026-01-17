@@ -6,7 +6,7 @@
  */
 
 import { useState, useCallback, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import {
   Sparkle,
   CaretDown,
@@ -14,7 +14,8 @@ import {
   TrendUp,
   ChartBar,
   Export,
-  Fire
+  Fire,
+  Gear
 } from '@phosphor-icons/react';
 import SeasonSummary from './sections/SeasonSummary';
 import CardsCallingYou from './sections/CardsCallingYou';
@@ -114,7 +115,6 @@ export default function JourneySidebar({
   scopeLabel,
   filtersApplied,
   analyticsScope,
-  onScopeSelect,
 }) {
   const navigate = useNavigate();
   // Section open/close state
@@ -138,7 +138,6 @@ export default function JourneySidebar({
     abortControllerRef.current = new AbortController();
     handleBackfill(abortControllerRef.current.signal);
   }, [handleBackfill]);
-  const showFiltersMismatch = filtersApplied && !filtersActive;
   const scopeChipLabel = analyticsScope === 'filters' && filtersActive ? 'Filtered' : (scopeLabel || 'Scope');
   const sourceLabel = _dataSource === 'server' ? 'D1' : 'Journal';
 
@@ -261,38 +260,28 @@ export default function JourneySidebar({
 
       <div className="relative z-10 space-y-4">
         {/* Header */}
-        <div className="mb-4">
+        <div className="mb-4 flex items-center justify-between">
           <h3
             id="reading-journey-heading"
             className="flex items-center gap-2 journal-eyebrow text-amber-100/70"
           >
             <Sparkle className="h-3 w-3" aria-hidden="true" />
             Your Reading Journey
-            {filtersActive && (
-              <span className="text-[10px] text-amber-100/50">(filtered)</span>
-            )}
             {scopeLabel && (
               <span className="ml-2 rounded-full border border-amber-200/15 bg-amber-200/5 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-amber-100/70">
                 {scopeChipLabel} · {sourceLabel}
               </span>
             )}
           </h3>
+          <Link
+            to="/account#analytics"
+            className="flex items-center justify-center w-8 h-8 rounded-full text-amber-100/50 hover:text-amber-100 hover:bg-amber-200/10 transition"
+            aria-label="Journey settings"
+            title="Settings"
+          >
+            <Gear className="w-4 h-4" />
+          </Link>
         </div>
-
-        {showFiltersMismatch && (
-          <div className="flex flex-wrap items-center justify-between gap-2 rounded-full border border-amber-200/25 bg-amber-200/5 px-3 py-1.5 text-[11px] text-amber-100/80">
-            <span>Filters not applied to insights</span>
-            {onScopeSelect && (
-              <button
-                type="button"
-                onClick={() => onScopeSelect('filters')}
-                className="font-semibold text-amber-50 underline underline-offset-2 hover:text-amber-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/40"
-              >
-                Apply filters
-              </button>
-            )}
-          </div>
-        )}
 
         {/* Pattern Alerts */}
         <PatternAlertBanner isAuthenticated={isAuthenticated} />

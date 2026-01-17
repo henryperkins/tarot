@@ -30,6 +30,17 @@ export function JournalStatusBanner({
   cardClass
 }) {
   const navigate = useNavigate();
+  const hasLegacyLocalEntries = Boolean(localStoragePresence?.hasLegacy);
+  const hasScopedLocalEntries = Boolean(localStoragePresence?.hasScoped);
+  const hasLocalEntries = hasLegacyLocalEntries || hasScopedLocalEntries;
+  const showCachedNotice = canUseCloudJournal && syncSource === 'cache';
+  const showCloudSyncIssue = Boolean(journalError) && canUseCloudJournal;
+  const showMigrateCta = canUseCloudJournal && hasLocalEntries && !migrating;
+  const shouldRenderCloudBanner = showCachedNotice || showCloudSyncIssue || showMigrateCta || migrating;
+
+  if (isAuthenticated && canUseCloudJournal && !shouldRenderCloudBanner) {
+    return null;
+  }
 
   return (
     <>
@@ -38,22 +49,13 @@ export function JournalStatusBanner({
           <AmberStarfield />
           <div className="relative z-10 space-y-2">
             <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-              <p className="journal-prose text-amber-100/85">
-                ✓ Signed in - {canUseCloudJournal ? 'Your journal is synced across devices' : 'Your journal is stored on this device'}
-              </p>
-              {/* Last sync timestamp for cloud users - show full date and time */}
-              {canUseCloudJournal && lastSyncAt && syncSource === 'api' && (
-                <span className="text-[11px] text-amber-100/50">
-                  Synced {new Date(lastSyncAt).toLocaleString(undefined, {
-                    month: 'short',
-                    day: 'numeric',
-                    hour: '2-digit',
-                    minute: '2-digit'
-                  })}
-                </span>
+              {!canUseCloudJournal && (
+                <p className="journal-prose text-amber-100/85">
+                  ✓ Signed in - Your journal is stored on this device
+                </p>
               )}
               {/* Cache fallback warning with timestamp and refresh CTA */}
-              {canUseCloudJournal && syncSource === 'cache' && (
+              {showCachedNotice && (
                 <span className="inline-flex items-center gap-2 text-[11px] text-amber-200/70">
                   {lastSyncAt
                     ? `Cached from ${new Date(lastSyncAt).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}`
@@ -89,7 +91,7 @@ export function JournalStatusBanner({
             )}
 
             {/* Sync error with retry */}
-            {journalError && canUseCloudJournal && (
+            {showCloudSyncIssue && (
               <div className="flex items-center gap-2 pt-1">
                 <span className="text-xs text-amber-200/70">Sync issue</span>
                 <button
@@ -122,14 +124,19 @@ export function JournalStatusBanner({
             )}
 
             {/* Signed-in, cloud: migrate any local entries (legacy or scoped) into D1. */}
-            {canUseCloudJournal && (localStoragePresence?.hasLegacy || localStoragePresence?.hasScoped) && !migrating && (
-              <button
-                onClick={onMigrate}
-                className={`${OUTLINE_BUTTON_CLASS} mt-1`}
-              >
-                <UploadSimple className="w-4 h-4" />
-                Migrate local entries to cloud
-              </button>
+            {showMigrateCta && (
+              <div className="space-y-2 pt-1">
+                <p className="text-sm text-amber-100/70">
+                  Local journal entries were found on this device. Migrate them to include them in cloud sync.
+                </p>
+                <button
+                  onClick={onMigrate}
+                  className={OUTLINE_BUTTON_CLASS}
+                >
+                  <UploadSimple className="w-4 h-4" />
+                  Migrate local entries to cloud
+                </button>
+              </div>
             )}
             {migrating && (
               <p className="text-sm text-amber-100/70">Migrating...</p>

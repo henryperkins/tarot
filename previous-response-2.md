@@ -1,0 +1,5 @@
+- High – Streaming safety scan is skipped when the quality gate fails, so violent streamed text can fall through to buffered backends without `gateBlocked` metadata. The branch at `functions/api/tarot-reading.js:890-927` sets `streamingFallback = true` for coverage issues before the safety scan runs, which is why `tests/streamingGate.test.mjs:152-182` now fails (`gateBlocked` is false when `EVAL_ENABLED`/`EVAL_GATE_ENABLED` are off).
+- High – Heuristic fallback now tolerates a single hallucinated card: `buildHeuristicScores` caps `tarot_coherence` at 3 and leaves `safety_flag` false when `hallucinations <= maxHallucinations` (defaults to 1 for small spreads). This breaks `tests/evaluation.test.mjs:245` and reduces safety coverage for hallucinated readings (`functions/lib/evaluation.js:1405-1508`).
+- Medium – Prompt version mismatch: `EVAL_PROMPT_VERSION` is set to `2.2.0` (`functions/lib/evaluation.js:11`), but docs/tests expect `2.1.0` (`docs/evaluation-system.md` was updated to 2.1.0). `tests/evaluation.test.mjs:108` fails on the version assertion.
+
+Tests: `npm test` (fails: `tests/evaluation.test.mjs` ×2, `tests/streamingGate.test.mjs` ×1).

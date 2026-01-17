@@ -105,9 +105,21 @@ function SettingsToggle({ id, label, description, enabled, loading, onChange, er
 }
 
 /**
+ * Device-only chip indicator
+ */
+function DeviceOnlyChip() {
+  return (
+    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-secondary/20 text-[10px] text-muted font-medium">
+      <span className="w-1.5 h-1.5 rounded-full bg-secondary/60" aria-hidden="true" />
+      Device only
+    </span>
+  );
+}
+
+/**
  * Account section card
  */
-function SectionCard({ title, icon: Icon, children, id, highlighted = false }) {
+function SectionCard({ title, icon: Icon, children, id, highlighted = false, badge = null }) {
   const headingId = title && id ? `${id}-heading` : undefined;
   return (
     <div
@@ -134,6 +146,7 @@ function SectionCard({ title, icon: Icon, children, id, highlighted = false }) {
           >
             {title}
           </h2>
+          {badge}
         </div>
       )}
       <div className="px-5 py-4">
@@ -202,6 +215,7 @@ export default function AccountPage() {
     loadMoreEntries: loadMoreJournalEntries
   } = useJournal({ autoLoad: false });
   const [showAuthModal, setShowAuthModal] = useState(false);
+  const [authModalMode, setAuthModalMode] = useState('login');
 
   // Analytics preferences state (mirrored from UserMenu)
   const [analyticsEnabled, setAnalyticsEnabled] = useState(null);
@@ -411,6 +425,10 @@ export default function AccountPage() {
     const next = !analyticsEnabled;
     setPrefsLoading(true);
     setPrefsError(null);
+    
+    // Optimistic update for responsive feel
+    setAnalyticsEnabled(next);
+    
     try {
       const response = await fetch('/api/archetype-journey/preferences', {
         method: 'PUT',
@@ -419,16 +437,31 @@ export default function AccountPage() {
         body: JSON.stringify({ archetype_journey_enabled: next })
       });
       if (!response.ok) {
+        // Revert on failure
+        setAnalyticsEnabled(!next);
         throw new Error('Failed to update preference');
       }
       const data = await response.json().catch(() => ({}));
       setAnalyticsEnabled(data?.preferences?.archetype_journey_enabled ?? next);
+      
+      publish({
+        title: next ? 'Journey tracking enabled' : 'Journey tracking disabled',
+        description: next 
+          ? 'Your readings will now track recurring patterns.'
+          : 'Pattern tracking paused. Your existing data is preserved.',
+        type: 'success'
+      });
     } catch {
       setPrefsError('Failed to update');
+      publish({
+        title: 'Update failed',
+        description: 'Could not save your preference. Please try again.',
+        type: 'error'
+      });
     } finally {
       setPrefsLoading(false);
     }
-  }, [analyticsEnabled, prefsLoading]);
+  }, [analyticsEnabled, prefsLoading, publish]);
 
   const handleProfileSave = useCallback(async () => {
     if (profileSaving) return;
@@ -463,14 +496,19 @@ export default function AccountPage() {
         throw new Error(data.error || 'Failed to update profile');
       }
       await checkAuth();
-      setProfileEditing(false);
       setProfileSuccess('Profile updated.');
+      publish({
+        title: 'Profile saved',
+        description: 'Your changes have been saved.',
+        type: 'success'
+      });
+      // Keep panel open briefly to show success, user can close manually
     } catch (error) {
       setProfileError(error.message || 'Failed to update profile');
     } finally {
       setProfileSaving(false);
     }
-  }, [profileSaving, profileForm, user?.username, user?.email, checkAuth]);
+  }, [profileSaving, profileForm, user?.username, user?.email, checkAuth, publish]);
 
   const handlePasswordUpdate = useCallback(async () => {
     if (passwordSaving) return;
@@ -832,6 +870,26 @@ export default function AccountPage() {
   const readingUsage = usageStatus?.readings || null;
   const ttsUsage = usageStatus?.tts || null;
   const apiCallsUsage = usageStatus?.apiCalls || null;
+
+  // Usage threshold helpers for visual feedback
+  const getUsageThreshold = (used, limit) => {
+    if (!limit || limit === Infinity) return 'normal';
+    const ratio = used / limit;
+    if (ratio >= 1) return 'exhausted';
+    if (ratio >= 0.8) return 'warning';
+    return 'normal';
+  };
+  const usageThresholdBarColors = {
+    normal: 'bg-accent',
+    warning: 'bg-amber-400',
+    exhausted: 'bg-error'
+  };
+  const usageThresholdTextColors = {
+    normal: 'text-muted',
+    warning: 'text-amber-400',
+    exhausted: 'text-error'
+  };
+
   const subscriptionProvider = subscriptionDetails?.provider || _subscription?.provider || null;
   const providerLabels = {
     stripe: 'Stripe',
@@ -879,6 +937,7 @@ export default function AccountPage() {
   const subscriptionStatusLine = shouldShowStatusLine ? statusLineParts.join(' · ') : null;
   const needsPaymentUpdate = ['past_due', 'unpaid'].includes(statusValue);
   const needsResubscribe = statusValue === 'canceled';
+  const hasActiveSubscription = ['active', 'trialing'].includes(statusValue);
   const showStatusBanner = needsPaymentUpdate || needsResubscribe;
   const storeLabel = providerLabel || 'your app store';
   const storeManageLabel = providerLabel ? `Manage in ${providerLabel}` : 'Manage subscription';
@@ -897,6 +956,11 @@ export default function AccountPage() {
     ? (isStoreProvider ? storeManageLabel : 'Update payment')
     : needsResubscribe
       ? (isStoreProvider ? storeManageLabel : 'Resubscribe')
+      : null;
+  const statusBannerNextStep = needsPaymentUpdate
+    ? 'Next: Update your card or payment method'
+    : needsResubscribe
+      ? `Next: Choose a plan to continue with ${tierConfig.monthlyReadings === Infinity ? 'unlimited' : tierConfig.monthlyReadings} readings/month`
       : null;
   const showPortalErrorInBanner = Boolean(showStatusBanner && portalError);
   const manageLabel = subscriptionProvider && subscriptionProvider !== 'stripe'
@@ -967,7 +1031,7 @@ export default function AccountPage() {
               className="text-sm text-accent font-semibold"
               aria-current="page"
             >
-              Settings
+              Account & Settings
             </Link>
           </nav>
         </div>
@@ -977,7 +1041,7 @@ export default function AccountPage() {
         {/* Page Title */}
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div>
-            <h1 className="font-serif text-3xl text-main">{isAuthenticated ? 'Account' : 'Settings'}</h1>
+            <h1 className="font-serif text-3xl text-main">{isAuthenticated ? 'Account & Settings' : 'Settings'}</h1>
             <p className="text-sm text-muted mt-1">
               {isAuthenticated ? 'Manage your profile, subscription, and preferences' : 'Customize your reading experience'}
             </p>
@@ -990,23 +1054,72 @@ export default function AccountPage() {
           </Link>
         </div>
 
+        {/* Section Navigation Chips */}
+        <nav
+          className="sticky top-0 z-30 -mx-4 px-4 py-2 bg-main/95 backdrop-blur-sm border-b border-secondary/20 overflow-x-auto"
+          aria-label="Jump to section"
+          style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+        >
+          <div className="flex items-center gap-2 min-w-max">
+            {[
+              { id: 'profile', label: 'Profile', authOnly: false },
+              { id: 'subscription', label: 'Subscription', authOnly: true },
+              { id: 'audio', label: 'Audio', authOnly: false },
+              { id: 'display', label: 'Display', authOnly: false },
+              { id: 'reading', label: 'Reading', authOnly: false },
+              { id: 'privacy', label: 'Privacy', authOnly: true },
+              { id: 'actions', label: 'Actions', authOnly: true },
+            ]
+              .filter(section => !section.authOnly || isAuthenticated)
+              .map(section => (
+                <a
+                  key={section.id}
+                  href={`#${section.id}`}
+                  className={`
+                    px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap
+                    border transition-colors touch-manipulation
+                    ${highlightedSection === section.id
+                      ? 'bg-accent/20 border-accent/40 text-accent'
+                      : 'bg-surface/60 border-secondary/30 text-muted hover:text-main hover:border-secondary/50'
+                    }
+                  `}
+                >
+                  {section.label}
+                </a>
+              ))}
+          </div>
+        </nav>
+
         {isGuest && (
-          <div className="rounded-2xl border border-accent/20 bg-surface-muted/60 px-5 py-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <p className="text-sm font-semibold text-main">
-                Sign in to sync your journal, subscription, and analytics.
-              </p>
-              <p className="text-xs text-muted mt-1">
-                Your theme and audio preferences stay on this device until you sign in.
-              </p>
+          <div className="rounded-2xl border border-accent/20 bg-surface-muted/60 px-5 py-4">
+            <p className="text-sm font-semibold text-main">
+              Sign in to sync your journal, subscription, and analytics.
+            </p>
+            <p className="text-xs text-muted mt-1">
+              Your theme and audio preferences stay on this device until you sign in.
+            </p>
+            <div className="flex flex-col sm:flex-row gap-2 mt-3">
+              <button
+                type="button"
+                onClick={() => {
+                  setAuthModalMode('register');
+                  setShowAuthModal(true);
+                }}
+                className="flex-1 inline-flex items-center justify-center rounded-full bg-accent px-4 py-2.5 text-xs font-semibold text-main hover:bg-accent/90 transition"
+              >
+                Create free account
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setAuthModalMode('login');
+                  setShowAuthModal(true);
+                }}
+                className="flex-1 inline-flex items-center justify-center rounded-full border border-accent/40 px-4 py-2.5 text-xs font-semibold text-main hover:bg-accent/10 transition"
+              >
+                Sign in
+              </button>
             </div>
-            <button
-              type="button"
-              onClick={() => setShowAuthModal(true)}
-              className="inline-flex items-center justify-center rounded-full border border-accent bg-accent px-4 py-2.5 text-xs font-semibold text-main hover:bg-accent/90 transition"
-            >
-              Sign in
-            </button>
           </div>
         )}
 
@@ -1134,6 +1247,7 @@ export default function AccountPage() {
                     setProfileEditing(false);
                     setProfileForm({ username: user?.username || '', email: user?.email || '' });
                     setProfileError(null);
+                    setProfileSuccess(null);
                   }}
                   className="
                     flex-1 inline-flex items-center justify-center rounded-full
@@ -1141,7 +1255,7 @@ export default function AccountPage() {
                     hover:bg-secondary/10 transition
                   "
                 >
-                  Cancel
+                  {profileSuccess ? 'Done' : 'Cancel'}
                 </button>
               </div>
             </div>
@@ -1340,6 +1454,9 @@ export default function AccountPage() {
                 <div>
                   <p className="text-sm font-semibold text-main">Subscription needs attention</p>
                   <p className="text-xs text-muted mt-1">{statusBannerMessage}</p>
+                  {statusBannerNextStep && (
+                    <p className="text-xs text-amber-200/80 mt-1 font-medium">{statusBannerNextStep}</p>
+                  )}
                 </div>
                 {needsResubscribe && !isStoreProvider ? (
                   <Link
@@ -1441,19 +1558,20 @@ export default function AccountPage() {
               </div>
             ) : usageStatus?.trackingAvailable !== false && readingUsage?.source ? (
               <div className="space-y-2">
+                {/* AI Readings Usage */}
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-secondary">AI readings</span>
-                  <span className="text-muted">
+                  <span className={`font-medium ${usageThresholdTextColors[getUsageThreshold(readingUsage.used, readingUsage.limit)]}`}>
                     {readingUsage.unlimited
-                      ? `${readingUsage.used} used · Unlimited`
-                      : `${readingUsage.used}/${readingUsage.limit}`}
+                      ? `${readingUsage.used} used`
+                      : `${readingUsage.used}/${readingUsage.limit} · ${readingUsage.remaining} remaining`}
                   </span>
                 </div>
 
                 {!readingUsage.unlimited && typeof readingUsage.limit === 'number' && readingUsage.limit > 0 && (
                   <div className="h-2 rounded-full bg-secondary/20 overflow-hidden">
                     <div
-                      className="h-full bg-accent"
+                      className={`h-full transition-all ${usageThresholdBarColors[getUsageThreshold(readingUsage.used, readingUsage.limit)]}`}
                       style={{
                         width: `${Math.min(100, Math.round((readingUsage.used / readingUsage.limit) * 100))}%`
                       }}
@@ -1461,21 +1579,33 @@ export default function AccountPage() {
                   </div>
                 )}
 
+                {/* Upgrade CTA when near limit */}
+                {!readingUsage.unlimited && getUsageThreshold(readingUsage.used, readingUsage.limit) !== 'normal' && (
+                  <Link
+                    to="/pricing"
+                    className="inline-flex items-center gap-1 text-xs text-accent hover:text-accent/80 transition"
+                  >
+                    <Crown className="h-3 w-3" weight="fill" />
+                    Upgrade for more readings
+                  </Link>
+                )}
+
+                {/* Voice Narrations Usage */}
                 {ttsUsage && (
                   <>
                     <div className="flex items-center justify-between text-sm pt-2">
                       <span className="text-secondary">Voice narrations</span>
-                      <span className="text-muted">
+                      <span className={`font-medium ${usageThresholdTextColors[getUsageThreshold(ttsUsage.used, ttsUsage.limit)]}`}>
                         {ttsUsage.unlimited
-                          ? `${ttsUsage.used} used · Unlimited`
-                          : `${ttsUsage.used}/${ttsUsage.limit}`}
+                          ? `${ttsUsage.used} used`
+                          : `${ttsUsage.used}/${ttsUsage.limit} · ${ttsUsage.remaining} remaining`}
                       </span>
                     </div>
 
                     {!ttsUsage.unlimited && typeof ttsUsage.limit === 'number' && ttsUsage.limit > 0 && (
                       <div className="h-2 rounded-full bg-secondary/20 overflow-hidden">
                         <div
-                          className="h-full bg-accent"
+                          className={`h-full transition-all ${usageThresholdBarColors[getUsageThreshold(ttsUsage.used, ttsUsage.limit)]}`}
                           style={{
                             width: `${Math.min(100, Math.round((ttsUsage.used / ttsUsage.limit) * 100))}%`
                           }}
@@ -1485,13 +1615,14 @@ export default function AccountPage() {
                   </>
                 )}
 
+                {/* API Calls Usage */}
                 {apiCallsUsage?.enabled && (
                   <>
                     <div className="flex items-center justify-between text-sm pt-2">
                       <span className="text-secondary">API calls</span>
-                      <span className="text-muted">
+                      <span className={`font-medium ${usageThresholdTextColors[getUsageThreshold(apiCallsUsage.used, apiCallsUsage.limit)]}`}>
                         {typeof apiCallsUsage.limit === 'number'
-                          ? `${apiCallsUsage.used}/${apiCallsUsage.limit}`
+                          ? `${apiCallsUsage.used}/${apiCallsUsage.limit} · ${apiCallsUsage.remaining} remaining`
                           : apiCallsUsage.used}
                       </span>
                     </div>
@@ -1499,7 +1630,7 @@ export default function AccountPage() {
                     {typeof apiCallsUsage.limit === 'number' && apiCallsUsage.limit > 0 && (
                       <div className="h-2 rounded-full bg-secondary/20 overflow-hidden">
                         <div
-                          className="h-full bg-accent"
+                          className={`h-full transition-all ${usageThresholdBarColors[getUsageThreshold(apiCallsUsage.used, apiCallsUsage.limit)]}`}
                           style={{
                             width: `${Math.min(100, Math.round((apiCallsUsage.used / apiCallsUsage.limit) * 100))}%`
                           }}
@@ -1517,9 +1648,23 @@ export default function AccountPage() {
                 )}
               </div>
             ) : (
-              <p className="text-sm text-muted">
-                Tracking temporarily unavailable; limits still enforced.
-              </p>
+              <div className="space-y-2">
+                <p className="text-sm text-muted">
+                  Usage tracking temporarily unavailable.
+                </p>
+                <p className="text-xs text-muted">
+                  Your limits are still enforced. Usage updates within a few minutes.
+                </p>
+                <button
+                  type="button"
+                  onClick={fetchUsage}
+                  disabled={usageLoading}
+                  className="inline-flex items-center gap-1.5 text-xs text-accent hover:text-accent/80 transition disabled:opacity-60"
+                >
+                  <ArrowClockwise className="h-3.5 w-3.5" />
+                  Try again
+                </button>
+              </div>
             )}
           </div>
 
@@ -1624,7 +1769,7 @@ export default function AccountPage() {
         )}
 
         {/* Audio Settings Section - Available to all users */}
-        <SectionCard title="Audio" icon={SpeakerHigh} id="audio" highlighted={highlightedSection === 'audio'}>
+        <SectionCard title="Audio" icon={SpeakerHigh} id="audio" highlighted={highlightedSection === 'audio'} badge={<DeviceOnlyChip />}>
           <div className="divide-y divide-secondary/20">
             <SettingsToggle
               id="voice-toggle"
@@ -1689,7 +1834,7 @@ export default function AccountPage() {
         </SectionCard>
 
         {/* Display Section */}
-        <SectionCard title="Display" icon={Palette} id="display" highlighted={highlightedSection === 'display'}>
+        <SectionCard title="Display" icon={Palette} id="display" highlighted={highlightedSection === 'display'} badge={<DeviceOnlyChip />}>
           <div className="py-4">
             <div className="flex flex-wrap items-center justify-between gap-4">
               <div>
@@ -1993,7 +2138,11 @@ export default function AccountPage() {
           onClose={() => setDeleteModalOpen(false)}
           onConfirm={handleDeleteAccount}
           title="Delete account?"
-          message="This permanently deletes your synced journal, analytics, and memories. You will lose access immediately."
+          message={
+            hasActiveSubscription
+              ? `⚠️ Deleting your account does not cancel your subscription billing. Please manage your subscription ${isStoreProvider ? `in ${providerLabel}` : 'first'} to avoid future charges.\n\nThis permanently deletes your synced journal, analytics, and memories.`
+              : "This permanently deletes your synced journal, analytics, and memories. You will lose access immediately."
+          }
           confirmText={deleteLoading ? 'Deleting...' : 'Delete account'}
           cancelText="Keep account"
           variant="danger"
@@ -2023,7 +2172,7 @@ export default function AccountPage() {
           cancelText="Cancel"
         />
 
-        <AuthModal isOpen={showAuthModal} onClose={() => setShowAuthModal(false)} />
+        <AuthModal isOpen={showAuthModal} onClose={() => setShowAuthModal(false)} initialMode={authModalMode} />
 
         {/* Back to Reading */}
         <div className="text-center pt-4">

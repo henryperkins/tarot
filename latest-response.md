@@ -1,0 +1,3 @@
+**Docs**
+- **Automated Prompt Eval** `docs/automated-prompt-eval.md`: archived plan; notes Workers AI rubric scoring, heuristic fallbacks for safety/structure when the model is unavailable, D1 `eval_metrics` storage + daily aggregation; points to `docs/evaluation-system.md` for current behavior.
+- **Evaluation System** `docs/evaluation-system.md`: full evaluation pipeline, scoring dimensions and `safety_flag` triggers (including hallucinated cards) with gating guidance; runtime/scheduled/offline data flows and export/calibration scripts; config (`EVAL_ENABLED`, `EVAL_GATE_ENABLED`, `EVAL_MODEL`, `EVAL_TIMEOUT_MS`, `STREAMING_QUALITY_GATE_ENABLED`) and bindings; calibration workflow, troubleshooting, and API reference.

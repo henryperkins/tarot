@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { CaretLeft, Warning, X } from '@phosphor-icons/react';
+import { CaretLeft, Warning } from '@phosphor-icons/react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { GlobalNav } from './GlobalNav';
 import { UserMenu } from './UserMenu';
@@ -39,7 +39,7 @@ import {
   AMBER_CARD_MOBILE_CLASS
 } from '../lib/journal/constants';
 import { getMonthHeader } from '../lib/journal/utils';
-import { JournalCardsAddIcon, JournalSearchIcon, JournalSlidersIcon } from './JournalIcons';
+import { JournalCardsAddIcon, JournalRefreshIcon, JournalSearchIcon, JournalSlidersIcon } from './JournalIcons';
 
 
 
@@ -150,8 +150,6 @@ export default function Journal() {
   const showSummaryBand = !loading && hasEntries;
   const summaryDataSource = syncSource === 'api' || syncSource === 'cache' ? 'server' : 'client';
   const totalEntryCount = hasTotalEntries ? totalEntries : entries.length;
-  const showSearchOlderBanner = filtersActive && hasMoreServerEntries && filteredEntries.length > 0;
-  const showSearchOlderEmpty = filtersActive && hasMoreServerEntries && filteredEntries.length === 0;
   const searchCoverageLabel = filtersActive
     ? (hasTotalEntries
         ? `Searching latest ${entries.length} of ${totalEntryCount} entries`
@@ -589,7 +587,6 @@ export default function Journal() {
             filtersApplied={filtersActive}
             scopeEntries={scopedStatsEntries}
             analyticsScope={analyticsScope}
-            onScopeSelect={handleScopeSelect}
             isAuthenticated={isAuthenticated}
             userId={user?.id}
             focusAreas={personalization?.focusAreas}
@@ -598,7 +595,7 @@ export default function Journal() {
             variant="sidebar"
             onCreateShareLink={isAuthenticated ? createShareLink : null}
             onStartReading={handleStartReading}
-            showStartReadingCta={true}
+            showStartReadingCta={false}
             seasonWindow={scopeWindow}
             scopeLabel={scopeLabel}
           />
@@ -696,7 +693,6 @@ export default function Journal() {
             filtersApplied={filtersActive}
             scopeEntries={scopedStatsEntries}
             analyticsScope={analyticsScope}
-            onScopeSelect={handleScopeSelect}
             isAuthenticated={isAuthenticated}
             userId={user?.id}
             focusAreas={personalization?.focusAreas}
@@ -723,51 +719,48 @@ export default function Journal() {
           <GlobalNav />
 
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-6">
-            <button
-              onClick={() => {
-                if (fromReading) {
+            {fromReading && (
+              <button
+                onClick={() => {
                   if (typeof window !== 'undefined' && window.history.length > 2) {
                     navigate(-1);
                     return;
                   }
-                }
-                navigate('/');
-              }}
-              className="inline-flex min-h-[44px] items-center gap-2 rounded-full px-3 py-2 text-accent hover:text-main hover:bg-surface-muted/30 transition touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/50 self-start"
-            >
-              <CaretLeft className="w-5 h-5" />
-              <span>{fromReading ? 'Back to Reading' : 'Back to Home'}</span>
-            </button>
+                  navigate('/');
+                }}
+                className="inline-flex min-h-[44px] items-center gap-2 rounded-full px-3 py-2 text-accent hover:text-main hover:bg-surface-muted/30 transition touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/50 self-start"
+              >
+                <CaretLeft className="w-5 h-5" />
+                <span>Back to Reading</span>
+              </button>
+            )}
 
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-4 sm:ml-auto">
               <UserMenu />
             </div>
           </div>
 
           <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between mb-4">
             <h1 className="text-3xl font-serif text-accent">Your Tarot Journal</h1>
-            <button
-              type="button"
-              onClick={() => navigate('/journal/gallery')}
-              className="inline-flex min-h-[44px] items-center gap-2 rounded-full border border-amber-200/25 bg-amber-200/5 px-4 py-2.5 text-sm font-semibold text-amber-50 shadow-[0_12px_30px_-18px_rgba(251,191,36,0.35)] transition hover:-translate-y-0.5 hover:border-amber-200/40 hover:bg-amber-200/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/40"
-            >
-              <JournalCardsAddIcon className="h-4 w-4 text-amber-200" aria-hidden="true" />
-              Card Gallery
-            </button>
-          </div>
-
-          {hasEntries && (
-            <div className="mb-4">
+            <div className="flex flex-wrap items-center gap-2">
               <button
                 type="button"
-                onClick={scrollToHistoryFilters}
-                className="inline-flex min-h-[44px] items-center gap-2 rounded-full border border-amber-200/25 bg-amber-200/5 px-5 py-2.5 text-sm font-semibold text-amber-50 shadow-[0_12px_30px_-18px_rgba(251,191,36,0.35)] transition hover:-translate-y-0.5 hover:border-amber-200/40 hover:bg-amber-200/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/40"
+                onClick={() => setShowSavedIntentionsModal(true)}
+                className="inline-flex min-h-[44px] items-center gap-2 rounded-full border border-amber-200/25 bg-amber-200/5 px-4 py-2.5 text-sm font-semibold text-amber-50 shadow-[0_12px_30px_-18px_rgba(251,191,36,0.35)] transition hover:-translate-y-0.5 hover:border-amber-200/40 hover:bg-amber-200/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/40"
               >
-                <JournalSearchIcon className="h-4 w-4 text-amber-200" aria-hidden="true" />
-                Find a reading
+                <JournalRefreshIcon className="h-4 w-4 text-amber-200" aria-hidden="true" />
+                Saved Intentions
+              </button>
+              <button
+                type="button"
+                onClick={() => navigate('/journal/gallery')}
+                className="inline-flex min-h-[44px] items-center gap-2 rounded-full border border-amber-200/25 bg-amber-200/5 px-4 py-2.5 text-sm font-semibold text-amber-50 shadow-[0_12px_30px_-18px_rgba(251,191,36,0.35)] transition hover:-translate-y-0.5 hover:border-amber-200/40 hover:bg-amber-200/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/40"
+              >
+                <JournalCardsAddIcon className="h-4 w-4 text-amber-200" aria-hidden="true" />
+                Card Gallery
               </button>
             </div>
-          )}
+          </div>
 
           {showStickySummary && (
             <div className="sticky top-4 z-20 mb-6">
@@ -797,46 +790,8 @@ export default function Journal() {
                       <JournalSlidersIcon className="h-4 w-4" aria-hidden="true" />
                       Edit filters
                     </button>
-                    {filtersActive && (
-                      <button
-                        type="button"
-                        onClick={handleResetFilters}
-                        className="inline-flex min-h-[44px] items-center gap-2 rounded-full border border-amber-200/20 bg-amber-200/10 px-3 py-2 text-xs font-semibold text-amber-100/90 hover:border-amber-200/40 hover:bg-amber-200/20 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/40"
-                      >
-                        Reset
-                      </button>
-                    )}
                   </div>
                 </div>
-                {showInlineSearchOlder && (
-                  <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px] text-amber-100/70">
-                    <button
-                      type="button"
-                      onClick={handleLoadMoreEntries}
-                      disabled={loadingMore}
-                      className={`inline-flex min-h-[32px] items-center gap-1 rounded-full border border-amber-200/20 bg-amber-200/10 px-2.5 py-1 text-[11px] font-semibold text-amber-100/90 hover:border-amber-200/40 hover:bg-amber-200/20 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/40 ${loadingMore ? 'cursor-wait opacity-60' : ''}`}
-                    >
-                      <JournalSearchIcon className="h-3 w-3" aria-hidden="true" />
-                      {loadingMore ? 'Searching...' : inlineSearchOlderLabel}
-                    </button>
-                  </div>
-                )}
-                {filtersActive && activeFilterChips.length > 0 && (
-                  <div className="mt-2 flex flex-wrap items-center gap-2">
-                    {activeFilterChips.map((chip) => (
-                      <button
-                        key={`mini-${chip.key}`}
-                        type="button"
-                        onClick={() => handleRemoveFilter(chip.key)}
-                        className="inline-flex items-center gap-1 rounded-full border border-amber-200/20 bg-amber-200/10 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-amber-100/80 hover:border-amber-200/40 hover:bg-amber-200/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/40"
-                        aria-label={`Remove ${chip.label} filter`}
-                      >
-                        {chip.label}
-                        <X className="h-3 w-3 text-amber-200/70" aria-hidden="true" />
-                      </button>
-                    ))}
-                  </div>
-                )}
               </div>
             </div>
           )}
@@ -912,31 +867,6 @@ export default function Journal() {
           ) : (
             <div className={hasEntries && hasRailContent ? 'lg:grid lg:grid-cols-[minmax(0,1fr)_320px] lg:gap-6 xl:grid-cols-[minmax(0,1fr)_360px] xl:gap-8' : ''}>
               <div className="space-y-8">
-                <section id="today" className={`${shellClass} p-5`}>
-                  <AmberStarfield />
-                  <div className="relative z-10">
-                    <div className="mb-4">
-                      <p className="journal-eyebrow text-amber-100/70">Today</p>
-                      <h2 className="text-xl font-serif text-amber-50">Keep today&rsquo;s focus handy</h2>
-                    </div>
-                    <div className="rounded-2xl border border-amber-300/15 bg-amber-200/5 p-4 sm:p-5">
-                      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                        <div className="min-w-0">
-                          <p className="text-sm font-semibold text-amber-50">Saved intentions</p>
-                          <p className="text-xs text-amber-100/70">From Guided Intention Coach</p>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => setShowSavedIntentionsModal(true)}
-                          className={`${OUTLINE_BUTTON_CLASS} w-full justify-center sm:w-auto`}
-                        >
-                          Open
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                </section>
-
                 {hasEntries ? (
                   <section id="history" className={`${shellClass} p-5 space-y-5`}>
                     <AmberStarfield />
@@ -944,20 +874,12 @@ export default function Journal() {
                       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                         <div className="flex items-center gap-2">
                           <h2 className="text-xl font-serif text-amber-50">Journal history</h2>
-                          <span className="inline-flex items-center rounded-full border border-amber-200/20 bg-amber-200/10 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-amber-100/75">
-                            History
-                          </span>
                         </div>
                         <div className="flex flex-col items-start gap-1 sm:items-end">
                           <span className="inline-flex items-center gap-2 rounded-full border border-amber-200/20 bg-amber-200/10 px-3 py-1 text-[11px] text-amber-100/70">
                             Showing {visibleEntries.length} of {filteredEntries.length}
                             {hasMoreEntries ? '+' : ''}
                           </span>
-                          {searchCoverageLabel && (
-                            <span className="text-[11px] text-amber-100/60">
-                              {searchCoverageLabel}
-                            </span>
-                          )}
                           {monthSections.length > 1 && (
                             <div className="flex items-center gap-2">
                               <label htmlFor="jump-to-month" className="text-[10px] uppercase tracking-[0.22em] text-amber-100/60">
@@ -1032,30 +954,6 @@ export default function Journal() {
                         ref={registerHistoryFiltersEl}
                         className="scroll-mt-24"
                       >
-                        {filtersActive && (
-                          <div className="mb-3 flex flex-wrap items-center gap-2 rounded-xl border border-amber-300/12 bg-amber-200/5 px-3 py-2 text-[12px] text-amber-100/80">
-                            {activeFilterChips.map((chip) => (
-                              <button
-                                key={chip.key}
-                                type="button"
-                                onClick={() => handleRemoveFilter(chip.key)}
-                                className="inline-flex items-center gap-1 rounded-full border border-amber-200/20 bg-amber-200/10 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-amber-100/80 hover:border-amber-200/40 hover:bg-amber-200/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/40"
-                                aria-label={`Remove ${chip.label} filter`}
-                              >
-                                {chip.label}
-                                <X className="h-3 w-3 text-amber-200/70" aria-hidden="true" />
-                              </button>
-                            ))}
-                            <button
-                              type="button"
-                              onClick={handleResetFilters}
-                              className="inline-flex items-center gap-1 rounded-full border border-amber-200/25 bg-amber-200/10 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-amber-50 hover:border-amber-200/40 hover:bg-amber-200/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/40"
-                            >
-                              Reset
-                            </button>
-                          </div>
-                        )}
-
                         <JournalFilters
                           filters={filters}
                           onChange={setFilters}
@@ -1076,23 +974,6 @@ export default function Journal() {
                         />
                       </div>
 
-                      {showSearchOlderBanner && (
-                        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-300/15 bg-amber-200/5 px-3 py-2 text-[12px] text-amber-100/75">
-                          <span>
-                            {searchCoverageLabel || 'Search covers the latest entries loaded in this view.'}
-                          </span>
-                          <button
-                            type="button"
-                            onClick={handleLoadMoreEntries}
-                            disabled={loadingMore}
-                            className={`${OUTLINE_BUTTON_CLASS} min-h-[44px] px-4 py-2 ${loadingMore ? 'cursor-wait opacity-60' : ''}`}
-                          >
-                            <JournalSearchIcon className="h-4 w-4" aria-hidden="true" />
-                            {loadingMore ? 'Searching...' : 'Search older entries'}
-                          </button>
-                        </div>
-                      )}
-
                       {filteredEntries.length === 0 ? (
                         <div className="relative overflow-hidden rounded-2xl border border-amber-300/15 bg-amber-200/5 p-8 text-center text-sm text-amber-100/75 shadow-[0_16px_40px_-30px_rgba(0,0,0,0.8)]">
                           <NoFiltersIllustration className="mb-4" />
@@ -1106,17 +987,6 @@ export default function Journal() {
                               ? 'Search older entries or adjust your filters.'
                               : 'Try adjusting the filters or reset to see the full journal.'}
                           </p>
-                          {showSearchOlderEmpty && (
-                            <button
-                              type="button"
-                              onClick={handleLoadMoreEntries}
-                              disabled={loadingMore}
-                              className={`${OUTLINE_BUTTON_CLASS} mt-4 min-h-[44px] px-4 py-2 ${loadingMore ? 'cursor-wait opacity-60' : ''}`}
-                            >
-                              <JournalSearchIcon className="h-4 w-4" aria-hidden="true" />
-                              {loadingMore ? 'Searching...' : 'Search older entries'}
-                            </button>
-                          )}
                         </div>
                       ) : (
                         <>

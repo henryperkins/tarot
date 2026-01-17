@@ -171,7 +171,7 @@ export function CardModal({
 
     return (
         <div
-            className="fixed inset-0 z-[100] flex items-center justify-center p-2 sm:p-4"
+            className="fixed inset-0 z-[100] flex items-center justify-center p-2 sm:p-4 px-safe-left px-safe-right py-safe-top pb-safe-bottom"
             role="dialog"
             aria-modal="true"
             aria-labelledby={titleId}

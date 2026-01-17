@@ -505,9 +505,11 @@ export function Card({
                 </button>
 
                 {/* Card image area - clickable for modal (keyboard users use the zoom button above) */}
-                <div
+                <button
+                  type="button"
                   onClick={() => onCardClick?.(card, position, index)}
-                  className="cursor-pointer hover:bg-surface-muted/40 transition-colors rounded-lg"
+                  className="relative bg-transparent border-0 p-0 cursor-pointer w-full hover:bg-surface-muted/40 transition-colors rounded-lg"
+                  aria-label={`View details for ${card.name}`}
                 >
                   {/* Rider-Waite Card Image with Interactive Overlay */}
                   <motion.div
@@ -611,7 +613,7 @@ export function Card({
                             onRequestOpenReflection(null);
                           }
                         }}
-                        className="w-full flex items-center justify-between mb-1.5 text-muted hover:text-main transition-colors"
+                        className="w-full flex items-center justify-between mb-1.5 min-h-[44px] touch-manipulation text-muted hover:text-main transition-colors"
                         aria-expanded="true"
                         aria-controls={`reflection-${index}`}
                       >

@@ -531,7 +531,7 @@ body {
   right: 0;
   bottom: 0;
   z-index: var(--z-modal-backdrop, 60);
-  padding: 0.75rem 1rem 1rem;
+  padding: 0.75rem 1rem calc(1rem + env(safe-area-inset-bottom, 0px));
   background: var(--bg-surface);
   backdrop-filter: blur(18px);
   border-top: 1px solid var(--accent-65, rgba(212, 184, 150, 0.65));

@@ -1,9 +1,9 @@
 {
-  "updatedAt": "2026-01-17T09:14:21.501Z",
+  "updatedAt": "2026-01-17T15:16:28.133Z",
   "metricsByDeck": {
     "rws-1909": {
       "deckStyle": "rws-1909",
-      "generatedAt": "2026-01-17T09:14:21.249Z",
+      "generatedAt": "2026-01-17T15:16:27.879Z",
       "sourceFile": "data/evaluations/vision-confidence.rws.json",
       "sampleSize": 78,
       "accuracy": 1,
@@ -36,7 +36,938 @@
           "count": 1
         }
       ],
-      "symbolBreakdown": [],
+      "symbolBreakdown": [
+        {
+          "object": "white rose",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "bundle",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "feather",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "lunar crown",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "scroll",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "veil",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "pomegranates",
+          "coverage": 1,
+          "total": 2
+        },
+        {
+          "object": "crescent moon",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "wheat fields",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "waterfall",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "Venus symbol",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "stars",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "crossed keys",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "two acolytes",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "triple cross",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "sphinxes",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "starry canopy",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "city",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "lion",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "flowers",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "six-pointed star",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "mountain peak",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "cloak",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "wheel",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "Hebrew letters",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "alchemical symbols",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "four fixed signs",
+          "coverage": 1,
+          "total": 2
+        },
+        {
+          "object": "tree",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "halo",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "tau cross",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "skeleton",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "white horse",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "banner",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "fallen figures",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "cups",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "one foot in water",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "one foot on land",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "mountain path",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "rising sun",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "horned figure",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "inverted pentagram",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "chained figures",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "tails",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "lightning",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "tower",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "falling figures",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "flaming debris",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "gray sky",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "pool",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "land",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "full moon with face",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "two towers",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "dog and wolf",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "crayfish",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "winding path",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "radiant sun with face",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "naked child",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "sunflowers",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "red banner",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "wall",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "trumpet",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "rising figures",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "water",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "dancer",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "wreath",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "wands",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "red ribbon",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "three engraved cups",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "figure observing horizon or architecture",
+          "coverage": 1,
+          "total": 4
+        },
+        {
+          "object": "four engraved cups",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "seated or standing figure",
+          "coverage": 1,
+          "total": 4
+        },
+        {
+          "object": "six engraved cups",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "seven engraved cups",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "standing figure evaluating",
+          "coverage": 1,
+          "total": 4
+        },
+        {
+          "object": "nine engraved cups",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "solitary figure",
+          "coverage": 1,
+          "total": 4
+        },
+        {
+          "object": "ten engraved cups",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "family/figures interacting",
+          "coverage": 1,
+          "total": 4
+        },
+        {
+          "object": "page holding ornate chalice overflowing with water",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "knight on steed with ornate chalice overflowing with water",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "steed posture (rearing, pacing, still)",
+          "coverage": 1,
+          "total": 4
+        },
+        {
+          "object": "queen enthroned with ornate chalice overflowing with water",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "divine hand emerging from cloud with engraved golden pentacle",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "two garden pentacles",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "three garden pentacles",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "four garden pentacles",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "five garden pentacles",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "seven garden pentacles",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "nine garden pentacles",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "ten garden pentacles",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "knight on steed with engraved golden pentacle",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "queen enthroned with engraved golden pentacle",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "king with engraved golden pentacle",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "divine hand emerging from cloud with steel sword with gleaming edge",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "wind-swept plains with storm clouds and distant mountains",
+          "coverage": 1,
+          "total": 14
+        },
+        {
+          "object": "fluttering birds or banners",
+          "coverage": 1,
+          "total": 14
+        },
+        {
+          "object": "two razor-sharp swords",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "three razor-sharp swords",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "four razor-sharp swords",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "five razor-sharp swords",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "six razor-sharp swords",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "seven razor-sharp swords",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "eight razor-sharp swords",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "nine razor-sharp swords",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "ten razor-sharp swords",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "page holding steel sword with gleaming edge",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "knight on steed with steel sword with gleaming edge",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "queen enthroned with steel sword with gleaming edge",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "king with steel sword with gleaming edge",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "divine hand emerging from cloud with budding wooden wand",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "desert horizon with pyramids and cloudless sky",
+          "coverage": 1,
+          "total": 14
+        },
+        {
+          "object": "sprouting leaves on wands",
+          "coverage": 1,
+          "total": 14
+        },
+        {
+          "object": "pyramids and bare mountains",
+          "coverage": 1,
+          "total": 14
+        },
+        {
+          "object": "two flame-etched wands",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "three flame-etched wands",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "four flame-etched wands",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "five flame-etched wands",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "six flame-etched wands",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "seven flame-etched wands",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "eight flame-etched wands",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "nine flame-etched wands",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "ten flame-etched wands",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "page holding budding wooden wand",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "knight on steed with budding wooden wand",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "queen enthroned with budding wooden wand",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "king with budding wooden wand",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "storm clouds",
+          "coverage": 0.8571428571428571,
+          "total": 14
+        },
+        {
+          "object": "verdant fields, vineyards, and stone gateways",
+          "coverage": 0.7857142857142857,
+          "total": 14
+        },
+        {
+          "object": "cultivated fields",
+          "coverage": 0.7857142857142857,
+          "total": 14
+        },
+        {
+          "object": "stone archways",
+          "coverage": 0.7857142857142857,
+          "total": 14
+        },
+        {
+          "object": "crown or laurels hovering",
+          "coverage": 0.75,
+          "total": 4
+        },
+        {
+          "object": "crossed arms or stance",
+          "coverage": 0.75,
+          "total": 4
+        },
+        {
+          "object": "figures in turmoil or adversity",
+          "coverage": 0.75,
+          "total": 4
+        },
+        {
+          "object": "giver and receiver figures",
+          "coverage": 0.75,
+          "total": 4
+        },
+        {
+          "object": "fresh terrain",
+          "coverage": 0.75,
+          "total": 4
+        },
+        {
+          "object": "fauna, familiars, or motifs",
+          "coverage": 0.75,
+          "total": 4
+        },
+        {
+          "object": "architectural motifs (pillars, city walls)",
+          "coverage": 0.75,
+          "total": 4
+        },
+        {
+          "object": "pillars",
+          "coverage": 0.6666666666666666,
+          "total": 3
+        },
+        {
+          "object": "mountains",
+          "coverage": 0.6666666666666666,
+          "total": 3
+        },
+        {
+          "object": "angel",
+          "coverage": 0.6666666666666666,
+          "total": 3
+        },
+        {
+          "object": "lush riverbanks with lotus and reflective pools",
+          "coverage": 0.6428571428571429,
+          "total": 14
+        },
+        {
+          "object": "flowing streams",
+          "coverage": 0.6428571428571429,
+          "total": 14
+        },
+        {
+          "object": "lotus blossoms",
+          "coverage": 0.6428571428571429,
+          "total": 14
+        },
+        {
+          "object": "sun",
+          "coverage": 0.5,
+          "total": 2
+        },
+        {
+          "object": "infinity symbol",
+          "coverage": 0.5,
+          "total": 2
+        },
+        {
+          "object": "wand",
+          "coverage": 0.5,
+          "total": 2
+        },
+        {
+          "object": "sword",
+          "coverage": 0.5,
+          "total": 2
+        },
+        {
+          "object": "scepter",
+          "coverage": 0.5,
+          "total": 2
+        },
+        {
+          "object": "armor",
+          "coverage": 0.5,
+          "total": 2
+        },
+        {
+          "object": "figure in action or exiting scene",
+          "coverage": 0.5,
+          "total": 4
+        },
+        {
+          "object": "dog",
+          "coverage": 0,
+          "total": 1
+        },
+        {
+          "object": "cliff",
+          "coverage": 0,
+          "total": 1
+        },
+        {
+          "object": "cup",
+          "coverage": 0,
+          "total": 1
+        },
+        {
+          "object": "pentacle",
+          "coverage": 0,
+          "total": 1
+        },
+        {
+          "object": "red roses",
+          "coverage": 0,
+          "total": 1
+        },
+        {
+          "object": "white lilies",
+          "coverage": 0,
+          "total": 1
+        },
+        {
+          "object": "ram heads",
+          "coverage": 0,
+          "total": 1
+        },
+        {
+          "object": "orb",
+          "coverage": 0,
+          "total": 1
+        },
+        {
+          "object": "ankh",
+          "coverage": 0,
+          "total": 1
+        },
+        {
+          "object": "raised hand",
+          "coverage": 0,
+          "total": 1
+        },
+        {
+          "object": "tree of knowledge",
+          "coverage": 0,
+          "total": 1
+        },
+        {
+          "object": "tree of life",
+          "coverage": 0,
+          "total": 1
+        },
+        {
+          "object": "mountain",
+          "coverage": 0,
+          "total": 1
+        },
+        {
+          "object": "cloud",
+          "coverage": 0,
+          "total": 1
+        },
+        {
+          "object": "lantern",
+          "coverage": 0,
+          "total": 1
+        },
+        {
+          "object": "staff",
+          "coverage": 0,
+          "total": 1
+        },
+        {
+          "object": "sphinx",
+          "coverage": 0,
+          "total": 1
+        },
+        {
+          "object": "snake",
+          "coverage": 0,
+          "total": 1
+        },
+        {
+          "object": "Anubis",
+          "coverage": 0,
+          "total": 1
+        },
+        {
+          "object": "scales",
+          "coverage": 0,
+          "total": 1
+        },
+        {
+          "object": "purple veil",
+          "coverage": 0,
+          "total": 1
+        },
+        {
+          "object": "crossed leg",
+          "coverage": 0,
+          "total": 1
+        },
+        {
+          "object": "torch",
+          "coverage": 0,
+          "total": 1
+        },
+        {
+          "object": "large star",
+          "coverage": 0,
+          "total": 1
+        },
+        {
+          "object": "seven smaller stars",
+          "coverage": 0,
+          "total": 1
+        },
+        {
+          "object": "naked figure",
+          "coverage": 0,
+          "total": 1
+        },
+        {
+          "object": "pitchers",
+          "coverage": 0,
+          "total": 1
+        },
+        {
+          "object": "bird in tree",
+          "coverage": 0,
+          "total": 1
+        },
+        {
+          "object": "divine hand emerging from cloud with ornate chalice overflowing with water",
+          "coverage": 0,
+          "total": 1
+        },
+        {
+          "object": "two engraved cups",
+          "coverage": 0,
+          "total": 1
+        },
+        {
+          "object": "five engraved cups",
+          "coverage": 0,
+          "total": 1
+        },
+        {
+          "object": "eight engraved cups",
+          "coverage": 0,
+          "total": 1
+        },
+        {
+          "object": "king with ornate chalice overflowing with water",
+          "coverage": 0,
+          "total": 1
+        },
+        {
+          "object": "six garden pentacles",
+          "coverage": 0,
+          "total": 1
+        },
+        {
+          "object": "eight garden pentacles",
+          "coverage": 0,
+          "total": 1
+        },
+        {
+          "object": "page holding engraved golden pentacle",
+          "coverage": 0,
+          "total": 1
+        }
+      ],
       "perLabelAccuracy": [
         {
           "label": "Ace of Cups",
@@ -432,7 +1363,7 @@
     },
     "thoth-a1": {
       "deckStyle": "thoth-a1",
-      "generatedAt": "2026-01-17T09:14:21.375Z",
+      "generatedAt": "2026-01-17T15:16:28.006Z",
       "sourceFile": "data/evaluations/vision-confidence.thoth.json",
       "sampleSize": 78,
       "accuracy": 1,
@@ -1792,7 +2723,7 @@
     },
     "marseille-classic": {
       "deckStyle": "marseille-classic",
-      "generatedAt": "2026-01-17T09:14:21.500Z",
+      "generatedAt": "2026-01-17T15:16:28.132Z",
       "sourceFile": "data/evaluations/vision-confidence.marseille.json",
       "sampleSize": 78,
       "accuracy": 1,
@@ -1825,7 +2756,938 @@
           "count": 7
         }
       ],
-      "symbolBreakdown": [],
+      "symbolBreakdown": [
+        {
+          "object": "divine hand emerging from cloud with budding wooden wand",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "desert horizon with pyramids and cloudless sky",
+          "coverage": 1,
+          "total": 14
+        },
+        {
+          "object": "sprouting leaves on wands",
+          "coverage": 1,
+          "total": 14
+        },
+        {
+          "object": "pyramids and bare mountains",
+          "coverage": 1,
+          "total": 14
+        },
+        {
+          "object": "two flame-etched wands",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "crossed arms or stance",
+          "coverage": 1,
+          "total": 4
+        },
+        {
+          "object": "three flame-etched wands",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "figure observing horizon or architecture",
+          "coverage": 1,
+          "total": 4
+        },
+        {
+          "object": "four flame-etched wands",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "seated or standing figure",
+          "coverage": 1,
+          "total": 4
+        },
+        {
+          "object": "five flame-etched wands",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "figures in turmoil or adversity",
+          "coverage": 1,
+          "total": 4
+        },
+        {
+          "object": "six flame-etched wands",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "giver and receiver figures",
+          "coverage": 1,
+          "total": 4
+        },
+        {
+          "object": "seven flame-etched wands",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "standing figure evaluating",
+          "coverage": 1,
+          "total": 4
+        },
+        {
+          "object": "eight flame-etched wands",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "figure in action or exiting scene",
+          "coverage": 1,
+          "total": 4
+        },
+        {
+          "object": "nine flame-etched wands",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "solitary figure",
+          "coverage": 1,
+          "total": 4
+        },
+        {
+          "object": "ten flame-etched wands",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "family/figures interacting",
+          "coverage": 1,
+          "total": 4
+        },
+        {
+          "object": "page holding budding wooden wand",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "knight on steed with budding wooden wand",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "steed posture (rearing, pacing, still)",
+          "coverage": 1,
+          "total": 4
+        },
+        {
+          "object": "queen enthroned with budding wooden wand",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "king with budding wooden wand",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "architectural motifs (pillars, city walls)",
+          "coverage": 1,
+          "total": 4
+        },
+        {
+          "object": "two garden pentacles",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "three garden pentacles",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "four garden pentacles",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "five garden pentacles",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "six garden pentacles",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "seven garden pentacles",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "eight garden pentacles",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "nine garden pentacles",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "ten garden pentacles",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "knight on steed with engraved golden pentacle",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "queen enthroned with engraved golden pentacle",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "king with engraved golden pentacle",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "divine hand emerging from cloud with ornate chalice overflowing with water",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "lush riverbanks with lotus and reflective pools",
+          "coverage": 1,
+          "total": 14
+        },
+        {
+          "object": "flowing streams",
+          "coverage": 1,
+          "total": 14
+        },
+        {
+          "object": "lotus blossoms",
+          "coverage": 1,
+          "total": 14
+        },
+        {
+          "object": "two engraved cups",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "three engraved cups",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "four engraved cups",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "five engraved cups",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "six engraved cups",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "seven engraved cups",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "eight engraved cups",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "nine engraved cups",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "ten engraved cups",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "page holding ornate chalice overflowing with water",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "knight on steed with ornate chalice overflowing with water",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "queen enthroned with ornate chalice overflowing with water",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "king with ornate chalice overflowing with water",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "sun",
+          "coverage": 1,
+          "total": 2
+        },
+        {
+          "object": "dog",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "cliff",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "white rose",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "bundle",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "feather",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "infinity symbol",
+          "coverage": 1,
+          "total": 2
+        },
+        {
+          "object": "wand",
+          "coverage": 1,
+          "total": 2
+        },
+        {
+          "object": "cup",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "sword",
+          "coverage": 1,
+          "total": 2
+        },
+        {
+          "object": "pentacle",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "red roses",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "white lilies",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "pillars",
+          "coverage": 1,
+          "total": 3
+        },
+        {
+          "object": "lunar crown",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "scroll",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "veil",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "pomegranates",
+          "coverage": 1,
+          "total": 2
+        },
+        {
+          "object": "crescent moon",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "wheat fields",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "waterfall",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "Venus symbol",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "stars",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "ram heads",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "mountains",
+          "coverage": 1,
+          "total": 3
+        },
+        {
+          "object": "orb",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "armor",
+          "coverage": 1,
+          "total": 2
+        },
+        {
+          "object": "ankh",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "crossed keys",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "two acolytes",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "raised hand",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "triple cross",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "sphinxes",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "starry canopy",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "city",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "lion",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "flowers",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "lantern",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "six-pointed star",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "staff",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "mountain peak",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "cloak",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "wheel",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "sphinx",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "snake",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "Anubis",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "Hebrew letters",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "alchemical symbols",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "four fixed signs",
+          "coverage": 1,
+          "total": 2
+        },
+        {
+          "object": "scales",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "purple veil",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "skeleton",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "white horse",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "banner",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "fallen figures",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "cups",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "one foot in water",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "one foot on land",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "mountain path",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "rising sun",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "horned figure",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "inverted pentagram",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "chained figures",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "tails",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "torch",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "lightning",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "tower",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "falling figures",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "flaming debris",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "gray sky",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "land",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "full moon with face",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "two towers",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "dog and wolf",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "crayfish",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "winding path",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "radiant sun with face",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "naked child",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "sunflowers",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "red banner",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "wall",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "trumpet",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "rising figures",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "water",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "dancer",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "wreath",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "wands",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "red ribbon",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "divine hand emerging from cloud with steel sword with gleaming edge",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "wind-swept plains with storm clouds and distant mountains",
+          "coverage": 1,
+          "total": 14
+        },
+        {
+          "object": "fluttering birds or banners",
+          "coverage": 1,
+          "total": 14
+        },
+        {
+          "object": "two razor-sharp swords",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "three razor-sharp swords",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "four razor-sharp swords",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "five razor-sharp swords",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "six razor-sharp swords",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "seven razor-sharp swords",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "eight razor-sharp swords",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "nine razor-sharp swords",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "ten razor-sharp swords",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "page holding steel sword with gleaming edge",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "knight on steed with steel sword with gleaming edge",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "queen enthroned with steel sword with gleaming edge",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "king with steel sword with gleaming edge",
+          "coverage": 1,
+          "total": 1
+        },
+        {
+          "object": "storm clouds",
+          "coverage": 0.9285714285714286,
+          "total": 14
+        },
+        {
+          "object": "verdant fields, vineyards, and stone gateways",
+          "coverage": 0.8571428571428571,
+          "total": 14
+        },
+        {
+          "object": "cultivated fields",
+          "coverage": 0.8571428571428571,
+          "total": 14
+        },
+        {
+          "object": "stone archways",
+          "coverage": 0.8571428571428571,
+          "total": 14
+        },
+        {
+          "object": "crown or laurels hovering",
+          "coverage": 0.75,
+          "total": 4
+        },
+        {
+          "object": "fresh terrain",
+          "coverage": 0.75,
+          "total": 4
+        },
+        {
+          "object": "fauna, familiars, or motifs",
+          "coverage": 0.75,
+          "total": 4
+        },
+        {
+          "object": "angel",
+          "coverage": 0.6666666666666666,
+          "total": 3
+        },
+        {
+          "object": "scepter",
+          "coverage": 0.5,
+          "total": 2
+        },
+        {
+          "object": "divine hand emerging from cloud with engraved golden pentacle",
+          "coverage": 0,
+          "total": 1
+        },
+        {
+          "object": "page holding engraved golden pentacle",
+          "coverage": 0,
+          "total": 1
+        },
+        {
+          "object": "tree of knowledge",
+          "coverage": 0,
+          "total": 1
+        },
+        {
+          "object": "tree of life",
+          "coverage": 0,
+          "total": 1
+        },
+        {
+          "object": "mountain",
+          "coverage": 0,
+          "total": 1
+        },
+        {
+          "object": "cloud",
+          "coverage": 0,
+          "total": 1
+        },
+        {
+          "object": "tree",
+          "coverage": 0,
+          "total": 1
+        },
+        {
+          "object": "halo",
+          "coverage": 0,
+          "total": 1
+        },
+        {
+          "object": "crossed leg",
+          "coverage": 0,
+          "total": 1
+        },
+        {
+          "object": "tau cross",
+          "coverage": 0,
+          "total": 1
+        },
+        {
+          "object": "large star",
+          "coverage": 0,
+          "total": 1
+        },
+        {
+          "object": "seven smaller stars",
+          "coverage": 0,
+          "total": 1
+        },
+        {
+          "object": "naked figure",
+          "coverage": 0,
+          "total": 1
+        },
+        {
+          "object": "pitchers",
+          "coverage": 0,
+          "total": 1
+        },
+        {
+          "object": "pool",
+          "coverage": 0,
+          "total": 1
+        },
+        {
+          "object": "bird in tree",
+          "coverage": 0,
+          "total": 1
+        }
+      ],
       "perLabelAccuracy": [
         {
           "label": "Ace of Cups",

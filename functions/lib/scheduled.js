@@ -424,9 +424,11 @@ export async function handleScheduled(controller, env, _ctx) {
 
     // Run quality analysis on archived data (detects regressions, creates alerts)
     if (env.QUALITY_ALERT_ENABLED === 'true') {
+      console.log(`[quality] Quality alerting enabled, analyzing date: ${analysisDateStr}`);
       try {
         const qualityResults = await runQualityAnalysis(env, analysisDateStr);
         results.quality = qualityResults;
+        console.log(`[quality] Quality analysis completed: ${JSON.stringify(qualityResults)}`);
 
         // Dispatch any alerts that were detected
         if (qualityResults.alerts && qualityResults.alerts.length > 0) {
@@ -435,11 +437,11 @@ export async function handleScheduled(controller, env, _ctx) {
           console.log(`[quality] Dispatched ${alertResults.sent} alerts`);
         }
       } catch (qualityErr) {
-        console.error('[quality] Quality analysis failed:', qualityErr.message);
+        console.error('[quality] Quality analysis failed:', qualityErr.message, qualityErr.stack);
         results.quality = { error: qualityErr.message };
       }
     } else {
-      console.log('[quality] Quality alerting disabled (QUALITY_ALERT_ENABLED != true)');
+      console.log(`[quality] Quality alerting disabled (QUALITY_ALERT_ENABLED='${env.QUALITY_ALERT_ENABLED}' != 'true')`);
     }
 
     const duration = Date.now() - startTime;

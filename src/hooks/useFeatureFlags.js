@@ -69,13 +69,6 @@ export function useFeatureFlags() {
     // New Deck Ritual Interface (ops-only: reimagined deck interface)
     // Set VITE_NEW_DECK_INTERFACE=true to enable
     newDeckInterface: getFlag('new_deck_interface', 'VITE_NEW_DECK_INTERFACE', false, false),
-
-    /**
-     * Unified Reading Journey (enabled: replacing JournalInsightsPanel + ArchetypeJourneySection)
-     *
-     * Legacy panels deprecated - unified journey is now the default.
-     */
-    unifiedJourney: true,
   }), []);
 
   return flags;

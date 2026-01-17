@@ -1,0 +1,36 @@
+Assumptions: No screenshots/build provided; review is based on repo code (React/Vite mobile web). Primary users assumed tarot seekers journaling and reading on phone.
+
+### A) Executive Summary (Top 5–10 recommendations)
+- Wrong active state: Primary pills always mark “Reading” active on any non-journal route; fix route detection so Pricing/Account/Share don’t misreport location; improves “where am I?” clarity and screen reader accuracy.
+- Add nav to Share: Share view has no header/back or account entry; add a slim top bar with back-to-Reading/Journal and account chip; restores escape hatch and trust for shared links.
+- Unify chrome on secondary pages: Pricing/Account use bespoke, non-sticky text links without user menu; reuse condensed `GlobalNav` + `UserMenu` with safe-area padding; boosts parity and task speed.
+- Keep nav reachable while scrolling: Journal and Card Gallery use non-sticky nav; make it sticky or add a floating switcher so users can hop to Reading/Account without scrolling miles; reduces drop-off.
+- Mobile reach: There’s no bottom tab/toggle for Reading vs Journal when scrolled; add a 2-tab control anchored just above the mobile action bar; improves thumb reach and parity with iOS/Material patterns.
+- Touch targets: Pricing/Account header links are small text (<44px) with low emphasis; wrap them in pill buttons with focus rings; cuts mis-taps and meets a11y.
+- Reclaim space on mobile: Sticky header + step bar + bottom action bar stack up; allow the header/step bar to auto-compact/hide on downward scroll for small screens; improves content visibility during typing.
+
+### B) Strengths to Preserve
+- Primary pill nav has clear active styling, large hitboxes (min-h 44px), and `aria-current` use (`GlobalNav.jsx`).
+- Step progress bar offers clear step affordances, horizontal scroll, and touch-friendly tooltips (`StepProgress.jsx`).
+- Safe-area handling and keyboard avoidance for the mobile action bar are thoughtful (`tarot.css` lines 528-646, `MobileActionBar.jsx:477-544`).
+- Bottom action bar labels are text-forward (not icon-only) and keep minimum touch targets across orientations.
+
+### C) Detailed Findings Table (10 items)
+
+| ID | Location | Issue (user-perspective) | Why it matters (guideline/principle) | Severity | Suggested fix (specific) | Effort | iOS vs Android notes |
+|---|---|---|---|---|---|---|---|
+| N1 | src/components/GlobalNav.jsx:11-69 | When on Pricing/Account/Share, the nav still highlights “Reading,” so I can’t tell where I am. | Misleading `aria-current` hurts “where am I?” cues and screen-reader accuracy. | High | Compute active tab per route (Reading only on `/`, Journal on `/journal*`, neutral/“More” on others) and avoid setting `aria-current` on unrelated pages. | Low | Both expect accurate active states. |
+| N2 | src/pages/ShareReading.jsx:191-200 | Shared reading has no header or back/home, so I’m stranded after viewing a link. | Users and guests need an escape hatch; platform back is unreliable in external opens. | High | Add a slim top app bar with brand + “Back to Reading”/“Back to Journal” and optional account/user icon; respect safe areas. | Medium | iOS expects back affordance; Android expects app bar with up/back. |
+| N3 | src/pages/PricingPage.jsx:612-630; src/pages/AccountPage.jsx:1016-1035 | Pricing/Account use tiny text links, non-sticky, and no user menu—different from main nav. | Inconsistent chrome breaks IA and slows returning to reading or account actions. | High | Reuse condensed `GlobalNav` + `UserMenu` with sticky top-0, safe-area padding, and active states; drop bespoke text nav. | Medium | Aligns with both HIG and Material consistency. |
+| N4 | src/components/Journal.jsx:715-743; src/pages/CardGalleryPage.jsx:387-399 | On long journal/gallery scrolls the nav scrolls away; switching sections means scrolling to top. | Hurts task flow and backtracking; common drop-off on long lists. | Medium | Wrap `GlobalNav` in a sticky container (top-0, safe-area padding) or add a floating two-tab switcher that appears after first scroll. | Medium | Android bottom sheets often keep tabs visible; iOS favors persistent tabs. |
+| N5 | src/components/GlobalNav.jsx:55-72 | Only Reading/Journal are surfaced; Account/Pricing have no IA signal in the primary nav. | Users can’t see all top-level areas; mental model is incomplete. | Medium | Add a third “Account”/overflow entry with active state or a visible kebab leading to Account/Pricing; keep min-h 44px. | Medium | iOS: consider text tab; Android: labeled icon or overflow menu. |
+| N6 | src/pages/PricingPage.jsx:620-629; src/pages/AccountPage.jsx:1022-1034 | Header links are small text (<44px) with subtle contrast; easy to miss-tap. | Violates minimum touch targets; a11y failures lead to errors. | Medium | Convert to pill buttons (min-h 44px, padding, focus ring, ≥4.5:1 contrast) and ensure safe-area padding. | Low | Both platforms require 44/48px tap areas. |
+| N7 | src/components/Header.jsx:145-187; src/styles/tarot.css:528-646 | On mobile, sticky header + step bar stays visible while bottom action bar is fixed; little vertical room during input. | Reduces content visibility and increases scroll during critical tasks (typing questions). | Medium | Allow header/step bar to collapse/hide on downward scroll for small screens or after keyboard opens; provide quick re-show on up-scroll. | Medium | Matches iOS Safari “shy chrome” and Android collapsing app bars. |
+| N8 | src/pages/PricingPage.jsx:612-630; src/pages/AccountPage.jsx:1016-1035 | No user/account affordance on Pricing/Account (no user chip/menu). | Users can’t sign out or jump to account details without returning home. | Medium | Inject `UserMenu` (condensed) into the header on these pages. | Low | Consistent with both platform patterns. |
+| N9 | src/pages/ShareReading.jsx:191-200 | No “home” affordance in share view; only “Return to Tableu” shows on error states. | Deep links opened from messages leave users guessing how to resume the app. | High | Add a persistent home/Reading CTA in the share header; include a bottom sticky “Open in app” bar for guests. | Medium | Common in both ecosystems for shared/deep-link views. |
+| N10 | src/components/GlobalNav.jsx:27-33; tarot.css (global) | Nav relies solely on top placement; no bottom/tab option for thumb reach on phones. | Thumb reach and one-handed use suffer; conflicts with Material/HIG expectations for primary destinations. | Medium | Add an optional bottom tab (Reading/Journal) that appears on mobile when the action bar is not overlaying, or provide a floating switcher above the action bar. | Medium | iOS standard tab bar; Android bottom nav. |
+
+### D) Prioritized Roadmap
+- Phase 1 (Now): Fix active-state logic (N1); add header/back to Share (N2); unify Pricing/Account chrome with `GlobalNav` + `UserMenu` and larger targets (N3, N6, N8).
+- Phase 2 (Next): Make Journal/Card Gallery nav sticky or add floating switcher (N4); surface Account/Pricing in primary IA (N5); add mobile-friendly bottom toggle for Reading/Journal (N10).
+- Phase 3 (Later): Tune mobile header/step collapse to reclaim space (N7); add guest “Open in app” affordance on share (N9) once routing supports it.

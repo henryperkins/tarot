@@ -420,13 +420,21 @@ export const JournalEntryCard = memo(function JournalEntryCard({
         const shareUrl = data?.url && typeof window !== 'undefined'
           ? `${window.location.origin}${data.url}`
           : null;
-        if (shareUrl && navigator?.clipboard?.writeText) {
-          await navigator.clipboard.writeText(shareUrl);
-          showStatus({ tone: 'success', message: 'Share link copied to clipboard.' });
-        } else {
+        if (shareUrl) {
+          if (navigator?.clipboard?.writeText) {
+            try {
+              await navigator.clipboard.writeText(shareUrl);
+              showStatus({ tone: 'success', message: 'Share link copied to clipboard.' });
+              return true;
+            } catch (error) {
+              console.warn('Clipboard write failed for entry share', error);
+            }
+          }
           showStatus({ tone: 'info', message: 'Share link ready—copy from your browser address bar.' });
+          return true;
         }
-        return true;
+        showStatus({ tone: 'error', message: 'Share link created, but the URL is missing.' });
+        return false;
       } catch (error) {
         showStatus({ tone: 'error', message: error.message || 'Unable to create a share link right now.' });
         return false;
@@ -1038,17 +1046,7 @@ export const JournalEntryCard = memo(function JournalEntryCard({
           {entry.question && (
             <section className={ui.section}>
               <header className={ui.sectionHeader}>
-                <div className="min-w-0">
-                  <div className={ui.sectionLabel}>Question</div>
-                  <div className="mt-1 text-[12px] text-[color:var(--text-muted)]">
-                    {formattedTimestamp}
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  {entry.context && <span className={ui.pill}>{formatContextName(entry.context)}</span>}
-                  <span className={ui.pill}>{cards.length} cards</span>
-                </div>
+                <div className={ui.sectionLabel}>Question</div>
               </header>
 
               <div className={ui.bodyPad}>
@@ -1299,12 +1297,6 @@ export const JournalEntryCard = memo(function JournalEntryCard({
         </div>
       )}
 
-      {/* Footer - hidden in compact collapsed view */}
-      {!useCompactStyle && (
-        <div className="border-t border-[color:rgba(255,255,255,0.06)] bg-[color:rgba(15,14,19,0.25)] px-4 py-2 text-[11px] text-[color:var(--text-muted)]">
-          {hasReflections ? `${reflections.length} reflection${reflections.length === 1 ? '' : 's'}` : formattedTimestamp}
-        </div>
-      )}
       {/* Inline status - always show when there's a message, otherwise respect compact style */}
       {(inlineStatus.message || !useCompactStyle) && (
         <div className={`${useCompactStyle ? 'px-3 pb-2' : 'px-4 pb-3 pt-2'}`} aria-live="polite">

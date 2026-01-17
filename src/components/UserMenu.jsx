@@ -326,7 +326,7 @@ export function UserMenu({ condensed = false }) {
                     "
                   >
                     <Gear className="w-4 h-4" aria-hidden="true" />
-                    Settings
+                    Account & Settings
                   </Link>
 
                   {/* Replay Tutorial */}

@@ -32,17 +32,28 @@ export const DEFAULT_THRESHOLDS = {
 
 const DEFAULT_MIN_READINGS = 20;
 
+function parseEnvNumber(value) {
+  if (value === undefined || value === null || value === '') return null;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function resolveEnvNumber(value, fallback) {
+  const parsed = parseEnvNumber(value);
+  return parsed !== null ? parsed : fallback;
+}
+
 /**
  * Get thresholds from environment or use defaults.
  */
 export function getThresholds(env = {}) {
   return {
     overall: {
-      warning: parseFloat(env.QUALITY_REGRESSION_THRESHOLD) || DEFAULT_THRESHOLDS.overall.warning,
-      critical: parseFloat(env.QUALITY_CRITICAL_THRESHOLD) || DEFAULT_THRESHOLDS.overall.critical,
+      warning: resolveEnvNumber(env.QUALITY_REGRESSION_THRESHOLD, DEFAULT_THRESHOLDS.overall.warning),
+      critical: resolveEnvNumber(env.QUALITY_CRITICAL_THRESHOLD, DEFAULT_THRESHOLDS.overall.critical),
     },
     safety_flag_rate: {
-      warning: parseFloat(env.QUALITY_SAFETY_SPIKE_THRESHOLD) || DEFAULT_THRESHOLDS.safety_flag_rate.warning,
+      warning: resolveEnvNumber(env.QUALITY_SAFETY_SPIKE_THRESHOLD, DEFAULT_THRESHOLDS.safety_flag_rate.warning),
       critical: DEFAULT_THRESHOLDS.safety_flag_rate.critical,
     },
     low_tone_rate: DEFAULT_THRESHOLDS.low_tone_rate,
@@ -90,8 +101,17 @@ export async function computeDailyAggregates(db, dateStr) {
       SUM(CASE WHEN COALESCE(safety_flag, json_extract(payload, '$.eval.scores.safety_flag')) = 1 THEN 1 ELSE 0 END) as safety_flag_count,
       SUM(CASE WHEN json_extract(payload, '$.eval.scores.tone') < 3 THEN 1 ELSE 0 END) as low_tone_count,
       SUM(CASE WHEN json_extract(payload, '$.eval.scores.safety') < 3 THEN 1 ELSE 0 END) as low_safety_count,
-      AVG(COALESCE(card_coverage, json_extract(payload, '$.narrative.cardCoverage'))) as avg_card_coverage,
-      SUM(CASE WHEN COALESCE(json_array_length(json_extract(payload, '$.narrative.hallucinatedCards')), 0) > 0 THEN 1 ELSE 0 END) as hallucination_count
+      AVG(COALESCE(
+        card_coverage,
+        json_extract(payload, '$.narrative.cardCoverage'),
+        json_extract(payload, '$.narrativeOriginal.cardCoverage')
+      )) as avg_card_coverage,
+      SUM(CASE WHEN COALESCE(
+        hallucination_count,
+        json_array_length(json_extract(payload, '$.narrative.hallucinatedCards')),
+        json_array_length(json_extract(payload, '$.narrativeOriginal.hallucinatedCards')),
+        0
+      ) > 0 THEN 1 ELSE 0 END) as hallucination_count
     FROM eval_metrics
     WHERE date(COALESCE(
       json_extract(payload, '$.timestamp'),
@@ -139,6 +159,7 @@ export async function getBaseline(db, dateStr, dimensions) {
       AVG(avg_safety) as baseline_safety,
       AVG(avg_card_coverage) as baseline_coverage,
       SUM(reading_count) as total_readings,
+      SUM(COALESCE(eval_count, 0) + COALESCE(heuristic_count, 0)) as total_eval,
       SUM(safety_flag_count) as total_safety_flags,
       SUM(low_tone_count) as total_low_tone
     FROM quality_stats
@@ -177,11 +198,12 @@ export async function getBaseline(db, dateStr, dimensions) {
       safety: result.baseline_safety,
       coverage: result.baseline_coverage,
       readings: result.total_readings,
-      safety_flag_rate: result.total_readings > 0
-        ? result.total_safety_flags / result.total_readings
+      evalReadings: result.total_eval,
+      safety_flag_rate: result.total_eval > 0
+        ? result.total_safety_flags / result.total_eval
         : 0,
-      low_tone_rate: result.total_readings > 0
-        ? result.total_low_tone / result.total_readings
+      low_tone_rate: result.total_eval > 0
+        ? result.total_low_tone / result.total_eval
         : 0,
     };
   } catch (err) {
@@ -215,14 +237,31 @@ export function detectRegressions(aggregates, baselines, thresholds = DEFAULT_TH
   const minReadings = Number.isFinite(options.minReadings) ? options.minReadings : 0;
 
   for (const agg of aggregates) {
-    // Skip if no readings or insufficient sample size
-    if (!agg.reading_count || agg.reading_count < minReadings) continue;
+    const evalSampleCount = (agg.eval_count || 0) + (agg.heuristic_count || 0);
+    const coverageSampleCount = agg.reading_count || 0;
+    const meetsEvalSample = evalSampleCount >= minReadings;
+    const meetsCoverageSample = coverageSampleCount >= minReadings;
+
+    // Skip if no usable samples for any metric
+    if (!meetsEvalSample && !meetsCoverageSample) continue;
 
     const key = buildDimensionKey(agg);
     const baseline = baselines.get(key);
+    const dimensionsForEval = {
+      ...agg,
+      reading_count: evalSampleCount,
+      eval_sample_count: evalSampleCount,
+      total_reading_count: agg.reading_count || 0
+    };
+    const dimensionsForCoverage = {
+      ...agg,
+      reading_count: coverageSampleCount,
+      eval_sample_count: evalSampleCount,
+      total_reading_count: agg.reading_count || 0
+    };
 
     // Overall score regression
-    if (baseline?.overall && agg.avg_overall !== null) {
+    if (meetsEvalSample && baseline?.overall && agg.avg_overall !== null) {
       const delta = agg.avg_overall - baseline.overall;
 
       if (delta <= thresholds.overall.critical) {
@@ -234,7 +273,7 @@ export function detectRegressions(aggregates, baselines, thresholds = DEFAULT_TH
           baseline: baseline.overall,
           delta,
           threshold: thresholds.overall.critical,
-          dimensions: agg,
+          dimensions: dimensionsForEval,
         });
       } else if (delta <= thresholds.overall.warning) {
         alerts.push({
@@ -245,17 +284,17 @@ export function detectRegressions(aggregates, baselines, thresholds = DEFAULT_TH
           baseline: baseline.overall,
           delta,
           threshold: thresholds.overall.warning,
-          dimensions: agg,
+          dimensions: dimensionsForEval,
         });
       }
     }
 
     // Safety flag spike
-    const safetyRate = agg.reading_count > 0
-      ? agg.safety_flag_count / agg.reading_count
+    const safetyRate = evalSampleCount > 0
+      ? agg.safety_flag_count / evalSampleCount
       : 0;
 
-    if (safetyRate >= thresholds.safety_flag_rate.critical) {
+    if (meetsEvalSample && safetyRate >= thresholds.safety_flag_rate.critical) {
       alerts.push({
         type: 'safety_spike',
         severity: 'critical',
@@ -264,9 +303,9 @@ export function detectRegressions(aggregates, baselines, thresholds = DEFAULT_TH
         baseline: baseline?.safety_flag_rate || 0,
         delta: safetyRate - (baseline?.safety_flag_rate || 0),
         threshold: thresholds.safety_flag_rate.critical,
-        dimensions: agg,
+        dimensions: dimensionsForEval,
       });
-    } else if (safetyRate >= thresholds.safety_flag_rate.warning) {
+    } else if (meetsEvalSample && safetyRate >= thresholds.safety_flag_rate.warning) {
       alerts.push({
         type: 'safety_spike',
         severity: 'warning',
@@ -275,16 +314,16 @@ export function detectRegressions(aggregates, baselines, thresholds = DEFAULT_TH
         baseline: baseline?.safety_flag_rate || 0,
         delta: safetyRate - (baseline?.safety_flag_rate || 0),
         threshold: thresholds.safety_flag_rate.warning,
-        dimensions: agg,
+        dimensions: dimensionsForEval,
       });
     }
 
     // Low tone spike
-    const lowToneRate = agg.reading_count > 0
-      ? agg.low_tone_count / agg.reading_count
+    const lowToneRate = evalSampleCount > 0
+      ? agg.low_tone_count / evalSampleCount
       : 0;
 
-    if (lowToneRate >= thresholds.low_tone_rate.critical) {
+    if (meetsEvalSample && lowToneRate >= thresholds.low_tone_rate.critical) {
       alerts.push({
         type: 'tone_spike',
         severity: 'critical',
@@ -293,9 +332,9 @@ export function detectRegressions(aggregates, baselines, thresholds = DEFAULT_TH
         baseline: baseline?.low_tone_rate || 0,
         delta: lowToneRate - (baseline?.low_tone_rate || 0),
         threshold: thresholds.low_tone_rate.critical,
-        dimensions: agg,
+        dimensions: dimensionsForEval,
       });
-    } else if (lowToneRate >= thresholds.low_tone_rate.warning) {
+    } else if (meetsEvalSample && lowToneRate >= thresholds.low_tone_rate.warning) {
       alerts.push({
         type: 'tone_spike',
         severity: 'warning',
@@ -304,12 +343,12 @@ export function detectRegressions(aggregates, baselines, thresholds = DEFAULT_TH
         baseline: baseline?.low_tone_rate || 0,
         delta: lowToneRate - (baseline?.low_tone_rate || 0),
         threshold: thresholds.low_tone_rate.warning,
-        dimensions: agg,
+        dimensions: dimensionsForEval,
       });
     }
 
     // Card coverage drop
-    if (baseline?.coverage && agg.avg_card_coverage !== null) {
+    if (meetsCoverageSample && baseline?.coverage && agg.avg_card_coverage !== null) {
       const coverageDelta = agg.avg_card_coverage - baseline.coverage;
 
       if (coverageDelta <= thresholds.card_coverage.critical) {
@@ -321,7 +360,7 @@ export function detectRegressions(aggregates, baselines, thresholds = DEFAULT_TH
           baseline: baseline.coverage,
           delta: coverageDelta,
           threshold: thresholds.card_coverage.critical,
-          dimensions: agg,
+          dimensions: dimensionsForCoverage,
         });
       } else if (coverageDelta <= thresholds.card_coverage.warning) {
         alerts.push({
@@ -332,7 +371,7 @@ export function detectRegressions(aggregates, baselines, thresholds = DEFAULT_TH
           baseline: baseline.coverage,
           delta: coverageDelta,
           threshold: thresholds.card_coverage.warning,
-          dimensions: agg,
+          dimensions: dimensionsForCoverage,
         });
       }
     }
@@ -350,8 +389,18 @@ export function detectRegressions(aggregates, baselines, thresholds = DEFAULT_TH
  * @param {Object} baseline - Baseline metrics (optional)
  */
 export async function storeQualityStats(db, periodKey, agg, baseline = null) {
-  const query = `
-    INSERT OR REPLACE INTO quality_stats (
+  const deleteQuery = `
+    DELETE FROM quality_stats
+    WHERE period_type = 'daily'
+      AND period_key = ?
+      AND (reading_prompt_version = ? OR (reading_prompt_version IS NULL AND ? IS NULL))
+      AND (eval_prompt_version = ? OR (eval_prompt_version IS NULL AND ? IS NULL))
+      AND (variant_id = ? OR (variant_id IS NULL AND ? IS NULL))
+      AND (provider = ? OR (provider IS NULL AND ? IS NULL))
+      AND (spread_key = ? OR (spread_key IS NULL AND ? IS NULL))
+  `;
+  const insertQuery = `
+    INSERT INTO quality_stats (
       period_type, period_key, reading_prompt_version, eval_prompt_version,
       variant_id, provider, spread_key, reading_count, eval_count,
       heuristic_count, error_count, avg_overall, avg_personalization,
@@ -369,7 +418,20 @@ export async function storeQualityStats(db, periodKey, agg, baseline = null) {
     : null;
 
   try {
-    await db.prepare(query).bind(
+    await db.prepare(deleteQuery).bind(
+      periodKey,
+      agg.reading_prompt_version,
+      agg.reading_prompt_version,
+      agg.eval_prompt_version,
+      agg.eval_prompt_version,
+      agg.variant_id,
+      agg.variant_id,
+      agg.provider,
+      agg.provider,
+      agg.spread_key,
+      agg.spread_key
+    ).run();
+    const result = await db.prepare(insertQuery).bind(
       periodKey,
       agg.reading_prompt_version,
       agg.eval_prompt_version,
@@ -393,8 +455,9 @@ export async function storeQualityStats(db, periodKey, agg, baseline = null) {
       baseline?.overall || null,
       delta
     ).run();
+    console.log(`[quality] Stored stats for ${periodKey}/${agg.provider}/${agg.spread_key}: rows_written=${result?.meta?.rows_written}`);
   } catch (err) {
-    console.error(`[quality] storeQualityStats failed: ${err.message}`);
+    console.error(`[quality] storeQualityStats failed for ${periodKey}/${agg.provider}/${agg.spread_key}: ${err.message}`);
   }
 }
 
@@ -513,9 +576,12 @@ export async function runQualityAnalysis(env, dateStr, _options = {}) {
   };
 
   try {
+    console.log(`[quality] Starting quality analysis for ${dateStr}`);
+    
     // 1. Compute daily aggregates
     const aggregates = await computeDailyAggregates(db, dateStr);
     results.aggregates = aggregates.length;
+    console.log(`[quality] Found ${aggregates.length} aggregates for ${dateStr}`);
 
     if (aggregates.length === 0) {
       console.log(`[quality] No metrics to aggregate for ${dateStr}`);
@@ -542,12 +608,14 @@ export async function runQualityAnalysis(env, dateStr, _options = {}) {
     results.detected = alerts.length;
 
     // 4. Store aggregates
+    console.log(`[quality] Storing ${aggregates.length} aggregates to quality_stats`);
     for (const agg of aggregates) {
       const key = buildDimensionKey(agg);
       const baseline = baselines.get(key);
       await storeQualityStats(db, dateStr, agg, baseline);
       results.stored++;
     }
+    console.log(`[quality] Stored ${results.stored} aggregates successfully`);
 
     // 5. Store alerts (dedupe on period + dimensions)
     const newAlerts = [];

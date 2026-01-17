@@ -72,7 +72,6 @@ function JourneyFallback() {
  * @param {boolean} props.showStartReadingCta - Toggle "Start Reading" CTAs inside journey panels
  * @param {Array} props.scopeEntries - Entries matching the current analytics scope
  * @param {string} props.analyticsScope - Current analytics scope key
- * @param {Function} props.onScopeSelect - Callback for updating analytics scope
  */
 export function ReadingJourney(props) {
   // SSR guard: render skeleton on server, lazy load on client
