@@ -59,6 +59,7 @@ function JourneyFallback() {
  * @param {Array} props.entries - All journal entries (unfiltered)
  * @param {Array} props.filteredEntries - Filtered entries (when filters active)
  * @param {boolean} props.filtersActive - True when any filter is applied
+ * @param {boolean} props.filtersApplied - True when journal filters are active (even if insights scope differs)
  * @param {boolean} props.isAuthenticated - User auth state
  * @param {string} props.userId - User ID for Archetype data
  * @param {Array} props.focusAreas - User's stated focus areas from personalization (for drift detection)
@@ -69,6 +70,9 @@ function JourneyFallback() {
  * @param {Function} props.onCreateShareLink - Callback for creating share links
  * @param {Function} props.onStartReading - Callback for starting a new reading
  * @param {boolean} props.showStartReadingCta - Toggle "Start Reading" CTAs inside journey panels
+ * @param {Array} props.scopeEntries - Entries matching the current analytics scope
+ * @param {string} props.analyticsScope - Current analytics scope key
+ * @param {Function} props.onScopeSelect - Callback for updating analytics scope
  */
 export function ReadingJourney(props) {
   // SSR guard: render skeleton on server, lazy load on client

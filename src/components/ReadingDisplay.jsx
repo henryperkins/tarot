@@ -152,7 +152,13 @@ function NarrativeGuidancePanel({ toneLabel, frameLabel, isHandset, isNewbie, co
   );
 }
 
-export function ReadingDisplay({ sectionRef, onOpenFollowUp }) {
+export function ReadingDisplay({
+    sectionRef,
+    onOpenFollowUp,
+    followUpOpen,
+    onFollowUpOpenChange,
+    followUpAutoFocus = true
+}) {
     const navigate = useNavigate();
     const { saveReading, isSaving } = useSaveReading();
     const { publish: publishToast } = useToast();
@@ -228,7 +234,9 @@ export function ReadingDisplay({ sectionRef, onOpenFollowUp }) {
 
     const [selectionState, setSelectionState] = useState({ key: readingIdentity, value: null });
     const [isNarrativeFocus, setIsNarrativeFocus] = useState(false);
-    const [isFollowUpOpen, setIsFollowUpOpen] = useState(false);
+    const [isFollowUpOpenLocal, setIsFollowUpOpenLocal] = useState(false);
+    const isFollowUpOpen = typeof followUpOpen === 'boolean' ? followUpOpen : isFollowUpOpenLocal;
+    const setIsFollowUpOpen = onFollowUpOpenChange || setIsFollowUpOpenLocal;
     const selectedCardData = selectionState.key === readingIdentity ? selectionState.value : null;
     const setSelectedCardData = useCallback((value) => {
         setSelectionState({ key: readingIdentity, value });
@@ -797,7 +805,13 @@ export function ReadingDisplay({ sectionRef, onOpenFollowUp }) {
                                                 <span>{isSaving ? 'Saving...' : 'Save to Journal'}</span>
                                             </button>
                                         )}
-                                        <button type="button" onClick={() => navigate('/journal')} className="px-3 sm:px-4 py-2 rounded-lg bg-primary/15 border border-primary/40 text-primary text-xs sm:text-sm hover:bg-primary/25 hover:text-primary transition">View Journal</button>
+                                        <button
+                                            type="button"
+                                            onClick={() => navigate('/journal', { state: { fromReading: true } })}
+                                            className="px-3 sm:px-4 py-2 rounded-lg bg-primary/15 border border-primary/40 text-primary text-xs sm:text-sm hover:bg-primary/25 hover:text-primary transition"
+                                        >
+                                            View Journal
+                                        </button>
                                     </div>
                                 )}
                                 {showVoicePrompt && (
@@ -871,6 +885,7 @@ export function ReadingDisplay({ sectionRef, onOpenFollowUp }) {
                             <FollowUpModal
                                 isOpen={isFollowUpOpen}
                                 onClose={() => setIsFollowUpOpen(false)}
+                                autoFocusInput={followUpAutoFocus}
                             />
                         </div>
                     )}

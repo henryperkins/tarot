@@ -109,7 +109,7 @@ export default function EmptyState({
                 </button>
 
                 <p className="mt-3 text-xs sm:text-[11px] text-amber-100/55">
-                  This will scan your journal entries and build your card frequency data.
+                  One-time analysis for insights; it does not change your entries.
                 </p>
               </>
             ) : (

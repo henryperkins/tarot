@@ -112,7 +112,7 @@ function UpgradeCTA() {
 /**
  * Summary display with markdown rendering.
  */
-function SummaryDisplay({ summary, meta, onClear }) {
+function SummaryDisplay({ summary, meta, scopeNote, onClear }) {
   return (
     <div className="space-y-3">
       {/* Header with provider badge */}
@@ -122,6 +122,11 @@ function SummaryDisplay({ summary, meta, onClear }) {
           {meta?.totalEntries} {meta?.totalEntries === 1 ? 'entry' : 'entries'} analyzed
         </span>
       </div>
+      {scopeNote && (
+        <p className="text-[10px] text-amber-100/60">
+          {scopeNote}
+        </p>
+      )}
 
       {/* Summary content */}
       <div className="prose prose-sm prose-invert prose-amber max-w-none text-amber-100/85 leading-relaxed">
@@ -160,18 +165,49 @@ function SummaryDisplay({ summary, meta, onClear }) {
  * @param {Object} props
  * @param {boolean} props.isAuthenticated - User auth state
  * @param {number} props.entryCount - Number of entries available
+ * @param {Array} props.filteredEntries - Filtered entries (when filters applied)
+ * @param {boolean} props.filtersApplied - Whether filters are active in the journal view
  */
-function JournalSummarySection({ isAuthenticated, entryCount = 0 }) {
+function JournalSummarySection({ isAuthenticated, entryCount = 0, filteredEntries = [], filtersApplied = false }) {
   const { canUseAdvancedInsights } = useSubscription();
   const { result, isLoading, error, canGenerate, generate, clear } = useJournalSummary();
   const [limit, setLimit] = useState(5);
+  const [userScopeMode, setUserScopeMode] = useState(null);
+  const [summaryContext, setSummaryContext] = useState(null);
 
   const hasEntries = entryCount > 0;
+  const filteredCount = Array.isArray(filteredEntries) ? filteredEntries.length : 0;
+  const scopeMode = filtersApplied ? (userScopeMode || 'filters') : 'recent';
+  const isFilterScope = scopeMode === 'filters';
+  const scopeHasEntries = !isFilterScope || filteredCount > 0;
+
+  const scopeNote = isFilterScope
+    ? (filteredCount > 0
+        ? `Summarizing ${Math.min(limit, filteredCount)} of ${filteredCount} filtered entries`
+        : 'No entries match your current filters.')
+    : `Summarizing last ${Math.min(limit, entryCount)} entries (unfiltered)`;
 
   // Handle generate click
   const handleGenerate = () => {
-    if (!canGenerate || isLoading) return;
-    generate({ limit });
+    if (!canGenerate || isLoading || !scopeHasEntries) return;
+    const entryIds = isFilterScope
+      ? filteredEntries
+        .map((entry) => entry?.id)
+        .filter((id) => id !== null && id !== undefined)
+      : undefined;
+    const nextLimit = Math.min(limit, isFilterScope ? filteredCount : entryCount);
+    setSummaryContext({
+      scopeMode,
+      limit: nextLimit,
+      filteredCount,
+      entryCount
+    });
+    generate({ entryIds, limit: nextLimit });
+  };
+
+  const handleClear = () => {
+    setSummaryContext(null);
+    clear();
   };
 
   // Not authenticated - don't show anything
@@ -198,7 +234,19 @@ function JournalSummarySection({ isAuthenticated, entryCount = 0 }) {
 
   // Show existing summary
   if (result) {
-    return <SummaryDisplay summary={result.summary} meta={result.meta} onClear={clear} />;
+    const summaryScopeNote = summaryContext
+      ? (summaryContext.scopeMode === 'filters'
+        ? `Summarized ${Math.min(summaryContext.limit, summaryContext.filteredCount)} of ${summaryContext.filteredCount} filtered entries`
+        : `Summarized last ${Math.min(summaryContext.limit, summaryContext.entryCount)} entries (unfiltered)`)
+      : scopeNote;
+    return (
+      <SummaryDisplay
+        summary={result.summary}
+        meta={result.meta}
+        scopeNote={summaryScopeNote}
+        onClear={handleClear}
+      />
+    );
   }
 
   // Loading state
@@ -207,7 +255,7 @@ function JournalSummarySection({ isAuthenticated, entryCount = 0 }) {
       <div className="space-y-3">
         <div className="flex items-center gap-2 text-xs text-amber-100/70">
           <Sparkle className="h-4 w-4 animate-pulse" aria-hidden="true" />
-          Generating your journal summary...
+          {scopeNote || 'Generating your journal summary...'}
         </div>
         <LoadingSkeleton />
       </div>
@@ -222,10 +270,46 @@ function JournalSummarySection({ isAuthenticated, entryCount = 0 }) {
         AI analyzes your readings to surface patterns, themes, and guidance.
       </p>
 
+      {filtersApplied && (
+        <div className="space-y-2">
+          <p className="text-xs sm:text-[10px] text-amber-100/50">Summary scope</p>
+          <div className="inline-flex rounded-full border border-amber-200/20 bg-amber-200/5 p-1">
+            <button
+              type="button"
+              onClick={() => {
+                setUserScopeMode('recent');
+              }}
+              className={`min-h-[36px] rounded-full px-3 text-xs font-semibold transition ${scopeMode === 'recent'
+                ? 'bg-amber-200/20 text-amber-50'
+                : 'text-amber-100/70 hover:text-amber-50'
+              }`}
+            >
+              Recent
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setUserScopeMode('filters');
+              }}
+              disabled={filteredCount === 0}
+              className={`min-h-[36px] rounded-full px-3 text-xs font-semibold transition ${scopeMode === 'filters'
+                ? 'bg-amber-200/20 text-amber-50'
+                : 'text-amber-100/70 hover:text-amber-50'
+              } ${filteredCount === 0 ? 'cursor-not-allowed opacity-50' : ''}`}
+            >
+              Current filters
+            </button>
+          </div>
+          <p className="text-[10px] text-amber-100/60">
+            {scopeNote}
+          </p>
+        </div>
+      )}
+
       {/* Limit selector */}
       <div className="flex items-center justify-between gap-2">
         <label htmlFor="summary-limit" className="text-sm sm:text-xs text-amber-100/70">
-          Summarize recent entries
+          {isFilterScope ? 'Summarize filtered entries' : 'Summarize recent entries'}
         </label>
         <select
           id="summary-limit"
@@ -241,16 +325,21 @@ function JournalSummarySection({ isAuthenticated, entryCount = 0 }) {
           ))}
         </select>
       </div>
+      {!filtersApplied && (
+        <p className="text-[10px] text-amber-100/60">
+          {scopeNote}
+        </p>
+      )}
 
       {/* Generate button */}
       <button
         type="button"
         onClick={handleGenerate}
-        disabled={!canGenerate || isLoading}
+        disabled={!canGenerate || isLoading || !scopeHasEntries}
         className={PRIMARY_BUTTON_CLASS}
       >
         <Sparkle className="h-4 w-4" aria-hidden="true" />
-        Generate Summary
+        {scopeHasEntries ? 'Generate Summary' : 'No entries match filters'}
       </button>
 
       {/* Error display */}

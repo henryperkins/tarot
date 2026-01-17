@@ -81,6 +81,9 @@ function AchievementsRow({ badges = [] }) {
           +{badges.length - 6} more achievements
         </p>
       )}
+      <p className="text-[10px] text-amber-100/50 mt-1">
+        Badge = card appeared 3+ times in this scope.
+      </p>
     </div>
   );
 }

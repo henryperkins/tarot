@@ -59,7 +59,7 @@ export function useJournalSummary() {
    * Generate a journal summary.
    *
    * @param {Object} options
-   * @param {string[]} [options.entryIds] - Specific entry IDs to summarize
+   * @param {(string|number)[]} [options.entryIds] - Specific entry IDs to summarize
    * @param {number} [options.limit=10] - Max entries to summarize (1-10)
    * @returns {Promise<SummaryResult|null>}
    */

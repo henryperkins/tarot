@@ -184,7 +184,14 @@ export async function onRequestPost(context) {
 
     const body = await readJsonBody(request);
     const entryIds = Array.isArray(body.entryIds)
-      ? body.entryIds.filter((id) => typeof id === 'string' && id.trim().length > 0).slice(0, MAX_SUMMARY_ENTRIES)
+      ? body.entryIds
+        .map((id) => {
+          if (typeof id === 'number' && Number.isFinite(id)) return id;
+          if (typeof id === 'string') return id.trim();
+          return null;
+        })
+        .filter((id) => id !== null && id !== '')
+        .slice(0, MAX_SUMMARY_ENTRIES)
       : [];
 
     const limit = normalizeLimit(

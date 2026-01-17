@@ -25,7 +25,7 @@ export default function BackfillBanner({
       <div className="flex items-center gap-2 rounded-lg bg-green-500/10 border border-green-400/20 px-3 py-2 text-xs text-green-200/90">
         <CheckCircle className="h-3.5 w-3.5 flex-shrink-0" aria-hidden="true" />
         <span>
-          Journey analytics synced!{' '}
+          Analysis complete!{' '}
           {backfillResult.stats?.cardsTracked > 0 && (
             <span className="text-green-200/70">
               ({backfillResult.stats.cardsTracked} cards tracked)
@@ -41,7 +41,7 @@ export default function BackfillBanner({
     return (
       <div className="flex items-center gap-2 rounded-lg bg-red-500/10 border border-red-400/20 px-3 py-2 text-xs text-red-200/90">
         <XCircle className="h-3.5 w-3.5 flex-shrink-0" aria-hidden="true" />
-        <span>Sync failed. {backfillResult.message || 'Please try again.'}</span>
+        <span>Analysis failed. {backfillResult.message || 'Please try again.'}</span>
         <button
           onClick={onBackfill}
           disabled={isBackfilling}
@@ -66,19 +66,19 @@ export default function BackfillBanner({
       <div className="flex items-center gap-2 rounded-lg bg-amber-500/10 border border-amber-400/15 px-3 py-2">
         <Info className="h-3.5 w-3.5 flex-shrink-0 text-amber-300/70" aria-hidden="true" />
         <span className="text-xs sm:text-[11px] text-amber-100/70 flex-1">
-          Sync your journal for enhanced analytics
+          Analyze past readings for deeper insights
         </span>
         <button
           onClick={onBackfill}
           disabled={isBackfilling}
           className={COMPACT_SYNC_BUTTON_CLASS}
-          aria-label="Sync journal data"
+          aria-label="Analyze past readings"
         >
           <ArrowsClockwise
             className={`h-3 w-3 ${isBackfilling && !prefersReducedMotion ? 'animate-spin' : ''}`}
             aria-hidden="true"
           />
-          {isBackfilling ? 'Syncing...' : 'Sync'}
+          {isBackfilling ? 'Analyzing...' : 'Analyze'}
         </button>
         <button
           onClick={() => setIsDismissed(true)}
@@ -107,10 +107,10 @@ export default function BackfillBanner({
         </div>
         <div className="flex-1 min-w-0">
           <p className="text-sm sm:text-xs font-medium text-amber-100/90 mb-1">
-            Sync for enhanced analytics
+            Analyze past readings
           </p>
           <p className="text-xs sm:text-[11px] text-amber-100/60 mb-2">
-            Analyze your past readings to unlock server-synced journey tracking across devices.
+            One-time analysis for insights; it does not change your entries.
           </p>
           <button
             onClick={onBackfill}
@@ -128,7 +128,7 @@ export default function BackfillBanner({
               className={`h-3 w-3 ${isBackfilling && !prefersReducedMotion ? 'animate-spin' : ''}`}
               aria-hidden="true"
             />
-            {isBackfilling ? 'Syncing readings...' : 'Sync now'}
+            {isBackfilling ? 'Analyzing readings...' : 'Analyze now'}
           </button>
         </div>
       </div>

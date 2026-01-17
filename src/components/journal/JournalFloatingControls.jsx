@@ -2,6 +2,7 @@
  * JournalFloatingControls - Fixed position FAB buttons that appear on scroll
  */
 
+import { X } from '@phosphor-icons/react';
 import {
   JournalPlusCircleIcon,
   JournalSlidersIcon
@@ -15,6 +16,7 @@ export function JournalFloatingControls({
   filtersActive,
   activeFilterChips,
   onResetFilters,
+  onRemoveFilter,
   onScrollToFilters,
   onStartReading,
   isMobileLayout
@@ -34,12 +36,16 @@ export function JournalFloatingControls({
           <p className="mb-1 text-[10px] uppercase tracking-[0.16em] text-amber-100/60">Filters</p>
           <div className="flex flex-wrap items-center gap-1.5">
             {activeFilterChips.map((chip) => (
-              <span
+              <button
                 key={`floating-${chip.key}`}
+                type="button"
+                onClick={() => onRemoveFilter?.(chip.key)}
                 className="inline-flex items-center gap-1 rounded-full border border-amber-200/20 bg-amber-200/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-amber-100/80"
+                aria-label={`Remove ${chip.label} filter`}
               >
                 {chip.label}
-              </span>
+                <X className="h-3 w-3 text-amber-200/70" aria-hidden="true" />
+              </button>
             ))}
             <button
               type="button"

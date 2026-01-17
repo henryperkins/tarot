@@ -702,7 +702,7 @@ export function JournalFilters({ filters, onChange, contexts = [], spreads = [],
               {/* Search feedback: result count */}
               {filters.query.trim() && typeof resultCount === 'number' && typeof totalCount === 'number' && (
                 <div className="text-xs text-[color:var(--text-muted)]">
-                  Found <span className="font-semibold text-[color:var(--text-main)]">{resultCount}</span> of {totalCount} readings
+                  Found <span className="font-semibold text-[color:var(--text-main)]">{resultCount}</span> in {totalCount} loaded readings
                   {resultCount === 0 && ' - try different keywords'}
                 </div>
               )}

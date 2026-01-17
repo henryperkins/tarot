@@ -100,7 +100,7 @@ function buildLocalCardStats(entries) {
   return map;
 }
 
-function CardItem({ card, stats, onSelect, index = 0 }) {
+function CardItem({ card, stats, onSelect, onViewInJournal, index = 0 }) {
   const prefersReducedMotion = useReducedMotion();
   const isFound = !!stats;
   const count = stats?.total_count || 0;
@@ -161,11 +161,9 @@ function CardItem({ card, stats, onSelect, index = 0 }) {
 
   if (isFound) {
     return (
-      <motion.button
-        type="button"
-        onClick={() => onSelect?.(card)}
-        className="group relative aspect-[2/3] rounded-xl border transition-all duration-300 overflow-hidden text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/60 focus-visible:ring-offset-2 focus-visible:ring-offset-main border-amber-300/20 bg-gradient-to-b from-[#120f1f] via-[#0c0a14] to-[#0a0911] shadow-lg hover:-translate-y-1 hover:border-amber-300/40 hover:shadow-amber-300/10"
-        aria-label={`Open details for ${card.name}`}
+      <motion.div
+        className="group relative aspect-[2/3] rounded-xl border transition-all duration-300 overflow-hidden text-left border-amber-300/20 bg-gradient-to-b from-[#120f1f] via-[#0c0a14] to-[#0a0911] shadow-lg hover:-translate-y-1 hover:border-amber-300/40 hover:shadow-amber-300/10"
+        aria-label={`Card ${card.name}`}
         variants={animationVariants}
         initial="initial"
         animate="animate"
@@ -175,8 +173,27 @@ function CardItem({ card, stats, onSelect, index = 0 }) {
           ease: [0.4, 0, 0.2, 1]
         }}
       >
+        <button
+          type="button"
+          onClick={() => onSelect?.(card)}
+          className="absolute inset-0 z-10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/60 focus-visible:ring-offset-2 focus-visible:ring-offset-main"
+          aria-label={`Open details for ${card.name}`}
+        />
         {content}
-      </motion.button>
+        {onViewInJournal && (
+          <button
+            type="button"
+            onClick={(event) => {
+              event.stopPropagation();
+              onViewInJournal(card);
+            }}
+            className="absolute top-2 right-2 z-20 rounded-full border border-amber-200/30 bg-black/50 px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-amber-100/80 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/50"
+            aria-label={`View ${card.name} in Journal`}
+          >
+            View in Journal
+          </button>
+        )}
+      </motion.div>
     );
   }
 
@@ -490,7 +507,7 @@ export default function CardGalleryPage() {
             </p>
             <button
               type="button"
-              onClick={() => navigate('/account#privacy')}
+              onClick={() => navigate('/account#analytics')}
               className="px-4 py-2 rounded-full border border-amber-200/25 text-amber-50 hover:bg-amber-200/10"
             >
               Go to Settings
@@ -531,6 +548,7 @@ export default function CardGalleryPage() {
                 card={card}
                 stats={stats[card.name]}
                 onSelect={handleSelectCard}
+                onViewInJournal={(selectedCard) => handleViewAllInJournal(selectedCard?.name)}
                 index={index}
               />
             ))}

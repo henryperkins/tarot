@@ -30,6 +30,7 @@ export default function FollowUpChat({
   onClose,
   onMinimize,
   showHeader = true,
+  autoFocusInput = true,
   className = ''
 }) {
   const {
@@ -206,10 +207,10 @@ export default function FollowUpChat({
 
   // Focus input when panel becomes active
   useEffect(() => {
-    if (!isActive || isDrawer) return;
+    if (!isActive || !autoFocusInput) return;
     const timer = setTimeout(() => inputRef.current?.focus(), 120);
     return () => clearTimeout(timer);
-  }, [isActive, isDrawer]);
+  }, [isActive, autoFocusInput]);
 
   const askFollowUp = useCallback(async (question) => {
     const trimmedQuestion = question?.trim();

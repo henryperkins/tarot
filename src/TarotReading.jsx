@@ -147,6 +147,7 @@ export default function TarotReading() {
   const [coachRecommendationVersion, setCoachRecommendationVersion] = useState(0);
   const [isIntentionCoachOpen, setIsIntentionCoachOpen] = useState(false);
   const [isFollowUpOpen, setIsFollowUpOpen] = useState(false);
+  const [followUpIntent, setFollowUpIntent] = useState('continue');
   const [placeholderIndex, setPlaceholderIndex] = useState(0);
   const [isMobileSettingsOpen, setIsMobileSettingsOpen] = useState(false);
   const [mobileSettingsTab, setMobileSettingsTab] = useState('intention');
@@ -322,6 +323,8 @@ export default function TarotReading() {
   useEffect(() => {
     const followUpEntry = location.state?.followUpEntry;
     if (!followUpEntry) return;
+    const followUpIntent = location.state?.followUpIntent;
+    const normalizedIntent = followUpIntent === 'ask' ? 'ask' : 'continue';
 
     const {
       cards = [],
@@ -378,12 +381,14 @@ export default function TarotReading() {
       userQuestion: question || prev.userQuestion,
       provider: provider || prev.provider
     }));
+    setFollowUpIntent(normalizedIntent);
     // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional: syncing UI state from router state
     setIsFollowUpOpen(true);
 
     const nextState = { ...location.state };
     delete nextState.followUpEntry;
     delete nextState.openFollowUp;
+    delete nextState.followUpIntent;
     const cleanedState = Object.keys(nextState).length > 0 ? nextState : null;
     navigate(location.pathname, { replace: true, state: cleanedState });
   }, [
@@ -734,6 +739,7 @@ export default function TarotReading() {
 
   const handleOpenFollowUp = useCallback(() => {
     if (!showFollowUpButton) return;
+    setFollowUpIntent('ask');
     setIsFollowUpOpen(true);
   }, [showFollowUpButton]);
 
@@ -997,6 +1003,9 @@ export default function TarotReading() {
         <ReadingDisplay
           sectionRef={readingSectionRef}
           onOpenFollowUp={showFollowUpButton ? handleOpenFollowUp : null}
+          followUpOpen={isFollowUpOpen}
+          onFollowUpOpenChange={setIsFollowUpOpen}
+          followUpAutoFocus={followUpIntent === 'ask'}
         />
       </main>
 
@@ -1057,6 +1066,7 @@ export default function TarotReading() {
           <FollowUpDrawer
             isOpen={isFollowUpVisible}
             onClose={handleCloseFollowUp}
+            autoFocusInput={followUpIntent === 'ask'}
           />
 
           <MobileSettingsDrawer

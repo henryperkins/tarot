@@ -68,26 +68,36 @@ function SeasonSummary({
       )}
 
       {/* Stat chips */}
-      <div className="flex flex-wrap gap-2 mb-3">
-        {topCard && (
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-300/15 px-2.5 py-1 text-xs text-amber-100">
-            <span className="text-amber-200/80">🃏</span>
-            {topCard.name}: {topCard.count}x
-            {topCard.hasBadge && (
-              <Fire className="h-3 w-3 text-orange-400" aria-label="streak badge" />
-            )}
-          </span>
-        )}
+      <div className="mb-3 space-y-1">
+        <div className="flex flex-wrap gap-2">
+          {topCard && (
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-300/15 px-2.5 py-1 text-xs text-amber-100">
+              <span className="text-amber-200/80">🃏</span>
+              {topCard.name}: {topCard.count}x
+              {topCard.hasBadge && (
+                <Fire className="h-3 w-3 text-orange-400" aria-label="streak badge" />
+              )}
+            </span>
+          )}
+          {currentStreak > 0 && (
+            <span
+              className="inline-flex items-center gap-1 rounded-full bg-orange-500/15 px-2.5 py-1 text-xs text-orange-100"
+              title="Streak includes today's grace period."
+            >
+              <Fire className="h-3 w-3" />
+              {currentStreak}-day streak
+            </span>
+          )}
+          {topContext?.name && (
+            <span className="inline-flex items-center gap-1 rounded-full bg-cyan-500/15 px-2.5 py-1 text-xs text-cyan-100">
+              {topContext.name.charAt(0).toUpperCase() + topContext.name.slice(1)}
+            </span>
+          )}
+        </div>
         {currentStreak > 0 && (
-          <span className="inline-flex items-center gap-1 rounded-full bg-orange-500/15 px-2.5 py-1 text-xs text-orange-100">
-            <Fire className="h-3 w-3" />
-            {currentStreak}-day streak
-          </span>
-        )}
-        {topContext?.name && (
-          <span className="inline-flex items-center gap-1 rounded-full bg-cyan-500/15 px-2.5 py-1 text-xs text-cyan-100">
-            {topContext.name.charAt(0).toUpperCase() + topContext.name.slice(1)}
-          </span>
+          <p className="text-[10px] text-amber-100/50">
+            Streak includes today's grace period.
+          </p>
         )}
       </div>
 

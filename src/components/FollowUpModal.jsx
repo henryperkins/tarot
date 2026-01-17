@@ -4,7 +4,7 @@ import clsx from 'clsx';
 import { useModalA11y, createBackdropHandler } from '../hooks/useModalA11y';
 import FollowUpChat from './FollowUpChat';
 
-export default function FollowUpModal({ isOpen, onClose, isVisible = true }) {
+export default function FollowUpModal({ isOpen, onClose, isVisible = true, autoFocusInput = true }) {
   const modalRef = useRef(null);
   const titleId = 'follow-up-modal-title';
 
@@ -51,6 +51,7 @@ export default function FollowUpModal({ isOpen, onClose, isVisible = true }) {
             isActive={isOpen}
             onClose={onClose}
             titleId={titleId}
+            autoFocusInput={autoFocusInput}
           />
         </div>
       </div>

@@ -32,7 +32,7 @@ function getServerViewportOffset() {
   return 0;
 }
 
-export default function FollowUpDrawer({ isOpen, onClose }) {
+export default function FollowUpDrawer({ isOpen, onClose, autoFocusInput = true }) {
   const drawerRef = useRef(null);
   const closeButtonRef = useRef(null);
   const titleId = 'follow-up-drawer-title';
@@ -123,6 +123,7 @@ export default function FollowUpDrawer({ isOpen, onClose }) {
             variant="drawer"
             isActive={isOpen}
             showHeader={false}
+            autoFocusInput={autoFocusInput}
             className="flex-1 min-h-0"
           />
         </div>

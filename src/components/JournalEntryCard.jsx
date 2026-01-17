@@ -10,6 +10,7 @@ import { buildCardInsightPayload, exportJournalEntriesToCsv, exportJournalEntrie
 import { useSmallScreen } from '../hooks/useSmallScreen';
 import { InlineStatus } from './InlineStatus.jsx';
 import { useInlineStatus } from '../hooks/useInlineStatus';
+import { useSubscription } from '../contexts/SubscriptionContext';
 import { CupsIcon, WandsIcon, SwordsIcon, PentaclesIcon, MajorIcon } from './illustrations/SuitIcons';
 import { JournalBookIcon, JournalCommentAddIcon, JournalPlusCircleIcon, JournalShareIcon, JournalTrashIcon } from './JournalIcons';
 import CardRelationshipGraph from './charts/CardRelationshipGraph';
@@ -31,6 +32,11 @@ const TIMING_SUMMARIES = {
 };
 
 const MAX_SHARE_LINKS_IN_MENU = 6;
+const FOLLOW_UP_LIMITS = {
+  free: 1,
+  plus: 3,
+  pro: 10
+};
 
 const ui = {
   cardShell:
@@ -276,6 +282,7 @@ export const JournalEntryCard = memo(function JournalEntryCard({
   const cardsId = useId();
   const isSmallScreen = useSmallScreen(640); // < sm breakpoint
   const { status: inlineStatus, showStatus, clearStatus } = useInlineStatus();
+  const { effectiveTier } = useSubscription();
   const actionMenuRef = useRef(null);
   const actionMenuButtonRef = useRef(null);
   const [menuPlacement, setMenuPlacement] = useState(null);
@@ -308,6 +315,22 @@ export const JournalEntryCard = memo(function JournalEntryCard({
     if (!actionMenuOpen) return;
     updateMenuPlacement();
   }, [actionMenuOpen, updateMenuPlacement]);
+
+  useEffect(() => {
+    if (!actionMenuOpen) return;
+    if (!canUseDom) return;
+    const menuEl = actionMenuRef.current;
+    if (!menuEl) return;
+    const focusFirstItem = () => {
+      const firstItem = menuEl.querySelector('button[role="menuitem"]:not([disabled])');
+      if (firstItem) firstItem.focus();
+    };
+    if (typeof requestAnimationFrame !== 'undefined') {
+      requestAnimationFrame(focusFirstItem);
+    } else {
+      setTimeout(focusFirstItem, 0);
+    }
+  }, [actionMenuOpen, canUseDom]);
 
   useEffect(() => {
     if (!actionMenuOpen) return undefined;
@@ -385,7 +408,7 @@ export const JournalEntryCard = memo(function JournalEntryCard({
     const success = await copyJournalEntriesToClipboard([entry]);
     showStatus({
       tone: success ? 'success' : 'error',
-      message: success ? 'Reading details copied to your clipboard.' : 'Copying was blocked by the browser.'
+      message: success ? 'Entry CSV copied to your clipboard.' : 'Copying was blocked by the browser.'
     });
     return success;
   });
@@ -476,6 +499,18 @@ export const JournalEntryCard = memo(function JournalEntryCard({
   const followUpPreviewCount = isSmallScreen ? 1 : 2;
   const followUpPreview = hasFollowUps ? followUps.slice(-followUpPreviewCount) : [];
   const hasHiddenFollowUps = followUps.length > followUpPreview.length;
+  const followUpLimit = useMemo(() => FOLLOW_UP_LIMITS[effectiveTier] || FOLLOW_UP_LIMITS.free, [effectiveTier]);
+  const followUpTurnsUsed = useMemo(() => {
+    if (!hasFollowUps) return 0;
+    const turnNumbers = followUps
+      .map((turn) => Number(turn?.turnNumber))
+      .filter((value) => Number.isFinite(value));
+    if (turnNumbers.length > 0) {
+      return Math.max(...turnNumbers);
+    }
+    return followUps.length;
+  }, [followUps, hasFollowUps]);
+  const canAskFollowUp = isAuthenticated && followUpTurnsUsed < followUpLimit;
   const accentColor = getSuitAccentVar(entry?.themes?.dominantSuit)
     || CONTEXT_ACCENTS[entry?.context]
     || CONTEXT_ACCENTS.default;
@@ -485,7 +520,7 @@ export const JournalEntryCard = memo(function JournalEntryCard({
   const contentPadding = compact ? 'px-4 py-4 sm:p-5' : 'px-4 py-4 sm:p-5';
   const actionMenuId = `${entry.id || entry.ts || 'entry'}-actions-menu`;
   const actionMenuItems = [
-    { key: 'copy', label: 'Copy entry', icon: ClipboardText, onSelect: handleEntryCopy },
+    { key: 'copy', label: 'Copy CSV', icon: ClipboardText, onSelect: handleEntryCopy },
     { key: 'share', label: 'Share reading', icon: JournalShareIcon, onSelect: handleEntryShare },
     { key: 'export', label: 'Export CSV', icon: DownloadSimple, onSelect: handleEntryExport },
     { key: 'export-md', label: 'Export Markdown', icon: FileText, onSelect: handleEntryMarkdownExport }
@@ -537,7 +572,21 @@ export const JournalEntryCard = memo(function JournalEntryCard({
   }, [menuPlacement]);
   const navigate = useNavigate();
 
-  const handleAskFollowUp = useCallback(() => {
+  const handleOpenFollowUp = useCallback((intent = 'continue') => {
+    if (intent === 'ask') {
+      if (!isAuthenticated) {
+        showStatus({ tone: 'warning', message: 'Sign in to ask follow-up questions.' });
+        return;
+      }
+      if (!canAskFollowUp) {
+        showStatus({
+          tone: 'warning',
+          message: `You have used all ${followUpLimit} follow-up question${followUpLimit === 1 ? '' : 's'} for this reading.`
+        });
+        return;
+      }
+    }
+
     const followUpPayload = {
       id: entry?.id || null,
       question: entry?.question || '',
@@ -556,10 +605,11 @@ export const JournalEntryCard = memo(function JournalEntryCard({
     navigate('/', {
       state: {
         followUpEntry: followUpPayload,
-        openFollowUp: true
+        openFollowUp: true,
+        followUpIntent: intent
       }
     });
-  }, [entry, followUps, hasFollowUps, navigate]);
+  }, [canAskFollowUp, entry, followUpLimit, followUps, hasFollowUps, isAuthenticated, navigate, showStatus]);
 
   const renderActionMenu = () => {
     if (!actionMenuOpen) return null;
@@ -1154,22 +1204,36 @@ export const JournalEntryCard = memo(function JournalEntryCard({
                 <div className="mt-3 flex flex-wrap items-center gap-2">
                   <button
                     type="button"
-                    onClick={handleAskFollowUp}
-                    className="inline-flex items-center gap-2 rounded-full border border-[color:var(--border-warm-light)] bg-[color:rgba(232,218,195,0.06)] px-3 py-1.5 text-[12px] font-semibold text-[color:var(--text-main)] hover:border-[color:var(--border-warm)] hover:bg-[color:rgba(232,218,195,0.12)] transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:rgba(232,218,195,0.45)]"
+                    onClick={() => handleOpenFollowUp('ask')}
+                    disabled={!canAskFollowUp}
+                    title={
+                      canAskFollowUp
+                        ? 'Ask a follow-up'
+                        : !isAuthenticated
+                          ? 'Sign in to ask follow-up questions'
+                          : 'Follow-up limit reached for this reading'
+                    }
+                    className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-[12px] font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:rgba(232,218,195,0.45)] ${
+                      canAskFollowUp
+                        ? 'border-[color:var(--border-warm-light)] bg-[color:rgba(232,218,195,0.06)] text-[color:var(--text-main)] hover:border-[color:var(--border-warm)] hover:bg-[color:rgba(232,218,195,0.12)]'
+                        : 'border-[color:rgba(255,255,255,0.08)] bg-[color:rgba(232,218,195,0.03)] text-[color:var(--text-muted)] cursor-not-allowed opacity-70'
+                    }`}
                   >
                     <Lightning className="h-3.5 w-3.5 text-[color:var(--brand-primary)]" aria-hidden="true" />
-                    Ask a follow-up
+                    {canAskFollowUp ? 'Ask a follow-up' : isAuthenticated ? 'Limit reached' : 'Sign in to ask'}
                   </button>
-                  {hasHiddenFollowUps && (
-                    <button
-                      type="button"
-                      onClick={handleAskFollowUp}
-                      className="inline-flex items-center gap-2 rounded-full border border-[color:var(--border-warm-light)] bg-transparent px-3 py-1.5 text-[12px] font-semibold text-[color:var(--text-muted)] hover:border-[color:var(--border-warm)] hover:bg-[color:rgba(232,218,195,0.08)] hover:text-[color:var(--text-main)] transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:rgba(232,218,195,0.45)]"
-                    >
-                      View all in chat
-                    </button>
-                  )}
-                  <span className="text-[11px] text-[color:var(--text-muted)]">Opens chat with this reading</span>
+                  <button
+                    type="button"
+                    onClick={() => handleOpenFollowUp('continue')}
+                    className="inline-flex items-center gap-2 rounded-full border border-[color:var(--border-warm-light)] bg-transparent px-3 py-1.5 text-[12px] font-semibold text-[color:var(--text-muted)] hover:border-[color:var(--border-warm)] hover:bg-[color:rgba(232,218,195,0.08)] hover:text-[color:var(--text-main)] transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:rgba(232,218,195,0.45)]"
+                  >
+                    Continue chat
+                  </button>
+                  <span className="text-[11px] text-[color:var(--text-muted)]">
+                    {isAuthenticated
+                      ? `Follow-ups used: ${followUpTurnsUsed}/${followUpLimit}`
+                      : 'Sign in to unlock follow-up chat'}
+                  </span>
                 </div>
               </div>
             </section>

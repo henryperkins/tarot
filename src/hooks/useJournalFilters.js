@@ -167,6 +167,27 @@ export function useJournalFilters(entries) {
     setFilters({ ...DEFAULT_FILTERS });
   }, [setFilters]);
 
+  const handleRemoveFilter = useCallback((chipKey) => {
+    setFilters((prev) => {
+      switch (chipKey) {
+        case 'query':
+          return { ...prev, query: '' };
+        case 'contexts':
+          return { ...prev, contexts: [] };
+        case 'spreads':
+          return { ...prev, spreads: [] };
+        case 'decks':
+          return { ...prev, decks: [] };
+        case 'timeframe':
+          return { ...prev, timeframe: 'all' };
+        case 'reversals':
+          return { ...prev, onlyReversals: false };
+        default:
+          return prev;
+      }
+    });
+  }, [setFilters]);
+
   return {
     filters,
     setFilters,
@@ -174,7 +195,8 @@ export function useJournalFilters(entries) {
     filteredEntries,
     filtersActive,
     activeFilterChips,
-    handleResetFilters
+    handleResetFilters,
+    handleRemoveFilter
   };
 }
 

@@ -66,7 +66,8 @@ export default function JourneyMobileSheet({
   backfillResult,
   handleBackfill,
   // For export functionality
-  activeEntries,
+  scopeEntries,
+  filteredEntries,
   allEntries,
   exportStats,
   // Other props
@@ -78,6 +79,9 @@ export default function JourneyMobileSheet({
   timezone,
   _dataSource,
   scopeLabel,
+  filtersApplied,
+  analyticsScope,
+  onScopeSelect,
 }) {
   const [isSheetOpen, setIsSheetOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('cards');
@@ -198,6 +202,7 @@ export default function JourneyMobileSheet({
     abortControllerRef.current = new AbortController();
     handleBackfill(abortControllerRef.current.signal);
   }, [handleBackfill]);
+  const showFiltersMismatch = filtersApplied && !filtersActive;
 
   // Show loading skeleton
   if (isLoading) {
@@ -322,6 +327,21 @@ export default function JourneyMobileSheet({
               </span>
             )}
           </h3>
+
+          {showFiltersMismatch && (
+            <div className="flex flex-wrap items-center justify-between gap-2 rounded-full border border-amber-200/25 bg-amber-200/5 px-3 py-1.5 text-[11px] text-amber-100/80">
+              <span>Filters not applied to insights</span>
+              {onScopeSelect && (
+                <button
+                  type="button"
+                  onClick={() => onScopeSelect('filters')}
+                  className="font-semibold text-amber-50 underline underline-offset-2 hover:text-amber-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/40"
+                >
+                  Apply filters
+                </button>
+              )}
+            </div>
+          )}
 
           {/* Backfill banner - shown when D1 sync is needed but doesn't block insights */}
           {needsBackfill && !hasBackfilled && (
@@ -554,6 +574,8 @@ export default function JourneyMobileSheet({
                 <JournalSummarySection
                   isAuthenticated={isAuthenticated}
                   entryCount={allEntries?.length || 0}
+                  filteredEntries={filteredEntries}
+                  filtersApplied={filtersApplied}
                 />
               )}
 
@@ -561,11 +583,13 @@ export default function JourneyMobileSheet({
                 <ExportSection
                   isAuthenticated={isAuthenticated}
                   onCreateShareLink={onCreateShareLink}
-                  entries={activeEntries}
+                  scopeEntries={scopeEntries}
+                  filteredEntries={filteredEntries}
                   allEntries={allEntries}
                   stats={exportStats}
                   scopeLabel={scopeLabel}
-                  filtersActive={filtersActive}
+                  filtersApplied={filtersApplied}
+                  analyticsScope={analyticsScope}
                 />
               )}
             </div>

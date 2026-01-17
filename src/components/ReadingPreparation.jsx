@@ -314,7 +314,7 @@ export function ReadingPreparation({
                     </p>
                     <p className="text-[0.72rem] leading-relaxed text-muted">
                         Audio and appearance live in{' '}
-                        <Link to="/account" className="text-accent underline underline-offset-2 font-semibold">
+                        <Link to="/account#audio" className="text-accent underline underline-offset-2 font-semibold">
                             Settings
                         </Link>.
                     </p>

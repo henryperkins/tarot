@@ -18,6 +18,7 @@ export default function JourneyContent({
   entries,
   filteredEntries,
   filtersActive,
+  filtersApplied,
   isAuthenticated,
   userId,
   focusAreas = [],
@@ -29,6 +30,9 @@ export default function JourneyContent({
   onStartReading,
   showStartReadingCta = true,
   scopeLabel,
+  scopeEntries,
+  analyticsScope,
+  onScopeSelect,
 }) {
   const journeyData = useJourneyData({
     entries,
@@ -71,9 +75,9 @@ export default function JourneyContent({
     _dataSource,
     // Use scopedEntries for stats display (matches D1 time window)
     scopedEntries,
-    // Use exportEntries for exports - full journal when unfiltered, filtered when active
-    exportEntries,
   } = journeyData;
+
+  const effectiveScopeEntries = Array.isArray(scopeEntries) ? scopeEntries : scopedEntries;
 
   // Build stats object for PDF export (matches computeJournalStats shape)
   const exportStats = useMemo(() => ({
@@ -128,13 +132,17 @@ export default function JourneyContent({
     onStartReading,
     showStartReadingCta,
     scopeLabel,
-    // For export functionality - use exportEntries to preserve full journal when unfiltered
-    activeEntries: exportEntries,
+    // For export/share functionality - scope-aware entries
+    scopeEntries: effectiveScopeEntries,
+    filteredEntries,
     // All entries (unfiltered) for share scope "most recent" option
     allEntries: entries,
     exportStats,
     locale,
     timezone,
+    filtersApplied: Boolean(filtersApplied),
+    analyticsScope,
+    onScopeSelect,
   }), [
     cardFrequency,
     badges,
@@ -168,11 +176,15 @@ export default function JourneyContent({
     onStartReading,
     showStartReadingCta,
     scopeLabel,
-    exportEntries,
+    effectiveScopeEntries,
+    filteredEntries,
     entries,
     exportStats,
     locale,
     timezone,
+    filtersApplied,
+    analyticsScope,
+    onScopeSelect,
   ]);
 
   // Persist coach snapshot for GuidedIntentionCoach to consume

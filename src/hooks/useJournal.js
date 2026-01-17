@@ -785,6 +785,7 @@ export function useJournal({ autoLoad = true } = {}) {
     pageSize: PAGE_SIZE,
     hasMoreEntries,
     totalEntries: pagination.total ?? entries.length,
+    hasTotalEntries: typeof pagination.total === 'number',
     // Sync state for UX feedback
     lastSyncAt,
     syncSource,

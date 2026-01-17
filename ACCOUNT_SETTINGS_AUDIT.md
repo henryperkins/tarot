@@ -64,4 +64,100 @@
 	- Replay Tutorial confirmation consistency in `src/components/UserMenu.jsx` and `src/pages/AccountPage.jsx` (ACC-17)
 	- Deep-linked Settings anchors from other pages (ACC-18)
 
-If you want, I can turn the remaining items into ticket-ready specs or draft mobile/desktop wireframes for the top 3 follow-ups.
+5) **Design Task Instructions (Remaining Items)**
+
+**ACC-8 Theme control refinement (AccountPage)**
+- Goal: Make the current theme obvious at a glance and reduce ambiguity about which mode is active.
+- Placement: Theme row in the Account settings page, near existing theme label and preview chip.
+- UX requirements:
+	- Use a segmented control (Light/Dark) or a single control labeled "Theme: Light/Dark" with a live preview chip.
+	- Indicate the active state with clear visual contrast and text (no reliance on color alone).
+	- Keep interaction lightweight (single tap to switch).
+- States to design: Light selected, Dark selected, focus/keyboard, disabled for guests (locked section), loading if theme is switching.
+- Copy guidance: "Theme" label stays; active state should read "Theme: Light" / "Theme: Dark".
+- Accessibility: 44px touch targets, keyboard focus ring, aria-pressed for segments if used.
+- Acceptance criteria: Users can tell the current theme without interacting; toggle is obvious and accessible.
+
+**ACC-9 Reversal Lens explanations (AccountPage)**
+- Goal: Clarify how each reversal option affects readings and when it applies.
+- Placement: Under the Reversal Lens selector in the Account settings page.
+- UX requirements:
+	- Show a 1-line description for the currently selected option.
+	- Add a short persistent note: "Applies to future readings only."
+	- Optional "Learn more" link only if a valid destination exists in the app docs.
+- States to design: default (auto), each option selected, disabled for guests.
+- Copy guidance: Keep descriptions short and concrete (7-12 words). Avoid jargon.
+- Accessibility: Description text tied to the select via aria-describedby; ensure readable contrast.
+- Acceptance criteria: Users can read a clear explanation without changing selections.
+
+**ACC-12 Subscription status action banner (AccountPage)**
+- Goal: Surface payment or cancellation issues with a single, clear recovery action.
+- Placement: Inside the Subscription card, directly below the status line.
+- UX requirements:
+	- Show a status banner for past_due/unpaid/canceled states.
+	- Provide one primary action: "Update payment" (past_due/unpaid) or "Resubscribe" (canceled).
+	- For App Store/Play subscriptions, show provider-specific guidance and a direct "Manage in App Store/Google Play" action.
+	- Banner should be visually distinct but not alarming (warning tone).
+- States to design: past_due, unpaid, canceled, action loading, action error (inline).
+- Copy guidance: Short, direct, no guilt language; include a 1-line explanation.
+- Accessibility: Banner should be announced by screen readers; action is keyboard focusable.
+- Acceptance criteria: Users in affected states see exactly one recovery CTA and understand next steps.
+
+**ACC-14 Archetype Journey reset control (AccountPage)**
+- Goal: Explain data impact of disabling Journey and provide a safe reset option.
+- Placement: Within the Archetype Journey section, near the toggle.
+- UX requirements:
+	- Add a secondary action labeled "Reset Journey data".
+	- Provide confirm modal with clear consequences: "Turning off stops new tracking; reset clears history."
+	- Confirm modal should be full-screen on mobile and include Cancel/Confirm.
+	- Show success toast/message after reset and keep toggle state unchanged unless user changes it.
+- States to design: enabled, disabled, reset confirmation, reset loading, reset error.
+- Accessibility: Destructive action styling with clear focus state; modal traps focus.
+- Acceptance criteria: Users can understand the difference between off vs reset and confirm safely.
+
+**ACC-15 Profile/password inline validation + show/hide (AccountPage)**
+- Goal: Prevent avoidable errors by exposing rules before submit and improving password entry.
+- Placement: Profile and Password edit forms in Account settings.
+- UX requirements:
+	- Inline helper text for username/email/password rules shown by default.
+	- Validate on blur and on change; disable Save until inputs are valid and changed.
+	- Add show/hide toggles for all password fields with accessible labels.
+	- Preserve server error mapping (email/username in use, incorrect password).
+- Validation rules (design copy must reflect): username 3-30 chars, letters/numbers/underscore; valid email format; new password minimum 8 chars.
+- States to design: valid, invalid (inline error), disabled save, loading save, server error.
+- Accessibility: autoCapitalize="none"/autoCorrect="off" for email, clear error association, 44px targets for toggles.
+- Acceptance criteria: Users see requirements before submitting and can reveal passwords safely.
+
+**ACC-16 Export progress feedback (AccountPage)**
+- Goal: Make export actions feel responsive for large journals.
+- Placement: Export section under Privacy & Data.
+- UX requirements:
+	- Show a spinner + label "Preparing export…" while export runs.
+	- Display entry count once known: "Includes X entries."
+	- Keep CTA disabled while loading; show inline error if export fails.
+	- Maintain existing success toast messaging.
+- States to design: idle, loading, success (toast + count), error.
+- Accessibility: Spinner has aria-label; status text is readable.
+- Acceptance criteria: Users see active feedback within 1s of tapping export.
+
+**ACC-17 Replay Tutorial confirmation (UserMenu + AccountPage)**
+- Goal: Prevent accidental tutorial resets and keep behavior consistent across entry points.
+- Placement: User menu item and Account page action.
+- UX requirements:
+	- Require confirmation before reset (modal or undo banner).
+	- Provide concise description of impact and a safe Cancel.
+	- If using undo banner, show "Tutorial reset. Undo" for ~8-10s.
+- States to design: default, confirm open, confirm loading, reset success, reset error.
+- Accessibility: Modal focus trap or banner with keyboard focus, clear labels.
+- Acceptance criteria: No accidental resets without a confirmation step.
+
+**ACC-18 Deep-linked Settings anchors (ReadingPreparation + CardGalleryPage + AccountPage)**
+- Goal: Deep links land users in the relevant settings section with clear orientation.
+- Placement: Entry points in ReadingPreparation/CardGallery; target sections in AccountPage.
+- UX requirements:
+	- Use URL hashes (e.g., /account#audio, /account#privacy, /account#analytics, /account#export).
+	- On load with hash, scroll to section and highlight it briefly (subtle outline or background).
+	- Set focus on the section heading for screen readers.
+- States to design: standard navigation, hash navigation with highlight.
+- Accessibility: Respect reduced motion (no long scroll animation); focus-visible on headings.
+- Acceptance criteria: Users land on the correct section and can tell where they are immediately.

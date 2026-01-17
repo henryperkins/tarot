@@ -18,6 +18,7 @@ export function JournalStatusBanner({
   journalError,
   loading,
   localStoragePresence,
+  localEntryCount = 0,
   onMigrate,
   migrating,
   onImportLegacy,
@@ -79,10 +80,10 @@ export function JournalStatusBanner({
                   >
                     Upgrade to Cloud Journal
                   </button>
-                  <span className="text-[11px] text-amber-100/50">Sync across devices and never lose a reading</span>
+                  <span className="text-[11px] text-amber-100/50">Sync across devices and keep a cloud backup</span>
                 </div>
                 <p className="text-[11px] text-amber-100/45">
-                  Local storage holds up to 100 entries on this device only.
+                  Local entries: {localEntryCount}. Storage depends on your browser.
                 </p>
               </div>
             )}
@@ -139,7 +140,18 @@ export function JournalStatusBanner({
         <div className={`mb-6 ${cardClass} p-5`}>
           <AmberStarfield />
           <div className="relative z-10 space-y-3 text-sm text-amber-100/80 journal-prose">
-            <p>Your journal is currently stored locally in this browser only. Use the Sign In button in the header to sync across devices.</p>
+            <p>Your journal is currently stored locally in this browser only.</p>
+            <div className="flex flex-wrap items-center gap-3 text-xs text-amber-100/60">
+              <span>Local entries: {localEntryCount}</span>
+              <span>Storage depends on your browser.</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => onShowAuthModal()}
+              className="inline-flex items-center gap-2 rounded-full border border-amber-300/30 bg-amber-300/10 px-3 py-1.5 text-xs font-medium text-amber-100 transition hover:bg-amber-300/15 hover:border-amber-300/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/40"
+            >
+              Sign in to sync
+            </button>
             {shouldShowAccountNudge && (
               <div className="mt-1">
                 <AccountNudge

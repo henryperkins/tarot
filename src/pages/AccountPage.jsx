@@ -107,13 +107,33 @@ function SettingsToggle({ id, label, description, enabled, loading, onChange, er
 /**
  * Account section card
  */
-function SectionCard({ title, icon: Icon, children, id }) {
+function SectionCard({ title, icon: Icon, children, id, highlighted = false }) {
+  const headingId = title && id ? `${id}-heading` : undefined;
   return (
-    <div id={id} className="rounded-2xl border border-secondary/30 bg-surface overflow-hidden scroll-mt-24">
+    <div
+      id={id}
+      tabIndex={-1}
+      aria-labelledby={headingId}
+      className={`
+        rounded-2xl border border-secondary/30 bg-surface overflow-hidden scroll-mt-24
+        ${highlighted ? 'ring-2 ring-accent/30' : ''}
+      `}
+    >
       {title && (
         <div className="flex items-center gap-2 px-5 py-3 border-b border-secondary/20 bg-surface-muted/50">
           {Icon && <Icon className="h-4 w-4 text-accent" weight="duotone" />}
-          <h2 className="text-sm font-semibold text-main">{title}</h2>
+          <h2
+            id={headingId}
+            tabIndex={-1}
+            data-section-heading="true"
+            className="
+              text-sm font-semibold text-main rounded-md
+              focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60
+              focus-visible:ring-offset-2 focus-visible:ring-offset-surface
+            "
+          >
+            {title}
+          </h2>
         </div>
       )}
       <div className="px-5 py-4">
@@ -123,9 +143,9 @@ function SectionCard({ title, icon: Icon, children, id }) {
   );
 }
 
-function LockedSectionCard({ title, icon: Icon, description, onAction, actionLabel = 'Sign in', id }) {
+function LockedSectionCard({ title, icon: Icon, description, onAction, actionLabel = 'Sign in', id, highlighted = false }) {
   return (
-    <SectionCard title={title} icon={Icon} id={id}>
+    <SectionCard title={title} icon={Icon} id={id} highlighted={highlighted}>
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-start gap-2 text-sm text-muted">
           <Lock className="h-4 w-4 text-muted" weight="duotone" />
@@ -226,9 +246,11 @@ export default function AccountPage() {
   const [journeyResetLoading, setJourneyResetLoading] = useState(false);
   const [journeyResetError, setJourneyResetError] = useState(null);
   const [tutorialResetOpen, setTutorialResetOpen] = useState(false);
+  const [highlightedSection, setHighlightedSection] = useState(null);
 
   const journalEntriesRef = useRef(journalEntries);
   const hasMoreEntriesRef = useRef(hasMoreJournalEntries);
+  const highlightTimeoutRef = useRef(null);
 
   // Handle upgrade success from Stripe redirect
   useEffect(() => {
@@ -252,17 +274,41 @@ export default function AccountPage() {
   }, [isAuthenticated, user?.username, user?.email]);
 
   useEffect(() => {
-    if (typeof document === 'undefined') return;
-    if (!location.hash) return;
+    if (typeof document === 'undefined') return undefined;
+    if (!location.hash) return undefined;
     const id = location.hash.replace('#', '');
-    if (!id) return;
+    if (!id) return undefined;
     const target = document.getElementById(id);
-    if (!target) return;
+    if (!target) return undefined;
+
+    if (highlightTimeoutRef.current) {
+      clearTimeout(highlightTimeoutRef.current);
+    }
+    setHighlightedSection(id);
+    highlightTimeoutRef.current = setTimeout(() => {
+      setHighlightedSection(null);
+    }, 1600);
+
     const raf = requestAnimationFrame(() => {
-      target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      target.scrollIntoView({ behavior: prefersReducedMotion ? 'auto' : 'smooth', block: 'start' });
+      const heading = target.querySelector('[data-section-heading="true"]');
+      if (heading && typeof heading.focus === 'function') {
+        heading.focus({ preventScroll: true });
+      } else if (typeof target.focus === 'function') {
+        target.focus({ preventScroll: true });
+      }
     });
+
     return () => cancelAnimationFrame(raf);
-  }, [location.hash]);
+  }, [location.hash, prefersReducedMotion]);
+
+  useEffect(() => {
+    return () => {
+      if (highlightTimeoutRef.current) {
+        clearTimeout(highlightTimeoutRef.current);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     journalEntriesRef.current = journalEntries;
@@ -794,9 +840,11 @@ export default function AccountPage() {
     ios: 'Apple App Store',
     google_play: 'Google Play'
   };
+  const storeProviders = ['apple', 'app_store', 'ios', 'google_play'];
   const providerLabel = subscriptionProvider
     ? (providerLabels[subscriptionProvider] || subscriptionProvider.replace(/_/g, ' '))
     : null;
+  const isStoreProvider = subscriptionProvider ? storeProviders.includes(subscriptionProvider) : false;
   const stripeMeta = subscriptionDetails?.stripe || null;
   const statusValue = stripeMeta?.status || subscriptionDetails?.status || _subscription?.status || 'inactive';
   const statusLabels = {
@@ -832,10 +880,29 @@ export default function AccountPage() {
   const needsPaymentUpdate = ['past_due', 'unpaid'].includes(statusValue);
   const needsResubscribe = statusValue === 'canceled';
   const showStatusBanner = needsPaymentUpdate || needsResubscribe;
+  const storeLabel = providerLabel || 'your app store';
+  const storeManageLabel = providerLabel ? `Manage in ${providerLabel}` : 'Manage subscription';
+  const statusBannerMessage = needsPaymentUpdate
+    ? (isStoreProvider
+      ? `Update payment details in ${storeLabel} to avoid interruptions.`
+      : 'Update your payment method to avoid interruptions.'
+    )
+    : needsResubscribe
+      ? (isStoreProvider
+        ? `Your subscription is canceled. Renew in ${storeLabel} to restore access.`
+        : 'Your subscription is canceled. Resubscribe to restore premium access.'
+      )
+      : null;
+  const statusBannerActionLabel = needsPaymentUpdate
+    ? (isStoreProvider ? storeManageLabel : 'Update payment')
+    : needsResubscribe
+      ? (isStoreProvider ? storeManageLabel : 'Resubscribe')
+      : null;
+  const showPortalErrorInBanner = Boolean(showStatusBanner && portalError);
   const manageLabel = subscriptionProvider && subscriptionProvider !== 'stripe'
     ? `Manage in ${providerLabel}`
     : 'Manage Billing';
-  const portalHelpText = subscriptionProvider && subscriptionProvider !== 'stripe'
+  const portalHelpText = isStoreProvider
     ? `Subscriptions billed through ${providerLabel} are managed in that store.`
     : 'If you subscribed through the App Store or Google Play, manage billing in that store.';
   const usageUpdatedAt = usageStatus?.trackingAvailable !== false && usageStatus?.updatedAt
@@ -945,7 +1012,7 @@ export default function AccountPage() {
 
         {/* Profile Section - Auth only */}
         {isAuthenticated ? (
-        <SectionCard title="Profile" icon={User} id="profile">
+        <SectionCard title="Profile" icon={User} id="profile" highlighted={highlightedSection === 'profile'}>
           <div className="flex items-center gap-4">
             <div className="h-16 w-16 rounded-full bg-accent/20 flex items-center justify-center">
               <span className="text-2xl font-bold text-accent">
@@ -1095,7 +1162,7 @@ export default function AccountPage() {
                     autoComplete="current-password"
                     className="
                       w-full rounded-xl border border-secondary/30 bg-surface-muted/50
-                      px-3 py-2.5 pr-10 text-sm text-main
+                      px-3 py-2.5 pr-12 text-sm text-main
                       focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent
                       transition
                     "
@@ -1103,7 +1170,13 @@ export default function AccountPage() {
                   <button
                     type="button"
                     onClick={() => setShowCurrentPassword((prev) => !prev)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted hover:text-main"
+                    className="
+                      absolute right-2 top-1/2 -translate-y-1/2
+                      min-w-[44px] min-h-[44px] flex items-center justify-center
+                      text-muted hover:text-main
+                      focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60
+                      focus-visible:ring-offset-2 focus-visible:ring-offset-surface
+                    "
                     aria-label={showCurrentPassword ? 'Hide current password' : 'Show current password'}
                   >
                     {showCurrentPassword ? <EyeSlash className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
@@ -1125,7 +1198,7 @@ export default function AccountPage() {
                     aria-describedby="password-next-help"
                     className="
                       w-full rounded-xl border border-secondary/30 bg-surface-muted/50
-                      px-3 py-2.5 pr-10 text-sm text-main
+                      px-3 py-2.5 pr-12 text-sm text-main
                       focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent
                       transition
                     "
@@ -1133,7 +1206,13 @@ export default function AccountPage() {
                   <button
                     type="button"
                     onClick={() => setShowNextPassword((prev) => !prev)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted hover:text-main"
+                    className="
+                      absolute right-2 top-1/2 -translate-y-1/2
+                      min-w-[44px] min-h-[44px] flex items-center justify-center
+                      text-muted hover:text-main
+                      focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60
+                      focus-visible:ring-offset-2 focus-visible:ring-offset-surface
+                    "
                     aria-label={showNextPassword ? 'Hide new password' : 'Show new password'}
                   >
                     {showNextPassword ? <EyeSlash className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
@@ -1161,7 +1240,7 @@ export default function AccountPage() {
                     aria-describedby="password-confirm-help"
                     className="
                       w-full rounded-xl border border-secondary/30 bg-surface-muted/50
-                      px-3 py-2.5 pr-10 text-sm text-main
+                      px-3 py-2.5 pr-12 text-sm text-main
                       focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent
                       transition
                     "
@@ -1169,7 +1248,13 @@ export default function AccountPage() {
                   <button
                     type="button"
                     onClick={() => setShowConfirmPassword((prev) => !prev)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted hover:text-main"
+                    className="
+                      absolute right-2 top-1/2 -translate-y-1/2
+                      min-w-[44px] min-h-[44px] flex items-center justify-center
+                      text-muted hover:text-main
+                      focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60
+                      focus-visible:ring-offset-2 focus-visible:ring-offset-surface
+                    "
                     aria-label={showConfirmPassword ? 'Hide confirmation password' : 'Show confirmation password'}
                   >
                     {showConfirmPassword ? <EyeSlash className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
@@ -1206,6 +1291,7 @@ export default function AccountPage() {
             title="Profile"
             icon={User}
             id="profile"
+            highlighted={highlightedSection === 'profile'}
             description="Sign in to manage your profile and keep your journal synced across devices."
             onAction={() => setShowAuthModal(true)}
           />
@@ -1213,7 +1299,7 @@ export default function AccountPage() {
 
         {/* Subscription Section - Auth only */}
         {isAuthenticated ? (
-        <SectionCard title="Subscription" icon={CreditCard} id="subscription">
+        <SectionCard title="Subscription" icon={CreditCard} id="subscription" highlighted={highlightedSection === 'subscription'}>
           <div className="flex items-center gap-4 mb-4">
             <div className={`h-12 w-12 rounded-full flex items-center justify-center ${isPaid ? 'bg-accent/20' : 'bg-secondary/20'}`}>
               <TierIcon className={`h-6 w-6 ${isPaid ? 'text-accent' : 'text-secondary'}`} weight="fill" />
@@ -1244,30 +1330,45 @@ export default function AccountPage() {
           </div>
 
           {showStatusBanner && (
-            <div className="mb-4 rounded-xl border border-amber-400/30 bg-amber-400/10 px-4 py-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-              <div>
-                <p className="text-sm font-semibold text-main">Subscription needs attention</p>
-                <p className="text-xs text-muted mt-1">
-                  {needsPaymentUpdate
-                    ? 'Update your payment method to avoid interruptions.'
-                    : 'Your subscription is canceled. Resubscribe to restore premium access.'}
-                </p>
+            <div
+              className="mb-4 rounded-xl border border-amber-400/30 bg-amber-400/10 px-4 py-3"
+              role="status"
+              aria-live="polite"
+              aria-atomic="true"
+            >
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                <div>
+                  <p className="text-sm font-semibold text-main">Subscription needs attention</p>
+                  <p className="text-xs text-muted mt-1">{statusBannerMessage}</p>
+                </div>
+                {needsResubscribe && !isStoreProvider ? (
+                  <Link
+                    to="/pricing"
+                    className="inline-flex items-center justify-center rounded-full border border-amber-300/40 bg-amber-300/20 px-4 py-2 text-xs font-semibold text-amber-100 hover:bg-amber-300/30 transition"
+                  >
+                    Resubscribe
+                  </Link>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={handleManageSubscription}
+                    disabled={portalLoading}
+                    className={`
+                      inline-flex items-center justify-center gap-2 rounded-full
+                      border border-amber-300/40 bg-amber-300/20 px-4 py-2 text-xs font-semibold text-amber-100
+                      hover:bg-amber-300/30 transition
+                      ${portalLoading ? 'opacity-70 cursor-not-allowed' : ''}
+                    `}
+                  >
+                    {statusBannerActionLabel}
+                    {portalLoading && <CircleNotch className="h-4 w-4 animate-spin" />}
+                  </button>
+                )}
               </div>
-              {needsResubscribe ? (
-                <Link
-                  to="/pricing"
-                  className="inline-flex items-center justify-center rounded-full border border-amber-300/40 bg-amber-300/20 px-4 py-2 text-xs font-semibold text-amber-100 hover:bg-amber-300/30 transition"
-                >
-                  Resubscribe
-                </Link>
-              ) : (
-                <button
-                  type="button"
-                  onClick={handleManageSubscription}
-                  className="inline-flex items-center justify-center rounded-full border border-amber-300/40 bg-amber-300/20 px-4 py-2 text-xs font-semibold text-amber-100 hover:bg-amber-300/30 transition"
-                >
-                  Update payment
-                </button>
+              {showPortalErrorInBanner && (
+                <p className="text-xs text-error mt-2" role="alert">
+                  {portalError}
+                </p>
               )}
             </div>
           )}
@@ -1475,7 +1576,7 @@ export default function AccountPage() {
               </>
             )}
           </div>
-          {portalError && (
+          {!showStatusBanner && portalError && (
             <div className="mt-3 rounded-xl border border-error/40 bg-error/10 p-3">
               <p className="text-xs text-error">{portalError}</p>
               <div className="mt-2 flex flex-wrap items-center gap-2">
@@ -1516,13 +1617,14 @@ export default function AccountPage() {
             title="Subscription"
             icon={CreditCard}
             id="subscription"
+            highlighted={highlightedSection === 'subscription'}
             description="Sign in to view your plan, billing details, and monthly usage."
             onAction={() => setShowAuthModal(true)}
           />
         )}
 
         {/* Audio Settings Section - Available to all users */}
-        <SectionCard title="Audio" icon={SpeakerHigh} id="audio">
+        <SectionCard title="Audio" icon={SpeakerHigh} id="audio" highlighted={highlightedSection === 'audio'}>
           <div className="divide-y divide-secondary/20">
             <SettingsToggle
               id="voice-toggle"
@@ -1587,7 +1689,7 @@ export default function AccountPage() {
         </SectionCard>
 
         {/* Display Section */}
-        <SectionCard title="Display" icon={Palette} id="display">
+        <SectionCard title="Display" icon={Palette} id="display" highlighted={highlightedSection === 'display'}>
           <div className="py-4">
             <div className="flex flex-wrap items-center justify-between gap-4">
               <div>
@@ -1622,6 +1724,8 @@ export default function AccountPage() {
                     className={`
                       min-h-[44px] px-4 py-2 rounded-full text-xs font-semibold
                       flex items-center gap-2 transition
+                      focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60
+                      focus-visible:ring-offset-2 focus-visible:ring-offset-surface
                       ${isActive
                         ? 'bg-surface border border-secondary/40 text-main'
                         : 'text-muted hover:text-main'}
@@ -1637,7 +1741,7 @@ export default function AccountPage() {
         </SectionCard>
 
         {/* Reading Preferences Section */}
-        <SectionCard title="Reading Preferences" icon={Sparkle} id="reading">
+        <SectionCard title="Reading Preferences" icon={Sparkle} id="reading" highlighted={highlightedSection === 'reading'}>
           <div className="divide-y divide-secondary/20">
             <SettingsToggle
               id="deck-toggle"
@@ -1684,7 +1788,7 @@ export default function AccountPage() {
 
         {/* Privacy & Data Section - Auth only */}
         {isAuthenticated ? (
-        <SectionCard title="Privacy & Data" icon={ShieldCheck} id="privacy">
+        <SectionCard title="Privacy & Data" icon={ShieldCheck} id="privacy" highlighted={highlightedSection === 'privacy'}>
           <div className="space-y-4">
             <p className="text-xs text-muted">
               We store your readings and analytics to sync across devices. Theme and audio settings stay on this device.
@@ -1692,7 +1796,14 @@ export default function AccountPage() {
             </p>
 
             <div className="divide-y divide-secondary/20">
-              <div>
+              <div
+                id="analytics"
+                tabIndex={-1}
+                className={`scroll-mt-24 rounded-xl ${highlightedSection === 'analytics' ? 'ring-2 ring-accent/30' : ''}`}
+              >
+                <p id="analytics-heading" tabIndex={-1} data-section-heading="true" className="sr-only">
+                  Archetype Journey analytics
+                </p>
                 <SettingsToggle
                   id="analytics-toggle"
                   label="Archetype Journey"
@@ -1735,8 +1846,22 @@ export default function AccountPage() {
               </div>
             </div>
 
-            <div className="pt-4 border-t border-secondary/20">
-              <p className="text-xs uppercase tracking-wider text-muted mb-2">Export</p>
+            <div
+              id="export"
+              tabIndex={-1}
+              className={`
+                pt-4 border-t border-secondary/20 scroll-mt-24 rounded-xl
+                ${highlightedSection === 'export' ? 'ring-2 ring-accent/30' : ''}
+              `}
+            >
+              <h3
+                id="export-heading"
+                tabIndex={-1}
+                data-section-heading="true"
+                className="text-xs uppercase tracking-wider text-muted mb-2"
+              >
+                Export
+              </h3>
               <div className="flex flex-col sm:flex-row gap-2">
                 <button
                   type="button"
@@ -1819,6 +1944,7 @@ export default function AccountPage() {
             title="Privacy & Data"
             icon={ShieldCheck}
             id="privacy"
+            highlighted={highlightedSection === 'privacy'}
             description="Sign in to manage analytics, exports, and account data controls."
             onAction={() => setShowAuthModal(true)}
           />
@@ -1829,7 +1955,7 @@ export default function AccountPage() {
 
         {/* Actions Section - Auth only */}
         {isAuthenticated && (
-        <SectionCard id="actions">
+        <SectionCard id="actions" highlighted={highlightedSection === 'actions'}>
           <div className="space-y-1">
             <button
               type="button"

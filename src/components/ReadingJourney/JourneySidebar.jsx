@@ -97,7 +97,8 @@ export default function JourneySidebar({
   backfillResult,
   handleBackfill,
   // For export functionality
-  activeEntries,
+  scopeEntries,
+  filteredEntries,
   allEntries,
   exportStats,
   // Other props
@@ -109,6 +110,9 @@ export default function JourneySidebar({
   timezone,
   variant: _variant = 'sidebar',
   scopeLabel,
+  filtersApplied,
+  analyticsScope,
+  onScopeSelect,
 }) {
   // Section open/close state
   const [openSections, setOpenSections] = useState({
@@ -131,6 +135,7 @@ export default function JourneySidebar({
     abortControllerRef.current = new AbortController();
     handleBackfill(abortControllerRef.current.signal);
   }, [handleBackfill]);
+  const showFiltersMismatch = filtersApplied && !filtersActive;
 
   // Show loading skeleton
   if (isLoading) {
@@ -261,6 +266,21 @@ export default function JourneySidebar({
             )}
           </h3>
         </div>
+
+        {showFiltersMismatch && (
+          <div className="flex flex-wrap items-center justify-between gap-2 rounded-full border border-amber-200/25 bg-amber-200/5 px-3 py-1.5 text-[11px] text-amber-100/80">
+            <span>Filters not applied to insights</span>
+            {onScopeSelect && (
+              <button
+                type="button"
+                onClick={() => onScopeSelect('filters')}
+                className="font-semibold text-amber-50 underline underline-offset-2 hover:text-amber-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/40"
+              >
+                Apply filters
+              </button>
+            )}
+          </div>
+        )}
 
         {/* Pattern Alerts */}
         <PatternAlertBanner isAuthenticated={isAuthenticated} />
@@ -394,10 +414,12 @@ export default function JourneySidebar({
             icon={Sparkle}
             label="AI Summary"
           >
-            <JournalSummarySection
-              isAuthenticated={isAuthenticated}
-              entryCount={allEntries?.length || 0}
-            />
+          <JournalSummarySection
+            isAuthenticated={isAuthenticated}
+            entryCount={allEntries?.length || 0}
+            filteredEntries={filteredEntries}
+            filtersApplied={filtersApplied}
+          />
           </CollapsibleSection>
 
           {/* Export Section */}
@@ -407,16 +429,18 @@ export default function JourneySidebar({
             icon={Export}
             label="Export & Share"
           >
-            <ExportSection
-              isAuthenticated={isAuthenticated}
-              onCreateShareLink={onCreateShareLink}
-              entries={activeEntries}
-              allEntries={allEntries}
-              stats={exportStats}
-              scopeLabel={scopeLabel}
-              filtersActive={filtersActive}
-            />
-          </CollapsibleSection>
+          <ExportSection
+            isAuthenticated={isAuthenticated}
+            onCreateShareLink={onCreateShareLink}
+            scopeEntries={scopeEntries}
+            filteredEntries={filteredEntries}
+            allEntries={allEntries}
+            stats={exportStats}
+            scopeLabel={scopeLabel}
+            filtersApplied={filtersApplied}
+            analyticsScope={analyticsScope}
+          />
+        </CollapsibleSection>
         </div>
       </div>
     </section>

@@ -56,7 +56,7 @@ export function ConfirmModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-main/70 backdrop-blur-sm animate-fade-in p-3 xs:p-4"
+      className="fixed inset-0 z-50 flex items-stretch sm:items-center justify-center bg-main/70 backdrop-blur-sm animate-fade-in p-0 sm:p-4"
       onClick={createBackdropHandler(onClose)}
       style={{
         paddingTop: 'max(0.75rem, env(safe-area-inset-top))',
@@ -80,7 +80,11 @@ export function ConfirmModal({
           role="dialog"
           aria-modal="true"
           aria-labelledby="confirm-modal-title"
-          className={`relative w-full max-w-md rounded-2xl border ${variantStyles[variant]} shadow-2xl animate-slide-up`}
+          className={`
+            relative w-full h-full max-w-none rounded-none border overflow-y-auto
+            ${variantStyles[variant]} shadow-2xl animate-slide-up
+            sm:h-auto sm:max-w-md sm:rounded-2xl
+          `}
         >
           <button
             onClick={onClose}
