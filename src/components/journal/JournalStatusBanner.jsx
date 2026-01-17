@@ -37,13 +37,71 @@ export function JournalStatusBanner({
   const showCloudSyncIssue = Boolean(journalError) && canUseCloudJournal;
   const showMigrateCta = canUseCloudJournal && hasLocalEntries && !migrating;
   const shouldRenderCloudBanner = showCachedNotice || showCloudSyncIssue || showMigrateCta || migrating;
+  const isCloudEnabled = isAuthenticated && canUseCloudJournal;
+
+  const formatRelativeTime = (timestamp) => {
+    const value = Number(timestamp);
+    if (!Number.isFinite(value)) return null;
+    const diff = Date.now() - value;
+    if (!Number.isFinite(diff)) return null;
+    const minute = 60 * 1000;
+    const hour = 60 * minute;
+    const day = 24 * hour;
+    if (diff < minute) return 'just now';
+    if (diff < hour) return `${Math.round(diff / minute)}m ago`;
+    if (diff < day) return `${Math.round(diff / hour)}h ago`;
+    return `${Math.round(diff / day)}d ago`;
+  };
+
+  const syncTimeLabel = lastSyncAt ? formatRelativeTime(lastSyncAt) : null;
+  const syncParts = [];
+  if (isCloudEnabled && (loading || !syncSource)) {
+    syncParts.push('Syncing');
+    syncParts.push('D1');
+  } else if (!isAuthenticated || !canUseCloudJournal || syncSource === 'local') {
+    syncParts.push('Local only');
+  } else if (syncSource === 'cache') {
+    syncParts.push('Cached');
+    syncParts.push('D1');
+  } else {
+    syncParts.push('Synced');
+    syncParts.push('D1');
+  }
+  if (syncTimeLabel && isCloudEnabled && syncSource !== 'local') {
+    syncParts.push(syncTimeLabel);
+  }
+  const syncLabel = syncParts.join(' | ') || 'Sync status';
+  const showSyncRefresh = syncSource === 'cache' && typeof onReload === 'function';
+
+  const syncPill = (
+    <div className="mb-4 flex flex-wrap items-center gap-2">
+      <span className="inline-flex items-center gap-2 rounded-full border border-amber-200/20 bg-amber-200/5 px-3 py-1 text-[11px] text-amber-100/75">
+        {syncLabel}
+      </span>
+      {showSyncRefresh && (
+        <button
+          type="button"
+          onClick={() => onReload()}
+          disabled={loading}
+          className="text-[11px] font-semibold text-amber-100/70 underline underline-offset-2 hover:text-amber-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/40 disabled:opacity-50"
+        >
+          Refresh
+        </button>
+      )}
+    </div>
+  );
 
   if (isAuthenticated && canUseCloudJournal && !shouldRenderCloudBanner) {
-    return null;
+    return (
+      <>
+        {syncPill}
+      </>
+    );
   }
 
   return (
     <>
+      {syncPill}
       {isAuthenticated ? (
         <div className={`mb-6 ${cardClass} p-5`}>
           <AmberStarfield />
@@ -60,14 +118,6 @@ export function JournalStatusBanner({
                   {lastSyncAt
                     ? `Cached from ${new Date(lastSyncAt).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}`
                     : 'Using cached data'}
-                  <button
-                    type="button"
-                    onClick={() => onReload()}
-                    disabled={loading}
-                    className="underline hover:text-amber-100 focus-visible:outline-none focus-visible:text-amber-100"
-                  >
-                    Refresh
-                  </button>
                 </span>
               )}
             </div>

@@ -823,7 +823,27 @@ export function ReadingDisplay({
                                         </div>
                                     </div>
                                 )}
-                                {journalStatus && <p role="status" aria-live="polite" className={`text-xs text-center max-w-sm ${journalStatus.type === 'success' ? 'text-success' : 'text-error'}`}>{journalStatus.message}</p>}
+                                {journalStatus && (
+                                    <div role="status" aria-live="polite" className="flex flex-wrap items-center justify-center gap-2 text-xs text-center max-w-sm">
+                                        <span className={`${journalStatus.type === 'success' ? 'text-success' : 'text-error'}`}>
+                                            {journalStatus.message}
+                                        </span>
+                                        {journalStatus.action?.entryId && (
+                                            <button
+                                                type="button"
+                                                onClick={() => navigate('/journal', {
+                                                    state: {
+                                                        highlightEntryId: journalStatus.action.entryId,
+                                                        fromReading: true
+                                                    }
+                                                })}
+                                                className="inline-flex items-center gap-1 rounded-full border border-accent/40 bg-accent/10 px-2.5 py-1 text-[11px] font-semibold text-accent hover:bg-accent/20 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50"
+                                            >
+                                                {journalStatus.action.label || 'View entry'}
+                                            </button>
+                                        )}
+                                    </div>
+                                )}
 
                                 {/* JournalNudge - contextual prompt for first-time users after narrative */}
                                 {shouldShowJournalNudge && personalReading && !personalReading.isError && !journalStatus && (

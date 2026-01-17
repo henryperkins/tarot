@@ -131,7 +131,15 @@ export function useSaveReading() {
                 const message = result.deduplicated
                     ? 'This reading is already in your journal.'
                     : 'Saved to your journal.';
-                setJournalStatus({ type: 'success', message });
+                const entryId = result?.entry?.id;
+                setJournalStatus({
+                    type: 'success',
+                    message,
+                    action: entryId ? {
+                        label: 'View entry',
+                        entryId
+                    } : null
+                });
             } else {
                 setJournalStatus({ type: 'error', message: result.error || 'Unable to save to your journal. Please try again.' });
             }

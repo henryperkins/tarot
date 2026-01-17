@@ -424,13 +424,13 @@ export const JournalEntryCard = memo(function JournalEntryCard({
           if (navigator?.clipboard?.writeText) {
             try {
               await navigator.clipboard.writeText(shareUrl);
-              showStatus({ tone: 'success', message: 'Share link copied to clipboard.' });
+              showStatus({ tone: 'success', message: 'Share link copied (single reading).' });
               return true;
             } catch (error) {
               console.warn('Clipboard write failed for entry share', error);
             }
           }
-          showStatus({ tone: 'info', message: 'Share link ready—copy from your browser address bar.' });
+          showStatus({ tone: 'info', message: 'Share link ready — copy from your address bar.' });
           return true;
         }
         showStatus({ tone: 'error', message: 'Share link created, but the URL is missing.' });
@@ -444,7 +444,7 @@ export const JournalEntryCard = memo(function JournalEntryCard({
     const success = await copyJournalEntrySummary(entry);
     showStatus({
       tone: success ? 'success' : 'error',
-      message: success ? 'Entry summary copied to your clipboard.' : 'Unable to copy this entry right now.'
+      message: success ? 'Summary copied (single reading).' : 'Unable to copy this entry right now.'
     });
     return success;
   });
@@ -530,6 +530,7 @@ export const JournalEntryCard = memo(function JournalEntryCard({
     'inline-flex min-h-[44px] min-w-[44px] h-11 w-11 items-center justify-center rounded-full text-[color:var(--text-muted)] ' +
     'hover:bg-[color:rgba(232,218,195,0.08)] hover:text-[color:var(--brand-accent)] transition focus-visible:outline-none ' +
     'focus-visible:ring-2 focus-visible:ring-[color:rgba(232,218,195,0.45)] flex-shrink-0';
+  const shareActionLabel = isAuthenticated && onCreateShareLink ? 'Create share link' : 'Copy summary';
   const actionMenuId = `${entry.id || entry.ts || 'entry'}-actions-menu`;
   const actionMenuItems = [
     { key: 'copy', label: 'Copy CSV', icon: ClipboardText, onSelect: handleEntryCopy },
@@ -844,11 +845,11 @@ export const JournalEntryCard = memo(function JournalEntryCard({
           type="button"
           onClick={handleEntryShare}
           disabled={pendingAction === 'share'}
-          title="Share reading"
+          title={shareActionLabel}
           className={`${compactActionButtonClass} ${pendingAction === 'share' ? 'cursor-wait opacity-60' : ''}`}
         >
           <JournalShareIcon className="h-4 w-4" aria-hidden="true" />
-          <span className="sr-only">Share reading</span>
+          <span className="sr-only">{shareActionLabel}</span>
         </button>
 
         <button
@@ -979,11 +980,11 @@ export const JournalEntryCard = memo(function JournalEntryCard({
               type="button"
               onClick={handleEntryShare}
               disabled={pendingAction === 'share'}
-              title="Share reading"
+              title={shareActionLabel}
               className={`${ui.iconButton} ${pendingAction === 'share' ? 'cursor-wait opacity-60' : ''}`}
             >
               <JournalShareIcon className="h-4 w-4" aria-hidden="true" />
-              <span className="sr-only">Share reading</span>
+              <span className="sr-only">{shareActionLabel}</span>
             </button>
             <button
               type="button"

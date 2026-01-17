@@ -199,10 +199,7 @@ export function JournalFilters({
   resultCount,
   totalCount,
   searchCoverageLabel,
-  canSearchOlder = false,
-  onSearchOlder,
-  searchOlderLabel = 'Load older entries',
-  loadingMore = false,
+  searchScopeLabel,
   onSearchRef
 }) {
   const isCompact = variant === 'compact';
@@ -732,21 +729,13 @@ export function JournalFilters({
                 </div>
               )}
 
-              {(searchCoverageLabel || canSearchOlder) && (
+              {(searchCoverageLabel || searchScopeLabel) && (
                 <div className="flex flex-wrap items-center gap-2 text-[11px] text-[color:var(--color-gray-light)]">
                   {searchCoverageLabel && (
                     <span>{searchCoverageLabel}</span>
                   )}
-                  {canSearchOlder && onSearchOlder && (
-                    <button
-                      type="button"
-                      onClick={onSearchOlder}
-                      disabled={loadingMore}
-                      className={`inline-flex min-h-[32px] items-center gap-1 rounded-full border border-[color:var(--border-warm-light)] bg-[color:rgba(232,218,195,0.06)] px-2.5 py-1 text-[11px] font-semibold text-[color:var(--text-main)] transition hover:border-[color:var(--border-warm)] hover:bg-[color:rgba(232,218,195,0.12)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:rgba(232,218,195,0.45)] ${loadingMore ? 'cursor-wait opacity-60' : ''}`}
-                    >
-                      <JournalSearchIcon className="h-3 w-3" aria-hidden="true" />
-                      {loadingMore ? 'Searching...' : searchOlderLabel}
-                    </button>
+                  {searchScopeLabel && (
+                    <span>{searchScopeLabel}</span>
                   )}
                 </div>
               )}

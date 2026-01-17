@@ -51,7 +51,6 @@ const formatExpiryLabel = (value) => {
  * @param {Object} props.stats - Stats for PDF export
  * @param {string} props.scopeLabel - Human-friendly label for current scope
  * @param {boolean} props.filtersApplied - Whether journal filters are currently active
- * @param {string} props.analyticsScope - Current analytics scope key
  */
 const LARGE_EXPORT_THRESHOLD = 50; // Warn user before exporting more than this many entries
 
@@ -63,14 +62,12 @@ function ExportSection({
   allEntries,
   stats,
   scopeLabel = 'Current view',
-  filtersApplied = false,
-  analyticsScope = 'all'
+  filtersApplied = false
 }) {
   const defaultScope = useMemo(() => {
     if (filtersApplied) return 'filters';
-    if (analyticsScope !== 'all') return 'scope';
     return 'all';
-  }, [analyticsScope, filtersApplied]);
+  }, [filtersApplied]);
 
   const [isCreatingLink, setIsCreatingLink] = useState(false);
   const [linkCreated, setLinkCreated] = useState(null);
@@ -533,7 +530,7 @@ function ExportSection({
       </div>
 
       <div className="rounded-lg border border-amber-300/15 bg-amber-200/5 px-3 py-2 text-xs sm:text-[11px] text-amber-100/70">
-        Exporting {hasEntries ? exportEntries.length : 0} entr{hasEntries && exportEntries.length === 1 ? 'y' : 'ies'} · Scope: {exportScopeLabel}
+        Exporting: {exportScopeLabel} · {hasEntries ? exportEntries.length : 0} entr{hasEntries && exportEntries.length === 1 ? 'y' : 'ies'}
       </div>
 
       {/* Share link (authenticated only) */}

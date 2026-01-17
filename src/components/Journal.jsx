@@ -149,6 +149,7 @@ export default function Journal() {
   const showSummaryBand = !loading && hasEntries;
   const summaryDataSource = syncSource === 'api' || syncSource === 'cache' ? 'server' : 'client';
   const totalEntryCount = hasTotalEntries ? totalEntries : entries.length;
+  const hasRemoteEntries = hasMoreServerEntries || (hasTotalEntries && totalEntryCount > entries.length);
   const searchCoverageLabel = filtersActive
     ? (hasTotalEntries
         ? `Searching latest ${entries.length} of ${totalEntryCount} entries`
@@ -156,6 +157,9 @@ export default function Journal() {
     : (hasTotalEntries && totalEntryCount > entries.length
         ? `Loaded ${entries.length} of ${totalEntryCount} entries`
         : null);
+  const searchScopeLabel = filtersActive && hasRemoteEntries
+    ? 'Searching loaded entries only'
+    : null;
   const showInlineSearchOlder = hasMoreServerEntries && filtersActive;
   const inlineSearchOlderLabel = hasLocalMoreEntries
     ? 'Show more results'
@@ -586,6 +590,7 @@ export default function Journal() {
             filtersApplied={filtersActive}
             scopeEntries={scopedStatsEntries}
             analyticsScope={analyticsScope}
+            onScopeSelect={handleScopeSelect}
             isAuthenticated={isAuthenticated}
             userId={user?.id}
             focusAreas={personalization?.focusAreas}
@@ -685,17 +690,18 @@ export default function Journal() {
     <section className="mb-6 space-y-3 lg:hidden" aria-label="Journal insights and journey">
       {/* Filters moved to Journal history section to avoid duplication */}
       <InsightsErrorBoundary>
-          <ReadingJourney
-            entries={entries}
-            filteredEntries={filteredEntries}
-            filtersActive={journeyFiltersActive}
-            filtersApplied={filtersActive}
-            scopeEntries={scopedStatsEntries}
-            analyticsScope={analyticsScope}
-            isAuthenticated={isAuthenticated}
-            userId={user?.id}
-            focusAreas={personalization?.focusAreas}
-            locale={locale}
+        <ReadingJourney
+          entries={entries}
+          filteredEntries={filteredEntries}
+          filtersActive={journeyFiltersActive}
+          filtersApplied={filtersActive}
+          scopeEntries={scopedStatsEntries}
+          analyticsScope={analyticsScope}
+          onScopeSelect={handleScopeSelect}
+          isAuthenticated={isAuthenticated}
+          userId={user?.id}
+          focusAreas={personalization?.focusAreas}
+          locale={locale}
           timezone={timezone}
           variant="mobile"
           onCreateShareLink={isAuthenticated ? createShareLink : null}
@@ -788,6 +794,7 @@ export default function Journal() {
                     <div className="flex flex-wrap items-center gap-2 text-[11px] text-amber-100/70">
                       <span>{searchSummaryCount}</span>
                       {searchCoverageLabel && <span>{searchCoverageLabel}</span>}
+                      {searchScopeLabel && <span>{searchScopeLabel}</span>}
                     </div>
                   </div>
                   <div className="flex flex-wrap items-center gap-2">
@@ -799,6 +806,17 @@ export default function Journal() {
                       <JournalSlidersIcon className="h-4 w-4" aria-hidden="true" />
                       Edit filters
                     </button>
+                    {showInlineSearchOlder && (
+                      <button
+                        type="button"
+                        onClick={handleLoadMoreEntries}
+                        disabled={loadingMore || !hasMoreEntries}
+                        className={`inline-flex min-h-[44px] items-center gap-2 rounded-full border border-amber-200/20 bg-amber-200/10 px-3 py-2 text-xs font-semibold text-amber-100/90 hover:border-amber-200/40 hover:bg-amber-200/20 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/40 ${loadingMore || !hasMoreEntries ? 'cursor-not-allowed opacity-60' : ''}`}
+                      >
+                        <JournalSearchIcon className="h-4 w-4" aria-hidden="true" />
+                        {loadingMore ? 'Searching...' : inlineSearchOlderLabel}
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>
@@ -885,10 +903,14 @@ export default function Journal() {
                           <h2 className="text-xl font-serif text-amber-50">Journal history</h2>
                         </div>
                         <div className="flex flex-col items-start gap-1 sm:items-end">
-                          <span className="inline-flex items-center gap-2 rounded-full border border-amber-200/20 bg-amber-200/10 px-3 py-1 text-[11px] text-amber-100/70">
-                            Showing {visibleEntries.length} of {filteredEntries.length}
-                            {hasMoreEntries ? '+' : ''}
-                          </span>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="inline-flex items-center rounded-full border border-amber-200/20 bg-amber-200/10 px-3 py-1 text-[11px] text-amber-100/70">
+                              Filtered: {filteredEntries.length}
+                            </span>
+                            <span className="inline-flex items-center rounded-full border border-amber-200/20 bg-amber-200/10 px-3 py-1 text-[11px] text-amber-100/70">
+                              Loaded: {entries.length}{hasTotalEntries ? ` of ${totalEntryCount}` : hasMoreEntries ? '+' : ''}
+                            </span>
+                          </div>
                           {monthSections.length > 1 && (
                             <div className="flex items-center gap-2">
                               <label htmlFor="jump-to-month" className="text-[10px] uppercase tracking-[0.22em] text-amber-100/60">
@@ -975,10 +997,7 @@ export default function Journal() {
                           resultCount={filteredEntries.length}
                           totalCount={entries.length}
                           searchCoverageLabel={searchCoverageLabel}
-                          canSearchOlder={showInlineSearchOlder}
-                          onSearchOlder={handleLoadMoreEntries}
-                          searchOlderLabel={inlineSearchOlderLabel}
-                          loadingMore={loadingMore}
+                          searchScopeLabel={searchScopeLabel}
                           onSearchRef={registerSearchInput}
                         />
                       </div>
@@ -993,9 +1012,22 @@ export default function Journal() {
                           </p>
                           <p className="journal-prose mt-2 text-amber-100/70">
                             {hasMoreServerEntries
-                              ? 'Search older entries or adjust your filters.'
+                              ? 'Searching loaded entries only. Try searching older entries or adjust your filters.'
                               : 'Try adjusting the filters or reset to see the full journal.'}
                           </p>
+                          {hasMoreServerEntries && (
+                            <div className="mt-4 flex flex-col items-center gap-2">
+                              <button
+                                type="button"
+                                onClick={handleLoadMoreEntries}
+                                disabled={loadingMore}
+                                className={`inline-flex min-h-[44px] items-center gap-2 rounded-full border border-amber-200/20 bg-amber-200/10 px-4 py-2 text-xs font-semibold text-amber-100/90 hover:border-amber-200/40 hover:bg-amber-200/20 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/40 ${loadingMore ? 'cursor-not-allowed opacity-60' : ''}`}
+                              >
+                                <JournalSearchIcon className="h-4 w-4" aria-hidden="true" />
+                                {loadingMore ? 'Searching...' : inlineSearchOlderLabel}
+                              </button>
+                            </div>
+                          )}
                         </div>
                       ) : (
                         <>

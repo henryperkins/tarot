@@ -8,11 +8,17 @@ export function GlobalNav({ condensed = false, withUserChip = false }) {
   const location = useLocation();
   const navigate = useNavigate();
 
+<<<<<<< HEAD
   // Precise route detection: only mark active when on actual route
   const isJournal = location.pathname.startsWith('/journal');
   const isReading = location.pathname === '/' || location.pathname === '';
   // Don't mark either as active on other pages (pricing, account, share, etc.)
   const showActiveState = isReading || isJournal;
+=======
+  const { pathname } = location;
+  const isJournal = pathname.startsWith('/journal');
+  const isReading = pathname === '/';
+>>>>>>> 25ae633 (up)
 
   const baseButtonClasses = `
     inline-flex items-center justify-center gap-1.5

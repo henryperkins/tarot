@@ -32,6 +32,7 @@ export default function JourneyContent({
   scopeLabel,
   scopeEntries,
   analyticsScope,
+  onScopeSelect,
 }) {
   const journeyData = useJourneyData({
     entries,
@@ -141,6 +142,7 @@ export default function JourneyContent({
     timezone,
     filtersApplied: Boolean(filtersApplied),
     analyticsScope,
+    onScopeSelect,
   }), [
     cardFrequency,
     badges,
@@ -182,6 +184,7 @@ export default function JourneyContent({
     timezone,
     filtersApplied,
     analyticsScope,
+    onScopeSelect,
   ]);
 
   // Persist coach snapshot for GuidedIntentionCoach to consume

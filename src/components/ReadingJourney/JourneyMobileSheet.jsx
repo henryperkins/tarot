@@ -83,6 +83,7 @@ export default function JourneyMobileSheet({
   scopeLabel,
   filtersApplied,
   analyticsScope,
+  onScopeSelect,
 }) {
   const navigate = useNavigate();
   const [isSheetOpen, setIsSheetOpen] = useState(false);
@@ -334,6 +335,18 @@ export default function JourneyMobileSheet({
               </span>
             )}
           </h3>
+          {filtersApplied && analyticsScope !== 'filters' && typeof onScopeSelect === 'function' && (
+            <div className="flex flex-wrap items-center gap-2 rounded-full border border-amber-300/30 bg-amber-300/10 px-3 py-1 text-[11px] text-amber-100/80">
+              <span>Filters not applied to insights</span>
+              <button
+                type="button"
+                onClick={() => onScopeSelect('filters')}
+                className="font-semibold text-amber-50 underline underline-offset-2 hover:text-amber-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/40"
+              >
+                Apply filters
+              </button>
+            </div>
+          )}
 
           {/* Backfill banner - shown when D1 sync is needed but doesn't block insights */}
           {needsBackfill && !hasBackfilled && (
@@ -593,12 +606,11 @@ export default function JourneyMobileSheet({
                   onCreateShareLink={onCreateShareLink}
                   scopeEntries={scopeEntries}
                   filteredEntries={filteredEntries}
-                  allEntries={allEntries}
-                  stats={exportStats}
-                  scopeLabel={scopeLabel}
-                  filtersApplied={filtersApplied}
-                  analyticsScope={analyticsScope}
-                />
+                allEntries={allEntries}
+                stats={exportStats}
+                scopeLabel={scopeLabel}
+                filtersApplied={filtersApplied}
+              />
               )}
             </div>
           </div>

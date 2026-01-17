@@ -29,6 +29,10 @@ import {
 } from '@phosphor-icons/react';
 import { ConfirmModal } from '../components/ConfirmModal';
 import { GlobalNav } from '../components/GlobalNav';
+<<<<<<< HEAD
+=======
+import { UserMenu } from '../components/UserMenu';
+>>>>>>> 25ae633 (up)
 import AuthModal from '../components/AuthModal';
 import { MemoryManager } from '../components/MemoryManager';
 import { useAuth } from '../contexts/AuthContext';
@@ -1013,6 +1017,7 @@ export default function AccountPage() {
 
   return (
     <div className="min-h-screen bg-main text-main">
+<<<<<<< HEAD
       {/* Unified header with GlobalNav (includes UserMenu via withUserChip) - sticky with safe-area padding */}
       <header 
         className="sticky top-0 z-40 border-b border-secondary/20 bg-main/95 backdrop-blur-sm"
@@ -1024,6 +1029,32 @@ export default function AccountPage() {
       >
         <div className="mx-auto max-w-2xl px-4 py-3">
           <GlobalNav condensed withUserChip />
+=======
+      {/* Header */}
+      <header
+        className="
+          full-bleed sticky top-0 z-30
+          bg-surface/95 backdrop-blur
+          border-b border-secondary/20
+          px-4 sm:px-5 md:px-6
+          pr-[max(1rem,env(safe-area-inset-right))]
+          pl-[max(1rem,env(safe-area-inset-left))]
+          shadow-lg shadow-primary/20
+          header-sticky
+        "
+      >
+        <div className="mx-auto max-w-6xl py-3">
+          <div className="header-sticky__row flex flex-wrap items-center gap-2 sm:gap-3 justify-between">
+            <div className="header-sticky__nav flex-1 w-full sm:w-auto">
+              <GlobalNav condensed withUserChip />
+            </div>
+            <div className="hidden sm:block">
+              <div className="header-sticky__user header-sticky__user--fab">
+                <UserMenu condensed />
+              </div>
+            </div>
+          </div>
+>>>>>>> 25ae633 (up)
         </div>
       </header>
 
@@ -1046,9 +1077,13 @@ export default function AccountPage() {
 
         {/* Section Navigation Chips */}
         <nav
-          className="sticky top-0 z-30 -mx-4 px-4 py-2 bg-main/95 backdrop-blur-sm border-b border-secondary/20 overflow-x-auto"
+          className="sticky z-30 -mx-4 px-4 py-2 bg-main/95 backdrop-blur-sm border-b border-secondary/20 overflow-x-auto"
           aria-label="Jump to section"
-          style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+          style={{
+            scrollbarWidth: 'none',
+            msOverflowStyle: 'none',
+            top: 'calc(env(safe-area-inset-top, 0px) + 4.5rem)'
+          }}
         >
           <div className="flex items-center gap-2 min-w-max">
             {[

@@ -115,6 +115,7 @@ export default function JourneySidebar({
   scopeLabel,
   filtersApplied,
   analyticsScope,
+  onScopeSelect,
 }) {
   const navigate = useNavigate();
   // Section open/close state
@@ -282,6 +283,18 @@ export default function JourneySidebar({
             <Gear className="w-4 h-4" />
           </Link>
         </div>
+        {filtersApplied && analyticsScope !== 'filters' && typeof onScopeSelect === 'function' && (
+          <div className="flex flex-wrap items-center gap-2 rounded-full border border-amber-300/30 bg-amber-300/10 px-3 py-1 text-[11px] text-amber-100/80">
+            <span>Filters not applied to insights</span>
+            <button
+              type="button"
+              onClick={() => onScopeSelect('filters')}
+              className="font-semibold text-amber-50 underline underline-offset-2 hover:text-amber-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/40"
+            >
+              Apply filters
+            </button>
+          </div>
+        )}
 
         {/* Pattern Alerts */}
         <PatternAlertBanner isAuthenticated={isAuthenticated} />
@@ -439,7 +452,6 @@ export default function JourneySidebar({
             stats={exportStats}
             scopeLabel={scopeLabel}
             filtersApplied={filtersApplied}
-            analyticsScope={analyticsScope}
           />
         </CollapsibleSection>
         </div>
