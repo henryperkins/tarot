@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Eye, User } from '@phosphor-icons/react';
+import { ArrowLeft, Eye, User, Sparkle } from '@phosphor-icons/react';
 import { SharedSpreadView } from '../components/share/SharedSpreadView.jsx';
 import { CollaborativeNotesPanel } from '../components/share/CollaborativeNotesPanel.jsx';
 import { UserMenu } from '../components/UserMenu.jsx';
@@ -475,6 +475,42 @@ export default function ShareReading() {
           />
         </div>
       </main>
+
+      {/* Bottom sticky "Open in app" bar for guests */}
+      {!isAuthenticated && (
+        <div 
+          className="fixed bottom-0 left-0 right-0 z-30 border-t border-accent/30 bg-surface/95 backdrop-blur-sm shadow-[0_-8px_30px_rgba(0,0,0,0.4)]"
+          style={{
+            paddingBottom: 'max(env(safe-area-inset-bottom, 0px), 1rem)',
+            paddingLeft: 'env(safe-area-inset-left, 1rem)',
+            paddingRight: 'env(safe-area-inset-right, 1rem)',
+          }}
+        >
+          <div className="mx-auto max-w-6xl px-4 py-3">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+              <div className="text-center sm:text-left">
+                <p className="text-sm font-semibold text-main">Get your own insights</p>
+                <p className="text-xs text-muted">Create readings and track your tarot journey</p>
+              </div>
+              <div className="flex flex-col sm:flex-row gap-2">
+                <Link
+                  to="/"
+                  className="inline-flex items-center justify-center gap-2 rounded-full bg-accent px-5 py-3 text-sm font-semibold text-main shadow-md hover:bg-accent/90 transition min-h-[44px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
+                >
+                  <Sparkle className="h-4 w-4" weight="fill" />
+                  Start Reading
+                </Link>
+                <Link
+                  to="/account"
+                  className="inline-flex items-center justify-center rounded-full border border-secondary/60 bg-transparent px-4 py-2.5 text-sm font-semibold text-main hover:bg-secondary/10 transition min-h-[44px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
+                >
+                  Sign In
+                </Link>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

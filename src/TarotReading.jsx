@@ -837,7 +837,7 @@ export default function TarotReading() {
         <a href="#step-spread" className="skip-link">Skip to spreads</a>
         <a href="#step-reading" className="skip-link">Skip to reading</a>
       </div>
-      <main id="main-content" tabIndex={-1} className={`max-w-7xl mx-auto px-4 sm:px-5 md:px-6 ${isLandscape ? 'pt-3 pb-24' : 'pt-6 pb-28 sm:py-8 lg:py-10'}`}>
+      <main id="main-content" tabIndex={-1} className={`max-w-7xl mx-auto px-4 sm:px-5 md:px-6 ${isLandscape ? 'pt-3 pb-24 lg:pb-8' : 'pt-6 pb-32 sm:py-8 lg:py-10'}`}>
         <div className="sr-only" role="status" aria-live="polite" aria-atomic="true">
           {[ttsAnnouncement, srAnnouncement, journalStatus?.message].filter(Boolean).join(' · ')}
         </div>

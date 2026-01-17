@@ -730,7 +730,7 @@ export default function Journal() {
           </div>
         </header>
 
-        <main id="journal-content" tabIndex={-1} className="journal-page max-w-7xl mx-auto px-4 sm:px-6 py-8">
+        <main id="journal-content" tabIndex={-1} className="journal-page max-w-7xl mx-auto px-4 sm:px-6 py-8 pb-32 lg:pb-8">
 
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-6">
             {fromReading && (
