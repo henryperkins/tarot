@@ -1,19 +1,22 @@
 import assert from 'node:assert/strict';
 import { describe, test } from 'node:test';
 
-import { sanitizeFollowUps, insertFollowUps } from '../functions/lib/journalFollowups.js';
+import { sanitizeFollowUps, insertFollowUps, deleteFollowUpsByEntry } from '../functions/lib/journalFollowups.js';
 
 class MockDB {
-  constructor() {
+  constructor({ changes = 0 } = {}) {
     this.calls = [];
+    this.queries = [];
+    this.changes = changes;
   }
 
-  prepare() {
+  prepare(query) {
+    this.queries.push(query);
     return {
       bind: (...args) => ({
         run: async () => {
           this.calls.push(args);
-          return { success: true };
+          return { success: true, changes: this.changes };
         }
       })
     };
@@ -55,5 +58,31 @@ describe('journal follow-ups', () => {
     assert.equal(bindArgs[5], 1);
     assert.equal(bindArgs[6], 'q1');
     assert.equal(bindArgs[7], 'a1');
+  });
+
+  test('deleteFollowUpsByEntry binds user and unique entry ids', async () => {
+    const db = new MockDB({ changes: 2 });
+    const result = await deleteFollowUpsByEntry(db, 'user-1', ['entry-1', 'entry-2', 'entry-1']);
+
+    assert.equal(result.deleted, 2);
+    assert.equal(db.queries[0].includes('DELETE FROM journal_followups'), true);
+    assert.deepEqual(db.calls[0], ['user-1', 'entry-1', 'entry-2']);
+  });
+
+  test('deleteFollowUpsByEntry ignores missing table errors', async () => {
+    const db = {
+      prepare() {
+        return {
+          bind: () => ({
+            run: async () => {
+              throw new Error('no such table: journal_followups');
+            }
+          })
+        };
+      }
+    };
+
+    const result = await deleteFollowUpsByEntry(db, 'user-1', 'entry-1');
+    assert.equal(result.deleted, 0);
   });
 });

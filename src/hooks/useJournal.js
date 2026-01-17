@@ -3,6 +3,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useSubscription } from '../contexts/SubscriptionContext';
 import { persistJournalInsights, clearJournalInsightsCache } from '../lib/journalInsights';
 import { invalidateNarrativeCache } from '../lib/safeStorage';
+import { fetchJournalEntryById } from '../lib/journal/fetchEntryById';
 import { generateId } from '../lib/utils';
 import { dedupeEntries } from '../../shared/journal/dedupe.js';
 import { normalizeTimestamp } from '../../shared/journal/utils.js';
@@ -309,65 +310,48 @@ export function useJournal({ autoLoad = true } = {}) {
   }, [buildApiUrl, canUseCloudJournal, isAuthenticated, loadingMore, pagination.hasMore, pagination.nextCursor, pagination.total, persistInsights, user?.id]);
 
   const fetchEntryById = useCallback(async (entryId, { includeFollowups = true } = {}) => {
-    if (!entryId) return { entry: null, status: 'invalid' };
-    if (!isAuthenticated || !canUseCloudJournal) return { entry: null, status: 'skipped' };
-
     const userId = user?.id;
-    const params = new URLSearchParams();
-    if (includeFollowups) {
-      params.set('includeFollowups', 'true');
+    const result = await fetchJournalEntryById(entryId, {
+      includeFollowups,
+      isAuthenticated,
+      canUseCloudJournal
+    });
+
+    if (result.status !== 'found') {
+      if (result.status === 'error') {
+        console.error('Failed to fetch journal entry:', result?.message);
+        setError(result.message || 'Unable to load journal entry');
+      }
+      return result;
     }
-    const suffix = params.toString() ? `?${params.toString()}` : '';
 
-    try {
-      const response = await fetch(`/api/journal/${entryId}${suffix}`, {
-        credentials: 'include'
-      });
+    const entry = result.entry;
+    setEntries((prev) => {
+      const prevEntries = Array.isArray(prev) ? prev : [];
+      const next = dedupeEntries([entry, ...prevEntries]);
 
-      if (response.status === 404) {
-        return { entry: null, status: 'not-found' };
-      }
-      if (!response.ok) {
-        throw new Error('Failed to load journal entry');
-      }
+      setPagination((prevPag) => ({
+        ...prevPag,
+        total: typeof prevPag?.total === 'number'
+          ? Math.max(prevPag.total, next.length)
+          : next.length
+      }));
 
-      const payload = await response.json();
-      const entry = payload?.entry;
-      if (!entry) {
-        return { entry: null, status: 'not-found' };
-      }
-
-      setEntries((prev) => {
-        const prevEntries = Array.isArray(prev) ? prev : [];
-        const next = dedupeEntries([entry, ...prevEntries]);
-
-        setPagination((prevPag) => ({
-          ...prevPag,
-          total: typeof prevPag?.total === 'number'
-            ? Math.max(prevPag.total, next.length)
-            : next.length
-        }));
-
-        if (typeof window !== 'undefined') {
-          persistInsights(next);
-          if (userId) {
-            try {
-              localStorage.setItem(getCacheKey(userId), JSON.stringify(next));
-            } catch (quotaErr) {
-              console.warn('localStorage quota exceeded, skipping cache update:', quotaErr);
-            }
+      if (typeof window !== 'undefined') {
+        persistInsights(next);
+        if (userId) {
+          try {
+            localStorage.setItem(getCacheKey(userId), JSON.stringify(next));
+          } catch (quotaErr) {
+            console.warn('localStorage quota exceeded, skipping cache update:', quotaErr);
           }
         }
+      }
 
-        return next;
-      });
+      return next;
+    });
 
-      return { entry, status: 'found' };
-    } catch (err) {
-      console.error('Failed to fetch journal entry:', err);
-      setError(err.message || 'Unable to load journal entry');
-      return { entry: null, status: 'error', message: err?.message || null };
-    }
+    return result;
   }, [canUseCloudJournal, isAuthenticated, persistInsights, user?.id]);
 
   // Prefetch the next page on idle to reduce perceived latency on long histories

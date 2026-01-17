@@ -32,19 +32,19 @@ Tableu includes an automated quality assurance system that evaluates every AI-ge
 │                                                           safety, overall}  │
 │                                                             │               │
 │                                                             ▼               │
-│                                                   Update METRICS_DB (KV)    │
+│                                                   Upsert eval_metrics (D1)  │
 │                                                                             │
 └─────────────────────────────────────────────────────────────────────────────┘
                                       │
                                       │ Daily cron (3 AM UTC)
                                       ▼
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│                           ARCHIVAL (scheduled)                              │
+│                           MAINTENANCE (scheduled)                            │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │   functions/lib/scheduled.js                                                │
 │        │                                                                    │
-│        ├── Archive METRICS_DB → R2 (archives/metrics/{date}/*.json)         │
-│        ├── Archive FEEDBACK_KV → R2 (archives/feedback/{date}/*.json)       │
+│        ├── Run quality analysis (eval_metrics → quality_stats/alerts)       │
+│        ├── Archive legacy KV → D1 (metrics_archive/feedback_archive)        │
 │        └── Cleanup expired sessions from D1                                 │
 └─────────────────────────────────────────────────────────────────────────────┘
                                       │
@@ -52,7 +52,7 @@ Tableu includes an automated quality assurance system that evaluates every AI-ge
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │                           ANALYSIS (offline)                                │
 ├─────────────────────────────────────────────────────────────────────────────┤
-│   scripts/training/exportReadings.js --metrics-source r2                    │
+│   scripts/training/exportReadings.js --metrics-source d1                    │
 │        │                                                                    │
 │        ▼                                                                    │
 │   readings.jsonl (includes evalScores, evalSafetyFlag)                      │
@@ -115,8 +115,8 @@ In addition to numeric scores, the evaluator sets a binary `safety_flag` (true/f
 |-----------|----------|---------|
 | **Evaluation Module** | `functions/lib/evaluation.js` | Core scoring logic, Workers AI integration |
 | **Integration Point** | `functions/api/tarot-reading.js:714` | Calls `scheduleEvaluation()` after response |
-| **Metrics Storage** | `METRICS_DB` (KV namespace) | Temporary storage before archival |
-| **Archive Storage** | `R2_LOGS` (R2 bucket) | Permanent storage after daily cron |
+| **Metrics Storage** | `eval_metrics` (D1) | Primary storage for runtime + eval payloads |
+| **Legacy Archives (optional)** | `metrics_archive` (D1) or `archives/metrics/*` (R2) | Pre-migration exports only |
 | **Shared Data Access** | `scripts/lib/dataAccess.js` | R2/KV/D1 helpers for export scripts |
 
 ### File Structure
@@ -127,7 +127,7 @@ functions/
 │   └── tarot-reading.js      # Integration: scheduleEvaluation() call
 ├── lib/
 │   ├── evaluation.js         # Core evaluation module
-│   └── scheduled.js          # Cron: KV→R2 archival
+│   └── scheduled.js          # Cron: quality analysis + legacy KV archival
 scripts/
 ├── lib/
 │   └── dataAccess.js         # Shared R2/KV/D1 access helpers
@@ -184,19 +184,12 @@ Required bindings in `wrangler.jsonc`:
     "binding": "AI"
   },
 
-  // Metrics storage (temporary)
-  "kv_namespaces": [
+  // D1 metrics storage (eval_metrics)
+  "d1_databases": [
     {
-      "binding": "METRICS_DB",
-      "id": "..."
-    }
-  ],
-
-  // Archive storage (permanent)
-  "r2_buckets": [
-    {
-      "binding": "R2_LOGS",
-      "bucket_name": "tarot-logs"
+      "binding": "DB",
+      "database_name": "mystic-tarot-db",
+      "database_id": "..."
     }
   ]
 }
@@ -241,7 +234,7 @@ POST /api/tarot-reading
         ▼
 ┌─────────────────────────────────────┐
 │ persistReadingMetrics(env, payload) │
-│ ─► METRICS_DB.put("reading:{id}")   │
+│ ─► D1 upsert: eval_metrics           │
 └─────────────────────────────────────┘
         │
         ├─────────────────────────────────┐
@@ -251,27 +244,25 @@ POST /api/tarot-reading
 │ Return Response     │    │ waitUntil(async () => {         │
 │ (non-blocking)      │    │   const eval = runEvaluation()  │
 └─────────────────────┘    │   payload.eval = eval           │
-                           │   METRICS_DB.put(...)           │
+                           │   UPDATE eval_metrics           │
                            │ })                              │
                            └─────────────────────────────────┘
 ```
 
-### 2. Scheduled: Daily Archival
+### 2. Scheduled: Daily Quality Analysis + Legacy Archival
 
 The cron trigger (`0 3 * * *`) in `functions/lib/scheduled.js`:
 
-1. Lists all keys in `METRICS_DB` with prefix `reading:`
-2. Writes each record to R2: `archives/metrics/{date}/{timestamp}.json`
-3. Deletes the key from KV after successful archival
-4. Repeats for `FEEDBACK_KV`
-5. Cleans up expired sessions from D1
+1. Runs quality analysis on `eval_metrics` for the previous day, writing `quality_stats` + `quality_alerts` (when `QUALITY_ALERT_ENABLED=true`).
+2. Archives any legacy KV data (`METRICS_DB`, `FEEDBACK_KV`) into D1 `metrics_archive` / `feedback_archive` (pre-migration only).
+3. Cleans up expired sessions from D1.
 
 ### 3. Offline: Export & Analysis
 
 ```bash
-# Export from R2 archives (recommended)
+# Export from D1 eval_metrics (recommended)
 node scripts/training/exportReadings.js \
-  --metrics-source r2 \
+  --metrics-source d1 \
   --metrics-days 30 \
   --out readings.jsonl
 
@@ -293,24 +284,30 @@ cat readings.jsonl | node scripts/evaluation/calibrateEval.js
 Exports comprehensive training data by merging:
 - Journal entries (D1)
 - User feedback (KV or file)
-- Reading metrics with eval scores (KV, R2, or file)
+- Reading metrics with eval scores (D1 by default; legacy KV/R2 or file also supported)
 
 ```bash
-# Basic usage (KV source for metrics)
+# Basic usage (D1 eval_metrics default)
 node scripts/training/exportReadings.js --out training/readings.jsonl
 
-# With R2-archived metrics (includes eval scores)
+# Explicitly target D1 with a time window
+node scripts/training/exportReadings.js \
+  --metrics-source d1 \
+  --metrics-days 7 \
+  --out training/readings.jsonl
+
+# Filter to only records with eval data
+node scripts/training/exportReadings.js \
+  --metrics-source d1 \
+  --require-eval \
+  --out eval-only.jsonl
+
+# Legacy: pull from R2 archives (pre-migration only)
 node scripts/training/exportReadings.js \
   --metrics-source r2 \
   --metrics-days 7 \
   --r2-bucket tarot-logs \
   --out training/readings.jsonl
-
-# Filter to only records with eval data
-node scripts/training/exportReadings.js \
-  --metrics-source r2 \
-  --require-eval \
-  --out eval-only.jsonl
 ```
 
 **Output schema:**
@@ -596,21 +593,16 @@ When enabled, readings with `safety_flag === true` or `safety < 2` will be block
 **Symptoms:** `exportEvalData.js` or `exportReadings.js` errors
 
 **Checklist:**
-1. Verify R2 credentials:
-   ```bash
-   echo $CF_ACCOUNT_ID
-   echo $R2_ACCESS_KEY_ID
-   echo $R2_SECRET_ACCESS_KEY
-   ```
-2. Check bucket exists:
-   ```bash
-   wrangler r2 bucket list
-   ```
-3. Verify archives exist:
-   ```bash
-   # List recent archives
-   wrangler r2 object list tarot-logs --prefix "archives/metrics/" | head
-   ```
+1. Verify the D1 database name and target:
+  ```bash
+  wrangler d1 list
+  ```
+2. Ensure migrations are applied (local or remote as needed).
+3. If using legacy R2 archives, verify credentials and bucket contents:
+  ```bash
+  wrangler r2 bucket list
+  wrangler r2 object list tarot-logs --prefix "archives/metrics/" | head
+  ```
 
 ---
 
@@ -703,5 +695,4 @@ Workers AI pricing: Llama 3 8B AWQ at $0.12/M input tokens, $0.27/M output token
 
 - [CLAUDE.md](../CLAUDE.md) — Project overview and ethical guidelines
 - [Cloudflare Docs: Workers AI](https://developers.cloudflare.com/workers-ai/)
-- [Cloudflare Docs: KV](https://developers.cloudflare.com/kv/)
-- [Cloudflare Docs: R2](https://developers.cloudflare.com/r2/)
+- [Cloudflare Docs: D1](https://developers.cloudflare.com/d1/)

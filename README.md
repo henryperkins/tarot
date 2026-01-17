@@ -191,7 +191,7 @@ Detailed documentation is available in the `docs/` directory:
 - [Vision Pipeline](docs/VISION_PIPELINE.md) - Physical card recognition system
 - [Knowledge Graph](docs/knowledge-graph/) - Tarot pattern and archetype documentation
 - [Evaluation System](docs/evaluation-system.md) - Automated reading quality evaluation
-- [Narrative Builder](docs/narrative-builder-and-evaluation.md) - AI narrative generation architecture
+- [Reasoning Chain](docs/reasoning-chain.md) - Narrative builder for the local composer fallback
 
 For comprehensive project guidance, see [CLAUDE.md](CLAUDE.md).
 

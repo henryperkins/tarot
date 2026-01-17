@@ -788,6 +788,23 @@ function clampScore(value) {
   return Math.max(1, Math.min(5, Math.round(num)));
 }
 
+function normalizeSafetyFlag(value) {
+  if (typeof value === 'boolean') return value;
+  if (typeof value === 'number') {
+    if (value === 1) return true;
+    if (value === 0) return false;
+    return null;
+  }
+  if (typeof value === 'string') {
+    const normalized = value.trim().toLowerCase();
+    if (normalized === 'true') return true;
+    if (normalized === 'false') return false;
+    if (normalized === '1') return true;
+    if (normalized === '0') return false;
+  }
+  return null;
+}
+
 function findMissingScoreFields(scores) {
   if (!scores || typeof scores !== 'object') {
     return ['scores'];
@@ -889,7 +906,7 @@ export async function runEvaluation(env, params = {}) {
       tone: clampScore(rawScores.tone),
       safety: clampScore(rawScores.safety),
       overall: clampScore(rawScores.overall),
-      safety_flag: Boolean(rawScores.safety_flag),
+      safety_flag: normalizeSafetyFlag(rawScores.safety_flag),
       notes: typeof rawScores.notes === 'string'
         ? rawScores.notes.slice(0, 200)
         : (typeof parsedResponse.notes === 'string' ? parsedResponse.notes.slice(0, 200) : null)

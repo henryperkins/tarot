@@ -43,7 +43,7 @@ export function JournalSummaryBand({
   dataSource = 'client'
 }) {
   const [isExpanded, setIsExpanded] = useState(!isMobileLayout);
-  const scopeChipLabel = analyticsScope === 'filters' ? 'Filtered' : (scopeLabel || 'Scope');
+  const scopeChipLabel = analyticsScope === 'filters' && filtersActive ? 'Filtered' : (scopeLabel || 'Scope');
   const sourceLabel = dataSource === 'server' ? 'D1' : 'Journal';
 
   useEffect(() => {

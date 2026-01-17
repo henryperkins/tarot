@@ -4,7 +4,7 @@
  * Orchestrates multi-channel alert dispatch for quality regressions.
  * Channels:
  * - Console logging (always)
- * - KV flag (for dashboard polling)
+ * - D1 storage (for dashboard polling)
  * - Email (via Resend API)
  */
 
@@ -36,25 +36,43 @@ export async function dispatchAlert(env, alert, options = {}) {
 
   // 2. D1 storage for dashboard polling
   if (env.DB?.prepare) {
-    try {
-      const insertResult = await env.DB.prepare(`
-        INSERT INTO quality_alerts (
-          date_str, alert_type, severity, metric, payload
-        ) VALUES (?, ?, ?, ?, ?)
-      `).bind(
-        dateStr,
-        alert.type,
-        alert.severity || null,
-        alert.metric || null,
-        JSON.stringify({ ...alert, dateStr, createdAt: new Date().toISOString() })
-      ).run();
-      // Attach the inserted ID to the alert for email status updates
-      alert.id = insertResult.meta?.last_row_id;
-      results.kv = 'set';
-    } catch (err) {
-      console.error(`[alert] D1 storage failed: ${err.message}`);
-      results.kv = `error: ${err.message}`;
+    if (alert.id) {
+      results.kv = 'existing';
+    } else {
+      try {
+        const insertResult = await env.DB.prepare(`
+          INSERT INTO quality_alerts (
+            alert_type, severity, period_key, reading_prompt_version,
+            eval_prompt_version, variant_id, spread_key, provider,
+            metric_name, observed_value, threshold_value, baseline_value,
+            delta, reading_count, created_at
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+        `).bind(
+          alert.type,
+          alert.severity || null,
+          dateStr,
+          alert.dimensions?.reading_prompt_version || null,
+          alert.dimensions?.eval_prompt_version || null,
+          alert.dimensions?.variant_id || null,
+          alert.dimensions?.spread_key || null,
+          alert.dimensions?.provider || null,
+          alert.metric || null,
+          alert.observed ?? null,
+          alert.threshold ?? null,
+          alert.baseline ?? null,
+          alert.delta ?? null,
+          alert.dimensions?.reading_count || null
+        ).run();
+        // Attach the inserted ID to the alert for email status updates
+        alert.id = insertResult.meta?.last_row_id;
+        results.kv = 'inserted';
+      } catch (err) {
+        console.error(`[alert] D1 storage failed: ${err.message}`);
+        results.kv = `error: ${err.message}`;
+      }
     }
+  } else {
+    results.kv = 'skipped: no db';
   }
 
   // 3. Email via Resend

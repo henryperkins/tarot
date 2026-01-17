@@ -1,10 +1,10 @@
 /**
  * Quality Analysis Module
  *
- * Computes daily aggregates from archived metrics and detects quality regressions
+ * Computes daily aggregates from eval_metrics and detects quality regressions
  * by comparing against rolling baselines.
  *
- * Run as part of the daily cron job after metrics archival completes.
+ * Run as part of the daily cron job against eval_metrics.
  */
 
 /**
@@ -60,7 +60,7 @@ export function getAlertConfig(env = {}) {
 }
 
 /**
- * Compute daily aggregates from metrics_archive for a specific date.
+ * Compute daily aggregates from eval_metrics for a specific date.
  *
  * @param {D1Database} db - D1 database binding
  * @param {string} dateStr - Date string (YYYY-MM-DD)
@@ -69,45 +69,51 @@ export function getAlertConfig(env = {}) {
 export async function computeDailyAggregates(db, dateStr) {
   const query = `
     SELECT
-      json_extract(data, '$.readingPromptVersion') as reading_prompt_version,
-      json_extract(data, '$.promptMeta.readingPromptVersion') as reading_prompt_version_alt,
-      json_extract(data, '$.eval.promptVersion') as eval_prompt_version,
-      json_extract(data, '$.variantId') as variant_id,
-      provider,
-      spread_key,
+      COALESCE(
+        reading_prompt_version,
+        json_extract(payload, '$.readingPromptVersion'),
+        json_extract(payload, '$.promptMeta.readingPromptVersion')
+      ) as reading_prompt_version,
+      json_extract(payload, '$.eval.promptVersion') as eval_prompt_version,
+      COALESCE(variant_id, json_extract(payload, '$.variantId')) as variant_id,
+      COALESCE(provider, json_extract(payload, '$.provider')) as provider,
+      COALESCE(spread_key, json_extract(payload, '$.spreadKey')) as spread_key,
       COUNT(*) as reading_count,
-      SUM(CASE WHEN json_extract(data, '$.eval.mode') = 'model' THEN 1 ELSE 0 END) as eval_count,
-      SUM(CASE WHEN json_extract(data, '$.eval.mode') = 'heuristic' THEN 1 ELSE 0 END) as heuristic_count,
-      SUM(CASE WHEN json_extract(data, '$.eval.error') IS NOT NULL THEN 1 ELSE 0 END) as error_count,
-      AVG(json_extract(data, '$.eval.scores.overall')) as avg_overall,
-      AVG(json_extract(data, '$.eval.scores.personalization')) as avg_personalization,
-      AVG(json_extract(data, '$.eval.scores.tarot_coherence')) as avg_tarot_coherence,
-      AVG(json_extract(data, '$.eval.scores.tone')) as avg_tone,
-      AVG(json_extract(data, '$.eval.scores.safety')) as avg_safety,
-      SUM(CASE WHEN json_extract(data, '$.eval.scores.safety_flag') = 1 THEN 1 ELSE 0 END) as safety_flag_count,
-      SUM(CASE WHEN json_extract(data, '$.eval.scores.tone') < 3 THEN 1 ELSE 0 END) as low_tone_count,
-      SUM(CASE WHEN json_extract(data, '$.eval.scores.safety') < 3 THEN 1 ELSE 0 END) as low_safety_count,
-      AVG(json_extract(data, '$.narrative.cardCoverage')) as avg_card_coverage,
-      SUM(CASE WHEN json_length(json_extract(data, '$.narrative.hallucinatedCards')) > 0 THEN 1 ELSE 0 END) as hallucination_count
-    FROM metrics_archive
+      SUM(CASE WHEN eval_mode = 'model' THEN 1 ELSE 0 END) as eval_count,
+      SUM(CASE WHEN eval_mode = 'heuristic' THEN 1 ELSE 0 END) as heuristic_count,
+      SUM(CASE WHEN eval_mode = 'error' OR json_extract(payload, '$.eval.error') IS NOT NULL THEN 1 ELSE 0 END) as error_count,
+      AVG(COALESCE(overall_score, json_extract(payload, '$.eval.scores.overall'))) as avg_overall,
+      AVG(json_extract(payload, '$.eval.scores.personalization')) as avg_personalization,
+      AVG(json_extract(payload, '$.eval.scores.tarot_coherence')) as avg_tarot_coherence,
+      AVG(json_extract(payload, '$.eval.scores.tone')) as avg_tone,
+      AVG(json_extract(payload, '$.eval.scores.safety')) as avg_safety,
+      SUM(CASE WHEN COALESCE(safety_flag, json_extract(payload, '$.eval.scores.safety_flag')) = 1 THEN 1 ELSE 0 END) as safety_flag_count,
+      SUM(CASE WHEN json_extract(payload, '$.eval.scores.tone') < 3 THEN 1 ELSE 0 END) as low_tone_count,
+      SUM(CASE WHEN json_extract(payload, '$.eval.scores.safety') < 3 THEN 1 ELSE 0 END) as low_safety_count,
+      AVG(COALESCE(card_coverage, json_extract(payload, '$.narrative.cardCoverage'))) as avg_card_coverage,
+      SUM(CASE WHEN COALESCE(json_array_length(json_extract(payload, '$.narrative.hallucinatedCards')), 0) > 0 THEN 1 ELSE 0 END) as hallucination_count
+    FROM eval_metrics
     WHERE date(COALESCE(
-      json_extract(data, '$.timestamp'),
-      datetime(archived_at/1000, 'unixepoch')
+      json_extract(payload, '$.timestamp'),
+      created_at
     )) = ?
     GROUP BY
-      COALESCE(json_extract(data, '$.readingPromptVersion'), json_extract(data, '$.promptMeta.readingPromptVersion')),
-      json_extract(data, '$.eval.promptVersion'),
-      json_extract(data, '$.variantId'),
-      provider,
-      spread_key
+      COALESCE(
+        reading_prompt_version,
+        json_extract(payload, '$.readingPromptVersion'),
+        json_extract(payload, '$.promptMeta.readingPromptVersion')
+      ),
+      json_extract(payload, '$.eval.promptVersion'),
+      COALESCE(variant_id, json_extract(payload, '$.variantId')),
+      COALESCE(provider, json_extract(payload, '$.provider')),
+      COALESCE(spread_key, json_extract(payload, '$.spreadKey'))
   `;
 
   try {
     const result = await db.prepare(query).bind(dateStr).all();
     return (result.results || []).map((row) => ({
       ...row,
-      // Normalize reading_prompt_version from two possible locations
-      reading_prompt_version: row.reading_prompt_version || row.reading_prompt_version_alt || null,
+      reading_prompt_version: row.reading_prompt_version || null,
     }));
   } catch (err) {
     console.error(`[quality] computeDailyAggregates failed: ${err.message}`);

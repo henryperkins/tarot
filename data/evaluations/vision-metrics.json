@@ -1,9 +1,9 @@
 {
-  "updatedAt": "2025-11-23T01:28:45.368Z",
+  "updatedAt": "2026-01-17T09:14:21.501Z",
   "metricsByDeck": {
     "rws-1909": {
       "deckStyle": "rws-1909",
-      "generatedAt": "2025-11-23T01:28:45.090Z",
+      "generatedAt": "2026-01-17T09:14:21.249Z",
       "sourceFile": "data/evaluations/vision-confidence.rws.json",
       "sampleSize": 78,
       "accuracy": 1,
@@ -432,7 +432,7 @@
     },
     "thoth-a1": {
       "deckStyle": "thoth-a1",
-      "generatedAt": "2025-11-23T01:28:45.231Z",
+      "generatedAt": "2026-01-17T09:14:21.375Z",
       "sourceFile": "data/evaluations/vision-confidence.thoth.json",
       "sampleSize": 78,
       "accuracy": 1,
@@ -1792,7 +1792,7 @@
     },
     "marseille-classic": {
       "deckStyle": "marseille-classic",
-      "generatedAt": "2025-11-23T01:28:45.367Z",
+      "generatedAt": "2026-01-17T09:14:21.500Z",
       "sourceFile": "data/evaluations/vision-confidence.marseille.json",
       "sampleSize": 78,
       "accuracy": 1,

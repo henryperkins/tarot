@@ -51,6 +51,9 @@
     "AZURE_OPENAI_USE_V1_FORMAT": "true",
     "AZURE_OPENAI_API_VERSION": "preview",
     "AZURE_OPENAI_RESPONSES_API_VERSION": "v1",
+    // Optional: override the api-version used for /openai/v1/responses TTS calls.
+    // If unset/empty, falls back to AZURE_OPENAI_RESPONSES_API_VERSION (then AZURE_OPENAI_API_VERSION).
+    "AZURE_OPENAI_TTS_RESPONSES_API_VERSION": "",
     "AZURE_OPENAI_STREAMING_ENABLED": "true",
     "ALLOW_STREAMING_WITH_EVAL_GATE": "true",
     "EVAL_ENABLED": "true",
@@ -105,7 +108,7 @@
     // Follow-up Questions Feature Flags
     // -------------------------------------------------------------------------
     "FEATURE_FOLLOW_UP_ENABLED": "true",
-    "FEATURE_FOLLOW_UP_JOURNAL_CONTEXT": "true",
+    "FEATURE_FOLLOW_UP_JOURNAL_CONTEXT": "true"
     // -------------------------------------------------------------------------
     // Prompt Budget & GraphRAG Settings (not set = use defaults)
     // -------------------------------------------------------------------------

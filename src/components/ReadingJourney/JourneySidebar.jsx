@@ -139,7 +139,7 @@ export default function JourneySidebar({
     handleBackfill(abortControllerRef.current.signal);
   }, [handleBackfill]);
   const showFiltersMismatch = filtersApplied && !filtersActive;
-  const scopeChipLabel = analyticsScope === 'filters' ? 'Filtered' : (scopeLabel || 'Scope');
+  const scopeChipLabel = analyticsScope === 'filters' && filtersActive ? 'Filtered' : (scopeLabel || 'Scope');
   const sourceLabel = _dataSource === 'server' ? 'D1' : 'Journal';
 
   // Show loading skeleton

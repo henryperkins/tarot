@@ -176,10 +176,14 @@ function ExportSection({
     return computed || stats;
   }, [shareEntries, shareScope, stats]);
   const shareSummaryEntryCount = shareEntryCount;
-  const canCreateShareLink = shareEntryCount > 0;
   const shareHasLocalOnlyEntries = isAuthenticated
     && shareSourceEntries.length > 0
     && shareEntryCount === 0;
+  const shareUsesServerFallback = shareScope === 'all'
+    && shareEntryCount === 0
+    && !shareHasLocalOnlyEntries;
+  const canCreateShareLink = shareEntryCount > 0 || shareUsesServerFallback;
+  const shareDisplayEntryCount = shareUsesServerFallback ? effectiveShareLimit : shareEntryCount;
 
   const executeExportPdf = (entriesToExport) => {
     try {
@@ -268,7 +272,8 @@ function ExportSection({
     try {
       const result = await onCreateShareLink({
         scope: 'journal',
-        entryIds: shareEntryIds,
+        entryIds: shareUsesServerFallback ? undefined : shareEntryIds,
+        limit: shareScope === 'all' ? effectiveShareLimit : undefined,
         expiresInHours: effectiveExpiry,
       });
       if (result?.url) {
@@ -647,7 +652,8 @@ function ExportSection({
 
             {/* Summary */}
             <div className="rounded bg-amber-200/5 px-2 py-1.5 text-xs sm:text-[11px] text-amber-100/70">
-              Will share <span className="font-semibold text-amber-50">{shareEntryCount}</span> entr{shareEntryCount === 1 ? 'y' : 'ies'} from {shareScopeLabel} · {expiryLabel}
+              Will share {shareUsesServerFallback ? 'up to ' : ''}
+              <span className="font-semibold text-amber-50">{shareDisplayEntryCount}</span> entr{shareDisplayEntryCount === 1 ? 'y' : 'ies'} from {shareScopeLabel} · {expiryLabel}
             </div>
             {!canCreateShareLink && (
               <div className="space-y-1 text-xs sm:text-[11px] text-amber-100/60">

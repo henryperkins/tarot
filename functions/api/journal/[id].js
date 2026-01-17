@@ -261,7 +261,12 @@ export async function onRequestDelete(context) {
       );
     }
 
-    // Clean up follow-up turns before removing the entry to avoid orphans
+    // Delete the entry first so a failed delete doesn't drop follow-ups.
+    await env.DB.prepare('DELETE FROM journal_entries WHERE id = ?')
+      .bind(entryId)
+      .run();
+
+    // Best-effort cleanup for follow-up turns.
     try {
       await deleteFollowUpsByEntry(env.DB, user.id, entryId);
     } catch (cleanupError) {
@@ -270,11 +275,6 @@ export async function onRequestDelete(context) {
         cleanupError?.message || cleanupError
       );
     }
-
-    // Delete the entry
-    await env.DB.prepare('DELETE FROM journal_entries WHERE id = ?')
-      .bind(entryId)
-      .run();
 
     return new Response(
       JSON.stringify({ success: true }),

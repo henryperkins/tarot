@@ -13,6 +13,13 @@ import { getSubscriptionContext } from '../lib/entitlements.js';
 import { getTierConfig } from '../../shared/monetization/subscription.js';
 import { resolveEnv } from '../lib/environment.js';
 
+function normalizeAzureEndpoint(rawEndpoint) {
+  return String(rawEndpoint || '')
+    .replace(/\/+$/, '')
+    .replace(/\/openai\/v1\/?$/, '')
+    .replace(/\/openai\/?$/, '');
+}
+
 /**
  * Cloudflare Pages Function that provides text-to-speech audio as a data URI or streaming response.
  *
@@ -126,10 +133,11 @@ export const onRequestPost = async ({ request, env }) => {
     // Primary: Azure OpenAI gpt-4o-mini-tts with steerable instructions
     // TTS can use separate credentials (AZURE_OPENAI_TTS_*) or fall back to shared credentials
     const azureConfig = {
-      endpoint: resolveEnv(env, 'AZURE_OPENAI_TTS_ENDPOINT') || resolveEnv(env, 'AZURE_OPENAI_ENDPOINT'),
+      endpoint: normalizeAzureEndpoint(resolveEnv(env, 'AZURE_OPENAI_TTS_ENDPOINT') || resolveEnv(env, 'AZURE_OPENAI_ENDPOINT')),
       apiKey: resolveEnv(env, 'AZURE_OPENAI_TTS_API_KEY') || resolveEnv(env, 'AZURE_OPENAI_API_KEY'),
       deployment: resolveEnv(env, 'AZURE_OPENAI_GPT_AUDIO_MINI_DEPLOYMENT'),
       apiVersion: resolveEnv(env, 'AZURE_OPENAI_API_VERSION'),
+      responsesApiVersion: resolveEnv(env, 'AZURE_OPENAI_TTS_RESPONSES_API_VERSION') || resolveEnv(env, 'AZURE_OPENAI_RESPONSES_API_VERSION') || resolveEnv(env, 'AZURE_OPENAI_API_VERSION') || 'v1',
       format: resolveEnv(env, 'AZURE_OPENAI_GPT_AUDIO_MINI_FORMAT'),
       useV1Format: resolveEnv(env, 'AZURE_OPENAI_USE_V1_FORMAT'),
       debugLoggingEnabled
@@ -146,7 +154,25 @@ export const onRequestPost = async ({ request, env }) => {
             speed: speed
           });
         } else {
-          // Return complete audio as data URI
+          try {
+            const { audio, transcript } = await generateWithAzureResponsesTTS(azureConfig, {
+              text: sanitizedText,
+              context: context || 'default',
+              voice: voice || 'verse',
+              speed: speed
+            });
+            if (audio) {
+              return jsonResponse({
+                audio,
+                provider: 'azure-gpt-4o-mini-tts',
+                transcript: transcript || null
+              });
+            }
+          } catch (error) {
+            console.warn(`[${requestId}] [tts] Azure Responses TTS failed, trying audio/speech fallback:`, error);
+          }
+
+          // Return complete audio as data URI via classic /audio/speech
           const audio = await generateWithAzureGptMiniTTS(azureConfig, {
             text: sanitizedText,
             context: context || 'default',
@@ -248,7 +274,7 @@ const INSTRUCTION_TEMPLATES = {
  * @returns {Object} Request configuration with url, payload, format, etc.
  */
 function buildTTSRequest(env, { text, context, voice, speed }) {
-  const endpoint = env.endpoint.replace(/\/+$/, '');
+  const endpoint = normalizeAzureEndpoint(env.endpoint);
   const deployment = env.deployment;
   const format = env.format || 'mp3';
   const useV1Format = env.useV1Format === 'true' || env.useV1Format === true;
@@ -296,6 +322,89 @@ function buildTTSRequest(env, { text, context, voice, speed }) {
   }
 
   return { url, payload, format, useV1Format, apiVersion, debugLoggingEnabled };
+}
+
+function getAzureResponsesUrl(env) {
+  const endpoint = normalizeAzureEndpoint(env.endpoint);
+  const apiVersion = env.responsesApiVersion || 'v1';
+  return `${endpoint}/openai/v1/responses?api-version=${encodeURIComponent(apiVersion)}`;
+}
+
+async function generateWithAzureResponsesTTS(env, { text, context, voice, speed }) {
+  const { payload, format, debugLoggingEnabled } = buildTTSRequest(env, { text, context, voice, speed });
+  const url = getAzureResponsesUrl(env);
+
+  const body = {
+    model: env.deployment,
+    input: payload.input,
+    modalities: ['audio'],
+    audio: {
+      format,
+      voice: payload.voice
+    }
+  };
+
+  if (payload.instructions) {
+    body.instructions = payload.instructions;
+  }
+
+  if (typeof speed !== 'undefined') {
+    body.audio.speed = payload.speed;
+  }
+
+  if (debugLoggingEnabled) {
+    console.log('[TTS Responses] Request URL:', url);
+    console.log('[TTS Responses] Request body:', JSON.stringify(body, null, 2));
+  }
+
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'api-key': env.apiKey,
+      'content-type': 'application/json'
+    },
+    body: JSON.stringify(body)
+  });
+
+  if (debugLoggingEnabled) {
+    console.log('[TTS Responses] Response status:', response.status, response.statusText);
+    console.log('[TTS Responses] Response headers:', JSON.stringify([...response.headers.entries()]));
+  }
+
+  if (!response.ok) {
+    const errText = await response.text().catch(() => '');
+    const preview = errText.slice(0, 1000);
+    throw new Error(`Azure Responses TTS error ${response.status}: ${preview}`);
+  }
+
+  const data = await response.json();
+
+  let audioB64 = null;
+  let transcript = null;
+
+  if (Array.isArray(data?.output)) {
+    for (const block of data.output) {
+      const pieces = Array.isArray(block?.content) ? block.content : [];
+      for (const piece of pieces) {
+        if (piece?.type === 'output_audio' && piece?.data) {
+          audioB64 = piece.data;
+          transcript = piece.transcript || null;
+          break;
+        }
+      }
+      if (audioB64) break;
+    }
+  }
+
+  if (!audioB64) {
+    throw new Error('Azure Responses TTS returned no output_audio content.');
+  }
+
+  const mime = format === 'wav' ? 'audio/wav' : `audio/${format}`;
+  return {
+    audio: `data:${mime};base64,${audioB64}`,
+    transcript
+  };
 }
 
 /**
