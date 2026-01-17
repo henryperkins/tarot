@@ -257,7 +257,7 @@ export function UserMenu({ condensed = false }) {
                         onClick={handleToggleJourney}
                         disabled={journeyEnabled === null || journeyLoading}
                         className={`
-                          min-h-[44px] min-w-[44px] flex items-center justify-center
+                          min-h-[44px] min-w-[44px] flex items-center justify-center touch-manipulation
                           ${journeyEnabled === null || journeyLoading ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'}
                         `}
                       >

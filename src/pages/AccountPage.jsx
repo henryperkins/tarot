@@ -1792,7 +1792,7 @@ export default function AccountPage() {
               <Waveform className="h-4 w-4 text-accent" />
               <span className="text-xs font-semibold text-muted uppercase tracking-wide">Voice Engine</span>
             </div>
-            <div className="grid grid-cols-3 gap-2" role="radiogroup" aria-label="Select voice engine">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2" role="radiogroup" aria-label="Select voice engine">
               {[
                 { id: 'hume', label: 'Expressive', desc: 'Hume AI' },
                 { id: 'azure', label: 'Clear', desc: 'Azure' },

@@ -874,7 +874,7 @@ export default function Journal() {
               ))}
             </div>
           ) : (
-            <div className={hasEntries && hasRailContent ? 'lg:grid lg:grid-cols-[minmax(0,1fr)_320px] lg:gap-6 xl:grid-cols-[minmax(0,1fr)_360px] xl:gap-8' : ''}>
+            <div className={hasEntries && hasRailContent ? 'lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(280px,24rem)] lg:gap-6 xl:gap-8' : ''}>
               <div className="space-y-8">
                 {hasEntries ? (
                   <section id="history" className={`${shellClass} p-5 space-y-5`}>

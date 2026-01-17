@@ -5,6 +5,7 @@ import { getCardImage, getOrientationMeaning } from '../lib/cardLookup';
 import { getDrawerGradient } from '../lib/suitColors';
 import { useModalA11y } from '../hooks/useModalA11y';
 import { useHandsetLayout } from '../hooks/useHandsetLayout';
+import { useReducedMotion } from '../hooks/useReducedMotion';
 import { SpreadTable } from './SpreadTable';
 import { getNextUnrevealedIndex, getPositionLabel } from './readingBoardUtils';
 
@@ -278,7 +279,7 @@ function CardFocusOverlay({
 
   return (
     <div
-      className="fixed inset-0 z-[85] animate-fade-in"
+      className={`fixed inset-0 z-[85] ${prefersReducedMotion ? '' : 'animate-fade-in'}`}
       style={{ background: getDrawerGradient() }}
     >
       <div
@@ -431,6 +432,7 @@ export function ReadingBoard({
   navigationLabel,
   revealStage = 'action'
 }) {
+  const prefersReducedMotion = useReducedMotion();
   const isHandsetLayout = useHandsetLayout();
   const spreadInfo = useMemo(() => getSpreadInfo(spreadKey), [spreadKey]);
   const nextIndex = getNextUnrevealedIndex(reading, revealedCards);
