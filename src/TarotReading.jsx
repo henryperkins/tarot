@@ -372,18 +372,18 @@ export default function TarotReading() {
     setIsGenerating(false);
     setJournalStatus(null);
     setFollowUps(Array.isArray(followUps) ? followUps : []);
-    setReadingMeta((prev) => ({
-      ...prev,
-      requestId: requestId || prev.requestId,
-      spreadKey: normalizedSpread || prev.spreadKey,
-      spreadName: spreadName || prev.spreadName,
-      deckStyle: deckId || prev.deckStyle,
-      userQuestion: question || prev.userQuestion,
-      provider: provider || prev.provider
-    }));
-    setFollowUpIntent(normalizedIntent);
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional: syncing UI state from router state
-    setIsFollowUpOpen(true);
+	    setReadingMeta((prev) => ({
+	      ...prev,
+	      requestId: requestId || prev.requestId,
+	      spreadKey: normalizedSpread || prev.spreadKey,
+	      spreadName: spreadName || prev.spreadName,
+	      deckStyle: deckId || prev.deckStyle,
+	      userQuestion: question || prev.userQuestion,
+	      provider: provider || prev.provider
+	    }));
+	    // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional: syncing UI state from router state
+	    setFollowUpIntent(normalizedIntent);
+	    setIsFollowUpOpen(true);
 
     const nextState = { ...location.state };
     delete nextState.followUpEntry;

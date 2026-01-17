@@ -94,12 +94,12 @@ function SeasonSummary({
             </span>
           )}
         </div>
-        {currentStreak > 0 && (
-          <p className="text-[10px] text-amber-100/50">
-            Streak includes today's grace period.
-          </p>
-        )}
-      </div>
+	        {currentStreak > 0 && (
+	          <p className="text-[10px] text-amber-100/50">
+	            Streak includes today&apos;s grace period.
+	          </p>
+	        )}
+	      </div>
 
       {/* Coach suggestion CTA */}
       {coachSuggestion && onStartReading && showStartReadingCta && (

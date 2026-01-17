@@ -199,10 +199,10 @@ export function StepProgress({ steps = [], activeStep, onSelect, condensed = fal
                 aria-label={`Step ${index + 1}: ${step.label}`}
                 aria-describedby={showTooltips && isTooltipVisible ? `step-tooltip-${step.id}` : undefined}
               >
-                <div className="flex items-center justify-center gap-1 xs:gap-1.5 sm:gap-2">
+                <div className="flex items-center justify-center gap-0.5 xs:gap-1 sm:gap-2">
                   {StepIcon && (
                     <StepIcon
-                      className={`shrink-0 ${condensed ? 'w-3.5 h-3.5 xs:w-4 xs:h-4' : 'w-3.5 h-3.5 xs:w-4 xs:h-4 sm:w-5 sm:h-5'}`}
+                      className={`shrink-0 ${condensed ? 'w-3 h-3 xs:w-4 xs:h-4' : 'w-3 h-3 xs:w-4 xs:h-4 sm:w-5 sm:h-5'}`}
                       aria-hidden="true"
                     />
                   )}
@@ -210,15 +210,15 @@ export function StepProgress({ steps = [], activeStep, onSelect, condensed = fal
                   <span className={`
                     font-semibold truncate
                     ${condensed
-                      ? 'text-xs-plus text-secondary'
-                      : 'text-xs-plus sm:text-sm'
+                      ? 'text-xs xs:text-xs-plus text-secondary'
+                      : 'text-xs xs:text-xs-plus sm:text-sm'
                     }
                     ${isActive ? 'text-main' : 'text-muted-high'}
                   `}>
                     <span className="sm:hidden">
-                      {index + 1}. {shortLabel}
+                      {shortLabel}
                       {OPTIONAL_STEPS.has(step.id) && (
-                        <span className="text-muted/70 ml-0.5 text-xs">(opt)</span>
+                        <span aria-hidden="true" className="text-muted/70 ml-0.5">*</span>
                       )}
                     </span>
                     <span className="hidden sm:inline">{step.label}</span>
