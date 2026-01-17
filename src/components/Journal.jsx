@@ -2,7 +2,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { CaretLeft, Warning } from '@phosphor-icons/react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { GlobalNav } from './GlobalNav';
-import { UserMenu } from './UserMenu';
 import { ConfirmModal } from './ConfirmModal';
 import { useAuth } from '../contexts/AuthContext';
 import { useSubscription } from '../contexts/SubscriptionContext';

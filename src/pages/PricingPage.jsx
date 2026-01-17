@@ -26,7 +26,6 @@ import { useAuth } from '../contexts/AuthContext';
 import { useSubscription, SUBSCRIPTION_TIERS } from '../contexts/SubscriptionContext';
 import { useReducedMotion } from '../hooks/useReducedMotion';
 import { GlobalNav } from '../components/GlobalNav';
-import { UserMenu } from '../components/UserMenu';
 import AuthModal from '../components/AuthModal';
 import { MobileInfoSection } from '../components/MobileInfoSection';
 import { useToast } from '../contexts/ToastContext';

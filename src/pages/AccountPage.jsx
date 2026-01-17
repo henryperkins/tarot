@@ -29,7 +29,6 @@ import {
 } from '@phosphor-icons/react';
 import { ConfirmModal } from '../components/ConfirmModal';
 import { GlobalNav } from '../components/GlobalNav';
-import { UserMenu } from '../components/UserMenu';
 import AuthModal from '../components/AuthModal';
 import { MemoryManager } from '../components/MemoryManager';
 import { useAuth } from '../contexts/AuthContext';
