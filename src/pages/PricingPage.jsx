@@ -611,13 +611,13 @@ export default function PricingPage() {
 
   return (
     <div className="min-h-screen bg-main text-main">
-      {/* Unified header with GlobalNav + UserMenu - sticky with safe-area padding */}
+      {/* Unified header with GlobalNav (includes UserMenu via withUserChip) - sticky with safe-area padding */}
       <header 
         className="sticky top-0 z-40 border-b border-secondary/20 bg-main/95 backdrop-blur-sm"
         style={{
           paddingTop: 'max(env(safe-area-inset-top, 0px), 0.75rem)',
-          paddingLeft: 'env(safe-area-inset-left, 1rem)',
-          paddingRight: 'env(safe-area-inset-right, 1rem)',
+          paddingLeft: 'max(env(safe-area-inset-left, 0px), 1rem)',
+          paddingRight: 'max(env(safe-area-inset-right, 0px), 1rem)',
         }}
       >
         <div className="mx-auto max-w-6xl px-4 py-3">

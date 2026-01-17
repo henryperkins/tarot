@@ -199,8 +199,8 @@ export default function ShareReading() {
         className="sticky top-0 z-40 border-b border-secondary/20 bg-main/95 backdrop-blur-sm"
         style={{
           paddingTop: 'max(env(safe-area-inset-top, 0px), 0.75rem)',
-          paddingLeft: 'env(safe-area-inset-left, 1rem)',
-          paddingRight: 'env(safe-area-inset-right, 1rem)',
+          paddingLeft: 'max(env(safe-area-inset-left, 0px), 1rem)',
+          paddingRight: 'max(env(safe-area-inset-right, 0px), 1rem)',
         }}
       >
         <div className="mx-auto max-w-6xl flex items-center justify-between py-3 px-4">
