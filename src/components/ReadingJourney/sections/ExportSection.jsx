@@ -3,7 +3,7 @@
  *
  * Uses client-side export functions to:
  * - Support guests (no auth required)
- * - Respect active filters (exports filtered entries)
+ * - Respect active filters and scope selections
  * - Work with local storage entries
  */
 
@@ -47,7 +47,7 @@ const formatExpiryLabel = (value) => {
  * @param {Function} props.onCreateShareLink - Callback for share links (auth only)
  * @param {Array} props.scopeEntries - Entries matching the current analytics scope
  * @param {Array} props.filteredEntries - Entries matching the active filters
- * @param {Array} props.allEntries - All entries (unfiltered) for "recent" scope
+ * @param {Array} props.allEntries - All entries (unfiltered) for "all" scope
  * @param {Object} props.stats - Stats for PDF export
  * @param {string} props.scopeLabel - Human-friendly label for current scope
  * @param {boolean} props.filtersApplied - Whether journal filters are currently active
@@ -66,78 +66,120 @@ function ExportSection({
   filtersApplied = false,
   analyticsScope = 'all'
 }) {
-  const defaultScopeOnly = analyticsScope !== 'all' || filtersApplied;
+  const defaultScope = useMemo(() => {
+    if (filtersApplied) return 'filters';
+    if (analyticsScope !== 'all') return 'scope';
+    return 'all';
+  }, [analyticsScope, filtersApplied]);
 
   const [isCreatingLink, setIsCreatingLink] = useState(false);
   const [linkCreated, setLinkCreated] = useState(null);
   const [linkCopyStatus, setLinkCopyStatus] = useState(null);
   const [exportStatus, setExportStatus] = useState(null);
   const [shareStatus, setShareStatus] = useState(null);
-  const [exportScopeOnly, setExportScopeOnly] = useState(defaultScopeOnly);
+  const [exportScope, setExportScope] = useState(defaultScope);
   const [exportScopeTouched, setExportScopeTouched] = useState(false);
-  const defaultShareScope = defaultScopeOnly ? 'scope' : 'recent';
-  // Share scope: 'recent' (most recent N from all), 'scope' (current analytics scope), 'filtered' (journal filters)
-  const [shareScope, setShareScope] = useState(defaultShareScope);
+  // Share scope: 'all' (all entries), 'scope' (current analytics scope), 'filters' (journal filters)
+  const [shareScope, setShareScope] = useState(defaultScope);
   const [shareScopeTouched, setShareScopeTouched] = useState(false);
   const [shareLimit, setShareLimit] = useState(5);
   const [expiresInHours, setExpiresInHours] = useState('');
   // Confirmation for large exports
   const [pendingLargeExport, setPendingLargeExport] = useState(null);
 
-  const normalizedScopeEntries = Array.isArray(scopeEntries) ? scopeEntries : [];
-  const normalizedFilteredEntries = Array.isArray(filteredEntries) ? filteredEntries : [];
-  const normalizedAllEntries = Array.isArray(allEntries) ? allEntries : [];
-  const hasAllEntries = normalizedAllEntries.length > 0;
+  const normalizedScopeEntries = useMemo(
+    () => Array.isArray(scopeEntries) ? scopeEntries : [],
+    [scopeEntries]
+  );
+  const normalizedFilteredEntries = useMemo(
+    () => Array.isArray(filteredEntries) ? filteredEntries : [],
+    [filteredEntries]
+  );
+  const normalizedAllEntries = useMemo(
+    () => Array.isArray(allEntries) ? allEntries : [],
+    [allEntries]
+  );
   const effectiveShareLimit = Number.isFinite(Number(shareLimit)) ? Math.max(1, Math.min(10, Number(shareLimit))) : 5;
-  const showFilteredShareOption = filtersApplied && analyticsScope !== 'filters';
 
   useEffect(() => {
     if (!exportScopeTouched) {
-      setExportScopeOnly(defaultScopeOnly);
+      setExportScope(defaultScope);
     }
-  }, [defaultScopeOnly, exportScopeTouched]);
+  }, [defaultScope, exportScopeTouched]);
 
   useEffect(() => {
     if (!shareScopeTouched) {
-      setShareScope(defaultShareScope);
+      setShareScope(defaultScope);
     }
-  }, [defaultShareScope, shareScopeTouched]);
+  }, [defaultScope, shareScopeTouched]);
 
-  const exportEntries = exportScopeOnly ? normalizedScopeEntries : normalizedAllEntries;
+  useEffect(() => {
+    if (!filtersApplied && exportScope === 'filters') {
+      setExportScope(defaultScope);
+      setExportScopeTouched(false);
+    }
+  }, [filtersApplied, exportScope, defaultScope]);
+
+  useEffect(() => {
+    if (!filtersApplied && shareScope === 'filters') {
+      setShareScope(defaultScope);
+      setShareScopeTouched(false);
+    }
+  }, [filtersApplied, shareScope, defaultScope]);
+
+  const exportEntries = exportScope === 'filters'
+    ? normalizedFilteredEntries
+    : exportScope === 'scope'
+      ? normalizedScopeEntries
+      : normalizedAllEntries;
   const hasEntries = exportEntries.length > 0;
-  const exportScopeLabel = exportScopeOnly ? scopeLabel : 'All entries';
+  const exportScopeLabel = exportScope === 'filters'
+    ? 'Current filters'
+    : exportScope === 'scope'
+      ? scopeLabel
+      : 'All entries';
   const expiryLabel = formatExpiryLabel(expiresInHours);
   const scopeEntryCount = normalizedScopeEntries.length;
 
   const exportStatsForEntries = useMemo(() => {
-    if (exportScopeOnly) return stats;
+    if (exportScope === 'scope') return stats;
     return computeJournalStats(exportEntries) ?? stats;
-  }, [exportScopeOnly, exportEntries, stats]);
+  }, [exportScope, exportEntries, stats]);
 
-  // Compute share entry IDs based on selected scope
-  const shareEntryIds = (() => {
-    const sourceEntries = shareScope === 'recent'
-      ? normalizedAllEntries
-      : shareScope === 'filtered'
-        ? normalizedFilteredEntries
-        : normalizedScopeEntries;
-    return sourceEntries
+  const shareSourceEntries = useMemo(() => {
+    if (shareScope === 'filters') return normalizedFilteredEntries;
+    if (shareScope === 'scope') return normalizedScopeEntries;
+    return normalizedAllEntries;
+  }, [normalizedAllEntries, normalizedFilteredEntries, normalizedScopeEntries, shareScope]);
+
+  const shareEntries = useMemo(
+    () => shareSourceEntries.filter((entry) => entry?.id).slice(0, effectiveShareLimit),
+    [effectiveShareLimit, shareSourceEntries]
+  );
+
+  const shareEntryIds = useMemo(
+    () => shareEntries
       .map((entry) => (entry?.id ? String(entry.id) : '').trim())
-      .filter(Boolean)
-      .slice(0, effectiveShareLimit);
-  })();
+      .filter(Boolean),
+    [shareEntries]
+  );
 
   const shareEntryCount = shareEntryIds.length;
-  const shareScopeLabel = shareScope === 'recent'
-    ? `Most recent (up to ${effectiveShareLimit})`
-    : shareScope === 'filtered'
-      ? 'Filtered view'
-      : scopeLabel;
-  const canCreateShareLink = shareScope === 'recent'
-    ? hasAllEntries
-    : shareScope === 'filtered'
-      ? normalizedFilteredEntries.length > 0
-      : normalizedScopeEntries.length > 0;
+  const shareScopeLabel = shareScope === 'filters'
+    ? 'Current filters'
+    : shareScope === 'scope'
+      ? scopeLabel
+      : 'All entries';
+  const shareScopeStats = useMemo(() => {
+    if (shareScope === 'scope') return stats;
+    const computed = computeJournalStats(shareEntries);
+    return computed || stats;
+  }, [shareEntries, shareScope, stats]);
+  const shareSummaryEntryCount = shareEntryCount;
+  const canCreateShareLink = shareEntryCount > 0;
+  const shareHasLocalOnlyEntries = isAuthenticated
+    && shareSourceEntries.length > 0
+    && shareEntryCount === 0;
 
   const executeExportPdf = (entriesToExport) => {
     try {
@@ -190,15 +232,22 @@ function ExportSection({
     });
   };
 
-  const handleCopySnapshot = async () => {
-    const success = await copyJournalShareSummary(stats, {
-      scopeLabel,
-      entryCount: scopeEntryCount,
+  const handleCopySnapshot = async (options = {}) => {
+    const snapshotStats = options.statsOverride || stats;
+    const snapshotLabel = options.scopeLabelOverride || scopeLabel;
+    const snapshotEntryCount = typeof options.entryCountOverride === 'number'
+      ? options.entryCountOverride
+      : scopeEntryCount;
+    const success = await copyJournalShareSummary(snapshotStats, {
+      scopeLabel: snapshotLabel,
+      entryCount: snapshotEntryCount,
     });
-    setShareStatus({
-      type: success ? 'success' : 'error',
-      message: success ? 'Summary copied to clipboard' : 'Unable to copy summary',
-    });
+    if (!options.silent) {
+      setShareStatus({
+        type: options.type || (success ? 'success' : 'error'),
+        message: options.message || (success ? 'Summary copied to clipboard' : 'Unable to copy summary'),
+      });
+    }
     return success;
   };
 
@@ -220,7 +269,6 @@ function ExportSection({
       const result = await onCreateShareLink({
         scope: 'journal',
         entryIds: shareEntryIds,
-        limit: shareScope === 'recent' && shareEntryIds.length === 0 ? effectiveShareLimit : undefined,
         expiresInHours: effectiveExpiry,
       });
       if (result?.url) {
@@ -286,7 +334,18 @@ function ExportSection({
       }
     } catch (error) {
       console.error('Failed to create share link:', error);
-      await handleCopySnapshot();
+      const snapshotCopied = await handleCopySnapshot({
+        silent: true,
+        statsOverride: shareScopeStats,
+        scopeLabelOverride: shareScopeLabel,
+        entryCountOverride: shareSummaryEntryCount,
+      });
+      setShareStatus({
+        type: 'error',
+        message: snapshotCopied
+          ? 'Link failed — summary copied instead.'
+          : 'Link failed and summary could not be copied.',
+      });
     } finally {
       setIsCreatingLink(false);
     }
@@ -318,22 +377,80 @@ function ExportSection({
       {/* Export buttons */}
       <div>
         <p className="text-sm sm:text-xs text-amber-100/60 mb-2">Export Your Journal</p>
-        <div className="mb-2 flex flex-wrap items-center gap-2 text-xs text-amber-100/70">
-          <label className="inline-flex items-center gap-2">
-            <input
-              type="checkbox"
-              checked={exportScopeOnly}
-              onChange={(event) => {
-                setExportScopeOnly(event.target.checked);
-                setExportScopeTouched(true);
-              }}
-              className="h-4 w-4 rounded border-amber-200/30 bg-transparent text-amber-300 focus:ring-amber-200/40 focus:ring-offset-0"
-            />
-            Export current scope only
-          </label>
-          <span className="text-[10px] text-amber-100/50">
-            {exportScopeOnly ? `Scope: ${scopeLabel}` : 'Full journal export'}
-          </span>
+        <div className="mb-3 space-y-2 text-xs text-amber-100/70">
+          <fieldset className="space-y-2">
+            <legend className="text-[10px] uppercase tracking-wider text-amber-100/50 mb-1">Export scope</legend>
+
+            <label className={`flex items-start gap-2 p-2 rounded-lg cursor-pointer transition-colors ${exportScope === 'all' ? 'bg-amber-200/10' : 'hover:bg-amber-200/5'}`}>
+              <input
+                type="radio"
+                name="exportScope"
+                value="all"
+                checked={exportScope === 'all'}
+                onChange={() => {
+                  setExportScope('all');
+                  setExportScopeTouched(true);
+                }}
+                className="mt-0.5 h-5 w-5 border-amber-200/30 bg-transparent text-amber-300 focus:ring-amber-200/40 focus:ring-offset-0 touch-manipulation"
+              />
+              <div>
+                <span className="font-medium">All entries</span>
+                <p className="text-xs sm:text-[11px] text-amber-100/60 mt-0.5">
+                  Export {normalizedAllEntries.length} entries
+                </p>
+              </div>
+            </label>
+
+            <label className={`flex items-start gap-2 p-2 rounded-lg transition-colors ${filtersApplied ? 'cursor-pointer' : 'cursor-not-allowed opacity-60'} ${exportScope === 'filters' ? 'bg-amber-200/10' : filtersApplied ? 'hover:bg-amber-200/5' : ''}`}>
+              <input
+                type="radio"
+                name="exportScope"
+                value="filters"
+                checked={exportScope === 'filters'}
+                onChange={() => {
+                  setExportScope('filters');
+                  setExportScopeTouched(true);
+                }}
+                disabled={!filtersApplied}
+                className="mt-0.5 h-5 w-5 border-amber-200/30 bg-transparent text-amber-300 focus:ring-amber-200/40 focus:ring-offset-0 touch-manipulation"
+              />
+              <div>
+                <span className="font-medium">Current filters</span>
+                <p className="text-xs sm:text-[11px] text-amber-100/60 mt-0.5">
+                  {filtersApplied
+                    ? `Export ${normalizedFilteredEntries.length} filtered entries`
+                    : 'No filters are active'}
+                </p>
+              </div>
+            </label>
+
+            <label className={`flex items-start gap-2 p-2 rounded-lg cursor-pointer transition-colors ${exportScope === 'scope' ? 'bg-amber-200/10' : 'hover:bg-amber-200/5'}`}>
+              <input
+                type="radio"
+                name="exportScope"
+                value="scope"
+                checked={exportScope === 'scope'}
+                onChange={() => {
+                  setExportScope('scope');
+                  setExportScopeTouched(true);
+                }}
+                className="mt-0.5 h-5 w-5 border-amber-200/30 bg-transparent text-amber-300 focus:ring-amber-200/40 focus:ring-offset-0 touch-manipulation"
+              />
+              <div>
+                <span className="font-medium">Current scope</span>
+                <p className="text-xs sm:text-[11px] text-amber-100/60 mt-0.5">
+                  Export {normalizedScopeEntries.length} entries from {scopeLabel}
+                </p>
+              </div>
+            </label>
+          </fieldset>
+
+          {filtersApplied && exportScope === 'all' && (
+            <div className="flex items-start gap-2 text-[11px] text-amber-200/80">
+              <Warning className="h-3.5 w-3.5 text-amber-300 flex-shrink-0 mt-0.5" aria-hidden="true" />
+              <span>Filters are active — exporting all entries ignores filters.</span>
+            </div>
+          )}
         </div>
         <div className="flex flex-wrap gap-2">
           <button
@@ -424,6 +541,49 @@ function ExportSection({
             <fieldset className="space-y-2">
               <legend className="text-xs sm:text-[10px] uppercase tracking-wider text-amber-100/50 mb-1">What to share</legend>
 
+              <label className={`flex items-start gap-2 p-2 rounded-lg cursor-pointer transition-colors ${shareScope === 'all' ? 'bg-amber-200/10' : 'hover:bg-amber-200/5'}`}>
+                <input
+                  type="radio"
+                  name="shareScope"
+                  value="all"
+                  checked={shareScope === 'all'}
+                  onChange={() => {
+                    setShareScope('all');
+                    setShareScopeTouched(true);
+                  }}
+                  className="mt-0.5 h-5 w-5 border-amber-200/30 bg-transparent text-amber-300 focus:ring-amber-200/40 focus:ring-offset-0 touch-manipulation"
+                />
+                <div>
+                  <span className="font-medium">All entries</span>
+                  <p className="text-xs sm:text-[11px] text-amber-100/60 mt-0.5">
+                    Share up to {effectiveShareLimit} entries from {normalizedAllEntries.length} total
+                  </p>
+                </div>
+              </label>
+
+              <label className={`flex items-start gap-2 p-2 rounded-lg transition-colors ${filtersApplied ? 'cursor-pointer' : 'cursor-not-allowed opacity-60'} ${shareScope === 'filters' ? 'bg-amber-200/10' : filtersApplied ? 'hover:bg-amber-200/5' : ''}`}>
+                <input
+                  type="radio"
+                  name="shareScope"
+                  value="filters"
+                  checked={shareScope === 'filters'}
+                  onChange={() => {
+                    setShareScope('filters');
+                    setShareScopeTouched(true);
+                  }}
+                  disabled={!filtersApplied}
+                  className="mt-0.5 h-5 w-5 border-amber-200/30 bg-transparent text-amber-300 focus:ring-amber-200/40 focus:ring-offset-0 touch-manipulation"
+                />
+                <div>
+                  <span className="font-medium">Current filters</span>
+                  <p className="text-xs sm:text-[11px] text-amber-100/60 mt-0.5">
+                    {filtersApplied
+                      ? `Share up to ${effectiveShareLimit} of ${normalizedFilteredEntries.length} filtered entries`
+                      : 'No filters are active'}
+                  </p>
+                </div>
+              </label>
+
               <label className={`flex items-start gap-2 p-2 rounded-lg cursor-pointer transition-colors ${shareScope === 'scope' ? 'bg-amber-200/10' : 'hover:bg-amber-200/5'}`}>
                 <input
                   type="radio"
@@ -439,53 +599,18 @@ function ExportSection({
                 <div>
                   <span className="font-medium">Current scope</span>
                   <p className="text-xs sm:text-[11px] text-amber-100/60 mt-0.5">
-                    Share {normalizedScopeEntries.length} entries from {scopeLabel}
+                    Share up to {effectiveShareLimit} entries from {scopeLabel}
                   </p>
                 </div>
               </label>
-
-              <label className={`flex items-start gap-2 p-2 rounded-lg cursor-pointer transition-colors ${shareScope === 'recent' ? 'bg-amber-200/10' : 'hover:bg-amber-200/5'}`}>
-                <input
-                  type="radio"
-                  name="shareScope"
-                  value="recent"
-                  checked={shareScope === 'recent'}
-                  onChange={() => {
-                    setShareScope('recent');
-                    setShareScopeTouched(true);
-                  }}
-                  className="mt-0.5 h-5 w-5 border-amber-200/30 bg-transparent text-amber-300 focus:ring-amber-200/40 focus:ring-offset-0 touch-manipulation"
-                />
-                <div>
-                  <span className="font-medium">Most recent readings</span>
-                  <p className="text-xs sm:text-[11px] text-amber-100/60 mt-0.5">
-                    Share your {effectiveShareLimit} most recent entries ({hasAllEntries ? normalizedAllEntries.length : 0} total)
-                  </p>
-                </div>
-              </label>
-
-              {showFilteredShareOption && (
-                <label className={`flex items-start gap-2 p-2 rounded-lg cursor-pointer transition-colors ${shareScope === 'filtered' ? 'bg-amber-200/10' : 'hover:bg-amber-200/5'}`}>
-                  <input
-                    type="radio"
-                    name="shareScope"
-                    value="filtered"
-                    checked={shareScope === 'filtered'}
-                    onChange={() => {
-                      setShareScope('filtered');
-                      setShareScopeTouched(true);
-                    }}
-                    className="mt-0.5 h-5 w-5 border-amber-200/30 bg-transparent text-amber-300 focus:ring-amber-200/40 focus:ring-offset-0 touch-manipulation"
-                  />
-                  <div>
-                    <span className="font-medium">Filtered view</span>
-                    <p className="text-xs sm:text-[11px] text-amber-100/60 mt-0.5">
-                      Share {normalizedFilteredEntries.length} entries matching your filters
-                    </p>
-                  </div>
-                </label>
-              )}
             </fieldset>
+
+            {filtersApplied && shareScope === 'all' && (
+              <div className="flex items-start gap-2 text-[11px] text-amber-200/80">
+                <Warning className="h-3.5 w-3.5 text-amber-300 flex-shrink-0 mt-0.5" aria-hidden="true" />
+                <span>Filters are active — sharing all entries ignores filters.</span>
+              </div>
+            )}
 
             {/* Limit control */}
             <div className="flex items-center justify-between gap-2 pt-1 border-t border-amber-200/10">
@@ -525,9 +650,14 @@ function ExportSection({
               Will share <span className="font-semibold text-amber-50">{shareEntryCount}</span> entr{shareEntryCount === 1 ? 'y' : 'ies'} from {shareScopeLabel} · {expiryLabel}
             </div>
             {!canCreateShareLink && (
-              <p className="text-xs sm:text-[11px] text-amber-100/60">
-                No entries available to share for this scope.
-              </p>
+              <div className="space-y-1 text-xs sm:text-[11px] text-amber-100/60">
+                <p>No entries available to share for this scope.</p>
+                {shareHasLocalOnlyEntries && (
+                  <p>
+                    These readings are stored locally only. Save a cloud journal entry to create a share link.
+                  </p>
+                )}
+              </div>
             )}
           </div>
 

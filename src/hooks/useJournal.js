@@ -302,11 +302,73 @@ export function useJournal({ autoLoad = true } = {}) {
         console.error('Failed to load more journal entries:', err);
         setError(err.message || 'Unable to load more entries');
       }
-      return { success: false, appended: 0 };
+      return { success: false, appended: 0, error: err?.message || 'Unable to load more entries' };
     } finally {
       setLoadingMore(false);
     }
   }, [buildApiUrl, canUseCloudJournal, isAuthenticated, loadingMore, pagination.hasMore, pagination.nextCursor, pagination.total, persistInsights, user?.id]);
+
+  const fetchEntryById = useCallback(async (entryId, { includeFollowups = true } = {}) => {
+    if (!entryId) return { entry: null, status: 'invalid' };
+    if (!isAuthenticated || !canUseCloudJournal) return { entry: null, status: 'skipped' };
+
+    const userId = user?.id;
+    const params = new URLSearchParams();
+    if (includeFollowups) {
+      params.set('includeFollowups', 'true');
+    }
+    const suffix = params.toString() ? `?${params.toString()}` : '';
+
+    try {
+      const response = await fetch(`/api/journal/${entryId}${suffix}`, {
+        credentials: 'include'
+      });
+
+      if (response.status === 404) {
+        return { entry: null, status: 'not-found' };
+      }
+      if (!response.ok) {
+        throw new Error('Failed to load journal entry');
+      }
+
+      const payload = await response.json();
+      const entry = payload?.entry;
+      if (!entry) {
+        return { entry: null, status: 'not-found' };
+      }
+
+      setEntries((prev) => {
+        const prevEntries = Array.isArray(prev) ? prev : [];
+        const next = dedupeEntries([entry, ...prevEntries]);
+
+        setPagination((prevPag) => ({
+          ...prevPag,
+          total: typeof prevPag?.total === 'number'
+            ? Math.max(prevPag.total, next.length)
+            : next.length
+        }));
+
+        if (typeof window !== 'undefined') {
+          persistInsights(next);
+          if (userId) {
+            try {
+              localStorage.setItem(getCacheKey(userId), JSON.stringify(next));
+            } catch (quotaErr) {
+              console.warn('localStorage quota exceeded, skipping cache update:', quotaErr);
+            }
+          }
+        }
+
+        return next;
+      });
+
+      return { entry, status: 'found' };
+    } catch (err) {
+      console.error('Failed to fetch journal entry:', err);
+      setError(err.message || 'Unable to load journal entry');
+      return { entry: null, status: 'error', message: err?.message || null };
+    }
+  }, [canUseCloudJournal, isAuthenticated, persistInsights, user?.id]);
 
   // Prefetch the next page on idle to reduce perceived latency on long histories
   useEffect(() => {
@@ -795,6 +857,7 @@ export function useJournal({ autoLoad = true } = {}) {
     importLegacyLocalEntries,
     reload: loadEntries,
     loadEntries,
-    loadMoreEntries
+    loadMoreEntries,
+    fetchEntryById
   };
 }

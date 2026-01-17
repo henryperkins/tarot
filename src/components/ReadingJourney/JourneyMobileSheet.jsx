@@ -10,6 +10,7 @@
  */
 
 import { useState, useCallback, useRef, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Sparkle,
   Fire,
@@ -83,12 +84,15 @@ export default function JourneyMobileSheet({
   analyticsScope,
   onScopeSelect,
 }) {
+  const navigate = useNavigate();
   const [isSheetOpen, setIsSheetOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('cards');
   const sheetRef = useRef(null);
   const closeButtonRef = useRef(null);
   const triggerButtonRef = useRef(null);
   const abortControllerRef = useRef(null);
+  const scopeChipLabel = analyticsScope === 'filters' ? 'Filtered' : (scopeLabel || 'Scope');
+  const sourceLabel = _dataSource === 'server' ? 'D1' : 'Journal';
 
   // Swipe-to-dismiss state
   const [dragOffset, setDragOffset] = useState(0);
@@ -267,6 +271,13 @@ export default function JourneyMobileSheet({
           <p className="text-xs text-amber-100/50">
             Enable them in settings to track card patterns.
           </p>
+          <button
+            type="button"
+            onClick={() => navigate('/account#analytics')}
+            className="mt-4 inline-flex min-h-[44px] items-center justify-center rounded-full border border-amber-200/25 px-4 py-2 text-sm font-semibold text-amber-50 transition hover:bg-amber-200/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/40"
+          >
+            Go to Settings
+          </button>
         </div>
       </section>
     );
@@ -473,13 +484,20 @@ export default function JourneyMobileSheet({
 
             {/* Header */}
             <div className="journey-sheet__header flex items-center justify-between px-5 pb-3">
-              <h2
-                id="journey-sheet-title"
-                className="flex items-center gap-2 text-sm font-medium text-amber-100"
-              >
-                <Sparkle className="h-3 w-3" />
-                Your Reading Journey
-              </h2>
+              <div className="flex items-center gap-2">
+                <h2
+                  id="journey-sheet-title"
+                  className="flex items-center gap-2 text-sm font-medium text-amber-100"
+                >
+                  <Sparkle className="h-3 w-3" />
+                  Your Reading Journey
+                </h2>
+                {scopeLabel && (
+                  <span className="rounded-full border border-amber-200/15 bg-amber-200/5 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-amber-100/70">
+                    {scopeChipLabel} · {sourceLabel}
+                  </span>
+                )}
+              </div>
               <button
                 ref={closeButtonRef}
                 onClick={handleClose}

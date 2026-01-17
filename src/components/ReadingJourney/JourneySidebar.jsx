@@ -6,6 +6,7 @@
  */
 
 import { useState, useCallback, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Sparkle,
   CaretDown,
@@ -108,12 +109,14 @@ export default function JourneySidebar({
   showStartReadingCta = true,
   locale = 'default',
   timezone,
+  _dataSource,
   variant: _variant = 'sidebar',
   scopeLabel,
   filtersApplied,
   analyticsScope,
   onScopeSelect,
 }) {
+  const navigate = useNavigate();
   // Section open/close state
   const [openSections, setOpenSections] = useState({
     cards: true,
@@ -136,6 +139,8 @@ export default function JourneySidebar({
     handleBackfill(abortControllerRef.current.signal);
   }, [handleBackfill]);
   const showFiltersMismatch = filtersApplied && !filtersActive;
+  const scopeChipLabel = analyticsScope === 'filters' ? 'Filtered' : (scopeLabel || 'Scope');
+  const sourceLabel = _dataSource === 'server' ? 'D1' : 'Journal';
 
   // Show loading skeleton
   if (isLoading) {
@@ -203,6 +208,13 @@ export default function JourneySidebar({
           <p className="text-xs text-amber-100/50">
             You can enable them in your account settings to track card patterns and reading insights.
           </p>
+          <button
+            type="button"
+            onClick={() => navigate('/account#analytics')}
+            className="mt-4 inline-flex min-h-[44px] items-center justify-center rounded-full border border-amber-200/25 px-4 py-2 text-sm font-semibold text-amber-50 transition hover:bg-amber-200/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/40"
+          >
+            Go to Settings
+          </button>
         </div>
       </section>
     );
@@ -261,7 +273,7 @@ export default function JourneySidebar({
             )}
             {scopeLabel && (
               <span className="ml-2 rounded-full border border-amber-200/15 bg-amber-200/5 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-amber-100/70">
-                Scope: {scopeLabel}
+                {scopeChipLabel} · {sourceLabel}
               </span>
             )}
           </h3>

@@ -157,3 +157,32 @@ export async function loadFollowUpsByEntry(db, userId, entryIds, { limitPerEntry
 
   return resultMap;
 }
+
+/**
+ * Delete follow-ups for one or more entries belonging to a user.
+ * Gracefully no-ops if the table is missing (older migrations).
+ */
+export async function deleteFollowUpsByEntry(db, userId, entryIds) {
+  const result = { deleted: 0 };
+  if (!db || !userId) return result;
+
+  const ids = Array.isArray(entryIds) ? entryIds : [entryIds];
+  const uniqueIds = Array.from(new Set(ids.map((id) => (id == null ? null : String(id)).trim()).filter(Boolean)));
+  if (uniqueIds.length === 0) return result;
+
+  try {
+    const placeholders = uniqueIds.map(() => '?').join(', ');
+    const stmt = db.prepare(`DELETE FROM journal_followups WHERE user_id = ? AND entry_id IN (${placeholders})`);
+    const response = await stmt.bind(userId, ...uniqueIds).run();
+    if (typeof response?.changes === 'number') {
+      result.deleted = response.changes;
+    }
+  } catch (error) {
+    const message = String(error?.message || '');
+    if (!message.toLowerCase().includes('no such table')) {
+      console.warn('[deleteFollowUpsByEntry] Error deleting follow-ups:', message);
+    }
+  }
+
+  return result;
+}

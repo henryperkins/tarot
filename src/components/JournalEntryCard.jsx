@@ -518,10 +518,13 @@ export const JournalEntryCard = memo(function JournalEntryCard({
   const expandedHeaderPadding = compact ? 'px-4 py-4 sm:px-5 sm:py-4' : 'px-4 py-3.5 sm:px-5 sm:py-4';
   const headerPadding = isExpanded ? expandedHeaderPadding : collapsedHeaderPadding;
   const contentPadding = compact ? 'px-4 py-4 sm:p-5' : 'px-4 py-4 sm:p-5';
+  const compactActionButtonClass =
+    'inline-flex min-h-[44px] min-w-[44px] h-11 w-11 items-center justify-center rounded-full text-[color:var(--text-muted)] ' +
+    'hover:bg-[color:rgba(232,218,195,0.08)] hover:text-[color:var(--brand-accent)] transition focus-visible:outline-none ' +
+    'focus-visible:ring-2 focus-visible:ring-[color:rgba(232,218,195,0.45)] flex-shrink-0';
   const actionMenuId = `${entry.id || entry.ts || 'entry'}-actions-menu`;
   const actionMenuItems = [
     { key: 'copy', label: 'Copy CSV', icon: ClipboardText, onSelect: handleEntryCopy },
-    { key: 'share', label: 'Share reading', icon: JournalShareIcon, onSelect: handleEntryShare },
     { key: 'export', label: 'Export CSV', icon: DownloadSimple, onSelect: handleEntryExport },
     { key: 'export-md', label: 'Export Markdown', icon: FileText, onSelect: handleEntryMarkdownExport }
   ];
@@ -831,6 +834,17 @@ export const JournalEntryCard = memo(function JournalEntryCard({
 
         <button
           type="button"
+          onClick={handleEntryShare}
+          disabled={pendingAction === 'share'}
+          title="Share reading"
+          className={`${compactActionButtonClass} ${pendingAction === 'share' ? 'cursor-wait opacity-60' : ''}`}
+        >
+          <JournalShareIcon className="h-4 w-4" aria-hidden="true" />
+          <span className="sr-only">Share reading</span>
+        </button>
+
+        <button
+          type="button"
           ref={actionMenuButtonRef}
           onClick={(event) => {
             event.stopPropagation();
@@ -846,7 +860,7 @@ export const JournalEntryCard = memo(function JournalEntryCard({
               return next;
             });
           }}
-          className="flex h-8 w-8 items-center justify-center rounded-full text-[color:var(--text-muted)] hover:bg-[color:rgba(232,218,195,0.08)] hover:text-[color:var(--brand-accent)] transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:rgba(232,218,195,0.45)] flex-shrink-0"
+          className={compactActionButtonClass}
           aria-haspopup="menu"
           aria-controls={actionMenuId}
           aria-expanded={actionMenuOpen}
@@ -952,34 +966,46 @@ export const JournalEntryCard = memo(function JournalEntryCard({
         </button>
 
         <div className="relative flex-shrink-0 self-start">
-          <button
-            type="button"
-            ref={actionMenuButtonRef}
-            onClick={(event) => {
-              event.stopPropagation();
-              setActionMenuOpen((prev) => {
-                const next = !prev;
-                // Ensure we compute placement on open.
-                if (next) {
-                  // Defer to next frame to ensure layout is stable.
-                  if (typeof requestAnimationFrame !== 'undefined') {
-                    requestAnimationFrame(() => updateMenuPlacement());
-                  } else {
-                    updateMenuPlacement();
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={handleEntryShare}
+              disabled={pendingAction === 'share'}
+              title="Share reading"
+              className={`${ui.iconButton} ${pendingAction === 'share' ? 'cursor-wait opacity-60' : ''}`}
+            >
+              <JournalShareIcon className="h-4 w-4" aria-hidden="true" />
+              <span className="sr-only">Share reading</span>
+            </button>
+            <button
+              type="button"
+              ref={actionMenuButtonRef}
+              onClick={(event) => {
+                event.stopPropagation();
+                setActionMenuOpen((prev) => {
+                  const next = !prev;
+                  // Ensure we compute placement on open.
+                  if (next) {
+                    // Defer to next frame to ensure layout is stable.
+                    if (typeof requestAnimationFrame !== 'undefined') {
+                      requestAnimationFrame(() => updateMenuPlacement());
+                    } else {
+                      updateMenuPlacement();
+                    }
                   }
-                }
-                return next;
-              });
-            }}
-            className={ui.iconButton}
-            aria-haspopup="menu"
-            aria-controls={actionMenuId}
-            aria-expanded={actionMenuOpen}
-            title="Entry actions"
-          >
-            <DotsThreeVertical className="h-4 w-4" aria-hidden="true" />
-            <span className="sr-only">Open entry actions</span>
-          </button>
+                  return next;
+                });
+              }}
+              className={ui.iconButton}
+              aria-haspopup="menu"
+              aria-controls={actionMenuId}
+              aria-expanded={actionMenuOpen}
+              title="Entry actions"
+            >
+              <DotsThreeVertical className="h-4 w-4" aria-hidden="true" />
+              <span className="sr-only">Open entry actions</span>
+            </button>
+          </div>
 
           {renderActionMenu()}
         </div>
@@ -1147,16 +1173,16 @@ export const JournalEntryCard = memo(function JournalEntryCard({
             </section>
           )}
 
-          {hasFollowUps && (
-            <section className={`${ui.section} mt-4`}>
-              <header className={ui.sectionHeader}>
-                <div className="flex items-center gap-2">
-                  <Lightning className="h-4 w-4 text-[color:var(--brand-primary)]" aria-hidden="true" />
-                  <div className={ui.sectionLabel}>Follow-up chat</div>
-                </div>
-                <span className="text-[12px] text-[color:var(--text-muted)]">{followUps.length}</span>
-              </header>
-              <div className={ui.bodyPad}>
+          <section className={`${ui.section} mt-4`}>
+            <header className={ui.sectionHeader}>
+              <div className="flex items-center gap-2">
+                <Lightning className="h-4 w-4 text-[color:var(--brand-primary)]" aria-hidden="true" />
+                <div className={ui.sectionLabel}>Follow-up chat</div>
+              </div>
+              <span className="text-[12px] text-[color:var(--text-muted)]">{followUps.length}</span>
+            </header>
+            <div className={ui.bodyPad}>
+              {hasFollowUps ? (
                 <ol className="space-y-3">
                   {followUpPreview.map((turn, idx) => {
                     const key = turn.turnNumber || idx;
@@ -1196,48 +1222,55 @@ export const JournalEntryCard = memo(function JournalEntryCard({
                     );
                   })}
                 </ol>
-                {hasHiddenFollowUps && (
-                  <p className="mt-3 text-[11px] text-[color:var(--text-muted)]">
-                    Showing the most recent {followUpPreview.length} of {followUps.length} turns.
-                  </p>
-                )}
-                <div className="mt-3 flex flex-wrap items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => handleOpenFollowUp('ask')}
-                    disabled={!canAskFollowUp}
-                    title={
-                      canAskFollowUp
-                        ? 'Ask a follow-up'
-                        : !isAuthenticated
-                          ? 'Sign in to ask follow-up questions'
-                          : 'Follow-up limit reached for this reading'
-                    }
-                    className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-[12px] font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:rgba(232,218,195,0.45)] ${
-                      canAskFollowUp
-                        ? 'border-[color:var(--border-warm-light)] bg-[color:rgba(232,218,195,0.06)] text-[color:var(--text-main)] hover:border-[color:var(--border-warm)] hover:bg-[color:rgba(232,218,195,0.12)]'
-                        : 'border-[color:rgba(255,255,255,0.08)] bg-[color:rgba(232,218,195,0.03)] text-[color:var(--text-muted)] cursor-not-allowed opacity-70'
-                    }`}
-                  >
-                    <Lightning className="h-3.5 w-3.5 text-[color:var(--brand-primary)]" aria-hidden="true" />
-                    {canAskFollowUp ? 'Ask a follow-up' : isAuthenticated ? 'Limit reached' : 'Sign in to ask'}
-                  </button>
+              ) : (
+                <div className="rounded-xl border border-[color:rgba(255,255,255,0.08)] bg-[color:rgba(15,14,19,0.25)] p-3 text-[12px] text-[color:var(--text-muted)]">
+                  No follow-ups yet — Ask one.
+                </div>
+              )}
+              {hasHiddenFollowUps && (
+                <p className="mt-3 text-[11px] text-[color:var(--text-muted)]">
+                  Showing the most recent {followUpPreview.length} of {followUps.length} turns.
+                </p>
+              )}
+              <div className="mt-3 flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => handleOpenFollowUp('ask')}
+                  disabled={!canAskFollowUp}
+                  title={
+                    canAskFollowUp
+                      ? 'Ask a follow-up'
+                      : !isAuthenticated
+                        ? 'Sign in to ask follow-up questions'
+                        : 'Follow-up limit reached for this reading'
+                  }
+                  className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-[12px] font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:rgba(232,218,195,0.45)] ${
+                    canAskFollowUp
+                      ? 'border-[color:var(--border-warm-light)] bg-[color:rgba(232,218,195,0.06)] text-[color:var(--text-main)] hover:border-[color:var(--border-warm)] hover:bg-[color:rgba(232,218,195,0.12)]'
+                      : 'border-[color:rgba(255,255,255,0.08)] bg-[color:rgba(232,218,195,0.03)] text-[color:var(--text-muted)] cursor-not-allowed opacity-70'
+                  }`}
+                >
+                  <Lightning className="h-3.5 w-3.5 text-[color:var(--brand-primary)]" aria-hidden="true" />
+                  {canAskFollowUp ? 'Ask a follow-up' : isAuthenticated ? 'Limit reached' : 'Sign in to ask'}
+                </button>
+                {hasFollowUps && (
                   <button
                     type="button"
                     onClick={() => handleOpenFollowUp('continue')}
                     className="inline-flex items-center gap-2 rounded-full border border-[color:var(--border-warm-light)] bg-transparent px-3 py-1.5 text-[12px] font-semibold text-[color:var(--text-muted)] hover:border-[color:var(--border-warm)] hover:bg-[color:rgba(232,218,195,0.08)] hover:text-[color:var(--text-main)] transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:rgba(232,218,195,0.45)]"
+                    title="Continue chat"
                   >
                     Continue chat
                   </button>
-                  <span className="text-[11px] text-[color:var(--text-muted)]">
-                    {isAuthenticated
-                      ? `Follow-ups used: ${followUpTurnsUsed}/${followUpLimit}`
-                      : 'Sign in to unlock follow-up chat'}
-                  </span>
-                </div>
+                )}
+                <span className="text-[11px] text-[color:var(--text-muted)]">
+                  {isAuthenticated
+                    ? `Follow-ups used: ${followUpTurnsUsed}/${followUpLimit}`
+                    : 'Sign in to unlock follow-up chat'}
+                </span>
               </div>
-            </section>
-          )}
+            </div>
+          </section>
 
           {narrativeText && (
             <section className={`${ui.section} mt-4`}>

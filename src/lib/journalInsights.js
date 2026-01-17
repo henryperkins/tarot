@@ -1133,13 +1133,29 @@ export async function copyJournalShareSummary(stats, options = {}) {
   }
 }
 
+function formatDeckLabel(value) {
+  if (!value || typeof value !== 'string') return '';
+  const trimmed = value.trim();
+  if (!trimmed) return '';
+  if (/[A-Z]/.test(trimmed) || trimmed.includes(' ')) return trimmed;
+  return trimmed
+    .split(/[-_]/g)
+    .map((part) => (part ? part.charAt(0).toUpperCase() + part.slice(1) : ''))
+    .join(' ');
+}
+
 export async function copyJournalEntrySummary(entry) {
   if (!entry) return false;
+  const contextLabel = formatContextName(entry.context);
+  const deckLabel = formatDeckLabel(
+    entry.deckName || entry.deckLabel || entry.deck || entry.deckId || entry.deckStyle
+  );
   const lines = [
     `Spread: ${entry.spread || entry.spreadName || 'Reading'}`,
     entry.question ? `Question: ${entry.question}` : null,
     `Cards: ${(entry.cards || []).map(card => `${card.name}${card.orientation ? ` (${card.orientation})` : ''}`).join(', ')}`,
-    entry.context ? `Context: ${entry.context}` : null,
+    contextLabel ? `Context: ${contextLabel}` : null,
+    deckLabel ? `Deck: ${deckLabel}` : null,
     entry.ts ? `When: ${new Date(entry.ts).toLocaleString()}` : null
   ].filter(Boolean);
   const text = lines.join('\n');

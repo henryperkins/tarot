@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { CaretLeft, X } from '@phosphor-icons/react';
+import { CaretLeft, Warning, X } from '@phosphor-icons/react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { GlobalNav } from './GlobalNav';
 import { UserMenu } from './UserMenu';
@@ -11,7 +11,7 @@ import { useJournal } from '../hooks/useJournal';
 import { JournalFilters } from './JournalFilters.jsx';
 import { InsightsErrorBoundary } from './InsightsErrorBoundary.jsx';
 import { JournalEntryCard } from './JournalEntryCard.jsx';
-import { SavedIntentionsList } from './SavedIntentionsList.jsx';
+import { SavedIntentionsModal } from './SavedIntentionsModal.jsx';
 import { OUTLINE_BUTTON_CLASS } from '../styles/buttonClasses';
 import { ReadingJourney } from './ReadingJourney';
 import { NoFiltersIllustration } from './illustrations/NoFiltersIllustration';
@@ -62,6 +62,7 @@ export default function Journal() {
     migrateToCloud,
     importLegacyLocalEntries,
     loadMoreEntries,
+    fetchEntryById,
     hasMoreEntries: hasMoreServerEntries,
     totalEntries,
     hasTotalEntries,
@@ -124,21 +125,30 @@ export default function Journal() {
   const [deleteConfirmModal, setDeleteConfirmModal] = useState({ isOpen: false, entryId: null });
   const [compactList, setCompactList] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
+  const [showSavedIntentionsModal, setShowSavedIntentionsModal] = useState(false);
   const [historyFiltersEl, setHistoryFiltersEl] = useState(null);
   const [historyFiltersInView, setHistoryFiltersInView] = useState(true);
   const [hasScrolled, setHasScrolled] = useState(false);
   const [pendingHighlightEntryId, setPendingHighlightEntryId] = useState(null);
+  const [highlightStatus, setHighlightStatus] = useState(null);
   const [visibleCount, setVisibleCount] = useState(VISIBLE_ENTRY_BATCH);
+  const [monthJump, setMonthJump] = useState('');
   const [journeyReady, setJourneyReady] = useState(false);
   const summaryRef = useRef(null);
+  const searchInputRef = useRef(null);
+  const highlightRequestRef = useRef(0);
+  const filteredEntriesRef = useRef(filteredEntries);
+  const hasMoreServerEntriesRef = useRef(hasMoreServerEntries);
   const [summaryInView, setSummaryInView] = useState(!isSmallSummary);
 
   // Derived values
   const hasEntries = entries.length > 0;
   const visibleEntries = useMemo(() => filteredEntries.slice(0, visibleCount), [filteredEntries, visibleCount]);
   const localRemaining = Math.max(filteredEntries.length - visibleEntries.length, 0);
-  const hasMoreEntries = filteredEntries.length > visibleCount || hasMoreServerEntries;
+  const hasLocalMoreEntries = filteredEntries.length > visibleCount;
+  const hasMoreEntries = hasLocalMoreEntries || hasMoreServerEntries;
   const showSummaryBand = !loading && hasEntries;
+  const summaryDataSource = syncSource === 'api' || syncSource === 'cache' ? 'server' : 'client';
   const totalEntryCount = hasTotalEntries ? totalEntries : entries.length;
   const showSearchOlderBanner = filtersActive && hasMoreServerEntries && filteredEntries.length > 0;
   const showSearchOlderEmpty = filtersActive && hasMoreServerEntries && filteredEntries.length === 0;
@@ -149,6 +159,20 @@ export default function Journal() {
     : (hasTotalEntries && totalEntryCount > entries.length
         ? `Loaded ${entries.length} of ${totalEntryCount} entries`
         : null);
+  const showInlineSearchOlder = hasMoreServerEntries && filtersActive;
+  const inlineSearchOlderLabel = hasLocalMoreEntries
+    ? 'Show more results'
+    : (filters.query.trim() ? 'Search older entries' : 'Load older entries');
+  const highlightBannerState = pendingHighlightEntryId ? (highlightStatus || 'loading') : null;
+  const showHighlightBanner = Boolean(pendingHighlightEntryId) && highlightBannerState !== 'found';
+  const searchQuery = filters.query.trim();
+  const searchSummaryTitle = searchQuery
+    ? `Searching "${searchQuery}"`
+    : (filtersActive ? 'Filtered readings' : 'All readings');
+  const searchSummaryCount = filtersActive
+    ? `${filteredEntries.length} matching entries`
+    : `${filteredEntries.length} entries`;
+  const showStickySummary = hasEntries && !historyFiltersInView;
 
   // Allow other pages (e.g. Card Collection) to deep-link into the journal.
   // Supported state:
@@ -180,6 +204,10 @@ export default function Journal() {
     setHistoryFiltersEl(node);
   }, []);
 
+  const registerSearchInput = useCallback((node) => {
+    searchInputRef.current = node;
+  }, []);
+
   const handleStartReading = (suggestion) => {
     navigate('/', {
       state: {
@@ -196,7 +224,26 @@ export default function Journal() {
       || document.getElementById('history');
     if (!target) return;
     target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    if (typeof window === 'undefined') return;
+    window.setTimeout(() => {
+      const input = searchInputRef.current;
+      if (!input) return;
+      input.focus();
+      if (typeof input.select === 'function') {
+        input.select();
+      }
+    }, 240);
   }, [historyFiltersEl]);
+
+  const handleMonthJump = useCallback((event) => {
+    const value = event.target.value;
+    setMonthJump(value);
+    if (!value || typeof document === 'undefined') return;
+    const anchor = document.getElementById(`month-${value}`);
+    if (anchor) {
+      anchor.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }, []);
 
   const locale = useMemo(() => {
     if (typeof navigator !== 'undefined' && navigator.language) {
@@ -220,6 +267,14 @@ export default function Journal() {
   useEffect(() => {
     setSummaryInView(!isSmallSummary);
   }, [isSmallSummary]);
+
+  useEffect(() => {
+    filteredEntriesRef.current = filteredEntries;
+  }, [filteredEntries]);
+
+  useEffect(() => {
+    hasMoreServerEntriesRef.current = hasMoreServerEntries;
+  }, [hasMoreServerEntries]);
 
   useEffect(() => {
     if (!summaryRef.current) return undefined;
@@ -263,6 +318,80 @@ export default function Journal() {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
+  const resolveHighlightEntry = useCallback(async (entryId) => {
+    if (!entryId) return;
+
+    const targetId = String(entryId);
+    const requestId = highlightRequestRef.current + 1;
+    highlightRequestRef.current = requestId;
+
+    const isEntryLoaded = () => (
+      filteredEntriesRef.current.some((entry) => String(entry?.id || '') === targetId)
+    );
+
+    const setStatus = (status) => {
+      if (highlightRequestRef.current !== requestId) return;
+      setHighlightStatus(status);
+    };
+
+    if (isEntryLoaded()) {
+      setStatus('found');
+      return;
+    }
+
+    setStatus('loading');
+
+    let encounteredError = false;
+
+    const MAX_LOAD_ATTEMPTS = 3;
+    for (let attempt = 0; attempt < MAX_LOAD_ATTEMPTS; attempt += 1) {
+      if (!hasMoreServerEntriesRef.current) break;
+
+      const result = await loadMoreEntries({ prefetch: false });
+      const appended = result?.appended || 0;
+      if (!result?.success) {
+        if (result?.error) {
+          encounteredError = true;
+        }
+        break;
+      }
+      if (appended <= 0) break;
+
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      if (isEntryLoaded()) {
+        setStatus('found');
+        return;
+      }
+    }
+
+    if (isEntryLoaded()) {
+      setStatus('found');
+      return;
+    }
+
+    if (isAuthenticated && canUseCloudJournal) {
+      const fetched = await fetchEntryById(targetId);
+      if (fetched?.status === 'found' || isEntryLoaded()) {
+        setStatus('found');
+        return;
+      }
+      if (fetched?.status === 'error') {
+        encounteredError = true;
+      }
+    }
+
+    setStatus(encounteredError ? 'error' : 'not-found');
+  }, [canUseCloudJournal, fetchEntryById, isAuthenticated, loadMoreEntries]);
+
+  useEffect(() => {
+    if (!pendingHighlightEntryId) return undefined;
+    void resolveHighlightEntry(pendingHighlightEntryId);
+
+    return () => {
+      highlightRequestRef.current += 1;
+    };
+  }, [pendingHighlightEntryId, resolveHighlightEntry]);
+
   // If an entry is requested, ensure it's rendered (increase visibleCount) and scroll it into view.
   useEffect(() => {
     if (!pendingHighlightEntryId) return undefined;
@@ -275,6 +404,10 @@ export default function Journal() {
       setVisibleCount((prev) => Math.max(prev, Math.min(filteredEntries.length, index + 1)));
     }
 
+    if (index < 0) return undefined;
+
+    setHighlightStatus('found');
+
     // Next tick: scroll to the entry container.
     const id = `journal-entry-${targetId}`;
     const handle = window.setTimeout(() => {
@@ -286,6 +419,7 @@ export default function Journal() {
 
     const clearHandle = window.setTimeout(() => {
       setPendingHighlightEntryId(null);
+      setHighlightStatus(null);
     }, 3200);
 
     return () => {
@@ -404,6 +538,11 @@ export default function Journal() {
     }
   };
 
+  const handleLoadOlderForHighlight = async () => {
+    if (!pendingHighlightEntryId) return;
+    await resolveHighlightEntry(pendingHighlightEntryId);
+  };
+
   // Check if we have localStorage entries that can be migrated/imported.
   // - legacy: tarot_journal (anonymous)
   // - user-scoped: tarot_journal_<userId>
@@ -469,38 +608,82 @@ export default function Journal() {
   ) : null;
   const hasRailContent = !loading && hasEntries && journeyReady;
   const entryStackSpacingClass = compactList ? 'space-y-3.5' : 'space-y-5';
-  let lastMonthLabel = null;
-  const renderedHistoryEntries = visibleEntries.map((entry, index) => {
-    const timestamp = getTimestamp(entry);
-    const monthLabel = getMonthHeader(timestamp);
-    const showDivider = monthLabel !== lastMonthLabel;
-    lastMonthLabel = monthLabel;
-    const key = entry.id || `${timestamp || 'entry'}-${index}`;
-    const isHighlighted = pendingHighlightEntryId && String(entry?.id || '') === String(pendingHighlightEntryId);
-    const anchorId = entry?.id ? `journal-entry-${String(entry.id)}` : undefined;
-    return (
-      <div
-        id={anchorId}
-        key={key}
-        className={`space-y-2 ${isHighlighted ? 'rounded-2xl ring-2 ring-amber-300/35 bg-amber-300/[0.03] p-2' : ''}`}
-      >
-        {showDivider && (
-          <p className="text-[11px] uppercase tracking-[0.3em] text-amber-100/60">{monthLabel}</p>
-        )}
-        <JournalEntryCard
-          entry={entry}
-          isAuthenticated={isAuthenticated}
-          onCreateShareLink={isAuthenticated ? createShareLink : null}
-          shareLinks={shareLinks}
-          shareLoading={shareLoading}
-          shareError={shareError}
-          onDeleteShareLink={isAuthenticated ? deleteShareLink : null}
-          onDelete={handleDeleteRequest}
-          compact={compactList}
-        />
+  const monthSections = useMemo(() => {
+    const sections = [];
+    let current = null;
+    visibleEntries.forEach((entry) => {
+      const timestamp = getTimestamp(entry);
+      let monthKey = 'undated';
+      if (timestamp) {
+        const date = new Date(timestamp);
+        if (!Number.isNaN(date.getTime())) {
+          monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+        }
+      }
+      const monthLabel = getMonthHeader(timestamp);
+      if (!current || current.key !== monthKey) {
+        if (current) {
+          current.count = current.entries.length;
+          sections.push(current);
+        }
+        current = {
+          key: monthKey,
+          label: monthLabel,
+          entries: []
+        };
+      }
+      current.entries.push(entry);
+    });
+    if (current) {
+      current.count = current.entries.length;
+      sections.push(current);
+    }
+    return sections.map((section) => ({
+      ...section,
+      anchorId: `month-${section.key}`
+    }));
+  }, [visibleEntries]);
+  const monthJumpValue = monthSections.some((section) => section.key === monthJump) ? monthJump : '';
+
+  const renderedHistoryEntries = monthSections.map((section) => (
+    <div key={section.key} id={section.anchorId} className="space-y-4 scroll-mt-24">
+      <div className="sticky top-24 z-10">
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-amber-200/20 bg-[#0b0c1d]/90 px-3 py-2 backdrop-blur">
+          <span className="text-[11px] uppercase tracking-[0.3em] text-amber-100/70">{section.label}</span>
+          <span className="inline-flex items-center rounded-full border border-amber-200/20 bg-amber-200/10 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-amber-100/70">
+            {section.count} entries
+          </span>
+        </div>
       </div>
-    );
-  });
+      <div className={entryStackSpacingClass}>
+        {section.entries.map((entry, index) => {
+          const timestamp = getTimestamp(entry);
+          const key = entry.id || `${timestamp || 'entry'}-${index}`;
+          const isHighlighted = pendingHighlightEntryId && String(entry?.id || '') === String(pendingHighlightEntryId);
+          const anchorId = entry?.id ? `journal-entry-${String(entry.id)}` : undefined;
+          return (
+            <div
+              id={anchorId}
+              key={key}
+              className={`space-y-2 ${isHighlighted ? 'rounded-2xl ring-2 ring-amber-300/35 bg-amber-300/[0.03] p-2' : ''}`}
+            >
+              <JournalEntryCard
+                entry={entry}
+                isAuthenticated={isAuthenticated}
+                onCreateShareLink={isAuthenticated ? createShareLink : null}
+                shareLinks={shareLinks}
+                shareLoading={shareLoading}
+                shareError={shareError}
+                onDeleteShareLink={isAuthenticated ? deleteShareLink : null}
+                onDelete={handleDeleteRequest}
+                compact={compactList}
+              />
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  ));
 
   const mobileRailContent = (journeyReady && !loading && hasEntries && isMobileLayout) ? (
     <section className="mb-6 space-y-3 lg:hidden" aria-label="Journal insights and journey">
@@ -586,46 +769,58 @@ export default function Journal() {
             </div>
           )}
 
-          {hasEntries && (
+          {showStickySummary && (
             <div className="sticky top-4 z-20 mb-6">
               <div className="rounded-2xl border border-amber-300/15 bg-[#0b0c1d]/90 p-3 shadow-[0_18px_45px_-28px_rgba(0,0,0,0.75)] backdrop-blur">
-                <div className="flex flex-wrap items-center gap-2">
-                  <div className="relative flex-1 min-w-[220px]">
-                    <div className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-amber-200/60">
-                      <JournalSearchIcon className="h-4 w-4" aria-hidden="true" />
+                <div className="flex flex-wrap items-start gap-3">
+                  <div className="flex min-w-[220px] flex-1 flex-col gap-1">
+                    <div className="flex flex-wrap items-center gap-2 text-sm text-amber-50">
+                      <JournalSearchIcon className="h-4 w-4 text-amber-200/70" aria-hidden="true" />
+                      <span className="font-semibold">{searchSummaryTitle}</span>
+                      {filtersActive && (
+                        <span className="inline-flex min-h-[24px] items-center rounded-full border border-amber-200/20 bg-amber-200/10 px-2.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-amber-100/75">
+                          {activeFilterChips.length} active
+                        </span>
+                      )}
                     </div>
-                    <input
-                      type="search"
-                      value={filters.query}
-                      onChange={(event) => setFilters((prev) => ({ ...prev, query: event.target.value }))}
-                      placeholder="Search readings..."
-                      className="w-full min-h-[44px] rounded-xl border border-amber-200/20 bg-amber-200/5 px-9 py-2.5 text-sm text-amber-50 placeholder:text-amber-100/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/40"
-                      aria-label="Search journal entries"
-                    />
+                    <div className="flex flex-wrap items-center gap-2 text-[11px] text-amber-100/70">
+                      <span>{searchSummaryCount}</span>
+                      {searchCoverageLabel && <span>{searchCoverageLabel}</span>}
+                    </div>
                   </div>
-                  <button
-                    type="button"
-                    onClick={scrollToHistoryFilters}
-                    className="inline-flex min-h-[44px] items-center gap-2 rounded-full border border-amber-200/20 bg-amber-200/10 px-3 py-2 text-xs font-semibold text-amber-100/90 hover:border-amber-200/40 hover:bg-amber-200/20 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/40"
-                  >
-                    <JournalSlidersIcon className="h-4 w-4" aria-hidden="true" />
-                    Filters
-                  </button>
-                  {filtersActive && (
-                    <span className="inline-flex min-h-[32px] items-center rounded-full border border-amber-200/20 bg-amber-200/10 px-3 text-[11px] font-semibold uppercase tracking-[0.16em] text-amber-100/75">
-                      {activeFilterChips.length} active
-                    </span>
-                  )}
-                  {filtersActive && (
+                  <div className="flex flex-wrap items-center gap-2">
                     <button
                       type="button"
-                      onClick={handleResetFilters}
+                      onClick={scrollToHistoryFilters}
                       className="inline-flex min-h-[44px] items-center gap-2 rounded-full border border-amber-200/20 bg-amber-200/10 px-3 py-2 text-xs font-semibold text-amber-100/90 hover:border-amber-200/40 hover:bg-amber-200/20 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/40"
                     >
-                      Reset
+                      <JournalSlidersIcon className="h-4 w-4" aria-hidden="true" />
+                      Edit filters
                     </button>
-                  )}
+                    {filtersActive && (
+                      <button
+                        type="button"
+                        onClick={handleResetFilters}
+                        className="inline-flex min-h-[44px] items-center gap-2 rounded-full border border-amber-200/20 bg-amber-200/10 px-3 py-2 text-xs font-semibold text-amber-100/90 hover:border-amber-200/40 hover:bg-amber-200/20 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/40"
+                      >
+                        Reset
+                      </button>
+                    )}
+                  </div>
                 </div>
+                {showInlineSearchOlder && (
+                  <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px] text-amber-100/70">
+                    <button
+                      type="button"
+                      onClick={handleLoadMoreEntries}
+                      disabled={loadingMore}
+                      className={`inline-flex min-h-[32px] items-center gap-1 rounded-full border border-amber-200/20 bg-amber-200/10 px-2.5 py-1 text-[11px] font-semibold text-amber-100/90 hover:border-amber-200/40 hover:bg-amber-200/20 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/40 ${loadingMore ? 'cursor-wait opacity-60' : ''}`}
+                    >
+                      <JournalSearchIcon className="h-3 w-3" aria-hidden="true" />
+                      {loadingMore ? 'Searching...' : inlineSearchOlderLabel}
+                    </button>
+                  </div>
+                )}
                 {filtersActive && activeFilterChips.length > 0 && (
                   <div className="mt-2 flex flex-wrap items-center gap-2">
                     {activeFilterChips.map((chip) => (
@@ -688,6 +883,7 @@ export default function Journal() {
               onExpandedCardChange={setExpandedCardIndex}
               onStartReading={handleStartReading}
               filtersActive={filtersActive}
+              dataSource={summaryDataSource}
             />
           )}
 
@@ -723,7 +919,21 @@ export default function Journal() {
                       <p className="journal-eyebrow text-amber-100/70">Today</p>
                       <h2 className="text-xl font-serif text-amber-50">Keep today&rsquo;s focus handy</h2>
                     </div>
-                    <SavedIntentionsList />
+                    <div className="rounded-2xl border border-amber-300/15 bg-amber-200/5 p-4 sm:p-5">
+                      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                        <div className="min-w-0">
+                          <p className="text-sm font-semibold text-amber-50">Saved intentions</p>
+                          <p className="text-xs text-amber-100/70">From Guided Intention Coach</p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setShowSavedIntentionsModal(true)}
+                          className={`${OUTLINE_BUTTON_CLASS} w-full justify-center sm:w-auto`}
+                        >
+                          Open
+                        </button>
+                      </div>
+                    </div>
                   </div>
                 </section>
 
@@ -748,8 +958,74 @@ export default function Journal() {
                               {searchCoverageLabel}
                             </span>
                           )}
+                          {monthSections.length > 1 && (
+                            <div className="flex items-center gap-2">
+                              <label htmlFor="jump-to-month" className="text-[10px] uppercase tracking-[0.22em] text-amber-100/60">
+                                Jump to month
+                              </label>
+                              <select
+                                id="jump-to-month"
+                                value={monthJumpValue}
+                                onChange={handleMonthJump}
+                                className="min-h-[32px] rounded-full border border-amber-200/20 bg-amber-200/10 px-3 text-[11px] text-amber-100/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/40"
+                              >
+                                <option value="">Jump to month</option>
+                                {monthSections.map((section) => (
+                                  <option key={section.key} value={section.key}>
+                                    {section.label} ({section.count})
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                          )}
                         </div>
                       </div>
+
+                      {showHighlightBanner && (
+                        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-300/20 bg-amber-200/5 px-3 py-2 text-[12px] text-amber-100/75" aria-live="polite">
+                          <div className="flex items-center gap-2">
+                            {highlightBannerState === 'loading' ? (
+                              <span
+                                className="inline-flex h-3 w-3 animate-spin rounded-full border border-amber-200/60 border-t-transparent"
+                                aria-hidden="true"
+                              />
+                            ) : highlightBannerState === 'error' ? (
+                              <Warning className="h-3.5 w-3.5 text-amber-200/80" aria-hidden="true" />
+                            ) : (
+                              <JournalSearchIcon className="h-3 w-3 text-amber-200/70" aria-hidden="true" />
+                            )}
+                            <span>
+                              {highlightBannerState === 'loading'
+                                ? 'Loading entry...'
+                                : highlightBannerState === 'error'
+                                  ? 'Couldn’t load this entry right now.'
+                                  : 'This entry isn\'t loaded yet.'}
+                            </span>
+                          </div>
+                          {highlightBannerState === 'not-found' && (
+                            <button
+                              type="button"
+                              onClick={handleLoadOlderForHighlight}
+                              disabled={loadingMore || !hasMoreEntries}
+                              className={`inline-flex min-h-[32px] items-center gap-1 rounded-full border border-amber-200/20 bg-amber-200/10 px-3 py-1 text-[11px] font-semibold text-amber-100/90 hover:border-amber-200/40 hover:bg-amber-200/20 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/40 ${loadingMore || !hasMoreEntries ? 'cursor-not-allowed opacity-60' : ''}`}
+                            >
+                              <JournalSearchIcon className="h-3 w-3" aria-hidden="true" />
+                              Load older entries
+                            </button>
+                          )}
+                          {highlightBannerState === 'error' && (
+                            <button
+                              type="button"
+                              onClick={handleLoadOlderForHighlight}
+                              disabled={loadingMore}
+                              className={`inline-flex min-h-[32px] items-center gap-1 rounded-full border border-amber-200/20 bg-amber-200/10 px-3 py-1 text-[11px] font-semibold text-amber-100/90 hover:border-amber-200/40 hover:bg-amber-200/20 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/40 ${loadingMore ? 'cursor-not-allowed opacity-60' : ''}`}
+                            >
+                              <JournalSearchIcon className="h-3 w-3" aria-hidden="true" />
+                              Try again
+                            </button>
+                          )}
+                        </div>
+                      )}
 
                       <div
                         id="journal-history-filters"
@@ -791,6 +1067,12 @@ export default function Journal() {
                           onViewModeChange={(mode) => setCompactList(mode === 'compact')}
                           resultCount={filteredEntries.length}
                           totalCount={entries.length}
+                          searchCoverageLabel={searchCoverageLabel}
+                          canSearchOlder={showInlineSearchOlder}
+                          onSearchOlder={handleLoadMoreEntries}
+                          searchOlderLabel={inlineSearchOlderLabel}
+                          loadingMore={loadingMore}
+                          onSearchRef={registerSearchInput}
                         />
                       </div>
 
@@ -892,6 +1174,8 @@ export default function Journal() {
           onScrollToFilters={scrollToHistoryFilters}
           onStartReading={handleStartReading}
           isMobileLayout={isMobileLayout}
+          showFiltersShortcut={!showStickySummary}
+          showFilterSummary={!showStickySummary}
         />
       </div>
 
@@ -905,6 +1189,7 @@ export default function Journal() {
         cancelText="Keep Entry"
         variant="danger"
       />
+      <SavedIntentionsModal isOpen={showSavedIntentionsModal} onClose={() => setShowSavedIntentionsModal(false)} />
       <AuthModal isOpen={showAuthModal} onClose={() => setShowAuthModal(false)} />
     </>
   );

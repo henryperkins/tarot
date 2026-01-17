@@ -39,9 +39,12 @@ export function JournalSummaryBand({
   expandedCardIndex,
   onExpandedCardChange,
   onStartReading,
-  filtersActive
+  filtersActive,
+  dataSource = 'client'
 }) {
   const [isExpanded, setIsExpanded] = useState(!isMobileLayout);
+  const scopeChipLabel = analyticsScope === 'filters' ? 'Filtered' : (scopeLabel || 'Scope');
+  const sourceLabel = dataSource === 'server' ? 'D1' : 'Journal';
 
   useEffect(() => {
     if (!isMobileLayout) {
@@ -130,6 +133,9 @@ export function JournalSummaryBand({
               <p className="text-[11px] text-amber-100/60">
                 Active: {scopeLabel} · {scopeEntryCount} entr{scopeEntryCount === 1 ? 'y' : 'ies'}
               </p>
+              <span className="inline-flex items-center gap-1 rounded-full border border-amber-200/15 bg-amber-200/5 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-amber-100/70">
+                {scopeChipLabel} · {sourceLabel}
+              </span>
               {filtersActive && analyticsScope !== 'filters' && (
                 <div className="flex flex-wrap items-center gap-2 rounded-full border border-amber-300/30 bg-amber-300/10 px-3 py-1 text-[11px] text-amber-100/80">
                   <span>Filters not applied to insights</span>

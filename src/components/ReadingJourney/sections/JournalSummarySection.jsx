@@ -180,6 +180,9 @@ function JournalSummarySection({ isAuthenticated, entryCount = 0, filteredEntrie
   const scopeMode = filtersApplied ? (userScopeMode || 'filters') : 'recent';
   const isFilterScope = scopeMode === 'filters';
   const scopeHasEntries = !isFilterScope || filteredCount > 0;
+  const recentLabel = filtersApplied ? 'Recent (unfiltered)' : 'Recent';
+  const showUnfilteredNote = filtersApplied && scopeMode === 'recent';
+  const unfilteredNote = showUnfilteredNote ? 'Filters aren\'t applied to this summary.' : null;
 
   const scopeNote = isFilterScope
     ? (filteredCount > 0
@@ -239,11 +242,17 @@ function JournalSummarySection({ isAuthenticated, entryCount = 0, filteredEntrie
         ? `Summarized ${Math.min(summaryContext.limit, summaryContext.filteredCount)} of ${summaryContext.filteredCount} filtered entries`
         : `Summarized last ${Math.min(summaryContext.limit, summaryContext.entryCount)} entries (unfiltered)`)
       : scopeNote;
+    const isSummaryUnfiltered = summaryContext
+      ? summaryContext.scopeMode === 'recent'
+      : scopeMode === 'recent';
+    const summaryScopeNoteWithWarning = (filtersApplied && isSummaryUnfiltered)
+      ? `${summaryScopeNote} Filters aren't applied to this summary.`
+      : summaryScopeNote;
     return (
       <SummaryDisplay
         summary={result.summary}
         meta={result.meta}
-        scopeNote={summaryScopeNote}
+        scopeNote={summaryScopeNoteWithWarning}
         onClear={handleClear}
       />
     );
@@ -284,7 +293,7 @@ function JournalSummarySection({ isAuthenticated, entryCount = 0, filteredEntrie
                 : 'text-amber-100/70 hover:text-amber-50'
               }`}
             >
-              Recent
+              {recentLabel}
             </button>
             <button
               type="button"
@@ -303,6 +312,11 @@ function JournalSummarySection({ isAuthenticated, entryCount = 0, filteredEntrie
           <p className="text-[10px] text-amber-100/60">
             {scopeNote}
           </p>
+          {unfilteredNote && (
+            <p className="text-[10px] text-amber-100/60">
+              {unfilteredNote}
+            </p>
+          )}
         </div>
       )}
 

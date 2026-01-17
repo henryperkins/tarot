@@ -187,7 +187,24 @@ function FilterDropdown({ label, options, value, onChange, multiple = false, but
   );
 }
 
-export function JournalFilters({ filters, onChange, contexts = [], spreads = [], decks = [], variant = 'full', viewMode = 'comfortable', onViewModeChange, resultCount, totalCount }) {
+export function JournalFilters({
+  filters,
+  onChange,
+  contexts = [],
+  spreads = [],
+  decks = [],
+  variant = 'full',
+  viewMode = 'comfortable',
+  onViewModeChange,
+  resultCount,
+  totalCount,
+  searchCoverageLabel,
+  canSearchOlder = false,
+  onSearchOlder,
+  searchOlderLabel = 'Load older entries',
+  loadingMore = false,
+  onSearchRef
+}) {
   const isCompact = variant === 'compact';
   const [savedFilters, setSavedFilters] = useState(() => {
     if (typeof window === 'undefined') return [];
@@ -304,6 +321,14 @@ export function JournalFilters({ filters, onChange, contexts = [], spreads = [],
   const shouldShowAdvanced = !isCompact || advancedOpen;
   const activeFilters = hasActiveFilters();
   const showSavedFiltersPanel = shouldShowAdvanced && (savedFilters.length > 0 || activeFilters);
+
+  useEffect(() => {
+    if (typeof onSearchRef !== 'function') return undefined;
+    onSearchRef(searchInputRef.current);
+    return () => {
+      onSearchRef(null);
+    };
+  }, [onSearchRef]);
 
   useEffect(() => {
     if (!savePanelOpen) return;
@@ -704,6 +729,25 @@ export function JournalFilters({ filters, onChange, contexts = [], spreads = [],
                 <div className="text-xs text-[color:var(--text-muted)]">
                   Found <span className="font-semibold text-[color:var(--text-main)]">{resultCount}</span> in {totalCount} loaded readings
                   {resultCount === 0 && ' - try different keywords'}
+                </div>
+              )}
+
+              {(searchCoverageLabel || canSearchOlder) && (
+                <div className="flex flex-wrap items-center gap-2 text-[11px] text-[color:var(--color-gray-light)]">
+                  {searchCoverageLabel && (
+                    <span>{searchCoverageLabel}</span>
+                  )}
+                  {canSearchOlder && onSearchOlder && (
+                    <button
+                      type="button"
+                      onClick={onSearchOlder}
+                      disabled={loadingMore}
+                      className={`inline-flex min-h-[32px] items-center gap-1 rounded-full border border-[color:var(--border-warm-light)] bg-[color:rgba(232,218,195,0.06)] px-2.5 py-1 text-[11px] font-semibold text-[color:var(--text-main)] transition hover:border-[color:var(--border-warm)] hover:bg-[color:rgba(232,218,195,0.12)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:rgba(232,218,195,0.45)] ${loadingMore ? 'cursor-wait opacity-60' : ''}`}
+                    >
+                      <JournalSearchIcon className="h-3 w-3" aria-hidden="true" />
+                      {loadingMore ? 'Searching...' : searchOlderLabel}
+                    </button>
+                  )}
                 </div>
               )}
 

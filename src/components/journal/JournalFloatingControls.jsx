@@ -19,10 +19,20 @@ export function JournalFloatingControls({
   onRemoveFilter,
   onScrollToFilters,
   onStartReading,
-  isMobileLayout
+  isMobileLayout,
+  showFiltersShortcut = true,
+  showFilterSummary = true
 }) {
   // Only show when all conditions are met
   if (!hasEntries || !hasScrolled || !historyFiltersEl || historyFiltersInView) {
+    return null;
+  }
+
+  const showActiveFilters = showFilterSummary && filtersActive && activeFilterChips.length > 0;
+  const showFiltersButton = showFiltersShortcut;
+  const showNewReading = isMobileLayout;
+
+  if (!showActiveFilters && !showFiltersButton && !showNewReading) {
     return null;
   }
 
@@ -31,7 +41,7 @@ export function JournalFloatingControls({
       className="fixed z-40 right-4 sm:right-6 flex flex-col items-end gap-2"
       style={{ bottom: 'max(1rem, env(safe-area-inset-bottom, 0px))' }}
     >
-      {filtersActive && activeFilterChips.length > 0 && (
+      {showActiveFilters && (
         <div className="max-w-sm rounded-2xl border border-amber-300/15 bg-[#0b0c1d]/90 px-3 py-2 text-[11px] text-amber-100/75 shadow-[0_22px_55px_-28px_rgba(0,0,0,0.85)] backdrop-blur">
           <p className="mb-1 text-[10px] uppercase tracking-[0.16em] text-amber-100/60">Filters</p>
           <div className="flex flex-wrap items-center gap-1.5">
@@ -57,7 +67,7 @@ export function JournalFloatingControls({
           </div>
         </div>
       )}
-      {isMobileLayout && (
+      {showNewReading && (
         <button
           type="button"
           onClick={() => onStartReading()}
@@ -68,15 +78,17 @@ export function JournalFloatingControls({
           New Reading
         </button>
       )}
-      <button
-        type="button"
-        onClick={onScrollToFilters}
-        className="inline-flex min-h-[44px] items-center gap-2 rounded-full border border-amber-300/25 bg-[#0b0c1d]/90 px-4 py-3 text-sm font-semibold text-amber-50 shadow-[0_22px_55px_-28px_rgba(0,0,0,0.85)] backdrop-blur transition hover:-translate-y-0.5 hover:border-amber-300/40 hover:bg-[#0b0c1d]/95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/50"
-        aria-label="Jump to journal filters"
-      >
-        <JournalSlidersIcon className="h-4 w-4 text-amber-200" aria-hidden="true" />
-        Filters
-      </button>
+      {showFiltersButton && (
+        <button
+          type="button"
+          onClick={onScrollToFilters}
+          className="inline-flex min-h-[44px] items-center gap-2 rounded-full border border-amber-300/25 bg-[#0b0c1d]/90 px-4 py-3 text-sm font-semibold text-amber-50 shadow-[0_22px_55px_-28px_rgba(0,0,0,0.85)] backdrop-blur transition hover:-translate-y-0.5 hover:border-amber-300/40 hover:bg-[#0b0c1d]/95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/50"
+          aria-label="Jump to journal filters"
+        >
+          <JournalSlidersIcon className="h-4 w-4 text-amber-200" aria-hidden="true" />
+          Filters
+        </button>
+      )}
     </div>
   );
 }

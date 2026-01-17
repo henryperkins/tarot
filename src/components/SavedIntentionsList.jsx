@@ -13,7 +13,7 @@ import { useAuth } from '../contexts/AuthContext';
 
 const PAGE_SIZE = 6;
 
-export function SavedIntentionsList() {
+export function SavedIntentionsList({ titleId, variant = 'section', emptyState = 'hide' } = {}) {
   const { user } = useAuth();
   const userId = user?.id || null;
   const [prevUserId, setPrevUserId] = useState(userId);
@@ -79,16 +79,39 @@ export function SavedIntentionsList() {
   const totalPages = Math.max(1, Math.ceil(intentions.length / PAGE_SIZE));
   const visibleIntentions = intentions.slice(page * PAGE_SIZE, page * PAGE_SIZE + PAGE_SIZE);
 
+  const containerClassName = variant === 'modal'
+    ? 'animate-fade-in'
+    : 'mb-8 animate-fade-in';
+
   if (intentions.length === 0) {
-    return null; // Don't show section if empty
+    if (emptyState !== 'message') {
+      return null; // Don't show section if empty
+    }
+
+    return (
+      <div className={containerClassName}>
+        <div className="mb-1 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <JournalRefreshIcon className="w-5 h-5 text-amber-200/75" aria-hidden="true" />
+            <h2 id={titleId} className="text-xl font-serif text-amber-50">Saved Intentions</h2>
+          </div>
+        </div>
+        <p className="text-xs text-amber-100/70 mb-3 flex items-center gap-1">
+          <JournalPlusCircleIcon className="w-4 h-4 text-amber-200/70" aria-hidden="true" /> From Guided Intention Coach
+        </p>
+        <p className="text-sm text-amber-100/70">
+          No saved intentions yet.
+        </p>
+      </div>
+    );
   }
 
   return (
-    <div className="mb-8 animate-fade-in">
+    <div className={containerClassName}>
       <div className="mb-1 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <JournalRefreshIcon className="w-5 h-5 text-amber-200/75" aria-hidden="true" />
-          <h2 className="text-xl font-serif text-amber-50">Saved Intentions</h2>
+          <h2 id={titleId} className="text-xl font-serif text-amber-50">Saved Intentions</h2>
         </div>
 
         {totalPages > 1 && (
