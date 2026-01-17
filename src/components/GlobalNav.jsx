@@ -8,8 +8,11 @@ export function GlobalNav({ condensed = false, withUserChip = false }) {
   const location = useLocation();
   const navigate = useNavigate();
 
+  // Precise route detection: only mark active when on actual route
   const isJournal = location.pathname.startsWith('/journal');
-  const isReading = !isJournal;
+  const isReading = location.pathname === '/' || location.pathname === '';
+  // Don't mark either as active on other pages (pricing, account, share, etc.)
+  const showActiveState = isReading || isJournal;
 
   const baseButtonClasses = `
     inline-flex items-center justify-center gap-1.5
@@ -55,8 +58,8 @@ export function GlobalNav({ condensed = false, withUserChip = false }) {
           <button
             type="button"
             onClick={() => navigate('/')}
-            className={`${baseButtonClasses} ${buttonPadding} ${buttonWidth} ${isReading ? activeClasses : inactiveClasses}`}
-            aria-current={isReading ? 'page' : undefined}
+            className={`${baseButtonClasses} ${buttonPadding} ${buttonWidth} ${showActiveState && isReading ? activeClasses : inactiveClasses}`}
+            aria-current={showActiveState && isReading ? 'page' : undefined}
           >
             <Icon icon={Sparkle} size={condensed ? ICON_SIZES.md : ICON_SIZES.lg} decorative />
             <span>Reading</span>
@@ -64,8 +67,8 @@ export function GlobalNav({ condensed = false, withUserChip = false }) {
           <button
             type="button"
             onClick={() => navigate('/journal')}
-            className={`${baseButtonClasses} ${buttonPadding} ${buttonWidth} ${isJournal ? activeClasses : inactiveClasses}`}
-            aria-current={isJournal ? 'page' : undefined}
+            className={`${baseButtonClasses} ${buttonPadding} ${buttonWidth} ${showActiveState && isJournal ? activeClasses : inactiveClasses}`}
+            aria-current={showActiveState && isJournal ? 'page' : undefined}
           >
             <Icon icon={JournalBookIcon} size={condensed ? ICON_SIZES.md : ICON_SIZES.lg} decorative />
             <span>Journal</span>

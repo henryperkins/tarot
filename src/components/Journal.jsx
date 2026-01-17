@@ -715,8 +715,22 @@ export default function Journal() {
         <div className="skip-links">
           <a href="#journal-content" className="skip-link">Skip to journal content</a>
         </div>
+        
+        {/* Sticky navigation header with safe-area padding */}
+        <header 
+          className="sticky top-0 z-40 bg-main/95 backdrop-blur-sm border-b border-secondary/20"
+          style={{
+            paddingTop: 'max(env(safe-area-inset-top, 0px), 0.75rem)',
+            paddingLeft: 'env(safe-area-inset-left, 1rem)',
+            paddingRight: 'env(safe-area-inset-right, 1rem)',
+          }}
+        >
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3">
+            <GlobalNav withUserChip />
+          </div>
+        </header>
+
         <main id="journal-content" tabIndex={-1} className="journal-page max-w-7xl mx-auto px-4 sm:px-6 py-8">
-          <GlobalNav />
 
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-6">
             {fromReading && (
@@ -734,10 +748,6 @@ export default function Journal() {
                 <span>Back to Reading</span>
               </button>
             )}
-
-            <div className="flex items-center gap-4 sm:ml-auto">
-              <UserMenu />
-            </div>
           </div>
 
           <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between mb-4">

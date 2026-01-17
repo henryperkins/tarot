@@ -1,7 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useParams, useNavigate } from 'react-router-dom';
+import { ArrowLeft, Eye, User } from '@phosphor-icons/react';
 import { SharedSpreadView } from '../components/share/SharedSpreadView.jsx';
 import { CollaborativeNotesPanel } from '../components/share/CollaborativeNotesPanel.jsx';
+import { UserMenu } from '../components/UserMenu.jsx';
+import { useAuth } from '../contexts/AuthContext.jsx';
 
 function StatCard({ label, value, helper }) {
   return (
@@ -30,6 +33,8 @@ function deriveDefaultPosition(entry) {
 
 export default function ShareReading() {
   const { token } = useParams();
+  const navigate = useNavigate();
+  const { isAuthenticated } = useAuth();
   const [shareData, setShareData] = useState(null);
   const [notes, setNotes] = useState([]);
   const [status, setStatus] = useState('loading');
@@ -189,6 +194,47 @@ export default function ShareReading() {
 
   return (
     <div className="min-h-screen bg-main text-main">
+      {/* Top navigation bar with safe-area padding */}
+      <header 
+        className="sticky top-0 z-40 border-b border-secondary/20 bg-main/95 backdrop-blur-sm"
+        style={{
+          paddingTop: 'max(env(safe-area-inset-top, 0px), 0.75rem)',
+          paddingLeft: 'env(safe-area-inset-left, 1rem)',
+          paddingRight: 'env(safe-area-inset-right, 1rem)',
+        }}
+      >
+        <div className="mx-auto max-w-6xl flex items-center justify-between py-3 px-4">
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => navigate('/')}
+              className="inline-flex items-center gap-2 text-accent hover:text-accent/80 transition min-h-[44px] min-w-[44px] px-2 -ml-2 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
+              aria-label="Back to Reading"
+            >
+              <ArrowLeft className="h-5 w-5" weight="bold" />
+              <span className="hidden sm:inline text-sm font-medium">Back to Reading</span>
+            </button>
+            <div className="flex items-center gap-2">
+              <Eye className="h-5 w-5 text-accent" weight="duotone" />
+              <span className="font-serif text-lg text-accent">Tableu</span>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            {isAuthenticated ? (
+              <UserMenu condensed />
+            ) : (
+              <Link
+                to="/account"
+                className="inline-flex items-center justify-center gap-1.5 rounded-full border border-secondary/40 bg-surface/60 px-3 py-2 text-xs font-medium text-main hover:bg-surface hover:border-secondary/60 transition min-h-[44px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
+              >
+                <User className="h-4 w-4" />
+                <span className="hidden sm:inline">Account</span>
+              </Link>
+            )}
+          </div>
+        </div>
+      </header>
+
       <main className="mx-auto max-w-6xl px-4 py-8">
         <div className="rounded-3xl border border-secondary/40 bg-surface p-6 shadow-2xl">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
