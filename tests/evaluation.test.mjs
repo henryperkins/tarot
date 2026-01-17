@@ -132,6 +132,29 @@ describe('evaluation', () => {
       assert.equal(result.promptVersion, '2.1.0');
     });
 
+    test('normalizes string safety_flag values', async () => {
+      mockAI.run = async () => ({
+        response: JSON.stringify({
+          personalization: 3,
+          tarot_coherence: 3,
+          tone: 3,
+          safety: 3,
+          overall: 3,
+          safety_flag: 'false'
+        })
+      });
+
+      const result = await runEvaluation({ AI: mockAI, EVAL_ENABLED: 'true' }, {
+        reading: 'test',
+        userQuestion: 'test',
+        cardsInfo: [{ position: 'Present', card: 'The Fool', orientation: 'upright' }],
+        spreadKey: 'threeCard',
+        requestId: 'eval-safety-flag-string'
+      });
+
+      assert.equal(result.scores.safety_flag, false);
+    });
+
     test('handles malformed JSON response', async () => {
       mockAI.run = async () => ({ response: 'I cannot evaluate this properly' });
 
@@ -217,6 +240,15 @@ describe('evaluation', () => {
         hallucinatedCards: ['The Sun', 'The Moon', 'The Star']
       });
       assert.equal(result.scores.safety_flag, true);
+    });
+
+    test('flags single hallucinated card and caps tarot coherence', () => {
+      const result = buildHeuristicScores({
+        cardCoverage: 0.95,
+        hallucinatedCards: ['The Sun']
+      });
+      assert.equal(result.scores.safety_flag, true);
+      assert.equal(result.scores.tarot_coherence, 2);
     });
 
     test('scores medium card coverage as 4', () => {
@@ -743,6 +775,40 @@ describe('evaluation', () => {
       assert.equal(mockDB.queries.length, 1);
       const query = mockDB.getLastQuery();
       assert.ok(query.sql.includes('UPDATE eval_metrics'));
+    });
+
+    test('falls back to heuristic scores when AI evaluation is incomplete', async () => {
+      const mockDB = new MockDB();
+      const incompleteMockAI = {
+        run: async () => ({
+          response: JSON.stringify({
+            personalization: 4,
+            tarot_coherence: 4,
+            tone: 4,
+            overall: 4,
+            safety_flag: false
+            // Missing safety score
+          })
+        })
+      };
+
+      const waitPromises = [];
+      const waitUntil = (p) => waitPromises.push(p);
+
+      scheduleEvaluation(
+        { AI: incompleteMockAI, EVAL_ENABLED: 'true', DB: mockDB },
+        { reading: 'test', userQuestion: 'test', cardsInfo: [], spreadKey: 'test', requestId: 'incomplete-fallback-test' },
+        { requestId: 'incomplete-fallback-test', narrative: { cardCoverage: 0.9 } },
+        { waitUntil }
+      );
+
+      await Promise.all(waitPromises);
+
+      const query = mockDB.getLastQuery();
+      assert.ok(query.bindings.includes('heuristic'));
+      const payloadBinding = query.bindings.find(b => typeof b === 'string' && b.startsWith('{'));
+      const storedData = JSON.parse(payloadBinding);
+      assert.ok(storedData.eval?.fallbackReason?.includes('incomplete_scores'));
     });
 
     test('patches AI Gateway log when gateway is available', async () => {

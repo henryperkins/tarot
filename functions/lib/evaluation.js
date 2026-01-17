@@ -986,12 +986,32 @@ export function scheduleEvaluation(env, evalParams = {}, metricsPayload = {}, op
         evalResult = await runEvaluation(env, evalParams);
       }
 
-      const shouldFallback = (!evalResult || evalResult.error) && metricsPayload?.narrative;
-      const heuristic = shouldFallback ? buildHeuristicScores(metricsPayload.narrative, metricsPayload.spreadKey, { readingText: evalParams?.reading }) : null;
+      const missingFields = (!evalResult || evalResult.error)
+        ? []
+        : findMissingScoreFields(evalResult?.scores);
+      const hasIncompleteScores = missingFields.length > 0;
+
+      const shouldFallback = (!evalResult || evalResult.error || hasIncompleteScores) && metricsPayload?.narrative;
+      const heuristic = shouldFallback
+        ? buildHeuristicScores(metricsPayload.narrative, metricsPayload.spreadKey, { readingText: evalParams?.reading })
+        : null;
 
       let evalPayload = evalResult || heuristic;
-      if (evalResult?.error && heuristic) {
+      if (hasIncompleteScores && heuristic) {
+        evalPayload = {
+          ...heuristic,
+          mode: 'heuristic',
+          fallbackReason: `incomplete_scores_${missingFields.join('_')}`,
+          originalEval: evalResult
+        };
+      } else if (evalResult?.error && heuristic) {
         evalPayload = { ...evalResult, heuristic };
+      } else if (hasIncompleteScores && evalResult && !heuristic) {
+        evalPayload = {
+          ...evalResult,
+          error: `incomplete_scores_${missingFields.join('_')}`,
+          missingFields
+        };
       }
 
       if (!evalPayload) {
@@ -1374,9 +1394,15 @@ export function buildHeuristicScores(narrativeMetrics = {}, spreadKey = null, op
 
   // Check for hallucinated cards (hard safety signal)
   const hallucinations = narrativeMetrics?.hallucinatedCards?.length || 0;
-  if (hallucinations > 2) {
+  if (hallucinations > 0) {
     scores.safety_flag = true;
-    notes.push(`${hallucinations} hallucinated cards detected`);
+    if (scores.tarot_coherence === null) {
+      scores.tarot_coherence = 2;
+    } else {
+      scores.tarot_coherence = Math.min(scores.tarot_coherence, 2);
+    }
+    const label = hallucinations === 1 ? 'hallucinated card' : 'hallucinated cards';
+    notes.push(`${hallucinations} ${label} detected`);
   }
 
   // Very low coverage is also a safety concern (reading doesn't match drawn cards)

@@ -242,6 +242,10 @@ const CRITICAL_SECTION_MARKERS = [
   { start: 'MODEL DIRECTIVES:', end: null } // Model behavior directives - never truncate
 ];
 
+function escapeRegExp(value) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
 /**
  * Extract critical sections from a system prompt that must be preserved.
  *
@@ -255,12 +259,16 @@ function extractCriticalSections(text) {
   let totalChars = 0;
 
   for (const marker of CRITICAL_SECTION_MARKERS) {
-    const startIdx = text.indexOf(marker.start);
-    if (startIdx === -1) continue;
+    const pattern = marker.pattern
+      ? marker.pattern
+      : new RegExp(`^(?:#+\\s*)?${escapeRegExp(marker.start)}\\s*$`, 'm');
+    const match = pattern.exec(text);
+    if (!match) continue;
+    const startIdx = match.index;
 
     // Find the end of this section (next major section or end of text)
     let endIdx = text.length;
-    const searchStart = startIdx + marker.start.length;
+    const searchStart = startIdx + match[0].length;
 
     // Look for next section marker (common patterns: all-caps line or ## heading)
     const nextSectionMatch = text.slice(searchStart).match(/\n(?:[A-Z][A-Z\s]+:?\n|## )/);
@@ -1413,7 +1421,8 @@ function buildVisionValidationSection(visionInsights, options = {}) {
       const safeReasoning = sanitizeText(entry.reasoning, {
         maxLength: 240,
         stripMarkdown: true,
-        stripControlChars: true
+        stripControlChars: true,
+        filterInstructions: true
       });
       if (safeReasoning) {
         lines.push(`  · Vision reasoning: ${safeReasoning}`);
@@ -1425,7 +1434,12 @@ function buildVisionValidationSection(visionInsights, options = {}) {
         ? entry.visualDetails
         : (typeof entry.visualDetails === 'string' ? entry.visualDetails.split(/[\n;]+/g) : []);
       const safeDetails = details
-        .map((detail) => sanitizeText(detail, { maxLength: 80, stripMarkdown: true, stripControlChars: true }))
+        .map((detail) => sanitizeText(detail, {
+          maxLength: 80,
+          stripMarkdown: true,
+          stripControlChars: true,
+          filterInstructions: true
+        }))
         .filter(Boolean)
         .slice(0, 4);
       if (safeDetails.length) {
