@@ -679,12 +679,17 @@ export async function callAzureResponsesStreamWithConversation(env, {
  * @param {string} userInput - Original user message
  * @param {Array} toolCalls - Tool calls from assistant [{ callId, name, arguments }]
  * @param {Array} toolResults - Tool results [{ callId, result }]
+ * @param {string} [initialAssistantText] - Assistant text emitted before tool calls
  * @returns {Array} Conversation array for Azure Responses API
  */
-export function buildToolContinuationConversation(userInput, toolCalls, toolResults) {
+export function buildToolContinuationConversation(userInput, toolCalls, toolResults, initialAssistantText = '') {
   const conversation = [
     { role: 'user', content: userInput }
   ];
+
+  if (typeof initialAssistantText === 'string' && initialAssistantText.trim()) {
+    conversation.push({ role: 'assistant', content: initialAssistantText });
+  }
 
   // Add each tool call and its result
   for (const tc of toolCalls) {

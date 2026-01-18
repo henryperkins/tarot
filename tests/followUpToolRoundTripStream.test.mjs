@@ -192,5 +192,67 @@ describe('createToolRoundTripStream', () => {
     assert.equal(dones[0].fullText, 'Answer text');
     assert.equal(dones[0].isEmpty, false);
   });
-});
 
+  test('includes initial assistant text in tool continuation conversation', async () => {
+    const memoryArgs = {
+      text: 'User prefers concise answers.',
+      category: 'communication',
+      keywords: ['concise']
+    };
+
+    const initialAzureEvents = [
+      formatAzureEvent('response.output_text.delta', { delta: 'Preface ' }),
+      formatAzureEvent('response.output_item.added', {
+        item: { type: 'function_call', call_id: 'call-1', name: 'save_memory_note' }
+      }),
+      formatAzureEvent('response.function_call_arguments.delta', {
+        call_id: 'call-1',
+        delta: JSON.stringify(memoryArgs)
+      }),
+      formatAzureEvent('response.function_call_arguments.done', { call_id: 'call-1' })
+    ];
+
+    const continuationAzureEvents = [
+      formatAzureEvent('response.output_text.delta', { delta: 'continued' })
+    ];
+
+    let callCount = 0;
+    globalThis.fetch = async (_url, init) => {
+      callCount += 1;
+      const body = JSON.parse(init?.body || '{}');
+
+      if (callCount === 1) {
+        return new Response(createMockAzureStream(initialAzureEvents), { status: 200 });
+      }
+
+      if (callCount === 2) {
+        assert.ok(Array.isArray(body.input), 'Continuation should send conversation array');
+        assert.equal(body.input[0]?.role, 'user');
+        assert.equal(body.input[1]?.role, 'assistant');
+        assert.equal(body.input[1]?.content, 'Preface ');
+        return new Response(createMockAzureStream(continuationAzureEvents), { status: 200 });
+      }
+
+      throw new Error('Unexpected extra fetch call');
+    };
+
+    const stream = createToolRoundTripStream(env, {
+      instructions: 'sys',
+      userInput: 'q',
+      tools,
+      maxTokens: 50,
+      verbosity: 'medium',
+      requestId: 'req-test',
+      onToolCall: async () => ({ success: true })
+    });
+
+    const events = await collectSseEvents(stream);
+    const deltas = events.filter(e => e.eventType === 'delta').map(e => e.data?.text);
+    const dones = events.filter(e => e.eventType === 'done').map(e => e.data);
+
+    assert.deepEqual(deltas, ['Preface ', 'continued']);
+    assert.equal(dones.length, 1);
+    assert.equal(dones[0].fullText, 'Preface continued');
+    assert.equal(dones[0].isEmpty, false);
+  });
+});

@@ -217,6 +217,16 @@ describe('userMemory', () => {
       assert.equal(result.reason, 'sensitive_content');
     });
 
+    test('rejects phone numbers with parentheses', async () => {
+      const result = await saveMemory(db, 'user-1', {
+        text: 'Call me at (555) 123-4567',
+        category: 'general'
+      });
+
+      assert.equal(result.saved, false);
+      assert.equal(result.reason, 'sensitive_content');
+    });
+
     test('rejects credit card numbers with spaces or dashes', async () => {
       const cases = [
         'Card number 4111 1111 1111 1111',

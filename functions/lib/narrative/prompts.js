@@ -877,7 +877,11 @@ export function buildEnhancedClaudePrompt({
     retrievalSummary.includedInPrompt = graphRAGIncluded;
 
     promptMeta.graphRAG = retrievalSummary;
-  } else if (themes?.knowledgeGraph?.graphKeys?.length > 0) {
+  } else if (
+    themes?.knowledgeGraph?.graphKeys &&
+    typeof themes.knowledgeGraph.graphKeys === 'object' &&
+    Object.keys(themes.knowledgeGraph.graphKeys).length > 0
+  ) {
     // Emit stub telemetry when graphKeys exist but retrieval was skipped/failed
     const graphragEnabled = isGraphRAGEnabled(controls.env);
     promptMeta.graphRAG = {

@@ -23,7 +23,7 @@ const PII_PATTERNS = [
   /\b\d{3}-\d{2}-\d{4}\b/,              // SSN
   /\b(?:\d[ -]?){12,18}\d\b/,            // Credit card (allows spaces/hyphens)
   /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/, // Email
-  /\b\d{3}[-.\s]?\d{3}[-.\s]?\d{4}\b/,  // Phone
+  /(?<!\d)(?:\+?1[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}(?:\s*(?:ext\.?|x)\s*\d{1,6})?(?!\d)/,  // Phone
 ];
 
 // Instruction-like patterns to reject (prevent prompt injection via memory)

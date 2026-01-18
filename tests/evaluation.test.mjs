@@ -75,6 +75,12 @@ class MockGateway {
   }
 }
 
+function getUserPromptFromParams(params) {
+  return params?.input?.[1]?.content ||
+    params?.messages?.[1]?.content ||
+    '';
+}
+
 describe('evaluation', () => {
   beforeEach(() => {
     mockAI.run = async () => ({ response: '' });
@@ -191,6 +197,107 @@ describe('evaluation', () => {
 
       assert.equal(result.scores.personalization, 5);
       assert.equal(result.scores.tarot_coherence, 1);
+    });
+
+    test('sends Responses API payload with token and temperature controls', async () => {
+      let capturedParams = null;
+      const capturingMockAI = {
+        run: async (_model, params) => {
+          capturedParams = params;
+          return {
+            output_text: JSON.stringify({
+              personalization: 4,
+              tarot_coherence: 4,
+              tone: 4,
+              safety: 4,
+              overall: 4,
+              safety_flag: false
+            })
+          };
+        }
+      };
+
+      const result = await runEvaluation(
+        { AI: capturingMockAI, EVAL_ENABLED: 'true', EVAL_MODEL: '@cf/openai/gpt-oss-120b' },
+        {
+          reading: 'test',
+          userQuestion: 'test',
+          cardsInfo: [],
+          spreadKey: 'test',
+          requestId: 'responses-format'
+        }
+      );
+
+      assert.equal(result.scores.overall, 4);
+      assert.ok(Array.isArray(capturedParams?.input));
+      assert.equal(capturedParams.input.length, 2);
+      assert.equal(capturedParams.max_output_tokens, 1024);
+      assert.equal(capturedParams.temperature, 0.1);
+      assert.ok(!capturedParams.messages);
+    });
+
+    test('falls back to chat payload when model is not an OpenAI/Responses target', async () => {
+      let capturedParams = null;
+      const capturingMockAI = {
+        run: async (_model, params) => {
+          capturedParams = params;
+          return {
+            response: JSON.stringify({
+              personalization: 4,
+              tarot_coherence: 4,
+              tone: 4,
+              safety: 4,
+              overall: 4,
+              safety_flag: false
+            })
+          };
+        }
+      };
+
+      const result = await runEvaluation(
+        { AI: capturingMockAI, EVAL_ENABLED: 'true', EVAL_MODEL: '@cf/meta/llama-3-8b-instruct' },
+        {
+          reading: 'test',
+          userQuestion: 'test',
+          cardsInfo: [],
+          spreadKey: 'test',
+          requestId: 'chat-format'
+        }
+      );
+
+      assert.equal(result.scores.overall, 4);
+      assert.ok(Array.isArray(capturedParams?.messages));
+      assert.equal(capturedParams.messages.length, 2);
+      assert.equal(capturedParams.max_tokens, 1024);
+      assert.equal(capturedParams.temperature, 0.1);
+      assert.ok(!capturedParams.input);
+    });
+
+    test('parses choices message content when Responses API returns choices array', async () => {
+      mockAI.run = async () => ({
+        choices: [{
+          message: {
+            content: JSON.stringify({
+              personalization: 5,
+              tarot_coherence: 5,
+              tone: 5,
+              safety: 5,
+              overall: 5,
+              safety_flag: false
+            })
+          }
+        }]
+      });
+
+      const result = await runEvaluation({ AI: mockAI, EVAL_ENABLED: 'true' }, {
+        reading: 'test',
+        userQuestion: 'test',
+        cardsInfo: [],
+        spreadKey: 'test',
+        requestId: 'choices-parse'
+      });
+
+      assert.equal(result.scores.overall, 5);
     });
   });
 
@@ -474,7 +581,7 @@ describe('evaluation', () => {
       let capturedPrompt = '';
       const capturingMockAI = {
         run: async (model, params) => {
-          capturedPrompt = params.messages[1].content;
+          capturedPrompt = getUserPromptFromParams(params);
           return {
             response: JSON.stringify({
               personalization: 4,
@@ -511,7 +618,7 @@ describe('evaluation', () => {
       let capturedPrompt = '';
       const capturingMockAI = {
         run: async (model, params) => {
-          capturedPrompt = params.messages[1].content;
+          capturedPrompt = getUserPromptFromParams(params);
           return {
             response: JSON.stringify({
               personalization: 4,
@@ -547,7 +654,7 @@ describe('evaluation', () => {
       let capturedPrompt = '';
       const capturingMockAI = {
         run: async (model, params) => {
-          capturedPrompt = params.messages[1].content;
+          capturedPrompt = getUserPromptFromParams(params);
           return {
             response: JSON.stringify({
               personalization: 4,
@@ -583,7 +690,7 @@ describe('evaluation', () => {
       let capturedPrompt = '';
       const capturingMockAI = {
         run: async (model, params) => {
-          capturedPrompt = params.messages[1].content;
+          capturedPrompt = getUserPromptFromParams(params);
           return {
             response: JSON.stringify({
               personalization: 4,
@@ -816,6 +923,35 @@ describe('evaluation', () => {
       const payloadBinding = query.bindings.find(b => typeof b === 'string' && b.startsWith('{'));
       const storedData = JSON.parse(payloadBinding);
       assert.ok(storedData.eval?.fallbackReason?.includes('incomplete_scores'));
+    });
+
+    test('stores null safety_flag when evaluation payload omits it', async () => {
+      const mockDB = new MockDB();
+      const waitPromises = [];
+      const waitUntil = (p) => waitPromises.push(p);
+
+      const precomputedEvalResult = {
+        scores: {
+          personalization: 4,
+          tarot_coherence: 4,
+          tone: 4,
+          safety: 4,
+          overall: 4
+        },
+        model: 'test-model'
+      };
+
+      scheduleEvaluation(
+        { EVAL_ENABLED: 'true', DB: mockDB },
+        { reading: 'test', userQuestion: 'test', cardsInfo: [], spreadKey: 'test', requestId: 'missing-flag-test' },
+        { requestId: 'missing-flag-test' },
+        { waitUntil, precomputedEvalResult }
+      );
+
+      await Promise.all(waitPromises);
+
+      const query = mockDB.getLastQuery();
+      assert.equal(query.bindings[2], null);
     });
 
     test('patches AI Gateway log when gateway is available', async () => {

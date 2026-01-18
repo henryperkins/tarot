@@ -915,6 +915,34 @@ describe('Prompt budget telemetry', () => {
     assert.ok(userPrompt.includes('The Fool'), 'Card list should remain intact');
   });
 
+  it('emits stub GraphRAG telemetry when graphKeys exist but GraphRAG is disabled', async () => {
+    const cardsInfo = [
+      major('The Fool', 0, 'Past — influences that led here', 'Upright'),
+      major('The Magician', 1, 'Present — where you stand now', 'Upright'),
+      major('The High Priestess', 2, 'Future — trajectory if nothing shifts', 'Upright')
+    ];
+
+    const themes = await buildThemes(cardsInfo, 'blocked');
+    themes.knowledgeGraph = { graphKeys: { completeTriadIds: ['death-temperance-star'] } };
+
+    const { promptMeta } = buildEnhancedClaudePrompt({
+      spreadInfo: { name: 'Three-Card Story (Past · Present · Future)' },
+      cardsInfo,
+      userQuestion: 'How do I keep momentum?',
+      reflectionsText: '',
+      themes,
+      spreadAnalysis: null,
+      context: 'general',
+      promptBudgetEnv: { GRAPHRAG_ENABLED: 'false' }
+    });
+
+    assert.ok(promptMeta.graphRAG, 'graphRAG stub should be present');
+    assert.equal(promptMeta.graphRAG.includedInPrompt, false);
+    assert.equal(promptMeta.graphRAG.disabledByEnv, true);
+    assert.equal(promptMeta.graphRAG.skippedReason, 'disabled_by_env');
+    assert.equal(promptMeta.graphRAG.passagesProvided, 0);
+  });
+
   it('preserves the ETHICS header when system prompt truncation occurs', async () => {
     const cardsInfo = [
       major('The Fool', 0, 'One-Card Insight', 'Upright')

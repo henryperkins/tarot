@@ -17,6 +17,8 @@ const MAX_SAFE_TIMEOUT_MS = 2147483647; // Max 32-bit signed int for timers
 const MAX_READING_LENGTH = 10000;
 const MAX_QUESTION_LENGTH = 500;
 const MAX_CARDS_INFO_LENGTH = 1500;
+const EVAL_TEMPERATURE = 0.1;
+const EVAL_MAX_OUTPUT_TOKENS = 1024;
 
 // Default setting for PII storage - set to 'redact' for production safety
 const DEFAULT_METRICS_STORAGE_MODE = 'redact';
@@ -30,6 +32,7 @@ const DEFAULT_METRICS_STORAGE_MODE = 'redact';
 //   even if heuristic passes. Use this for maximum safety at the cost of availability
 //   during AI outages.
 const DEFAULT_EVAL_GATE_FAILURE_MODE = 'open';
+const RESPONSES_MODEL_HINTS = ['@cf/openai/gpt-oss', '@cf/openai/gpt-4o', '@cf/openai/gpt-4.1'];
 
 // PII redaction patterns
 const PHONE_REGEX = /\b(?:\+?1[-.\s]?)?(?:\(?[0-9]{3}\)?[-.\s]?)?[0-9]{3}[-.\s]?[0-9]{4}(?:\s?(?:x|ext\.?|extension)\s?[0-9]{1,5})?\b/g;
@@ -850,6 +853,47 @@ function findMissingScoreFields(scores) {
   return required.filter((field) => scores[field] === null || scores[field] === undefined);
 }
 
+function shouldUseResponsesApi(model) {
+  if (!model || typeof model !== 'string') return false;
+  return RESPONSES_MODEL_HINTS.some((hint) => model.includes(hint));
+}
+
+function buildEvaluationRequest(model, userPrompt) {
+  const messages = [
+    { role: 'system', content: EVAL_SYSTEM_PROMPT },
+    { role: 'user', content: userPrompt }
+  ];
+
+  if (shouldUseResponsesApi(model)) {
+    return {
+      payload: {
+        input: messages,
+        max_output_tokens: EVAL_MAX_OUTPUT_TOKENS,
+        temperature: EVAL_TEMPERATURE
+      },
+      format: 'responses'
+    };
+  }
+
+  return {
+    payload: {
+      messages,
+      max_tokens: EVAL_MAX_OUTPUT_TOKENS,
+      temperature: EVAL_TEMPERATURE
+    },
+    format: 'chat'
+  };
+}
+
+function extractEvalResponseText(response) {
+  if (typeof response?.response === 'string') return response.response;
+  if (typeof response?.output_text === 'string') return response.output_text;
+  if (response?.choices?.[0]?.message?.content) return response.choices[0].message.content;
+  if (response?.output?.[0]?.content?.[0]?.text) return response.output[0].content[0].text;
+  if (typeof response === 'string') return response;
+  return '';
+}
+
 /**
  * Run evaluation against a completed reading.
  *
@@ -890,33 +934,29 @@ export async function runEvaluation(env, params = {}) {
       requestId
     });
 
-    console.log(`[${requestId}] [eval] Starting evaluation with ${model}`);
+    const { payload: evalPayload, format: payloadFormat } = buildEvaluationRequest(model, userPrompt);
+
+    console.log(`[${requestId}] [eval] Starting evaluation with ${model} (${payloadFormat} payload)`);
 
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
     const gatewayOption = gatewayId ? { gateway: { id: gatewayId } } : {};
 
-    const response = await env.AI.run(
-      model,
-      {
-        messages: [
-          { role: 'system', content: EVAL_SYSTEM_PROMPT },
-          { role: 'user', content: userPrompt }
-        ],
-        max_tokens: 1024,  // Increased to accommodate chain-of-thought reasoning + JSON output
-        temperature: 0.1
-      },
-      { signal: controller.signal, ...gatewayOption }
-    );
-
-    clearTimeout(timeoutId);
+    let response;
+    try {
+      response = await env.AI.run(
+        model,
+        evalPayload,
+        { signal: controller.signal, ...gatewayOption }
+      );
+    } finally {
+      clearTimeout(timeoutId);
+    }
 
     const latencyMs = Date.now() - startTime;
     const gatewayLogId = env.AI?.aiGatewayLogId || null;
-    const responseText = typeof response?.response === 'string'
-      ? response.response
-      : (typeof response === 'string' ? response : '');
+    const responseText = extractEvalResponseText(response);
 
     console.log(`[${requestId}] [eval] Response received in ${latencyMs}ms, length: ${responseText.length}`);
 
@@ -1139,6 +1179,11 @@ export function scheduleEvaluation(env, evalParams = {}, metricsPayload = {}, op
         // - 'error': Evaluation failed completely
         const evalMode = evalPayload.mode ||
           (evalPayload.error ? 'error' : 'model');
+        const safetyFlagValue = evalPayload?.scores?.safety_flag === true
+          ? 1
+          : evalPayload?.scores?.safety_flag === false
+            ? 0
+            : null;
 
         await env.DB.prepare(`
           UPDATE eval_metrics SET
@@ -1156,7 +1201,7 @@ export function scheduleEvaluation(env, evalParams = {}, metricsPayload = {}, op
         `).bind(
           evalMode,
           evalPayload.scores?.overall ?? null,
-          evalPayload.scores?.safety_flag ? 1 : 0,
+          safetyFlagValue,
           evaluationNarrativeMetrics?.cardCoverage ?? null,
           Array.isArray(evaluationNarrativeMetrics?.hallucinatedCards)
             ? JSON.stringify(evaluationNarrativeMetrics.hallucinatedCards)

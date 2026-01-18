@@ -1039,7 +1039,7 @@ function createToolRoundTripStream(env, {
         }
       }
 
-      const conversation = buildToolContinuationConversation(userInput, toolCalls, toolResults);
+      const conversation = buildToolContinuationConversation(userInput, toolCalls, toolResults, initialText);
       console.log(`[${requestId}] Making continuation request with ${conversation.length} conversation items`);
 
       let continuationStream;
