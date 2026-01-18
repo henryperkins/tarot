@@ -28,8 +28,6 @@ import { useReducedMotion } from '../hooks/useReducedMotion';
 import { GlobalNav } from '../components/GlobalNav';
 import AuthModal from '../components/AuthModal';
 import { MobileInfoSection } from '../components/MobileInfoSection';
-import { GlobalNav } from '../components/GlobalNav';
-import { UserMenu } from '../components/UserMenu';
 import { useToast } from '../contexts/ToastContext';
 
 function formatCount(value) {
@@ -613,7 +611,6 @@ export default function PricingPage() {
 
   return (
     <div className="min-h-screen bg-main text-main">
-<<<<<<< HEAD
       {/* Unified header with GlobalNav (includes UserMenu via withUserChip) - sticky with safe-area padding */}
       <header 
         className="sticky top-0 z-40 border-b border-secondary/20 bg-main/95 backdrop-blur-sm"
@@ -625,32 +622,6 @@ export default function PricingPage() {
       >
         <div className="mx-auto max-w-6xl px-4 py-3">
           <GlobalNav condensed withUserChip />
-=======
-      {/* Header */}
-      <header
-        className="
-          full-bleed sticky top-0 z-30
-          bg-surface/95 backdrop-blur
-          border-b border-secondary/20
-          px-4 sm:px-5 md:px-6
-          pr-[max(1rem,env(safe-area-inset-right))]
-          pl-[max(1rem,env(safe-area-inset-left))]
-          shadow-lg shadow-primary/20
-          header-sticky
-        "
-      >
-        <div className="mx-auto max-w-6xl py-3">
-          <div className="header-sticky__row flex flex-wrap items-center gap-2 sm:gap-3 justify-between">
-            <div className="header-sticky__nav flex-1 w-full sm:w-auto">
-              <GlobalNav condensed withUserChip />
-            </div>
-            <div className="hidden sm:block">
-              <div className="header-sticky__user header-sticky__user--fab">
-                <UserMenu condensed />
-              </div>
-            </div>
-          </div>
->>>>>>> 25ae633 (up)
         </div>
       </header>
 

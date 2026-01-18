@@ -7,17 +7,17 @@ import { useReducedMotion } from '../hooks/useReducedMotion';
 /**
  * MobileBottomNav - Mobile-first bottom tab navigation for Reading/Journal
  * Follows iOS/Material bottom nav patterns for thumb reach
- * Only shows on mobile when on Reading or Journal pages
+ * Only shows on mobile when on the Reading page
  */
 export function MobileBottomNav() {
   const location = useLocation();
   const navigate = useNavigate();
   const prefersReducedMotion = useReducedMotion();
 
-  // Only show on Reading and Journal pages
+  // Only show on the Reading page
   const isJournal = location.pathname.startsWith('/journal');
   const isReading = location.pathname === '/' || location.pathname === '';
-  const shouldShow = isReading || isJournal;
+  const shouldShow = isReading;
 
   if (!shouldShow) return null;
 

@@ -22,6 +22,7 @@ import * as journalById from '../../functions/api/journal/[id].js';
 import * as journalFollowups from '../../functions/api/journal/followups.js';
 import * as journalPatternAlerts from '../../functions/api/journal/pattern-alerts.js';
 import * as journalSummary from '../../functions/api/journal-summary.js';
+import * as journalSearch from '../../functions/api/journal/search.js';
 import * as feedback from '../../functions/api/feedback.js';
 import * as generateQuestion from '../../functions/api/generate-question.js';
 import * as memories from '../../functions/api/memories.js';
@@ -206,6 +207,7 @@ const routes = [
   { pattern: /^\/api\/account\/password$/, handlers: accountPassword },
   { pattern: /^\/api\/account\/delete$/, handlers: accountDelete },
   { pattern: /^\/api\/journal$/, handlers: journal },
+  { pattern: /^\/api\/journal\/search$/, handlers: journalSearch },
   { pattern: /^\/api\/journal\/pattern-alerts$/, handlers: journalPatternAlerts },
   { pattern: /^\/api\/journal\/([^/]+)\/followups$/, handlers: journalFollowups, params: ['id'] },
   { pattern: /^\/api\/journal\/([^/]+)$/, handlers: journalById, params: ['id'] },

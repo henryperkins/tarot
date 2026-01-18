@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 /**
- * View Prompts and Readings from METRICS_DB
+ * View Prompts and Readings from D1 eval_metrics
  * 
- * This script retrieves prompt engineering data stored in Cloudflare KV,
- * allowing you to analyze prompts, readings, and their correlations.
+ * This script retrieves prompt engineering data stored in the D1 eval_metrics
+ * table, allowing you to analyze prompts, readings, and their correlations.
  * 
  * Usage:
  *   node scripts/viewPrompts.js                  # List recent readings
@@ -73,6 +73,7 @@ Examples:
   node scripts/viewPrompts.js --id abc123         # View specific reading
   node scripts/viewPrompts.js --stats             # Show statistics
   node scripts/viewPrompts.js --export --out prompts.jsonl
+  node scripts/viewPrompts.js --local             # Use local D1 (miniflare)
 `);
 }
 
@@ -141,16 +142,18 @@ async function loadWranglerConfig() {
     const content = await fs.readFile(configPath, 'utf-8');
     const cleaned = stripJsonComments(content);
     return JSON.parse(cleaned);
-  } catch (err) {
-    console.warn('Could not load wrangler.jsonc:', err.message);
+  } catch (_err) {
+    console.warn('Could not load wrangler.jsonc:', _err.message);
     return null;
   }
 }
 
-function getMetricsNamespaceId(config) {
-  if (!config?.kv_namespaces) return null;
-  const metrics = config.kv_namespaces.find(ns => ns.binding === 'METRICS_DB');
-  return metrics?.id || null;
+
+function getD1Database(config) {
+  if (!config?.d1_databases?.length) return null;
+  // Prefer binding "DB" (primary app database)
+  const db = config.d1_databases.find(db => db.binding === 'DB') || config.d1_databases[0];
+  return db || null;
 }
 
 async function runWrangler(args) {
@@ -175,38 +178,79 @@ async function runWrangler(args) {
   });
 }
 
-async function listKeys(namespaceId, options) {
-  const args = [
-    'kv', 'key', 'list',
-    '--namespace-id', namespaceId,
-    '--prefix', 'reading:'
-  ];
-  
-  // Only add --local flag when explicitly requested
-  // Remote access is the default behavior for wrangler kv commands
-  if (options.local) {
-    args.push('--local');
-  }
-
-  const output = await runWrangler(args);
-  return JSON.parse(output);
+function escapeSqlString(str) {
+  return String(str || '').replace(/'/g, "''");
 }
 
-async function getKey(namespaceId, key, options) {
-  const args = [
-    'kv', 'key', 'get',
-    key,
-    '--namespace-id', namespaceId
-  ];
+async function runD1Query(dbNameOrId, sql, options) {
+  const args = ['d1', 'execute', dbNameOrId, '--command', sql, '--json'];
 
-  // Only add --local flag when explicitly requested
-  // Remote access is the default behavior for wrangler kv commands
   if (options.local) {
     args.push('--local');
   }
 
   const output = await runWrangler(args);
-  return JSON.parse(output);
+  // Wrangler returns JSON array or an object with results; normalize both
+  const parsed = JSON.parse(output);
+  if (Array.isArray(parsed)) return parsed;
+  if (parsed?.result?.results) return parsed.result.results;
+  if (parsed?.result) return parsed.result;
+  if (parsed?.results) return parsed.results;
+  return parsed;
+}
+
+function normalizeRecord(row) {
+  let payload = row?.payload;
+  if (typeof payload === 'string') {
+    try {
+      payload = JSON.parse(payload);
+    } catch (_err) {
+      payload = null;
+    }
+  }
+
+  const record = payload && typeof payload === 'object' ? { ...payload } : {};
+  record.requestId = record.requestId || row?.request_id || row?.REQUEST_ID;
+  record.provider = record.provider || row?.provider || row?.PROVIDER;
+  record.spreadKey = record.spreadKey || row?.spread_key || row?.SPREAD_KEY;
+  record.deckStyle = record.deckStyle || row?.deck_style || row?.DECK_STYLE;
+  record.timestamp = record.timestamp || row?.created_at || row?.CREATED_AT;
+
+  return record;
+}
+
+async function listReadings(dbNameOrId, options) {
+  const sql = `
+    SELECT request_id, provider, spread_key, deck_style, payload, created_at, updated_at
+    FROM eval_metrics
+    ORDER BY updated_at DESC
+    LIMIT ${options.limit};
+  `;
+  const results = await runD1Query(dbNameOrId, sql, options);
+  return (results || []).map(normalizeRecord);
+}
+
+async function fetchReading(dbNameOrId, requestId, options) {
+  const safeId = escapeSqlString(requestId.replace(/^reading:/, ''));
+  const sql = `
+    SELECT request_id, provider, spread_key, deck_style, payload, created_at, updated_at
+    FROM eval_metrics
+    WHERE request_id = '${safeId}'
+    LIMIT 1;
+  `;
+  const results = await runD1Query(dbNameOrId, sql, options);
+  if (!Array.isArray(results) || results.length === 0) return null;
+  return normalizeRecord(results[0]);
+}
+
+async function exportReadings(dbNameOrId, options) {
+  const sql = `
+    SELECT request_id, payload
+    FROM eval_metrics
+    ORDER BY updated_at DESC;
+  `;
+  const results = await runD1Query(dbNameOrId, sql, options);
+  return (results || []).map(normalizeRecord);
 }
 
 function formatBytes(bytes) {
@@ -387,62 +431,48 @@ async function main() {
   
   console.log('Loading Wrangler configuration...');
   const config = await loadWranglerConfig();
-  const namespaceId = getMetricsNamespaceId(config);
+  const dbConfig = getD1Database(config);
 
-  if (!namespaceId) {
-    console.error('Error: METRICS_DB namespace ID not found in wrangler.jsonc');
-    console.error('Ensure kv_namespaces includes a METRICS_DB binding.');
+  if (!dbConfig) {
+    console.error('Error: D1 database binding not found in wrangler.jsonc (expected binding "DB").');
     process.exit(1);
   }
 
-  console.log(`Using METRICS_DB namespace: ${namespaceId}`);
+  const dbNameOrId = dbConfig.database_name || dbConfig.database_id || dbConfig.name;
+  console.log(`Using D1 database: ${dbNameOrId}`);
   console.log(`Target: ${options.local ? 'local' : 'remote'}\n`);
 
   // View single reading
   if (options.id) {
     try {
-      const key = options.id.startsWith('reading:') ? options.id : `reading:${options.id}`;
-      const record = await getKey(namespaceId, key, options);
+      const record = await fetchReading(dbNameOrId, options.id, options);
+      if (!record) {
+        console.error(`No reading found with request ID ${options.id}`);
+        process.exit(1);
+      }
       await showSingleReading(record, options);
-    } catch (err) {
-      console.error(`Error fetching reading: ${err.message}`);
+    } catch (_err) {
+      console.error(`Error fetching reading: ${_err.message}`);
       process.exit(1);
     }
     return;
   }
 
-  // List all keys
-  console.log('Fetching reading keys...');
-  const keys = await listKeys(namespaceId, options);
-  console.log(`Found ${keys.length} readings\n`);
+  // List readings
+  console.log('Fetching readings from D1 eval_metrics...');
+  let records = [];
+  try {
+    records = await listReadings(dbNameOrId, options);
+  } catch (_err) {
+    console.error(`Error querying D1: ${_err.message}`);
+    process.exit(1);
+  }
 
-  if (keys.length === 0) {
-    console.log('No readings found in METRICS_DB.');
+  if (records.length === 0) {
+    console.log('No readings found in eval_metrics.');
     console.log('Readings are stored when using Azure GPT-5 or Claude backends.');
     return;
   }
-
-  // Fetch records
-  console.log('Fetching reading records...');
-  const records = [];
-  const keysToFetch = options.export ? keys : keys.slice(0, options.limit);
-  
-  for (let i = 0; i < keysToFetch.length; i++) {
-    const entry = keysToFetch[i];
-    if (!entry?.name) continue;
-    
-    try {
-      const record = await getKey(namespaceId, entry.name, options);
-      if (record) records.push(record);
-      
-      if ((i + 1) % 10 === 0) {
-        process.stdout.write(`  Fetched ${i + 1}/${keysToFetch.length}\r`);
-      }
-    } catch (err) {
-      console.warn(`Failed to fetch ${entry.name}: ${err.message}`);
-    }
-  }
-  console.log(`\nLoaded ${records.length} records`);
 
   // Show stats
   if (options.stats) {
@@ -452,13 +482,15 @@ async function main() {
 
   // Export
   if (options.export) {
+    console.log('Exporting readings from D1 eval_metrics...');
+    const exportRecords = await exportReadings(dbNameOrId, options);
     const outputPath = path.resolve(process.cwd(), options.output);
     await fs.mkdir(path.dirname(outputPath), { recursive: true });
     
-    const lines = records.map(r => JSON.stringify(r));
+    const lines = exportRecords.map(r => JSON.stringify(r));
     await fs.writeFile(outputPath, lines.join('\n') + '\n');
     
-    console.log(`\nExported ${records.length} readings to ${outputPath}`);
+    console.log(`\nExported ${exportRecords.length} readings to ${outputPath}`);
     return;
   }
 
@@ -483,7 +515,7 @@ async function main() {
   }
   
   console.log('-'.repeat(100));
-  console.log(`\nShowing ${records.length} of ${keys.length} total readings`);
+  console.log(`\nShowing ${records.length} recent readings from eval_metrics`);
   console.log('Use --id <requestId> to view full details');
   console.log('Use --export to export all readings');
   console.log('Use --stats to see aggregated statistics');

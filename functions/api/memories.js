@@ -118,6 +118,7 @@ export const onRequestPost = async ({ request, env }) => {
     if (!result.saved) {
       const errorMessages = {
         empty_text: 'Memory text is required',
+        text_too_short: 'Memory text is required (min 3 characters)',
         sensitive_content: 'Memory contains sensitive content that cannot be stored',
         db_error: 'Failed to save memory'
       };

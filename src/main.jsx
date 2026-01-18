@@ -8,7 +8,6 @@ import { PreferencesProvider } from './contexts/PreferencesContext.jsx';
 import { ReadingProvider } from './contexts/ReadingContext.jsx';
 import { ToastProvider } from './contexts/ToastContext.jsx';
 import { AnimatedRoutes } from './components/AnimatedRoutes.jsx';
-import { MobileBottomNav } from './components/MobileBottomNav.jsx';
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
@@ -19,7 +18,6 @@ ReactDOM.createRoot(document.getElementById('root')).render(
             <ToastProvider>
               <BrowserRouter>
                 <AnimatedRoutes />
-                <MobileBottomNav />
               </BrowserRouter>
             </ToastProvider>
           </ReadingProvider>

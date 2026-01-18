@@ -1,7 +1,7 @@
 /**
  * Test the quality analysis aggregation and storage logic
  */
-import { describe, it, beforeEach, mock } from 'node:test';
+import { describe, it } from 'node:test';
 import assert from 'node:assert';
 
 // Mock D1 database
@@ -41,7 +41,6 @@ const {
   DEFAULT_THRESHOLDS,
   storeQualityStats,
   runQualityAnalysis,
-  getBaseline,
   detectRegressions
 } = await import('../functions/lib/qualityAnalysis.js');
 

@@ -82,7 +82,7 @@ function SeasonSummary({
           {currentStreak > 0 && (
             <span
               className="inline-flex items-center gap-1 rounded-full bg-orange-500/15 px-2.5 py-1 text-xs text-orange-100"
-              title="Streak includes today's grace period."
+              title="Counts from yesterday if no reading today (grace period)."
             >
               <Fire className="h-3 w-3" />
               {currentStreak}-day streak
@@ -94,11 +94,11 @@ function SeasonSummary({
             </span>
           )}
         </div>
-	        {currentStreak > 0 && (
-	          <p className="text-[10px] text-amber-100/50">
-	            Streak includes today&apos;s grace period.
-	          </p>
-	        )}
+        {currentStreak > 0 && (
+          <p className="text-[10px] text-amber-100/50">
+            Counts from yesterday if no reading today (grace period).
+          </p>
+        )}
 	      </div>
 
       {/* Coach suggestion CTA */}

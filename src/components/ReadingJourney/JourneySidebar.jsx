@@ -15,8 +15,10 @@ import {
   ChartBar,
   Export,
   Fire,
-  Gear
+  Gear,
+  Info
 } from '@phosphor-icons/react';
+import { Tooltip } from '../Tooltip';
 import SeasonSummary from './sections/SeasonSummary';
 import CardsCallingYou from './sections/CardsCallingYou';
 import ContextBreakdown from './sections/ContextBreakdown';
@@ -105,6 +107,7 @@ export default function JourneySidebar({
   exportStats,
   // Other props
   isAuthenticated,
+  userId,
   onCreateShareLink,
   onStartReading,
   showStartReadingCta = true,
@@ -118,6 +121,9 @@ export default function JourneySidebar({
   onScopeSelect,
 }) {
   const navigate = useNavigate();
+  const streakGraceTooltip = 'Counts from yesterday if no reading today (grace period).';
+  const streakInfoButtonClass =
+    'text-amber-100/40 hover:text-amber-100 focus-visible:ring-amber-300/40 -ml-2 -mr-2';
   // Section open/close state
   const [openSections, setOpenSections] = useState({
     cards: true,
@@ -305,6 +311,7 @@ export default function JourneySidebar({
             onBackfill={handleBackfillClick}
             isBackfilling={isBackfilling}
             backfillResult={backfillResult}
+            userId={userId}
             variant="compact"
           />
         )}
@@ -340,7 +347,17 @@ export default function JourneySidebar({
                 <Fire className="h-3.5 w-3.5 text-orange-400" />
                 {currentStreak}
               </p>
-              <p className="text-xs text-amber-100/60">streak</p>
+              <p className="text-xs text-amber-100/60 flex items-center justify-center gap-1">
+                streak
+                <Tooltip
+                  content={streakGraceTooltip}
+                  position="top"
+                  triggerClassName={streakInfoButtonClass}
+                  ariaLabel="About streak grace period"
+                >
+                  <Info className="h-3 w-3" />
+                </Tooltip>
+              </p>
             </div>
           )}
           {reversalRate > 0 && (

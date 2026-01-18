@@ -1,4 +1,5 @@
 import { useMemo, useState, useRef, useEffect, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { Info, X } from '@phosphor-icons/react';
 import { buildCardInsights } from '../lib/cardInsights';
 import { titleCase } from '../lib/textUtils';
@@ -186,8 +187,9 @@ function BottomSheet({ isOpen, onClose, children }) {
   }, [onClose]);
 
   if (!isOpen) return null;
+  if (typeof document === 'undefined') return null;
 
-  return (
+  const sheetMarkup = (
     <div
       className="fixed inset-0 z-50 flex items-end justify-center"
       onKeyDown={handleKeyDown}
@@ -216,6 +218,8 @@ function BottomSheet({ isOpen, onClose, children }) {
       </div>
     </div>
   );
+
+  return createPortal(sheetMarkup, document.body);
 }
 
 export function CardSymbolInsights({ card, position }) {

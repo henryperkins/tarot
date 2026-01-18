@@ -2,7 +2,7 @@
  * useJournalFilters - Manages filter state, filtered entries, and active filter chips
  */
 
-import { useDeferredValue, useCallback, useMemo, useRef, useState } from 'react';
+import { useDeferredValue, useCallback, useMemo, useRef, useState, useEffect } from 'react';
 import { formatContextName } from '../lib/journalInsights';
 import {
   CONTEXT_FILTERS,
@@ -12,9 +12,26 @@ import {
   TIMEFRAME_LABELS
 } from '../lib/journal/constants';
 
-export function useJournalFilters(entries) {
+export function useJournalFilters(entries, options = {}) {
+  const { isAuthenticated = false, canUseCloudJournal = false } = options;
+  const SERVER_SEARCH_THRESHOLD = 200;
+  const SERVER_SEARCH_LIMIT = 25;
+  const SERVER_SEARCH_MIN_QUERY = 3;
+
   const [filters, setFiltersInternal] = useState(() => ({ ...DEFAULT_FILTERS }));
   const deferredQuery = useDeferredValue(filters.query);
+  const [serverSearch, setServerSearch] = useState({
+    status: 'idle',
+    results: [],
+    error: null,
+    query: '',
+    mode: 'exact'
+  });
+  const [serverSearchNonce, setServerSearchNonce] = useState(0);
+  const lastServerSearchRef = useRef({ query: '', nonce: 0, filters: '' });
+  const refreshServerSearch = useCallback(() => {
+    setServerSearchNonce((prev) => prev + 1);
+  }, []);
 
   // Capture timestamp when filters change (in event handler context, not during render)
   const filterTimestampRef = useRef(0);
@@ -46,9 +63,22 @@ export function useJournalFilters(entries) {
         spreads: [...filters.spreads].sort(),
         decks: [...filters.decks].sort(),
         timeframe: filters.timeframe,
+        onlyReversals: filters.onlyReversals,
+        serverSearchEnabled: isAuthenticated && canUseCloudJournal && entries?.length >= SERVER_SEARCH_THRESHOLD
+      }),
+    [filters, isAuthenticated, canUseCloudJournal, entries?.length]
+  );
+
+  const serverFilterSignature = useMemo(
+    () =>
+      JSON.stringify({
+        contexts: [...filters.contexts].sort(),
+        spreads: [...filters.spreads].sort(),
+        decks: [...filters.decks].sort(),
+        timeframe: filters.timeframe,
         onlyReversals: filters.onlyReversals
       }),
-    [filters]
+    [filters.contexts, filters.spreads, filters.decks, filters.timeframe, filters.onlyReversals]
   );
 
   // filterTimestamp provides a stable reference for timeframe filtering
@@ -57,12 +87,117 @@ export function useJournalFilters(entries) {
   // eslint-disable-next-line react-hooks/purity -- Initial timestamp needed for first render
   const filterTimestamp = filterTimestampRef.current || Date.now();
 
-  // Compute filtered entries
+  const trimmedDeferredQuery = deferredQuery.trim();
+  const shouldUseServerSearch = isAuthenticated
+    && canUseCloudJournal
+    && trimmedDeferredQuery.length >= SERVER_SEARCH_MIN_QUERY
+    && entries?.length >= SERVER_SEARCH_THRESHOLD;
+
+  useEffect(() => {
+    if (!shouldUseServerSearch) {
+      if (serverSearch.status !== 'idle') {
+        setServerSearch({ status: 'idle', results: [], error: null, query: '', mode: 'exact' });
+      }
+      lastServerSearchRef.current = { query: '', nonce: 0, filters: '' };
+      return;
+    }
+
+    const query = trimmedDeferredQuery;
+    if (!query) return;
+
+    const last = lastServerSearchRef.current;
+    if (last.query === query && last.nonce === serverSearchNonce && last.filters === serverFilterSignature) {
+      return;
+    }
+
+    lastServerSearchRef.current = { query, nonce: serverSearchNonce, filters: serverFilterSignature };
+    const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
+
+    setServerSearch((prev) => ({
+      ...prev,
+      status: 'loading',
+      error: null,
+      results: [],
+      query
+    }));
+
+    // Build URL with query and filters
+    const urlParams = new URLSearchParams();
+    urlParams.append('q', query);
+    urlParams.append('limit', String(SERVER_SEARCH_LIMIT));
+
+    // Add active filters to the search request
+    if (filters.contexts.length > 0) {
+      filters.contexts.forEach(context => urlParams.append('contexts', context));
+    }
+    if (filters.spreads.length > 0) {
+      filters.spreads.forEach(spread => urlParams.append('spreads', spread));
+    }
+    if (filters.decks.length > 0) {
+      filters.decks.forEach(deck => urlParams.append('decks', deck));
+    }
+    if (filters.timeframe !== 'all') {
+      urlParams.append('timeframe', filters.timeframe);
+    }
+    if (filters.onlyReversals) {
+      urlParams.append('onlyReversals', 'true');
+    }
+
+    const url = `/api/journal/search?${urlParams.toString()}`;
+    fetch(url, {
+      credentials: 'include',
+      signal: controller?.signal
+    })
+      .then(async (response) => {
+        if (!response.ok) {
+          const payload = await response.json().catch(() => null);
+          const message = payload?.error || 'Unable to search your full history.';
+          throw new Error(message);
+        }
+        return response.json();
+      })
+      .then((data) => {
+        const normalizedResults = Array.isArray(data?.entries) ? data.entries : [];
+        normalizedResults.sort((a, b) => (b?.ts || 0) - (a?.ts || 0));
+        setServerSearch({
+          status: 'success',
+          results: normalizedResults,
+          error: null,
+          query,
+          mode: data?.mode || 'exact'
+        });
+      })
+      .catch((error) => {
+        if (error?.name === 'AbortError') return;
+        setServerSearch({
+          status: 'error',
+          results: [],
+          error: error?.message || 'Unable to search your full history.',
+          query,
+          mode: 'exact'
+        });
+      });
+
+    return () => {
+      if (controller) {
+        controller.abort();
+      }
+    };
+  }, [filters.contexts, filters.spreads, filters.decks, filters.timeframe, filters.onlyReversals, serverFilterSignature, serverSearch.status, serverSearchNonce, shouldUseServerSearch, trimmedDeferredQuery]);
+
   const filteredEntries = useMemo(() => {
+    if (shouldUseServerSearch) {
+      if (serverSearch.status === 'success') {
+        return serverSearch.results;
+      }
+      if (serverSearch.status === 'loading') {
+        return [];
+      }
+    }
     if (!entries || entries.length === 0) {
       return [];
     }
-    const query = deferredQuery.trim().toLowerCase();
+    const query = trimmedDeferredQuery.toLowerCase();
     const contextSet = new Set(filters.contexts);
     const spreadSet = new Set(filters.spreads);
     const deckSet = new Set(filters.decks);
@@ -124,7 +259,7 @@ export function useJournalFilters(entries) {
       }
       return true;
     });
-  }, [entries, deferredQuery, filters.contexts, filters.spreads, filters.decks, filters.timeframe, filters.onlyReversals, filterTimestamp]);
+  }, [entries, filters.contexts, filters.spreads, filters.decks, filters.timeframe, filters.onlyReversals, filterTimestamp, serverSearch.results, serverSearch.status, shouldUseServerSearch, trimmedDeferredQuery]);
 
   // Check if any filters are active
   const filtersActive = Boolean(filters.query.trim()) ||
@@ -196,7 +331,16 @@ export function useJournalFilters(entries) {
     filtersActive,
     activeFilterChips,
     handleResetFilters,
-    handleRemoveFilter
+    handleRemoveFilter,
+    serverSearchState: {
+      enabled: shouldUseServerSearch,
+      status: serverSearch.status,
+      error: serverSearch.error,
+      mode: serverSearch.mode,
+      resultsCount: serverSearch.results.length,
+      query: serverSearch.query
+    },
+    refreshServerSearch
   };
 }
 

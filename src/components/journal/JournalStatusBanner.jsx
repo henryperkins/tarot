@@ -3,6 +3,7 @@
  * Shows different content for authenticated vs non-authenticated users
  */
 
+import { useState, useEffect, useCallback } from 'react';
 import { UploadSimple } from '@phosphor-icons/react';
 import { useNavigate } from 'react-router-dom';
 import { OUTLINE_BUTTON_CLASS } from '../../styles/buttonClasses';
@@ -39,10 +40,18 @@ export function JournalStatusBanner({
   const shouldRenderCloudBanner = showCachedNotice || showCloudSyncIssue || showMigrateCta || migrating;
   const isCloudEnabled = isAuthenticated && canUseCloudJournal;
 
-  const formatRelativeTime = (timestamp) => {
+  const [now, setNow] = useState(() => Date.now());
+
+  // Update 'now' periodically to keep relative times fresh
+  useEffect(() => {
+    const interval = setInterval(() => setNow(Date.now()), 60 * 1000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const formatRelativeTime = useCallback((timestamp) => {
     const value = Number(timestamp);
     if (!Number.isFinite(value)) return null;
-    const diff = Date.now() - value;
+    const diff = now - value;
     if (!Number.isFinite(diff)) return null;
     const minute = 60 * 1000;
     const hour = 60 * minute;
@@ -51,7 +60,7 @@ export function JournalStatusBanner({
     if (diff < hour) return `${Math.round(diff / minute)}m ago`;
     if (diff < day) return `${Math.round(diff / hour)}h ago`;
     return `${Math.round(diff / day)}d ago`;
-  };
+  }, [now]);
 
   const syncTimeLabel = lastSyncAt ? formatRelativeTime(lastSyncAt) : null;
   const syncParts = [];

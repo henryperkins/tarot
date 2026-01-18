@@ -3,13 +3,8 @@ import { Link, useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Eye, User, Sparkle } from '@phosphor-icons/react';
 import { SharedSpreadView } from '../components/share/SharedSpreadView.jsx';
 import { CollaborativeNotesPanel } from '../components/share/CollaborativeNotesPanel.jsx';
-<<<<<<< HEAD
 import { UserMenu } from '../components/UserMenu.jsx';
 import { useAuth } from '../contexts/AuthContext.jsx';
-=======
-import { GlobalNav } from '../components/GlobalNav';
-import { UserMenu } from '../components/UserMenu';
->>>>>>> 25ae633 (up)
 
 function StatCard({ label, value, helper }) {
   return (
@@ -199,7 +194,6 @@ export default function ShareReading() {
 
   return (
     <div className="min-h-screen bg-main text-main">
-<<<<<<< HEAD
       {/* Top navigation bar with safe-area padding */}
       <header 
         className="sticky top-0 z-40 border-b border-secondary/20 bg-main/95 backdrop-blur-sm"
@@ -241,33 +235,6 @@ export default function ShareReading() {
         </div>
       </header>
 
-=======
-      <header
-        className="
-          full-bleed sticky top-0 z-30
-          bg-surface/95 backdrop-blur
-          border-b border-secondary/20
-          px-4 sm:px-5 md:px-6
-          pr-[max(1rem,env(safe-area-inset-right))]
-          pl-[max(1rem,env(safe-area-inset-left))]
-          shadow-lg shadow-primary/20
-          header-sticky
-        "
-      >
-        <div className="mx-auto max-w-6xl py-3">
-          <div className="header-sticky__row flex flex-wrap items-center gap-2 sm:gap-3 justify-between">
-            <div className="header-sticky__nav flex-1 w-full sm:w-auto">
-              <GlobalNav condensed withUserChip />
-            </div>
-            <div className="hidden sm:block">
-              <div className="header-sticky__user header-sticky__user--fab">
-                <UserMenu condensed />
-              </div>
-            </div>
-          </div>
-        </div>
-      </header>
->>>>>>> 25ae633 (up)
       <main className="mx-auto max-w-6xl px-4 py-8">
         <div className="rounded-3xl border border-secondary/40 bg-surface p-6 shadow-2xl">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">

@@ -223,6 +223,7 @@ function CardFocusOverlay({
   canNavigateNext,
   positionLabel
 }) {
+  const prefersReducedMotion = useReducedMotion();
   const overlayRef = useRef(null);
   const closeButtonRef = useRef(null);
   const titleId = `card-focus-title-${focusedCardData?.index ?? 'unknown'}`;
@@ -432,7 +433,6 @@ export function ReadingBoard({
   navigationLabel,
   revealStage = 'action'
 }) {
-  const prefersReducedMotion = useReducedMotion();
   const isHandsetLayout = useHandsetLayout();
   const spreadInfo = useMemo(() => getSpreadInfo(spreadKey), [spreadKey]);
   const nextIndex = getNextUnrevealedIndex(reading, revealedCards);

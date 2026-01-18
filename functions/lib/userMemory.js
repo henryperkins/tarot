@@ -21,7 +21,7 @@ const VALID_CATEGORIES = ['theme', 'card_affinity', 'communication', 'life_conte
 // PII patterns to reject
 const PII_PATTERNS = [
   /\b\d{3}-\d{2}-\d{4}\b/,              // SSN
-  /\b\d{13,19}\b/,                       // Credit card
+  /\b(?:\d[ -]?){12,18}\d\b/,            // Credit card (allows spaces/hyphens)
   /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/, // Email
   /\b\d{3}[-.\s]?\d{3}[-.\s]?\d{4}\b/,  // Phone
 ];
@@ -72,8 +72,10 @@ function sanitizeMemoryTextForPrompt(text) {
 function sanitizeKeywords(keywords) {
   if (!Array.isArray(keywords)) return [];
   return keywords
-    .filter(k => typeof k === 'string' && k.trim())
-    .map(k => k.trim().toLowerCase().slice(0, MAX_KEYWORD_LENGTH))
+    .filter(k => typeof k === 'string')
+    .map(k => k.trim())
+    .filter(k => k && !containsSensitiveContent(k))
+    .map(k => k.toLowerCase().slice(0, MAX_KEYWORD_LENGTH))
     .slice(0, MAX_KEYWORDS);
 }
 
@@ -123,6 +125,9 @@ export async function saveMemory(db, userId, memory) {
   const text = clampText(memory?.text);
   if (!text) {
     return { id: null, saved: false, reason: 'empty_text' };
+  }
+  if (text.length < 3) {
+    return { id: null, saved: false, reason: 'text_too_short' };
   }
 
   // Safety check: reject PII or instruction-like content

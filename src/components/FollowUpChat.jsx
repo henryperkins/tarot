@@ -83,6 +83,8 @@ export default function FollowUpChat({
   const turnsUsed = serverTurn !== null ? serverTurn : localTurns;
   const canAskMore = turnsUsed < followUpLimit;
   const hasValidReading = Boolean(personalReading) && !personalReading.isError && !personalReading.isStreaming;
+  const isFreeTier = effectiveTier === 'free';
+  const isPlusTier = effectiveTier === 'plus';
 
   const upsertFollowUp = useCallback((payload) => {
     const question = payload?.question?.trim();
@@ -703,13 +705,16 @@ export default function FollowUpChat({
         </form>
       ) : (
         <div className="text-center text-muted text-sm py-2">
-          You&apos;ve used all {followUpLimit} follow-up question{followUpLimit > 1 ? 's' : ''} for this reading.
+          <div>
+            You&apos;ve used all {followUpLimit} follow-up question{followUpLimit > 1 ? 's' : ''} for this reading.
+          </div>
+          <div className="mt-1 text-xs text-muted/80">Limits reset per reading.</div>
           {effectiveTier !== 'pro' && (
             <a
               href="/pricing"
-              className="ml-2 text-accent hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 rounded"
+              className="mt-2 inline-flex text-xs text-accent hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 rounded"
             >
-              Upgrade for more
+              {isFreeTier ? 'Upgrade to Plus for 3 follow-ups' : isPlusTier ? 'Upgrade to Pro for 10 follow-ups' : 'Upgrade for more'}
             </a>
           )}
         </div>

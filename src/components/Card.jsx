@@ -553,27 +553,27 @@ export function Card({
                       <InteractiveCardOverlay card={card} />
                     </div>
                   </motion.div>
+                </button>
 
-                  <div className="text-center mb-3">
-                    <span
-                      className={`inline-block px-3 py-1 rounded-full text-xs-plus font-semibold tracking-wide ${card.isReversed
-                        ? 'bg-surface-muted/90 text-accent border border-accent/50'
-                        : 'bg-secondary/10 text-secondary border border-secondary/60'
-                        }`}
-                    >
-                      {card.isReversed ? 'Reversed' : 'Upright'}
-                    </span>
-                  </div>
+                <div className="text-center mb-3">
+                  <span
+                    className={`inline-block px-3 py-1 rounded-full text-xs-plus font-semibold tracking-wide ${card.isReversed
+                      ? 'bg-surface-muted/90 text-accent border border-accent/50'
+                      : 'bg-secondary/10 text-secondary border border-secondary/60'
+                      }`}
+                  >
+                    {card.isReversed ? 'Reversed' : 'Upright'}
+                  </span>
+                </div>
 
-                  <div className="mb-4 flex justify-center">
-                    <CardSymbolInsights card={card} position={position} />
-                  </div>
+                <div className="mb-4 flex justify-center">
+                  <CardSymbolInsights card={card} position={position} />
+                </div>
 
-                  <div className="bg-surface/85 rounded p-4 border border-secondary/40 touch-pan-y">
-                    <p className="text-main text-sm sm:text-base leading-relaxed">
-                      {meaning}
-                    </p>
-                  </div>
+                <div className="bg-surface/85 rounded p-4 border border-secondary/40 touch-pan-y">
+                  <p className="text-main text-sm sm:text-base leading-relaxed">
+                    {meaning}
+                  </p>
                 </div>
               </div>
 

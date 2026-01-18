@@ -28,7 +28,8 @@ export async function findSimilarJournalEntries(env, userId, query, options = {}
   const { 
     limit = DEFAULT_SEARCH_LIMIT, 
     minSimilarity = DEFAULT_MIN_SIMILARITY,
-    requestId = 'journal-search'
+    requestId = 'journal-search',
+    timeframeCutoffMs = null
   } = options;
   
   if (!env?.AI || !env?.DB) {
@@ -55,15 +56,23 @@ export async function findSimilarJournalEntries(env, userId, query, options = {}
     const queryEmbedding = embeddings[0];
     
     // Fetch recent entries with embeddings
+    const whereParts = ['user_id = ?', 'step_embeddings IS NOT NULL'];
+    const queryParams = [userId];
+
+    if (timeframeCutoffMs) {
+      whereParts.push('created_at >= ?');
+      queryParams.push(Math.floor(timeframeCutoffMs / 1000));
+    }
+
     const entries = await env.DB.prepare(`
       SELECT 
         id, question, narrative, extracted_steps, step_embeddings, 
         cards_json, spread_key, context, created_at
       FROM journal_entries 
-      WHERE user_id = ? AND step_embeddings IS NOT NULL
+      WHERE ${whereParts.join(' AND ')}
       ORDER BY created_at DESC
       LIMIT 50
-    `).bind(userId).all();
+    `).bind(...queryParams).all();
     
     if (!entries?.results?.length) {
       console.log(`[${requestId}] [journalSearch] No entries with embeddings found`);
@@ -103,6 +112,10 @@ export async function findSimilarJournalEntries(env, userId, query, options = {}
         }
       })
       .filter(Boolean)
+      .filter(entry => {
+        if (!timeframeCutoffMs) return true;
+        return (entry.created_at || 0) * 1000 >= timeframeCutoffMs;
+      })
       .filter(e => e.similarity >= minSimilarity);
     
     // Sort by similarity and return top results

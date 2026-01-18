@@ -263,14 +263,24 @@ export function JournalFilters({
     onlyReversals: Boolean(filters.onlyReversals)
   });
 
-  const hasActiveFilters = () => {
-    const snapshot = normalizedFilters();
-    return Boolean(snapshot.query.trim())
+  const hasActiveFilters = (snapshot = normalizedFilters()) => (
+    Boolean(snapshot.query.trim())
       || snapshot.contexts.length > 0
       || snapshot.spreads.length > 0
       || snapshot.decks.length > 0
       || snapshot.timeframe !== 'all'
-      || snapshot.onlyReversals;
+      || snapshot.onlyReversals
+  );
+
+  const countActiveFilters = (snapshot = normalizedFilters()) => {
+    let count = 0;
+    if (snapshot.query.trim()) count += 1;
+    if (snapshot.timeframe !== 'all') count += 1;
+    if (snapshot.onlyReversals) count += 1;
+    count += snapshot.contexts.length;
+    count += snapshot.spreads.length;
+    count += snapshot.decks.length;
+    return count;
   };
 
   const handleSaveCurrent = () => {
@@ -316,7 +326,9 @@ export function JournalFilters({
   };
 
   const shouldShowAdvanced = !isCompact || advancedOpen;
-  const activeFilters = hasActiveFilters();
+  const filterSnapshot = normalizedFilters();
+  const activeFilters = hasActiveFilters(filterSnapshot);
+  const activeFilterCount = countActiveFilters(filterSnapshot);
   const showSavedFiltersPanel = shouldShowAdvanced && (savedFilters.length > 0 || activeFilters);
 
   useEffect(() => {
@@ -472,7 +484,14 @@ export function JournalFilters({
             aria-expanded={advancedOpen}
             className="flex min-h-[44px] w-full items-center justify-between rounded-xl border border-[color:var(--border-warm-light)] bg-[color:rgba(212,184,150,0.05)] px-3 py-3 text-sm font-semibold text-[color:var(--text-main)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:rgba(232,218,195,0.45)]"
           >
-            <span>More filters</span>
+            <span className="flex items-center gap-2">
+              <span>More filters</span>
+              {activeFilterCount > 0 && (
+                <span className="text-[11px] text-[color:var(--color-gray-light)]">
+                  ({activeFilterCount} active)
+                </span>
+              )}
+            </span>
             <CaretDown className={`h-4 w-4 transition-transform ${advancedOpen ? 'rotate-180' : ''}`} aria-hidden="true" />
           </button>
         )}
@@ -563,6 +582,9 @@ export function JournalFilters({
 
           return (
             <>
+              <p className={`text-[11px] text-[color:var(--color-gray-light)] ${isCompact ? 'mb-2' : 'mb-3'}`}>
+                {isCompact ? 'Tap any card to edit filters.' : 'Tap any node to edit filters.'}
+              </p>
               {/* Desktop constellation */}
               {!isCompact && (
               <div className="relative hidden h-[240px] xl:block">
@@ -605,6 +627,16 @@ export function JournalFilters({
                   })}
                   {nodes.map((node) => (
                     <g key={node.id}>
+                      {node.active && (
+                        <circle
+                          cx={`${positions[node.id].x}%`}
+                          cy={`${positions[node.id].y}%`}
+                          r={node.isHero ? 7.2 : 6}
+                          fill="rgba(212,184,150,0.32)"
+                          filter="url(#filters-glow)"
+                          opacity="0.75"
+                        />
+                      )}
                       <circle cx={`${positions[node.id].x}%`} cy={`${positions[node.id].y}%`} r="3.8" fill="url(#filters-node)" />
                       <circle
                         cx={`${positions[node.id].x}%`}

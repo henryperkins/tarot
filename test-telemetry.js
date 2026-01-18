@@ -148,7 +148,7 @@ testReading()
   .then(() => {
     console.log('✅ Telemetry test completed successfully!');
     console.log('\n📊 To verify persistence, run:');
-    console.log('   wrangler kv key list --namespace-id=2510ac5ac91e4a2fac375190a3dfc128 --prefix="reading:"\n');
+    console.log('   npx wrangler d1 execute mystic-tarot-db --command "SELECT request_id, provider, spread_key, deck_style, created_at FROM eval_metrics ORDER BY created_at DESC LIMIT 5;" --json\n');
   })
   .catch(error => {
     console.error('❌ Test failed:', error);

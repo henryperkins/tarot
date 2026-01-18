@@ -19,7 +19,9 @@ import {
   ChartBar,
   Export,
   Gear,
+  Info,
 } from '@phosphor-icons/react';
+import { Tooltip } from '../Tooltip';
 import { useModalA11y } from '../../hooks/useModalA11y';
 import CardsCallingYou from './sections/CardsCallingYou';
 import ContextBreakdown from './sections/ContextBreakdown';
@@ -74,6 +76,7 @@ export default function JourneyMobileSheet({
   exportStats,
   // Other props
   isAuthenticated,
+  userId,
   onCreateShareLink,
   onStartReading,
   showStartReadingCta = true,
@@ -94,6 +97,9 @@ export default function JourneyMobileSheet({
   const abortControllerRef = useRef(null);
   const scopeChipLabel = analyticsScope === 'filters' && filtersActive ? 'Filtered' : (scopeLabel || 'Scope');
   const sourceLabel = _dataSource === 'server' ? 'D1' : 'Journal';
+  const streakGraceTooltip = 'Counts from yesterday if no reading today (grace period).';
+  const streakInfoButtonClass =
+    'text-amber-100/40 hover:text-amber-100 focus-visible:ring-amber-300/40 -ml-2 -mr-2';
 
   // Swipe-to-dismiss state
   const [dragOffset, setDragOffset] = useState(0);
@@ -354,6 +360,7 @@ export default function JourneyMobileSheet({
               onBackfill={handleBackfillClick}
               isBackfilling={isBackfilling}
               backfillResult={backfillResult}
+              userId={userId}
               variant="compact"
             />
           )}
@@ -400,7 +407,17 @@ export default function JourneyMobileSheet({
                   <Fire className="h-4 w-4 text-orange-400" />
                   {currentStreak}
                 </p>
-                <p className="text-[10px] text-amber-100/60">streak</p>
+                <p className="text-[10px] text-amber-100/60 flex items-center justify-center gap-1">
+                  streak
+                  <Tooltip
+                    content={streakGraceTooltip}
+                    position="top"
+                    triggerClassName={streakInfoButtonClass}
+                    ariaLabel="About streak grace period"
+                  >
+                    <Info className="h-3 w-3" />
+                  </Tooltip>
+                </p>
               </div>
             )}
           </div>

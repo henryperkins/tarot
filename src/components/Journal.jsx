@@ -86,8 +86,10 @@ export default function Journal() {
     filtersActive,
     activeFilterChips,
     handleResetFilters,
-    handleRemoveFilter
-  } = useJournalFilters(entries);
+    handleRemoveFilter,
+    serverSearchState,
+    refreshServerSearch
+  } = useJournalFilters(entries, { isAuthenticated, canUseCloudJournal });
 
   const {
     analyticsScope,
@@ -145,22 +147,41 @@ export default function Journal() {
   const visibleEntries = useMemo(() => filteredEntries.slice(0, visibleCount), [filteredEntries, visibleCount]);
   const localRemaining = Math.max(filteredEntries.length - visibleEntries.length, 0);
   const hasLocalMoreEntries = filteredEntries.length > visibleCount;
+  const hasMoreVisibleResults = filteredEntries.length > visibleEntries.length;
   const hasMoreEntries = hasLocalMoreEntries || hasMoreServerEntries;
   const showSummaryBand = !loading && hasEntries;
   const summaryDataSource = syncSource === 'api' || syncSource === 'cache' ? 'server' : 'client';
   const totalEntryCount = hasTotalEntries ? totalEntries : entries.length;
   const hasRemoteEntries = hasMoreServerEntries || (hasTotalEntries && totalEntryCount > entries.length);
-  const searchCoverageLabel = filtersActive
+  const serverSearchEnabled = serverSearchState?.enabled;
+  const serverSearchStatus = serverSearchState?.status;
+  const serverSearchMode = serverSearchState?.mode;
+  const serverSearchLoading = serverSearchEnabled && serverSearchStatus === 'loading';
+  const serverSearchErrored = serverSearchEnabled && serverSearchStatus === 'error';
+
+  const searchCoverageLabel = serverSearchEnabled
+    ? (serverSearchLoading
+        ? 'Searching your full journal history'
+        : serverSearchErrored
+          ? 'Full-history search unavailable'
+          : 'Search spans your full journal history')
+    : filtersActive
     ? (hasTotalEntries
         ? `Searching latest ${entries.length} of ${totalEntryCount} entries`
         : `Searching latest ${entries.length} entries`)
     : (hasTotalEntries && totalEntryCount > entries.length
         ? `Loaded ${entries.length} of ${totalEntryCount} entries`
         : null);
-  const searchScopeLabel = filtersActive && hasRemoteEntries
-    ? 'Searching loaded entries only'
-    : null;
-  const showInlineSearchOlder = hasMoreServerEntries && filtersActive;
+  const searchScopeLabel = serverSearchEnabled
+    ? (serverSearchErrored
+        ? 'Showing loaded entries only'
+        : serverSearchMode === 'semantic'
+          ? 'Semantic matches (best-fit, not exact keyword search)'
+          : 'Server search (exact matches)')
+    : (filtersActive && hasRemoteEntries
+        ? 'Searching loaded entries only'
+        : null);
+  const showInlineSearchOlder = hasMoreServerEntries && filtersActive && !serverSearchEnabled;
   const inlineSearchOlderLabel = hasLocalMoreEntries
     ? 'Show more results'
     : (filters.query.trim() ? 'Search older entries' : 'Load older entries');
@@ -174,6 +195,12 @@ export default function Journal() {
     ? `${filteredEntries.length} matching entries`
     : `${filteredEntries.length} entries`;
   const showStickySummary = hasEntries && !historyFiltersInView;
+  const showLoadMoreButton = hasMoreVisibleResults || (hasMoreServerEntries && !serverSearchEnabled);
+  const loadMoreLabel = serverSearchEnabled
+    ? `Load ${Math.min(VISIBLE_ENTRY_BATCH, localRemaining)} more results`
+    : (hasMoreServerEntries
+        ? 'Load more entries'
+        : `Load ${Math.min(VISIBLE_ENTRY_BATCH, localRemaining)} more`);
 
   // Allow other pages (e.g. Card Collection) to deep-link into the journal.
   // Supported state:
@@ -511,6 +538,9 @@ export default function Journal() {
         title: 'Entry deleted',
         description: 'Removed from your journal history.'
       });
+      if (serverSearchEnabled) {
+        refreshServerSearch();
+      }
     } else {
       showToast({
         type: 'error',
@@ -678,6 +708,7 @@ export default function Journal() {
                 onDeleteShareLink={isAuthenticated ? deleteShareLink : null}
                 onDelete={handleDeleteRequest}
                 compact={compactList}
+                cardClass={cardClass}
               />
             </div>
           );
@@ -735,7 +766,7 @@ export default function Journal() {
           </div>
         </header>
 
-        <main id="journal-content" tabIndex={-1} className="journal-page max-w-7xl mx-auto px-4 sm:px-6 py-8 pb-32 lg:pb-8">
+        <main id="journal-content" tabIndex={-1} className="journal-page max-w-7xl mx-auto px-4 sm:px-6 py-8">
 
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-6">
             {fromReading && (
@@ -1002,20 +1033,36 @@ export default function Journal() {
                         />
                       </div>
 
-                      {filteredEntries.length === 0 ? (
+                      {serverSearchErrored && (
+                        <div className="rounded-xl border border-amber-300/20 bg-amber-200/5 px-3 py-2 text-[12px] text-amber-100/75">
+                          Full-history search failed. Showing matches from loaded entries only.
+                        </div>
+                      )}
+
+                      {serverSearchLoading ? (
+                        <div className="rounded-2xl border border-amber-300/15 bg-amber-200/5 p-8 text-center text-sm text-amber-100/75 shadow-[0_16px_40px_-30px_rgba(0,0,0,0.8)]">
+                          <div className="mx-auto mb-3 h-6 w-6 animate-spin rounded-full border border-amber-200/60 border-t-transparent" aria-hidden="true" />
+                          <p className="journal-prose text-lg text-amber-50">Searching your full journal history...</p>
+                          <p className="journal-prose mt-2 text-amber-100/70">This can take a few seconds for large collections.</p>
+                        </div>
+                      ) : filteredEntries.length === 0 ? (
                         <div className="relative overflow-hidden rounded-2xl border border-amber-300/15 bg-amber-200/5 p-8 text-center text-sm text-amber-100/75 shadow-[0_16px_40px_-30px_rgba(0,0,0,0.8)]">
                           <NoFiltersIllustration className="mb-4" />
                           <p className="journal-prose text-lg text-amber-50">
-                            {hasMoreServerEntries
-                              ? `No matches in the most recent ${entries.length} entries.`
-                              : 'No entries match your filters.'}
+                            {serverSearchEnabled
+                              ? 'No matches found in your full journal history.'
+                              : hasMoreServerEntries
+                                ? `No matches in the most recent ${entries.length} entries.`
+                                : 'No entries match your filters.'}
                           </p>
                           <p className="journal-prose mt-2 text-amber-100/70">
-                            {hasMoreServerEntries
-                              ? 'Searching loaded entries only. Try searching older entries or adjust your filters.'
-                              : 'Try adjusting the filters or reset to see the full journal.'}
+                            {serverSearchEnabled
+                              ? 'Try a different search term or adjust your filters.'
+                              : hasMoreServerEntries
+                                ? 'Searching loaded entries only. Try searching older entries or adjust your filters.'
+                                : 'Try adjusting the filters or reset to see the full journal.'}
                           </p>
-                          {hasMoreServerEntries && (
+                          {hasMoreServerEntries && !serverSearchEnabled && (
                             <div className="mt-4 flex flex-col items-center gap-2">
                               <button
                                 type="button"
@@ -1034,7 +1081,7 @@ export default function Journal() {
                           <div className={entryStackSpacingClass}>
                             {renderedHistoryEntries}
                           </div>
-                          {(hasMoreEntries || filteredEntries.length > visibleEntries.length) && (
+                          {showLoadMoreButton && (
                             <div className="flex justify-center">
                               <button
                                 type="button"
@@ -1042,11 +1089,7 @@ export default function Journal() {
                                 disabled={loadingMore}
                                 className={`${OUTLINE_BUTTON_CLASS} min-h-[44px] px-4 py-2 ${loadingMore ? 'cursor-wait opacity-60' : ''}`}
                               >
-                                {loadingMore
-                                  ? 'Loading...'
-                                  : hasMoreServerEntries
-                                    ? 'Load more entries'
-                                    : `Load ${Math.min(VISIBLE_ENTRY_BATCH, localRemaining)} more`}
+                                {loadingMore ? 'Loading...' : loadMoreLabel}
                               </button>
                             </div>
                           )}

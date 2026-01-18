@@ -322,7 +322,10 @@ export function ReadingDisplay({
     }, [isHandset, newDeckInterface, reading, revealedCards]);
     const shouldStreamNarrative = Boolean(personalReading && !personalReading.isError && !isReadingStreaming && !isServerStreamed);
     const hasPatternHighlights = Boolean(!isPersonalReadingError && themes?.knowledgeGraph?.narrativeHighlights?.length);
-    const hasTraditionalInsights = Boolean(readingMeta?.graphContext?.retrievedPassages?.length);
+    const traditionalPassages = themes?.knowledgeGraph?.graphRAGPayload?.passages
+        || themes?.knowledgeGraph?.retrievedPassages
+        || [];
+    const hasTraditionalInsights = Boolean(traditionalPassages.length);
     const hasHighlightPanel = Boolean(highlightItems?.length && revealedCards.size === reading?.length);
     const hasInsightPanels = hasPatternHighlights || hasTraditionalInsights || hasHighlightPanel || canShowVisionPanel;
     // Only show focus toggle on desktop; on mobile, panels are below the narrative so users can scroll past them
@@ -878,7 +881,7 @@ export function ReadingDisplay({
                             <SpreadPatterns
                                 themes={themes}
                                 spreadHighlights={highlightItems}
-                                passages={readingMeta?.graphContext?.retrievedPassages}
+                                passages={traditionalPassages}
                             />
                         </div>
                     )}

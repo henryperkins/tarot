@@ -150,6 +150,10 @@ export async function handleMemoryToolCall(db, userId, sessionId, toolInput) {
     return { success: true, message: 'Memory saved' };
   }
 
+  if (result.reason === 'text_too_short') {
+    return { success: false, message: 'Memory text is too short (min 3 characters)' };
+  }
+
   return {
     success: false,
     message: result.reason === 'sensitive_content'

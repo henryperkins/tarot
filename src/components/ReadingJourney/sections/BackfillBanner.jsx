@@ -7,17 +7,49 @@
  */
 
 import { ArrowsClockwise, Info, X, CheckCircle, XCircle } from '@phosphor-icons/react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useReducedMotion } from '../../../hooks/useReducedMotion';
+
+const DISMISS_KEY = 'journal_backfill_dismissed_v1';
+const DISMISS_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+
+const getDismissKey = (userId) => (userId ? `${DISMISS_KEY}:${userId}` : `${DISMISS_KEY}:guest`);
+
+function checkDismissed(dismissKey) {
+  if (typeof window === 'undefined') return false;
+  try {
+    const dismissedAt = Number(localStorage.getItem(dismissKey) || 0);
+    return dismissedAt && Date.now() - dismissedAt < DISMISS_TTL_MS;
+  } catch {
+    return false;
+  }
+}
 
 export default function BackfillBanner({
   onBackfill,
   isBackfilling,
   backfillResult,
+  userId,
   variant = 'default', // 'default' | 'compact'
 }) {
+  const dismissKey = getDismissKey(userId);
   const [isDismissed, setIsDismissed] = useState(false);
   const prefersReducedMotion = useReducedMotion();
+
+  // Check dismiss state on mount and when userId changes
+  useEffect(() => {
+    setIsDismissed(checkDismissed(dismissKey));
+  }, [dismissKey]);
+
+  const handleDismiss = () => {
+    setIsDismissed(true);
+    if (typeof window === 'undefined') return;
+    try {
+      localStorage.setItem(getDismissKey(userId), String(Date.now()));
+    } catch {
+      // localStorage unavailable
+    }
+  };
 
   // After successful backfill, show success briefly then hide
   if (backfillResult?.success) {
@@ -81,9 +113,9 @@ export default function BackfillBanner({
           {isBackfilling ? 'Analyzing...' : 'Analyze'}
         </button>
         <button
-          onClick={() => setIsDismissed(true)}
+          onClick={handleDismiss}
           className="min-h-[44px] min-w-[44px] flex items-center justify-center -m-2 text-amber-200/50 hover:text-amber-200/80 touch-manipulation"
-          aria-label="Dismiss sync prompt"
+          aria-label="Remind me in 7 days"
         >
           <X className="h-3 w-3" />
         </button>
@@ -95,9 +127,9 @@ export default function BackfillBanner({
   return (
     <div className="relative rounded-xl bg-gradient-to-br from-amber-500/10 via-amber-600/5 to-transparent border border-amber-400/15 p-3">
       <button
-        onClick={() => setIsDismissed(true)}
+        onClick={handleDismiss}
         className="absolute top-2 right-2 min-h-[44px] min-w-[44px] flex items-center justify-center -m-2 text-amber-200/40 hover:text-amber-200/70 touch-manipulation"
-        aria-label="Dismiss sync prompt"
+        aria-label="Remind me in 7 days"
       >
         <X className="h-3.5 w-3.5" />
       </button>

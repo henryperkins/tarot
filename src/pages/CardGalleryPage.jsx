@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { CaretLeft, Funnel, SortAscending, LockKey } from '@phosphor-icons/react';
 import { useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
@@ -218,7 +218,15 @@ function CardItem({ card, stats, onSelect, onViewInJournal, index = 0 }) {
 export default function CardGalleryPage() {
   const { isAuthenticated, user } = useAuth();
   const navigate = useNavigate();
-  const { entries, loading: journalLoading } = useJournal();
+  const {
+    entries,
+    loading: journalLoading,
+    loadingMore,
+    loadMoreEntries,
+    hasMoreEntries,
+    totalEntries,
+    hasTotalEntries
+  } = useJournal();
   const prefersReducedMotion = useReducedMotion();
 
   const [selected, setSelected] = useState(null);
@@ -226,6 +234,11 @@ export default function CardGalleryPage() {
   const [remoteStats, setRemoteStats] = useState(null);
   const [remoteLoading, setRemoteLoading] = useState(false);
   const [analyticsDisabled, setAnalyticsDisabled] = useState(false);
+  const [loadingFullHistory, setLoadingFullHistory] = useState(false);
+
+  const entriesLengthRef = useRef(entries.length);
+  const hasMoreEntriesRef = useRef(hasMoreEntries);
+  const totalEntriesRef = useRef(totalEntries);
 
   // Filters
   const [filterSuit, setFilterSuit] = useState('all'); // all, major, wands, cups, swords, pentacles
@@ -238,6 +251,18 @@ export default function CardGalleryPage() {
     setRemoteLoading(false);
     setAnalyticsDisabled(false);
   }, [isAuthenticated, user?.id]);
+
+  useEffect(() => {
+    entriesLengthRef.current = entries.length;
+  }, [entries.length]);
+
+  useEffect(() => {
+    hasMoreEntriesRef.current = hasMoreEntries;
+  }, [hasMoreEntries]);
+
+  useEffect(() => {
+    totalEntriesRef.current = totalEntries;
+  }, [totalEntries]);
 
   useEffect(() => {
     async function fetchStats() {
@@ -287,6 +312,7 @@ export default function CardGalleryPage() {
 
   const localStats = useMemo(() => buildLocalCardStats(entries), [entries]);
 
+  const hasRemoteStats = remoteStats && Object.keys(remoteStats).length > 0;
   const stats = useMemo(() => pickStats({
     isAuthenticated,
     analyticsDisabled,
@@ -381,6 +407,44 @@ export default function CardGalleryPage() {
       }
     });
   }, [navigate]);
+
+  const showPartialStatsBanner = Boolean(
+    isAuthenticated
+    && !analyticsDisabled
+    && !remoteLoading
+    && !hasRemoteStats
+    && entries.length > 0
+    && (hasMoreEntries || (hasTotalEntries && totalEntries > entries.length))
+  );
+
+  const statsScopeLabel = hasTotalEntries && totalEntries > entries.length
+    ? `Stats based on last ${entries.length} loaded entries (of ${totalEntries}).`
+    : `Stats based on last ${entries.length} loaded entries.`;
+
+  const handleLoadFullHistory = useCallback(async () => {
+    if (!isAuthenticated || loadingFullHistory || loadingMore) return;
+    if (!hasMoreEntriesRef.current && !(hasTotalEntries && totalEntriesRef.current > entriesLengthRef.current)) {
+      return;
+    }
+
+    setLoadingFullHistory(true);
+    let attempts = 0;
+    const MAX_ATTEMPTS = 40;
+
+    while (attempts < MAX_ATTEMPTS) {
+      const shouldContinue = hasMoreEntriesRef.current
+        || (hasTotalEntries && totalEntriesRef.current > entriesLengthRef.current);
+      if (!shouldContinue) break;
+
+      const result = await loadMoreEntries({ prefetch: false });
+      if (!result?.success || result.appended <= 0) break;
+
+      attempts += 1;
+      await new Promise((resolve) => setTimeout(resolve, 60));
+    }
+
+    setLoadingFullHistory(false);
+  }, [hasTotalEntries, isAuthenticated, loadMoreEntries, loadingFullHistory, loadingMore]);
 
   return (
     <div className="min-h-screen bg-main text-main animate-fade-in">
@@ -509,6 +573,24 @@ export default function CardGalleryPage() {
             <SortAscending className="absolute right-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted pointer-events-none" />
           </div>
         </div>
+
+        {showPartialStatsBanner && (
+          <div className="mb-6 rounded-2xl border border-amber-300/15 bg-amber-200/5 p-4 text-sm text-amber-100/80 shadow-[0_12px_30px_-22px_rgba(0,0,0,0.7)]">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <span>{statsScopeLabel}</span>
+              <button
+                type="button"
+                onClick={handleLoadFullHistory}
+                disabled={loadingFullHistory || loadingMore}
+                className={`inline-flex min-h-[36px] items-center gap-2 rounded-full border border-amber-200/30 bg-amber-200/10 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-amber-50 transition hover:border-amber-200/50 hover:bg-amber-200/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/40 ${
+                  loadingFullHistory || loadingMore ? 'cursor-not-allowed opacity-60' : ''
+                }`}
+              >
+                {loadingFullHistory ? 'Loading full history...' : 'Load full history'}
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Grid */}
         {analyticsDisabled ? (

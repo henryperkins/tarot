@@ -112,6 +112,7 @@ export function OnboardingWizard({ isOpen, onComplete, onSelectSpread, initialSp
   const modalRef = useRef(null);
   const closeButtonRef = useRef(null);
   const titleId = useId();
+  const isExitConfirmOpen = Boolean(exitIntent);
 
   // Modal accessibility: useModalA11y handles scroll lock, escape key, and focus restoration.
   // Focus trapping is delegated to the FocusTrap library (trapFocus: false) because it provides
@@ -122,6 +123,7 @@ export function OnboardingWizard({ isOpen, onComplete, onSelectSpread, initialSp
     containerRef: modalRef,
     trapFocus: false, // Disabled - FocusTrap library handles focus trapping
     initialFocusRef: closeButtonRef,
+    closeOnEscape: !isExitConfirmOpen,
   });
 
   useEffect(() => {
@@ -417,13 +419,13 @@ export function OnboardingWizard({ isOpen, onComplete, onSelectSpread, initialSp
         onClick={isSmallScreen ? undefined : createBackdropHandler(handleSkipRequest)}
       >
         <FocusTrap
-          active={isOpen}
+          active={isOpen && !isExitConfirmOpen}
           focusTrapOptions={{
             initialFocus: () => closeButtonRef.current,
             escapeDeactivates: false,
             clickOutsideDeactivates: false,
             returnFocusOnDeactivate: false,
-            allowOutsideClick: !isSmallScreen,
+            allowOutsideClick: !isSmallScreen || isExitConfirmOpen,
           }}
         >
           <div

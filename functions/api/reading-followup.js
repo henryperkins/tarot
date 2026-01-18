@@ -279,29 +279,29 @@ Your cards will be here when you're ready. Right now, please take care of yourse
     // Check if streaming is requested
     const useStreaming = options.stream === true;
 
-    // Memory tool only works with streaming (tool calls require the streaming API)
-    const enableMemoryTool = memoryEnabled && useStreaming;
+    // Memory tool is available for both streaming and non-streaming (handled via internal streaming round-trip)
+    const enableMemoryTool = memoryEnabled;
+    const effectiveSystemPrompt = systemPrompt;
+    const effectiveUserPrompt = userPrompt;
 
-    // Rebuild prompt if memory tool availability changed
-    // (non-streaming shouldn't tell the model about tools it can't use)
-    let effectiveSystemPrompt = systemPrompt;
-    let effectiveUserPrompt = userPrompt;
-    if (memoryEnabled && !useStreaming) {
-      // Rebuild without memory tool instructions for non-streaming
-      const rebuiltPrompts = buildFollowUpPrompt({
-        originalReading: effectiveContext,
-        followUpQuestion: followUpQuestion.trim(),
-        conversationHistory,
-        journalContext,
-        personalization,
-        memories,
-        memoryOptions: {
-          includeMemoryTool: false // No tool support in non-streaming
-        }
-      });
-      effectiveSystemPrompt = rebuiltPrompts.systemPrompt;
-      effectiveUserPrompt = rebuiltPrompts.userPrompt;
-    }
+    let memoryToolCalled = false;
+    let consolidationStarted = false;
+    const consolidateOnce = () => {
+      if (!enableMemoryTool || consolidationStarted || !memoryToolCalled || !readingIdentifier) {
+        return Promise.resolve();
+      }
+      consolidationStarted = true;
+      const consolidation = consolidateSessionMemories(env.DB, user.id, readingIdentifier)
+        .then(result => {
+          if (result.promoted > 0 || result.pruned > 0) {
+            console.log(`[${requestId}] Memory consolidation: promoted=${result.promoted}, pruned=${result.pruned}`);
+          }
+        })
+        .catch(err => {
+          console.warn(`[${requestId}] Memory consolidation failed:`, err.message);
+        });
+      return consolidation;
+    };
 
     if (useStreaming) {
       // === STREAMING PATH ===
@@ -331,6 +331,13 @@ Your cards will be here when you're ready. Right now, please take care of yourse
               if (name === 'save_memory_note') {
                 console.log(`[${requestId}] Memory tool called: category=${args?.category || 'unknown'}, len=${args?.text?.length || 0}`);
                 const result = await handleMemoryToolCall(env.DB, user.id, readingIdentifier, args);
+                if (result.success) {
+                  memoryToolCalled = true;
+                  const consolidationPromise = consolidateOnce();
+                  if (ctx?.waitUntil) {
+                    ctx.waitUntil(consolidationPromise);
+                  }
+                }
                 return result;
               }
               return { success: false, message: 'Unknown tool' };
@@ -408,17 +415,7 @@ Your cards will be here when you're ready. Right now, please take care of yourse
             // Consolidate session memories to global scope after each successful follow-up.
             // This ensures memories are promoted even if user doesn't hit their turn limit.
             // Without this, session memories would expire after 24h and never personalize future readings.
-            const consolidationPromise = memoryEnabled && readingIdentifier
-              ? consolidateSessionMemories(env.DB, user.id, readingIdentifier)
-                  .then(result => {
-                    if (result.promoted > 0 || result.pruned > 0) {
-                      console.log(`[${requestId}] Memory consolidation: promoted=${result.promoted}, pruned=${result.pruned}`);
-                    }
-                  })
-                  .catch(err => {
-                    console.warn(`[${requestId}] Memory consolidation failed:`, err.message);
-                  })
-              : Promise.resolve();
+            const consolidationPromise = consolidateOnce();
 
             await Promise.allSettled([trackingPromise, persistPromise, consolidationPromise]);
           }
@@ -428,6 +425,12 @@ Your cards will be here when you're ready. Right now, please take care of yourse
 
       } catch (streamError) {
         console.error(`[${requestId}] Streaming error: ${streamError.message}`);
+        const consolidationPromise = consolidateOnce();
+        if (ctx?.waitUntil) {
+          ctx.waitUntil(consolidationPromise);
+        } else {
+          await consolidationPromise;
+        }
         return createSSEErrorResponse('Failed to generate response. Please try again.', 503);
       }
 
@@ -436,13 +439,43 @@ Your cards will be here when you're ready. Right now, please take care of yourse
       let responseText;
 
       try {
-        responseText = await callAzureResponses(env, {
-          instructions: effectiveSystemPrompt,
-          input: effectiveUserPrompt,
-          maxTokens: 400,  // ~250-300 words, aligned with response format guidance
-          reasoningEffort: 'low',
-          verbosity: 'medium'
-        });
+        if (enableMemoryTool) {
+          const tools = [MEMORY_TOOL_AZURE_RESPONSES_FORMAT];
+          const toolStream = await createToolRoundTripStream(env, {
+            instructions: effectiveSystemPrompt,
+            userInput: effectiveUserPrompt,
+            tools,
+            maxTokens: 400,
+            verbosity: 'medium',
+            requestId,
+            onToolCall: async (callId, name, args) => {
+              if (name === 'save_memory_note') {
+                console.log(`[${requestId}] (non-stream) Memory tool called: category=${args?.category || 'unknown'}, len=${args?.text?.length || 0}`);
+                const result = await handleMemoryToolCall(env.DB, user.id, readingIdentifier, args);
+                if (result.success) {
+                  memoryToolCalled = true;
+                  const consolidationPromise = consolidateOnce();
+                  if (ctx?.waitUntil) {
+                    ctx.waitUntil(consolidationPromise);
+                  } else {
+                    await consolidationPromise;
+                  }
+                }
+                return result;
+              }
+              return { success: false, message: 'Unknown tool' };
+            }
+          });
+          responseText = await collectFullTextFromSse(toolStream, { requestId });
+        } else {
+          responseText = await callAzureResponses(env, {
+            instructions: effectiveSystemPrompt,
+            input: effectiveUserPrompt,
+            maxTokens: 400,  // ~250-300 words, aligned with response format guidance
+            reasoningEffort: 'low',
+            verbosity: 'medium'
+          });
+        }
 
         console.log(`[${requestId}] LLM response received: ${responseText?.length || 0} chars`);
 
@@ -476,6 +509,7 @@ Your cards will be here when you're ready. Right now, please take care of yourse
         patternsFound: journalContext?.patterns?.length || 0
       });
 
+      const consolidationPromise = consolidateOnce();
       const persistPromise = canPersistFollowups
         ? persistFollowUpToJournal(env, user.id, {
             requestId: readingRequestId,
@@ -489,7 +523,7 @@ Your cards will be here when you're ready. Right now, please take care of yourse
           })
         : Promise.resolve();
 
-      const combined = Promise.allSettled([trackingPromise, persistPromise]);
+      const combined = Promise.allSettled([trackingPromise, persistPromise, consolidationPromise]);
       if (ctx?.waitUntil) {
         ctx.waitUntil(combined);
       } else {
@@ -1086,6 +1120,81 @@ function createToolRoundTripStream(env, {
       return Promise.allSettled(cancellations);
     }
   });
+}
+
+/**
+ * Collect the full text from an internal SSE stream (used for non-streaming memory path)
+ *
+ * @param {ReadableStream} stream
+ * @param {Object} options
+ * @param {string} options.requestId
+ * @returns {Promise<string>}
+ */
+async function collectFullTextFromSse(stream, { requestId } = {}) {
+  const decoder = new TextDecoder();
+  const reader = stream.getReader();
+  let buffer = '';
+  let fullText = '';
+  let doneText = null;
+  let errorMessage = null;
+
+  const processBuffer = (isFinal = false) => {
+    const events = buffer.split(/\r?\n\r?\n/);
+    buffer = isFinal ? '' : (events.pop() || '');
+
+    for (const eventBlock of events) {
+      if (!eventBlock.trim()) continue;
+      let eventType = '';
+      let eventData = '';
+
+      for (const line of eventBlock.split(/\r?\n/)) {
+        if (line.startsWith('event:')) {
+          eventType = line.slice(6).trim();
+        } else if (line.startsWith('data:')) {
+          eventData += line.slice(5).trim();
+        }
+      }
+
+      if (!eventType && !eventData) continue;
+
+      let parsed = {};
+      try {
+        parsed = eventData ? JSON.parse(eventData) : {};
+      } catch (err) {
+        console.warn(`[${requestId}] Failed to parse SSE event`, err?.message || err);
+      }
+
+      if (eventType === 'delta' && parsed.text) {
+        fullText += parsed.text;
+      } else if (eventType === 'done') {
+        if (typeof parsed.fullText === 'string') {
+          doneText = parsed.fullText;
+        }
+      } else if (eventType === 'error') {
+        errorMessage = parsed.message || 'Unknown error';
+      }
+    }
+  };
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      processBuffer(false);
+      if (errorMessage) break;
+    }
+    buffer += decoder.decode();
+    processBuffer(true);
+  } finally {
+    reader.releaseLock();
+  }
+
+  if (errorMessage) {
+    throw new Error(errorMessage);
+  }
+
+  return doneText ?? fullText;
 }
 
 /**
