@@ -12,7 +12,7 @@ import {
 } from './reasoning.js';
 
 import { sanitizeDisplayName } from './styleHelpers.js';
-import { pickOne } from './helpers.js';
+import { pickOne, isProseMode } from './helpers.js';
 
 // ============================================================================
 // REASONING-INFORMED TEMPLATE SELECTION
@@ -249,11 +249,13 @@ const EMPHASIS_MARKERS = {
  * @param {string} baseText - The base card text from existing builder
  * @param {number} cardIndex - Index of the card
  * @param {Object} reasoning - The reasoning chain
+ * @param {Object} [options] - Presentation options (e.g., proseMode)
  * @returns {Object} Enhanced text with metadata
  */
-export function enhanceCardTextWithReasoning(baseText, cardIndex, reasoning) {
+export function enhanceCardTextWithReasoning(baseText, cardIndex, reasoning, options = {}) {
   if (!reasoning) return { text: baseText, enhanced: false };
 
+  const proseMode = isProseMode(options);
   const emphasisInfo = reasoning.emphasisMap?.[cardIndex];
   const emphasis = emphasisInfo?.emphasis || 'normal';
   const marker = EMPHASIS_MARKERS[emphasis];
@@ -262,32 +264,32 @@ export function enhanceCardTextWithReasoning(baseText, cardIndex, reasoning) {
   const enhancements = [];
 
   // Add pivot annotation
-  if (reasoning.pivotCard?.index === cardIndex) {
+  if (!proseMode && reasoning.pivotCard?.index === cardIndex) {
     enhancedText += `\n\n*${reasoning.pivotCard.reason}*`;
     enhancements.push('pivot');
   }
 
   // Add tension context
-  const relevantTension = reasoning.tensions?.find(t =>
-    t.isKeyTension && t.positions.includes(cardIndex)
+  const relevantTension = reasoning.tensions?.find(
+    (t) => t.isKeyTension && t.positions.includes(cardIndex)
   );
-  if (relevantTension && relevantTension.significance) {
+  if (!proseMode && relevantTension && relevantTension.significance) {
     enhancedText += `\n\n*${relevantTension.significance}*`;
     enhancements.push('key-tension');
   }
 
   // Add emotional peak/valley annotation
-  if (reasoning.emotionalArc?.peak?.card === reasoning.emphasisMap?.[cardIndex]?.card) {
+  if (!proseMode && reasoning.emotionalArc?.peak?.card === reasoning.emphasisMap?.[cardIndex]?.card) {
     enhancedText += '\n\n*This card represents an emotional high point in your spread.*';
     enhancements.push('emotional-peak');
   }
-  if (reasoning.emotionalArc?.valley?.card === reasoning.emphasisMap?.[cardIndex]?.card) {
+  if (!proseMode && reasoning.emotionalArc?.valley?.card === reasoning.emphasisMap?.[cardIndex]?.card) {
     enhancedText += '\n\n*This card marks a point of challenge or depth in your journey.*';
     enhancements.push('emotional-valley');
   }
 
   // Apply emphasis markers if high
-  if (emphasis === 'high' && marker.annotation) {
+  if (!proseMode && emphasis === 'high' && marker.annotation) {
     enhancedText += `\n\n${marker.annotation}`;
     enhancements.push('high-emphasis');
   }

@@ -26,6 +26,20 @@ const PII_PATTERNS = [
   /(?<!\d)(?:\+?1[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}(?:\s*(?:ext\.?|x)\s*\d{1,6})?(?!\d)/,  // Phone
 ];
 
+// Session-only markers to avoid promoting short-lived context to global memory
+const SESSION_ONLY_PATTERNS = [
+  /\bthis\s+(reading|session|question|spread|time)\b/i,
+  /\bfor\s+(this|the)\s+(reading|session|question|spread)\b/i,
+  /\bfor\s+now\b/i,
+  /\bright\s+now\b/i,
+  /\bat\s+the\s+moment\b/i,
+  /\bcurrently\b/i,
+  /\btoday\b/i,
+  /\btonight\b/i,
+  /\btemporar(?:y|ily)\b/i,
+  /\bjust\s+for\s+now\b/i
+];
+
 // Instruction-like patterns to reject (prevent prompt injection via memory)
 const INSTRUCTION_PATTERNS = [
   /\b(always|never|must|should)\s+(ignore|obey|follow|disregard)/i,
@@ -91,6 +105,20 @@ function containsSensitiveContent(text) {
     if (pattern.test(text)) return true;
   }
   return false;
+}
+
+function normalizeMemoryText(text) {
+  if (!text || typeof text !== 'string') return '';
+  return text
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function isSessionScopedMemory(text) {
+  if (!text || typeof text !== 'string') return false;
+  return SESSION_ONLY_PATTERNS.some(pattern => pattern.test(text));
 }
 
 /**
@@ -327,21 +355,45 @@ export async function consolidateSessionMemories(db, userId, sessionId) {
 
     const nowSeconds = Math.floor(Date.now() / 1000);
     let promoted = 0;
+    let pruned = 0;
+
+    const globalResult = await db.prepare(`
+      SELECT id, text, category, confidence, created_at
+      FROM user_memories
+      WHERE user_id = ? AND scope = 'global'
+    `).bind(userId).all();
+
+    const globalMemories = globalResult?.results || [];
+    const globalIndex = new Map();
+
+    for (const mem of globalMemories) {
+      const key = normalizeMemoryText(mem.text);
+      if (!key) continue;
+      const existing = globalIndex.get(key);
+      if (!existing || (mem.created_at || 0) > (existing.created_at || 0)) {
+        globalIndex.set(key, mem);
+      }
+    }
 
     for (const mem of memories) {
-      // Check if similar global memory exists
-      const existing = await db.prepare(`
-        SELECT id, confidence FROM user_memories
-        WHERE user_id = ? AND scope = 'global' AND text = ?
-      `).bind(userId, mem.text).first();
+      const text = mem?.text?.trim() || '';
+      if (!text || isSessionScopedMemory(text)) {
+        pruned++;
+        continue;
+      }
 
+      const key = normalizeMemoryText(text);
+      const existing = key ? globalIndex.get(key) : null;
+
+      // Check if similar global memory exists
       if (existing) {
         // Update existing memory's confidence and access time
         await db.prepare(`
           UPDATE user_memories
-          SET confidence = MAX(confidence, ?), last_accessed_at = ?
+          SET confidence = MAX(confidence, ?), last_accessed_at = ?, created_at = ?
           WHERE id = ?
-        `).bind(mem.confidence, nowSeconds, existing.id).run();
+        `).bind(mem.confidence, nowSeconds, nowSeconds, existing.id).run();
+        pruned++;
       } else {
         // Promote to global scope
         await db.prepare(`
@@ -350,16 +402,20 @@ export async function consolidateSessionMemories(db, userId, sessionId) {
           WHERE id = ?
         `).bind(nowSeconds, mem.id).run();
         promoted++;
+        if (key) {
+          globalIndex.set(key, { id: mem.id, text, created_at: nowSeconds });
+        }
       }
     }
 
     // Delete remaining session memories that were merged into existing
-    const { meta } = await db.prepare(`
+    await db.prepare(`
       DELETE FROM user_memories
       WHERE user_id = ? AND scope = 'session' AND session_id = ?
     `).bind(userId, sessionId).run();
 
-    return { promoted, pruned: (meta?.changes || 0) };
+    const totalPruned = Math.max(memories.length - promoted, pruned);
+    return { promoted, pruned: totalPruned };
   } catch (error) {
     console.warn('[consolidateSessionMemories] Error:', error?.message || error);
     return { promoted: 0, pruned: 0 };

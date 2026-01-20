@@ -42,7 +42,7 @@ function makeEnv({ prompts } = {}) {
 }
 
 describe('runLlamaVisionAnalysis', () => {
-  it('parses fenced JSON and strips data URL prefix', async () => {
+  it('parses fenced JSON and preserves data URL', async () => {
     let capturedPayload = null;
     const env = {
       AI: {
@@ -67,8 +67,8 @@ describe('runLlamaVisionAnalysis', () => {
     assert.deepStrictEqual(result.visualDetails, ['cliff edge', 'small dog']);
 
     const userMessage = capturedPayload?.messages?.find((message) => message.role === 'user');
-    const imagePart = userMessage?.content?.find((part) => part.type === 'image');
-    assert.equal(imagePart?.image, 'ZmFrZQ==');
+    const imagePart = userMessage?.content?.find((part) => part.type === 'image_url');
+    assert.equal(imagePart?.image_url?.url, DATA_URL);
   });
 
   it('returns parse_error when response is not JSON', async () => {

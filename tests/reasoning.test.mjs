@@ -998,6 +998,19 @@ describe('Reasoning Integration', () => {
       expect(result.text).toContain(sampleReasoning.pivotCard.reason);
     });
 
+    it('should skip annotations in prose mode', () => {
+      const pivotIndex = sampleReasoning.pivotCard?.index || 1;
+      const result = enhanceCardTextWithReasoning(
+        'Base card text.',
+        pivotIndex,
+        sampleReasoning,
+        { proseMode: true }
+      );
+
+      expect(result.enhanced).toBe(false);
+      expect(result.text).toBe('Base card text.');
+    });
+
     it('should return unchanged text when no enhancements apply', () => {
       // Pass null reasoning to get no enhancements
       const result = enhanceCardTextWithReasoning(

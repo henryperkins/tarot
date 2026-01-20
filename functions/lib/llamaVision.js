@@ -102,23 +102,30 @@ function extractJsonBlock(text) {
 
 function normalizeImageInput(image) {
   if (typeof image === 'string') {
+    if (!image.trim()) return null;
     if (image.startsWith('data:image/')) {
+      // Validate data URI has content after comma
       const commaIndex = image.indexOf(',');
-      if (commaIndex === -1) return null;
-      return image.slice(commaIndex + 1);
+      if (commaIndex === -1 || commaIndex === image.length - 1) return null;
+      return image;
     }
     if (/^https?:\/\//i.test(image)) {
       return null;
     }
-    return image;
+    // Assume raw base64, default to jpeg
+    return `data:image/jpeg;base64,${image}`;
   }
 
   if (image instanceof ArrayBuffer) {
-    return arrayBufferToBase64(image);
+    if (image.byteLength === 0) return null;
+    return `data:image/jpeg;base64,${arrayBufferToBase64(image)}`;
   }
 
   if (ArrayBuffer.isView(image)) {
-    return arrayBufferToBase64(image.buffer);
+    if (image.byteLength === 0) return null;
+    // Extract only the view's portion, not the entire underlying buffer
+    const slice = image.buffer.slice(image.byteOffset, image.byteOffset + image.byteLength);
+    return `data:image/jpeg;base64,${arrayBufferToBase64(slice)}`;
   }
 
   return null;
@@ -196,8 +203,8 @@ export async function runLlamaVisionAnalysis(env, options = {}) {
     };
   }
 
-  const base64Image = normalizeImageInput(image);
-  if (!base64Image) {
+  const imageDataUri = normalizeImageInput(image);
+  if (!imageDataUri) {
     return {
       status: 'invalid_image',
       label: label || null,
@@ -220,7 +227,7 @@ export async function runLlamaVisionAnalysis(env, options = {}) {
             role: 'user',
             content: [
               { type: 'text', text: prompt },
-              { type: 'image', image: base64Image }
+              { type: 'image_url', image_url: { url: imageDataUri } }
             ]
           }
         ],

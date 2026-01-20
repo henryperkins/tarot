@@ -17,7 +17,8 @@ import { THOTH_MINOR_TITLES, MARSEILLE_NUMERICAL_THEMES } from '../../../src/dat
 import { SYMBOL_ANNOTATIONS } from '../symbolAnnotations.js';
 import { getMinorSymbolAnnotation } from '../../../shared/vision/minorSymbolLexicon.js';
 
-// Prose mode flag - when enabled, silences technical metadata in output
+// Prose mode flag - legacy test helper. Runtime callers should always pass
+// proseMode explicitly to avoid state bleed across requests.
 let PROSE_MODE = false;
 
 export function setProseMode(enabled) {
@@ -28,7 +29,15 @@ export function isProseMode(options = {}) {
   if (typeof options.proseMode === 'boolean') {
     return options.proseMode;
   }
-  return PROSE_MODE;
+
+  // Prevent global state from leaking across requests. Only honor the
+  // legacy toggle inside tests where NODE_ENV === 'test'.
+  const env = options.env || (typeof process !== 'undefined' ? process.env : {});
+  if (env?.NODE_ENV === 'test') {
+    return PROSE_MODE;
+  }
+
+  return false;
 }
 
 // Section header mappings for prose mode
@@ -240,19 +249,34 @@ function pickOne(value) {
 
 const VALID_CONTEXTS = ['love', 'career', 'self', 'spiritual', 'wellbeing', 'decision', 'general'];
 
-function normalizeContext(context, { onUnknown } = {}) {
+function normalizeContext(context, { onUnknown, allowFallback = true, fallback = 'general', strict = false } = {}) {
   if (!context || typeof context !== 'string') return 'general';
   const key = context.trim().toLowerCase();
   if (VALID_CONTEXTS.includes(key)) {
     return key;
   }
+
   // Surface an explicit signal instead of silently downgrading.
-  const message = `[narrative] Unknown context "${context}"; falling back to "general".`;
+  const fallbackNote = allowFallback ? 'falling back to "general".' : 'no fallback applied.';
+  const message = `[narrative] Unknown context "${context}"; ${fallbackNote}`;
   if (typeof onUnknown === 'function') {
     onUnknown(message);
   } else if (typeof console !== 'undefined' && console.warn) {
     console.warn(message);
   }
+
+  if (strict) {
+    throw new Error(message);
+  }
+
+  if (!allowFallback) {
+    return null;
+  }
+
+  if (fallback && VALID_CONTEXTS.includes(fallback)) {
+    return fallback;
+  }
+
   return 'general';
 }
 

@@ -595,18 +595,75 @@ function detectTensionBetweenCards(card1, card2) {
   return tensions.length > 0 ? tensions : null;
 }
 
+const CELTIC_POSITION_HINTS = {
+  present: ['present', 'current'],
+  challenge: ['challenge', 'cross'],
+  past: ['past'],
+  future: ['future'],
+  conscious: ['conscious'],
+  subconscious: ['subconscious', 'root'],
+  advice: ['advice', 'self'],
+  external: ['external', 'environment'],
+  hopesFears: ['hopes', 'fears'],
+  outcome: ['outcome']
+};
+
+const CELTIC_INDEX_FALLBACK = {
+  present: 0,
+  challenge: 1,
+  past: 2,
+  future: 3,
+  conscious: 4,
+  subconscious: 5,
+  advice: 6,
+  external: 7,
+  hopesFears: 8,
+  outcome: 9
+};
+
+function matchCelticPosition(label, role) {
+  if (!label) return false;
+  const normalized = String(label).toLowerCase();
+  const hints = CELTIC_POSITION_HINTS[role] || [];
+  return hints.some((hint) => normalized.includes(hint));
+}
+
+function findCelticPositionIndex(cardsInfo, role) {
+  const fallbackIdx = CELTIC_INDEX_FALLBACK[role];
+  if (
+    Number.isInteger(fallbackIdx) &&
+    cardsInfo[fallbackIdx] &&
+    matchCelticPosition(cardsInfo[fallbackIdx].position, role)
+  ) {
+    return fallbackIdx;
+  }
+
+  const locatedIdx = cardsInfo.findIndex((card) => matchCelticPosition(card.position, role));
+  return locatedIdx >= 0 ? locatedIdx : null;
+}
+
 /**
  * Identify key tensions across the spread
  *
  * @param {Array} cardsInfo - Array of card information objects
  * @returns {Array} Array of tension objects
  */
-export function identifyTensions(cardsInfo) {
+export function identifyTensions(cardsInfo, options = {}) {
   if (!Array.isArray(cardsInfo) || cardsInfo.length < 2) {
     return [];
   }
 
+  const spreadKey = typeof options.spreadKey === 'string'
+    ? options.spreadKey.toLowerCase()
+    : '';
   const allTensions = [];
+
+  const buildPositionLabels = (fromIdx, toIdx, fromLabel, toLabel) => {
+    const labels = new Set([fromLabel, toLabel]);
+    if (cardsInfo[fromIdx]?.position) labels.add(cardsInfo[fromIdx].position);
+    if (cardsInfo[toIdx]?.position) labels.add(cardsInfo[toIdx].position);
+    return Array.from(labels);
+  };
 
   // Check adjacent cards
   for (let i = 0; i < cardsInfo.length - 1; i++) {
@@ -639,60 +696,92 @@ export function identifyTensions(cardsInfo) {
     }
   }
 
-  // For Celtic Cross: Check specific position pairs
-  if (cardsInfo.length >= 10) {
-    // Present vs Outcome
-    const presentOutcome = detectTensionBetweenCards(cardsInfo[0], cardsInfo[9]);
-    if (presentOutcome) {
-      presentOutcome.forEach(t => {
-        allTensions.push({
-          ...t,
-          positions: [0, 9],
-          cards: [cardsInfo[0].card, cardsInfo[9].card],
-          positionLabels: ['Present', 'Outcome'],
-          isKeyTension: true,
-          significance: 'This tension between where you are and where things are heading is central to your reading.'
+  // For Celtic Cross: Check specific position pairs when spread matches or positions align
+  const celticCandidates = {
+    present: findCelticPositionIndex(cardsInfo, 'present'),
+    outcome: findCelticPositionIndex(cardsInfo, 'outcome'),
+    conscious: findCelticPositionIndex(cardsInfo, 'conscious'),
+    subconscious: findCelticPositionIndex(cardsInfo, 'subconscious'),
+    past: findCelticPositionIndex(cardsInfo, 'past'),
+    future: findCelticPositionIndex(cardsInfo, 'future'),
+    advice: findCelticPositionIndex(cardsInfo, 'advice'),
+    hopesFears: findCelticPositionIndex(cardsInfo, 'hopesFears')
+  };
+
+  const matchedRoles = Object.values(celticCandidates).filter((idx) => idx !== null).length;
+  const declaredCeltic = spreadKey === 'celtic' || spreadKey === 'celtic-cross';
+  const shouldApplyCelticPairs = (declaredCeltic && cardsInfo.length >= 6) || matchedRoles >= 6;
+
+  if (shouldApplyCelticPairs) {
+    const presentIdx = celticCandidates.present;
+    const outcomeIdx = celticCandidates.outcome;
+    if (presentIdx !== null && outcomeIdx !== null) {
+      const presentOutcome = detectTensionBetweenCards(cardsInfo[presentIdx], cardsInfo[outcomeIdx]);
+      if (presentOutcome) {
+        presentOutcome.forEach((t) => {
+          allTensions.push({
+            ...t,
+            positions: [presentIdx, outcomeIdx],
+            cards: [cardsInfo[presentIdx].card, cardsInfo[outcomeIdx].card],
+            positionLabels: buildPositionLabels(presentIdx, outcomeIdx, 'Present', 'Outcome'),
+            isKeyTension: true,
+            significance: 'This tension between where you are and where things are heading is central to your reading.'
+          });
         });
-      });
+      }
     }
 
-    // Conscious vs Subconscious
-    const consciousSub = detectTensionBetweenCards(cardsInfo[4], cardsInfo[5]);
-    if (consciousSub) {
-      consciousSub.forEach(t => {
-        allTensions.push({
-          ...t,
-          positions: [4, 5],
-          cards: [cardsInfo[4].card, cardsInfo[5].card],
-          positionLabels: ['Conscious Goals', 'Subconscious'],
-          significance: 'What you consciously want may not align with deeper needs—worth exploring.'
+    const consciousIdx = celticCandidates.conscious;
+    const subconsciousIdx = celticCandidates.subconscious;
+    if (consciousIdx !== null && subconsciousIdx !== null) {
+      const consciousSub = detectTensionBetweenCards(cardsInfo[consciousIdx], cardsInfo[subconsciousIdx]);
+      if (consciousSub) {
+        consciousSub.forEach((t) => {
+          allTensions.push({
+            ...t,
+            positions: [consciousIdx, subconsciousIdx],
+            cards: [cardsInfo[consciousIdx].card, cardsInfo[subconsciousIdx].card],
+            positionLabels: buildPositionLabels(consciousIdx, subconsciousIdx, 'Conscious Goals', 'Subconscious'),
+            significance: 'What you consciously want may not align with deeper needs—worth exploring.'
+          });
         });
-      });
+      }
     }
 
-    // Timeline pairs (Past↔Present, Present↔Future) for selectReasoningConnector
     const timelinePairs = [
-      { from: 2, to: 0, labels: ['Past', 'Present'] },
-      { from: 0, to: 3, labels: ['Present', 'Near Future'] }
-    ];
+      { from: celticCandidates.past, to: celticCandidates.present, labels: ['Past', 'Present'] },
+      { from: celticCandidates.present, to: celticCandidates.future, labels: ['Present', 'Near Future'] }
+    ].filter((pair) => pair.from !== null && pair.to !== null);
 
-    // Additional thematic pairs
     const thematicPairs = [
-      { from: 4, to: 6, labels: ['Conscious Goals', 'Advice'],
-        significance: 'What you consciously want and how to engage with it.' },
-      { from: 8, to: 9, labels: ['Hopes & Fears', 'Outcome'],
-        significance: 'Your deepest concerns meet the likely trajectory.' }
-    ];
+      {
+        from: celticCandidates.conscious,
+        to: celticCandidates.advice,
+        labels: ['Conscious Goals', 'Advice'],
+        significance: 'What you consciously want and how to engage with it.'
+      },
+      {
+        from: celticCandidates.hopesFears,
+        to: celticCandidates.outcome,
+        labels: ['Hopes & Fears', 'Outcome'],
+        significance: 'Your deepest concerns meet the likely trajectory.'
+      }
+    ].filter((pair) => pair.from !== null && pair.to !== null);
 
-    [...timelinePairs, ...thematicPairs].forEach(pair => {
+    [...timelinePairs, ...thematicPairs].forEach((pair) => {
       const tensions = detectTensionBetweenCards(cardsInfo[pair.from], cardsInfo[pair.to]);
       if (tensions) {
-        tensions.forEach(t => {
+        tensions.forEach((t) => {
           allTensions.push({
             ...t,
             positions: [pair.from, pair.to],
             cards: [cardsInfo[pair.from].card, cardsInfo[pair.to].card],
-            positionLabels: pair.labels,
+            positionLabels: buildPositionLabels(
+              pair.from,
+              pair.to,
+              pair.labels?.[0] || 'Position A',
+              pair.labels?.[1] || 'Position B'
+            ),
             significance: pair.significance || t.significance
           });
         });
@@ -1012,7 +1101,7 @@ export function buildReadingReasoning(cardsInfo, userQuestion, context, themes, 
   const narrativeArc = identifyNarrativeArc(cardsInfo);
 
   // Step 3: Detect tensions
-  const tensions = identifyTensions(cardsInfo);
+  const tensions = identifyTensions(cardsInfo, { spreadKey });
 
   // Step 4: Find throughlines
   const throughlines = identifyThroughlines(cardsInfo, themes);

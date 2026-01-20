@@ -14,7 +14,7 @@ import { saveMemory } from './userMemory.js';
  */
 export const MEMORY_TOOL_DEFINITION = {
   name: 'save_memory_note',
-  description: `Save a meaningful insight about this person for future readings. Use sparingly - only capture genuinely useful personalization data that will help provide better readings in the future.
+  description: `Save a durable, high-signal insight about this person for future readings. Use sparingly - only capture genuinely useful personalization data that will help provide better readings in the future. Notes are staged as session memory first and only promoted if they appear durable.
 
 GOOD memories to save:
 - Recurring themes they explore (career transitions, relationship patterns, creative blocks)
@@ -33,7 +33,7 @@ DO NOT save:
     properties: {
       text: {
         type: 'string',
-        description: 'The memory note to save. Keep it concise (1-2 sentences, max 200 characters). Write in third person ("User prefers..." not "You prefer...").'
+        description: 'The memory note to save. Keep it concise (1-2 sentences, max 200 characters). Write in third person ("User prefers..." not "You prefer..."). If it is explicitly temporary, prefix with "This reading only:" and consider skipping the tool.'
       },
       keywords: {
         type: 'array',
@@ -223,6 +223,7 @@ You have access to a \`save_memory_note\` tool to remember meaningful insights a
 - Keep it concise (1-2 sentences)
 - Choose the most appropriate category
 - Add 2-3 relevant keywords
+- If the user says this is only for this reading, either skip saving or prefix the note with "This reading only:"
 
 The tool runs silently - don't mention to the user that you're saving a memory.
 `.trim();

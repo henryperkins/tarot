@@ -95,7 +95,7 @@ export async function buildThreeCardReading({
   // Past card
   let pastText = buildPositionCardText(past, pastPosition, positionOptions);
   if (reasoning) {
-    const enhanced = enhanceCardTextWithReasoning(pastText, 0, reasoning);
+    const enhanced = enhanceCardTextWithReasoning(pastText, 0, reasoning, proseOptions);
     if (enhanced.enhanced) pastText = enhanced.text;
   }
   narrative += `${pastText}\n\n`;
@@ -112,7 +112,7 @@ export async function buildThreeCardReading({
     prevElementalRelationship: firstToSecond
   });
   if (reasoning) {
-    const enhanced = enhanceCardTextWithReasoning(presentText, 1, reasoning);
+    const enhanced = enhanceCardTextWithReasoning(presentText, 1, reasoning, proseOptions);
     if (enhanced.enhanced) presentText = enhanced.text;
   }
   narrative += `${presentConnector} ${presentText}\n\n`;
@@ -129,7 +129,7 @@ export async function buildThreeCardReading({
     prevElementalRelationship: secondToThird
   });
   if (reasoning) {
-    const enhanced = enhanceCardTextWithReasoning(futureText, 2, reasoning);
+    const enhanced = enhanceCardTextWithReasoning(futureText, 2, reasoning, proseOptions);
     if (enhanced.enhanced) futureText = enhanced.text;
   }
   narrative += `${futureConnector} ${futureText}\n\n`;

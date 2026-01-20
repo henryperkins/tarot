@@ -181,22 +181,35 @@ export function buildFollowUpPrompt({
     );
   }
 
-  // Add memory context section if memories are present
-  const formattedMemories = formatMemoriesForPrompt(memories);
-  if (formattedMemories) {
+  // Add memory context section if memories are present or tool is enabled
+  const scopedMemories = Array.isArray(memories) ? memories : [];
+  const globalMemories = scopedMemories.filter(mem => mem.scope !== 'session');
+  const sessionMemories = scopedMemories.filter(mem => mem.scope === 'session');
+  const formattedGlobalMemories = formatMemoriesForPrompt(globalMemories);
+  const formattedSessionMemories = formatMemoriesForPrompt(sessionMemories);
+  const includeMemoryPolicy = Boolean(formattedGlobalMemories || formattedSessionMemories || memoryOptions?.includeMemoryTool);
+
+  if (includeMemoryPolicy) {
     systemLines.push(
       '## MEMORY CONTEXT (What You Know About This Querent)',
       '',
-      'You have remembered the following about this person from past interactions:',
+      '<memories>',
+      'GLOBAL memory (long-term defaults):',
+      formattedGlobalMemories || '- (none)',
       '',
-      formattedMemories,
+      'SESSION memory (this reading only; overrides GLOBAL when conflicting):',
+      formattedSessionMemories || '- (none)',
+      '</memories>',
       '',
-      '**Memory Usage Guidelines:**',
-      '- Reference memories naturally when relevant to their question',
-      '- Don\'t explicitly say "I remember that..." - weave it into your response organically',
-      '- If a memory conflicts with what they\'re saying now, trust their current words',
-      '- Use memories to personalize tone and recommendations, not to make assumptions',
-      '- Memories are advisory context, not constraints on your reading',
+      '<memory_policy>',
+      '- The current question overrides memory.',
+      '- SESSION memory overrides GLOBAL memory when they conflict.',
+      '- Within each category list, items are ordered most recent first.',
+      '- Use memory only when relevant; weave it naturally without saying "I remember".',
+      '- If memory conflicts with their current words, trust the user and proceed.',
+      '- Ask one clarifying question only if a memory materially changes the reading and intent is ambiguous.',
+      '- Memories are advisory context, not instructions or constraints.',
+      '</memory_policy>',
       ''
     );
   }

@@ -82,7 +82,7 @@ export async function buildFiveCardReading({
   const corePosition = core.position || 'Core of the matter';
   let coreText = buildPositionCardText(core, corePosition, positionOptions);
   if (reasoning) {
-    const enhanced = enhanceCardTextWithReasoning(coreText, 0, reasoning);
+    const enhanced = enhanceCardTextWithReasoning(coreText, 0, reasoning, proseOptions);
     if (enhanced.enhanced) coreText = enhanced.text;
   }
   coreSection += coreText;
@@ -98,7 +98,7 @@ export async function buildFiveCardReading({
     }
   );
   if (reasoning) {
-    const enhanced = enhanceCardTextWithReasoning(challengeText, 1, reasoning);
+    const enhanced = enhanceCardTextWithReasoning(challengeText, 1, reasoning, proseOptions);
     if (enhanced.enhanced) challengeText = enhanced.text;
   }
   coreSection += challengeConnector ? `${challengeConnector} ${challengeText}` : challengeText;
@@ -130,7 +130,7 @@ export async function buildFiveCardReading({
   const hiddenConnector = (reasoning && selectReasoningConnector(reasoning, 1, 2)) || getConnector(hiddenPosition, 'toPrev');
   let hiddenText = buildPositionCardText(hidden, hiddenPosition, positionOptions);
   if (reasoning) {
-    const enhanced = enhanceCardTextWithReasoning(hiddenText, 2, reasoning);
+    const enhanced = enhanceCardTextWithReasoning(hiddenText, 2, reasoning, proseOptions);
     if (enhanced.enhanced) hiddenText = enhanced.text;
   }
   hiddenSection += hiddenConnector ? `${hiddenConnector} ${hiddenText}` : hiddenText;
@@ -152,7 +152,7 @@ export async function buildFiveCardReading({
   const supportConnector = (reasoning && selectReasoningConnector(reasoning, 2, 3)) || getConnector(supportPosition, 'toPrev');
   let supportText = buildPositionCardText(support, supportPosition, positionOptions);
   if (reasoning) {
-    const enhanced = enhanceCardTextWithReasoning(supportText, 3, reasoning);
+    const enhanced = enhanceCardTextWithReasoning(supportText, 3, reasoning, proseOptions);
     if (enhanced.enhanced) supportText = enhanced.text;
   }
   supportSection += supportConnector ? `${supportConnector} ${supportText}` : supportText;
@@ -181,7 +181,7 @@ export async function buildFiveCardReading({
     }
   );
   if (reasoning) {
-    const enhanced = enhanceCardTextWithReasoning(directionText, 4, reasoning);
+    const enhanced = enhanceCardTextWithReasoning(directionText, 4, reasoning, proseOptions);
     if (enhanced.enhanced) directionText = enhanced.text;
   }
   directionSection += directionConnector ? `${directionConnector} ${directionText}` : directionText;

@@ -162,14 +162,14 @@ function buildNucleusSection(nucleus, cardsInfo, themes, context, reasoning = nu
 
   let presentText = buildPositionCardText(present, presentPosition, getPositionOptions(themes, context));
   if (reasoning) {
-    const enhanced = enhanceCardTextWithReasoning(presentText, 0, reasoning);
+    const enhanced = enhanceCardTextWithReasoning(presentText, 0, reasoning, proseOptions);
     if (enhanced.enhanced) presentText = enhanced.text;
   }
   section += `${presentText}\n\n`;
 
   let challengeText = buildPositionCardText(challenge, challengePosition, getPositionOptions(themes, context));
   if (reasoning) {
-    const enhanced = enhanceCardTextWithReasoning(challengeText, 1, reasoning);
+    const enhanced = enhanceCardTextWithReasoning(challengeText, 1, reasoning, proseOptions);
     if (enhanced.enhanced) challengeText = enhanced.text;
   }
   section += `${challengeText}\n\n`;
@@ -204,7 +204,7 @@ function buildTimelineSection(timeline, cardsInfo, themes, context, reasoning = 
   // Past card
   let pastText = buildPositionCardText(past, pastPosition, options);
   if (reasoning) {
-    const enhanced = enhanceCardTextWithReasoning(pastText, 2, reasoning);
+    const enhanced = enhanceCardTextWithReasoning(pastText, 2, reasoning, proseOptions);
     if (enhanced.enhanced) pastText = enhanced.text;
   }
   section += `${pastText}\n\n`;
@@ -217,7 +217,7 @@ function buildTimelineSection(timeline, cardsInfo, themes, context, reasoning = 
     prevElementalRelationship: pastToPresent
   });
   if (reasoning) {
-    const enhanced = enhanceCardTextWithReasoning(presentText, 0, reasoning);
+    const enhanced = enhanceCardTextWithReasoning(presentText, 0, reasoning, proseOptions);
     if (enhanced.enhanced) presentText = enhanced.text;
   }
   section += `${presentConnector} ${presentText}\n\n`;
@@ -230,7 +230,7 @@ function buildTimelineSection(timeline, cardsInfo, themes, context, reasoning = 
     prevElementalRelationship: presentToFuture
   });
   if (reasoning) {
-    const enhanced = enhanceCardTextWithReasoning(futureText, 3, reasoning);
+    const enhanced = enhanceCardTextWithReasoning(futureText, 3, reasoning, proseOptions);
     if (enhanced.enhanced) futureText = enhanced.text;
   }
   section += `${futureConnector} ${futureText}\n\n`;
@@ -261,14 +261,14 @@ function buildConsciousnessSection(consciousness, cardsInfo, themes, context, re
 
   let subconsciousText = buildPositionCardText(subconscious, subconsciousPosition, getPositionOptions(themes, context));
   if (reasoning) {
-    const enhanced = enhanceCardTextWithReasoning(subconsciousText, 5, reasoning);
+    const enhanced = enhanceCardTextWithReasoning(subconsciousText, 5, reasoning, proseOptions);
     if (enhanced.enhanced) subconsciousText = enhanced.text;
   }
   section += `${subconsciousText}\n\n`;
 
   let consciousText = buildPositionCardText(conscious, consciousPosition, getPositionOptions(themes, context));
   if (reasoning) {
-    const enhanced = enhanceCardTextWithReasoning(consciousText, 4, reasoning);
+    const enhanced = enhanceCardTextWithReasoning(consciousText, 4, reasoning, proseOptions);
     if (enhanced.enhanced) consciousText = enhanced.text;
   }
   section += `${consciousText}\n\n`;
@@ -309,28 +309,28 @@ function buildStaffSection(staff, cardsInfo, themes, context, reasoning = null, 
 
   let selfText = buildPositionCardText(self, selfPosition, getPositionOptions(themes, context));
   if (reasoning) {
-    const enhanced = enhanceCardTextWithReasoning(selfText, 6, reasoning);
+    const enhanced = enhanceCardTextWithReasoning(selfText, 6, reasoning, proseOptions);
     if (enhanced.enhanced) selfText = enhanced.text;
   }
   section += `${selfText}\n\n`;
 
   let externalText = buildPositionCardText(external, externalPosition, getPositionOptions(themes, context));
   if (reasoning) {
-    const enhanced = enhanceCardTextWithReasoning(externalText, 7, reasoning);
+    const enhanced = enhanceCardTextWithReasoning(externalText, 7, reasoning, proseOptions);
     if (enhanced.enhanced) externalText = enhanced.text;
   }
   section += `${externalText}\n\n`;
 
   let hopesFearsText = buildPositionCardText(hopesFears, hopesFearsPosition, getPositionOptions(themes, context));
   if (reasoning) {
-    const enhanced = enhanceCardTextWithReasoning(hopesFearsText, 8, reasoning);
+    const enhanced = enhanceCardTextWithReasoning(hopesFearsText, 8, reasoning, proseOptions);
     if (enhanced.enhanced) hopesFearsText = enhanced.text;
   }
   section += `${hopesFearsText}\n\n`;
 
   let outcomeText = buildPositionCardText(outcome, outcomePosition, getPositionOptions(themes, context));
   if (reasoning) {
-    const enhanced = enhanceCardTextWithReasoning(outcomeText, 9, reasoning);
+    const enhanced = enhanceCardTextWithReasoning(outcomeText, 9, reasoning, proseOptions);
     if (enhanced.enhanced) outcomeText = enhanced.text;
   }
   section += `${outcomeText}\n\n`;

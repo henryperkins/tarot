@@ -394,26 +394,34 @@ export function isGraphRAGEnabled(env) {
     if (typeof process !== 'undefined' && process.env) {
       effectiveEnv = process.env;
     } else {
-      // No env available - default to enabled
-      return true;
+      // No env available - default to disabled to avoid unexpected activation
+      return false;
     }
   }
 
   // Check GRAPHRAG_ENABLED first (preferred), fall back to legacy KNOWLEDGE_GRAPH_ENABLED
   const envValue = effectiveEnv.GRAPHRAG_ENABLED ?? effectiveEnv.KNOWLEDGE_GRAPH_ENABLED;
 
-  // Explicitly disabled
-  if (envValue === 'false' || envValue === '0') {
-    return false;
+  if (typeof envValue === 'boolean') {
+    return envValue;
   }
 
-  // Explicitly enabled
-  if (envValue === 'true' || envValue === '1') {
-    return true;
+  if (typeof envValue === 'number') {
+    return envValue > 0;
   }
 
-  // Default: enabled (opt-out rather than opt-in for prototype)
-  return true;
+  if (typeof envValue === 'string') {
+    const normalized = envValue.trim().toLowerCase();
+    if (normalized === 'true' || normalized === '1' || normalized === 'yes' || normalized === 'on') {
+      return true;
+    }
+    if (normalized === 'false' || normalized === '0' || normalized === 'no' || normalized === 'off') {
+      return false;
+    }
+  }
+
+  // Default: disabled unless explicitly enabled
+  return false;
 }
 
 /**

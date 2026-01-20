@@ -6,6 +6,7 @@ import {
   getMemories,
   deleteMemory,
   clearAllMemories,
+  consolidateSessionMemories,
   formatMemoriesForPrompt,
   MEMORY_CONSTANTS
 } from '../functions/lib/userMemory.js';
@@ -61,6 +62,65 @@ class MockDB {
 
           // Handle UPDATE
           if (sql.includes('UPDATE')) {
+            if (sql.includes("SET scope = 'global'")) {
+              const createdAt = args[0];
+              const id = args[1];
+              const memory = db.memories.get(id);
+              if (memory) {
+                memory.scope = 'global';
+                memory.session_id = null;
+                memory.expires_at = null;
+                memory.created_at = createdAt;
+                return { meta: { changes: 1 } };
+              }
+              return { meta: { changes: 0 } };
+            }
+
+            if (sql.includes('SET confidence = MAX(confidence') && sql.includes('created_at')) {
+              const confidence = args[0];
+              const lastAccessed = args[1];
+              const createdAt = args[2];
+              const id = args[3];
+              const memory = db.memories.get(id);
+              if (memory) {
+                memory.confidence = Math.max(memory.confidence, confidence);
+                memory.last_accessed_at = lastAccessed;
+                memory.created_at = createdAt;
+                return { meta: { changes: 1 } };
+              }
+              return { meta: { changes: 0 } };
+            }
+
+            if (sql.includes('SET last_accessed_at = ?, confidence = MAX(confidence')) {
+              const lastAccessed = args[0];
+              const confidence = args[1];
+              const userId = args[2];
+              const text = args[3];
+              let updated = 0;
+              for (const memory of db.memories.values()) {
+                if (memory.user_id === userId && memory.text === text && memory.scope === 'global') {
+                  memory.confidence = Math.max(memory.confidence, confidence);
+                  memory.last_accessed_at = lastAccessed;
+                  updated++;
+                }
+              }
+              return { meta: { changes: updated } };
+            }
+
+            if (sql.includes('SET last_accessed_at = ?') && sql.includes('WHERE id IN')) {
+              const lastAccessed = args[0];
+              const ids = args.slice(1);
+              let updated = 0;
+              ids.forEach(id => {
+                const memory = db.memories.get(id);
+                if (memory) {
+                  memory.last_accessed_at = lastAccessed;
+                  updated++;
+                }
+              });
+              return { meta: { changes: updated } };
+            }
+
             return { meta: { changes: 1 } };
           }
 
@@ -72,6 +132,15 @@ class MockDB {
               if (db.memories.has(id)) {
                 db.memories.delete(id);
                 deleted = 1;
+              }
+            } else if (sql.includes("scope = 'session'") && sql.includes('session_id = ?')) {
+              const userId = args[0];
+              const sessionId = args[1];
+              for (const [k, v] of db.memories) {
+                if (v.user_id === userId && v.scope === 'session' && v.session_id === sessionId) {
+                  db.memories.delete(k);
+                  deleted++;
+                }
               }
             } else if (sql.includes('WHERE user_id = ?')) {
               const userId = args[0];
@@ -120,6 +189,18 @@ class MockDB {
 
           for (const m of db.memories.values()) {
             if (m.user_id === userId) {
+              if (
+                sql.includes("scope = 'session'")
+                && sql.includes('session_id = ?')
+                && !sql.includes("(scope = 'global' OR (scope = 'session' AND session_id = ?)")
+              ) {
+                const sessionId = args[1];
+                if (m.scope === 'session' && m.session_id === sessionId) {
+                  results.push(m);
+                }
+                continue;
+              }
+
               // Handle compound OR clause for scope = 'all' with sessionId
               if (sql.includes("(scope = 'global' OR (scope = 'session' AND session_id = ?)")) {
                 // This is scope='all' with sessionId - allow global OR matching session
@@ -424,6 +505,40 @@ describe('userMemory', () => {
       const formatted = formatMemoriesForPrompt(null);
 
       assert.equal(formatted, '');
+    });
+  });
+
+  describe('consolidateSessionMemories', () => {
+    test('promotes durable session memories to global scope', async () => {
+      await saveMemory(db, 'user-1', {
+        text: 'User prefers direct language',
+        category: 'communication',
+        scope: 'session',
+        sessionId: 'reading-1'
+      });
+
+      const result = await consolidateSessionMemories(db, 'user-1', 'reading-1');
+
+      assert.equal(result.promoted, 1);
+      const saved = Array.from(db.memories.values()).find(m => m.text === 'User prefers direct language');
+      assert.equal(saved.scope, 'global');
+      assert.equal(saved.session_id, null);
+      assert.equal(saved.expires_at, null);
+    });
+
+    test('skips session-only memories during consolidation', async () => {
+      await saveMemory(db, 'user-1', {
+        text: 'This reading only: focus on self-compassion',
+        category: 'life_context',
+        scope: 'session',
+        sessionId: 'reading-2'
+      });
+
+      const result = await consolidateSessionMemories(db, 'user-1', 'reading-2');
+
+      assert.equal(result.promoted, 0);
+      assert.ok(result.pruned >= 1);
+      assert.equal(db.memories.size, 0);
     });
   });
 

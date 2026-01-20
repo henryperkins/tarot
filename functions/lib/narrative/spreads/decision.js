@@ -84,7 +84,7 @@ export async function buildDecisionReading({
   if (heart) {
     let heartText = buildPositionCardText(heart, heartPosition, positionOptions);
     if (reasoning) {
-      const enhanced = enhanceCardTextWithReasoning(heartText, 0, reasoning);
+      const enhanced = enhanceCardTextWithReasoning(heartText, 0, reasoning, proseOptions);
       if (enhanced.enhanced) heartText = enhanced.text;
     }
     choice += heartText;
@@ -113,7 +113,7 @@ export async function buildDecisionReading({
     const pathAConnector = (reasoning && selectReasoningConnector(reasoning, 0, 1)) || getConnector(pathAPosition, 'toPrev');
     let pathAText = buildPositionCardText(pathA, pathAPosition, positionOptions);
     if (reasoning) {
-      const enhanced = enhanceCardTextWithReasoning(pathAText, 1, reasoning);
+      const enhanced = enhanceCardTextWithReasoning(pathAText, 1, reasoning, proseOptions);
       if (enhanced.enhanced) pathAText = enhanced.text;
     }
     aSection += pathAConnector ? `${pathAConnector} ${pathAText}` : pathAText;
@@ -140,7 +140,7 @@ export async function buildDecisionReading({
     const pathBConnector = (reasoning && selectReasoningConnector(reasoning, 1, 2)) || getConnector(pathBPosition, 'toPrev');
     let pathBText = buildPositionCardText(pathB, pathBPosition, positionOptions);
     if (reasoning) {
-      const enhanced = enhanceCardTextWithReasoning(pathBText, 2, reasoning);
+      const enhanced = enhanceCardTextWithReasoning(pathBText, 2, reasoning, proseOptions);
       if (enhanced.enhanced) pathBText = enhanced.text;
     }
     bSection += pathBConnector ? `${pathBConnector} ${pathBText}` : pathBText;
@@ -168,7 +168,7 @@ export async function buildDecisionReading({
     const clarifierConnector = (reasoning && selectReasoningConnector(reasoning, 2, 3)) || getConnector(clarifierPosition, 'toPrev');
     let clarifierText = buildPositionCardText(clarifier, clarifierPosition, positionOptions);
     if (reasoning) {
-      const enhanced = enhanceCardTextWithReasoning(clarifierText, 3, reasoning);
+      const enhanced = enhanceCardTextWithReasoning(clarifierText, 3, reasoning, proseOptions);
       if (enhanced.enhanced) clarifierText = enhanced.text;
     }
     clarity += clarifierConnector ? `${clarifierConnector} ${clarifierText}` : clarifierText;
@@ -194,7 +194,7 @@ export async function buildDecisionReading({
     const freeWillConnector = (reasoning && selectReasoningConnector(reasoning, 3, 4)) || getConnector(freeWillPosition, 'toPrev');
     let freeWillText = buildPositionCardText(freeWill, freeWillPosition, positionOptions);
     if (reasoning) {
-      const enhanced = enhanceCardTextWithReasoning(freeWillText, 4, reasoning);
+      const enhanced = enhanceCardTextWithReasoning(freeWillText, 4, reasoning, proseOptions);
       if (enhanced.enhanced) freeWillText = enhanced.text;
     }
     clarity += freeWillConnector ? `${freeWillConnector} ${freeWillText}` : freeWillText;

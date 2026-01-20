@@ -60,14 +60,14 @@ describe('semantic scoring prefetch expectations', () => {
     assert.equal(promptMeta.graphRAG.semanticScoringUsed, false);
     assert.equal(promptMeta.graphRAG.semanticScoringFallback, true);
     assert.equal(promptMeta.graphRAG.reason, 'semantic-scoring-not-prefetched');
-    assert.equal(promptMeta.graphRAG.includedInPrompt, true);
-    assert.ok(promptMeta.graphRAG.passagesProvided >= 1, 'GraphRAG should inject keyword-ranked passages');
+    assert.equal(promptMeta.graphRAG.includedInPrompt, false);
+    assert.equal(promptMeta.graphRAG.passagesProvided, 0, 'GraphRAG should be skipped when semantic payload is missing');
     assert.ok(
       Array.isArray(contextDiagnostics) &&
       contextDiagnostics.some((d) =>
-        d.includes('Semantic scoring requested') && d.includes('keyword')
+        d.includes('Semantic scoring requested') && d.toLowerCase().includes('skipping graphrag')
       ),
-      'Diagnostics should flag semantic scoring fallback to keyword retrieval'
+      'Diagnostics should flag semantic scoring fallback and skip injection when payload is missing'
     );
   });
 });
@@ -423,5 +423,55 @@ describe('cardsInfo validation guard', () => {
     });
     assert.ok(userPrompt.length > 0, 'Valid cardsInfo should produce a prompt');
     assert.ok(userPrompt.includes('The Fool'), 'Prompt should reference the card');
+  });
+});
+
+describe('context and deck style validation signals', () => {
+  it('returns null when context fallback is disabled', () => {
+    const normalized = normalizeContext('mystery-context', { allowFallback: false });
+    assert.equal(normalized, null);
+  });
+
+  it('throws when strict context validation is requested', () => {
+    assert.throws(
+      () => normalizeContext('mystery-context', { strict: true, allowFallback: false }),
+      /Unknown context/
+    );
+  });
+
+  it('prefers theme deckStyle and surfaces diagnostics on conflict', () => {
+    const { promptMeta, contextDiagnostics } = buildEnhancedClaudePrompt({
+      spreadInfo: { name: 'Three-Card Story (Past · Present · Future)', deckStyle: 'marseille-classic' },
+      cardsInfo: [
+        { card: 'The Fool', position: 'Past', number: 0, orientation: 'Upright', meaning: 'Start.' },
+        { card: 'The Magician', position: 'Present', number: 1, orientation: 'Upright', meaning: 'Manifest.' },
+        { card: 'The High Priestess', position: 'Future', number: 2, orientation: 'Reversed', meaning: 'Inner voice.' }
+      ],
+      userQuestion: 'How do I integrate this chapter?',
+      reflectionsText: '',
+      themes: {
+        deckStyle: 'thoth-a1',
+        reversalDescription: {
+          name: 'Upright Focus',
+          description: 'No reversals detected.',
+          guidance: 'Refer to upright meanings unless a reversed card appears.'
+        },
+        knowledgeGraph: {},
+        suitCounts: {},
+        elementCounts: {}
+      },
+      spreadAnalysis: null,
+      context: 'self',
+      visionInsights: [],
+      deckStyle: 'rws-1909',
+      promptBudgetEnv: { GRAPHRAG_ENABLED: 'false' }
+    });
+
+    assert.equal(promptMeta.deckStyle, 'thoth-a1');
+    assert.ok(
+      Array.isArray(contextDiagnostics) &&
+      contextDiagnostics.some((d) => d.includes('deck-style')),
+      'Deck style conflicts should surface diagnostics'
+    );
   });
 });

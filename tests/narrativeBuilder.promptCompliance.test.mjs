@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { describe, it } from 'node:test';
+import { describe, it, before, after } from 'node:test';
 
 import {
   buildCelticCrossReading,
@@ -10,6 +10,16 @@ import {
   buildSingleCardReading,
   buildEnhancedClaudePrompt
 } from '../functions/lib/narrativeBuilder.js';
+
+const ORIGINAL_NODE_ENV = process.env.NODE_ENV;
+
+before(() => {
+  process.env.NODE_ENV = 'test';
+});
+
+after(() => {
+  process.env.NODE_ENV = ORIGINAL_NODE_ENV;
+});
 
 // ──────────────────────────────────────────────────────────
 // Spread-Key Resolution Tests
@@ -899,7 +909,8 @@ describe('Prompt budget telemetry', () => {
       themes,
       spreadAnalysis: threeCardAnalysis,
       context: 'general',
-      graphRAGPayload
+      graphRAGPayload,
+      promptBudgetEnv: { GRAPHRAG_ENABLED: 'true' }
     });
 
     assert.equal(promptMeta.slimmingEnabled, false);

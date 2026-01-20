@@ -87,7 +87,7 @@ export async function buildRelationshipReading({
     const youPosition = youCard.position || 'You / your energy';
     let youText = buildPositionCardText(youCard, youPosition, positionOptions);
     if (reasoning) {
-      const enhanced = enhanceCardTextWithReasoning(youText, 0, reasoning);
+      const enhanced = enhanceCardTextWithReasoning(youText, 0, reasoning, proseOptions);
       if (enhanced.enhanced) youText = enhanced.text;
     }
     youThem += youText;
@@ -115,7 +115,7 @@ export async function buildRelationshipReading({
     const themConnector = (reasoning && selectReasoningConnector(reasoning, 0, 1)) || getConnector(themPosition, 'toPrev');
     let themText = buildPositionCardText(themCard, themPosition, positionOptions);
     if (reasoning) {
-      const enhanced = enhanceCardTextWithReasoning(themText, 1, reasoning);
+      const enhanced = enhanceCardTextWithReasoning(themText, 1, reasoning, proseOptions);
       if (enhanced.enhanced) themText = enhanced.text;
     }
     youThem += themConnector ? `${themConnector} ${themText}` : themText;
@@ -169,7 +169,7 @@ export async function buildRelationshipReading({
     const connectionConnector = (reasoning && selectReasoningConnector(reasoning, 1, 2)) || getConnector(connectionPosition, 'toPrev');
     let connectionText = buildPositionCardText(connectionCard, connectionPosition, positionOptions);
     if (reasoning) {
-      const enhanced = enhanceCardTextWithReasoning(connectionText, 2, reasoning);
+      const enhanced = enhanceCardTextWithReasoning(connectionText, 2, reasoning, proseOptions);
       if (enhanced.enhanced) connectionText = enhanced.text;
     }
     connection += connectionConnector ? `${connectionConnector} ${connectionText}` : connectionText;
