@@ -149,7 +149,7 @@ export function estimateTokenCount(text = '') {
   const bytes = typeof Buffer !== 'undefined' ? Buffer.byteLength(safe, 'utf8') : safe.length;
 
   // Markdown symbols tend to inflate token counts relative to character length.
-  const markdownSymbols = (safe.match(/[#>*_`~\[\]\(\)]/g) || []).length;
+  const markdownSymbols = (safe.match(/[#>*_`~[\]()]/g) || []).length;
   const markdownPenalty = Math.ceil(markdownSymbols * 0.25);
 
   const baseEstimate = Math.max(

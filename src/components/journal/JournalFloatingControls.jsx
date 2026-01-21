@@ -38,8 +38,11 @@ export function JournalFloatingControls({
 
   return (
     <div
-      className="fixed z-40 right-4 sm:right-6 flex flex-col items-end gap-2"
-      style={{ bottom: 'max(1rem, env(safe-area-inset-bottom, 0px))' }}
+      className="fixed z-40 flex flex-col items-end gap-2"
+      style={{
+        right: 'max(env(safe-area-inset-right, 0px), clamp(1rem, 2vw, 1.5rem))',
+        bottom: 'max(env(safe-area-inset-bottom, 0px), clamp(1rem, 2vw, 1.5rem))'
+      }}
     >
       {showActiveFilters && (
         <div className="max-w-sm rounded-2xl border border-amber-300/15 bg-[#0b0c1d]/90 px-3 py-2 text-[11px] text-amber-100/75 shadow-[0_22px_55px_-28px_rgba(0,0,0,0.85)] backdrop-blur">
