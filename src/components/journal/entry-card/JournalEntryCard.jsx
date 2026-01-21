@@ -7,7 +7,7 @@
  * This is a redesigned version of the original 1345-line component,
  * now decomposed into ~150 lines using extracted hooks and sub-components.
  */
-import { memo, useEffect, useId, useState } from 'react';
+import { memo, useEffect, useId, useRef, useState } from 'react';
 import { useSmallScreen } from '../../../hooks/useSmallScreen';
 import { InlineStatus } from '../../InlineStatus.jsx';
 import { useInlineStatus } from '../../../hooks/useInlineStatus';
@@ -90,11 +90,14 @@ export const JournalEntryCard = memo(function JournalEntryCard({
   const cardsId = useId();
   const actionMenuId = `${entry.id || entry.ts || 'entry'}-actions-menu`;
 
-  // Collapse sub-sections when card collapses
+  const wasExpandedRef = useRef(isExpanded);
+
+  // Close the menu when a user collapses an expanded card.
   useEffect(() => {
-    if (!isExpanded) {
+    if (wasExpandedRef.current && !isExpanded) {
       actionMenu.close();
     }
+    wasExpandedRef.current = isExpanded;
   }, [isExpanded, actionMenu]);
 
   // Handle toggle with compact mode awareness

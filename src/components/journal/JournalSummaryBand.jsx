@@ -253,11 +253,11 @@ export function JournalSummaryBand({
           )}
 
           {/* CTAs - Clear actions */}
-          <div className="flex gap-3">
+          <div className="flex flex-col gap-3 sm:flex-row">
             <button
               type="button"
               onClick={() => onStartReading()}
-              className="flex-1 inline-flex items-center justify-center gap-2 rounded-full bg-gradient-to-r from-amber-300 to-amber-400 px-4 py-3 text-sm font-semibold text-slate-900 shadow-lg shadow-amber-400/20 transition hover:shadow-amber-300/30 hover:-translate-y-0.5 active:translate-y-0 min-h-[44px]"
+              className="inline-flex min-h-[44px] w-full min-w-0 items-center justify-center gap-2 rounded-full bg-gradient-to-r from-amber-300 to-amber-400 px-4 py-3 text-sm font-semibold text-slate-900 shadow-lg shadow-amber-400/20 transition hover:shadow-amber-300/30 hover:-translate-y-0.5 active:translate-y-0 sm:w-auto sm:flex-1"
             >
               <JournalPlusCircleIcon className="h-4 w-4" aria-hidden />
               New Reading
@@ -271,7 +271,7 @@ export function JournalSummaryBand({
                     journeySection.scrollIntoView({ behavior: 'smooth', block: 'start' });
                   }
                 }}
-                className="flex-1 inline-flex items-center justify-center gap-2 rounded-full border border-amber-300/30 bg-amber-200/5 px-4 py-3 text-sm font-medium text-amber-100 transition hover:bg-amber-200/10 hover:border-amber-300/40 min-h-[44px]"
+                className="inline-flex min-h-[44px] w-full min-w-0 items-center justify-center gap-2 rounded-full border border-amber-300/30 bg-amber-200/5 px-4 py-3 text-sm font-medium text-amber-100 transition hover:bg-amber-200/10 hover:border-amber-300/40 sm:w-auto sm:flex-1"
               >
                 See Journey
                 <CaretDown className="h-4 w-4" aria-hidden />
@@ -280,7 +280,7 @@ export function JournalSummaryBand({
               <button
                 type="button"
                 onClick={() => setIsExpanded(true)}
-                className="flex-1 inline-flex items-center justify-center gap-2 rounded-full border border-amber-300/30 bg-amber-200/5 px-4 py-3 text-sm font-medium text-amber-100 transition hover:bg-amber-200/10 hover:border-amber-300/40 min-h-[44px]"
+                className="inline-flex min-h-[44px] w-full min-w-0 items-center justify-center gap-2 rounded-full border border-amber-300/30 bg-amber-200/5 px-4 py-3 text-sm font-medium text-amber-100 transition hover:bg-amber-200/10 hover:border-amber-300/40 sm:w-auto sm:flex-1"
               >
                 Show Details
                 <CaretDown className="h-4 w-4" aria-hidden />
