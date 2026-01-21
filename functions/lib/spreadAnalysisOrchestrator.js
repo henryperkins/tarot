@@ -233,9 +233,16 @@ export async function performSpreadAnalysis(spreadInfo, cardsInfo, options = {},
     options.env = env;
   }
 
-  // Apply semantic scoring config from environment if not already specified
+  // Apply semantic scoring config from environment if not already specified.
+  // Preserve `undefined` so downstream GraphRAG auto-detection can kick in.
   if (options.enableSemanticScoring === undefined) {
-    options.enableSemanticScoring = resolveSemanticScoring(env, null);
+    const resolvedSemanticScoring = resolveSemanticScoring(env, undefined);
+    if (resolvedSemanticScoring !== undefined) {
+      options.enableSemanticScoring = resolvedSemanticScoring;
+    }
+  }
+  if (options.enableSemanticScoring === null) {
+    options.enableSemanticScoring = undefined;
   }
 
   // =========================================================================
@@ -314,9 +321,11 @@ export async function performSpreadAnalysis(spreadInfo, cardsInfo, options = {},
     const graphKeys = themes?.knowledgeGraph?.graphKeys;
     if (graphKeys) {
       const semanticAvailable = graphRAG.isSemanticScoringAvailable(options.env);
+      const semanticScoringSetting = options.enableSemanticScoring;
+      const isAutoSemanticScoring = semanticScoringSetting === undefined || semanticScoringSetting === null;
       const requestedSemanticScoring =
-        options.enableSemanticScoring === true ||
-        (options.enableSemanticScoring === undefined && semanticAvailable);
+        semanticScoringSetting === true ||
+        (isAutoSemanticScoring && semanticAvailable);
       const enableSemanticScoring = requestedSemanticScoring && semanticAvailable;
 
       if (requestedSemanticScoring && !semanticAvailable) {

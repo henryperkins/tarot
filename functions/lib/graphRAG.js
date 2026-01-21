@@ -80,7 +80,7 @@ function matchesWholeWord(text, keyword) {
  * default to paid/full depth to preserve existing behavior.
  *
  * @param {string} spreadKey
- * @param {string} [tier='free'] - 'free' | 'plus' | 'pro'
+ * @param {string} [tier='plus'] - 'free' | 'plus' | 'pro'
  * @returns {number}
  */
 export function getPassageCountForSpread(spreadKey, tier = 'plus') {
@@ -648,7 +648,7 @@ function comparePassagesForPrompt(a, b, strategy) {
  * @param {string} [options.userQuery=''] - User's question for relevance scoring
  * @param {number} [options.minRelevanceScore=0.3] - Minimum relevance to include
  * @param {boolean} [options.enableDeduplication=true] - Remove similar passages
- * @param {boolean} [options.enableSemanticScoring] - Use embeddings API (auto-detected if omitted)
+ * @param {boolean|null} [options.enableSemanticScoring] - Use embeddings API (auto-detected if omitted or null)
  * @param {Object} [options.env] - Environment variables for API calls
  * @returns {Promise<Array<Object>>} Quality-filtered, scored passages
  *
@@ -686,9 +686,9 @@ export async function retrievePassagesWithQuality(graphKeys, options = {}) {
 
   // Auto-detect semantic scoring: enabled by default when API is available
   // Can be explicitly disabled by passing enableSemanticScoring: false
-  const enableSemanticScoring = explicitSemanticScoring !== undefined
-    ? explicitSemanticScoring
-    : isSemanticScoringAvailable(env);
+  const enableSemanticScoring = explicitSemanticScoring === undefined || explicitSemanticScoring === null
+    ? isSemanticScoringAvailable(env)
+    : explicitSemanticScoring;
 
   // Quality filtering selects the most relevant passages for the user's question.
   // This is independent of prompt slimming (which controls whether entire sections

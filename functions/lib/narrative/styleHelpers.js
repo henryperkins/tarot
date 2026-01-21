@@ -52,6 +52,19 @@ export const FRAME_VOCABULARY = {
   playful: ['adventure', 'curious', 'explore', 'discover', 'wonder']
 };
 
+export const TONE_GUIDANCE = {
+  gentle: 'Use warm, nurturing language throughout. Lead with validation before addressing challenges. Frame difficulties as growth opportunities rather than obstacles. Avoid harsh absolutes or alarming language. Emphasize possibilities, hope, and the querent\'s inner wisdom. When they express doubt, meet it with reassurance before offering perspective.',
+  balanced: 'Be honest but kind. Acknowledge both challenges and opportunities with equal weight. Balance difficult truths with encouragement. Use measured language that neither sugarcoats nor dramatizes. Trust the querent to handle nuanced information. Validate their feelings briefly, then offer grounded insight.',
+  blunt: 'Be direct and clear. Skip softening phrases like "perhaps" or "you might consider." State observations plainly without hedging. Focus on clarity over comfort. Assume the querent prefers straightforward guidance over diplomatic cushioning. Get to the point quickly.'
+};
+
+export const FRAME_GUIDANCE = {
+  psychological: 'Interpret through Jungian archetypes, shadow work, and behavioral patterns. Use language of the psyche: projection, integration, individuation. Ground insights in observable patterns and personal development frameworks.',
+  spiritual: 'Embrace intuitive, mystical language. Reference cosmic cycles, soul contracts, and energetic resonance. Honor the sacred dimension of the reading. Use terms like "spirit guides," "higher self," and "universal wisdom" where appropriate.',
+  mixed: 'Keep it grounded and real. You can reference deeper patterns or intuitive hits, but talk about them the way you\'d explain them to a smart friend - no "cosmic downloads" or "sacred portals." This is the default voice.',
+  playful: 'Keep it light, fun, and exploratory. Use humor where appropriate. Frame the reading as a curious adventure rather than a solemn ritual. Avoid heavy language even for challenging cards. Maintain wonder and levity throughout.'
+};
+
 const DEPTH_STYLES = {
   short: {
     key: 'short',

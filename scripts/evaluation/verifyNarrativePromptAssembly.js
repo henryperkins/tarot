@@ -112,11 +112,11 @@ async function buildPromptSample({ promptBudgetEnv = null } = {}) {
 }
 
 async function main() {
-  const { systemPrompt, userPrompt, promptMeta } = await buildPromptSample();
+  const { userPrompt, promptMeta } = await buildPromptSample();
 
   assert(
-    systemPrompt.includes('TRADITIONAL WISDOM (GraphRAG)'),
-    'GraphRAG block should be injected into system prompt'
+    userPrompt.includes('TRADITIONAL WISDOM (GraphRAG)'),
+    'GraphRAG block should be injected into user prompt'
   );
   assert(
     promptMeta?.graphRAG?.includedInPrompt === true,

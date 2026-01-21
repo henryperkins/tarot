@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, test } from 'node:test';
+import { wrapStreamWithMetadata } from '../functions/api/reading-followup.js';
 
 /**
  * Test helpers to simulate the streaming wrapper behavior from reading-followup.js
@@ -11,100 +12,13 @@ function formatSSEEvent(event, data) {
 }
 
 /**
- * Recreate the wrapStreamWithMetadata logic for testing
- * This mirrors the implementation in functions/api/reading-followup.js:531
- */
-function wrapStreamWithMetadata(stream, { turn, journalContext, meta, ctx, onComplete }) {
-  const encoder = new TextEncoder();
-  const decoder = new TextDecoder();
-  let fullText = '';
-  let sawError = false;
-  // Buffer for detecting error events that may be split across chunks
-  let eventBuffer = '';
-
-  return new ReadableStream({
-    async start(controller) {
-      const metaEvent = formatSSEEvent('meta', { turn, journalContext, ...meta });
-      controller.enqueue(encoder.encode(metaEvent));
-
-      const reader = stream.getReader();
-
-      try {
-        while (true) {
-          const { done, value } = await reader.read();
-
-          if (done) {
-            // Check buffer for any remaining error event
-            if (!sawError && eventBuffer.length > 0) {
-              sawError = /event:\s*error\r?\n/.test(eventBuffer);
-            }
-
-            // Only call completion callback if no error was seen
-            // This prevents users from losing follow-up turns due to provider errors
-            if (onComplete && !sawError) {
-              // Use waitUntil to guarantee the usage tracking completes
-              const trackingPromise = onComplete(fullText).catch(err => {
-                console.warn('[wrapStreamWithMetadata] onComplete error:', err.message);
-              });
-              if (ctx?.waitUntil) {
-                ctx.waitUntil(trackingPromise);
-              }
-            }
-            controller.close();
-            break;
-          }
-
-          const chunk = decoder.decode(value, { stream: true });
-
-          // Accumulate in buffer for error detection (handles chunk splits and CRLF)
-          eventBuffer += chunk;
-
-          // Extract text from delta events (flexible regex for LF or CRLF)
-          const deltaMatches = chunk.matchAll(/event:\s*delta\r?\ndata:\s*({[^}]+})/g);
-          for (const match of deltaMatches) {
-            try {
-              const data = JSON.parse(match[1]);
-              if (data.text) {
-                fullText += data.text;
-              }
-            } catch {
-              // Ignore parse errors
-            }
-          }
-
-          // Detect error events in buffer (handles chunk splits and CRLF)
-          if (!sawError && /event:\s*error\r?\n/.test(eventBuffer)) {
-            sawError = true;
-          }
-
-          // Trim buffer to avoid unbounded growth
-          if (eventBuffer.length > 200) {
-            eventBuffer = eventBuffer.slice(-100);
-          }
-
-          controller.enqueue(value);
-        }
-      } catch (error) {
-        console.error('[wrapStreamWithMetadata] Stream error:', error.message);
-
-        const errorEvent = formatSSEEvent('error', { message: error.message });
-        controller.enqueue(encoder.encode(errorEvent));
-
-        // KEY FIX: Do NOT call onComplete on errors
-        // This prevents users from losing follow-up turns due to server errors
-
-        controller.close();
-      } finally {
-        reader.releaseLock();
-      }
-    }
-  });
-}
-
-/**
  * Create a mock readable stream from SSE events
  */
-function createMockStream(events, { throwError = false, errorMessage = 'Stream error' } = {}) {
+function createMockStream(events, {
+  throwError = false,
+  errorMessage = 'Stream error',
+  keepOpen = false
+} = {}) {
   const encoder = new TextEncoder();
   let index = 0;
 
@@ -117,7 +31,7 @@ function createMockStream(events, { throwError = false, errorMessage = 'Stream e
       if (index < events.length) {
         controller.enqueue(encoder.encode(events[index]));
         index++;
-      } else {
+      } else if (!keepOpen) {
         controller.close();
       }
     }
@@ -171,8 +85,31 @@ describe('wrapStreamWithMetadata', () => {
     assert.equal(completedWithText, 'Hello world!');
   });
 
+  test('uses done fullText when no deltas are emitted', async () => {
+    let completedWithText = null;
+
+    const mockEvents = [
+      formatSSEEvent('done', { fullText: 'Done-only response' })
+    ];
+
+    const sourceStream = createMockStream(mockEvents);
+    const wrappedStream = wrapStreamWithMetadata(sourceStream, {
+      turn: 2,
+      journalContext: null,
+      meta: { provider: 'test' },
+      onComplete: async (fullText) => {
+        completedWithText = fullText;
+      }
+    });
+
+    await consumeStream(wrappedStream);
+
+    assert.equal(completedWithText, 'Done-only response');
+  });
+
   test('does NOT call onComplete when stream throws error (usage fix)', async () => {
     let onCompleteCalled = false;
+    let onErrorInfo = null;
 
     const mockEvents = [
       formatSSEEvent('delta', { text: 'Partial ' })
@@ -189,6 +126,9 @@ describe('wrapStreamWithMetadata', () => {
       meta: { provider: 'test' },
       onComplete: async () => {
         onCompleteCalled = true;
+      },
+      onError: (info) => {
+        onErrorInfo = info;
       }
     });
 
@@ -196,6 +136,7 @@ describe('wrapStreamWithMetadata', () => {
 
     // onComplete should NOT have been called - this is the critical fix
     assert.equal(onCompleteCalled, false, 'onComplete should NOT be called on stream errors');
+    assert.equal(onErrorInfo?.type, 'stream_error', 'onError should be called for stream errors');
 
     // Error event should be in the output
     assert.ok(output.includes('event: error'), 'Should emit error event');
@@ -259,8 +200,62 @@ describe('wrapStreamWithMetadata', () => {
     assert.equal(accumulatedText, 'One two three');
   });
 
+  test('calls onHeartbeat on progress events', async () => {
+    let heartbeatCalls = 0;
+    let lastHeartbeat = null;
+
+    const mockEvents = [
+      formatSSEEvent('delta', { text: 'Ping' }),
+      formatSSEEvent('done', { fullText: 'Ping' })
+    ];
+
+    const sourceStream = createMockStream(mockEvents);
+    const wrappedStream = wrapStreamWithMetadata(sourceStream, {
+      turn: 1,
+      journalContext: null,
+      meta: {},
+      onHeartbeat: (info) => {
+        heartbeatCalls += 1;
+        lastHeartbeat = info;
+      },
+      onComplete: async () => {}
+    });
+
+    await consumeStream(wrappedStream);
+
+    assert.ok(heartbeatCalls > 0, 'onHeartbeat should be called for progress events');
+    assert.equal(typeof lastHeartbeat?.fullTextLength, 'number');
+  });
+
+  test('calls onCancel when stream is cancelled', async () => {
+    let cancelInfo = null;
+
+    const mockEvents = [
+      formatSSEEvent('delta', { text: 'Hold' })
+    ];
+
+    const sourceStream = createMockStream(mockEvents, { keepOpen: true });
+    const wrappedStream = wrapStreamWithMetadata(sourceStream, {
+      turn: 1,
+      journalContext: null,
+      meta: {},
+      onCancel: (info) => {
+        cancelInfo = info;
+      }
+    });
+
+    const reader = wrappedStream.getReader();
+    await reader.read();
+    await reader.cancel('client disconnect');
+    reader.releaseLock();
+
+    assert.equal(cancelInfo?.type, 'cancel');
+    assert.equal(cancelInfo?.message, 'client disconnect');
+  });
+
   test('handles empty stream gracefully', async () => {
     let completedWithText = null;
+    let emptyCalled = false;
 
     const sourceStream = createMockStream([]);
     const wrappedStream = wrapStreamWithMetadata(sourceStream, {
@@ -269,17 +264,22 @@ describe('wrapStreamWithMetadata', () => {
       meta: {},
       onComplete: async (fullText) => {
         completedWithText = fullText;
+      },
+      onEmpty: () => {
+        emptyCalled = true;
       }
     });
 
     await consumeStream(wrappedStream);
 
-    // Should complete with empty text
-    assert.equal(completedWithText, '');
+    // Empty streams should not trigger onComplete
+    assert.equal(completedWithText, null);
+    assert.equal(emptyCalled, true, 'onEmpty should be called for empty streams');
   });
 
   test('does NOT call onComplete when stream emits error event without throwing (sawError fix)', async () => {
     let onCompleteCalled = false;
+    let onErrorInfo = null;
 
     // Simulate Azure returning an error event in the stream (not throwing)
     const mockEvents = [
@@ -294,6 +294,9 @@ describe('wrapStreamWithMetadata', () => {
       meta: { provider: 'test' },
       onComplete: async () => {
         onCompleteCalled = true;
+      },
+      onError: (info) => {
+        onErrorInfo = info;
       }
     });
 
@@ -302,6 +305,7 @@ describe('wrapStreamWithMetadata', () => {
     // onComplete should NOT be called when an error event is in the stream
     // This is the critical fix for: usage counted on provider SSE errors
     assert.equal(onCompleteCalled, false, 'onComplete should NOT be called when error event seen');
+    assert.equal(onErrorInfo?.type, 'error_event', 'onError should be called for error events');
 
     // The error event should pass through
     assert.ok(output.includes('Rate limit exceeded'), 'Error message should be in output');
@@ -309,6 +313,7 @@ describe('wrapStreamWithMetadata', () => {
 
   test('does NOT call onComplete when error event is split across chunks', async () => {
     let onCompleteCalled = false;
+    let onErrorCalled = false;
     const encoder = new TextEncoder();
 
     // Simulate chunk split in the middle of "event: error\n"
@@ -335,6 +340,9 @@ describe('wrapStreamWithMetadata', () => {
       meta: {},
       onComplete: async () => {
         onCompleteCalled = true;
+      },
+      onError: () => {
+        onErrorCalled = true;
       }
     });
 
@@ -342,10 +350,12 @@ describe('wrapStreamWithMetadata', () => {
 
     // onComplete should NOT be called - the buffer should detect the error across chunks
     assert.equal(onCompleteCalled, false, 'onComplete should NOT be called when error spans chunks');
+    assert.equal(onErrorCalled, true, 'onError should be called when error spans chunks');
   });
 
   test('does NOT call onComplete when error event uses CRLF line endings', async () => {
     let onCompleteCalled = false;
+    let onErrorCalled = false;
     const encoder = new TextEncoder();
 
     // Use CRLF instead of LF
@@ -363,6 +373,9 @@ describe('wrapStreamWithMetadata', () => {
       meta: {},
       onComplete: async () => {
         onCompleteCalled = true;
+      },
+      onError: () => {
+        onErrorCalled = true;
       }
     });
 
@@ -370,6 +383,7 @@ describe('wrapStreamWithMetadata', () => {
 
     // onComplete should NOT be called - the regex should handle CRLF
     assert.equal(onCompleteCalled, false, 'onComplete should NOT be called for CRLF error events');
+    assert.equal(onErrorCalled, true, 'onError should be called for CRLF error events');
   });
 
   test('calls waitUntil when ctx is provided', async () => {

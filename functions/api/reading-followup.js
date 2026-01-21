@@ -33,6 +33,30 @@ const FOLLOW_UP_LIMITS = {
   plus: { perReading: 3, perDay: 15 },
   pro: { perReading: 10, perDay: 50 }
 };
+const DEFAULT_RESERVATION_TTL_SECONDS = 10 * 60;
+const MIN_RESERVATION_TTL_SECONDS = 60;
+const MAX_RESERVATION_TTL_SECONDS = 60 * 60;
+
+function getReservationTtlSeconds(env) {
+  const raw = env?.FOLLOW_UP_RESERVATION_TTL_SECONDS;
+  const parsed = Number.parseInt(raw, 10);
+  if (Number.isFinite(parsed) && parsed > 0) {
+    return Math.min(Math.max(parsed, MIN_RESERVATION_TTL_SECONDS), MAX_RESERVATION_TTL_SECONDS);
+  }
+  return DEFAULT_RESERVATION_TTL_SECONDS;
+}
+
+function getReservationHeartbeatSeconds(env, ttlSeconds) {
+  const raw = env?.FOLLOW_UP_RESERVATION_HEARTBEAT_SECONDS;
+  const parsed = Number.parseInt(raw, 10);
+  if (Number.isFinite(parsed) && parsed > 0) {
+    return Math.min(Math.max(parsed, 10), ttlSeconds);
+  }
+  const safeTtlSeconds = Number.isFinite(ttlSeconds) && ttlSeconds > 0
+    ? ttlSeconds
+    : DEFAULT_RESERVATION_TTL_SECONDS;
+  return Math.max(30, Math.floor(safeTtlSeconds / 2));
+}
 
 /**
  * Health check endpoint
@@ -51,6 +75,23 @@ export const onRequestGet = async () => {
 export const onRequestPost = async ({ request, env, ctx }) => {
   const startTime = Date.now();
   const requestId = crypto.randomUUID();
+  let reservationId = null;
+  let turnNumber = null;
+  let reservationCompleted = false;
+  let reservationReleased = false;
+  const reservationTtlSeconds = getReservationTtlSeconds(env);
+  const reservationHeartbeatSeconds = getReservationHeartbeatSeconds(env, reservationTtlSeconds);
+
+  const releaseReservation = async (reason = 'unknown') => {
+    if (!reservationId || reservationReleased || reservationCompleted) return;
+    reservationReleased = true;
+    try {
+      await releaseFollowUpReservation(env.DB, reservationId);
+      console.log(`[${requestId}] Released follow-up reservation (${reason})`);
+    } catch (error) {
+      console.warn(`[${requestId}] Failed to release follow-up reservation:`, error?.message || error);
+    }
+  };
   
   console.log(`[${requestId}] === FOLLOW-UP REQUEST START ===`);
   
@@ -148,12 +189,13 @@ Your cards will be here when you're ready. Right now, please take care of yourse
     console.log(`[${requestId}] User tier: ${tier}, limits: ${JSON.stringify(limits)}`);
 
     // Check per-reading limit using server-side tracking (prevents client manipulation)
-    const actualTurns = await getPerReadingFollowUpCount(env.DB, user.id, readingIdentifier);
-    const turnNumber = actualTurns + 1;
-    console.log(`[${requestId}] Server-verified turn: ${turnNumber}/${limits.perReading} (DB count: ${actualTurns})`);
+    const actualTurns = await getPerReadingFollowUpCount(env.DB, user.id, readingIdentifier, {
+      ttlSeconds: reservationTtlSeconds
+    });
+    console.log(`[${requestId}] Server-verified turns used: ${actualTurns}/${limits.perReading}`);
 
-    if (turnNumber > limits.perReading) {
-      console.log(`[${requestId}] Per-reading limit exceeded: ${turnNumber}/${limits.perReading}`);
+    if (actualTurns >= limits.perReading) {
+      console.log(`[${requestId}] Per-reading limit exceeded: ${actualTurns}/${limits.perReading}`);
 
       // Note: Memory consolidation now happens after each successful follow-up (see onComplete).
       // This redundant call ensures any stragglers are caught if user hits limit on a failed request.
@@ -183,7 +225,9 @@ Your cards will be here when you're ready. Right now, please take care of yourse
     }
     
     // Check daily limit
-    const dailyUsage = await getDailyFollowUpCount(env.DB, user.id);
+    const dailyUsage = await getDailyFollowUpCount(env.DB, user.id, {
+      ttlSeconds: reservationTtlSeconds
+    });
     if (dailyUsage >= limits.perDay) {
       console.log(`[${requestId}] Daily limit exceeded: ${dailyUsage}/${limits.perDay}`);
       return jsonResponse(
@@ -205,11 +249,13 @@ Your cards will be here when you're ready. Right now, please take care of yourse
       userId: user.id
     });
     if (storedContext) {
+      const storedThemes = storedContext?.themes;
+      const hasStoredThemes = storedThemes && typeof storedThemes === 'object' && Object.keys(storedThemes).length > 0;
       effectiveContext = {
         cardsInfo: storedContext.cardsInfo?.length ? storedContext.cardsInfo : readingContext?.cardsInfo,
         userQuestion: storedContext.userQuestion || readingContext?.userQuestion,
         narrative: storedContext.narrative || readingContext?.narrative,
-        themes: storedContext.themes || readingContext?.themes || {},
+        themes: hasStoredThemes ? storedThemes : (readingContext?.themes || {}),
         spreadKey: storedContext.spreadKey || readingContext?.spreadKey,
         deckStyle: storedContext.deckStyle || readingContext?.deckStyle
       };
@@ -276,6 +322,76 @@ Your cards will be here when you're ready. Right now, please take care of yourse
     
     console.log(`[${requestId}] Prompt built: system=${systemPrompt.length}chars, user=${userPrompt.length}chars`);
 
+    const reservation = await reserveFollowUpSlot(env.DB, {
+      userId: user.id,
+      requestId,
+      readingIdentifier,
+      questionLength: followUpQuestion.length,
+      limits,
+      ttlSeconds: reservationTtlSeconds
+    });
+
+    if (!reservation.reserved) {
+      const perReadingTurns = await getPerReadingFollowUpCount(env.DB, user.id, readingIdentifier, {
+        ttlSeconds: reservationTtlSeconds
+      });
+      if (perReadingTurns >= limits.perReading) {
+        console.log(`[${requestId}] Per-reading limit exceeded on reservation: ${perReadingTurns}/${limits.perReading}`);
+
+        if (memoryEnabled && readingIdentifier) {
+          const consolidationPromise = consolidateSessionMemories(env.DB, user.id, readingIdentifier)
+            .then(result => {
+              if (result.promoted > 0 || result.pruned > 0) {
+                console.log(`[${requestId}] Final consolidation: promoted=${result.promoted}, pruned=${result.pruned}`);
+              }
+            })
+            .catch(err => {
+              console.warn(`[${requestId}] Memory consolidation failed:`, err.message);
+            });
+          if (ctx?.waitUntil) {
+            ctx.waitUntil(consolidationPromise);
+          }
+        }
+
+        return jsonResponse(
+          buildTierLimitedPayload({
+            message: `You've reached the ${limits.perReading} follow-up limit for this reading`,
+            user,
+            requiredTier: tier === 'free' ? 'plus' : 'pro'
+          }),
+          { status: 403 }
+        );
+      }
+
+      const dailyUsage = await getDailyFollowUpCount(env.DB, user.id, {
+        ttlSeconds: reservationTtlSeconds
+      });
+      if (dailyUsage >= limits.perDay) {
+        console.log(`[${requestId}] Daily limit exceeded on reservation: ${dailyUsage}/${limits.perDay}`);
+        return jsonResponse(
+          buildTierLimitedPayload({
+            message: `You've reached your daily limit of ${limits.perDay} follow-up questions`,
+            user,
+            requiredTier: tier === 'free' ? 'plus' : 'pro'
+          }),
+          { status: 429 }
+        );
+      }
+
+      console.warn(`[${requestId}] Failed to reserve follow-up slot`);
+      return jsonResponse({ error: 'Unable to reserve follow-up slot. Please try again.' }, { status: 503 });
+    }
+
+    reservationId = reservation.reservationId;
+    turnNumber = Number(reservation.turnNumber);
+    if (!Number.isFinite(turnNumber)) {
+      const refreshedTurns = await getPerReadingFollowUpCount(env.DB, user.id, readingIdentifier, {
+        ttlSeconds: reservationTtlSeconds
+      });
+      turnNumber = refreshedTurns;
+    }
+    console.log(`[${requestId}] Reserved follow-up turn: ${turnNumber}/${limits.perReading}`);
+
     // Check if streaming is requested
     const useStreaming = options.stream === true;
 
@@ -302,10 +418,25 @@ Your cards will be here when you're ready. Right now, please take care of yourse
         });
       return consolidation;
     };
+    const scheduleRelease = (reason) => {
+      const releasePromise = releaseReservation(reason);
+      if (ctx?.waitUntil) {
+        ctx.waitUntil(releasePromise);
+      }
+      return releasePromise;
+    };
 
     if (useStreaming) {
       // === STREAMING PATH ===
       console.log(`[${requestId}] Using streaming response`);
+      const heartbeatReservation = createReservationHeartbeat({
+        db: env.DB,
+        reservationId,
+        ctx,
+        intervalSeconds: reservationHeartbeatSeconds,
+        requestId,
+        isActive: () => Boolean(reservationId) && !reservationReleased && !reservationCompleted
+      });
 
       try {
         // Prepare tools array if memory is enabled
@@ -367,6 +498,7 @@ Your cards will be here when you're ready. Right now, please take care of yourse
             requestId
           },
           ctx, // Pass context for waitUntil
+          onHeartbeat: heartbeatReservation,
           // Usage tracking callback - will be called when stream completes successfully
           onComplete: async (fullText) => {
             const latencyMs = Date.now() - startTime;
@@ -375,6 +507,7 @@ Your cards will be here when you're ready. Right now, please take care of yourse
             // Defensive guard: don't track/persist empty responses (e.g., tool-only)
             if (!fullText || !fullText.trim()) {
               console.log(`[${requestId}] Skipping tracking - empty response`);
+              await releaseReservation('empty_response');
               return;
             }
 
@@ -387,16 +520,20 @@ Your cards will be here when you're ready. Right now, please take care of yourse
               console.warn(`[${requestId}] Follow-up safety warnings (streamed): ${safetyCheck.issues.join(', ')}`);
             }
 
-            const trackingPromise = trackFollowUpUsage(env.DB, {
-              userId: user.id,
-              requestId,
-              readingIdentifier,
-              identifierType,
-              turnNumber,
-              questionLength: followUpQuestion.length,
+            const trackingPromise = finalizeFollowUpUsage(env.DB, {
+              reservationId,
               responseLength: fullText.length,
               journalContextUsed: Boolean(journalContext),
-              patternsFound: journalContext?.patterns?.length || 0
+              patternsFound: journalContext?.patterns?.length || 0,
+              latencyMs,
+              provider: 'azure-responses-stream'
+            }).then(result => {
+              if (result.updated) {
+                reservationCompleted = true;
+              } else {
+                console.warn(`[${requestId}] Failed to finalize follow-up usage; releasing reservation`);
+                return releaseReservation('finalize_failed');
+              }
             });
 
             const persistPromise = canPersistFollowups
@@ -418,7 +555,10 @@ Your cards will be here when you're ready. Right now, please take care of yourse
             const consolidationPromise = consolidateOnce();
 
             await Promise.allSettled([trackingPromise, persistPromise, consolidationPromise]);
-          }
+          },
+          onError: (info) => scheduleRelease(info?.type || 'stream_error'),
+          onEmpty: () => scheduleRelease('empty_response'),
+          onCancel: () => scheduleRelease('client_cancel')
         });
 
         return createSSEResponse(wrappedStream);
@@ -431,12 +571,21 @@ Your cards will be here when you're ready. Right now, please take care of yourse
         } else {
           await consolidationPromise;
         }
+        await scheduleRelease('stream_error');
         return createSSEErrorResponse('Failed to generate response. Please try again.', 503);
       }
 
     } else {
       // === NON-STREAMING PATH (existing behavior) ===
       let responseText;
+      const stopReservationHeartbeat = startReservationHeartbeatTimer({
+        db: env.DB,
+        reservationId,
+        ctx,
+        intervalSeconds: reservationHeartbeatSeconds,
+        requestId,
+        isActive: () => Boolean(reservationId) && !reservationReleased && !reservationCompleted
+      });
 
       try {
         if (enableMemoryTool) {
@@ -479,6 +628,15 @@ Your cards will be here when you're ready. Right now, please take care of yourse
 
         console.log(`[${requestId}] LLM response received: ${responseText?.length || 0} chars`);
 
+        if (!responseText || !responseText.trim()) {
+          console.log(`[${requestId}] Empty follow-up response; releasing reservation`);
+          await releaseReservation('empty_response');
+          return jsonResponse(
+            { error: 'Failed to generate response. Please try again.' },
+            { status: 503 }
+          );
+        }
+
         // Safety gate: check response for critical safety issues
         const safetyCheck = checkFollowUpSafety(responseText);
         if (!safetyCheck.safe) {
@@ -490,23 +648,31 @@ Your cards will be here when you're ready. Right now, please take care of yourse
         }
       } catch (llmError) {
         console.error(`[${requestId}] LLM error: ${llmError.message}`);
+        await releaseReservation('llm_error');
         return jsonResponse(
           { error: 'Failed to generate response. Please try again.' },
           { status: 503 }
         );
+      } finally {
+        stopReservationHeartbeat();
       }
 
       // Track usage
-      const trackingPromise = trackFollowUpUsage(env.DB, {
-        userId: user.id,
-        requestId,
-        readingIdentifier,
-        identifierType,
-        turnNumber,
-        questionLength: followUpQuestion.length,
+      const latencyMs = Date.now() - startTime;
+      const trackingPromise = finalizeFollowUpUsage(env.DB, {
+        reservationId,
         responseLength: responseText?.length || 0,
         journalContextUsed: Boolean(journalContext),
-        patternsFound: journalContext?.patterns?.length || 0
+        patternsFound: journalContext?.patterns?.length || 0,
+        latencyMs,
+        provider: 'azure-responses'
+      }).then(result => {
+        if (result.updated) {
+          reservationCompleted = true;
+        } else {
+          console.warn(`[${requestId}] Failed to finalize follow-up usage; releasing reservation`);
+          return releaseReservation('finalize_failed');
+        }
       });
 
       const consolidationPromise = consolidateOnce();
@@ -530,7 +696,6 @@ Your cards will be here when you're ready. Right now, please take care of yourse
         await combined;
       }
 
-      const latencyMs = Date.now() - startTime;
       console.log(`[${requestId}] Follow-up completed in ${latencyMs}ms`);
       console.log(`[${requestId}] === FOLLOW-UP REQUEST END ===`);
 
@@ -553,6 +718,7 @@ Your cards will be here when you're ready. Right now, please take care of yourse
     const latencyMs = Date.now() - startTime;
     console.error(`[${requestId}] Follow-up error after ${latencyMs}ms:`, error.message);
     console.log(`[${requestId}] === FOLLOW-UP REQUEST END (ERROR) ===`);
+    await releaseReservation('request_error');
     return jsonResponse({ error: 'Failed to generate follow-up response' }, { status: 500 });
   }
 };
@@ -565,16 +731,24 @@ Your cards will be here when you're ready. Right now, please take care of yourse
  * @param {string} userId - User ID
  * @param {string} readingIdentifier - Either requestId or sessionSeed
  */
-async function getPerReadingFollowUpCount(db, userId, readingIdentifier) {
+async function getPerReadingFollowUpCount(db, userId, readingIdentifier, options = {}) {
   if (!db || !readingIdentifier) return 0;
 
   try {
+    const nowSeconds = Number.isFinite(options.nowSeconds)
+      ? options.nowSeconds
+      : Math.floor(Date.now() / 1000);
+    const ttlSeconds = Number.isFinite(options.ttlSeconds)
+      ? options.ttlSeconds
+      : DEFAULT_RESERVATION_TTL_SECONDS;
+    const cutoffSeconds = nowSeconds - ttlSeconds;
     // The reading_request_id column stores whichever identifier is used for the reading
     // (requestId for new readings, sessionSeed for old readings without requestId)
     const result = await db.prepare(`
       SELECT COUNT(*) as count FROM follow_up_usage
       WHERE user_id = ? AND reading_request_id = ?
-    `).bind(userId, readingIdentifier).first();
+        AND (response_length IS NOT NULL OR COALESCE(reservation_updated_at, created_at) >= ?)
+    `).bind(userId, readingIdentifier, cutoffSeconds).first();
     return result?.count || 0;
   } catch (error) {
     console.warn(`[getPerReadingFollowUpCount] Error: ${error.message}`);
@@ -585,19 +759,249 @@ async function getPerReadingFollowUpCount(db, userId, readingIdentifier) {
 /**
  * Get count of follow-up questions used today by user
  */
-async function getDailyFollowUpCount(db, userId) {
+async function getDailyFollowUpCount(db, userId, options = {}) {
   if (!db) return 0;
 
   try {
-    const today = new Date().toISOString().split('T')[0];
+    const nowSeconds = Number.isFinite(options.nowSeconds)
+      ? options.nowSeconds
+      : Math.floor(Date.now() / 1000);
+    const ttlSeconds = Number.isFinite(options.ttlSeconds)
+      ? options.ttlSeconds
+      : DEFAULT_RESERVATION_TTL_SECONDS;
+    const cutoffSeconds = nowSeconds - ttlSeconds;
+    const today = new Date(nowSeconds * 1000).toISOString().split('T')[0];
     const result = await db.prepare(`
       SELECT COUNT(*) as count FROM follow_up_usage
       WHERE user_id = ? AND DATE(datetime(created_at, 'unixepoch')) = ?
-    `).bind(userId, today).first();
+        AND (response_length IS NOT NULL OR COALESCE(reservation_updated_at, created_at) >= ?)
+    `).bind(userId, today, cutoffSeconds).first();
     return result?.count || 0;
   } catch (error) {
     console.warn(`[getDailyFollowUpCount] Error: ${error.message}`);
     return 0;
+  }
+}
+
+/**
+ * Reserve a follow-up slot to enforce per-reading and daily limits atomically.
+ */
+async function reserveFollowUpSlot(db, {
+  userId,
+  requestId,
+  readingIdentifier,
+  questionLength,
+  limits,
+  ttlSeconds,
+  nowSeconds
+}) {
+  if (!db || !userId || !requestId || !readingIdentifier) {
+    return { reserved: false, reason: 'missing_input' };
+  }
+
+  const reservationId = crypto.randomUUID();
+  const safeNowSeconds = Number.isFinite(nowSeconds)
+    ? nowSeconds
+    : Math.floor(Date.now() / 1000);
+  const safeTtlSeconds = Number.isFinite(ttlSeconds)
+    ? ttlSeconds
+    : DEFAULT_RESERVATION_TTL_SECONDS;
+  const cutoffSeconds = safeNowSeconds - safeTtlSeconds;
+  const today = new Date(safeNowSeconds * 1000).toISOString().split('T')[0];
+  const safeQuestionLength = Number.isFinite(questionLength) ? questionLength : null;
+  const reservationUpdatedAt = safeNowSeconds;
+
+  try {
+    await db.prepare(`
+      DELETE FROM follow_up_usage
+      WHERE response_length IS NULL
+        AND COALESCE(reservation_updated_at, created_at) < ?
+    `).bind(cutoffSeconds).run();
+
+    const result = await db.prepare(`
+      WITH per_reading AS (
+        SELECT COUNT(*) as count, COALESCE(MAX(turn_number), 0) as max_turn
+        FROM follow_up_usage
+        WHERE user_id = ? AND reading_request_id = ?
+          AND (response_length IS NOT NULL OR COALESCE(reservation_updated_at, created_at) >= ?)
+      ),
+      per_day AS (
+        SELECT COUNT(*) as count
+        FROM follow_up_usage
+        WHERE user_id = ?
+          AND (response_length IS NOT NULL OR COALESCE(reservation_updated_at, created_at) >= ?)
+          AND DATE(datetime(created_at, 'unixepoch')) = ?
+      )
+      INSERT INTO follow_up_usage (
+        id, user_id, request_id, reading_request_id,
+        turn_number, question_length, response_length,
+        journal_context_used, patterns_found, latency_ms, provider, created_at, reservation_updated_at
+      )
+      SELECT ?, ?, ?, ?, per_reading.max_turn + 1,
+        ?, NULL, 0, 0, NULL, NULL, ?, ?
+      FROM per_reading, per_day
+      WHERE per_reading.count < ? AND per_day.count < ?
+    `).bind(
+      userId,
+      readingIdentifier,
+      cutoffSeconds,
+      userId,
+      cutoffSeconds,
+      today,
+      reservationId,
+      userId,
+      requestId,
+      readingIdentifier,
+      safeQuestionLength,
+      safeNowSeconds,
+      reservationUpdatedAt,
+      limits.perReading,
+      limits.perDay
+    ).run();
+
+    if ((result?.meta?.changes || 0) === 0) {
+      return { reserved: false, reason: 'limit_reached' };
+    }
+
+    const row = await db.prepare(`
+      SELECT turn_number FROM follow_up_usage WHERE id = ?
+    `).bind(reservationId).first();
+
+    return {
+      reserved: true,
+      reservationId,
+      turnNumber: row?.turn_number
+    };
+  } catch (error) {
+    console.warn(`[reserveFollowUpSlot] Error: ${error.message}`);
+    return { reserved: false, reason: 'db_error' };
+  }
+}
+
+/**
+ * Finalize a reserved follow-up slot with response metadata.
+ */
+async function finalizeFollowUpUsage(db, {
+  reservationId,
+  responseLength,
+  journalContextUsed,
+  patternsFound,
+  latencyMs,
+  provider
+}) {
+  if (!db || !reservationId) return { updated: false };
+
+  const safeResponseLength = Number.isFinite(responseLength) ? responseLength : null;
+  const safePatternsFound = Number.isFinite(patternsFound) ? patternsFound : 0;
+  const safeLatencyMs = Number.isFinite(latencyMs) ? latencyMs : null;
+  const safeProvider = typeof provider === 'string' ? provider : null;
+
+  try {
+    const result = await db.prepare(`
+      UPDATE follow_up_usage
+      SET response_length = ?, journal_context_used = ?, patterns_found = ?, latency_ms = ?, provider = ?
+      WHERE id = ?
+    `).bind(
+      safeResponseLength,
+      journalContextUsed ? 1 : 0,
+      safePatternsFound,
+      safeLatencyMs,
+      safeProvider,
+      reservationId
+    ).run();
+
+    return { updated: (result?.meta?.changes || 0) > 0 };
+  } catch (error) {
+    console.warn(`[finalizeFollowUpUsage] Error: ${error.message}`);
+    return { updated: false };
+  }
+}
+
+/**
+ * Refresh a pending follow-up reservation timestamp to keep TTL active.
+ */
+async function touchFollowUpReservation(db, reservationId, options = {}) {
+  if (!db || !reservationId) return { updated: false };
+
+  const nowSeconds = Number.isFinite(options.nowSeconds)
+    ? options.nowSeconds
+    : Math.floor(Date.now() / 1000);
+
+  try {
+    const result = await db.prepare(`
+      UPDATE follow_up_usage
+      SET reservation_updated_at = ?
+      WHERE id = ? AND response_length IS NULL
+    `).bind(nowSeconds, reservationId).run();
+
+    return { updated: (result?.meta?.changes || 0) > 0 };
+  } catch (error) {
+    console.warn(`[touchFollowUpReservation] Error: ${error.message}`);
+    return { updated: false };
+  }
+}
+
+function createReservationHeartbeat({ db, reservationId, ctx, intervalSeconds, requestId, isActive }) {
+  const safeIntervalSeconds = Number.isFinite(intervalSeconds) && intervalSeconds > 0
+    ? intervalSeconds
+    : DEFAULT_RESERVATION_TTL_SECONDS / 2;
+  const intervalMs = safeIntervalSeconds * 1000;
+  let lastHeartbeatMs = 0;
+
+  return () => {
+    if (!db || !reservationId || (isActive && !isActive())) return;
+    const nowMs = Date.now();
+    if (nowMs - lastHeartbeatMs < intervalMs) {
+      return;
+    }
+    lastHeartbeatMs = nowMs;
+    const heartbeatPromise = touchFollowUpReservation(db, reservationId, {
+      nowSeconds: Math.floor(nowMs / 1000)
+    }).catch(error => {
+      console.warn(`[${requestId}] Failed to refresh follow-up reservation:`, error?.message || error);
+    });
+    if (ctx?.waitUntil) {
+      ctx.waitUntil(heartbeatPromise);
+    }
+  };
+}
+
+function startReservationHeartbeatTimer({ db, reservationId, ctx, intervalSeconds, requestId, isActive }) {
+  if (!db || !reservationId) {
+    return () => {};
+  }
+  const heartbeat = createReservationHeartbeat({
+    db,
+    reservationId,
+    ctx,
+    intervalSeconds,
+    requestId,
+    isActive
+  });
+  const safeIntervalSeconds = Number.isFinite(intervalSeconds) && intervalSeconds > 0
+    ? intervalSeconds
+    : DEFAULT_RESERVATION_TTL_SECONDS / 2;
+  const intervalMs = safeIntervalSeconds * 1000;
+  heartbeat();
+  const timer = setInterval(heartbeat, intervalMs);
+  return () => clearInterval(timer);
+}
+
+/**
+ * Release a pending follow-up reservation so it doesn't count against limits.
+ */
+async function releaseFollowUpReservation(db, reservationId) {
+  if (!db || !reservationId) return { released: false };
+
+  try {
+    const result = await db.prepare(`
+      DELETE FROM follow_up_usage
+      WHERE id = ? AND response_length IS NULL
+    `).bind(reservationId).run();
+    return { released: (result?.meta?.changes || 0) > 0 };
+  } catch (error) {
+    console.warn(`[releaseFollowUpReservation] Error: ${error.message}`);
+    return { released: false };
   }
 }
 
@@ -734,50 +1138,6 @@ async function getUserPreferences(db, userId) {
   } catch (error) {
     console.warn(`[getUserPreferences] Error: ${error.message}`);
     return null;
-  }
-}
-
-/**
- * Track follow-up usage for rate limiting and analytics
- */
-async function trackFollowUpUsage(db, data) {
-  if (!db) return;
-
-  const {
-    userId,
-    requestId,
-    readingIdentifier,
-    turnNumber,
-    questionLength,
-    responseLength,
-    journalContextUsed,
-    patternsFound
-  } = data;
-
-  try {
-    // Store readingIdentifier in reading_request_id column
-    // (could be requestId or sessionSeed depending on identifierType)
-    await db.prepare(`
-      INSERT INTO follow_up_usage (
-        id, user_id, request_id, reading_request_id,
-        turn_number, question_length, response_length,
-        journal_context_used, patterns_found, created_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).bind(
-      crypto.randomUUID(),
-      userId,
-      requestId,
-      readingIdentifier,
-      turnNumber,
-      questionLength,
-      responseLength,
-      journalContextUsed ? 1 : 0,
-      patternsFound,
-      Math.floor(Date.now() / 1000)
-    ).run();
-  } catch (error) {
-    // Table may not exist yet - don't fail the request
-    console.warn(`[trackFollowUpUsage] Error: ${error.message}`);
   }
 }
 
@@ -1213,24 +1573,71 @@ async function collectFullTextFromSse(stream, { requestId } = {}) {
  * @param {Object} options.meta - Response metadata
  * @param {Object} options.ctx - Request context for waitUntil
  * @param {Function} options.onComplete - Callback(fullText) when stream ends
+ * @param {Function} [options.onError] - Callback(info) on error events
+ * @param {Function} [options.onEmpty] - Callback() when stream ends without content
+ * @param {Function} [options.onCancel] - Callback(info) when stream is cancelled
+ * @param {Function} [options.onHeartbeat] - Callback(info) on progress events
  * @returns {ReadableStream} Wrapped SSE stream
  */
-function wrapStreamWithMetadata(stream, { turn, journalContext, meta, ctx, onComplete }) {
+function wrapStreamWithMetadata(stream, {
+  turn,
+  journalContext,
+  meta,
+  ctx,
+  onComplete,
+  onError,
+  onEmpty,
+  onCancel,
+  onHeartbeat
+}) {
   const encoder = new TextEncoder();
   const decoder = new TextDecoder();
 
   let fullText = '';
+  let doneText = null;
   let sawError = false;
+  let completionHandled = false;
+  let errorNotified = false;
   // Buffer for SSE events that may be split across chunks
   let sseBuffer = '';
   let reader = null;
   let cancelled = false;
+
+  const invokeOnce = (callback, info, label) => {
+    if (!callback || completionHandled) return;
+    completionHandled = true;
+    try {
+      const result = callback(info);
+      if (result?.catch) {
+        result.catch(err => {
+          console.warn(`[wrapStreamWithMetadata] ${label} error:`, err?.message || err);
+        });
+      }
+    } catch (error) {
+      console.warn(`[wrapStreamWithMetadata] ${label} error:`, error?.message || error);
+    }
+  };
+
+  const invokeSafely = (callback, info, label) => {
+    if (!callback) return;
+    try {
+      const result = callback(info);
+      if (result?.catch) {
+        result.catch(err => {
+          console.warn(`[wrapStreamWithMetadata] ${label} error:`, err?.message || err);
+        });
+      }
+    } catch (error) {
+      console.warn(`[wrapStreamWithMetadata] ${label} error:`, error?.message || error);
+    }
+  };
 
   // Helper to process complete SSE events from buffer
   function processCompleteEvents(buffer, isFinal = false) {
     const events = buffer.split(/\r?\n\r?\n/);
     // Keep the last element as potential incomplete event (unless final)
     const remainder = isFinal ? '' : (events.pop() || '');
+    let sawActivity = false;
 
     for (const eventBlock of events) {
       if (!eventBlock.trim()) continue;
@@ -1250,6 +1657,17 @@ function wrapStreamWithMetadata(stream, { turn, journalContext, meta, ctx, onCom
       // Check for error events
       if (eventType === 'error') {
         sawError = true;
+        if (!errorNotified) {
+          errorNotified = true;
+          let message = null;
+          try {
+            const parsed = JSON.parse(eventData || '{}');
+            message = parsed?.message || null;
+          } catch {
+            message = null;
+          }
+          invokeOnce(onError, { type: 'error_event', message }, 'onError');
+        }
       }
 
       // Extract text from delta events
@@ -1258,11 +1676,36 @@ function wrapStreamWithMetadata(stream, { turn, journalContext, meta, ctx, onCom
           const data = JSON.parse(eventData);
           if (data.text) {
             fullText += data.text;
+            sawActivity = true;
           }
         } catch {
           // Ignore parse errors
         }
       }
+
+      if (eventType === 'done' && eventData) {
+        try {
+          const data = JSON.parse(eventData);
+          if (typeof data.fullText === 'string') {
+            doneText = data.fullText;
+            sawActivity = true;
+          }
+        } catch {
+          // Ignore parse errors
+        }
+      }
+    }
+
+    if (typeof doneText === 'string') {
+      const doneHasContent = doneText.trim().length > 0;
+      const fullHasContent = fullText && fullText.trim().length > 0;
+      if (doneHasContent || !fullHasContent) {
+        fullText = doneText;
+      }
+    }
+
+    if (sawActivity && !cancelled && !sawError) {
+      invokeSafely(onHeartbeat, { fullTextLength: fullText.length }, 'onHeartbeat');
     }
 
     return remainder;
@@ -1296,6 +1739,7 @@ function wrapStreamWithMetadata(stream, { turn, journalContext, meta, ctx, onCom
             // 2. Empty responses being tracked when model only made tool calls
             const hasContent = fullText && fullText.trim().length > 0;
             if (!cancelled && onComplete && !sawError && hasContent) {
+              completionHandled = true;
               // Use waitUntil to guarantee the usage tracking completes
               // even if the client disconnects
               const trackingPromise = onComplete(fullText).catch(err => {
@@ -1305,8 +1749,14 @@ function wrapStreamWithMetadata(stream, { turn, journalContext, meta, ctx, onCom
                 ctx.waitUntil(trackingPromise);
               }
             } else if (sawError) {
+              if (!errorNotified) {
+                invokeOnce(onError, { type: 'error_event' }, 'onError');
+              }
               console.log('[wrapStreamWithMetadata] Skipping usage tracking due to error event');
             } else if (!hasContent) {
+              if (!cancelled) {
+                invokeOnce(onEmpty, null, 'onEmpty');
+              }
               console.log('[wrapStreamWithMetadata] Skipping usage tracking - empty response (tool-only?)');
             }
             controller.close();
@@ -1329,6 +1779,7 @@ function wrapStreamWithMetadata(stream, { turn, journalContext, meta, ctx, onCom
           return;
         }
         console.error('[wrapStreamWithMetadata] Stream error:', error.message);
+        invokeOnce(onError, { type: 'stream_error', message: error.message }, 'onError');
 
         // Send error event
         const errorEvent = formatSSEEvent('error', { message: error.message });
@@ -1344,6 +1795,8 @@ function wrapStreamWithMetadata(stream, { turn, journalContext, meta, ctx, onCom
     },
     cancel(reason) {
       cancelled = true;
+      const message = typeof reason === 'string' ? reason : (reason?.message || 'cancelled');
+      invokeOnce(onCancel || onError, { type: 'cancel', message }, 'onCancel');
       if (reader) {
         reader.cancel(reason).catch(() => null);
       }
@@ -1357,4 +1810,13 @@ function wrapStreamWithMetadata(stream, { turn, journalContext, meta, ctx, onCom
 function formatSSEEvent(event, data) {
   return `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
 }
-export { createToolRoundTripStream };
+export {
+  createToolRoundTripStream,
+  wrapStreamWithMetadata,
+  getPerReadingFollowUpCount,
+  getDailyFollowUpCount,
+  reserveFollowUpSlot,
+  finalizeFollowUpUsage,
+  releaseFollowUpReservation,
+  touchFollowUpReservation
+};

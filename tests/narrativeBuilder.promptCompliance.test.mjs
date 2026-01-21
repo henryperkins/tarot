@@ -919,11 +919,45 @@ describe('Prompt budget telemetry', () => {
     assert.ok(!promptMeta.truncation, 'hard-cap trimming should avoid truncation when optional blocks can drop');
     assert.ok(promptMeta.estimatedTokens, 'estimatedTokens should exist when hard-cap adjustments occur');
     assert.equal(promptMeta.estimatedTokens.truncated, false);
-    assert.ok(!systemPrompt.includes('TRADITIONAL WISDOM (GraphRAG)'), 'GraphRAG block should be removed under hard cap');
+    assert.ok(!userPrompt.includes('TRADITIONAL WISDOM (GraphRAG)'), 'GraphRAG block should be removed under hard cap');
     assert.ok(systemPrompt.includes('REVERSAL FRAMEWORK'), 'Core system prompt sections should remain intact');
     assert.ok(systemPrompt.includes('ETHICS'), 'Ethics section should remain intact');
     assert.ok(systemPrompt.includes('Do NOT provide diagnosis'), 'Ethics guardrail should remain intact');
     assert.ok(userPrompt.includes('The Fool'), 'Card list should remain intact');
+  });
+
+  it('keeps GraphRAG passages when promptBudgetEnv omits GraphRAG flags', async () => {
+    const cardsInfo = [
+      major('The Fool', 0, 'Past — influences that led here', 'Upright'),
+      major('The Magician', 1, 'Present — where you stand now', 'Upright'),
+      major('The High Priestess', 2, 'Future — trajectory if nothing shifts', 'Upright')
+    ];
+
+    const themes = await buildThemes(cardsInfo, 'blocked');
+    themes.knowledgeGraph = { graphKeys: { stub: true } };
+
+    const graphRAGPayload = {
+      passages: [
+        { title: 'Test Passage', text: 'Guidance grounded in tradition.', source: 'Test Source' }
+      ],
+      retrievalSummary: { graphKeysProvided: true },
+      maxPassages: 1
+    };
+
+    const { userPrompt, promptMeta } = buildEnhancedClaudePrompt({
+      spreadInfo: { name: 'Three-Card Story (Past · Present · Future)' },
+      cardsInfo,
+      userQuestion: 'How do I keep momentum?',
+      reflectionsText: '',
+      themes,
+      spreadAnalysis: null,
+      context: 'general',
+      graphRAGPayload,
+      promptBudgetEnv: { PROMPT_BUDGET_CLAUDE: '90' }
+    });
+
+    assert.ok(userPrompt.includes('TRADITIONAL WISDOM (GraphRAG)'), 'GraphRAG block should be included when payload is provided');
+    assert.equal(promptMeta.graphRAG?.includedInPrompt, true);
   });
 
   it('emits stub GraphRAG telemetry when graphKeys exist but GraphRAG is disabled', async () => {
