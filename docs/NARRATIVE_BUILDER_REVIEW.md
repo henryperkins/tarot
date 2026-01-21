@@ -572,10 +572,10 @@ describe('Token Budgeting', () => {
 
 ### Must Do (Next Sprint)
 
-1. ✅ **Move crisis detection before spread analysis** (1 hour, low risk)
-2. ✅ **Add fail-fast for critical section budget overflow** (30 min, low risk)
-3. ✅ **Add template syntax stripping to sanitizePromptValue** (30 min, low risk)
-4. ✅ **Add input guards to all spread builders** (1 hour, low risk)
+1. ☐ **Move crisis detection before spread analysis** (1 hour, low risk)
+2. ☐ **Add fail-fast for critical section budget overflow** (30 min, low risk)
+3. ☐ **Add template syntax stripping to sanitizePromptValue** (30 min, low risk)
+4. ☐ **Add input guards to all spread builders** (1 hour, low risk)
 
 **Total Effort:** 3 hours  
 **Impact:** High (security + performance)
@@ -584,10 +584,10 @@ describe('Token Budgeting', () => {
 
 ### Should Do (Next Quarter)
 
-5. ✅ **Refactor prompts.js into sub-modules** (2-3 days, medium risk)
-6. ✅ **Remove PROSE_MODE global state** (2-3 hours, medium risk)
-7. ✅ **Extract spread builder base class** (2-3 days, medium risk)
-8. ✅ **Add comprehensive token budgeting tests** (1 day, low risk)
+5. ☐ **Refactor prompts.js into sub-modules** (2-3 days, medium risk)
+6. ☐ **Remove PROSE_MODE global state** (2-3 hours, medium risk)
+7. ☐ **Extract spread builder base class** (2-3 days, medium risk)
+8. ☐ **Add comprehensive token budgeting tests** (1 day, low risk)
 
 **Total Effort:** 5-7 days  
 **Impact:** High (maintainability)
@@ -596,10 +596,10 @@ describe('Token Budgeting', () => {
 
 ### Nice to Have (Backlog)
 
-9. ✅ **Lazy-load non-critical analysis enrichments** (1 day, medium risk)
-10. ✅ **Cache GraphRAG keyword matches** (1 day, medium risk)
-11. ✅ **Document error response matrix** (2 hours, low risk)
-12. ✅ **Decide on reasoning integration strategy** (1-2 days, depends on choice)
+9. ☐ **Lazy-load non-critical analysis enrichments** (1 day, medium risk)
+10. ☐ **Cache GraphRAG keyword matches** (1 day, medium risk)
+11. ☐ **Document error response matrix** (2 hours, low risk)
+12. ☐ **Decide on reasoning integration strategy** (1-2 days, depends on choice)
 
 **Total Effort:** 3-4 days  
 **Impact:** Medium (performance + documentation)
