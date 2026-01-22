@@ -333,6 +333,39 @@ async function cleanupExpiredSessions(db) {
 }
 
 /**
+ * Clean up expired or used user tokens (verification/reset).
+ * @param {D1Database} db
+ * @returns {Promise<number>} Number of tokens deleted
+ */
+async function cleanupExpiredUserTokens(db) {
+  if (!db) {
+    console.warn('Skipping token cleanup: missing DB binding');
+    return 0;
+  }
+
+  try {
+    const now = Math.floor(Date.now() / 1000);
+    const result = await db.prepare(`
+      DELETE FROM user_tokens
+      WHERE expires_at <= ? OR used_at IS NOT NULL
+    `).bind(now).run();
+
+    const deleted = result.meta?.changes || 0;
+    if (deleted > 0) {
+      console.log(`Cleaned up ${deleted} expired/used user tokens`);
+    }
+    return deleted;
+  } catch (error) {
+    if (error?.message?.includes('no such table')) {
+      console.log('user_tokens table not yet created, skipping token cleanup');
+      return 0;
+    }
+    console.error('Token cleanup failed:', error);
+    return 0;
+  }
+}
+
+/**
  * Store daily archival summary in D1
  * @param {D1Database} db - D1 database
  * @param {object} results - Archival results
@@ -389,6 +422,7 @@ export async function handleScheduled(controller, env, _ctx) {
     metrics: null,
     feedback: null,
     sessions: null,
+    tokens: null,
     webhookEvents: null,
     memories: null,
     guestUsage: null,
@@ -408,13 +442,15 @@ export async function handleScheduled(controller, env, _ctx) {
     results.feedback = feedbackResult;
 
     // Clean up expired sessions, old webhook events, stale memories, and old guest usage
-    const [sessionsDeleted, webhookEventsDeleted, memoriesResult, guestUsageDeleted] = await Promise.all([
+    const [sessionsDeleted, tokensDeleted, webhookEventsDeleted, memoriesResult, guestUsageDeleted] = await Promise.all([
       cleanupExpiredSessions(env.DB),
+      cleanupExpiredUserTokens(env.DB),
       cleanupOldWebhookEvents(env.DB),
       cleanupStaleMemories(env.DB),
       cleanupOldGuestUsage(env.DB)
     ]);
     results.sessions = { deleted: sessionsDeleted };
+    results.tokens = { deleted: tokensDeleted };
     results.webhookEvents = { deleted: webhookEventsDeleted };
     results.memories = memoriesResult;
     results.guestUsage = { deleted: guestUsageDeleted };
@@ -479,8 +515,9 @@ export async function onRequestPost(context) {
       archiveKVToD1(env.FEEDBACK_KV, env.DB, FEEDBACK_PREFIX, 'feedback')
     ]);
 
-    const [sessionsDeleted, webhookEventsDeleted, memoriesResult, guestUsageDeleted] = await Promise.all([
+    const [sessionsDeleted, tokensDeleted, webhookEventsDeleted, memoriesResult, guestUsageDeleted] = await Promise.all([
       cleanupExpiredSessions(env.DB),
+      cleanupExpiredUserTokens(env.DB),
       cleanupOldWebhookEvents(env.DB),
       cleanupStaleMemories(env.DB),
       cleanupOldGuestUsage(env.DB)
@@ -492,6 +529,7 @@ export async function onRequestPost(context) {
       metrics: metricsResult,
       feedback: feedbackResult,
       sessions: { deleted: sessionsDeleted },
+      tokens: { deleted: tokensDeleted },
       webhookEvents: { deleted: webhookEventsDeleted },
       memories: memoriesResult,
       guestUsage: { deleted: guestUsageDeleted },

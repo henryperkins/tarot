@@ -97,8 +97,10 @@ export function sanitizePromptValue(text, maxLength = 500) {
   trimmed = filterInstructionPatterns(trimmed);
   return trimmed
     .replace(/[`#*_>]/g, '')   // strip markdown/control symbols
+    .replace(/\{\{|\}\}|\$\{|\}|<%|%>|\{#|#\}|\{%|%\}/g, '') // template syntax
+    .replace(/\[%|%\]|\[\[|\]\]/g, '') // template variants
     .replace(/\r?\n+/g, ' ')   // flatten newlines
-    .replace(/\s+/g, ' ')      // collapse whitespace
+    .replace(/\s{2,}/g, ' ')   // collapse whitespace
     .trim();
 }
 

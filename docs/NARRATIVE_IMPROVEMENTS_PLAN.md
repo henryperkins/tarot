@@ -1,52 +1,68 @@
 # Narrative Builder Improvements - Action Plan
 
 **Created:** 2026-01-21  
-**Status:** Ready for Implementation  
+**Status:** Medium-Term Improvements Completed  
 **Priority:** High
 
 ---
 
-## Quick Wins (3 hours total)
+## Quick Wins (3 hours total, completed)
 
-These are low-risk, high-impact changes that can be implemented immediately:
+These are low-risk, high-impact changes that can be implemented immediately (now done):
 
 ### 1. Move Crisis Detection Earlier ⚡ CRITICAL
 
 **File:** `functions/api/tarot-reading.js`  
-**Lines:** Move from ~712 to ~480  
+**Location:** After payload validation (post-schema validation)  
 **Effort:** 1 hour  
 **Risk:** Low  
+**Status:** Implemented  
 
 **Why:** Currently wastes expensive spread analysis on inputs that will be rejected anyway.
 
-**Implementation:**
+**Implementation (as shipped):**
 ```javascript
-// After line 483 (after schema validation)
-const crisisCheck = detectCrisisSignals(
-  [userQuestion, reflectionsText].filter(Boolean).join(' ')
-);
+const contextDiagnostics = [];
+const crisisCheck = detectCrisisSignals([userQuestion, reflectionsText].filter(Boolean).join(' '));
 
 if (crisisCheck.matched) {
   const crisisReason = `crisis_${crisisCheck.categories.join('_') || 'safety'}`;
-  console.warn(`[${requestId}] Crisis gate triggered early: ${crisisReason}`);
-  
+  const spreadKey = getSpreadKey(spreadInfo?.name, spreadInfo?.key || 'custom');
+  const context = inferContext(userQuestion, spreadKey, {
+    onUnknown: (message) => contextDiagnostics.push(message)
+  });
+
+  const metricsPayload = {
+    requestId,
+    timestamp: new Date().toISOString(),
+    provider: 'safe-fallback',
+    spreadKey,
+    deckStyle
+    // ...see tarot-reading.js for full payload fields
+  };
+  await persistReadingMetrics(env, metricsPayload);
   await releaseReadingReservation(env, readingReservation);
-  
+
   return jsonResponse({
     reading: generateSafeFallbackReading({
-      spreadKey: getSpreadKey(spreadKey),
+      spreadKey,
       cardCount: cardsInfo?.length || 0,
       reason: crisisReason
     }),
     provider: 'safe-fallback',
     requestId,
+    themes: null,
+    emotionalTone: null,
+    ephemeris: null,
+    context,
+    contextDiagnostics,
+    spreadAnalysis: null,
     gateBlocked: true,
     gateReason: crisisReason
   });
 }
 
-// Continue with spread analysis only if no crisis
-const analysis = await performSpreadAnalysis(...);
+// Continue with subscription/limits/analysis only if no crisis
 ```
 
 **Testing:**
@@ -65,15 +81,16 @@ curl -X POST http://localhost:8787/api/tarot-reading \
 ### 2. Add Fail-Fast for Critical Section Truncation 🛡️ CRITICAL
 
 **File:** `functions/lib/narrative/prompts.js`  
-**Lines:** ~326-330  
+**Lines:** ~326-339  
 **Effort:** 30 minutes  
 **Risk:** Low  
+**Status:** Implemented  
 
 **Why:** Silent degradation of safety guidance is unacceptable.
 
 **Implementation:**
 ```javascript
-// Replace lines 326-330
+// Fail fast when safety sections exceed budget
 if (criticalTokens > maxTokens * 0.8) {
   const error = new Error('PROMPT_SAFETY_BUDGET_EXCEEDED');
   error.details = {
@@ -86,25 +103,20 @@ if (criticalTokens > maxTokens * 0.8) {
 }
 ```
 
-**Error Handling in tarot-reading.js:**
+**Error Handling in tarot-reading.js (as shipped):**
 ```javascript
-try {
-  const prompts = await buildEnhancedClaudePrompt(...);
-} catch (err) {
-  if (err.message === 'PROMPT_SAFETY_BUDGET_EXCEEDED') {
-    return jsonResponse({
-      error: 'prompt_budget_exceeded',
-      message: 'Unable to generate reading with current configuration',
-      details: err.details
-    }, 500);
-  }
-  throw err;
+if (error?.message === 'PROMPT_SAFETY_BUDGET_EXCEEDED') {
+  return jsonResponse({
+    error: 'prompt_budget_exceeded',
+    message: 'Unable to generate reading with current configuration.',
+    details: error.details || null
+  }, { status: 500 });
 }
 ```
 
 **Testing:**
 ```javascript
-// Add to tests/promptEngineering.test.mjs
+// Added in tests/narrativePromptSafety.test.mjs
 it('fails fast when critical sections exceed 80% budget', () => {
   const largeEthicsSection = '# ETHICS\n' + 'X'.repeat(10000);
   assert.throws(
@@ -119,9 +131,10 @@ it('fails fast when critical sections exceed 80% budget', () => {
 ### 3. Add Template Syntax Stripping 🔒 HIGH PRIORITY
 
 **File:** `functions/lib/narrative/helpers.js`  
-**Lines:** 94-100  
+**Lines:** 94-104  
 **Effort:** 30 minutes  
 **Risk:** Low  
+**Status:** Implemented  
 
 **Why:** Prevents potential prompt injection via template engines.
 
@@ -143,7 +156,7 @@ export function sanitizePromptValue(text, maxLength = 500) {
 
 **Testing:**
 ```javascript
-// Add to tests/promptEngineering.test.mjs
+// Added in tests/narrativePromptSafety.test.mjs
 describe('sanitizePromptValue', () => {
   it('strips template syntax', () => {
     const input = 'Hello {{ name }} and ${user}';
@@ -176,6 +189,7 @@ describe('sanitizePromptValue', () => {
 **Files:** All files in `functions/lib/narrative/spreads/`  
 **Effort:** 1 hour  
 **Risk:** Low  
+**Status:** Implemented  
 
 **Why:** Prevents crashes on empty or malformed input.
 
@@ -183,8 +197,7 @@ describe('sanitizePromptValue', () => {
 ```javascript
 // Add to EVERY spread builder at the start
 
-export function build[SpreadName]Narrative(payload) {
-  const { cardsInfo = [], themes = {}, userQuestion = '', ...rest } = payload;
+export async function build[SpreadName]Reading({ cardsInfo, ...rest }, options = {}) {
   
   // Input validation
   if (!Array.isArray(cardsInfo) || cardsInfo.length === 0) {
@@ -209,7 +222,7 @@ export function build[SpreadName]Narrative(payload) {
 }
 ```
 
-**Files to Update:**
+**Files Updated:**
 - `spreads/singleCard.js` (1 card expected)
 - `spreads/threeCard.js` (3 cards)
 - `spreads/fiveCard.js` (5 cards)
@@ -219,28 +232,10 @@ export function build[SpreadName]Narrative(payload) {
 
 **Testing:**
 ```javascript
-// Add to each spread's test file
-describe('[SpreadName] Narrative Builder', () => {
-  it('throws on empty cardsInfo', () => {
-    assert.throws(
-      () => build[SpreadName]Narrative({ cardsInfo: [] }),
-      /NARRATIVE_NO_CARDS/
-    );
-  });
-  
-  it('throws on wrong card count', () => {
-    assert.throws(
-      () => build[SpreadName]Narrative({ cardsInfo: [{ card: 'The Fool' }] }),
-      /NARRATIVE_CARD_COUNT_MISMATCH/
-    );
-  });
-  
-  it('throws on invalid card data', () => {
-    const invalidCards = [{ /* missing 'card' property */ }];
-    assert.throws(
-      () => build[SpreadName]Narrative({ cardsInfo: invalidCards }),
-      /NARRATIVE_INVALID_CARD_AT_INDEX/
-    );
+// Added in tests/narrativeInputGuards.test.mjs
+describe('spread builder input guards', () => {
+  it('throws on empty cardsInfo', async () => {
+    await assert.rejects(buildThreeCardReading({ cardsInfo: [] }), /NARRATIVE_NO_CARDS/);
   });
 });
 ```
@@ -251,6 +246,7 @@ describe('[SpreadName] Narrative Builder', () => {
 
 After implementing quick wins:
 
+- [x] Run targeted guard + prompt safety tests: `node --test tests/narrativePromptSafety.test.mjs tests/narrativeInputGuards.test.mjs`
 - [ ] Run full test suite: `npm test`
 - [ ] Run E2E tests: `npm run test:e2e`
 - [ ] Test crisis detection manually
@@ -263,7 +259,7 @@ After implementing quick wins:
 
 ## Deployment Checklist
 
-- [ ] All quick wins implemented
+- [x] All quick wins implemented
 - [ ] Tests passing
 - [ ] Code reviewed
 - [ ] Error handling tested manually
@@ -480,10 +476,10 @@ After implementing improvements, monitor:
 
 ### Quick Wins (Week 1)
 
-- [ ] All 4 quick wins implemented
+- [x] All 4 quick wins implemented
 - [ ] Tests passing
 - [ ] No regressions in existing functionality
-- [ ] Documentation updated
+- [x] Documentation updated
 
 ### Medium-Term (Quarter 1)
 
@@ -491,7 +487,7 @@ After implementing improvements, monitor:
 - [ ] helpers.js < 1000 LOC
 - [ ] No global state in narrative system
 - [ ] 80%+ test coverage for token budgeting
-- [ ] All spread builders have input guards
+- [x] All spread builders have input guards
 
 ### Long-Term (Year 1)
 

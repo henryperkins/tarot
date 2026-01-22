@@ -3,7 +3,6 @@ import { sortCardsByImportance } from '../../positionWeights.js';
 import { analyzeElementalDignity } from '../../spreadAnalysis.js';
 import {
   appendReversalReminder,
-  buildOpening,
   buildPositionCardText,
   getPositionOptions,
   buildWeightAttentionIntro,
@@ -12,7 +11,8 @@ import {
   buildReflectionsSection,
   buildPatternSynthesis,
   getConnector,
-  computeRemedyRotationIndex
+  computeRemedyRotationIndex,
+  buildOpening
 } from '../helpers.js';
 import { getToneStyle, getFrameVocabulary, buildNameClause, buildPersonalizedClosing } from '../styleHelpers.js';
 import {
@@ -21,6 +21,7 @@ import {
   enhanceCardTextWithReasoning,
   buildReasoningSynthesis
 } from '../reasoningIntegration.js';
+import { BaseSpreadBuilder, buildSpreadFallback } from './base.js';
 
 export async function buildDecisionReading({
   cardsInfo,
@@ -30,6 +31,35 @@ export async function buildDecisionReading({
   context,
   spreadInfo
 }, options = {}) {
+  const expectedCount = 5;
+  const receivedCount = Array.isArray(cardsInfo) ? cardsInfo.length : 0;
+  const fallback = buildSpreadFallback({
+    spreadName: 'Decision / Two-Path',
+    expectedCount,
+    receivedCount
+  });
+  if (!Array.isArray(cardsInfo) || receivedCount === 0) {
+    return fallback;
+  }
+  if (receivedCount !== expectedCount) {
+    return buildSpreadFallback({
+      spreadName: 'Decision / Two-Path',
+      expectedCount,
+      receivedCount
+    });
+  }
+  for (let i = 0; i < cardsInfo.length; i++) {
+    const card = cardsInfo[i];
+    if (!card || !card.card || !card.position) {
+      return buildSpreadFallback({
+        spreadName: 'Decision / Two-Path',
+        expectedCount,
+        receivedCount,
+        reason: `Missing details for card ${i + 1}.`
+      });
+    }
+  }
+
   const sections = [];
   const collectValidation =
     typeof options.collectValidation === 'function'
@@ -63,11 +93,7 @@ export async function buildDecisionReading({
     : buildOpening(spreadName, openingQuestion, context, { personalization: options.personalization });
   sections.push(opening);
 
-  const normalizedCards = Array.isArray(cardsInfo) ? cardsInfo : [];
-  if (normalizedCards.length < 5) {
-    const placeholder = '### Decision / Two-Path\n\nThis spread needs all five cards (heart, two paths, clarifier, and free-will reminder) before a narrative can be generated. Draw or reveal the remaining cards, then try again.';
-    return appendReversalReminder(placeholder, normalizedCards, themes);
-  }
+  const normalizedCards = cardsInfo;
   const prioritized = sortCardsByImportance(normalizedCards, 'decision');
   const [heart, pathA, pathB, clarifier, freeWill] = normalizedCards;
   const positionOptions = getPositionOptions(themes, context);

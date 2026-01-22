@@ -48,6 +48,10 @@ import * as authLogin from '../../functions/api/auth/login.js';
 import * as authLogout from '../../functions/api/auth/logout.js';
 import * as authRegister from '../../functions/api/auth/register.js';
 import * as authMe from '../../functions/api/auth/me.js';
+import * as authForgotPassword from '../../functions/api/auth/forgot-password.js';
+import * as authResetPassword from '../../functions/api/auth/reset-password.js';
+import * as authVerifyEmail from '../../functions/api/auth/verify-email.js';
+import * as authVerifyEmailResend from '../../functions/api/auth/verify-email/resend.js';
 
 // Stripe webhook handler
 import * as stripeWebhook from '../../functions/api/webhooks/stripe.js';
@@ -232,6 +236,10 @@ const routes = [
   { pattern: /^\/api\/auth\/logout$/, handlers: authLogout },
   { pattern: /^\/api\/auth\/register$/, handlers: authRegister },
   { pattern: /^\/api\/auth\/me$/, handlers: authMe },
+  { pattern: /^\/api\/auth\/forgot-password$/, handlers: authForgotPassword },
+  { pattern: /^\/api\/auth\/reset-password$/, handlers: authResetPassword },
+  { pattern: /^\/api\/auth\/verify-email\/resend$/, handlers: authVerifyEmailResend },
+  { pattern: /^\/api\/auth\/verify-email$/, handlers: authVerifyEmail },
 
   // API Keys management
   { pattern: /^\/api\/keys$/, handlers: keysIndex },

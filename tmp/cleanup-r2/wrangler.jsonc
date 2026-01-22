@@ -1,0 +1,13 @@
+{
+  "name": "cleanup-vids-bucket",
+  "main": "index.js",
+  "compatibility_date": "2025-01-21",
+  "account_id": "a77e479f6736120eadd99973dbeb705e",
+  "r2_buckets": [
+    {
+      "binding": "VIDS_BUCKET",
+      "bucket_name": "vids",
+      "preview_bucket_name": "vids"
+    }
+  ]
+}

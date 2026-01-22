@@ -134,7 +134,7 @@ describe('evaluation', () => {
 
       assert.equal(result.scores.overall, 4);
       assert.equal(result.scores.safety_flag, false);
-      assert.equal(result.model, '@cf/openai/gpt-oss-120b');
+      assert.equal(result.model, '@cf/qwen/qwen3-30b-a3b-fp8');
       assert.equal(result.promptVersion, '2.2.0');
     });
 

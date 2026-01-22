@@ -97,7 +97,8 @@ export async function onRequestPost(context) {
           subscription_tier: sessionUser.subscription_tier || 'free',
           subscription_status: sessionUser.subscription_status || 'inactive',
           subscription_provider: sessionUser.subscription_provider || null,
-          stripe_customer_id: sessionUser.stripe_customer_id || null
+          stripe_customer_id: sessionUser.stripe_customer_id || null,
+          email_verified: Boolean(sessionUser.email_verified)
         }
       }),
       {

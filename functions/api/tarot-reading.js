@@ -549,6 +549,8 @@ export const onRequestPost = async ({ request, env, waitUntil }) => {
     }
     console.log(`[${requestId}] Payload validation passed`);
 
+    const contextDiagnostics = [];
+
     const user = await getUserFromRequest(request, env);
     const subscription = getSubscriptionContext(user);
     const subscriptionTier = subscription.effectiveTier;
@@ -559,6 +561,52 @@ export const onRequestPost = async ({ request, env, waitUntil }) => {
       effectiveTier: subscriptionTier,
       authProvider: user?.auth_provider || 'session_or_anonymous'
     });
+
+    const crisisCheck = detectCrisisSignals([userQuestion, reflectionsText].filter(Boolean).join(' '));
+    if (crisisCheck.matched) {
+      console.warn(`[${requestId}] Crisis signals detected: ${crisisCheck.categories.join(', ')}`, {
+        userId: user?.id || null,
+        authProvider: user?.auth_provider || 'anonymous'
+      });
+      const crisisSpreadKey = getSpreadKey(spreadInfo.name, spreadInfo?.key || 'custom');
+      const crisisMetrics = {
+        requestId,
+        timestamp: new Date().toISOString(),
+        provider: 'safety-gate',
+        deckStyle,
+        spreadKey: crisisSpreadKey,
+        narrative: { cardCount: cardsInfo.length },
+        evalGate: {
+          ran: false,
+          blocked: true,
+          reason: 'crisis_gate'
+        },
+        gateBlocked: true,
+        gateReason: 'crisis_gate',
+        crisisCategories: crisisCheck.categories
+      };
+      const persistPromise = persistReadingMetrics(env, crisisMetrics);
+      if (typeof waitUntil === 'function') {
+        waitUntil(persistPromise);
+      } else {
+        await persistPromise;
+      }
+      return jsonResponse({
+        reading: `I can hear that you're going through something really difficult right now. What you're describing deserves more support than a tarot reading can offer.
+
+Please consider reaching out to someone who can really be there for you:
+- **Crisis Text Line**: Text HOME to 741741
+- **National Suicide Prevention Lifeline**: 988 (US)
+- **International Association for Suicide Prevention**: https://www.iasp.info/resources/Crisis_Centres/
+
+Your cards will be here when you're ready. Right now, please take care of yourself.`,
+        provider: 'safety-gate',
+        requestId,
+        gateBlocked: true,
+        gateReason: 'crisis_gate',
+        crisisCategories: crisisCheck.categories
+      });
+    }
 
     const spreadDefinition = getSpreadDefinition(spreadInfo.name);
     const requestedSpreadKey = getSpreadKey(spreadInfo.name, spreadInfo?.key || 'custom');
@@ -692,7 +740,6 @@ export const onRequestPost = async ({ request, env, waitUntil }) => {
       reversalFramework: analysis.themes?.reversalFramework
     });
 
-    const contextDiagnostics = [];
     const context = inferContext(userQuestion, analysis.spreadKey, {
       onUnknown: (message) => contextDiagnostics.push(message)
     });
@@ -707,71 +754,6 @@ export const onRequestPost = async ({ request, env, waitUntil }) => {
       } catch (abErr) {
         console.warn(`[${requestId}] A/B testing experiment load failed: ${abErr.message}`);
       }
-    }
-
-    const crisisCheck = detectCrisisSignals([userQuestion, reflectionsText].filter(Boolean).join(' '));
-    if (crisisCheck.matched) {
-      const crisisReason = `crisis_${crisisCheck.categories.join('_') || 'safety'}`;
-      const crisisMessage = `Crisis/health safety gate triggered (${crisisCheck.categories.join(', ') || 'unclassified'})`;
-      contextDiagnostics.push(crisisMessage);
-      console.warn(`[${requestId}] ${crisisMessage}; matches: ${crisisCheck.matches.join('; ')}`);
-
-      const graphRAGStats = resolveGraphRAGStats(analysis);
-      const narrativeMetrics = {
-        spine: { isValid: false, totalSections: 0, completeSections: 0, incompleteSections: 0, suggestions: [] },
-        cardCoverage: 0,
-        missingCards: (cardsInfo || []).map((c) => c?.card).filter(Boolean),
-        hallucinatedCards: []
-      };
-
-      const timestamp = new Date().toISOString();
-      const metricsPayload = {
-        requestId,
-        timestamp,
-        provider: 'safe-fallback',
-        deckStyle,
-        spreadKey: analysis.spreadKey,
-        context,
-        vision: null,
-        narrative: narrativeMetrics,
-        narrativeEnhancements: null,
-        graphRAG: graphRAGStats,
-        promptMeta: null,
-        enhancementTelemetry: null,
-        contextDiagnostics: {
-          messages: contextDiagnostics,
-          count: contextDiagnostics.length
-        },
-        promptEngineering: null,
-        llmUsage: null,
-        evalGate: { ran: false, blocked: true, reason: crisisReason }
-      };
-
-      await persistReadingMetrics(env, metricsPayload);
-      await releaseReadingReservation(env, readingReservation);
-      readingReservation = null;
-
-      const emotionalTone = deriveEmotionalTone(analysis.themes);
-
-      return jsonResponse({
-        reading: generateSafeFallbackReading({
-          spreadKey: analysis.spreadKey,
-          cardCount: cardsInfo.length,
-          reason: crisisReason
-        }),
-        provider: 'safe-fallback',
-        requestId,
-        themes: analysis.themes,
-        emotionalTone,
-        ephemeris: buildEphemerisClientPayload(analysis.ephemerisContext),
-        context,
-        contextDiagnostics,
-        narrativeMetrics,
-        graphRAG: graphRAGStats,
-        spreadAnalysis: buildSpreadAnalysisPayload(analysis),
-        gateBlocked: true,
-        gateReason: crisisReason
-      });
     }
 
     // STEP 2: Generate reading via configured narrative backends
@@ -861,30 +843,40 @@ export const onRequestPost = async ({ request, env, waitUntil }) => {
         }
       }
 
-      const { systemPrompt, userPrompt } = buildAzureGPT5Prompts(env, narrativePayload, requestId);
-      applyGraphRAGAlerts(narrativePayload, requestId, streamProvider);
-
-      const reasoningEffort = getReasoningEffort(env, env.AZURE_OPENAI_GPT5_MODEL);
-      const verbosity = getTextVerbosity(env, env.AZURE_OPENAI_GPT5_MODEL);
-      if (reasoningEffort === 'high') {
-        console.log(`[${requestId}] Detected ${env.AZURE_OPENAI_GPT5_MODEL} deployment, using 'high' reasoning effort`);
+      let systemPrompt = null;
+      let userPrompt = null;
+      try {
+        ({ systemPrompt, userPrompt } = buildAzureGPT5Prompts(env, narrativePayload, requestId));
+      } catch (promptError) {
+        console.warn(`[${requestId}] Streaming prompt build failed: ${promptError.message}`);
+        backendErrors.push({ backend: streamProvider, error: promptError.message, details: promptError.details || null });
+        streamingFallback = true;
       }
 
-      console.log(`[${requestId}] Streaming request config:`, {
-        deployment: env.AZURE_OPENAI_GPT5_MODEL,
-        max_output_tokens: 'unlimited',
-        reasoning_effort: reasoningEffort,
-        reasoning_summary: 'auto',
-        verbosity,
-        stream: true
-      });
+      if (!streamingFallback) {
+        applyGraphRAGAlerts(narrativePayload, requestId, streamProvider);
 
-      const capturedPrompts = {
-        system: systemPrompt,
-        user: userPrompt
-      };
+        const reasoningEffort = getReasoningEffort(env, env.AZURE_OPENAI_GPT5_MODEL);
+        const verbosity = getTextVerbosity(env, env.AZURE_OPENAI_GPT5_MODEL);
+        if (reasoningEffort === 'high') {
+          console.log(`[${requestId}] Detected ${env.AZURE_OPENAI_GPT5_MODEL} deployment, using 'high' reasoning effort`);
+        }
 
-      try {
+        console.log(`[${requestId}] Streaming request config:`, {
+          deployment: env.AZURE_OPENAI_GPT5_MODEL,
+          max_output_tokens: 'unlimited',
+          reasoning_effort: reasoningEffort,
+          reasoning_summary: 'auto',
+          verbosity,
+          stream: true
+        });
+
+        const capturedPrompts = {
+          system: systemPrompt,
+          user: userPrompt
+        };
+
+        try {
         const azureStream = await callAzureResponsesStream(env, {
           instructions: systemPrompt,
           input: userPrompt,
@@ -1052,11 +1044,12 @@ export const onRequestPost = async ({ request, env, waitUntil }) => {
 
           return createSSEResponse(wrappedStream);
         }
-      } catch (streamError) {
-        console.error(`[${requestId}] Streaming error: ${streamError.message}`);
-        // Release the reading reservation - user shouldn't lose quota for failed streaming
-        await releaseReadingReservation(env, readingReservation);
-        return createSSEErrorResponse('Failed to generate reading.', 503);
+        } catch (streamError) {
+          console.error(`[${requestId}] Streaming error: ${streamError.message}`);
+          // Release the reading reservation - user shouldn't lose quota for failed streaming
+          await releaseReadingReservation(env, readingReservation);
+          return createSSEErrorResponse('Failed to generate reading.', 503);
+        }
       }
     }
 
@@ -1219,10 +1212,19 @@ export const onRequestPost = async ({ request, env, waitUntil }) => {
     console.error(`[${requestId}] FATAL ERROR after ${totalTime}ms:`, {
       error: error.message,
       stack: error.stack,
-      name: error.name
+      name: error.name,
+      details: error.details || null
     });
     await releaseReadingReservation(env, readingReservation);
     console.log(`[${requestId}] === TAROT READING REQUEST END (ERROR) ===`);
+
+    if (error?.message === 'PROMPT_SAFETY_BUDGET_EXCEEDED') {
+      return jsonResponse({
+        error: 'prompt_budget_exceeded',
+        message: 'Unable to generate reading with current configuration.',
+        details: error.details || null
+      }, { status: 500 });
+    }
 
     if (useStreaming) {
       return createSSEErrorResponse('Failed to generate reading.', 500);

@@ -281,6 +281,7 @@ Tables organized by migration (see `migrations/`):
 **Core Auth & Content:**
 - `users` — User accounts with subscription info (tier, status, stripe_customer_id)
 - `sessions` — Auth sessions
+- `user_tokens` — Email verification + password reset tokens
 - `journal_entries` — Saved readings (dedup index on `user_id, session_seed`)
 
 **Sharing:**
@@ -594,6 +595,10 @@ See `tests/accessibility/README.md` for manual testing guides (axe DevTools, key
 | `/api/auth/login`            | POST       | User login                                  |
 | `/api/auth/logout`           | POST       | User logout                                 |
 | `/api/auth/register`         | POST       | User registration                           |
+| `/api/auth/forgot-password`  | POST       | Request password reset email                |
+| `/api/auth/reset-password`   | POST       | Reset password with token                   |
+| `/api/auth/verify-email`     | GET        | Verify email with token                     |
+| `/api/auth/verify-email/resend` | POST    | Resend verification email                   |
 | `/api/auth/me`               | GET        | Current user info                           |
 | `/api/keys`                  | GET/POST   | API key management                          |
 | `/api/keys/:id`              | DELETE     | Delete API key                              |
@@ -630,4 +635,5 @@ See `tests/accessibility/README.md` for manual testing guides (axe DevTools, key
 - `AZURE_ANTHROPIC_ENDPOINT`, `AZURE_ANTHROPIC_API_KEY`, `AZURE_ANTHROPIC_MODEL`
 - `AZURE_OPENAI_TTS_ENDPOINT`, `AZURE_OPENAI_TTS_API_KEY`, `AZURE_OPENAI_GPT_AUDIO_MINI_DEPLOYMENT`
 - `VISION_PROOF_SECRET`
+- `RESEND_API_KEY` — Transactional email delivery (auth verification/reset)
 - `ADMIN_API_KEY` — For manual archival trigger

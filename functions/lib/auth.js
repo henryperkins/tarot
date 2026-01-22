@@ -155,7 +155,8 @@ export async function validateSession(db, token) {
           u.subscription_tier,
           u.subscription_status,
           u.subscription_provider,
-          u.stripe_customer_id
+          u.stripe_customer_id,
+          u.email_verified
         FROM sessions s
         JOIN users u ON s.user_id = u.id
         WHERE s.id = ? AND s.expires_at > ? AND u.is_active = 1
@@ -186,7 +187,8 @@ export async function validateSession(db, token) {
           u.id,
           u.email,
           u.username,
-          u.is_active
+          u.is_active,
+          u.email_verified
         FROM sessions s
         JOIN users u ON s.user_id = u.id
         WHERE s.id = ? AND s.expires_at > ? AND u.is_active = 1
@@ -218,7 +220,8 @@ export async function validateSession(db, token) {
     subscription_tier: subscriptionTier,
     subscription_status: subscriptionStatus,
     subscription_provider: subscriptionProvider,
-    stripe_customer_id: result.stripe_customer_id || null
+    stripe_customer_id: result.stripe_customer_id || null,
+    email_verified: Boolean(result.email_verified)
   };
 }
 
@@ -397,6 +400,7 @@ export async function getUserFromRequest(request, env) {
           subscription_status: apiKeyRecord.subscription_status || 'inactive',
           subscription_provider: apiKeyRecord.subscription_provider || null,
           stripe_customer_id: apiKeyRecord.stripe_customer_id || null,
+          email_verified: Boolean(apiKeyRecord.email_verified),
           auth_provider: 'api_key',
           api_key_id: apiKeyRecord.id,
           api_key_prefix: apiKeyRecord.key_prefix

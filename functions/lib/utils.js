@@ -46,6 +46,26 @@ export function jsonResponse(data, init = {}) {
   });
 }
 
+/**
+ * Derive the external base URL for a request, respecting proxy headers.
+ * Falls back to the request URL's protocol/host when headers are absent.
+ *
+ * @param {Request} request
+ * @returns {string} Base URL (e.g., https://example.com)
+ */
+export function getBaseUrl(request) {
+  const url = new URL(request.url);
+  const forwardedProto = request.headers.get('X-Forwarded-Proto');
+  const cfVisitor = request.headers.get('CF-Visitor');
+  const isHttps =
+    forwardedProto === 'https' ||
+    cfVisitor?.includes('"scheme":"https"') ||
+    url.protocol === 'https:';
+
+  const protocol = isHttps ? 'https:' : url.protocol;
+  return `${protocol}//${url.host}`;
+}
+
 // Re-export safeJsonParse from canonical shared location.
 // Note: The shared version defaults to silent=true. Workers code that wants warnings
 // should explicitly pass { silent: false }.

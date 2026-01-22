@@ -46,7 +46,8 @@ export async function onRequestGet(context) {
           username: user.username,
           subscription_tier: user.subscription_tier || 'free',
           subscription_status: user.subscription_status || 'inactive',
-          subscription_provider: user.subscription_provider || null
+          subscription_provider: user.subscription_provider || null,
+          email_verified: Boolean(user.email_verified)
         }
       }),
       {

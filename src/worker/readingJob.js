@@ -286,7 +286,7 @@ export class ReadingJob {
       } catch {
         payload = null;
       }
-      const message = payload?.error || 'Failed to generate reading.';
+      const message = payload?.message || payload?.error || 'Failed to generate reading.';
       this.appendEvent('error', { message });
       return;
     }

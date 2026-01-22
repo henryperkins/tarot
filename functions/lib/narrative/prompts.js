@@ -308,7 +308,7 @@ function extractCriticalSections(text) {
  * @param {number} maxTokens - Maximum tokens allowed
  * @returns {{ text: string, truncated: boolean, originalTokens: number, preservedSections: string[] }}
  */
-function truncateSystemPromptSafely(text, maxTokens) {
+export function truncateSystemPromptSafely(text, maxTokens) {
   if (!text || typeof text !== 'string') {
     return { text: '', truncated: false, originalTokens: 0, preservedSections: [] };
   }
@@ -323,14 +323,33 @@ function truncateSystemPromptSafely(text, maxTokens) {
   const criticalText = criticalSections.map((section) => section.content).join('\n\n');
   const criticalTokens = estimateTokenCount(criticalText); // Rough estimate
 
-  // If critical sections alone exceed budget, we have a serious problem - log and do basic truncation
+  // If critical sections alone exceed budget, fall back to truncating the critical block
+  if (criticalTokens >= maxTokens) {
+    const details = {
+      criticalTokens,
+      maxTokens,
+      budgetPercent: Number((criticalTokens / maxTokens * 100).toFixed(1))
+    };
+    console.warn('[prompts] Critical safety sections exceed budget; truncating critical block only.', details);
+    const criticalResult = truncateToTokenBudget(criticalText, maxTokens);
+    return {
+      text: criticalResult.text,
+      truncated: true,
+      originalTokens,
+      preservedSections: criticalSections.map((section) => section.marker)
+    };
+  }
+
   if (criticalTokens > maxTokens * 0.8) {
-    console.error('[prompts] CRITICAL: Safety sections exceed 80% of token budget - truncation may compromise safety guidance');
-    return truncateToTokenBudget(text, maxTokens);
+    console.warn('[prompts] Safety sections are consuming most of the token budget.', {
+      criticalTokens,
+      maxTokens,
+      budgetPercent: Number((criticalTokens / maxTokens * 100).toFixed(1))
+    });
   }
 
   // Budget for non-critical content
-  const availableForOther = maxTokens - criticalTokens;
+  const availableForOther = Math.max(0, maxTokens - criticalTokens);
   const targetChars = Math.floor(availableForOther * TOKEN_ESTIMATE_DIVISOR * 0.95);
 
   // Build truncated text: keep beginning (role/context) + critical sections
@@ -343,7 +362,7 @@ function truncateSystemPromptSafely(text, maxTokens) {
     ? Math.min(...criticalSections.map(s => s.startIdx))
     : text.length;
 
-  const introEnd = Math.min(firstCriticalIdx, targetChars);
+  const introEnd = Math.max(0, Math.min(firstCriticalIdx, targetChars));
   result = text.slice(0, introEnd);
 
   // Find a clean break point

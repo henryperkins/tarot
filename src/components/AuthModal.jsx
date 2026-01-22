@@ -7,9 +7,9 @@ import { useModalA11y, createBackdropHandler } from '../hooks/useModalA11y';
 import { useSmallScreen } from '../hooks/useSmallScreen';
 
 export default function AuthModal({ isOpen, onClose, initialMode = 'login' }) {
-  const { register, login, error: authError } = useAuth();
+  const { register, login, requestPasswordReset, resendVerification, error: authError } = useAuth();
   const isSmallScreen = useSmallScreen();
-  const [mode, setMode] = useState(initialMode); // 'login' or 'register'
+  const [mode, setMode] = useState(initialMode); // 'login' | 'register' | 'forgot'
   const [email, setEmail] = useState('');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -34,7 +34,10 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login' }) {
   // Sync mode with initialMode when modal opens
   useEffect(() => {
     if (isOpen) {
-      setMode(initialMode);
+      const validModes = ['login', 'register', 'forgot'];
+      setMode(validModes.includes(initialMode) ? initialMode : 'login');
+      setError('');
+      setSuccess('');
     }
   }, [isOpen, initialMode]);
 
@@ -80,6 +83,24 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login' }) {
         } else {
           setError(result.error || 'Registration failed');
         }
+      } else if (mode === 'forgot') {
+        if (!email) {
+          setError('Email is required to send a reset link');
+          return;
+        }
+
+        const result = await requestPasswordReset(email);
+        if (result.success) {
+          setSuccess('If this email is registered, you will receive a reset link shortly.');
+          setTimeout(() => {
+            setMode('login');
+            setPassword('');
+            setConfirmPassword('');
+            setSuccess('');
+          }, 1600);
+        } else {
+          setError(result.error || 'Unable to send reset link');
+        }
       } else {
         // Login
         if (!email || !password) {
@@ -105,12 +126,53 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login' }) {
     }
   };
 
+  const handleResendVerification = async () => {
+    setError('');
+    setSuccess('');
+
+    if (!email) {
+      setError('Enter your email to resend a verification link');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const result = await resendVerification(email);
+      if (result.success) {
+        setSuccess('If this email is registered, a verification email is on the way.');
+      } else {
+        setError(result.error || 'Unable to send verification email');
+      }
+    } catch (err) {
+      setError(err.message || 'Unable to send verification email');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const switchMode = () => {
-    setMode(mode === 'login' ? 'register' : 'login');
+    const nextMode = mode === 'register' ? 'login' : 'register';
+    setMode(nextMode);
     setError('');
     setSuccess('');
     // Preserve email when switching modes
     setUsername('');
+    setPassword('');
+    setConfirmPassword('');
+  };
+
+  const goToForgot = () => {
+    setMode('forgot');
+    setError('');
+    setSuccess('');
+    setPassword('');
+    setConfirmPassword('');
+  };
+
+  const goToLogin = () => {
+    setMode('login');
+    setError('');
+    setSuccess('');
     setPassword('');
     setConfirmPassword('');
   };
@@ -175,12 +237,14 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login' }) {
           {/* Header */}
           <div className="px-6 sm:px-8 pt-8 pb-5 border-b border-primary/20">
             <h2 id="auth-modal-title" className="text-2xl font-serif text-accent pr-8">
-              {mode === 'login' ? 'Welcome Back' : 'Create Account'}
+              {mode === 'login' ? 'Welcome Back' : mode === 'register' ? 'Create Account' : 'Reset Access'}
             </h2>
             <p className="mt-2 text-sm text-muted">
               {mode === 'login'
                 ? 'Sign in to access your journal across devices'
-                : 'Register to save your readings to the cloud'}
+                : mode === 'register'
+                  ? 'Register to save your readings to the cloud'
+                  : 'We will email you a secure link to set a new password'}
             </p>
           </div>
 
@@ -237,55 +301,63 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login' }) {
               )}
 
               {/* Password */}
-              <div>
-                <label htmlFor="auth-password" className="block text-sm font-medium text-accent mb-1.5">
-                  Password
-                </label>
-                <div className="relative">
-                  <input
-                    type={showPassword ? 'text' : 'password'}
-                    id="auth-password"
-                    name="password"
-                    autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className={`${inputBaseClasses} pr-12`}
-                    placeholder={mode === 'register' ? 'At least 8 characters' : 'Enter your password'}
-                    required
-                    disabled={loading}
-                    minLength={8}
-                    aria-invalid={Boolean(error || authError)}
-                    aria-describedby={mode === 'register' ? 'password-hint' : undefined}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="
-                      absolute right-1 top-1/2 -translate-y-1/2
-                      flex items-center justify-center
-                      w-10 h-10 min-w-[40px] min-h-[40px]
-                      rounded-lg
-                      text-muted hover:text-accent
-                      active:bg-accent/10
-                      transition touch-manipulation
-                      focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60
-                    "
-                    aria-label={showPassword ? 'Hide password' : 'Show password'}
-                    aria-pressed={showPassword}
-                  >
-                    {showPassword ? (
-                      <EyeSlash className="w-5 h-5" aria-hidden="true" />
-                    ) : (
-                      <Eye className="w-5 h-5" aria-hidden="true" />
-                    )}
-                  </button>
+              {mode === 'forgot' && (
+                <p className="text-xs text-muted">
+                  Enter the email you use for Tableu. If it matches an account, we will send a reset link and a fresh verification email.
+                </p>
+              )}
+
+              {mode !== 'forgot' && (
+                <div>
+                  <label htmlFor="auth-password" className="block text-sm font-medium text-accent mb-1.5">
+                    Password
+                  </label>
+                  <div className="relative">
+                    <input
+                      type={showPassword ? 'text' : 'password'}
+                      id="auth-password"
+                      name="password"
+                      autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      className={`${inputBaseClasses} pr-12`}
+                      placeholder={mode === 'register' ? 'At least 8 characters' : 'Enter your password'}
+                      required
+                      disabled={loading}
+                      minLength={8}
+                      aria-invalid={Boolean(error || authError)}
+                      aria-describedby={mode === 'register' ? 'password-hint' : undefined}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="
+                        absolute right-1 top-1/2 -translate-y-1/2
+                        flex items-center justify-center
+                        w-10 h-10 min-w-[40px] min-h-[40px]
+                        rounded-lg
+                        text-muted hover:text-accent
+                        active:bg-accent/10
+                        transition touch-manipulation
+                        focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60
+                      "
+                      aria-label={showPassword ? 'Hide password' : 'Show password'}
+                      aria-pressed={showPassword}
+                    >
+                      {showPassword ? (
+                        <EyeSlash className="w-5 h-5" aria-hidden="true" />
+                      ) : (
+                        <Eye className="w-5 h-5" aria-hidden="true" />
+                      )}
+                    </button>
+                  </div>
+                  {mode === 'register' && (
+                    <p id="password-hint" className="mt-1 text-xs text-muted">
+                      Minimum 8 characters
+                    </p>
+                  )}
                 </div>
-                {mode === 'register' && (
-                  <p id="password-hint" className="mt-1 text-xs text-muted">
-                    Minimum 8 characters
-                  </p>
-                )}
-              </div>
+              )}
 
               {/* Confirm Password (register only) */}
               {mode === 'register' && (
@@ -331,6 +403,27 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login' }) {
                       )}
                     </button>
                   </div>
+                </div>
+              )}
+
+              {mode === 'login' && (
+                <div className="flex flex-wrap items-center justify-between gap-3 text-sm pt-1">
+                  <button
+                    type="button"
+                    onClick={goToForgot}
+                    className="text-accent hover:text-accent/80 underline underline-offset-4"
+                    disabled={loading}
+                  >
+                    Forgot password?
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleResendVerification}
+                    className="text-accent hover:text-accent/80 underline underline-offset-4 disabled:opacity-60 disabled:cursor-not-allowed"
+                    disabled={loading}
+                  >
+                    Resend verification email
+                  </button>
                 </div>
               )}
             </div>
@@ -379,32 +472,54 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login' }) {
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                   </svg>
-                  {mode === 'login' ? 'Signing in...' : 'Creating account...'}
+                  {mode === 'login'
+                    ? 'Signing in...'
+                    : mode === 'register'
+                      ? 'Creating account...'
+                      : 'Sending link...'}
                 </span>
               ) : (
-                mode === 'login' ? 'Sign In' : 'Create Account'
+                mode === 'login' ? 'Sign In' : mode === 'register' ? 'Create Account' : 'Send Reset Link'
               )}
             </button>
 
             {/* Switch mode */}
             <div className="mt-6 text-center">
-              <button
-                type="button"
-                onClick={switchMode}
-                className="
-                  text-sm text-accent hover:text-accent/80
-                  underline underline-offset-2
-                  disabled:opacity-50 disabled:cursor-not-allowed
-                  touch-manipulation
-                  focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60
-                  rounded px-2 py-1
-                "
-                disabled={loading}
-              >
-                {mode === 'login'
-                  ? "Don't have an account? Register"
-                  : 'Already have an account? Sign in'}
-              </button>
+              {mode === 'forgot' ? (
+                <button
+                  type="button"
+                  onClick={goToLogin}
+                  className="
+                    text-sm text-accent hover:text-accent/80
+                    underline underline-offset-2
+                    disabled:opacity-50 disabled:cursor-not-allowed
+                    touch-manipulation
+                    focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60
+                    rounded px-2 py-1
+                  "
+                  disabled={loading}
+                >
+                  Remembered it? Back to sign in
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={switchMode}
+                  className="
+                    text-sm text-accent hover:text-accent/80
+                    underline underline-offset-2
+                    disabled:opacity-50 disabled:cursor-not-allowed
+                    touch-manipulation
+                    focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60
+                    rounded px-2 py-1
+                  "
+                  disabled={loading}
+                >
+                  {mode === 'login'
+                    ? "Don't have an account? Register"
+                    : 'Already have an account? Sign in'}
+                </button>
+              )}
             </div>
           </form>
 

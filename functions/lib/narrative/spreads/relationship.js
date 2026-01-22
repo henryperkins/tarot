@@ -3,7 +3,6 @@ import { sortCardsByImportance } from '../../positionWeights.js';
 import { analyzeElementalDignity } from '../../spreadAnalysis.js';
 import {
   appendReversalReminder,
-  buildOpening,
   buildPositionCardText,
   getPositionOptions,
   buildWeightAttentionIntro,
@@ -14,7 +13,8 @@ import {
   getConnector,
   buildInlineReversalNote,
   buildGuidanceActionPrompt,
-  computeRemedyRotationIndex
+  computeRemedyRotationIndex,
+  buildOpening
 } from '../helpers.js';
 import { getToneStyle, getFrameVocabulary, buildNameClause, buildPersonalizedClosing } from '../styleHelpers.js';
 import {
@@ -23,6 +23,7 @@ import {
   enhanceCardTextWithReasoning,
   buildReasoningSynthesis
 } from '../reasoningIntegration.js';
+import { BaseSpreadBuilder, buildSpreadFallback } from './base.js';
 
 export async function buildRelationshipReading({
   cardsInfo,
@@ -32,6 +33,35 @@ export async function buildRelationshipReading({
   context,
   spreadInfo
 }, options = {}) {
+  const expectedCount = 3;
+  const receivedCount = Array.isArray(cardsInfo) ? cardsInfo.length : 0;
+  const fallback = buildSpreadFallback({
+    spreadName: 'Relationship Snapshot',
+    expectedCount,
+    receivedCount
+  });
+  if (!Array.isArray(cardsInfo) || receivedCount === 0) {
+    return fallback;
+  }
+  if (receivedCount !== expectedCount) {
+    return buildSpreadFallback({
+      spreadName: 'Relationship Snapshot',
+      expectedCount,
+      receivedCount
+    });
+  }
+  for (let i = 0; i < cardsInfo.length; i++) {
+    const card = cardsInfo[i];
+    if (!card || !card.card || !card.position) {
+      return buildSpreadFallback({
+        spreadName: 'Relationship Snapshot',
+        expectedCount,
+        receivedCount,
+        reason: `Missing details for card ${i + 1}.`
+      });
+    }
+  }
+
   const sections = [];
   const collectValidation =
     typeof options.collectValidation === 'function'
@@ -65,7 +95,7 @@ export async function buildRelationshipReading({
     : buildOpening(spreadName, openingQuestion, context, { personalization: options.personalization });
   sections.push(opening);
 
-  const normalizedCards = Array.isArray(cardsInfo) ? cardsInfo : [];
+  const normalizedCards = cardsInfo;
   const prioritized = sortCardsByImportance(normalizedCards, 'relationship');
   const remedyRotationIndex = computeRemedyRotationIndex({ cardsInfo: normalizedCards, userQuestion, spreadInfo });
   const [youCard, themCard, connectionCard, ...extraCards] = normalizedCards;

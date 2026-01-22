@@ -15,6 +15,7 @@ import {
   validateSession,
   isSecureRequest
 } from '../../lib/auth.js';
+import { sendVerificationEmail } from '../../lib/authNotifications.js';
 
 export async function onRequestPost(context) {
   const { request, env } = context;
@@ -99,6 +100,16 @@ export async function onRequestPost(context) {
 
     const isHttps = isSecureRequest(request);
 
+    // Send verification email (best effort, non-blocking on failure)
+    const verification = await sendVerificationEmail(env, request, {
+      id: userId,
+      email: email.toLowerCase(),
+      username
+    }).catch((err) => {
+      console.error(`[${requestId}] [auth] Verification email failure:`, err);
+      return { sent: false, error: err?.message };
+    });
+
     // Return success with session cookie
     return new Response(
       JSON.stringify({
@@ -110,8 +121,11 @@ export async function onRequestPost(context) {
           subscription_tier: sessionUser.subscription_tier || 'free',
           subscription_status: sessionUser.subscription_status || 'inactive',
           subscription_provider: sessionUser.subscription_provider || null,
-          stripe_customer_id: sessionUser.stripe_customer_id || null
-        }
+          stripe_customer_id: sessionUser.stripe_customer_id || null,
+          email_verified: Boolean(sessionUser.email_verified)
+        },
+        verification_sent: verification?.sent || false,
+        verification_error: verification?.error || null
       }),
       {
         status: 201,

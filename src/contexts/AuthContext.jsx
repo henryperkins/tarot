@@ -124,6 +124,48 @@ export function AuthProvider({ children }) {
     }
   };
 
+  const requestPasswordReset = async (email) => {
+    setError(null);
+    try {
+      const response = await fetch('/api/auth/forgot-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email })
+      });
+
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(data.error || 'Unable to process reset request');
+      }
+
+      return { success: true };
+    } catch (err) {
+      setError(err.message);
+      return { success: false, error: err.message };
+    }
+  };
+
+  const resendVerification = async (email) => {
+    setError(null);
+    try {
+      const response = await fetch('/api/auth/verify-email/resend', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email })
+      });
+
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(data.error || 'Unable to send verification email');
+      }
+
+      return { success: true };
+    } catch (err) {
+      setError(err.message);
+      return { success: false, error: err.message };
+    }
+  };
+
   const value = {
     user,
     loading,
@@ -132,7 +174,9 @@ export function AuthProvider({ children }) {
     register,
     login,
     logout,
-    checkAuth
+    checkAuth,
+    requestPasswordReset,
+    resendVerification
   };
 
   return (

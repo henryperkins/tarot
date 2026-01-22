@@ -9,7 +9,7 @@ import { isProductionEnvironment } from './environment.js';
 import { getQualityGateThresholds } from './readingQuality.js';
 
 const EVAL_PROMPT_VERSION = '2.2.0';
-const DEFAULT_MODEL = '@cf/openai/gpt-oss-120b';
+const DEFAULT_MODEL = '@cf/qwen/qwen3-30b-a3b-fp8';
 const DEFAULT_TIMEOUT_MS = 5000;
 const MAX_SAFE_TIMEOUT_MS = 2147483647; // Max 32-bit signed int for timers
 
@@ -875,21 +875,45 @@ function buildEvaluationRequest(model, userPrompt) {
     };
   }
 
+  // Use JSON mode for models that support it (Qwen3, etc.)
+  // This forces the model to output valid JSON
+  const supportsJsonMode = model.includes('qwen') || model.includes('llama');
+  const responseFormat = supportsJsonMode ? { type: 'json_object' } : undefined;
+
   return {
     payload: {
       messages,
       max_tokens: EVAL_MAX_OUTPUT_TOKENS,
-      temperature: EVAL_TEMPERATURE
+      temperature: EVAL_TEMPERATURE,
+      ...(responseFormat && { response_format: responseFormat })
     },
     format: 'chat'
   };
 }
 
 function extractEvalResponseText(response) {
+  // Standard Workers AI / OpenAI formats
   if (typeof response?.response === 'string') return response.response;
   if (typeof response?.output_text === 'string') return response.output_text;
   if (response?.choices?.[0]?.message?.content) return response.choices[0].message.content;
   if (response?.output?.[0]?.content?.[0]?.text) return response.output[0].content[0].text;
+
+  // gpt-oss Responses API format variations
+  // The model may return output in different structures
+  if (response?.output?.text) return response.output.text;
+  if (response?.content?.[0]?.text) return response.content[0].text;
+  if (response?.message?.content) return response.message.content;
+  if (response?.text) return response.text;
+
+  // Handle array output (some models return array of content blocks)
+  if (Array.isArray(response?.output)) {
+    for (const item of response.output) {
+      if (typeof item?.text === 'string') return item.text;
+      if (typeof item?.content === 'string') return item.content;
+      if (item?.content?.[0]?.text) return item.content[0].text;
+    }
+  }
+
   if (typeof response === 'string') return response;
   return '';
 }
@@ -959,6 +983,13 @@ export async function runEvaluation(env, params = {}) {
     const responseText = extractEvalResponseText(response);
 
     console.log(`[${requestId}] [eval] Response received in ${latencyMs}ms, length: ${responseText.length}`);
+
+    // Diagnostic: log response structure when extraction returns empty
+    if (!responseText && response) {
+      const responseKeys = Object.keys(response || {}).slice(0, 10);
+      console.warn(`[${requestId}] [eval] Empty extraction. Response keys: ${responseKeys.join(', ')}`);
+      console.warn(`[${requestId}] [eval] Response preview: ${JSON.stringify(response).slice(0, 500)}`);
+    }
 
     const parsedResponse = parseEvaluationResponse(responseText);
     if (!parsedResponse) {
@@ -1125,7 +1156,9 @@ export function scheduleEvaluation(env, evalParams = {}, metricsPayload = {}, op
           fallbackReason,
           missingFields: hasIncompleteScores ? missingFields : undefined,
           originalEval: evalResult && !evalResult?.error ? evalResult : null,
-          originalError: evalResult?.error || null
+          originalError: evalResult?.error || null,
+          // Capture raw response snippet for debugging JSON parse failures
+          rawResponseSnippet: evalResult?.rawResponse?.slice(0, 300) || null
         };
       } else if (hasIncompleteScores && evalResult && !heuristic) {
         evalPayload = {

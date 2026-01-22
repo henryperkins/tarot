@@ -184,7 +184,7 @@ export default function AccountPage() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const location = useLocation();
-  const { user, isAuthenticated, logout, loading: authLoading, checkAuth } = useAuth();
+  const { user, isAuthenticated, logout, loading: authLoading, checkAuth, resendVerification } = useAuth();
   const { tier, subscription: _subscription, loading: _subLoading } = useSubscription();
   const {
     resetOnboarding,
@@ -237,6 +237,7 @@ export default function AccountPage() {
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [showNextPassword, setShowNextPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [verificationSending, setVerificationSending] = useState(false);
 
   // Subscription details + restore
   const [subscriptionDetails, setSubscriptionDetails] = useState(null);
@@ -814,6 +815,30 @@ export default function AccountPage() {
     }
   }, [deleteLoading, logout, publish, navigate]);
 
+  const handleResendEmailVerification = useCallback(async () => {
+    if (!user?.email || verificationSending) return;
+    setVerificationSending(true);
+    try {
+      const result = await resendVerification(user.email);
+      if (!result?.success) {
+        throw new Error(result?.error || 'Unable to send verification email');
+      }
+      publish({
+        title: 'Verification email sent',
+        description: `Check ${user.email} for a fresh link.`,
+        type: 'success'
+      });
+    } catch (error) {
+      publish({
+        title: 'Send failed',
+        description: error.message || 'Unable to resend verification email.',
+        type: 'error'
+      });
+    } finally {
+      setVerificationSending(false);
+    }
+  }, [user?.email, verificationSending, resendVerification, publish]);
+
   const handleLogout = async () => {
     await logout();
     navigate('/', { replace: true });
@@ -1113,6 +1138,38 @@ export default function AccountPage() {
               >
                 Sign in
               </button>
+            </div>
+          </div>
+        )}
+
+        {isAuthenticated && user && !user.email_verified && (
+          <div className="rounded-2xl border border-amber-300/50 bg-amber-500/10 px-5 py-4">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex items-start gap-3">
+                <ShieldCheck className="h-5 w-5 text-amber-200" weight="duotone" aria-hidden="true" />
+                <div>
+                  <p className="text-sm font-semibold text-main">Verify your email</p>
+                  <p className="text-xs text-amber-50/90">
+                    Confirm {user.email} to enable password recovery and security alerts.
+                  </p>
+                </div>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={handleResendEmailVerification}
+                  className="inline-flex items-center justify-center rounded-full bg-accent px-4 py-2 text-xs font-semibold text-main hover:bg-accent/90 transition disabled:opacity-60 disabled:cursor-not-allowed"
+                  disabled={verificationSending}
+                >
+                  {verificationSending ? 'Sending...' : 'Resend verification'}
+                </button>
+                <Link
+                  to="/reset-password"
+                  className="inline-flex items-center justify-center rounded-full border border-amber-200/50 px-4 py-2 text-xs font-semibold text-amber-50 hover:bg-amber-500/20 transition"
+                >
+                  Forgot password?
+                </Link>
+              </div>
             </div>
           </div>
         )}
