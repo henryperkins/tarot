@@ -21,7 +21,9 @@ export function SavedIntentionsModal({ isOpen, onClose }) {
 
   useEffect(() => {
     if (!isOpen) {
-      setIsConfirmOpen(false);
+      queueMicrotask(() => {
+        setIsConfirmOpen(false);
+      });
     }
   }, [isOpen]);
 

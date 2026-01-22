@@ -568,9 +568,15 @@ export function buildEnhancedClaudePrompt({
       controls.graphRAGPayload.semanticScoringFallback === true ||
       retrievalSummary.semanticScoringFallback === true ||
       (semanticScoringRequested && semanticScoringUsed === false);
+    const semanticScoringAttempted = Boolean(
+      retrievalSummary.qualityMetrics?.semanticScoringAttempted ||
+      controls.graphRAGPayload.semanticScoringAttempted ||
+      semanticScoringUsed // If it was used, it was attempted
+    );
 
     retrievalSummary.semanticScoringRequested = semanticScoringRequested;
     retrievalSummary.semanticScoringUsed = semanticScoringUsed;
+    retrievalSummary.semanticScoringAttempted = semanticScoringAttempted;
     if (semanticScoringFallback) {
       retrievalSummary.semanticScoringFallback = true;
     }

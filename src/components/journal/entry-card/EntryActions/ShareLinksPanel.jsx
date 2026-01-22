@@ -55,7 +55,7 @@ export const ShareLinksPanel = memo(function ShareLinksPanel({
   const shareActionsDisabled = pendingAction === 'share-link-copy' || pendingAction === 'share-link-delete';
 
   return (
-    <div className="mt-3 rounded-xl border border-[color:var(--border-warm)] bg-[color:rgba(15,14,19,0.35)] p-3 shadow-[0_14px_36px_-24px_rgba(0,0,0,0.8)]">
+    <div className="mt-3 rounded-xl border border-[color:var(--border-warm)] bg-[color:var(--main-45)] p-3 shadow-[0_14px_36px_-24px_rgba(0,0,0,0.8)]">
       <div className="flex items-center justify-between gap-2">
         <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[color:var(--text-muted)]">
           Active share links
@@ -81,10 +81,10 @@ export const ShareLinksPanel = memo(function ShareLinksPanel({
       {shareLoading && (
         <div className="mt-2 space-y-2" aria-live="polite">
           {[0, 1].map((skeleton) => (
-            <div
-              key={skeleton}
-              className="h-10 rounded-lg bg-[color:rgba(232,218,195,0.08)] animate-pulse"
-            />
+              <div
+                key={skeleton}
+                className="h-10 rounded-lg bg-[color:var(--border-warm-subtle)] animate-pulse"
+              />
           ))}
         </div>
       )}
@@ -103,7 +103,7 @@ export const ShareLinksPanel = memo(function ShareLinksPanel({
             return (
               <li
                 key={link.token}
-                className="rounded-lg border border-[color:rgba(255,255,255,0.10)] bg-[color:rgba(15,14,19,0.25)] p-2.5 shadow-[0_10px_26px_-22px_rgba(0,0,0,0.7)]"
+                className="rounded-lg border border-[color:var(--border-warm-subtle)] bg-[color:var(--panel-dark-1)] p-2.5 shadow-[0_10px_26px_-22px_rgba(0,0,0,0.7)]"
               >
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0 space-y-0.5">
@@ -123,7 +123,7 @@ export const ShareLinksPanel = memo(function ShareLinksPanel({
                     type="button"
                     onClick={() => onCopyShareLink(link.token)}
                     disabled={isShareLinkPending}
-                    className="inline-flex items-center gap-1 rounded-full border border-[color:var(--border-warm-light)] bg-[color:rgba(232,218,195,0.06)] px-2.5 py-1 text-[11px] font-semibold text-[color:var(--text-main)] hover:bg-[color:rgba(212,184,150,0.12)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:rgba(232,218,195,0.45)] disabled:opacity-60 disabled:cursor-not-allowed"
+                    className="inline-flex items-center gap-1 rounded-full border border-[color:var(--border-warm-light)] bg-[color:var(--border-warm-subtle)] px-2.5 py-1 text-[11px] font-semibold text-[color:var(--text-main)] hover:bg-[color:var(--primary-20)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--accent-45)] disabled:opacity-60 disabled:cursor-not-allowed"
                   >
                     {pendingAction === 'share-link-copy' ? (
                       <CircleNotch

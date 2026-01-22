@@ -190,6 +190,7 @@ export function ReadingDisplay({
 
         // Ritual State (for DeckRitual)
         knockCount,
+        knockCadenceResetAt,
         hasKnocked: _hasKnocked,
         hasCut,
         cutIndex,
@@ -552,6 +553,19 @@ export function ReadingDisplay({
         }
     }, [personalReading, personalReading?.requestId, readingMeta?.requestId, narrativePhase, nudgeState?.readingCount, nudgeState?.lastCountedReadingRequestId, incrementReadingCount, publishToast]);
 
+    useEffect(() => {
+        if (!isShuffling) return;
+        const timerId = setTimeout(() => {
+            publishToast({
+                type: 'info',
+                title: 'Cards ready',
+                description: 'Tap to draw when you feel set.',
+                duration: 800
+            });
+        }, 800);
+        return () => clearTimeout(timerId);
+    }, [isShuffling, publishToast]);
+
     return (
         <section ref={sectionRef} id="step-reading" tabIndex={-1} className="scroll-mt-[6.5rem] sm:scroll-mt-[7.5rem]" aria-label="Draw and explore your reading">
             <div className={isLandscape ? 'mb-2' : 'mb-4 sm:mb-5'}>
@@ -644,6 +658,7 @@ export function ReadingDisplay({
                                 onCutChange={setCutIndex}
                                 onCutConfirm={applyCut}
                                 deckSize={78}
+                                knockCadenceResetAt={knockCadenceResetAt}
                                 // Deal state
                                 isShuffling={isShuffling}
                                 onShuffle={shuffle}

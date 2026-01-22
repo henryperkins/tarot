@@ -111,7 +111,7 @@ export const FollowUpSection = memo(function FollowUpSection({
             {!canAskFollowUp && effectiveTier === 'free' && (
               <a
                 href="/pricing"
-                className="text-[color:var(--brand-primary)] hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:rgba(232,218,195,0.45)] rounded"
+                className="text-[color:var(--brand-primary)] hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--accent-45)] rounded"
               >
                 Upgrade to Plus for 3 follow-ups
               </a>
@@ -148,7 +148,7 @@ export const FollowUpSection = memo(function FollowUpSection({
               className={cn(
                 styles.actionButton,
                 'border-[color:var(--border-warm-light)] bg-transparent text-[color:var(--text-muted)]',
-                'hover:border-[color:var(--border-warm)] hover:bg-[color:rgba(232,218,195,0.08)] hover:text-[color:var(--text-main)]'
+                'hover:border-[color:var(--border-warm)] hover:bg-[color:var(--border-warm-subtle)] hover:text-[color:var(--text-main)]'
               )}
               title={canAskFollowUp ? 'Continue chat' : 'Open full chat'}
             >

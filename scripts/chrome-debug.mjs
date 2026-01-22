@@ -30,6 +30,7 @@ function parseArgs(argv) {
         headed: false,
         headless: null,
         noSandbox: false,
+        forceSandbox: false,
         userDataDir: null
     };
 
@@ -64,6 +65,11 @@ function parseArgs(argv) {
             out.noSandbox = true;
             continue;
         }
+        if (arg === '--sandbox') {
+            out.forceSandbox = true;
+            out.noSandbox = false;
+            continue;
+        }
         if (arg === '--user-data-dir' && args[i + 1]) {
             out.userDataDir = String(args[++i]);
             continue;
@@ -84,6 +90,32 @@ function parseArgs(argv) {
     }
 
     return out;
+}
+
+async function readTextIfExists(filePath) {
+    try {
+        return (await fs.readFile(filePath, 'utf8')).trim();
+    } catch {
+        return null;
+    }
+}
+
+async function detectRestrictedUserNamespaces() {
+    if (process.platform !== 'linux') return false;
+
+    // If unprivileged user namespaces are disabled, Chromium's sandbox often fails
+    // with: "No usable sandbox".
+    const unprivUsernsClone = await readTextIfExists('/proc/sys/kernel/unprivileged_userns_clone');
+    if (unprivUsernsClone === '0') return true;
+
+    // Ubuntu / AppArmor may additionally restrict unprivileged user namespaces.
+    const apparmorProc = await readTextIfExists('/proc/sys/kernel/apparmor_restrict_unprivileged_userns');
+    if (apparmorProc === '1') return true;
+
+    const apparmorModule = await readTextIfExists('/sys/module/apparmor/parameters/restrict_unprivileged_userns');
+    if (apparmorModule && ['1', 'y', 'Y', 'true', 'True'].includes(apparmorModule)) return true;
+
+    return false;
 }
 
 async function probeCdp(host, port) {
@@ -111,6 +143,19 @@ async function probeCdp(host, port) {
 async function main() {
     const options = parseArgs(process.argv);
     const executablePath = chromium.executablePath();
+
+    // Many remote/containerized Linux environments can't use Chromium's sandbox.
+    // Auto-enable --no-sandbox in those environments unless the user explicitly
+    // asked for sandboxing.
+    if (!options.forceSandbox && !options.noSandbox) {
+        const restricted = await detectRestrictedUserNamespaces();
+        if (restricted) {
+            options.noSandbox = true;
+            console.warn('⚠️  Detected restricted unprivileged user namespaces; enabling --no-sandbox for Chromium.');
+            console.warn('   (You can force sandbox attempts with --sandbox.)');
+            console.warn('');
+        }
+    }
 
     const userDataDir = options.userDataDir
         ? path.resolve(options.userDataDir)
@@ -140,7 +185,7 @@ async function main() {
 
     // Many containerized environments require this.
     if (options.noSandbox || process.env.CHROME_NO_SANDBOX === '1') {
-        flags.push('--no-sandbox');
+        flags.push('--no-sandbox', '--disable-setuid-sandbox');
     }
 
     // Keep a predictable initial target.

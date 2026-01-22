@@ -625,7 +625,7 @@ export default function PricingPage() {
         </div>
       </header>
 
-      <main className="mx-auto max-w-6xl px-4 pb-24 pt-8">
+      <main id="main-content" tabIndex={-1} className="mx-auto max-w-6xl px-4 pb-24 pt-8">
         {/* Hero */}
         <section className="mb-10 grid gap-10 lg:grid-cols-[minmax(0,1.25fr)_minmax(0,0.9fr)] lg:items-center">
           <div className="space-y-6">

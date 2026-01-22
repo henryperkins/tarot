@@ -168,7 +168,7 @@ function DashboardContent({ apiKey, onLogout }) {
       </header>
 
       {/* Main content */}
-      <main className="mx-auto max-w-6xl px-4 py-6 space-y-6">
+      <main id="main-content" tabIndex={-1} className="mx-auto max-w-6xl px-4 py-6 space-y-6">
         {/* Error state */}
         {error && !loading && (
           <div className="rounded-2xl border border-error/30 bg-error/10 p-6 text-center">

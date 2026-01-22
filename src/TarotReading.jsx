@@ -736,6 +736,11 @@ export default function TarotReading() {
   const connectionBg = connectionBanner?.status === 'offline'
     ? 'bg-error/10'
     : 'bg-primary/10';
+  const handsetPaddingBottom = isHandset
+    ? (isLandscape
+      ? 'max(6rem, calc(var(--mobile-action-bar-height, 0px) + 1rem))'
+      : 'max(8rem, calc(var(--mobile-action-bar-height, 0px) + 1.5rem))')
+    : null;
 
   const handleOpenFollowUp = useCallback(() => {
     if (!showFollowUpButton) return;
@@ -814,7 +819,7 @@ export default function TarotReading() {
       // User started ritual but hasn't finished - prompt to continue or skip
       return {
         stepIndicatorLabel: 'Complete your ritual',
-        stepIndicatorHint: `${3 - knockCount} more knock${3 - knockCount === 1 ? '' : 's'} to clear the deck before drawing.`,
+        stepIndicatorHint: `Finish ${3 - knockCount} knock${3 - knockCount === 1 ? '' : 's'} or skip the ritual to draw.`,
         activeStep: 'ritual'
       };
     }
@@ -833,11 +838,15 @@ export default function TarotReading() {
   return (
     <div className="app-shell min-h-screen bg-main text-main">
       <div className="skip-links">
-        <a href="#main-content" className="skip-link">Skip to main content</a>
         <a href="#step-spread" className="skip-link">Skip to spreads</a>
         <a href="#step-reading" className="skip-link">Skip to reading</a>
       </div>
-      <main id="main-content" tabIndex={-1} className={`max-w-7xl mx-auto px-4 sm:px-5 md:px-6 ${isLandscape ? 'pt-3 pb-24 lg:pb-8' : 'pt-6 pb-32 sm:py-8 lg:py-10'}`}>
+      <main
+        id="main-content"
+        tabIndex={-1}
+        className={`max-w-7xl mx-auto px-4 sm:px-5 md:px-6 ${isLandscape ? 'pt-3 pb-24 lg:pb-8' : 'pt-6 pb-32 sm:py-8 lg:py-10'}`}
+        style={handsetPaddingBottom ? { paddingBottom: handsetPaddingBottom } : undefined}
+      >
         <div className="sr-only" role="status" aria-live="polite" aria-atomic="true">
           {[ttsAnnouncement, srAnnouncement, journalStatus?.message].filter(Boolean).join(' · ')}
         </div>

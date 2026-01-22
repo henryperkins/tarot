@@ -85,7 +85,7 @@ export default function ResetPasswordPage() {
         </div>
       </header>
 
-      <main className="mx-auto max-w-xl px-4 py-10">
+      <main id="main-content" tabIndex={-1} className="mx-auto max-w-xl px-4 py-10">
         <button
           type="button"
           onClick={() => navigate(-1)}

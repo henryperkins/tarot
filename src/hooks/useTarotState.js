@@ -37,8 +37,10 @@ export function useTarotState(speak) {
   const [sessionSeed, setSessionSeed] = useState(null);
   const [userQuestion, setUserQuestion] = useState('');
   const [deckAnnouncement, setDeckAnnouncement] = useState('');
+  const [knockCadenceResetAt, setKnockCadenceResetAt] = useState(0);
 
   const knockTimesRef = useRef([]);
+  const knockResetTimeoutRef = useRef(null);
   const shuffleTimeoutRef = useRef(null);
   const deckAnnouncementTimeoutRef = useRef(null);
   const deckSizeInitializedRef = useRef(false);
@@ -59,6 +61,10 @@ export function useTarotState(speak) {
       setHasKnocked(false);
       setKnockCount(0);
       knockTimesRef.current = [];
+      if (knockResetTimeoutRef.current) {
+        clearTimeout(knockResetTimeoutRef.current);
+        knockResetTimeoutRef.current = null;
+      }
       const announcement = `Deck now ${deckSize} cards. Cut index reset to ${nextCutIndex}.`;
       setDeckAnnouncement(announcement);
       if (deckAnnouncementTimeoutRef.current) {
@@ -86,6 +92,9 @@ export function useTarotState(speak) {
       if (shuffleTimeoutRef.current) {
         clearTimeout(shuffleTimeoutRef.current);
       }
+      if (knockResetTimeoutRef.current) {
+        clearTimeout(knockResetTimeoutRef.current);
+      }
     };
   }, []);
 
@@ -96,9 +105,29 @@ export function useTarotState(speak) {
     const recent = knockTimesRef.current.filter(timestamp => now - timestamp < 2000);
     recent.push(now);
     knockTimesRef.current = recent;
-    setKnockCount(Math.min(recent.length, 3));
+    const nextCount = Math.min(recent.length, 3);
+    setKnockCount(nextCount);
+
+    if (knockResetTimeoutRef.current) {
+      clearTimeout(knockResetTimeoutRef.current);
+      knockResetTimeoutRef.current = null;
+    }
+
+    if (nextCount < 3) {
+      knockResetTimeoutRef.current = setTimeout(() => {
+        knockTimesRef.current = [];
+        setKnockCount(0);
+        setHasKnocked(false);
+        setKnockCadenceResetAt(Date.now());
+        knockResetTimeoutRef.current = null;
+      }, 2000);
+    }
     if (recent.length >= 3) {
       setHasKnocked(true);
+      if (knockResetTimeoutRef.current) {
+        clearTimeout(knockResetTimeoutRef.current);
+        knockResetTimeoutRef.current = null;
+      }
       if (typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function') {
         navigator.vibrate([18, 40, 18]);
       }
@@ -130,6 +159,11 @@ export function useTarotState(speak) {
     setHasCut(false);
     setSessionSeed(null);
     knockTimesRef.current = [];
+    if (knockResetTimeoutRef.current) {
+      clearTimeout(knockResetTimeoutRef.current);
+      knockResetTimeoutRef.current = null;
+    }
+    setKnockCadenceResetAt(0);
     if (resetQuestion) {
       setUserQuestion('');
     }
@@ -303,6 +337,7 @@ export function useTarotState(speak) {
     userQuestion,
     setUserQuestion,
     deckAnnouncement,
+    knockCadenceResetAt,
     shuffle,
     handleKnock,
     applyCut,

@@ -136,6 +136,34 @@ This starts both the Vite dev server and Wrangler Workers dev server. Access the
 | http://localhost:5173 | Full app with API (HMR + `/api` proxy) |
 | http://localhost:8787 | Workers preview (serves `dist/`)       |
 
+### Debugging in VS Code (CDP / Chrome attach)
+
+Some debugging workflows (including VS Code “Attach to Chrome”) expect a browser already running with Chrome DevTools Protocol (CDP) enabled on port 9222.
+
+This repo includes a helper script that launches **Playwright’s bundled Chromium** with CDP enabled (so you don’t need system Chrome installed):
+
+```bash
+# Starts Chromium with CDP on http://127.0.0.1:9222
+npm run chrome:debug
+```
+
+Notes:
+
+- In many Linux container/remote environments Chromium sandboxing is restricted; the script will automatically fall back to `--no-sandbox` when needed.
+- If you need the port reachable from outside the container/VM, bind to all interfaces and forward the port:
+
+   ```bash
+   npm run chrome:debug -- --host 0.0.0.0
+   ```
+
+- To avoid port conflicts, pick another port:
+
+   ```bash
+   npm run chrome:debug -- --port 9333
+   ```
+
+If you use VS Code, this repo also includes `.vscode/launch.json` + `.vscode/tasks.json` with an “Attach to CDP Chromium (9222)” configuration.
+
 ## 🧪 Testing
 
 ```bash

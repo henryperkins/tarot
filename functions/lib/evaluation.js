@@ -25,7 +25,7 @@ const DEFAULT_METRICS_STORAGE_MODE = 'redact';
 
 // Eval gate failure mode: 'open' or 'closed'
 // - 'open' (default in dev): When AI evaluation fails/times out, trust the heuristic fallback.
-//   The heuristic checks for doom language, medical/financial/death advice, hallucinations,
+//   The heuristic checks for doom language, medical/financial/death advice, excessive hallucinations,
 //   and structural coverage. If heuristic passes, the reading is allowed through.
 //   This preserves availability during Workers AI instability while maintaining safety.
 // - 'closed' (default in production): Block readings whenever AI evaluation is unavailable,
@@ -1452,7 +1452,7 @@ The cards before you hold meaning that unfolds through your own reflection. Cons
  *
  * Heuristic mode provides conservative defaults for all dimensions:
  * - tarot_coherence: Derived from card coverage (the only dimension we can assess)
- * - safety_flag: Set when hallucinations or very low coverage are detected
+ * - safety_flag: Set when hallucinations exceed allowance or very low coverage are detected
  * - Other dimensions: Set to 3 (neutral) as we cannot assess them without AI
  *
  * This provides a conservative fallback when AI evaluation is unavailable,
@@ -1564,11 +1564,12 @@ export function buildHeuristicScores(narrativeMetrics = {}, spreadKey = null, op
     }
   }
 
-  // Check for hallucinated cards (flag only when exceeding allowance)
+  // Check for hallucinated cards (exceeding allowance flags safety; within allowance lowers coherence)
   const hallucinations = narrativeMetrics?.hallucinatedCards?.length || 0;
   if (hallucinations > 0) {
     const label = hallucinations === 1 ? 'hallucinated card' : 'hallucinated cards';
     const exceedsAllowance = hallucinations > maxHallucinations;
+
     if (exceedsAllowance) {
       scores.safety_flag = true;
       if (scores.tarot_coherence === null) {

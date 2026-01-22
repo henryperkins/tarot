@@ -12,7 +12,7 @@ const GESTURE_STEPS = [
     id: 'knock',
     icon: HandTap,
     title: 'Tap to Knock',
-    description: 'Tap the deck 3 times to clear it. This ritual gesture helps focus your intention before the reading.',
+    description: 'Tap the deck 3 quick times within 2s to clear it. This ritual gesture helps focus your intention before the reading.',
     hint: 'Many readers find the rhythm of knocking helps them center their thoughts.',
     gesture: 'tap'
   },
@@ -28,7 +28,7 @@ const GESTURE_STEPS = [
     id: 'shuffle',
     icon: ArrowsClockwise,
     title: 'Double-Tap to Shuffle',
-    description: 'Double-tap the deck to shuffle the cards. After shuffling, tap once to draw each card.',
+    description: 'After the deck is cleared, double-tap to shuffle. Then tap once to draw each card.',
     hint: 'You can also use the explicit buttons below the deck if you prefer.',
     gesture: 'double-tap'
   }

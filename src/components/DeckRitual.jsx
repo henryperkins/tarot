@@ -7,6 +7,7 @@ import { useReducedMotion } from '../hooks/useReducedMotion';
 import { useLandscape } from '../hooks/useLandscape';
 import { useHaptic } from '../hooks/useHaptic';
 import { getSuitGlowColor, getSuitBorderColor } from '../lib/suitColors';
+import { useToast } from '../contexts/ToastContext.jsx';
 
 const CARD_STACK_COUNT = 7; // Visual stack layers
 
@@ -23,6 +24,7 @@ export function DeckRitual({
   onCutChange,
   onCutConfirm,
   deckSize = 78,
+  knockCadenceResetAt = 0,
 
   // Deal state
   isShuffling = false,
@@ -50,20 +52,24 @@ export function DeckRitual({
   const prefersReducedMotion = useReducedMotion();
   const isLandscape = useLandscape();
   const { vibrate } = useHaptic();
+  const { publish: publishToast } = useToast();
   const deckControls = useAnimation();
   const [showCutSlider, setShowCutSlider] = useState(false);
   const [localCutIndex, setLocalCutIndex] = useState(cutIndex);
+  const [showCadenceReset, setShowCadenceReset] = useState(false);
   const internalDeckRef = useRef(null);
   // Use external ref if provided (for parent to coordinate ghost card animation)
   const deckRef = externalDeckRef || internalDeckRef;
+  const cadenceResetTimerRef = useRef(null);
   const knockComplete = knockCount >= 3;
   const isIdleBreathing = !prefersReducedMotion &&
     !isShuffling &&
     knockCount === 0 &&
     revealedCount === 0 &&
     cardsRemaining === totalCards;
-  const canShuffleGesture = !isShuffling && revealedCount === 0 && cardsRemaining === totalCards;
+  const canShuffleGesture = !isShuffling && revealedCount === 0 && cardsRemaining === totalCards && knockComplete;
   const isDeckPrimary = revealStage !== 'spread';
+  const boardHintRef = useRef(0);
 
   // Sync local cut index with prop
   useEffect(() => {
@@ -101,8 +107,42 @@ export function DeckRitual({
 
   // Tap / double-tap handler (handles knock + shuffle within same flow to avoid browser dblclick delay)
   const lastTapRef = useRef(0);
+  const singleTapTimeoutRef = useRef(null);
+  const clearSingleTapTimeout = useCallback(() => {
+    if (singleTapTimeoutRef.current) {
+      clearTimeout(singleTapTimeoutRef.current);
+      singleTapTimeoutRef.current = null;
+    }
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (singleTapTimeoutRef.current) {
+        clearTimeout(singleTapTimeoutRef.current);
+      }
+    };
+  }, []);
   const handleDeckTap = useCallback(() => {
     if (showCutSlider) return;
+
+    if (!isDeckPrimary && cardsRemaining > 0) {
+      const now = Date.now();
+      if (now - boardHintRef.current > 1200) {
+        publishToast({
+          type: 'info',
+          title: 'Reveal on the board',
+          description: nextPosition ? `Tap ${nextPosition} to reveal.` : 'Tap a position to reveal the next card.',
+          duration: 900
+        });
+        boardHintRef.current = now;
+      }
+      return;
+    }
+
+    if (!knockComplete) {
+      triggerKnock();
+      return;
+    }
 
     const now = Date.now();
     const sinceLast = now - lastTapRef.current;
@@ -110,10 +150,7 @@ export function DeckRitual({
 
     if (withinDoubleTap) {
       lastTapRef.current = 0;
-      if (knockCount < 3) {
-        triggerKnock();
-        return;
-      }
+      clearSingleTapTimeout();
       if (canShuffleGesture) {
         onShuffle?.();
         vibrate([20, 50, 20, 50, 20]);
@@ -123,23 +160,28 @@ export function DeckRitual({
 
     lastTapRef.current = now;
 
-    if (knockCount < 3) {
-      triggerKnock();
+    if (canShuffleGesture) {
+      clearSingleTapTimeout();
+      singleTapTimeoutRef.current = setTimeout(() => {
+        singleTapTimeoutRef.current = null;
+        lastTapRef.current = 0;
+        handleDealWithAnimation();
+      }, 320);
       return;
     }
 
     handleDealWithAnimation();
-  }, [canShuffleGesture, handleDealWithAnimation, knockCount, onShuffle, showCutSlider, triggerKnock, vibrate]);
+  }, [showCutSlider, isDeckPrimary, cardsRemaining, publishToast, nextPosition, knockComplete, triggerKnock, canShuffleGesture, onShuffle, vibrate, handleDealWithAnimation, clearSingleTapTimeout]);
 
-  // Long-press to reveal cut slider (disabled once cut is done to reduce accidental opens)
+  // Long-press to reveal cut slider
   const longPressTimerRef = useRef(null);
   const handleTouchStart = useCallback(() => {
-    if (hasCut) return;
+    if (showCutSlider || !isDeckPrimary) return;
     longPressTimerRef.current = setTimeout(() => {
       setShowCutSlider(true);
       vibrate([30]);
     }, 420);
-  }, [hasCut, vibrate]);
+  }, [showCutSlider, isDeckPrimary, vibrate]);
 
   const handleTouchEnd = useCallback(() => {
     if (longPressTimerRef.current) {
@@ -170,21 +212,57 @@ export function DeckRitual({
     onCutConfirm?.();
     setShowCutSlider(false);
     vibrate([20, 30, 20]);
-  }, [onCutConfirm, vibrate]);
+    publishToast({
+      type: 'info',
+      title: hasCut ? 'Cut updated' : 'Cut locked',
+      description: `#${localCutIndex}`,
+      duration: 700
+    });
+  }, [onCutConfirm, vibrate, publishToast, hasCut, localCutIndex]);
 
   const idleBreathAnimation = isIdleBreathing ? { scale: [1, 1.02, 1] } : { scale: 1 };
   const idleBreathTransition = isIdleBreathing
     ? { duration: 3.8, ease: 'easeInOut', repeat: Infinity }
     : { duration: 0.2, ease: 'easeOut' };
+  const knockHint = '3 quick taps within 2s';
   const drawLabel = nextPosition ? `Tap to draw card for ${nextPosition}.` : 'Tap to draw the next card.';
-  const knockLabel = `Tap to knock (${knockCount}/3).`;
-  const cutLabel = hasCut ? '' : ' Hold to cut.';
+  const boardLabel = nextPosition
+    ? `Tap ${nextPosition} on the board to reveal.`
+    : 'Tap a position on the board to reveal the next card.';
+  const knockLabel = `Tap to knock (${knockCount}/3). ${knockHint}.`;
+  const cutLabel = hasCut ? ' Hold to adjust.' : ' Hold to cut.';
   const shuffleLabel = canShuffleGesture ? ' Double-tap to shuffle.' : '';
   const deckAriaLabel = cardsRemaining > 0
-    ? knockComplete
-      ? `${drawLabel}${cutLabel}${shuffleLabel}`
-      : `${knockLabel}${cutLabel}${shuffleLabel}`
+    ? isDeckPrimary
+      ? knockComplete
+        ? `${drawLabel}${cutLabel}${shuffleLabel}`
+        : `${knockLabel}${cutLabel}${shuffleLabel}`
+      : boardLabel
     : 'All cards dealt';
+
+  useEffect(() => {
+    if (!knockCadenceResetAt) return;
+    setShowCadenceReset(true);
+    if (cadenceResetTimerRef.current) {
+      clearTimeout(cadenceResetTimerRef.current);
+    }
+    cadenceResetTimerRef.current = setTimeout(() => {
+      setShowCadenceReset(false);
+      cadenceResetTimerRef.current = null;
+    }, 1600);
+    publishToast({
+      type: 'info',
+      title: 'Cadence reset',
+      description: knockHint,
+      duration: 700
+    });
+    return () => {
+      if (cadenceResetTimerRef.current) {
+        clearTimeout(cadenceResetTimerRef.current);
+        cadenceResetTimerRef.current = null;
+      }
+    };
+  }, [knockCadenceResetAt, publishToast]);
 
   return (
     <div className={`deck-ritual-container relative ${isLandscape ? 'py-3' : 'py-4 xs:py-5 sm:py-8'}`}>
@@ -214,7 +292,7 @@ export function DeckRitual({
         <motion.div
           ref={deckRef}
           animate={deckControls}
-          className="deck-stack relative cursor-pointer touch-manipulation"
+          className={`deck-stack relative touch-manipulation ${isDeckPrimary ? 'cursor-pointer' : 'cursor-default opacity-70'}`}
           onClick={handleDeckTap}
           onTouchStart={handleTouchStart}
           onTouchEnd={handleTouchEnd}
@@ -224,20 +302,30 @@ export function DeckRitual({
           onMouseLeave={handleTouchEnd}
           role="button"
           aria-label={deckAriaLabel}
-          tabIndex={0}
+          aria-disabled={!isDeckPrimary}
+          tabIndex={isDeckPrimary ? 0 : -1}
           onKeyDown={(e) => {
+            if (!isDeckPrimary) return;
+            if ((e.key === 'Enter' || e.key === ' ') && e.shiftKey) {
+              e.preventDefault();
+              if (canShuffleGesture) {
+                onShuffle?.();
+                vibrate([20, 50, 20, 50, 20]);
+              } else {
+                return;
+              }
+              return;
+            }
             if (e.key === 'Enter' || e.key === ' ') {
               e.preventDefault();
-              if (e.shiftKey) {
-                onShuffle?.();
-              } else {
-                handleDealWithAnimation();
-              }
+              handleDeckTap();
+              return;
             }
             // 'k' to knock
             if (e.key === 'k' || e.key === 'K') {
               e.preventDefault();
               handleDeckTap();
+              return;
             }
             // 'c' to toggle cut slider
             if (e.key === 'c' || e.key === 'C') {
@@ -282,8 +370,8 @@ export function DeckRitual({
             }}
             animate={idleBreathAnimation}
             transition={idleBreathTransition}
-            whileHover={prefersReducedMotion ? {} : { y: -4, rotateX: 5 }}
-            whileTap={prefersReducedMotion ? {} : { scale: 0.98 }}
+            whileHover={prefersReducedMotion || !isDeckPrimary ? {} : { y: -4, rotateX: 5 }}
+            whileTap={prefersReducedMotion || !isDeckPrimary ? {} : { scale: 0.98 }}
           >
             <div className="absolute inset-0 flex items-center justify-center p-3 xs:p-4">
               <TableuLogo
@@ -305,7 +393,7 @@ export function DeckRitual({
                   initial={{ scale: 0.8, opacity: 0.8 }}
                   animate={{ scale: 1.3, opacity: 0 }}
                   exit={{ opacity: 0 }}
-                  transition={{ duration: prefersReducedMotion ? 0.1 : 0.4 }}
+                  transition={{ duration: prefersReducedMotion ? 0.1 : 0.25 }}
                 />
               )}
             </AnimatePresence>
@@ -414,11 +502,11 @@ export function DeckRitual({
               : 'bg-surface/60 border border-accent/30 text-muted hover:bg-surface hover:border-accent/50 hover:text-main active:scale-95'
             }
           `}
-          aria-label={hasCut ? `Deck cut at position ${cutIndex}` : showCutSlider ? 'Close cut slider' : 'Cut the deck'}
+          aria-label={hasCut ? `Adjust cut at position ${cutIndex}` : showCutSlider ? 'Close cut slider' : 'Cut the deck'}
           aria-expanded={showCutSlider}
         >
           <Scissors className={isLandscape ? 'w-3.5 h-3.5' : 'w-3.5 h-3.5 xs:w-4 xs:h-4'} aria-hidden="true" />
-          <span>{hasCut ? `#${cutIndex}` : (isLandscape ? 'Cut' : (showCutSlider ? 'Cutting...' : 'Cut Deck'))}</span>
+          <span>{hasCut ? (isLandscape ? `#${cutIndex}` : 'Adjust cut') : (isLandscape ? 'Cut' : (showCutSlider ? 'Cutting...' : 'Cut Deck'))}</span>
         </button>
 
         {/* Shuffle button */}
@@ -446,16 +534,32 @@ export function DeckRitual({
       {/* Gesture hints with icons for better discoverability */}
       {isDeckPrimary && (
         <div className={`flex flex-wrap justify-center px-3 xs:px-4 ${isLandscape ? 'mt-2 gap-1.5' : 'mt-2 xs:mt-3 gap-1.5 xs:gap-2'}`}>
+          {showCadenceReset && !knockComplete && (
+            <span
+              className={`inline-flex items-center gap-1 px-2 py-1 rounded-full border border-amber-300/40 bg-amber-300/10 text-amber-100 motion-safe:animate-pulse ${isLandscape ? 'text-[0.55rem]' : 'text-[0.6rem] xs:text-[0.65rem]'}`}
+              role="status"
+              aria-live="polite"
+            >
+              <ArrowsClockwise className="w-3 h-3" weight="duotone" aria-hidden="true" />
+              <span>Cadence reset</span>
+            </span>
+          )}
           {!knockComplete && (
             <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full bg-surface/60 border border-accent/20 text-muted ${isLandscape ? 'text-[0.55rem]' : 'text-[0.6rem] xs:text-[0.65rem]'}`}>
               <HandTap className="w-3 h-3" weight="duotone" aria-hidden="true" />
-              <span>Tap to knock</span>
+              <span>{knockHint}</span>
             </span>
           )}
           {!hasCut && (
             <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full bg-surface/60 border border-accent/20 text-muted ${isLandscape ? 'text-[0.55rem]' : 'text-[0.6rem] xs:text-[0.65rem]'}`}>
               <Scissors className="w-3 h-3" weight="duotone" aria-hidden="true" />
               <span>Hold to cut</span>
+            </span>
+          )}
+          {hasCut && (
+            <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full bg-surface/60 border border-accent/20 text-muted ${isLandscape ? 'text-[0.55rem]' : 'text-[0.6rem] xs:text-[0.65rem]'}`}>
+              <Scissors className="w-3 h-3" weight="duotone" aria-hidden="true" />
+              <span>Hold to adjust</span>
             </span>
           )}
           {canShuffleGesture && (
@@ -508,6 +612,7 @@ export function DeckRitual({
 // Minimap showing spread positions with current progress
 // Now supports suit-colored indicators when cards are revealed
 function SpreadMinimap({ positions, cards = [], totalCards, revealedIndices }) {
+  const prefersReducedMotion = useReducedMotion();
   const revealedSet = revealedIndices instanceof Set ? revealedIndices : null;
   // Find the first unrevealed position (handles out-of-order reveals via ReadingBoard)
   // A position is revealed if it has a card in the cards array
@@ -561,11 +666,11 @@ function SpreadMinimap({ positions, cards = [], totalCards, revealedIndices }) {
               backgroundColor: borderColor || 'var(--brand-secondary)',
               boxShadow: `0 0 8px ${glowColor || 'rgba(var(--brand-secondary), 0.3)'}`
             } : {}}
-            animate={isNext ? {
+            animate={isNext && !prefersReducedMotion ? {
               scale: [1, 1.15, 1],
               opacity: [0.8, 1, 0.8]
             } : {}}
-            transition={isNext ? {
+            transition={isNext && !prefersReducedMotion ? {
               duration: 1.5,
               repeat: Infinity,
               ease: 'easeInOut'

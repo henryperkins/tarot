@@ -18,7 +18,7 @@ Tableu includes an automated quality assurance system that evaluates every AI-ge
 
 - **When it runs:** async after a reading via `waitUntil()`; sync gate runs when `EVAL_GATE_ENABLED=true`
 - **Where scores live:** D1 table `eval_metrics` (runtime metrics + eval payload)
-- **Evaluator model:** Workers AI (default `@cf/openai/gpt-oss-120b`)
+- **Evaluator model:** Workers AI (default `@cf/qwen/qwen3-30b-a3b-fp8`)
 - **Outputs:** 1-5 scores + `safety_flag` + notes, used for analysis and optional gating
 
 > [!NOTE]
@@ -61,10 +61,10 @@ In addition to numeric scores, the evaluator sets `safety_flag` (boolean). Model
 - Financial/investment advice
 - Predictions of death, serious illness, or violence
 - Language that could trigger vulnerable individuals
-- Excessive hallucinated cards beyond the structural allowance
+- Hallucinated cards beyond the allowance (within allowance caps coherence but does not set `safety_flag`)
 - Deterministic doom language about unavoidable negative outcomes
 
-Heuristic fallback is more conservative for hallucinations and explicit self-harm/violent threat content.
+Heuristic fallback is more conservative for very low coverage and explicit self-harm/violent threat content.
 
 **When `safety_flag` is true, the reading should be reviewed and may be blocked (if gating is enabled).**
 
@@ -81,7 +81,7 @@ flowchart TB
     G --> QG["Quality gate<br/>(coverage + hallucination + spine + high-weight positions)"]
     QG --> EG["Sync eval gate<br/>(EVAL_GATE_ENABLED)"]
     EG --> RESP["Return response to user<br/>(non-blocking)"]
-    RESP -->|waitUntil()| E["Workers AI evaluation<br/>(gpt-oss-120b)"]
+    RESP -->|waitUntil()| E["Workers AI evaluation<br/>(qwen3-30b-a3b-fp8)"]
     E --> S["Scores + safety_flag + notes"]
     S --> D1["Upsert eval_metrics (D1)"]
   end
@@ -147,7 +147,7 @@ export function buildHeuristicScores(narrativeMetrics)  // Fallback scoring
 ```
 
 Key features:
-- Uses Workers AI (`@cf/openai/gpt-oss-120b`) for evaluation
+- Uses Workers AI (`@cf/qwen/qwen3-30b-a3b-fp8`) for evaluation
 - Runs asynchronously via `waitUntil()` to avoid blocking user responses
 - Supports synchronous gating when `EVAL_GATE_ENABLED=true` (fail-open/closed via `EVAL_GATE_FAILURE_MODE`)
 - Includes prompt versioning (`EVAL_PROMPT_VERSION = '2.2.0'`)
@@ -165,7 +165,7 @@ Set in `wrangler.jsonc` under `vars` (all values are strings at runtime):
 | Variable | Default | Description |
 |---|---:|---|
 | `EVAL_ENABLED` | `"true"` | Master switch for evaluation system |
-| `EVAL_MODEL` | `"@cf/openai/gpt-oss-120b"` | Workers AI model for scoring |
+| `EVAL_MODEL` | `"@cf/qwen/qwen3-30b-a3b-fp8"` | Workers AI model for scoring |
 | `EVAL_TIMEOUT_MS` | `"10000"` | Timeout for eval API call (ms) |
 | `EVAL_GATE_ENABLED` | `"false"` | Whether to block readings on low scores |
 | `EVAL_GATE_FAILURE_MODE` | `"closed"` | When eval fails: `open` allows if heuristic passes, `closed` blocks |
@@ -308,7 +308,7 @@ Output schema (example):
         "safety_flag": false,
         "notes": "Good reading with specific advice"
       },
-      "model": "@cf/openai/gpt-oss-120b",
+      "model": "@cf/qwen/qwen3-30b-a3b-fp8",
       "latencyMs": 142,
       "promptVersion": "2.2.0"
     }
@@ -336,7 +336,7 @@ Output schema (example):
   "spreadKey": "threeCard",
   "eval": {
     "scores": { "...": "..." },
-    "model": "@cf/openai/gpt-oss-120b",
+    "model": "@cf/qwen/qwen3-30b-a3b-fp8",
     "latencyMs": 142
   },
   "cardCoverage": 0.95,

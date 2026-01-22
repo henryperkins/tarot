@@ -78,10 +78,10 @@
     // WARNING: LOG_LLM_PROMPTS and PERSIST_PROMPTS capture user questions and
     // personalization data. Enable only for debugging, disable in production.
     // -------------------------------------------------------------------------
-    "LOG_LLM_PROMPTS": "false",
-    "LOG_NARRATIVE_ENHANCEMENTS": "false",
+    "LOG_LLM_PROMPTS": "true",
+    "LOG_NARRATIVE_ENHANCEMENTS": "true",
     "LOG_ENHANCEMENT_TELEMETRY": "true",
-    "PERSIST_PROMPTS": "false",
+    "PERSIST_PROMPTS": "true",
     "ENABLE_TTS_DEBUG_LOGGING": "false",
     "ENABLE_SPEECH_TOKEN_DEBUG": "false",
     // -------------------------------------------------------------------------

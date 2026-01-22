@@ -1052,7 +1052,7 @@ export default function AccountPage() {
         </div>
       </header>
 
-      <main className="mx-auto max-w-2xl px-4 py-8 space-y-6">
+      <main id="main-content" tabIndex={-1} className="mx-auto max-w-2xl px-4 py-8 space-y-6">
         {/* Page Title */}
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div>

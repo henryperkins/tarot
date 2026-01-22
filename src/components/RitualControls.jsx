@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Info, Sparkle, Scissors } from '@phosphor-icons/react';
 import { Tooltip } from './Tooltip';
 import { usePreferences } from '../contexts/PreferencesContext';
+import { useToast } from '../contexts/ToastContext.jsx';
 
 export function RitualControls({
   hasKnocked,
@@ -11,10 +12,12 @@ export function RitualControls({
   hasCut,
   applyCut,
   knockCount = 0,
+  knockCadenceResetAt = 0,
   onSkip,
   deckAnnouncement
 }) {
   const { deckSize, personalization } = usePreferences();
+  const { publish: publishToast } = useToast();
   const [showSkipConfirm, setShowSkipConfirm] = useState(false);
   const skipPromptRef = useRef(null);
   const knockComplete = knockCount >= 3;
@@ -23,6 +26,17 @@ export function RitualControls({
   const ritualStatus = knockComplete && hasCut ? 'Ready' : hasKnocked || hasCut ? 'In flow' : 'Optional';
   const isExperienced = personalization?.tarotExperience === 'experienced';
   const isNewbie = personalization?.tarotExperience === 'newbie';
+  const knockCadenceHint = '3 quick taps within 2s.';
+
+  const handleCutConfirm = () => {
+    applyCut?.();
+    publishToast({
+      type: 'info',
+      title: hasCut ? 'Cut updated' : 'Cut locked',
+      description: `#${cutIndex}`,
+      duration: 700
+    });
+  };
 
   const controlShellClass =
     'rounded-[1.75rem] border border-secondary/40 bg-surface/75 p-3 sm:p-4 shadow-lg shadow-secondary/20 backdrop-blur-xl space-y-4';
@@ -52,6 +66,16 @@ export function RitualControls({
     setShowSkipConfirm(false);
     onSkip?.();
   };
+
+  useEffect(() => {
+    if (!knockCadenceResetAt) return;
+    publishToast({
+      type: 'info',
+      title: 'Cadence reset',
+      description: knockCadenceHint,
+      duration: 700
+    });
+  }, [knockCadenceResetAt, publishToast]);
 
   useEffect(() => {
     if (!showSkipConfirm) return;
@@ -135,7 +159,7 @@ export function RitualControls({
             className={`${primaryButtonBase} ${knockComplete ? primaryButtonActive : primaryButtonIdle
               }`}
             aria-pressed={knockCount > 0}
-            title="Knock up to 3 times"
+            title={`Knock ${knockCadenceHint}`}
           >
             <span>{knockComplete ? 'Deck cleared · 3 of 3' : `Knock ${nextKnockNumber} of 3`}</span>
             {!knockComplete && (
@@ -144,7 +168,7 @@ export function RitualControls({
           </button>
           {!isExperienced && (
             <p className="text-sm text-muted">
-              Ritual progress: <span className="font-semibold text-secondary">{knockCount}</span>/3 knocks registered.
+              Ritual progress: <span className="font-semibold text-secondary">{knockCount}</span>/3. {knockCadenceHint}
             </p>
           )}
         </div>
@@ -198,7 +222,7 @@ export function RitualControls({
           </div>
           <button
             type="button"
-            onClick={applyCut}
+            onClick={handleCutConfirm}
             className={`${primaryButtonBase} ${hasCut ? primaryButtonActive : primaryButtonIdle}`}
             aria-pressed={hasCut}
           >
@@ -237,7 +261,7 @@ export function RitualControls({
           {/* Cut Button */}
           <button
             type="button"
-            onClick={applyCut}
+            onClick={handleCutConfirm}
             className={`aspect-square rounded-2xl border flex flex-col items-center justify-center gap-2 transition-all active:scale-95 touch-manipulation ${hasCut
               ? 'bg-secondary/20 border-secondary/60 text-secondary'
               : 'bg-surface-muted/60 border-accent/20 text-main'
@@ -250,6 +274,9 @@ export function RitualControls({
             <span className="text-xs opacity-70">{hasCut ? 'Adjust or relock anytime' : `Cut #${cutIndex}`}</span>
           </button>
         </div>
+        {!knockComplete && (
+          <p className="text-xs text-muted text-center">{knockCadenceHint}</p>
+        )}
 
         {/* Mobile Cut Position Slider */}
         <div className="rounded-2xl border border-accent/20 bg-surface/60 px-4 py-3">

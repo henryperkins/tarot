@@ -93,7 +93,7 @@ function formatRelativeTimeFromNow(value) {
       return formatter.format(Math.round(delta), range.unit);
     }
   }
-  return 'just now';
+  return null;
 }
 
 /**

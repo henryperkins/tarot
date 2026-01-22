@@ -3,6 +3,8 @@ import { useMemo, useSyncExternalStore, useEffect, useRef } from 'react';
 import { Gear, Sparkle, ArrowsClockwise, ChatCircle } from '@phosphor-icons/react';
 import { useLandscape } from '../hooks/useLandscape';
 
+const KEYBOARD_OFFSET_THRESHOLD = 50;
+
 // Subscribe to visualViewport changes for keyboard avoidance
 export function subscribeToViewport(callback) {
   if (typeof window === 'undefined' || !window.visualViewport) {
@@ -22,7 +24,7 @@ export function getViewportOffset() {
   }
   const offsetTop = window.visualViewport.offsetTop || 0;
   const offset = window.innerHeight - window.visualViewport.height - offsetTop;
-  return offset > 50 ? offset : 0;
+  return offset > KEYBOARD_OFFSET_THRESHOLD ? offset : 0;
 }
 
 export function getServerViewportOffset() {
@@ -539,6 +541,7 @@ export function MobileActionBar({ keyboardOffset = 0, isOverlayActive = false, .
       aria-label="Primary mobile actions"
       style={barStyle}
       aria-hidden={isOverlayActive}
+      inert={isOverlayActive || undefined}
       data-overlay-active={isOverlayActive ? 'true' : undefined}
     >
       <MobileActionContents {...props} />

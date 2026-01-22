@@ -387,6 +387,7 @@ export function ReadingGrid({
 
   const spreadInfo = getSpreadInfo(selectedSpread);
   const isBatchReveal = reading.length > 1 && revealedCards.size === reading.length;
+  const batchStagger = Math.min(0.12, Math.max(0.08, 0.8 / Math.max(1, reading.length - 1)));
 
   const responsiveGridFallback = reading.length <= 4
     ? 'sm:grid sm:gap-8 sm:overflow-visible sm:snap-none sm:pb-0 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-4'
@@ -450,7 +451,7 @@ export function ReadingGrid({
               onCardClick={onCardClick}
               openReflectionIndex={openReflectionIndex}
               onRequestOpenReflection={setOpenReflectionIndex}
-              staggerDelay={isBatchReveal ? index * 0.15 : 0}
+              staggerDelay={isBatchReveal ? index * batchStagger : 0}
             />
           );
 

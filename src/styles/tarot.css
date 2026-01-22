@@ -577,6 +577,15 @@ body {
 }
 
 @supports (padding: max(0px)) {
+  .mobile-drawer__header,
+  .mobile-drawer__body,
+  .mobile-drawer__footer {
+    padding-left: max(1rem, env(safe-area-inset-left, 0px));
+    padding-right: max(1rem, env(safe-area-inset-right, 0px));
+  }
+}
+
+@supports (padding: max(0px)) {
   .mobile-action-bar {
     padding-bottom: max(
       1rem,
@@ -596,10 +605,16 @@ body {
   .mobile-action-bar {
     transition: opacity 0.1s ease-out !important;
   }
+
+  .mobile-drawer,
+  .mobile-drawer-overlay {
+    animation: none !important;
+    transition: none !important;
+  }
 }
 
 /* Landscape mode safeguards for small mobile devices */
-@media (max-height: 500px) and (orientation: landscape) {
+@media (max-height: 600px) and (orientation: landscape) {
   /* Compact mobile action bar in landscape */
   .mobile-action-bar {
     padding-top: 0.5rem;

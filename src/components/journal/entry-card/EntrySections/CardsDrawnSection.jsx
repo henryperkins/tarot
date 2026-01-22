@@ -5,7 +5,7 @@
 import { memo, useState } from 'react';
 import { CaretUp, CaretDown } from '@phosphor-icons/react';
 import { CardSymbolInsights } from '../../../CardSymbolInsights';
-import { JournalPlusCircleIcon } from '../../../JournalIcons';
+import { JournalCardIcon } from '../../../JournalIcons';
 import { CupsIcon, WandsIcon, SwordsIcon, PentaclesIcon, MajorIcon } from '../../../illustrations/SuitIcons';
 import { buildCardInsightPayload, REVERSED_PATTERN } from '../../../../lib/journalInsights';
 import { styles, getSuitAccentVar, cn } from '../EntryCard.primitives';
@@ -37,7 +37,7 @@ const JournalCardListItem = memo(function JournalCardListItem({ card }) {
   const suitColor = getSuitAccentVar(card?.name) || 'var(--brand-primary)';
 
   return (
-    <li className="group relative flex flex-col gap-3 rounded-2xl border border-[color:rgba(255,255,255,0.1)] bg-[color:rgba(10,11,18,0.6)] p-3 transition-colors hover:bg-[color:rgba(255,255,255,0.05)] shadow-[0_18px_38px_-28px_rgba(0,0,0,0.8)] sm:flex-row sm:items-center sm:justify-between">
+    <li className="group relative flex flex-col gap-3 rounded-2xl border border-[color:var(--border-warm-light)] bg-[color:var(--panel-dark-2)] p-3 transition-colors hover:bg-[color:var(--border-warm-subtle)] shadow-[0_18px_38px_-28px_rgba(0,0,0,0.8)] sm:flex-row sm:items-center sm:justify-between">
       <div className="flex items-center gap-3 min-w-0 flex-1">
         {/* Position indicator bar */}
         <div
@@ -80,9 +80,12 @@ export const CardsDrawnSection = memo(function CardsDrawnSection({
   cards,
   cardsId,
   isSmallScreen,
-  hasQuestion = false
+  hasQuestion = false,
+  collapsible = true,
+  defaultExpanded = false
 }) {
-  const [showCards, setShowCards] = useState(false);
+  const [showCards, setShowCards] = useState(defaultExpanded);
+  const isCollapsible = isSmallScreen && collapsible;
 
   if (cards.length === 0) {
     return (
@@ -99,7 +102,7 @@ export const CardsDrawnSection = memo(function CardsDrawnSection({
   }
 
   // Mobile: collapsible cards section
-  if (isSmallScreen) {
+  if (isCollapsible) {
     return (
       <section className={cn(styles.section, hasQuestion && 'mt-4')}>
         <button
@@ -127,14 +130,20 @@ export const CardsDrawnSection = memo(function CardsDrawnSection({
           <div className={styles.sectionBody}>
             <div className="flex flex-wrap gap-2">
               {cards.slice(0, 2).map((card, idx) => {
-                const name = (card.name || '').replace(/^The\s+/i, '').replace(/\s+of\s+/i, ' ');
+                const name = card.name || 'Card';
+                const reversed = REVERSED_PATTERN.test(card?.orientation || '') || card?.isReversed;
                 return (
                   <span
                     key={`${card.name || 'card'}-${idx}`}
-                    className="inline-flex items-center gap-1 rounded-full border border-[color:rgba(255,255,255,0.12)] bg-[color:rgba(10,11,18,0.65)] px-2.5 py-1 text-[12px] font-medium text-[color:var(--text-main)]"
+                    className={cn(styles.cardChip, 'bg-[color:var(--panel-dark-1)]')}
                   >
-                    <JournalPlusCircleIcon className="h-3 w-3 text-[color:var(--text-muted)]" aria-hidden="true" />
-                    {name || 'Card'}
+                    <JournalCardIcon className="h-3 w-3 text-[color:var(--text-muted)]" aria-hidden="true" />
+                    <span className="min-w-0 max-w-[160px] truncate text-[12px] font-medium text-[color:var(--text-main)]">
+                      {name}
+                    </span>
+                    {reversed && (
+                      <span className={styles.reversedBadge}>Rev</span>
+                    )}
                   </span>
                 );
               })}
@@ -160,7 +169,7 @@ export const CardsDrawnSection = memo(function CardsDrawnSection({
     );
   }
 
-  // Desktop: always show cards
+  // Desktop: always show cards (or forced open)
   return (
     <section className={cn(styles.section, hasQuestion && 'mt-4')}>
       <header className={styles.sectionHeader}>

@@ -8,6 +8,7 @@ import { PreferencesProvider } from './contexts/PreferencesContext.jsx';
 import { ReadingProvider } from './contexts/ReadingContext.jsx';
 import { ToastProvider } from './contexts/ToastContext.jsx';
 import { AnimatedRoutes } from './components/AnimatedRoutes.jsx';
+import { SkipLink } from './components/SkipLink.jsx';
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
@@ -17,6 +18,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
           <ReadingProvider>
             <ToastProvider>
               <BrowserRouter>
+                <SkipLink />
                 <AnimatedRoutes />
               </BrowserRouter>
             </ToastProvider>

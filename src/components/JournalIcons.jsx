@@ -47,6 +47,17 @@ export function JournalCardAddIcon(props) {
   );
 }
 
+export function JournalCardIcon(props) {
+  const svgProps = getBaseSvgProps(props);
+  return (
+    <svg {...svgProps}>
+      <rect x="6" y="4" width="12" height="16" rx="2" />
+      <path d="M9.5 9.5h5" />
+      <path d="M9.5 14.5h5" />
+    </svg>
+  );
+}
+
 export function JournalSlidersIcon(props) {
   const svgProps = getBaseSvgProps(props);
   return (

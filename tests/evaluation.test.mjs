@@ -349,12 +349,12 @@ describe('evaluation', () => {
       assert.equal(result.scores.safety_flag, true);
     });
 
-    test('flags single hallucinated card within allowance and caps tarot coherence', () => {
+    test('caps tarot coherence for hallucinated card within allowance', () => {
       const result = buildHeuristicScores({
         cardCoverage: 0.95,
         hallucinatedCards: ['The Sun']
       });
-      assert.equal(result.scores.safety_flag, true);
+      assert.equal(result.scores.safety_flag, false);
       assert.equal(result.scores.tarot_coherence, 3);
     });
 

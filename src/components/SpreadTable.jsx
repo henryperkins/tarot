@@ -102,7 +102,8 @@ export function SpreadTable({
   size = 'default',
   recentlyClosedIndex = -1,
   hideLegend = false,
-  disableReveal = false
+  disableReveal = false,
+  flashNextSlot = false
 }) {
   const prefersReducedMotion = useReducedMotion();
   const { vibrate } = useHaptic();
@@ -396,6 +397,14 @@ export function SpreadTable({
                   }
                 >
                   {numberBadge}
+                  {flashNextSlot && isNext && (
+                    <motion.div
+                      className="absolute inset-[-12%] rounded-xl border-2 border-secondary/70 pointer-events-none"
+                      initial={{ opacity: 0.9, scale: 1 }}
+                      animate={{ opacity: [0.9, 0.5, 0], scale: [1, 1.08, 1.12] }}
+                      transition={prefersReducedMotion ? { duration: 0 } : { duration: 0.4, ease: 'easeOut' }}
+                    />
+                  )}
                   <motion.div
                     className="w-full h-full relative"
                     style={{

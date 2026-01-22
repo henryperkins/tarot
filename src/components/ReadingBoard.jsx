@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useMemo, useRef, useState, useEffect } from 'react';
 import { X, CaretLeft, CaretRight, MapTrifold } from '@phosphor-icons/react';
 import { getSpreadInfo } from '../data/spreads';
 import { getCardImage, getOrientationMeaning } from '../lib/cardLookup';
@@ -434,10 +434,14 @@ export function ReadingBoard({
   revealStage = 'action'
 }) {
   const isHandsetLayout = useHandsetLayout();
+  const prefersReducedMotion = useReducedMotion();
   const spreadInfo = useMemo(() => getSpreadInfo(spreadKey), [spreadKey]);
   const nextIndex = getNextUnrevealedIndex(reading, revealedCards);
   const nextLabel = nextIndex >= 0 ? getPositionLabel(spreadInfo, nextIndex) : null;
   const allowBoardReveal = revealStage !== 'deck';
+  const [flashNextSlot, setFlashNextSlot] = useState(false);
+  const flashTimerRef = useRef(null);
+  const prevRevealStageRef = useRef(revealStage);
 
 
   // Celtic Cross map overlay state
@@ -451,6 +455,29 @@ export function ReadingBoard({
     focusedCardData &&
     revealedCards?.has(focusedCardData.index)
   );
+  useEffect(() => {
+    const prevStage = prevRevealStageRef.current;
+    prevRevealStageRef.current = revealStage;
+    if (prefersReducedMotion) return;
+    if (prevStage !== 'deck' || revealStage !== 'spread') return;
+    if (nextIndex < 0) return;
+    queueMicrotask(() => {
+      setFlashNextSlot(true);
+    });
+    if (flashTimerRef.current) {
+      clearTimeout(flashTimerRef.current);
+    }
+    flashTimerRef.current = setTimeout(() => {
+      setFlashNextSlot(false);
+      flashTimerRef.current = null;
+    }, 400);
+  }, [revealStage, nextIndex, prefersReducedMotion]);
+
+  useEffect(() => () => {
+    if (flashTimerRef.current) {
+      clearTimeout(flashTimerRef.current);
+    }
+  }, []);
   if (!reading) return null;
 
   return (
@@ -486,6 +513,7 @@ export function ReadingBoard({
           disableReveal={!allowBoardReveal}
           hideLegend={true}
           size={tableSize}
+          flashNextSlot={flashNextSlot}
         />
         {/* Celtic Cross map overlay */}
         {showCelticMap && isCelticCross && (

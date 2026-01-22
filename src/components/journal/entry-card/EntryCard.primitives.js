@@ -51,19 +51,19 @@ export const FOLLOW_UP_LIMITS = {
 export const styles = {
   // Section containers
   section:
-    'relative overflow-hidden rounded-2xl border border-[color:rgba(255,255,255,0.08)] ' +
-    'bg-[linear-gradient(180deg,rgba(14,13,22,0.95),rgba(10,10,18,0.98))] ' +
+    'relative overflow-hidden rounded-2xl border border-[color:var(--border-warm-subtle)] ' +
+    'bg-[linear-gradient(180deg,var(--panel-dark-2),var(--panel-dark-1))] ' +
     'shadow-[0_18px_40px_-28px_rgba(0,0,0,0.8)] ' +
-    'before:absolute before:inset-0 before:bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.08),transparent_55%)] ' +
+    'before:absolute before:inset-0 before:bg-[radial-gradient(circle_at_top,var(--halo-star-color),transparent_55%)] ' +
     'before:opacity-70 before:pointer-events-none before:content-[""]',
 
   sectionHeader:
-    'relative z-10 flex items-center justify-between gap-3 px-4 py-3 border-b border-[color:rgba(255,255,255,0.07)] ' +
-    'bg-[color:rgba(9,9,16,0.55)] backdrop-blur',
+    'relative z-10 flex items-center justify-between gap-3 px-4 py-3 border-b border-[color:var(--border-warm-subtle)] ' +
+    'bg-[color:var(--panel-dark-3)] backdrop-blur',
 
   sectionHeaderClickable:
-    'relative z-10 flex items-center justify-between gap-3 px-4 py-3 border-b border-[color:rgba(255,255,255,0.07)] ' +
-    'w-full text-left bg-[color:rgba(9,9,16,0.55)] hover:bg-[color:rgba(255,255,255,0.05)] ' +
+    'relative z-10 flex items-center justify-between gap-3 px-4 py-3 border-b border-[color:var(--border-warm-subtle)] ' +
+    'w-full text-left bg-[color:var(--panel-dark-3)] hover:bg-[color:var(--border-warm-subtle)] ' +
     'transition cursor-pointer backdrop-blur',
 
   sectionLabel:
@@ -73,13 +73,13 @@ export const styles = {
 
   // Pills and chips
   pill:
-    'inline-flex items-center gap-2 rounded-full border border-[color:rgba(255,255,255,0.14)] ' +
-    'bg-[color:rgba(255,255,255,0.06)] px-2.5 py-1 text-[10px] tracking-[0.22em] uppercase ' +
+    'inline-flex items-center gap-2 rounded-full border border-[color:var(--border-warm-light)] ' +
+    'bg-[color:var(--border-warm-subtle)] px-2.5 py-1 text-[10px] tracking-[0.22em] uppercase ' +
     'text-[color:var(--text-muted)] shadow-[0_10px_20px_-18px_rgba(0,0,0,0.7)]',
 
   cardChip:
-    'inline-flex max-w-full items-center gap-1 rounded-full border border-[color:rgba(255,255,255,0.12)] ' +
-    'bg-[color:rgba(8,9,16,0.55)] px-2.5 py-1 text-[11px] font-semibold text-[color:var(--text-muted)] ' +
+    'inline-flex max-w-full items-center gap-1 rounded-full border border-[color:var(--border-warm-light)] ' +
+    'bg-[color:var(--panel-dark-2)] px-2.5 py-1 text-[11px] font-semibold text-[color:var(--text-muted)] ' +
     'shadow-[0_12px_22px_-18px_rgba(0,0,0,0.7)]',
 
   reversedBadge:
@@ -88,61 +88,61 @@ export const styles = {
     'font-semibold text-[color:var(--status-error)]',
 
   uprightBadge:
-    'flex-shrink-0 rounded-full border border-[color:rgba(255,255,255,0.12)] px-1.5 py-0.5 text-[10px] ' +
+    'flex-shrink-0 rounded-full border border-[color:var(--border-warm-light)] px-1.5 py-0.5 text-[10px] ' +
     'text-[color:var(--text-muted)]',
 
   // Buttons
   iconButton:
     'inline-flex min-h-[44px] min-w-[44px] h-11 w-11 items-center justify-center rounded-2xl ' +
-    'border border-[color:rgba(255,255,255,0.14)] bg-[linear-gradient(135deg,rgba(20,19,32,0.9),rgba(12,12,20,0.95))] ' +
+    'border border-[color:var(--border-warm-light)] bg-[linear-gradient(135deg,var(--bg-surface-muted),var(--bg-surface))] ' +
     'text-[color:var(--text-muted)] shadow-[0_12px_24px_-16px_rgba(0,0,0,0.75)] ' +
-    'hover:border-[color:rgba(255,255,255,0.2)] hover:text-[color:var(--brand-accent)] hover:translate-y-[-1px] ' +
+    'hover:border-[color:var(--border-warm)] hover:text-[color:var(--brand-accent)] hover:translate-y-[-1px] ' +
     'transition-all duration-200 active:translate-y-0 focus-visible:outline-none focus-visible:ring-2 ' +
-    'focus-visible:ring-[color:rgba(232,218,195,0.45)]',
+    'focus-visible:ring-[color:var(--accent-45)]',
 
   iconButtonCompact:
     'inline-flex min-h-[44px] min-w-[44px] h-11 w-11 items-center justify-center rounded-2xl ' +
-    'border border-[color:rgba(255,255,255,0.08)] bg-[color:rgba(12,12,20,0.55)] ' +
-    'text-[color:var(--text-muted)] hover:bg-[color:rgba(255,255,255,0.06)] ' +
+    'border border-[color:var(--border-warm-subtle)] bg-[color:var(--panel-dark-2)] ' +
+    'text-[color:var(--text-muted)] hover:bg-[color:var(--border-warm-subtle)] ' +
     'hover:text-[color:var(--brand-accent)] transition focus-visible:outline-none ' +
-    'focus-visible:ring-2 focus-visible:ring-[color:rgba(232,218,195,0.45)] flex-shrink-0',
+    'focus-visible:ring-2 focus-visible:ring-[color:var(--accent-45)] flex-shrink-0',
 
   actionButton:
     'inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-[12px] font-semibold ' +
     'transition focus-visible:outline-none focus-visible:ring-2 ' +
-    'focus-visible:ring-[color:rgba(232,218,195,0.45)]',
+    'focus-visible:ring-[color:var(--accent-45)]',
 
   actionButtonEnabled:
-    'border-[color:rgba(255,255,255,0.14)] bg-[color:rgba(255,255,255,0.06)] ' +
-    'text-[color:var(--text-main)] hover:border-[color:rgba(255,255,255,0.24)] ' +
-    'hover:bg-[color:rgba(255,255,255,0.1)]',
+    'border-[color:var(--border-warm-light)] bg-[color:var(--border-warm-subtle)] ' +
+    'text-[color:var(--text-main)] hover:border-[color:var(--border-warm)] ' +
+    'hover:bg-[color:var(--border-warm-light)]',
 
   actionButtonDisabled:
-    'border-[color:rgba(255,255,255,0.08)] bg-[color:rgba(255,255,255,0.03)] ' +
+    'border-[color:var(--border-warm-subtle)] bg-[color:var(--border-warm-subtle)] ' +
     'text-[color:var(--text-muted)] cursor-not-allowed opacity-70',
 
   // Cards
   cardBase:
     'group relative overflow-hidden text-[color:var(--text-main)] transition-all duration-300 animate-fade-in ' +
-    'before:absolute before:inset-0 before:bg-[linear-gradient(120deg,rgba(255,255,255,0.05),transparent_45%)] ' +
+    'before:absolute before:inset-0 before:bg-[linear-gradient(120deg,var(--border-warm-subtle),transparent_45%)] ' +
     'before:opacity-70 before:pointer-events-none before:content-[""]',
 
   cardHover:
     'hover:translate-y-[-2px] hover:shadow-[0_30px_80px_-38px_rgba(0,0,0,0.95)]',
 
   cardCompact:
-    'rounded-2xl border border-amber-200/12 bg-[linear-gradient(160deg,rgba(15,17,34,0.98),rgba(9,10,18,0.98))] ' +
-    'shadow-[0_14px_32px_-20px_rgba(0,0,0,0.7)] hover:bg-[color:rgba(255,255,255,0.03)]',
+    'rounded-2xl border border-[color:var(--border-warm-light)] bg-[linear-gradient(160deg,var(--bg-surface),var(--bg-main))] ' +
+    'shadow-[0_14px_32px_-20px_rgba(0,0,0,0.7)] hover:bg-[color:var(--border-warm-subtle)]',
 
   // Accent bar
-  accentBar: 'absolute left-0 w-1 rounded-full opacity-80 shadow-[0_0_12px_rgba(255,255,255,0.2)]',
+  accentBar: 'absolute left-0 w-1 rounded-full opacity-80 shadow-[0_0_12px_var(--border-warm-light)]',
   accentBarDefault: 'top-3 bottom-3',
   accentBarCompact: 'top-2 bottom-2 w-[3px]',
 
   // Menu
   menu:
     'fixed z-[200] w-72 max-h-[75vh] overflow-y-auto rounded-2xl ' +
-    'border border-[color:var(--border-warm)] bg-[color:rgba(10,10,14,0.96)] p-2 ' +
+    'border border-[color:var(--border-warm)] bg-[color:var(--bg-main)] p-2 ' +
     'shadow-[0_18px_60px_-34px_rgba(0,0,0,0.95)]',
 
   menuItem:
@@ -151,8 +151,8 @@ export const styles = {
     'disabled:opacity-60 disabled:cursor-not-allowed',
 
   menuItemDefault:
-    'text-[color:var(--text-main)] hover:bg-[color:rgba(255,255,255,0.06)] ' +
-    'focus-visible:ring-[color:rgba(232,218,195,0.45)]',
+    'text-[color:var(--text-main)] hover:bg-[color:var(--border-warm-subtle)] ' +
+    'focus-visible:ring-[color:var(--accent-45)]',
 
   menuItemDanger:
     'text-[color:var(--status-error)] hover:bg-[color:color-mix(in_srgb,var(--status-error)_12%,transparent)] ' +
@@ -160,11 +160,11 @@ export const styles = {
 
   // Follow-up turn card
   turnCard:
-    'rounded-2xl border border-[color:rgba(255,255,255,0.1)] bg-[color:rgba(9,10,18,0.6)] ' +
+    'rounded-2xl border border-[color:var(--border-warm-light)] bg-[color:var(--panel-dark-2)] ' +
     'p-3 shadow-[0_16px_32px_-24px_rgba(0,0,0,0.8)]',
 
   // Divider
-  divider: 'my-4 h-px bg-[color:rgba(255,255,255,0.06)]'
+  divider: 'my-4 h-px bg-[color:var(--border-warm-subtle)]'
 };
 
 // ─────────────────────────────────────────────────────────────────────────────

@@ -1352,6 +1352,25 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply,
   const contentPaddingTop = isSmallScreen
     ? 'calc(env(safe-area-inset-top, 0px) + 0.5rem)'
     : null;
+  const shouldApplySafeAreaX = isSmallScreen || isLandscape;
+  const safeAreaXStyle = shouldApplySafeAreaX
+    ? {
+      paddingLeft: 'max(1rem, env(safe-area-inset-left, 0px))',
+      paddingRight: 'max(1rem, env(safe-area-inset-right, 0px))'
+    }
+    : null;
+  const contentPaddingStyle = contentPaddingTop || safeAreaXStyle
+    ? {
+      ...(contentPaddingTop ? { paddingTop: contentPaddingTop } : null),
+      ...(safeAreaXStyle || {})
+    }
+    : undefined;
+  const footerPaddingStyle = effectiveOffset || safeAreaXStyle
+    ? {
+      ...(effectiveOffset ? { paddingBottom: `calc(env(safe-area-inset-bottom, 0px) + ${effectiveOffset + 16}px)` } : null),
+      ...(safeAreaXStyle || {})
+    }
+    : undefined;
 
   // ============================================================================
   // Main Render
@@ -1409,7 +1428,7 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply,
           <div className="flex-1 overflow-y-auto">
             <div
               className={`flex flex-col gap-6 px-4 pb-6 sm:px-10 sm:pb-6 ${isLandscape ? 'pt-6 gap-4' : 'pt-8 sm:pt-6'}`}
-              style={contentPaddingTop ? { paddingTop: contentPaddingTop } : undefined}
+              style={contentPaddingStyle}
             >
               {/* Header */}
               <div>
@@ -1591,7 +1610,7 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply,
           {/* Footer - OUTSIDE scrollable area for proper sticky behavior */}
           <div
             className={`flex-shrink-0 bg-surface border-t border-accent/20 sm:border-t-0 px-4 sm:px-10 pb-safe sm:pb-6 ${isLandscape ? 'pt-2' : 'pt-4 sm:pt-0'}`}
-            style={effectiveOffset ? { paddingBottom: `calc(env(safe-area-inset-bottom, 0px) + ${effectiveOffset + 16}px)` } : undefined}
+            style={footerPaddingStyle}
           >
             {historyStatus && (
               <p className="text-xs text-error text-center sm:text-left mb-2">

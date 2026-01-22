@@ -95,7 +95,9 @@ export const CARD_CONNECTORS = [
 ];
 
 // CSS class constants for amber-themed cards
-export const AMBER_SHELL_CLASS = 'relative overflow-hidden rounded-3xl border border-amber-300/12 bg-gradient-to-br from-[#0b0c1d] via-[#0d1024] to-[#090a16] shadow-[0_24px_68px_-30px_rgba(0,0,0,0.9)]';
-export const AMBER_CARD_CLASS = 'relative overflow-hidden rounded-[28px] border border-amber-200/15 bg-[radial-gradient(circle_at_top,rgba(244,209,148,0.18),transparent_55%),radial-gradient(circle_at_80%_0%,rgba(120,141,255,0.16),transparent_45%),linear-gradient(160deg,rgba(14,12,22,0.98),rgba(9,9,16,0.98))] ring-1 ring-amber-200/10 shadow-[0_28px_74px_-36px_rgba(0,0,0,0.9)]';
-export const AMBER_SHELL_MOBILE_CLASS = 'relative overflow-hidden rounded-3xl border border-amber-300/10 bg-[#0d1020] shadow-[0_18px_48px_-34px_rgba(0,0,0,0.78)]';
-export const AMBER_CARD_MOBILE_CLASS = 'relative overflow-hidden rounded-[24px] border border-amber-200/12 bg-[radial-gradient(circle_at_20%_0%,rgba(244,209,148,0.16),transparent_55%),linear-gradient(160deg,rgba(14,15,30,0.98),rgba(10,11,20,0.98))] ring-1 ring-amber-200/10 shadow-[0_22px_58px_-34px_rgba(0,0,0,0.85)]';
+// Uses theme panel colors: --panel-dark-1: #0d0a14, --panel-dark-2: #151020, --panel-dark-3: #0f0b17
+// Glow colors: --glow-gold: rgba(244,207,150,0.1), --glow-blue: rgba(120,161,255,0.08)
+export const AMBER_SHELL_CLASS = 'relative overflow-hidden rounded-3xl border border-amber-300/12 bg-gradient-to-br from-[#0d0a14] via-[#151020] to-[#0f0b17] shadow-[0_24px_68px_-30px_rgba(0,0,0,0.9)]';
+export const AMBER_CARD_CLASS = 'relative overflow-hidden rounded-[28px] border border-amber-200/15 bg-[radial-gradient(circle_at_top,rgba(244,207,150,0.1),transparent_55%),radial-gradient(circle_at_80%_0%,rgba(120,161,255,0.08),transparent_45%),linear-gradient(160deg,rgba(13,10,20,0.98),rgba(15,11,23,0.98))] ring-1 ring-amber-200/10 shadow-[0_28px_74px_-36px_rgba(0,0,0,0.9)]';
+export const AMBER_SHELL_MOBILE_CLASS = 'relative overflow-hidden rounded-3xl border border-amber-300/10 bg-[#0d0a14] shadow-[0_18px_48px_-34px_rgba(0,0,0,0.78)]';
+export const AMBER_CARD_MOBILE_CLASS = 'relative overflow-hidden rounded-[24px] border border-amber-200/12 bg-[radial-gradient(circle_at_20%_0%,rgba(244,207,150,0.1),transparent_55%),linear-gradient(160deg,rgba(13,10,20,0.98),rgba(15,11,23,0.98))] ring-1 ring-amber-200/10 shadow-[0_22px_58px_-34px_rgba(0,0,0,0.85)]';

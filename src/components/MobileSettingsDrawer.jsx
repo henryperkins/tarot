@@ -4,6 +4,8 @@ import { useModalA11y } from '../hooks/useModalA11y';
 import { useAndroidBackGuard } from '../hooks/useAndroidBackGuard';
 import { MOBILE_SETTINGS_DIALOG_ID } from './MobileActionBar';
 
+const KEYBOARD_OFFSET_THRESHOLD = 50;
+
 // Subscribe to visualViewport changes for keyboard-aware padding
 function subscribeToViewport(callback) {
   if (typeof window === 'undefined' || !window.visualViewport) {
@@ -22,7 +24,7 @@ function getViewportOffset() {
     return 0;
   }
   const offset = window.innerHeight - window.visualViewport.height - window.visualViewport.offsetTop;
-  return offset > 50 ? offset : 0;
+  return offset > KEYBOARD_OFFSET_THRESHOLD ? offset : 0;
 }
 
 function getServerViewportOffset() {

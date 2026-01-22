@@ -71,6 +71,8 @@ export const JournalEntryCard = memo(function JournalEntryCard({
   } = metadata;
 
   const canAskFollowUp = isAuthenticated && followUpTurnsUsed < followUpLimit;
+  const hasCards = cards.length > 0;
+  const hasNarrative = Boolean(narrativeText);
 
   const actions = useEntryActions(entry, {
     onDelete,
@@ -85,10 +87,11 @@ export const JournalEntryCard = memo(function JournalEntryCard({
   });
 
   // IDs for accessibility
-  const entryContentId = useId();
-  const narrativeId = useId();
-  const cardsId = useId();
-  const actionMenuId = `${entry.id || entry.ts || 'entry'}-actions-menu`;
+  const entryIdPrefix = useId();
+  const entryContentId = `${entryIdPrefix}-content`;
+  const narrativeId = `${entryIdPrefix}-narrative`;
+  const cardsId = `${entryIdPrefix}-cards`;
+  const actionMenuId = `${entryIdPrefix}-actions-menu`;
 
   const wasExpandedRef = useRef(isExpanded);
 
@@ -100,11 +103,9 @@ export const JournalEntryCard = memo(function JournalEntryCard({
     wasExpandedRef.current = isExpanded;
   }, [isExpanded, actionMenu]);
 
-  // Handle toggle with compact mode awareness
+  // Handle toggle - compact cards expand to comfortable view
   const handleToggle = () => {
-    if (!compact) {
-      setIsExpanded((prev) => !prev);
-    }
+    setIsExpanded((prev) => !prev);
   };
 
   // Determine styling
@@ -119,7 +120,7 @@ export const JournalEntryCard = memo(function JournalEntryCard({
     ? cn(styles.accentBar, styles.accentBarCompact)
     : cn(styles.accentBar, styles.accentBarDefault);
 
-  const contentPadding = compact ? 'px-4 py-4 sm:p-5' : 'px-4 py-4 sm:p-5';
+  const contentPadding = 'px-4 py-4 sm:p-5';
 
   // Render action menu (shared by both headers)
   const renderActionMenu = () => (
@@ -184,12 +185,25 @@ export const JournalEntryCard = memo(function JournalEntryCard({
         <div id={entryContentId} className={cn('relative z-10 animate-slide-down', contentPadding)}>
           <QuestionSection question={entry.question} />
 
-          <CardsDrawnSection
-            cards={cards}
-            cardsId={cardsId}
-            isSmallScreen={isSmallScreen}
-            hasQuestion={Boolean(entry.question)}
-          />
+          {hasCards && (
+            <CardsDrawnSection
+              cards={cards}
+              cardsId={cardsId}
+              isSmallScreen={isSmallScreen}
+              hasQuestion={Boolean(entry.question)}
+              collapsible
+              defaultExpanded={!isSmallScreen && defaultExpanded}
+            />
+          )}
+
+          {hasNarrative && (
+            <NarrativeSection
+              narrativeText={narrativeText}
+              narrativeId={narrativeId}
+              collapsible
+              defaultExpanded={!isSmallScreen}
+            />
+          )}
 
           {hasReflections && <ReflectionsSection reflections={reflections} />}
 
@@ -213,8 +227,6 @@ export const JournalEntryCard = memo(function JournalEntryCard({
             effectiveTier={effectiveTier}
             onOpenFollowUp={actions.handleOpenFollowUp}
           />
-
-          <NarrativeSection narrativeText={narrativeText} narrativeId={narrativeId} />
         </div>
       )}
 

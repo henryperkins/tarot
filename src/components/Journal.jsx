@@ -38,7 +38,7 @@ import {
   AMBER_CARD_MOBILE_CLASS
 } from '../lib/journal/constants';
 import { getMonthHeader } from '../lib/journal/utils';
-import { JournalCardsAddIcon, JournalRefreshIcon, JournalSearchIcon, JournalSlidersIcon } from './JournalIcons';
+import { JournalCardsAddIcon, JournalRefreshIcon, JournalSearchIcon } from './JournalIcons';
 
 
 
@@ -181,19 +181,11 @@ export default function Journal() {
     : (filtersActive && hasRemoteEntries
         ? 'Searching loaded entries only'
         : null);
-  const showInlineSearchOlder = hasMoreServerEntries && filtersActive && !serverSearchEnabled;
   const inlineSearchOlderLabel = hasLocalMoreEntries
     ? 'Show more results'
     : (filters.query.trim() ? 'Search older entries' : 'Load older entries');
   const highlightBannerState = pendingHighlightEntryId ? (highlightStatus || 'loading') : null;
   const showHighlightBanner = Boolean(pendingHighlightEntryId) && highlightBannerState !== 'found';
-  const searchQuery = filters.query.trim();
-  const searchSummaryTitle = searchQuery
-    ? `Search: "${searchQuery}"`
-    : (filtersActive ? 'Filtered' : 'All readings');
-  const searchSummaryCount = filtersActive
-    ? `${filteredEntries.length} matches`
-    : `${filteredEntries.length} entries`;
   const showLoadMoreButton = hasMoreVisibleResults || (hasMoreServerEntries && !serverSearchEnabled);
   const loadMoreLabel = serverSearchEnabled
     ? `Load ${Math.min(VISIBLE_ENTRY_BATCH, localRemaining)} more results`
@@ -677,8 +669,8 @@ export default function Journal() {
 
   const renderedHistoryEntries = monthSections.map((section) => (
     <div key={section.key} id={section.anchorId} className="space-y-4 scroll-mt-24">
-      <div className="sticky top-24 z-10">
-        <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-amber-200/20 bg-[#0b0c1d]/90 px-3 py-2 backdrop-blur">
+      <div className="sticky top-24 z-20">
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-amber-200/20 bg-[#0d0a14]/90 px-3 py-2 backdrop-blur">
           <span className="text-[11px] uppercase tracking-[0.3em] text-amber-100/70">{section.label}</span>
           <span className="inline-flex items-center rounded-full border border-amber-200/20 bg-amber-200/10 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-amber-100/70">
             {section.count} entries
@@ -747,10 +739,6 @@ export default function Journal() {
   return (
     <>
       <div className="min-h-screen bg-main text-main animate-fade-in">
-        <div className="skip-links">
-          <a href="#journal-content" className="skip-link">Skip to journal content</a>
-        </div>
-        
         {/* Sticky navigation header with safe-area padding */}
         <header 
           className="sticky top-0 z-40 bg-main/95 backdrop-blur-sm border-b border-secondary/20"
@@ -765,7 +753,7 @@ export default function Journal() {
           </div>
         </header>
 
-        <main id="journal-content" tabIndex={-1} className="journal-page max-w-7xl mx-auto px-4 sm:px-6 py-8">
+        <main id="main-content" tabIndex={-1} className="journal-page max-w-7xl mx-auto px-4 sm:px-6 py-8">
 
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-6">
             {fromReading && (
@@ -939,48 +927,6 @@ export default function Journal() {
                       )}
 
                       <div className="space-y-4">
-                        <div className="rounded-2xl border border-amber-300/15 bg-[#0b0c1d]/90 p-2.5 sm:p-3 shadow-[0_18px_45px_-28px_rgba(0,0,0,0.75)] backdrop-blur">
-                          <div className="flex flex-wrap items-start gap-2">
-                            <div className="flex min-w-[200px] flex-1 flex-col gap-1">
-                              <div className="flex flex-wrap items-center gap-2 text-xs text-amber-50">
-                                <JournalSearchIcon className="h-4 w-4 text-amber-200/70" aria-hidden="true" />
-                                <span className="font-semibold">{searchSummaryTitle}</span>
-                                {filtersActive && (
-                                  <span className="inline-flex min-h-[20px] items-center rounded-full border border-amber-200/20 bg-amber-200/10 px-2.5 text-[9px] font-semibold uppercase tracking-[0.18em] text-amber-100/75">
-                                    {activeFilterChips.length} active
-                                  </span>
-                                )}
-                              </div>
-                              <div className="flex flex-wrap items-center gap-2 text-[10px] text-amber-100/70">
-                                <span>{searchSummaryCount}</span>
-                                {searchCoverageLabel && <span>{searchCoverageLabel}</span>}
-                                {searchScopeLabel && <span>{searchScopeLabel}</span>}
-                              </div>
-                            </div>
-                            <div className="flex flex-wrap items-center gap-2">
-                              <button
-                                type="button"
-                                onClick={scrollToHistoryFilters}
-                                className="inline-flex min-h-[44px] items-center gap-2 rounded-full border border-amber-200/20 bg-amber-200/10 px-3 py-1.5 text-[11px] font-semibold text-amber-100/90 hover:border-amber-200/40 hover:bg-amber-200/20 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/40"
-                              >
-                                <JournalSlidersIcon className="h-4 w-4" aria-hidden="true" />
-                                Filters
-                              </button>
-                              {showInlineSearchOlder && (
-                                <button
-                                  type="button"
-                                  onClick={handleLoadMoreEntries}
-                                  disabled={loadingMore || !hasMoreEntries}
-                                  className={`inline-flex min-h-[44px] items-center gap-2 rounded-full border border-amber-200/20 bg-amber-200/10 px-3 py-1.5 text-[11px] font-semibold text-amber-100/90 hover:border-amber-200/40 hover:bg-amber-200/20 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/40 ${loadingMore || !hasMoreEntries ? 'cursor-not-allowed opacity-60' : ''}`}
-                                >
-                                  <JournalSearchIcon className="h-4 w-4" aria-hidden="true" />
-                                  {loadingMore ? 'Searching...' : inlineSearchOlderLabel}
-                                </button>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-
                         {showSummaryBand && (
                           <JournalSummaryBand
                             summaryRef={summaryRef}
