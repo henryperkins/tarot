@@ -254,7 +254,8 @@ export async function performSpreadAnalysis(spreadInfo, cardsInfo, options = {},
     themes = await analyzeSpreadThemes(cardsInfo, {
       reversalFrameworkOverride: options.reversalFrameworkOverride,
       deckStyle: options.deckStyle,
-      userQuestion: options.userQuestion
+      userQuestion: options.userQuestion,
+      env: options.env
     });
     console.log(`[${requestId}] Theme analysis complete:`, {
       suitCounts: themes.suitCounts,
