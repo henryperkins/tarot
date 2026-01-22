@@ -61,14 +61,15 @@
    --status-success       : Success state color
    --status-error         : Error state color
 
-   LOCAL VARIABLES (defined in :root)
-   ----------------------------------
-   Panel colors: --panel-dark-1, --panel-dark-2, --panel-dark-3
-   Glow effects: --glow-gold, --glow-blue, --glow-pink
-   Borders:      --border-warm, --border-warm-light, --border-warm-subtle
-   Drawer:       --drawer-gold, --drawer-gold-{70,38,32,28,18,16}
-   Color-mix fallbacks: --accent-{25,45,55,65}, --primary-{20,30,60}
-                        --surface-{88,92}, --main-45
+   LOCAL VARIABLES (defined in :root in this file)
+   -----------------------------------------------
+   Light ambient colors: --light-ambient-{top,mid,base}
+   Suit accent helpers:  --{wands,cups,swords,pentacles}-accent{-soft}
+   Color-mix fallbacks:  --accent-{25,45,55,65}, --primary-{20,30,60}
+                         --surface-{88,92}, --main-45
+
+   NOTE: Panel/glow/border/drawer tokens live in src/styles/theme.css to avoid
+   drift across files (e.g., --panel-dark-*, --glow-*, --border-warm*, --drawer-gold*).
 
    ANIMATION TIMING SCALE
    ----------------------
@@ -131,61 +132,25 @@
   --pentacles-accent: var(--color-pentacles); /* Muted sage - earth element */
 
   /* Soft variants - fallbacks for browsers without color-mix() support */
-  --wands-accent-soft: rgba(212, 175, 55, 0.25);
-  --cups-accent-soft: rgba(176, 196, 222, 0.25);
-  --swords-accent-soft: rgba(119, 136, 153, 0.25);
-  --pentacles-accent-soft: rgba(143, 188, 143, 0.25);
+  --wands-accent-soft: rgba(201, 168, 118, 0.25);
+  --cups-accent-soft: rgba(139, 149, 165, 0.25);
+  --swords-accent-soft: rgba(107, 114, 128, 0.25);
+  --pentacles-accent-soft: rgba(138, 153, 133, 0.25);
 
   /* -------------------------------------------------------------------------
      COMMON COLOR-MIX FALLBACKS
      Pre-computed rgba values for browsers without color-mix() support
      ------------------------------------------------------------------------- */
-  --accent-25: rgba(212, 184, 150, 0.25); /* brand-accent at 25% */
-  --accent-45: rgba(212, 184, 150, 0.45); /* brand-accent at 45% */
-  --accent-55: rgba(212, 184, 150, 0.55); /* brand-accent at 55% */
-  --accent-65: rgba(212, 184, 150, 0.65); /* brand-accent at 65% */
+  --accent-25: rgba(232, 218, 195, 0.25); /* brand-accent at 25% */
+  --accent-45: rgba(232, 218, 195, 0.45); /* brand-accent at 45% */
+  --accent-55: rgba(232, 218, 195, 0.55); /* brand-accent at 55% */
+  --accent-65: rgba(232, 218, 195, 0.65); /* brand-accent at 65% */
   --primary-20: rgba(212, 184, 150, 0.2); /* brand-primary at 20% */
   --primary-30: rgba(212, 184, 150, 0.3); /* brand-primary at 30% */
   --primary-60: rgba(212, 184, 150, 0.6); /* brand-primary at 60% */
-  --surface-88: rgba(21, 18, 31, 0.88); /* bg-surface at 88% */
-  --surface-92: rgba(21, 18, 31, 0.92); /* bg-surface at 92% */
-  --main-45: rgba(13, 10, 20, 0.45); /* bg-main at 45% */
-
-  /* -------------------------------------------------------------------------
-     PANEL BACKGROUND COLORS
-     Dark gradient tones used in mystic panels
-     ------------------------------------------------------------------------- */
-  --panel-dark-1: #0d0a14; /* Darkest panel tone */
-  --panel-dark-2: #151020; /* Mid panel tone */
-  --panel-dark-3: #0f0b17; /* Alternative dark tone */
-
-  /* -------------------------------------------------------------------------
-     MYSTIC GLOW COLORS
-     Warm and cool accent overlays for ambient effects
-     ------------------------------------------------------------------------- */
-  --glow-gold: rgba(244, 207, 150, 0.1); /* Warm gold glow */
-  --glow-blue: rgba(120, 161, 255, 0.08); /* Cool blue glow */
-  --glow-pink: rgba(255, 132, 178, 0.07); /* Soft pink glow */
-
-  /* -------------------------------------------------------------------------
-     BORDER & ACCENT COLORS
-     Warm cream/gold border tones
-     ------------------------------------------------------------------------- */
-  --border-warm: rgba(232, 218, 195, 0.22); /* Standard warm border */
-  --border-warm-light: rgba(232, 218, 195, 0.2); /* Light warm border */
-  --border-warm-subtle: rgba(232, 218, 195, 0.06); /* Subtle warm border */
-
-  /* -------------------------------------------------------------------------
-     DRAWER/COMPONENT ACCENT
-     Gold accent for drawers and interactive elements
-     ------------------------------------------------------------------------- */
-  --drawer-gold: #e5c48e; /* Drawer accent gold */
-  --drawer-gold-70: rgba(229, 196, 142, 0.7); /* 70% drawer gold */
-  --drawer-gold-38: rgba(229, 196, 142, 0.38); /* 38% drawer gold */
-  --drawer-gold-32: rgba(229, 196, 142, 0.32); /* 32% drawer gold */
-  --drawer-gold-28: rgba(229, 196, 142, 0.28); /* 28% drawer gold */
-  --drawer-gold-18: rgba(229, 196, 142, 0.18); /* 18% drawer gold */
-  --drawer-gold-16: rgba(229, 196, 142, 0.16); /* 16% drawer gold */
+  --surface-88: rgba(28, 26, 34, 0.88); /* bg-surface at 88% */
+  --surface-92: rgba(28, 26, 34, 0.92); /* bg-surface at 92% */
+  --main-45: rgba(15, 14, 19, 0.45); /* bg-main at 45% */
 
   /* -------------------------------------------------------------------------
      ANIMATION TIMING SCALE
@@ -217,6 +182,20 @@
   /* Mobile action bar sizing (updated at runtime) */
   --mobile-action-bar-height: 0px;
   --mobile-action-bar-offset: 0px;
+}
+
+:root.light {
+  /* Align fallback tokens with the light-mode palette when color-mix() isn't available. */
+  --accent-25: rgba(138, 107, 59, 0.25);
+  --accent-45: rgba(138, 107, 59, 0.45);
+  --accent-55: rgba(138, 107, 59, 0.55);
+  --accent-65: rgba(138, 107, 59, 0.65);
+  --primary-20: rgba(125, 98, 59, 0.2);
+  --primary-30: rgba(125, 98, 59, 0.3);
+  --primary-60: rgba(125, 98, 59, 0.6);
+  --surface-88: rgba(255, 255, 255, 0.88);
+  --surface-92: rgba(255, 255, 255, 0.92);
+  --main-45: rgba(250, 250, 250, 0.45);
 }
 
 /* Override soft variants with color-mix() for modern browsers */
@@ -346,10 +325,10 @@ body {
   padding: 0.7rem 1rem;
   border-radius: 999px;
   border: 2px solid var(--brand-accent);
-  background: var(--surface-88, rgba(21, 18, 31, 0.88));
+  background: var(--surface-88, rgba(28, 26, 34, 0.88));
   color: var(--text-main);
   font-weight: 600;
-  box-shadow: 0 12px 32px var(--accent-25, rgba(212, 184, 150, 0.25));
+  box-shadow: 0 12px 32px var(--accent-25, rgba(232, 218, 195, 0.25));
   transition: transform var(--duration-fast, 180ms) ease,
     opacity var(--duration-fast, 180ms) ease;
 }
@@ -389,7 +368,7 @@ body {
 .header-sticky--compact {
   padding-top: 0.35rem !important;
   padding-bottom: 0.35rem !important;
-  box-shadow: 0 10px 20px var(--main-45, rgba(13, 10, 20, 0.45));
+  box-shadow: 0 10px 20px var(--main-45, rgba(15, 14, 19, 0.45));
 }
 
 @supports (color: color-mix(in srgb, red 50%, blue)) {
@@ -468,9 +447,11 @@ body {
     position: fixed;
     top: max(0.75rem, env(safe-area-inset-top, 0.5rem));
     right: max(0.85rem, env(safe-area-inset-right, 0.5rem));
-    background: rgba(21, 18, 31, 0.8);
+    background: var(--surface-88, rgba(28, 26, 34, 0.88));
     background: color-mix(in srgb, var(--bg-surface) 70%, transparent);
     backdrop-filter: blur(14px);
+    box-shadow: 0 14px 30px -16px rgba(0, 0, 0, 0.65),
+      0 0 0 1px var(--border-warm-light);
     box-shadow: 0 14px 30px -16px rgba(0, 0, 0, 0.65),
       0 0 0 1px color-mix(in srgb, var(--brand-accent) 20%, transparent);
     z-index: var(--z-fixed, 50);
@@ -534,21 +515,21 @@ body {
   padding: 0.75rem 1rem calc(1rem + env(safe-area-inset-bottom, 0px));
   background: var(--bg-surface);
   backdrop-filter: blur(18px);
-  border-top: 1px solid var(--accent-65, rgba(212, 184, 150, 0.65));
+  border-top: 1px solid var(--accent-65, rgba(232, 218, 195, 0.65));
   transition: bottom var(--duration-fast, 180ms) ease-out;
 }
 
 .mobile-action-group {
   padding: 0.5rem 0 0.25rem;
   background: var(--bg-surface);
-  border-top: 1px solid rgba(212, 184, 150, 0.2);
+  border-top: 1px solid rgba(232, 218, 195, 0.2);
   box-shadow: 0 -18px 40px rgba(0, 0, 0, 0.35);
 }
 
 .mobile-drawer__footer {
   padding: 0.75rem 1rem 1rem;
-  background: var(--surface-92, rgba(21, 18, 31, 0.92));
-  border-top: 1px solid rgba(212, 184, 150, 0.22);
+  background: var(--surface-92, rgba(28, 26, 34, 0.92));
+  border-top: 1px solid rgba(232, 218, 195, 0.22);
   box-shadow: 0 -18px 32px rgba(0, 0, 0, 0.4);
 }
 
@@ -834,6 +815,14 @@ body {
   pointer-events: none;
 }
 
+.gradient-ambient,
+.bg-gradient-ambient {
+  background:
+    radial-gradient(circle at 20% 18%, rgba(212, 184, 150, 0.35) 0%, transparent 52%),
+    radial-gradient(circle at 80% 0%, rgba(212, 184, 150, 0.24) 0%, transparent 50%),
+    linear-gradient(165deg, rgba(255, 255, 255, 0.04), transparent);
+}
+
 /* Spread selector - extends .panel-mystic */
 .spread-selector-panel {
   /* Inherits all styles from .panel-mystic when used with that class */
@@ -1014,6 +1003,12 @@ body {
   box-shadow: 0 28px 60px -30px var(--spread-glow, rgba(212, 184, 150, 0.45)),
     0 0 0 1px rgba(255, 255, 255, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.08);
   transform: translateY(-2px);
+  background: linear-gradient(
+      150deg,
+      rgba(212, 184, 150, 0.14),
+      transparent
+    ),
+    var(--spread-background, #15121f);
   background: linear-gradient(
       150deg,
       color-mix(in srgb, var(--spread-accent, #d4b896) 14%, transparent),
@@ -1874,6 +1869,17 @@ input[type="range"]:focus::-webkit-slider-thumb {
   inset: 0;
   background: radial-gradient(
       circle at 20% 14%,
+      var(--drawer-gold-38) 0%,
+      transparent 52%
+    ),
+    radial-gradient(
+      circle at 80% 0%,
+      var(--drawer-gold-18) 0%,
+      transparent 48%
+    ),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0));
+  background: radial-gradient(
+      circle at 20% 14%,
       color-mix(in srgb, var(--drawer-accent) 38%, transparent) 0%,
       transparent 52%
     ),
@@ -1906,6 +1912,7 @@ input[type="range"]:focus::-webkit-slider-thumb {
   height: 0.28rem;
   margin: 0.85rem auto 0.35rem;
   border-radius: 999px;
+  background: var(--drawer-accent);
   background: color-mix(in srgb, var(--drawer-accent) 70%, #f8edd6);
   box-shadow: 0 10px 18px -12px var(--drawer-glow),
     inset 0 0 0 1px rgba(255, 255, 255, 0.2);
@@ -1930,6 +1937,7 @@ input[type="range"]:focus::-webkit-slider-thumb {
   font-size: 0.7rem;
   letter-spacing: 0.22em;
   text-transform: uppercase;
+  color: var(--drawer-accent);
   color: color-mix(in srgb, var(--drawer-accent) 70%, #d4b896);
 }
 
@@ -1939,6 +1947,7 @@ input[type="range"]:focus::-webkit-slider-thumb {
   gap: 0.45rem;
   padding: 0.45rem 0.9rem;
   border-radius: 999px;
+  border: 1px solid var(--drawer-gold-32);
   border: 1px solid color-mix(in srgb, var(--drawer-accent) 32%, transparent);
   background: rgba(12, 10, 16, 0.65);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
@@ -1967,6 +1976,7 @@ input[type="range"]:focus::-webkit-slider-thumb {
 
 .mobile-drawer__close:hover {
   color: #f4e9d1;
+  border-color: rgba(229, 196, 142, 0.55);
   border-color: color-mix(in srgb, var(--drawer-accent) 55%, transparent);
   background: rgba(18, 14, 20, 0.85);
   transform: translateY(-1px);
@@ -2005,6 +2015,17 @@ input[type="range"]:focus::-webkit-slider-thumb {
   inset: 0;
   background: radial-gradient(
       circle at 20% 18%,
+      rgba(212, 184, 150, 0.35) 0%,
+      transparent 52%
+    ),
+    radial-gradient(
+      circle at 80% 0%,
+      rgba(212, 184, 150, 0.24) 0%,
+      transparent 50%
+    ),
+    linear-gradient(165deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0));
+  background: radial-gradient(
+      circle at 20% 18%,
       color-mix(in srgb, var(--deck-accent, #d4b896) 35%, transparent) 0%,
       transparent 52%
     ),
@@ -2032,6 +2053,7 @@ input[type="range"]:focus::-webkit-slider-thumb {
 
 .deck-card:hover {
   transform: translateY(-3px);
+  border-color: rgba(212, 184, 150, 0.45);
   border-color: color-mix(
     in srgb,
     var(--deck-accent, #d4b896) 45%,
@@ -2042,6 +2064,7 @@ input[type="range"]:focus::-webkit-slider-thumb {
 }
 
 .deck-card--active {
+  border-color: rgba(212, 184, 150, 0.65);
   border-color: color-mix(
     in srgb,
     var(--deck-accent, #d4b896) 65%,
@@ -2050,6 +2073,12 @@ input[type="range"]:focus::-webkit-slider-thumb {
   box-shadow: 0 28px 60px -30px var(--deck-glow, rgba(212, 184, 150, 0.45)),
     0 0 0 1px rgba(255, 255, 255, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.08);
   transform: translateY(-2px);
+  background: linear-gradient(
+      150deg,
+      rgba(212, 184, 150, 0.16),
+      transparent
+    ),
+    var(--deck-background, #15121f);
   background: linear-gradient(
       150deg,
       color-mix(in srgb, var(--deck-accent, #d4b896) 16%, transparent),
@@ -2712,7 +2741,7 @@ input[type="range"]:focus::-webkit-slider-thumb {
   position: relative;
   /* Fallbacks for browsers/WebViews without color-mix() support */
   color: var(--text-accent, var(--brand-accent));
-  text-shadow: 0 0 14px var(--accent-25, rgba(212, 184, 150, 0.25)),
+  text-shadow: 0 0 14px var(--accent-25, rgba(232, 218, 195, 0.25)),
     0 0 22px var(--glow-blue, rgba(120, 161, 255, 0.08));
   background: linear-gradient(
     180deg,

@@ -4,10 +4,10 @@ import { Fire, Drop, Wind, Leaf, Star, Triangle, Path, Infinity as InfinityIcon,
 
 // Suit icons using Phosphor icons for consistent rendering
 const SUIT_ICONS = {
-  Wands: <Fire className="w-4 h-4 text-orange-500" weight="fill" aria-hidden="true" />,
-  Cups: <Drop className="w-4 h-4 text-blue-400" weight="fill" aria-hidden="true" />,
-  Swords: <Wind className="w-4 h-4 text-sky-300" weight="fill" aria-hidden="true" />,
-  Pentacles: <Leaf className="w-4 h-4 text-green-500" weight="fill" aria-hidden="true" />
+  Wands: <Fire className="w-4 h-4 text-wands" weight="fill" aria-hidden="true" />,
+  Cups: <Drop className="w-4 h-4 text-cups" weight="fill" aria-hidden="true" />,
+  Swords: <Wind className="w-4 h-4 text-swords" weight="fill" aria-hidden="true" />,
+  Pentacles: <Leaf className="w-4 h-4 text-pentacles" weight="fill" aria-hidden="true" />
 };
 
 // Pattern type icons

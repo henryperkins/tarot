@@ -333,8 +333,9 @@ function shouldRetrySpeechAsJson(status, errorText) {
   return normalized.includes('content-type') || normalized.includes('multipart') || normalized.includes('form');
 }
 
-async function fetchSpeechWithFallback(url, env, payload, debugLoggingEnabled) {
-  const attempts = ['multipart', 'json'];
+async function fetchSpeechWithFallback(url, env, payload, debugLoggingEnabled, useV1Format = false) {
+  // v1 preview format expects JSON; legacy deployment format may need multipart
+  const attempts = useV1Format ? ['json', 'multipart'] : ['multipart', 'json'];
   let lastError = null;
 
   for (const mode of attempts) {
@@ -525,14 +526,14 @@ async function generateWithAzureResponsesTTS(env, { text, context, voice, speed 
  * API Reference: https://learn.microsoft.com/en-us/azure/ai-foundry/openai/reference-preview-latest#create-speech
  */
 async function generateWithAzureGptMiniTTS(env, { text, context, voice, speed }) {
-  const { url, payload, format, debugLoggingEnabled } = buildTTSRequest(env, { text, context, voice, speed });
+  const { url, payload, format, useV1Format, debugLoggingEnabled } = buildTTSRequest(env, { text, context, voice, speed });
 
   if (debugLoggingEnabled) {
     console.log('[TTS] Request URL:', url);
     console.log('[TTS] Request payload:', JSON.stringify(payload, null, 2));
   }
 
-  const { response } = await fetchSpeechWithFallback(url, env, payload, debugLoggingEnabled);
+  const { response } = await fetchSpeechWithFallback(url, env, payload, debugLoggingEnabled, useV1Format);
 
   if (debugLoggingEnabled) {
     console.log('[TTS] Response status:', response.status, response.statusText);
@@ -557,7 +558,7 @@ async function generateWithAzureGptMiniTTS(env, { text, context, voice, speed })
  * API Reference: https://learn.microsoft.com/en-us/azure/ai-foundry/openai/reference-preview-latest#create-speech
  */
 async function generateWithAzureGptMiniTTSStream(env, { text, context, voice, speed }) {
-  const { url, payload, format, debugLoggingEnabled } = buildTTSRequest(env, { text, context, voice, speed });
+  const { url, payload, format, useV1Format, debugLoggingEnabled } = buildTTSRequest(env, { text, context, voice, speed });
 
   // Add streaming parameter
   payload.stream_format = 'audio'; // Stream raw audio chunks (safer, works with all models)
@@ -567,7 +568,7 @@ async function generateWithAzureGptMiniTTSStream(env, { text, context, voice, sp
     console.log('[TTS Streaming] Request payload:', JSON.stringify(payload, null, 2));
   }
 
-  const { response } = await fetchSpeechWithFallback(url, env, payload, debugLoggingEnabled);
+  const { response } = await fetchSpeechWithFallback(url, env, payload, debugLoggingEnabled, useV1Format);
 
   if (debugLoggingEnabled) {
     console.log('[TTS Streaming] Response status:', response.status, response.statusText);

@@ -44,25 +44,25 @@ function CollapsibleSection({
   badge,
 }) {
   return (
-    <div className="border-t border-amber-200/10">
+    <div className="border-t border-[color:var(--border-warm-subtle)]">
       <button
         onClick={onToggle}
-        className="flex w-full items-center justify-between min-h-[44px] py-3.5 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/50 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0b0c1d] touch-manipulation"
+        className="flex w-full items-center justify-between min-h-[44px] py-3.5 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--accent-45)] focus-visible:ring-offset-2 focus-visible:ring-offset-[color:var(--bg-main)] touch-manipulation"
         aria-expanded={isOpen}
       >
-        <span className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-amber-200/75">
+        <span className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-muted-high">
           <Icon className="h-4 w-4 sm:h-3 sm:w-3" aria-hidden="true" />
           {label}
           {badge && (
-            <span className="ml-1 rounded-full bg-amber-300/20 px-1.5 py-0.5 text-[10px] font-medium text-amber-100">
+            <span className="ml-1 rounded-full bg-[color:var(--accent-25)] px-1.5 py-0.5 text-[10px] font-medium text-[color:var(--text-main)]">
               {badge}
             </span>
           )}
         </span>
         {isOpen ? (
-          <CaretUp className="h-4 w-4 sm:h-3 sm:w-3 text-amber-200/50" />
+          <CaretUp className="h-4 w-4 sm:h-3 sm:w-3 text-muted" />
         ) : (
-          <CaretDown className="h-4 w-4 sm:h-3 sm:w-3 text-amber-200/50" />
+          <CaretDown className="h-4 w-4 sm:h-3 sm:w-3 text-muted" />
         )}
       </button>
       {isOpen && <div className="pb-4">{children}</div>}
@@ -123,7 +123,7 @@ export default function JourneySidebar({
   const navigate = useNavigate();
   const streakGraceTooltip = 'Counts from yesterday if no reading today (grace period).';
   const streakInfoButtonClass =
-    'text-amber-100/40 hover:text-amber-100 focus-visible:ring-amber-300/40 -ml-2 -mr-2';
+    'text-muted hover:text-main focus-visible:ring-[color:var(--accent-45)] -ml-2 -mr-2';
   // Section open/close state
   const [openSections, setOpenSections] = useState({
     cards: true,
@@ -151,15 +151,15 @@ export default function JourneySidebar({
   // Show loading skeleton
   if (isLoading) {
     return (
-      <div className="animate-pulse rounded-3xl border border-amber-300/12 bg-gradient-to-br from-[#0b0c1d] via-[#0d1024] to-[#090a16] p-5">
+      <div className="panel-mystic bg-gradient-ambient rounded-3xl p-5 animate-pulse">
         <div className="space-y-4">
           <div className="flex items-center gap-2">
-            <div className="h-3 w-3 rounded bg-amber-200/25" />
-            <div className="h-3 w-28 rounded bg-amber-200/25" />
+            <div className="h-3 w-3 rounded bg-[color:var(--border-warm-light)]" />
+            <div className="h-3 w-28 rounded bg-[color:var(--border-warm-light)]" />
           </div>
           <div className="space-y-2">
-            <div className="h-4 w-full rounded bg-amber-200/15" />
-            <div className="h-4 w-3/4 rounded bg-amber-200/15" />
+            <div className="h-4 w-full rounded bg-[color:var(--border-warm-subtle)]" />
+            <div className="h-4 w-3/4 rounded bg-[color:var(--border-warm-subtle)]" />
           </div>
         </div>
       </div>
@@ -170,22 +170,22 @@ export default function JourneySidebar({
   if (isFilteredEmpty) {
     return (
       <section
-        className="relative overflow-hidden rounded-3xl border border-amber-300/12 bg-gradient-to-br from-[#0b0c1d] via-[#0d1024] to-[#090a16] p-5"
+        className="panel-mystic bg-gradient-ambient rounded-3xl p-5"
         aria-labelledby="reading-journey-filtered-empty"
       >
         <div className="relative z-10 text-center py-6">
           <h3
             id="reading-journey-filtered-empty"
-            className="mb-3 flex items-center justify-center gap-2 journal-eyebrow text-amber-100/70"
+            className="mb-3 flex items-center justify-center gap-2 journal-eyebrow text-muted-high"
           >
             <Sparkle className="h-3 w-3" aria-hidden="true" />
             Your Reading Journey
-            <span className="text-[10px] text-amber-100/50">(filtered)</span>
+            <span className="text-[10px] text-muted">(filtered)</span>
           </h3>
-          <p className="text-sm text-amber-100/70 mb-2">
+          <p className="text-sm text-muted-high mb-2">
             No readings match your current filters.
           </p>
-          <p className="text-xs text-amber-100/50">
+          <p className="text-xs text-muted">
             Try adjusting or clearing your filters to see your journey insights.
           </p>
         </div>
@@ -197,27 +197,27 @@ export default function JourneySidebar({
   if (isAnalyticsDisabled) {
     return (
       <section
-        className="relative overflow-hidden rounded-3xl border border-amber-300/12 bg-gradient-to-br from-[#0b0c1d] via-[#0d1024] to-[#090a16] p-5"
+        className="panel-mystic bg-gradient-ambient rounded-3xl p-5"
         aria-labelledby="reading-journey-disabled"
       >
         <div className="relative z-10 text-center py-6">
           <h3
             id="reading-journey-disabled"
-            className="mb-3 flex items-center justify-center gap-2 journal-eyebrow text-amber-100/70"
+            className="mb-3 flex items-center justify-center gap-2 journal-eyebrow text-muted-high"
           >
             <Sparkle className="h-3 w-3" aria-hidden="true" />
             Your Reading Journey
           </h3>
-          <p className="text-sm text-amber-100/70 mb-2">
+          <p className="text-sm text-muted-high mb-2">
             Journey analytics are currently disabled.
           </p>
-          <p className="text-xs text-amber-100/50">
+          <p className="text-xs text-muted">
             You can enable them in your account settings to track card patterns and reading insights.
           </p>
           <button
             type="button"
             onClick={() => navigate('/account#analytics')}
-            className="mt-4 inline-flex min-h-[44px] items-center justify-center rounded-full border border-amber-200/25 px-4 py-2 text-sm font-semibold text-amber-50 transition hover:bg-amber-200/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/40"
+            className="mt-4 inline-flex min-h-[44px] items-center justify-center rounded-full border border-[color:var(--border-warm-light)] px-4 py-2 text-sm font-semibold text-[color:var(--text-main)] transition-[background-color,border-color] duration-[var(--duration-normal)] ease-[var(--ease-out)] hover:bg-[color:var(--border-warm-subtle)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--accent-45)]"
           >
             Go to Settings
           </button>
@@ -244,7 +244,7 @@ export default function JourneySidebar({
 
   return (
     <section
-      className="relative overflow-hidden rounded-3xl border border-amber-300/12 bg-gradient-to-br from-[#0b0c1d] via-[#0d1024] to-[#090a16] p-5 shadow-[0_24px_68px_-30px_rgba(0,0,0,0.9)]"
+      className="panel-mystic bg-gradient-ambient rounded-3xl p-5"
       aria-labelledby="reading-journey-heading"
     >
       {/* Decorative background */}
@@ -253,15 +253,15 @@ export default function JourneySidebar({
         aria-hidden="true"
         style={{
           backgroundImage:
-            'radial-gradient(circle at 14% 18%, rgba(251,191,36,0.08), transparent 32%), radial-gradient(circle at 86% 26%, rgba(56,189,248,0.07), transparent 30%), radial-gradient(circle at 60% 78%, rgba(167,139,250,0.08), transparent 32%)',
+            'radial-gradient(circle at 14% 18%, var(--glow-gold), transparent 32%), radial-gradient(circle at 86% 26%, var(--glow-blue), transparent 30%), radial-gradient(circle at 60% 78%, var(--glow-pink), transparent 32%)',
         }}
       />
       <div
-        className="pointer-events-none absolute -left-24 top-8 h-64 w-64 rounded-full bg-amber-500/12 blur-[110px]"
+        className="pointer-events-none absolute -left-24 top-8 h-64 w-64 rounded-full bg-[color:var(--glow-gold)] blur-[110px]"
         aria-hidden="true"
       />
       <div
-        className="pointer-events-none absolute right-[-120px] top-1/3 h-72 w-72 rounded-full bg-cyan-400/10 blur-[110px]"
+        className="pointer-events-none absolute right-[-120px] top-1/3 h-72 w-72 rounded-full bg-[color:var(--glow-blue)] blur-[110px]"
         aria-hidden="true"
       />
 
@@ -270,19 +270,19 @@ export default function JourneySidebar({
         <div className="mb-4 flex items-center justify-between">
           <h3
             id="reading-journey-heading"
-            className="flex items-center gap-2 journal-eyebrow text-amber-100/70"
+            className="flex items-center gap-2 journal-eyebrow text-muted-high"
           >
             <Sparkle className="h-3 w-3" aria-hidden="true" />
             Your Reading Journey
             {scopeLabel && (
-              <span className="ml-2 rounded-full border border-amber-200/15 bg-amber-200/5 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-amber-100/70">
+              <span className="ml-2 rounded-full border border-[color:var(--border-warm-light)] bg-[color:var(--border-warm-subtle)] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-high">
                 {scopeChipLabel} · {sourceLabel}
               </span>
             )}
           </h3>
           <Link
             to="/account#analytics"
-            className="flex items-center justify-center w-8 h-8 rounded-full text-amber-100/50 hover:text-amber-100 hover:bg-amber-200/10 transition"
+            className="flex items-center justify-center w-8 h-8 rounded-full text-muted hover:text-main hover:bg-[color:var(--border-warm-subtle)] transition-colors"
             aria-label="Journey settings"
             title="Settings"
           >
@@ -290,12 +290,12 @@ export default function JourneySidebar({
           </Link>
         </div>
         {filtersApplied && analyticsScope !== 'filters' && typeof onScopeSelect === 'function' && (
-          <div className="flex flex-wrap items-center gap-2 rounded-full border border-amber-300/30 bg-amber-300/10 px-3 py-1 text-[11px] text-amber-100/80">
+          <div className="flex flex-wrap items-center gap-2 rounded-full border border-[color:var(--border-warm)] bg-[color:var(--accent-25)] px-3 py-1 text-[11px] text-muted-high">
             <span>Filters not applied to insights</span>
             <button
               type="button"
               onClick={() => onScopeSelect('filters')}
-              className="font-semibold text-amber-50 underline underline-offset-2 hover:text-amber-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/40"
+              className="font-semibold text-[color:var(--text-main)] underline underline-offset-2 hover:text-[color:var(--text-accent)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--accent-45)]"
             >
               Apply filters
             </button>
@@ -333,21 +333,21 @@ export default function JourneySidebar({
 
         {/* Stats row */}
         <div className="flex flex-wrap gap-3 text-center">
-          <div className="flex-1 min-w-[60px] rounded-lg bg-amber-200/5 px-3 py-2">
-            <p className="text-lg font-medium text-amber-50">{totalReadings}</p>
-            <p className="text-xs text-amber-100/60">readings</p>
+          <div className="flex-1 min-w-[60px] rounded-lg bg-[color:var(--border-warm-subtle)] px-3 py-2">
+            <p className="text-lg font-medium text-main">{totalReadings}</p>
+            <p className="text-xs text-muted">readings</p>
           </div>
-          <div className="flex-1 min-w-[60px] rounded-lg bg-amber-200/5 px-3 py-2">
-            <p className="text-lg font-medium text-amber-50">{totalCards}</p>
-            <p className="text-xs text-amber-100/60">cards</p>
+          <div className="flex-1 min-w-[60px] rounded-lg bg-[color:var(--border-warm-subtle)] px-3 py-2">
+            <p className="text-lg font-medium text-main">{totalCards}</p>
+            <p className="text-xs text-muted">cards</p>
           </div>
           {currentStreak > 0 && (
-            <div className="flex-1 min-w-[60px] rounded-lg bg-amber-200/5 px-3 py-2">
-              <p className="text-lg font-medium text-amber-50 flex items-center justify-center gap-1">
-                <Fire className="h-3.5 w-3.5 text-orange-400" />
+            <div className="flex-1 min-w-[60px] rounded-lg bg-[color:var(--border-warm-subtle)] px-3 py-2">
+              <p className="text-lg font-medium text-main flex items-center justify-center gap-1">
+                <Fire className="h-3.5 w-3.5 text-[color:var(--brand-primary)]" />
                 {currentStreak}
               </p>
-              <p className="text-xs text-amber-100/60 flex items-center justify-center gap-1">
+              <p className="text-xs text-muted flex items-center justify-center gap-1">
                 streak
                 <Tooltip
                   content={streakGraceTooltip}
@@ -361,9 +361,9 @@ export default function JourneySidebar({
             </div>
           )}
           {reversalRate > 0 && (
-            <div className="flex-1 min-w-[60px] rounded-lg bg-amber-200/5 px-3 py-2">
-              <p className="text-lg font-medium text-amber-50">{reversalRate}%</p>
-              <p className="text-xs text-amber-100/60">reversed</p>
+            <div className="flex-1 min-w-[60px] rounded-lg bg-[color:var(--border-warm-subtle)] px-3 py-2">
+              <p className="text-lg font-medium text-main">{reversalRate}%</p>
+              <p className="text-xs text-muted">reversed</p>
             </div>
           )}
         </div>
@@ -416,12 +416,12 @@ export default function JourneySidebar({
               {/* Themes */}
               {themes.length > 0 && (
                 <div>
-                  <p className="text-xs text-amber-100/60 mb-2">Recent Themes</p>
+                  <p className="text-xs text-muted mb-2">Recent Themes</p>
                   <div className="flex flex-wrap gap-1.5">
                     {themes.slice(0, 4).map((theme, i) => (
                       <span
                         key={i}
-                        className="rounded-full bg-amber-200/10 px-2.5 py-1 text-xs text-amber-100/80"
+                        className="rounded-full bg-[color:var(--border-warm-subtle)] px-2.5 py-1 text-xs text-muted-high"
                       >
                         {theme}
                       </span>

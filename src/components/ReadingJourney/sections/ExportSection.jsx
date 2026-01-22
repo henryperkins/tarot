@@ -20,9 +20,9 @@ import { JournalShareIcon } from '../../JournalIcons';
 
 const OUTLINE_BUTTON_CLASS = `
   flex items-center gap-1.5 px-4 py-2.5 min-h-[44px] rounded-lg text-sm font-medium
-  border border-amber-300/20 text-amber-100/80 bg-amber-200/5
-  hover:bg-amber-200/10 hover:border-amber-300/30
-  focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/50
+  border border-[color:var(--border-warm-light)] text-[color:var(--text-muted-high)] bg-[color:var(--border-warm-subtle)]
+  hover:bg-[color:var(--border-warm-light)] hover:border-[color:var(--border-warm)]
+  focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--accent-45)]
   transition-colors disabled:opacity-50 disabled:cursor-not-allowed touch-manipulation
 `;
 
@@ -378,12 +378,12 @@ function ExportSection({
     <div className="space-y-4">
       {/* Export buttons */}
       <div>
-        <p className="text-sm sm:text-xs text-amber-100/60 mb-2">Export Your Journal</p>
-        <div className="mb-3 space-y-2 text-xs text-amber-100/70">
+        <p className="text-sm sm:text-xs text-muted mb-2">Export Your Journal</p>
+        <div className="mb-3 space-y-2 text-xs text-muted-high">
           <fieldset className="space-y-2">
-            <legend className="text-[10px] uppercase tracking-wider text-amber-100/50 mb-1">Export scope</legend>
+            <legend className="text-[10px] uppercase tracking-wider text-muted mb-1">Export scope</legend>
 
-            <label className={`flex items-start gap-2 p-2 rounded-lg cursor-pointer transition-colors ${exportScope === 'all' ? 'bg-amber-200/10' : 'hover:bg-amber-200/5'}`}>
+            <label className={`flex items-start gap-2 p-2 rounded-lg cursor-pointer transition-colors ${exportScope === 'all' ? 'bg-[color:var(--accent-25)]' : 'hover:bg-[color:var(--border-warm-subtle)]'}`}>
               <input
                 type="radio"
                 name="exportScope"
@@ -393,17 +393,17 @@ function ExportSection({
                   setExportScope('all');
                   setExportScopeTouched(true);
                 }}
-                className="mt-0.5 h-5 w-5 border-amber-200/30 bg-transparent text-amber-300 focus:ring-amber-200/40 focus:ring-offset-0 touch-manipulation"
+                className="mt-0.5 h-5 w-5 border-[color:var(--border-warm-light)] bg-transparent text-[color:var(--brand-primary)] focus:ring-[color:var(--accent-45)] focus:ring-offset-0 touch-manipulation"
               />
               <div>
                 <span className="font-medium">All entries</span>
-                <p className="text-xs sm:text-[11px] text-amber-100/60 mt-0.5">
+                <p className="text-xs sm:text-[11px] text-muted mt-0.5">
                   Export {normalizedAllEntries.length} entries
                 </p>
               </div>
             </label>
 
-            <label className={`flex items-start gap-2 p-2 rounded-lg transition-colors ${filtersApplied ? 'cursor-pointer' : 'cursor-not-allowed opacity-60'} ${exportScope === 'filters' ? 'bg-amber-200/10' : filtersApplied ? 'hover:bg-amber-200/5' : ''}`}>
+            <label className={`flex items-start gap-2 p-2 rounded-lg transition-colors ${filtersApplied ? 'cursor-pointer' : 'cursor-not-allowed opacity-60'} ${exportScope === 'filters' ? 'bg-[color:var(--accent-25)]' : filtersApplied ? 'hover:bg-[color:var(--border-warm-subtle)]' : ''}`}>
               <input
                 type="radio"
                 name="exportScope"
@@ -414,11 +414,11 @@ function ExportSection({
                   setExportScopeTouched(true);
                 }}
                 disabled={!filtersApplied}
-                className="mt-0.5 h-5 w-5 border-amber-200/30 bg-transparent text-amber-300 focus:ring-amber-200/40 focus:ring-offset-0 touch-manipulation"
+                className="mt-0.5 h-5 w-5 border-[color:var(--border-warm-light)] bg-transparent text-[color:var(--brand-primary)] focus:ring-[color:var(--accent-45)] focus:ring-offset-0 touch-manipulation"
               />
               <div>
                 <span className="font-medium">Current filters</span>
-                <p className="text-xs sm:text-[11px] text-amber-100/60 mt-0.5">
+                <p className="text-xs sm:text-[11px] text-muted mt-0.5">
                   {filtersApplied
                     ? `Export ${normalizedFilteredEntries.length} filtered entries`
                     : 'No filters are active'}
@@ -426,7 +426,7 @@ function ExportSection({
               </div>
             </label>
 
-            <label className={`flex items-start gap-2 p-2 rounded-lg cursor-pointer transition-colors ${exportScope === 'scope' ? 'bg-amber-200/10' : 'hover:bg-amber-200/5'}`}>
+            <label className={`flex items-start gap-2 p-2 rounded-lg cursor-pointer transition-colors ${exportScope === 'scope' ? 'bg-[color:var(--accent-25)]' : 'hover:bg-[color:var(--border-warm-subtle)]'}`}>
               <input
                 type="radio"
                 name="exportScope"
@@ -436,11 +436,11 @@ function ExportSection({
                   setExportScope('scope');
                   setExportScopeTouched(true);
                 }}
-                className="mt-0.5 h-5 w-5 border-amber-200/30 bg-transparent text-amber-300 focus:ring-amber-200/40 focus:ring-offset-0 touch-manipulation"
+                className="mt-0.5 h-5 w-5 border-[color:var(--border-warm-light)] bg-transparent text-[color:var(--brand-primary)] focus:ring-[color:var(--accent-45)] focus:ring-offset-0 touch-manipulation"
               />
               <div>
                 <span className="font-medium">Current scope</span>
-                <p className="text-xs sm:text-[11px] text-amber-100/60 mt-0.5">
+                <p className="text-xs sm:text-[11px] text-muted mt-0.5">
                   Export {normalizedScopeEntries.length} entries from {scopeLabel}
                 </p>
               </div>
@@ -448,8 +448,8 @@ function ExportSection({
           </fieldset>
 
           {filtersApplied && exportScope === 'all' && (
-            <div className="flex items-start gap-2 text-[11px] text-amber-200/80">
-              <Warning className="h-3.5 w-3.5 text-amber-300 flex-shrink-0 mt-0.5" aria-hidden="true" />
+            <div className="flex items-start gap-2 text-[11px] text-muted-high">
+              <Warning className="h-3.5 w-3.5 text-[color:var(--brand-primary)] flex-shrink-0 mt-0.5" aria-hidden="true" />
               <span>Filters are active — exporting all entries ignores filters.</span>
             </div>
           )}
@@ -486,24 +486,24 @@ function ExportSection({
 
         {/* Large export confirmation */}
         {pendingLargeExport && (
-          <div className="mt-3 rounded-lg border border-amber-400/30 bg-amber-400/10 p-3">
+          <div className="mt-3 rounded-lg border border-[color:var(--border-warm)] bg-[color:var(--accent-25)] p-3">
             <div className="flex items-start gap-2">
-              <Warning className="h-4 w-4 text-amber-300 flex-shrink-0 mt-0.5" aria-hidden="true" />
+              <Warning className="h-4 w-4 text-[color:var(--brand-primary)] flex-shrink-0 mt-0.5" aria-hidden="true" />
               <div className="flex-1">
-                <p className="text-sm sm:text-xs text-amber-100 font-medium">Large export</p>
-                <p className="text-xs sm:text-[11px] text-amber-100/70 mt-1">
+                <p className="text-sm sm:text-xs text-main font-medium">Large export</p>
+                <p className="text-xs sm:text-[11px] text-muted-high mt-1">
                   You&apos;re about to export {pendingLargeExport.count} entries. This may take a moment and use significant memory.
                 </p>
                 <div className="flex gap-2 mt-3">
                   <button
                     onClick={handleConfirmLargeExport}
-                    className="min-h-[44px] px-4 py-2.5 rounded text-sm font-medium bg-amber-300/20 text-amber-100 hover:bg-amber-300/30 transition-colors touch-manipulation"
+                    className="min-h-[44px] px-4 py-2.5 rounded text-sm font-medium bg-[color:var(--accent-25)] text-[color:var(--text-main)] hover:bg-[color:var(--accent-45)] transition-colors touch-manipulation"
                   >
                     Continue
                   </button>
                   <button
                     onClick={handleCancelLargeExport}
-                    className="min-h-[44px] px-4 py-2.5 rounded text-sm text-amber-100/70 hover:text-amber-100 transition-colors touch-manipulation"
+                    className="min-h-[44px] px-4 py-2.5 rounded text-sm text-muted hover:text-main transition-colors touch-manipulation"
                   >
                     Cancel
                   </button>
@@ -516,34 +516,34 @@ function ExportSection({
         {/* Export status feedback */}
         {exportStatus && (
           <p
-            className={`mt-2 text-sm sm:text-xs ${exportStatus.type === 'success' ? 'text-emerald-300' : 'text-red-300'
+            className={`mt-2 text-sm sm:text-xs ${exportStatus.type === 'success' ? 'text-[color:var(--status-success)]' : 'text-[color:var(--status-error)]'
               }`}
           >
             {exportStatus.message}
           </p>
         )}
         {!hasEntries && (
-          <p className="mt-2 text-xs sm:text-[10px] text-amber-100/50">
+          <p className="mt-2 text-xs sm:text-[10px] text-muted">
             No entries to export for this scope
           </p>
         )}
       </div>
 
-      <div className="rounded-lg border border-amber-300/15 bg-amber-200/5 px-3 py-2 text-xs sm:text-[11px] text-amber-100/70">
+      <div className="rounded-lg border border-[color:var(--border-warm-light)] bg-[color:var(--border-warm-subtle)] px-3 py-2 text-xs sm:text-[11px] text-muted-high">
         Exporting: {exportScopeLabel} · {hasEntries ? exportEntries.length : 0} entr{hasEntries && exportEntries.length === 1 ? 'y' : 'ies'}
       </div>
 
       {/* Share link (authenticated only) */}
       {isAuthenticated && onCreateShareLink && (
         <div>
-          <p className="text-sm sm:text-xs text-amber-100/60 mb-2">Share Journal Entries</p>
+          <p className="text-sm sm:text-xs text-muted mb-2">Share Journal Entries</p>
 
-          <div className="mb-3 space-y-3 rounded-lg border border-amber-300/15 bg-amber-200/5 p-3 text-sm sm:text-[12px] text-amber-100/80">
+          <div className="mb-3 space-y-3 rounded-lg border border-[color:var(--border-warm-light)] bg-[color:var(--border-warm-subtle)] p-3 text-sm sm:text-[12px] text-muted-high">
             {/* Scope selection */}
             <fieldset className="space-y-2">
-              <legend className="text-xs sm:text-[10px] uppercase tracking-wider text-amber-100/50 mb-1">What to share</legend>
+              <legend className="text-xs sm:text-[10px] uppercase tracking-wider text-muted mb-1">What to share</legend>
 
-              <label className={`flex items-start gap-2 p-2 rounded-lg cursor-pointer transition-colors ${shareScope === 'all' ? 'bg-amber-200/10' : 'hover:bg-amber-200/5'}`}>
+              <label className={`flex items-start gap-2 p-2 rounded-lg cursor-pointer transition-colors ${shareScope === 'all' ? 'bg-[color:var(--accent-25)]' : 'hover:bg-[color:var(--border-warm-subtle)]'}`}>
                 <input
                   type="radio"
                   name="shareScope"
@@ -553,17 +553,17 @@ function ExportSection({
                     setShareScope('all');
                     setShareScopeTouched(true);
                   }}
-                  className="mt-0.5 h-5 w-5 border-amber-200/30 bg-transparent text-amber-300 focus:ring-amber-200/40 focus:ring-offset-0 touch-manipulation"
+                  className="mt-0.5 h-5 w-5 border-[color:var(--border-warm-light)] bg-transparent text-[color:var(--brand-primary)] focus:ring-[color:var(--accent-45)] focus:ring-offset-0 touch-manipulation"
                 />
                 <div>
                   <span className="font-medium">All entries</span>
-                  <p className="text-xs sm:text-[11px] text-amber-100/60 mt-0.5">
+                  <p className="text-xs sm:text-[11px] text-muted mt-0.5">
                     Share up to {effectiveShareLimit} entries from {normalizedAllEntries.length} total
                   </p>
                 </div>
               </label>
 
-              <label className={`flex items-start gap-2 p-2 rounded-lg transition-colors ${filtersApplied ? 'cursor-pointer' : 'cursor-not-allowed opacity-60'} ${shareScope === 'filters' ? 'bg-amber-200/10' : filtersApplied ? 'hover:bg-amber-200/5' : ''}`}>
+              <label className={`flex items-start gap-2 p-2 rounded-lg transition-colors ${filtersApplied ? 'cursor-pointer' : 'cursor-not-allowed opacity-60'} ${shareScope === 'filters' ? 'bg-[color:var(--accent-25)]' : filtersApplied ? 'hover:bg-[color:var(--border-warm-subtle)]' : ''}`}>
                 <input
                   type="radio"
                   name="shareScope"
@@ -574,11 +574,11 @@ function ExportSection({
                     setShareScopeTouched(true);
                   }}
                   disabled={!filtersApplied}
-                  className="mt-0.5 h-5 w-5 border-amber-200/30 bg-transparent text-amber-300 focus:ring-amber-200/40 focus:ring-offset-0 touch-manipulation"
+                  className="mt-0.5 h-5 w-5 border-[color:var(--border-warm-light)] bg-transparent text-[color:var(--brand-primary)] focus:ring-[color:var(--accent-45)] focus:ring-offset-0 touch-manipulation"
                 />
                 <div>
                   <span className="font-medium">Current filters</span>
-                  <p className="text-xs sm:text-[11px] text-amber-100/60 mt-0.5">
+                  <p className="text-xs sm:text-[11px] text-muted mt-0.5">
                     {filtersApplied
                       ? `Share up to ${effectiveShareLimit} of ${normalizedFilteredEntries.length} filtered entries`
                       : 'No filters are active'}
@@ -586,7 +586,7 @@ function ExportSection({
                 </div>
               </label>
 
-              <label className={`flex items-start gap-2 p-2 rounded-lg cursor-pointer transition-colors ${shareScope === 'scope' ? 'bg-amber-200/10' : 'hover:bg-amber-200/5'}`}>
+              <label className={`flex items-start gap-2 p-2 rounded-lg cursor-pointer transition-colors ${shareScope === 'scope' ? 'bg-[color:var(--accent-25)]' : 'hover:bg-[color:var(--border-warm-subtle)]'}`}>
                 <input
                   type="radio"
                   name="shareScope"
@@ -596,11 +596,11 @@ function ExportSection({
                     setShareScope('scope');
                     setShareScopeTouched(true);
                   }}
-                  className="mt-0.5 h-5 w-5 border-amber-200/30 bg-transparent text-amber-300 focus:ring-amber-200/40 focus:ring-offset-0 touch-manipulation"
+                  className="mt-0.5 h-5 w-5 border-[color:var(--border-warm-light)] bg-transparent text-[color:var(--brand-primary)] focus:ring-[color:var(--accent-45)] focus:ring-offset-0 touch-manipulation"
                 />
                 <div>
                   <span className="font-medium">Current scope</span>
-                  <p className="text-xs sm:text-[11px] text-amber-100/60 mt-0.5">
+                  <p className="text-xs sm:text-[11px] text-muted mt-0.5">
                     Share up to {effectiveShareLimit} entries from {scopeLabel}
                   </p>
                 </div>
@@ -608,15 +608,15 @@ function ExportSection({
             </fieldset>
 
             {filtersApplied && shareScope === 'all' && (
-              <div className="flex items-start gap-2 text-[11px] text-amber-200/80">
-                <Warning className="h-3.5 w-3.5 text-amber-300 flex-shrink-0 mt-0.5" aria-hidden="true" />
+              <div className="flex items-start gap-2 text-[11px] text-muted-high">
+                <Warning className="h-3.5 w-3.5 text-[color:var(--brand-primary)] flex-shrink-0 mt-0.5" aria-hidden="true" />
                 <span>Filters are active — sharing all entries ignores filters.</span>
               </div>
             )}
 
             {/* Limit control */}
-            <div className="flex items-center justify-between gap-2 pt-1 border-t border-amber-200/10">
-              <label htmlFor="share-limit" className="text-xs sm:text-[11px] text-amber-100/70">Max entries to share</label>
+            <div className="flex items-center justify-between gap-2 pt-1 border-t border-[color:var(--border-warm-subtle)]">
+              <label htmlFor="share-limit" className="text-xs sm:text-[11px] text-muted-high">Max entries to share</label>
               <input
                 id="share-limit"
                 type="number"
@@ -626,18 +626,18 @@ function ExportSection({
                 max="10"
                 value={effectiveShareLimit}
                 onChange={(event) => setShareLimit(event.target.value)}
-                className="w-20 min-h-[44px] rounded border border-amber-200/25 bg-amber-200/5 px-3 py-2 text-sm text-amber-50 text-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/40 touch-manipulation"
+                className="w-20 min-h-[44px] rounded border border-[color:var(--border-warm-light)] bg-[color:var(--border-warm-subtle)] px-3 py-2 text-sm text-[color:var(--text-main)] text-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--accent-45)] touch-manipulation"
               />
             </div>
 
             {/* Expiry control */}
-            <div className="flex items-center justify-between gap-2 pt-1 border-t border-amber-200/10">
-              <label htmlFor="share-expiry" className="text-xs sm:text-[11px] text-amber-100/70">Link expiry</label>
+            <div className="flex items-center justify-between gap-2 pt-1 border-t border-[color:var(--border-warm-subtle)]">
+              <label htmlFor="share-expiry" className="text-xs sm:text-[11px] text-muted-high">Link expiry</label>
               <select
                 id="share-expiry"
                 value={expiresInHours}
                 onChange={(event) => setExpiresInHours(event.target.value)}
-                className="min-h-[44px] rounded border border-amber-200/25 bg-amber-200/5 px-3 py-2 text-sm text-amber-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/40"
+                className="min-h-[44px] rounded border border-[color:var(--border-warm-light)] bg-[color:var(--border-warm-subtle)] px-3 py-2 text-sm text-[color:var(--text-main)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--accent-45)]"
               >
                 {SHARE_EXPIRY_OPTIONS.map((option) => (
                   <option key={option.value} value={option.value}>
@@ -648,12 +648,12 @@ function ExportSection({
             </div>
 
             {/* Summary */}
-            <div className="rounded bg-amber-200/5 px-2 py-1.5 text-xs sm:text-[11px] text-amber-100/70">
+            <div className="rounded bg-[color:var(--border-warm-subtle)] px-2 py-1.5 text-xs sm:text-[11px] text-muted-high">
               Will share {shareUsesServerFallback ? 'up to ' : ''}
-              <span className="font-semibold text-amber-50">{shareDisplayEntryCount}</span> entr{shareDisplayEntryCount === 1 ? 'y' : 'ies'} from {shareScopeLabel} · {expiryLabel}
+              <span className="font-semibold text-main">{shareDisplayEntryCount}</span> entr{shareDisplayEntryCount === 1 ? 'y' : 'ies'} from {shareScopeLabel} · {expiryLabel}
             </div>
             {!canCreateShareLink && (
-              <div className="space-y-1 text-xs sm:text-[11px] text-amber-100/60">
+              <div className="space-y-1 text-xs sm:text-[11px] text-muted">
                 <p>No entries available to share for this scope.</p>
                 {shareHasLocalOnlyEntries && (
                   <p>
@@ -665,25 +665,25 @@ function ExportSection({
           </div>
 
           {linkCreated ? (
-            <div className="rounded-lg bg-emerald-500/10 border border-emerald-500/20 p-3">
-              <p className="text-sm sm:text-xs text-emerald-100 mb-2 flex items-center gap-1">
+            <div className="rounded-lg bg-[color:color-mix(in_srgb,var(--status-success)_12%,transparent)] border border-[color:color-mix(in_srgb,var(--status-success)_24%,transparent)] p-3">
+              <p className="text-sm sm:text-xs text-[color:var(--status-success)] mb-2 flex items-center gap-1">
                 <LinkIcon className="h-3 w-3" />
                 {linkCopyStatus?.message || 'Link ready'}
               </p>
-              <p className="text-xs sm:text-[11px] text-emerald-100/70 mb-2">
+              <p className="text-xs sm:text-[11px] text-muted mb-2">
                 Scope: {linkCreated.scopeLabel} · {linkCreated.entryCount} entr{linkCreated.entryCount === 1 ? 'y' : 'ies'} · {linkCreated.expiryLabel}
               </p>
               <input
                 type="text"
                 value={linkCreated.url}
                 readOnly
-                className="w-full min-h-[44px] px-3 py-2 text-sm sm:text-xs bg-transparent text-emerald-100/80 rounded border border-emerald-400/20 touch-manipulation"
+                className="w-full min-h-[44px] px-3 py-2 text-sm sm:text-xs bg-transparent text-[color:var(--text-main)] rounded border border-[color:color-mix(in_srgb,var(--status-success)_25%,transparent)] touch-manipulation"
                 onClick={(e) => e.target.select()}
                 aria-label="Share link - tap to select and copy"
               />
               <button
                 onClick={() => setLinkCreated(null)}
-                className="mt-2 min-h-[44px] px-3 py-2 text-sm sm:text-xs text-emerald-200/70 hover:text-emerald-200 touch-manipulation"
+                className="mt-2 min-h-[44px] px-3 py-2 text-sm sm:text-xs text-muted hover:text-[color:var(--status-success)] touch-manipulation"
               >
                 Create another
               </button>
@@ -699,7 +699,7 @@ function ExportSection({
             </button>
           )}
 
-          <p className="mt-2 text-xs sm:text-[10px] text-amber-100/50">
+          <p className="mt-2 text-xs sm:text-[10px] text-muted">
             Share selected readings with a secure link
           </p>
         </div>
@@ -707,7 +707,7 @@ function ExportSection({
 
       {/* Snapshot sharing (available to everyone) */}
       <div>
-        <p className="text-sm sm:text-xs text-amber-100/60 mb-2">Share a summary</p>
+        <p className="text-sm sm:text-xs text-muted mb-2">Share a summary</p>
         <button
           onClick={handleCopySnapshot}
           disabled={!stats}
@@ -719,14 +719,14 @@ function ExportSection({
         </button>
         {shareStatus && (
           <p
-            className={`mt-2 text-xs sm:text-[10px] ${shareStatus.type === 'success' ? 'text-emerald-300' : 'text-red-300'
+            className={`mt-2 text-xs sm:text-[10px] ${shareStatus.type === 'success' ? 'text-[color:var(--status-success)]' : 'text-[color:var(--status-error)]'
               }`}
           >
             {shareStatus.message}
           </p>
         )}
         {!isAuthenticated && (
-          <p className="text-sm sm:text-xs text-amber-100/50 italic mt-1">
+          <p className="text-sm sm:text-xs text-muted italic mt-1">
             Sign in to create share links; snapshot copy works for guests
           </p>
         )}

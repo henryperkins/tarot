@@ -99,7 +99,7 @@ export default function JourneyMobileSheet({
   const sourceLabel = _dataSource === 'server' ? 'D1' : 'Journal';
   const streakGraceTooltip = 'Counts from yesterday if no reading today (grace period).';
   const streakInfoButtonClass =
-    'text-amber-100/40 hover:text-amber-100 focus-visible:ring-amber-300/40 -ml-2 -mr-2';
+    'text-muted hover:text-main focus-visible:ring-[color:var(--accent-45)] -ml-2 -mr-2';
 
   // Swipe-to-dismiss state
   const [dragOffset, setDragOffset] = useState(0);
@@ -217,13 +217,13 @@ export default function JourneyMobileSheet({
   // Show loading skeleton
   if (isLoading) {
     return (
-      <div className="animate-pulse rounded-3xl border border-amber-300/12 bg-gradient-to-br from-[#0b0c1d] via-[#0d1024] to-[#090a16] p-5">
+      <div className="panel-mystic bg-gradient-ambient rounded-3xl p-5 animate-pulse">
         <div className="space-y-4">
           <div className="flex items-center gap-2">
-            <div className="h-3 w-3 rounded bg-amber-200/25" />
-            <div className="h-3 w-28 rounded bg-amber-200/25" />
+            <div className="h-3 w-3 rounded bg-[color:var(--border-warm-light)]" />
+            <div className="h-3 w-28 rounded bg-[color:var(--border-warm-light)]" />
           </div>
-          <div className="h-20 w-full rounded-xl bg-amber-200/10" />
+          <div className="h-20 w-full rounded-xl bg-[color:var(--border-warm-subtle)]" />
         </div>
       </div>
     );
@@ -233,22 +233,22 @@ export default function JourneyMobileSheet({
   if (isFilteredEmpty) {
     return (
       <section
-        className="relative overflow-hidden rounded-3xl border border-amber-300/12 bg-gradient-to-br from-[#0b0c1d] via-[#0d1024] to-[#090a16] p-5"
+        className="panel-mystic bg-gradient-ambient rounded-3xl p-5"
         aria-labelledby="reading-journey-mobile-filtered-empty"
       >
         <div className="relative z-10 text-center py-6">
           <h3
             id="reading-journey-mobile-filtered-empty"
-            className="mb-3 flex items-center justify-center gap-2 journal-eyebrow text-amber-100/70"
+            className="mb-3 flex items-center justify-center gap-2 journal-eyebrow text-muted-high"
           >
             <Sparkle className="h-3 w-3" aria-hidden="true" />
             Your Journey
-            <span className="text-[10px] text-amber-100/50">(filtered)</span>
+            <span className="text-[10px] text-muted">(filtered)</span>
           </h3>
-          <p className="text-sm text-amber-100/70 mb-2">
+          <p className="text-sm text-muted-high mb-2">
             No readings match your current filters.
           </p>
-          <p className="text-xs text-amber-100/50">
+          <p className="text-xs text-muted">
             Try adjusting or clearing your filters to see your journey insights.
           </p>
         </div>
@@ -260,27 +260,27 @@ export default function JourneyMobileSheet({
   if (isAnalyticsDisabled) {
     return (
       <section
-        className="relative overflow-hidden rounded-3xl border border-amber-300/12 bg-gradient-to-br from-[#0b0c1d] via-[#0d1024] to-[#090a16] p-5"
+        className="panel-mystic bg-gradient-ambient rounded-3xl p-5"
         aria-labelledby="reading-journey-mobile-disabled"
       >
         <div className="relative z-10 text-center py-6">
           <h3
             id="reading-journey-mobile-disabled"
-            className="mb-3 flex items-center justify-center gap-2 journal-eyebrow text-amber-100/70"
+            className="mb-3 flex items-center justify-center gap-2 journal-eyebrow text-muted-high"
           >
             <Sparkle className="h-3 w-3" aria-hidden="true" />
             Your Journey
           </h3>
-          <p className="text-sm text-amber-100/70 mb-2">
+          <p className="text-sm text-muted-high mb-2">
             Journey analytics are currently disabled.
           </p>
-          <p className="text-xs text-amber-100/50">
+          <p className="text-xs text-muted">
             Enable them in settings to track card patterns.
           </p>
           <button
             type="button"
             onClick={() => navigate('/account#analytics')}
-            className="mt-4 inline-flex min-h-[44px] items-center justify-center rounded-full border border-amber-200/25 px-4 py-2 text-sm font-semibold text-amber-50 transition hover:bg-amber-200/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/40"
+            className="mt-4 inline-flex min-h-[44px] items-center justify-center rounded-full border border-[color:var(--border-warm-light)] px-4 py-2 text-sm font-semibold text-[color:var(--text-main)] transition-[background-color,border-color] duration-[var(--duration-normal)] ease-[var(--ease-out)] hover:bg-[color:var(--border-warm-subtle)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--accent-45)]"
           >
             Go to Settings
           </button>
@@ -314,7 +314,7 @@ export default function JourneyMobileSheet({
     <>
       {/* Hero Card */}
       <section
-        className="relative overflow-hidden rounded-3xl border border-amber-300/12 bg-gradient-to-br from-[#0b0c1d] via-[#0d1024] to-[#090a16] p-5 shadow-[0_24px_68px_-30px_rgba(0,0,0,0.9)]"
+        className="panel-mystic bg-gradient-ambient rounded-3xl p-5"
         aria-labelledby="reading-journey-mobile-heading"
       >
         {/* Decorative background */}
@@ -323,7 +323,7 @@ export default function JourneyMobileSheet({
           aria-hidden="true"
           style={{
             backgroundImage:
-              'radial-gradient(circle at 14% 18%, rgba(251,191,36,0.08), transparent 32%), radial-gradient(circle at 86% 26%, rgba(56,189,248,0.07), transparent 30%)',
+              'radial-gradient(circle at 14% 18%, var(--glow-gold), transparent 32%), radial-gradient(circle at 86% 26%, var(--glow-blue), transparent 30%)',
           }}
         />
 
@@ -331,23 +331,23 @@ export default function JourneyMobileSheet({
           {/* Header */}
           <h3
             id="reading-journey-mobile-heading"
-            className="flex items-center gap-2 journal-eyebrow text-amber-100/70"
+            className="flex items-center gap-2 journal-eyebrow text-muted-high"
           >
             <Sparkle className="h-3 w-3" aria-hidden="true" />
             Your Journey
             {scopeLabel && (
-              <span className="rounded-full border border-amber-200/15 bg-amber-200/5 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-amber-100/70">
+              <span className="rounded-full border border-[color:var(--border-warm-light)] bg-[color:var(--border-warm-subtle)] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-high">
                 Scope: {scopeLabel}
               </span>
             )}
           </h3>
           {filtersApplied && analyticsScope !== 'filters' && typeof onScopeSelect === 'function' && (
-            <div className="flex flex-wrap items-center gap-2 rounded-full border border-amber-300/30 bg-amber-300/10 px-3 py-1 text-[11px] text-amber-100/80">
+            <div className="flex flex-wrap items-center gap-2 rounded-full border border-[color:var(--border-warm)] bg-[color:var(--accent-25)] px-3 py-1 text-[11px] text-muted-high">
               <span>Filters not applied to insights</span>
               <button
                 type="button"
                 onClick={() => onScopeSelect('filters')}
-                className="font-semibold text-amber-50 underline underline-offset-2 hover:text-amber-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/40"
+                className="font-semibold text-[color:var(--text-main)] underline underline-offset-2 hover:text-[color:var(--text-accent)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--accent-45)]"
               >
                 Apply filters
               </button>
@@ -367,7 +367,7 @@ export default function JourneyMobileSheet({
 
           {/* Season window indicator for localized formatting */}
           {seasonWindow && (
-            <p className="text-[11px] text-amber-100/50">
+            <p className="text-[11px] text-muted">
               {new Intl.DateTimeFormat(locale, { month: 'long', year: 'numeric', ...(timezone && { timeZone: timezone }) }).format(seasonWindow.start)}
               {' – '}
               {new Intl.DateTimeFormat(locale, { month: 'long', year: 'numeric', ...(timezone && { timeZone: timezone }) }).format(seasonWindow.end)}
@@ -376,15 +376,15 @@ export default function JourneyMobileSheet({
 
           {/* Top Card Feature */}
           {topCard && (
-            <div className="rounded-xl bg-gradient-to-br from-amber-500/15 via-amber-600/10 to-transparent p-4 border border-amber-300/15 text-center">
+            <div className="rounded-xl bg-gradient-ambient p-4 border border-[color:var(--border-warm-light)] text-center">
               <div className="text-2xl mb-1">🃏</div>
-              <p className="text-lg font-serif text-amber-50">{topCard.name}</p>
-              <p className="text-xs text-amber-100/70">
+              <p className="text-lg font-serif text-main">{topCard.name}</p>
+              <p className="text-xs text-muted-high">
                 appeared {topCard.count}x {topCardScopeLabel}
               </p>
               {topCard.hasBadge && (
-                <p className="mt-2 inline-flex items-center gap-1 text-xs text-orange-300">
-                  <Fire className="h-3 w-3" />
+                <p className="mt-2 inline-flex items-center gap-1 text-xs text-[color:var(--text-accent)]">
+                  <Fire className="h-3 w-3 text-[color:var(--text-accent)]" />
                   Streak badge earned
                 </p>
               )}
@@ -394,20 +394,20 @@ export default function JourneyMobileSheet({
           {/* Stats row */}
           <div className="flex justify-center gap-4">
             <div className="text-center">
-              <p className="text-xl font-medium text-amber-50">{totalReadings}</p>
-              <p className="text-[10px] text-amber-100/60">readings</p>
+              <p className="text-xl font-medium text-main">{totalReadings}</p>
+              <p className="text-[10px] text-muted">readings</p>
             </div>
             <div className="text-center">
-              <p className="text-xl font-medium text-amber-50">{totalCards}</p>
-              <p className="text-[10px] text-amber-100/60">cards</p>
+              <p className="text-xl font-medium text-main">{totalCards}</p>
+              <p className="text-[10px] text-muted">cards</p>
             </div>
             {currentStreak > 0 && (
               <div className="text-center">
-                <p className="text-xl font-medium text-amber-50 flex items-center justify-center gap-1">
-                  <Fire className="h-4 w-4 text-orange-400" />
+                <p className="text-xl font-medium text-main flex items-center justify-center gap-1">
+                  <Fire className="h-4 w-4 text-[color:var(--text-accent)]" />
                   {currentStreak}
                 </p>
-                <p className="text-[10px] text-amber-100/60 flex items-center justify-center gap-1">
+                <p className="text-[10px] text-muted flex items-center justify-center gap-1">
                   streak
                   <Tooltip
                     content={streakGraceTooltip}
@@ -424,14 +424,14 @@ export default function JourneyMobileSheet({
 
           {/* Coach suggestion */}
           {coachSuggestion && (
-            <div className="rounded-lg bg-amber-200/5 p-3 border border-amber-300/10">
-              <p className="text-xs text-amber-100/80">
+            <div className="rounded-lg bg-[color:var(--border-warm-subtle)] p-3 border border-[color:var(--border-warm-light)]">
+              <p className="text-xs text-muted-high">
                 💡 {coachSuggestion.text}
               </p>
               {onStartReading && showStartReadingCta && (
                 <button
                   onClick={() => onStartReading(coachSuggestion)}
-                  className="mt-2 text-xs font-medium text-amber-200 hover:text-amber-100 min-h-[44px] -mb-2 -ml-1 px-1"
+                  className="mt-2 text-xs font-medium text-[color:var(--text-accent)] hover:text-main min-h-[44px] -mb-2 -ml-1 px-1"
                 >
                   Start Reading →
                 </button>
@@ -445,9 +445,9 @@ export default function JourneyMobileSheet({
             onClick={() => setIsSheetOpen(true)}
             className="
               w-full py-3 min-h-[44px] rounded-full text-sm font-medium
-              border border-amber-300/30 text-amber-100 bg-amber-200/5
-              hover:bg-amber-200/10 hover:border-amber-300/40
-              focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/50
+              border border-[color:var(--border-warm-light)] text-[color:var(--text-main)] bg-[color:var(--border-warm-subtle)]
+              hover:bg-[color:var(--border-warm-light)] hover:border-[color:var(--border-warm)]
+              focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--accent-45)]
               transition-colors
             "
           >
@@ -480,17 +480,17 @@ export default function JourneyMobileSheet({
             onTouchMove={handleTouchMove}
             onTouchEnd={handleTouchEnd}
             onTouchCancel={handleTouchCancel}
-            className="relative bg-gradient-to-br from-[#0b0c1d] via-[#0d1024] to-[#090a16] rounded-t-3xl border-t border-x border-amber-300/12 overflow-hidden flex flex-col animate-slide-up"
+            className="relative bg-[linear-gradient(135deg,var(--panel-dark-1),var(--panel-dark-2)_55%,var(--panel-dark-3))] rounded-t-3xl border-t border-x border-[color:var(--border-warm-light)] overflow-hidden flex flex-col animate-slide-up"
             style={{
               maxHeight: 'min(calc(100dvh - 8px), calc(100vh - 8px - env(safe-area-inset-bottom, 0px)))',
               transform: dragOffset > 0 ? `translateY(${dragOffset}px)` : undefined,
-              transition: isDragging ? 'none' : 'transform 0.2s ease-out',
+              transition: isDragging ? 'none' : 'transform var(--duration-normal) var(--ease-out)',
             }}
             tabIndex={-1}
           >
             {/* Drag handle */}
             <div className="journey-sheet__handle flex justify-center py-3 cursor-grab active:cursor-grabbing">
-              <div className="w-10 h-1 rounded-full bg-amber-200/30" />
+              <div className="w-10 h-1 rounded-full bg-[color:var(--border-warm-light)]" />
             </div>
 
             {/* Header */}
@@ -498,13 +498,13 @@ export default function JourneyMobileSheet({
               <div className="flex items-center gap-2">
                 <h2
                   id="journey-sheet-title"
-                  className="flex items-center gap-2 text-sm font-medium text-amber-100"
+                  className="flex items-center gap-2 text-sm font-medium text-main"
                 >
                   <Sparkle className="h-3 w-3" />
                   Your Reading Journey
                 </h2>
                 {scopeLabel && (
-                  <span className="rounded-full border border-amber-200/15 bg-amber-200/5 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-amber-100/70">
+                  <span className="rounded-full border border-[color:var(--border-warm-light)] bg-[color:var(--border-warm-subtle)] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-high">
                     {scopeChipLabel} · {sourceLabel}
                   </span>
                 )}
@@ -512,7 +512,7 @@ export default function JourneyMobileSheet({
               <div className="flex items-center gap-1">
                 <Link
                   to="/account#analytics"
-                  className="flex items-center justify-center min-h-[44px] min-w-[44px] rounded-lg text-amber-100/60 hover:text-amber-100 hover:bg-amber-200/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/50 transition-colors"
+                  className="flex items-center justify-center min-h-[44px] min-w-[44px] rounded-lg text-muted hover:text-main hover:bg-[color:var(--border-warm-subtle)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--accent-45)] transition-colors"
                   aria-label="Journey settings"
                 >
                   <Gear className="h-5 w-5" />
@@ -523,9 +523,9 @@ export default function JourneyMobileSheet({
                   className="
                     flex items-center justify-center
                     min-h-[44px] min-w-[44px] -mr-2
-                    rounded-lg text-amber-100/60
-                    hover:text-amber-100 hover:bg-amber-200/10
-                    focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/50
+                    rounded-lg text-muted
+                    hover:text-main hover:bg-[color:var(--border-warm-subtle)]
+                    focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--accent-45)]
                     transition-colors
                   "
                   aria-label="Close journey panel"
@@ -536,7 +536,7 @@ export default function JourneyMobileSheet({
             </div>
 
             {/* Tabs with proper touch targets */}
-            <div className="flex border-b border-amber-200/10 px-5" role="tablist">
+            <div className="flex border-b border-[color:var(--border-warm-subtle)] px-5" role="tablist">
               {TABS.map((tab) => (
                 <button
                   key={tab.key}
@@ -551,8 +551,8 @@ export default function JourneyMobileSheet({
                     border-b-2 transition-colors
                     ${
                       activeTab === tab.key
-                        ? 'border-amber-400 text-amber-100'
-                        : 'border-transparent text-amber-100/60 hover:text-amber-100/80'
+                        ? 'border-[color:var(--brand-primary)] text-main'
+                        : 'border-transparent text-muted hover:text-muted-high'
                     }
                   `}
                 >
@@ -590,12 +590,12 @@ export default function JourneyMobileSheet({
                   )}
                   {themes.length > 0 && (
                     <div>
-                      <p className="text-xs text-amber-100/60 mb-2">Recent Themes</p>
+                      <p className="text-xs text-muted mb-2">Recent Themes</p>
                       <div className="flex flex-wrap gap-1.5">
                         {themes.slice(0, 4).map((theme, i) => (
                           <span
                             key={i}
-                            className="rounded-full bg-amber-200/10 px-2.5 py-1 text-xs text-amber-100/80"
+                            className="rounded-full bg-[color:var(--border-warm-subtle)] px-2.5 py-1 text-xs text-muted-high"
                           >
                             {theme}
                           </span>

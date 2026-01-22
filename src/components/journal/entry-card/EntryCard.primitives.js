@@ -123,19 +123,19 @@ export const styles = {
 
   // Cards
   cardBase:
-    'group relative overflow-hidden text-[color:var(--text-main)] transition-all duration-300 animate-fade-in ' +
+    'group relative overflow-hidden text-[color:var(--text-main)] transition-[transform,box-shadow] duration-[var(--duration-medium)] ease-[var(--ease-out)] animate-fade-in ' +
     'before:absolute before:inset-0 before:bg-[linear-gradient(120deg,var(--border-warm-subtle),transparent_45%)] ' +
     'before:opacity-70 before:pointer-events-none before:content-[""]',
 
   cardHover:
-    'hover:translate-y-[-2px] hover:shadow-[0_30px_80px_-38px_rgba(0,0,0,0.95)]',
+    'hover:translate-y-[-2px] hover:shadow-[0_24px_48px_-32px_rgba(0,0,0,0.85),0_0_26px_var(--brand-primary),inset_0_1px_0_rgba(255,255,255,0.08)]',
 
   cardCompact:
     'rounded-2xl border border-[color:var(--border-warm-light)] bg-[linear-gradient(160deg,var(--bg-surface),var(--bg-main))] ' +
     'shadow-[0_14px_32px_-20px_rgba(0,0,0,0.7)] hover:bg-[color:var(--border-warm-subtle)]',
 
   // Accent bar
-  accentBar: 'absolute left-0 w-1 rounded-full opacity-80 shadow-[0_0_12px_var(--border-warm-light)]',
+  accentBar: 'absolute left-0 w-1 rounded-full opacity-80 shadow-[0_0_12px_var(--primary-20),inset_0_0_0_1px_rgba(255,255,255,0.02)]',
   accentBarDefault: 'top-3 bottom-3',
   accentBarCompact: 'top-2 bottom-2 w-[3px]',
 

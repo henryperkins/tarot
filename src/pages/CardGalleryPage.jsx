@@ -117,7 +117,7 @@ function CardItem({ card, stats, onSelect, onViewInJournal, index = 0 }) {
         <img
           src={card.image}
           alt={card.name}
-          className={`h-full w-full object-cover transition-opacity duration-500 ${isFound ? 'opacity-90 group-hover:opacity-100' : 'opacity-30'}`}
+          className={`h-full w-full object-cover transition-opacity duration-[var(--duration-slow)] ${isFound ? 'opacity-90 group-hover:opacity-100' : 'opacity-30'}`}
           loading="lazy"
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/30" />
@@ -128,21 +128,21 @@ function CardItem({ card, stats, onSelect, onViewInJournal, index = 0 }) {
         {/* Top: Status */}
         <div className="flex justify-between items-start">
           {isFound ? (
-            <span className="inline-flex items-center justify-center min-w-[1.5rem] h-6 px-1.5 rounded-full bg-amber-300/90 text-[10px] font-bold text-slate-900 shadow-sm">
+            <span className="inline-flex items-center justify-center min-w-[1.5rem] h-6 px-1.5 rounded-full bg-[color:var(--brand-primary)] text-[10px] font-bold text-[color:var(--bg-main)] shadow-sm">
               {count}x
             </span>
           ) : (
-            <LockKey className="w-4 h-4 text-white/30" />
+            <LockKey className="w-4 h-4 text-muted" />
           )}
         </div>
 
         {/* Bottom: Name & Date */}
         <div>
-          <p className={`font-serif text-sm leading-tight mb-0.5 ${isFound ? 'text-amber-50' : 'text-white/50'}`}>
+          <p className={`font-serif text-sm leading-tight mb-0.5 ${isFound ? 'text-main' : 'text-muted'}`}>
             {card.name}
           </p>
           {isFound && (
-            <p className="text-[10px] text-amber-200/60 font-medium">
+            <p className="text-[10px] text-muted font-medium">
               Seen {lastSeenLabel}
             </p>
           )}
@@ -162,13 +162,13 @@ function CardItem({ card, stats, onSelect, onViewInJournal, index = 0 }) {
   if (isFound) {
     return (
       <motion.div
-        className="group relative aspect-[2/3] rounded-xl border transition-all duration-300 overflow-hidden text-left border-amber-300/20 bg-gradient-to-b from-[#120f1f] via-[#0c0a14] to-[#0a0911] shadow-lg hover:-translate-y-1 hover:border-amber-300/40 hover:shadow-amber-300/10"
+        className="group relative aspect-[2/3] rounded-xl border border-[color:var(--border-warm-light)] bg-[linear-gradient(180deg,var(--panel-dark-2),var(--panel-dark-1))] shadow-[0_18px_36px_-24px_rgba(0,0,0,0.85)] transition-[transform,box-shadow,border-color] duration-[var(--duration-medium)] ease-[var(--ease-out)] overflow-hidden text-left hover:-translate-y-1 hover:border-[color:var(--border-warm)] hover:shadow-[0_24px_44px_-26px_rgba(0,0,0,0.9),0_0_18px_var(--primary-20)]"
         aria-label={`Card ${card.name}`}
         variants={animationVariants}
         initial="initial"
         animate="animate"
         transition={{
-          duration: prefersReducedMotion ? 0.15 : 0.4,
+          duration: prefersReducedMotion ? 0.16 : 0.4,
           delay: prefersReducedMotion ? 0 : index * 0.03,
           ease: [0.4, 0, 0.2, 1]
         }}
@@ -176,7 +176,7 @@ function CardItem({ card, stats, onSelect, onViewInJournal, index = 0 }) {
         <button
           type="button"
           onClick={() => onSelect?.(card)}
-          className="absolute inset-0 z-10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/60 focus-visible:ring-offset-2 focus-visible:ring-offset-main"
+          className="absolute inset-0 z-10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--accent-45)] focus-visible:ring-offset-2 focus-visible:ring-offset-main"
           aria-label={`Open details for ${card.name}`}
         />
         {content}
@@ -187,7 +187,7 @@ function CardItem({ card, stats, onSelect, onViewInJournal, index = 0 }) {
               event.stopPropagation();
               onViewInJournal(card);
             }}
-            className="absolute top-2 right-2 z-20 rounded-full border border-amber-200/30 bg-black/50 px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-amber-100/80 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/50"
+            className="absolute top-2 right-2 z-20 rounded-full border border-[color:var(--border-warm-light)] bg-[color:color-mix(in_srgb,var(--bg-main)_70%,transparent)] px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-high opacity-100 sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--accent-45)]"
             aria-label={`View ${card.name} in Journal`}
           >
             View in Journal
@@ -199,16 +199,16 @@ function CardItem({ card, stats, onSelect, onViewInJournal, index = 0 }) {
 
   return (
     <motion.div
-      className="group relative aspect-[2/3] rounded-xl border transition-all duration-300 overflow-hidden border-white/5 bg-white/[0.02] opacity-60 grayscale hover:opacity-80"
+      className="group relative aspect-[2/3] rounded-xl border border-[color:var(--border-warm-subtle)] bg-[color:var(--bg-surface)] transition-[opacity,border-color] duration-[var(--duration-normal)] ease-[var(--ease-out)] overflow-hidden opacity-60 grayscale hover:opacity-80"
       aria-label={`${card.name} (not yet discovered)`}
       variants={animationVariants}
       initial="initial"
       animate="animate"
-      transition={{
-        duration: prefersReducedMotion ? 0.15 : 0.4,
-        delay: prefersReducedMotion ? 0 : index * 0.03,
-        ease: [0.4, 0, 0.2, 1]
-      }}
+        transition={{
+          duration: prefersReducedMotion ? 0.16 : 0.4,
+          delay: prefersReducedMotion ? 0 : index * 0.03,
+          ease: [0.4, 0, 0.2, 1]
+        }}
     >
       {content}
     </motion.div>
@@ -467,7 +467,7 @@ export default function CardGalleryPage() {
         <div className="mb-8">
           <button
             onClick={() => navigate('/journal')}
-            className="inline-flex min-h-[44px] items-center gap-2 rounded-full px-3 py-2 text-accent hover:text-main hover:bg-surface-muted/30 transition touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/50 mb-4"
+            className="inline-flex min-h-[44px] items-center gap-2 rounded-full px-3 py-2 text-accent hover:text-main hover:bg-surface-muted/30 transition touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--accent-45)] mb-4"
           >
             <CaretLeft className="w-5 h-5" />
             <span>Back to Journal</span>
@@ -480,7 +480,7 @@ export default function CardGalleryPage() {
                 Discover the full deck through your readings.
               </p>
               {!isAuthenticated && (
-                <p className="mt-2 text-xs text-amber-100/60">
+                <p className="mt-2 text-xs text-muted">
                   You&apos;re viewing a local collection. Sign in to sync your journal across devices.
                 </p>
               )}
@@ -494,7 +494,7 @@ export default function CardGalleryPage() {
               </div>
               <div className="h-2 bg-white/5 rounded-full overflow-hidden border border-white/5">
                 <div
-                  className="h-full bg-gradient-to-r from-amber-400 to-amber-600 transition-all duration-1000 ease-out"
+                  className="h-full bg-gradient-to-r from-[color:var(--brand-primary)] to-[color:var(--brand-accent)] transition-[width] duration-[var(--duration-slow)] ease-[var(--ease-out)]"
                   style={{ width: `${progressPercent}%` }}
                 />
               </div>
@@ -575,14 +575,14 @@ export default function CardGalleryPage() {
         </div>
 
         {showPartialStatsBanner && (
-          <div className="mb-6 rounded-2xl border border-amber-300/15 bg-amber-200/5 p-4 text-sm text-amber-100/80 shadow-[0_12px_30px_-22px_rgba(0,0,0,0.7)]">
+          <div className="mb-6 rounded-2xl border border-[color:var(--border-warm-light)] bg-[color:var(--border-warm-subtle)] p-4 text-sm text-muted-high shadow-[0_12px_30px_-22px_rgba(0,0,0,0.7)]">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <span>{statsScopeLabel}</span>
               <button
                 type="button"
                 onClick={handleLoadFullHistory}
                 disabled={loadingFullHistory || loadingMore}
-                className={`inline-flex min-h-[36px] items-center gap-2 rounded-full border border-amber-200/30 bg-amber-200/10 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-amber-50 transition hover:border-amber-200/50 hover:bg-amber-200/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/40 ${
+                className={`inline-flex min-h-[36px] items-center gap-2 rounded-full border border-[color:var(--border-warm-light)] bg-[color:var(--border-warm-subtle)] px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-[color:var(--text-main)] transition-[background-color,border-color] duration-[var(--duration-normal)] ease-[var(--ease-out)] hover:border-[color:var(--border-warm)] hover:bg-[color:var(--border-warm-light)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--accent-45)] ${
                   loadingFullHistory || loadingMore ? 'cursor-not-allowed opacity-60' : ''
                 }`}
               >
@@ -594,15 +594,15 @@ export default function CardGalleryPage() {
 
         {/* Grid */}
         {analyticsDisabled ? (
-          <div className="rounded-2xl border border-amber-300/15 bg-amber-200/5 p-6 text-center">
-            <h2 className="text-lg font-serif text-amber-50 mb-2">Collection tracking is disabled</h2>
-            <p className="text-sm text-amber-100/70 mb-4">
+          <div className="rounded-2xl border border-[color:var(--border-warm-light)] bg-[color:var(--border-warm-subtle)] p-6 text-center">
+            <h2 className="text-lg font-serif text-main mb-2">Collection tracking is disabled</h2>
+            <p className="text-sm text-muted-high mb-4">
               Enable Journey analytics in your account settings to track your card collection.
             </p>
             <button
               type="button"
               onClick={() => navigate('/account#analytics')}
-              className="px-4 py-2 rounded-full border border-amber-200/25 text-amber-50 hover:bg-amber-200/10"
+              className="px-4 py-2 rounded-full border border-[color:var(--border-warm-light)] text-[color:var(--text-main)] hover:bg-[color:var(--border-warm-subtle)]"
             >
               Go to Settings
             </button>
@@ -626,7 +626,7 @@ export default function CardGalleryPage() {
                   initial="initial"
                   animate="animate"
                   transition={{
-                    duration: prefersReducedMotion ? 0.15 : 0.3,
+                    duration: prefersReducedMotion ? 0.16 : 0.26,
                     delay: prefersReducedMotion ? 0 : i * 0.05,
                     ease: [0.4, 0, 0.2, 1]
                   }}

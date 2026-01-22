@@ -5,71 +5,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Tableau Theme Swatch</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600&family=Ibarra+Real+Nova:ital,wght@0,400;0,500;0,600;1,400;1,500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../src/styles/theme.css">
+  <link rel="stylesheet" href="../src/styles/tarot.css">
   <style>
-    :root {
-      /* Neutral Foundation */
-      --color-black: #0F0E13;
-      --color-charcoal: #1C1A22;
-      --color-slate-dark: #2A2730;
-      --color-slate-mid: #4A4640;
-      --color-slate-light: #6E6760;
-      --color-gray-light: #9B9388;
-      --color-gray-pale: #CCC5BD;
-      --color-white: #E8E6E3;
-
-      /* Gold Accents */
-      --color-gold-champagne: #D4B896;
-      --color-gold-muted: #B59976;
-      --color-gold-soft: #E8DAC3;
-      --color-silver: #A8A39E;
-
-      /* Suit Colors */
-      --color-wands: #C9A876;
-      --color-cups: #8B95A5;
-      --color-swords: #6B7280;
-      --color-pentacles: #8A9985;
-
-      /* Status */
-      --color-success: #6B9E78;
-      --color-error: #C97676;
-
-      /* Semantic */
-      --bg-main: #0F0E13;
-      --bg-surface: #1C1A22;
-      --bg-surface-muted: #2A2730;
-      --text-main: #E8E6E3;
-      --text-muted: #CCC5B9;
-      --brand-primary: #D4B896;
-      --brand-secondary: #A89D92;
-      --brand-accent: #E8DAC3;
-
-      /* Panel Colors */
-      --panel-dark-1: #0d0a14;
-      --panel-dark-2: #151020;
-      --panel-dark-3: #0f0b17;
-
-      /* Glow Effects */
-      --glow-gold: rgba(244, 207, 150, 0.1);
-      --glow-blue: rgba(120, 161, 255, 0.08);
-      --glow-pink: rgba(255, 132, 178, 0.07);
-
-      /* Borders */
-      --border-warm: rgba(232, 218, 195, 0.22);
-      --border-warm-light: rgba(232, 218, 195, 0.2);
-
-      /* Drawer Gold */
-      --drawer-gold: #e5c48e;
-
-      /* Animation Timing */
-      --duration-fast: 160ms;
-      --duration-normal: 200ms;
-      --duration-medium: 260ms;
-      --duration-slow: 400ms;
-      --duration-slower: 600ms;
-      --ease-out: cubic-bezier(0.4, 0, 0.2, 1);
-    }
-
     * { box-sizing: border-box; margin: 0; padding: 0; }
 
     body {
@@ -432,33 +372,34 @@
     .anim-ink { animation: inkSpread 2s cubic-bezier(0.4, 0, 0.2, 1) infinite; }
 
     @keyframes fadeIn {
-      0%, 100% { opacity: 0; }
-      50% { opacity: 1; }
+      0% { opacity: 0; }
+      100% { opacity: 1; }
     }
 
     @keyframes slideUp {
-      0%, 100% { transform: translateY(10px); opacity: 0; }
-      50% { transform: translateY(0); opacity: 1; }
+      0% { transform: translateY(100%); }
+      100% { transform: translateY(0); }
     }
 
     @keyframes popIn {
-      0%, 100% { transform: scale(0.8); opacity: 0; }
-      50% { transform: scale(1); opacity: 1; }
+      0% { opacity: 0; transform: scale(0.95); }
+      100% { opacity: 1; transform: scale(1); }
     }
 
     @keyframes floatGentle {
-      0%, 100% { transform: translateY(0); }
-      50% { transform: translateY(-8px); }
+      0%, 100% { transform: translateY(0px); }
+      50% { transform: translateY(-10px); }
     }
 
     @keyframes pulseSlow {
-      0%, 100% { opacity: 0.4; }
-      50% { opacity: 1; }
+      0%, 100% { opacity: 0.8; }
+      50% { opacity: 0.4; }
     }
 
     @keyframes inkSpread {
-      0%, 100% { opacity: 0; filter: blur(8px); transform: scale(0.9); }
-      50% { opacity: 1; filter: blur(0); transform: scale(1); }
+      0% { opacity: 0; filter: blur(12px); transform: scale(0.95); }
+      40% { opacity: 0.5; filter: blur(6px); transform: scale(0.98); }
+      100% { opacity: 1; filter: blur(0px); transform: scale(1); }
     }
 
     .animation-label {

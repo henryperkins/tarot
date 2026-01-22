@@ -303,7 +303,7 @@ export function SpreadSelector({
           size="sm"
           weight={index < stars ? 'fill' : 'regular'}
           className={index < stars
-            ? 'text-primary drop-shadow-[0_0_10px_rgba(244,223,175,0.35)]'
+            ? 'text-primary drop-shadow-[0_0_10px_var(--primary-30)]'
             : 'text-secondary/60'}
           decorative
         />
@@ -336,7 +336,7 @@ export function SpreadSelector({
           <div
             className={`
               absolute left-0 top-0 bottom-3 w-12 z-10
-              bg-gradient-to-r from-[rgba(13,10,20,0.9)] via-[rgba(13,10,20,0.6)] to-transparent
+              bg-gradient-to-r from-[color:var(--panel-dark-1)]/90 via-[color:var(--panel-dark-1)]/60 to-transparent
               rounded-l-2xl
               transition-opacity duration-200
               sm:hidden
@@ -358,7 +358,7 @@ export function SpreadSelector({
           <div
             className={`
               absolute right-0 top-0 bottom-3 w-12 z-10
-              bg-gradient-to-l from-[rgba(13,10,20,0.9)] via-[rgba(13,10,20,0.6)] to-transparent
+              bg-gradient-to-l from-[color:var(--panel-dark-1)]/90 via-[color:var(--panel-dark-1)]/60 to-transparent
               rounded-r-2xl
               transition-opacity duration-200
               sm:hidden
@@ -422,7 +422,7 @@ export function SpreadSelector({
                         className="w-7 h-7 rounded-full flex items-center justify-center border border-[color:var(--border-warm-light)]"
                         style={{
                           backgroundColor: 'var(--spread-accent)',
-                          boxShadow: '0 12px 26px -18px var(--spread-glow, rgba(212, 184, 150, 0.4))'
+                          boxShadow: '0 12px 26px -18px var(--spread-glow, var(--primary-30))'
                         }}
                       >
                         <Check className="w-4 h-4 text-main" weight="bold" aria-hidden="true" />
@@ -431,9 +431,9 @@ export function SpreadSelector({
                     <div
                       className="absolute left-3 top-3 z-20 inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold"
                       style={{
-                        backgroundColor: 'rgba(13, 10, 20, 0.92)',
-                        color: 'var(--spread-accent, #e5c48e)',
-                        border: '1px solid rgba(255,255,255,0.15)',
+                        backgroundColor: 'var(--surface-92)',
+                        color: 'var(--spread-accent, var(--brand-primary))',
+                        border: '1px solid var(--border-warm-light)',
                         boxShadow: '0 12px 28px -20px rgba(0,0,0,0.7)'
                       }}
                     >
@@ -446,13 +446,13 @@ export function SpreadSelector({
                 {!isActive && !canUseSpread(key) && (
                   <div className="absolute top-3 right-3 z-20">
                     <div
-                      className="w-7 h-7 rounded-full flex items-center justify-center border border-amber-400/40 bg-amber-500/20 backdrop-blur-sm"
+                      className="w-7 h-7 rounded-full flex items-center justify-center border border-accent/40 bg-accent/15 backdrop-blur-sm"
                       style={{
-                        boxShadow: '0 8px 20px -12px rgba(251, 191, 36, 0.4)'
+                        boxShadow: '0 8px 20px -12px var(--accent-45)'
                       }}
                       aria-label="Premium spread - requires subscription"
                     >
-                      <Lock className="w-3.5 h-3.5 text-amber-300" weight="fill" aria-hidden="true" />
+                      <Lock className="w-3.5 h-3.5 text-accent" weight="fill" aria-hidden="true" />
                     </div>
                   </div>
                 )}
@@ -468,13 +468,13 @@ export function SpreadSelector({
                   <div className="spread-card__title font-serif font-semibold text-accent text-base leading-tight flex flex-wrap items-center gap-2">
                     <span className="spread-card__title-text">{spread.name}</span>
                     {!canUseSpread(key) && (
-                      <span className="inline-flex items-center gap-1 rounded-full border border-amber-300/40 bg-amber-500/10 px-2 py-0.5 text-xs font-semibold uppercase tracking-wide text-amber-200">
+                      <span className="inline-flex items-center gap-1 rounded-full border border-accent/40 bg-accent/10 px-2 py-0.5 text-xs font-semibold uppercase tracking-wide text-accent">
                         <Lock className="w-3 h-3" weight="fill" aria-hidden="true" />
                         Requires Plus
                       </span>
                     )}
                     {key === recommendedSpread && (
-                      <span className="text-xs uppercase tracking-[0.16em] text-amber-200 bg-amber-500/15 border border-amber-300/40 px-2 py-0.5 rounded-full">
+                      <span className="text-xs uppercase tracking-[0.16em] text-accent bg-accent/15 border border-accent/40 px-2 py-0.5 rounded-full">
                         Recommended
                       </span>
                     )}

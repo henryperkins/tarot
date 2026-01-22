@@ -365,7 +365,7 @@ export function SpreadTable({
                       ? 'shadow-lg'
                       : showRevealPill
                         ? 'border-primary/70 ring-2 ring-primary/30 shadow-md shadow-primary/20 hover:border-primary/80 active:scale-95'
-                        : 'border-primary/35 shadow-[0_0_16px_rgba(244,223,175,0.12)] hover:border-primary/50 active:scale-95'
+                        : 'border-primary/35 shadow-[0_0_16px_var(--primary-20)] hover:border-primary/50 active:scale-95'
                     }
                   `}
                   style={{
@@ -469,7 +469,7 @@ export function SpreadTable({
                             Tap to reveal
                           </span>
                         ) : showGlowHint ? (
-                          <span className="inline-flex items-center gap-1 rounded-full bg-main/70 text-primary/80 text-[0.6rem] sm:text-[0.65rem] font-semibold px-2 py-1 border border-primary/25 shadow-[0_0_12px_rgba(244,223,175,0.22)]">
+                          <span className="inline-flex items-center gap-1 rounded-full bg-main/70 text-primary/80 text-[0.6rem] sm:text-[0.65rem] font-semibold px-2 py-1 border border-primary/25 shadow-[0_0_12px_var(--primary-30)]">
                             Ready
                           </span>
                         ) : null}

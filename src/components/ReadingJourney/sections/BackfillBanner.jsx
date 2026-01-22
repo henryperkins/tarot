@@ -54,12 +54,12 @@ export default function BackfillBanner({
   // After successful backfill, show success briefly then hide
   if (backfillResult?.success) {
     return (
-      <div className="flex items-center gap-2 rounded-lg bg-green-500/10 border border-green-400/20 px-3 py-2 text-xs text-green-200/90">
+      <div className="flex items-center gap-2 rounded-lg bg-[color:color-mix(in_srgb,var(--status-success)_12%,transparent)] border border-[color:color-mix(in_srgb,var(--status-success)_24%,transparent)] px-3 py-2 text-xs text-[color:var(--status-success)]">
         <CheckCircle className="h-3.5 w-3.5 flex-shrink-0" aria-hidden="true" />
         <span>
           Analysis complete!{' '}
           {backfillResult.stats?.cardsTracked > 0 && (
-            <span className="text-green-200/70">
+            <span className="text-muted">
               ({backfillResult.stats.cardsTracked} cards tracked)
             </span>
           )}
@@ -71,13 +71,13 @@ export default function BackfillBanner({
   // Show error state
   if (backfillResult && !backfillResult.success) {
     return (
-      <div className="flex items-center gap-2 rounded-lg bg-red-500/10 border border-red-400/20 px-3 py-2 text-xs text-red-200/90">
+      <div className="flex items-center gap-2 rounded-lg bg-[color:color-mix(in_srgb,var(--status-error)_12%,transparent)] border border-[color:color-mix(in_srgb,var(--status-error)_24%,transparent)] px-3 py-2 text-xs text-[color:var(--status-error)]">
         <XCircle className="h-3.5 w-3.5 flex-shrink-0" aria-hidden="true" />
         <span>Analysis failed. {backfillResult.message || 'Please try again.'}</span>
         <button
           onClick={onBackfill}
           disabled={isBackfilling}
-          className="ml-auto text-red-200 hover:text-red-100 underline disabled:opacity-50 disabled:cursor-not-allowed"
+          className="ml-auto text-[color:var(--status-error)] hover:text-[color:color-mix(in_srgb,var(--status-error)_80%,transparent)] underline disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {isBackfilling ? 'Retrying...' : 'Retry'}
         </button>
@@ -92,12 +92,12 @@ export default function BackfillBanner({
 
   // Compact variant for tight spaces
   if (variant === 'compact') {
-    const COMPACT_SYNC_BUTTON_CLASS = "flex items-center gap-1.5 min-h-[44px] px-3 py-2 text-xs sm:text-[11px] font-medium text-amber-200 hover:text-amber-100 disabled:opacity-50 disabled:cursor-not-allowed touch-manipulation";
+    const COMPACT_SYNC_BUTTON_CLASS = "flex items-center gap-1.5 min-h-[44px] px-3 py-2 text-xs sm:text-[11px] font-medium text-muted-high hover:text-main disabled:opacity-50 disabled:cursor-not-allowed touch-manipulation";
     
     return (
-      <div className="flex items-center gap-2 rounded-lg bg-amber-500/10 border border-amber-400/15 px-3 py-2">
-        <Info className="h-3.5 w-3.5 flex-shrink-0 text-amber-300/70" aria-hidden="true" />
-        <span className="text-xs sm:text-[11px] text-amber-100/70 flex-1">
+      <div className="flex items-center gap-2 rounded-lg bg-[color:var(--border-warm-subtle)] border border-[color:var(--border-warm-light)] px-3 py-2">
+        <Info className="h-3.5 w-3.5 flex-shrink-0 text-[color:var(--brand-primary)]" aria-hidden="true" />
+        <span className="text-xs sm:text-[11px] text-muted-high flex-1">
           Analyze past readings for deeper insights
         </span>
         <button
@@ -114,7 +114,7 @@ export default function BackfillBanner({
         </button>
         <button
           onClick={handleDismiss}
-          className="min-h-[44px] min-w-[44px] flex items-center justify-center -m-2 text-amber-200/50 hover:text-amber-200/80 touch-manipulation"
+          className="min-h-[44px] min-w-[44px] flex items-center justify-center -m-2 text-muted hover:text-main touch-manipulation"
           aria-label="Remind me in 7 days"
         >
           <X className="h-3 w-3" />
@@ -125,23 +125,23 @@ export default function BackfillBanner({
 
   // Default variant
   return (
-    <div className="relative rounded-xl bg-gradient-to-br from-amber-500/10 via-amber-600/5 to-transparent border border-amber-400/15 p-3">
+    <div className="relative rounded-xl bg-gradient-ambient border border-[color:var(--border-warm-light)] p-3">
       <button
         onClick={handleDismiss}
-        className="absolute top-2 right-2 min-h-[44px] min-w-[44px] flex items-center justify-center -m-2 text-amber-200/40 hover:text-amber-200/70 touch-manipulation"
+        className="absolute top-2 right-2 min-h-[44px] min-w-[44px] flex items-center justify-center -m-2 text-muted hover:text-main touch-manipulation"
         aria-label="Remind me in 7 days"
       >
         <X className="h-3.5 w-3.5" />
       </button>
       <div className="flex items-start gap-3 pr-4">
-        <div className="rounded-full bg-amber-400/20 p-1.5">
-          <ArrowsClockwise className="h-3.5 w-3.5 text-amber-300" aria-hidden="true" />
+        <div className="rounded-full bg-[color:var(--accent-25)] p-1.5">
+          <ArrowsClockwise className="h-3.5 w-3.5 text-[color:var(--brand-primary)]" aria-hidden="true" />
         </div>
         <div className="flex-1 min-w-0">
-          <p className="text-sm sm:text-xs font-medium text-amber-100/90 mb-1">
+          <p className="text-sm sm:text-xs font-medium text-main mb-1">
             Analyze past readings
           </p>
-          <p className="text-xs sm:text-[11px] text-amber-100/60 mb-2">
+          <p className="text-xs sm:text-[11px] text-muted mb-2">
             One-time analysis for insights; it does not change your entries.
           </p>
           <button
@@ -149,9 +149,9 @@ export default function BackfillBanner({
             disabled={isBackfilling}
             className="
               inline-flex items-center gap-1.5 min-h-[44px] px-3 py-1.5 rounded-full
-              text-xs sm:text-[11px] font-medium text-amber-50 bg-amber-400/15
-              border border-amber-300/30
-              hover:bg-amber-400/25 hover:border-amber-300/40
+              text-xs sm:text-[11px] font-medium text-[color:var(--text-main)] bg-[color:var(--accent-25)]
+              border border-[color:var(--border-warm-light)]
+              hover:bg-[color:var(--accent-45)] hover:border-[color:var(--border-warm)]
               disabled:opacity-50 disabled:cursor-not-allowed
               transition-colors touch-manipulation
             "

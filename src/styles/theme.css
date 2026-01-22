@@ -71,6 +71,24 @@
   /* Muted green */
   --status-error: #C97676;
   /* Muted red */
+
+  /* Panels & Effects */
+  --panel-dark-1: #0D0A14;
+  --panel-dark-2: #151020;
+  --panel-dark-3: #0F0B17;
+  --glow-gold: rgba(244, 207, 150, 0.1);
+  --glow-blue: rgba(120, 161, 255, 0.08);
+  --glow-pink: rgba(255, 132, 178, 0.07);
+  --border-warm: rgba(232, 218, 195, 0.22);
+  --border-warm-light: rgba(232, 218, 195, 0.2);
+  --border-warm-subtle: rgba(232, 218, 195, 0.06);
+  --drawer-gold: #E5C48E;
+  --drawer-gold-70: rgba(229, 196, 142, 0.7);
+  --drawer-gold-38: rgba(229, 196, 142, 0.38);
+  --drawer-gold-32: rgba(229, 196, 142, 0.32);
+  --drawer-gold-28: rgba(229, 196, 142, 0.28);
+  --drawer-gold-18: rgba(229, 196, 142, 0.18);
+  --drawer-gold-16: rgba(229, 196, 142, 0.16);
   --focus-ring-color: var(--brand-accent);
   --halo-star-color: color-mix(in srgb, var(--text-main) 8%, transparent);
 }
@@ -82,8 +100,21 @@
   --bg-surface-muted: #F5F5F5;
   --text-main: #1A1A1A;
   --text-muted: #555555; /* WCAG AA compliant: 7:1 contrast on #FAFAFA */
+  --text-muted-high: #333333; /* Higher contrast muted for translucent backgrounds */
+  --text-accent: var(--brand-primary);
   --text-on-brand: #FAFAFA; /* Light text for brand backgrounds */
   --brand-primary: #7D623B; /* 5.46:1 on #FAFAFA */
   --brand-secondary: #6A5746; /* 6.57:1 on #FAFAFA */
   --brand-accent: #8A6B3B; /* 4.74:1 on #FAFAFA */
+
+  /* Panels & Effects (light-friendly variants) */
+  --panel-dark-1: #FFFFFF;
+  --panel-dark-2: #F5F2EE;
+  --panel-dark-3: #EFE9E1;
+  --glow-gold: rgba(125, 98, 59, 0.12);
+  --glow-blue: rgba(66, 106, 191, 0.08);
+  --glow-pink: rgba(190, 92, 128, 0.06);
+  --border-warm: rgba(125, 98, 59, 0.18);
+  --border-warm-light: rgba(125, 98, 59, 0.14);
+  --border-warm-subtle: rgba(125, 98, 59, 0.06);
 }

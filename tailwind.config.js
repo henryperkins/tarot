@@ -50,6 +50,7 @@ export default {
         },
         gold: {
           DEFAULT: 'var(--color-gold-champagne)',
+          champagne: 'var(--color-gold-champagne)',
           muted: 'var(--color-gold-muted)',
           soft: 'var(--color-gold-soft)',
         },
@@ -85,8 +86,8 @@ export default {
         'sm-mobile': ['0.9375rem', { lineHeight: '1.5' }], // 15px - comfortable mobile body text
       },
       fontFamily: {
-        serif: ["serif"],
-        sans: ["system-ui", "sans-serif"]
+        serif: ['"Cormorant Garamond"', 'Georgia', 'serif'],
+        sans: ['system-ui', '-apple-system', 'sans-serif']
       },
       backdropBlur: {
         xs: "2px"

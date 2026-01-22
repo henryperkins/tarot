@@ -101,7 +101,7 @@ function DeckPreviewImage({ preview, deckLabel, priority = 'auto' }) {
         }}
       />
       <div
-        className="pointer-events-none absolute inset-0 rounded-[14px] border border-[color:var(--border-warm-light)] shadow-[0_0_0_1px_rgba(232,218,195,0.08)]"
+        className="pointer-events-none absolute inset-0 rounded-[14px] border border-[color:var(--border-warm-light)] shadow-[0_0_0_1px_var(--border-warm-subtle)]"
         aria-hidden="true"
       />
     </div>
@@ -115,7 +115,7 @@ function PaletteBadge({ label, swatch, textColor }) {
       style={{
         backgroundColor: swatch,
         color: textColor,
-        boxShadow: `0 10px 20px -14px rgba(0,0,0,0.8), 0 0 0 1px rgba(255,255,255,0.08), 0 0 0 1px ${swatch}33`
+        boxShadow: `0 10px 20px -14px rgba(0,0,0,0.8), 0 0 0 1px var(--border-warm-subtle), 0 0 0 1px ${swatch}33`
       }}
     >
       {label}
@@ -259,7 +259,7 @@ export function DeckSelector({ selectedDeck, onDeckChange }) {
             className={`
               absolute left-0 top-0 bottom-3 w-8 z-10
               pointer-events-none
-              bg-gradient-to-r from-[rgba(13,10,20,0.9)] to-transparent
+              bg-gradient-to-r from-[color:var(--panel-dark-1)]/90 to-transparent
               rounded-l-2xl
               transition-opacity duration-200
               sm:hidden
@@ -273,7 +273,7 @@ export function DeckSelector({ selectedDeck, onDeckChange }) {
             className={`
               absolute right-0 top-0 bottom-3 w-12 z-10
               pointer-events-none
-              bg-gradient-to-l from-[rgba(13,10,20,0.9)] via-[rgba(13,10,20,0.6)] to-transparent
+              bg-gradient-to-l from-[color:var(--panel-dark-1)]/90 via-[color:var(--panel-dark-1)]/60 to-transparent
               rounded-r-2xl
               transition-opacity duration-200
               sm:hidden
@@ -325,7 +325,7 @@ export function DeckSelector({ selectedDeck, onDeckChange }) {
                         className="w-7 h-7 rounded-full flex items-center justify-center border border-[color:var(--border-warm-light)]"
                         style={{
                           backgroundColor: 'var(--deck-accent)',
-                          boxShadow: `0 12px 26px -18px var(--deck-glow, rgba(212, 184, 150, 0.4))`
+                          boxShadow: '0 12px 26px -18px var(--deck-glow, var(--primary-30))'
                         }}
                       >
                         <Check className="w-4 h-4 text-main" strokeWidth={3} aria-hidden="true" />
@@ -334,9 +334,9 @@ export function DeckSelector({ selectedDeck, onDeckChange }) {
                     <div
                       className="absolute left-3 top-3 z-20 inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-semibold"
                       style={{
-                        backgroundColor: 'rgba(13, 10, 20, 0.92)',
+                        backgroundColor: 'var(--surface-92)',
                         color: deck.accent,
-                        border: '1px solid rgba(255,255,255,0.15)',
+                        border: '1px solid var(--border-warm-light)',
                         boxShadow: '0 12px 28px -20px rgba(0,0,0,0.7)'
                       }}
                     >

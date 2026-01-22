@@ -405,8 +405,8 @@ export function JournalFilters({
   };
 
   const containerClass = isCompact
-    ? 'relative rounded-3xl border border-[color:var(--border-warm-light)] bg-gradient-to-br from-[var(--panel-dark-1)] via-[var(--panel-dark-2)] to-[var(--panel-dark-3)] p-4 lg:p-5 shadow-[0_22px_60px_-30px_rgba(0,0,0,0.9)] animate-fade-in'
-    : 'relative rounded-3xl border border-[color:var(--border-warm-light)] bg-gradient-to-br from-[var(--panel-dark-1)] via-[var(--panel-dark-2)] to-[var(--panel-dark-3)] p-4 lg:p-6 shadow-[0_24px_68px_-30px_rgba(0,0,0,0.9)] animate-fade-in';
+    ? 'panel-mystic rounded-3xl p-4 lg:p-5 animate-fade-in'
+    : 'panel-mystic rounded-3xl p-4 lg:p-6 animate-fade-in';
 
   return (
     <section
@@ -453,8 +453,8 @@ export function JournalFilters({
               />
             ))}
           </div>
-          <div className="absolute -left-24 top-12 h-64 w-64 rounded-full bg-[color:rgba(212,184,150,0.12)] blur-[110px]" aria-hidden="true" />
-          <div className="absolute right-[-120px] top-1/3 h-72 w-72 rounded-full bg-[color:rgba(120,161,255,0.10)] blur-[110px]" aria-hidden="true" />
+          <div className="absolute -left-24 top-12 h-64 w-64 rounded-full bg-[color:var(--glow-gold)] blur-[110px]" aria-hidden="true" />
+          <div className="absolute right-[-120px] top-1/3 h-72 w-72 rounded-full bg-[color:var(--glow-blue)] blur-[110px]" aria-hidden="true" />
         </div>
       )}
 
