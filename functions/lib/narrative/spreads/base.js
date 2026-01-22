@@ -41,7 +41,7 @@ export class BaseSpreadBuilder {
     return buildPersonalizedClosing(this.options.personalization);
   }
 
-  buildNarrative(payload) {
+  buildNarrative(_payload) {
     throw new Error('buildNarrative must be implemented by subclass');
   }
 }

@@ -262,7 +262,7 @@ graph TB
 
         subgraph NarrativeHelpers["Narrative Helpers"]
             nHelpers["helpers.js"]
-            nPrompts["prompts.js"]
+            nPrompts["prompts/ (modules)<br>prompts.js (barrel)"]
             nReasoning["reasoning.js"]
             nReasoningInt["reasoningIntegration.js"]
             nStyle["styleHelpers.js"]

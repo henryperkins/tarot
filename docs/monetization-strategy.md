@@ -136,15 +136,15 @@ This section provides specific, code-level guidance for implementing the feature
 ### 3.3. Depth & Esoteric Layers: Conditional Prompt Engineering
 
 - **Concept:** The system can generate more profound and layered interpretations by including optional sections in the LLM prompt, such as astrological transits or Qabalistic correspondences. These can be reserved for paid tiers.
-- **Implementation File:** `functions/lib/narrative/prompts.js`
-- **Strategy:** The main prompt-building function in `prompts.js` can be modified to conditionally include or exclude these advanced sections based on the user's tier.
+- **Implementation File:** `functions/lib/narrative/prompts/` (see `buildEnhancedClaudePrompt.js`)
+- **Strategy:** The main prompt-building function in `prompts/buildEnhancedClaudePrompt.js` can be modified to conditionally include or exclude these advanced sections based on the user's tier.
 
 - **Code-Level Plan:**
 
   1.  **Modify the main prompt builder:** Pass the user's tier and use it to gate specific sections.
 
       ```javascript
-      // functions/lib/narrative/prompts.js
+      // functions/lib/narrative/prompts/buildEnhancedClaudePrompt.js
 
       export async function buildNarrativePrompt(params, options = {}) {
         const { tier = "free" } = options;

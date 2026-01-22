@@ -65,9 +65,7 @@ export function CoachSuggestion({
 
     // NOTE VARIANT (post-it card matching reference image)
     if (isNoteVariant) {
-        const handleCardClick = (e) => {
-            // Don't trigger if clicking delete button
-            if (e.target.closest('.coach-note__delete')) return;
+        const handleCardClick = () => {
             onApply?.();
         };
 
@@ -77,24 +75,37 @@ export function CoachSuggestion({
         };
 
         return (
-            <article
-                className={`coach-note coach-note--interactive ${className}`}
-                role="button"
-                tabIndex={0}
-                aria-label={`Use suggestion: ${headlineText}`}
-                onClick={handleCardClick}
-                onKeyDown={(e) => {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                        e.preventDefault();
-                        handleCardClick(e);
-                    }
-                }}
-            >
-                {/* Tape decoration at top */}
-                <span className="coach-note__tape" aria-hidden="true" />
+            <article className="coach-note-shell">
+                <button
+                    type="button"
+                    className={`coach-note coach-note--interactive ${className}`}
+                    aria-label={`Use suggestion: ${headlineText}`}
+                    onClick={handleCardClick}
+                >
+                    {/* Tape decoration at top */}
+                    <span className="coach-note__tape" aria-hidden="true" />
 
-                {/* Paper curl at bottom-right */}
-                <span className="coach-note__curl" aria-hidden="true" />
+                    {/* Paper curl at bottom-right */}
+                    <span className="coach-note__curl" aria-hidden="true" />
+
+                    <div className="coach-note__inner">
+                        {/* Label */}
+                        <div className="coach-note__label">
+                            <Sparkle weight="fill" aria-hidden="true" />
+                            <span>Guided Coach</span>
+                        </div>
+
+                        {/* Question/title */}
+                        {headlineText && (
+                            <p className="coach-note__title">{headlineText}</p>
+                        )}
+
+                        {/* Date at bottom */}
+                        {noteDate && (
+                            <div className="coach-note__date">{noteDate}</div>
+                        )}
+                    </div>
+                </button>
 
                 {/* Delete button (shows on hover) */}
                 {onDismiss && (
@@ -107,24 +118,6 @@ export function CoachSuggestion({
                         <Trash aria-hidden="true" />
                     </button>
                 )}
-
-                <div className="coach-note__inner">
-                    {/* Label */}
-                    <div className="coach-note__label">
-                        <Sparkle weight="fill" aria-hidden="true" />
-                        <span>Guided Coach</span>
-                    </div>
-
-                    {/* Question/title */}
-                    {headlineText && (
-                        <p className="coach-note__title">{headlineText}</p>
-                    )}
-
-                    {/* Date at bottom */}
-                    {noteDate && (
-                        <div className="coach-note__date">{noteDate}</div>
-                    )}
-                </div>
             </article>
         );
     }

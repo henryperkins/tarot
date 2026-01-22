@@ -52,7 +52,8 @@
                                     ▼
             ┌─────────────────────────────────────────────────┐
             │         PROMPT CONSTRUCTION LAYER               │
-            │   functions/lib/narrative/prompts.js (2118 LOC) │
+            │   functions/lib/narrative/prompts/ (2168 LOC)   │
+            │   functions/lib/narrative/prompts.js (barrel)   │
             ├─────────────────────────────────────────────────┤
             │                                                 │
             │  ┌─────────────────────────────────────────┐   │
@@ -187,7 +188,8 @@
 | Component | File | LOC | Status |
 |-----------|------|-----|--------|
 | **Orchestrator** | tarot-reading.js | 1200+ | ✅ Acceptable |
-| **Prompt Builder** | narrative/prompts.js | 2118 | 🔴 Too large |
+| **Prompt Builder** | narrative/prompts/ (modules) | 2168 | ⚠️ Large (modular) |
+| **Prompt Barrel** | narrative/prompts.js | 4 | ✅ Barrel |
 | **Helpers** | narrative/helpers.js | 1680 | 🔴 Too large |
 | **Reasoning** | narrative/reasoning.js | 1205 | ⚠️ Large |
 | **Celtic Cross** | spreads/celticCross.js | 467 | ✅ Good |
@@ -302,7 +304,7 @@ Performance Tests
 - Add input guards
 
 ### Phase 2: Refactoring (Month 1)
-- Split prompts.js into modules
+- Split prompts.js into modules ✅ (now `prompts/` + barrel)
 - Remove global state
 - Extract spread builder base class
 

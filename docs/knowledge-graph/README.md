@@ -257,7 +257,7 @@ function getPriorityPatternNarratives(patterns) {
 ### Week 2: Expansion
 - Implement SUIT_PROGRESSIONS (all 4 suits)
 - Integrate into spreadAnalysis.js
-- Update prompt building (prompts.js)
+- Update prompt building (prompts/ modules via prompts.js barrel)
 
 ### Week 3: Enhancement
 - Extend ARCHETYPAL_DYADS (5 → 15)

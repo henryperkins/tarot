@@ -7,7 +7,6 @@ import {
   buildSupportingPositionsSummary,
   buildWeightNote,
   getPositionOptions,
-  buildReflectionsSection,
   buildPatternSynthesis,
   getConnector,
   shouldEmphasizePosition,
@@ -374,7 +373,6 @@ class CelticCrossBuilder extends BaseSpreadBuilder {
     }
     const sections = [];
     const prioritized = sortCardsByImportance(cardsInfo, 'celtic');
-    const personalization = this.options.personalization || null;
     const collectValidation = typeof this.options.collectValidation === 'function' ? this.options.collectValidation : null;
     const reasoning = this.options.reasoning || null;
     const remedyRotationIndex = computeRemedyRotationIndex({ cardsInfo, userQuestion, spreadInfo });

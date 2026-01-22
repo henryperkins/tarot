@@ -1,4 +1,5 @@
 import { useRef } from 'react';
+import { createPortal } from 'react-dom';
 import FocusTrap from 'focus-trap-react';
 import { Warning, X } from '@phosphor-icons/react';
 import { useModalA11y, createBackdropHandler } from '../hooks/useModalA11y';
@@ -20,7 +21,8 @@ export function ConfirmModal({
   variant = 'warning', // 'warning' | 'danger'
   confirming = false,
   error = null,
-  closeOnConfirm = true
+  closeOnConfirm = true,
+  renderInPortal = false
 }) {
   const cancelButtonRef = useRef(null);
   const modalRef = useRef(null);
@@ -35,6 +37,7 @@ export function ConfirmModal({
   });
 
   if (!isOpen) return null;
+  if (renderInPortal && typeof document === 'undefined') return null;
 
   const handleConfirm = () => {
     if (confirming) return;
@@ -54,7 +57,7 @@ export function ConfirmModal({
     danger: 'bg-error/15 border-error/40 text-error hover:bg-error/25'
   };
 
-  return (
+  const content = (
     <div
       className="fixed inset-0 z-[120] flex items-stretch sm:items-center justify-center bg-main/70 backdrop-blur-sm animate-fade-in p-0 sm:p-4"
       onClick={createBackdropHandler(onClose)}
@@ -135,4 +138,10 @@ export function ConfirmModal({
       </FocusTrap>
     </div>
   );
+
+  if (renderInPortal) {
+    return createPortal(content, document.body);
+  }
+
+  return content;
 }

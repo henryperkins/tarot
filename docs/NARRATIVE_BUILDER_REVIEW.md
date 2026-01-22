@@ -1,7 +1,7 @@
 # Narrative Builder & Prompt Engineering Review
 
-**Date:** 2026-01-21  
-**Reviewer:** GitHub Copilot Code Review Agent  
+**Date:** 2026-01-21
+**Reviewer:** GitHub Copilot Code Review Agent
 **Files Analyzed:** 7,562 LOC across narrative system
 
 ---
@@ -43,7 +43,8 @@ Response Finalization
 | Component | Location | Responsibility | LOC |
 |-----------|----------|---------------|-----|
 | **Orchestrator** | `functions/api/tarot-reading.js` | Request handling, backend routing | 1200+ |
-| **Prompt Builder** | `functions/lib/narrative/prompts.js` | Master prompt construction, token budgeting | 2118 |
+| **Prompt Builder** | `functions/lib/narrative/prompts/` | Prompt construction modules + budgeting | 2168 |
+| **Prompt Barrel** | `functions/lib/narrative/prompts.js` | Barrel re-export for prompts API | 4 |
 | **Helpers** | `functions/lib/narrative/helpers.js` | Card text generation, reversal handling | 1680 |
 | **Spread Builders** | `functions/lib/narrative/spreads/*.js` | Spread-specific narrative logic | 1800+ |
 | **Reasoning** | `functions/lib/narrative/reasoning*.js` | Tension detection, arc analysis | 1728 |
@@ -58,9 +59,10 @@ Response Finalization
 #### 🔴 Issue #1: File Size Explosion
 
 **Problem:**
-- `prompts.js`: 2,118 lines (86KB)
+- `prompts/` modules: 2,168 lines total (largest: `buildEnhancedClaudePrompt.js` 639, `cardBuilders.js` 508)
+- `prompts.js`: 4 lines (barrel re-export)
 - `helpers.js`: 1,680 lines (70KB)
-- Single files mixing multiple concerns
+- Modularized, but overall prompt LOC still high
 
 **Impact:**
 - Hard to test specific functionality
@@ -68,26 +70,26 @@ Response Finalization
 - Difficult to trace bugs
 - Reduced reusability
 
-**Recommendation:**
+**Recommendation (implemented 2026-01-22):**
 ```
 functions/lib/narrative/
 ├── prompts/
-│   ├── builder.js           # Main buildEnhancedClaudePrompt
-│   ├── tokenBudget.js       # Token estimation & truncation
-│   ├── deckStyleTips.js     # DECK_STYLE_TIPS extraction
-│   ├── graphRAGInjection.js # GraphRAG passage integration
-│   └── sections.js          # Section-specific builders
-├── helpers/
-│   ├── cardText.js          # buildPositionCardText
-│   ├── reversals.js         # Reversal handling
-│   ├── context.js           # Context normalization
-│   └── synthesis.js         # Cross-check synthesis
-└── spreads/
-    └── base.js              # Shared spread builder logic
+│   ├── astro.js
+│   ├── budgeting.js
+│   ├── buildEnhancedClaudePrompt.js
+│   ├── cardBuilders.js
+│   ├── constants.js
+│   ├── deckStyle.js
+│   ├── graphRAGReferenceBlock.js
+│   ├── systemPrompt.js
+│   ├── truncation.js
+│   ├── userPrompt.js
+│   └── visionValidation.js
+└── prompts.js               # Barrel re-export
 ```
 
-**Priority:** High  
-**Effort:** 2-3 days  
+**Priority:** High
+**Effort:** 2-3 days
 **Risk:** Medium (requires careful testing)
 
 ---
@@ -130,8 +132,8 @@ if (crisisCheck.matched) {
 const analysis = await performSpreadAnalysis(...);
 ```
 
-**Priority:** High  
-**Effort:** 1 hour  
+**Priority:** High
+**Effort:** 1 hour
 **Risk:** Low (straightforward refactor)
 
 ---
@@ -175,8 +177,8 @@ export function isProseMode(options = {}) {
 // Update all callers to pass proseMode in options
 ```
 
-**Priority:** Medium  
-**Effort:** 2-3 hours (update all spread builders)  
+**Priority:** Medium
+**Effort:** 2-3 hours (update all spread builders)
 **Risk:** Medium (requires thorough testing)
 
 ---
@@ -210,8 +212,8 @@ if (criticalTokens > maxTokens * 0.8) {
 
 Then catch at orchestrator level and return 500 with specific error message.
 
-**Priority:** High  
-**Effort:** 30 minutes  
+**Priority:** High
+**Effort:** 30 minutes
 **Risk:** Low (better than silent failure)
 
 ---
@@ -247,7 +249,7 @@ export function sanitizePromptValue(text, maxLength = 500) {
 }
 ```
 
-**Priority:** High  
+**Priority:** High
 **Severity:** Medium (depends on downstream usage)
 
 ---
@@ -283,7 +285,7 @@ if (mismatchCount > 0) {
 }
 ```
 
-**Priority:** Medium  
+**Priority:** Medium
 **Severity:** Medium (affects reading quality)
 
 ---
@@ -308,7 +310,7 @@ export const readingSchema = z.object({
 });
 ```
 
-**Priority:** Low  
+**Priority:** Low
 **Severity:** Low (DoS risk minimal)
 
 ---
@@ -318,7 +320,7 @@ export const readingSchema = z.object({
 #### ⏱️ Performance #1: Synchronous GraphRAG Retrieval
 
 **Issue:**
-Blocks prompt building on keyword search (lines 515-520 in prompts.js):
+Blocks prompt building on keyword search (in prompts/buildEnhancedClaudePrompt.js):
 
 ```javascript
 const passages = retrievePassages(patterns, {
@@ -337,7 +339,7 @@ Acceptable for current scale, but consider:
 2. Cache keyword match results (60s TTL)
 3. Document semantic scoring as optional enhancement
 
-**Priority:** Low  
+**Priority:** Low
 **Effort:** 1 day (caching infrastructure)
 
 ---
@@ -368,8 +370,8 @@ const fullAnalysis = await enrichAnalysis(baseAnalysis, {
 });
 ```
 
-**Priority:** Low  
-**Effort:** 1 day  
+**Priority:** Low
+**Effort:** 1 day
 **Risk:** Medium (refactor analysis pipeline)
 
 ---
@@ -411,8 +413,8 @@ export class CelticCrossBuilder extends BaseSpreadBuilder {
 }
 ```
 
-**Priority:** Medium  
-**Effort:** 2-3 days  
+**Priority:** Medium
+**Effort:** 2-3 days
 **Benefit:** 30-40% LOC reduction in spread builders
 
 ---
@@ -437,7 +439,7 @@ Document error response matrix:
 | Quality gate | 422 | `{ error: string, qualityIssues: string[] }` |
 | Backend failure | 503 | `{ error: string, fallbackUsed: boolean }` |
 
-**Priority:** Low  
+**Priority:** Low
 **Effort:** 2 hours (documentation)
 
 ---
@@ -459,17 +461,17 @@ Add guards at entry points:
 ```javascript
 export function buildSingleCardNarrative(payload) {
   const { cardsInfo = [] } = payload;
-  
+
   if (cardsInfo.length === 0) {
     throw new Error('NARRATIVE_NO_CARDS');
   }
-  
+
   const card = cardsInfo[0];
   // Continue...
 }
 ```
 
-**Priority:** Medium  
+**Priority:** Medium
 **Effort:** 1 hour (add to all spread builders)
 
 ---
@@ -487,7 +489,7 @@ Choose one path:
 2. **Extract as plugin**: Document as optional enhancement, clear integration points
 3. **Remove entirely**: If not providing clear value
 
-**Priority:** Low  
+**Priority:** Low
 **Effort:** 1-2 days (depends on choice)
 
 ---
@@ -506,11 +508,11 @@ Existing tests found:
 
 | Scenario | Priority | File |
 |----------|----------|------|
-| Token estimation edge cases (emoji, markdown) | High | `prompts.js:estimateTokenCount` |
-| Critical section preservation under budget pressure | High | `prompts.js:truncateSystemPromptSafely` |
+| Token estimation edge cases (emoji, markdown) | High | `prompts/budgeting.js:estimateTokenCount` |
+| Critical section preservation under budget pressure | High | `prompts/truncation.js:truncateSystemPromptSafely` |
 | Prompt injection attempts in sanitization | High | `helpers.js:sanitizePromptValue` |
 | Empty cardsInfo handling in spread builders | Medium | `spreads/*.js` |
-| GraphRAG passage relevance filtering | Medium | `prompts.js:buildEnhancedClaudePrompt` |
+| GraphRAG passage relevance filtering | Medium | `prompts/buildEnhancedClaudePrompt.js:buildEnhancedClaudePrompt` |
 | Crisis detection false positives | Medium | `safetyChecks.js:detectCrisisSignals` |
 | A/B variant prompt overrides | Low | `tarot-reading.js` |
 
@@ -552,7 +554,7 @@ describe('Token Budgeting', () => {
 
 | File | LOC | Cyclomatic Complexity (est.) | Maintainability |
 |------|-----|------------------------------|-----------------|
-| `prompts.js` | 2118 | High (10+ branches in main builder) | Poor |
+| `prompts/buildEnhancedClaudePrompt.js` | 639 | High (10+ branches in main builder) | Fair |
 | `helpers.js` | 1680 | High (nested conditions in reversals) | Poor |
 | `tarot-reading.js` | 1200+ | Very High (orchestration + error handling) | Fair |
 | `spreads/celticCross.js` | 467 | Medium | Good |
@@ -560,7 +562,7 @@ describe('Token Budgeting', () => {
 
 ### Code Smells Detected
 
-1. **Long Method** (prompts.js:buildEnhancedClaudePrompt): 300+ lines
+1. **Long Method** (prompts/buildEnhancedClaudePrompt.js): 300+ lines
 2. **Long Parameter List** (10+ parameters in spread builders)
 3. **Feature Envy** (helpers.js accesses card properties deeply)
 4. **Shotgun Surgery** (changing reversal handling requires edits in 5+ files)
@@ -577,19 +579,19 @@ describe('Token Budgeting', () => {
 3. ☐ **Add template syntax stripping to sanitizePromptValue** (30 min, low risk)
 4. ☐ **Add input guards to all spread builders** (1 hour, low risk)
 
-**Total Effort:** 3 hours  
+**Total Effort:** 3 hours
 **Impact:** High (security + performance)
 
 ---
 
 ### Should Do (Next Quarter)
 
-5. ☐ **Refactor prompts.js into sub-modules** (2-3 days, medium risk)
+5. ☑ **Refactor prompts.js into sub-modules** (completed 2026-01-22)
 6. ☐ **Remove PROSE_MODE global state** (2-3 hours, medium risk)
 7. ☐ **Extract spread builder base class** (2-3 days, medium risk)
 8. ☐ **Add comprehensive token budgeting tests** (1 day, low risk)
 
-**Total Effort:** 5-7 days  
+**Total Effort:** 5-7 days
 **Impact:** High (maintainability)
 
 ---
@@ -601,7 +603,7 @@ describe('Token Budgeting', () => {
 11. ☐ **Document error response matrix** (2 hours, low risk)
 12. ☐ **Decide on reasoning integration strategy** (1-2 days, depends on choice)
 
-**Total Effort:** 3-4 days  
+**Total Effort:** 3-4 days
 **Impact:** Medium (performance + documentation)
 
 ---
@@ -678,7 +680,7 @@ functions/lib/narrative/
 
 ## 9. Maintainability Best Practices Checklist
 
-- [ ] **File size under 500 LOC** ⚠️ (prompts.js: 2118, helpers.js: 1680)
+- [ ] **File size under 500 LOC** ⚠️ (prompts/buildEnhancedClaudePrompt.js: 639, prompts/cardBuilders.js: 508, helpers.js: 1680)
 - [ ] **No global state** ⚠️ (PROSE_MODE)
 - [x] Clear separation of concerns (mostly)
 - [ ] **Consistent error responses** ⚠️
@@ -709,7 +711,7 @@ The narrative builder and prompt engineering system demonstrates **strong functi
 
 ### Key Weaknesses
 
-1. **File size explosion** (2000+ LOC single files)
+1. **Large modules remain** (prompts/ total 2,168 LOC; helpers.js 1,680; largest prompt modules > 500 LOC)
 2. **Code duplication** across spread builders
 3. **Input validation scattered** across layers
 4. **Performance waste** (late crisis detection, early full analysis)
@@ -724,7 +726,7 @@ The narrative builder and prompt engineering system demonstrates **strong functi
 - [ ] Add input guards to spread builders
 
 **Month 1:**
-- [ ] Refactor prompts.js into sub-modules
+- [x] Refactor prompts.js into sub-modules
 - [ ] Remove PROSE_MODE global state
 - [ ] Add comprehensive token budgeting tests
 

@@ -13,8 +13,8 @@
 ## Task 1: Spread-Key Resolution Fix
 
 **Files:**
-- Modify: `functions/lib/narrative/prompts.js:282` (replace call)
-- Modify: `functions/lib/narrative/prompts.js:769-779` (delete unused function)
+- Modify: `functions/lib/narrative/prompts/buildEnhancedClaudePrompt.js` (replace call)
+- Modify: `functions/lib/narrative/prompts/buildEnhancedClaudePrompt.js` (delete unused helper, if present)
 - Test: `tests/narrativeBuilder.promptCompliance.test.mjs`
 
 **Step 1: Write the failing test**
@@ -79,9 +79,9 @@ Run: `node --test tests/narrativeBuilder.promptCompliance.test.mjs --test-name-p
 
 Expected: FAIL - custom spread resolves to `"general"` instead of `"threeCard"`
 
-**Step 3: Update import in prompts.js**
+**Step 3: Update import in buildEnhancedClaudePrompt.js**
 
-At top of `functions/lib/narrative/prompts.js`, add to existing imports from readingQuality.js:
+At top of `functions/lib/narrative/prompts/buildEnhancedClaudePrompt.js`, add to existing imports from readingQuality.js:
 
 ```javascript
 import { getSpreadKey } from '../readingQuality.js';
@@ -89,7 +89,7 @@ import { getSpreadKey } from '../readingQuality.js';
 
 **Step 4: Replace spread-key resolution call**
 
-In `functions/lib/narrative/prompts.js`, change line 282 from:
+In `functions/lib/narrative/prompts/buildEnhancedClaudePrompt.js`, change the spread-key resolution call from:
 
 ```javascript
 const spreadKey = getSpreadKeyFromName(spreadInfo.name);
@@ -103,7 +103,7 @@ const spreadKey = getSpreadKey(spreadInfo?.name, spreadInfo?.key);
 
 **Step 5: Store spreadKey in prompt metadata**
 
-In `functions/lib/narrative/prompts.js`, add `spreadKey` to `promptMeta`:
+In `functions/lib/narrative/prompts/buildEnhancedClaudePrompt.js`, add `spreadKey` to `promptMeta`:
 
 ```javascript
 const promptMeta = {
@@ -117,9 +117,9 @@ const promptMeta = {
 };
 ```
 
-**Step 6: Delete unused function**
+**Step 6: Delete unused helper (if present)**
 
-Remove `getSpreadKeyFromName()` function (lines 769-779):
+Remove `getSpreadKeyFromName()` helper (if present) from `buildEnhancedClaudePrompt.js`:
 
 ```javascript
 // DELETE THIS ENTIRE FUNCTION:
@@ -153,7 +153,7 @@ Expected: All tests pass
 **Step 9: Commit**
 
 ```bash
-git add functions/lib/narrative/prompts.js tests/narrativeBuilder.promptCompliance.test.mjs
+git add functions/lib/narrative/prompts/buildEnhancedClaudePrompt.js tests/narrativeBuilder.promptCompliance.test.mjs
 git commit -m "fix(narrative): align spread-key resolution with readingQuality
 
 Replaces getSpreadKeyFromName() which only matched display names with
@@ -716,7 +716,7 @@ Verify the three commits are present.
 
 | File | Change |
 |------|--------|
-| `functions/lib/narrative/prompts.js` | Use `getSpreadKey`, store `spreadKey` in `promptMeta`, delete `getSpreadKeyFromName()` |
+| `functions/lib/narrative/prompts/buildEnhancedClaudePrompt.js` | Use `getSpreadKey`, store `spreadKey` in `promptMeta`, delete `getSpreadKeyFromName()` |
 | `functions/lib/narrativeSpine.js` | Add structural header constants, `isCardSection()`, update `validateReadingNarrative()` with card/structural counts |
 | `functions/lib/readingQuality.js` | Thread card/structural spine fields into `buildNarrativeMetrics()` |
 | `functions/lib/readingTelemetry.js` | Export `resolveGraphRAGStats()` |

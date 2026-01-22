@@ -746,17 +746,19 @@ describe('Other spread builders prompt-engineering compliance', () => {
 
     const themes = await buildThemes(cardsInfo, 'blocked');
 
-    const reading = await buildDecisionReading({
-      cardsInfo,
-      userQuestion: 'Which path aligns with me?',
-      reflectionsText: '',
-      themes
-    });
-
-    assert.match(
-      reading,
-      /needs all five cards/i,
-      'Decision builder should warn when fewer than five cards are supplied'
+    await assert.rejects(
+      buildDecisionReading({
+        cardsInfo,
+        userQuestion: 'Which path aligns with me?',
+        reflectionsText: '',
+        themes
+      }),
+      (err) => {
+        assert.match(err?.message, /NARRATIVE_CARD_COUNT_MISMATCH/);
+        assert.equal(err?.details?.expectedCount, 5);
+        assert.equal(err?.details?.receivedCount, 2);
+        return true;
+      }
     );
   });
 

@@ -164,9 +164,9 @@ export function checkFollowUpSafety(responseText) {
 
   // Reset regex lastIndex (global flag side effect)
   [...SELF_HARM_RESPONSE_PATTERNS, ...DEATH_PREDICTION_PATTERNS,
-   ...VIOLENT_THREAT_PATTERNS, ...MEDICAL_ADVICE_PATTERNS,
-   ...FINANCIAL_ADVICE_PATTERNS, ...LEGAL_ABUSE_PATTERNS,
-   ...DOOM_LANGUAGE_PATTERNS].forEach(p => p.lastIndex = 0);
+  ...VIOLENT_THREAT_PATTERNS, ...MEDICAL_ADVICE_PATTERNS,
+  ...FINANCIAL_ADVICE_PATTERNS, ...LEGAL_ABUSE_PATTERNS,
+  ...DOOM_LANGUAGE_PATTERNS].forEach(p => p.lastIndex = 0);
 
   return {
     safe: severity !== 'critical',
@@ -598,7 +598,7 @@ function buildStructuralMetricsSection(narrativeMetrics = {}, options = {}) {
   if (narrativeMetrics?.cardCoverage !== undefined) {
     const pct = (narrativeMetrics.cardCoverage * 100).toFixed(0);
     const status = narrativeMetrics.cardCoverage >= 0.9 ? 'good' :
-                   narrativeMetrics.cardCoverage >= 0.7 ? 'partial' : 'LOW';
+      narrativeMetrics.cardCoverage >= 0.7 ? 'partial' : 'LOW';
     lines.push(`- Card coverage: ${pct}% (${status})`);
     if (thresholds?.minCoverage) {
       lines.push(`- Coverage gate (min): ${(thresholds.minCoverage * 100).toFixed(0)}%`);
@@ -1546,9 +1546,9 @@ export function buildHeuristicScores(narrativeMetrics = {}, spreadKey = null, op
 
     // Reset regex lastIndex (global flag side effect)
     [...DOOM_LANGUAGE_PATTERNS, ...MEDICAL_ADVICE_PATTERNS,
-     ...FINANCIAL_ADVICE_PATTERNS, ...DEATH_PREDICTION_PATTERNS,
-     ...SELF_HARM_OUTPUT_PATTERNS, ...VIOLENT_THREAT_PATTERNS,
-     ...LEGAL_ABUSE_PATTERNS].forEach(p => p.lastIndex = 0);
+    ...FINANCIAL_ADVICE_PATTERNS, ...DEATH_PREDICTION_PATTERNS,
+    ...SELF_HARM_OUTPUT_PATTERNS, ...VIOLENT_THREAT_PATTERNS,
+    ...LEGAL_ABUSE_PATTERNS].forEach(p => p.lastIndex = 0);
   }
 
   // Derive tarot_coherence from card coverage (the only structural dimension we can assess)
@@ -1564,12 +1564,13 @@ export function buildHeuristicScores(narrativeMetrics = {}, spreadKey = null, op
     }
   }
 
-  // Check for hallucinated cards (hard safety signal even within allowance)
+  // Check for hallucinated cards (flag only when exceeding allowance)
   const hallucinations = narrativeMetrics?.hallucinatedCards?.length || 0;
   if (hallucinations > 0) {
     const label = hallucinations === 1 ? 'hallucinated card' : 'hallucinated cards';
-    scores.safety_flag = true;
-    if (hallucinations > maxHallucinations) {
+    const exceedsAllowance = hallucinations > maxHallucinations;
+    if (exceedsAllowance) {
+      scores.safety_flag = true;
       if (scores.tarot_coherence === null) {
         scores.tarot_coherence = 2;
       } else {

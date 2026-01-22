@@ -40,11 +40,42 @@ export function JournalSummaryBand({
   onExpandedCardChange,
   onStartReading,
   filtersActive,
-  dataSource = 'client'
+  dataSource = 'client',
+  embedded = false
 }) {
   const [isExpanded, setIsExpanded] = useState(!isMobileLayout);
   const scopeChipLabel = analyticsScope === 'filters' && filtersActive ? 'Filtered' : (scopeLabel || 'Scope');
   const sourceLabel = dataSource === 'server' ? 'D1' : 'Journal';
+  const showDecorations = summaryInView && !embedded;
+  const backgroundClass = isMobileLayout
+    ? 'bg-[#0c0f1d]'
+    : 'bg-gradient-to-br from-[#07091a] via-[#0a0c1a] to-[#050714]';
+  const containerClass = `relative overflow-hidden rounded-3xl border border-amber-300/10 ${
+    embedded ? 'mb-0' : 'mb-6'
+  } ${backgroundClass} ${
+    embedded
+      ? 'shadow-[0_18px_50px_-26px_rgba(0,0,0,0.85)]'
+      : 'shadow-[0_24px_64px_-24px_rgba(0,0,0,0.95)]'
+  }`;
+  const paddingClass = embedded ? 'p-4 sm:p-5 lg:p-6' : 'p-5 sm:p-6 lg:p-8';
+  const headerSpacingClass = embedded ? 'mb-3 space-y-1.5' : 'mb-5 lg:mb-4 space-y-2';
+  const pulseLabelClass = embedded
+    ? 'text-[10px] uppercase tracking-[0.24em] text-amber-300/60'
+    : 'text-xs uppercase tracking-[0.2em] text-amber-300/50 mb-1';
+  const pulseTitleClass = embedded
+    ? 'text-lg sm:text-xl font-serif text-amber-50/90'
+    : 'text-xl sm:text-2xl font-serif text-amber-50/90';
+  const scopeLabelClass = embedded
+    ? 'text-[9px] uppercase tracking-[0.16em] text-amber-100/60'
+    : 'text-[10px] uppercase tracking-[0.18em] text-amber-100/60';
+  const scopeButtonSizeClass = embedded ? 'px-2.5 py-0.5 text-[10px]' : 'px-3 py-1 text-[11px]';
+  const scopeSummaryClass = embedded ? 'text-[10px] text-amber-100/60' : 'text-[11px] text-amber-100/60';
+  const scopeChipClass = embedded
+    ? 'px-2 py-0.5 text-[9px] font-semibold uppercase tracking-[0.14em] text-amber-100/70'
+    : 'px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-amber-100/70';
+  const filterNoticeClass = embedded
+    ? 'px-2.5 py-0.5 text-[10px] text-amber-100/80'
+    : 'px-3 py-1 text-[11px] text-amber-100/80';
 
   useEffect(() => {
     if (!isMobileLayout) {
@@ -57,13 +88,9 @@ export function JournalSummaryBand({
   return (
     <section
       ref={summaryRef}
-      className={`relative mb-6 overflow-hidden rounded-3xl border border-amber-300/10 ${
-        isMobileLayout
-          ? 'bg-[#0c0f1d]'
-          : 'bg-gradient-to-br from-[#07091a] via-[#0a0c1a] to-[#050714]'
-      } shadow-[0_24px_64px_-24px_rgba(0,0,0,0.95)]`}
+      className={containerClass}
     >
-      {summaryInView && (
+      {showDecorations && (
         <>
           {/* Dense star field */}
           <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden="true">
@@ -101,17 +128,17 @@ export function JournalSummaryBand({
         </>
       )}
 
-      <div className="relative p-5 sm:p-6 lg:p-8">
+      <div className={`relative ${paddingClass}`}>
         {/* Header - Clean and simple */}
-        <div className="mb-5 lg:mb-4 space-y-2">
+        <div className={headerSpacingClass}>
           <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <p className="text-xs uppercase tracking-[0.2em] text-amber-300/50 mb-1">Journal Pulse</p>
-              <h2 className="text-xl sm:text-2xl font-serif text-amber-50/90">Your practice at a glance</h2>
+              <p className={pulseLabelClass}>Journal Pulse</p>
+              <h2 className={pulseTitleClass}>Practice snapshot</h2>
             </div>
             <div className="flex flex-col items-start gap-1 sm:items-end">
               <div className="flex flex-wrap items-center gap-1.5">
-                <span className="text-[10px] uppercase tracking-[0.18em] text-amber-100/60">Scope</span>
+                <span className={scopeLabelClass}>Scope</span>
                 {SCOPE_OPTIONS.map((option) => {
                   const isActive = analyticsScope === option.value;
                   return (
@@ -119,7 +146,7 @@ export function JournalSummaryBand({
                       key={option.value}
                       type="button"
                       onClick={() => onScopeSelect(option.value)}
-                      className={`inline-flex items-center gap-1 rounded-full border px-3 py-1 text-[11px] font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/40 ${
+                      className={`inline-flex items-center gap-1 rounded-full border ${scopeButtonSizeClass} font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/40 ${
                         isActive
                           ? 'border-amber-300/60 bg-amber-300/15 text-amber-50 shadow-[0_8px_26px_-16px_rgba(251,191,36,0.45)]'
                           : 'border-amber-300/20 bg-amber-200/5 text-amber-100/75 hover:border-amber-300/35 hover:bg-amber-200/10'
@@ -130,14 +157,14 @@ export function JournalSummaryBand({
                   );
                 })}
               </div>
-              <p className="text-[11px] text-amber-100/60">
+              <p className={scopeSummaryClass}>
                 Active: {scopeLabel} · {scopeEntryCount} entr{scopeEntryCount === 1 ? 'y' : 'ies'}
               </p>
-              <span className="inline-flex items-center gap-1 rounded-full border border-amber-200/15 bg-amber-200/5 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-amber-100/70">
+              <span className={`inline-flex items-center gap-1 rounded-full border border-amber-200/15 bg-amber-200/5 ${scopeChipClass}`}>
                 {scopeChipLabel} · {sourceLabel}
               </span>
               {filtersActive && analyticsScope !== 'filters' && (
-                <div className="flex flex-wrap items-center gap-2 rounded-full border border-amber-300/30 bg-amber-300/10 px-3 py-1 text-[11px] text-amber-100/80">
+                <div className={`flex flex-wrap items-center gap-2 rounded-full border border-amber-300/30 bg-amber-300/10 ${filterNoticeClass}`}>
                   <span>Filters not applied to insights</span>
                   <button
                     type="button"

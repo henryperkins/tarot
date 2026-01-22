@@ -8,17 +8,31 @@ import {
 } from '../lib/coachStorage';
 import { useNavigate } from 'react-router-dom';
 import { CoachSuggestion } from './CoachSuggestion';
+import { ConfirmModal } from './ConfirmModal';
 import { JournalPlusCircleIcon, JournalRefreshIcon } from './JournalIcons';
 import { useAuth } from '../contexts/AuthContext';
 
 const PAGE_SIZE = 6;
 
-export function SavedIntentionsList({ titleId, variant = 'section', emptyState = 'hide' } = {}) {
+function getIntentionLabel(item) {
+  return item?.question
+    ?? item?.customFocus
+    ?? item?.spreadName
+    ?? 'this intention';
+}
+
+export function SavedIntentionsList({
+  titleId,
+  variant = 'section',
+  emptyState = 'hide',
+  onConfirmOpenChange
+} = {}) {
   const { user } = useAuth();
   const userId = user?.id || null;
   const [prevUserId, setPrevUserId] = useState(userId);
   const [intentions, setIntentions] = useState(() => loadCoachHistory(undefined, userId));
   const [pageIndex, setPageIndex] = useState(0);
+  const [pendingAction, setPendingAction] = useState(null);
   const navigate = useNavigate();
 
   // Reset state when userId changes (React's render-time update pattern)
@@ -26,6 +40,7 @@ export function SavedIntentionsList({ titleId, variant = 'section', emptyState =
     setPrevUserId(userId);
     setIntentions(loadCoachHistory(undefined, userId));
     setPageIndex(0);
+    setPendingAction(null);
   }
 
   useEffect(() => {
@@ -61,6 +76,12 @@ export function SavedIntentionsList({ titleId, variant = 'section', emptyState =
     };
   }, [userId]);
 
+  useEffect(() => {
+    if (onConfirmOpenChange) {
+      onConfirmOpenChange(Boolean(pendingAction));
+    }
+  }, [pendingAction, onConfirmOpenChange]);
+
   // Compute the effective page, clamped to valid range
   const maxPage = Math.max(0, Math.ceil(intentions.length / PAGE_SIZE) - 1);
   const page = Math.min(pageIndex, maxPage);
@@ -76,6 +97,21 @@ export function SavedIntentionsList({ titleId, variant = 'section', emptyState =
     navigate('/', { state: { initialQuestion: question } });
   };
 
+  const handleConfirmClose = () => {
+    setPendingAction(null);
+  };
+
+  const handleConfirmAction = () => {
+    if (!pendingAction) return;
+    if (pendingAction.type === 'use') {
+      handleUseIntention(pendingAction.item?.question);
+      return;
+    }
+    if (pendingAction.type === 'delete') {
+      handleDelete(pendingAction.item?.id);
+    }
+  };
+
   const totalPages = Math.max(1, Math.ceil(intentions.length / PAGE_SIZE));
   const visibleIntentions = intentions.slice(page * PAGE_SIZE, page * PAGE_SIZE + PAGE_SIZE);
 
@@ -83,81 +119,110 @@ export function SavedIntentionsList({ titleId, variant = 'section', emptyState =
     ? 'animate-fade-in'
     : 'mb-8 animate-fade-in';
 
+  const confirmLabel = pendingAction ? getIntentionLabel(pendingAction.item) : 'this intention';
+  const isDeleteConfirm = pendingAction?.type === 'delete';
+  const confirmTitle = isDeleteConfirm ? 'Delete saved intention?' : 'Use this intention?';
+  const confirmMessage = isDeleteConfirm
+    ? `Remove this saved intention: ${confirmLabel}. This cannot be undone.`
+    : `Start a new reading with: ${confirmLabel}`;
+  const confirmText = isDeleteConfirm ? 'Delete' : 'Start Reading';
+  const cancelText = isDeleteConfirm ? 'Keep it' : 'Not yet';
+  const confirmVariant = isDeleteConfirm ? 'danger' : 'warning';
+  const confirmModal = (
+    <ConfirmModal
+      isOpen={Boolean(pendingAction)}
+      onClose={handleConfirmClose}
+      onConfirm={handleConfirmAction}
+      title={confirmTitle}
+      message={confirmMessage}
+      confirmText={confirmText}
+      cancelText={cancelText}
+      variant={confirmVariant}
+      renderInPortal={variant === 'modal'}
+    />
+  );
+
   if (intentions.length === 0) {
     if (emptyState !== 'message') {
       return null; // Don't show section if empty
     }
 
     return (
-      <div className={containerClassName}>
-        <div className="mb-1 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <JournalRefreshIcon className="w-5 h-5 text-amber-200/75" aria-hidden="true" />
-            <h2 id={titleId} className="text-xl font-serif text-amber-50">Saved Intentions</h2>
+      <>
+        <div className={containerClassName}>
+          <div className="mb-1 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <JournalRefreshIcon className="w-5 h-5 text-accent/80" aria-hidden="true" />
+              <h2 id={titleId} className="text-xl font-serif text-accent">Saved Intentions</h2>
+            </div>
           </div>
+          <p className="text-xs text-muted-high mb-3 flex items-center gap-1">
+            <JournalPlusCircleIcon className="w-4 h-4 text-accent/70" aria-hidden="true" /> From Guided Intention Coach
+          </p>
+          <p className="text-sm text-muted">
+            No saved intentions yet.
+          </p>
         </div>
-        <p className="text-xs text-amber-100/70 mb-3 flex items-center gap-1">
-          <JournalPlusCircleIcon className="w-4 h-4 text-amber-200/70" aria-hidden="true" /> From Guided Intention Coach
-        </p>
-        <p className="text-sm text-amber-100/70">
-          No saved intentions yet.
-        </p>
-      </div>
+        {confirmModal}
+      </>
     );
   }
 
   return (
-    <div className={containerClassName}>
-      <div className="mb-1 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <JournalRefreshIcon className="w-5 h-5 text-amber-200/75" aria-hidden="true" />
-          <h2 id={titleId} className="text-xl font-serif text-amber-50">Saved Intentions</h2>
-        </div>
-
-        {totalPages > 1 && (
-          <div className="flex items-center gap-1 text-[0.78rem] text-amber-100/70">
-            <button
-              type="button"
-              onClick={() => setPageIndex((prev) => Math.max(prev - 1, 0))}
-              disabled={page === 0}
-              className="flex items-center gap-1 rounded-full px-2 py-1 transition-colors duration-150 disabled:opacity-40 hover:text-amber-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/50 focus-visible:ring-offset-2 focus-visible:ring-offset-main"
-              aria-label="Previous intentions page"
-            >
-              <CaretLeft className="h-4 w-4" />
-              Prev
-            </button>
-            <span className="px-2 text-[0.78rem] font-semibold text-amber-100/75">
-              {page + 1} / {totalPages}
-            </span>
-            <button
-              type="button"
-              onClick={() => setPageIndex((prev) => Math.min(prev + 1, totalPages - 1))}
-              disabled={page === totalPages - 1}
-              className="flex items-center gap-1 rounded-full px-2 py-1 transition-colors duration-150 disabled:opacity-40 hover:text-amber-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/50 focus-visible:ring-offset-2 focus-visible:ring-offset-main"
-              aria-label="Next intentions page"
-            >
-              Next
-              <CaretRight className="h-4 w-4" />
-            </button>
+    <>
+      <div className={containerClassName}>
+        <div className="mb-1 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <JournalRefreshIcon className="w-5 h-5 text-accent/80" aria-hidden="true" />
+            <h2 id={titleId} className="text-xl font-serif text-accent">Saved Intentions</h2>
           </div>
-        )}
-      </div>
-      <p className="text-xs text-amber-100/70 mb-3 flex items-center gap-1">
-        <JournalPlusCircleIcon className="w-4 h-4 text-amber-200/70" aria-hidden="true" /> From Guided Intention Coach
+
+          {totalPages > 1 && (
+            <div className="flex items-center gap-1 text-[0.78rem] text-muted">
+              <button
+                type="button"
+                onClick={() => setPageIndex((prev) => Math.max(prev - 1, 0))}
+                disabled={page === 0}
+                className="flex items-center gap-1 rounded-full px-2 py-1 transition-colors duration-150 disabled:opacity-40 hover:text-main focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 focus-visible:ring-offset-2 focus-visible:ring-offset-main"
+                aria-label="Previous intentions page"
+              >
+                <CaretLeft className="h-4 w-4" />
+                Prev
+              </button>
+              <span className="px-2 text-[0.78rem] font-semibold text-muted-high">
+                {page + 1} / {totalPages}
+              </span>
+              <button
+                type="button"
+                onClick={() => setPageIndex((prev) => Math.min(prev + 1, totalPages - 1))}
+                disabled={page === totalPages - 1}
+                className="flex items-center gap-1 rounded-full px-2 py-1 transition-colors duration-150 disabled:opacity-40 hover:text-main focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 focus-visible:ring-offset-2 focus-visible:ring-offset-main"
+                aria-label="Next intentions page"
+              >
+                Next
+                <CaretRight className="h-4 w-4" />
+              </button>
+            </div>
+          )}
+        </div>
+      <p className="text-xs text-muted-high mb-3 flex items-center gap-1">
+        <JournalPlusCircleIcon className="w-4 h-4 text-accent/70" aria-hidden="true" /> From Guided Intention Coach
       </p>
 
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        {visibleIntentions.map((item) => (
-          <CoachSuggestion
-            key={item.id}
-            recommendation={item}
-            variant="note"
-            showTitle={false}
-            onApply={() => handleUseIntention(item.question)}
-            onDismiss={() => handleDelete(item.id)}
-          />
-        ))}
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {visibleIntentions.map((item) => (
+            <CoachSuggestion
+              key={item.id}
+              recommendation={item}
+              variant="note"
+              showTitle={false}
+              onApply={() => setPendingAction({ type: 'use', item })}
+              onDismiss={() => setPendingAction({ type: 'delete', item })}
+            />
+          ))}
+        </div>
       </div>
-    </div>
+      {confirmModal}
+    </>
   );
 }

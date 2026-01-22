@@ -189,12 +189,11 @@ export default function Journal() {
   const showHighlightBanner = Boolean(pendingHighlightEntryId) && highlightBannerState !== 'found';
   const searchQuery = filters.query.trim();
   const searchSummaryTitle = searchQuery
-    ? `Searching "${searchQuery}"`
-    : (filtersActive ? 'Filtered readings' : 'All readings');
+    ? `Search: "${searchQuery}"`
+    : (filtersActive ? 'Filtered' : 'All readings');
   const searchSummaryCount = filtersActive
-    ? `${filteredEntries.length} matching entries`
+    ? `${filteredEntries.length} matches`
     : `${filteredEntries.length} entries`;
-  const showStickySummary = hasEntries && !historyFiltersInView;
   const showLoadMoreButton = hasMoreVisibleResults || (hasMoreServerEntries && !serverSearchEnabled);
   const loadMoreLabel = serverSearchEnabled
     ? `Load ${Math.min(VISIBLE_ENTRY_BATCH, localRemaining)} more results`
@@ -808,52 +807,6 @@ export default function Journal() {
             </div>
           </div>
 
-          {showStickySummary && (
-            <div className="sticky top-4 z-20 mb-6">
-              <div className="rounded-2xl border border-amber-300/15 bg-[#0b0c1d]/90 p-3 shadow-[0_18px_45px_-28px_rgba(0,0,0,0.75)] backdrop-blur">
-                <div className="flex flex-wrap items-start gap-3">
-                  <div className="flex min-w-[220px] flex-1 flex-col gap-1">
-                    <div className="flex flex-wrap items-center gap-2 text-sm text-amber-50">
-                      <JournalSearchIcon className="h-4 w-4 text-amber-200/70" aria-hidden="true" />
-                      <span className="font-semibold">{searchSummaryTitle}</span>
-                      {filtersActive && (
-                        <span className="inline-flex min-h-[24px] items-center rounded-full border border-amber-200/20 bg-amber-200/10 px-2.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-amber-100/75">
-                          {activeFilterChips.length} active
-                        </span>
-                      )}
-                    </div>
-                    <div className="flex flex-wrap items-center gap-2 text-[11px] text-amber-100/70">
-                      <span>{searchSummaryCount}</span>
-                      {searchCoverageLabel && <span>{searchCoverageLabel}</span>}
-                      {searchScopeLabel && <span>{searchScopeLabel}</span>}
-                    </div>
-                  </div>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={scrollToHistoryFilters}
-                      className="inline-flex min-h-[44px] items-center gap-2 rounded-full border border-amber-200/20 bg-amber-200/10 px-3 py-2 text-xs font-semibold text-amber-100/90 hover:border-amber-200/40 hover:bg-amber-200/20 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/40"
-                    >
-                      <JournalSlidersIcon className="h-4 w-4" aria-hidden="true" />
-                      Edit filters
-                    </button>
-                    {showInlineSearchOlder && (
-                      <button
-                        type="button"
-                        onClick={handleLoadMoreEntries}
-                        disabled={loadingMore || !hasMoreEntries}
-                        className={`inline-flex min-h-[44px] items-center gap-2 rounded-full border border-amber-200/20 bg-amber-200/10 px-3 py-2 text-xs font-semibold text-amber-100/90 hover:border-amber-200/40 hover:bg-amber-200/20 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/40 ${loadingMore || !hasMoreEntries ? 'cursor-not-allowed opacity-60' : ''}`}
-                      >
-                        <JournalSearchIcon className="h-4 w-4" aria-hidden="true" />
-                        {loadingMore ? 'Searching...' : inlineSearchOlderLabel}
-                      </button>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
           <JournalStatusBanner
             isAuthenticated={isAuthenticated}
             canUseCloudJournal={canUseCloudJournal}
@@ -873,32 +826,6 @@ export default function Journal() {
             onShowAuthModal={() => setShowAuthModal(true)}
             cardClass={cardClass}
           />
-
-          {showSummaryBand && (
-            <JournalSummaryBand
-              summaryRef={summaryRef}
-              isMobileLayout={isMobileLayout}
-              summaryInView={summaryInView}
-              analyticsScope={analyticsScope}
-              onScopeSelect={handleScopeSelect}
-              customScope={customScope}
-              onCustomScopeChange={handleCustomScopeChange}
-              scopeError={scopeError}
-              scopeLabel={scopeLabel}
-              scopeEntryCount={scopeEntryCount}
-              summaryCardData={summaryCardData}
-              statNodes={statNodes}
-              statNodeMap={statNodeMap}
-              heroEntry={heroEntry}
-              heroCards={heroCards}
-              heroDateLabel={heroDateLabel}
-              expandedCardIndex={expandedCardIndex}
-              onExpandedCardChange={setExpandedCardIndex}
-              onStartReading={handleStartReading}
-              filtersActive={filtersActive}
-              dataSource={summaryDataSource}
-            />
-          )}
 
           {mobileRailContent}
 
@@ -1011,26 +938,97 @@ export default function Journal() {
                         </div>
                       )}
 
-                      <div
-                        id="journal-history-filters"
-                        ref={registerHistoryFiltersEl}
-                        className="scroll-mt-24"
-                      >
-                        <JournalFilters
-                          filters={filters}
-                          onChange={setFilters}
-                          contexts={CONTEXT_FILTERS}
-                          spreads={SPREAD_FILTERS}
-                          decks={DECK_FILTERS}
-                          variant={isMobileLayout ? 'compact' : 'full'}
-                          viewMode={compactList ? 'compact' : 'comfortable'}
-                          onViewModeChange={(mode) => setCompactList(mode === 'compact')}
-                          resultCount={filteredEntries.length}
-                          totalCount={entries.length}
-                          searchCoverageLabel={searchCoverageLabel}
-                          searchScopeLabel={searchScopeLabel}
-                          onSearchRef={registerSearchInput}
-                        />
+                      <div className="space-y-4">
+                        <div className="rounded-2xl border border-amber-300/15 bg-[#0b0c1d]/90 p-2.5 sm:p-3 shadow-[0_18px_45px_-28px_rgba(0,0,0,0.75)] backdrop-blur">
+                          <div className="flex flex-wrap items-start gap-2">
+                            <div className="flex min-w-[200px] flex-1 flex-col gap-1">
+                              <div className="flex flex-wrap items-center gap-2 text-xs text-amber-50">
+                                <JournalSearchIcon className="h-4 w-4 text-amber-200/70" aria-hidden="true" />
+                                <span className="font-semibold">{searchSummaryTitle}</span>
+                                {filtersActive && (
+                                  <span className="inline-flex min-h-[20px] items-center rounded-full border border-amber-200/20 bg-amber-200/10 px-2.5 text-[9px] font-semibold uppercase tracking-[0.18em] text-amber-100/75">
+                                    {activeFilterChips.length} active
+                                  </span>
+                                )}
+                              </div>
+                              <div className="flex flex-wrap items-center gap-2 text-[10px] text-amber-100/70">
+                                <span>{searchSummaryCount}</span>
+                                {searchCoverageLabel && <span>{searchCoverageLabel}</span>}
+                                {searchScopeLabel && <span>{searchScopeLabel}</span>}
+                              </div>
+                            </div>
+                            <div className="flex flex-wrap items-center gap-2">
+                              <button
+                                type="button"
+                                onClick={scrollToHistoryFilters}
+                                className="inline-flex min-h-[44px] items-center gap-2 rounded-full border border-amber-200/20 bg-amber-200/10 px-3 py-1.5 text-[11px] font-semibold text-amber-100/90 hover:border-amber-200/40 hover:bg-amber-200/20 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/40"
+                              >
+                                <JournalSlidersIcon className="h-4 w-4" aria-hidden="true" />
+                                Filters
+                              </button>
+                              {showInlineSearchOlder && (
+                                <button
+                                  type="button"
+                                  onClick={handleLoadMoreEntries}
+                                  disabled={loadingMore || !hasMoreEntries}
+                                  className={`inline-flex min-h-[44px] items-center gap-2 rounded-full border border-amber-200/20 bg-amber-200/10 px-3 py-1.5 text-[11px] font-semibold text-amber-100/90 hover:border-amber-200/40 hover:bg-amber-200/20 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/40 ${loadingMore || !hasMoreEntries ? 'cursor-not-allowed opacity-60' : ''}`}
+                                >
+                                  <JournalSearchIcon className="h-4 w-4" aria-hidden="true" />
+                                  {loadingMore ? 'Searching...' : inlineSearchOlderLabel}
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+
+                        {showSummaryBand && (
+                          <JournalSummaryBand
+                            summaryRef={summaryRef}
+                            isMobileLayout={isMobileLayout}
+                            summaryInView={summaryInView}
+                            analyticsScope={analyticsScope}
+                            onScopeSelect={handleScopeSelect}
+                            customScope={customScope}
+                            onCustomScopeChange={handleCustomScopeChange}
+                            scopeError={scopeError}
+                            scopeLabel={scopeLabel}
+                            scopeEntryCount={scopeEntryCount}
+                            summaryCardData={summaryCardData}
+                            statNodes={statNodes}
+                            statNodeMap={statNodeMap}
+                            heroEntry={heroEntry}
+                            heroCards={heroCards}
+                            heroDateLabel={heroDateLabel}
+                            expandedCardIndex={expandedCardIndex}
+                            onExpandedCardChange={setExpandedCardIndex}
+                            onStartReading={handleStartReading}
+                            filtersActive={filtersActive}
+                            dataSource={summaryDataSource}
+                            embedded
+                          />
+                        )}
+
+                        <div
+                          id="journal-history-filters"
+                          ref={registerHistoryFiltersEl}
+                          className="scroll-mt-24"
+                        >
+                          <JournalFilters
+                            filters={filters}
+                            onChange={setFilters}
+                            contexts={CONTEXT_FILTERS}
+                            spreads={SPREAD_FILTERS}
+                            decks={DECK_FILTERS}
+                            variant={isMobileLayout ? 'compact' : 'full'}
+                            viewMode={compactList ? 'compact' : 'comfortable'}
+                            onViewModeChange={(mode) => setCompactList(mode === 'compact')}
+                            resultCount={filteredEntries.length}
+                            totalCount={entries.length}
+                            searchCoverageLabel={searchCoverageLabel}
+                            searchScopeLabel={searchScopeLabel}
+                            onSearchRef={registerSearchInput}
+                          />
+                        </div>
                       </div>
 
                       {serverSearchErrored && (
@@ -1128,8 +1126,6 @@ export default function Journal() {
           onScrollToFilters={scrollToHistoryFilters}
           onStartReading={handleStartReading}
           isMobileLayout={isMobileLayout}
-          showFiltersShortcut={!showStickySummary}
-          showFilterSummary={!showStickySummary}
         />
       </div>
 

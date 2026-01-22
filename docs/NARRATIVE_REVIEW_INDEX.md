@@ -1,8 +1,8 @@
 # Narrative Builder & Prompt Engineering Review - Index
 
-**Review Date:** 2026-01-21  
-**Reviewer:** GitHub Copilot Code Review Agent  
-**Repository:** henryperkins/tarot  
+**Review Date:** 2026-01-21
+**Reviewer:** GitHub Copilot Code Review Agent
+**Repository:** henryperkins/tarot
 **Branch:** copilot/review-narrative-builder-prompt-engineering
 
 ---
@@ -18,8 +18,8 @@ This comprehensive review analyzes the narrative builder and prompt engineering 
 ## Review Documents
 
 ### 1. Executive Summary
-**File:** [NARRATIVE_REVIEW_SUMMARY.md](./NARRATIVE_REVIEW_SUMMARY.md)  
-**Size:** 9KB  
+**File:** [NARRATIVE_REVIEW_SUMMARY.md](./NARRATIVE_REVIEW_SUMMARY.md)
+**Size:** 9KB
 **Audience:** Product managers, stakeholders, decision makers
 
 **Contents:**
@@ -35,8 +35,8 @@ This comprehensive review analyzes the narrative builder and prompt engineering 
 ---
 
 ### 2. Full Technical Review
-**File:** [NARRATIVE_BUILDER_REVIEW.md](./NARRATIVE_BUILDER_REVIEW.md)  
-**Size:** 23KB  
+**File:** [NARRATIVE_BUILDER_REVIEW.md](./NARRATIVE_BUILDER_REVIEW.md)
+**Size:** 23KB
 **Audience:** Engineers, technical leads, architects
 
 **Contents:**
@@ -53,8 +53,8 @@ This comprehensive review analyzes the narrative builder and prompt engineering 
 ---
 
 ### 3. Implementation Roadmap
-**File:** [NARRATIVE_IMPROVEMENTS_PLAN.md](./NARRATIVE_IMPROVEMENTS_PLAN.md)  
-**Size:** 14KB  
+**File:** [NARRATIVE_IMPROVEMENTS_PLAN.md](./NARRATIVE_IMPROVEMENTS_PLAN.md)
+**Size:** 14KB
 **Audience:** Developers implementing the changes
 
 **Contents:**
@@ -71,8 +71,8 @@ This comprehensive review analyzes the narrative builder and prompt engineering 
 ---
 
 ### 4. Architecture Diagram
-**File:** [NARRATIVE_ARCHITECTURE.md](./NARRATIVE_ARCHITECTURE.md)  
-**Size:** 15KB  
+**File:** [NARRATIVE_ARCHITECTURE.md](./NARRATIVE_ARCHITECTURE.md)
+**Size:** 15KB
 **Audience:** Everyone - visual learners, onboarding engineers, architects
 
 **Contents:**
@@ -106,9 +106,10 @@ This comprehensive review analyzes the narrative builder and prompt engineering 
 ### Critical (Must Fix)
 
 1. **File Size Explosion** 🔴
-   - `prompts.js`: 2,118 lines
+   - `prompts/` modules: 2,168 lines total (largest: `buildEnhancedClaudePrompt.js` 639, `cardBuilders.js` 508)
+   - `prompts.js`: 4 lines (barrel re-export)
    - `helpers.js`: 1,680 lines
-   - Hard to maintain and test
+   - Modularized, but overall prompt LOC still high
 
 2. **Performance Waste** 🔴
    - Crisis detection after expensive analysis
@@ -185,7 +186,7 @@ Implementation-ready improvements with high impact and low risk:
 - [ ] Monitor for issues
 
 ### Month 1: Refactoring
-- [ ] Split `prompts.js` into sub-modules
+- [x] Split `prompts.js` into sub-modules (now `prompts/` + barrel)
 - [ ] Remove `PROSE_MODE` global state
 - [ ] Add comprehensive token tests
 - [ ] Document error response matrix
@@ -229,7 +230,8 @@ functions/
 │   └── tarot-reading.js             (1200+ LOC) - Main orchestrator
 └── lib/
     └── narrative/
-        ├── prompts.js               (2118 LOC) - Prompt construction
+      ├── prompts.js               (4 LOC)    - Barrel re-export
+      ├── prompts/                 (2168 LOC) - Prompt construction modules
         ├── helpers.js               (1680 LOC) - Card text generation
         ├── reasoning.js             (1205 LOC) - Tension detection
         ├── reasoningIntegration.js  (523 LOC)  - Reasoning integration
@@ -261,7 +263,7 @@ functions/
 - GraphRAG passage filtering
 - Spread builder guards
 
-**Current Coverage:** ~60% (estimated)  
+**Current Coverage:** ~60% (estimated)
 **Target Coverage:** 85% by Q1 end
 
 ---
@@ -307,7 +309,7 @@ After implementing improvements, monitor:
 - [ ] Preview deployment
 
 ### Short-Term (Month 1)
-- [ ] `prompts.js` < 1000 LOC
+- [x] `prompts.js` < 1000 LOC (barrel = 4 LOC; prompt modules total 2,168 LOC)
 - [ ] No global state
 - [ ] 80%+ test coverage
 - [ ] Input guards on all builders
@@ -377,7 +379,7 @@ After implementing improvements, monitor:
 
 4. **Plan Refactoring** (Month 1)
    - Review NARRATIVE_BUILDER_REVIEW.md in depth
-   - Design module split for prompts.js
+   - Confirm prompts/ module boundaries and update diagrams
    - Schedule pair programming sessions
 
 5. **Iterate** (Ongoing)
@@ -385,13 +387,16 @@ After implementing improvements, monitor:
    - Adjust priorities based on data
    - Celebrate wins
 
+### Status Update (2026-01-22)
+- ✅ Prompt construction refactored into `functions/lib/narrative/prompts/` with `prompts.js` as a barrel.
+
 ---
 
 ## Contact & Feedback
 
-**Reviewer:** GitHub Copilot Code Review Agent  
-**Date:** 2026-01-21  
-**Version:** 1.0  
+**Reviewer:** GitHub Copilot Code Review Agent
+**Date:** 2026-01-21
+**Version:** 1.0
 
 For questions about this review, refer to the documentation or create an issue in the repository.
 

@@ -47,6 +47,7 @@
   // Environment Variables (Non-Secret)
   // ============================================================================
   "vars": {
+    "ENABLE_SEMANTIC_SCORING": "true",
     "AZURE_OPENAI_GPT_AUDIO_MINI_FORMAT": "mp3",
     "AZURE_OPENAI_USE_V1_FORMAT": "true",
     "AZURE_OPENAI_API_VERSION": "preview",

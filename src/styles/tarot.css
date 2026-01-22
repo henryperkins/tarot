@@ -3053,6 +3053,13 @@ input[type="range"]:focus::-webkit-slider-thumb {
    ========================================================================== */
 
 .coach-note {
+  appearance: none;
+  border: none;
+  padding: 0;
+  text-align: left;
+  font: inherit;
+  display: block;
+  width: 100%;
   position: relative;
   border-radius: 12px;
   background:
@@ -3066,6 +3073,10 @@ input[type="range"]:focus::-webkit-slider-thumb {
     0 8px 20px -8px rgba(0, 0, 0, 0.3);
   color: #1a1815;
   overflow: visible;
+}
+
+.coach-note-shell {
+  position: relative;
 }
 
 /* Faint ruled lines */
@@ -3242,7 +3253,7 @@ input[type="range"]:focus::-webkit-slider-thumb {
   transition: opacity 150ms ease, background 150ms ease, color 150ms ease;
 }
 
-.coach-note:hover .coach-note__delete,
+.coach-note-shell:hover .coach-note__delete,
 .coach-note__delete:focus-visible {
   opacity: 1;
 }

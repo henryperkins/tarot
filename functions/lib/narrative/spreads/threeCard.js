@@ -9,8 +9,6 @@ import {
   buildSupportingPositionsSummary,
   buildPatternSynthesis,
   getConnector,
-  getContextDescriptor,
-  buildReversalGuidance,
   DEFAULT_WEIGHT_DETAIL_THRESHOLD,
   computeRemedyRotationIndex,
   getSectionHeader

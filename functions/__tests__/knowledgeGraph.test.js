@@ -311,7 +311,7 @@ describe('detectAllPatterns', () => {
     assert.strictEqual(result.foolsJourney.stage, 'departure'); // Stage value for 0-7 range
     // 3 triads: Healing Arc (complete) + Mastery Arc partial (1,7) + fool-magician-world partial (0,1)
     assert.strictEqual(result.triads.length, 3);
-    assert.strictEqual(result.dyads.length, 2); // Fool+Magician + Death+Star
+    assert.strictEqual(result.dyads.length, 3); // Fool+Magician + Death+Star + Death+Temperance
     assert.strictEqual(result.suitProgressions.length, 1);
   });
 

@@ -3,8 +3,7 @@ import {
   appendReversalReminder,
   buildPositionCardText,
   getPositionOptions,
-  buildContextReminder,
-  buildReflectionsSection
+  buildContextReminder
 } from '../helpers.js';
 import { getToneStyle, getFrameVocabulary, buildNameClause } from '../styleHelpers.js';
 import {
@@ -53,7 +52,6 @@ class SingleCardBuilder extends BaseSpreadBuilder {
         });
       }
     }
-    const sections = [];
     const collectValidation = typeof this.options.collectValidation === 'function' ? this.options.collectValidation : null;
     const reasoning = this.options.reasoning || null;
     const tone = getToneStyle(this.options.personalization?.readingTone);

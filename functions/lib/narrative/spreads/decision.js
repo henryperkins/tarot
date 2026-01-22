@@ -21,7 +21,7 @@ import {
   enhanceCardTextWithReasoning,
   buildReasoningSynthesis
 } from '../reasoningIntegration.js';
-import { BaseSpreadBuilder, buildSpreadFallback } from './base.js';
+import { buildSpreadFallback } from './base.js';
 
 export async function buildDecisionReading({
   cardsInfo,
