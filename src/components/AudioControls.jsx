@@ -1,4 +1,4 @@
-import { SpeakerHigh, SpeakerSlash, MusicNotes, Info, Waveform } from '@phosphor-icons/react';
+import { SpeakerHigh, SpeakerSlash, MusicNotes, Info, Waveform, Gauge } from '@phosphor-icons/react';
 import { Tooltip } from './Tooltip';
 import { GlowToggle } from './GlowToggle';
 import { usePreferences } from '../contexts/PreferencesContext';
@@ -8,7 +8,7 @@ import { usePreferences } from '../contexts/PreferencesContext';
  * Groups Voice (TTS) and Ambience controls together
  */
 export function AudioControls({ className = '' }) {
-  const { voiceOn, setVoiceOn, ambienceOn, setAmbienceOn, autoNarrate, setAutoNarrate, ttsProvider, setTtsProvider } = usePreferences();
+  const { voiceOn, setVoiceOn, ambienceOn, setAmbienceOn, autoNarrate, setAutoNarrate, ttsProvider, setTtsProvider, ttsSpeed, setTtsSpeed } = usePreferences();
 
   const controlShellClass =
     'rounded-3xl border border-secondary/25 bg-surface/80 p-3 xs:p-4 sm:p-5 shadow-md shadow-secondary/15 backdrop-blur-lg';
@@ -202,6 +202,47 @@ export function AudioControls({ className = '' }) {
               <span className="block font-semibold text-xs xs:text-sm">Azure SDK</span>
               <span className="block text-[0.65rem] xs:text-xs opacity-75">Word sync</span>
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Speed Control - only for Azure provider */}
+      {voiceOn && ttsProvider === 'azure' && (
+        <div className="mt-3 xs:mt-4 pt-3 xs:pt-4 border-t border-secondary/20">
+          <div className="flex items-center gap-2 mb-2">
+            <Gauge className="h-4 w-4 text-accent" aria-hidden="true" />
+            <span className="text-xs font-semibold text-accent uppercase tracking-wide">Narration Speed</span>
+            <Tooltip
+              content="Adjust how fast the voice reads your narrative. Slower for contemplation, faster for reviewing."
+              position="top"
+              triggerClassName={infoButtonClass}
+              ariaLabel="About narration speed"
+            >
+              <Info className="h-3.5 w-3.5" />
+            </Tooltip>
+          </div>
+          <div className="flex flex-col gap-2 sm:flex-row sm:gap-2" role="radiogroup" aria-label="Select narration speed">
+            {[
+              { value: 0.85, label: 'Slower', desc: 'Contemplative' },
+              { value: 1.0, label: 'Normal', desc: 'Default' },
+              { value: 1.15, label: 'Faster', desc: 'Efficient' }
+            ].map(opt => (
+              <button
+                key={opt.value}
+                type="button"
+                role="radio"
+                aria-checked={ttsSpeed === opt.value}
+                onClick={() => setTtsSpeed(opt.value)}
+                className={`flex-1 min-h-[52px] px-2 xs:px-3 py-2 rounded-xl text-sm font-medium transition-all touch-manipulation ${
+                  ttsSpeed === opt.value
+                    ? 'bg-primary/20 border-2 border-primary text-primary shadow-md'
+                    : 'bg-surface/60 border border-secondary/30 text-muted hover:text-main hover:border-secondary/50 active:bg-surface/80'
+                }`}
+              >
+                <span className="block font-semibold text-xs xs:text-sm">{opt.label}</span>
+                <span className="block text-[0.65rem] xs:text-xs opacity-75">{opt.desc}</span>
+              </button>
+            ))}
           </div>
         </div>
       )}

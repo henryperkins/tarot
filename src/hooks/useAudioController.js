@@ -22,7 +22,7 @@ import {
 import { usePreferences } from '../contexts/PreferencesContext';
 
 export function useAudioController() {
-  const { voiceOn, setVoiceOn, ttsProvider } = usePreferences();
+  const { voiceOn, setVoiceOn, ttsProvider, ttsSpeed } = usePreferences();
   const [ttsState, setTtsState] = useState(() => getCurrentTTSState());
   const [ttsAnnouncement, setTtsAnnouncement] = useState('');
   const [voicePromptRequested, setVoicePromptRequested] = useState(false);
@@ -198,15 +198,17 @@ export function useAudioController() {
     }
   }, [voiceOn]);
 
-  // Azure TTS speak function (original)
-  const speakWithAzure = useCallback(async (text, context = 'default') => {
+  // Azure TTS speak function with emotion and speed support
+  const speakWithAzure = useCallback(async (text, context = 'default', emotion = null) => {
     await speakText({
       text,
       enabled: voiceOn,
       context,
-      voice: 'nova' // Default voice for mystical tarot readings
+      voice: 'nova', // Default voice for mystical tarot readings
+      speed: ttsSpeed,
+      emotion
     });
-  }, [voiceOn]);
+  }, [voiceOn, ttsSpeed]);
 
   // Azure Speech SDK with word-boundary events
   const speakWithSpeechSDK = useCallback(async (text, context = 'default') => {
@@ -324,8 +326,8 @@ export function useAudioController() {
     } else if (ttsProvider === 'azure-sdk') {
       await speakWithSpeechSDK(text, context);
     } else {
-      // Azure TTS doesn't support emotion parameter
-      await speakWithAzure(text, context);
+      // Azure TTS now supports emotion parameter via steerable instructions
+      await speakWithAzure(text, context, emotion);
     }
   }, [ttsProvider, speakWithHumeProvider, speakWithSpeechSDK, speakWithAzure]);
 

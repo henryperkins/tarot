@@ -136,6 +136,31 @@ export function PreferencesProvider({ children }) {
     }
   }, [ttsProviderState]);
 
+  // --- Audio: TTS Speed ---
+  const TTS_SPEED_OPTIONS = [0.85, 1.0, 1.15];
+  const [ttsSpeed, setTtsSpeedState] = useState(() => {
+    if (typeof localStorage !== 'undefined') {
+      const saved = localStorage.getItem('tarot-tts-speed');
+      const parsed = parseFloat(saved);
+      return !isNaN(parsed) && TTS_SPEED_OPTIONS.includes(parsed) ? parsed : 1.0;
+    }
+    return 1.0;
+  });
+
+  // Wrapper setter that guards against invalid speed values
+  const setTtsSpeed = (value) => {
+    const parsed = parseFloat(value);
+    const safeValue = !isNaN(parsed) && TTS_SPEED_OPTIONS.includes(parsed) ? parsed : 1.0;
+    setTtsSpeedState(safeValue);
+  };
+
+  // Persist TTS speed setting
+  useEffect(() => {
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem('tarot-tts-speed', ttsSpeed.toString());
+    }
+  }, [ttsSpeed]);
+
   // --- Audio: Ambience ---
   const [ambienceOn, setAmbienceOn] = useState(() => {
     if (typeof localStorage !== 'undefined') {
@@ -488,6 +513,8 @@ export function PreferencesProvider({ children }) {
     setAutoNarrate,
     ttsProvider,
     setTtsProvider,
+    ttsSpeed,
+    setTtsSpeed,
     deckStyleId,
     setDeckStyleId,
     includeMinors,

@@ -12,6 +12,7 @@ import { enforceApiCallLimit } from '../lib/apiUsage.js';
 import { getSubscriptionContext } from '../lib/entitlements.js';
 import { getTierConfig } from '../../shared/monetization/subscription.js';
 import { resolveEnv } from '../lib/environment.js';
+import { EMOTION_INSTRUCTIONS } from '../lib/emotionInstructions.js';
 
 function normalizeAzureEndpoint(rawEndpoint) {
   return String(rawEndpoint || '')
@@ -94,7 +95,7 @@ export const onRequestPost = async ({ request, env }) => {
     const effectiveTier = subscription.effectiveTier;
     const ttsLimits = getTTSLimits(effectiveTier);
 
-    const { text, context, voice, speed, format, response_format: responseFormat } = await readJsonBody(request);
+    const { text, context, voice, speed, format, response_format: responseFormat, emotion } = await readJsonBody(request);
     const sanitizedText = sanitizeText(text, { maxLength: 4096, collapseWhitespace: false });
     const requestedFormat = normalizeSpeechFormat(format ?? responseFormat);
     const debugLoggingEnabled = isTtsDebugLoggingEnabled(env);
@@ -117,6 +118,7 @@ export const onRequestPost = async ({ request, env }) => {
     // Check tier-based rate limits (in addition to global rate limit)
     const rateLimitResult = await enforceTtsRateLimit(env, request, user, ttsLimits, requestId);
     if (rateLimitResult?.limited) {
+      const errorCode = rateLimitResult.tierLimited ? 'TIER_LIMIT' : 'RATE_LIMIT';
       const errorMessage = rateLimitResult.tierLimited
         ? `You've reached your monthly TTS limit (${ttsLimits.monthly}). Upgrade to Plus or Pro for more.`
         : 'Too many text-to-speech requests. Please wait a few moments and try again.';
@@ -124,6 +126,7 @@ export const onRequestPost = async ({ request, env }) => {
       return jsonResponse(
         {
           error: errorMessage,
+          errorCode,
           tierLimited: rateLimitResult.tierLimited || false,
           currentTier: tier,
           limit: rateLimitResult.limit ?? null,
@@ -160,7 +163,8 @@ export const onRequestPost = async ({ request, env }) => {
             text: sanitizedText,
             context: context || 'default',
             voice: voice || 'verse',
-            speed: speed
+            speed: speed,
+            emotion: emotion || null
           });
         } else {
           try {
@@ -168,7 +172,8 @@ export const onRequestPost = async ({ request, env }) => {
               text: sanitizedText,
               context: context || 'default',
               voice: voice || 'verse',
-              speed: speed
+              speed: speed,
+              emotion: emotion || null
             });
             if (audio) {
               return jsonResponse({
@@ -186,7 +191,8 @@ export const onRequestPost = async ({ request, env }) => {
             text: sanitizedText,
             context: context || 'default',
             voice: voice || 'verse',
-            speed: speed
+            speed: speed,
+            emotion: emotion || null
           });
           if (audio) {
             return jsonResponse({ audio, provider: 'azure-gpt-4o-mini-tts' });
@@ -383,9 +389,10 @@ async function fetchSpeechWithFallback(url, env, payload, debugLoggingEnabled, u
  * @param {string} options.context - Context template (card-reveal, full-reading, etc.)
  * @param {string} [options.voice='verse'] - Voice selection
  * @param {number} [options.speed=1.1] - Speech speed (0.25-4.0)
+ * @param {string} [options.emotion=null] - Emotion from GraphRAG analysis
  * @returns {Object} Request configuration with url, payload, format, etc.
  */
-function buildTTSRequest(env, { text, context, voice, speed }) {
+function buildTTSRequest(env, { text, context, voice, speed, emotion }) {
   const endpoint = normalizeAzureEndpoint(env.endpoint);
   const deployment = env.deployment;
   const format = normalizeSpeechFormat(env.format) || 'mp3';
@@ -397,7 +404,12 @@ function buildTTSRequest(env, { text, context, voice, speed }) {
   const { useV1Format, apiVersion } = resolveSpeechRouting(env);
 
   // Select instruction template based on context
-  const instructions = INSTRUCTION_TEMPLATES[context] || INSTRUCTION_TEMPLATES.default;
+  let instructions = INSTRUCTION_TEMPLATES[context] || INSTRUCTION_TEMPLATES.default;
+
+  // Merge emotion-specific instructions if provided
+  if (emotion && EMOTION_INSTRUCTIONS[emotion]) {
+    instructions = `${instructions}\n\nEmotional tone for this reading: ${EMOTION_INSTRUCTIONS[emotion]}`;
+  }
 
   // Voice validation (gpt-4o-mini-tts voices - 11 available)
   // Base voices: alloy, ash, ballad, coral, echo, fable, nova, onyx, sage, shimmer, verse

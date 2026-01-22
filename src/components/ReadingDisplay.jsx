@@ -3,6 +3,8 @@ import { createPortal } from 'react-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Sparkle, ArrowCounterClockwise, Star, BookmarkSimple, ChatCircle } from '@phosphor-icons/react';
 import { useNavigate } from 'react-router-dom';
+import { NarrationProgress } from './NarrationProgress';
+import { NarrationStatus, NarrationError } from './NarrationStatus';
 import { getSpreadInfo, normalizeSpreadKey } from '../data/spreads';
 import { ReadingBoard } from './ReadingBoard';
 import { StreamingNarrative } from './StreamingNarrative';
@@ -261,6 +263,7 @@ export function ReadingDisplay({
         autoNarrate,
         deckStyleId,
         personalization,
+        ttsProvider,
         // Nudge state (contextual discovery)
         shouldShowRitualNudge,
         shouldShowJournalNudge,
@@ -803,6 +806,11 @@ export function ReadingDisplay({
                                 </div>
                             )}
                             <div className="flex flex-col items-center justify-center gap-2 sm:gap-3 mt-3 sm:mt-4">
+                                {/* Narration status indicator */}
+                                {reading && personalReading && !isPersonalReadingError && ttsState.status !== 'idle' && ttsState.status !== 'completed' && (
+                                    <NarrationStatus ttsState={ttsState} showLabel showMessage={ttsState.status === 'error'} />
+                                )}
+
                                 {reading && personalReading && !isPersonalReadingError && (
                                     <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-3">
                                         <button type="button" onClick={handleNarrationWrapper} className="px-3 sm:px-4 py-2 rounded-lg border border-secondary/40 bg-surface/85 hover:bg-surface/80 disabled:opacity-40 disabled:cursor-not-allowed transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary focus-visible:ring-offset-2 focus-visible:ring-offset-main text-xs sm:text-sm" disabled={!fullReadingText || ttsState.status === 'loading'}>
@@ -831,6 +839,20 @@ export function ReadingDisplay({
                                             View Journal
                                         </button>
                                     </div>
+                                )}
+
+                                {/* Progress bar for Azure TTS */}
+                                {reading && personalReading && !isPersonalReadingError && ttsProvider === 'azure' && (ttsState.status === 'playing' || ttsState.status === 'paused') && (
+                                    <NarrationProgress ttsState={ttsState} className="w-full max-w-md" />
+                                )}
+
+                                {/* Error details with upgrade action for tier limits */}
+                                {ttsState.status === 'error' && ttsState.errorCode === 'TIER_LIMIT' && (
+                                    <NarrationError
+                                        ttsState={ttsState}
+                                        onUpgrade={() => navigate('/settings', { state: { section: 'subscription' } })}
+                                        className="max-w-sm"
+                                    />
                                 )}
                                 {showVoicePrompt && (
                                     <div className="text-xs text-muted bg-surface/70 border border-accent/30 rounded-lg px-3 py-2 text-center space-y-2" aria-live="polite">

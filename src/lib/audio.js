@@ -12,9 +12,15 @@ let currentTTSState = {
   source: null,
   cached: false,
   error: null,
+  errorCode: null,
+  errorDetails: null,
   message: null,
   reason: null,
-  context: null
+  context: null,
+  // Progress tracking
+  currentTime: 0,
+  duration: 0,
+  progress: 0
 };
 const ttsListeners = new Set();
 let currentNarrationRequestId = 0;
@@ -168,8 +174,9 @@ export function toggleAmbience(on) {
  * @param {number} [options.speed] - Playback speed (0.25-4.0, default 1.1 for engaging pace)
  * @param {string} [options.format] - Audio format to request (mp3, wav, etc.)
  * @param {boolean} [options.stream=false] - Use streaming mode for progressive audio playback
+ * @param {string} [options.emotion=null] - Emotion from GraphRAG analysis for voice styling
  */
-export async function speakText({ text, enabled, context = 'default', voice = 'verse', speed, format, stream = false }) {
+export async function speakText({ text, enabled, context = 'default', voice = 'verse', speed, format, stream = false, emotion = null }) {
   ensureGlobalCleanupListeners();
 
   if (!enabled) {
@@ -236,6 +243,10 @@ export async function speakText({ text, enabled, context = 'default', voice = 'v
       if (typeof format === 'string' && format.trim()) {
         requestBody.format = format.trim();
       }
+      // Add emotion for voice styling if provided
+      if (emotion) {
+        requestBody.emotion = emotion;
+      }
 
       const response = await fetch(url, {
         method: 'POST',
@@ -245,15 +256,27 @@ export async function speakText({ text, enabled, context = 'default', voice = 'v
 
       if (!response.ok) {
         console.error('TTS error:', response.status);
+
+        // Parse error response for details
+        let errorData = {};
+        try {
+          errorData = await response.json();
+        } catch {
+          // Not JSON, use status text
+        }
+
+        const errorCode = errorData.errorCode || (response.status === 429 ? 'RATE_LIMIT' : 'SERVICE_ERROR');
+        const userMessage = getErrorMessage(response.status, errorData);
+
         emitTTSState({
           status: 'error',
           provider,
           source,
-          error: `TTS service returned ${response.status}.`,
+          error: errorData.error || `TTS service returned ${response.status}.`,
+          errorCode,
+          errorDetails: errorData,
           context: narrationContext,
-          message: response.status === 429
-            ? 'Too many requests. Please wait a moment before trying again.'
-            : 'Unable to generate audio right now.'
+          message: userMessage
         });
         return;
       }
@@ -732,21 +755,32 @@ export function getCurrentTTSState() {
 function emitTTSState(update) {
   const nextStatus = update.status ?? currentTTSState.status;
   const isResetState = nextStatus === 'loading' || nextStatus === 'idle';
+  const isErrorState = nextStatus === 'error';
 
   currentTTSState = {
     status: nextStatus,
     provider: update.provider ?? (isResetState ? null : currentTTSState.provider) ?? null,
     source: update.source ?? (isResetState ? null : currentTTSState.source) ?? null,
     cached: update.cached ?? (isResetState ? false : currentTTSState.cached) ?? false,
-    error: nextStatus === 'error'
+    error: isErrorState
       ? (update.error ?? currentTTSState.error ?? null)
       : null,
+    errorCode: isErrorState
+      ? (update.errorCode ?? currentTTSState.errorCode ?? null)
+      : null,
+    errorDetails: isErrorState
+      ? (update.errorDetails ?? currentTTSState.errorDetails ?? null)
+      : null,
     message: update.message ??
-      (nextStatus === 'error'
+      (isErrorState
         ? (currentTTSState.message ?? null)
         : (isResetState ? null : currentTTSState.message ?? null)),
     reason: update.reason ?? (isResetState ? null : currentTTSState.reason) ?? null,
-    context: update.context ?? (isResetState ? null : currentTTSState.context) ?? null
+    context: update.context ?? (isResetState ? null : currentTTSState.context) ?? null,
+    // Progress tracking - reset on loading/idle, otherwise preserve or update
+    currentTime: update.currentTime ?? (isResetState ? 0 : currentTTSState.currentTime) ?? 0,
+    duration: update.duration ?? (isResetState ? 0 : currentTTSState.duration) ?? 0,
+    progress: update.progress ?? (isResetState ? 0 : currentTTSState.progress) ?? 0
   };
 
   for (const listener of ttsListeners) {
@@ -759,13 +793,33 @@ function emitTTSState(update) {
 }
 
 function wireTTSEvents(audio, provider, source, requestId, context) {
+  // Progress tracking: capture duration when metadata loads
+  audio.addEventListener('loadedmetadata', () => {
+    const duration = audio.duration || 0;
+    if (duration > 0 && isFinite(duration)) {
+      emitTTSState({ duration });
+    }
+  });
+
+  // Progress tracking: update currentTime and progress on timeupdate
+  audio.addEventListener('timeupdate', () => {
+    const currentTime = audio.currentTime || 0;
+    const duration = audio.duration || 0;
+    const progress = duration > 0 ? Math.min(currentTime / duration, 1) : 0;
+    emitTTSState({ currentTime, duration, progress });
+  });
+
   audio.addEventListener('ended', () => {
     emitTTSState({
       status: 'completed',
       provider,
       source,
       context,
-      message: getEndedMessage(provider, context)
+      message: getEndedMessage(provider, context),
+      // Reset progress on completion
+      currentTime: 0,
+      duration: 0,
+      progress: 0
     });
     releaseAudioObjectUrl(audio);
     if (ttsAudio === audio) {
@@ -795,6 +849,7 @@ function wireTTSEvents(audio, provider, source, requestId, context) {
       source,
       context,
       error: 'Audio playback error.',
+      errorCode: 'PLAYBACK_ERROR',
       message: 'Something went wrong while playing audio.'
     });
     releaseAudioObjectUrl(audio);
@@ -854,6 +909,27 @@ function getPauseMessage(provider, context) {
     return 'Personal reading narration paused.';
   }
   return 'Narration paused.';
+}
+
+/**
+ * Get user-friendly error message based on status and error data.
+ */
+function getErrorMessage(status, errorData) {
+  if (status === 429) {
+    if (errorData.tierLimited) {
+      const used = errorData.used ?? '?';
+      const limit = errorData.limit ?? '?';
+      return `Monthly limit reached (${used}/${limit}). Upgrade for more.`;
+    }
+    return 'Too many requests. Please wait a moment.';
+  }
+  if (status === 503 || status === 502) {
+    return 'Voice service temporarily unavailable. Try again shortly.';
+  }
+  if (status >= 500) {
+    return 'Voice service error. Using fallback if available.';
+  }
+  return 'Unable to generate audio right now.';
 }
 
 function ensureGlobalCleanupListeners() {
