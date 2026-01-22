@@ -229,7 +229,7 @@ describe('TTS API - Text Sanitization', () => {
     assert.ok(data.audio);
   });
 
-  it('should limit text to 4000 characters', async () => {
+  it('should limit text to 4096 characters', async () => {
     const { onRequestPost } = await import('../functions/api/tts.js');
 
     const longText = 'a'.repeat(5000);

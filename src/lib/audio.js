@@ -166,9 +166,10 @@ export function toggleAmbience(on) {
  * @param {string} [options.context='default'] - Reading context (card-reveal, full-reading, synthesis, etc.)
  * @param {string} [options.voice='verse'] - Voice selection (alloy, ash, ballad, coral, echo, fable, nova, onyx, sage, shimmer, verse)
  * @param {number} [options.speed] - Playback speed (0.25-4.0, default 1.1 for engaging pace)
+ * @param {string} [options.format] - Audio format to request (mp3, wav, etc.)
  * @param {boolean} [options.stream=false] - Use streaming mode for progressive audio playback
  */
-export async function speakText({ text, enabled, context = 'default', voice = 'verse', speed, stream = false }) {
+export async function speakText({ text, enabled, context = 'default', voice = 'verse', speed, format, stream = false }) {
   ensureGlobalCleanupListeners();
 
   if (!enabled) {
@@ -201,8 +202,8 @@ export async function speakText({ text, enabled, context = 'default', voice = 'v
     }
 
     // Check cache first (using normalized text for consistent keys)
-    // Include speed in cache key to cache different speeds separately
-    const cacheKey = generateCacheKey(ttsText, context, voice, speed);
+    // Include speed and format in cache key to cache variations separately
+    const cacheKey = generateCacheKey(ttsText, context, voice, speed, format);
     const cachedAudio = getCachedAudio(cacheKey);
 
     let audioDataUri;
@@ -231,6 +232,9 @@ export async function speakText({ text, enabled, context = 'default', voice = 'v
       // Add speed parameter if specified
       if (speed !== undefined) {
         requestBody.speed = speed;
+      }
+      if (typeof format === 'string' && format.trim()) {
+        requestBody.format = format.trim();
       }
 
       const response = await fetch(url, {
@@ -455,12 +459,13 @@ async function tryPlayLocalFallback({ requestId, context, fallbackText }) {
 }
 
 /**
- * Generate a cache key from text, context, voice, and speed.
+ * Generate a cache key from text, context, voice, speed, and format.
  * Uses djb2 hash to keep localStorage keys reasonable.
  */
-function generateCacheKey(text, context, voice, speed) {
+function generateCacheKey(text, context, voice, speed, format) {
   const speedKey = speed !== undefined ? speed : 'default';
-  const content = `${text}|${context}|${voice}|${speedKey}`;
+  const formatKey = format && String(format).trim().length ? String(format).trim().toLowerCase() : 'default';
+  const content = `${text}|${context}|${voice}|${speedKey}|${formatKey}`;
   return `${TTS_CACHE_PREFIX}${djb2Hash(content).toString(36)}`;
 }
 

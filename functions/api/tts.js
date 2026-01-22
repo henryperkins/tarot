@@ -53,10 +53,18 @@ export const onRequestGet = async ({ env }) => {
   const azureEndpoint = resolveEnv(env, 'AZURE_OPENAI_TTS_ENDPOINT') || resolveEnv(env, 'AZURE_OPENAI_ENDPOINT');
   const azureKey = resolveEnv(env, 'AZURE_OPENAI_TTS_API_KEY') || resolveEnv(env, 'AZURE_OPENAI_API_KEY');
   const azureDeployment = resolveEnv(env, 'AZURE_OPENAI_GPT_AUDIO_MINI_DEPLOYMENT');
+  const speechRouting = resolveSpeechRouting({
+    apiVersion: resolveEnv(env, 'AZURE_OPENAI_API_VERSION'),
+    useV1Format: resolveEnv(env, 'AZURE_OPENAI_USE_V1_FORMAT')
+  });
+  const audioFormat = resolveEnv(env, 'AZURE_OPENAI_GPT_AUDIO_MINI_FORMAT') || 'mp3';
   const hasAzure = !!(azureEndpoint && azureKey && azureDeployment);
   return jsonResponse({
     status: 'ok',
     provider: hasAzure ? 'azure-openai' : 'local',
+    apiVersion: speechRouting.apiVersion,
+    useV1Format: speechRouting.useV1Format,
+    format: audioFormat,
     timestamp: new Date().toISOString()
   });
 };
@@ -86,8 +94,9 @@ export const onRequestPost = async ({ request, env }) => {
     const effectiveTier = subscription.effectiveTier;
     const ttsLimits = getTTSLimits(effectiveTier);
 
-    const { text, context, voice, speed } = await readJsonBody(request);
-    const sanitizedText = sanitizeText(text, { maxLength: 4000, collapseWhitespace: false });
+    const { text, context, voice, speed, format, response_format: responseFormat } = await readJsonBody(request);
+    const sanitizedText = sanitizeText(text, { maxLength: 4096, collapseWhitespace: false });
+    const requestedFormat = normalizeSpeechFormat(format ?? responseFormat);
     const debugLoggingEnabled = isTtsDebugLoggingEnabled(env);
 
     if (!sanitizedText) {
@@ -138,7 +147,7 @@ export const onRequestPost = async ({ request, env }) => {
       deployment: resolveEnv(env, 'AZURE_OPENAI_GPT_AUDIO_MINI_DEPLOYMENT'),
       apiVersion: resolveEnv(env, 'AZURE_OPENAI_API_VERSION'),
       responsesApiVersion: resolveEnv(env, 'AZURE_OPENAI_TTS_RESPONSES_API_VERSION') || resolveEnv(env, 'AZURE_OPENAI_RESPONSES_API_VERSION') || resolveEnv(env, 'AZURE_OPENAI_API_VERSION') || 'v1',
-      format: resolveEnv(env, 'AZURE_OPENAI_GPT_AUDIO_MINI_FORMAT'),
+      format: requestedFormat || resolveEnv(env, 'AZURE_OPENAI_GPT_AUDIO_MINI_FORMAT'),
       useV1Format: resolveEnv(env, 'AZURE_OPENAI_USE_V1_FORMAT'),
       debugLoggingEnabled
     };
@@ -261,6 +270,108 @@ const INSTRUCTION_TEMPLATES = {
     Use a mystical yet grounded tone with natural pacing and slight pauses for contemplation.`
 };
 
+function normalizeSpeechFormat(value) {
+  if (typeof value !== 'string') return null;
+  const trimmed = value.trim();
+  return trimmed.length ? trimmed.toLowerCase() : null;
+}
+
+function resolveUseV1Format(env) {
+  if (!env) return false;
+  if (typeof env.useV1Format !== 'undefined' && env.useV1Format !== null && env.useV1Format !== '') {
+    return parseBooleanFlag(env.useV1Format);
+  }
+  const apiVersion = String(env.apiVersion || '').trim().toLowerCase();
+  return apiVersion === 'preview' || apiVersion === 'v1';
+}
+
+function resolveSpeechApiVersion(env, useV1Format) {
+  const rawApiVersion = String(env?.apiVersion || '').trim();
+  const normalized = rawApiVersion.toLowerCase();
+  if (useV1Format) {
+    if (normalized === 'preview' || normalized === 'v1') {
+      return normalized;
+    }
+    return 'preview';
+  }
+  return rawApiVersion || '2025-04-01-preview';
+}
+
+function resolveSpeechRouting(env) {
+  const useV1Format = resolveUseV1Format(env);
+  const apiVersion = resolveSpeechApiVersion(env, useV1Format);
+  return { useV1Format, apiVersion };
+}
+
+function buildSpeechFormData(payload) {
+  const formData = new FormData();
+  for (const [key, value] of Object.entries(payload)) {
+    if (typeof value === 'undefined' || value === null) continue;
+    formData.append(key, typeof value === 'string' ? value : String(value));
+  }
+  return formData;
+}
+
+function buildSpeechRequestOptions(env, payload, mode = 'multipart') {
+  const headers = {
+    'api-key': env.apiKey,
+    'accept': 'application/octet-stream'
+  };
+
+  if (mode === 'json') {
+    headers['content-type'] = 'application/json';
+    return { headers, body: JSON.stringify(payload), mode };
+  }
+
+  return { headers, body: buildSpeechFormData(payload), mode };
+}
+
+function shouldRetrySpeechAsJson(status, errorText) {
+  if (status === 415) return true;
+  if (status !== 400) return false;
+  const normalized = (errorText || '').toLowerCase();
+  return normalized.includes('content-type') || normalized.includes('multipart') || normalized.includes('form');
+}
+
+async function fetchSpeechWithFallback(url, env, payload, debugLoggingEnabled) {
+  const attempts = ['multipart', 'json'];
+  let lastError = null;
+
+  for (const mode of attempts) {
+    if (debugLoggingEnabled) {
+      console.log(`[TTS] Request mode: ${mode}`);
+    }
+
+    const { headers, body } = buildSpeechRequestOptions(env, payload, mode);
+    const response = await fetch(url, {
+      method: 'POST',
+      headers,
+      body
+    });
+
+    if (response.ok) {
+      return { response, mode };
+    }
+
+    const errText = await response.text().catch(() => '');
+    const preview = errText.slice(0, 1000);
+
+    if (debugLoggingEnabled && preview) {
+      console.warn(`[TTS] ${mode} error response:`, preview);
+    }
+
+    if (mode === 'multipart' && shouldRetrySpeechAsJson(response.status, preview)) {
+      lastError = new Error(`Azure TTS error ${response.status}: ${preview}`);
+      continue;
+    }
+
+    throw new Error(`Azure TTS error ${response.status}: ${preview}`);
+  }
+
+  if (lastError) throw lastError;
+  throw new Error('Azure TTS request failed without a response.');
+}
+
 /**
  * Build TTS request configuration shared by both streaming and non-streaming modes.
  * Extracts common logic for endpoint construction, payload building, and parameter validation.
@@ -276,16 +387,13 @@ const INSTRUCTION_TEMPLATES = {
 function buildTTSRequest(env, { text, context, voice, speed }) {
   const endpoint = normalizeAzureEndpoint(env.endpoint);
   const deployment = env.deployment;
-  const format = env.format || 'mp3';
-  const useV1Format = env.useV1Format === 'true' || env.useV1Format === true;
+  const format = normalizeSpeechFormat(env.format) || 'mp3';
   const debugLoggingEnabled = Boolean(env.debugLoggingEnabled);
 
   // API version logic:
-  // - v1 format uses "preview"
+  // - v1 format uses "preview" or "v1"
   // - deployment format uses dated preview version (e.g., "2025-04-01-preview")
-  const apiVersion = useV1Format
-    ? 'preview'
-    : (env.apiVersion || '2025-04-01-preview');
+  const { useV1Format, apiVersion } = resolveSpeechRouting(env);
 
   // Select instruction template based on context
   const instructions = INSTRUCTION_TEMPLATES[context] || INSTRUCTION_TEMPLATES.default;
@@ -424,30 +532,11 @@ async function generateWithAzureGptMiniTTS(env, { text, context, voice, speed })
     console.log('[TTS] Request payload:', JSON.stringify(payload, null, 2));
   }
 
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: {
-      'api-key': env.apiKey,
-      'content-type': 'application/json'  // JSON works despite docs saying multipart/form-data
-    },
-    body: JSON.stringify(payload)
-  });
+  const { response } = await fetchSpeechWithFallback(url, env, payload, debugLoggingEnabled);
 
   if (debugLoggingEnabled) {
     console.log('[TTS] Response status:', response.status, response.statusText);
     console.log('[TTS] Response headers:', JSON.stringify([...response.headers.entries()]));
-  }
-
-  if (!response.ok) {
-    let errText = '';
-    if (debugLoggingEnabled) {
-      errText = await response.text().catch(() => '');
-    }
-    console.error('[TTS] Azure request failed', response.status, response.statusText);
-    if (debugLoggingEnabled && errText) {
-      console.error('[TTS] Error response body:', errText);
-    }
-    throw new Error(`Azure TTS error ${response.status}`);
   }
 
   const arrayBuffer = await response.arrayBuffer();
@@ -478,29 +567,10 @@ async function generateWithAzureGptMiniTTSStream(env, { text, context, voice, sp
     console.log('[TTS Streaming] Request payload:', JSON.stringify(payload, null, 2));
   }
 
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: {
-      'api-key': env.apiKey,
-      'content-type': 'application/json'  // JSON works despite docs saying multipart/form-data
-    },
-    body: JSON.stringify(payload)
-  });
+  const { response } = await fetchSpeechWithFallback(url, env, payload, debugLoggingEnabled);
 
   if (debugLoggingEnabled) {
     console.log('[TTS Streaming] Response status:', response.status, response.statusText);
-  }
-
-  if (!response.ok) {
-    let errText = '';
-    if (debugLoggingEnabled) {
-      errText = await response.text().catch(() => '');
-    }
-    console.error('[TTS Streaming] Azure request failed', response.status, response.statusText);
-    if (debugLoggingEnabled && errText) {
-      console.error('[TTS Streaming] Error response body:', errText);
-    }
-    throw new Error(`Azure TTS streaming error ${response.status}`);
   }
 
   // Return the streaming response directly
