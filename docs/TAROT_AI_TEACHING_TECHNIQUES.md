@@ -6,6 +6,28 @@ Teaching AI to understand and incorporate the subtleties of different tarot deck
 
 ***
 
+## Priority: Techniques Not Yet Utilized in This Repo
+
+Focus these gaps before expanding the in-use stack; they are not currently implemented here.
+
+- Generative deck creation (StyleGAN or diffusion) and prompt-to-image workflows are not present; the repo focuses on recognition and interpretation.
+- Dedicated style classifier/authenticity checks (ResNet/ViT, edge detection pipelines) beyond CLIP similarity are not present.
+- Trained object detection datasets (COCO/YOLO/Pascal VOC) and fine-tuned detectors are not present; symbol detection is zero-shot OWL-ViT with curated prompts.
+- Multi-view/contrastive training across decks for style-invariant semantics is not present beyond aliasing and prompt cues.
+- Probabilistic reasoning layers (Bayesian networks, beam search interpretation scoring, GNNs over the knowledge graph) are not present; current logic is rule-based + retrieval.
+- External knowledge ingestion for RAG (imported corpora with citation tracking) is not present; the knowledge base is curated and internal.
+- Generative quality metrics (FID/style-consistency) are not integrated into the evaluation scripts.
+
+### Backlog (priority order)
+
+1. Add a generative deck pipeline (diffusion or StyleGAN) with consistent frames, multi-pass curation, and style LoRA support.
+2. Build an annotation and training workflow for symbol detection (COCO/YOLO), then integrate a fine-tuned detector into `shared/vision/symbolDetector.js`.
+3. Implement a dedicated deck style classifier (ResNet/ViT) and plug it into vision proofing for style verification.
+4. Extend GraphRAG with external knowledge ingestion + vector store and citation provenance.
+5. Add a probabilistic interpretation layer (Bayesian weighting or beam search) that uses spread positions and card relations.
+6. Introduce multi-view/contrastive training across decks to improve style-invariant recognition.
+7. Add generative quality metrics (FID/style-consistency) and hook them into the evaluation scripts.
+
 ## 1. Data Collection and Curation
 
 **Dataset Creation**
@@ -494,3 +516,48 @@ Teaching AI to understand and incorporate tarot deck subtleties requires integra
 [110] Image Artistic Style fine-tuning. is Unsloth VLM the right tool ... - Reddit https://www.reddit.com/r/unsloth/comments/1oq4ly6/image_artistic_style_finetuning_is_unsloth_vlm/
 [111] [PDF] Pattern Recognition https://eprints.bournemouth.ac.uk/40889/1/Improving%20visual-semantic%20embeddings%20by%20learning%20semantically-enhanced%20hard%20negatives%20for%20cross-modal%20information%20retrieval.pdf
 [112] The Game Begins: AIs Interpret the Triadic Tarots https://kizziah.blog/the-game-begins-ais-interpret-the-triadic-tarots/
+
+## Implemented Here
+
+This appendix maps the techniques above to their concrete implementation in this repository.
+
+### Vision and Style Recognition
+- CLIP tarot vision pipeline: [shared/vision/tarotVisionPipeline.js](../shared/vision/tarotVisionPipeline.js)
+- Llama vision backend: [shared/vision/llamaVisionPipeline.js](../shared/vision/llamaVisionPipeline.js)
+- Vision backend registry: [shared/vision/visionBackends.js](../shared/vision/visionBackends.js)
+- Vision proof API (server verification): [functions/api/vision-proof.js](../functions/api/vision-proof.js)
+- Symbol detection (OWL-ViT) + heatmaps: [shared/vision/symbolDetector.js](../shared/vision/symbolDetector.js)
+- Symbol annotations + Minor Arcana lexicon: [shared/symbols/symbolAnnotations.js](../shared/symbols/symbolAnnotations.js), [shared/vision/minorSymbolLexicon.js](../shared/vision/minorSymbolLexicon.js)
+- Visual tone/emotion profiling: [shared/vision/visualSemantics.js](../shared/vision/visualSemantics.js)
+
+### Deck-Specific Adaptation
+- Deck profiles and prompt cues: [shared/vision/deckProfiles.js](../shared/vision/deckProfiles.js)
+- Deck aliases and image mapping: [shared/vision/deckAssets.js](../shared/vision/deckAssets.js)
+- Deck overrides for knowledge graph: [src/data/knowledgeGraphData.js](../src/data/knowledgeGraphData.js)
+- Core card datasets: [src/data/majorArcana.js](../src/data/majorArcana.js), [src/data/minorArcana.js](../src/data/minorArcana.js)
+- Public deck images: [public/images/cards/](../public/images/cards/)
+
+### LoRA and Fine-Tuned Prototypes
+- Adapter weights (RWS/Thoth/Marseille): [models/adapters/rws/adapter_model.safetensors](../models/adapters/rws/adapter_model.safetensors), [models/adapters/thoth/adapter_model.safetensors](../models/adapters/thoth/adapter_model.safetensors), [models/adapters/marseille/adapter_model.safetensors](../models/adapters/marseille/adapter_model.safetensors)
+- Prototype embeddings (per deck): [data/vision/fine-tuned/prototypes.json](../data/vision/fine-tuned/prototypes.json)
+- Prototype loader: [shared/vision/fineTuneCache.js](../shared/vision/fineTuneCache.js)
+
+### Interpretation and Contextual Reasoning
+- Spread analysis + elemental dignities: [functions/lib/spreadAnalysis.js](../functions/lib/spreadAnalysis.js)
+- Spread position weighting: [functions/lib/positionWeights.js](../functions/lib/positionWeights.js)
+- Knowledge graph patterns: [functions/lib/knowledgeGraph.js](../functions/lib/knowledgeGraph.js), [docs/knowledge-graph/README.md](../docs/knowledge-graph/README.md)
+- GraphRAG retrieval + embeddings: [functions/lib/graphRAG.js](../functions/lib/graphRAG.js), [functions/lib/knowledgeBase.js](../functions/lib/knowledgeBase.js), [functions/lib/embeddings.js](../functions/lib/embeddings.js)
+- Prompt assembly: [functions/lib/narrativeBackends.js](../functions/lib/narrativeBackends.js), [functions/lib/narrative/prompts/](../functions/lib/narrative/prompts/)
+
+### NLP Context, Memory, Personalization
+- Context detection: [functions/lib/contextDetection.js](../functions/lib/contextDetection.js)
+- Memory storage: [functions/lib/userMemory.js](../functions/lib/userMemory.js)
+- Follow-up prompts with memory: [functions/api/reading-followup.js](../functions/api/reading-followup.js), [functions/lib/followUpPrompt.js](../functions/lib/followUpPrompt.js)
+- Personalization storage + styling: [src/contexts/PreferencesContext.jsx](../src/contexts/PreferencesContext.jsx), [src/utils/personalizationStorage.js](../src/utils/personalizationStorage.js), [functions/lib/narrative/styleHelpers.js](../functions/lib/narrative/styleHelpers.js)
+
+### Evaluation and Quality Gates
+- Evaluation system docs: [docs/evaluation-system.md](../docs/evaluation-system.md)
+- Evaluation pipeline: [functions/lib/evaluation.js](../functions/lib/evaluation.js), [functions/lib/readingQuality.js](../functions/lib/readingQuality.js)
+- Vision evaluation scripts: [scripts/evaluation/runVisionConfidence.js](../scripts/evaluation/runVisionConfidence.js), [scripts/evaluation/computeVisionMetrics.js](../scripts/evaluation/computeVisionMetrics.js), [scripts/evaluation/processVisionReviews.js](../scripts/evaluation/processVisionReviews.js)
+- Narrative evaluation scripts: [scripts/evaluation/runNarrativeSamples.js](../scripts/evaluation/runNarrativeSamples.js), [scripts/evaluation/verifyNarrativeGate.js](../scripts/evaluation/verifyNarrativeGate.js)
+- Stored eval outputs: [data/evaluations/](../data/evaluations/)

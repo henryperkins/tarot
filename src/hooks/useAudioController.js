@@ -31,6 +31,7 @@ export function useAudioController() {
   // Track Hume audio state separately
   const humeAudioRef = useRef(null);
   const [humeState, setHumeState] = useState({ status: 'idle', error: null });
+  const humeRequestRef = useRef(0);
 
   // Track Speech SDK state separately
   const sdkAudioRef = useRef(null);
@@ -38,6 +39,7 @@ export function useAudioController() {
   const [sdkState, setSdkState] = useState({ status: 'idle', error: null });
   const [wordBoundary, setWordBoundary] = useState(null);
   const sdkInitializedRef = useRef(false);
+  const sdkRequestRef = useRef(0);
 
   const releaseSdkAudio = useCallback(() => {
     if (sdkAudioRef.current) {
@@ -134,6 +136,8 @@ export function useAudioController() {
   // Stop TTS when voice is toggled off
   useEffect(() => {
     if (!voiceOn) {
+      humeRequestRef.current += 1;
+      sdkRequestRef.current += 1;
       stopTTS();
       stopHumeAudio();
       setTimeout(() => {
@@ -152,6 +156,8 @@ export function useAudioController() {
   // Hume TTS speak function with emotion support
   const speakWithHumeProvider = useCallback(async (text, context = 'default', emotion = null) => {
     if (!text || !voiceOn) return;
+    const requestId = ++humeRequestRef.current;
+    const isStaleRequest = () => humeRequestRef.current !== requestId;
 
     try {
       // Stop any currently playing Hume audio
@@ -169,15 +175,25 @@ export function useAudioController() {
         emotion // GraphRAG-derived emotion for acting instructions
       });
 
+      if (isStaleRequest()) {
+        result?.stop?.();
+        return;
+      }
+
       humeAudioRef.current = result;
       setHumeState({ status: 'playing', error: null });
       setTtsAnnouncement('Playing your personalized reading...');
 
       // Play the audio
       await result.play();
+      if (isStaleRequest()) {
+        result?.stop?.();
+        return;
+      }
 
       // Handle audio end
       result.audio.onended = () => {
+        if (isStaleRequest()) return;
         setHumeState({ status: 'completed', error: null });
         setTtsAnnouncement('Narration finished.');
         humeAudioRef.current = null;
@@ -185,6 +201,7 @@ export function useAudioController() {
 
       // Handle audio errors
       result.audio.onerror = (e) => {
+        if (isStaleRequest()) return;
         console.error('Hume audio playback error:', e);
         setHumeState({ status: 'error', error: 'Audio playback failed' });
         setTtsAnnouncement('Narration unavailable.');
@@ -192,6 +209,7 @@ export function useAudioController() {
       };
 
     } catch (error) {
+      if (isStaleRequest()) return;
       console.error('Hume TTS error:', error);
       setHumeState({ status: 'error', error: error.message || 'Failed to generate speech' });
       setTtsAnnouncement('Narration unavailable.');
@@ -213,6 +231,8 @@ export function useAudioController() {
   // Azure Speech SDK with word-boundary events
   const speakWithSpeechSDK = useCallback(async (text, context = 'default') => {
     if (!text || !voiceOn) return;
+    const requestId = ++sdkRequestRef.current;
+    const isStaleRequest = () => sdkRequestRef.current !== requestId;
 
     try {
       if (!isSpeechSDKReady()) {
@@ -236,29 +256,45 @@ export function useAudioController() {
         speed: 0.95,
         enableViseme: false,
         onStart: () => {
+          if (isStaleRequest()) return;
           setSdkState({ status: 'synthesizing', error: null });
         },
         onWordBoundary: (event) => {
+          if (isStaleRequest()) return;
           wordTimings.push(event);
           if (event.boundaryType === 'word') {
             setWordBoundary(event);
           }
         },
         onComplete: () => {
+          if (isStaleRequest()) return;
           setSdkState({ status: 'ready', error: null });
         },
         onError: (err) => {
+          if (isStaleRequest()) return;
           console.error('[SpeechSDK] Synthesis error:', err);
           setSdkState({ status: 'error', error: err?.errorDetails || err?.reason || 'Synthesis failed' });
           setTtsAnnouncement('Narration unavailable.');
         }
       });
 
+      if (isStaleRequest()) {
+        if (result?.audioUrl && typeof URL !== 'undefined') {
+          try {
+            URL.revokeObjectURL(result.audioUrl);
+          } catch {
+            // ignore revoke errors
+          }
+        }
+        return;
+      }
+
       const audio = new Audio(result.audioUrl);
       sdkAudioRef.current = audio;
       sdkObjectUrlRef.current = result.audioUrl;
 
       audio.ontimeupdate = () => {
+        if (isStaleRequest()) return;
         const currentMs = audio.currentTime * 1000;
         const currentWord = wordTimings.find((w, index) => {
           const next = wordTimings[index + 1];
@@ -270,11 +306,13 @@ export function useAudioController() {
       };
 
       audio.onplay = () => {
+        if (isStaleRequest()) return;
         setSdkState({ status: 'playing', error: null });
         setTtsAnnouncement('Playing narration with word highlighting.');
       };
 
       audio.onpause = () => {
+        if (isStaleRequest()) return;
         if (!audio.ended) {
           setSdkState({ status: 'paused', error: null });
           setTtsAnnouncement('Narration paused.');
@@ -282,6 +320,7 @@ export function useAudioController() {
       };
 
       audio.onended = () => {
+        if (isStaleRequest()) return;
         releaseSdkAudio();
         setSdkState({ status: 'completed', error: null });
         setWordBoundary(null);
@@ -289,6 +328,7 @@ export function useAudioController() {
       };
 
       audio.onerror = () => {
+        if (isStaleRequest()) return;
         releaseSdkAudio();
         setSdkState({ status: 'error', error: 'Audio playback failed' });
         setWordBoundary(null);
@@ -296,7 +336,11 @@ export function useAudioController() {
       };
 
       await audio.play();
+      if (isStaleRequest()) {
+        return;
+      }
     } catch (error) {
+      if (isStaleRequest()) return;
       releaseSdkAudio();
       setWordBoundary(null);
 
@@ -404,6 +448,8 @@ export function useAudioController() {
   }, [voiceOn, ttsState, humeState, sdkState, ttsProvider, speak]);
 
   const handleNarrationStop = useCallback(() => {
+    humeRequestRef.current += 1;
+    sdkRequestRef.current += 1;
     // Always attempt to stop both providers to prevent orphaned audio
     stopHumeAudio();
     if (humeAudioRef.current) {

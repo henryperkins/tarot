@@ -1,2 +1,3 @@
--- Deprecated: migrated to 0024_add_user_tokens.sql to avoid numbering conflicts.
--- This file is intentionally left blank.
+
+-- No-op placeholder to satisfy D1 migration runner.
+SELECT 1;

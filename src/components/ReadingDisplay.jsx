@@ -31,6 +31,9 @@ import { useLandscape } from '../hooks/useLandscape';
 import { useHandsetLayout } from '../hooks/useHandsetLayout';
 import { useReducedMotion } from '../hooks/useReducedMotion';
 
+const STREAM_AUTO_NARRATE_DEBOUNCE_MS = 900;
+const STREAM_AUTO_NARRATE_MIN_WORDS = 40;
+
 /**
  * Ghost card component for deck-to-slot fly animation.
  * Renders via portal to animate in screen space above all other content.
@@ -238,6 +241,9 @@ export function ReadingDisplay({
     const [selectionState, setSelectionState] = useState({ key: readingIdentity, value: null });
     const [isNarrativeFocus, setIsNarrativeFocus] = useState(false);
     const [isFollowUpOpenLocal, setIsFollowUpOpenLocal] = useState(false);
+    const [autoNarrationTriggered, setAutoNarrationTriggered] = useState(false);
+    const autoNarrationTriggeredRef = useRef(false);
+    const autoNarrationTimeoutRef = useRef(null);
     const isFollowUpOpen = typeof followUpOpen === 'boolean' ? followUpOpen : isFollowUpOpenLocal;
     const setIsFollowUpOpen = onFollowUpOpenChange || setIsFollowUpOpenLocal;
     const selectedCardData = selectionState.key === readingIdentity ? selectionState.value : null;
@@ -335,7 +341,7 @@ export function ReadingDisplay({
     // Only show focus toggle on desktop; on mobile, panels are below the narrative so users can scroll past them
     const focusToggleAvailable = hasInsightPanels && !isHandset;
     const shouldShowSpreadInsights = !isNarrativeFocus && (hasPatternHighlights || hasHighlightPanel || hasTraditionalInsights);
-    const canAutoNarrate = voiceOn && autoNarrate && narrativePhase === 'complete' && !isReadingStreaming;
+    const canAutoNarrate = voiceOn && autoNarrate && narrativePhase === 'complete' && !isReadingStreaming && !autoNarrationTriggered;
 
     // Track previous hasInsightPanels for render-time state adjustment
     const [prevHasInsightPanels, setPrevHasInsightPanels] = useState(hasInsightPanels);
@@ -350,18 +356,87 @@ export function ReadingDisplay({
         }
     }
 
-
     // --- Handlers ---
     const handleNarrationWrapper = useCallback(() => {
         // Extract emotion from GraphRAG-derived emotional tone for TTS acting instructions
         const emotion = emotionalTone?.emotion || null;
-        handleNarrationButtonClick(fullReadingText, isPersonalReadingError, emotion);
-    }, [handleNarrationButtonClick, fullReadingText, isPersonalReadingError, emotionalTone]);
+        const narrationText = fullReadingText || narrativeText;
+        handleNarrationButtonClick(narrationText, isPersonalReadingError, emotion);
+    }, [handleNarrationButtonClick, fullReadingText, narrativeText, isPersonalReadingError, emotionalTone]);
 
     const handleVoicePromptWrapper = useCallback(() => {
         const emotion = emotionalTone?.emotion || null;
-        handleVoicePromptEnable(fullReadingText, emotion);
-    }, [handleVoicePromptEnable, fullReadingText, emotionalTone]);
+        const narrationText = fullReadingText || narrativeText;
+        handleVoicePromptEnable(narrationText, emotion);
+    }, [handleVoicePromptEnable, fullReadingText, narrativeText, emotionalTone]);
+
+    useEffect(() => {
+        if (!personalReading) {
+            autoNarrationTriggeredRef.current = false;
+            setAutoNarrationTriggered(false);
+            if (autoNarrationTimeoutRef.current) {
+                window.clearTimeout(autoNarrationTimeoutRef.current);
+                autoNarrationTimeoutRef.current = null;
+            }
+        }
+    }, [personalReading]);
+
+    useEffect(() => {
+        autoNarrationTriggeredRef.current = autoNarrationTriggered;
+    }, [autoNarrationTriggered]);
+
+    useEffect(() => {
+        if (autoNarrationTimeoutRef.current) {
+            window.clearTimeout(autoNarrationTimeoutRef.current);
+            autoNarrationTimeoutRef.current = null;
+        }
+
+        const hasNarrationText = narrativeText && narrativeText.trim().length > 0;
+        const shouldDebounceAutoNarrate = Boolean(
+            voiceOn &&
+            autoNarrate &&
+            isReadingStreaming &&
+            !isPersonalReadingError &&
+            !autoNarrationTriggeredRef.current &&
+            hasNarrationText
+        );
+
+        if (!shouldDebounceAutoNarrate) {
+            return undefined;
+        }
+
+        const wordCount = narrativeText.trim().split(/\s+/).filter(Boolean).length;
+        if (wordCount < STREAM_AUTO_NARRATE_MIN_WORDS) {
+            return undefined;
+        }
+
+        const status = ttsState?.status;
+        if (status === 'playing' || status === 'paused' || status === 'loading' || status === 'synthesizing') {
+            return undefined;
+        }
+
+        autoNarrationTimeoutRef.current = window.setTimeout(() => {
+            if (autoNarrationTriggeredRef.current) return;
+            autoNarrationTriggeredRef.current = true;
+            setAutoNarrationTriggered(true);
+            handleNarrationWrapper();
+        }, STREAM_AUTO_NARRATE_DEBOUNCE_MS);
+
+        return () => {
+            if (autoNarrationTimeoutRef.current) {
+                window.clearTimeout(autoNarrationTimeoutRef.current);
+                autoNarrationTimeoutRef.current = null;
+            }
+        };
+    }, [
+        autoNarrate,
+        isPersonalReadingError,
+        isReadingStreaming,
+        narrativeText,
+        ttsState?.status,
+        voiceOn,
+        handleNarrationWrapper
+    ]);
 
     const handleRevealAllWithScroll = useCallback(() => {
         revealAll();

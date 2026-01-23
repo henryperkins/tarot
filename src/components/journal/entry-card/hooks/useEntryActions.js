@@ -38,6 +38,65 @@ export function useEntryActions(entry, {
     }
   }, [clearStatus]);
 
+  const deliverShareLink = useCallback(async (shareUrl, {
+    successMessage = 'Share link copied.',
+    fallbackMessage = 'Share link created—open it to copy manually.'
+  } = {}) => {
+    if (!shareUrl) return false;
+
+    const sharePayload = { url: shareUrl, title: 'Tarot reading share link' };
+
+    // Prefer the Web Share API on mobile—more reliable than clipboard on iOS.
+    if (navigator?.share) {
+      try {
+        await navigator.share(sharePayload);
+        showStatus?.({ tone: 'success', message: successMessage });
+        return true;
+      } catch (error) {
+        // User cancellations are expected; fall back to copy paths.
+        if (error?.name !== 'AbortError') {
+          console.warn('Share sheet failed for share link', error);
+        }
+      }
+    }
+
+    // Attempt async clipboard if available.
+    if (navigator?.clipboard?.writeText) {
+      try {
+        await navigator.clipboard.writeText(shareUrl);
+        showStatus?.({ tone: 'success', message: successMessage });
+        return true;
+      } catch (error) {
+        console.warn('Clipboard write failed for share link', error);
+      }
+    }
+
+    // Legacy fallback for browsers without navigator.clipboard (common on mobile).
+    if (typeof document !== 'undefined') {
+      try {
+        const textarea = document.createElement('textarea');
+        textarea.value = shareUrl;
+        textarea.setAttribute('readonly', '');
+        textarea.style.position = 'fixed';
+        textarea.style.opacity = '0';
+        document.body.appendChild(textarea);
+        textarea.select();
+        textarea.setSelectionRange(0, textarea.value.length);
+        const copied = document.execCommand('copy');
+        document.body.removeChild(textarea);
+        if (copied) {
+          showStatus?.({ tone: 'success', message: successMessage });
+          return true;
+        }
+      } catch (error) {
+        console.warn('Fallback copy failed for share link', error);
+      }
+    }
+
+    showStatus?.({ tone: 'warning', message: fallbackMessage });
+    return false;
+  }, [showStatus]);
+
   const handleExportCsv = useCallback(
     () =>
       runAction('export', async () => {
@@ -93,16 +152,10 @@ export function useEntryActions(entry, {
                 : null;
 
             if (shareUrl) {
-              if (navigator?.clipboard?.writeText) {
-                try {
-                  await navigator.clipboard.writeText(shareUrl);
-                  showStatus?.({ tone: 'success', message: 'Share link copied (single reading).' });
-                  return true;
-                } catch (error) {
-                  console.warn('Clipboard write failed for entry share', error);
-                }
-              }
-              showStatus?.({ tone: 'info', message: 'Share link ready — copy from your address bar.' });
+              await deliverShareLink(shareUrl, {
+                successMessage: 'Share link copied (single reading).',
+                fallbackMessage: 'Share link ready—tap to open and copy manually.'
+              });
               return true;
             }
             showStatus?.({ tone: 'error', message: 'Share link created, but the URL is missing.' });
@@ -126,7 +179,7 @@ export function useEntryActions(entry, {
         });
         return success;
       }),
-    [entry, isAuthenticated, onCreateShareLink, runAction, showStatus]
+    [deliverShareLink, entry, isAuthenticated, onCreateShareLink, runAction, showStatus]
   );
 
   const handleCopyShareLink = useCallback(
@@ -138,21 +191,12 @@ export function useEntryActions(entry, {
           return false;
         }
         const url = `${window.location.origin}/share/${token}`;
-        if (navigator?.clipboard?.writeText) {
-          try {
-            await navigator.clipboard.writeText(url);
-            showStatus?.({ tone: 'success', message: 'Share link copied.' });
-            return true;
-          } catch (error) {
-            console.warn('Clipboard write failed for share link', error);
-            showStatus?.({ tone: 'warning', message: 'Copy blocked—open the link and copy manually.' });
-            return false;
-          }
-        }
-        showStatus?.({ tone: 'error', message: 'Copy not supported—open the link to share.' });
-        return false;
+        return deliverShareLink(url, {
+          successMessage: 'Share link copied.',
+          fallbackMessage: 'Copy blocked—open the link and share manually.'
+        });
       }),
-    [runAction, showStatus]
+    [deliverShareLink, runAction, showStatus]
   );
 
   const handleDeleteShareLink = useCallback(

@@ -26,6 +26,7 @@ const ttsListeners = new Set();
 let currentNarrationRequestId = 0;
 let activeNarrationId = null;
 let cancelledUpToRequestId = 0;
+let ttsAbortController = null;
 let audioUnlocked = false;
 let unlockListenersRegistered = false;
 const TTS_CACHE_PREFIX = 'tts_cache_';
@@ -197,7 +198,13 @@ export async function speakText({ text, enabled, context = 'default', voice = 'v
   const ttsText = prepareForTTS(normalizedText);
 
   const requestId = ++currentNarrationRequestId;
+  if (ttsAbortController) {
+    ttsAbortController.abort();
+  }
+  const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
+  ttsAbortController = controller;
   activeNarrationId = requestId;
+  const isStaleRequest = () => (activeNarrationId !== requestId) || Boolean(controller?.signal?.aborted);
 
   try {
     // Stop any currently playing TTS
@@ -251,8 +258,13 @@ export async function speakText({ text, enabled, context = 'default', voice = 'v
       const response = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(requestBody)
+        body: JSON.stringify(requestBody),
+        signal: controller?.signal
       });
+
+      if (isStaleRequest()) {
+        return;
+      }
 
       if (!response.ok) {
         console.error('TTS error:', response.status);
@@ -267,6 +279,10 @@ export async function speakText({ text, enabled, context = 'default', voice = 'v
 
         const errorCode = errorData.errorCode || (response.status === 429 ? 'RATE_LIMIT' : 'SERVICE_ERROR');
         const userMessage = getErrorMessage(response.status, errorData);
+
+        if (isStaleRequest()) {
+          return;
+        }
 
         emitTTSState({
           status: 'error',
@@ -291,9 +307,16 @@ export async function speakText({ text, enabled, context = 'default', voice = 'v
         objectUrlForCleanup = objectUrl;
         provider = 'azure-gpt-4o-mini-tts'; // Streaming only works with Azure
         source = 'stream';
+        if (isStaleRequest()) {
+          revokeTrackedObjectUrl(objectUrl);
+          return;
+        }
       } else {
         // Non-streaming mode: response is JSON with base64 data URI
         const data = await response.json();
+        if (isStaleRequest()) {
+          return;
+        }
         if (!data?.audio) {
           console.error('No audio field in TTS response');
           emitTTSState({
@@ -311,9 +334,16 @@ export async function speakText({ text, enabled, context = 'default', voice = 'v
         provider = data?.provider || null;
 
         // Cache the audio for future use, but never cache fallback provider
-        if (provider && provider !== 'fallback') {
+        if (!isStaleRequest() && provider && provider !== 'fallback') {
           cacheAudio(cacheKey, audioDataUri, provider);
         }
+      }
+
+      if (isStaleRequest()) {
+        if (objectUrlForCleanup) {
+          revokeTrackedObjectUrl(objectUrlForCleanup);
+        }
+        return;
       }
 
       emitTTSState({
@@ -327,7 +357,7 @@ export async function speakText({ text, enabled, context = 'default', voice = 'v
       });
     }
 
-    if (requestId <= cancelledUpToRequestId) {
+    if (isStaleRequest() || requestId <= cancelledUpToRequestId) {
       emitTTSState({
         status: 'stopped',
         reason: 'user',
@@ -342,6 +372,10 @@ export async function speakText({ text, enabled, context = 'default', voice = 'v
     if (!audioUnlocked) {
       const unlocked = await unlockAudio();
       if (!unlocked) {
+        if (isStaleRequest()) {
+          activeNarrationId = null;
+          return;
+        }
         emitTTSState({
           status: 'unlock-failed',
           provider,
@@ -356,6 +390,11 @@ export async function speakText({ text, enabled, context = 'default', voice = 'v
       }
     }
 
+    if (isStaleRequest()) {
+      activeNarrationId = null;
+      return;
+    }
+
     // Play the audio
     const audio = new Audio(audioDataUri);
     // Important: set volume based on ambience setting or default
@@ -368,7 +407,15 @@ export async function speakText({ text, enabled, context = 'default', voice = 'v
     wireTTSEvents(audio, provider, source, requestId, narrationContext);
 
     try {
+      if (isStaleRequest()) {
+        releaseAudioObjectUrl(audio);
+        return;
+      }
       await audio.play();
+      if (isStaleRequest()) {
+        releaseAudioObjectUrl(audio);
+        return;
+      }
       emitTTSState({
         status: 'playing',
         provider,
@@ -395,6 +442,9 @@ export async function speakText({ text, enabled, context = 'default', voice = 'v
       activeNarrationId = null;
     }
   } catch (err) {
+    if (controller?.signal?.aborted || err?.name === 'AbortError' || isStaleRequest()) {
+      return;
+    }
     console.error('Error playing TTS audio:', err);
     const fallbackPlayed = await tryPlayLocalFallback({
       requestId,
@@ -649,6 +699,10 @@ export function stopTTS() {
       cancelledUpToRequestId = Math.max(cancelledUpToRequestId, targetId);
     }
     activeNarrationId = null;
+    if (ttsAbortController) {
+      ttsAbortController.abort();
+      ttsAbortController = null;
+    }
 
     if (ttsAudio) {
       releaseAudioObjectUrl(ttsAudio);
@@ -686,6 +740,10 @@ export function cleanupAudio() {
       releaseAudioObjectUrl(ttsAudio);
       ttsAudio.pause();
       ttsAudio = null;
+    }
+    if (ttsAbortController) {
+      ttsAbortController.abort();
+      ttsAbortController = null;
     }
   } catch {
     // ignore cleanup errors
