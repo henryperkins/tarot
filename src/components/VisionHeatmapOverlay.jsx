@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 
 /**
  * Generate heatmap cell background color using CSS custom property for theme consistency.
- * Falls back to emerald green if CSS variable unavailable.
+ * Falls back to warm gold if CSS variable unavailable.
  * @param {number} value - Intensity value between 0 and 1
  * @returns {string} CSS color string
  */
@@ -11,7 +11,7 @@ function cellColor(value) {
   const safeValue = Number.isFinite(value) ? Math.min(1, Math.max(0, value)) : 0;
   const alpha = Math.min(0.85, safeValue * 0.9);
   // Use CSS custom property with fallback for theme consistency
-  return `rgba(var(--color-accent-rgb, 16, 185, 129), ${alpha.toFixed(3)})`;
+  return `rgba(var(--brand-accent-rgb, 232 218 195) / ${alpha.toFixed(3)})`;
 }
 
 /**

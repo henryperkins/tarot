@@ -5,7 +5,9 @@
   <meta charset="UTF-8" />
   <title>Tableu</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <meta name="theme-color" content="#022c22" />
+  <meta name="color-scheme" content="dark light" />
+  <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#0F0E13" />
+  <meta name="theme-color" media="(prefers-color-scheme: light)" content="#FAFAFA" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link
@@ -19,9 +21,9 @@
          For production: /dist/assets/*.css is auto-linked in the built index.html. -->
 </head>
 
-<body class="bg-slate-950 text-amber-50">
+<body>
   <!-- Inline SVG Sprite for Tableu Logo -->
-  <svg xmlns="http://www.w3.org/2000/svg" style="display:none">
+  <svg xmlns="http://www.w3.org/2000/svg" style="display:none" width="0" height="0" aria-hidden="true" focusable="false">
     <defs>
       <!-- ===========================
            STYLE DEFINITIONS
@@ -47,10 +49,10 @@
           stroke-linejoin: round;
         }
 
-        /* Theme variants */
+        /* Theme variants - applied externally to wrapper groups */
         .theme-primary {
-          --fill: #C9B36E;
-          --stroke: #C9B36E;
+          --fill: var(--brand-primary, #C9B36E);
+          --stroke: var(--brand-primary, #C9B36E);
           --sw: 6;
         }
         .theme-mono {
@@ -62,6 +64,13 @@
           --fill: #FFFFFF;
           --stroke: #FFFFFF;
           --sw: 6;
+        }
+        /* Smaller stroke for icon/favicon sizes */
+        .theme-icon {
+          --sw: 4;
+        }
+        .theme-favicon {
+          --sw: 3;
         }
       </style>
 
@@ -133,79 +142,78 @@
     </defs>
 
     <!-- ===========================
-         MAIN LOGO MARK (no wordmark)
+         MAIN LOGO MARK (theme-neutral base)
          =========================== -->
     <symbol id="tableu-mark" viewBox="-12 -12 456 600" overflow="visible">
-      <g class="theme-primary">
-        <!-- Card Frame -->
-        <rect class="t-stroke" x="10" y="10" width="412" height="556" rx="48" />
+      <!-- Theme-neutral: apply .theme-* wrapper externally -->
+      <!-- Card Frame -->
+      <rect class="t-stroke" x="10" y="10" width="412" height="556" rx="48" />
 
-        <!-- Center Divider Line -->
-        <line class="t-stroke" x1="216" y1="18" x2="216" y2="110" />
+      <!-- Center Divider Line -->
+      <line class="t-stroke" x1="216" y1="18" x2="216" y2="110" />
 
-        <!-- Bottom Curved Baseline -->
-        <path class="t-stroke" d="M40 490 Q216 470 392 490" />
+      <!-- Bottom Curved Baseline -->
+      <path class="t-stroke" d="M40 490 Q216 470 392 490" />
 
-        <!-- Moon (top left) -->
-        <g transform="translate(70, 45) scale(0.9)">
-          <use href="#t-moon" />
+      <!-- Moon (top left) -->
+      <g transform="translate(70, 45) scale(0.9)">
+        <use href="#t-moon" />
+      </g>
+
+      <!-- Star (top right) -->
+      <g transform="translate(310, 40) scale(1.1)">
+        <use href="#t-star-4" />
+      </g>
+
+      <!-- Wand with sparkle -->
+      <path class="t-stroke" d="M320 170 Q300 200 280 230" />
+      <g transform="translate(275, 145) scale(0.6)">
+        <use href="#t-sparkle" />
+      </g>
+
+      <!-- Eye (right side) -->
+      <g transform="translate(330, 240) scale(0.85)">
+        <use href="#t-eye" />
+      </g>
+
+      <!-- Bottom left sparkle -->
+      <g transform="translate(50, 360) scale(0.7)">
+        <use href="#t-sparkle" />
+      </g>
+
+      <!-- Octopus -->
+      <g transform="translate(116, 180)">
+        <use href="#t-octopus-head" />
+
+        <!-- 6 Tentacles spreading downward -->
+        <!-- Far left -->
+        <g transform="translate(15, 150) scale(0.95) rotate(-25 25 10)">
+          <use href="#t-tentacle" />
         </g>
 
-        <!-- Star (top right) -->
-        <g transform="translate(310, 40) scale(1.1)">
-          <use href="#t-star-4" />
+        <!-- Mid left -->
+        <g transform="translate(35, 155) scale(1.0) rotate(-10 25 10)">
+          <use href="#t-tentacle" />
         </g>
 
-        <!-- Wand with sparkle -->
-        <path class="t-stroke" d="M320 170 Q300 200 280 230" />
-        <g transform="translate(275, 145) scale(0.6)">
-          <use href="#t-sparkle" />
+        <!-- Center left -->
+        <g transform="translate(60, 160) scale(1.05) rotate(0 25 10)">
+          <use href="#t-tentacle" />
         </g>
 
-        <!-- Eye (right side) -->
-        <g transform="translate(330, 240) scale(0.85)">
-          <use href="#t-eye" />
+        <!-- Center right -->
+        <g transform="translate(85, 160) scale(1.05) rotate(0 25 10)">
+          <use href="#t-tentacle" />
         </g>
 
-        <!-- Bottom left sparkle -->
-        <g transform="translate(50, 360) scale(0.7)">
-          <use href="#t-sparkle" />
+        <!-- Mid right -->
+        <g transform="translate(110, 155) scale(1.0) rotate(10 25 10)">
+          <use href="#t-tentacle" />
         </g>
 
-        <!-- Octopus -->
-        <g transform="translate(116, 180)">
-          <use href="#t-octopus-head" />
-
-          <!-- 6 Tentacles spreading downward -->
-          <!-- Far left -->
-          <g transform="translate(15, 150) scale(0.95) rotate(-25 25 10)">
-            <use href="#t-tentacle" />
-          </g>
-
-          <!-- Mid left -->
-          <g transform="translate(35, 155) scale(1.0) rotate(-10 25 10)">
-            <use href="#t-tentacle" />
-          </g>
-
-          <!-- Center left -->
-          <g transform="translate(60, 160) scale(1.05) rotate(0 25 10)">
-            <use href="#t-tentacle" />
-          </g>
-
-          <!-- Center right -->
-          <g transform="translate(85, 160) scale(1.05) rotate(0 25 10)">
-            <use href="#t-tentacle" />
-          </g>
-
-          <!-- Mid right -->
-          <g transform="translate(110, 155) scale(1.0) rotate(10 25 10)">
-            <use href="#t-tentacle" />
-          </g>
-
-          <!-- Far right -->
-          <g transform="translate(130, 150) scale(0.95) rotate(25 25 10)">
-            <use href="#t-tentacle" />
-          </g>
+        <!-- Far right -->
+        <g transform="translate(130, 150) scale(0.95) rotate(25 25 10)">
+          <use href="#t-tentacle" />
         </g>
       </g>
     </symbol>
@@ -214,15 +222,17 @@
          VARIANT 1: PRIMARY LOGO
          =========================== -->
     <symbol id="tableu-primary" viewBox="-12 -12 456 600" overflow="visible">
-      <use href="#tableu-mark" />
+      <g class="theme-primary">
+        <use href="#tableu-mark" />
+      </g>
     </symbol>
 
     <!-- ===========================
-         VARIANT 2: ICON (simplified)
+         VARIANT 2: ICON (simplified, with theme wrapper)
          Remove: eye, wand, bottom sparkle
          =========================== -->
     <symbol id="tableu-icon" viewBox="-12 -12 456 600" overflow="visible">
-      <g class="theme-primary">
+      <g class="theme-primary theme-icon">
         <rect class="t-stroke" x="10" y="10" width="412" height="556" rx="48" />
         <line class="t-stroke" x1="216" y1="18" x2="216" y2="110" />
         <path class="t-stroke" d="M40 490 Q216 470 392 490" />
@@ -261,7 +271,7 @@
     </symbol>
 
     <!-- ===========================
-         VARIANT 3: MONOCHROME
+         VARIANT 3: MONOCHROME (theme wrapper applied externally)
          =========================== -->
     <symbol id="tableu-mono" viewBox="-12 -12 456 600" overflow="visible">
       <g class="theme-mono">
@@ -270,7 +280,7 @@
     </symbol>
 
     <!-- ===========================
-         VARIANT 4: DARK MODE
+         VARIANT 4: DARK MODE (theme wrapper applied externally)
          =========================== -->
     <symbol id="tableu-dark" viewBox="-12 -12 456 600" overflow="visible">
       <g class="theme-dark">
@@ -279,10 +289,10 @@
     </symbol>
 
     <!-- ===========================
-         VARIANT 5: FAVICON (octopus only)
+         VARIANT 5: FAVICON (octopus only, with theme wrapper)
          =========================== -->
     <symbol id="tableu-favicon" viewBox="-10 -10 220 270" overflow="visible">
-      <g class="theme-primary">
+      <g class="theme-primary theme-favicon">
         <g transform="translate(0, 10)">
           <use href="#t-octopus-head" />
 
@@ -307,8 +317,10 @@
          VARIANT 6: WITH WORDMARK
          =========================== -->
     <symbol id="tableu-full" viewBox="-12 -12 456 744" overflow="visible">
-      <!-- Logo mark -->
-      <use href="#tableu-mark" />
+      <!-- Logo mark with theme wrapper -->
+      <g class="theme-primary">
+        <use href="#tableu-mark" />
+      </g>
 
       <!-- TABLEU Wordmark -->
       <g class="theme-primary" transform="translate(0, 600)">
@@ -316,9 +328,9 @@
           x="216"
           y="80"
           text-anchor="middle"
-          font-family="serif"
+          font-family="'Cormorant Garamond', Georgia, serif"
           font-size="72"
-          font-weight="300"
+          font-weight="400"
           letter-spacing="12"
           fill="var(--fill, #C9B36E)">
           TABLEU

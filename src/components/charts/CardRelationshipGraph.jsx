@@ -42,8 +42,8 @@ const CardRelationshipGraph = memo(function CardRelationshipGraph({ cards = [], 
   };
 
   return (
-    <div className="w-full flex flex-col items-center bg-surface/40 rounded-xl p-4 border border-amber-200/5">
-      <h4 className="text-xs font-bold uppercase tracking-widest text-amber-200/60 mb-2">Pattern Web</h4>
+    <div className="w-full flex flex-col items-center bg-surface/40 rounded-xl p-4 border border-[color:var(--border-warm-subtle)]">
+      <h4 className="text-xs font-bold uppercase tracking-widest text-muted mb-2">Pattern Web</h4>
       <div style={{ width: '100%', height: '180px' }}>
         <svg width="100%" height="100%" viewBox={`0 0 ${width} ${height}`} className="overflow-visible">
           {/* Edges for Dyads */}
@@ -57,7 +57,7 @@ const CardRelationshipGraph = memo(function CardRelationshipGraph({ cards = [], 
                 key={`dyad-${i}`}
                 x1={nodes[0].x} y1={nodes[0].y}
                 x2={nodes[1].x} y2={nodes[1].y}
-                stroke="#fbbf24"
+                stroke="var(--brand-primary)"
                 strokeWidth="1"
                 strokeDasharray="3 3"
                 opacity="0.4"
@@ -81,9 +81,9 @@ const CardRelationshipGraph = memo(function CardRelationshipGraph({ cards = [], 
               <path 
                 key={`triad-${i}`}
                 d={pathData}
-                fill="#fbbf24"
+                fill="var(--brand-primary)"
                 fillOpacity="0.08"
-                stroke="#fbbf24"
+                stroke="var(--brand-primary)"
                 strokeWidth="1.5"
                 strokeOpacity="0.6"
               />
@@ -93,14 +93,14 @@ const CardRelationshipGraph = memo(function CardRelationshipGraph({ cards = [], 
           {/* Nodes */}
           {cardNodes.map((node, i) => (
             <g key={i} transform={`translate(${node.x},${node.y})`}>
-              <circle r="3" fill="#fbbf24" />
+              <circle r="3" fill="var(--brand-primary)" />
               {/* Short name label */}
               <text 
                 y={node.y > cy ? 12 : -8} 
                 x={node.x > cx ? 5 : -5}
                 textAnchor={node.x > cx ? "start" : "end"}
                 fontSize="9" 
-                fill="rgba(255,255,255,0.6)"
+                fill="var(--text-muted)"
                 className="font-serif"
               >
                 {node.name}
@@ -109,13 +109,13 @@ const CardRelationshipGraph = memo(function CardRelationshipGraph({ cards = [], 
           ))}
         </svg>
       </div>
-      <div className="flex gap-4 mt-2 text-[10px] text-amber-100/40">
+      <div className="flex gap-4 mt-2 text-[10px] text-muted">
         <span className="flex items-center gap-1">
-          <span className="w-2 h-2 bg-amber-400/10 border border-amber-400/50 rounded-sm"></span>
+          <span className="w-2 h-2 bg-[color:var(--border-warm-subtle)] border border-[color:var(--border-warm-light)] rounded-sm"></span>
           Triad
         </span>
         <span className="flex items-center gap-1">
-          <span className="w-3 h-0.5 border-t border-amber-400/40 border-dashed"></span>
+          <span className="w-3 h-0.5 border-t border-[color:var(--border-warm-light)] border-dashed"></span>
           Dyad
         </span>
       </div>

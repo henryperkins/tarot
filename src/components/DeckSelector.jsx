@@ -29,7 +29,7 @@ export const DECK_OPTIONS = [
     border: 'rgba(220, 188, 141, 0.35)',
     borderActive: 'rgba(229, 196, 142, 0.9)',
     glow: 'rgba(229, 196, 142, 0.45)',
-    background: 'linear-gradient(150deg, rgba(255, 209, 159, 0.12), rgba(17, 12, 21, 0.94)), radial-gradient(circle at 20% 18%, rgba(255, 225, 180, 0.12), transparent 52%), radial-gradient(circle at 80% -10%, rgba(63, 118, 192, 0.18), transparent 48)'
+    background: 'linear-gradient(150deg, rgba(255, 209, 159, 0.12), var(--panel-dark-1)), radial-gradient(circle at 20% 18%, rgba(255, 225, 180, 0.12), transparent 52%), radial-gradient(circle at 80% -10%, rgba(63, 118, 192, 0.18), transparent 48)'
   },
   {
     id: 'thoth-a1',
@@ -50,7 +50,7 @@ export const DECK_OPTIONS = [
     border: 'rgba(83, 216, 206, 0.25)',
     borderActive: 'rgba(83, 216, 206, 0.75)',
     glow: 'rgba(83, 216, 206, 0.35)',
-    background: 'linear-gradient(165deg, rgba(26, 48, 63, 0.92), rgba(15, 12, 30, 0.96)), radial-gradient(circle at 12% 18%, rgba(68, 224, 210, 0.22), transparent 48%), radial-gradient(circle at 90% 0%, rgba(193, 36, 139, 0.18), transparent 50)',
+    background: 'linear-gradient(165deg, var(--panel-dark-2), var(--panel-dark-1)), radial-gradient(circle at 12% 18%, rgba(68, 224, 210, 0.22), transparent 48%), radial-gradient(circle at 90% 0%, rgba(193, 36, 139, 0.18), transparent 50)',
     note: 'Uses Thoth card names (e.g., "The Magus", "Adjustment").'
   },
   {
@@ -72,7 +72,7 @@ export const DECK_OPTIONS = [
     border: 'rgba(192, 146, 64, 0.28)',
     borderActive: 'rgba(216, 163, 0, 0.82)',
     glow: 'rgba(216, 163, 0, 0.35)',
-    background: 'linear-gradient(170deg, rgba(34, 26, 28, 0.94), rgba(16, 18, 32, 0.96)), radial-gradient(circle at 12% 22%, rgba(216, 163, 0, 0.16), transparent 46%), radial-gradient(circle at 85% -8%, rgba(47, 86, 178, 0.18), transparent 48)',
+    background: 'linear-gradient(170deg, var(--panel-dark-2), var(--panel-dark-1)), radial-gradient(circle at 12% 22%, rgba(216, 163, 0, 0.16), transparent 46%), radial-gradient(circle at 85% -8%, rgba(47, 86, 178, 0.18), transparent 48)',
     note: 'Uses Marseille numbering with French titles.'
   }
 ];

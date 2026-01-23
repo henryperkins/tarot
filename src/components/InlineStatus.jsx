@@ -3,11 +3,11 @@ import { CheckCircle, WarningCircle, XCircle, Info } from '@phosphor-icons/react
 const TONE_STYLES = {
   success: {
     icon: CheckCircle,
-    className: 'text-accent'
+    className: 'text-success'
   },
   warning: {
     icon: WarningCircle,
-    className: 'text-amber-400'
+    className: 'text-accent'
   },
   error: {
     icon: XCircle,

@@ -15,6 +15,22 @@ const FOCUSABLE_SELECTORS = [
   '[contenteditable]'
 ].join(', ');
 
+function mergeClassNames(...classes) {
+  return classes.filter(Boolean).join(' ');
+}
+
+function composeEventHandlers(handler, internalHandler) {
+  return (event) => {
+    if (typeof handler === 'function') {
+      handler(event);
+    }
+    if (event?.defaultPrevented) return;
+    if (typeof internalHandler === 'function') {
+      internalHandler(event);
+    }
+  };
+}
+
 /**
  * Hook to detect if viewport is mobile-sized with debounced resize handling
  */
@@ -207,7 +223,7 @@ function BottomSheet({ isOpen, onClose, children }) {
         aria-modal="true"
         aria-label="Card symbol insights"
         tabIndex={-1}
-        className="relative z-10 w-full max-w-lg max-h-[80vh] overflow-y-auto rounded-t-3xl border-t border-x border-secondary/30 bg-surface/98 p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] shadow-2xl animate-slide-up focus:outline-none"
+        className="relative z-10 w-full max-w-lg max-h-[80vh] overflow-y-auto rounded-t-3xl border-t border-x border-secondary/30 bg-surface p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] shadow-2xl animate-slide-up focus:outline-none"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Drag handle indicator */}
@@ -222,13 +238,24 @@ function BottomSheet({ isOpen, onClose, children }) {
   return createPortal(sheetMarkup, document.body);
 }
 
-export function CardSymbolInsights({ card, position }) {
+export function CardSymbolInsights({
+  card,
+  position,
+  triggerContent,
+  triggerLabel = 'Card symbols',
+  triggerAriaLabel,
+  triggerClassName,
+  triggerProps,
+  triggerRef,
+  openOnHover = true
+}) {
   const insights = useMemo(() => buildCardInsights(card), [card]);
   const [isOpen, setIsOpen] = useState(false);
   const isMobile = useIsMobile();
   const containerRef = useRef(null);
   const tooltipRef = useRef(null);
   const closeTimeoutRef = useRef(null);
+  const shouldHover = openOnHover && !isMobile;
 
   // Generate unique IDs for accessibility
   const safePosition = typeof position === 'string'
@@ -290,20 +317,59 @@ export function CardSymbolInsights({ card, position }) {
     return null;
   }
 
+  const {
+    className: triggerPropsClassName,
+    onClick: triggerOnClick,
+    onFocus: triggerOnFocus,
+    onBlur: triggerOnBlur,
+    onMouseEnter: triggerOnMouseEnter,
+    onMouseLeave: triggerOnMouseLeave,
+    ...restTriggerProps
+  } = triggerProps || {};
+
+  const baseTriggerClassName = triggerContent
+    ? ''
+    : 'inline-flex items-center justify-center gap-2 min-h-[44px] min-w-[44px] rounded-full ' +
+      'border border-secondary/60 bg-surface/80 px-4 py-2 text-sm text-secondary hover:border-secondary ' +
+      'active:bg-secondary/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-secondary/70 ' +
+      'focus-visible:ring-offset-2 transition-colors touch-manipulation';
+
+  const buttonLabel = triggerAriaLabel || triggerLabel;
+  const triggerBlurHandler = isMobile
+    ? triggerOnBlur
+    : composeEventHandlers(triggerOnBlur, handleBlur);
+  const triggerButton = (
+    <button
+      ref={triggerRef}
+      type="button"
+      {...restTriggerProps}
+      aria-expanded={isOpen}
+      aria-haspopup="dialog"
+      aria-controls={isMobile ? undefined : tooltipId}
+      aria-label={buttonLabel}
+      className={mergeClassNames(baseTriggerClassName, triggerClassName, triggerPropsClassName)}
+      onClick={composeEventHandlers(triggerOnClick, handleToggle)}
+      onFocus={shouldHover ? composeEventHandlers(triggerOnFocus, handleOpen) : triggerOnFocus}
+      onBlur={triggerBlurHandler}
+      onMouseEnter={shouldHover ? composeEventHandlers(triggerOnMouseEnter, handleOpen) : triggerOnMouseEnter}
+      onMouseLeave={shouldHover ? composeEventHandlers(triggerOnMouseLeave, handleClose) : triggerOnMouseLeave}
+    >
+      {triggerContent ? (
+        triggerContent
+      ) : (
+        <>
+          <Info className="h-4 w-4" aria-hidden="true" />
+          <span>{triggerLabel}</span>
+        </>
+      )}
+    </button>
+  );
+
   // Mobile: use bottom sheet
   if (isMobile) {
     return (
       <>
-        <button
-          type="button"
-          onClick={handleToggle}
-          aria-expanded={isOpen}
-          aria-haspopup="dialog"
-          className="inline-flex items-center justify-center gap-2 min-h-[44px] min-w-[44px] rounded-full border border-secondary/60 bg-surface/80 px-4 py-2 text-sm text-secondary hover:border-secondary active:bg-secondary/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-secondary/70 focus-visible:ring-offset-2 touch-manipulation transition-colors"
-        >
-          <Info className="h-4 w-4" aria-hidden="true" />
-          <span>Card symbols</span>
-        </button>
+        {triggerButton}
         <BottomSheet isOpen={isOpen} onClose={handleCloseImmediate}>
           <SymbolContent
             insights={insights}
@@ -320,22 +386,10 @@ export function CardSymbolInsights({ card, position }) {
     <div
       ref={containerRef}
       className="relative inline-block text-left"
-      onMouseEnter={handleOpen}
-      onMouseLeave={handleClose}
+      onMouseEnter={shouldHover ? handleOpen : undefined}
+      onMouseLeave={shouldHover ? handleClose : undefined}
     >
-      <button
-        type="button"
-        aria-expanded={isOpen}
-        aria-haspopup="dialog"
-        aria-controls={tooltipId}
-        onClick={handleToggle}
-        onFocus={handleOpen}
-        onBlur={handleBlur}
-        className="inline-flex items-center justify-center gap-2 min-h-[44px] min-w-[44px] rounded-full border border-secondary/60 bg-surface/80 px-4 py-2 text-sm text-secondary hover:border-secondary active:bg-secondary/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-secondary/70 focus-visible:ring-offset-2 transition-colors"
-      >
-        <Info className="h-4 w-4" aria-hidden="true" />
-        <span>Card symbols</span>
-      </button>
+      {triggerButton}
 
       {/* Desktop popover - positioned to avoid overflow */}
       <div
@@ -343,8 +397,8 @@ export function CardSymbolInsights({ card, position }) {
         id={tooltipId}
         role="dialog"
         aria-label="Card symbol insights"
-        onMouseEnter={handleOpen}
-        onMouseLeave={handleClose}
+        onMouseEnter={shouldHover ? handleOpen : undefined}
+        onMouseLeave={shouldHover ? handleClose : undefined}
         onBlur={handleBlur}
         className={`absolute z-30 mt-2 w-72 max-w-[calc(100vw-2rem)] rounded-2xl border border-secondary/40 bg-surface/98 p-4 shadow-2xl backdrop-blur-sm transition-all duration-200
           left-0 sm:left-auto sm:right-0

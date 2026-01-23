@@ -55,9 +55,10 @@ function normalizeCoachRecommendation(recommendation) {
 
 export function buildCardInsightPayload(card) {
   if (!card?.name) return null;
+  const isReversed = REVERSED_PATTERN.test(card?.orientation || '') || card?.isReversed;
   return {
     name: card.name,
-    isReversed: REVERSED_PATTERN.test(card?.orientation),
+    isReversed,
     image: card.image || null
   };
 }

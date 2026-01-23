@@ -94,7 +94,7 @@ function GhostCard({ startRect, endRect, onComplete }) {
         <div
           className="absolute inset-0 flex items-center justify-center"
           style={{
-            background: 'radial-gradient(circle at 50% 50%, rgba(var(--brand-primary-rgb), 0.15), transparent 70%)',
+                        background: 'radial-gradient(circle at 50% 50%, rgba(var(--brand-primary-rgb) / 0.15), transparent 70%)',
           }}
         />
       </div>

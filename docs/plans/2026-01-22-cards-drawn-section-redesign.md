@@ -49,46 +49,39 @@ Reimagine the CardsDrawnSection component from a bulky list view to a compact, i
 ## Expanded State
 
 ### Layout
-- Horizontal scroll strip (not arc/fan rotation)
-- Cards in single row with minimal overlap (~10%)
-- Scroll snap to each card (`snap-x snap-mandatory`)
-- "Peek" of next card visible on right edge
+- Arc/fan rotation (cards fan out like held in hand)
+- Cards arranged in curved arc, overlapping ~40%
+- Center card(s) upright, outer cards progressively rotated
+- Transform-origin at bottom center for natural rotation
+- No scrolling required for up to 10 cards
+
+### Arc Geometry
+- Total arc span: 40° (from -20° to +20°)
+- Cards distributed evenly across arc
+- Vertical offset follows arc curve (parabolic)
+- Cards scale slightly smaller toward edges (0.95)
 
 ### Card Sizing
-- Thumbnail: 64×96px (larger than collapsed for clarity)
-- Card + labels total width: ~80px
-- 4-5 cards visible at once on 375px screen
-- Consistent size regardless of card count (no shrinking)
+- Thumbnail: 52×78px (slightly smaller to fit arc)
+- All cards visible simultaneously
+- Scales responsively: smaller on narrow screens
 
 ### Card Information
-```
-    ┌─────────────┐
-    │  Position   │  ← 10px small caps, muted
-    │ ┌─────────┐ │
-    │ │  Card   │ │  ← 64×96px thumbnail
-    │ │  Image  │ │
-    │ │         │ │
-    │ └─────────┘ │
-    │  Card Name  │  ← 12px, truncate if long
-    └─────────────┘
-```
-
-- Position label: above thumbnail, `text-[10px] uppercase tracking-wider text-muted`
-- Card name: below thumbnail, `text-[12px] font-medium text-main`, truncate with ellipsis
+- No labels shown in arc view (too cluttered)
+- Position revealed on hover/focus as overlay
 - Reversed: thumbnail rotated 180° + "Rev" badge top-right
+- Card name shown on hover/tap tooltip
 
 ### Vertical Space
-- Position label height: ~16px
-- Thumbnail: 96px
-- Card name height: ~20px
-- Padding/gaps: ~18px
-- **Total expanded height: ~150px**
+- Arc height determined by card size + rotation
+- Thumbnail: 78px tall
+- Arc rise (vertical offset at edges): ~20px
+- **Total expanded height: ~140px**
 
-### Scroll Behavior
-- Momentum scrolling enabled
-- Snap to card boundaries
-- Optional dot indicators below (carousel-style)
-- Swipe gestures feel natural and quick
+### Interaction in Arc
+- Cards lift on hover/focus (translateY -4px, scale 1.05)
+- Active card rises above others (z-index boost)
+- Touch: tap to select card, tap again for details
 
 ### Collapse Trigger
 - Tap section background/header
@@ -145,16 +138,16 @@ Border accent on left edge of each card (3px):
 ## Animation
 
 ### Expand Animation
-- Duration: 300ms
+- Duration: 350ms
 - Easing: `ease-out` (fast start, gentle stop)
-- Stagger: 30ms delay between each card
-- Cards translate from stacked position to scroll strip
-- Height animates from ~100px to ~150px
+- Stagger: 40ms delay between each card (from center outward)
+- Cards fan out from stacked position to arc positions
+- Height animates from ~100px to ~140px
 
 ### Collapse Animation
-- Duration: 250ms (slightly faster than expand)
+- Duration: 280ms (slightly faster than expand)
 - Reverse of expand: cards converge back to stack
-- Stagger in reverse order (last card first)
+- Stagger from edges inward (outer cards first)
 
 ### Reduced Motion
 - `prefers-reduced-motion`: instant state change, no animation
@@ -190,9 +183,9 @@ Border accent on left edge of each card (3px):
 CardsDrawnSection/
 ├── CardsDrawnSection.jsx      # Main component
 ├── CardStack.jsx              # Collapsed stack view
-├── CardStrip.jsx              # Expanded scroll strip
+├── CardFan.jsx                # Expanded arc/fan view
 ├── CardThumbnail.jsx          # Individual card with labels
-└── useCardFan.js              # Animation/state hook
+└── useCardFan.js              # Animation/state/geometry hook
 ```
 
 ### Props (unchanged interface)
@@ -217,24 +210,25 @@ CardsDrawnSection.propTypes = {
 
 ## Implementation Notes
 
-1. **Image loading:** Use `loading="lazy"` on thumbnails not in initial viewport. Preload visible stack cards.
+1. **Image loading:** Use `loading="lazy"` on thumbnails beyond visible count. Preload visible stack cards.
 
 2. **Performance:** Memoize card list with `useMemo`. Individual `CardThumbnail` components wrapped in `memo()`.
 
-3. **Scroll position:** Reset scroll to start when collapsing, so next expand shows first cards.
+3. **Arc geometry:** Calculate rotation and position using `getArcPosition(index, total, arcSpan)` helper.
 
-4. **Touch handling:** Use CSS `scroll-snap-type` rather than JS-based snap for better performance.
+4. **Transform origin:** Set `transform-origin: center bottom` on cards so rotation pivots from bottom.
 
-5. **Testing:** Add Playwright tests for expand/collapse, scroll behavior, and card detail interaction.
+5. **Testing:** Add Playwright tests for expand/collapse, arc layout, and card detail interaction.
 
 ---
 
 ## Success Criteria
 
 - [ ] Collapsed state renders in <100px vertical space
-- [ ] 10-card Celtic Cross scrolls smoothly on iPhone SE (375px)
-- [ ] Card art recognizable at 64×96px thumbnail size
+- [ ] 10-card Celtic Cross fans out cleanly on iPhone SE (375px)
+- [ ] Card art recognizable at 52×78px thumbnail size
+- [ ] Arc geometry distributes cards evenly without overflow
 - [ ] Expand/collapse animation runs at 60fps
-- [ ] Keyboard navigation works completely
+- [ ] Keyboard navigation works (arrows move through arc)
 - [ ] Screen reader announces card information correctly
 - [ ] Reduced motion preference respected

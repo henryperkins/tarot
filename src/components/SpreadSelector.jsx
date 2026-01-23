@@ -61,7 +61,7 @@ const FALLBACK_SPREAD_THEME = createSpreadTheme({
   borderActiveAlpha: 0.8,
   glowAlpha: 0.35,
   background:
-    'linear-gradient(155deg, rgba(244, 209, 140, 0.08), rgba(17, 12, 21, 0.94)), radial-gradient(circle at 16% 12%, rgba(244, 209, 140, 0.16), transparent 46%), radial-gradient(circle at 82% -6%, rgba(117, 137, 255, 0.2), transparent 48)'
+    'linear-gradient(155deg, rgba(244, 209, 140, 0.08), var(--panel-dark-1)), radial-gradient(circle at 16% 12%, rgba(244, 209, 140, 0.16), transparent 46%), radial-gradient(circle at 82% -6%, rgba(117, 137, 255, 0.2), transparent 48)'
 });
 
 const SPREAD_THEMES = {
@@ -71,7 +71,7 @@ const SPREAD_THEMES = {
     borderActiveAlpha: 0.8,
     glowAlpha: 0.38,
     background:
-      'linear-gradient(165deg, rgba(255, 216, 158, 0.14), rgba(12, 9, 14, 0.95)), radial-gradient(circle at 15% 14%, rgba(243, 208, 141, 0.22), transparent 44%), radial-gradient(circle at 90% -10%, rgba(255, 170, 205, 0.18), transparent 50)'
+      'linear-gradient(165deg, rgba(255, 216, 158, 0.14), var(--panel-dark-1)), radial-gradient(circle at 15% 14%, rgba(243, 208, 141, 0.22), transparent 44%), radial-gradient(circle at 90% -10%, rgba(255, 170, 205, 0.18), transparent 50)'
   }),
   threeCard: createSpreadTheme({
     accent: '#f08fb1',
@@ -79,7 +79,7 @@ const SPREAD_THEMES = {
     borderActiveAlpha: 0.78,
     glowAlpha: 0.32,
     background:
-      'linear-gradient(170deg, rgba(33, 24, 42, 0.96), rgba(12, 10, 18, 0.94)), radial-gradient(circle at 18% 10%, rgba(240, 143, 177, 0.32), transparent 46%), radial-gradient(circle at 88% -8%, rgba(99, 166, 255, 0.18), transparent 52)'
+      'linear-gradient(170deg, var(--panel-dark-2), var(--panel-dark-1)), radial-gradient(circle at 18% 10%, rgba(240, 143, 177, 0.32), transparent 46%), radial-gradient(circle at 88% -8%, rgba(99, 166, 255, 0.18), transparent 52)'
   }),
   fiveCard: createSpreadTheme({
     accent: '#6fe0ff',
@@ -87,7 +87,7 @@ const SPREAD_THEMES = {
     borderActiveAlpha: 0.75,
     glowAlpha: 0.35,
     background:
-      'linear-gradient(165deg, rgba(17, 33, 44, 0.94), rgba(10, 11, 20, 0.98)), radial-gradient(circle at 8% 18%, rgba(111, 224, 255, 0.28), transparent 48%), radial-gradient(circle at 88% -12%, rgba(122, 84, 255, 0.18), transparent 50)'
+      'linear-gradient(165deg, var(--panel-dark-2), var(--panel-dark-1)), radial-gradient(circle at 8% 18%, rgba(111, 224, 255, 0.28), transparent 48%), radial-gradient(circle at 88% -12%, rgba(122, 84, 255, 0.18), transparent 50)'
   }),
   decision: createSpreadTheme({
     accent: '#f6b756',
@@ -95,7 +95,7 @@ const SPREAD_THEMES = {
     borderActiveAlpha: 0.82,
     glowAlpha: 0.38,
     background:
-      'linear-gradient(160deg, rgba(255, 197, 110, 0.2), rgba(13, 11, 19, 0.96)), radial-gradient(circle at 14% 12%, rgba(246, 183, 86, 0.24), transparent 46%), radial-gradient(circle at 84% -6%, rgba(120, 195, 255, 0.18), transparent 50)'
+      'linear-gradient(160deg, rgba(255, 197, 110, 0.2), var(--panel-dark-1)), radial-gradient(circle at 14% 12%, rgba(246, 183, 86, 0.24), transparent 46%), radial-gradient(circle at 84% -6%, rgba(120, 195, 255, 0.18), transparent 50)'
   }),
   relationship: createSpreadTheme({
     accent: '#f29fb4',
@@ -103,7 +103,7 @@ const SPREAD_THEMES = {
     borderActiveAlpha: 0.82,
     glowAlpha: 0.34,
     background:
-      'linear-gradient(165deg, rgba(242, 159, 180, 0.18), rgba(12, 8, 17, 0.96)), radial-gradient(circle at 20% 8%, rgba(242, 159, 180, 0.34), transparent 48%), radial-gradient(circle at 92% -8%, rgba(158, 190, 255, 0.18), transparent 52)'
+      'linear-gradient(165deg, rgba(242, 159, 180, 0.18), var(--panel-dark-1)), radial-gradient(circle at 20% 8%, rgba(242, 159, 180, 0.34), transparent 48%), radial-gradient(circle at 92% -8%, rgba(158, 190, 255, 0.18), transparent 52)'
   }),
   celtic: createSpreadTheme({
     accent: '#a992ff',
@@ -111,7 +111,7 @@ const SPREAD_THEMES = {
     borderActiveAlpha: 0.82,
     glowAlpha: 0.4,
     background:
-      'linear-gradient(170deg, rgba(28, 24, 54, 0.95), rgba(10, 9, 17, 0.96)), radial-gradient(circle at 20% 12%, rgba(169, 146, 255, 0.28), transparent 52%), radial-gradient(circle at 88% -10%, rgba(255, 191, 140, 0.2), transparent 54)'
+      'linear-gradient(170deg, var(--panel-dark-2), var(--panel-dark-1)), radial-gradient(circle at 20% 12%, rgba(169, 146, 255, 0.28), transparent 52%), radial-gradient(circle at 88% -10%, rgba(255, 191, 140, 0.2), transparent 54)'
   })
 };
 

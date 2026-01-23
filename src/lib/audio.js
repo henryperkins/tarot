@@ -210,7 +210,7 @@ export async function speakText({ text, enabled, context = 'default', voice = 'v
 
     // Check cache first (using normalized text for consistent keys)
     // Include speed and format in cache key to cache variations separately
-    const cacheKey = generateCacheKey(ttsText, context, voice, speed, format);
+    const cacheKey = generateCacheKey(ttsText, context, voice, speed, format, emotion);
     const cachedAudio = getCachedAudio(cacheKey);
 
     let audioDataUri;
@@ -482,13 +482,14 @@ async function tryPlayLocalFallback({ requestId, context, fallbackText }) {
 }
 
 /**
- * Generate a cache key from text, context, voice, speed, and format.
+ * Generate a cache key from text, context, voice, speed, format, and emotion.
  * Uses djb2 hash to keep localStorage keys reasonable.
  */
-function generateCacheKey(text, context, voice, speed, format) {
+function generateCacheKey(text, context, voice, speed, format, emotion) {
   const speedKey = speed !== undefined ? speed : 'default';
   const formatKey = format && String(format).trim().length ? String(format).trim().toLowerCase() : 'default';
-  const content = `${text}|${context}|${voice}|${speedKey}|${formatKey}`;
+  const emotionKey = emotion && String(emotion).trim().length ? String(emotion).trim().toLowerCase() : 'default';
+  const content = `${text}|${context}|${voice}|${speedKey}|${formatKey}|${emotionKey}`;
   return `${TTS_CACHE_PREFIX}${djb2Hash(content).toString(36)}`;
 }
 

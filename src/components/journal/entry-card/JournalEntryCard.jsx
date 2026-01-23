@@ -18,7 +18,7 @@ import { AMBER_CARD_CLASS, AMBER_CARD_MOBILE_CLASS } from '../../../lib/journal/
 import { useEntryMetadata, useActionMenu, useEntryActions } from './hooks';
 
 // Components
-import { CompactHeader, ComfortableHeader } from './EntryHeader';
+import { ComfortableHeader } from './EntryHeader';
 import { ActionMenu } from './EntryActions';
 import {
   QuestionSection,
@@ -165,9 +165,6 @@ export const JournalEntryCard = memo(function JournalEntryCard({
     compact
   };
 
-  // Select header variant
-  const HeaderComponent = useCompactStyle ? CompactHeader : ComfortableHeader;
-
   return (
     <article className={cn(fullCardClass, actionMenu.isOpen ? 'z-50' : 'z-0')}>
       {/* Accent bar */}
@@ -178,7 +175,7 @@ export const JournalEntryCard = memo(function JournalEntryCard({
       />
 
       {/* Header */}
-      <HeaderComponent {...headerProps} isExpanded={isExpanded} />
+      <ComfortableHeader {...headerProps} isExpanded={isExpanded} />
 
       {/* Collapsible content */}
       {isExpanded && (

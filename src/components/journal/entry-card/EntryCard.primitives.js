@@ -176,10 +176,14 @@ export const styles = {
  */
 export function getSuitAccentVar(suitName) {
   const lower = (suitName || '').toLowerCase();
-  if (lower.includes('wands')) return 'var(--color-wands)';
-  if (lower.includes('cups')) return 'var(--color-cups)';
-  if (lower.includes('swords')) return 'var(--color-swords)';
-  if (lower.includes('pentacles')) return 'var(--color-pentacles)';
+  if (lower.includes('wands') || lower.includes('staves') || lower.includes('rods')) {
+    return 'var(--color-wands)';
+  }
+  if (lower.includes('cups') || lower.includes('chalices')) return 'var(--color-cups)';
+  if (lower.includes('swords') || lower.includes('blades')) return 'var(--color-swords)';
+  if (lower.includes('pentacles') || lower.includes('coins') || lower.includes('disks')) {
+    return 'var(--color-pentacles)';
+  }
   return null;
 }
 

@@ -30,6 +30,14 @@
   --color-pentacles: #8A9985;
   /* Muted sage */
 
+  /* Context Colors (Reading Journey) */
+  --context-love: var(--color-cups);
+  --context-career: var(--color-pentacles);
+  --context-self: var(--color-wands);
+  --context-spiritual: var(--brand-secondary);
+  --context-wellbeing: var(--color-swords);
+  --context-general: var(--brand-primary);
+
   /* Functional Colors */
   --color-success: #6B9E78;
   --color-error: #C97676;
@@ -61,10 +69,12 @@
   /* Brand / Interactive (warmer) */
   --brand-primary: #D4B896;
   /* Warmer champagne */
+  --brand-primary-rgb: 212 184 150;
   --brand-secondary: #A89D92;
   /* Warm brown-gray updated for WCAG AA contrast (4.5:1) */
   --brand-accent: #E8DAC3;
   /* Lighter accent for differentiation from primary */
+  --brand-accent-rgb: 232 218 195;
 
   /* Status */
   --status-success: #6B9E78;
@@ -90,7 +100,7 @@
   --drawer-gold-18: rgba(229, 196, 142, 0.18);
   --drawer-gold-16: rgba(229, 196, 142, 0.16);
   --focus-ring-color: var(--brand-accent);
-  --halo-star-color: color-mix(in srgb, var(--text-main) 8%, transparent);
+  --halo-star-color: rgba(232, 230, 227, 0.08);
 }
 
 /* Light Mode Overrides (elegant minimal light variant) */
@@ -104,8 +114,10 @@
   --text-accent: var(--brand-primary);
   --text-on-brand: #FAFAFA; /* Light text for brand backgrounds */
   --brand-primary: #7D623B; /* 5.46:1 on #FAFAFA */
+  --brand-primary-rgb: 125 98 59;
   --brand-secondary: #6A5746; /* 6.57:1 on #FAFAFA */
   --brand-accent: #8A6B3B; /* 4.74:1 on #FAFAFA */
+  --brand-accent-rgb: 138 107 59;
 
   /* Panels & Effects (light-friendly variants) */
   --panel-dark-1: #FFFFFF;
@@ -117,4 +129,15 @@
   --border-warm: rgba(125, 98, 59, 0.18);
   --border-warm-light: rgba(125, 98, 59, 0.14);
   --border-warm-subtle: rgba(125, 98, 59, 0.06);
+  --halo-star-color: rgba(26, 26, 26, 0.08);
+}
+
+@supports (color: color-mix(in srgb, red 50%, blue)) {
+  :root {
+    --halo-star-color: color-mix(in srgb, var(--text-main) 8%, transparent);
+  }
+
+  :root.light {
+    --halo-star-color: color-mix(in srgb, var(--text-main) 8%, transparent);
+  }
 }

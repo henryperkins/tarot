@@ -136,14 +136,29 @@
       word-break: break-all;
     }
 
-    /* Specific Gradients */
-    .gradient-neutral {
-      background: linear-gradient(to right, #0F0E13, #1C1A22, #2A2730, #4A4640, #6E6760, #9B9388, #CCC5BD, #E8E6E3);
-    }
+	    /* Specific Gradients */
+	    .gradient-neutral {
+	      background: linear-gradient(
+	        to right,
+	        var(--color-black),
+	        var(--color-charcoal),
+	        var(--color-slate-dark),
+	        var(--color-slate-mid),
+	        var(--color-slate-light),
+	        var(--color-gray-light),
+	        var(--color-gray-pale),
+	        var(--color-white)
+	      );
+	    }
 
-    .gradient-gold {
-      background: linear-gradient(to right, #B59976, #D4B896, #E8DAC3);
-    }
+	    .gradient-gold {
+	      background: linear-gradient(
+	        to right,
+	        var(--color-gold-muted),
+	        var(--color-gold-champagne),
+	        var(--color-gold-soft)
+	      );
+	    }
 
     .gradient-mystic-panel {
       background:
@@ -277,9 +292,9 @@
       background: var(--bg-surface);
     }
 
-    .border-warm-demo { border: 1px solid rgba(232, 218, 195, 0.22); }
-    .border-light-demo { border: 1px solid rgba(232, 218, 195, 0.12); }
-    .border-subtle-demo { border: 1px solid rgba(255, 255, 255, 0.06); }
+    .border-warm-demo { border: 1px solid var(--border-warm); }
+    .border-light-demo { border: 1px solid var(--border-warm-light); }
+    .border-subtle-demo { border: 1px solid var(--border-warm-subtle); }
     .border-accent-demo { border: 2px solid var(--brand-primary); }
 
     .border-label {
@@ -316,11 +331,11 @@
       animation: timing-demo 2s var(--ease-out) infinite;
     }
 
-    .timing-fast { width: 60px; animation-duration: 0.16s; animation-iteration-count: infinite; animation-delay: 0s; }
-    .timing-normal { width: 80px; animation-duration: 0.2s; }
-    .timing-medium { width: 100px; animation-duration: 0.26s; }
-    .timing-slow { width: 140px; animation-duration: 0.4s; }
-    .timing-slower { width: 180px; animation-duration: 0.6s; }
+	    .timing-fast { width: 60px; animation-duration: var(--duration-fast); }
+	    .timing-normal { width: 80px; animation-duration: var(--duration-normal); }
+	    .timing-medium { width: 100px; animation-duration: var(--duration-medium); }
+	    .timing-slow { width: 140px; animation-duration: var(--duration-slow); }
+	    .timing-slower { width: 180px; animation-duration: var(--duration-slower); }
 
     @keyframes timing-demo {
       0%, 100% { transform: scaleX(0.3); opacity: 0.4; }
@@ -364,47 +379,16 @@
       border-radius: 50%;
     }
 
-    .anim-fade-in { animation: fadeIn 1.5s ease-out infinite; }
-    .anim-slide-up { animation: slideUp 1.5s ease-out infinite; }
-    .anim-pop-in { animation: popIn 1.5s ease-out infinite; }
-    .anim-float { animation: floatGentle 3s ease-in-out infinite; }
-    .anim-pulse { animation: pulseSlow 2s ease-in-out infinite; }
-    .anim-ink { animation: inkSpread 2s cubic-bezier(0.4, 0, 0.2, 1) infinite; }
+	    .anim-fade-in { animation: fadeIn 1.5s ease-out infinite; }
+	    .anim-slide-up { animation: slideUp 1.5s ease-out infinite; }
+	    .anim-pop-in { animation: popIn 1.5s ease-out infinite; }
+	    .anim-float { animation: floatGentle 3s ease-in-out infinite; }
+	    .anim-pulse { animation: pulseSlow 2s ease-in-out infinite; }
+	    .anim-ink { animation: inkSpread 2s cubic-bezier(0.4, 0, 0.2, 1) infinite; }
 
-    @keyframes fadeIn {
-      0% { opacity: 0; }
-      100% { opacity: 1; }
-    }
-
-    @keyframes slideUp {
-      0% { transform: translateY(100%); }
-      100% { transform: translateY(0); }
-    }
-
-    @keyframes popIn {
-      0% { opacity: 0; transform: scale(0.95); }
-      100% { opacity: 1; transform: scale(1); }
-    }
-
-    @keyframes floatGentle {
-      0%, 100% { transform: translateY(0px); }
-      50% { transform: translateY(-10px); }
-    }
-
-    @keyframes pulseSlow {
-      0%, 100% { opacity: 0.8; }
-      50% { opacity: 0.4; }
-    }
-
-    @keyframes inkSpread {
-      0% { opacity: 0; filter: blur(12px); transform: scale(0.95); }
-      40% { opacity: 0.5; filter: blur(6px); transform: scale(0.98); }
-      100% { opacity: 1; filter: blur(0px); transform: scale(1); }
-    }
-
-    .animation-label {
-      font-size: 0.6rem;
-      color: var(--text-muted);
+	    .animation-label {
+	      font-size: 0.6rem;
+	      color: var(--text-muted);
       letter-spacing: 0.08em;
       text-transform: uppercase;
     }
@@ -584,25 +568,30 @@
       background: var(--bg-surface);
     }
 
-    .suit-wands {
-      border: 2px solid var(--color-wands);
-      box-shadow: inset 0 0 20px rgba(201, 168, 118, 0.15);
-    }
+	    .suit-wands {
+	      border: 2px solid var(--color-wands);
+	      box-shadow: inset 0 0 20px rgba(201, 168, 118, 0.15);
+	    }
 
-    .suit-cups {
-      border: 2px solid var(--color-cups);
-      box-shadow: inset 0 0 20px rgba(139, 149, 165, 0.15);
-    }
+	    .suit-cups {
+	      border: 2px solid var(--color-cups);
+	      box-shadow: inset 0 0 20px rgba(139, 149, 165, 0.15);
+	    }
 
-    .suit-swords {
-      border: 2px solid var(--color-swords);
-      box-shadow: inset 0 0 20px rgba(107, 114, 128, 0.15);
-    }
+	    .suit-swords {
+	      border: 2px solid var(--color-swords);
+	      box-shadow: inset 0 0 20px rgba(107, 114, 128, 0.15);
+	    }
 
-    .suit-pentacles {
-      border: 2px solid var(--color-pentacles);
-      box-shadow: inset 0 0 20px rgba(138, 153, 133, 0.15);
-    }
+	    .suit-pentacles {
+	      border: 2px solid var(--color-pentacles);
+	      box-shadow: inset 0 0 20px rgba(138, 153, 133, 0.15);
+	    }
+
+	    .suit-wands .suit-name { color: var(--color-wands); }
+	    .suit-cups .suit-name { color: var(--color-cups); }
+	    .suit-swords .suit-name { color: var(--color-swords); }
+	    .suit-pentacles .suit-name { color: var(--color-pentacles); }
 
     .suit-icon {
       font-size: 1.5rem;
@@ -650,6 +639,140 @@
       font-size: 0.7rem;
       color: var(--text-muted);
     }
+
+    /* Component class demos (tarot.css) */
+    .component-demo-group {
+      margin-top: 2rem;
+    }
+
+    .component-demo-title {
+      font-size: 0.65rem;
+      letter-spacing: 0.28em;
+      text-transform: uppercase;
+      color: var(--color-gray-light);
+      margin-bottom: 1rem;
+    }
+
+    .component-demo-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 1.5rem;
+    }
+
+    .panel-demo {
+      min-height: 150px;
+      display: flex;
+      align-items: flex-end;
+      padding: 1.25rem;
+    }
+
+    .panel-demo-content {
+      position: relative;
+      z-index: 1;
+      display: grid;
+      gap: 0.35rem;
+    }
+
+    .panel-demo-title {
+      font-size: 0.9rem;
+      color: var(--text-main);
+    }
+
+    .panel-demo-text {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+    }
+
+    .spread-demo-grid {
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    }
+
+    .spread-demo-preview {
+      height: 70px;
+    }
+
+    .deck-demo-card {
+      border-radius: 1.25rem;
+      min-height: 160px;
+      padding: 1.1rem;
+      display: flex;
+    }
+
+    .deck-demo-content {
+      position: relative;
+      z-index: 1;
+      display: grid;
+      gap: 0.5rem;
+      width: 100%;
+    }
+
+    .deck-demo-title {
+      font-size: 0.95rem;
+      color: var(--text-main);
+    }
+
+    .deck-demo-text {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+    }
+
+    .drawer-demo {
+      border-radius: 1.4rem;
+      overflow: hidden;
+      border: 1px solid var(--border-warm);
+      background:
+        radial-gradient(circle at 18% 12%, rgba(212, 184, 150, 0.16), transparent 45%),
+        linear-gradient(140deg, rgba(28, 26, 34, 0.9), rgba(12, 10, 18, 0.95));
+    }
+
+    .drawer-demo-overlay {
+      padding: 1.5rem;
+    }
+
+    .drawer-demo-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      padding: 0.9rem 1.1rem;
+    }
+
+    .drawer-demo-title {
+      display: grid;
+      gap: 0.35rem;
+    }
+
+    .drawer-demo-subtitle {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+    }
+
+    .drawer-demo-body {
+      padding: 1rem 1.1rem 1.2rem;
+      display: grid;
+      gap: 0.75rem;
+    }
+
+    .drawer-demo-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.6rem 0.85rem;
+      border-radius: 0.75rem;
+      background: rgba(12, 10, 16, 0.55);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      font-size: 0.75rem;
+      color: var(--text-muted-high);
+    }
+
+    .drawer-demo-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.75rem;
+      font-size: 0.75rem;
+      color: var(--text-muted);
+    }
   </style>
 </head>
 <body>
@@ -658,119 +781,119 @@
     <p class="subtitle">Complete Theme Swatch & Design System</p>
   </header>
 
-  <!-- Core Colors -->
-  <section class="section">
-    <h2 class="section-title">Neutral Foundation</h2>
-    <div class="gradient-item" style="margin-bottom: 1.5rem;">
-      <div class="gradient-bar gradient-neutral"></div>
-    </div>
-    <div class="swatch-row">
-      <div class="swatch">
-        <div class="swatch-color" style="background: #0F0E13;"></div>
-        <div class="swatch-info"><div class="swatch-name">Black</div><div class="swatch-hex">#0F0E13</div></div>
-      </div>
-      <div class="swatch">
-        <div class="swatch-color" style="background: #1C1A22;"></div>
-        <div class="swatch-info"><div class="swatch-name">Charcoal</div><div class="swatch-hex">#1C1A22</div></div>
-      </div>
-      <div class="swatch">
-        <div class="swatch-color" style="background: #2A2730;"></div>
-        <div class="swatch-info"><div class="swatch-name">Slate Dark</div><div class="swatch-hex">#2A2730</div></div>
-      </div>
-      <div class="swatch">
-        <div class="swatch-color" style="background: #4A4640;"></div>
-        <div class="swatch-info"><div class="swatch-name">Slate Mid</div><div class="swatch-hex">#4A4640</div></div>
-      </div>
-      <div class="swatch">
-        <div class="swatch-color" style="background: #6E6760;"></div>
-        <div class="swatch-info"><div class="swatch-name">Slate Light</div><div class="swatch-hex">#6E6760</div></div>
-      </div>
-      <div class="swatch">
-        <div class="swatch-color" style="background: #9B9388;"></div>
-        <div class="swatch-info"><div class="swatch-name">Gray Light</div><div class="swatch-hex">#9B9388</div></div>
-      </div>
-      <div class="swatch">
-        <div class="swatch-color" style="background: #CCC5BD;"></div>
-        <div class="swatch-info"><div class="swatch-name">Gray Pale</div><div class="swatch-hex">#CCC5BD</div></div>
-      </div>
-      <div class="swatch">
-        <div class="swatch-color" style="background: #E8E6E3;"></div>
-        <div class="swatch-info"><div class="swatch-name">Off-White</div><div class="swatch-hex">#E8E6E3</div></div>
-      </div>
-    </div>
-  </section>
+	  <!-- Core Colors -->
+	  <section class="section">
+	    <h2 class="section-title">Neutral Foundation</h2>
+	    <div class="gradient-item" style="margin-bottom: 1.5rem;">
+	      <div class="gradient-bar gradient-neutral"></div>
+	    </div>
+	    <div class="swatch-row">
+	      <div class="swatch">
+	        <div class="swatch-color" style="background: var(--color-black);"></div>
+	        <div class="swatch-info"><div class="swatch-name">Black</div><div class="swatch-hex">var(--color-black)</div></div>
+	      </div>
+	      <div class="swatch">
+	        <div class="swatch-color" style="background: var(--color-charcoal);"></div>
+	        <div class="swatch-info"><div class="swatch-name">Charcoal</div><div class="swatch-hex">var(--color-charcoal)</div></div>
+	      </div>
+	      <div class="swatch">
+	        <div class="swatch-color" style="background: var(--color-slate-dark);"></div>
+	        <div class="swatch-info"><div class="swatch-name">Slate Dark</div><div class="swatch-hex">var(--color-slate-dark)</div></div>
+	      </div>
+	      <div class="swatch">
+	        <div class="swatch-color" style="background: var(--color-slate-mid);"></div>
+	        <div class="swatch-info"><div class="swatch-name">Slate Mid</div><div class="swatch-hex">var(--color-slate-mid)</div></div>
+	      </div>
+	      <div class="swatch">
+	        <div class="swatch-color" style="background: var(--color-slate-light);"></div>
+	        <div class="swatch-info"><div class="swatch-name">Slate Light</div><div class="swatch-hex">var(--color-slate-light)</div></div>
+	      </div>
+	      <div class="swatch">
+	        <div class="swatch-color" style="background: var(--color-gray-light);"></div>
+	        <div class="swatch-info"><div class="swatch-name">Gray Light</div><div class="swatch-hex">var(--color-gray-light)</div></div>
+	      </div>
+	      <div class="swatch">
+	        <div class="swatch-color" style="background: var(--color-gray-pale);"></div>
+	        <div class="swatch-info"><div class="swatch-name">Gray Pale</div><div class="swatch-hex">var(--color-gray-pale)</div></div>
+	      </div>
+	      <div class="swatch">
+	        <div class="swatch-color" style="background: var(--color-white);"></div>
+	        <div class="swatch-info"><div class="swatch-name">Off-White</div><div class="swatch-hex">var(--color-white)</div></div>
+	      </div>
+	    </div>
+	  </section>
 
   <!-- Gold Accents -->
-  <section class="section">
-    <h2 class="section-title">Gold & Metallic Accents</h2>
-    <div class="gradient-item" style="margin-bottom: 1.5rem;">
-      <div class="gradient-bar gradient-gold"></div>
-    </div>
-    <div class="swatch-row">
-      <div class="swatch">
-        <div class="swatch-color" style="background: #B59976;"></div>
-        <div class="swatch-info"><div class="swatch-name">Gold Muted</div><div class="swatch-hex">#B59976</div></div>
-      </div>
-      <div class="swatch">
-        <div class="swatch-color" style="background: #D4B896;"></div>
-        <div class="swatch-info"><div class="swatch-name">Champagne</div><div class="swatch-hex">#D4B896</div></div>
-      </div>
-      <div class="swatch">
-        <div class="swatch-color" style="background: #E8DAC3;"></div>
-        <div class="swatch-info"><div class="swatch-name">Gold Soft</div><div class="swatch-hex">#E8DAC3</div></div>
-      </div>
-      <div class="swatch">
-        <div class="swatch-color" style="background: #e5c48e;"></div>
-        <div class="swatch-info"><div class="swatch-name">Drawer Gold</div><div class="swatch-hex">#e5c48e</div></div>
-      </div>
-      <div class="swatch">
-        <div class="swatch-color" style="background: #A8A39E;"></div>
-        <div class="swatch-info"><div class="swatch-name">Silver</div><div class="swatch-hex">#A8A39E</div></div>
-      </div>
-    </div>
-  </section>
+	  <section class="section">
+	    <h2 class="section-title">Gold & Metallic Accents</h2>
+	    <div class="gradient-item" style="margin-bottom: 1.5rem;">
+	      <div class="gradient-bar gradient-gold"></div>
+	    </div>
+	    <div class="swatch-row">
+	      <div class="swatch">
+	        <div class="swatch-color" style="background: var(--color-gold-muted);"></div>
+	        <div class="swatch-info"><div class="swatch-name">Gold Muted</div><div class="swatch-hex">var(--color-gold-muted)</div></div>
+	      </div>
+	      <div class="swatch">
+	        <div class="swatch-color" style="background: var(--color-gold-champagne);"></div>
+	        <div class="swatch-info"><div class="swatch-name">Champagne</div><div class="swatch-hex">var(--color-gold-champagne)</div></div>
+	      </div>
+	      <div class="swatch">
+	        <div class="swatch-color" style="background: var(--color-gold-soft);"></div>
+	        <div class="swatch-info"><div class="swatch-name">Gold Soft</div><div class="swatch-hex">var(--color-gold-soft)</div></div>
+	      </div>
+	      <div class="swatch">
+	        <div class="swatch-color" style="background: var(--drawer-gold);"></div>
+	        <div class="swatch-info"><div class="swatch-name">Drawer Gold</div><div class="swatch-hex">var(--drawer-gold)</div></div>
+	      </div>
+	      <div class="swatch">
+	        <div class="swatch-color" style="background: var(--color-silver);"></div>
+	        <div class="swatch-info"><div class="swatch-name">Silver</div><div class="swatch-hex">var(--color-silver)</div></div>
+	      </div>
+	    </div>
+	  </section>
 
   <!-- Suit Colors -->
-  <section class="section">
-    <h2 class="section-title">Tarot Suit Colors</h2>
-    <div class="suit-grid">
-      <div class="suit-card suit-wands">
-        <div class="suit-icon">🔥</div>
-        <div class="suit-name" style="color: #C9A876;">Wands</div>
-        <div class="suit-hex">#C9A876</div>
-      </div>
-      <div class="suit-card suit-cups">
-        <div class="suit-icon">💧</div>
-        <div class="suit-name" style="color: #8B95A5;">Cups</div>
-        <div class="suit-hex">#8B95A5</div>
-      </div>
-      <div class="suit-card suit-swords">
-        <div class="suit-icon">🌬️</div>
-        <div class="suit-name" style="color: #6B7280;">Swords</div>
-        <div class="suit-hex">#6B7280</div>
-      </div>
-      <div class="suit-card suit-pentacles">
-        <div class="suit-icon">🌍</div>
-        <div class="suit-name" style="color: #8A9985;">Pentacles</div>
-        <div class="suit-hex">#8A9985</div>
-      </div>
-    </div>
-  </section>
+	  <section class="section">
+	    <h2 class="section-title">Tarot Suit Colors</h2>
+	    <div class="suit-grid">
+	      <div class="suit-card suit-wands">
+	        <div class="suit-icon">🔥</div>
+	        <div class="suit-name">Wands</div>
+	        <div class="suit-hex">var(--color-wands)</div>
+	      </div>
+	      <div class="suit-card suit-cups">
+	        <div class="suit-icon">💧</div>
+	        <div class="suit-name">Cups</div>
+	        <div class="suit-hex">var(--color-cups)</div>
+	      </div>
+	      <div class="suit-card suit-swords">
+	        <div class="suit-icon">🌬️</div>
+	        <div class="suit-name">Swords</div>
+	        <div class="suit-hex">var(--color-swords)</div>
+	      </div>
+	      <div class="suit-card suit-pentacles">
+	        <div class="suit-icon">🌍</div>
+	        <div class="suit-name">Pentacles</div>
+	        <div class="suit-hex">var(--color-pentacles)</div>
+	      </div>
+	    </div>
+	  </section>
 
   <!-- Status Colors -->
-  <section class="section">
-    <h2 class="section-title">Status Colors</h2>
-    <div class="swatch-row">
-      <div class="swatch">
-        <div class="swatch-color" style="background: #6B9E78;"></div>
-        <div class="swatch-info"><div class="swatch-name">Success</div><div class="swatch-hex">#6B9E78</div></div>
-      </div>
-      <div class="swatch">
-        <div class="swatch-color" style="background: #C97676;"></div>
-        <div class="swatch-info"><div class="swatch-name">Error</div><div class="swatch-hex">#C97676</div></div>
-      </div>
-    </div>
-  </section>
+	  <section class="section">
+	    <h2 class="section-title">Status Colors</h2>
+	    <div class="swatch-row">
+	      <div class="swatch">
+	        <div class="swatch-color" style="background: var(--status-success);"></div>
+	        <div class="swatch-info"><div class="swatch-name">Success</div><div class="swatch-hex">var(--status-success)</div></div>
+	      </div>
+	      <div class="swatch">
+	        <div class="swatch-color" style="background: var(--status-error);"></div>
+	        <div class="swatch-info"><div class="swatch-name">Error</div><div class="swatch-hex">var(--status-error)</div></div>
+	      </div>
+	    </div>
+	  </section>
 
   <!-- Gradients -->
   <section class="section">
@@ -839,15 +962,15 @@
     <div class="border-showcase">
       <div class="border-item border-warm-demo">
         <div class="border-label">Warm Border</div>
-        <div class="border-code">rgba(232, 218, 195, 0.22)</div>
+        <div class="border-code">var(--border-warm)</div>
       </div>
       <div class="border-item border-light-demo">
         <div class="border-label">Light Border</div>
-        <div class="border-code">rgba(232, 218, 195, 0.12)</div>
+        <div class="border-code">var(--border-warm-light)</div>
       </div>
       <div class="border-item border-subtle-demo">
         <div class="border-label">Subtle Border</div>
-        <div class="border-code">rgba(255, 255, 255, 0.06)</div>
+        <div class="border-code">var(--border-warm-subtle)</div>
       </div>
       <div class="border-item border-accent-demo">
         <div class="border-label">Accent Border</div>
@@ -857,55 +980,82 @@
   </section>
 
   <!-- Surface Layering -->
-  <section class="section">
-    <h2 class="section-title">Surface Layering</h2>
-    <div class="surface-stack">
-      <div class="surface-layer surface-main">
-        <div class="surface-label">bg-main</div>
-        <div class="surface-hex">#0F0E13</div>
-      </div>
-      <div class="surface-layer surface-surface">
-        <div class="surface-label">bg-surface</div>
-        <div class="surface-hex">#1C1A22</div>
-      </div>
-      <div class="surface-layer surface-muted">
-        <div class="surface-label">bg-surface-muted</div>
-        <div class="surface-hex">#2A2730</div>
-      </div>
-    </div>
-  </section>
+	  <section class="section">
+	    <h2 class="section-title">Surface Layering</h2>
+	    <div class="surface-stack">
+	      <div class="surface-layer surface-main">
+	        <div class="surface-label">bg-main</div>
+	        <div class="surface-hex">var(--bg-main)</div>
+	      </div>
+	      <div class="surface-layer surface-surface">
+	        <div class="surface-label">bg-surface</div>
+	        <div class="surface-hex">var(--bg-surface)</div>
+	      </div>
+	      <div class="surface-layer surface-muted">
+	        <div class="surface-label">bg-surface-muted</div>
+	        <div class="surface-hex">var(--bg-surface-muted)</div>
+	      </div>
+	    </div>
+	  </section>
 
   <!-- Animation Timing -->
-  <section class="section">
-    <h2 class="section-title">Animation Timing Scale</h2>
-    <div class="timing-showcase">
-      <div class="timing-item">
-        <span class="timing-label">Fast (hover, focus)</span>
-        <div class="timing-bar timing-fast"></div>
-        <span class="timing-value">160ms</span>
-      </div>
-      <div class="timing-item">
-        <span class="timing-label">Normal</span>
-        <div class="timing-bar timing-normal"></div>
-        <span class="timing-value">200ms</span>
-      </div>
-      <div class="timing-item">
-        <span class="timing-label">Medium (card transforms)</span>
-        <div class="timing-bar timing-medium"></div>
-        <span class="timing-value">260ms</span>
-      </div>
-      <div class="timing-item">
-        <span class="timing-label">Slow (complex)</span>
-        <div class="timing-bar timing-slow"></div>
-        <span class="timing-value">400ms</span>
-      </div>
-      <div class="timing-item">
-        <span class="timing-label">Slower (card dealing)</span>
-        <div class="timing-bar timing-slower"></div>
-        <span class="timing-value">600ms</span>
-      </div>
-    </div>
-  </section>
+	  <section class="section">
+	    <h2 class="section-title">Animation Timing Scale</h2>
+	    <div class="timing-showcase">
+	      <div class="timing-item">
+	        <span class="timing-label">Fast (hover, focus)</span>
+	        <div class="timing-bar timing-fast"></div>
+	        <span class="timing-value" data-duration-token="--duration-fast">var(--duration-fast)</span>
+	      </div>
+	      <div class="timing-item">
+	        <span class="timing-label">Normal</span>
+	        <div class="timing-bar timing-normal"></div>
+	        <span class="timing-value" data-duration-token="--duration-normal">var(--duration-normal)</span>
+	      </div>
+	      <div class="timing-item">
+	        <span class="timing-label">Medium (card transforms)</span>
+	        <div class="timing-bar timing-medium"></div>
+	        <span class="timing-value" data-duration-token="--duration-medium">var(--duration-medium)</span>
+	      </div>
+	      <div class="timing-item">
+	        <span class="timing-label">Slow (complex)</span>
+	        <div class="timing-bar timing-slow"></div>
+	        <span class="timing-value" data-duration-token="--duration-slow">var(--duration-slow)</span>
+	      </div>
+	      <div class="timing-item">
+	        <span class="timing-label">Slower (card dealing)</span>
+	        <div class="timing-bar timing-slower"></div>
+	        <span class="timing-value" data-duration-token="--duration-slower">var(--duration-slower)</span>
+	      </div>
+	    </div>
+	  </section>
+
+	  <!-- Text Tokens -->
+	  <section class="section">
+	    <h2 class="section-title">Semantic Text Tokens</h2>
+	    <div class="swatch-row">
+	      <div class="swatch">
+	        <div class="swatch-color" style="background: var(--text-main);"></div>
+	        <div class="swatch-info"><div class="swatch-name">text-main</div><div class="swatch-hex">var(--text-main)</div></div>
+	      </div>
+	      <div class="swatch">
+	        <div class="swatch-color" style="background: var(--text-muted);"></div>
+	        <div class="swatch-info"><div class="swatch-name">text-muted</div><div class="swatch-hex">var(--text-muted)</div></div>
+	      </div>
+	      <div class="swatch">
+	        <div class="swatch-color" style="background: var(--text-muted-high);"></div>
+	        <div class="swatch-info"><div class="swatch-name">text-muted-high</div><div class="swatch-hex">var(--text-muted-high)</div></div>
+	      </div>
+	      <div class="swatch">
+	        <div class="swatch-color" style="background: var(--text-accent);"></div>
+	        <div class="swatch-info"><div class="swatch-name">text-accent</div><div class="swatch-hex">var(--text-accent)</div></div>
+	      </div>
+	      <div class="swatch">
+	        <div class="swatch-color" style="background: var(--text-on-brand);"></div>
+	        <div class="swatch-info"><div class="swatch-name">text-on-brand</div><div class="swatch-hex">var(--text-on-brand)</div></div>
+	      </div>
+	    </div>
+	  </section>
 
   <!-- Keyframe Animations -->
   <section class="section">
@@ -985,5 +1135,187 @@
       </div>
     </div>
   </section>
+
+  <!-- Tarot.css Component Classes -->
+  <section class="section">
+    <h2 class="section-title">Tarot.css Component Classes</h2>
+
+    <div class="component-demo-group">
+      <h3 class="component-demo-title">Mystic Panels</h3>
+      <div class="component-demo-grid">
+        <div class="panel-mystic panel-demo" style="--panel-noise-opacity: 0.22;">
+          <div class="panel-demo-content">
+            <div class="panel-demo-title">panel-mystic</div>
+            <div class="panel-demo-text">Ambient glows, layered borders, noise texture.</div>
+          </div>
+        </div>
+        <div class="panel-mystic deck-selector-panel panel-demo">
+          <div class="panel-demo-content">
+            <div class="panel-demo-title">panel-mystic deck-selector-panel</div>
+            <div class="panel-demo-text">Deck variant with higher noise opacity.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="component-demo-group">
+      <h3 class="component-demo-title">Spread Cards</h3>
+      <div class="component-demo-grid spread-demo-grid">
+        <article class="spread-card" style="--spread-card-height-mobile: 15rem; --spread-card-height-desktop: 15rem; --spread-background: linear-gradient(150deg, rgba(22, 18, 32, 0.96), rgba(12, 10, 18, 0.92)); --spread-border: rgba(232, 218, 195, 0.18); --spread-accent: var(--brand-primary); --spread-glow: rgba(212, 184, 150, 0.32);">
+          <div class="spread-card__body">
+            <div class="spread-card__title">
+              <span class="spread-card__title-text">Three Card Insight</span>
+            </div>
+            <p class="spread-card__description">Default spread styling with custom background and glow vars.</p>
+            <div class="spread-card__preview spread-demo-preview"></div>
+            <div class="spread-card__meta">
+              <div class="spread-card__complexity">
+                <span>Complexity</span>
+                <span>Easy</span>
+              </div>
+            </div>
+          </div>
+        </article>
+        <article class="spread-card spread-card--active" style="--spread-card-height-mobile: 15rem; --spread-card-height-desktop: 15rem; --spread-background: linear-gradient(155deg, rgba(18, 23, 30, 0.96), rgba(10, 12, 18, 0.95)); --spread-border: rgba(139, 149, 165, 0.35); --spread-accent: var(--color-cups); --spread-glow: rgba(139, 149, 165, 0.45);">
+          <div class="spread-card__body">
+            <div class="spread-card__title">
+              <span class="spread-card__title-text">Cups Focus</span>
+            </div>
+            <p class="spread-card__description">Active state with alternate accent and glow color.</p>
+            <div class="spread-card__preview spread-demo-preview"></div>
+            <div class="spread-card__meta">
+              <div class="spread-card__complexity">
+                <span>Complexity</span>
+                <span>Medium</span>
+              </div>
+            </div>
+          </div>
+        </article>
+      </div>
+    </div>
+
+    <div class="component-demo-group">
+      <h3 class="component-demo-title">Deck Cards</h3>
+      <div class="component-demo-grid">
+        <div class="deck-card deck-demo-card" style="--deck-background: linear-gradient(150deg, rgba(21, 18, 30, 0.96), rgba(12, 10, 18, 0.92)); --deck-border: rgba(232, 218, 195, 0.18); --deck-accent: var(--brand-primary); --deck-glow: rgba(212, 184, 150, 0.32);">
+          <div class="deck-demo-content">
+            <div class="deck-demo-title">RWS Classic</div>
+            <div class="deck-demo-text">Base deck surface with ambient glow.</div>
+            <span class="deck-palette-badge" style="background: rgba(232, 218, 195, 0.12); color: var(--text-main);">Neutral Gold</span>
+          </div>
+        </div>
+        <div class="deck-card deck-card--active deck-demo-card" style="--deck-background: linear-gradient(150deg, rgba(17, 22, 20, 0.96), rgba(11, 14, 16, 0.95)); --deck-border: rgba(138, 153, 133, 0.45); --deck-accent: var(--color-pentacles); --deck-glow: rgba(138, 153, 133, 0.45);">
+          <div class="deck-demo-content">
+            <div class="deck-demo-title">Pentacles Edition</div>
+            <div class="deck-demo-text">Active deck card with suit accent.</div>
+            <span class="deck-palette-badge" style="background: rgba(138, 153, 133, 0.12); color: var(--text-main);">Sage Accent</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="component-demo-group">
+      <h3 class="component-demo-title">Mobile Drawer</h3>
+      <div class="drawer-demo">
+        <div class="mobile-drawer-overlay drawer-demo-overlay">
+          <div class="mobile-drawer" style="--drawer-accent: var(--drawer-gold);">
+            <div class="mobile-drawer__handle"></div>
+            <div class="mobile-drawer__header">
+              <div class="drawer-demo-header">
+                <div class="drawer-demo-title">
+                  <span class="mobile-drawer__eyebrow">Settings</span>
+                  <span class="drawer-demo-subtitle">Ambient drawer surface with glow.</span>
+                </div>
+                <button class="mobile-drawer__close" type="button">X</button>
+              </div>
+            </div>
+            <div class="mobile-drawer__body drawer-demo-body">
+              <div class="drawer-demo-row">
+                <span>Soundscape</span>
+                <span>On</span>
+              </div>
+              <div class="drawer-demo-row">
+                <span>Haptic Feedback</span>
+                <span>Medium</span>
+              </div>
+            </div>
+            <div class="mobile-drawer__footer drawer-demo-footer">
+              <span>Drawer footer glow and border</span>
+              <span class="mobile-drawer__badge">2 options</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <script>
+    (() => {
+	      const rgbToHex = (value) => {
+	        const match = value
+	          .replace(/\s+/g, '')
+	          .match(/^rgba?\((\d+),(\d+),(\d+)(?:,(\d*\.?\d+))?\)$/i);
+	        if (!match) return value;
+	        const toHex = (component) => Number(component).toString(16).padStart(2, '0');
+	        return `#${toHex(match[1])}${toHex(match[2])}${toHex(match[3])}`.toUpperCase();
+	      };
+
+      const normalizeHex = (value) => {
+        if (!value) return value;
+        const trimmed = value.trim();
+        if (!trimmed.startsWith('#')) return trimmed;
+        return trimmed.toUpperCase();
+      };
+
+      const computedColorToHex = (value) => normalizeHex(rgbToHex(value.trim()));
+
+      const updateTokenSwatches = () => {
+        document.querySelectorAll('.swatch').forEach((swatch) => {
+          const chip = swatch.querySelector('.swatch-color');
+          const label = swatch.querySelector('.swatch-hex');
+          if (!chip || !label) return;
+
+          const computed = getComputedStyle(chip).backgroundColor;
+          label.textContent = computedColorToHex(computed);
+        });
+      };
+
+      const updateSuitHex = () => {
+        document.querySelectorAll('.suit-card').forEach((card) => {
+          const hex = card.querySelector('.suit-hex');
+          const name = card.querySelector('.suit-name');
+          if (!hex || !name) return;
+
+          const computed = getComputedStyle(name).color;
+          hex.textContent = computedColorToHex(computed);
+        });
+      };
+
+      const updateSurfaceHex = () => {
+        document.querySelectorAll('.surface-layer').forEach((layer) => {
+          const hex = layer.querySelector('.surface-hex');
+          if (!hex) return;
+
+          const computed = getComputedStyle(layer).backgroundColor;
+          hex.textContent = computedColorToHex(computed);
+        });
+      };
+
+      const updateDurationLabels = () => {
+        document.querySelectorAll('[data-duration-token]').forEach((label) => {
+          const token = label.getAttribute('data-duration-token');
+          if (!token) return;
+
+          const value = getComputedStyle(document.documentElement).getPropertyValue(token).trim();
+          if (value) label.textContent = value;
+        });
+      };
+
+      updateTokenSwatches();
+      updateSuitHex();
+      updateSurfaceHex();
+      updateDurationLabels();
+    })();
+  </script>
 </body>
 </html>

@@ -7,12 +7,12 @@ import { Lightning } from '@phosphor-icons/react';
 
 // Context colors
 const CONTEXT_COLORS = {
-  love: 'bg-pink-500/70',
-  career: 'bg-blue-500/70',
-  self: 'bg-purple-500/70',
-  spiritual: 'bg-indigo-500/70',
-  wellbeing: 'bg-green-500/70',
-  general: 'bg-amber-500/70',
+  love: 'context-bar context-love',
+  career: 'context-bar context-career',
+  self: 'context-bar context-self',
+  spiritual: 'context-bar context-spiritual',
+  wellbeing: 'context-bar context-wellbeing',
+  general: 'context-bar context-general',
 };
 
 function getContextColor(context) {
@@ -28,7 +28,7 @@ function ContextBreakdown({ data = [], preferenceDrift }) {
 
   return (
     <div>
-      <p className="text-xs text-amber-100/60 mb-3">Your Focus Areas</p>
+      <p className="text-xs text-muted mb-3">Your Focus Areas</p>
 
       <div className="space-y-2">
         {sorted.slice(0, 4).filter(item => item?.name).map((item) => {
@@ -38,10 +38,10 @@ function ContextBreakdown({ data = [], preferenceDrift }) {
           return (
             <div key={item.name} className="space-y-1">
               <div className="flex items-center justify-between text-xs">
-                <span className="text-amber-100/80">{contextName}</span>
-                <span className="text-amber-100/60">{percentage}%</span>
+                <span className="text-main">{contextName}</span>
+                <span className="text-muted">{percentage}%</span>
               </div>
-              <div className="h-2 w-full rounded-full bg-amber-200/10 overflow-hidden">
+              <div className="h-2 w-full rounded-full bg-[color:var(--border-warm-subtle)] overflow-hidden">
                 <div
                   className={`h-full rounded-full ${getContextColor(item.name)} transition-all duration-300`}
                   style={{ width: `${percentage}%` }}
@@ -59,9 +59,9 @@ function ContextBreakdown({ data = [], preferenceDrift }) {
 
       {/* Preference drift indicator */}
       {preferenceDrift?.hasDrift && preferenceDrift.driftContexts?.[0]?.context && (
-        <div className="mt-3 flex items-start gap-2 rounded-lg bg-cyan-500/10 p-2 border border-cyan-500/20">
-          <Lightning className="h-3.5 w-3.5 text-cyan-400 mt-0.5 flex-shrink-0" />
-          <p className="text-xs text-cyan-100/80">
+        <div className="mt-3 flex items-start gap-2 rounded-lg bg-[color:var(--border-warm-subtle)] p-2 border border-[color:var(--border-warm-light)]">
+          <Lightning className="h-3.5 w-3.5 text-accent mt-0.5 flex-shrink-0" />
+          <p className="text-xs text-muted-high">
             <span className="font-medium">Emerging:</span>{' '}
             {preferenceDrift.driftContexts[0].context.charAt(0).toUpperCase() +
               preferenceDrift.driftContexts[0].context.slice(1)}{' '}

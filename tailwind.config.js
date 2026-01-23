@@ -1,4 +1,4 @@
-const defaultTheme = require('tailwindcss/defaultTheme')
+import defaultTheme from 'tailwindcss/defaultTheme';
 
 /**
  * Tailwind configuration for Tableau (Vite + React + Cloudflare Pages).
@@ -105,57 +105,7 @@ export default {
         'safe-left': 'env(safe-area-inset-left, 0px)',
         'safe-right': 'env(safe-area-inset-right, 0px)',
       },
-      keyframes: {
-        fadeIn: {
-          '0%': { opacity: '0' },
-          '100%': { opacity: '1' },
-        },
-        slideUp: {
-          '0%': { transform: 'translateY(100%)' },
-          '100%': { transform: 'translateY(0)' },
-        },
-        popIn: {
-          '0%': { opacity: '0', transform: 'scale(0.95)' },
-          '100%': { opacity: '1', transform: 'scale(1)' },
-        },
-        slideInRight: {
-          '0%': { transform: 'translateX(100%)' },
-          '100%': { transform: 'translateX(0)' },
-        },
-        fadeInUp: {
-          '0%': { opacity: '0', transform: 'translateY(1rem)' },
-          '100%': { opacity: '1', transform: 'translateY(0)' },
-        },
-        inkSpread: {
-          '0%': {
-            opacity: '0',
-            filter: 'blur(12px)',
-            transform: 'scale(0.95)',
-          },
-          '40%': {
-            opacity: '0.5',
-            filter: 'blur(6px)',
-            transform: 'scale(0.98)',
-          },
-          '100%': {
-            opacity: '1',
-            filter: 'blur(0px)',
-            transform: 'scale(1)',
-          },
-        },
-        slideDown: {
-          '0%': { opacity: '0', transform: 'translateY(-0.5rem)' },
-          '100%': { opacity: '1', transform: 'translateY(0)' },
-        },
-        floatGentle: {
-          '0%, 100%': { transform: 'translateY(0px)' },
-          '50%': { transform: 'translateY(-10px)' },
-        },
-        pulseSlow: {
-          '0%, 100%': { opacity: '0.8' },
-          '50%': { opacity: '0.4' },
-        },
-      },
+      // Keyframes live in src/styles/tarot.css to keep the app + docs/theme-swatch.html in sync.
       animation: {
         'fade-in': 'fadeIn 0.2s ease-out',
         'slide-up': 'slideUp 0.3s ease-out',

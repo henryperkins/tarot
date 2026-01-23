@@ -11,7 +11,7 @@ import {
   MagicWand,
   X
 } from '@phosphor-icons/react';
-import { useModalA11y, createBackdropHandler } from '../hooks/useModalA11y';
+import { useModalA11y } from '../hooks/useModalA11y';
 import { useSmallScreen } from '../hooks/useSmallScreen';
 import { useAndroidBackGuard } from '../hooks/useAndroidBackGuard';
 import { useLandscape } from '../hooks/useLandscape';
@@ -1378,9 +1378,19 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply,
 
   return (
     <div
-      className={`fixed inset-0 z-[100] flex items-center justify-center bg-main/90 backdrop-blur ${prefersReducedMotion ? '' : 'animate-fade-in'}`}
-      onClick={createBackdropHandler(onClose)}
+      className={`fixed inset-0 z-[70] flex ${isSmallScreen ? 'items-end' : 'items-center'} justify-center`}
+      style={isSmallScreen ? {
+        paddingTop: 'max(16px, env(safe-area-inset-top, 16px))',
+        paddingBottom: effectiveOffset ? `${effectiveOffset}px` : undefined
+      } : undefined}
     >
+      {/* Backdrop */}
+      <div
+        className={`${isSmallScreen ? 'mobile-drawer-overlay' : 'bg-main/90 backdrop-blur'} absolute inset-0 ${prefersReducedMotion ? '' : 'animate-fade-in'}`}
+        onClick={onClose}
+        aria-hidden="true"
+      />
+
       <FocusTrap
         active={isOpen}
         focusTrapOptions={{
@@ -1397,54 +1407,63 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply,
           role="dialog"
           aria-modal="true"
           aria-labelledby={titleId}
-          className={`relative w-full h-full sm:h-auto ${isLandscape ? 'max-h-[98vh]' : 'sm:max-h-[90vh]'} sm:max-w-3xl sm:mx-4 sm:rounded-3xl border-0 sm:border border-secondary/30 bg-surface shadow-2xl focus:outline-none flex flex-col ${prefersReducedMotion ? '' : 'animate-pop-in'}`}
-          style={isSmallScreen ? swipeDismissStyle : undefined}
+          className={`relative w-full flex flex-col focus:outline-none ${
+            isSmallScreen
+              ? `mobile-drawer ${prefersReducedMotion ? '' : 'animate-slide-up'}`
+              : `h-auto ${isLandscape ? 'max-h-[98vh]' : 'max-h-[90vh]'} max-w-3xl mx-4 rounded-3xl border border-secondary/30 bg-surface shadow-2xl ${prefersReducedMotion ? '' : 'animate-pop-in'}`
+          }`}
+          style={{
+            ...(isSmallScreen ? {
+              maxHeight: 'calc(100% - 8px)',
+              transform: isDragging && swipeDismissStyle?.transform ? swipeDismissStyle.transform : undefined,
+              transition: isDragging ? 'none' : 'transform 0.2s ease-out'
+            } : undefined)
+          }}
           {...(isSmallScreen ? swipeDismissHandlers : {})}
         >
           {/* Swipe handle indicator - mobile only */}
           {isSmallScreen && (
-            <div
-              className={`w-12 h-1 bg-secondary/40 rounded-full mx-auto mt-2 mb-1 shrink-0 ${isDragging ? 'bg-accent/60' : ''}`}
-              aria-hidden="true"
-            />
+            <div className="mobile-drawer__handle" aria-hidden="true" />
           )}
 
-          {/* Close Button */}
-          <button
-            ref={closeButtonRef}
-            type="button"
-            onClick={onClose}
-            className="absolute min-h-[44px] min-w-[44px] flex items-center justify-center rounded-full text-muted hover:text-main hover:bg-surface-muted/50 z-10 touch-manipulation transition-colors"
-            style={{
-              top: 'max(0.75rem, env(safe-area-inset-top, 0.5rem))',
-              right: 'max(0.75rem, env(safe-area-inset-right, 0.5rem))'
-            }}
-            aria-label="Close intention coach"
-          >
-            <X className="h-5 w-5" />
-          </button>
-
-          {/* Scrollable content area */}
-          <div className="flex-1 overflow-y-auto">
-            <div
-              className={`flex flex-col gap-6 px-4 pb-6 sm:px-10 sm:pb-6 ${isLandscape ? 'pt-6 gap-4' : 'pt-8 sm:pt-6'}`}
-              style={contentPaddingStyle}
-            >
-              {/* Header */}
-              <div>
-                <div className="flex items-center gap-2 text-primary">
-                  <Sparkle className="h-4 w-4" />
-                  <span className="text-xs uppercase tracking-[0.2em]">Guided Intention Coach</span>
-                </div>
-                <h2 id={titleId} className={`mt-2 font-serif text-main ${isLandscape ? 'text-xl' : 'text-2xl'}`}>Shape a question with clarity</h2>
+          {/* Header with close button */}
+          <div className={isSmallScreen ? 'mobile-drawer__header px-4 pt-3 pb-3' : 'relative'}>
+            <div className={`flex items-start justify-between gap-3 ${isSmallScreen ? '' : 'px-4 pt-8 sm:px-10 sm:pt-6'}`}>
+              <div className="space-y-1">
+                <p className={isSmallScreen ? 'mobile-drawer__eyebrow' : 'flex items-center gap-2 text-xs uppercase tracking-[0.2em] text-primary'}>
+                  <Sparkle className="w-3.5 h-3.5" aria-hidden="true" />
+                  Guided Intention Coach
+                </p>
+                <h2 id={titleId} className={`font-serif ${isSmallScreen ? 'text-lg text-accent' : `text-main ${isLandscape ? 'text-xl' : 'text-2xl'}`}`}>
+                  Shape a question with clarity
+                </h2>
                 {!isLandscape && (
-                  <p className="mt-1 text-sm text-muted">
+                  <p className={`${isSmallScreen ? 'text-[0.78rem] text-muted/90' : 'text-sm text-muted'} leading-snug max-w-[22rem]`}>
                     Answer three quick prompts and we&apos;ll craft an open-ended question you can drop
                     directly into your reading.
                   </p>
                 )}
               </div>
 
+              {/* Close Button */}
+              <button
+                ref={closeButtonRef}
+                type="button"
+                onClick={onClose}
+                className={isSmallScreen ? 'mobile-drawer__close' : 'absolute top-4 right-4 sm:top-6 sm:right-6 min-h-[44px] min-w-[44px] flex items-center justify-center rounded-full text-muted hover:text-main hover:bg-surface-muted/50 z-10 touch-manipulation transition-colors'}
+                aria-label="Close intention coach"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+          </div>
+
+          {/* Scrollable content area */}
+          <div className={`flex-1 overflow-y-auto overscroll-contain min-h-0 ${isSmallScreen ? 'mobile-drawer__body' : ''}`}>
+            <div
+              className={`flex flex-col gap-6 px-4 pb-6 sm:px-10 sm:pb-6 ${isLandscape ? 'pt-4 gap-4' : 'pt-4 sm:pt-6'}`}
+              style={!isSmallScreen ? contentPaddingStyle : undefined}
+            >
               {personalizedSuggestions.length > 0 && (
                 <section className="rounded-2xl border border-secondary/30 bg-surface-muted/40 p-4 space-y-3">
                   <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
@@ -1609,8 +1628,8 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply,
 
           {/* Footer - OUTSIDE scrollable area for proper sticky behavior */}
           <div
-            className={`flex-shrink-0 bg-surface border-t border-accent/20 sm:border-t-0 px-4 sm:px-10 pb-safe sm:pb-6 ${isLandscape ? 'pt-2' : 'pt-4 sm:pt-0'}`}
-            style={footerPaddingStyle}
+            className={`flex-shrink-0 ${isSmallScreen ? 'mobile-drawer__footer' : 'bg-surface border-t border-accent/20 sm:border-t-0 px-4 sm:px-10 pb-safe sm:pb-6'} ${isLandscape ? 'pt-2' : isSmallScreen ? '' : 'pt-4 sm:pt-0'}`}
+            style={!isSmallScreen ? footerPaddingStyle : undefined}
           >
             {historyStatus && (
               <p className="text-xs text-error text-center sm:text-left mb-2">

@@ -195,14 +195,7 @@ export default function ShareReading() {
   return (
     <div className="min-h-screen bg-main text-main">
       {/* Top navigation bar with safe-area padding */}
-      <header 
-        className="sticky top-0 z-40 border-b border-secondary/20 bg-main/95 backdrop-blur-sm"
-        style={{
-          paddingTop: 'max(env(safe-area-inset-top, 0px), 0.75rem)',
-          paddingLeft: 'max(env(safe-area-inset-left, 0px), 1rem)',
-          paddingRight: 'max(env(safe-area-inset-right, 0px), 1rem)',
-        }}
-      >
+      <header className="sticky top-0 z-40 border-b border-secondary/20 bg-main/95 backdrop-blur-sm pt-safe-top pl-safe-left pr-safe-right">
         <div className="mx-auto max-w-6xl flex items-center justify-between py-3 px-4">
           <div className="flex items-center gap-3">
             <button
@@ -317,8 +310,7 @@ export default function ShareReading() {
 
         {/* Mobile view toggle - only visible below lg breakpoint */}
         <div
-          className="mt-6 lg:hidden sticky z-20"
-          style={{ top: 'calc(env(safe-area-inset-top, 0px) + 4.5rem)' }}
+          className="mt-6 lg:hidden sticky z-20 top-[calc(env(safe-area-inset-top,0px)+4.5rem)]"
           role="tablist"
           aria-label="View selection"
         >
@@ -427,8 +419,7 @@ export default function ShareReading() {
         {/* Mobile: bottom CTA to jump to note form */}
         {mobileView === 'notes' && (
           <div
-            className="lg:hidden fixed right-4 z-30"
-            style={{ bottom: 'calc(env(safe-area-inset-bottom, 0px) + 1rem)' }}
+            className="lg:hidden fixed right-4 z-30 bottom-[calc(env(safe-area-inset-bottom,0px)+1rem)]"
           >
             <button
               type="button"
@@ -478,13 +469,8 @@ export default function ShareReading() {
 
       {/* Bottom sticky "Open in app" bar for guests */}
       {!isAuthenticated && (
-        <div 
-          className="fixed bottom-0 left-0 right-0 z-30 border-t border-accent/30 bg-surface/95 backdrop-blur-sm shadow-[0_-8px_30px_rgba(0,0,0,0.4)]"
-          style={{
-            paddingBottom: 'max(env(safe-area-inset-bottom, 0px), 1rem)',
-            paddingLeft: 'env(safe-area-inset-left, 1rem)',
-            paddingRight: 'env(safe-area-inset-right, 1rem)',
-          }}
+        <div
+          className="fixed bottom-0 left-0 right-0 z-30 border-t border-accent/30 bg-surface/95 backdrop-blur-sm shadow-[0_-8px_30px_rgba(0,0,0,0.4)] pb-safe-bottom pl-safe-left pr-safe-right"
         >
           <div className="mx-auto max-w-6xl px-4 py-3">
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
@@ -495,7 +481,7 @@ export default function ShareReading() {
               <div className="flex flex-col sm:flex-row gap-2">
                 <Link
                   to="/"
-                  className="inline-flex items-center justify-center gap-2 rounded-full bg-accent px-5 py-3 text-sm font-semibold text-main shadow-md hover:bg-accent/90 transition min-h-[44px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
+                  className="inline-flex items-center justify-center gap-2 rounded-full bg-accent px-5 py-3 text-sm font-semibold text-surface shadow-md hover:bg-accent/90 transition min-h-[44px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
                 >
                   <Sparkle className="h-4 w-4" weight="fill" />
                   Start Reading
