@@ -943,6 +943,11 @@ export default function AccountPage() {
     inactive: 'Inactive'
   };
   const statusLabel = statusLabels[statusValue] || statusValue;
+  const normalizeTimestamp = (timestamp) => (
+    typeof timestamp === 'number'
+      ? (timestamp < 1000000000000 ? timestamp * 1000 : timestamp)
+      : null
+  );
   const formatDate = (timestampMs) => (
     timestampMs
       ? new Date(timestampMs).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })
@@ -964,6 +969,36 @@ export default function AccountPage() {
   const needsPaymentUpdate = ['past_due', 'unpaid'].includes(statusValue);
   const needsResubscribe = statusValue === 'canceled';
   const hasActiveSubscription = ['active', 'trialing'].includes(statusValue);
+  const billingIntervalSource = subscriptionDetails?.billingInterval
+    || subscriptionDetails?.plan?.interval
+    || stripeMeta?.plan?.interval
+    || subscriptionDetails?.interval;
+  const normalizedBillingInterval = billingIntervalSource
+    ? billingIntervalSource.toString().toLowerCase()
+    : null;
+  const billingIntervalLabel = normalizedBillingInterval
+    ? (normalizedBillingInterval.includes('year') || normalizedBillingInterval.includes('annual')
+      ? 'Billed annually'
+      : normalizedBillingInterval.includes('month')
+        ? 'Billed monthly'
+        : `Billed ${normalizedBillingInterval}`)
+    : null;
+  const periodEndTimestamp = normalizeTimestamp(
+    subscriptionDetails?.current_period_end
+    || subscriptionDetails?.currentPeriodEnd
+    || stripeMeta?.currentPeriodEnd
+  );
+  const trialEndTimestamp = normalizeTimestamp(
+    subscriptionDetails?.trial_end
+    || stripeMeta?.trialEnd
+  );
+  const renewalLabel = statusValue === 'trialing'
+    ? (trialEndTimestamp
+      ? `Trial ends ${formatDate(trialEndTimestamp)}`
+      : (periodEndTimestamp ? `Renews ${formatDate(periodEndTimestamp)}` : null))
+    : (periodEndTimestamp ? `Renews ${formatDate(periodEndTimestamp)}` : null);
+  const billingLineParts = [billingIntervalLabel, renewalLabel].filter(Boolean);
+  const billingLine = hasActiveSubscription && billingLineParts.length ? billingLineParts.join(' · ') : null;
   const showStatusBanner = needsPaymentUpdate || needsResubscribe;
   const storeLabel = providerLabel || 'your app store';
   const storeManageLabel = providerLabel ? `Manage in ${providerLabel}` : 'Manage subscription';
@@ -1483,6 +1518,9 @@ export default function AccountPage() {
                   'Free plan'
                 )}
               </p>
+              {billingLine && (
+                <p className="text-xs text-muted mt-1">Billing: {billingLine}</p>
+              )}
               {subscriptionDetailsLoading ? (
                 <p className="text-xs text-muted mt-1">Loading subscription status…</p>
               ) : subscriptionStatusLine ? (
