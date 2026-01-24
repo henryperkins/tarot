@@ -25,6 +25,7 @@ import { Tooltip } from '../Tooltip';
 import { useModalA11y } from '../../hooks/useModalA11y';
 import CardsCallingYou from './sections/CardsCallingYou';
 import ContextBreakdown from './sections/ContextBreakdown';
+import PatternsSnapshotPanel from './sections/PatternsSnapshotPanel';
 import MajorArcanaMap from './sections/MajorArcanaMap';
 import AchievementsRow from './sections/AchievementsRow';
 import CadenceSection from './sections/CadenceSection';
@@ -33,6 +34,7 @@ import ExportSection from './sections/ExportSection';
 import JournalSummarySection from './sections/JournalSummarySection';
 import EmptyState from './sections/EmptyState';
 import BackfillBanner from './sections/BackfillBanner';
+import { usePatternsSnapshot } from './hooks/usePatternsSnapshot';
 
 const TABS = [
   { key: 'cards', label: 'Cards', icon: TrendUp },
@@ -99,17 +101,26 @@ export default function JourneyMobileSheet({
   const abortControllerRef = useRef(null);
   const scopeChipLabel = analyticsScope === 'filters' && filtersActive ? 'Filtered' : (scopeLabel || 'Scope');
   const sourceLabel = _dataSource === 'server' ? 'D1' : 'Journal';
-  const timeframeLabel = scopeLabel || (filtersActive && analyticsScope === 'filters' ? 'Filtered view' : 'Current view');
-  const dateFormatOptions = {
-    month: 'long',
-    year: 'numeric',
-    ...((seasonTimezone || timezone) && { timeZone: seasonTimezone || timezone }),
-  };
-  const formattedSeasonWindow = seasonWindow
-    ? `${new Intl.DateTimeFormat(locale, dateFormatOptions).format(seasonWindow.start)} – ${new Intl.DateTimeFormat(locale, dateFormatOptions).format(seasonWindow.end)}`
-    : null;
-  const hasMoreThemes = themes.length > 4;
-  const hasMoreContexts = contextBreakdown.length > 4;
+
+  // Use shared patterns snapshot hook
+  const {
+    timeframeLabel,
+    formattedSeasonWindow,
+    hasMoreContexts,
+    hasMoreThemes,
+    hasMorePatterns,
+  } = usePatternsSnapshot({
+    scopeLabel,
+    seasonWindow,
+    locale,
+    timezone,
+    seasonTimezone,
+    filtersActive,
+    analyticsScope,
+    contextBreakdown,
+    themes,
+  });
+
   const streakGraceTooltip = 'Counts from yesterday if no reading today (grace period).';
   const streakInfoButtonClass =
     'text-muted hover:text-main focus-visible:ring-[color:var(--accent-45)] -ml-2 -mr-2';
@@ -132,6 +143,13 @@ export default function JourneyMobileSheet({
     initialFocusRef: closeButtonRef,
     scrollLockStrategy: 'simple',
   });
+
+  // Reset patterns snapshot expansion when navigating away from the Patterns tab
+  useEffect(() => {
+    if (activeTab !== 'patterns' && showAllPatterns) {
+      setShowAllPatterns(false);
+    }
+  }, [activeTab, showAllPatterns]);
 
   // Reset drag state when sheet closes
   useEffect(() => {
@@ -601,22 +619,10 @@ export default function JourneyMobileSheet({
               {activeTab === 'patterns' && (
                 <>
                   {contextBreakdown.length > 0 && (
-                    <div className="space-y-2">
-                      <ContextBreakdown
-                        data={contextBreakdown}
-                        preferenceDrift={preferenceDrift}
-                      />
-                      {hasMoreContexts && (
-                        <button
-                          type="button"
-                          onClick={handlePatternsToggle}
-                          aria-expanded={showAllPatterns}
-                          className="text-xs font-semibold text-[color:var(--text-accent)] hover:text-main focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--accent-45)]"
-                        >
-                          {showAllPatterns ? 'Hide focus areas' : 'View all focus areas'}
-                        </button>
-                      )}
-                    </div>
+                    <ContextBreakdown
+                      data={contextBreakdown}
+                      preferenceDrift={preferenceDrift}
+                    />
                   )}
                   {themes.length > 0 && (
                     <div>
@@ -631,62 +637,29 @@ export default function JourneyMobileSheet({
                           </span>
                         ))}
                       </div>
-                      {hasMoreThemes && (
-                        <button
-                          type="button"
-                          onClick={handlePatternsToggle}
-                          aria-expanded={showAllPatterns}
-                          className="mt-2 text-xs font-semibold text-[color:var(--text-accent)] hover:text-main focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--accent-45)]"
-                        >
-                          {showAllPatterns ? 'Hide themes' : 'View all themes'}
-                        </button>
-                      )}
                     </div>
                   )}
-                  {showAllPatterns && (hasMoreContexts || hasMoreThemes) && (
-                    <div className="rounded-2xl border border-[color:var(--border-warm-light)] bg-[color:var(--border-warm-subtle)] p-4 space-y-4">
-                      <div className="flex items-start justify-between gap-3">
-                        <div>
-                          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-high">
-                            Full Patterns Snapshot
-                          </p>
-                          <p className="text-[11px] text-muted">
-                            Timeframe: {timeframeLabel}
-                            {formattedSeasonWindow ? ` · ${formattedSeasonWindow}` : ''}
-                          </p>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={handlePatternsToggle}
-                          className="flex h-7 w-7 items-center justify-center rounded-full text-muted hover:text-main hover:bg-[color:var(--border-warm-light)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--accent-45)]"
-                          aria-label="Close full patterns snapshot"
-                        >
-                          <X className="h-3.5 w-3.5" />
-                        </button>
-                      </div>
-                      {contextBreakdown.length > 0 && (
-                        <ContextBreakdown
-                          data={contextBreakdown}
-                          preferenceDrift={preferenceDrift}
-                          maxItems={contextBreakdown.length}
-                        />
-                      )}
-                      {themes.length > 0 && (
-                        <div>
-                          <p className="text-xs text-muted mb-2">All Themes</p>
-                          <div className="flex flex-wrap gap-1.5">
-                            {themes.map((theme, i) => (
-                              <span
-                                key={`${theme}-${i}`}
-                                className="rounded-full bg-[color:var(--panel-dark-3)] px-2.5 py-1 text-xs text-muted-high"
-                              >
-                                {theme}
-                              </span>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                    </div>
+                  {/* Single "View full patterns" / "Hide patterns" button */}
+                  {hasMorePatterns && (
+                    <button
+                      type="button"
+                      onClick={handlePatternsToggle}
+                      aria-expanded={showAllPatterns}
+                      className="text-xs font-semibold text-[color:var(--text-accent)] hover:text-main focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--accent-45)]"
+                    >
+                      {showAllPatterns ? 'Hide patterns' : 'View full patterns'}
+                    </button>
+                  )}
+                  {/* Expanded patterns snapshot using shared component */}
+                  {showAllPatterns && hasMorePatterns && (
+                    <PatternsSnapshotPanel
+                      timeframeLabel={timeframeLabel}
+                      formattedSeasonWindow={formattedSeasonWindow}
+                      contextBreakdown={contextBreakdown}
+                      themes={themes}
+                      preferenceDrift={preferenceDrift}
+                      onClose={handlePatternsToggle}
+                    />
                   )}
                   {cadence.length > 0 && <CadenceSection data={cadence} />}
                   {journeyStory && <JourneyStorySection story={journeyStory} />}
