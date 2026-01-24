@@ -85,7 +85,7 @@ function ActionButton({
 
   // In landscape: hide step labels but keep touch target size consistent
   const showStepLabel = Boolean(stepLabel) && !isLandscape;
-  const heightClass = 'min-h-[44px]';
+  const heightClass = 'min-h-touch';
   const textSize = isLandscape ? 'text-xs' : 'text-sm';
 
   return (
@@ -240,7 +240,7 @@ function renderActions(mode, options) {
     prepPrimary: variant === 'inline' ? 'w-full' : isLandscape ? 'flex-1 min-w-[3.5rem]' : 'flex-1 min-w-[6rem]',
     secondary: variant === 'inline' ? 'w-full' : isLandscape ? 'flex-1 min-w-[4rem]' : 'flex-1 min-w-[7.5rem]',
     tertiary: variant === 'inline' ? 'w-full' : isLandscape ? 'flex-1 min-w-[3rem]' : 'flex-1 min-w-[6.5rem]',
-    icon: variant === 'inline' ? 'w-full' : 'flex-none min-w-[44px]',
+    icon: variant === 'inline' ? 'w-full' : 'flex-none min-w-touch',
     coach: variant === 'inline' ? 'w-full' : 'flex-none'
   };
 

@@ -182,7 +182,7 @@ export function FeedbackPanel({
                         aria-label={`${value} out of 5, ${SCALE_LABELS[index]}`}
                         onClick={() => handleRating(field.key, value)}
                         disabled={hasSubmitted}
-                        className={`min-h-[44px] min-w-[44px] px-2.5 xs:px-3 py-2 rounded-full border text-sm font-medium transition-colors touch-manipulation
+                        className={`min-h-touch min-w-touch px-2.5 xs:px-3 py-2 rounded-full border text-sm font-medium transition-colors touch-manipulation
                           focus:outline-none focus-visible:ring-2 focus-visible:ring-secondary/70 focus-visible:ring-offset-2
                           ${isSelected
                             ? 'border-secondary/70 bg-secondary/20 text-secondary'
@@ -240,7 +240,7 @@ export function FeedbackPanel({
             <button
               type="submit"
               disabled={!canSubmit || hasSubmitted}
-              className="min-h-[44px] px-5 py-2.5 rounded-full border border-secondary/40 bg-secondary/20 text-sm font-medium text-secondary transition-colors touch-manipulation
+              className="min-h-touch px-5 py-2.5 rounded-full border border-secondary/40 bg-secondary/20 text-sm font-medium text-secondary transition-colors touch-manipulation
                 hover:bg-secondary/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-secondary/70 focus-visible:ring-offset-2
                 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-secondary/20"
             >

@@ -38,11 +38,7 @@ export function JournalFloatingControls({
 
   return (
     <div
-      className="fixed z-40 flex flex-col items-end gap-2"
-      style={{
-        right: 'max(env(safe-area-inset-right, 0px), clamp(1rem, 2vw, 1.5rem))',
-        bottom: 'max(env(safe-area-inset-bottom, 0px), clamp(1rem, 2vw, 1.5rem))'
-      }}
+      className="fixed z-40 flex flex-col items-end gap-2 right-[max(var(--safe-pad-right),clamp(1rem,2vw,1.5rem))] bottom-[max(var(--safe-pad-bottom),clamp(1rem,2vw,1.5rem))]"
     >
       {showActiveFilters && (
         <div className="max-w-sm rounded-2xl border border-[color:var(--border-warm-subtle)] bg-[color:var(--surface-92)] px-3 py-2 text-[11px] text-muted shadow-[0_22px_55px_-28px_rgba(0,0,0,0.85)] backdrop-blur">
@@ -74,7 +70,7 @@ export function JournalFloatingControls({
         <button
           type="button"
           onClick={() => onStartReading()}
-          className="inline-flex min-h-[44px] items-center gap-2 rounded-full bg-gradient-to-r from-[color:var(--brand-primary)] to-[color:var(--brand-accent)] px-4 py-3 text-sm font-semibold text-[color:var(--text-on-brand)] shadow-[0_22px_55px_-28px_var(--primary-60)] transition hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)]"
+          className="inline-flex min-h-touch items-center gap-2 rounded-full bg-gradient-to-r from-[color:var(--brand-primary)] to-[color:var(--brand-accent)] px-4 py-3 text-sm font-semibold text-[color:var(--text-on-brand)] shadow-[0_22px_55px_-28px_var(--primary-60)] transition hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)]"
           aria-label="Start a new reading"
         >
           <JournalPlusCircleIcon className="h-4 w-4" aria-hidden="true" />
@@ -85,7 +81,7 @@ export function JournalFloatingControls({
         <button
           type="button"
           onClick={onScrollToFilters}
-          className="inline-flex min-h-[44px] items-center gap-2 rounded-full border border-[color:var(--border-warm-light)] bg-[color:var(--surface-92)] px-4 py-3 text-sm font-semibold text-main shadow-[0_22px_55px_-28px_rgba(0,0,0,0.85)] backdrop-blur transition hover:-translate-y-0.5 hover:border-[color:var(--border-warm)] hover:bg-[color:var(--surface-88)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)]"
+          className="inline-flex min-h-touch items-center gap-2 rounded-full border border-[color:var(--border-warm-light)] bg-[color:var(--surface-92)] px-4 py-3 text-sm font-semibold text-main shadow-[0_22px_55px_-28px_rgba(0,0,0,0.85)] backdrop-blur transition hover:-translate-y-0.5 hover:border-[color:var(--border-warm)] hover:bg-[color:var(--surface-88)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)]"
           aria-label="Jump to journal filters"
         >
           <JournalSlidersIcon className="h-4 w-4 text-accent" aria-hidden="true" />

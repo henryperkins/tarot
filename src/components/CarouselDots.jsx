@@ -90,14 +90,14 @@ export function CarouselDots({
     },
     compact: {
       container: 'flex items-center justify-center gap-0',
-      button: 'relative flex items-center justify-center min-w-[44px] min-h-[44px] w-11 h-11 touch-manipulation',
+      button: 'relative flex items-center justify-center min-w-touch min-h-touch w-11 h-11 touch-manipulation',
       dotBase: 'w-1.5 h-1.5 rounded-full transition-all duration-200',
       dotActive: 'bg-primary w-3 shadow-sm shadow-primary/30',
       dotInactive: 'bg-secondary/40 hover:bg-secondary/60'
     },
     labeled: {
       container: 'flex items-center justify-center gap-2',
-      button: 'relative flex items-center justify-center min-w-[44px] h-11 px-2 touch-manipulation',
+      button: 'relative flex items-center justify-center min-w-touch h-11 px-2 touch-manipulation',
       dotBase: 'text-xs font-medium transition-all duration-200 rounded-full px-2 py-1',
       dotActive: 'bg-primary/20 text-primary border border-primary/50',
       dotInactive: 'bg-secondary/10 text-muted border border-secondary/30 hover:bg-secondary/20'
@@ -178,7 +178,7 @@ export function CarouselNav({
             type="button"
             onClick={() => onSelectItem?.(activeIndex - 1)}
             disabled={!canGoPrev}
-            className="inline-flex items-center justify-center rounded-full border border-secondary/50 bg-surface px-3 py-2 min-w-[48px] min-h-[44px] text-xs font-semibold text-muted disabled:opacity-40 touch-manipulation"
+            className="inline-flex items-center justify-center rounded-full border border-secondary/50 bg-surface px-3 py-2 min-w-[48px] min-h-touch text-xs font-semibold text-muted disabled:opacity-40 touch-manipulation"
             aria-label="Previous item"
           >
             Prev
@@ -190,7 +190,7 @@ export function CarouselNav({
             type="button"
             onClick={() => onSelectItem?.(activeIndex + 1)}
             disabled={!canGoNext}
-            className="inline-flex items-center justify-center rounded-full border border-secondary/50 bg-surface px-3 py-2 min-w-[48px] min-h-[44px] text-xs font-semibold text-muted disabled:opacity-40 touch-manipulation"
+            className="inline-flex items-center justify-center rounded-full border border-secondary/50 bg-surface px-3 py-2 min-w-[48px] min-h-touch text-xs font-semibold text-muted disabled:opacity-40 touch-manipulation"
             aria-label="Next item"
           >
             Next

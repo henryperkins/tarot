@@ -1,11 +1,11 @@
-import { buildCardInsights } from './cardInsights';
+import { buildCardInsights } from './cardInsights.js';
 import { getSymbolFamily } from '../../shared/symbols/symbolIndex.js';
 
 const ELEMENT_FAMILY_MAP = {
-  Fire: ['fire', 'wand'],
-  Water: ['water', 'cup'],
-  Air: ['sword'],
-  Earth: ['pentacle', 'mountains']
+  Fire: ['fire', 'flame', 'wand', 'torch', 'sun', 'salamander', 'lion'],
+  Water: ['water', 'cup', 'chalice', 'pool', 'waves', 'waterfall', 'fish', 'crab', 'moon'],
+  Air: ['sword', 'feather', 'cloud', 'bird', 'butterfly', 'smoke'],
+  Earth: ['pentacle', 'coin', 'mountains', 'tree', 'stone', 'crystal', 'bull', 'wheat']
 };
 
 const SUIT_FAMILY_MAP = {
@@ -14,6 +14,22 @@ const SUIT_FAMILY_MAP = {
   Swords: ['sword'],
   Pentacles: ['pentacle']
 };
+
+/**
+ * Get the element associated with a symbol family
+ * @param {string} family - Symbol family name
+ * @returns {string|null} Element name or null if not mapped
+ */
+export function getElementForSymbolFamily(family) {
+  if (!family) return null;
+  const normalizedFamily = family.toLowerCase();
+  for (const [element, families] of Object.entries(ELEMENT_FAMILY_MAP)) {
+    if (families.includes(normalizedFamily)) {
+      return element;
+    }
+  }
+  return null;
+}
 
 function getDominantEntry(counts = {}, { minTotal = 3, minRatio = 0.5, minCount = 2 } = {}) {
   const entries = Object.entries(counts).filter(([, count]) => Number.isFinite(count));
@@ -119,3 +135,43 @@ export function getSymbolFollowUpPrompt(reading = [], themes = null) {
 
   return `What does the recurring ${topSymbol} symbol invite you to consider?`;
 }
+
+/**
+ * Enrich a symbol with its element association
+ * @param {Object} symbol - Symbol object with object/family properties
+ * @returns {Object} Symbol with added element property
+ */
+export function enrichSymbolWithElement(symbol) {
+  if (!symbol) return symbol;
+  const family = symbol.family || getSymbolFamily(symbol.object);
+  const element = getElementForSymbolFamily(family);
+  return { ...symbol, element };
+}
+
+/**
+ * Get all symbols from a reading enriched with element data
+ * @param {Array} reading - Array of card objects
+ * @returns {Array} Symbols with element associations
+ */
+export function getEnrichedSymbols(reading = []) {
+  const symbols = collectSymbols(reading);
+  return symbols.map(enrichSymbolWithElement);
+}
+
+/**
+ * Check if a symbol matches the dominant element in a reading
+ * @param {Object} symbol - Symbol object
+ * @param {Object} themes - Theme analysis with elementCounts
+ * @returns {boolean} True if symbol's element matches dominant element
+ */
+export function symbolMatchesDominantElement(symbol, themes) {
+  if (!symbol || !themes?.elementCounts) return false;
+  const dominantElement = getDominantEntry(themes.elementCounts);
+  if (!dominantElement) return false;
+  const symbolElement = getElementForSymbolFamily(symbol.family || getSymbolFamily(symbol.object));
+  return symbolElement === dominantElement.key;
+}
+
+// Export the element family map for UI use
+export { ELEMENT_FAMILY_MAP };
+

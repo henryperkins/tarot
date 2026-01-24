@@ -741,13 +741,8 @@ export default function Journal() {
     <>
       <div className="min-h-screen bg-main text-main animate-fade-in">
         {/* Sticky navigation header with safe-area padding */}
-        <header 
-          className="sticky top-0 z-40 bg-main/95 backdrop-blur-sm border-b border-secondary/20"
-          style={{
-            paddingTop: 'max(env(safe-area-inset-top, 0px), 0.75rem)',
-            paddingLeft: 'max(env(safe-area-inset-left, 0px), 1rem)',
-            paddingRight: 'max(env(safe-area-inset-right, 0px), 1rem)',
-          }}
+        <header
+          className="sticky top-0 z-40 bg-main/95 backdrop-blur-sm border-b border-secondary/20 pt-[max(var(--safe-pad-top),0.75rem)] pl-[max(var(--safe-pad-left),1rem)] pr-[max(var(--safe-pad-right),1rem)]"
         >
           <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3">
             <GlobalNav withUserChip />
@@ -766,7 +761,7 @@ export default function Journal() {
                   }
                   navigate('/');
                 }}
-                className="inline-flex min-h-[44px] items-center gap-2 rounded-full px-3 py-2 text-accent hover:text-main hover:bg-surface-muted/30 transition touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/50 self-start"
+                className="inline-flex min-h-touch items-center gap-2 rounded-full px-3 py-2 text-accent hover:text-main hover:bg-surface-muted/30 transition touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/50 self-start"
               >
                 <CaretLeft className="w-5 h-5" />
                 <span>Back to Reading</span>
@@ -780,7 +775,7 @@ export default function Journal() {
               <button
                 type="button"
                 onClick={() => setShowSavedIntentionsModal(true)}
-                className="inline-flex min-h-[44px] items-center gap-2 rounded-full border border-amber-200/25 bg-amber-200/5 px-4 py-2.5 text-sm font-semibold text-amber-50 shadow-[0_12px_30px_-18px_rgba(251,191,36,0.35)] transition hover:-translate-y-0.5 hover:border-amber-200/40 hover:bg-amber-200/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/40"
+                className="inline-flex min-h-touch items-center gap-2 rounded-full border border-amber-200/25 bg-amber-200/5 px-4 py-2.5 text-sm font-semibold text-amber-50 shadow-[0_12px_30px_-18px_rgba(251,191,36,0.35)] transition hover:-translate-y-0.5 hover:border-amber-200/40 hover:bg-amber-200/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/40"
               >
                 <JournalRefreshIcon className="h-4 w-4 text-amber-200" aria-hidden="true" />
                 Saved Intentions
@@ -788,7 +783,7 @@ export default function Journal() {
               <button
                 type="button"
                 onClick={() => navigate('/journal/gallery')}
-                className="inline-flex min-h-[44px] items-center gap-2 rounded-full border border-amber-200/25 bg-amber-200/5 px-4 py-2.5 text-sm font-semibold text-amber-50 shadow-[0_12px_30px_-18px_rgba(251,191,36,0.35)] transition hover:-translate-y-0.5 hover:border-amber-200/40 hover:bg-amber-200/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/40"
+                className="inline-flex min-h-touch items-center gap-2 rounded-full border border-amber-200/25 bg-amber-200/5 px-4 py-2.5 text-sm font-semibold text-amber-50 shadow-[0_12px_30px_-18px_rgba(251,191,36,0.35)] transition hover:-translate-y-0.5 hover:border-amber-200/40 hover:bg-amber-200/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/40"
               >
                 <JournalCardsAddIcon className="h-4 w-4 text-amber-200" aria-hidden="true" />
                 Card Gallery
@@ -1014,7 +1009,7 @@ export default function Journal() {
                                 type="button"
                                 onClick={handleLoadMoreEntries}
                                 disabled={loadingMore}
-                                className={`inline-flex min-h-[44px] items-center gap-2 rounded-full border border-amber-200/20 bg-amber-200/10 px-4 py-2 text-xs font-semibold text-amber-100/90 hover:border-amber-200/40 hover:bg-amber-200/20 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/40 ${loadingMore ? 'cursor-not-allowed opacity-60' : ''}`}
+                                className={`inline-flex min-h-touch items-center gap-2 rounded-full border border-amber-200/20 bg-amber-200/10 px-4 py-2 text-xs font-semibold text-amber-100/90 hover:border-amber-200/40 hover:bg-amber-200/20 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/40 ${loadingMore ? 'cursor-not-allowed opacity-60' : ''}`}
                               >
                                 <JournalSearchIcon className="h-4 w-4" aria-hidden="true" />
                                 {loadingMore ? 'Searching...' : inlineSearchOlderLabel}
@@ -1033,7 +1028,7 @@ export default function Journal() {
                                 type="button"
                                 onClick={handleLoadMoreEntries}
                                 disabled={loadingMore}
-                                className={`${OUTLINE_BUTTON_CLASS} min-h-[44px] px-4 py-2 ${loadingMore ? 'cursor-wait opacity-60' : ''}`}
+                                className={`${OUTLINE_BUTTON_CLASS} min-h-touch px-4 py-2 ${loadingMore ? 'cursor-wait opacity-60' : ''}`}
                               >
                                 {loadingMore ? 'Loading...' : loadMoreLabel}
                               </button>

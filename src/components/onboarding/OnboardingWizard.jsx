@@ -412,7 +412,7 @@ export function OnboardingWizard({ isOpen, onComplete, onSelectSpread, initialSp
   return (
     <>
       <div
-        className={`fixed inset-0 z-[100] flex items-stretch sm:items-center justify-center bg-main/95 backdrop-blur-sm px-safe-left px-safe-right py-safe-top pb-safe-bottom ${
+        className={`fixed inset-0 z-[100] flex items-stretch sm:items-center justify-center bg-main/95 backdrop-blur-sm px-safe pt-safe pb-safe-bottom ${
           prefersReducedMotion ? '' : 'animate-fade-in'
         }`}
         // eslint-disable-next-line react-hooks/refs -- handleSkipRequest only reads ref when invoked (event handler), not during render
@@ -465,7 +465,7 @@ export function OnboardingWizard({ isOpen, onComplete, onSelectSpread, initialSp
                   ref={closeButtonRef}
                   type="button"
                   onClick={handleSkipRequest}
-                  className="order-1 sm:order-2 self-start sm:self-center ml-auto sm:ml-0 flex items-center justify-center min-w-[44px] min-h-[44px] rounded-full text-muted hover:text-main hover:bg-surface/50 transition touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-main"
+                  className="order-1 sm:order-2 self-start sm:self-center ml-auto sm:ml-0 flex items-center justify-center min-w-touch min-h-touch rounded-full text-muted hover:text-main hover:bg-surface/50 transition touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-main"
                   aria-label="Skip onboarding"
                 >
                   <X className="w-5 h-5" weight="bold" />
@@ -492,14 +492,14 @@ export function OnboardingWizard({ isOpen, onComplete, onSelectSpread, initialSp
                     <button
                       type="button"
                       onClick={handleSkipRequest}
-                      className="min-h-[44px] rounded-full border border-secondary/30 px-3 text-xs-plus font-semibold text-muted hover:text-main hover:border-secondary/50 transition touch-manipulation"
+                      className="min-h-touch rounded-full border border-secondary/30 px-3 text-xs-plus font-semibold text-muted hover:text-main hover:border-secondary/50 transition touch-manipulation"
                     >
                       Skip for now
                     </button>
                     <button
                       type="button"
                       onClick={handleResumeRequest}
-                      className="min-h-[44px] rounded-full bg-gradient-to-r from-accent/80 to-primary/80 px-3 text-xs-plus font-semibold text-main shadow-md shadow-primary/30 hover:from-accent hover:to-primary transition touch-manipulation"
+                      className="min-h-touch rounded-full bg-gradient-to-r from-accent/80 to-primary/80 px-3 text-xs-plus font-semibold text-main shadow-md shadow-primary/30 hover:from-accent hover:to-primary transition touch-manipulation"
                     >
                       Save & resume later
                     </button>
@@ -512,8 +512,8 @@ export function OnboardingWizard({ isOpen, onComplete, onSelectSpread, initialSp
             <main
               className="relative z-10 flex-1 overflow-y-auto overflow-x-hidden scroll-smooth pt-safe-top pb-safe-bottom pl-safe-left pr-safe-right onboarding-modal__scroll"
               style={{
-                scrollPaddingTop: 'calc(4.5rem + env(safe-area-inset-top, 0.75rem))',
-                scrollPaddingBottom: 'calc(2rem + env(safe-area-inset-bottom, 1rem))',
+                scrollPaddingTop: 'calc(4.5rem + var(--safe-pad-top))',
+                scrollPaddingBottom: 'calc(2rem + var(--safe-pad-bottom))',
                 scrollbarGutter: 'stable both-edges',
                 overscrollBehavior: 'contain',
                 WebkitOverflowScrolling: 'touch'

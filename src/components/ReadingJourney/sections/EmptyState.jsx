@@ -91,7 +91,7 @@ export default function EmptyState({
                   disabled={isBackfilling}
                   aria-label="Analyze journal for reading journey"
                   className={`
-                    flex items-center gap-2 min-h-[44px] px-4 py-2 rounded-full text-sm sm:text-xs font-medium
+                    flex items-center gap-2 min-h-touch px-4 py-2 rounded-full text-sm sm:text-xs font-medium
                     border border-[color:var(--border-warm-light)] text-main bg-[color:var(--border-warm-subtle)]
                     shadow-[0_16px_36px_-22px_var(--primary-60)]
                     hover:-translate-y-0.5 hover:border-[color:var(--border-warm)]

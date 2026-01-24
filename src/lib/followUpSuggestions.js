@@ -1,4 +1,5 @@
-import { getSymbolFollowUpPrompt } from './symbolElementBridge';
+import { getSymbolFollowUpPrompt } from './symbolElementBridge.js';
+import { hashString, seededShuffle } from '../../shared/utils.js';
 
 /**
  * Follow-Up Question Suggestions Generator
@@ -15,199 +16,319 @@ import { getSymbolFollowUpPrompt } from './symbolElementBridge';
  * @param {Object} readingMeta - Reading metadata (spreadKey, etc.)
  * @returns {Array<{text: string, type: string, priority: number}>}
  */
-export function generateFollowUpSuggestions(reading, themes, readingMeta) {
+export function generateFollowUpSuggestions(reading, themes, readingMeta, options = {}) {
   const suggestions = [];
-  const spreadKey = readingMeta?.spreadKey || 'general';
-
-  // Normalize reading array
   const cards = Array.isArray(reading) ? reading : [];
+  const spreadKey = options.spreadKey || readingMeta?.spreadKey || 'general';
+  const userQuestion = options.userQuestion || readingMeta?.userQuestion || '';
+  const limit = Number.isFinite(options.limit) ? options.limit : 4;
+  const rotationSeedBase = String(options.rotationSeed || readingMeta?.requestId || readingMeta?.spreadKey || 'reading');
+  const rotationIndex = Number.isFinite(options.rotationIndex) ? options.rotationIndex : 0;
+  const rotationSeed = hashString(`${rotationSeedBase}:${rotationIndex}`);
 
-  // 1. Reversed card exploration (high priority)
-  const reversedCards = cards.filter(c =>
-    c.isReversed || c.orientation === 'reversed'
-  );
-
-  if (reversedCards.length === 1) {
-    const cardName = reversedCards[0].name || reversedCards[0].card || 'this card';
-    suggestions.push({
-      text: `What does ${cardName} reversed want me to understand?`,
-      type: 'reversal',
-      priority: 1
-    });
-  } else if (reversedCards.length > 1) {
-    suggestions.push({
-      text: 'What pattern do the reversed cards reveal together?',
-      type: 'reversal',
-      priority: 1
-    });
-  }
-
-  // 2. Spread-specific questions
-  const spreadQuestions = {
-    celtic: [
-      { text: 'How do the crossing and outcome cards connect?', priority: 2 },
-      { text: 'What does the subconscious foundation reveal about this situation?', priority: 3 }
-    ],
-    threeCard: [
-      { text: 'How does the present card bridge past and future?', priority: 2 },
-      { text: 'What action bridges where I am and where I\'m heading?', priority: 3 }
-    ],
-    relationship: [
-      { text: 'How can I better understand the other person\'s perspective?', priority: 2 },
-      { text: 'What shared ground do these cards suggest?', priority: 3 }
-    ],
-    decision: [
-      { text: 'Which path aligns more with my values?', priority: 2 },
-      { text: 'What factor should weigh most in my choice?', priority: 3 }
-    ],
-    single: [
-      { text: 'What specific action does this card suggest for today?', priority: 2 }
-    ],
-    fiveCard: [
-      { text: 'How does the support card help address the challenge?', priority: 2 }
-    ]
+  const suitElements = {
+    Wands: 'Fire',
+    Cups: 'Water',
+    Swords: 'Air',
+    Pentacles: 'Earth'
   };
 
-  if (spreadQuestions[spreadKey]) {
-    spreadQuestions[spreadKey].forEach(q => {
-      suggestions.push({ ...q, type: 'spread' });
-    });
-  }
+  const getCardName = (card) => card?.name || card?.card || card?.canonicalName || 'this card';
+  const normalizeText = (text) => String(text || '').toLowerCase().replace(/\s+/g, ' ').trim();
+  const normalizeOrientation = (card) => String(card?.orientation || '').toLowerCase();
+  const isReversed = (card) => Boolean(card?.isReversed) || normalizeOrientation(card) === 'reversed';
 
-  // 3. Elemental imbalance questions
-  if (themes?.elementCounts) {
-    const elements = Object.entries(themes.elementCounts);
-    const sorted = elements.sort(([, a], [, b]) => b - a);
-    const dominant = sorted[0];
-    const missing = elements.filter(([, count]) => count === 0).map(([el]) => el);
-
-    if (dominant && dominant[1] >= 3) {
-      suggestions.push({
-        text: `What does the strong ${dominant[0]} energy suggest I need?`,
-        type: 'elemental',
-        priority: 3
-      });
-    }
-
-    if (missing.length > 0 && missing.length < 4) {
-      suggestions.push({
-        text: `What might the absence of ${missing[0]} energy mean?`,
-        type: 'elemental',
-        priority: 4
-      });
-    }
-  }
-
-  // 4. Major Arcana emphasis
-  // Be conservative: lots of call sites/tests omit `suit` for Minors.
-  // Use explicit major flags when available; otherwise, fall back to name + 0–21 guard.
   const looksLikeMinorByName = (name) => {
     if (!name || typeof name !== 'string') return false;
     return /^(ace|two|three|four|five|six|seven|eight|nine|ten|page|knight|queen|king)\s+of\s+/i.test(name.trim());
   };
 
-  const majorCards = cards.filter((c) => {
-    if (!c || typeof c !== 'object') return false;
-
-    // Explicit major arcana flag.
-    if (c.arcana === 'major' || c.isMajor) return true;
-
-    // If suit is present, treat as Minor.
-    const suit = typeof c.suit === 'string' ? c.suit.trim() : '';
+  const isMajor = (card) => {
+    if (!card || typeof card !== 'object') return false;
+    if (card.arcana === 'major' || card.isMajor) return true;
+    const suit = typeof card.suit === 'string' ? card.suit.trim() : '';
     if (suit) return false;
-
-    const candidateName = (c.name || c.card || '').trim();
+    const candidateName = (card.name || card.card || '').trim();
     if (!candidateName) return false;
     if (looksLikeMinorByName(candidateName)) return false;
-
-    const num = c.arcanaNumber ?? c.number;
+    const num = card.arcanaNumber ?? card.number;
     return typeof num === 'number' && num >= 0 && num <= 21;
-  });
+  };
 
-  if (majorCards.length >= 3) {
+  const getSuitCounts = () => {
+    if (themes?.suitCounts && typeof themes.suitCounts === 'object') {
+      return themes.suitCounts;
+    }
+    return cards.reduce((acc, card) => {
+      const name = card?.name || card?.card || '';
+      const suit = card?.suit || Object.keys(suitElements).find((key) => name.includes(key));
+      if (suit && acc[suit] !== undefined) {
+        acc[suit] += 1;
+      }
+      return acc;
+    }, { Wands: 0, Cups: 0, Swords: 0, Pentacles: 0 });
+  };
+
+  const getElementCounts = (suitCounts) => {
+    if (themes?.elementCounts && typeof themes.elementCounts === 'object') {
+      return themes.elementCounts;
+    }
+    return Object.entries(suitCounts).reduce((acc, [suit, count]) => {
+      const element = suitElements[suit];
+      if (element) {
+        acc[element] = (acc[element] || 0) + count;
+      }
+      return acc;
+    }, { Fire: 0, Water: 0, Air: 0, Earth: 0 });
+  };
+
+  const getDominantEntry = (counts) => {
+    const entries = Object.entries(counts || {}).filter(([, count]) => Number.isFinite(count));
+    if (entries.length === 0) return null;
+    const total = entries.reduce((sum, [, count]) => sum + count, 0);
+    if (total === 0) return null;
+    const [key, count] = entries.sort((a, b) => b[1] - a[1])[0];
+    return { key, count, ratio: total > 0 ? count / total : 0, total };
+  };
+
+  const suitCounts = getSuitCounts();
+  const elementCounts = getElementCounts(suitCounts);
+  const dominantSuit = themes?.dominantSuit || getDominantEntry(suitCounts)?.key || null;
+  const dominantElement = themes?.dominantElement || getDominantEntry(elementCounts)?.key || null;
+  const dominantSuitEntry = getDominantEntry(suitCounts);
+  const dominantElementEntry = getDominantEntry(elementCounts);
+  const reversalCount = Number.isFinite(themes?.reversalCount)
+    ? themes.reversalCount
+    : cards.filter((card) => isReversed(card)).length;
+  const majorCount = cards.filter((card) => isMajor(card)).length;
+  const majorRatio = Number.isFinite(themes?.majorRatio)
+    ? themes.majorRatio
+    : (cards.length > 0 ? majorCount / cards.length : 0);
+
+  const addSuggestion = ({ text, type, priority, anchorKey, triggerKey }) => {
+    if (!text || !type) return;
     suggestions.push({
+      text,
+      type,
+      priority,
+      anchorKey: anchorKey || null,
+      triggerKey: triggerKey || null
+    });
+  };
+
+  // 1. Reversal exploration (high priority)
+  if (reversalCount === 1) {
+    const reversedCard = cards.find((card) => isReversed(card));
+    const cardName = getCardName(reversedCard);
+    addSuggestion({
+      text: `What does ${cardName} reversed want me to acknowledge or release?`,
+      type: 'reversal',
+      priority: 1,
+      anchorKey: cardName,
+      triggerKey: 'single-reversal'
+    });
+  } else if (reversalCount > 1) {
+    addSuggestion({
+      text: 'What pattern links the reversed cards, and where is that energy blocked or internal?',
+      type: 'reversal',
+      priority: 1,
+      triggerKey: 'multi-reversal'
+    });
+  }
+
+  // 2. Spread-specific questions (with coverage across spreads)
+  const spreadQuestions = {
+    celtic: [
+      { text: 'How do the Challenge and Outcome positions connect?', anchorKey: 'challenge-outcome', priority: 2 },
+      { text: 'What do the Subconscious and Conscious positions say about each other?', anchorKey: 'subconscious-conscious', priority: 3 },
+      { text: 'How does the Near Future echo the Present?', anchorKey: 'near-future-present', priority: 3 }
+    ],
+    threeCard: [
+      { text: 'How does the Present bridge the Past and Future?', anchorKey: 'present-bridge', priority: 2 },
+      { text: 'What would shift the Future if I act now?', anchorKey: 'future-shift', priority: 3 }
+    ],
+    relationship: [
+      { text: 'How can I better understand the other person\'s perspective here?', anchorKey: 'them-perspective', priority: 2 },
+      { text: 'What shared lesson do the connection cards point to?', anchorKey: 'connection-lesson', priority: 3 }
+    ],
+    decision: [
+      { text: 'Which path aligns more with my values and long-term direction?', anchorKey: 'path-values', priority: 2 },
+      { text: 'What clarifier matters most before choosing?', anchorKey: 'clarifier', priority: 3 }
+    ],
+    single: [
+      { text: 'What specific action does this card suggest for today?', anchorKey: 'single-action', priority: 2 },
+      { text: 'What would change if I fully embodied this card?', anchorKey: 'single-embody', priority: 3 }
+    ],
+    fiveCard: [
+      { text: 'How does the Support card help resolve the Challenge?', anchorKey: 'support-challenge', priority: 2 },
+      { text: 'What does the Hidden influence reveal about the Core?', anchorKey: 'hidden-core', priority: 3 }
+    ]
+  };
+
+  if (spreadQuestions[spreadKey]) {
+    spreadQuestions[spreadKey].forEach((q) => {
+      addSuggestion({ ...q, type: 'spread' });
+    });
+  }
+
+  // 3. Elemental imbalance questions
+  if (dominantElementEntry && dominantElementEntry.ratio >= 0.4 && dominantElementEntry.total >= 3) {
+    addSuggestion({
+      text: `What does the strong ${dominantElement} energy suggest I need most right now?`,
+      type: 'elemental',
+      priority: 3,
+      anchorKey: dominantElement,
+      triggerKey: 'dominant-element'
+    });
+  }
+
+  const missingElements = Object.entries(elementCounts)
+    .filter(([, count]) => count === 0)
+    .map(([element]) => element);
+  if (missingElements.length > 0 && missingElements.length < 4) {
+    addSuggestion({
+      text: `What might the absence of ${missingElements[0]} energy mean for this situation?`,
+      type: 'elemental',
+      priority: 4,
+      anchorKey: missingElements[0],
+      triggerKey: 'missing-element'
+    });
+  }
+
+  // 4. Major Arcana emphasis
+  if (majorRatio >= 0.35 || majorCount >= 3) {
+    addSuggestion({
       text: 'What life lesson do these Major Arcana cards emphasize?',
       type: 'archetype',
-      priority: 2
+      priority: 2,
+      triggerKey: 'major-emphasis'
     });
   }
 
   // 5. Suit-focused questions (when one suit dominates)
-  if (themes?.suitCounts) {
-    const suitEntries = Object.entries(themes.suitCounts);
-    const dominantSuit = suitEntries.sort(([, a], [, b]) => b - a)[0];
-
-    if (dominantSuit && dominantSuit[1] >= 3) {
-      const suitQuestions = {
-        cups: 'How can I better honor my emotional needs right now?',
-        wands: 'What creative or passionate energy wants to be expressed?',
-        swords: 'What mental patterns or communications need attention?',
-        pentacles: 'What practical steps would ground this guidance?'
-      };
-
-      const suitKey = dominantSuit[0].toLowerCase();
-      if (suitQuestions[suitKey]) {
-        suggestions.push({
-          text: suitQuestions[suitKey],
-          type: 'suit',
-          priority: 3
-        });
-      }
+  if (dominantSuitEntry && dominantSuitEntry.ratio >= 0.4 && dominantSuitEntry.total >= 3) {
+    const suitQuestions = {
+      Wands: 'What creative or passionate energy wants to be expressed?',
+      Cups: 'How can I better honor my emotional needs right now?',
+      Swords: 'What mental patterns or conversations need attention?',
+      Pentacles: 'What practical steps would ground this guidance?'
+    };
+    const suitKey = dominantSuit;
+    if (suitQuestions[suitKey]) {
+      addSuggestion({
+        text: suitQuestions[suitKey],
+        type: 'suit',
+        priority: 3,
+        anchorKey: suitKey,
+        triggerKey: 'dominant-suit'
+      });
     }
   }
 
-  // 6. Question-focused (connects reading back to their original question)
-  if (readingMeta?.userQuestion && readingMeta.userQuestion.length > 10) {
-    suggestions.push({
-      text: 'What\'s the most direct answer to my question here?',
+  // 6. Question-focused
+  if (typeof userQuestion === 'string' && userQuestion.trim().length > 10) {
+    const snippet = userQuestion.trim().slice(0, 36);
+    const suffix = userQuestion.trim().length > 36 ? '...' : '';
+    addSuggestion({
+      text: `What is the most direct answer to my question about "${snippet}${suffix}"?`,
       type: 'question',
-      priority: 2
+      priority: 2,
+      triggerKey: 'user-question'
     });
   }
 
-  // 7. Symbol-based reflection (when symbol annotations exist)
+  // 7. Symbol-based reflection
   const symbolPrompt = getSymbolFollowUpPrompt(cards, themes);
   if (symbolPrompt) {
-    suggestions.push({
+    addSuggestion({
       text: symbolPrompt,
       type: 'symbol',
-      priority: 4
+      priority: 4,
+      triggerKey: 'symbol'
     });
   }
 
-  // 8. Shadow/challenge questions (always useful)
-  suggestions.push({
+  // 8. Shadow/challenge questions (fallback)
+  addSuggestion({
     text: 'What might be blocking me from moving forward?',
     type: 'shadow',
-    priority: 5
+    priority: 5,
+    triggerKey: 'shadow'
   });
 
-  // 9. Action-oriented (always include as fallback)
-  suggestions.push({
+  // 9. Action-oriented (fallback)
+  addSuggestion({
     text: 'What\'s the single most important thing I should focus on?',
     type: 'action',
-    priority: 5
+    priority: 5,
+    triggerKey: 'action'
   });
 
-  // 10. Relationship between cards question (for multi-card spreads)
+  // 10. Relationship between cards (multi-card)
   if (cards.length >= 2) {
-    suggestions.push({
-      text: 'How do these cards speak to each other?',
+    addSuggestion({
+      text: 'How do these cards change each other\'s meaning when read together?',
       type: 'synthesis',
-      priority: 4
+      priority: 4,
+      triggerKey: 'synthesis'
     });
   }
 
-  // Sort by priority and deduplicate by text
-  const seen = new Set();
-  return suggestions
-    .sort((a, b) => a.priority - b.priority)
-    .filter(item => {
-      if (seen.has(item.text)) return false;
-      seen.add(item.text);
+  const dedupe = (items) => {
+    const seen = new Set();
+    return items.filter((item) => {
+      const key = `${normalizeText(item.text)}::${item.anchorKey || ''}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
       return true;
-    })
-    .slice(0, 4);
+    });
+  };
+
+  const orderCandidates = (items, seedTag) => {
+    const grouped = items.reduce((acc, item) => {
+      const key = Number.isFinite(item.priority) ? item.priority : 10;
+      acc[key] = acc[key] || [];
+      acc[key].push(item);
+      return acc;
+    }, {});
+    return Object.keys(grouped)
+      .sort((a, b) => Number(a) - Number(b))
+      .flatMap((priority) => {
+        const seed = hashString(`${rotationSeed}:${seedTag}:${priority}`);
+        return seededShuffle(grouped[priority], seed);
+      });
+  };
+
+  const coreTypes = new Set(['reversal', 'spread', 'question']);
+  const patternTypes = new Set(['elemental', 'suit', 'archetype', 'symbol', 'synthesis']);
+
+  const deduped = dedupe(suggestions);
+  const orderedAll = orderCandidates(deduped, 'all');
+  const orderedCore = orderCandidates(deduped.filter((s) => coreTypes.has(s.type)), 'core');
+  const orderedPattern = orderCandidates(deduped.filter((s) => patternTypes.has(s.type)), 'pattern');
+
+  const selected = [];
+  const used = new Set();
+
+  const take = (item) => {
+    if (!item) return;
+    if (used.has(item)) return;
+    selected.push(item);
+    used.add(item);
+  };
+
+  take(orderedCore[0]);
+  if (selected.length < limit) {
+    take(orderedPattern.find((item) => !used.has(item)));
+  }
+  orderedAll.forEach((item) => {
+    if (selected.length >= limit) return;
+    if (used.has(item)) return;
+    selected.push(item);
+    used.add(item);
+  });
+
+  return selected.slice(0, limit);
 }
 
 /**

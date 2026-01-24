@@ -1,7 +1,7 @@
 import { SYMBOL_ANNOTATIONS } from '../../shared/symbols/symbolAnnotations.js';
 import { getMinorSymbolAnnotation } from '../../shared/vision/minorSymbolLexicon.js';
-import { MAJOR_ARCANA } from '../data/majorArcana';
-import { MINOR_ARCANA } from '../data/minorArcana';
+import { MAJOR_ARCANA } from '../data/majorArcana.js';
+import { MINOR_ARCANA } from '../data/minorArcana.js';
 
 const CARD_LOOKUP = (() => {
   const map = new Map();

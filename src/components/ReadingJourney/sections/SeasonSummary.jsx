@@ -3,7 +3,8 @@
  */
 
 import { memo } from 'react';
-import { ArrowRight, Fire } from '@phosphor-icons/react';
+import { ArrowRight, Fire, Info } from '@phosphor-icons/react';
+import { Tooltip } from '../../Tooltip';
 
 function SeasonSummary({
   narrative,
@@ -42,6 +43,18 @@ function SeasonSummary({
     // Different years (e.g., Dec 2024 – Jan 2025)
     return `${startMonth} ${startYear}–${endMonth} ${endYear}`;
   };
+
+  const spreadLabels = {
+    single: '1-card',
+    threeCard: '3-card',
+    fiveCard: '5-card',
+    relationship: 'Relationship',
+    decision: 'Decision',
+    celtic: 'Celtic Cross',
+  };
+  const startLabel = coachSuggestion?.spread
+    ? `Start ${spreadLabels[coachSuggestion.spread] || 'Reading'}`
+    : 'Start Reading';
 
   const handleStartReading = () => {
     if (onStartReading && coachSuggestion) {
@@ -107,15 +120,30 @@ function SeasonSummary({
           <p className="text-sm sm:text-xs text-amber-100/70 mb-2">
             💡 {coachSuggestion.text}
           </p>
+          {coachSuggestion.sourceLabel && (
+            <div className="mb-2 flex items-center gap-2 text-[10px] uppercase tracking-[0.18em] text-amber-200/60">
+              <span>Source: {coachSuggestion.sourceLabel}</span>
+              {coachSuggestion.sourceDetail && (
+                <Tooltip
+                  content={coachSuggestion.sourceDetail}
+                  position="top"
+                  ariaLabel="Why am I seeing this?"
+                  triggerClassName="text-amber-200/60 hover:text-amber-100"
+                >
+                  <Info className="h-3 w-3" />
+                </Tooltip>
+              )}
+            </div>
+          )}
           <button
             onClick={handleStartReading}
             className="
-              inline-flex items-center gap-1.5 min-h-[44px] px-3 py-2 text-xs font-medium text-amber-200
+              inline-flex items-center gap-1.5 min-h-touch px-3 py-2 text-xs font-medium text-amber-200
               hover:text-amber-100 transition-colors touch-manipulation
               focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/50
             "
           >
-            Start Reading
+            {startLabel}
             <ArrowRight className="h-3 w-3" />
           </button>
         </div>

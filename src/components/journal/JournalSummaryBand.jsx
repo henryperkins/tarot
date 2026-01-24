@@ -277,7 +277,7 @@ export function JournalSummaryBand({
             <button
               type="button"
               onClick={() => onStartReading()}
-              className="inline-flex min-h-[44px] w-full min-w-0 items-center justify-center gap-2 rounded-full bg-[color:var(--brand-primary)] px-4 py-3 text-sm font-semibold text-[color:var(--bg-main)] shadow-[0_16px_40px_-24px_var(--accent-45)] transition-[transform,box-shadow,background-color] duration-[var(--duration-medium)] ease-[var(--ease-out)] hover:bg-[color:var(--brand-accent)] hover:shadow-[0_20px_46px_-24px_var(--accent-45)] hover:-translate-y-0.5 active:translate-y-0 sm:w-auto sm:flex-1"
+              className="inline-flex min-h-touch w-full min-w-0 items-center justify-center gap-2 rounded-full bg-[color:var(--brand-primary)] px-4 py-3 text-sm font-semibold text-[color:var(--bg-main)] shadow-[0_16px_40px_-24px_var(--accent-45)] transition-[transform,box-shadow,background-color] duration-[var(--duration-medium)] ease-[var(--ease-out)] hover:bg-[color:var(--brand-accent)] hover:shadow-[0_20px_46px_-24px_var(--accent-45)] hover:-translate-y-0.5 active:translate-y-0 sm:w-auto sm:flex-1"
             >
               <JournalPlusCircleIcon className="h-4 w-4" aria-hidden />
               New Reading
@@ -291,7 +291,7 @@ export function JournalSummaryBand({
                     journeySection.scrollIntoView({ behavior: 'smooth', block: 'start' });
                   }
                 }}
-                className="inline-flex min-h-[44px] w-full min-w-0 items-center justify-center gap-2 rounded-full border border-[color:var(--border-warm-light)] bg-[color:var(--border-warm-subtle)] px-4 py-3 text-sm font-medium text-[color:var(--text-main)] transition-[background-color,border-color] duration-[var(--duration-normal)] ease-[var(--ease-out)] hover:bg-[color:var(--border-warm-light)] hover:border-[color:var(--border-warm)] sm:w-auto sm:flex-1"
+                className="inline-flex min-h-touch w-full min-w-0 items-center justify-center gap-2 rounded-full border border-[color:var(--border-warm-light)] bg-[color:var(--border-warm-subtle)] px-4 py-3 text-sm font-medium text-[color:var(--text-main)] transition-[background-color,border-color] duration-[var(--duration-normal)] ease-[var(--ease-out)] hover:bg-[color:var(--border-warm-light)] hover:border-[color:var(--border-warm)] sm:w-auto sm:flex-1"
               >
                 See Journey
                 <CaretDown className="h-4 w-4" aria-hidden />
@@ -300,7 +300,7 @@ export function JournalSummaryBand({
               <button
                 type="button"
                 onClick={() => setIsExpanded(true)}
-                className="inline-flex min-h-[44px] w-full min-w-0 items-center justify-center gap-2 rounded-full border border-[color:var(--border-warm-light)] bg-[color:var(--border-warm-subtle)] px-4 py-3 text-sm font-medium text-[color:var(--text-main)] transition-[background-color,border-color] duration-[var(--duration-normal)] ease-[var(--ease-out)] hover:bg-[color:var(--border-warm-light)] hover:border-[color:var(--border-warm)] sm:w-auto sm:flex-1"
+                className="inline-flex min-h-touch w-full min-w-0 items-center justify-center gap-2 rounded-full border border-[color:var(--border-warm-light)] bg-[color:var(--border-warm-subtle)] px-4 py-3 text-sm font-medium text-[color:var(--text-main)] transition-[background-color,border-color] duration-[var(--duration-normal)] ease-[var(--ease-out)] hover:bg-[color:var(--border-warm-light)] hover:border-[color:var(--border-warm)] sm:w-auto sm:flex-1"
               >
                 Show Details
                 <CaretDown className="h-4 w-4" aria-hidden />

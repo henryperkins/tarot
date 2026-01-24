@@ -664,8 +664,8 @@ export function buildEnhancedClaudePrompt({
     appliedIncludeGraphRAG = false;
   }
 
-  // Align appliedOptions with effective includeGraphRAG state
-  promptMeta.appliedOptions.includeGraphRAG = appliedIncludeGraphRAG;
+  // Note: appliedOptions.includeGraphRAG removed - use graphRAG.includedInPrompt instead
+  // (single source of truth for whether GraphRAG was included in the prompt)
 
   if (controls.ephemerisContext?.available) {
     const locationContext = controls.ephemerisContext.locationContext || {};

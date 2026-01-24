@@ -12,6 +12,11 @@ function formatCardList(entry) {
     .join(', ');
 }
 
+function formatContextName(context) {
+  if (!context || typeof context !== 'string') return '';
+  return context.charAt(0).toUpperCase() + context.slice(1);
+}
+
 export function buildHeuristicJourneySummary(entries, statsOverride) {
   const stats = statsOverride || computeJournalStats(entries);
   if (!stats) {
@@ -19,6 +24,24 @@ export function buildHeuristicJourneySummary(entries, statsOverride) {
   }
 
   const opening = `Over ${stats.totalReadings} logged reading${stats.totalReadings === 1 ? '' : 's'}, a ${stats.reversalRate}% reversal tilt and ${stats.totalCards} cards point to the themes you keep circling back to.`;
+
+  const topContext = stats.contextBreakdown.length > 0
+    ? [...stats.contextBreakdown].sort((a, b) => b.count - a.count)[0]
+    : null;
+  const topCard = stats.frequentCards.length > 0 ? stats.frequentCards[0] : null;
+  const topTheme = stats.recentThemes.length > 0 ? stats.recentThemes[0] : null;
+
+  const signalParts = [];
+  if (topCard?.name) {
+    signalParts.push(`Top card: ${topCard.name} (${topCard.count}x)`);
+  }
+  if (topContext?.name) {
+    signalParts.push(`Top context: ${formatContextName(topContext.name)} (${topContext.count})`);
+  }
+  if (topTheme) {
+    signalParts.push(`Theme: ${topTheme}`);
+  }
+  const signalLine = signalParts.length > 0 ? `Signals: ${signalParts.join(' · ')}.` : '';
 
   const contextLine = stats.contextBreakdown.length > 0
     ? `Top contexts: ${stats.contextBreakdown
@@ -56,7 +79,7 @@ export function buildHeuristicJourneySummary(entries, statsOverride) {
 
   const closing = 'Notice where these threads overlap and invite one grounded action to honor the energy.';
 
-  return [opening, contextLine, cardLine, themeLine, '', ...highlightEntries, '', closing]
+  return [opening, signalLine, contextLine, cardLine, themeLine, '', ...highlightEntries, '', closing]
     .filter(Boolean)
     .join('\n');
 }

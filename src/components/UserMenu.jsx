@@ -161,7 +161,7 @@ export function UserMenu({ condensed = false }) {
               ref={triggerRef}
               onClick={() => setShowDropdown(!showDropdown)}
               className={`
-                flex items-center gap-1.5 sm:gap-2 min-h-[44px]
+                flex items-center gap-1.5 sm:gap-2 min-h-touch
                 rounded-full border transition text-xs-plus font-semibold text-accent touch-manipulation
                 active:scale-[0.98]
                 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60
@@ -257,7 +257,7 @@ export function UserMenu({ condensed = false }) {
                         onClick={handleToggleJourney}
                         disabled={journeyEnabled === null || journeyLoading}
                         className={`
-                          min-h-[44px] min-w-[44px] flex items-center justify-center touch-manipulation
+                          min-h-touch min-w-touch flex items-center justify-center touch-manipulation
                           ${journeyEnabled === null || journeyLoading ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'}
                         `}
                       >
@@ -287,7 +287,7 @@ export function UserMenu({ condensed = false }) {
                       to="/pricing"
                       onClick={closeDropdown}
                       className="
-                        w-full px-4 py-3 min-h-[44px]
+                        w-full px-4 py-3 min-h-touch
                         text-sm text-main hover:bg-accent/10 active:bg-accent/20
                         flex items-center justify-between gap-3 touch-manipulation
                         focus-visible:outline-none focus-visible:bg-accent/10
@@ -318,7 +318,7 @@ export function UserMenu({ condensed = false }) {
                     to="/account"
                     onClick={closeDropdown}
                     className="
-                      w-full text-left px-4 py-3 min-h-[44px]
+                      w-full text-left px-4 py-3 min-h-touch
                       text-sm text-accent hover:bg-accent/5 active:bg-accent/10
                       flex items-center gap-2 touch-manipulation
                       focus-visible:outline-none focus-visible:bg-accent/5
@@ -332,7 +332,7 @@ export function UserMenu({ condensed = false }) {
                     to={isPaid ? '/account#subscription' : '/pricing'}
                     onClick={closeDropdown}
                     className="
-                      w-full text-left px-4 py-3 min-h-[44px]
+                      w-full text-left px-4 py-3 min-h-touch
                       text-sm text-accent hover:bg-accent/5 active:bg-accent/10
                       flex items-center gap-2 touch-manipulation
                       focus-visible:outline-none focus-visible:bg-accent/5
@@ -347,7 +347,7 @@ export function UserMenu({ condensed = false }) {
                     role="menuitem"
                     onClick={handleReplayTutorial}
                     className="
-                      w-full text-left px-4 py-3 min-h-[44px]
+                      w-full text-left px-4 py-3 min-h-touch
                       text-sm text-accent hover:bg-accent/5 active:bg-accent/10
                       flex items-center gap-2 touch-manipulation
                       focus-visible:outline-none focus-visible:bg-accent/5
@@ -363,7 +363,7 @@ export function UserMenu({ condensed = false }) {
                     role="menuitem"
                     onClick={handleLogout}
                     className="
-                      w-full text-left px-4 py-3 min-h-[44px]
+                      w-full text-left px-4 py-3 min-h-touch
                       text-sm text-accent hover:bg-accent/5 active:bg-accent/10
                       flex items-center gap-2 touch-manipulation
                       focus-visible:outline-none focus-visible:bg-accent/5
@@ -382,7 +382,7 @@ export function UserMenu({ condensed = false }) {
               <button
                 onClick={handleReplayTutorial}
                 className="
-                  flex items-center justify-center min-w-[44px] min-h-[44px]
+                  flex items-center justify-center min-w-touch min-h-touch
                   rounded-full bg-surface/50 border border-accent/20
                   text-accent hover:bg-surface hover:border-accent/40 active:bg-surface-muted
                   transition touch-manipulation
@@ -398,7 +398,7 @@ export function UserMenu({ condensed = false }) {
             <Link
               to="/account"
               className="
-                flex items-center gap-1.5 px-3 sm:px-4 min-h-[44px]
+                flex items-center gap-1.5 px-3 sm:px-4 min-h-touch
                 rounded-full border border-accent/30 text-accent
                 hover:bg-surface hover:border-accent/50 active:bg-surface-muted
                 transition text-xs-plus font-semibold touch-manipulation
@@ -413,7 +413,7 @@ export function UserMenu({ condensed = false }) {
             <button
               onClick={() => setShowAuthModal(true)}
               className="
-                flex items-center gap-1.5 px-3 sm:px-4 min-h-[44px]
+                flex items-center gap-1.5 px-3 sm:px-4 min-h-touch
                 rounded-full bg-primary text-surface
                 hover:bg-primary/90 active:bg-primary/80 active:scale-[0.98]
                 shadow-sm shadow-primary/20 transition

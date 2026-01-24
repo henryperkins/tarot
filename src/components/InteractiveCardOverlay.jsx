@@ -2,10 +2,19 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { CaretDown, CaretUp, Lightbulb } from '@phosphor-icons/react';
 import { SYMBOL_COORDINATES } from '../data/symbolCoordinates';
-import { findRelatedCards } from '../../shared/symbols/symbolIndex';
+import { findRelatedCards, getSymbolFamily } from '../../shared/symbols/symbolIndex';
 import { getRandomReflection } from '../../shared/symbols/symbolReflections';
 import { useReducedMotion } from '../hooks/useReducedMotion';
 import { titleCase } from '../lib/textUtils';
+import { getElementForSymbolFamily } from '../lib/symbolElementBridge';
+
+// Element badge styling
+const ELEMENT_BADGE_CONFIG = {
+  Fire: { icon: '🔥', className: 'bg-orange-500/20 text-orange-400 border-orange-500/30' },
+  Water: { icon: '💧', className: 'bg-blue-500/20 text-blue-400 border-blue-500/30' },
+  Air: { icon: '💨', className: 'bg-sky-500/20 text-sky-400 border-sky-500/30' },
+  Earth: { icon: '🌍', className: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' }
+};
 
 // Estimated tooltip dimensions for collision detection
 const TOOLTIP_WIDTH = 280;
@@ -75,6 +84,13 @@ export function InteractiveCardOverlay({ card }) {
   const reflection = useMemo(() => {
     if (!activeSymbol) return null;
     return getRandomReflection(activeSymbol.object);
+  }, [activeSymbol]);
+
+  // Get element association for active symbol
+  const symbolElement = useMemo(() => {
+    if (!activeSymbol) return null;
+    const family = getSymbolFamily(activeSymbol.object);
+    return getElementForSymbolFamily(family);
   }, [activeSymbol]);
 
   // Close tooltip on scroll, resize, or clicking outside
@@ -252,11 +268,20 @@ export function InteractiveCardOverlay({ card }) {
             }`}
             style={{ maxWidth: `${TOOLTIP_WIDTH}px` }}
           >
-            {/* Header with symbol name */}
+            {/* Header with symbol name and element badge */}
             <div className="flex items-start justify-between gap-2">
               <div>
-                <p className="text-sm font-semibold text-accent">
+                <p className="text-sm font-semibold text-accent flex items-center gap-1.5">
                   {titleCase(activeSymbol.object)}
+                  {symbolElement && ELEMENT_BADGE_CONFIG[symbolElement] && (
+                    <span
+                      className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] border ${ELEMENT_BADGE_CONFIG[symbolElement].className}`}
+                      title={`${symbolElement} element`}
+                    >
+                      <span aria-hidden="true">{ELEMENT_BADGE_CONFIG[symbolElement].icon}</span>
+                      <span>{symbolElement}</span>
+                    </span>
+                  )}
                 </p>
                 {activeSymbol.color && (
                   <p className="text-xs text-secondary/70">

@@ -44,12 +44,9 @@ export default function FollowUpDrawer({ isOpen, onClose, autoFocusInput = true 
     getServerViewportOffset
   );
   const effectiveOffset = Math.max(0, viewportOffset);
-  const wrapperStyle = {
-    paddingTop: 'max(16px, env(safe-area-inset-top, 16px))',
-    paddingBottom: effectiveOffset ? `${effectiveOffset}px` : undefined
-  };
+  const wrapperStyle = effectiveOffset ? { paddingBottom: `${effectiveOffset}px` } : undefined;
   const bodyStyle = {
-    paddingBottom: 'calc(1rem + env(safe-area-inset-bottom, 0px))'
+    paddingBottom: 'calc(1rem + var(--safe-pad-bottom))'
   };
 
   useModalA11y(isOpen, {
@@ -78,7 +75,7 @@ export default function FollowUpDrawer({ isOpen, onClose, autoFocusInput = true 
   return (
     <div
       className={clsx(
-        'fixed inset-0 z-[80] flex items-end justify-center transition-opacity duration-200',
+        'fixed inset-0 z-[80] flex items-end justify-center transition-opacity duration-200 pt-[max(16px,var(--safe-pad-top))]',
         isOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'
       )}
       style={wrapperStyle}

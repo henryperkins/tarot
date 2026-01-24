@@ -98,7 +98,7 @@ export const QuickIntentionCard = forwardRef(function QuickIntentionCard({
         <button
           type="button"
           onClick={onCoachOpen}
-          className="inline-flex items-center justify-center gap-1.5 rounded-full border border-secondary/40 min-h-[44px] min-w-[44px] px-4 py-2 text-xs font-semibold text-secondary hover:bg-secondary/10 active:bg-secondary/20 transition touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
+          className="inline-flex items-center justify-center gap-1.5 rounded-full border border-secondary/40 min-h-touch min-w-touch px-4 py-2 text-xs font-semibold text-secondary hover:bg-secondary/10 active:bg-secondary/20 transition touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
           aria-label="Open guided intention coach"
         >
           <Sparkle className="w-4 h-4" weight="duotone" aria-hidden="true" />
@@ -117,12 +117,12 @@ export const QuickIntentionCard = forwardRef(function QuickIntentionCard({
           onBlur={onInputBlur}
           placeholder={placeholderQuestion}
           rows={1}
-          className="flex-1 min-h-[44px] rounded-xl border border-secondary/30 bg-surface px-3 py-2 text-base text-main placeholder:text-secondary/50 focus:border-secondary focus:outline-none focus:ring-1 focus:ring-secondary/50 resize-none"
+          className="flex-1 min-h-touch rounded-xl border border-secondary/30 bg-surface px-3 py-2 text-base text-main placeholder:text-secondary/50 focus:border-secondary focus:outline-none focus:ring-1 focus:ring-secondary/50 resize-none"
         />
         <button
           type="button"
           onClick={onMoreOpen}
-          className="min-h-[44px] min-w-[44px] rounded-xl border border-secondary/40 px-4 py-2 text-xs font-semibold text-secondary hover:bg-secondary/10 active:bg-secondary/20 transition touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+          className="min-h-touch min-w-touch rounded-xl border border-secondary/40 px-4 py-2 text-xs font-semibold text-secondary hover:bg-secondary/10 active:bg-secondary/20 transition touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
           aria-label="Open reading settings"
         >
           <span className="flex items-center gap-1">
@@ -147,7 +147,7 @@ export const QuickIntentionCard = forwardRef(function QuickIntentionCard({
         <button
           type="button"
           onClick={onDeckChange}
-          className="min-h-[44px] min-w-[44px] px-3 py-2 text-[12px] font-semibold text-secondary underline underline-offset-4 rounded-lg hover:bg-secondary/10 active:bg-secondary/20 transition touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+          className="min-h-touch min-w-touch px-3 py-2 text-[12px] font-semibold text-secondary underline underline-offset-4 rounded-lg hover:bg-secondary/10 active:bg-secondary/20 transition touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
         >
           Change
         </button>

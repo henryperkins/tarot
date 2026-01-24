@@ -59,19 +59,14 @@ export default function VerifyEmailPage() {
   return (
     <div className="min-h-screen bg-main text-main">
       <header
-        className="sticky top-0 z-30 border-b border-secondary/20 bg-main/95 backdrop-blur-sm"
-        style={{
-          paddingTop: 'max(env(safe-area-inset-top, 0px), 0.75rem)',
-          paddingLeft: 'max(env(safe-area-inset-left, 0px), 1rem)',
-          paddingRight: 'max(env(safe-area-inset-right, 0px), 1rem)',
-        }}
+        className="sticky top-0 z-30 border-b border-secondary/20 bg-main/95 backdrop-blur-sm pt-[max(var(--safe-pad-top),0.75rem)] pl-[max(var(--safe-pad-left),1rem)] pr-[max(var(--safe-pad-right),1rem)]"
       >
         <div className="mx-auto max-w-2xl px-4 py-3">
           <GlobalNav condensed withUserChip />
         </div>
       </header>
 
-      <main id="main-content" tabIndex={-1} className="mx-auto max-w-xl px-4 py-10">
+      <main id="main-content" tabIndex={-1} className="mx-auto max-w-xl px-4 py-10 short:py-6">
         <button
           type="button"
           onClick={() => navigate(-1)}

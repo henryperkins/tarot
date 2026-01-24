@@ -157,7 +157,8 @@ describe('prompt slimming respects budget order', () => {
       'drop-deck-geometry',
       'drop-diagnostics'
     ]);
-    assert.equal(promptMeta.appliedOptions.includeGraphRAG, false);
+    // Note: appliedOptions.includeGraphRAG removed - use graphRAG.includedInPrompt instead
+    assert.equal(promptMeta.graphRAG.includedInPrompt, false);
   });
 });
 

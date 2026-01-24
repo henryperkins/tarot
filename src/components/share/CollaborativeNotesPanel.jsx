@@ -240,7 +240,7 @@ export function CollaborativeNotesPanel({
               onChange={(event) => setAuthorName(event.target.value)}
               placeholder="Display name"
               aria-label="Your display name for this note"
-              className="w-full min-h-[44px] rounded-2xl border border-secondary/30 bg-surface-muted/70 px-4 py-2.5 text-sm text-main placeholder:text-muted/60
+              className="w-full min-h-touch rounded-2xl border border-secondary/30 bg-surface-muted/70 px-4 py-2.5 text-sm text-main placeholder:text-muted/60
                 focus:outline-none focus-visible:ring-2 focus-visible:ring-secondary/50"
               maxLength={40}
             />
@@ -254,7 +254,7 @@ export function CollaborativeNotesPanel({
               value={cardPosition}
               onChange={(event) => handlePositionChange(event.target.value)}
               aria-label="Select which card position to comment on"
-              className="w-full min-h-[44px] rounded-2xl border border-secondary/30 bg-surface-muted/70 px-4 py-2.5 text-sm text-main
+              className="w-full min-h-touch rounded-2xl border border-secondary/30 bg-surface-muted/70 px-4 py-2.5 text-sm text-main
                 focus:outline-none focus-visible:ring-2 focus-visible:ring-secondary/50"
             >
               <option value="">Whole spread</option>
@@ -294,7 +294,7 @@ export function CollaborativeNotesPanel({
           <button
             type="submit"
             disabled={isSubmitting || !body.trim()}
-            className="min-h-[44px] rounded-full border border-secondary/60 px-5 py-2.5 text-sm font-medium text-secondary transition-colors touch-manipulation
+            className="min-h-touch rounded-full border border-secondary/60 px-5 py-2.5 text-sm font-medium text-secondary transition-colors touch-manipulation
               hover:bg-secondary/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-secondary/70 focus-visible:ring-offset-2
               disabled:opacity-60 disabled:cursor-not-allowed"
           >

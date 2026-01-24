@@ -93,7 +93,7 @@ export const styles = {
 
   // Buttons
   iconButton:
-    'inline-flex min-h-[44px] min-w-[44px] h-11 w-11 items-center justify-center rounded-2xl ' +
+    'inline-flex min-h-touch min-w-touch h-11 w-11 items-center justify-center rounded-2xl ' +
     'border border-[color:var(--border-warm-light)] bg-[linear-gradient(135deg,var(--bg-surface-muted),var(--bg-surface))] ' +
     'text-[color:var(--text-muted)] shadow-[0_12px_24px_-16px_rgba(0,0,0,0.75)] ' +
     'hover:border-[color:var(--border-warm)] hover:text-[color:var(--brand-accent)] hover:translate-y-[-1px] ' +
@@ -101,7 +101,7 @@ export const styles = {
     'focus-visible:ring-[color:var(--accent-45)]',
 
   iconButtonCompact:
-    'inline-flex min-h-[44px] min-w-[44px] h-11 w-11 items-center justify-center rounded-2xl ' +
+    'inline-flex min-h-touch min-w-touch h-11 w-11 items-center justify-center rounded-2xl ' +
     'border border-[color:var(--border-warm-subtle)] bg-[color:var(--panel-dark-2)] ' +
     'text-[color:var(--text-muted)] hover:bg-[color:var(--border-warm-subtle)] ' +
     'hover:text-[color:var(--brand-accent)] transition focus-visible:outline-none ' +

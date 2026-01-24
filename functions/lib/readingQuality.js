@@ -26,6 +26,11 @@ import {
   MARSEILLE_COURT_ALIASES
 } from '../../shared/vision/deckAssets.js';
 import { sanitizeMetricsPayload } from './evaluation.js';
+import {
+  getPromptVersion,
+  getNarrativeCoverage,
+  isSchemaV2
+} from './telemetrySchema.js';
 import { validateReadingNarrative } from './narrativeSpine.js';
 import { normalizeVisionLabel } from './visionLabels.js';
 import { MAJOR_ARCANA } from '../../src/data/majorArcana.js';
@@ -944,6 +949,7 @@ export function buildVisionMetrics(insights, avgConfidence, mismatchCount) {
 
 /**
  * Persist reading metrics to D1 storage for telemetry.
+ * Handles both v1 and v2 schema payloads.
  *
  * @param {Object} env - Cloudflare environment bindings
  * @param {Object} payload - Metrics payload to persist
@@ -956,9 +962,30 @@ export async function persistReadingMetrics(env, payload) {
   try {
     const storageMode = env?.METRICS_STORAGE_MODE;
     const sanitizedPayload = sanitizeMetricsPayload(payload, storageMode);
-    const cardCoverage = payload.narrativeOriginal?.cardCoverage ?? payload.narrative?.cardCoverage ?? null;
-    const hallucinatedCards = payload.narrativeOriginal?.hallucinatedCards ?? payload.narrative?.hallucinatedCards ?? null;
+
+    // Extract card coverage handling both v1 and v2 schemas
+    let cardCoverage, hallucinatedCards;
+    if (isSchemaV2(payload)) {
+      // v2: use helper functions
+      const coverage = getNarrativeCoverage(payload);
+      cardCoverage = coverage?.percentage ?? null;
+      hallucinatedCards = coverage?.hallucinatedCards ?? null;
+    } else {
+      // v1: legacy paths
+      cardCoverage = payload.narrativeOriginal?.cardCoverage ?? payload.narrative?.cardCoverage ?? null;
+      hallucinatedCards = payload.narrativeOriginal?.hallucinatedCards ?? payload.narrative?.hallucinatedCards ?? null;
+    }
+
     const hallucinationCount = Array.isArray(hallucinatedCards) ? hallucinatedCards.length : null;
+
+    // Extract prompt version handling both schemas
+    const promptVersion = getPromptVersion(payload);
+
+    // Extract variant ID handling both schemas
+    const variantId = isSchemaV2(payload)
+      ? payload.experiment?.variantId
+      : payload.variantId;
+
     await env.DB.prepare(`
       INSERT INTO eval_metrics (
         request_id, spread_key, deck_style, provider,
@@ -984,8 +1011,8 @@ export async function persistReadingMetrics(env, payload) {
       cardCoverage,
       hallucinatedCards ? JSON.stringify(hallucinatedCards) : null,
       hallucinationCount,
-      payload.readingPromptVersion || payload.promptMeta?.readingPromptVersion || null,
-      payload.variantId || null,
+      promptVersion,
+      variantId || null,
       JSON.stringify(sanitizedPayload)
     ).run();
   } catch (err) {

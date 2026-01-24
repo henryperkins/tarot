@@ -3,6 +3,16 @@ import { createPortal } from 'react-dom';
 import { Info, X } from '@phosphor-icons/react';
 import { buildCardInsights } from '../lib/cardInsights';
 import { titleCase } from '../lib/textUtils';
+import { getElementForSymbolFamily } from '../lib/symbolElementBridge';
+import { getSymbolFamily } from '../../shared/symbols/symbolIndex';
+
+// Element icons and colors for badges
+const ELEMENT_BADGE_CONFIG = {
+  Fire: { icon: '🔥', className: 'bg-orange-500/20 text-orange-400' },
+  Water: { icon: '💧', className: 'bg-blue-500/20 text-blue-400' },
+  Air: { icon: '💨', className: 'bg-sky-500/20 text-sky-400' },
+  Earth: { icon: '🌍', className: 'bg-emerald-500/20 text-emerald-400' }
+};
 
 // Focusable element selectors for focus trap
 const FOCUSABLE_SELECTORS = [
@@ -74,7 +84,7 @@ function SymbolContent({ insights, onClose, showCloseButton = false }) {
           <button
             type="button"
             onClick={onClose}
-            className="min-h-[44px] min-w-[44px] -mr-2 flex items-center justify-center rounded-full text-secondary hover:bg-secondary/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-secondary/70"
+            className="min-h-touch min-w-touch -mr-2 flex items-center justify-center rounded-full text-secondary hover:bg-secondary/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-secondary/70"
             aria-label="Close symbol insights"
           >
             <X className="h-5 w-5" />
@@ -103,17 +113,31 @@ function SymbolContent({ insights, onClose, showCloseButton = false }) {
         <div className="mt-3">
           <h4 className="text-xs font-semibold uppercase tracking-[0.2em] text-accent/80">Symbols</h4>
           <ul className="mt-2 space-y-2 text-xs text-main/90" role="list">
-            {insights.symbols.map((symbol, index) => (
-              <li key={`${symbol.object}-${index}`} className="flex flex-col">
-                <span>
-                  <span className="font-semibold text-accent">{titleCase(symbol.object)}</span>
-                  {symbol.position && (
-                    <span className="ml-1 text-accent/60">({symbol.position})</span>
-                  )}
-                </span>
-                <span className="text-muted mt-0.5">{symbol.meaning}</span>
-              </li>
-            ))}
+            {insights.symbols.map((symbol, index) => {
+              const family = getSymbolFamily(symbol.object);
+              const element = getElementForSymbolFamily(family);
+              const badge = element ? ELEMENT_BADGE_CONFIG[element] : null;
+              return (
+                <li key={`${symbol.object}-${index}`} className="flex flex-col">
+                  <span className="flex items-center gap-1.5">
+                    <span className="font-semibold text-accent">{titleCase(symbol.object)}</span>
+                    {symbol.position && (
+                      <span className="text-accent/60">({symbol.position})</span>
+                    )}
+                    {badge && (
+                      <span
+                        className={`ml-1 inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] ${badge.className}`}
+                        title={`${element} element`}
+                      >
+                        <span aria-hidden="true">{badge.icon}</span>
+                        <span>{element}</span>
+                      </span>
+                    )}
+                  </span>
+                  <span className="text-muted mt-0.5">{symbol.meaning}</span>
+                </li>
+              );
+            })}
           </ul>
         </div>
       )}
@@ -211,7 +235,7 @@ function BottomSheet({ isOpen, onClose, children }) {
         aria-modal="true"
         aria-label="Card symbol insights"
         tabIndex={-1}
-        className="relative z-10 w-full max-w-lg max-h-[80vh] overflow-y-auto rounded-t-3xl border-t border-x border-secondary/30 bg-surface p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] shadow-2xl animate-slide-up focus:outline-none"
+        className="relative z-10 w-full max-w-lg max-h-[80vh] overflow-y-auto rounded-t-3xl border-t border-x border-secondary/30 bg-surface p-5 pb-[max(1.25rem,var(--safe-pad-bottom))] shadow-2xl animate-slide-up focus:outline-none"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Drag handle indicator */}
@@ -313,7 +337,7 @@ export function CardSymbolInsights({
 
   const baseTriggerClassName = triggerContent
     ? ''
-    : 'inline-flex items-center justify-center gap-2 min-h-[44px] min-w-[44px] rounded-full ' +
+    : 'inline-flex items-center justify-center gap-2 min-h-touch min-w-touch rounded-full ' +
       'border border-secondary/60 bg-surface/80 px-4 py-2 text-sm text-secondary hover:border-secondary ' +
       'active:bg-secondary/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-secondary/70 ' +
       'focus-visible:ring-offset-2 transition-colors touch-manipulation';

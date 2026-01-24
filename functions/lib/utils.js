@@ -221,6 +221,98 @@ const INSTRUCTION_OVERRIDE_PATTERNS = [
 ];
 
 /**
+ * Common confusable character mappings (homoglyphs).
+ * Maps visually similar characters to their ASCII equivalents.
+ * Based on Unicode confusables used in security contexts.
+ */
+const CONFUSABLE_MAP = {
+  // Cyrillic → Latin
+  '\u0430': 'a', // Cyrillic small a
+  '\u0435': 'e', // Cyrillic small ie
+  '\u043E': 'o', // Cyrillic small o
+  '\u0440': 'p', // Cyrillic small er
+  '\u0441': 'c', // Cyrillic small es
+  '\u0443': 'y', // Cyrillic small u
+  '\u0445': 'x', // Cyrillic small ha
+  '\u0456': 'i', // Cyrillic small byelorussian-ukrainian i
+  '\u0410': 'A', // Cyrillic capital A
+  '\u0412': 'B', // Cyrillic capital Ve
+  '\u0415': 'E', // Cyrillic capital Ie
+  '\u041A': 'K', // Cyrillic capital Ka
+  '\u041C': 'M', // Cyrillic capital Em
+  '\u041D': 'H', // Cyrillic capital En
+  '\u041E': 'O', // Cyrillic capital O
+  '\u0420': 'P', // Cyrillic capital Er
+  '\u0421': 'C', // Cyrillic capital Es
+  '\u0422': 'T', // Cyrillic capital Te
+  '\u0425': 'X', // Cyrillic capital Ha
+  '\u0427': 'Y', // Cyrillic capital Che (resembles Y)
+  // Greek → Latin
+  '\u0391': 'A', // Greek capital Alpha
+  '\u0392': 'B', // Greek capital Beta
+  '\u0395': 'E', // Greek capital Epsilon
+  '\u0396': 'Z', // Greek capital Zeta
+  '\u0397': 'H', // Greek capital Eta
+  '\u0399': 'I', // Greek capital Iota
+  '\u039A': 'K', // Greek capital Kappa
+  '\u039C': 'M', // Greek capital Mu
+  '\u039D': 'N', // Greek capital Nu
+  '\u039F': 'O', // Greek capital Omicron
+  '\u03A1': 'P', // Greek capital Rho
+  '\u03A4': 'T', // Greek capital Tau
+  '\u03A5': 'Y', // Greek capital Upsilon
+  '\u03A7': 'X', // Greek capital Chi
+  '\u03B1': 'a', // Greek small alpha
+  '\u03B5': 'e', // Greek small epsilon
+  '\u03B9': 'i', // Greek small iota
+  '\u03BF': 'o', // Greek small omicron
+  '\u03C1': 'p', // Greek small rho
+  '\u03C5': 'u', // Greek small upsilon
+  '\u03C7': 'x', // Greek small chi
+};
+
+// Build regex for confusable replacement
+const CONFUSABLE_REGEX = new RegExp('[' + Object.keys(CONFUSABLE_MAP).join('') + ']', 'g');
+
+/**
+ * Normalize text to prevent Unicode homoglyph and obfuscation attacks.
+ * Applies NFKC normalization, confusable mapping, and strips invisible characters.
+ *
+ * @param {string} text - Input text
+ * @returns {string} Normalized text safe for pattern matching
+ */
+export function normalizeUnicodeForPatternMatch(text) {
+  if (!text || typeof text !== 'string') return '';
+
+  // Step 1: NFD decomposition to separate base chars from combining marks
+  // This allows us to strip accents that were added to letters
+  let result = text.normalize('NFD');
+
+  // Step 2: Remove combining diacritical marks (accents added to previous char)
+  // Must happen AFTER NFD but BEFORE NFKC to catch pre-combined accented chars
+  result = result.replace(/[\u0300-\u036F]/g, ''); // Combining Diacritical Marks
+  result = result.replace(/[\u1AB0-\u1AFF]/g, ''); // Combining Diacritical Marks Extended
+  result = result.replace(/[\u1DC0-\u1DFF]/g, ''); // Combining Diacritical Marks Supplement
+  result = result.replace(/[\u20D0-\u20FF]/g, ''); // Combining Diacritical Marks for Symbols
+  result = result.replace(/[\uFE20-\uFE2F]/g, ''); // Combining Half Marks
+
+  // Step 3: NFKC normalization for compatibility characters
+  // Converts lookalike chars (e.g., Roman numeral 'ⅰ' → 'i', fullwidth 'Ａ' → 'A')
+  result = result.normalize('NFKC');
+
+  // Step 4: Replace known confusable characters (Cyrillic/Greek lookalikes)
+  result = result.replace(CONFUSABLE_REGEX, char => CONFUSABLE_MAP[char] || char);
+
+  // Step 5: Replace zero-width characters with space (preserves word boundaries)
+  // then collapse multiple spaces. This handles cases where invisible chars are
+  // used to join/separate words in ways that evade pattern matching.
+  result = result.replace(/[\u200B-\u200F\uFEFF\u00AD\u2060\u180E\u2028\u2029]/g, ' ');
+  result = result.replace(/\s+/g, ' ').trim();
+
+  return result;
+}
+
+/**
  * Filter prompt injection patterns from user input.
  * Replaces matched patterns with neutral placeholder text.
  *
@@ -230,7 +322,9 @@ const INSTRUCTION_OVERRIDE_PATTERNS = [
 export function filterInstructionPatterns(text) {
   if (!text || typeof text !== 'string') return '';
 
-  let result = text;
+  // Normalize Unicode to catch homoglyph attacks (e.g., Cyrillic 'о' → Latin 'o')
+  let result = normalizeUnicodeForPatternMatch(text);
+
   for (const pattern of INSTRUCTION_OVERRIDE_PATTERNS) {
     result = result.replace(pattern, '[filtered]');
     pattern.lastIndex = 0; // Reset global regex state

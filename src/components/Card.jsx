@@ -498,7 +498,7 @@ export function Card({
                 <button
                   type="button"
                   onClick={() => onCardClick?.(card, position, index)}
-                  className="absolute top-2 right-2 z-20 min-h-[44px] min-w-[44px] flex items-center justify-center bg-surface-muted/80 rounded-full text-accent border border-primary/30 shadow-lg backdrop-blur-sm hover:bg-surface-muted transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary touch-manipulation"
+                  className="absolute top-2 right-2 z-20 min-h-touch min-w-touch flex items-center justify-center bg-surface-muted/80 rounded-full text-accent border border-primary/30 shadow-lg backdrop-blur-sm hover:bg-surface-muted transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary touch-manipulation"
                   aria-label={`View details for ${card.name}`}
                 >
                   <ArrowsOut className="w-5 h-5" />
@@ -589,7 +589,7 @@ export function Card({
                       // Focus textarea after state update
                       setTimeout(() => textareaRef.current?.focus(), 50);
                     }}
-                    className="w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg border border-secondary/30 bg-surface/60 text-muted hover:text-main hover:border-secondary/50 transition-colors touch-manipulation min-h-[44px]"
+                    className="w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg border border-secondary/30 bg-surface/60 text-muted hover:text-main hover:border-secondary/50 transition-colors touch-manipulation min-h-touch"
                     aria-expanded="false"
                     aria-controls={`reflection-${index}`}
                   >
@@ -613,7 +613,7 @@ export function Card({
                             onRequestOpenReflection(null);
                           }
                         }}
-                        className="w-full flex items-center justify-between mb-1.5 min-h-[44px] touch-manipulation text-muted hover:text-main transition-colors"
+                        className="w-full flex items-center justify-between mb-1.5 min-h-touch touch-manipulation text-muted hover:text-main transition-colors"
                         aria-expanded="true"
                         aria-controls={`reflection-${index}`}
                       >

@@ -696,7 +696,7 @@ export function ReadingDisplay({
                                 <button
                                     type="button"
                                     onClick={handleAnimatedDeal}
-                                    className="min-h-[44px] px-4 sm:px-5 py-2.5 sm:py-3 rounded-full border border-secondary/40 text-sm sm:text-base text-muted hover:text-main hover:border-secondary/60 transition"
+                                    className="min-h-touch px-4 sm:px-5 py-2.5 sm:py-3 rounded-full border border-secondary/40 text-sm sm:text-base text-muted hover:text-main hover:border-secondary/60 transition"
                                 >
                                     {guidedRevealLabel}
                                 </button>
@@ -704,7 +704,7 @@ export function ReadingDisplay({
                                     type="button"
                                     onClick={handleRevealAllWithScroll}
                                     aria-label="Reveal all cards"
-                                    className="min-h-[44px] px-4 sm:px-5 py-2.5 sm:py-3 rounded-full border border-secondary/40 text-sm sm:text-base text-muted hover:text-main hover:border-secondary/60 transition"
+                                    className="min-h-touch px-4 sm:px-5 py-2.5 sm:py-3 rounded-full border border-secondary/40 text-sm sm:text-base text-muted hover:text-main hover:border-secondary/60 transition"
                                 >
                                     Reveal instantly
                                 </button>
@@ -714,7 +714,7 @@ export function ReadingDisplay({
                     )}
                     {revealedCards.size > 0 && (
                         <div className="text-center mt-3 sm:mt-4">
-                            <button type="button" onClick={handleResetReveals} className="inline-flex items-center justify-center min-h-[44px] px-4 py-2 rounded-full border border-accent/50 text-muted text-xs sm:text-sm hover:text-main hover:border-accent/70 transition touch-manipulation">
+                            <button type="button" onClick={handleResetReveals} className="inline-flex items-center justify-center min-h-touch px-4 py-2 rounded-full border border-accent/50 text-muted text-xs sm:text-sm hover:text-main hover:border-accent/70 transition touch-manipulation">
                                 <span className="hidden xs:inline">Reset reveals (keep this spread)</span><span className="xs:hidden">Reset reveals</span>
                             </button>
                         </div>

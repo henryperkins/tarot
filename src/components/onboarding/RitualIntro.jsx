@@ -141,7 +141,7 @@ export function RitualIntro({ onNext, onBack, onSkipRitual }) {
             <button
               type="button"
               onClick={() => setShowRitualSteps(true)}
-              className={`flex items-center gap-3 min-h-[44px] px-4 py-3 rounded-xl border text-left transition touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-main ${
+              className={`flex items-center gap-3 min-h-touch px-4 py-3 rounded-xl border text-left transition touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-main ${
                 personalization.showRitualSteps
                   ? 'bg-accent/10 border-accent text-main'
                   : 'bg-surface/50 border-secondary/30 text-muted hover:border-accent/50'
@@ -160,7 +160,7 @@ export function RitualIntro({ onNext, onBack, onSkipRitual }) {
             <button
               type="button"
               onClick={() => setShowRitualSteps(false)}
-              className={`flex items-center gap-3 min-h-[44px] px-4 py-3 rounded-xl border text-left transition touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-main ${
+              className={`flex items-center gap-3 min-h-touch px-4 py-3 rounded-xl border text-left transition touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-main ${
                 !personalization.showRitualSteps
                   ? 'bg-accent/10 border-accent text-main'
                   : 'bg-surface/50 border-secondary/30 text-muted hover:border-accent/50'
@@ -190,7 +190,7 @@ export function RitualIntro({ onNext, onBack, onSkipRitual }) {
           <button
             type="button"
             onClick={onBack}
-            className="flex items-center justify-center gap-1 min-h-[48px] px-4 py-3 rounded-xl border border-secondary/40 text-muted hover:text-main hover:border-secondary/60 transition touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary focus-visible:ring-offset-2 focus-visible:ring-offset-main"
+            className="flex items-center justify-center gap-1 min-h-cta px-4 py-3 rounded-xl border border-secondary/40 text-muted hover:text-main hover:border-secondary/60 transition touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary focus-visible:ring-offset-2 focus-visible:ring-offset-main"
           >
             <ArrowLeft className="w-4 h-4" />
             <span className="hidden xs:inline">Back</span>
@@ -198,7 +198,7 @@ export function RitualIntro({ onNext, onBack, onSkipRitual }) {
           <button
             type="button"
             onClick={onNext}
-            className="flex-1 flex items-center justify-center gap-2 min-h-[48px] px-6 py-3 rounded-xl bg-accent text-surface font-semibold text-base transition hover:bg-accent/90 active:scale-[0.98] touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-main"
+            className="flex-1 flex items-center justify-center gap-2 min-h-cta px-6 py-3 rounded-xl bg-accent text-surface font-semibold text-base transition hover:bg-accent/90 active:scale-[0.98] touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-main"
           >
             I understand — continue
             <ArrowRight className="w-5 h-5" weight="bold" />
@@ -207,7 +207,7 @@ export function RitualIntro({ onNext, onBack, onSkipRitual }) {
         <button
           type="button"
           onClick={handleSkipAndStart}
-          className="w-full min-h-[44px] px-3 xxs:px-4 py-2 text-muted hover:text-main text-xs xxs:text-sm transition touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary focus-visible:ring-offset-2 focus-visible:ring-offset-main"
+          className="w-full min-h-touch px-3 xxs:px-4 py-2 text-muted hover:text-main text-xs xxs:text-sm transition touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary focus-visible:ring-offset-2 focus-visible:ring-offset-main"
         >
           Skip and start reading
         </button>

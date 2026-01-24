@@ -14,7 +14,7 @@ import { useJournalSummary } from '../../../hooks/useJournalSummary';
 import { useSubscription } from '../../../contexts/SubscriptionContext';
 
 const BUTTON_CLASS = `
-  flex items-center gap-2 px-4 py-2.5 min-h-[44px] rounded-xl text-sm font-medium
+  flex items-center gap-2 px-4 py-2.5 min-h-touch rounded-xl text-sm font-medium
   transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/50
   disabled:opacity-50 disabled:cursor-not-allowed touch-manipulation
 `;
@@ -329,7 +329,7 @@ function JournalSummarySection({ isAuthenticated, entryCount = 0, filteredEntrie
           id="summary-limit"
           value={limit}
           onChange={(e) => setLimit(Number(e.target.value))}
-          className="min-h-[44px] rounded-lg border border-amber-200/20 bg-amber-200/5 px-3 py-2 text-sm text-amber-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/40 touch-manipulation"
+          className="min-h-touch rounded-lg border border-amber-200/20 bg-amber-200/5 px-3 py-2 text-sm text-amber-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/40 touch-manipulation"
           aria-describedby="summary-info"
         >
           {[3, 5, 7, 10].map((n) => (

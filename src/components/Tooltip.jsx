@@ -152,16 +152,16 @@ export function Tooltip({
    * - lg: 48x48px (comfortable for primary actions)
    */
   const touchTargetClasses = {
-    sm: 'min-w-[44px] min-h-[44px] w-11 h-11',
-    md: 'min-w-[44px] min-h-[44px] w-11 h-11',
-    lg: 'min-w-[48px] min-h-[48px] w-12 h-12'
+    sm: 'min-w-touch min-h-touch w-11 h-11',
+    md: 'min-w-touch min-h-touch w-11 h-11',
+    lg: 'min-w-[48px] min-h-cta w-12 h-12'
   };
 
   // If the caller supplies custom children (e.g., a pill or chip), do not force a
   // fixed square size (w-11 h-11) which can truncate the effective hit target.
   // Keep the minimum touch size, but allow the trigger to expand naturally.
   const resolvedTouchTargetClass = children
-    ? 'min-w-[44px] min-h-[44px]'
+    ? 'min-w-touch min-h-touch'
     : touchTargetClasses[size];
 
   const positionClasses = {

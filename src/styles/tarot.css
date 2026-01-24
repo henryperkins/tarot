@@ -94,16 +94,20 @@
 
    BREAKPOINT REFERENCE
    --------------------
-   360px  : Very small screens (iPhone SE, older devices)
-   400px  : iPhone 15/16 standard (393px viewport)
-   440px  : iPhone Plus/Pro Max (430-440px viewport)
-   479px  : Small mobile cutoff
-   520px  : Mid-mobile threshold
-   639px  : Tailwind 'sm' breakpoint boundary
-   640px  : Tablet start (Tailwind 'sm')
-   768px  : Tailwind 'md' breakpoint
-   1024px : Tailwind 'lg' breakpoint (desktop)
-   1366px : iPad Pro landscape
+   320px  : Tailwind xxs (ultra-compact baseline)
+   330px  : Ultra-compact cutoff (CSS only)
+   360px  : Tailwind mobile-sm (iPhone SE, older devices)
+   375px  : Tailwind xs (small phones)
+   400px  : Tailwind mobile-md (iPhone 15/16 standard)
+   440px  : Tailwind mobile-lg (iPhone Plus/Pro Max)
+   479px  : Sub-sm cutoff (CSS only, narrative/prose)
+   520px  : Mid-mobile threshold (CSS only, narrow chips)
+   639px  : Tailwind sm max boundary (CSS max-width mirror)
+   640px  : Tailwind sm min boundary (tablet start)
+   768px  : Tailwind md
+   1024px : Tailwind lg (desktop)
+   1280px : Tailwind xl
+   1366px : iPad Pro landscape (CSS only)
 
    ORIENTATION QUERIES
    -------------------
@@ -187,6 +191,20 @@
   /* Mobile action bar sizing (updated at runtime) */
   --mobile-action-bar-height: 0px;
   --mobile-action-bar-offset: 0px;
+
+  /* Touch targets - WCAG 2.2 SC 2.5.8 */
+  --touch-target: 44px;
+  --touch-target-cta: 52px;
+
+  /* Mobile typography */
+  --text-sm-mobile: 0.9375rem;
+
+  /* Safe area - for calc() compositions */
+  --safe-pad-top: env(safe-area-inset-top, 0px);
+  --safe-pad-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-pad-left: env(safe-area-inset-left, 0px);
+  --safe-pad-right: env(safe-area-inset-right, 0px);
+  --safe-pad-x: max(var(--safe-pad-left), var(--safe-pad-right));
 
   /* Component defaults (can be overridden inline) */
   --spread-background: var(--panel-dark-2);
@@ -321,7 +339,7 @@ body {
   .reading-content p,
   .reading-content li,
   .reading-content dd {
-    font-size: 0.9375rem; /* 15px */
+    font-size: var(--text-sm-mobile); /* 15px */
     line-height: 1.6;
   }
 
@@ -384,10 +402,6 @@ body {
 .skip-link:focus-visible {
   transform: translateY(0);
   opacity: 1;
-}
-
-.pb-safe {
-  padding-bottom: 1rem;
 }
 
 .full-bleed {
@@ -553,10 +567,6 @@ body {
       1.5rem + env(safe-area-inset-bottom, 0px) + var(--mobile-action-bar-height, 0px) +
         var(--mobile-action-bar-offset, 0px)
     );
-  }
-
-  .pb-safe {
-    padding-bottom: max(1rem, env(safe-area-inset-bottom, 1rem));
   }
 }
 
@@ -930,14 +940,14 @@ body {
   }
 }
 
-/* iPhone Plus/Pro Max models (430-440px) */
+/* mobile-lg (<= 440px): iPhone Plus/Pro Max */
 @media (max-width: 440px) {
   .spread-card {
     --spread-card-height-mobile: 17rem;
   }
 }
 
-/* iPhone 15/16 standard (393px) and smaller */
+/* mobile-md (<= 400px): iPhone 15/16 standard */
 @media (max-width: 400px) {
   .spread-card {
     --spread-card-height-mobile: 16rem;
@@ -953,7 +963,7 @@ body {
   }
 }
 
-/* Very small screens (iPhone SE, older devices) */
+/* mobile-sm (<= 360px): iPhone SE, older devices */
 @media (max-width: 360px) {
   .spread-card {
     --spread-card-height-mobile: 15rem;
@@ -974,7 +984,7 @@ body {
   }
 }
 
-/* Ultra-compact phones (<= 330px) */
+/* Ultra-compact (<= 330px, CSS only) */
 @media (max-width: 330px) {
   .spread-card {
     --spread-card-height-mobile: 14.25rem;
@@ -1252,7 +1262,7 @@ body {
   }
 }
 
-/* iPhone Plus/Pro Max (430-440px) - slightly tighter carousel */
+/* mobile-lg (<= 440px): iPhone Plus/Pro Max - tighter carousel */
 @media (max-width: 440px) {
   .cc-grid {
     gap: 0.85rem;
@@ -1266,7 +1276,7 @@ body {
   }
 }
 
-/* iPhone 15/16 standard (393px) */
+/* mobile-md (<= 400px): iPhone 15/16 standard */
 @media (max-width: 400px) {
   .cc-grid {
     gap: 0.75rem;
@@ -1280,7 +1290,7 @@ body {
   }
 }
 
-/* Very small screens (iPhone SE, older devices) */
+/* mobile-sm (<= 360px): iPhone SE, older devices */
 @media (max-width: 360px) {
   .cc-grid > * {
     flex-basis: min(72vw, 14rem);
@@ -1288,6 +1298,7 @@ body {
   }
 }
 
+/* Ultra-compact (<= 330px, CSS only) */
 @media (max-width: 330px) {
   .cc-grid {
     gap: 0.6rem;
@@ -1394,21 +1405,21 @@ textarea:focus-visible {
   transition: transform 260ms ease, box-shadow 260ms ease, background 260ms ease;
 }
 
-/* iPhone Plus/Pro Max (430-440px) */
+/* mobile-lg (<= 440px): iPhone Plus/Pro Max */
 @media (max-width: 440px) {
   .tarot-card-shell {
     width: clamp(10rem, 58vw, 14rem);
   }
 }
 
-/* iPhone 15/16 standard (393px) */
+/* mobile-md (<= 400px): iPhone 15/16 standard */
 @media (max-width: 400px) {
   .tarot-card-shell {
     width: clamp(9.5rem, 62vw, 13rem);
   }
 }
 
-/* Very small screens (iPhone SE, older devices) */
+/* mobile-sm (<= 360px): iPhone SE, older devices */
 @media (max-width: 360px) {
   .tarot-card-shell {
     width: clamp(8.75rem, 68vw, 11.5rem);
@@ -2286,6 +2297,7 @@ input[type="range"]:focus::-webkit-slider-thumb {
   color: var(--text-muted);
 }
 
+/* Mid-mobile threshold (<= 520px, CSS only): simplify chip metadata */
 @media (max-width: 520px) {
   .prepare-summary-chip span[aria-hidden="true"] {
     display: none;
@@ -2789,13 +2801,6 @@ input[type="range"]:focus::-webkit-slider-thumb {
    ADDITIONAL RESPONSIVE UTILITIES
    ========================================================================== */
 
-/* Safe area padding utility class (supplement existing @supports rules) */
-.safe-area-padding {
-  padding-left: env(safe-area-inset-left, 0);
-  padding-right: env(safe-area-inset-right, 0);
-  padding-bottom: env(safe-area-inset-bottom, 0);
-}
-
 /* Landscape-specific utility classes */
 @media (orientation: landscape) and (max-height: 500px) {
   .landscape-compact {
@@ -2809,14 +2814,6 @@ input[type="range"]:focus::-webkit-slider-thumb {
 
   .landscape-smaller {
     font-size: 0.875em;
-  }
-}
-
-/* Improved touch targets */
-@media (pointer: coarse) {
-  .touch-target {
-    min-height: 44px;
-    min-width: 44px;
   }
 }
 
@@ -3171,6 +3168,7 @@ input[type="range"]:focus::-webkit-slider-thumb {
   }
 }
 
+/* Mid-mobile threshold (<= 520px, CSS only): tighten narrative padding */
 @media (max-width: 520px) {
   .narrative-stream__text {
     padding-left: clamp(0.75rem, 4vw, 1.5rem);
@@ -3188,10 +3186,10 @@ input[type="range"]:focus::-webkit-slider-thumb {
   }
 }
 
-/* Optimize narrative reading on mobile */
+/* Sub-sm cutoff (<= 479px, CSS only): optimize narrative reading */
 @media (max-width: 479px) {
   .prose {
-    font-size: 0.9375rem; /* 15px - slightly smaller for mobile */
+    font-size: var(--text-sm-mobile); /* 15px - slightly smaller for mobile */
     line-height: 1.7;
   }
 
@@ -3228,7 +3226,7 @@ input[type="range"]:focus::-webkit-slider-thumb {
   overscroll-behavior: contain;
 }
 
-/* Dropdown text sizing on narrow screens */
+/* Dropdown text sizing on narrow screens (mobile-md/mobile-sm) */
 @media (max-width: 400px) {
   select option {
     font-size: 0.75rem;
@@ -3236,6 +3234,7 @@ input[type="range"]:focus::-webkit-slider-thumb {
   }
 }
 
+/* mobile-sm (<= 360px) */
 @media (max-width: 360px) {
   select option {
     font-size: 0.6875rem;

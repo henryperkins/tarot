@@ -99,6 +99,19 @@ export default function JourneyContent({
     themes,
   ]);
 
+  const coachSuggestionSnapshot = useMemo(() => {
+    if (!coachSuggestion) return null;
+    return {
+      source: coachSuggestion.source || null,
+      sourceLabel: coachSuggestion.sourceLabel || null,
+      sourceDetail: coachSuggestion.sourceDetail || null,
+      text: coachSuggestion.text || null,
+      question: coachSuggestion.question || null,
+      spread: coachSuggestion.spread || null,
+      signalsUsed: Array.isArray(coachSuggestion.signalsUsed) ? coachSuggestion.signalsUsed : null,
+    };
+  }, [coachSuggestion]);
+
   // Common props for all variants
   const commonProps = useMemo(() => ({
     cardFrequency,
@@ -200,8 +213,10 @@ export default function JourneyContent({
       filterLabel: scopeLabel || (journeyFiltersActive ? 'Filtered journal view' : 'Entire journal'),
       entryCount,
       totalEntries,
+      signalsUsed: coachSuggestionSnapshot?.signalsUsed || null,
+      coachSuggestion: coachSuggestionSnapshot,
     }, userId);
-  }, [exportStats, journeyFiltersActive, scopedEntries, entries, userId, scopeLabel]);
+  }, [exportStats, journeyFiltersActive, scopedEntries, entries, userId, scopeLabel, coachSuggestionSnapshot]);
 
   // Render appropriate variant
   if (variant === 'mobile') {

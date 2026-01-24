@@ -102,7 +102,7 @@ export function QuestionInput({
           <button
             type="button"
             onClick={handleLaunchCoach}
-            className="inline-flex items-center gap-1.5 rounded-full border border-primary/50 px-3 py-1.5 min-h-[44px] text-xs text-main transition hover:bg-primary/10 active:bg-primary/15 touch-manipulation self-start xs:self-auto"
+            className="inline-flex items-center gap-1.5 rounded-full border border-primary/50 px-3 py-1.5 min-h-touch text-xs text-main transition hover:bg-primary/10 active:bg-primary/15 touch-manipulation self-start xs:self-auto"
             title="Shortcut: Shift+G"
             aria-label="Open guided coach (Shift+G)"
           >
@@ -137,7 +137,7 @@ export function QuestionInput({
         <button
           type="button"
           onClick={handleRefreshExamples}
-          className="absolute top-1 right-1 flex items-center justify-center min-w-[44px] min-h-[44px] text-muted hover:text-main focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-surface rounded-full touch-manipulation"
+          className="absolute top-1 right-1 flex items-center justify-center min-w-touch min-h-touch text-muted hover:text-main focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-surface rounded-full touch-manipulation"
           aria-label="Cycle example intention prompts"
         >
           <ArrowsClockwise className="w-4 h-4" aria-hidden="true" />

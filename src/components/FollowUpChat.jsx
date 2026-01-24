@@ -53,6 +53,7 @@ export default function FollowUpChat({
   const [error, setError] = useState(null);
   const [includeJournal, setIncludeJournal] = useState(true);
   const [showSuggestions, setShowSuggestions] = useState(false);
+  const [suggestionRotation, setSuggestionRotation] = useState(0);
   const [serverTurn, setServerTurn] = useState(null); // Synced from meta.turn
   const [isAtBottom, setIsAtBottom] = useState(true);
 
@@ -62,10 +63,20 @@ export default function FollowUpChat({
   const isDock = variant === 'dock';
   const isDrawer = variant === 'drawer';
 
+  useEffect(() => {
+    setSuggestionRotation(0);
+  }, [readingMeta?.requestId, sessionSeed]);
+
   // Generate contextual suggestions
   const suggestions = useMemo(() =>
-    generateFollowUpSuggestions(reading, themes, readingMeta),
-    [reading, themes, readingMeta]
+    generateFollowUpSuggestions(reading, themes, readingMeta, {
+      spreadKey: readingMeta?.spreadKey || selectedSpread,
+      userQuestion,
+      rotationSeed: readingMeta?.requestId || sessionSeed || readingMeta?.spreadKey || selectedSpread,
+      rotationIndex: suggestionRotation,
+      limit: 4
+    }),
+    [reading, themes, readingMeta, selectedSpread, userQuestion, sessionSeed, suggestionRotation]
   );
 
   // Check if user can use journal context (Plus+ tier)
@@ -648,7 +659,10 @@ export default function FollowUpChat({
         <div className="flex justify-start">
           <button
             type="button"
-            onClick={() => setShowSuggestions(true)}
+            onClick={() => {
+              setShowSuggestions(true);
+              setSuggestionRotation((prev) => prev + 1);
+            }}
             className={clsx(
               'text-xs px-3 py-1.5 rounded-full border border-[color:var(--border-warm-light)] text-muted',
               'bg-[color:rgba(232,218,195,0.05)] hover:border-[color:var(--border-warm)] hover:text-main',

@@ -91,11 +91,11 @@ export function ImagePreview({ image, onConfirm, onRetake }) {
       </div>
 
       {/* Action buttons with safe area padding for notched devices */}
-      <div className="bg-main/80 backdrop-blur-sm p-4 pb-[max(1rem,env(safe-area-inset-bottom))] flex justify-center gap-6">
+      <div className="bg-main/80 backdrop-blur-sm p-4 pb-[max(1rem,var(--safe-pad-bottom))] flex justify-center gap-6">
         <button
           type="button"
           onClick={onRetake}
-          className="min-h-[48px] min-w-[100px] px-6 py-3 text-lg text-main font-semibold rounded-lg border border-secondary/40 hover:bg-secondary/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 focus-visible:ring-offset-2 focus-visible:ring-offset-main transition-colors touch-manipulation"
+          className="min-h-cta min-w-[100px] px-6 py-3 text-lg text-main font-semibold rounded-lg border border-secondary/40 hover:bg-secondary/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 focus-visible:ring-offset-2 focus-visible:ring-offset-main transition-colors touch-manipulation"
         >
           Retake
         </button>
@@ -103,7 +103,7 @@ export function ImagePreview({ image, onConfirm, onRetake }) {
           ref={confirmButtonRef}
           type="button"
           onClick={onConfirm}
-          className="min-h-[48px] min-w-[120px] px-6 py-3 text-lg text-surface font-semibold bg-secondary hover:bg-secondary/90 rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-secondary/50 focus-visible:ring-offset-2 focus-visible:ring-offset-main transition-colors touch-manipulation"
+          className="min-h-cta min-w-[120px] px-6 py-3 text-lg text-surface font-semibold bg-secondary hover:bg-secondary/90 rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-secondary/50 focus-visible:ring-offset-2 focus-visible:ring-offset-main transition-colors touch-manipulation"
         >
           Use Photo
         </button>

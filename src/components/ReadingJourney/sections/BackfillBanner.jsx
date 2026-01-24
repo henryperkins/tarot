@@ -92,7 +92,7 @@ export default function BackfillBanner({
 
   // Compact variant for tight spaces
   if (variant === 'compact') {
-    const COMPACT_SYNC_BUTTON_CLASS = "flex items-center gap-1.5 min-h-[44px] px-3 py-2 text-xs sm:text-[11px] font-medium text-muted-high hover:text-main disabled:opacity-50 disabled:cursor-not-allowed touch-manipulation";
+    const COMPACT_SYNC_BUTTON_CLASS = "flex items-center gap-1.5 min-h-touch px-3 py-2 text-xs sm:text-[11px] font-medium text-muted-high hover:text-main disabled:opacity-50 disabled:cursor-not-allowed touch-manipulation";
     
     return (
       <div className="flex items-center gap-2 rounded-lg bg-[color:var(--border-warm-subtle)] border border-[color:var(--border-warm-light)] px-3 py-2">
@@ -114,7 +114,7 @@ export default function BackfillBanner({
         </button>
         <button
           onClick={handleDismiss}
-          className="min-h-[44px] min-w-[44px] flex items-center justify-center -m-2 text-muted hover:text-main touch-manipulation"
+          className="min-h-touch min-w-touch flex items-center justify-center -m-2 text-muted hover:text-main touch-manipulation"
           aria-label="Remind me in 7 days"
         >
           <X className="h-3 w-3" />
@@ -128,7 +128,7 @@ export default function BackfillBanner({
     <div className="relative rounded-xl bg-gradient-ambient border border-[color:var(--border-warm-light)] p-3">
       <button
         onClick={handleDismiss}
-        className="absolute top-2 right-2 min-h-[44px] min-w-[44px] flex items-center justify-center -m-2 text-muted hover:text-main touch-manipulation"
+        className="absolute top-2 right-2 min-h-touch min-w-touch flex items-center justify-center -m-2 text-muted hover:text-main touch-manipulation"
         aria-label="Remind me in 7 days"
       >
         <X className="h-3.5 w-3.5" />
@@ -148,7 +148,7 @@ export default function BackfillBanner({
             onClick={onBackfill}
             disabled={isBackfilling}
             className="
-              inline-flex items-center gap-1.5 min-h-[44px] px-3 py-1.5 rounded-full
+              inline-flex items-center gap-1.5 min-h-touch px-3 py-1.5 rounded-full
               text-xs sm:text-[11px] font-medium text-[color:var(--text-main)] bg-[color:var(--accent-25)]
               border border-[color:var(--border-warm-light)]
               hover:bg-[color:var(--accent-45)] hover:border-[color:var(--border-warm)]

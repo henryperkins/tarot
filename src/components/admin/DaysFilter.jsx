@@ -26,7 +26,7 @@ export const DaysFilter = memo(function DaysFilter({
           key={option.value}
           onClick={() => onChange(option.value)}
           disabled={disabled}
-          className={`px-3 sm:px-4 py-2 min-h-[44px] min-w-[44px] text-xs font-medium transition-colors
+          className={`px-3 sm:px-4 py-2 min-h-touch min-w-touch text-xs font-medium transition-colors
             ${value === option.value
               ? 'bg-accent text-main'
               : 'text-muted hover:text-main hover:bg-secondary/20'

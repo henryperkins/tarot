@@ -21,6 +21,10 @@ import {
   computeBadgesFromEntries,
   generateJourneyStory,
   computeCoachSuggestionWithEmbeddings,
+  buildSourceDetailFromSignals,
+  formatContextName,
+  getCoachSourceLabel,
+  COACH_SOURCE_PRIORITY,
 } from '../lib/journalInsights';
 import { buildThemeQuestion } from '../lib/themeText';
 import {
@@ -155,6 +159,8 @@ function computeEnhancedCoachSuggestion({
 }) {
   const contextQuestionMap = {
     love: 'What do I need to understand about my relationships right now?',
+    relationship: 'What do I need to understand about my relationships right now?',
+    relationships: 'What do I need to understand about my relationships right now?',
     career: 'What do I need to understand about my work path right now?',
     self: 'What do I need to understand about myself right now?',
     wellbeing: 'What do I need to understand about my wellbeing right now?',
@@ -162,64 +168,125 @@ function computeEnhancedCoachSuggestion({
     decision: 'What do I need to understand about this decision right now?',
   };
 
+  const buildSuggestion = ({ source, text, question, spread, signalsUsed = [] }) => ({
+    source,
+    text,
+    question,
+    spread,
+    sourceLabel: getCoachSourceLabel(source),
+    sourceDetail: buildSourceDetailFromSignals(signalsUsed),
+    signalsUsed,
+    priority: COACH_SOURCE_PRIORITY[source] ?? 0,
+  });
+
   // Priority 1: Drift detection (user exploring unexpected contexts)
   if (preferenceDrift?.hasDrift && preferenceDrift.driftContexts?.[0]) {
     const drift = preferenceDrift.driftContexts[0];
     const question = `What draws me toward ${drift.context} right now?`;
-    return {
+    const detailLines = [];
+    if (Array.isArray(preferenceDrift.expectedContextLabels) && preferenceDrift.expectedContextLabels.length > 0) {
+      detailLines.push(`Expected focus: ${preferenceDrift.expectedContextLabels.join(', ')}`);
+    }
+    if (preferenceDrift.primaryActualContext?.context) {
+      detailLines.push(
+        `Most read: ${formatContextName(preferenceDrift.primaryActualContext.context)} (${preferenceDrift.primaryActualContext.count})`
+      );
+    }
+    if (drift?.context) {
+      detailLines.push(
+        `Drift: ${formatContextName(drift.context)} (+${drift.count})`
+      );
+    }
+    return buildSuggestion({
       source: 'drift',
       text: question,
       question,
       spread: 'threeCard',
-    };
+      signalsUsed: [{
+        type: 'drift',
+        label: getCoachSourceLabel('drift'),
+        detail: detailLines.join('\n'),
+      }],
+    });
   }
 
   // Priority 2: Most recent badge card (badges[0] is most recent due to pre-sort)
   const recentBadgeCard = badges?.[0]?.card_name;
   if (recentBadgeCard && topCard?.name === recentBadgeCard) {
     const question = `What is ${topCard.name} trying to teach me?`;
-    return {
+    return buildSuggestion({
       source: 'badge',
       text: question,
       question,
       spread: 'single',
-    };
+      signalsUsed: [{
+        type: 'badge',
+        label: getCoachSourceLabel('badge'),
+        detail: `${topCard.name} (${topCard.count}x)`,
+      }],
+    });
   }
 
-  // Priority 3: Top theme
+  // Priority 3: Top card signal (when repeated)
+  if (topCard?.name && topCard.count >= 2) {
+    const question = `What is ${topCard.name} asking me to notice?`;
+    return buildSuggestion({
+      source: 'topCard',
+      text: question,
+      question,
+      spread: 'single',
+      signalsUsed: [{
+        type: 'topCard',
+        label: getCoachSourceLabel('topCard'),
+        detail: `${topCard.name} (${topCard.count}x)`,
+      }],
+    });
+  }
+
+  // Priority 4: Top theme
   if (topTheme) {
     const themeQuestion = buildThemeQuestion(topTheme);
     if (themeQuestion) {
-      return {
+      return buildSuggestion({
         source: 'theme',
         text: themeQuestion,
         question: themeQuestion,
         spread: 'threeCard',
-      };
+        signalsUsed: [{
+          type: 'theme',
+          label: getCoachSourceLabel('theme'),
+          detail: topTheme,
+        }],
+      });
     }
   }
 
-  // Priority 4: Top context
+  // Priority 5: Top context
   if (topContext) {
     const contextKey = String(topContext.name || '').toLowerCase();
     const question =
       contextQuestionMap[contextKey]
       || `What do I need to understand about my ${contextKey || 'current'} situation right now?`;
-    return {
+    return buildSuggestion({
       source: 'context',
       text: question,
       question,
       spread: 'threeCard',
-    };
+      signalsUsed: [{
+        type: 'context',
+        label: getCoachSourceLabel('context'),
+        detail: `${formatContextName(contextKey)} (${topContext.count})`,
+      }],
+    });
   }
 
   const question = 'What do I most need to understand right now?';
-  return {
+  return buildSuggestion({
     source: 'default',
     text: question,
     question,
     spread: 'single',
-  };
+  });
 }
 
 /**
@@ -608,8 +675,7 @@ export function useJourneyData({
     return computeCoachSuggestionWithEmbeddings(activeEntries, { maxEntries: 5 });
   }, [activeEntries]);
 
-  const coachSuggestion = useMemo(() => {
-    if (nextStepsCoachSuggestion) return nextStepsCoachSuggestion;
+  const enhancedCoachSuggestion = useMemo(() => {
     const topCard = cardFrequency[0];
     const topTheme = insightsStats.recentThemes?.[0];
 
@@ -621,13 +687,23 @@ export function useJourneyData({
       preferenceDrift,
     });
   }, [
-    nextStepsCoachSuggestion,
     cardFrequency,
     topContext,
     insightsStats.recentThemes,
     sortedBadges,
     preferenceDrift,
   ]);
+
+  const coachSuggestion = useMemo(() => {
+    const candidates = [nextStepsCoachSuggestion, enhancedCoachSuggestion].filter(Boolean);
+    if (candidates.length === 0) return null;
+    return candidates.reduce((best, candidate) => {
+      if (!best) return candidate;
+      const bestScore = typeof best.priority === 'number' ? best.priority : 0;
+      const nextScore = typeof candidate.priority === 'number' ? candidate.priority : 0;
+      return nextScore > bestScore ? candidate : best;
+    }, candidates[0]);
+  }, [nextStepsCoachSuggestion, enhancedCoachSuggestion]);
 
   // Backfill state with loading guard.
   // Intentionally *not* wrapped in useMemo: React Compiler lint requires manual memoization

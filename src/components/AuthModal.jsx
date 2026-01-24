@@ -178,7 +178,7 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login' }) {
   };
 
   const inputBaseClasses = `
-    w-full px-4 py-3 min-h-[48px]
+    w-full px-4 py-3 min-h-cta
     bg-surface-muted border border-primary/30 rounded-lg
     text-main placeholder-main/40
     focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/50
@@ -188,7 +188,7 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login' }) {
 
   const errorId = error || authError ? 'auth-error' : undefined;
   const overlayClasses = [
-    'fixed inset-0 z-[1300] flex justify-center bg-main/90 backdrop-blur-sm animate-fade-in overflow-y-auto px-safe-left px-safe-right py-safe-top pb-safe-bottom',
+    'fixed inset-0 z-[1300] flex justify-center bg-main/90 backdrop-blur-sm animate-fade-in overflow-y-auto px-safe pt-safe pb-safe-bottom',
     isSmallScreen ? 'items-start px-4 py-8' : 'items-center p-4',
   ].join(' ');
   const modalClasses = [
@@ -222,7 +222,7 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login' }) {
             className="
               absolute top-3 right-3 z-10
               flex items-center justify-center
-              w-11 h-11 min-w-[44px] min-h-[44px]
+              w-11 h-11 min-w-touch min-h-touch
               rounded-full
               text-accent hover:text-main hover:bg-accent/10
               active:bg-accent/20 active:scale-95
@@ -451,7 +451,7 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login' }) {
               type="submit"
               disabled={loading}
               className="
-                mt-6 w-full px-6 py-3 min-h-[48px]
+                mt-6 w-full px-6 py-3 min-h-cta
                 bg-primary hover:bg-primary/90 active:bg-primary/80
                 text-surface font-medium rounded-lg
                 transition touch-manipulation

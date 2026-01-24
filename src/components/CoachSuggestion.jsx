@@ -178,7 +178,7 @@ export function CoachSuggestion({
                     <button
                         type="button"
                         onClick={onApply}
-                        className="min-h-[44px] inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-accent hover:text-main underline decoration-accent/30 underline-offset-4 transition-colors
+                        className="min-h-touch inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-accent hover:text-main underline decoration-accent/30 underline-offset-4 transition-colors
                             focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 focus-visible:ring-offset-2 touch-manipulation"
                     >
                         <span>Start with Intention Coach</span>
@@ -189,7 +189,7 @@ export function CoachSuggestion({
                         <button
                             type="button"
                             onClick={onApply}
-                            className="min-h-[44px] rounded-full border border-primary/50 px-4 py-2 text-sm text-main transition-colors
+                            className="min-h-touch rounded-full border border-primary/50 px-4 py-2 text-sm text-main transition-colors
                                 hover:bg-primary/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-2 touch-manipulation"
                         >
                             Use this focus
@@ -198,7 +198,7 @@ export function CoachSuggestion({
                             <button
                                 type="button"
                                 onClick={onDismiss}
-                                className="min-h-[44px] rounded-full border border-secondary/40 px-4 py-2 text-sm text-muted transition-colors
+                                className="min-h-touch rounded-full border border-secondary/40 px-4 py-2 text-sm text-muted transition-colors
                                     hover:bg-secondary/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-secondary/50 focus-visible:ring-offset-2 touch-manipulation"
                             >
                                 Dismiss

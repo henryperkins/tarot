@@ -13,14 +13,14 @@ export function PersonalizationBanner({ onDismiss, onPersonalize }) {
         <button
           type="button"
           onClick={onPersonalize}
-          className="btn-primary text-xs sm:text-sm min-h-[44px]"
+          className="btn-primary text-xs sm:text-sm min-h-touch"
         >
           Set Preferences
         </button>
         <button
           type="button"
           onClick={onDismiss}
-          className="btn-secondary text-xs sm:text-sm min-h-[44px]"
+          className="btn-secondary text-xs sm:text-sm min-h-touch"
         >
           Maybe Later
         </button>

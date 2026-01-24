@@ -51,7 +51,7 @@ function CardsCallingYou({ cards = [], badges = [] }) {
           return (
             <li
               key={`${card.name}-${index}`}
-              className="flex items-center justify-between text-sm rounded-lg bg-amber-200/5 px-3 py-3 min-h-[44px] hover:bg-amber-200/10 transition-colors"
+              className="flex items-center justify-between text-sm rounded-lg bg-amber-200/5 px-3 py-3 min-h-touch hover:bg-amber-200/10 transition-colors"
             >
               <div className="flex items-center gap-2 min-w-0 flex-1">
                 <span
@@ -114,7 +114,7 @@ function CardsCallingYou({ cards = [], badges = [] }) {
         </span>
         <Link 
           to="/journal/gallery" 
-          className="flex items-center gap-1 min-h-[44px] py-2 px-2 -m-2 text-amber-200/70 hover:text-amber-100 transition-colors touch-manipulation"
+          className="flex items-center gap-1 min-h-touch py-2 px-2 -m-2 text-amber-200/70 hover:text-amber-100 transition-colors touch-manipulation"
           aria-label="View your card collection"
         >
           View Collection

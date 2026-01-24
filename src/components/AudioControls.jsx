@@ -27,7 +27,7 @@ export function AudioControls({ className = '' }) {
 
   // Info button - subtle icon, 44px touch target but no visible border
   const infoButtonClass =
-    'inline-flex min-w-[44px] min-h-[44px] items-center justify-center rounded-full text-muted/60 transition hover:text-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 touch-manipulation -ml-2 -mr-3';
+    'inline-flex min-w-touch min-h-touch items-center justify-center rounded-full text-muted/60 transition hover:text-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 touch-manipulation -ml-2 -mr-3';
 
   const VoiceIcon = voiceOn ? SpeakerHigh : SpeakerSlash;
 
@@ -165,7 +165,7 @@ export function AudioControls({ className = '' }) {
               role="radio"
               aria-checked={ttsProvider === 'hume'}
               onClick={() => setTtsProvider('hume')}
-              className={`flex-1 min-h-[52px] px-2 xs:px-3 py-2 rounded-xl text-sm font-medium transition-all touch-manipulation ${
+              className={`flex-1 min-h-cta px-2 xs:px-3 py-2 rounded-xl text-sm font-medium transition-all touch-manipulation ${
                 ttsProvider === 'hume'
                   ? 'bg-primary/20 border-2 border-primary text-primary shadow-md'
                   : 'bg-surface/60 border border-secondary/30 text-muted hover:text-main hover:border-secondary/50 active:bg-surface/80'
@@ -179,7 +179,7 @@ export function AudioControls({ className = '' }) {
               role="radio"
               aria-checked={ttsProvider === 'azure'}
               onClick={() => setTtsProvider('azure')}
-              className={`flex-1 min-h-[52px] px-2 xs:px-3 py-2 rounded-xl text-sm font-medium transition-all touch-manipulation ${
+              className={`flex-1 min-h-cta px-2 xs:px-3 py-2 rounded-xl text-sm font-medium transition-all touch-manipulation ${
                 ttsProvider === 'azure'
                   ? 'bg-primary/20 border-2 border-primary text-primary shadow-md'
                   : 'bg-surface/60 border border-secondary/30 text-muted hover:text-main hover:border-secondary/50 active:bg-surface/80'
@@ -193,7 +193,7 @@ export function AudioControls({ className = '' }) {
               role="radio"
               aria-checked={ttsProvider === 'azure-sdk'}
               onClick={() => setTtsProvider('azure-sdk')}
-              className={`flex-1 min-h-[52px] px-2 xs:px-3 py-2 rounded-xl text-sm font-medium transition-all touch-manipulation ${
+              className={`flex-1 min-h-cta px-2 xs:px-3 py-2 rounded-xl text-sm font-medium transition-all touch-manipulation ${
                 ttsProvider === 'azure-sdk'
                   ? 'bg-primary/20 border-2 border-primary text-primary shadow-md'
                   : 'bg-surface/60 border border-secondary/30 text-muted hover:text-main hover:border-secondary/50 active:bg-surface/80'
@@ -233,7 +233,7 @@ export function AudioControls({ className = '' }) {
                 role="radio"
                 aria-checked={ttsSpeed === opt.value}
                 onClick={() => setTtsSpeed(opt.value)}
-                className={`flex-1 min-h-[52px] px-2 xs:px-3 py-2 rounded-xl text-sm font-medium transition-all touch-manipulation ${
+                className={`flex-1 min-h-cta px-2 xs:px-3 py-2 rounded-xl text-sm font-medium transition-all touch-manipulation ${
                   ttsSpeed === opt.value
                     ? 'bg-primary/20 border-2 border-primary text-primary shadow-md'
                     : 'bg-surface/60 border border-secondary/30 text-muted hover:text-main hover:border-secondary/50 active:bg-surface/80'

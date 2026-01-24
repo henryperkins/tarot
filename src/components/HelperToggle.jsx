@@ -47,7 +47,7 @@ export function HelperToggle({
   };
 
   const buttonClass = `
-    inline-flex items-center gap-1.5 px-3 py-1.5 min-h-[44px] text-xs text-muted/80 transition-all duration-200
+    inline-flex items-center gap-1.5 px-3 py-1.5 min-h-touch text-xs text-muted/80 transition-all duration-200
     hover:text-secondary
     focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/50 focus-visible:ring-offset-2 focus-visible:ring-offset-main
     touch-manipulation

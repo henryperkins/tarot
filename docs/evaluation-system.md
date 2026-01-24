@@ -354,6 +354,48 @@ cat eval-data.jsonl | node scripts/evaluation/calibrateEval.js
 
 ---
 
+## Metrics Schema
+
+### Schema version 2 (current)
+
+As of January 2025, metrics payloads use **schema version 2**, which eliminates data duplication from the original schema. Key changes:
+
+| v1 Field | v2 Field | Notes |
+|----------|----------|-------|
+| `readingPromptVersion` | `experiment.promptVersion` | Grouped with A/B testing |
+| `promptMeta.*` | `prompt.*` | Flattened structure |
+| `narrative.graphRAG` | `graphRAG` | Single source (was duplicated 4x) |
+| `narrative.promptTokens` | `prompt.tokens` | Deduplicated |
+| `narrative.promptSlimming` | `prompt.slimming.steps` | Deduplicated |
+| `variantId`, `experimentId` | `experiment.variantId`, `experiment.experimentId` | Grouped |
+
+**Backward compatibility:** All consumer scripts and SQL queries use `COALESCE()` to read from both v1 and v2 paths. The helper functions in `functions/lib/telemetrySchema.js` handle both schemas:
+
+```javascript
+import { getPromptVersion, getGraphRAGStats, getNarrativeCoverage } from '../lib/telemetrySchema.js';
+
+// Works with both v1 and v2 payloads
+const version = getPromptVersion(payload);
+const graphRAG = getGraphRAGStats(payload);
+const coverage = getNarrativeCoverage(payload);
+```
+
+### Migration
+
+To migrate historical v1 records to v2 schema:
+
+```bash
+# Preview changes (dry run)
+node scripts/migrations/migrateMetricsSchema.js --dry-run
+
+# Apply migration
+node scripts/migrations/migrateMetricsSchema.js --apply --batch-size=100
+```
+
+The migration reduces payload size by ~50% by eliminating duplicate data.
+
+---
+
 ## Calibration workflow
 
 ### Phase 1: shadow mode (week 1-2)

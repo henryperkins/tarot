@@ -58,7 +58,7 @@ export function QuestionCrafting({ question, onQuestionChange, onNext, onBack })
   const isLandscape = useLandscape();
   const { personalization, setReadingTone, setSpiritualFrame } = usePreferences();
   const infoButtonClass =
-    'inline-flex min-w-[44px] min-h-[44px] items-center justify-center rounded-full text-muted/60 transition hover:text-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 touch-manipulation -ml-2 -mr-3';
+    'inline-flex min-w-touch min-h-touch items-center justify-center rounded-full text-muted/60 transition hover:text-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 touch-manipulation -ml-2 -mr-3';
 
   const quality = useMemo(() => scoreQuestion(question), [question]);
   const qualityLevel = useMemo(() => getQualityLevel(quality.score), [quality.score]);
@@ -292,7 +292,7 @@ export function QuestionCrafting({ question, onQuestionChange, onNext, onBack })
                 key={i}
                 type="button"
                 onClick={() => handleExampleClick(example)}
-                className="min-h-[44px] w-full xxs:w-auto px-3 xs:px-4 py-2 rounded-full border border-secondary/30 bg-surface/50 text-xs xs:text-sm text-muted hover:text-main hover:border-accent/50 transition touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                className="min-h-touch w-full xxs:w-auto px-3 xs:px-4 py-2 rounded-full border border-secondary/30 bg-surface/50 text-xs xs:text-sm text-muted hover:text-main hover:border-accent/50 transition touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
               >
                 {example.length > 35 ? example.slice(0, 35) + '...' : example}
               </button>
@@ -321,7 +321,7 @@ export function QuestionCrafting({ question, onQuestionChange, onNext, onBack })
                   key={option.value}
                   type="button"
                   onClick={() => setReadingTone(option.value)}
-                  className={`min-h-[44px] px-4 py-2 rounded-2xl border text-left transition touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-main ${
+                  className={`min-h-touch px-4 py-2 rounded-2xl border text-left transition touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-main ${
                     isSelected
                       ? 'bg-accent text-surface border-accent'
                       : 'bg-surface/50 text-muted border-secondary/30 hover:border-accent/50 hover:text-main'
@@ -364,7 +364,7 @@ export function QuestionCrafting({ question, onQuestionChange, onNext, onBack })
                   key={option.value}
                   type="button"
                   onClick={() => setSpiritualFrame(option.value)}
-                  className={`min-h-[44px] px-4 py-2 rounded-2xl border text-left transition touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-main ${
+                  className={`min-h-touch px-4 py-2 rounded-2xl border text-left transition touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-main ${
                     isSelected
                       ? 'bg-accent text-surface border-accent'
                       : 'bg-surface/50 text-muted border-secondary/30 hover:border-accent/50 hover:text-main'
@@ -396,7 +396,7 @@ export function QuestionCrafting({ question, onQuestionChange, onNext, onBack })
         <button
           type="button"
           onClick={onBack}
-          className="flex items-center justify-center gap-1 min-h-[48px] px-4 py-3 rounded-xl border border-secondary/40 text-muted hover:text-main hover:border-secondary/60 transition motion-reduce:transition-none motion-reduce:transform-none touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary focus-visible:ring-offset-2 focus-visible:ring-offset-main"
+          className="flex items-center justify-center gap-1 min-h-cta px-4 py-3 rounded-xl border border-secondary/40 text-muted hover:text-main hover:border-secondary/60 transition motion-reduce:transition-none motion-reduce:transform-none touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary focus-visible:ring-offset-2 focus-visible:ring-offset-main"
         >
           <ArrowLeft className="w-4 h-4" />
           <span className="hidden xs:inline">Back</span>
@@ -404,7 +404,7 @@ export function QuestionCrafting({ question, onQuestionChange, onNext, onBack })
         <button
           type="button"
           onClick={onNext}
-          className="flex-1 flex items-center justify-center gap-2 min-h-[48px] px-6 py-3 rounded-xl bg-accent text-surface font-semibold text-base transition hover:bg-accent/90 active:scale-[0.98] motion-reduce:transition-none motion-reduce:transform-none touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-main"
+          className="flex-1 flex items-center justify-center gap-2 min-h-cta px-6 py-3 rounded-xl bg-accent text-surface font-semibold text-base transition hover:bg-accent/90 active:scale-[0.98] motion-reduce:transition-none motion-reduce:transform-none touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-main"
         >
           {question.trim() ? 'Continue' : 'Skip'}
           <ArrowRight className="w-5 h-5" weight="bold" />

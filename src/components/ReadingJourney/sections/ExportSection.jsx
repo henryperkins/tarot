@@ -19,7 +19,7 @@ import {
 import { JournalShareIcon } from '../../JournalIcons';
 
 const OUTLINE_BUTTON_CLASS = `
-  flex items-center gap-1.5 px-4 py-2.5 min-h-[44px] rounded-lg text-sm font-medium
+  flex items-center gap-1.5 px-4 py-2.5 min-h-touch rounded-lg text-sm font-medium
   border border-[color:var(--border-warm-light)] text-[color:var(--text-muted-high)] bg-[color:var(--border-warm-subtle)]
   hover:bg-[color:var(--border-warm-light)] hover:border-[color:var(--border-warm)]
   focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--accent-45)]
@@ -49,6 +49,7 @@ const formatExpiryLabel = (value) => {
  * @param {Array} props.filteredEntries - Entries matching the active filters
  * @param {Array} props.allEntries - All entries (unfiltered) for "all" scope
  * @param {Object} props.stats - Stats for PDF export
+ * @param {Object|null} props.preferenceDrift - Preference drift analysis (optional)
  * @param {string} props.scopeLabel - Human-friendly label for current scope
  * @param {boolean} props.filtersApplied - Whether journal filters are currently active
  */
@@ -61,6 +62,7 @@ function ExportSection({
   filteredEntries,
   allEntries,
   stats,
+  preferenceDrift,
   scopeLabel = 'Current view',
   filtersApplied = false
 }) {
@@ -242,6 +244,7 @@ function ExportSection({
     const success = await copyJournalShareSummary(snapshotStats, {
       scopeLabel: snapshotLabel,
       entryCount: snapshotEntryCount,
+      preferenceDrift,
     });
     if (!options.silent) {
       setShareStatus({
@@ -497,13 +500,13 @@ function ExportSection({
                 <div className="flex gap-2 mt-3">
                   <button
                     onClick={handleConfirmLargeExport}
-                    className="min-h-[44px] px-4 py-2.5 rounded text-sm font-medium bg-[color:var(--accent-25)] text-[color:var(--text-main)] hover:bg-[color:var(--accent-45)] transition-colors touch-manipulation"
+                    className="min-h-touch px-4 py-2.5 rounded text-sm font-medium bg-[color:var(--accent-25)] text-[color:var(--text-main)] hover:bg-[color:var(--accent-45)] transition-colors touch-manipulation"
                   >
                     Continue
                   </button>
                   <button
                     onClick={handleCancelLargeExport}
-                    className="min-h-[44px] px-4 py-2.5 rounded text-sm text-muted hover:text-main transition-colors touch-manipulation"
+                    className="min-h-touch px-4 py-2.5 rounded text-sm text-muted hover:text-main transition-colors touch-manipulation"
                   >
                     Cancel
                   </button>
@@ -626,7 +629,7 @@ function ExportSection({
                 max="10"
                 value={effectiveShareLimit}
                 onChange={(event) => setShareLimit(event.target.value)}
-                className="w-20 min-h-[44px] rounded border border-[color:var(--border-warm-light)] bg-[color:var(--border-warm-subtle)] px-3 py-2 text-sm text-[color:var(--text-main)] text-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--accent-45)] touch-manipulation"
+                className="w-20 min-h-touch rounded border border-[color:var(--border-warm-light)] bg-[color:var(--border-warm-subtle)] px-3 py-2 text-sm text-[color:var(--text-main)] text-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--accent-45)] touch-manipulation"
               />
             </div>
 
@@ -637,7 +640,7 @@ function ExportSection({
                 id="share-expiry"
                 value={expiresInHours}
                 onChange={(event) => setExpiresInHours(event.target.value)}
-                className="min-h-[44px] rounded border border-[color:var(--border-warm-light)] bg-[color:var(--border-warm-subtle)] px-3 py-2 text-sm text-[color:var(--text-main)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--accent-45)]"
+                className="min-h-touch rounded border border-[color:var(--border-warm-light)] bg-[color:var(--border-warm-subtle)] px-3 py-2 text-sm text-[color:var(--text-main)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--accent-45)]"
               >
                 {SHARE_EXPIRY_OPTIONS.map((option) => (
                   <option key={option.value} value={option.value}>
@@ -677,13 +680,13 @@ function ExportSection({
                 type="text"
                 value={linkCreated.url}
                 readOnly
-                className="w-full min-h-[44px] px-3 py-2 text-sm sm:text-xs bg-transparent text-[color:var(--text-main)] rounded border border-[color:color-mix(in_srgb,var(--status-success)_25%,transparent)] touch-manipulation"
+                className="w-full min-h-touch px-3 py-2 text-sm sm:text-xs bg-transparent text-[color:var(--text-main)] rounded border border-[color:color-mix(in_srgb,var(--status-success)_25%,transparent)] touch-manipulation"
                 onClick={(e) => e.target.select()}
                 aria-label="Share link - tap to select and copy"
               />
               <button
                 onClick={() => setLinkCreated(null)}
-                className="mt-2 min-h-[44px] px-3 py-2 text-sm sm:text-xs text-muted hover:text-[color:var(--status-success)] touch-manipulation"
+                className="mt-2 min-h-touch px-3 py-2 text-sm sm:text-xs text-muted hover:text-[color:var(--status-success)] touch-manipulation"
               >
                 Create another
               </button>

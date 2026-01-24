@@ -41,13 +41,9 @@ export function MobileBottomNav() {
         bg-surface/95 backdrop-blur-sm
         border-t border-secondary/20
         shadow-[0_-2px_10px_rgba(0,0,0,0.1)]
+        pb-[max(var(--safe-pad-bottom),0.5rem)] pl-safe-left pr-safe-right
         ${prefersReducedMotion ? '' : 'animate-fade-in'}
       `}
-      style={{
-        paddingBottom: 'max(env(safe-area-inset-bottom, 0px), 0.5rem)',
-        paddingLeft: 'env(safe-area-inset-left, 0px)',
-        paddingRight: 'env(safe-area-inset-right, 0px)',
-      }}
     >
       <div className="flex items-stretch">
         <button

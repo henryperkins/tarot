@@ -25,7 +25,7 @@ const TIMEFRAME_OPTIONS = [
 const DEFAULT_FILTERS = { query: '', contexts: [], spreads: [], decks: [], timeframe: 'all', onlyReversals: false };
 const SAVED_FILTERS_KEY = 'journal_saved_filters_v1';
 const ADVANCED_FILTERS_KEY = 'journal_filters_advanced_v1';
-const OUTLINE_FILTER_BASE = 'flex min-h-[44px] items-center gap-2 rounded-xl border px-2.5 py-2 text-[13px] font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:rgba(232,218,195,0.45)]';
+const OUTLINE_FILTER_BASE = 'flex min-h-touch items-center gap-2 rounded-xl border px-2.5 py-2 text-[13px] font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:rgba(232,218,195,0.45)]';
 const OUTLINE_FILTER_IDLE = 'border-[color:var(--border-warm-light)] text-[color:var(--text-muted)] hover:border-[color:var(--border-warm)] hover:text-[color:var(--text-main)]';
 const OUTLINE_FILTER_ACTIVE = 'border-[color:var(--brand-primary)] bg-[color:rgba(212,184,150,0.15)] text-[color:var(--text-main)] shadow-[0_12px_30px_-18px_rgba(212,184,150,0.75)]';
 
@@ -482,7 +482,7 @@ export function JournalFilters({
             type="button"
             onClick={() => setAdvancedOpen(prev => !prev)}
             aria-expanded={advancedOpen}
-            className="flex min-h-[44px] w-full items-center justify-between rounded-xl border border-[color:var(--border-warm-light)] bg-[color:rgba(212,184,150,0.05)] px-3 py-2.5 text-[13px] font-semibold text-[color:var(--text-main)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:rgba(232,218,195,0.45)]"
+            className="flex min-h-touch w-full items-center justify-between rounded-xl border border-[color:var(--border-warm-light)] bg-[color:rgba(212,184,150,0.05)] px-3 py-2.5 text-[13px] font-semibold text-[color:var(--text-main)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:rgba(232,218,195,0.45)]"
           >
             <span className="flex items-center gap-2">
               <span>More filters</span>
@@ -749,7 +749,7 @@ export function JournalFilters({
                   value={filters.query}
                   onChange={handleQueryChange}
                   placeholder="Search readings..."
-                  className="w-full min-h-[44px] rounded-xl border border-[color:var(--border-warm-light)] bg-[color:rgba(15,14,19,0.80)] px-8 py-2 text-[13px] text-[color:var(--text-main)] placeholder:text-[color:var(--color-gray-light)] focus:outline-none focus:ring-2 focus:ring-[color:rgba(232,218,195,0.50)]"
+                  className="w-full min-h-touch rounded-xl border border-[color:var(--border-warm-light)] bg-[color:rgba(15,14,19,0.80)] px-8 py-2 text-[13px] text-[color:var(--text-main)] placeholder:text-[color:var(--color-gray-light)] focus:outline-none focus:ring-2 focus:ring-[color:rgba(232,218,195,0.50)]"
                 />
               </div>
 
@@ -832,7 +832,7 @@ export function JournalFilters({
                       <button
                         type="button"
                         onClick={() => setSavePanelOpen(true)}
-                        className="inline-flex min-h-[44px] items-center gap-2 rounded-xl border border-[color:var(--border-warm)] bg-[color:rgba(212,184,150,0.10)] px-3 py-2 text-[13px] font-semibold text-[color:var(--text-main)] shadow-[0_12px_30px_-18px_rgba(212,184,150,0.55)] transition hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:rgba(232,218,195,0.50)]"
+                        className="inline-flex min-h-touch items-center gap-2 rounded-xl border border-[color:var(--border-warm)] bg-[color:rgba(212,184,150,0.10)] px-3 py-2 text-[13px] font-semibold text-[color:var(--text-main)] shadow-[0_12px_30px_-18px_rgba(212,184,150,0.55)] transition hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:rgba(232,218,195,0.50)]"
                       >
                         <JournalBookmarkIcon className="h-4 w-4 text-[color:var(--brand-accent)]" aria-hidden="true" />
                         Save this view
@@ -845,7 +845,7 @@ export function JournalFilters({
                           value={newFilterName}
                           onChange={(event) => setNewFilterName(event.target.value)}
                           placeholder="Name this view"
-                          className="flex-1 min-h-[44px] rounded-xl border border-[color:var(--border-warm-light)] bg-[color:rgba(15,14,19,0.70)] px-3 py-2 text-[13px] text-[color:var(--text-main)] placeholder:text-[color:var(--color-gray-light)] focus:outline-none focus:ring-2 focus:ring-[color:rgba(232,218,195,0.50)]"
+                          className="flex-1 min-h-touch rounded-xl border border-[color:var(--border-warm-light)] bg-[color:rgba(15,14,19,0.70)] px-3 py-2 text-[13px] text-[color:var(--text-main)] placeholder:text-[color:var(--color-gray-light)] focus:outline-none focus:ring-2 focus:ring-[color:rgba(232,218,195,0.50)]"
                         />
                         <div className="flex items-center gap-2">
                           <button

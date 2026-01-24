@@ -58,7 +58,7 @@ function SettingsToggle({ id, label, description, enabled, loading, onChange, er
         disabled={isDisabled}
         className={`
           w-full flex items-center justify-between gap-4 text-left
-          min-h-[44px] transition-colors touch-manipulation
+          min-h-touch transition-colors touch-manipulation
           focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60
           focus-visible:ring-offset-2 focus-visible:ring-offset-surface
           ${isDisabled ? 'opacity-70 cursor-not-allowed' : 'cursor-pointer'}
@@ -943,11 +943,6 @@ export default function AccountPage() {
     inactive: 'Inactive'
   };
   const statusLabel = statusLabels[statusValue] || statusValue;
-  const normalizeTimestamp = (timestamp) => (
-    typeof timestamp === 'number'
-      ? (timestamp < 1000000000000 ? timestamp * 1000 : timestamp)
-      : null
-  );
   const formatDate = (timestampMs) => (
     timestampMs
       ? new Date(timestampMs).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })
@@ -1067,13 +1062,8 @@ export default function AccountPage() {
   return (
     <div className="min-h-screen bg-main text-main">
       {/* Unified header with GlobalNav (includes UserMenu via withUserChip) - sticky with safe-area padding */}
-      <header 
-        className="sticky top-0 z-40 border-b border-secondary/20 bg-main/95 backdrop-blur-sm"
-        style={{
-          paddingTop: 'max(env(safe-area-inset-top, 0px), 0.75rem)',
-          paddingLeft: 'max(env(safe-area-inset-left, 0px), 1rem)',
-          paddingRight: 'max(env(safe-area-inset-right, 0px), 1rem)',
-        }}
+      <header
+        className="sticky top-0 z-40 border-b border-secondary/20 bg-main/95 backdrop-blur-sm pt-[max(var(--safe-pad-top),0.75rem)] pl-[max(var(--safe-pad-left),1rem)] pr-[max(var(--safe-pad-right),1rem)]"
       >
         <div className="mx-auto max-w-2xl px-4 py-3">
           <GlobalNav condensed withUserChip />
@@ -1099,12 +1089,11 @@ export default function AccountPage() {
 
         {/* Section Navigation Chips */}
         <nav
-          className="sticky z-30 -mx-4 px-4 py-2 bg-main/95 backdrop-blur-sm border-b border-secondary/20 overflow-x-auto"
+          className="sticky z-30 -mx-4 px-4 py-2 bg-main/95 backdrop-blur-sm border-b border-secondary/20 overflow-x-auto top-[calc(var(--safe-pad-top)+4.5rem)]"
           aria-label="Jump to section"
           style={{
             scrollbarWidth: 'none',
-            msOverflowStyle: 'none',
-            top: 'calc(env(safe-area-inset-top, 0px) + 4.5rem)'
+            msOverflowStyle: 'none'
           }}
         >
           <div className="flex items-center gap-2 min-w-max">
@@ -1365,7 +1354,7 @@ export default function AccountPage() {
                     onClick={() => setShowCurrentPassword((prev) => !prev)}
                     className="
                       absolute right-2 top-1/2 -translate-y-1/2
-                      min-w-[44px] min-h-[44px] flex items-center justify-center
+                      min-w-touch min-h-touch flex items-center justify-center
                       text-muted hover:text-main
                       focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60
                       focus-visible:ring-offset-2 focus-visible:ring-offset-surface
@@ -1401,7 +1390,7 @@ export default function AccountPage() {
                     onClick={() => setShowNextPassword((prev) => !prev)}
                     className="
                       absolute right-2 top-1/2 -translate-y-1/2
-                      min-w-[44px] min-h-[44px] flex items-center justify-center
+                      min-w-touch min-h-touch flex items-center justify-center
                       text-muted hover:text-main
                       focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60
                       focus-visible:ring-offset-2 focus-visible:ring-offset-surface
@@ -1443,7 +1432,7 @@ export default function AccountPage() {
                     onClick={() => setShowConfirmPassword((prev) => !prev)}
                     className="
                       absolute right-2 top-1/2 -translate-y-1/2
-                      min-w-[44px] min-h-[44px] flex items-center justify-center
+                      min-w-touch min-h-touch flex items-center justify-center
                       text-muted hover:text-main
                       focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60
                       focus-visible:ring-offset-2 focus-visible:ring-offset-surface
@@ -1949,7 +1938,7 @@ export default function AccountPage() {
                     aria-checked={isActive}
                     onClick={() => setTheme(option.id)}
                     className={`
-                      min-h-[44px] px-4 py-2 rounded-full text-xs font-semibold
+                      min-h-touch px-4 py-2 rounded-full text-xs font-semibold
                       flex items-center gap-2 transition
                       focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60
                       focus-visible:ring-offset-2 focus-visible:ring-offset-surface

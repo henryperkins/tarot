@@ -1,6 +1,7 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
+import { MotionConfig } from 'framer-motion';
 import './styles/tailwind.css';
 import { AuthProvider } from './contexts/AuthContext.jsx';
 import { SubscriptionProvider } from './contexts/SubscriptionContext.jsx';
@@ -12,20 +13,22 @@ import { SkipLink } from './components/SkipLink.jsx';
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
-    <AuthProvider>
-      <SubscriptionProvider>
-        <PreferencesProvider>
-          <ReadingProvider>
-            <ToastProvider>
-              <BrowserRouter>
-                <SkipLink />
-                <AnimatedRoutes />
-              </BrowserRouter>
-            </ToastProvider>
-          </ReadingProvider>
-        </PreferencesProvider>
-      </SubscriptionProvider>
-    </AuthProvider>
+    <MotionConfig reducedMotion="user">
+      <AuthProvider>
+        <SubscriptionProvider>
+          <PreferencesProvider>
+            <ReadingProvider>
+              <ToastProvider>
+                <BrowserRouter>
+                  <SkipLink />
+                  <AnimatedRoutes />
+                </BrowserRouter>
+              </ToastProvider>
+            </ReadingProvider>
+          </PreferencesProvider>
+        </SubscriptionProvider>
+      </AuthProvider>
+    </MotionConfig>
   </React.StrictMode>
 );
 

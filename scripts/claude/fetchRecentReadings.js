@@ -223,11 +223,60 @@ function formatReadingForClaude(reading, index) {
   - Notes: ${evalScores.notes || 'N/A'}` : `
 **Automated Eval:** Not available`;
 
+  // Helper to get data from both v1 and v2 schema payloads
+  const getCardCoverage = (r) => {
+    if (r.schemaVersion >= 2) {
+      return r.narrative?.coverage?.percentage;
+    }
+    return r.narrative?.cardCoverage;
+  };
+
+  const getHallucinatedCards = (r) => {
+    if (r.schemaVersion >= 2) {
+      return r.narrative?.coverage?.hallucinatedCards;
+    }
+    return r.narrative?.hallucinatedCards;
+  };
+
+  const getPromptMeta = (r) => {
+    if (r.schemaVersion >= 2) {
+      return {
+        truncation: r.prompt?.truncation,
+        hardCap: r.prompt?.hardCap,
+        slimmingSteps: r.prompt?.slimming?.steps || [],
+        estimatedTokens: r.prompt?.tokens
+      };
+    }
+    return r.promptMeta || {};
+  };
+
   const narrativeMetrics = reading.narrative;
+  const coverage = getCardCoverage(reading);
+  const hallucinatedCards = getHallucinatedCards(reading);
   const metricsSection = narrativeMetrics ? `
 **Narrative Metrics:**
-  - Card Coverage: ${(narrativeMetrics.cardCoverage * 100).toFixed(0)}%
-  - Hallucinated Cards: ${narrativeMetrics.hallucinatedCards?.length || 0}` : '';
+  - Card Coverage: ${coverage != null ? (coverage * 100).toFixed(0) + '%' : 'N/A'}
+  - Hallucinated Cards: ${hallucinatedCards?.length || 0}` : '';
+
+  // Prompt truncation telemetry
+  const promptMeta = getPromptMeta(reading);
+  let truncationSection = '';
+  if (promptMeta) {
+    const truncation = promptMeta.truncation;
+    const hardCap = promptMeta.hardCap;
+    const slimmingSteps = promptMeta.slimmingSteps || [];
+    const estimatedTokens = promptMeta.estimatedTokens;
+
+    if (truncation || hardCap || slimmingSteps.length > 0) {
+      truncationSection = `
+**Prompt Truncation:**
+${truncation ? `  - Truncated: YES (system: ${truncation.systemTruncated}, user: ${truncation.userTruncated})
+  - Original tokens: ${truncation.originalTotalTokens}` : '  - Truncated: No'}${hardCap ? `
+  - Hard cap applied: YES (${hardCap.steps?.join(', ') || 'unknown'})` : ''}${slimmingSteps.length > 0 ? `
+  - Slimming steps: ${slimmingSteps.join(' → ')}` : ''}${estimatedTokens ? `
+  - Estimated tokens: ${estimatedTokens.total} (system: ${estimatedTokens.system}, user: ${estimatedTokens.user})` : ''}`;
+    }
+  }
 
   // Try to get the actual reading text from various possible locations
   const readingText = reading.readingText ||
@@ -254,6 +303,7 @@ ${typeof readingText === 'string' ? readingText.slice(0, 2000) : '(No reading te
 ${readingText?.length > 2000 ? '...[truncated]' : ''}
 ${evalSection}
 ${metricsSection}
+${truncationSection}
 `;
 }
 

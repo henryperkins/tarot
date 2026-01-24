@@ -237,7 +237,7 @@ export function JourneyBegin({ selectedSpread, question, onBegin, onBack }) {
         <button
           type="button"
           onClick={onBack}
-          className="flex items-center justify-center gap-1 min-h-[48px] px-4 py-3 rounded-xl border border-secondary/40 text-muted hover:text-main hover:border-secondary/60 transition motion-reduce:transition-none motion-reduce:transform-none touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary focus-visible:ring-offset-2 focus-visible:ring-offset-main"
+          className="flex items-center justify-center gap-1 min-h-cta px-4 py-3 rounded-xl border border-secondary/40 text-muted hover:text-main hover:border-secondary/60 transition motion-reduce:transition-none motion-reduce:transform-none touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary focus-visible:ring-offset-2 focus-visible:ring-offset-main"
         >
           <ArrowLeft className="w-4 h-4" />
           <span className="hidden xs:inline">Back</span>
@@ -245,7 +245,7 @@ export function JourneyBegin({ selectedSpread, question, onBegin, onBack }) {
         <button
           type="button"
           onClick={onBegin}
-          className="flex-1 flex items-center justify-center gap-2 min-h-[52px] px-6 py-3 rounded-xl bg-gradient-to-r from-accent to-gold text-surface font-bold text-lg shadow-lg shadow-accent/25 transition hover:shadow-xl hover:shadow-accent/30 active:scale-[0.98] motion-reduce:transition-none motion-reduce:transform-none touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-main"
+          className="flex-1 flex items-center justify-center gap-2 min-h-cta px-6 py-3 rounded-xl bg-gradient-to-r from-accent to-gold text-surface font-bold text-lg shadow-lg shadow-accent/25 transition hover:shadow-xl hover:shadow-accent/30 active:scale-[0.98] motion-reduce:transition-none motion-reduce:transform-none touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-main"
         >
           <Play className="w-5 h-5" weight="fill" />
           Begin Your Reading

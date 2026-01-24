@@ -87,19 +87,13 @@ export function CameraCapture({ onCapture, onCancel }) {
   return (
     <div className={containerClass}>
       {error ? (
-        <div 
-          className="text-main text-center p-4"
-          style={{
-            paddingTop: 'max(1rem, env(safe-area-inset-top))',
-            paddingBottom: 'max(1rem, env(safe-area-inset-bottom))',
-            paddingLeft: 'max(1rem, env(safe-area-inset-left))',
-            paddingRight: 'max(1rem, env(safe-area-inset-right))'
-          }}
+        <div
+          className="text-main text-center p-4 pt-[max(1rem,var(--safe-pad-top))] pb-[max(1rem,var(--safe-pad-bottom))] pl-[max(1rem,var(--safe-pad-left))] pr-[max(1rem,var(--safe-pad-right))]"
         >
           <p className="text-sm xs:text-base">{error}</p>
           <button 
             onClick={onCancel} 
-            className="mt-4 px-6 py-3 min-h-[44px] bg-error hover:bg-error/90 rounded-lg text-surface text-sm font-medium transition touch-manipulation"
+            className="mt-4 px-6 py-3 min-h-touch bg-error hover:bg-error/90 rounded-lg text-surface text-sm font-medium transition touch-manipulation"
           >
             Close
           </button>
@@ -113,25 +107,16 @@ export function CameraCapture({ onCapture, onCancel }) {
         className={`
           absolute bg-main/70 backdrop-blur-sm
           flex items-center justify-center
-          ${isLandscape 
-            ? 'right-0 top-0 bottom-0 flex-col gap-4 xs:gap-6 w-20 xs:w-24' 
-            : 'bottom-0 left-0 right-0 flex-row gap-6 xs:gap-8 py-4 xs:py-6'
+          ${isLandscape
+            ? 'right-0 top-0 bottom-0 flex-col gap-4 xs:gap-6 w-20 xs:w-24 pt-[max(0.75rem,var(--safe-pad-top))] pb-[max(0.75rem,var(--safe-pad-bottom))] pr-[max(0.75rem,var(--safe-pad-right))]'
+            : 'bottom-0 left-0 right-0 flex-row gap-6 xs:gap-8 py-4 xs:py-6 pb-[max(1rem,var(--safe-pad-bottom))] pl-[max(1rem,var(--safe-pad-left))] pr-[max(1rem,var(--safe-pad-right))]'
           }
         `}
-        style={isLandscape ? {
-          paddingTop: 'max(0.75rem, env(safe-area-inset-top))',
-          paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))',
-          paddingRight: 'max(0.75rem, env(safe-area-inset-right))'
-        } : {
-          paddingBottom: 'max(1rem, env(safe-area-inset-bottom))',
-          paddingLeft: 'max(1rem, env(safe-area-inset-left))',
-          paddingRight: 'max(1rem, env(safe-area-inset-right))'
-        }}
       >
         {/* Cancel button - 44px minimum touch target */}
         <button 
           onClick={onCancel} 
-          className="min-w-[44px] min-h-[44px] px-4 py-2 text-main text-sm font-medium hover:text-main/80 transition touch-manipulation rounded-lg active:bg-surface-muted/60"
+          className="min-w-touch min-h-touch px-4 py-2 text-main text-sm font-medium hover:text-main/80 transition touch-manipulation rounded-lg active:bg-surface-muted/60"
         >
           Cancel
         </button>

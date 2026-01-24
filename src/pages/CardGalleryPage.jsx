@@ -447,16 +447,11 @@ export default function CardGalleryPage() {
   }, [hasTotalEntries, isAuthenticated, loadMoreEntries, loadingFullHistory, loadingMore]);
 
   return (
-    <div className="min-h-screen bg-main text-main animate-fade-in">
-      {/* Sticky navigation header with safe-area padding */}
-      <header 
-        className="sticky top-0 z-40 bg-main/95 backdrop-blur-sm border-b border-secondary/20"
-        style={{
-          paddingTop: 'max(env(safe-area-inset-top, 0px), 0.75rem)',
-          paddingLeft: 'max(env(safe-area-inset-left, 0px), 1rem)',
-          paddingRight: 'max(env(safe-area-inset-right, 0px), 1rem)',
-        }}
-      >
+      <div className="min-h-screen bg-main text-main animate-fade-in">
+        {/* Sticky navigation header with safe-area padding */}
+        <header
+          className="sticky top-0 z-40 bg-main/95 backdrop-blur-sm border-b border-secondary/20 pt-[max(var(--safe-pad-top),0.75rem)] pl-[max(var(--safe-pad-left),1rem)] pr-[max(var(--safe-pad-right),1rem)]"
+        >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3">
           <GlobalNav withUserChip />
         </div>
@@ -467,7 +462,7 @@ export default function CardGalleryPage() {
         <div className="mb-8">
           <button
             onClick={() => navigate('/journal')}
-            className="inline-flex min-h-[44px] items-center gap-2 rounded-full px-3 py-2 text-accent hover:text-main hover:bg-surface-muted/30 transition touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--accent-45)] mb-4"
+            className="inline-flex min-h-touch items-center gap-2 rounded-full px-3 py-2 text-accent hover:text-main hover:bg-surface-muted/30 transition touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--accent-45)] mb-4"
           >
             <CaretLeft className="w-5 h-5" />
             <span>Back to Journal</span>
@@ -512,7 +507,7 @@ export default function CardGalleryPage() {
               aria-label="Filter by suit"
               value={filterSuit}
               onChange={(e) => setFilterSuit(e.target.value)}
-              className="appearance-none min-h-[44px] bg-white/5 border border-white/10 rounded-lg pl-3 pr-8 py-2 text-sm text-main focus:ring-1 focus:ring-accent/50 outline-none cursor-pointer hover:bg-white/10 touch-manipulation"
+              className="appearance-none min-h-touch bg-white/5 border border-white/10 rounded-lg pl-3 pr-8 py-2 text-sm text-main focus:ring-1 focus:ring-accent/50 outline-none cursor-pointer hover:bg-white/10 touch-manipulation"
             >
               <option value="all">All Suits</option>
               <option value="major">Major Arcana</option>
@@ -533,21 +528,21 @@ export default function CardGalleryPage() {
             <button
               onClick={() => setFilterStatus('all')}
               aria-pressed={filterStatus === 'all'}
-              className={`min-h-[44px] px-4 py-2 text-xs font-medium rounded-md transition-all touch-manipulation ${filterStatus === 'all' ? 'bg-accent/20 text-accent' : 'text-muted hover:text-main'}`}
+              className={`min-h-touch px-4 py-2 text-xs font-medium rounded-md transition-all touch-manipulation ${filterStatus === 'all' ? 'bg-accent/20 text-accent' : 'text-muted hover:text-main'}`}
             >
               All
             </button>
             <button
               onClick={() => setFilterStatus('found')}
               aria-pressed={filterStatus === 'found'}
-              className={`min-h-[44px] px-4 py-2 text-xs font-medium rounded-md transition-all touch-manipulation ${filterStatus === 'found' ? 'bg-accent/20 text-accent' : 'text-muted hover:text-main'}`}
+              className={`min-h-touch px-4 py-2 text-xs font-medium rounded-md transition-all touch-manipulation ${filterStatus === 'found' ? 'bg-accent/20 text-accent' : 'text-muted hover:text-main'}`}
             >
               Found
             </button>
             <button
               onClick={() => setFilterStatus('missing')}
               aria-pressed={filterStatus === 'missing'}
-              className={`min-h-[44px] px-4 py-2 text-xs font-medium rounded-md transition-all touch-manipulation ${filterStatus === 'missing' ? 'bg-accent/20 text-accent' : 'text-muted hover:text-main'}`}
+              className={`min-h-touch px-4 py-2 text-xs font-medium rounded-md transition-all touch-manipulation ${filterStatus === 'missing' ? 'bg-accent/20 text-accent' : 'text-muted hover:text-main'}`}
             >
               Missing
             </button>
@@ -563,7 +558,7 @@ export default function CardGalleryPage() {
               aria-label="Sort cards by"
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value)}
-              className="appearance-none min-h-[44px] bg-white/5 border border-white/10 rounded-lg pl-3 pr-8 py-2 text-sm text-main focus:ring-1 focus:ring-accent/50 outline-none cursor-pointer hover:bg-white/10 touch-manipulation"
+              className="appearance-none min-h-touch bg-white/5 border border-white/10 rounded-lg pl-3 pr-8 py-2 text-sm text-main focus:ring-1 focus:ring-accent/50 outline-none cursor-pointer hover:bg-white/10 touch-manipulation"
             >
               <option value="deck">Deck Order</option>
               <option value="count_desc">Most Frequent</option>
@@ -650,7 +645,7 @@ export default function CardGalleryPage() {
         )}
 
         {!loading && filteredCards.length === 0 && (
-          <div className="text-center py-20 text-muted">
+          <div className="text-center py-20 short:py-12 text-muted">
             <p>No cards match your filters.</p>
             <button
               onClick={() => { setFilterSuit('all'); setFilterStatus('all'); }}

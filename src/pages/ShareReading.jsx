@@ -221,7 +221,7 @@ export default function ShareReading() {
             <button
               type="button"
               onClick={() => navigate('/')}
-              className="inline-flex items-center gap-2 text-accent hover:text-accent/80 transition min-h-[44px] min-w-[44px] px-2 -ml-2 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
+              className="inline-flex items-center gap-2 text-accent hover:text-accent/80 transition min-h-touch min-w-touch px-2 -ml-2 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
               aria-label="Back to Reading"
             >
               <ArrowLeft className="h-5 w-5" weight="bold" />
@@ -238,7 +238,7 @@ export default function ShareReading() {
             ) : (
               <Link
                 to="/account"
-                className="inline-flex items-center justify-center gap-1.5 rounded-full border border-secondary/40 bg-surface/60 px-3 py-2 text-xs font-medium text-main hover:bg-surface hover:border-secondary/60 transition min-h-[44px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
+                className="inline-flex items-center justify-center gap-1.5 rounded-full border border-secondary/40 bg-surface/60 px-3 py-2 text-xs font-medium text-main hover:bg-surface hover:border-secondary/60 transition min-h-touch focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
               >
                 <User className="h-4 w-4" />
                 <span className="hidden sm:inline">Account</span>
@@ -264,20 +264,20 @@ export default function ShareReading() {
               <button
                 type="button"
                 onClick={copyShareLink}
-                className="inline-flex items-center justify-center rounded-full border border-primary/50 px-4 py-2 min-h-[44px] text-sm text-main hover:bg-primary/10 active:bg-primary/20 touch-manipulation transition"
+                className="inline-flex items-center justify-center rounded-full border border-primary/50 px-4 py-2 min-h-touch text-sm text-main hover:bg-primary/10 active:bg-primary/20 touch-manipulation transition"
               >
                 Copy link
               </button>
               <button
                 type="button"
                 onClick={fetchShare}
-                className="inline-flex items-center justify-center rounded-full border border-primary/50 px-4 py-2 min-h-[44px] text-sm text-main hover:bg-primary/10 active:bg-primary/20 touch-manipulation transition"
+                className="inline-flex items-center justify-center rounded-full border border-primary/50 px-4 py-2 min-h-touch text-sm text-main hover:bg-primary/10 active:bg-primary/20 touch-manipulation transition"
               >
                 Refresh reading
               </button>
               <Link
                 to="/"
-                className="inline-flex items-center justify-center rounded-full border border-primary/50 px-4 py-2 min-h-[44px] text-sm text-main hover:bg-primary/10 active:bg-primary/20 touch-manipulation transition"
+                className="inline-flex items-center justify-center rounded-full border border-primary/50 px-4 py-2 min-h-touch text-sm text-main hover:bg-primary/10 active:bg-primary/20 touch-manipulation transition"
               >
                 Start your reading
               </Link>
@@ -316,7 +316,7 @@ export default function ShareReading() {
                   key={entry.id}
                   type="button"
                   onClick={() => setSelectedEntryIndex(index)}
-                  className={`inline-flex items-center justify-center rounded-full border px-4 py-2 min-h-[44px] text-xs uppercase tracking-[0.15em] touch-manipulation transition ${index === selectedEntryIndex
+                  className={`inline-flex items-center justify-center rounded-full border px-4 py-2 min-h-touch text-xs uppercase tracking-[0.15em] touch-manipulation transition ${index === selectedEntryIndex
                     ? 'border-primary bg-primary/10 text-main'
                     : 'border-secondary text-muted hover:border-primary/50 active:bg-primary/5'
                     }`}
@@ -330,8 +330,7 @@ export default function ShareReading() {
 
         {/* Mobile view toggle - only visible below lg breakpoint */}
         <div
-          className="mt-6 lg:hidden sticky z-20"
-          style={{ top: 'calc(var(--share-header-height, 5rem) + env(safe-area-inset-top, 0px))' }}
+          className="mt-6 lg:hidden sticky z-20 top-[calc(var(--share-header-height,5rem)+var(--safe-pad-top))]"
           role="tablist"
           aria-label="View selection"
         >
@@ -351,7 +350,7 @@ export default function ShareReading() {
                   document.getElementById(mobileView === 'spread' ? 'mobile-notes-tab' : 'mobile-spread-tab')?.focus();
                 }
               }}
-              className={`flex-1 rounded-lg px-4 py-3 min-h-[44px] text-sm font-semibold transition-all touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70 ${
+              className={`flex-1 rounded-lg px-4 py-3 min-h-touch text-sm font-semibold transition-all touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70 ${
                 mobileView === 'spread'
                   ? 'bg-surface shadow-sm border border-secondary/30 text-accent'
                   : 'text-muted hover:text-main'
@@ -374,7 +373,7 @@ export default function ShareReading() {
                   document.getElementById(mobileView === 'spread' ? 'mobile-notes-tab' : 'mobile-spread-tab')?.focus();
                 }
               }}
-              className={`flex-1 rounded-lg px-4 py-3 min-h-[44px] text-sm font-semibold transition-all touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70 ${
+              className={`flex-1 rounded-lg px-4 py-3 min-h-touch text-sm font-semibold transition-all touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70 ${
                 mobileView === 'notes'
                   ? 'bg-surface shadow-sm border border-secondary/30 text-accent'
                   : 'text-muted hover:text-main'
@@ -440,12 +439,12 @@ export default function ShareReading() {
         {/* Mobile: bottom CTA to jump to note form - only for authenticated users without bottom bar */}
         {mobileView === 'notes' && isAuthenticated && (
           <div
-            className="lg:hidden fixed right-4 z-30 bottom-[calc(env(safe-area-inset-bottom,0px)+1rem)]"
+            className="lg:hidden fixed right-4 z-30 bottom-[calc(var(--safe-pad-bottom)+1rem)]"
           >
             <button
               type="button"
               onClick={scrollToNotesForm}
-              className="inline-flex items-center gap-2 rounded-full bg-primary text-surface px-4 py-2.5 shadow-lg shadow-primary/30 border border-primary/70 text-sm font-semibold touch-manipulation min-h-[44px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/70"
+              className="inline-flex items-center gap-2 rounded-full bg-primary text-surface px-4 py-2.5 shadow-lg shadow-primary/30 border border-primary/70 text-sm font-semibold touch-manipulation min-h-touch focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/70"
               aria-label="Jump to note form"
             >
               Add note
@@ -503,14 +502,14 @@ export default function ShareReading() {
               <div className="flex flex-col sm:flex-row gap-2">
                 <Link
                   to="/"
-                  className="inline-flex items-center justify-center gap-2 rounded-full bg-accent px-5 py-3 text-sm font-semibold text-surface shadow-md hover:bg-accent/90 transition min-h-[44px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
+                  className="inline-flex items-center justify-center gap-2 rounded-full bg-accent px-5 py-3 text-sm font-semibold text-surface shadow-md hover:bg-accent/90 transition min-h-touch focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
                 >
                   <Sparkle className="h-4 w-4" weight="fill" />
                   Start Reading
                 </Link>
                 <Link
                   to="/account"
-                  className="inline-flex items-center justify-center rounded-full border border-secondary/60 bg-transparent px-4 py-2.5 text-sm font-semibold text-main hover:bg-secondary/10 transition min-h-[44px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
+                  className="inline-flex items-center justify-center rounded-full border border-secondary/60 bg-transparent px-4 py-2.5 text-sm font-semibold text-main hover:bg-secondary/10 transition min-h-touch focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
                 >
                   Sign In
                 </Link>

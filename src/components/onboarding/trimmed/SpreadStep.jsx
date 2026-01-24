@@ -136,7 +136,7 @@ export function SpreadStep({ selectedSpread, onSelectSpread, onNext, onBack }) {
         <button
           type="button"
           onClick={onBack}
-          className="min-h-[44px] min-w-[44px] px-4 py-3 text-muted flex items-center gap-1 transition hover:text-main touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-xl"
+          className="min-h-touch min-w-touch px-4 py-3 text-muted flex items-center gap-1 transition hover:text-main touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-xl"
           aria-label="Go back"
         >
           <ArrowLeft className="w-4 h-4" weight="bold" aria-hidden="true" />
@@ -146,7 +146,7 @@ export function SpreadStep({ selectedSpread, onSelectSpread, onNext, onBack }) {
           type="button"
           onClick={handleContinue}
           disabled={!selectedSpread}
-          className="flex-1 min-h-[52px] rounded-xl bg-accent text-surface font-semibold transition hover:bg-accent/90 active:scale-[0.98] touch-manipulation disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-main"
+          className="flex-1 min-h-cta rounded-xl bg-accent text-surface font-semibold transition hover:bg-accent/90 active:scale-[0.98] touch-manipulation disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-main"
         >
           Continue
         </button>

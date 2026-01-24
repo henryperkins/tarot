@@ -70,7 +70,7 @@ describe('generateFollowUpSuggestions', () => {
       const spreadSuggestion = suggestions.find(s => s.type === 'spread');
       assert.ok(spreadSuggestion, 'Should include spread-specific suggestion');
       assert.ok(
-        spreadSuggestion.text.includes('crossing') || spreadSuggestion.text.includes('subconscious'),
+        spreadSuggestion.text.includes('Challenge') || spreadSuggestion.text.includes('Subconscious'),
         'Should reference Celtic Cross positions'
       );
     });
@@ -85,7 +85,7 @@ describe('generateFollowUpSuggestions', () => {
       const spreadSuggestion = suggestions.find(s => s.type === 'spread');
       assert.ok(spreadSuggestion);
       assert.ok(
-        spreadSuggestion.text.includes('present') || spreadSuggestion.text.includes('bridge'),
+        spreadSuggestion.text.includes('Present') || spreadSuggestion.text.includes('Future'),
         'Should reference past/present/future flow'
       );
     });
@@ -115,7 +115,7 @@ describe('generateFollowUpSuggestions', () => {
       const spreadSuggestion = suggestions.find(s => s.type === 'spread');
       assert.ok(spreadSuggestion);
       assert.ok(
-        spreadSuggestion.text.includes('path') || spreadSuggestion.text.includes('choice'),
+        spreadSuggestion.text.includes('path') || spreadSuggestion.text.includes('clarifier'),
         'Should reference decision paths'
       );
     });
@@ -350,6 +350,36 @@ describe('generateFollowUpSuggestions', () => {
       const suggestions = generateFollowUpSuggestions(reading, themes, {});
       const symbolSuggestion = suggestions.find(s => s.type === 'symbol');
       assert.ok(symbolSuggestion, 'Should include symbol reflection suggestion');
+    });
+  });
+
+  describe('rotation behavior', () => {
+    test('uses rotation index to vary suggestions when multiple candidates exist', () => {
+      const reading = [
+        { name: 'The Tower', isReversed: true },
+        { name: 'The Fool', number: 0 },
+        { name: 'The Magician', number: 1 },
+        { name: 'The High Priestess', number: 2 },
+        { name: 'Ace of Wands' }
+      ];
+      const themes = {
+        suitCounts: { Wands: 3, Cups: 0, Swords: 0, Pentacles: 0 },
+        elementCounts: { Fire: 3, Water: 0, Air: 0, Earth: 0 }
+      };
+      const meta = { spreadKey: 'threeCard', userQuestion: 'What should I focus on now?' };
+
+      const first = generateFollowUpSuggestions(reading, themes, meta, {
+        rotationSeed: 'rotation-test',
+        rotationIndex: 0
+      });
+      const second = generateFollowUpSuggestions(reading, themes, meta, {
+        rotationSeed: 'rotation-test',
+        rotationIndex: 1
+      });
+
+      assert.ok(first.length > 0);
+      assert.ok(second.length > 0);
+      assert.notDeepEqual(first, second, 'Rotation index should vary suggestions');
     });
   });
 });

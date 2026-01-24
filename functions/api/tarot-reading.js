@@ -82,6 +82,7 @@ import {
   buildVisionMetrics,
   persistReadingMetrics
 } from '../lib/readingQuality.js';
+import { buildMetricsPayload } from '../lib/telemetrySchema.js';
 import {
   performSpreadAnalysis,
   buildEphemerisClientPayload,
@@ -218,8 +219,6 @@ async function finalizeReading({
     : null;
 
   const promptMeta = narrativePayload.promptMeta || null;
-  const promptTokens = promptMeta?.estimatedTokens || null;
-  const promptSlimming = promptMeta?.slimmingSteps || [];
   const graphRAGStats = resolveGraphRAGStats(analysis, promptMeta);
   const finalContextDiagnostics = Array.isArray(narrativePayload.contextDiagnostics)
     ? narrativePayload.contextDiagnostics
@@ -319,13 +318,9 @@ async function finalizeReading({
     }
   }
 
+  // Build clean narrative metrics (spine + coverage only, no duplicated fields)
   const narrativeMetrics = {
-    ...finalNarrativeMetrics,
-    enhancementTelemetry,
-    promptTokens,
-    promptSlimming,
-    graphRAG: graphRAGStats,
-    contextDiagnostics: diagnosticsPayload
+    ...finalNarrativeMetrics
   };
 
   let promptEngineering = null;
@@ -350,47 +345,33 @@ async function finalizeReading({
 
   const timestamp = new Date().toISOString();
 
-  const tokens = capturedUsage ? {
-    input: capturedUsage.input_tokens,
-    output: capturedUsage.output_tokens,
-    total: capturedUsage.total_tokens || (capturedUsage.input_tokens + capturedUsage.output_tokens),
-    source: 'api'
-  } : null;
-
-  const evalGateReason = evalGateResult?.gateResult?.reason || evalGateResult?.reason || null;
-  const evalGateRan = evalGateResult ? Boolean(evalGateResult.gateResult) : false;
-
-  const metricsPayload = {
+  // Build deduplicated metrics payload using schema v2
+  // Note: context is accessed via promptMeta.context (not passed separately)
+  const metricsPayload = buildMetricsPayload({
     requestId,
     timestamp,
     provider: finalProvider,
-    deckStyle,
     spreadKey: analysis.spreadKey,
-    context,
-    readingPromptVersion: promptMeta?.readingPromptVersion || null,
-    variantId: abAssignment?.variantId || null,
-    experimentId: abAssignment?.experimentId || null,
-    tokens,
-    vision: visionMetrics,
-    narrative: narrativeMetrics,
-    ...(wasGateBlocked && allowGateBlocking ? { narrativeOriginal: baseNarrativeMetrics } : {}),
-    narrativeEnhancements: narrativeEnhancementSummary,
-    graphRAG: graphRAGStats,
+    deckStyle,
     promptMeta,
+    graphRAGStats,
+    narrativeMetrics: wasGateBlocked && allowGateBlocking ? baseNarrativeMetrics : finalNarrativeMetrics,
+    visionMetrics,
+    abAssignment,
+    capturedUsage,
+    evalGateResult,
+    wasGateBlocked,
+    backendErrors,
     enhancementTelemetry,
-    contextDiagnostics: diagnosticsPayload,
-    promptEngineering,
-    llmUsage: capturedUsage,
-    backendErrors: backendErrors.length > 0 ? backendErrors : undefined,
-    evalGate: evalGateResult ? {
-      ran: evalGateRan,
-      passed: evalGateResult.passed,
-      reason: evalGateReason,
-      latencyMs: evalGateResult.latencyMs ?? null,
-      blocked: wasGateBlocked
-    } : { ran: false }
-  };
+    diagnostics: diagnosticsPayload
+  });
 
+  // Add prompt engineering payload if persisting prompts
+  if (promptEngineering) {
+    metricsPayload.promptEngineering = promptEngineering;
+  }
+
+  // Add gate block details if blocked
   if (wasGateBlocked && allowGateBlocking) {
     metricsPayload.evalOriginalPreview = trimForTelemetry(originalReading, 2000);
     metricsPayload.evalProviderOriginal = originalProvider;
@@ -985,7 +966,8 @@ Your cards will be here when you're ready. Right now, please take care of yourse
         if (streamingFallback) {
           // Skip live streaming when we need to fall back to buffered backends.
         } else if (!shouldBufferStreaming) {
-          const graphRAGStats = resolveGraphRAGStats(analysis, narrativePayload.promptMeta);
+          // Use promptMeta.graphRAG directly (set by buildAzureGPT5Prompts)
+          const graphRAGStats = narrativePayload.promptMeta?.graphRAG || null;
           const finalContextDiagnostics = Array.isArray(narrativePayload.contextDiagnostics)
             ? narrativePayload.contextDiagnostics
             : contextDiagnostics;
@@ -1112,6 +1094,10 @@ Your cards will be here when you're ready. Right now, please take care of yourse
         const attemptReasoningSummary = (typeof backendResult === 'object' && backendResult.reasoningSummary)
           ? backendResult.reasoningSummary
           : null;
+        // Capture promptMeta for truncation telemetry
+        if (typeof backendResult === 'object' && backendResult.promptMeta) {
+          narrativePayload.promptMeta = backendResult.promptMeta;
+        }
 
         applyGraphRAGAlerts(narrativePayload, requestId, backend.id);
 

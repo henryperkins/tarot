@@ -3,7 +3,8 @@
  */
 
 import { memo } from 'react';
-import { Lightning } from '@phosphor-icons/react';
+import { Lightning, Info } from '@phosphor-icons/react';
+import { Tooltip } from '../../Tooltip';
 
 // Context colors
 const CONTEXT_COLORS = {
@@ -62,12 +63,24 @@ function ContextBreakdown({ data = [], preferenceDrift, maxItems = 4 }) {
       {preferenceDrift?.hasDrift && preferenceDrift.driftContexts?.[0]?.context && (
         <div className="mt-3 flex items-start gap-2 rounded-lg bg-[color:var(--border-warm-subtle)] p-2 border border-[color:var(--border-warm-light)]">
           <Lightning className="h-3.5 w-3.5 text-accent mt-0.5 flex-shrink-0" />
-          <p className="text-xs text-muted-high">
-            <span className="font-medium">Emerging:</span>{' '}
-            {preferenceDrift.driftContexts[0].context.charAt(0).toUpperCase() +
-              preferenceDrift.driftContexts[0].context.slice(1)}{' '}
-            (+{preferenceDrift.driftContexts[0].count} readings)
-          </p>
+          <div className="flex items-center gap-2">
+            <p className="text-xs text-muted-high">
+              <span className="font-medium">Emerging:</span>{' '}
+              {preferenceDrift.driftContexts[0].context.charAt(0).toUpperCase() +
+                preferenceDrift.driftContexts[0].context.slice(1)}{' '}
+              (+{preferenceDrift.driftContexts[0].count} readings)
+            </p>
+            {preferenceDrift.detail && (
+              <Tooltip
+                content={preferenceDrift.detail}
+                position="top"
+                ariaLabel="Why is this showing up?"
+                triggerClassName="text-muted hover:text-main"
+              >
+                <Info className="h-3 w-3" />
+              </Tooltip>
+            )}
+          </div>
         </div>
       )}
     </div>

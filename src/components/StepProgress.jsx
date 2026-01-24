@@ -176,7 +176,7 @@ export function StepProgress({ steps = [], activeStep, onSelect, condensed = fal
                   focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/80
                   focus-visible:ring-offset-2 focus-visible:ring-offset-main
                   touch-manipulation active:scale-[0.97]
-                  min-h-[44px]
+                  min-h-touch
                   ${isCelebrating ? 'motion-safe:animate-pop-in' : ''}
                   ${condensed
                     ? 'px-1.5 xs:px-2 sm:px-3 py-2 text-xs-plus'

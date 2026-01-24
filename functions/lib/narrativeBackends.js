@@ -242,7 +242,7 @@ export function buildAzureGPT5Prompts(env, payload, requestId = 'unknown') {
  */
 export async function generateWithAzureGPT5Responses(env, payload, requestId = 'unknown') {
   const deploymentName = env.AZURE_OPENAI_GPT5_MODEL;
-  const { systemPrompt, userPrompt } = buildAzureGPT5Prompts(env, payload, requestId);
+  const { systemPrompt, userPrompt, promptMeta } = buildAzureGPT5Prompts(env, payload, requestId);
 
   // Determine reasoning effort based on model
   const reasoningEffort = getReasoningEffort(env, deploymentName);
@@ -290,7 +290,8 @@ export async function generateWithAzureGPT5Responses(env, payload, requestId = '
       system: systemPrompt,
       user: userPrompt
     },
-    usage: result.usage
+    usage: result.usage,
+    promptMeta
   };
 }
 

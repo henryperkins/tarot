@@ -434,13 +434,13 @@ export function DeckRitual({
               <div className="flex justify-between mt-2 xs:mt-3 gap-2">
                 <button
                   onClick={() => setShowCutSlider(false)}
-                  className="text-[0.7rem] xs:text-xs text-muted hover:text-main transition-colors px-3 py-2 rounded-full hover:bg-surface-muted/50 min-h-[44px] touch-manipulation"
+                  className="text-[0.7rem] xs:text-xs text-muted hover:text-main transition-colors px-3 py-2 rounded-full hover:bg-surface-muted/50 min-h-touch touch-manipulation"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleCutConfirm}
-                  className="px-4 py-2 rounded-full bg-secondary/20 border border-secondary/50 text-secondary text-[0.7rem] xs:text-xs font-semibold hover:bg-secondary/30 transition-colors min-h-[44px] touch-manipulation"
+                  className="px-4 py-2 rounded-full bg-secondary/20 border border-secondary/50 text-secondary text-[0.7rem] xs:text-xs font-semibold hover:bg-secondary/30 transition-colors min-h-touch touch-manipulation"
                 >
                   Confirm Cut
                 </button>
@@ -475,7 +475,7 @@ export function DeckRitual({
           disabled={knockComplete || showCutSlider}
           className={`
             flex items-center rounded-full font-medium
-            transition-all touch-manipulation min-h-[44px]
+            transition-all touch-manipulation min-h-touch
             ${isLandscape ? 'gap-1 px-2.5 py-1.5 text-[0.65rem]' : 'gap-1.5 px-2.5 xs:px-3 py-2 text-[0.7rem] xs:text-xs'}
             ${knockComplete
               ? 'bg-secondary/15 border border-secondary/40 text-secondary cursor-default'
@@ -493,7 +493,7 @@ export function DeckRitual({
           onClick={() => setShowCutSlider(prev => !prev)}
           className={`
             flex items-center rounded-full font-medium
-            transition-all touch-manipulation min-h-[44px]
+            transition-all touch-manipulation min-h-touch
             ${isLandscape ? 'gap-1 px-2.5 py-1.5 text-[0.65rem]' : 'gap-1.5 px-2.5 xs:px-3 py-2 text-[0.7rem] xs:text-xs'}
             ${hasCut
               ? 'bg-secondary/15 border border-secondary/40 text-secondary'
@@ -521,7 +521,7 @@ export function DeckRitual({
             bg-surface/60 border border-accent/30 text-muted
             hover:bg-surface hover:border-accent/50 hover:text-main
             disabled:opacity-50 disabled:cursor-not-allowed
-            transition-all touch-manipulation min-h-[44px] active:scale-95
+            transition-all touch-manipulation min-h-touch active:scale-95
             ${isLandscape ? 'gap-1 px-2.5 py-1.5 text-[0.65rem]' : 'gap-1.5 px-2.5 xs:px-3 py-2 text-[0.7rem] xs:text-xs'}
           `}
           aria-label={isShuffling ? 'Shuffling deck...' : 'Shuffle the deck'}
@@ -583,7 +583,7 @@ export function DeckRitual({
           <motion.button
             onClick={handleDealWithAnimation}
             disabled={isShuffling}
-            className={`inline-flex items-center rounded-full bg-primary text-main font-semibold shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors hover:bg-primary/90 min-h-[44px] ${isLandscape ? 'gap-2 px-4 py-2 text-sm' : 'gap-2 xs:gap-3 px-4 xs:px-5 sm:px-6 py-2 xs:py-2.5 sm:py-3 text-sm xs:text-base'}`}
+            className={`inline-flex items-center rounded-full bg-primary text-main font-semibold shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors hover:bg-primary/90 min-h-touch ${isLandscape ? 'gap-2 px-4 py-2 text-sm' : 'gap-2 xs:gap-3 px-4 xs:px-5 sm:px-6 py-2 xs:py-2.5 sm:py-3 text-sm xs:text-base'}`}
             style={{ boxShadow: '0 10px 30px color-mix(in srgb, var(--brand-primary) 30%, transparent)' }}
             whileHover={prefersReducedMotion ? {} : { scale: 1.03 }}
             whileTap={prefersReducedMotion ? {} : { scale: 0.98 }}

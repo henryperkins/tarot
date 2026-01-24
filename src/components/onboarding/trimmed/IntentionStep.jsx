@@ -128,7 +128,7 @@ export function IntentionStep({ question, onQuestionChange, onNext, onBack }) {
                   key={starter}
                   type="button"
                   onClick={() => onQuestionChange(starter)}
-                  className="block w-full text-left min-h-[44px] px-3 py-2 rounded-lg border border-secondary/20 text-sm text-muted transition touch-manipulation hover:border-accent/50 hover:text-main focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                  className="block w-full text-left min-h-touch px-3 py-2 rounded-lg border border-secondary/20 text-sm text-muted transition touch-manipulation hover:border-accent/50 hover:text-main focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
                 >
                   {starter}
                 </button>
@@ -143,7 +143,7 @@ export function IntentionStep({ question, onQuestionChange, onNext, onBack }) {
         <button
           type="button"
           onClick={onBack}
-          className="min-h-[44px] min-w-[44px] px-4 py-3 text-muted flex items-center gap-1 transition hover:text-main motion-reduce:transition-none motion-reduce:transform-none touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-xl"
+          className="min-h-touch min-w-touch px-4 py-3 text-muted flex items-center gap-1 transition hover:text-main motion-reduce:transition-none motion-reduce:transform-none touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-xl"
           aria-label="Go back"
         >
           <ArrowLeft className="w-4 h-4" weight="bold" aria-hidden="true" />
@@ -152,7 +152,7 @@ export function IntentionStep({ question, onQuestionChange, onNext, onBack }) {
         <button
           type="button"
           onClick={onNext}
-          className="flex-1 min-h-[52px] rounded-xl bg-accent text-surface font-semibold transition hover:bg-accent/90 active:scale-[0.98] motion-reduce:transition-none motion-reduce:transform-none touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-main"
+          className="flex-1 min-h-cta rounded-xl bg-accent text-surface font-semibold transition hover:bg-accent/90 active:scale-[0.98] motion-reduce:transition-none motion-reduce:transform-none touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-main"
         >
           {hasQuestion ? 'Continue' : 'Skip for now'}
         </button>

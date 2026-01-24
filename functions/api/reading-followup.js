@@ -26,6 +26,7 @@ import { getMemories, consolidateSessionMemories } from '../lib/userMemory.js';
 import { MEMORY_TOOL_AZURE_RESPONSES_FORMAT, handleMemoryToolCall } from '../lib/memoryTool.js';
 import { detectCrisisSignals } from '../lib/safetyChecks.js';
 import { checkFollowUpSafety, generateSafeFollowUpFallback } from '../lib/evaluation.js';
+import { detectHallucinatedCards } from '../lib/readingQuality.js';
 
 // Rate limits by tier
 const FOLLOW_UP_LIMITS = {
@@ -141,8 +142,22 @@ export const onRequestPost = async ({ request, env, ctx }) => {
 
     // Crisis detection on follow-up question (matches tarot-reading.js pattern)
     const crisisCheck = detectCrisisSignals(followUpQuestion);
-    if (crisisCheck.matched) {
-      console.warn(`[${requestId}] Crisis signals in follow-up: ${crisisCheck.categories.join(', ')}`);
+
+    // P1: Also scan accumulated conversation history for crisis signals
+    // This catches gradual escalation across turns that individual questions might miss
+    const historyTexts = Array.isArray(conversationHistory)
+      ? conversationHistory
+          .filter(msg => msg?.role === 'user' && msg?.content)
+          .map(msg => msg.content)
+          .slice(-3) // Check last 3 user messages
+      : [];
+    const accumulatedText = [followUpQuestion, ...historyTexts].join(' ');
+    const historyCheck = historyTexts.length > 0 ? detectCrisisSignals(accumulatedText) : { matched: false };
+
+    if (crisisCheck.matched || historyCheck.matched) {
+      const categories = [...new Set([...(crisisCheck.categories || []), ...(historyCheck.categories || [])])];
+      const source = crisisCheck.matched ? 'current_question' : 'accumulated_history';
+      console.warn(`[${requestId}] Crisis signals in follow-up (${source}): ${categories.join(', ')}`);
       // Return a compassionate response that redirects to appropriate resources
       // Note: turnNumber is unknown at this point, so we omit it from the response
       return jsonResponse({
@@ -156,7 +171,7 @@ Please consider reaching out to someone who can really be there for you:
 Your cards will be here when you're ready. Right now, please take care of yourself. 💙`,
         meta: {
           provider: 'safety-gate',
-          crisisCategories: crisisCheck.categories,
+          crisisCategories: categories,
           requestId
         }
       });
@@ -520,6 +535,16 @@ Your cards will be here when you're ready. Right now, please take care of yourse
               console.warn(`[${requestId}] Follow-up safety warnings (streamed): ${safetyCheck.issues.join(', ')}`);
             }
 
+            // Hallucination check for streaming (post-hoc logging - can't block after sending)
+            const hallucinations = detectHallucinatedCards(
+              fullText,
+              effectiveContext?.cardsInfo || [],
+              effectiveContext?.deckStyle || 'rws-1909'
+            );
+            if (hallucinations.length > 0) {
+              console.warn(`[${requestId}] Follow-up hallucinated cards (streamed): ${hallucinations.join(', ')}`);
+            }
+
             const trackingPromise = finalizeFollowUpUsage(env.DB, {
               reservationId,
               responseLength: fullText.length,
@@ -645,6 +670,20 @@ Your cards will be here when you're ready. Right now, please take care of yourse
         } else if (safetyCheck.issues.length > 0) {
           // Log warnings but allow response through
           console.log(`[${requestId}] Follow-up safety warnings (allowed): ${safetyCheck.issues.join(', ')}`);
+        }
+
+        // Hallucination check: detect cards mentioned that weren't in the spread
+        const hallucinations = detectHallucinatedCards(
+          responseText,
+          effectiveContext?.cardsInfo || [],
+          effectiveContext?.deckStyle || 'rws-1909'
+        );
+        if (hallucinations.length > 0) {
+          console.warn(`[${requestId}] Follow-up hallucinated cards: ${hallucinations.join(', ')}`);
+          // For non-streaming, append a grounding reminder if multiple hallucinations
+          if (hallucinations.length > 1) {
+            responseText += '\n\n*Please note: Focus on the cards actually drawn in your spread for the most grounded guidance.*';
+          }
         }
       } catch (llmError) {
         console.error(`[${requestId}] LLM error: ${llmError.message}`);

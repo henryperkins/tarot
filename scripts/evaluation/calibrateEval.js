@@ -7,6 +7,37 @@
 
 import * as readline from 'node:readline';
 
+// Helper to get prompt version from both v1 and v2 schema payloads
+function getPromptVersion(payload) {
+  if (!payload) return null;
+  if (payload.schemaVersion >= 2) {
+    return payload.experiment?.promptVersion;
+  }
+  return payload.readingPromptVersion ||
+    payload.promptMeta?.readingPromptVersion ||
+    null;
+}
+
+// Helper to get card coverage from both v1 and v2 schema payloads
+function getCardCoverage(payload) {
+  if (!payload) return null;
+  if (payload.schemaVersion >= 2) {
+    return payload.narrative?.coverage?.percentage;
+  }
+  return payload.cardCoverage ??
+    payload.narrative?.cardCoverage ??
+    null;
+}
+
+// Helper to get variant ID from both v1 and v2 schema payloads
+function getVariantId(payload) {
+  if (!payload) return null;
+  if (payload.schemaVersion >= 2) {
+    return payload.experiment?.variantId;
+  }
+  return payload.variantId || null;
+}
+
 const rl = readline.createInterface({ input: process.stdin });
 const records = [];
 
@@ -52,10 +83,10 @@ rl.on('close', () => {
   const safetyFlags = records.filter((r) => r.eval?.scores?.safety_flag === true);
 
   const coherenceVsCoverage = records
-    .filter((r) => r.eval?.scores?.tarot_coherence != null && r.cardCoverage != null)
+    .filter((r) => r.eval?.scores?.tarot_coherence != null && getCardCoverage(r) != null)
     .map((r) => ({
       coherence: r.eval.scores.tarot_coherence,
-      coverage: r.cardCoverage
+      coverage: getCardCoverage(r)
     }));
 
   console.log('=== Evaluation Score Analysis ===\n');
@@ -111,9 +142,7 @@ rl.on('close', () => {
   // Group by reading prompt version
   const versionGroups = {};
   records.forEach((r) => {
-    const version = r.readingPromptVersion ||
-      r.promptMeta?.readingPromptVersion ||
-      'unknown';
+    const version = getPromptVersion(r) || 'unknown';
     if (!versionGroups[version]) {
       versionGroups[version] = [];
     }
@@ -153,7 +182,7 @@ rl.on('close', () => {
   // Group by variant
   const variantGroups = {};
   records.forEach((r) => {
-    const variant = r.variantId || 'control';
+    const variant = getVariantId(r) || 'control';
     if (!variantGroups[variant]) {
       variantGroups[variant] = [];
     }

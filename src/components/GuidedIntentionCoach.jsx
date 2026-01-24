@@ -32,7 +32,12 @@ import {
   getCoachSummary
 } from '../lib/intentionCoach';
 import { scoreQuestion, getQualityLevel } from '../lib/questionQuality';
-import { loadCoachRecommendation, loadStoredJournalInsights, loadCoachStatsSnapshot } from '../lib/journalInsights';
+import {
+  buildSourceDetailFromSignals,
+  loadCoachRecommendation,
+  loadStoredJournalInsights,
+  loadCoachStatsSnapshot
+} from '../lib/journalInsights';
 import {
   loadCoachTemplates,
   saveCoachTemplate,
@@ -190,7 +195,7 @@ const FOCUS_AREA_SUGGESTIONS = {
 const baseOptionClass =
   'text-left rounded-2xl border bg-surface-muted/50 px-4 py-4 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-surface';
 const infoButtonClass =
-  'inline-flex min-w-[44px] min-h-[44px] items-center justify-center rounded-full text-secondary/70 transition hover:text-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60';
+  'inline-flex min-w-touch min-h-touch items-center justify-center rounded-full text-secondary/70 transition hover:text-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60';
 
 // ============================================================================
 // Helper Functions
@@ -379,7 +384,7 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply,
   const [templateStatus, setTemplateStatus] = useState('');
   const [questionHistory, setQuestionHistory] = useState([]);
   const [coachStats, setCoachStats] = useState(null);
-  const [_coachStatsMeta, setCoachStatsMeta] = useState(null);
+  const [coachStatsMeta, setCoachStatsMeta] = useState(null);
   const [personalizedSuggestions, setPersonalizedSuggestions] = useState([]);
   const [suggestionsPage, setSuggestionsPage] = useState(0);
   const [isSuggestionsExpanded, setSuggestionsExpanded] = useState(false);
@@ -394,6 +399,20 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply,
     getServerViewportOffset
   );
   const effectiveOffset = Math.max(0, viewportOffset);
+  const coachSnapshotLabel = useMemo(() => {
+    if (!coachStatsMeta) return '';
+    const parts = [];
+    if (coachStatsMeta.filterLabel) {
+      parts.push(coachStatsMeta.filterLabel);
+    }
+    if (typeof coachStatsMeta.entryCount === 'number') {
+      parts.push(`${coachStatsMeta.entryCount} entries`);
+    }
+    return parts.join(' · ');
+  }, [coachStatsMeta]);
+  const coachSnapshotDetail = useMemo(() => {
+    return buildSourceDetailFromSignals(coachStatsMeta?.signalsUsed);
+  }, [coachStatsMeta]);
 
   // Refs
   const modalRef = useRef(null);
@@ -1395,27 +1414,11 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply,
     return null;
   }
 
-  const contentPaddingTop = isSmallScreen
-    ? 'calc(env(safe-area-inset-top, 0px) + 0.5rem)'
-    : null;
-  const shouldApplySafeAreaX = isSmallScreen || isLandscape;
-  const safeAreaXStyle = shouldApplySafeAreaX
-    ? {
-      paddingLeft: 'max(1rem, env(safe-area-inset-left, 0px))',
-      paddingRight: 'max(1rem, env(safe-area-inset-right, 0px))'
-    }
-    : null;
-  const contentPaddingStyle = contentPaddingTop || safeAreaXStyle
-    ? {
-      ...(contentPaddingTop ? { paddingTop: contentPaddingTop } : null),
-      ...(safeAreaXStyle || {})
-    }
-    : undefined;
-  const footerPaddingStyle = effectiveOffset || safeAreaXStyle
-    ? {
-      ...(effectiveOffset ? { paddingBottom: `calc(env(safe-area-inset-bottom, 0px) + ${effectiveOffset + 16}px)` } : null),
-      ...(safeAreaXStyle || {})
-    }
+  const safeAreaXClass = !isSmallScreen && isLandscape
+    ? 'pl-[max(1rem,var(--safe-pad-left))] pr-[max(1rem,var(--safe-pad-right))]'
+    : '';
+  const footerPaddingStyle = !isSmallScreen && effectiveOffset
+    ? { paddingBottom: `calc(var(--safe-pad-bottom) + ${effectiveOffset + 16}px)` }
     : undefined;
 
   // ============================================================================
@@ -1424,11 +1427,8 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply,
 
   return (
     <div
-      className={`fixed inset-0 z-[70] flex ${isSmallScreen ? 'items-end' : 'items-center'} justify-center`}
-      style={isSmallScreen ? {
-        paddingTop: 'max(16px, env(safe-area-inset-top, 16px))',
-        paddingBottom: effectiveOffset ? `${effectiveOffset}px` : undefined
-      } : undefined}
+      className={`fixed inset-0 z-[70] flex ${isSmallScreen ? 'items-end pt-[max(16px,var(--safe-pad-top))]' : 'items-center'} justify-center`}
+      style={isSmallScreen && effectiveOffset ? { paddingBottom: `${effectiveOffset}px` } : undefined}
     >
       {/* Backdrop */}
       <div
@@ -1496,7 +1496,7 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply,
                 ref={closeButtonRef}
                 type="button"
                 onClick={onClose}
-                className={isSmallScreen ? 'mobile-drawer__close' : 'absolute top-4 right-4 sm:top-6 sm:right-6 min-h-[44px] min-w-[44px] flex items-center justify-center rounded-full text-muted hover:text-main hover:bg-surface-muted/50 z-10 touch-manipulation transition-colors'}
+                className={isSmallScreen ? 'mobile-drawer__close' : 'absolute top-4 right-4 sm:top-6 sm:right-6 min-h-touch min-w-touch flex items-center justify-center rounded-full text-muted hover:text-main hover:bg-surface-muted/50 z-10 touch-manipulation transition-colors'}
                 aria-label="Close intention coach"
               >
                 <X className="w-5 h-5" />
@@ -1507,8 +1507,7 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply,
           {/* Scrollable content area */}
           <div className={`flex-1 overflow-y-auto overscroll-contain min-h-0 ${isSmallScreen ? 'mobile-drawer__body' : ''}`}>
             <div
-              className={`flex flex-col gap-6 px-4 pb-6 sm:px-10 sm:pb-6 ${isLandscape ? 'pt-4 gap-4' : 'pt-4 sm:pt-6'}`}
-              style={!isSmallScreen ? contentPaddingStyle : undefined}
+              className={`flex flex-col gap-6 px-4 pb-6 sm:px-10 sm:pb-6 ${isLandscape ? 'pt-4 gap-4' : 'pt-4 sm:pt-6'} ${safeAreaXClass}`}
             >
               {personalizedSuggestions.length > 0 && (
                 <section className="rounded-2xl border border-secondary/30 bg-surface-muted/40 p-4 space-y-3">
@@ -1520,6 +1519,21 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply,
                           ? 'Based on your journal trends and recent questions.'
                           : `${personalizedSuggestions.length} suggestions ready. Tap to peek.`}
                       </p>
+                      {coachSnapshotLabel && (
+                        <div className="mt-1 flex items-center gap-2 text-[0.65rem] text-secondary/70">
+                          <span>{coachSnapshotLabel}</span>
+                          {coachSnapshotDetail && (
+                            <Tooltip
+                              content={coachSnapshotDetail}
+                              position="top"
+                              ariaLabel="Why am I seeing these?"
+                              triggerClassName="text-secondary/70 hover:text-main"
+                            >
+                              <Info className="h-3 w-3" />
+                            </Tooltip>
+                          )}
+                        </div>
+                      )}
                     </div>
                     <div className="flex items-center gap-2 text-xs text-secondary">
                       {isSuggestionsExpanded && suggestionPageCount > 1 && (
@@ -1622,7 +1636,7 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply,
                           aria-selected={index === step}
                           aria-controls={`step-panel-${entry.id}`}
                           tabIndex={index === step ? 0 : -1}
-                          className={`rounded-full px-3 py-1 min-h-[44px] min-w-[44px] touch-manipulation transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/70 focus-visible:ring-offset-2 focus-visible:ring-offset-surface ${
+                          className={`rounded-full px-3 py-1 min-h-touch min-w-touch touch-manipulation transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/70 focus-visible:ring-offset-2 focus-visible:ring-offset-surface ${
                             index === step
                               ? 'bg-accent text-surface shadow-lg shadow-accent/20'
                               : 'bg-surface-muted text-muted hover:bg-surface-muted/80 hover:text-accent'
@@ -1674,7 +1688,7 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply,
 
           {/* Footer - OUTSIDE scrollable area for proper sticky behavior */}
           <div
-            className={`flex-shrink-0 ${isSmallScreen ? 'mobile-drawer__footer' : 'bg-surface border-t border-accent/20 sm:border-t-0 px-4 sm:px-10 pb-safe sm:pb-6'} ${isLandscape ? 'pt-2' : isSmallScreen ? '' : 'pt-4 sm:pt-0'}`}
+            className={`flex-shrink-0 ${isSmallScreen ? 'mobile-drawer__footer' : 'bg-surface border-t border-accent/20 sm:border-t-0 px-4 sm:px-10 pb-safe sm:pb-6'} ${isLandscape ? 'pt-2' : isSmallScreen ? '' : 'pt-4 sm:pt-0'} ${safeAreaXClass}`}
             style={!isSmallScreen ? footerPaddingStyle : undefined}
           >
             {historyStatus && (
@@ -1693,7 +1707,7 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply,
                   type="button"
                   onClick={goBack}
                   disabled={step === 0}
-                  className={`inline-flex items-center justify-center gap-1 rounded-full border border-accent/20 text-sm text-main transition disabled:opacity-40 min-h-[44px] sm:min-h-0 touch-manipulation ${isLandscape ? 'px-3 py-2 flex-none' : 'px-4 py-2.5 sm:py-2 flex-1 sm:flex-none'}`}
+                  className={`inline-flex items-center justify-center gap-1 rounded-full border border-accent/20 text-sm text-main transition disabled:opacity-40 min-h-touch sm:min-h-0 touch-manipulation ${isLandscape ? 'px-3 py-2 flex-none' : 'px-4 py-2.5 sm:py-2 flex-1 sm:flex-none'}`}
                 >
                   <ArrowLeft className="h-4 w-4" />
                   {!isLandscape && <span>Back</span>}
@@ -1703,7 +1717,7 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply,
                     type="button"
                     onClick={goNext}
                     disabled={!canGoNext()}
-                    className={`inline-flex items-center justify-center gap-2 rounded-full border border-secondary/60 bg-secondary/20 text-sm font-medium text-secondary transition disabled:opacity-50 min-h-[44px] sm:min-h-0 touch-manipulation ${isLandscape ? 'px-4 py-2 flex-none' : 'px-5 py-2.5 sm:py-2 flex-1 sm:flex-none'}`}
+                    className={`inline-flex items-center justify-center gap-2 rounded-full border border-secondary/60 bg-secondary/20 text-sm font-medium text-secondary transition disabled:opacity-50 min-h-touch sm:min-h-0 touch-manipulation ${isLandscape ? 'px-4 py-2 flex-none' : 'px-5 py-2.5 sm:py-2 flex-1 sm:flex-none'}`}
                   >
                     <span>Next</span>
                     <ArrowRight className="h-4 w-4" />
@@ -1713,7 +1727,7 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply,
                     type="button"
                     onClick={handleApply}
                     disabled={(!questionText && !guidedQuestion) || questionLoading}
-                    className={`inline-flex items-center justify-center gap-2 rounded-full border border-secondary/60 bg-secondary/80 text-sm font-semibold text-surface transition disabled:opacity-50 min-h-[44px] sm:min-h-0 touch-manipulation ${isLandscape ? 'px-4 py-2 flex-none' : 'px-5 py-2.5 sm:py-2 flex-1 sm:flex-none'}`}
+                    className={`inline-flex items-center justify-center gap-2 rounded-full border border-secondary/60 bg-secondary/80 text-sm font-semibold text-surface transition disabled:opacity-50 min-h-touch sm:min-h-0 touch-manipulation ${isLandscape ? 'px-4 py-2 flex-none' : 'px-5 py-2.5 sm:py-2 flex-1 sm:flex-none'}`}
                   >
                     <span>{isLandscape ? 'Use' : 'Use question'}</span>
                     <Sparkle className="h-4 w-4" />

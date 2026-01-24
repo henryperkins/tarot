@@ -381,6 +381,7 @@ async function getReviewQueue(db, options = {}) {
   const hallucinationCountExpr = `
     COALESCE(
       hallucination_count,
+      json_array_length(json_extract(payload, '$.narrative.coverage.hallucinatedCards')),
       json_array_length(json_extract(payload, '$.narrative.hallucinatedCards')),
       json_array_length(json_extract(payload, '$.narrativeOriginal.hallucinatedCards')),
       0
@@ -416,11 +417,13 @@ async function getReviewQueue(db, options = {}) {
       json_extract(payload, '$.eval.scores.notes') as notes,
       COALESCE(
         card_coverage,
+        json_extract(payload, '$.narrative.coverage.percentage'),
         json_extract(payload, '$.narrative.cardCoverage'),
         json_extract(payload, '$.narrativeOriginal.cardCoverage')
       ) as card_coverage,
       COALESCE(
         hallucinated_cards,
+        json_extract(payload, '$.narrative.coverage.hallucinatedCards'),
         json_extract(payload, '$.narrative.hallucinatedCards'),
         json_extract(payload, '$.narrativeOriginal.hallucinatedCards')
       ) as hallucinated_cards,
@@ -428,11 +431,16 @@ async function getReviewQueue(db, options = {}) {
       json_extract(payload, '$.userQuestion') as user_question,
       COALESCE(
         reading_prompt_version,
+        json_extract(payload, '$.experiment.promptVersion'),
         json_extract(payload, '$.readingPromptVersion'),
         json_extract(payload, '$.promptMeta.readingPromptVersion')
       ) as reading_prompt_version,
       json_extract(payload, '$.eval.promptVersion') as eval_prompt_version,
-      COALESCE(variant_id, json_extract(payload, '$.variantId')) as variant_id
+      COALESCE(
+        variant_id,
+        json_extract(payload, '$.experiment.variantId'),
+        json_extract(payload, '$.variantId')
+      ) as variant_id
     FROM eval_metrics
     WHERE ${baseWhere}
     ORDER BY COALESCE(json_extract(payload, '$.timestamp'), created_at) DESC

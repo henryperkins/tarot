@@ -171,7 +171,7 @@ export function CardModal({
 
     return (
         <div
-            className="fixed inset-0 z-[100] flex items-center justify-center p-2 sm:p-4 px-safe-left px-safe-right py-safe-top pb-safe-bottom"
+            className="fixed inset-0 z-[100] flex items-center justify-center p-2 sm:p-4 px-safe pt-safe pb-safe-bottom"
             role="dialog"
             aria-modal="true"
             aria-labelledby={titleId}
@@ -189,18 +189,11 @@ export function CardModal({
             <motion.div
                 layoutId={layoutId}
                 ref={modalRef}
-                className="relative w-full max-w-md max-h-[80dvh] overflow-y-auto bg-surface border border-primary/30 rounded-xl shadow-2xl shadow-black/50 flex flex-col"
+                className="relative w-full max-w-md max-h-[80dvh] overflow-y-auto bg-surface border border-primary/30 rounded-xl shadow-2xl shadow-black/50 flex flex-col pt-[max(0.75rem,var(--safe-pad-top))] pr-[max(0.75rem,var(--safe-pad-right))] pb-[max(0.75rem,var(--safe-pad-bottom))] pl-[max(0.75rem,var(--safe-pad-left))]"
                 tabIndex={-1}
                 role="document"
                 onTouchStart={handleTouchStart}
                 onTouchEnd={handleTouchEnd}
-                style={{
-                    // Safe area padding for notch/Dynamic Island
-                    paddingTop: 'max(0.75rem, env(safe-area-inset-top))',
-                    paddingRight: 'max(0.75rem, env(safe-area-inset-right))',
-                    paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))',
-                    paddingLeft: 'max(0.75rem, env(safe-area-inset-left))'
-                }}
             >
                 {/* Compact header with integrated navigation and close */}
                 <div className="flex items-center justify-between gap-2 px-1 pb-2 border-b border-primary/10">

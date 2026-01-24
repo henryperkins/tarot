@@ -85,24 +85,35 @@ async function exportEvalData(options) {
       // ignore parse errors
     }
 
-    return {
-      requestId: row.request_id,
-      timestamp: row.created_at,
-      provider: row.provider,
-      spreadKey: row.spread_key,
-      eval: payload.eval || {
-        scores: {
-          overall: row.overall_score,
-          safety_flag: row.safety_flag === 1
+      // Handle both v1 and v2 schema payloads
+      let cardCoverage, hallucinatedCardsCount;
+      if (payload.schemaVersion >= 2) {
+        cardCoverage = row.card_coverage ?? payload.narrative?.coverage?.percentage;
+        hallucinatedCardsCount = payload.narrative?.coverage?.hallucinatedCards?.length || 0;
+      } else {
+        cardCoverage = row.card_coverage ?? payload.narrative?.cardCoverage;
+        hallucinatedCardsCount = payload.narrative?.hallucinatedCards?.length || 0;
+      }
+
+      return {
+        requestId: row.request_id,
+        timestamp: row.created_at,
+        provider: row.provider,
+        spreadKey: row.spread_key,
+        eval: payload.eval || {
+          scores: {
+            overall: row.overall_score,
+            safety_flag: row.safety_flag === 1
+          },
+          mode: row.eval_mode
         },
-        mode: row.eval_mode
-      },
-      cardCoverage: row.card_coverage ?? payload.narrative?.cardCoverage,
-      hallucinatedCards: payload.narrative?.hallucinatedCards?.length || 0,
-      readingPromptVersion: row.reading_prompt_version,
-      variantId: row.variant_id
-    };
-  });
+        cardCoverage,
+        hallucinatedCards: hallucinatedCardsCount,
+        readingPromptVersion: row.reading_prompt_version,
+        variantId: row.variant_id,
+        schemaVersion: payload.schemaVersion || 1
+      };
+    });
 
   return records;
 }

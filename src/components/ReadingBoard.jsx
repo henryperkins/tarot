@@ -74,8 +74,8 @@ function CardDetailContent({
     ? 'text-xs font-semibold text-accent hover:text-main underline underline-offset-4 mt-2'
     : 'text-xs font-semibold text-accent hover:text-main underline underline-offset-4 mt-1';
   const openButtonClass = isFocusLayout
-    ? 'mt-4 inline-flex w-full min-h-[48px] items-center justify-center rounded-full border border-secondary/40 px-4 py-2 text-xs font-semibold text-muted hover:text-main hover:border-secondary/60 transition touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/50'
-    : 'mt-3 inline-flex min-h-[44px] items-center justify-center rounded-full border border-secondary/40 px-4 py-2 text-xs font-semibold text-muted hover:text-main hover:border-secondary/60 transition touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/50';
+    ? 'mt-4 inline-flex w-full min-h-cta items-center justify-center rounded-full border border-secondary/40 px-4 py-2 text-xs font-semibold text-muted hover:text-main hover:border-secondary/60 transition touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/50'
+    : 'mt-3 inline-flex min-h-touch items-center justify-center rounded-full border border-secondary/40 px-4 py-2 text-xs font-semibold text-muted hover:text-main hover:border-secondary/60 transition touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/50';
   const reflectionLabelClass = isFocusLayout ? 'text-muted text-sm block mb-1' : 'text-muted text-xs-plus sm:text-sm block mb-1';
 
   return (
@@ -294,17 +294,13 @@ function CardFocusOverlay({
       />
       <div
         ref={overlayRef}
-        className="relative z-10 flex h-full flex-col focus:outline-none"
+        className="relative z-10 flex h-full flex-col focus:outline-none pt-[max(10px,var(--safe-pad-top))] pb-[max(12px,var(--safe-pad-bottom))]"
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
         onTouchStart={handleTouchStart}
         onTouchEnd={handleTouchEnd}
         tabIndex={-1}
-        style={{
-          paddingTop: 'max(10px, env(safe-area-inset-top, 10px))',
-          paddingBottom: 'max(12px, env(safe-area-inset-bottom, 12px))'
-        }}
       >
         <div className="sticky top-0 z-20 border-b border-secondary/20 bg-main/70 backdrop-blur-sm">
           <div className="flex items-center justify-between gap-2 px-4 py-2">
@@ -312,7 +308,7 @@ function CardFocusOverlay({
               ref={closeButtonRef}
               type="button"
               onClick={onClose}
-              className="inline-flex items-center gap-2 min-h-[44px] rounded-full border border-secondary/30 bg-surface/40 px-3 text-xs font-semibold text-muted hover:text-main hover:border-secondary/50 transition touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/50"
+              className="inline-flex items-center gap-2 min-h-touch rounded-full border border-secondary/30 bg-surface/40 px-3 text-xs font-semibold text-muted hover:text-main hover:border-secondary/50 transition touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/50"
               aria-label="Back to spread"
             >
               <X className="w-4 h-4" />
@@ -325,7 +321,7 @@ function CardFocusOverlay({
                 type="button"
                 onClick={() => onNavigate?.('prev')}
                 disabled={!canNavigatePrev}
-                className="flex items-center gap-1 text-xs text-muted hover:text-main disabled:opacity-30 disabled:cursor-not-allowed transition touch-manipulation min-h-[44px] px-2"
+                className="flex items-center gap-1 text-xs text-muted hover:text-main disabled:opacity-30 disabled:cursor-not-allowed transition touch-manipulation min-h-touch px-2"
                 aria-label="Previous card"
               >
                 <CaretLeft className="w-5 h-5" />
@@ -336,7 +332,7 @@ function CardFocusOverlay({
                 type="button"
                 onClick={() => onNavigate?.('next')}
                 disabled={!canNavigateNext}
-                className="flex items-center gap-1 text-xs text-muted hover:text-main disabled:opacity-30 disabled:cursor-not-allowed transition touch-manipulation min-h-[44px] px-2"
+                className="flex items-center gap-1 text-xs text-muted hover:text-main disabled:opacity-30 disabled:cursor-not-allowed transition touch-manipulation min-h-touch px-2"
                 aria-label="Next card"
               >
                 <span className="sr-only xs:not-sr-only">Next</span>

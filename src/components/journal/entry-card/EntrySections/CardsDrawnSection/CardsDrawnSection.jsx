@@ -4,8 +4,9 @@
  */
 import { memo, useMemo } from 'react';
 import { CaretUp, CaretDown } from '@phosphor-icons/react';
-import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
+import { AnimatePresence, motion } from 'framer-motion';
 import { useSmallScreen } from '../../../../../hooks/useSmallScreen';
+import { useReducedMotion } from '../../../../../hooks/useReducedMotion';
 import { styles, cn } from '../../EntryCard.primitives';
 import { CardStack } from './CardStack';
 import { CardFan } from './CardFan';

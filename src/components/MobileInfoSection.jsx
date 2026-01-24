@@ -35,7 +35,7 @@ export function MobileInfoSection({
 
   const baseButtonClass = `
     inline-flex items-center gap-1.5
-    min-h-[44px] px-3 py-2
+    min-h-touch px-3 py-2
     rounded-xl border border-secondary/30
     bg-surface/60
     text-xs text-secondary
@@ -48,7 +48,7 @@ export function MobileInfoSection({
 
   const blockButtonClass = `
     w-full flex items-center justify-between gap-2
-    min-h-[48px] px-4 py-3
+    min-h-cta px-4 py-3
     rounded-xl border border-secondary/25
     bg-surface/50
     text-sm text-main

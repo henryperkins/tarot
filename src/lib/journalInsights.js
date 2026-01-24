@@ -198,7 +198,9 @@ export function persistCoachStatsSnapshot(stats, meta = {}, userId = null) {
         filtersActive: Boolean(meta.filtersActive),
         filterLabel: meta.filterLabel || null,
         entryCount: typeof meta.entryCount === 'number' ? meta.entryCount : null,
-        totalEntries: typeof meta.totalEntries === 'number' ? meta.totalEntries : null
+        totalEntries: typeof meta.totalEntries === 'number' ? meta.totalEntries : null,
+        signalsUsed: Array.isArray(meta.signalsUsed) ? meta.signalsUsed : null,
+        coachSuggestion: meta.coachSuggestion || null
       },
       updatedAt: Date.now()
     };
@@ -428,6 +430,47 @@ const NEXT_STEPS_IMPERATIVE_VERBS = new Set([
   'write',
 ]);
 
+const COACH_SOURCE_LABELS = {
+  drift: 'Preference drift',
+  badge: 'Streak badge',
+  topCard: 'Top card',
+  theme: 'Theme',
+  context: 'Context',
+  nextSteps: 'Gentle next steps',
+  extractedSteps: 'Gentle next steps',
+  embeddings: 'Gentle next steps',
+  default: 'Journal prompt',
+};
+
+export const COACH_SOURCE_PRIORITY = {
+  drift: 100,
+  badge: 90,
+  topCard: 80,
+  theme: 70,
+  context: 60,
+  embeddings: 50,
+  extractedSteps: 50,
+  nextSteps: 50,
+  default: 10,
+};
+
+export function getCoachSourceLabel(source) {
+  if (!source) return 'Journal insight';
+  return COACH_SOURCE_LABELS[source] || 'Journal insight';
+}
+
+export function buildSourceDetailFromSignals(signals) {
+  if (!Array.isArray(signals) || signals.length === 0) return '';
+  return signals
+    .map((signal) => {
+      const label = signal?.label || signal?.type || 'Signal';
+      const detail = signal?.detail;
+      return detail ? `${label}: ${detail}` : label;
+    })
+    .filter(Boolean)
+    .join('\n');
+}
+
 function stripMarkdownInline(text) {
   return String(text || '')
     .replace(/!\[([^\]]*)\]\([^)]+\)/g, '$1')
@@ -567,6 +610,7 @@ export function computeNextStepsCoachSuggestion(entries, options = {}) {
     .filter(({ ts }) => typeof ts === 'number' && !Number.isNaN(ts))
     .sort((a, b) => b.ts - a.ts)
     .slice(0, maxEntries);
+  const entryCount = sortedByRecency.length;
 
   const stepCandidates = [];
   sortedByRecency.forEach(({ entry }, index) => {
@@ -603,11 +647,24 @@ export function computeNextStepsCoachSuggestion(entries, options = {}) {
   const question = buildNextStepsIntentionQuestion(best?.step);
   if (!question) return null;
 
+  const signalsUsed = [
+    {
+      type: 'nextSteps',
+      label: getCoachSourceLabel('nextSteps'),
+      detail: `${stepCandidates.length} step${stepCandidates.length === 1 ? '' : 's'} from ${entryCount} reading${entryCount === 1 ? '' : 's'}`,
+    },
+  ];
+  const sourceDetail = buildSourceDetailFromSignals(signalsUsed);
+
   return {
     source: 'nextSteps',
     text: question,
     question,
     spread: 'threeCard',
+    sourceLabel: getCoachSourceLabel('nextSteps'),
+    sourceDetail,
+    signalsUsed,
+    priority: COACH_SOURCE_PRIORITY.nextSteps,
   };
 }
 
@@ -615,6 +672,7 @@ function computeExtractedStepsCoachSuggestionFromSorted(sortedByRecency, maxEntr
   if (!Array.isArray(sortedByRecency) || sortedByRecency.length === 0) return null;
 
   const stepCandidates = [];
+  const entryCount = sortedByRecency.length;
 
   sortedByRecency.forEach(({ entry }, index) => {
     const steps = entry?.extractedSteps;
@@ -649,11 +707,24 @@ function computeExtractedStepsCoachSuggestionFromSorted(sortedByRecency, maxEntr
   const question = buildNextStepsIntentionQuestion(best?.step);
   if (!question) return null;
 
+  const signalsUsed = [
+    {
+      type: 'extractedSteps',
+      label: getCoachSourceLabel('extractedSteps'),
+      detail: `${stepCandidates.length} step${stepCandidates.length === 1 ? '' : 's'} from ${entryCount} reading${entryCount === 1 ? '' : 's'}`,
+    },
+  ];
+  const sourceDetail = buildSourceDetailFromSignals(signalsUsed);
+
   return {
     source: 'extractedSteps',
     text: question,
     question,
     spread: 'threeCard',
+    sourceLabel: getCoachSourceLabel('extractedSteps'),
+    sourceDetail,
+    signalsUsed,
+    priority: COACH_SOURCE_PRIORITY.extractedSteps,
   };
 }
 
@@ -815,6 +886,15 @@ export function computeCoachSuggestionWithEmbeddings(entries, options = {}) {
     return extractedStepsFallback || computeNextStepsCoachSuggestion(entries, { maxEntries });
   }
 
+  const signalsUsed = [
+    {
+      type: 'embeddings',
+      label: getCoachSourceLabel('embeddings'),
+      detail: `${topCluster.steps.length} step${topCluster.steps.length === 1 ? '' : 's'} clustered from ${sortedByRecency.length} reading${sortedByRecency.length === 1 ? '' : 's'}`,
+    },
+  ];
+  const sourceDetail = buildSourceDetailFromSignals(signalsUsed);
+
   return {
     source: 'embeddings',
     text: question,
@@ -823,6 +903,10 @@ export function computeCoachSuggestionWithEmbeddings(entries, options = {}) {
     relatedSteps: topCluster.steps,
     clusterSize: topCluster.steps.length,
     spread: topCluster.steps.length > 2 ? 'threeCard' : 'single',
+    sourceLabel: getCoachSourceLabel('embeddings'),
+    sourceDetail,
+    signalsUsed,
+    priority: COACH_SOURCE_PRIORITY.embeddings,
   };
 }
 
@@ -1080,7 +1164,7 @@ export async function copyJournalEntriesToClipboard(entries) {
  */
 export async function copyJournalShareSummary(stats, options = {}) {
   if (!stats) return false;
-  const { scopeLabel, entryCount } = options;
+  const { scopeLabel, entryCount, preferenceDrift } = options;
 
   const summaryLines = ['Tableu Journal Snapshot'];
 
@@ -1097,6 +1181,39 @@ export async function copyJournalShareSummary(stats, options = {}) {
     `Cards logged: ${stats.totalCards}`,
     `Reversal rate: ${stats.reversalRate}%`
   );
+
+  const signals = [];
+  const topCard = Array.isArray(stats.frequentCards) ? stats.frequentCards[0] : null;
+  if (topCard?.name) {
+    signals.push(`Top card: ${topCard.name} (${topCard.count}x)`);
+  }
+
+  const topContext = Array.isArray(stats.contextBreakdown)
+    ? [...stats.contextBreakdown].sort((a, b) => b.count - a.count)[0]
+    : null;
+  if (topContext?.name) {
+    signals.push(`Top context: ${formatContextName(topContext.name)} (${topContext.count})`);
+  }
+
+  const topTheme = Array.isArray(stats.recentThemes) ? stats.recentThemes[0] : null;
+  if (topTheme) {
+    signals.push(`Theme: ${topTheme}`);
+  }
+
+  if (preferenceDrift?.hasDrift && preferenceDrift.driftContexts?.[0]) {
+    const drift = preferenceDrift.driftContexts[0];
+    const expectedLabels = Array.isArray(preferenceDrift.expectedContextLabels)
+      ? preferenceDrift.expectedContextLabels
+      : Array.isArray(preferenceDrift.expectedContexts)
+        ? preferenceDrift.expectedContexts.map(formatContextName).filter(Boolean)
+        : [];
+    const expectedLabel = expectedLabels.length > 0 ? ` vs ${expectedLabels.join(', ')}` : '';
+    signals.push(`Drift: ${formatContextName(drift.context)} (+${drift.count})${expectedLabel}`);
+  }
+
+  if (signals.length > 0) {
+    summaryLines.push(`Signals: ${signals.slice(0, 3).join(' · ')}`);
+  }
 
   if (Array.isArray(stats.frequentCards) && stats.frequentCards.length > 0) {
     const top = stats.frequentCards.map(card => `${card.name} (${card.count}x)`).join(', ');
@@ -1205,6 +1322,21 @@ const FOCUS_TO_CONTEXT = {
   spirituality: 'spiritual'
 };
 
+const CONTEXT_ALIASES = {
+  relationship: 'love',
+  relationships: 'love',
+  selfworth: 'self',
+  self_worth: 'self',
+  health: 'wellbeing',
+};
+
+function normalizeContextKey(value) {
+  if (!value || typeof value !== 'string') return '';
+  const cleaned = value.trim().toLowerCase();
+  if (!cleaned) return '';
+  return CONTEXT_ALIASES[cleaned] || cleaned;
+}
+
 /**
  * Compute preference drift between stated focus areas and actual reading contexts.
  *
@@ -1221,16 +1353,19 @@ export function computePreferenceDrift(entries, currentFocusAreas = []) {
   const expectedContexts = new Set(
     currentFocusAreas
       .map(f => FOCUS_TO_CONTEXT[f])
+      .map(normalizeContextKey)
       .filter(Boolean)
   );
+  const expectedContextList = Array.from(expectedContexts);
+  const expectedContextLabels = expectedContextList.map(formatContextName).filter(Boolean);
+  if (expectedContextList.length === 0) return null;
 
   // Count actual contexts from entries
   const actualContextCounts = {};
   entries.forEach(entry => {
-    const ctx = entry?.context;
-    if (ctx && typeof ctx === 'string') {
-      actualContextCounts[ctx] = (actualContextCounts[ctx] || 0) + 1;
-    }
+    const ctx = normalizeContextKey(entry?.context);
+    if (!ctx) return;
+    actualContextCounts[ctx] = (actualContextCounts[ctx] || 0) + 1;
   });
 
   // Find drift: contexts user reads about but didn't select as focus
@@ -1245,11 +1380,47 @@ export function computePreferenceDrift(entries, currentFocusAreas = []) {
     .slice(0, 3)
     .map(([context, count]) => ({ context, count }));
 
+  const expectedTopContexts = expectedContextList
+    .map((context) => ({ context, count: actualContextCounts[context] || 0 }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 3);
+
+  const primaryExpectedContext = expectedTopContexts[0] || null;
+  const primaryActualContext = actualTopContexts[0] || null;
+  const hasPrimaryShift = Boolean(
+    primaryExpectedContext
+    && primaryActualContext
+    && primaryExpectedContext.context !== primaryActualContext.context
+    && primaryActualContext.count > 0
+  );
+
+  const driftSummaryLines = [];
+  if (expectedContextLabels.length) {
+    driftSummaryLines.push(`Expected focus: ${expectedContextLabels.join(', ')}`);
+  }
+  if (primaryActualContext?.context) {
+    driftSummaryLines.push(
+      `Most read: ${formatContextName(primaryActualContext.context)} (${primaryActualContext.count})`
+    );
+  }
+  if (driftContexts.length > 0) {
+    const driftPrimary = driftContexts[0];
+    driftSummaryLines.push(
+      `Drift: ${formatContextName(driftPrimary.context)} (+${driftPrimary.count})`
+    );
+  }
+
   return {
-    expectedContexts: Array.from(expectedContexts),
+    expectedContexts: expectedContextList,
+    expectedContextLabels,
     actualTopContexts,
     driftContexts: driftContexts.map(([context, count]) => ({ context, count })),
-    hasDrift: driftContexts.length > 0
+    expectedTopContexts,
+    primaryExpectedContext,
+    primaryActualContext,
+    hasPrimaryShift,
+    hasDrift: driftContexts.length > 0,
+    detail: driftSummaryLines.join('\n')
   };
 }
 

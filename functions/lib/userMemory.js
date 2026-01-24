@@ -94,15 +94,75 @@ function sanitizeKeywords(keywords) {
 }
 
 /**
+ * Common confusable character mappings (homoglyphs).
+ * Maps visually similar characters to their ASCII equivalents.
+ */
+const CONFUSABLE_MAP = {
+  // Cyrillic → Latin
+  '\u0430': 'a', '\u0435': 'e', '\u043E': 'o', '\u0440': 'p', '\u0441': 'c',
+  '\u0443': 'y', '\u0445': 'x', '\u0456': 'i',
+  '\u0410': 'A', '\u0412': 'B', '\u0415': 'E', '\u041A': 'K', '\u041C': 'M',
+  '\u041D': 'H', '\u041E': 'O', '\u0420': 'P', '\u0421': 'C', '\u0422': 'T',
+  '\u0425': 'X', '\u0427': 'Y',
+  // Greek → Latin
+  '\u0391': 'A', '\u0392': 'B', '\u0395': 'E', '\u0396': 'Z', '\u0397': 'H',
+  '\u0399': 'I', '\u039A': 'K', '\u039C': 'M', '\u039D': 'N', '\u039F': 'O',
+  '\u03A1': 'P', '\u03A4': 'T', '\u03A5': 'Y', '\u03A7': 'X',
+  '\u03B1': 'a', '\u03B5': 'e', '\u03B9': 'i', '\u03BF': 'o', '\u03C1': 'p',
+  '\u03C5': 'u', '\u03C7': 'x',
+};
+
+const CONFUSABLE_REGEX = new RegExp('[' + Object.keys(CONFUSABLE_MAP).join('') + ']', 'g');
+
+/**
+ * Normalize text to prevent Unicode homoglyph and obfuscation attacks.
+ * Applies NFKC normalization and strips invisible/combining characters.
+ *
+ * @param {string} text - Input text
+ * @returns {string} Normalized text safe for pattern matching
+ */
+function normalizeUnicodeForPatternMatch(text) {
+  if (!text || typeof text !== 'string') return '';
+
+  // Step 1: NFD decomposition to separate base chars from combining marks
+  let result = text.normalize('NFD');
+
+  // Step 2: Remove combining diacritical marks (must happen after NFD)
+  result = result.replace(/[\u0300-\u036F]/g, '');
+  result = result.replace(/[\u1AB0-\u1AFF]/g, '');
+  result = result.replace(/[\u1DC0-\u1DFF]/g, '');
+  result = result.replace(/[\u20D0-\u20FF]/g, '');
+  result = result.replace(/[\uFE20-\uFE2F]/g, '');
+
+  // Step 3: NFKC normalization for compatibility characters
+  result = result.normalize('NFKC');
+
+  // Step 4: Replace known confusable characters (Cyrillic/Greek lookalikes)
+  result = result.replace(CONFUSABLE_REGEX, char => CONFUSABLE_MAP[char] || char);
+
+  // Step 5: Replace zero-width characters with space, then collapse
+  result = result.replace(/[\u200B-\u200F\uFEFF\u00AD\u2060\u180E\u2028\u2029]/g, ' ');
+  result = result.replace(/\s+/g, ' ').trim();
+
+  return result;
+}
+
+/**
  * Check if text contains PII or instruction-like content
  */
 function containsSensitiveContent(text) {
   if (!text) return false;
+
+  // Normalize Unicode to catch homoglyph attacks before pattern matching
+  const normalized = normalizeUnicodeForPatternMatch(text);
+
   for (const pattern of PII_PATTERNS) {
-    if (pattern.test(text)) return true;
+    if (pattern.test(normalized)) return true;
+    pattern.lastIndex = 0; // Reset global regex state
   }
   for (const pattern of INSTRUCTION_PATTERNS) {
-    if (pattern.test(text)) return true;
+    if (pattern.test(normalized)) return true;
+    pattern.lastIndex = 0; // Reset global regex state
   }
   return false;
 }

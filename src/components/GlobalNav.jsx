@@ -21,7 +21,7 @@ export function GlobalNav({ condensed = false, withUserChip = false }) {
     focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/80
     focus-visible:ring-offset-2 focus-visible:ring-offset-main
     active:scale-[0.97]
-    min-h-[44px]
+    min-h-touch
   `;
 
   const buttonPadding = condensed

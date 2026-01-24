@@ -310,6 +310,7 @@ export function sanitizeMetricsPayload(metricsPayload = {}, mode = DEFAULT_METRI
   // Minimal: only retain routing identifiers + gate info (no location data)
   if (mode === 'minimal') {
     return {
+      schemaVersion: metricsPayload.schemaVersion,
       requestId: metricsPayload.requestId,
       timestamp: metricsPayload.timestamp,
       provider: metricsPayload.provider,
@@ -320,27 +321,38 @@ export function sanitizeMetricsPayload(metricsPayload = {}, mode = DEFAULT_METRI
   }
 
   // Redacted: keep non-PII, aggregate-friendly fields only
+  // Support both v1 and v2 schema field names
   const whitelistedKeys = [
+    // Common fields
+    'schemaVersion',
     'requestId',
     'timestamp',
     'provider',
     'spreadKey',
     'deckStyle',
+    'evalGate',
+    // v2 schema fields
+    'experiment',
+    'prompt',
+    'graphRAG',
     'narrative',
+    'vision',
+    'llmUsage',
+    'diagnostics',
+    'enhancementTelemetry',
+    // v1 schema fields (backward compat)
     'narrativeOriginal',
     'narrativeEnhancements',
-    'graphRAG',
     'promptMeta',
     'promptTokens',
     'promptSlimming',
-    'enhancementTelemetry',
     'contextDiagnostics',
-    'llmUsage',
-    'evalGate',
-    // Quality tracking fields
     'readingPromptVersion',
     'variantId',
-    'experimentId'
+    'experimentId',
+    'tokens'
+    // NOTE: 'context' excluded - may contain user question/intent
+    // NOTE: backendErrors deliberately excluded - may contain sensitive error details
   ];
 
   const sanitized = whitelistedKeys.reduce((acc, key) => {

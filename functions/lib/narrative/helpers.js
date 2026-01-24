@@ -1410,27 +1410,32 @@ const ELEMENTAL_REMEDIES_BY_CONTEXT = {
     love: [
       'Plan a spontaneous date or shared adventure',
       'Have an honest conversation about what excites you both',
-      'Try something new together that gets your hearts racing'
+      'Try something new together that gets your hearts racing',
+      'Light a candle together and share what ignites your passion'
     ],
     career: [
       'Pitch that idea you have been sitting on',
       'Take initiative on a project without waiting for permission',
-      'Network with someone who inspires you'
+      'Network with someone who inspires you',
+      'Visualize a torch—what project would you carry forward boldly?'
     ],
     self: [
       'Move your body—take a walk, stretch, or dance to music',
       'Start that creative project you have been thinking about',
-      'Do something that scares you a little in a good way'
+      'Do something that scares you a little in a good way',
+      'Meditate on flame imagery—what needs to be sparked or released?'
     ],
     spiritual: [
       'Practice devotional movement (sacred dance, yoga, tai chi)',
       'Engage with your spiritual practice through action (ritual, service)',
-      'Channel inspiration into creative expression of your beliefs'
+      'Channel inspiration into creative expression of your beliefs',
+      'Light a candle as a focal point for meditation or intention-setting'
     ],
     general: [
       'Move your body—take a walk, stretch, or dance to music',
       'Take one decisive action on something you have been considering',
-      'Create something with your hands—cook, draw, rearrange a space'
+      'Create something with your hands—cook, draw, rearrange a space',
+      'Work with fire symbols: light a candle, contemplate flame imagery'
     ]
   },
 
@@ -1438,27 +1443,32 @@ const ELEMENTAL_REMEDIES_BY_CONTEXT = {
     love: [
       'Share a vulnerable feeling with your partner',
       'Create space to really listen without planning your response',
-      'Express appreciation for something you often take for granted'
+      'Express appreciation for something you often take for granted',
+      'Spend time near water together—a lake, fountain, or bath'
     ],
     career: [
       'Check in with how you feel about your work, not just what you think',
       'Reach out to a colleague with genuine care, not just networking',
-      'Notice and honor your emotional needs around work boundaries'
+      'Notice and honor your emotional needs around work boundaries',
+      'Keep a cup of water at your desk as a reminder to flow with challenges'
     ],
     self: [
       'Journal your feelings without censoring or editing',
       'Practice self-compassion when difficult emotions arise',
-      'Let yourself cry, laugh, or feel without trying to fix it'
+      'Let yourself cry, laugh, or feel without trying to fix it',
+      'Take a mindful bath or shower, visualizing emotions washing clean'
     ],
     spiritual: [
       'Spend time in receptive prayer or meditation',
       'Engage with sacred texts or teachings that move you emotionally',
-      'Practice loving-kindness meditation for yourself and others'
+      'Practice loving-kindness meditation for yourself and others',
+      'Work with water symbols: visit moving water, use a chalice in ritual'
     ],
     general: [
       'Journal your feelings without censoring or editing',
       'Spend time near water or take a mindful bath',
-      'Talk with someone who holds space for your emotions without trying to fix them'
+      'Talk with someone who holds space for your emotions without trying to fix them',
+      'Work with water symbols: cups, bowls, or images of flowing water'
     ]
   },
 
@@ -1466,27 +1476,32 @@ const ELEMENTAL_REMEDIES_BY_CONTEXT = {
     love: [
       'Ask a question you have been afraid to ask',
       'Talk through a misunderstanding without defensiveness',
-      'Share an idea or perspective you usually keep to yourself'
+      'Share an idea or perspective you usually keep to yourself',
+      'Write a letter (sent or unsent) to clear the air'
     ],
     career: [
       'Clarify expectations in a key work relationship',
       'Ask for the feedback you need to grow',
-      'Articulate your vision or goals to someone who can help'
+      'Articulate your vision or goals to someone who can help',
+      'Brainstorm on paper—let ideas flow like wind before editing'
     ],
     self: [
       'Write out your thoughts to gain perspective on what feels confusing',
       'Talk through your inner dialogue with a trusted friend',
-      'Question an assumption you have been carrying'
+      'Question an assumption you have been carrying',
+      'Step outside and feel the breeze—let it clear mental fog'
     ],
     spiritual: [
       'Study a teaching or text that challenges your understanding',
       'Engage in dialogue with someone whose beliefs differ from yours',
-      'Write or speak your prayers aloud to clarify your intentions'
+      'Write or speak your prayers aloud to clarify your intentions',
+      'Work with air symbols: incense smoke, feathers, or open windows'
     ],
     general: [
       'Discuss your thoughts with a trusted friend or mentor',
       'Write out your thoughts to gain perspective on what feels confusing',
-      'Learn something new that sparks your curiosity'
+      'Learn something new that sparks your curiosity',
+      'Work with air symbols: open a window, watch clouds, or use incense'
     ]
   },
 
@@ -1494,27 +1509,32 @@ const ELEMENTAL_REMEDIES_BY_CONTEXT = {
     love: [
       'Create a small daily ritual you do together (morning coffee, evening walk)',
       'Tend to the practical, unglamorous foundations of your relationship',
-      'Show love through concrete actions, not just words'
+      'Show love through concrete actions, not just words',
+      'Cook a meal together or plant something as a shared grounding ritual'
     ],
     career: [
       'Organize your workspace or schedule for better flow',
       'Complete one small task that has been lingering',
-      'Build a sustainable routine that supports your energy'
+      'Build a sustainable routine that supports your energy',
+      'Keep a stone or crystal on your desk as a reminder to stay grounded'
     ],
     self: [
       'Establish one grounding daily ritual (morning tea, evening walk, bedtime routine)',
       'Tend to your body\'s basic needs (sleep, nourishing food, gentle movement)',
-      'Spend time in nature or with your hands in soil'
+      'Spend time in nature or with your hands in soil',
+      'Work with earth symbols: hold a stone, walk barefoot, or tend plants'
     ],
     spiritual: [
       'Create a physical altar or sacred space in your home',
       'Engage in embodied practice (walking meditation, sacred gardening)',
-      'Ground your beliefs in daily ritual and tangible acts of service'
+      'Ground your beliefs in daily ritual and tangible acts of service',
+      'Work with earth symbols: stones, coins, or images of mountains'
     ],
     general: [
       'Establish one grounding daily ritual (morning tea, evening walk, bedtime routine)',
       'Organize a small physical space to create order',
-      'Work with your hands—garden, cook, craft, or repair something tangible'
+      'Work with your hands—garden, cook, craft, or repair something tangible',
+      'Work with earth symbols: stones, soil, or pentacle imagery'
     ]
   }
 };

@@ -40,13 +40,10 @@ export function MobileSettingsDrawer({ isOpen, onClose, children, footer = null 
     getServerViewportOffset
   );
   const effectiveOffset = Math.max(0, viewportOffset);
-  const wrapperStyle = {
-    paddingTop: 'max(16px, env(safe-area-inset-top, 16px))',
-    paddingBottom: effectiveOffset ? `${effectiveOffset}px` : undefined
-  };
+  const wrapperStyle = effectiveOffset ? { paddingBottom: `${effectiveOffset}px` } : undefined;
   const bodyStyle = footer
     ? undefined
-    : { paddingBottom: 'calc(1rem + env(safe-area-inset-bottom, 0px))' };
+    : { paddingBottom: 'calc(1rem + var(--safe-pad-bottom))' };
 
   // Shared modal accessibility: scroll lock, escape key, focus trap, focus restoration
   useModalA11y(isOpen, {
@@ -163,7 +160,7 @@ export function MobileSettingsDrawer({ isOpen, onClose, children, footer = null 
 
   return (
     <div
-      className="fixed inset-0 z-[70] flex items-end justify-center"
+      className="fixed inset-0 z-[70] flex items-end justify-center pt-[max(16px,var(--safe-pad-top))]"
       style={wrapperStyle}
     >
       <div

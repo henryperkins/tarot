@@ -25,7 +25,10 @@ export default {
     },
     screens: {
       'xxs': '320px',
+      'mobile-sm': '360px',
       'xs': '375px',
+      'mobile-md': '400px',
+      'mobile-lg': '440px',
       ...defaultTheme.screens,
     },
     extend: {
@@ -83,7 +86,14 @@ export default {
       },
       fontSize: {
         'xs-plus': ['0.875rem', { lineHeight: '1.4' }], // 14px - improved mobile readability
-        'sm-mobile': ['0.9375rem', { lineHeight: '1.5' }], // 15px - comfortable mobile body text
+        'sm-mobile': ['var(--text-sm-mobile)', { lineHeight: '1.5' }], // 15px - comfortable mobile body text
+      },
+      minHeight: {
+        touch: 'var(--touch-target, 44px)',
+        cta: 'var(--touch-target-cta, 52px)',
+      },
+      minWidth: {
+        touch: 'var(--touch-target, 44px)',
       },
       fontFamily: {
         serif: ['"Cormorant Garamond"', 'Georgia', 'serif'],
@@ -98,6 +108,8 @@ export default {
         'safe-bottom': 'env(safe-area-inset-bottom, 0px)',
         'safe-left': 'env(safe-area-inset-left, 0px)',
         'safe-right': 'env(safe-area-inset-right, 0px)',
+        'safe-t': 'env(safe-area-inset-top, 0px)',
+        'safe-b': 'env(safe-area-inset-bottom, 0px)',
       },
       margin: {
         'safe-top': 'env(safe-area-inset-top, 0px)',
@@ -121,6 +133,24 @@ export default {
   },
   plugins: [
     require("@tailwindcss/forms"),
-    require("@tailwindcss/typography")
+    require("@tailwindcss/typography"),
+    function({ addUtilities }) {
+      addUtilities({
+        '.px-safe': {
+          'padding-left': 'env(safe-area-inset-left, 0px)',
+          'padding-right': 'env(safe-area-inset-right, 0px)',
+        },
+        '.py-safe': {
+          'padding-top': 'env(safe-area-inset-top, 0px)',
+          'padding-bottom': 'env(safe-area-inset-bottom, 0px)',
+        },
+        '.pt-safe': {
+          'padding-top': 'env(safe-area-inset-top, 0px)',
+        },
+        '.pb-safe': {
+          'padding-bottom': 'max(1rem, env(safe-area-inset-bottom, 0px))',
+        },
+      });
+    }
   ]
 };

@@ -96,7 +96,7 @@ function AchievementsRow({ badges = [] }) {
               key={badge.badge_key || index}
               className={`
                 flex-shrink-0 flex items-center gap-2 rounded-xl
-                border px-3 py-2 min-h-[44px] ${colors}
+                border px-3 py-2 min-h-touch ${colors}
                 hover:scale-[1.02] transition-transform
               `}
               title={title}

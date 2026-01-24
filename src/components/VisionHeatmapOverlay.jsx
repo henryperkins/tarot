@@ -55,7 +55,7 @@ export function VisionHeatmapOverlay({ attention, imageSrc, label }) {
           onClick={() => setVisible((prev) => !prev)}
           aria-pressed={visible}
           aria-controls="heatmap-overlay-grid"
-          className="min-h-[44px] min-w-[44px] flex-shrink-0 rounded-md border border-secondary/40 px-3 py-2 text-xs uppercase tracking-wide text-secondary/80 transition-colors hover:border-secondary/70 hover:bg-secondary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 focus-visible:ring-offset-1 focus-visible:ring-offset-surface"
+          className="min-h-touch min-w-touch flex-shrink-0 rounded-md border border-secondary/40 px-3 py-2 text-xs uppercase tracking-wide text-secondary/80 transition-colors hover:border-secondary/70 hover:bg-secondary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 focus-visible:ring-offset-1 focus-visible:ring-offset-surface"
         >
           {visible ? 'Hide' : 'Show'}
         </button>

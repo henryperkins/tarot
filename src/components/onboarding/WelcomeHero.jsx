@@ -155,7 +155,7 @@ export function WelcomeHero({ onNext, onSkip }) {
               value={personalization.displayName}
               onChange={(e) => setDisplayName(e.target.value)}
               placeholder="Used to personalize your readings"
-              className="w-full bg-surface border border-primary/40 rounded-xl min-h-[44px] px-3 xxs:px-4 py-3 text-sm xxs:text-base text-main placeholder:text-muted/70 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/70 transition-all"
+              className="w-full bg-surface border border-primary/40 rounded-xl min-h-touch px-3 xxs:px-4 py-3 text-sm xxs:text-base text-main placeholder:text-muted/70 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/70 transition-all"
               autoComplete="given-name"
             />
           </div>
@@ -173,7 +173,7 @@ export function WelcomeHero({ onNext, onSkip }) {
                     key={option.value}
                     type="button"
                     onClick={() => setTarotExperience(option.value)}
-                    className={`min-h-[44px] w-full xs:w-auto px-3 xxs:px-4 sm:px-5 py-2.5 rounded-full border text-sm font-medium text-center xs:text-left transition touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-main ${
+                    className={`min-h-touch w-full xs:w-auto px-3 xxs:px-4 sm:px-5 py-2.5 rounded-full border text-sm font-medium text-center xs:text-left transition touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-main ${
                       isSelected
                         ? 'bg-accent text-surface border-accent'
                         : 'bg-surface/50 text-muted border-secondary/30 hover:border-accent/50 hover:text-main'
@@ -196,7 +196,7 @@ export function WelcomeHero({ onNext, onSkip }) {
         <button
           type="button"
           onClick={onNext}
-          className="w-full flex items-center justify-center gap-2 min-h-[48px] px-4 xxs:px-5 py-3 rounded-xl bg-accent text-surface font-semibold text-sm xxs:text-base transition hover:bg-accent/90 active:scale-[0.98] touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-main"
+          className="w-full flex items-center justify-center gap-2 min-h-cta px-4 xxs:px-5 py-3 rounded-xl bg-accent text-surface font-semibold text-sm xxs:text-base transition hover:bg-accent/90 active:scale-[0.98] touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-main"
         >
           Continue
           <ArrowRight className="w-5 h-5" weight="bold" />

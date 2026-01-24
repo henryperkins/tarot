@@ -347,7 +347,7 @@ export function SpreadSelector({
             <button
               type="button"
               onClick={() => handleArrowNav('prev')}
-              className="min-w-[44px] min-h-[44px] rounded-full bg-surface/80 border border-secondary/40 text-main hover:border-secondary/60 hover:bg-surface transition touch-manipulation flex items-center justify-center shadow-lg"
+              className="min-w-touch min-h-touch rounded-full bg-surface/80 border border-secondary/40 text-main hover:border-secondary/60 hover:bg-surface transition touch-manipulation flex items-center justify-center shadow-lg"
               aria-label="Previous spread"
             >
               <CaretRight className="w-5 h-5 rotate-180" weight="bold" />
@@ -369,7 +369,7 @@ export function SpreadSelector({
             <button
               type="button"
               onClick={() => handleArrowNav('next')}
-              className="min-w-[44px] min-h-[44px] rounded-full bg-surface/80 border border-secondary/40 text-main hover:border-secondary/60 hover:bg-surface transition touch-manipulation flex items-center justify-center shadow-lg"
+              className="min-w-touch min-h-touch rounded-full bg-surface/80 border border-secondary/40 text-main hover:border-secondary/60 hover:bg-surface transition touch-manipulation flex items-center justify-center shadow-lg"
               aria-label="Next spread"
             >
               <CaretRight className="w-5 h-5" weight="bold" />

@@ -35,14 +35,14 @@ export function RitualNudge({ onEnableRitual, onSkip }) {
             <button
               type="button"
               onClick={onEnableRitual}
-              className="min-h-[44px] px-4 py-2 rounded-full bg-accent text-surface text-xs font-medium transition hover:bg-accent/90 active:scale-[0.98] touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
+              className="min-h-touch px-4 py-2 rounded-full bg-accent text-surface text-xs font-medium transition hover:bg-accent/90 active:scale-[0.98] touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
             >
               Try it
             </button>
             <button
               type="button"
               onClick={onSkip}
-              className="min-h-[44px] px-4 py-2 rounded-full border border-secondary/30 text-muted text-xs font-medium transition hover:border-secondary/50 hover:text-main active:scale-[0.98] touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
+              className="min-h-touch px-4 py-2 rounded-full border border-secondary/30 text-muted text-xs font-medium transition hover:border-secondary/50 hover:text-main active:scale-[0.98] touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
             >
               Skip
             </button>

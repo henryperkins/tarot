@@ -277,10 +277,10 @@ export function StreamingNarrative({
   }, [useMarkdown, normalizedHighlightPhrases, visiblePlainText]);
 
   const showSkipButton = streamingActive && !isComplete;
-  const textBottomPaddingClass = showSkipButton ? 'pb-16 sm:pb-10' : 'pb-6 sm:pb-6';
-  const stickyActionStyle = {
-    bottom: 'calc(var(--mobile-action-bar-height, 0px) + var(--mobile-action-bar-offset, 0px) + max(1rem, env(safe-area-inset-bottom, 1rem)))'
-  };
+  const textBottomPaddingClass = showSkipButton
+    ? 'pb-16 sm:pb-10 short:pb-12'
+    : 'pb-6 sm:pb-6 short:pb-4';
+  const stickyActionClass = 'bottom-[calc(var(--mobile-action-bar-height,0px)+var(--mobile-action-bar-offset,0px)+max(1rem,var(--safe-pad-bottom)))]';
 
   // Memoize willChange styles to avoid creating new objects per word per render
   // Animation timing now controlled solely by Tailwind's animate-ink-spread class
@@ -332,11 +332,11 @@ export function StreamingNarrative({
         </div>
 
         {showSkipButton && (
-          <div className="mt-4 xs:mt-5 sticky sm:static flex justify-center px-3 xxs:px-4 sm:px-0 narrative-stream__actions" style={stickyActionStyle}>
+          <div className={`mt-4 xs:mt-5 sticky sm:static flex justify-center px-3 xxs:px-4 sm:px-0 narrative-stream__actions ${stickyActionClass}`}>
             <button
               type="button"
               onClick={handleSkip}
-              className="min-h-[44px] w-full max-w-sm sm:max-w-none px-4 xs:px-5 py-2.5 text-sm font-semibold rounded-full bg-surface-muted/90 border border-secondary/40 text-secondary hover:bg-surface-muted hover:border-secondary/60 shadow-lg sm:shadow-sm backdrop-blur-sm transition-all touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary focus-visible:ring-offset-2"
+              className="min-h-touch w-full max-w-sm sm:max-w-none px-4 xs:px-5 py-2.5 text-sm font-semibold rounded-full bg-surface-muted/90 border border-secondary/40 text-secondary hover:bg-surface-muted hover:border-secondary/60 shadow-lg sm:shadow-sm backdrop-blur-sm transition-all touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary focus-visible:ring-offset-2"
               aria-label="Show full narrative immediately"
             >
               <span className="inline-flex items-center justify-center gap-2">
@@ -387,11 +387,11 @@ export function StreamingNarrative({
       </div>
 
       {showSkipButton && (
-        <div className="mt-4 xs:mt-5 sticky sm:static flex justify-center px-3 xxs:px-4 sm:px-0 narrative-stream__actions" style={stickyActionStyle}>
+        <div className={`mt-4 xs:mt-5 sticky sm:static flex justify-center px-3 xxs:px-4 sm:px-0 narrative-stream__actions ${stickyActionClass}`}>
           <button
             type="button"
             onClick={handleSkip}
-            className="min-h-[44px] w-full max-w-sm sm:max-w-none px-4 xs:px-5 py-2.5 text-sm font-semibold rounded-full bg-surface-muted/90 border border-secondary/40 text-secondary hover:bg-surface-muted hover:border-secondary/60 shadow-lg sm:shadow-sm backdrop-blur-sm transition-all touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary focus-visible:ring-offset-2"
+            className="min-h-touch w-full max-w-sm sm:max-w-none px-4 xs:px-5 py-2.5 text-sm font-semibold rounded-full bg-surface-muted/90 border border-secondary/40 text-secondary hover:bg-surface-muted hover:border-secondary/60 shadow-lg sm:shadow-sm backdrop-blur-sm transition-all touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary focus-visible:ring-offset-2"
             aria-label="Show full narrative immediately"
           >
             <span className="inline-flex items-center justify-center gap-2">

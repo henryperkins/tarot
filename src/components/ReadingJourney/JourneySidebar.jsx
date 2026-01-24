@@ -49,7 +49,7 @@ function CollapsibleSection({
     <div className="border-t border-[color:var(--border-warm-subtle)]">
       <button
         onClick={onToggle}
-        className="flex w-full items-center justify-between min-h-[44px] py-3.5 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--accent-45)] focus-visible:ring-offset-2 focus-visible:ring-offset-[color:var(--bg-main)] touch-manipulation"
+        className="flex w-full items-center justify-between min-h-touch py-3.5 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--accent-45)] focus-visible:ring-offset-2 focus-visible:ring-offset-[color:var(--bg-main)] touch-manipulation"
         aria-expanded={isOpen}
       >
         <span className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-muted-high">
@@ -157,8 +157,8 @@ export default function JourneySidebar({
   const {
     timeframeLabel,
     formattedSeasonWindow,
-    hasMoreContexts,
-    hasMoreThemes,
+    hasMoreContexts: _hasMoreContexts,
+    hasMoreThemes: _hasMoreThemes,
     hasMorePatterns,
   } = usePatternsSnapshot({
     scopeLabel,
@@ -245,7 +245,7 @@ export default function JourneySidebar({
           <button
             type="button"
             onClick={() => navigate('/account#analytics')}
-            className="mt-4 inline-flex min-h-[44px] items-center justify-center rounded-full border border-[color:var(--border-warm-light)] px-4 py-2 text-sm font-semibold text-[color:var(--text-main)] transition-[background-color,border-color] duration-[var(--duration-normal)] ease-[var(--ease-out)] hover:bg-[color:var(--border-warm-subtle)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--accent-45)]"
+            className="mt-4 inline-flex min-h-touch items-center justify-center rounded-full border border-[color:var(--border-warm-light)] px-4 py-2 text-sm font-semibold text-[color:var(--text-main)] transition-[background-color,border-color] duration-[var(--duration-normal)] ease-[var(--ease-out)] hover:bg-[color:var(--border-warm-subtle)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--accent-45)]"
           >
             Go to Settings
           </button>
@@ -519,6 +519,7 @@ export default function JourneySidebar({
             filteredEntries={filteredEntries}
             allEntries={allEntries}
             stats={exportStats}
+            preferenceDrift={preferenceDrift}
             scopeLabel={scopeLabel}
             filtersApplied={filtersApplied}
           />

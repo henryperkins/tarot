@@ -119,7 +119,7 @@ export function VisionValidationPanel({
             <button
               type="button"
               onClick={() => onClearResults?.()}
-              className="min-h-[44px] min-w-[44px] px-3 py-2 rounded-lg border border-accent/30 text-main/90 hover:border-accent/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 transition-colors touch-manipulation text-xs xs:text-sm"
+              className="min-h-touch min-w-touch px-3 py-2 rounded-lg border border-accent/30 text-main/90 hover:border-accent/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 transition-colors touch-manipulation text-xs xs:text-sm"
             >
               Clear
             </button>
@@ -141,7 +141,7 @@ export function VisionValidationPanel({
             aria-haspopup="dialog"
             aria-expanded={isModalOpen}
             aria-describedby="upload-limit-info"
-            className={`min-h-[44px] min-w-[44px] px-3 py-2 rounded-lg border border-secondary/40 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 touch-manipulation text-xs xs:text-sm ${
+            className={`min-h-touch min-w-touch px-3 py-2 rounded-lg border border-secondary/40 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 touch-manipulation text-xs xs:text-sm ${
               uploadLimitReached || status === 'loading'
                 ? 'opacity-60 cursor-not-allowed'
                 : 'hover:border-secondary/70 hover:bg-secondary/10 active:bg-secondary/20'
@@ -212,7 +212,7 @@ export function VisionValidationPanel({
                   <button
                     type="button"
                     onClick={() => onRemoveResult?.(result.uploadId || result.label)}
-                    className="min-h-[44px] min-w-[44px] px-2 text-sm text-error/80 hover:text-error focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-error/50 rounded transition-colors"
+                    className="min-h-touch min-w-touch px-2 text-sm text-error/80 hover:text-error focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-error/50 rounded transition-colors"
                     aria-label={`Remove ${result.label || 'uploaded image'}`}
                   >
                     Remove

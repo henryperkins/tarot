@@ -106,8 +106,8 @@ export default function JourneyMobileSheet({
   const {
     timeframeLabel,
     formattedSeasonWindow,
-    hasMoreContexts,
-    hasMoreThemes,
+    hasMoreContexts: _hasMoreContexts,
+    hasMoreThemes: _hasMoreThemes,
     hasMorePatterns,
   } = usePatternsSnapshot({
     scopeLabel,
@@ -124,6 +124,17 @@ export default function JourneyMobileSheet({
   const streakGraceTooltip = 'Counts from yesterday if no reading today (grace period).';
   const streakInfoButtonClass =
     'text-muted hover:text-main focus-visible:ring-[color:var(--accent-45)] -ml-2 -mr-2';
+  const spreadLabels = {
+    single: '1-card',
+    threeCard: '3-card',
+    fiveCard: '5-card',
+    relationship: 'Relationship',
+    decision: 'Decision',
+    celtic: 'Celtic Cross',
+  };
+  const startLabel = coachSuggestion?.spread
+    ? `Start ${spreadLabels[coachSuggestion.spread] || 'Reading'}`
+    : 'Start Reading';
 
   // Swipe-to-dismiss state
   const [dragOffset, setDragOffset] = useState(0);
@@ -145,10 +156,11 @@ export default function JourneyMobileSheet({
   });
 
   // Reset patterns snapshot expansion when navigating away from the Patterns tab
-  useEffect(() => {
-    if (activeTab !== 'patterns' && showAllPatterns) {
+  const handleTabChange = useCallback((tabKey) => {
+    if (activeTab === 'patterns' && tabKey !== 'patterns' && showAllPatterns) {
       setShowAllPatterns(false);
     }
+    setActiveTab(tabKey);
   }, [activeTab, showAllPatterns]);
 
   // Reset drag state when sheet closes
@@ -315,7 +327,7 @@ export default function JourneyMobileSheet({
           <button
             type="button"
             onClick={() => navigate('/account#analytics')}
-            className="mt-4 inline-flex min-h-[44px] items-center justify-center rounded-full border border-[color:var(--border-warm-light)] px-4 py-2 text-sm font-semibold text-[color:var(--text-main)] transition-[background-color,border-color] duration-[var(--duration-normal)] ease-[var(--ease-out)] hover:bg-[color:var(--border-warm-subtle)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--accent-45)]"
+            className="mt-4 inline-flex min-h-touch items-center justify-center rounded-full border border-[color:var(--border-warm-light)] px-4 py-2 text-sm font-semibold text-[color:var(--text-main)] transition-[background-color,border-color] duration-[var(--duration-normal)] ease-[var(--ease-out)] hover:bg-[color:var(--border-warm-subtle)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--accent-45)]"
           >
             Go to Settings
           </button>
@@ -463,12 +475,27 @@ export default function JourneyMobileSheet({
               <p className="text-xs text-muted-high">
                 💡 {coachSuggestion.text}
               </p>
+              {coachSuggestion.sourceLabel && (
+                <div className="mt-2 flex items-center gap-2 text-[10px] uppercase tracking-[0.2em] text-muted">
+                  <span>Source: {coachSuggestion.sourceLabel}</span>
+                  {coachSuggestion.sourceDetail && (
+                    <Tooltip
+                      content={coachSuggestion.sourceDetail}
+                      position="top"
+                      ariaLabel="Why am I seeing this?"
+                      triggerClassName="text-muted hover:text-main"
+                    >
+                      <Info className="h-3 w-3" />
+                    </Tooltip>
+                  )}
+                </div>
+              )}
               {onStartReading && showStartReadingCta && (
                 <button
                   onClick={() => onStartReading(coachSuggestion)}
-                  className="mt-2 text-xs font-medium text-[color:var(--text-accent)] hover:text-main min-h-[44px] -mb-2 -ml-1 px-1"
+                  className="mt-2 text-xs font-medium text-[color:var(--text-accent)] hover:text-main min-h-touch -mb-2 -ml-1 px-1"
                 >
-                  Start Reading →
+                  {startLabel} →
                 </button>
               )}
             </div>
@@ -479,7 +506,7 @@ export default function JourneyMobileSheet({
             ref={triggerButtonRef}
             onClick={() => setIsSheetOpen(true)}
             className="
-              w-full py-3 min-h-[44px] rounded-full text-sm font-medium
+              w-full py-3 min-h-touch rounded-full text-sm font-medium
               border border-[color:var(--border-warm-light)] text-[color:var(--text-main)] bg-[color:var(--border-warm-subtle)]
               hover:bg-[color:var(--border-warm-light)] hover:border-[color:var(--border-warm)]
               focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--accent-45)]
@@ -517,19 +544,19 @@ export default function JourneyMobileSheet({
             onTouchCancel={handleTouchCancel}
             className="relative bg-[linear-gradient(135deg,var(--panel-dark-1),var(--panel-dark-2)_55%,var(--panel-dark-3))] rounded-t-3xl border-t border-x border-[color:var(--border-warm-light)] overflow-hidden flex flex-col animate-slide-up"
             style={{
-              maxHeight: 'min(calc(100dvh - 8px), calc(100vh - 8px - env(safe-area-inset-bottom, 0px)))',
+              maxHeight: 'min(calc(100dvh - 8px), calc(100vh - 8px - var(--safe-pad-bottom)))',
               transform: dragOffset > 0 ? `translateY(${dragOffset}px)` : undefined,
               transition: isDragging ? 'none' : 'transform var(--duration-normal) var(--ease-out)',
             }}
             tabIndex={-1}
           >
             {/* Drag handle */}
-            <div className="journey-sheet__handle flex justify-center py-3 cursor-grab active:cursor-grabbing">
+            <div className="journey-sheet__handle flex justify-center py-3 short:py-2 cursor-grab active:cursor-grabbing">
               <div className="w-10 h-1 rounded-full bg-[color:var(--border-warm-light)]" />
             </div>
 
             {/* Header */}
-            <div className="journey-sheet__header flex items-center justify-between px-5 pb-3">
+            <div className="journey-sheet__header flex items-center justify-between px-5 pb-3 short:px-4 short:pb-2">
               <div className="flex items-center gap-2">
                 <h2
                   id="journey-sheet-title"
@@ -547,7 +574,7 @@ export default function JourneyMobileSheet({
               <div className="flex items-center gap-1">
                 <Link
                   to="/account#analytics"
-                  className="flex items-center justify-center min-h-[44px] min-w-[44px] rounded-lg text-muted hover:text-main hover:bg-[color:var(--border-warm-subtle)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--accent-45)] transition-colors"
+                  className="flex items-center justify-center min-h-touch min-w-touch rounded-lg text-muted hover:text-main hover:bg-[color:var(--border-warm-subtle)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--accent-45)] transition-colors"
                   aria-label="Journey settings"
                 >
                   <Gear className="h-5 w-5" />
@@ -557,7 +584,7 @@ export default function JourneyMobileSheet({
                   onClick={handleClose}
                   className="
                     flex items-center justify-center
-                    min-h-[44px] min-w-[44px] -mr-2
+                    min-h-touch min-w-touch -mr-2
                     rounded-lg text-muted
                     hover:text-main hover:bg-[color:var(--border-warm-subtle)]
                     focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--accent-45)]
@@ -571,18 +598,18 @@ export default function JourneyMobileSheet({
             </div>
 
             {/* Tabs with proper touch targets */}
-            <div className="flex border-b border-[color:var(--border-warm-subtle)] px-5" role="tablist">
+            <div className="flex border-b border-[color:var(--border-warm-subtle)] px-5 short:px-4" role="tablist">
               {TABS.map((tab) => (
                 <button
                   key={tab.key}
                   id={`journey-tab-${tab.key}`}
-                  onClick={() => setActiveTab(tab.key)}
+                  onClick={() => handleTabChange(tab.key)}
                   role="tab"
                   aria-selected={activeTab === tab.key}
                   aria-controls="journey-tabpanel"
                   className={`
                     flex items-center justify-center gap-1.5
-                    px-4 py-3 min-h-[44px]
+                    px-4 py-3 min-h-touch
                     text-xs font-medium
                     border-b-2 transition-colors
                     ${
@@ -600,8 +627,7 @@ export default function JourneyMobileSheet({
 
             {/* Tab content with safe area padding and overscroll containment */}
             <div
-              className="journey-sheet__body flex-1 overflow-y-auto p-5 space-y-4 overscroll-contain"
-              style={{ paddingBottom: 'max(1.25rem, env(safe-area-inset-bottom, 1.25rem))' }}
+              className="journey-sheet__body flex-1 overflow-y-auto p-5 pb-[max(1.25rem,var(--safe-pad-bottom))] space-y-4 overscroll-contain short:px-4 short:pt-4 short:space-y-3"
               role="tabpanel"
               id="journey-tabpanel"
               aria-labelledby={`journey-tab-${activeTab}`}
@@ -681,11 +707,12 @@ export default function JourneyMobileSheet({
                   onCreateShareLink={onCreateShareLink}
                   scopeEntries={scopeEntries}
                   filteredEntries={filteredEntries}
-                allEntries={allEntries}
-                stats={exportStats}
-                scopeLabel={scopeLabel}
-                filtersApplied={filtersApplied}
-              />
+                  allEntries={allEntries}
+                  stats={exportStats}
+                  preferenceDrift={preferenceDrift}
+                  scopeLabel={scopeLabel}
+                  filtersApplied={filtersApplied}
+                />
               )}
             </div>
           </div>

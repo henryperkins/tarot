@@ -101,7 +101,7 @@ export function BeginStep({ selectedSpread, question, onBegin, onBack }) {
           type="button"
           onClick={onBegin}
           className={`w-full rounded-xl bg-accent text-surface font-bold transition hover:bg-accent/90 active:scale-[0.98] motion-reduce:transition-none motion-reduce:transform-none touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-main ${
-            isLandscape ? 'min-h-[48px] text-base' : 'min-h-[56px] text-lg'
+            isLandscape ? 'min-h-cta text-base' : 'min-h-[56px] text-lg'
           }`}
         >
           Begin Reading
@@ -109,7 +109,7 @@ export function BeginStep({ selectedSpread, question, onBegin, onBack }) {
         <button
           type="button"
           onClick={onBack}
-          className="w-full min-h-[44px] py-3 text-muted text-sm flex items-center justify-center gap-1 transition hover:text-main motion-reduce:transition-none motion-reduce:transform-none touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-xl"
+          className="w-full min-h-touch py-3 text-muted text-sm flex items-center justify-center gap-1 transition hover:text-main motion-reduce:transition-none motion-reduce:transform-none touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-xl"
         >
           <ArrowLeft className="w-4 h-4" weight="bold" aria-hidden="true" />
           Go back

@@ -91,7 +91,7 @@ export function GestureCoachOverlay({ isOpen, onDismiss }) {
 
   return (
     <div
-      className={`fixed inset-0 z-[100] flex items-center justify-center bg-main/95 backdrop-blur-sm px-safe-left px-safe-right py-safe-top pb-safe-bottom ${
+      className={`fixed inset-0 z-[100] flex items-center justify-center bg-main/95 backdrop-blur-sm px-safe pt-safe pb-safe-bottom ${
         prefersReducedMotion ? '' : 'animate-fade-in'
       }`}
       onClick={createBackdropHandler(onDismiss)}
@@ -126,7 +126,7 @@ export function GestureCoachOverlay({ isOpen, onDismiss }) {
               ref={closeButtonRef}
               type="button"
               onClick={onDismiss}
-              className="flex items-center justify-center min-w-[44px] min-h-[44px] -mr-2 rounded-full text-muted hover:text-main hover:bg-surface-muted/50 transition touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+              className="flex items-center justify-center min-w-touch min-h-touch -mr-2 rounded-full text-muted hover:text-main hover:bg-surface-muted/50 transition touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
               aria-label="Close gesture guide"
             >
               <X className="w-5 h-5" weight="bold" />
@@ -206,7 +206,7 @@ export function GestureCoachOverlay({ isOpen, onDismiss }) {
                 type="button"
                 onClick={handlePrev}
                 disabled={currentStep === 0}
-                className="flex items-center gap-1 min-h-[44px] px-4 py-2 rounded-full border border-secondary/30 text-muted text-sm font-medium transition hover:border-secondary/50 hover:text-main disabled:opacity-40 disabled:cursor-not-allowed touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                className="flex items-center gap-1 min-h-touch px-4 py-2 rounded-full border border-secondary/30 text-muted text-sm font-medium transition hover:border-secondary/50 hover:text-main disabled:opacity-40 disabled:cursor-not-allowed touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
               >
                 <CaretLeft className="w-4 h-4" />
                 Back
@@ -215,7 +215,7 @@ export function GestureCoachOverlay({ isOpen, onDismiss }) {
               <button
                 type="button"
                 onClick={handleNext}
-                className="flex items-center gap-1 min-h-[44px] px-5 py-2 rounded-full bg-accent text-surface text-sm font-semibold transition hover:bg-accent/90 active:scale-[0.98] touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
+                className="flex items-center gap-1 min-h-touch px-5 py-2 rounded-full bg-accent text-surface text-sm font-semibold transition hover:bg-accent/90 active:scale-[0.98] touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
               >
                 {isLastStep ? 'Got it!' : 'Next'}
                 {!isLastStep && <CaretRight className="w-4 h-4" />}
@@ -226,7 +226,7 @@ export function GestureCoachOverlay({ isOpen, onDismiss }) {
             <button
               type="button"
               onClick={onDismiss}
-              className="w-full mt-3 text-xs text-muted/70 hover:text-muted transition touch-manipulation min-h-[44px] flex items-center justify-center"
+              className="w-full mt-3 text-xs text-muted/70 hover:text-muted transition touch-manipulation min-h-touch flex items-center justify-center"
             >
               Skip tutorial
             </button>
