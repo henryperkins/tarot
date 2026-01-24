@@ -2,8 +2,11 @@
  * JournalEmptyState - First-time user experience for empty journal
  */
 
+import { useId, useState } from 'react';
+import { CaretDown, CaretUp } from '@phosphor-icons/react';
 import { useNavigate } from 'react-router-dom';
 import { OUTLINE_BUTTON_CLASS } from '../../styles/buttonClasses';
+import { AMBER_CARD_CLASS } from '../../lib/journal/constants';
 import { EmptyJournalIllustration } from '../illustrations/EmptyJournalIllustration';
 import { AmberStarfield } from '../AmberStarfield';
 import {
@@ -11,6 +14,53 @@ import {
   JournalPercentCircleIcon,
   JournalSearchIcon
 } from '../JournalIcons';
+
+function JournalEntryPreview() {
+  const [isExpanded, setIsExpanded] = useState(false);
+  const previewId = useId();
+  const previewContentId = `${previewId}-content`;
+
+  return (
+    <article className={`${AMBER_CARD_CLASS} text-left`}>
+      <button
+        type="button"
+        onClick={() => setIsExpanded((prev) => !prev)}
+        aria-expanded={isExpanded}
+        aria-controls={previewContentId}
+        className="relative z-10 flex w-full items-center justify-between gap-4 px-5 py-4 text-left transition hover:bg-[color:var(--border-warm-subtle)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)]"
+      >
+        <div className="space-y-1">
+          <p className="text-[0.7rem] uppercase tracking-[0.18em] text-muted">Journal entry preview</p>
+          <p className="text-base font-semibold text-main">Daily check-in · Solo pull</p>
+          <p className="text-sm text-muted">
+            {isExpanded ? 'Hide details' : 'Expand to see cards and reflection'}
+          </p>
+        </div>
+        <span className="text-muted">
+          {isExpanded ? <CaretUp className="h-5 w-5" aria-hidden="true" /> : <CaretDown className="h-5 w-5" aria-hidden="true" />}
+        </span>
+      </button>
+      {isExpanded && (
+        <div id={previewContentId} className="relative z-10 space-y-4 px-5 pb-5 pt-2">
+          <div>
+            <p className="text-[0.7rem] uppercase tracking-[0.18em] text-muted">Cards drawn</p>
+            <div className="mt-2 flex flex-wrap gap-2">
+              <span className="rounded-full border border-[color:var(--border-warm-light)] bg-[color:var(--panel-dark-2)] px-3 py-1 text-xs font-semibold text-main">
+                The Star · Upright
+              </span>
+            </div>
+          </div>
+          <div>
+            <p className="text-[0.7rem] uppercase tracking-[0.18em] text-muted">Reflection</p>
+            <p className="journal-prose mt-2 text-sm text-muted-high">
+              Quiet progress feels steady today. Keep the intention simple, and let the next step reveal itself.
+            </p>
+          </div>
+        </div>
+      )}
+    </article>
+  );
+}
 
 export function JournalEmptyState({ shellClass, onStartReading }) {
   const navigate = useNavigate();
@@ -58,6 +108,7 @@ export function JournalEmptyState({ shellClass, onStartReading }) {
             <p className="italic text-muted">Reflection: Hope is back. Remember the plan from Tuesday and take the next step.</p>
           </div>
         </div>
+        <JournalEntryPreview />
         <div className="flex flex-wrap items-center justify-center gap-3 pt-1">
           <button
             type="button"
