@@ -328,6 +328,19 @@ export function UserMenu({ condensed = false }) {
                     <Gear className="w-4 h-4" aria-hidden="true" />
                     Account & Settings
                   </Link>
+                  <Link
+                    to={isPaid ? '/account#subscription' : '/pricing'}
+                    onClick={closeDropdown}
+                    className="
+                      w-full text-left px-4 py-3 min-h-[44px]
+                      text-sm text-accent hover:bg-accent/5 active:bg-accent/10
+                      flex items-center gap-2 touch-manipulation
+                      focus-visible:outline-none focus-visible:bg-accent/5
+                      border-b border-accent/10
+                    "
+                  >
+                    {isPaid ? 'Manage Subscription' : 'View Plans'}
+                  </Link>
 
                   {/* Replay Tutorial */}
                   <button
