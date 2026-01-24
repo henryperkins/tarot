@@ -19,19 +19,20 @@ function getContextColor(context) {
   return CONTEXT_COLORS[context?.toLowerCase()] || CONTEXT_COLORS.general;
 }
 
-function ContextBreakdown({ data = [], preferenceDrift }) {
+function ContextBreakdown({ data = [], preferenceDrift, maxItems = 4 }) {
   if (!data.length) return null;
 
   // Sort by count descending
   const sorted = [...data].sort((a, b) => b.count - a.count);
   const total = sorted.reduce((sum, item) => sum + item.count, 0);
+  const normalizedMaxItems = typeof maxItems === 'number' ? maxItems : sorted.length;
 
   return (
     <div>
       <p className="text-xs text-muted mb-3">Your Focus Areas</p>
 
       <div className="space-y-2">
-        {sorted.slice(0, 4).filter(item => item?.name).map((item) => {
+        {sorted.slice(0, normalizedMaxItems).filter(item => item?.name).map((item) => {
           const percentage = total > 0 ? Math.round((item.count / total) * 100) : 0;
           const contextName = item.name.charAt(0).toUpperCase() + item.name.slice(1);
 
