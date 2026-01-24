@@ -2116,18 +2116,34 @@ export default function AccountPage() {
                   <DownloadSimple className="h-4 w-4" />
                   Download account data
                 </button>
-                <button
-                  type="button"
-                  onClick={() => setDeleteModalOpen(true)}
-                  className="
-                    flex-1 inline-flex items-center justify-center gap-2 rounded-full
-                    border border-error/40 bg-error/10 px-4 py-2.5 text-xs font-semibold text-error
-                    hover:bg-error/20 transition
-                  "
-                >
-                  <Trash className="h-4 w-4" />
-                  Delete account
-                </button>
+                <div className="flex-1 space-y-2">
+                  {hasActiveSubscription && (
+                    <div className="rounded-xl border border-warning/40 bg-warning/10 px-3 py-2 text-xs text-warning">
+                      <p>
+                        Active subscription detected.{' '}
+                        <button
+                          type="button"
+                          onClick={handleManageSubscription}
+                          className="font-semibold underline underline-offset-2 transition hover:text-warning/80"
+                        >
+                          Manage subscription first to avoid future charges.
+                        </button>
+                      </p>
+                    </div>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => setDeleteModalOpen(true)}
+                    className="
+                      w-full inline-flex items-center justify-center gap-2 rounded-full
+                      border border-error/40 bg-error/10 px-4 py-2.5 text-xs font-semibold text-error
+                      hover:bg-error/20 transition
+                    "
+                  >
+                    <Trash className="h-4 w-4" />
+                    Delete account
+                  </button>
+                </div>
               </div>
               <p className="text-xs text-muted mt-2">
                 Deleting your account removes your synced journal, analytics, and memories. This cannot be undone.
