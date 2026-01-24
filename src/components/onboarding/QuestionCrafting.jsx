@@ -28,9 +28,22 @@ const READING_TONE_OPTIONS = [
 const SPIRITUAL_FRAME_OPTIONS = [
   { value: 'psychological', label: 'Psychological', sublabel: 'Self-reflection' },
   { value: 'spiritual', label: 'Spiritual', sublabel: 'Intuitive' },
-  { value: 'mixed', label: 'Mixed', sublabel: 'Both lenses' },
+  { value: 'mixed', label: 'Both lenses', sublabel: 'Psych + spiritual' },
   { value: 'playful', label: 'Playful', sublabel: 'Just for fun' },
 ];
+
+const TONE_PREVIEWS = {
+  gentle: 'Preview: "What might help me soften around this?"',
+  balanced: 'Preview: "What is a steady next step here?"',
+  blunt: 'Preview: "What needs to change now?"',
+};
+
+const FRAME_PREVIEWS = {
+  psychological: 'Preview: "What pattern is asking to be seen?"',
+  spiritual: 'Preview: "What is spirit inviting me to trust?"',
+  mixed: 'Preview: "What inner pattern and spiritual lesson meet here?"',
+  playful: 'Preview: "What is the playful twist in this?"',
+};
 
 /**
  * QuestionCrafting - Step 4 of onboarding
@@ -49,6 +62,8 @@ export function QuestionCrafting({ question, onQuestionChange, onNext, onBack })
 
   const quality = useMemo(() => scoreQuestion(question), [question]);
   const qualityLevel = useMemo(() => getQualityLevel(quality.score), [quality.score]);
+  const tonePreview = TONE_PREVIEWS[personalization.readingTone] || TONE_PREVIEWS.balanced;
+  const framePreview = FRAME_PREVIEWS[personalization.spiritualFrame] || FRAME_PREVIEWS.mixed;
 
   // Celebrate when user reaches "Excellent" question quality.
   const [showExcellentBurst, setShowExcellentBurst] = useState(false);
@@ -325,6 +340,7 @@ export function QuestionCrafting({ question, onQuestionChange, onNext, onBack })
               );
             })}
           </div>
+          <p className="text-xs text-muted mt-2">{tonePreview}</p>
         </div>
 
         {/* Personalization: Spiritual Framing */}
@@ -367,6 +383,7 @@ export function QuestionCrafting({ question, onQuestionChange, onNext, onBack })
               );
             })}
           </div>
+          <p className="text-xs text-muted mt-2">{framePreview}</p>
         </div>
       </div>
 

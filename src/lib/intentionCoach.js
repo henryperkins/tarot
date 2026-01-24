@@ -79,7 +79,7 @@ export const INTENTION_TIMEFRAME_OPTIONS = [
   { value: 'week', label: 'This week', phrase: 'this week', description: 'Short-term focus' },
   { value: 'month', label: 'Next 30 days', phrase: 'over the next month', description: 'Medium timeline' },
   { value: 'season', label: 'Season ahead', phrase: 'over the next few months', description: 'Quarterly planning' },
-  { value: 'open', label: 'Open timeline', phrase: 'right now', description: 'Timeless guidance' }
+  { value: 'open', label: 'Right now', phrase: 'right now', description: 'Present-moment guidance' }
 ];
 
 export const INTENTION_DEPTH_OPTIONS = [

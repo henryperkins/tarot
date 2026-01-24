@@ -1,7 +1,8 @@
-import { useEffect, useId, useRef, useState } from 'react';
-import { ArrowsClockwise, Sparkle } from '@phosphor-icons/react';
+import { useEffect, useId, useMemo, useRef, useState } from 'react';
+import { ArrowsClockwise, ChartLine, Sparkle } from '@phosphor-icons/react';
 import { EXAMPLE_QUESTIONS } from '../data/exampleQuestions';
 import { recordCoachQuestion } from '../lib/coachStorage';
+import { getQualityLevel, scoreQuestion } from '../lib/questionQuality';
 import { usePreferences } from '../contexts/PreferencesContext';
 import { useAuth } from '../contexts/AuthContext';
 import { useAutoGrow } from '../hooks/useAutoGrow';
@@ -26,6 +27,19 @@ export function QuestionInput({
   const isExperienced = personalization?.tarotExperience === 'experienced';
   const isNewbie = personalization?.tarotExperience === 'newbie';
   const displayName = personalization?.displayName?.trim();
+  const trimmedQuestion = userQuestion.trim();
+  const wordCount = trimmedQuestion ? trimmedQuestion.split(/\s+/).length : 0;
+  const wordLabel = wordCount === 1 ? 'word' : 'words';
+  const showQualityIndicator = wordCount >= 5;
+  const quality = useMemo(() => scoreQuestion(userQuestion), [userQuestion]);
+  const qualityLevel = useMemo(() => getQualityLevel(quality.score), [quality.score]);
+  const qualityHelperText = useMemo(() => {
+    if (quality.score >= 85) return 'Excellent - ready to pull.';
+    if (quality.feedback.length > 0) return quality.feedback[0];
+    if (quality.score >= 65) return 'Add one more detail for extra clarity.';
+    if (quality.score >= 40) return 'Sharpen the focus to strengthen it.';
+    return 'Try reframing it from a curious, open-ended angle.';
+  }, [quality.feedback, quality.score]);
 
   const clearAllTimeouts = () => {
     timeoutRefs.current.forEach(timeoutId => clearTimeout(timeoutId));
@@ -102,7 +116,7 @@ export function QuestionInput({
       </div>
       {isNewbie && (
         <p className="text-xs text-muted mt-1">
-          Unsure what to ask? Tap Guided coach or cycle the example prompt to get inspired.
+          Unsure what to ask? Tap Guided coach or try a quick starter below.
         </p>
       )}
       <div className="relative">
@@ -129,12 +143,50 @@ export function QuestionInput({
           <ArrowsClockwise className="w-4 h-4" aria-hidden="true" />
         </button>
       </div>
+      {wordCount > 0 && (
+        <div className="flex items-center justify-between text-[0.7rem] text-muted/90">
+          <span>{wordCount} {wordLabel}</span>
+          <span>Aim for 8-30 words</span>
+        </div>
+      )}
+      {showQualityIndicator && (
+        <div className="rounded-lg border border-secondary/30 bg-surface/60 p-2">
+          <div className="flex items-center justify-between text-xs text-secondary">
+            <span className="inline-flex items-center gap-1">
+              <ChartLine className="h-3.5 w-3.5 text-secondary" aria-hidden="true" />
+              Clarity check
+            </span>
+            <span className="inline-flex items-center gap-1 text-xs font-semibold text-secondary">
+              <span aria-hidden="true">{qualityLevel.emoji}</span>
+              <span>{qualityLevel.label}</span>
+            </span>
+          </div>
+          <p className="text-[0.7rem] text-secondary/80 mt-1">{qualityHelperText}</p>
+        </div>
+      )}
+      {!trimmedQuestion && (
+        <div className="space-y-2">
+          <p className="text-xs text-muted">Quick starters</p>
+          <div className="flex flex-wrap gap-2">
+            {EXAMPLE_QUESTIONS.slice(0, 3).map(example => (
+              <button
+                key={example}
+                type="button"
+                onClick={() => setUserQuestion(example)}
+                className="min-h-[36px] rounded-full border border-secondary/30 bg-surface/40 px-3 py-1.5 text-[0.7rem] text-secondary transition hover:border-accent/50 hover:text-main"
+              >
+                {example.length > 40 ? `${example.slice(0, 40)}...` : example}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
       <div className="flex flex-wrap items-center gap-2 xs:gap-3">
         <button
           type="button"
           className="px-3 py-1.5 min-h-[36px] rounded-lg border border-primary/40 text-xs text-main hover:bg-primary/10 active:bg-primary/15 transition disabled:opacity-50 touch-manipulation"
           onClick={handleSaveIntention}
-          disabled={!userQuestion.trim()}
+          disabled={!trimmedQuestion}
         >
           Save intention
         </button>

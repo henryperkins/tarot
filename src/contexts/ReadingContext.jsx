@@ -10,6 +10,7 @@ import { MINOR_ARCANA } from '../data/minorArcana';
 import { formatReading } from '../lib/formatting';
 import { canonicalCardKey, canonicalizeCardName } from '../../shared/vision/cardNameMapping.js';
 import { computeRelationships } from '../lib/deck';
+import { buildSymbolElementCue } from '../lib/symbolElementBridge';
 import { safeParseReadingRequest } from '../../shared/contracts/readingSchema.js';
 
 const ReadingContext = createContext(null);
@@ -1086,6 +1087,10 @@ export function ReadingProvider({ children }) {
                 }
                 if (themes.elementalBalance) {
                     notes.push({ key: 'elemental-balance', icon: '⚡', title: 'Elemental Balance:', text: themes.elementalBalance });
+                }
+                const symbolCue = buildSymbolElementCue({ reading, themes });
+                if (symbolCue) {
+                    notes.push({ key: 'symbol-cue', icon: '✦', title: 'Symbol Cue:', text: symbolCue.text });
                 }
                 if (themes.reversalDescription) {
                     notes.push({ key: 'reversal-framework', icon: '⤴', title: 'Reversal Lens:', text: `${themes.reversalDescription.name} — ${themes.reversalDescription.description}` });

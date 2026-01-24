@@ -7,7 +7,7 @@ import { useLandscape } from '../../../hooks/useLandscape';
 const QUICK_STARTERS = [
   "What should I focus on this week?",
   "What energy do I need right now?",
-  "What's blocking my progress?"
+  "What's blocking my progress right now?"
 ];
 
 /**

@@ -1,3 +1,5 @@
+import { getSymbolFollowUpPrompt } from './symbolElementBridge';
+
 /**
  * Follow-Up Question Suggestions Generator
  *
@@ -163,21 +165,31 @@ export function generateFollowUpSuggestions(reading, themes, readingMeta) {
     });
   }
 
-  // 7. Shadow/challenge questions (always useful)
+  // 7. Symbol-based reflection (when symbol annotations exist)
+  const symbolPrompt = getSymbolFollowUpPrompt(cards, themes);
+  if (symbolPrompt) {
+    suggestions.push({
+      text: symbolPrompt,
+      type: 'symbol',
+      priority: 4
+    });
+  }
+
+  // 8. Shadow/challenge questions (always useful)
   suggestions.push({
     text: 'What might be blocking me from moving forward?',
     type: 'shadow',
     priority: 5
   });
 
-  // 8. Action-oriented (always include as fallback)
+  // 9. Action-oriented (always include as fallback)
   suggestions.push({
     text: 'What\'s the single most important thing I should focus on?',
     type: 'action',
     priority: 5
   });
 
-  // 9. Relationship between cards question (for multi-card spreads)
+  // 10. Relationship between cards question (for multi-card spreads)
   if (cards.length >= 2) {
     suggestions.push({
       text: 'How do these cards speak to each other?',
@@ -212,6 +224,7 @@ export function getQuestionTypeLabel(type) {
     archetype: 'Archetypal/Major Arcana',
     suit: 'Suit Focus',
     question: 'Original Question',
+    symbol: 'Symbol Reflection',
     shadow: 'Shadow/Blocks',
     action: 'Action-Oriented',
     synthesis: 'Card Relationships'
@@ -298,3 +311,4 @@ export function getPositionQuestions(card, spreadKey) {
 }
 
 export default generateFollowUpSuggestions;
+import { getSymbolFollowUpPrompt } from './symbolElementBridge';

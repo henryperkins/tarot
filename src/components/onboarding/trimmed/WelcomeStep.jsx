@@ -16,6 +16,12 @@ const TONE_OPTIONS = [
   { value: 'blunt', label: 'Blunt', sublabel: 'Direct wording' }
 ];
 
+const TONE_PREVIEWS = {
+  gentle: 'Preview: "What might help me soften around this?"',
+  balanced: 'Preview: "What is a steady next step here?"',
+  blunt: 'Preview: "What needs to change now?"'
+};
+
 /**
  * WelcomeStep - Consolidated welcome with essential personalization
  *
@@ -30,6 +36,7 @@ export function WelcomeStep({ onNext }) {
   const [name, setName] = useState(personalization.displayName || '');
   const [experience, setExperience] = useState(personalization.tarotExperience || 'intermediate');
   const [tone, setTone] = useState(personalization.readingTone || 'balanced');
+  const tonePreview = TONE_PREVIEWS[tone] || TONE_PREVIEWS.balanced;
 
   const handleContinue = () => {
     setDisplayName(name.trim() || null);
@@ -138,9 +145,10 @@ export function WelcomeStep({ onNext }) {
                 >
                   {opt.sublabel}
                 </span>
-              </button>
+                </button>
             ))}
           </div>
+          <p className="text-xs text-muted mt-2">{tonePreview}</p>
         </div>
       </div>
 

@@ -4,9 +4,11 @@ import {
   ChartLine,
   ArrowLeft,
   ArrowRight,
+  Check,
   BookmarkSimple,
   ClockCounterClockwise,
   ArrowsClockwise,
+  Info,
   Sparkle,
   MagicWand,
   X
@@ -20,6 +22,7 @@ import { useSwipeDismiss } from '../hooks/useSwipeDismiss';
 import { usePreferences } from '../contexts/PreferencesContext';
 import { useAuth } from '../contexts/AuthContext';
 import { useSubscription } from '../contexts/SubscriptionContext';
+import { Tooltip } from './Tooltip';
 import {
   INTENTION_TOPIC_OPTIONS,
   INTENTION_TIMEFRAME_OPTIONS,
@@ -186,6 +189,8 @@ const FOCUS_AREA_SUGGESTIONS = {
 
 const baseOptionClass =
   'text-left rounded-2xl border bg-surface-muted/50 px-4 py-4 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-surface';
+const infoButtonClass =
+  'inline-flex min-w-[44px] min-h-[44px] items-center justify-center rounded-full text-secondary/70 transition hover:text-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60';
 
 // ============================================================================
 // Helper Functions
@@ -583,11 +588,22 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply,
   }, [summary.topicLabel, summary.timeframeLabel, summary.depthLabel, customFocus, isManualQuestion]);
 
   const qualityHelperText = useMemo(() => {
-    if (questionQuality.score >= 85) return 'Ready to anchor into your spread.';
+    if (questionQuality.score >= 85) return 'Excellent - ready to anchor into your spread.';
+    const primaryTip = questionQuality.feedback[0];
+    if (primaryTip) return primaryTip;
     if (questionQuality.score >= 65) return 'Add one more detail for extra clarity.';
     if (questionQuality.score >= 40) return 'Sharpen the focus to strengthen it.';
     return 'Try reframing it from a curious, open-ended angle.';
-  }, [questionQuality.score]);
+  }, [questionQuality.feedback, questionQuality.score]);
+
+  const qualityHighlights = useMemo(() => {
+    const highlights = [];
+    if (questionQuality.openEnded) highlights.push('Open-ended');
+    if (questionQuality.specific) highlights.push('Specific');
+    if (questionQuality.actionable) highlights.push('Actionable');
+    if (questionQuality.timeframe) highlights.push('Timeframe');
+    return highlights;
+  }, [questionQuality.actionable, questionQuality.openEnded, questionQuality.specific, questionQuality.timeframe]);
 
   const normalizedQualityScore = Math.min(Math.max(questionQuality.score, 0), 100);
 
@@ -1267,15 +1283,24 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply,
               </p>
             </div>
             <div className="flex justify-center">
-              <button
-                type="button"
-                onClick={handleApply}
-                disabled={(!questionText && !guidedQuestion) || questionLoading}
-                className="mt-2 inline-flex items-center justify-center gap-2 rounded-full border border-secondary/50 bg-secondary/20 px-4 py-2 text-sm font-semibold text-secondary hover:bg-secondary/30 transition disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <Sparkle className="h-4 w-4" />
-                Use this question
-              </button>
+              <div className="flex flex-col items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handleApply}
+                  disabled={(!questionText && !guidedQuestion) || questionLoading}
+                  className="mt-2 inline-flex items-center justify-center gap-2 rounded-full border border-secondary/50 bg-secondary/20 px-4 py-2 text-sm font-semibold text-secondary hover:bg-secondary/30 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <Sparkle className="h-4 w-4" />
+                  Use this question
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setTemplatePanelOpen(true)}
+                  className="text-[0.7rem] text-secondary/80 underline decoration-secondary/40 underline-offset-4 transition hover:text-secondary"
+                >
+                  Save as template
+                </button>
+              </div>
             </div>
 
             {astroHighlights.length > 0 && (
@@ -1304,6 +1329,14 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply,
                 <span className="inline-flex items-center gap-1">
                   <ChartLine className="h-4 w-4 text-secondary" aria-hidden="true" />
                   Question quality
+                  <Tooltip
+                    content="Checks for open-ended wording, specificity, and timeframe."
+                    position="top"
+                    triggerClassName={infoButtonClass}
+                    ariaLabel="About question quality"
+                  >
+                    <Info className="h-3.5 w-3.5" />
+                  </Tooltip>
                 </span>
                 <span className="text-xs font-semibold text-secondary">
                   <span className="relative inline-flex items-center">
@@ -1332,6 +1365,19 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply,
                 />
               </div>
               <p className="text-[0.7rem] text-secondary/80">{qualityHelperText}</p>
+              {qualityHighlights.length > 0 && (
+                <div className="flex flex-wrap justify-center gap-2 text-[0.6rem] uppercase tracking-[0.3em] text-secondary/60">
+                  {qualityHighlights.map(label => (
+                    <span
+                      key={label}
+                      className="inline-flex items-center gap-1 rounded-full border border-secondary/30 px-2 py-1"
+                    >
+                      <Check className="h-3 w-3" aria-hidden="true" />
+                      {label}
+                    </span>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         </div>

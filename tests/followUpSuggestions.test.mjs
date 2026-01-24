@@ -339,4 +339,17 @@ describe('generateFollowUpSuggestions', () => {
       assert.strictEqual(typeof hasSuitSuggestion, 'boolean');
     });
   });
+
+  describe('symbol-based suggestions', () => {
+    test('adds a symbol reflection prompt when symbols are available', () => {
+      const reading = [{ name: 'Ace of Wands' }];
+      const themes = {
+        suitCounts: { Wands: 3, Cups: 0, Swords: 0, Pentacles: 0 }
+      };
+
+      const suggestions = generateFollowUpSuggestions(reading, themes, {});
+      const symbolSuggestion = suggestions.find(s => s.type === 'symbol');
+      assert.ok(symbolSuggestion, 'Should include symbol reflection suggestion');
+    });
+  });
 });
