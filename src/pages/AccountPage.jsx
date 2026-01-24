@@ -983,11 +983,7 @@ export default function AccountPage() {
         ? 'Billed monthly'
         : `Billed ${normalizedBillingInterval}`)
     : null;
-  const periodEndTimestamp = normalizeTimestamp(
-    subscriptionDetails?.current_period_end
-    || subscriptionDetails?.currentPeriodEnd
-    || stripeMeta?.currentPeriodEnd
-  );
+  const periodEndTimestamp = stripeMeta?.currentPeriodEnd || null;
   const trialEndTimestamp = normalizeTimestamp(
     subscriptionDetails?.trial_end
     || stripeMeta?.trialEnd
