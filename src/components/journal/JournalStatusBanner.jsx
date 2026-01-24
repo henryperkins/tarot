@@ -15,6 +15,7 @@ export function JournalStatusBanner({
   isAuthenticated,
   canUseCloudJournal,
   lastSyncAt,
+  lastLocalSaveAt,
   syncSource,
   journalError,
   loading,
@@ -57,24 +58,35 @@ export function JournalStatusBanner({
     const hour = 60 * minute;
     const day = 24 * hour;
     if (diff < minute) return 'just now';
-    if (diff < hour) return `${Math.round(diff / minute)}m ago`;
-    if (diff < day) return `${Math.round(diff / hour)}h ago`;
-    return `${Math.round(diff / day)}d ago`;
+    if (diff < hour) {
+      const minutes = Math.round(diff / minute);
+      return `${minutes} minute${minutes === 1 ? '' : 's'} ago`;
+    }
+    if (diff < day) {
+      const hours = Math.round(diff / hour);
+      return `${hours} hour${hours === 1 ? '' : 's'} ago`;
+    }
+    const days = Math.round(diff / day);
+    return `${days} day${days === 1 ? '' : 's'} ago`;
   }, [now]);
 
   const syncTimeLabel = lastSyncAt ? formatRelativeTime(lastSyncAt) : null;
+  const localSaveLabel = lastLocalSaveAt ? `Saved locally ${formatRelativeTime(lastLocalSaveAt)}` : null;
   const syncParts = [];
   if (isCloudEnabled && (loading || !syncSource)) {
     syncParts.push('Syncing');
-    syncParts.push('D1');
+    syncParts.push('Cloud');
   } else if (!isAuthenticated || !canUseCloudJournal || syncSource === 'local') {
     syncParts.push('Local only');
+    if (localSaveLabel) {
+      syncParts.push(localSaveLabel);
+    }
   } else if (syncSource === 'cache') {
     syncParts.push('Cached');
-    syncParts.push('D1');
+    syncParts.push('Cloud');
   } else {
     syncParts.push('Synced');
-    syncParts.push('D1');
+    syncParts.push('Cloud');
   }
   if (syncTimeLabel && isCloudEnabled && syncSource !== 'local') {
     syncParts.push(syncTimeLabel);

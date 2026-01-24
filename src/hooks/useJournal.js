@@ -71,6 +71,7 @@ export function useJournal({ autoLoad = true } = {}) {
   });
   // Track sync state for UX feedback
   const [lastSyncAt, setLastSyncAt] = useState(null);
+  const [lastLocalSaveAt, setLastLocalSaveAt] = useState(null);
   const [syncSource, setSyncSource] = useState(null); // 'api' | 'cache' | 'local'
   const hasMoreEntries = pagination.hasMore;
   const prefetchedOnceRef = useRef(false);
@@ -461,9 +462,10 @@ export function useJournal({ autoLoad = true } = {}) {
           return { success: false, error: 'localStorage not available' };
         }
 
+        const savedAt = Date.now();
         const newEntry = {
           id: generateId('local'),
-          ts: Date.now(),
+          ts: savedAt,
           ...entry
         };
 
@@ -484,6 +486,7 @@ export function useJournal({ autoLoad = true } = {}) {
           try {
             const localKey = getLocalJournalKey(isAuthenticated ? userId : null);
             localStorage.setItem(localKey, JSON.stringify(next));
+            setLastLocalSaveAt(savedAt);
           } catch (quotaErr) {
             console.warn('localStorage quota exceeded, unable to persist journal:', quotaErr);
           }
@@ -587,6 +590,7 @@ export function useJournal({ autoLoad = true } = {}) {
           try {
             const localKey = getLocalJournalKey(isAuthenticated ? user?.id : null);
             localStorage.setItem(localKey, JSON.stringify(next));
+            setLastLocalSaveAt(Date.now());
           } catch (quotaErr) {
             console.warn('localStorage quota exceeded, skipping storage update:', quotaErr);
           }
@@ -649,6 +653,7 @@ export function useJournal({ autoLoad = true } = {}) {
 
     try {
       localStorage.setItem(scopedKey, JSON.stringify(next));
+      setLastLocalSaveAt(Date.now());
       if (removeLegacy) {
         localStorage.removeItem(LOCALSTORAGE_KEY);
       }
@@ -834,6 +839,7 @@ export function useJournal({ autoLoad = true } = {}) {
     hasTotalEntries: typeof pagination.total === 'number',
     // Sync state for UX feedback
     lastSyncAt,
+    lastLocalSaveAt,
     syncSource,
     saveEntry,
     deleteEntry,
