@@ -35,12 +35,10 @@ export class ReadingJob {
     this.events = [];
     this.nextEventId = 1;
     this.textSoFar = '';
+    this.truncatedBeforeId = 0;
     this.persistEventCount = 0;
     this.lastPersistAt = 0;
     this.cancelled = false;
-    this.textSoFar = '';
-    this.persistEventCount = 0;
-    this.lastPersistAt = 0;
     this.job = {
       status: 'idle',
       jobId: null,
@@ -61,6 +59,7 @@ export class ReadingJob {
         this.events = Array.isArray(stored.events) ? stored.events : [];
         this.nextEventId = stored.nextEventId || (this.events.length + 1);
         this.textSoFar = typeof stored.textSoFar === 'string' ? stored.textSoFar : '';
+        this.truncatedBeforeId = stored.truncatedBeforeId || 0;
       }
     });
   }
@@ -119,6 +118,7 @@ export class ReadingJob {
 
     this.events = [];
     this.nextEventId = 1;
+    this.truncatedBeforeId = 0;
 
     this.job = {
       ...this.job,
@@ -195,13 +195,11 @@ export class ReadingJob {
         subscriber = { controller };
         this.subscribers.add(subscriber);
 
-        const oldestEventId = this.events.length ? this.events[0].id : null;
-        if (oldestEventId && oldestEventId > 1 && cursor < oldestEventId && this.textSoFar) {
-          const snapshotId = Math.max(0, oldestEventId - 1);
+        if (this.truncatedBeforeId > 0 && cursor <= this.truncatedBeforeId && this.textSoFar) {
           controller.enqueue(this.encoder.encode(
             formatSSEEvent('snapshot', {
               fullText: this.textSoFar,
-              eventId: snapshotId,
+              eventId: this.truncatedBeforeId,
               truncated: true
             })
           ));
@@ -461,9 +459,15 @@ export class ReadingJob {
     const meta = this.events.find((event) => event.event === 'meta') || null;
     const metaId = meta?.id;
     const keepCount = metaId ? Math.max(1, MAX_STORED_EVENTS - 1) : MAX_STORED_EVENTS;
-    const tailEvents = metaId
-      ? this.events.filter((event) => event.id !== metaId).slice(-keepCount)
-      : this.events.slice(-keepCount);
+    const nonMetaEvents = metaId
+      ? this.events.filter((event) => event.id !== metaId)
+      : this.events;
+    const dropCount = nonMetaEvents.length - keepCount;
+    if (dropCount > 0) {
+      const lastDropped = nonMetaEvents[dropCount - 1];
+      this.truncatedBeforeId = Math.max(this.truncatedBeforeId, lastDropped.id);
+    }
+    const tailEvents = nonMetaEvents.slice(-keepCount);
     this.events = metaId ? [meta, ...tailEvents] : tailEvents;
   }
 
@@ -515,7 +519,8 @@ export class ReadingJob {
       job: this.job,
       events: this.events,
       nextEventId: this.nextEventId,
-      textSoFar: this.textSoFar
+      textSoFar: this.textSoFar,
+      truncatedBeforeId: this.truncatedBeforeId
     });
   }
 
@@ -541,6 +546,7 @@ export class ReadingJob {
     this.events = [];
     this.nextEventId = 1;
     this.textSoFar = '';
+    this.truncatedBeforeId = 0;
     this.persistEventCount = 0;
     this.lastPersistAt = 0;
     return true;

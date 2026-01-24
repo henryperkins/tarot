@@ -1,5 +1,7 @@
 import { timingSafeEqual } from '../../lib/crypto.js';
 import { isProductionEnvironment } from '../../lib/environment.js';
+import { mapStripeStatus, extractTierFromSubscription } from '../../lib/stripe.js';
+import { sendEmail } from '../../lib/emailService.js';
 
 /**
  * Stripe Webhook Handler
@@ -111,63 +113,18 @@ async function verifyStripeSignature(payload, signature, secret) {
 }
 
 /**
- * Map Stripe subscription status to our internal status
- */
-function mapSubscriptionStatus(stripeStatus) {
-  const statusMap = {
-    'active': 'active',
-    'trialing': 'trialing',
-    'past_due': 'past_due',
-    'canceled': 'canceled',
-    'unpaid': 'unpaid',
-    'incomplete': 'incomplete',
-    'incomplete_expired': 'expired',
-    'paused': 'paused'
-  };
-  return statusMap[stripeStatus] || 'inactive';
-}
-
-/**
- * Extract tier from price lookup_key or metadata
- */
-function extractTierFromSubscription(subscription) {
-  // Check subscription metadata first
-  if (subscription.metadata?.tier) {
-    return subscription.metadata.tier;
-  }
-
-  // Check price lookup_key
-  const item = subscription.items?.data?.[0];
-  const lookupKey = item?.price?.lookup_key;
-  if (lookupKey) {
-    if (lookupKey.includes('pro')) return 'pro';
-    if (lookupKey.includes('plus')) return 'plus';
-  }
-
-  // Check price metadata
-  if (item?.price?.metadata?.tier) {
-    return item.price.metadata.tier;
-  }
-
-  // Fallback: derive from price amount (optional, for backwards compatibility)
-  const amount = item?.price?.unit_amount;
-  if (amount) {
-    // $19.99 = 1999 cents -> pro, $7.99 = 799 cents -> plus
-    if (amount >= 1500) return 'pro';
-    if (amount >= 500) return 'plus';
-  }
-
-  return 'plus'; // Default to plus if we can't determine
-}
-
-/**
  * Update user subscription in database
+ * @returns {{ success: boolean, userNotFound?: boolean }} Result with reason
  */
 async function updateUserSubscription(db, customerId, subscription, requestId) {
   const tier = extractTierFromSubscription(subscription);
-  const status = mapSubscriptionStatus(subscription.status);
+  if (!tier) {
+    console.warn(`[${requestId}] [stripe] Could not determine tier from subscription - check Stripe price configuration. Subscription ID: ${subscription.id}`);
+  }
+  const resolvedTier = tier || 'plus'; // Default to plus if undetermined
+  const status = mapStripeStatus(subscription.status);
 
-  console.log(`[${requestId}] [stripe] Updating subscription for customer ${customerId}: tier=${tier}, status=${status}`);
+  console.log(`[${requestId}] [stripe] Updating subscription for customer ${customerId}: tier=${resolvedTier}, status=${status}`);
 
   const result = await db
     .prepare(`
@@ -177,15 +134,17 @@ async function updateUserSubscription(db, customerId, subscription, requestId) {
           subscription_provider = 'stripe'
       WHERE stripe_customer_id = ?
     `)
-    .bind(tier, status, customerId)
+    .bind(resolvedTier, status, customerId)
     .run();
 
   if (result.meta.changes === 0) {
-    console.warn(`[${requestId}] [stripe] No user found with stripe_customer_id: ${customerId}`);
-    return false;
+    // This could indicate: test vs prod account mismatch, deleted user, or data inconsistency
+    console.error(`[${requestId}] [stripe] No user found with stripe_customer_id: ${customerId}. ` +
+      `This may indicate test/prod account mismatch or data inconsistency. Subscription ID: ${subscription.id}`);
+    return { success: false, userNotFound: true };
   }
 
-  return true;
+  return { success: true };
 }
 
 /**
@@ -207,9 +166,106 @@ async function handleSubscriptionCanceled(db, customerId, requestId) {
   return result.meta.changes > 0;
 }
 
+/**
+ * Get user by Stripe customer ID
+ */
+async function getUserByCustomerId(db, customerId) {
+  const result = await db
+    .prepare('SELECT id, email, username, subscription_tier FROM users WHERE stripe_customer_id = ?')
+    .bind(customerId)
+    .first();
+  return result;
+}
+
+/**
+ * Send payment failure notification email
+ */
+async function sendPaymentFailureEmail(env, user, invoice, requestId) {
+  if (!user?.email) {
+    console.warn(`[${requestId}] [stripe] Cannot send payment failure email: no user email`);
+    return;
+  }
+
+  const amount = (invoice.amount_due / 100).toFixed(2);
+  const tierName = user.subscription_tier === 'pro' ? 'Mystic (Pro)' : 'Enlightened (Plus)';
+  const appUrl = env.APP_URL || 'https://tableu.app';
+
+  const html = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; }
+    .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+    .header { background: linear-gradient(135deg, #1e1b4b 0%, #312e81 100%); color: white; padding: 24px; border-radius: 12px 12px 0 0; text-align: center; }
+    .header h1 { margin: 0; font-size: 20px; }
+    .content { background: #fafafa; border: 1px solid #e5e7eb; border-top: none; padding: 24px; border-radius: 0 0 12px 12px; }
+    .alert { background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; padding: 16px; margin-bottom: 20px; }
+    .alert-title { color: #dc2626; font-weight: 600; margin-bottom: 8px; }
+    .button { display: inline-block; background: #4f46e5; color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 500; }
+    .footer { margin-top: 24px; padding-top: 16px; border-top: 1px solid #e5e7eb; font-size: 13px; color: #6b7280; text-align: center; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>⚠️ Payment Issue with Your Subscription</h1>
+    </div>
+    <div class="content">
+      <div class="alert">
+        <div class="alert-title">Payment Failed</div>
+        <p style="margin: 0;">We couldn't process your payment of <strong>$${amount}</strong> for your ${tierName} subscription.</p>
+      </div>
+
+      <p>Hi${user.username ? ` ${user.username}` : ''},</p>
+
+      <p>We attempted to charge your payment method but the transaction was declined. This could happen for several reasons:</p>
+      <ul>
+        <li>Insufficient funds</li>
+        <li>Expired card</li>
+        <li>Card issuer declined the transaction</li>
+      </ul>
+
+      <p>To keep your ${tierName} benefits active, please update your payment method:</p>
+
+      <p style="text-align: center; margin: 24px 0;">
+        <a href="${appUrl}/account" class="button">Update Payment Method</a>
+      </p>
+
+      <p>If you don't update your payment within the next few days, your subscription may be paused and you'll lose access to premium features.</p>
+
+      <div class="footer">
+        <p>Questions? Reply to this email or contact support.</p>
+        <p style="color: #9ca3af; font-size: 12px;">Tableu - Your personal tarot companion</p>
+      </div>
+    </div>
+  </div>
+</body>
+</html>
+  `.trim();
+
+  const result = await sendEmail(env, {
+    to: user.email,
+    subject: `⚠️ Payment failed for your Tableu subscription`,
+    html,
+  });
+
+  if (result.success) {
+    console.log(`[${requestId}] [stripe] Payment failure email sent to ${user.email}`);
+  } else {
+    console.error(`[${requestId}] [stripe] Failed to send payment failure email: ${result.error}`);
+  }
+}
+
 export async function onRequestPost(context) {
   const { request, env } = context;
   const requestId = crypto.randomUUID();
+
+  // Track state for idempotency cleanup in catch block
+  let idempotencyClaimSucceeded = false;
+  let processingSucceeded = false;
+  let event = null;
 
   try {
     // Get the raw body for signature verification
@@ -240,13 +296,12 @@ export async function onRequestPost(context) {
     }
 
     // Parse the event
-    const event = JSON.parse(payload);
+    event = JSON.parse(payload);
     console.log(`[${requestId}] [stripe] Received webhook: ${event.type} (${event.id})`);
 
     // Idempotency: Use claim-first pattern to prevent race conditions
     // INSERT OR IGNORE atomically claims the event; if it already exists, changes=0
     // This is safer than SELECT-then-INSERT which can race under concurrent delivery
-    let _eventClaimed = false;
     try {
       const claim = await env.DB.prepare(`
         INSERT OR IGNORE INTO processed_webhook_events
@@ -262,9 +317,9 @@ export async function onRequestPost(context) {
           { status: 200, headers: { 'Content-Type': 'application/json' } }
         );
       }
-      _eventClaimed = true;
+      idempotencyClaimSucceeded = true;
     } catch (err) {
-      // If idempotency claim fails, log but continue processing
+      // If idempotency claim fails due to DB error (not duplicate), log but continue processing
       // Better to potentially double-process than to fail silently
       console.warn(`[${requestId}] [stripe] Idempotency claim failed (continuing): ${err.message}`);
     }
@@ -295,8 +350,13 @@ export async function onRequestPost(context) {
 
       case 'invoice.payment_failed': {
         const invoice = event.data.object;
-        console.warn(`[${requestId}] [stripe] Payment failed for customer ${invoice.customer}`);
-        // Could trigger notification to user or grace period handling
+        console.warn(`[${requestId}] [stripe] Payment failed for customer ${invoice.customer}: $${(invoice.amount_due / 100).toFixed(2)}`);
+
+        // Send notification email to user
+        const failedUser = await getUserByCustomerId(env.DB, invoice.customer);
+        if (failedUser) {
+          await sendPaymentFailureEmail(env, failedUser, invoice, requestId);
+        }
         break;
       }
 
@@ -311,12 +371,7 @@ export async function onRequestPost(context) {
         console.log(`[${requestId}] [stripe] Unhandled event type: ${event.type}`);
     }
 
-    // Note: Event was already recorded for idempotency before processing (claim-first pattern)
-    // If processing failed and we want Stripe to retry, we could delete the claim here:
-    // if (eventClaimed && processingFailed) {
-    //   await env.DB.prepare('DELETE FROM processed_webhook_events WHERE provider = ? AND event_id = ?')
-    //     .bind('stripe', event.id).run();
-    // }
+    processingSucceeded = true;
 
     // Acknowledge receipt of the event
     return new Response(
@@ -326,6 +381,22 @@ export async function onRequestPost(context) {
 
   } catch (error) {
     console.error(`[${requestId}] [stripe] Webhook error:`, error);
+
+    // If we claimed the event but processing failed, remove the claim to allow retry
+    // This prevents the "marked as processed but never completed" scenario
+    if (idempotencyClaimSucceeded && !processingSucceeded) {
+      try {
+        await env.DB.prepare(`
+          DELETE FROM processed_webhook_events
+          WHERE provider = ? AND event_id = ?
+        `).bind('stripe', event?.id).run();
+        console.log(`[${requestId}] [stripe] Removed idempotency claim for failed event ${event?.id} to allow retry`);
+      } catch (cleanupErr) {
+        console.error(`[${requestId}] [stripe] Failed to remove idempotency claim: ${cleanupErr.message}`);
+      }
+    }
+
+    // Return 500 so Stripe will retry the webhook
     return new Response(
       JSON.stringify({ error: 'Webhook handler failed' }),
       { status: 500, headers: { 'Content-Type': 'application/json' } }

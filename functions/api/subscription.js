@@ -8,46 +8,11 @@
 
 import { getUserFromRequest } from '../lib/auth.js';
 import { jsonResponse } from '../lib/utils.js';
-import { stripeRequest } from '../lib/stripe.js';
-
-function mapStripeStatus(stripeStatus) {
-  const statusMap = {
-    'active': 'active',
-    'trialing': 'trialing',
-    'past_due': 'past_due',
-    'canceled': 'canceled',
-    'unpaid': 'unpaid',
-    'incomplete': 'incomplete',
-    'incomplete_expired': 'expired',
-    'paused': 'paused'
-  };
-  return statusMap[stripeStatus] || 'inactive';
-}
-
-function extractTierFromSubscription(subscription) {
-  if (subscription?.metadata?.tier) {
-    return subscription.metadata.tier;
-  }
-
-  const item = subscription?.items?.data?.[0];
-  const lookupKey = item?.price?.lookup_key;
-  if (lookupKey) {
-    if (lookupKey.includes('pro')) return 'pro';
-    if (lookupKey.includes('plus')) return 'plus';
-  }
-
-  if (item?.price?.metadata?.tier) {
-    return item.price.metadata.tier;
-  }
-
-  const amount = item?.price?.unit_amount;
-  if (amount) {
-    if (amount >= 1500) return 'pro';
-    if (amount >= 500) return 'plus';
-  }
-
-  return null;
-}
+import {
+  mapStripeStatus,
+  extractTierFromSubscription,
+  fetchLatestStripeSubscription
+} from '../lib/stripe.js';
 
 function getStripeDates(subscription) {
   const toMs = (value) => (value ? value * 1000 : null);
@@ -57,17 +22,6 @@ function getStripeDates(subscription) {
     cancelAt: toMs(subscription?.cancel_at),
     cancelAtPeriodEnd: Boolean(subscription?.cancel_at_period_end)
   };
-}
-
-async function fetchLatestStripeSubscription(customerId, secretKey) {
-  if (!customerId || !secretKey) return null;
-  const response = await stripeRequest(
-    `/subscriptions?customer=${customerId}&status=all&limit=1`,
-    'GET',
-    null,
-    secretKey
-  );
-  return response?.data?.[0] || null;
 }
 
 export async function onRequestGet(context) {

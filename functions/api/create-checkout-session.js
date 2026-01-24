@@ -5,13 +5,21 @@
  * Creates a Stripe Checkout session for subscription purchases.
  * Requires authentication.
  *
+ * Request body:
+ *   - tier: 'plus' or 'pro' (required)
+ *   - interval: 'monthly' or 'annual' (optional, defaults to 'monthly')
+ *   - successUrl: redirect URL on success (optional)
+ *   - cancelUrl: redirect URL on cancel (optional)
+ *
  * Local testing with Stripe CLI:
  *   stripe listen --forward-to localhost:8787/api/webhooks/stripe
  *
  * Required environment variables:
  *   - STRIPE_SECRET_KEY: Stripe secret key (sk_test_... or sk_live_...)
- *   - STRIPE_PRICE_ID_PLUS: Price ID for Plus tier (price_...)
- *   - STRIPE_PRICE_ID_PRO: Price ID for Pro tier (price_...)
+ *   - STRIPE_PRICE_ID_PLUS: Price ID for Plus monthly (price_...)
+ *   - STRIPE_PRICE_ID_PRO: Price ID for Pro monthly (price_...)
+ *   - STRIPE_PRICE_ID_PLUS_ANNUAL: Price ID for Plus annual (price_...)
+ *   - STRIPE_PRICE_ID_PRO_ANNUAL: Price ID for Pro annual (price_...)
  *   - APP_URL: Base URL of the application (e.g., https://tableu.app)
  */
 
@@ -22,6 +30,8 @@ import { stripeRequest } from '../lib/stripe.js';
 
 /**
  * Get or create a Stripe customer for the user
+ * Uses atomic UPDATE to prevent race conditions when concurrent requests
+ * attempt to create customers for the same user.
  */
 async function getOrCreateCustomer(db, user, secretKey) {
   // If user already has a Stripe customer ID, return it
@@ -36,11 +46,31 @@ async function getOrCreateCustomer(db, user, secretKey) {
     'metadata[user_id]': user.id,
   }, secretKey);
 
-  // Save the customer ID to the database
-  await db
-    .prepare('UPDATE users SET stripe_customer_id = ? WHERE id = ?')
+  // Atomically save the customer ID only if no other request won the race
+  // The WHERE clause ensures we only update if stripe_customer_id is still NULL
+  const result = await db
+    .prepare('UPDATE users SET stripe_customer_id = ? WHERE id = ? AND stripe_customer_id IS NULL')
     .bind(customer.id, user.id)
     .run();
+
+  if (result.meta.changes === 0) {
+    // Another request won the race - fetch the winning customer ID
+    const updated = await db
+      .prepare('SELECT stripe_customer_id FROM users WHERE id = ?')
+      .bind(user.id)
+      .first();
+
+    if (!updated?.stripe_customer_id) {
+      // This shouldn't happen - log and throw
+      console.error(`Failed to link Stripe customer for user ${user.id}: race condition resolution failed`);
+      throw new Error('Failed to link Stripe customer to account');
+    }
+
+    // Note: The customer we created is now orphaned in Stripe.
+    // In a production system, you might want to delete it or log for cleanup.
+    console.warn(`Race condition: orphaned Stripe customer ${customer.id} for user ${user.id}, using ${updated.stripe_customer_id}`);
+    return updated.stripe_customer_id;
+  }
 
   return customer.id;
 }
@@ -71,6 +101,7 @@ export async function onRequestPost(context) {
     // Parse request body
     const body = await readJsonBody(request).catch(() => ({}));
     const tier = body?.tier;
+    const interval = body?.interval || 'monthly';
     const successUrl = body?.successUrl;
     const cancelUrl = body?.cancelUrl;
 
@@ -83,8 +114,19 @@ export async function onRequestPost(context) {
       );
     }
 
-    // Get the price ID for the selected tier
-    const priceIdEnvKey = tier === 'plus' ? 'STRIPE_PRICE_ID_PLUS' : 'STRIPE_PRICE_ID_PRO';
+    // Validate interval
+    const validIntervals = ['monthly', 'annual'];
+    if (!validIntervals.includes(interval)) {
+      return new Response(
+        JSON.stringify({ error: 'Invalid billing interval' }),
+        { status: 400, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Get the price ID for the selected tier and interval
+    const priceIdEnvKey = interval === 'annual'
+      ? (tier === 'plus' ? 'STRIPE_PRICE_ID_PLUS_ANNUAL' : 'STRIPE_PRICE_ID_PRO_ANNUAL')
+      : (tier === 'plus' ? 'STRIPE_PRICE_ID_PLUS' : 'STRIPE_PRICE_ID_PRO');
     const priceId = env[priceIdEnvKey];
 
     if (!priceId) {

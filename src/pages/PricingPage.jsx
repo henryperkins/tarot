@@ -20,7 +20,8 @@ import {
   Headset,
   Table,
   Info,
-  Code
+  Code,
+  CalendarBlank
 } from '@phosphor-icons/react';
 import { useAuth } from '../contexts/AuthContext';
 import { useSubscription, SUBSCRIPTION_TIERS } from '../contexts/SubscriptionContext';
@@ -40,15 +41,30 @@ function formatPerMonth(value) {
   return `${value}/mo`;
 }
 
-function TierCard({ tierKey, config, isCurrent, onSelect, isLoading, disabled }) {
+// Annual pricing (2 months free = ~17% discount)
+const ANNUAL_PRICES = {
+  plus: { annual: 79.99, monthly: 7.99, savings: 15.89 },
+  pro: { annual: 199.99, monthly: 19.99, savings: 39.89 }
+};
+
+function TierCard({ tierKey, config, isCurrent, onSelect, isLoading, disabled, billingInterval = 'monthly' }) {
   const prefersReducedMotion = useReducedMotion();
   const isFree = tierKey === 'free';
   const isPaid = !isFree;
+  const isAnnual = billingInterval === 'annual';
   const trialDays = Number.isFinite(config.trialDays) ? config.trialDays : 0;
+
+  // Get pricing based on interval
+  const annualData = ANNUAL_PRICES[tierKey];
+  const displayPrice = isPaid && isAnnual ? annualData?.annual : config.price;
+  const monthlyEquivalent = isPaid && isAnnual ? (annualData?.annual / 12).toFixed(2) : config.price;
+  const savings = isPaid && isAnnual ? annualData?.savings : 0;
+
   const primaryBillingLine = trialDays > 0 ? `Free ${trialDays}-day trial` : 'Billed today';
+  const billingPeriod = isAnnual ? 'annually' : 'monthly';
   const secondaryBillingLine = trialDays > 0
-    ? 'Billed monthly · Total due today: $0'
-    : `Billed monthly · Total due today: $${config.price}`;
+    ? `Billed ${billingPeriod} · Total due today: $0`
+    : `Billed ${billingPeriod} · Total due today: $${displayPrice}`;
   const policyLine = isPaid ? 'Cancel anytime · 7-day refund on first purchase' : null;
 
   const iconMap = {
@@ -82,6 +98,14 @@ function TierCard({ tierKey, config, isCurrent, onSelect, isLoading, disabled })
         <div className="text-right">
           {isFree ? (
             <p className="text-3xl font-bold text-main">Free</p>
+          ) : isAnnual ? (
+            <div>
+              <p className="text-main">
+                <span className="text-3xl font-bold">${displayPrice}</span>
+                <span className="ml-1 text-sm text-muted">/year</span>
+              </p>
+              <p className="text-xs text-accent">${monthlyEquivalent}/mo · Save ${savings}</p>
+            </div>
           ) : (
             <p className="text-main">
               <span className="text-3xl font-bold">${config.price}</span>
@@ -225,7 +249,7 @@ function TierCard({ tierKey, config, isCurrent, onSelect, isLoading, disabled })
           isCurrent
             ? 'bg-secondary/30 text-secondary cursor-default'
             : isPaid
-              ? 'bg-amber-500 text-neutral-900 shadow-md hover:bg-amber-400'
+            ? 'bg-accent text-surface shadow-md hover:bg-accent/90'
               : 'border-2 border-secondary/60 bg-transparent text-main hover:border-accent hover:bg-secondary/10',
           prefersReducedMotion ? '' : 'transition'
         ].join(' ')}
@@ -345,7 +369,7 @@ function ComparisonModal({ isOpen, onClose }) {
       {/* Backdrop */}
       <div
         className={[
-          'absolute inset-0 bg-black/70 backdrop-blur-sm',
+          'absolute inset-0 bg-main/80 backdrop-blur-sm',
           prefersReducedMotion ? '' : 'animate-fade-in'
         ].join(' ')}
         onClick={onClose}
@@ -497,6 +521,7 @@ export default function PricingPage() {
   const [pendingRestore, setPendingRestore] = useState(false);
   const [restoreLoading, setRestoreLoading] = useState(false);
   const [showComparisonModal, setShowComparisonModal] = useState(false);
+  const [billingInterval, setBillingInterval] = useState('monthly');
 
   const tiers = ['free', 'plus', 'pro'];
 
@@ -533,6 +558,7 @@ export default function PricingPage() {
           credentials: 'include',
           body: JSON.stringify({
             tier,
+            interval: billingInterval,
             successUrl: `${window.location.origin}/account?session_id={CHECKOUT_SESSION_ID}&upgrade=success`,
             cancelUrl: `${window.location.origin}/pricing`
           })
@@ -556,7 +582,7 @@ export default function PricingPage() {
         setLoadingTier(null);
       }
     },
-    [isAuthenticated, currentTier, navigate]
+    [isAuthenticated, currentTier, navigate, billingInterval]
   );
 
   const handleRestorePurchases = useCallback(async () => {
@@ -649,7 +675,7 @@ export default function PricingPage() {
                 disabled={loadingTier !== null}
                 className={[
                   'inline-flex items-center justify-center gap-2 rounded-full px-6 py-3 text-sm font-semibold shadow-md',
-                  'bg-amber-500 text-neutral-900 hover:bg-amber-400',
+                  'bg-accent text-surface hover:bg-accent/90',
                   prefersReducedMotion ? '' : 'transition hover:scale-[1.02]'
                 ].join(' ')}
               >
@@ -668,7 +694,7 @@ export default function PricingPage() {
                 disabled={loadingTier !== null}
                 className={[
                   'inline-flex items-center justify-center gap-2 rounded-full px-6 py-3 text-sm font-semibold',
-                  'border-2 border-secondary/60 bg-transparent text-main hover:border-amber-500/60 hover:bg-secondary/10',
+                  'border-2 border-secondary/60 bg-transparent text-main hover:border-accent/60 hover:bg-secondary/10',
                   prefersReducedMotion ? '' : 'transition hover:scale-[1.02]'
                 ].join(' ')}
               >
@@ -718,7 +744,12 @@ export default function PricingPage() {
                   Plans at a glance
                 </p>
                 <p className="mt-1 text-sm text-secondary">
-                  From <span className="font-semibold text-main">$7.99/month</span>
+                  From <span className="font-semibold text-main">
+                    {billingInterval === 'annual' ? '$6.67/month' : '$7.99/month'}
+                  </span>
+                  {billingInterval === 'annual' && (
+                    <span className="ml-2 text-xs text-accent">billed annually</span>
+                  )}
                 </p>
               </div>
               <div className="flex items-center gap-2 rounded-full bg-main/80 px-3 py-1 text-[11px] text-muted">
@@ -730,7 +761,14 @@ export default function PricingPage() {
             <div className="space-y-3 text-sm">
               {['plus', 'pro'].map((tier) => {
                 const config = SUBSCRIPTION_TIERS[tier];
+                const annualData = ANNUAL_PRICES[tier];
                 const isCurrent = currentTier === tier;
+                const displayPrice = billingInterval === 'annual'
+                  ? `$${annualData.annual}/yr`
+                  : `$${config.price}/mo`;
+                const monthlyEquiv = billingInterval === 'annual'
+                  ? `$${(annualData.annual / 12).toFixed(2)}/mo`
+                  : null;
                 return (
                   <div
                     key={tier}
@@ -741,8 +779,13 @@ export default function PricingPage() {
                         {config.name}
                       </p>
                       <p className="text-sm text-main">
-                        ${config.price}/mo · {formatCount(config.monthlyReadings)} readings
+                        {displayPrice} · {formatCount(config.monthlyReadings)} readings
                       </p>
+                      {monthlyEquiv && (
+                        <p className="text-[11px] text-accent">
+                          {monthlyEquiv} · Save ${annualData.savings}
+                        </p>
+                      )}
                       <p className="text-[11px] text-muted">
                         {formatPerMonth(config.monthlyTTS)} voice narrations
                       </p>
@@ -756,7 +799,7 @@ export default function PricingPage() {
                         type="button"
                         onClick={() => handleSelectTier(tier)}
                         disabled={loadingTier !== null}
-                        className="inline-flex items-center gap-1 rounded-full bg-amber-500 px-3 py-1.5 text-[11px] font-semibold text-neutral-900 hover:bg-amber-400 transition"
+                        className="inline-flex items-center gap-1 rounded-full bg-accent px-3 py-1.5 text-[11px] font-semibold text-surface hover:bg-accent/90 transition"
                       >
                         Choose
                         <ArrowRight className="h-3 w-3" />
@@ -777,9 +820,43 @@ export default function PricingPage() {
 
         {/* Plans */}
         <section id="plans" className="mb-10">
-          <h2 className="mb-4 text-xs font-semibold uppercase tracking-[0.2em] text-muted">
-            Choose your path
-          </h2>
+          <div className="mb-6 flex flex-col items-center justify-between gap-4 sm:flex-row">
+            <h2 className="text-xs font-semibold uppercase tracking-[0.2em] text-muted">
+              Choose your path
+            </h2>
+
+            {/* Billing interval toggle */}
+            <div className="flex items-center gap-2 rounded-full border border-secondary/40 bg-surface/80 p-1">
+              <button
+                type="button"
+                onClick={() => setBillingInterval('monthly')}
+                className={[
+                  'rounded-full px-4 py-1.5 text-sm font-medium transition',
+                  billingInterval === 'monthly'
+                    ? 'bg-accent text-white'
+                    : 'text-secondary hover:text-main'
+                ].join(' ')}
+              >
+                Monthly
+              </button>
+              <button
+                type="button"
+                onClick={() => setBillingInterval('annual')}
+                className={[
+                  'inline-flex items-center gap-1.5 rounded-full px-4 py-1.5 text-sm font-medium transition',
+                  billingInterval === 'annual'
+                    ? 'bg-accent text-white'
+                    : 'text-secondary hover:text-main'
+                ].join(' ')}
+              >
+                <CalendarBlank className="h-4 w-4" />
+                Annual
+                <span className="rounded-full bg-green-500/20 px-2 py-0.5 text-[10px] font-semibold text-green-400">
+                  Save 17%
+                </span>
+              </button>
+            </div>
+          </div>
           <div className="grid gap-6 md:grid-cols-3">
             {tiers.map((tier) => {
               const config = SUBSCRIPTION_TIERS[tier];
@@ -793,6 +870,7 @@ export default function PricingPage() {
                   onSelect={handleSelectTier}
                   isLoading={loadingTier === tier}
                   disabled={loadingTier !== null}
+                  billingInterval={billingInterval}
                 />
               );
             })}
@@ -913,13 +991,17 @@ export default function PricingPage() {
           <div className="mx-auto flex max-w-6xl items-center justify-between gap-3">
             <div className="text-xs text-muted">
               <p className="font-semibold text-main">Upgrade to Plus</p>
-              <p>$7.99/month · cancel anytime</p>
+              <p>
+                {billingInterval === 'annual'
+                  ? '$79.99/year ($6.67/mo) · cancel anytime'
+                  : '$7.99/month · cancel anytime'}
+              </p>
             </div>
             <button
               type="button"
               onClick={() => handleSelectTier('plus')}
               disabled={loadingTier !== null}
-              className="inline-flex items-center gap-2 rounded-full bg-amber-500 px-4 py-2.5 text-xs font-semibold text-neutral-900 shadow-md hover:bg-amber-400 transition"
+              className="inline-flex items-center gap-2 rounded-full bg-accent px-4 py-2.5 text-xs font-semibold text-surface shadow-md hover:bg-accent/90 transition"
             >
               Go Plus
               {loadingTier === 'plus' ? (
