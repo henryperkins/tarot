@@ -7,6 +7,9 @@
 
 import { useMemo } from 'react';
 
+// Maximum number of items shown in preview before "View full patterns" button appears
+const MAX_PREVIEW_ITEMS = 4;
+
 export function usePatternsSnapshot({
   scopeLabel,
   seasonWindow,
@@ -40,8 +43,8 @@ export function usePatternsSnapshot({
     return `${formatter.format(seasonWindow.start)} – ${formatter.format(seasonWindow.end)}`;
   }, [seasonWindow, locale, dateFormatOptions]);
 
-  const hasMoreContexts = contextBreakdown.length > 4;
-  const hasMoreThemes = themes.length > 4;
+  const hasMoreContexts = contextBreakdown.length > MAX_PREVIEW_ITEMS;
+  const hasMoreThemes = themes.length > MAX_PREVIEW_ITEMS;
   const hasMorePatterns = hasMoreContexts || hasMoreThemes;
 
   return {
