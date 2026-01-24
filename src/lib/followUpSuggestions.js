@@ -311,4 +311,3 @@ export function getPositionQuestions(card, spreadKey) {
 }
 
 export default generateFollowUpSuggestions;
-import { getSymbolFollowUpPrompt } from './symbolElementBridge';

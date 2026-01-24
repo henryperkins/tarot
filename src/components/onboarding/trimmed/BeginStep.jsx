@@ -27,7 +27,7 @@ export function BeginStep({ selectedSpread, question, onBegin, onBack }) {
   const lensLabelMap = {
     psychological: 'Psychological',
     spiritual: 'Spiritual',
-    mixed: 'Mixed',
+    mixed: 'Both lenses',
     playful: 'Playful'
   };
   const toneLabel = toneLabelMap[personalization.readingTone] || 'Balanced';

@@ -21,7 +21,7 @@ const READING_TONE_LABELS = {
 const SPIRITUAL_FRAME_LABELS = {
   psychological: 'psychological',
   spiritual: 'spiritual',
-  mixed: 'mixed',
+  mixed: 'both lenses',
   playful: 'playful',
 };
 
@@ -53,6 +53,8 @@ export function JourneyBegin({ selectedSpread, question, onBegin, onBack }) {
   const focusAreasLabel = (personalization.focusAreas || [])
     .map((area) => FOCUS_AREA_LABELS[area])
     .join(', ');
+  const frameLabel = SPIRITUAL_FRAME_LABELS[personalization.spiritualFrame] || 'balanced';
+  const framePhrase = frameLabel === 'both lenses' ? 'with both lenses' : `with a ${frameLabel} lens`;
 
   return (
     <div className="flex flex-col h-full">
@@ -161,11 +163,9 @@ export function JourneyBegin({ selectedSpread, question, onBegin, onBack }) {
                   <span className="text-main font-medium">
                     {READING_TONE_LABELS[personalization.readingTone] || 'honest but kind'}
                   </span>{' '}
-                  with a{' '}
                   <span className="text-main font-medium">
-                    {SPIRITUAL_FRAME_LABELS[personalization.spiritualFrame] || 'balanced'}
-                  </span>{' '}
-                  lens
+                    {framePhrase}
+                  </span>
                 </span>
               </div>
 
