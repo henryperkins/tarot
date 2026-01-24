@@ -22,6 +22,7 @@ import { Tooltip } from '../Tooltip';
 import SeasonSummary from './sections/SeasonSummary';
 import CardsCallingYou from './sections/CardsCallingYou';
 import ContextBreakdown from './sections/ContextBreakdown';
+import PatternsSnapshotPanel from './sections/PatternsSnapshotPanel';
 import MajorArcanaMap from './sections/MajorArcanaMap';
 import AchievementsRow from './sections/AchievementsRow';
 import CadenceSection from './sections/CadenceSection';
@@ -31,6 +32,7 @@ import JournalSummarySection from './sections/JournalSummarySection';
 import EmptyState from './sections/EmptyState';
 import BackfillBanner from './sections/BackfillBanner';
 import PatternAlertBanner from '../PatternAlertBanner';
+import { usePatternsSnapshot } from './hooks/usePatternsSnapshot';
 
 /**
  * CollapsibleSection - Expandable section wrapper.
@@ -132,6 +134,7 @@ export default function JourneySidebar({
     summary: false,
     export: false,
   });
+  const [showAllPatterns, setShowAllPatterns] = useState(false);
 
   const abortControllerRef = useRef(null);
 
@@ -146,8 +149,32 @@ export default function JourneySidebar({
     abortControllerRef.current = new AbortController();
     handleBackfill(abortControllerRef.current.signal);
   }, [handleBackfill]);
+
   const scopeChipLabel = analyticsScope === 'filters' && filtersActive ? 'Filtered' : (scopeLabel || 'Scope');
   const sourceLabel = _dataSource === 'server' ? 'D1' : 'Journal';
+
+  // Use shared patterns snapshot hook
+  const {
+    timeframeLabel,
+    formattedSeasonWindow,
+    hasMoreContexts,
+    hasMoreThemes,
+    hasMorePatterns,
+  } = usePatternsSnapshot({
+    scopeLabel,
+    seasonWindow,
+    locale,
+    timezone,
+    seasonTimezone,
+    filtersActive,
+    analyticsScope,
+    contextBreakdown,
+    themes,
+  });
+
+  const handlePatternsToggle = useCallback(() => {
+    setShowAllPatterns((prev) => !prev);
+  }, []);
 
   // Show loading skeleton
   if (isLoading) {
@@ -429,6 +456,30 @@ export default function JourneySidebar({
                     ))}
                   </div>
                 </div>
+              )}
+
+              {/* Single "View full patterns" / "Hide patterns" button */}
+              {hasMorePatterns && (
+                <button
+                  type="button"
+                  onClick={handlePatternsToggle}
+                  aria-expanded={showAllPatterns}
+                  className="text-xs font-semibold text-[color:var(--text-accent)] hover:text-main focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--accent-45)]"
+                >
+                  {showAllPatterns ? 'Hide patterns' : 'View full patterns'}
+                </button>
+              )}
+
+              {/* Expanded patterns snapshot using shared component */}
+              {showAllPatterns && hasMorePatterns && (
+                <PatternsSnapshotPanel
+                  timeframeLabel={timeframeLabel}
+                  formattedSeasonWindow={formattedSeasonWindow}
+                  contextBreakdown={contextBreakdown}
+                  themes={themes}
+                  preferenceDrift={preferenceDrift}
+                  onClose={handlePatternsToggle}
+                />
               )}
 
               {/* Reading Cadence */}

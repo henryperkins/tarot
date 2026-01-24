@@ -25,6 +25,7 @@ import { Tooltip } from '../Tooltip';
 import { useModalA11y } from '../../hooks/useModalA11y';
 import CardsCallingYou from './sections/CardsCallingYou';
 import ContextBreakdown from './sections/ContextBreakdown';
+import PatternsSnapshotPanel from './sections/PatternsSnapshotPanel';
 import MajorArcanaMap from './sections/MajorArcanaMap';
 import AchievementsRow from './sections/AchievementsRow';
 import CadenceSection from './sections/CadenceSection';
@@ -33,6 +34,7 @@ import ExportSection from './sections/ExportSection';
 import JournalSummarySection from './sections/JournalSummarySection';
 import EmptyState from './sections/EmptyState';
 import BackfillBanner from './sections/BackfillBanner';
+import { usePatternsSnapshot } from './hooks/usePatternsSnapshot';
 
 const TABS = [
   { key: 'cards', label: 'Cards', icon: TrendUp },
@@ -92,12 +94,33 @@ export default function JourneyMobileSheet({
   const navigate = useNavigate();
   const [isSheetOpen, setIsSheetOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('cards');
+  const [showAllPatterns, setShowAllPatterns] = useState(false);
   const sheetRef = useRef(null);
   const closeButtonRef = useRef(null);
   const triggerButtonRef = useRef(null);
   const abortControllerRef = useRef(null);
   const scopeChipLabel = analyticsScope === 'filters' && filtersActive ? 'Filtered' : (scopeLabel || 'Scope');
   const sourceLabel = _dataSource === 'server' ? 'D1' : 'Journal';
+
+  // Use shared patterns snapshot hook
+  const {
+    timeframeLabel,
+    formattedSeasonWindow,
+    hasMoreContexts,
+    hasMoreThemes,
+    hasMorePatterns,
+  } = usePatternsSnapshot({
+    scopeLabel,
+    seasonWindow,
+    locale,
+    timezone,
+    seasonTimezone,
+    filtersActive,
+    analyticsScope,
+    contextBreakdown,
+    themes,
+  });
+
   const streakGraceTooltip = 'Counts from yesterday if no reading today (grace period).';
   const streakInfoButtonClass =
     'text-muted hover:text-main focus-visible:ring-[color:var(--accent-45)] -ml-2 -mr-2';
@@ -120,6 +143,13 @@ export default function JourneyMobileSheet({
     initialFocusRef: closeButtonRef,
     scrollLockStrategy: 'simple',
   });
+
+  // Reset patterns snapshot expansion when navigating away from the Patterns tab
+  useEffect(() => {
+    if (activeTab !== 'patterns' && showAllPatterns) {
+      setShowAllPatterns(false);
+    }
+  }, [activeTab, showAllPatterns]);
 
   // Reset drag state when sheet closes
   useEffect(() => {
@@ -214,6 +244,10 @@ export default function JourneyMobileSheet({
     abortControllerRef.current = new AbortController();
     handleBackfill(abortControllerRef.current.signal);
   }, [handleBackfill]);
+
+  const handlePatternsToggle = useCallback(() => {
+    setShowAllPatterns((prev) => !prev);
+  }, []);
 
   // Show loading skeleton
   if (isLoading) {
@@ -604,6 +638,28 @@ export default function JourneyMobileSheet({
                         ))}
                       </div>
                     </div>
+                  )}
+                  {/* Single "View full patterns" / "Hide patterns" button */}
+                  {hasMorePatterns && (
+                    <button
+                      type="button"
+                      onClick={handlePatternsToggle}
+                      aria-expanded={showAllPatterns}
+                      className="text-xs font-semibold text-[color:var(--text-accent)] hover:text-main focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--accent-45)]"
+                    >
+                      {showAllPatterns ? 'Hide patterns' : 'View full patterns'}
+                    </button>
+                  )}
+                  {/* Expanded patterns snapshot using shared component */}
+                  {showAllPatterns && hasMorePatterns && (
+                    <PatternsSnapshotPanel
+                      timeframeLabel={timeframeLabel}
+                      formattedSeasonWindow={formattedSeasonWindow}
+                      contextBreakdown={contextBreakdown}
+                      themes={themes}
+                      preferenceDrift={preferenceDrift}
+                      onClose={handlePatternsToggle}
+                    />
                   )}
                   {cadence.length > 0 && <CadenceSection data={cadence} />}
                   {journeyStory && <JourneyStorySection story={journeyStory} />}
