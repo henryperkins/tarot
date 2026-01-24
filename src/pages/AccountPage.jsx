@@ -2126,8 +2126,9 @@ export default function AccountPage() {
                           onClick={handleManageSubscription}
                           className="font-semibold underline underline-offset-2 transition hover:text-warning/80"
                         >
-                          Manage subscription first to avoid future charges.
-                        </button>
+                          Manage subscription
+                        </button>{' '}
+                        first to avoid future charges.
                       </p>
                     </div>
                   )}
