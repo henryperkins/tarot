@@ -2147,18 +2147,47 @@ export default function AccountPage() {
                   <DownloadSimple className="h-4 w-4" />
                   Download account data
                 </button>
-                <button
-                  type="button"
-                  onClick={() => setDeleteModalOpen(true)}
-                  className="
-                    flex-1 inline-flex items-center justify-center gap-2 rounded-full
-                    border border-error/40 bg-error/10 px-4 py-2.5 text-xs font-semibold text-error
-                    hover:bg-error/20 transition
-                  "
-                >
-                  <Trash className="h-4 w-4" />
-                  Delete account
-                </button>
+                <div className="flex-1 space-y-2">
+                  {hasActiveSubscription && (
+                    <div
+                      className="rounded-xl border border-amber-400/30 bg-amber-400/10 px-3 py-2 text-xs"
+                      role="status"
+                      aria-live="polite"
+                      aria-atomic="true"
+                    >
+                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                        <p className="text-amber-200">
+                          Active subscription detected. Manage your subscription first to avoid future charges.
+                        </p>
+                        <button
+                          type="button"
+                          onClick={handleManageSubscription}
+                          disabled={portalLoading}
+                          className={`inline-flex items-center gap-1 font-semibold underline underline-offset-2 transition hover:text-amber-100 text-amber-100 ${
+                            portalLoading ? 'opacity-60 cursor-not-allowed' : ''
+                          }`}
+                        >
+                          {portalLoading && (
+                            <CircleNotch className="h-3 w-3 animate-spin" weight="bold" />
+                          )}
+                          Manage subscription
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => setDeleteModalOpen(true)}
+                    className="
+                      w-full inline-flex items-center justify-center gap-2 rounded-full
+                      border border-error/40 bg-error/10 px-4 py-2.5 text-xs font-semibold text-error
+                      hover:bg-error/20 transition
+                    "
+                  >
+                    <Trash className="h-4 w-4" />
+                    Delete account
+                  </button>
+                </div>
               </div>
               <p className="text-xs text-muted mt-2">
                 Deleting your account removes your synced journal, analytics, and memories. This cannot be undone.
