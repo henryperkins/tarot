@@ -191,7 +191,7 @@ export function QuestionInput({
           Save intention
         </button>
         <span role="status" aria-live="polite" className="text-xs min-h-[1.25rem]">
-          {savedNotice && <span className="text-primary">Saved ✓</span>}
+          {savedNotice && <span className="text-primary">Saved to intentions ✓</span>}
           {saveError && <span className="text-error">{saveError}</span>}
         </span>
       </div>
