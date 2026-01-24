@@ -984,10 +984,7 @@ export default function AccountPage() {
         : `Billed ${normalizedBillingInterval}`)
     : null;
   const periodEndTimestamp = stripeMeta?.currentPeriodEnd || null;
-  const trialEndTimestamp = normalizeTimestamp(
-    subscriptionDetails?.trial_end
-    || stripeMeta?.trialEnd
-  );
+  const trialEndTimestamp = stripeMeta?.trialEnd || null;
   const renewalLabel = statusValue === 'trialing'
     ? (trialEndTimestamp
       ? `Trial ends ${formatDate(trialEndTimestamp)}`
