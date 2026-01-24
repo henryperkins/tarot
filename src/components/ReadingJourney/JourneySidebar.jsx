@@ -481,8 +481,6 @@ export default function JourneySidebar({
                   onClose={handlePatternsToggle}
                 />
               )}
-                </div>
-              )}
 
               {/* Reading Cadence */}
               {cadence.length > 0 && <CadenceSection data={cadence} variant="sidebar" />}
