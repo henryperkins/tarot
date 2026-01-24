@@ -1,16 +1,9 @@
 import { generateFallbackWaveform } from '../../shared/fallbackAudio.js';
 import { jsonResponse, readJsonBody, sanitizeText } from '../lib/utils.js';
 import { getUserFromRequest } from '../lib/auth.js';
-import { getClientIdentifier } from '../lib/clientId.js';
-import {
-  getMonthKeyUtc,
-  getResetAtUtc,
-  getUsageRow,
-  incrementUsageCounter
-} from '../lib/usageTracking.js';
 import { enforceApiCallLimit } from '../lib/apiUsage.js';
 import { getSubscriptionContext } from '../lib/entitlements.js';
-import { getTierConfig } from '../../shared/monetization/subscription.js';
+import { getTtsLimits, enforceTtsRateLimit } from '../lib/ttsLimits.js';
 import { resolveEnv } from '../lib/environment.js';
 import { EMOTION_INSTRUCTIONS } from '../lib/emotionInstructions.js';
 
@@ -70,18 +63,6 @@ export const onRequestGet = async ({ env }) => {
   });
 };
 
-/**
- * Get TTS limits based on subscription tier.
- * Uses shared subscription config as single source of truth.
- */
-function getTTSLimits(tier) {
-  const config = getTierConfig(tier);
-  return {
-    monthly: config.monthlyTTS,
-    premium: tier === 'plus' || tier === 'pro'
-  };
-}
-
 export const onRequestPost = async ({ request, env }) => {
   const requestId = crypto.randomUUID();
   try {
@@ -93,7 +74,7 @@ export const onRequestPost = async ({ request, env }) => {
     const subscription = getSubscriptionContext(user);
     const tier = subscription.tier;
     const effectiveTier = subscription.effectiveTier;
-    const ttsLimits = getTTSLimits(effectiveTier);
+    const ttsLimits = getTtsLimits(effectiveTier);
 
     const { text, context, voice, speed, format, response_format: responseFormat, emotion } = await readJsonBody(request);
     const sanitizedText = sanitizeText(text, { maxLength: 4096, collapseWhitespace: false });
@@ -149,7 +130,6 @@ export const onRequestPost = async ({ request, env }) => {
       apiKey: resolveEnv(env, 'AZURE_OPENAI_TTS_API_KEY') || resolveEnv(env, 'AZURE_OPENAI_API_KEY'),
       deployment: resolveEnv(env, 'AZURE_OPENAI_GPT_AUDIO_MINI_DEPLOYMENT'),
       apiVersion: resolveEnv(env, 'AZURE_OPENAI_API_VERSION'),
-      responsesApiVersion: resolveEnv(env, 'AZURE_OPENAI_TTS_RESPONSES_API_VERSION') || resolveEnv(env, 'AZURE_OPENAI_RESPONSES_API_VERSION') || resolveEnv(env, 'AZURE_OPENAI_API_VERSION') || 'v1',
       format: requestedFormat || resolveEnv(env, 'AZURE_OPENAI_GPT_AUDIO_MINI_FORMAT'),
       useV1Format: resolveEnv(env, 'AZURE_OPENAI_USE_V1_FORMAT'),
       debugLoggingEnabled
@@ -167,26 +147,7 @@ export const onRequestPost = async ({ request, env }) => {
             emotion: emotion || null
           });
         } else {
-          try {
-            const { audio, transcript } = await generateWithAzureResponsesTTS(azureConfig, {
-              text: sanitizedText,
-              context: context || 'default',
-              voice: voice || 'verse',
-              speed: speed,
-              emotion: emotion || null
-            });
-            if (audio) {
-              return jsonResponse({
-                audio,
-                provider: 'azure-gpt-4o-mini-tts',
-                transcript: transcript || null
-              });
-            }
-          } catch (error) {
-            console.warn(`[${requestId}] [tts] Azure Responses TTS failed, trying audio/speech fallback:`, error);
-          }
-
-          // Return complete audio as data URI via classic /audio/speech
+          // Return complete audio as data URI via /audio/speech
           const audio = await generateWithAzureGptMiniTTS(azureConfig, {
             text: sanitizedText,
             context: context || 'default',
@@ -217,7 +178,8 @@ export const onRequestPost = async ({ request, env }) => {
       return new Response(bytes, {
         headers: {
           'content-type': 'audio/wav',
-          'cache-control': 'no-cache'
+          'cache-control': 'no-cache',
+          'x-tts-provider': 'fallback'
         }
       });
     }
@@ -445,89 +407,6 @@ function buildTTSRequest(env, { text, context, voice, speed, emotion }) {
   return { url, payload, format, useV1Format, apiVersion, debugLoggingEnabled };
 }
 
-function getAzureResponsesUrl(env) {
-  const endpoint = normalizeAzureEndpoint(env.endpoint);
-  const apiVersion = env.responsesApiVersion || 'v1';
-  return `${endpoint}/openai/v1/responses?api-version=${encodeURIComponent(apiVersion)}`;
-}
-
-async function generateWithAzureResponsesTTS(env, { text, context, voice, speed, emotion }) {
-  const { payload, format, debugLoggingEnabled } = buildTTSRequest(env, { text, context, voice, speed, emotion });
-  const url = getAzureResponsesUrl(env);
-
-  const body = {
-    model: env.deployment,
-    input: payload.input,
-    modalities: ['audio'],
-    audio: {
-      format,
-      voice: payload.voice
-    }
-  };
-
-  if (payload.instructions) {
-    body.instructions = payload.instructions;
-  }
-
-  if (typeof speed !== 'undefined') {
-    body.audio.speed = payload.speed;
-  }
-
-  if (debugLoggingEnabled) {
-    console.log('[TTS Responses] Request URL:', url);
-    console.log('[TTS Responses] Request body:', JSON.stringify(body, null, 2));
-  }
-
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: {
-      'api-key': env.apiKey,
-      'content-type': 'application/json'
-    },
-    body: JSON.stringify(body)
-  });
-
-  if (debugLoggingEnabled) {
-    console.log('[TTS Responses] Response status:', response.status, response.statusText);
-    console.log('[TTS Responses] Response headers:', JSON.stringify([...response.headers.entries()]));
-  }
-
-  if (!response.ok) {
-    const errText = await response.text().catch(() => '');
-    const preview = errText.slice(0, 1000);
-    throw new Error(`Azure Responses TTS error ${response.status}: ${preview}`);
-  }
-
-  const data = await response.json();
-
-  let audioB64 = null;
-  let transcript = null;
-
-  if (Array.isArray(data?.output)) {
-    for (const block of data.output) {
-      const pieces = Array.isArray(block?.content) ? block.content : [];
-      for (const piece of pieces) {
-        if (piece?.type === 'output_audio' && piece?.data) {
-          audioB64 = piece.data;
-          transcript = piece.transcript || null;
-          break;
-        }
-      }
-      if (audioB64) break;
-    }
-  }
-
-  if (!audioB64) {
-    throw new Error('Azure Responses TTS returned no output_audio content.');
-  }
-
-  const mime = format === 'wav' ? 'audio/wav' : `audio/${format}`;
-  return {
-    audio: `data:${mime};base64,${audioB64}`,
-    transcript
-  };
-}
-
 /**
  * Enhanced Azure OpenAI TTS generation with optional steerable instructions.
  *
@@ -592,121 +471,10 @@ async function generateWithAzureGptMiniTTSStream(env, { text, context, voice, sp
   return new Response(response.body, {
     headers: {
       'content-type': mime,
-      'cache-control': 'no-cache'
+      'cache-control': 'no-cache',
+      'x-tts-provider': 'azure-gpt-4o-mini-tts'
     }
   });
-}
-const DEFAULT_RATE_LIMIT_MAX = 30;
-const DEFAULT_RATE_LIMIT_WINDOW_SECONDS = 60;
-const TTS_RATE_LIMIT_KEY_PREFIX = 'tts-rate';
-const TTS_MONTHLY_KEY_PREFIX = 'tts-monthly';
-
-async function enforceTtsRateLimit(env, request, user, ttsLimits = { monthly: 3, premium: false }, requestId = 'unknown') {
-  try {
-    const store = env?.RATELIMIT;
-    
-    // Short-term rate limit (requests per minute)
-    if (store) {
-      const maxRequests = Number(resolveEnv(env, 'TTS_RATE_LIMIT_MAX')) || DEFAULT_RATE_LIMIT_MAX;
-      const windowSeconds = Number(resolveEnv(env, 'TTS_RATE_LIMIT_WINDOW')) || DEFAULT_RATE_LIMIT_WINDOW_SECONDS;
-      const now = Date.now();
-      const windowBucket = Math.floor(now / (windowSeconds * 1000));
-      const clientId = getClientIdentifier(request);
-      const rateLimitKey = `${TTS_RATE_LIMIT_KEY_PREFIX}:${clientId}:${windowBucket}`;
-
-      const existing = await store.get(rateLimitKey);
-      const currentCount = existing ? Number(existing) || 0 : 0;
-
-      if (currentCount >= maxRequests) {
-        const windowBoundary = (windowBucket + 1) * windowSeconds * 1000;
-        const retryAfter = Math.max(1, Math.ceil((windowBoundary - now) / 1000));
-        return { limited: true, retryAfter };
-      }
-
-      await store.put(rateLimitKey, String(currentCount + 1), {
-        expirationTtl: windowSeconds
-      });
-    }
-
-    // Monthly tier-based limit (prefer D1 per-user counters; fall back to KV per IP).
-    const now = new Date();
-    const monthKey = getMonthKeyUtc(now);
-    const resetAt = getResetAtUtc(now);
-
-    if (user?.id && env?.DB) {
-      try {
-        const nowMs = Date.now();
-
-        if (ttsLimits.monthly === Infinity) {
-          await incrementUsageCounter(env.DB, {
-            userId: user.id,
-            month: monthKey,
-            counter: 'tts',
-            nowMs
-          });
-          return { limited: false };
-        }
-
-        const incrementResult = await incrementUsageCounter(env.DB, {
-          userId: user.id,
-          month: monthKey,
-          counter: 'tts',
-          limit: ttsLimits.monthly,
-          nowMs
-        });
-
-        if (incrementResult.changed === 0) {
-          const row = await getUsageRow(env.DB, user.id, monthKey);
-          const used = row?.tts_count || ttsLimits.monthly;
-          const retryAfter = Math.max(1, Math.ceil((Date.parse(resetAt) - now.getTime()) / 1000));
-          return {
-            limited: true,
-            tierLimited: true,
-            retryAfter,
-            used,
-            limit: ttsLimits.monthly,
-            resetAt
-          };
-        }
-
-        return { limited: false };
-      } catch (error) {
-        // If usage tracking isn't available yet (missing migration), fall back to KV.
-        if (!String(error?.message || '').includes('no such table')) {
-          throw error;
-        }
-      }
-    }
-
-    if (store && ttsLimits.monthly !== Infinity) {
-      const clientId = getClientIdentifier(request);
-      const monthlyKey = `${TTS_MONTHLY_KEY_PREFIX}:${clientId}:${monthKey}`;
-
-      const monthlyCount = await store.get(monthlyKey);
-      const currentMonthlyCount = monthlyCount ? Number(monthlyCount) || 0 : 0;
-
-      if (currentMonthlyCount >= ttsLimits.monthly) {
-        const retryAfter = Math.max(1, Math.ceil((Date.parse(resetAt) - now.getTime()) / 1000));
-        return {
-          limited: true,
-          tierLimited: true,
-          retryAfter,
-          used: currentMonthlyCount,
-          limit: ttsLimits.monthly,
-          resetAt
-        };
-      }
-
-      await store.put(monthlyKey, String(currentMonthlyCount + 1), {
-        expirationTtl: 35 * 24 * 60 * 60
-      });
-    }
-
-    return { limited: false };
-  } catch (error) {
-    console.warn(`[${requestId}] [tts] Rate limit check failed, allowing request:`, error);
-    return { limited: false };
-  }
 }
 
 function parseBooleanFlag(value) {

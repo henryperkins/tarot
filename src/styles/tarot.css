@@ -187,6 +187,17 @@
   /* Mobile action bar sizing (updated at runtime) */
   --mobile-action-bar-height: 0px;
   --mobile-action-bar-offset: 0px;
+
+  /* Component defaults (can be overridden inline) */
+  --spread-background: var(--panel-dark-2);
+  --spread-border: var(--border-warm-subtle);
+  --spread-accent: var(--brand-primary);
+  --spread-glow: rgb(var(--brand-primary-rgb) / 0.35);
+  --deck-background: var(--panel-dark-2);
+  --deck-border: var(--border-warm-subtle);
+  --deck-accent: var(--brand-primary);
+  --deck-glow: rgb(var(--brand-primary-rgb) / 0.35);
+  --prepare-accent: var(--drawer-gold);
 }
 
 :root.light {
@@ -237,29 +248,29 @@
    ---------------------------
    --spread-card-height-mobile  : Card height on mobile (default: 18rem)
    --spread-card-height-desktop : Card height on desktop (default: 22rem)
-   --spread-background          : Card background color (default: #15121f)
-   --spread-border              : Card border color (default: rgba(255,255,255,0.08))
-   --spread-accent              : Accent color for glows (default: #d4b896)
-   --spread-glow                : Box-shadow glow color
+   --spread-background          : Card background color (default: var(--panel-dark-2))
+   --spread-border              : Card border color (default: var(--border-warm-subtle))
+   --spread-accent              : Accent color for glows (default: var(--brand-primary))
+   --spread-glow                : Box-shadow glow color (default: rgb(var(--brand-primary-rgb) / 0.35))
 
    DECK CARDS (.deck-card)
    -----------------------
-   --deck-background            : Card background color
-   --deck-border                : Card border color
-   --deck-accent                : Accent color for glows
-   --deck-glow                  : Box-shadow glow color
+   --deck-background            : Card background color (default: var(--panel-dark-2))
+   --deck-border                : Card border color (default: var(--border-warm-subtle))
+   --deck-accent                : Accent color for glows (default: var(--brand-primary))
+   --deck-glow                  : Box-shadow glow color (default: rgb(var(--brand-primary-rgb) / 0.35))
    --deck-shadow-color          : Shadow color for deck ritual
 
    MOBILE DRAWER (.mobile-drawer)
    ------------------------------
-   --drawer-accent              : Accent color (default: #e5c48e)
+   --drawer-accent              : Accent color (default: var(--drawer-gold))
    --drawer-border              : Border color at 28% opacity
    --drawer-border-strong       : Border color at 72% opacity
    --drawer-glow                : Glow effect at 32% opacity
 
    PREPARE CARD (.prepare-card)
    ----------------------------
-   --prepare-accent             : Accent color (default: #e5c48e)
+   --prepare-accent             : Accent color (default: var(--drawer-gold))
 
    CARD DEAL ANIMATION
    -------------------
@@ -902,8 +913,8 @@ body {
   min-height: var(--spread-card-height-mobile, 18rem);
   max-height: calc(100vh - 10rem);
   max-height: calc(100svh - 10rem);
-  background: var(--spread-background, #15121f);
-  border: 1px solid var(--spread-border, rgba(255, 255, 255, 0.08));
+  background: var(--spread-background, var(--panel-dark-2));
+  border: 1px solid var(--spread-border, var(--border-warm-subtle));
   box-shadow: 0 18px 36px -24px rgba(0, 0, 0, 0.85),
     inset 0 1px 0 rgba(255, 255, 255, 0.05);
   transition: transform 160ms ease, box-shadow 180ms ease,
@@ -997,12 +1008,12 @@ body {
   inset: 0;
   background: radial-gradient(
       circle at 20% 18%,
-      rgba(212, 184, 150, 0.35) 0%,
+      rgb(var(--brand-primary-rgb) / 0.35) 0%,
       transparent 52%
     ),
     radial-gradient(
       circle at 80% 0%,
-      rgba(212, 184, 150, 0.24) 0%,
+      rgb(var(--brand-primary-rgb) / 0.24) 0%,
       transparent 50%
     ),
     linear-gradient(165deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0));
@@ -1015,12 +1026,22 @@ body {
   .spread-card::before {
     background: radial-gradient(
         circle at 20% 18%,
-        color-mix(in srgb, var(--spread-accent, #d4b896) 35%, transparent) 0%,
+        color-mix(
+          in srgb,
+          var(--spread-accent, var(--brand-primary)) 35%,
+          transparent
+        )
+        0%,
         transparent 52%
       ),
       radial-gradient(
         circle at 80% 0%,
-        color-mix(in srgb, var(--spread-accent, #d4b896) 24%, transparent) 0%,
+        color-mix(
+          in srgb,
+          var(--spread-accent, var(--brand-primary)) 24%,
+          transparent
+        )
+        0%,
         transparent 50%
       ),
       linear-gradient(165deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0));
@@ -1045,29 +1066,35 @@ body {
 @media (hover: hover) and (pointer: fine) {
   .spread-card:hover {
     transform: translateY(-3px);
-    border-color: rgba(212, 184, 150, 0.45);
+    border-color: rgb(var(--brand-primary-rgb) / 0.45);
     box-shadow: 0 24px 45px -28px rgba(0, 0, 0, 0.85),
-      0 8px 22px -18px var(--spread-glow, rgba(212, 184, 150, 0.35));
+      0 8px 22px -18px
+      var(--spread-glow, rgb(var(--brand-primary-rgb) / 0.35));
   }
 }
 
 .spread-card--active {
-  border-color: rgba(212, 184, 150, 0.65);
-  box-shadow: 0 28px 60px -30px var(--spread-glow, rgba(212, 184, 150, 0.45)),
+  border-color: rgb(var(--brand-primary-rgb) / 0.65);
+  box-shadow: 0 28px 60px -30px
+      var(--spread-glow, rgb(var(--brand-primary-rgb) / 0.45)),
     0 0 0 1px rgba(255, 255, 255, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.08);
   transform: translateY(-2px);
   background: linear-gradient(
       150deg,
-      rgba(212, 184, 150, 0.14),
+      rgb(var(--brand-primary-rgb) / 0.14),
       transparent
     ),
-    var(--spread-background, #15121f);
+    var(--spread-background, var(--panel-dark-2));
   background: linear-gradient(
       150deg,
-      color-mix(in srgb, var(--spread-accent, #d4b896) 14%, transparent),
+      color-mix(
+        in srgb,
+        var(--spread-accent, var(--brand-primary)) 14%,
+        transparent
+      ),
       transparent
     ),
-    var(--spread-background, #15121f);
+    var(--spread-background, var(--panel-dark-2));
 }
 
 .spread-card--active .spread-card__title,
@@ -1080,7 +1107,7 @@ body {
     .spread-card:hover {
       border-color: color-mix(
         in srgb,
-        var(--spread-accent, #d4b896) 45%,
+        var(--spread-accent, var(--brand-primary)) 45%,
         transparent
       );
     }
@@ -1089,7 +1116,7 @@ body {
   .spread-card--active {
     border-color: color-mix(
       in srgb,
-      var(--spread-accent, #d4b896) 65%,
+      var(--spread-accent, var(--brand-primary)) 65%,
       transparent
     );
   }
@@ -1156,13 +1183,13 @@ body {
   gap: 0.35rem;
   padding: 0.4rem 0.65rem;
   border-radius: 999px;
-  border: 1px solid rgba(212, 184, 150, 0.24);
+  border: 1px solid rgb(var(--brand-primary-rgb) / 0.24);
   border-color: color-mix(
     in srgb,
-    var(--spread-accent, #d4b896) 24%,
+    var(--spread-accent, var(--brand-primary)) 24%,
     transparent
   );
-  background: rgba(13, 10, 18, 0.65);
+  background: var(--surface-88);
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.02);
   font-size: 0.68rem;
   flex-shrink: 1;
@@ -2029,7 +2056,11 @@ input[type="range"]:focus::-webkit-slider-thumb {
   letter-spacing: 0.22em;
   text-transform: uppercase;
   color: var(--drawer-accent);
-  color: color-mix(in srgb, var(--drawer-accent) 70%, #d4b896);
+  color: color-mix(
+    in srgb,
+    var(--drawer-accent) 70%,
+    var(--brand-primary)
+  );
 }
 
 .mobile-drawer__badge {
@@ -2092,8 +2123,8 @@ input[type="range"]:focus::-webkit-slider-thumb {
   position: relative;
   overflow: hidden;
   isolation: isolate;
-  background: var(--deck-background, #15121f);
-  border: 1px solid var(--deck-border, rgba(255, 255, 255, 0.08));
+  background: var(--deck-background, var(--panel-dark-2));
+  border: 1px solid var(--deck-border, var(--border-warm-subtle));
   box-shadow: 0 18px 36px -24px rgba(0, 0, 0, 0.85),
     inset 0 1px 0 rgba(255, 255, 255, 0.05);
   transition: transform 160ms ease, box-shadow 180ms ease,
@@ -2106,23 +2137,33 @@ input[type="range"]:focus::-webkit-slider-thumb {
   inset: 0;
   background: radial-gradient(
       circle at 20% 18%,
-      rgba(212, 184, 150, 0.35) 0%,
+      rgb(var(--brand-primary-rgb) / 0.35) 0%,
       transparent 52%
     ),
     radial-gradient(
       circle at 80% 0%,
-      rgba(212, 184, 150, 0.24) 0%,
+      rgb(var(--brand-primary-rgb) / 0.24) 0%,
       transparent 50%
     ),
     linear-gradient(165deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0));
   background: radial-gradient(
       circle at 20% 18%,
-      color-mix(in srgb, var(--deck-accent, #d4b896) 35%, transparent) 0%,
+      color-mix(
+          in srgb,
+          var(--deck-accent, var(--brand-primary)) 35%,
+          transparent
+        )
+        0%,
       transparent 52%
     ),
     radial-gradient(
       circle at 80% 0%,
-      color-mix(in srgb, var(--deck-accent, #d4b896) 24%, transparent) 0%,
+      color-mix(
+          in srgb,
+          var(--deck-accent, var(--brand-primary)) 24%,
+          transparent
+        )
+        0%,
       transparent 50%
     ),
     linear-gradient(165deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0));
@@ -2149,39 +2190,45 @@ input[type="range"]:focus::-webkit-slider-thumb {
 @media (hover: hover) and (pointer: fine) {
   .deck-card:hover {
     transform: translateY(-3px);
-    border-color: rgba(212, 184, 150, 0.45);
+    border-color: rgb(var(--brand-primary-rgb) / 0.45);
     border-color: color-mix(
       in srgb,
-      var(--deck-accent, #d4b896) 45%,
+      var(--deck-accent, var(--brand-primary)) 45%,
       transparent
     );
     box-shadow: 0 24px 45px -28px rgba(0, 0, 0, 0.85),
-      0 8px 22px -18px var(--deck-glow, rgba(212, 184, 150, 0.35));
+      0 8px 22px -18px
+      var(--deck-glow, rgb(var(--brand-primary-rgb) / 0.35));
   }
 }
 
 .deck-card--active {
-  border-color: rgba(212, 184, 150, 0.65);
+  border-color: rgb(var(--brand-primary-rgb) / 0.65);
   border-color: color-mix(
     in srgb,
-    var(--deck-accent, #d4b896) 65%,
+    var(--deck-accent, var(--brand-primary)) 65%,
     transparent
   );
-  box-shadow: 0 28px 60px -30px var(--deck-glow, rgba(212, 184, 150, 0.45)),
+  box-shadow: 0 28px 60px -30px
+      var(--deck-glow, rgb(var(--brand-primary-rgb) / 0.45)),
     0 0 0 1px rgba(255, 255, 255, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.08);
   transform: translateY(-2px);
   background: linear-gradient(
       150deg,
-      rgba(212, 184, 150, 0.16),
+      rgb(var(--brand-primary-rgb) / 0.16),
       transparent
     ),
-    var(--deck-background, #15121f);
+    var(--deck-background, var(--panel-dark-2));
   background: linear-gradient(
       150deg,
-      color-mix(in srgb, var(--deck-accent, #d4b896) 16%, transparent),
+      color-mix(
+        in srgb,
+        var(--deck-accent, var(--brand-primary)) 16%,
+        transparent
+      ),
       transparent
     ),
-    var(--deck-background, #15121f);
+    var(--deck-background, var(--panel-dark-2));
 }
 
 .deck-preview-card {
@@ -2221,14 +2268,14 @@ input[type="range"]:focus::-webkit-slider-thumb {
   gap: 0.65rem;
   font-size: 0.78rem;
   letter-spacing: 0.04em;
-  color: rgba(233, 220, 201, 0.85);
-  border: 1px solid rgba(233, 220, 201, 0.25);
+  color: var(--text-muted-high);
+  border: 1px solid var(--border-warm-light);
   border-radius: 999px;
   padding: 0.45rem 0.9rem;
   background: linear-gradient(
     125deg,
-    rgba(22, 17, 28, 0.68),
-    rgba(34, 26, 46, 0.74)
+    var(--surface-88),
+    var(--surface-92)
   );
   -webkit-backdrop-filter: blur(6px);
   backdrop-filter: blur(6px);
@@ -2236,7 +2283,7 @@ input[type="range"]:focus::-webkit-slider-thumb {
 }
 
 .prepare-summary-chip span[aria-hidden="true"] {
-  color: rgba(233, 220, 201, 0.45);
+  color: var(--text-muted);
 }
 
 @media (max-width: 520px) {
@@ -2246,7 +2293,6 @@ input[type="range"]:focus::-webkit-slider-thumb {
 }
 
 .prepare-card {
-  --prepare-accent: #e5c48e;
   position: relative;
   overflow: hidden;
   border-radius: 1.35rem;
@@ -2266,7 +2312,12 @@ input[type="range"]:focus::-webkit-slider-thumb {
       rgba(255, 163, 205, 0.06),
       transparent 56%
     ),
-    linear-gradient(140deg, #0d0a14, #151020 55%, #0f0b17);
+    linear-gradient(
+      140deg,
+      var(--panel-dark-1),
+      var(--panel-dark-2) 55%,
+      var(--panel-dark-3)
+    );
   background: radial-gradient(
       circle at 4% 14%,
       color-mix(in srgb, var(--prepare-accent) 14%, transparent) 0%,
@@ -2282,8 +2333,13 @@ input[type="range"]:focus::-webkit-slider-thumb {
       rgba(255, 163, 205, 0.06),
       transparent 56%
     ),
-    linear-gradient(140deg, #0d0a14, #151020 55%, #0f0b17);
-  border: 1px solid rgba(232, 218, 195, 0.18);
+    linear-gradient(
+      140deg,
+      var(--panel-dark-1),
+      var(--panel-dark-2) 55%,
+      var(--panel-dark-3)
+    );
+  border: 1px solid var(--border-warm-light);
   box-shadow: 0 18px 36px -24px rgba(0, 0, 0, 0.85),
     inset 0 1px 0 rgba(255, 255, 255, 0.05);
   transition: border-color 160ms ease, box-shadow 160ms ease,

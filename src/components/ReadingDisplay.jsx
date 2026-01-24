@@ -355,6 +355,9 @@ export function ReadingDisplay({
             setIsNarrativeFocus(false);
         }
     }
+    if (!personalReading && autoNarrationTriggered) {
+        setAutoNarrationTriggered(false);
+    }
 
     // --- Handlers ---
     const handleNarrationWrapper = useCallback(() => {
@@ -373,7 +376,6 @@ export function ReadingDisplay({
     useEffect(() => {
         if (!personalReading) {
             autoNarrationTriggeredRef.current = false;
-            setAutoNarrationTriggered(false);
             if (autoNarrationTimeoutRef.current) {
                 window.clearTimeout(autoNarrationTimeoutRef.current);
                 autoNarrationTimeoutRef.current = null;
@@ -398,7 +400,8 @@ export function ReadingDisplay({
             isReadingStreaming &&
             !isPersonalReadingError &&
             !autoNarrationTriggeredRef.current &&
-            hasNarrationText
+            hasNarrationText &&
+            ttsProvider !== 'azure'
         );
 
         if (!shouldDebounceAutoNarrate) {
@@ -434,6 +437,7 @@ export function ReadingDisplay({
         isReadingStreaming,
         narrativeText,
         ttsState?.status,
+        ttsProvider,
         voiceOn,
         handleNarrationWrapper
     ]);

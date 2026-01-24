@@ -19,6 +19,7 @@
   --color-gold-muted: #B59976;
   --color-gold-soft: #E8DAC3;
   --color-silver: #A8A39E;
+  --color-silver-rgb: 168 163 158;
 
   /* Suit Colors (Subtle & Harmonious) */
   --color-wands: #C9A876;
@@ -48,6 +49,7 @@
 
   /* Backgrounds (warmer, less harsh) */
   --bg-main: #0F0E13;
+  --bg-main-rgb: 15 14 19;
   /* Deep warm charcoal */
   --bg-surface: #1C1A22;
   /* Warm dark purple-charcoal */
@@ -61,25 +63,25 @@
   /* WCAG AA compliant muted tone (5.2:1 on #0F0E13) - improved from #C4BDB0 */
   --text-muted-high: #DDD7CD;
   /* Higher contrast muted for over translucent backgrounds (6.5:1) - improved from #D8D2C8 */
-  --text-accent: #D4B896;
+  --text-accent: var(--brand-primary);
   /* Warmer champagne */
   --text-on-brand: var(--color-charcoal);
   /* High-contrast text for brand surfaces (lighten in light mode) */
 
   /* Brand / Interactive (warmer) */
-  --brand-primary: #D4B896;
+  --brand-primary: var(--color-gold-champagne);
   /* Warmer champagne */
   --brand-primary-rgb: 212 184 150;
   --brand-secondary: #A89D92;
   /* Warm brown-gray updated for WCAG AA contrast (4.5:1) */
-  --brand-accent: #E8DAC3;
+  --brand-accent: var(--color-gold-soft);
   /* Lighter accent for differentiation from primary */
   --brand-accent-rgb: 232 218 195;
 
   /* Status */
-  --status-success: #6B9E78;
+  --status-success: var(--color-success);
   /* Muted green */
-  --status-error: #C97676;
+  --status-error: var(--color-error);
   /* Muted red */
 
   /* Panels & Effects */
@@ -106,6 +108,7 @@
 /* Light Mode Overrides (elegant minimal light variant) */
 :root.light {
   --bg-main: #FAFAFA;
+  --bg-main-rgb: 250 250 250;
   --bg-surface: #FFFFFF;
   --bg-surface-muted: #F5F5F5;
   --text-main: #1A1A1A;
@@ -113,10 +116,10 @@
   --text-muted-high: #333333; /* Higher contrast muted for translucent backgrounds */
   --text-accent: var(--brand-primary);
   --text-on-brand: #FAFAFA; /* Light text for brand backgrounds */
-  --brand-primary: #7D623B; /* 5.46:1 on #FAFAFA */
+  --color-gold-champagne: #7D623B; /* 5.46:1 on #FAFAFA */
   --brand-primary-rgb: 125 98 59;
   --brand-secondary: #6A5746; /* 6.57:1 on #FAFAFA */
-  --brand-accent: #8A6B3B; /* 4.74:1 on #FAFAFA */
+  --color-gold-soft: #8A6B3B; /* 4.74:1 on #FAFAFA */
   --brand-accent-rgb: 138 107 59;
 
   /* Panels & Effects (light-friendly variants) */

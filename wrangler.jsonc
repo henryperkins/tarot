@@ -205,13 +205,16 @@
   // wrangler secret put AZURE_ANTHROPIC_API_KEY   (from Foundry Keys & endpoint, or falls back to AZURE_OPENAI_API_KEY)
   // wrangler secret put AZURE_ANTHROPIC_MODEL     (deployment name, default: claude-opus-4-5)
   //
-  // Azure TTS
+  // Azure TTS (GPT-4o Audio Mini - existing implementation)
   // wrangler secret put AZURE_OPENAI_TTS_ENDPOINT
   // wrangler secret put AZURE_OPENAI_TTS_API_KEY
   // wrangler secret put AZURE_OPENAI_GPT_AUDIO_MINI_DEPLOYMENT
   //
-  // Azure Speech SDK (client-side token auth)
+  // Azure Speech Service (Neural TTS via Speech SDK - separate from OpenAI TTS)
+  // wrangler secret put AZURE_SPEECH_ENDPOINT  (e.g., https://fifteenmodels.cognitiveservices.azure.com/)
   // wrangler secret put AZURE_SPEECH_KEY
+  //
+  // Azure Speech SDK (client-side token auth)
   // wrangler secret put AZURE_SPEECH_REGION  (optional, defaults to eastus2)
   //
   // Other

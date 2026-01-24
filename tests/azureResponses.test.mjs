@@ -131,29 +131,35 @@ describe('ensureAzureConfig', () => {
 });
 
 describe('getReasoningEffort', () => {
-  test('returns medium for GPT-5 variants', () => {
-    assert.strictEqual(getReasoningEffort('gpt-5.1'), 'medium');
-    assert.strictEqual(getReasoningEffort('GPT-5.1'), 'medium');
-    assert.strictEqual(getReasoningEffort('gpt-5.1-preview'), 'medium');
-    assert.strictEqual(getReasoningEffort('my-gpt-5.1-deployment'), 'medium');
-    assert.strictEqual(getReasoningEffort('gpt-5-pro'), 'medium');
-    assert.strictEqual(getReasoningEffort('GPT-5-PRO'), 'medium');
-    assert.strictEqual(getReasoningEffort('gpt-5-pro-latest'), 'medium');
-    assert.strictEqual(getReasoningEffort('gpt-5'), 'medium');
-    assert.strictEqual(getReasoningEffort('gpt-5-turbo'), 'medium');
-    assert.strictEqual(getReasoningEffort('gpt-5-codex'), 'medium');
+  test('returns high for GPT-5 variants', () => {
+    assert.strictEqual(getReasoningEffort(null, 'gpt-5.1'), 'high');
+    assert.strictEqual(getReasoningEffort(null, 'GPT-5.1'), 'high');
+    assert.strictEqual(getReasoningEffort(null, 'gpt-5.1-preview'), 'high');
+    assert.strictEqual(getReasoningEffort(null, 'my-gpt-5.1-deployment'), 'high');
+    assert.strictEqual(getReasoningEffort(null, 'gpt-5-pro'), 'high');
+    assert.strictEqual(getReasoningEffort(null, 'GPT-5-PRO'), 'high');
+    assert.strictEqual(getReasoningEffort(null, 'gpt-5-pro-latest'), 'high');
+    assert.strictEqual(getReasoningEffort(null, 'gpt-5'), 'high');
+    assert.strictEqual(getReasoningEffort(null, 'gpt-5-turbo'), 'high');
+    assert.strictEqual(getReasoningEffort(null, 'gpt-5-codex'), 'high');
+    assert.strictEqual(getReasoningEffort(null, 'gpt-5.2'), 'high');
   });
 
-  test('returns medium for null/undefined', () => {
-    assert.strictEqual(getReasoningEffort(null), 'medium');
-    assert.strictEqual(getReasoningEffort(undefined), 'medium');
-    assert.strictEqual(getReasoningEffort(''), 'medium');
+  test('returns medium for null/undefined model', () => {
+    assert.strictEqual(getReasoningEffort(null, null), 'medium');
+    assert.strictEqual(getReasoningEffort(null, undefined), 'medium');
+    assert.strictEqual(getReasoningEffort(null, ''), 'medium');
   });
 
   test('returns medium for other models', () => {
-    assert.strictEqual(getReasoningEffort('gpt-4'), 'medium');
-    assert.strictEqual(getReasoningEffort('claude-3'), 'medium');
-    assert.strictEqual(getReasoningEffort('custom-model'), 'medium');
+    assert.strictEqual(getReasoningEffort(null, 'gpt-4'), 'medium');
+    assert.strictEqual(getReasoningEffort(null, 'claude-3'), 'medium');
+    assert.strictEqual(getReasoningEffort(null, 'custom-model'), 'medium');
+  });
+
+  test('respects env override', () => {
+    const env = { AZURE_OPENAI_REASONING_EFFORT: 'low' };
+    assert.strictEqual(getReasoningEffort(env, 'gpt-5.2'), 'low');
   });
 });
 
@@ -303,5 +309,41 @@ describe('callAzureResponses request body construction', () => {
       output_tokens: 50,
       total_tokens: 150
     });
+  });
+
+  test('includes reasoningSummary when provided in output blocks', async () => {
+    const { callAzureResponses } = await import('../functions/lib/azureResponses.js');
+
+    const env = {
+      AZURE_OPENAI_ENDPOINT: 'https://test.openai.azure.com',
+      AZURE_OPENAI_API_KEY: 'test-key',
+      AZURE_OPENAI_GPT5_MODEL: 'gpt-5'
+    };
+
+    globalThis.fetch = mock.fn(async () => ({
+      ok: true,
+      json: async () => ({
+        output: [
+          {
+            type: 'message',
+            content: [{ type: 'output_text', text: 'Test response' }]
+          },
+          {
+            type: 'reasoning',
+            summary: [{ type: 'summary_text', text: 'Reasoning summary' }]
+          }
+        ],
+        usage: { input_tokens: 100, output_tokens: 50, total_tokens: 150 }
+      })
+    }));
+
+    const result = await callAzureResponses(env, {
+      instructions: 'System prompt',
+      input: 'User input',
+      returnFullResponse: true
+    });
+
+    assert.strictEqual(result.text, 'Test response');
+    assert.strictEqual(result.reasoningSummary, 'Reasoning summary');
   });
 });

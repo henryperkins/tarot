@@ -13,11 +13,23 @@ import { computeRelationships } from '../lib/deck';
 import { safeParseReadingRequest } from '../../shared/contracts/readingSchema.js';
 
 const ReadingContext = createContext(null);
+const STREAM_NARRATION_MIN_WORDS = 18;
+const STREAM_NARRATION_MIN_CHARS = 120;
+const STREAM_NARRATION_TARGET_CHARS = 240;
+const STREAM_NARRATION_MAX_CHARS = 320;
 
 export function ReadingProvider({ children }) {
     // 1. Audio Controller
     const audioController = useAudioController();
-    const { speak } = audioController;
+    const {
+        speak,
+        enqueueNarrationChunk,
+        finalizeNarrationStream,
+        resetNarrationStream,
+        isNarrationStreamActive,
+        ttsProvider,
+        ttsState
+    } = audioController;
 
     // 2. Core Tarot State
     const tarotState = useTarotState(speak);
@@ -37,6 +49,8 @@ export function ReadingProvider({ children }) {
         includeMinors,
         reversalFramework,
         personalization,
+        autoNarrate,
+        voiceOn,
         locationEnabled,
         cachedLocation,
         persistLocationToJournal
@@ -116,6 +130,13 @@ export function ReadingProvider({ children }) {
         lastJobId: null
     });
     const cardsInfoRef = useRef([]);
+    const narrationBufferRef = useRef('');
+    const narrationSuppressedRef = useRef(false);
+    const narrationStartedRef = useRef(false);
+    const narrationEmotionRef = useRef(null);
+    const narrationQueuedCharsRef = useRef(0);
+    const narrationFallbackPendingRef = useRef(false);
+    const narrationFallbackTextRef = useRef('');
 
     const readingJobStorageKey = 'tarot:reading-job';
 
@@ -193,6 +214,7 @@ export function ReadingProvider({ children }) {
             inFlightReadingRef.current.controller.abort();
         }
         inFlightReadingRef.current = null;
+        resetNarrationStream();
 
         const { jobId, jobToken } = readingJobRef.current || {};
         if (jobId && jobToken) {
@@ -203,11 +225,23 @@ export function ReadingProvider({ children }) {
         }
 
         clearReadingJob();
-    }, [clearReadingJob]);
+    }, [clearReadingJob, resetNarrationStream]);
+
+    const resetStreamingNarration = useCallback(() => {
+        narrationBufferRef.current = '';
+        narrationSuppressedRef.current = false;
+        narrationStartedRef.current = false;
+        narrationEmotionRef.current = null;
+        narrationQueuedCharsRef.current = 0;
+        narrationFallbackPendingRef.current = false;
+        narrationFallbackTextRef.current = '';
+        resetNarrationStream();
+    }, [resetNarrationStream]);
 
     // Reset analysis state when Shuffle is triggered
     const handleShuffle = useCallback(() => {
         cancelInFlightReading();
+        resetStreamingNarration();
         shuffle(() => {
             setPersonalReading(null);
             setThemes(null);
@@ -228,12 +262,94 @@ export function ReadingProvider({ children }) {
             setShowAllHighlights(false);
             setSrAnnouncement('');
         });
-    }, [shuffle, visionAnalysis, cancelInFlightReading]);
+    }, [shuffle, visionAnalysis, cancelInFlightReading, resetStreamingNarration]);
 
     const pauseReadingStream = useCallback((message = 'Finishing your narrative in the background.') => {
         setIsReadingStreamActive(false);
         setSrAnnouncement(message);
+        resetNarrationStream();
+    }, [resetNarrationStream]);
+
+    const findNarrationBreakIndex = useCallback((text, maxIndex) => {
+        if (!text) return 0;
+        const slice = text.slice(0, maxIndex);
+        const punctuationIndex = Math.max(
+            slice.lastIndexOf('.'),
+            slice.lastIndexOf('!'),
+            slice.lastIndexOf('?')
+        );
+        if (punctuationIndex >= STREAM_NARRATION_MIN_CHARS) {
+            return punctuationIndex + 1;
+        }
+        const whitespaceIndex = slice.lastIndexOf(' ');
+        if (whitespaceIndex >= STREAM_NARRATION_MIN_CHARS) {
+            return whitespaceIndex;
+        }
+        return Math.min(text.length, maxIndex);
     }, []);
+
+    const flushNarrationBuffer = useCallback((force = false) => {
+        if (!autoNarrate || !voiceOn || ttsProvider !== 'azure') {
+            narrationSuppressedRef.current = true;
+            return;
+        }
+        if (narrationSuppressedRef.current) return;
+
+        const buffer = narrationBufferRef.current;
+        if (!buffer || !buffer.trim()) return;
+
+        const trimmed = buffer.trim();
+        const wordCount = trimmed.split(/\s+/).filter(Boolean).length;
+        if (!narrationStartedRef.current && wordCount < STREAM_NARRATION_MIN_WORDS && !force) {
+            return;
+        }
+
+        const hasPunctuation = /[.!?]\s*$/.test(buffer);
+        const shouldFlush = force ||
+            buffer.length >= STREAM_NARRATION_MAX_CHARS ||
+            (buffer.length >= STREAM_NARRATION_TARGET_CHARS && hasPunctuation);
+        if (!shouldFlush && !force) return;
+
+        let remaining = buffer;
+        while (remaining.trim()) {
+            const maxIndex = force ? remaining.length : Math.min(remaining.length, STREAM_NARRATION_MAX_CHARS);
+            if (!force && remaining.length < STREAM_NARRATION_TARGET_CHARS) {
+                break;
+            }
+            const cutIndex = findNarrationBreakIndex(remaining, maxIndex);
+            const chunk = remaining.slice(0, cutIndex).trim();
+            remaining = remaining.slice(cutIndex);
+            if (chunk) {
+                const enqueued = enqueueNarrationChunk(chunk, 'full-reading', narrationEmotionRef.current);
+                if (!enqueued) {
+                    narrationSuppressedRef.current = true;
+                    break;
+                }
+                narrationQueuedCharsRef.current += chunk.length;
+                narrationStartedRef.current = true;
+            }
+            if (force) {
+                continue;
+            }
+            if (remaining.length < STREAM_NARRATION_TARGET_CHARS) {
+                break;
+            }
+        }
+
+        narrationBufferRef.current = remaining;
+    }, [
+        autoNarrate,
+        voiceOn,
+        ttsProvider,
+        enqueueNarrationChunk,
+        findNarrationBreakIndex
+    ]);
+
+    const appendNarrationBuffer = useCallback((text) => {
+        if (!text || narrationSuppressedRef.current) return;
+        narrationBufferRef.current = `${narrationBufferRef.current}${text}`;
+        flushNarrationBuffer(false);
+    }, [flushNarrationBuffer]);
 
     const buildReadingKey = useCallback(() => {
         const count = reading?.length ?? 0;
@@ -272,6 +388,10 @@ export function ReadingProvider({ children }) {
 
         setIsReadingStreamActive(true);
         setIsGenerating(true);
+        resetStreamingNarration();
+        const streamNarrationEnabled = autoNarrate && voiceOn && ttsProvider === 'azure' && !resume;
+        const isTtsBusy = ['playing', 'paused', 'loading', 'synthesizing'].includes(ttsState?.status);
+        narrationSuppressedRef.current = !streamNarrationEnabled || (isTtsBusy && !isNarrationStreamActive());
 
         try {
             const response = await fetch(`/api/tarot-reading/jobs/${jobId}/stream?cursor=${cursor}`, {
@@ -397,6 +517,7 @@ export function ReadingProvider({ children }) {
                             }
                             if (data?.emotionalTone !== undefined) {
                                 setEmotionalTone(data.emotionalTone || null);
+                                narrationEmotionRef.current = data?.emotionalTone?.emotion || null;
                             }
                             if (data?.spreadAnalysis !== undefined) {
                                 setSpreadAnalysis(data.spreadAnalysis || null);
@@ -416,9 +537,15 @@ export function ReadingProvider({ children }) {
                                     ephemeris: data.ephemeris || null
                                 });
                             }
+                        } else if (eventType === 'snapshot') {
+                            if (typeof data.fullText === 'string') {
+                                streamedText = data.fullText;
+                                flushStreamedText(true);
+                            }
                         } else if (eventType === 'delta') {
                             streamedText += data.text || '';
                             flushStreamedText();
+                            appendNarrationBuffer(data.text || '');
                         } else if (eventType === 'reasoning') {
                             if (data.text && isActiveRequest()) {
                                 setReasoningSummary(data.text);
@@ -432,6 +559,33 @@ export function ReadingProvider({ children }) {
 
                             if (!isActiveRequest()) {
                                 return;
+                            }
+
+                            if (!narrationSuppressedRef.current) {
+                                flushNarrationBuffer(true);
+                                finalizeNarrationStream();
+                            }
+
+                            if (streamNarrationEnabled && autoNarrate && voiceOn && ttsProvider === 'azure') {
+                                const queuedChars = narrationQueuedCharsRef.current;
+                                const finalChars = finalText.length;
+                                const coverage = finalChars > 0 ? queuedChars / finalChars : 1;
+                                if (import.meta.env?.DEV) {
+                                    console.info('[Narration] Stream queue coverage', {
+                                        queuedChars,
+                                        finalChars,
+                                        coverage: Number(coverage.toFixed(3)),
+                                        suppressed: narrationSuppressedRef.current,
+                                        started: narrationStartedRef.current
+                                    });
+                                }
+                                if (narrationSuppressedRef.current || coverage < 0.6) {
+                                    narrationFallbackPendingRef.current = true;
+                                    narrationFallbackTextRef.current = finalText;
+                                } else {
+                                    narrationFallbackPendingRef.current = false;
+                                    narrationFallbackTextRef.current = '';
+                                }
                             }
 
                             setNarrativePhase('polishing');
@@ -491,6 +645,7 @@ export function ReadingProvider({ children }) {
                 return;
             }
 
+            resetNarrationStream();
             const errorMsg =
                 typeof error?.message === 'string' && error.message.trim()
                     ? error.message.trim()
@@ -515,14 +670,64 @@ export function ReadingProvider({ children }) {
             }
         }
     }, [
+        autoNarrate,
+        voiceOn,
+        ttsProvider,
+        ttsState?.status,
         clearReadingJob,
         deckStyleId,
         personalReading,
         pauseReadingStream,
         selectedSpread,
         updateReadingJobCursor,
-        userQuestion
+        userQuestion,
+        resetStreamingNarration,
+        appendNarrationBuffer,
+        flushNarrationBuffer,
+        finalizeNarrationStream,
+        isNarrationStreamActive,
+        resetNarrationStream
     ]);
+
+    useEffect(() => {
+        if (!voiceOn || !autoNarrate || ttsProvider !== 'azure') {
+            narrationSuppressedRef.current = true;
+            resetNarrationStream();
+        }
+    }, [voiceOn, autoNarrate, ttsProvider, resetNarrationStream]);
+
+    useEffect(() => {
+        if (!narrationFallbackPendingRef.current) return;
+        if (!autoNarrate || !voiceOn || ttsProvider !== 'azure') {
+            narrationFallbackPendingRef.current = false;
+            narrationFallbackTextRef.current = '';
+            return;
+        }
+        if (isNarrationStreamActive()) return;
+
+        const status = ttsState?.status;
+        const isBusy = status === 'playing' || status === 'paused' || status === 'loading' || status === 'synthesizing';
+        if (isBusy) {
+            narrationFallbackPendingRef.current = false;
+            narrationFallbackTextRef.current = '';
+            return;
+        }
+        if (ttsState?.reason === 'user') {
+            narrationFallbackPendingRef.current = false;
+            narrationFallbackTextRef.current = '';
+            return;
+        }
+
+        const fallbackText = narrationFallbackTextRef.current;
+        if (!fallbackText) {
+            narrationFallbackPendingRef.current = false;
+            return;
+        }
+
+        narrationFallbackPendingRef.current = false;
+        narrationFallbackTextRef.current = '';
+        void speak(fallbackText, 'full-reading', narrationEmotionRef.current);
+    }, [autoNarrate, voiceOn, ttsProvider, ttsState?.status, ttsState?.reason, isNarrationStreamActive, speak]);
 
     useEffect(() => {
         if (typeof window === 'undefined' || !window.sessionStorage) return;
@@ -608,6 +813,7 @@ export function ReadingProvider({ children }) {
         if (isGenerating) return;
 
         cancelInFlightReading();
+        resetStreamingNarration();
         const startController = new AbortController();
         inFlightReadingRef.current = { controller: startController, sessionSeed };
 
@@ -844,6 +1050,7 @@ export function ReadingProvider({ children }) {
         setVisionConflicts,
         ensureVisionProof,
         cancelInFlightReading,
+        resetStreamingNarration,
         personalizationForRequest,
         locationEnabled,
         cachedLocation,

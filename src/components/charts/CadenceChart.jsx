@@ -18,7 +18,7 @@ function CadenceTooltip({ active, payload, label }) {
 
   const data = payload[0]?.payload;
   return (
-    <div className="rounded-lg border border-amber-300/30 bg-[#0b0c1d]/95 px-3 py-2 shadow-lg backdrop-blur-sm">
+    <div className="rounded-lg border border-amber-300/30 bg-[color:var(--surface-92)] px-3 py-2 shadow-lg backdrop-blur-sm">
       <p className="text-xs font-medium text-amber-100">{data?.label || label}</p>
       <p className="text-sm font-semibold text-amber-50">
         {data?.count} reading{data?.count === 1 ? '' : 's'}
@@ -86,13 +86,13 @@ export const CadenceChart = memo(function CadenceChart({
             dataKey="shortLabel"
             axisLine={false}
             tickLine={false}
-            tick={{ fill: 'rgba(251, 191, 36, 0.6)', fontSize: 10 }}
+            tick={{ fill: 'rgb(var(--brand-primary-rgb) / 0.6)', fontSize: 10 }}
             interval={0}
           />
           <YAxis hide domain={[0, maxCount + 1]} />
           <Tooltip
             content={<CadenceTooltip />}
-            cursor={{ fill: 'rgba(251, 191, 36, 0.08)' }}
+            cursor={{ fill: 'rgb(var(--brand-primary-rgb) / 0.08)' }}
           />
           <Bar
             dataKey="count"
@@ -107,8 +107,8 @@ export const CadenceChart = memo(function CadenceChart({
                 key={`cell-${index}`}
                 fill={
                   activeIndex === index
-                    ? 'rgba(251, 191, 36, 0.85)'
-                    : 'rgba(251, 191, 36, 0.5)'
+                    ? 'rgb(var(--brand-primary-rgb) / 0.85)'
+                    : 'rgb(var(--brand-primary-rgb) / 0.5)'
                 }
                 className="transition-colors duration-150"
               />

@@ -154,8 +154,8 @@ export const ScoreTrendsChart = memo(function ScoreTrendsChart({
         >
           <defs>
             <linearGradient id="overallGradient" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="5%" stopColor="var(--accent, #f59e0b)" stopOpacity={0.3} />
-              <stop offset="95%" stopColor="var(--accent, #f59e0b)" stopOpacity={0} />
+              <stop offset="5%" stopColor="var(--accent, var(--brand-primary))" stopOpacity={0.3} />
+              <stop offset="95%" stopColor="var(--accent, var(--brand-primary))" stopOpacity={0} />
             </linearGradient>
           </defs>
           <XAxis
@@ -177,11 +177,11 @@ export const ScoreTrendsChart = memo(function ScoreTrendsChart({
           <Area
             type="monotone"
             dataKey="overall"
-            stroke="var(--accent, #f59e0b)"
+            stroke="var(--accent, var(--brand-primary))"
             strokeWidth={2}
             fill="url(#overallGradient)"
             dot={trendData.length <= 14}
-            activeDot={{ r: 4, fill: 'var(--accent, #f59e0b)' }}
+            activeDot={{ r: 4, fill: 'var(--accent, var(--brand-primary))' }}
           />
         </AreaChart>
       </ResponsiveContainer>

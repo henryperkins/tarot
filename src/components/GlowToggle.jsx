@@ -80,13 +80,17 @@ export function GlowToggle({
           position: 'absolute',
           inset: 0,
           borderRadius: trackHeight / 2,
-          backgroundColor: checked ? 'rgba(168, 162, 158, 0.4)' : 'rgba(30, 28, 26, 0.8)',
-          border: checked ? '1.5px solid rgba(168, 162, 158, 0.7)' : '1.5px solid rgba(168, 162, 158, 0.3)',
+          backgroundColor: checked
+            ? 'rgb(var(--color-silver-rgb) / 0.4)'
+            : 'rgb(var(--bg-main-rgb) / 0.8)',
+          border: checked
+            ? '1.5px solid rgb(var(--color-silver-rgb) / 0.7)'
+            : '1.5px solid rgb(var(--color-silver-rgb) / 0.3)',
           transition: 'all 200ms ease-out',
           boxShadow: glowing
             ? checked
-              ? '0 0 12px 3px rgba(212, 184, 150, 0.5)'
-              : '0 0 8px 2px rgba(168, 162, 158, 0.3)'
+              ? '0 0 12px 3px rgb(var(--brand-primary-rgb) / 0.5)'
+              : '0 0 8px 2px rgb(var(--color-silver-rgb) / 0.3)'
             : 'none',
         }}
         aria-hidden="true"
@@ -99,12 +103,14 @@ export function GlowToggle({
           width: thumbSize,
           height: thumbSize,
           borderRadius: '50%',
-          backgroundColor: checked ? '#d4b896' : 'rgba(168, 162, 158, 0.6)',
+          backgroundColor: checked
+            ? 'var(--brand-primary)'
+            : 'rgb(var(--color-silver-rgb) / 0.6)',
           transform: `translateX(${checked ? thumbTravel : 0}px) scale(${glowing ? 1.1 : 1})`,
           transition: 'all 200ms ease-out',
           boxShadow: checked
-            ? '0 2px 8px rgba(212, 184, 150, 0.5)'
-            : '0 1px 3px rgba(0, 0, 0, 0.3)',
+            ? '0 2px 8px rgb(var(--brand-primary-rgb) / 0.5)'
+            : '0 1px 3px rgb(var(--bg-main-rgb) / 0.3)',
         }}
         aria-hidden="true"
       />

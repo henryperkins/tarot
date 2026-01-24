@@ -5,6 +5,7 @@ import { SharedSpreadView } from '../components/share/SharedSpreadView.jsx';
 import { CollaborativeNotesPanel } from '../components/share/CollaborativeNotesPanel.jsx';
 import { UserMenu } from '../components/UserMenu.jsx';
 import { useAuth } from '../contexts/AuthContext.jsx';
+import { useReducedMotion } from '../hooks/useReducedMotion.js';
 
 function StatCard({ label, value, helper }) {
   return (
@@ -35,6 +36,8 @@ export default function ShareReading() {
   const { token } = useParams();
   const navigate = useNavigate();
   const { isAuthenticated } = useAuth();
+  const prefersReducedMotion = useReducedMotion();
+  const headerRef = useRef(null);
   const [shareData, setShareData] = useState(null);
   const [notes, setNotes] = useState([]);
   const [status, setStatus] = useState('loading');
@@ -54,7 +57,7 @@ export default function ShareReading() {
       const panel = notesPanelRef.current;
       if (!panel) return;
       try {
-        panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        panel.scrollIntoView({ behavior: prefersReducedMotion ? 'auto' : 'smooth', block: 'start' });
       } catch {
         // no-op: scrollIntoView may fail on some older browsers
       }
@@ -63,7 +66,7 @@ export default function ShareReading() {
         focusTarget.focus({ preventScroll: true });
       }
     });
-  }, []);
+  }, [prefersReducedMotion]);
 
   const fetchShare = useCallback(async () => {
     if (!token) return;
@@ -124,6 +127,23 @@ export default function ShareReading() {
     const defaultPosition = deriveDefaultPosition(activeEntry);
     setActivePosition(defaultPosition);
   }, [activeEntry]);
+
+  // Track header height for sticky positioning
+  useEffect(() => {
+    if (!headerRef.current) return;
+    const updateHeaderHeight = () => {
+      document.documentElement.style.setProperty(
+        '--share-header-height',
+        `${headerRef.current.offsetHeight}px`
+      );
+    };
+    updateHeaderHeight();
+    window.addEventListener('resize', updateHeaderHeight);
+    return () => {
+      window.removeEventListener('resize', updateHeaderHeight);
+      document.documentElement.style.removeProperty('--share-header-height');
+    };
+  }, []);
 
   const stats = shareData?.stats;
 
@@ -195,7 +215,7 @@ export default function ShareReading() {
   return (
     <div className="min-h-screen bg-main text-main">
       {/* Top navigation bar with safe-area padding */}
-      <header className="sticky top-0 z-40 border-b border-secondary/20 bg-main/95 backdrop-blur-sm pt-safe-top pl-safe-left pr-safe-right">
+      <header ref={headerRef} className="sticky top-0 z-40 border-b border-secondary/20 bg-main/95 backdrop-blur-sm pt-safe-top pl-safe-left pr-safe-right">
         <div className="mx-auto max-w-6xl flex items-center justify-between py-3 px-4">
           <div className="flex items-center gap-3">
             <button
@@ -310,7 +330,8 @@ export default function ShareReading() {
 
         {/* Mobile view toggle - only visible below lg breakpoint */}
         <div
-          className="mt-6 lg:hidden sticky z-20 top-[calc(env(safe-area-inset-top,0px)+4.5rem)]"
+          className="mt-6 lg:hidden sticky z-20"
+          style={{ top: 'calc(var(--share-header-height, 5rem) + env(safe-area-inset-top, 0px))' }}
           role="tablist"
           aria-label="View selection"
         >
@@ -416,15 +437,16 @@ export default function ShareReading() {
           </div>
         </div>
 
-        {/* Mobile: bottom CTA to jump to note form */}
-        {mobileView === 'notes' && (
+        {/* Mobile: bottom CTA to jump to note form - only for authenticated users without bottom bar */}
+        {mobileView === 'notes' && isAuthenticated && (
           <div
             className="lg:hidden fixed right-4 z-30 bottom-[calc(env(safe-area-inset-bottom,0px)+1rem)]"
           >
             <button
               type="button"
               onClick={scrollToNotesForm}
-              className="inline-flex items-center gap-2 rounded-full bg-primary text-surface px-4 py-2.5 shadow-lg shadow-primary/30 border border-primary/70 text-sm font-semibold touch-manipulation"
+              className="inline-flex items-center gap-2 rounded-full bg-primary text-surface px-4 py-2.5 shadow-lg shadow-primary/30 border border-primary/70 text-sm font-semibold touch-manipulation min-h-[44px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/70"
+              aria-label="Jump to note form"
             >
               Add note
             </button>

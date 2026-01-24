@@ -17,7 +17,7 @@ const JourneyContent = lazy(() => import('./JourneyContent'));
  */
 function JourneyFallback() {
   return (
-    <div className="animate-pulse rounded-3xl border border-amber-300/12 bg-gradient-to-br from-[#0b0c1d] via-[#0d1024] to-[#090a16] p-5">
+    <div className="animate-pulse rounded-3xl border border-amber-300/12 bg-gradient-to-br from-[color:var(--panel-dark-3)] via-[color:var(--panel-dark-2)] to-[color:var(--panel-dark-1)] p-5">
       <div className="space-y-4">
         {/* Header skeleton */}
         <div className="flex items-center gap-2">

@@ -278,10 +278,14 @@ export async function generateWithAzureGPT5Responses(env, payload, requestId = '
       total_tokens: result.usage.total_tokens
     });
   }
+  if (result.reasoningSummary) {
+    console.log(`[${requestId}] Reasoning summary available: ${result.reasoningSummary.length} chars`);
+  }
 
   // Return reading with captured prompts for engineering analysis
   return {
     reading: result.text,
+    reasoningSummary: result.reasoningSummary || null,
     prompts: {
       system: systemPrompt,
       user: userPrompt

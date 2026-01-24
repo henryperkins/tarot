@@ -6,25 +6,25 @@ import { memo } from 'react';
 import { Link } from 'react-router-dom';
 import { Fire, TrendUp, TrendDown, Minus, ArrowRight } from '@phosphor-icons/react';
 import TrendSparkline from '../../charts/TrendSparkline';
-import { getSuitIcon } from '../../illustrations/SuitIcons';
+import { getSuitIcon } from '../../illustrations/suitIconUtils';
 
 // Suit color mapping for visual distinction
 const SUIT_COLORS = {
-  Cups: 'text-blue-400',
-  Wands: 'text-amber-400',
-  Swords: 'text-slate-400',
-  Pentacles: 'text-emerald-400',
-  Major: 'text-purple-400',
+  Cups: 'text-cups',
+  Wands: 'text-wands',
+  Swords: 'text-swords',
+  Pentacles: 'text-pentacles',
+  Major: 'text-accent',
 };
 
 function TrendIndicator({ trend }) {
   if (trend === 'up') {
-    return <TrendUp className="h-3 w-3 text-emerald-400" aria-label="trending up" />;
+    return <TrendUp className="h-3 w-3 text-success" aria-label="trending up" />;
   }
   if (trend === 'down') {
-    return <TrendDown className="h-3 w-3 text-red-400" aria-label="trending down" />;
+    return <TrendDown className="h-3 w-3 text-error" aria-label="trending down" />;
   }
-  return <Minus className="h-3 w-3 text-amber-200/40" aria-label="stable" />;
+  return <Minus className="h-3 w-3 text-muted opacity-60" aria-label="stable" />;
 }
 
 function CardsCallingYou({ cards = [], badges = [] }) {

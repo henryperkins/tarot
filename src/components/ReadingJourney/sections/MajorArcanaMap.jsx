@@ -38,13 +38,13 @@ const ROMAN_NUMERALS = [
 ];
 
 function getHeatColor(count, maxCount) {
-  if (count === 0) return 'bg-amber-200/5';
+  if (count === 0) return 'var(--border-warm-subtle)';
   const intensity = Math.min(count / maxCount, 1);
-  if (intensity > 0.8) return 'bg-amber-400/80';
-  if (intensity > 0.6) return 'bg-amber-400/60';
-  if (intensity > 0.4) return 'bg-amber-400/40';
-  if (intensity > 0.2) return 'bg-amber-400/25';
-  return 'bg-amber-400/15';
+  if (intensity > 0.8) return 'rgb(var(--brand-primary-rgb) / 0.8)';
+  if (intensity > 0.6) return 'rgb(var(--brand-primary-rgb) / 0.6)';
+  if (intensity > 0.4) return 'rgb(var(--brand-primary-rgb) / 0.4)';
+  if (intensity > 0.2) return 'rgb(var(--brand-primary-rgb) / 0.25)';
+  return 'rgb(var(--brand-primary-rgb) / 0.15)';
 }
 
 function MajorArcanaMap({ data = [] }) {
@@ -92,9 +92,9 @@ function MajorArcanaMap({ data = [] }) {
                 className={`
                   flex-shrink-0 w-6 h-6 xs:w-7 xs:h-7 rounded flex items-center justify-center
                   text-[9px] xs:text-[10px] font-medium transition-colors
-                  ${getHeatColor(count, maxCount)}
                   ${count > 0 ? 'text-amber-100' : 'text-amber-100/30'}
                 `}
+                style={{ backgroundColor: getHeatColor(count, maxCount) }}
                 title={`${MAJOR_ARCANA_NAMES[index]}: ${count}x`}
                 aria-label={`${MAJOR_ARCANA_NAMES[index]}: appeared ${count} times`}
               >
@@ -115,9 +115,9 @@ function MajorArcanaMap({ data = [] }) {
                 className={`
                   flex-shrink-0 w-6 h-6 xs:w-7 xs:h-7 rounded flex items-center justify-center
                   text-[9px] xs:text-[10px] font-medium transition-colors
-                  ${getHeatColor(count, maxCount)}
                   ${count > 0 ? 'text-amber-100' : 'text-amber-100/30'}
                 `}
+                style={{ backgroundColor: getHeatColor(count, maxCount) }}
                 title={`${MAJOR_ARCANA_NAMES[index]}: ${count}x`}
                 aria-label={`${MAJOR_ARCANA_NAMES[index]}: appeared ${count} times`}
               >

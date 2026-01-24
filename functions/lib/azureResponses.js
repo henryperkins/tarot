@@ -54,7 +54,7 @@ export function getReasoningEffort(env = null, modelName = '') {
 
   const normalizedModel = typeof modelName === 'string' ? modelName.toLowerCase() : '';
   if (normalizedModel.includes('gpt-5')) {
-    return 'none';
+    return 'high';
   }
 
   return 'medium';
@@ -188,12 +188,13 @@ export async function callAzureResponses(env, {
     console.warn('[azureResponses] Failed to log Azure payload snapshot', logError);
   }
 
-  // Extract text content from response
+  // Extract text content and reasoning summary from response
   let text = null;
+  let reasoningSummaryText = null;
 
   if (data.output && Array.isArray(data.output)) {
     for (const block of data.output) {
-      if (block.type === 'message') {
+      if (block.type === 'message' && !text) {
         const messagePieces = Array.isArray(block.content) ? block.content : [];
         for (const piece of messagePieces) {
           if (piece.type === 'output_text' && piece.text) {
@@ -201,8 +202,17 @@ export async function callAzureResponses(env, {
             break;
           }
         }
-        if (text) break;
+      } else if (block.type === 'reasoning' && !reasoningSummaryText) {
+        // Extract reasoning summary from the reasoning block
+        if (Array.isArray(block.summary)) {
+          reasoningSummaryText = block.summary
+            .filter(s => s.type === 'summary_text' && s.text)
+            .map(s => s.text)
+            .join('\n')
+            .trim() || null;
+        }
       }
+      if (text && reasoningSummaryText) break;
     }
   }
 
@@ -217,10 +227,15 @@ export async function callAzureResponses(env, {
     throw new Error('Azure Responses API returned no text content.');
   }
 
+  if (reasoningSummaryText) {
+    console.log('[azureResponses] Reasoning summary extracted:', reasoningSummaryText.length, 'chars');
+  }
+
   // Return full response object or just text based on flag
   if (returnFullResponse) {
     return {
       text,
+      reasoningSummary: reasoningSummaryText,
       usage: data.usage || null
     };
   }

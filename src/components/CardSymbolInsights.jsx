@@ -19,18 +19,6 @@ function mergeClassNames(...classes) {
   return classes.filter(Boolean).join(' ');
 }
 
-function composeEventHandlers(handler, internalHandler) {
-  return (event) => {
-    if (typeof handler === 'function') {
-      handler(event);
-    }
-    if (event?.defaultPrevented) return;
-    if (typeof internalHandler === 'function') {
-      internalHandler(event);
-    }
-  };
-}
-
 /**
  * Hook to detect if viewport is mobile-sized with debounced resize handling
  */
@@ -313,10 +301,6 @@ export function CardSymbolInsights({
     handleClose();
   }, [cancelCloseTimeout, handleClose]);
 
-  if (!insights) {
-    return null;
-  }
-
   const {
     className: triggerPropsClassName,
     onClick: triggerOnClick,
@@ -335,9 +319,53 @@ export function CardSymbolInsights({
       'focus-visible:ring-offset-2 transition-colors touch-manipulation';
 
   const buttonLabel = triggerAriaLabel || triggerLabel;
-  const triggerBlurHandler = isMobile
-    ? triggerOnBlur
-    : composeEventHandlers(triggerOnBlur, handleBlur);
+  const handleTriggerClick = useCallback((event) => {
+    if (typeof triggerOnClick === 'function') {
+      triggerOnClick(event);
+    }
+    if (event?.defaultPrevented) return;
+    handleToggle(event);
+  }, [triggerOnClick, handleToggle]);
+  const handleTriggerFocus = useCallback((event) => {
+    if (typeof triggerOnFocus === 'function') {
+      triggerOnFocus(event);
+    }
+    if (event?.defaultPrevented) return;
+    if (shouldHover) {
+      handleOpen(event);
+    }
+  }, [triggerOnFocus, handleOpen, shouldHover]);
+  const handleTriggerBlur = useCallback((event) => {
+    if (typeof triggerOnBlur === 'function') {
+      triggerOnBlur(event);
+    }
+    if (event?.defaultPrevented) return;
+    if (!isMobile) {
+      handleBlur(event);
+    }
+  }, [triggerOnBlur, handleBlur, isMobile]);
+  const handleTriggerMouseEnter = useCallback((event) => {
+    if (typeof triggerOnMouseEnter === 'function') {
+      triggerOnMouseEnter(event);
+    }
+    if (event?.defaultPrevented) return;
+    if (shouldHover) {
+      handleOpen(event);
+    }
+  }, [triggerOnMouseEnter, handleOpen, shouldHover]);
+  const handleTriggerMouseLeave = useCallback((event) => {
+    if (typeof triggerOnMouseLeave === 'function') {
+      triggerOnMouseLeave(event);
+    }
+    if (event?.defaultPrevented) return;
+    if (shouldHover) {
+      handleClose(event);
+    }
+  }, [triggerOnMouseLeave, handleClose, shouldHover]);
+
+  if (!insights) {
+    return null;
+  }
   const triggerButton = (
     <button
       ref={triggerRef}
@@ -348,11 +376,11 @@ export function CardSymbolInsights({
       aria-controls={isMobile ? undefined : tooltipId}
       aria-label={buttonLabel}
       className={mergeClassNames(baseTriggerClassName, triggerClassName, triggerPropsClassName)}
-      onClick={composeEventHandlers(triggerOnClick, handleToggle)}
-      onFocus={shouldHover ? composeEventHandlers(triggerOnFocus, handleOpen) : triggerOnFocus}
-      onBlur={triggerBlurHandler}
-      onMouseEnter={shouldHover ? composeEventHandlers(triggerOnMouseEnter, handleOpen) : triggerOnMouseEnter}
-      onMouseLeave={shouldHover ? composeEventHandlers(triggerOnMouseLeave, handleClose) : triggerOnMouseLeave}
+      onClick={handleTriggerClick}
+      onFocus={handleTriggerFocus}
+      onBlur={handleTriggerBlur}
+      onMouseEnter={handleTriggerMouseEnter}
+      onMouseLeave={handleTriggerMouseLeave}
     >
       {triggerContent ? (
         triggerContent

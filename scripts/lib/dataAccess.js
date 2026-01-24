@@ -159,7 +159,13 @@ export async function executeD1Query({ dbName, sql, target = 'remote' }) {
 
 export async function runWranglerCommand(args) {
   return new Promise((resolve, reject) => {
-    const child = spawn('npx', args, { stdio: ['ignore', 'pipe', 'pipe'] });
+    // Pass through Cloudflare API token from environment if available
+    const env = { ...process.env };
+
+    const child = spawn('npx', args, {
+      stdio: ['ignore', 'pipe', 'pipe'],
+      env
+    });
     let stdout = '';
     let stderr = '';
     child.stdout.on('data', (chunk) => {

@@ -1,4 +1,8 @@
 import { jsonResponse, readJsonBody, sanitizeText } from '../lib/utils.js';
+import { getUserFromRequest } from '../lib/auth.js';
+import { enforceApiCallLimit } from '../lib/apiUsage.js';
+import { getSubscriptionContext } from '../lib/entitlements.js';
+import { enforceTtsRateLimit, getTtsLimits } from '../lib/ttsLimits.js';
 import { getActingInstructions, EMOTION_DESCRIPTIONS } from '../../src/data/emotionMapping.js';
 import { resolveEnvStrict } from '../lib/environment.js';
 
@@ -78,6 +82,20 @@ export const onRequestGet = async ({ env }) => {
 export const onRequestPost = async ({ request, env }) => {
   const requestId = crypto.randomUUID();
   try {
+    const user = await getUserFromRequest(request, env);
+    const subscription = getSubscriptionContext(user);
+    const tier = subscription.tier;
+    const effectiveTier = subscription.effectiveTier;
+    const ttsLimits = getTtsLimits(effectiveTier);
+
+    // API key usage is Pro-only and subject to API call limits.
+    if (user?.auth_provider === 'api_key') {
+      const apiLimit = await enforceApiCallLimit(env, user);
+      if (!apiLimit.allowed) {
+        return jsonResponse(apiLimit.payload, { status: apiLimit.status });
+      }
+    }
+
     const {
       text,
       context,
@@ -95,6 +113,32 @@ export const onRequestPost = async ({ request, env }) => {
       return jsonResponse(
         { error: 'The "text" field is required.' },
         { status: 400 }
+      );
+    }
+
+    const rateLimitResult = await enforceTtsRateLimit(env, request, user, ttsLimits, requestId);
+    if (rateLimitResult?.limited) {
+      const errorCode = rateLimitResult.tierLimited ? 'TIER_LIMIT' : 'RATE_LIMIT';
+      const errorMessage = rateLimitResult.tierLimited
+        ? `You've reached your monthly TTS limit (${ttsLimits.monthly}). Upgrade to Plus or Pro for more.`
+        : 'Too many text-to-speech requests. Please wait a few moments and try again.';
+
+      return jsonResponse(
+        {
+          error: errorMessage,
+          errorCode,
+          tierLimited: rateLimitResult.tierLimited || false,
+          currentTier: tier,
+          limit: rateLimitResult.limit ?? null,
+          used: rateLimitResult.used ?? null,
+          resetAt: rateLimitResult.resetAt ?? null
+        },
+        {
+          status: 429,
+          headers: {
+            'retry-after': rateLimitResult.retryAfter.toString()
+          }
+        }
       );
     }
 

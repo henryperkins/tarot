@@ -219,9 +219,10 @@ export async function collectSSEStreamText(stream) {
  * @param {Object} options.meta - Metadata to inject as first event
  * @param {Object} options.ctx - Context with waitUntil for background tasks
  * @param {Function} options.onComplete - Async callback with full text
+ * @param {Function} options.onError - Async callback for stream errors
  * @returns {ReadableStream} Wrapped SSE stream
  */
-export function wrapReadingStreamWithMetadata(stream, { meta, ctx, onComplete }) {
+export function wrapReadingStreamWithMetadata(stream, { meta, ctx, onComplete, onError }) {
   const encoder = new TextEncoder();
   const decoder = new TextDecoder();
 
@@ -282,6 +283,23 @@ export function wrapReadingStreamWithMetadata(stream, { meta, ctx, onComplete })
     return { remainder, forwardEvents };
   }
 
+  let completionHandled = false;
+
+  const runCallback = async (callback, payload) => {
+    if (!callback || completionHandled) return;
+    completionHandled = true;
+    try {
+      const promise = callback(payload);
+      if (ctx?.waitUntil) {
+        ctx.waitUntil(Promise.resolve(promise));
+      } else {
+        await promise;
+      }
+    } catch (err) {
+      console.warn('[wrapReadingStreamWithMetadata] completion callback error:', err?.message || err);
+    }
+  };
+
   return new ReadableStream({
     async start(controller) {
       const metaEvent = formatSSEEvent('meta', meta);
@@ -307,16 +325,11 @@ export function wrapReadingStreamWithMetadata(stream, { meta, ctx, onComplete })
               forwardEvents.forEach((ev) => controller.enqueue(encoder.encode(`${ev}\n\n`)));
             }
 
-            if (!sawError && onComplete) {
-              const mergedText = fullTextChunks.join('');
-              const trackingPromise = onComplete(mergedText).catch(err => {
-                console.warn('[wrapReadingStreamWithMetadata] onComplete error:', err.message);
-              });
-              if (ctx?.waitUntil) {
-                ctx.waitUntil(trackingPromise);
-              }
-            } else if (sawError) {
-              console.log('[wrapReadingStreamWithMetadata] Skipping completion due to error event');
+            const mergedText = fullTextChunks.join('');
+            if (sawError) {
+              await runCallback(onError, { fullText: mergedText, error: true });
+            } else {
+              await runCallback(onComplete, mergedText);
             }
             controller.close();
             break;
@@ -339,6 +352,7 @@ export function wrapReadingStreamWithMetadata(stream, { meta, ctx, onComplete })
 
         const errorEvent = formatSSEEvent('error', { message: error.message });
         controller.enqueue(encoder.encode(errorEvent));
+        await runCallback(onError, { fullText: fullTextChunks.join(''), error: true, message: error.message });
         controller.close();
       } finally {
         reader.releaseLock();

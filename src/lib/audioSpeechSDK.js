@@ -42,6 +42,14 @@ const VOICE_MAP = {
   sage: 'en-US-NancyNeural', // Wise, measured
   ash: 'en-US-JasonNeural', // Thoughtful
   ballad: 'en-US-MichelleNeural', // Emotive
+
+  // HD Neural Voices (higher quality, natural prosody)
+  // These are premium voices available in Azure AI Foundry
+  ava: 'en-US-Ava:DragonHDLatestNeural', // Warm, expressive HD
+  andrew: 'en-US-Andrew:DragonHDLatestNeural', // Clear, professional HD
+  emma: 'en-US-Emma:DragonHDLatestNeural', // Friendly, conversational HD
+  brian: 'en-US-Brian:DragonHDLatestNeural', // Deep, resonant HD
+  
   // Direct Azure voice names also work
   default: 'en-US-AriaNeural'
 };
@@ -162,7 +170,9 @@ export async function initSpeechSDK(options = {}) {
     // Cleanup existing resources
     await cleanup();
 
-    // Create config from authorization token (secure!)
+    // Create config from authorization token
+    // The SDK automatically uses regional endpoints for synthesis
+    // Token may come from custom endpoint (AI Foundry) or regional endpoint
     speechConfig = loadedSdk.SpeechConfig.fromAuthorizationToken(token, region);
 
     // Set default voice
@@ -262,7 +272,8 @@ function buildSSML(text, { voice, context, speed, enableViseme = false }) {
     .replace(/'/g, '&apos;');
 
   // Build SSML following official Microsoft structure
-  let ssml = `<speak version='1.0' xml:lang='en-US' xmlns='http://www.w3.org/2001/10/synthesis' xmlns:mstts='http://www.w3.org/2001/mstts'>
+  // Note: Use https:// for mstts namespace per canonical Microsoft SSML docs
+  let ssml = `<speak version='1.0' xml:lang='en-US' xmlns='http://www.w3.org/2001/10/synthesis' xmlns:mstts='https://www.w3.org/2001/mstts'>
   <voice name='${voiceName}'>`;
 
   // Add viseme request if needed (per official docs)

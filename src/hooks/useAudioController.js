@@ -6,7 +6,11 @@ import {
   stopTTS,
   subscribeToTTS,
   getCurrentTTSState,
-  unlockAudio
+  unlockAudio,
+  enqueueTTSChunk,
+  finalizeTTSStream,
+  resetTTSStream,
+  isTTSStreamActive
 } from '../lib/audio';
 import {
   speakWithHume,
@@ -227,6 +231,32 @@ export function useAudioController() {
       emotion
     });
   }, [voiceOn, ttsSpeed]);
+
+  const enqueueNarrationChunk = useCallback((text, context = 'full-reading', emotion = null) => {
+    if (!voiceOn || !text) return false;
+    if (ttsProvider !== 'azure') return false;
+    const status = ttsState.status;
+    const isBusy = status === 'playing' || status === 'paused' || status === 'loading' || status === 'synthesizing';
+    if (isBusy && !isTTSStreamActive()) return false;
+
+    return enqueueTTSChunk({
+      text,
+      context,
+      voice: 'nova',
+      speed: ttsSpeed,
+      emotion
+    });
+  }, [voiceOn, ttsProvider, ttsSpeed, ttsState.status]);
+
+  const finalizeNarrationStream = useCallback(() => {
+    finalizeTTSStream();
+  }, []);
+
+  const resetNarrationStream = useCallback(() => {
+    resetTTSStream();
+  }, []);
+
+  const isNarrationStreamActive = useCallback(() => isTTSStreamActive(), []);
 
   // Azure Speech SDK with word-boundary events
   const speakWithSpeechSDK = useCallback(async (text, context = 'default') => {
@@ -497,6 +527,10 @@ export function useAudioController() {
     showVoicePrompt,
     setShowVoicePrompt,
     speak,
+    enqueueNarrationChunk,
+    finalizeNarrationStream,
+    resetNarrationStream,
+    isNarrationStreamActive,
     handleNarrationButtonClick,
     handleNarrationStop,
     handleVoicePromptEnable,

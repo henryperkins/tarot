@@ -670,7 +670,7 @@ export default function Journal() {
   const renderedHistoryEntries = monthSections.map((section) => (
     <div key={section.key} id={section.anchorId} className="space-y-4 scroll-mt-24">
       <div className="sticky top-24 z-20">
-        <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-amber-200/20 bg-[#0d0a14]/90 px-3 py-2 backdrop-blur">
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-amber-200/20 bg-[color:var(--surface-88)] px-3 py-2 backdrop-blur">
           <span className="text-[11px] uppercase tracking-[0.3em] text-amber-100/70">{section.label}</span>
           <span className="inline-flex items-center rounded-full border border-amber-200/20 bg-amber-200/10 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-amber-100/70">
             {section.count} entries

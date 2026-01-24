@@ -13,6 +13,7 @@ export async function onRequestGet(context) {
 
   const speechKey = resolveEnv(env, 'AZURE_SPEECH_KEY');
   const speechRegion = resolveEnv(env, 'AZURE_SPEECH_REGION') || 'eastus2';
+  const speechEndpoint = resolveEnv(env, 'AZURE_SPEECH_ENDPOINT');
 
   if (!speechKey) {
     console.error('[SpeechToken] AZURE_SPEECH_KEY not configured');
@@ -23,7 +24,17 @@ export async function onRequestGet(context) {
   }
 
   try {
-    const tokenEndpoint = `https://${speechRegion}.api.cognitive.microsoft.com/sts/v1.0/issueToken`;
+    // Custom endpoints (Azure AI Foundry) use endpoint-based token URL
+    // Standard Speech Service uses region-based URL
+    let tokenEndpoint;
+    if (speechEndpoint) {
+      // Custom endpoint: append token path to base endpoint
+      const baseUrl = speechEndpoint.replace(/\/$/, '');
+      tokenEndpoint = `${baseUrl}/sts/v1.0/issueToken`;
+    } else {
+      // Region-based: standard Cognitive Services token endpoint
+      tokenEndpoint = `https://${speechRegion}.api.cognitive.microsoft.com/sts/v1.0/issueToken`;
+    }
 
     const tokenResponse = await fetch(tokenEndpoint, {
       method: 'POST',

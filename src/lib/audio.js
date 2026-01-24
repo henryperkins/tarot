@@ -40,6 +40,12 @@ const trackedObjectUrls = new Set();
 const audioObjectUrlMap = new WeakMap();
 let cleanupListenersRegistered = false;
 let lastCacheSweep = 0;
+const ttsStreamQueue = [];
+let ttsStreamActive = false;
+let ttsStreamFinalized = false;
+let ttsStreamProcessing = false;
+let ttsStreamRequestId = 0;
+let ttsStreamAbortController = null;
 
 const SILENT_AUDIO_URI = 'data:audio/mp3;base64,//MkxAAHiAICWABElBeKPL/RANb2w+yiT1g/gTok//lP/W/l3h8QO/OCdCqCW2Cw//MkxAQHkAIWUAhEmAQXWUOFW2dxPu//9mr60ElY5sseQ+xxesmHKtZr7bsqqX2L//MkxAgFwAYiQAhEAC2hq22d3///9FTV6tA36JdgBJoOGgc+7qvqej5Zu7/7uI9l//MkxBQHAAYi8AhEAO193vt9KGOq+6qcT7hhfN5FTInmwk8RkqKImTM55pRQHQSq//MkxBsGkgoIAABHhTACIJLf99nVI///yuW1uBqWfEu7CgNPWGpUadBmZ////4sL//MkxCMHMAH9iABEmAsKioqKigsLCwtVTEFNRTMuOTkuNVVVVVVVVVVVVVVVVVVV//MkxCkECAUYCAAAAFVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV';
 
@@ -161,6 +167,102 @@ export function toggleAmbience(on) {
   }
 }
 
+function normalizeAudioContentType(contentType) {
+  if (!contentType) return 'audio/mpeg';
+  const normalized = contentType.toLowerCase();
+  if (normalized.includes('audio/mp3')) return 'audio/mpeg';
+  return contentType;
+}
+
+async function buildStreamingAudioSource(response, signal) {
+  const contentType = normalizeAudioContentType(response.headers.get('content-type'));
+  const canStream = typeof MediaSource !== 'undefined' &&
+    typeof MediaSource.isTypeSupported === 'function' &&
+    response.body &&
+    MediaSource.isTypeSupported(contentType);
+
+  if (!canStream) {
+    const audioBlob = await response.blob();
+    const objectUrl = URL.createObjectURL(audioBlob);
+    trackObjectUrl(objectUrl);
+    return { url: objectUrl, source: 'blob' };
+  }
+
+  const mediaSource = new MediaSource();
+  const objectUrl = URL.createObjectURL(mediaSource);
+  trackObjectUrl(objectUrl);
+
+  const reader = response.body.getReader();
+  const queue = [];
+  let streamDone = false;
+  let sourceBuffer = null;
+
+  const pumpQueue = () => {
+    if (!sourceBuffer || sourceBuffer.updating || queue.length === 0) return;
+    const chunk = queue.shift();
+    if (chunk) {
+      sourceBuffer.appendBuffer(chunk);
+    }
+  };
+
+  const finishStream = () => {
+    if (mediaSource.readyState === 'open') {
+      try {
+        mediaSource.endOfStream();
+      } catch {
+        // Ignore end-of-stream errors.
+      }
+    }
+  };
+
+  const readLoop = async () => {
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        if (value) {
+          queue.push(value);
+          pumpQueue();
+        }
+      }
+      streamDone = true;
+      if (!sourceBuffer?.updating && queue.length === 0) {
+        finishStream();
+      }
+    } catch {
+      finishStream();
+    }
+  };
+
+  mediaSource.addEventListener('sourceopen', () => {
+    try {
+      sourceBuffer = mediaSource.addSourceBuffer(contentType);
+    } catch {
+      reader.cancel().catch(() => null);
+      finishStream();
+      return;
+    }
+
+    sourceBuffer.addEventListener('updateend', () => {
+      pumpQueue();
+      if (streamDone && queue.length === 0) {
+        finishStream();
+      }
+    });
+
+    void readLoop();
+  }, { once: true });
+
+  if (signal) {
+    signal.addEventListener('abort', () => {
+      reader.cancel().catch(() => null);
+      finishStream();
+    }, { once: true });
+  }
+
+  return { url: objectUrl, source: 'media-source' };
+}
+
 /**
  * Enhanced text-to-speech with intelligent caching and context-aware narration.
  *
@@ -198,6 +300,7 @@ export async function speakText({ text, enabled, context = 'default', voice = 'v
   const ttsText = prepareForTTS(normalizedText);
 
   const requestId = ++currentNarrationRequestId;
+  resetTTSStream({ preserveAudio: true });
   if (ttsAbortController) {
     ttsAbortController.abort();
   }
@@ -299,16 +402,14 @@ export async function speakText({ text, enabled, context = 'default', voice = 'v
 
       if (stream) {
         // Streaming mode: response body is a ReadableStream of audio chunks
-        // Convert stream to blob for audio playback
-        const audioBlob = await response.blob();
-        const objectUrl = URL.createObjectURL(audioBlob);
-        trackObjectUrl(objectUrl);
-        audioDataUri = objectUrl;
-        objectUrlForCleanup = objectUrl;
-        provider = 'azure-gpt-4o-mini-tts'; // Streaming only works with Azure
+        const streamResult = await buildStreamingAudioSource(response, controller?.signal);
+        audioDataUri = streamResult.url;
+        objectUrlForCleanup = streamResult.url;
+        const headerProvider = response.headers.get('x-tts-provider');
+        provider = headerProvider || provider || 'azure-gpt-4o-mini-tts';
         source = 'stream';
         if (isStaleRequest()) {
-          revokeTrackedObjectUrl(objectUrl);
+          revokeTrackedObjectUrl(streamResult.url);
           return;
         }
       } else {
@@ -464,6 +565,321 @@ export async function speakText({ text, enabled, context = 'default', voice = 'v
     });
     activeNarrationId = null;
   }
+}
+
+export function enqueueTTSChunk({ text, context = 'full-reading', voice = 'nova', speed, format, emotion = null }) {
+  if (!text || typeof text !== 'string') return false;
+  ensureGlobalCleanupListeners();
+
+  const normalizedText = normalizeReadingText(text);
+  const ttsText = prepareForTTS(normalizedText);
+  if (!ttsText.trim()) return false;
+
+  if (!ttsStreamActive) {
+    ttsStreamActive = true;
+    ttsStreamFinalized = false;
+    ttsStreamRequestId = ++currentNarrationRequestId;
+    activeNarrationId = ttsStreamRequestId;
+  }
+
+  ttsStreamQueue.push({ text: ttsText, context, voice, speed, format, emotion });
+
+  if (!ttsStreamProcessing) {
+    void processTtsStreamQueue();
+  }
+
+  return true;
+}
+
+export function finalizeTTSStream() {
+  ttsStreamFinalized = true;
+  if (!ttsStreamProcessing && ttsStreamActive && ttsStreamQueue.length === 0) {
+    finishTtsStreamQueue();
+  }
+}
+
+export function resetTTSStream({ preserveAudio = false } = {}) {
+  clearTtsStreamState({ preserveAudio });
+}
+
+export function isTTSStreamActive() {
+  return ttsStreamActive;
+}
+
+function clearTtsStreamState({ preserveAudio = false } = {}) {
+  if (ttsStreamRequestId) {
+    cancelledUpToRequestId = Math.max(cancelledUpToRequestId, ttsStreamRequestId);
+  }
+  ttsStreamActive = false;
+  ttsStreamFinalized = false;
+  ttsStreamProcessing = false;
+  ttsStreamQueue.length = 0;
+  if (ttsStreamAbortController) {
+    ttsStreamAbortController.abort();
+    ttsStreamAbortController = null;
+  }
+  if (!preserveAudio && ttsAudio) {
+    releaseAudioObjectUrl(ttsAudio);
+    ttsAudio.pause();
+    ttsAudio.currentTime = 0;
+    ttsAudio = null;
+  }
+}
+
+async function processTtsStreamQueue() {
+  if (ttsStreamProcessing || !ttsStreamActive) return;
+  ttsStreamProcessing = true;
+  const requestId = ttsStreamRequestId;
+
+  while (ttsStreamQueue.length > 0) {
+    if (!ttsStreamActive || requestId !== ttsStreamRequestId || requestId <= cancelledUpToRequestId) {
+      break;
+    }
+    const segment = ttsStreamQueue.shift();
+    try {
+      await playTtsStreamSegment(segment, requestId);
+    } catch (err) {
+      if (requestId !== ttsStreamRequestId || requestId <= cancelledUpToRequestId) {
+        break;
+      }
+      emitTTSState({
+        status: 'error',
+        error: err?.message || String(err),
+        message: 'Unable to play audio right now.'
+      });
+      clearTtsStreamState({ preserveAudio: false });
+      break;
+    }
+  }
+
+  ttsStreamProcessing = false;
+
+  if (ttsStreamActive && ttsStreamFinalized && ttsStreamQueue.length === 0 && requestId === ttsStreamRequestId) {
+    finishTtsStreamQueue();
+  }
+}
+
+async function playTtsStreamSegment(segment, requestId) {
+  if (!segment || requestId <= cancelledUpToRequestId) return;
+
+  const { text, context = 'full-reading', voice = 'nova', speed, format, emotion } = segment;
+
+  if (!audioUnlocked) {
+    const unlocked = await unlockAudio();
+    if (!unlocked) {
+      throw new Error('Audio not unlocked');
+    }
+  }
+
+  if (requestId <= cancelledUpToRequestId) return;
+
+  emitTTSState({
+    status: 'loading',
+    provider: null,
+    source: 'stream',
+    context,
+    message: getPreparingMessage(null, context)
+  });
+
+  if (ttsStreamAbortController) {
+    ttsStreamAbortController.abort();
+  }
+  const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
+  ttsStreamAbortController = controller;
+
+  const requestBody = { text, context, voice };
+  if (speed !== undefined) {
+    requestBody.speed = speed;
+  }
+  if (typeof format === 'string' && format.trim()) {
+    requestBody.format = format.trim();
+  }
+  if (emotion) {
+    requestBody.emotion = emotion;
+  }
+
+  const response = await fetch('/api/tts?stream=true', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(requestBody),
+    signal: controller?.signal
+  });
+
+  if (!response.ok) {
+    let errorData = {};
+    try {
+      errorData = await response.json();
+    } catch {
+      errorData = {};
+    }
+    const errorCode = errorData.errorCode || (response.status === 429 ? 'RATE_LIMIT' : 'SERVICE_ERROR');
+    const userMessage = getErrorMessage(response.status, errorData);
+    emitTTSState({
+      status: 'error',
+      error: errorData.error || `TTS service returned ${response.status}.`,
+      errorCode,
+      errorDetails: errorData,
+      context,
+      message: userMessage
+    });
+    throw new Error(errorData.error || userMessage);
+  }
+
+  const streamResult = await buildStreamingAudioSource(response, controller?.signal);
+  const headerProvider = response.headers.get('x-tts-provider');
+  const provider = headerProvider || 'azure-gpt-4o-mini-tts';
+  const source = 'stream';
+
+  emitTTSState({
+    status: 'loading',
+    provider,
+    source,
+    cached: false,
+    context,
+    message: getPreparingMessage(provider, context)
+  });
+
+  await playQueuedAudio(streamResult.url, {
+    provider,
+    source,
+    context,
+    requestId,
+    signal: controller?.signal
+  });
+}
+
+function playQueuedAudio(audioUrl, { provider, source, context, requestId, signal }) {
+  return new Promise((resolve, reject) => {
+    const audio = new Audio(audioUrl);
+    ttsAudio = audio;
+    audioObjectUrlMap.set(audio, audioUrl);
+
+    const cleanup = ({ stop = false } = {}) => {
+      audio.removeEventListener('loadedmetadata', handleLoadedMetadata);
+      audio.removeEventListener('timeupdate', handleTimeUpdate);
+      audio.removeEventListener('ended', handleEnded);
+      audio.removeEventListener('pause', handlePause);
+      audio.removeEventListener('error', handleError);
+      if (signal) {
+        signal.removeEventListener('abort', handleAbort);
+      }
+      if (stop) {
+        try {
+          audio.pause();
+          audio.currentTime = 0;
+        } catch {
+          // ignore stop errors
+        }
+      }
+      releaseAudioObjectUrl(audio);
+      if (ttsAudio === audio) {
+        ttsAudio = null;
+      }
+      if (activeNarrationId === requestId && ttsStreamQueue.length === 0 && ttsStreamFinalized) {
+        activeNarrationId = null;
+      }
+    };
+
+    const handleAbort = () => {
+      cleanup({ stop: true });
+      resolve();
+    };
+
+    const handleLoadedMetadata = () => {
+      const duration = audio.duration || 0;
+      if (duration > 0 && isFinite(duration)) {
+        emitTTSState({ duration });
+      }
+    };
+
+    const handleTimeUpdate = () => {
+      const currentTime = audio.currentTime || 0;
+      const duration = audio.duration || 0;
+      const progress = duration > 0 ? Math.min(currentTime / duration, 1) : 0;
+      emitTTSState({ currentTime, duration, progress });
+    };
+
+    const handleEnded = () => {
+      cleanup();
+      resolve();
+    };
+
+    const handlePause = () => {
+      if (!audio.ended) {
+        emitTTSState({
+          status: 'paused',
+          provider,
+          source,
+          context,
+          message: getPauseMessage(provider, context)
+        });
+      }
+    };
+
+    const handleError = () => {
+      emitTTSState({
+        status: 'error',
+        provider,
+        source,
+        context,
+        error: 'Audio playback error.',
+        errorCode: 'PLAYBACK_ERROR',
+        message: 'Something went wrong while playing audio.'
+      });
+      cleanup();
+      reject(new Error('Audio playback error.'));
+    };
+
+    audio.addEventListener('loadedmetadata', handleLoadedMetadata);
+    audio.addEventListener('timeupdate', handleTimeUpdate);
+    audio.addEventListener('ended', handleEnded);
+    audio.addEventListener('pause', handlePause);
+    audio.addEventListener('error', handleError);
+
+    if (signal) {
+      if (signal.aborted) {
+        handleAbort();
+        return;
+      }
+      signal.addEventListener('abort', handleAbort, { once: true });
+    }
+
+    audio.play()
+      .then(() => {
+        emitTTSState({
+          status: 'playing',
+          provider,
+          source,
+          context,
+          message: getPlayMessage(provider, context)
+        });
+      })
+      .catch((err) => {
+        handleError(err);
+      });
+  });
+}
+
+function finishTtsStreamQueue() {
+  if (!ttsStreamActive) return;
+  ttsStreamActive = false;
+  ttsStreamFinalized = false;
+  const provider = currentTTSState.provider || 'azure-gpt-4o-mini-tts';
+  const context = currentTTSState.context || 'full-reading';
+  emitTTSState({
+    status: 'completed',
+    provider,
+    source: currentTTSState.source || 'stream',
+    context,
+    message: getEndedMessage(provider, context),
+    currentTime: 0,
+    duration: 0,
+    progress: 0
+  });
+  if (activeNarrationId === ttsStreamRequestId) {
+    activeNarrationId = null;
+  }
+  ttsStreamRequestId = 0;
 }
 
 async function tryPlayLocalFallback({ requestId, context, fallbackText }) {
@@ -694,6 +1110,7 @@ function isQuotaExceededError(err) {
  */
 export function stopTTS() {
   try {
+    resetTTSStream({ preserveAudio: true });
     const targetId = activeNarrationId ?? currentNarrationRequestId;
     if (targetId) {
       cancelledUpToRequestId = Math.max(cancelledUpToRequestId, targetId);
@@ -728,6 +1145,7 @@ export function stopTTS() {
 
 export function cleanupAudio() {
   try {
+    resetTTSStream({ preserveAudio: true });
     if (flipAudio) {
       flipAudio.pause();
       flipAudio = null;

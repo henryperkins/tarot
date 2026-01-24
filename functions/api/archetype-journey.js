@@ -258,10 +258,17 @@ async function handleGetAnalytics(db, userId, corsHeaders) {
     LIMIT 10
   `).bind(userId).all();
 
-  const badges = (badgesQuery.results || []).map(badge => ({
-    ...badge,
-    metadata: badge.metadata_json ? JSON.parse(badge.metadata_json) : {}
-  }));
+  const badges = (badgesQuery.results || []).map(badge => {
+    let metadata = {};
+    if (badge.metadata_json) {
+      try {
+        metadata = JSON.parse(badge.metadata_json);
+      } catch (parseError) {
+        console.warn(`[archetype-journey] Failed to parse metadata_json for badge ${badge.id}:`, parseError.message);
+      }
+    }
+    return { ...badge, metadata };
+  });
 
   // Calculate streaks (cards appearing multiple times)
   const streaks = allCards.filter(card => card.count >= 2).map(card => ({

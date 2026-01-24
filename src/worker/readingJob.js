@@ -9,6 +9,9 @@ const STREAM_HEADERS = {
 };
 
 const JOB_TTL_MS = 60 * 60 * 1000;
+const MAX_STORED_EVENTS = 300;
+const PERSIST_BATCH_EVENTS = 15;
+const PERSIST_INTERVAL_MS = 1000;
 
 function buildError(status, message) {
   return jsonResponse({ error: message }, { status });
@@ -31,7 +34,13 @@ export class ReadingJob {
     this.subscribers = new Set();
     this.events = [];
     this.nextEventId = 1;
+    this.textSoFar = '';
+    this.persistEventCount = 0;
+    this.lastPersistAt = 0;
     this.cancelled = false;
+    this.textSoFar = '';
+    this.persistEventCount = 0;
+    this.lastPersistAt = 0;
     this.job = {
       status: 'idle',
       jobId: null,
@@ -51,6 +60,7 @@ export class ReadingJob {
         this.job = stored.job || this.job;
         this.events = Array.isArray(stored.events) ? stored.events : [];
         this.nextEventId = stored.nextEventId || (this.events.length + 1);
+        this.textSoFar = typeof stored.textSoFar === 'string' ? stored.textSoFar : '';
       }
     });
   }
@@ -184,6 +194,18 @@ export class ReadingJob {
       start: (controller) => {
         subscriber = { controller };
         this.subscribers.add(subscriber);
+
+        const oldestEventId = this.events.length ? this.events[0].id : null;
+        if (oldestEventId && oldestEventId > 1 && cursor < oldestEventId && this.textSoFar) {
+          const snapshotId = Math.max(0, oldestEventId - 1);
+          controller.enqueue(this.encoder.encode(
+            formatSSEEvent('snapshot', {
+              fullText: this.textSoFar,
+              eventId: snapshotId,
+              truncated: true
+            })
+          ));
+        }
 
         const backlog = this.events.filter((event) => event.id > cursor);
         backlog.forEach((event) => {
@@ -404,7 +426,15 @@ export class ReadingJob {
       timestamp: Date.now()
     };
 
+    if (eventType === 'delta' && typeof data?.text === 'string') {
+      this.textSoFar += data.text;
+    }
+    if (eventType === 'done' && typeof data?.fullText === 'string') {
+      this.textSoFar = data.fullText;
+    }
+
     this.events.push(entry);
+    this.pruneEvents();
 
     if (eventType === 'error') {
       this.job.status = 'error';
@@ -418,11 +448,39 @@ export class ReadingJob {
     }
 
     this.job.updatedAt = Date.now();
-    this.persistState().catch(() => null);
+    this.maybePersist(eventType);
     this.broadcast(entry);
 
     if (eventType === 'done' || eventType === 'error') {
       this.closeSubscribers();
+    }
+  }
+
+  pruneEvents() {
+    if (this.events.length <= MAX_STORED_EVENTS) return;
+    const meta = this.events.find((event) => event.event === 'meta') || null;
+    const metaId = meta?.id;
+    const keepCount = metaId ? Math.max(1, MAX_STORED_EVENTS - 1) : MAX_STORED_EVENTS;
+    const tailEvents = metaId
+      ? this.events.filter((event) => event.id !== metaId).slice(-keepCount)
+      : this.events.slice(-keepCount);
+    this.events = metaId ? [meta, ...tailEvents] : tailEvents;
+  }
+
+  maybePersist(eventType) {
+    const now = Date.now();
+    if (eventType === 'done' || eventType === 'error' || eventType === 'meta') {
+      this.persistEventCount = 0;
+      this.lastPersistAt = now;
+      this.persistState().catch(() => null);
+      return;
+    }
+
+    this.persistEventCount += 1;
+    if (this.persistEventCount >= PERSIST_BATCH_EVENTS || now - this.lastPersistAt >= PERSIST_INTERVAL_MS) {
+      this.persistEventCount = 0;
+      this.lastPersistAt = now;
+      this.persistState().catch(() => null);
     }
   }
 
@@ -456,7 +514,8 @@ export class ReadingJob {
     await this.state.storage.put('job', {
       job: this.job,
       events: this.events,
-      nextEventId: this.nextEventId
+      nextEventId: this.nextEventId,
+      textSoFar: this.textSoFar
     });
   }
 
@@ -481,6 +540,9 @@ export class ReadingJob {
     };
     this.events = [];
     this.nextEventId = 1;
+    this.textSoFar = '';
+    this.persistEventCount = 0;
+    this.lastPersistAt = 0;
     return true;
   }
 }

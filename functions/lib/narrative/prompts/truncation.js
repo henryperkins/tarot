@@ -124,7 +124,7 @@ export function truncateToTokenBudget(text, maxTokens, options = {}) {
   }
 
   let headText = truncatePrefixToTokenBudget(text, headBudget);
-  let tailText = truncateSuffixToTokenBudget(text, tailBudget);
+  const tailText = truncateSuffixToTokenBudget(text, tailBudget);
   let combined = [headText, tailText].filter(Boolean).join(separator).trim();
 
   while (combined && estimateTokenCount(combined) > maxTokens) {

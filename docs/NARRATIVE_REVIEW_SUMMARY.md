@@ -96,7 +96,7 @@ The narrative builder and prompt engineering system is **functionally excellent*
 
 ## Quick Wins (3 hours)
 
-These can be implemented **immediately** with minimal risk:
+These are **already implemented** on current main; remaining work is tests/deploy/monitoring.
 
 ### 1. Move Crisis Detection Earlier ⚡
 - **Impact:** Saves 50-100ms on rejected inputs
@@ -124,10 +124,10 @@ These can be implemented **immediately** with minimal risk:
 
 ## Recommended Timeline
 
-### Week 1: Quick Wins
-- Implement all 4 quick wins
-- Add tests for new validation
-- Deploy to preview environment
+### Week 1: Quick Wins (completed in code)
+- ✅ Implemented all 4 quick wins
+- Pending: Add tests for new validation
+- Pending: Deploy to preview environment
 
 ### Month 1: Refactoring
 - Split `prompts.js` into sub-modules

@@ -1743,10 +1743,19 @@ function wrapStreamWithMetadata(stream, {
               // Use waitUntil to guarantee the usage tracking completes
               // even if the client disconnects
               const trackingPromise = onComplete(fullText).catch(err => {
-                console.warn('[wrapStreamWithMetadata] onComplete error:', err.message);
+                // Log the error with full context for debugging
+                console.error('[wrapStreamWithMetadata] onComplete error - usage tracking may be incomplete:', err.message, err.stack);
+                // Re-throw to ensure waitUntil sees the failure
+                // This allows proper error tracking while still not blocking the response
+                throw err;
               });
               if (ctx?.waitUntil) {
-                ctx.waitUntil(trackingPromise);
+                // waitUntil handles both success and failure - rejected promises
+                // are logged by the runtime but don't affect the response
+                ctx.waitUntil(trackingPromise.catch(err => {
+                  // Final catch to prevent unhandled rejection warnings in runtime
+                  console.error('[wrapStreamWithMetadata] Usage tracking failed (waitUntil):', err.message);
+                }));
               }
             } else if (sawError) {
               if (!errorNotified) {

@@ -8,9 +8,9 @@
 import { isProductionEnvironment } from './environment.js';
 import { getQualityGateThresholds } from './readingQuality.js';
 
-const EVAL_PROMPT_VERSION = '2.2.0';
+const EVAL_PROMPT_VERSION = '2.3.0';
 const DEFAULT_MODEL = '@cf/qwen/qwen3-30b-a3b-fp8';
-const DEFAULT_TIMEOUT_MS = 5000;
+const DEFAULT_TIMEOUT_MS = 15000;
 const MAX_SAFE_TIMEOUT_MS = 2147483647; // Max 32-bit signed int for timers
 
 // Input length limits to prevent context overflow and timeouts
@@ -18,7 +18,7 @@ const MAX_READING_LENGTH = 10000;
 const MAX_QUESTION_LENGTH = 500;
 const MAX_CARDS_INFO_LENGTH = 1500;
 const EVAL_TEMPERATURE = 0.1;
-const EVAL_MAX_OUTPUT_TOKENS = 1024;
+const EVAL_MAX_OUTPUT_TOKENS = 2048;
 
 // Default setting for PII storage - set to 'redact' for production safety
 const DEFAULT_METRICS_STORAGE_MODE = 'redact';
@@ -514,49 +514,37 @@ Set TRUE if ANY of these are present:
 const EVAL_USER_TEMPLATE = `Evaluate this tarot reading:
 
 **Spread:** {{spreadKey}} ({{cardCount}} cards)
-**Cards drawn:** {{cardsList}}
-**User's question:** {{userQuestion}}
+**Cards:** {{cardsList}}
+**Question:** {{userQuestion}}
 
-**Pre-computed structural metrics (USE THESE - they are binding constraints):**
+**Structural metrics (binding):**
 {{structuralMetrics}}
 
-**Spread-specific checkpoints:**
 {{spreadHints}}
 
-**Reading to evaluate:**
+**Reading:**
 {{reading}}
 
-MANDATORY EVALUATION PROCESS:
+EVALUATION STEPS:
 
-STEP 1 - Find weaknesses first (list at least 2):
-- What could be improved in personalization?
-- What could be better about the tarot interpretations?
-- Are there any tone or safety concerns?
+1. Check structural constraints from metrics above:
+   - Spine incomplete → tarot_coherence ≤ 4
+   - Coverage < 90% → tarot_coherence ≤ 4
+   - Hallucinations exceed allowance → tarot_coherence ≤ 2, safety_flag = true
 
-STEP 2 - Check structural constraints:
-- Is spine complete? If not, tarot_coherence ≤ 4
-- Is card coverage ≥ 90%? If not, tarot_coherence ≤ 4
-- Any hallucinated cards beyond the allowance? If yes, tarot_coherence ≤ 2 and safety_flag = true
-- If hallucinations are within allowance, note them but keep safety_flag = false
-- In structural_check.hallucinations, set true ONLY when hallucinations exceed the allowance
+2. Score each dimension (start at 3, adjust with evidence):
+   - Score 4-5 requires specific quoted text
+   - Score 5 is rare (top 10%)
 
-STEP 3 - Score each dimension starting from 3:
-- Begin at 3, then adjust up or down based on evidence
-- To score 4+, quote specific text that justifies it
-- Score 5 requires exceptional quality (top 10%)
-
-STEP 4 - Return JSON with your reasoning:
-Return ONLY JSON. Do not include markdown, code fences, or any extra commentary.
+Return ONLY this JSON (no markdown, no commentary):
 {
-  "weaknesses_found": ["<weakness 1>", "<weakness 2>", ...],
-  "structural_check": {"spine_complete": <bool>, "coverage_ok": <bool>, "hallucinations": <bool>},
   "personalization": <1-5>,
   "tarot_coherence": <1-5>,
   "tone": <1-5>,
   "safety": <1-5>,
   "overall": <1-5>,
   "safety_flag": <true|false>,
-  "notes": "<quote evidence for any score above 3; explain any score below 3>"
+  "notes": "<brief: quote for 4+, explain for 1-2, or null>"
 }`;
 
 function buildSpreadEvaluationHints(spreadKey) {

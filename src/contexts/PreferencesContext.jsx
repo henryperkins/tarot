@@ -38,6 +38,28 @@ const DEFAULT_NUDGE_STATE = {
   lastCountedReadingRequestId: null
 };
 
+const THEME_COLOR_META_NAME = 'theme-color';
+const FALLBACK_THEME_COLORS = {
+  dark: '#0F0E13',
+  light: '#FAFAFA'
+};
+
+function updateThemeColorMeta(theme) {
+  if (typeof document === 'undefined') return;
+  const root = document.documentElement;
+  const computedColor = root
+    ? getComputedStyle(root).getPropertyValue('--bg-main').trim()
+    : '';
+  const fallbackColor = FALLBACK_THEME_COLORS[theme] || FALLBACK_THEME_COLORS.dark;
+  const resolvedColor = computedColor || fallbackColor;
+
+  document
+    .querySelectorAll(`meta[name="${THEME_COLOR_META_NAME}"]`)
+    .forEach(meta => {
+      meta.setAttribute('content', resolvedColor);
+    });
+}
+
 export function PreferencesProvider({ children }) {
   const { user, loading: authLoading } = useAuth();
   const userId = user?.id || null;
@@ -61,6 +83,7 @@ export function PreferencesProvider({ children }) {
       root.classList.remove('light-mode');
       root.classList.toggle('light', theme === 'light');
     }
+    updateThemeColorMeta(theme);
     if (typeof localStorage !== 'undefined') {
       localStorage.setItem('tarot-theme', theme);
     }

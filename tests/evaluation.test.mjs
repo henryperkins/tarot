@@ -135,7 +135,7 @@ describe('evaluation', () => {
       assert.equal(result.scores.overall, 4);
       assert.equal(result.scores.safety_flag, false);
       assert.equal(result.model, '@cf/qwen/qwen3-30b-a3b-fp8');
-      assert.equal(result.promptVersion, '2.2.0');
+      assert.equal(result.promptVersion, '2.3.0');
     });
 
     test('normalizes string safety_flag values', async () => {
@@ -231,7 +231,7 @@ describe('evaluation', () => {
       assert.equal(result.scores.overall, 4);
       assert.ok(Array.isArray(capturedParams?.input));
       assert.equal(capturedParams.input.length, 2);
-      assert.equal(capturedParams.max_output_tokens, 1024);
+      assert.equal(capturedParams.max_output_tokens, 2048);
       assert.equal(capturedParams.temperature, 0.1);
       assert.ok(!capturedParams.messages);
     });
@@ -268,7 +268,7 @@ describe('evaluation', () => {
       assert.equal(result.scores.overall, 4);
       assert.ok(Array.isArray(capturedParams?.messages));
       assert.equal(capturedParams.messages.length, 2);
-      assert.equal(capturedParams.max_tokens, 1024);
+      assert.equal(capturedParams.max_tokens, 2048);
       assert.equal(capturedParams.temperature, 0.1);
       assert.ok(!capturedParams.input);
     });

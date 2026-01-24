@@ -185,6 +185,7 @@ async function finalizeReading({
   abAssignment,
   capturedPrompts,
   capturedUsage,
+  capturedReasoningSummary = null,
   waitUntil,
   personalization,
   backendErrors = [],
@@ -429,6 +430,7 @@ async function finalizeReading({
 
   const responsePayload = {
     reading: finalReading,
+    reasoningSummary: capturedReasoningSummary || undefined,
     provider: finalProvider,
     requestId,
     backendErrors: backendErrors.length > 0 ? backendErrors : undefined,
@@ -1041,6 +1043,9 @@ Your cards will be here when you're ready. Right now, please take care of yourse
                 acceptedQualityMetrics: null,
                 allowGateBlocking: false
               });
+            },
+            onError: async () => {
+              await releaseReadingReservation(env, readingReservation);
             }
           });
 
@@ -1064,6 +1069,7 @@ Your cards will be here when you're ready. Right now, please take care of yourse
     // Track captured prompts for engineering persistence
     let capturedPrompts = null;
     let capturedUsage = null;
+    let capturedReasoningSummary = null;
 
     for (const backend of backendsToTry) {
       const attemptStart = Date.now();
@@ -1103,6 +1109,9 @@ Your cards will be here when you're ready. Right now, please take care of yourse
         const attemptUsage = (typeof backendResult === 'object' && backendResult.usage)
           ? backendResult.usage
           : null;
+        const attemptReasoningSummary = (typeof backendResult === 'object' && backendResult.reasoningSummary)
+          ? backendResult.reasoningSummary
+          : null;
 
         applyGraphRAGAlerts(narrativePayload, requestId, backend.id);
 
@@ -1125,6 +1134,7 @@ Your cards will be here when you're ready. Right now, please take care of yourse
         // Associate captured prompts/usage with the accepted backend attempt only.
         capturedPrompts = attemptPrompts;
         capturedUsage = attemptUsage;
+        capturedReasoningSummary = attemptReasoningSummary;
 
         reading = result;
         provider = backend.id;
@@ -1195,6 +1205,7 @@ Your cards will be here when you're ready. Right now, please take care of yourse
       abAssignment,
       capturedPrompts,
       capturedUsage,
+      capturedReasoningSummary,
       waitUntil,
       personalization,
       backendErrors,

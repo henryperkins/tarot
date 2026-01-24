@@ -142,9 +142,9 @@ Your backend must verify the `purchaseToken` and listen for real-time notificati
     - In the Google Play Console, go to **Monetization > Monetization setup** and enter the topic name.
     - Create a push subscription for the topic, pointing to a new webhook endpoint in your Cloudflare Worker (e.g., `https://your-worker-domain.example/api/webhooks/google`).
 
-2.  **Create the Google Webhook Endpoint:**
+2.  **Create the Google Webhook Endpoint (planned):**
 
-    **File: `functions/api/webhooks/google.js`**
+    **Planned file (not yet in repo):** `functions/api/webhooks/google.js`
 
     ```javascript
     import { google } from "googleapis";

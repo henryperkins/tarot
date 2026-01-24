@@ -119,31 +119,29 @@ export function getCardAriaLabel(card, orientationLabel) {
 export function useCardFan({ cards = [], isCollapsible, reduceMotion, defaultExpanded }) {
   const [isExpanded, setIsExpanded] = useState(defaultExpanded);
   const [activeIndex, setActiveIndex] = useState(0);
-  const [showHint, setShowHint] = useState(false);
+  const [showHint, setShowHint] = useState(() => {
+    if (!safeStorage.isAvailable) {
+      return true;
+    }
+    const stored = safeStorage.getItem(STACK_HINT_STORAGE_KEY);
+    return !stored;
+  });
   const stackButtonRef = useRef(null);
   const stripRef = useRef(null);
   const cardRefs = useRef([]);
   const wasExpandedRef = useRef(false);
   const showExpanded = !isCollapsible || isExpanded;
 
-  useEffect(() => {
-    if (!safeStorage.isAvailable) {
-      setShowHint(true);
-      return;
-    }
-    const stored = safeStorage.getItem(STACK_HINT_STORAGE_KEY);
-    setShowHint(!stored);
-  }, []);
-
-  useEffect(() => {
-    if (activeIndex >= cards.length) {
-      setActiveIndex(0);
-    }
-  }, [activeIndex, cards.length]);
+  const maxIndex = Math.max(0, cards.length - 1);
+  const constrainedActiveIndex = Math.min(activeIndex, maxIndex);
+  const safeActiveIndex = showExpanded ? constrainedActiveIndex : 0;
+  if (safeActiveIndex !== activeIndex) {
+    setActiveIndex(safeActiveIndex);
+  }
 
   useEffect(() => {
     if (!showExpanded) {
-      setActiveIndex(0);
+      wasExpandedRef.current = false;
       if (stripRef.current) {
         stripRef.current.scrollLeft = 0;
       }
@@ -228,7 +226,7 @@ export function useCardFan({ cards = [], isCollapsible, reduceMotion, defaultExp
   }, []);
 
   return {
-    activeIndex,
+    activeIndex: safeActiveIndex,
     showExpanded,
     showHint,
     stackButtonRef,

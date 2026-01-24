@@ -111,7 +111,7 @@ The overlay automatically:
 ### Process
 
 1. **View the card image**:
-   - Open `public/images/cards/RWS1909_-_XX_Name.jpeg`
+   - Open an existing card image, e.g. `public/images/cards/RWS1909_-_02_High_Priestess.jpeg` (files follow `RWS1909_-_NN_Name.jpeg`)
    - Study symbol positions
 
 2. **Choose shapes**:

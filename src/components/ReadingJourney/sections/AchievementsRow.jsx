@@ -45,17 +45,17 @@ const BADGE_ILLUSTRATIONS = {
 
 // Badge type to color mapping
 const BADGE_COLORS = {
-  fire: 'text-orange-400 bg-orange-500/15 border-orange-500/30',
-  flame: 'text-orange-400 bg-orange-500/15 border-orange-500/30',
-  streak: 'text-orange-400 bg-orange-500/15 border-orange-500/30',
-  star: 'text-yellow-400 bg-yellow-500/15 border-yellow-500/30',
-  first_reading: 'text-yellow-400 bg-yellow-500/15 border-yellow-500/30',
-  medal: 'text-amber-400 bg-amber-500/15 border-amber-500/30',
-  ten_readings: 'text-amber-400 bg-amber-500/15 border-amber-500/30',
-  trophy: 'text-yellow-300 bg-yellow-500/15 border-yellow-500/30',
-  fifty_readings: 'text-yellow-300 bg-yellow-500/15 border-yellow-500/30',
-  sparkle: 'text-purple-400 bg-purple-500/15 border-purple-500/30',
-  mastery: 'text-purple-400 bg-purple-500/15 border-purple-500/30',
+  fire: 'text-wands bg-[color:color-mix(in_srgb,var(--color-wands)_18%,transparent)] border-[color:color-mix(in_srgb,var(--color-wands)_32%,transparent)]',
+  flame: 'text-wands bg-[color:color-mix(in_srgb,var(--color-wands)_18%,transparent)] border-[color:color-mix(in_srgb,var(--color-wands)_32%,transparent)]',
+  streak: 'text-wands bg-[color:color-mix(in_srgb,var(--color-wands)_18%,transparent)] border-[color:color-mix(in_srgb,var(--color-wands)_32%,transparent)]',
+  star: 'text-[color:var(--brand-primary)] bg-[color:color-mix(in_srgb,var(--brand-primary)_16%,transparent)] border-[color:color-mix(in_srgb,var(--brand-primary)_32%,transparent)]',
+  first_reading: 'text-[color:var(--brand-primary)] bg-[color:color-mix(in_srgb,var(--brand-primary)_16%,transparent)] border-[color:color-mix(in_srgb,var(--brand-primary)_32%,transparent)]',
+  medal: 'text-[color:var(--brand-secondary)] bg-[color:color-mix(in_srgb,var(--brand-secondary)_16%,transparent)] border-[color:color-mix(in_srgb,var(--brand-secondary)_32%,transparent)]',
+  ten_readings: 'text-[color:var(--brand-secondary)] bg-[color:color-mix(in_srgb,var(--brand-secondary)_16%,transparent)] border-[color:color-mix(in_srgb,var(--brand-secondary)_32%,transparent)]',
+  trophy: 'text-[color:var(--brand-accent)] bg-[color:color-mix(in_srgb,var(--brand-accent)_18%,transparent)] border-[color:color-mix(in_srgb,var(--brand-accent)_34%,transparent)]',
+  fifty_readings: 'text-[color:var(--brand-accent)] bg-[color:color-mix(in_srgb,var(--brand-accent)_18%,transparent)] border-[color:color-mix(in_srgb,var(--brand-accent)_34%,transparent)]',
+  sparkle: 'text-cups bg-[color:color-mix(in_srgb,var(--color-cups)_16%,transparent)] border-[color:color-mix(in_srgb,var(--color-cups)_32%,transparent)]',
+  mastery: 'text-cups bg-[color:color-mix(in_srgb,var(--color-cups)_16%,transparent)] border-[color:color-mix(in_srgb,var(--color-cups)_32%,transparent)]',
 };
 
 function getBadgeIcon(type) {
