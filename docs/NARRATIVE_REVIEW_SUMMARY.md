@@ -15,6 +15,17 @@ The narrative builder and prompt engineering system is **functionally excellent*
 
 ---
 
+## Status Update (Current Main)
+
+- Crisis detection now runs before spread analysis (`functions/api/tarot-reading.js`).
+- Prompt safety truncation now fails fast via `truncateSystemPromptSafely` (`functions/lib/narrative/prompts/truncation.js`), and the orchestrator catches `PROMPT_SAFETY_BUDGET_EXCEEDED`.
+- `sanitizePromptValue` strips template syntax (`functions/lib/narrative/helpers.js`).
+- Spread builders include input guards via the base spread fallback (`functions/lib/narrative/spreads/base.js`).
+- `functions/lib/narrative/prompts.js` is a barrel; prompt modules total 2,429 LOC and `helpers.js` remains ~1,682 LOC.
+- Vision proof is optional; mismatches are logged for research telemetry but do not block readings.
+
+---
+
 ## Key Findings
 
 ### ✅ Strengths
@@ -42,35 +53,30 @@ The narrative builder and prompt engineering system is **functionally excellent*
 #### Critical (Must Fix)
 
 1. **File Size Explosion** 🔴
-   - `prompts.js`: 2,118 lines
-   - `helpers.js`: 1,680 lines
+   - `prompts/` modules: 2,429 lines total; `prompts.js` is a 4-line barrel
+   - `helpers.js`: 1,682 lines
    - Hard to maintain and test
 
-2. **Performance Waste** 🔴
-   - Crisis detection happens **after** expensive spread analysis
-   - Wastes 50-100ms on rejected inputs
+2. **Performance Waste** 🔴 (resolved)
+   - Crisis detection now runs before spread analysis
 
 3. **Global State** 🔴
    - `PROSE_MODE` flag vulnerable to cross-request bleed
    - Legacy test helper pattern
 
-4. **Safety Gap** 🔴
-   - Token truncation could compromise safety sections
-   - Logs error but proceeds anyway
+4. **Safety Gap** 🔴 (resolved)
+   - Token truncation now fails fast when critical sections exceed 80% budget
 
 #### Security Concerns
 
-5. **Prompt Injection Risk** ⚠️
-   - `sanitizePromptValue()` doesn't strip template syntax
-   - `{{}}`, `${}`, `<%%>` patterns not filtered
+5. **Prompt Injection Risk** ⚠️ (resolved)
+   - `sanitizePromptValue()` strips template syntax (`{{}}`, `${}`, `<% %>`, `{% %}`, `{# #}`)
 
 6. **Vision Proof Handling** ⚠️
-   - Card mismatches logged but reading proceeds
-   - Could bias readings with incorrect data
+   - Vision proof is optional; mismatches are logged for research telemetry and do not block readings
 
-7. **Input Validation Scattered** ⚠️
-   - Length caps applied late in pipeline
-   - Missing guards in spread builders
+7. **Input Validation Scattered** ⚠️ (partially addressed)
+   - Spread builders now guard against malformed input; remaining validation should be centralized
 
 #### Maintainability
 
@@ -300,24 +306,26 @@ These can be implemented **immediately** with minimal risk:
 
 ### A. File Size Analysis
 ```
-prompts.js:             2,118 LOC  (needs split)
-helpers.js:             1,680 LOC  (needs split)
+prompts.js:                4 LOC  (barrel)
+prompts/ modules:      2,429 LOC  (needs split)
+helpers.js:            1,682 LOC  (needs split)
 reasoning.js:           1,205 LOC  (acceptable)
-tarot-reading.js:       1,200 LOC  (orchestration, acceptable)
+tarot-reading.js:       1,308 LOC  (orchestration, acceptable)
 reasoningIntegration.js:  523 LOC  (acceptable)
-celticCross.js:           467 LOC  (good)
-relationship.js:          377 LOC  (good)
-decision.js:              296 LOC  (good)
-fiveCard.js:              281 LOC  (good)
-threeCard.js:             252 LOC  (good)
+celticCross.js:           487 LOC  (good)
+relationship.js:          407 LOC  (good)
+decision.js:              322 LOC  (good)
+fiveCard.js:              310 LOC  (good)
+threeCard.js:             275 LOC  (good)
 styleHelpers.js:          238 LOC  (excellent)
-singleCard.js:            125 LOC  (excellent)
+singleCard.js:            149 LOC  (excellent)
 ```
 
 ### B. Complexity Scores
 | File | Complexity | Maintainability |
 |------|-----------|-----------------|
-| prompts.js | High | Poor |
+| prompts/ modules | High | Poor |
+| prompts.js (barrel) | Low | Good |
 | helpers.js | High | Poor |
 | tarot-reading.js | Very High | Fair |
 | reasoning.js | High | Fair |
@@ -329,7 +337,7 @@ singleCard.js:            125 LOC  (excellent)
 - [x] Rate limiting
 - [x] Crisis detection
 - [x] Vision proof verification
-- [ ] Template syntax filtering ⚠️
+- [x] Template syntax filtering ⚠️
 - [ ] Vision mismatch confirmation ⚠️
 - [ ] Schema-level length validation ⚠️
 

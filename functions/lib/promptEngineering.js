@@ -388,7 +388,8 @@ export async function buildPromptEngineeringPayload(params) {
     reflectionsText,
     nameHints,
     redactionOptions = {},
-    stripUserContent: shouldStripUserContent = true
+    stripUserContent: shouldStripUserContent = true,
+    skipPIIRedaction = false
   } = params;
 
   const safeSystem = systemPrompt || '';
@@ -428,10 +429,17 @@ export async function buildPromptEngineeringPayload(params) {
     ? { ...redactionOptions, additionalNames: Array.from(mergedNameHints) }
     : redactionOptions;
 
-  // Layer 2: Redact PII patterns from prompts and response
-  const redactedSystem = redactPII(processedSystem, effectiveRedactionOptions);
-  const redactedUser = redactPII(processedUser, effectiveRedactionOptions);
-  const redactedResponse = redactPII(processedResponse, effectiveRedactionOptions);
+  // Layer 2: Redact PII patterns from prompts and response (unless skipped)
+  let redactedSystem, redactedUser, redactedResponse;
+  if (skipPIIRedaction) {
+    redactedSystem = processedSystem;
+    redactedUser = processedUser;
+    redactedResponse = processedResponse;
+  } else {
+    redactedSystem = redactPII(processedSystem, effectiveRedactionOptions);
+    redactedUser = redactPII(processedUser, effectiveRedactionOptions);
+    redactedResponse = redactPII(processedResponse, effectiveRedactionOptions);
+  }
 
   // Extract structural features (from original for accurate metrics)
   const systemFeatures = extractPromptFeatures(safeSystem);
@@ -472,7 +480,7 @@ export async function buildPromptEngineeringPayload(params) {
     // Privacy metadata
     privacy: {
       userContentStripped: shouldStripUserContent,
-      piiRedacted: true
+      piiRedacted: !skipPIIRedaction
     }
   };
 }

@@ -622,7 +622,7 @@ if (!adminKey || authHeader !== `Bearer ${adminKey}`) {
 
 | Endpoint | Purpose |
 |----------|---------|
-| `POST /api/admin/archive` | Manual KV→R2 archival trigger |
+| `POST /api/admin/archive` | Manual KV→D1 archival trigger |
 | `GET/POST /api/coach-extraction-backfill` | AI extraction backfill for coach suggestions |
 
 ### 6.3 Scheduled Maintenance ✅

@@ -15,6 +15,8 @@ The Onboarding Wizard currently uses:
 
 Custom illustrations would create a more immersive, memorable first impression while teaching users about tarot in a visually engaging way.
 
+> **Status note:** The illustration assets and icon components listed below are not yet present in the repo; file paths are intended targets for future implementation.
+
 **Component Files:**
 
 - [`src/components/onboarding/OnboardingWizard.jsx`](src/components/onboarding/OnboardingWizard.jsx)

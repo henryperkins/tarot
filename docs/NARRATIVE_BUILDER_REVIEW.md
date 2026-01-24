@@ -43,9 +43,9 @@ Response Finalization
 | Component | Location | Responsibility | LOC |
 |-----------|----------|---------------|-----|
 | **Orchestrator** | `functions/api/tarot-reading.js` | Request handling, backend routing | 1200+ |
-| **Prompt Builder** | `functions/lib/narrative/prompts/` | Prompt construction modules + budgeting | 2168 |
+| **Prompt Builder** | `functions/lib/narrative/prompts/` | Prompt construction modules + budgeting | 2429 |
 | **Prompt Barrel** | `functions/lib/narrative/prompts.js` | Barrel re-export for prompts API | 4 |
-| **Helpers** | `functions/lib/narrative/helpers.js` | Card text generation, reversal handling | 1680 |
+| **Helpers** | `functions/lib/narrative/helpers.js` | Card text generation, reversal handling | 1682 |
 | **Spread Builders** | `functions/lib/narrative/spreads/*.js` | Spread-specific narrative logic | 1800+ |
 | **Reasoning** | `functions/lib/narrative/reasoning*.js` | Tension detection, arc analysis | 1728 |
 | **Style** | `functions/lib/narrative/styleHelpers.js` | Tone profiles, personalization | 238 |
@@ -59,9 +59,9 @@ Response Finalization
 #### 🔴 Issue #1: File Size Explosion
 
 **Problem:**
-- `prompts/` modules: 2,168 lines total (largest: `buildEnhancedClaudePrompt.js` 639, `cardBuilders.js` 508)
+- `prompts/` modules: 2,429 lines total (largest: `buildEnhancedClaudePrompt.js` 692, `cardBuilders.js` 508)
 - `prompts.js`: 4 lines (barrel re-export)
-- `helpers.js`: 1,680 lines (70KB)
+- `helpers.js`: 1,682 lines (70KB)
 - Modularized, but overall prompt LOC still high
 
 **Impact:**
@@ -96,41 +96,8 @@ functions/lib/narrative/
 
 #### 🔴 Issue #2: Crisis Detection Timing
 
-**Problem:**
-Crisis detection happens **after** expensive spread analysis (line 712):
-
-```javascript
-// Line 680-693: Expensive analysis
-const analysis = await performSpreadAnalysis(spreadInfo, cardsInfo, {...});
-
-// Line 712: Crisis check (too late!)
-const crisisCheck = detectCrisisSignals([userQuestion, reflectionsText].filter(Boolean).join(' '));
-```
-
-**Impact:**
-- Wastes compute on inputs that will be rejected
-- Delays response for users in crisis
-- Unnecessary GraphRAG retrieval
-
-**Fix:**
-Move crisis detection to line ~480 (after validation, before analysis):
-
-```javascript
-// After schema validation (line 483)
-const crisisCheck = detectCrisisSignals([userQuestion, reflectionsText].filter(Boolean).join(' '));
-if (crisisCheck.matched) {
-  // Early return with safe fallback
-  return jsonResponse({
-    reading: generateSafeFallbackReading({ ... }),
-    provider: 'safe-fallback',
-    gateBlocked: true,
-    gateReason: `crisis_${crisisCheck.categories.join('_')}`
-  });
-}
-
-// Then proceed to spread analysis
-const analysis = await performSpreadAnalysis(...);
-```
+**Status:**
+Resolved. Crisis detection now runs immediately after payload validation and subscription context in `functions/api/tarot-reading.js`, before spread analysis or GraphRAG work.
 
 **Priority:** High
 **Effort:** 1 hour
@@ -185,32 +152,8 @@ export function isProseMode(options = {}) {
 
 #### 🔴 Issue #4: Token Truncation Safety Gap
 
-**Problem:**
-If critical safety sections alone exceed 80% of token budget, system logs error but proceeds with basic truncation (lines 326-330):
-
-```javascript
-if (criticalTokens > maxTokens * 0.8) {
-  console.error('[prompts] CRITICAL: Safety sections exceed 80% of token budget');
-  return truncateToTokenBudget(text, maxTokens); // ⚠️ May truncate safety guidance
-}
-```
-
-**Impact:**
-- Safety guidance could be partially removed
-- Violates ethical guidelines
-- No circuit breaker on broken prompts
-
-**Fix:**
-Fail-fast instead of proceeding:
-
-```javascript
-if (criticalTokens > maxTokens * 0.8) {
-  console.error('[prompts] CRITICAL: Safety sections exceed 80% of token budget');
-  throw new Error('PROMPT_SAFETY_BUDGET_EXCEEDED');
-}
-```
-
-Then catch at orchestrator level and return 500 with specific error message.
+**Status:**
+Resolved. `truncateSystemPromptSafely` now throws `PROMPT_SAFETY_BUDGET_EXCEEDED` when critical sections exceed the budget (`functions/lib/narrative/prompts/truncation.js`), and the orchestrator handles it with a 500 response (`functions/api/tarot-reading.js`).
 
 **Priority:** High
 **Effort:** 30 minutes
@@ -222,32 +165,8 @@ Then catch at orchestrator level and return 500 with specific error message.
 
 #### ⚠️ Security #1: Prompt Injection in sanitizePromptValue
 
-**Issue:**
-Removes markdown but NOT template syntax (lines 94-100 in helpers.js):
-
-```javascript
-export function sanitizePromptValue(text, maxLength = 500) {
-  return text
-    .replace(/[`#*_>]/g, '')   // Strips markdown
-    .replace(/\r?\n+/g, ' ')   // Flattens newlines
-    // ⚠️ MISSING: Template syntax like {{ }}, ${}, <% %>, {# #}
-}
-```
-
-**Risk:**
-If any downstream processing uses template engines (Handlebars, Nunjucks, EJS), user input could inject executable code.
-
-**Mitigation:**
-Add template syntax stripping:
-
-```javascript
-export function sanitizePromptValue(text, maxLength = 500) {
-  return text
-    .replace(/[`#*_>]/g, '')
-    .replace(/\{\{|\}\}|\$\{|\}|<%|%>|\{#|#\}/g, '') // Strip template syntax
-    .replace(/\r?\n+/g, ' ');
-}
-```
+**Status:**
+Resolved. `sanitizePromptValue` now strips template syntax (Handlebars/EJS/Jinja style) and normalizes whitespace in `functions/lib/narrative/helpers.js`.
 
 **Priority:** High
 **Severity:** Medium (depends on downstream usage)
@@ -256,15 +175,8 @@ export function sanitizePromptValue(text, maxLength = 500) {
 
 #### ⚠️ Security #2: Vision Proof Mismatch Handling
 
-**Issue:**
-When vision cards don't match drawn cards, warning is logged but reading proceeds (lines 626-656):
-
-```javascript
-if (mismatchCount > 0) {
-  console.warn(`[${requestId}] Vision proof mismatch: ${mismatchCount} cards`);
-  // ⚠️ Proceeds anyway with warning
-}
-```
+**Status:**
+By design in research mode. Vision proof is optional; mismatches are logged for telemetry but readings proceed.
 
 **Risk:**
 - Biased readings from incorrect card data
@@ -554,8 +466,8 @@ describe('Token Budgeting', () => {
 
 | File | LOC | Cyclomatic Complexity (est.) | Maintainability |
 |------|-----|------------------------------|-----------------|
-| `prompts/buildEnhancedClaudePrompt.js` | 639 | High (10+ branches in main builder) | Fair |
-| `helpers.js` | 1680 | High (nested conditions in reversals) | Poor |
+| `prompts/buildEnhancedClaudePrompt.js` | 692 | High (10+ branches in main builder) | Fair |
+| `helpers.js` | 1682 | High (nested conditions in reversals) | Poor |
 | `tarot-reading.js` | 1200+ | Very High (orchestration + error handling) | Fair |
 | `spreads/celticCross.js` | 467 | Medium | Good |
 | `reasoning.js` | 1205 | High (pattern detection logic) | Fair |
@@ -574,10 +486,10 @@ describe('Token Budgeting', () => {
 
 ### Must Do (Next Sprint)
 
-1. ☐ **Move crisis detection before spread analysis** (1 hour, low risk)
-2. ☐ **Add fail-fast for critical section budget overflow** (30 min, low risk)
-3. ☐ **Add template syntax stripping to sanitizePromptValue** (30 min, low risk)
-4. ☐ **Add input guards to all spread builders** (1 hour, low risk)
+1. ☑ **Move crisis detection before spread analysis** (1 hour, low risk)
+2. ☑ **Add fail-fast for critical section budget overflow** (30 min, low risk)
+3. ☑ **Add template syntax stripping to sanitizePromptValue** (30 min, low risk)
+4. ☑ **Add input guards to all spread builders** (1 hour, low risk)
 
 **Total Effort:** 3 hours
 **Impact:** High (security + performance)
@@ -680,7 +592,7 @@ functions/lib/narrative/
 
 ## 9. Maintainability Best Practices Checklist
 
-- [ ] **File size under 500 LOC** ⚠️ (prompts/buildEnhancedClaudePrompt.js: 639, prompts/cardBuilders.js: 508, helpers.js: 1680)
+- [ ] **File size under 500 LOC** ⚠️ (prompts/buildEnhancedClaudePrompt.js: 692, prompts/cardBuilders.js: 508, helpers.js: 1682)
 - [ ] **No global state** ⚠️ (PROSE_MODE)
 - [x] Clear separation of concerns (mostly)
 - [ ] **Consistent error responses** ⚠️
@@ -711,7 +623,7 @@ The narrative builder and prompt engineering system demonstrates **strong functi
 
 ### Key Weaknesses
 
-1. **Large modules remain** (prompts/ total 2,168 LOC; helpers.js 1,680; largest prompt modules > 500 LOC)
+1. **Large modules remain** (prompts/ total 2,429 LOC; helpers.js 1,682; largest prompt modules > 500 LOC)
 2. **Code duplication** across spread builders
 3. **Input validation scattered** across layers
 4. **Performance waste** (late crisis detection, early full analysis)

@@ -1,11 +1,21 @@
 /**
- * CardsCallingYou - Top cards list with inline badges.
+ * CardsCallingYou - Top cards list with inline badges and suit icons.
  */
 
 import { memo } from 'react';
 import { Link } from 'react-router-dom';
 import { Fire, TrendUp, TrendDown, Minus, ArrowRight } from '@phosphor-icons/react';
 import TrendSparkline from '../../charts/TrendSparkline';
+import { getSuitIcon } from '../../illustrations/SuitIcons';
+
+// Suit color mapping for visual distinction
+const SUIT_COLORS = {
+  Cups: 'text-blue-400',
+  Wands: 'text-amber-400',
+  Swords: 'text-slate-400',
+  Pentacles: 'text-emerald-400',
+  Major: 'text-purple-400',
+};
 
 function TrendIndicator({ trend }) {
   if (trend === 'up') {
@@ -34,6 +44,9 @@ function CardsCallingYou({ cards = [], badges = [] }) {
       <ul className="space-y-2" aria-label="Your top most frequently appearing cards">
         {cards.slice(0, 5).map((card, index) => {
           const hasBadge = card.hasBadge || badges.some(b => b.card_name === card.name);
+          const SuitIcon = getSuitIcon(card.name);
+          const suitName = card.suit || (card.name?.includes(' of ') ? card.name.split(' of ')[1] : 'Major');
+          const suitColor = SUIT_COLORS[suitName] || SUIT_COLORS.Major;
 
           return (
             <li
@@ -47,6 +60,12 @@ function CardsCallingYou({ cards = [], badges = [] }) {
                 >
                   {index + 1}
                 </span>
+                {SuitIcon && (
+                  <SuitIcon 
+                    className={`h-4 w-4 flex-shrink-0 ${suitColor}`}
+                    aria-label={`${suitName} suit`}
+                  />
+                )}
                 <span className="text-amber-100/85 truncate">
                   <span className="sr-only">Rank {index + 1}: </span>
                   {card.name}

@@ -82,6 +82,7 @@ export default function JourneyMobileSheet({
   showStartReadingCta = true,
   locale = 'default',
   timezone,
+  seasonTimezone,
   _dataSource,
   scopeLabel,
   filtersApplied,
@@ -368,9 +369,9 @@ export default function JourneyMobileSheet({
           {/* Season window indicator for localized formatting */}
           {seasonWindow && (
             <p className="text-[11px] text-muted">
-              {new Intl.DateTimeFormat(locale, { month: 'long', year: 'numeric', ...(timezone && { timeZone: timezone }) }).format(seasonWindow.start)}
+              {new Intl.DateTimeFormat(locale, { month: 'long', year: 'numeric', ...((seasonTimezone || timezone) && { timeZone: seasonTimezone || timezone }) }).format(seasonWindow.start)}
               {' – '}
-              {new Intl.DateTimeFormat(locale, { month: 'long', year: 'numeric', ...(timezone && { timeZone: timezone }) }).format(seasonWindow.end)}
+              {new Intl.DateTimeFormat(locale, { month: 'long', year: 'numeric', ...((seasonTimezone || timezone) && { timeZone: seasonTimezone || timezone }) }).format(seasonWindow.end)}
             </p>
           )}
 
@@ -540,10 +541,11 @@ export default function JourneyMobileSheet({
               {TABS.map((tab) => (
                 <button
                   key={tab.key}
+                  id={`journey-tab-${tab.key}`}
                   onClick={() => setActiveTab(tab.key)}
                   role="tab"
                   aria-selected={activeTab === tab.key}
-                  aria-controls={`journey-tabpanel-${tab.key}`}
+                  aria-controls="journey-tabpanel"
                   className={`
                     flex items-center justify-center gap-1.5
                     px-4 py-3 min-h-[44px]
@@ -567,7 +569,7 @@ export default function JourneyMobileSheet({
               className="journey-sheet__body flex-1 overflow-y-auto p-5 space-y-4 overscroll-contain"
               style={{ paddingBottom: 'max(1.25rem, env(safe-area-inset-bottom, 1.25rem))' }}
               role="tabpanel"
-              id={`journey-tabpanel-${activeTab}`}
+              id="journey-tabpanel"
               aria-labelledby={`journey-tab-${activeTab}`}
             >
               {activeTab === 'cards' && (

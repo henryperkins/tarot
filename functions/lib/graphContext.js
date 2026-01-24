@@ -26,6 +26,23 @@ function buildGraphKeys(patterns) {
     if (patterns.foolsJourney) {
         keys.foolsJourneyStageKey = patterns.foolsJourney.stageKey || null;
         keys.foolsJourneyStage = patterns.foolsJourney.stage || null;
+        keys.foolsJourneySignificance = patterns.foolsJourney.significance || null;
+        keys.totalMajors = typeof patterns.foolsJourney.totalMajors === 'number'
+            ? patterns.foolsJourney.totalMajors
+            : null;
+
+        if (patterns.foolsJourney.totalMajors === 1) {
+            const singleMajor = Array.isArray(patterns.foolsJourney.cards)
+                ? patterns.foolsJourney.cards[0]
+                : null;
+            if (singleMajor && typeof singleMajor.number === 'number') {
+                keys.singleMajorNumber = singleMajor.number;
+                const displayName = Array.isArray(patterns.foolsJourney.displayNames)
+                    ? patterns.foolsJourney.displayNames[0]
+                    : null;
+                keys.singleMajorName = displayName || singleMajor.name || null;
+            }
+        }
     }
 
     // Triads: stable ids plus completeness for GraphRAG and evaluation.

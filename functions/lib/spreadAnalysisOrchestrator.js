@@ -27,6 +27,7 @@ import {
 import { getSpreadKey } from './readingQuality.js';
 import { resolveSemanticScoring } from './readingTelemetry.js';
 import * as graphRAG from './graphRAG.js';
+import { inferGraphRAGContext } from './contextDetection.js';
 
 // ============================================================================
 // Constants
@@ -164,9 +165,14 @@ function buildGraphRAGPlaceholder(graphKeys, requestedSemanticScoring, enableSem
       (graphKeys?.triadIds?.length || 0) -
       (graphKeys?.completeTriadIds?.length || 0),
     foolsJourneyStage: graphKeys?.foolsJourneyStageKey || null,
+    totalMajors: typeof graphKeys?.totalMajors === 'number' ? graphKeys.totalMajors : 0,
+    singleMajor: Number.isInteger(graphKeys?.singleMajorNumber) ? 1 : 0,
     highDyads: graphKeys?.dyadPairs?.filter((d) => d.significance === 'high').length || 0,
+    mediumHighDyads: graphKeys?.dyadPairs?.filter((d) => d.significance === 'medium-high').length || 0,
     strongSuitProgressions:
-      graphKeys?.suitProgressions?.filter((p) => p.significance === 'strong-progression').length || 0
+      graphKeys?.suitProgressions?.filter((p) => p.significance === 'strong-progression').length || 0,
+    emergingSuitProgressions:
+      graphKeys?.suitProgressions?.filter((p) => p.significance === 'emerging-progression').length || 0
   };
 
   return {
@@ -321,6 +327,7 @@ export async function performSpreadAnalysis(spreadInfo, cardsInfo, options = {},
   try {
     const graphKeys = themes?.knowledgeGraph?.graphKeys;
     if (graphKeys) {
+      const questionContext = inferGraphRAGContext(options.userQuestion, spreadKey);
       const semanticAvailable = graphRAG.isSemanticScoringAvailable(options.env);
       const semanticScoringSetting = options.enableSemanticScoring;
       const isAutoSemanticScoring = semanticScoringSetting === undefined || semanticScoringSetting === null;
@@ -354,6 +361,7 @@ export async function performSpreadAnalysis(spreadInfo, cardsInfo, options = {},
           passages = await graphRAG.retrievePassagesWithQuality(graphKeys, {
             maxPassages,
             userQuery: options.userQuestion,
+            questionContext,
             minRelevanceScore: 0.3,
             enableDeduplication: true,
             enableSemanticScoring: true,
@@ -371,7 +379,8 @@ export async function performSpreadAnalysis(spreadInfo, cardsInfo, options = {},
           // Fall back to standard retrieval (keyword-only)
           passages = graphRAG.retrievePassages(graphKeys, {
             maxPassages,
-            userQuery: options.userQuestion
+            userQuery: options.userQuestion,
+            questionContext
           });
           retrievalSummary = graphRAG.buildRetrievalSummary(graphKeys, passages);
         }

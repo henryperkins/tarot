@@ -66,6 +66,74 @@ function matchesWholeWord(text, keyword) {
   return pattern.test(text);
 }
 
+const GRAPH_RAG_CONTEXT_MATCHES = {
+  grief: ['grief', 'loss', 'mourning', 'bereavement'],
+  relationship: [
+    'relationship',
+    'relationships',
+    'romantic',
+    'romance',
+    'love',
+    'partnership',
+    'marriage',
+    'dating'
+  ],
+  career: ['career', 'work', 'job', 'professional', 'business', 'leadership'],
+  health: [
+    'health',
+    'healing',
+    'wellbeing',
+    'wellness',
+    'therapy',
+    'recovery',
+    'self-care'
+  ],
+  spiritual: ['spiritual', 'spirit', 'soul', 'intuition', 'mystic', 'divine', 'ritual', 'meditation'],
+  transition: ['transition', 'change', 'shift', 'crossroads', 'ending', 'beginning', 'threshold'],
+  shadow: ['shadow', 'trauma', 'addiction', 'compulsion', 'habit', 'inner child', 'subconscious']
+};
+
+function normalizeContextValue(context) {
+  return typeof context === 'string' ? context.trim().toLowerCase() : '';
+}
+
+function resolveContextCandidates(questionContext) {
+  const normalized = normalizeContextValue(questionContext);
+  if (!normalized) return [];
+  if (normalized === 'general') return ['general'];
+
+  if (GRAPH_RAG_CONTEXT_MATCHES[normalized]) {
+    return GRAPH_RAG_CONTEXT_MATCHES[normalized];
+  }
+
+  for (const candidates of Object.values(GRAPH_RAG_CONTEXT_MATCHES)) {
+    if (candidates.includes(normalized)) {
+      return candidates;
+    }
+  }
+
+  return [normalized];
+}
+
+function selectPassageForContext(passages, contextCandidates) {
+  if (!Array.isArray(passages) || passages.length === 0) {
+    return null;
+  }
+
+  if (!Array.isArray(contextCandidates) || contextCandidates.length === 0) {
+    return passages[0];
+  }
+
+  const candidateSet = new Set(contextCandidates.map(normalizeContextValue));
+  const match = passages.find((passage) => candidateSet.has(normalizeContextValue(passage.context)));
+  if (match) {
+    return match;
+  }
+
+  const generalPassage = passages.find((passage) => normalizeContextValue(passage.context) === 'general');
+  return generalPassage || passages[0];
+}
+
 /**
  * Determine the number of passages to retrieve based on spread complexity
  * and subscription tier. Centralized here so prompts and server-side
@@ -117,6 +185,7 @@ export function getPassageCountForSpread(spreadKey, tier = 'plus') {
  * @param {Object} [options]
  * @param {number} [options.maxPassages=3] - Maximum passages to return
  * @param {boolean} [options.includeMetadata=false] - Include pattern metadata
+ * @param {string} [options.questionContext] - Detected question context for passage selection
  * @returns {Array<Object>} Ranked passages with priority and metadata
  *
  * @example
@@ -129,12 +198,17 @@ export function getPassageCountForSpread(spreadKey, tier = 'plus') {
 export function retrievePassages(graphKeys, options = {}) {
   const maxPassages = options.maxPassages || 3;
   const includeMetadata = options.includeMetadata || false;
+  const contextCandidates = resolveContextCandidates(options.questionContext);
 
   if (!graphKeys || typeof graphKeys !== 'object') {
     return [];
   }
 
   const passages = [];
+  const singleMajorNumber = Number.isInteger(graphKeys?.singleMajorNumber)
+    ? graphKeys.singleMajorNumber
+    : null;
+  const hasSingleMajor = singleMajorNumber !== null && graphKeys?.totalMajors === 1;
 
   // Priority 1: Complete triads (highest narrative value)
   // Only take first passage per triad to avoid duplicate titles in UI
@@ -142,7 +216,10 @@ export function retrievePassages(graphKeys, options = {}) {
     graphKeys.completeTriadIds.forEach((triadId) => {
       const entry = getPassagesForPattern('triad', triadId);
       if (entry && entry.passages && entry.passages.length > 0) {
-        const passage = entry.passages[0];
+        const passage = selectPassageForContext(entry.passages, contextCandidates);
+        if (!passage) {
+          return;
+        }
         passages.push({
           priority: 1,
           type: 'triad',
@@ -156,14 +233,38 @@ export function retrievePassages(graphKeys, options = {}) {
     });
   }
 
+  // Priority 2: Single Major Arcana archetype (for minor-heavy spreads)
+  if (hasSingleMajor) {
+    const entry = getPassagesForPattern('major-arcana', singleMajorNumber);
+    if (entry && entry.passages && entry.passages.length > 0) {
+      const passage = selectPassageForContext(entry.passages, contextCandidates);
+      if (passage) {
+        passages.push({
+          priority: 2,
+          type: 'major-arcana',
+          patternId: String(singleMajorNumber),
+          title: entry.title,
+          theme: entry.theme,
+          cardNumber: singleMajorNumber,
+          cardName: graphKeys?.singleMajorName || entry.title,
+          ...passage,
+          ...(includeMetadata
+            ? { metadata: { cardNumber: singleMajorNumber } }
+            : {})
+        });
+      }
+    }
+  }
+
   // Priority 2: Fool's Journey stage (developmental context)
   // Only take first passage per stage to avoid duplicate titles in UI
   if (graphKeys.foolsJourneyStageKey) {
     const entry = getPassagesForPattern('fools-journey', graphKeys.foolsJourneyStageKey);
     if (entry && entry.passages && entry.passages.length > 0) {
-      const passage = entry.passages[0];
+    const passage = selectPassageForContext(entry.passages, contextCandidates);
+    if (passage) {
       passages.push({
-        priority: 2,
+        priority: hasSingleMajor ? 3 : 2,
         type: 'fools-journey',
         patternId: graphKeys.foolsJourneyStageKey,
         title: entry.title,
@@ -176,14 +277,21 @@ export function retrievePassages(graphKeys, options = {}) {
       });
     }
   }
+  }
 
-  // Priority 3: High-significance dyads (powerful two-card synergies)
+  // Priority 3/4: High and medium-high dyads (two-card synergies)
   // Only take first passage per dyad to avoid duplicate titles in UI
   if (Array.isArray(graphKeys.dyadPairs) && graphKeys.dyadPairs.length > 0) {
+    const dyadPriorityBySignificance = {
+      high: 3,
+      'medium-high': 4
+    };
+
     graphKeys.dyadPairs
-      .filter((dyad) => dyad.significance === 'high')
+      .filter((dyad) => dyadPriorityBySignificance[dyad.significance])
       .forEach((dyad) => {
         const dyadKey = dyad.cards.join('-');
+        const priority = dyadPriorityBySignificance[dyad.significance] || 4;
         let entry = getPassagesForPattern('dyad', dyadKey);
         if (!entry && Array.isArray(dyad.cards)) {
           const sortedKey = [...dyad.cards].sort((a, b) => a - b).join('-');
@@ -192,7 +300,10 @@ export function retrievePassages(graphKeys, options = {}) {
           }
         }
         if (entry && entry.passages && entry.passages.length > 0) {
-          const passage = entry.passages[0];
+          const passage = selectPassageForContext(entry.passages, contextCandidates);
+          if (!passage) {
+            return;
+          }
           let cardNames = entry.names;
           if (Array.isArray(entry.cards) && Array.isArray(entry.names)) {
             const nameMap = new Map(
@@ -206,7 +317,7 @@ export function retrievePassages(graphKeys, options = {}) {
             }
           }
           passages.push({
-            priority: 3,
+            priority,
             type: 'dyad',
             patternId: dyadKey,
             theme: entry.theme,
@@ -230,9 +341,39 @@ export function retrievePassages(graphKeys, options = {}) {
         const progKey = `${prog.suit}:${prog.stage}`;
         const entry = getPassagesForPattern('suit-progression', progKey);
         if (entry && entry.passages && entry.passages.length > 0) {
-          const passage = entry.passages[0];
+          const passage = selectPassageForContext(entry.passages, contextCandidates);
+          if (!passage) {
+            return;
+          }
           passages.push({
             priority: 4,
+            type: 'suit-progression',
+            patternId: progKey,
+            title: entry.title,
+            suit: prog.suit,
+            stage: prog.stage,
+            ...passage,
+            ...(includeMetadata ? { metadata: { suit: prog.suit, stage: prog.stage } } : {})
+          });
+        }
+      });
+  }
+
+  // Priority 5: Emerging suit progressions (2-card signals)
+  // Only take first passage per progression to avoid duplicate titles in UI
+  if (Array.isArray(graphKeys.suitProgressions) && graphKeys.suitProgressions.length > 0) {
+    graphKeys.suitProgressions
+      .filter((prog) => prog.significance === 'emerging-progression')
+      .forEach((prog) => {
+        const progKey = `${prog.suit}:${prog.stage}`;
+        const entry = getPassagesForPattern('suit-progression', progKey);
+        if (entry && entry.passages && entry.passages.length > 0) {
+          const passage = selectPassageForContext(entry.passages, contextCandidates);
+          if (!passage) {
+            return;
+          }
+          passages.push({
+            priority: 5,
             type: 'suit-progression',
             patternId: progKey,
             title: entry.title,
@@ -360,9 +501,15 @@ export function buildRetrievalSummary(graphKeys, passages) {
       completeTriads: graphKeys?.completeTriadIds?.length || 0,
       partialTriads: (graphKeys?.triadIds?.length || 0) - (graphKeys?.completeTriadIds?.length || 0),
       foolsJourneyStage: graphKeys?.foolsJourneyStageKey || null,
+      totalMajors: typeof graphKeys?.totalMajors === 'number' ? graphKeys.totalMajors : 0,
+      singleMajor: Number.isInteger(graphKeys?.singleMajorNumber) ? 1 : 0,
       highDyads: graphKeys?.dyadPairs?.filter((d) => d.significance === 'high').length || 0,
+      mediumHighDyads: graphKeys?.dyadPairs?.filter((d) => d.significance === 'medium-high').length || 0,
       strongSuitProgressions:
         graphKeys?.suitProgressions?.filter((p) => p.significance === 'strong-progression')
+          .length || 0,
+      emergingSuitProgressions:
+        graphKeys?.suitProgressions?.filter((p) => p.significance === 'emerging-progression')
           .length || 0
     },
     passagesRetrieved: passages?.length || 0,
@@ -646,6 +793,7 @@ function comparePassagesForPrompt(a, b, strategy) {
  * @param {Object} [options] - Retrieval options
  * @param {number} [options.maxPassages=5] - Maximum passages to return
  * @param {string} [options.userQuery=''] - User's question for relevance scoring
+ * @param {string} [options.questionContext] - Detected question context for passage selection
  * @param {number} [options.minRelevanceScore=0.3] - Minimum relevance to include
  * @param {boolean} [options.enableDeduplication=true] - Remove similar passages
  * @param {boolean|null} [options.enableSemanticScoring] - Use embeddings API (auto-detected if omitted or null)
@@ -678,6 +826,7 @@ export async function retrievePassagesWithQuality(graphKeys, options = {}) {
   const {
     maxPassages = 5,
     userQuery = '',
+    questionContext = '',
     minRelevanceScore = 0.3,
     enableDeduplication = true,
     enableSemanticScoring: explicitSemanticScoring,
@@ -702,6 +851,7 @@ export async function retrievePassagesWithQuality(graphKeys, options = {}) {
   const rawPassages = retrievePassages(graphKeys, {
     maxPassages: retrievalLimit,
     userQuery,
+    questionContext,
     includeMetadata: true
   });
 

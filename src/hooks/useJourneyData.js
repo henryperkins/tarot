@@ -283,14 +283,24 @@ export function useJourneyData({
     shouldFetchServerData // Only fetch when auth'd AND unfiltered
   ) ?? EMPTY_ARCHETYPE;
 
+  const analyticsNeedsBackfill = archetypeData?.stats?.needsBackfill;
+
   // Decide whether to use D1 server data or client-side computation
   // D1 data is only valid for unfiltered "current month" view
   const useServerData = useMemo(() => {
-    return isAuthenticated &&
-      !filtersActive &&
-      !seasonWindow && // No custom window override
-      archetypeData.topCards?.length > 0;
-  }, [isAuthenticated, filtersActive, seasonWindow, archetypeData.topCards]);
+    if (!shouldFetchServerData) return false;
+    if (archetypeData.isLoading || archetypeData.error || archetypeData.isDisabled) return false;
+    if (analyticsNeedsBackfill === true) return false;
+    return true;
+  }, [
+    shouldFetchServerData,
+    archetypeData.isLoading,
+    archetypeData.error,
+    archetypeData.isDisabled,
+    analyticsNeedsBackfill,
+  ]);
+
+  const seasonTimezone = useMemo(() => (useServerData ? 'UTC' : timezone), [useServerData, timezone]);
 
   // Derive season window from data if not explicit
   const effectiveSeasonWindow = useMemo(() => {
@@ -310,11 +320,14 @@ export function useJourneyData({
     }
 
     // When using server analytics (unfiltered, current month), keep window scoped to month
+    // and align to UTC to match D1 year_month bucketing.
     if (useServerData) {
       const now = new Date();
+      const year = now.getUTCFullYear();
+      const month = now.getUTCMonth();
       return {
-        start: new Date(now.getFullYear(), now.getMonth(), 1),
-        end: new Date(now.getFullYear(), now.getMonth() + 1, 0),
+        start: new Date(Date.UTC(year, month, 1)),
+        end: new Date(Date.UTC(year, month + 1, 0)),
       };
     }
 
@@ -527,9 +540,9 @@ export function useJourneyData({
       filteredEntries: activeEntries,
       seasonWindow: effectiveSeasonWindow,
       locale,
-      timezone,
+      timezone: seasonTimezone,
     });
-  }, [userId, filtersActive, activeEntries, effectiveSeasonWindow, locale, timezone]);
+  }, [userId, filtersActive, activeEntries, effectiveSeasonWindow, locale, seasonTimezone]);
 
   const topContext = useMemo(() => {
     if (!insightsStats.contextBreakdown?.length) return undefined;
@@ -558,7 +571,7 @@ export function useJourneyData({
       totalReadings: insightsStats.totalReadings,
       seasonWindow: effectiveSeasonWindow,
       locale,
-      timezone,
+      timezone: seasonTimezone,
     });
 
     // Cache for authenticated, unfiltered views
@@ -575,7 +588,7 @@ export function useJourneyData({
     sortedBadges,
     effectiveSeasonWindow,
     locale,
-    timezone,
+    seasonTimezone,
     cacheKey,
     filtersActive,
     userId,
@@ -668,6 +681,7 @@ export function useJourneyData({
 
     // Time window
     seasonWindow: effectiveSeasonWindow,
+    seasonTimezone,
     filtersActive,
 
     // State

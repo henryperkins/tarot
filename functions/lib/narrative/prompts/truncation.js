@@ -1,22 +1,7 @@
 import { estimateTokenCount } from './budgeting.js';
 
-/**
- * Truncate prompt text to fit within a token budget
- * Preserves structure by truncating from the end
- *
- * @param {string} text - Text to truncate
- * @param {number} maxTokens - Maximum tokens allowed
- * @returns {{ text: string, truncated: boolean, originalTokens: number }}
- */
-export function truncateToTokenBudget(text, maxTokens) {
-  if (!text || typeof text !== 'string') {
-    return { text: '', truncated: false, originalTokens: 0 };
-  }
-
-  const originalTokens = estimateTokenCount(text);
-  if (originalTokens <= maxTokens) {
-    return { text, truncated: false, originalTokens };
-  }
+function truncatePrefixToTokenBudget(text, maxTokens) {
+  if (maxTokens <= 0) return '';
 
   // Find a prefix length that reliably fits under the budget according to our
   // estimator. This avoids drift when repeated truncation is applied.
@@ -53,8 +38,112 @@ export function truncateToTokenBudget(text, maxTokens) {
     truncated = truncated.slice(0, nextLen).trim();
   }
 
+  return truncated;
+}
+
+function truncateSuffixToTokenBudget(text, maxTokens) {
+  if (maxTokens <= 0) return '';
+
+  // Find a suffix length that reliably fits under the budget.
+  let lo = 0;
+  let hi = text.length;
+  while (lo < hi) {
+    const mid = Math.ceil((lo + hi) / 2);
+    const candidate = text.slice(text.length - mid);
+    if (estimateTokenCount(candidate) <= maxTokens) {
+      lo = mid;
+    } else {
+      hi = mid - 1;
+    }
+  }
+
+  let truncated = text.slice(text.length - lo);
+  const firstParagraph = truncated.indexOf('\n\n');
+
+  if (firstParagraph !== -1 && firstParagraph < truncated.length * 0.3) {
+    truncated = truncated.slice(firstParagraph + 2);
+  }
+
+  truncated = truncated.trim();
+
+  while (truncated && estimateTokenCount(truncated) > maxTokens) {
+    const nextLen = Math.floor(truncated.length * 0.9);
+    if (nextLen <= 0) {
+      truncated = '';
+      break;
+    }
+    truncated = truncated.slice(truncated.length - nextLen).trim();
+  }
+
+  return truncated;
+}
+
+/**
+ * Truncate prompt text to fit within a token budget.
+ * Preserves structure by truncating from the end or middle when tail tokens
+ * are requested.
+ *
+ * @param {string} text - Text to truncate
+ * @param {number} maxTokens - Maximum tokens allowed
+ * @param {Object} [options]
+ * @param {number} [options.tailTokens] - Tokens to preserve from the end
+ * @param {string} [options.separator] - Separator between head and tail
+ * @returns {{ text: string, truncated: boolean, originalTokens: number }}
+ */
+export function truncateToTokenBudget(text, maxTokens, options = {}) {
+  if (!text || typeof text !== 'string') {
+    return { text: '', truncated: false, originalTokens: 0 };
+  }
+
+  const originalTokens = estimateTokenCount(text);
+  if (originalTokens <= maxTokens) {
+    return { text, truncated: false, originalTokens };
+  }
+
+  const tailTokens = Number.isFinite(options.tailTokens) ? Math.max(0, options.tailTokens) : 0;
+  const separator = typeof options.separator === 'string' ? options.separator : '\n\n';
+
+  if (!tailTokens) {
+    return {
+      text: truncatePrefixToTokenBudget(text, maxTokens),
+      truncated: true,
+      originalTokens
+    };
+  }
+
+  const separatorTokens = estimateTokenCount(separator);
+  const tailBudget = Math.min(tailTokens, Math.max(0, maxTokens - separatorTokens));
+  const headBudget = Math.max(0, maxTokens - separatorTokens - tailBudget);
+
+  if (headBudget <= 0) {
+    return {
+      text: truncateSuffixToTokenBudget(text, maxTokens),
+      truncated: true,
+      originalTokens
+    };
+  }
+
+  let headText = truncatePrefixToTokenBudget(text, headBudget);
+  let tailText = truncateSuffixToTokenBudget(text, tailBudget);
+  let combined = [headText, tailText].filter(Boolean).join(separator).trim();
+
+  while (combined && estimateTokenCount(combined) > maxTokens) {
+    if (!headText) {
+      combined = truncateSuffixToTokenBudget(text, maxTokens);
+      break;
+    }
+    const nextLen = Math.floor(headText.length * 0.9);
+    if (nextLen <= 0) {
+      headText = '';
+      combined = tailText.trim();
+      break;
+    }
+    headText = headText.slice(0, nextLen).trim();
+    combined = [headText, tailText].filter(Boolean).join(separator).trim();
+  }
+
   return {
-    text: truncated,
+    text: combined,
     truncated: true,
     originalTokens
   };

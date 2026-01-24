@@ -330,6 +330,7 @@ async function finalizeReading({
   let promptEngineering = null;
   if (capturedPrompts && shouldPersistPrompts(env)) {
     try {
+      const skipPIIRedaction = env.SKIP_PII_REDACTION === 'true' || env.SKIP_PII_REDACTION === true;
       promptEngineering = await buildPromptEngineeringPayload({
         systemPrompt: capturedPrompts.system,
         userPrompt: capturedPrompts.user,
@@ -338,7 +339,8 @@ async function finalizeReading({
         reflectionsText,
         redactionOptions: {
           displayName: personalization?.displayName
-        }
+        },
+        skipPIIRedaction
       });
     } catch (err) {
       console.warn(`[${requestId}] Failed to build prompt engineering payload: ${err.message}`);

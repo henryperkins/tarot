@@ -11,7 +11,7 @@ This approach ensures that your application logic remains clean and independent 
 
 ### Architectural Overview
 
-1.  **Frontend:** The React PWA will use Stripe.js for web payments. An Android version (packaged as a Trusted Web Activity or native app) will use the Google Play Billing Library.
+1.  **Frontend:** The React PWA redirects to Stripe-hosted Checkout via `/api/create-checkout-session` (no Stripe.js dependency). An Android version (packaged as a Trusted Web Activity or native app) will use the Google Play Billing Library.
 2.  **Backend (Cloudflare Worker):**
     - Receives webhook notifications from both Stripe and Google Play.
     - Updates a central `users` table in the D1 database with the user's current subscription tier and status.
@@ -38,68 +38,36 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_users_stripe_customer_id ON users(stripe_c
 
 This integration will handle subscriptions initiated from your website.
 
+**Status update (current main):** Stripe integration is already implemented. The backend uses Stripe REST helpers in `functions/lib/stripe.js`, the checkout endpoint lives in `functions/api/create-checkout-session.js`, and the frontend redirects to the returned `session.url` from `src/pages/PricingPage.jsx`.
+
 ### Step 1: Create Stripe Products and Prices
 
 1.  Go to your Stripe Dashboard.
 2.  Navigate to **Products** and create two new products: "Tableu Plus" and "Tableu Pro".
 3.  For each product, add a recurring price. Note the **Price ID** (e.g., `price_123abc...`) for each.
 
-### Step 2: Frontend Checkout with React & Stripe.js
+### Step 2: Frontend Checkout Redirect (No Stripe.js dependency)
 
-1.  **Install Dependencies:**
+1.  **Checkout Endpoint:** The worker endpoint already exists at `functions/api/create-checkout-session.js`. It expects `{ tier, successUrl, cancelUrl }` and returns `{ url, sessionId }`.
 
-    ```bash
-    npm install @stripe/react-stripe-js @stripe/stripe-js
-    ```
-
-2.  **Create a Checkout Endpoint:** Create a new Cloudflare Pages Function that creates a Stripe Checkout Session.
-
-    **File: `functions/api/create-checkout-session.js`**
-
-    ```javascript
-    import { Stripe } from "stripe";
-    import { validateSession } from "../lib/auth"; // Your existing auth library
-
-    export async function onRequestPost(context) {
-      const { request, env } = context;
-      const user = await validateSession(env.DB, request.headers.get("Cookie"));
-      if (!user) {
-        return new Response("Unauthorized", { status: 401 });
-      }
-
-      const { priceId } = await request.json();
-      const stripe = new Stripe(env.STRIPE_SECRET_KEY);
-
-      const session = await stripe.checkout.sessions.create({
-        payment_method_types: ["card"],
-        line_items: [{ price: priceId, quantity: 1 }],
-        mode: "subscription",
-        success_url: `${env.APP_URL}/account?session_id={CHECKOUT_SESSION_ID}`,
-        cancel_url: `${env.APP_URL}/pricing`,
-        customer: user.stripe_customer_id, // Associate checkout with existing customer
-      });
-
-      return new Response(JSON.stringify({ id: session.id }));
-    }
-    ```
-
-3.  **Implement the Checkout Button in React:**
+2.  **Implement the Checkout Redirect in React:**
 
     ```jsx
-    // src/components/PricingPage.jsx
-    import { loadStripe } from "@stripe/stripe-js";
-
-    const stripePromise = loadStripe("YOUR_STRIPE_PUBLISHABLE_KEY");
-
-    const handleCheckout = async (priceId) => {
-      const stripe = await stripePromise;
-      const response = await fetch("/api/create-checkout-session", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ priceId }),
+    const handleCheckout = async (tier) => {
+      const response = await fetch('/api/create-checkout-session', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          tier,
+          successUrl: `${window.location.origin}/account?session_id={CHECKOUT_SESSION_ID}&upgrade=success`,
+          cancelUrl: `${window.location.origin}/pricing`
+        })
       });
-      const session = await response.json();
-      await stripe.redirectToCheckout({ sessionId: session.id });
+      const data = await response.json();
+      if (data.url) {
+        window.location.href = data.url;
+      }
     };
     ```
 
@@ -109,59 +77,10 @@ This is the most critical part. Your backend needs to listen for events from Str
 
 1.  **Create the Webhook Endpoint:**
 
-    **File: `functions/api/webhooks/stripe.js`**
-
-    ```javascript
-    import { Stripe } from "stripe";
-
-    export async function onRequestPost(context) {
-      const { request, env } = context;
-      const stripe = new Stripe(env.STRIPE_SECRET_KEY);
-      const signature = request.headers.get("stripe-signature");
-
-      let event;
-      try {
-        const body = await request.text();
-        event = stripe.webhooks.constructEvent(
-          body,
-          signature,
-          env.STRIPE_WEBHOOK_SECRET
-        );
-      } catch (err) {
-        return new Response(`Webhook Error: ${err.message}`, { status: 400 });
-      }
-
-      // Handle the event
-      switch (event.type) {
-        case "customer.subscription.created":
-        case "customer.subscription.updated":
-        case "customer.subscription.deleted":
-          const subscription = event.data.object;
-          await updateUserSubscription(env.DB, subscription);
-          break;
-        case "invoice.payment_succeeded":
-          // Optional: handle successful payments, e.g., grant API credits
-          break;
-        default:
-          console.log(`Unhandled event type ${event.type}`);
-      }
-
-      return new Response(null, { status: 200 });
-    }
-
-    async function updateUserSubscription(db, subscription) {
-      const tier = subscription.items.data[0].price.lookup_key; // Assumes you set lookup_keys in Stripe
-      await db
-        .prepare(
-          "UPDATE users SET subscription_tier = ?, subscription_status = ?, subscription_provider = ? WHERE stripe_customer_id = ?"
-        )
-        .bind(tier, subscription.status, "stripe", subscription.customer)
-        .run();
-    }
-    ```
+    The webhook handler is already implemented in `functions/api/webhooks/stripe.js` using WebCrypto signature verification and the Stripe REST API (no Stripe SDK in the worker). Keep `STRIPE_WEBHOOK_SECRET` configured via Wrangler secrets.
 
 2.  **Register the Webhook:**
-    - Deploy your function. The URL will be `https://your-app.pages.dev/api/webhooks/stripe`.
+    - Deploy your worker. The URL will be `https://your-worker-domain.example/api/webhooks/stripe` (or your custom domain from `wrangler.jsonc`).
     - In the Stripe Dashboard, go to **Developers > Webhooks**.
     - Click **Add endpoint**, enter the URL, and select the events to listen to (e.g., `customer.subscription.*`, `invoice.payment_succeeded`).
     - Get the **Webhook Signing Secret** and add it to your Cloudflare environment variables as `STRIPE_WEBHOOK_SECRET`.
@@ -169,6 +88,8 @@ This is the most critical part. Your backend needs to listen for events from Str
 ## 4. Part 2: Google Play Store Integration
 
 Since Tableu is a PWA, the recommended path for Android is to use a **Trusted Web Activity (TWA)** to wrap your existing web app. However, Google Play policy requires using Google Play Billing for digital goods. The most robust solution is to use the **Digital Goods API** in conjunction with the Play Billing API.
+
+> **Status note:** Google Play billing is not implemented in the current codebase. The steps below are a forward-looking integration plan.
 
 ### Step 1: Frontend (PWA) - Digital Goods API
 
@@ -219,7 +140,7 @@ Your backend must verify the `purchaseToken` and listen for real-time notificati
 
     - In your Google Cloud project, create a new Pub/Sub topic (e.g., `play-billing-notifications`).
     - In the Google Play Console, go to **Monetization > Monetization setup** and enter the topic name.
-    - Create a push subscription for the topic, pointing to a new webhook endpoint in your Cloudflare Worker (e.g., `https://your-app.pages.dev/api/webhooks/google`).
+    - Create a push subscription for the topic, pointing to a new webhook endpoint in your Cloudflare Worker (e.g., `https://your-worker-domain.example/api/webhooks/google`).
 
 2.  **Create the Google Webhook Endpoint:**
 

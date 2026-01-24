@@ -12,26 +12,29 @@
 │  • Schema validation (safeParseReadingRequest)                              │
 │  • User authentication (getUserFromRequest)                                 │
 │  • Rate limiting (enforceApiCallLimit)                                      │
-│  • Vision proof verification (verifyVisionProof)                            │
+│  • Vision proof verification (verifyVisionProof, optional)                  │
 └───────────────────────────────────┬─────────────────────────────────────────┘
                                     │
-                    ┌───────────────┴───────────────┐
-                    │                               │
-                    ▼ ⚠️ SHOULD BE HERE            ▼ ❌ CURRENTLY HERE
-        ┌───────────────────────┐      ┌───────────────────────┐
-        │ CRISIS DETECTION      │      │ SPREAD ANALYSIS       │
-        │ • Self-harm signals   │      │ • Themes detection    │
-        │ • Medical emergencies │      │ • Reversal framework  │
-        │ • Mental health       │      │ • GraphRAG retrieval  │
-        └───────────┬───────────┘      │ • Elemental dignities │
-                    │                  │ • Ephemeris context   │
-        ┌───────────▼───────────┐      └───────────┬───────────┘
-        │ SAFE FALLBACK         │                  │
-        │ • Gentle response     │      ┌───────────▼───────────┐
-        │ • Resource links      │      │ CRISIS DETECTION      │
-        │ • Early return        │      │ (too late!)           │
-        └───────────────────────┘      └───────────┬───────────┘
-                                                   │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                            CRISIS DETECTION                                 │
+│  • Self-harm signals                                                        │
+│  • Medical emergencies                                                      │
+│  • Mental health                                                            │
+└───────────────────────────────────┬─────────────────────────────────────────┘
+                                    │
+                 ┌──────────────────┴──────────────────┐
+                 │                                     │
+                 ▼                                     ▼
+┌─────────────────────────────┐      ┌───────────────────────────────────────┐
+│ SAFE FALLBACK               │      │ SPREAD ANALYSIS                        │
+│ • Gentle response           │      │ • Themes detection                     │
+│ • Resource links            │      │ • Reversal framework                   │
+│ • Early return              │      │ • GraphRAG retrieval                   │
+└─────────────────────────────┘      │ • Elemental dignities                  │
+                                     │ • Ephemeris context                    │
+                                     └──────────────────┬────────────────────┘
+                                                        │
                     ┌──────────────────────────────┴─────────────┐
                     │              BACKEND SELECTION              │
                     │  • Check available backends                 │
@@ -52,7 +55,7 @@
                                     ▼
             ┌─────────────────────────────────────────────────┐
             │         PROMPT CONSTRUCTION LAYER               │
-            │   functions/lib/narrative/prompts/ (2168 LOC)   │
+            │   functions/lib/narrative/prompts/ (2429 LOC)   │
             │   functions/lib/narrative/prompts.js (barrel)   │
             ├─────────────────────────────────────────────────┤
             │                                                 │
@@ -92,7 +95,7 @@
                                     ▼
             ┌─────────────────────────────────────────────────┐
             │    NARRATIVE HELPERS & SPREAD BUILDERS          │
-            │   functions/lib/narrative/helpers.js (1680 LOC) │
+            │   functions/lib/narrative/helpers.js (1682 LOC) │
             │   functions/lib/narrative/spreads/*.js          │
             ├─────────────────────────────────────────────────┤
             │                                                 │
@@ -188,9 +191,9 @@
 | Component | File | LOC | Status |
 |-----------|------|-----|--------|
 | **Orchestrator** | tarot-reading.js | 1200+ | ✅ Acceptable |
-| **Prompt Builder** | narrative/prompts/ (modules) | 2168 | ⚠️ Large (modular) |
+| **Prompt Builder** | narrative/prompts/ (modules) | 2429 | ⚠️ Large (modular) |
 | **Prompt Barrel** | narrative/prompts.js | 4 | ✅ Barrel |
-| **Helpers** | narrative/helpers.js | 1680 | 🔴 Too large |
+| **Helpers** | narrative/helpers.js | 1682 | 🔴 Too large |
 | **Reasoning** | narrative/reasoning.js | 1205 | ⚠️ Large |
 | **Celtic Cross** | spreads/celticCross.js | 467 | ✅ Good |
 | **Relationship** | spreads/relationship.js | 377 | ✅ Good |
@@ -202,48 +205,41 @@
 
 ## Critical Issues in Flow
 
-### ❌ Issue #1: Late Crisis Detection
+### ✅ Issue #1: Late Crisis Detection (Resolved)
 ```
 Current Flow:
-  Request → Validation → Spread Analysis (expensive!) → Crisis Check → ...
-
-Should Be:
   Request → Validation → Crisis Check → Spread Analysis → ...
 ```
-**Impact:** Wastes 50-100ms on inputs that will be rejected
+**Impact:** Avoids wasted compute on blocked requests
 
-### ❌ Issue #2: Token Budget Safety Gap
+### ✅ Issue #2: Token Budget Safety Gap (Resolved)
 ```
 Current Behavior:
-  if (criticalSections > 80% of budget) {
-    console.error("Warning!");
-    // Still proceeds with truncation ⚠️
-  }
-
-Should Be:
   if (criticalSections > 80% of budget) {
     throw new Error('PROMPT_SAFETY_BUDGET_EXCEEDED');
   }
 ```
-**Impact:** Could truncate ethical guidelines
+**Impact:** Prevents safety guidance truncation
 
-### ⚠️ Issue #3: Global State
+### ✅ Issue #3: Global State (Mitigated)
 ```
 // helpers.js
-let PROSE_MODE = false; // ⚠️ Global state
+let PROSE_MODE = false; // Legacy test helper
 
 export function setProseMode(enabled) {
   PROSE_MODE = !!enabled;
 }
 ```
-**Impact:** Vulnerable to cross-request bleed
+**Status:** Mitigated via runtime guards in `isProseMode()`. Global state only honored
+when `env.NODE_ENV === 'test'`. Production callers must pass `proseMode` explicitly.
+No cross-request bleed in production.
 
 ## Data Flow Summary
 
 1. **Request enters** → Validation + Auth (1-5ms)
 2. **Vision proof** (if provided) verified (5-10ms)
-3. **❌ Spread analysis** computed (50-100ms) ← Should move crisis detection before this
-4. **Crisis check** performed (1-2ms)
+3. **Crisis check** performed (1-2ms)
+4. **Spread analysis** computed (50-100ms)
 5. **Backend selected** (A/B assignment, provider check)
 6. **Prompt constructed** (10-20ms):
    - Token budgeting
@@ -261,7 +257,7 @@ export function setProseMode(enabled) {
 
 | Optimization | Savings | Complexity |
 |--------------|---------|------------|
-| Early crisis detection | 50-100ms | Low |
+| Early crisis detection (done) | 50-100ms | Low |
 | Lazy-load ephemeris | 20-40ms | Medium |
 | Cache GraphRAG matches | 5-20ms | Medium |
 | Parallel backend checks | 10-20ms | High |
@@ -298,10 +294,10 @@ Performance Tests
 ## Architecture Evolution Roadmap
 
 ### Phase 1: Quick Wins (Week 1)
-- Move crisis detection earlier
-- Fail-fast on safety budget
-- Add template syntax filtering
-- Add input guards
+- Move crisis detection earlier (done)
+- Fail-fast on safety budget (done)
+- Add template syntax filtering (done)
+- Add input guards (done)
 
 ### Phase 2: Refactoring (Month 1)
 - Split prompts.js into modules ✅ (now `prompts/` + barrel)

@@ -6,6 +6,7 @@ import {
   rankPassagesForPrompt,
   retrievePassages
 } from '../../graphRAG.js';
+import { inferGraphRAGContext } from '../../contextDetection.js';
 import { getReadingPromptVersion } from '../../promptVersioning.js';
 import { getSpreadKey } from '../../readingQuality.js';
 import { shouldIncludeAstroInsights } from './astro.js';
@@ -49,6 +50,38 @@ function resolveGraphEnv(promptBudgetEnv) {
     Object.prototype.hasOwnProperty.call(promptBudgetEnv, 'GRAPHRAG_ENABLED') ||
     Object.prototype.hasOwnProperty.call(promptBudgetEnv, 'KNOWLEDGE_GRAPH_ENABLED');
   return hasGraphRAGFlag ? promptBudgetEnv : null;
+}
+
+export function countGraphRAGPassagesInPrompt(promptText) {
+  if (!promptText || typeof promptText !== 'string') {
+    return 0;
+  }
+
+  const header = '## TRADITIONAL WISDOM (GraphRAG)';
+  const headerIdx = promptText.indexOf(header);
+  if (headerIdx === -1) {
+    return 0;
+  }
+
+  const referenceStart = promptText.indexOf('<reference>', headerIdx);
+  if (referenceStart === -1) {
+    return 0;
+  }
+
+  const contentStart = referenceStart + '<reference>'.length;
+  const referenceEnd = promptText.indexOf('</reference>', contentStart);
+  const referenceBody = referenceEnd === -1
+    ? promptText.slice(contentStart)
+    : promptText.slice(contentStart, referenceEnd);
+
+  if (!referenceBody) {
+    return 0;
+  }
+
+  return referenceBody
+    .split('\n')
+    .filter((line) => /^\s*\d+\.\s+/.test(line.trim()))
+    .length;
 }
 
 export function buildEnhancedClaudePrompt({
@@ -134,6 +167,7 @@ export function buildEnhancedClaudePrompt({
   if (!effectiveGraphRAGPayload && isGraphRAGEnabled(graphEnv) && activeThemes?.knowledgeGraph?.graphKeys) {
     const effectiveSpreadKey = spreadKey || 'general';
     const maxPassages = getPassageCountForSpread(effectiveSpreadKey, subscriptionTier);
+    const questionContext = inferGraphRAGContext(userQuestion, spreadKey);
 
     // Check if semantic scoring was requested
     // If enableSemanticScoring is explicitly true but we're doing sync retrieval,
@@ -147,7 +181,8 @@ export function buildEnhancedClaudePrompt({
         // be called in performSpreadAnalysis() and passed via graphRAGPayload
         const retrievedPassages = retrievePassages(activeThemes.knowledgeGraph.graphKeys, {
           maxPassages,
-          userQuery: userQuestion
+          userQuery: userQuestion,
+          questionContext
         });
 
         const retrievalSummary = buildRetrievalSummary(activeThemes.knowledgeGraph.graphKeys, retrievedPassages);
@@ -451,7 +486,16 @@ export function buildEnhancedClaudePrompt({
       Math.floor(hardCap * 0.3) // Keep at least 30% of budget for user prompt
     );
 
-    const userResult = truncateToTokenBudget(built.userPrompt, userTargetTokens);
+    // Keep some headroom so small budgets don't drop the start of the user prompt.
+    const separatorTokens = estimateTokenCount('\n\n');
+    const maxTailTokens = Math.max(0, userTargetTokens - separatorTokens - 1);
+    const desiredTailTokens = Math.min(200, Math.floor(userTargetTokens * 0.4));
+    const tailTokens = Math.min(desiredTailTokens, maxTailTokens);
+    const userResult = truncateToTokenBudget(
+      built.userPrompt,
+      userTargetTokens,
+      tailTokens > 0 ? { tailTokens } : undefined
+    );
     finalUser = userResult.text;
     userTruncated = userResult.truncated;
 
@@ -547,11 +591,14 @@ export function buildEnhancedClaudePrompt({
       : passagesAfterSlimming;
     const graphRAGBlockPresent = typeof finalUser === 'string' &&
       finalUser.includes('TRADITIONAL WISDOM (GraphRAG)');
+    const passagesInPrompt = graphRAGBlockPresent
+      ? countGraphRAGPassagesInPrompt(finalUser)
+      : 0;
     const graphRAGIncluded = graphragEnabled &&
       controls.includeGraphRAG !== false &&
-      passagesAfterSlimming > 0 &&
+      passagesInPrompt > 0 &&
       graphRAGBlockPresent;
-    const passagesUsed = graphRAGIncluded ? passagesAfterSlimming : 0;
+    const passagesUsed = graphRAGIncluded ? passagesInPrompt : 0;
     const trimmedCount = Math.max(0, initialPassageCount - passagesUsed);
 
     const semanticScoringUsed = Boolean(

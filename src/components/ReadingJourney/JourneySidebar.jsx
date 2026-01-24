@@ -113,6 +113,7 @@ export default function JourneySidebar({
   showStartReadingCta = true,
   locale = 'default',
   timezone,
+  seasonTimezone,
   _dataSource,
   variant: _variant = 'sidebar',
   scopeLabel,
@@ -327,7 +328,7 @@ export default function JourneySidebar({
           onStartReading={onStartReading}
           showStartReadingCta={showStartReadingCta}
           locale={locale}
-          timezone={timezone}
+          timezone={seasonTimezone || timezone}
           seasonWindow={seasonWindow}
         />
 

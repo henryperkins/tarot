@@ -1,14 +1,12 @@
 /*
  * Pull Tableau theme + app styles into the generated bundle.
- * Import order: theme tokens → Tailwind base → custom components → Tailwind utilities.
- * This ensures Preflight runs before custom rules, and utilities can override components.
+ * Import order: theme tokens → app styles → Tailwind layers.
+ * PostCSS requires @import rules before other statements.
  */
 @import './theme.css';
-
-@tailwind base;
-
 @import './tarot.css';
 
+@tailwind base;
 @tailwind components;
 @tailwind utilities;
 

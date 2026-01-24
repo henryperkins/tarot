@@ -11,7 +11,9 @@ The Tarot Journal currently uses:
 - Phosphor Icons for UI elements
 - Spread artwork images in `selectorimages/` (already custom illustrations)
 - Deck artwork in `public/images/deck-art/`
-- Text-based empty states
+- Empty state illustrations via `EmptyJournalIllustration`, `ArchetypeEmptyIllustration`, and `NoFiltersIllustration` backed by `public/images/illustrations/empty-states/`
+- Badge art in `public/images/illustrations/badges/` wired into `AchievementsRow.jsx`
+- Suit icons in `SuitIcons.jsx` wired into `CardsCallingYou.jsx`
 
 Custom illustrations would elevate the mystical aesthetic while maintaining the dark, sophisticated theme (`bg-surface`, `border-secondary/30`, gold/amber accents).
 
@@ -21,58 +23,43 @@ Custom illustrations would elevate the mystical aesthetic while maintaining the 
 
 ### 🎯 HIGH PRIORITY
 
-#### 1. Empty State Illustrations
+#### 1. Empty State Illustrations (Implemented)
 
-**Location:** [`src/components/Journal.jsx`](src/components/Journal.jsx:703-762)
+**Location:** `src/components/journal/JournalEmptyState.jsx`
 
-When the journal has no entries, display a mystical illustration instead of just text and icons.
+**Current:** `JournalEmptyState` renders `EmptyJournalIllustration` with `public/images/illustrations/empty-states/empty-journal.png` (plus `.webp`).
 
-```
-Current: Notebook icon + text bullets
-Proposed: Full-width illustration of an open journal with mystical elements
-         (floating cards, starfield, moon phases)
-```
+**Files:**
 
-**Files to modify:**
-
-- `src/components/Journal.jsx` (lines 703-762)
-- Create: `public/images/illustrations/empty-journal.svg` or `.png`
-
-**Design notes:**
-
-- Dimensions: ~400×250px responsive
-- Style: Line art with subtle glow effects matching gold accent (`#e5c48e`)
-- Elements: Open book, scattered cards, constellation patterns
+- `src/components/journal/JournalEmptyState.jsx`
+- `src/components/illustrations/EmptyJournalIllustration.jsx`
+- `public/images/illustrations/empty-states/empty-journal.png`
+- `public/images/illustrations/empty-states/empty-journal.webp`
 
 ---
 
-#### 2. Archetype Journey Empty State
+#### 2. Archetype Journey Empty State (Implemented)
 
-**Location:** [`src/components/ArchetypeJourneySection.jsx`](src/components/ArchetypeJourneySection.jsx:90-158)
+**Location:** `src/components/ReadingJourney/sections/EmptyState.jsx`
 
-**Current:** Text + button
-**Proposed:** Illustration of ascending cards forming a stairway/path
+**Current:** `EmptyState` renders `ArchetypeEmptyIllustration` with `public/images/illustrations/empty-states/archetype-empty.png` (plus `.webp`).
 
-**Files to modify:**
+**Files:**
 
-- `src/components/ArchetypeJourneySection.jsx` (lines 90-158)
-- Create: `public/images/illustrations/archetype-empty.svg`
-
-**Design notes:**
-
-- Dimensions: ~200×150px
-- Elements: Spiral path, floating archetypes, stars
-- Color: Purple/violet tones (`#a992ff` accent from celtic spread theme)
+- `src/components/ReadingJourney/sections/EmptyState.jsx`
+- `src/components/illustrations/ArchetypeEmptyIllustration.jsx`
+- `public/images/illustrations/empty-states/archetype-empty.png`
+- `public/images/illustrations/empty-states/archetype-empty.webp`
 
 ---
 
 #### 3. Journal Pulse Decorative Headers
 
-**Location:** [`src/components/Journal.jsx`](src/components/Journal.jsx:605-645)
+**Location:** `src/components/journal/JournalSummaryBand.jsx`
 
 **Screenshot area:** "Journal Pulse" section with stats cards
 
-**Current:** Plain bordered cards with text stats
+**Current:** Uses `JournalIcons` glyphs for stat chips (entries, reversals, etc.).
 **Proposed:** Add small illustrative icons/decorations for each stat category
 
 | Stat Card      | Illustration Concept                   |
@@ -84,52 +71,46 @@ Proposed: Full-width illustration of an open journal with mystical elements
 
 **Files to modify:**
 
-- `src/components/Journal.jsx` (lines 632-641)
+- `src/components/journal/JournalSummaryBand.jsx`
 - Create: `src/components/illustrations/PulseIcons.jsx` (SVG components)
 
 ---
 
 ### 🔶 MEDIUM PRIORITY
 
-#### 4. Suit/Element Indicator Icons
+#### 4. Suit/Element Indicator Icons (Implemented)
 
-**Location:** Card pills throughout Journal entries and insights
+**Location:** Top cards list in ReadingJourney
 
-**Screenshot area:** Card tags showing "Seven of Pentacles", "Nine of Cups", etc.
+**Current:** `CardsCallingYou.jsx` renders suit icons via `getSuitIcon()` from `SuitIcons.jsx`.
 
-**Current:** Text-only rounded pills
-**Proposed:** Small suit symbol prefix (Cups, Wands, Swords, Pentacles)
+**Implementation:**
 
 ```jsx
-// Current
-<span className="rounded-full...">Seven of Pentacles</span>
+import { getSuitIcon } from '../../illustrations/SuitIcons';
 
-// Proposed
-<span className="rounded-full...">
-  <PentacleIcon className="w-3 h-3 inline-block mr-1" />
-  Seven of Pentacles
-</span>
+// In card list render:
+const SuitIcon = getSuitIcon(card.name);
+{SuitIcon && <SuitIcon className={`h-4 w-4 ${suitColor}`} />}
 ```
 
-**Files to create:**
+**Suit color mapping:**
+- Cups: `text-blue-400` (Water)
+- Wands: `text-amber-400` (Fire)
+- Swords: `text-slate-400` (Air)
+- Pentacles: `text-emerald-400` (Earth)
+- Major Arcana: `text-purple-400`
 
-- `src/components/illustrations/SuitIcons.jsx`
-  - `CupsIcon` - Chalice/goblet silhouette (Water element)
-  - `WandsIcon` - Wand/staff silhouette (Fire element)
-  - `SwordsIcon` - Crossed swords silhouette (Air element)
-  - `PentaclesIcon` - Star/coin silhouette (Earth element)
-  - `MajorIcon` - Crown or infinity symbol
+**Files:**
 
-**Files to modify:**
-
-- `src/components/JournalEntryCard.jsx` (card pill rendering)
-- `src/components/JournalInsightsPanel.jsx` (frequent cards list)
+- `src/components/illustrations/SuitIcons.jsx` — Icon components + `getSuitIcon()` helper
+- `src/components/ReadingJourney/sections/CardsCallingYou.jsx` — Integration
 
 ---
 
 #### 5. Recent Themes Visual Accents
 
-**Location:** [`src/components/JournalInsightsPanel.jsx`](src/components/JournalInsightsPanel.jsx:828-843)
+**Location:** `src/components/ReadingJourney/JourneySidebar.jsx` and `src/components/ReadingJourney/JourneyMobileSheet.jsx`
 
 **Screenshot area:** "Recent Themes" section with bullet list
 
@@ -146,40 +127,67 @@ Proposed: Full-width illustration of an open journal with mystical elements
 
 **Files to modify:**
 
-- `src/components/JournalInsightsPanel.jsx` (lines 828-843)
+- `src/components/ReadingJourney/JourneySidebar.jsx`
+- `src/components/ReadingJourney/JourneyMobileSheet.jsx`
 - Create: `src/components/illustrations/ThemeIcons.jsx`
 
 ---
 
-#### 6. Achievement/Badge Illustrations
+#### 6. Achievement/Badge Illustrations (Implemented)
 
-**Location:** [`src/components/ArchetypeJourneySection.jsx`](src/components/ArchetypeJourneySection.jsx:457-488)
+**Location:** `src/components/ReadingJourney/sections/AchievementsRow.jsx`
 
-**Screenshot area:** "Achievements" section
+**Current:** Uses `BadgeIllustrations` components with Phosphor icon fallbacks.
 
-**Current:** Using `getBadgeIcon()` which returns Phosphor icons
-**Proposed:** Custom illustrated badges with unique designs
+**Implementation:**
 
-**Badge illustration concepts:**
+```jsx
+import {
+  FirstReadingBadge,
+  TenReadingsBadge,
+  FiftyReadingsBadge,
+  StreakBadge,
+  MasteryBadge,
+} from '../../illustrations/BadgeIllustrations';
 
-- First reading: Opening portal
-- 10 readings: Constellation forming
-- 50 readings: Full moon with laurels
-- First streak: Fire/flame motif
-- Card mastery: Glowing card with aura
+// Badge type mapping
+const BADGE_ILLUSTRATIONS = {
+  star: FirstReadingBadge,
+  first_reading: FirstReadingBadge,
+  medal: TenReadingsBadge,
+  ten_readings: TenReadingsBadge,
+  trophy: FiftyReadingsBadge,
+  fifty_readings: FiftyReadingsBadge,
+  fire: StreakBadge,
+  flame: StreakBadge,
+  streak: StreakBadge,
+  sparkle: MasteryBadge,
+  mastery: MasteryBadge,
+};
+```
 
-**Files to modify:**
+**Badge illustrations:**
 
-- `src/lib/archetypeJourney.js` (badge icon mapping)
-- Create: `src/components/illustrations/BadgeIllustrations.jsx`
+| Badge Type | Component | Asset Path |
+|------------|-----------|------------|
+| First reading | `FirstReadingBadge` | `/images/illustrations/badges/first-reading.png` |
+| 10 readings | `TenReadingsBadge` | `/images/illustrations/badges/ten-readings.png` |
+| 50 readings | `FiftyReadingsBadge` | `/images/illustrations/badges/fifty-readings.png` |
+| Streak | `StreakBadge` | `/images/illustrations/badges/streak-fire.png` |
+| Mastery | `MasteryBadge` | `/images/illustrations/badges/mastery-glow.png` |
+
+**Files:**
+
+- `src/components/illustrations/BadgeIllustrations.jsx` — Badge components with WebP fallback
+- `src/components/ReadingJourney/sections/AchievementsRow.jsx` — Integration
 
 ---
 
 #### 7. Suggested Focus Decorative Frame
 
-**Location:** [`src/components/JournalInsightsPanel.jsx`](src/components/JournalInsightsPanel.jsx:867-875)
+**Location:** `src/components/ReadingJourney/sections/SeasonSummary.jsx`
 
-**Screenshot area:** "Suggested Focus" card with question
+**Screenshot area:** Coach suggestion callout ("💡" suggestion)
 
 **Current:** Plain bordered card
 **Proposed:** Mystical frame illustration around the suggestion
@@ -192,7 +200,7 @@ Proposed: Full-width illustration of an open journal with mystical elements
 
 **Files to modify:**
 
-- `src/components/CoachSuggestion.jsx`
+- `src/components/ReadingJourney/sections/SeasonSummary.jsx`
 - Create: `public/images/illustrations/coach-frame.svg`
 
 ---
@@ -201,7 +209,7 @@ Proposed: Full-width illustration of an open journal with mystical elements
 
 #### 8. Filter Section Background Pattern
 
-**Location:** Journal filters panel
+**Location:** `src/components/JournalFilters.jsx`
 
 **Current:** Solid dark surface background
 **Proposed:** Subtle repeating pattern overlay
@@ -233,7 +241,7 @@ Proposed: Full-width illustration of an open journal with mystical elements
 
 #### 9. Context Mix Visual Legend
 
-**Location:** [`src/components/JournalInsightsPanel.jsx`](src/components/JournalInsightsPanel.jsx:814-826)
+**Location:** `src/components/ReadingJourney/sections/ContextBreakdown.jsx`
 
 **Screenshot area:** "Context Mix" section with tags
 
@@ -258,7 +266,7 @@ Proposed: Full-width illustration of an open journal with mystical elements
 
 #### 10. Loading State Animation
 
-**Location:** [`src/components/Journal.jsx`](src/components/Journal.jsx:649-654)
+**Location:** `src/components/Journal.jsx` (search/loading state)
 
 **Current:** Simple spinning border circle
 **Proposed:** Custom animated illustration
@@ -277,7 +285,7 @@ Proposed: Full-width illustration of an open journal with mystical elements
 
 #### 11. Share Link Visual Cards
 
-**Location:** [`src/components/JournalInsightsPanel.jsx`](src/components/JournalInsightsPanel.jsx:878-918)
+**Location:** `src/components/ReadingJourney/sections/ExportSection.jsx`
 
 **Screenshot area:** "Active Share Links" section
 
@@ -292,19 +300,17 @@ Proposed: Full-width illustration of an open journal with mystical elements
 
 ---
 
-#### 12. "Today" Section Illustration
+#### 12. "Today" Section Illustration (Removed)
 
-**Location:** [`src/components/Journal.jsx`](src/components/Journal.jsx:657-663)
+**Status:** The "Keep today's focus handy" panel is no longer present in the current journal layout.
 
-**Screenshot area:** "Keep today's focus handy" section
+**If reintroduced:** Consider anchoring the illustration in `src/components/journal/JournalSummaryBand.jsx` or `src/components/ReadingJourney/sections/SeasonSummary.jsx`.
 
-**Current:** Text header only
 **Proposed:** Small illustration of sunrise/dawn with open book
 
-**Files to modify:**
+**Files to create (if reintroduced):**
 
-- `src/components/Journal.jsx` (lines 657-663)
-- Create: `public/images/illustrations/today-dawn.svg`
+- `public/images/illustrations/today-dawn.svg`
 
 ---
 
@@ -337,25 +343,23 @@ public/
 └── images/
     └── illustrations/
         ├── empty-states/
-        │   ├── empty-journal.svg
-        │   ├── archetype-empty.svg
-        │   └── no-filters-match.svg
-        ├── icons/
-        │   ├── suit-cups.svg
-        │   ├── suit-wands.svg
-        │   ├── suit-swords.svg
-        │   ├── suit-pentacles.svg
-        │   └── suit-major.svg
-        ├── badges/
-        │   ├── first-reading.svg
-        │   ├── streak-fire.svg
-        │   └── mastery-glow.svg
-        ├── decorative/
-        │   ├── coach-frame.svg
-        │   ├── today-dawn.svg
-        │   └── pulse-icons.svg
-        └── patterns/
-            └── stars-subtle.svg
+        │   ├── empty-journal.png
+        │   ├── empty-journal.webp
+        │   ├── archetype-empty.png
+        │   ├── archetype-empty.webp
+        │   ├── no-filters-match.png
+        │   └── no-filters-match.webp
+        └── badges/
+            ├── first-reading.png
+            ├── first-reading.webp
+            ├── ten-readings.png
+            ├── ten-readings.webp
+            ├── fifty-readings.png
+            ├── fifty-readings.webp
+            ├── streak-fire.png
+            ├── streak-fire.webp
+            ├── mastery-glow.png
+            └── mastery-glow.webp
 ```
 
 ---
@@ -370,10 +374,11 @@ public/
 
 ### Phase 2: Section Icons (Week 2) ✅ COMPLETE
 
-- [x] Suit icons for card pills (`SuitIcons.jsx` → integrated in `JournalEntryCard.jsx`)
-- [x] Context icons (`ContextIcons.jsx` → integrated in `JournalInsightsPanel.jsx`)
-- [x] Badge illustrations (`BadgeIllustrations.jsx` → integrated in `archetypeJourney.js`)
-- [x] Theme icons (`ThemeIcons.jsx` → integrated in `JournalInsightsPanel.jsx`)
+- [x] Wire `SuitIcons.jsx` into top-card lists (`CardsCallingYou.jsx`)
+- [x] Swap achievements to `BadgeIllustrations.jsx`
+- [ ] Wire suit icons into entry card chips (`ComfortableHeader.jsx`)
+- [ ] Create `ContextIcons.jsx` and integrate into `ContextBreakdown`
+- [ ] Create `ThemeIcons.jsx` and integrate into Recent Themes lists
 
 ### Phase 3: Decorative Elements (Week 3)
 
@@ -401,30 +406,32 @@ export function EmptyJournalIllustration({ className = "" }) {
 
   return (
     <div className={`relative ${className}`}>
-      <img
-        src="/images/illustrations/empty-states/empty-journal.svg"
-        alt=""
-        role="presentation"
-        className={`
-          w-full max-w-sm mx-auto
-          ${prefersReducedMotion ? "" : "animate-float-gentle"}
-        `}
-      />
+      <picture>
+        <source
+          srcSet="/images/illustrations/empty-states/empty-journal.webp"
+          type="image/webp"
+        />
+        <img
+          src="/images/illustrations/empty-states/empty-journal.png"
+          alt=""
+          role="presentation"
+          className={`
+            w-full max-w-sm mx-auto
+            ${prefersReducedMotion ? "" : "animate-float-gentle"}
+          `}
+        />
+      </picture>
     </div>
   );
 }
 
-// Usage in Journal.jsx
-import { EmptyJournalIllustration } from "./illustrations/EmptyJournalIllustration";
+// Usage in JournalEmptyState.jsx
+import { EmptyJournalIllustration } from "../illustrations/EmptyJournalIllustration";
 
-// Replace lines 703-762 empty state:
-{
-  !hasEntries && (
-    <div className="modern-surface animate-fade-in space-y-6 rounded-3xl p-8 text-center">
-      <EmptyJournalIllustration className="mb-6" />
-      <h2 className="text-2xl font-serif text-accent">
-        Start your tarot journal
-      </h2>
+export function JournalEmptyState() {
+  return (
+    <div className="animate-fade-in space-y-6 rounded-3xl p-8 text-center">
+      <EmptyJournalIllustration className="mx-auto mb-2 w-40" />
       {/* ... rest of content */}
     </div>
   );
@@ -447,12 +454,12 @@ import { EmptyJournalIllustration } from "./illustrations/EmptyJournalIllustrati
 
 | Component         | File Path                                    | Lines to Modify     |
 | ----------------- | -------------------------------------------- | ------------------- |
-| Journal main      | `src/components/Journal.jsx`                 | 605-762             |
-| Insights panel    | `src/components/JournalInsightsPanel.jsx`    | 796-876             |
-| Archetype section | `src/components/ArchetypeJourneySection.jsx` | 90-158, 457-488     |
-| Entry cards       | `src/components/JournalEntryCard.jsx`        | Card pill rendering |
-| Coach suggestion  | `src/components/CoachSuggestion.jsx`         | Frame styling       |
-| Badge utilities   | `src/lib/archetypeJourney.js`                | `getBadgeIcon()`    |
+| Journal empty state | `src/components/journal/JournalEmptyState.jsx` | Empty journal illustration |
+| Journal summary band | `src/components/journal/JournalSummaryBand.jsx` | Journal Pulse stats |
+| Journey analytics | `src/components/ReadingJourney/`            | Themes, context, share |
+| Entry cards       | `src/components/journal/entry-card/EntryHeader/ComfortableHeader.jsx` | Card chips |
+| Coach suggestion  | `src/components/ReadingJourney/sections/SeasonSummary.jsx` | Suggestion callout |
+| Achievements      | `src/components/ReadingJourney/sections/AchievementsRow.jsx` | Badge icon mapping |
 
 ---
 
@@ -461,15 +468,35 @@ import { EmptyJournalIllustration } from "./illustrations/EmptyJournalIllustrati
 ```
 src/components/illustrations/
 ├── ArchetypeEmptyIllustration.jsx   # Phase 1 ✅
-├── BadgeIllustrations.jsx           # Phase 2 ✅ (5 badges: First, Ten, Fifty, Streak, Mastery)
-├── ContextIcons.jsx                 # Phase 2 ✅ (7 icons: Love, Career, Self, Spiritual, Wellbeing, Decision, General)
+├── BadgeIllustrations.jsx           # Phase 2 ✅ (wired into AchievementsRow)
 ├── EmptyJournalIllustration.jsx     # Phase 1 ✅
 ├── NoFiltersIllustration.jsx        # Phase 1 ✅
-├── SuitIcons.jsx                    # Phase 2 ✅ (5 icons: Cups, Wands, Swords, Pentacles, Major)
-└── ThemeIcons.jsx                   # Phase 2 ✅ (11 icons: Relationships, Growth, Transition, etc.)
+└── SuitIcons.jsx                    # Phase 2 ✅ (wired into CardsCallingYou)
 ```
+
+### SuitIcons.jsx Exports
+
+| Export | Type | Description |
+|--------|------|-------------|
+| `CupsIcon` | Component | Water element chalice |
+| `WandsIcon` | Component | Fire element wand |
+| `SwordsIcon` | Component | Air element sword |
+| `PentaclesIcon` | Component | Earth element pentacle |
+| `MajorIcon` | Component | Major Arcana star |
+| `getSuitFromCardName(name)` | Function | Detects suit from card name string |
+| `getSuitIcon(cardOrName)` | Function | Returns appropriate icon component |
+
+### BadgeIllustrations.jsx Exports
+
+| Export | Type | Description |
+|--------|------|-------------|
+| `FirstReadingBadge` | Component | First reading milestone |
+| `TenReadingsBadge` | Component | 10 readings milestone |
+| `FiftyReadingsBadge` | Component | 50 readings milestone |
+| `StreakBadge` | Component | Daily streak achievement |
+| `MasteryBadge` | Component | Card mastery achievement |
 
 ---
 
 _Document created: 2025-12-05_
-_Last updated: 2025-12-05_
+_Last updated: 2026-01-24_

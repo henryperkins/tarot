@@ -168,7 +168,7 @@ Set in `wrangler.jsonc` under `vars` (all values are strings at runtime):
 | `EVAL_MODEL` | `"@cf/qwen/qwen3-30b-a3b-fp8"` | Workers AI model for scoring |
 | `EVAL_TIMEOUT_MS` | `"10000"` | Timeout for eval API call (ms) |
 | `EVAL_GATE_ENABLED` | `"false"` | Whether to block readings on low scores |
-| `EVAL_GATE_FAILURE_MODE` | `"closed"` | When eval fails: `open` allows if heuristic passes, `closed` blocks |
+| `EVAL_GATE_FAILURE_MODE` | `"closed"` (prod), `"open"` (non-prod) | When eval fails: `open` allows if heuristic passes, `closed` blocks |
 | `EVAL_GATEWAY_ID` | `""` | Optional AI Gateway id for eval calls |
 | `ALLOW_STREAMING_WITH_EVAL_GATE` | `"true"` | Allow token streaming when eval gate is enabled |
 | `STREAMING_QUALITY_GATE_ENABLED` | `"true"` | Buffer streaming output to enforce quality checks before emitting SSE |

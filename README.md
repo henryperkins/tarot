@@ -71,13 +71,7 @@ npm install
 
 ### Environment Setup
 
-1. Copy the example environment file:
-
-   ```bash
-   cp .dev.vars.example .dev.vars
-   ```
-
-2. Fill in the required secrets in `.dev.vars`:
+1. Create `.dev.vars` and fill in the required secrets:
 
    ```bash
    # Azure OpenAI (required for AI-generated readings)
@@ -213,13 +207,11 @@ wrangler secret put AZURE_OPENAI_GPT5_MODEL --config wrangler.jsonc
 Detailed documentation is available in the `docs/` directory:
 
 - [Developer Onboarding](docs/DEVELOPER_ONBOARDING.md) - Getting started guide with setup instructions
-- [Development Setup](docs/DEV_SETUP.md) - Local development instructions
-- [Deployment Guide](docs/DEPLOYMENT.md) - Production deployment steps
-- [System Architecture](docs/SYSTEM_ARCHITECTURE.md) - Technical architecture overview
 - [Vision Pipeline](docs/VISION_PIPELINE.md) - Physical card recognition system
 - [Knowledge Graph](docs/knowledge-graph/) - Tarot pattern and archetype documentation
 - [Evaluation System](docs/evaluation-system.md) - Automated reading quality evaluation
 - [Reasoning Chain](docs/reasoning-chain.md) - Narrative builder for the local composer fallback
+- [Architecture Diagram](docs/complete-architecture-diagram.md) - Technical architecture overview
 
 For comprehensive project guidance, see [CLAUDE.md](CLAUDE.md).
 

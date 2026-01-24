@@ -25,7 +25,6 @@ Location: `src/components/InteractiveCardOverlay.jsx`
 
 **Props**:
 - `card` - Card object with `number` property for coordinate lookup
-- `isReversed` - Boolean indicating card orientation
 
 **Features**:
 - Supports 3 shape types: `circle`, `rect`, `polygon`
@@ -98,7 +97,7 @@ The overlay is integrated into `Card.jsx`:
 ```jsx
 <div className="relative">
   <img src={card.image} alt={...} className="..." />
-  <InteractiveCardOverlay card={card} isReversed={card.isReversed} />
+  <InteractiveCardOverlay card={card} />
 </div>
 ```
 
@@ -269,7 +268,8 @@ Current implementation:
 - Component: `src/components/InteractiveCardOverlay.jsx`
 - Coordinates: `src/data/symbolCoordinates.js`
 - Symbol data: `shared/symbols/symbolAnnotations.js`
-- Integration: `src/components/Card.jsx:264-277`
+- Integration: `src/components/Card.jsx:552-553`
+- Modal integration (desktop only): `src/components/CardModal.jsx:259-261`
 
 ## Questions?
 

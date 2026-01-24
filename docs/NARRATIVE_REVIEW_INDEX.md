@@ -106,36 +106,31 @@ This comprehensive review analyzes the narrative builder and prompt engineering 
 ### Critical (Must Fix)
 
 1. **File Size Explosion** 🔴
-   - `prompts/` modules: 2,168 lines total (largest: `buildEnhancedClaudePrompt.js` 639, `cardBuilders.js` 508)
+   - `prompts/` modules: 2,429 lines total (largest: `buildEnhancedClaudePrompt.js` 692, `cardBuilders.js` 508)
    - `prompts.js`: 4 lines (barrel re-export)
-   - `helpers.js`: 1,680 lines
+   - `helpers.js`: 1,682 lines
    - Modularized, but overall prompt LOC still high
 
-2. **Performance Waste** 🔴
-   - Crisis detection after expensive analysis
-   - Wastes 50-100ms per rejected request
+2. **Performance Waste** 🔴 (resolved)
+   - Crisis detection now runs before spread analysis
 
 3. **Global State** 🔴
    - `PROSE_MODE` flag vulnerable to bleed
    - Legacy pattern, should be removed
 
-4. **Safety Gap** 🔴
-   - Token truncation could compromise guidelines
-   - Logs error but proceeds anyway
+4. **Safety Gap** 🔴 (resolved)
+   - Token truncation now fails fast when critical sections exceed 80% of budget
 
 ### Security Concerns
 
-5. **Prompt Injection Risk** ⚠️
-   - Missing template syntax filtering
-   - `{{}}`, `${}`, `<%%>` not stripped
+5. **Prompt Injection Risk** ⚠️ (resolved)
+   - `sanitizePromptValue` strips template syntax (`{{}}`, `${}`, `<% %>`, `{% %}`, `{# #}`)
 
 6. **Vision Proof Handling** ⚠️
-   - Mismatches proceed with warnings
-   - Could bias readings
+   - Vision proof is optional; mismatches are logged for research telemetry
 
-7. **Input Validation Scattered** ⚠️
-   - Length caps applied late
-   - Missing guards in builders
+7. **Input Validation Scattered** ⚠️ (partially addressed)
+   - Spread builders now guard against malformed input; remaining validation should be centralized
 
 ### Maintainability
 
@@ -158,20 +153,16 @@ This comprehensive review analyzes the narrative builder and prompt engineering 
 Implementation-ready improvements with high impact and low risk:
 
 1. **Move Crisis Detection Earlier** ⚡ (1 hour)
-   - Saves 50-100ms per rejected request
-   - Simple refactor
+   - Status: implemented
 
 2. **Fail-Fast on Safety Budget** 🛡️ (30 minutes)
-   - Prevents silent guideline truncation
-   - Error handling change
+   - Status: implemented
 
 3. **Add Template Syntax Stripping** 🔒 (30 minutes)
-   - Prevents prompt injection
-   - String operation addition
+   - Status: implemented
 
 4. **Add Input Guards** 🛡️ (1 hour)
-   - Prevents crashes on bad input
-   - Validation logic
+   - Status: implemented in spread builders
 
 **Total:** 3 hours, high impact, low risk
 
@@ -231,8 +222,8 @@ functions/
 └── lib/
     └── narrative/
       ├── prompts.js               (4 LOC)    - Barrel re-export
-      ├── prompts/                 (2168 LOC) - Prompt construction modules
-        ├── helpers.js               (1680 LOC) - Card text generation
+      ├── prompts/                 (2429 LOC) - Prompt construction modules
+        ├── helpers.js               (1682 LOC) - Card text generation
         ├── reasoning.js             (1205 LOC) - Tension detection
         ├── reasoningIntegration.js  (523 LOC)  - Reasoning integration
         ├── styleHelpers.js          (238 LOC)  - Tone profiles
@@ -309,7 +300,7 @@ After implementing improvements, monitor:
 - [ ] Preview deployment
 
 ### Short-Term (Month 1)
-- [x] `prompts.js` < 1000 LOC (barrel = 4 LOC; prompt modules total 2,168 LOC)
+- [x] `prompts.js` < 1000 LOC (barrel = 4 LOC; prompt modules total 2,429 LOC)
 - [ ] No global state
 - [ ] 80%+ test coverage
 - [ ] Input guards on all builders

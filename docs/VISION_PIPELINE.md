@@ -1,7 +1,7 @@
 # Vision Pipeline Prototype
 
 ## Goal
-Stand up the first iteration of the multimodal pipeline described in `guidetoaitraining.md` and `docs/AI_TRAINING_ANALYSIS.md`: embed tarot card images with CLIP, compare them to text prototypes for each card, and surface the closest symbolic matches. This allows us to validate the feasibility of photo-based readings before wiring the flow into the Cloudflare Functions API.
+Stand up the first iteration of the multimodal pipeline described in the vision research docs (see `docs/VISION_RESEARCH_MODE.md` and `docs/AI_Tarot_Master.md`): embed tarot card images with CLIP, compare them to text prototypes for each card, and surface the closest symbolic matches. This allows us to validate the feasibility of photo-based readings before wiring the flow into the Cloudflare Worker API.
 
 ## Implementation Overview
 - **Model**: `Xenova/clip-vit-base-patch32` via `@xenova/transformers` (runs locally/in-browser, downloads weights on first use).
@@ -9,7 +9,7 @@ Stand up the first iteration of the multimodal pipeline described in `guidetoait
   - Curated Major Arcana annotations from `shared/symbols/symbolAnnotations.js`
   - Programmatic Minor Arcana symbol expansions from `shared/vision/minorSymbolLexicon.js`
   - Deck-style metadata from `shared/vision/deckProfiles.js` (RWS, Thoth, Marseille ready)
-  - Physical assets live under `public/images/cards/{rws-1909|thoth|marseille}`. The Marseille folder contains an 18th-century scan set, while `thoth` includes **enhanced abstract placeholders** (v2) with Art Deco gradients, Hebrew letters, astrological symbols, and geometric mandalas that capture the Thoth visual language without reproducing copyrighted artwork (see `docs/THOTH_ENHANCEMENTS.md`).
+  - Physical assets live under `public/images/cards/` (RWS scans in the root), with deck-specific folders at `public/images/cards/thoth` and `public/images/cards/marseille`. Asset scanning is driven by `shared/vision/deckProfiles.js`.
 - **Pipeline Class**: `shared/vision/tarotVisionPipeline.js` loads CLIP stacks, embeds prompts/images, normalizes vectors, and compares cosine similarity. It accepts file paths, URLs, or browser data URLs so both CLI scripts and the React UI can reuse the same engine.
 - **CLI Harness**: `scripts/vision/runVisionPrototype.js` accepts image paths, with flags for deck scope/style and number of matches. Useful for quick regression checks while iterating on symbol prompts.
 - **Evaluation Harness**: `scripts/evaluation/runVisionConfidence.js` sweeps `public/images/cards`, logs top-5 matches + confidence, and writes reports under `data/evaluations/` for the guide's Section 3 benchmarking work.
@@ -17,13 +17,13 @@ Stand up the first iteration of the multimodal pipeline described in `guidetoait
   - `data/evaluations/vision-metrics.json` — machine-readable stats for release gates.
   - `data/evaluations/vision-review-queue.csv` — mismatched samples for human-in-the-loop review (Section 3 human evaluation). The queue preserves any previously recorded `human_verdict`/`human_notes` so annotations survive subsequent runs.
 - **Review Summaries**: Once reviewers fill the queue, run `npm run review:vision` (wrapper around `scripts/evaluation/processVisionReviews.js`) to convert their annotations into `data/evaluations/vision-review-summary.json`, capturing acceptance/rejection rates and sample rows for audit.
-- **UI Surface**: `VisionValidationPanel` + `useVisionValidation` hook (see `src/components/VisionValidationPanel.jsx`) let users upload photos per spread. The results must match the drawn cards before `/api/tarot-reading` is called, satisfying the "validate before prompting" requirement.
+- **UI Surface**: `VisionValidationPanel` + `useVisionValidation` hook (see `src/components/VisionValidationPanel.jsx`) let users upload photos per spread when vision research is enabled. `useVisionAnalysis` manages the proof handshake; mismatches are logged for telemetry but do not block `/api/tarot-reading`.
 
 ## Rollout Plan
-- **Approach:** `/api/tarot-reading` now requires a server-signed `visionProof` instead of trusting raw `visionInsights`. Clients POST their base64 photos to `/api/vision-proof`, the Pages Function reruns CLIP to verify the cards, signs the sanitized insights with `VISION_PROOF_SECRET`, and returns a short-lived proof object that must accompany the reading request. No proof ⇒ HTTP 400.
-- **UI Changes:** `VisionValidationPanel` still handles uploads client-side for instant feedback (conflicts, attention maps, removal/reset), but `TarotReading.jsx` triggers the proof handshake immediately before sending the spread so photos are re-verified on the server. Uploads are limited to five images, and any change invalidates the cached proof to prevent replay attacks.
-- **Sample Payloads:** Dev scripts (`scripts/fix-and-deploy.sh`, `scripts/setup-*.sh`) now demonstrate the two-step flow: first call `/api/vision-proof` with a data URL, then reuse the returned `visionProof` when calling `/api/tarot-reading`. Tests build signed proofs via `functions/lib/visionProof.js` helpers—see `tests/api.vision.test.mjs` for an example.
-- **Support Expectations:** Automations that previously injected `visionInsights` JSON must be upgraded to obtain proofs (or pipe card photos through the new API). There is no bypass anymore—the server will reject unsigned or expired proofs with a 409/400 response. Set the `VISION_PROOF_SECRET` secret in every environment or the proof endpoints will fail to sign/verify.
+- **Approach:** `/api/tarot-reading` accepts an optional server-signed `visionProof` instead of trusting raw `visionInsights`. Clients POST their base64 photos to `/api/vision-proof`, the worker reruns CLIP to verify the cards, signs the sanitized insights with `VISION_PROOF_SECRET`, and returns a short-lived proof object. Readings proceed without a proof; invalid or expired proofs still return 400/409.
+- **UI Changes:** `VisionValidationPanel` handles uploads client-side for instant feedback (conflicts, attention maps, removal/reset). `TarotReading.jsx` triggers the proof handshake immediately before sending the spread so photos are re-verified on the server when research mode is enabled. Uploads are limited to five images, and any change invalidates the cached proof to prevent replay attacks.
+- **Sample Payloads:** Dev scripts (`scripts/fix-and-deploy.sh`, `scripts/setup-*.sh`) demonstrate the two-step flow for research mode: call `/api/vision-proof` with a data URL, then reuse the returned `visionProof` when calling `/api/tarot-reading`. Tests build signed proofs via `functions/lib/visionProof.js` helpers—see `tests/api.vision.test.mjs` for an example.
+- **Support Expectations:** Automations that previously injected `visionInsights` JSON should be upgraded to obtain proofs when participating in vision research. Proofs are optional, but when supplied they must be valid and signed; set `VISION_PROOF_SECRET` in environments that accept proofs.
 
 ## Usage
 1. Install dependencies (already part of `npm install` after adding `@xenova/transformers`).

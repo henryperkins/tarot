@@ -89,7 +89,7 @@ disabled = { isGenerating }; // Previously: disabled={isGenerating || !isVisionR
 
 ### Original Issue
 
-The vision validation system was designed as research infrastructure (as documented in `guidetoaitraining.md`) but was deployed with a hard requirement that blocked all readings without photo uploads. This created a nonsensical user experience:
+The vision validation system was designed as research infrastructure (see `docs/AI_Tarot_Master.md`) but was deployed with a hard requirement that blocked all readings without photo uploads. This created a nonsensical user experience:
 
 1. App digitally draws cards for users
 2. Users required to photograph their screens
@@ -136,7 +136,7 @@ The frontend now treats vision uploads as a build-time toggle. Set `VITE_ENABLE_
 - The deck selector and research UI stay hidden, keeping the default experience streamlined
 - Readings still include telemetry fields, but `vision` stays `null`
 
-When the flag is enabled and `VISION_PROOF_SECRET` is configured on the worker, the research UI appears and uploads will be signed before `/api/tarot-reading` receives them.
+When the flag is enabled and `VISION_PROOF_SECRET` is configured on the worker, the research UI appears (for authenticated users) and uploads will be signed before `/api/tarot-reading` receives them.
 
 ## Testing
 
@@ -205,9 +205,9 @@ Consider adding:
 
 ## Related Documentation
 
-- `guidetoaitraining.md` - AI training research methodology (source of vision requirements)
+- `docs/AI_Tarot_Master.md` - AI training research methodology and deck subtleties
 - `docs/VISION_PIPELINE.md` - Technical implementation of CLIP-based vision validation
-- `docs/DEPLOYMENT.md` - Deployment configuration and secrets management
+- `wrangler.jsonc` - Deployment configuration and secrets management (see secrets section)
 
 ## Migration Notes
 

@@ -30,6 +30,7 @@ describe('GraphRAG Knowledge Base', () => {
 
     assert.ok(stats.triads > 0, 'Should have triad passages');
     assert.ok(stats.foolsJourneyStages > 0, 'Should have Fool\'s Journey passages');
+    assert.ok(stats.majorArcana > 0, 'Should have Major Arcana passages');
     assert.ok(stats.dyads > 0, 'Should have dyad passages');
     assert.ok(stats.suitProgressions > 0, 'Should have suit progression passages');
     assert.ok(stats.totalPassages > 0, 'Should have total passages');
@@ -37,6 +38,7 @@ describe('GraphRAG Knowledge Base', () => {
     // Verify reasonable coverage
     assert.ok(stats.triads >= 5, 'Should have at least 5 major triads');
     assert.strictEqual(stats.foolsJourneyStages, 3, 'Should have 3 Fool\'s Journey stages');
+    assert.strictEqual(stats.majorArcana, 22, 'Should have 22 Major Arcana passages');
     assert.ok(stats.dyads >= 6, 'Should have at least 6 dyads');
   });
 
@@ -60,6 +62,14 @@ describe('GraphRAG Knowledge Base', () => {
     assert.ok(entry.title.includes('Integration'));
     assert.strictEqual(entry.stage, 'initiation');
     assert.strictEqual(entry.theme, 'Shadow Work & Transformation');
+    assert.ok(entry.passages.length > 0);
+  });
+
+  test('getPassagesForPattern: Major Arcana retrieval', () => {
+    const entry = getPassagesForPattern('major-arcana', 0);
+
+    assert.ok(entry, 'Should retrieve The Fool');
+    assert.strictEqual(entry.title, 'The Fool');
     assert.ok(entry.passages.length > 0);
   });
 
@@ -123,6 +133,48 @@ describe('GraphRAG Retrieval', () => {
     assert.ok(passages[0].source, 'Should have source');
   });
 
+  test('retrievePassages: selects context-matched passage when available', () => {
+    const graphKeys = {
+      completeTriadIds: ['death-temperance-star']
+    };
+
+    const passages = retrievePassages(graphKeys, {
+      maxPassages: 1,
+      questionContext: 'grief'
+    });
+
+    assert.ok(passages.length > 0);
+    assert.strictEqual(passages[0].context, 'grief', 'Should select grief-specific passage');
+  });
+
+  test('retrievePassages: falls back to general when context missing', () => {
+    const graphKeys = {
+      completeTriadIds: ['death-temperance-star']
+    };
+
+    const passages = retrievePassages(graphKeys, {
+      maxPassages: 1,
+      questionContext: 'career'
+    });
+
+    assert.ok(passages.length > 0);
+    assert.strictEqual(passages[0].context, 'general', 'Should fall back to general passage');
+  });
+
+  test('retrievePassages: resolves relationship context aliases', () => {
+    const graphKeys = {
+      completeTriadIds: ['devil-tower-sun']
+    };
+
+    const passages = retrievePassages(graphKeys, {
+      maxPassages: 1,
+      questionContext: 'love'
+    });
+
+    assert.ok(passages.length > 0);
+    assert.strictEqual(passages[0].context, 'relationship', 'Should map love to relationship context');
+  });
+
   test('retrievePassages: Fool\'s Journey stage (priority 2)', () => {
     const graphKeys = {
       foolsJourneyStageKey: 'integration'
@@ -135,6 +187,24 @@ describe('GraphRAG Retrieval', () => {
     assert.strictEqual(passages[0].patternId, 'integration');
     assert.strictEqual(passages[0].priority, 2, 'Journey should have priority 2');
     assert.strictEqual(passages[0].stage, 'initiation');
+  });
+
+  test('retrievePassages: single Major Arcana archetype (priority 2)', () => {
+    const graphKeys = {
+      foolsJourneyStageKey: 'initiation',
+      totalMajors: 1,
+      singleMajorNumber: 0,
+      singleMajorName: 'The Fool'
+    };
+
+    const passages = retrievePassages(graphKeys, { maxPassages: 2 });
+
+    assert.ok(passages.length > 0);
+    assert.strictEqual(passages[0].type, 'major-arcana');
+    assert.strictEqual(passages[0].cardNumber, 0);
+    assert.strictEqual(passages[0].priority, 2, 'Single Major should have priority 2');
+    assert.strictEqual(passages[1].type, 'fools-journey');
+    assert.strictEqual(passages[1].priority, 3, 'Single Major should outrank journey stage');
   });
 
   test('retrievePassages: high-significance dyad (priority 3)', () => {
@@ -151,6 +221,20 @@ describe('GraphRAG Retrieval', () => {
     assert.strictEqual(passages[0].patternId, '13-17');
     assert.strictEqual(passages[0].priority, 3, 'High dyads should have priority 3');
     assert.deepStrictEqual(passages[0].cardNumbers, [13, 17]);
+  });
+
+  test('retrievePassages: medium-high dyad (priority 4)', () => {
+    const graphKeys = {
+      dyadPairs: [
+        { cards: [9, 2], category: 'wisdom-intuition', significance: 'medium-high' }
+      ]
+    };
+
+    const passages = retrievePassages(graphKeys, { maxPassages: 5 });
+
+    assert.ok(passages.length > 0);
+    assert.strictEqual(passages[0].type, 'dyad');
+    assert.strictEqual(passages[0].priority, 4, 'Medium-high dyads should have priority 4');
   });
 
   test('retrievePassages: filters out low-significance dyads', () => {
@@ -183,6 +267,22 @@ describe('GraphRAG Retrieval', () => {
     assert.strictEqual(passages[0].suit, 'Wands');
     assert.strictEqual(passages[0].stage, 'beginning');
     assert.strictEqual(passages[0].priority, 4, 'Suit progressions should have priority 4');
+  });
+
+  test('retrievePassages: emerging suit progression (priority 5)', () => {
+    const graphKeys = {
+      suitProgressions: [
+        { suit: 'Cups', stage: 'challenge', significance: 'emerging-progression' }
+      ]
+    };
+
+    const passages = retrievePassages(graphKeys, { maxPassages: 5 });
+
+    assert.ok(passages.length > 0);
+    assert.strictEqual(passages[0].type, 'suit-progression');
+    assert.strictEqual(passages[0].suit, 'Cups');
+    assert.strictEqual(passages[0].stage, 'challenge');
+    assert.strictEqual(passages[0].priority, 5, 'Emerging progressions should have priority 5');
   });
 
   test('retrievePassages: priority ordering', () => {
@@ -366,13 +466,15 @@ describe('GraphRAG Utilities', () => {
       completeTriadIds: ['death-temperance-star'],
       triadIds: ['death-temperance-star', 'hermit-hangedman-moon'],
       foolsJourneyStageKey: 'integration',
+      totalMajors: 1,
+      singleMajorNumber: 0,
       dyadPairs: [
         { cards: [13, 17], significance: 'high' },
-        { cards: [1, 2], significance: 'moderate' }
+        { cards: [1, 2], significance: 'medium-high' }
       ],
       suitProgressions: [
         { suit: 'Wands', significance: 'strong-progression' },
-        { suit: 'Cups', significance: 'weak-signal' }
+        { suit: 'Cups', significance: 'emerging-progression' }
       ]
     };
 
@@ -388,8 +490,12 @@ describe('GraphRAG Utilities', () => {
     assert.strictEqual(summary.patternsDetected.completeTriads, 1);
     assert.strictEqual(summary.patternsDetected.partialTriads, 1);
     assert.strictEqual(summary.patternsDetected.foolsJourneyStage, 'integration');
+    assert.strictEqual(summary.patternsDetected.totalMajors, 1);
+    assert.strictEqual(summary.patternsDetected.singleMajor, 1);
     assert.strictEqual(summary.patternsDetected.highDyads, 1);
+    assert.strictEqual(summary.patternsDetected.mediumHighDyads, 1);
     assert.strictEqual(summary.patternsDetected.strongSuitProgressions, 1);
+    assert.strictEqual(summary.patternsDetected.emergingSuitProgressions, 1);
     assert.strictEqual(summary.passagesRetrieved, 3);
     assert.strictEqual(summary.passagesByType.triad, 1);
     assert.strictEqual(summary.passagesByType['fools-journey'], 1);

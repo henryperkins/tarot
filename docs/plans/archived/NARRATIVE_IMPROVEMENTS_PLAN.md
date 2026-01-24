@@ -73,31 +73,26 @@ curl -X POST http://localhost:8787/api/tarot-reading \
 
 ### 2. Add Fail-Fast for Critical Section Truncation 🛡️ CRITICAL
 
-**File:** `functions/lib/narrative/prompts.js`  
-**Lines:** ~326-339  
+**File:** `functions/lib/narrative/prompts/truncation.js`  
+**Lines:** ~239-248  
 **Effort:** 30 minutes  
 **Risk:** Low  
-**Status:** Not implemented (warns only today)  
+**Status:** Implemented  
 
 **Why:** Silent degradation of safety guidance is unacceptable.
 
 **Current behavior (as shipped):**
 ```javascript
-if (criticalTokens >= maxTokens) {
-  console.warn('[prompts] Critical safety sections exceed budget; truncating critical block only.', details);
-  return truncateToTokenBudget(criticalText, maxTokens);
-}
-
-if (criticalTokens > maxTokens * 0.8) {
-  console.warn('[prompts] Safety sections are consuming most of the token budget.', {
+if (criticalTokens >= maxTokens || criticalFraction >= 0.8) {
+  throw makePromptSafetyBudgetError({
     criticalTokens,
     maxTokens,
-    budgetPercent: Number((criticalTokens / maxTokens * 100).toFixed(1))
+    budgetPercent: Number((criticalFraction * 100).toFixed(1))
   });
 }
 ```
 
-**Error Handling in tarot-reading.js (present but unused):**
+**Error Handling in tarot-reading.js (active):**
 ```javascript
 if (error?.message === 'PROMPT_SAFETY_BUDGET_EXCEEDED') {
   return jsonResponse({
@@ -108,7 +103,7 @@ if (error?.message === 'PROMPT_SAFETY_BUDGET_EXCEEDED') {
 }
 ```
 
-**Testing (currently failing until fail-fast is implemented or tests updated):**
+**Testing (active):**
 ```javascript
 // Added in tests/narrativePromptSafety.test.mjs
 it('fails fast when critical sections exceed 80% budget', () => {
