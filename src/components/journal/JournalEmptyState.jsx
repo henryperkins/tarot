@@ -26,7 +26,7 @@ function JournalEntryPreview() {
         type="button"
         onClick={() => setIsExpanded((prev) => !prev)}
         aria-expanded={isExpanded}
-        aria-controls={previewContentId}
+        aria-controls={isExpanded ? previewContentId : undefined}
         className="relative z-10 flex w-full items-center justify-between gap-4 px-5 py-4 text-left transition hover:bg-[color:var(--border-warm-subtle)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)]"
       >
         <div className="space-y-1">
