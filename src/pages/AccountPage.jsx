@@ -2118,18 +2118,30 @@ export default function AccountPage() {
                 </button>
                 <div className="flex-1 space-y-2">
                   {hasActiveSubscription && (
-                    <div className="rounded-xl border border-warning/40 bg-warning/10 px-3 py-2 text-xs text-warning">
-                      <p>
-                        Active subscription detected.{' '}
+                    <div
+                      className="rounded-xl border border-amber-400/30 bg-amber-400/10 px-3 py-2 text-xs"
+                      role="status"
+                      aria-live="polite"
+                      aria-atomic="true"
+                    >
+                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                        <p className="text-amber-200">
+                          Active subscription detected. Manage your subscription first to avoid future charges.
+                        </p>
                         <button
                           type="button"
                           onClick={handleManageSubscription}
-                          className="font-semibold underline underline-offset-2 transition hover:text-warning/80"
+                          disabled={portalLoading}
+                          className={`inline-flex items-center gap-1 font-semibold underline underline-offset-2 transition hover:text-amber-100 text-amber-100 ${
+                            portalLoading ? 'opacity-60 cursor-not-allowed' : ''
+                          }`}
                         >
+                          {portalLoading && (
+                            <CircleNotch className="h-3 w-3 animate-spin" weight="bold" />
+                          )}
                           Manage subscription
-                        </button>{' '}
-                        first to avoid future charges.
-                      </p>
+                        </button>
+                      </div>
                     </div>
                   )}
                   <button
