@@ -67,6 +67,7 @@ export default function Journal() {
     hasTotalEntries,
     error: journalError,
     lastSyncAt,
+    lastLocalSaveAt,
     syncSource,
     reload: reloadJournal
   } = useJournal();
@@ -799,6 +800,7 @@ export default function Journal() {
             isAuthenticated={isAuthenticated}
             canUseCloudJournal={canUseCloudJournal}
             lastSyncAt={lastSyncAt}
+            lastLocalSaveAt={lastLocalSaveAt}
             syncSource={syncSource}
             journalError={journalError}
             loading={loading}
