@@ -1,7 +1,7 @@
 import defaultTheme from 'tailwindcss/defaultTheme';
 
 /**
- * Tailwind configuration for Tableau (Vite + React + Cloudflare Pages).
+ * Tailwind configuration for Tableu (Vite + React + Cloudflare Pages).
  *
  * This replaces the previous cdn.tailwindcss.com usage.
  * Vite will use this during `npm run dev` and `npm run build` to generate the utilities.
@@ -87,7 +87,7 @@ export default {
       },
       fontFamily: {
         serif: ['"Cormorant Garamond"', 'Georgia', 'serif'],
-        sans: ['system-ui', '-apple-system', 'sans-serif']
+        sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif']
       },
       backdropBlur: {
         xs: "2px"

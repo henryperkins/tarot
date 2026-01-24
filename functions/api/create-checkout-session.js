@@ -3,6 +3,7 @@
  * POST /api/create-checkout-session
  *
  * Creates a Stripe Checkout session for subscription purchases.
+ * If an active Stripe subscription exists, returns a billing portal URL instead.
  * Requires authentication.
  *
  * Request body:
@@ -26,21 +27,40 @@
 import { getUserFromRequest } from '../lib/auth.js';
 import { jsonResponse, readJsonBody } from '../lib/utils.js';
 import { sanitizeRedirectUrl } from '../lib/urlSafety.js';
-import { stripeRequest } from '../lib/stripe.js';
+import {
+  extractTierFromSubscription,
+  fetchLatestStripeSubscription,
+  mapStripeStatus,
+  stripeRequest
+} from '../lib/stripe.js';
+import { getTierConfig, isActiveStatus } from '../../shared/monetization/subscription.js';
+
+const defaultDeps = {
+  getUserFromRequest,
+  jsonResponse,
+  readJsonBody,
+  sanitizeRedirectUrl,
+  stripeRequest,
+  fetchLatestStripeSubscription,
+  mapStripeStatus,
+  extractTierFromSubscription,
+  getTierConfig,
+  isActiveStatus
+};
 
 /**
  * Get or create a Stripe customer for the user
  * Uses atomic UPDATE to prevent race conditions when concurrent requests
  * attempt to create customers for the same user.
  */
-async function getOrCreateCustomer(db, user, secretKey) {
+async function getOrCreateCustomer(db, user, secretKey, stripeClient) {
   // If user already has a Stripe customer ID, return it
   if (user.stripe_customer_id) {
     return user.stripe_customer_id;
   }
 
   // Create a new Stripe customer
-  const customer = await stripeRequest('/customers', 'POST', {
+  const customer = await stripeClient('/customers', 'POST', {
     email: user.email,
     name: user.username,
     'metadata[user_id]': user.id,
@@ -75,31 +95,40 @@ async function getOrCreateCustomer(db, user, secretKey) {
   return customer.id;
 }
 
-export async function onRequestPost(context) {
+export async function onRequestPost(context, deps = defaultDeps) {
   const { request, env } = context;
+  const {
+    getUserFromRequest: getUser,
+    jsonResponse: toJson,
+    readJsonBody: readBody,
+    sanitizeRedirectUrl: sanitizeUrl,
+    stripeRequest: callStripe,
+    fetchLatestStripeSubscription: fetchStripeSubscription,
+    mapStripeStatus: mapStatus,
+    extractTierFromSubscription: extractTier,
+    getTierConfig: getConfig,
+    isActiveStatus: isActive
+  } = deps;
 
   try {
     // Validate required environment variables
     if (!env.STRIPE_SECRET_KEY) {
       console.error('STRIPE_SECRET_KEY not configured');
-      return new Response(
-        JSON.stringify({ error: 'Payment system not configured' }),
-        { status: 500, headers: { 'Content-Type': 'application/json' } }
-      );
+      return toJson({ error: 'Payment system not configured' }, { status: 500 });
     }
 
     // Authenticate user
-    const user = await getUserFromRequest(request, env);
+    const user = await getUser(request, env);
     if (!user) {
-      return jsonResponse({ error: 'Authentication required' }, { status: 401 });
+      return toJson({ error: 'Authentication required' }, { status: 401 });
     }
 
     if (user.auth_provider === 'api_key') {
-      return jsonResponse({ error: 'Session authentication required' }, { status: 401 });
+      return toJson({ error: 'Session authentication required' }, { status: 401 });
     }
 
     // Parse request body
-    const body = await readJsonBody(request).catch(() => ({}));
+    const body = await readBody(request).catch(() => ({}));
     const tier = body?.tier;
     const interval = body?.interval || 'monthly';
     const successUrl = body?.successUrl;
@@ -108,18 +137,55 @@ export async function onRequestPost(context) {
     // Validate tier
     const validTiers = ['plus', 'pro'];
     if (!tier || !validTiers.includes(tier)) {
-      return new Response(
-        JSON.stringify({ error: 'Invalid subscription tier' }),
-        { status: 400, headers: { 'Content-Type': 'application/json' } }
-      );
+      return toJson({ error: 'Invalid subscription tier' }, { status: 400 });
     }
 
     // Validate interval
     const validIntervals = ['monthly', 'annual'];
     if (!validIntervals.includes(interval)) {
-      return new Response(
-        JSON.stringify({ error: 'Invalid billing interval' }),
-        { status: 400, headers: { 'Content-Type': 'application/json' } }
+      return toJson({ error: 'Invalid billing interval' }, { status: 400 });
+    }
+
+    // Determine URLs
+    const finalSuccessUrl = sanitizeUrl(
+      successUrl,
+      request,
+      env,
+      '/account?session_id={CHECKOUT_SESSION_ID}&upgrade=success'
+    );
+    const finalCancelUrl = sanitizeUrl(cancelUrl, request, env, '/pricing');
+
+    // Prevent duplicate subscriptions by routing active Stripe customers to the billing portal
+    if (user.stripe_customer_id) {
+      const subscription = await fetchStripeSubscription(user.stripe_customer_id, env.STRIPE_SECRET_KEY);
+      if (subscription) {
+        const status = mapStatus(subscription.status);
+        if (isActive(status)) {
+          const portalReturnUrl = sanitizeUrl(cancelUrl, request, env, '/account');
+          const portalSession = await callStripe(
+            '/billing_portal/sessions',
+            'POST',
+            {
+              customer: user.stripe_customer_id,
+              return_url: portalReturnUrl
+            },
+            env.STRIPE_SECRET_KEY
+          );
+          return toJson(
+            {
+              url: portalSession.url,
+              flow: 'portal',
+              status,
+              tier: extractTier(subscription) || user.subscription_tier || null
+            },
+            { status: 200 }
+          );
+        }
+      }
+    } else if (user.subscription_provider === 'stripe' && isActive(user.subscription_status)) {
+      return toJson(
+        { error: 'Billing profile missing for active subscription', code: 'NO_STRIPE_CUSTOMER' },
+        { status: 409 }
       );
     }
 
@@ -131,26 +197,17 @@ export async function onRequestPost(context) {
 
     if (!priceId) {
       console.error(`${priceIdEnvKey} not configured`);
-      return new Response(
-        JSON.stringify({ error: 'Subscription tier not configured' }),
-        { status: 500, headers: { 'Content-Type': 'application/json' } }
-      );
+      return toJson({ error: 'Subscription tier not configured' }, { status: 500 });
     }
 
-    // Get or create Stripe customer
-    const customerId = await getOrCreateCustomer(env.DB, user, env.STRIPE_SECRET_KEY);
+    const tierConfig = getConfig(tier);
+    const trialDays = Number.isFinite(tierConfig?.trialDays) ? tierConfig.trialDays : 0;
 
-    // Determine URLs
-    const finalSuccessUrl = sanitizeRedirectUrl(
-      successUrl,
-      request,
-      env,
-      '/account?session_id={CHECKOUT_SESSION_ID}&upgrade=success'
-    );
-    const finalCancelUrl = sanitizeRedirectUrl(cancelUrl, request, env, '/pricing');
+    // Get or create Stripe customer
+    const customerId = await getOrCreateCustomer(env.DB, user, env.STRIPE_SECRET_KEY, callStripe);
 
     // Create Checkout Session
-    const session = await stripeRequest('/checkout/sessions', 'POST', {
+    const sessionPayload = {
       'customer': customerId,
       'mode': 'subscription',
       'payment_method_types[0]': 'card',
@@ -164,13 +221,19 @@ export async function onRequestPost(context) {
       'allow_promotion_codes': 'true',
       // Collect billing address for tax purposes
       'billing_address_collection': 'auto',
-    }, env.STRIPE_SECRET_KEY);
+    };
 
-    return jsonResponse({ sessionId: session.id, url: session.url }, { status: 200 });
+    if (trialDays > 0) {
+      sessionPayload['subscription_data[trial_period_days]'] = String(trialDays);
+    }
+
+    const session = await callStripe('/checkout/sessions', 'POST', sessionPayload, env.STRIPE_SECRET_KEY);
+
+    return toJson({ sessionId: session.id, url: session.url }, { status: 200 });
 
   } catch (error) {
     console.error('Create checkout session error:', error);
-    return jsonResponse(
+    return toJson(
       { error: error.message || 'Failed to create checkout session' },
       { status: 500 }
     );

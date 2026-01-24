@@ -41,11 +41,30 @@ function formatPerMonth(value) {
   return `${value}/mo`;
 }
 
-// Annual pricing (2 months free = ~17% discount)
-const ANNUAL_PRICES = {
-  plus: { annual: 79.99, monthly: 7.99, savings: 15.89 },
-  pro: { annual: 199.99, monthly: 19.99, savings: 39.89 }
-};
+function formatCurrency(value) {
+  if (!Number.isFinite(value)) return '';
+  return value.toFixed(2);
+}
+
+function getAnnualPricing(config) {
+  const annual = Number.isFinite(config?.annual) ? config.annual : null;
+  const monthly = Number.isFinite(config?.price) ? config.price : null;
+
+  if (!annual || !monthly) return null;
+
+  const annualTotal = Number(annual);
+  const monthlyPrice = Number(monthly);
+  const monthlyEquivalent = Number((annualTotal / 12).toFixed(2));
+  const savings = Number((monthlyPrice * 12 - annualTotal).toFixed(2));
+  const discountPercent = Math.round((1 - annualTotal / (monthlyPrice * 12)) * 100);
+
+  return {
+    annualTotal,
+    monthlyEquivalent,
+    savings,
+    discountPercent
+  };
+}
 
 function TierCard({ tierKey, config, isCurrent, onSelect, isLoading, disabled, billingInterval = 'monthly' }) {
   const prefersReducedMotion = useReducedMotion();
@@ -55,10 +74,12 @@ function TierCard({ tierKey, config, isCurrent, onSelect, isLoading, disabled, b
   const trialDays = Number.isFinite(config.trialDays) ? config.trialDays : 0;
 
   // Get pricing based on interval
-  const annualData = ANNUAL_PRICES[tierKey];
-  const displayPrice = isPaid && isAnnual ? annualData?.annual : config.price;
-  const monthlyEquivalent = isPaid && isAnnual ? (annualData?.annual / 12).toFixed(2) : config.price;
-  const savings = isPaid && isAnnual ? annualData?.savings : 0;
+  const annualPricing = isPaid ? getAnnualPricing(config) : null;
+  const displayPrice = isPaid && isAnnual ? annualPricing?.annualTotal : config.price;
+  const monthlyEquivalent = isPaid && isAnnual
+    ? formatCurrency(annualPricing?.monthlyEquivalent)
+    : formatCurrency(config.price);
+  const savings = isPaid && isAnnual ? annualPricing?.savings : 0;
 
   const primaryBillingLine = trialDays > 0 ? `Free ${trialDays}-day trial` : 'Billed today';
   const billingPeriod = isAnnual ? 'annually' : 'monthly';
@@ -510,7 +531,12 @@ function FAQItem({ item, index }) {
 export default function PricingPage() {
   const navigate = useNavigate();
   const { isAuthenticated } = useAuth();
-  const { tier: currentTier, loading: subscriptionLoading } = useSubscription();
+  const {
+    tier: accountTier,
+    effectiveTier,
+    isActive: isSubscriptionActive,
+    loading: subscriptionLoading
+  } = useSubscription();
   const prefersReducedMotion = useReducedMotion();
   const { publish } = useToast();
 
@@ -524,6 +550,13 @@ export default function PricingPage() {
   const [billingInterval, setBillingInterval] = useState('monthly');
 
   const tiers = ['free', 'plus', 'pro'];
+  const plusAnnualPricing = getAnnualPricing(SUBSCRIPTION_TIERS.plus);
+  const plusMonthlyPrice = formatCurrency(SUBSCRIPTION_TIERS.plus?.price);
+  const plusAnnualMonthly = plusAnnualPricing ? formatCurrency(plusAnnualPricing.monthlyEquivalent) : null;
+  const plusAnnualTotal = plusAnnualPricing ? formatCurrency(plusAnnualPricing.annualTotal) : null;
+  const annualDiscountLabel = plusAnnualPricing?.discountPercent
+    ? `Save ${plusAnnualPricing.discountPercent}%`
+    : 'Annual';
 
   const handleSelectTier = useCallback(
     async (tier) => {
@@ -543,7 +576,7 @@ export default function PricingPage() {
       }
 
       // Already on this tier
-      if (tier === currentTier) {
+      if (isSubscriptionActive && tier === accountTier) {
         return;
       }
 
@@ -582,7 +615,7 @@ export default function PricingPage() {
         setLoadingTier(null);
       }
     },
-    [isAuthenticated, currentTier, navigate, billingInterval]
+    [isAuthenticated, accountTier, isSubscriptionActive, navigate, billingInterval]
   );
 
   const handleRestorePurchases = useCallback(async () => {
@@ -633,7 +666,7 @@ export default function PricingPage() {
   }, [pendingTier, pendingRestore, isAuthenticated, handleSelectTier, handleRestorePurchases]);
 
   // Only show sticky CTA for confirmed free-tier users (not during loading)
-  const showMobileSticky = !subscriptionLoading && currentTier === 'free';
+  const showMobileSticky = !subscriptionLoading && effectiveTier === 'free';
 
   return (
     <div className="min-h-screen bg-main text-main">
@@ -745,7 +778,9 @@ export default function PricingPage() {
                 </p>
                 <p className="mt-1 text-sm text-secondary">
                   From <span className="font-semibold text-main">
-                    {billingInterval === 'annual' ? '$6.67/month' : '$7.99/month'}
+                    {billingInterval === 'annual' && plusAnnualMonthly
+                      ? `$${plusAnnualMonthly}/month`
+                      : `$${plusMonthlyPrice}/month`}
                   </span>
                   {billingInterval === 'annual' && (
                     <span className="ml-2 text-xs text-accent">billed annually</span>
@@ -761,13 +796,13 @@ export default function PricingPage() {
             <div className="space-y-3 text-sm">
               {['plus', 'pro'].map((tier) => {
                 const config = SUBSCRIPTION_TIERS[tier];
-                const annualData = ANNUAL_PRICES[tier];
-                const isCurrent = currentTier === tier;
-                const displayPrice = billingInterval === 'annual'
-                  ? `$${annualData.annual}/yr`
-                  : `$${config.price}/mo`;
-                const monthlyEquiv = billingInterval === 'annual'
-                  ? `$${(annualData.annual / 12).toFixed(2)}/mo`
+                const annualPricing = getAnnualPricing(config);
+                const isCurrent = effectiveTier === tier;
+                const displayPrice = billingInterval === 'annual' && annualPricing
+                  ? `$${formatCurrency(annualPricing.annualTotal)}/yr`
+                  : `$${formatCurrency(config.price)}/mo`;
+                const monthlyEquiv = billingInterval === 'annual' && annualPricing
+                  ? `$${formatCurrency(annualPricing.monthlyEquivalent)}/mo`
                   : null;
                 return (
                   <div
@@ -783,7 +818,7 @@ export default function PricingPage() {
                       </p>
                       {monthlyEquiv && (
                         <p className="text-[11px] text-accent">
-                          {monthlyEquiv} · Save ${annualData.savings}
+                          {monthlyEquiv} · Save ${annualPricing.savings}
                         </p>
                       )}
                       <p className="text-[11px] text-muted">
@@ -813,8 +848,8 @@ export default function PricingPage() {
         </section>
 
         {error && (
-          <div className="mx-auto mb-8 max-w-md rounded-2xl border border-red-500/40 bg-red-500/10 px-4 py-3 text-center">
-            <p className="text-sm text-red-300">{error}</p>
+          <div className="mx-auto mb-8 max-w-md rounded-2xl border border-error/40 bg-error/10 px-4 py-3 text-center">
+            <p className="text-sm text-error">{error}</p>
           </div>
         )}
 
@@ -833,7 +868,7 @@ export default function PricingPage() {
                 className={[
                   'rounded-full px-4 py-1.5 text-sm font-medium transition',
                   billingInterval === 'monthly'
-                    ? 'bg-accent text-white'
+                    ? 'bg-accent text-surface'
                     : 'text-secondary hover:text-main'
                 ].join(' ')}
               >
@@ -845,22 +880,24 @@ export default function PricingPage() {
                 className={[
                   'inline-flex items-center gap-1.5 rounded-full px-4 py-1.5 text-sm font-medium transition',
                   billingInterval === 'annual'
-                    ? 'bg-accent text-white'
+                    ? 'bg-accent text-surface'
                     : 'text-secondary hover:text-main'
                 ].join(' ')}
               >
                 <CalendarBlank className="h-4 w-4" />
                 Annual
-                <span className="rounded-full bg-green-500/20 px-2 py-0.5 text-[10px] font-semibold text-green-400">
-                  Save 17%
-                </span>
+                {plusAnnualPricing && (
+                  <span className="rounded-full bg-success/20 px-2 py-0.5 text-[10px] font-semibold text-success">
+                    {annualDiscountLabel}
+                  </span>
+                )}
               </button>
             </div>
           </div>
           <div className="grid gap-6 md:grid-cols-3">
             {tiers.map((tier) => {
               const config = SUBSCRIPTION_TIERS[tier];
-              const isCurrent = currentTier === tier;
+              const isCurrent = effectiveTier === tier;
               return (
                 <TierCard
                   key={tier}
@@ -992,9 +1029,9 @@ export default function PricingPage() {
             <div className="text-xs text-muted">
               <p className="font-semibold text-main">Upgrade to Plus</p>
               <p>
-                {billingInterval === 'annual'
-                  ? '$79.99/year ($6.67/mo) · cancel anytime'
-                  : '$7.99/month · cancel anytime'}
+                {billingInterval === 'annual' && plusAnnualTotal && plusAnnualMonthly
+                  ? `$${plusAnnualTotal}/year ($${plusAnnualMonthly}/mo) · cancel anytime`
+                  : `$${plusMonthlyPrice}/month · cancel anytime`}
               </p>
             </div>
             <button

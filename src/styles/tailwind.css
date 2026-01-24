@@ -1,5 +1,5 @@
 /*
- * Pull Tableau theme + app styles into the generated bundle.
+ * Pull Tableu theme + app styles into the generated bundle.
  * Import order: theme tokens → app styles → Tailwind layers.
  * PostCSS requires @import rules before other statements.
  */
@@ -19,7 +19,7 @@
 
 /* Modern Mystic theme overrides */
 body {
-  @apply bg-main text-main antialiased;
+  @apply bg-main text-main antialiased font-sans;
 }
 
 /* Shared surface styling for cards / panels */

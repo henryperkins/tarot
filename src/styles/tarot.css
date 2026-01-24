@@ -1,8 +1,8 @@
 /* ==========================================================================
-   TAROT.CSS - Tableau Application Styles
+   TAROT.CSS - Tableu Application Styles
    ==========================================================================
 
-   This file contains all custom styles for the Tableau application,
+   This file contains all custom styles for the Tableu application,
    organized into logical sections. Uses CSS custom properties for theming
    and responsive breakpoints optimized for modern iPhones (15-17 series).
 
@@ -65,7 +65,7 @@
    -----------------------------------------------
    Light ambient colors: --light-ambient-{top,mid,base}
    Suit accent helpers:  --{wands,cups,swords,pentacles}-accent{-soft}
-   Color-mix fallbacks:  --accent-{25,45,55,65}, --primary-{20,30,60}
+   Color-mix fallbacks:  --accent-{25,45,55,65}, --primary-{05,15,20,30,60}
                          --surface-{88,92}, --main-45
 
    NOTE: Panel/glow/border/drawer tokens live in src/styles/theme.css to avoid
@@ -513,7 +513,7 @@ body {
   margin-top: 0.5rem;
 }
 
-/* Tableau logo styling */
+/* Tableu logo styling */
 .tableu-logo {
   display: block;
   color: var(--brand-primary);

@@ -113,16 +113,90 @@ async function verifyStripeSignature(payload, signature, secret) {
 }
 
 /**
+ * Resolve a user by Stripe customer ID or subscription metadata.
+ * Links stripe_customer_id when missing and metadata is present.
+ * @returns {{ user: object | null, source?: string, reason?: string }}
+ */
+async function resolveUserFromSubscription(db, customerId, subscription, requestId) {
+  const userByCustomer = await db
+    .prepare('SELECT id, stripe_customer_id, subscription_tier FROM users WHERE stripe_customer_id = ?')
+    .bind(customerId)
+    .first();
+
+  if (userByCustomer) {
+    return { user: userByCustomer, source: 'stripe_customer_id' };
+  }
+
+  const metadataUserId = subscription?.metadata?.user_id;
+  const fallbackUserId = typeof metadataUserId === 'string'
+    ? metadataUserId.trim()
+    : (metadataUserId ? String(metadataUserId) : '');
+
+  if (!fallbackUserId) {
+    console.error(`[${requestId}] [stripe] No user found with stripe_customer_id: ${customerId}. Missing subscription metadata user_id. Subscription ID: ${subscription.id}`);
+    return { user: null, reason: 'missing_metadata_user_id' };
+  }
+
+  const fallbackUser = await db
+    .prepare('SELECT id, stripe_customer_id, subscription_tier FROM users WHERE id = ?')
+    .bind(fallbackUserId)
+    .first();
+
+  if (!fallbackUser) {
+    console.error(`[${requestId}] [stripe] No user found for subscription metadata user_id: ${fallbackUserId}. Customer: ${customerId}. Subscription ID: ${subscription.id}`);
+    return { user: null, reason: 'missing_user' };
+  }
+
+  if (fallbackUser.stripe_customer_id && fallbackUser.stripe_customer_id !== customerId) {
+    console.error(`[${requestId}] [stripe] Stripe customer mismatch for user ${fallbackUser.id}: existing ${fallbackUser.stripe_customer_id}, event ${customerId}. Subscription ID: ${subscription.id}`);
+    return { user: null, reason: 'customer_mismatch' };
+  }
+
+  if (!fallbackUser.stripe_customer_id) {
+    const linkResult = await db
+      .prepare('UPDATE users SET stripe_customer_id = ? WHERE id = ? AND stripe_customer_id IS NULL')
+      .bind(customerId, fallbackUser.id)
+      .run();
+
+    if (linkResult.meta.changes === 0) {
+      const refreshed = await db
+        .prepare('SELECT stripe_customer_id FROM users WHERE id = ?')
+        .bind(fallbackUser.id)
+        .first();
+
+      if (!refreshed?.stripe_customer_id) {
+        console.error(`[${requestId}] [stripe] Failed to link Stripe customer ${customerId} to user ${fallbackUser.id}. Subscription ID: ${subscription.id}`);
+        return { user: null, reason: 'link_failed' };
+      }
+
+      if (refreshed.stripe_customer_id !== customerId) {
+        console.error(`[${requestId}] [stripe] Stripe customer mismatch for user ${fallbackUser.id}: existing ${refreshed.stripe_customer_id}, event ${customerId}. Subscription ID: ${subscription.id}`);
+        return { user: null, reason: 'customer_mismatch' };
+      }
+    }
+  }
+
+  console.log(`[${requestId}] [stripe] Linked Stripe customer ${customerId} to user ${fallbackUser.id} via subscription metadata`);
+  return { user: { ...fallbackUser, stripe_customer_id: customerId }, source: 'subscription_metadata' };
+}
+
+/**
  * Update user subscription in database
- * @returns {{ success: boolean, userNotFound?: boolean }} Result with reason
+ * @returns {{ success: boolean, userNotFound?: boolean, reason?: string }} Result with reason
  */
 async function updateUserSubscription(db, customerId, subscription, requestId) {
   const tier = extractTierFromSubscription(subscription);
   if (!tier) {
     console.warn(`[${requestId}] [stripe] Could not determine tier from subscription - check Stripe price configuration. Subscription ID: ${subscription.id}`);
   }
-  const resolvedTier = tier || 'plus'; // Default to plus if undetermined
   const status = mapStripeStatus(subscription.status);
+
+  const resolved = await resolveUserFromSubscription(db, customerId, subscription, requestId);
+  if (!resolved.user) {
+    return { success: false, userNotFound: true, reason: resolved.reason };
+  }
+
+  const resolvedTier = tier || resolved.user.subscription_tier || 'free';
 
   console.log(`[${requestId}] [stripe] Updating subscription for customer ${customerId}: tier=${resolvedTier}, status=${status}`);
 
@@ -132,16 +206,14 @@ async function updateUserSubscription(db, customerId, subscription, requestId) {
       SET subscription_tier = ?,
           subscription_status = ?,
           subscription_provider = 'stripe'
-      WHERE stripe_customer_id = ?
+      WHERE id = ?
     `)
-    .bind(resolvedTier, status, customerId)
+    .bind(resolvedTier, status, resolved.user.id)
     .run();
 
   if (result.meta.changes === 0) {
-    // This could indicate: test vs prod account mismatch, deleted user, or data inconsistency
-    console.error(`[${requestId}] [stripe] No user found with stripe_customer_id: ${customerId}. ` +
-      `This may indicate test/prod account mismatch or data inconsistency. Subscription ID: ${subscription.id}`);
-    return { success: false, userNotFound: true };
+    console.error(`[${requestId}] [stripe] Failed to update subscription for customer ${customerId}. Subscription ID: ${subscription.id}`);
+    return { success: false, userNotFound: true, reason: 'update_failed' };
   }
 
   return { success: true };
@@ -150,20 +222,26 @@ async function updateUserSubscription(db, customerId, subscription, requestId) {
 /**
  * Handle subscription cancellation
  */
-async function handleSubscriptionCanceled(db, customerId, requestId) {
+async function handleSubscriptionCanceled(db, customerId, subscription, requestId) {
   console.log(`[${requestId}] [stripe] Canceling subscription for customer ${customerId}`);
+
+  const resolved = await resolveUserFromSubscription(db, customerId, subscription, requestId);
+  if (!resolved.user) {
+    return { success: false, userNotFound: true, reason: resolved.reason };
+  }
 
   const result = await db
     .prepare(`
       UPDATE users
       SET subscription_tier = 'free',
-          subscription_status = 'canceled'
-      WHERE stripe_customer_id = ?
+          subscription_status = 'canceled',
+          subscription_provider = 'stripe'
+      WHERE id = ?
     `)
-    .bind(customerId)
+    .bind(resolved.user.id)
     .run();
 
-  return result.meta.changes > 0;
+  return result.meta.changes > 0 ? { success: true } : { success: false, reason: 'update_failed' };
 }
 
 /**
@@ -330,14 +408,20 @@ export async function onRequestPost(context) {
       case 'customer.subscription.updated': {
         const subscription = event.data.object;
         const customerId = subscription.customer;
-        await updateUserSubscription(env.DB, customerId, subscription, requestId);
+        const updateResult = await updateUserSubscription(env.DB, customerId, subscription, requestId);
+        if (!updateResult.success) {
+          throw new Error(`Subscription update failed: ${updateResult.reason || 'unknown'}`);
+        }
         break;
       }
 
       case 'customer.subscription.deleted': {
         const subscription = event.data.object;
         const customerId = subscription.customer;
-        await handleSubscriptionCanceled(env.DB, customerId, requestId);
+        const cancelResult = await handleSubscriptionCanceled(env.DB, customerId, subscription, requestId);
+        if (!cancelResult.success) {
+          throw new Error(`Subscription cancellation failed: ${cancelResult.reason || 'unknown'}`);
+        }
         break;
       }
 

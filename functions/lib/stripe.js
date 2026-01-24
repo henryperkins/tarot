@@ -5,6 +5,30 @@
  * We use the Stripe REST API directly for compatibility.
  */
 
+import { SUBSCRIPTION_TIERS } from '../../shared/monetization/subscription.js';
+
+const DEFAULT_PRICE_THRESHOLDS = {
+  monthly: { plus: 500, pro: 1500 },
+  annual: { plus: 5000, pro: 15000 }
+};
+
+function toCents(value, fallback) {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) return fallback;
+  return Math.round(numeric * 100);
+}
+
+const PRICE_THRESHOLDS = {
+  monthly: {
+    plus: toCents(SUBSCRIPTION_TIERS?.plus?.price, DEFAULT_PRICE_THRESHOLDS.monthly.plus),
+    pro: toCents(SUBSCRIPTION_TIERS?.pro?.price, DEFAULT_PRICE_THRESHOLDS.monthly.pro)
+  },
+  annual: {
+    plus: toCents(SUBSCRIPTION_TIERS?.plus?.annual, DEFAULT_PRICE_THRESHOLDS.annual.plus),
+    pro: toCents(SUBSCRIPTION_TIERS?.pro?.annual, DEFAULT_PRICE_THRESHOLDS.annual.pro)
+  }
+};
+
 export const STRIPE_API_BASE = 'https://api.stripe.com/v1';
 
 /**
@@ -58,22 +82,34 @@ export function mapStripeStatus(stripeStatus) {
 }
 
 /**
+ * Select the most relevant subscription from a list.
+ * Prefers active/trialing/past_due subscriptions, otherwise falls back to latest.
+ *
+ * @param {Array<object>} subscriptions
+ * @returns {object|null}
+ */
+export function selectStripeSubscription(subscriptions) {
+  if (!Array.isArray(subscriptions) || subscriptions.length === 0) return null;
+
+  const active = subscriptions.find(sub =>
+    sub && ['active', 'trialing', 'past_due'].includes(sub.status)
+  );
+
+  return active || subscriptions[0] || null;
+}
+
+/**
  * Extract tier from Stripe subscription object.
  * Checks multiple sources in order of preference:
- * 1. subscription.metadata.tier
- * 2. price.lookup_key (containing 'pro' or 'plus', handles monthly/annual)
- * 3. price.metadata.tier
- * 4. price.unit_amount (handles both monthly and annual pricing)
+ * 1. price.lookup_key (containing 'pro' or 'plus', handles monthly/annual)
+ * 2. price.metadata.tier
+ * 3. price.unit_amount (handles both monthly and annual pricing, uses config thresholds)
+ * 4. subscription.metadata.tier (legacy fallback, may be stale after portal changes)
  *
  * @param {object} subscription - Stripe subscription object
  * @returns {string|null} Tier ('pro', 'plus') or null if undetermined
  */
 export function extractTierFromSubscription(subscription) {
-  // Check subscription metadata first
-  if (subscription?.metadata?.tier) {
-    return subscription.metadata.tier;
-  }
-
   // Check price lookup_key (handles: plus_monthly, plus_annual, pro_monthly, pro_annual)
   const item = subscription?.items?.data?.[0];
   const lookupKey = item?.price?.lookup_key;
@@ -92,21 +128,27 @@ export function extractTierFromSubscription(subscription) {
   const interval = item?.price?.recurring?.interval;
   if (amount) {
     if (interval === 'year') {
-      // Annual: $199.99 = 19999 cents -> pro, $79.99 = 7999 cents -> plus
-      if (amount >= 15000) return 'pro';
-      if (amount >= 5000) return 'plus';
+      // Annual: fall back to configured thresholds
+      if (amount >= PRICE_THRESHOLDS.annual.pro) return 'pro';
+      if (amount >= PRICE_THRESHOLDS.annual.plus) return 'plus';
     } else {
-      // Monthly: $19.99 = 1999 cents -> pro, $7.99 = 799 cents -> plus
-      if (amount >= 1500) return 'pro';
-      if (amount >= 500) return 'plus';
+      // Monthly: fall back to configured thresholds
+      if (amount >= PRICE_THRESHOLDS.monthly.pro) return 'pro';
+      if (amount >= PRICE_THRESHOLDS.monthly.plus) return 'plus';
     }
+  }
+
+  // Legacy fallback: subscription metadata (may be stale after portal changes)
+  if (subscription?.metadata?.tier) {
+    return subscription.metadata.tier;
   }
 
   return null;
 }
 
 /**
- * Fetch the latest subscription for a Stripe customer.
+ * Fetch the most relevant subscription for a Stripe customer.
+ * Prefers active subscriptions, otherwise returns the most recent.
  *
  * @param {string} customerId - Stripe customer ID
  * @param {string} secretKey - Stripe secret key
@@ -115,10 +157,10 @@ export function extractTierFromSubscription(subscription) {
 export async function fetchLatestStripeSubscription(customerId, secretKey) {
   if (!customerId || !secretKey) return null;
   const response = await stripeRequest(
-    `/subscriptions?customer=${customerId}&status=all&limit=1`,
+    `/subscriptions?customer=${customerId}&status=all&limit=10`,
     'GET',
     null,
     secretKey
   );
-  return response?.data?.[0] || null;
+  return selectStripeSubscription(response?.data || []);
 }

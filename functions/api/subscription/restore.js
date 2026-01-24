@@ -41,7 +41,11 @@ export async function onRequestPost(context) {
       return jsonResponse({ error: 'No subscription found to restore' }, { status: 404 });
     }
 
-    const tier = extractTierFromSubscription(subscription) || 'plus'; // Default to plus if undetermined
+    const tierFromStripe = extractTierFromSubscription(subscription);
+    if (!tierFromStripe) {
+      console.warn(`[${requestId}] [subscription] Could not determine tier from Stripe subscription ${subscription.id}, preserving current tier.`);
+    }
+    const tier = tierFromStripe || user.subscription_tier || 'free';
     const status = mapStripeStatus(subscription.status);
     const now = Math.floor(Date.now() / 1000);
 
