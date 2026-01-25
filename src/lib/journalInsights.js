@@ -472,13 +472,18 @@ export function buildSourceDetailFromSignals(signals) {
 }
 
 function stripMarkdownInline(text) {
-  return String(text || '')
+  let result = String(text || '')
     .replace(/!\[([^\]]*)\]\([^)]+\)/g, '$1')
     .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
     .replace(/`{1,3}([^`]+)`{1,3}/g, '$1')
-    .replace(/[*_]{1,3}/g, '')
-    .replace(/<[^>]+>/g, '')
-    .trim();
+    .replace(/[*_]{1,3}/g, '');
+  // Loop to fully remove nested/malformed HTML tags
+  let prev;
+  do {
+    prev = result;
+    result = result.replace(/<[^>]*>/g, '');
+  } while (result !== prev);
+  return result.trim();
 }
 
 function normalizeNextStepsPhrase(text) {

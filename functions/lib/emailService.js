@@ -85,13 +85,19 @@ export async function sendEmail(env, options) {
  * Simple HTML to plain text conversion.
  */
 function stripHtml(html) {
-  return html
+  let result = html
     .replace(/<br\s*\/?>/gi, '\n')
     .replace(/<\/p>/gi, '\n\n')
     .replace(/<\/div>/gi, '\n')
     .replace(/<\/li>/gi, '\n')
-    .replace(/<li>/gi, '• ')
-    .replace(/<[^>]+>/g, '')
+    .replace(/<li>/gi, '• ');
+  // Loop to fully remove nested/malformed HTML tags
+  let prev;
+  do {
+    prev = result;
+    result = result.replace(/<[^>]*>/g, '');
+  } while (result !== prev);
+  return result
     .replace(/&nbsp;/g, ' ')
     .replace(/&amp;/g, '&')
     .replace(/&lt;/g, '<')

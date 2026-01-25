@@ -101,11 +101,13 @@ function wrangler(args, options = {}) {
   const capture = !!options.capture;
   const stdio = capture ? ['ignore', 'pipe', 'pipe'] : 'inherit';
 
-  // On Windows, `npx` is a .cmd shim. Execute via cmd.exe to avoid Node
-  // CreateProcess() quirks with .cmd shims (can throw EINVAL on newer Node).
+  // Use absolute path for npx via Node's directory to avoid PATH injection
+  const npxPath = join(dirname(process.execPath), process.platform === 'win32' ? 'npx.cmd' : 'npx');
+  
+  // On Windows, .cmd shims need shell execution
   const result = process.platform === 'win32'
-    ? spawnSync('cmd.exe', ['/d', '/s', '/c', 'npx', ...fullArgs], { ...spawnOptions, stdio })
-    : spawnSync('npx', fullArgs, { ...spawnOptions, stdio });
+    ? spawnSync(process.env.COMSPEC || 'C:\\Windows\\System32\\cmd.exe', ['/d', '/s', '/c', npxPath, ...fullArgs], { ...spawnOptions, stdio })
+    : spawnSync(npxPath, fullArgs, { ...spawnOptions, stdio });
 
   if (result.status === 0) {
     return { success: true, output: capture ? (result.stdout || '') : '' };
@@ -125,8 +127,9 @@ function spawnCommand(command, args, options = {}) {
     ...options
   };
 
+  // Use COMSPEC with fallback to absolute path for Windows
   return process.platform === 'win32'
-    ? spawnSync('cmd.exe', ['/d', '/s', '/c', command, ...args], spawnOptions)
+    ? spawnSync(process.env.COMSPEC || 'C:\\Windows\\System32\\cmd.exe', ['/d', '/s', '/c', command, ...args], spawnOptions)
     : spawnSync(command, args, spawnOptions);
 }
 

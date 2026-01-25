@@ -18,6 +18,9 @@ on:
         default: 'false'
         type: boolean
 
+permissions:
+  contents: read
+
 # Ensure only one deployment runs at a time
 concurrency:
   group: deploy-${{ github.ref }}

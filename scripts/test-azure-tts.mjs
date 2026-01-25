@@ -85,15 +85,20 @@ const checks = [
     value: config_values.endpoint,
     validator: (val) => {
       if (!val) return { valid: false, message: 'Not set' };
-      if (val.includes('cognitiveservices.azure.com')) {
-        return {
-          valid: false,
-          message: 'Using legacy endpoint! Should be *.openai.azure.com',
-          fix: val.replace('cognitiveservices.azure.com', 'openai.azure.com')
-        };
-      }
-      if (!val.includes('openai.azure.com')) {
-        return { valid: false, message: 'Should match pattern: https://*.openai.azure.com' };
+      try {
+        const url = new URL(val);
+        if (url.hostname.endsWith('.cognitiveservices.azure.com')) {
+          return {
+            valid: false,
+            message: 'Using legacy endpoint! Should be *.openai.azure.com',
+            fix: val.replace('cognitiveservices.azure.com', 'openai.azure.com')
+          };
+        }
+        if (!url.hostname.endsWith('.openai.azure.com')) {
+          return { valid: false, message: 'Should match pattern: https://*.openai.azure.com' };
+        }
+      } catch {
+        return { valid: false, message: 'Invalid URL format' };
       }
       if (val.endsWith('/')) {
         return {

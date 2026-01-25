@@ -16,14 +16,19 @@ export function cryptoShuffle(arr) {
   if (typeof window !== 'undefined' && window.crypto?.getRandomValues) {
     const cryptoObj = window.crypto;
     for (let i = copy.length - 1; i > 0; i--) {
-      const r = cryptoObj.getRandomValues(new Uint32Array(1))[0];
-      const j = r % (i + 1);
+      // Use rejection sampling to avoid modulo bias
+      const range = i + 1;
+      const limit = Math.floor(0x100000000 / range) * range;
+      let r;
+      do {
+        r = cryptoObj.getRandomValues(new Uint32Array(1))[0];
+      } while (r >= limit);
+      const j = r % range;
       [copy[i], copy[j]] = [copy[j], copy[i]];
     }
   } else {
     for (let i = copy.length - 1; i > 0; i--) {
-      const r = Math.floor(Math.random() * 2 ** 32);
-      const j = r % (i + 1);
+      const j = Math.floor(Math.random() * (i + 1));
       [copy[i], copy[j]] = [copy[j], copy[i]];
     }
   }

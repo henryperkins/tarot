@@ -522,8 +522,10 @@
           // Fallback: manual text splitting
           const container = document.getElementById('test8-text');
           const text = container.textContent;
+          // Escape HTML to prevent XSS
+          const escapeHtml = (str) => str.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]);
           container.innerHTML = text.split(' ').map(word =>
-            `<span style="display:inline-block;opacity:0">${word}&nbsp;</span>`
+            `<span style="display:inline-block;opacity:0">${escapeHtml(word)}&nbsp;</span>`
           ).join('');
 
           anime({

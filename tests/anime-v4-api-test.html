@@ -701,8 +701,10 @@ anim.seek('50%'); // Seek to percentage</div>
           // Manual fallback
           logs.push('splitText not found, using manual split');
           const text = container.textContent;
+          // Escape HTML to prevent XSS
+          const escapeHtml = (str) => str.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]);
           container.innerHTML = text.split(' ').map(word =>
-            `<span style="display:inline-block;opacity:0;transform:translateY(20px)">${word}&nbsp;</span>`
+            `<span style="display:inline-block;opacity:0;transform:translateY(20px)">${escapeHtml(word)}&nbsp;</span>`
           ).join('');
 
           anime.animate('#test8-text span', {
