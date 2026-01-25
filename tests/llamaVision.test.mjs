@@ -230,7 +230,7 @@ describe('vision-proof backend selection', () => {
     assert.equal(responseRws.status, 201);
     assert.equal(responseThoth.status, 201);
     assert.equal(prompts.length, 2);
-    assert.ok(prompts[0].includes('Classic Pamela Colman Smith watercolor palette'));
+    assert.ok(prompts[0].includes('Classic Pamela Colman Smith watercolors'));
     assert.ok(prompts[1].includes('Abstract, prismatic geometry'));
   });
 });

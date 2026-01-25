@@ -9,6 +9,7 @@
  * This helper validates and enriches narrative sections to maintain
  * flowing, causal storytelling throughout the reading.
  */
+import { MAJOR_ARCANA_NAMES } from '../../src/data/majorArcana.js';
 
 /**
  * Narrative spine structure for validation
@@ -36,32 +37,14 @@ const MIN_SENTENCE_WORDS = 5;
 //   "Position 1:", "Card 2:", "WHAT:", "**WHY:**", "WHAT'S NEXT:"
 const CARD_HEADER_PATTERN = /^(?:\*\*)?[\w\s']{1,40}(?:\*\*)?[:\-–]/;
 const MINOR_ARCANA_PATTERN = /\b(?:ace|two|three|four|five|six|seven|eight|nine|ten|page|knight|queen|king)\s+of\s+(?:wands|cups|swords|pentacles)\b/i;
-const MAJOR_ARCANA_NAMES = [
-  'fool',
-  'magician',
-  'high priestess',
-  'empress',
-  'emperor',
-  'hierophant',
-  'lovers',
-  'chariot',
-  'strength',
-  'hermit',
-  'wheel of fortune',
-  'justice',
-  'hanged man',
-  'death',
-  'temperance',
-  'devil',
-  'tower',
-  'star',
-  'moon',
-  'sun',
-  'judgement',
-  'judgment',
-  'world'
-];
-const MAJOR_ARCANA_PATTERN = new RegExp(`\\b(?:the\\s+)?(?:${MAJOR_ARCANA_NAMES.join('|')})\\b`, 'i');
+const MAJOR_ARCANA_BASE = MAJOR_ARCANA_NAMES.map((name) =>
+  name.toLowerCase().replace(/^the\s+/, '')
+);
+const MAJOR_ARCANA_ALIASES = new Set([...MAJOR_ARCANA_BASE, 'judgment']);
+const MAJOR_ARCANA_PATTERN = new RegExp(
+  `\\b(?:the\\s+)?(?:${Array.from(MAJOR_ARCANA_ALIASES).join('|')})\\b`,
+  'i'
+);
 
 /**
  * Headers that indicate structural sections (not card-specific).

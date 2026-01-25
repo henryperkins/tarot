@@ -8,19 +8,10 @@ import marseillePreview from '../../selectorimages/marseille.jpeg';
 import { useReducedMotion } from '../hooks/useReducedMotion';
 import { useSmallScreen } from '../hooks/useSmallScreen';
 import { MobileInfoSection } from './MobileInfoSection';
+import { DECK_CATALOG, DECK_ORDER } from '../../shared/vision/deckCatalog.js';
 
-export const DECK_OPTIONS = [
-  {
-    id: 'rws-1909',
-    label: 'Rider-Waite-Smith',
-    subtitle: '1909 Edition',
-    description: 'Classic Pamela Colman Smith watercolors with bold ink outlines and theatrical staging.',
-    mobileDescription: 'Classic watercolor art with bold ink.',
-    palette: [
-      { label: 'Sunlit yellows', swatch: '#eac26d', textColor: '#1c1308' },
-      { label: 'Lapis blues', swatch: '#1f3f78', textColor: '#e6ecf7' },
-      { label: 'Crimson accents', swatch: '#8d1c33', textColor: '#f7e7ef' }
-    ],
+const DECK_VISUALS = {
+  'rws-1909': {
     preview: {
       src: rwsPreview,
       alt: 'Rider-Waite-Smith deck featuring The Magician card'
@@ -31,17 +22,7 @@ export const DECK_OPTIONS = [
     glow: 'rgba(229, 196, 142, 0.45)',
     background: 'linear-gradient(150deg, rgba(255, 209, 159, 0.12), var(--panel-dark-1)), radial-gradient(circle at 20% 18%, rgba(255, 225, 180, 0.12), transparent 52%), radial-gradient(circle at 80% -10%, rgba(63, 118, 192, 0.18), transparent 48)'
   },
-  {
-    id: 'thoth-a1',
-    label: 'Thoth',
-    subtitle: 'Crowley/Harris A1',
-    description: 'Abstract, prismatic geometry with layered astrological sigils and Art Deco gradients.',
-    mobileDescription: 'Prismatic geometry with astro sigils.',
-    palette: [
-      { label: 'Electric teal', swatch: '#27cfc0', textColor: '#061412' },
-      { label: 'Magenta', swatch: '#c1248b', textColor: '#fde7f4' },
-      { label: 'Saffron gold', swatch: '#d9a441', textColor: '#120c05' }
-    ],
+  'thoth-a1': {
     preview: {
       src: thothPreview,
       alt: 'Thoth deck featuring The Magus card with Art Deco styling'
@@ -53,17 +34,7 @@ export const DECK_OPTIONS = [
     background: 'linear-gradient(165deg, var(--panel-dark-2), var(--panel-dark-1)), radial-gradient(circle at 12% 18%, rgba(68, 224, 210, 0.22), transparent 48%), radial-gradient(circle at 90% 0%, rgba(193, 36, 139, 0.18), transparent 50)',
     note: 'Uses Thoth card names (e.g., "The Magus", "Adjustment").'
   },
-  {
-    id: 'marseille-classic',
-    label: 'Tarot de Marseille',
-    subtitle: '18th Century Scans',
-    description: 'Woodcut line work with flat primary colors and medieval heraldry.',
-    mobileDescription: 'Historic woodcuts with bold primaries.',
-    palette: [
-      { label: 'Carmine red', swatch: '#a32035', textColor: '#fde6ec' },
-      { label: 'Cobalt blue', swatch: '#21489b', textColor: '#e7efff' },
-      { label: 'Sunflower yellow', swatch: '#d8a300', textColor: '#140d02' }
-    ],
+  'marseille-classic': {
     preview: {
       src: marseillePreview,
       alt: 'Tarot de Marseille deck featuring Le Bateleur card'
@@ -75,7 +46,21 @@ export const DECK_OPTIONS = [
     background: 'linear-gradient(170deg, var(--panel-dark-2), var(--panel-dark-1)), radial-gradient(circle at 12% 22%, rgba(216, 163, 0, 0.16), transparent 46%), radial-gradient(circle at 85% -8%, rgba(47, 86, 178, 0.18), transparent 48)',
     note: 'Uses Marseille numbering with French titles.'
   }
-];
+};
+
+export const DECK_OPTIONS = DECK_ORDER.map((deckId) => {
+  const deck = DECK_CATALOG[deckId];
+  const visuals = DECK_VISUALS[deckId];
+  return {
+    id: deck.id,
+    label: deck.label,
+    subtitle: deck.subtitleDisplay || deck.subtitle,
+    description: deck.description,
+    mobileDescription: deck.mobileDescription,
+    palette: deck.palette?.ui || [],
+    ...visuals
+  };
+});
 
 function DeckPreviewImage({ preview, deckLabel, priority = 'auto' }) {
   if (!preview?.src) {

@@ -5,7 +5,8 @@
       "Bash(npm run lint)",
       "Bash(node -e:*)",
       "Bash(npm test)",
-      "Bash(npx wrangler secret put:*)"
+      "Bash(npx wrangler secret put:*)",
+      "mcp__plugin_serena_serena__read_file"
     ]
   }
 }

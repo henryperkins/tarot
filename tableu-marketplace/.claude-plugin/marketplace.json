@@ -1,0 +1,22 @@
+{
+  "name": "tableu-plugins",
+  "owner": {
+    "name": "Tableu Team"
+  },
+  "metadata": {
+    "description": "Claude Code plugin for Tableu tarot reading app - evaluation system, quality monitoring, and development workflows"
+  },
+  "plugins": [
+    {
+      "name": "tableu",
+      "source": "./plugins/tableu",
+      "description": "Evaluation system and quality monitoring for Tableu tarot reading app",
+      "version": "0.1.0",
+      "author": {
+        "name": "Tableu Team"
+      },
+      "keywords": ["tarot", "evaluation", "quality", "cloudflare", "workers"],
+      "category": "development"
+    }
+  ]
+}

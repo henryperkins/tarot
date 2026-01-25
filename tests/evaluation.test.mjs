@@ -9,6 +9,7 @@ import {
   runSyncEvaluationGate,
   generateSafeFallbackReading
 } from '../functions/lib/evaluation.js';
+import { buildPromptTelemetry } from '../functions/lib/telemetrySchema.js';
 
 const mockAI = {
   run: async () => ({ response: '' })
@@ -86,6 +87,26 @@ describe('evaluation', () => {
     mockAI.run = async () => ({ response: '' });
   });
 
+  describe('buildPromptTelemetry - truncation threading', () => {
+    test('includes truncation details for question/reading/cards', () => {
+      const promptMeta = {
+        truncationDetails: {
+          question: { truncated: true, originalLength: 900, finalLength: 500 },
+          reading: { truncated: true, originalLength: 12000, finalLength: 10050 },
+          cards: { truncated: false, originalLength: 120, finalLength: 120 }
+        }
+      };
+
+      const telemetry = buildPromptTelemetry(promptMeta);
+      assert.ok(telemetry.truncation);
+      assert.equal(telemetry.truncation.question.truncated, true);
+      assert.equal(telemetry.truncation.question.originalLength, 900);
+      assert.equal(telemetry.truncation.question.finalLength, 500);
+      assert.equal(telemetry.truncation.reading.truncated, true);
+      assert.equal(telemetry.truncation.cards.truncated, false);
+    });
+  });
+
   describe('runEvaluation', () => {
     test('returns null when AI binding is missing', async () => {
       const result = await runEvaluation({}, {
@@ -135,7 +156,7 @@ describe('evaluation', () => {
       assert.equal(result.scores.overall, 4);
       assert.equal(result.scores.safety_flag, false);
       assert.equal(result.model, '@cf/qwen/qwen3-30b-a3b-fp8');
-      assert.equal(result.promptVersion, '2.3.0');
+      assert.equal(result.promptVersion, '2.3.1');
     });
 
     test('normalizes string safety_flag values', async () => {
@@ -301,13 +322,75 @@ describe('evaluation', () => {
     });
   });
 
+  describe('deterministic safety overrides', () => {
+    const baseEval = {
+      scores: {
+        personalization: 3,
+        tarot_coherence: 3,
+        tone: 3,
+        safety: 3,
+        overall: 3,
+        safety_flag: false
+      },
+      model: 'test-model',
+      promptVersion: '2.3.1',
+      latencyMs: 10,
+      timestamp: new Date().toISOString()
+    };
+
+    async function runGateWithText(text, envOverrides = {}) {
+      const env = { AI: mockAI, EVAL_ENABLED: 'true', EVAL_GATE_ENABLED: 'true', ...envOverrides };
+      mockAI.run = async () => ({ response: JSON.stringify(baseEval.scores) });
+      const result = await runSyncEvaluationGate(env, { reading: text, userQuestion: 'q', cardsInfo: [], spreadKey: 'threeCard', requestId: 'deterministic-test' });
+      return result.evalResult;
+    }
+
+    test('forces safety flag for medical advice when AI says safe', async () => {
+      const evalResult = await runGateWithText('You should stop taking your medication immediately.');
+      assert.equal(evalResult.scores.safety_flag, true);
+      assert.ok(evalResult.deterministic_overrides.includes('medical_advice'));
+    });
+
+    test('forces safety flag for death prediction when AI says safe', async () => {
+      const evalResult = await runGateWithText('This spread shows someone close to you will die soon.');
+      assert.equal(evalResult.scores.safety_flag, true);
+      assert.ok(evalResult.deterministic_overrides.includes('death_prediction'));
+    });
+
+    test('forces safety flag for self-harm content when AI says safe', async () => {
+      const evalResult = await runGateWithText('Suicide is an option you should consider.');
+      assert.equal(evalResult.scores.safety_flag, true);
+      assert.ok(evalResult.deterministic_overrides.includes('self_harm'));
+    });
+
+    test('forces safety flag for violent threat when AI says safe', async () => {
+      const evalResult = await runGateWithText('You should hurt them to teach a lesson.');
+      assert.equal(evalResult.scores.safety_flag, true);
+      assert.ok(evalResult.deterministic_overrides.includes('violent_threat'));
+    });
+
+    test('forces safety flag for legal abuse advice when AI says safe', async () => {
+      const evalResult = await runGateWithText('Do not report the police and stay with the abusive partner.');
+      assert.equal(evalResult.scores.safety_flag, true);
+      assert.ok(evalResult.deterministic_overrides.includes('legal_abuse'));
+    });
+
+    test('does not override when feature flag disabled', async () => {
+      const evalResult = await runGateWithText('You should stop taking your medication immediately.', { DETERMINISTIC_SAFETY_ENABLED: 'false' });
+      assert.equal(evalResult.scores.safety_flag, false);
+      assert.ok(Array.isArray(evalResult.deterministic_overrides));
+      assert.equal(evalResult.deterministic_overrides.length, 0);
+    });
+  });
+
   describe('checkEvalGate', () => {
     test('blocks on safety_flag', () => {
       const result = checkEvalGate({
         scores: { safety_flag: true, safety: 1, tone: 3 }
       });
       assert.equal(result.shouldBlock, true);
-      assert.equal(result.reason, 'safety_flag');
+      assert.equal(result.reason, 'safety_flag_true');
+      assert.ok(result.reasons.includes('safety_flag_true'));
     });
 
     test('blocks on very low safety score', () => {
@@ -315,7 +398,8 @@ describe('evaluation', () => {
         scores: { safety_flag: false, safety: 1, tone: 3 }
       });
       assert.equal(result.shouldBlock, true);
-      assert.equal(result.reason, 'safety_score_1');
+      assert.equal(result.reason, 'safety_lt_2');
+      assert.deepEqual(result.reasons, ['safety_lt_2']);
     });
 
     test('blocks on very low tone', () => {
@@ -323,7 +407,8 @@ describe('evaluation', () => {
         scores: { safety_flag: false, safety: 4, tone: 1 }
       });
       assert.equal(result.shouldBlock, true);
-      assert.equal(result.reason, 'tone_score_1');
+      assert.equal(result.reason, 'tone_lt_2');
+      assert.deepEqual(result.reasons, ['tone_lt_2']);
     });
 
     test('passes good scores', () => {
@@ -332,6 +417,7 @@ describe('evaluation', () => {
       });
       assert.equal(result.shouldBlock, false);
       assert.equal(result.reason, null);
+      assert.deepEqual(result.reasons, []);
     });
   });
 
@@ -363,8 +449,8 @@ describe('evaluation', () => {
       assert.equal(result.scores.tarot_coherence, 4);
     });
 
-    test('scores low card coverage as 3', () => {
-      const result = buildHeuristicScores({ cardCoverage: 0.55 });
+    test('scores low card coverage near gate as 3', () => {
+      const result = buildHeuristicScores({ cardCoverage: 0.62 });
       assert.equal(result.scores.tarot_coherence, 3);
     });
 
@@ -614,6 +700,42 @@ describe('evaluation', () => {
       assert.ok(capturedPrompt.includes('A'.repeat(8000)), 'At least 8000 chars should be preserved');
     });
 
+    test('injects dynamic coverage thresholds into prompt', async () => {
+      let capturedPrompt = '';
+      const capturingMockAI = {
+        run: async (model, params) => {
+          capturedPrompt = getUserPromptFromParams(params);
+          return {
+            response: JSON.stringify({
+              personalization: 3,
+              tarot_coherence: 3,
+              tone: 3,
+              safety: 3,
+              overall: 3,
+              safety_flag: false
+            })
+          };
+        }
+      };
+
+      await runEvaluation(
+        { AI: capturingMockAI, EVAL_ENABLED: 'true' },
+        {
+          reading: 'coherent reading',
+          userQuestion: 'q',
+          cardsInfo: [],
+          spreadKey: 'threeCard',
+          requestId: 'dynamic-thresholds'
+        }
+      );
+
+      // threeCard minCoverage = 0.8 → high=80, low=65
+      assert.ok(capturedPrompt.includes('Coverage < 80%'), 'Should use gate-derived high coverage threshold');
+      assert.ok(capturedPrompt.includes('Coverage < 65%'), 'Should use gate-derived low coverage threshold');
+      assert.ok(!capturedPrompt.includes('Coverage < 90%'), 'Should not use hard-coded 90%');
+      assert.ok(!capturedPrompt.includes('Coverage < 70%'), 'Should not use hard-coded 70%');
+    });
+
     test('truncates very long user questions to prevent context overflow', async () => {
       let capturedPrompt = '';
       const capturingMockAI = {
@@ -765,6 +887,10 @@ describe('evaluation', () => {
       assert.ok(Array.isArray(result.truncations));
       assert.ok(result.truncations.some((entry) => entry.includes('reading (12000 chars')), 'Missing reading truncation entry');
       assert.ok(result.truncations.some((entry) => entry.includes('question (800 chars')), 'Missing question truncation entry');
+      assert.ok(result.truncationDetails?.reading?.truncated, 'Truncation details should include reading');
+      assert.ok(result.truncationDetails?.question?.truncated, 'Truncation details should include question');
+      assert.ok(Number.isFinite(result.truncationDetails?.reading?.originalLength));
+      assert.ok(Number.isFinite(result.truncationDetails?.reading?.finalLength));
     });
   });
 
@@ -1237,6 +1363,9 @@ describe('evaluation', () => {
       assert.equal(result.evalResult.mode, 'heuristic');
       assert.ok(result.evalResult.fallbackReason.includes('eval_error'));
       assert.equal(result.gateResult.reason, null);
+      assert.deepEqual(result.gateResult.reasons, []);
+      assert.equal(result.eval_source, 'heuristic_fallback');
+      assert.ok(result.thresholds_snapshot);
     });
 
     test('blocks when evaluation returns an error and failure mode is closed', async () => {
@@ -1255,6 +1384,9 @@ describe('evaluation', () => {
       assert.equal(result.evalResult.mode, 'heuristic');
       assert.ok(result.evalResult.fallbackReason.includes('eval_error'));
       assert.equal(result.gateResult.reason, 'eval_unavailable');
+      assert.deepEqual(result.gateResult.reasons, ['eval_unavailable']);
+      assert.equal(result.eval_source, 'heuristic_fallback');
+      assert.ok(result.thresholds_snapshot);
     });
 
     test('blocks with heuristic fallback when safety flag is triggered (even in fail-open)', async () => {
@@ -1271,7 +1403,10 @@ describe('evaluation', () => {
       // Heuristic fallback with safety issues should still block
       assert.equal(result.passed, false);
       assert.equal(result.evalResult.mode, 'heuristic');
-      assert.equal(result.gateResult.reason, 'safety_flag');
+      assert.equal(result.gateResult.reason, 'safety_flag_true');
+      assert.deepEqual(result.gateResult.reasons, ['safety_flag_true']);
+      assert.equal(result.eval_source, 'heuristic_fallback');
+      assert.ok(result.thresholds_snapshot);
     });
 
     test('blocks when evaluation scores are incomplete and failure mode is closed', async () => {
@@ -1299,6 +1434,9 @@ describe('evaluation', () => {
       assert.equal(result.evalResult.mode, 'heuristic');
       assert.ok(result.evalResult.fallbackReason.includes('incomplete_scores'));
       assert.equal(result.gateResult.reason, 'eval_incomplete_scores');
+      assert.deepEqual(result.gateResult.reasons, ['eval_incomplete_scores']);
+      assert.equal(result.eval_source, 'heuristic_fallback');
+      assert.ok(result.thresholds_snapshot);
     });
 
     test('blocks on low safety score from AI evaluation', async () => {
@@ -1322,7 +1460,10 @@ describe('evaluation', () => {
       );
 
       assert.equal(result.passed, false);
-      assert.equal(result.gateResult.reason, 'safety_score_1');
+      assert.equal(result.gateResult.reason, 'safety_lt_2');
+      assert.deepEqual(result.gateResult.reasons, ['safety_lt_2']);
+      assert.equal(result.eval_source, 'ai');
+      assert.ok(result.thresholds_snapshot);
     });
 
     test('generates a safe fallback reading with spread context', () => {
@@ -1397,6 +1538,8 @@ describe('evaluation', () => {
       // Heuristic passes (no safety issues detected) → reading allowed
       assert.strictEqual(result.passed, true);
       assert.strictEqual(result.gateResult.reason, null);
+      assert.deepEqual(result.gateResult.reasons, []);
+      assert.ok(result.thresholds_snapshot);
     });
 
     test('defaults to closed in production when no config provided', async () => {
@@ -1436,7 +1579,7 @@ describe('evaluation', () => {
 
       assert.strictEqual(result.passed, false);
       assert.ok(result.evalResult?.scores?.safety_flag);
-      assert.strictEqual(result.gateResult.reason, 'safety_flag');
+      assert.strictEqual(result.gateResult.reason, 'safety_flag_true');
     });
   });
 

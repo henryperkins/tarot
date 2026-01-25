@@ -10,7 +10,7 @@ describe('getEvaluationTimeoutMs', () => {
 
     it('falls back to default when unset', () => {
         const timeout = getEvaluationTimeoutMs({});
-        assert.equal(timeout, 5000);
+        assert.equal(timeout, 15000);
     });
 });
 
@@ -29,6 +29,34 @@ describe('buildHeuristicScores', () => {
         it('provides default score of 3 for safety', () => {
             const result = buildHeuristicScores({ cardCoverage: 0.8 }, 'general');
             assert.equal(result.scores.safety, 3);
+        });
+
+        it('uses gate-relative coverage tiers (minCoverage 0.8)', () => {
+            const resultHigh = buildHeuristicScores({ cardCoverage: 0.8 }, 'general', { cardCount: 5 });
+            assert.equal(resultHigh.scores.tarot_coherence, 5);
+
+            const resultMid = buildHeuristicScores({ cardCoverage: 0.71 }, 'general', { cardCount: 5 });
+            assert.equal(resultMid.scores.tarot_coherence, 4);
+
+            const resultLow = buildHeuristicScores({ cardCoverage: 0.61 }, 'general', { cardCount: 5 });
+            assert.equal(resultLow.scores.tarot_coherence, 3);
+
+            const resultFloor = buildHeuristicScores({ cardCoverage: 0.4 }, 'general', { cardCount: 5 });
+            assert.equal(resultFloor.scores.tarot_coherence, 2);
+        });
+
+        it('uses gate-relative coverage tiers (minCoverage 0.75 for celtic)', () => {
+            const resultHigh = buildHeuristicScores({ cardCoverage: 0.75 }, 'celtic', { cardCount: 10 });
+            assert.equal(resultHigh.scores.tarot_coherence, 5);
+
+            const resultMid = buildHeuristicScores({ cardCoverage: 0.66 }, 'celtic', { cardCount: 10 });
+            assert.equal(resultMid.scores.tarot_coherence, 4);
+
+            const resultLow = buildHeuristicScores({ cardCoverage: 0.56 }, 'celtic', { cardCount: 10 });
+            assert.equal(resultLow.scores.tarot_coherence, 3);
+
+            const resultFloor = buildHeuristicScores({ cardCoverage: 0.4 }, 'celtic', { cardCount: 10 });
+            assert.equal(resultFloor.scores.tarot_coherence, 2);
         });
 
         it('sets overall based on tarot_coherence', () => {

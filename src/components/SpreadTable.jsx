@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { animate, createLayout, cubicBezier, set, stagger } from 'animejs';
 import { SPREADS } from '../data/spreads';
 import { useReducedMotion } from '../hooks/useReducedMotion';
 import { getCardImage, FALLBACK_IMAGE } from '../lib/cardLookup';
@@ -61,6 +61,12 @@ const CELTIC_CHALLENGE_OFFSET = {
   cardRatio: 0.22
 };
 
+const FLIP_EASE = cubicBezier(0.32, 0.72, 0, 1);
+const FLIP_TILT = 6;
+const CARD_LAYOUT_DURATION = 380;
+const CARD_LAYOUT_EXIT_DURATION = 240;
+const CARD_LAYOUT_STAGGER = 40;
+
 const getMaxCardWidth = (layout, bounds) => {
   const width = bounds.width;
   const height = bounds.height;
@@ -87,6 +93,271 @@ const getMaxCardWidth = (layout, bounds) => {
   return Math.max(0, maxWidth);
 };
 
+function SlotPulseWrapper({ active, prefersReducedMotion, className, style, children, ...props }) {
+  const ref = useRef(null);
+
+  useLayoutEffect(() => {
+    const node = ref.current;
+    if (!node) return undefined;
+
+    if (!active || prefersReducedMotion) {
+      set(node, { scale: 1 });
+      return undefined;
+    }
+
+    const anim = animate(node, {
+      scale: [1, 1.05, 1],
+      duration: 1500,
+      loop: true,
+      ease: 'inOutQuad'
+    });
+
+    return () => anim?.pause?.();
+  }, [active, prefersReducedMotion]);
+
+  return (
+    <div ref={ref} className={className} style={style} {...props}>
+      {children}
+    </div>
+  );
+}
+
+function PulseRing({ active, prefersReducedMotion, className }) {
+  const ref = useRef(null);
+
+  useLayoutEffect(() => {
+    const node = ref.current;
+    if (!node || !active) return undefined;
+
+    if (prefersReducedMotion) {
+      set(node, { opacity: 0.8, scale: 1 });
+      return undefined;
+    }
+
+    const anim = animate(node, {
+      opacity: [0.65, 1, 0.65],
+      scale: [1, 1.08, 1],
+      duration: 1600,
+      loop: true,
+      ease: 'inOutQuad'
+    });
+
+    return () => anim?.pause?.();
+  }, [active, prefersReducedMotion]);
+
+  if (!active) return null;
+
+  return <div ref={ref} className={className} />;
+}
+
+function OneShotRing({
+  active,
+  prefersReducedMotion,
+  className,
+  duration = 1100,
+  opacityKeyframes = [0.8, 0.35, 0],
+  scaleKeyframes = [1, 1.03, 1.05],
+  reducedOpacity = 0.5,
+  ease = 'outQuad'
+}) {
+  const ref = useRef(null);
+
+  useLayoutEffect(() => {
+    const node = ref.current;
+    if (!node || !active) return undefined;
+
+    if (prefersReducedMotion) {
+      set(node, { opacity: reducedOpacity, scale: 1 });
+      return undefined;
+    }
+
+    set(node, { opacity: opacityKeyframes[0], scale: scaleKeyframes[0] });
+    const anim = animate(node, {
+      opacity: opacityKeyframes,
+      scale: scaleKeyframes,
+      duration,
+      ease
+    });
+
+    return () => anim?.pause?.();
+  }, [active, duration, ease, opacityKeyframes, prefersReducedMotion, reducedOpacity, scaleKeyframes]);
+
+  if (!active) return null;
+
+  return <div ref={ref} className={className} />;
+}
+
+function FlashRing({ active, prefersReducedMotion, className }) {
+  const ref = useRef(null);
+
+  useLayoutEffect(() => {
+    const node = ref.current;
+    if (!node || !active) return undefined;
+
+    if (prefersReducedMotion) {
+      set(node, { opacity: 0.9, scale: 1 });
+      return undefined;
+    }
+
+    set(node, { opacity: 0.9, scale: 1 });
+    const anim = animate(node, {
+      opacity: [0.9, 0.5, 0],
+      scale: [1, 1.08, 1.12],
+      duration: 400,
+      ease: 'outQuad'
+    });
+
+    return () => anim?.pause?.();
+  }, [active, prefersReducedMotion]);
+
+  if (!active) return null;
+
+  return <div ref={ref} className={className} />;
+}
+
+function FlipCard({ isRevealed, prefersReducedMotion, forceRevealOnMount = false, className, style, children }) {
+  const ref = useRef(null);
+  const shouldForceRevealRef = useRef(forceRevealOnMount);
+
+  useLayoutEffect(() => {
+    const node = ref.current;
+    if (!node) return undefined;
+    const shouldForceReveal = shouldForceRevealRef.current && isRevealed;
+    const startRevealed = isRevealed && !shouldForceReveal;
+    set(node, {
+      rotateY: startRevealed ? 0 : 180,
+      rotateX: startRevealed ? 0 : FLIP_TILT
+    });
+    shouldForceRevealRef.current = false;
+    return undefined;
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only run on mount
+  }, []);
+
+  useEffect(() => {
+    const node = ref.current;
+    if (!node) return undefined;
+
+    if (prefersReducedMotion) {
+      set(node, { rotateY: isRevealed ? 0 : 180, rotateX: isRevealed ? 0 : FLIP_TILT });
+      return undefined;
+    }
+
+    const anim = animate(node, {
+      rotateY: isRevealed ? 0 : 180,
+      rotateX: isRevealed ? 0 : FLIP_TILT,
+      duration: 420,
+      ease: FLIP_EASE
+    });
+
+    return () => anim?.pause?.();
+  }, [isRevealed, prefersReducedMotion]);
+
+  return (
+    <div ref={ref} className={className} style={style}>
+      {children}
+    </div>
+  );
+}
+
+function AnimatedCardButton({
+  card,
+  isRevealed,
+  prefersReducedMotion,
+  positionScale,
+  positionRotate,
+  className,
+  style,
+  onClick,
+  disabled,
+  ariaDisabled,
+  ariaLabel,
+  children
+}) {
+  const [displayCard, setDisplayCard] = useState(card);
+  const [isHidden, setIsHidden] = useState(!card);
+  const buttonRef = useRef(null);
+  const removeTimerRef = useRef(null);
+  const lastCardRef = useRef(card);
+  const displayCardRef = useRef(card);
+
+  const resolvedCard = card || displayCard;
+  const [shouldForceReveal, setShouldForceReveal] = useState(false);
+
+  useEffect(() => {
+    // Detect when a card appears for the first time and is already revealed
+    if (!lastCardRef.current && card && isRevealed) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- sync state for animation coordination
+      setShouldForceReveal(true);
+    } else {
+      setShouldForceReveal(false);
+    }
+    lastCardRef.current = card;
+  }, [card, isRevealed]);
+
+  useEffect(() => {
+    if (card) {
+      displayCardRef.current = card;
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- sync state for animation coordination
+      setDisplayCard(card);
+      setIsHidden(false);
+      if (removeTimerRef.current) {
+        clearTimeout(removeTimerRef.current);
+        removeTimerRef.current = null;
+      }
+      return;
+    }
+
+    if (displayCardRef.current) {
+      setIsHidden(true);
+      if (removeTimerRef.current) {
+        clearTimeout(removeTimerRef.current);
+      }
+      const exitDuration = prefersReducedMotion ? 0 : CARD_LAYOUT_EXIT_DURATION;
+      removeTimerRef.current = setTimeout(() => {
+        displayCardRef.current = null;
+        setDisplayCard(null);
+        removeTimerRef.current = null;
+      }, exitDuration);
+    } else {
+      setDisplayCard(null);
+      setIsHidden(true);
+    }
+  }, [card, prefersReducedMotion]);
+
+  useEffect(() => () => {
+    if (removeTimerRef.current) {
+      clearTimeout(removeTimerRef.current);
+      removeTimerRef.current = null;
+    }
+  }, []);
+
+  if (!resolvedCard) return null;
+
+  const resolvedChildren = typeof children === 'function'
+    ? children(resolvedCard, shouldForceReveal)
+    : children;
+
+  return (
+    <button
+      ref={buttonRef}
+      data-layout-card
+      onClick={onClick}
+      disabled={disabled}
+      aria-disabled={ariaDisabled}
+      aria-label={ariaLabel}
+      className={className}
+      style={{
+        ...style,
+        display: isHidden ? 'none' : undefined,
+        scale: positionScale || 1,
+        rotate: positionRotate ? `${positionRotate}deg` : undefined
+      }}
+    >
+      {resolvedChildren}
+    </button>
+  );
+}
+
 /**
  * SpreadTable - Visual spread layout showing where cards will land
  * Displays placeholders for undealt positions and mini cards for dealt positions
@@ -110,9 +381,11 @@ export function SpreadTable({
   const baseLayout = SPREAD_LAYOUTS[spreadKey] || SPREAD_LAYOUTS.single;
   const spreadInfo = SPREADS[spreadKey];
   const tableRef = useRef(null);
+  const layoutRef = useRef(null);
   const [tableBounds, setTableBounds] = useState({ width: 0, height: 0 });
   const revealHintDismissedRef = useRef(false);
   const prevRevealedRef = useRef(new Set());
+  const layoutStagger = useMemo(() => stagger(CARD_LAYOUT_STAGGER, { from: 'center' }), []);
 
 
   const baseMaxCardWidth = useMemo(
@@ -165,6 +438,58 @@ export function SpreadTable({
     observer.observe(element);
     return () => observer.disconnect();
   }, []);
+
+  useLayoutEffect(() => {
+    if (prefersReducedMotion) {
+      if (layoutRef.current) {
+        layoutRef.current.revert();
+        layoutRef.current = null;
+      }
+      return undefined;
+    }
+    const node = tableRef.current;
+    if (!node) return undefined;
+    const layout = createLayout(node, {
+      children: '[data-layout-card]',
+      duration: CARD_LAYOUT_DURATION,
+      ease: 'outQuad'
+    });
+    layoutRef.current = layout;
+    return () => {
+      layout.revert();
+      layoutRef.current = null;
+    };
+  }, [prefersReducedMotion]);
+
+  useLayoutEffect(() => {
+    if (prefersReducedMotion) return undefined;
+    const layout = layoutRef.current;
+    if (!layout) return undefined;
+
+    const timeline = layout.animate({
+      duration: CARD_LAYOUT_DURATION,
+      ease: 'outQuad',
+      enterFrom: {
+        opacity: 0,
+        filter: 'blur(8px)',
+        scale: 0.9,
+        delay: (el, index, total) => layoutStagger(el, index, total)
+      },
+      leaveTo: {
+        opacity: 0,
+        filter: 'blur(8px)',
+        scale: 0.9,
+        duration: CARD_LAYOUT_EXIT_DURATION,
+        ease: 'inQuad',
+        delay: 0
+      }
+    });
+
+    return () => {
+      timeline?.pause?.();
+      layout.record();
+    };
+  }, [cards, resolvedLayout, tableBounds.width, tableBounds.height, prefersReducedMotion, layoutStagger]);
 
   const maxCardWidth = useMemo(
     () => getMaxCardWidth(resolvedLayout, tableBounds),
@@ -259,7 +584,6 @@ export function SpreadTable({
         const isRevealDisabled = disableReveal && !isRevealed;
         const positionLabel = getPositionLabel(spreadInfo, i, pos);
         const shortLabel = extractShortLabel(positionLabel, 20) || positionLabel;
-        const cardImage = card ? getCardImage(card) : null;
         const shouldHighlightReturn = recentlyClosedIndex === i;
         const showRevealPill = !disableReveal && !isRevealed && (isNext || (!revealHintDismissedRef.current && i === 0));
         const showGlowHint = !disableReveal && !isRevealed && !showRevealPill;
@@ -277,8 +601,10 @@ export function SpreadTable({
         );
 
         return (
-          <motion.div
+          <SlotPulseWrapper
             key={i}
+            active={isNext}
+            prefersReducedMotion={prefersReducedMotion}
             className="absolute transform -translate-x-1/2 -translate-y-1/2"
             style={{
               left: `${pos.x}%`,
@@ -288,11 +614,8 @@ export function SpreadTable({
             }}
             data-slot-index={i}
             id={`spread-slot-${i}`}
-            initial={false}
-            animate={isNext && !prefersReducedMotion ? { scale: [1, 1.05, 1] } : {}}
-            transition={{ repeat: Infinity, duration: 1.5 }}
           >
-            {!card ? (
+            {!card && (
               // Empty placeholder - min 44px touch target on mobile
               <div
                 className={`
@@ -312,174 +635,163 @@ export function SpreadTable({
                 aria-label={`${positionLabel}: waiting for card`}
               >
                 {numberBadge}
-                {isNext && (
-                  <motion.div
-                    className="absolute inset-[-10%] rounded-xl border-2 border-primary/50 pointer-events-none"
-                    animate={!prefersReducedMotion ? { scale: [1, 1.08, 1], opacity: [0.65, 1, 0.65] } : {}}
-                    transition={{ duration: 1.6, repeat: Infinity, ease: 'easeInOut' }}
-                  />
-                )}
-                {shouldHighlightReturn && (
-                  <motion.div
-                    className="absolute inset-[-12%] rounded-xl border-2 border-secondary/60 pointer-events-none"
-                    animate={!prefersReducedMotion ? { opacity: [0.9, 0.4, 0] } : { opacity: 0.5 }}
-                    transition={{ duration: prefersReducedMotion ? 0.6 : 1.2, repeat: 0 }}
-                  />
-                )}
+                <PulseRing
+                  active={isNext}
+                  prefersReducedMotion={prefersReducedMotion}
+                  className="absolute inset-[-10%] rounded-xl border-2 border-primary/50 pointer-events-none"
+                />
+                <OneShotRing
+                  active={shouldHighlightReturn}
+                  prefersReducedMotion={prefersReducedMotion}
+                  className="absolute inset-[-12%] rounded-xl border-2 border-secondary/60 pointer-events-none"
+                  duration={prefersReducedMotion ? 600 : 1200}
+                  opacityKeyframes={[0.9, 0.4, 0]}
+                  scaleKeyframes={[1, 1, 1]}
+                  reducedOpacity={0.5}
+                />
                 <span className={`${compact ? 'text-[0.55rem] xs:text-[0.6rem]' : 'text-[0.6rem] xs:text-[0.65rem] sm:text-xs'} text-muted text-center px-1 leading-tight`}>
                   {shortLabel}
                 </span>
               </div>
-            ) : (
-              // Card in position (mini representation) - min 44px touch target
-              <AnimatePresence mode="wait">
-                <motion.button
-                  key={card.name}
-                  initial={prefersReducedMotion ? { opacity: 1 } : {
-                    opacity: 0,
-                    filter: 'blur(8px)',
-                    scale: 0.9
-                  }}
-                  animate={{
-                    opacity: 1,
-                    filter: 'blur(0px)',
-                    scale: pos.scale || 1,
-                    rotate: pos.rotate || 0
-                  }}
-                  exit={prefersReducedMotion ? { opacity: 0 } : {
-                    opacity: 0,
-                    filter: 'blur(8px)',
-                    scale: 0.9
-                  }}
-                  transition={prefersReducedMotion ? { duration: 0.1 } : {
-                    duration: 0.4,
-                    ease: [0.4, 0, 0.2, 1]
-                  }}
-                  className={`
-                    ${sizeClass}
-                    relative rounded-lg border-2 cursor-pointer overflow-hidden
-                    transition-all touch-manipulation
-                    focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70 focus-visible:ring-offset-2 focus-visible:ring-offset-main
-                    disabled:opacity-60 disabled:cursor-not-allowed
-                    ${isRevealed
-                      ? 'shadow-lg'
-                      : showRevealPill
-                        ? 'border-primary/70 ring-2 ring-primary/30 shadow-md shadow-primary/20 hover:border-primary/80 active:scale-95'
-                        : 'border-primary/35 shadow-[0_0_16px_var(--primary-20)] hover:border-primary/50 active:scale-95'
-                    }
-                  `}
-                  style={{
-                    ...(cardSizeStyle || {}),
-                    perspective: '900px',
-                    WebkitPerspective: '900px',
-                    ...(isRevealed
-                      ? {
-                        borderColor: getSuitBorderColor(card),
-                        boxShadow: getRevealedCardGlow(card)
-                      }
-                      : {})
-                  }}
-                  onClick={() => {
-                    if (isRevealed) {
-                      onCardClick?.(card, positionLabel, i);
-                      return;
-                    }
-                    if (disableReveal) return;
-                    onCardReveal?.(i);
-                  }}
-                  disabled={isRevealDisabled}
-                  aria-disabled={isRevealDisabled}
-                  aria-label={isRevealed
-                    ? `${card.name} in ${positionLabel} position. Click to view details.`
-                    : disableReveal
-                      ? `${positionLabel} position. Draw from the deck to reveal.`
-                      : `Card in ${positionLabel} position. Click to reveal.`
-                  }
-                >
-                  {numberBadge}
-                  {flashNextSlot && isNext && (
-                    <motion.div
-                      className="absolute inset-[-12%] rounded-xl border-2 border-secondary/70 pointer-events-none"
-                      initial={{ opacity: 0.9, scale: 1 }}
-                      animate={{ opacity: [0.9, 0.5, 0], scale: [1, 1.08, 1.12] }}
-                      transition={prefersReducedMotion ? { duration: 0 } : { duration: 0.4, ease: 'easeOut' }}
-                    />
-                  )}
-                  <motion.div
-                    className="w-full h-full relative"
-                    style={{
-                      transformStyle: 'preserve-3d',
-                      WebkitTransformStyle: 'preserve-3d',
-                      willChange: prefersReducedMotion ? undefined : 'transform'
-                    }}
-                    animate={{ rotateY: isRevealed ? 0 : 180 }}
-                    initial={false}
-                    transition={prefersReducedMotion ? { duration: 0 } : { duration: 0.42, ease: [0.32, 0.72, 0, 1] }}
-                  >
-                    <div
-                      className={`absolute inset-0 bg-surface flex items-center justify-center ${card.isReversed ? 'rotate-180' : ''}`}
-                      style={{
-                        backfaceVisibility: 'hidden',
-                        WebkitBackfaceVisibility: 'hidden',
-                        transform: 'translateZ(0.1px)'
-                      }}
-                    >
-                      <img
-                        src={cardImage}
-                        alt={card.name}
-                        className="w-full h-full object-cover"
-                        loading="lazy"
-                        onError={(e) => {
-                          e.target.onerror = null;
-                          e.target.src = FALLBACK_IMAGE;
-                        }}
-                      />
-                      <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-main/80 to-transparent p-0.5 xs:p-1 sm:p-1">
-                        <span className={`${compact ? 'text-[0.5rem] xs:text-[0.55rem]' : 'text-[0.55rem] xs:text-[0.6rem] sm:text-[0.65rem]'} text-main font-semibold leading-tight block truncate`}>
-                          {card.name.replace(/^The /, '')}
-                        </span>
-                      </div>
-                      {shouldHighlightReturn && (
-                        <motion.div
-                          className="absolute inset-[-8%] rounded-xl border-2 border-secondary/70 pointer-events-none"
-                          initial={{ opacity: 0.8 }}
-                          animate={{ opacity: [0.8, 0.35, 0], scale: [1, 1.03, 1.05] }}
-                          transition={{ duration: prefersReducedMotion ? 0.5 : 1.1 }}
-                        />
-                      )}
-                    </div>
-                    <div
-                      className="absolute inset-0 bg-surface-muted flex items-center justify-center"
-                      style={{
-                        backfaceVisibility: 'hidden',
-                        WebkitBackfaceVisibility: 'hidden',
-                        transform: 'rotateY(180deg) translateZ(0.1px)'
-                      }}
-                    >
-                      <img
-                        src="/cardback.png"
-                        alt="Card back"
-                        className="w-full h-full object-cover opacity-90"
-                        loading="lazy"
-                      />
-                      <div className="absolute inset-0 pointer-events-none flex items-end justify-end p-1.5">
-                        {showRevealPill ? (
-                          <span className={`${compact ? 'text-[0.55rem] xs:text-[0.6rem]' : 'text-[0.65rem] xs:text-[0.7rem] sm:text-xs-plus'} inline-flex items-center gap-1 rounded-full bg-main/85 text-main font-semibold px-2.5 py-1 shadow-lg border border-primary/30`}>
-                            <HandTap className="w-3.5 h-3.5" weight="fill" />
-                            Tap to reveal
-                          </span>
-                        ) : showGlowHint ? (
-                          <span className="inline-flex items-center gap-1 rounded-full bg-main/70 text-primary/80 text-[0.6rem] sm:text-[0.65rem] font-semibold px-2 py-1 border border-primary/25 shadow-[0_0_12px_var(--primary-30)]">
-                            Ready
-                          </span>
-                        ) : null}
-                      </div>
-                    </div>
-                  </motion.div>
-                </motion.button>
-              </AnimatePresence>
             )}
-          </motion.div>
+            <AnimatedCardButton
+              card={card}
+              isRevealed={isRevealed}
+              prefersReducedMotion={prefersReducedMotion}
+              positionScale={pos.scale}
+              positionRotate={pos.rotate}
+              className={`
+                ${sizeClass}
+                relative rounded-lg border-2 cursor-pointer overflow-hidden
+                transition-all touch-manipulation
+                focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70 focus-visible:ring-offset-2 focus-visible:ring-offset-main
+                disabled:opacity-60 disabled:cursor-not-allowed
+                ${isRevealed
+                  ? 'shadow-lg'
+                  : showRevealPill
+                    ? 'border-primary/70 ring-2 ring-primary/30 shadow-md shadow-primary/20 hover:border-primary/80 active:scale-95'
+                    : 'border-primary/35 shadow-[0_0_16px_var(--primary-20)] hover:border-primary/50 active:scale-95'
+                }
+              `}
+              style={{
+                ...(cardSizeStyle || {}),
+                perspective: '900px',
+                WebkitPerspective: '900px',
+                ...(isRevealed && card
+                  ? {
+                    borderColor: getSuitBorderColor(card),
+                    boxShadow: getRevealedCardGlow(card)
+                  }
+                  : {})
+              }}
+              onClick={() => {
+                if (!card) return;
+                if (isRevealed) {
+                  onCardClick?.(card, positionLabel, i);
+                  return;
+                }
+                if (disableReveal) return;
+                onCardReveal?.(i);
+              }}
+              disabled={isRevealDisabled}
+              ariaDisabled={isRevealDisabled}
+              ariaLabel={card
+                ? isRevealed
+                  ? `${card.name} in ${positionLabel} position. Click to view details.`
+                  : disableReveal
+                    ? `${positionLabel} position. Draw from the deck to reveal.`
+                    : `Card in ${positionLabel} position. Click to reveal.`
+                : undefined
+              }
+            >
+              {(displayCard, forceRevealOnMount) => {
+                const displayImage = getCardImage(displayCard);
+                return (
+                  <>
+                    {numberBadge}
+                    <FlashRing
+                      active={flashNextSlot && isNext}
+                      prefersReducedMotion={prefersReducedMotion}
+                      className="absolute inset-[-12%] rounded-xl border-2 border-secondary/70 pointer-events-none"
+                    />
+                    <FlipCard
+                      key={displayCard?.name || displayCard?.id || i}
+                      isRevealed={isRevealed}
+                      prefersReducedMotion={prefersReducedMotion}
+                      forceRevealOnMount={forceRevealOnMount}
+                      className="w-full h-full relative"
+                      style={{
+                        transformStyle: 'preserve-3d',
+                        WebkitTransformStyle: 'preserve-3d',
+                        willChange: prefersReducedMotion ? undefined : 'transform'
+                      }}
+                    >
+                      <div
+                        className={`absolute inset-0 bg-surface flex items-center justify-center ${displayCard.isReversed ? 'rotate-180' : ''}`}
+                        style={{
+                          backfaceVisibility: 'hidden',
+                          WebkitBackfaceVisibility: 'hidden',
+                          transform: 'translateZ(0.1px)'
+                        }}
+                      >
+                        <img
+                          src={displayImage}
+                          alt={displayCard.name}
+                          className="w-full h-full object-cover"
+                          loading="lazy"
+                          onError={(e) => {
+                            e.target.onerror = null;
+                            e.target.src = FALLBACK_IMAGE;
+                          }}
+                        />
+                        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-main/80 to-transparent p-0.5 xs:p-1 sm:p-1">
+                          <span className={`${compact ? 'text-[0.5rem] xs:text-[0.55rem]' : 'text-[0.55rem] xs:text-[0.6rem] sm:text-[0.65rem]'} text-main font-semibold leading-tight block truncate`}>
+                            {displayCard.name.replace(/^The /, '')}
+                          </span>
+                        </div>
+                        <OneShotRing
+                          active={shouldHighlightReturn}
+                          prefersReducedMotion={prefersReducedMotion}
+                          className="absolute inset-[-8%] rounded-xl border-2 border-secondary/70 pointer-events-none"
+                          duration={prefersReducedMotion ? 500 : 1100}
+                          opacityKeyframes={[0.8, 0.35, 0]}
+                          scaleKeyframes={[1, 1.03, 1.05]}
+                          reducedOpacity={0.5}
+                        />
+                      </div>
+                      <div
+                        className="absolute inset-0 bg-surface-muted flex items-center justify-center"
+                        style={{
+                          backfaceVisibility: 'hidden',
+                          WebkitBackfaceVisibility: 'hidden',
+                          transform: 'rotateY(180deg) translateZ(0.1px)'
+                        }}
+                      >
+                        <img
+                          src="/cardback.png"
+                          alt="Card back"
+                          className="w-full h-full object-cover opacity-90"
+                          loading="lazy"
+                        />
+                        <div className="absolute inset-0 pointer-events-none flex items-end justify-end p-1.5">
+                          {showRevealPill ? (
+                            <span className={`${compact ? 'text-[0.55rem] xs:text-[0.6rem]' : 'text-[0.65rem] xs:text-[0.7rem] sm:text-xs-plus'} inline-flex items-center gap-1 rounded-full bg-main/85 text-main font-semibold px-2.5 py-1 shadow-lg border border-primary/30`}>
+                              <HandTap className="w-3.5 h-3.5" weight="fill" />
+                              Tap to reveal
+                            </span>
+                          ) : showGlowHint ? (
+                            <span className="inline-flex items-center gap-1 rounded-full bg-main/70 text-primary/80 text-[0.6rem] sm:text-[0.65rem] font-semibold px-2 py-1 border border-primary/25 shadow-[0_0_12px_var(--primary-30)]">
+                              Ready
+                            </span>
+                          ) : null}
+                        </div>
+                      </div>
+                    </FlipCard>
+                  </>
+                );
+              }}
+            </AnimatedCardButton>
+          </SlotPulseWrapper>
         );
       })}
 

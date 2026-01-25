@@ -1,33 +1,6 @@
-import { motion } from 'framer-motion';
+import { useLayoutEffect, useRef } from 'react';
+import { animate, set } from 'animejs';
 import { useReducedMotion } from '../hooks/useReducedMotion';
-
-const pageVariants = {
-  initial: {
-    opacity: 0
-  },
-  animate: {
-    opacity: 1
-  },
-  exit: {
-    opacity: 0
-  }
-};
-
-const pageTransition = {
-  type: "tween",
-  ease: "easeInOut",
-  duration: 0.3
-};
-
-const reducedMotionVariants = {
-  initial: { opacity: 0 },
-  animate: { opacity: 1 },
-  exit: { opacity: 0 }
-};
-
-const reducedMotionTransition = {
-  duration: 0.15
-};
 
 /**
  * PageTransition - Wraps page content with smooth enter/exit animations
@@ -39,17 +12,30 @@ const reducedMotionTransition = {
  */
 export function PageTransition({ children, className = '' }) {
   const prefersReducedMotion = useReducedMotion();
-  
+  const containerRef = useRef(null);
+
+  useLayoutEffect(() => {
+    const node = containerRef.current;
+    if (!node) return undefined;
+
+    if (prefersReducedMotion) {
+      set(node, { opacity: 1 });
+      return undefined;
+    }
+
+    set(node, { opacity: 0 });
+    const anim = animate(node, {
+      opacity: [0, 1],
+      duration: 280,
+      ease: 'inOutQuad'
+    });
+
+    return () => anim?.pause?.();
+  }, [prefersReducedMotion]);
+
   return (
-    <motion.div
-      initial="initial"
-      animate="animate"
-      exit="exit"
-      variants={prefersReducedMotion ? reducedMotionVariants : pageVariants}
-      transition={prefersReducedMotion ? reducedMotionTransition : pageTransition}
-      className={className}
-    >
+    <div ref={containerRef} className={className}>
       {children}
-    </motion.div>
+    </div>
   );
 }

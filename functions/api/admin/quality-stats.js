@@ -430,8 +430,8 @@ async function getReviewQueue(db, options = {}) {
       json_extract(payload, '$.readingText') as reading_text,
       json_extract(payload, '$.userQuestion') as user_question,
       COALESCE(
-        reading_prompt_version,
         json_extract(payload, '$.experiment.promptVersion'),
+        reading_prompt_version,
         json_extract(payload, '$.readingPromptVersion'),
         json_extract(payload, '$.promptMeta.readingPromptVersion')
       ) as reading_prompt_version,

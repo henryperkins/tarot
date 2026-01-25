@@ -1,5 +1,5 @@
-import { useCallback, useMemo, useRef, useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { useCallback, useMemo, useRef, useState, useLayoutEffect } from 'react';
+import { animate, set } from 'animejs';
 import { X, CaretLeft, CaretRight, CaretDown, Clock, Sparkle } from '@phosphor-icons/react';
 import { FALLBACK_IMAGE, getCardImage, getCanonicalCard } from '../lib/cardLookup';
 import { CardSymbolInsights } from './CardSymbolInsights';
@@ -31,8 +31,64 @@ function formatDate(ts) {
  */
 function CollapsibleSection({ title, icon: Icon, badge, children, defaultOpen = false }) {
     const [isOpen, setIsOpen] = useState(defaultOpen);
+    const [isRendered, setIsRendered] = useState(defaultOpen);
     const prefersReducedMotion = useReducedMotion();
+    const contentRef = useRef(null);
     const contentId = `collapsible-${title.replace(/\s+/g, '-').toLowerCase()}`;
+
+    useLayoutEffect(() => {
+        if (isOpen) {
+            // eslint-disable-next-line react-hooks/set-state-in-effect -- sync render state for animation coordination
+            setIsRendered(true);
+        }
+    }, [isOpen]);
+
+    useLayoutEffect(() => {
+        const node = contentRef.current;
+        if (!node || !isRendered) return undefined;
+
+        if (prefersReducedMotion) {
+            node.style.height = isOpen ? 'auto' : '0px';
+            node.style.opacity = isOpen ? '1' : '0';
+            if (!isOpen) {
+                // eslint-disable-next-line react-hooks/set-state-in-effect -- sync cleanup when animations disabled
+                setIsRendered(false);
+            }
+            return undefined;
+        }
+
+        if (isOpen) {
+            const targetHeight = node.scrollHeight;
+            set(node, { height: 0, opacity: 0 });
+            const enterAnim = animate(node, {
+                height: [0, targetHeight],
+                opacity: [0, 1],
+                duration: 200,
+                ease: 'outQuad'
+            });
+            enterAnim
+                .then(() => {
+                    node.style.height = 'auto';
+                })
+                .catch(() => {
+                    node.style.height = 'auto';
+                });
+            return () => enterAnim?.pause?.();
+        }
+
+        const currentHeight = node.scrollHeight;
+        const exitAnim = animate(node, {
+            height: [currentHeight, 0],
+            opacity: [1, 0],
+            duration: 180,
+            ease: 'inQuad'
+        });
+        exitAnim
+            .then(() => setIsRendered(false))
+            .catch(() => setIsRendered(false));
+
+        return () => exitAnim?.pause?.();
+    }, [isOpen, isRendered, prefersReducedMotion]);
 
     return (
         <div className="border border-primary/10 rounded-lg overflow-hidden">
@@ -53,22 +109,18 @@ function CollapsibleSection({ title, icon: Icon, badge, children, defaultOpen = 
                     style={{ transitionDuration: prefersReducedMotion ? '0ms' : '200ms' }}
                 />
             </button>
-            <AnimatePresence initial={false}>
-                {isOpen && (
-                    <motion.div
-                        id={contentId}
-                        initial={prefersReducedMotion ? false : { height: 0, opacity: 0 }}
-                        animate={{ height: 'auto', opacity: 1 }}
-                        exit={prefersReducedMotion ? { opacity: 0 } : { height: 0, opacity: 0 }}
-                        transition={{ duration: prefersReducedMotion ? 0 : 0.2 }}
-                        className="overflow-hidden"
-                    >
-                        <div className="px-3 py-2.5 border-t border-primary/10">
-                            {children}
-                        </div>
-                    </motion.div>
-                )}
-            </AnimatePresence>
+            {isRendered && (
+                <div
+                    ref={contentRef}
+                    id={contentId}
+                    className="overflow-hidden"
+                    aria-hidden={!isOpen}
+                >
+                    <div className="px-3 py-2.5 border-t border-primary/10">
+                        {children}
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
@@ -91,13 +143,44 @@ export function CardModal({
     navigationLabel,
 }) {
     const modalRef = useRef(null);
+    const overlayRef = useRef(null);
+    const closingRef = useRef(false);
     const titleId = `card-modal-title-${layoutId || 'default'}`;
     const descId = `card-modal-desc-${layoutId || 'default'}`;
     const prefersReducedMotion = useReducedMotion();
+    const handleClose = useCallback(() => {
+        if (closingRef.current) return;
+        if (prefersReducedMotion) {
+            onClose?.();
+            return;
+        }
+        const modalNode = modalRef.current;
+        const overlayNode = overlayRef.current;
+        if (!modalNode || !overlayNode) {
+            onClose?.();
+            return;
+        }
+        closingRef.current = true;
+        const overlayAnim = animate(overlayNode, {
+            opacity: [1, 0],
+            duration: 180,
+            ease: 'inQuad'
+        });
+        const modalAnim = animate(modalNode, {
+            opacity: [1, 0],
+            translateY: [0, 8],
+            scale: [1, 0.98],
+            duration: 200,
+            ease: 'inQuad'
+        });
+        Promise.allSettled([overlayAnim, modalAnim]).then(() => {
+            onClose?.();
+        });
+    }, [onClose, prefersReducedMotion]);
 
     // Shared modal accessibility: scroll lock, escape key, focus trap, focus restoration
     useModalA11y(isOpen, {
-        onClose,
+        onClose: handleClose,
         containerRef: modalRef,
         scrollLockStrategy: 'fixed', // Prevents iOS bounce
     });
@@ -105,7 +188,7 @@ export function CardModal({
     // Android back button dismisses modal on mobile
     const isSmallScreen = useSmallScreen();
     useAndroidBackGuard(isOpen, {
-        onBack: onClose,
+        onBack: handleClose,
         enabled: isSmallScreen,
         guardId: 'cardModal'
     });
@@ -162,6 +245,39 @@ export function CardModal({
 
     const hasHistory = history.totalCount || history.firstSeen || history.lastSeen || history.entryCount > 0 || onViewAllInJournal;
 
+    useLayoutEffect(() => {
+        if (!isOpen || !card) return undefined;
+        const modalNode = modalRef.current;
+        const overlayNode = overlayRef.current;
+        if (!modalNode || !overlayNode) return undefined;
+
+        if (prefersReducedMotion) {
+            set(overlayNode, { opacity: 1 });
+            set(modalNode, { opacity: 1, translateY: 0, scale: 1 });
+            return undefined;
+        }
+
+        set(overlayNode, { opacity: 0 });
+        set(modalNode, { opacity: 0, translateY: 8, scale: 0.98 });
+        const overlayAnim = animate(overlayNode, {
+            opacity: [0, 1],
+            duration: 200,
+            ease: 'outQuad'
+        });
+        const modalAnim = animate(modalNode, {
+            opacity: [0, 1],
+            translateY: [8, 0],
+            scale: [0.98, 1],
+            duration: 240,
+            ease: 'outQuad'
+        });
+
+        return () => {
+            overlayAnim?.pause?.();
+            modalAnim?.pause?.();
+        };
+    }, [card, isOpen, prefersReducedMotion]);
+
     if (!isOpen || !card) return null;
 
     const originalCard = getCanonicalCard(card);
@@ -177,17 +293,15 @@ export function CardModal({
             aria-labelledby={titleId}
             aria-describedby={descId}
         >
-            <motion.div
-                initial={prefersReducedMotion ? false : { opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={prefersReducedMotion ? { opacity: 0 } : { opacity: 0 }}
+            <div
+                ref={overlayRef}
                 className="absolute inset-0 bg-main/85 backdrop-blur-sm"
-                onClick={onClose}
+                onClick={handleClose}
                 aria-hidden="true"
             />
 
-            <motion.div
-                layoutId={layoutId}
+            <div
+                data-layout-id={layoutId || undefined}
                 ref={modalRef}
                 className="relative w-full max-w-md max-h-[80dvh] overflow-y-auto bg-surface border border-primary/30 rounded-xl shadow-2xl shadow-black/50 flex flex-col pt-[max(0.75rem,var(--safe-pad-top))] pr-[max(0.75rem,var(--safe-pad-right))] pb-[max(0.75rem,var(--safe-pad-bottom))] pl-[max(0.75rem,var(--safe-pad-left))]"
                 tabIndex={-1}
@@ -225,7 +339,7 @@ export function CardModal({
                         <div className="flex-1" />
                     )}
                     <button
-                        onClick={onClose}
+                        onClick={handleClose}
                         className="p-1.5 text-accent/70 hover:text-main hover:bg-surface-muted/50 rounded-full transition-colors touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ml-auto"
                         aria-label="Close modal"
                     >
@@ -236,8 +350,8 @@ export function CardModal({
                 {/* Compact horizontal layout: image left, content right */}
                 <div className="p-3 flex gap-3">
                     {/* Card image - smaller and on the left */}
-                    <motion.div
-                        layoutId={imageLayoutId}
+                    <div
+                        data-layout-id={imageLayoutId || undefined}
                         className={`relative flex-shrink-0 w-20 sm:w-28 aspect-[2/3] rounded-lg shadow-lg border border-primary/20 overflow-hidden ${card.isReversed ? 'rotate-180' : ''}`}
                     >
                         <img
@@ -251,7 +365,7 @@ export function CardModal({
                         />
                         {/* Interactive symbol overlay - only on larger screens where it's usable */}
                         {!isSmallScreen && <InteractiveCardOverlay card={card} />}
-                    </motion.div>
+                    </div>
 
                     {/* Card info - right side */}
                     <div className="flex-1 min-w-0">
@@ -349,7 +463,7 @@ export function CardModal({
                         </div>
                     </CollapsibleSection>
                 </div>
-            </motion.div>
+            </div>
         </div>
     );
 }

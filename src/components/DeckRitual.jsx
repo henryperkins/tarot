@@ -1,5 +1,5 @@
-import { useState, useCallback, useRef, useEffect } from 'react';
-import { motion, useAnimation, AnimatePresence } from 'framer-motion';
+import { useState, useCallback, useRef, useEffect, useLayoutEffect, useMemo } from 'react';
+import { animate, createLayout, createSpring, createTimeline, set } from 'animejs';
 import { TableuLogo } from './TableuLogo';
 import { Sparkle, Scissors, ArrowsClockwise, HandTap } from '@phosphor-icons/react';
 import { useSmallScreen } from '../hooks/useSmallScreen';
@@ -8,8 +8,147 @@ import { useLandscape } from '../hooks/useLandscape';
 import { useHaptic } from '../hooks/useHaptic';
 import { getSuitGlowColor, getSuitBorderColor } from '../lib/suitColors';
 import { useToast } from '../contexts/ToastContext.jsx';
+import { useAnimatePresence } from '../hooks/useAnimatePresence';
 
 const CARD_STACK_COUNT = 7; // Visual stack layers
+
+function DeckStackCard({ card, sizeClass, prefersReducedMotion, isShuffling }) {
+  const cardRef = useRef(null);
+
+  useLayoutEffect(() => {
+    const node = cardRef.current;
+    if (!node) return undefined;
+    set(node, {
+      translateX: card.offset,
+      translateY: card.offset,
+      rotate: card.rotation
+    });
+    return undefined;
+  }, [card.offset, card.rotation]);
+
+  useEffect(() => {
+    const node = cardRef.current;
+    if (!node || !isShuffling || prefersReducedMotion) return undefined;
+
+    const anim = animate(node, {
+      translateX: [card.offset, card.offset + 10, card.offset - 5, card.offset],
+      rotate: [card.rotation, card.rotation + 3, card.rotation - 2, card.rotation],
+      duration: 400,
+      delay: card.id * 50,
+      ease: 'outQuad'
+    });
+
+    return () => anim?.pause?.();
+  }, [card.id, card.offset, card.rotation, isShuffling, prefersReducedMotion]);
+
+  return (
+    <div
+      ref={cardRef}
+      className={`absolute rounded-xl border-2 border-primary/30 overflow-hidden ${sizeClass}`}
+      style={{
+        zIndex: card.zIndex,
+        opacity: card.opacity,
+        background: 'linear-gradient(145deg, var(--bg-surface), var(--bg-surface-muted))'
+      }}
+    >
+      <div
+        className="absolute inset-0 opacity-10"
+        style={{
+          backgroundImage: 'radial-gradient(circle at 50% 50%, var(--brand-secondary) 1px, transparent 1px)',
+          backgroundSize: '12px 12px'
+        }}
+      />
+    </div>
+  );
+}
+
+function AnimatedCutSlider({ isOpen, prefersReducedMotion, children }) {
+  const { shouldRender, safeToRemove } = useAnimatePresence(isOpen);
+  const containerRef = useRef(null);
+
+  useLayoutEffect(() => {
+    const node = containerRef.current;
+    if (!node || !shouldRender) return undefined;
+
+    if (isOpen) {
+      if (prefersReducedMotion) {
+        set(node, { opacity: 1, translateY: 0 });
+        return undefined;
+      }
+
+      set(node, { opacity: 0, translateY: 20 });
+      const enterAnim = animate(node, {
+        opacity: [0, 1],
+        translateY: [20, 0],
+        duration: 200,
+        ease: 'outQuad'
+      });
+
+      return () => enterAnim?.pause?.();
+    }
+
+    if (prefersReducedMotion) {
+      safeToRemove();
+      return undefined;
+    }
+
+    const exitAnim = animate(node, {
+      opacity: [1, 0],
+      translateY: [0, 20],
+      duration: 180,
+      ease: 'inQuad'
+    });
+
+    exitAnim
+      .then(() => safeToRemove())
+      .catch(() => safeToRemove());
+
+    return () => exitAnim?.pause?.();
+  }, [isOpen, prefersReducedMotion, safeToRemove, shouldRender]);
+
+  if (!shouldRender) return null;
+
+  return (
+    <div ref={containerRef}>
+      {children}
+    </div>
+  );
+}
+
+function MinimapIndicator({ active, prefersReducedMotion, className, style, title, role, ariaLabel }) {
+  const ref = useRef(null);
+
+  useLayoutEffect(() => {
+    const node = ref.current;
+    if (!node) return undefined;
+
+    if (!active || prefersReducedMotion) {
+      set(node, { scale: 1, opacity: 1 });
+      return undefined;
+    }
+
+    const anim = animate(node, {
+      scale: [1, 1.15, 1],
+      opacity: [0.8, 1, 0.8],
+      duration: 1500,
+      loop: true,
+      ease: 'inOutQuad'
+    });
+
+    return () => anim?.pause?.();
+  }, [active, prefersReducedMotion]);
+
+  return (
+    <div
+      ref={ref}
+      className={className}
+      style={style}
+      title={title}
+      role={role}
+      aria-label={ariaLabel}
+    />
+  );
+}
 
 /**
  * Unified deck + ritual interface combining DeckPile and RitualControls
@@ -53,13 +192,24 @@ export function DeckRitual({
   const isLandscape = useLandscape();
   const { vibrate } = useHaptic();
   const { publish: publishToast } = useToast();
-  const deckControls = useAnimation();
   const [showCutSlider, setShowCutSlider] = useState(false);
   const [localCutIndex, setLocalCutIndex] = useState(cutIndex);
   const [showCadenceReset, setShowCadenceReset] = useState(false);
   const internalDeckRef = useRef(null);
   // Use external ref if provided (for parent to coordinate ghost card animation)
   const deckRef = externalDeckRef || internalDeckRef;
+  const deckTimelineRef = useRef(null);
+  const topCardRef = useRef(null);
+  const topCardTimelineRef = useRef(null);
+  const idleAnimRef = useRef(null);
+  const isHoveringRef = useRef(false);
+  const isPressedRef = useRef(false);
+  const rippleLayoutRef = useRef(null);
+  const rippleContainerRef = useRef(null);
+  const rippleTimersRef = useRef(new Map());
+  const rippleIdRef = useRef(0);
+  const [ripples, setRipples] = useState([]);
+  const springEase = useMemo(() => createSpring({ stiffness: 320, damping: 26, mass: 1 }), []);
   const cadenceResetTimerRef = useRef(null);
   const knockComplete = knockCount >= 3;
   const isIdleBreathing = !prefersReducedMotion &&
@@ -70,6 +220,100 @@ export function DeckRitual({
   const canShuffleGesture = !isShuffling && revealedCount === 0 && cardsRemaining === totalCards && knockComplete;
   const isDeckPrimary = revealStage !== 'spread';
   const boardHintRef = useRef(0);
+  const stackCardClass = isSmallScreen
+    ? 'w-[clamp(5.5rem,32vw,7.5rem)] h-[clamp(8.25rem,48vw,11.25rem)]'
+    : 'w-[clamp(7rem,35vw,8.5rem)] h-[clamp(10.5rem,52vw,12.75rem)]';
+
+  const runDeckAnimation = useCallback((props, options = {}) => {
+    if (prefersReducedMotion) return;
+    const node = deckRef?.current;
+    if (!node) return;
+    if (deckTimelineRef.current?.pause) {
+      deckTimelineRef.current.pause();
+    }
+    const timeline = createTimeline({ autoplay: false });
+    timeline.add(node, {
+      ...props,
+      duration: options.duration ?? 240,
+      ease: options.ease ?? springEase
+    }, 0);
+    timeline.play();
+    deckTimelineRef.current = timeline;
+  }, [deckRef, prefersReducedMotion, springEase]);
+
+  const runTopCardAnimation = useCallback((props, options = {}) => {
+    if (prefersReducedMotion) return;
+    const node = topCardRef.current;
+    if (!node) return;
+    if (topCardTimelineRef.current?.pause) {
+      topCardTimelineRef.current.pause();
+    }
+    const timeline = createTimeline({ autoplay: false });
+    timeline.add(node, {
+      ...props,
+      duration: options.duration ?? 200,
+      ease: options.ease ?? springEase
+    }, 0);
+    timeline.play();
+    topCardTimelineRef.current = timeline;
+  }, [prefersReducedMotion, springEase]);
+
+  const stopIdleBreath = useCallback(() => {
+    if (idleAnimRef.current?.pause) {
+      idleAnimRef.current.pause();
+    }
+    idleAnimRef.current = null;
+  }, []);
+
+  const startIdleBreath = useCallback(() => {
+    const node = topCardRef.current;
+    if (!node || prefersReducedMotion || !isIdleBreathing || isHoveringRef.current) return;
+    stopIdleBreath();
+    idleAnimRef.current = animate(node, {
+      scale: [1, 1.02, 1],
+      duration: 3800,
+      loop: true,
+      ease: 'inOutQuad'
+    });
+  }, [isIdleBreathing, prefersReducedMotion, stopIdleBreath]);
+
+  useLayoutEffect(() => {
+    if (prefersReducedMotion) {
+      if (rippleLayoutRef.current) {
+        rippleLayoutRef.current.revert();
+        rippleLayoutRef.current = null;
+      }
+      return undefined;
+    }
+    const node = rippleContainerRef.current;
+    if (!node) return undefined;
+    const layout = createLayout(node, {
+      children: '[data-layout-ripple]',
+      duration: 240,
+      ease: 'outQuad'
+    });
+    rippleLayoutRef.current = layout;
+    return () => {
+      layout.revert();
+      rippleLayoutRef.current = null;
+    };
+  }, [prefersReducedMotion]);
+
+  useLayoutEffect(() => {
+    if (prefersReducedMotion) return undefined;
+    const layout = rippleLayoutRef.current;
+    if (!layout) return undefined;
+    const timeline = layout.animate({
+      duration: 240,
+      ease: 'outQuad',
+      enterFrom: { opacity: 0.8, scale: 0.8 },
+      leaveTo: { opacity: 0, scale: 1.3 }
+    });
+    return () => {
+      timeline?.pause?.();
+      layout.record();
+    };
+  }, [ripples, prefersReducedMotion]);
 
   // Sync local cut index with prop
   useEffect(() => {
@@ -92,18 +336,42 @@ export function DeckRitual({
     onDeal?.();
   }, [cardsRemaining, isShuffling, onDeal, vibrate]);
 
+  const addRipple = useCallback(() => {
+    if (prefersReducedMotion) return;
+    const id = rippleIdRef.current++;
+    setRipples(prev => [...prev, { id, isLeaving: false }]);
+    const leaveDelay = 20;
+    const exitDuration = 240;
+    const timers = rippleTimersRef.current;
+    const leaveTimer = setTimeout(() => {
+      setRipples(prev => prev.map(ripple => (ripple.id === id ? { ...ripple, isLeaving: true } : ripple)));
+    }, leaveDelay);
+    const removeTimer = setTimeout(() => {
+      setRipples(prev => prev.filter(ripple => ripple.id !== id));
+      timers.delete(id);
+    }, leaveDelay + exitDuration);
+    timers.set(id, [leaveTimer, removeTimer]);
+  }, [prefersReducedMotion]);
+
+  useEffect(() => () => {
+    rippleTimersRef.current.forEach(([leaveTimer, removeTimer]) => {
+      clearTimeout(leaveTimer);
+      clearTimeout(removeTimer);
+    });
+    rippleTimersRef.current.clear();
+  }, []);
+
   const triggerKnock = useCallback(() => {
     onKnock?.();
     vibrate([15, 30, 15]);
 
     // Visual pulse on knock
-    if (!prefersReducedMotion) {
-      deckControls.start({
-        scale: [1, 0.96, 1.02, 1],
-        transition: { duration: 0.25 }
-      });
-    }
-  }, [onKnock, vibrate, prefersReducedMotion, deckControls]);
+    runDeckAnimation(
+      { scale: [1, 0.96, 1.02, 1] },
+      { duration: 250, ease: 'outQuad' }
+    );
+    addRipple();
+  }, [addRipple, onKnock, runDeckAnimation, vibrate]);
 
   // Tap / double-tap handler (handles knock + shuffle within same flow to avoid browser dblclick delay)
   const lastTapRef = useRef(0);
@@ -189,16 +457,62 @@ export function DeckRitual({
     }
   }, []);
 
+  const handleTopCardPointerEnter = useCallback((event) => {
+    if (event.pointerType !== 'mouse' || !isDeckPrimary) return;
+    isHoveringRef.current = true;
+    stopIdleBreath();
+    runTopCardAnimation({ translateY: -4, rotateX: 5 }, { duration: 200 });
+  }, [isDeckPrimary, runTopCardAnimation, stopIdleBreath]);
+
+  const handleTopCardPointerLeave = useCallback((event) => {
+    if (event.pointerType !== 'mouse') return;
+    isHoveringRef.current = false;
+    isPressedRef.current = false;
+    if (isIdleBreathing) {
+      startIdleBreath();
+      return;
+    }
+    runTopCardAnimation({ translateY: 0, rotateX: 0, scale: 1 }, { duration: 200 });
+  }, [isIdleBreathing, runTopCardAnimation, startIdleBreath]);
+
+  const handleTopCardPointerDown = useCallback((event) => {
+    if (event.pointerType !== 'mouse' || !isDeckPrimary) return;
+    isPressedRef.current = true;
+    runTopCardAnimation({ scale: 0.98 }, { duration: 120, ease: 'outQuad' });
+  }, [isDeckPrimary, runTopCardAnimation]);
+
+  const handleTopCardPointerUp = useCallback((event) => {
+    if (event.pointerType !== 'mouse') return;
+    isPressedRef.current = false;
+    if (isHoveringRef.current) {
+      runTopCardAnimation({ translateY: -4, rotateX: 5, scale: 1 }, { duration: 180 });
+      return;
+    }
+    if (isIdleBreathing) {
+      startIdleBreath();
+      return;
+    }
+    runTopCardAnimation({ translateY: 0, rotateX: 0, scale: 1 }, { duration: 180 });
+  }, [isIdleBreathing, runTopCardAnimation, startIdleBreath]);
+
   // Shuffle animation
   useEffect(() => {
-    if (isShuffling && !prefersReducedMotion) {
-      deckControls.start({
-        rotateY: [0, 180, 360, 180, 0],
-        rotateZ: [0, 5, -5, 3, 0],
-        transition: { duration: 1.2, ease: 'easeInOut' }
-      });
+    if (!isShuffling || prefersReducedMotion) return;
+    const node = deckRef?.current;
+    if (!node) return;
+    if (deckTimelineRef.current?.pause) {
+      deckTimelineRef.current.pause();
     }
-  }, [isShuffling, deckControls, prefersReducedMotion]);
+    const timeline = createTimeline({ autoplay: false });
+    timeline
+      .add(node, { rotateY: 180, rotateZ: 5, duration: 360, ease: 'inOutQuad' }, 0)
+      .add(node, { rotateY: 360, rotateZ: -5, duration: 360, ease: 'inOutQuad' })
+      .add(node, { rotateY: 180, rotateZ: 3, duration: 260, ease: springEase })
+      .add(node, { rotateY: 0, rotateZ: 0, duration: 200, ease: springEase });
+    timeline.play();
+    deckTimelineRef.current = timeline;
+    return () => timeline.pause();
+  }, [deckRef, isShuffling, prefersReducedMotion, springEase]);
 
   // Handle local cut slider change
   const handleCutSliderChange = useCallback((e) => {
@@ -220,10 +534,21 @@ export function DeckRitual({
     });
   }, [onCutConfirm, vibrate, publishToast, hasCut, localCutIndex]);
 
-  const idleBreathAnimation = isIdleBreathing ? { scale: [1, 1.02, 1] } : { scale: 1 };
-  const idleBreathTransition = isIdleBreathing
-    ? { duration: 3.8, ease: 'easeInOut', repeat: Infinity }
-    : { duration: 0.2, ease: 'easeOut' };
+  useEffect(() => {
+    if (isIdleBreathing) {
+      startIdleBreath();
+      return;
+    }
+    stopIdleBreath();
+    if (isHoveringRef.current || isPressedRef.current) return;
+    const node = topCardRef.current;
+    if (!node) return;
+    if (prefersReducedMotion) {
+      set(node, { scale: 1, translateY: 0, rotateX: 0 });
+      return;
+    }
+    runTopCardAnimation({ scale: 1, translateY: 0, rotateX: 0 }, { duration: 200, ease: 'outQuad' });
+  }, [isIdleBreathing, prefersReducedMotion, runTopCardAnimation, startIdleBreath, stopIdleBreath]);
   const knockHint = '3 quick taps within 2s';
   const drawLabel = nextPosition ? `Tap to draw card for ${nextPosition}.` : 'Tap to draw the next card.';
   const boardLabel = nextPosition
@@ -289,9 +614,8 @@ export function DeckRitual({
 
       {/* The Deck - responsive sizing for different screen sizes */}
       <div className="relative flex justify-center" style={{ perspective: '1200px', WebkitPerspective: '1200px' }}>
-        <motion.div
+        <div
           ref={deckRef}
-          animate={deckControls}
           className={`deck-stack relative touch-manipulation ${isDeckPrimary ? 'cursor-pointer' : 'cursor-default opacity-70'}`}
           onClick={handleDeckTap}
           onTouchStart={handleTouchStart}
@@ -337,41 +661,28 @@ export function DeckRitual({
         >
           {/* Stack of cards - optimized for very small screens (<375px) */}
           {stackCards.map((card) => (
-            <motion.div
+            <DeckStackCard
               key={card.id}
-              className={`absolute rounded-xl border-2 border-primary/30 overflow-hidden ${isSmallScreen ? 'w-[clamp(5.5rem,32vw,7.5rem)] h-[clamp(8.25rem,48vw,11.25rem)]' : 'w-[clamp(7rem,35vw,8.5rem)] h-[clamp(10.5rem,52vw,12.75rem)]'}`}
-              style={{
-                zIndex: card.zIndex,
-                opacity: card.opacity,
-                transform: `translateX(${card.offset}px) translateY(${card.offset}px) rotate(${card.rotation}deg)`,
-                background: 'linear-gradient(145deg, var(--bg-surface), var(--bg-surface-muted))'
-              }}
-              initial={false}
-              animate={isShuffling && !prefersReducedMotion ? {
-                x: [card.offset, card.offset + 10, card.offset - 5, card.offset],
-                rotate: [card.rotation, card.rotation + 3, card.rotation - 2, card.rotation]
-              } : {}}
-              transition={{ duration: 0.4, delay: card.id * 0.05 }}
-            >
-              {/* Card back pattern */}
-              <div className="absolute inset-0 opacity-10" style={{
-                backgroundImage: 'radial-gradient(circle at 50% 50%, var(--brand-secondary) 1px, transparent 1px)',
-                backgroundSize: '12px 12px'
-              }} />
-            </motion.div>
+              card={card}
+              sizeClass={stackCardClass}
+              prefersReducedMotion={prefersReducedMotion}
+              isShuffling={isShuffling}
+            />
           ))}
 
           {/* Top card with logo - responsive sizing */}
-          <motion.div
+          <div
+            ref={topCardRef}
             className={`relative rounded-xl border-2 border-primary/40 shadow-2xl overflow-hidden ${isSmallScreen ? 'w-[clamp(5.5rem,32vw,7.5rem)] h-[clamp(8.25rem,48vw,11.25rem)]' : 'w-[clamp(7rem,35vw,8.5rem)] h-[clamp(10.5rem,52vw,12.75rem)]'}`}
             style={{
               background: 'linear-gradient(145deg, var(--bg-surface), var(--bg-surface-muted))',
               boxShadow: '0 20px 40px rgba(0,0,0,0.3), 0 0 30px color-mix(in srgb, var(--brand-primary) 10%, transparent)'
             }}
-            animate={idleBreathAnimation}
-            transition={idleBreathTransition}
-            whileHover={prefersReducedMotion || !isDeckPrimary ? {} : { y: -4, rotateX: 5 }}
-            whileTap={prefersReducedMotion || !isDeckPrimary ? {} : { scale: 0.98 }}
+            onPointerEnter={handleTopCardPointerEnter}
+            onPointerLeave={handleTopCardPointerLeave}
+            onPointerDown={handleTopCardPointerDown}
+            onPointerUp={handleTopCardPointerUp}
+            onPointerCancel={handleTopCardPointerLeave}
           >
             <div className="absolute inset-0 flex items-center justify-center p-3 xs:p-4">
               <TableuLogo
@@ -385,18 +696,16 @@ export function DeckRitual({
             </div>
 
             {/* Knock ripple effect */}
-            <AnimatePresence>
-              {knockCount > 0 && !knockComplete && (
-                <motion.div
-                  key={`knock-${knockCount}`}
+            <div ref={rippleContainerRef} className="absolute inset-0 pointer-events-none">
+              {ripples.map((ripple) => (
+                <div
+                  key={ripple.id}
+                  data-layout-ripple
                   className="absolute inset-0 rounded-xl border-2 border-secondary pointer-events-none"
-                  initial={{ scale: 0.8, opacity: 0.8 }}
-                  animate={{ scale: 1.3, opacity: 0 }}
-                  exit={{ opacity: 0 }}
-                  transition={{ duration: prefersReducedMotion ? 0.1 : 0.25 }}
+                  style={{ display: ripple.isLeaving ? 'none' : undefined }}
                 />
-              )}
-            </AnimatePresence>
+              ))}
+            </div>
 
             {/* Shuffle spinner overlay */}
             {isShuffling && (
@@ -404,66 +713,58 @@ export function DeckRitual({
                 <ArrowsClockwise className="w-8 h-8 text-secondary animate-spin" />
               </div>
             )}
-          </motion.div>
-        </motion.div>
+          </div>
+        </div>
       </div>
 
       {/* Cut slider (appears on long-press) - mobile optimized */}
-      <AnimatePresence>
-        {showCutSlider && (
-          <motion.div
-            initial={prefersReducedMotion ? { opacity: 1, y: 0 } : { opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={prefersReducedMotion ? { opacity: 0, y: 0 } : { opacity: 0, y: 20 }}
-            className="mt-4 xs:mt-5 sm:mt-6 max-w-xs mx-auto px-3 xs:px-4"
-          >
-            <div className="rounded-2xl border border-accent/30 bg-surface/80 backdrop-blur p-3 xs:p-4">
-              <div className="flex items-center justify-between mb-2 xs:mb-3">
-                <span className="text-[0.7rem] xs:text-xs text-muted">Cut position</span>
-                <span className="text-sm font-bold text-secondary">#{localCutIndex}</span>
-              </div>
-              <input
-                type="range"
-                min={0}
-                max={deckSize - 1}
-                value={localCutIndex}
-                onChange={handleCutSliderChange}
-                className="w-full touch-manipulation"
-                aria-label="Cut position in deck"
-              />
-              <div className="flex justify-between mt-2 xs:mt-3 gap-2">
-                <button
-                  onClick={() => setShowCutSlider(false)}
-                  className="text-[0.7rem] xs:text-xs text-muted hover:text-main transition-colors px-3 py-2 rounded-full hover:bg-surface-muted/50 min-h-touch touch-manipulation"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleCutConfirm}
-                  className="px-4 py-2 rounded-full bg-secondary/20 border border-secondary/50 text-secondary text-[0.7rem] xs:text-xs font-semibold hover:bg-secondary/30 transition-colors min-h-touch touch-manipulation"
-                >
-                  Confirm Cut
-                </button>
-              </div>
+      <AnimatedCutSlider isOpen={showCutSlider} prefersReducedMotion={prefersReducedMotion}>
+        <div className="mt-4 xs:mt-5 sm:mt-6 max-w-xs mx-auto px-3 xs:px-4">
+          <div className="rounded-2xl border border-accent/30 bg-surface/80 backdrop-blur p-3 xs:p-4">
+            <div className="flex items-center justify-between mb-2 xs:mb-3">
+              <span className="text-[0.7rem] xs:text-xs text-muted">Cut position</span>
+              <span className="text-sm font-bold text-secondary">#{localCutIndex}</span>
             </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+            <input
+              type="range"
+              min={0}
+              max={deckSize - 1}
+              value={localCutIndex}
+              onChange={handleCutSliderChange}
+              className="w-full touch-manipulation"
+              aria-label="Cut position in deck"
+            />
+            <div className="flex justify-between mt-2 xs:mt-3 gap-2">
+              <button
+                onClick={() => setShowCutSlider(false)}
+                className="text-[0.7rem] xs:text-xs text-muted hover:text-main transition-colors px-3 py-2 rounded-full hover:bg-surface-muted/50 min-h-touch touch-manipulation"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleCutConfirm}
+                className="px-4 py-2 rounded-full bg-secondary/20 border border-secondary/50 text-secondary text-[0.7rem] xs:text-xs font-semibold hover:bg-secondary/30 transition-colors min-h-touch touch-manipulation"
+              >
+                Confirm Cut
+              </button>
+            </div>
+          </div>
+        </div>
+      </AnimatedCutSlider>
 
       {/* Quick draw CTA placed nearer to the deck on mobile */}
       {isDeckPrimary && cardsRemaining > 0 && (
         <div className={`text-center px-3 xs:px-4 ${isLandscape ? 'mt-3' : 'mt-4 xs:mt-5'} sm:hidden`}>
-          <motion.button
+          <button
             onClick={handleDealWithAnimation}
             disabled={isShuffling}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary text-main font-semibold shadow-lg disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+            type="button"
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary text-main font-semibold shadow-lg disabled:opacity-50 disabled:cursor-not-allowed text-sm motion-safe:transition-transform motion-safe:hover:scale-[1.03] motion-safe:active:scale-95"
             style={{ boxShadow: '0 10px 30px color-mix(in srgb, var(--brand-primary) 30%, transparent)' }}
-            whileHover={prefersReducedMotion ? {} : { scale: 1.03 }}
-            whileTap={prefersReducedMotion ? {} : { scale: 0.98 }}
           >
             <span>Draw: {nextPosition || 'Next Card'}</span>
             <span className="opacity-70 text-[0.7rem]">({cardsRemaining})</span>
-          </motion.button>
+          </button>
         </div>
       )}
 
@@ -580,17 +881,16 @@ export function DeckRitual({
       {/* Draw CTA - optimized for small screens */}
       {isDeckPrimary && cardsRemaining > 0 && (
         <div className={`text-center px-3 xs:px-4 ${isLandscape ? 'mt-3' : 'mt-4 xs:mt-5 sm:mt-6 hidden sm:block'}`}>
-          <motion.button
+          <button
             onClick={handleDealWithAnimation}
             disabled={isShuffling}
-            className={`inline-flex items-center rounded-full bg-primary text-main font-semibold shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors hover:bg-primary/90 min-h-touch ${isLandscape ? 'gap-2 px-4 py-2 text-sm' : 'gap-2 xs:gap-3 px-4 xs:px-5 sm:px-6 py-2 xs:py-2.5 sm:py-3 text-sm xs:text-base'}`}
+            type="button"
+            className={`inline-flex items-center rounded-full bg-primary text-main font-semibold shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors hover:bg-primary/90 min-h-touch motion-safe:transition-transform motion-safe:hover:scale-[1.03] motion-safe:active:scale-95 ${isLandscape ? 'gap-2 px-4 py-2 text-sm' : 'gap-2 xs:gap-3 px-4 xs:px-5 sm:px-6 py-2 xs:py-2.5 sm:py-3 text-sm xs:text-base'}`}
             style={{ boxShadow: '0 10px 30px color-mix(in srgb, var(--brand-primary) 30%, transparent)' }}
-            whileHover={prefersReducedMotion ? {} : { scale: 1.03 }}
-            whileTap={prefersReducedMotion ? {} : { scale: 0.98 }}
           >
             <span>{isLandscape ? nextPosition || 'Next' : `Draw: ${nextPosition || 'Next Card'}`}</span>
             <span className={`opacity-70 ${isLandscape ? 'text-[0.65rem]' : 'text-[0.7rem] xs:text-xs'}`}>({cardsRemaining})</span>
-          </motion.button>
+          </button>
         </div>
       )}
 
@@ -653,8 +953,10 @@ function SpreadMinimap({ positions, cards = [], totalCards, revealedIndices }) {
         const borderColor = isRevealed && card ? getSuitBorderColor(card) : null;
 
         return (
-          <motion.div
+          <MinimapIndicator
             key={i}
+            active={isNext}
+            prefersReducedMotion={prefersReducedMotion}
             className={`w-2.5 h-3.5 sm:w-3 sm:h-4 rounded-sm transition-all ${
               isRevealed
                 ? ''
@@ -666,18 +968,9 @@ function SpreadMinimap({ positions, cards = [], totalCards, revealedIndices }) {
               backgroundColor: borderColor || 'var(--brand-secondary)',
               boxShadow: `0 0 8px ${glowColor || 'rgba(var(--brand-secondary), 0.3)'}`
             } : {}}
-            animate={isNext && !prefersReducedMotion ? {
-              scale: [1, 1.15, 1],
-              opacity: [0.8, 1, 0.8]
-            } : {}}
-            transition={isNext && !prefersReducedMotion ? {
-              duration: 1.5,
-              repeat: Infinity,
-              ease: 'easeInOut'
-            } : {}}
             title={label}
             role="listitem"
-            aria-label={`${label}: ${isRevealed ? `${card?.name || 'revealed'}` : isNext ? 'next to draw' : 'pending'}`}
+            ariaLabel={`${label}: ${isRevealed ? `${card?.name || 'revealed'}` : isNext ? 'next to draw' : 'pending'}`}
           />
         );
       })}

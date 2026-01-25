@@ -1,0 +1,16 @@
+{
+  "description": "Monitoring dev server and deployment commands for Tableu evaluation quality",
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "prompt",
+            "prompt": "Check if the bash command just executed was related to starting the dev server or deploying. If the command contains 'wrangler dev', 'npm run dev', or 'npm run deploy', remind the user that they can monitor evaluation quality with:\n- `/tableu:eval-dashboard` - View metrics dashboard\n- `wrangler tail --format pretty | grep '[eval]'` - Live eval logs\n\nKeep the reminder brief (1-2 sentences). If the command was unrelated to dev/deploy, respond with just 'ok' and nothing else."
+          }
+        ]
+      }
+    ]
+  }
+}

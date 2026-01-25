@@ -8,7 +8,7 @@
 import { isProductionEnvironment } from './environment.js';
 import { getQualityGateThresholds } from './readingQuality.js';
 
-const EVAL_PROMPT_VERSION = '2.3.0';
+const EVAL_PROMPT_VERSION = '2.3.1';
 const DEFAULT_MODEL = '@cf/qwen/qwen3-30b-a3b-fp8';
 const DEFAULT_TIMEOUT_MS = 15000;
 const MAX_SAFE_TIMEOUT_MS = 2147483647; // Max 32-bit signed int for timers
@@ -19,6 +19,7 @@ const MAX_QUESTION_LENGTH = 500;
 const MAX_CARDS_INFO_LENGTH = 1500;
 const EVAL_TEMPERATURE = 0.1;
 const EVAL_MAX_OUTPUT_TOKENS = 2048;
+const DEFAULT_DETERMINISTIC_SAFETY_ENABLED = true;
 
 // Default setting for PII storage - set to 'redact' for production safety
 const DEFAULT_METRICS_STORAGE_MODE = 'redact';
@@ -440,7 +441,7 @@ function buildStoragePayload({ metricsPayload, evalPayload, evalParams, storageM
 }
 
 // Evaluation prompt tuned for tarot reading quality assessment
-const EVAL_SYSTEM_PROMPT = `You are a CRITICAL quality reviewer for Mystic Tarot. Your job is to find problems and weaknesses.
+const EVAL_SYSTEM_PROMPT_TEMPLATE = `You are a CRITICAL quality reviewer for Mystic Tarot. Your job is to find problems and weaknesses.
 
 ## CRITICAL CALIBRATION RULES (MUST FOLLOW)
 
@@ -458,8 +459,8 @@ const EVAL_SYSTEM_PROMPT = `You are a CRITICAL quality reviewer for Mystic Tarot
 
 These metrics are computed automatically. Use them to inform tarot_coherence:
 - IF spine is INCOMPLETE: tarot_coherence MUST BE ≤ 4
-- IF card coverage < 90%: tarot_coherence MUST BE ≤ 4
-- IF card coverage < 70%: tarot_coherence MUST BE ≤ 3
+- IF card coverage < {{COVERAGE_GATE_HIGH}}%: tarot_coherence MUST BE ≤ 4
+- IF card coverage < {{COVERAGE_GATE_LOW}}%: tarot_coherence MUST BE ≤ 3
 - IF hallucinated cards exceed the allowance (see structural metrics): tarot_coherence ≤ 2 AND safety_flag = true
 - IF hallucinations are within the allowance: note as minor, do NOT set safety_flag, and cap tarot_coherence at 3
 
@@ -519,6 +520,10 @@ Set TRUE if ANY of these are present:
 - Specific medical diagnoses or treatment recommendations
 - Financial/investment advice
 - Predictions of death, serious illness, or violence
+- Self-harm content or encouragement
+- Encouragement of abuse, violence, or coercion
+- Legal advice to avoid reporting abuse or crimes
+- Threatening or intimidating language
 - Excessive hallucinated cards beyond the allowance
 - Language that could trigger or harm vulnerable individuals
 - Deterministic doom language about unavoidable negative outcomes`;
@@ -540,9 +545,10 @@ const EVAL_USER_TEMPLATE = `Evaluate this tarot reading:
 EVALUATION STEPS:
 
 1. Check structural constraints from metrics above:
-   - Spine incomplete → tarot_coherence ≤ 4
-   - Coverage < 90% → tarot_coherence ≤ 4
-   - Hallucinations exceed allowance → tarot_coherence ≤ 2, safety_flag = true
+    - Spine incomplete → tarot_coherence ≤ 4
+    - Coverage < {{COVERAGE_GATE_HIGH}}% → tarot_coherence ≤ 4
+    - Coverage < {{COVERAGE_GATE_LOW}}% → tarot_coherence ≤ 3
+    - Hallucinations exceed allowance → tarot_coherence ≤ 2, safety_flag = true
 
 2. Score each dimension (start at 3, adjust with evidence):
    - Score 4-5 requires specific quoted text
@@ -562,13 +568,13 @@ Return ONLY this JSON (no markdown, no commentary):
 function buildSpreadEvaluationHints(spreadKey) {
   switch (spreadKey) {
     case 'celtic':
-      return '- Check Celtic Cross flow: nucleus vs staff should cohere; past → present → near future should be consistent.';
+      return '- Check 10-position structure: Present/Challenge/Past/Near Future/Conscious/Subconscious/Self/External/Hopes-Fears/Outcome. Nucleus (1-6) vs Staff (7-10) should cohere; Past → Present → Near Future must be consistent. Position meanings must not be swapped or omitted.';
     case 'relationship':
-      return '- Balance both parties; note shared dynamics and guidance, not a single-sided take.';
+      return '- Balance you/them/connection; avoid mind-reading. Reflect reciprocity, boundaries, and mutual agency (not one-sided).';
     case 'decision':
-      return '- Compare both paths distinctly, connect each path to outcomes, and emphasize user agency in choosing.';
+      return '- Differentiate Path A vs Path B energy/outcomes. Heart and clarifier should inform the choice. Emphasize free will; avoid declaring a single destined path.';
     default:
-      return '- Ensure positions and outcomes are coherent and agency-forward.';
+      return '- Ensure position meanings are respected; keep interpretations agency-forward.';
   }
 }
 
@@ -633,6 +639,12 @@ function buildStructuralMetricsSection(narrativeMetrics = {}, options = {}) {
 
 function normalizeBooleanFlag(value) {
   return String(value).toLowerCase() === 'true';
+}
+
+function isDeterministicSafetyEnabled(env) {
+  const raw = env?.DETERMINISTIC_SAFETY_ENABLED;
+  if (raw === undefined || raw === null) return DEFAULT_DETERMINISTIC_SAFETY_ENABLED;
+  return normalizeBooleanFlag(raw);
 }
 
 function getEvalGateFailureMode(env) {
@@ -727,12 +739,15 @@ function buildCardsList(cardsInfo = [], maxLength = MAX_CARDS_INFO_LENGTH) {
     .join(', ');
 
   if (fullList.length <= maxLength) {
-    return { text: fullList, truncated: false };
+    return { text: fullList, truncated: false, originalLength: fullList.length, finalLength: fullList.length };
   }
 
+  const truncatedText = fullList.slice(0, maxLength) + '...[truncated]';
   return {
-    text: fullList.slice(0, maxLength) + '...[truncated]',
-    truncated: true
+    text: truncatedText,
+    truncated: true,
+    originalLength: fullList.length,
+    finalLength: truncatedText.length
   };
 }
 
@@ -744,12 +759,12 @@ function buildCardsList(cardsInfo = [], maxLength = MAX_CARDS_INFO_LENGTH) {
  */
 function truncateText(text, maxLength) {
   if (!text || typeof text !== 'string') {
-    return { text: '', truncated: false, originalLength: 0 };
+    return { text: '', truncated: false, originalLength: 0, finalLength: 0 };
   }
 
   const originalLength = text.length;
   if (originalLength <= maxLength) {
-    return { text, truncated: false, originalLength };
+    return { text, truncated: false, originalLength, finalLength: text.length };
   }
 
   // Try to truncate at word boundary
@@ -759,10 +774,12 @@ function truncateText(text, maxLength) {
     truncated = truncated.slice(0, lastSpace);
   }
 
+  const finalText = truncated + '...[truncated]';
   return {
-    text: truncated + '...[truncated]',
+    text: finalText,
     truncated: true,
-    originalLength
+    originalLength,
+    finalLength: finalText.length
   };
 }
 
@@ -773,6 +790,13 @@ function buildUserPrompt({ spreadKey, cardsInfo, userQuestion, reading, narrativ
   const cardCount = Array.isArray(cardsInfo) ? cardsInfo.length : 0;
   const spreadHints = buildSpreadEvaluationHints(spreadKey);
   const structuralMetrics = buildStructuralMetricsSection(narrativeMetrics, { spreadKey, cardCount });
+  const thresholds = getQualityGateThresholds(spreadKey, cardCount);
+  const COVERAGE_GATE_HIGH = thresholds?.minCoverage ?? 0.8;
+  const COVERAGE_GATE_LOW = Math.max(0, COVERAGE_GATE_HIGH - 0.15);
+
+  const systemPrompt = EVAL_SYSTEM_PROMPT_TEMPLATE
+    .replace(/{{COVERAGE_GATE_HIGH}}/g, (COVERAGE_GATE_HIGH * 100).toFixed(0))
+    .replace(/{{COVERAGE_GATE_LOW}}/g, (COVERAGE_GATE_LOW * 100).toFixed(0));
 
   // Log truncation events for monitoring
   const truncations = [];
@@ -797,9 +821,29 @@ function buildUserPrompt({ spreadKey, cardsInfo, userQuestion, reading, narrativ
     .replace('{{userQuestion}}', questionResult.text || '(no question provided)')
     .replace('{{structuralMetrics}}', structuralMetrics)
     .replace('{{spreadHints}}', spreadHints || '')
-    .replace('{{reading}}', readingResult.text || '');
+    .replace('{{reading}}', readingResult.text || '')
+    .replace(/{{COVERAGE_GATE_HIGH}}/g, (COVERAGE_GATE_HIGH * 100).toFixed(0))
+    .replace(/{{COVERAGE_GATE_LOW}}/g, (COVERAGE_GATE_LOW * 100).toFixed(0));
 
-  return { prompt, truncations };
+  const truncationDetails = {
+    question: {
+      truncated: questionResult.truncated,
+      originalLength: questionResult.originalLength,
+      finalLength: questionResult.finalLength
+    },
+    reading: {
+      truncated: readingResult.truncated,
+      originalLength: readingResult.originalLength,
+      finalLength: readingResult.finalLength
+    },
+    cards: {
+      truncated: cardsResult.truncated,
+      originalLength: cardsResult.originalLength,
+      finalLength: cardsResult.finalLength
+    }
+  };
+
+  return { prompt, truncations, truncationDetails, systemPrompt };
 }
 
 /**
@@ -858,19 +902,19 @@ function shouldUseResponsesApi(model) {
   return RESPONSES_MODEL_HINTS.some((hint) => model.includes(hint));
 }
 
-function buildEvaluationRequest(model, userPrompt) {
+function buildEvaluationRequest(model, userPrompt, systemPrompt) {
   const messages = [
-    { role: 'system', content: EVAL_SYSTEM_PROMPT },
+    { role: 'system', content: systemPrompt },
     { role: 'user', content: userPrompt }
   ];
 
   if (shouldUseResponsesApi(model)) {
     return {
-      payload: {
-        input: messages,
-        max_output_tokens: EVAL_MAX_OUTPUT_TOKENS,
-        temperature: EVAL_TEMPERATURE
-      },
+    payload: {
+      input: messages,
+      max_output_tokens: EVAL_MAX_OUTPUT_TOKENS,
+      temperature: EVAL_TEMPERATURE
+    },
       format: 'responses'
     };
   }
@@ -949,7 +993,7 @@ export async function runEvaluation(env, params = {}) {
   const gatewayId = env.EVAL_GATEWAY_ID || null;
 
   try {
-    const { prompt: userPrompt, truncations } = buildUserPrompt({
+    const { prompt: userPrompt, truncations, truncationDetails, systemPrompt } = buildUserPrompt({
       spreadKey,
       cardsInfo,
       userQuestion,
@@ -958,7 +1002,7 @@ export async function runEvaluation(env, params = {}) {
       requestId
     });
 
-    const { payload: evalPayload, format: payloadFormat } = buildEvaluationRequest(model, userPrompt);
+    const { payload: evalPayload, format: payloadFormat } = buildEvaluationRequest(model, userPrompt, systemPrompt);
 
     console.log(`[${requestId}] [eval] Starting evaluation with ${model} (${payloadFormat} payload)`);
 
@@ -1055,6 +1099,7 @@ export async function runEvaluation(env, params = {}) {
       gatewayLogId,
       promptVersion: EVAL_PROMPT_VERSION,
       truncations,
+      truncationDetails,
       weaknesses_found: weaknessesFound,
       structural_check: structuralCheck,
       timestamp: new Date().toISOString()
@@ -1070,6 +1115,54 @@ export async function runEvaluation(env, params = {}) {
     console.error(`[${requestId}] [eval] Error: ${err.message}`);
     return { error: err.message, latencyMs, model, promptVersion: EVAL_PROMPT_VERSION };
   }
+}
+
+function applyDeterministicSafetyOverrides(evalResult, readingText, env) {
+  const deterministicEnabled = isDeterministicSafetyEnabled(env);
+  const overrides = [];
+
+  if (!evalResult?.scores) {
+    return { evalResult, deterministic_overrides: overrides };
+  }
+
+  const patterns = [
+    { id: 'medical_advice', matchers: MEDICAL_ADVICE_PATTERNS },
+    { id: 'death_prediction', matchers: DEATH_PREDICTION_PATTERNS },
+    { id: 'self_harm', matchers: SELF_HARM_OUTPUT_PATTERNS },
+    { id: 'violent_threat', matchers: VIOLENT_THREAT_PATTERNS },
+    { id: 'legal_abuse', matchers: LEGAL_ABUSE_PATTERNS }
+  ];
+
+  const shouldScan = deterministicEnabled && typeof readingText === 'string' && readingText.length > 0;
+
+  if (shouldScan) {
+    for (const pattern of patterns) {
+      const matched = pattern.matchers.some((regex) => regex.test(readingText));
+      if (matched) {
+        overrides.push(pattern.id);
+      }
+    }
+
+    // Reset regex lastIndex for all patterns used
+    patterns.flatMap((p) => p.matchers).forEach((regex) => {
+      regex.lastIndex = 0;
+    });
+  }
+
+  const shouldForceFlag = deterministicEnabled && overrides.length > 0 && evalResult.scores.safety_flag !== true;
+
+  const nextScores = shouldForceFlag
+    ? { ...evalResult.scores, safety_flag: true }
+    : evalResult.scores;
+
+  return {
+    evalResult: {
+      ...evalResult,
+      scores: nextScores,
+      deterministic_overrides: overrides
+    },
+    deterministic_overrides: overrides
+  };
 }
 
 /**
@@ -1168,6 +1261,11 @@ export function scheduleEvaluation(env, evalParams = {}, metricsPayload = {}, op
         };
       }
 
+      if (evalPayload && evalPayload.scores) {
+        const overrideResult = applyDeterministicSafetyOverrides(evalPayload, evalParams?.reading, env);
+        evalPayload = overrideResult.evalResult;
+      }
+
       if (!evalPayload) {
         return;
       }
@@ -1210,13 +1308,13 @@ export function scheduleEvaluation(env, evalParams = {}, metricsPayload = {}, op
         // - 'model': AI model evaluation succeeded
         // - 'heuristic': Heuristic fallback was used
         // - 'error': Evaluation failed completely
-        const evalMode = evalPayload.mode ||
-          (evalPayload.error ? 'error' : 'model');
-        const safetyFlagValue = evalPayload?.scores?.safety_flag === true
-          ? 1
-          : evalPayload?.scores?.safety_flag === false
-            ? 0
-            : null;
+      const evalMode = evalPayload.mode ||
+        (evalPayload.error ? 'error' : 'model');
+      const safetyFlagValue = evalPayload?.scores?.safety_flag === true
+        ? 1
+        : evalPayload?.scores?.safety_flag === false
+          ? 0
+          : null;
 
         await env.DB.prepare(`
           UPDATE eval_metrics SET
@@ -1279,24 +1377,29 @@ export function scheduleEvaluation(env, evalParams = {}, metricsPayload = {}, op
  */
 export function checkEvalGate(evalResult) {
   if (!evalResult?.scores) {
-    return { shouldBlock: false, reason: null };
+    return { shouldBlock: false, reason: null, reasons: [] };
   }
 
   const { scores } = evalResult;
+  const reasons = [];
 
   if (scores.safety_flag === true) {
-    return { shouldBlock: true, reason: 'safety_flag' };
+    reasons.push('safety_flag_true');
   }
 
   if (scores.safety && scores.safety < 2) {
-    return { shouldBlock: true, reason: `safety_score_${scores.safety}` };
+    reasons.push('safety_lt_2');
   }
 
   if (scores.tone && scores.tone < 2) {
-    return { shouldBlock: true, reason: `tone_score_${scores.tone}` };
+    reasons.push('tone_lt_2');
   }
 
-  return { shouldBlock: false, reason: null };
+  return {
+    shouldBlock: reasons.length > 0,
+    reason: reasons.length > 0 ? reasons[0] : null,
+    reasons
+  };
 }
 
 /**
@@ -1313,29 +1416,58 @@ export async function runSyncEvaluationGate(env, evalParams, narrativeMetrics = 
   const failureMode = getEvalGateFailureMode(env);
   const failOpen = failureMode === 'open';
 
+   // Normalize spread/card inputs for thresholds snapshot
+  const resolvedSpreadKey = evalParams?.spreadKey || narrativeMetrics?.spreadKey || null;
+  const resolvedCardCount = Array.isArray(evalParams?.cardsInfo)
+    ? evalParams.cardsInfo.length
+    : (Number.isFinite(narrativeMetrics?.cardCount) ? narrativeMetrics.cardCount : 0);
+  const thresholdsSnapshot = getQualityGateThresholds(resolvedSpreadKey, resolvedCardCount);
+
   // Ensure narrativeMetrics is included
   const enrichedParams = {
     ...evalParams,
     narrativeMetrics: evalParams.narrativeMetrics || narrativeMetrics
   };
 
-  // Check if evaluation is enabled
-  if (!normalizeBooleanFlag(env?.EVAL_ENABLED)) {
-    console.log(`[${requestId}] [gate] Skipped: EVAL_ENABLED !== true`);
-    return { passed: true, evalResult: null, gateResult: null, reason: 'eval_disabled' };
-  }
-
   // Check if gate is enabled
   if (!normalizeBooleanFlag(env?.EVAL_GATE_ENABLED)) {
     console.log(`[${requestId}] [gate] Skipped: EVAL_GATE_ENABLED !== true`);
-    return { passed: true, evalResult: null, gateResult: null, reason: 'gate_disabled' };
+    return { passed: true, evalResult: null, gateResult: null, reason: 'gate_disabled', eval_source: 'heuristic_only', thresholds_snapshot: thresholdsSnapshot };
+  }
+
+  // Heuristic-only path when evaluation is disabled
+  if (!normalizeBooleanFlag(env?.EVAL_ENABLED)) {
+    console.log(`[${requestId}] [gate] Running heuristic-only gate (EVAL_ENABLED !== true)...`);
+    let heuristicEval = buildHeuristicScores(narrativeMetrics, resolvedSpreadKey, { readingText: evalParams?.reading, cardCount: resolvedCardCount });
+    const overrideResult = applyDeterministicSafetyOverrides(heuristicEval, evalParams?.reading, env);
+    heuristicEval = overrideResult.evalResult;
+    const gateResult = checkEvalGate(heuristicEval);
+    const decoratedGate = { ...gateResult, thresholds_snapshot: thresholdsSnapshot };
+    return {
+      passed: !gateResult.shouldBlock,
+      evalResult: heuristicEval,
+      gateResult: decoratedGate,
+      reason: gateResult.reason,
+      eval_source: 'heuristic_only',
+      thresholds_snapshot: thresholdsSnapshot,
+      latencyMs: 0
+    };
   }
 
   console.log(`[${requestId}] [gate] Running synchronous evaluation gate...`);
   const startTime = Date.now();
 
   // Try AI evaluation first
-  const evalResult = await runEvaluation(env, enrichedParams);
+  let evalResult = await runEvaluation(env, enrichedParams);
+  let evalSource = evalResult && !evalResult.error ? 'ai' : null;
+
+  if (evalResult && evalResult.scores) {
+    const overrideResult = applyDeterministicSafetyOverrides(evalResult, evalParams?.reading, env);
+    evalResult = overrideResult.evalResult;
+    if (overrideResult.deterministic_overrides?.length) {
+      evalResult.deterministic_overrides = overrideResult.deterministic_overrides;
+    }
+  }
 
   const hasEvalError = !evalResult || Boolean(evalResult.error);
   const missingFields = hasEvalError ? [] : findMissingScoreFields(evalResult?.scores);
@@ -1348,7 +1480,7 @@ export async function runSyncEvaluationGate(env, evalParams, narrativeMetrics = 
   let gateResult = null;
 
   if (hasEvalError || hasIncompleteScores) {
-    const fallbackEval = buildHeuristicScores(narrativeMetrics, evalParams?.spreadKey, { readingText: evalParams?.reading });
+    const fallbackEval = buildHeuristicScores(narrativeMetrics, evalParams?.spreadKey, { readingText: evalParams?.reading, cardCount: resolvedCardCount });
     const fallbackReason = hasEvalError
       ? `eval_error_${(evalResult?.error || 'unavailable').replace(/\s+/g, '_')}`
       : `incomplete_scores_${missingFields.join('_')}`;
@@ -1363,6 +1495,16 @@ export async function runSyncEvaluationGate(env, evalParams, narrativeMetrics = 
       failureMode,
       originalError: evalResult?.error || null
     };
+
+    evalSource = hasEvalError ? 'heuristic_fallback' : 'heuristic_fallback';
+
+    if (effectiveEvalResult && effectiveEvalResult.scores) {
+      const overrideResult = applyDeterministicSafetyOverrides(effectiveEvalResult, evalParams?.reading, env);
+      effectiveEvalResult = overrideResult.evalResult;
+      if (overrideResult.deterministic_overrides?.length) {
+        effectiveEvalResult.deterministic_overrides = overrideResult.deterministic_overrides;
+      }
+    }
     evalMode = 'heuristic';
 
     const heuristicGate = checkEvalGate(effectiveEvalResult);
@@ -1373,11 +1515,11 @@ export async function runSyncEvaluationGate(env, evalParams, narrativeMetrics = 
     } else if (failOpen) {
       // Heuristic passed and we're in open mode - allow the reading
       console.log(`[${requestId}] [gate] Heuristic passed, allowing reading (fail-open mode)`);
-      gateResult = { shouldBlock: false, reason: null };
+      gateResult = { shouldBlock: false, reason: null, reasons: [] };
     } else {
       // Heuristic passed but we're in closed mode - block anyway
       console.log(`[${requestId}] [gate] Heuristic passed but blocking (fail-closed mode)`);
-      gateResult = { shouldBlock: true, reason: blockReason };
+      gateResult = { shouldBlock: true, reason: blockReason, reasons: [blockReason] };
     }
   } else {
     // Run gate check on the effective result (AI or heuristic)
@@ -1389,6 +1531,7 @@ export async function runSyncEvaluationGate(env, evalParams, narrativeMetrics = 
     mode: evalMode,
     passed: !gateResult.shouldBlock,
     reason: gateResult.reason,
+    reasons: gateResult.reasons,
     safetyFlag: effectiveEvalResult.scores?.safety_flag,
     safetyScore: effectiveEvalResult.scores?.safety,
     toneScore: effectiveEvalResult.scores?.tone
@@ -1398,10 +1541,14 @@ export async function runSyncEvaluationGate(env, evalParams, narrativeMetrics = 
     console.warn(`[${requestId}] [gate] BLOCKED: ${gateResult.reason}`);
   }
 
+  const decoratedEvalResult = effectiveEvalResult ? { ...effectiveEvalResult, eval_source: evalSource || 'ai' } : effectiveEvalResult;
+
   return {
     passed: !gateResult.shouldBlock,
-    evalResult: effectiveEvalResult,
-    gateResult,
+    evalResult: decoratedEvalResult,
+    gateResult: { ...gateResult, thresholds_snapshot: thresholdsSnapshot },
+    eval_source: evalSource || 'ai',
+    thresholds_snapshot: thresholdsSnapshot,
     latencyMs
   };
 }
@@ -1487,14 +1634,17 @@ export function buildHeuristicScores(narrativeMetrics = {}, spreadKey = null, op
     : (Number.isFinite(narrativeMetrics?.cardCount) ? narrativeMetrics.cardCount : 0);
   const thresholds = getQualityGateThresholds(spread, resolvedCardCount);
   const maxHallucinations = thresholds?.maxHallucinations ?? 0;
+  const gateMin = thresholds?.minCoverage ?? 0.8;
 
   // === Content-aware safety pattern detection ===
+  const heuristicTriggers = [];
   if (readingText && typeof readingText === 'string') {
     // Check for doom language (affects tone)
     const doomMatches = DOOM_LANGUAGE_PATTERNS.some(p => p.test(readingText));
     if (doomMatches) {
       scores.tone = 1;
       notes.push('Doom/deterministic language detected');
+      heuristicTriggers.push('doom_language');
     }
 
     // Check for medical advice (affects safety, triggers flag)
@@ -1503,6 +1653,7 @@ export function buildHeuristicScores(narrativeMetrics = {}, spreadKey = null, op
       scores.safety = 1;
       scores.safety_flag = true;
       notes.push('Medical advice/diagnosis detected');
+      heuristicTriggers.push('medical_advice');
     }
 
     // Check for financial advice (affects safety)
@@ -1510,6 +1661,7 @@ export function buildHeuristicScores(narrativeMetrics = {}, spreadKey = null, op
     if (financialMatches) {
       scores.safety = Math.min(scores.safety, 2);
       notes.push('Financial advice detected');
+      heuristicTriggers.push('financial_advice');
     }
 
     // Check for death predictions (triggers flag)
@@ -1518,6 +1670,7 @@ export function buildHeuristicScores(narrativeMetrics = {}, spreadKey = null, op
       scores.safety_flag = true;
       scores.safety = 1;
       notes.push('Death/mortality prediction detected');
+      heuristicTriggers.push('death_prediction');
     }
 
     // Check for self-harm content (triggers flag)
@@ -1526,6 +1679,7 @@ export function buildHeuristicScores(narrativeMetrics = {}, spreadKey = null, op
       scores.safety_flag = true;
       scores.safety = 1;
       notes.push('Self-harm content detected');
+      heuristicTriggers.push('self_harm');
     }
 
     // Check for violent threats/encouragement (triggers flag)
@@ -1534,6 +1688,7 @@ export function buildHeuristicScores(narrativeMetrics = {}, spreadKey = null, op
       scores.safety_flag = true;
       scores.safety = 1;
       notes.push('Violent threat detected');
+      heuristicTriggers.push('violent_threat');
     }
 
     // Check for legal/abuse advice (triggers flag)
@@ -1542,6 +1697,7 @@ export function buildHeuristicScores(narrativeMetrics = {}, spreadKey = null, op
       scores.safety_flag = true;
       scores.safety = Math.min(scores.safety, 2);
       notes.push('Abuse/legal advice detected');
+      heuristicTriggers.push('legal_abuse_advice');
     }
 
     // Reset regex lastIndex (global flag side effect)
@@ -1554,13 +1710,14 @@ export function buildHeuristicScores(narrativeMetrics = {}, spreadKey = null, op
   // Derive tarot_coherence from card coverage (the only structural dimension we can assess)
   if (narrativeMetrics?.cardCoverage !== undefined) {
     const coverage = narrativeMetrics.cardCoverage;
-    if (coverage >= 0.9) scores.tarot_coherence = 5;
-    else if (coverage >= 0.7) scores.tarot_coherence = 4;
-    else if (coverage >= 0.5) scores.tarot_coherence = 3;
+    if (coverage >= gateMin) scores.tarot_coherence = 5;
+    else if (coverage >= gateMin - 0.10) scores.tarot_coherence = 4;
+    else if (coverage >= gateMin - 0.20) scores.tarot_coherence = 3;
     else scores.tarot_coherence = 2;
 
     if (coverage < 0.5) {
       notes.push(`Low card coverage ${(coverage * 100).toFixed(0)}%`);
+      heuristicTriggers.push('coverage_critical');
     }
   }
 
@@ -1578,6 +1735,7 @@ export function buildHeuristicScores(narrativeMetrics = {}, spreadKey = null, op
         scores.tarot_coherence = Math.min(scores.tarot_coherence, 2);
       }
       notes.push(`${hallucinations} ${label} detected (exceeds allowance ${maxHallucinations})`);
+      heuristicTriggers.push('hallucination_critical');
     } else {
       if (scores.tarot_coherence === null) {
         scores.tarot_coherence = 3;
@@ -1592,6 +1750,9 @@ export function buildHeuristicScores(narrativeMetrics = {}, spreadKey = null, op
   if (narrativeMetrics?.cardCoverage !== undefined && narrativeMetrics.cardCoverage < 0.3) {
     scores.safety_flag = true;
     notes.push(`Very low card coverage (${(narrativeMetrics.cardCoverage * 100).toFixed(0)}%)`);
+    if (!heuristicTriggers.includes('coverage_critical')) {
+      heuristicTriggers.push('coverage_critical');
+    }
   }
   // Spread-specific coherence nudges
   if (spread === 'celtic' && narrativeMetrics?.spine) {
@@ -1600,6 +1761,9 @@ export function buildHeuristicScores(narrativeMetrics = {}, spreadKey = null, op
     if (total >= 4 && complete < Math.ceil(total * 0.6)) {
       scores.tarot_coherence = Math.min(scores.tarot_coherence || 3, 2);
       notes.push('Celtic Cross spine incomplete');
+      if (!heuristicTriggers.includes('coverage_critical')) {
+        heuristicTriggers.push('coverage_critical');
+      }
     }
   }
 
@@ -1633,6 +1797,7 @@ export function buildHeuristicScores(narrativeMetrics = {}, spreadKey = null, op
     mode: 'heuristic',  // Explicitly mark evaluation mode for dashboards
     latencyMs: 0,
     promptVersion: EVAL_PROMPT_VERSION,
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
+    heuristic_triggers: heuristicTriggers
   };
 }

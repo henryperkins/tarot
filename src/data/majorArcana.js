@@ -24,3 +24,5 @@ export const MAJOR_ARCANA = [
   { name: 'Judgement', number: 20, upright: 'Judgement, rebirth, inner calling, absolution', reversed: 'Self-doubt, inner critic, ignoring the call', image: '/images/cards/RWS1909_-_20_Judgement.jpeg' },
   { name: 'The World', number: 21, upright: 'Completion, accomplishment, travel, achievement', reversed: 'Seeking closure, shortcuts, delays', image: '/images/cards/RWS1909_-_21_World.jpeg' }
 ];
+
+export const MAJOR_ARCANA_NAMES = MAJOR_ARCANA.map((card) => card.name);

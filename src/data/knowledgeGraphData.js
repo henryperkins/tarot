@@ -2,6 +2,19 @@
 // Knowledge Graph data structures for archetypal pattern detection
 // Based on traditional tarot wisdom: Pollack, Greer, Place, Golden Dawn
 
+import {
+  THOTH_MAJOR_ALIASES,
+  THOTH_SUIT_ALIASES,
+  THOTH_COURT_ALIASES,
+  MARSEILLE_MAJOR_ALIASES,
+  MARSEILLE_SUIT_ALIASES,
+  MARSEILLE_COURT_ALIASES
+} from '../../shared/vision/deckAssets.js';
+import { THOTH_MINOR_TITLES } from '../../shared/vision/thothMinorTitles.js';
+import { DECK_CATALOG } from '../../shared/vision/deckCatalog.js';
+
+export { THOTH_MINOR_TITLES };
+
 /**
  * THE FOOL'S JOURNEY
  * Three-act structure dividing the 22 Major Arcana into developmental stages
@@ -767,60 +780,6 @@ export const COURT_FAMILY_PATTERNS = {
 };
 
 /**
- * THOTH MINOR ARCANA TITLES
- * Crowley/Harris epithets for pip cards with decan assignments
- */
-export const THOTH_MINOR_TITLES = {
-  'Ace of Wands': { suit: 'Wands', rank: 1, title: 'Root of the Powers of Fire', astrology: 'Pure Fire', description: 'Primordial creative spark—the seed of will and spiritual fire.' },
-
-  'Two of Wands': { suit: 'Wands', rank: 2, title: 'Dominion', astrology: 'Mars in Aries', description: 'Commanding new territory and asserting will with precision.' },
-  'Three of Wands': { suit: 'Wands', rank: 3, title: 'Virtue', astrology: 'Sun in Aries', description: 'Radiant integrity that uplifts collaborators and projects.' },
-  'Four of Wands': { suit: 'Wands', rank: 4, title: 'Completion', astrology: 'Venus in Aries', description: 'Stabilizing achievements through shared celebration and artistry.' },
-  'Five of Wands': { suit: 'Wands', rank: 5, title: 'Strife', astrology: 'Saturn in Leo', description: 'Creative friction forcing refinement of ego and ambition.' },
-  'Six of Wands': { suit: 'Wands', rank: 6, title: 'Victory', astrology: 'Jupiter in Leo', description: 'Momentum gathered through wholehearted leadership and recognition.' },
-  'Seven of Wands': { suit: 'Wands', rank: 7, title: 'Valour', astrology: 'Mars in Leo', description: 'Courageous stand for truth even when odds are overwhelming.' },
-  'Eight of Wands': { suit: 'Wands', rank: 8, title: 'Swiftness', astrology: 'Mercury in Sagittarius', description: 'Rapid downloads, messages, and arrows of intention in flight.' },
-  'Nine of Wands': { suit: 'Wands', rank: 9, title: 'Strength', astrology: 'Moon in Sagittarius', description: 'Spiritual stamina—reserves of will gathered through discipline.' },
-  'Ten of Wands': { suit: 'Wands', rank: 10, title: 'Oppression', astrology: 'Saturn in Sagittarius', description: 'Burnout warning when passion is trapped in rigid obligation.' },
-
-  'Ace of Cups': { suit: 'Cups', rank: 1, title: 'Root of the Powers of Water', astrology: 'Pure Water', description: 'Source spring of feeling—raw devotion, empathy, and heart-opening.' },
-
-  'Two of Cups': { suit: 'Cups', rank: 2, title: 'Love', astrology: 'Venus in Cancer', description: 'Tender reciprocity and devotion born of emotional safety.' },
-  'Three of Cups': { suit: 'Cups', rank: 3, title: 'Abundance', astrology: 'Mercury in Cancer', description: 'Overflow of feeling, creative bonding, communal nourishment.' },
-  'Four of Cups': { suit: 'Cups', rank: 4, title: 'Luxury', astrology: 'Moon in Cancer', description: 'Soft indulgence asking for recalibration toward heartfelt purpose.' },
-  'Five of Cups': { suit: 'Cups', rank: 5, title: 'Disappointment', astrology: 'Mars in Scorpio', description: 'Emotional expectations dissolving so deeper desire can surface.' },
-  'Six of Cups': { suit: 'Cups', rank: 6, title: 'Pleasure', astrology: 'Sun in Scorpio', description: 'Sensual, memory-rich joy that heals through presence and play.' },
-  'Seven of Cups': { suit: 'Cups', rank: 7, title: 'Debauch', astrology: 'Venus in Scorpio', description: 'Overindulgence or glamour that muddies intuition and vitality.' },
-  'Eight of Cups': { suit: 'Cups', rank: 8, title: 'Indolence', astrology: 'Saturn in Pisces', description: 'Energetic leak—fatigue from clinging to a dream past its ripeness.' },
-  'Nine of Cups': { suit: 'Cups', rank: 9, title: 'Happiness', astrology: 'Jupiter in Pisces', description: 'Spiritual contentment, devotion, and gratitude refilling the well.' },
-  'Ten of Cups': { suit: 'Cups', rank: 10, title: 'Satiety', astrology: 'Mars in Pisces', description: 'Emotional saturation prompting surrender and compassionate release.' },
-
-  'Ace of Swords': { suit: 'Swords', rank: 1, title: 'Root of the Powers of Air', astrology: 'Pure Air', description: 'First flash of insight—razor-sharp clarity cutting through confusion.' },
-
-  'Two of Swords': { suit: 'Swords', rank: 2, title: 'Peace', astrology: 'Moon in Libra', description: 'Ceasefire energy—mental clarity through balancing opposites.' },
-  'Three of Swords': { suit: 'Swords', rank: 3, title: 'Sorrow', astrology: 'Saturn in Libra', description: 'Sacred grief and necessary reckoning with piercing truths.' },
-  'Four of Swords': { suit: 'Swords', rank: 4, title: 'Truce', astrology: 'Jupiter in Libra', description: 'Pause and recovery so mind and body can integrate the lesson.' },
-  'Five of Swords': { suit: 'Swords', rank: 5, title: 'Defeat', astrology: 'Venus in Aquarius', description: 'Self-sabotage or pride blocks inviting a new mental strategy.' },
-  'Six of Swords': { suit: 'Swords', rank: 6, title: 'Science', astrology: 'Mercury in Aquarius', description: 'Elegant solutions and innovation through clear thinking.' },
-  'Seven of Swords': { suit: 'Swords', rank: 7, title: 'Futility', astrology: 'Moon in Aquarius', description: 'Fragmented efforts and leaky focus demanding prioritization.' },
-  'Eight of Swords': { suit: 'Swords', rank: 8, title: 'Interference', astrology: 'Jupiter in Gemini', description: 'Mental clutter, competing inputs, and crossed signals causing delay.' },
-  'Nine of Swords': { suit: 'Swords', rank: 9, title: 'Cruelty', astrology: 'Mars in Gemini', description: 'Inner critic or harsh words—need for compassionate self-dialogue.' },
-  'Ten of Swords': { suit: 'Swords', rank: 10, title: 'Ruin', astrology: 'Sun in Gemini', description: 'Mental burnout clearing the slate for radically new paradigms.' },
-
-  'Ace of Pentacles': { suit: 'Pentacles', rank: 1, title: 'Root of the Powers of Earth', astrology: 'Pure Earth', description: 'Seed of manifestation—embodied potential in its most concentrated form.' },
-
-  'Two of Pentacles': { suit: 'Pentacles', rank: 2, title: 'Change', astrology: 'Jupiter in Capricorn', description: 'Dynamic adaptation—turning chaos into rhythm and flow.' },
-  'Three of Pentacles': { suit: 'Pentacles', rank: 3, title: 'Works', astrology: 'Mars in Capricorn', description: 'Material mastery through teamwork, craft, and focused effort.' },
-  'Four of Pentacles': { suit: 'Pentacles', rank: 4, title: 'Power', astrology: 'Sun in Capricorn', description: 'Stability, infrastructure, and strategic stewardship of resources.' },
-  'Five of Pentacles': { suit: 'Pentacles', rank: 5, title: 'Worry', astrology: 'Mercury in Taurus', description: 'Scarcity mindset signalling a need for somatic trust and support.' },
-  'Six of Pentacles': { suit: 'Pentacles', rank: 6, title: 'Success', astrology: 'Moon in Taurus', description: 'Tangible wins and steady nourishment—remember generous reciprocity.' },
-  'Seven of Pentacles': { suit: 'Pentacles', rank: 7, title: 'Failure', astrology: 'Saturn in Taurus', description: 'Slow harvest prompting patience, pruning, and systems thinking.' },
-  'Eight of Pentacles': { suit: 'Pentacles', rank: 8, title: 'Prudence', astrology: 'Sun in Virgo', description: 'Methodical craft, refinement, and devotion to incremental mastery.' },
-  'Nine of Pentacles': { suit: 'Pentacles', rank: 9, title: 'Gain', astrology: 'Venus in Virgo', description: 'Self-sufficiency, lush results, and discerning stewardship.' },
-  'Ten of Pentacles': { suit: 'Pentacles', rank: 10, title: 'Wealth', astrology: 'Mercury in Virgo', description: 'Legacy resources—build structures that benefit community and lineage.' }
-};
-
-/**
  * Marseille numerology + pip geometry themes
  */
 export const MARSEILLE_NUMERICAL_THEMES = {
@@ -836,78 +795,28 @@ export const MARSEILLE_NUMERICAL_THEMES = {
 10: { keyword: 'Threshold', description: 'Pip forms create portals—culmination transitioning into a new cycle.', geometry: 'Four pairs framing a central staff or sword, indicating closure.' }
 };
 
-const THOTH_MAJOR_TITLES = {
-  0: 'The Fool',
-  1: 'The Magus',
-  2: 'The Priestess',
-  3: 'The Empress',
-  4: 'The Emperor',
-  5: 'The Hierophant',
-  6: 'The Lovers',
-  7: 'The Chariot',
-  8: 'Adjustment',
-  9: 'The Hermit',
- 10: 'Fortune',
- 11: 'Lust',
- 12: 'The Hanged Man',
- 13: 'Death',
- 14: 'Art',
- 15: 'The Devil',
- 16: 'The Tower',
- 17: 'The Star',
- 18: 'The Moon',
- 19: 'The Sun',
- 20: 'The Aeon',
- 21: 'The Universe'
-};
-
-const MARSEILLE_MAJOR_TITLES = {
-  0: 'Le Mat',
-  1: 'Le Bateleur',
-  2: 'La Papesse',
-  3: "L'Imperatrice",
-  4: "L'Empereur",
-  5: 'Le Pape',
-  6: "L'Amoureux",
-  7: 'Le Chariot',
-  8: 'La Justice',
-  9: "L'Hermite",
- 10: 'La Roue de Fortune',
- 11: 'La Force',
- 12: 'Le Pendu',
- 13: 'La Mort',
- 14: 'Temperance',
- 15: 'Le Diable',
- 16: 'La Maison Dieu',
- 17: "L'Etoile",
- 18: 'La Lune',
- 19: 'Le Soleil',
- 20: 'Le Jugement',
- 21: 'Le Monde'
-};
-
 export const DECK_STYLE_OVERRIDES = {
   'rws-1909': {
-    displayName: 'Rider-Waite-Smith 1909',
+    displayName: DECK_CATALOG['rws-1909']?.displayName || 'Rider-Waite-Smith 1909',
     suitAliases: {},
     courtAliases: { Page: 'Page', Knight: 'Knight', Queen: 'Queen', King: 'King' },
     majorAliases: {},
     numerologyThemes: null
   },
   'thoth-a1': {
-    displayName: 'Thoth',
-    suitAliases: { Pentacles: 'Disks' },
-    courtAliases: { Page: 'Princess', Knight: 'Prince', Queen: 'Queen', King: 'Knight' },
-    majorAliases: THOTH_MAJOR_TITLES,
+    displayName: DECK_CATALOG['thoth-a1']?.displayName || 'Thoth',
+    suitAliases: THOTH_SUIT_ALIASES,
+    courtAliases: THOTH_COURT_ALIASES,
+    majorAliases: THOTH_MAJOR_ALIASES,
     minorTitles: THOTH_MINOR_TITLES,
     courtNotes: 'Princess ignites, Prince mobilizes, Queen magnetizes, Knight radiates the final expression.',
     numerologyThemes: null
   },
   'marseille-classic': {
-    displayName: 'Tarot de Marseille',
-    suitAliases: { Pentacles: 'Coins', Wands: 'Batons' },
-    courtAliases: { Page: 'Valet', Knight: 'Chevalier', Queen: 'Reine', King: 'Roi' },
-    majorAliases: MARSEILLE_MAJOR_TITLES,
+    displayName: DECK_CATALOG['marseille-classic']?.displayName || 'Tarot de Marseille',
+    suitAliases: MARSEILLE_SUIT_ALIASES,
+    courtAliases: MARSEILLE_COURT_ALIASES,
+    majorAliases: MARSEILLE_MAJOR_ALIASES,
     numerologyThemes: MARSEILLE_NUMERICAL_THEMES,
     courtNotes: 'Valet carries the message, Chevalier rides into action, Reine and Roi codify the legacy.'
   }

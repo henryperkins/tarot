@@ -82,6 +82,7 @@ export async function computeDailyAggregates(db, dateStr) {
     SELECT
       COALESCE(
         reading_prompt_version,
+        json_extract(payload, '$.experiment.promptVersion'),
         json_extract(payload, '$.readingPromptVersion'),
         json_extract(payload, '$.promptMeta.readingPromptVersion')
       ) as reading_prompt_version,
@@ -120,6 +121,7 @@ export async function computeDailyAggregates(db, dateStr) {
     GROUP BY
       COALESCE(
         reading_prompt_version,
+        json_extract(payload, '$.experiment.promptVersion'),
         json_extract(payload, '$.readingPromptVersion'),
         json_extract(payload, '$.promptMeta.readingPromptVersion')
       ),

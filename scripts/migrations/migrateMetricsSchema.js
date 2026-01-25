@@ -33,7 +33,6 @@ function buildPromptTelemetry(promptMeta) {
   if (!promptMeta) return null;
 
   return {
-    version: promptMeta.readingPromptVersion || null,
     tokens: promptMeta.estimatedTokens ? {
       system: promptMeta.estimatedTokens.system,
       user: promptMeta.estimatedTokens.user,
@@ -41,8 +40,7 @@ function buildPromptTelemetry(promptMeta) {
       budget: promptMeta.estimatedTokens.budget,
       hardCap: promptMeta.estimatedTokens.hardCap,
       budgetTarget: promptMeta.estimatedTokens.budgetTarget,
-      overBudget: promptMeta.estimatedTokens.overBudget || false,
-      truncated: promptMeta.estimatedTokens.truncated || false
+      overBudget: promptMeta.estimatedTokens.overBudget || false
     } : null,
     slimming: {
       enabled: promptMeta.slimmingEnabled || false,

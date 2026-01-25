@@ -1,6 +1,6 @@
-import { useState, useRef, useId, useCallback } from 'react';
+import { useState, useRef, useId, useCallback, useLayoutEffect, useEffect } from 'react';
 import FocusTrap from 'focus-trap-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { animate, set } from 'animejs';
 import { X, HandTap, Scissors, ArrowsClockwise, CaretLeft, CaretRight } from '@phosphor-icons/react';
 import { useModalA11y, createBackdropHandler } from '../hooks/useModalA11y';
 import { useReducedMotion } from '../hooks/useReducedMotion';
@@ -50,6 +50,10 @@ export function GestureCoachOverlay({ isOpen, onDismiss }) {
   const prefersReducedMotion = useReducedMotion();
   const modalRef = useRef(null);
   const closeButtonRef = useRef(null);
+  const stepContentRef = useRef(null);
+  const gestureRingRef = useRef(null);
+  const stepTransitionRef = useRef(false);
+  const gestureAnimRef = useRef(null);
   const titleId = useId();
 
   useModalA11y(isOpen, {
@@ -59,23 +63,75 @@ export function GestureCoachOverlay({ isOpen, onDismiss }) {
     initialFocusRef: closeButtonRef
   });
 
+  const runStepTransition = useCallback((nextIndex) => {
+    if (nextIndex === currentStep) return;
+    if (prefersReducedMotion || !stepContentRef.current) {
+      setCurrentStep(nextIndex);
+      return;
+    }
+    if (stepTransitionRef.current) return;
+
+    stepTransitionRef.current = true;
+    const direction = nextIndex > currentStep ? 1 : -1;
+    const exitX = direction === 1 ? -20 : 20;
+    const enterX = direction === 1 ? 20 : -20;
+
+    const node = stepContentRef.current;
+    const exitAnim = animate(node, {
+      opacity: [1, 0],
+      translateX: [0, exitX],
+      duration: 180,
+      ease: 'outQuad'
+    });
+
+    exitAnim
+      .then(() => {
+        setCurrentStep(nextIndex);
+        requestAnimationFrame(() => {
+          const nextNode = stepContentRef.current;
+          if (!nextNode) {
+            stepTransitionRef.current = false;
+            return;
+          }
+          set(nextNode, { opacity: 0, translateX: enterX });
+          const enterAnim = animate(nextNode, {
+            opacity: [0, 1],
+            translateX: [enterX, 0],
+            duration: 200,
+            ease: 'outQuad'
+          });
+          enterAnim
+            .then(() => {
+              stepTransitionRef.current = false;
+            })
+            .catch(() => {
+              stepTransitionRef.current = false;
+            });
+        });
+      })
+      .catch(() => {
+        setCurrentStep(nextIndex);
+        stepTransitionRef.current = false;
+      });
+  }, [currentStep, prefersReducedMotion]);
+
   const handleNext = useCallback(() => {
     if (currentStep < GESTURE_STEPS.length - 1) {
-      setCurrentStep(prev => prev + 1);
+      runStepTransition(currentStep + 1);
     } else {
       onDismiss?.();
     }
-  }, [currentStep, onDismiss]);
+  }, [currentStep, onDismiss, runStepTransition]);
 
   const handlePrev = useCallback(() => {
     if (currentStep > 0) {
-      setCurrentStep(prev => prev - 1);
+      runStepTransition(currentStep - 1);
     }
-  }, [currentStep]);
+  }, [currentStep, runStepTransition]);
 
   const handleStepSelect = useCallback((index) => {
-    setCurrentStep(index);
-  }, []);
+    runStepTransition(index);
+  }, [runStepTransition]);
 
   const swipeHandlers = useSwipeNavigation({
     onSwipeLeft: handleNext,
@@ -83,11 +139,50 @@ export function GestureCoachOverlay({ isOpen, onDismiss }) {
     threshold: 60
   });
 
-  if (!isOpen) return null;
-
   const step = GESTURE_STEPS[currentStep];
   const isLastStep = currentStep === GESTURE_STEPS.length - 1;
   const Icon = step.icon;
+
+  useLayoutEffect(() => {
+    if (!isOpen || prefersReducedMotion || !stepContentRef.current) return undefined;
+    const node = stepContentRef.current;
+    set(node, { opacity: 0, translateX: 20 });
+    const anim = animate(node, {
+      opacity: [0, 1],
+      translateX: [20, 0],
+      duration: 200,
+      ease: 'outQuad'
+    });
+    return () => anim?.pause?.();
+  }, [isOpen, prefersReducedMotion]);
+
+  useEffect(() => {
+    if (!isOpen || prefersReducedMotion) return undefined;
+    const node = gestureRingRef.current;
+    if (!node) return undefined;
+
+    if (gestureAnimRef.current?.pause) {
+      gestureAnimRef.current.pause();
+    }
+
+    const config = step.gesture === 'tap'
+      ? { scale: [1, 1.2, 1], opacity: [0.5, 0, 0.5], duration: 1200 }
+      : step.gesture === 'hold'
+        ? { scale: [1, 1.1, 1.1, 1], opacity: [0.5, 0.8, 0.8, 0.5], duration: 1200 }
+        : { scale: [1, 1.15, 1, 1.15, 1], opacity: [0.5, 0, 0.5, 0, 0.5], duration: 1500 };
+
+    gestureAnimRef.current = animate(node, {
+      scale: config.scale,
+      opacity: config.opacity,
+      duration: config.duration,
+      ease: 'inOutQuad',
+      loop: true
+    });
+
+    return () => gestureAnimRef.current?.pause?.();
+  }, [step.gesture, isOpen, prefersReducedMotion]);
+
+  if (!isOpen) return null;
 
   return (
     <div
@@ -106,7 +201,7 @@ export function GestureCoachOverlay({ isOpen, onDismiss }) {
           allowOutsideClick: true
         }}
       >
-        <motion.div
+        <div
           ref={modalRef}
           role="dialog"
           aria-modal="true"
@@ -135,15 +230,7 @@ export function GestureCoachOverlay({ isOpen, onDismiss }) {
 
           {/* Step Content */}
           <div className="px-6 py-6">
-            <AnimatePresence mode="wait">
-              <motion.div
-                key={step.id}
-                initial={prefersReducedMotion ? { opacity: 1 } : { opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={prefersReducedMotion ? { opacity: 0 } : { opacity: 0, x: -20 }}
-                transition={{ duration: 0.2 }}
-                className="text-center"
-              >
+            <div ref={stepContentRef} className="text-center">
                 {/* Gesture Icon with Animation */}
                 <div className="relative mx-auto w-20 h-20 mb-4">
                   <div className="absolute inset-0 rounded-full bg-accent/10 border border-accent/30" />
@@ -152,20 +239,9 @@ export function GestureCoachOverlay({ isOpen, onDismiss }) {
                   </div>
                   {/* Animated gesture indicator */}
                   {!prefersReducedMotion && (
-                    <motion.div
+                    <div
+                      ref={gestureRingRef}
                       className="absolute inset-0 rounded-full border-2 border-accent/50"
-                      animate={
-                        step.gesture === 'tap'
-                          ? { scale: [1, 1.2, 1], opacity: [0.5, 0, 0.5] }
-                          : step.gesture === 'hold'
-                          ? { scale: [1, 1.1, 1.1, 1], opacity: [0.5, 0.8, 0.8, 0.5] }
-                          : { scale: [1, 1.15, 1, 1.15, 1], opacity: [0.5, 0, 0.5, 0, 0.5] }
-                      }
-                      transition={{
-                        duration: step.gesture === 'double-tap' ? 1.5 : 1.2,
-                        repeat: Infinity,
-                        ease: 'easeInOut'
-                      }}
                     />
                   )}
                 </div>
@@ -184,8 +260,7 @@ export function GestureCoachOverlay({ isOpen, onDismiss }) {
                 <p className="text-xs text-secondary/70 italic">
                   {step.hint}
                 </p>
-              </motion.div>
-            </AnimatePresence>
+            </div>
           </div>
 
           {/* Footer with Navigation */}
@@ -231,7 +306,7 @@ export function GestureCoachOverlay({ isOpen, onDismiss }) {
               Skip tutorial
             </button>
           </div>
-        </motion.div>
+        </div>
       </FocusTrap>
     </div>
   );

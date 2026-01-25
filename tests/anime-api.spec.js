@@ -1,4 +1,5 @@
 // @ts-check
+/* global window */
 import { test, expect } from '@playwright/test';
 
 /**

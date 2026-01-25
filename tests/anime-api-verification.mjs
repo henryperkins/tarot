@@ -16,7 +16,6 @@ console.log('Anime.js API Verification');
 console.log('========================================\n');
 
 // Try to import anime.js
-let anime;
 let animeModule;
 
 try {
@@ -27,7 +26,7 @@ try {
   console.log('');
 
   // Check what's exported
-  const exports = Object.keys(animeModule);
+  const _exports = Object.keys(animeModule);
 
   console.log('=== Export Analysis ===\n');
 
@@ -128,12 +127,7 @@ try {
   if (timelineFn) {
     console.log('\n--- timeline function ---');
     console.log('✓ timeline available');
-    try {
-      // Can't fully test without DOM, but check it's callable
-      console.log('  Type:', typeof timelineFn);
-    } catch (e) {
-      console.log('  Note: Full test requires DOM');
-    }
+    console.log('  Type:', typeof timelineFn);
   }
 
   // Summary
@@ -157,8 +151,8 @@ try {
   // Promise API
   console.log('\nPromise: Use animation.finished (not .promise)');
 
-} catch (e) {
-  console.error('Failed to import animejs:', e.message);
+} catch (_e) {
+  console.error('Failed to import animejs:', _e.message);
   console.log('\nMake sure animejs is installed: npm install animejs');
 
   // Try to check package.json for version info

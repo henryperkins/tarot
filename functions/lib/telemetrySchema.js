@@ -21,6 +21,27 @@ export const SCHEMA_VERSION = 2;
 export function buildPromptTelemetry(promptMeta) {
   if (!promptMeta) return null;
 
+  const normalizeTruncation = (truncation) => {
+    if (!truncation || typeof truncation !== 'object') return null;
+
+    const normalizeField = (field) => {
+      if (!field || typeof field !== 'object') return { truncated: false };
+      const normalized = { truncated: Boolean(field.truncated) };
+      if (Number.isFinite(field.originalLength)) normalized.originalLength = field.originalLength;
+      if (Number.isFinite(field.finalLength)) normalized.finalLength = field.finalLength;
+      return normalized;
+    };
+
+    const normalized = {};
+    if (truncation.question !== undefined) normalized.question = normalizeField(truncation.question);
+    if (truncation.reading !== undefined) normalized.reading = normalizeField(truncation.reading);
+    if (truncation.cards !== undefined) normalized.cards = normalizeField(truncation.cards);
+
+    return Object.keys(normalized).length > 0 ? normalized : null;
+  };
+
+  const truncation = normalizeTruncation(promptMeta.truncation || promptMeta.truncationDetails || null);
+
   // Note: prompt.version removed - use experiment.promptVersion (single source of truth)
   // Note: prompt.tokens.truncated removed - use prompt.truncation !== null (single source of truth)
   // Note: prompt.options.includeGraphRAG removed - use graphRAG.includedInPrompt (single source of truth)
@@ -45,7 +66,7 @@ export function buildPromptTelemetry(promptMeta) {
       includeDeckContext: promptMeta.appliedOptions.includeDeckContext || false,
       includeDiagnostics: promptMeta.appliedOptions.includeDiagnostics || false
     } : null,
-    truncation: promptMeta.truncation || null,
+    truncation,
     hardCap: promptMeta.hardCap || null,
     context: promptMeta.context || null,
     ephemeris: promptMeta.ephemeris || null,
@@ -175,10 +196,22 @@ export function buildEvalGateTelemetry(evalGateResult, wasGateBlocked) {
     return { ran: false };
   }
 
+  const reason = evalGateResult.gateResult?.reason || evalGateResult.reason || null;
+  const reasons = evalGateResult.gateResult?.reasons || evalGateResult.reasons || (reason ? [reason] : []);
+  const evalSource = evalGateResult.eval_source || evalGateResult.evalSource || null;
+  const thresholdsSnapshot = evalGateResult.thresholds_snapshot || evalGateResult.thresholdsSnapshot || null;
+  const deterministicOverrides = evalGateResult.evalResult?.deterministic_overrides || evalGateResult.deterministic_overrides || null;
+  const heuristicTriggers = evalGateResult.evalResult?.heuristic_triggers || evalGateResult.heuristic_triggers || null;
+
   return {
     ran: true,
     passed: evalGateResult.passed,
-    reason: evalGateResult.gateResult?.reason || evalGateResult.reason || null,
+    reason,
+    reasons,
+    eval_source: evalSource,
+    thresholds_snapshot: thresholdsSnapshot,
+    heuristic_triggers: heuristicTriggers,
+    deterministic_overrides: deterministicOverrides,
     latencyMs: evalGateResult.latencyMs ?? null,
     blocked: wasGateBlocked || false
   };

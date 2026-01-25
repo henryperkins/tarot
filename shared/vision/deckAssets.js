@@ -1,3 +1,5 @@
+import { THOTH_MINOR_TITLES as THOTH_MINOR_TITLE_DETAILS } from './thothMinorTitles.js';
+
 export const THOTH_MAJOR_ALIASES = {
   0: 'The Fool',
   1: 'The Magus',
@@ -23,56 +25,30 @@ export const THOTH_MAJOR_ALIASES = {
   21: 'The Universe'
 };
 
-export const THOTH_MINOR_TITLES = {
-  Wands: {
-    1: 'Root of Fire',
-    2: 'Dominion',
-    3: 'Virtue',
-    4: 'Completion',
-    5: 'Strife',
-    6: 'Victory',
-    7: 'Valour',
-    8: 'Swiftness',
-    9: 'Strength',
-    10: 'Oppression'
-  },
-  Cups: {
-    1: 'Root of Water',
-    2: 'Love',
-    3: 'Abundance',
-    4: 'Luxury',
-    5: 'Disappointment',
-    6: 'Pleasure',
-    7: 'Debauch',
-    8: 'Indolence',
-    9: 'Happiness',
-    10: 'Satiety'
-  },
-  Swords: {
-    1: 'Root of Air',
-    2: 'Peace',
-    3: 'Sorrow',
-    4: 'Truce',
-    5: 'Defeat',
-    6: 'Science',
-    7: 'Futility',
-    8: 'Interference',
-    9: 'Cruelty',
-    10: 'Ruin'
-  },
-  Pentacles: {
-    1: 'Root of Earth',
-    2: 'Change',
-    3: 'Works',
-    4: 'Power',
-    5: 'Worry',
-    6: 'Success',
-    7: 'Failure',
-    8: 'Prudence',
-    9: 'Gain',
-    10: 'Wealth'
+const ROOT_TITLE_PREFIX = 'Root of the Powers of ';
+const ROOT_TITLE_SHORT_PREFIX = 'Root of ';
+
+const getShortThothTitle = (entry) => {
+  if (!entry?.title) return entry?.title;
+  if (entry.rank === 1 && entry.title.startsWith(ROOT_TITLE_PREFIX)) {
+    return `${ROOT_TITLE_SHORT_PREFIX}${entry.title.slice(ROOT_TITLE_PREFIX.length)}`;
   }
+  return entry.title;
 };
+
+export const THOTH_MINOR_TITLES = Object.values(THOTH_MINOR_TITLE_DETAILS).reduce(
+  (acc, entry) => {
+    if (!entry?.suit || typeof entry.rank !== 'number') {
+      return acc;
+    }
+    if (!acc[entry.suit]) {
+      acc[entry.suit] = {};
+    }
+    acc[entry.suit][entry.rank] = getShortThothTitle(entry);
+    return acc;
+  },
+  {}
+);
 
 export const THOTH_SUIT_ALIASES = {
   Pentacles: 'Disks',

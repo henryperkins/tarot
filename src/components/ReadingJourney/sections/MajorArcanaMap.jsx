@@ -4,32 +4,7 @@
 
 import { memo } from 'react';
 import { Star } from '@phosphor-icons/react';
-
-// Major Arcana names by number
-const MAJOR_ARCANA_NAMES = [
-  'The Fool',
-  'The Magician',
-  'The High Priestess',
-  'The Empress',
-  'The Emperor',
-  'The Hierophant',
-  'The Lovers',
-  'The Chariot',
-  'Strength',
-  'The Hermit',
-  'Wheel of Fortune',
-  'Justice',
-  'The Hanged Man',
-  'Death',
-  'Temperance',
-  'The Devil',
-  'The Tower',
-  'The Star',
-  'The Moon',
-  'The Sun',
-  'Judgement',
-  'The World',
-];
+import { MAJOR_ARCANA_NAMES } from '../../../data/majorArcana.js';
 
 // Roman numeral representation
 const ROMAN_NUMERALS = [

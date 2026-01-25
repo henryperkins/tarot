@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, useCallback, useLayoutEffect } from 'react';
-import { motion, useAnimation } from 'framer-motion';
+import { animate, createSpring, createTimeline, cubicBezier, set } from 'animejs';
 import { ArrowsOut, HandPointing, ArrowLeft, ArrowRight, NotePencil, CaretUp } from '@phosphor-icons/react';
 import { CARD_LOOKUP, FALLBACK_IMAGE, getCardImage } from '../lib/cardLookup';
 import { CardSymbolInsights } from './CardSymbolInsights';
@@ -50,6 +50,42 @@ function normalizeSuitKey(suit) {
   if (trimmed === 'swords') return 'swords';
   if (trimmed === 'pentacles') return 'pentacles';
   return null;
+}
+
+function ElementFlash({ accentColor, accentSoft, flashKey, prefersReducedMotion }) {
+  const flashRef = useRef(null);
+
+  useLayoutEffect(() => {
+    const node = flashRef.current;
+    if (!node) return undefined;
+
+    if (prefersReducedMotion) {
+      set(node, { opacity: 0 });
+      return undefined;
+    }
+
+    set(node, { opacity: 0.6, scale: 0.92 });
+    const anim = animate(node, {
+      opacity: [0.6, 0],
+      scale: [0.92, 1.12],
+      duration: ELEMENT_FLASH_TIMEOUT_MS,
+      ease: 'outQuad'
+    });
+
+    return () => anim?.pause?.();
+  }, [flashKey, prefersReducedMotion]);
+
+  return (
+    <div
+      ref={flashRef}
+      className="absolute inset-0 rounded-lg pointer-events-none"
+      style={{
+        border: `2px solid ${accentColor}`,
+        background: `radial-gradient(circle at 50% 35%, ${accentSoft} 0%, transparent 60%)`
+      }}
+      aria-hidden="true"
+    />
+  );
 }
 
 export function Card({
@@ -133,24 +169,38 @@ export function Card({
 
   // Local state to manage the visual reveal sequence
   const [isVisuallyRevealed, setIsVisuallyRevealed] = useState(isRevealed);
-  const controls = useAnimation();
+  const cardRef = useRef(null);
+  const activeAnimRef = useRef(null);
+  const flipTimelineRef = useRef(null);
   const hasMounted = useRef(false);
+  const entryEase = useMemo(() => createSpring({ stiffness: 260, damping: 20, mass: 1 }), []);
+  const revealEase = useMemo(() => cubicBezier(0.4, 0, 0.2, 1), []);
 
   const cardImage = useMemo(() => getCardImage(card), [card]);
 
-  useEffect(() => {
-    // Entry animation
-    if (!hasMounted.current) {
-      controls.start({
-        opacity: 1,
-        y: 0,
-        scale: 1,
-        rotateY: 0,
-        transition: prefersReducedMotion ? { duration: 0 } : { type: "spring", stiffness: 260, damping: 20 }
-      });
+  useLayoutEffect(() => {
+    const node = cardRef.current;
+    if (!node || hasMounted.current) return undefined;
+
+    if (prefersReducedMotion) {
+      set(node, { opacity: 1, translateY: 0, scale: 1, rotateY: 0 });
       hasMounted.current = true;
+      return undefined;
     }
-  }, [controls, prefersReducedMotion]);
+
+    set(node, { opacity: 0, translateY: 50, scale: 0.9, rotateY: 0 });
+    activeAnimRef.current = animate(node, {
+      opacity: [0, 1],
+      translateY: [50, 0],
+      scale: [0.9, 1],
+      rotateY: 0,
+      duration: 500,
+      ease: entryEase
+    });
+    hasMounted.current = true;
+
+    return () => activeAnimRef.current?.pause?.();
+  }, [entryEase, prefersReducedMotion]);
 
   useEffect(() => {
     return () => {
@@ -225,19 +275,37 @@ export function Card({
     vibrate(10);
 
     // Visual swipe animation before reveal
-    if (!prefersReducedMotion) {
-      controls.start({
-        x: direction === 'right' ? 50 : -50,
-        opacity: 0.7,
-        transition: { duration: 0.15 }
-      }).then(() => {
-        handleReveal();
-        controls.start({ x: 0, opacity: 1 });
-      });
-    } else {
+    const node = cardRef.current;
+    if (prefersReducedMotion || !node) {
       handleReveal();
+      return;
     }
-  }, [isRevealed, isVisuallyRevealed, handleReveal, controls, prefersReducedMotion, vibrate]);
+
+    if (activeAnimRef.current?.pause) {
+      activeAnimRef.current.pause();
+    }
+
+    activeAnimRef.current = animate(node, {
+      translateX: direction === 'right' ? 50 : -50,
+      opacity: 0.7,
+      duration: 150,
+      ease: 'outQuad'
+    });
+
+    activeAnimRef.current
+      .then(() => {
+        handleReveal();
+        activeAnimRef.current = animate(node, {
+          translateX: 0,
+          opacity: 1,
+          duration: 180,
+          ease: 'outQuad'
+        });
+      })
+      .catch(() => {
+        handleReveal();
+      });
+  }, [handleReveal, isRevealed, isVisuallyRevealed, prefersReducedMotion, vibrate]);
 
   // Touch gesture tracking for swipe
   const handleTouchStart = useCallback((e) => {
@@ -297,7 +365,20 @@ export function Card({
 
     const resetVisualState = () => {
       setIsVisuallyRevealed(false);
-      controls.set({ rotateY: 0, opacity: 1 });
+      const node = cardRef.current;
+      if (node) {
+        if (activeAnimRef.current?.pause) {
+          activeAnimRef.current.pause();
+        }
+        set(node, {
+          rotateY: 0,
+          opacity: 1,
+          filter: 'blur(0px)',
+          scale: 1,
+          translateX: 0,
+          translateY: 0
+        });
+      }
     };
 
     const canUseRaf = typeof window !== 'undefined' && typeof window.requestAnimationFrame === 'function';
@@ -312,7 +393,7 @@ export function Card({
         clearTimeout(handleId);
       }
     };
-  }, [isRevealed, isVisuallyRevealed, controls]);
+  }, [isRevealed, isVisuallyRevealed]);
 
   // Handle the flip animation sequence
   useEffect(() => {
@@ -325,69 +406,77 @@ export function Card({
     animationStartedRef.current = true;
 
     let isActive = true;
-    let staggerTimeoutId = null;
-
-    const clearStaggerTimeout = () => {
-      if (staggerTimeoutId) {
-        clearTimeout(staggerTimeoutId);
-        staggerTimeoutId = null;
-      }
-    };
+    const node = cardRef.current;
+    if (!node) {
+      return () => {
+        isActive = false;
+      };
+    }
 
     const sequence = async () => {
       if (import.meta.env.DEV) {
         console.log(`Card ${index} starting reveal sequence. Stagger: ${staggerDelay}`);
       }
 
-      // Enhanced timing for ink-spread reveal effect
-      const inkDuration = prefersReducedMotion ? 0 : 0.35;
-      const revealTransition = prefersReducedMotion
-        ? { duration: 0 }
-        : { duration: 0.4, ease: [0.4, 0, 0.2, 1] };
+      const inkDuration = prefersReducedMotion ? 0 : 350;
+      const revealDuration = prefersReducedMotion ? 0 : 400;
+      const startDelay = prefersReducedMotion ? 0 : Math.max(0, staggerDelay * 1000);
 
-      if (staggerDelay > 0 && !prefersReducedMotion) {
-        await new Promise(resolve => {
-          staggerTimeoutId = setTimeout(() => {
-            resolve();
-            staggerTimeoutId = null;
-          }, staggerDelay * 1000);
-        });
-        if (!isActive) return;
+      if (prefersReducedMotion) {
+        setIsVisuallyRevealed(true);
+        set(node, { rotateY: 0, opacity: 1, filter: 'blur(0px)', scale: 1 });
+        return;
       }
 
-      if (!isActive) return;
       if (import.meta.env.DEV) {
         console.log(`Card ${index} starting Phase 1 (ink blur out)`);
       }
-      
-      // Phase 1: Ink blur-out (card fades with blur as if dissolving)
-      await controls.start({
+
+      if (flipTimelineRef.current?.pause) {
+        flipTimelineRef.current.pause();
+      }
+
+      const timeline = createTimeline({ autoplay: false });
+      timeline.add(node, {
         rotateY: 90,
         opacity: 0.6,
-        filter: prefersReducedMotion ? 'blur(0px)' : 'blur(8px)',
+        filter: 'blur(8px)',
         scale: 0.95,
-        transition: { duration: inkDuration, ease: "easeIn" }
-      });
-      if (!isActive) return;
+        duration: inkDuration,
+        ease: 'inQuad'
+      }, startDelay);
 
-      if (import.meta.env.DEV) {
-        console.log(`Card ${index} Phase 2 (swap content)`);
-      }
-      setIsVisuallyRevealed(true);
-      if (!isActive) return;
+      timeline.call(() => {
+        if (!isActive) return;
+        if (import.meta.env.DEV) {
+          console.log(`Card ${index} Phase 2 (swap content)`);
+        }
+        setIsVisuallyRevealed(true);
+      }, startDelay + inkDuration);
 
       if (import.meta.env.DEV) {
         console.log(`Card ${index} starting Phase 3 (ink spread in)`);
       }
-      
-      // Phase 2: Ink spread-in (card emerges from blur with scale)
-      await controls.start({
+
+      timeline.add(node, {
         rotateY: 0,
         opacity: 1,
         filter: 'blur(0px)',
         scale: 1,
-        transition: revealTransition
-      });
+        duration: revealDuration,
+        ease: revealEase
+      }, startDelay + inkDuration);
+
+      timeline.play();
+      flipTimelineRef.current = timeline;
+
+      try {
+        await timeline.then();
+      } catch (_error) {
+        return;
+      }
+
+      if (!isActive) return;
 
       if (import.meta.env.DEV) {
         console.log(`Card ${index} reveal complete`);
@@ -398,12 +487,14 @@ export function Card({
 
     return () => {
       isActive = false;
-      clearStaggerTimeout();
-      // Don't call controls.stop() here - let the animation complete naturally
+      if (flipTimelineRef.current?.pause) {
+        flipTimelineRef.current.pause();
+      }
+      // Let in-flight animations resolve naturally to avoid abrupt snaps.
     };
     // Intentionally only depend on isRevealed to start animation once
     // Other values are read from refs or are stable
-  }, [isRevealed, staggerDelay, controls, index, prefersReducedMotion]);
+  }, [index, isRevealed, prefersReducedMotion, revealEase, staggerDelay]);
 
   // Get card meaning
   const originalCard = canonicalCard;
@@ -426,10 +517,8 @@ export function Card({
 
       {/* Card */}
       <div className="p-3 sm:p-4 md:p-6" style={{ perspective: '1000px' }}>
-        <motion.div
-          initial={{ opacity: 0, y: 50, scale: 0.9, rotateY: 0 }}
-          animate={controls}
-          transition={{ type: "spring", stiffness: 260, damping: 20 }}
+        <div
+          ref={cardRef}
           className={`transition-all duration-500 transform rounded-lg ${!isVisuallyRevealed ? '' : 'group'}`}
           style={{
             transformStyle: 'preserve-3d',
@@ -512,8 +601,8 @@ export function Card({
                   aria-label={`View details for ${card.name}`}
                 >
                   {/* Rider-Waite Card Image with Interactive Overlay */}
-                  <motion.div
-                    layoutId={`card-image-${index}`}
+                  <div
+                    data-layout-id={`card-image-${index}`}
                     className={`mx-auto mb-3 max-w-[65%] sm:max-w-[280px] ${card.isReversed ? 'rotate-180' : ''}`}
                   >
                     <div className="relative aspect-[2/3] rounded-lg" style={suitFrameStyle}>
@@ -534,25 +623,19 @@ export function Card({
                       />
 
                       {elementFlashActive && suitAccentColor && suitAccentSoft && (
-                        <motion.div
-                          // Key forces a fresh animation per reveal.
+                        <ElementFlash
                           key={`element-flash-${index}-${elementFlashKey}`}
-                          className="absolute inset-0 rounded-lg pointer-events-none"
-                          initial={{ opacity: 0.6, scale: 0.92 }}
-                          animate={{ opacity: 0, scale: 1.12 }}
-                          transition={{ duration: ELEMENT_FLASH_DURATION, ease: 'easeOut' }}
-                          style={{
-                            border: `2px solid ${suitAccentColor}`,
-                            background: `radial-gradient(circle at 50% 35%, ${suitAccentSoft} 0%, transparent 60%)`
-                          }}
-                          aria-hidden="true"
+                          flashKey={`${index}-${elementFlashKey}`}
+                          accentColor={suitAccentColor}
+                          accentSoft={suitAccentSoft}
+                          prefersReducedMotion={prefersReducedMotion}
                         />
                       )}
 
                       {/* Interactive symbol overlay */}
                       <InteractiveCardOverlay card={card} />
                     </div>
-                  </motion.div>
+                  </div>
                 </button>
 
                 <div className="text-center mb-3">
@@ -652,7 +735,7 @@ export function Card({
               </div>
             </div>
           )}
-        </motion.div>
+        </div>
       </div>
     </div>
   );

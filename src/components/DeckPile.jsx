@@ -1,5 +1,5 @@
-import { useState, useEffect, useRef } from 'react';
-import { motion } from 'framer-motion';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { animate, createSpring } from 'animejs';
 import { TableuLogo } from './TableuLogo';
 import { useReducedMotion } from '../hooks/useReducedMotion';
 
@@ -44,20 +44,62 @@ function useDynamicLogoSize(baseSize = 120, factor = 0.15, debounceMs = 100) {
 export function DeckPile({ cardsRemaining, onDraw, isShuffling, nextLabel }) {
     const rasterLogoSize = useDynamicLogoSize(120, 0.15);
     const shouldReduceMotion = useReducedMotion();
+    const buttonRef = useRef(null);
+    const isHoveringRef = useRef(false);
+    const activeAnimRef = useRef(null);
+    const springEase = useMemo(() => createSpring({ stiffness: 400, damping: 25, mass: 1 }), []);
+
+    const runAnimation = useCallback((props, options = {}) => {
+        if (shouldReduceMotion || !buttonRef.current) return;
+        if (activeAnimRef.current?.pause) {
+            activeAnimRef.current.pause();
+        }
+        activeAnimRef.current = animate(buttonRef.current, {
+            ...props,
+            ease: options.ease || springEase,
+            duration: options.duration || 300
+        });
+    }, [shouldReduceMotion, springEase]);
+
+    const handlePointerEnter = useCallback(() => {
+        if (isShuffling) return;
+        isHoveringRef.current = true;
+        runAnimation({ scale: 1.05, translateY: -5 }, { duration: 320 });
+    }, [isShuffling, runAnimation]);
+
+    const handlePointerLeave = useCallback(() => {
+        if (isShuffling) return;
+        isHoveringRef.current = false;
+        runAnimation({ scale: 1, translateY: 0 }, { duration: 260 });
+    }, [isShuffling, runAnimation]);
+
+    const handlePointerDown = useCallback(() => {
+        if (isShuffling) return;
+        runAnimation({ scale: 0.97 }, { duration: 120, ease: 'outQuad' });
+    }, [isShuffling, runAnimation]);
+
+    const handlePointerUp = useCallback(() => {
+        if (isShuffling) return;
+        if (isHoveringRef.current) {
+            runAnimation({ scale: 1.05, translateY: -5 }, { duration: 180 });
+        } else {
+            runAnimation({ scale: 1, translateY: 0 }, { duration: 180 });
+        }
+    }, [isShuffling, runAnimation]);
 
     if (cardsRemaining <= 0) return null;
 
-    const hoverAnimation = shouldReduceMotion ? {} : { scale: 1.05, y: -5 };
-    const tapAnimation = shouldReduceMotion ? {} : { scale: 0.97 };
-
     return (
         <div className="flex flex-col items-center justify-center py-6 sm:py-8 animate-fade-in relative z-20">
-            <motion.button
-                whileHover={hoverAnimation}
-                whileTap={tapAnimation}
-                transition={{ type: 'spring', stiffness: 400, damping: 25 }}
+            <button
+                ref={buttonRef}
                 onClick={onDraw}
                 disabled={isShuffling}
+                onPointerEnter={handlePointerEnter}
+                onPointerLeave={handlePointerLeave}
+                onPointerDown={handlePointerDown}
+                onPointerUp={handlePointerUp}
+                onPointerCancel={handlePointerLeave}
                 className="group relative w-[clamp(9rem,45vw,10rem)] h-[clamp(13.5rem,67.5vw,15rem)] sm:w-32 sm:h-48 md:w-40 md:h-60 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-2 rounded-2xl touch-manipulation"
                 aria-label={nextLabel ? `Draw card for ${nextLabel}` : "Draw next card"}
             >
@@ -99,7 +141,7 @@ export function DeckPile({ cardsRemaining, onDraw, isShuffling, nextLabel }) {
                         {cardsRemaining} card{cardsRemaining !== 1 ? 's' : ''} remaining
                     </p>
                 </div>
-            </motion.button>
+            </button>
         </div>
     );
 }

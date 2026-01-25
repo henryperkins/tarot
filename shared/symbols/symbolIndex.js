@@ -3,6 +3,7 @@
 // Auto-generated structure, manually curated for semantic grouping
 
 import { SYMBOL_ANNOTATIONS } from './symbolAnnotations.js';
+import { MAJOR_ARCANA_NAMES } from '../../src/data/majorArcana.js';
 
 /**
  * Build reverse index from symbol annotations
@@ -99,13 +100,10 @@ function getSymbolFamily(name) {
 }
 
 // Card name lookup for display
-const CARD_NAMES = {
-  0: 'The Fool', 1: 'The Magician', 2: 'The High Priestess', 3: 'The Empress',
-  4: 'The Emperor', 5: 'The Hierophant', 6: 'The Lovers', 7: 'The Chariot',
-  8: 'Strength', 9: 'The Hermit', 10: 'Wheel of Fortune', 11: 'Justice',
-  12: 'The Hanged Man', 13: 'Death', 14: 'Temperance', 15: 'The Devil',
-  16: 'The Tower', 17: 'The Star', 18: 'The Moon', 19: 'The Sun',
-  20: 'Judgement', 21: 'The World',
+const MAJOR_CARD_NAMES = Object.fromEntries(
+  MAJOR_ARCANA_NAMES.map((name, index) => [index, name])
+);
+const MINOR_CARD_NAMES = {
   // Wands
   22: 'Ace of Wands', 23: 'Two of Wands', 24: 'Three of Wands', 25: 'Four of Wands',
   26: 'Five of Wands', 27: 'Six of Wands', 28: 'Seven of Wands', 29: 'Eight of Wands',
@@ -125,7 +123,11 @@ const CARD_NAMES = {
   60: 'Ace of Pentacles', 61: 'Two of Pentacles', 62: 'Three of Pentacles', 63: 'Four of Pentacles',
   64: 'Five of Pentacles', 65: 'Six of Pentacles', 66: 'Seven of Pentacles', 67: 'Eight of Pentacles',
   68: 'Nine of Pentacles', 69: 'Ten of Pentacles', 70: 'Page of Pentacles', 71: 'Knight of Pentacles',
-  72: 'Queen of Pentacles', 73: 'King of Pentacles',
+  72: 'Queen of Pentacles', 73: 'King of Pentacles'
+};
+const CARD_NAMES = {
+  ...MAJOR_CARD_NAMES,
+  ...MINOR_CARD_NAMES
 };
 
 /**
