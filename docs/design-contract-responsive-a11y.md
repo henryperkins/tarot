@@ -1,100 +1,48 @@
-# Tableu Responsive + A11y Design Contract
+Completed the responsive + a11y audit and applied the remediation updates below. This is the current design contract, standardization tokens, and regression checklist.
 
-Scope: Breakpoints (Tailwind + custom raw queries), mobile typography, safe-area padding, reduced-motion behavior, and component expectations (touch targets, text sizing, motion toggles).
+## Design Contract
+- Base type: mobile body is 16px with prose at 15px via `--text-sm-mobile` / `text-sm-mobile` (`src/styles/tarot.css`, `tailwind.config.js`).
+- Touch targets: minimum 44px with 52px for primary CTAs via `--touch-target` / `--touch-target-cta` (`src/styles/tarot.css`, `tailwind.config.js`).
+- Safe area: sticky headers use `pt-[max(var(--safe-pad-top),0.75rem)]`; fixed bottoms use `pb-safe` (1rem baseline) plus `--mobile-action-bar-*` offsets (`tailwind.config.js`, `src/styles/tarot.css`).
+- Motion: durations/easing use `--duration-*` / `--ease-out`; overlays gate animations with `motion-safe` or `useReducedMotion` (`src/styles/tarot.css`, `tailwind.config.js`, `src/hooks/useReducedMotion.js`).
 
-## Breakpoint Guarantees
+| Breakpoint | Width | Layout Density | Type Scale | Touch Targets | Special Handling |
+|------------|-------|----------------|------------|---------------|------------------|
+| xxs | 320px | Ultra-compact; single column; tight gaps | Body 16px; prose 15px; meta 14px | 44px / 52px | Narrower carousel widths + tight padding via `xxs:` (`src/components/ReadingGrid.jsx`, `src/components/StreamingNarrative.jsx`) |
+| xs | 375px | Compact mobile default | Body 16px; prose 15px | 44px / 52px | List view fallback for compact readings + spacing tweaks via `xs:` (`src/components/ReadingGrid.jsx`) |
+| sm | 640px | Tablet baseline; allow 2+ columns | `text-sm`/`text-base`, `prose-base` | 44px / 52px | `sm:` grid fallback + spacing increases (`src/components/ReadingGrid.jsx`) |
+| md | 768px | Desktop transition; comfortable spacing | `md:prose-lg`, larger headings | 44px / 52px | Larger content columns (`src/components/StreamingNarrative.jsx`) |
+| landscape | height <=500px | Compact controls; reduced padding | Keep base sizes, reduce labels to `text-xs` | 44px / 52px | Hide step labels + shrink icons; compact action bar (`src/components/MobileActionBar.jsx`, `src/styles/tarot.css`) |
+| short | height <=600px | Reduced chrome; tighter vertical padding | Same type sizes, tighter spacing | 44px / 52px | Use `short:` to reduce padding in narrative/sheets (`src/components/StreamingNarrative.jsx`, `src/components/ReadingJourney/JourneyMobileSheet.jsx`) |
 
-### Tailwind Screens
-- **xxs (>= 320px)**
-  - Layout: single-column only.
-  - Type: body base 16px; content paragraphs 15px.
-  - Touch: interactive targets >= 44px (tap-safe minimum).
-  - Density: compact padding; avoid multi-column grids.
+## Remediations Applied
+| ID | Component | Resolution |
+|----|-----------|------------|
+| R-1 | Responsive system | Removed `mobile-*` screens from Tailwind; `xxs/xs` are the only sub-sm utility breakpoints. |
+| R-2 | Responsive system | Aligned landscape threshold to 500 in `useLandscape` to match Tailwind/CSS. |
+| R-3 | ReadingGrid | Replaced 480px with `xs` (375px) for very-small screen logic. |
+| R-4 | ReadingGrid | Added `min-h-touch` to layout toggles. |
+| R-5 | CardModal | Updated nav/close controls to `min-h-touch/min-w-touch`. |
+| R-6 | Nudges + quick actions | Updated CTA heights to `min-h-cta` and secondary actions to `min-h-touch`. |
+| R-7 | Headers | Standardized sticky headers on `pt-[max(var(--safe-pad-top),0.75rem)]`. |
+| R-8 | Fixed bottoms | Standardized fixed bottom bars on `pb-safe` (1rem baseline). |
+| R-9 | Motion | Tailwind animations and inline transitions now use motion tokens. |
+| R-10 | Motion | Overlay animations gated via `motion-safe`/`useReducedMotion`. |
 
-- **xs (>= 375px)**
-  - Layout: single-column with limited two-column subgrids if space allows.
-  - Type: same mobile base (16px body; 15px paragraph for long-form).
-  - Touch: >= 44px; CTAs may use 48–52px height.
-
-- **sm (>= 640px)**
-  - Layout: tablet start; multi-column grids allowed.
-  - Type: standard text sizes; larger headings and card titles ok.
-  - Density: increase padding and spacing; avoid mobile-only clamps.
-
-- **md (>= 768px)**
-  - Layout: tablet/desktop; full grid layouts and sidebars ok.
-  - Type: comfortable line lengths; standard card sizes.
-
-- **lg (>= 1024px)**
-  - Layout: desktop; wide grids and multi-panel layouts ok.
-  - Type: full scale; no mobile-only reductions.
-
-### Custom Raw Queries (Tailwind `extend.screens`)
-- **landscape (orientation: landscape AND max-height: 500px)**
-  - Layout: compact header/action bar; reduced vertical padding.
-  - Cards: smaller card shells; reduced min-heights.
-  - Motion: avoid large transforms or tall animations.
-
-- **short (max-height: 600px)**
-  - Layout: height-limited; reduce vertical padding in panels.
-  - Cards: cap tall cards and panels to avoid viewport overflow.
-
-## Typography Contract (Mobile)
-- **Base body**: 16px (`body` font-size on <= 639px).
-- **Long-form content**: 15px (`.narrative-stream__text p`, `.journal-prose p`, `.reading-content p`).
-- **Minimum body text**: 14px (avoid lower except for non-essential metadata).
-- **Line-height**: 1.5–1.75 for paragraphs; keep consistent across content blocks.
-
-## Safe-Area Handling Contract
-- All fixed/sticky headers, footers, sheets, and modals must include safe-area insets.
-- Use consistent safe-area tokens for top/bottom/left/right.
-- Avoid mixing inline `max()`/`calc()` rules with Tailwind safe-area utilities in the same layout.
-
-## Motion Contract
-- Prefer motion-safe utilities for decorative animation.
-- Reduced motion must disable:
-  - animation loops
-  - non-essential transforms
-  - smooth scrolling
-  - auto-animated transitions
-- JS animations should also respect reduced motion (single source of truth).
-
-## Component Expectations
-- **Touch targets**: >= 44px minimum width/height everywhere.
-- **CTAs**: 48–52px preferred min-height.
-- **Text sizing**: use standardized tokens (e.g., `text-xs-plus`, `text-sm-mobile`, `text-base`), avoid ad-hoc `text-[..]` unless unavoidable.
-- **Motion toggles**: always gate with `prefers-reduced-motion` or `motion-safe` utilities.
-
-## Inconsistencies to Address
-1. Breakpoint drift: Tailwind screens vs tarot.css max-width rules (330/360/400/440/479/520).
-2. Mixed min-width and max-width patterns across the system.
-3. `short` screen defined but unused; parallel height rules exist in tarot.css.
-4. Safe-area padding handled inconsistently (utilities vs inline styles).
-5. `.safe-area-padding` and `.pb-safe` are partial or static and overlap with Tailwind safe utilities.
-6. `.touch-target` exists but is unused; some buttons are < 44px tall.
-7. Typography tokens (`sm-mobile`) exist but are unused; ad-hoc sizes appear in components.
-8. Reduced-motion hook strategy is inconsistent (custom hook vs framer-motion hook).
-
-## Minimal Tokens / Utilities to Standardize
-- **Spacing / Safe Area**
-  - CSS vars: `--safe-pad-top`, `--safe-pad-bottom`, `--safe-pad-x`
-  - Tailwind utilities: `pt-safe`, `pb-safe`, `px-safe`
-
-- **Touch Targets**
-  - CSS vars: `--touch-target: 44px`, `--touch-target-cta: 52px`
-  - Utilities: `min-h-touch`, `min-w-touch`, `min-h-cta`
-
-- **Motion**
-  - Use existing `--duration-*` and `--ease-out` tokens
-  - Map Tailwind `duration-*` to these vars for consistency
-  - Single motion source: prefer `MotionConfig reducedMotion="user"` at app root
+## Standardization Tokens
+- Spacing: consolidate to "compact" (`px-3 py-2 gap-2`) and "comfortable" (`px-4 py-3 gap-3`) patterns already used in mobile shells (`src/components/MobileBottomNav.jsx`, `src/components/ExperienceSettings.jsx`).
+- Heights: enforce `min-h-touch` / `min-h-cta` / `min-w-touch` for interactive elements; replace `min-h-[36px]` usages (`tailwind.config.js`, `src/components`).
+- Motion: align `animate-*` durations and inline transitions to `--duration-*` / `--ease-out` and gate with reduced-motion (`tailwind.config.js`, `src/styles/tarot.css`, `src/components`).
 
 ## Regression Checklist
-- Verify layouts at 320 / 375 / 640 / 768 / 1024 widths.
-- Verify landscape compact behavior at max-height 500.
-- Verify short viewport handling at max-height 600.
-- Validate safe-area padding on iOS notches for headers, footers, modals.
-- Confirm base type sizes on mobile (16px body, 15px long-form).
-- Ensure all interactive elements >= 44px.
-- Verify prefers-reduced-motion disables animations and smooth scroll.
-- Check motion toggles for JS-driven animations.
+- Confirm all interactive elements use `min-h-touch/min-w-touch` and not `min-h-[36px]` (`tailwind.config.js`, `src/components`).
+- Verify icon-only controls keep 44px targets + focus rings (`src/components/CardSymbolInsights.jsx`, `src/components/MobileActionBar.jsx`).
+- Fixed bottom bars include safe-area + baseline padding (`tailwind.config.js`, `src/components/MobileBottomNav.jsx`, `src/pages/ShareReading.jsx`).
+- Sticky headers include safe-area + baseline top padding (`src/pages/AccountPage.jsx`, `src/pages/ShareReading.jsx`, `src/components/onboarding/OnboardingWizard.jsx`).
+- Drawers/sheets account for safe-area in max height and padding (`src/components/MobileSettingsDrawer.jsx`, `src/components/ReadingJourney/JourneyMobileSheet.jsx`).
+- Keyboard avoidance keeps actions visible via `--mobile-action-bar-offset` (`src/components/MobileActionBar.jsx`, `src/components/StreamingNarrative.jsx`).
+- Breakpoint usage matches contract; avoid ad-hoc width thresholds (`tailwind.config.js`, `src/components/ReadingGrid.jsx`, `src/components/journal/entry-card/EntrySections/CardsDrawnSection/CardsDrawnSection.jsx`).
+- Landscape/short behavior aligns between CSS utilities and JS hooks (`src/hooks/useLandscape.js`, `src/styles/tarot.css`).
+- Prose containers use `text-sm-mobile` on mobile; metadata uses `text-xs-plus` (`src/styles/tarot.css`, `tailwind.config.js`).
+- Headings scale at `sm`/`md` where layouts widen (`src/components/StreamingNarrative.jsx`).
+- Animations respect reduced-motion and durations use tokens (`src/styles/tarot.css`, `tailwind.config.js`, `src/components/MobileActionBar.jsx`).

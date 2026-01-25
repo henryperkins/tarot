@@ -25,10 +25,7 @@ export default {
     },
     screens: {
       'xxs': '320px',
-      'mobile-sm': '360px',
       'xs': '375px',
-      'mobile-md': '400px',
-      'mobile-lg': '440px',
       ...defaultTheme.screens,
     },
     extend: {
@@ -119,13 +116,13 @@ export default {
       },
       // Keyframes live in src/styles/tarot.css to keep the app + docs/theme-swatch.html in sync.
       animation: {
-        'fade-in': 'fadeIn 0.2s ease-out',
-        'slide-up': 'slideUp 0.3s ease-out',
-        'slide-down': 'slideDown 0.2s ease-out',
-        'pop-in': 'popIn 0.2s ease-out',
-        'slide-in-right': 'slideInRight 0.3s ease-out',
-        'fade-in-up': 'fadeInUp 0.6s ease-out forwards',
-        'ink-spread': 'inkSpread 0.5s cubic-bezier(0.4, 0, 0.2, 1) forwards',
+        'fade-in': 'fadeIn var(--duration-normal) var(--ease-out)',
+        'slide-up': 'slideUp var(--duration-medium) var(--ease-out)',
+        'slide-down': 'slideDown var(--duration-normal) var(--ease-out)',
+        'pop-in': 'popIn var(--duration-normal) var(--ease-out)',
+        'slide-in-right': 'slideInRight var(--duration-medium) var(--ease-out)',
+        'fade-in-up': 'fadeInUp var(--duration-slower) var(--ease-out) forwards',
+        'ink-spread': 'inkSpread var(--duration-slow) var(--ease-out) forwards',
         'float-gentle': 'floatGentle 6s ease-in-out infinite',
         'pulse-slow': 'pulseSlow 4s ease-in-out infinite',
       }

@@ -5,7 +5,7 @@
  * collapsible sections for Cards, Patterns, and Export.
  */
 
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import {
   Sparkle,
@@ -32,6 +32,9 @@ import JournalSummarySection from './sections/JournalSummarySection';
 import EmptyState from './sections/EmptyState';
 import BackfillBanner from './sections/BackfillBanner';
 import PatternAlertBanner from '../PatternAlertBanner';
+import { usePreferences } from '../../contexts/PreferencesContext';
+import { recordCoachQuestion } from '../../lib/coachStorage';
+import { getCoachSuggestionSearchQuery } from '../../lib/coachSuggestionUtils';
 import { usePatternsSnapshot } from './hooks/usePatternsSnapshot';
 
 /**
@@ -124,6 +127,7 @@ export default function JourneySidebar({
   onScopeSelect,
 }) {
   const navigate = useNavigate();
+  const { resetOnboarding, setShowPersonalizationBanner } = usePreferences();
   const streakGraceTooltip = 'Counts from yesterday if no reading today (grace period).';
   const streakInfoButtonClass =
     'text-muted hover:text-main focus-visible:ring-[color:var(--accent-45)] -ml-2 -mr-2';
@@ -135,8 +139,20 @@ export default function JourneySidebar({
     export: false,
   });
   const [showAllPatterns, setShowAllPatterns] = useState(false);
+  const [saveNotice, setSaveNotice] = useState(false);
+  const [saveError, setSaveError] = useState('');
 
   const abortControllerRef = useRef(null);
+  const saveTimeoutRef = useRef(null);
+
+  const clearSaveTimeout = useCallback(() => {
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
+      saveTimeoutRef.current = null;
+    }
+  }, []);
+
+  useEffect(() => () => clearSaveTimeout(), [clearSaveTimeout]);
 
   const toggleSection = useCallback((key) => {
     setOpenSections((prev) => ({ ...prev, [key]: !prev[key] }));
@@ -149,6 +165,42 @@ export default function JourneySidebar({
     abortControllerRef.current = new AbortController();
     handleBackfill(abortControllerRef.current.signal);
   }, [handleBackfill]);
+
+  const handleSaveIntention = useCallback((suggestion) => {
+    const question = suggestion?.question || suggestion?.text;
+    const trimmed = typeof question === 'string' ? question.trim() : '';
+    if (!trimmed) return;
+    const result = recordCoachQuestion(trimmed, undefined, userId);
+    clearSaveTimeout();
+    if (result.success) {
+      setSaveNotice(true);
+      setSaveError('');
+      saveTimeoutRef.current = setTimeout(() => {
+        setSaveNotice(false);
+      }, 1800);
+    } else {
+      setSaveNotice(false);
+      setSaveError(result.error || 'Unable to save this intention right now.');
+      saveTimeoutRef.current = setTimeout(() => {
+        setSaveError('');
+      }, 3000);
+    }
+  }, [clearSaveTimeout, userId]);
+
+  const handleOpenJournal = useCallback((suggestion) => {
+    const query = getCoachSuggestionSearchQuery(suggestion);
+    if (query) {
+      navigate('/journal', { state: { prefillQuery: query } });
+      return;
+    }
+    navigate('/journal');
+  }, [navigate]);
+
+  const handleSetFocusAreas = useCallback(() => {
+    resetOnboarding();
+    setShowPersonalizationBanner(false);
+    navigate('/');
+  }, [navigate, resetOnboarding, setShowPersonalizationBanner]);
 
   const scopeChipLabel = analyticsScope === 'filters' && filtersActive ? 'Filtered' : (scopeLabel || 'Scope');
   const sourceLabel = _dataSource === 'server' ? 'D1' : 'Journal';
@@ -351,9 +403,18 @@ export default function JourneySidebar({
           currentStreak={currentStreak}
           totalReadings={totalReadings}
           topContext={[...contextBreakdown].sort((a, b) => b.count - a.count)[0]}
+          contextBreakdown={contextBreakdown}
+          preferenceDrift={preferenceDrift}
           coachSuggestion={coachSuggestion}
           onStartReading={onStartReading}
+          onSaveIntention={handleSaveIntention}
+          onOpenJournal={handleOpenJournal}
+          onSetFocusAreas={handleSetFocusAreas}
+          saveNotice={saveNotice}
+          saveError={saveError}
           showStartReadingCta={showStartReadingCta}
+          filtersActive={filtersActive}
+          scopeLabel={scopeLabel}
           locale={locale}
           timezone={seasonTimezone || timezone}
           seasonWindow={seasonWindow}

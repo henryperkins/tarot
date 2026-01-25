@@ -224,7 +224,7 @@ function BottomSheet({ isOpen, onClose, children }) {
     >
       {/* Backdrop */}
       <div
-        className="absolute inset-0 bg-main/70 backdrop-blur-sm animate-fade-in"
+        className="absolute inset-0 bg-main/70 backdrop-blur-sm motion-safe:animate-fade-in"
         onClick={onClose}
         aria-hidden="true"
       />
@@ -235,7 +235,7 @@ function BottomSheet({ isOpen, onClose, children }) {
         aria-modal="true"
         aria-label="Card symbol insights"
         tabIndex={-1}
-        className="relative z-10 w-full max-w-lg max-h-[80vh] overflow-y-auto rounded-t-3xl border-t border-x border-secondary/30 bg-surface p-5 pb-[max(1.25rem,var(--safe-pad-bottom))] shadow-2xl animate-slide-up focus:outline-none"
+        className="relative z-10 w-full max-w-lg max-h-[80vh] overflow-y-auto rounded-t-3xl border-t border-x border-secondary/30 bg-surface p-5 pb-[max(1.25rem,var(--safe-pad-bottom))] shadow-2xl motion-safe:animate-slide-up focus:outline-none"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Drag handle indicator */}

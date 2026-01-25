@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import * as weave from 'weave';
 
 import { MAJOR_ARCANA } from '../../src/data/majorArcana.js';
 import { MINOR_ARCANA } from '../../src/data/minorArcana.js';
@@ -137,11 +138,13 @@ const SAMPLE_DEFINITIONS = [
 ];
 
 function usage() {
-  console.log(`Usage: node scripts/evaluation/runNarrativeSamples.js [--out ${DEFAULT_OUTPUT}] [--sample sample-id] [--backend auto|local-composer|azure-gpt5|claude-opus45]`);
+  console.log(`Usage: node scripts/evaluation/runNarrativeSamples.js [--out ${DEFAULT_OUTPUT}] [--sample sample-id] [--backend auto|local-composer|azure-gpt5|claude-opus45] [--trace]`);
+  console.log(`\nOptions:`);
+  console.log(`  --trace    Enable W&B Weave tracing (requires WANDB_API_KEY)`);
 }
 
 function parseArgs(rawArgs) {
-  const options = { output: DEFAULT_OUTPUT, sampleIds: null, backend: DEFAULT_BACKEND };
+  const options = { output: DEFAULT_OUTPUT, sampleIds: null, backend: DEFAULT_BACKEND, trace: false };
   for (let i = 0; i < rawArgs.length; i += 1) {
     const arg = rawArgs[i];
     if (arg === '--out') {
@@ -158,6 +161,8 @@ function parseArgs(rawArgs) {
     } else if (arg === '--backend') {
       options.backend = rawArgs[i + 1] || DEFAULT_BACKEND;
       i += 1;
+    } else if (arg === '--trace') {
+      options.trace = true;
     } else if (arg === '--help' || arg === '-h') {
       usage();
       process.exit(0);
@@ -217,7 +222,11 @@ function resolveBackendId(requestedBackend, env) {
   return normalized;
 }
 
-async function generateSample(sample, { env, backendId }) {
+/**
+ * Generate a narrative sample. When tracing is enabled, this function
+ * is wrapped with weave.op() to log inputs/outputs to W&B.
+ */
+async function generateSampleImpl(sample, { env, backendId }) {
   const spreadInfo = SPREADS[sample.spreadKey];
   if (!spreadInfo) {
     throw new Error(`Unknown spread key: ${sample.spreadKey}`);
@@ -294,6 +303,22 @@ async function main() {
   const options = parseArgs(process.argv.slice(2));
   const env = { ...process.env };
   const backendId = resolveBackendId(options.backend, env);
+
+  // Initialize Weave tracing if enabled
+  let generateSample = generateSampleImpl;
+  if (options.trace) {
+    if (!process.env.WANDB_API_KEY) {
+      console.error('--trace requires WANDB_API_KEY environment variable');
+      console.error('Get your API key at: https://wandb.ai/authorize');
+      process.exit(1);
+    }
+    console.log('Initializing W&B Weave tracing...');
+    await weave.init('lakefront-digital/Tarot');
+    // Wrap the generate function with Weave tracing
+    generateSample = weave.op(generateSampleImpl, { name: 'generateNarrativeSample' });
+    console.log('Tracing enabled. View traces at: https://wandb.ai/lakefront-digital/Tarot/weave/traces');
+  }
+
   const selectedSamples = SAMPLE_DEFINITIONS.filter((sample) => {
     if (!options.sampleIds) return true;
     return options.sampleIds.has(sample.id);
@@ -306,6 +331,7 @@ async function main() {
 
   const generated = [];
   for (const sample of selectedSamples) {
+    console.log(`Generating sample: ${sample.id}...`);
     generated.push(await generateSample(sample, { env, backendId }));
   }
 

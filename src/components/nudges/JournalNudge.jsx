@@ -35,14 +35,14 @@ export function JournalNudge({ onSave, onDismiss }) {
             <button
               type="button"
               onClick={onSave}
-              className="min-h-[36px] px-4 py-1.5 rounded-full bg-success text-surface text-xs font-medium transition hover:bg-success/90 active:scale-[0.98] touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-success/60 focus-visible:ring-offset-2"
+              className="min-h-cta px-4 py-1.5 rounded-full bg-success text-surface text-xs font-medium transition hover:bg-success/90 active:scale-[0.98] touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-success/60 focus-visible:ring-offset-2"
             >
               Save reading
             </button>
             <button
               type="button"
               onClick={onDismiss}
-              className="min-h-[36px] px-4 py-1.5 rounded-full border border-secondary/30 text-muted text-xs font-medium transition hover:border-secondary/50 hover:text-main active:scale-[0.98] touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
+              className="min-h-touch px-4 py-1.5 rounded-full border border-secondary/30 text-muted text-xs font-medium transition hover:border-secondary/50 hover:text-main active:scale-[0.98] touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
             >
               Not now
             </button>

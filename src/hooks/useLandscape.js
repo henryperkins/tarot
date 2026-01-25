@@ -5,7 +5,7 @@ import { useEffect, useState } from 'react';
  * Returns true when device is in landscape AND viewport height is constrained.
  * This helps identify cramped mobile landscape situations.
  */
-export function useLandscape(maxHeight = 600) {
+export function useLandscape(maxHeight = 500) {
   const getInitial = () => {
     if (typeof window === 'undefined') {
       return false;

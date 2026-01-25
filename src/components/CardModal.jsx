@@ -317,7 +317,7 @@ export function CardModal({
                                 type="button"
                                 onClick={() => onNavigate?.('prev')}
                                 disabled={!canNavigatePrev}
-                                className="flex items-center gap-1 text-xs text-muted hover:text-main disabled:opacity-30 disabled:cursor-not-allowed transition touch-manipulation min-h-[36px] min-w-[36px] px-1"
+                                className="flex items-center gap-1 text-xs text-muted hover:text-main disabled:opacity-30 disabled:cursor-not-allowed transition touch-manipulation min-h-touch min-w-touch px-1"
                                 aria-label="Previous card"
                             >
                                 <CaretLeft className="w-4 h-4" />
@@ -328,7 +328,7 @@ export function CardModal({
                                 type="button"
                                 onClick={() => onNavigate?.('next')}
                                 disabled={!canNavigateNext}
-                                className="flex items-center gap-1 text-xs text-muted hover:text-main disabled:opacity-30 disabled:cursor-not-allowed transition touch-manipulation min-h-[36px] min-w-[36px] px-1"
+                                className="flex items-center gap-1 text-xs text-muted hover:text-main disabled:opacity-30 disabled:cursor-not-allowed transition touch-manipulation min-h-touch min-w-touch px-1"
                                 aria-label="Next card"
                             >
                                 <span className="hidden xs:inline">Next</span>
@@ -340,7 +340,7 @@ export function CardModal({
                     )}
                     <button
                         onClick={handleClose}
-                        className="p-1.5 text-accent/70 hover:text-main hover:bg-surface-muted/50 rounded-full transition-colors touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ml-auto"
+                        className="min-h-touch min-w-touch inline-flex items-center justify-center p-1.5 text-accent/70 hover:text-main hover:bg-surface-muted/50 rounded-full transition-colors touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ml-auto"
                         aria-label="Close modal"
                     >
                         <X className="w-5 h-5" />

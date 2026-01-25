@@ -22,7 +22,11 @@ import {
   Info,
 } from '@phosphor-icons/react';
 import { Tooltip } from '../Tooltip';
+import { CoachSuggestion } from '../CoachSuggestion';
 import { useModalA11y } from '../../hooks/useModalA11y';
+import { usePreferences } from '../../contexts/PreferencesContext';
+import { recordCoachQuestion } from '../../lib/coachStorage';
+import { getCoachSuggestionSearchQuery } from '../../lib/coachSuggestionUtils';
 import CardsCallingYou from './sections/CardsCallingYou';
 import ContextBreakdown from './sections/ContextBreakdown';
 import PatternsSnapshotPanel from './sections/PatternsSnapshotPanel';
@@ -92,13 +96,17 @@ export default function JourneyMobileSheet({
   onScopeSelect,
 }) {
   const navigate = useNavigate();
+  const { resetOnboarding, setShowPersonalizationBanner } = usePreferences();
   const [isSheetOpen, setIsSheetOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('cards');
   const [showAllPatterns, setShowAllPatterns] = useState(false);
+  const [saveNotice, setSaveNotice] = useState(false);
+  const [saveError, setSaveError] = useState('');
   const sheetRef = useRef(null);
   const closeButtonRef = useRef(null);
   const triggerButtonRef = useRef(null);
   const abortControllerRef = useRef(null);
+  const saveTimeoutRef = useRef(null);
   const scopeChipLabel = analyticsScope === 'filters' && filtersActive ? 'Filtered' : (scopeLabel || 'Scope');
   const sourceLabel = _dataSource === 'server' ? 'D1' : 'Journal';
 
@@ -124,17 +132,18 @@ export default function JourneyMobileSheet({
   const streakGraceTooltip = 'Counts from yesterday if no reading today (grace period).';
   const streakInfoButtonClass =
     'text-muted hover:text-main focus-visible:ring-[color:var(--accent-45)] -ml-2 -mr-2';
-  const spreadLabels = {
-    single: '1-card',
-    threeCard: '3-card',
-    fiveCard: '5-card',
-    relationship: 'Relationship',
-    decision: 'Decision',
-    celtic: 'Celtic Cross',
-  };
-  const startLabel = coachSuggestion?.spread
-    ? `Start ${spreadLabels[coachSuggestion.spread] || 'Reading'}`
-    : 'Start Reading';
+  const themeHint = coachSuggestion?.source === 'theme' && typeof totalReadings === 'number' && totalReadings > 0
+    ? `Theme from ${totalReadings} reading${totalReadings === 1 ? '' : 's'}`
+    : '';
+  const topContextName = Array.isArray(contextBreakdown)
+    ? [...contextBreakdown].sort((a, b) => b.count - a.count)[0]?.name
+    : '';
+  const themeContextHint = coachSuggestion?.source === 'theme' && topContextName
+    ? `Top context: ${topContextName.charAt(0).toUpperCase() + topContextName.slice(1)}`
+    : '';
+  const showFocusAreasCta = !preferenceDrift
+    && Array.isArray(contextBreakdown)
+    && contextBreakdown.length > 0;
 
   // Swipe-to-dismiss state
   const [dragOffset, setDragOffset] = useState(0);
@@ -163,6 +172,55 @@ export default function JourneyMobileSheet({
     setActiveTab(tabKey);
   }, [activeTab, showAllPatterns]);
 
+  const clearSaveTimeout = useCallback(() => {
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
+      saveTimeoutRef.current = null;
+    }
+  }, []);
+
+  const handleSaveIntention = useCallback(() => {
+    const question = coachSuggestion?.question || coachSuggestion?.text;
+    const trimmed = typeof question === 'string' ? question.trim() : '';
+    if (!trimmed) return;
+    const result = recordCoachQuestion(trimmed, undefined, userId);
+    clearSaveTimeout();
+    if (result.success) {
+      setSaveNotice(true);
+      setSaveError('');
+      saveTimeoutRef.current = setTimeout(() => {
+        setSaveNotice(false);
+      }, 1800);
+    } else {
+      setSaveNotice(false);
+      setSaveError(result.error || 'Unable to save this intention right now.');
+      saveTimeoutRef.current = setTimeout(() => {
+        setSaveError('');
+      }, 3000);
+    }
+  }, [clearSaveTimeout, coachSuggestion, userId]);
+
+  const handleOpenJournal = useCallback(() => {
+    const query = getCoachSuggestionSearchQuery(coachSuggestion);
+    if (query) {
+      navigate('/journal', { state: { prefillQuery: query } });
+      return;
+    }
+    navigate('/journal');
+  }, [coachSuggestion, navigate]);
+
+  const handleStartReading = useCallback(() => {
+    if (onStartReading && coachSuggestion) {
+      onStartReading(coachSuggestion);
+    }
+  }, [coachSuggestion, onStartReading]);
+
+  const handleSetFocusAreas = useCallback(() => {
+    resetOnboarding();
+    setShowPersonalizationBanner(false);
+    navigate('/');
+  }, [navigate, resetOnboarding, setShowPersonalizationBanner]);
+
   // Reset drag state when sheet closes
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -177,6 +235,8 @@ export default function JourneyMobileSheet({
 
     return () => window.cancelAnimationFrame(rafId);
   }, [isSheetOpen]);
+
+  useEffect(() => () => clearSaveTimeout(), [clearSaveTimeout]);
 
   // Swipe-to-dismiss handlers
   const handleTouchStart = useCallback((event) => {
@@ -471,34 +531,24 @@ export default function JourneyMobileSheet({
 
           {/* Coach suggestion */}
           {coachSuggestion && (
-            <div className="rounded-lg bg-[color:var(--border-warm-subtle)] p-3 border border-[color:var(--border-warm-light)]">
-              <p className="text-xs text-muted-high">
-                💡 {coachSuggestion.text}
-              </p>
-              {coachSuggestion.sourceLabel && (
-                <div className="mt-2 flex items-center gap-2 text-[10px] uppercase tracking-[0.2em] text-muted">
-                  <span>Source: {coachSuggestion.sourceLabel}</span>
-                  {coachSuggestion.sourceDetail && (
-                    <Tooltip
-                      content={coachSuggestion.sourceDetail}
-                      position="top"
-                      ariaLabel="Why am I seeing this?"
-                      triggerClassName="text-muted hover:text-main"
-                    >
-                      <Info className="h-3 w-3" />
-                    </Tooltip>
-                  )}
-                </div>
-              )}
-              {onStartReading && showStartReadingCta && (
-                <button
-                  onClick={() => onStartReading(coachSuggestion)}
-                  className="mt-2 text-xs font-medium text-[color:var(--text-accent)] hover:text-main min-h-touch -mb-2 -ml-1 px-1"
-                >
-                  {startLabel} →
-                </button>
-              )}
-            </div>
+            <CoachSuggestion
+              recommendation={coachSuggestion}
+              variant="journey"
+              tone="warm"
+              onApply={onStartReading ? handleStartReading : null}
+              onSaveIntention={handleSaveIntention}
+              onOpenJournal={handleOpenJournal}
+              onSetFocusAreas={handleSetFocusAreas}
+              showFocusAreasCta={showFocusAreasCta}
+              focusAreasCtaPlacement="after-actions"
+              filtersActive={filtersActive}
+              scopeLabel={scopeLabel}
+              saveNotice={saveNotice}
+              saveError={saveError}
+              showStartReadingCta={showStartReadingCta}
+              themeHint={themeHint}
+              themeContextHint={themeContextHint}
+            />
           )}
 
           {/* See Full Journey button */}

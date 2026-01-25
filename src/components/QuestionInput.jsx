@@ -173,7 +173,7 @@ export function QuestionInput({
                 key={example}
                 type="button"
                 onClick={() => setUserQuestion(example)}
-                className="min-h-[36px] rounded-full border border-secondary/30 bg-surface/40 px-3 py-1.5 text-[0.7rem] text-secondary transition hover:border-accent/50 hover:text-main"
+                className="min-h-touch rounded-full border border-secondary/30 bg-surface/40 px-3 py-1.5 text-[0.7rem] text-secondary transition hover:border-accent/50 hover:text-main"
               >
                 {example.length > 40 ? `${example.slice(0, 40)}...` : example}
               </button>
@@ -184,7 +184,7 @@ export function QuestionInput({
       <div className="flex flex-wrap items-center gap-2 xs:gap-3">
         <button
           type="button"
-          className="px-3 py-1.5 min-h-[36px] rounded-lg border border-primary/40 text-xs text-main hover:bg-primary/10 active:bg-primary/15 transition disabled:opacity-50 touch-manipulation"
+          className="px-3 py-1.5 min-h-touch rounded-lg border border-primary/40 text-xs text-main hover:bg-primary/10 active:bg-primary/15 transition disabled:opacity-50 touch-manipulation"
           onClick={handleSaveIntention}
           disabled={!trimmedQuestion}
         >

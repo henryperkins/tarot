@@ -21,7 +21,7 @@ export const CardsDrawnSection = memo(function CardsDrawnSection({
   defaultExpanded = false
 }) {
   const reduceMotion = useReducedMotion();
-  const isNarrow = useSmallScreen(360);
+  const isNarrow = useSmallScreen(375);
   const isCollapsible = collapsible && isSmallScreen;
   const cardItems = useMemo(() => cards, [cards]);
   const cardFan = useCardFan({

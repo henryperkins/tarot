@@ -117,7 +117,7 @@ export function SpreadStep({ selectedSpread, onSelectSpread, onNext, onBack }) {
                 key={area}
                 type="button"
                 onClick={() => toggleFocusArea(area)}
-                className={`min-h-[36px] px-3 py-1.5 rounded-full text-sm transition touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent ${
+                className={`min-h-touch px-3 py-1.5 rounded-full text-sm transition touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent ${
                   focusArea === area.toLowerCase()
                     ? 'bg-accent text-surface'
                     : 'bg-surface border border-secondary/30 text-muted hover:border-accent/50'

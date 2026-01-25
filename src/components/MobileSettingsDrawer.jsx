@@ -2,6 +2,7 @@ import { useRef, useCallback, useState, useEffect, useSyncExternalStore } from '
 import { Sparkle, X } from '@phosphor-icons/react';
 import { useModalA11y } from '../hooks/useModalA11y';
 import { useAndroidBackGuard } from '../hooks/useAndroidBackGuard';
+import { useReducedMotion } from '../hooks/useReducedMotion';
 import { MOBILE_SETTINGS_DIALOG_ID } from './MobileActionBar';
 
 const KEYBOARD_OFFSET_THRESHOLD = 50;
@@ -44,6 +45,7 @@ export function MobileSettingsDrawer({ isOpen, onClose, children, footer = null 
   const bodyStyle = footer
     ? undefined
     : { paddingBottom: 'calc(1rem + var(--safe-pad-bottom))' };
+  const prefersReducedMotion = useReducedMotion();
 
   // Shared modal accessibility: scroll lock, escape key, focus trap, focus restoration
   useModalA11y(isOpen, {
@@ -164,14 +166,14 @@ export function MobileSettingsDrawer({ isOpen, onClose, children, footer = null 
       style={wrapperStyle}
     >
       <div
-        className="mobile-drawer-overlay absolute inset-0 animate-fade-in"
+        className="mobile-drawer-overlay absolute inset-0 motion-safe:animate-fade-in"
         onClick={onClose}
         aria-hidden="true"
       />
 
       <div
         ref={drawerRef}
-        className="mobile-drawer relative w-full flex flex-col animate-slide-up"
+        className="mobile-drawer relative w-full flex flex-col motion-safe:animate-slide-up"
         id={MOBILE_SETTINGS_DIALOG_ID}
         role="dialog"
         aria-modal="true"
@@ -183,7 +185,9 @@ export function MobileSettingsDrawer({ isOpen, onClose, children, footer = null 
         style={{
           maxHeight: 'calc(100% - 8px)',
           transform: dragOffset > 0 ? `translateY(${dragOffset}px)` : undefined,
-          transition: isDragging ? 'none' : 'transform 0.2s ease-out'
+          transition: isDragging || prefersReducedMotion
+            ? 'none'
+            : 'transform var(--duration-normal) var(--ease-out)'
         }}
       >
         <div className="mobile-drawer__handle" aria-hidden="true" />

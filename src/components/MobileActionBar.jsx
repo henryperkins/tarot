@@ -490,7 +490,7 @@ export function MobileActionBar({ keyboardOffset = 0, isOverlayActive = false, .
   // Smooth animation for keyboard avoidance with cubic-bezier easing
   const barStyle = useMemo(() => ({
     bottom: effectiveOffset > 0 ? effectiveOffset : 0,
-    transition: 'bottom 0.25s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.2s ease-out',
+    transition: 'bottom var(--duration-normal) var(--ease-out), opacity var(--duration-fast) var(--ease-out)',
     willChange: effectiveOffset > 0 ? 'bottom' : 'auto'
   }), [effectiveOffset]);
 

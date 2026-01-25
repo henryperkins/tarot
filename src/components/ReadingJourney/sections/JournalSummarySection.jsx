@@ -288,7 +288,7 @@ function JournalSummarySection({ isAuthenticated, entryCount = 0, filteredEntrie
               onClick={() => {
                 setUserScopeMode('recent');
               }}
-              className={`min-h-[36px] rounded-full px-3 text-xs font-semibold transition ${scopeMode === 'recent'
+              className={`min-h-touch rounded-full px-3 text-xs font-semibold transition ${scopeMode === 'recent'
                 ? 'bg-amber-200/20 text-amber-50'
                 : 'text-amber-100/70 hover:text-amber-50'
               }`}
@@ -301,7 +301,7 @@ function JournalSummarySection({ isAuthenticated, entryCount = 0, filteredEntrie
                 setUserScopeMode('filters');
               }}
               disabled={filteredCount === 0}
-              className={`min-h-[36px] rounded-full px-3 text-xs font-semibold transition ${scopeMode === 'filters'
+              className={`min-h-touch rounded-full px-3 text-xs font-semibold transition ${scopeMode === 'filters'
                 ? 'bg-amber-200/20 text-amber-50'
                 : 'text-amber-100/70 hover:text-amber-50'
               } ${filteredCount === 0 ? 'cursor-not-allowed opacity-50' : ''}`}

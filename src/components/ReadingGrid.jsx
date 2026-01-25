@@ -163,7 +163,7 @@ export function ReadingGrid({
   const [prevReflectionDeps, setPrevReflectionDeps] = useState({ reading, reflections, isCompactScreen: false });
   const [openReflectionIndex, setOpenReflectionIndex] = useState(null);
   const isCompactScreen = useSmallScreen();
-  const isVerySmallScreen = useSmallScreen(480);
+  const isVerySmallScreen = useSmallScreen(375);
   const prefersReducedMotion = useReducedMotion();
   const isLandscape = useLandscape();
   const readingLength = reading?.length || 0;
@@ -491,7 +491,7 @@ export function ReadingGrid({
                 type="button"
                 aria-pressed={!isListView}
                 onClick={() => handleLayoutToggle('carousel')}
-                className={`flex-1 rounded-full border px-3 py-2 text-xs font-semibold ${isListView ? 'border-secondary/40 text-muted' : 'border-primary/60 bg-primary/10 text-primary'}`}
+                className={`flex-1 min-h-touch rounded-full border px-3 py-2 text-xs font-semibold ${isListView ? 'border-secondary/40 text-muted' : 'border-primary/60 bg-primary/10 text-primary'}`}
               >
                 Swipe view
               </button>
@@ -499,7 +499,7 @@ export function ReadingGrid({
                 type="button"
                 aria-pressed={isListView}
                 onClick={() => handleLayoutToggle('list')}
-                className={`flex-1 rounded-full border px-3 py-2 text-xs font-semibold ${isListView ? 'border-primary/60 bg-primary/10 text-primary' : 'border-secondary/40 text-muted'}`}
+                className={`flex-1 min-h-touch rounded-full border px-3 py-2 text-xs font-semibold ${isListView ? 'border-primary/60 bg-primary/10 text-primary' : 'border-secondary/40 text-muted'}`}
               >
                 List view
               </button>
