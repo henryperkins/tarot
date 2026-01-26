@@ -1,4 +1,4 @@
-import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useId, useSyncExternalStore } from 'react';
+import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useId } from 'react';
 import FocusTrap from 'focus-trap-react';
 import {
   ChartLine,
@@ -19,6 +19,7 @@ import { useAndroidBackGuard } from '../hooks/useAndroidBackGuard';
 import { useLandscape } from '../hooks/useLandscape';
 import { useReducedMotion } from '../hooks/useReducedMotion';
 import { useSwipeDismiss } from '../hooks/useSwipeDismiss';
+import { useKeyboardOffset } from '../hooks/useKeyboardOffset';
 import { usePreferences } from '../contexts/PreferencesContext';
 import { useAuth } from '../contexts/AuthContext';
 import { useSubscription } from '../contexts/SubscriptionContext';
@@ -48,7 +49,6 @@ import {
 } from '../lib/coachStorage';
 import { MOBILE_COACH_DIALOG_ID } from './MobileActionBar';
 import { buildThemeQuestion, normalizeThemeLabel } from '../lib/themeText';
-import { subscribeToViewport, getViewportOffset, getServerViewportOffset } from './MobileActionBar';
 
 // ============================================================================
 // Constants
@@ -393,11 +393,7 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply,
   const [astroHighlights, setAstroHighlights] = useState([]);
   const [astroWindowDays, setAstroWindowDays] = useState(null);
   const [astroSource, setAstroSource] = useState(null);
-  const viewportOffset = useSyncExternalStore(
-    subscribeToViewport,
-    getViewportOffset,
-    getServerViewportOffset
-  );
+  const viewportOffset = useKeyboardOffset();
   const effectiveOffset = Math.max(0, viewportOffset);
   const coachSnapshotLabel = useMemo(() => {
     if (!coachStatsMeta) return '';

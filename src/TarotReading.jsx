@@ -152,7 +152,6 @@ export default function TarotReading() {
   const [isMobileSettingsOpen, setIsMobileSettingsOpen] = useState(false);
   const [mobileSettingsTab, setMobileSettingsTab] = useState('intention');
   const [highlightQuickIntention, setHighlightQuickIntention] = useState(false);
-  const [keyboardOffset, setKeyboardOffset] = useState(0);
   const [onboardingDeferred, setOnboardingDeferred] = useState(false);
   const isOnboardingOpen = !onboardingComplete && !showPersonalizationBanner && !onboardingDeferred;
   const shouldShowGestureCoachOverlay = shouldShowGestureCoach && hasConfirmedSpread && !reading && !isOnboardingOpen;
@@ -414,27 +413,6 @@ export default function TarotReading() {
     setIsFollowUpOpen
   ]);
 
-  // Mobile keyboard avoidance for the bottom action bar
-  useEffect(() => {
-    if (typeof window === 'undefined' || !window.visualViewport) return;
-
-    const viewport = window.visualViewport;
-
-    const updateKeyboardOffset = () => {
-      const heightDiff = window.innerHeight - viewport.height - viewport.offsetTop;
-      const isKeyboardOpen = heightDiff > 120;
-      setKeyboardOffset(isKeyboardOpen ? Math.max(heightDiff, 0) : 0);
-    };
-
-    viewport.addEventListener('resize', updateKeyboardOffset);
-    viewport.addEventListener('scroll', updateKeyboardOffset);
-    updateKeyboardOffset();
-
-    return () => {
-      viewport.removeEventListener('resize', updateKeyboardOffset);
-      viewport.removeEventListener('scroll', updateKeyboardOffset);
-    };
-  }, []);
 
   // Coach Shortcut
   useEffect(() => {
@@ -1037,7 +1015,6 @@ export default function TarotReading() {
             stepIndicatorLabel={stepIndicatorLabel}
             activeStep={activeStep}
             revealFocus={revealFocus}
-            keyboardOffset={keyboardOffset}
             onOpenSettings={() => {
               setMobileSettingsTab(activeStep === 'ritual' ? 'ritual' : 'intention');
               setIsMobileSettingsOpen(true);
@@ -1055,7 +1032,7 @@ export default function TarotReading() {
             <div
               className="fixed left-0 right-0 z-[60] flex justify-center px-3"
               style={{
-                bottom: 'calc(var(--mobile-action-bar-height, 0px) + var(--mobile-action-bar-offset, 0px) + 0.75rem)'
+                bottom: 'calc(var(--mobile-action-bar-height, 0px) + var(--keyboard-offset, 0px) + 0.75rem)'
               }}
               aria-live="polite"
             >

@@ -190,7 +190,7 @@
 
   /* Mobile action bar sizing (updated at runtime) */
   --mobile-action-bar-height: 0px;
-  --mobile-action-bar-offset: 0px;
+  --keyboard-offset: 0px;
 
   /* Touch targets - WCAG 2.2 SC 2.5.8 */
   --touch-target: 44px;
@@ -350,6 +350,13 @@ body {
     font-size: 1rem; /* 16px - prevents iOS zoom on focus */
   }
 
+  /* Prevent utility classes from shrinking form controls under 16px on mobile */
+  input[class*='text-'],
+  textarea[class*='text-'],
+  select[class*='text-'] {
+    font-size: 1rem;
+  }
+
   /* Larger link/button text for easier tapping */
   button,
   a {
@@ -360,7 +367,15 @@ body {
 .app-shell {
   /* Account for fixed mobile action bar when visible */
   padding-bottom: calc(
-    1.5rem + var(--mobile-action-bar-height, 0px) + var(--mobile-action-bar-offset, 0px)
+    1.5rem + var(--mobile-action-bar-height, 0px) + var(--keyboard-offset, 0px)
+  );
+}
+
+.pb-safe-action {
+  padding-bottom: calc(
+    max(1rem, var(--safe-pad-bottom, 0px)) +
+      var(--mobile-action-bar-height, 0px) +
+      var(--keyboard-offset, 0px)
   );
 }
 
@@ -564,8 +579,8 @@ body {
 @supports (padding: max(0px)) {
   .app-shell {
     padding-bottom: calc(
-      1.5rem + env(safe-area-inset-bottom, 0px) + var(--mobile-action-bar-height, 0px) +
-        var(--mobile-action-bar-offset, 0px)
+      1.5rem + var(--safe-pad-bottom, 0px) + var(--mobile-action-bar-height, 0px) +
+        var(--keyboard-offset, 0px)
     );
   }
 }
@@ -686,8 +701,8 @@ body {
   /* Reduce spacing between content sections */
   .app-shell {
     padding-bottom: calc(
-      0.75rem + env(safe-area-inset-bottom, 0px) +
-        var(--mobile-action-bar-height, 0px) + var(--mobile-action-bar-offset, 0px)
+      0.75rem + var(--safe-pad-bottom, 0px) +
+        var(--mobile-action-bar-height, 0px) + var(--keyboard-offset, 0px)
     );
   }
 

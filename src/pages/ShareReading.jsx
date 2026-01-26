@@ -491,7 +491,7 @@ export default function ShareReading() {
       {/* Bottom sticky "Open in app" bar for guests */}
       {!isAuthenticated && (
         <div
-          className="fixed bottom-0 left-0 right-0 z-30 border-t border-accent/30 bg-surface/95 backdrop-blur-sm shadow-[0_-8px_30px_rgba(0,0,0,0.4)] pb-safe pl-safe-left pr-safe-right"
+          className="fixed bottom-0 left-0 right-0 z-30 border-t border-accent/30 bg-surface/95 backdrop-blur-sm shadow-[0_-8px_30px_rgba(0,0,0,0.4)] pb-safe-action pl-safe-left pr-safe-right"
         >
           <div className="mx-auto max-w-6xl px-4 py-3">
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">

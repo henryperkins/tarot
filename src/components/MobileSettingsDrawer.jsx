@@ -1,45 +1,15 @@
-import { useRef, useCallback, useState, useEffect, useSyncExternalStore } from 'react';
+import { useRef, useCallback, useState, useEffect } from 'react';
 import { Sparkle, X } from '@phosphor-icons/react';
 import { useModalA11y } from '../hooks/useModalA11y';
 import { useAndroidBackGuard } from '../hooks/useAndroidBackGuard';
 import { useReducedMotion } from '../hooks/useReducedMotion';
+import { useKeyboardOffset } from '../hooks/useKeyboardOffset';
 import { MOBILE_SETTINGS_DIALOG_ID } from './MobileActionBar';
-
-const KEYBOARD_OFFSET_THRESHOLD = 50;
-
-// Subscribe to visualViewport changes for keyboard-aware padding
-function subscribeToViewport(callback) {
-  if (typeof window === 'undefined' || !window.visualViewport) {
-    return () => {};
-  }
-  window.visualViewport.addEventListener('resize', callback);
-  window.visualViewport.addEventListener('scroll', callback);
-  return () => {
-    window.visualViewport.removeEventListener('resize', callback);
-    window.visualViewport.removeEventListener('scroll', callback);
-  };
-}
-
-function getViewportOffset() {
-  if (typeof window === 'undefined' || !window.visualViewport) {
-    return 0;
-  }
-  const offset = window.innerHeight - window.visualViewport.height - window.visualViewport.offsetTop;
-  return offset > KEYBOARD_OFFSET_THRESHOLD ? offset : 0;
-}
-
-function getServerViewportOffset() {
-  return 0;
-}
 
 export function MobileSettingsDrawer({ isOpen, onClose, children, footer = null }) {
   const drawerRef = useRef(null);
   const closeButtonRef = useRef(null);
-  const viewportOffset = useSyncExternalStore(
-    subscribeToViewport,
-    getViewportOffset,
-    getServerViewportOffset
-  );
+  const viewportOffset = useKeyboardOffset();
   const effectiveOffset = Math.max(0, viewportOffset);
   const wrapperStyle = effectiveOffset ? { paddingBottom: `${effectiveOffset}px` } : undefined;
   const bodyStyle = footer

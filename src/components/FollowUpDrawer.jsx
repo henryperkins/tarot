@@ -1,48 +1,17 @@
-import { useRef, useSyncExternalStore } from 'react';
+import { useRef } from 'react';
 import clsx from 'clsx';
 import { X } from '@phosphor-icons/react';
 import { useModalA11y } from '../hooks/useModalA11y';
 import { useAndroidBackGuard } from '../hooks/useAndroidBackGuard';
+import { useKeyboardOffset } from '../hooks/useKeyboardOffset';
 import FollowUpChat from './FollowUpChat';
 import { MOBILE_FOLLOWUP_DIALOG_ID } from './MobileActionBar';
-
-const KEYBOARD_OFFSET_THRESHOLD = 50;
-
-// Subscribe to visualViewport changes for keyboard-aware padding
-function subscribeToViewport(callback) {
-  if (typeof window === 'undefined' || !window.visualViewport) {
-    return () => {};
-  }
-  window.visualViewport.addEventListener('resize', callback);
-  window.visualViewport.addEventListener('scroll', callback);
-  return () => {
-    window.visualViewport.removeEventListener('resize', callback);
-    window.visualViewport.removeEventListener('scroll', callback);
-  };
-}
-
-function getViewportOffset() {
-  if (typeof window === 'undefined' || !window.visualViewport) {
-    return 0;
-  }
-  const offsetTop = window.visualViewport.offsetTop || 0;
-  const offset = window.innerHeight - window.visualViewport.height - offsetTop;
-  return offset > KEYBOARD_OFFSET_THRESHOLD ? offset : 0;
-}
-
-function getServerViewportOffset() {
-  return 0;
-}
 
 export default function FollowUpDrawer({ isOpen, onClose, autoFocusInput = true }) {
   const drawerRef = useRef(null);
   const closeButtonRef = useRef(null);
   const titleId = 'follow-up-drawer-title';
-  const viewportOffset = useSyncExternalStore(
-    subscribeToViewport,
-    getViewportOffset,
-    getServerViewportOffset
-  );
+  const viewportOffset = useKeyboardOffset();
   const effectiveOffset = Math.max(0, viewportOffset);
   const wrapperStyle = effectiveOffset ? { paddingBottom: `${effectiveOffset}px` } : undefined;
   const bodyStyle = {

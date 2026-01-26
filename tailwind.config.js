@@ -1,5 +1,14 @@
 import defaultTheme from 'tailwindcss/defaultTheme';
 
+const SAFE_PAD_TOP = 'var(--safe-pad-top, 0px)';
+const SAFE_PAD_BOTTOM = 'var(--safe-pad-bottom, 0px)';
+const SAFE_PAD_LEFT = 'var(--safe-pad-left, 0px)';
+const SAFE_PAD_RIGHT = 'var(--safe-pad-right, 0px)';
+const SAFE_INSET_TOP = `max(0.75rem, ${SAFE_PAD_TOP})`;
+const SAFE_INSET_BOTTOM = `max(1rem, ${SAFE_PAD_BOTTOM})`;
+const SAFE_INSET_LEFT = `max(1rem, ${SAFE_PAD_LEFT})`;
+const SAFE_INSET_RIGHT = `max(1rem, ${SAFE_PAD_RIGHT})`;
+
 /**
  * Tailwind configuration for Tableu (Vite + React + Cloudflare Pages).
  *
@@ -101,18 +110,18 @@ export default {
       },
       // Safe area utilities for modern mobile devices
       padding: {
-        'safe-top': 'env(safe-area-inset-top, 0px)',
-        'safe-bottom': 'env(safe-area-inset-bottom, 0px)',
-        'safe-left': 'env(safe-area-inset-left, 0px)',
-        'safe-right': 'env(safe-area-inset-right, 0px)',
-        'safe-t': 'env(safe-area-inset-top, 0px)',
-        'safe-b': 'env(safe-area-inset-bottom, 0px)',
+        'safe-top': SAFE_INSET_TOP,
+        'safe-bottom': SAFE_INSET_BOTTOM,
+        'safe-left': SAFE_INSET_LEFT,
+        'safe-right': SAFE_INSET_RIGHT,
+        'safe-t': SAFE_INSET_TOP,
+        'safe-b': SAFE_INSET_BOTTOM,
       },
       margin: {
-        'safe-top': 'env(safe-area-inset-top, 0px)',
-        'safe-bottom': 'env(safe-area-inset-bottom, 0px)',
-        'safe-left': 'env(safe-area-inset-left, 0px)',
-        'safe-right': 'env(safe-area-inset-right, 0px)',
+        'safe-top': SAFE_PAD_TOP,
+        'safe-bottom': SAFE_PAD_BOTTOM,
+        'safe-left': SAFE_PAD_LEFT,
+        'safe-right': SAFE_PAD_RIGHT,
       },
       // Keyframes live in src/styles/tarot.css to keep the app + docs/theme-swatch.html in sync.
       animation: {
@@ -134,18 +143,18 @@ export default {
     function({ addUtilities }) {
       addUtilities({
         '.px-safe': {
-          'padding-left': 'env(safe-area-inset-left, 0px)',
-          'padding-right': 'env(safe-area-inset-right, 0px)',
+          'padding-left': SAFE_INSET_LEFT,
+          'padding-right': SAFE_INSET_RIGHT,
         },
         '.py-safe': {
-          'padding-top': 'env(safe-area-inset-top, 0px)',
-          'padding-bottom': 'env(safe-area-inset-bottom, 0px)',
+          'padding-top': SAFE_INSET_TOP,
+          'padding-bottom': SAFE_INSET_BOTTOM,
         },
         '.pt-safe': {
-          'padding-top': 'env(safe-area-inset-top, 0px)',
+          'padding-top': SAFE_INSET_TOP,
         },
         '.pb-safe': {
-          'padding-bottom': 'max(1rem, env(safe-area-inset-bottom, 0px))',
+          'padding-bottom': SAFE_INSET_BOTTOM,
         },
       });
     }

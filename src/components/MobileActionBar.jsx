@@ -1,35 +1,8 @@
 /* eslint-disable react-refresh/only-export-components */
-import { useMemo, useSyncExternalStore, useEffect, useRef } from 'react';
+import { useMemo, useEffect, useRef } from 'react';
 import { Gear, Sparkle, ArrowsClockwise, ChatCircle } from '@phosphor-icons/react';
 import { useLandscape } from '../hooks/useLandscape';
-
-const KEYBOARD_OFFSET_THRESHOLD = 50;
-
-// Subscribe to visualViewport changes for keyboard avoidance
-export function subscribeToViewport(callback) {
-  if (typeof window === 'undefined' || !window.visualViewport) {
-    return () => {};
-  }
-  window.visualViewport.addEventListener('resize', callback);
-  window.visualViewport.addEventListener('scroll', callback);
-  return () => {
-    window.visualViewport.removeEventListener('resize', callback);
-    window.visualViewport.removeEventListener('scroll', callback);
-  };
-}
-
-export function getViewportOffset() {
-  if (typeof window === 'undefined' || !window.visualViewport) {
-    return 0;
-  }
-  const offsetTop = window.visualViewport.offsetTop || 0;
-  const offset = window.innerHeight - window.visualViewport.height - offsetTop;
-  return offset > KEYBOARD_OFFSET_THRESHOLD ? offset : 0;
-}
-
-export function getServerViewportOffset() {
-  return 0;
-}
+import { useKeyboardOffset } from '../hooks/useKeyboardOffset';
 
 export const MOBILE_SETTINGS_DIALOG_ID = 'mobile-settings-drawer';
 export const MOBILE_COACH_DIALOG_ID = 'guided-intention-coach';
@@ -476,16 +449,10 @@ function renderActions(mode, options) {
   }
 }
 
-export function MobileActionBar({ keyboardOffset = 0, isOverlayActive = false, ...props }) {
+export function MobileActionBar({ isOverlayActive = false, ...props }) {
   const barRef = useRef(null);
-  // Use useSyncExternalStore for visualViewport subscription (React-recommended pattern for browser APIs)
-  const viewportOffset = useSyncExternalStore(
-    subscribeToViewport,
-    getViewportOffset,
-    getServerViewportOffset
-  );
-
-  const effectiveOffset = Math.max(keyboardOffset, viewportOffset);
+  const viewportOffset = useKeyboardOffset();
+  const effectiveOffset = Math.max(0, viewportOffset);
 
   // Smooth animation for keyboard avoidance with cubic-bezier easing
   const barStyle = useMemo(() => ({
@@ -495,14 +462,8 @@ export function MobileActionBar({ keyboardOffset = 0, isOverlayActive = false, .
   }), [effectiveOffset]);
 
   useEffect(() => {
-    if (typeof document === 'undefined') return;
-    document.documentElement.style.setProperty('--mobile-action-bar-offset', `${effectiveOffset}px`);
-  }, [effectiveOffset]);
-
-  useEffect(() => {
     if (typeof document === 'undefined') return undefined;
     return () => {
-      document.documentElement.style.setProperty('--mobile-action-bar-offset', '0px');
       document.documentElement.style.setProperty('--mobile-action-bar-height', '0px');
     };
   }, []);

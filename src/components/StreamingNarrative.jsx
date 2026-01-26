@@ -280,7 +280,7 @@ export function StreamingNarrative({
   const textBottomPaddingClass = showSkipButton
     ? 'pb-16 sm:pb-10 short:pb-12'
     : 'pb-6 sm:pb-6 short:pb-4';
-  const stickyActionClass = 'bottom-[calc(var(--mobile-action-bar-height,0px)+var(--mobile-action-bar-offset,0px)+max(1rem,var(--safe-pad-bottom)))]';
+  const stickyActionClass = 'bottom-[calc(var(--mobile-action-bar-height,0px)+var(--keyboard-offset,0px)+max(1rem,var(--safe-pad-bottom)))]';
 
   // Memoize willChange styles to avoid creating new objects per word per render
   // Animation timing now controlled solely by Tailwind's animate-ink-spread class
