@@ -341,7 +341,12 @@ export function ReadingDisplay({
     // Only show focus toggle on desktop; on mobile, panels are below the narrative so users can scroll past them
     const focusToggleAvailable = hasInsightPanels && !isHandset;
     const shouldShowSpreadInsights = !isNarrativeFocus && (hasPatternHighlights || hasHighlightPanel || hasTraditionalInsights);
-    const canAutoNarrate = voiceOn && autoNarrate && narrativePhase === 'complete' && !isReadingStreaming && !autoNarrationTriggered;
+    const canAutoNarrate = voiceOn &&
+        autoNarrate &&
+        narrativePhase === 'complete' &&
+        !isReadingStreaming &&
+        !autoNarrationTriggered &&
+        ttsProvider !== 'azure';
 
     // Track previous hasInsightPanels for render-time state adjustment
     const [prevHasInsightPanels, setPrevHasInsightPanels] = useState(hasInsightPanels);
