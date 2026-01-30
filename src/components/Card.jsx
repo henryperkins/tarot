@@ -173,6 +173,7 @@ export function Card({
   const activeAnimRef = useRef(null);
   const flipTimelineRef = useRef(null);
   const hasMounted = useRef(false);
+  const staggerDelayRef = useRef(staggerDelay);
   const entryEase = useMemo(() => createSpring({ stiffness: 260, damping: 20, mass: 1 }), []);
   const revealEase = useMemo(() => cubicBezier(0.4, 0, 0.2, 1), []);
 
@@ -395,6 +396,9 @@ export function Card({
     };
   }, [isRevealed, isVisuallyRevealed]);
 
+  // Keep stagger delay ref in sync for the animation to read
+  staggerDelayRef.current = staggerDelay;
+
   // Handle the flip animation sequence
   useEffect(() => {
     // Only start animation when isRevealed becomes true and we haven't animated yet
@@ -413,14 +417,17 @@ export function Card({
       };
     }
 
+    // Capture stagger delay at animation start (may have been updated by batch reveal)
+    const capturedStaggerDelay = staggerDelayRef.current;
+
     const sequence = async () => {
       if (import.meta.env.DEV) {
-        console.log(`Card ${index} starting reveal sequence. Stagger: ${staggerDelay}`);
+        console.log(`Card ${index} starting reveal sequence. Stagger: ${capturedStaggerDelay}`);
       }
 
       const inkDuration = prefersReducedMotion ? 0 : 350;
       const revealDuration = prefersReducedMotion ? 0 : 400;
-      const startDelay = prefersReducedMotion ? 0 : Math.max(0, staggerDelay * 1000);
+      const startDelay = prefersReducedMotion ? 0 : Math.max(0, capturedStaggerDelay * 1000);
 
       if (prefersReducedMotion) {
         setIsVisuallyRevealed(true);
@@ -492,9 +499,10 @@ export function Card({
       }
       // Let in-flight animations resolve naturally to avoid abrupt snaps.
     };
-    // Intentionally only depend on isRevealed to start animation once
-    // Other values are read from refs or are stable
-  }, [index, isRevealed, prefersReducedMotion, revealEase, staggerDelay]);
+    // Intentionally only depend on isRevealed to start animation once.
+    // staggerDelay is captured at effect start; changes should not interrupt the animation.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [index, isRevealed, prefersReducedMotion, revealEase]);
 
   // Get card meaning
   const originalCard = canonicalCard;

@@ -433,7 +433,7 @@ const NEXT_STEPS_IMPERATIVE_VERBS = new Set([
 ]);
 
 const COACH_SOURCE_LABELS = {
-  drift: 'Preference drift',
+  drift: 'New focus spotted',
   emergingDrift: 'Emerging interest',
   badge: 'Streak badge',
   topCard: 'Top card',

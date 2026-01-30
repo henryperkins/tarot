@@ -212,46 +212,52 @@ function computeEnhancedCoachSuggestions({
 
   if (preferenceDrift?.hasDrift && preferenceDrift.driftContexts?.[0]) {
     const drift = preferenceDrift.driftContexts[0];
-    const question = `What draws me toward ${drift.context} right now?`;
-    const detailLines = [];
-    if (Array.isArray(preferenceDrift.expectedContextLabels) && preferenceDrift.expectedContextLabels.length > 0) {
-      detailLines.push(`Expected focus: ${preferenceDrift.expectedContextLabels.join(', ')}`);
+    const driftContextName = formatContextName(drift.context);
+    // Skip low-quality signals like "general" context
+    const isLowQualityContext = !drift.context || drift.context === 'general';
+    if (!isLowQualityContext) {
+      const question = `What's drawing me toward ${driftContextName.toLowerCase()} lately?`;
+      const expectedLabels = Array.isArray(preferenceDrift.expectedContextLabels)
+        ? preferenceDrift.expectedContextLabels
+        : [];
+      // Build user-friendly explanation
+      const statusMessage = expectedLabels.length > 0
+        ? `You set ${expectedLabels.join(' & ').toLowerCase()} as your focus, but you've been reading about ${driftContextName.toLowerCase()} (${drift.count} times). Worth exploring?`
+        : `You've been reading about ${driftContextName.toLowerCase()} quite a bit (${drift.count} times). Something on your mind?`;
+      suggestions.push(buildSuggestion({
+        source: 'drift',
+        text: question,
+        question,
+        spread: 'threeCard',
+        statusMessage,
+        signalsUsed: [{
+          type: 'drift',
+          label: getCoachSourceLabel('drift'),
+          detail: `${driftContextName}: ${drift.count} readings`,
+        }],
+      }));
     }
-    if (preferenceDrift.primaryActualContext?.context) {
-      detailLines.push(
-        `Most read: ${formatContextName(preferenceDrift.primaryActualContext.context)} (${preferenceDrift.primaryActualContext.count})`
-      );
-    }
-    if (drift?.context) {
-      detailLines.push(
-        `Drift: ${formatContextName(drift.context)} (+${drift.count})`
-      );
-    }
-    suggestions.push(buildSuggestion({
-      source: 'drift',
-      text: question,
-      question,
-      spread: 'threeCard',
-      signalsUsed: [{
-        type: 'drift',
-        label: getCoachSourceLabel('drift'),
-        detail: detailLines.join('\n'),
-      }],
-    }));
   } else if (preferenceDrift?.hasEmerging && preferenceDrift.emergingContexts?.[0]) {
     const emerging = preferenceDrift.emergingContexts[0];
-    const question = `Is ${formatContextName(emerging.context)} becoming a new focus for me?`;
-    suggestions.push(buildSuggestion({
-      source: 'emergingDrift',
-      text: question,
-      question,
-      spread: 'single',
-      signalsUsed: [{
-        type: 'emergingDrift',
-        label: getCoachSourceLabel('emergingDrift'),
-        detail: `${formatContextName(emerging.context)} (${emerging.count})`,
-      }],
-    }));
+    const emergingContextName = formatContextName(emerging.context);
+    // Skip low-quality signals like "general" context
+    const isLowQualityContext = !emerging.context || emerging.context === 'general';
+    if (!isLowQualityContext) {
+      const question = `Is ${emergingContextName.toLowerCase()} becoming important to me?`;
+      const statusMessage = `${emergingContextName} has come up ${emerging.count} time${emerging.count === 1 ? '' : 's'} recently — a pattern starting to form.`;
+      suggestions.push(buildSuggestion({
+        source: 'emergingDrift',
+        text: question,
+        question,
+        spread: 'single',
+        statusMessage,
+        signalsUsed: [{
+          type: 'emergingDrift',
+          label: getCoachSourceLabel('emergingDrift'),
+          detail: `${emergingContextName}: ${emerging.count} readings`,
+        }],
+      }));
+    }
   }
 
   const recentBadgeCard = badges?.[0]?.card_name;

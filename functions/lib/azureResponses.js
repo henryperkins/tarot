@@ -1,3 +1,5 @@
+import { fetchWithRetry, generateIdempotencyKey } from './retryWithBackoff.js';
+
 /**
  * Validate and normalize Azure OpenAI configuration
  *
@@ -104,7 +106,8 @@ export async function callAzureResponses(env, {
   reasoningEffort = null,
   reasoningSummary = null,
   verbosity = 'medium',
-  returnFullResponse = false
+  returnFullResponse = false,
+  requestId = 'unknown'
 }) {
   const { endpoint, apiKey, model, apiVersion } = ensureAzureConfig(env);
   const url = `${endpoint}/openai/v1/responses?api-version=${encodeURIComponent(apiVersion)}`;
@@ -151,24 +154,25 @@ export async function callAzureResponses(env, {
     returnFullResponse
   });
 
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: {
-      'api-key': apiKey,
-      'content-type': 'application/json'
+  // Use retry logic with exponential backoff
+  const response = await fetchWithRetry(
+    url,
+    {
+      method: 'POST',
+      headers: {
+        'api-key': apiKey,
+        'content-type': 'application/json'
+      },
+      body: JSON.stringify(body)
     },
-    body: JSON.stringify(body)
-  });
-
-  if (!response.ok) {
-    const errText = await response.text().catch(() => '');
-    console.warn('[azureResponses] Non-OK HTTP status from Azure Responses API', {
-      status: response.status,
-      statusText: response.statusText,
-      bodyPreview: errText.slice(0, 500)
-    });
-    throw new Error(`Azure Responses API error ${response.status}: ${errText}`);
-  }
+    'azure-openai',
+    requestId,
+    {
+      maxRetries: 3,
+      baseDelayMs: 1000,
+      timeoutMs: 120000 // 2 minutes for long readings
+    }
+  );
 
   const data = await response.json();
 

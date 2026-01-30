@@ -247,11 +247,20 @@ export function NarrativeSkeleton({
 
         {/* AI Reasoning Summary - shown while generating */}
         {reasoningSummary && (
-          <div className="narrative-skeleton__reasoning mt-4 px-3 py-2 rounded-lg bg-surface/50 border border-secondary/20">
-            <p className="text-xs text-muted/80 italic leading-relaxed">
-              <span className="font-medium text-secondary/70 not-italic">Considering: </span>
-              {reasoningSummary.length > 200 ? `${reasoningSummary.slice(0, 200)}...` : reasoningSummary}
-            </p>
+          <div 
+            className="narrative-skeleton__reasoning mt-5 px-4 py-3 rounded-xl bg-surface/80 border border-secondary/40 shadow-lg backdrop-blur-sm"
+          >
+            <div className="flex items-start gap-2">
+              <span className="shrink-0 mt-0.5 text-accent" aria-hidden="true">✦</span>
+              <div className="min-w-0">
+                <span className="block text-xs font-semibold uppercase tracking-wider text-secondary mb-1">
+                  Considering
+                </span>
+                <p className="text-sm text-main leading-relaxed">
+                  {reasoningSummary.length > 280 ? `${reasoningSummary.slice(0, 280)}…` : reasoningSummary}
+                </p>
+              </div>
+            </div>
           </div>
         )}
       </div>

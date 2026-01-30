@@ -67,6 +67,7 @@ export function chunkTextForStreaming(text, chunkSize = 160) {
 export function createReadingStream(responsePayload, options = {}) {
   const encoder = new TextEncoder();
   const readingText = typeof responsePayload?.reading === 'string' ? responsePayload.reading : '';
+  const reasoningSummary = responsePayload?.reasoningSummary || null;
   const chunks = chunkTextForStreaming(readingText, options.chunkSize);
 
   const meta = {
@@ -92,8 +93,11 @@ export function createReadingStream(responsePayload, options = {}) {
     gateReason: responsePayload?.gateReason || null
   };
 
+  // Build event sequence: meta → reasoning (if available) → deltas → done
   const streamEvents = [
     formatSSEEvent('meta', meta),
+    // Emit reasoning summary before text deltas so UI can display it during "generation"
+    ...(reasoningSummary ? [formatSSEEvent('reasoning', { text: reasoningSummary, partial: false })] : []),
     ...chunks.map((chunk) => formatSSEEvent('delta', { text: chunk })),
     formatSSEEvent('done', donePayload)
   ];

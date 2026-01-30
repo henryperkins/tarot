@@ -428,6 +428,7 @@ export function retrievePassages(graphKeys, options = {}) {
 export function formatPassagesForPrompt(passages, options = {}) {
   const includeSource = options.includeSource !== false;
   const markdown = options.markdown !== false;
+  const includeVisualAnchors = options.includeVisualAnchors !== false;
 
   if (!Array.isArray(passages) || passages.length === 0) {
     return '';
@@ -463,7 +464,7 @@ export function formatPassagesForPrompt(passages, options = {}) {
 
     // Passage text
     if (passage.text) {
-      const indent = '   ';
+      const indent = '  ';
       if (markdown) {
         lines.push(`${indent}"${passage.text}"`);
       } else {
@@ -471,9 +472,20 @@ export function formatPassagesForPrompt(passages, options = {}) {
       }
     }
 
+    // Visual anchors - integrate into prompt for imagery grounding
+    if (includeVisualAnchors && passage.visualAnchors && passage.visualAnchors.length > 0) {
+      const indent = '  ';
+      const anchorText = passage.visualAnchors.slice(0, 5).join(', ');
+      if (markdown) {
+        lines.push(`${indent}*Visual anchors: ${anchorText}*`);
+      } else {
+        lines.push(`${indent}[Visual: ${anchorText}]`);
+      }
+    }
+
     // Source attribution
     if (includeSource && passage.source) {
-      const indent = '   ';
+      const indent = '  ';
       if (markdown) {
         lines.push(`${indent}— ${passage.source}`);
       } else {

@@ -3491,6 +3491,34 @@ input[type="range"]:focus::-webkit-slider-thumb {
   }
 }
 
+/* AI Reasoning Summary Box */
+.narrative-skeleton__reasoning {
+  animation: reasoning-fade-in 0.4s ease-out;
+}
+
+@keyframes reasoning-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .narrative-skeleton__reasoning {
+    animation: none;
+  }
+}
+
+/* Light mode adjustments for reasoning box */
+:root.light .narrative-skeleton__reasoning {
+  background-color: rgba(255, 255, 255, 0.85);
+  border-color: var(--brand-secondary);
+}
+
 /* ==========================================================================
    15. GUIDED COACH — POST-IT NOTE CARD
    ==========================================================================

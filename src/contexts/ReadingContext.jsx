@@ -549,7 +549,13 @@ export function ReadingProvider({ children }) {
                             appendNarrationBuffer(data.text || '');
                         } else if (eventType === 'reasoning') {
                             if (data.text && isActiveRequest()) {
-                                setReasoningSummary(data.text);
+                                if (data.partial) {
+                                    // Accumulate partial deltas
+                                    setReasoningSummary((prev) => (prev || '') + data.text);
+                                } else {
+                                    // Final complete summary replaces accumulated
+                                    setReasoningSummary(data.text);
+                                }
                             }
                         } else if (eventType === 'done') {
                             doneReceived = true;
@@ -821,6 +827,7 @@ export function ReadingProvider({ children }) {
         setIsGenerating(true);
         setIsReadingStreamActive(false);
         setPersonalReading(null);
+        setReasoningSummary(null);
         setJournalStatus(null);
         setNarrativePhase('analyzing');
         setSrAnnouncement('Step 1 of 3: Analyzing your spread, positions, and reflections.');

@@ -56,6 +56,9 @@
     // If unset/empty, falls back to AZURE_OPENAI_RESPONSES_API_VERSION (then AZURE_OPENAI_API_VERSION).
     "AZURE_OPENAI_TTS_RESPONSES_API_VERSION": "",
     "AZURE_OPENAI_STREAMING_ENABLED": "true",
+    // AZURE_OPENAI_REASONING_EFFORT: Controls reasoning depth for narrative generation
+    // Valid values: 'none', 'minimal', 'low', 'medium', 'high', 'xhigh'
+    "AZURE_OPENAI_REASONING_EFFORT": "high",
     "ALLOW_STREAMING_WITH_EVAL_GATE": "true",
     "STREAMING_QUALITY_GATE_ENABLED": "false",
     "STREAMING_SAFETY_SCAN_ENABLED": "false",

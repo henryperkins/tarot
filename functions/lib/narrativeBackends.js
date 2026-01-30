@@ -9,6 +9,7 @@
  * Extracted from tarot-reading.js to maintain <900 line limit.
  */
 
+import { fetchWithRetry } from './retryWithBackoff.js';
 import { buildEnhancedClaudePrompt } from './narrativeBuilder.js';
 import {
   buildCelticCrossReading,
@@ -387,33 +388,37 @@ export async function generateWithClaudeOpus45(env, payload, requestId = 'unknow
     { personalization: payload.personalization }
   );
 
-  const response = await fetch(apiUrl, {
-    method: 'POST',
-    headers: {
-      'x-api-key': apiKey,  // Azure Foundry Anthropic uses 'x-api-key' header
-      'anthropic-version': '2023-06-01',
-      'content-type': 'application/json'
+  const response = await fetchWithRetry(
+    // Use retry logic with exponential backoff for Claude API
+    apiUrl,
+    {
+      method: 'POST',
+      headers: {
+        'x-api-key': apiKey, // Azure Foundry Anthropic uses 'x-api-key' header
+        'anthropic-version': '2023-06-01',
+        'content-type': 'application/json'
+      },
+      body: JSON.stringify({
+        model,
+        max_tokens: 8192, // Increased to allow full narrative generation without arbitrary limits
+        temperature: 0.75,
+        system: systemPrompt,
+        messages: [
+          {
+            role: 'user',
+            content: userPrompt
+          }
+        ]
+      })
     },
-    body: JSON.stringify({
-      model,
-      max_tokens: 8192, // Increased to allow full narrative generation without arbitrary limits
-      temperature: 0.75,
-      system: systemPrompt,
-      messages: [
-        {
-          role: 'user',
-          content: userPrompt
-        }
-      ]
-    })
-  });
-
-  console.log(`[${requestId}] Azure Foundry Claude response status: ${response.status}`);
-
-  if (!response.ok) {
-    const errText = await response.text().catch(() => '');
-    throw new Error(`Azure Anthropic proxy error ${response.status}: ${errText}`);
-  }
+    'claude-opus45',
+    requestId,
+    {
+      maxRetries: 3,
+      baseDelayMs: 1000,
+      timeoutMs: 120000 // 2 minutes for long readings
+    }
+  );
 
   const data = await response.json();
   const content = Array.isArray(data.content)

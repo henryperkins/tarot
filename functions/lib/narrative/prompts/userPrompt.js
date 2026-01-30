@@ -2,6 +2,7 @@ import { getContextDescriptor } from '../helpers.js';
 import { buildCardTransitNotes, generateTimingGuidance } from '../../ephemerisIntegration.js';
 import { sanitizeDisplayName, getDepthProfile } from '../styleHelpers.js';
 import { sanitizeText } from '../../utils.js';
+import { detectPromptInjection } from '../../promptInjectionDetector.js';
 import { DEFAULT_REVERSAL_DESCRIPTION, MAX_QUESTION_TEXT_LENGTH, MAX_REFLECTION_TEXT_LENGTH } from './constants.js';
 import { getDeckStyleNotes } from './deckStyle.js';
 import { buildGraphRAGReferenceBlock } from './graphRAGReferenceBlock.js';
@@ -40,8 +41,21 @@ export function buildUserPrompt(
   const includeDeckContext = promptOptions.includeDeckContext !== false;
   const includeDiagnostics = promptOptions.includeDiagnostics !== false;
 
-  // Question - filter instruction patterns to prevent prompt injection
-  const safeQuestion = userQuestion ? sanitizeText(userQuestion, { maxLength: MAX_QUESTION_TEXT_LENGTH, addEllipsis: true, stripMarkdown: true, filterInstructions: true }) : '';
+  // Question - filter instruction patterns and detect semantic injection
+  let safeQuestion = userQuestion ? sanitizeText(userQuestion, { maxLength: MAX_QUESTION_TEXT_LENGTH, addEllipsis: true, stripMarkdown: true, filterInstructions: true }) : '';
+  
+  // Semantic injection detection for novel attack patterns
+  const injectionCheck = detectPromptInjection(safeQuestion, { confidenceThreshold: 0.6, sanitize: true });
+  if (injectionCheck.isInjection) {
+    console.warn('[PromptInjection] Potential injection detected:', {
+      confidence: injectionCheck.confidence,
+      severity: injectionCheck.severity,
+      reasons: injectionCheck.reasons.slice(0, 3)
+    });
+    // Use sanitized version
+    safeQuestion = injectionCheck.sanitizedText;
+  }
+  
   const questionLine = safeQuestion || '(No explicit question; speak to the energy most present for the querent.)';
   prompt += `**Question**: ${questionLine}\n\n`;
 
