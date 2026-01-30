@@ -319,14 +319,266 @@ npm install --save-dev @percy/cli @percy/playwright
 
 ---
 
+## Testing Infrastructure Issues (Second Pass)
+
+### 1. Unused Dependencies
+
+**Vitest installed but not used:**
+```json
+"devDependencies": {
+  "@vitest/coverage-v8": "^4.0.18",
+  "vitest": "^4.0.18"
+}
+```
+
+The project uses Node.js built-in test runner (`node --test`) but has Vitest installed. This adds ~15MB to `node_modules` with no benefit.
+
+**Recommendation:** Either migrate to Vitest (better ecosystem, faster) or remove the unused dependencies.
+
+### 2. Duplicated Mock Classes
+
+The same mock patterns are reimplemented across 14+ test files:
+
+| Mock Class | Files Using It |
+|------------|---------------|
+| `MockDB` | `evaluation.test.mjs`, `readingFollowup.test.mjs`, `journalEntryApi.test.mjs`, `userMemory.test.mjs`, `journalFollowups.test.mjs`, `readingQuality.test.mjs` |
+| `MockKV` | `evaluation.test.mjs`, `tts.test.mjs` |
+| `MockAI` | `readingFollowup.test.mjs`, `evaluation.test.mjs` |
+| `MockStatement` | `stripe.webhook.test.mjs`, `readingFollowupReservations.test.mjs` |
+
+**Example of duplication:**
+```javascript
+// tests/journalEntryApi.test.mjs
+class MockDB {
+  constructor({ sessionRow, entryRow, ... }) { ... }
+  prepare(query) { ... }
+}
+
+// tests/readingFollowup.test.mjs
+class MockDB {
+  constructor() { ... }
+  prepare(sql) { ... }
+}
+```
+
+**Recommendation:** Create `tests/helpers/mocks.mjs` with shared mock implementations:
+```javascript
+// tests/helpers/mocks.mjs
+export class MockD1Database { ... }
+export class MockKVNamespace { ... }
+export class MockAIBinding { ... }
+export function createMockEnv(overrides = {}) { ... }
+export function createMockRequest(url, options = {}) { ... }
+```
+
+### 3. Inconsistent Test API Usage
+
+Mixed usage of Node.js test runner APIs:
+
+| Pattern | Files Using |
+|---------|-------------|
+| `describe, it` | 35 files |
+| `describe, test` | 15 files |
+| `test` only | 8 files |
+
+**Recommendation:** Standardize on `describe` + `it` (more readable, BDD-style):
+```javascript
+// Preferred
+describe('feature', () => {
+  it('should behave correctly', () => {});
+});
+```
+
+### 4. No Shared Test Utilities
+
+Missing common test utilities file. Each test reimplements:
+- Request creation helpers
+- Environment creation helpers
+- Response assertion helpers
+
+**Recommendation:** Create `tests/helpers/utils.mjs`:
+```javascript
+export function createMockRequest(url, options = {}) { ... }
+export function createMockEnv(overrides = {}) { ... }
+export async function assertJsonResponse(response, expected) { ... }
+export function createTestCards(count, options = {}) { ... }
+```
+
+### 5. E2E Test Stability Issues
+
+**Excessive `waitForTimeout` calls (flaky test indicators):**
+- 40+ explicit timeout waits across 6 E2E files
+- Hardcoded timeouts: 150ms, 300ms, 500ms, 600ms, 800ms
+
+**Example problematic patterns:**
+```javascript
+// e2e/tarot-reading.spec.js
+await page.waitForTimeout(150);  // Between knocks
+await page.waitForTimeout(300);  // After card flip
+await page.waitForTimeout(800);  // After animation
+```
+
+**Recommendation:** Replace with explicit waits for state:
+```javascript
+// Instead of:
+await page.waitForTimeout(300);
+
+// Use:
+await expect(card).toHaveAttribute('data-flipped', 'true');
+// or
+await page.waitForFunction(() =>
+  document.querySelector('.card').classList.contains('flipped')
+);
+```
+
+### 6. CI Pipeline Gaps
+
+**Current CI (`ci.yml`) only runs:**
+- Unit tests (`npm test`)
+- Vision QA gate
+- Narrative QA gate
+
+**Missing from CI:**
+- E2E tests (not run in CI at all!)
+- Accessibility tests (`npm run test:a11y`)
+- Integration tests (`npm run test:e2e:integration`)
+- Coverage thresholds
+
+**Recommendation:** Update `.github/workflows/ci.yml`:
+```yaml
+- name: Run unit tests
+  run: npm test
+
+- name: Run accessibility tests
+  run: npm run test:a11y
+
+- name: Install Playwright browsers
+  run: npx playwright install --with-deps chromium
+
+- name: Run E2E tests
+  run: npm run test:e2e
+```
+
+### 7. No Test Coverage Enforcement
+
+**Current state:**
+- `npm run test:coverage` uses experimental Node.js coverage
+- No coverage thresholds enforced
+- No coverage reports generated in CI
+
+**Recommendation:** Add coverage thresholds:
+```javascript
+// vitest.config.js (if migrating to Vitest)
+export default {
+  test: {
+    coverage: {
+      thresholds: {
+        functions: 60,
+        lines: 60,
+        branches: 50
+      }
+    }
+  }
+}
+```
+
+### 8. Missing Test Setup/Teardown
+
+Only 7 of 68 test files use `beforeEach`/`afterEach`:
+- `evaluation.test.mjs`
+- `tts.test.mjs`
+- `reasoning.test.mjs`
+- `azureResponses.test.mjs`
+- `followUpToolRoundTripStream.test.mjs`
+- `userMemory.test.mjs`
+- `tts-hume.test.mjs`
+
+**Issue:** Tests that modify global state (like `global.fetch`) may leak between tests.
+
+**Example of proper cleanup needed:**
+```javascript
+// tests/tts.test.mjs
+const mockFetch = mock.fn();
+global.fetch = mockFetch;  // Modified globally!
+
+// Missing: afterEach to restore original fetch
+```
+
+### 9. No Snapshot Testing
+
+Zero snapshot tests despite having:
+- Complex narrative output
+- JSON response structures
+- Generated HTML/markdown
+
+**Use cases for snapshots:**
+- `buildEnhancedClaudePrompt()` output
+- Evaluation score JSON structure
+- OG image HTML generation
+
+### 10. Playwright Configuration Issues
+
+**Desktop/Mobile split uses grep patterns:**
+```javascript
+projects: [
+  { name: 'desktop', grep: /@desktop/ },
+  { name: 'mobile', grep: /@mobile/ },
+]
+```
+
+**Problem:** Tests without `@desktop` or `@mobile` tags are never run!
+
+**Recommendation:** Add a default project or require tags:
+```javascript
+projects: [
+  { name: 'chromium', use: devices['Desktop Chrome'] },  // Runs all
+  { name: 'mobile', use: devices['iPhone 13'], grep: /@mobile/ },
+]
+```
+
+---
+
+## Infrastructure Improvement Checklist
+
+### Immediate (This Sprint)
+
+- [ ] Create `tests/helpers/mocks.mjs` with shared mock classes
+- [ ] Create `tests/helpers/utils.mjs` with common utilities
+- [ ] Standardize on `describe` + `it` pattern
+- [ ] Add E2E tests to CI pipeline
+- [ ] Fix Playwright project configuration to not skip untagged tests
+
+### Short-term (Next 2 Sprints)
+
+- [ ] Remove unused Vitest dependencies OR migrate to Vitest
+- [ ] Replace `waitForTimeout` calls with explicit state waits
+- [ ] Add `afterEach` cleanup to tests modifying globals
+- [ ] Add accessibility tests to CI
+- [ ] Set up coverage reporting in CI
+
+### Long-term
+
+- [ ] Add coverage thresholds (60% functions, 60% lines)
+- [ ] Add snapshot tests for complex outputs
+- [ ] Add visual regression testing with Percy/Chromatic
+- [ ] Create test data factories for cards/spreads/readings
+
+---
+
 ## Conclusion
 
 The backend test coverage is excellent - evaluation, narrative generation, and knowledge graph systems are well-tested with safety-critical paths thoroughly covered. The critical gap is **frontend testing**: components, hooks, and user interactions have almost no automated test coverage.
 
-Immediate focus should be:
-1. Core component tests (Card, ReadingGrid, SpreadSelector)
-2. State management hook tests (useTarotState, useSaveReading)
-3. E2E error state scenarios
-4. Data file validation
+**Infrastructure issues compound the coverage gaps:**
+- Duplicated mocks make tests harder to maintain
+- Missing E2E in CI means regressions ship to production
+- Flaky E2E tests reduce confidence in the test suite
+- No coverage enforcement allows coverage to decay
 
-This will significantly improve confidence in deployments and catch UI regressions before they reach users.
+**Immediate focus should be:**
+1. **Infrastructure:** Shared mocks, E2E in CI, fix Playwright config
+2. **Coverage:** Core component tests (Card, ReadingGrid, SpreadSelector)
+3. **Stability:** Replace `waitForTimeout` with explicit waits
+4. **Validation:** Data file validation tests
+
+This will significantly improve confidence in deployments and catch regressions before they reach users.
