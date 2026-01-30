@@ -95,19 +95,15 @@
    BREAKPOINT REFERENCE
    --------------------
    320px  : Tailwind xxs (ultra-compact baseline)
-   330px  : Ultra-compact cutoff (CSS only)
    360px  : Tailwind mobile-sm (iPhone SE, older devices)
    375px  : Tailwind xs (small phones)
    400px  : Tailwind mobile-md (iPhone 15/16 standard)
    440px  : Tailwind mobile-lg (iPhone Plus/Pro Max)
-   479px  : Sub-sm cutoff (CSS only, narrative/prose)
-   520px  : Mid-mobile threshold (CSS only, narrow chips)
-   639px  : Tailwind sm max boundary (CSS max-width mirror)
+   639px  : Tailwind sm max boundary (mobile)
    640px  : Tailwind sm min boundary (tablet start)
    768px  : Tailwind md
    1024px : Tailwind lg (desktop)
    1280px : Tailwind xl
-   1366px : iPad Pro landscape (CSS only)
 
    ORIENTATION QUERIES
    -------------------
@@ -379,6 +375,14 @@ body {
   );
 }
 
+.bottom-safe-action {
+  bottom: calc(
+    max(1rem, var(--safe-pad-bottom, 0px)) +
+      var(--mobile-action-bar-height, 0px) +
+      var(--keyboard-offset, 0px)
+  );
+}
+
 .skip-links {
   position: relative;
   z-index: var(--z-skip-link, 80);
@@ -492,7 +496,7 @@ body {
   min-height: 48px;
   padding: 0.125rem;
   /* Account for safe area on notched devices */
-  right: max(0.75rem, env(safe-area-inset-right, 0px));
+  right: max(0.75rem, var(--safe-pad-right, 0px));
   top: 50%;
   transform: translateY(-50%);
   touch-action: manipulation;
@@ -514,8 +518,8 @@ body {
 @media (max-width: 639px) {
   .header-sticky__user--fab {
     position: fixed;
-    top: max(0.75rem, env(safe-area-inset-top, 0.5rem));
-    right: max(0.85rem, env(safe-area-inset-right, 0.5rem));
+    top: max(0.75rem, var(--safe-pad-top, 0px));
+    right: max(0.85rem, var(--safe-pad-right, 0px));
     background: var(--surface-88, rgba(28, 26, 34, 0.88));
     background: color-mix(in srgb, var(--bg-surface) 70%, transparent);
     -webkit-backdrop-filter: blur(14px);
@@ -591,7 +595,7 @@ body {
   right: 0;
   bottom: 0;
   z-index: var(--z-modal-backdrop, 60);
-  padding: 0.75rem 1rem calc(1rem + env(safe-area-inset-bottom, 0px));
+  padding: 0.75rem 1rem calc(1rem + var(--safe-pad-bottom, 0px));
   background: var(--bg-surface);
   -webkit-backdrop-filter: blur(18px);
   backdrop-filter: blur(18px);
@@ -633,7 +637,7 @@ body {
 
 @supports (padding: max(0px)) {
   .mobile-drawer__footer {
-    padding-bottom: max(1rem, calc(1rem + env(safe-area-inset-bottom, 0rem)));
+    padding-bottom: max(1rem, calc(1rem + var(--safe-pad-bottom, 0px)));
   }
 }
 
@@ -641,8 +645,8 @@ body {
   .mobile-drawer__header,
   .mobile-drawer__body,
   .mobile-drawer__footer {
-    padding-left: max(1rem, env(safe-area-inset-left, 0px));
-    padding-right: max(1rem, env(safe-area-inset-right, 0px));
+    padding-left: max(1rem, var(--safe-pad-left, 0px));
+    padding-right: max(1rem, var(--safe-pad-right, 0px));
   }
 }
 
@@ -650,7 +654,7 @@ body {
   .mobile-action-bar {
     padding-bottom: max(
       1rem,
-      calc(0.75rem + env(safe-area-inset-bottom, 0.5rem))
+      calc(0.75rem + var(--safe-pad-bottom, 0px))
     );
   }
 }
@@ -684,7 +688,7 @@ body {
 
   @supports (padding: max(0px)) {
     .mobile-action-bar {
-      padding-bottom: max(0.5rem, env(safe-area-inset-bottom, 0.5rem));
+      padding-bottom: max(0.5rem, var(--safe-pad-bottom, 0px));
     }
   }
 
@@ -715,18 +719,18 @@ body {
 
 @media (orientation: landscape) and (max-width: 1024px) {
   .mobile-action-bar {
-    left: max(0.5rem, env(safe-area-inset-left, 0.5rem));
-    right: max(0.5rem, env(safe-area-inset-right, 0.5rem));
-    bottom: max(0rem, env(safe-area-inset-bottom, 0rem));
+    left: max(0.5rem, var(--safe-pad-left, 0px));
+    right: max(0.5rem, var(--safe-pad-right, 0px));
+    bottom: max(0rem, var(--safe-pad-bottom, 0px));
     border-radius: 1rem;
     padding-bottom: max(
       1rem,
-      calc(0.85rem + env(safe-area-inset-bottom, 0.5rem))
+      calc(0.85rem + var(--safe-pad-bottom, 0px))
     );
   }
 
   .mobile-action-group {
-    padding-bottom: max(0.5rem, env(safe-area-inset-bottom, 0.5rem));
+    padding-bottom: max(0.5rem, var(--safe-pad-bottom, 0px));
   }
 }
 
@@ -996,26 +1000,6 @@ body {
   .spread-card__meta {
     flex-wrap: wrap;
     row-gap: 0.35rem;
-  }
-}
-
-/* Ultra-compact (<= 330px, CSS only) */
-@media (max-width: 330px) {
-  .spread-card {
-    --spread-card-height-mobile: 14.25rem;
-    padding: 0.65rem 0.75rem 0.9rem;
-  }
-
-  .spread-card__title {
-    font-size: 0.9rem;
-  }
-
-  .spread-card__description {
-    font-size: 0.8rem;
-  }
-
-  .spread-card__meta {
-    gap: 0.35rem;
   }
 }
 
@@ -1313,20 +1297,6 @@ body {
   }
 }
 
-/* Ultra-compact (<= 330px, CSS only) */
-@media (max-width: 330px) {
-  .cc-grid {
-    gap: 0.6rem;
-    padding: 0 0.55rem 1rem;
-    scroll-padding-inline: 0.55rem;
-  }
-
-  .cc-grid > * {
-    flex-basis: min(70vw, 13.25rem);
-    width: min(70vw, 13.25rem);
-  }
-}
-
 /* Small tablets: balanced 2-column Celtic Cross */
 @media (min-width: 640px) and (max-width: 767px) {
   .cc-grid {
@@ -1474,7 +1444,7 @@ textarea:focus-visible {
 }
 
 /* Performance: simplify shadows and backgrounds on mobile */
-@media (max-width: 768px) {
+@media (max-width: 767px) {
   .tarot-card-shell {
     box-shadow: 0 8px 16px var(--bg-surface);
     /* Single shadow */
@@ -1487,7 +1457,7 @@ textarea:focus-visible {
   }
 }
 
-@media (max-width: 768px) and (hover: hover) and (pointer: fine) {
+@media (max-width: 767px) and (hover: hover) and (pointer: fine) {
   .tarot-card-shell:hover {
     box-shadow: 0 10px 22px var(--bg-surface);
   }
@@ -1940,7 +1910,7 @@ input[type="range"]:focus::-webkit-slider-thumb {
   }
 }
 
-@media (min-width: 1024px) and (max-width: 1366px) and (orientation: landscape) {
+@media (min-width: 1024px) and (max-width: 1279px) and (orientation: landscape) {
   .tarot-card-shell {
     width: 8.5rem;
     height: 12.5rem;
@@ -2312,8 +2282,8 @@ input[type="range"]:focus::-webkit-slider-thumb {
   color: var(--text-muted);
 }
 
-/* Mid-mobile threshold (<= 520px, CSS only): simplify chip metadata */
-@media (max-width: 520px) {
+/* Mobile (<= 639px): simplify chip metadata */
+@media (max-width: 639px) {
   .prepare-summary-chip span[aria-hidden="true"] {
     display: none;
   }
@@ -2934,12 +2904,12 @@ input[type="range"]:focus::-webkit-slider-thumb {
 .narrative-stream {
   width: 100%;
   padding-bottom: clamp(1.25rem, 4vw, 2.5rem);
-  padding-left: max(0.25rem, env(safe-area-inset-left, 0px));
-  padding-right: max(0.25rem, env(safe-area-inset-right, 0px));
+  padding-left: max(0.25rem, var(--safe-pad-left, 0px));
+  padding-right: max(0.25rem, var(--safe-pad-right, 0px));
 }
 
 .narrative-stream__text {
-  font-size: clamp(0.98rem, 0.9rem + 0.4vw, 1.15rem);
+  font-size: clamp(var(--text-sm-mobile), 0.9rem + 0.4vw, 1.05rem);
   line-height: 1.75;
   letter-spacing: 0.01em;
   text-wrap: pretty;
@@ -2960,7 +2930,6 @@ input[type="range"]:focus::-webkit-slider-thumb {
 }
 
 .narrative-stream__actions {
-  bottom: max(1rem, env(safe-area-inset-bottom, 1rem));
 }
 
 /* Narrative atmosphere + emphasis (delight layer)
@@ -3183,8 +3152,8 @@ input[type="range"]:focus::-webkit-slider-thumb {
   }
 }
 
-/* Mid-mobile threshold (<= 520px, CSS only): tighten narrative padding */
-@media (max-width: 520px) {
+/* Mobile (<= 639px): tighten narrative padding */
+@media (max-width: 639px) {
   .narrative-stream__text {
     padding-left: clamp(0.75rem, 4vw, 1.5rem);
     padding-right: clamp(0.75rem, 4vw, 1.5rem);
@@ -3201,8 +3170,8 @@ input[type="range"]:focus::-webkit-slider-thumb {
   }
 }
 
-/* Sub-sm cutoff (<= 479px, CSS only): optimize narrative reading */
-@media (max-width: 479px) {
+/* Mobile (<= 639px): optimize narrative reading */
+@media (max-width: 639px) {
   .prose {
     font-size: var(--text-sm-mobile); /* 15px - slightly smaller for mobile */
     line-height: 1.7;
@@ -3244,16 +3213,16 @@ input[type="range"]:focus::-webkit-slider-thumb {
 /* Dropdown text sizing on narrow screens (mobile-md/mobile-sm) */
 @media (max-width: 400px) {
   select option {
-    font-size: 0.75rem;
-    letter-spacing: 0.03em;
+    font-size: 0.875rem;
+    letter-spacing: 0.02em;
   }
 }
 
 /* mobile-sm (<= 360px) */
 @media (max-width: 360px) {
   select option {
-    font-size: 0.6875rem;
-    letter-spacing: 0.04em;
+    font-size: 0.875rem;
+    letter-spacing: 0.02em;
   }
 }
 

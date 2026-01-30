@@ -60,6 +60,7 @@ function ActionButton({
   const showStepLabel = Boolean(stepLabel) && !isLandscape;
   const heightClass = 'min-h-touch';
   const textSize = isLandscape ? 'text-xs' : 'text-sm';
+  const nowrapClass = isLandscape ? 'whitespace-nowrap' : '';
 
   return (
     <button
@@ -74,6 +75,7 @@ function ActionButton({
         ${heightClass}
         ${showStepLabel ? 'flex-col gap-0.5' : 'gap-1.5'}
         ${disabled ? 'opacity-50 cursor-not-allowed' : ''}
+        ${nowrapClass}
         ${className}
       `}
     >
@@ -122,7 +124,6 @@ function MobileActionContents({
   const isError = Boolean(personalReading?.isError);
   // Preserve the ability to retry even if upstream flags temporarily clear needsNarrativeGeneration
   const needsNarrative = needsNarrativeGeneration || isError;
-  const stepBadge = STEP_BADGES[activeStep] || 'Step';
 
   const mode = useMemo(() => getActionMode({
     isShuffling,
@@ -135,11 +136,26 @@ function MobileActionContents({
     isError
   }), [isShuffling, reading, revealedCount, allRevealed, needsNarrative, hasNarrative, isGenerating, isError]);
 
+  const stepBadge = useMemo(() => {
+    switch (mode) {
+      case 'revealing':
+        return 'Reveal';
+      case 'ready-for-narrative':
+      case 'generating':
+      case 'error':
+        return 'Narrate';
+      case 'completed':
+        return hasNarrative ? 'Save' : null;
+      default:
+        return STEP_BADGES[activeStep] || null;
+    }
+  }, [mode, hasNarrative, activeStep]);
+
   // In landscape: tighter layout with smaller gaps
   const layoutClass = variant === 'inline'
     ? 'flex flex-col gap-2 w-full'
     : isLandscape
-      ? 'flex flex-wrap gap-1.5'
+      ? 'flex flex-nowrap gap-1.5 overflow-x-auto scrollbar-none'
       : 'flex flex-wrap gap-2';
 
   return (
@@ -209,12 +225,12 @@ function renderActions(mode, options) {
 
   // In landscape: smaller minimum widths to fit more buttons
   const widthClasses = {
-    primary: variant === 'inline' ? 'w-full' : isLandscape ? 'flex-1 min-w-[4rem]' : 'flex-1 min-w-[7.5rem]',
-    prepPrimary: variant === 'inline' ? 'w-full' : isLandscape ? 'flex-1 min-w-[3.5rem]' : 'flex-1 min-w-[6rem]',
-    secondary: variant === 'inline' ? 'w-full' : isLandscape ? 'flex-1 min-w-[4rem]' : 'flex-1 min-w-[7.5rem]',
-    tertiary: variant === 'inline' ? 'w-full' : isLandscape ? 'flex-1 min-w-[3rem]' : 'flex-1 min-w-[6.5rem]',
+    primary: variant === 'inline' ? 'w-full' : isLandscape ? 'flex-1 min-w-touch' : 'flex-1 min-w-[7.5rem]',
+    prepPrimary: variant === 'inline' ? 'w-full' : isLandscape ? 'flex-1 min-w-touch' : 'flex-1 min-w-[6rem]',
+    secondary: variant === 'inline' ? 'w-full' : isLandscape ? 'flex-1 min-w-touch' : 'flex-1 min-w-[7.5rem]',
+    tertiary: variant === 'inline' ? 'w-full' : isLandscape ? 'flex-1 min-w-touch' : 'flex-1 min-w-[6.5rem]',
     icon: variant === 'inline' ? 'w-full' : 'flex-none min-w-touch',
-    coach: variant === 'inline' ? 'w-full' : 'flex-none'
+    coach: variant === 'inline' ? 'w-full' : isLandscape ? 'flex-none min-w-touch' : 'flex-none'
   };
 
   // Padding classes: smaller in landscape
@@ -241,7 +257,7 @@ function renderActions(mode, options) {
     }
 
     case 'preparation': {
-      const drawLabel = isLandscape ? 'Shuffle' : 'Shuffle & draw';
+      const drawLabel = isLandscape ? 'Shuffle deck' : 'Shuffle & draw';
       return (
         <>
           {showUtilityButtons && (
@@ -290,12 +306,12 @@ function renderActions(mode, options) {
       const isDeckPrimary = revealFocus === 'deck';
       const isSpreadPrimary = revealFocus === 'spread';
       const nextLabel = isLandscape
-        ? `${nextCount}/${readingLength}`
+        ? (isDeckPrimary ? `Draw ${nextCount}/${readingLength}` : `Reveal ${nextCount}/${readingLength}`)
         : isDeckPrimary
           ? `Draw next (${nextCount}/${readingLength})`
           : `Reveal next (${nextCount}/${readingLength})`;
-      const revealVariant = (isDeckPrimary || isSpreadPrimary) ? 'secondary' : 'primary';
-      const revealAllLabel = isLandscape ? 'All' : 'Reveal instantly';
+      const revealVariant = 'primary';
+      const revealAllLabel = isLandscape ? 'Reveal all' : 'Reveal instantly';
       const showRevealAll = readingLength > 1 && !isDeckPrimary;
       return (
         <>
@@ -325,6 +341,7 @@ function renderActions(mode, options) {
     }
 
     case 'generating':
+      const generatingLabel = isLandscape ? 'Weaving story' : 'Weaving...';
       return (
         <>
           <ActionButton
@@ -337,7 +354,7 @@ function renderActions(mode, options) {
           >
             <span className="flex items-center gap-1.5">
               <ArrowsClockwise className={isLandscape ? 'w-3.5 h-3.5 animate-spin' : 'w-4 h-4 animate-spin'} aria-hidden="true" />
-              {isLandscape ? 'Weaving' : 'Weaving...'}
+              {generatingLabel}
             </span>
           </ActionButton>
           <ActionButton
@@ -347,7 +364,7 @@ function renderActions(mode, options) {
             className={`${widthClasses.secondary} ${px}`}
             isLandscape={isLandscape}
           >
-            {isLandscape ? 'New' : 'New reading'}
+            {isLandscape ? 'New read' : 'New reading'}
           </ActionButton>
         </>
       );
@@ -364,7 +381,7 @@ function renderActions(mode, options) {
             className={`${widthClasses.primary} ${px}`}
             isLandscape={isLandscape}
           >
-            {isLandscape ? 'Retry' : 'Retry narrative'}
+            {isLandscape ? 'Retry story' : 'Retry narrative'}
           </ActionButton>
           <ActionButton
             variant="secondary"
@@ -373,7 +390,7 @@ function renderActions(mode, options) {
             className={`${widthClasses.secondary} ${px}`}
             isLandscape={isLandscape}
           >
-            {isLandscape ? 'New' : 'New reading'}
+            {isLandscape ? 'New read' : 'New reading'}
           </ActionButton>
         </>
       );
@@ -389,7 +406,7 @@ function renderActions(mode, options) {
             className={`${widthClasses.primary} ${px}`}
             isLandscape={isLandscape}
           >
-            {isLandscape ? 'Create' : 'Create narrative'}
+            {isLandscape ? 'Create story' : 'Create narrative'}
           </ActionButton>
           <ActionButton
             variant="secondary"
@@ -398,7 +415,7 @@ function renderActions(mode, options) {
             className={`${widthClasses.secondary} ${px}`}
             isLandscape={isLandscape}
           >
-            {isLandscape ? 'New' : 'New reading'}
+            {isLandscape ? 'New read' : 'New reading'}
           </ActionButton>
         </>
       );
@@ -412,11 +429,11 @@ function renderActions(mode, options) {
               onClick={onSaveReading}
               stepLabel={stepBadge}
               ariaLabel={withStepContext('Save reading to journal', stepIndicatorLabel)}
-              className={`${widthClasses.primary} ${px}`}
-              isLandscape={isLandscape}
-            >
-              {isLandscape ? 'Save' : 'Save reading'}
-            </ActionButton>
+            className={`${widthClasses.primary} ${px}`}
+            isLandscape={isLandscape}
+          >
+            {isLandscape ? 'Save read' : 'Save reading'}
+          </ActionButton>
           )}
           {showFollowUp && (
             <ActionButton
@@ -439,7 +456,7 @@ function renderActions(mode, options) {
             className={`${widthClasses.secondary} ${px}`}
             isLandscape={isLandscape}
           >
-            {isLandscape ? 'New' : 'New reading'}
+            {isLandscape ? 'New read' : 'New reading'}
           </ActionButton>
         </>
       );
@@ -457,7 +474,7 @@ export function MobileActionBar({ isOverlayActive = false, ...props }) {
   // Smooth animation for keyboard avoidance with cubic-bezier easing
   const barStyle = useMemo(() => ({
     bottom: effectiveOffset > 0 ? effectiveOffset : 0,
-    transition: 'bottom var(--duration-normal) var(--ease-out), opacity var(--duration-fast) var(--ease-out)',
+    transition: 'bottom 280ms var(--ease-out), opacity var(--duration-fast) var(--ease-out)',
     willChange: effectiveOffset > 0 ? 'bottom' : 'auto'
   }), [effectiveOffset]);
 

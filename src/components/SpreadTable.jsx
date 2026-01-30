@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { animate, createLayout, cubicBezier, set, stagger } from 'animejs';
 import { SPREADS } from '../data/spreads';
 import { useReducedMotion } from '../hooks/useReducedMotion';
+import { useAnimeScope } from '../hooks/useAnimeScope';
 import { getCardImage, FALLBACK_IMAGE } from '../lib/cardLookup';
 import { getSuitBorderColor, getRevealedCardGlow } from '../lib/suitColors';
 import { extractShortLabel, getPositionLabel } from './readingBoardUtils';
@@ -218,39 +219,77 @@ function FlashRing({ active, prefersReducedMotion, className }) {
 function FlipCard({ isRevealed, prefersReducedMotion, forceRevealOnMount = false, className, style, children }) {
   const ref = useRef(null);
   const shouldForceRevealRef = useRef(forceRevealOnMount);
+  const prevRevealedRef = useRef(isRevealed);
+  const animRef = useRef(null);
+  const hasInitializedRef = useRef(false);
 
+  // Set initial state before paint
   useLayoutEffect(() => {
     const node = ref.current;
-    if (!node) return undefined;
+    if (!node || hasInitializedRef.current) return undefined;
+
+    hasInitializedRef.current = true;
     const shouldForceReveal = shouldForceRevealRef.current && isRevealed;
     const startRevealed = isRevealed && !shouldForceReveal;
+
     set(node, {
       rotateY: startRevealed ? 0 : 180,
       rotateX: startRevealed ? 0 : FLIP_TILT
     });
+
+    prevRevealedRef.current = startRevealed;
     shouldForceRevealRef.current = false;
     return undefined;
     // eslint-disable-next-line react-hooks/exhaustive-deps -- only run on mount
   }, []);
 
+  // Handle reveal animation when isRevealed changes
   useEffect(() => {
     const node = ref.current;
     if (!node) return undefined;
+
+    // Skip if this is the initial render (handled by useLayoutEffect)
+    if (!hasInitializedRef.current) return undefined;
+
+    // Skip if revealed state hasn't actually changed
+    if (prevRevealedRef.current === isRevealed) return undefined;
+    prevRevealedRef.current = isRevealed;
+
+    // Clean up any existing animation
+    if (animRef.current?.pause) {
+      animRef.current.pause();
+      animRef.current = null;
+    }
 
     if (prefersReducedMotion) {
       set(node, { rotateY: isRevealed ? 0 : 180, rotateX: isRevealed ? 0 : FLIP_TILT });
       return undefined;
     }
 
-    const anim = animate(node, {
+    animRef.current = animate(node, {
       rotateY: isRevealed ? 0 : 180,
       rotateX: isRevealed ? 0 : FLIP_TILT,
       duration: 420,
       ease: FLIP_EASE
     });
 
-    return () => anim?.pause?.();
+    return () => {
+      if (animRef.current?.pause) {
+        animRef.current.pause();
+        animRef.current = null;
+      }
+    };
   }, [isRevealed, prefersReducedMotion]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (animRef.current?.pause) {
+        animRef.current.pause();
+        animRef.current = null;
+      }
+    };
+  }, []);
 
   return (
     <div ref={ref} className={className} style={style}>
@@ -378,6 +417,7 @@ export function SpreadTable({
 }) {
   const prefersReducedMotion = useReducedMotion();
   const { vibrate } = useHaptic();
+  const [scopeRootRef, scopeRef] = useAnimeScope();
   const baseLayout = SPREAD_LAYOUTS[spreadKey] || SPREAD_LAYOUTS.single;
   const spreadInfo = SPREADS[spreadKey];
   const tableRef = useRef(null);
@@ -386,6 +426,14 @@ export function SpreadTable({
   const revealHintDismissedRef = useRef(false);
   const prevRevealedRef = useRef(new Set());
   const layoutStagger = useMemo(() => stagger(CARD_LAYOUT_STAGGER, { from: 'center' }), []);
+
+  // Merge refs for the table container to get both layout and animation scope
+  const setTableRefs = useMemo(() => {
+    return (node) => {
+      tableRef.current = node;
+      scopeRootRef.current = node;
+    };
+  }, [scopeRootRef]);
 
 
   const baseMaxCardWidth = useMemo(
@@ -535,6 +583,15 @@ export function SpreadTable({
     return () => window.clearTimeout(timerId);
   }, [revealedIndices, vibrate, prefersReducedMotion]);
 
+  // Clean up all scoped animations when spread changes
+  useEffect(() => {
+    return () => {
+      if (scopeRef.current?.revert) {
+        scopeRef.current.revert();
+      }
+    };
+  }, [spreadKey, scopeRef]);
+
   // Keep next slot in view on mobile after deal/reveal
   useEffect(() => {
     if (nextDealIndex == null || nextDealIndex < 0) return;
@@ -556,7 +613,7 @@ export function SpreadTable({
 
   return (
     <div
-      ref={tableRef}
+      ref={setTableRefs}
       className={`spread-table panel-mystic relative w-full rounded-2xl sm:rounded-3xl border overflow-hidden ${
         compact ? 'p-3' : 'p-4 sm:p-6'
       }`}
@@ -727,11 +784,13 @@ export function SpreadTable({
                       }}
                     >
                       <div
-                        className={`absolute inset-0 bg-surface flex items-center justify-center ${displayCard.isReversed ? 'rotate-180' : ''}`}
+                        className="absolute inset-0 bg-surface flex items-center justify-center"
                         style={{
                           backfaceVisibility: 'hidden',
                           WebkitBackfaceVisibility: 'hidden',
-                          transform: 'translateZ(0.1px)'
+                          transform: displayCard.isReversed
+                            ? 'rotateZ(180deg) translateZ(0.1px)'
+                            : 'translateZ(0.1px)'
                         }}
                       >
                         <img

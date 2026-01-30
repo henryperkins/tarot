@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { animate, createSpring } from 'animejs';
 import { TableuLogo } from './TableuLogo';
 import { useReducedMotion } from '../hooks/useReducedMotion';
+import { useAnimeScope } from '../hooks/useAnimeScope';
 
 /**
  * Hook to compute responsive logo size with SSR safety, debounced resize handling
@@ -44,10 +45,17 @@ function useDynamicLogoSize(baseSize = 120, factor = 0.15, debounceMs = 100) {
 export function DeckPile({ cardsRemaining, onDraw, isShuffling, nextLabel }) {
     const rasterLogoSize = useDynamicLogoSize(120, 0.15);
     const shouldReduceMotion = useReducedMotion();
+    const [scopeRootRef] = useAnimeScope();
     const buttonRef = useRef(null);
     const isHoveringRef = useRef(false);
     const activeAnimRef = useRef(null);
     const springEase = useMemo(() => createSpring({ stiffness: 400, damping: 25, mass: 1 }), []);
+
+    // Merge refs for button to get both direct access and animation scope
+    const setButtonRefs = useCallback((node) => {
+        buttonRef.current = node;
+        scopeRootRef.current = node;
+    }, [scopeRootRef]);
 
     const runAnimation = useCallback((props, options = {}) => {
         if (shouldReduceMotion || !buttonRef.current) return;
@@ -87,12 +95,22 @@ export function DeckPile({ cardsRemaining, onDraw, isShuffling, nextLabel }) {
         }
     }, [isShuffling, runAnimation]);
 
+    // Cleanup active animation on unmount
+    useEffect(() => {
+        return () => {
+            if (activeAnimRef.current?.pause) {
+                activeAnimRef.current.pause();
+                activeAnimRef.current = null;
+            }
+        };
+    }, []);
+
     if (cardsRemaining <= 0) return null;
 
     return (
         <div className="flex flex-col items-center justify-center py-6 sm:py-8 animate-fade-in relative z-20">
             <button
-                ref={buttonRef}
+                ref={setButtonRefs}
                 onClick={onDraw}
                 disabled={isShuffling}
                 onPointerEnter={handlePointerEnter}

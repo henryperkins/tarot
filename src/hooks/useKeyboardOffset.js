@@ -21,7 +21,9 @@ function getViewportOffset(threshold) {
   }
   const offsetTop = window.visualViewport.offsetTop || 0;
   const offset = window.innerHeight - window.visualViewport.height - offsetTop;
-  return offset > threshold ? offset : 0;
+  const proportionalThreshold = Math.max(48, Math.round(window.innerHeight * 0.1));
+  const effectiveThreshold = Math.min(threshold, proportionalThreshold);
+  return offset > effectiveThreshold ? offset : 0;
 }
 
 function getServerViewportOffset() {

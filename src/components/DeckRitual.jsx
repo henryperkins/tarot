@@ -599,7 +599,7 @@ export function DeckRitual({
             : 'border-accent/30 bg-surface/60 text-muted'
         }`}>
           <Sparkle className={isLandscape ? 'w-3 h-3' : 'w-3.5 h-3.5 xs:w-4 xs:h-4'} weight={knockComplete ? 'fill' : 'regular'} />
-          <span className={`font-semibold ${isLandscape ? 'text-[0.65rem]' : 'text-[0.7rem] xs:text-xs'}`}>{knockComplete ? (isLandscape ? '✓' : 'Cleared') : `${knockCount}/3`}</span>
+          <span className="font-semibold text-xs-plus">{knockComplete ? (isLandscape ? '✓' : 'Cleared') : `${knockCount}/3`}</span>
         </div>
 
         <div className={`flex items-center gap-1.5 xs:gap-2 rounded-full border transition-all ${isLandscape ? 'px-2 py-1' : 'px-2.5 xs:px-3 py-1 xs:py-1.5'} ${
@@ -608,7 +608,7 @@ export function DeckRitual({
             : 'border-accent/30 bg-surface/60 text-muted'
         }`}>
           <Scissors className={isLandscape ? 'w-3 h-3' : 'w-3.5 h-3.5 xs:w-4 xs:h-4'} weight={hasCut ? 'fill' : 'regular'} />
-          <span className={`font-semibold ${isLandscape ? 'text-[0.65rem]' : 'text-[0.7rem] xs:text-xs'}`}>{hasCut ? `#${cutIndex}` : (isLandscape ? '—' : 'Uncut')}</span>
+          <span className="font-semibold text-xs-plus">{hasCut ? `#${cutIndex}` : (isLandscape ? '—' : 'Uncut')}</span>
         </div>
       </div>
 
@@ -722,7 +722,7 @@ export function DeckRitual({
         <div className="mt-4 xs:mt-5 sm:mt-6 max-w-xs mx-auto px-3 xs:px-4">
           <div className="rounded-2xl border border-accent/30 bg-surface/80 backdrop-blur p-3 xs:p-4">
             <div className="flex items-center justify-between mb-2 xs:mb-3">
-              <span className="text-[0.7rem] xs:text-xs text-muted">Cut position</span>
+              <span className="text-xs-plus text-muted">Cut position</span>
               <span className="text-sm font-bold text-secondary">#{localCutIndex}</span>
             </div>
             <input
@@ -737,13 +737,13 @@ export function DeckRitual({
             <div className="flex justify-between mt-2 xs:mt-3 gap-2">
               <button
                 onClick={() => setShowCutSlider(false)}
-                className="text-[0.7rem] xs:text-xs text-muted hover:text-main transition-colors px-3 py-2 rounded-full hover:bg-surface-muted/50 min-h-touch touch-manipulation"
+                className="text-xs-plus text-muted hover:text-main transition-colors px-3 py-2 rounded-full hover:bg-surface-muted/50 min-h-touch touch-manipulation"
               >
                 Cancel
               </button>
               <button
                 onClick={handleCutConfirm}
-                className="px-4 py-2 rounded-full bg-secondary/20 border border-secondary/50 text-secondary text-[0.7rem] xs:text-xs font-semibold hover:bg-secondary/30 transition-colors min-h-touch touch-manipulation"
+                className="px-4 py-2 rounded-full bg-secondary/20 border border-secondary/50 text-secondary text-xs-plus font-semibold hover:bg-secondary/30 transition-colors min-h-touch touch-manipulation"
               >
                 Confirm Cut
               </button>
@@ -759,11 +759,11 @@ export function DeckRitual({
             onClick={handleDealWithAnimation}
             disabled={isShuffling}
             type="button"
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary text-main font-semibold shadow-lg disabled:opacity-50 disabled:cursor-not-allowed text-sm motion-safe:transition-transform motion-safe:hover:scale-[1.03] motion-safe:active:scale-95"
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary text-main font-semibold shadow-lg disabled:opacity-50 disabled:cursor-not-allowed text-sm min-h-cta motion-safe:transition-transform motion-safe:hover:scale-[1.03] motion-safe:active:scale-95"
             style={{ boxShadow: '0 10px 30px color-mix(in srgb, var(--brand-primary) 30%, transparent)' }}
           >
             <span>Draw: {nextPosition || 'Next Card'}</span>
-            <span className="opacity-70 text-[0.7rem]">({cardsRemaining})</span>
+            <span className="opacity-70 text-xs-plus">({cardsRemaining})</span>
           </button>
         </div>
       )}
@@ -777,7 +777,7 @@ export function DeckRitual({
           className={`
             flex items-center rounded-full font-medium
             transition-all touch-manipulation min-h-touch
-            ${isLandscape ? 'gap-1 px-2.5 py-1.5 text-[0.65rem]' : 'gap-1.5 px-2.5 xs:px-3 py-2 text-[0.7rem] xs:text-xs'}
+            ${isLandscape ? 'gap-1 px-2.5 py-1.5 text-xs-plus' : 'gap-1.5 px-2.5 xs:px-3 py-2 text-xs-plus xs:text-sm'}
             ${knockComplete
               ? 'bg-secondary/15 border border-secondary/40 text-secondary cursor-default'
               : 'bg-surface/60 border border-accent/30 text-muted hover:bg-surface hover:border-accent/50 hover:text-main active:scale-95'
@@ -795,7 +795,7 @@ export function DeckRitual({
           className={`
             flex items-center rounded-full font-medium
             transition-all touch-manipulation min-h-touch
-            ${isLandscape ? 'gap-1 px-2.5 py-1.5 text-[0.65rem]' : 'gap-1.5 px-2.5 xs:px-3 py-2 text-[0.7rem] xs:text-xs'}
+            ${isLandscape ? 'gap-1 px-2.5 py-1.5 text-xs-plus' : 'gap-1.5 px-2.5 xs:px-3 py-2 text-xs-plus xs:text-sm'}
             ${hasCut
               ? 'bg-secondary/15 border border-secondary/40 text-secondary'
               : showCutSlider
@@ -823,7 +823,7 @@ export function DeckRitual({
             hover:bg-surface hover:border-accent/50 hover:text-main
             disabled:opacity-50 disabled:cursor-not-allowed
             transition-all touch-manipulation min-h-touch active:scale-95
-            ${isLandscape ? 'gap-1 px-2.5 py-1.5 text-[0.65rem]' : 'gap-1.5 px-2.5 xs:px-3 py-2 text-[0.7rem] xs:text-xs'}
+            ${isLandscape ? 'gap-1 px-2.5 py-1.5 text-xs-plus' : 'gap-1.5 px-2.5 xs:px-3 py-2 text-xs-plus xs:text-sm'}
           `}
           aria-label={isShuffling ? 'Shuffling deck...' : 'Shuffle the deck'}
         >
@@ -837,7 +837,7 @@ export function DeckRitual({
         <div className={`flex flex-wrap justify-center px-3 xs:px-4 ${isLandscape ? 'mt-2 gap-1.5' : 'mt-2 xs:mt-3 gap-1.5 xs:gap-2'}`}>
           {showCadenceReset && !knockComplete && (
             <span
-              className={`inline-flex items-center gap-1 px-2 py-1 rounded-full border border-amber-300/40 bg-amber-300/10 text-amber-100 motion-safe:animate-pulse ${isLandscape ? 'text-[0.55rem]' : 'text-[0.6rem] xs:text-[0.65rem]'}`}
+              className={`inline-flex items-center gap-1 px-2 py-1 rounded-full border border-amber-300/40 bg-amber-300/10 text-amber-100 motion-safe:animate-pulse text-xs-plus`}
               role="status"
               aria-live="polite"
             >
@@ -846,31 +846,31 @@ export function DeckRitual({
             </span>
           )}
           {!knockComplete && (
-            <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full bg-surface/60 border border-accent/20 text-muted ${isLandscape ? 'text-[0.55rem]' : 'text-[0.6rem] xs:text-[0.65rem]'}`}>
+            <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-surface/60 border border-accent/20 text-muted text-xs-plus">
               <HandTap className="w-3 h-3" weight="duotone" aria-hidden="true" />
               <span>{knockHint}</span>
             </span>
           )}
           {!hasCut && (
-            <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full bg-surface/60 border border-accent/20 text-muted ${isLandscape ? 'text-[0.55rem]' : 'text-[0.6rem] xs:text-[0.65rem]'}`}>
+            <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-surface/60 border border-accent/20 text-muted text-xs-plus">
               <Scissors className="w-3 h-3" weight="duotone" aria-hidden="true" />
               <span>Hold to cut</span>
             </span>
           )}
           {hasCut && (
-            <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full bg-surface/60 border border-accent/20 text-muted ${isLandscape ? 'text-[0.55rem]' : 'text-[0.6rem] xs:text-[0.65rem]'}`}>
+            <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-surface/60 border border-accent/20 text-muted text-xs-plus">
               <Scissors className="w-3 h-3" weight="duotone" aria-hidden="true" />
               <span>Hold to adjust</span>
             </span>
           )}
           {canShuffleGesture && (
-            <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full bg-surface/60 border border-accent/20 text-muted ${isLandscape ? 'text-[0.55rem]' : 'text-[0.6rem] xs:text-[0.65rem]'}`}>
+            <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-surface/60 border border-accent/20 text-muted text-xs-plus">
               <ArrowsClockwise className="w-3 h-3" weight="duotone" aria-hidden="true" />
               <span>2x tap shuffle</span>
             </span>
           )}
           {knockComplete && cardsRemaining > 0 && (
-            <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full bg-primary/20 border border-primary/30 text-main ${isLandscape ? 'text-[0.55rem]' : 'text-[0.6rem] xs:text-[0.65rem]'}`}>
+            <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-primary/20 border border-primary/30 text-main text-xs-plus">
               <HandTap className="w-3 h-3" weight="fill" aria-hidden="true" />
               <span>Tap to draw</span>
             </span>
@@ -885,11 +885,11 @@ export function DeckRitual({
             onClick={handleDealWithAnimation}
             disabled={isShuffling}
             type="button"
-            className={`inline-flex items-center rounded-full bg-primary text-main font-semibold shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors hover:bg-primary/90 min-h-touch motion-safe:transition-transform motion-safe:hover:scale-[1.03] motion-safe:active:scale-95 ${isLandscape ? 'gap-2 px-4 py-2 text-sm' : 'gap-2 xs:gap-3 px-4 xs:px-5 sm:px-6 py-2 xs:py-2.5 sm:py-3 text-sm xs:text-base'}`}
+            className={`inline-flex items-center rounded-full bg-primary text-main font-semibold shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors hover:bg-primary/90 min-h-cta motion-safe:transition-transform motion-safe:hover:scale-[1.03] motion-safe:active:scale-95 ${isLandscape ? 'gap-2 px-4 py-2 text-sm' : 'gap-2 xs:gap-3 px-4 xs:px-5 sm:px-6 py-2 xs:py-2.5 sm:py-3 text-sm xs:text-base'}`}
             style={{ boxShadow: '0 10px 30px color-mix(in srgb, var(--brand-primary) 30%, transparent)' }}
           >
             <span>{isLandscape ? nextPosition || 'Next' : `Draw: ${nextPosition || 'Next Card'}`}</span>
-            <span className={`opacity-70 ${isLandscape ? 'text-[0.65rem]' : 'text-[0.7rem] xs:text-xs'}`}>({cardsRemaining})</span>
+            <span className="opacity-70 text-xs-plus">({cardsRemaining})</span>
           </button>
         </div>
       )}

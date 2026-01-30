@@ -101,11 +101,15 @@ export default function ShareReading() {
         throw new Error('Unable to refresh notes');
       }
       const payload = await response.json();
-      setNotes(payload.notes || []);
+      const nextNotes = payload.notes || [];
+      setNotes(nextNotes);
       setLastSyncedAt(Date.now());
       setNoteError('');
+      return { count: nextNotes.length };
     } catch (error) {
-      setNoteError(error.message || 'Unable to refresh notes');
+      const message = error.message || 'Unable to refresh notes';
+      setNoteError(message);
+      return { error: message };
     }
   }, [token]);
 

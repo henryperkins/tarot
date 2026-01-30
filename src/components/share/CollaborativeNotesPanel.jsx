@@ -1,6 +1,13 @@
 import { useMemo, useState, useEffect, useId, useCallback, useRef } from 'react';
 
 const ALIAS_STORAGE_KEY = 'mystic-share-alias';
+const DRAFT_STORAGE_KEY = 'mystic-share-draft';
+
+function getTimestamp(value) {
+  if (!value) return null;
+  const timestamp = new Date(value).getTime();
+  return Number.isNaN(timestamp) ? null : timestamp;
+}
 
 /**
  * Format timestamp with relative time for recent timestamps
@@ -8,11 +15,11 @@ const ALIAS_STORAGE_KEY = 'mystic-share-alias';
 function formatTimestamp(ts) {
   if (!ts) return 'never';
 
-  const date = new Date(ts);
-  if (isNaN(date.getTime())) return 'recently';
+  const timestamp = getTimestamp(ts);
+  if (!timestamp) return 'recently';
 
   const now = Date.now();
-  const diff = now - date.getTime();
+  const diff = now - timestamp;
 
   // Relative time for recent
   if (diff < 60000) return 'just now';
@@ -20,7 +27,7 @@ function formatTimestamp(ts) {
   if (diff < 86400000) return `${Math.floor(diff / 3600000)}h ago`;
 
   // Absolute for older
-  return date.toLocaleDateString(undefined, {
+  return new Date(timestamp).toLocaleDateString(undefined, {
     month: 'short',
     day: 'numeric',
     hour: 'numeric',
@@ -97,9 +104,11 @@ export function CollaborativeNotesPanel({
 }) {
   const [authorName, setAuthorName] = useLocalStorage(ALIAS_STORAGE_KEY, '');
   const [cardPosition, setCardPosition] = useState(selectedPosition || '');
-  const [body, setBody] = useState('');
+  const [body, setBody] = useLocalStorage(DRAFT_STORAGE_KEY, '');
   const [statusMessage, setStatusMessage] = useState('');
+  const [statusTone, setStatusTone] = useState('neutral');
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const statusTimeoutRef = useRef(null);
 
   // Generate unique IDs for accessibility
   const nameInputId = useId();
@@ -114,15 +123,57 @@ export function CollaborativeNotesPanel({
     }
   }, [selectedPosition]);
 
+  const setStatus = useCallback((message, tone = 'neutral', timeoutMs) => {
+    setStatusMessage(message);
+    setStatusTone(tone);
+
+    if (statusTimeoutRef.current) {
+      clearTimeout(statusTimeoutRef.current);
+      statusTimeoutRef.current = null;
+    }
+
+    if (timeoutMs) {
+      statusTimeoutRef.current = setTimeout(() => {
+        setStatusMessage('');
+        setStatusTone('neutral');
+        statusTimeoutRef.current = null;
+      }, timeoutMs);
+    }
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (statusTimeoutRef.current) {
+        clearTimeout(statusTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    if (error) {
+      setStatus(error, 'error');
+    }
+  }, [error, setStatus]);
+
   const sortedNotes = useMemo(() => {
-    return [...notes].sort((a, b) => a.createdAt - b.createdAt);
+    return [...notes]
+      .map((note) => {
+        const createdAtMs = getTimestamp(note.createdAt);
+        return {
+          ...note,
+          createdAtMs,
+          formattedCreatedAt: formatTimestamp(note.createdAt),
+          isoCreatedAt: createdAtMs ? new Date(createdAtMs).toISOString() : undefined
+        };
+      })
+      .sort((a, b) => (a.createdAtMs ?? 0) - (b.createdAtMs ?? 0));
   }, [notes]);
 
   const handleSubmit = async (event) => {
     event.preventDefault();
     const text = body.trim();
     if (!text) {
-      setStatusMessage('Add a note before sending.');
+      setStatus('Add a note before sending.', 'error', 2500);
       return;
     }
     try {
@@ -132,10 +183,9 @@ export function CollaborativeNotesPanel({
         cardPosition: cardPosition || null
       });
       setBody('');
-      setStatusMessage('Shared!');
-      setTimeout(() => setStatusMessage(''), 2500);
+      setStatus('Shared!', 'success', 2500);
     } catch (submitError) {
-      setStatusMessage(submitError?.message || 'Unable to add note.');
+      setStatus(submitError?.message || 'Unable to add note.', 'error');
     }
   };
 
@@ -147,12 +197,25 @@ export function CollaborativeNotesPanel({
   const handleRefresh = async () => {
     if (isRefreshing || !onRefresh) return;
     setIsRefreshing(true);
+    const previousCount = notes.length;
     try {
-      await onRefresh();
+      const result = await onRefresh();
+      if (result?.error) {
+        setStatus(result.error, 'error');
+      } else {
+        const nextCount = typeof result?.count === 'number' ? result.count : notes.length;
+        const message = nextCount > previousCount ? 'Updated just now.' : 'No new notes yet.';
+        setStatus(message, 'neutral', 2500);
+      }
+    } catch (refreshError) {
+      setStatus(refreshError?.message || 'Unable to refresh notes.', 'error');
     } finally {
       setIsRefreshing(false);
     }
   };
+
+  const lastSyncedAtMs = getTimestamp(lastSyncedAt);
+  const lastSyncedAtLabel = formatTimestamp(lastSyncedAt);
 
   return (
     <section
@@ -179,8 +242,8 @@ export function CollaborativeNotesPanel({
       </header>
 
       <p className="mt-1 text-xs text-secondary/70">
-        Last synced: <time dateTime={lastSyncedAt ? new Date(lastSyncedAt).toISOString() : undefined}>
-          {formatTimestamp(lastSyncedAt)}
+        Last synced: <time dateTime={lastSyncedAtMs ? new Date(lastSyncedAtMs).toISOString() : undefined}>
+          {lastSyncedAtLabel}
         </time>
       </p>
 
@@ -195,6 +258,7 @@ export function CollaborativeNotesPanel({
         className="mt-4 space-y-3 overflow-y-auto pr-1 max-h-[min(240px,40vh)]"
         style={{ WebkitOverflowScrolling: 'touch' }}
         aria-label={`${sortedNotes.length} reflection${sortedNotes.length === 1 ? '' : 's'}`}
+        role="list"
       >
         {sortedNotes.length === 0 && (
           <p className="text-sm text-muted py-4 text-center">
@@ -204,15 +268,16 @@ export function CollaborativeNotesPanel({
         {sortedNotes.map((note) => (
           <article
             key={note.id}
+            role="listitem"
             className="rounded-2xl border border-accent/20 bg-surface-muted/70 p-3"
           >
             <div className="flex items-center justify-between gap-2 text-xs text-secondary/90">
               <span className="font-semibold truncate">{note.authorName || 'Anonymous'}</span>
               <time
-                dateTime={new Date(note.createdAt).toISOString()}
+                dateTime={note.isoCreatedAt}
                 className="text-secondary/70 shrink-0"
               >
-                {formatTimestamp(note.createdAt)}
+                {note.formattedCreatedAt}
               </time>
             </div>
             {note.cardPosition && (
@@ -307,7 +372,14 @@ export function CollaborativeNotesPanel({
           id={statusId}
           role="status"
           aria-live="polite"
-          className={statusMessage ? 'text-xs text-secondary/80' : 'sr-only'}
+          className={statusMessage
+            ? `text-xs ${statusTone === 'error'
+              ? 'text-error'
+              : statusTone === 'success'
+                ? 'text-success'
+                : 'text-secondary/80'
+            }`
+            : 'sr-only'}
         >
           {statusMessage}
         </div>

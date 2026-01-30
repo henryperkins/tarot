@@ -4,6 +4,13 @@ import { MAJOR_ARCANA } from '../../data/majorArcana';
 import { MINOR_ARCANA } from '../../data/minorArcana';
 
 const FALLBACK_IMAGE = '/images/cards/RWS1909_-_00_Fool.jpeg';
+const GENERAL_POSITION_KEY = 'general';
+const AVATAR_COLOR_CLASSES = [
+  'bg-secondary/30 text-secondary',
+  'bg-accent/20 text-accent',
+  'bg-primary/20 text-primary',
+  'bg-gold/20 text-gold',
+];
 
 /**
  * Lazy singleton for card lookup to avoid running on every import
@@ -41,6 +48,47 @@ function getCardImage(card) {
   return FALLBACK_IMAGE;
 }
 
+function getTimestamp(value) {
+  if (!value) return null;
+  const timestamp = new Date(value).getTime();
+  return Number.isNaN(timestamp) ? null : timestamp;
+}
+
+function formatTimestamp(ts) {
+  if (!ts) return 'never';
+
+  const timestamp = getTimestamp(ts);
+  if (!timestamp) return 'recently';
+
+  const now = Date.now();
+  const diff = now - timestamp;
+
+  if (diff < 60000) return 'just now';
+  if (diff < 3600000) return `${Math.floor(diff / 60000)}m ago`;
+  if (diff < 86400000) return `${Math.floor(diff / 3600000)}h ago`;
+
+  return new Date(timestamp).toLocaleDateString(undefined, {
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit'
+  });
+}
+
+function normalizePosition(value) {
+  if (!value) return '';
+  return value.toString().trim().replace(/\s+/g, ' ').toLowerCase();
+}
+
+function getAvatarClass(name, fallback) {
+  const key = (name || fallback || 'anonymous').toString().trim().toLowerCase();
+  let hash = 0;
+  for (let i = 0; i < key.length; i += 1) {
+    hash = (hash * 31 + key.charCodeAt(i)) % 2147483647;
+  }
+  return AVATAR_COLOR_CLASSES[hash % AVATAR_COLOR_CLASSES.length];
+}
+
 function deriveSpreadPositions(entry) {
   if (!entry) return [];
   const spreadDefinition = entry.spreadKey ? SPREADS[entry.spreadKey] : null;
@@ -54,9 +102,19 @@ function deriveSpreadPositions(entry) {
 
 function mapNotes(notes) {
   // Sort once, then group by position
-  const sorted = [...notes].sort((a, b) => a.createdAt - b.createdAt);
+  const sorted = [...notes]
+    .map((note) => {
+      const createdAtMs = getTimestamp(note.createdAt);
+      return {
+        ...note,
+        createdAtMs,
+        formattedCreatedAt: formatTimestamp(note.createdAt),
+        isoCreatedAt: createdAtMs ? new Date(createdAtMs).toISOString() : undefined
+      };
+    })
+    .sort((a, b) => (a.createdAtMs ?? 0) - (b.createdAtMs ?? 0));
   return sorted.reduce((acc, note) => {
-    const key = note.cardPosition || 'general';
+    const key = normalizePosition(note.cardPosition) || GENERAL_POSITION_KEY;
     (acc[key] ??= []).push(note);
     return acc;
   }, {});
@@ -66,24 +124,26 @@ function NoteAvatars({ notes }) {
   if (!notes?.length) return null;
 
   // Get the most recent 3 notes (by createdAt descending)
-  const sorted = [...notes].sort((a, b) => b.createdAt - a.createdAt);
+  const sorted = [...notes].sort((a, b) => (b.createdAtMs ?? 0) - (a.createdAtMs ?? 0));
   const latest = sorted.slice(0, 3);
   const remaining = notes.length - latest.length;
 
   return (
     <div
       className="flex items-center gap-1"
+      role="group"
       aria-label={`${notes.length} note${notes.length === 1 ? '' : 's'} on this card`}
     >
       {latest.map((note) => {
         // Use initials or fallback to "??" for consistency across platforms
         const initials = note.authorName?.trim()?.slice(0, 2)?.toUpperCase() || '??';
+        const avatarClass = getAvatarClass(note.authorName, note.id);
         return (
           <span
             key={note.id}
-            className="flex h-6 w-6 items-center justify-center rounded-full bg-secondary/30 text-xs font-semibold text-secondary"
+            className={`flex h-6 w-6 items-center justify-center rounded-full text-xs font-semibold ${avatarClass}`}
             title={note.authorName || 'Anonymous'}
-            aria-hidden="true"
+            aria-label={note.authorName || 'Anonymous'}
           >
             {initials}
           </span>
@@ -123,13 +183,13 @@ export function SharedSpreadView({ entry, notes = [], selectedPosition, onSelect
     return null;
   }
 
-  const generalNotes = noteMap.general || [];
+  const generalNotes = noteMap[GENERAL_POSITION_KEY] || [];
 
-  const handleImageError = (event, cardName) => {
+  const handleImageError = (event, imageKey) => {
     const img = event.currentTarget;
     // Prevent infinite loop - only set fallback once per image
-    if (!failedImagesRef.current.has(cardName)) {
-      failedImagesRef.current.add(cardName);
+    if (!failedImagesRef.current.has(imageKey)) {
+      failedImagesRef.current.add(imageKey);
       img.src = FALLBACK_IMAGE;
     }
   };
@@ -139,18 +199,20 @@ export function SharedSpreadView({ entry, notes = [], selectedPosition, onSelect
       <div className={`${gridClass} gap-4`} role="list" aria-label="Cards in this spread">
         {entry.cards?.map((card, index) => {
           const positionLabel = card.position || positions[index] || `Card ${index + 1}`;
-          const positionNotes = noteMap[positionLabel] || [];
+          const positionKey = normalizePosition(positionLabel);
+          const positionNotes = noteMap[positionKey] || [];
           const active = selectedPosition === positionLabel;
           const orientation = card.orientation || 'Upright';
           const isReversed = orientation.toLowerCase().includes('reversed');
           const meaning = getOrientationMeaning(card) || 'Meaning unavailable';
+          const imageKey = card.id || `${card.name}-${index}`;
 
           return (
             <button
               key={`${card.name}-${index}`}
               type="button"
               role="listitem"
-              onClick={() => onSelectPosition?.(positionLabel)}
+              onClick={() => onSelectPosition?.(active ? '' : positionLabel)}
               aria-pressed={active}
               aria-label={`${positionLabel}: ${card.name}, ${orientation}. ${positionNotes.length} note${positionNotes.length === 1 ? '' : 's'}. Click to target for note.`}
               className={`group w-full rounded-2xl border bg-surface/70 p-4 text-left shadow-lg transition-all duration-200
@@ -179,7 +241,7 @@ export function SharedSpreadView({ entry, notes = [], selectedPosition, onSelect
                     alt={`${card.name}, ${orientation}`}
                     className={`w-full h-full object-contain ${isReversed ? 'rotate-180' : ''}`}
                     loading="lazy"
-                    onError={(e) => handleImageError(e, card.name)}
+                    onError={(e) => handleImageError(e, imageKey)}
                   />
                 </div>
                 <p className="mt-3 font-serif text-lg text-main">{card.name}</p>
@@ -212,21 +274,21 @@ export function SharedSpreadView({ entry, notes = [], selectedPosition, onSelect
           <div
             className="mt-3 space-y-2 max-h-48 overflow-y-auto pr-1"
             style={{ WebkitOverflowScrolling: 'touch' }}
+            role="list"
           >
             {generalNotes.map((note) => (
-              <article key={note.id} className="rounded-xl border border-accent/20 bg-surface-muted/70 p-3">
+              <article
+                key={note.id}
+                role="listitem"
+                className="rounded-xl border border-accent/20 bg-surface-muted/70 p-3"
+              >
                 <header className="flex items-center justify-between gap-2 text-xs text-secondary/90">
                   <span className="font-semibold truncate">{note.authorName || 'Anonymous'}</span>
                   <time
-                    dateTime={new Date(note.createdAt).toISOString()}
+                    dateTime={note.isoCreatedAt}
                     className="text-secondary/70 shrink-0"
                   >
-                    {new Date(note.createdAt).toLocaleString(undefined, {
-                      month: 'short',
-                      day: 'numeric',
-                      hour: 'numeric',
-                      minute: '2-digit'
-                    })}
+                    {note.formattedCreatedAt}
                   </time>
                 </header>
                 <p className="mt-2 text-sm text-main/90 whitespace-pre-wrap break-words">{note.body}</p>

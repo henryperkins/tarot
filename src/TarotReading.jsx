@@ -1030,10 +1030,7 @@ export default function TarotReading() {
           />
           {connectionBanner && !isMobileOverlayActive && (
             <div
-              className="fixed left-0 right-0 z-[60] flex justify-center px-3"
-              style={{
-                bottom: 'calc(var(--mobile-action-bar-height, 0px) + var(--keyboard-offset, 0px) + 0.75rem)'
-              }}
+              className="fixed left-0 right-0 z-[60] flex justify-center px-3 bottom-safe-action"
               aria-live="polite"
             >
               <div className={`pointer-events-auto flex flex-wrap items-center gap-2 rounded-full border ${connectionBg} ${connectionTone} px-3 py-2 text-xs shadow-lg backdrop-blur`}>
