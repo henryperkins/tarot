@@ -439,7 +439,8 @@ async function generateWithAzureGptMiniTTS(env, { text, context, voice, speed, e
 
   const arrayBuffer = await response.arrayBuffer();
   const base64 = uint8ToBase64(new Uint8Array(arrayBuffer));
-  const mime = format === 'wav' ? 'audio/wav' : `audio/${format}`;
+  // Use standard MIME types: audio/mpeg for MP3 (Safari rejects audio/mp3)
+  const mime = format === 'wav' ? 'audio/wav' : format === 'mp3' ? 'audio/mpeg' : `audio/${format}`;
   return `data:${mime};base64,${base64}`;
 }
 
@@ -473,7 +474,8 @@ async function generateWithAzureGptMiniTTSStream(env, { text, context, voice, sp
 
   // Return the streaming response directly
   // The response body is a ReadableStream of audio chunks
-  const mime = format === 'wav' ? 'audio/wav' : `audio/${format}`;
+  // Use standard MIME types: audio/mpeg for MP3 (Safari rejects audio/mp3)
+  const mime = format === 'wav' ? 'audio/wav' : format === 'mp3' ? 'audio/mpeg' : `audio/${format}`;
   return new Response(response.body, {
     headers: {
       'content-type': mime,

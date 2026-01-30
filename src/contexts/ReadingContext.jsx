@@ -361,13 +361,26 @@ export function ReadingProvider({ children }) {
                 return `${name}:${reversed}`;
             }).join('|')
             : '';
+        // Include user inputs so resume is invalidated when question/reflections change
+        const questionKey = typeof userQuestion === 'string' ? userQuestion.trim() : '';
+        const reflectionsKey = Object.entries(reflections || {})
+            .filter(([, v]) => typeof v === 'string' && v.trim())
+            .sort(([a], [b]) => a.localeCompare(b))
+            .map(([k, v]) => `${k}:${v.trim()}`)
+            .join('|');
+        const personalizationKey = personalizationForRequest
+            ? JSON.stringify(personalizationForRequest)
+            : '';
         return JSON.stringify({
             spreadKey: normalizeSpreadKey(selectedSpread),
             count,
             seed: sessionSeed || null,
-            fingerprint: fingerprint || null
+            fingerprint: fingerprint || null,
+            question: questionKey || null,
+            reflections: reflectionsKey || null,
+            personalization: personalizationKey || null
         });
-    }, [reading, selectedSpread, sessionSeed]);
+    }, [reading, selectedSpread, sessionSeed, userQuestion, reflections, personalizationForRequest]);
 
     const streamReadingJob = useCallback(async ({ jobId, jobToken, cursor = 0, resume = false }) => {
         if (!jobId || !jobToken) return;

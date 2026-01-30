@@ -382,6 +382,11 @@ export function wrapReadingStreamWithMetadata(stream, { meta, ctx, onComplete, o
     cancel(reason) {
       // Client disconnected - stop reading from upstream and release quota
       console.log('[wrapReadingStreamWithMetadata] Client disconnected:', reason?.message || reason || 'unknown');
+
+      // Block onComplete/onError from firing after cancel to prevent double-handling
+      // (quota refund in onCancel + finalization in onComplete)
+      completionHandled = true;
+
       if (reader) {
         reader.cancel(reason).catch(() => {
           // Ignore cancel errors - upstream may already be closed

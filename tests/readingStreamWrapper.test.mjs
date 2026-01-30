@@ -265,3 +265,101 @@ describe('wrapReadingStreamWithMetadata - error handling', () => {
     assert.equal(errorInfo.error, true);
   });
 });
+
+describe('wrapReadingStreamWithMetadata - cancellation race prevention', () => {
+  test('onComplete is blocked after cancel() is called', async () => {
+    let completeCalled = false;
+    let cancelCalled = false;
+    const callOrder = [];
+
+    // Create a stream that will complete after we cancel
+    const mockEvents = [
+      formatSSEEvent('delta', { text: 'Hello ' }),
+      formatSSEEvent('delta', { text: 'world!' }),
+      formatSSEEvent('done', { fullText: 'Hello world!' })
+    ];
+
+    // Use a controlled stream that we can cancel mid-flight
+    let streamController = null;
+    const controlledStream = new ReadableStream({
+      start(controller) {
+        streamController = controller;
+      }
+    });
+
+    const wrappedStream = wrapReadingStreamWithMetadata(controlledStream, {
+      meta: { provider: 'test' },
+      onComplete: async (_fullText) => {
+        completeCalled = true;
+        callOrder.push('complete');
+      },
+      onCancel: async () => {
+        cancelCalled = true;
+        callOrder.push('cancel');
+      }
+    });
+
+    const reader = wrappedStream.getReader();
+    const encoder = new TextEncoder();
+
+    // Read meta event
+    await reader.read();
+
+    // Enqueue some events
+    streamController.enqueue(encoder.encode(mockEvents[0]));
+    await reader.read();
+
+    // Cancel before stream completes
+    await reader.cancel('user cancelled');
+    reader.releaseLock();
+
+    // Give time for async callbacks
+    await new Promise((resolve) => setTimeout(resolve, 10));
+
+    assert.ok(cancelCalled, 'onCancel should be called');
+    assert.ok(!completeCalled, 'onComplete should NOT be called after cancel');
+    assert.deepEqual(callOrder, ['cancel'], 'Only cancel should be in call order');
+  });
+
+  test('cancel() sets completionHandled to prevent subsequent onComplete', async () => {
+    let completeCalled = false;
+    let cancelCalled = false;
+
+    // Stream that emits done event
+    let streamController = null;
+    const controlledStream = new ReadableStream({
+      start(controller) {
+        streamController = controller;
+      }
+    });
+
+    const wrappedStream = wrapReadingStreamWithMetadata(controlledStream, {
+      meta: {},
+      onComplete: async () => {
+        completeCalled = true;
+      },
+      onCancel: async () => {
+        cancelCalled = true;
+      }
+    });
+
+    const reader = wrappedStream.getReader();
+    const encoder = new TextEncoder();
+
+    // Read meta
+    await reader.read();
+
+    // Enqueue delta
+    streamController.enqueue(encoder.encode(formatSSEEvent('delta', { text: 'Test' })));
+    await reader.read();
+
+    // Cancel the stream
+    await reader.cancel('client disconnect');
+    reader.releaseLock();
+
+    await new Promise((resolve) => setTimeout(resolve, 10));
+
+    assert.ok(cancelCalled, 'onCancel should be called');
+    assert.ok(!completeCalled, 'onComplete must be blocked after cancel');
+  });
+});
