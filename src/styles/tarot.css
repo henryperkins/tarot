@@ -675,7 +675,7 @@ body {
 }
 
 /* Landscape mode safeguards for small mobile devices */
-@media (max-height: 600px) and (orientation: landscape) {
+@media (max-height: 500px) and (orientation: landscape) {
   /* Compact mobile action bar in landscape */
   .mobile-action-bar {
     padding-top: 0.5rem;

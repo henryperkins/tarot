@@ -61,7 +61,13 @@ export const EMPTY_STATS = {
   frequentCards: [],
   contextBreakdown: [],
   monthlyCadence: [],
-  recentThemes: []
+  recentThemes: [],
+  themeSignals: [],
+  topTheme: null,
+  reversalRateReliable: false,
+  reversalRateSample: 0,
+  cardFrequencyReliable: false,
+  cardFrequencySample: 0,
 };
 
 // Pagination

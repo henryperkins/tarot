@@ -200,7 +200,9 @@ export function persistCoachStatsSnapshot(stats, meta = {}, userId = null) {
         entryCount: typeof meta.entryCount === 'number' ? meta.entryCount : null,
         totalEntries: typeof meta.totalEntries === 'number' ? meta.totalEntries : null,
         signalsUsed: Array.isArray(meta.signalsUsed) ? meta.signalsUsed : null,
-        coachSuggestion: meta.coachSuggestion || null
+        coachSuggestion: meta.coachSuggestion || null,
+        coachSuggestionIndex: Number.isFinite(meta.coachSuggestionIndex) ? meta.coachSuggestionIndex : null,
+        coachSuggestionKey: typeof meta.coachSuggestionKey === 'string' ? meta.coachSuggestionKey : null
       },
       updatedAt: Date.now()
     };
@@ -432,10 +434,13 @@ const NEXT_STEPS_IMPERATIVE_VERBS = new Set([
 
 const COACH_SOURCE_LABELS = {
   drift: 'Preference drift',
+  emergingDrift: 'Emerging interest',
   badge: 'Streak badge',
   topCard: 'Top card',
+  majorArcana: 'Major arcana',
   theme: 'Theme',
   context: 'Context',
+  streak: 'Streak check-in',
   nextSteps: 'Gentle next steps',
   extractedSteps: 'Gentle next steps',
   embeddings: 'Gentle next steps',
@@ -444,9 +449,12 @@ const COACH_SOURCE_LABELS = {
 
 export const COACH_SOURCE_PRIORITY = {
   drift: 100,
+  emergingDrift: 55,
   badge: 90,
   topCard: 80,
+  majorArcana: 75,
   theme: 70,
+  streak: 65,
   context: 60,
   embeddings: 50,
   extractedSteps: 50,
@@ -817,6 +825,98 @@ function clusterStepsByEmbedding(steps, embeddings, threshold = 0.75) {
   return clusters;
 }
 
+function summarizeExtractionCoverage(sortedByRecency) {
+  const summary = {
+    total: Array.isArray(sortedByRecency) ? sortedByRecency.length : 0,
+    withSteps: 0,
+    withEmbeddings: 0,
+    empty: 0,
+    stepsOnly: 0,
+    tooShort: 0,
+    missing: 0,
+  };
+
+  if (!Array.isArray(sortedByRecency) || sortedByRecency.length === 0) {
+    return summary;
+  }
+
+  sortedByRecency.forEach(({ entry }) => {
+    const version = typeof entry?.extractionVersion === 'string' ? entry.extractionVersion : '';
+    const hasSteps = Array.isArray(entry?.extractedSteps) && entry.extractedSteps.length > 0;
+    const hasEmbeddings = Array.isArray(entry?.stepEmbeddings) && entry.stepEmbeddings.length > 0;
+    const narrativeLength = typeof entry?.personalReading === 'string'
+      ? entry.personalReading.trim().length
+      : 0;
+
+    if (hasSteps) summary.withSteps += 1;
+    if (hasEmbeddings) summary.withEmbeddings += 1;
+
+    if (version.includes('empty')) {
+      summary.empty += 1;
+      return;
+    }
+    if (version.includes('steps-only')) {
+      summary.stepsOnly += 1;
+      return;
+    }
+    if (!version && narrativeLength > 0 && narrativeLength < 100) {
+      summary.tooShort += 1;
+      return;
+    }
+    if (!version && narrativeLength >= 100) {
+      summary.missing += 1;
+    }
+  });
+
+  return summary;
+}
+
+function buildExtractionSignal(summary) {
+  if (!summary || summary.total === 0) return null;
+  const parts = [];
+  if (summary.withSteps > 0) {
+    parts.push(`Steps in ${summary.withSteps}/${summary.total}`);
+  }
+  if (summary.withEmbeddings > 0) {
+    parts.push(`Embeddings in ${summary.withEmbeddings}/${summary.total}`);
+  }
+  if (summary.stepsOnly > 0) {
+    parts.push(`Steps only: ${summary.stepsOnly}`);
+  }
+  if (summary.empty > 0) {
+    parts.push(`No steps: ${summary.empty}`);
+  }
+  if (summary.tooShort > 0) {
+    parts.push(`Too short: ${summary.tooShort}`);
+  }
+  if (summary.missing > 0) {
+    parts.push(`Pending: ${summary.missing}`);
+  }
+
+  if (parts.length === 0) return null;
+  return {
+    type: 'extraction',
+    label: 'Extraction',
+    detail: parts.join(' · ')
+  };
+}
+
+function buildExtractionStatusMessage(summary) {
+  if (!summary || summary.total === 0) return '';
+  if (summary.withSteps === 0) {
+    if (summary.tooShort > 0) {
+      return 'Add a little more reflection or a "Gentle Next Steps" section to unlock coaching.';
+    }
+    if (summary.empty > 0 || summary.missing > 0) {
+      return 'Add a "Gentle Next Steps" section to your reflections for richer coaching.';
+    }
+  }
+  if (summary.withSteps > 0 && summary.withEmbeddings === 0 && summary.stepsOnly > 0) {
+    return 'Add a bit more detail to unlock clustered next steps.';
+  }
+  return '';
+}
+
 /**
  * Compute coach suggestion using pre-extracted steps and embeddings.
  * Falls back to text-based heuristic if extraction data is unavailable.
@@ -846,6 +946,10 @@ export function computeCoachSuggestionWithEmbeddings(entries, options = {}) {
     .sort((a, b) => b.ts - a.ts)
     .slice(0, maxEntries);
 
+  const extractionSummary = summarizeExtractionCoverage(sortedByRecency);
+  const extractionSignal = buildExtractionSignal(extractionSummary);
+  const extractionStatusMessage = buildExtractionStatusMessage(extractionSummary);
+
   const extractedStepsFallback = computeExtractedStepsCoachSuggestionFromSorted(sortedByRecency, maxEntries);
 
   // Gather pre-computed steps and embeddings
@@ -873,14 +977,32 @@ export function computeCoachSuggestionWithEmbeddings(entries, options = {}) {
 
   // Fall back to heuristic if no embedding data available
   if (!hasEmbeddingData || allSteps.length < 2) {
-    return extractedStepsFallback || computeNextStepsCoachSuggestion(entries, { maxEntries });
+    const fallback = extractedStepsFallback || computeNextStepsCoachSuggestion(entries, { maxEntries });
+    if (!fallback) return null;
+    if (extractionSignal) {
+      fallback.signalsUsed = [...(fallback.signalsUsed || []), extractionSignal];
+      fallback.sourceDetail = buildSourceDetailFromSignals(fallback.signalsUsed);
+    }
+    if (extractionStatusMessage) {
+      fallback.statusMessage = extractionStatusMessage;
+    }
+    return fallback;
   }
 
   // Cluster by embedding similarity
   const clusters = clusterStepsByEmbedding(allSteps, allEmbeddings, similarityThreshold);
 
   if (clusters.length === 0) {
-    return extractedStepsFallback || computeNextStepsCoachSuggestion(entries, { maxEntries });
+    const fallback = extractedStepsFallback || computeNextStepsCoachSuggestion(entries, { maxEntries });
+    if (!fallback) return null;
+    if (extractionSignal) {
+      fallback.signalsUsed = [...(fallback.signalsUsed || []), extractionSignal];
+      fallback.sourceDetail = buildSourceDetailFromSignals(fallback.signalsUsed);
+    }
+    if (extractionStatusMessage) {
+      fallback.statusMessage = extractionStatusMessage;
+    }
+    return fallback;
   }
 
   const topCluster = clusters[0];
@@ -888,7 +1010,16 @@ export function computeCoachSuggestionWithEmbeddings(entries, options = {}) {
   // Generate question from the theme
   const question = buildNextStepsIntentionQuestion(topCluster.theme);
   if (!question) {
-    return extractedStepsFallback || computeNextStepsCoachSuggestion(entries, { maxEntries });
+    const fallback = extractedStepsFallback || computeNextStepsCoachSuggestion(entries, { maxEntries });
+    if (!fallback) return null;
+    if (extractionSignal) {
+      fallback.signalsUsed = [...(fallback.signalsUsed || []), extractionSignal];
+      fallback.sourceDetail = buildSourceDetailFromSignals(fallback.signalsUsed);
+    }
+    if (extractionStatusMessage) {
+      fallback.statusMessage = extractionStatusMessage;
+    }
+    return fallback;
   }
 
   const signalsUsed = [
@@ -898,6 +1029,9 @@ export function computeCoachSuggestionWithEmbeddings(entries, options = {}) {
       detail: `${topCluster.steps.length} step${topCluster.steps.length === 1 ? '' : 's'} clustered from ${sortedByRecency.length} reading${sortedByRecency.length === 1 ? '' : 's'}`,
     },
   ];
+  if (extractionSignal) {
+    signalsUsed.push(extractionSignal);
+  }
   const sourceDetail = buildSourceDetailFromSignals(signalsUsed);
 
   return {
@@ -912,6 +1046,7 @@ export function computeCoachSuggestionWithEmbeddings(entries, options = {}) {
     sourceDetail,
     signalsUsed,
     priority: COACH_SOURCE_PRIORITY.embeddings,
+    statusMessage: extractionStatusMessage,
   };
 }
 
@@ -1335,6 +1470,10 @@ const CONTEXT_ALIASES = {
   health: 'wellbeing',
 };
 
+const MIN_ENTRIES_FOR_DRIFT = 3;
+const MIN_DRIFT_COUNT = 2;
+const MIN_DRIFT_RATIO = 0.3;
+
 function normalizeContextKey(value) {
   if (!value || typeof value !== 'string') return '';
   const cleaned = value.trim().toLowerCase();
@@ -1373,11 +1512,30 @@ export function computePreferenceDrift(entries, currentFocusAreas = []) {
     actualContextCounts[ctx] = (actualContextCounts[ctx] || 0) + 1;
   });
 
+  const totalEntries = entries.length;
+  const isInsufficient = totalEntries < MIN_ENTRIES_FOR_DRIFT;
   // Find drift: contexts user reads about but didn't select as focus
-  const driftContexts = Object.entries(actualContextCounts)
+  const driftCandidates = Object.entries(actualContextCounts)
     .filter(([ctx]) => !expectedContexts.has(ctx))
-    .sort((a, b) => b[1] - a[1])
+    .map(([context, count]) => ({
+      context,
+      count,
+      ratio: totalEntries > 0 ? count / totalEntries : 0,
+    }))
+    .sort((a, b) => b.count - a.count)
     .slice(0, 3);
+
+  const driftContexts = isInsufficient
+    ? []
+    : driftCandidates
+      .filter(candidate => candidate.count >= MIN_DRIFT_COUNT || candidate.ratio >= MIN_DRIFT_RATIO)
+      .map(({ context, count }) => ({ context, count }));
+
+  const emergingContexts = isInsufficient
+    ? []
+    : driftCandidates
+      .filter(candidate => !(candidate.count >= MIN_DRIFT_COUNT || candidate.ratio >= MIN_DRIFT_RATIO))
+      .map(({ context, count }) => ({ context, count }));
 
   // Get top actual contexts for comparison
   const actualTopContexts = Object.entries(actualContextCounts)
@@ -1408,10 +1566,15 @@ export function computePreferenceDrift(entries, currentFocusAreas = []) {
       `Most read: ${formatContextName(primaryActualContext.context)} (${primaryActualContext.count})`
     );
   }
-  if (driftContexts.length > 0) {
+  if (!isInsufficient && driftContexts.length > 0) {
     const driftPrimary = driftContexts[0];
     driftSummaryLines.push(
       `Drift: ${formatContextName(driftPrimary.context)} (+${driftPrimary.count})`
+    );
+  } else if (!isInsufficient && emergingContexts.length > 0) {
+    const emergingPrimary = emergingContexts[0];
+    driftSummaryLines.push(
+      `Emerging: ${formatContextName(emergingPrimary.context)} (+${emergingPrimary.count})`
     );
   }
 
@@ -1419,12 +1582,15 @@ export function computePreferenceDrift(entries, currentFocusAreas = []) {
     expectedContexts: expectedContextList,
     expectedContextLabels,
     actualTopContexts,
-    driftContexts: driftContexts.map(([context, count]) => ({ context, count })),
+    driftContexts,
+    emergingContexts,
     expectedTopContexts,
     primaryExpectedContext,
     primaryActualContext,
     hasPrimaryShift,
     hasDrift: driftContexts.length > 0,
+    hasEmerging: driftContexts.length === 0 && emergingContexts.length > 0,
+    insufficientData: isInsufficient,
     detail: driftSummaryLines.join('\n')
   };
 }

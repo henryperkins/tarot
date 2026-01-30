@@ -27,7 +27,7 @@ function TrendIndicator({ trend }) {
   return <Minus className="h-3 w-3 text-muted opacity-60" aria-label="stable" />;
 }
 
-function CardsCallingYou({ cards = [], badges = [] }) {
+function CardsCallingYou({ cards = [], badges = [], isEmerging = false, sampleSize = 0 }) {
   if (!cards.length) {
     return (
       <p className="text-sm text-amber-100/60">
@@ -36,10 +36,15 @@ function CardsCallingYou({ cards = [], badges = [] }) {
     );
   }
 
+  const sampleLabel = sampleSize > 0 ? `${sampleSize} reading${sampleSize === 1 ? '' : 's'}` : '';
+  const subtitle = isEmerging
+    ? `Emerging patterns${sampleLabel ? ` from ${sampleLabel}` : ''}`
+    : 'These cards keep appearing in your readings';
+
   return (
     <div>
       <p className="text-sm sm:text-xs text-amber-100/60 mb-3">
-        These cards keep appearing in your readings
+        {subtitle}
       </p>
       <ul className="space-y-2" aria-label="Your top most frequently appearing cards">
         {cards.slice(0, 5).map((card, index) => {
@@ -121,6 +126,11 @@ function CardsCallingYou({ cards = [], badges = [] }) {
           <ArrowRight className="w-3 h-3" />
         </Link>
       </div>
+      {isEmerging && (
+        <p className="mt-2 text-[10px] text-amber-100/50">
+          Keep logging to confirm which cards stay in focus.
+        </p>
+      )}
     </div>
   );
 }

@@ -74,6 +74,7 @@ export default function FollowUpChat({
       userQuestion,
       rotationSeed: readingMeta?.requestId || sessionSeed || readingMeta?.spreadKey || selectedSpread,
       rotationIndex: suggestionRotation,
+      deckStyle: readingMeta?.deckStyle,
       limit: 4
     }),
     [reading, themes, readingMeta, selectedSpread, userQuestion, sessionSeed, suggestionRotation]

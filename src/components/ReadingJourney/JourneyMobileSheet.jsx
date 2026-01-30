@@ -23,6 +23,7 @@ import {
 } from '@phosphor-icons/react';
 import { Tooltip } from '../Tooltip';
 import { CoachSuggestion } from '../CoachSuggestion';
+import CoachSuggestionSwitcher from './CoachSuggestionSwitcher';
 import { useModalA11y } from '../../hooks/useModalA11y';
 import { usePreferences } from '../../contexts/PreferencesContext';
 import { recordCoachQuestion } from '../../lib/coachStorage';
@@ -64,6 +65,9 @@ export default function JourneyMobileSheet({
   currentStreak,
   journeyStory,
   coachSuggestion,
+  coachSuggestions,
+  activeCoachIndex = 0,
+  onCoachSelect,
   seasonWindow,
   filtersActive,
   isLoading,
@@ -94,6 +98,8 @@ export default function JourneyMobileSheet({
   filtersApplied,
   analyticsScope,
   onScopeSelect,
+  cardFrequencyReliable,
+  cardFrequencySample,
 }) {
   const navigate = useNavigate();
   const { resetOnboarding, setShowPersonalizationBanner } = usePreferences();
@@ -102,6 +108,11 @@ export default function JourneyMobileSheet({
   const [showAllPatterns, setShowAllPatterns] = useState(false);
   const [saveNotice, setSaveNotice] = useState(false);
   const [saveError, setSaveError] = useState('');
+  // Filter out summary tab for unauthenticated users
+  const visibleTabs = isAuthenticated ? TABS : TABS.filter((t) => t.key !== 'summary');
+  const activeCoachSuggestion = Array.isArray(coachSuggestions) && coachSuggestions.length > 0
+    ? coachSuggestions[Math.min(activeCoachIndex, coachSuggestions.length - 1)]
+    : coachSuggestion;
   const sheetRef = useRef(null);
   const closeButtonRef = useRef(null);
   const triggerButtonRef = useRef(null);
@@ -132,18 +143,25 @@ export default function JourneyMobileSheet({
   const streakGraceTooltip = 'Counts from yesterday if no reading today (grace period).';
   const streakInfoButtonClass =
     'text-muted hover:text-main focus-visible:ring-[color:var(--accent-45)] -ml-2 -mr-2';
-  const themeHint = coachSuggestion?.source === 'theme' && typeof totalReadings === 'number' && totalReadings > 0
+  const themeHint = activeCoachSuggestion?.source === 'theme' && typeof totalReadings === 'number' && totalReadings > 0
     ? `Theme from ${totalReadings} reading${totalReadings === 1 ? '' : 's'}`
     : '';
   const topContextName = Array.isArray(contextBreakdown)
     ? [...contextBreakdown].sort((a, b) => b.count - a.count)[0]?.name
     : '';
-  const themeContextHint = coachSuggestion?.source === 'theme' && topContextName
+  const themeContextHint = activeCoachSuggestion?.source === 'theme' && topContextName
     ? `Top context: ${topContextName.charAt(0).toUpperCase() + topContextName.slice(1)}`
     : '';
-  const showFocusAreasCta = !preferenceDrift
-    && Array.isArray(contextBreakdown)
-    && contextBreakdown.length > 0;
+  const showFocusAreasCta = (
+    (!preferenceDrift
+      && Array.isArray(contextBreakdown)
+      && contextBreakdown.length > 0)
+    || preferenceDrift?.hasDrift
+    || preferenceDrift?.hasEmerging
+  );
+  const focusAreasCtaLabel = preferenceDrift?.hasDrift || preferenceDrift?.hasEmerging
+    ? 'Update focus areas'
+    : '';
 
   // Swipe-to-dismiss state
   const [dragOffset, setDragOffset] = useState(0);
@@ -179,8 +197,8 @@ export default function JourneyMobileSheet({
     }
   }, []);
 
-  const handleSaveIntention = useCallback(() => {
-    const question = coachSuggestion?.question || coachSuggestion?.text;
+  const handleSaveIntention = useCallback((suggestion = activeCoachSuggestion) => {
+    const question = suggestion?.question || suggestion?.text;
     const trimmed = typeof question === 'string' ? question.trim() : '';
     if (!trimmed) return;
     const result = recordCoachQuestion(trimmed, undefined, userId);
@@ -198,22 +216,22 @@ export default function JourneyMobileSheet({
         setSaveError('');
       }, 3000);
     }
-  }, [clearSaveTimeout, coachSuggestion, userId]);
+  }, [activeCoachSuggestion, clearSaveTimeout, userId]);
 
-  const handleOpenJournal = useCallback(() => {
-    const query = getCoachSuggestionSearchQuery(coachSuggestion);
+  const handleOpenJournal = useCallback((suggestion = activeCoachSuggestion) => {
+    const query = getCoachSuggestionSearchQuery(suggestion);
     if (query) {
       navigate('/journal', { state: { prefillQuery: query } });
       return;
     }
     navigate('/journal');
-  }, [coachSuggestion, navigate]);
+  }, [activeCoachSuggestion, navigate]);
 
   const handleStartReading = useCallback(() => {
-    if (onStartReading && coachSuggestion) {
-      onStartReading(coachSuggestion);
+    if (onStartReading && activeCoachSuggestion) {
+      onStartReading(activeCoachSuggestion);
     }
-  }, [coachSuggestion, onStartReading]);
+  }, [activeCoachSuggestion, onStartReading]);
 
   const handleSetFocusAreas = useCallback(() => {
     resetOnboarding();
@@ -530,25 +548,34 @@ export default function JourneyMobileSheet({
           </div>
 
           {/* Coach suggestion */}
-          {coachSuggestion && (
-            <CoachSuggestion
-              recommendation={coachSuggestion}
-              variant="journey"
-              tone="warm"
-              onApply={onStartReading ? handleStartReading : null}
-              onSaveIntention={handleSaveIntention}
-              onOpenJournal={handleOpenJournal}
-              onSetFocusAreas={handleSetFocusAreas}
-              showFocusAreasCta={showFocusAreasCta}
-              focusAreasCtaPlacement="after-actions"
-              filtersActive={filtersActive}
-              scopeLabel={scopeLabel}
-              saveNotice={saveNotice}
-              saveError={saveError}
-              showStartReadingCta={showStartReadingCta}
-              themeHint={themeHint}
-              themeContextHint={themeContextHint}
-            />
+          {activeCoachSuggestion && (
+            <>
+              <CoachSuggestionSwitcher
+                suggestions={coachSuggestions}
+                activeIndex={activeCoachIndex}
+                onSelect={onCoachSelect}
+                tone="warm"
+              />
+              <CoachSuggestion
+                recommendation={activeCoachSuggestion}
+                variant="journey"
+                tone="warm"
+                onApply={onStartReading ? handleStartReading : null}
+                onSaveIntention={handleSaveIntention}
+                onOpenJournal={handleOpenJournal}
+                onSetFocusAreas={handleSetFocusAreas}
+                showFocusAreasCta={showFocusAreasCta}
+                focusAreasCtaPlacement="after-actions"
+                focusAreasCtaLabel={focusAreasCtaLabel}
+                filtersActive={filtersActive}
+                scopeLabel={scopeLabel}
+                saveNotice={saveNotice}
+                saveError={saveError}
+                showStartReadingCta={showStartReadingCta}
+                themeHint={themeHint}
+                themeContextHint={themeContextHint}
+              />
+            </>
           )}
 
           {/* See Full Journey button */}
@@ -649,7 +676,7 @@ export default function JourneyMobileSheet({
 
             {/* Tabs with proper touch targets */}
             <div className="flex border-b border-[color:var(--border-warm-subtle)] px-5 short:px-4" role="tablist">
-              {TABS.map((tab) => (
+              {visibleTabs.map((tab) => (
                 <button
                   key={tab.key}
                   id={`journey-tab-${tab.key}`}
@@ -684,7 +711,12 @@ export default function JourneyMobileSheet({
             >
               {activeTab === 'cards' && (
                 <>
-                  <CardsCallingYou cards={cardFrequency} badges={badges} />
+                  <CardsCallingYou
+                    cards={cardFrequency}
+                    badges={badges}
+                    isEmerging={cardFrequencyReliable === false}
+                    sampleSize={cardFrequencySample || totalReadings}
+                  />
                   {badges.length > 0 && <AchievementsRow badges={badges} />}
                   {majorArcanaMap.some((m) => m.count > 0) && (
                     <MajorArcanaMap data={majorArcanaMap} />
@@ -742,7 +774,7 @@ export default function JourneyMobileSheet({
                 </>
               )}
 
-              {activeTab === 'summary' && (
+              {activeTab === 'summary' && isAuthenticated && (
                 <JournalSummarySection
                   isAuthenticated={isAuthenticated}
                   entryCount={allEntries?.length || 0}

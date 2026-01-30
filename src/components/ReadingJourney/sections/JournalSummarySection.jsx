@@ -179,14 +179,20 @@ function JournalSummarySection({ isAuthenticated, entryCount = 0, filteredEntrie
   const filteredCount = Array.isArray(filteredEntries) ? filteredEntries.length : 0;
   const scopeMode = filtersApplied ? (userScopeMode || 'filters') : 'recent';
   const isFilterScope = scopeMode === 'filters';
-  const scopeHasEntries = !isFilterScope || filteredCount > 0;
+  // Count how many filtered entries have cloud IDs (required for API scoped summary)
+  const filteredIdsCount = isFilterScope
+    ? filteredEntries.filter((e) => e?.id != null).length
+    : 0;
+  const scopeHasEntries = !isFilterScope || filteredIdsCount > 0;
   const recentLabel = filtersApplied ? 'Recent (unfiltered)' : 'Recent';
   const showUnfilteredNote = filtersApplied && scopeMode === 'recent';
   const unfilteredNote = showUnfilteredNote ? 'Filters aren\'t applied to this summary.' : null;
 
   const scopeNote = isFilterScope
     ? (filteredCount > 0
-        ? `Summarizing ${Math.min(limit, filteredCount)} of ${filteredCount} filtered entries`
+        ? (filteredIdsCount > 0
+            ? `Summarizing ${Math.min(limit, filteredIdsCount)} of ${filteredIdsCount} filtered entries`
+            : `${filteredCount} filtered entries (local-only, can't be summarized)`)
         : 'No entries match your current filters.')
     : `Summarizing last ${Math.min(limit, entryCount)} entries (unfiltered)`;
 
@@ -198,11 +204,12 @@ function JournalSummarySection({ isAuthenticated, entryCount = 0, filteredEntrie
         .map((entry) => entry?.id)
         .filter((id) => id !== null && id !== undefined)
       : undefined;
-    const nextLimit = Math.min(limit, isFilterScope ? filteredCount : entryCount);
+    // Use filteredIdsCount (not filteredCount) when scoped to filters, since local-only entries are excluded
+    const nextLimit = Math.min(limit, isFilterScope ? filteredIdsCount : entryCount);
     setSummaryContext({
       scopeMode,
       limit: nextLimit,
-      filteredCount,
+      filteredCount: isFilterScope ? filteredIdsCount : filteredCount,
       entryCount
     });
     generate({ entryIds, limit: nextLimit });
@@ -353,7 +360,9 @@ function JournalSummarySection({ isAuthenticated, entryCount = 0, filteredEntrie
         className={PRIMARY_BUTTON_CLASS}
       >
         <Sparkle className="h-4 w-4" aria-hidden="true" />
-        {scopeHasEntries ? 'Generate Summary' : 'No entries match filters'}
+        {scopeHasEntries
+          ? 'Generate Summary'
+          : (filteredCount > 0 ? 'Local entries can\'t be summarized' : 'No entries match filters')}
       </button>
 
       {/* Error display */}

@@ -2,6 +2,10 @@ import { getTimestamp, safeJsonParse } from './utils.js';
 
 export const REVERSED_PATTERN = /reversed/i;
 
+const MIN_READINGS_FOR_CARD_FREQUENCY = 3;
+const MIN_CARDS_FOR_REVERSAL_RATE = 10;
+const THEME_RECENCY_WEIGHT_RANGE = 0.5;
+
 function normalizeEntriesArray(entries) {
   if (!Array.isArray(entries)) {
     return [];
@@ -9,14 +13,11 @@ function normalizeEntriesArray(entries) {
   return entries.filter(Boolean);
 }
 
-export function extractRecentThemes(entries, limit = 4) {
+function buildThemeSignals(entries, limit = 4) {
   const safeEntries = normalizeEntriesArray(entries);
   if (safeEntries.length === 0) {
-    return [];
+    return { themes: [], signals: [] };
   }
-
-  const seen = new Set();
-  const results = [];
 
   const sorted = [...safeEntries].sort((a, b) => {
     const tsA = getTimestamp(a) || 0;
@@ -24,32 +25,95 @@ export function extractRecentThemes(entries, limit = 4) {
     return tsB - tsA;
   });
 
-  for (const entry of sorted) {
-    if (results.length >= limit) break;
+  const signalMap = new Map();
+  let entriesWithThemes = 0;
+
+  sorted.forEach((entry, index) => {
     // Parse themes_json if it's a string (from DB or localStorage)
     const themesRaw = entry?.themes || entry?.themes_json;
     const themes = safeJsonParse(themesRaw, {});
     const candidates = [
-      themes?.archetypeDescription,
-      themes?.suitFocus,
-      themes?.elementalBalance,
-      themes?.reversalDescription?.name,
-      entry?.context
+      { type: 'archetype', text: themes?.archetypeDescription },
+      { type: 'suit', text: themes?.suitFocus },
+      { type: 'element', text: themes?.elementalBalance },
+      { type: 'reversal', text: themes?.reversalDescription?.name },
     ];
 
+    const recencyFactor = (sorted.length - 1 - index) / Math.max(sorted.length - 1, 1);
+    const recencyWeight = 1 + (recencyFactor * THEME_RECENCY_WEIGHT_RANGE);
+    const seenInEntry = new Set();
+    let hasTheme = false;
+
     for (const candidate of candidates) {
-      const text = typeof candidate === 'string' ? candidate.trim() : '';
-      if (text && !seen.has(text)) {
-        seen.add(text);
-        results.push(text);
-        if (results.length >= limit) {
-          break;
-        }
+      const text = typeof candidate.text === 'string' ? candidate.text.trim() : '';
+      if (!text) continue;
+      if (seenInEntry.has(`${candidate.type}:${text}`)) continue;
+      seenInEntry.add(`${candidate.type}:${text}`);
+      hasTheme = true;
+
+      const key = `${candidate.type}:${text}`;
+      const existing = signalMap.get(key) || {
+        label: text,
+        type: candidate.type,
+        count: 0,
+        weight: 0,
+      };
+      existing.count += 1;
+      existing.weight += recencyWeight;
+      signalMap.set(key, existing);
+    }
+
+    if (!hasTheme) {
+      const contextText = typeof entry?.context === 'string' ? entry.context.trim() : '';
+      if (contextText) {
+        const key = `context:${contextText}`;
+        const existing = signalMap.get(key) || {
+          label: contextText,
+          type: 'context',
+          count: 0,
+          weight: 0,
+        };
+        existing.count += 1;
+        existing.weight += recencyWeight;
+        signalMap.set(key, existing);
+        hasTheme = true;
       }
     }
+
+    if (hasTheme) {
+      entriesWithThemes += 1;
+    }
+  });
+
+  const signals = Array.from(signalMap.values())
+    .map((signal) => {
+      const confidence = entriesWithThemes > 0 ? signal.count / entriesWithThemes : 0;
+      return {
+        ...signal,
+        score: signal.weight,
+        confidence,
+      };
+    })
+    .sort((a, b) => {
+      if (b.score !== a.score) return b.score - a.score;
+      if (b.count !== a.count) return b.count - a.count;
+      return a.label.localeCompare(b.label);
+    });
+
+  const themes = [];
+  const seenLabels = new Set();
+  for (const signal of signals) {
+    if (themes.length >= limit) break;
+    if (seenLabels.has(signal.label)) continue;
+    seenLabels.add(signal.label);
+    themes.push(signal.label);
   }
 
-  return results;
+  return { themes, signals };
+}
+
+export function extractRecentThemes(entries, limit = 4) {
+  return buildThemeSignals(entries, limit).themes;
 }
 
 export function computeJournalStats(entries) {
@@ -113,15 +177,22 @@ export function computeJournalStats(entries) {
     .map(([, data]) => data);
 
   const reversalRate = totalCards === 0 ? 0 : Math.round((reversalCount / totalCards) * 100);
-  const recentThemes = extractRecentThemes(safeEntries);
+  const { themes: recentThemes, signals: themeSignals } = buildThemeSignals(safeEntries);
+  const topTheme = themeSignals?.[0]?.label || (recentThemes.length > 0 ? recentThemes[0] : null);
 
   return {
     totalReadings: safeEntries.length,
     totalCards,
     reversalRate,
+    reversalRateReliable: totalCards >= MIN_CARDS_FOR_REVERSAL_RATE,
+    reversalRateSample: totalCards,
     frequentCards,
+    cardFrequencyReliable: safeEntries.length >= MIN_READINGS_FOR_CARD_FREQUENCY,
+    cardFrequencySample: safeEntries.length,
     contextBreakdown,
     monthlyCadence,
-    recentThemes
+    recentThemes,
+    themeSignals,
+    topTheme
   };
 }

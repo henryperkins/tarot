@@ -1028,6 +1028,10 @@ Your cards will be here when you're ready. Right now, please take care of yourse
             },
             onError: async () => {
               await releaseReadingReservation(env, readingReservation);
+            },
+            onCancel: async () => {
+              console.log(`[${requestId}] Reading cancelled - releasing quota`);
+              await releaseReadingReservation(env, readingReservation);
             }
           });
 
@@ -1226,7 +1230,16 @@ Your cards will be here when you're ready. Right now, please take care of yourse
     }
 
     if (useStreaming) {
+      // Return 400 for JSON parse errors even in streaming mode
+      if (error?.message === 'Invalid JSON payload.') {
+        return jsonResponse({ error: 'Invalid JSON payload.' }, { status: 400 });
+      }
       return createSSEErrorResponse('Failed to generate reading.', 500);
+    }
+
+    // Return 400 for JSON parse errors (client mistake)
+    if (error?.message === 'Invalid JSON payload.') {
+      return jsonResponse({ error: 'Invalid JSON payload.' }, { status: 400 });
     }
 
     return jsonResponse(

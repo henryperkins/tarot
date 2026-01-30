@@ -90,10 +90,17 @@ export default function JourneySidebar({
   totalReadings,
   totalCards,
   reversalRate,
+  reversalRateReliable,
+  reversalRateSample,
   currentStreak,
+  cardFrequencyReliable,
+  cardFrequencySample,
   seasonNarrative,
   journeyStory,
   coachSuggestion,
+  coachSuggestions,
+  activeCoachIndex = 0,
+  onCoachSelect,
   seasonWindow,
   filtersActive,
   isLoading,
@@ -138,6 +145,9 @@ export default function JourneySidebar({
     summary: false,
     export: false,
   });
+  const activeCoachSuggestion = Array.isArray(coachSuggestions) && coachSuggestions.length > 0
+    ? coachSuggestions[Math.min(activeCoachIndex, coachSuggestions.length - 1)]
+    : coachSuggestion;
   const [showAllPatterns, setShowAllPatterns] = useState(false);
   const [saveNotice, setSaveNotice] = useState(false);
   const [saveError, setSaveError] = useState('');
@@ -166,7 +176,7 @@ export default function JourneySidebar({
     handleBackfill(abortControllerRef.current.signal);
   }, [handleBackfill]);
 
-  const handleSaveIntention = useCallback((suggestion) => {
+  const handleSaveIntention = useCallback((suggestion = activeCoachSuggestion) => {
     const question = suggestion?.question || suggestion?.text;
     const trimmed = typeof question === 'string' ? question.trim() : '';
     if (!trimmed) return;
@@ -185,16 +195,16 @@ export default function JourneySidebar({
         setSaveError('');
       }, 3000);
     }
-  }, [clearSaveTimeout, userId]);
+  }, [activeCoachSuggestion, clearSaveTimeout, userId]);
 
-  const handleOpenJournal = useCallback((suggestion) => {
+  const handleOpenJournal = useCallback((suggestion = activeCoachSuggestion) => {
     const query = getCoachSuggestionSearchQuery(suggestion);
     if (query) {
       navigate('/journal', { state: { prefillQuery: query } });
       return;
     }
     navigate('/journal');
-  }, [navigate]);
+  }, [activeCoachSuggestion, navigate]);
 
   const handleSetFocusAreas = useCallback(() => {
     resetOnboarding();
@@ -400,12 +410,16 @@ export default function JourneySidebar({
         <SeasonSummary
           narrative={seasonNarrative}
           topCard={cardFrequency[0]}
+          cardFrequencyReliable={cardFrequencyReliable}
           currentStreak={currentStreak}
           totalReadings={totalReadings}
           topContext={[...contextBreakdown].sort((a, b) => b.count - a.count)[0]}
           contextBreakdown={contextBreakdown}
           preferenceDrift={preferenceDrift}
-          coachSuggestion={coachSuggestion}
+          coachSuggestion={activeCoachSuggestion}
+          coachSuggestions={coachSuggestions}
+          activeCoachIndex={activeCoachIndex}
+          onCoachSelect={onCoachSelect}
           onStartReading={onStartReading}
           onSaveIntention={handleSaveIntention}
           onOpenJournal={handleOpenJournal}
@@ -415,6 +429,7 @@ export default function JourneySidebar({
           showStartReadingCta={showStartReadingCta}
           filtersActive={filtersActive}
           scopeLabel={scopeLabel}
+          focusAreasCtaLabel={preferenceDrift?.hasDrift || preferenceDrift?.hasEmerging ? 'Update focus areas' : ''}
           locale={locale}
           timezone={seasonTimezone || timezone}
           seasonWindow={seasonWindow}
@@ -449,10 +464,14 @@ export default function JourneySidebar({
               </p>
             </div>
           )}
-          {reversalRate > 0 && (
+          {reversalRateSample > 0 && (
             <div className="flex-1 min-w-[60px] rounded-lg bg-[color:var(--border-warm-subtle)] px-3 py-2">
-              <p className="text-lg font-medium text-main">{reversalRate}%</p>
-              <p className="text-xs text-muted">reversed</p>
+              <p className="text-lg font-medium text-main">
+                {reversalRateReliable ? `${reversalRate}%` : 'Emerging'}
+              </p>
+              <p className="text-xs text-muted">
+                {reversalRateReliable ? 'reversed' : `${reversalRateSample} cards`}
+              </p>
             </div>
           )}
         </div>
@@ -468,7 +487,12 @@ export default function JourneySidebar({
             badge={cardFrequency.length > 0 ? cardFrequency.length : null}
           >
             <div className="space-y-4">
-              <CardsCallingYou cards={cardFrequency} badges={badges} />
+              <CardsCallingYou
+                cards={cardFrequency}
+                badges={badges}
+                isEmerging={cardFrequencyReliable === false}
+                sampleSize={cardFrequencySample || totalReadings}
+              />
 
               {/* Achievements row */}
               {badges.length > 0 && (
@@ -551,20 +575,22 @@ export default function JourneySidebar({
             </div>
           </CollapsibleSection>
 
-          {/* AI Summary Section */}
-          <CollapsibleSection
-            isOpen={openSections.summary}
-            onToggle={() => toggleSection('summary')}
-            icon={Sparkle}
-            label="AI Summary"
-          >
-          <JournalSummarySection
-            isAuthenticated={isAuthenticated}
-            entryCount={allEntries?.length || 0}
-            filteredEntries={filteredEntries}
-            filtersApplied={filtersApplied}
-          />
-          </CollapsibleSection>
+          {/* AI Summary Section - only for authenticated users */}
+          {isAuthenticated && (
+            <CollapsibleSection
+              isOpen={openSections.summary}
+              onToggle={() => toggleSection('summary')}
+              icon={Sparkle}
+              label="AI Summary"
+            >
+            <JournalSummarySection
+              isAuthenticated={isAuthenticated}
+              entryCount={allEntries?.length || 0}
+              filteredEntries={filteredEntries}
+              filtersApplied={filtersApplied}
+            />
+            </CollapsibleSection>
+          )}
 
           {/* Export Section */}
           <CollapsibleSection

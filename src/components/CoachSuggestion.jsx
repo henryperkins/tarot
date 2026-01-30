@@ -94,6 +94,7 @@ export function CoachSuggestion({
     themeContextHint = '',
     showFocusAreasCta = false,
     focusAreasCtaPlacement = 'after-actions', // 'before-actions' | 'after-actions'
+    focusAreasCtaLabel = '',
     tone = 'warm', // 'warm' | 'amber'
     showStartArrow = false
 }) {
@@ -178,8 +179,17 @@ export function CoachSuggestion({
     const remainingStepCount = typeof recommendation?.clusterSize === 'number'
         ? Math.max(recommendation.clusterSize - relatedSteps.length, 0)
         : 0;
+    const clusterTitle = typeof recommendation?.clusterSize === 'number' && recommendation.clusterSize > 0
+        ? `Clustered steps (${recommendation.clusterSize})`
+        : 'Recent steps';
+    const statusMessage = typeof recommendation?.statusMessage === 'string'
+        ? recommendation.statusMessage.trim()
+        : '';
     const hasThemeHints = Boolean(themeHint || themeContextHint);
     const shouldShowFocusAreasCta = showFocusAreasCta && typeof onSetFocusAreas === 'function';
+    const resolvedFocusCtaLabel = typeof focusAreasCtaLabel === 'string' && focusAreasCtaLabel.trim()
+        ? focusAreasCtaLabel.trim()
+        : 'Set focus areas to unlock drift insights';
 
     if (isJourneyVariant) {
         const isAmberTone = tone === 'amber';
@@ -196,6 +206,7 @@ export function CoachSuggestion({
                 related: 'mb-2 text-[11px] text-amber-100/70',
                 relatedTitle: 'text-[10px] uppercase tracking-[0.18em] text-amber-200/60',
                 remaining: 'mt-1 text-[10px] text-amber-200/50',
+                statusMessage: 'mb-2 text-[11px] text-amber-100/60',
                 actions: 'flex flex-wrap items-center gap-2',
                 startButton: 'inline-flex items-center gap-1.5 min-h-touch px-3 py-2 text-xs font-medium text-amber-200 hover:text-amber-100 transition-colors touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/50',
                 saveButton: 'min-h-touch rounded-full border border-amber-300/30 px-3 py-2 text-xs text-amber-100/80 hover:text-amber-100 hover:border-amber-200/60 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/50',
@@ -214,6 +225,7 @@ export function CoachSuggestion({
                 related: 'mt-2 text-[11px] text-muted-high',
                 relatedTitle: 'text-[10px] uppercase tracking-[0.2em] text-muted',
                 remaining: 'mt-1 text-[10px] text-muted',
+                statusMessage: 'mt-2 text-[11px] text-muted',
                 actions: 'mt-2 flex flex-wrap items-center gap-2',
                 startButton: 'min-h-touch rounded-full border border-[color:var(--border-warm-light)] px-3 py-1.5 text-[11px] font-medium text-[color:var(--text-accent)] hover:text-main hover:border-[color:var(--border-warm)] transition-colors',
                 saveButton: 'min-h-touch rounded-full border border-[color:var(--border-warm-light)] px-3 py-1.5 text-[11px] text-muted-high hover:text-main hover:border-[color:var(--border-warm)] transition-colors',
@@ -227,7 +239,7 @@ export function CoachSuggestion({
                 onClick={onSetFocusAreas}
                 className={classes.focusCta}
             >
-                Set focus areas to unlock drift insights
+                {resolvedFocusCtaLabel}
             </button>
         ) : null;
 
@@ -270,7 +282,7 @@ export function CoachSuggestion({
                 )}
                 {relatedSteps.length > 0 && (
                     <div className={classes.related}>
-                        <p className={classes.relatedTitle}>Recent steps</p>
+                        <p className={classes.relatedTitle}>{clusterTitle}</p>
                         <ul className="mt-1 list-disc list-inside space-y-1">
                             {relatedSteps.map((step, index) => (
                                 <li key={`${step}-${index}`}>{step}</li>
@@ -282,6 +294,9 @@ export function CoachSuggestion({
                             </p>
                         )}
                     </div>
+                )}
+                {statusMessage && (
+                    <p className={classes.statusMessage}>{statusMessage}</p>
                 )}
                 {focusCtaPlacement === 'before-actions' && focusAreasCta}
                 <div className={classes.actions}>
@@ -403,7 +418,7 @@ export function CoachSuggestion({
             )}
             {relatedSteps.length > 0 && (
                 <div className="mt-2 text-xs text-muted">
-                    <p className="text-[10px] uppercase tracking-[0.2em] text-muted">Recent steps</p>
+                    <p className="text-[10px] uppercase tracking-[0.2em] text-muted">{clusterTitle}</p>
                     <ul className="mt-1 list-disc list-inside space-y-1">
                         {relatedSteps.map((step, index) => (
                             <li key={`${step}-${index}`}>{step}</li>
@@ -415,6 +430,9 @@ export function CoachSuggestion({
                         </p>
                     )}
                 </div>
+            )}
+            {statusMessage && (
+                <p className="mt-2 text-xs text-muted">{statusMessage}</p>
             )}
 
             <div className="mt-4 flex flex-wrap gap-3">

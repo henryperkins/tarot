@@ -57,6 +57,19 @@ describe('generateFollowUpSuggestions', () => {
       const reversalSuggestion = suggestions.find(s => s.type === 'reversal');
       assert.ok(reversalSuggestion.text.includes('Hermit'));
     });
+
+    test('handles array card names for reversal prompt', () => {
+      const reading = [
+        { name: ['The Fool', 'Le Mat'], isReversed: true },
+        { name: 'The Star', isReversed: false }
+      ];
+
+      const suggestions = generateFollowUpSuggestions(reading, {}, {});
+
+      const reversalSuggestion = suggestions.find(s => s.type === 'reversal');
+      assert.ok(reversalSuggestion, 'Should generate reversal suggestion');
+      assert.ok(reversalSuggestion.text.includes('Fool'), 'Should use first string entry in name array');
+    });
   });
 
   describe('spread-specific suggestions', () => {
@@ -183,6 +196,55 @@ describe('generateFollowUpSuggestions', () => {
       const suggestions = generateFollowUpSuggestions([], null, {});
       assert.ok(Array.isArray(suggestions));
     });
+
+    test('counts Major Arcana elements when themes are missing', () => {
+      const reading = [
+        { name: 'The Sun', number: 19 },
+        { name: 'The Tower', number: 16 },
+        { name: 'The Emperor', number: 4 }
+      ];
+
+      const suggestions = generateFollowUpSuggestions(reading, {}, {});
+
+      const elementalSuggestion = suggestions.find(s => s.type === 'elemental');
+      assert.ok(elementalSuggestion, 'Should generate elemental suggestion from Majors');
+      assert.ok(elementalSuggestion.text.includes('Fire'));
+    });
+
+    test('prefers suit element when minor cards include number', () => {
+      const reading = [
+        { name: 'Ace of Wands', number: 1, suit: 'Wands', rankValue: 1 },
+        { name: 'Two of Wands', number: 2, suit: 'Wands', rankValue: 2 },
+        { name: 'Three of Wands', number: 3, suit: 'Wands', rankValue: 3 }
+      ];
+
+      const suggestions = generateFollowUpSuggestions(reading, {}, {});
+
+      const elementalSuggestion = suggestions.find(
+        s => s.type === 'elemental' && s.text.includes('strong')
+      );
+      assert.ok(elementalSuggestion, 'Should generate elemental suggestion');
+      assert.ok(elementalSuggestion.text.includes('Fire'), 'Should map Wands to Fire');
+    });
+
+    test('prefers suit-based element for numeric minor card names', () => {
+      const reading = [
+        { name: '3 of Wands', number: 3 },
+        { name: '4 of Wands', number: 4 },
+        { name: '5 of Wands', number: 5 }
+      ];
+
+      const suggestions = generateFollowUpSuggestions(reading, {}, {});
+
+      const elementalSuggestion = suggestions.find(
+        s => s.type === 'elemental' && s.text.includes('strong')
+      );
+      assert.ok(elementalSuggestion, 'Should generate elemental suggestion');
+      assert.ok(
+        elementalSuggestion.text.includes('Fire'),
+        'Should use suit-based Fire element for Wands'
+      );
+    });
   });
 
   describe('Major Arcana suggestions', () => {
@@ -225,6 +287,36 @@ describe('generateFollowUpSuggestions', () => {
 
       const archetypeSuggestion = suggestions.find(s => s.type === 'archetype');
       assert.ok(!archetypeSuggestion, 'Should not suggest archetype with < 3 Major Arcana');
+    });
+
+    test('detects Marseille aliases as Major Arcana', () => {
+      const reading = [
+        { name: 'Le Mat' },
+        { name: 'Le Bateleur' },
+        { name: 'La Papesse' }
+      ];
+
+      const suggestions = generateFollowUpSuggestions(reading, {}, {}, {
+        deckStyle: 'marseille-classic'
+      });
+
+      const archetypeSuggestion = suggestions.find(s => s.type === 'archetype');
+      assert.ok(archetypeSuggestion, 'Should detect Major Arcana via deck alias');
+    });
+
+    test('does not treat Thoth court titles as Major Arcana', () => {
+      const reading = [
+        { name: 'Princess of Cups' },
+        { name: 'Prince of Wands' },
+        { name: 'Queen of Swords' }
+      ];
+
+      const suggestions = generateFollowUpSuggestions(reading, {}, {}, {
+        deckStyle: 'thoth-a1'
+      });
+
+      const archetypeSuggestion = suggestions.find(s => s.type === 'archetype');
+      assert.ok(!archetypeSuggestion, 'Should not misclassify court cards as Major Arcana');
     });
   });
 
@@ -338,7 +430,21 @@ describe('generateFollowUpSuggestions', () => {
       assert.ok(Array.isArray(suggestions));
       assert.strictEqual(typeof hasSuitSuggestion, 'boolean');
     });
+
+    test('detects dominant suit from alias names', () => {
+      const reading = [
+        { name: 'Ace of Rods' },
+        { name: 'Two of Rods' },
+        { name: 'Three of Rods' }
+      ];
+
+      const suggestions = generateFollowUpSuggestions(reading, {}, {});
+      const suitSuggestion = suggestions.find(s => s.type === 'suit');
+      assert.ok(suitSuggestion, 'Should detect suit dominance from alias names');
+      assert.ok(suitSuggestion.text.includes('creative') || suitSuggestion.text.includes('passionate'));
+    });
   });
+
 
   describe('symbol-based suggestions', () => {
     test('adds a symbol reflection prompt when symbols are available', () => {

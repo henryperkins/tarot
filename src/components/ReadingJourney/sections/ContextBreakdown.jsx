@@ -27,6 +27,12 @@ function ContextBreakdown({ data = [], preferenceDrift, maxItems = 4 }) {
   const sorted = [...data].sort((a, b) => b.count - a.count);
   const total = sorted.reduce((sum, item) => sum + item.count, 0);
   const normalizedMaxItems = typeof maxItems === 'number' ? maxItems : sorted.length;
+  const driftContext = preferenceDrift?.hasDrift
+    ? preferenceDrift.driftContexts?.[0]
+    : preferenceDrift?.hasEmerging
+      ? preferenceDrift.emergingContexts?.[0]
+      : null;
+  const driftLabel = preferenceDrift?.hasDrift ? 'Drift' : 'Emerging interest';
 
   return (
     <div>
@@ -60,15 +66,15 @@ function ContextBreakdown({ data = [], preferenceDrift, maxItems = 4 }) {
       </div>
 
       {/* Preference drift indicator */}
-      {preferenceDrift?.hasDrift && preferenceDrift.driftContexts?.[0]?.context && (
+      {driftContext?.context && (
         <div className="mt-3 flex items-start gap-2 rounded-lg bg-[color:var(--border-warm-subtle)] p-2 border border-[color:var(--border-warm-light)]">
           <Lightning className="h-3.5 w-3.5 text-accent mt-0.5 flex-shrink-0" />
           <div className="flex items-center gap-2">
             <p className="text-xs text-muted-high">
-              <span className="font-medium">Emerging:</span>{' '}
-              {preferenceDrift.driftContexts[0].context.charAt(0).toUpperCase() +
-                preferenceDrift.driftContexts[0].context.slice(1)}{' '}
-              (+{preferenceDrift.driftContexts[0].count} readings)
+              <span className="font-medium">{driftLabel}:</span>{' '}
+              {driftContext.context.charAt(0).toUpperCase() +
+                driftContext.context.slice(1)}{' '}
+              (+{driftContext.count} readings)
             </p>
             {preferenceDrift.detail && (
               <Tooltip

@@ -141,7 +141,7 @@ describe('streaming gate metadata', () => {
 
       assert.ok(meta, 'meta event should be present');
       assert.equal(meta.data.gateBlocked, true);
-      assert.equal(meta.data.gateReason, 'safety_flag');
+      assert.equal(meta.data.gateReason, 'safety_flag_true');
       assert.ok(done.data.fullText.includes('A Moment of Reflection'));
       assert.equal(done.data.gateBlocked, true);
     } finally {
@@ -180,7 +180,7 @@ describe('streaming gate metadata', () => {
 
       assert.ok(meta, 'meta event should be present');
       assert.equal(meta.data.gateBlocked, true);
-      assert.equal(meta.data.gateReason, 'safety_flag');
+      assert.equal(meta.data.gateReason, 'safety_flag_true');
       assert.ok(done.data.fullText.includes('A Moment of Reflection'));
       assert.equal(done.data.gateBlocked, true);
     } finally {
@@ -221,7 +221,7 @@ describe('streaming gate metadata', () => {
 
       assert.ok(meta, 'meta event should be present');
       assert.equal(meta.data.gateBlocked, true);
-      assert.equal(meta.data.gateReason, 'safety_flag');
+      assert.equal(meta.data.gateReason, 'safety_flag_true');
       assert.ok(done.data.fullText.includes('A Moment of Reflection'));
       assert.equal(done.data.gateBlocked, true);
     } finally {

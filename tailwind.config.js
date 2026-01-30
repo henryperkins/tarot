@@ -35,6 +35,10 @@ export default {
     screens: {
       'xxs': '320px',
       'xs': '375px',
+      // Max-width mobile screens to mirror CSS breakpoints.
+      'mobile-sm': { max: '360px' },
+      'mobile-md': { max: '400px' },
+      'mobile-lg': { max: '440px' },
       ...defaultTheme.screens,
     },
     extend: {

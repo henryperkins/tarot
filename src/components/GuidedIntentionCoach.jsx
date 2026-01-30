@@ -243,12 +243,15 @@ function buildPersonalizedSuggestions(stats, history = [], focusAreas = []) {
 
   if (stats?.frequentCards?.length) {
     stats.frequentCards.slice(0, 2).forEach((card, idx) => {
+      const reversedCount = Number.isFinite(card.reversed)
+        ? card.reversed
+        : (Number.isFinite(card.reversedCount) ? card.reversedCount : 0);
       const label =
         idx === 0 ? `Recurring card: ${card.name}` : `${card.name} keeps showing up`;
       suggestions.push({
         id: `card-${card.name}-${idx}`,
         label,
-        helper: `${card.count} pulls logged${card.reversed ? ` (${card.reversed} reversed)` : ''}`,
+        helper: `${card.count} pulls logged${reversedCount ? ` (${reversedCount} reversed)` : ''}`,
         question: `What is ${card.name} inviting me to embody next?`,
         topic: 'growth',
         timeframe: 'open',

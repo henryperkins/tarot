@@ -257,6 +257,52 @@ describe('computePreferenceDrift', () => {
     assert.ok(drift.driftContexts.length > 0);
     assert.equal(drift.driftContexts[0].context, 'career');
   });
+
+  it('flags emerging drift when counts and ratios are below thresholds', () => {
+    const entries = [
+      { context: 'love' },
+      { context: 'love' },
+      { context: 'love' },
+      { context: 'career' },
+    ];
+    const focusAreas = ['love'];
+
+    const drift = computePreferenceDrift(entries, focusAreas);
+
+    assert.equal(drift.hasDrift, false);
+    assert.equal(drift.hasEmerging, true);
+    assert.ok(drift.emergingContexts.length > 0);
+    assert.equal(drift.emergingContexts[0].context, 'career');
+  });
+
+  it('treats single-context ratios above threshold as drift', () => {
+    const entries = [
+      { context: 'love' },
+      { context: 'career' },
+      { context: 'love' },
+    ];
+    const focusAreas = ['love'];
+
+    const drift = computePreferenceDrift(entries, focusAreas);
+
+    assert.equal(drift.hasDrift, true);
+    assert.ok(drift.driftContexts.length > 0);
+    assert.equal(drift.driftContexts[0].context, 'career');
+  });
+
+  it('marks insufficient data when entry count is below minimum', () => {
+    const entries = [
+      { context: 'career' },
+      { context: 'career' },
+    ];
+    const focusAreas = ['love'];
+
+    const drift = computePreferenceDrift(entries, focusAreas);
+
+    assert.equal(drift.insufficientData, true);
+    assert.equal(drift.hasDrift, false);
+    assert.equal(drift.hasEmerging, false);
+  });
 });
 
 describe('computeFilterHash', () => {

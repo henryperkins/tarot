@@ -186,6 +186,10 @@ export const onRequestPost = async ({ request, env }) => {
 
     return jsonResponse({ audio: fallbackAudio, provider: 'fallback' });
   } catch (error) {
+    // Return 400 for JSON parse errors (client mistake)
+    if (error?.message === 'Invalid JSON payload.') {
+      return jsonResponse({ error: 'Invalid JSON payload.' }, { status: 400 });
+    }
     console.error(`[${requestId}] [tts] Function error:`, error);
     return jsonResponse(
       { error: 'Unable to generate audio at this time.' },
@@ -379,8 +383,10 @@ function buildTTSRequest(env, { text, context, voice, speed, emotion }) {
   const selectedVoice = validVoices.includes(voice) ? voice : 'verse';
 
   // Speed validation (0.25 - 4.0 range per API spec)
-  const selectedSpeed = speed !== undefined
-    ? Math.max(0.25, Math.min(4.0, speed))
+  // Coerce to number first to handle string/invalid inputs
+  const parsedSpeed = speed !== undefined ? parseFloat(speed) : NaN;
+  const selectedSpeed = Number.isFinite(parsedSpeed)
+    ? Math.max(0.25, Math.min(4.0, parsedSpeed))
     : 1.1; // Default: slightly faster for engaging tarot reading pace
 
   // Build URL based on format preference

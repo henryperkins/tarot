@@ -5,11 +5,11 @@
  * Uses useJourneyData hook for unified data access.
  */
 
-import { useEffect, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useJourneyData } from '../../hooks/useJourneyData';
 import JourneySidebar from './JourneySidebar';
 import JourneyMobileSheet from './JourneyMobileSheet';
-import { persistCoachStatsSnapshot } from '../../lib/journalInsights';
+import { loadCoachStatsSnapshot, persistCoachStatsSnapshot } from '../../lib/journalInsights';
 
 /**
  * JourneyContent - Renders the appropriate variant based on props.
@@ -57,10 +57,15 @@ export default function JourneyContent({
     totalReadings,
     totalCards,
     reversalRate,
+    reversalRateReliable,
+    reversalRateSample,
     currentStreak,
+    cardFrequencyReliable,
+    cardFrequencySample,
     seasonNarrative,
     journeyStory,
     coachSuggestion,
+    coachSuggestions,
     seasonWindow: journeySeasonWindow,
     seasonTimezone,
     filtersActive: journeyFiltersActive,
@@ -79,6 +84,88 @@ export default function JourneyContent({
   } = journeyData;
 
   const effectiveScopeEntries = Array.isArray(scopeEntries) ? scopeEntries : scopedEntries;
+
+  const getCoachSuggestionKey = useCallback((suggestion) => {
+    if (!suggestion) return '';
+    const source = suggestion.source || 'unknown';
+    const text = suggestion.question || suggestion.text || '';
+    return `${source}:${String(text).trim()}`;
+  }, []);
+
+  // Lazy initializer: load saved selection from localStorage once on mount
+  const [savedCoachSelection, setSavedCoachSelection] = useState(() => {
+    if (typeof window === 'undefined') return null;
+    const snapshot = loadCoachStatsSnapshot(userId);
+    const savedIndex = snapshot?.meta?.coachSuggestionIndex;
+    const savedKey = snapshot?.meta?.coachSuggestionKey;
+    if (!Number.isFinite(savedIndex) && typeof savedKey !== 'string') return null;
+    return {
+      index: Number.isFinite(savedIndex) ? savedIndex : null,
+      key: typeof savedKey === 'string' ? savedKey : null,
+    };
+  });
+
+  // Compute the resolved index from savedCoachSelection and coachSuggestions
+  const resolvedIndexFromSaved = useMemo(() => {
+    if (!savedCoachSelection) return null;
+    if (!Array.isArray(coachSuggestions) || coachSuggestions.length === 0) return null;
+    const { key, index } = savedCoachSelection;
+    if (key) {
+      const matchIndex = coachSuggestions.findIndex(
+        (suggestion) => getCoachSuggestionKey(suggestion) === key
+      );
+      if (matchIndex >= 0) return matchIndex;
+    }
+    if (Number.isFinite(index)) {
+      return Math.min(index, coachSuggestions.length - 1);
+    }
+    return null;
+  }, [coachSuggestions, savedCoachSelection, getCoachSuggestionKey]);
+
+  // Initialize activeCoachIndex from resolvedIndexFromSaved, default to 0
+  const [activeCoachIndex, setActiveCoachIndex] = useState(() => {
+    return resolvedIndexFromSaved ?? 0;
+  });
+
+  // Clear savedCoachSelection once it has been consumed
+  useEffect(() => {
+    if (savedCoachSelection && resolvedIndexFromSaved !== null) {
+      // Use a microtask to avoid synchronous setState in effect
+      queueMicrotask(() => {
+        setActiveCoachIndex(resolvedIndexFromSaved);
+        setSavedCoachSelection(null);
+      });
+    }
+  }, [savedCoachSelection, resolvedIndexFromSaved]);
+
+  // Clamp activeCoachIndex when coachSuggestions changes
+  const clampedActiveIndex = useMemo(() => {
+    if (!Array.isArray(coachSuggestions) || coachSuggestions.length === 0) return 0;
+    if (activeCoachIndex > coachSuggestions.length - 1) return 0;
+    return activeCoachIndex;
+  }, [coachSuggestions, activeCoachIndex]);
+
+  const activeCoachSuggestion = useMemo(() => {
+    if (Array.isArray(coachSuggestions) && coachSuggestions.length > 0) {
+      return coachSuggestions[clampedActiveIndex];
+    }
+    return coachSuggestion;
+  }, [coachSuggestions, clampedActiveIndex, coachSuggestion]);
+
+  const coachSuggestionIndex = useMemo(() => {
+    if (!Array.isArray(coachSuggestions) || coachSuggestions.length === 0) return null;
+    return clampedActiveIndex;
+  }, [coachSuggestions, clampedActiveIndex]);
+
+  const coachSuggestionKey = useMemo(
+    () => getCoachSuggestionKey(activeCoachSuggestion),
+    [activeCoachSuggestion, getCoachSuggestionKey]
+  );
+  const handleCoachSelect = useCallback((index) => {
+    const nextIndex = Number(index);
+    if (!Number.isFinite(nextIndex)) return;
+    setActiveCoachIndex(nextIndex);
+  }, []);
 
   // Build stats object for PDF export (matches computeJournalStats shape)
   const exportStats = useMemo(() => ({
@@ -100,17 +187,19 @@ export default function JourneyContent({
   ]);
 
   const coachSuggestionSnapshot = useMemo(() => {
-    if (!coachSuggestion) return null;
+    if (!activeCoachSuggestion) return null;
     return {
-      source: coachSuggestion.source || null,
-      sourceLabel: coachSuggestion.sourceLabel || null,
-      sourceDetail: coachSuggestion.sourceDetail || null,
-      text: coachSuggestion.text || null,
-      question: coachSuggestion.question || null,
-      spread: coachSuggestion.spread || null,
-      signalsUsed: Array.isArray(coachSuggestion.signalsUsed) ? coachSuggestion.signalsUsed : null,
+      source: activeCoachSuggestion.source || null,
+      sourceLabel: activeCoachSuggestion.sourceLabel || null,
+      sourceDetail: activeCoachSuggestion.sourceDetail || null,
+      text: activeCoachSuggestion.text || null,
+      question: activeCoachSuggestion.question || null,
+      spread: activeCoachSuggestion.spread || null,
+      signalsUsed: Array.isArray(activeCoachSuggestion.signalsUsed)
+        ? activeCoachSuggestion.signalsUsed
+        : null,
     };
-  }, [coachSuggestion]);
+  }, [activeCoachSuggestion]);
 
   // Common props for all variants
   const commonProps = useMemo(() => ({
@@ -124,10 +213,17 @@ export default function JourneyContent({
     totalReadings,
     totalCards,
     reversalRate,
+    reversalRateReliable,
+    reversalRateSample,
     currentStreak,
+    cardFrequencyReliable,
+    cardFrequencySample,
     seasonNarrative,
     journeyStory,
     coachSuggestion,
+    coachSuggestions,
+    activeCoachIndex: coachSuggestionIndex ?? 0,
+    onCoachSelect: handleCoachSelect,
     seasonWindow: journeySeasonWindow,
     filtersActive: journeyFiltersActive,
     isLoading,
@@ -169,10 +265,17 @@ export default function JourneyContent({
     totalReadings,
     totalCards,
     reversalRate,
+    reversalRateReliable,
+    reversalRateSample,
     currentStreak,
+    cardFrequencyReliable,
+    cardFrequencySample,
     seasonNarrative,
     journeyStory,
     coachSuggestion,
+    coachSuggestions,
+    coachSuggestionIndex,
+    handleCoachSelect,
     journeySeasonWindow,
     journeyFiltersActive,
     isLoading,
@@ -215,8 +318,20 @@ export default function JourneyContent({
       totalEntries,
       signalsUsed: coachSuggestionSnapshot?.signalsUsed || null,
       coachSuggestion: coachSuggestionSnapshot,
+      coachSuggestionIndex,
+      coachSuggestionKey: coachSuggestionKey || null,
     }, userId);
-  }, [exportStats, journeyFiltersActive, scopedEntries, entries, userId, scopeLabel, coachSuggestionSnapshot]);
+  }, [
+    exportStats,
+    journeyFiltersActive,
+    scopedEntries,
+    entries,
+    userId,
+    scopeLabel,
+    coachSuggestionSnapshot,
+    coachSuggestionIndex,
+    coachSuggestionKey,
+  ]);
 
   // Render appropriate variant
   if (variant === 'mobile') {

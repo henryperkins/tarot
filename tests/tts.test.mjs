@@ -458,6 +458,66 @@ describe('TTS API - Voice and Speed Validation', () => {
     const response = await onRequestPost({ request, env });
     assert.strictEqual(response.status, 200);
   });
+
+  it('should handle non-numeric speed values (use default)', async () => {
+    const { onRequestPost } = await import('../functions/api/tts.js');
+
+    const request = createMockRequest('/api/tts', {
+      method: 'POST',
+      body: { text: 'test', speed: 'fast' }
+    });
+    const env = createMockEnv({
+      AZURE_OPENAI_ENDPOINT: null // Use fallback
+    });
+
+    const response = await onRequestPost({ request, env });
+    // Should use default speed (1.1) instead of NaN
+    assert.strictEqual(response.status, 200);
+  });
+
+  it('should handle null speed value (use default)', async () => {
+    const { onRequestPost } = await import('../functions/api/tts.js');
+
+    const request = createMockRequest('/api/tts', {
+      method: 'POST',
+      body: { text: 'test', speed: null }
+    });
+    const env = createMockEnv({
+      AZURE_OPENAI_ENDPOINT: null // Use fallback
+    });
+
+    const response = await onRequestPost({ request, env });
+    assert.strictEqual(response.status, 200);
+  });
+});
+
+describe('TTS API - Invalid JSON Handling', () => {
+  beforeEach(() => {
+    console.log = () => {};
+    console.error = () => {};
+  });
+
+  it('should return 400 for invalid JSON body', async () => {
+    const { onRequestPost } = await import('../functions/api/tts.js');
+
+    // Create a request that returns invalid JSON
+    const request = {
+      url: 'https://example.com/api/tts',
+      method: 'POST',
+      headers: {
+        get: () => null,
+        set: () => {},
+        has: () => false
+      },
+      text: async () => 'not valid json {'
+    };
+    const env = createMockEnv();
+
+    const response = await onRequestPost({ request, env });
+    assert.strictEqual(response.status, 400);
+    const body = await response.json();
+    assert.strictEqual(body.error, 'Invalid JSON payload.');
+  });
 });
 
 describe('TTS API - Context Templates', () => {

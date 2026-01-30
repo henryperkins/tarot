@@ -38,10 +38,19 @@ export function getCoachSuggestionSearchQuery(suggestion) {
     return stripCountSuffix(getSignalDetail(suggestion, 'context'));
   }
   if (source === 'theme') {
-    return (getSignalDetail(suggestion, 'theme') || suggestion.theme || '').trim();
+    return (suggestion.theme || getSignalDetail(suggestion, 'theme') || '').trim();
   }
   if (source === 'drift') {
     return pickDriftQuery(getSignalDetail(suggestion, 'drift'));
+  }
+  if (source === 'emergingDrift') {
+    return stripCountSuffix(getSignalDetail(suggestion, 'emergingDrift'));
+  }
+  if (source === 'majorArcana') {
+    return stripCountSuffix(getSignalDetail(suggestion, 'majorArcana'));
+  }
+  if (source === 'streak') {
+    return '';
   }
   if (source === 'embeddings' || source === 'nextSteps' || source === 'extractedSteps') {
     return (suggestion.theme || suggestion.relatedSteps?.[0] || '').trim();

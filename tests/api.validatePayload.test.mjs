@@ -53,3 +53,27 @@ describe('validatePayload spread count enforcement', () => {
     assert.equal(err, null);
   });
 });
+
+describe('tarot-reading invalid JSON handling', () => {
+  it('returns 400 for invalid JSON body', async () => {
+    const { onRequestPost } = await import('../functions/api/tarot-reading.js');
+
+    // Create a request that returns invalid JSON
+    const request = {
+      url: 'https://example.com/api/tarot-reading',
+      method: 'POST',
+      headers: {
+        get: () => null,
+        set: () => {},
+        has: () => false
+      },
+      text: async () => 'not valid json {'
+    };
+    const env = {};
+
+    const response = await onRequestPost({ request, env, waitUntil: () => {} });
+    assert.strictEqual(response.status, 400);
+    const body = await response.json();
+    assert.strictEqual(body.error, 'Invalid JSON payload.');
+  });
+});

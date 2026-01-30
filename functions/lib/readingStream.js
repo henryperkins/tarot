@@ -220,13 +220,15 @@ export async function collectSSEStreamText(stream) {
  * @param {Object} options.ctx - Context with waitUntil for background tasks
  * @param {Function} options.onComplete - Async callback with full text
  * @param {Function} options.onError - Async callback for stream errors
+ * @param {Function} options.onCancel - Async callback when stream is cancelled (for quota release)
  * @returns {ReadableStream} Wrapped SSE stream
  */
-export function wrapReadingStreamWithMetadata(stream, { meta, ctx, onComplete, onError }) {
+export function wrapReadingStreamWithMetadata(stream, { meta, ctx, onComplete, onError, onCancel }) {
   const encoder = new TextEncoder();
   const decoder = new TextDecoder();
 
   const fullTextChunks = [];
+  let doneFullText = null; // Fallback fullText from done event
   let sawError = false;
   // Buffer for SSE events that may be split across chunks
   let sseBuffer = '';
@@ -271,6 +273,18 @@ export function wrapReadingStreamWithMetadata(stream, { meta, ctx, onComplete, o
           const data = JSON.parse(eventData);
           if (data.text) {
             fullTextChunks.push(data.text);
+          }
+        } catch {
+          // Ignore parse errors
+        }
+      }
+
+      // Extract fullText from done event as fallback when deltas are missing/dropped
+      if (eventType === 'done' && eventData) {
+        try {
+          const data = JSON.parse(eventData);
+          if (typeof data.fullText === 'string' && data.fullText) {
+            doneFullText = data.fullText;
           }
         } catch {
           // Ignore parse errors
@@ -325,7 +339,8 @@ export function wrapReadingStreamWithMetadata(stream, { meta, ctx, onComplete, o
               forwardEvents.forEach((ev) => controller.enqueue(encoder.encode(`${ev}\n\n`)));
             }
 
-            const mergedText = fullTextChunks.join('');
+            // Use delta-accumulated text, or fall back to done.fullText if deltas were empty/dropped
+            const mergedText = fullTextChunks.length > 0 ? fullTextChunks.join('') : (doneFullText || '');
             if (sawError) {
               await runCallback(onError, { fullText: mergedText, error: true });
             } else {
@@ -352,7 +367,8 @@ export function wrapReadingStreamWithMetadata(stream, { meta, ctx, onComplete, o
 
         const errorEvent = formatSSEEvent('error', { message: error.message });
         controller.enqueue(encoder.encode(errorEvent));
-        await runCallback(onError, { fullText: fullTextChunks.join(''), error: true, message: error.message });
+        const errorText = fullTextChunks.length > 0 ? fullTextChunks.join('') : (doneFullText || '');
+        await runCallback(onError, { fullText: errorText, error: true, message: error.message });
         controller.close();
       } finally {
         reader.releaseLock();
@@ -360,12 +376,26 @@ export function wrapReadingStreamWithMetadata(stream, { meta, ctx, onComplete, o
     },
 
     cancel(reason) {
-      // Client disconnected - stop reading from upstream
+      // Client disconnected - stop reading from upstream and release quota
       console.log('[wrapReadingStreamWithMetadata] Client disconnected:', reason?.message || reason || 'unknown');
       if (reader) {
         reader.cancel(reason).catch(() => {
           // Ignore cancel errors - upstream may already be closed
         });
+      }
+      // Invoke onCancel callback for quota release (fire-and-forget via waitUntil if available)
+      if (onCancel) {
+        try {
+          const promise = Promise.resolve(onCancel({ reason: reason?.message || reason || 'client disconnect' }))
+            .catch((err) => {
+              console.warn('[wrapReadingStreamWithMetadata] onCancel callback error:', err?.message || err);
+            });
+          if (ctx?.waitUntil) {
+            ctx.waitUntil(promise);
+          }
+        } catch (err) {
+          console.warn('[wrapReadingStreamWithMetadata] onCancel callback error:', err?.message || err);
+        }
       }
     }
   });

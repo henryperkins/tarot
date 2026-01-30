@@ -42,6 +42,12 @@ const EMPTY_STATS = {
   contextBreakdown: [],
   monthlyCadence: [],
   recentThemes: [],
+  themeSignals: [],
+  topTheme: null,
+  reversalRateReliable: false,
+  reversalRateSample: 0,
+  cardFrequencyReliable: false,
+  cardFrequencySample: 0,
 };
 
 // Empty Archetype data fallback
@@ -150,12 +156,34 @@ function generateSeasonNarrative({
  * 4. Top context from readings
  * 5. Default generic prompt
  */
-function computeEnhancedCoachSuggestion({
+const THEME_SOURCE_LABELS = {
+  archetype: 'Archetype',
+  suit: 'Suit',
+  element: 'Element',
+  reversal: 'Reversal',
+  context: 'Context',
+};
+
+function buildThemeSignalDetail(themeSignal, totalReadings) {
+  if (!themeSignal) return '';
+  const sourceLabel = THEME_SOURCE_LABELS[themeSignal.type] || 'Theme';
+  const count = Number.isFinite(themeSignal.count) ? themeSignal.count : null;
+  const readings = Number.isFinite(totalReadings) ? totalReadings : null;
+  const ratio = readings && count ? Math.round((count / readings) * 100) : null;
+  const confidence = readings && count ? `${count} of ${readings} readings (${ratio}%)` : '';
+  return [themeSignal.label, sourceLabel, confidence].filter(Boolean).join(' · ');
+}
+
+function computeEnhancedCoachSuggestions({
   topCard,
   topContext,
   topTheme,
+  topThemeSignal,
   badges, // Pre-sorted: most recent first
   preferenceDrift,
+  currentStreak,
+  majorArcanaMap,
+  totalReadings,
 }) {
   const contextQuestionMap = {
     love: 'What do I need to understand about my relationships right now?',
@@ -168,7 +196,7 @@ function computeEnhancedCoachSuggestion({
     decision: 'What do I need to understand about this decision right now?',
   };
 
-  const buildSuggestion = ({ source, text, question, spread, signalsUsed = [] }) => ({
+  const buildSuggestion = ({ source, text, question, spread, signalsUsed = [], ...rest }) => ({
     source,
     text,
     question,
@@ -177,9 +205,11 @@ function computeEnhancedCoachSuggestion({
     sourceDetail: buildSourceDetailFromSignals(signalsUsed),
     signalsUsed,
     priority: COACH_SOURCE_PRIORITY[source] ?? 0,
+    ...rest,
   });
 
-  // Priority 1: Drift detection (user exploring unexpected contexts)
+  const suggestions = [];
+
   if (preferenceDrift?.hasDrift && preferenceDrift.driftContexts?.[0]) {
     const drift = preferenceDrift.driftContexts[0];
     const question = `What draws me toward ${drift.context} right now?`;
@@ -197,7 +227,7 @@ function computeEnhancedCoachSuggestion({
         `Drift: ${formatContextName(drift.context)} (+${drift.count})`
       );
     }
-    return buildSuggestion({
+    suggestions.push(buildSuggestion({
       source: 'drift',
       text: question,
       question,
@@ -207,14 +237,27 @@ function computeEnhancedCoachSuggestion({
         label: getCoachSourceLabel('drift'),
         detail: detailLines.join('\n'),
       }],
-    });
+    }));
+  } else if (preferenceDrift?.hasEmerging && preferenceDrift.emergingContexts?.[0]) {
+    const emerging = preferenceDrift.emergingContexts[0];
+    const question = `Is ${formatContextName(emerging.context)} becoming a new focus for me?`;
+    suggestions.push(buildSuggestion({
+      source: 'emergingDrift',
+      text: question,
+      question,
+      spread: 'single',
+      signalsUsed: [{
+        type: 'emergingDrift',
+        label: getCoachSourceLabel('emergingDrift'),
+        detail: `${formatContextName(emerging.context)} (${emerging.count})`,
+      }],
+    }));
   }
 
-  // Priority 2: Most recent badge card (badges[0] is most recent due to pre-sort)
   const recentBadgeCard = badges?.[0]?.card_name;
   if (recentBadgeCard && topCard?.name === recentBadgeCard) {
     const question = `What is ${topCard.name} trying to teach me?`;
-    return buildSuggestion({
+    suggestions.push(buildSuggestion({
       source: 'badge',
       text: question,
       question,
@@ -224,13 +267,12 @@ function computeEnhancedCoachSuggestion({
         label: getCoachSourceLabel('badge'),
         detail: `${topCard.name} (${topCard.count}x)`,
       }],
-    });
+    }));
   }
 
-  // Priority 3: Top card signal (when repeated)
   if (topCard?.name && topCard.count >= 2) {
     const question = `What is ${topCard.name} asking me to notice?`;
-    return buildSuggestion({
+    suggestions.push(buildSuggestion({
       source: 'topCard',
       text: question,
       question,
@@ -240,34 +282,66 @@ function computeEnhancedCoachSuggestion({
         label: getCoachSourceLabel('topCard'),
         detail: `${topCard.name} (${topCard.count}x)`,
       }],
-    });
+    }));
   }
 
-  // Priority 4: Top theme
+  if (Array.isArray(majorArcanaMap) && majorArcanaMap.length > 0) {
+    const topMajor = [...majorArcanaMap].sort((a, b) => b.count - a.count)[0];
+    if (topMajor?.name && topMajor.count >= 2 && topMajor.name !== topCard?.name) {
+      const question = `What is ${topMajor.name} asking me to notice?`;
+      suggestions.push(buildSuggestion({
+        source: 'majorArcana',
+        text: question,
+        question,
+        spread: 'single',
+        signalsUsed: [{
+          type: 'majorArcana',
+          label: getCoachSourceLabel('majorArcana'),
+          detail: `${topMajor.name} (${topMajor.count}x)`,
+        }],
+      }));
+    }
+  }
+
   if (topTheme) {
     const themeQuestion = buildThemeQuestion(topTheme);
     if (themeQuestion) {
-      return buildSuggestion({
+      suggestions.push(buildSuggestion({
         source: 'theme',
         text: themeQuestion,
         question: themeQuestion,
         spread: 'threeCard',
+        theme: topTheme,
         signalsUsed: [{
           type: 'theme',
           label: getCoachSourceLabel('theme'),
-          detail: topTheme,
+          detail: buildThemeSignalDetail(topThemeSignal, totalReadings) || topTheme,
         }],
-      });
+      }));
     }
   }
 
-  // Priority 5: Top context
+  if (currentStreak >= 2) {
+    const question = 'What needs a one-card check-in today?';
+    suggestions.push(buildSuggestion({
+      source: 'streak',
+      text: question,
+      question,
+      spread: 'single',
+      signalsUsed: [{
+        type: 'streak',
+        label: getCoachSourceLabel('streak'),
+        detail: `${currentStreak}-day streak`,
+      }],
+    }));
+  }
+
   if (topContext) {
     const contextKey = String(topContext.name || '').toLowerCase();
     const question =
       contextQuestionMap[contextKey]
       || `What do I need to understand about my ${contextKey || 'current'} situation right now?`;
-    return buildSuggestion({
+    suggestions.push(buildSuggestion({
       source: 'context',
       text: question,
       question,
@@ -277,16 +351,18 @@ function computeEnhancedCoachSuggestion({
         label: getCoachSourceLabel('context'),
         detail: `${formatContextName(contextKey)} (${topContext.count})`,
       }],
-    });
+    }));
   }
 
   const question = 'What do I most need to understand right now?';
-  return buildSuggestion({
+  suggestions.push(buildSuggestion({
     source: 'default',
     text: question,
     question,
     spread: 'single',
-  });
+  }));
+
+  return suggestions;
 }
 
 /**
@@ -620,7 +696,9 @@ export function useJourneyData({
   // Generate season narrative using effective window
   const seasonNarrative = useMemo(() => {
     const topCard = cardFrequency[0];
-    const topTheme = insightsStats.recentThemes?.[0];
+    const topTheme = insightsStats.topTheme
+      || insightsStats.themeSignals?.[0]?.label
+      || insightsStats.recentThemes?.[0];
 
     if (!topCard) return null;
 
@@ -651,6 +729,8 @@ export function useJourneyData({
     cardFrequency,
     topContext,
     insightsStats.recentThemes,
+    insightsStats.themeSignals,
+    insightsStats.topTheme,
     insightsStats.totalReadings,
     sortedBadges,
     effectiveSeasonWindow,
@@ -672,38 +752,59 @@ export function useJourneyData({
   // Enhanced coach suggestion - uses pre-computed AI embeddings when available,
   // falls back to heuristic text matching for entries without extraction data
   const nextStepsCoachSuggestion = useMemo(() => {
-    return computeCoachSuggestionWithEmbeddings(activeEntries, { maxEntries: 5 });
-  }, [activeEntries]);
+    return computeCoachSuggestionWithEmbeddings(scopedEntries, { maxEntries: 5 });
+  }, [scopedEntries]);
 
-  const enhancedCoachSuggestion = useMemo(() => {
+  const enhancedCoachSuggestions = useMemo(() => {
     const topCard = cardFrequency[0];
-    const topTheme = insightsStats.recentThemes?.[0];
+    const topThemeSignal = insightsStats.themeSignals?.[0] || null;
+    const topTheme = topThemeSignal?.label || insightsStats.topTheme || insightsStats.recentThemes?.[0];
 
-    return computeEnhancedCoachSuggestion({
+    return computeEnhancedCoachSuggestions({
       topCard,
       topContext,
       topTheme,
+      topThemeSignal,
       badges: sortedBadges,
       preferenceDrift,
+      currentStreak,
+      majorArcanaMap,
+      totalReadings: insightsStats.totalReadings,
     });
   }, [
     cardFrequency,
     topContext,
+    insightsStats.themeSignals,
+    insightsStats.topTheme,
     insightsStats.recentThemes,
     sortedBadges,
     preferenceDrift,
+    currentStreak,
+    majorArcanaMap,
+    insightsStats.totalReadings,
   ]);
 
-  const coachSuggestion = useMemo(() => {
-    const candidates = [nextStepsCoachSuggestion, enhancedCoachSuggestion].filter(Boolean);
-    if (candidates.length === 0) return null;
-    return candidates.reduce((best, candidate) => {
-      if (!best) return candidate;
-      const bestScore = typeof best.priority === 'number' ? best.priority : 0;
-      const nextScore = typeof candidate.priority === 'number' ? candidate.priority : 0;
-      return nextScore > bestScore ? candidate : best;
-    }, candidates[0]);
-  }, [nextStepsCoachSuggestion, enhancedCoachSuggestion]);
+  const coachSuggestions = useMemo(() => {
+    const candidates = [nextStepsCoachSuggestion, ...enhancedCoachSuggestions].filter(Boolean);
+    if (candidates.length === 0) return [];
+    const sorted = [...candidates].sort((a, b) => {
+      const aScore = typeof a.priority === 'number' ? a.priority : 0;
+      const bScore = typeof b.priority === 'number' ? b.priority : 0;
+      if (bScore !== aScore) return bScore - aScore;
+      return String(a.source || '').localeCompare(String(b.source || ''));
+    });
+    const deduped = [];
+    const seen = new Set();
+    sorted.forEach((candidate) => {
+      const key = `${candidate.source || 'unknown'}:${candidate.question || candidate.text || ''}`;
+      if (seen.has(key)) return;
+      seen.add(key);
+      deduped.push(candidate);
+    });
+    return deduped;
+  }, [nextStepsCoachSuggestion, enhancedCoachSuggestions]);
+
+  const coachSuggestion = useMemo(() => coachSuggestions[0] || null, [coachSuggestions]);
 
   // Backfill state with loading guard.
   // Intentionally *not* wrapped in useMemo: React Compiler lint requires manual memoization
@@ -748,12 +849,17 @@ export function useJourneyData({
     totalReadings: insightsStats.totalReadings,
     totalCards: insightsStats.totalCards,
     reversalRate: insightsStats.reversalRate,
+    reversalRateReliable: insightsStats.reversalRateReliable,
+    reversalRateSample: insightsStats.reversalRateSample,
     currentStreak,
+    cardFrequencyReliable: insightsStats.cardFrequencyReliable,
+    cardFrequencySample: insightsStats.cardFrequencySample,
 
     // Narrative
     seasonNarrative,
     journeyStory, // null when < 3 entries; UI should hide section
     coachSuggestion,
+    coachSuggestions,
 
     // Time window
     seasonWindow: effectiveSeasonWindow,

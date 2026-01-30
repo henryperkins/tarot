@@ -5,16 +5,21 @@
 import { memo } from 'react';
 import { Fire } from '@phosphor-icons/react';
 import { CoachSuggestion } from '../../CoachSuggestion';
+import CoachSuggestionSwitcher from '../CoachSuggestionSwitcher';
 
 function SeasonSummary({
   narrative,
   topCard,
+  cardFrequencyReliable,
   currentStreak,
   totalReadings,
   topContext,
   contextBreakdown,
   preferenceDrift,
   coachSuggestion,
+  coachSuggestions,
+  activeCoachIndex = 0,
+  onCoachSelect,
   onStartReading,
   onSaveIntention,
   onOpenJournal,
@@ -22,6 +27,7 @@ function SeasonSummary({
   saveNotice,
   saveError,
   showStartReadingCta = true,
+  focusAreasCtaLabel = '',
   seasonWindow,
   locale = 'default',
   timezone,
@@ -60,9 +66,13 @@ function SeasonSummary({
   const themeContextHint = coachSuggestion?.source === 'theme' && topContext?.name
     ? `Top context: ${topContext.name.charAt(0).toUpperCase() + topContext.name.slice(1)}`
     : '';
-  const showFocusAreasCta = !preferenceDrift
-    && Array.isArray(contextBreakdown)
-    && contextBreakdown.length > 0;
+  const showFocusAreasCta = (
+    (!preferenceDrift
+      && Array.isArray(contextBreakdown)
+      && contextBreakdown.length > 0)
+    || preferenceDrift?.hasDrift
+    || preferenceDrift?.hasEmerging
+  );
 
   const handleStartReading = () => {
     if (onStartReading && coachSuggestion) {
@@ -95,6 +105,11 @@ function SeasonSummary({
             <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-300/15 px-2.5 py-1 text-xs text-amber-100">
               <span className="text-amber-200/80">🃏</span>
               {topCard.name}: {topCard.count}x
+              {cardFrequencyReliable === false && (
+                <span className="ml-1 text-[10px] uppercase tracking-[0.14em] text-amber-200/70">
+                  emerging
+                </span>
+              )}
               {topCard.hasBadge && (
                 <Fire className="h-3 w-3 text-orange-400" aria-label="streak badge" />
               )}
@@ -120,29 +135,38 @@ function SeasonSummary({
             Counts from yesterday if no reading today (grace period).
           </p>
         )}
-	      </div>
+      </div>
 
       {/* Coach suggestion CTA */}
       {coachSuggestion && (
-        <CoachSuggestion
-          recommendation={coachSuggestion}
-          variant="journey"
-          tone="amber"
-          onApply={onStartReading ? handleStartReading : null}
-          onSaveIntention={onSaveIntention}
-          onOpenJournal={onOpenJournal}
-          onSetFocusAreas={onSetFocusAreas}
-          showFocusAreasCta={showFocusAreasCta}
-          focusAreasCtaPlacement="before-actions"
-          filtersActive={filtersActive}
-          scopeLabel={scopeLabel}
-          saveNotice={saveNotice}
-          saveError={saveError}
-          showStartReadingCta={showStartReadingCta}
-          showStartArrow
-          themeHint={themeHint}
-          themeContextHint={themeContextHint}
-        />
+        <>
+          <CoachSuggestionSwitcher
+            suggestions={coachSuggestions}
+            activeIndex={activeCoachIndex}
+            onSelect={onCoachSelect}
+            tone="amber"
+          />
+          <CoachSuggestion
+            recommendation={coachSuggestion}
+            variant="journey"
+            tone="amber"
+            onApply={onStartReading ? handleStartReading : null}
+            onSaveIntention={onSaveIntention}
+            onOpenJournal={onOpenJournal}
+            onSetFocusAreas={onSetFocusAreas}
+            showFocusAreasCta={showFocusAreasCta}
+            focusAreasCtaPlacement="before-actions"
+            focusAreasCtaLabel={focusAreasCtaLabel}
+            filtersActive={filtersActive}
+            scopeLabel={scopeLabel}
+            saveNotice={saveNotice}
+            saveError={saveError}
+            showStartReadingCta={showStartReadingCta}
+            showStartArrow
+            themeHint={themeHint}
+            themeContextHint={themeContextHint}
+          />
+        </>
       )}
     </div>
   );

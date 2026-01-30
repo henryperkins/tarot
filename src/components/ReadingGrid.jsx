@@ -163,7 +163,7 @@ export function ReadingGrid({
   const [prevReflectionDeps, setPrevReflectionDeps] = useState({ reading, reflections, isCompactScreen: false });
   const [openReflectionIndex, setOpenReflectionIndex] = useState(null);
   const isCompactScreen = useSmallScreen();
-  const isVerySmallScreen = useSmallScreen(375);
+  const isVerySmallScreen = useSmallScreen(374);
   const prefersReducedMotion = useReducedMotion();
   const isLandscape = useLandscape();
   const readingLength = reading?.length || 0;

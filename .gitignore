@@ -93,6 +93,7 @@ coverage/
 
 # Misc
 .cache/
+.codex/index/
 azure_reasoning.md
 azure_responses.md
 MysticTarot2.png

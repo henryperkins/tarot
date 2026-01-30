@@ -1,5 +1,215 @@
 import { getSymbolFollowUpPrompt } from './symbolElementBridge.js';
 import { hashString, seededShuffle } from '../../shared/utils.js';
+import { canonicalizeCardName } from '../../shared/vision/cardNameMapping.js';
+import { REVERSED_PATTERN } from '../../shared/journal/stats.js';
+import { MAJOR_ARCANA_NAMES } from '../data/majorArcana.js';
+
+const SUIT_ELEMENTS = {
+  Wands: 'Fire',
+  Cups: 'Water',
+  Swords: 'Air',
+  Pentacles: 'Earth'
+};
+
+const MAJOR_ELEMENTS = {
+  0: 'Air',
+  1: 'Air',
+  2: 'Water',
+  3: 'Earth',
+  4: 'Fire',
+  5: 'Earth',
+  6: 'Air',
+  7: 'Water',
+  8: 'Fire',
+  9: 'Earth',
+  10: 'Fire',
+  11: 'Air',
+  12: 'Water',
+  13: 'Water',
+  14: 'Fire',
+  15: 'Earth',
+  16: 'Fire',
+  17: 'Air',
+  18: 'Water',
+  19: 'Fire',
+  20: 'Fire',
+  21: 'Earth'
+};
+
+const SUIT_ALIASES = {
+  Wands: ['Wands', 'Batons', 'Staves', 'Staffs', 'Clubs', 'Rods'],
+  Cups: ['Cups', 'Coupes', 'Chalices'],
+  Swords: ['Swords', 'Epees', 'Blades'],
+  Pentacles: ['Pentacles', 'Coins', 'Disks', 'Discs', 'Deniers']
+};
+
+const SUIT_ALIAS_LOOKUP = new Map(
+  Object.entries(SUIT_ALIASES).flatMap(([suit, aliases]) =>
+    aliases.map((alias) => [alias.toLowerCase(), suit])
+  )
+);
+
+const SUIT_ALIAS_PATTERNS = Object.entries(SUIT_ALIASES).map(([suit, aliases]) => ({
+  suit,
+  regex: new RegExp(`\\b(?:${aliases.join('|')})\\b`, 'i')
+}));
+
+const MAJOR_NAME_SET = new Set(MAJOR_ARCANA_NAMES.map((name) => name.toLowerCase()));
+
+const MINOR_RANKS = [
+  'ace',
+  'two',
+  'three',
+  'four',
+  'five',
+  'six',
+  'seven',
+  'eight',
+  'nine',
+  'ten',
+  'page',
+  'knight',
+  'queen',
+  'king',
+  'princess',
+  'prince',
+  'valet',
+  'chevalier',
+  'reine',
+  'roi'
+];
+
+const MINOR_TITLE_PATTERN = new RegExp(`^(?:${MINOR_RANKS.join('|')})\\s+of\\s+`, 'i');
+
+const getCardNumber = (card) => {
+  const num = card?.arcanaNumber ?? card?.number;
+  return Number.isFinite(num) ? num : null;
+};
+
+const normalizeCardNameValue = (value) => {
+  if (Array.isArray(value)) {
+    for (const entry of value) {
+      if (typeof entry === 'string' && entry.trim()) {
+        return entry.trim();
+      }
+    }
+    return null;
+  }
+  if (typeof value === 'string' && value.trim()) {
+    return value.trim();
+  }
+  return null;
+};
+
+const getRawCardName = (card) =>
+  normalizeCardNameValue(card?.name)
+  || normalizeCardNameValue(card?.card)
+  || normalizeCardNameValue(card?.canonicalName);
+
+const getCardName = (card) => getRawCardName(card) || 'this card';
+
+const normalizeOrientation = (card) => String(card?.orientation || '').toLowerCase();
+
+const isReversed = (card) => Boolean(card?.isReversed) || REVERSED_PATTERN.test(normalizeOrientation(card));
+
+const normalizeSuit = (value) => {
+  if (typeof value !== 'string') return null;
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  return SUIT_ALIAS_LOOKUP.get(trimmed.toLowerCase()) || trimmed;
+};
+
+const findSuitFromName = (name) => {
+  if (!name || typeof name !== 'string') return null;
+  for (const { suit, regex } of SUIT_ALIAS_PATTERNS) {
+    if (regex.test(name)) return suit;
+  }
+  return null;
+};
+
+const getCanonicalCardName = (card, deckStyle) => {
+  const rawName = getRawCardName(card);
+  if (!rawName) return null;
+  const resolvedDeck = typeof deckStyle === 'string' && deckStyle ? deckStyle : 'rws-1909';
+  return canonicalizeCardName(rawName, resolvedDeck) || rawName;
+};
+
+const looksLikeMinorByName = (name) => {
+  if (!name || typeof name !== 'string') return false;
+  const trimmed = name.trim();
+  if (!MINOR_TITLE_PATTERN.test(trimmed)) return false;
+  return Boolean(findSuitFromName(trimmed));
+};
+
+const isMajor = (card, deckStyle) => {
+  if (!card || typeof card !== 'object') return false;
+  if (card.arcana === 'major' || card.isMajor) return true;
+  const canonicalName = getCanonicalCardName(card, deckStyle);
+  if (canonicalName && MAJOR_NAME_SET.has(canonicalName.toLowerCase())) return true;
+  if (card.rank || Number.isFinite(card.rankValue)) return false;
+  const suit = normalizeSuit(card?.suit);
+  if (suit) return false;
+  const candidateName = canonicalName || getRawCardName(card);
+  if (candidateName && looksLikeMinorByName(candidateName)) return false;
+  const num = getCardNumber(card);
+  return typeof num === 'number' && num >= 0 && num <= 21;
+};
+
+const getSuitForCard = (card, deckStyle) => {
+  const suit = normalizeSuit(card?.suit);
+  if (suit && SUIT_ELEMENTS[suit]) return suit;
+  const name = getCanonicalCardName(card, deckStyle) || getRawCardName(card);
+  const inferredSuit = findSuitFromName(name);
+  return inferredSuit && SUIT_ELEMENTS[inferredSuit] ? inferredSuit : null;
+};
+
+const getCardElement = (card, deckStyle) => {
+  const suit = getSuitForCard(card, deckStyle);
+  if (suit) return SUIT_ELEMENTS[suit] || null;
+  if (isMajor(card, deckStyle)) {
+    const num = getCardNumber(card);
+    return typeof num === 'number' && num >= 0 && num <= 21 ? MAJOR_ELEMENTS[num] || null : null;
+  }
+  return null;
+};
+
+const normalizeSuitCounts = (counts = {}) => {
+  const output = { Wands: 0, Cups: 0, Swords: 0, Pentacles: 0 };
+  Object.entries(counts || {}).forEach(([key, value]) => {
+    if (!Number.isFinite(value)) return;
+    const suit = normalizeSuit(key);
+    if (suit && output[suit] !== undefined) {
+      output[suit] += value;
+    }
+  });
+  return output;
+};
+
+const normalizeElementCounts = (counts = {}) => {
+  const output = { Fire: 0, Water: 0, Air: 0, Earth: 0 };
+  Object.entries(counts || {}).forEach(([key, value]) => {
+    if (!Number.isFinite(value)) return;
+    const normalizedKey = typeof key === 'string' ? key.trim() : '';
+    if (output[normalizedKey] !== undefined) {
+      output[normalizedKey] += value;
+    }
+  });
+  return output;
+};
+
+const getCountsTotal = (counts) => {
+  if (!counts || typeof counts !== 'object') return null;
+  const entries = Object.entries(counts).filter(([, value]) => Number.isFinite(value));
+  if (entries.length === 0) return null;
+  return entries.reduce((sum, [, value]) => sum + value, 0);
+};
+
+const shouldUseCounts = (counts, cardCount) => {
+  const total = getCountsTotal(counts);
+  if (total === null) return false;
+  if (total > 0) return true;
+  return cardCount === 0;
+};
 
 /**
  * Follow-Up Question Suggestions Generator
@@ -26,58 +236,32 @@ export function generateFollowUpSuggestions(reading, themes, readingMeta, option
   const rotationIndex = Number.isFinite(options.rotationIndex) ? options.rotationIndex : 0;
   const rotationSeed = hashString(`${rotationSeedBase}:${rotationIndex}`);
 
-  const suitElements = {
-    Wands: 'Fire',
-    Cups: 'Water',
-    Swords: 'Air',
-    Pentacles: 'Earth'
-  };
-
-  const getCardName = (card) => card?.name || card?.card || card?.canonicalName || 'this card';
   const normalizeText = (text) => String(text || '').toLowerCase().replace(/\s+/g, ' ').trim();
-  const normalizeOrientation = (card) => String(card?.orientation || '').toLowerCase();
-  const isReversed = (card) => Boolean(card?.isReversed) || normalizeOrientation(card) === 'reversed';
-
-  const looksLikeMinorByName = (name) => {
-    if (!name || typeof name !== 'string') return false;
-    return /^(ace|two|three|four|five|six|seven|eight|nine|ten|page|knight|queen|king)\s+of\s+/i.test(name.trim());
-  };
-
-  const isMajor = (card) => {
-    if (!card || typeof card !== 'object') return false;
-    if (card.arcana === 'major' || card.isMajor) return true;
-    const suit = typeof card.suit === 'string' ? card.suit.trim() : '';
-    if (suit) return false;
-    const candidateName = (card.name || card.card || '').trim();
-    if (!candidateName) return false;
-    if (looksLikeMinorByName(candidateName)) return false;
-    const num = card.arcanaNumber ?? card.number;
-    return typeof num === 'number' && num >= 0 && num <= 21;
-  };
 
   const getSuitCounts = () => {
     if (themes?.suitCounts && typeof themes.suitCounts === 'object') {
-      return themes.suitCounts;
+      const normalizedCounts = normalizeSuitCounts(themes.suitCounts);
+      if (shouldUseCounts(normalizedCounts, cards.length)) {
+        return normalizedCounts;
+      }
     }
     return cards.reduce((acc, card) => {
-      const name = card?.name || card?.card || '';
-      const suit = card?.suit || Object.keys(suitElements).find((key) => name.includes(key));
-      if (suit && acc[suit] !== undefined) {
-        acc[suit] += 1;
-      }
+      const suit = getSuitForCard(card, deckStyle);
+      if (suit && acc[suit] !== undefined) acc[suit] += 1;
       return acc;
     }, { Wands: 0, Cups: 0, Swords: 0, Pentacles: 0 });
   };
 
-  const getElementCounts = (suitCounts) => {
+  const getElementCounts = (_suitCounts) => {
     if (themes?.elementCounts && typeof themes.elementCounts === 'object') {
-      return themes.elementCounts;
-    }
-    return Object.entries(suitCounts).reduce((acc, [suit, count]) => {
-      const element = suitElements[suit];
-      if (element) {
-        acc[element] = (acc[element] || 0) + count;
+      const normalizedCounts = normalizeElementCounts(themes.elementCounts);
+      if (shouldUseCounts(normalizedCounts, cards.length)) {
+        return normalizedCounts;
       }
+    }
+    return cards.reduce((acc, card) => {
+      const element = getCardElement(card, deckStyle);
+      if (element && acc[element] !== undefined) acc[element] += 1;
       return acc;
     }, { Fire: 0, Water: 0, Air: 0, Earth: 0 });
   };
@@ -87,9 +271,11 @@ export function generateFollowUpSuggestions(reading, themes, readingMeta, option
     if (entries.length === 0) return null;
     const total = entries.reduce((sum, [, count]) => sum + count, 0);
     if (total === 0) return null;
-    const [key, count] = entries.sort((a, b) => b[1] - a[1])[0];
+    const [key, count] = [...entries].sort((a, b) => b[1] - a[1])[0];
     return { key, count, ratio: total > 0 ? count / total : 0, total };
   };
+
+  const deckStyle = options.deckStyle || readingMeta?.deckStyle || null;
 
   const suitCounts = getSuitCounts();
   const elementCounts = getElementCounts(suitCounts);
@@ -100,7 +286,7 @@ export function generateFollowUpSuggestions(reading, themes, readingMeta, option
   const reversalCount = Number.isFinite(themes?.reversalCount)
     ? themes.reversalCount
     : cards.filter((card) => isReversed(card)).length;
-  const majorCount = cards.filter((card) => isMajor(card)).length;
+  const majorCount = cards.filter((card) => isMajor(card, deckStyle)).length;
   const majorRatio = Number.isFinite(themes?.majorRatio)
     ? themes.majorRatio
     : (cards.length > 0 ? majorCount / cards.length : 0);
@@ -238,7 +424,14 @@ export function generateFollowUpSuggestions(reading, themes, readingMeta, option
   }
 
   // 7. Symbol-based reflection
-  const symbolPrompt = getSymbolFollowUpPrompt(cards, themes);
+  const symbolCards = cards.map((card) => {
+    if (!card || typeof card !== 'object') return card;
+    const canonicalName = getCanonicalCardName(card, deckStyle) || getRawCardName(card);
+    if (!canonicalName) return card;
+    if (typeof card.name === 'string' && card.name.trim() === canonicalName) return card;
+    return { ...card, name: canonicalName };
+  });
+  const symbolPrompt = getSymbolFollowUpPrompt(symbolCards, themes);
   if (symbolPrompt) {
     addSuggestion({
       text: symbolPrompt,
@@ -277,7 +470,7 @@ export function generateFollowUpSuggestions(reading, themes, readingMeta, option
   const dedupe = (items) => {
     const seen = new Set();
     return items.filter((item) => {
-      const key = `${normalizeText(item.text)}::${item.anchorKey || ''}`;
+      const key = `${normalizeText(item.text)}::${item.anchorKey || ''}::${item.triggerKey || ''}`;
       if (seen.has(key)) return false;
       seen.add(key);
       return true;
