@@ -20,9 +20,10 @@ export default defineConfig({
 
   projects: [
     {
-      name: 'desktop',
+      name: 'chromium',
       use: { ...devices['Desktop Chrome'] },
-      grep: /@desktop/,
+      // Run all untagged tests on desktop; mobile-only specs opt-in via @mobile.
+      grepInvert: /@mobile/,
     },
     {
       name: 'mobile',

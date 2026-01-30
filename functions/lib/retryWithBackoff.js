@@ -50,7 +50,7 @@ export function generateIdempotencyKey(requestId, attempt) {
  * @param {RetryConfig} config - Retry configuration
  * @returns {Object} Circuit breaker state
  */
-function getCircuitBreaker(endpoint, config) {
+function getCircuitBreaker(endpoint, _config) {
   if (!circuitBreakers.has(endpoint)) {
     circuitBreakers.set(endpoint, {
       state: 'CLOSED', // CLOSED, OPEN, HALF_OPEN

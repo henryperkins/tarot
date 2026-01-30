@@ -1,4 +1,4 @@
-import { fetchWithRetry, generateIdempotencyKey } from './retryWithBackoff.js';
+import { fetchWithRetry } from './retryWithBackoff.js';
 
 /**
  * Validate and normalize Azure OpenAI configuration

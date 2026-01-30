@@ -396,11 +396,11 @@ export function Card({
     };
   }, [isRevealed, isVisuallyRevealed]);
 
-  // Keep stagger delay ref in sync for the animation to read
-  staggerDelayRef.current = staggerDelay;
-
   // Handle the flip animation sequence
   useEffect(() => {
+    // Keep stagger delay ref in sync for the animation to read
+    staggerDelayRef.current = staggerDelay;
+
     // Only start animation when isRevealed becomes true and we haven't animated yet
     if (!isRevealed || animationStartedRef.current) {
       return;
@@ -499,10 +499,7 @@ export function Card({
       }
       // Let in-flight animations resolve naturally to avoid abrupt snaps.
     };
-    // Intentionally only depend on isRevealed to start animation once.
-    // staggerDelay is captured at effect start; changes should not interrupt the animation.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [index, isRevealed, prefersReducedMotion, revealEase]);
+  }, [index, isRevealed, prefersReducedMotion, revealEase, staggerDelay]);
 
   // Get card meaning
   const originalCard = canonicalCard;

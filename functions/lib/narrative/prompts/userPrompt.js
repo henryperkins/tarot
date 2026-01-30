@@ -160,7 +160,18 @@ export function buildUserPrompt(
   // Reflections (Fallback for legacy/aggregate usage) - filter instruction patterns
   const hasPerCardReflections = cardsInfo.some(c => c.userReflection);
   if (!hasPerCardReflections && reflectionsText && reflectionsText.trim()) {
-    const sanitizedReflections = sanitizeText(reflectionsText, { maxLength: MAX_REFLECTION_TEXT_LENGTH, addEllipsis: true, stripMarkdown: true, filterInstructions: true });
+    let sanitizedReflections = sanitizeText(reflectionsText, { maxLength: MAX_REFLECTION_TEXT_LENGTH, addEllipsis: true, stripMarkdown: true, filterInstructions: true });
+    if (sanitizedReflections) {
+      const reflectionCheck = detectPromptInjection(sanitizedReflections, { confidenceThreshold: 0.6, sanitize: true });
+      if (reflectionCheck.isInjection) {
+        console.warn('[PromptInjection] Potential injection detected in reflections:', {
+          confidence: reflectionCheck.confidence,
+          severity: reflectionCheck.severity,
+          reasons: reflectionCheck.reasons.slice(0, 3)
+        });
+        sanitizedReflections = reflectionCheck.sanitizedText;
+      }
+    }
     if (sanitizedReflections) {
       prompt += `\n**Querent's Reflections**:\n${sanitizedReflections}\n\n`;
     }

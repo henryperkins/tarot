@@ -47,12 +47,13 @@ export default defineConfig({
     {
       name: 'integration-desktop',
       use: { ...devices['Desktop Chrome'] },
-      grep: /@desktop|@integration/,
+      // Run all untagged specs in full-stack mode; mobile-only specs opt-in via @mobile.
+      grepInvert: /@mobile/,
     },
     {
       name: 'integration-mobile',
       use: { ...devices['iPhone 13'] },
-      grep: /@mobile|@integration/,
+      grep: /@mobile/,
     },
   ],
 

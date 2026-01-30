@@ -30,12 +30,13 @@ const SPINE_ELEMENTS = {
 };
 
 const MIN_SENTENCE_WORDS = 5;
-// Match actual card headers, position indicators, or spine labels - NOT general sentences
-// Must be short (≤40 chars before colon) to avoid false positives like "You might experiment today:"
-// Supports optional bold markers (**) and common tarot header formats:
-//   "The Fool:", "**The Fool:**", "The Fool Upright:", "Ace of Cups:"
-//   "Position 1:", "Card 2:", "WHAT:", "**WHY:**", "WHAT'S NEXT:"
-const CARD_HEADER_PATTERN = /^(?:\*\*)?[\w\s']{1,40}(?:\*\*)?[:\-–]/;
+// Match explicit card/position/spine headers - NOT generic colon sentences.
+// We extract the header text first, then apply strict heuristics to avoid false positives
+// like "You might experiment today:" while still catching "Card 1:" or "WHAT:".
+const CARD_HEADER_PATTERN = /^(?:\*\*)?([^:\n]{1,60}?)(?:\*\*)?[:\-–]/;
+const SPINE_HEADER_PATTERN = /^(?:WHAT|WHY|WHAT'S NEXT)$/i;
+const POSITION_HEADER_PATTERN = /^(?:card|position)\s*(?:\d+|one|two|three|four|five|six|seven|eight|nine|ten)?$/i;
+const POSITION_KEYWORD_PATTERN = /^(?:past|present|future|near\s+future|outcome|challenge|advice|subconscious|conscious|external|hopes\s*(?:&|and)\s*fears|core|hidden|support|direction|path\s*[ab]|heart|clarity|connection)\b/i;
 const MINOR_ARCANA_PATTERN = /\b(?:ace|two|three|four|five|six|seven|eight|nine|ten|page|knight|queen|king)\s+of\s+(?:wands|cups|swords|pentacles)\b/i;
 const MAJOR_ARCANA_BASE = MAJOR_ARCANA_NAMES.map((name) =>
   name.toLowerCase().replace(/^the\s+/, '')
@@ -176,10 +177,27 @@ function hasCardReference(text) {
   return MINOR_ARCANA_PATTERN.test(text) || MAJOR_ARCANA_PATTERN.test(text);
 }
 
+function extractHeaderLabel(sentence = '') {
+  const match = sentence.match(CARD_HEADER_PATTERN);
+  if (!match) return '';
+  return (match[1] || '').trim();
+}
+
+function isExplicitCardHeader(sentence) {
+  const header = extractHeaderLabel(sentence);
+  if (!header) return false;
+
+  if (SPINE_HEADER_PATTERN.test(header)) return true;
+  if (POSITION_HEADER_PATTERN.test(header)) return true;
+
+  if (!isLikelyColonHeader(header)) return false;
+  return POSITION_KEYWORD_PATTERN.test(header);
+}
+
 function detectWhatClause(text, sentences) {
   if (!text) return false;
   if (hasCardReference(text)) return true;
-  if (sentences.some(sentence => CARD_HEADER_PATTERN.test(sentence))) {
+  if (sentences.some(sentence => isExplicitCardHeader(sentence))) {
     return true;
   }
 

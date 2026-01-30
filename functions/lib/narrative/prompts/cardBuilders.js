@@ -10,6 +10,7 @@ import {
 import { THOTH_MINOR_TITLES, MARSEILLE_NUMERICAL_THEMES } from '../../../../src/data/knowledgeGraphData.js';
 import { getPositionWeight } from '../../positionWeights.js';
 import { sanitizeText } from '../../utils.js';
+import { detectPromptInjection } from '../../promptInjectionDetector.js';
 
 export function buildCelticCrossPromptCards(cardsInfo, analysis, themes, context, userQuestion, visionInsights, promptOptions = {}) {
   const baseOptions = { ...getPositionOptions(themes, context), visionInsights };
@@ -221,7 +222,21 @@ function buildCardWithImagery(cardInfo, position, options, prefix = '') {
   }
 
   if (cardInfo.userReflection) {
-    text += `*Querent's Reflection: "${sanitizeText(cardInfo.userReflection, { maxLength: 100, addEllipsis: true, stripMarkdown: true, filterInstructions: true })}"*\n`;
+    let safeReflection = sanitizeText(cardInfo.userReflection, { maxLength: 100, addEllipsis: true, stripMarkdown: true, filterInstructions: true });
+    if (safeReflection) {
+      const reflectionCheck = detectPromptInjection(safeReflection, { confidenceThreshold: 0.6, sanitize: true });
+      if (reflectionCheck.isInjection) {
+        console.warn('[PromptInjection] Potential injection detected in card reflection:', {
+          confidence: reflectionCheck.confidence,
+          severity: reflectionCheck.severity,
+          reasons: reflectionCheck.reasons.slice(0, 3)
+        });
+        safeReflection = reflectionCheck.sanitizedText;
+      }
+    }
+    if (safeReflection) {
+      text += `*Querent's Reflection: "${safeReflection}"*\n`;
+    }
   }
 
   return text;
@@ -241,7 +256,20 @@ export function buildDeckSpecificContext(deckStyle, cardsInfo, options = {}) {
         if (!key) return null;
         const info = THOTH_MINOR_TITLES[key];
         if (!info) return null;
-        const header = card.position ? `${card.position}` : key;
+        const rawHeader = card.position ? `${card.position}` : key;
+        let safeHeader = sanitizeText(rawHeader, { maxLength: 120, stripMarkdown: true, filterInstructions: true });
+        if (safeHeader) {
+          const headerCheck = detectPromptInjection(safeHeader, { confidenceThreshold: 0.6, sanitize: true });
+          if (headerCheck.isInjection) {
+            console.warn('[PromptInjection] Potential injection detected in deck context header:', {
+              confidence: headerCheck.confidence,
+              severity: headerCheck.severity,
+              reasons: headerCheck.reasons.slice(0, 3)
+            });
+            safeHeader = headerCheck.sanitizedText;
+          }
+        }
+        const header = safeHeader || key;
         const astrology = info.astrology ? ` (${info.astrology})` : '';
         return `- ${header}: **${info.title}**${astrology} — ${info.description}`;
       })
@@ -258,7 +286,20 @@ export function buildDeckSpecificContext(deckStyle, cardsInfo, options = {}) {
         const rankValue = typeof card?.rankValue === 'number' ? card.rankValue : null;
         const theme = rankValue ? MARSEILLE_NUMERICAL_THEMES[rankValue] : null;
         if (!theme) return null;
-        const header = card.position ? `${card.position}` : (card.card || `Pip ${rankValue}`);
+        const rawHeader = card.position ? `${card.position}` : (card.card || `Pip ${rankValue}`);
+        let safeHeader = sanitizeText(rawHeader, { maxLength: 120, stripMarkdown: true, filterInstructions: true });
+        if (safeHeader) {
+          const headerCheck = detectPromptInjection(safeHeader, { confidenceThreshold: 0.6, sanitize: true });
+          if (headerCheck.isInjection) {
+            console.warn('[PromptInjection] Potential injection detected in deck context header:', {
+              confidence: headerCheck.confidence,
+              severity: headerCheck.severity,
+              reasons: headerCheck.reasons.slice(0, 3)
+            });
+            safeHeader = headerCheck.sanitizedText;
+          }
+        }
+        const header = safeHeader || (card.card || `Pip ${rankValue}`);
         return `- ${header}: Pip ${rankValue} (${theme.keyword}) — ${theme.description}`;
       })
       .filter(Boolean);
@@ -505,4 +546,3 @@ function _formatMeaning(meaning) {
   }
   return lowerCased.charAt(0).toLowerCase() + lowerCased.slice(1);
 }
-

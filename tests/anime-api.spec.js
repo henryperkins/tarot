@@ -13,7 +13,7 @@ test.describe('Anime.js V4 API Verification', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/tests/anime-v4-api-test.html');
     // Wait for anime.js to load
-    await page.waitForFunction(() => typeof window.anime !== 'undefined', { timeout: 5000 });
+    await page.waitForFunction(() => typeof /** @type {any} */ (window).anime !== 'undefined', { timeout: 5000 });
   });
 
   test('Test 1: Basic animate() with transforms', async ({ page }) => {
@@ -148,10 +148,10 @@ test.describe('Anime.js V4 API Verification', () => {
 // Summary test that logs all available exports
 test('Log Anime.js V4 exports', async ({ page }) => {
   await page.goto('/tests/anime-v4-api-test.html');
-  await page.waitForFunction(() => typeof window.anime !== 'undefined');
+  await page.waitForFunction(() => typeof /** @type {any} */ (window).anime !== 'undefined');
 
   const exports = await page.evaluate(() => {
-    return Object.keys(window.anime).sort();
+    return Object.keys(/** @type {any} */(window).anime).sort();
   });
 
   console.log('\n========================================');

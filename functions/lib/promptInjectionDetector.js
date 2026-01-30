@@ -80,7 +80,7 @@ const SEMANTIC_INJECTION_PATTERNS = [
     patterns: [
       /(?:base64|hex|binary|rot13|caesar|cipher)\s+(?:encoded|encrypted|obfuscated)/i,
       /(?:decode|decrypt|unscramble|reverse)\s+(?:this|the following)/i,
-      /[\x00-\x08\x0B-\x0C\x0E-\x1F\x7F-\x9F]{3,}/, // Control characters
+      /[\x00-\x08\x0B\x0C\x0E-\x1F\x7F-\x9F]{3,}/, // eslint-disable-line no-control-regex -- Intentional: detect control char injection
       /(?:\u200B|\u200C|\u200D|\uFEFF|\u2060|\u180E|\u2028|\u2029){2,}/ // Multiple zero-width chars
     ],
     weight: 0.95
@@ -282,7 +282,8 @@ function sanitizeDetectedInjection(text, detection) {
     }
     
     // Remove control characters
-    sanitized = sanitized.replace(/[\x00-\x08\x0B-\x0C\x0E-\x1F\x7F-\x9F]/g, '');
+    // eslint-disable-next-line no-control-regex -- Intentional: strip control chars for sanitization
+    sanitized = sanitized.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F-\x9F]/g, '');
     
     // Normalize excessive whitespace
     sanitized = sanitized.replace(/\s+/g, ' ').trim();

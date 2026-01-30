@@ -12,6 +12,7 @@ import {
   shouldSurfaceQabalahLens
 } from '../esotericMeta.js';
 import { filterInstructionPatterns } from '../utils.js';
+import { detectPromptInjection } from '../promptInjectionDetector.js';
 import { getDeckAlias } from '../../../shared/vision/deckAssets.js';
 import { THOTH_MINOR_TITLES, MARSEILLE_NUMERICAL_THEMES } from '../../../src/data/knowledgeGraphData.js';
 import { SYMBOL_ANNOTATIONS } from '../symbolAnnotations.js';
@@ -95,6 +96,12 @@ export function sanitizePromptValue(text, maxLength = 500) {
   if (!text || typeof text !== 'string') return '';
   let trimmed = text.slice(0, maxLength);
   trimmed = filterInstructionPatterns(trimmed);
+  if (trimmed) {
+    const detection = detectPromptInjection(trimmed, { confidenceThreshold: 0.6, sanitize: true });
+    if (detection.isInjection) {
+      trimmed = detection.sanitizedText;
+    }
+  }
   return trimmed
     .replace(/[`#*_>]/g, '')   // strip markdown/control symbols
     .replace(/\{\{|\}\}|\$\{|\}|<%|%>|\{#|#\}|\{%|%\}/g, '') // template syntax
