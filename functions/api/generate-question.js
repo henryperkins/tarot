@@ -329,10 +329,6 @@ export async function onRequestPost({ request, env }) {
     }
 
     if (!question) {
-      console.warn('[generate-question] No question returned from Azure path, falling back to local template.', {
-        hasAzureConfig: isAzureConfigured(env),
-        providerBeforeFallback: provider
-      });
       question = craftQuestionFromPrompt(prompt, metadata);
       provider = 'local-fallback';
     }
