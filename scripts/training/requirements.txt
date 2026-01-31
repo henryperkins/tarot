@@ -1,8 +1,8 @@
-torch>=2.0.0
-transformers>=4.30.0
+torch>=2.6.0
+transformers>=4.48.0
 peft>=0.4.0
 datasets>=2.14.0
-pillow>=9.5.0
+pillow>=10.2.0
 accelerate>=0.21.0
 scikit-learn>=1.3.0
 numpy>=1.24.0
