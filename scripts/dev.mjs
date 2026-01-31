@@ -257,7 +257,7 @@ async function main() {
     console.log('🔮 Starting Tableau development environment (Workers mode)...');
     console.log('');
 
-    await cleanupPorts([5173, 5174, 8787]);
+    await cleanupPorts([5000, 5173, 5174, 8787]);
 
     let viteChild;
     let wranglerChild;
@@ -298,7 +298,7 @@ async function main() {
         });
 
         console.log('⏳ Waiting for Vite to start...');
-        const viteUrl = await waitForAny(['http://localhost:5173', 'http://localhost:5174'], {
+        const viteUrl = await waitForAny(['http://localhost:5000', 'http://localhost:5173', 'http://localhost:5174'], {
             label: 'Vite',
             timeoutMs: 30_000,
         });
