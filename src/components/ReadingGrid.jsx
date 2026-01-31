@@ -533,7 +533,7 @@ export function ReadingGrid({
                   type="button"
                   onClick={() => scrollToIndex(activeIndex - 1)}
                   disabled={activeIndex === 0}
-                  className={`inline-flex items-center justify-center rounded-full border border-secondary/50 bg-surface ${isLandscape ? 'px-2 py-1 min-w-touch min-h-touch' : 'px-3 py-2 min-w-[48px] min-h-touch'} text-xs font-semibold text-muted disabled:opacity-40 touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary`}
+                  className={`inline-flex items-center justify-center rounded-full border border-secondary/50 bg-surface ${isLandscape ? 'px-2 py-1 min-w-touch min-h-touch' : 'px-3 py-2 min-w-touch min-h-touch'} text-xs font-semibold text-muted disabled:opacity-40 touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary`}
                   aria-label="Show previous card"
                 >
                   {isLandscape ? '←' : 'Prev'}
@@ -547,7 +547,7 @@ export function ReadingGrid({
                   type="button"
                   onClick={() => scrollToIndex(activeIndex + 1)}
                   disabled={activeIndex >= reading.length - 1}
-                  className={`inline-flex items-center justify-center rounded-full border border-secondary/50 bg-surface ${isLandscape ? 'px-2 py-1 min-w-touch min-h-touch' : 'px-3 py-2 min-w-[48px] min-h-touch'} text-xs font-semibold text-muted disabled:opacity-40 touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary`}
+                  className={`inline-flex items-center justify-center rounded-full border border-secondary/50 bg-surface ${isLandscape ? 'px-2 py-1 min-w-touch min-h-touch' : 'px-3 py-2 min-w-touch min-h-touch'} text-xs font-semibold text-muted disabled:opacity-40 touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary`}
                   aria-label="Show next card"
                 >
                   {isLandscape ? '→' : 'Next'}

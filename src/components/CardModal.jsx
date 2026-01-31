@@ -95,7 +95,7 @@ function CollapsibleSection({ title, icon: Icon, badge, children, defaultOpen = 
             <button
                 type="button"
                 onClick={() => setIsOpen(!isOpen)}
-                className="w-full flex items-center justify-between gap-2 px-3 py-2 bg-surface-muted/30 hover:bg-surface-muted/50 transition-colors text-left min-h-[40px]"
+                className="w-full flex items-center justify-between gap-2 px-3 py-2 bg-surface-muted/30 hover:bg-surface-muted/50 transition-colors text-left min-h-touch"
                 aria-expanded={isOpen}
                 aria-controls={contentId}
             >

@@ -1,3 +1,4 @@
+import { useBodyScrollLock } from '../hooks/useBodyScrollLock';
 import { useMemo, useState, useRef, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { Info, X } from '@phosphor-icons/react';
@@ -165,23 +166,21 @@ function BottomSheet({ isOpen, onClose, children }) {
   const sheetRef = useRef(null);
   const previousFocusRef = useRef(null);
 
+  // Use shared scroll lock hook
+  useBodyScrollLock(isOpen, { strategy: 'simple' });
+
   // Focus management
   useEffect(() => {
     if (isOpen) {
       previousFocusRef.current = document.activeElement;
-      document.body.style.overflow = 'hidden';
       requestAnimationFrame(() => {
         sheetRef.current?.focus();
       });
     } else {
-      document.body.style.overflow = '';
       if (previousFocusRef.current?.focus) {
         previousFocusRef.current.focus();
       }
     }
-    return () => {
-      document.body.style.overflow = '';
-    };
   }, [isOpen]);
 
   // Keyboard handling with focus trap

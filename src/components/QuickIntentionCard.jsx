@@ -73,7 +73,7 @@ export const QuickIntentionCard = forwardRef(function QuickIntentionCard({
           <button
             type="button"
             onClick={onMoreOpen}
-            className="min-h-[40px] min-w-[40px] rounded-xl border border-secondary/40 px-3 py-2 text-xs font-semibold text-secondary hover:bg-secondary/10 active:bg-secondary/20 transition touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+            className="min-h-touch min-w-touch rounded-xl border border-secondary/40 px-3 py-2 text-xs font-semibold text-secondary hover:bg-secondary/10 active:bg-secondary/20 transition touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
             aria-label="Edit your intention"
           >
             Edit

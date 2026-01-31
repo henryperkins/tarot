@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useCallback } from 'react';
+import { useBodyScrollLock } from '../hooks/useBodyScrollLock';
 
 export function ImagePreview({ image, onConfirm, onRetake }) {
   const previousTriggerRef = useRef(null);
@@ -61,15 +62,7 @@ export function ImagePreview({ image, onConfirm, onRetake }) {
   }, [onRetake]);
 
   // Lock body scroll when modal is open
-  useEffect(() => {
-    if (imageUrl) {
-      const originalOverflow = document.body.style.overflow;
-      document.body.style.overflow = 'hidden';
-      return () => {
-        document.body.style.overflow = originalOverflow;
-      };
-    }
-  }, [imageUrl]);
+  useBodyScrollLock(!!imageUrl, { strategy: 'simple' });
 
   if (!imageUrl) return null;
 

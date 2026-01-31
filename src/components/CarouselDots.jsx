@@ -178,7 +178,7 @@ export function CarouselNav({
             type="button"
             onClick={() => onSelectItem?.(activeIndex - 1)}
             disabled={!canGoPrev}
-            className="inline-flex items-center justify-center rounded-full border border-secondary/50 bg-surface px-3 py-2 min-w-[48px] min-h-touch text-xs font-semibold text-muted disabled:opacity-40 touch-manipulation"
+            className="inline-flex items-center justify-center rounded-full border border-secondary/50 bg-surface px-3 py-2 min-w-touch min-h-touch text-xs font-semibold text-muted disabled:opacity-40 touch-manipulation"
             aria-label="Previous item"
           >
             Prev
@@ -190,7 +190,7 @@ export function CarouselNav({
             type="button"
             onClick={() => onSelectItem?.(activeIndex + 1)}
             disabled={!canGoNext}
-            className="inline-flex items-center justify-center rounded-full border border-secondary/50 bg-surface px-3 py-2 min-w-[48px] min-h-touch text-xs font-semibold text-muted disabled:opacity-40 touch-manipulation"
+            className="inline-flex items-center justify-center rounded-full border border-secondary/50 bg-surface px-3 py-2 min-w-touch min-h-touch text-xs font-semibold text-muted disabled:opacity-40 touch-manipulation"
             aria-label="Next item"
           >
             Next

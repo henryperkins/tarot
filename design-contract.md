@@ -233,20 +233,26 @@ className="motion-safe:animate-spin"
 
 ## 6. Inconsistency Findings
 
-| ID | Component | Issue | Current | Proposed Fix | Effort |
-|----|-----------|-------|---------|--------------|--------|
-| R-1 | `QuickIntentionCard.jsx:76` | Hardcoded touch target below 44px | `min-h-[40px] min-w-[40px]` | `min-h-touch min-w-touch` | Low |
-| R-2 | `JournalFilters.jsx:951,966` | Hardcoded touch target below 44px | `min-h-[40px]` | `min-h-touch` | Low |
-| R-3 | `CardModal.jsx:98` | Hardcoded touch target below 44px | `min-h-[40px]` | `min-h-touch` | Low |
-| R-4 | `AuthModal.jsx:337,389` | Hardcoded touch target at exactly 40px | `min-w-[40px] min-h-[40px]` | `min-w-touch min-h-touch` | Low |
-| R-5 | `WelcomeHero.jsx:208` | CTA button at 46px instead of 52px | `min-h-[46px]` | `min-h-cta` | Low |
-| R-6 | `ReadingGrid.jsx:536,550` | Inconsistent width token | `min-w-[48px]` | `min-w-touch` (consolidate) | Low |
-| R-7 | `CarouselDots.jsx:181,193` | Inconsistent width token | `min-w-[48px]` | `min-w-touch` (consolidate) | Low |
-| R-8 | `CardSymbolInsights.jsx:462-469` | Desktop tooltip close missing touch target | `rounded-full` (no size) | Add `min-h-touch min-w-touch p-2` | Medium |
-| R-9 | `ExperienceSettings.jsx:51` | Using `56px` instead of `cta` token | `min-h-[56px]` | Keep (56px > 52px, compliant) | None |
-| R-10 | Multiple components | Inconsistent duration hardcoding | `duration-200`, `duration-300` | Prefer `duration-[var(--duration-*)]` | Medium |
-| R-11 | `MobileSettingsDrawer.jsx` | Body scroll lock via inline style | `document.body.style.overflow = 'hidden'` | Use `useModalA11y` consistently | Low |
-| R-12 | Various animations | Missing `motion-safe:` prefix | Direct `animate-*` class | Add `motion-safe:` or `useReducedMotion()` gate | Medium |
+| ID | Component | Issue | Current | Proposed Fix | Effort | Status |
+|----|-----------|-------|---------|--------------|--------|--------|
+| R-1 | `QuickIntentionCard.jsx:76` | Hardcoded touch target below 44px | `min-h-[40px] min-w-[40px]` | `min-h-touch min-w-touch` | Low | ✅ Fixed |
+| R-2 | `JournalFilters.jsx:951,966` | Hardcoded touch target below 44px | `min-h-[40px]` | `min-h-touch` | Low | ✅ Fixed |
+| R-3 | `CardModal.jsx:98` | Hardcoded touch target below 44px | `min-h-[40px]` | `min-h-touch` | Low | ✅ Fixed |
+| R-4 | `AuthModal.jsx:337,389` | Hardcoded touch target at exactly 40px | `min-w-[40px] min-h-[40px]` | `min-w-touch min-h-touch` | Low | ✅ Fixed |
+| R-5 | `WelcomeHero.jsx:208` | CTA button at 46px instead of 52px | `min-h-[46px]` | `min-h-cta` | Low | ✅ Fixed |
+| R-6 | `ReadingGrid.jsx:536,550` | Inconsistent width token | `min-w-[48px]` | `min-w-touch` (consolidate) | Low | ✅ Fixed |
+| R-7 | `CarouselDots.jsx:181,193` | Inconsistent width token | `min-w-[48px]` | `min-w-touch` (consolidate) | Low | ✅ Fixed |
+| R-8 | `CardSymbolInsights.jsx:462-469` | Desktop tooltip close missing touch target | `rounded-full` (no size) | Add `min-h-touch min-w-touch p-2` | Medium | Deferred |
+| R-9 | `ExperienceSettings.jsx:51` | Using `56px` instead of `cta` token | `min-h-[56px]` | Keep (56px > 52px, compliant) | None | N/A |
+| R-10 | Multiple components | Inconsistent duration hardcoding | `duration-200`, `duration-300` | Prefer `duration-[var(--duration-*)]` | Medium | Deferred (40+ files) |
+| R-11a | `CardSymbolInsights.jsx:172-183` | Body scroll lock via inline style | `document.body.style.overflow = 'hidden'` | Use `useBodyScrollLock` hook | Low | ✅ Fixed |
+| R-11b | `ImagePreview.jsx:64-72` | Body scroll lock via inline style | `document.body.style.overflow` | Use `useBodyScrollLock` hook | Low | ✅ Fixed |
+| R-12 | Tailwind `animate-*` classes | Missing reduced-motion fallback | Direct `animate-*` class | Global CSS override in tailwind.css | Low | ✅ Fixed |
+
+### Additional Fix
+| ID | Component | Issue | Fix | Status |
+|----|-----------|-------|-----|--------|
+| - | `MobileActionBar.jsx:344` | Lexical declaration in case block (ESLint error) | Wrap case in block scope `{}` | ✅ Fixed |
 
 ---
 

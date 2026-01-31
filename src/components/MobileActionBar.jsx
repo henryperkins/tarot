@@ -340,7 +340,7 @@ function renderActions(mode, options) {
       );
     }
 
-    case 'generating':
+    case 'generating': {
       const generatingLabel = isLandscape ? 'Weaving story' : 'Weaving...';
       return (
         <>
@@ -368,6 +368,7 @@ function renderActions(mode, options) {
           </ActionButton>
         </>
       );
+    }
 
     case 'error':
       return (

@@ -1,0 +1,34 @@
+{
+  "output": {
+    "filePath": "repomix-output.xml"
+  },
+  "include": [
+    "functions/**",
+    "src/**",
+    "shared/**",
+    "package.json",
+    "wrangler.jsonc",
+    "vite.config.js",
+    "tailwind.config.js",
+    "postcss.config.js",
+    "tsconfig.json",
+    "eslint.config.js",
+    ".env.example"
+  ],
+  "ignore": {
+    "customPatterns": [
+      "**/*.test.mjs",
+      "**/*.test.js",
+      "**/*.spec.js",
+      "**/__tests__/**",
+      "**/*.md",
+      "**/images/**",
+      "**/*.jpeg",
+      "**/*.jpg",
+      "**/*.png",
+      "**/*.gif",
+      "**/*.svg",
+      "**/*.webp"
+    ]
+  }
+}

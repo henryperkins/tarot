@@ -17,6 +17,21 @@
   }
 }
 
+/* Disable Tailwind animate-* classes for reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .animate-spin,
+  .animate-ping,
+  .animate-pulse,
+  .animate-bounce,
+  [class*="animate-fade"],
+  [class*="animate-slide"],
+  [class*="animate-pop"],
+  [class*="animate-float"] {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+
 /* Modern Mystic theme overrides */
 body {
   @apply bg-main text-main antialiased font-sans;

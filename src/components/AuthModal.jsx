@@ -334,7 +334,7 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login' }) {
                       className="
                         absolute right-1 top-1/2 -translate-y-1/2
                         flex items-center justify-center
-                        w-10 h-10 min-w-[40px] min-h-[40px]
+                        w-10 h-10 min-w-touch min-h-touch
                         rounded-lg
                         text-muted hover:text-accent
                         active:bg-accent/10
@@ -386,7 +386,7 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login' }) {
                       className="
                         absolute right-1 top-1/2 -translate-y-1/2
                         flex items-center justify-center
-                        w-10 h-10 min-w-[40px] min-h-[40px]
+                        w-10 h-10 min-w-touch min-h-touch
                         rounded-lg
                         text-muted hover:text-accent
                         active:bg-accent/10

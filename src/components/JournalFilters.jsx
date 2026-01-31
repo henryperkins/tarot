@@ -948,7 +948,7 @@ export function JournalFilters({
                       onClick={() => onViewModeChange('comfortable')}
                       aria-pressed={viewMode === 'comfortable'}
                       title="Comfortable view - shows more details"
-                    className={`flex min-h-[40px] items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-[13px] font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:rgba(232,218,195,0.45)] ${
+                    className={`flex min-h-touch items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-[13px] font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:rgba(232,218,195,0.45)] ${
                       viewMode === 'comfortable'
                         ? 'bg-[color:rgba(212,184,150,0.15)] text-[color:var(--text-main)] shadow-[0_4px_12px_-6px_rgba(212,184,150,0.5)]'
                         : 'text-[color:var(--text-muted)] hover:text-[color:var(--text-main)]'
@@ -963,7 +963,7 @@ export function JournalFilters({
                       onClick={() => onViewModeChange('compact')}
                       aria-pressed={viewMode === 'compact'}
                       title="Compact view - shows more entries"
-                    className={`flex min-h-[40px] items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-[13px] font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:rgba(232,218,195,0.45)] ${
+                    className={`flex min-h-touch items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-[13px] font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:rgba(232,218,195,0.45)] ${
                       viewMode === 'compact'
                         ? 'bg-[color:rgba(212,184,150,0.15)] text-[color:var(--text-main)] shadow-[0_4px_12px_-6px_rgba(212,184,150,0.5)]'
                         : 'text-[color:var(--text-muted)] hover:text-[color:var(--text-main)]'
