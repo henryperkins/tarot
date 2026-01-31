@@ -120,7 +120,13 @@ function wrangler(args, options = {}) {
   };
 }
 
+const ALLOWED_COMMANDS = new Set(['npm', 'npx']);
+
 function spawnCommand(command, args, options = {}) {
+  if (!ALLOWED_COMMANDS.has(command)) {
+    throw new Error(`Command not allowed: ${command}`);
+  }
+
   const spawnOptions = {
     cwd: ROOT_DIR,
     stdio: 'inherit',
