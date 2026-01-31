@@ -5,12 +5,8 @@
  * Provides real-time astronomical data for tarot readings
  */
 
-import { Server } from '@modelcontextprotocol/sdk/server/index.js';
+import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
-import {
-  CallToolRequestSchema,
-  ListToolsRequestSchema,
-} from '@modelcontextprotocol/sdk/types.js';
 
 import {
   getCurrentPositions,
@@ -20,219 +16,113 @@ import {
   getEphemerisForReading
 } from './ephemeris.js';
 
-const server = new Server(
-  {
-    name: 'ephemeris-server',
-    version: '1.0.0',
-  },
-  {
-    capabilities: {
-      tools: {},
-    },
+const server = new McpServer({
+  name: 'ephemeris-server',
+  version: '1.0.0',
+});
+
+// Define tool: get_current_positions
+server.tool(
+  'get_current_positions',
+  'Get current planetary positions (sign, degree, house)',
+  {},
+  async () => {
+    return {
+      content: [{ type: 'text', text: JSON.stringify(getCurrentPositions(), null, 2) }],
+    };
   }
 );
 
-// Define available tools
-server.setRequestHandler(ListToolsRequestSchema, async () => {
-  return {
-    tools: [
-      {
-        name: 'get_current_positions',
-        description: 'Get current planetary positions (sign, degree, house)',
-        inputSchema: {
-          type: 'object',
-          properties: {},
-        },
-      },
-      {
-        name: 'get_moon_phase',
-        description: 'Get current moon phase, illumination percentage, and sign placement',
-        inputSchema: {
-          type: 'object',
-          properties: {
-            date: {
-              type: 'string',
-              description: 'Optional ISO date string. Defaults to now.',
-            },
-          },
-        },
-      },
-      {
-        name: 'get_planetary_aspects',
-        description: 'Get active planetary aspects (conjunctions, squares, trines, etc.)',
-        inputSchema: {
-          type: 'object',
-          properties: {
-            date: {
-              type: 'string',
-              description: 'Optional ISO date string. Defaults to now.',
-            },
-            orb: {
-              type: 'number',
-              description: 'Orb in degrees (default: 8)',
-              default: 8,
-            },
-          },
-        },
-      },
-      {
-        name: 'get_retrograde_planets',
-        description: 'Get list of planets currently in retrograde motion',
-        inputSchema: {
-          type: 'object',
-          properties: {
-            date: {
-              type: 'string',
-              description: 'Optional ISO date string. Defaults to now.',
-            },
-          },
-        },
-      },
-      {
-        name: 'get_ephemeris_for_reading',
-        description: 'Get complete astrological snapshot for a tarot reading timestamp',
-        inputSchema: {
-          type: 'object',
-          properties: {
-            timestamp: {
-              type: 'string',
-              description: 'ISO timestamp of the reading',
-              required: true,
-            },
-          },
-          required: ['timestamp'],
-        },
-      },
-      {
-        name: 'get_daily_astrological_weather',
-        description: 'Get overall astrological "weather" - key transits and themes for the day',
-        inputSchema: {
-          type: 'object',
-          properties: {
-            date: {
-              type: 'string',
-              description: 'Optional ISO date string. Defaults to today.',
-            },
-          },
-        },
-      },
-    ],
-  };
-});
-
-// Handle tool calls
-server.setRequestHandler(CallToolRequestSchema, async (request) => {
-  const { name, arguments: args } = request.params;
-
-  try {
-    switch (name) {
-      case 'get_current_positions':
-        return {
-          content: [
-            {
-              type: 'text',
-              text: JSON.stringify(getCurrentPositions(), null, 2),
-            },
-          ],
-        };
-
-      case 'get_moon_phase':
-        return {
-          content: [
-            {
-              type: 'text',
-              text: JSON.stringify(getMoonPhase(args?.date), null, 2),
-            },
-          ],
-        };
-
-      case 'get_planetary_aspects':
-        return {
-          content: [
-            {
-              type: 'text',
-              text: JSON.stringify(
-                getPlanetaryAspects(args?.date, args?.orb),
-                null,
-                2
-              ),
-            },
-          ],
-        };
-
-      case 'get_retrograde_planets':
-        return {
-          content: [
-            {
-              type: 'text',
-              text: JSON.stringify(getRetrogradePlanets(args?.date), null, 2),
-            },
-          ],
-        };
-
-      case 'get_ephemeris_for_reading':
-        if (!args?.timestamp) {
-          throw new Error('timestamp is required');
-        }
-        return {
-          content: [
-            {
-              type: 'text',
-              text: JSON.stringify(
-                getEphemerisForReading(args.timestamp),
-                null,
-                2
-              ),
-            },
-          ],
-        };
-
-      case 'get_daily_astrological_weather': {
-        const positions = getCurrentPositions(args?.date);
-        const aspects = getPlanetaryAspects(args?.date);
-        const moon = getMoonPhase(args?.date);
-        const retrogrades = getRetrogradePlanets(args?.date);
-
-        const weather = {
-          date: args?.date || new Date().toISOString(),
-          moon,
-          retrogrades,
-          majorAspects: aspects.filter((a) => a.orb < 3),
-          keyTransits: identifyKeyTransits(positions, aspects),
-          dailyTheme: generateDailyTheme(positions, aspects, moon, retrogrades),
-        };
-
-        return {
-          content: [
-            {
-              type: 'text',
-              text: JSON.stringify(weather, null, 2),
-            },
-          ],
-        };
-      }
-
-      default:
-        throw new Error(`Unknown tool: ${name}`);
-    }
-  } catch (error) {
+// Define tool: get_moon_phase
+server.tool(
+  'get_moon_phase',
+  'Get current moon phase, illumination percentage, and sign placement',
+  {
+    date: { type: 'string', description: 'Optional ISO date string. Defaults to now.' },
+  },
+  async ({ date }) => {
     return {
-      content: [
-        {
-          type: 'text',
-          text: JSON.stringify({ error: error.message }, null, 2),
-        },
-      ],
-      isError: true,
+      content: [{ type: 'text', text: JSON.stringify(getMoonPhase(date), null, 2) }],
     };
   }
-});
+);
+
+// Define tool: get_planetary_aspects
+server.tool(
+  'get_planetary_aspects',
+  'Get active planetary aspects (conjunctions, squares, trines, etc.)',
+  {
+    date: { type: 'string', description: 'Optional ISO date string. Defaults to now.' },
+    orb: { type: 'number', description: 'Orb in degrees (default: 8)' },
+  },
+  async ({ date, orb }) => {
+    return {
+      content: [{ type: 'text', text: JSON.stringify(getPlanetaryAspects(date, orb), null, 2) }],
+    };
+  }
+);
+
+// Define tool: get_retrograde_planets
+server.tool(
+  'get_retrograde_planets',
+  'Get list of planets currently in retrograde motion',
+  {
+    date: { type: 'string', description: 'Optional ISO date string. Defaults to now.' },
+  },
+  async ({ date }) => {
+    return {
+      content: [{ type: 'text', text: JSON.stringify(getRetrogradePlanets(date), null, 2) }],
+    };
+  }
+);
+
+// Define tool: get_ephemeris_for_reading
+server.tool(
+  'get_ephemeris_for_reading',
+  'Get complete astrological snapshot for a tarot reading timestamp',
+  {
+    timestamp: { type: 'string', description: 'ISO timestamp of the reading' },
+  },
+  async ({ timestamp }) => {
+    if (!timestamp) throw new Error('timestamp is required');
+    return {
+      content: [{ type: 'text', text: JSON.stringify(getEphemerisForReading(timestamp), null, 2) }],
+    };
+  }
+);
+
+// Define tool: get_daily_astrological_weather
+server.tool(
+  'get_daily_astrological_weather',
+  'Get overall astrological "weather" - key transits and themes for the day',
+  {
+    date: { type: 'string', description: 'Optional ISO date string. Defaults to today.' },
+  },
+  async ({ date }) => {
+    const positions = getCurrentPositions(date);
+    const aspects = getPlanetaryAspects(date);
+    const moon = getMoonPhase(date);
+    const retrogrades = getRetrogradePlanets(date);
+
+    const weather = {
+      date: date || new Date().toISOString(),
+      moon,
+      retrogrades,
+      majorAspects: aspects.filter((a) => a.orb < 3),
+      keyTransits: identifyKeyTransits(positions, aspects),
+      dailyTheme: generateDailyTheme(positions, aspects, moon, retrogrades),
+    };
+
+    return {
+      content: [{ type: 'text', text: JSON.stringify(weather, null, 2) }],
+    };
+  }
+);
 
 // Helper functions
 function identifyKeyTransits(positions, aspects) {
   const keyTransits = [];
 
-  // Look for significant aspects
   aspects.forEach((aspect) => {
     if (aspect.orb < 2 && aspect.type !== 'sextile') {
       keyTransits.push({
@@ -243,7 +133,6 @@ function identifyKeyTransits(positions, aspects) {
     }
   });
 
-  // Check for sign changes (planets at 0-2 degrees)
   Object.entries(positions).forEach(([planet, data]) => {
     if (data.degree < 2) {
       keyTransits.push({
@@ -260,7 +149,6 @@ function identifyKeyTransits(positions, aspects) {
 function generateDailyTheme(positions, aspects, moon, retrogrades) {
   const themes = [];
 
-  // Moon phase influence
   if (moon.phase === 'New Moon') {
     themes.push('Beginnings, intention-setting, new cycles');
   } else if (moon.phase === 'Full Moon') {
@@ -271,12 +159,10 @@ function generateDailyTheme(positions, aspects, moon, retrogrades) {
     themes.push('Release, reflection, integration');
   }
 
-  // Retrograde influence
   if (retrogrades.length > 0) {
     themes.push(`Reflection and review (${retrogrades.length} retrograde${retrogrades.length > 1 ? 's' : ''})`);
   }
 
-  // Major aspects
   const squares = aspects.filter((a) => a.type === 'square' && a.orb < 3);
   const trines = aspects.filter((a) => a.type === 'trine' && a.orb < 3);
 

@@ -5,305 +5,121 @@
  * Provides comprehensive symbolism database for tarot interpretation
  */
 
-import { Server } from '@modelcontextprotocol/sdk/server/index.js';
+import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
-import {
-  CallToolRequestSchema,
-  ListToolsRequestSchema,
-} from '@modelcontextprotocol/sdk/types.js';
 
 import { searchSymbols, getSymbol, getCategory, fuzzyMatch, getRelatedSymbols } from './database.js';
 
-const server = new Server(
+const server = new McpServer({
+  name: 'symbolism-server',
+  version: '1.0.0',
+});
+
+// Define tool: search_symbols
+server.tool(
+  'search_symbols',
+  'Search for symbols by keyword or name. Returns matching symbols with meanings and interpretations.',
   {
-    name: 'symbolism-server',
-    version: '1.0.0',
+    query: { type: 'string', description: 'Search query (symbol name or keyword)' },
+    category: { type: 'string', description: 'Optional category filter: animals, colors, numbers, elements, plants, celestial' },
+    limit: { type: 'number', description: 'Maximum number of results (default: 10)' },
   },
-  {
-    capabilities: {
-      tools: {},
-    },
+  async ({ query, category, limit }) => {
+    if (!query) throw new Error('query is required');
+    const results = searchSymbols(query, category, limit);
+    return { content: [{ type: 'text', text: JSON.stringify(results, null, 2) }] };
   }
 );
 
-// Define available tools
-server.setRequestHandler(ListToolsRequestSchema, async () => {
-  return {
-    tools: [
-      {
-        name: 'search_symbols',
-        description: 'Search for symbols by keyword or name. Returns matching symbols with meanings and interpretations.',
-        inputSchema: {
-          type: 'object',
-          properties: {
-            query: {
-              type: 'string',
-              description: 'Search query (symbol name or keyword)',
-              required: true,
-            },
-            category: {
-              type: 'string',
-              description: 'Optional category filter: animals, colors, numbers, elements, plants, celestial',
-              enum: ['animals', 'colors', 'numbers', 'elements', 'plants', 'celestial'],
-            },
-            limit: {
-              type: 'number',
-              description: 'Maximum number of results (default: 10)',
-              default: 10,
-            },
-          },
-          required: ['query'],
-        },
-      },
-      {
-        name: 'get_symbol',
-        description: 'Get detailed information about a specific symbol',
-        inputSchema: {
-          type: 'object',
-          properties: {
-            category: {
-              type: 'string',
-              description: 'Symbol category',
-              enum: ['animals', 'colors', 'numbers', 'elements', 'plants', 'celestial'],
-              required: true,
-            },
-            name: {
-              type: 'string',
-              description: 'Symbol name (e.g., "rose", "red", "7")',
-              required: true,
-            },
-          },
-          required: ['category', 'name'],
-        },
-      },
-      {
-        name: 'get_category',
-        description: 'Get all symbols in a specific category',
-        inputSchema: {
-          type: 'object',
-          properties: {
-            category: {
-              type: 'string',
-              description: 'Category to retrieve',
-              enum: ['animals', 'colors', 'numbers', 'elements', 'plants', 'celestial'],
-              required: true,
-            },
-          },
-          required: ['category'],
-        },
-      },
-      {
-        name: 'get_related_symbols',
-        description: 'Get symbols related to a specific theme or archetype',
-        inputSchema: {
-          type: 'object',
-          properties: {
-            theme: {
-              type: 'string',
-              description: 'Theme to explore (e.g., "transformation", "love", "wisdom")',
-              required: true,
-            },
-            limit: {
-              type: 'number',
-              description: 'Maximum number of results (default: 10)',
-              default: 10,
-            },
-          },
-          required: ['theme'],
-        },
-      },
-      {
-        name: 'interpret_card_symbols',
-        description: 'Get interpretation framework for common symbols appearing in a tarot card',
-        inputSchema: {
-          type: 'object',
-          properties: {
-            cardName: {
-              type: 'string',
-              description: 'Name of the tarot card',
-              required: true,
-            },
-            symbols: {
-              type: 'array',
-              description: 'List of symbols visible in the card',
-              items: {
-                type: 'string',
-              },
-              required: true,
-            },
-          },
-          required: ['cardName', 'symbols'],
-        },
-      },
-      {
-        name: 'get_color_meanings',
-        description: 'Get comprehensive color symbolism and meanings',
-        inputSchema: {
-          type: 'object',
-          properties: {
-            colors: {
-              type: 'array',
-              description: 'List of colors to interpret',
-              items: {
-                type: 'string',
-              },
-              required: true,
-            },
-          },
-          required: ['colors'],
-        },
-      },
-      {
-        name: 'get_numerological_insight',
-        description: 'Get numerological meaning for a number or card position',
-        inputSchema: {
-          type: 'object',
-          properties: {
-            number: {
-              type: 'string',
-              description: 'Number to interpret (0-10)',
-              required: true,
-            },
-          },
-          required: ['number'],
-        },
-      },
-    ],
-  };
-});
-
-// Handle tool calls
-server.setRequestHandler(CallToolRequestSchema, async (request) => {
-  const { name, arguments: args } = request.params;
-
-  try {
-    switch (name) {
-      case 'search_symbols': {
-        if (!args?.query) {
-          throw new Error('query is required');
-        }
-        const results = searchSymbols(args.query, args.category, args.limit);
-        return {
-          content: [
-            {
-              type: 'text',
-              text: JSON.stringify(results, null, 2),
-            },
-          ],
-        };
-      }
-
-      case 'get_symbol': {
-        if (!args?.category || !args?.name) {
-          throw new Error('category and name are required');
-        }
-        const symbol = getSymbol(args.category, args.name);
-        return {
-          content: [
-            {
-              type: 'text',
-              text: JSON.stringify(symbol, null, 2),
-            },
-          ],
-        };
-      }
-
-      case 'get_category': {
-        if (!args?.category) {
-          throw new Error('category is required');
-        }
-        const category = getCategory(args.category);
-        return {
-          content: [
-            {
-              type: 'text',
-              text: JSON.stringify(category, null, 2),
-            },
-          ],
-        };
-      }
-
-      case 'get_related_symbols': {
-        if (!args?.theme) {
-          throw new Error('theme is required');
-        }
-        const related = getRelatedSymbols(args.theme, args.limit);
-        return {
-          content: [
-            {
-              type: 'text',
-              text: JSON.stringify(related, null, 2),
-            },
-          ],
-        };
-      }
-
-      case 'interpret_card_symbols': {
-        if (!args?.cardName || !args?.symbols) {
-          throw new Error('cardName and symbols are required');
-        }
-        const interpretation = interpretCardSymbols(args.cardName, args.symbols);
-        return {
-          content: [
-            {
-              type: 'text',
-              text: JSON.stringify(interpretation, null, 2),
-            },
-          ],
-        };
-      }
-
-      case 'get_color_meanings': {
-        if (!args?.colors) {
-          throw new Error('colors is required');
-        }
-        const colorMeanings = args.colors.map((color) => {
-          const colorData = getSymbol('colors', color.toLowerCase());
-          return {
-            color,
-            ...colorData,
-          };
-        });
-        return {
-          content: [
-            {
-              type: 'text',
-              text: JSON.stringify(colorMeanings, null, 2),
-            },
-          ],
-        };
-      }
-
-      case 'get_numerological_insight': {
-        if (!args?.number) {
-          throw new Error('number is required');
-        }
-        const numData = getSymbol('numbers', args.number);
-        return {
-          content: [
-            {
-              type: 'text',
-              text: JSON.stringify(numData, null, 2),
-            },
-          ],
-        };
-      }
-
-      default:
-        throw new Error(`Unknown tool: ${name}`);
-    }
-  } catch (error) {
-    return {
-      content: [
-        {
-          type: 'text',
-          text: JSON.stringify({ error: error.message }, null, 2),
-        },
-      ],
-      isError: true,
-    };
+// Define tool: get_symbol
+server.tool(
+  'get_symbol',
+  'Get detailed information about a specific symbol',
+  {
+    category: { type: 'string', description: 'Symbol category' },
+    name: { type: 'string', description: 'Symbol name (e.g., "rose", "red", "7")' },
+  },
+  async ({ category, name }) => {
+    if (!category || !name) throw new Error('category and name are required');
+    const symbol = getSymbol(category, name);
+    return { content: [{ type: 'text', text: JSON.stringify(symbol, null, 2) }] };
   }
-});
+);
+
+// Define tool: get_category
+server.tool(
+  'get_category',
+  'Get all symbols in a specific category',
+  {
+    category: { type: 'string', description: 'Category to retrieve' },
+  },
+  async ({ category }) => {
+    if (!category) throw new Error('category is required');
+    const categoryData = getCategory(category);
+    return { content: [{ type: 'text', text: JSON.stringify(categoryData, null, 2) }] };
+  }
+);
+
+// Define tool: get_related_symbols
+server.tool(
+  'get_related_symbols',
+  'Get symbols related to a specific theme or archetype',
+  {
+    theme: { type: 'string', description: 'Theme to explore (e.g., "transformation", "love", "wisdom")' },
+    limit: { type: 'number', description: 'Maximum number of results (default: 10)' },
+  },
+  async ({ theme, limit }) => {
+    if (!theme) throw new Error('theme is required');
+    const related = getRelatedSymbols(theme, limit);
+    return { content: [{ type: 'text', text: JSON.stringify(related, null, 2) }] };
+  }
+);
+
+// Define tool: interpret_card_symbols
+server.tool(
+  'interpret_card_symbols',
+  'Get interpretation framework for common symbols appearing in a tarot card',
+  {
+    cardName: { type: 'string', description: 'Name of the tarot card' },
+    symbols: { type: 'array', description: 'List of symbols visible in the card' },
+  },
+  async ({ cardName, symbols }) => {
+    if (!cardName || !symbols) throw new Error('cardName and symbols are required');
+    const interpretation = interpretCardSymbols(cardName, symbols);
+    return { content: [{ type: 'text', text: JSON.stringify(interpretation, null, 2) }] };
+  }
+);
+
+// Define tool: get_color_meanings
+server.tool(
+  'get_color_meanings',
+  'Get comprehensive color symbolism and meanings',
+  {
+    colors: { type: 'array', description: 'List of colors to interpret' },
+  },
+  async ({ colors }) => {
+    if (!colors) throw new Error('colors is required');
+    const colorMeanings = colors.map((color) => {
+      const colorData = getSymbol('colors', color.toLowerCase());
+      return { color, ...colorData };
+    });
+    return { content: [{ type: 'text', text: JSON.stringify(colorMeanings, null, 2) }] };
+  }
+);
+
+// Define tool: get_numerological_insight
+server.tool(
+  'get_numerological_insight',
+  'Get numerological meaning for a number or card position',
+  {
+    number: { type: 'string', description: 'Number to interpret (0-10)' },
+  },
+  async ({ number }) => {
+    if (!number) throw new Error('number is required');
+    const numData = getSymbol('numbers', number);
+    return { content: [{ type: 'text', text: JSON.stringify(numData, null, 2) }] };
+  }
+);
 
 /**
  * Interpret symbols in context of a specific card
