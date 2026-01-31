@@ -327,7 +327,6 @@ export async function generateWithClaudeOpus45(env, payload, requestId = 'unknow
   // Model = deployment name in Foundry (e.g., 'claude-opus-4-5' or custom)
   const model = env.AZURE_ANTHROPIC_MODEL || 'claude-opus-4-5';
 
-  console.log(`[${requestId}] Azure Foundry Claude config: endpoint=${baseEndpoint ? 'set' : 'missing'}, apiKey=${apiKey ? 'set' : 'missing'}, model=${model}`);
   const deckStyle = spreadInfo?.deckStyle || analysis?.themes?.deckStyle || cardsInfo?.[0]?.deckStyle || 'rws-1909';
 
   // Resolve semantic scoring: env override takes priority, then graphRAG payload setting
