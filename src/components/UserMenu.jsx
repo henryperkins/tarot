@@ -410,8 +410,8 @@ export function UserMenu({ condensed = false }) {
               <Gear className="w-4 h-4" aria-hidden="true" />
               <span className="hidden xs:inline">Settings</span>
             </Link>
-            <button
-              onClick={() => setShowAuthModal(true)}
+            <a
+              href="/api/login"
               className="
                 flex items-center gap-1.5 px-3 sm:px-4 min-h-touch
                 rounded-full bg-primary text-surface
@@ -424,7 +424,7 @@ export function UserMenu({ condensed = false }) {
             >
               <SignIn className="w-4 h-4" aria-hidden="true" />
               <span>Sign In</span>
-            </button>
+            </a>
           </div>
         )}
       </div>

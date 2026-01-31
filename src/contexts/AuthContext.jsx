@@ -20,13 +20,20 @@ export function AuthProvider({ children }) {
 
   const checkAuth = async () => {
     try {
-      const response = await fetch('/api/auth/me', {
-        credentials: 'include' // Include cookies
+      const response = await fetch('/api/auth/user', {
+        credentials: 'include'
       });
 
       if (response.ok) {
         const data = await response.json();
-        setUser(data.user);
+        setUser({
+          id: data.id,
+          email: data.email,
+          username: data.firstName || data.email?.split('@')[0] || 'User',
+          firstName: data.firstName,
+          lastName: data.lastName,
+          profileImageUrl: data.profileImageUrl
+        });
       } else {
         setUser(null);
       }
@@ -38,132 +45,42 @@ export function AuthProvider({ children }) {
     }
   };
 
-  const register = async (email, username, password) => {
-    setError(null);
-    try {
-      const response = await fetch('/api/auth/register', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        credentials: 'include',
-        body: JSON.stringify({ email, username, password })
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Registration failed');
-      }
-
-      setUser(data.user);
-      return { success: true, user: data.user };
-    } catch (err) {
-      setError(err.message);
-      return { success: false, error: err.message };
-    }
+  const register = async () => {
+    window.location.href = '/api/login';
+    return { success: true };
   };
 
-  const login = async (email, password) => {
-    setError(null);
-    try {
-      const response = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        credentials: 'include',
-        body: JSON.stringify({ email, password })
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Login failed');
-      }
-
-      setUser(data.user);
-      return { success: true, user: data.user };
-    } catch (err) {
-      setError(err.message);
-      return { success: false, error: err.message };
-    }
+  const login = async () => {
+    window.location.href = '/api/login';
+    return { success: true };
   };
 
   const logout = async () => {
     setError(null);
-    const logoutUserId = user?.id; // Capture before clearing
-    try {
-      await fetch('/api/auth/logout', {
-        method: 'POST',
-        credentials: 'include'
-      });
-
-      setUser(null);
-      return { success: true };
-    } catch (err) {
-      setError(err.message);
-      return { success: false, error: err.message };
-    } finally {
-      // Clear all user-specific caches to prevent data leakage
-      clearAllNarrativeCaches();
-
-      // Clear journal cache and insights for the logged-out user
-      if (logoutUserId && typeof localStorage !== 'undefined') {
-        try {
-          // Clear user-scoped journal cache
-          const journalCacheKey = `${JOURNAL_CACHE_KEY_PREFIX}_${logoutUserId}`;
-          localStorage.removeItem(journalCacheKey);
-
-          // Clear journal insights and coach data
-          clearJournalInsightsCache(logoutUserId);
-        } catch (e) {
-          console.warn('Failed to clear user caches on logout:', e);
-        }
+    const logoutUserId = user?.id;
+    
+    clearAllNarrativeCaches();
+    
+    if (logoutUserId && typeof localStorage !== 'undefined') {
+      try {
+        const journalCacheKey = `${JOURNAL_CACHE_KEY_PREFIX}_${logoutUserId}`;
+        localStorage.removeItem(journalCacheKey);
+        clearJournalInsightsCache(logoutUserId);
+      } catch (e) {
+        console.warn('Failed to clear user caches on logout:', e);
       }
     }
+    
+    window.location.href = '/api/logout';
+    return { success: true };
   };
 
-  const requestPasswordReset = async (email) => {
-    setError(null);
-    try {
-      const response = await fetch('/api/auth/forgot-password', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email })
-      });
-
-      const data = await response.json().catch(() => ({}));
-      if (!response.ok) {
-        throw new Error(data.error || 'Unable to process reset request');
-      }
-
-      return { success: true };
-    } catch (err) {
-      setError(err.message);
-      return { success: false, error: err.message };
-    }
+  const requestPasswordReset = async () => {
+    return { success: false, error: 'Password reset is managed by Replit Auth' };
   };
 
-  const resendVerification = async (email) => {
-    setError(null);
-    try {
-      const response = await fetch('/api/auth/verify-email/resend', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email })
-      });
-
-      const data = await response.json().catch(() => ({}));
-      if (!response.ok) {
-        throw new Error(data.error || 'Unable to send verification email');
-      }
-
-      return { success: true };
-    } catch (err) {
-      setError(err.message);
-      return { success: false, error: err.message };
-    }
+  const resendVerification = async () => {
+    return { success: false, error: 'Email verification is managed by Replit Auth' };
   };
 
   const value = {
