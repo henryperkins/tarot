@@ -520,7 +520,7 @@ export function MobileActionBar({ isOverlayActive = false, ...props }) {
       aria-label="Primary mobile actions"
       style={barStyle}
       aria-hidden={isOverlayActive}
-      inert={isOverlayActive || undefined}
+      inert={isOverlayActive ? '' : undefined}
       data-overlay-active={isOverlayActive ? 'true' : undefined}
     >
       <MobileActionContents {...props} />
