@@ -34,7 +34,7 @@ export function getSession() {
     saveUninitialized: false,
     cookie: {
       httpOnly: true,
-      secure: true,
+      secure: process.env.NODE_ENV === 'production' || process.env.REPL_ID !== undefined,
       maxAge: sessionTtl,
     },
   });
@@ -126,6 +126,21 @@ export async function setupAuth(app: Express) {
           post_logout_redirect_uri: `${req.protocol}://${req.hostname}`,
         }).href
       );
+    });
+  });
+
+  app.get("/api/auth/user", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ message: "Not authenticated" });
+    }
+    const user = req.user as any;
+    const claims = user.claims;
+    res.json({
+      id: claims?.sub,
+      email: claims?.email,
+      firstName: claims?.first_name,
+      lastName: claims?.last_name,
+      profileImageUrl: claims?.profile_image_url
     });
   });
 }

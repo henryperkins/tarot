@@ -4,14 +4,12 @@ import { SignIn, User, SignOut, BookOpen, Gear, Crown, Sparkle, Moon } from '@ph
 import { useAuth } from '../contexts/AuthContext';
 import { useSubscription, SUBSCRIPTION_TIERS } from '../contexts/SubscriptionContext';
 import { usePreferences } from '../contexts/PreferencesContext';
-import AuthModal from './AuthModal';
 import { ConfirmModal } from './ConfirmModal';
 
 export function UserMenu({ condensed = false }) {
   const { isAuthenticated, user, logout } = useAuth();
   const { tier, isPaid } = useSubscription();
   const { resetOnboarding, onboardingComplete } = usePreferences();
-  const [showAuthModal, setShowAuthModal] = useState(false);
   const [showDropdown, setShowDropdown] = useState(false);
   const [journeyEnabled, setJourneyEnabled] = useState(null);
   const [journeyLoading, setJourneyLoading] = useState(false);
@@ -429,7 +427,6 @@ export function UserMenu({ condensed = false }) {
         )}
       </div>
 
-      <AuthModal isOpen={showAuthModal} onClose={() => setShowAuthModal(false)} />
       <ConfirmModal
         isOpen={tutorialResetOpen}
         onClose={() => setTutorialResetOpen(false)}
