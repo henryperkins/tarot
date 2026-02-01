@@ -8,6 +8,7 @@ import { getSuitBorderColor, getRevealedCardGlow } from '../lib/suitColors';
 import { extractShortLabel, getPositionLabel } from './readingBoardUtils';
 import { HandTap } from '@phosphor-icons/react';
 import { useHaptic } from '../hooks/useHaptic';
+import { MICROCOPY } from '../lib/microcopy';
 
 /**
  * Spread layout definitions (x, y as percentage of container)
@@ -836,11 +837,11 @@ export function SpreadTable({
                           {showRevealPill ? (
                             <span className={`${compact ? 'text-[0.55rem] xs:text-[0.6rem]' : 'text-[0.65rem] xs:text-[0.7rem] sm:text-xs-plus'} inline-flex items-center gap-1 rounded-full bg-main/85 text-main font-semibold px-2.5 py-1 shadow-lg border border-primary/30`}>
                               <HandTap className="w-3.5 h-3.5" weight="fill" />
-                              Tap to reveal
+                              {MICROCOPY.tapToReveal}
                             </span>
                           ) : showGlowHint ? (
                             <span className="inline-flex items-center gap-1 rounded-full bg-main/70 text-primary/80 text-[0.6rem] sm:text-[0.65rem] font-semibold px-2 py-1 border border-primary/25 shadow-[0_0_12px_var(--primary-30)]">
-                              Ready
+                              {MICROCOPY.cardReady}
                             </span>
                           ) : null}
                         </div>
@@ -888,38 +889,48 @@ export function SpreadTable({
 }
 
 /**
- * Compact horizontal spread preview for mobile
+ * Compact horizontal spread preview for mobile.
+ * Optionally interactive when onSlotClick is provided.
  */
-export function SpreadTableCompact({ spreadKey, cards = [], revealedIndices = new Set() }) {
+export function SpreadTableCompact({
+  spreadKey,
+  cards = [],
+  revealedIndices = new Set(),
+  onSlotClick,
+  activeSlot
+}) {
   const layout = SPREAD_LAYOUTS[spreadKey] || SPREAD_LAYOUTS.single;
   const spreadInfo = SPREADS[spreadKey];
+  const isInteractive = typeof onSlotClick === 'function';
 
   return (
     <div
       className="flex items-center justify-center gap-2 py-3 px-4 bg-surface/40 rounded-xl border border-accent/15"
-      role="region"
-      aria-label={`${spreadInfo?.name || 'Spread'} progress`}
+      role={isInteractive ? 'listbox' : 'region'}
+      aria-label={`${spreadInfo?.name || 'Spread'} ${isInteractive ? 'card selector' : 'progress'}`}
     >
       {layout.map((pos, i) => {
         const card = cards?.[i];
         const isRevealed = revealedIndices?.has?.(i) || false;
+        const isActive = activeSlot === i;
 
-        return (
-          <div
-            key={i}
-            className={`
-              w-7 h-10 xs:w-8 xs:h-11 rounded border
-              flex items-center justify-center
-              transition-all
-              ${card
-                ? isRevealed
-                  ? 'border-secondary/50 bg-secondary/20'
-                  : 'border-primary/40 bg-primary/10'
-                : 'border-accent/20 bg-surface/50'
-              }
-            `}
-            title={pos.label || `Position ${i + 1}`}
-          >
+        const slotClasses = `
+          w-7 h-10 xs:w-8 xs:h-11 rounded border
+          flex items-center justify-center
+          transition-all
+          ${isActive
+            ? 'ring-2 ring-primary/60 border-primary/80 bg-primary/20'
+            : card
+              ? isRevealed
+                ? 'border-secondary/50 bg-secondary/20'
+                : 'border-primary/40 bg-primary/10'
+              : 'border-accent/20 bg-surface/50'
+          }
+          ${isInteractive ? 'cursor-pointer hover:border-primary/60 touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary' : ''}
+        `;
+
+        const content = (
+          <>
             {card && isRevealed ? (
               <span className="text-[0.5rem] xs:text-[0.55rem] text-secondary font-bold">
                 {card.name.charAt(0)}
@@ -927,6 +938,32 @@ export function SpreadTableCompact({ spreadKey, cards = [], revealedIndices = ne
             ) : card ? (
               <span className="text-[0.5rem] xs:text-[0.55rem] text-primary">?</span>
             ) : null}
+          </>
+        );
+
+        if (isInteractive) {
+          return (
+            <button
+              key={i}
+              type="button"
+              onClick={() => onSlotClick(i)}
+              role="option"
+              aria-selected={isActive}
+              aria-label={`${pos.label || `Position ${i + 1}`}${card ? `: ${card.name}` : ''}`}
+              className={slotClasses}
+            >
+              {content}
+            </button>
+          );
+        }
+
+        return (
+          <div
+            key={i}
+            className={slotClasses}
+            title={pos.label || `Position ${i + 1}`}
+          >
+            {content}
           </div>
         );
       })}

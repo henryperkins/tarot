@@ -2900,6 +2900,76 @@ input[type="range"]:focus::-webkit-slider-thumb {
   }
 }
 
+/* ==========================================================================
+   Card Press-Down Spring Animation (P4 Micro-interactions)
+   ========================================================================== */
+
+/* Press-down effect for card reveal buttons with spring easing */
+.card-swipe-container:active {
+  transform: scale(0.95);
+  transition: transform 0.08s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* Disable press animation for reduced motion users */
+@media (prefers-reduced-motion: reduce) {
+  .card-swipe-container:active {
+    transform: none;
+  }
+}
+
+/* ==========================================================================
+   Landscape Split-Dashboard Layout (P2)
+   ========================================================================== */
+
+/* Container for landscape split view */
+.landscape-split-view {
+  display: flex;
+  gap: 0.5rem;
+  width: 100%;
+}
+
+/* Left pane: mini-map */
+.landscape-split-minimap {
+  flex-shrink: 0;
+  width: 40%;
+  min-width: 120px;
+  max-width: 200px;
+}
+
+/* Right pane: card inspection */
+.landscape-split-inspection {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Landscape-specific constraints */
+@media (orientation: landscape) and (max-height: 500px) {
+  .landscape-split-view {
+    min-height: 180px;
+    max-height: 300px;
+  }
+
+  .landscape-split-minimap {
+    max-height: 100%;
+  }
+
+  .landscape-split-inspection {
+    max-height: 100%;
+  }
+
+  /* Compact card styles within split view */
+  .landscape-split-inspection .modern-surface {
+    padding: 0.5rem;
+  }
+
+  .landscape-split-inspection .card-swipe-container {
+    min-height: 160px;
+    max-height: 240px;
+  }
+}
+
 /* Narrative streaming container refinements */
 .narrative-stream {
   width: 100%;

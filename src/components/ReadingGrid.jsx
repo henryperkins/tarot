@@ -6,6 +6,7 @@ import { Card } from './Card';
 import { Tooltip } from './Tooltip';
 import { CarouselDots } from './CarouselDots';
 import { SpreadTableCompact } from './SpreadTable';
+import { LandscapeSplitView } from './LandscapeSplitView';
 import { useSmallScreen } from '../hooks/useSmallScreen';
 import { useReducedMotion } from '../hooks/useReducedMotion';
 import { useLandscape } from '../hooks/useLandscape';
@@ -386,6 +387,26 @@ export function ReadingGrid({
   if (!reading) return null;
 
   const spreadInfo = getSpreadInfo(selectedSpread);
+
+  // Use landscape split-dashboard for multi-card spreads in compact landscape
+  const shouldUseSplitView = isLandscape && isCompactScreen && reading.length > 1;
+
+  if (shouldUseSplitView) {
+    return (
+      <LandscapeSplitView
+        selectedSpread={selectedSpread}
+        reading={reading}
+        revealedCards={revealedCards}
+        revealCard={revealCard}
+        reflections={reflections}
+        setReflections={setReflections}
+        onCardClick={onCardClick}
+        openReflectionIndex={openReflectionIndex}
+        onRequestOpenReflection={setOpenReflectionIndex}
+      />
+    );
+  }
+
   const isBatchReveal = reading.length > 1 && revealedCards.size === reading.length;
   const batchStagger = Math.min(0.12, Math.max(0.08, 0.8 / Math.max(1, reading.length - 1)));
 
@@ -435,6 +456,7 @@ export function ReadingGrid({
       >
         {reading.map((card, index) => {
           const position = spreadInfo?.positions?.[index] || `Position ${index + 1}`;
+          const roleKey = spreadInfo?.roleKeys?.[index] || null;
           const isRevealed = revealedCards.has(index);
           const tooltipContent = getTooltipContent(card, position, isRevealed);
           const reflectionPreview = (reflections?.[index] || '').trim();
@@ -446,6 +468,7 @@ export function ReadingGrid({
               isRevealed={isRevealed}
               onReveal={revealCard}
               position={position}
+              roleKey={roleKey}
               reflections={reflections}
               setReflections={setReflections}
               onCardClick={onCardClick}

@@ -8,6 +8,8 @@ import { useReducedMotion } from '../hooks/useReducedMotion';
 import { useSmallScreen } from '../hooks/useSmallScreen';
 import { useLandscape } from '../hooks/useLandscape';
 import { useHaptic } from '../hooks/useHaptic';
+import { MICROCOPY } from '../lib/microcopy';
+import { getSynthesisText, getPositionAnchor } from '../lib/positionSynthesis';
 
 const SUIT_ACCENTS = {
   wands: {
@@ -94,6 +96,7 @@ export function Card({
   isRevealed,
   onReveal,
   position,
+  roleKey,
   reflections,
   setReflections,
   onCardClick,
@@ -261,8 +264,9 @@ export function Card({
 
   const handleReveal = useCallback(() => {
     userInitiatedRevealRef.current = true;
+    vibrate(10);
     onReveal(index);
-  }, [onReveal, index]);
+  }, [onReveal, index, vibrate]);
 
   // Swipe gesture state
   const touchStartRef = useRef({ x: 0, y: 0, time: 0 });
@@ -521,7 +525,14 @@ export function Card({
       </div>
 
       {/* Card */}
-      <div className="p-3 sm:p-4 md:p-6" style={{ perspective: '1000px' }}>
+      <div className="p-3 sm:p-4 md:p-6 relative" style={{ perspective: '1000px' }}>
+        {/* Persistent anchor label - stays fixed during flip animation */}
+        <div className="absolute -top-1 left-1/2 -translate-x-1/2 z-20 pointer-events-none">
+          <span className="px-3 py-1 bg-surface/90 backdrop-blur-sm rounded-full text-xs font-semibold text-accent border border-secondary/40 shadow-sm">
+            {getPositionAnchor(position)}
+          </span>
+        </div>
+
         <div
           ref={cardRef}
           className={`transition-all duration-500 transform rounded-lg ${!isVisuallyRevealed ? '' : 'group'}`}
@@ -549,7 +560,8 @@ export function Card({
               onTouchEnd={handleTouchEnd}
               onTouchCancel={handleTouchCancel}
               aria-label={`${position}. Tap to reveal.`}
-              className={`card-swipe-container relative h-full ${isLandscape ? 'min-h-[200px] max-h-[280px]' : 'min-h-[40vh] supports-[height:1svh]:min-h-[40svh] max-h-[55vh] supports-[height:1svh]:max-h-[55svh]'} sm:min-h-[24rem] sm:max-h-none flex flex-col items-center justify-center gap-4 p-4 sm:p-6 w-full cursor-pointer hover:bg-surface-muted/70 hover:scale-105 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70 focus-visible:ring-offset-2 focus-visible:ring-offset-main`}
+              aria-expanded={isRevealed}
+              className={`card-swipe-container relative h-full ${isLandscape ? 'min-h-[200px] max-h-[280px]' : 'min-h-[40vh] supports-[height:1svh]:min-h-[40svh] max-h-[55vh] supports-[height:1svh]:max-h-[55svh]'} sm:min-h-[24rem] sm:max-h-none flex flex-col items-center justify-center gap-4 p-4 sm:p-6 w-full cursor-pointer hover:bg-surface-muted/70 hover:scale-105 active:scale-95 transition-all touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70 focus-visible:ring-offset-2 focus-visible:ring-offset-main`}
             >
               {/* Card back with mystical design */}
               <div
@@ -580,7 +592,7 @@ export function Card({
               <div className="flex flex-col items-center gap-2 mt-2">
                 <span className="inline-flex items-center gap-2 rounded-full border border-primary/60 bg-surface/90 px-4 py-2 text-sm font-semibold text-main shadow-md shadow-primary/30">
                   <HandPointing className="w-4 h-4" aria-hidden="true" />
-                  <span>Tap to reveal</span>
+                  <span>{MICROCOPY.tapToReveal}</span>
                 </span>
               </div>
             </button>
@@ -654,6 +666,13 @@ export function Card({
                   </span>
                 </div>
 
+                {/* Position synthesis text - helps user understand card-in-position meaning */}
+                {roleKey && (
+                  <p className="text-sm text-muted italic text-center mb-3 px-2">
+                    {getSynthesisText(card.name, roleKey, position)}...
+                  </p>
+                )}
+
                 <div className="mb-4 flex justify-center">
                   <CardSymbolInsights card={card} position={position} />
                 </div>
@@ -725,7 +744,7 @@ export function Card({
                       rows={isSmallScreen ? 3 : 4}
                       maxLength={500}
                       className="w-full bg-surface/85 border border-secondary/40 rounded p-2 min-h-[3.5rem] sm:min-h-[4.5rem] resize-y text-main text-base leading-relaxed focus:outline-none focus:ring-1 focus:ring-secondary/55 touch-pan-y"
-                      placeholder="What resonates? (optional)"
+                      placeholder={MICROCOPY.reflectionPlaceholder}
                       aria-describedby={`char-count-${index}`}
                     />
                     <div

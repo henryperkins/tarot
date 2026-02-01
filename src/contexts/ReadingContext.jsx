@@ -1208,7 +1208,22 @@ export function ReadingProvider({ children }) {
         if (!card) return null;
         const spreadInfo = getSpreadInfo(selectedSpread);
         const position = spreadInfo?.positions?.[index] || `Card ${index + 1}`;
-        return `${position}: ${card.name}${card.isReversed ? ' reversed' : ''}`;
+        // Look up the card's meaning for screen reader synthesis
+        const allCards = [...MAJOR_ARCANA, ...MINOR_ARCANA];
+        const originalCard = allCards.find(item => item.name === card.name) || card;
+        const meaningText = card.isReversed ? originalCard.reversed : originalCard.upright;
+        // Extract first clause of meaning for brief synthesis (up to first period or 80 chars)
+        let briefMeaning = '';
+        if (meaningText) {
+            const firstClause = meaningText.split(/[.;!?]/)[0];
+            briefMeaning = firstClause.length <= 80 ? firstClause : `${firstClause.slice(0, 77).trimEnd()}...`;
+        }
+        // Synthesized format: "The Tower reversed. Position: The Challenge. Sudden change and upheaval."
+        const orientationLabel = card.isReversed ? ' reversed' : '';
+        const synthesized = briefMeaning
+            ? `${card.name}${orientationLabel}. Position: ${position}. ${briefMeaning}.`
+            : `${card.name}${orientationLabel}. Position: ${position}.`;
+        return synthesized;
     }, [reading, selectedSpread]);
 
     const dealNext = useCallback(() => {

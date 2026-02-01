@@ -1,0 +1,21 @@
+{
+  "expo": {
+    "extra": {
+      "eas": {
+        "projectId": "d64a9c19-540d-456b-b97b-3adf4bfca317"
+      }
+    },
+    "owner": "hperkins",
+    "slug": "tableu",
+    "ios": {
+      "bundleIdentifier": "com.hperkins.tableu",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
+    },
+    "plugins": [
+      "@logrocket/react-native",
+      "expo-build-properties"
+    ]
+  }
+}
