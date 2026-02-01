@@ -1,4 +1,5 @@
 import { jsonResponse, readJsonBody, sanitizeText } from '../lib/utils.js';
+import { generateFallbackWaveform } from '../../shared/fallbackAudio.js';
 import { getUserFromRequest } from '../lib/auth.js';
 import { enforceApiCallLimit } from '../lib/apiUsage.js';
 import { getSubscriptionContext } from '../lib/entitlements.js';
@@ -142,13 +143,14 @@ export const onRequestPost = async ({ request, env }) => {
       );
     }
 
+    const selectedVoiceName = voiceName ||
+      (context && CONTEXT_VOICES[context]) ||
+      CONTEXT_VOICES.default;
+
     // Check for Hume API key
     const humeApiKey = resolveEnvStrict(env, 'HUME_API_KEY');
     if (!humeApiKey) {
-      return jsonResponse(
-        { error: 'Hume AI is not configured. Please set HUME_API_KEY environment variable.' },
-        { status: 503 }
-      );
+      return buildFallbackResponse(sanitizedText, selectedVoiceName, 'Hume AI is not configured.');
     }
 
     try {
@@ -158,10 +160,6 @@ export const onRequestPost = async ({ request, env }) => {
       };
 
       // Add voice (use context-based voice if not provided)
-      const selectedVoiceName = voiceName || 
-                                (context && CONTEXT_VOICES[context]) || 
-                                CONTEXT_VOICES.default;
-      
       utterance.voice = {
         name: selectedVoiceName,
         provider: 'HUME_AI'
@@ -225,17 +223,7 @@ export const onRequestPost = async ({ request, env }) => {
           // Keep default message if parsing fails
         }
         
-        if (response.status === 429) {
-          return jsonResponse(
-            { error: 'Rate limit exceeded. Please try again in a moment.' },
-            { status: 429 }
-          );
-        }
-        
-        return jsonResponse(
-          { error: errorMessage },
-          { status: response.status }
-        );
+        return buildFallbackResponse(sanitizedText, selectedVoiceName, errorMessage);
       }
 
       // Parse the response
@@ -262,9 +250,10 @@ export const onRequestPost = async ({ request, env }) => {
 
     } catch (error) {
       console.error(`[${requestId}] [tts-hume] Generation failed:`, error);
-      return jsonResponse(
-        { error: 'Unable to generate audio with Hume AI at this time.' },
-        { status: 500 }
+      return buildFallbackResponse(
+        sanitizedText,
+        selectedVoiceName,
+        'Unable to generate audio with Hume AI at this time.'
       );
     }
 
@@ -278,3 +267,14 @@ export const onRequestPost = async ({ request, env }) => {
 };
 
 // sanitizeText is now imported from ../lib/utils.js
+
+function buildFallbackResponse(text, voiceUsed, warning) {
+  const fallbackAudio = generateFallbackWaveform(text);
+  return jsonResponse({
+    audio: fallbackAudio,
+    provider: 'fallback',
+    generationId: null,
+    voiceUsed: voiceUsed || CONTEXT_VOICES.default,
+    warning
+  });
+}

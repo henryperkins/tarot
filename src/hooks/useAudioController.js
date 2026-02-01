@@ -35,6 +35,7 @@ export function useAudioController() {
   // Track Hume audio state separately
   const humeAudioRef = useRef(null);
   const [humeState, setHumeState] = useState({ status: 'idle', error: null });
+  const [humeFallbackActive, setHumeFallbackActive] = useState(false);
   const humeRequestRef = useRef(0);
 
   // Track Speech SDK state separately
@@ -144,6 +145,7 @@ export function useAudioController() {
       sdkRequestRef.current += 1;
       stopTTS();
       stopHumeAudio();
+      setHumeFallbackActive(false);
       setTimeout(() => {
         setHumeState({ status: 'idle', error: null });
       }, 0);
@@ -157,6 +159,24 @@ export function useAudioController() {
     }
   }, [voiceOn, releaseSdkAudio]);
 
+  useEffect(() => {
+    if (ttsProvider !== 'hume') {
+      setHumeFallbackActive(false);
+    }
+  }, [ttsProvider]);
+
+  // Azure TTS speak function with emotion and speed support
+  const speakWithAzure = useCallback(async (text, context = 'default', emotion = null) => {
+    await speakText({
+      text,
+      enabled: voiceOn,
+      context,
+      voice: 'nova', // Default voice for mystical tarot readings
+      speed: ttsSpeed,
+      emotion
+    });
+  }, [voiceOn, ttsSpeed]);
+
   // Hume TTS speak function with emotion support
   const speakWithHumeProvider = useCallback(async (text, context = 'default', emotion = null) => {
     if (!text || !voiceOn) return;
@@ -164,6 +184,7 @@ export function useAudioController() {
     const isStaleRequest = () => humeRequestRef.current !== requestId;
 
     try {
+      setHumeFallbackActive(false);
       // Stop any currently playing Hume audio
       if (humeAudioRef.current) {
         humeAudioRef.current.stop();
@@ -216,21 +237,11 @@ export function useAudioController() {
       if (isStaleRequest()) return;
       console.error('Hume TTS error:', error);
       setHumeState({ status: 'error', error: error.message || 'Failed to generate speech' });
-      setTtsAnnouncement('Narration unavailable.');
+      setTtsAnnouncement('Hume unavailable. Falling back to Azure...');
+      setHumeFallbackActive(true);
+      await speakWithAzure(text, context, emotion);
     }
-  }, [voiceOn]);
-
-  // Azure TTS speak function with emotion and speed support
-  const speakWithAzure = useCallback(async (text, context = 'default', emotion = null) => {
-    await speakText({
-      text,
-      enabled: voiceOn,
-      context,
-      voice: 'nova', // Default voice for mystical tarot readings
-      speed: ttsSpeed,
-      emotion
-    });
-  }, [voiceOn, ttsSpeed]);
+  }, [voiceOn, speakWithAzure]);
 
   const enqueueNarrationChunk = useCallback((text, context = 'full-reading', emotion = null) => {
     if (!voiceOn || !text) return false;
@@ -413,12 +424,15 @@ export function useAudioController() {
     const isNarrationAvailable = Boolean(fullReadingText);
     if (!isNarrationAvailable || isPersonalReadingError) return;
 
+    const shouldUseAzureFallback = ttsProvider === 'hume' && humeFallbackActive;
     // Determine current state based on provider
-    const currentState = ttsProvider === 'hume'
-      ? humeState
-      : ttsProvider === 'azure-sdk'
-        ? sdkState
-        : ttsState;
+    const currentState = shouldUseAzureFallback
+      ? ttsState
+      : ttsProvider === 'hume'
+        ? humeState
+        : ttsProvider === 'azure-sdk'
+          ? sdkState
+          : ttsState;
     const isLoading = currentState.status === 'loading' || currentState.status === 'synthesizing';
 
     // Check if any provider is playing to prevent overlap
@@ -475,7 +489,7 @@ export function useAudioController() {
     }
 
     void speak(fullReadingText, 'full-reading', emotion);
-  }, [voiceOn, ttsState, humeState, sdkState, ttsProvider, speak]);
+  }, [voiceOn, ttsState, humeState, sdkState, ttsProvider, humeFallbackActive, speak]);
 
   const handleNarrationStop = useCallback(() => {
     humeRequestRef.current += 1;
@@ -486,6 +500,7 @@ export function useAudioController() {
       humeAudioRef.current = null;
     }
     setHumeState({ status: 'stopped', error: null });
+    setHumeFallbackActive(false);
     resetGenerationId(); // Reset for next reading
 
     releaseSdkAudio();
@@ -513,7 +528,9 @@ export function useAudioController() {
 
   // Expose the correct TTS state based on current provider
   let effectiveTtsState;
-  if (ttsProvider === 'hume') {
+  if (ttsProvider === 'hume' && humeFallbackActive) {
+    effectiveTtsState = ttsState;
+  } else if (ttsProvider === 'hume') {
     effectiveTtsState = humeState;
   } else if (ttsProvider === 'azure-sdk') {
     effectiveTtsState = sdkState;

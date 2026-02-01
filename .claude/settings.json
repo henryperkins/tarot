@@ -1,5 +1,6 @@
 {
   "enabledPlugins": {
-    "tableu@tableu-plugins": true
+    "tableu@tableu-plugins": true,
+    "context7@claude-plugins-official": true
   }
 }

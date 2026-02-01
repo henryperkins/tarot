@@ -1,14 +1,11 @@
-name: Create production builds
-on:
-  workflow_dispatch: {}
+name: Create Production Builds
+
 jobs:
-  build_ios:
-    type: build
-    params:
-      platform: ios
-      profile: production
   build_android:
-    type: build
+    type: build # This job type creates a production build for Android
     params:
       platform: android
-      profile: production
+  build_ios:
+    type: build # This job type creates a production build for iOS
+    params:
+      platform: ios
