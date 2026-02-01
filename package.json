@@ -72,7 +72,7 @@
     "prompts:export": "node scripts/viewPrompts.js --export"
   },
   "dependencies": {
-    "@logrocket/react-native": "^1.60.0",
+    "@expo/metro-runtime": "~6.1.2",
     "@neondatabase/serverless": "^1.0.2",
     "@phosphor-icons/react": "^2.1.10",
     "@types/connect-pg-simple": "^7.0.3",
@@ -86,10 +86,10 @@
     "connect-pg-simple": "^10.0.0",
     "drizzle-kit": "^0.18.1",
     "drizzle-orm": "^0.45.1",
-    "expo": "~52.0.0",
-    "expo-build-properties": "~0.13.3",
-    "expo-dev-client": "~5.0.20",
-    "expo-status-bar": "~2.0.1",
+    "expo": "^54.0.33",
+    "expo-build-properties": "~1.0.10",
+    "expo-dev-client": "~6.0.20",
+    "expo-status-bar": "~3.0.9",
     "express": "^5.2.1",
     "express-session": "^1.19.0",
     "focus-trap-react": "^11.0.4",
@@ -104,8 +104,9 @@
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-markdown": "^10.1.0",
-    "react-native": "0.76.9",
+    "react-native": "0.81.5",
     "react-native-web": "^0.21.0",
+    "react-native-webview": "13.15.0",
     "react-router-dom": "^7.9.6",
     "recharts": "^3.5.1",
     "remark-breaks": "^4.0.0",
@@ -115,7 +116,11 @@
   },
   "expo": {
     "install": {
-      "exclude": ["react", "react-dom", "react-native-web"]
+      "exclude": [
+        "react",
+        "react-dom",
+        "react-native-web"
+      ]
     }
   },
   "overrides": {

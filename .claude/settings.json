@@ -1,6 +1,5 @@
 {
   "enabledPlugins": {
-    "tableu@tableu-plugins": true,
-    "stripe@claude-plugins-official": true
+    "tableu@tableu-plugins": true
   }
 }

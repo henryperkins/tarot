@@ -125,3 +125,4 @@ gha-creds-*.json
 .aider*
 .env.save
 .expo/
+.expo/

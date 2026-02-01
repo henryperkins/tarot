@@ -14,7 +14,10 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.hperkins.tableu-mobile"
+      "bundleIdentifier": "com.hperkins.tableumobile",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -29,6 +32,12 @@
     },
     "plugins": [
       "expo-secure-store"
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "8d52ad3b-1e1e-4a22-9541-e7f558a6d312"
+      }
+    },
+    "owner": "hperkins"
   }
 }
