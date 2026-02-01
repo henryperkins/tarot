@@ -52,6 +52,8 @@ import * as authForgotPassword from '../../functions/api/auth/forgot-password.js
 import * as authResetPassword from '../../functions/api/auth/reset-password.js';
 import * as authVerifyEmail from '../../functions/api/auth/verify-email.js';
 import * as authVerifyEmailResend from '../../functions/api/auth/verify-email/resend.js';
+import * as authOAuthStart from '../../functions/api/auth/oauth-start.js';
+import * as authOAuthCallback from '../../functions/api/auth/oauth-callback.js';
 
 // Stripe webhook handler
 import * as stripeWebhook from '../../functions/api/webhooks/stripe.js';
@@ -240,6 +242,8 @@ const routes = [
   { pattern: /^\/api\/auth\/reset-password$/, handlers: authResetPassword },
   { pattern: /^\/api\/auth\/verify-email\/resend$/, handlers: authVerifyEmailResend },
   { pattern: /^\/api\/auth\/verify-email$/, handlers: authVerifyEmail },
+  { pattern: /^\/api\/auth\/oauth\/start$/, handlers: authOAuthStart },
+  { pattern: /^\/api\/auth\/oauth\/callback$/, handlers: authOAuthCallback },
 
   // API Keys management
   { pattern: /^\/api\/keys$/, handlers: keysIndex },

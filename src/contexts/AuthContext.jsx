@@ -28,7 +28,10 @@ function normalizeUser(userData, existingUser = null) {
       userData.stripe_customer_id !== undefined
         ? userData.stripe_customer_id
         : existingUser?.stripe_customer_id ?? null,
-    email_verified: Boolean(userData.email_verified)
+    email_verified: Boolean(userData.email_verified),
+    auth_provider: userData.auth_provider || existingUser?.auth_provider || 'session',
+    full_name: userData.full_name || existingUser?.full_name || null,
+    avatar_url: userData.avatar_url || existingUser?.avatar_url || null
   };
 }
 
@@ -233,6 +236,33 @@ export function AuthProvider({ children }) {
     }
   };
 
+  const startOAuth = async (redirectTo = '/account', connection = '') => {
+    setError(null);
+    try {
+      const response = await fetch('/api/auth/oauth/start', {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ redirectTo, connection })
+      });
+
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok || !data?.authorizeUrl) {
+        const errorMessage = data?.error || 'Unable to start social login';
+        setError(errorMessage);
+        return { success: false, error: errorMessage };
+      }
+
+      return { success: true, authorizeUrl: data.authorizeUrl };
+    } catch (err) {
+      const errorMessage = err?.message || 'Unable to start social login';
+      setError(errorMessage);
+      return { success: false, error: errorMessage };
+    }
+  };
+
   const value = {
     user,
     loading,
@@ -243,7 +273,8 @@ export function AuthProvider({ children }) {
     logout,
     checkAuth,
     requestPasswordReset,
-    resendVerification
+    resendVerification,
+    startOAuth
   };
 
   return (

@@ -22,6 +22,8 @@ export default [
       '*.config.mjs',
       '.env*',
       '.dev.vars*',
+      'tableu/**',
+      'tableu-mobile/**',
     ],
   },
 

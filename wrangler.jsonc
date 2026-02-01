@@ -94,6 +94,12 @@
     // -------------------------------------------------------------------------
     "VISION_TIMEOUT_MS": "12000",
     "VISION_BACKEND_DEFAULT": "clip-default",
+    // Auth0 social login (optional)
+    "AUTH0_DOMAIN": "",
+    "AUTH0_CLIENT_ID": "",
+    "AUTH0_AUDIENCE": "",
+    "AUTH0_USERINFO_URL": "",
+    "APP_URL": "https://tableu.app",
     // -------------------------------------------------------------------------
     // Quality Alerting & A/B Testing
     // -------------------------------------------------------------------------

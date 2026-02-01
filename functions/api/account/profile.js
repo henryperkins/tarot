@@ -99,7 +99,10 @@ export async function onRequestPatch(context) {
         username: updates.username || user.username,
         subscription_tier: user.subscription_tier || 'free',
         subscription_status: user.subscription_status || 'inactive',
-        subscription_provider: user.subscription_provider || null
+        subscription_provider: user.subscription_provider || null,
+        auth_provider: user.auth_provider || null,
+        full_name: user.full_name || null,
+        avatar_url: user.avatar_url || null
       }
     });
   } catch (error) {

@@ -156,7 +156,11 @@ export async function validateSession(db, token) {
           u.subscription_status,
           u.subscription_provider,
           u.stripe_customer_id,
-          u.email_verified
+          u.email_verified,
+          u.auth_provider,
+          u.auth_subject,
+          u.full_name,
+          u.avatar_url
         FROM sessions s
         JOIN users u ON s.user_id = u.id
         WHERE s.id = ? AND s.expires_at > ? AND u.is_active = 1
@@ -171,30 +175,60 @@ export async function validateSession(db, token) {
         message.includes('subscription_status') ||
         message.includes('subscription_provider') ||
         message.includes('stripe_customer_id'));
+    const missingAuthColumns =
+      message.includes('no such column') &&
+      (message.includes('auth_provider') ||
+        message.includes('auth_subject') ||
+        message.includes('full_name') ||
+        message.includes('avatar_url'));
 
-    if (!missingSubscriptionColumns) {
+    if (!missingSubscriptionColumns && !missingAuthColumns) {
       throw error;
     }
 
-    // Pre-0008 schema fallback: return core user fields and let callers
-    // receive defaulted subscription metadata below.
-    result = await db
-      .prepare(`
-        SELECT
-          s.id as session_id,
-          s.user_id,
-          s.expires_at,
-          u.id,
-          u.email,
-          u.username,
-          u.is_active,
-          u.email_verified
-        FROM sessions s
-        JOIN users u ON s.user_id = u.id
-        WHERE s.id = ? AND s.expires_at > ? AND u.is_active = 1
-      `)
-      .bind(token, now)
-      .first();
+    if (!missingSubscriptionColumns && missingAuthColumns) {
+      result = await db
+        .prepare(`
+          SELECT
+            s.id as session_id,
+            s.user_id,
+            s.expires_at,
+            u.id,
+            u.email,
+            u.username,
+            u.is_active,
+            u.subscription_tier,
+            u.subscription_status,
+            u.subscription_provider,
+            u.stripe_customer_id,
+            u.email_verified
+          FROM sessions s
+          JOIN users u ON s.user_id = u.id
+          WHERE s.id = ? AND s.expires_at > ? AND u.is_active = 1
+        `)
+        .bind(token, now)
+        .first();
+    } else {
+      // Pre-0008 schema fallback: return core user fields and let callers
+      // receive defaulted subscription metadata below.
+      result = await db
+        .prepare(`
+          SELECT
+            s.id as session_id,
+            s.user_id,
+            s.expires_at,
+            u.id,
+            u.email,
+            u.username,
+            u.is_active,
+            u.email_verified
+          FROM sessions s
+          JOIN users u ON s.user_id = u.id
+          WHERE s.id = ? AND s.expires_at > ? AND u.is_active = 1
+        `)
+        .bind(token, now)
+        .first();
+    }
   }
 
   if (!result) return null;
@@ -212,6 +246,10 @@ export async function validateSession(db, token) {
   const subscriptionStatus = result.subscription_status || 'inactive';
   const subscriptionProvider = result.subscription_provider || null;
 
+  const authProvider = result.auth_provider || 'session';
+  const authSubject = result.auth_subject || null;
+  const fullName = result.full_name || null;
+  const avatarUrl = result.avatar_url || null;
   return {
     id: result.user_id,
     email: result.email,
@@ -221,7 +259,11 @@ export async function validateSession(db, token) {
     subscription_status: subscriptionStatus,
     subscription_provider: subscriptionProvider,
     stripe_customer_id: result.stripe_customer_id || null,
-    email_verified: Boolean(result.email_verified)
+    email_verified: Boolean(result.email_verified),
+    auth_provider: authProvider,
+    auth_subject: authSubject,
+    full_name: fullName,
+    avatar_url: avatarUrl
   };
 }
 

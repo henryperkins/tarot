@@ -53,7 +53,7 @@ const SPREAD_MINIMAP_LAYOUTS = {
  */
 function getShortLabel(position) {
   if (!position) return '';
-  const parts = position.split(/\s*[—–\-:\/]\s*/);
+  const parts = position.split(/\s*[—–\-:/]\s*/);
   const label = (parts[0] || position).trim();
   return label.length <= 10 ? label : `${label.slice(0, 8)}...`;
 }

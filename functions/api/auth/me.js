@@ -47,7 +47,10 @@ export async function onRequestGet(context) {
           subscription_tier: user.subscription_tier || 'free',
           subscription_status: user.subscription_status || 'inactive',
           subscription_provider: user.subscription_provider || null,
-          email_verified: Boolean(user.email_verified)
+          email_verified: Boolean(user.email_verified),
+          auth_provider: user.auth_provider || null,
+          full_name: user.full_name || null,
+          avatar_url: user.avatar_url || null
         }
       }),
       {

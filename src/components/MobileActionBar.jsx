@@ -304,7 +304,6 @@ function renderActions(mode, options) {
     case 'revealing': {
       const nextCount = Math.min(revealedCount + 1, readingLength);
       const isDeckPrimary = revealFocus === 'deck';
-      const isSpreadPrimary = revealFocus === 'spread';
       const nextLabel = isLandscape
         ? (isDeckPrimary ? `Draw ${nextCount}/${readingLength}` : `Reveal ${nextCount}/${readingLength}`)
         : isDeckPrimary

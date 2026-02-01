@@ -586,9 +586,10 @@ export function SpreadTable({
 
   // Clean up all scoped animations when spread changes
   useEffect(() => {
+    const scope = scopeRef.current;
     return () => {
-      if (scopeRef.current?.revert) {
-        scopeRef.current.revert();
+      if (scope?.revert) {
+        scope.revert();
       }
     };
   }, [spreadKey, scopeRef]);

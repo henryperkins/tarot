@@ -89,8 +89,18 @@ npm install
    AZURE_ANTHROPIC_API_KEY=your-azure-foundry-key  # optional; can fall back to AZURE_OPENAI_API_KEY
    AZURE_ANTHROPIC_MODEL=claude-opus-4-5
 
-   # Vision research mode (optional)
-   VISION_PROOF_SECRET=your-secret-key
+    # Vision research mode (optional)
+    VISION_PROOF_SECRET=your-secret-key
+
+    # Auth0 social login (optional)
+    AUTH0_DOMAIN=https://your-tenant.us.auth0.com
+    AUTH0_CLIENT_ID=your-client-id
+    AUTH0_CLIENT_SECRET=your-client-secret
+    AUTH0_AUDIENCE=https://tableu.api
+    AUTH0_USERINFO_URL=https://your-tenant.us.auth0.com/userinfo
+    APP_URL=https://tableu.app
+
+    # Auth0 callback URL: https://your-domain/auth/callback
    ```
 
 3. Verify your configuration:

@@ -1046,6 +1046,7 @@ export default function AccountPage() {
     passwordForm.current && passwordForm.next && passwordForm.confirm && passwordLengthValid && passwordMatch
   );
   const passwordSaveDisabled = passwordSaving || !passwordReady;
+  const isSocialAuth = Boolean(user?.auth_provider && user.auth_provider !== 'session');
   const reversalDescriptions = {
     auto: 'Balances context, card meaning, and spread position.',
     blocked: 'Reversals highlight blocked or resisted energy.',
@@ -1206,6 +1207,11 @@ export default function AccountPage() {
                 <Envelope className="h-3.5 w-3.5" />
                 {user?.email}
               </p>
+              {isSocialAuth && (
+                <p className="text-xs text-muted mt-1">
+                  Signed in with {user?.auth_provider === 'google' ? 'Google' : user?.auth_provider === 'apple' ? 'Apple' : 'Auth0'}
+                </p>
+              )}
             </div>
             <div className="flex items-center gap-2">
               <button
@@ -1220,18 +1226,20 @@ export default function AccountPage() {
                 <PencilSimple className="h-3.5 w-3.5" />
                 {profileEditing ? 'Cancel' : 'Edit'}
               </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setPasswordEditing((prev) => !prev);
-                  setPasswordError(null);
-                  setPasswordSuccess(null);
-                }}
-                className="inline-flex items-center gap-1.5 rounded-full border border-secondary/40 px-3 py-1.5 text-xs text-muted hover:text-main hover:border-secondary/60 transition"
-              >
-                <Lock className="h-3.5 w-3.5" />
-                {passwordEditing ? 'Close' : 'Password'}
-              </button>
+              {!isSocialAuth && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPasswordEditing((prev) => !prev);
+                    setPasswordError(null);
+                    setPasswordSuccess(null);
+                  }}
+                  className="inline-flex items-center gap-1.5 rounded-full border border-secondary/40 px-3 py-1.5 text-xs text-muted hover:text-main hover:border-secondary/60 transition"
+                >
+                  <Lock className="h-3.5 w-3.5" />
+                  {passwordEditing ? 'Close' : 'Password'}
+                </button>
+              )}
             </div>
           </div>
 
@@ -1329,7 +1337,7 @@ export default function AccountPage() {
             </div>
           )}
 
-          {passwordEditing && (
+          {!isSocialAuth && passwordEditing && (
             <div className="mt-4 space-y-3">
               <div>
                 <label htmlFor="password-current" className="text-xs text-muted block mb-1">

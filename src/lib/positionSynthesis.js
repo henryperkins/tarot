@@ -73,7 +73,7 @@ export function getSynthesisText(cardName, roleKey, positionLabel) {
 export function getPositionAnchor(positionLabel) {
   if (!positionLabel) return '';
   // Split on common delimiters and take the first meaningful segment
-  const parts = positionLabel.split(/\s*[—–\-:\/]\s*/);
+  const parts = positionLabel.split(/\s*[—–\-:/]\s*/);
   const anchor = (parts[0] || positionLabel).trim();
   // Limit length for badge display
   return anchor.length <= 16 ? anchor : `${anchor.slice(0, 14)}...`;

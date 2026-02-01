@@ -1,4 +1,3 @@
-/* eslint-disable react-refresh/only-export-components */
 import { useRef, useState, useEffect, useCallback } from 'react';
 import { Check, CaretRight } from '@phosphor-icons/react';
 import { CarouselDots } from './CarouselDots';

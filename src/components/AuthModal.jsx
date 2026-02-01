@@ -7,7 +7,7 @@ import { useModalA11y, createBackdropHandler } from '../hooks/useModalA11y';
 import { useSmallScreen } from '../hooks/useSmallScreen';
 
 export default function AuthModal({ isOpen, onClose, initialMode = 'login' }) {
-  const { register, login, requestPasswordReset, resendVerification, error: authError } = useAuth();
+  const { register, login, requestPasswordReset, resendVerification, startOAuth, error: authError } = useAuth();
   const isSmallScreen = useSmallScreen();
   const [mode, setMode] = useState(initialMode); // 'login' | 'register' | 'forgot'
   const [email, setEmail] = useState('');
@@ -48,6 +48,24 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login' }) {
   }, [mode]);
 
   if (!isOpen) return null;
+
+  const handleOAuthStart = async (provider) => {
+    setError('');
+    setSuccess('');
+    setLoading(true);
+    try {
+      const result = await startOAuth('/account', provider);
+      if (!result.success) {
+        setError(result.error || 'Unable to start social login');
+        return;
+      }
+      window.location.assign(result.authorizeUrl);
+    } catch (err) {
+      setError(err?.message || 'Unable to start social login');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -248,168 +266,193 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login' }) {
             </p>
           </div>
 
-          {/* Form */}
-          <form onSubmit={handleSubmit} className="px-6 sm:px-8 py-6">
-            <div className="space-y-4">
-              {/* Email */}
-              <div>
-                <label htmlFor="auth-email" className="block text-sm font-medium text-accent mb-1.5">
-                  Email
-                </label>
-                <input
-                  ref={firstInputRef}
-                  type="email"
-                  id="auth-email"
-                  name="email"
-                  autoComplete="email"
-                  inputMode="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className={inputBaseClasses}
-                  placeholder="you@example.com"
-                  required
-                  disabled={loading}
-                  aria-invalid={Boolean(error || authError)}
-                />
-              </div>
-
-              {/* Username (register only) */}
-              {mode === 'register' && (
-                <div>
-                  <label htmlFor="auth-username" className="block text-sm font-medium text-accent mb-1.5">
-                    Username
-                  </label>
-                  <input
-                    type="text"
-                    id="auth-username"
-                    name="username"
-                    autoComplete="username"
-                    value={username}
-                    onChange={(e) => setUsername(e.target.value)}
-                    className={inputBaseClasses}
-                    placeholder="Choose a username"
-                    required
-                    disabled={loading}
-                    pattern="[a-zA-Z0-9_]{3,30}"
-                    title="3-30 characters, letters, numbers, and underscores only"
-                    aria-describedby="username-hint"
-                  />
-                  <p id="username-hint" className="mt-1 text-xs text-muted">
-                    3-30 characters, letters, numbers, and underscores
-                  </p>
-                </div>
-              )}
-
-              {/* Password */}
-              {mode === 'forgot' && (
-                <p className="text-xs text-muted">
-                  Enter the email you use for Tableu. If it matches an account, we will send a reset link and a fresh verification email.
-                </p>
-              )}
-
+            {/* Form */}
+            <form onSubmit={handleSubmit} className="px-6 sm:px-8 py-6">
               {mode !== 'forgot' && (
-                <div>
-                  <label htmlFor="auth-password" className="block text-sm font-medium text-accent mb-1.5">
-                    Password
-                  </label>
-                  <div className="relative">
-                    <input
-                      type={showPassword ? 'text' : 'password'}
-                      id="auth-password"
-                      name="password"
-                      autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      className={`${inputBaseClasses} pr-12`}
-                      placeholder={mode === 'register' ? 'At least 8 characters' : 'Enter your password'}
-                      required
-                      disabled={loading}
-                      minLength={8}
-                      aria-invalid={Boolean(error || authError)}
-                      aria-describedby={mode === 'register' ? 'password-hint' : undefined}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword(!showPassword)}
-                      className="
-                        absolute right-1 top-1/2 -translate-y-1/2
-                        flex items-center justify-center
-                        w-10 h-10 min-w-touch min-h-touch
-                        rounded-lg
-                        text-muted hover:text-accent
-                        active:bg-accent/10
-                        transition touch-manipulation
-                        focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60
-                      "
-                      aria-label={showPassword ? 'Hide password' : 'Show password'}
-                      aria-pressed={showPassword}
-                    >
-                      {showPassword ? (
-                        <EyeSlash className="w-5 h-5" aria-hidden="true" />
-                      ) : (
-                        <Eye className="w-5 h-5" aria-hidden="true" />
-                      )}
-                    </button>
-                  </div>
-                  {mode === 'register' && (
-                    <p id="password-hint" className="mt-1 text-xs text-muted">
-                      Minimum 8 characters
-                    </p>
-                  )}
-                </div>
-              )}
-
-              {/* Confirm Password (register only) */}
-              {mode === 'register' && (
-                <div>
-                  <label htmlFor="auth-confirm-password" className="block text-sm font-medium text-accent mb-1.5">
-                    Confirm Password
-                  </label>
-                  <div className="relative">
-                    <input
-                      type={showConfirmPassword ? 'text' : 'password'}
-                      id="auth-confirm-password"
-                      name="confirmPassword"
-                      autoComplete="new-password"
-                      value={confirmPassword}
-                      onChange={(e) => setConfirmPassword(e.target.value)}
-                      className={`${inputBaseClasses} pr-12`}
-                      placeholder="Confirm your password"
-                      required
-                      disabled={loading}
-                      minLength={8}
-                      aria-invalid={Boolean(error && error.includes('match'))}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                      className="
-                        absolute right-1 top-1/2 -translate-y-1/2
-                        flex items-center justify-center
-                        w-10 h-10 min-w-touch min-h-touch
-                        rounded-lg
-                        text-muted hover:text-accent
-                        active:bg-accent/10
-                        transition touch-manipulation
-                        focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60
-                      "
-                      aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}
-                      aria-pressed={showConfirmPassword}
-                    >
-                      {showConfirmPassword ? (
-                        <EyeSlash className="w-5 h-5" aria-hidden="true" />
-                      ) : (
-                        <Eye className="w-5 h-5" aria-hidden="true" />
-                      )}
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              {mode === 'login' && (
-                <div className="flex flex-wrap items-center justify-between gap-3 text-sm pt-1">
+                <div className="space-y-3">
                   <button
                     type="button"
+                    onClick={() => handleOAuthStart('google-oauth2')}
+                    disabled={loading}
+                    className="w-full min-h-cta rounded-lg border border-secondary/40 px-4 py-2 text-sm font-semibold text-main hover:bg-accent/10 transition disabled:opacity-60 disabled:cursor-not-allowed"
+                  >
+                    Continue with Google
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleOAuthStart('apple')}
+                    disabled={loading}
+                    className="w-full min-h-cta rounded-lg border border-secondary/40 px-4 py-2 text-sm font-semibold text-main hover:bg-accent/10 transition disabled:opacity-60 disabled:cursor-not-allowed"
+                  >
+                    Continue with Apple
+                  </button>
+                  <div className="flex items-center gap-3 text-xs text-muted">
+                    <span className="h-px flex-1 bg-secondary/30" />
+                    or
+                    <span className="h-px flex-1 bg-secondary/30" />
+                  </div>
+                </div>
+              )}
+              <div className="space-y-4">
+                {/* Email */}
+                <div>
+                  <label htmlFor="auth-email" className="block text-sm font-medium text-accent mb-1.5">
+                    Email
+                  </label>
+                  <input
+                    ref={firstInputRef}
+                    type="email"
+                    id="auth-email"
+                    name="email"
+                    autoComplete="email"
+                    inputMode="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className={inputBaseClasses}
+                    placeholder="you@example.com"
+                    required
+                    disabled={loading}
+                    aria-invalid={Boolean(error || authError)}
+                  />
+                </div>
+
+                {/* Username (register only) */}
+                {mode === 'register' && (
+                  <div>
+                    <label htmlFor="auth-username" className="block text-sm font-medium text-accent mb-1.5">
+                      Username
+                    </label>
+                    <input
+                      type="text"
+                      id="auth-username"
+                      name="username"
+                      autoComplete="username"
+                      value={username}
+                      onChange={(e) => setUsername(e.target.value)}
+                      className={inputBaseClasses}
+                      placeholder="Choose a username"
+                      required
+                      disabled={loading}
+                      pattern="[a-zA-Z0-9_]{3,30}"
+                      title="3-30 characters, letters, numbers, and underscores only"
+                      aria-describedby="username-hint"
+                    />
+                    <p id="username-hint" className="mt-1 text-xs text-muted">
+                      3-30 characters, letters, numbers, and underscores
+                    </p>
+                  </div>
+                )}
+
+                {/* Password */}
+                {mode === 'forgot' && (
+                  <p className="text-xs text-muted">
+                    Enter the email you use for Tableu. If it matches an account, we will send a reset link and a fresh verification email.
+                  </p>
+                )}
+
+                {mode !== 'forgot' && (
+                  <div>
+                    <label htmlFor="auth-password" className="block text-sm font-medium text-accent mb-1.5">
+                      Password
+                    </label>
+                    <div className="relative">
+                      <input
+                        type={showPassword ? 'text' : 'password'}
+                        id="auth-password"
+                        name="password"
+                        autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        className={`${inputBaseClasses} pr-12`}
+                        placeholder={mode === 'register' ? 'At least 8 characters' : 'Enter your password'}
+                        required
+                        disabled={loading}
+                        minLength={8}
+                        aria-invalid={Boolean(error || authError)}
+                        aria-describedby={mode === 'register' ? 'password-hint' : undefined}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="
+                          absolute right-1 top-1/2 -translate-y-1/2
+                          flex items-center justify-center
+                          w-10 h-10 min-w-touch min-h-touch
+                          rounded-lg
+                          text-muted hover:text-accent
+                          active:bg-accent/10
+                          transition touch-manipulation
+                          focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60
+                        "
+                        aria-label={showPassword ? 'Hide password' : 'Show password'}
+                        aria-pressed={showPassword}
+                      >
+                        {showPassword ? (
+                          <EyeSlash className="w-5 h-5" aria-hidden="true" />
+                        ) : (
+                          <Eye className="w-5 h-5" aria-hidden="true" />
+                        )}
+                      </button>
+                    </div>
+                    {mode === 'register' && (
+                      <p id="password-hint" className="mt-1 text-xs text-muted">
+                        Minimum 8 characters
+                      </p>
+                    )}
+                  </div>
+                )}
+
+                {/* Confirm Password (register only) */}
+                {mode === 'register' && (
+                  <div>
+                    <label htmlFor="auth-confirm-password" className="block text-sm font-medium text-accent mb-1.5">
+                      Confirm Password
+                    </label>
+                    <div className="relative">
+                      <input
+                        type={showConfirmPassword ? 'text' : 'password'}
+                        id="auth-confirm-password"
+                        name="confirmPassword"
+                        autoComplete="new-password"
+                        value={confirmPassword}
+                        onChange={(e) => setConfirmPassword(e.target.value)}
+                        className={`${inputBaseClasses} pr-12`}
+                        placeholder="Confirm your password"
+                        required
+                        disabled={loading}
+                        minLength={8}
+                        aria-invalid={Boolean(error && error.includes('match'))}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                        className="
+                          absolute right-1 top-1/2 -translate-y-1/2
+                          flex items-center justify-center
+                          w-10 h-10 min-w-touch min-h-touch
+                          rounded-lg
+                          text-muted hover:text-accent
+                          active:bg-accent/10
+                          transition touch-manipulation
+                          focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60
+                        "
+                        aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}
+                        aria-pressed={showConfirmPassword}
+                      >
+                        {showConfirmPassword ? (
+                          <EyeSlash className="w-5 h-5" aria-hidden="true" />
+                        ) : (
+                          <Eye className="w-5 h-5" aria-hidden="true" />
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {mode === 'login' && (
+                  <div className="flex flex-wrap items-center justify-between gap-3 text-sm pt-1">
+                    <button
+                      type="button"
                     onClick={goToForgot}
                     className="text-accent hover:text-accent/80 underline underline-offset-4"
                     disabled={loading}
@@ -424,9 +467,9 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login' }) {
                   >
                     Resend verification email
                   </button>
-                </div>
-              )}
-            </div>
+                  </div>
+                )}
+              </div>
 
             {/* Error message */}
             {(error || authError) && (

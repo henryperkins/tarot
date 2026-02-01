@@ -54,7 +54,10 @@ export async function validateApiKey(db, key) {
         u.subscription_status,
         u.subscription_provider,
         u.stripe_customer_id,
-        u.email_verified
+        u.email_verified,
+        u.auth_provider,
+        u.full_name,
+        u.avatar_url
       FROM api_keys k
       JOIN users u ON k.user_id = u.id
       WHERE k.key_hash = ? AND k.is_active = 1 AND u.is_active = 1
@@ -75,7 +78,7 @@ export async function validateApiKey(db, key) {
     }
 
     result = await db.prepare(`
-      SELECT k.*, u.email, u.username, u.email_verified
+      SELECT k.*, u.email, u.username, u.email_verified, u.auth_provider, u.full_name, u.avatar_url
       FROM api_keys k
       JOIN users u ON k.user_id = u.id
       WHERE k.key_hash = ? AND k.is_active = 1 AND u.is_active = 1

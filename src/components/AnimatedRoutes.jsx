@@ -10,6 +10,7 @@ import AccountPage from '../pages/AccountPage.jsx';
 import AdminDashboard from '../pages/AdminDashboard.jsx';
 import ResetPasswordPage from '../pages/ResetPasswordPage.jsx';
 import VerifyEmailPage from '../pages/VerifyEmailPage.jsx';
+import OAuthCallbackPage from '../pages/OAuthCallbackPage.jsx';
 import { PageTransition } from './PageTransition.jsx';
 import { useReducedMotion } from '../hooks/useReducedMotion';
 
@@ -125,6 +126,7 @@ export function AnimatedRoutes() {
         <Route path="/share/:token" element={<PageTransition><ShareReading /></PageTransition>} />
         <Route path="/reset-password" element={<PageTransition><ResetPasswordPage /></PageTransition>} />
         <Route path="/verify-email" element={<PageTransition><VerifyEmailPage /></PageTransition>} />
+        <Route path="/auth/callback" element={<PageTransition><OAuthCallbackPage /></PageTransition>} />
         <Route path="*" element={<PageTransition><TarotReading /></PageTransition>} />
       </Routes>
     </div>

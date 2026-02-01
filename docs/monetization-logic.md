@@ -269,18 +269,18 @@ console.log(`[${requestId}] GraphRAG passage limit: ${maxPassages} (tier: ${tier
 // API key path (Bearer sk_...)
 if (token && token.startsWith('sk_')) {
   const apiKeyRecord = await validateApiKey(env.DB, token);
-  if (apiKeyRecord) {
-    return {
-      id: apiKeyRecord.user_id,
-      email: apiKeyRecord.email,
-      username: apiKeyRecord.username,
-      subscription_tier: apiKeyRecord.subscription_tier || 'free',
-      subscription_status: apiKeyRecord.subscription_status || 'inactive',
-      subscription_provider: apiKeyRecord.subscription_provider || null,
-      stripe_customer_id: apiKeyRecord.stripe_customer_id || null,
-      auth_provider: 'api_key'
-    };
-  }
+    if (apiKeyRecord) {
+      return {
+        id: apiKeyRecord.user_id,
+        email: apiKeyRecord.email,
+        username: apiKeyRecord.username,
+        subscription_tier: apiKeyRecord.subscription_tier || 'free',
+        subscription_status: apiKeyRecord.subscription_status || 'inactive',
+        subscription_provider: apiKeyRecord.subscription_provider || null,
+        stripe_customer_id: apiKeyRecord.stripe_customer_id || null,
+        auth_provider: 'api_key' // other providers: google, apple, session
+      };
+    }
 }
 ```
 

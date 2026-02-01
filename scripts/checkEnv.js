@@ -49,6 +49,15 @@ const OPTIONAL_FLAGS = [
   'PROMPT_BUDGET_DEFAULT'
 ];
 
+const OPTIONAL_FOR_AUTH = [
+  'AUTH0_DOMAIN',
+  'AUTH0_CLIENT_ID',
+  'AUTH0_CLIENT_SECRET',
+  'AUTH0_AUDIENCE',
+  'AUTH0_USERINFO_URL',
+  'APP_URL'
+];
+
 function parseDevVars(filePath) {
   if (!fs.existsSync(filePath)) {
     return {};
@@ -187,6 +196,15 @@ function run() {
   if (OPTIONAL_FOR_CLAUDE_FALLBACK.length > 0) {
     console.log('\nOptional: Claude fallback (Azure AI Foundry Anthropic):');
     OPTIONAL_FOR_CLAUDE_FALLBACK.forEach((key) => {
+      const entry = resolveVariable(key, process.env, fileVars);
+      if (entry) console.log(`• ${key} (${entry.source})`);
+      else console.log(`• ${key} (not set)`);
+    });
+  }
+
+  if (OPTIONAL_FOR_AUTH.length > 0) {
+    console.log('\nOptional: Auth0 social login variables:');
+    OPTIONAL_FOR_AUTH.forEach((key) => {
       const entry = resolveVariable(key, process.env, fileVars);
       if (entry) console.log(`• ${key} (${entry.source})`);
       else console.log(`• ${key} (not set)`);

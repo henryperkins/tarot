@@ -43,7 +43,7 @@ export async function onRequestPost(context) {
       'SELECT password_hash, password_salt FROM users WHERE id = ?'
     ).bind(user.id).first();
 
-    if (!record?.password_hash || !record?.password_salt) {
+    if (!record?.password_hash || !record?.password_salt || record.password_hash === '') {
       return jsonResponse({ error: 'Password update unavailable for this account' }, { status: 400 });
     }
 
