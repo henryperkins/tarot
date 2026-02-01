@@ -124,3 +124,4 @@ _shellfish_uploading_*
 gha-creds-*.json
 .aider*
 .env.save
+.expo/

@@ -1,0 +1,42 @@
+{
+  "expo": {
+    "name": "Tableau",
+    "slug": "tableau",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "dark",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#1a1a2e"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.hperkins.tableau",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#1a1a2e"
+      },
+      "package": "com.hperkins.tableau"
+    },
+    "web": {
+      "favicon": "./assets/favicon.png",
+      "bundler": "metro"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "21cc0551-761d-43d4-b42c-3ba92525e2d8"
+      }
+    },
+    "plugins": [
+      "expo-build-properties"
+    ]
+  }
+}
