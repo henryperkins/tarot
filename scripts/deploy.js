@@ -120,11 +120,16 @@ function wrangler(args, options = {}) {
   };
 }
 
-const ALLOWED_COMMANDS = new Set(['npm', 'npx']);
+// Use object lookup to ensure only predefined commands can be resolved
+const ALLOWED_COMMANDS = {
+  npm: 'npm',
+  npx: 'npx'
+};
 
-function spawnCommand(command, args, options = {}) {
-  if (!ALLOWED_COMMANDS.has(command)) {
-    throw new Error(`Command not allowed: ${command}`);
+function spawnCommand(commandKey, args, options = {}) {
+  const command = ALLOWED_COMMANDS[commandKey];
+  if (!command) {
+    throw new Error(`Command not allowed: ${commandKey}`);
   }
 
   const spawnOptions = {
