@@ -36,5 +36,5 @@ externalPort = 80
 [deployment]
 deploymentTarget = "gce"
 build = ["npm", "run", "build"]
-publicDir = "dist"
 run = ["sh", "-c", "npm run deploy"]
+ignorePorts = true
