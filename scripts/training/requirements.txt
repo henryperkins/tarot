@@ -1,5 +1,5 @@
 torch>=2.6.0
-transformers>=4.48.0
+transformers @ git+https://github.com/huggingface/transformers.git@8cb522b4190bd556ce51be04942720650b1a3e57
 peft>=0.4.0
 datasets>=2.14.0
 pillow>=10.2.0
