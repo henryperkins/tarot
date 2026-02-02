@@ -218,28 +218,35 @@ export function buildEnhancedClaudePrompt({
     };
 
     if (requestedSemanticScoring) {
-      const message = '[GraphRAG] Semantic scoring requested but graphRAGPayload not pre-computed. Skipping GraphRAG injection—pre-compute with retrievePassagesWithQuality() in performSpreadAnalysis().';
+      const message = '[GraphRAG] Semantic scoring requested but graphRAGPayload not pre-computed. Falling back to keyword retrieval; pre-compute with retrievePassagesWithQuality() in performSpreadAnalysis() for embeddings.';
       console.warn(message);
       diagnostics.push(message);
 
-      effectiveGraphRAGPayload = {
-        passages: [],
-        initialPassageCount: 0,
-        formattedBlock: null,
-        retrievalSummary: {
+      effectiveGraphRAGPayload = buildKeywordPayload({
+        semanticRequested: true,
+        reason: 'semantic-scoring-not-prefetched'
+      });
+
+      if (!effectiveGraphRAGPayload) {
+        effectiveGraphRAGPayload = {
+          passages: [],
+          initialPassageCount: 0,
+          formattedBlock: null,
+          retrievalSummary: {
+            semanticScoringRequested: true,
+            semanticScoringUsed: false,
+            semanticScoringFallback: true,
+            reason: 'semantic-scoring-not-prefetched'
+          },
+          maxPassages,
+          enableSemanticScoring: true,
+          rankingStrategy: 'semantic',
           semanticScoringRequested: true,
           semanticScoringUsed: false,
-          semanticScoringFallback: true,
-          reason: 'semantic-scoring-not-prefetched'
-        },
-        maxPassages,
-        enableSemanticScoring: true,
-        rankingStrategy: 'semantic',
-        semanticScoringRequested: true,
-        semanticScoringUsed: false,
-        semanticScoringFallback: true
-      };
-      graphRAGInjectionDisabled = true;
+          semanticScoringFallback: true
+        };
+        graphRAGInjectionDisabled = true;
+      }
     } else {
       effectiveGraphRAGPayload = buildKeywordPayload({ semanticRequested: false });
     }
@@ -505,7 +512,13 @@ export function buildEnhancedClaudePrompt({
     const remainingBudget = hardCap - newUserTokens;
 
     if (built.systemTokens > remainingBudget) {
-      const systemResult = truncateSystemPromptSafely(built.systemPrompt, remainingBudget);
+      let systemResult;
+      try {
+        systemResult = truncateSystemPromptSafely(built.systemPrompt, remainingBudget);
+      } catch (err) {
+        console.warn(`[Prompt Budget] Section-aware truncation failed: ${err.message}; falling back to simple truncation.`);
+        systemResult = truncateToTokenBudget(built.systemPrompt, remainingBudget);
+      }
       finalSystem = systemResult.text;
       systemTruncated = systemResult.truncated;
       if (systemResult.preservedSections?.length > 0) {

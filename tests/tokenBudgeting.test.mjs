@@ -42,9 +42,12 @@ describe('Token Budgeting', () => {
     assert(estimateTokenCount(text) <= 100);
   });
 
-  it('throws on budget overflow with critical sections', () => {
+  it('returns minimal critical prompt when budget is exceeded', () => {
     const criticalHeavy = '## ETHICS\n' + 'X'.repeat(1000) + '\n## CORE PRINCIPLES\n' + 'Y'.repeat(1000);
-    assert.throws(() => truncateSystemPromptSafely(criticalHeavy, 100), /PROMPT_SAFETY_BUDGET_EXCEEDED/);
+    const truncated = truncateSystemPromptSafely(criticalHeavy, 100);
+    assert(truncated.truncated, 'Should report truncation');
+    assert(estimateTokenCount(truncated.text) <= 100, 'Should stay within budget');
+    assert(truncated.text.includes('ETHICS'), 'Should preserve critical header');
   });
 
   it('handles edge cases', () => {

@@ -5,5 +5,9 @@
   "author": {
     "name": "Tableu Team"
   },
-  "keywords": ["tarot", "evaluation", "quality", "cloudflare", "workers"]
+  "keywords": ["tarot", "evaluation", "quality", "cloudflare", "workers"],
+  "commands": "./commands/",
+  "agents": "./agents/",
+  "skills": "./skills/",
+  "hooks": "./hooks/hooks.json"
 }

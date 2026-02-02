@@ -96,7 +96,7 @@ function evaluateQualityGate({ readingText, cardsInfo, deckStyle, analysis, requ
   const qualityMetrics = buildNarrativeMetrics(text, safeCards, deckStyle);
   const qualityIssues = [];
 
-  const { minCoverage, maxHallucinations, highWeightThreshold } = getQualityGateThresholds(
+  const { minCoverage, maxHallucinations, highWeightThreshold, minSpineCompletion } = getQualityGateThresholds(
     spreadKey,
     safeCards.length
   );
@@ -143,7 +143,9 @@ function evaluateQualityGate({ readingText, cardsInfo, deckStyle, analysis, requ
   }
 
   const spine = qualityMetrics.spine || null;
-  const MIN_SPINE_COMPLETION = 0.5;
+  const MIN_SPINE_COMPLETION = typeof minSpineCompletion === 'number'
+    ? minSpineCompletion
+    : 0.5;
   if (spine) {
     const cardSections = typeof spine.cardSections === 'number'
       ? spine.cardSections
@@ -766,15 +768,24 @@ Your cards will be here when you're ready. Right now, please take care of yourse
     const evalGateEnabled = isEvalGateEnabled(env);
     const allowStreamingGateBypass = allowStreamingWithEvalGate(env);
     // Default on to preserve safety buffering when eval gate is disabled.
-    const safetyScanStreamingEnabled = env?.STREAMING_SAFETY_SCAN_ENABLED === undefined
+    let safetyScanStreamingEnabled = env?.STREAMING_SAFETY_SCAN_ENABLED === undefined
       ? true
       : normalizeBooleanFlag(env?.STREAMING_SAFETY_SCAN_ENABLED);
-    const qualityGateStreamingEnabled = env?.STREAMING_QUALITY_GATE_ENABLED === undefined
+    const configuredQualityGateStreamingEnabled = env?.STREAMING_QUALITY_GATE_ENABLED === undefined
       ? true
       : normalizeBooleanFlag(env?.STREAMING_QUALITY_GATE_ENABLED);
     const azureStreamingAvailable = Boolean(NARRATIVE_BACKENDS['azure-gpt5']?.isAvailable(env));
     const wantsAzureStreaming = useStreaming && tokenStreamingEnabled && azureStreamingAvailable;
     const canUseAzureStreaming = wantsAzureStreaming && allowStreamingGateBypass;
+    let qualityGateStreamingEnabled = configuredQualityGateStreamingEnabled;
+    if (canUseAzureStreaming && !evalGateEnabled && !safetyScanStreamingEnabled && !qualityGateStreamingEnabled) {
+      console.warn(`[${requestId}] Streaming safety + quality gates are disabled; enabling safety scan to avoid unvetted output.`);
+      safetyScanStreamingEnabled = true;
+    }
+    if (canUseAzureStreaming && !qualityGateStreamingEnabled) {
+      console.warn(`[${requestId}] STREAMING_QUALITY_GATE_ENABLED is false; overriding to enforce quality gate for consistency.`);
+      qualityGateStreamingEnabled = true;
+    }
     const shouldGateStreaming = canUseAzureStreaming && evalGateEnabled;
     const shouldSafetyScanStreaming = canUseAzureStreaming && !evalGateEnabled && safetyScanStreamingEnabled;
     const shouldQualityGateStreaming = canUseAzureStreaming && qualityGateStreamingEnabled;
@@ -793,8 +804,6 @@ Your cards will be here when you're ready. Right now, please take care of yourse
       console.warn(`[${requestId}] Token streaming enabled without eval gate; buffering output for safety scan + quality checks (STREAMING_SAFETY_SCAN_ENABLED).`);
     } else if (useStreaming && tokenStreamingEnabled && allowStreamingGateBypass && !evalGateEnabled && !safetyScanStreamingEnabled && qualityGateStreamingEnabled) {
       console.warn(`[${requestId}] Token streaming enabled without eval gate; buffering output for quality checks.`);
-    } else if (useStreaming && tokenStreamingEnabled && allowStreamingGateBypass && !evalGateEnabled && !safetyScanStreamingEnabled && !qualityGateStreamingEnabled) {
-      console.log(`[${requestId}] Token streaming enabled; sending live SSE without safety/quality buffer.`);
     }
 
     if (useStreaming && tokenStreamingEnabled && !azureStreamingAvailable) {

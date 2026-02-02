@@ -31,11 +31,10 @@ describe('sanitizePromptValue', () => {
 });
 
 describe('truncateSystemPromptSafely', () => {
-  it('fails fast when critical sections exceed 80% budget', () => {
+  it('returns minimal critical prompt when critical sections exceed budget', () => {
     const largeEthicsSection = 'ETHICS\n' + 'X'.repeat(10000);
-    assert.throws(
-      () => truncateSystemPromptSafely(largeEthicsSection, 100),
-      /PROMPT_SAFETY_BUDGET_EXCEEDED/
-    );
+    const truncated = truncateSystemPromptSafely(largeEthicsSection, 100);
+    assert.ok(truncated.truncated, 'Should report truncation');
+    assert.ok(truncated.text.includes('ETHICS'), 'Should preserve ETHICS header');
   });
 });

@@ -160,12 +160,6 @@ const CRITICAL_SECTION_MARKERS = [
   { start: 'MODEL DIRECTIVES:', end: null } // Model behavior directives - never truncate
 ];
 
-function makePromptSafetyBudgetError(details) {
-  const err = new Error('PROMPT_SAFETY_BUDGET_EXCEEDED');
-  err.details = details || null;
-  return err;
-}
-
 function escapeRegExp(value) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
@@ -210,6 +204,40 @@ function extractCriticalSections(text) {
   return { sections, totalChars };
 }
 
+function buildMinimalCriticalPrompt(criticalSections, maxTokens) {
+  if (!Array.isArray(criticalSections) || criticalSections.length === 0) {
+    return { text: '', preservedSections: [] };
+  }
+
+  const orderedSections = CRITICAL_SECTION_MARKERS
+    .map((marker) => criticalSections.find((section) => section.marker === marker.start))
+    .filter(Boolean);
+
+  const parts = [];
+  const preservedSections = [];
+
+  for (const section of orderedSections) {
+    const content = section?.content ? section.content.trim() : '';
+    if (!content) continue;
+
+    const candidate = [...parts, content].join('\n\n').trim();
+    if (estimateTokenCount(candidate) <= maxTokens) {
+      parts.push(content);
+      preservedSections.push(section.marker);
+      continue;
+    }
+
+    if (parts.length === 0) {
+      const truncated = truncateToTokenBudget(content, maxTokens);
+      return { text: truncated.text, preservedSections: [section.marker] };
+    }
+
+    break;
+  }
+
+  return { text: parts.join('\n\n').trim(), preservedSections };
+}
+
 /**
  * Section-aware truncation for system prompts.
  * Preserves critical safety sections (ETHICS, CORE PRINCIPLES, MODEL DIRECTIVES)
@@ -241,11 +269,17 @@ export function truncateSystemPromptSafely(text, maxTokens) {
 
   const criticalFraction = maxTokens > 0 ? (criticalTokens / maxTokens) : 1;
   if (criticalTokens >= maxTokens || criticalFraction >= 0.8) {
-    throw makePromptSafetyBudgetError({
-      criticalTokens,
-      maxTokens,
-      budgetPercent: Number((criticalFraction * 100).toFixed(1))
-    });
+    const minimal = buildMinimalCriticalPrompt(criticalSections, maxTokens);
+    const minimalTokens = estimateTokenCount(minimal.text);
+    console.warn(
+      `[prompts] Critical sections exceed budget; using minimal safety prompt (~${minimalTokens} tokens).`
+    );
+    return {
+      text: minimal.text,
+      truncated: true,
+      originalTokens,
+      preservedSections: minimal.preservedSections
+    };
   }
 
   // Budget for non-critical content (reserve a small buffer for separators and estimation noise).

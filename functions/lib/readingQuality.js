@@ -567,7 +567,7 @@ export const HIGH_WEIGHT_POSITION_THRESHOLD = 0.75;
  *
  * @param {string} spreadKey - Canonical spread key
  * @param {number} cardCount - Number of cards in the spread
- * @returns {Object} { minCoverage, maxHallucinations, highWeightThreshold }
+ * @returns {Object} { minCoverage, maxHallucinations, highWeightThreshold, minSpineCompletion }
  */
 export function getQualityGateThresholds(spreadKey, cardCount) {
   const normalizedSpread = (spreadKey || 'general').toLowerCase();
@@ -576,7 +576,8 @@ export function getQualityGateThresholds(spreadKey, cardCount) {
     return {
       minCoverage: 0.75,
       maxHallucinations: 2,
-      highWeightThreshold: HIGH_WEIGHT_POSITION_THRESHOLD
+      highWeightThreshold: HIGH_WEIGHT_POSITION_THRESHOLD,
+      minSpineCompletion: 0.6
     };
   }
 
@@ -584,7 +585,8 @@ export function getQualityGateThresholds(spreadKey, cardCount) {
     return {
       minCoverage: 0.8,
       maxHallucinations: 1,
-      highWeightThreshold: HIGH_WEIGHT_POSITION_THRESHOLD
+      highWeightThreshold: HIGH_WEIGHT_POSITION_THRESHOLD,
+      minSpineCompletion: 0.75
     };
   }
 
@@ -593,7 +595,8 @@ export function getQualityGateThresholds(spreadKey, cardCount) {
   return {
     minCoverage: isLargeSpread ? 0.75 : 0.8,
     maxHallucinations: isLargeSpread ? 2 : 1,
-    highWeightThreshold: HIGH_WEIGHT_POSITION_THRESHOLD
+    highWeightThreshold: HIGH_WEIGHT_POSITION_THRESHOLD,
+    minSpineCompletion: isLargeSpread ? 0.65 : 0.7
   };
 }
 

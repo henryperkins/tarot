@@ -7,16 +7,22 @@
 
 import { isProductionEnvironment } from './environment.js';
 import { getQualityGateThresholds } from './readingQuality.js';
+import { sanitizeText } from './utils.js';
+import { detectPromptInjection } from './promptInjectionDetector.js';
 
-const EVAL_PROMPT_VERSION = '2.3.1';
+const EVAL_PROMPT_VERSION = '2.3.2';
 const DEFAULT_MODEL = '@cf/qwen/qwen3-30b-a3b-fp8';
 const DEFAULT_TIMEOUT_MS = 15000;
 const MAX_SAFE_TIMEOUT_MS = 2147483647; // Max 32-bit signed int for timers
 
 // Input length limits to prevent context overflow and timeouts
+const TRUNCATION_MARKER = '...[truncated]';
 const MAX_READING_LENGTH = 10000;
 const MAX_QUESTION_LENGTH = 500;
 const MAX_CARDS_INFO_LENGTH = 1500;
+const MAX_EVAL_CARD_NAME_LENGTH = 160;
+const MAX_EVAL_POSITION_LENGTH = 200;
+const MAX_EVAL_ORIENTATION_LENGTH = 80;
 const EVAL_TEMPERATURE = 0.1;
 const EVAL_MAX_OUTPUT_TOKENS = 2048;
 const DEFAULT_DETERMINISTIC_SAFETY_ENABLED = true;
@@ -731,9 +737,21 @@ export function getEvaluationTimeoutMs(env) {
 function buildCardsList(cardsInfo = [], maxLength = MAX_CARDS_INFO_LENGTH) {
   const fullList = (cardsInfo || [])
     .map((card, index) => {
-      const position = card?.position || `Card ${index + 1}`;
-      const name = card?.card || 'Unknown';
-      const orientation = card?.orientation || 'unknown';
+      const position = sanitizeEvalPromptValue(
+        card?.position,
+        MAX_EVAL_POSITION_LENGTH,
+        `Card ${index + 1}`
+      );
+      const name = sanitizeEvalPromptValue(
+        card?.card,
+        MAX_EVAL_CARD_NAME_LENGTH,
+        'Unknown'
+      );
+      const orientation = sanitizeEvalPromptValue(
+        card?.orientation,
+        MAX_EVAL_ORIENTATION_LENGTH,
+        'unknown'
+      );
       return `${position}: ${name} (${orientation})`;
     })
     .join(', ');
@@ -742,7 +760,7 @@ function buildCardsList(cardsInfo = [], maxLength = MAX_CARDS_INFO_LENGTH) {
     return { text: fullList, truncated: false, originalLength: fullList.length, finalLength: fullList.length };
   }
 
-  const truncatedText = fullList.slice(0, maxLength) + '...[truncated]';
+  const truncatedText = fullList.slice(0, maxLength) + TRUNCATION_MARKER;
   return {
     text: truncatedText,
     truncated: true,
@@ -774,7 +792,7 @@ function truncateText(text, maxLength) {
     truncated = truncated.slice(0, lastSpace);
   }
 
-  const finalText = truncated + '...[truncated]';
+  const finalText = truncated + TRUNCATION_MARKER;
   return {
     text: finalText,
     truncated: true,
@@ -783,10 +801,90 @@ function truncateText(text, maxLength) {
   };
 }
 
+/**
+ * Truncate text but preserve both the head and tail to reduce blind spots in long readings.
+ * @param {string} text - Text to truncate
+ * @param {number} maxLength - Maximum character length
+ * @param {Object} [options]
+ * @param {number} [options.headRatio=0.7] - Portion of text to keep from the start
+ * @returns {{ text: string, truncated: boolean, originalLength: number, finalLength: number }}
+ */
+function truncateTextWithTail(text, maxLength, options = {}) {
+  if (!text || typeof text !== 'string') {
+    return { text: '', truncated: false, originalLength: 0, finalLength: 0 };
+  }
+
+  const originalLength = text.length;
+  if (originalLength <= maxLength) {
+    return { text, truncated: false, originalLength, finalLength: text.length };
+  }
+
+  const marker = TRUNCATION_MARKER;
+  const markerLength = marker.length;
+  const available = maxLength - markerLength;
+
+  if (available <= 0) {
+    const truncatedText = text.slice(0, maxLength);
+    return {
+      text: truncatedText,
+      truncated: true,
+      originalLength,
+      finalLength: truncatedText.length
+    };
+  }
+
+  const headRatio = Number.isFinite(options.headRatio) ? options.headRatio : 0.7;
+  const headLength = Math.max(1, Math.floor(available * headRatio));
+  const tailLength = Math.max(1, available - headLength);
+  const head = text.slice(0, headLength);
+  const tail = text.slice(originalLength - tailLength);
+  const finalText = `${head}${marker}${tail}`;
+
+  return {
+    text: finalText,
+    truncated: true,
+    originalLength,
+    finalLength: finalText.length
+  };
+}
+
+function sanitizeEvalPromptValue(value, maxLength, fallback = '') {
+  if (typeof value !== 'string') return fallback;
+
+  let sanitized = sanitizeText(value, {
+    maxLength,
+    stripMarkdown: true,
+    stripControlChars: true,
+    filterInstructions: true
+  });
+
+  if (!sanitized) return fallback;
+
+  const detection = detectPromptInjection(sanitized, { confidenceThreshold: 0.6, sanitize: true });
+  if (detection.isInjection && detection.sanitizedText) {
+    sanitized = detection.sanitizedText;
+  }
+
+  sanitized = sanitized
+    .replace(/[`#*_>]/g, '')
+    .replace(/\{\{|\}\}|\$\{|\}|<%|%>|\{#|#\}|\{%|%\}/g, '')
+    .replace(/\[%|%\]|\[\[|\]\]/g, '')
+    .replace(/\r?\n+/g, ' ')
+    .replace(/\s{2,}/g, ' ')
+    .trim();
+
+  if (!sanitized) return fallback;
+  if (maxLength && sanitized.length > maxLength) {
+    sanitized = sanitized.slice(0, maxLength).trim();
+  }
+
+  return sanitized || fallback;
+}
+
 function buildUserPrompt({ spreadKey, cardsInfo, userQuestion, reading, narrativeMetrics = {}, requestId = 'unknown' }) {
   const cardsResult = buildCardsList(cardsInfo, MAX_CARDS_INFO_LENGTH);
   const questionResult = truncateText(userQuestion, MAX_QUESTION_LENGTH);
-  const readingResult = truncateText(reading, MAX_READING_LENGTH);
+  const readingResult = truncateTextWithTail(reading, MAX_READING_LENGTH);
   const cardCount = Array.isArray(cardsInfo) ? cardsInfo.length : 0;
   const spreadHints = buildSpreadEvaluationHints(spreadKey);
   const structuralMetrics = buildStructuralMetricsSection(narrativeMetrics, { spreadKey, cardCount });
