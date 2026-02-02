@@ -13,6 +13,8 @@ import {
   detectAllPatterns,
   getPriorityPatternNarratives
 } from '../lib/knowledgeGraph.js';
+import { ARCHETYPAL_DYADS, ARCHETYPAL_TRIADS } from '../../src/data/knowledgeGraphData.js';
+import { DYAD_PASSAGES, TRIAD_PASSAGES } from '../lib/knowledgeBase.js';
 
 describe('detectFoolsJourneyStage', () => {
   it('detects initiation stage (3+ cards from 0-7)', () => {
@@ -519,5 +521,50 @@ describe('getPriorityPatternNarratives', () => {
     assert.strictEqual(result.length, 1);
     assert.strictEqual(result[0].priority, 4);
     assert.strictEqual(result[0].type, 'fools-journey');
+  });
+});
+
+describe('GraphRAG pattern consistency', () => {
+  it('keeps triad passages aligned with archetypal triads', () => {
+    const triadIds = new Set(ARCHETYPAL_TRIADS.map((triad) => triad.id));
+    const passageIds = new Set(Object.keys(TRIAD_PASSAGES));
+
+    const missingPassages = [...triadIds].filter((id) => !passageIds.has(id));
+    const extraPassages = [...passageIds].filter((id) => !triadIds.has(id));
+
+    assert.deepStrictEqual(
+      missingPassages,
+      [],
+      `Triads missing GraphRAG passages: ${missingPassages.join(', ')}`
+    );
+    assert.deepStrictEqual(
+      extraPassages,
+      [],
+      `Triad passages without matching triads: ${extraPassages.join(', ')}`
+    );
+  });
+
+  it('keeps dyad passages aligned with GraphRAG-eligible dyads', () => {
+    const eligibleDyads = ARCHETYPAL_DYADS.filter((dyad) =>
+      ['high', 'medium-high'].includes(dyad.significance)
+    );
+    const dyadByKey = new Map(
+      ARCHETYPAL_DYADS.map((dyad) => [dyad.cards.join('-'), dyad])
+    );
+    const eligibleKeys = new Set(eligibleDyads.map((dyad) => dyad.cards.join('-')));
+    const passageKeys = Object.keys(DYAD_PASSAGES);
+
+    const missingPassages = [...eligibleKeys].filter((key) => !DYAD_PASSAGES[key]);
+    const extraPassages = passageKeys.filter((key) => !dyadByKey.has(key));
+    assert.deepStrictEqual(
+      missingPassages,
+      [],
+      `Dyads missing GraphRAG passages: ${missingPassages.join(', ')}`
+    );
+    assert.deepStrictEqual(
+      extraPassages,
+      [],
+      `Dyad passages without matching dyads: ${extraPassages.join(', ')}`
+    );
   });
 });

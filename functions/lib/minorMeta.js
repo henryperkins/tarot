@@ -37,24 +37,94 @@ export const COURT_ARCHETYPES = {
     'mature, directive mastery of this suit—visible leadership, structure, and accountability in this area'
 };
 
+const VALID_SUITS = new Set(['Wands', 'Cups', 'Swords', 'Pentacles']);
+const VALID_RANKS = new Set([
+  'Ace',
+  'Two',
+  'Three',
+  'Four',
+  'Five',
+  'Six',
+  'Seven',
+  'Eight',
+  'Nine',
+  'Ten',
+  'Page',
+  'Knight',
+  'Queen',
+  'King'
+]);
+
+const SUIT_ALIASES = {
+  wands: 'Wands',
+  wand: 'Wands',
+  batons: 'Wands',
+  staffs: 'Wands',
+  staves: 'Wands',
+  clubs: 'Wands',
+  cups: 'Cups',
+  cup: 'Cups',
+  coupes: 'Cups',
+  chalices: 'Cups',
+  swords: 'Swords',
+  sword: 'Swords',
+  epees: 'Swords',
+  epee: 'Swords',
+  blades: 'Swords',
+  pentacles: 'Pentacles',
+  pentacle: 'Pentacles',
+  coins: 'Pentacles',
+  coin: 'Pentacles',
+  disks: 'Pentacles',
+  discs: 'Pentacles',
+  deniers: 'Pentacles',
+  denier: 'Pentacles'
+};
+
+const RANK_ALIASES = {
+  princess: 'Page',
+  prince: 'Knight',
+  valet: 'Page',
+  chevalier: 'Knight',
+  reine: 'Queen',
+  roi: 'King'
+};
+
+function normalizeToken(value) {
+  if (!value) return '';
+  return String(value)
+    .normalize('NFD')
+    .replace(/\p{Diacritic}/gu, '')
+    .replace(/[^a-z]/gi, '')
+    .toLowerCase();
+}
+
+function toTitleCase(value) {
+  if (!value) return '';
+  return String(value).slice(0, 1).toUpperCase() + String(value).slice(1).toLowerCase();
+}
+
+function normalizeSuit(value) {
+  const key = normalizeToken(value);
+  const suit = SUIT_ALIASES[key];
+  return suit && VALID_SUITS.has(suit) ? suit : null;
+}
+
+function normalizeRank(value) {
+  const key = normalizeToken(value);
+  const mapped = RANK_ALIASES[key] || toTitleCase(value);
+  return VALID_RANKS.has(mapped) ? mapped : null;
+}
+
 export function parseMinorName(name) {
   if (!name || typeof name !== 'string') return null;
-  const match = name.match(
-    /^\s*([A-Za-z]+)\s+of\s+(Wands|Cups|Swords|Pentacles)\s*$/i
-  );
+  const match = name.match(/^\s*([\p{L}]+)\s+of\s+([\p{L}]+)\s*$/iu);
   if (!match) return null;
   const [, rawRank, rawSuit] = match;
 
-  const suitMap = {
-    wands: 'Wands',
-    cups: 'Cups',
-    swords: 'Swords',
-    pentacles: 'Pentacles'
-  };
-  const suit = suitMap[String(rawSuit).toLowerCase()];
-  if (!suit) return null;
-
-  const rank = String(rawRank).slice(0, 1).toUpperCase() + String(rawRank).slice(1).toLowerCase();
+  const suit = normalizeSuit(rawSuit);
+  const rank = normalizeRank(rawRank);
+  if (!suit || !rank) return null;
   return { rank, suit };
 }
 
@@ -62,8 +132,8 @@ export function parseMinorName(name) {
 export function getMinorContext(cardLike = {}) {
   const rawName = cardLike.card || cardLike.name;
 
-  let suit = cardLike.suit;
-  let rank = cardLike.rank;
+  let suit = normalizeSuit(cardLike.suit);
+  let rank = normalizeRank(cardLike.rank);
 
   if ((!suit || !rank) && rawName) {
     const parsed = parseMinorName(rawName);
