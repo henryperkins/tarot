@@ -84,7 +84,7 @@ This roadmap evaluates these capabilities and provides a structured approach to 
 | Session memories (contextual) | ✅ Production | Reading-specific tuning |
 | Memory consolidation | ✅ Production | Durable insight capture |
 | PII safety controls | ✅ Production | Trust/compliance |
-| Follow-up conversation memory | ✅ Production | Coherent multi-turn |
+| Follow-up conversation memory | ✅ Production | Coherent multi-turn conversations |
 | Journal pattern context | ✅ Production | Historical awareness |
 | Coaching step extraction | ✅ Production | Actionable guidance |
 | Step embeddings | ✅ Production | Semantic similarity |
