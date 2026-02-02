@@ -116,16 +116,24 @@ async function deleteR2Exports(r2, userId, requestId) {
 
   for (const prefix of prefixes) {
     try {
-      // List all objects with this prefix
-      const listed = await r2.list({ prefix, limit: 1000 });
+      // Paginate through all objects with this prefix
+      let cursor = undefined;
+      let truncated = true;
       
-      for (const obj of listed?.objects || []) {
-        try {
-          await r2.delete(obj.key);
-          deleted++;
-        } catch (e) {
-          console.warn(`[${requestId}] [account] R2 delete failed for ${obj.key}:`, e);
+      while (truncated) {
+        const listed = await r2.list({ prefix, limit: 1000, cursor });
+        
+        for (const obj of listed?.objects || []) {
+          try {
+            await r2.delete(obj.key);
+            deleted++;
+          } catch (e) {
+            console.warn(`[${requestId}] [account] R2 delete failed for ${obj.key}:`, e);
+          }
         }
+        
+        truncated = listed?.truncated || false;
+        cursor = listed?.cursor;
       }
     } catch (error) {
       console.warn(`[${requestId}] [account] R2 list failed for prefix ${prefix}:`, error);
@@ -188,6 +196,7 @@ export async function onRequestPost(context) {
     await runDelete(env.DB, 'DELETE FROM user_tokens WHERE user_id = ?', [userId], requestId);
 
     await runDelete(env.DB, 'DELETE FROM journal_followups WHERE user_id = ?', [userId], requestId);
+    await runDelete(env.DB, 'DELETE FROM pattern_tracking_failures WHERE user_id = ?', [userId], requestId);
     await runDelete(env.DB, 'DELETE FROM pattern_occurrences WHERE user_id = ?', [userId], requestId);
     await runDelete(env.DB, 'DELETE FROM follow_up_usage WHERE user_id = ?', [userId], requestId);
     await runDelete(env.DB, 'DELETE FROM usage_tracking WHERE user_id = ?', [userId], requestId);
