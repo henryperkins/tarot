@@ -111,7 +111,7 @@ Enable 7-day trial for Plus tier to reduce conversion friction.
 
 ```javascript
 // shared/monetization/subscription.js
-TIERS.plus.trialDays = 7;
+SUBSCRIPTION_TIERS.plus.trialDays = 7;
 ```
 
 **Expected Outcome:** 15-25% increase in Plus trial starts based on industry benchmarks.
