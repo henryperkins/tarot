@@ -96,6 +96,11 @@ export function isCardSection(header, content) {
     return false;
   }
 
+  // Common position headers even without explicit card names
+  if (POSITION_HEADER_PATTERN.test(normalizedHeader) || POSITION_KEYWORD_PATTERN.test(normalizedHeader)) {
+    return true;
+  }
+
   // Check for card name in header
   if (MAJOR_ARCANA_PATTERN.test(header) || MINOR_ARCANA_PATTERN.test(header)) {
     return true;

@@ -1788,6 +1788,7 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply,
                           value={newTemplateLabel}
                           onChange={event => setNewTemplateLabel(event.target.value)}
                           placeholder="Template name"
+                          aria-label="Template name"
                           className="flex-1 rounded-full border border-accent/20 bg-surface/70 px-3 py-2 text-sm text-main focus:outline-none focus:ring-1 focus:ring-secondary/60"
                         />
                         <button

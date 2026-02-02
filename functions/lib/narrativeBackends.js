@@ -33,6 +33,7 @@ import {
 } from './narrative/reasoningIntegration.js';
 import { getToneStyle, buildPersonalizedClosing, getDepthProfile } from './narrative/styleHelpers.js';
 import { buildOpening } from './narrative/helpers.js';
+import { formatPassagesForPrompt } from './graphRAG.js';
 import { redactPII } from './promptEngineering.js';
 import {
   resolveSemanticScoring,
@@ -729,12 +730,15 @@ function buildGenericReading(
 
   // Use reasoning synthesis if available, otherwise fall back to enhanced synthesis
   const finalCard = safeCards.length > 0 ? safeCards[safeCards.length - 1] : null;
+  const baseSynthesis = buildEnhancedSynthesis(safeCards, themes, userQuestion, context, {
+    rotationIndex: remedyRotationIndex,
+    depthProfile
+  });
   const synthesisText = reasoning
-    ? buildReasoningSynthesis(safeCards, reasoning, themes, userQuestion, context)
-    : buildEnhancedSynthesis(safeCards, themes, userQuestion, context, {
-      rotationIndex: remedyRotationIndex,
-      depthProfile
-    });
+    ? buildReasoningSynthesis(safeCards, reasoning, themes, userQuestion, context, {
+      baseSynthesis
+    })
+    : baseSynthesis;
   entries.push({
     text: synthesisText,
     metadata: { type: 'synthesis', cards: finalCard ? [finalCard] : [] }
@@ -822,6 +826,7 @@ export async function composeReadingEnhanced(payload) {
 
   payload.narrativeEnhancements = collectedSections;
 
+  // Ensure promptMeta exists for telemetry
   if (!payload.promptMeta) {
     payload.promptMeta = {
       backend: 'local-composer',
@@ -830,9 +835,34 @@ export async function composeReadingEnhanced(payload) {
     };
   }
 
+  // Incorporate GraphRAG passages if available
+  let finalReadingText = readingText;
+  const graphRAGPayload = analysis.graphRAGPayload || payload.graphRAGPayload;
+  if (graphRAGPayload?.passages?.length > 0) {
+    const formattedPassages = formatPassagesForPrompt(graphRAGPayload.passages, {
+      includeSource: true,
+      markdown: true
+    });
+    if (formattedPassages) {
+      finalReadingText = readingText + '\n\n## Traditional Wisdom\n\n' + formattedPassages;
+      
+      // Update promptMeta with GraphRAG injection telemetry
+      const retrievalSummary = graphRAGPayload.retrievalSummary || {};
+      payload.promptMeta.graphRAG = {
+        ...retrievalSummary,
+        includedInPrompt: true,
+        injectedIntoPrompt: true,
+        passagesProvided: graphRAGPayload.initialPassageCount || graphRAGPayload.passages.length,
+        passagesUsedInPrompt: graphRAGPayload.passages.length,
+        disabledByEnv: false,
+        skippedReason: null
+      };
+    }
+  }
+
   // Return reading with null prompts (local composer doesn't use LLM prompts)
   return {
-    reading: readingText,
+    reading: finalReadingText,
     prompts: null,
     usage: null
   };

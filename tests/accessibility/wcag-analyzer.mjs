@@ -37,6 +37,18 @@ const checks = {
     severity: 'ERROR',
     wcag: '3.3.2 Labels or Instructions'
   },
+  selectWithoutLabel: {
+    pattern: /<select(?![^>]*(aria-label|aria-labelledby|id=))[^>]*>/gi,
+    description: 'Select/dropdown without label association',
+    severity: 'ERROR',
+    wcag: '3.3.2 Labels or Instructions'
+  },
+  textareaWithoutLabel: {
+    pattern: /<textarea(?![^>]*(aria-label|aria-labelledby|id=))[^>]*>/gi,
+    description: 'Textarea without label association',
+    severity: 'ERROR',
+    wcag: '3.3.2 Labels or Instructions'
+  },
   linkWithoutText: {
     pattern: /<a\s+[^>]*href=["'][^"']*["'][^>]*>\s*<\/a>/gi,
     description: 'Empty links',
@@ -87,6 +99,90 @@ const checks = {
   }
 };
 
+/**
+ * Check if an input/select/textarea is wrapped in a <label> element
+ * by finding the most recent unclosed label tag
+ */
+function isWrappedInLabel(content, matchIndex) {
+  const beforeMatch = content.substring(0, matchIndex);
+  
+  // Find all label open/close positions
+  const openPattern = /<label[\s>]/gi;
+  const closePattern = /<\/label>/gi;
+  
+  let opens = [];
+  let closes = [];
+  
+  let match;
+  while ((match = openPattern.exec(beforeMatch)) !== null) {
+    opens.push(match.index);
+  }
+  while ((match = closePattern.exec(beforeMatch)) !== null) {
+    closes.push(match.index);
+  }
+  
+  // Match opens with closes (greedy - each close matches nearest preceding open)
+  let unclosedOpens = [...opens];
+  for (const closePos of closes) {
+    // Find the most recent open before this close
+    for (let i = unclosedOpens.length - 1; i >= 0; i--) {
+      if (unclosedOpens[i] < closePos) {
+        unclosedOpens.splice(i, 1);
+        break;
+      }
+    }
+  }
+  
+  // If any unclosed label opens exist, we're inside a label
+  return unclosedOpens.length > 0;
+}
+
+/**
+ * Check if an element has aria-label on a subsequent line (multiline JSX)
+ */
+function hasAriaLabelOnNextLines(content, matchIndex) {
+  // Get the element up to its closing > or /> (could be many lines for JSX)
+  const afterMatch = content.substring(matchIndex);
+  
+  // Find the end of this element (first unescaped > that's not inside a string)
+  // Simple approach: find first > that's followed by whitespace or newline or another tag
+  let depth = 0;
+  let inString = false;
+  let stringChar = '';
+  let elementEnd = -1;
+  
+  for (let i = 0; i < Math.min(afterMatch.length, 2000); i++) {
+    const char = afterMatch[i];
+    const prevChar = i > 0 ? afterMatch[i - 1] : '';
+    
+    // Track string state
+    if ((char === '"' || char === "'") && prevChar !== '\\') {
+      if (!inString) {
+        inString = true;
+        stringChar = char;
+      } else if (char === stringChar) {
+        inString = false;
+      }
+    }
+    
+    if (!inString) {
+      if (char === '{') depth++;
+      if (char === '}') depth--;
+      
+      // Found closing > at depth 0
+      if (char === '>' && depth === 0) {
+        elementEnd = i;
+        break;
+      }
+    }
+  }
+  
+  if (elementEnd === -1) return false;
+  
+  const fullElement = afterMatch.substring(0, elementEnd + 1);
+  return /aria-label=/i.test(fullElement);
+}
+
 function scanFile(filePath) {
   const content = fs.readFileSync(filePath, 'utf-8');
   const relativePath = path.relative(projectRoot, filePath);
@@ -96,6 +192,25 @@ function scanFile(filePath) {
     const matches = [...content.matchAll(check.pattern)];
     
     matches.forEach(match => {
+      // For form element checks, filter out false positives
+      if (['inputWithoutLabel', 'selectWithoutLabel', 'textareaWithoutLabel'].includes(checkName)) {
+        // Skip if inside a comment (JSDoc or line comment)
+        const lineStart = content.lastIndexOf('\n', match.index) + 1;
+        const lineContent = content.substring(lineStart, match.index);
+        if (lineContent.includes('*') || lineContent.includes('//')) {
+          return;
+        }
+        
+        // Skip if wrapped in <label>
+        if (isWrappedInLabel(content, match.index)) {
+          return;
+        }
+        // Skip if aria-label appears later in the same element (multiline JSX)
+        if (hasAriaLabelOnNextLines(content, match.index)) {
+          return;
+        }
+      }
+
       const lines = content.substring(0, match.index).split('\n');
       const lineNumber = lines.length;
       const columnNumber = lines[lines.length - 1].length + 1;
@@ -282,6 +397,8 @@ function getFix(checkName) {
     emptyAlt: 'Add aria-hidden="true" for decorative images',
     buttonWithoutLabel: 'Add aria-label="descriptive text" to icon-only buttons',
     inputWithoutLabel: 'Wrap with <label> or add aria-label/aria-labelledby',
+    selectWithoutLabel: 'Wrap with <label> or add aria-label/aria-labelledby',
+    textareaWithoutLabel: 'Wrap with <label> or add aria-label/aria-labelledby',
     linkWithoutText: 'Add descriptive text inside <a> tags',
     divAsButton: 'Use <button> or add role="button", tabIndex="0", and keyboard handlers',
     missingLang: 'Add lang="en" to <html> tag',

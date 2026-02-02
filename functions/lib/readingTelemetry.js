@@ -390,11 +390,40 @@ export function resolveGraphRAGStats(analysis, promptMeta = null) {
   // Fallback to analysis summary, but mark as not injected
   const summary = analysis?.graphRAGPayload?.retrievalSummary;
   if (summary) {
-    return {
+    const result = {
       ...summary,
+      includedInPrompt: false,
       injectedIntoPrompt: false,
       source: 'analysis-fallback'
     };
+    
+    // Map reason to skippedReason and disabledByEnv for consistency with promptMeta.graphRAG
+    if (summary.reason) {
+      if (summary.reason === 'graphrag-disabled-env') {
+        result.disabledByEnv = true;
+        result.skippedReason = 'disabled_by_env';
+      } else if (summary.reason === 'missing-graph-keys') {
+        result.disabledByEnv = false;
+        result.skippedReason = 'retrieval_failed_or_empty';
+      }
+      // Keep original reason field for debugging
+    }
+    
+    // Ensure disabledByEnv is boolean
+    if (typeof result.disabledByEnv !== 'boolean') {
+      result.disabledByEnv = false;
+    }
+    
+    // Map passagesRetrieved to passagesProvided for telemetry schema compatibility
+    if (typeof result.passagesRetrieved === 'number' && typeof result.passagesProvided !== 'number') {
+      result.passagesProvided = result.passagesRetrieved;
+    }
+    // Ensure passagesUsedInPrompt is set (default 0)
+    if (typeof result.passagesUsedInPrompt !== 'number') {
+      result.passagesUsedInPrompt = 0;
+    }
+    
+    return result;
   }
 
   return null;

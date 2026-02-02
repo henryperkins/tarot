@@ -3,13 +3,20 @@
  * POST /api/account/password
  *
  * Updates the password for the authenticated user.
+ * 
+ * Security: Invalidates all existing sessions after password change to prevent
+ * compromised sessions from persisting.
  */
 
 import {
   getUserFromRequest,
   verifyPassword,
   hashPassword,
-  isValidPassword
+  isValidPassword,
+  deleteAllUserSessions,
+  createSession,
+  createSessionCookie,
+  isSecureRequest
 } from '../../lib/auth.js';
 import { jsonResponse, readJsonBody } from '../../lib/utils.js';
 
@@ -61,7 +68,28 @@ export async function onRequestPost(context) {
       WHERE id = ?
     `).bind(hash, salt, now, user.id).run();
 
-    return jsonResponse({ success: true });
+    // Security: Invalidate all existing sessions after password change
+    // This ensures any compromised sessions are terminated
+    await deleteAllUserSessions(env.DB, user.id);
+
+    // Create a new session for the current user so they stay logged in
+    const metadata = {
+      userAgent: request.headers.get('User-Agent'),
+      ipAddress: request.headers.get('CF-Connecting-IP')
+    };
+    const { token, expiresAt } = await createSession(env.DB, user.id, metadata);
+    const isHttps = isSecureRequest(request);
+    const cookie = createSessionCookie(token, expiresAt, { secure: isHttps });
+
+    return jsonResponse(
+      { success: true, sessionsInvalidated: true },
+      {
+        status: 200,
+        headers: {
+          'Set-Cookie': cookie
+        }
+      }
+    );
   } catch (error) {
     console.error(`[${requestId}] [account] Password update error:`, error);
     return jsonResponse({ error: 'Failed to update password' }, { status: 500 });

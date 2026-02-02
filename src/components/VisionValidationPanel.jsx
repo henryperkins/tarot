@@ -132,6 +132,7 @@ export function VisionValidationPanel({
             onChange={handleFileChange}
             className="hidden"
             disabled={uploadLimitReached}
+            aria-label="Upload card images for validation"
             aria-describedby={uploadLimitReached ? 'upload-limit-info' : undefined}
           />
           <button

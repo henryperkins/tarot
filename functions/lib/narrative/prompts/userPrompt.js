@@ -177,7 +177,7 @@ export function buildUserPrompt(
     }
   }
 
-  const visionSection = buildVisionValidationSection(visionInsights, { includeDiagnostics });
+  const visionSection = buildVisionValidationSection(visionInsights, { includeDiagnostics, cardsInfo });
   if (visionSection) {
     prompt += visionSection;
   }

@@ -53,13 +53,45 @@ node tests/accessibility/wcag-analyzer.mjs
 - Code snippets showing issues
 - Fix suggestions for each issue
 
-### 3. Run All Automated Tests
+### 3. Playwright axe-core Tests (`accessibility.spec.js`)
 
+Runtime accessibility testing using axe-core on actual rendered pages. Catches issues that static analysis misses.
+
+**Run:**
 ```bash
-npm run test:a11y
+npm run test:a11y:e2e
+# or with UI
+npm run test:a11y:e2e:ui
 ```
 
-This runs both the contrast checker and WCAG analyzer sequentially.
+**What it checks:**
+- Actual computed color contrast
+- ARIA attributes and state on rendered DOM
+- Keyboard navigation and focus management
+- Heading hierarchy and landmarks
+- Form label associations
+- Touch target sizes (mobile)
+- Reduced motion respect
+- Live regions
+
+**Test Suites:**
+- Core Pages - Home page, spread selector, question input
+- Interactive Components - Buttons, focus indicators, contrast
+- Keyboard Navigation - Tab order, arrow key navigation, escape key
+- Live Regions - Landmarks, heading hierarchy
+- Mobile - Touch targets, horizontal scroll
+- Reduced Motion - Animation duration checks
+- Forms - Labels, error associations
+
+### 4. Run All Automated Tests
+
+```bash
+npm run test:a11y:all   # Static + runtime tests
+npm run test:a11y       # Static tests only (faster)
+npm run test:a11y:e2e   # Runtime tests only
+```
+
+This runs contrast checker, WCAG analyzer, and Playwright axe-core tests.
 
 ---
 

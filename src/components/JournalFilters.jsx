@@ -749,6 +749,7 @@ export function JournalFilters({
                   value={filters.query}
                   onChange={handleQueryChange}
                   placeholder="Search readings..."
+                  aria-label="Search journal entries"
                   className="w-full min-h-touch rounded-xl border border-[color:var(--border-warm-light)] bg-[color:rgba(15,14,19,0.80)] px-8 py-2 text-[13px] text-[color:var(--text-main)] placeholder:text-[color:var(--color-gray-light)] focus:outline-none focus:ring-2 focus:ring-[color:rgba(232,218,195,0.50)]"
                 />
               </div>
@@ -845,6 +846,7 @@ export function JournalFilters({
                           value={newFilterName}
                           onChange={(event) => setNewFilterName(event.target.value)}
                           placeholder="Name this view"
+                          aria-label="Name for saved filter view"
                           className="flex-1 min-h-touch rounded-xl border border-[color:var(--border-warm-light)] bg-[color:rgba(15,14,19,0.70)] px-3 py-2 text-[13px] text-[color:var(--text-main)] placeholder:text-[color:var(--color-gray-light)] focus:outline-none focus:ring-2 focus:ring-[color:rgba(232,218,195,0.50)]"
                         />
                         <div className="flex items-center gap-2">

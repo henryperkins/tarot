@@ -314,16 +314,40 @@ export function enhanceCardTextWithReasoning(baseText, cardIndex, reasoning, opt
  * @param {Object} themes - Theme analysis
  * @param {string} userQuestion - The user's question
  * @param {string} context - Reading context
+ * @param {Object} [options] - Optional merge options
+ * @param {string} [options.baseSynthesis] - Base synthesis text to merge into
  * @returns {string} Synthesis text
  */
-export function buildReasoningSynthesis(cardsInfo, reasoning, _themes, _userQuestion, _context) {
-  // Intentionally reserved for future synthesis enrichment while preserving the
-  // documented public signature (see docs/reasoning-chain.md).
+function mergeReasoningIntoBase(baseText, reasoningText) {
+  const base = typeof baseText === 'string' ? baseText.trim() : '';
+  const reasoning = typeof reasoningText === 'string' ? reasoningText.trim() : '';
+  if (!base) return reasoning;
+  if (!reasoning) return base;
+
+  const lowerBase = base.toLowerCase();
+  const reminderIndex = lowerBase.lastIndexOf('remember:');
+  if (reminderIndex === -1) {
+    return `${base}\n\n${reasoning}`;
+  }
+
+  const before = base.slice(0, reminderIndex).trimEnd();
+  const after = base.slice(reminderIndex).trimStart();
+  return `${before}\n\n${reasoning}\n\n${after}`.trim();
+}
+
+export function buildReasoningSynthesis(cardsInfo, reasoning, _themes, _userQuestion, _context, options = {}) {
   void cardsInfo;
   void _themes;
   void _userQuestion;
   void _context;
 
+  const baseSynthesis = typeof options.baseSynthesis === 'string' ? options.baseSynthesis : '';
+
+  if (!reasoning) {
+    return baseSynthesis || '';
+  }
+
+  const includeAgencyReminder = !baseSynthesis || !/remember:/i.test(baseSynthesis);
   const sections = [];
 
   // Add synthesis hooks from reasoning
@@ -351,10 +375,17 @@ export function buildReasoningSynthesis(cardsInfo, reasoning, _themes, _userQues
     sections.push(`\n**Guidance:** ${reasoning.narrativeArc.narrativeGuidance}`);
   }
 
-  // Add agency reminder
-  sections.push('\n*Remember: these cards illuminate, they don\'t determine. Your choices shape what unfolds.*');
+  // Add agency reminder when not already covered by the base synthesis
+  if (includeAgencyReminder) {
+    sections.push('\n*Remember: these cards illuminate, they don\'t determine. Your choices shape what unfolds.*');
+  }
 
-  return sections.join('\n');
+  const reasoningText = sections.join('\n');
+  if (!baseSynthesis) {
+    return reasoningText;
+  }
+
+  return mergeReasoningIntoBase(baseSynthesis, reasoningText);
 }
 
 // ============================================================================

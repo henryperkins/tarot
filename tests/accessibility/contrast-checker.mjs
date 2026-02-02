@@ -62,7 +62,7 @@ const colors = {
   'text-muted': '#B5AFA4', // Updated value from report
   'text-accent': '#D4B896',
   'brand-primary': '#D4B896',
-  'brand-secondary': '#92887D',
+  'brand-secondary': '#A89D92',
   'brand-accent': '#E8DAC3',
   'focus-ring-color': '#E8DAC3'
 };
@@ -133,10 +133,10 @@ const testCases = [
     isText: false
   },
   {
-    name: 'border-secondary/60 on bg-surface-muted',
-    fg: applyOpacity(colors['brand-secondary'], 0.60),
+    name: 'border-secondary/75 on bg-surface-muted',
+    fg: applyOpacity(colors['brand-secondary'], 0.75),
     bg: colors['bg-surface-muted'],
-    location: 'ReadingPreparation.jsx:104, SpreadSelector.jsx complexity badges',
+    location: 'SpreadSelector.jsx navigation arrows (hover state)',
     wcagLevel: 'AA',
     isText: false
   },

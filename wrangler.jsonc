@@ -12,6 +12,8 @@
   "compatibility_flags": [
     "nodejs_compat"
   ],
+  // Sentry source map uploads
+  "upload_source_maps": true,
   // Routes - custom domain configuration
   "routes": [
     {
@@ -31,6 +33,10 @@
   // Workers AI binding for evaluation
   "ai": {
     "binding": "AI"
+  },
+  // Version metadata for Sentry release tracking
+  "version_metadata": {
+    "binding": "CF_VERSION_METADATA"
   },
   // Enable Logpush for Workers trace events
   "logpush": true,

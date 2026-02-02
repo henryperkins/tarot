@@ -7,6 +7,8 @@
  * Migrated from Cloudflare Pages Functions to Workers with Static Assets.
  */
 
+import * as Sentry from '@sentry/cloudflare';
+
 // API Route Handlers (imported from existing functions)
 import * as tarotReading from '../../functions/api/tarot-reading.js';
 import * as tarotReadingJobStart from '../../functions/api/tarot-reading-job-start.js';
@@ -261,6 +263,17 @@ const routes = [
   { pattern: /^\/api\/admin\/archive$/, handlers: adminArchive },
   { pattern: /^\/api\/admin\/quality-stats$/, handlers: adminQualityStats },
   { pattern: /^\/api\/coach-extraction-backfill$/, handlers: coachExtractionBackfill },
+  // Sentry debug route (remove in production if desired)
+  {
+    pattern: /^\/api\/debug-sentry$/,
+    handlers: {
+      onRequestGet: async () => {
+        Sentry.startSpan({ name: 'debug-sentry-test', op: 'test' }, () => {
+          throw new Error('Sentry test error from Tableu worker');
+        });
+      },
+    },
+  },
 ];
 
 /**
@@ -368,93 +381,109 @@ function addCorsHeaders(response, request) {
  * @property {string} EVAL_GATEWAY_ID - AI Gateway id for routing eval calls
  */
 
-export default {
-  /**
-   * Scheduled handler for cron triggers
-   * @param {ScheduledController} controller - Cron controller
-   * @param {Env} env - Environment bindings
-   * @param {ExecutionContext} ctx - Execution context
-   */
-  async scheduled(controller, env, ctx) {
-    ctx.waitUntil(handleScheduled(controller, env, ctx));
-  },
+export default Sentry.withSentry(
+  (env) => ({
+    dsn: 'https://dc6b77e884387701e50a12632de8e0dc@o4508070823395328.ingest.us.sentry.io/4510814880661504',
+    tracesSampleRate: 1.0,
+    enableLogs: true,
+    sendDefaultPii: true,
+    // Use Cloudflare version metadata for release tracking
+    release: env.CF_VERSION_METADATA?.id,
+  }),
+  {
+    /**
+     * Scheduled handler for cron triggers
+     * @param {ScheduledController} controller - Cron controller
+     * @param {Env} env - Environment bindings
+     * @param {ExecutionContext} ctx - Execution context
+     */
+    async scheduled(controller, env, ctx) {
+      ctx.waitUntil(handleScheduled(controller, env, ctx));
+    },
 
-  /**
-   * Main fetch handler for all incoming requests
-   * @param {Request} request - Incoming request
-   * @param {Env} env - Environment bindings
-   * @param {ExecutionContext} ctx - Execution context
-   * @returns {Promise<Response>}
-   */
-  async fetch(request, env, ctx) {
-    const url = new URL(request.url);
-    const pathname = url.pathname;
-    const method = request.method;
+    /**
+     * Main fetch handler for all incoming requests
+     * @param {Request} request - Incoming request
+     * @param {Env} env - Environment bindings
+     * @param {ExecutionContext} ctx - Execution context
+     * @returns {Promise<Response>}
+     */
+    async fetch(request, env, ctx) {
+      const url = new URL(request.url);
+      const pathname = url.pathname;
+      const method = request.method;
 
-    // Handle CORS preflight
-    if (method === 'OPTIONS') {
-      return handleOptions(request);
-    }
-
-    // Check if this is an API route
-    if (pathname.startsWith('/api/')) {
-      try {
-        const matched = matchRoute(pathname);
-
-        if (!matched) {
-          return addCorsHeaders(jsonResponse(
-            { error: 'Not found', path: pathname },
-            { status: 404 }
-          ), request);
-        }
-
-        const { route, params } = matched;
-        const handlerName = getHandlerName(method);
-
-        // Check for method-specific handler first, then fall back to generic onRequest
-        const handler = route.handlers[handlerName] || route.handlers.onRequest;
-
-        if (!handler) {
-          return addCorsHeaders(jsonResponse(
-            { error: 'Method not allowed', method, path: pathname },
-            { status: 405 }
-          ), request);
-        }
-
-        // Build context object similar to Pages Functions
-        const context = {
-          request,
-          env,
-          params,
-          waitUntil: ctx.waitUntil.bind(ctx),
-          passThroughOnException: () => { }, // Not applicable in Workers
-          next: async () => env.ASSETS.fetch(request), // Fall through to assets
-          data: {},
-        };
-
-        // Call the handler
-        const response = await handler(context);
-        return addCorsHeaders(response, request);
-
-      } catch (error) {
-        console.error('API Error:', error);
-        return addCorsHeaders(jsonResponse(
-          { error: 'Internal server error', message: error.message },
-          { status: 500 }
-        ), request);
+      // Handle CORS preflight
+      if (method === 'OPTIONS') {
+        return handleOptions(request);
       }
-    }
 
-    // Check for share page requests that need OG meta tag injection
-    const sharePageMatch = pathname.match(/^\/share\/([^/]+)$/);
-    if (sharePageMatch && method === 'GET') {
-      return handleSharePageWithOgTags(request, env, sharePageMatch[1]);
-    }
+      // Check if this is an API route
+      if (pathname.startsWith('/api/')) {
+        try {
+          const matched = matchRoute(pathname);
 
-    // For non-API routes, serve static assets
-    // The ASSETS binding handles SPA fallback via not_found_handling config
-    return env.ASSETS.fetch(request);
-  },
-};
+          if (!matched) {
+            return addCorsHeaders(jsonResponse(
+              { error: 'Not found', path: pathname },
+              { status: 404 }
+            ), request);
+          }
+
+          const { route, params } = matched;
+          const handlerName = getHandlerName(method);
+
+          // Check for method-specific handler first, then fall back to generic onRequest
+          const handler = route.handlers[handlerName] || route.handlers.onRequest;
+
+          if (!handler) {
+            return addCorsHeaders(jsonResponse(
+              { error: 'Method not allowed', method, path: pathname },
+              { status: 405 }
+            ), request);
+          }
+
+          // Instrument D1 with Sentry for query tracing
+          const instrumentedEnv = {
+            ...env,
+            DB: env.DB ? Sentry.instrumentD1WithSentry(env.DB) : env.DB,
+          };
+
+          // Build context object similar to Pages Functions
+          const context = {
+            request,
+            env: instrumentedEnv,
+            params,
+            waitUntil: ctx.waitUntil.bind(ctx),
+            passThroughOnException: () => { }, // Not applicable in Workers
+            next: async () => env.ASSETS.fetch(request), // Fall through to assets
+            data: {},
+          };
+
+          // Call the handler
+          const response = await handler(context);
+          return addCorsHeaders(response, request);
+
+        } catch (error) {
+          console.error('API Error:', error);
+          return addCorsHeaders(jsonResponse(
+            { error: 'Internal server error', message: error.message },
+            { status: 500 }
+          ), request);
+        }
+      }
+
+      // Check for share page requests that need OG meta tag injection
+      const sharePageMatch = pathname.match(/^\/share\/([^/]+)$/);
+      if (sharePageMatch && method === 'GET') {
+        return handleSharePageWithOgTags(request, env, sharePageMatch[1]);
+      }
+
+      // For non-API routes, serve static assets
+      // The ASSETS binding handles SPA fallback via not_found_handling config
+      return env.ASSETS.fetch(request);
+    },
+  }
+);
 
 export { ReadingJob } from './readingJob.js';

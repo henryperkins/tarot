@@ -1,6 +1,32 @@
 import { formatVisionLabelForPrompt } from '../../visionLabels.js';
 import { sanitizeText } from '../../utils.js';
 
+function normalizeCardKey(value) {
+  if (typeof value !== 'string') return null;
+  const trimmed = value.trim().toLowerCase();
+  if (!trimmed) return null;
+  return trimmed.replace(/^the\s+/, '').replace(/\s+/g, ' ');
+}
+
+function buildDrawnCardKeys(cardsInfo) {
+  const drawn = new Set();
+  if (!Array.isArray(cardsInfo)) return drawn;
+  cardsInfo.forEach((card) => {
+    const raw = card?.canonicalKey || card?.canonicalName || card?.card || '';
+    const key = normalizeCardKey(raw);
+    if (key) {
+      drawn.add(key);
+    }
+  });
+  return drawn;
+}
+
+function isDrawnCardName(cardName, drawnCardKeys) {
+  if (!cardName || !drawnCardKeys || drawnCardKeys.size === 0) return false;
+  const key = normalizeCardKey(cardName);
+  return Boolean(key && drawnCardKeys.has(key));
+}
+
 export function buildVisionValidationSection(visionInsights, options = {}) {
   if (options.includeDiagnostics === false) {
     return '';
@@ -11,6 +37,12 @@ export function buildVisionValidationSection(visionInsights, options = {}) {
   }
 
   const safeEntries = visionInsights.slice(0, 5);
+  const drawnCardKeys = buildDrawnCardKeys(options.cardsInfo);
+  const enforceDrawnCardFilter = drawnCardKeys.size > 0;
+  const shouldAllowCardName = (cardName) => {
+    if (!enforceDrawnCardFilter) return true;
+    return isDrawnCardName(cardName, drawnCardKeys);
+  };
   const verifiedMatches = safeEntries.filter((entry) => entry.matchesDrawnCard === true).length;
   const mismatches = safeEntries.filter((entry) => entry.matchesDrawnCard === false).length;
   const unverified = safeEntries.length - verifiedMatches - mismatches;
@@ -60,18 +92,25 @@ export function buildVisionValidationSection(visionInsights, options = {}) {
       return; // Skip remaining details for mismatched entries
     }
 
-    // For verified and unverified entries, include full details
-    let validationNote = '';
-    if (entry.matchesDrawnCard === null || typeof entry.matchesDrawnCard === 'undefined') {
-      validationNote = ' [unverified upload]';
+    const isUnverified = entry.matchesDrawnCard === null || typeof entry.matchesDrawnCard === 'undefined';
+    const predictedCard = entry.predictedCard || entry.card || '';
+    const allowCardName = !isUnverified || shouldAllowCardName(predictedCard);
+    const suppressDetails = isUnverified && enforceDrawnCardFilter && !allowCardName;
+    const validationNote = isUnverified ? ' [unverified upload]' : '';
+
+    if (allowCardName && predictedCard) {
+      lines.push(`- ${safeLabel}: recognized as ${predictedCard}${basisText} (${confidenceText})${validationNote}`);
+    } else if (isUnverified) {
+      lines.push(`- ${safeLabel}: recognized as an unverified upload${basisText} (${confidenceText}) [card name withheld]`);
+    } else {
+      lines.push(`- ${safeLabel}: recognized as a card${basisText} (${confidenceText})`);
     }
-    lines.push(`- ${safeLabel}: recognized as ${entry.predictedCard}${basisText} (${confidenceText})${validationNote}`);
 
     if (entry.orientation) {
       lines.push(`  · Orientation: ${entry.orientation}`);
     }
 
-    if (entry.reasoning) {
+    if (entry.reasoning && !suppressDetails) {
       const safeReasoning = sanitizeText(entry.reasoning, {
         maxLength: 240,
         stripMarkdown: true,
@@ -83,7 +122,7 @@ export function buildVisionValidationSection(visionInsights, options = {}) {
       }
     }
 
-    if (entry.visualDetails) {
+    if (entry.visualDetails && !suppressDetails) {
       const details = Array.isArray(entry.visualDetails)
         ? entry.visualDetails
         : (typeof entry.visualDetails === 'string' ? entry.visualDetails.split(/[\n;]+/g) : []);
@@ -123,7 +162,7 @@ export function buildVisionValidationSection(visionInsights, options = {}) {
       }
     }
 
-    if (entry.symbolVerification && typeof entry.symbolVerification === 'object') {
+    if (entry.symbolVerification && typeof entry.symbolVerification === 'object' && !suppressDetails) {
       const sv = entry.symbolVerification;
       const matchRate = typeof sv.matchRate === 'number' ? `${(sv.matchRate * 100).toFixed(1)}% symbol alignment` : null;
       const missingList = Array.isArray(sv.missingSymbols) && sv.missingSymbols.length
@@ -136,7 +175,10 @@ export function buildVisionValidationSection(visionInsights, options = {}) {
     }
 
     if (Array.isArray(entry.matches) && entry.matches.length) {
-      const preview = entry.matches
+      const matches = isUnverified && enforceDrawnCardFilter
+        ? entry.matches.filter((match) => shouldAllowCardName(match?.card))
+        : entry.matches;
+      const preview = matches
         .slice(0, 2)
         .map((match) => {
           if (!match?.card) return null;
@@ -168,4 +210,3 @@ export function buildVisionValidationSection(visionInsights, options = {}) {
   lines.push('');
   return `${lines.join('\n')}\n`;
 }
-

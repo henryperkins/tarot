@@ -396,6 +396,49 @@ export default function AccountPage() {
     return () => { cancelled = true; };
   }, [isAuthenticated, tier]);
 
+  // Poll subscription status periodically to catch webhook-driven changes
+  // Only polls when page is visible to avoid background battery drain
+  useEffect(() => {
+    if (!isAuthenticated) return;
+
+    const POLL_INTERVAL_MS = 60000; // 60 seconds
+    let intervalId = null;
+    let lastPollTime = Date.now();
+
+    const poll = async () => {
+      // Skip if page is hidden (background tab)
+      if (document.hidden) return;
+      
+      // Skip if polled recently (handles visibility change + interval overlap)
+      const now = Date.now();
+      if (now - lastPollTime < POLL_INTERVAL_MS * 0.9) return;
+      lastPollTime = now;
+
+      try {
+        await checkAuth();
+      } catch (err) {
+        // Silently ignore polling errors - user will see stale data but can refresh manually
+        console.warn('[AccountPage] Subscription poll failed:', err);
+      }
+    };
+
+    // Start polling
+    intervalId = setInterval(poll, POLL_INTERVAL_MS);
+
+    // Also poll when tab becomes visible after being hidden
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        poll();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      if (intervalId) clearInterval(intervalId);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [isAuthenticated, checkAuth]);
+
   const fetchUsage = useCallback(async () => {
     if (!isAuthenticated) return;
     setUsageLoading(true);

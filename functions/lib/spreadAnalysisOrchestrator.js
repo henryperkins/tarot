@@ -175,6 +175,14 @@ function buildGraphRAGPlaceholder(graphKeys, requestedSemanticScoring, enableSem
       graphKeys?.suitProgressions?.filter((p) => p.significance === 'emerging-progression').length || 0
   };
 
+  const qualityMetrics = {
+    averageRelevance: 0,
+    minRelevance: 0,
+    maxRelevance: 0,
+    semanticScoringUsed: false,
+    semanticScoringAttempted: false
+  };
+
   return {
     passages: [],
     formattedBlock: null,
@@ -187,16 +195,19 @@ function buildGraphRAGPlaceholder(graphKeys, requestedSemanticScoring, enableSem
       semanticScoringRequested: requestedSemanticScoring,
       semanticScoringUsed: false,
       semanticScoringFallback: requestedSemanticScoring,
+      semanticScoringAttempted: false,
+      qualityMetrics,
       reason
     },
     maxPassages: 0,
     initialPassageCount: 0,
     rankingStrategy: null,
     enableSemanticScoring,
-    qualityMetrics: null,
+    qualityMetrics,
     semanticScoringRequested: requestedSemanticScoring,
     semanticScoringUsed: false,
-    semanticScoringFallback: requestedSemanticScoring
+    semanticScoringFallback: requestedSemanticScoring,
+    semanticScoringAttempted: false
   };
 }
 

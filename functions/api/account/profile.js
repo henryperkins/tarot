@@ -3,10 +3,13 @@
  * PATCH /api/account/profile
  *
  * Updates username and/or email for the authenticated user.
+ * 
+ * Security: Changing email resets email_verified flag and requires re-verification.
  */
 
 import { getUserFromRequest, isValidEmail, isValidUsername } from '../../lib/auth.js';
 import { jsonResponse, readJsonBody } from '../../lib/utils.js';
+import { sendVerificationEmail } from '../../lib/authNotifications.js';
 
 export async function onRequestPatch(context) {
   const { request, env } = context;
@@ -70,10 +73,15 @@ export async function onRequestPatch(context) {
     const now = Math.floor(Date.now() / 1000);
     const fields = [];
     const bindings = [];
+    const emailChanged = Boolean(updates.email && updates.email !== user.email);
 
     if (updates.email) {
       fields.push('email = ?');
       bindings.push(updates.email);
+      // Security: Reset email_verified when email changes to require re-verification
+      if (emailChanged) {
+        fields.push('email_verified = 0');
+      }
     }
 
     if (updates.username) {
@@ -91,12 +99,32 @@ export async function onRequestPatch(context) {
       WHERE id = ?
     `).bind(...bindings).run();
 
+    // Send verification email for new address if email changed
+    let verificationSent = false;
+    if (emailChanged) {
+      try {
+        const updatedUser = {
+          id: user.id,
+          email: updates.email,
+          username: updates.username || user.username
+        };
+        await sendVerificationEmail(env, request, updatedUser);
+        verificationSent = true;
+      } catch (verifyError) {
+        // Log but don't fail the profile update - user can request resend
+        console.warn(`[${requestId}] [account] Failed to send verification email after email change:`, verifyError);
+      }
+    }
+
     return jsonResponse({
       success: true,
+      emailVerificationRequired: emailChanged,
+      verificationSent,
       user: {
         id: user.id,
         email: updates.email || user.email,
         username: updates.username || user.username,
+        email_verified: emailChanged ? false : user.email_verified,
         subscription_tier: user.subscription_tier || 'free',
         subscription_status: user.subscription_status || 'inactive',
         subscription_provider: user.subscription_provider || null,

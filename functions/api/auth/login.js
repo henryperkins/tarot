@@ -2,7 +2,10 @@
  * User Login Endpoint
  * POST /api/auth/login
  *
- * Authenticates a user and creates a new session
+ * Authenticates a user and creates a new session.
+ * 
+ * Security: Rate limited to prevent brute-force attacks
+ * (max 5 failed attempts per 5-minute window per IP).
  */
 
 import {
@@ -12,12 +15,84 @@ import {
   validateSession,
   isSecureRequest
 } from '../../lib/auth.js';
+import { getClientIdentifier } from '../../lib/clientId.js';
+
+const LOGIN_RATE_LIMIT_KEY_PREFIX = 'login-attempt';
+const LOGIN_RATE_LIMIT_MAX = 5;
+const LOGIN_RATE_LIMIT_WINDOW_SECONDS = 300; // 5 minutes
+
+/**
+ * Check and enforce rate limit for login attempts.
+ * Only counts failed attempts - successful logins don't increment.
+ */
+async function checkLoginRateLimit(env, request, requestId) {
+  const store = env?.RATELIMIT;
+  if (!store) {
+    return { limited: false };
+  }
+
+  try {
+    const now = Date.now();
+    const windowBucket = Math.floor(now / (LOGIN_RATE_LIMIT_WINDOW_SECONDS * 1000));
+    const identifier = getClientIdentifier(request);
+    const rateLimitKey = `${LOGIN_RATE_LIMIT_KEY_PREFIX}:${identifier}:${windowBucket}`;
+
+    const existing = await store.get(rateLimitKey);
+    const currentCount = existing ? Number(existing) || 0 : 0;
+
+    if (currentCount >= LOGIN_RATE_LIMIT_MAX) {
+      const windowBoundary = (windowBucket + 1) * LOGIN_RATE_LIMIT_WINDOW_SECONDS * 1000;
+      const retryAfter = Math.max(1, Math.ceil((windowBoundary - now) / 1000));
+      return { limited: true, retryAfter, rateLimitKey };
+    }
+
+    return { limited: false, currentCount, rateLimitKey };
+  } catch (error) {
+    console.warn(`[${requestId}] [auth] Rate limit check failed, allowing request:`, error);
+    return { limited: false };
+  }
+}
+
+/**
+ * Increment failed login counter after an authentication failure.
+ */
+async function incrementLoginFailure(env, rateLimitKey, currentCount, requestId) {
+  const store = env?.RATELIMIT;
+  if (!store || !rateLimitKey) return;
+
+  try {
+    const nextCount = (currentCount || 0) + 1;
+    await store.put(rateLimitKey, String(nextCount), {
+      expirationTtl: LOGIN_RATE_LIMIT_WINDOW_SECONDS
+    });
+  } catch (error) {
+    console.warn(`[${requestId}] [auth] Failed to increment login failure count:`, error);
+  }
+}
 
 export async function onRequestPost(context) {
   const { request, env } = context;
   const requestId = crypto.randomUUID();
 
   try {
+    // Check rate limit before processing
+    const rateLimit = await checkLoginRateLimit(env, request, requestId);
+    if (rateLimit.limited) {
+      return new Response(
+        JSON.stringify({
+          error: 'Too many login attempts. Please try again later.',
+          retryAfter: rateLimit.retryAfter
+        }),
+        {
+          status: 429,
+          headers: {
+            'Content-Type': 'application/json',
+            'Retry-After': String(rateLimit.retryAfter)
+          }
+        }
+      );
+    }
+
     // Parse request body
     const body = await request.json();
     const { email, password } = body;
@@ -40,6 +115,8 @@ export async function onRequestPost(context) {
       .first();
 
     if (!user) {
+      // Increment failed attempt counter
+      await incrementLoginFailure(env, rateLimit.rateLimitKey, rateLimit.currentCount, requestId);
       return new Response(
         JSON.stringify({ error: 'Invalid email or password' }),
         { status: 401, headers: { 'Content-Type': 'application/json' } }
@@ -48,6 +125,7 @@ export async function onRequestPost(context) {
 
     // Check if account is active
     if (!user.is_active) {
+      // Don't count inactive account as failed login attempt (not brute force)
       return new Response(
         JSON.stringify({ error: 'Account is inactive' }),
         { status: 403, headers: { 'Content-Type': 'application/json' } }
@@ -58,6 +136,8 @@ export async function onRequestPost(context) {
     const isValid = await verifyPassword(password, user.password_hash, user.password_salt);
 
     if (!isValid) {
+      // Increment failed attempt counter
+      await incrementLoginFailure(env, rateLimit.rateLimitKey, rateLimit.currentCount, requestId);
       return new Response(
         JSON.stringify({ error: 'Invalid email or password' }),
         { status: 401, headers: { 'Content-Type': 'application/json' } }
