@@ -457,14 +457,6 @@ export function Card({
         ease: 'inQuad'
       }, startDelay);
 
-      timeline.call(() => {
-        if (!isActive) return;
-        if (import.meta.env.DEV) {
-          console.log(`Card ${index} Phase 2 (swap content)`);
-        }
-        setIsVisuallyRevealed(true);
-      }, startDelay + inkDuration);
-
       if (import.meta.env.DEV) {
         console.log(`Card ${index} starting Phase 3 (ink spread in)`);
       }
@@ -475,7 +467,14 @@ export function Card({
         filter: 'blur(0px)',
         scale: 1,
         duration: revealDuration,
-        ease: revealEase
+        ease: revealEase,
+        onBegin: () => {
+          if (!isActive) return;
+          if (import.meta.env.DEV) {
+            console.log(`Card ${index} Phase 2 (swap content)`);
+          }
+          setIsVisuallyRevealed(true);
+        }
       }, startDelay + inkDuration);
 
       timeline.play();
