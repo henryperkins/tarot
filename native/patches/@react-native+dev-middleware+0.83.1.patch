@@ -1,0 +1,22 @@
+diff --git a/node_modules/@react-native/dev-middleware/dist/createDevMiddleware.js b/node_modules/@react-native/dev-middleware/dist/createDevMiddleware.js
+index 0a1e7a7..5910a7a 100644
+--- a/node_modules/@react-native/dev-middleware/dist/createDevMiddleware.js
++++ b/node_modules/@react-native/dev-middleware/dist/createDevMiddleware.js
+@@ -76,11 +76,16 @@ function createDevMiddleware({
+     websocketEndpoints: inspectorProxy.createWebSocketListeners(),
+   };
+ }
++const shouldEnableStandaloneFuseboxShellByDefault =
++  process.platform !== "linux" ||
++  Boolean(process.env.DISPLAY || process.env.WAYLAND_DISPLAY);
+ function getExperiments(config) {
+   return {
+     enableOpenDebuggerRedirect: config.enableOpenDebuggerRedirect ?? false,
+     enableNetworkInspector: config.enableNetworkInspector ?? false,
+-    enableStandaloneFuseboxShell: config.enableStandaloneFuseboxShell ?? true,
++    enableStandaloneFuseboxShell:
++      config.enableStandaloneFuseboxShell ??
++      shouldEnableStandaloneFuseboxShellByDefault,
+   };
+ }
+ function createWrappedEventReporter(reporter, logger, experiments) {

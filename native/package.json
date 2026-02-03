@@ -4,6 +4,7 @@
   "version": "0.1.0",
   "main": "node_modules/expo/AppEntry.js",
   "scripts": {
+    "postinstall": "patch-package",
     "start": "expo start",
     "android": "expo start --android",
     "ios": "expo start --ios",
@@ -19,15 +20,17 @@
     "@react-navigation/stack": "^7.7.0",
     "burnt": "^0.13.0",
     "class-variance-authority": "^0.7.1",
-    "expo": "~55.0.0-preview.7",
+    "expo": "55.0.0-preview.8",
     "expo-av": "^16.0.8",
-    "expo-camera": "~55.0.2",
-    "expo-file-system": "~55.0.2",
+    "expo-camera": "~55.0.4",
+    "expo-file-system": "~55.0.4",
     "expo-image": "~55.0.2",
-    "expo-speech": "~55.0.2",
-    "expo-sqlite": "~55.0.2",
+    "expo-speech": "~55.0.4",
+    "expo-sqlite": "~55.0.4",
+    "expo-status-bar": "~55.0.2",
     "nativewind": "^4.2.1",
     "react": "19.2.0",
+    "react-dom": "^19.2.0",
     "react-hook-form": "^7.71.1",
     "react-native": "0.83.1",
     "react-native-auto-skeleton": "^0.1.30",
@@ -40,9 +43,13 @@
     "react-native-safe-area-context": "~5.6.2",
     "react-native-screens": "~4.20.0",
     "react-native-svg": "15.15.1",
+    "react-native-web": "^0.21.2",
     "rn-emoji-keyboard": "^1.7.0",
     "tailwind-merge": "^3.4.0",
     "tailwindcss": "^3.4.19",
     "victory-native": "^41.20.2"
+  },
+  "devDependencies": {
+    "patch-package": "^8.0.0"
   }
 }

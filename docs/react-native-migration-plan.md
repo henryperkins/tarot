@@ -4,18 +4,21 @@
 
 Converting Tableu from a WebView wrapper to a **full native React Native app** using Expo.
 
-**Current state**: 130+ React web components, Tailwind CSS, Framer Motion, react-router-dom  
+**Current state**: 130+ React web components, Tailwind CSS, anime.js + Framer Motion, react-router-dom  
 **Target state**: Native RN components, NativeWind, Reanimated, React Navigation  
 **Target RN version**: **0.83** (React 19.2, Expo SDK 55 — Jan 2026)  
 **Estimated effort**: 2-3 months (1 developer full-time)
 
-## Current Implementation Status (2026-02-02)
+## Current Implementation Status (2026-02-03)
 
-- Native scaffold added in `native/` (Expo SDK 55, RN 0.83, Navigation, NativeWind, Reanimated/gesture-handler).
-- Storage stubs in place: `native/src/lib/storage.js` (MMKV) and `native/src/lib/journalDb.js` (SQLite).
-- P0 screen skeleton exists in `native/src/screens/ReadingScreen.jsx` (spread selector, prep, ritual, reading display).
-- Card rendering uses real deck data in `native/src/data/*` and remote images from `https://tarot.lakefrontdev.com`.
-- Dependency installer script added at `scripts/native/setup-native.sh` (not run in repo).
+- Native scaffold added in `native/` (Expo SDK 55 preview, RN 0.83, React Navigation, NativeWind v4.2, Reanimated/gesture-handler).
+- Preferences storage wired to MMKV (`native/src/lib/storage.js`, `native/src/contexts/PreferencesContext.jsx`).
+- Journal schema + list UI implemented via expo-sqlite (`native/src/lib/journalDb.js`, `native/src/screens/JournalScreen.jsx`).
+- P0 reading flow exists in `native/src/screens/ReadingScreen.jsx` (spread selection, intention input, ritual controls, card reveal, narrative + audio placeholders).
+- Share reading screen exists in `native/src/screens/ShareReadingScreen.jsx` (fetches `/api/share/:token`).
+- Auth deep-link screens exist (`native/src/screens/ResetPasswordScreen.jsx`, `native/src/screens/VerifyEmailScreen.jsx`, `native/src/screens/OAuthCallbackScreen.jsx`) and call `/api/auth/*` endpoints.
+- Dependency installer script added at `scripts/native/setup-native.sh`.
+- Headless Linux dev-server startup is supported by default (standalone React Native DevTools shell disabled via `native/patches/@react-native+dev-middleware+0.83.1.patch`).
 
 ---
 
@@ -61,7 +64,7 @@ Converting Tableu from a WebView wrapper to a **full native React Native app** u
 
 ### Animation Complexity (HIGH) 🔴
 
-**Current Stack:** Anime.js (NOT Framer Motion)
+**Current Stack:** Anime.js (primary) + Framer Motion (some screens/components)
 
 | Animation | Complexity | RN Approach |
 |-----------|------------|-------------|
@@ -91,7 +94,7 @@ AuthProvider → SubscriptionProvider → PreferencesProvider → ReadingProvide
 - `tarot-nudge-state`, `tarot-onboarding-complete`
 
 **Ready for RN:** Context structure, custom hooks, audio abstractions  
-**Needs Work:** AsyncStorage wrapper, user-scoped data isolation
+**Needs Work:** User-scoped storage keys + migration from web localStorage, and a cookie/session story for mobile
 
 ### Navigation (MEDIUM) 🟡
 
@@ -134,7 +137,7 @@ AuthProvider → SubscriptionProvider → PreferencesProvider → ReadingProvide
 ### Core Framework (Updated from Blueprint)
 | Library | Purpose | Why |
 |---------|---------|-----|
-| **NativeWind v5** (Preview) | Tailwind for RN | Aligned with RN 0.83, Lightning CSS compiler, better perf |
+| **NativeWind v4.2** | Tailwind for RN | Current baseline in `native/` (revisit v5 upgrade once stable) |
 | **class-variance-authority** | Variant management | Works with NativeWind, 38M downloads |
 | **tailwind-merge** | Class deduplication | Already used in web ecosystem |
 
@@ -187,10 +190,10 @@ AuthProvider → SubscriptionProvider → PreferencesProvider → ReadingProvide
 
 **Don't use Azure Speech JS SDK** — it has Node.js dependencies (`fs`, `net`) that don't work in RN.
 
-**Use REST API instead:**
+**Use Tableu backend TTS endpoint instead (recommended):**
 ```
-1. POST to Azure TTS REST endpoint with SSML
-2. Receive binary audio blob (MP3)
+1. POST to `/api/tts` with text + voice options
+2. Receive base64 audio payload (MP3)
 3. Write to local storage via expo-file-system
 4. Play via expo-av
 5. Cache locally for replay without API calls
@@ -206,10 +209,10 @@ AuthProvider → SubscriptionProvider → PreferencesProvider → ReadingProvide
 - [x] Create new `native/` directory for RN-specific code (keep web working)
 - [x] Set up React Navigation 7 (stack + tab navigators)
 - [ ] Configure shared code structure (`shared/` already exists)
-- [x] **Set up NativeWind v5** (keep Tailwind classes!)
+- [x] **Set up NativeWind v4.2** (keep Tailwind classes!)
 - [x] Configure react-native-reanimated + gesture-handler
 - [x] Set up MMKV for synchronous storage (wrapper in `native/src/lib/storage.js`)
-- [x] Set up expo-sqlite for journal/history (stub in `native/src/lib/journalDb.js`)
+- [x] Set up expo-sqlite for journal/history (schema + list screen in place)
 - [x] Add `scripts/native/setup-native.sh` to install native dependencies
 
 ### 1.2 Core Dependencies to Add
@@ -305,7 +308,9 @@ const linking = {
 };
 ```
 
-**app.json additions for deep links:**
+**Status (2026-02-03):** `scheme: "tableu"` is set in `native/app.json`. Universal links (`associatedDomains` / Android `intentFilters`) are still TODO.
+
+**When enabling universal links, `app.json` additions:**
 ```json
 {
   "expo": {
@@ -330,10 +335,10 @@ const linking = {
 
 ### 2.1 Storage Migration (localStorage → MMKV + SQLite)
 - [x] Create `native/src/lib/storage.js` wrapper using MMKV
-- [ ] Migrate PreferencesContext storage calls (synchronous!)
+- [x] Wire native PreferencesContext storage calls (synchronous MMKV)
 - [ ] Migrate feature flags storage
 - [ ] Migrate onboarding state
-- [ ] Set up SQLite schema for journal entries (stub exists in `native/src/lib/journalDb.js`)
+- [x] Set up SQLite schema for journal entries (`native/src/lib/journalDb.js`)
 - [ ] Create journal migration from localStorage to SQLite
 
 ### 2.2 API Layer (fetch → same, but handle differently)
@@ -605,13 +610,18 @@ Once native is stable, remove web-only code:
 
 ---
 
-## Quick Wins (can start immediately)
+## Quick Wins (status as of 2026-02-03)
 
-1. **Set up NativeWind** — Biggest time saver, keeps Tailwind classes
-2. **Install react-native-modalfy** — Consolidate all modals into stack
-3. **Convert `Card.jsx`** — Test animation approach with Reanimated
-4. **Add burnt for toasts** — Drop-in native toast replacement
-5. **Test expo-speech** — Verify TTS works natively
+1. **Set up NativeWind** — Done in `native/` (v4.2 baseline).
+2. **Install react-native-modalfy** — Installed; modal stack not yet integrated.
+3. **Convert `Card.jsx`** — Initial flip exists in `native/src/components/Card/Card.jsx`.
+4. **Add burnt for toasts** — Installed; not yet wired to providers.
+5. **Test expo-speech** — Placeholder narration implemented in `native/src/components/AudioControls.jsx`.
+
+**Next up**
+1. **Wire `/api/tarot-reading` streaming** — Replace sample reading + narrative.
+2. **Wire `/api/tts` + expo-av + caching** — Replace expo-speech placeholder.
+3. **Universal links** — Add `associatedDomains` + Android `intentFilters`, and host AASA/assetlinks.
 
 ---
 

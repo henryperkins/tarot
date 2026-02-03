@@ -38,7 +38,9 @@ export default function OAuthCallbackScreen() {
       setStatus('pending');
       try {
         const response = await fetch(
-          buildApiUrl(`/api/auth/oauth/callback?code=${encodeURIComponent(code)}&state=${encodeURIComponent(state)}`),
+          buildApiUrl(
+            `/api/auth/oauth-callback?code=${encodeURIComponent(code)}&state=${encodeURIComponent(state)}`
+          ),
           {
             method: 'POST',
             credentials: 'include',
