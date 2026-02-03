@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState, useCallback, useLayoutEffect } fr
 import { animate, createSpring, createTimeline, cubicBezier, set } from 'animejs';
 import { ArrowsOut, HandPointing, ArrowLeft, ArrowRight, NotePencil, CaretUp } from '@phosphor-icons/react';
 import { CARD_LOOKUP, FALLBACK_IMAGE, getCardImage } from '../lib/cardLookup';
+import { CardBack } from './CardBack';
 import { CardSymbolInsights } from './CardSymbolInsights';
 import { InteractiveCardOverlay } from './InteractiveCardOverlay';
 import { useReducedMotion } from '../hooks/useReducedMotion';
@@ -567,12 +568,7 @@ export function Card({
                 className="relative w-full max-w-[280px] aspect-[2/3] mx-auto rounded-xl border-2 border-primary/30 shadow-2xl overflow-hidden transition-transform"
                 style={{ transform: `translateX(${swipeOffset * 0.5}px)` }}
               >
-                <img
-                  src="/cardback.png"
-                  alt="Card back - tap or swipe to reveal"
-                  className="w-full h-full object-cover"
-                  loading="eager"
-                />
+                <CardBack className="w-full h-full" />
 
                 {/* Swipe hint arrows */}
                 {showSwipeHint && !prefersReducedMotion && (

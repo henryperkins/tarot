@@ -7,6 +7,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkBreaks from 'remark-breaks';
 import { CaretUp, CaretDown } from '@phosphor-icons/react';
+import { JournalNarrativeIcon } from '../../../JournalIcons';
 import { styles, cn } from '../EntryCard.primitives';
 
 function getNarrativePreviewText(text, maxChars = 260) {
@@ -119,7 +120,10 @@ export const NarrativeSection = memo(function NarrativeSection({
             aria-controls={narrativeId}
             className={styles.sectionHeaderClickable}
           >
-            <div className={styles.sectionLabel}>Reading narrative</div>
+            <div className="flex items-center gap-2">
+              <JournalNarrativeIcon className="h-4 w-4 text-[color:var(--brand-primary)]" aria-hidden="true" />
+              <div className={styles.sectionLabel}>Reading narrative</div>
+            </div>
             <div className="text-[color:var(--text-muted)]">
               {showNarrative ? (
                 <CaretUp className="h-5 w-5" aria-hidden="true" />
@@ -153,7 +157,10 @@ export const NarrativeSection = memo(function NarrativeSection({
       ) : (
         <>
           <header className={styles.sectionHeader}>
-            <div className={styles.sectionLabel}>Reading narrative</div>
+            <div className="flex items-center gap-2">
+              <JournalNarrativeIcon className="h-4 w-4 text-[color:var(--brand-primary)]" aria-hidden="true" />
+              <div className={styles.sectionLabel}>Reading narrative</div>
+            </div>
           </header>
           <div id={narrativeId} className={styles.sectionBody}>
             <div className="prose prose-invert prose-base max-w-none text-[color:var(--text-main)] prose-a:text-[color:var(--brand-primary)] prose-strong:text-[color:var(--text-main)] prose-p:leading-relaxed prose-li:leading-relaxed">

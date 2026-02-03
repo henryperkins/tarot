@@ -1451,9 +1451,10 @@ textarea:focus-visible {
   }
 
   .tarot-card-back {
-    /* Use simpler background on mobile */
-    background: var(--bg-surface-muted);
-    /* Solid fallback */
+    /* Use lighter-weight gradients on mobile */
+    background:
+      radial-gradient(circle at 50% 20%, rgba(255, 214, 156, 0.18), transparent 55%),
+      linear-gradient(160deg, #130b1a 0%, #0b0a16 60%, #070710 100%);
   }
 }
 
@@ -1475,85 +1476,135 @@ textarea:focus-visible {
   }
 }
 
-/* Back: ornate mandala + celestial motif evoking traditional deck backs */
+/* Back: celestial sigil + suit medallion motif for selection cards */
 .tarot-card-back {
   position: relative;
   width: 100%;
   height: 100%;
-  background: radial-gradient(
-      circle at 50% 15%,
-      var(--halo-star-color),
-      transparent 60%
-    ),
-    radial-gradient(circle at 50% 85%, var(--halo-star-color), transparent 60%),
-    repeating-radial-gradient(
-      circle at 50% 50%,
-      var(--brand-secondary),
-      var(--brand-secondary) 1px,
-      transparent 1px,
-      transparent 4px
-    ),
-    radial-gradient(circle at 50% 50%, var(--bg-main), var(--bg-main));
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  background:
+    radial-gradient(circle at 18% 16%, rgba(255, 214, 156, 0.26), transparent 58%),
+    radial-gradient(circle at 82% 10%, rgba(138, 118, 255, 0.22), transparent 52%),
+    radial-gradient(circle at 50% 90%, rgba(255, 186, 120, 0.2), transparent 60%),
+    radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.06), transparent 52%),
+    linear-gradient(160deg, #140b1a 0%, #0b0a16 55%, #06060d 100%);
   color: var(--brand-accent);
-  font-family: "Cormorant Garamond", "Times New Roman", serif;
+  overflow: hidden;
 }
 
-.tarot-card-back-symbol {
-  position: relative;
-  width: 64%;
-  height: 64%;
-  border-radius: 999px;
-  border: 1px solid var(--brand-accent);
-  box-shadow: 0 0 14px var(--brand-accent), inset 0 0 18px var(--bg-main);
+.tarot-card-back::before,
+.tarot-card-back::after {
+  content: "";
+  position: absolute;
+  inset: 6%;
+  border-radius: 18px;
+  border: 1px solid rgba(255, 214, 156, 0.28);
+  box-shadow: inset 0 0 16px rgba(255, 212, 167, 0.12);
+  pointer-events: none;
+}
+
+.tarot-card-back::after {
+  inset: 9%;
+  border-color: rgba(255, 214, 156, 0.16);
+  box-shadow: inset 0 0 22px rgba(127, 108, 255, 0.12);
+}
+
+.tarot-card-back__frame {
+  position: absolute;
+  inset: 3.5%;
+  border-radius: 20px;
+  border: 1px solid rgba(255, 214, 156, 0.38);
+  box-shadow:
+    0 0 18px rgba(255, 214, 156, 0.18),
+    inset 0 0 12px rgba(6, 6, 13, 0.6);
+  pointer-events: none;
+}
+
+.tarot-card-back__inner {
+  position: absolute;
+  inset: 12%;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 214, 156, 0.18);
+  background:
+    radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.05), transparent 65%),
+    linear-gradient(180deg, rgba(12, 10, 22, 0.8), rgba(4, 4, 12, 0.9));
   display: flex;
   align-items: center;
   justify-content: center;
+  color: rgba(255, 214, 156, 0.8);
 }
 
-.tarot-card-back-symbol::before,
-.tarot-card-back-symbol::after {
-  content: "";
-  position: absolute;
-  border-radius: 999px;
-  border: 1px solid var(--brand-secondary);
-}
-
-.tarot-card-back-symbol::before {
-  inset: 12%;
-  border-style: dotted;
-}
-
-.tarot-card-back-symbol::after {
-  inset: 26%;
-  border-style: solid;
-  border-color: var(--brand-accent);
-}
-
-/* Simple cross-wand sigil */
-.tarot-card-back-glyph {
+.tarot-card-back__sigil {
   position: relative;
-  width: 52%;
-  height: 52%;
-}
-
-.tarot-card-back-glyph::before,
-.tarot-card-back-glyph::after {
-  content: "";
-  position: absolute;
-  background-color: var(--brand-accent);
+  width: 58%;
+  height: 58%;
   border-radius: 999px;
-  box-shadow: 0 0 8px var(--brand-accent);
+  border: 1px solid rgba(255, 214, 156, 0.6);
+  box-shadow:
+    0 0 18px rgba(255, 214, 156, 0.3),
+    inset 0 0 18px rgba(255, 214, 156, 0.2);
 }
 
-.tarot-card-back-glyph::before {
-  inset: 2px 47%;
+.tarot-card-back__sigil-ring {
+  position: absolute;
+  inset: 12%;
+  border-radius: 999px;
+  border: 1px dashed rgba(255, 214, 156, 0.5);
 }
 
-.tarot-card-back-glyph::after {
-  inset: 47% 2px;
+.tarot-card-back__sigil-cross {
+  position: absolute;
+  inset: 22%;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 214, 156, 0.4);
+}
+
+.tarot-card-back__sigil-orbit {
+  position: absolute;
+  inset: 30%;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 214, 156, 0.65);
+  box-shadow: 0 0 10px rgba(255, 214, 156, 0.35);
+}
+
+.tarot-card-back__suits {
+  position: absolute;
+  bottom: 10%;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 12px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 214, 156, 0.2);
+  background: rgba(10, 10, 18, 0.6);
+  backdrop-filter: blur(6px);
+}
+
+.tarot-card-back__suit {
+  width: 18px;
+  height: 18px;
+  color: rgba(255, 214, 156, 0.75);
+  filter: drop-shadow(0 0 6px rgba(255, 214, 156, 0.5));
+}
+
+.tarot-card-back__suit--wand {
+  color: rgba(255, 196, 130, 0.9);
+}
+
+.tarot-card-back__suit--cup {
+  color: rgba(140, 196, 255, 0.85);
+}
+
+.tarot-card-back__suit--sword {
+  color: rgba(200, 200, 255, 0.85);
+}
+
+.tarot-card-back__suit--pentacle {
+  color: rgba(255, 214, 156, 0.9);
+}
+
+.tarot-card-back--muted {
+  opacity: 0.9;
 }
 
 /* Face: evokes authentic majors with nameplate, Roman numeral, symbolic band */
