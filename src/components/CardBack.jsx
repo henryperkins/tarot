@@ -13,6 +13,18 @@ import { WandsIcon, CupsIcon, SwordsIcon, PentaclesIcon } from './illustrations/
  *   with the base `tarot-card-back` styles.
  * @returns {JSX.Element} The decorative card back markup.
  */
+/**
+ * Presentational component that renders the standard tarot card back.
+ *
+ * Displays the reusable card back design used across the app, featuring a
+ * central celestial sigil and surrounding suit medallions for Wands, Cups,
+ * Swords, and Pentacles.
+ *
+ * @param {Object} props - Component props.
+ * @param {string} [props.className] - Optional additional class names to merge
+ *   with the base `tarot-card-back` styles.
+ * @returns {JSX.Element} The decorative card back markup.
+ */
 export function CardBack({ className = '' }) {
   return (
     <div className={`tarot-card-back ${className}`} aria-hidden="true">
