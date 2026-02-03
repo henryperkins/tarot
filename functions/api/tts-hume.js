@@ -150,7 +150,10 @@ export const onRequestPost = async ({ request, env }) => {
     // Check for Hume API key
     const humeApiKey = resolveEnvStrict(env, 'HUME_API_KEY');
     if (!humeApiKey) {
-      return buildFallbackResponse(sanitizedText, selectedVoiceName, 'Hume AI is not configured.');
+      return jsonResponse(
+        { error: 'Hume AI TTS is not configured.' },
+        { status: 503 }
+      );
     }
 
     try {
@@ -223,7 +226,11 @@ export const onRequestPost = async ({ request, env }) => {
           // Keep default message if parsing fails
         }
         
-        return buildFallbackResponse(sanitizedText, selectedVoiceName, errorMessage);
+        // Propagate the error status code from Hume API
+        return jsonResponse(
+          { error: errorMessage },
+          { status: response.status }
+        );
       }
 
       // Parse the response
