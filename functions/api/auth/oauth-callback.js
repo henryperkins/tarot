@@ -112,12 +112,23 @@ function pickUsername(profile) {
   return 'Seeker';
 }
 
+function secureRandomBase36(length) {
+  const bytes = new Uint8Array(length);
+  crypto.getRandomValues(bytes);
+  const chars = [];
+  for (let i = 0; i < bytes.length; i += 1) {
+    const v = bytes[i] % 36;
+    chars.push(v.toString(36));
+  }
+  return chars.join('');
+}
+
 function sanitizeUsername(candidate) {
   const normalized = candidate.replace(/\s+/g, '_').replace(/[^A-Za-z0-9_]/g, '');
   if (normalized.length >= 3) {
     return normalized.slice(0, 30);
   }
-  const fallback = `user_${Math.random().toString(36).slice(2, 10)}`;
+  const fallback = `user_${secureRandomBase36(8)}`;
   return fallback.slice(0, 30);
 }
 
@@ -126,7 +137,7 @@ async function generateUniqueUsername(db, base) {
   const baseStem = candidate.slice(0, 24);
 
   for (let attempt = 0; attempt < 5; attempt += 1) {
-    const suffix = attempt === 0 ? '' : `_${Math.random().toString(36).slice(2, 6)}`;
+    const suffix = attempt === 0 ? '' : `_${secureRandomBase36(4)}`;
     const next = (baseStem + suffix).slice(0, 30);
     const existing = await db.prepare('SELECT id FROM users WHERE username = ?')
       .bind(next)
