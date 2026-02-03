@@ -127,7 +127,8 @@
     "remark-breaks": "^4.0.0",
     "remark-gfm": "^4.0.1",
     "tsx": "^4.21.0",
-    "zod": "^4.1.12"
+    "zod": "^4.1.12",
+    "express-rate-limit": "^8.2.1"
   },
   "expo": {
     "install": {

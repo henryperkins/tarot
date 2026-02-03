@@ -7,6 +7,7 @@ import type { Express, RequestHandler } from "express";
 import memoize from "memoizee";
 import connectPg from "connect-pg-simple";
 import { authStorage } from "./storage";
+import rateLimit from "express-rate-limit";
 
 const getOidcConfig = memoize(
   async () => {
@@ -65,6 +66,13 @@ export async function setupAuth(app: Express) {
   app.use(getSession());
   app.use(passport.initialize());
   app.use(passport.session());
+
+  const authUserLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 100,
+    standardHeaders: true,
+    legacyHeaders: false,
+  });
 
   const config = await getOidcConfig();
 
@@ -129,7 +137,7 @@ export async function setupAuth(app: Express) {
     });
   });
 
-  app.get("/api/auth/user", async (req, res) => {
+  app.get("/api/auth/user", authUserLimiter, async (req, res) => {
     if (!req.isAuthenticated()) {
       return res.status(401).json({ message: "Not authenticated" });
     }
