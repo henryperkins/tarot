@@ -1,5 +1,5 @@
 /* eslint-disable react-refresh/only-export-components */
-import { createContext, useContext, useState, useEffect } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { clearAllNarrativeCaches } from '../lib/safeStorage';
 import { clearJournalInsightsCache } from '../lib/journalInsights';
 
@@ -45,7 +45,8 @@ export function AuthProvider({ children }) {
     checkAuth();
   }, []);
 
-  const checkAuth = async () => {
+  const checkAuth = useCallback(async () => {
+    setLoading(true);
     try {
       const response = await fetch('/api/auth/me', {
         credentials: 'include'
@@ -60,15 +61,20 @@ export function AuthProvider({ children }) {
           setUser(null);
         }
       } else {
+        const data = await response.json().catch(() => ({}));
+        if (response.status !== 401) {
+          setError(data?.error || 'Unable to confirm authentication');
+        }
         setUser(null);
       }
     } catch (err) {
       console.error('Auth check failed:', err);
+      setError(err?.message || 'Auth check failed');
       setUser(null);
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   const register = async (email, username, password) => {
     setError(null);
@@ -139,8 +145,9 @@ export function AuthProvider({ children }) {
   const logout = async () => {
     setError(null);
     const logoutUserId = user?.id;
-    
+
     let response;
+    let logoutError = null;
     try {
       response = await fetch('/api/auth/logout', {
         method: 'POST',
@@ -148,24 +155,20 @@ export function AuthProvider({ children }) {
       });
     } catch (err) {
       console.error('Logout failed:', err);
-      const errorMessage = err?.message || 'Unable to log out';
-      setError(errorMessage);
-      return { success: false, error: errorMessage };
+      logoutError = err?.message || 'Unable to log out';
     }
 
-    if (!response.ok) {
+    if (response && !response.ok) {
       let data = {};
       try {
         data = await response.json();
       } catch {
         data = {};
       }
-      const errorMessage = data?.error || 'Unable to log out';
-      setError(errorMessage);
-      return { success: false, error: errorMessage };
+      logoutError = data?.error || 'Unable to log out';
     }
 
-    // Only clear local state after successful server logout
+    // Clear local state even if server logout failed.
     clearAllNarrativeCaches();
     
     if (logoutUserId && typeof localStorage !== 'undefined') {
@@ -179,6 +182,10 @@ export function AuthProvider({ children }) {
     }
 
     setUser(null);
+    if (logoutError) {
+      setError(logoutError);
+      return { success: false, error: logoutError };
+    }
     return { success: true };
   };
 
@@ -239,23 +246,34 @@ export function AuthProvider({ children }) {
   const startOAuth = async (redirectTo = '/account', connection = '') => {
     setError(null);
     try {
-      const response = await fetch('/api/auth/oauth/start', {
+      const response = await fetch('/api/auth/oauth-start', {
         method: 'POST',
         credentials: 'include',
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ redirectTo, connection })
+        body: JSON.stringify({
+          redirectTo,
+          connection
+        })
       });
 
       const data = await response.json().catch(() => ({}));
-      if (!response.ok || !data?.authorizeUrl) {
+      if (!response.ok) {
         const errorMessage = data?.error || 'Unable to start social login';
         setError(errorMessage);
         return { success: false, error: errorMessage };
       }
 
-      return { success: true, authorizeUrl: data.authorizeUrl };
+      const authorizeUrl = data?.authorizeUrl;
+      if (typeof authorizeUrl !== 'string' || !authorizeUrl) {
+        const errorMessage = 'OAuth authorize URL missing';
+        setError(errorMessage);
+        return { success: false, error: errorMessage };
+      }
+
+      window.location.assign(authorizeUrl);
+      return { success: true };
     } catch (err) {
       const errorMessage = err?.message || 'Unable to start social login';
       setError(errorMessage);

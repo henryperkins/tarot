@@ -120,6 +120,19 @@ npm run dev
 
 This starts both the Vite dev server and Wrangler Workers dev server. Access the app at **http://localhost:5173** (or 5174 if 5173 is in use). Vite proxies `/api` requests to Workers on 8787.
 
+### Native (Expo) App
+
+The native migration lives in `native/` and is the canonical entrypoint for native development. The root `App.tsx` + `npm start` are still the legacy WebView wrapper for the shipping binary.
+
+```bash
+# From repo root
+npm run dev:native
+
+# Or target a platform
+npm run dev:native:ios
+npm run dev:native:android
+```
+
 ### Available Scripts
 
 | Command                | Description                         |

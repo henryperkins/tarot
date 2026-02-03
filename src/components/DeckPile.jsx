@@ -1,8 +1,10 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { animate, createSpring } from 'animejs';
 import { TableuLogo } from './TableuLogo';
+import { BookOpen } from '@phosphor-icons/react';
 import { useReducedMotion } from '../hooks/useReducedMotion';
 import { useAnimeScope } from '../hooks/useAnimeScope';
+import { MICROCOPY } from '../lib/microcopy';
 
 /**
  * Hook to compute responsive logo size with SSR safety, debounced resize handling
@@ -42,7 +44,7 @@ function useDynamicLogoSize(baseSize = 120, factor = 0.15, debounceMs = 100) {
     return size;
 }
 
-export function DeckPile({ cardsRemaining, onDraw, isShuffling, nextLabel }) {
+export function DeckPile({ cardsRemaining, onDraw, isShuffling, nextLabel, isComplete = false, onViewReading }) {
     const rasterLogoSize = useDynamicLogoSize(120, 0.15);
     const shouldReduceMotion = useReducedMotion();
     const [scopeRootRef] = useAnimeScope();
@@ -104,6 +106,27 @@ export function DeckPile({ cardsRemaining, onDraw, isShuffling, nextLabel }) {
             }
         };
     }, []);
+
+    // Show "View Complete Reading" button when all cards dealt/revealed
+    if (isComplete && onViewReading) {
+        return (
+            <div className="flex flex-col items-center justify-center py-6 sm:py-8 animate-fade-in relative z-20">
+                <button
+                    onClick={onViewReading}
+                    className="group flex items-center gap-3 px-6 py-4 rounded-2xl bg-gradient-to-br from-secondary/90 to-secondary/70 border-2 border-secondary/60 shadow-xl hover:shadow-2xl hover:scale-105 active:scale-95 transition-all touch-manipulation focus:outline-none focus-visible:ring-2 focus-visible:ring-secondary/50 focus-visible:ring-offset-2"
+                    aria-label={MICROCOPY.viewCompleteReading}
+                >
+                    <BookOpen className="w-6 h-6 text-main" weight="duotone" />
+                    <span className="text-main font-semibold text-base">
+                        {MICROCOPY.viewCompleteReading}
+                    </span>
+                </button>
+                <p className="text-secondary/70 text-xs mt-3 font-medium">
+                    {MICROCOPY.allCardsRevealed}
+                </p>
+            </div>
+        );
+    }
 
     if (cardsRemaining <= 0) return null;
 

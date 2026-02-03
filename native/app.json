@@ -1,0 +1,28 @@
+{
+  "expo": {
+    "name": "Tableu Native",
+    "slug": "tableu-native",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "scheme": "tableu",
+    "userInterfaceStyle": "dark",
+    "sdkVersion": "55.0.0",
+    "newArchEnabled": true,
+    "jsEngine": "hermes",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.hperkins.tableau.native"
+    },
+    "android": {
+      "package": "com.hperkins.tableau.native"
+    },
+    "web": {
+      "bundler": "metro"
+    },
+    "plugins": [
+      "expo-build-properties",
+      "expo-sqlite",
+      "expo-image"
+    ]
+  }
+}

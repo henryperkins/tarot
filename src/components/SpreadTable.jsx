@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { animate, createLayout, cubicBezier, set, stagger } from 'animejs';
 import { SPREADS } from '../data/spreads';
 import { useReducedMotion } from '../hooks/useReducedMotion';
@@ -8,7 +8,10 @@ import { getSuitBorderColor, getRevealedCardGlow } from '../lib/suitColors';
 import { extractShortLabel, getPositionLabel } from './readingBoardUtils';
 import { HandTap } from '@phosphor-icons/react';
 import { useHaptic } from '../hooks/useHaptic';
+import { useTactileLens } from '../hooks/useTactileLens';
 import { MICROCOPY } from '../lib/microcopy';
+import { TactileLensButton, TactileLensOverlay } from './TactileLensOverlay';
+import { SpreadProgressIndicator } from './SpreadProgressIndicator';
 
 /**
  * Spread layout definitions (x, y as percentage of container)
@@ -408,16 +411,20 @@ export function SpreadTable({
   revealedIndices = new Set(),
   onCardClick,
   onCardReveal,
+  onSlotDeal,
   nextDealIndex = 0,
   compact = false,
   size = 'default',
   recentlyClosedIndex = -1,
   hideLegend = false,
   disableReveal = false,
-  flashNextSlot = false
+  flashNextSlot = false,
+  showProgress = true,
+  showTactileLens = true
 }) {
   const prefersReducedMotion = useReducedMotion();
-  const { vibrate } = useHaptic();
+  const { vibrate, vibrateType } = useHaptic();
+  const tactileLens = useTactileLens({ disabled: !showTactileLens || compact });
   const [scopeRootRef, scopeRef] = useAnimeScope();
   const baseLayout = SPREAD_LAYOUTS[spreadKey] || SPREAD_LAYOUTS.single;
   const spreadInfo = SPREADS[spreadKey];
@@ -427,6 +434,24 @@ export function SpreadTable({
   const revealHintDismissedRef = useRef(false);
   const prevRevealedRef = useRef(new Set());
   const layoutStagger = useMemo(() => stagger(CARD_LAYOUT_STAGGER, { from: 'center' }), []);
+
+  // Dual-trigger: handle slot tap to deal (when no card in slot yet)
+  const handleSlotDeal = useCallback((slotIndex) => {
+    if (!onSlotDeal) return;
+    // Only allow dealing to the next expected slot
+    if (slotIndex !== nextDealIndex) {
+      // Locked slot - provide error feedback
+      vibrateType('error');
+      return;
+    }
+    onSlotDeal(slotIndex);
+  }, [onSlotDeal, nextDealIndex, vibrateType]);
+
+  // Get full position descriptions for tactile lens
+  const fullPositions = useMemo(() => {
+    if (!spreadInfo?.positions) return [];
+    return spreadInfo.positions;
+  }, [spreadInfo]);
 
   // Merge refs for the table container to get both layout and animation scope
   const setTableRefs = useMemo(() => {
@@ -646,6 +671,7 @@ export function SpreadTable({
         const shouldHighlightReturn = recentlyClosedIndex === i;
         const showRevealPill = !disableReveal && !isRevealed && (isNext || (!revealHintDismissedRef.current && i === 0));
         const showGlowHint = !disableReveal && !isRevealed && !showRevealPill;
+        const canDeal = Boolean(onSlotDeal) && isNext;
         const numberBadge = (
           <div
             className={`
@@ -675,23 +701,33 @@ export function SpreadTable({
             id={`spread-slot-${i}`}
           >
             {!card && (
-              // Empty placeholder - min 44px touch target on mobile
-              <div
+              // Empty placeholder - dual-trigger: tappable to deal card here
+              <button
+                type="button"
+                onClick={() => handleSlotDeal(i)}
+                disabled={!canDeal}
+                aria-disabled={!canDeal}
                 className={`
                   ${sizeClass}
                   relative rounded-lg border-2 border-dashed
                   flex items-center justify-center
-                  transition-all overflow-visible
-                  ${isNext
-                    ? 'border-primary/60 bg-primary/10 card-placeholder-next'
-                    : 'border-accent/30 bg-surface/30'
+                  transition-all overflow-visible touch-manipulation
+                  focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70
+                  ${canDeal
+                    ? 'border-primary/60 bg-primary/10 card-placeholder-next cursor-pointer hover:bg-primary/20 active:scale-95'
+                    : 'border-accent/30 bg-surface/30 cursor-not-allowed opacity-70'
                   }
                 `}
                 style={{
                   ...(cardSizeStyle || {})
                 }}
-                role="img"
-                aria-label={`${positionLabel}: waiting for card`}
+                aria-label={
+                  isNext
+                    ? MICROCOPY.revealPosition(shortLabel)
+                    : i < nextDealIndex
+                      ? `${positionLabel}: waiting for card`
+                      : MICROCOPY.awaitingPrevious(getPositionLabel(spreadInfo, nextDealIndex, resolvedLayout[nextDealIndex]))
+                }
               >
                 {numberBadge}
                 <PulseRing
@@ -709,9 +745,9 @@ export function SpreadTable({
                   reducedOpacity={0.5}
                 />
                 <span className={`${compact ? 'text-[0.55rem] xs:text-[0.6rem]' : 'text-[0.6rem] xs:text-[0.65rem] sm:text-xs'} text-muted text-center px-1 leading-tight`}>
-                  {shortLabel}
+                  {isNext ? MICROCOPY.revealPosition(shortLabel) : shortLabel}
                 </span>
-              </div>
+              </button>
             )}
             <AnimatedCardButton
               card={card}
@@ -885,6 +921,40 @@ export function SpreadTable({
           </div>
         </div>
       )}
+
+      {/* Progress indicator - shows revealed/total cards */}
+      {!compact && showProgress && cards.length > 1 && (
+        <div className="absolute top-2 left-1/2 -translate-x-1/2 z-20">
+          <SpreadProgressIndicator
+            total={baseLayout.length}
+            revealed={revealedIndices?.size || 0}
+            variant="dots"
+          />
+        </div>
+      )}
+
+      {/* Tactile Lens button - press-hold to view position meanings */}
+      {!compact && showTactileLens && (
+        <div className="absolute bottom-3 left-3 z-20">
+          <TactileLensButton
+            disabled={cards.length === 0}
+            isActive={tactileLens.isActive}
+            showTutorial={tactileLens.showTutorial}
+            onPointerDown={tactileLens.handlePointerDown}
+            onPointerUp={tactileLens.handlePointerUp}
+            onPointerLeave={tactileLens.handlePointerLeave}
+            onDismissTutorial={tactileLens.dismissTutorial}
+          />
+        </div>
+      )}
+
+      {/* Tactile Lens overlay - shows position meanings when active */}
+      <TactileLensOverlay
+        isActive={tactileLens.isActive}
+        positions={fullPositions}
+        spreadLayout={resolvedLayout}
+        prefersReducedMotion={prefersReducedMotion}
+      />
     </div>
   );
 }

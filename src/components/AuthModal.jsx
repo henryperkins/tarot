@@ -59,7 +59,6 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login' }) {
         setError(result.error || 'Unable to start social login');
         return;
       }
-      window.location.assign(result.authorizeUrl);
     } catch (err) {
       setError(err?.message || 'Unable to start social login');
     } finally {
