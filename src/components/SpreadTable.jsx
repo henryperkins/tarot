@@ -12,6 +12,7 @@ import { useTactileLens } from '../hooks/useTactileLens';
 import { MICROCOPY } from '../lib/microcopy';
 import { TactileLensButton, TactileLensOverlay } from './TactileLensOverlay';
 import { SpreadProgressIndicator } from './SpreadProgressIndicator';
+import { CardBack } from './CardBack';
 
 /**
  * Spread layout definitions (x, y as percentage of container)
@@ -864,12 +865,7 @@ export function SpreadTable({
                           transform: 'rotateY(180deg) translateZ(0.1px)'
                         }}
                       >
-                        <img
-                          src="/cardback.png"
-                          alt="Card back"
-                          className="w-full h-full object-cover opacity-90"
-                          loading="lazy"
-                        />
+                        <CardBack className="w-full h-full tarot-card-back--muted" />
                         <div className="absolute inset-0 pointer-events-none flex items-end justify-end p-1.5">
                           {showRevealPill ? (
                             <span className={`${compact ? 'text-[0.55rem] xs:text-[0.6rem]' : 'text-[0.65rem] xs:text-[0.7rem] sm:text-xs-plus'} inline-flex items-center gap-1 rounded-full bg-main/85 text-main font-semibold px-2.5 py-1 shadow-lg border border-primary/30`}>
