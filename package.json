@@ -121,7 +121,7 @@
     "react-markdown": "^10.1.0",
     "react-native": "0.81.5",
     "react-native-web": "^0.21.0",
-    "react-native-webview": "13.15.0",
+    "react-native-webview": "13.16.0",
     "react-router-dom": "^7.9.6",
     "recharts": "^3.5.1",
     "remark-breaks": "^4.0.0",
