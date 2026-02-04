@@ -7,6 +7,7 @@ import {
   normalizeHighlightPhrases,
   computeHighlightRanges
 } from '../lib/highlightUtils';
+import { getSectionKeyFromHeading } from '../lib/narrativeSections';
 
 const LONG_MOBILE_WORD_THRESHOLD = 280;
 const LONG_DESKTOP_WORD_THRESHOLD = 600; // Guardrail for very long narratives on any device
@@ -61,6 +62,34 @@ function splitIntoWords(text) {
   return parts.filter(part => part && part.length > 0);
 }
 
+function findTokenIndexForOffset(tokens, offset) {
+  if (!Array.isArray(tokens) || tokens.length === 0) return -1;
+  if (typeof offset !== 'number' || offset < 0) return -1;
+
+  let cursor = 0;
+  let passedOffset = false;
+
+  for (let i = 0; i < tokens.length; i++) {
+    const token = tokens[i] || '';
+    const start = cursor;
+    const end = cursor + token.length;
+    cursor = end;
+
+    if (!passedOffset && offset >= start && offset < end) {
+      passedOffset = true;
+      if (!/^\s+$/.test(token)) {
+        return i;
+      }
+    }
+
+    if (passedOffset && !/^\s+$/.test(token)) {
+      return i;
+    }
+  }
+
+  return -1;
+}
+
 function buildTokenMeta(tokens, highlightRanges) {
   const safeTokens = Array.isArray(tokens) ? tokens : [];
   const safeRanges = Array.isArray(highlightRanges) ? highlightRanges : [];
@@ -104,8 +133,10 @@ export function StreamingNarrative({
   highlightPhrases = [],
   emotionalTone = null,
   onHighlightPhrase,
+  onSectionEnter,
   withAtmosphere = false,
   atmosphereClassName = '',
+  wordBoundary = null,
 }) {
   const narrativeText = useMemo(() => (typeof text === 'string' ? text : ''), [text]);
   const prefersReducedMotion = useReducedMotion();
@@ -129,6 +160,13 @@ export function StreamingNarrative({
     return units.reduce((count, unit) => (unit.trim() ? count + 1 : count), 0);
   }, [units]);
 
+  const ttsWordIndex = useMemo(() => {
+    if (useMarkdown) return -1;
+    if (!wordBoundary) return -1;
+    const offset = wordBoundary.textOffset;
+    return findTokenIndexForOffset(units, offset);
+  }, [units, useMarkdown, wordBoundary]);
+
   const [visibleCount, setVisibleCount] = useState(0);
   const [mobileStreamingOptIn, setMobileStreamingOptIn] = useState(false);
   // Initialize to null so render-time adjustment runs on first mount
@@ -141,6 +179,7 @@ export function StreamingNarrative({
   const completionNotifiedRef = useRef(false);
   const narrationTriggeredRef = useRef(false);
   const triggeredHighlightRef = useRef(new Set());
+  const triggeredSectionRef = useRef(new Set());
 
   const isLongMobileNarrative = isSmallScreen && totalWords > LONG_MOBILE_WORD_THRESHOLD;
   const isVeryLongNarrative = totalWords > LONG_DESKTOP_WORD_THRESHOLD;
@@ -214,6 +253,7 @@ export function StreamingNarrative({
     completionNotifiedRef.current = false;
     narrationTriggeredRef.current = false;
     triggeredHighlightRef.current = new Set();
+    triggeredSectionRef.current = new Set();
   }, [narrativeText, clearTimer, clearNarrationTimer]);
 
   // Notify completion when all content is visible
@@ -314,6 +354,21 @@ export function StreamingNarrative({
     });
   }, [streamingActive, onHighlightPhrase, normalizedHighlightPhrases, visibleTextForHighlights]);
 
+  useEffect(() => {
+    if (!useMarkdown || !onSectionEnter) return;
+    if (!visibleTextForHighlights) return;
+
+    const seen = triggeredSectionRef.current;
+    const matches = visibleTextForHighlights.matchAll(/^#{2,6}\s+(.+)$/gm);
+    for (const match of matches) {
+      const heading = match?.[1] || '';
+      const sectionKey = getSectionKeyFromHeading(heading);
+      if (!sectionKey || seen.has(sectionKey)) continue;
+      seen.add(sectionKey);
+      onSectionEnter(sectionKey);
+    }
+  }, [useMarkdown, onSectionEnter, visibleTextForHighlights]);
+
   const atmosphereClass = useMemo(() => (
     withAtmosphere
       ? ['narrative-atmosphere', atmosphereToneClass, atmosphereClassName].filter(Boolean).join(' ')
@@ -400,7 +455,11 @@ export function StreamingNarrative({
         {personalizedIntro}
         {/* Container with min-height to prevent layout shift during streaming */}
         <div className={`prose prose-sm xxs:prose-base md:prose-lg max-w-[min(34rem,calc(100vw-2.75rem))] xxs:max-w-[40ch] sm:max-w-[70ch] w-full min-h-[6rem] xxs:min-h-[7.5rem] md:min-h-[10rem] px-3 xxs:px-4 sm:px-1 mx-auto rounded-2xl bg-surface/70 border border-secondary/30 shadow-md narrative-stream__text narrative-stream__text--md ${atmosphereClass} ${textBottomPaddingClass}`}>
-          <MarkdownRenderer content={visibleText} highlightPhrases={normalizedHighlightPhrases} />
+          <MarkdownRenderer
+            content={visibleText}
+            highlightPhrases={normalizedHighlightPhrases}
+            wordBoundary={wordBoundary}
+          />
         </div>
 
         {showSkipButton && (
@@ -444,12 +503,13 @@ export function StreamingNarrative({
           // Only recent words get willChange hint to avoid exhausting GPU memory
           const isRecentWord = idx >= visibleCount - RECENT_WORDS_THRESHOLD;
           const shouldPop = meta.isHighlighted && idx >= visibleCount - EMPHASIS_POP_THRESHOLD;
+          const isTtsWord = idx === ttsWordIndex && idx < visibleCount;
 
           // Render word with ink-spreading animation
           return (
             <span
               key={idx}
-              className={`inline-block ${prefersReducedMotion ? '' : 'animate-ink-spread'} ${meta.isHighlighted ? 'narrative-emphasis' : ''} ${shouldPop ? 'narrative-emphasis--pop' : ''}`}
+              className={`inline-block ${prefersReducedMotion ? '' : 'animate-ink-spread'} ${meta.isHighlighted ? 'narrative-emphasis' : ''} ${shouldPop ? 'narrative-emphasis--pop' : ''} ${isTtsWord ? 'narrative-tts-word narrative-tts-word--active' : ''}`}
               style={prefersReducedMotion ? undefined : (isRecentWord ? recentWordStyle : settledWordStyle)}
             >
               {word}

@@ -74,6 +74,23 @@ export function normalizeReadingText(markdown) {
 }
 
 /**
+ * Normalize reading text for Azure SDK word-boundary alignment.
+ *
+ * Produces a plain-text representation with consistent block separators
+ * so offsets can be mapped back to rendered Markdown text nodes.
+ *
+ * @param {string} markdown - Raw Markdown reading text
+ * @returns {string} Normalized text with uniform block separators
+ */
+export function normalizeReadingTextForTtsHighlight(markdown) {
+  const base = normalizeReadingText(markdown);
+  if (!base) return '';
+
+  // Force all block breaks to a consistent double newline.
+  return base.replace(/\n+/g, '\n\n').trim();
+}
+
+/**
  * Prepare text specifically for TTS (Text-to-Speech) narration
  *
  * Adds natural pauses, emphasis cues, and pacing adjustments to make

@@ -5,6 +5,9 @@ import { safeStorage } from './safeStorage.js';
 
 let flipAudio = null;
 let ambienceAudio = null;
+const AMBIENCE_BASE_VOLUME = 0.2;
+let ambienceSwellTimer = null;
+let ambienceVolumeRaf = null;
 let ttsAudio = null;
 let currentTTSState = {
   status: 'idle',
@@ -132,7 +135,7 @@ export function initAudio() {
     try {
       ambienceAudio = new Audio('/sounds/ambience.mp3');
       ambienceAudio.loop = true;
-      ambienceAudio.volume = 0.2;
+      ambienceAudio.volume = AMBIENCE_BASE_VOLUME;
     } catch {
       ambienceAudio = null;
     }
@@ -165,6 +168,59 @@ export function toggleAmbience(on) {
   } catch {
     // ignore autoplay / interruption errors
   }
+}
+
+function clampVolume(value) {
+  if (!Number.isFinite(value)) return AMBIENCE_BASE_VOLUME;
+  return Math.min(1, Math.max(0, value));
+}
+
+function rampAmbienceVolume(from, to, durationMs) {
+  if (!ambienceAudio) return;
+  if (typeof window === 'undefined') return;
+  if (ambienceVolumeRaf) {
+    cancelAnimationFrame(ambienceVolumeRaf);
+    ambienceVolumeRaf = null;
+  }
+
+  const start = typeof performance !== 'undefined' ? performance.now() : Date.now();
+  const safeDuration = Math.max(80, durationMs || 0);
+  const startVolume = clampVolume(from);
+  const endVolume = clampVolume(to);
+
+  const step = (now) => {
+    const elapsed = now - start;
+    const t = Math.min(1, elapsed / safeDuration);
+    const eased = 1 - Math.pow(1 - t, 2);
+    ambienceAudio.volume = startVolume + (endVolume - startVolume) * eased;
+
+    if (t < 1) {
+      ambienceVolumeRaf = requestAnimationFrame(step);
+    } else {
+      ambienceVolumeRaf = null;
+    }
+  };
+
+  ambienceVolumeRaf = requestAnimationFrame(step);
+}
+
+export function swellAmbience({ peak = 0.32, attackMs = 180, releaseMs = 700 } = {}) {
+  if (!ambienceAudio) return;
+  if (ambienceAudio.paused) return;
+
+  const baseVolume = clampVolume(ambienceAudio.volume || AMBIENCE_BASE_VOLUME);
+  const targetVolume = Math.min(1, Math.max(baseVolume, peak));
+
+  rampAmbienceVolume(baseVolume, targetVolume, attackMs);
+
+  if (ambienceSwellTimer) {
+    clearTimeout(ambienceSwellTimer);
+  }
+
+  ambienceSwellTimer = setTimeout(() => {
+    rampAmbienceVolume(targetVolume, baseVolume, releaseMs);
+    ambienceSwellTimer = null;
+  }, Math.max(120, attackMs));
 }
 
 function normalizeAudioContentType(contentType) {
@@ -1146,6 +1202,14 @@ export function stopTTS() {
 export function cleanupAudio() {
   try {
     resetTTSStream({ preserveAudio: true });
+    if (ambienceSwellTimer) {
+      clearTimeout(ambienceSwellTimer);
+      ambienceSwellTimer = null;
+    }
+    if (ambienceVolumeRaf) {
+      cancelAnimationFrame(ambienceVolumeRaf);
+      ambienceVolumeRaf = null;
+    }
     if (flipAudio) {
       flipAudio.pause();
       flipAudio = null;

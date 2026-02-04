@@ -1,10 +1,12 @@
-import { Children, cloneElement, isValidElement } from 'react';
+import { Children, cloneElement, isValidElement, useRef } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import {
   normalizeHighlightPhrases,
   passesWordBoundary
 } from '../lib/highlightUtils';
+
+const BLOCK_SEPARATOR = '\n\n';
 
 const STYLE_VARIANTS = {
   default: {
@@ -62,7 +64,7 @@ const STYLE_VARIANTS = {
 
 const getVariantStyles = (variant) => STYLE_VARIANTS[variant] || STYLE_VARIANTS.default;
 
-function splitTextWithHighlights(text, phrases) {
+function splitTextWithPhraseHighlights(text, phrases, nextKey) {
   if (!text || typeof text !== 'string') return text;
   if (!phrases || phrases.length === 0) return text;
 
@@ -70,7 +72,6 @@ function splitTextWithHighlights(text, phrases) {
   const phrasesLower = phrases.map(p => p.toLowerCase());
   const parts = [];
   let i = 0;
-  let key = 0;
 
   while (i < text.length) {
     let bestIndex = -1;
@@ -106,7 +107,7 @@ function splitTextWithHighlights(text, phrases) {
     }
 
     parts.push(
-      <span key={`hl-${key++}-${bestIndex}`} className="narrative-emphasis">
+      <span key={`hl-${nextKey()}`} className="narrative-emphasis">
         {text.slice(start, end)}
       </span>
     );
@@ -116,11 +117,60 @@ function splitTextWithHighlights(text, phrases) {
   return parts;
 }
 
-function highlightChildren(children, phrases) {
-  if (!phrases || phrases.length === 0) return children;
+function pushParts(target, value) {
+  if (Array.isArray(value)) {
+    target.push(...value);
+  } else if (value !== null && value !== undefined) {
+    target.push(value);
+  }
+}
+
+function splitTextWithHighlights(text, phrases, cursorRef, ttsRange, nextKey) {
+  if (!text || typeof text !== 'string') return text;
+
+  const start = cursorRef ? cursorRef.current : 0;
+  const end = start + text.length;
+  if (cursorRef) {
+    cursorRef.current = end;
+  }
+
+  if (!ttsRange || ttsRange.start >= end || ttsRange.end <= start) {
+    return splitTextWithPhraseHighlights(text, phrases, nextKey);
+  }
+
+  const localStart = Math.max(0, ttsRange.start - start);
+  const localEnd = Math.min(text.length, ttsRange.end - start);
+  const before = text.slice(0, localStart);
+  const middle = text.slice(localStart, localEnd);
+  const after = text.slice(localEnd);
+  const parts = [];
+
+  if (before) {
+    pushParts(parts, splitTextWithPhraseHighlights(before, phrases, nextKey));
+  }
+
+  if (middle) {
+    const inner = splitTextWithPhraseHighlights(middle, phrases, nextKey);
+    parts.push(
+      <span key={`tts-${nextKey()}`} className="narrative-tts-word narrative-tts-word--active">
+        {inner}
+      </span>
+    );
+  }
+
+  if (after) {
+    pushParts(parts, splitTextWithPhraseHighlights(after, phrases, nextKey));
+  }
+
+  return parts;
+}
+
+function highlightChildren(children, phrases, cursorRef, ttsRange, nextKey) {
+  const hasPhrases = Array.isArray(phrases) && phrases.length > 0;
+  if (!hasPhrases && !ttsRange) return children;
   return Children.map(children, (child) => {
     if (typeof child === 'string') {
-      return splitTextWithHighlights(child, phrases);
+      return splitTextWithHighlights(child, hasPhrases ? phrases : [], cursorRef, ttsRange, nextKey);
     }
 
     if (!isValidElement(child)) {
@@ -146,7 +196,7 @@ function highlightChildren(children, phrases) {
       return child;
     }
 
-    const nextChildren = highlightChildren(child.props?.children, phrases);
+    const nextChildren = highlightChildren(child.props?.children, hasPhrases ? phrases : [], cursorRef, ttsRange, nextKey);
     if (nextChildren === child.props?.children) {
       return child;
     }
@@ -157,6 +207,7 @@ function highlightChildren(children, phrases) {
 export function MarkdownRenderer({
   content,
   highlightPhrases = [],
+  wordBoundary = null,
   variant = 'default',
   className = ''
 }) {
@@ -166,18 +217,42 @@ export function MarkdownRenderer({
 
   const styles = getVariantStyles(variant);
   const normalizedPhrases = normalizeHighlightPhrases(highlightPhrases);
+  const cursorRef = useRef(0);
+  const blockCountRef = useRef(0);
+  const keyCounterRef = useRef(0);
+
+  cursorRef.current = 0;
+  blockCountRef.current = 0;
+  keyCounterRef.current = 0;
+
+  const nextKey = () => {
+    const key = keyCounterRef.current;
+    keyCounterRef.current += 1;
+    return key;
+  };
+
+  const ttsRange = wordBoundary && typeof wordBoundary.textOffset === 'number' && typeof wordBoundary.wordLength === 'number'
+    ? { start: wordBoundary.textOffset, end: wordBoundary.textOffset + wordBoundary.wordLength }
+    : null;
+
+  const bumpBlockCursor = () => {
+    if (blockCountRef.current > 0) {
+      cursorRef.current += BLOCK_SEPARATOR.length;
+    }
+    blockCountRef.current += 1;
+  };
 
   const renderHeading = (Tag, props, className) => (
     styles.showSectionDivider ? (
       <div className="narrative-section animate-section-enter">
         <div className="narrative-section__divider animate-divider-enter" aria-hidden="true"><span>✦</span></div>
         <Tag {...props} className={className}>
-          {highlightChildren(props.children, normalizedPhrases)}
+          {highlightChildren(props.children, normalizedPhrases, cursorRef, ttsRange, nextKey)}
         </Tag>
       </div>
     ) : (
       <Tag {...props} className={className}>
-        {highlightChildren(props.children, normalizedPhrases)}
+        {highlightChildren(props.children, normalizedPhrases, cursorRef, ttsRange, nextKey)}
       </Tag>
     )
   );
@@ -193,51 +268,69 @@ export function MarkdownRenderer({
           remarkPlugins={[remarkGfm]}
           skipHtml
           components={{
-          h1: ({ node: _node, ...props }) => (
-            <h1 {...props} className={`${styles.heading} ${styles.headingSizes.h1}`}>
-              {highlightChildren(props.children, normalizedPhrases)}
-            </h1>
-          ),
-          h2: ({ node: _node, ...props }) => renderHeading('h2', props, `${styles.heading} ${styles.headingSizes.h2}`),
-          h3: ({ node: _node, ...props }) => renderHeading('h3', props, `${styles.heading} ${styles.headingSizes.h3}`),
-          p: ({ node: _node, ...props }) => (
-            <p {...props} className={styles.paragraph}>
-              {highlightChildren(props.children, normalizedPhrases)}
-            </p>
-          ),
+          h1: ({ node: _node, ...props }) => {
+            bumpBlockCursor();
+            return (
+              <h1 {...props} className={`${styles.heading} ${styles.headingSizes.h1}`}>
+                {highlightChildren(props.children, normalizedPhrases, cursorRef, ttsRange, nextKey)}
+              </h1>
+            );
+          },
+          h2: ({ node: _node, ...props }) => {
+            bumpBlockCursor();
+            return renderHeading('h2', props, `${styles.heading} ${styles.headingSizes.h2}`);
+          },
+          h3: ({ node: _node, ...props }) => {
+            bumpBlockCursor();
+            return renderHeading('h3', props, `${styles.heading} ${styles.headingSizes.h3}`);
+          },
+          p: ({ node: _node, ...props }) => {
+            bumpBlockCursor();
+            return (
+              <p {...props} className={styles.paragraph}>
+                {highlightChildren(props.children, normalizedPhrases, cursorRef, ttsRange, nextKey)}
+              </p>
+            );
+          },
           strong: ({ node: _node, ...props }) => (
             <strong {...props} className="text-main font-semibold">
-              {highlightChildren(props.children, normalizedPhrases)}
+              {highlightChildren(props.children, normalizedPhrases, cursorRef, ttsRange, nextKey)}
             </strong>
           ),
           em: ({ node: _node, ...props }) => (
             <em {...props} className="italic text-main/90">
-              {highlightChildren(props.children, normalizedPhrases)}
+              {highlightChildren(props.children, normalizedPhrases, cursorRef, ttsRange, nextKey)}
             </em>
           ),
           ul: ({ node: _node, ...props }) => (
             <ul {...props} className={`${styles.list} ${styles.paragraph}`}>
-              {highlightChildren(props.children, normalizedPhrases)}
+              {highlightChildren(props.children, normalizedPhrases, cursorRef, ttsRange, nextKey)}
             </ul>
           ),
           ol: ({ node: _node, ...props }) => (
             <ol {...props} className={`list-decimal pl-5 space-y-1.5 xs:space-y-2 ${styles.paragraph}`}>
-              {highlightChildren(props.children, normalizedPhrases)}
+              {highlightChildren(props.children, normalizedPhrases, cursorRef, ttsRange, nextKey)}
             </ol>
           ),
-          li: ({ node: _node, ...props }) => (
-            <li {...props} className="marker:text-secondary pl-1">
-              {highlightChildren(props.children, normalizedPhrases)}
-            </li>
-          ),
-          blockquote: ({ node: _node, ...props }) => (
-            <blockquote
-              {...props}
-              className={`${styles.paragraph} ${styles.blockquote}`}
-            >
-              {highlightChildren(props.children, normalizedPhrases)}
-            </blockquote>
-          ),
+          li: ({ node: _node, ...props }) => {
+            bumpBlockCursor();
+            return (
+              <li {...props} className="marker:text-secondary pl-1">
+                {highlightChildren(props.children, normalizedPhrases, cursorRef, ttsRange, nextKey)}
+              </li>
+            );
+          },
+          blockquote: ({ node: _node, ...props }) => {
+            bumpBlockCursor();
+            return (
+              <blockquote
+                {...props}
+                className={`${styles.paragraph} ${styles.blockquote}`}
+              >
+                {highlightChildren(props.children, normalizedPhrases, cursorRef, ttsRange, nextKey)}
+              </blockquote>
+            );
+          },
           a: ({ node: _node, ...props }) => (
             <a
               {...props}

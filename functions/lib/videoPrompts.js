@@ -7,6 +7,7 @@
 // - Use image input for visual consistency
 
 import { CARD_VISUALS, SUIT_VISUALS } from './storyArtPrompts.js';
+import { VIDEO_STYLE_IDS } from '../../shared/vision/videoStyles.js';
 import {
   QUESTION_VISUAL_CUES,
   REVERSAL_TREATMENT,
@@ -18,7 +19,7 @@ import {
 /**
  * Cinematic style presets for card reveal animations
  */
-export const VIDEO_STYLES = {
+const VIDEO_STYLE_CONFIG = {
   mystical: {
     style: 'Ethereal fantasy film, shot on digital with soft diffusion filter',
     lighting: 'volumetric light rays through mist, warm golden key with cool rim',
@@ -44,6 +45,26 @@ export const VIDEO_STYLES = {
     mood: 'transcendent and expansive'
   }
 };
+
+const VIDEO_STYLE_KEYS = new Set(VIDEO_STYLE_IDS);
+
+export const VIDEO_STYLES = VIDEO_STYLE_IDS.reduce((acc, id) => {
+  if (VIDEO_STYLE_CONFIG[id]) {
+    acc[id] = VIDEO_STYLE_CONFIG[id];
+  }
+  return acc;
+}, {});
+
+const missingStyleIds = VIDEO_STYLE_IDS.filter((id) => !VIDEO_STYLE_CONFIG[id]);
+const extraStyleIds = Object.keys(VIDEO_STYLE_CONFIG).filter((id) => !VIDEO_STYLE_KEYS.has(id));
+
+if (missingStyleIds.length) {
+  console.warn('[videoPrompts] Missing style configs for:', missingStyleIds);
+}
+
+if (extraStyleIds.length) {
+  console.warn('[videoPrompts] Unlisted style configs:', extraStyleIds);
+}
 
 /**
  * Animation actions for Major Arcana reveals

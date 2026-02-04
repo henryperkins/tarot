@@ -33,6 +33,7 @@ import { useSmallScreen } from '../hooks/useSmallScreen';
 import { useLandscape } from '../hooks/useLandscape';
 import { useHandsetLayout } from '../hooks/useHandsetLayout';
 import { useReducedMotion } from '../hooks/useReducedMotion';
+import { useCinematicBeat } from '../hooks/useCinematicBeat';
 import { getOrientationMeaning } from '../lib/cardLookup';
 import {
     getNarrativeBiasClass,
@@ -186,6 +187,8 @@ export function ReadingDisplay({
     const {
         // Audio
         ttsState,
+        wordBoundary,
+        triggerCinematicSwell,
         showVoicePrompt,
         setShowVoicePrompt,
         handleNarrationButtonClick,
@@ -289,6 +292,16 @@ export function ReadingDisplay({
         ];
         return classes.filter(Boolean).join(' ');
     }, [isGenerating, narrativePhase, reasoning?.narrativeArc?.templateBias, themes?.dominantSuit]);
+
+    const { beatClassName, notifyCardMention, notifyCompletion, notifySectionEnter } = useCinematicBeat({
+        reasoning,
+        totalCards: reading?.length ?? 0,
+        onBeat: triggerCinematicSwell
+    });
+
+    const narrativeAtmosphereClassName = useMemo(() => (
+        [narrativeAtmosphereClasses, beatClassName].filter(Boolean).join(' ')
+    ), [narrativeAtmosphereClasses, beatClassName]);
 
 
     // Ghost card animation state for deck-to-slot fly animation
@@ -472,6 +485,7 @@ export function ReadingDisplay({
 
         mentionPulseRef.current += 1;
         setNarrativeMentionPulse({ id: mentionPulseRef.current, index: matchIndex });
+        notifyCardMention(matchIndex);
 
         if (mentionPulseTimeoutRef.current) {
             window.clearTimeout(mentionPulseTimeoutRef.current);
@@ -480,13 +494,16 @@ export function ReadingDisplay({
             setNarrativeMentionPulse(null);
             mentionPulseTimeoutRef.current = null;
         }, 1100);
-    }, [reading, setNarrativeMentionPulse]);
+    }, [reading, setNarrativeMentionPulse, notifyCardMention]);
 
     const handleVoicePromptWrapper = useCallback(() => {
         const emotion = emotionalTone?.emotion || null;
         const narrationText = fullReadingText || narrativeText;
         handleVoicePromptEnable(narrationText, emotion);
     }, [handleVoicePromptEnable, fullReadingText, narrativeText, emotionalTone]);
+
+    const shouldHighlightTtsWord = ttsProvider === 'azure-sdk' && ttsState?.status === 'playing';
+    const activeWordBoundary = shouldHighlightTtsWord ? wordBoundary : null;
 
     useEffect(() => {
         if (!personalReading) {
@@ -990,12 +1007,15 @@ export function ReadingDisplay({
                                 isStreamingEnabled={shouldStreamNarrative}
                                 autoNarrate={canAutoNarrate}
                                 onNarrationStart={handleNarrationWrapper}
+                                onDone={notifyCompletion}
                                 displayName={displayName}
                                 highlightPhrases={narrativeHighlightPhrases}
                                 emotionalTone={emotionalTone}
                                 onHighlightPhrase={handleNarrativeHighlight}
+                                onSectionEnter={notifySectionEnter}
+                                wordBoundary={activeWordBoundary}
                                 withAtmosphere
-                                atmosphereClassName={narrativeAtmosphereClasses}
+                                atmosphereClassName={narrativeAtmosphereClassName}
                             />
                             {isHandset && onOpenFollowUp && personalReading && !isPersonalReadingError && narrativePhase === 'complete' && (
                                 <div className="max-w-3xl mx-auto mt-4">

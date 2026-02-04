@@ -21,6 +21,7 @@ const STYLE_OPTIONS = [
 const FORMAT_OPTIONS = [
   { id: 'single', label: 'Single Scene', description: 'Panoramic synthesis' },
   { id: 'triptych', label: 'Triptych', description: '3-panel narrative' },
+  { id: 'panoramic', label: 'Panoramic', description: 'Wide cinematic scene' },
   { id: 'vignette', label: 'Card Vignette', description: 'Featured card art' }
 ];
 

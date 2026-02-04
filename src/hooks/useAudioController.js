@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { normalizeReadingTextForTtsHighlight } from '../lib/formatting.js';
 import {
   speakText,
   pauseTTS,
@@ -10,7 +11,8 @@ import {
   enqueueTTSChunk,
   finalizeTTSStream,
   resetTTSStream,
-  isTTSStreamActive
+  isTTSStreamActive,
+  swellAmbience
 } from '../lib/audio';
 import {
   speakWithHume,
@@ -26,7 +28,7 @@ import {
 import { usePreferences } from '../contexts/PreferencesContext';
 
 export function useAudioController() {
-  const { voiceOn, setVoiceOn, ttsProvider, ttsSpeed } = usePreferences();
+  const { voiceOn, setVoiceOn, ttsProvider, ttsSpeed, ambienceOn } = usePreferences();
   const [ttsState, setTtsState] = useState(() => getCurrentTTSState());
   const [ttsAnnouncement, setTtsAnnouncement] = useState('');
   const [voicePromptRequested, setVoicePromptRequested] = useState(false);
@@ -274,6 +276,7 @@ export function useAudioController() {
     if (!text || !voiceOn) return;
     const requestId = ++sdkRequestRef.current;
     const isStaleRequest = () => sdkRequestRef.current !== requestId;
+    const normalizedText = normalizeReadingTextForTtsHighlight(text);
 
     try {
       if (!isSpeechSDKReady()) {
@@ -291,7 +294,7 @@ export function useAudioController() {
 
       const wordTimings = [];
 
-      const result = await synthesizeWithSDK(text, {
+      const result = await synthesizeWithSDK(normalizedText, {
         voice: 'verse',
         context,
         speed: 0.95,
@@ -415,6 +418,26 @@ export function useAudioController() {
       await speakWithAzure(text, context, emotion);
     }
   }, [ttsProvider, speakWithHumeProvider, speakWithSpeechSDK, speakWithAzure]);
+
+  const swellCooldownRef = useRef(0);
+  const triggerCinematicSwell = useCallback((beatKey) => {
+    if (!ambienceOn) return;
+    const now = Date.now();
+    if (now - swellCooldownRef.current < 1800) return;
+    swellCooldownRef.current = now;
+
+    const beatPeakMap = {
+      opening: 0.28,
+      cards: 0.3,
+      pivot: 0.34,
+      tension: 0.32,
+      synthesis: 0.36,
+      resolution: 0.34,
+      guidance: 0.33
+    };
+    const peak = beatPeakMap[beatKey] || 0.3;
+    swellAmbience({ peak });
+  }, [ambienceOn]);
 
   const handleNarrationButtonClick = useCallback(async (fullReadingText, isPersonalReadingError, emotion = null) => {
     if (!voiceOn) {
@@ -552,6 +575,7 @@ export function useAudioController() {
     handleNarrationStop,
     handleVoicePromptEnable,
     ttsProvider,
-    wordBoundary
+    wordBoundary,
+    triggerCinematicSwell
   };
 }

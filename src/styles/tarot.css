@@ -3123,6 +3123,7 @@ input[type="range"]:focus::-webkit-slider-thumb {
   isolation: isolate;
   z-index: var(--z-base);
   --narrative-tint: radial-gradient(circle at 50% 50%, rgba(232, 218, 195, 0.08), transparent 60%);
+  --narrative-beat-overlay: radial-gradient(circle at 50% 50%, rgba(0, 0, 0, 0), transparent 60%);
 }
 
 .narrative-atmosphere::before,
@@ -3155,6 +3156,7 @@ input[type="range"]:focus::-webkit-slider-thumb {
   inset: 0;
   pointer-events: none;
   background:
+    var(--narrative-beat-overlay),
     radial-gradient(circle at 22% 18%, var(--narrative-phase-shift), transparent 55%),
     radial-gradient(circle at 78% 88%, var(--narrative-bias-tint), transparent 60%),
     radial-gradient(circle at 50% 100%, var(--narrative-suit-tint), transparent 62%),
@@ -3205,6 +3207,7 @@ input[type="range"]:focus::-webkit-slider-thumb {
         color-mix(in srgb, var(--brand-secondary) 10%, transparent),
         transparent 55%
       ),
+      var(--narrative-beat-overlay),
       radial-gradient(circle at 22% 18%, var(--narrative-phase-shift), transparent 55%),
       radial-gradient(circle at 78% 88%, var(--narrative-bias-tint), transparent 60%),
       radial-gradient(circle at 50% 100%, var(--narrative-suit-tint), transparent 62%),
@@ -3235,6 +3238,59 @@ input[type="range"]:focus::-webkit-slider-thumb {
 
 .narrative-atmosphere--shadow {
   --narrative-tint: radial-gradient(circle at 50% 50%, rgba(110, 86, 140, 0.22), transparent 72%);
+}
+
+/* Narrative beat overlays (transient pulses) */
+.narrative-beat--opening {
+  --narrative-beat-overlay: radial-gradient(circle at 50% 20%, rgba(120, 161, 255, 0.22), transparent 64%);
+}
+
+.narrative-beat--cards {
+  --narrative-beat-overlay: radial-gradient(circle at 50% 50%, rgba(232, 218, 195, 0.2), transparent 68%);
+}
+
+.narrative-beat--pivot {
+  --narrative-beat-overlay: radial-gradient(circle at 50% 32%, rgba(232, 218, 195, 0.35), transparent 62%);
+}
+
+.narrative-beat--tension {
+  --narrative-beat-overlay: radial-gradient(circle at 50% 55%, rgba(110, 86, 140, 0.3), transparent 68%);
+}
+
+.narrative-beat--resolution {
+  --narrative-beat-overlay: radial-gradient(circle at 50% 70%, rgba(201, 168, 118, 0.32), transparent 70%);
+}
+
+.narrative-beat--synthesis {
+  --narrative-beat-overlay: radial-gradient(circle at 50% 40%, rgba(120, 161, 255, 0.26), transparent 66%);
+}
+
+.narrative-beat--guidance {
+  --narrative-beat-overlay: radial-gradient(circle at 50% 78%, rgba(201, 168, 118, 0.28), transparent 70%);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .narrative-beat--pivot::after,
+  .narrative-beat--tension::after,
+  .narrative-beat--resolution::after,
+  .narrative-beat--synthesis::after {
+    animation: narrativeBeatBloom 900ms ease-out both;
+  }
+}
+
+@keyframes narrativeBeatBloom {
+  0% {
+    opacity: 0.16;
+    transform: scale(0.985);
+  }
+  45% {
+    opacity: 0.36;
+    transform: scale(1);
+  }
+  100% {
+    opacity: 0.22;
+    transform: scale(1);
+  }
 }
 
 /* Narrative atmosphere phase + bias + suit accents */
@@ -3452,6 +3508,46 @@ input[type="range"]:focus::-webkit-slider-thumb {
   45% {
     filter: brightness(1.18);
     transform: translateY(-1px) scale(1.02);
+  }
+  100% {
+    filter: brightness(1);
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* TTS word highlight (Azure SDK word-boundary) */
+.narrative-tts-word {
+  position: relative;
+  color: var(--text-accent, var(--brand-accent));
+  background: linear-gradient(
+    180deg,
+    transparent,
+    var(--accent-20, rgba(168, 178, 200, 0.2))
+  );
+  color: color-mix(in srgb, var(--brand-accent) 60%, var(--text-main));
+  background: linear-gradient(
+    180deg,
+    transparent,
+    color-mix(in srgb, var(--brand-secondary) 18%, transparent)
+  );
+  border-radius: 0.3rem;
+  padding: 0 0.1em;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .narrative-tts-word--active {
+    animation: narrativeTtsPulse 420ms ease-out both;
+  }
+}
+
+@keyframes narrativeTtsPulse {
+  0% {
+    filter: brightness(1.05);
+    transform: translateY(0) scale(1);
+  }
+  40% {
+    filter: brightness(1.2);
+    transform: translateY(-1px) scale(1.03);
   }
   100% {
     filter: brightness(1);

@@ -8,14 +8,10 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { getCanonicalCard, getOrientationMeaning } from '../lib/cardLookup';
+import { VIDEO_STYLE_PRESETS, DEFAULT_VIDEO_STYLE } from '../../shared/vision/videoStyles.js';
 
-// Video style options
-const VIDEO_STYLES = [
-  { id: 'mystical', label: 'Mystical', description: 'Ethereal, dreamlike atmosphere' },
-  { id: 'classic', label: 'Classic', description: 'Timeless cinematic drama' },
-  { id: 'modern', label: 'Modern', description: 'Clean, contemporary visual style' },
-  { id: 'cosmic', label: 'Cosmic', description: 'Otherworldly space atmosphere' }
-];
+// Video style options (shared with backend)
+const VIDEO_STYLES = VIDEO_STYLE_PRESETS;
 
 const POLL_INTERVAL_MS = 5000;
 const MAX_POLL_MS = 120000;
@@ -167,7 +163,7 @@ export default function AnimatedReveal({
   onVideoReady,
   className = ''
 }) {
-  const [style, setStyle] = useState('mystical');
+  const [style, setStyle] = useState(DEFAULT_VIDEO_STYLE);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [, setJobId] = useState(null);
