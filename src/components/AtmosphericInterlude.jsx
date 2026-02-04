@@ -127,12 +127,12 @@ export function AtmosphericInterlude({
       'Nearly ready...'
     ];
 
-    let phase = 0;
+    const phaseIndexRef = { current: 0 };
 
     if (!prefersReducedMotion) {
       phaseTimerRef.current = setInterval(() => {
-        phase = (phase + 1) % messages.length;
-        setPhaseMessage(messages[phase]);
+        phaseIndexRef.current = (phaseIndexRef.current + 1) % messages.length;
+        setPhaseMessage(messages[phaseIndexRef.current]);
       }, 4000); // 4 seconds per phase, aligned with BREATH_PERIOD_MS
     }
 
@@ -170,6 +170,9 @@ export function AtmosphericInterlude({
         initial="initial"
         animate="enter"
         exit="exit"
+        role="status"
+        aria-live="polite"
+        aria-label="Generating your personalized reading"
       >
         {/* Breathing orb */}
         <BreathingOrb prefersReducedMotion={prefersReducedMotion} />

@@ -35,6 +35,12 @@ export const ELEMENT_TRIGGERS = {
  * arbitrary token chunks.
  * 
  * Also includes regex-based element detection for atmospheric triggers.
+ * 
+ * NOTE: This hook is currently prepared for future integration into the
+ * StreamingNarrative component. It provides the foundation for locale-aware
+ * text streaming and element-based atmosphere detection but is not yet
+ * actively used in the codebase. See Phase 3 implementation plan in
+ * docs/cinematic-enhancements.md for integration details.
  */
 export function useEnhancedTextStreaming({
   onElementDetected,
@@ -103,10 +109,11 @@ export function useEnhancedTextStreaming({
       // Skip if this element was recently detected (avoid spam)
       if (lastDetectedElementRef.current === element) continue;
 
-      // Check if any keyword appears in buffer
-      const hasMatch = config.keywords.some(keyword => 
-        buffer.includes(keyword.toLowerCase())
-      );
+      // Check if any keyword appears in buffer (with word boundaries)
+      const hasMatch = config.keywords.some(keyword => {
+        const regex = new RegExp(`\\b${keyword.toLowerCase()}\\b`, 'i');
+        return regex.test(buffer);
+      });
 
       if (hasMatch) {
         lastDetectedElementRef.current = element;

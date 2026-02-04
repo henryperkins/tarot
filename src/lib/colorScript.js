@@ -173,7 +173,7 @@ export function applyColorScript(colorScript) {
   const atmosphereClass = `color-atmosphere--${colorScript.atmosphere}`;
   
   // Remove old atmosphere classes
-  root.classList.forEach(className => {
+  Array.from(root.classList).forEach(className => {
     if (className.startsWith('color-atmosphere--')) {
       root.classList.remove(className);
     }
@@ -197,7 +197,7 @@ export function resetColorScript() {
   });
 
   // Remove atmosphere classes
-  root.classList.forEach(className => {
+  Array.from(root.classList).forEach(className => {
     if (className.startsWith('color-atmosphere--')) {
       root.classList.remove(className);
     }

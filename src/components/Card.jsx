@@ -511,7 +511,7 @@ export function Card({
       }
       // Let in-flight animations resolve naturally to avoid abrupt snaps.
     };
-  }, [index, isRevealed, prefersReducedMotion, revealEase, staggerDelay]);
+  }, [index, isRevealed, prefersReducedMotion, revealEase, staggerDelay, card, vibrate]);
 
   // Get card meaning
   const originalCard = canonicalCard;

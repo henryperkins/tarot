@@ -24,11 +24,11 @@ describe('useSceneOrchestrator', () => {
       },
       {
         state: { isShuffling: false, hasConfirmedSpread: true, revealedCards: [0, 1, 2], totalCards: 3, isGenerating: false, personalReading: 'narrative text', reading: [{}, {}, {}] },
-        expected: 'complete'
+        expected: 'delivery'
       }
     ];
 
-    // Simple state machine logic validation
+    // Simple state machine logic validation (matches useSceneOrchestrator.js)
     testCases.forEach(({ state, expected }) => {
       let scene = 'idle';
       
@@ -44,11 +44,15 @@ describe('useSceneOrchestrator', () => {
           if (state.isGenerating) {
             scene = 'interlude';
           } else if (state.personalReading) {
-            scene = 'complete';
+            // When all cards revealed and personalReading exists, it's DELIVERY
+            scene = 'delivery';
           } else {
             scene = 'revealing';
           }
         }
+      } else if (state.personalReading && !state.isGenerating && state.reading?.length > 0) {
+        // Only reach COMPLETE if we bypass the hasConfirmedSpread check
+        scene = 'complete';
       }
 
       assert.strictEqual(scene, expected, `Expected scene "${expected}" for state but got "${scene}"`);
