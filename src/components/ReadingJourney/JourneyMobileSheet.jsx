@@ -368,7 +368,7 @@ export default function JourneyMobileSheet({
           >
             <Sparkle className="h-3 w-3" aria-hidden="true" />
             Your Journey
-            <span className="text-[10px] text-muted">(filtered)</span>
+            <span className="text-2xs text-muted">(filtered)</span>
           </h3>
           <p className="text-sm text-muted-high mb-2">
             No readings match your current filters.
@@ -461,13 +461,13 @@ export default function JourneyMobileSheet({
             <Sparkle className="h-3 w-3" aria-hidden="true" />
             Your Journey
             {scopeLabel && (
-              <span className="rounded-full border border-[color:var(--border-warm-light)] bg-[color:var(--border-warm-subtle)] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-high">
+              <span className="rounded-full border border-[color:var(--border-warm-light)] bg-[color:var(--border-warm-subtle)] px-2 py-0.5 text-2xs font-semibold uppercase tracking-[0.16em] text-muted-high">
                 Scope: {scopeLabel}
               </span>
             )}
           </h3>
           {filtersApplied && analyticsScope !== 'filters' && typeof onScopeSelect === 'function' && (
-            <div className="flex flex-wrap items-center gap-2 rounded-full border border-[color:var(--border-warm)] bg-[color:var(--accent-25)] px-3 py-1 text-[11px] text-muted-high">
+            <div className="flex flex-wrap items-center gap-2 rounded-full border border-[color:var(--border-warm)] bg-[color:var(--accent-25)] px-3 py-1 text-2xs text-muted-high">
               <span>Filters not applied to insights</span>
               <button
                 type="button"
@@ -492,7 +492,7 @@ export default function JourneyMobileSheet({
 
           {/* Season window indicator for localized formatting */}
           {seasonWindow && (
-            <p className="text-[11px] text-muted">
+            <p className="text-2xs text-muted">
               {new Intl.DateTimeFormat(locale, { month: 'long', year: 'numeric', ...((seasonTimezone || timezone) && { timeZone: seasonTimezone || timezone }) }).format(seasonWindow.start)}
               {' – '}
               {new Intl.DateTimeFormat(locale, { month: 'long', year: 'numeric', ...((seasonTimezone || timezone) && { timeZone: seasonTimezone || timezone }) }).format(seasonWindow.end)}
@@ -520,11 +520,11 @@ export default function JourneyMobileSheet({
           <div className="flex justify-center gap-4">
             <div className="text-center">
               <p className="text-xl font-medium text-main">{totalReadings}</p>
-              <p className="text-[10px] text-muted">readings</p>
+              <p className="text-2xs text-muted">readings</p>
             </div>
             <div className="text-center">
               <p className="text-xl font-medium text-main">{totalCards}</p>
-              <p className="text-[10px] text-muted">cards</p>
+              <p className="text-2xs text-muted">cards</p>
             </div>
             {currentStreak > 0 && (
               <div className="text-center">
@@ -532,7 +532,7 @@ export default function JourneyMobileSheet({
                   <Fire className="h-4 w-4 text-[color:var(--text-accent)]" />
                   {currentStreak}
                 </p>
-                <p className="text-[10px] text-muted flex items-center justify-center gap-1">
+                <p className="text-2xs text-muted flex items-center justify-center gap-1">
                   streak
                   <Tooltip
                     content={streakGraceTooltip}
@@ -643,7 +643,7 @@ export default function JourneyMobileSheet({
                   Your Reading Journey
                 </h2>
                 {scopeLabel && (
-                  <span className="rounded-full border border-[color:var(--border-warm-light)] bg-[color:var(--border-warm-subtle)] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-high">
+                  <span className="rounded-full border border-[color:var(--border-warm-light)] bg-[color:var(--border-warm-subtle)] px-2 py-0.5 text-2xs font-semibold uppercase tracking-[0.16em] text-muted-high">
                     {scopeChipLabel} · {sourceLabel}
                   </span>
                 )}

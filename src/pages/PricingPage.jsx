@@ -134,7 +134,7 @@ function TierCard({ tierKey, config, isCurrent, onSelect, isLoading, disabled, b
             </p>
           )}
           {isPaid && (
-            <div className="mt-1 text-[11px] text-muted space-y-0.5">
+            <div className="mt-1 text-2xs text-muted space-y-0.5">
               <p>{primaryBillingLine}</p>
               <p>{secondaryBillingLine}</p>
               <p>{policyLine}</p>
@@ -782,7 +782,7 @@ export default function PricingPage() {
                   )}
                 </p>
               </div>
-              <div className="flex items-center gap-2 rounded-full bg-main/80 px-3 py-1 text-[11px] text-muted">
+              <div className="flex items-center gap-2 rounded-full bg-main/80 px-3 py-1 text-2xs text-muted">
                 <Lightning className="h-3.5 w-3.5 text-accent" weight="fill" />
                 <span>For steady readers & practitioners</span>
               </div>
@@ -805,23 +805,23 @@ export default function PricingPage() {
                     className="flex items-center justify-between gap-3 rounded-2xl border border-secondary/30 bg-main/70 px-4 py-3"
                   >
                     <div className="space-y-0.5">
-                      <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted">
+                      <p className="text-2xs font-semibold uppercase tracking-[0.16em] text-muted">
                         {config.name}
                       </p>
                       <p className="text-sm text-main">
                         {displayPrice} · {formatCount(config.monthlyReadings)} readings
                       </p>
                       {monthlyEquiv && (
-                        <p className="text-[11px] text-accent">
+                        <p className="text-2xs text-accent">
                           {monthlyEquiv} · Save ${annualPricing.savings}
                         </p>
                       )}
-                      <p className="text-[11px] text-muted">
+                      <p className="text-2xs text-muted">
                         {formatPerMonth(config.monthlyTTS)} voice narrations
                       </p>
                     </div>
                     {isCurrent ? (
-                      <span className="rounded-full bg-primary/20 px-3 py-1 text-[11px] font-semibold text-primary">
+                      <span className="rounded-full bg-primary/20 px-3 py-1 text-2xs font-semibold text-primary">
                         Current
                       </span>
                     ) : (
@@ -829,7 +829,7 @@ export default function PricingPage() {
                         type="button"
                         onClick={() => handleSelectTier(tier)}
                         disabled={loadingTier !== null}
-                        className="inline-flex items-center gap-1 rounded-full bg-accent px-3 py-1.5 text-[11px] font-semibold text-surface hover:bg-accent/90 transition"
+                        className="inline-flex items-center gap-1 rounded-full bg-accent px-3 py-1.5 text-2xs font-semibold text-surface hover:bg-accent/90 transition"
                       >
                         Choose
                         <ArrowRight className="h-3 w-3" />
@@ -882,7 +882,7 @@ export default function PricingPage() {
                 <CalendarBlank className="h-4 w-4" />
                 Annual
                 {plusAnnualPricing && (
-                  <span className="rounded-full bg-success/20 px-2 py-0.5 text-[10px] font-semibold text-success">
+                  <span className="rounded-full bg-success/20 px-2 py-0.5 text-2xs font-semibold text-success">
                     {annualDiscountLabel}
                   </span>
                 )}

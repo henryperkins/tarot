@@ -78,7 +78,7 @@ export const VersionComparison = memo(function VersionComparison({ stats = [] })
             <div
               key={row.version}
               className={`rounded-lg border border-secondary/20 p-3 ${
-                isRegression ? 'bg-error/5' : isImprovement ? 'bg-emerald-500/5' : 'bg-secondary/5'
+                isRegression ? 'bg-error/5' : isImprovement ? 'bg-success/5' : 'bg-secondary/5'
               }`}
             >
               <div className="flex items-center justify-between mb-2">
@@ -86,16 +86,16 @@ export const VersionComparison = memo(function VersionComparison({ stats = [] })
                   <GitBranch className="h-4 w-4 text-muted" />
                   <span className="font-mono text-sm text-main">{row.version}</span>
                   {index === 0 && (
-                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-accent/20 text-accent">
+                    <span className="text-2xs px-1.5 py-0.5 rounded bg-accent/20 text-accent">
                       primary
                     </span>
                   )}
                 </div>
                 <span className={`text-lg font-semibold ${
                   row.avgOverall >= 4
-                    ? 'text-emerald-400'
+                    ? 'text-success'
                     : row.avgOverall >= 3
-                      ? 'text-amber-400'
+                      ? 'text-warning'
                       : 'text-error'
                 }`}>
                   {row.avgOverall.toFixed(2)}
@@ -106,7 +106,7 @@ export const VersionComparison = memo(function VersionComparison({ stats = [] })
                 {row.avgDelta !== null && (
                   <span className={`flex items-center gap-1 ${
                     row.avgDelta > 0.1
-                      ? 'text-emerald-400'
+                      ? 'text-success'
                       : row.avgDelta < -0.1
                         ? 'text-error'
                         : 'text-muted'
@@ -125,7 +125,7 @@ export const VersionComparison = memo(function VersionComparison({ stats = [] })
                   row.safetyFlagRate > 0.05
                     ? 'text-error'
                     : row.safetyFlagRate > 0.02
-                      ? 'text-amber-400'
+                      ? 'text-warning'
                       : ''
                 }>
                   {(row.safetyFlagRate * 100).toFixed(2)}% safety
@@ -157,7 +157,7 @@ export const VersionComparison = memo(function VersionComparison({ stats = [] })
                 <tr
                   key={row.version}
                   className={`border-b border-secondary/10 ${
-                    isRegression ? 'bg-error/5' : isImprovement ? 'bg-emerald-500/5' : ''
+                    isRegression ? 'bg-error/5' : isImprovement ? 'bg-success/5' : ''
                   }`}
                 >
                   <td className="py-2.5 px-3">
@@ -177,9 +177,9 @@ export const VersionComparison = memo(function VersionComparison({ stats = [] })
                   <td className="py-2.5 px-3 text-right">
                     <span className={
                       row.avgOverall >= 4
-                        ? 'text-emerald-400'
+                        ? 'text-success'
                         : row.avgOverall >= 3
-                          ? 'text-amber-400'
+                          ? 'text-warning'
                           : 'text-error'
                     }>
                       {row.avgOverall.toFixed(2)}
@@ -189,7 +189,7 @@ export const VersionComparison = memo(function VersionComparison({ stats = [] })
                     {row.avgDelta !== null ? (
                       <div className="flex items-center justify-end gap-1">
                         {row.avgDelta > 0.1 ? (
-                          <TrendUp className="h-3.5 w-3.5 text-emerald-400" />
+                          <TrendUp className="h-3.5 w-3.5 text-success" />
                         ) : row.avgDelta < -0.1 ? (
                           <TrendDown className="h-3.5 w-3.5 text-error" />
                         ) : (
@@ -197,7 +197,7 @@ export const VersionComparison = memo(function VersionComparison({ stats = [] })
                         )}
                         <span className={
                           row.avgDelta > 0.1
-                            ? 'text-emerald-400'
+                            ? 'text-success'
                             : row.avgDelta < -0.1
                               ? 'text-error'
                               : 'text-muted'
@@ -214,7 +214,7 @@ export const VersionComparison = memo(function VersionComparison({ stats = [] })
                       row.safetyFlagRate > 0.05
                         ? 'text-error'
                         : row.safetyFlagRate > 0.02
-                          ? 'text-amber-400'
+                          ? 'text-warning'
                           : 'text-muted'
                     }>
                       {(row.safetyFlagRate * 100).toFixed(2)}%

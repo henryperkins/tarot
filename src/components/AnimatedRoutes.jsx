@@ -8,6 +8,7 @@ import ShareReading from '../pages/ShareReading.jsx';
 import PricingPage from '../pages/PricingPage.jsx';
 import AccountPage from '../pages/AccountPage.jsx';
 import AdminDashboard from '../pages/AdminDashboard.jsx';
+import DesignSystemPage from '../pages/DesignSystemPage.jsx';
 import ResetPasswordPage from '../pages/ResetPasswordPage.jsx';
 import VerifyEmailPage from '../pages/VerifyEmailPage.jsx';
 import OAuthCallbackPage from '../pages/OAuthCallbackPage.jsx';
@@ -123,6 +124,7 @@ export function AnimatedRoutes() {
         <Route path="/pricing" element={<PageTransition><PricingPage /></PageTransition>} />
         <Route path="/account" element={<PageTransition><AccountPage /></PageTransition>} />
         <Route path="/admin" element={<PageTransition><AdminDashboard /></PageTransition>} />
+        <Route path="/design" element={<PageTransition><DesignSystemPage /></PageTransition>} />
         <Route path="/share/:token" element={<PageTransition><ShareReading /></PageTransition>} />
         <Route path="/reset-password" element={<PageTransition><ResetPasswordPage /></PageTransition>} />
         <Route path="/verify-email" element={<PageTransition><VerifyEmailPage /></PageTransition>} />

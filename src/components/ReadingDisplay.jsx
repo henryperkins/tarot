@@ -17,11 +17,14 @@ import { CardModal } from './CardModal';
 import { NarrativeSkeleton } from './NarrativeSkeleton';
 import { DeckPile } from './DeckPile';
 import { DeckRitual } from './DeckRitual';
+import AnimatedReveal from './AnimatedReveal';
+import StoryIllustration from './StoryIllustration';
 import { RitualNudge, JournalNudge } from './nudges';
 import { MoonPhaseIndicator } from './MoonPhaseIndicator';
 import FollowUpModal from './FollowUpModal';
 import { useReading } from '../contexts/ReadingContext';
 import { usePreferences } from '../contexts/PreferencesContext';
+import { useSubscription } from '../contexts/SubscriptionContext';
 import { useSaveReading } from '../hooks/useSaveReading';
 import { useFeatureFlags } from '../hooks/useFeatureFlags';
 import { useAuth } from '../contexts/AuthContext';
@@ -30,6 +33,12 @@ import { useSmallScreen } from '../hooks/useSmallScreen';
 import { useLandscape } from '../hooks/useLandscape';
 import { useHandsetLayout } from '../hooks/useHandsetLayout';
 import { useReducedMotion } from '../hooks/useReducedMotion';
+import { getOrientationMeaning } from '../lib/cardLookup';
+import {
+    getNarrativeBiasClass,
+    getNarrativeSuitClass,
+    getNarrativePhaseClass
+} from '../lib/narrativeAtmosphere';
 
 const STREAM_AUTO_NARRATE_DEBOUNCE_MS = 900;
 const STREAM_AUTO_NARRATE_MIN_WORDS = 40;
@@ -38,16 +47,19 @@ const STREAM_AUTO_NARRATE_MIN_WORDS = 40;
  * Ghost card component for deck-to-slot fly animation.
  * Renders via portal to animate in screen space above all other content.
  */
-function GhostCard({ startRect, endRect, onComplete }) {
+function GhostCard({ startRect, endRect, suit = null, onComplete }) {
   const duration = 0.35; // 350ms
     const safeStartWidth = Math.max(1, startRect?.width || 0);
     const safeStartHeight = Math.max(1, startRect?.height || 0);
     const endScaleX = Math.max(0.01, (endRect?.width || 0) / safeStartWidth);
     const endScaleY = Math.max(0.01, (endRect?.height || 0) / safeStartHeight);
 
+  const suitKey = typeof suit === 'string' ? suit.toLowerCase() : '';
+  const suitClass = suitKey ? `ghost-card--${suitKey}` : '';
+
   return createPortal(
     <motion.div
-            className="fixed left-0 top-0 pointer-events-none z-[200]"
+            className={`ghost-card fixed left-0 top-0 pointer-events-none z-[200] ${suitClass}`}
             style={{
                 width: safeStartWidth,
                 height: safeStartHeight,
@@ -77,6 +89,7 @@ function GhostCard({ startRect, endRect, onComplete }) {
       }}
       onAnimationComplete={onComplete}
     >
+      <div className="ghost-card-trail" aria-hidden="true" />
       {/* Card back visual */}
       <div
         className="w-full h-full rounded-xl border-2 border-primary/40 overflow-hidden"
@@ -167,6 +180,7 @@ export function ReadingDisplay({
     const navigate = useNavigate();
     const { saveReading, isSaving } = useSaveReading();
     const { publish: publishToast } = useToast();
+    const { effectiveTier } = useSubscription();
 
     // --- Contexts ---
     const {
@@ -221,6 +235,7 @@ export function ReadingDisplay({
         themes,
         emotionalTone,
         reasoningSummary,
+        reasoning,
         readingMeta,
         journalStatus,
         setJournalStatus: _setJournalStatus,
@@ -244,11 +259,18 @@ export function ReadingDisplay({
     const [autoNarrationTriggered, setAutoNarrationTriggered] = useState(false);
     const autoNarrationTriggeredRef = useRef(false);
     const autoNarrationTimeoutRef = useRef(null);
+    const [mentionPulseState, setMentionPulseState] = useState({ key: readingIdentity, value: null });
+    const mentionPulseRef = useRef(0);
+    const mentionPulseTimeoutRef = useRef(null);
     const isFollowUpOpen = typeof followUpOpen === 'boolean' ? followUpOpen : isFollowUpOpenLocal;
     const setIsFollowUpOpen = onFollowUpOpenChange || setIsFollowUpOpenLocal;
     const selectedCardData = selectionState.key === readingIdentity ? selectionState.value : null;
     const setSelectedCardData = useCallback((value) => {
         setSelectionState({ key: readingIdentity, value });
+    }, [readingIdentity]);
+    const narrativeMentionPulse = mentionPulseState.key === readingIdentity ? mentionPulseState.value : null;
+    const setNarrativeMentionPulse = useCallback((value) => {
+        setMentionPulseState({ key: readingIdentity, value });
     }, [readingIdentity]);
     const [focusedCardData, setFocusedCardData] = useState(null);
     const [recentlyClosedIndex, setRecentlyClosedIndex] = useState(-1);
@@ -258,6 +280,15 @@ export function ReadingDisplay({
         if (!revealedCards.has(focusedCardData.index)) return null;
         return focusedCardData;
     }, [focusedCardData, readingIdentity, revealedCards]);
+
+    const narrativeAtmosphereClasses = useMemo(() => {
+        const classes = [
+            getNarrativePhaseClass(isGenerating ? narrativePhase : null),
+            getNarrativeBiasClass(reasoning?.narrativeArc?.templateBias),
+            getNarrativeSuitClass(themes?.dominantSuit)
+        ];
+        return classes.filter(Boolean).join(' ');
+    }, [isGenerating, narrativePhase, reasoning?.narrativeArc?.templateBias, themes?.dominantSuit]);
 
 
     // Ghost card animation state for deck-to-slot fly animation
@@ -291,7 +322,11 @@ export function ReadingDisplay({
     const toneLabel = TONE_LABELS[readingTone] || 'Balanced';
     const frameLabel = FRAME_LABELS[spiritualFrame] || 'Balanced';
 
-    const { visionResearch: visionResearchEnabled, newDeckInterface } = useFeatureFlags();
+    const {
+        visionResearch: visionResearchEnabled,
+        newDeckInterface,
+        autoGenerateVisuals: autoGenerateVisualsEnabled
+    } = useFeatureFlags();
     const isCompactScreen = useSmallScreen(768);
     const isLandscape = useLandscape();
     const isHandsetLayout = useHandsetLayout();
@@ -300,6 +335,43 @@ export function ReadingDisplay({
     const safeSpreadKey = normalizeSpreadKey(selectedSpread);
     const spreadInfo = getSpreadInfo(safeSpreadKey);
     const canShowVisionPanel = visionResearchEnabled && isAuthenticated;
+    const resolvedQuestion = userQuestion && userQuestion.trim().length > 0
+        ? userQuestion.trim()
+        : 'General guidance';
+
+    const storyArtCards = useMemo(() => {
+        if (!Array.isArray(reading) || reading.length === 0) return [];
+        return reading
+            .map((card, index) => ({
+                name: card?.name,
+                number: card?.number ?? null,
+                suit: card?.suit ?? null,
+                rank: card?.rank ?? null,
+                rankValue: card?.rankValue ?? null,
+                position: spreadInfo?.positions?.[index] || `Position ${index + 1}`,
+                reversed: Boolean(card?.isReversed),
+                meaning: getOrientationMeaning(card)
+            }))
+            .filter(card => Boolean(card.name));
+    }, [reading, spreadInfo]);
+
+    const cinematicCardIndex = useMemo(() => {
+        if (!Array.isArray(reading) || reading.length === 0) return -1;
+        const positions = spreadInfo?.positions || [];
+        const preferredLabels = ['present', 'core', 'heart', 'outcome'];
+        const matchIndex = positions.findIndex((label) => {
+            if (!label) return false;
+            const normalized = label.toLowerCase();
+            return preferredLabels.some((token) => normalized.includes(token));
+        });
+        if (matchIndex >= 0) return matchIndex;
+        return Math.floor(reading.length / 2);
+    }, [reading, spreadInfo]);
+
+    const cinematicCard = cinematicCardIndex >= 0 ? reading?.[cinematicCardIndex] : null;
+    const cinematicPosition = cinematicCardIndex >= 0
+        ? (spreadInfo?.positions?.[cinematicCardIndex] || `Position ${cinematicCardIndex + 1}`)
+        : '';
 
     // --- Derived State ---
     const isPersonalReadingError = Boolean(personalReading?.isError);
@@ -341,6 +413,24 @@ export function ReadingDisplay({
     // Only show focus toggle on desktop; on mobile, panels are below the narrative so users can scroll past them
     const focusToggleAvailable = hasInsightPanels && !isHandset;
     const shouldShowSpreadInsights = !isNarrativeFocus && (hasPatternHighlights || hasHighlightPanel || hasTraditionalInsights);
+    const canAutoGenerateVisuals = effectiveTier === 'plus' || effectiveTier === 'pro';
+    const autoGenerateVisuals = autoGenerateVisualsEnabled && (isReadingStreaming || isGenerating) && canAutoGenerateVisuals;
+    const shouldShowStoryIllustration = Boolean(
+        personalReading &&
+        !isPersonalReadingError &&
+        storyArtCards.length > 0
+    );
+    const cinematicRevealMessage = autoGenerateVisuals
+        ? (isReadingStreaming
+            ? 'Auto-generating a short cinematic reveal while your narrative streams.'
+            : 'Auto-generating a short cinematic reveal now.')
+        : 'Generate a short cinematic reveal of this card.';
+    const shouldShowCinematicReveal = Boolean(
+        cinematicCard &&
+        personalReading &&
+        !isPersonalReadingError &&
+        canAutoGenerateVisuals
+    );
     const canAutoNarrate = voiceOn &&
         autoNarrate &&
         narrativePhase === 'complete' &&
@@ -372,6 +462,26 @@ export function ReadingDisplay({
         handleNarrationButtonClick(narrationText, isPersonalReadingError, emotion);
     }, [handleNarrationButtonClick, fullReadingText, narrativeText, isPersonalReadingError, emotionalTone]);
 
+    const handleNarrativeHighlight = useCallback((phrase) => {
+        if (!phrase || !Array.isArray(reading) || reading.length === 0) return;
+        const normalized = phrase.toLowerCase();
+        const matchIndex = reading.findIndex((card) => (
+            typeof card?.name === 'string' && card.name.toLowerCase() === normalized
+        ));
+        if (matchIndex < 0) return;
+
+        mentionPulseRef.current += 1;
+        setNarrativeMentionPulse({ id: mentionPulseRef.current, index: matchIndex });
+
+        if (mentionPulseTimeoutRef.current) {
+            window.clearTimeout(mentionPulseTimeoutRef.current);
+        }
+        mentionPulseTimeoutRef.current = window.setTimeout(() => {
+            setNarrativeMentionPulse(null);
+            mentionPulseTimeoutRef.current = null;
+        }, 1100);
+    }, [reading, setNarrativeMentionPulse]);
+
     const handleVoicePromptWrapper = useCallback(() => {
         const emotion = emotionalTone?.emotion || null;
         const narrationText = fullReadingText || narrativeText;
@@ -391,6 +501,12 @@ export function ReadingDisplay({
     useEffect(() => {
         autoNarrationTriggeredRef.current = autoNarrationTriggered;
     }, [autoNarrationTriggered]);
+
+    useEffect(() => () => {
+        if (mentionPulseTimeoutRef.current) {
+            window.clearTimeout(mentionPulseTimeoutRef.current);
+        }
+    }, []);
 
     useEffect(() => {
         if (autoNarrationTimeoutRef.current) {
@@ -487,10 +603,12 @@ export function ReadingDisplay({
         }
 
         // Start ghost animation
+        const suit = reading?.[nextIndex]?.suit || null;
         setGhostAnimation({
             startRect: deckRect,
             endRect: slotRect,
-            targetIndex: nextIndex
+            targetIndex: nextIndex,
+            suit
         });
     }, [dealNext, reading, revealedCards, prefersReducedMotion]);
 
@@ -790,6 +908,7 @@ export function ReadingDisplay({
                         canNavigateNext={navigationData.canNext}
                         navigationLabel={navigationData.label}
                         revealStage={revealStage}
+                        narrativeMentionPulse={narrativeMentionPulse}
                     />
 
                     {!personalReading && !isGenerating && revealedCards.size === reading.length && (
@@ -823,7 +942,9 @@ export function ReadingDisplay({
                                     spreadName={spreadInfo?.name}
                                     cardCount={reading?.length || 3}
                                     reasoningSummary={reasoningSummary}
+                                    reasoning={reasoning}
                                     narrativePhase={narrativePhase}
+                                    atmosphereClassName={narrativeAtmosphereClasses}
                                 />
                             </motion.div>
                         )}
@@ -871,7 +992,10 @@ export function ReadingDisplay({
                                 onNarrationStart={handleNarrationWrapper}
                                 displayName={displayName}
                                 highlightPhrases={narrativeHighlightPhrases}
+                                emotionalTone={emotionalTone}
+                                onHighlightPhrase={handleNarrativeHighlight}
                                 withAtmosphere
+                                atmosphereClassName={narrativeAtmosphereClasses}
                             />
                             {isHandset && onOpenFollowUp && personalReading && !isPersonalReadingError && narrativePhase === 'complete' && (
                                 <div className="max-w-3xl mx-auto mt-4">
@@ -961,7 +1085,7 @@ export function ReadingDisplay({
                                                         fromReading: true
                                                     }
                                                 })}
-                                                className="inline-flex items-center gap-1 rounded-full border border-accent/40 bg-accent/10 px-2.5 py-1 text-[11px] font-semibold text-accent hover:bg-accent/20 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50"
+                                                className="inline-flex items-center gap-1 rounded-full border border-accent/40 bg-accent/10 px-2.5 py-1 text-2xs font-semibold text-accent hover:bg-accent/20 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50"
                                             >
                                                 {journalStatus.action.label || 'View entry'}
                                             </button>
@@ -983,6 +1107,43 @@ export function ReadingDisplay({
                                 )}
                             </div>
                         </div>
+                    )}
+
+                    {shouldShowCinematicReveal && (
+                        <div className="bg-surface/95 backdrop-blur-xl rounded-2xl border border-secondary/40 shadow-2xl shadow-secondary/30 max-w-full sm:max-w-5xl mx-auto px-3 xxs:px-4 py-4 xs:px-5 sm:p-6 md:p-8">
+                            <div className="flex items-center justify-between gap-3 flex-wrap">
+                                <h3 className="text-base xxs:text-lg xs:text-xl sm:text-2xl font-serif text-accent flex items-center gap-2 leading-tight">
+                                    <Sparkle className="w-5 h-5 sm:w-6 sm:h-6 text-secondary" />
+                                    Cinematic reveal
+                                </h3>
+                                <span className="text-xs text-muted">
+                                    {cinematicPosition}
+                                </span>
+                            </div>
+                            <p className="text-xs sm:text-sm text-muted mt-2">
+                                {cinematicRevealMessage}
+                            </p>
+                            <AnimatedReveal
+                                key={`cinematic-${readingIdentity}`}
+                                card={cinematicCard}
+                                position={cinematicPosition}
+                                question={resolvedQuestion}
+                                userTier={effectiveTier}
+                                autoGenerate={autoGenerateVisuals}
+                                className="mt-4"
+                            />
+                        </div>
+                    )}
+
+                    {shouldShowStoryIllustration && (
+                        <StoryIllustration
+                            cards={storyArtCards}
+                            question={resolvedQuestion}
+                            narrative={fullReadingText || narrativeText}
+                            userTier={effectiveTier}
+                            autoGenerate={autoGenerateVisuals}
+                            generationKey={readingIdentity}
+                        />
                     )}
 
                     {!personalReading && !isGenerating && (
@@ -1069,6 +1230,9 @@ export function ReadingDisplay({
                     <CardModal
                         card={selectedCardData.card}
                         position={selectedCardData.position}
+                        question={resolvedQuestion}
+                        userTier={effectiveTier}
+                        enableCinematic
                         isOpen={!!selectedCardData}
                         onClose={handleCloseDetail}
                         layoutId={`card-${selectedCardData.index}`}
@@ -1085,6 +1249,7 @@ export function ReadingDisplay({
                 <GhostCard
                     startRect={ghostAnimation.startRect}
                     endRect={ghostAnimation.endRect}
+                    suit={ghostAnimation.suit}
                     onComplete={handleGhostComplete}
                 />
             )}

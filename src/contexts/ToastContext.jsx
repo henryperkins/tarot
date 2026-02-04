@@ -22,9 +22,9 @@ const ICONS = {
 
 const VARIANTS = {
   success: {
-    container: 'border-emerald-400/40 bg-emerald-500/10 text-emerald-50 shadow-emerald-500/20',
-    icon: 'text-emerald-300',
-    description: 'text-emerald-50/90'
+    container: 'border-success/40 bg-success/10 text-success shadow-success/20',
+    icon: 'text-success',
+    description: 'text-success/90'
   },
   info: {
     container: 'border-secondary/30 bg-secondary/10 text-secondary shadow-secondary/20',
@@ -32,9 +32,9 @@ const VARIANTS = {
     description: 'text-secondary/80'
   },
   warning: {
-    container: 'border-amber-400/40 bg-amber-500/10 text-amber-50 shadow-amber-500/30',
-    icon: 'text-amber-300',
-    description: 'text-amber-50/90'
+    container: 'border-warning/40 bg-warning/10 text-warning shadow-warning/30',
+    icon: 'text-warning',
+    description: 'text-warning/90'
   },
   error: {
     container: 'border-error/40 bg-error/10 text-error shadow-error/30',

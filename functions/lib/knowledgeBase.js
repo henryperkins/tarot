@@ -73,7 +73,7 @@ export const TRIAD_PASSAGES = {
                 source: 'Tableu Tarot Canon',
                 context: 'general',
                 text:
-                    'Notice what has you hooked (The Devil). Then tell the truth: the structure can’t hold (The Tower). The breakthrough isn’t just escape—it’s clarity and vitality returning (The Sun). If it feels like chaos, ask what honesty is being restored. The horned figure and chained figures, the lightning-split tower with falling figures, and the radiant sun over the naked child and sunflowers mirror the release.',
+                    'Notice what has you hooked (The Devil). Then tell the truth: the structure can’t hold (The Tower). The breakthrough isn’t just escape—it’s clarity and vitality returning (The Sun). If it feels like chaos, ask what honesty is being restored. The horned figure and chained figures, the lightning-split tower with falling figures, and the radiant sun over the joyful child and sunflowers mirror the release.',
                 tags: ['liberation', 'truth', 'breakthrough', 'clarity'],
                 visualAnchors: [
                     'horned figure',
@@ -82,7 +82,7 @@ export const TRIAD_PASSAGES = {
                     'tower',
                     'falling figures',
                     'radiant sun with face',
-                    'naked child',
+                    'joyful child',
                     'sunflowers'
                 ]
             },
@@ -924,14 +924,14 @@ export const DYAD_PASSAGES = {
                 source: 'Tableu Tarot Canon',
                 context: 'general',
                 text:
-                    'If something breaks, ask what truth it reveals. The Tower strips the false; the Sun restores the simple, bright facts. After the shake-up: simplify, tell the truth, and rebuild from what’s real. The lightning-struck tower with falling figures meets the radiant sun, naked child, and sunflowers.',
+                    'If something breaks, ask what truth it reveals. The Tower strips the false; the Sun restores the simple, bright facts. After the shake-up: simplify, tell the truth, and rebuild from what’s real. The lightning-struck tower with falling figures meets the radiant sun, joyful child, and sunflowers.',
                 tags: ['truth', 'clarity', 'rebuild'],
                 visualAnchors: [
                     'lightning',
                     'tower',
                     'falling figures',
                     'radiant sun with face',
-                    'naked child',
+                    'joyful child',
                     'sunflowers'
                 ]
             },
@@ -1324,7 +1324,7 @@ export const DYAD_PASSAGES = {
                 source: 'Tableu Tarot Canon',
                 context: 'general',
                 text:
-                    'What is hidden will come to light. The Moon walks through shadow and uncertainty; the Sun reveals the simple truth that was there all along. Trust the process—clarity follows honest confusion. The full moon with face, two towers, dog and wolf, and winding path yield to the radiant sun, naked child, and sunflowers.',
+                    'What is hidden will come to light. The Moon walks through shadow and uncertainty; the Sun reveals the simple truth that was there all along. Trust the process—clarity follows honest confusion. The full moon with face, two towers, dog and wolf, and winding path yield to the radiant sun, joyful child, and sunflowers.',
                 tags: ['mystery', 'clarity', 'truth', 'cycles'],
                 visualAnchors: [
                     'full moon with face',
@@ -1332,7 +1332,7 @@ export const DYAD_PASSAGES = {
                     'dog and wolf',
                     'winding path',
                     'radiant sun with face',
-                    'naked child',
+                    'joyful child',
                     'sunflowers'
                 ]
             },

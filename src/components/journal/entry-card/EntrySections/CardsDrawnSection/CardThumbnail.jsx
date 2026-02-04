@@ -25,7 +25,7 @@ export const CardThumbnail = memo(function CardThumbnail({
   return (
     <div className={cn('flex flex-col items-center gap-1', className)}>
       {shouldShowPosition && (
-        <span className="text-[10px] uppercase tracking-wider text-[color:var(--text-muted)]">
+        <span className="text-2xs uppercase tracking-wider text-[color:var(--text-muted)]">
           {position}
         </span>
       )}
@@ -40,14 +40,14 @@ export const CardThumbnail = memo(function CardThumbnail({
           {showPositionOverlay && (
             <span
               className={cn(
-                'pointer-events-none absolute inset-0 z-0 flex items-center justify-center px-2 text-[10px] uppercase tracking-[0.22em] text-[color:var(--text-muted)] opacity-0 transition duration-150',
+                'pointer-events-none absolute inset-0 z-0 flex items-center justify-center px-2 text-2xs uppercase tracking-[0.22em] text-[color:var(--text-muted)] opacity-0 transition duration-150',
                 'bg-[color:var(--panel-dark-2)]/60 backdrop-blur-[2px]',
                 'group-hover:opacity-100 group-focus-visible:opacity-100 group-active:opacity-100',
                 isActive && 'opacity-100'
               )}
               aria-hidden="true"
             >
-              <span className="rounded-full border border-[color:var(--border-warm-subtle)] bg-[color:var(--panel-dark-3)]/70 px-2 py-0.5 text-[10px] text-[color:var(--text-main)] shadow-[0_10px_22px_-16px_rgba(0,0,0,0.7)]">
+              <span className="rounded-full border border-[color:var(--border-warm-subtle)] bg-[color:var(--panel-dark-3)]/70 px-2 py-0.5 text-2xs text-[color:var(--text-main)] shadow-[0_10px_22px_-16px_rgba(0,0,0,0.7)]">
                 {position}
               </span>
             </span>
@@ -76,7 +76,7 @@ export const CardThumbnail = memo(function CardThumbnail({
             }}
           />
           {isReversed && (
-            <span className={cn(styles.reversedBadge, 'absolute right-1 top-1 z-20 text-[9px]')}>
+            <span className={cn(styles.reversedBadge, 'absolute right-1 top-1 z-20 text-2xs')}>
               Rev
             </span>
           )}
@@ -84,7 +84,7 @@ export const CardThumbnail = memo(function CardThumbnail({
       </div>
       {shouldShowName && (
         <span
-          className="text-[12px] font-medium text-[color:var(--text-main)] truncate"
+          className="text-xs font-medium text-main truncate"
           style={{ maxWidth: `${nameMaxWidth}px` }}
         >
           {name}

@@ -106,6 +106,7 @@ export const readingResponseSchema = z.object({
   reading: trimmedString('reading'),
   spreadAnalysis: z.record(z.any()).nullable().optional(),
   themes: z.record(z.any()).nullable().optional(),
+  reasoning: z.record(z.any()).nullable().optional(),
   analysisContext: z.record(z.any()).nullable().optional(),
   visionInsights: z.array(z.any()).optional(),
   provider: z.string().optional(),

@@ -53,7 +53,13 @@ export default function VerifyEmailPage() {
     if (status === 'success') {
       return <CheckCircle className="h-6 w-6 text-secondary" weight="duotone" aria-hidden="true" />;
     }
-    return <WarningCircle className="h-6 w-6 text-amber-300" weight="duotone" aria-hidden="true" />;
+    return (
+      <WarningCircle
+        className={`h-6 w-6 ${status === 'error' ? 'text-error' : 'text-warning'}`}
+        weight="duotone"
+        aria-hidden="true"
+      />
+    );
   };
 
   return (

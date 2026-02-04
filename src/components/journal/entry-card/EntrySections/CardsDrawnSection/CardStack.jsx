@@ -70,12 +70,12 @@ export const CardStack = memo(function CardStack({
           })}
         </div>
 
-        <span className="absolute bottom-2 right-2 rounded-full border border-[color:var(--border-warm-light)] bg-[color:var(--panel-dark-2)] px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-[color:var(--text-muted)]">
+        <span className="absolute bottom-2 right-2 rounded-full border border-[color:var(--border-warm-light)] bg-[color:var(--panel-dark-2)] px-2 py-1 text-2xs font-semibold uppercase tracking-[0.2em] text-[color:var(--text-muted)]">
           {cards.length} card{cards.length === 1 ? '' : 's'}
         </span>
 
         {showHint && (
-          <span className="absolute bottom-2 left-3 text-[10px] uppercase tracking-[0.25em] text-[color:var(--text-muted)]">
+          <span className="absolute bottom-2 left-3 text-2xs uppercase tracking-[0.25em] text-[color:var(--text-muted)]">
             Tap to view
           </span>
         )}

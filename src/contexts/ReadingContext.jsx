@@ -98,6 +98,7 @@ export function ReadingProvider({ children }) {
     const [emotionalTone, setEmotionalTone] = useState(null);
     const [analysisContext, setAnalysisContext] = useState(null);
     const [reasoningSummary, setReasoningSummary] = useState(null);
+    const [reasoning, setReasoning] = useState(null);
     const [followUps, setFollowUps] = useState([]);
     const [readingMeta, setReadingMeta] = useState({
         requestId: null,
@@ -250,6 +251,7 @@ export function ReadingProvider({ children }) {
             setSpreadAnalysis(null);
             setAnalysisContext(null);
             setReasoningSummary(null);
+            setReasoning(null);
             setIsGenerating(false);
             setIsReadingStreamActive(false);
             setNarrativePhase('idle');
@@ -539,6 +541,9 @@ export function ReadingProvider({ children }) {
                             if (data?.context !== undefined) {
                                 setAnalysisContext(data.context || null);
                             }
+                            if (data?.reasoning !== undefined) {
+                                setReasoning(data.reasoning || null);
+                            }
                             if (isActiveRequest()) {
                                 setReadingMeta({
                                     requestId: data.requestId || null,
@@ -621,6 +626,7 @@ export function ReadingProvider({ children }) {
                             setIsReadingStreamActive(false);
                             setNarrativePhase('complete');
                             setReasoningSummary(null);
+                            setReasoning(null);
                             setLastCardsForFeedback(
                                 (cardsInfoRef.current || []).map((card) => ({
                                     position: card.position,
@@ -841,6 +847,7 @@ export function ReadingProvider({ children }) {
         setIsReadingStreamActive(false);
         setPersonalReading(null);
         setReasoningSummary(null);
+        setReasoning(null);
         setJournalStatus(null);
         setNarrativePhase('analyzing');
         setSrAnnouncement('Step 1 of 3: Analyzing your spread, positions, and reflections.');
@@ -1282,6 +1289,7 @@ export function ReadingProvider({ children }) {
         emotionalTone, setEmotionalTone,
         analysisContext, setAnalysisContext,
         reasoningSummary, setReasoningSummary,
+        reasoning, setReasoning,
         readingMeta, setReadingMeta,
         journalStatus, setJournalStatus,
         reflections, setReflections,
@@ -1308,6 +1316,7 @@ export function ReadingProvider({ children }) {
         emotionalTone,
         analysisContext,
         reasoningSummary,
+        reasoning,
         readingMeta,
         journalStatus,
         reflections,

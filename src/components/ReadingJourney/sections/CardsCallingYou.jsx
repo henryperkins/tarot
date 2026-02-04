@@ -30,7 +30,7 @@ function TrendIndicator({ trend }) {
 function CardsCallingYou({ cards = [], badges = [], isEmerging = false, sampleSize = 0 }) {
   if (!cards.length) {
     return (
-      <p className="text-sm text-amber-100/60">
+      <p className="text-sm text-muted">
         Draw more cards to see which ones keep appearing.
       </p>
     );
@@ -43,7 +43,7 @@ function CardsCallingYou({ cards = [], badges = [], isEmerging = false, sampleSi
 
   return (
     <div>
-      <p className="text-sm sm:text-xs text-amber-100/60 mb-3">
+      <p className="text-sm sm:text-xs text-muted mb-3">
         {subtitle}
       </p>
       <ul className="space-y-2" aria-label="Your top most frequently appearing cards">
@@ -56,11 +56,11 @@ function CardsCallingYou({ cards = [], badges = [], isEmerging = false, sampleSi
           return (
             <li
               key={`${card.name}-${index}`}
-              className="flex items-center justify-between text-sm rounded-lg bg-amber-200/5 px-3 py-3 min-h-touch hover:bg-amber-200/10 transition-colors"
+              className="flex items-center justify-between text-sm rounded-lg bg-surface-muted/40 px-3 py-3 min-h-touch hover:bg-surface-muted/60 transition-colors"
             >
               <div className="flex items-center gap-2 min-w-0 flex-1">
                 <span
-                  className="flex h-5 w-5 items-center justify-center rounded-full bg-amber-200/15 text-xs font-medium text-amber-100 flex-shrink-0"
+                  className="flex h-5 w-5 items-center justify-center rounded-full bg-primary/15 text-xs font-medium text-accent flex-shrink-0"
                   aria-hidden="true"
                 >
                   {index + 1}
@@ -71,13 +71,13 @@ function CardsCallingYou({ cards = [], badges = [], isEmerging = false, sampleSi
                     aria-label={`${suitName} suit`}
                   />
                 )}
-                <span className="text-amber-100/85 truncate">
+                <span className="text-main truncate">
                   <span className="sr-only">Rank {index + 1}: </span>
                   {card.name}
                 </span>
                 {hasBadge && (
                   <Fire
-                    className="h-3.5 w-3.5 text-orange-400 flex-shrink-0"
+                    className="h-3.5 w-3.5 text-accent flex-shrink-0"
                     aria-label="streak badge earned"
                   />
                 )}
@@ -94,14 +94,14 @@ function CardsCallingYou({ cards = [], badges = [], isEmerging = false, sampleSi
                   <TrendIndicator trend={card.trend} />
                 )}
                 <span
-                  className="text-amber-200/70 tabular-nums"
+                  className="text-muted tabular-nums"
                   aria-label={`appeared ${card.count} times`}
                 >
                   {card.count}x
                 </span>
                 {card.reversedCount > 0 && (
                   <span
-                    className="text-xs text-amber-100/50"
+                    className="text-xs text-muted/70"
                     aria-label={`${card.reversedCount} reversed`}
                   >
                     ({card.reversedCount}↺)
@@ -113,13 +113,13 @@ function CardsCallingYou({ cards = [], badges = [], isEmerging = false, sampleSi
         })}
       </ul>
       
-      <div className="mt-3 pt-2 border-t border-amber-200/10 flex items-center justify-between text-sm sm:text-xs">
-        <span className="text-amber-100/50">
+      <div className="mt-3 pt-2 border-t border-secondary/20 flex items-center justify-between text-sm sm:text-xs">
+        <span className="text-muted/70">
           {cards.length > 5 ? `+${cards.length - 5} more` : 'Explore deck'}
         </span>
         <Link 
           to="/journal/gallery" 
-          className="flex items-center gap-1 min-h-touch py-2 px-2 -m-2 text-amber-200/70 hover:text-amber-100 transition-colors touch-manipulation"
+          className="flex items-center gap-1 min-h-touch py-2 px-2 -m-2 text-accent hover:text-main transition-colors touch-manipulation"
           aria-label="View your card collection"
         >
           View Collection
@@ -127,7 +127,7 @@ function CardsCallingYou({ cards = [], badges = [], isEmerging = false, sampleSi
         </Link>
       </div>
       {isEmerging && (
-        <p className="mt-2 text-[10px] text-amber-100/50">
+        <p className="mt-2 text-2xs text-muted/70">
           Keep logging to confirm which cards stay in focus.
         </p>
       )}

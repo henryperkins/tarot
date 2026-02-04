@@ -3,6 +3,7 @@ import { animate, set } from 'animejs';
 import { X, CaretLeft, CaretRight, CaretDown, Clock, Sparkle } from '@phosphor-icons/react';
 import { FALLBACK_IMAGE, getCardImage, getCanonicalCard } from '../lib/cardLookup';
 import { CardSymbolInsights } from './CardSymbolInsights';
+import AnimatedReveal from './AnimatedReveal';
 import { InteractiveCardOverlay } from './InteractiveCardOverlay';
 import { useModalA11y } from '../hooks/useModalA11y';
 import { useAndroidBackGuard } from '../hooks/useAndroidBackGuard';
@@ -130,6 +131,9 @@ export function CardModal({
     isOpen,
     onClose,
     position,
+    question,
+    userTier = 'free',
+    enableCinematic = false,
     layoutId,
     // Optional: collection metadata
     stats,
@@ -284,6 +288,7 @@ export function CardModal({
     const meaning = card.isReversed ? originalCard.reversed : originalCard.upright;
     const cardImage = getCardImage(card);
     const hasNavigation = canNavigatePrev || canNavigateNext;
+    const resolvedQuestion = (question || '').trim() || 'General guidance';
 
     return (
         <div
@@ -323,7 +328,7 @@ export function CardModal({
                                 <CaretLeft className="w-4 h-4" />
                                 <span className="hidden xs:inline">Prev</span>
                             </button>
-                            <span className="text-[11px] text-muted font-medium">{navigationLabel}</span>
+                            <span className="text-2xs text-muted font-medium">{navigationLabel}</span>
                             <button
                                 type="button"
                                 onClick={() => onNavigate?.('next')}
@@ -369,7 +374,7 @@ export function CardModal({
 
                     {/* Card info - right side */}
                     <div className="flex-1 min-w-0">
-                        <p className="text-[10px] uppercase tracking-widest text-muted">{position}</p>
+                        <p className="text-2xs uppercase tracking-widest text-muted">{position}</p>
                         <h2 id={titleId} className="text-base sm:text-lg font-serif text-main leading-tight">
                             {card.name}
                             {card.isReversed && (
@@ -422,7 +427,7 @@ export function CardModal({
                                                 <button
                                                     type="button"
                                                     onClick={onViewAllInJournal}
-                                                    className="text-[11px] font-semibold text-accent hover:text-main underline underline-offset-2"
+                                                    className="text-2xs font-semibold text-accent hover:text-main underline underline-offset-2"
                                                 >
                                                     View all
                                                 </button>
@@ -441,12 +446,12 @@ export function CardModal({
                                                             className="w-full flex items-center justify-between gap-2 rounded border border-primary/10 bg-surface-muted/30 px-2 py-1.5 text-left hover:bg-surface-muted/50 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
                                                         >
                                                             <span className="text-xs text-main truncate">{label}</span>
-                                                            {spread && <span className="text-[10px] text-muted truncate">{spread}</span>}
+                                                            {spread && <span className="text-2xs text-muted truncate">{spread}</span>}
                                                         </button>
                                                     );
                                                 })}
                                                 {history.entryCount > 3 && (
-                                                    <p className="text-[10px] text-muted text-center">+{history.entryCount - 3} more</p>
+                                                    <p className="text-2xs text-muted text-center">+{history.entryCount - 3} more</p>
                                                 )}
                                             </div>
                                         )}
@@ -462,6 +467,18 @@ export function CardModal({
                             <CardSymbolInsights card={card} position={position} />
                         </div>
                     </CollapsibleSection>
+
+                    {enableCinematic && (
+                        <CollapsibleSection title="Cinematic reveal" icon={Sparkle} defaultOpen={false}>
+                            <AnimatedReveal
+                                card={card}
+                                position={position}
+                                question={resolvedQuestion}
+                                userTier={userTier}
+                                className="mt-1"
+                            />
+                        </CollapsibleSection>
+                    )}
                 </div>
             </div>
         </div>

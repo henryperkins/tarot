@@ -88,6 +88,7 @@ import {
   buildEphemerisClientPayload,
   buildSpreadAnalysisPayload
 } from '../lib/spreadAnalysisOrchestrator.js';
+import { buildReadingReasoning } from '../lib/narrative/reasoning.js';
 
 function evaluateQualityGate({ readingText, cardsInfo, deckStyle, analysis, requestId }) {
   const text = typeof readingText === 'string' ? readingText : '';
@@ -418,6 +419,7 @@ async function finalizeReading({
     requestId,
     backendErrors: backendErrors.length > 0 ? backendErrors : undefined,
     themes: analysis.themes,
+    reasoning: analysis?.reasoning || null,
     emotionalTone,
     ephemeris: buildEphemerisClientPayload(analysis.ephemerisContext),
     context,
@@ -731,6 +733,13 @@ Your cards will be here when you're ready. Right now, please take care of yourse
       onUnknown: (message) => contextDiagnostics.push(message)
     });
     console.log(`[${requestId}] Context inferred: ${context}`);
+    analysis.reasoning = buildReadingReasoning(
+      cardsInfo,
+      userQuestion,
+      context,
+      analysis.themes,
+      analysis.spreadKey
+    );
 
     // A/B Testing: Load active experiments (assignment happens per provider attempt)
     let abAssignment = null;
@@ -767,17 +776,20 @@ Your cards will be here when you're ready. Right now, please take care of yourse
     const tokenStreamingEnabled = isAzureTokenStreamingEnabled(env);
     const evalGateEnabled = isEvalGateEnabled(env);
     const allowStreamingGateBypass = allowStreamingWithEvalGate(env);
+    const safetyScanExplicit = env?.STREAMING_SAFETY_SCAN_ENABLED !== undefined;
+    const qualityGateExplicit = env?.STREAMING_QUALITY_GATE_ENABLED !== undefined;
     // Default on to preserve safety buffering when eval gate is disabled.
-    let safetyScanStreamingEnabled = env?.STREAMING_SAFETY_SCAN_ENABLED === undefined
-      ? true
-      : normalizeBooleanFlag(env?.STREAMING_SAFETY_SCAN_ENABLED);
-    const configuredQualityGateStreamingEnabled = env?.STREAMING_QUALITY_GATE_ENABLED === undefined
-      ? true
-      : normalizeBooleanFlag(env?.STREAMING_QUALITY_GATE_ENABLED);
+    let safetyScanStreamingEnabled = safetyScanExplicit
+      ? normalizeBooleanFlag(env?.STREAMING_SAFETY_SCAN_ENABLED)
+      : true;
+    const configuredQualityGateStreamingEnabled = qualityGateExplicit
+      ? normalizeBooleanFlag(env?.STREAMING_QUALITY_GATE_ENABLED)
+      : true;
     const azureStreamingAvailable = Boolean(NARRATIVE_BACKENDS['azure-gpt5']?.isAvailable(env));
     const wantsAzureStreaming = useStreaming && tokenStreamingEnabled && azureStreamingAvailable;
     const canUseAzureStreaming = wantsAzureStreaming && allowStreamingGateBypass;
     let qualityGateStreamingEnabled = configuredQualityGateStreamingEnabled;
+
     if (canUseAzureStreaming && !evalGateEnabled && !safetyScanStreamingEnabled && !qualityGateStreamingEnabled) {
       console.warn(`[${requestId}] Streaming safety + quality gates are disabled; enabling safety scan to avoid unvetted output.`);
       safetyScanStreamingEnabled = true;
@@ -801,7 +813,7 @@ Your cards will be here when you're ready. Right now, please take care of yourse
     } else if (useStreaming && tokenStreamingEnabled && evalGateEnabled && allowStreamingGateBypass) {
       console.warn(`[${requestId}] Token streaming enabled with eval gate; buffering output before streaming to enforce gate + quality checks.`);
     } else if (useStreaming && tokenStreamingEnabled && !evalGateEnabled && allowStreamingGateBypass && safetyScanStreamingEnabled) {
-      console.warn(`[${requestId}] Token streaming enabled without eval gate; buffering output for safety scan + quality checks (STREAMING_SAFETY_SCAN_ENABLED).`);
+      console.warn(`[${requestId}] Token streaming enabled without eval gate; buffering output for safety scan + quality checks.`);
     } else if (useStreaming && tokenStreamingEnabled && allowStreamingGateBypass && !evalGateEnabled && !safetyScanStreamingEnabled && qualityGateStreamingEnabled) {
       console.warn(`[${requestId}] Token streaming enabled without eval gate; buffering output for quality checks.`);
     }
@@ -986,6 +998,7 @@ Your cards will be here when you're ready. Right now, please take care of yourse
             requestId,
             provider: streamProvider,
             themes: analysis.themes,
+            reasoning: analysis.reasoning || null,
             emotionalTone,
             ephemeris: buildEphemerisClientPayload(analysis.ephemerisContext),
             context,

@@ -1,15 +1,15 @@
 Completed the responsive + a11y audit and applied the remediation updates below. This is the current design contract, standardization tokens, and regression checklist.
 
 ## Design Contract
-- Base type: mobile body is 16px with prose at 15px via `--text-sm-mobile` / `text-sm-mobile` (`src/styles/tarot.css`, `tailwind.config.js`).
+- Base type: mobile body and prose are 16px via `--text-sm-mobile` / `text-sm-mobile` (`src/styles/tarot.css`, `tailwind.config.js`).
 - Touch targets: minimum 44px with 52px for primary CTAs via `--touch-target` / `--touch-target-cta` (`src/styles/tarot.css`, `tailwind.config.js`).
 - Safe area: sticky headers use `pt-[max(var(--safe-pad-top),0.75rem)]`; fixed bottoms use `pb-safe` (1rem baseline) plus `--mobile-action-bar-*` offsets (`tailwind.config.js`, `src/styles/tarot.css`).
 - Motion: durations/easing use `--duration-*` / `--ease-out`; overlays gate animations with `motion-safe` or `useReducedMotion` (`src/styles/tarot.css`, `tailwind.config.js`, `src/hooks/useReducedMotion.js`).
 
 | Breakpoint | Width | Layout Density | Type Scale | Touch Targets | Special Handling |
 |------------|-------|----------------|------------|---------------|------------------|
-| xxs | 320px | Ultra-compact; single column; tight gaps | Body 16px; prose 15px; meta 14px | 44px / 52px | Narrower carousel widths + tight padding via `xxs:` (`src/components/ReadingGrid.jsx`, `src/components/StreamingNarrative.jsx`) |
-| xs | 375px | Compact mobile default | Body 16px; prose 15px | 44px / 52px | List view fallback for compact readings + spacing tweaks via `xs:` (`src/components/ReadingGrid.jsx`) |
+| xxs | 320px | Ultra-compact; single column; tight gaps | Body 16px; prose 16px; meta 14px | 44px / 52px | Narrower carousel widths + tight padding via `xxs:` (`src/components/ReadingGrid.jsx`, `src/components/StreamingNarrative.jsx`) |
+| xs | 375px | Compact mobile default | Body 16px; prose 16px | 44px / 52px | List view fallback for compact readings + spacing tweaks via `xs:` (`src/components/ReadingGrid.jsx`) |
 | sm | 640px | Tablet baseline; allow 2+ columns | `text-sm`/`text-base`, `prose-base` | 44px / 52px | `sm:` grid fallback + spacing increases (`src/components/ReadingGrid.jsx`) |
 | md | 768px | Desktop transition; comfortable spacing | `md:prose-lg`, larger headings | 44px / 52px | Larger content columns (`src/components/StreamingNarrative.jsx`) |
 | landscape | height <=500px | Compact controls; reduced padding | Keep base sizes, reduce labels to `text-xs` | 44px / 52px | Hide step labels + shrink icons; compact action bar (`src/components/MobileActionBar.jsx`, `src/styles/tarot.css`) |
@@ -43,6 +43,6 @@ Completed the responsive + a11y audit and applied the remediation updates below.
 - Keyboard avoidance keeps actions visible via `--mobile-action-bar-offset` (`src/components/MobileActionBar.jsx`, `src/components/StreamingNarrative.jsx`).
 - Breakpoint usage matches contract; avoid ad-hoc width thresholds (`tailwind.config.js`, `src/components/ReadingGrid.jsx`, `src/components/journal/entry-card/EntrySections/CardsDrawnSection/CardsDrawnSection.jsx`).
 - Landscape/short behavior aligns between CSS utilities and JS hooks (`src/hooks/useLandscape.js`, `src/styles/tarot.css`).
-- Prose containers use `text-sm-mobile` on mobile; metadata uses `text-xs-plus` (`src/styles/tarot.css`, `tailwind.config.js`).
+- Prose containers use `text-sm-mobile` on mobile; metadata uses `text-xs-plus`; badges use `text-2xs` (`src/styles/tarot.css`, `tailwind.config.js`).
 - Headings scale at `sm`/`md` where layouts widen (`src/components/StreamingNarrative.jsx`).
 - Animations respect reduced-motion and durations use tokens (`src/styles/tarot.css`, `tailwind.config.js`, `src/components/MobileActionBar.jsx`).

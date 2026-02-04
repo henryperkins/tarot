@@ -297,7 +297,7 @@ export const MINOR_PIP_IMAGERY = {
     interpretation: buildPipInterpretation('Swords', 'Nine')
   },
   'Ten of Swords': {
-    visual: 'First light dawns behind a figure lying prone with ten swords in their back',
+    visual: 'First light dawns behind a figure at rest with ten swords fading into mist',
     sensory: 'Cold shock of finality, stillness before sunrise, awareness of inevitable ending',
     interpretation: buildPipInterpretation('Swords', 'Ten')
   },
@@ -460,7 +460,7 @@ export const MAJOR_ARCANA_IMAGERY = {
   },
 
   15: { // The Devil
-    visual: "Horned figure, inverted pentagram, chained naked figures with tails, torch, raised hand",
+    visual: "Horned figure, inverted pentagram, chained figures with tails, torch, raised hand",
     upright: "See the loose chains on the Devil's captives—bondage is often chosen; freedom requires owning the key you hold.",
     reversed: "The chains loosen; awareness of patterns begins liberation from shadow attachments.",
     sensory: "Seductive weight, the comfort of familiar bindings, sulfur and shadow"
@@ -474,7 +474,7 @@ export const MAJOR_ARCANA_IMAGERY = {
   },
 
   17: { // The Star
-    visual: "Naked figure kneeling, pouring water into pool and onto land, large star overhead, seven smaller stars, bird in tree",
+    visual: "Ethereal figure kneeling, pouring water into pool and onto land, large star overhead, seven smaller stars, bird in tree",
     upright: "Picture the Star's flowing water—hope replenishes when you pour yourself into purpose and trust.",
     reversed: "The water hesitates; renew faith by reconnecting to what you truly believe in.",
     sensory: "Luminous hope, cool renewal, the quiet return of faith"
@@ -488,14 +488,14 @@ export const MAJOR_ARCANA_IMAGERY = {
   },
 
   19: { // The Sun
-    visual: "Radiant sun with face, naked child on white horse, sunflowers, red banner, wall behind",
+    visual: "Radiant sun with face, joyful barefoot child on white horse, sunflowers, red banner, wall behind",
     upright: "Notice the child's unguarded joy on the Sun's horse—authenticity shines when pretense falls away.",
     reversed: "The light feels too bright or not quite reaching; reconnect with simple pleasures to restore vitality.",
     sensory: "Radiant warmth, innocent delight, golden clarity without shadow"
   },
 
   20: { // Judgement
-    visual: "Angel blowing trumpet, naked figures rising from coffins with arms outstretched, mountains and water",
+    visual: "Angel blowing trumpet, awakening figures rising from coffins with arms outstretched, mountains and water",
     upright: "Picture Judgement's trumpet call—reckoning invites you to rise to your highest calling, absolved and renewed.",
     reversed: "The call sounds, but you hesitate; inner critic delays answering what you know you must do.",
     sensory: "Clarion summons, resurrection pull, the weight lifting from old shame"

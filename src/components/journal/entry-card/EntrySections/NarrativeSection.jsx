@@ -45,7 +45,7 @@ const MARKDOWN_COMPONENTS = {
   pre: ({ node: _node, ...props }) => (
     <pre
       {...props}
-      className="overflow-x-auto rounded-xl border border-[color:var(--border-warm-light)] bg-[color:var(--bg-surface-muted)] p-3 text-[13px] leading-relaxed"
+      className="overflow-x-auto rounded-xl border border-[color:var(--border-warm-light)] bg-[color:var(--bg-surface-muted)] p-3 text-sm leading-relaxed"
     />
   ),
   code: ({ node: _node, inline, className, children, ...props }) => {
@@ -78,7 +78,7 @@ const MARKDOWN_COMPONENTS = {
     >
       <table
         {...props}
-        className="w-full border-collapse text-[13px] text-[color:var(--text-main)]"
+        className="w-full border-collapse text-sm text-main"
       />
     </div>
   ),
@@ -88,13 +88,13 @@ const MARKDOWN_COMPONENTS = {
   th: ({ node: _node, ...props }) => (
     <th
       {...props}
-      className="border border-[color:var(--border-warm-light)] px-2 py-2 text-left text-[12px] font-semibold text-[color:var(--text-main)]"
+      className="border border-[color:var(--border-warm-light)] px-2 py-2 text-left text-xs font-semibold text-main"
     />
   ),
   td: ({ node: _node, ...props }) => (
     <td
       {...props}
-      className="border border-[color:var(--border-warm-subtle)] px-2 py-2 align-top text-[12px] text-[color:var(--text-muted)]"
+      className="border border-[color:var(--border-warm-subtle)] px-2 py-2 align-top text-xs text-muted"
     />
   )
 };

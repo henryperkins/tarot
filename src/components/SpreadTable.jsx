@@ -4,7 +4,7 @@ import { SPREADS } from '../data/spreads';
 import { useReducedMotion } from '../hooks/useReducedMotion';
 import { useAnimeScope } from '../hooks/useAnimeScope';
 import { getCardImage, FALLBACK_IMAGE } from '../lib/cardLookup';
-import { getSuitBorderColor, getRevealedCardGlow } from '../lib/suitColors';
+import { getSuitBorderColor, getRevealedCardGlow, getSuitGlowColor } from '../lib/suitColors';
 import { extractShortLabel, getPositionLabel } from './readingBoardUtils';
 import { HandTap } from '@phosphor-icons/react';
 import { useHaptic } from '../hooks/useHaptic';
@@ -160,11 +160,13 @@ function OneShotRing({
   active,
   prefersReducedMotion,
   className,
+  style,
   duration = 1100,
   opacityKeyframes = [0.8, 0.35, 0],
   scaleKeyframes = [1, 1.03, 1.05],
   reducedOpacity = 0.5,
-  ease = 'outQuad'
+  ease = 'outQuad',
+  ...props
 }) {
   const ref = useRef(null);
 
@@ -190,7 +192,7 @@ function OneShotRing({
 
   if (!active) return null;
 
-  return <div ref={ref} className={className} />;
+  return <div ref={ref} className={className} style={style} {...props} />;
 }
 
 function FlashRing({ active, prefersReducedMotion, className }) {
@@ -420,6 +422,7 @@ export function SpreadTable({
   hideLegend = false,
   disableReveal = false,
   flashNextSlot = false,
+  mentionPulse = null,
   showProgress = true,
   showTactileLens = true
 }) {
@@ -670,6 +673,8 @@ export function SpreadTable({
         const positionLabel = getPositionLabel(spreadInfo, i, pos);
         const shortLabel = extractShortLabel(positionLabel, 20) || positionLabel;
         const shouldHighlightReturn = recentlyClosedIndex === i;
+        const shouldMentionPulse = Boolean(mentionPulse && mentionPulse.index === i && isRevealed);
+        const mentionPulseId = mentionPulse?.id ?? 0;
         const showRevealPill = !disableReveal && !isRevealed && (isNext || (!revealHintDismissedRef.current && i === 0));
         const showGlowHint = !disableReveal && !isRevealed && !showRevealPill;
         const canDeal = Boolean(onSlotDeal) && isNext;
@@ -855,6 +860,20 @@ export function SpreadTable({
                           opacityKeyframes={[0.8, 0.35, 0]}
                           scaleKeyframes={[1, 1.03, 1.05]}
                           reducedOpacity={0.5}
+                        />
+                        <OneShotRing
+                          key={`mention-${mentionPulseId}-${i}`}
+                          active={shouldMentionPulse}
+                          prefersReducedMotion={prefersReducedMotion}
+                          className="absolute inset-[-10%] rounded-xl border-2 pointer-events-none"
+                          duration={prefersReducedMotion ? 500 : 950}
+                          opacityKeyframes={[0.75, 0.45, 0]}
+                          scaleKeyframes={[1, 1.04, 1.08]}
+                          reducedOpacity={0.55}
+                          style={{
+                            borderColor: getSuitBorderColor(displayCard),
+                            boxShadow: `0 0 18px ${getSuitGlowColor(displayCard, 0.5)}`
+                          }}
                         />
                       </div>
                       <div

@@ -127,7 +127,12 @@
     // Follow-up Questions Feature Flags
     // -------------------------------------------------------------------------
     "FEATURE_FOLLOW_UP_ENABLED": "true",
-    "FEATURE_FOLLOW_UP_JOURNAL_CONTEXT": "true"
+    "FEATURE_FOLLOW_UP_JOURNAL_CONTEXT": "true",
+    // -------------------------------------------------------------------------
+    // Media Generation Feature Flags
+    // -------------------------------------------------------------------------
+    "FEATURE_CARD_VIDEO": "true",
+    "FEATURE_STORY_ART": "true"
     // -------------------------------------------------------------------------
     // Prompt Budget & GraphRAG Settings (not set = use defaults)
     // -------------------------------------------------------------------------

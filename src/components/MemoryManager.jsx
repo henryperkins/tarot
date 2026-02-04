@@ -104,7 +104,7 @@ export function MemoryManager({ className = '' }) {
           {memories.length > 0 && (
             <button
               onClick={() => setShowClearConfirm(true)}
-              className="text-xs text-muted hover:text-red-400 transition-colors"
+              className="text-xs text-muted hover:text-error transition-colors"
               aria-label="Clear all memories"
             >
               Clear all
@@ -132,22 +132,22 @@ export function MemoryManager({ className = '' }) {
 
       {/* Error display */}
       {(error || deleteError) && (
-        <div className="mb-3 p-2 rounded-lg bg-red-500/10 border border-red-500/30 flex items-center gap-2">
-          <Warning className="w-4 h-4 text-red-400 flex-shrink-0" />
-          <span className="text-xs text-red-400">{error || deleteError}</span>
+        <div className="mb-3 p-2 rounded-lg bg-error/10 border border-error/30 flex items-center gap-2">
+          <Warning className="w-4 h-4 text-error flex-shrink-0" />
+          <span className="text-xs text-error">{error || deleteError}</span>
         </div>
       )}
 
       {/* Clear confirmation */}
       {showClearConfirm && (
-        <div className="mb-3 p-3 rounded-lg bg-red-500/10 border border-red-500/30">
-          <p className="text-sm text-red-400 mb-2">
+        <div className="mb-3 p-3 rounded-lg bg-error/10 border border-error/30">
+          <p className="text-sm text-error mb-2">
             Delete all {memories.length} memories? This cannot be undone.
           </p>
           <div className="flex gap-2">
             <button
               onClick={handleClearAll}
-              className="px-3 py-1.5 text-xs bg-red-500/20 hover:bg-red-500/30 text-red-400 rounded-lg transition-colors"
+              className="px-3 py-1.5 text-xs bg-error/20 hover:bg-error/30 text-error rounded-lg transition-colors"
             >
               Yes, delete all
             </button>
@@ -301,11 +301,11 @@ function MemoryItem({ memory, onDelete }) {
       <div className="flex-1 min-w-0">
         <p className="text-sm text-main leading-snug">{memory.text}</p>
         <div className="flex items-center gap-2 mt-1">
-          <span className="text-[10px] text-muted/50">
+          <span className="text-2xs text-muted/50">
             {sourceLabel[memory.source] || 'AI'}
           </span>
           {memory.createdAt && (
-            <span className="text-[10px] text-muted/50">
+            <span className="text-2xs text-muted/50">
               {new Date(memory.createdAt).toLocaleDateString()}
             </span>
           )}
@@ -314,13 +314,13 @@ function MemoryItem({ memory, onDelete }) {
       <button
         onClick={handleDelete}
         disabled={isDeleting}
-        className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg hover:bg-red-500/20 transition-all"
+        className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg hover:bg-error/20 transition-all"
         aria-label="Delete memory"
       >
         {isDeleting ? (
           <SpinnerGap className="w-4 h-4 animate-spin text-muted" />
         ) : (
-          <Trash className="w-4 h-4 text-muted hover:text-red-400" />
+          <Trash className="w-4 h-4 text-muted hover:text-error" />
         )}
       </button>
     </div>

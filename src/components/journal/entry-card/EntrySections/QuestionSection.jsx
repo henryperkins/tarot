@@ -15,7 +15,7 @@ export const QuestionSection = memo(function QuestionSection({ question }) {
       </header>
 
       <div className={styles.sectionBody}>
-        <p className="font-[Cormorant_Garamond] text-[18px] sm:text-[20px] leading-[1.35] text-[color:var(--text-main)] italic">
+        <p className="font-serif text-lg sm:text-xl leading-[1.35] text-main italic">
           &ldquo;{question}&rdquo;
         </p>
       </div>

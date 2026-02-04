@@ -49,7 +49,7 @@ function MajorArcanaMap({ data = [] }) {
 
   return (
     <div>
-      <p className="flex items-center gap-1.5 text-xs text-amber-100/60 mb-3">
+      <p className="flex items-center gap-1.5 text-xs text-muted mb-3">
         <Star className="h-3 w-3" />
         Major Arcana Focus
       </p>
@@ -66,8 +66,8 @@ function MajorArcanaMap({ data = [] }) {
                 key={index}
                 className={`
                   flex-shrink-0 w-6 h-6 xs:w-7 xs:h-7 rounded flex items-center justify-center
-                  text-[9px] xs:text-[10px] font-medium transition-colors
-                  ${count > 0 ? 'text-amber-100' : 'text-amber-100/30'}
+                  text-2xs xs:text-2xs font-medium transition-colors
+                  ${count > 0 ? 'text-main' : 'text-muted/50'}
                 `}
                 style={{ backgroundColor: getHeatColor(count, maxCount) }}
                 title={`${MAJOR_ARCANA_NAMES[index]}: ${count}x`}
@@ -89,8 +89,8 @@ function MajorArcanaMap({ data = [] }) {
                 key={index}
                 className={`
                   flex-shrink-0 w-6 h-6 xs:w-7 xs:h-7 rounded flex items-center justify-center
-                  text-[9px] xs:text-[10px] font-medium transition-colors
-                  ${count > 0 ? 'text-amber-100' : 'text-amber-100/30'}
+                  text-2xs xs:text-2xs font-medium transition-colors
+                  ${count > 0 ? 'text-main' : 'text-muted/50'}
                 `}
                 style={{ backgroundColor: getHeatColor(count, maxCount) }}
                 title={`${MAJOR_ARCANA_NAMES[index]}: ${count}x`}
@@ -103,7 +103,7 @@ function MajorArcanaMap({ data = [] }) {
         </div>
       </div>
 
-      <p className="mt-2 text-[10px] text-amber-100/50">
+      <p className="mt-2 text-2xs text-muted/70">
         Heat intensity = frequency
       </p>
     </div>

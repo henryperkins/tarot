@@ -89,11 +89,11 @@ export const ComfortableHeader = memo(function ComfortableHeader({
             <div className="min-w-0 flex-1">
               {isCompactView ? (
                 <>
-                  <h3 className="min-w-0 text-[13px] sm:text-[14px] font-semibold text-[color:var(--brand-primary)] truncate">
+                  <h3 className="min-w-0 text-sm font-semibold text-accent truncate">
                     {entry.spread || entry.spreadName || 'Reading'}
                   </h3>
                   {timestampLabel && (
-                    <p className="mt-1 text-[11px] text-[color:var(--text-muted)] truncate">
+                    <p className="mt-1 text-2xs text-muted truncate">
                       {timestampLabel}
                     </p>
                   )}
@@ -101,7 +101,7 @@ export const ComfortableHeader = memo(function ComfortableHeader({
               ) : (
                 <>
                   {/* Meta row */}
-                  <div className="flex flex-wrap items-center gap-2 text-[10px] uppercase tracking-[0.3em] text-[color:var(--text-muted)]">
+                  <div className="flex flex-wrap items-center gap-2 text-2xs uppercase tracking-[0.3em] text-[color:var(--text-muted)]">
                     {timestampLabel && (
                       <span
                         className="inline-flex items-center rounded-full border border-[color:var(--border-warm-light)] bg-[color:var(--border-warm-subtle)] px-2 py-0.5 normal-case tracking-normal"
@@ -153,7 +153,7 @@ export const ComfortableHeader = memo(function ComfortableHeader({
 
               {/* Card preview chips */}
               {cardPreview.length > 0 && (
-                <div className="flex flex-wrap items-center gap-1.5 text-[11px] text-[color:var(--text-muted)]">
+                <div className="flex flex-wrap items-center gap-1.5 text-2xs text-[color:var(--text-muted)]">
                   {cardPreview.map((card, idx) => {
                     const name = card.name || 'Card';
                     const reversed = REVERSED_PATTERN.test(card?.orientation || '') || card?.isReversed;
@@ -163,7 +163,7 @@ export const ComfortableHeader = memo(function ComfortableHeader({
                         className={cn(styles.cardChip, 'flex-nowrap')}
                       >
                         <JournalCardIcon className="h-3 w-3 text-[color:var(--text-muted)]" aria-hidden="true" />
-                        <span className="min-w-0 max-w-[140px] truncate text-[11px] text-[color:var(--text-main)]">
+                        <span className="min-w-0 max-w-[140px] truncate text-2xs text-[color:var(--text-main)]">
                           {name}
                         </span>
                         {reversed && (
@@ -173,7 +173,7 @@ export const ComfortableHeader = memo(function ComfortableHeader({
                     );
                   })}
                   {cards.length > cardPreview.length && (
-                    <span className="text-[11px] text-[color:var(--text-muted)]">
+                    <span className="text-2xs text-[color:var(--text-muted)]">
                       +{cards.length - cardPreview.length} more
                     </span>
                   )}

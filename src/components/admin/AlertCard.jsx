@@ -16,10 +16,10 @@ const SEVERITY_STYLES = {
     icon: 'text-error'
   },
   warning: {
-    border: 'border-amber-400/40',
-    bg: 'bg-amber-500/10',
-    badge: 'bg-amber-500/20 text-amber-300',
-    icon: 'text-amber-400'
+    border: 'border-warning/40',
+    bg: 'bg-warning/10',
+    badge: 'bg-warning/20 text-warning',
+    icon: 'text-warning'
   }
 };
 
@@ -83,7 +83,7 @@ export const AlertCard = memo(function AlertCard({
                   {alert.delta !== null && alert.delta !== undefined && (
                     <>
                       <span className="mx-1">=</span>
-                      <span className={alert.delta < 0 ? 'text-error' : 'text-emerald-400'}>
+                      <span className={alert.delta < 0 ? 'text-error' : 'text-success'}>
                         {alert.delta >= 0 ? '+' : ''}{formatValue(alert.metric_name, alert.delta)}
                       </span>
                     </>

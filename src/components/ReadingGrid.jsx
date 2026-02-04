@@ -497,7 +497,7 @@ export function ReadingGrid({
                 {cardElement}
               </Tooltip>
               {isCompactScreen && reflectionPreview && (
-                <p className="mt-2 text-[11px] text-secondary/80 truncate">
+                <p className="mt-2 text-2xs text-secondary/80 truncate">
                   Notes: {reflectionPreview}
                 </p>
               )}

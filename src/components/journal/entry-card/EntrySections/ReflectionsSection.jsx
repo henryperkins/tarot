@@ -12,7 +12,7 @@ export const ReflectionsSection = memo(function ReflectionsSection({ reflections
     <section className={cn(styles.section, 'mt-4')}>
       <header className={styles.sectionHeader}>
         <div className={styles.sectionLabel}>Reflections</div>
-        <span className="text-[12px] text-[color:var(--text-muted)]">{reflections.length}</span>
+        <span className="text-xs text-muted">{reflections.length}</span>
       </header>
 
       <div className={styles.sectionBody}>
@@ -20,12 +20,12 @@ export const ReflectionsSection = memo(function ReflectionsSection({ reflections
           {reflections.map(([position, note], index) => (
             <li
               key={`${position || 'reflection'}-${index}`}
-              className="flex items-start gap-2 text-[14px] leading-relaxed"
+              className="flex items-start gap-2 text-sm leading-relaxed"
             >
-              <span className="font-semibold text-[color:var(--text-main)]">
+              <span className="font-semibold text-main">
                 {position || `Note ${index + 1}`}
               </span>
-              <span className="text-[color:var(--text-muted)]">{note}</span>
+              <span className="text-muted">{note}</span>
             </li>
           ))}
         </ul>

@@ -23,7 +23,7 @@ function PatternsSnapshotPanel({
           <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-high">
             Full Patterns Snapshot
           </p>
-          <p className="text-[11px] text-muted">
+          <p className="text-2xs text-muted">
             Timeframe: {timeframeLabel}
             {formattedSeasonWindow ? ` · ${formattedSeasonWindow}` : ''}
           </p>

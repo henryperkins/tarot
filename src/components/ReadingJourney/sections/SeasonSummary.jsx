@@ -81,19 +81,19 @@ function SeasonSummary({
   };
 
   return (
-    <div className="rounded-xl bg-gradient-to-br from-amber-500/10 via-amber-600/5 to-transparent p-4 border border-amber-300/10">
+    <div className="rounded-xl bg-gradient-to-br from-primary/10 via-primary/5 to-transparent p-4 border border-primary/10">
       {/* Season Label */}
       {seasonWindow && (
-        <p className="text-sm sm:text-xs text-amber-100/60 mb-2">{formatSeasonLabel()}</p>
+        <p className="text-sm sm:text-xs text-muted mb-2">{formatSeasonLabel()}</p>
       )}
 
       {/* Narrative */}
       {narrative ? (
-        <p className="text-base sm:text-sm text-amber-100/85 leading-relaxed mb-3">
+        <p className="text-base sm:text-sm text-muted-high leading-relaxed mb-3">
           {narrative}
         </p>
       ) : (
-        <p className="text-base sm:text-sm text-amber-100/70 mb-3">
+        <p className="text-base sm:text-sm text-muted mb-3">
           Start tracking your journey with more readings.
         </p>
       )}
@@ -102,36 +102,36 @@ function SeasonSummary({
       <div className="mb-3 space-y-1">
         <div className="flex flex-wrap gap-2">
           {topCard && (
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-300/15 px-2.5 py-1 text-xs text-amber-100">
-              <span className="text-amber-200/80">🃏</span>
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-primary/15 px-2.5 py-1 text-xs text-main">
+              <span className="text-accent/80">🃏</span>
               {topCard.name}: {topCard.count}x
               {cardFrequencyReliable === false && (
-                <span className="ml-1 text-[10px] uppercase tracking-[0.14em] text-amber-200/70">
+                <span className="ml-1 text-2xs uppercase tracking-[0.14em] text-accent/70">
                   emerging
                 </span>
               )}
               {topCard.hasBadge && (
-                <Fire className="h-3 w-3 text-orange-400" aria-label="streak badge" />
+                <Fire className="h-3 w-3 text-accent" aria-label="streak badge" />
               )}
             </span>
           )}
           {currentStreak > 0 && (
             <span
-              className="inline-flex items-center gap-1 rounded-full bg-orange-500/15 px-2.5 py-1 text-xs text-orange-100"
+              className="inline-flex items-center gap-1 rounded-full bg-primary/15 px-2.5 py-1 text-xs text-main"
               title="Counts from yesterday if no reading today (grace period)."
             >
-              <Fire className="h-3 w-3" />
+              <Fire className="h-3 w-3 text-accent" />
               {currentStreak}-day streak
             </span>
           )}
           {topContext?.name && (
-            <span className="inline-flex items-center gap-1 rounded-full bg-cyan-500/15 px-2.5 py-1 text-xs text-cyan-100">
+            <span className="inline-flex items-center gap-1 rounded-full bg-secondary/15 px-2.5 py-1 text-xs text-secondary">
               {topContext.name.charAt(0).toUpperCase() + topContext.name.slice(1)}
             </span>
           )}
         </div>
         {currentStreak > 0 && (
-          <p className="text-[10px] text-amber-100/50">
+          <p className="text-2xs text-muted/70">
             Counts from yesterday if no reading today (grace period).
           </p>
         )}

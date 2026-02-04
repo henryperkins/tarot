@@ -108,7 +108,7 @@ export default function EmptyState({
                   {isBackfilling ? 'Analyzing readings...' : 'Analyze past readings'}
                 </button>
 
-                <p className="mt-3 text-xs sm:text-[11px] text-muted">
+                <p className="mt-3 text-xs sm:text-2xs text-muted">
                   One-time analysis for insights; it does not change your entries.
                 </p>
               </>

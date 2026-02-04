@@ -112,7 +112,9 @@ function getLineConfig(cardCount, isLandscape) {
  * @param {string} [props.spreadName] - Name of the spread being interpreted
  * @param {number} [props.cardCount=3] - Number of cards in the spread
  * @param {string} [props.reasoningSummary] - AI reasoning summary to display during generation
+ * @param {Object} [props.reasoning] - Reasoning metadata (narrative arc preview)
  * @param {string} [props.narrativePhase] - Current narrative generation phase ('analyzing'|'drafting'|'polishing')
+ * @param {string} [props.atmosphereClassName] - Atmosphere modifier classes
  */
 export function NarrativeSkeleton({
   className = '',
@@ -121,7 +123,9 @@ export function NarrativeSkeleton({
   spreadName = '',
   cardCount = 3,
   reasoningSummary = '',
+  reasoning = null,
   narrativePhase = '',
+  atmosphereClassName = '',
 }) {
   const prefersReducedMotion = useReducedMotion();
   const isLandscape = useLandscape();
@@ -191,6 +195,14 @@ export function NarrativeSkeleton({
     ? `Still generating your personalized tarot reading. This is taking longer than usual but should complete soon.`
     : `Please wait while we generate your personalized tarot reading. This typically takes a few seconds.`;
 
+  const arcPreview = useMemo(() => {
+    if (!reasoning?.narrativeArc) return null;
+    return {
+      name: reasoning.narrativeArc?.name || '',
+      description: reasoning.narrativeArc?.description || ''
+    };
+  }, [reasoning?.narrativeArc]);
+
   return (
     <div
       className={`narrative-skeleton ${className}`}
@@ -218,7 +230,7 @@ export function NarrativeSkeleton({
       </div>
 
       {/* Ritual stage */}
-      <div className="narrative-skeleton__ritual narrative-atmosphere">
+      <div className={`narrative-skeleton__ritual narrative-atmosphere ${atmosphereClassName}`}>
         <div className="narrative-skeleton__cards" aria-hidden="true">
           {cardSlots.map((slot) => (
             <div key={slot} className="narrative-skeleton__card" />
@@ -241,6 +253,25 @@ export function NarrativeSkeleton({
             );
           })}
         </div>
+        {arcPreview && (arcPreview.name || arcPreview.description) && (
+          <div className="narrative-skeleton__arc mt-4 px-4 py-3 rounded-xl border border-secondary/30 bg-surface/70">
+            {arcPreview.name && (
+              <span className="block text-xs font-semibold uppercase tracking-wider text-secondary mb-1">
+                Narrative arc
+              </span>
+            )}
+            {arcPreview.name && (
+              <p className="text-sm text-main font-semibold">
+                {arcPreview.name}
+              </p>
+            )}
+            {arcPreview.description && (
+              <p className="text-xs text-muted mt-1">
+                {arcPreview.description}
+              </p>
+            )}
+          </div>
+        )}
         <p className="narrative-skeleton__hint text-xs text-muted text-center mt-2">
           Let your attention rest on the card that feels loudest.
         </p>
@@ -277,7 +308,7 @@ export function NarrativeSkeleton({
       )}
 
       {/* Narrative text skeleton */}
-      <div className="narrative-skeleton__panel narrative-atmosphere rounded-2xl bg-surface/70 border border-secondary/30 shadow-md px-3 xxs:px-4 sm:px-6 py-5 sm:py-6 min-h-[6rem] xxs:min-h-[7.5rem] md:min-h-[10rem]">
+      <div className={`narrative-skeleton__panel narrative-atmosphere ${atmosphereClassName} rounded-2xl bg-surface/70 border border-secondary/30 shadow-md px-3 xxs:px-4 sm:px-6 py-5 sm:py-6 min-h-[6rem] xxs:min-h-[7.5rem] md:min-h-[10rem]`}>
         <div className="max-w-[68ch] mx-auto space-y-3">
           {displayLines.map((line, index) => {
             if (line.isBreak) {

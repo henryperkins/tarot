@@ -92,12 +92,12 @@ export default function BackfillBanner({
 
   // Compact variant for tight spaces
   if (variant === 'compact') {
-    const COMPACT_SYNC_BUTTON_CLASS = "flex items-center gap-1.5 min-h-touch px-3 py-2 text-xs sm:text-[11px] font-medium text-muted-high hover:text-main disabled:opacity-50 disabled:cursor-not-allowed touch-manipulation";
+    const COMPACT_SYNC_BUTTON_CLASS = "flex items-center gap-1.5 min-h-touch px-3 py-2 text-xs sm:text-2xs font-medium text-muted-high hover:text-main disabled:opacity-50 disabled:cursor-not-allowed touch-manipulation";
     
     return (
       <div className="flex items-center gap-2 rounded-lg bg-[color:var(--border-warm-subtle)] border border-[color:var(--border-warm-light)] px-3 py-2">
         <Info className="h-3.5 w-3.5 flex-shrink-0 text-[color:var(--brand-primary)]" aria-hidden="true" />
-        <span className="text-xs sm:text-[11px] text-muted-high flex-1">
+        <span className="text-xs sm:text-2xs text-muted-high flex-1">
           Analyze past readings for deeper insights
         </span>
         <button
@@ -141,7 +141,7 @@ export default function BackfillBanner({
           <p className="text-sm sm:text-xs font-medium text-main mb-1">
             Analyze past readings
           </p>
-          <p className="text-xs sm:text-[11px] text-muted mb-2">
+          <p className="text-xs sm:text-2xs text-muted mb-2">
             One-time analysis for insights; it does not change your entries.
           </p>
           <button
@@ -149,7 +149,7 @@ export default function BackfillBanner({
             disabled={isBackfilling}
             className="
               inline-flex items-center gap-1.5 min-h-touch px-3 py-1.5 rounded-full
-              text-xs sm:text-[11px] font-medium text-[color:var(--text-main)] bg-[color:var(--accent-25)]
+              text-xs sm:text-2xs font-medium text-[color:var(--text-main)] bg-[color:var(--accent-25)]
               border border-[color:var(--border-warm-light)]
               hover:bg-[color:var(--accent-45)] hover:border-[color:var(--border-warm)]
               disabled:opacity-50 disabled:cursor-not-allowed

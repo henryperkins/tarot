@@ -196,42 +196,42 @@ export function CoachSuggestion({
         const focusCtaPlacement = focusAreasCtaPlacement || (isAmberTone ? 'before-actions' : 'after-actions');
         const classes = isAmberTone
             ? {
-                container: 'rounded-lg bg-amber-200/5 p-3 border border-amber-300/10',
-                headline: 'text-sm sm:text-xs text-amber-100/70 mb-2',
-                scope: 'mb-2 text-[10px] uppercase tracking-[0.18em] text-amber-200/50',
-                badge: 'mb-2 flex items-center gap-1 text-[11px] text-amber-200/80',
-                source: 'mb-2 flex items-center gap-2 text-[10px] uppercase tracking-[0.18em] text-amber-200/60',
-                sourceTrigger: 'text-amber-200/60 hover:text-amber-100',
-                theme: 'mb-2 space-y-1 text-[11px] text-amber-100/60',
-                related: 'mb-2 text-[11px] text-amber-100/70',
-                relatedTitle: 'text-[10px] uppercase tracking-[0.18em] text-amber-200/60',
-                remaining: 'mt-1 text-[10px] text-amber-200/50',
-                statusMessage: 'mb-2 text-[11px] text-amber-100/60',
+                container: 'rounded-lg bg-primary/5 p-3 border border-primary/10',
+                headline: 'text-sm sm:text-xs text-accent/85 mb-2',
+                scope: 'mb-2 text-2xs uppercase tracking-[0.18em] text-accent/50',
+                badge: 'mb-2 flex items-center gap-1 text-2xs text-accent/80',
+                source: 'mb-2 flex items-center gap-2 text-2xs uppercase tracking-[0.18em] text-accent/60',
+                sourceTrigger: 'text-accent/60 hover:text-main',
+                theme: 'mb-2 space-y-1 text-2xs text-muted',
+                related: 'mb-2 text-2xs text-muted-high',
+                relatedTitle: 'text-2xs uppercase tracking-[0.18em] text-muted',
+                remaining: 'mt-1 text-2xs text-muted/70',
+                statusMessage: 'mb-2 text-2xs text-muted',
                 actions: 'flex flex-wrap items-center gap-2',
-                startButton: 'inline-flex items-center gap-1.5 min-h-touch px-3 py-2 text-xs font-medium text-amber-200 hover:text-amber-100 transition-colors touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/50',
-                saveButton: 'min-h-touch rounded-full border border-amber-300/30 px-3 py-2 text-xs text-amber-100/80 hover:text-amber-100 hover:border-amber-200/60 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/50',
-                openButton: 'min-h-touch rounded-full border border-amber-300/20 px-3 py-2 text-xs text-amber-100/70 hover:text-amber-100 hover:border-amber-200/50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/50',
-                status: 'text-[11px] text-amber-100/70',
-                focusCta: 'mb-2 text-[11px] text-amber-200/70 underline underline-offset-4 hover:text-amber-100 transition-colors',
+                startButton: 'inline-flex items-center gap-1.5 min-h-touch px-3 py-2 text-xs font-medium text-accent hover:text-main transition-colors touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50',
+                saveButton: 'min-h-touch rounded-full border border-primary/25 px-3 py-2 text-xs text-muted-high hover:text-main hover:border-primary/40 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50',
+                openButton: 'min-h-touch rounded-full border border-primary/20 px-3 py-2 text-xs text-muted-high hover:text-main hover:border-primary/35 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50',
+                status: 'text-2xs text-muted/70',
+                focusCta: 'mb-2 text-2xs text-accent/80 underline underline-offset-4 hover:text-main transition-colors',
             }
             : {
                 container: 'rounded-lg bg-[color:var(--border-warm-subtle)] p-3 border border-[color:var(--border-warm-light)]',
                 headline: 'text-xs text-muted-high',
-                scope: 'mt-2 text-[10px] uppercase tracking-[0.2em] text-muted',
-                badge: 'mt-2 flex items-center gap-1 text-[11px] text-[color:var(--text-accent)]',
-                source: 'mt-2 flex items-center gap-2 text-[10px] uppercase tracking-[0.2em] text-muted',
+                scope: 'mt-2 text-2xs uppercase tracking-[0.2em] text-muted',
+                badge: 'mt-2 flex items-center gap-1 text-2xs text-[color:var(--text-accent)]',
+                source: 'mt-2 flex items-center gap-2 text-2xs uppercase tracking-[0.2em] text-muted',
                 sourceTrigger: 'text-muted hover:text-main',
-                theme: 'mt-2 space-y-1 text-[11px] text-muted',
-                related: 'mt-2 text-[11px] text-muted-high',
-                relatedTitle: 'text-[10px] uppercase tracking-[0.2em] text-muted',
-                remaining: 'mt-1 text-[10px] text-muted',
-                statusMessage: 'mt-2 text-[11px] text-muted',
+                theme: 'mt-2 space-y-1 text-2xs text-muted',
+                related: 'mt-2 text-2xs text-muted-high',
+                relatedTitle: 'text-2xs uppercase tracking-[0.2em] text-muted',
+                remaining: 'mt-1 text-2xs text-muted',
+                statusMessage: 'mt-2 text-2xs text-muted',
                 actions: 'mt-2 flex flex-wrap items-center gap-2',
-                startButton: 'min-h-touch rounded-full border border-[color:var(--border-warm-light)] px-3 py-1.5 text-[11px] font-medium text-[color:var(--text-accent)] hover:text-main hover:border-[color:var(--border-warm)] transition-colors',
-                saveButton: 'min-h-touch rounded-full border border-[color:var(--border-warm-light)] px-3 py-1.5 text-[11px] text-muted-high hover:text-main hover:border-[color:var(--border-warm)] transition-colors',
-                openButton: 'min-h-touch rounded-full border border-[color:var(--border-warm-light)] px-3 py-1.5 text-[11px] text-muted-high hover:text-main hover:border-[color:var(--border-warm)] transition-colors',
-                status: 'text-[11px] text-muted',
-                focusCta: 'mt-2 text-[11px] text-muted underline underline-offset-4 hover:text-main transition-colors',
+                startButton: 'min-h-touch rounded-full border border-[color:var(--border-warm-light)] px-3 py-1.5 text-2xs font-medium text-[color:var(--text-accent)] hover:text-main hover:border-[color:var(--border-warm)] transition-colors',
+                saveButton: 'min-h-touch rounded-full border border-[color:var(--border-warm-light)] px-3 py-1.5 text-2xs text-muted-high hover:text-main hover:border-[color:var(--border-warm)] transition-colors',
+                openButton: 'min-h-touch rounded-full border border-[color:var(--border-warm-light)] px-3 py-1.5 text-2xs text-muted-high hover:text-main hover:border-[color:var(--border-warm)] transition-colors',
+                status: 'text-2xs text-muted',
+                focusCta: 'mt-2 text-2xs text-muted underline underline-offset-4 hover:text-main transition-colors',
             };
         const focusAreasCta = shouldShowFocusAreasCta ? (
             <button
@@ -392,7 +392,7 @@ export function CoachSuggestion({
             )}
 
             {filtersActive && scopeLabel && (
-                <p className="mt-3 text-[10px] uppercase tracking-[0.2em] text-muted">
+                <p className="mt-3 text-2xs uppercase tracking-[0.2em] text-muted">
                     Scoped to: {scopeLabel}
                 </p>
             )}
@@ -402,7 +402,7 @@ export function CoachSuggestion({
                 </p>
             )}
             {recommendation.sourceLabel && (
-                <div className="mt-2 flex items-center gap-2 text-[10px] uppercase tracking-[0.3em] text-muted">
+                <div className="mt-2 flex items-center gap-2 text-2xs uppercase tracking-[0.3em] text-muted">
                     <span>Source: {recommendation.sourceLabel}</span>
                     {recommendation.sourceDetail && (
                         <Tooltip
@@ -418,14 +418,14 @@ export function CoachSuggestion({
             )}
             {relatedSteps.length > 0 && (
                 <div className="mt-2 text-xs text-muted">
-                    <p className="text-[10px] uppercase tracking-[0.2em] text-muted">{clusterTitle}</p>
+                    <p className="text-2xs uppercase tracking-[0.2em] text-muted">{clusterTitle}</p>
                     <ul className="mt-1 list-disc list-inside space-y-1">
                         {relatedSteps.map((step, index) => (
                             <li key={`${step}-${index}`}>{step}</li>
                         ))}
                     </ul>
                     {remainingStepCount > 0 && (
-                        <p className="mt-1 text-[10px] text-muted">
+                        <p className="mt-1 text-2xs text-muted">
                             + {remainingStepCount} more step{remainingStepCount === 1 ? '' : 's'}
                         </p>
                     )}

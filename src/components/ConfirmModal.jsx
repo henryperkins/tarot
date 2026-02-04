@@ -48,12 +48,12 @@ export function ConfirmModal({
   };
 
   const variantStyles = {
-    warning: 'border-accent/40 bg-surface/95',
+    warning: 'border-warning/40 bg-surface/95',
     danger: 'border-error/40 bg-surface/95'
   };
 
   const buttonStyles = {
-    warning: 'bg-accent/15 border-accent/40 text-accent hover:bg-accent/25',
+    warning: 'bg-warning/15 border-warning/40 text-warning hover:bg-warning/25',
     danger: 'bg-error/15 border-error/40 text-error hover:bg-error/25'
   };
 
@@ -93,8 +93,8 @@ export function ConfirmModal({
 
           <div className="p-5 xs:p-6">
             <div className="flex items-start gap-3 xs:gap-4 mb-4 pr-8">
-              <div className={`p-2 rounded-full shrink-0 ${variant === 'danger' ? 'bg-error/10' : 'bg-accent/10'}`}>
-                <Warning className={`w-5 h-5 xs:w-6 xs:h-6 ${variant === 'danger' ? 'text-error' : 'text-accent'}`} />
+              <div className={`p-2 rounded-full shrink-0 ${variant === 'danger' ? 'bg-error/10' : 'bg-warning/10'}`}>
+                <Warning className={`w-5 h-5 xs:w-6 xs:h-6 ${variant === 'danger' ? 'text-error' : 'text-warning'}`} />
               </div>
               <div className="flex-1 min-w-0">
                 <h2 id="confirm-modal-title" className="text-lg xs:text-xl font-serif text-main mb-2">

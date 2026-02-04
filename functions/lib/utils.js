@@ -37,13 +37,243 @@ export async function readJsonBody(request) {
  * @param {ResponseInit} [init]
  */
 export function jsonResponse(data, init = {}) {
+  const normalizedInit = typeof init === 'number'
+    ? { status: init }
+    : (init || {});
   return new Response(JSON.stringify(data), {
-    ...init,
+    ...normalizedInit,
     headers: {
       'content-type': 'application/json; charset=utf-8',
-      ...(init.headers || {})
+      ...(normalizedInit.headers || {})
     }
   });
+}
+
+/**
+ * Convert ArrayBuffer/Uint8Array to base64 safely for large payloads.
+ *
+ * @param {ArrayBuffer|Uint8Array} buffer
+ * @returns {string}
+ */
+export function arrayBufferToBase64(buffer) {
+  if (!buffer) return '';
+
+  const bytes = buffer instanceof Uint8Array ? buffer : new Uint8Array(buffer);
+
+  if (typeof btoa === 'function') {
+    const chunkSize = 0x8000;
+    let binary = '';
+    for (let i = 0; i < bytes.length; i += chunkSize) {
+      const chunk = bytes.subarray(i, i + chunkSize);
+      binary += String.fromCharCode.apply(null, chunk);
+    }
+    return btoa(binary);
+  }
+
+  if (typeof Buffer !== 'undefined') {
+    return Buffer.from(bytes).toString('base64');
+  }
+
+  throw new Error('Base64 encoding is not supported in this environment.');
+}
+
+/**
+ * Build a stable UTC date key (YYYY-MM-DD) for usage limits.
+ *
+ * @param {Date} [date]
+ * @returns {string}
+ */
+export function getUtcDateKey(date = new Date()) {
+  return date.toISOString().slice(0, 10);
+}
+
+/**
+ * Build a daily usage key for a feature/user pair.
+ *
+ * @param {Object} options
+ * @param {string} options.feature
+ * @param {string|number} options.userId
+ * @param {string} [options.keyPrefix='media_usage']
+ * @param {Date} [options.date]
+ * @returns {{ key: string, dateKey: string }}
+ */
+export function buildDailyUsageKey({ feature, userId, keyPrefix = 'media_usage', date = new Date() }) {
+  const dateKey = getUtcDateKey(date);
+  const key = `${keyPrefix}:${feature}:${userId}:${dateKey}`;
+  return { key, dateKey };
+}
+
+/**
+ * Seconds until the next UTC day boundary for a given date key.
+ *
+ * @param {string} dateKey
+ * @param {Date} [now]
+ * @returns {number}
+ */
+export function getSecondsUntilUtcDayEndFromKey(dateKey, now = new Date()) {
+  if (!dateKey || typeof dateKey !== 'string') {
+    return getSecondsUntilUtcDayEnd(now);
+  }
+  const [year, month, day] = dateKey.split('-').map(Number);
+  if (!year || !month || !day) {
+    return getSecondsUntilUtcDayEnd(now);
+  }
+  const nextDay = new Date(Date.UTC(year, month - 1, day + 1));
+  const seconds = Math.ceil((nextDay.getTime() - now.getTime()) / 1000);
+  return Math.max(60, seconds);
+}
+
+/**
+ * Seconds until the next UTC day boundary.
+ *
+ * @param {Date} [date]
+ * @returns {number}
+ */
+export function getSecondsUntilUtcDayEnd(date = new Date()) {
+  const nextDay = new Date(Date.UTC(
+    date.getUTCFullYear(),
+    date.getUTCMonth(),
+    date.getUTCDate() + 1
+  ));
+  const seconds = Math.ceil((nextDay.getTime() - date.getTime()) / 1000);
+  return Math.max(60, seconds);
+}
+
+/**
+ * Check and increment a per-user daily usage counter in KV.
+ *
+ * @param {Object} env
+ * @param {Object} options
+ * @param {string} options.feature
+ * @param {string|number} options.userId
+ * @param {number} options.limit
+ * @param {string} [options.keyPrefix='media_usage']
+ * @returns {Promise<{allowed: boolean, remaining: number|null, limit: number|null, resetsAt: string|null, count: number|null}>}
+ */
+export async function checkAndIncrementDailyUsage(env, {
+  feature,
+  userId,
+  limit,
+  keyPrefix = 'media_usage'
+}) {
+  if (!env?.METRICS_DB?.get || !env?.METRICS_DB?.put || !feature || !userId || !Number.isFinite(limit)) {
+    return {
+      allowed: true,
+      remaining: null,
+      limit: Number.isFinite(limit) ? limit : null,
+      resetsAt: null,
+      count: null,
+      key: null,
+      dateKey: null
+    };
+  }
+
+  const now = new Date();
+  const { key, dateKey } = buildDailyUsageKey({ feature, userId, keyPrefix, date: now });
+  let count = 0;
+
+  try {
+    const stored = await env.METRICS_DB.get(key);
+    if (stored) {
+      count = Number.parseInt(stored, 10) || 0;
+    }
+  } catch (err) {
+    console.warn(`[usage:${feature}] Failed to read usage counter: ${err.message}`);
+  }
+
+  if (count >= limit) {
+    return {
+      allowed: false,
+      remaining: 0,
+      limit,
+      resetsAt: new Date(Date.UTC(
+        now.getUTCFullYear(),
+        now.getUTCMonth(),
+        now.getUTCDate() + 1
+      )).toISOString(),
+      count,
+      key,
+      dateKey
+    };
+  }
+
+  const nextCount = count + 1;
+  try {
+    await env.METRICS_DB.put(key, String(nextCount), {
+      expirationTtl: getSecondsUntilUtcDayEnd(now)
+    });
+  } catch (err) {
+    console.warn(`[usage:${feature}] Failed to persist usage counter: ${err.message}`);
+  }
+
+  return {
+    allowed: true,
+    remaining: Math.max(0, limit - nextCount),
+    limit,
+    resetsAt: new Date(Date.UTC(
+      now.getUTCFullYear(),
+      now.getUTCMonth(),
+      now.getUTCDate() + 1
+    )).toISOString(),
+    count: nextCount,
+    key,
+    dateKey
+  };
+}
+
+/**
+ * Decrement a per-user daily usage counter in KV.
+ *
+ * @param {Object} env
+ * @param {Object} options
+ * @param {string} [options.key]
+ * @param {string} [options.feature]
+ * @param {string|number} [options.userId]
+ * @param {string} [options.dateKey]
+ * @param {string} [options.keyPrefix='media_usage']
+ * @returns {Promise<boolean>}
+ */
+export async function decrementDailyUsage(env, {
+  key,
+  feature,
+  userId,
+  dateKey,
+  keyPrefix = 'media_usage'
+}) {
+  if (!env?.METRICS_DB?.get || !env?.METRICS_DB?.put) return false;
+  let resolvedKey = key;
+  let resolvedDateKey = dateKey;
+
+  if (!resolvedKey) {
+    if (!feature || !userId) return false;
+    const derived = buildDailyUsageKey({
+      feature,
+      userId,
+      keyPrefix,
+      date: resolvedDateKey ? new Date(`${resolvedDateKey}T00:00:00.000Z`) : new Date()
+    });
+    resolvedKey = derived.key;
+    resolvedDateKey = derived.dateKey;
+  }
+
+  try {
+    const stored = await env.METRICS_DB.get(resolvedKey);
+    if (!stored) return false;
+    const count = Number.parseInt(stored, 10) || 0;
+    if (count <= 0) return false;
+    const nextCount = count - 1;
+    if (nextCount <= 0 && typeof env.METRICS_DB.delete === 'function') {
+      await env.METRICS_DB.delete(resolvedKey);
+      return true;
+    }
+    await env.METRICS_DB.put(resolvedKey, String(Math.max(0, nextCount)), {
+      expirationTtl: getSecondsUntilUtcDayEndFromKey(resolvedDateKey || getUtcDateKey(new Date()))
+    });
+    return true;
+  } catch (err) {
+    console.warn(`[usage] Failed to decrement usage counter: ${err.message}`);
+    return false;
+  }
 }
 
 /**

@@ -96,7 +96,7 @@ export function JournalStatusBanner({
 
   const syncPill = (
     <div className="mb-4 flex flex-wrap items-center gap-2">
-      <span className="inline-flex items-center gap-2 rounded-full border border-amber-200/20 bg-amber-200/5 px-3 py-1 text-[11px] text-amber-100/75">
+      <span className="inline-flex items-center gap-2 rounded-full border border-secondary/20 bg-surface-muted/40 px-3 py-1 text-2xs text-muted-high">
         {syncLabel}
       </span>
       {showSyncRefresh && (
@@ -104,7 +104,7 @@ export function JournalStatusBanner({
           type="button"
           onClick={() => onReload()}
           disabled={loading}
-          className="text-[11px] font-semibold text-amber-100/70 underline underline-offset-2 hover:text-amber-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/40 disabled:opacity-50"
+          className="text-2xs font-semibold text-accent underline underline-offset-2 hover:text-main focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 disabled:opacity-50"
         >
           Refresh
         </button>
@@ -129,13 +129,13 @@ export function JournalStatusBanner({
           <div className="relative z-10 space-y-2">
             <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
               {!canUseCloudJournal && (
-                <p className="journal-prose text-amber-100/85">
+                <p className="journal-prose text-muted-high">
                   ✓ Signed in - Your journal is stored on this device
                 </p>
               )}
               {/* Cache fallback warning with timestamp and refresh CTA */}
               {showCachedNotice && (
-                <span className="inline-flex items-center gap-2 text-[11px] text-amber-200/70">
+                <span className="inline-flex items-center gap-2 text-2xs text-warning">
                   {lastSyncAt
                     ? `Cached from ${new Date(lastSyncAt).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}`
                     : 'Using cached data'}
@@ -149,13 +149,13 @@ export function JournalStatusBanner({
                 <div className="flex items-center gap-3">
                   <button
                     onClick={() => navigate('/settings/subscription')}
-                    className="inline-flex items-center gap-1.5 rounded-full border border-amber-300/30 bg-amber-300/10 px-3 py-1.5 text-xs font-medium text-amber-100 transition hover:bg-amber-300/15 hover:border-amber-300/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/40"
+                    className="inline-flex items-center gap-1.5 rounded-full border border-primary/25 bg-primary/10 px-3 py-1.5 text-xs font-medium text-accent transition hover:bg-primary/15 hover:border-primary/35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
                   >
                     Upgrade to Cloud Journal
                   </button>
-                  <span className="text-[11px] text-amber-100/50">Sync across devices and keep a cloud backup</span>
+                  <span className="text-2xs text-muted/70">Sync across devices and keep a cloud backup</span>
                 </div>
-                <p className="text-[11px] text-amber-100/45">
+                <p className="text-2xs text-muted/70">
                   Local entries: {localEntryCount}. Storage depends on your browser.
                 </p>
               </div>
@@ -164,11 +164,11 @@ export function JournalStatusBanner({
             {/* Sync error with retry */}
             {showCloudSyncIssue && (
               <div className="flex items-center gap-2 pt-1">
-                <span className="text-xs text-amber-200/70">Sync issue</span>
+                <span className="text-xs text-warning">Sync issue</span>
                 <button
                   onClick={() => onReload()}
                   disabled={loading}
-                  className="inline-flex items-center gap-1 rounded-full border border-amber-200/25 bg-amber-200/10 px-2.5 py-1 text-[11px] font-medium text-amber-100 transition hover:bg-amber-200/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/40 disabled:opacity-50"
+                  className="inline-flex items-center gap-1 rounded-full border border-warning/25 bg-warning/10 px-2.5 py-1 text-2xs font-medium text-warning transition hover:bg-warning/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-warning/40 disabled:opacity-50"
                 >
                   <JournalRefreshIcon className="h-3 w-3" aria-hidden="true" />
                   {loading ? 'Retrying...' : 'Retry'}
@@ -179,7 +179,7 @@ export function JournalStatusBanner({
             {/* Signed-in, no-cloud: offer explicit import from legacy unscoped local journal. */}
             {!canUseCloudJournal && localStoragePresence?.hasLegacy && (
               <div className="space-y-2">
-                <p className="text-sm text-amber-100/70">
+                <p className="text-sm text-muted">
                   We found local journal entries saved before you signed in.
                   They aren&rsquo;t shown automatically to protect against shared-device mixups.
                 </p>
@@ -197,7 +197,7 @@ export function JournalStatusBanner({
             {/* Signed-in, cloud: migrate any local entries (legacy or scoped) into D1. */}
             {showMigrateCta && (
               <div className="space-y-2 pt-1">
-                <p className="text-sm text-amber-100/70">
+                <p className="text-sm text-muted">
                   Local journal entries were found on this device. Migrate them to include them in cloud sync.
                 </p>
                 <button
@@ -210,23 +210,23 @@ export function JournalStatusBanner({
               </div>
             )}
             {migrating && (
-              <p className="text-sm text-amber-100/70">Migrating...</p>
+              <p className="text-sm text-muted">Migrating...</p>
             )}
           </div>
         </div>
       ) : (
         <div className={`mb-6 ${cardClass} p-5`}>
           <AmberStarfield />
-          <div className="relative z-10 space-y-3 text-sm text-amber-100/80 journal-prose">
+          <div className="relative z-10 space-y-3 text-sm text-muted-high journal-prose">
             <p>Your journal is currently stored locally in this browser only.</p>
-            <div className="flex flex-wrap items-center gap-3 text-xs text-amber-100/60">
+            <div className="flex flex-wrap items-center gap-3 text-xs text-muted">
               <span>Local entries: {localEntryCount}</span>
               <span>Storage depends on your browser.</span>
             </div>
             <button
               type="button"
               onClick={() => onShowAuthModal()}
-              className="inline-flex items-center gap-2 rounded-full border border-amber-300/30 bg-amber-300/10 px-3 py-1.5 text-xs font-medium text-amber-100 transition hover:bg-amber-300/15 hover:border-amber-300/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/40"
+              className="inline-flex items-center gap-2 rounded-full border border-primary/25 bg-primary/10 px-3 py-1.5 text-xs font-medium text-accent transition hover:bg-primary/15 hover:border-primary/35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
             >
               Sign in to sync
             </button>

@@ -110,7 +110,7 @@ function SettingsToggle({ id, label, description, enabled, loading, onChange, er
  */
 function DeviceOnlyChip() {
   return (
-    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-secondary/20 text-[10px] text-muted font-medium">
+    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-secondary/20 text-2xs text-muted font-medium">
       <span className="w-1.5 h-1.5 rounded-full bg-secondary/60" aria-hidden="true" />
       Device only
     </span>
@@ -154,26 +154,6 @@ function SectionCard({ title, icon: Icon, children, id, highlighted = false, bad
         {children}
       </div>
     </div>
-  );
-}
-
-function LockedSectionCard({ title, icon: Icon, description, onAction, actionLabel = 'Sign in', id, highlighted = false }) {
-  return (
-    <SectionCard title={title} icon={Icon} id={id} highlighted={highlighted}>
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-start gap-2 text-sm text-muted">
-          <Lock className="h-4 w-4 text-muted" weight="duotone" />
-          <p>{description}</p>
-        </div>
-        <button
-          type="button"
-          onClick={onAction}
-          className="inline-flex items-center justify-center rounded-full border border-accent/60 bg-accent/10 px-4 py-2 text-xs font-semibold text-main hover:bg-accent/20 transition"
-        >
-          {actionLabel}
-        </button>
-      </div>
-    </SectionCard>
   );
 }
 
@@ -950,12 +930,12 @@ export default function AccountPage() {
   };
   const usageThresholdBarColors = {
     normal: 'bg-accent',
-    warning: 'bg-amber-400',
+    warning: 'bg-warning',
     exhausted: 'bg-error'
   };
   const usageThresholdTextColors = {
     normal: 'text-muted',
-    warning: 'text-amber-400',
+    warning: 'text-warning',
     exhausted: 'text-error'
   };
 
@@ -1204,13 +1184,13 @@ export default function AccountPage() {
         )}
 
         {isAuthenticated && user && !user.email_verified && (
-          <div className="rounded-2xl border border-amber-300/50 bg-amber-500/10 px-5 py-4">
+          <div className="rounded-2xl border border-warning/50 bg-warning/10 px-5 py-4">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex items-start gap-3">
-                <ShieldCheck className="h-5 w-5 text-amber-200" weight="duotone" aria-hidden="true" />
+                <ShieldCheck className="h-5 w-5 text-warning" weight="duotone" aria-hidden="true" />
                 <div>
                   <p className="text-sm font-semibold text-main">Verify your email</p>
-                  <p className="text-xs text-amber-50/90">
+                  <p className="text-xs text-main/90">
                     Confirm {user.email} to enable password recovery and security alerts.
                   </p>
                 </div>
@@ -1226,7 +1206,7 @@ export default function AccountPage() {
                 </button>
                 <Link
                   to="/reset-password"
-                  className="inline-flex items-center justify-center rounded-full border border-amber-200/50 px-4 py-2 text-xs font-semibold text-amber-50 hover:bg-amber-500/20 transition"
+                  className="inline-flex items-center justify-center rounded-full border border-warning/40 px-4 py-2 text-xs font-semibold text-warning hover:bg-warning/20 transition"
                 >
                   Forgot password?
                 </Link>
@@ -1236,7 +1216,7 @@ export default function AccountPage() {
         )}
 
         {/* Profile Section - Auth only */}
-        {isAuthenticated ? (
+        {isAuthenticated && (
         <SectionCard title="Profile" icon={User} id="profile" highlighted={highlightedSection === 'profile'}>
           <div className="flex items-center gap-4">
             <div className="h-16 w-16 rounded-full bg-accent/20 flex items-center justify-center">
@@ -1344,7 +1324,7 @@ export default function AccountPage() {
                 </p>
               </div>
               {profileError && <p className="text-xs text-error">{profileError}</p>}
-              {profileSuccess && <p className="text-xs text-emerald-300">{profileSuccess}</p>}
+              {profileSuccess && <p className="text-xs text-success">{profileSuccess}</p>}
               <div className="flex flex-col sm:flex-row gap-2">
                 <button
                   type="button"
@@ -1501,7 +1481,7 @@ export default function AccountPage() {
                 </p>
               </div>
               {passwordError && <p className="text-xs text-error">{passwordError}</p>}
-              {passwordSuccess && <p className="text-xs text-emerald-300">{passwordSuccess}</p>}
+              {passwordSuccess && <p className="text-xs text-success">{passwordSuccess}</p>}
               <button
                 type="button"
                 onClick={handlePasswordUpdate}
@@ -1519,19 +1499,10 @@ export default function AccountPage() {
             </div>
           )}
         </SectionCard>
-        ) : (
-          <LockedSectionCard
-            title="Profile"
-            icon={User}
-            id="profile"
-            highlighted={highlightedSection === 'profile'}
-            description="Sign in to manage your profile and keep your journal synced across devices."
-            onAction={() => setShowAuthModal(true)}
-          />
         )}
 
         {/* Subscription Section - Auth only */}
-        {isAuthenticated ? (
+        {isAuthenticated && (
         <SectionCard title="Subscription" icon={CreditCard} id="subscription" highlighted={highlightedSection === 'subscription'}>
           <div className="flex items-center gap-4 mb-4">
             <div className={`h-12 w-12 rounded-full flex items-center justify-center ${isPaid ? 'bg-accent/20' : 'bg-secondary/20'}`}>
@@ -1567,7 +1538,7 @@ export default function AccountPage() {
 
           {showStatusBanner && (
             <div
-              className="mb-4 rounded-xl border border-amber-400/30 bg-amber-400/10 px-4 py-3"
+              className="mb-4 rounded-xl border border-warning/30 bg-warning/10 px-4 py-3"
               role="status"
               aria-live="polite"
               aria-atomic="true"
@@ -1577,13 +1548,13 @@ export default function AccountPage() {
                   <p className="text-sm font-semibold text-main">Subscription needs attention</p>
                   <p className="text-xs text-muted mt-1">{statusBannerMessage}</p>
                   {statusBannerNextStep && (
-                    <p className="text-xs text-amber-200/80 mt-1 font-medium">{statusBannerNextStep}</p>
+                    <p className="text-xs text-warning/90 mt-1 font-medium">{statusBannerNextStep}</p>
                   )}
                 </div>
                 {needsResubscribe && !isStoreProvider ? (
                   <Link
                     to="/pricing"
-                    className="inline-flex items-center justify-center rounded-full border border-amber-300/40 bg-amber-300/20 px-4 py-2 text-xs font-semibold text-amber-100 hover:bg-amber-300/30 transition"
+                    className="inline-flex items-center justify-center rounded-full border border-warning/40 bg-warning/20 px-4 py-2 text-xs font-semibold text-warning hover:bg-warning/30 transition"
                   >
                     Resubscribe
                   </Link>
@@ -1594,8 +1565,8 @@ export default function AccountPage() {
                     disabled={portalLoading}
                     className={`
                       inline-flex items-center justify-center gap-2 rounded-full
-                      border border-amber-300/40 bg-amber-300/20 px-4 py-2 text-xs font-semibold text-amber-100
-                      hover:bg-amber-300/30 transition
+                      border border-warning/40 bg-warning/20 px-4 py-2 text-xs font-semibold text-warning
+                      hover:bg-warning/30 transition
                       ${portalLoading ? 'opacity-70 cursor-not-allowed' : ''}
                     `}
                   >
@@ -1879,15 +1850,6 @@ export default function AccountPage() {
             </p>
           </div>
         </SectionCard>
-        ) : (
-          <LockedSectionCard
-            title="Subscription"
-            icon={CreditCard}
-            id="subscription"
-            highlighted={highlightedSection === 'subscription'}
-            description="Sign in to view your plan, billing details, and monthly usage."
-            onAction={() => setShowAuthModal(true)}
-          />
         )}
 
         {/* Audio Settings Section - Available to all users */}
@@ -2054,7 +2016,7 @@ export default function AccountPage() {
         </SectionCard>
 
         {/* Privacy & Data Section - Auth only */}
-        {isAuthenticated ? (
+        {isAuthenticated && (
         <SectionCard title="Privacy & Data" icon={ShieldCheck} id="privacy" highlighted={highlightedSection === 'privacy'}>
           <div className="space-y-4">
             <p className="text-xs text-muted">
@@ -2190,20 +2152,20 @@ export default function AccountPage() {
                 <div className="flex-1 space-y-2">
                   {hasActiveSubscription && (
                     <div
-                      className="rounded-xl border border-amber-400/30 bg-amber-400/10 px-3 py-2 text-xs"
+                      className="rounded-xl border border-warning/30 bg-warning/10 px-3 py-2 text-xs"
                       role="status"
                       aria-live="polite"
                       aria-atomic="true"
                     >
                       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                        <p className="text-amber-200">
+                        <p className="text-warning">
                           Active subscription detected. Manage your subscription first to avoid future charges.
                         </p>
                         <button
                           type="button"
                           onClick={handleManageSubscription}
                           disabled={portalLoading}
-                          className={`inline-flex items-center gap-1 font-semibold underline underline-offset-2 transition hover:text-amber-100 text-amber-100 ${
+                          className={`inline-flex items-center gap-1 font-semibold underline underline-offset-2 transition hover:text-warning text-warning ${
                             portalLoading ? 'opacity-60 cursor-not-allowed' : ''
                           }`}
                         >
@@ -2235,15 +2197,6 @@ export default function AccountPage() {
             </div>
           </div>
         </SectionCard>
-        ) : (
-          <LockedSectionCard
-            title="Privacy & Data"
-            icon={ShieldCheck}
-            id="privacy"
-            highlighted={highlightedSection === 'privacy'}
-            description="Sign in to manage analytics, exports, and account data controls."
-            onAction={() => setShowAuthModal(true)}
-          />
         )}
 
         {/* Reader Memory Section - Auth only */}

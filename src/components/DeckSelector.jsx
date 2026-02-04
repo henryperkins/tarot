@@ -316,7 +316,7 @@ export function DeckSelector({ selectedDeck, onDeckChange }) {
                       </div>
                     </div>
                     <div
-                      className="absolute left-3 top-3 z-20 inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-semibold"
+                      className="absolute left-3 top-3 z-20 inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-2xs font-semibold"
                       style={{
                         backgroundColor: 'var(--surface-92)',
                         color: deck.accent,

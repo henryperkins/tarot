@@ -1034,12 +1034,12 @@ export default function TarotReading() {
               aria-live="polite"
             >
               <div className={`pointer-events-auto flex flex-wrap items-center gap-2 rounded-full border ${connectionBg} ${connectionTone} px-3 py-2 text-xs shadow-lg backdrop-blur`}>
-                <span className={`text-[10px] font-semibold uppercase tracking-[0.2em] ${connectionText}`}>Connection</span>
+                <span className={`text-2xs font-semibold uppercase tracking-[0.2em] ${connectionText}`}>Connection</span>
                 <span className="text-main/90">{connectionBanner.message}</span>
                 <button
                   type="button"
                   onClick={checkApiHealth}
-                  className={`ml-auto inline-flex min-h-[32px] items-center rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] ${connectionTone} ${connectionText} hover:text-main hover:border-secondary/60 transition`}
+                  className={`ml-auto inline-flex min-h-[32px] items-center rounded-full border px-2.5 py-1 text-2xs font-semibold uppercase tracking-[0.14em] ${connectionTone} ${connectionText} hover:text-main hover:border-secondary/60 transition`}
                 >
                   {connectionBanner.actionLabel || 'Retry'}
                 </button>

@@ -115,9 +115,9 @@ export const ExperimentResults = memo(function ExperimentResults({
               <div className="flex items-center gap-2">
                 <span className={`text-xs px-2 py-0.5 rounded-full ${
                   exp.status === 'running'
-                    ? 'bg-emerald-500/20 text-emerald-400'
+                    ? 'bg-success/20 text-success'
                     : exp.status === 'paused'
-                      ? 'bg-amber-500/20 text-amber-300'
+                      ? 'bg-warning/20 text-warning'
                       : 'bg-secondary/30 text-muted'
                 }`}>
                   {exp.status}
@@ -213,9 +213,9 @@ function VariantComparison({ results, control }) {
                   <p className="text-xs text-muted">Score</p>
                   <p className={`font-semibold ${
                     variant.avg_overall >= 4
-                      ? 'text-emerald-400'
+                      ? 'text-success'
                       : variant.avg_overall >= 3
-                        ? 'text-amber-400'
+                        ? 'text-warning'
                         : 'text-error'
                   }`}>
                     {variant.avg_overall?.toFixed(2) || '--'}
@@ -226,7 +226,7 @@ function VariantComparison({ results, control }) {
                     <p className="text-xs text-muted">vs Control</p>
                     <div className="flex items-center gap-1">
                       {delta > 0.15 ? (
-                        <TrendUp className="h-3.5 w-3.5 text-emerald-400" />
+                        <TrendUp className="h-3.5 w-3.5 text-success" />
                       ) : delta < -0.15 ? (
                         <TrendDown className="h-3.5 w-3.5 text-error" />
                       ) : (
@@ -234,7 +234,7 @@ function VariantComparison({ results, control }) {
                       )}
                       <span className={
                         delta > 0.15
-                          ? 'text-emerald-400'
+                          ? 'text-success'
                           : delta < -0.15
                             ? 'text-error'
                             : 'text-muted'
@@ -258,11 +258,11 @@ function VariantComparison({ results, control }) {
               <div className="mt-2 pt-2 border-t border-secondary/20">
                 <p className="text-xs text-muted">
                   {Math.abs(delta) >= 0.3 ? (
-                    <span className={delta > 0 ? 'text-emerald-400' : 'text-error'}>
+                    <span className={delta > 0 ? 'text-success' : 'text-error'}>
                       Significant difference detected (|Δ| ≥ 0.3)
                     </span>
                   ) : Math.abs(delta) >= 0.15 ? (
-                    <span className="text-amber-300">
+                    <span className="text-warning">
                       Moderate difference (0.15 ≤ |Δ| &lt; 0.3) - may need more data
                     </span>
                   ) : (

@@ -17,33 +17,33 @@ const JourneyContent = lazy(() => import('./JourneyContent'));
  */
 function JourneyFallback() {
   return (
-    <div className="animate-pulse rounded-3xl border border-amber-300/12 bg-gradient-to-br from-[color:var(--panel-dark-3)] via-[color:var(--panel-dark-2)] to-[color:var(--panel-dark-1)] p-5">
+    <div className="animate-pulse rounded-3xl border border-primary/12 bg-gradient-to-br from-[color:var(--panel-dark-3)] via-[color:var(--panel-dark-2)] to-[color:var(--panel-dark-1)] p-5">
       <div className="space-y-4">
         {/* Header skeleton */}
         <div className="flex items-center gap-2">
-          <div className="h-3 w-3 rounded bg-amber-200/25" />
-          <div className="h-3 w-28 rounded bg-amber-200/25" />
+          <div className="h-3 w-3 rounded bg-primary/25" />
+          <div className="h-3 w-28 rounded bg-primary/25" />
         </div>
         {/* Narrative skeleton */}
         <div className="space-y-2">
-          <div className="h-4 w-full rounded bg-amber-200/15" />
-          <div className="h-4 w-3/4 rounded bg-amber-200/15" />
+          <div className="h-4 w-full rounded bg-primary/15" />
+          <div className="h-4 w-3/4 rounded bg-primary/15" />
         </div>
         {/* Stats skeleton */}
         <div className="flex gap-4 mt-4">
-          <div className="h-12 w-20 rounded-lg bg-amber-200/10" />
-          <div className="h-12 w-20 rounded-lg bg-amber-200/10" />
-          <div className="h-12 w-20 rounded-lg bg-amber-200/10" />
+          <div className="h-12 w-20 rounded-lg bg-primary/10" />
+          <div className="h-12 w-20 rounded-lg bg-primary/10" />
+          <div className="h-12 w-20 rounded-lg bg-primary/10" />
         </div>
         {/* Cards skeleton */}
         <div className="space-y-3 mt-4">
           {[1, 2, 3].map((i) => (
             <div key={i} className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <div className="h-5 w-5 rounded-full bg-amber-200/15" />
-                <div className="h-4 w-24 rounded bg-amber-200/15" />
+                <div className="h-5 w-5 rounded-full bg-primary/15" />
+                <div className="h-4 w-24 rounded bg-primary/15" />
               </div>
-              <div className="h-4 w-8 rounded bg-amber-200/15" />
+              <div className="h-4 w-8 rounded bg-primary/15" />
             </div>
           ))}
         </div>

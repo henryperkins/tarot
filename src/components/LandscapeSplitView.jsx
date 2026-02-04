@@ -142,7 +142,7 @@ function InteractiveMiniMap({
             >
               {/* Position number */}
               <span className={`
-                text-[10px] font-bold
+                text-2xs font-bold
                 ${isActive ? 'text-primary' : 'text-muted'}
               `}>
                 {idx + 1}
@@ -151,7 +151,7 @@ function InteractiveMiniMap({
               {/* Card indicator */}
               {card && (
                 <span className={`
-                  text-[8px] font-medium truncate max-w-full px-0.5
+                  text-2xs leading-none font-medium truncate max-w-full px-0.5
                   ${isRevealed ? 'text-secondary' : 'text-primary/70'}
                 `}>
                   {isRevealed ? card.name.charAt(0) : '?'}
@@ -159,7 +159,7 @@ function InteractiveMiniMap({
               )}
 
               {/* Short position label */}
-              <span className="text-[7px] text-muted/70 truncate max-w-full px-0.5">
+              <span className="text-2xs leading-none text-muted/70 truncate max-w-full px-0.5">
                 {shortLabel}
               </span>
             </button>
@@ -169,7 +169,7 @@ function InteractiveMiniMap({
 
       {/* Spread name */}
       <div className="absolute bottom-1 left-1/2 -translate-x-1/2">
-        <span className="text-[9px] text-muted/60 bg-surface/60 px-2 py-0.5 rounded-full border border-accent/10">
+        <span className="text-2xs text-muted/60 bg-surface/60 px-2 py-0.5 rounded-full border border-accent/10">
           {spreadInfo?.tag || spreadKey}
         </span>
       </div>

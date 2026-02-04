@@ -21,8 +21,8 @@ export const KeyThemesSection = memo(function KeyThemesSection({ insights }) {
       <div className={styles.sectionBody}>
         <ul className="space-y-2">
           {insights.map((line, idx) => (
-            <li key={idx} className="text-[14px] leading-relaxed text-[color:var(--text-muted)]">
-              <span className="mr-2 text-[color:var(--brand-primary)]">•</span>
+            <li key={idx} className="text-sm leading-relaxed text-muted">
+              <span className="mr-2 text-accent">•</span>
               {line}
             </li>
           ))}

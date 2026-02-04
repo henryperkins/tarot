@@ -22,14 +22,14 @@ function CadenceSection({ data = [], variant = 'mobile' }) {
 
   return (
     <div>
-      <p className="flex items-center gap-1.5 text-xs text-amber-100/60 mb-3">
+      <p className="flex items-center gap-1.5 text-xs text-muted mb-3">
         <ChartLine className="h-3 w-3" />
         Reading Rhythm
       </p>
 
       <CadenceChart data={data} height={chartHeight} />
 
-      <p className="mt-2 text-[10px] text-amber-100/50">
+      <p className="mt-2 text-2xs text-muted/70">
         {total} readings over {data.length} months ({avg}/month avg)
       </p>
     </div>

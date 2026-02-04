@@ -105,9 +105,9 @@ export default function ResetPasswordPage() {
 
           <form onSubmit={handleSubmit} className="mt-6 space-y-4">
             {tokenMissing && (
-              <div className="flex items-start gap-2 rounded-xl border border-amber-400/60 bg-amber-500/10 px-3 py-2 text-amber-50">
+              <div className="flex items-start gap-2 rounded-xl border border-warning/60 bg-warning/10 px-3 py-2 text-warning">
                 <WarningCircle className="mt-0.5 h-4 w-4 flex-shrink-0" weight="fill" aria-hidden="true" />
-                <p className="text-sm text-amber-50/90">
+                <p className="text-sm text-warning/90">
                   This reset link is missing a token. Try requesting a fresh link from the sign-in dialog.
                 </p>
               </div>

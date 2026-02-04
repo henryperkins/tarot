@@ -837,7 +837,7 @@ export function DeckRitual({
         <div className={`flex flex-wrap justify-center px-3 xs:px-4 ${isLandscape ? 'mt-2 gap-1.5' : 'mt-2 xs:mt-3 gap-1.5 xs:gap-2'}`}>
           {showCadenceReset && !knockComplete && (
             <span
-              className={`inline-flex items-center gap-1 px-2 py-1 rounded-full border border-amber-300/40 bg-amber-300/10 text-amber-100 motion-safe:animate-pulse text-xs-plus`}
+              className={`inline-flex items-center gap-1 px-2 py-1 rounded-full border border-warning/40 bg-warning/10 text-warning motion-safe:animate-pulse text-xs-plus`}
               role="status"
               aria-live="polite"
             >

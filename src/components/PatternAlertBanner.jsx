@@ -78,23 +78,23 @@ export default function PatternAlertBanner({ isAuthenticated }) {
   };
 
   return (
-    <div className="relative overflow-hidden rounded-xl border border-amber-300/30 bg-gradient-to-r from-amber-900/40 to-amber-800/40 p-4 mb-6 shadow-lg animate-fade-in">
-      <div className="absolute inset-0 bg-amber-400/5 mix-blend-overlay pointer-events-none" />
+    <div className="relative overflow-hidden rounded-xl border border-primary/25 bg-gradient-to-r from-primary/20 to-primary/10 p-4 mb-6 shadow-lg animate-fade-in">
+      <div className="absolute inset-0 bg-primary/5 mix-blend-overlay pointer-events-none" />
       <div className="relative flex items-start gap-3">
-        <div className="mt-0.5 flex-shrink-0 text-amber-300 animate-pulse-slow">
+        <div className="mt-0.5 flex-shrink-0 text-primary animate-pulse-slow">
           <Sparkle className="h-5 w-5" weight="fill" />
         </div>
         <div className="flex-1">
-          <h3 className="text-sm font-semibold text-amber-100">
+          <h3 className="text-sm font-semibold text-main">
             Recurring Pattern Detected
           </h3>
-          <p className="mt-1 text-xs text-amber-200/80 leading-relaxed">
-            The pattern <span className="font-serif text-amber-50">{patternName}</span> has appeared {topAlert.occurrence_count} times recently.
+          <p className="mt-1 text-xs text-muted leading-relaxed">
+            The pattern <span className="font-serif text-main">{patternName}</span> has appeared {topAlert.occurrence_count} times recently.
           </p>
           <button
             type="button"
             onClick={handleViewReadings}
-            className="mt-3 inline-flex items-center gap-1 rounded-full border border-amber-200/30 bg-amber-200/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-amber-100/80 hover:border-amber-200/50 hover:bg-amber-200/20 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/40"
+            className="mt-3 inline-flex items-center gap-1 rounded-full border border-primary/25 bg-primary/10 px-3 py-1 text-2xs font-semibold uppercase tracking-[0.18em] text-accent hover:border-primary/40 hover:bg-primary/20 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
             title={patternQuery ? `Filter journal by ${patternQuery}` : 'View readings in your journal'}
           >
             View readings
@@ -102,7 +102,7 @@ export default function PatternAlertBanner({ isAuthenticated }) {
         </div>
         <button
           onClick={handleDismiss}
-          className="flex-shrink-0 text-amber-200/50 hover:text-amber-100 transition-colors"
+          className="flex-shrink-0 text-muted/60 hover:text-main transition-colors"
         >
           <X className="h-4 w-4" />
         </button>

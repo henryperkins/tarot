@@ -54,11 +54,11 @@ export const CompactHeader = memo(function CompactHeader({
           </span>
 
           <div className="min-w-0 flex-1">
-            <h3 className="min-w-0 text-[13px] sm:text-[14px] font-semibold text-[color:var(--brand-primary)] truncate">
+            <h3 className="min-w-0 text-sm font-semibold text-accent truncate">
               {entry.spread || entry.spreadName || 'Reading'}
             </h3>
             {timestampLabel && (
-              <p className="mt-1 text-[11px] text-[color:var(--text-muted)] truncate">
+              <p className="mt-1 text-2xs text-muted truncate">
                 {timestampLabel}
               </p>
             )}

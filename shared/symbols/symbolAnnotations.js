@@ -291,7 +291,7 @@ export const SYMBOL_ANNOTATIONS = {
     symbols: [
       { object: 'large star', position: 'overhead', color: 'yellow', meaning: 'hope, guidance' },
       { object: 'seven smaller stars', position: 'around large star', meaning: 'chakras, inspiration' },
-      { object: 'naked figure', position: 'kneeling', meaning: 'vulnerability, authenticity' },
+      { object: 'ethereal figure', position: 'kneeling', meaning: 'vulnerability, authenticity' },
       { object: 'pitchers', position: 'pouring water', meaning: 'renewal, giving back' },
       { object: 'pool', position: 'left pitcher to', meaning: 'subconscious' },
       { object: 'land', position: 'right pitcher to', meaning: 'conscious manifestation' },
@@ -324,7 +324,7 @@ export const SYMBOL_ANNOTATIONS = {
   19: { // The Sun
     symbols: [
       { object: 'radiant sun with face', position: 'center sky', meaning: 'vitality, clarity' },
-      { object: 'naked child', position: 'on white horse', meaning: 'innocence, joy' },
+      { object: 'barefoot child', position: 'on white horse', meaning: 'innocence, joy' },
       { object: 'sunflowers', position: 'background wall', color: 'yellow', meaning: 'happiness, growth' },
       { object: 'red banner', position: "in child's hand", meaning: 'vitality, celebration' },
       { object: 'wall', position: 'behind', color: 'gray', meaning: 'boundaries overcome' }
@@ -875,7 +875,7 @@ export const SYMBOL_ANNOTATIONS = {
   55: { // Ten of Swords
     symbols: [
       { object: 'fallen figure', position: 'face-down', meaning: 'defeat, ending' },
-      { object: 'ten swords', position: 'in back', meaning: 'betrayal, rock bottom' },
+      { object: 'ten swords', position: 'surrounding, fading', meaning: 'betrayal, rock bottom' },
       { object: 'black sky', position: 'above', meaning: 'darkest hour' },
       { object: 'dawn light', position: 'horizon', color: 'yellow', meaning: 'new beginning coming' },
       { object: 'calm water', position: 'background', meaning: 'peace after storm' },

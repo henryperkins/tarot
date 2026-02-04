@@ -28,14 +28,14 @@ const FollowUpTurn = memo(function FollowUpTurn({ turn, fallbackTurnNumber }) {
 
   return (
     <li className={styles.turnCard}>
-      <div className="flex items-start justify-between gap-2 text-[12px] text-[color:var(--text-muted)]">
+      <div className="flex items-start justify-between gap-2 text-xs text-muted">
         <span className="flex items-center gap-2">
           <span className="font-semibold text-[color:var(--text-main)]">{turnLabel}</span>
           {tsLabel && <span aria-hidden="true">•</span>}
           {tsLabel && <span>{tsLabel}</span>}
         </span>
         {patterns.length > 0 && (
-          <span className="inline-flex items-center gap-1 text-[11px] text-[color:var(--brand-primary)]">
+          <span className="inline-flex items-center gap-1 text-2xs text-[color:var(--brand-primary)]">
             <Lightning className="h-3 w-3" weight="fill" aria-hidden="true" />
             {patterns.length} pattern{patterns.length === 1 ? '' : 's'}
           </span>
@@ -73,7 +73,7 @@ export const FollowUpSection = memo(function FollowUpSection({
           <Lightning className="h-4 w-4 text-[color:var(--brand-primary)]" aria-hidden="true" />
           <div className={styles.sectionLabel}>Follow-up chat</div>
         </div>
-        <span className="text-[12px] text-[color:var(--text-muted)]">{followUps.length}</span>
+        <span className="text-xs text-muted">{followUps.length}</span>
       </header>
 
       <div className={styles.sectionBody}>
@@ -93,20 +93,20 @@ export const FollowUpSection = memo(function FollowUpSection({
           </ol>
         ) : (
           <div className={styles.turnCard}>
-            <span className="text-[12px] text-[color:var(--text-muted)]">
+            <span className="text-xs text-muted">
               No follow-ups yet — Ask one.
             </span>
           </div>
         )}
 
         {hasHiddenFollowUps && (
-          <p className="mt-3 text-[11px] text-[color:var(--text-muted)]">
+          <p className="mt-3 text-2xs text-[color:var(--text-muted)]">
             Showing the most recent {followUpPreview.length} of {followUps.length} turns.
           </p>
         )}
 
         {isAuthenticated && (
-          <div className="mt-3 flex flex-wrap items-center gap-2 text-[11px] text-[color:var(--text-muted)]">
+          <div className="mt-3 flex flex-wrap items-center gap-2 text-2xs text-[color:var(--text-muted)]">
             <span>Limits reset per reading.</span>
             {!canAskFollowUp && effectiveTier === 'free' && (
               <a
@@ -156,7 +156,7 @@ export const FollowUpSection = memo(function FollowUpSection({
             </button>
           )}
 
-          <span className="text-[11px] text-[color:var(--text-muted)]">
+          <span className="text-2xs text-[color:var(--text-muted)]">
             {isAuthenticated
               ? `Follow-ups used: ${followUpTurnsUsed}/${followUpLimit}`
               : 'Sign in to unlock follow-up chat'}

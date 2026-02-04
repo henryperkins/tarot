@@ -140,20 +140,20 @@ export const QuickIntentionCard = forwardRef(function QuickIntentionCard({
         <ArrowsClockwise className="w-3.5 h-3.5" aria-hidden="true" />
         Inspire me
       </button>
-      <div className="flex flex-wrap items-center gap-2 text-[12px] text-secondary/80">
+      <div className="flex flex-wrap items-center gap-2 text-xs text-secondary/80">
         <span className="inline-flex items-center gap-1 rounded-full border border-secondary/40 bg-surface px-2.5 py-1 font-semibold text-secondary/90">
           Deck: {DECK_OPTIONS.find(d => d.id === deckStyleId)?.label || 'Selected'}
         </span>
         <button
           type="button"
           onClick={onDeckChange}
-          className="min-h-touch min-w-touch px-3 py-2 text-[12px] font-semibold text-secondary underline underline-offset-4 rounded-lg hover:bg-secondary/10 active:bg-secondary/20 transition touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+          className="min-h-touch min-w-touch px-3 py-2 text-xs font-semibold text-secondary underline underline-offset-4 rounded-lg hover:bg-secondary/10 active:bg-secondary/20 transition touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
         >
           Change
         </button>
       </div>
       {selectedSpread && userQuestion.trim().length > 0 && (
-        <p className="text-[12px] text-secondary/80">
+        <p className="text-xs text-secondary/80">
           Next: tap <span className="font-semibold text-main">Shuffle &amp; draw</span> below when you&apos;re ready.
         </p>
       )}

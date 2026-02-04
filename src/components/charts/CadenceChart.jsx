@@ -18,9 +18,9 @@ function CadenceTooltip({ active, payload, label }) {
 
   const data = payload[0]?.payload;
   return (
-    <div className="rounded-lg border border-amber-300/30 bg-[color:var(--surface-92)] px-3 py-2 shadow-lg backdrop-blur-sm">
-      <p className="text-xs font-medium text-amber-100">{data?.label || label}</p>
-      <p className="text-sm font-semibold text-amber-50">
+    <div className="rounded-lg border border-secondary/20 bg-[color:var(--surface-92)] px-3 py-2 shadow-lg backdrop-blur-sm">
+      <p className="text-xs font-medium text-muted">{data?.label || label}</p>
+      <p className="text-sm font-semibold text-main">
         {data?.count} reading{data?.count === 1 ? '' : 's'}
       </p>
     </div>
@@ -58,7 +58,7 @@ export const CadenceChart = memo(function CadenceChart({
 
   if (!data || data.length === 0) {
     return (
-      <div className="flex items-center justify-center py-4 text-sm text-amber-100/60">
+      <div className="flex items-center justify-center py-4 text-sm text-muted">
         <CalendarBlank className="mr-2 h-4 w-4" />
         Log readings to see your practice rhythm
       </div>

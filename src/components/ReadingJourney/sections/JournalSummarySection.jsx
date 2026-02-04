@@ -15,16 +15,16 @@ import { useSubscription } from '../../../contexts/SubscriptionContext';
 
 const BUTTON_CLASS = `
   flex items-center gap-2 px-4 py-2.5 min-h-touch rounded-xl text-sm font-medium
-  transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/50
+  transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50
   disabled:opacity-50 disabled:cursor-not-allowed touch-manipulation
 `;
 
 const PRIMARY_BUTTON_CLASS = `
   ${BUTTON_CLASS}
-  bg-gradient-to-r from-amber-500/20 to-amber-600/15
-  border border-amber-300/30 text-amber-50
-  hover:from-amber-500/30 hover:to-amber-600/25 hover:border-amber-300/40
-  shadow-[0_8px_20px_-10px_rgba(251,191,36,0.4)]
+  bg-gradient-to-r from-primary/20 to-primary/10
+  border border-primary/30 text-main
+  hover:from-primary/30 hover:to-primary/20 hover:border-primary/40
+  shadow-[0_8px_20px_-10px_rgb(var(--brand-primary-rgb)/0.4)]
 `;
 
 /**
@@ -36,7 +36,7 @@ function ProviderBadge({ provider }) {
   return (
     <span
       className={`
-        inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider
+        inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-2xs font-medium uppercase tracking-wider
         ${isAI
           ? 'bg-[color:color-mix(in_srgb,var(--brand-primary)_16%,transparent)] text-[color:var(--brand-primary)] border border-[color:color-mix(in_srgb,var(--brand-primary)_32%,transparent)]'
           : 'bg-[color:color-mix(in_srgb,var(--brand-secondary)_16%,transparent)] text-[color:var(--brand-secondary)] border border-[color:color-mix(in_srgb,var(--brand-secondary)_32%,transparent)]'
@@ -65,13 +65,13 @@ function ProviderBadge({ provider }) {
 function LoadingSkeleton() {
   return (
     <div className="space-y-3 animate-pulse">
-      <div className="h-4 bg-amber-200/10 rounded w-3/4" />
-      <div className="h-4 bg-amber-200/10 rounded w-full" />
-      <div className="h-4 bg-amber-200/10 rounded w-5/6" />
-      <div className="h-4 bg-amber-200/10 rounded w-2/3" />
-      <div className="mt-4 h-4 bg-amber-200/10 rounded w-1/2" />
-      <div className="h-4 bg-amber-200/10 rounded w-4/5" />
-      <div className="h-4 bg-amber-200/10 rounded w-3/4" />
+      <div className="h-4 bg-primary/10 rounded w-3/4" />
+      <div className="h-4 bg-primary/10 rounded w-full" />
+      <div className="h-4 bg-primary/10 rounded w-5/6" />
+      <div className="h-4 bg-primary/10 rounded w-2/3" />
+      <div className="mt-4 h-4 bg-primary/10 rounded w-1/2" />
+      <div className="h-4 bg-primary/10 rounded w-4/5" />
+      <div className="h-4 bg-primary/10 rounded w-3/4" />
     </div>
   );
 }
@@ -83,22 +83,22 @@ function UpgradeCTA() {
   const navigate = useNavigate();
 
   return (
-    <div className="rounded-xl border border-amber-300/15 bg-gradient-to-br from-amber-500/5 to-transparent p-4">
+    <div className="rounded-xl border border-primary/15 bg-gradient-to-br from-primary/5 to-transparent p-4">
       <div className="flex items-start gap-3">
-        <div className="rounded-full bg-amber-300/10 p-2">
-          <Sparkle className="h-5 w-5 text-amber-300" aria-hidden="true" />
+        <div className="rounded-full bg-primary/10 p-2">
+          <Sparkle className="h-5 w-5 text-primary" aria-hidden="true" />
         </div>
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-medium text-amber-50 mb-1">
+          <p className="text-sm font-medium text-main mb-1">
             AI Journal Summaries
           </p>
-          <p className="text-xs text-amber-100/70 mb-3">
+          <p className="text-xs text-muted mb-3">
             Get personalized insights across your readings with AI-powered summaries.
             Discover patterns, recurring themes, and guidance for your journey.
           </p>
           <button
             onClick={() => navigate('/settings/subscription')}
-            className="inline-flex items-center gap-1 text-xs font-medium text-amber-200 hover:text-amber-100 transition-colors"
+            className="inline-flex items-center gap-1 text-xs font-medium text-accent hover:text-main transition-colors"
           >
             Upgrade to Plus
             <CaretRight className="h-3 w-3" aria-hidden="true" />
@@ -118,29 +118,29 @@ function SummaryDisplay({ summary, meta, scopeNote, onClear }) {
       {/* Header with provider badge */}
       <div className="flex items-center justify-between gap-2">
         <ProviderBadge provider={meta?.provider} />
-        <span className="text-[10px] text-amber-100/50">
+        <span className="text-2xs text-muted/70">
           {meta?.totalEntries} {meta?.totalEntries === 1 ? 'entry' : 'entries'} analyzed
         </span>
       </div>
       {scopeNote && (
-        <p className="text-[10px] text-amber-100/60">
+        <p className="text-2xs text-muted">
           {scopeNote}
         </p>
       )}
 
       {/* Summary content */}
-      <div className="prose prose-sm prose-invert prose-amber max-w-none text-amber-100/85 leading-relaxed">
+      <div className="prose prose-sm prose-invert max-w-none text-muted-high leading-relaxed">
         <ReactMarkdown
           remarkPlugins={[remarkGfm]}
           components={{
-            h1: ({ children }) => <h3 className="text-base font-semibold text-amber-50 mt-4 mb-2 first:mt-0">{children}</h3>,
-            h2: ({ children }) => <h4 className="text-sm font-semibold text-amber-50 mt-3 mb-1.5">{children}</h4>,
-            h3: ({ children }) => <h5 className="text-sm font-medium text-amber-100 mt-2 mb-1">{children}</h5>,
-            p: ({ children }) => <p className="text-sm sm:text-[13px] leading-relaxed mb-2 last:mb-0">{children}</p>,
-            ul: ({ children }) => <ul className="list-disc list-inside space-y-1 text-sm sm:text-[13px] mb-2">{children}</ul>,
-            ol: ({ children }) => <ol className="list-decimal list-inside space-y-1 text-sm sm:text-[13px] mb-2">{children}</ol>,
-            li: ({ children }) => <li className="text-amber-100/80">{children}</li>,
-            strong: ({ children }) => <strong className="font-semibold text-amber-50">{children}</strong>,
+            h1: ({ children }) => <h3 className="text-base font-semibold text-main mt-4 mb-2 first:mt-0">{children}</h3>,
+            h2: ({ children }) => <h4 className="text-sm font-semibold text-main mt-3 mb-1.5">{children}</h4>,
+            h3: ({ children }) => <h5 className="text-sm font-medium text-muted-high mt-2 mb-1">{children}</h5>,
+            p: ({ children }) => <p className="text-sm leading-relaxed mb-2 last:mb-0">{children}</p>,
+            ul: ({ children }) => <ul className="list-disc list-inside space-y-1 text-sm mb-2">{children}</ul>,
+            ol: ({ children }) => <ol className="list-decimal list-inside space-y-1 text-sm mb-2">{children}</ol>,
+            li: ({ children }) => <li className="text-muted-high">{children}</li>,
+            strong: ({ children }) => <strong className="font-semibold text-main">{children}</strong>,
           }}
         >
           {summary}
@@ -148,11 +148,11 @@ function SummaryDisplay({ summary, meta, scopeNote, onClear }) {
       </div>
 
       {/* Actions */}
-      <div className="pt-2 border-t border-amber-200/10">
+      <div className="pt-2 border-t border-secondary/20">
         <button
           type="button"
           onClick={onClear}
-          className="text-xs text-amber-100/60 hover:text-amber-100/80 transition-colors"
+          className="text-xs text-muted/80 hover:text-muted-high transition-colors"
         >
           Generate new summary
         </button>
@@ -233,9 +233,9 @@ function JournalSummarySection({ isAuthenticated, entryCount = 0, filteredEntrie
   // No entries to summarize
   if (!hasEntries) {
     return (
-      <div className="rounded-xl border border-amber-300/10 bg-amber-200/5 p-4 text-center">
-        <Robot className="h-8 w-8 text-amber-100/30 mx-auto mb-2" aria-hidden="true" />
-        <p className="text-xs text-amber-100/60">
+      <div className="rounded-xl border border-secondary/20 bg-surface-muted/40 p-4 text-center">
+        <Robot className="h-8 w-8 text-muted/40 mx-auto mb-2" aria-hidden="true" />
+        <p className="text-xs text-muted">
           Complete a few readings to generate a summary of your journey.
         </p>
       </div>
@@ -269,7 +269,7 @@ function JournalSummarySection({ isAuthenticated, entryCount = 0, filteredEntrie
   if (isLoading) {
     return (
       <div className="space-y-3">
-        <div className="flex items-center gap-2 text-xs text-amber-100/70">
+        <div className="flex items-center gap-2 text-xs text-muted-high">
           <Sparkle className="h-4 w-4 animate-pulse" aria-hidden="true" />
           {scopeNote || 'Generating your journal summary...'}
         </div>
@@ -282,22 +282,22 @@ function JournalSummarySection({ isAuthenticated, entryCount = 0, filteredEntrie
   return (
     <div className="space-y-3">
       {/* Info text - positioned before selector for better screen reader flow */}
-      <p id="summary-info" className="text-xs sm:text-[10px] text-amber-100/50">
+      <p id="summary-info" className="text-xs sm:text-2xs text-muted/70">
         AI analyzes your readings to surface patterns, themes, and guidance.
       </p>
 
       {filtersApplied && (
         <div className="space-y-2">
-          <p className="text-xs sm:text-[10px] text-amber-100/50">Summary scope</p>
-          <div className="inline-flex rounded-full border border-amber-200/20 bg-amber-200/5 p-1">
+          <p className="text-xs sm:text-2xs text-muted/70">Summary scope</p>
+          <div className="inline-flex rounded-full border border-secondary/20 bg-surface-muted/40 p-1">
             <button
               type="button"
               onClick={() => {
                 setUserScopeMode('recent');
               }}
               className={`min-h-touch rounded-full px-3 text-xs font-semibold transition ${scopeMode === 'recent'
-                ? 'bg-amber-200/20 text-amber-50'
-                : 'text-amber-100/70 hover:text-amber-50'
+                ? 'bg-primary/20 text-main'
+                : 'text-muted hover:text-main'
               }`}
             >
               {recentLabel}
@@ -309,18 +309,18 @@ function JournalSummarySection({ isAuthenticated, entryCount = 0, filteredEntrie
               }}
               disabled={filteredCount === 0}
               className={`min-h-touch rounded-full px-3 text-xs font-semibold transition ${scopeMode === 'filters'
-                ? 'bg-amber-200/20 text-amber-50'
-                : 'text-amber-100/70 hover:text-amber-50'
+                ? 'bg-primary/20 text-main'
+                : 'text-muted hover:text-main'
               } ${filteredCount === 0 ? 'cursor-not-allowed opacity-50' : ''}`}
             >
               Current filters
             </button>
           </div>
-          <p className="text-[10px] text-amber-100/60">
+          <p className="text-2xs text-muted">
             {scopeNote}
           </p>
           {unfilteredNote && (
-            <p className="text-[10px] text-amber-100/60">
+            <p className="text-2xs text-muted">
               {unfilteredNote}
             </p>
           )}
@@ -329,14 +329,14 @@ function JournalSummarySection({ isAuthenticated, entryCount = 0, filteredEntrie
 
       {/* Limit selector */}
       <div className="flex items-center justify-between gap-2">
-        <label htmlFor="summary-limit" className="text-sm sm:text-xs text-amber-100/70">
+        <label htmlFor="summary-limit" className="text-sm sm:text-xs text-muted-high">
           {isFilterScope ? 'Summarize filtered entries' : 'Summarize recent entries'}
         </label>
         <select
           id="summary-limit"
           value={limit}
           onChange={(e) => setLimit(Number(e.target.value))}
-          className="min-h-touch rounded-lg border border-amber-200/20 bg-amber-200/5 px-3 py-2 text-sm text-amber-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/40 touch-manipulation"
+          className="min-h-touch rounded-lg border border-secondary/20 bg-surface-muted/40 px-3 py-2 text-sm-mobile sm:text-sm text-main focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 touch-manipulation"
           aria-describedby="summary-info"
         >
           {[3, 5, 7, 10].map((n) => (
@@ -347,7 +347,7 @@ function JournalSummarySection({ isAuthenticated, entryCount = 0, filteredEntrie
         </select>
       </div>
       {!filtersApplied && (
-        <p className="text-[10px] text-amber-100/60">
+        <p className="text-2xs text-muted">
           {scopeNote}
         </p>
       )}
@@ -367,7 +367,7 @@ function JournalSummarySection({ isAuthenticated, entryCount = 0, filteredEntrie
 
       {/* Error display */}
       {error && (
-        <p className="text-sm sm:text-xs text-red-300/80 mt-2">
+        <p className="text-sm sm:text-xs text-error/80 mt-2">
           {error}
         </p>
       )}

@@ -41,15 +41,15 @@ export function JournalFloatingControls({
       className="fixed z-40 flex flex-col items-end gap-2 right-[max(var(--safe-pad-right),clamp(1rem,2vw,1.5rem))] bottom-[max(var(--safe-pad-bottom),clamp(1rem,2vw,1.5rem))]"
     >
       {showActiveFilters && (
-        <div className="max-w-sm rounded-2xl border border-[color:var(--border-warm-subtle)] bg-[color:var(--surface-92)] px-3 py-2 text-[11px] text-muted shadow-[0_22px_55px_-28px_rgba(0,0,0,0.85)] backdrop-blur">
-          <p className="mb-1 text-[10px] uppercase tracking-[0.16em] text-muted">Filters</p>
+        <div className="max-w-sm rounded-2xl border border-[color:var(--border-warm-subtle)] bg-[color:var(--surface-92)] px-3 py-2 text-2xs text-muted shadow-[0_22px_55px_-28px_rgba(0,0,0,0.85)] backdrop-blur">
+          <p className="mb-1 text-2xs uppercase tracking-[0.16em] text-muted">Filters</p>
           <div className="flex flex-wrap items-center gap-1.5">
             {activeFilterChips.map((chip) => (
               <button
                 key={`floating-${chip.key}`}
                 type="button"
                 onClick={() => onRemoveFilter?.(chip.key)}
-                className="inline-flex items-center gap-1 rounded-full border border-[color:var(--border-warm-light)] bg-[color:var(--border-warm-subtle)] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-muted"
+                className="inline-flex items-center gap-1 rounded-full border border-[color:var(--border-warm-light)] bg-[color:var(--border-warm-subtle)] px-2 py-0.5 text-2xs font-semibold uppercase tracking-[0.16em] text-muted"
                 aria-label={`Remove ${chip.label} filter`}
               >
                 {chip.label}
@@ -59,7 +59,7 @@ export function JournalFloatingControls({
             <button
               type="button"
               onClick={onResetFilters}
-              className="inline-flex items-center gap-1 rounded-full border border-[color:var(--border-warm-light)] bg-[color:var(--border-warm-subtle)] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-main hover:border-[color:var(--border-warm)] hover:bg-[color:var(--accent-25)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)]"
+              className="inline-flex items-center gap-1 rounded-full border border-[color:var(--border-warm-light)] bg-[color:var(--border-warm-subtle)] px-2 py-0.5 text-2xs font-semibold uppercase tracking-[0.16em] text-main hover:border-[color:var(--border-warm)] hover:bg-[color:var(--accent-25)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)]"
             >
               Reset
             </button>

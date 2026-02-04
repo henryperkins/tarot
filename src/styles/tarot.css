@@ -193,7 +193,7 @@
   --touch-target-cta: 52px;
 
   /* Mobile typography */
-  --text-sm-mobile: 0.9375rem;
+  --text-sm-mobile: 1rem;
 
   /* Safe area - for calc() compositions */
   --safe-pad-top: env(safe-area-inset-top, 0px);
@@ -249,6 +249,14 @@
       var(--pentacles-accent) 25%,
       transparent
     );
+  }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  :root {
+    --surface-88: var(--bg-surface);
+    --surface-92: var(--bg-surface);
+    --main-45: var(--bg-main);
   }
 }
 
@@ -335,7 +343,7 @@ body {
   .reading-content p,
   .reading-content li,
   .reading-content dd {
-    font-size: var(--text-sm-mobile); /* 15px */
+    font-size: var(--text-sm-mobile); /* 16px */
     line-height: 1.6;
   }
 
@@ -2563,6 +2571,56 @@ input[type="range"]:focus::-webkit-slider-thumb {
   animation: cardDeal var(--duration-slower, 600ms) var(--ease-out) forwards;
 }
 
+/* Ghost card trail (deck-to-slot travel) */
+.ghost-card {
+  --ghost-trail-color: var(--brand-primary);
+}
+
+.ghost-card--wands {
+  --ghost-trail-color: var(--wands-accent);
+}
+
+.ghost-card--cups {
+  --ghost-trail-color: var(--cups-accent);
+}
+
+.ghost-card--swords {
+  --ghost-trail-color: var(--swords-accent);
+}
+
+.ghost-card--pentacles {
+  --ghost-trail-color: var(--pentacles-accent);
+}
+
+.ghost-card-trail {
+  position: absolute;
+  inset: -35% -40% -45% -40%;
+  background:
+    radial-gradient(circle at 60% 40%, color-mix(in srgb, var(--ghost-trail-color) 35%, transparent), transparent 55%),
+    radial-gradient(circle at 20% 70%, color-mix(in srgb, var(--ghost-trail-color) 25%, transparent), transparent 60%),
+    radial-gradient(circle at 80% 80%, color-mix(in srgb, var(--ghost-trail-color) 18%, transparent), transparent 62%);
+  opacity: 0.7;
+  filter: blur(6px);
+  mix-blend-mode: screen;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .ghost-card-trail {
+    animation: ghostTrailDrift 0.45s ease-out forwards;
+  }
+}
+
+@keyframes ghostTrailDrift {
+  0% {
+    opacity: 0.7;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate3d(10%, -8%, 0) scale(1.05);
+  }
+}
+
 /* Knock ripple */
 @keyframes knockRipple {
   0% {
@@ -3064,6 +3122,7 @@ input[type="range"]:focus::-webkit-slider-thumb {
   /* Ensure pseudo-elements can sit behind text without affecting outside stacking */
   isolation: isolate;
   z-index: var(--z-base);
+  --narrative-tint: radial-gradient(circle at 50% 50%, rgba(232, 218, 195, 0.08), transparent 60%);
 }
 
 .narrative-atmosphere::before,
@@ -3095,7 +3154,11 @@ input[type="range"]:focus::-webkit-slider-thumb {
   position: absolute;
   inset: 0;
   pointer-events: none;
-  background: none;
+  background:
+    radial-gradient(circle at 22% 18%, var(--narrative-phase-shift), transparent 55%),
+    radial-gradient(circle at 78% 88%, var(--narrative-bias-tint), transparent 60%),
+    radial-gradient(circle at 50% 100%, var(--narrative-suit-tint), transparent 62%),
+    var(--narrative-tint);
   /* Decorative wash: keep it subtle so contrast stays high */
   opacity: 0.15;
 }
@@ -3142,12 +3205,103 @@ input[type="range"]:focus::-webkit-slider-thumb {
         color-mix(in srgb, var(--brand-secondary) 10%, transparent),
         transparent 55%
       ),
+      radial-gradient(circle at 22% 18%, var(--narrative-phase-shift), transparent 55%),
+      radial-gradient(circle at 78% 88%, var(--narrative-bias-tint), transparent 60%),
+      radial-gradient(circle at 50% 100%, var(--narrative-suit-tint), transparent 62%),
+      var(--narrative-tint),
       radial-gradient(
         circle at 50% 50%,
         transparent,
         color-mix(in srgb, var(--bg-main) 35%, transparent)
       );
   }
+}
+
+.narrative-atmosphere--warm {
+  --narrative-tint: radial-gradient(circle at 50% 100%, rgba(226, 186, 132, 0.22), transparent 68%);
+}
+
+.narrative-atmosphere--cool {
+  --narrative-tint: radial-gradient(circle at 50% 0%, rgba(120, 161, 255, 0.18), transparent 70%);
+}
+
+.narrative-atmosphere--radiant {
+  --narrative-tint: radial-gradient(circle at 50% 15%, rgba(232, 218, 195, 0.28), transparent 60%);
+}
+
+.narrative-atmosphere--grounded {
+  --narrative-tint: radial-gradient(circle at 50% 90%, rgba(138, 153, 133, 0.22), transparent 68%);
+}
+
+.narrative-atmosphere--shadow {
+  --narrative-tint: radial-gradient(circle at 50% 50%, rgba(110, 86, 140, 0.22), transparent 72%);
+}
+
+/* Narrative atmosphere phase + bias + suit accents */
+.narrative-atmosphere--phase-analyzing {
+  --narrative-phase-shift: rgba(120, 145, 190, 0.12);
+}
+
+.narrative-atmosphere--phase-drafting {
+  --narrative-phase-shift: rgba(232, 198, 145, 0.14);
+}
+
+.narrative-atmosphere--phase-polishing {
+  --narrative-phase-shift: rgba(210, 220, 170, 0.16);
+}
+
+.narrative-atmosphere--phase-complete {
+  --narrative-phase-shift: rgba(212, 184, 150, 0.18);
+}
+
+.narrative-atmosphere--bias-hopeful {
+  --narrative-bias-tint: rgba(232, 218, 195, 0.2);
+}
+
+.narrative-atmosphere--bias-grounded {
+  --narrative-bias-tint: rgba(138, 153, 133, 0.2);
+}
+
+.narrative-atmosphere--bias-transformative {
+  --narrative-bias-tint: rgba(160, 120, 210, 0.2);
+}
+
+.narrative-atmosphere--bias-contemplative {
+  --narrative-bias-tint: rgba(120, 161, 255, 0.16);
+}
+
+.narrative-atmosphere--bias-action {
+  --narrative-bias-tint: rgba(201, 168, 118, 0.24);
+}
+
+.narrative-atmosphere--bias-clarifying {
+  --narrative-bias-tint: rgba(168, 178, 200, 0.2);
+}
+
+.narrative-atmosphere--bias-balanced {
+  --narrative-bias-tint: rgba(232, 218, 195, 0.14);
+}
+
+.narrative-atmosphere--suit-wands {
+  --narrative-suit-tint: rgba(201, 168, 118, 0.2);
+}
+
+.narrative-atmosphere--suit-cups {
+  --narrative-suit-tint: rgba(139, 149, 165, 0.2);
+}
+
+.narrative-atmosphere--suit-swords {
+  --narrative-suit-tint: rgba(107, 114, 128, 0.2);
+}
+
+.narrative-atmosphere--suit-pentacles {
+  --narrative-suit-tint: rgba(138, 153, 133, 0.2);
+}
+
+.narrative-atmosphere {
+  --narrative-phase-shift: rgba(0, 0, 0, 0);
+  --narrative-bias-tint: rgba(0, 0, 0, 0);
+  --narrative-suit-tint: rgba(0, 0, 0, 0);
 }
 
 @media (prefers-reduced-motion: no-preference) {
@@ -3206,6 +3360,38 @@ input[type="range"]:focus::-webkit-slider-thumb {
   font-size: 0.75rem;
   line-height: 1;
   text-shadow: 0 0 10px var(--accent-25, rgba(232, 218, 195, 0.25));
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .animate-section-enter {
+    animation: narrativeSectionEnter 420ms ease-out both;
+  }
+
+  .animate-divider-enter {
+    animation: narrativeDividerReveal 520ms ease-out both;
+  }
+}
+
+@keyframes narrativeSectionEnter {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes narrativeDividerReveal {
+  from {
+    opacity: 0;
+    transform: scaleX(0.92);
+  }
+  to {
+    opacity: 1;
+    transform: scaleX(1);
+  }
 }
 
 @supports (color: color-mix(in srgb, red 50%, blue)) {
@@ -3294,7 +3480,7 @@ input[type="range"]:focus::-webkit-slider-thumb {
 /* Mobile (<= 639px): optimize narrative reading */
 @media (max-width: 639px) {
   .prose {
-    font-size: var(--text-sm-mobile); /* 15px - slightly smaller for mobile */
+    font-size: var(--text-sm-mobile); /* 16px - tuned for mobile legibility */
     line-height: 1.7;
   }
 
@@ -3468,6 +3654,11 @@ input[type="range"]:focus::-webkit-slider-thumb {
   font-size: 0.75rem;
   color: var(--text-muted);
   letter-spacing: 0.01em;
+}
+
+.narrative-skeleton__arc {
+  text-align: left;
+  box-shadow: 0 14px 30px -24px color-mix(in srgb, var(--brand-secondary) 35%, transparent);
 }
 
 .narrative-skeleton__step {

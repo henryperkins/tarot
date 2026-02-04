@@ -5,6 +5,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useSubscription, SUBSCRIPTION_TIERS } from '../contexts/SubscriptionContext';
 import { usePreferences } from '../contexts/PreferencesContext';
 import { ConfirmModal } from './ConfirmModal';
+import AuthModal from './AuthModal';
 
 export function UserMenu({ condensed = false }) {
   const { isAuthenticated, user, logout } = useAuth();
@@ -15,6 +16,7 @@ export function UserMenu({ condensed = false }) {
   const [journeyLoading, setJourneyLoading] = useState(false);
   const [journeyError, setJourneyError] = useState(null);
   const [tutorialResetOpen, setTutorialResetOpen] = useState(false);
+  const [showAuthModal, setShowAuthModal] = useState(false);
   const dropdownRef = useRef(null);
   const triggerRef = useRef(null);
 
@@ -205,14 +207,14 @@ export function UserMenu({ condensed = false }) {
                     <p className="text-xs text-muted">Signed in as</p>
                     <p className="text-sm font-semibold text-accent truncate">{user?.username}</p>
                     {user?.email && (
-                      <p className="text-[11px] text-muted/70 truncate mt-0.5">{user.email}</p>
+                      <p className="text-2xs text-muted/70 truncate mt-0.5">{user.email}</p>
                     )}
                     {/* Subscription tier badge */}
                     <div className="mt-2 flex items-center gap-1.5">
                       {tier === 'pro' && <Crown className="h-3.5 w-3.5 text-accent" weight="fill" />}
                       {tier === 'plus' && <Sparkle className="h-3.5 w-3.5 text-accent" weight="fill" />}
                       {tier === 'free' && <Moon className="h-3.5 w-3.5 text-muted" weight="fill" />}
-                      <span className={`text-[11px] font-medium ${isPaid ? 'text-accent' : 'text-muted'}`}>
+                      <span className={`text-2xs font-medium ${isPaid ? 'text-accent' : 'text-muted'}`}>
                         {SUBSCRIPTION_TIERS[tier]?.name || 'Seeker'} Plan
                       </span>
                     </div>
@@ -223,16 +225,16 @@ export function UserMenu({ condensed = false }) {
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
                         <p className="text-sm font-semibold text-main">
-                          Archetype Journey <span className="text-[11px] text-muted">(optional)</span>
+                          Archetype Journey <span className="text-2xs text-muted">(optional)</span>
                         </p>
-                        <p className="text-[11px] text-muted mt-0.5">
+                        <p className="text-2xs text-muted mt-0.5">
                           Track recurring cards and patterns.
                         </p>
                         <div className="mt-1 flex flex-wrap items-center gap-3">
                           <Link
                             to="/journal"
                             onClick={closeDropdown}
-                            className="text-[11px] text-accent hover:text-accent/80"
+                            className="text-2xs text-accent hover:text-accent/80"
                           >
                             View Journey
                           </Link>
@@ -240,7 +242,7 @@ export function UserMenu({ condensed = false }) {
                             <button
                               type="button"
                               onClick={handleRetryJourney}
-                              className="text-[11px] text-muted hover:text-main"
+                              className="text-2xs text-muted hover:text-main"
                             >
                               Retry
                             </button>
@@ -275,7 +277,7 @@ export function UserMenu({ condensed = false }) {
                       </button>
                     </div>
                     {journeyError && (
-                      <p className="text-[11px] text-error mt-2">{journeyError}</p>
+                      <p className="text-2xs text-error mt-2">{journeyError}</p>
                     )}
                   </div>
 
@@ -302,7 +304,7 @@ export function UserMenu({ condensed = false }) {
                           <p className="text-sm font-semibold text-accent">
                             Upgrade to {nextTierConfig.label}
                           </p>
-                          <p className="text-[11px] text-muted">
+                          <p className="text-2xs text-muted">
                             ${nextTierConfig.price}/month
                           </p>
                         </div>
@@ -408,8 +410,8 @@ export function UserMenu({ condensed = false }) {
               <Gear className="w-4 h-4" aria-hidden="true" />
               <span className="hidden xs:inline">Settings</span>
             </Link>
-            <a
-              href="/api/login"
+            <button
+              onClick={() => setShowAuthModal(true)}
               className="
                 flex items-center gap-1.5 px-3 sm:px-4 min-h-touch
                 rounded-full bg-primary text-surface
@@ -422,7 +424,7 @@ export function UserMenu({ condensed = false }) {
             >
               <SignIn className="w-4 h-4" aria-hidden="true" />
               <span>Sign In</span>
-            </a>
+            </button>
           </div>
         )}
       </div>
@@ -436,6 +438,8 @@ export function UserMenu({ condensed = false }) {
         confirmText="Replay tutorial"
         cancelText="Cancel"
       />
+
+      <AuthModal isOpen={showAuthModal} onClose={() => setShowAuthModal(false)} />
     </>
   );
 }

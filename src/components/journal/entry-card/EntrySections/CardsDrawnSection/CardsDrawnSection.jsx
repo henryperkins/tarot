@@ -36,7 +36,7 @@ export const CardsDrawnSection = memo(function CardsDrawnSection({
       <section className={cn(styles.section, hasQuestion && 'mt-4')} role="group" aria-label="Cards drawn in this reading">
         <header className={styles.sectionHeader}>
           <div className={styles.sectionLabel}>Cards drawn</div>
-          <span className="text-[12px] text-[color:var(--text-muted)]">0</span>
+          <span className="text-xs text-muted">0</span>
         </header>
         <div className={styles.sectionBody}>
           <p className="text-sm text-[color:var(--text-muted)]">No cards recorded for this entry.</p>
@@ -57,7 +57,7 @@ export const CardsDrawnSection = memo(function CardsDrawnSection({
         >
           <div className="flex items-center gap-3">
             <div className={styles.sectionLabel}>Cards drawn</div>
-            <span className="text-[12px] text-[color:var(--text-muted)]">({cardItems.length})</span>
+            <span className="text-xs text-muted">({cardItems.length})</span>
           </div>
           <div className="text-[color:var(--text-muted)]">
             {cardFan.showExpanded ? (
@@ -70,7 +70,7 @@ export const CardsDrawnSection = memo(function CardsDrawnSection({
       ) : (
         <header className={styles.sectionHeader}>
           <div className={styles.sectionLabel}>Cards drawn</div>
-          <span className="text-[12px] text-[color:var(--text-muted)]">{cardItems.length}</span>
+          <span className="text-xs text-muted">{cardItems.length}</span>
         </header>
       )}
 

@@ -94,8 +94,8 @@ export const AlertsList = memo(function AlertsList({
     return (
       <div className="rounded-2xl border border-secondary/30 bg-surface p-6">
         <div className="flex flex-col items-center justify-center py-4 text-center">
-          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-emerald-500/10 mb-3">
-            <CheckCircle className="h-6 w-6 text-emerald-400" weight="duotone" />
+          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-success/10 mb-3">
+            <CheckCircle className="h-6 w-6 text-success" weight="duotone" />
           </div>
           <p className="text-sm font-medium text-main">All clear</p>
           <p className="text-xs text-muted mt-1">No unacknowledged alerts</p>

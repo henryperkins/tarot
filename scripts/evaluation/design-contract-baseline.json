@@ -1,0 +1,21 @@
+{
+  "createdAt": "2026-02-03T16:51:50.202Z",
+  "roots": [
+    "src"
+  ],
+  "arbitraryTextPx": {
+    "count": 0,
+    "matches": []
+  },
+  "nonTokenTailwindColors": {
+    "total": 0,
+    "byColor": {}
+  },
+  "nonTokenProseColors": {
+    "total": 0,
+    "byColor": {}
+  },
+  "rawRgbaColorLiterals": {
+    "count": 41
+  }
+}

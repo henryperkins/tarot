@@ -53,22 +53,22 @@ export function JournalSummaryBand({
   const paddingClass = embedded ? 'p-4 sm:p-5 lg:p-6' : 'p-5 sm:p-6 lg:p-8';
   const headerSpacingClass = embedded ? 'mb-3 space-y-1.5' : 'mb-5 lg:mb-4 space-y-2';
   const pulseLabelClass = embedded
-    ? 'text-[10px] uppercase tracking-[0.24em] text-muted-high'
+    ? 'text-2xs uppercase tracking-[0.24em] text-muted-high'
     : 'text-xs uppercase tracking-[0.2em] text-muted mb-1';
   const pulseTitleClass = embedded
     ? 'text-lg sm:text-xl font-serif text-main'
     : 'text-xl sm:text-2xl font-serif text-main';
   const scopeLabelClass = embedded
-    ? 'text-[9px] uppercase tracking-[0.16em] text-muted'
-    : 'text-[10px] uppercase tracking-[0.18em] text-muted';
-  const scopeButtonSizeClass = embedded ? 'px-2.5 py-0.5 text-[10px]' : 'px-3 py-1 text-[11px]';
-  const scopeSummaryClass = embedded ? 'text-[10px] text-muted' : 'text-[11px] text-muted';
+    ? 'text-2xs uppercase tracking-[0.16em] text-muted'
+    : 'text-2xs uppercase tracking-[0.18em] text-muted';
+  const scopeButtonSizeClass = embedded ? 'px-2.5 py-0.5 text-2xs' : 'px-3 py-1 text-2xs';
+  const scopeSummaryClass = embedded ? 'text-2xs text-muted' : 'text-2xs text-muted';
   const scopeChipClass = embedded
-    ? 'px-2 py-0.5 text-[9px] font-semibold uppercase tracking-[0.14em] text-muted-high'
-    : 'px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-high';
+    ? 'px-2 py-0.5 text-2xs font-semibold uppercase tracking-[0.14em] text-muted-high'
+    : 'px-2.5 py-0.5 text-2xs font-semibold uppercase tracking-[0.16em] text-muted-high';
   const filterNoticeClass = embedded
-    ? 'px-2.5 py-0.5 text-[10px] text-muted-high'
-    : 'px-3 py-1 text-[11px] text-muted-high';
+    ? 'px-2.5 py-0.5 text-2xs text-muted-high'
+    : 'px-3 py-1 text-2xs text-muted-high';
 
   useEffect(() => {
     if (!isMobileLayout) {
@@ -172,14 +172,14 @@ export function JournalSummaryBand({
           </div>
 
           {analyticsScope === 'custom' && (
-            <div className="flex flex-wrap items-center gap-2 text-[12px] text-muted-high">
+            <div className="flex flex-wrap items-center gap-2 text-xs text-muted-high">
               <label className="flex items-center gap-1">
                 From
                 <input
                   type="date"
                   value={customScope.start}
                   onChange={(event) => onCustomScopeChange('start', event.target.value)}
-                  className="rounded border border-[color:var(--border-warm-light)] bg-[color:var(--border-warm-subtle)] px-2 py-1 text-xs text-[color:var(--text-main)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--accent-45)]"
+                  className="rounded border border-[color:var(--border-warm-light)] bg-[color:var(--border-warm-subtle)] px-2 py-1 text-sm-mobile text-main focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--accent-45)]"
                 />
               </label>
               <label className="flex items-center gap-1">
@@ -188,11 +188,11 @@ export function JournalSummaryBand({
                   type="date"
                   value={customScope.end}
                   onChange={(event) => onCustomScopeChange('end', event.target.value)}
-                  className="rounded border border-[color:var(--border-warm-light)] bg-[color:var(--border-warm-subtle)] px-2 py-1 text-xs text-[color:var(--text-main)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--accent-45)]"
+                  className="rounded border border-[color:var(--border-warm-light)] bg-[color:var(--border-warm-subtle)] px-2 py-1 text-sm-mobile text-main focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--accent-45)]"
                 />
               </label>
               {scopeError && (
-                <span className="text-[11px] text-[color:var(--status-error)]">{scopeError}</span>
+                <span className="text-2xs text-[color:var(--status-error)]">{scopeError}</span>
               )}
             </div>
           )}
@@ -343,14 +343,14 @@ export function JournalSummaryBand({
                         />
                         <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/50 via-black/5 to-transparent" />
                         {index === 0 && heroDateLabel && (
-                          <div className="absolute left-1.5 top-1.5 rounded-full bg-[color:var(--accent-25)] px-1.5 py-0.5 text-[8px] font-semibold text-main">
+                          <div className="absolute left-1.5 top-1.5 rounded-full bg-[color:var(--accent-25)] px-1.5 py-0.5 text-2xs leading-none font-semibold text-main">
                             {heroDateLabel}
                           </div>
                         )}
                       </div>
                       <div className="px-2 pb-2 pt-1.5">
                         <p className="font-serif text-xs text-main leading-tight truncate">{card.name}</p>
-                        <p className="text-[9px] text-muted">{card.orientation}</p>
+                        <p className="text-2xs text-muted">{card.orientation}</p>
                       </div>
                     </button>
 
@@ -361,15 +361,15 @@ export function JournalSummaryBand({
                       }`}
                     >
                       <div className="w-36 sm:w-40 h-full rounded-r-xl border-y border-r border-[color:var(--border-warm-light)] bg-[linear-gradient(135deg,var(--panel-dark-2),var(--panel-dark-1))] p-2 flex flex-col">
-                        <p className="text-[9px] uppercase tracking-wider text-muted mb-1">
+                        <p className="text-2xs uppercase tracking-wider text-muted mb-1">
                           {suitInfo ? suitInfo.element : isMajor ? 'Major Arcana' : 'Insight'}
                         </p>
                         {suitInfo && (
-                          <p className="text-[9px] text-muted-high mb-1.5 leading-tight">
+                          <p className="text-2xs text-muted-high mb-1.5 leading-tight">
                             {suitInfo.quality}
                           </p>
                         )}
-                        <p className="text-[10px] text-muted-high leading-relaxed overflow-hidden flex-1" style={{ display: '-webkit-box', WebkitLineClamp: suitInfo ? 4 : 5, WebkitBoxOrient: 'vertical' }}>
+                        <p className="text-2xs text-muted-high leading-relaxed overflow-hidden flex-1" style={{ display: '-webkit-box', WebkitLineClamp: suitInfo ? 4 : 5, WebkitBoxOrient: 'vertical' }}>
                           {meaning || 'Explore this card\'s traditional symbolism and personal significance in your reading.'}
                         </p>
                       </div>
@@ -614,7 +614,7 @@ export function JournalSummaryBand({
                             </div>
                             {/* Label at bottom like tarot card name */}
                             <div className="border-t border-[color:var(--border-warm-subtle)] pt-1.5 w-full">
-                              <p className="text-[8px] uppercase tracking-[0.2em] text-muted mb-0.5">{stat.label}</p>
+                              <p className="text-2xs leading-none uppercase tracking-[0.2em] text-muted mb-0.5">{stat.label}</p>
                               <p className="font-serif text-lg text-main leading-tight">{stat.value}</p>
                             </div>
                           </>
@@ -630,7 +630,7 @@ export function JournalSummaryBand({
                             </div>
 
                             {/* Label */}
-                            <p className={`text-[9px] uppercase tracking-[0.2em] mb-1.5 ${
+                            <p className={`text-2xs uppercase tracking-[0.2em] mb-1.5 ${
                               isHero ? 'text-[color:var(--text-accent)]' : 'text-muted'
                             }`}>
                               {stat.label}
@@ -647,7 +647,7 @@ export function JournalSummaryBand({
 
                             {/* Hint */}
                             {stat.hint && (
-                              <p className={`mt-1.5 text-[10px] leading-snug max-w-[100px] ${
+                              <p className={`mt-1.5 text-2xs leading-snug max-w-[100px] ${
                                 isHero ? 'text-muted-high' : 'text-muted'
                               }`}>
                                 {stat.hint}

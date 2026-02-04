@@ -1,0 +1,10 @@
+{
+  "servers": {
+    "typescript": {
+      "command": "typescript-language-server",
+      "args": ["--stdio"],
+      "languages": ["javascript", "javascriptreact", "typescript", "typescriptreact"],
+      "filePatterns": ["**/*.js", "**/*.jsx", "**/*.ts", "**/*.tsx", "**/*.mjs"]
+    }
+  }
+}

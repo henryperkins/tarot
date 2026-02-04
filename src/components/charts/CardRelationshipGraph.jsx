@@ -109,7 +109,7 @@ const CardRelationshipGraph = memo(function CardRelationshipGraph({ cards = [], 
           ))}
         </svg>
       </div>
-      <div className="flex gap-4 mt-2 text-[10px] text-muted">
+      <div className="flex gap-4 mt-2 text-2xs text-muted">
         <span className="flex items-center gap-1">
           <span className="w-2 h-2 bg-[color:var(--border-warm-subtle)] border border-[color:var(--border-warm-light)] rounded-sm"></span>
           Triad

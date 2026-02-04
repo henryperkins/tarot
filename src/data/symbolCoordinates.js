@@ -954,7 +954,7 @@ export const SYMBOL_COORDINATES = {
         indicatorCy: 150
       },
       {
-        symbol: SYMBOL_ANNOTATIONS[17].symbols[2], // Naked figure
+        symbol: SYMBOL_ANNOTATIONS[17].symbols[2], // Ethereal figure
         shape: 'rect',
         x: 200,
         y: 400,
@@ -1064,7 +1064,7 @@ export const SYMBOL_COORDINATES = {
         indicatorCy: 200
       },
       {
-        symbol: SYMBOL_ANNOTATIONS[19].symbols[1], // Naked child on horse
+        symbol: SYMBOL_ANNOTATIONS[19].symbols[1], // Barefoot child on horse
         shape: 'rect',
         x: 200,
         y: 650,

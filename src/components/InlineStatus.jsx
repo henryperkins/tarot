@@ -7,7 +7,7 @@ const TONE_STYLES = {
   },
   warning: {
     icon: WarningCircle,
-    className: 'text-accent'
+    className: 'text-warning'
   },
   error: {
     icon: XCircle,

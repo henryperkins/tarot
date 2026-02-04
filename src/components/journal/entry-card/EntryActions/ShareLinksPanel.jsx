@@ -57,7 +57,7 @@ export const ShareLinksPanel = memo(function ShareLinksPanel({
   return (
     <div className="mt-3 rounded-xl border border-[color:var(--border-warm)] bg-[color:var(--main-45)] p-3 shadow-[0_14px_36px_-24px_rgba(0,0,0,0.8)]">
       <div className="flex items-center justify-between gap-2">
-        <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[color:var(--text-muted)]">
+        <p className="text-2xs font-semibold uppercase tracking-[0.18em] text-[color:var(--text-muted)]">
           Active share links
         </p>
         {shareLoading ? (
@@ -66,14 +66,14 @@ export const ShareLinksPanel = memo(function ShareLinksPanel({
             aria-label="Loading share links"
           />
         ) : (
-          <span className="text-[11px] text-[color:var(--text-muted)]">
+          <span className="text-2xs text-[color:var(--text-muted)]">
             {shareLinksPreview.length > 0 ? `${shareLinksPreview.length}${extraShareLinks ? '+' : ''} shown` : 'None'}
           </span>
         )}
       </div>
 
       {shareError && (
-        <p className="mt-1 text-[11px] text-[color:var(--status-error)]" aria-live="polite">
+        <p className="mt-1 text-2xs text-[color:var(--status-error)]" aria-live="polite">
           {shareError}
         </p>
       )}
@@ -90,7 +90,7 @@ export const ShareLinksPanel = memo(function ShareLinksPanel({
       )}
 
       {!shareLoading && !shareError && shareLinksPreview.length === 0 && (
-        <p className="mt-2 text-[12px] text-[color:var(--text-muted)]">
+        <p className="mt-2 text-xs text-muted">
           No active links for this reading yet—create one to share it.
         </p>
       )}
@@ -110,11 +110,11 @@ export const ShareLinksPanel = memo(function ShareLinksPanel({
                     <p className="truncate text-sm font-semibold text-[color:var(--text-main)]">
                       {link.title || 'Untitled link'}
                     </p>
-                    <p className="truncate text-[11px] text-[color:var(--text-muted)]">
+                    <p className="truncate text-2xs text-[color:var(--text-muted)]">
                       {getShareScopeLabel(link)} · {meta}
                     </p>
                   </div>
-                  <span className="text-[11px] text-[color:var(--text-muted)]">
+                  <span className="text-2xs text-[color:var(--text-muted)]">
                     {link.viewCount || 0} views
                   </span>
                 </div>
@@ -123,7 +123,7 @@ export const ShareLinksPanel = memo(function ShareLinksPanel({
                     type="button"
                     onClick={() => onCopyShareLink(link.token)}
                     disabled={isShareLinkPending}
-                    className="inline-flex items-center gap-1 rounded-full border border-[color:var(--border-warm-light)] bg-[color:var(--border-warm-subtle)] px-2.5 py-1 text-[11px] font-semibold text-[color:var(--text-main)] hover:bg-[color:var(--primary-20)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--accent-45)] disabled:opacity-60 disabled:cursor-not-allowed"
+                    className="inline-flex items-center gap-1 rounded-full border border-[color:var(--border-warm-light)] bg-[color:var(--border-warm-subtle)] px-2.5 py-1 text-2xs font-semibold text-[color:var(--text-main)] hover:bg-[color:var(--primary-20)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--accent-45)] disabled:opacity-60 disabled:cursor-not-allowed"
                   >
                     {pendingAction === 'share-link-copy' ? (
                       <CircleNotch
@@ -143,7 +143,7 @@ export const ShareLinksPanel = memo(function ShareLinksPanel({
                       type="button"
                       onClick={() => onDeleteShareLink(link.token)}
                       disabled={isShareLinkPending}
-                      className="inline-flex items-center gap-1 rounded-full border border-[color:color-mix(in_srgb,var(--status-error)_45%,transparent)] bg-[color:color-mix(in_srgb,var(--status-error)_12%,transparent)] px-2.5 py-1 text-[11px] font-semibold text-[color:var(--status-error)] hover:border-[color:color-mix(in_srgb,var(--status-error)_70%,transparent)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:color-mix(in_srgb,var(--status-error)_45%,transparent)] disabled:opacity-60 disabled:cursor-not-allowed"
+                      className="inline-flex items-center gap-1 rounded-full border border-[color:color-mix(in_srgb,var(--status-error)_45%,transparent)] bg-[color:color-mix(in_srgb,var(--status-error)_12%,transparent)] px-2.5 py-1 text-2xs font-semibold text-[color:var(--status-error)] hover:border-[color:color-mix(in_srgb,var(--status-error)_70%,transparent)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:color-mix(in_srgb,var(--status-error)_45%,transparent)] disabled:opacity-60 disabled:cursor-not-allowed"
                     >
                       {pendingAction === 'share-link-delete' ? (
                         <CircleNotch
@@ -164,7 +164,7 @@ export const ShareLinksPanel = memo(function ShareLinksPanel({
       )}
 
       {extraShareLinks > 0 && (
-        <p className="mt-2 text-[11px] text-[color:var(--text-muted)]">
+        <p className="mt-2 text-2xs text-[color:var(--text-muted)]">
           Showing the first {shareLinksPreview.length} of {entryShareLinks.length} links.
         </p>
       )}

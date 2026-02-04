@@ -427,7 +427,8 @@ export function ReadingBoard({
   canNavigatePrev,
   canNavigateNext,
   navigationLabel,
-  revealStage = 'action'
+  revealStage = 'action',
+  narrativeMentionPulse = null
 }) {
   const isHandsetLayout = useHandsetLayout();
   const prefersReducedMotion = useReducedMotion();
@@ -510,6 +511,7 @@ export function ReadingBoard({
           hideLegend={true}
           size={tableSize}
           flashNextSlot={flashNextSlot}
+          mentionPulse={narrativeMentionPulse}
         />
         {/* Celtic Cross map overlay */}
         {showCelticMap && isCelticCross && (

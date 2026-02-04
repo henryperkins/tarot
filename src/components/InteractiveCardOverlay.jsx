@@ -10,10 +10,22 @@ import { getElementForSymbolFamily } from '../lib/symbolElementBridge';
 
 // Element badge styling
 const ELEMENT_BADGE_CONFIG = {
-  Fire: { icon: '🔥', className: 'bg-orange-500/20 text-orange-400 border-orange-500/30' },
-  Water: { icon: '💧', className: 'bg-blue-500/20 text-blue-400 border-blue-500/30' },
-  Air: { icon: '💨', className: 'bg-sky-500/20 text-sky-400 border-sky-500/30' },
-  Earth: { icon: '🌍', className: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' }
+  Fire: {
+    icon: '🔥',
+    className: 'bg-[color:color-mix(in_srgb,var(--color-wands)_16%,transparent)] text-wands border border-[color:color-mix(in_srgb,var(--color-wands)_32%,transparent)]'
+  },
+  Water: {
+    icon: '💧',
+    className: 'bg-[color:color-mix(in_srgb,var(--color-cups)_16%,transparent)] text-cups border border-[color:color-mix(in_srgb,var(--color-cups)_32%,transparent)]'
+  },
+  Air: {
+    icon: '💨',
+    className: 'bg-[color:color-mix(in_srgb,var(--color-swords)_16%,transparent)] text-swords border border-[color:color-mix(in_srgb,var(--color-swords)_32%,transparent)]'
+  },
+  Earth: {
+    icon: '🌍',
+    className: 'bg-[color:color-mix(in_srgb,var(--color-pentacles)_16%,transparent)] text-pentacles border border-[color:color-mix(in_srgb,var(--color-pentacles)_32%,transparent)]'
+  }
 };
 
 // Estimated tooltip dimensions for collision detection
@@ -187,10 +199,10 @@ export function InteractiveCardOverlay({ card }) {
         {coordinates.symbols.map((symbolCoord, index) => {
           const isActive = activeSymbol?.object === symbolCoord.symbol.object;
           const commonProps = {
-            fill: isActive ? 'rgba(255, 215, 0, 0.3)' : 'transparent',
-            stroke: isActive ? 'rgba(255, 215, 0, 0.8)' : 'rgba(255, 255, 255, 0.2)',
+            fill: isActive ? 'rgb(var(--brand-primary-rgb) / 0.25)' : 'transparent',
+            stroke: isActive ? 'rgb(var(--brand-primary-rgb) / 0.7)' : 'rgb(var(--text-main-rgb) / 0.18)',
             strokeWidth: "3",
-            className: "cursor-pointer transition-all duration-200 hover:fill-yellow-400/20 hover:stroke-yellow-400/60 focus:outline-none focus:stroke-yellow-400 focus:stroke-[6px]",
+            className: "cursor-pointer transition-all duration-200 hover:fill-primary/20 hover:stroke-primary/60 focus:outline-none focus:stroke-primary focus:stroke-[6px]",
             onClick: (e) => handleSymbolActivate(symbolCoord.symbol, e),
             onKeyDown: (e) => handleKeyDown(symbolCoord.symbol, e),
             style: { pointerEvents: 'all' },
@@ -237,7 +249,7 @@ export function InteractiveCardOverlay({ card }) {
                   cx={symbolCoord.indicatorCx}
                   cy={symbolCoord.indicatorCy}
                   r="8"
-                  fill="rgba(255, 215, 0, 0.8)"
+                  fill="rgb(var(--brand-primary-rgb) / 0.8)"
                   className={`${prefersReducedMotion ? '' : 'animate-pulse'} pointer-events-none`}
                   aria-hidden="true"
                 />
@@ -275,7 +287,7 @@ export function InteractiveCardOverlay({ card }) {
                   {titleCase(activeSymbol.object)}
                   {symbolElement && ELEMENT_BADGE_CONFIG[symbolElement] && (
                     <span
-                      className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] border ${ELEMENT_BADGE_CONFIG[symbolElement].className}`}
+                      className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-2xs border ${ELEMENT_BADGE_CONFIG[symbolElement].className}`}
                       title={`${symbolElement} element`}
                     >
                       <span aria-hidden="true">{ELEMENT_BADGE_CONFIG[symbolElement].icon}</span>

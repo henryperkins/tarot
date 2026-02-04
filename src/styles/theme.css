@@ -52,20 +52,26 @@
   --bg-main-rgb: 15 14 19;
   /* Deep warm charcoal */
   --bg-surface: #1C1A22;
+  --bg-surface-rgb: 28 26 34;
   /* Warm dark purple-charcoal */
   --bg-surface-muted: #2A2730;
+  --bg-surface-muted-rgb: 42 39 48;
   /* Muted warm gray-purple */
 
   /* Text (softer, warmer) */
   --text-main: #E8E6E3;
+  --text-main-rgb: 232 230 227;
   /* Warm off-white */
   --text-muted: #CCC5B9;
+  --text-muted-rgb: 204 197 185;
   /* WCAG AA compliant muted tone (5.2:1 on #0F0E13) - improved from #C4BDB0 */
   --text-muted-high: #DDD7CD;
+  --text-muted-high-rgb: 221 215 205;
   /* Higher contrast muted for over translucent backgrounds (6.5:1) - improved from #D8D2C8 */
   --text-accent: var(--brand-primary);
   /* Warmer champagne */
   --text-on-brand: var(--color-charcoal);
+  --text-on-brand-rgb: 28 26 34;
   /* High-contrast text for brand surfaces (lighten in light mode) */
 
   /* Brand / Interactive (warmer) */
@@ -73,6 +79,7 @@
   /* Warmer champagne */
   --brand-primary-rgb: 212 184 150;
   --brand-secondary: #A89D92;
+  --brand-secondary-rgb: 168 157 146;
   /* Warm brown-gray updated for WCAG AA contrast (4.5:1) */
   --brand-accent: var(--color-gold-soft);
   /* Lighter accent for differentiation from primary */
@@ -80,9 +87,14 @@
 
   /* Status */
   --status-success: var(--color-success);
+  --status-success-rgb: 107 158 120;
   /* Muted green */
   --status-error: var(--color-error);
+  --status-error-rgb: 201 118 118;
   /* Muted red */
+  --status-warning: #F59E0B;
+  --status-warning-rgb: 245 158 11;
+  /* Amber 500 - readable warning tone */
 
   /* Panels & Effects */
   --panel-dark-1: #0D0A14;
@@ -103,6 +115,10 @@
   --drawer-gold-16: rgba(229, 196, 142, 0.16);
   --focus-ring-color: var(--brand-accent);
   --halo-star-color: rgba(232, 230, 227, 0.08);
+
+  /* Let the browser theme native UI controls appropriately. */
+  color-scheme: dark;
+  accent-color: var(--brand-primary);
 }
 
 /* Light Mode Overrides (elegant minimal light variant) */
@@ -111,16 +127,26 @@
   --bg-main-rgb: 250 250 250;
   --bg-surface: #FFFFFF;
   --bg-surface-muted: #F5F5F5;
+  --bg-surface-rgb: 255 255 255;
+  --bg-surface-muted-rgb: 245 245 245;
   --text-main: #1A1A1A;
   --text-muted: #555555; /* WCAG AA compliant: 7:1 contrast on #FAFAFA */
   --text-muted-high: #333333; /* Higher contrast muted for translucent backgrounds */
+  --text-main-rgb: 26 26 26;
+  --text-muted-rgb: 85 85 85;
+  --text-muted-high-rgb: 51 51 51;
   --text-accent: var(--brand-primary);
   --text-on-brand: #FAFAFA; /* Light text for brand backgrounds */
+  --text-on-brand-rgb: 250 250 250;
   --color-gold-champagne: #7D623B; /* 5.46:1 on #FAFAFA */
   --brand-primary-rgb: 125 98 59;
   --brand-secondary: #6A5746; /* 6.57:1 on #FAFAFA */
+  --brand-secondary-rgb: 106 87 70;
   --color-gold-soft: #8A6B3B; /* 4.74:1 on #FAFAFA */
   --brand-accent-rgb: 138 107 59;
+  --status-warning: #B45309;
+  --status-warning-rgb: 180 83 9;
+  /* Amber 700 - stronger contrast on light backgrounds */
 
   /* Panels & Effects (light-friendly variants) */
   --panel-dark-1: #FFFFFF;
@@ -133,6 +159,8 @@
   --border-warm-light: rgba(125, 98, 59, 0.14);
   --border-warm-subtle: rgba(125, 98, 59, 0.06);
   --halo-star-color: rgba(26, 26, 26, 0.08);
+
+  color-scheme: light;
 }
 
 @supports (color: color-mix(in srgb, red 50%, blue)) {
@@ -142,5 +170,27 @@
 
   :root.light {
     --halo-star-color: color-mix(in srgb, var(--text-main) 8%, transparent);
+  }
+}
+
+@media (prefers-contrast: more) {
+  :root {
+    --text-muted: var(--text-muted-high);
+    --text-muted-high: var(--text-main);
+    --border-warm: rgba(232, 218, 195, 0.32);
+    --border-warm-light: rgba(232, 218, 195, 0.28);
+    --border-warm-subtle: rgba(232, 218, 195, 0.14);
+    --focus-ring-color: var(--brand-primary);
+    --halo-star-color: rgba(232, 230, 227, 0.14);
+  }
+
+  :root.light {
+    --text-muted: var(--text-muted-high);
+    --text-muted-high: var(--text-main);
+    --border-warm: rgba(125, 98, 59, 0.26);
+    --border-warm-light: rgba(125, 98, 59, 0.22);
+    --border-warm-subtle: rgba(125, 98, 59, 0.14);
+    --focus-ring-color: var(--brand-primary);
+    --halo-star-color: rgba(26, 26, 26, 0.12);
   }
 }

@@ -32,9 +32,25 @@
   }
 }
 
+/* Reduce translucency effects for users who prefer reduced transparency */
+@media (prefers-reduced-transparency: reduce) {
+  .backdrop-blur,
+  .backdrop-blur-none,
+  .backdrop-blur-sm,
+  .backdrop-blur-md,
+  .backdrop-blur-lg,
+  .backdrop-blur-xl,
+  .backdrop-blur-2xl,
+  .backdrop-blur-3xl,
+  .backdrop-blur-xs {
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+  }
+}
+
 /* Modern Mystic theme overrides */
 body {
-  @apply bg-main text-main antialiased font-sans;
+  @apply bg-main text-main subpixel-antialiased font-sans;
 }
 
 /* Shared surface styling for cards / panels */

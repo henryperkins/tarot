@@ -483,10 +483,10 @@ export function OnboardingWizard({ isOpen, onComplete, onSelectSpread, initialSp
               {isSmallScreen && (
                 <div className="mt-2 flex flex-wrap items-center gap-2 px-2 xxs:px-3 sm:px-6 pb-2 pl-safe-left pr-safe-right">
                   <div className="flex items-center gap-2">
-                    <span className="rounded-full border border-secondary/40 bg-main/60 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-main">
+                    <span className="rounded-full border border-secondary/40 bg-main/60 px-2.5 py-1 text-2xs font-semibold uppercase tracking-[0.16em] text-main">
                       Step {currentStep} of {totalSteps}
                     </span>
-                    <span className="text-[11px] text-muted">Progress auto-saves</span>
+                    <span className="text-2xs text-muted">Progress auto-saves</span>
                   </div>
                   <div className="flex items-center gap-2 ml-auto flex-wrap">
                     <button

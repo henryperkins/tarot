@@ -671,9 +671,9 @@ export default function Journal() {
   const renderedHistoryEntries = monthSections.map((section) => (
     <div key={section.key} id={section.anchorId} className="space-y-4 scroll-mt-24">
       <div className="sticky top-24 z-20">
-        <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-amber-200/20 bg-[color:var(--surface-88)] px-3 py-2 backdrop-blur">
-          <span className="text-[11px] uppercase tracking-[0.3em] text-amber-100/70">{section.label}</span>
-          <span className="inline-flex items-center rounded-full border border-amber-200/20 bg-amber-200/10 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-amber-100/70">
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-secondary/20 bg-[color:var(--surface-88)] px-3 py-2 backdrop-blur">
+          <span className="text-2xs uppercase tracking-[0.3em] text-muted">{section.label}</span>
+          <span className="inline-flex items-center rounded-full border border-secondary/20 bg-surface-muted/40 px-2.5 py-1 text-2xs font-semibold uppercase tracking-[0.18em] text-muted">
             {section.count} entries
           </span>
         </div>
@@ -688,7 +688,7 @@ export default function Journal() {
             <div
               id={anchorId}
               key={key}
-              className={`space-y-2 ${isHighlighted ? 'rounded-2xl ring-2 ring-amber-300/35 bg-amber-300/[0.03] p-2' : ''}`}
+              className={`space-y-2 ${isHighlighted ? 'rounded-2xl ring-2 ring-primary/35 bg-primary/[0.03] p-2' : ''}`}
             >
               <JournalEntryCard
                 entry={entry}
@@ -761,7 +761,7 @@ export default function Journal() {
                   }
                   navigate('/');
                 }}
-                className="inline-flex min-h-touch items-center gap-2 rounded-full px-3 py-2 text-accent hover:text-main hover:bg-surface-muted/30 transition touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/50 self-start"
+                className="inline-flex min-h-touch items-center gap-2 rounded-full px-3 py-2 text-accent hover:text-main hover:bg-surface-muted/30 transition touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 self-start"
               >
                 <CaretLeft className="w-5 h-5" />
                 <span>Back to Reading</span>
@@ -775,17 +775,17 @@ export default function Journal() {
               <button
                 type="button"
                 onClick={() => setShowSavedIntentionsModal(true)}
-                className="inline-flex min-h-touch items-center gap-2 rounded-full border border-amber-200/25 bg-amber-200/5 px-4 py-2.5 text-sm font-semibold text-amber-50 shadow-[0_12px_30px_-18px_rgba(251,191,36,0.35)] transition hover:-translate-y-0.5 hover:border-amber-200/40 hover:bg-amber-200/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/40"
+                className="inline-flex min-h-touch items-center gap-2 rounded-full border border-primary/25 bg-primary/5 px-4 py-2.5 text-sm font-semibold text-main shadow-[0_12px_30px_-18px_rgb(var(--brand-primary-rgb)/0.35)] transition hover:-translate-y-0.5 hover:border-primary/40 hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
               >
-                <JournalRefreshIcon className="h-4 w-4 text-amber-200" aria-hidden="true" />
+                <JournalRefreshIcon className="h-4 w-4 text-accent" aria-hidden="true" />
                 Saved Intentions
               </button>
               <button
                 type="button"
                 onClick={() => navigate('/journal/gallery')}
-                className="inline-flex min-h-touch items-center gap-2 rounded-full border border-amber-200/25 bg-amber-200/5 px-4 py-2.5 text-sm font-semibold text-amber-50 shadow-[0_12px_30px_-18px_rgba(251,191,36,0.35)] transition hover:-translate-y-0.5 hover:border-amber-200/40 hover:bg-amber-200/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/40"
+                className="inline-flex min-h-touch items-center gap-2 rounded-full border border-primary/25 bg-primary/5 px-4 py-2.5 text-sm font-semibold text-main shadow-[0_12px_30px_-18px_rgb(var(--brand-primary-rgb)/0.35)] transition hover:-translate-y-0.5 hover:border-primary/40 hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
               >
-                <JournalCardsAddIcon className="h-4 w-4 text-amber-200" aria-hidden="true" />
+                <JournalCardsAddIcon className="h-4 w-4 text-accent" aria-hidden="true" />
                 Card Gallery
               </button>
             </div>
@@ -819,7 +819,7 @@ export default function Journal() {
               {Array.from({ length: 3 }).map((_, index) => (
                 <div
                   key={index}
-                  className="animate-pulse rounded-2xl border border-amber-300/15 bg-amber-200/5 ring-1 ring-amber-300/10 p-4 shadow-[0_16px_40px_-28px_rgba(0,0,0,0.7)]"
+                  className="animate-pulse rounded-2xl border border-secondary/20 bg-surface-muted/40 ring-1 ring-primary/10 p-4 shadow-[0_16px_40px_-28px_rgba(0,0,0,0.7)]"
                 >
                   <div className="flex items-center justify-between gap-3">
                     <div className="h-4 w-28 rounded-full bg-white/10" />
@@ -843,27 +843,27 @@ export default function Journal() {
                     <div className="relative z-10 space-y-5">
                       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                         <div className="flex items-center gap-2">
-                          <h2 className="text-xl font-serif text-amber-50">Journal history</h2>
+                          <h2 className="text-xl font-serif text-main">Journal history</h2>
                         </div>
                         <div className="flex flex-col items-start gap-1 sm:items-end">
                           <div className="flex flex-wrap items-center gap-2">
-                            <span className="inline-flex items-center rounded-full border border-amber-200/20 bg-amber-200/10 px-3 py-1 text-[11px] text-amber-100/70">
+                            <span className="inline-flex items-center rounded-full border border-secondary/20 bg-surface-muted/40 px-3 py-1 text-2xs text-muted">
                               Filtered: {filteredEntries.length}
                             </span>
-                            <span className="inline-flex items-center rounded-full border border-amber-200/20 bg-amber-200/10 px-3 py-1 text-[11px] text-amber-100/70">
+                            <span className="inline-flex items-center rounded-full border border-secondary/20 bg-surface-muted/40 px-3 py-1 text-2xs text-muted">
                               Loaded: {entries.length}{hasTotalEntries ? ` of ${totalEntryCount}` : hasMoreEntries ? '+' : ''}
                             </span>
                           </div>
                           {monthSections.length > 1 && (
                             <div className="flex items-center gap-2">
-                              <label htmlFor="jump-to-month" className="text-[10px] uppercase tracking-[0.22em] text-amber-100/60">
+                              <label htmlFor="jump-to-month" className="text-2xs uppercase tracking-[0.22em] text-muted/80">
                                 Jump to month
                               </label>
                               <select
                                 id="jump-to-month"
                                 value={monthJumpValue}
                                 onChange={handleMonthJump}
-                                className="min-h-[32px] rounded-full border border-amber-200/20 bg-amber-200/10 px-3 text-[11px] text-amber-100/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/40"
+                                className="min-h-[32px] rounded-full border border-secondary/20 bg-surface-muted/40 px-3 text-sm-mobile sm:text-2xs text-main focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
                               >
                                 <option value="">Jump to month</option>
                                 {monthSections.map((section) => (
@@ -878,17 +878,17 @@ export default function Journal() {
                       </div>
 
                       {showHighlightBanner && (
-                        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-300/20 bg-amber-200/5 px-3 py-2 text-[12px] text-amber-100/75" aria-live="polite">
+                        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-secondary/20 bg-surface-muted/40 px-3 py-2 text-xs text-muted-high" aria-live="polite">
                           <div className="flex items-center gap-2">
                             {highlightBannerState === 'loading' ? (
                               <span
-                                className="inline-flex h-3 w-3 animate-spin rounded-full border border-amber-200/60 border-t-transparent"
+                                className="inline-flex h-3 w-3 animate-spin rounded-full border border-secondary/60 border-t-transparent"
                                 aria-hidden="true"
                               />
                             ) : highlightBannerState === 'error' ? (
-                              <Warning className="h-3.5 w-3.5 text-amber-200/80" aria-hidden="true" />
+                              <Warning className="h-3.5 w-3.5 text-warning" aria-hidden="true" />
                             ) : (
-                              <JournalSearchIcon className="h-3 w-3 text-amber-200/70" aria-hidden="true" />
+                              <JournalSearchIcon className="h-3 w-3 text-muted" aria-hidden="true" />
                             )}
                             <span>
                               {highlightBannerState === 'loading'
@@ -903,7 +903,7 @@ export default function Journal() {
                               type="button"
                               onClick={handleLoadOlderForHighlight}
                               disabled={loadingMore || !hasMoreEntries}
-                              className={`inline-flex min-h-[32px] items-center gap-1 rounded-full border border-amber-200/20 bg-amber-200/10 px-3 py-1 text-[11px] font-semibold text-amber-100/90 hover:border-amber-200/40 hover:bg-amber-200/20 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/40 ${loadingMore || !hasMoreEntries ? 'cursor-not-allowed opacity-60' : ''}`}
+                              className={`inline-flex min-h-[32px] items-center gap-1 rounded-full border border-secondary/20 bg-surface/60 px-3 py-1 text-2xs font-semibold text-main hover:border-secondary/40 hover:bg-surface-muted/60 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 ${loadingMore || !hasMoreEntries ? 'cursor-not-allowed opacity-60' : ''}`}
                             >
                               <JournalSearchIcon className="h-3 w-3" aria-hidden="true" />
                               Load older entries
@@ -914,7 +914,7 @@ export default function Journal() {
                               type="button"
                               onClick={handleLoadOlderForHighlight}
                               disabled={loadingMore}
-                              className={`inline-flex min-h-[32px] items-center gap-1 rounded-full border border-amber-200/20 bg-amber-200/10 px-3 py-1 text-[11px] font-semibold text-amber-100/90 hover:border-amber-200/40 hover:bg-amber-200/20 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/40 ${loadingMore ? 'cursor-not-allowed opacity-60' : ''}`}
+                              className={`inline-flex min-h-[32px] items-center gap-1 rounded-full border border-secondary/20 bg-surface/60 px-3 py-1 text-2xs font-semibold text-main hover:border-secondary/40 hover:bg-surface-muted/60 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 ${loadingMore ? 'cursor-not-allowed opacity-60' : ''}`}
                             >
                               <JournalSearchIcon className="h-3 w-3" aria-hidden="true" />
                               Try again
@@ -975,28 +975,28 @@ export default function Journal() {
                       </div>
 
                       {serverSearchErrored && (
-                        <div className="rounded-xl border border-amber-300/20 bg-amber-200/5 px-3 py-2 text-[12px] text-amber-100/75">
+                        <div className="rounded-xl border border-warning/30 bg-warning/10 px-3 py-2 text-xs text-warning">
                           Full-history search failed. Showing matches from loaded entries only.
                         </div>
                       )}
 
                       {serverSearchLoading ? (
-                        <div className="rounded-2xl border border-amber-300/15 bg-amber-200/5 p-8 text-center text-sm text-amber-100/75 shadow-[0_16px_40px_-30px_rgba(0,0,0,0.8)]">
-                          <div className="mx-auto mb-3 h-6 w-6 animate-spin rounded-full border border-amber-200/60 border-t-transparent" aria-hidden="true" />
-                          <p className="journal-prose text-lg text-amber-50">Searching your full journal history...</p>
-                          <p className="journal-prose mt-2 text-amber-100/70">This can take a few seconds for large collections.</p>
+                        <div className="rounded-2xl border border-secondary/20 bg-surface-muted/40 p-8 text-center text-sm text-muted-high shadow-[0_16px_40px_-30px_rgba(0,0,0,0.8)]">
+                          <div className="mx-auto mb-3 h-6 w-6 animate-spin rounded-full border border-secondary/60 border-t-transparent" aria-hidden="true" />
+                          <p className="journal-prose text-lg text-main">Searching your full journal history...</p>
+                          <p className="journal-prose mt-2 text-muted">This can take a few seconds for large collections.</p>
                         </div>
                       ) : filteredEntries.length === 0 ? (
-                        <div className="relative overflow-hidden rounded-2xl border border-amber-300/15 bg-amber-200/5 p-8 text-center text-sm text-amber-100/75 shadow-[0_16px_40px_-30px_rgba(0,0,0,0.8)]">
+                        <div className="relative overflow-hidden rounded-2xl border border-secondary/20 bg-surface-muted/40 p-8 text-center text-sm text-muted-high shadow-[0_16px_40px_-30px_rgba(0,0,0,0.8)]">
                           <NoFiltersIllustration className="mb-4" />
-                          <p className="journal-prose text-lg text-amber-50">
+                          <p className="journal-prose text-lg text-main">
                             {serverSearchEnabled
                               ? 'No matches found in your full journal history.'
                               : hasMoreServerEntries
                                 ? `No matches in the most recent ${entries.length} entries.`
                                 : 'No entries match your filters.'}
                           </p>
-                          <p className="journal-prose mt-2 text-amber-100/70">
+                          <p className="journal-prose mt-2 text-muted">
                             {serverSearchEnabled
                               ? 'Try a different search term or adjust your filters.'
                               : hasMoreServerEntries
@@ -1009,7 +1009,7 @@ export default function Journal() {
                                 type="button"
                                 onClick={handleLoadMoreEntries}
                                 disabled={loadingMore}
-                                className={`inline-flex min-h-touch items-center gap-2 rounded-full border border-amber-200/20 bg-amber-200/10 px-4 py-2 text-xs font-semibold text-amber-100/90 hover:border-amber-200/40 hover:bg-amber-200/20 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/40 ${loadingMore ? 'cursor-not-allowed opacity-60' : ''}`}
+                                className={`inline-flex min-h-touch items-center gap-2 rounded-full border border-primary/25 bg-primary/10 px-4 py-2 text-xs font-semibold text-main hover:border-primary/40 hover:bg-primary/20 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 ${loadingMore ? 'cursor-not-allowed opacity-60' : ''}`}
                               >
                                 <JournalSearchIcon className="h-4 w-4" aria-hidden="true" />
                                 {loadingMore ? 'Searching...' : inlineSearchOlderLabel}

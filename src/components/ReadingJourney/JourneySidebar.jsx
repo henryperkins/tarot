@@ -59,7 +59,7 @@ function CollapsibleSection({
           <Icon className="h-4 w-4 sm:h-3 sm:w-3" aria-hidden="true" />
           {label}
           {badge && (
-            <span className="ml-1 rounded-full bg-[color:var(--accent-25)] px-1.5 py-0.5 text-[10px] font-medium text-[color:var(--text-main)]">
+            <span className="ml-1 rounded-full bg-[color:var(--accent-25)] px-1.5 py-0.5 text-2xs font-medium text-[color:var(--text-main)]">
               {badge}
             </span>
           )}
@@ -270,7 +270,7 @@ export default function JourneySidebar({
           >
             <Sparkle className="h-3 w-3" aria-hidden="true" />
             Your Reading Journey
-            <span className="text-[10px] text-muted">(filtered)</span>
+            <span className="text-2xs text-muted">(filtered)</span>
           </h3>
           <p className="text-sm text-muted-high mb-2">
             No readings match your current filters.
@@ -365,7 +365,7 @@ export default function JourneySidebar({
             <Sparkle className="h-3 w-3" aria-hidden="true" />
             Your Reading Journey
             {scopeLabel && (
-              <span className="ml-2 rounded-full border border-[color:var(--border-warm-light)] bg-[color:var(--border-warm-subtle)] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-high">
+              <span className="ml-2 rounded-full border border-[color:var(--border-warm-light)] bg-[color:var(--border-warm-subtle)] px-2 py-0.5 text-2xs font-semibold uppercase tracking-[0.16em] text-muted-high">
                 {scopeChipLabel} · {sourceLabel}
               </span>
             )}
@@ -380,7 +380,7 @@ export default function JourneySidebar({
           </Link>
         </div>
         {filtersApplied && analyticsScope !== 'filters' && typeof onScopeSelect === 'function' && (
-          <div className="flex flex-wrap items-center gap-2 rounded-full border border-[color:var(--border-warm)] bg-[color:var(--accent-25)] px-3 py-1 text-[11px] text-muted-high">
+          <div className="flex flex-wrap items-center gap-2 rounded-full border border-[color:var(--border-warm)] bg-[color:var(--accent-25)] px-3 py-1 text-2xs text-muted-high">
             <span>Filters not applied to insights</span>
             <button
               type="button"

@@ -33,16 +33,16 @@ export const SummaryCards = memo(function SummaryCards({ summary, alertCount = 0
       color: avgScore === null
         ? 'text-muted'
         : avgScore >= 4
-          ? 'text-emerald-400'
+          ? 'text-success'
           : avgScore >= 3
-            ? 'text-amber-400'
+            ? 'text-warning'
             : 'text-error',
       bgColor: avgScore === null
         ? 'bg-secondary/10'
         : avgScore >= 4
-          ? 'bg-emerald-500/10'
+          ? 'bg-success/10'
           : avgScore >= 3
-            ? 'bg-amber-500/10'
+            ? 'bg-warning/10'
             : 'bg-error/10'
     },
     {
@@ -54,22 +54,22 @@ export const SummaryCards = memo(function SummaryCards({ summary, alertCount = 0
         : safetyRate > 0.05
           ? 'text-error'
           : safetyRate > 0.02
-            ? 'text-amber-400'
-            : 'text-emerald-400',
+            ? 'text-warning'
+            : 'text-success',
       bgColor: safetyRate === null
         ? 'bg-secondary/10'
         : safetyRate > 0.05
           ? 'bg-error/10'
           : safetyRate > 0.02
-            ? 'bg-amber-500/10'
-            : 'bg-emerald-500/10'
+            ? 'bg-warning/10'
+            : 'bg-success/10'
     },
     {
       label: 'Active Alerts',
       value: alertCount,
       icon: Flask,
-      color: alertCount > 0 ? 'text-amber-400' : 'text-emerald-400',
-      bgColor: alertCount > 0 ? 'bg-amber-500/10' : 'bg-emerald-500/10'
+      color: alertCount > 0 ? 'text-warning' : 'text-success',
+      bgColor: alertCount > 0 ? 'bg-warning/10' : 'bg-success/10'
     }
   ];
 

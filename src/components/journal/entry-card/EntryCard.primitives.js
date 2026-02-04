@@ -67,28 +67,28 @@ export const styles = {
     'transition cursor-pointer backdrop-blur',
 
   sectionLabel:
-    'text-[11px] font-semibold tracking-[0.28em] uppercase text-[color:var(--text-muted)]',
+    'text-2xs font-semibold tracking-[0.28em] uppercase text-[color:var(--text-muted)]',
 
   sectionBody: 'relative z-10 px-4 py-4',
 
   // Pills and chips
   pill:
     'inline-flex items-center gap-2 rounded-full border border-[color:var(--border-warm-light)] ' +
-    'bg-[color:var(--border-warm-subtle)] px-2.5 py-1 text-[10px] tracking-[0.22em] uppercase ' +
+    'bg-[color:var(--border-warm-subtle)] px-2.5 py-1 text-2xs tracking-[0.22em] uppercase ' +
     'text-[color:var(--text-muted)] shadow-[0_10px_20px_-18px_rgba(0,0,0,0.7)]',
 
   cardChip:
     'inline-flex max-w-full items-center gap-1 rounded-full border border-[color:var(--border-warm-light)] ' +
-    'bg-[color:var(--panel-dark-2)] px-2.5 py-1 text-[11px] font-semibold text-[color:var(--text-muted)] ' +
+    'bg-[color:var(--panel-dark-2)] px-2.5 py-1 text-2xs font-semibold text-[color:var(--text-muted)] ' +
     'shadow-[0_12px_22px_-18px_rgba(0,0,0,0.7)]',
 
   reversedBadge:
     'flex-shrink-0 rounded-full border border-[color:color-mix(in_srgb,var(--status-error)_45%,transparent)] ' +
-    'bg-[color:color-mix(in_srgb,var(--status-error)_12%,transparent)] px-1.5 py-0.5 text-[10px] ' +
+    'bg-[color:color-mix(in_srgb,var(--status-error)_12%,transparent)] px-1.5 py-0.5 text-2xs ' +
     'font-semibold text-[color:var(--status-error)]',
 
   uprightBadge:
-    'flex-shrink-0 rounded-full border border-[color:var(--border-warm-light)] px-1.5 py-0.5 text-[10px] ' +
+    'flex-shrink-0 rounded-full border border-[color:var(--border-warm-light)] px-1.5 py-0.5 text-2xs ' +
     'text-[color:var(--text-muted)]',
 
   // Buttons
@@ -108,7 +108,7 @@ export const styles = {
     'focus-visible:ring-2 focus-visible:ring-[color:var(--accent-45)] flex-shrink-0',
 
   actionButton:
-    'inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-[12px] font-semibold ' +
+    'inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-semibold ' +
     'transition focus-visible:outline-none focus-visible:ring-2 ' +
     'focus-visible:ring-[color:var(--accent-45)]',
 

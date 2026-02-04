@@ -169,8 +169,8 @@ export function MarkdownRenderer({
 
   const renderHeading = (Tag, props, className) => (
     styles.showSectionDivider ? (
-      <div className="narrative-section">
-        <div className="narrative-section__divider" aria-hidden="true"><span>✦</span></div>
+      <div className="narrative-section animate-section-enter">
+        <div className="narrative-section__divider animate-divider-enter" aria-hidden="true"><span>✦</span></div>
         <Tag {...props} className={className}>
           {highlightChildren(props.children, normalizedPhrases)}
         </Tag>

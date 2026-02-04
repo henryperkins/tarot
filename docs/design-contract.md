@@ -14,7 +14,7 @@
 - Should all bottom-fixed bars (even outside the reading flow) account for the mobile action bar offset?
 
 **1) Design Contract**
-- **Mobile widths (xxs ≥320, xs ≥375, sm ≥640)**: xxs density tight, `body 16`, `prose 15` (`text-sm-mobile`), `secondary 14` (`text-xs-plus`), micro 12 (`text-xs`), touch `min-h-touch 44`/`min-h-cta 52`; xs density compact with the same scale but allow `text-sm` for UI; sm density standard with `body 16`, `prose 16` (`text-base`), `secondary 14`, touch unchanged.
+- **Mobile widths (xxs ≥320, xs ≥375, sm ≥640)**: xxs density tight, `body 16`, `prose 16` (`text-sm-mobile`), `secondary 14` (`text-xs-plus`), micro 12 (`text-xs`), badge 11 (`text-2xs`), touch `min-h-touch 44`/`min-h-cta 52`; xs density compact with the same scale but allow `text-sm` for UI; sm density standard with `body 16`, `prose 16` (`text-base`), `secondary 14`, touch unchanged.
 - **Tablet/Desktop widths (md ≥768, lg ≥1024, xl ≥1280, 2xl ≥1536)**: density comfortable; `body 16`, `prose 16–18` (`text-base`/`text-lg`), `secondary 14`; touch targets remain 44/52.
 - **Height/orientation (short max-height 600, landscape max-height 500)**: density tight; reduce vertical padding and non-critical labels; do not reduce touch targets; minimum readable size stays ≥14px.
 - **Safe-area + keyboard**: use `--safe-pad-*` and `--mobile-action-bar-*` as the source of truth; bottom UI uses `safe-pad-bottom + action-bar-height + keyboard offset`; drawers/modals use `pt-safe/pb-safe` with a consistent base inset.
@@ -25,6 +25,7 @@
 - Min-heights: `min-h-touch`, `min-w-touch`, `min-h-cta` only; replace fixed sizes where they duplicate tokens.
 - Motion: `--duration-*`, `--ease-out`, `motion-safe:animate-*`, `motion-reduce:transition-none`, `useReducedMotion` for JS.
 - Safe-area: `--safe-pad-*`, `--mobile-action-bar-height`, `--mobile-action-bar-offset`, utilities `pt-safe`, `pb-safe`, `px-safe`, `pl-safe-left`, `pr-safe-right`.
+- Type scale: prefer `text-2xs`, `text-xs`, `text-xs-plus`, `text-sm-mobile`, `text-sm`, `text-base`; avoid `text-[Npx]` for microcopy.
 
 **4) Regression Checklist**
 - Validate `xxs/xs/sm/md/lg` layouts at 320/375/640/768/1024 widths (no overflow, readable type).

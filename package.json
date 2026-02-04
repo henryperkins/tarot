@@ -63,6 +63,7 @@
     "metrics:vision:marseille": "node scripts/evaluation/computeVisionMetrics.js --in data/evaluations/vision-confidence.marseille.json --deck-style marseille-classic --review-out data/evaluations/vision-review-queue.marseille.csv --metrics-out data/evaluations/vision-metrics.json",
     "eval:vision:metrics": "npm run metrics:vision:rws && npm run metrics:vision:thoth && npm run metrics:vision:marseille",
     "gate:vision": "node scripts/evaluation/verifyVisionGate.js --deck-style rws-1909 && node scripts/evaluation/verifyVisionGate.js --deck-style thoth-a1 && node scripts/evaluation/verifyVisionGate.js --deck-style marseille-classic",
+    "gate:design": "node scripts/evaluation/verifyDesignContract.js",
     "ci:vision-check": "npm run eval:vision:all && npm run eval:vision:metrics && npm run gate:vision",
     "review:vision": "node scripts/evaluation/processVisionReviews.js",
     "eval:narrative": "node scripts/evaluation/runNarrativeSamples.js && node scripts/evaluation/computeNarrativeMetrics.js",

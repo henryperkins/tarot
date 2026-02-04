@@ -76,27 +76,29 @@ export default {
         pentacles: 'var(--color-pentacles)',
 
         // Semantic Brand Colors
-        primary: 'var(--brand-primary)',
-        secondary: 'var(--brand-secondary)',
-        accent: 'var(--brand-accent)',
-        success: 'var(--status-success)',
-        error: 'var(--status-error)',
+        primary: 'rgb(var(--brand-primary-rgb) / <alpha-value>)',
+        secondary: 'rgb(var(--brand-secondary-rgb) / <alpha-value>)',
+        accent: 'rgb(var(--brand-accent-rgb) / <alpha-value>)',
+        success: 'rgb(var(--status-success-rgb) / <alpha-value>)',
+        warning: 'rgb(var(--status-warning-rgb) / <alpha-value>)',
+        error: 'rgb(var(--status-error-rgb) / <alpha-value>)',
       },
       backgroundColor: {
-        main: 'var(--bg-main)',
-        surface: 'var(--bg-surface)',
-        'surface-muted': 'var(--bg-surface-muted)',
+        main: 'rgb(var(--bg-main-rgb) / <alpha-value>)',
+        surface: 'rgb(var(--bg-surface-rgb) / <alpha-value>)',
+        'surface-muted': 'rgb(var(--bg-surface-muted-rgb) / <alpha-value>)',
       },
       textColor: {
-        main: 'var(--text-main)',
-        muted: 'var(--text-muted)',
-        'muted-high': 'var(--text-muted-high)', // Higher contrast muted for translucent backgrounds
-        accent: 'var(--text-accent)',
-        surface: 'var(--text-on-brand)', // text color chosen for brand surfaces
+        main: 'rgb(var(--text-main-rgb) / <alpha-value>)',
+        muted: 'rgb(var(--text-muted-rgb) / <alpha-value>)',
+        'muted-high': 'rgb(var(--text-muted-high-rgb) / <alpha-value>)', // Higher contrast muted for translucent backgrounds
+        accent: 'rgb(var(--brand-primary-rgb) / <alpha-value>)',
+        surface: 'rgb(var(--text-on-brand-rgb) / <alpha-value>)', // text color chosen for brand surfaces
       },
       fontSize: {
+        '2xs': ['0.6875rem', { lineHeight: '1.4' }], // 11px - Apple HIG minimum text size
         'xs-plus': ['0.875rem', { lineHeight: '1.4' }], // 14px - improved mobile readability
-        'sm-mobile': ['var(--text-sm-mobile)', { lineHeight: '1.5' }], // 15px - comfortable mobile body text
+        'sm-mobile': ['var(--text-sm-mobile)', { lineHeight: '1.5' }], // 16px - comfortable mobile body text
       },
       minHeight: {
         touch: 'var(--touch-target, 44px)',

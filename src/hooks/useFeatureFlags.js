@@ -69,6 +69,9 @@ export function useFeatureFlags() {
     // New Deck Ritual Interface (ops-only: reimagined deck interface)
     // Set VITE_NEW_DECK_INTERFACE=true to enable
     newDeckInterface: getFlag('new_deck_interface', 'VITE_NEW_DECK_INTERFACE', false, false),
+
+    // Auto-generate visuals (ops-only: cost-impacting media automation)
+    autoGenerateVisuals: getFlag('auto_generate_visuals', 'VITE_AUTO_GENERATE_VISUALS', false, false),
   }), []);
 
   return flags;

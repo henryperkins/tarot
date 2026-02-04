@@ -128,7 +128,7 @@ function CardItem({ card, stats, onSelect, onViewInJournal, index = 0 }) {
         {/* Top: Status */}
         <div className="flex justify-between items-start">
           {isFound ? (
-            <span className="inline-flex items-center justify-center min-w-[1.5rem] h-6 px-1.5 rounded-full bg-[color:var(--brand-primary)] text-[10px] font-bold text-[color:var(--bg-main)] shadow-sm">
+            <span className="inline-flex items-center justify-center min-w-[1.5rem] h-6 px-1.5 rounded-full bg-[color:var(--brand-primary)] text-2xs font-bold text-[color:var(--bg-main)] shadow-sm">
               {count}x
             </span>
           ) : (
@@ -142,7 +142,7 @@ function CardItem({ card, stats, onSelect, onViewInJournal, index = 0 }) {
             {card.name}
           </p>
           {isFound && (
-            <p className="text-[10px] text-muted font-medium">
+            <p className="text-2xs text-muted font-medium">
               Seen {lastSeenLabel}
             </p>
           )}
@@ -187,7 +187,7 @@ function CardItem({ card, stats, onSelect, onViewInJournal, index = 0 }) {
               event.stopPropagation();
               onViewInJournal(card);
             }}
-            className="absolute top-2 right-2 z-20 rounded-full border border-[color:var(--border-warm-light)] bg-[color:color-mix(in_srgb,var(--bg-main)_70%,transparent)] px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-high opacity-100 sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--accent-45)]"
+            className="absolute top-2 right-2 z-20 rounded-full border border-[color:var(--border-warm-light)] bg-[color:color-mix(in_srgb,var(--bg-main)_70%,transparent)] px-2 py-1 text-2xs font-semibold uppercase tracking-[0.18em] text-muted-high opacity-100 sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--accent-45)]"
             aria-label={`View ${card.name} in Journal`}
           >
             View in Journal
@@ -577,7 +577,7 @@ export default function CardGalleryPage() {
                 type="button"
                 onClick={handleLoadFullHistory}
                 disabled={loadingFullHistory || loadingMore}
-                className={`inline-flex min-h-[36px] items-center gap-2 rounded-full border border-[color:var(--border-warm-light)] bg-[color:var(--border-warm-subtle)] px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-[color:var(--text-main)] transition-[background-color,border-color] duration-[var(--duration-normal)] ease-[var(--ease-out)] hover:border-[color:var(--border-warm)] hover:bg-[color:var(--border-warm-light)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--accent-45)] ${
+                className={`inline-flex min-h-[36px] items-center gap-2 rounded-full border border-[color:var(--border-warm-light)] bg-[color:var(--border-warm-subtle)] px-3 py-2 text-2xs font-semibold uppercase tracking-[0.18em] text-[color:var(--text-main)] transition-[background-color,border-color] duration-[var(--duration-normal)] ease-[var(--ease-out)] hover:border-[color:var(--border-warm)] hover:bg-[color:var(--border-warm-light)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--accent-45)] ${
                   loadingFullHistory || loadingMore ? 'cursor-not-allowed opacity-60' : ''
                 }`}
               >

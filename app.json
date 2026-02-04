@@ -1,12 +1,13 @@
 {
   "expo": {
-    "name": "Tableau",
+    "name": "Tableu: Ritual Tarot Reader",
     "slug": "tableau",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
     "newArchEnabled": true,
+    "description": "A scholarly tarot reflection system with deterministic ritual draws, knowledge graph-powered interpretations, and archetypal pattern detection. Not fortune-telling—structured self-reflection grounded in tarot scholarship.",
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
@@ -16,7 +17,8 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.hperkins.tableau",
       "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSCameraUsageDescription": "Tableu uses your camera to recognize physical tarot cards from multiple deck styles including Rider-Waite-Smith, Thoth, and Marseille."
       }
     },
     "android": {

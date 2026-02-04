@@ -75,13 +75,13 @@ function AchievementsRow({ badges = [] }) {
 
   return (
     <div>
-      <p className="flex items-center gap-1.5 text-xs text-amber-100/60 mb-2">
+      <p className="flex items-center gap-1.5 text-xs text-muted mb-2">
         <Medal className="h-3 w-3" />
         Achievements
       </p>
 
       <div
-        className="flex gap-2 overflow-x-auto pb-2 scrollbar-thin scrollbar-thumb-amber-200/20 scrollbar-track-transparent"
+        className="flex gap-2 overflow-x-auto pb-2"
         style={{ scrollPaddingInline: '4px' }}
       >
         {badges.slice(0, 6).map((badge, index) => {
@@ -111,7 +111,7 @@ function AchievementsRow({ badges = [] }) {
                   {badge.card_name || 'Badge'}
                 </span>
                 {typeof count === 'number' && Number.isFinite(count) && (
-                  <span className="text-[10px] opacity-70">×{count} appearances</span>
+                  <span className="text-2xs opacity-70">×{count} appearances</span>
                 )}
               </div>
             </div>
@@ -120,11 +120,11 @@ function AchievementsRow({ badges = [] }) {
       </div>
 
       {badges.length > 6 && (
-        <p className="text-[10px] text-amber-100/50 mt-1">
+        <p className="text-2xs text-muted/70 mt-1">
           +{badges.length - 6} more achievements
         </p>
       )}
-      <p className="text-[10px] text-amber-100/50 mt-1">
+      <p className="text-2xs text-muted/70 mt-1">
         Badge = card appeared 3+ times in this scope.
       </p>
     </div>

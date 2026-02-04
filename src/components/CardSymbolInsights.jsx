@@ -9,10 +9,22 @@ import { getSymbolFamily } from '../../shared/symbols/symbolIndex';
 
 // Element icons and colors for badges
 const ELEMENT_BADGE_CONFIG = {
-  Fire: { icon: '🔥', className: 'bg-orange-500/20 text-orange-400' },
-  Water: { icon: '💧', className: 'bg-blue-500/20 text-blue-400' },
-  Air: { icon: '💨', className: 'bg-sky-500/20 text-sky-400' },
-  Earth: { icon: '🌍', className: 'bg-emerald-500/20 text-emerald-400' }
+  Fire: {
+    icon: '🔥',
+    className: 'bg-[color:color-mix(in_srgb,var(--color-wands)_16%,transparent)] text-wands border border-[color:color-mix(in_srgb,var(--color-wands)_32%,transparent)]'
+  },
+  Water: {
+    icon: '💧',
+    className: 'bg-[color:color-mix(in_srgb,var(--color-cups)_16%,transparent)] text-cups border border-[color:color-mix(in_srgb,var(--color-cups)_32%,transparent)]'
+  },
+  Air: {
+    icon: '💨',
+    className: 'bg-[color:color-mix(in_srgb,var(--color-swords)_16%,transparent)] text-swords border border-[color:color-mix(in_srgb,var(--color-swords)_32%,transparent)]'
+  },
+  Earth: {
+    icon: '🌍',
+    className: 'bg-[color:color-mix(in_srgb,var(--color-pentacles)_16%,transparent)] text-pentacles border border-[color:color-mix(in_srgb,var(--color-pentacles)_32%,transparent)]'
+  }
 };
 
 // Focusable element selectors for focus trap
@@ -127,7 +139,7 @@ function SymbolContent({ insights, onClose, showCloseButton = false }) {
                     )}
                     {badge && (
                       <span
-                        className={`ml-1 inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] ${badge.className}`}
+                        className={`ml-1 inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-2xs ${badge.className}`}
                         title={`${element} element`}
                       >
                         <span aria-hidden="true">{badge.icon}</span>

@@ -45,8 +45,8 @@ const VISION_COMMANDS = [
 
 const REASON_STYLES = {
   'safety-flag': 'bg-error/10 text-error',
-  'low-safety': 'bg-amber-500/10 text-amber-300',
-  'low-tone': 'bg-amber-500/10 text-amber-300',
+  'low-safety': 'bg-warning/10 text-warning',
+  'low-tone': 'bg-warning/10 text-warning',
   'hallucinated-cards': 'bg-secondary/20 text-muted'
 };
 
@@ -100,7 +100,7 @@ function CommandList({ title, commands, onCopy, copiedKey }) {
             aria-label={`Copy ${command.label}`}
           >
             {copiedKey === command.key ? (
-              <Check className="h-4 w-4 text-emerald-400" weight="bold" />
+              <Check className="h-4 w-4 text-success" weight="bold" />
             ) : (
               <ClipboardText className="h-4 w-4" weight="duotone" />
             )}
@@ -171,10 +171,10 @@ export const HumanReviewPanel = memo(function HumanReviewPanel({ reviewQueue }) 
               <span className="rounded-full bg-error/10 px-2 py-0.5 text-error">{counts.safetyFlag} flags</span>
             )}
             {(counts.lowSafety || 0) > 0 && (
-              <span className="rounded-full bg-amber-500/10 px-2 py-0.5 text-amber-300">{counts.lowSafety} low safety</span>
+              <span className="rounded-full bg-warning/10 px-2 py-0.5 text-warning">{counts.lowSafety} low safety</span>
             )}
             {(counts.lowTone || 0) > 0 && (
-              <span className="rounded-full bg-amber-500/10 px-2 py-0.5 text-amber-300">{counts.lowTone} low tone</span>
+              <span className="rounded-full bg-warning/10 px-2 py-0.5 text-warning">{counts.lowTone} low tone</span>
             )}
             {(counts.hallucinations || 0) > 0 && (
               <span className="rounded-full bg-secondary/20 px-2 py-0.5 text-muted">{counts.hallucinations} halluc</span>
@@ -184,7 +184,7 @@ export const HumanReviewPanel = memo(function HumanReviewPanel({ reviewQueue }) 
 
         {items.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-8 text-center text-muted">
-            <CheckCircle className="h-8 w-8 mb-2 text-emerald-400" weight="duotone" />
+            <CheckCircle className="h-8 w-8 mb-2 text-success" weight="duotone" />
             <p className="text-sm font-medium text-main">No flagged readings</p>
             <p className="text-xs text-muted mt-1">Nothing queued for manual review.</p>
           </div>
@@ -210,7 +210,7 @@ export const HumanReviewPanel = memo(function HumanReviewPanel({ reviewQueue }) 
                     {(item.reasons || []).map((reason) => (
                       <span
                         key={reason}
-                        className={`rounded-full px-2 py-0.5 text-[11px] ${REASON_STYLES[reason] || 'bg-secondary/20 text-muted'}`}
+                        className={`rounded-full px-2 py-0.5 text-2xs ${REASON_STYLES[reason] || 'bg-secondary/20 text-muted'}`}
                       >
                         {REASON_LABELS[reason] || reason}
                       </span>
@@ -229,7 +229,7 @@ export const HumanReviewPanel = memo(function HumanReviewPanel({ reviewQueue }) 
                   </p>
                 )}
                 {item.hallucinatedCards && item.hallucinatedCards.length > 0 && (
-                  <p className="text-xs text-amber-300 mt-2">
+                  <p className="text-xs text-warning mt-2">
                     Hallucinated cards: {item.hallucinatedCards.join(', ')}
                   </p>
                 )}
@@ -239,7 +239,7 @@ export const HumanReviewPanel = memo(function HumanReviewPanel({ reviewQueue }) 
                   </p>
                 )}
 
-                <div className="mt-2 flex flex-wrap gap-4 text-[11px] text-muted">
+                <div className="mt-2 flex flex-wrap gap-4 text-2xs text-muted">
                   <span>Overall: {formatScore(item.overall)}</span>
                   <span>Safety: {formatScore(item.safety)}</span>
                   <span>Tone: {formatScore(item.tone)}</span>
@@ -247,7 +247,7 @@ export const HumanReviewPanel = memo(function HumanReviewPanel({ reviewQueue }) 
                 </div>
 
                 {(item.readingPromptVersion || item.variantId) && (
-                  <div className="mt-2 flex flex-wrap gap-2 text-[11px] text-muted">
+                  <div className="mt-2 flex flex-wrap gap-2 text-2xs text-muted">
                     {item.readingPromptVersion && (
                       <span>Reading v{item.readingPromptVersion}</span>
                     )}
