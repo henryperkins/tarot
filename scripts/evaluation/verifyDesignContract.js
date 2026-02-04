@@ -55,7 +55,8 @@ const NON_TOKEN_TYPOGRAPHY_PROSE_COLOR_RE = new RegExp(
   `\\bprose-(${COLOR_NAMES.join('|')})\\b`,
   'g'
 );
-const RAW_RGBA_COLOR_LITERAL_RE = /\[color:rgba\(/g;
+const RAW_RGBA_COLOR_LITERAL_RE =
+  /\[color:rgba\(\s*(?:25[0-5]|2[0-4]\d|1?\d?\d)\s*,\s*(?:25[0-5]|2[0-4]\d|1?\d?\d)\s*,\s*(?:25[0-5]|2[0-4]\d|1?\d?\d)\s*,\s*(?:0|1|0?\.\d+)\s*\)\]/g;
 
 function parseArgs(argv) {
   const roots = [];

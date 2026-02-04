@@ -96,7 +96,7 @@ export default {
         surface: 'rgb(var(--text-on-brand-rgb) / <alpha-value>)', // text color chosen for brand surfaces
       },
       fontSize: {
-        '2xs': ['0.6875rem', { lineHeight: '1.4' }], // 11px - Apple HIG minimum text size
+        '2xs': ['0.6875rem', { lineHeight: '1.4' }], // 11px - Apple HIG minimum text size; use ONLY for non-essential, non-interactive UI labels or metadata, never for body text or interactive elements (accessibility constraint)
         'xs-plus': ['0.875rem', { lineHeight: '1.4' }], // 14px - improved mobile readability
         'sm-mobile': ['var(--text-sm-mobile)', { lineHeight: '1.5' }], // 16px - comfortable mobile body text
       },

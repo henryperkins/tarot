@@ -11,10 +11,10 @@ import { getCanonicalCard, getOrientationMeaning } from '../lib/cardLookup';
 
 // Video style options
 const VIDEO_STYLES = [
-  { id: 'mystical', label: 'Mystical', description: 'Ethereal fantasy with volumetric light' },
-  { id: 'classic', label: 'Classic', description: 'Hollywood drama with 35mm grain' },
-  { id: 'modern', label: 'Modern', description: 'Contemporary with shallow DOF' },
-  { id: 'cosmic', label: 'Cosmic', description: 'Sci-fi with particle effects' }
+  { id: 'mystical', label: 'Mystical', description: 'Ethereal, dreamlike atmosphere' },
+  { id: 'classic', label: 'Classic', description: 'Timeless cinematic drama' },
+  { id: 'modern', label: 'Modern', description: 'Clean, contemporary visual style' },
+  { id: 'cosmic', label: 'Cosmic', description: 'Otherworldly space atmosphere' }
 ];
 
 const POLL_INTERVAL_MS = 5000;
@@ -170,7 +170,7 @@ export default function AnimatedReveal({
   const [style, setStyle] = useState('mystical');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [_jobId, setJobId] = useState(null);
+  const [, setJobId] = useState(null);
   const [jobStatus, setJobStatus] = useState(null);
   const [videoData, setVideoData] = useState(null);
   const [showStylePicker, setShowStylePicker] = useState(false);

@@ -316,32 +316,32 @@ export class ReadingJob {
       if (this.cancelled) {
         return;
       }
-        if (payload?.reading) {
-          this.appendEvent('meta', {
-            requestId: payload.requestId || null,
-            provider: payload.provider || null,
-            themes: payload.themes || null,
-            reasoning: payload.reasoning || null,
-            emotionalTone: payload.emotionalTone || null,
-            ephemeris: payload.ephemeris || null,
-            context: payload.context || null,
-            contextDiagnostics: payload.contextDiagnostics || [],
-            graphRAG: payload.graphRAG || null,
-            spreadAnalysis: payload.spreadAnalysis || null,
-            gateBlocked: payload.gateBlocked || false,
-            gateReason: payload.gateReason || null,
-            backendErrors: payload.backendErrors || null
-          });
-          this.appendEvent('done', {
-            fullText: payload.reading,
-            provider: payload.provider || null,
-            requestId: payload.requestId || null,
-            gateBlocked: payload.gateBlocked || false,
-            gateReason: payload.gateReason || null
-          });
-        } else {
-          this.appendEvent('error', { message: 'Failed to generate reading.' });
-        }
+      if (payload?.reading) {
+        this.appendEvent('meta', {
+          requestId: payload.requestId || null,
+          provider: payload.provider || null,
+          themes: payload.themes || null,
+          reasoning: payload.reasoning || null,
+          emotionalTone: payload.emotionalTone || null,
+          ephemeris: payload.ephemeris || null,
+          context: payload.context || null,
+          contextDiagnostics: payload.contextDiagnostics || [],
+          graphRAG: payload.graphRAG || null,
+          spreadAnalysis: payload.spreadAnalysis || null,
+          gateBlocked: payload.gateBlocked || false,
+          gateReason: payload.gateReason || null,
+          backendErrors: payload.backendErrors || null
+        });
+        this.appendEvent('done', {
+          fullText: payload.reading,
+          provider: payload.provider || null,
+          requestId: payload.requestId || null,
+          gateBlocked: payload.gateBlocked || false,
+          gateReason: payload.gateReason || null
+        });
+      } else {
+        this.appendEvent('error', { message: 'Failed to generate reading.' });
+      }
       return;
     }
 

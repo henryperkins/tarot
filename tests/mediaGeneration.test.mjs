@@ -12,7 +12,8 @@ const originalConsoleLog = console.log;
 const originalConsoleError = console.error;
 const originalConsoleWarn = console.warn;
 
-const MAX_SAFE_TIMEOUT_MS = 2_147_483_647;
+// Upper bound for KV expiry timers in tests (1 hour); avoids unrealistic multi-day timeouts.
+const MAX_SAFE_TIMEOUT_MS = 60 * 60 * 1000;
 
 function createMockRequest(url, options = {}) {
   const fullUrl = url.startsWith('http') ? url : `https://example.com${url}`;
