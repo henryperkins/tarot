@@ -492,6 +492,14 @@ export function Card({
       if (import.meta.env.DEV) {
         console.log(`Card ${index} reveal complete`);
       }
+
+      // Haptic feedback on card landing
+      const isMajorArcana = card?.arcana?.toLowerCase() === 'major';
+      if (isMajorArcana) {
+        vibrate([50, 30, 50]); // Special pattern for Major Arcana
+      } else {
+        vibrate(20); // Simple pulse for Minor Arcana
+      }
     };
 
     sequence();
