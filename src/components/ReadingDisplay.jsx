@@ -313,7 +313,7 @@ export function ReadingDisplay({
         reading
     });
 
-    const { shouldShowInterlude } = sceneOrchestrator;
+    const { shouldShowInterlude, onSceneTransition } = sceneOrchestrator;
 
     // Apply color script based on narrative arc
     useEffect(() => {
