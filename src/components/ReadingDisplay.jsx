@@ -15,6 +15,7 @@ import { VisionValidationPanel } from './VisionValidationPanel';
 import { FeedbackPanel } from './FeedbackPanel';
 import { CardModal } from './CardModal';
 import { NarrativeSkeleton } from './NarrativeSkeleton';
+import { AtmosphericInterlude } from './AtmosphericInterlude';
 import { DeckPile } from './DeckPile';
 import { DeckRitual } from './DeckRitual';
 import AnimatedReveal from './AnimatedReveal';
@@ -34,12 +35,14 @@ import { useLandscape } from '../hooks/useLandscape';
 import { useHandsetLayout } from '../hooks/useHandsetLayout';
 import { useReducedMotion } from '../hooks/useReducedMotion';
 import { useCinematicBeat } from '../hooks/useCinematicBeat';
+import { useSceneOrchestrator } from '../hooks/useSceneOrchestrator';
 import { getOrientationMeaning } from '../lib/cardLookup';
 import {
     getNarrativeBiasClass,
     getNarrativeSuitClass,
     getNarrativePhaseClass
 } from '../lib/narrativeAtmosphere';
+import { applyColorScript, determineColorScript, resetColorScript } from '../lib/colorScript';
 
 const STREAM_AUTO_NARRATE_DEBOUNCE_MS = 900;
 const STREAM_AUTO_NARRATE_MIN_WORDS = 40;
@@ -298,6 +301,34 @@ export function ReadingDisplay({
         totalCards: reading?.length ?? 0,
         onBeat: triggerCinematicSwell
     });
+
+    // Scene orchestrator for cinematic state management
+    const sceneOrchestrator = useSceneOrchestrator({
+        isShuffling,
+        hasConfirmedSpread: !!reading,
+        revealedCards,
+        totalCards: reading?.length ?? 0,
+        isGenerating,
+        personalReading,
+        reading
+    });
+
+    const { currentScene, shouldShowInterlude, onSceneTransition } = sceneOrchestrator;
+
+    // Apply color script based on narrative arc
+    useEffect(() => {
+        if (!personalReading || !emotionalTone) {
+            resetColorScript();
+            return;
+        }
+
+        const colorScript = determineColorScript(narrativePhase, emotionalTone, reasoning);
+        applyColorScript(colorScript);
+
+        return () => {
+            resetColorScript();
+        };
+    }, [narrativePhase, emotionalTone, reasoning, personalReading]);
 
     const narrativeAtmosphereClassName = useMemo(() => (
         [narrativeAtmosphereClasses, beatClassName].filter(Boolean).join(' ')
@@ -953,16 +984,24 @@ export function ReadingDisplay({
                                 transition={{ duration: prefersReducedMotion ? 0 : 0.25, ease: 'easeOut' }}
                                 className={`bg-surface/95 backdrop-blur-xl rounded-2xl border border-secondary/40 shadow-2xl shadow-secondary/40 max-w-full sm:max-w-5xl mx-auto ${isLandscape ? 'p-3' : 'px-3 xxs:px-4 py-4 xs:px-5 sm:p-6 md:p-8'}`}
                             >
-                                <NarrativeSkeleton
-                                    hasQuestion={Boolean(userQuestion)}
-                                    displayName={displayName}
-                                    spreadName={spreadInfo?.name}
-                                    cardCount={reading?.length || 3}
-                                    reasoningSummary={reasoningSummary}
-                                    reasoning={reasoning}
-                                    narrativePhase={narrativePhase}
-                                    atmosphereClassName={narrativeAtmosphereClasses}
-                                />
+                                {/* Show atmospheric interlude during initial generation phase (before streaming starts) */}
+                                {shouldShowInterlude && !isReadingStreamActive && !reasoningSummary ? (
+                                    <AtmosphericInterlude 
+                                        message={`Channeling ${spreadInfo?.name || 'your reading'}...`}
+                                        theme={narrativeAtmosphereClasses}
+                                    />
+                                ) : (
+                                    <NarrativeSkeleton
+                                        hasQuestion={Boolean(userQuestion)}
+                                        displayName={displayName}
+                                        spreadName={spreadInfo?.name}
+                                        cardCount={reading?.length || 3}
+                                        reasoningSummary={reasoningSummary}
+                                        reasoning={reasoning}
+                                        narrativePhase={narrativePhase}
+                                        atmosphereClassName={narrativeAtmosphereClasses}
+                                    />
+                                )}
                             </motion.div>
                         )}
                     </AnimatePresence>
