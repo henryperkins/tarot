@@ -133,7 +133,7 @@ export function AtmosphericInterlude({
       phaseTimerRef.current = setInterval(() => {
         phase = (phase + 1) % messages.length;
         setPhaseMessage(messages[phase]);
-      }, 6000); // Change every 6 seconds
+      }, 4000); // 4 seconds per phase, aligned with BREATH_PERIOD_MS
     }
 
     return () => {

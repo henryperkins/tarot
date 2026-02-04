@@ -984,24 +984,28 @@ export function ReadingDisplay({
                                 transition={{ duration: prefersReducedMotion ? 0 : 0.25, ease: 'easeOut' }}
                                 className={`bg-surface/95 backdrop-blur-xl rounded-2xl border border-secondary/40 shadow-2xl shadow-secondary/40 max-w-full sm:max-w-5xl mx-auto ${isLandscape ? 'p-3' : 'px-3 xxs:px-4 py-4 xs:px-5 sm:p-6 md:p-8'}`}
                             >
-                                {/* Show atmospheric interlude during initial generation phase (before streaming starts) */}
-                                {shouldShowInterlude && !isReadingStreamActive && !reasoningSummary ? (
-                                    <AtmosphericInterlude 
-                                        message={`Channeling ${spreadInfo?.name || 'your reading'}...`}
-                                        theme={narrativeAtmosphereClasses}
-                                    />
-                                ) : (
-                                    <NarrativeSkeleton
-                                        hasQuestion={Boolean(userQuestion)}
-                                        displayName={displayName}
-                                        spreadName={spreadInfo?.name}
-                                        cardCount={reading?.length || 3}
-                                        reasoningSummary={reasoningSummary}
-                                        reasoning={reasoning}
-                                        narrativePhase={narrativePhase}
-                                        atmosphereClassName={narrativeAtmosphereClasses}
-                                    />
-                                )}
+                                {/* Show atmospheric interlude during initial generation phase */}
+                                {/* Only show when: scene suggests interlude, not yet streaming, and no reasoning summary yet */}
+                                {(() => {
+                                    const shouldShowAtmosphericInterlude = shouldShowInterlude && !isReadingStreamActive && !reasoningSummary;
+                                    return shouldShowAtmosphericInterlude ? (
+                                        <AtmosphericInterlude 
+                                            message={`Channeling ${spreadInfo?.name || 'your reading'}...`}
+                                            theme={narrativeAtmosphereClasses}
+                                        />
+                                    ) : (
+                                        <NarrativeSkeleton
+                                            hasQuestion={Boolean(userQuestion)}
+                                            displayName={displayName}
+                                            spreadName={spreadInfo?.name}
+                                            cardCount={reading?.length || 3}
+                                            reasoningSummary={reasoningSummary}
+                                            reasoning={reasoning}
+                                            narrativePhase={narrativePhase}
+                                            atmosphereClassName={narrativeAtmosphereClasses}
+                                        />
+                                    );
+                                })()}
                             </motion.div>
                         )}
                     </AnimatePresence>

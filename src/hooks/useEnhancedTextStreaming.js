@@ -41,7 +41,8 @@ export function useEnhancedTextStreaming({
   locale = 'en',
   granularity = 'word',
   baseDelayMs = 45,
-  punctuationDelayMs = 160
+  punctuationDelayMs = 160,
+  elementCooldownMs = 10000
 } = {}) {
   const segmenterRef = useRef(null);
   const elementDetectionBufferRef = useRef('');
@@ -114,12 +115,12 @@ export function useEnhancedTextStreaming({
         // Reset detection buffer after trigger
         elementDetectionBufferRef.current = '';
         
-        // Allow re-detection after delay
+        // Allow re-detection after configurable delay
         setTimeout(() => {
           if (lastDetectedElementRef.current === element) {
             lastDetectedElementRef.current = null;
           }
-        }, 10000); // 10 second cooldown
+        }, elementCooldownMs); // Configurable cooldown
 
         break; // Only trigger one element at a time
       }
