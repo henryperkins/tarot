@@ -9,6 +9,9 @@ import { useReducedMotion } from './useReducedMotion';
  * - success: Ascending pattern for positive completion
  * - reveal: Quick tick for card reveals
  * - hold: Initial pulse for press-and-hold interactions
+ * - cardLanding: Short pulse for card reveal landing
+ * - majorArcana: Complex pattern for Major Arcana emphasis
+ * - readingComplete: Success confirmation pattern
  */
 export const HAPTIC_PATTERNS = {
   tap: 10,
@@ -16,7 +19,10 @@ export const HAPTIC_PATTERNS = {
   success: [15, 40, 25, 40, 35],
   reveal: 12,
   hold: 20,
-  completion: [20, 50, 30, 50, 40, 50, 50]
+  completion: [20, 50, 30, 50, 40, 50, 50],
+  cardLanding: 20,
+  majorArcana: [50, 30, 50],
+  readingComplete: [100, 50, 100]
 };
 
 /**

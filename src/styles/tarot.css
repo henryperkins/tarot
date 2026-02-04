@@ -4148,3 +4148,69 @@ input[type="range"]:focus::-webkit-slider-thumb {
     transition: none;
   }
 }
+
+/* ==========================================================================
+   Hero's Journey Color Script System
+   ========================================================================== */
+
+/**
+ * Dynamic CSS variables that shift based on narrative arc.
+ * These create a "kaleidoscopic adventure" that evolves with the reading.
+ */
+
+:root {
+  /* Default phase colors - overridden dynamically */
+  --phase-color: var(--brand-primary);
+  --phase-warmth: 0.7;
+  --phase-contrast: 1.0;
+  --phase-saturation: 1.0;
+  --primary-glow: var(--phase-color);
+  --ambient-warmth: var(--phase-warmth);
+  --contrast-level: var(--phase-contrast);
+}
+
+/* Atmosphere modifiers applied to :root via JS */
+:root.color-atmosphere--isolation-depth {
+  /* The Struggle: cool, high contrast, reduced saturation */
+  filter: contrast(var(--phase-contrast, 1.2)) saturate(var(--phase-saturation, 0.7));
+}
+
+:root.color-atmosphere--golden-hour-clarity {
+  /* The Revelation: warm, soft contrast, enhanced saturation */
+  filter: contrast(var(--phase-contrast, 0.9)) saturate(var(--phase-saturation, 1.1));
+}
+
+:root.color-atmosphere--grounded-harmonious {
+  /* The Resolution: balanced warmth and contrast */
+  filter: contrast(var(--phase-contrast, 1.0)) saturate(var(--phase-saturation, 0.85));
+}
+
+/* Apply phase color to key UI elements */
+.narrative-phase-glow {
+  box-shadow: 0 0 20px color-mix(in srgb, var(--phase-color) 30%, transparent);
+}
+
+.narrative-phase-border {
+  border-color: color-mix(in srgb, var(--phase-color) 50%, transparent);
+}
+
+.narrative-phase-text {
+  color: var(--phase-color);
+}
+
+/* Smooth transitions between color scripts */
+:root {
+  transition: filter 1.2s ease-in-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    transition: none;
+  }
+  
+  :root.color-atmosphere--isolation-depth,
+  :root.color-atmosphere--golden-hour-clarity,
+  :root.color-atmosphere--grounded-harmonious {
+    filter: none;
+  }
+}
