@@ -205,14 +205,19 @@ function buildCardWithImagery(cardInfo, position, options, prefix = '') {
     }
   } else if (allowImagery && cardInfo.suit && cardInfo.rank) {
     const suitElements = {
-      Wands: 'Fire',
-      Cups: 'Water',
-      Swords: 'Air',
-      Pentacles: 'Earth'
+      wands: 'Fire',
+      cups: 'Water',
+      swords: 'Air',
+      pentacles: 'Earth'
     };
-    const element = suitElements[cardInfo.suit];
+    const rawSuit = typeof cardInfo.suit === 'string' ? cardInfo.suit.trim() : '';
+    const normalizedSuit = rawSuit.toLowerCase();
+    const element = suitElements[normalizedSuit];
     if (element) {
-      text += `*Minor Arcana: ${cardInfo.suit} (${element}) — ${cardInfo.rank}*\n`;
+      const suitLabel = normalizedSuit
+        ? normalizedSuit.charAt(0).toUpperCase() + normalizedSuit.slice(1)
+        : cardInfo.suit;
+      text += `*Minor Arcana: ${suitLabel} (${element}) — ${cardInfo.rank}*\n`;
 
       // NEW: Add vision-detected emotional quality for Minor cards
       if (visualProfile?.emotion?.length) {

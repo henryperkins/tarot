@@ -497,6 +497,22 @@ export default function CardGalleryPage() {
           </div>
         </div>
 
+        {!loading && entries.length === 0 && (
+          <div className="mb-6 rounded-2xl border border-[color:var(--border-warm-light)] bg-[color:var(--border-warm-subtle)] p-5 text-sm text-muted-high shadow-[0_12px_30px_-22px_rgba(0,0,0,0.7)]">
+            <h2 className="text-lg font-serif text-main mb-2">Your collection starts with your first reading</h2>
+            <p>Draw a reading to begin tracking cards and patterns in your journal.</p>
+            <div className="mt-4 flex flex-wrap items-center gap-3">
+              <button
+                type="button"
+                onClick={() => navigate('/', { state: { focusSpread: true } })}
+                className="inline-flex min-h-touch items-center rounded-full border border-[color:var(--border-warm-light)] bg-[color:var(--accent-25)] px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-[color:var(--text-main)] transition hover:border-[color:var(--border-warm)] hover:bg-[color:var(--border-warm-light)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--accent-45)]"
+              >
+                Start a reading
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Toolbar */}
         <div className="sticky top-4 z-20 mb-6 p-1 rounded-xl bg-black/40 backdrop-blur-md border border-white/5 flex flex-wrap gap-2 items-center">
           {/* Suit Filter */}

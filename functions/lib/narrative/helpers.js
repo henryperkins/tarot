@@ -11,8 +11,9 @@ import {
   shouldSurfaceAstroLens,
   shouldSurfaceQabalahLens
 } from '../esotericMeta.js';
-import { filterInstructionPatterns } from '../utils.js';
+import { filterInstructionPatterns, sanitizeText } from '../utils.js';
 import { detectPromptInjection } from '../promptInjectionDetector.js';
+import { MAX_REFLECTION_TEXT_LENGTH, MAX_QUESTION_TEXT_LENGTH } from './prompts/constants.js';
 import { getDeckAlias } from '../../../shared/vision/deckAssets.js';
 import { THOTH_MINOR_TITLES, MARSEILLE_NUMERICAL_THEMES } from '../../../src/data/knowledgeGraphData.js';
 import { SYMBOL_ANNOTATIONS } from '../symbolAnnotations.js';
@@ -1172,7 +1173,22 @@ function formatMeaningForPosition(meaning, position) {
 function buildOpening(spreadName, userQuestion, context, options = {}) {
   const personalization = options.personalization || null;
   const tone = getToneStyle(personalization?.readingTone);
-  const question = userQuestion && userQuestion.trim();
+  const rawQuestion = typeof userQuestion === 'string' ? userQuestion.trim() : '';
+  let safeQuestion = rawQuestion
+    ? sanitizeText(rawQuestion, {
+      maxLength: MAX_QUESTION_TEXT_LENGTH,
+      addEllipsis: true,
+      stripMarkdown: true,
+      filterInstructions: true
+    })
+    : '';
+  if (safeQuestion) {
+    const injectionCheck = detectPromptInjection(safeQuestion, { confidenceThreshold: 0.6, sanitize: true });
+    if (injectionCheck.isInjection) {
+      safeQuestion = injectionCheck.sanitizedText || safeQuestion;
+    }
+  }
+  const question = safeQuestion;
   const spreadLabel = spreadName || 'your chosen spread';
   const descriptor = tone.openingAdjectives?.[0] || 'thoughtful';
   const nameOpening = buildNameClause(personalization?.displayName, 'opening');
@@ -1318,7 +1334,21 @@ function formatCrossCheck(label, crossCheck, themes, options = {}) {
 }
 
 function buildReflectionsSection(reflectionsText) {
-  return `### Your Reflections\n\nThis reflection shows how this reading lands in your lived experience.\n\n${reflectionsText.trim()}\n\nYour intuitive impressions are valid and add personal meaning to this reading.`;
+  if (!reflectionsText || typeof reflectionsText !== 'string') return '';
+  let safeReflection = sanitizeText(reflectionsText, {
+    maxLength: MAX_REFLECTION_TEXT_LENGTH,
+    addEllipsis: true,
+    stripMarkdown: true,
+    filterInstructions: true
+  });
+  if (safeReflection) {
+    const reflectionCheck = detectPromptInjection(safeReflection, { confidenceThreshold: 0.6, sanitize: true });
+    if (reflectionCheck.isInjection) {
+      safeReflection = reflectionCheck.sanitizedText || safeReflection;
+    }
+  }
+  if (!safeReflection) return '';
+  return `### Your Reflections\n\nThis reflection shows how this reading lands in your lived experience.\n\n${safeReflection}\n\nYour intuitive impressions are valid and add personal meaning to this reading.`;
 }
 
 function buildOccultFlavor(cardInfo) {

@@ -61,6 +61,8 @@ describe('semantic scoring prefetch expectations', () => {
     assert.equal(promptMeta.graphRAG.semanticScoringFallback, true);
     assert.equal(promptMeta.graphRAG.reason, 'semantic-scoring-not-prefetched');
     assert.equal(promptMeta.graphRAG.includedInPrompt, true);
+    assert.equal(promptMeta.graphRAG.parseStatus, 'complete');
+    assert.equal(promptMeta.graphRAG.referenceBlockClosed, true);
     assert.ok(
       promptMeta.graphRAG.passagesProvided >= 1,
       'GraphRAG should fall back to keyword passages when semantic payload is missing'

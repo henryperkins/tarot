@@ -53,35 +53,76 @@ function resolveGraphEnv(promptBudgetEnv) {
 }
 
 export function countGraphRAGPassagesInPrompt(promptText) {
-  if (!promptText || typeof promptText !== 'string') {
+  const parsed = parseGraphRAGReferenceBlock(promptText);
+  if (parsed.status !== 'complete') {
     return 0;
+  }
+  return parsed.passageCount;
+}
+
+export function parseGraphRAGReferenceBlock(promptText) {
+  if (!promptText || typeof promptText !== 'string') {
+    return {
+      status: 'absent',
+      headerPresent: false,
+      referenceTagPresent: false,
+      referenceBlockClosed: false,
+      passageCount: 0
+    };
   }
 
   const header = '## TRADITIONAL WISDOM (GraphRAG)';
   const headerIdx = promptText.indexOf(header);
   if (headerIdx === -1) {
-    return 0;
+    return {
+      status: 'absent',
+      headerPresent: false,
+      referenceTagPresent: false,
+      referenceBlockClosed: false,
+      passageCount: 0
+    };
   }
 
   const referenceStart = promptText.indexOf('<reference>', headerIdx);
   if (referenceStart === -1) {
-    return 0;
+    return {
+      status: 'partial',
+      headerPresent: true,
+      referenceTagPresent: false,
+      referenceBlockClosed: false,
+      passageCount: 0
+    };
   }
 
   const contentStart = referenceStart + '<reference>'.length;
   const referenceEnd = promptText.indexOf('</reference>', contentStart);
+  const referenceBlockClosed = referenceEnd !== -1;
   const referenceBody = referenceEnd === -1
     ? promptText.slice(contentStart)
     : promptText.slice(contentStart, referenceEnd);
 
   if (!referenceBody) {
-    return 0;
+    return {
+      status: referenceBlockClosed ? 'complete' : 'partial',
+      headerPresent: true,
+      referenceTagPresent: true,
+      referenceBlockClosed,
+      passageCount: 0
+    };
   }
 
-  return referenceBody
+  const passageCount = referenceBody
     .split('\n')
     .filter((line) => /^\s*\d+\.\s+/.test(line.trim()))
     .length;
+
+  return {
+    status: referenceBlockClosed ? 'complete' : 'partial',
+    headerPresent: true,
+    referenceTagPresent: true,
+    referenceBlockClosed,
+    passageCount
+  };
 }
 
 export function buildEnhancedClaudePrompt({
@@ -600,17 +641,23 @@ export function buildEnhancedClaudePrompt({
     const initialPassageCount = typeof payload.initialPassageCount === 'number'
       ? payload.initialPassageCount
       : passagesAfterSlimming;
-    const graphRAGBlockPresent = typeof finalUser === 'string' &&
-      finalUser.includes('TRADITIONAL WISDOM (GraphRAG)');
-    const passagesInPrompt = graphRAGBlockPresent
-      ? countGraphRAGPassagesInPrompt(finalUser)
-      : 0;
+    const graphRAGParse = parseGraphRAGReferenceBlock(finalUser);
+    const graphRAGBlockPresent = graphRAGParse.status !== 'absent';
+    const passagesInPrompt = graphRAGParse.status === 'complete'
+      ? graphRAGParse.passageCount
+      : null;
     const graphRAGIncluded = graphragEnabled &&
       controls.includeGraphRAG !== false &&
+      graphRAGParse.status === 'complete' &&
+      typeof passagesInPrompt === 'number' &&
       passagesInPrompt > 0 &&
       graphRAGBlockPresent;
-    const passagesUsed = graphRAGIncluded ? passagesInPrompt : 0;
-    const trimmedCount = Math.max(0, initialPassageCount - passagesUsed);
+    const passagesUsed = graphRAGParse.status === 'complete'
+      ? (graphRAGIncluded ? passagesInPrompt : 0)
+      : null;
+    const trimmedCount = typeof passagesUsed === 'number'
+      ? Math.max(0, initialPassageCount - passagesUsed)
+      : null;
 
     const semanticScoringUsed = Boolean(
       retrievalSummary.qualityMetrics?.semanticScoringUsed ||
@@ -641,7 +688,9 @@ export function buildEnhancedClaudePrompt({
 
     retrievalSummary.passagesProvided = initialPassageCount;
     retrievalSummary.passagesUsedInPrompt = passagesUsed;
-    if (trimmedCount > 0) {
+    retrievalSummary.parseStatus = graphRAGParse.status;
+    retrievalSummary.referenceBlockClosed = graphRAGParse.referenceBlockClosed;
+    if (typeof trimmedCount === 'number' && trimmedCount > 0) {
       retrievalSummary.truncatedPassages = trimmedCount;
     }
     if (payload.budgetTrimmedCount) {

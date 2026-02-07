@@ -186,6 +186,26 @@ export default function ShareReading() {
     }
   };
 
+  const handleReportNote = useCallback(async ({ noteId, reason, details }) => {
+    if (!token) {
+      throw new Error('Missing share token');
+    }
+    const response = await fetch(`/api/share-notes/${token}/report`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        noteId,
+        reason,
+        details
+      })
+    });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(payload.error || 'Unable to submit report');
+    }
+    return payload;
+  }, [token]);
+
   const contexts = shareData?.meta?.contexts || [];
   const collaboration = shareData?.collaboration;
 
@@ -428,7 +448,9 @@ export default function ShareReading() {
               <CollaborativeNotesPanel
                 notes={notes}
                 cards={activeEntry?.cards || []}
+                shareToken={token}
                 onSubmit={handleAddNote}
+                onReport={handleReportNote}
                 onRefresh={refreshNotes}
                 isSubmitting={noteSubmitting}
                 error={noteError}
@@ -481,7 +503,9 @@ export default function ShareReading() {
           <CollaborativeNotesPanel
             notes={notes}
             cards={activeEntry?.cards || []}
+            shareToken={token}
             onSubmit={handleAddNote}
+            onReport={handleReportNote}
             onRefresh={refreshNotes}
             isSubmitting={noteSubmitting}
             error={noteError}

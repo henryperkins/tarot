@@ -28,6 +28,7 @@ import { getSpreadKey } from './readingQuality.js';
 import { resolveSemanticScoring } from './readingTelemetry.js';
 import * as graphRAG from './graphRAG.js';
 import { inferGraphRAGContext } from './contextDetection.js';
+import { withSpan } from './tracingSpans.js';
 
 // ============================================================================
 // Constants
@@ -235,6 +236,24 @@ function buildGraphRAGPlaceholder(graphKeys, requestedSemanticScoring, enableSem
  * @returns {Promise<Object>} Analysis result with themes, spreadAnalysis, graphRAGPayload, ephemeris
  */
 export async function performSpreadAnalysis(spreadInfo, cardsInfo, options = {}, requestId = 'unknown', env = null) {
+  return withSpan('tarot.spreadAnalysis', {
+    'tarot.request_id': requestId,
+    'tarot.spread': spreadInfo?.name || 'unknown',
+    'tarot.card_count': cardsInfo?.length || 0,
+    'tarot.deck_style': options?.deckStyle || 'rws-1909',
+  }, (span) => (
+    performSpreadAnalysisInner(spreadInfo, cardsInfo, options, requestId, env, span)
+  ));
+}
+
+async function performSpreadAnalysisInner(
+  spreadInfo,
+  cardsInfo,
+  options = {},
+  requestId = 'unknown',
+  env = null,
+  span
+) {
   // Guard against malformed input (defensive: validatePayload should have run already)
   if (!spreadInfo || !Array.isArray(cardsInfo) || cardsInfo.length === 0) {
     console.warn(`[${requestId}] performSpreadAnalysis: missing or invalid spreadInfo/cardsInfo, falling back to generic themes only.`);
@@ -483,6 +502,10 @@ export async function performSpreadAnalysis(spreadInfo, cardsInfo, options = {},
   } catch (err) {
     console.warn(`[${requestId}] performSpreadAnalysis: Ephemeris fetch failed: ${err.message}`);
     ephemerisContext = { available: false, error: err.message };
+  }
+
+  if (spreadKey) {
+    span.setAttribute('tarot.spread_key', spreadKey);
   }
 
   return {

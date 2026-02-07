@@ -163,7 +163,7 @@ export function UpgradeNudge({
               {isAuthenticated ? null : (
                 <p className="text-xs text-muted">
                   Already subscribed?{' '}
-                  <a href="/login" className="text-accent hover:underline">
+                  <a href="/account" className="text-accent hover:underline">
                     Sign in
                   </a>
                 </p>

@@ -4,6 +4,7 @@ import assert from 'node:assert';
 import {
   analyzeCardCoverage,
   detectHallucinatedCards,
+  buildNarrativeMetrics,
   buildCardAliases,
   buildDeckAwarePatterns,
   lookupCardByName,
@@ -467,6 +468,33 @@ describe('AMBIGUOUS_THOTH_EPITHETS', () => {
     // There are 40 pip epithets total, and most are common words
     assert.ok(AMBIGUOUS_THOTH_EPITHETS.size >= 20, 'Should have at least 20 ambiguous epithets');
     assert.ok(AMBIGUOUS_THOTH_EPITHETS.size <= 40, 'Should not exceed total pip count');
+  });
+});
+
+describe('buildNarrativeMetrics', () => {
+  it('ignores reflections when detecting hallucinated cards', () => {
+    const reading = [
+      '### Opening',
+      'The Sun shows up as a clear anchor.',
+      '',
+      '### Your Reflections',
+      'I keep thinking about The Tower and The Moon.',
+      '',
+      '### Guidance',
+      'Stay grounded and move forward.'
+    ].join('\n');
+    const cardsInfo = [
+      {
+        card: 'The Sun',
+        orientation: 'Upright',
+        position: 'Present',
+        meaning: 'joy and clarity'
+      }
+    ];
+
+    const metrics = buildNarrativeMetrics(reading, cardsInfo, 'rws-1909');
+    assert.ok(!metrics.hallucinatedCards.includes('The Tower'));
+    assert.ok(!metrics.hallucinatedCards.includes('The Moon'));
   });
 });
 

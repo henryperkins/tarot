@@ -8,6 +8,9 @@
  */
 
 import * as Sentry from '@sentry/cloudflare';
+import { instrument, instrumentDO } from '@microlabs/otel-cf-workers';
+import { createTracingConfig, createDOTracingConfig } from '../../functions/lib/tracing.js';
+import { withSpan } from '../../functions/lib/tracingSpans.js';
 
 // API Route Handlers (imported from existing functions)
 import * as tarotReading from '../../functions/api/tarot-reading.js';
@@ -34,6 +37,7 @@ import * as share from '../../functions/api/share.js';
 import * as shareToken from '../../functions/api/share/[token].js';
 import * as shareTokenOgImage from '../../functions/api/share/[token]/og-image.js';
 import * as shareNotes from '../../functions/api/share-notes/[token].js';
+import * as shareNoteReport from '../../functions/api/share-notes/[token]/report.js';
 import * as visionProof from '../../functions/api/vision-proof.js';
 import * as archetypeJourney from '../../functions/api/archetype-journey.js';
 import * as archetypeJourneyBackfill from '../../functions/api/archetype-journey-backfill.js';
@@ -76,6 +80,7 @@ import * as journalExport from '../../functions/api/journal-export/index.js';
 // Scheduled tasks
 import { handleScheduled } from '../../functions/lib/scheduled.js';
 import * as adminArchive from '../../functions/api/admin/archive.js';
+import { ReadingJob as ReadingJobBase } from './readingJob.js';
 
 // Admin handlers
 import * as adminQualityStats from '../../functions/api/admin/quality-stats.js';
@@ -233,6 +238,7 @@ const routes = [
   { pattern: /^\/api\/share$/, handlers: share },
   { pattern: /^\/api\/share\/([^/]+)\/og-image$/, handlers: shareTokenOgImage, params: ['token'] },
   { pattern: /^\/api\/share\/([^/]+)$/, handlers: shareToken, params: ['token'] },
+  { pattern: /^\/api\/share-notes\/([^/]+)\/report$/, handlers: shareNoteReport, params: ['token'] },
   { pattern: /^\/api\/share-notes\/([^/]+)$/, handlers: shareNotes, params: ['token'] },
   { pattern: /^\/api\/vision-proof$/, handlers: visionProof },
   { pattern: /^\/api\/archetype-journey$/, handlers: archetypeJourney },
@@ -385,7 +391,7 @@ function addCorsHeaders(response, request) {
  * @property {string} EVAL_GATEWAY_ID - AI Gateway id for routing eval calls
  */
 
-export default Sentry.withSentry(
+const sentryHandler = Sentry.withSentry(
   (env) => ({
     dsn: 'https://dc6b77e884387701e50a12632de8e0dc@o4508070823395328.ingest.us.sentry.io/4510814880661504',
     tracesSampleRate: 1.0,
@@ -464,8 +470,17 @@ export default Sentry.withSentry(
             data: {},
           };
 
-          // Call the handler
-          const response = await handler(context);
+          const routeLabel = route.pattern instanceof RegExp
+            ? route.pattern.source.replace(/\\\//g, '/').replace(/^\^/, '').replace(/\$$/, '')
+            : String(route.pattern || '/api/*');
+          const response = await withSpan(`api ${method} ${routeLabel}`, {
+            'http.method': method,
+            'http.route': routeLabel,
+          }, async (span) => {
+            const res = await handler(context);
+            span.setAttribute('http.status_code', res.status);
+            return res;
+          });
           return addCorsHeaders(response, request);
 
         } catch (error) {
@@ -490,4 +505,6 @@ export default Sentry.withSentry(
   }
 );
 
-export { ReadingJob } from './readingJob.js';
+export default instrument(sentryHandler, createTracingConfig());
+
+export const ReadingJob = instrumentDO(ReadingJobBase, createDOTracingConfig('ReadingJob'));

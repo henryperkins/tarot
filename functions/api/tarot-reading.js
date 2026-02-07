@@ -17,6 +17,7 @@ import { safeParseReadingRequest } from '../../shared/contracts/readingSchema.js
 import { verifyVisionProof } from '../lib/visionProof.js';
 import {
   buildPromptEngineeringPayload,
+  shouldAllowUnredactedPromptStorage,
   shouldPersistPrompts
 } from '../lib/promptEngineering.js';
 import {
@@ -329,7 +330,20 @@ async function finalizeReading({
   let promptEngineering = null;
   if (capturedPrompts && shouldPersistPrompts(env)) {
     try {
-      const skipPIIRedaction = env.SKIP_PII_REDACTION === 'true' || env.SKIP_PII_REDACTION === true;
+      const skipPIIRedactionRequested = env.SKIP_PII_REDACTION === 'true' || env.SKIP_PII_REDACTION === true;
+      const allowUnredactedStorage = shouldAllowUnredactedPromptStorage(env);
+      const skipPIIRedaction = skipPIIRedactionRequested && allowUnredactedStorage;
+      if (skipPIIRedactionRequested && !allowUnredactedStorage) {
+        console.warn(
+          `[${requestId}] Prompt storage redaction bypass requested but blocked. ` +
+          `Set ALLOW_UNREDACTED_PROMPT_STORAGE=true or use NODE_ENV=test to allow unredacted storage.`
+        );
+      }
+      if (skipPIIRedaction) {
+        console.warn(
+          `[${requestId}] Prompt storage is persisting unredacted content (SKIP_PII_REDACTION=true).`
+        );
+      }
       promptEngineering = await buildPromptEngineeringPayload({
         systemPrompt: capturedPrompts.system,
         userPrompt: capturedPrompts.user,

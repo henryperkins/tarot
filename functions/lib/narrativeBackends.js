@@ -41,6 +41,7 @@ import {
   maybeLogPromptPayload,
   trimForTelemetry
 } from './readingTelemetry.js';
+import { withSpan } from './tracingSpans.js';
 
 // ============================================================================
 // Backend Registry
@@ -882,13 +883,26 @@ export async function composeReadingEnhanced(payload) {
  * @returns {Promise<Object>} { reading, prompts, usage }
  */
 export async function runNarrativeBackend(backendId, env, payload, requestId) {
-  switch (backendId) {
-    case 'azure-gpt5':
-      return generateWithAzureGPT5Responses(env, payload, requestId);
-    case 'claude-opus45':
-      return generateWithClaudeOpus45(env, payload, requestId);
-    case 'local-composer':
-    default:
-      return composeReadingEnhanced(payload);
-  }
+  return withSpan(`tarot.narrative.${backendId}`, {
+    'tarot.request_id': requestId,
+    'tarot.narrative.backend': backendId,
+    'tarot.spread': payload?.analysis?.spreadKey || 'unknown',
+  }, async (span) => {
+    let result;
+    switch (backendId) {
+      case 'azure-gpt5':
+        result = await generateWithAzureGPT5Responses(env, payload, requestId);
+        break;
+      case 'claude-opus45':
+        result = await generateWithClaudeOpus45(env, payload, requestId);
+        break;
+      case 'local-composer':
+      default:
+        result = await composeReadingEnhanced(payload);
+        break;
+    }
+    const reading = typeof result === 'object' && result.reading ? result.reading : result;
+    span.setAttribute('tarot.narrative.length', typeof reading === 'string' ? reading.length : 0);
+    return result;
+  });
 }

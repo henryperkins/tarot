@@ -425,7 +425,7 @@ export default function AnimatedReveal({
           Animated card reveals available with Plus subscription
         </p>
         <button
-          onClick={() => window.location.href = '/subscribe'}
+          onClick={() => window.location.href = '/pricing'}
           className="mt-2 text-accent hover:text-accent/80 text-sm underline"
         >
           Upgrade

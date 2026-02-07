@@ -1,3 +1,6 @@
+import { filterInstructionPatterns } from '../utils.js';
+import { detectPromptInjection } from '../promptInjectionDetector.js';
+
 const DEFAULT_TONE = 'balanced';
 const DEFAULT_FRAME = 'mixed';
 const DEFAULT_DEPTH = 'standard';
@@ -19,6 +22,20 @@ export function sanitizeDisplayName(displayName, { maxLength = MAX_DISPLAY_NAME_
     .trim();
 
   if (!sanitized) return '';
+
+  sanitized = filterInstructionPatterns(sanitized);
+  if (!sanitized) return '';
+  if (sanitized.toLowerCase().includes('[filtered]')) {
+    return '';
+  }
+
+  const injectionCheck = detectPromptInjection(sanitized, { confidenceThreshold: 0.6, sanitize: true });
+  if (injectionCheck.isInjection) {
+    if (injectionCheck.severity === 'high' || injectionCheck.severity === 'critical') {
+      return '';
+    }
+    sanitized = injectionCheck.sanitizedText || sanitized;
+  }
 
   if (sanitized.length > limit) {
     sanitized = sanitized.slice(0, limit).trim();

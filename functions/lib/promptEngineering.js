@@ -412,9 +412,9 @@ export async function buildPromptEngineeringPayload(params) {
   let processedResponse = safeResponse;
 
   if (shouldStripUserContent) {
-    processedSystem = stripUserContent(processedSystem);
-    processedUser = stripUserContent(processedUser);
-    processedResponse = stripUserContent(processedResponse);
+    processedSystem = stripUserPromptContent(processedSystem);
+    processedUser = stripUserPromptContent(processedUser);
+    processedResponse = stripResponseEchoContent(processedResponse);
   }
 
   const derivedNameHints = Array.isArray(nameHints)
@@ -510,18 +510,24 @@ export function shouldPersistPrompts(env) {
 }
 
 /**
- * Strip user-provided content (questions, reflections) from prompts for storage
- * This provides an additional privacy layer beyond PII pattern matching
+ * Determine whether unredacted prompt storage is permitted.
+ * Defaults to false; only allowed in tests or when explicitly enabled.
  *
- * PRIVACY: This function handles multiple patterns where user content appears:
- * 1. Explicit question fields (single and multi-line)
- * 2. Reflections sections (both inline and newline-separated)
- * 3. Questions embedded in card labels (Outcome/Future positions)
- *
- * @param {string} text - Prompt text containing user content
- * @returns {string} Text with user content replaced by placeholders
+ * @param {Object} env - Environment bindings
+ * @returns {boolean} Whether unredacted prompt storage may be used
  */
-export function stripUserContent(text) {
+export function shouldAllowUnredactedPromptStorage(env) {
+  const effectiveEnv = env || (typeof process !== 'undefined' ? process.env : {});
+  const explicitAllow = String(effectiveEnv?.ALLOW_UNREDACTED_PROMPT_STORAGE || '').toLowerCase();
+  if (explicitAllow === 'true' || explicitAllow === '1') {
+    return true;
+  }
+
+  const nodeEnv = String(effectiveEnv?.NODE_ENV || '').toLowerCase();
+  return nodeEnv === 'test';
+}
+
+function stripCommonUserContent(text) {
   if (!text || typeof text !== 'string') return text || '';
 
   let result = text;
@@ -556,6 +562,43 @@ export function stripUserContent(text) {
     '*Reflection: [USER_REFLECTION_REDACTED]*'
   );
 
+  // Strip explicit querent identity directives from personalization sections
+  result = result.replace(
+    /\*\*Querent Name\*\*:\s*[^\n]*/gi,
+    '**Querent Name**: [NAME_REDACTED]'
+  );
+  result = result.replace(
+    /\*\*Name Usage\*\*:\s*[\s\S]*?(?=\n\n|\n\*\*|$)/gi,
+    '**Name Usage**: [NAME_USAGE_REDACTED]'
+  );
+
+  // Strip displayName-prefixed questions: "Name, you asked: <question>"
+  // This handles personalized question formats
+  result = result.replace(
+    /,\s*you asked:\s*[^\n]+/gi,
+    ', you asked: [USER_QUESTION_REDACTED]'
+  );
+
+  // Strip onboarding focus areas (can contain sensitive user details)
+  result = result.replace(
+    /-\s*Focus areas\s*\(from onboarding\)\s*:[^\n]*/gi,
+    '- Focus areas (from onboarding): [FOCUS_AREAS_REDACTED]'
+  );
+
+  return result;
+}
+
+/**
+ * Strip user-provided content (questions, reflections) from prompt text for storage.
+ * This provides an additional privacy layer beyond PII pattern matching.
+ *
+ * @param {string} text - Prompt text containing user content
+ * @returns {string} Text with user content replaced by placeholders
+ */
+export function stripUserPromptContent(text) {
+  let result = stripCommonUserContent(text);
+  if (!result || typeof result !== 'string') return result || '';
+
   // Strip questions embedded in card position labels
   // Pattern: Outcome — likely path for "<question>" if unchanged
   result = result.replace(
@@ -577,20 +620,29 @@ export function stripUserContent(text) {
     'Future — likely trajectory for [USER_QUESTION_REDACTED]'
   );
 
-  // Strip displayName-prefixed questions: "Name, you asked: <question>"
-  // This handles personalized question formats
-  result = result.replace(
-    /,\s*you asked:\s*[^\n]+/gi,
-    ', you asked: [USER_QUESTION_REDACTED]'
-  );
-
-  // Strip onboarding focus areas (can contain sensitive user details)
-  result = result.replace(
-    /-\s*Focus areas\s*\(from onboarding\)\s*:[^\n]*/gi,
-    '- Focus areas (from onboarding): [FOCUS_AREAS_REDACTED]'
-  );
-
   return result;
+}
+
+/**
+ * Strip only direct prompt-echo markers from model responses.
+ * Keeps normal narrative phrasing intact (for example Outcome/Future trajectory prose).
+ *
+ * @param {string} text - Model response text
+ * @returns {string} Response text with direct prompt echoes removed
+ */
+export function stripResponseEchoContent(text) {
+  return stripCommonUserContent(text);
+}
+
+/**
+ * Backward-compatible alias for prompt-style stripping.
+ * @deprecated Prefer stripUserPromptContent for prompts and stripResponseEchoContent for responses.
+ *
+ * @param {string} text - Prompt text containing user content
+ * @returns {string} Text with user content replaced by placeholders
+ */
+export function stripUserContent(text) {
+  return stripUserPromptContent(text);
 }
 
 /**

@@ -107,7 +107,9 @@ describe('telemetrySchema', () => {
         disabledByEnv: false,
         passagesProvided: 5,
         passagesUsedInPrompt: 3,
-        truncatedPassages: 2
+        truncatedPassages: 2,
+        parseStatus: 'complete',
+        referenceBlockClosed: true
       };
       const result = buildGraphRAGTelemetry(stats);
       assert.strictEqual(result.includedInPrompt, true);
@@ -115,6 +117,22 @@ describe('telemetrySchema', () => {
       assert.strictEqual(result.passagesProvided, 5);
       assert.strictEqual(result.passagesUsedInPrompt, 3);
       assert.strictEqual(result.truncatedPassages, 2);
+      assert.strictEqual(result.parseStatus, 'complete');
+      assert.strictEqual(result.referenceBlockClosed, true);
+    });
+
+    it('should preserve null passagesUsedInPrompt for partial parsing', () => {
+      const stats = {
+        includedInPrompt: false,
+        passagesProvided: 4,
+        passagesUsedInPrompt: null,
+        parseStatus: 'partial',
+        referenceBlockClosed: false
+      };
+      const result = buildGraphRAGTelemetry(stats);
+      assert.strictEqual(result.passagesUsedInPrompt, null);
+      assert.strictEqual(result.parseStatus, 'partial');
+      assert.strictEqual(result.referenceBlockClosed, false);
     });
 
     it('should extract semantic scoring info', () => {

@@ -9,6 +9,7 @@ import { isProductionEnvironment } from './environment.js';
 import { getQualityGateThresholds } from './readingQuality.js';
 import { sanitizeText } from './utils.js';
 import { detectPromptInjection } from './promptInjectionDetector.js';
+import { withSpan } from './tracingSpans.js';
 
 const EVAL_PROMPT_VERSION = '2.3.2';
 const DEFAULT_MODEL = '@cf/qwen/qwen3-30b-a3b-fp8';
@@ -1510,145 +1511,150 @@ export function checkEvalGate(evalResult) {
  * @returns {Promise<Object>} { passed: boolean, evalResult: Object, gateResult: Object }
  */
 export async function runSyncEvaluationGate(env, evalParams, narrativeMetrics = {}) {
-  const { requestId = 'unknown' } = evalParams;
-  const failureMode = getEvalGateFailureMode(env);
-  const failOpen = failureMode === 'open';
+  return withSpan('tarot.evaluationGate', {
+    'tarot.request_id': evalParams?.requestId || 'unknown',
+    'tarot.spread': evalParams?.spreadKey || 'unknown',
+  }, async (_span) => {
+    const { requestId = 'unknown' } = evalParams;
+    const failureMode = getEvalGateFailureMode(env);
+    const failOpen = failureMode === 'open';
 
-   // Normalize spread/card inputs for thresholds snapshot
-  const resolvedSpreadKey = evalParams?.spreadKey || narrativeMetrics?.spreadKey || null;
-  const resolvedCardCount = Array.isArray(evalParams?.cardsInfo)
-    ? evalParams.cardsInfo.length
-    : (Number.isFinite(narrativeMetrics?.cardCount) ? narrativeMetrics.cardCount : 0);
-  const thresholdsSnapshot = getQualityGateThresholds(resolvedSpreadKey, resolvedCardCount);
+    // Normalize spread/card inputs for thresholds snapshot
+    const resolvedSpreadKey = evalParams?.spreadKey || narrativeMetrics?.spreadKey || null;
+    const resolvedCardCount = Array.isArray(evalParams?.cardsInfo)
+      ? evalParams.cardsInfo.length
+      : (Number.isFinite(narrativeMetrics?.cardCount) ? narrativeMetrics.cardCount : 0);
+    const thresholdsSnapshot = getQualityGateThresholds(resolvedSpreadKey, resolvedCardCount);
 
-  // Ensure narrativeMetrics is included
-  const enrichedParams = {
-    ...evalParams,
-    narrativeMetrics: evalParams.narrativeMetrics || narrativeMetrics
-  };
-
-  // Check if gate is enabled
-  if (!normalizeBooleanFlag(env?.EVAL_GATE_ENABLED)) {
-    console.log(`[${requestId}] [gate] Skipped: EVAL_GATE_ENABLED !== true`);
-    return { passed: true, evalResult: null, gateResult: null, reason: 'gate_disabled', eval_source: 'heuristic_only', thresholds_snapshot: thresholdsSnapshot };
-  }
-
-  // Heuristic-only path when evaluation is disabled
-  if (!normalizeBooleanFlag(env?.EVAL_ENABLED)) {
-    console.log(`[${requestId}] [gate] Running heuristic-only gate (EVAL_ENABLED !== true)...`);
-    let heuristicEval = buildHeuristicScores(narrativeMetrics, resolvedSpreadKey, { readingText: evalParams?.reading, cardCount: resolvedCardCount });
-    const overrideResult = applyDeterministicSafetyOverrides(heuristicEval, evalParams?.reading, env);
-    heuristicEval = overrideResult.evalResult;
-    const gateResult = checkEvalGate(heuristicEval);
-    const decoratedGate = { ...gateResult, thresholds_snapshot: thresholdsSnapshot };
-    return {
-      passed: !gateResult.shouldBlock,
-      evalResult: heuristicEval,
-      gateResult: decoratedGate,
-      reason: gateResult.reason,
-      eval_source: 'heuristic_only',
-      thresholds_snapshot: thresholdsSnapshot,
-      latencyMs: 0
+    // Ensure narrativeMetrics is included
+    const enrichedParams = {
+      ...evalParams,
+      narrativeMetrics: evalParams.narrativeMetrics || narrativeMetrics
     };
-  }
 
-  console.log(`[${requestId}] [gate] Running synchronous evaluation gate...`);
-  const startTime = Date.now();
-
-  // Try AI evaluation first
-  let evalResult = await runEvaluation(env, enrichedParams);
-  let evalSource = evalResult && !evalResult.error ? 'ai' : null;
-
-  if (evalResult && evalResult.scores) {
-    const overrideResult = applyDeterministicSafetyOverrides(evalResult, evalParams?.reading, env);
-    evalResult = overrideResult.evalResult;
-    if (overrideResult.deterministic_overrides?.length) {
-      evalResult.deterministic_overrides = overrideResult.deterministic_overrides;
+    // Check if gate is enabled
+    if (!normalizeBooleanFlag(env?.EVAL_GATE_ENABLED)) {
+      console.log(`[${requestId}] [gate] Skipped: EVAL_GATE_ENABLED !== true`);
+      return { passed: true, evalResult: null, gateResult: null, reason: 'gate_disabled', eval_source: 'heuristic_only', thresholds_snapshot: thresholdsSnapshot };
     }
-  }
 
-  const hasEvalError = !evalResult || Boolean(evalResult.error);
-  const missingFields = hasEvalError ? [] : findMissingScoreFields(evalResult?.scores);
-  const hasIncompleteScores = missingFields.length > 0;
+    // Heuristic-only path when evaluation is disabled
+    if (!normalizeBooleanFlag(env?.EVAL_ENABLED)) {
+      console.log(`[${requestId}] [gate] Running heuristic-only gate (EVAL_ENABLED !== true)...`);
+      let heuristicEval = buildHeuristicScores(narrativeMetrics, resolvedSpreadKey, { readingText: evalParams?.reading, cardCount: resolvedCardCount });
+      const overrideResult = applyDeterministicSafetyOverrides(heuristicEval, evalParams?.reading, env);
+      heuristicEval = overrideResult.evalResult;
+      const gateResult = checkEvalGate(heuristicEval);
+      const decoratedGate = { ...gateResult, thresholds_snapshot: thresholdsSnapshot };
+      return {
+        passed: !gateResult.shouldBlock,
+        evalResult: heuristicEval,
+        gateResult: decoratedGate,
+        reason: gateResult.reason,
+        eval_source: 'heuristic_only',
+        thresholds_snapshot: thresholdsSnapshot,
+        latencyMs: 0
+      };
+    }
 
-  // When AI evaluation fails or returns incomplete scores, use heuristic fallback
-  // for diagnostics, but fail closed unless the heuristic itself flags a block.
-  let effectiveEvalResult = evalResult;
-  let evalMode = 'model';
-  let gateResult = null;
+    console.log(`[${requestId}] [gate] Running synchronous evaluation gate...`);
+    const startTime = Date.now();
 
-  if (hasEvalError || hasIncompleteScores) {
-    const fallbackEval = buildHeuristicScores(narrativeMetrics, evalParams?.spreadKey, { readingText: evalParams?.reading, cardCount: resolvedCardCount });
-    const fallbackReason = hasEvalError
-      ? `eval_error_${(evalResult?.error || 'unavailable').replace(/\s+/g, '_')}`
-      : `incomplete_scores_${missingFields.join('_')}`;
-    const blockReason = hasEvalError ? 'eval_unavailable' : 'eval_incomplete_scores';
+    // Try AI evaluation first
+    let evalResult = await runEvaluation(env, enrichedParams);
+    let evalSource = evalResult && !evalResult.error ? 'ai' : null;
 
-    console.log(`[${requestId}] [gate] AI evaluation unavailable (${fallbackReason}), using heuristic fallback (mode: ${failureMode})`);
-
-    effectiveEvalResult = {
-      ...fallbackEval,
-      mode: 'heuristic',
-      fallbackReason,
-      failureMode,
-      originalError: evalResult?.error || null
-    };
-
-    evalSource = hasEvalError ? 'heuristic_fallback' : 'heuristic_fallback';
-
-    if (effectiveEvalResult && effectiveEvalResult.scores) {
-      const overrideResult = applyDeterministicSafetyOverrides(effectiveEvalResult, evalParams?.reading, env);
-      effectiveEvalResult = overrideResult.evalResult;
+    if (evalResult && evalResult.scores) {
+      const overrideResult = applyDeterministicSafetyOverrides(evalResult, evalParams?.reading, env);
+      evalResult = overrideResult.evalResult;
       if (overrideResult.deterministic_overrides?.length) {
-        effectiveEvalResult.deterministic_overrides = overrideResult.deterministic_overrides;
+        evalResult.deterministic_overrides = overrideResult.deterministic_overrides;
       }
     }
-    evalMode = 'heuristic';
 
-    const heuristicGate = checkEvalGate(effectiveEvalResult);
-    if (heuristicGate.shouldBlock) {
-      // Heuristic detected safety issues - block regardless of failure mode
-      console.log(`[${requestId}] [gate] Heuristic detected safety issue: ${heuristicGate.reason}`);
-      gateResult = heuristicGate;
-    } else if (failOpen) {
-      // Heuristic passed and we're in open mode - allow the reading
-      console.log(`[${requestId}] [gate] Heuristic passed, allowing reading (fail-open mode)`);
-      gateResult = { shouldBlock: false, reason: null, reasons: [] };
+    const hasEvalError = !evalResult || Boolean(evalResult.error);
+    const missingFields = hasEvalError ? [] : findMissingScoreFields(evalResult?.scores);
+    const hasIncompleteScores = missingFields.length > 0;
+
+    // When AI evaluation fails or returns incomplete scores, use heuristic fallback
+    // for diagnostics, but fail closed unless the heuristic itself flags a block.
+    let effectiveEvalResult = evalResult;
+    let evalMode = 'model';
+    let gateResult = null;
+
+    if (hasEvalError || hasIncompleteScores) {
+      const fallbackEval = buildHeuristicScores(narrativeMetrics, evalParams?.spreadKey, { readingText: evalParams?.reading, cardCount: resolvedCardCount });
+      const fallbackReason = hasEvalError
+        ? `eval_error_${(evalResult?.error || 'unavailable').replace(/\s+/g, '_')}`
+        : `incomplete_scores_${missingFields.join('_')}`;
+      const blockReason = hasEvalError ? 'eval_unavailable' : 'eval_incomplete_scores';
+
+      console.log(`[${requestId}] [gate] AI evaluation unavailable (${fallbackReason}), using heuristic fallback (mode: ${failureMode})`);
+
+      effectiveEvalResult = {
+        ...fallbackEval,
+        mode: 'heuristic',
+        fallbackReason,
+        failureMode,
+        originalError: evalResult?.error || null
+      };
+
+      evalSource = 'heuristic_fallback';
+
+      if (effectiveEvalResult && effectiveEvalResult.scores) {
+        const overrideResult = applyDeterministicSafetyOverrides(effectiveEvalResult, evalParams?.reading, env);
+        effectiveEvalResult = overrideResult.evalResult;
+        if (overrideResult.deterministic_overrides?.length) {
+          effectiveEvalResult.deterministic_overrides = overrideResult.deterministic_overrides;
+        }
+      }
+      evalMode = 'heuristic';
+
+      const heuristicGate = checkEvalGate(effectiveEvalResult);
+      if (heuristicGate.shouldBlock) {
+        // Heuristic detected safety issues - block regardless of failure mode
+        console.log(`[${requestId}] [gate] Heuristic detected safety issue: ${heuristicGate.reason}`);
+        gateResult = heuristicGate;
+      } else if (failOpen) {
+        // Heuristic passed and we're in open mode - allow the reading
+        console.log(`[${requestId}] [gate] Heuristic passed, allowing reading (fail-open mode)`);
+        gateResult = { shouldBlock: false, reason: null, reasons: [] };
+      } else {
+        // Heuristic passed but we're in closed mode - block anyway
+        console.log(`[${requestId}] [gate] Heuristic passed but blocking (fail-closed mode)`);
+        gateResult = { shouldBlock: true, reason: blockReason, reasons: [blockReason] };
+      }
     } else {
-      // Heuristic passed but we're in closed mode - block anyway
-      console.log(`[${requestId}] [gate] Heuristic passed but blocking (fail-closed mode)`);
-      gateResult = { shouldBlock: true, reason: blockReason, reasons: [blockReason] };
+      // Run gate check on the effective result (AI or heuristic)
+      gateResult = checkEvalGate(effectiveEvalResult);
     }
-  } else {
-    // Run gate check on the effective result (AI or heuristic)
-    gateResult = checkEvalGate(effectiveEvalResult);
-  }
-  const latencyMs = Date.now() - startTime;
+    const latencyMs = Date.now() - startTime;
 
-  console.log(`[${requestId}] [gate] Evaluation completed in ${latencyMs}ms:`, {
-    mode: evalMode,
-    passed: !gateResult.shouldBlock,
-    reason: gateResult.reason,
-    reasons: gateResult.reasons,
-    safetyFlag: effectiveEvalResult.scores?.safety_flag,
-    safetyScore: effectiveEvalResult.scores?.safety,
-    toneScore: effectiveEvalResult.scores?.tone
+    console.log(`[${requestId}] [gate] Evaluation completed in ${latencyMs}ms:`, {
+      mode: evalMode,
+      passed: !gateResult.shouldBlock,
+      reason: gateResult.reason,
+      reasons: gateResult.reasons,
+      safetyFlag: effectiveEvalResult.scores?.safety_flag,
+      safetyScore: effectiveEvalResult.scores?.safety,
+      toneScore: effectiveEvalResult.scores?.tone
+    });
+
+    if (gateResult.shouldBlock) {
+      console.warn(`[${requestId}] [gate] BLOCKED: ${gateResult.reason}`);
+    }
+
+    const decoratedEvalResult = effectiveEvalResult ? { ...effectiveEvalResult, eval_source: evalSource || 'ai' } : effectiveEvalResult;
+
+    return {
+      passed: !gateResult.shouldBlock,
+      evalResult: decoratedEvalResult,
+      gateResult: { ...gateResult, thresholds_snapshot: thresholdsSnapshot },
+      eval_source: evalSource || 'ai',
+      thresholds_snapshot: thresholdsSnapshot,
+      latencyMs
+    };
   });
-
-  if (gateResult.shouldBlock) {
-    console.warn(`[${requestId}] [gate] BLOCKED: ${gateResult.reason}`);
-  }
-
-  const decoratedEvalResult = effectiveEvalResult ? { ...effectiveEvalResult, eval_source: evalSource || 'ai' } : effectiveEvalResult;
-
-  return {
-    passed: !gateResult.shouldBlock,
-    evalResult: decoratedEvalResult,
-    gateResult: { ...gateResult, thresholds_snapshot: thresholdsSnapshot },
-    eval_source: evalSource || 'ai',
-    thresholds_snapshot: thresholdsSnapshot,
-    latencyMs
-  };
 }
 
 /**

@@ -84,12 +84,21 @@ export function buildPromptTelemetry(promptMeta) {
 export function buildGraphRAGTelemetry(graphRAGStats) {
   if (!graphRAGStats) return null;
 
+  const numberOrDefault = (value, fallback = 0) =>
+    typeof value === 'number' ? value : fallback;
+  const optionalNumber = (value) =>
+    typeof value === 'number' ? value : null;
+  const optionalBoolean = (value) =>
+    typeof value === 'boolean' ? value : null;
+
   return {
     includedInPrompt: graphRAGStats.includedInPrompt || false,
     disabledByEnv: graphRAGStats.disabledByEnv || false,
-    passagesProvided: graphRAGStats.passagesProvided || 0,
-    passagesUsedInPrompt: graphRAGStats.passagesUsedInPrompt || 0,
-    truncatedPassages: graphRAGStats.truncatedPassages || 0,
+    passagesProvided: numberOrDefault(graphRAGStats.passagesProvided, 0),
+    passagesUsedInPrompt: optionalNumber(graphRAGStats.passagesUsedInPrompt),
+    truncatedPassages: optionalNumber(graphRAGStats.truncatedPassages),
+    parseStatus: graphRAGStats.parseStatus || null,
+    referenceBlockClosed: optionalBoolean(graphRAGStats.referenceBlockClosed),
     skippedReason: graphRAGStats.skippedReason || null,
     semanticScoring: {
       requested: graphRAGStats.semanticScoringRequested || false,

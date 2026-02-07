@@ -102,6 +102,14 @@ const COURT_RANK_ABBREVIATIONS = {
   King: ['K']
 };
 
+function stripReflectionSections(text = '') {
+  if (!text || typeof text !== 'string') return '';
+  return text.replace(
+    /(^|\n)#{2,6}\s*(?:Your\s+)?Reflections?\b[\s\S]*?(?=\n#{2,6}\s+|$)/gi,
+    '\n'
+  ).trim();
+}
+
 function getSuitAliasesForShorthand(suit, deckStyle) {
   const suits = new Set();
   if (suit) suits.add(suit);
@@ -883,10 +891,11 @@ export function detectHallucinatedCards(readingText, cardsInfo = [], deckStyle =
  */
 export function buildNarrativeMetrics(readingText, cardsInfo, deckStyle = 'rws-1909') {
   const text = typeof readingText === 'string' ? readingText : '';
+  const metricsText = stripReflectionSections(text);
   const safeCards = Array.isArray(cardsInfo) ? cardsInfo : [];
-  const spine = validateReadingNarrative(text);
-  const coverage = analyzeCardCoverage(text, safeCards, deckStyle);
-  const hallucinatedCards = detectHallucinatedCards(text, safeCards, deckStyle);
+  const spine = validateReadingNarrative(metricsText);
+  const coverage = analyzeCardCoverage(metricsText, safeCards, deckStyle);
+  const hallucinatedCards = detectHallucinatedCards(metricsText, safeCards, deckStyle);
 
   return {
     spine: {

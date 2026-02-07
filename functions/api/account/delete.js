@@ -205,6 +205,7 @@ export async function onRequestPost(context) {
     await runDelete(env.DB, 'DELETE FROM archetype_badges WHERE user_id = ?', [userId], requestId);
     await runDelete(env.DB, 'DELETE FROM card_appearances WHERE user_id = ?', [userId], requestId);
     await runDelete(env.DB, 'DELETE FROM api_keys WHERE user_id = ?', [userId], requestId);
+    await runDelete(env.DB, 'DELETE FROM share_note_reports WHERE token IN (SELECT token FROM share_tokens WHERE user_id = ?)', [userId], requestId);
     await runDelete(env.DB, 'DELETE FROM share_notes WHERE token IN (SELECT token FROM share_tokens WHERE user_id = ?)', [userId], requestId);
     await runDelete(env.DB, 'DELETE FROM share_token_entries WHERE token IN (SELECT token FROM share_tokens WHERE user_id = ?)', [userId], requestId);
     await runDelete(env.DB, 'DELETE FROM share_tokens WHERE user_id = ?', [userId], requestId);

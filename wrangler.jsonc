@@ -132,7 +132,7 @@
     // Media Generation Feature Flags
     // -------------------------------------------------------------------------
     "FEATURE_CARD_VIDEO": "true",
-    "FEATURE_STORY_ART": "true"
+    "FEATURE_STORY_ART": "true",
     // -------------------------------------------------------------------------
     // Prompt Budget & GraphRAG Settings (not set = use defaults)
     // -------------------------------------------------------------------------
@@ -144,6 +144,10 @@
     // DISABLE_QUALITY_FILTERING: "false" (default) - When "true", disables
     //   GraphRAG passage relevance scoring. Passages are returned unfiltered.
     //   These two features are independent.
+    // OpenTelemetry tracing
+    "OTLP_ENDPOINT": "",
+    // OTLP_AUTH_HEADER should be set as a secret when needed.
+    "OTEL_TRACE_SAMPLE_RATIO": ""
   },
   // ============================================================================
   // D1 Database

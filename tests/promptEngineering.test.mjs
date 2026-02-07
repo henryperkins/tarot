@@ -3,10 +3,20 @@
 
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
-import { redactPII, stripUserContent, buildPromptEngineeringPayload } from '../functions/lib/promptEngineering.js';
+import {
+  redactPII,
+  stripUserContent,
+  stripResponseEchoContent,
+  stripUserPromptContent,
+  shouldAllowUnredactedPromptStorage,
+  buildPromptEngineeringPayload
+} from '../functions/lib/promptEngineering.js';
 import { estimateTokenCount } from '../functions/lib/narrative/prompts/budgeting.js';
 import { truncateToTokenBudget } from '../functions/lib/narrative/prompts/truncation.js';
-import { countGraphRAGPassagesInPrompt } from '../functions/lib/narrative/prompts/buildEnhancedClaudePrompt.js';
+import {
+  countGraphRAGPassagesInPrompt,
+  parseGraphRAGReferenceBlock
+} from '../functions/lib/narrative/prompts/buildEnhancedClaudePrompt.js';
 
 describe('redactPII', () => {
   test('redacts display name tokens without overmatching inside other words', () => {
@@ -280,6 +290,53 @@ This card scares me.
       assert.ok(result.includes('**Cards**: The Tower'), 'Non-user content should remain');
     });
   });
+
+  describe('querent identity sections', () => {
+    test('strips querent name and name usage sections', () => {
+      const text = `**Querent Name**: Alex
+
+**Name Usage**:
+- Use Alex in transitions.
+- Close with Remember, Alex.
+
+**Cards**:
+The Star`;
+      const result = stripUserContent(text);
+
+      assert.ok(result.includes('**Querent Name**: [NAME_REDACTED]'));
+      assert.ok(result.includes('**Name Usage**: [NAME_USAGE_REDACTED]'));
+      assert.ok(result.includes('**Cards**:'), 'non-user content should remain');
+    });
+  });
+});
+
+describe('stripResponseEchoContent', () => {
+  test('does not redact normal trajectory prose', () => {
+    const text = 'Future — likely trajectory for renewed momentum if nothing shifts.';
+    const result = stripResponseEchoContent(text);
+    assert.equal(result, text);
+  });
+
+  test('redacts direct echoed question markers', () => {
+    const text = '**Question**: How do I handle this conflict with Alex?';
+    const result = stripResponseEchoContent(text);
+    assert.ok(result.includes('[USER_QUESTION_REDACTED]'));
+    assert.ok(!result.includes('Alex'));
+  });
+});
+
+describe('shouldAllowUnredactedPromptStorage', () => {
+  test('allows in test environment', () => {
+    assert.equal(shouldAllowUnredactedPromptStorage({ NODE_ENV: 'test' }), true);
+  });
+
+  test('allows with explicit override', () => {
+    assert.equal(shouldAllowUnredactedPromptStorage({ ALLOW_UNREDACTED_PROMPT_STORAGE: 'true' }), true);
+  });
+
+  test('blocks by default in non-test env', () => {
+    assert.equal(shouldAllowUnredactedPromptStorage({ NODE_ENV: 'production' }), false);
+  });
 });
 
 describe('buildPromptEngineeringPayload', () => {
@@ -319,6 +376,21 @@ describe('buildPromptEngineeringPayload', () => {
     });
 
     assert.ok(!payload.redacted.response.includes('marcus'), 'Response should not include lowercase possessive name');
+  });
+
+  test('uses response-safe stripping and preserves non-echo trajectory prose', async () => {
+    const payload = await buildPromptEngineeringPayload({
+      systemPrompt: 'System prompt',
+      userPrompt: stripUserPromptContent('**Question**: Should I move?'),
+      response: 'Future — likely trajectory for renewed confidence if nothing shifts.',
+      userQuestion: 'Should I move?',
+      redactionOptions: { displayName: 'Taylor' }
+    });
+
+    assert.ok(
+      payload.redacted.response.includes('Future — likely trajectory for renewed confidence if nothing shifts.'),
+      'Response narrative phrasing should remain when it is not a prompt echo'
+    );
   });
 });
 
@@ -381,5 +453,27 @@ describe('countGraphRAGPassagesInPrompt', () => {
 
     assert.ok(truncated.text.includes('FOOTER INSTRUCTIONS'), 'Footer should be preserved after truncation');
     assert.equal(countGraphRAGPassagesInPrompt(truncated.text), 0);
+  });
+});
+
+describe('parseGraphRAGReferenceBlock', () => {
+  test('reports partial status when reference block is unclosed', () => {
+    const partialPrompt = [
+      '## TRADITIONAL WISDOM (GraphRAG)',
+      '<reference>',
+      '1. **Alpha Arc**',
+      '2. **Beta Arc**'
+    ].join('\n');
+
+    const parsed = parseGraphRAGReferenceBlock(partialPrompt);
+    assert.equal(parsed.status, 'partial');
+    assert.equal(parsed.referenceBlockClosed, false);
+    assert.equal(parsed.passageCount, 2);
+  });
+
+  test('reports absent status when header is missing', () => {
+    const parsed = parseGraphRAGReferenceBlock('No graphrag block');
+    assert.equal(parsed.status, 'absent');
+    assert.equal(parsed.passageCount, 0);
   });
 });

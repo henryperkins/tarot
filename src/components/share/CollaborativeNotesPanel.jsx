@@ -2,6 +2,17 @@ import { useMemo, useState, useEffect, useId, useCallback, useRef } from 'react'
 
 const ALIAS_STORAGE_KEY = 'mystic-share-alias';
 const DRAFT_STORAGE_KEY = 'mystic-share-draft';
+const REPORTED_NOTES_STORAGE_PREFIX = 'mystic-share-reported-notes';
+
+const REPORT_REASONS = [
+  { value: 'spam', label: 'Spam or advertising' },
+  { value: 'harassment', label: 'Harassment or bullying' },
+  { value: 'hate', label: 'Hate speech' },
+  { value: 'sexual', label: 'Sexual content' },
+  { value: 'self-harm', label: 'Self-harm' },
+  { value: 'violence', label: 'Violence or threats' },
+  { value: 'other', label: 'Other' }
+];
 
 function getTimestamp(value) {
   if (!value) return null;
@@ -91,10 +102,41 @@ function useLocalStorage(key, initialValue) {
   return [value, setAndPersist];
 }
 
+function getReportedNotesKey(shareToken) {
+  return shareToken ? `${REPORTED_NOTES_STORAGE_PREFIX}-${shareToken}` : REPORTED_NOTES_STORAGE_PREFIX;
+}
+
+function readStoredList(key) {
+  try {
+    if (typeof window === 'undefined' || !window.localStorage) {
+      return [];
+    }
+    const stored = window.localStorage.getItem(key);
+    if (!stored) return [];
+    const parsed = JSON.parse(stored);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function writeStoredList(key, list) {
+  try {
+    if (typeof window === 'undefined' || !window.localStorage) {
+      return;
+    }
+    window.localStorage.setItem(key, JSON.stringify(list));
+  } catch {
+    // localStorage unavailable
+  }
+}
+
 export function CollaborativeNotesPanel({
   notes = [],
   cards = [],
+  shareToken,
   onSubmit,
+  onReport,
   isSubmitting,
   onRefresh,
   error,
@@ -108,7 +150,15 @@ export function CollaborativeNotesPanel({
   const [statusMessage, setStatusMessage] = useState('');
   const [statusTone, setStatusTone] = useState('neutral');
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [reportingNoteId, setReportingNoteId] = useState(null);
+  const [reportReason, setReportReason] = useState(REPORT_REASONS[0].value);
+  const [reportDetails, setReportDetails] = useState('');
+  const [reportError, setReportError] = useState('');
+  const [reportSubmitting, setReportSubmitting] = useState(false);
   const statusTimeoutRef = useRef(null);
+
+  const reportedNotesKey = getReportedNotesKey(shareToken);
+  const [reportedNoteIds, setReportedNoteIds] = useState(() => new Set(readStoredList(reportedNotesKey)));
 
   // Generate unique IDs for accessibility
   const nameInputId = useId();
@@ -155,6 +205,10 @@ export function CollaborativeNotesPanel({
     }
   }, [error, setStatus]);
 
+  useEffect(() => {
+    setReportedNoteIds(new Set(readStoredList(reportedNotesKey)));
+  }, [reportedNotesKey]);
+
   const sortedNotes = useMemo(() => {
     return [...notes]
       .map((note) => {
@@ -168,6 +222,15 @@ export function CollaborativeNotesPanel({
       })
       .sort((a, b) => (a.createdAtMs ?? 0) - (b.createdAtMs ?? 0));
   }, [notes]);
+
+  const markNoteReported = useCallback((noteId) => {
+    setReportedNoteIds((prev) => {
+      const next = new Set(prev);
+      next.add(noteId);
+      writeStoredList(reportedNotesKey, Array.from(next));
+      return next;
+    });
+  }, [reportedNotesKey]);
 
   const handleSubmit = async (event) => {
     event.preventDefault();
@@ -211,6 +274,44 @@ export function CollaborativeNotesPanel({
       setStatus(refreshError?.message || 'Unable to refresh notes.', 'error');
     } finally {
       setIsRefreshing(false);
+    }
+  };
+
+  const handleReportStart = (noteId) => {
+    setReportingNoteId(noteId);
+    setReportReason(REPORT_REASONS[0].value);
+    setReportDetails('');
+    setReportError('');
+  };
+
+  const handleReportCancel = () => {
+    setReportingNoteId(null);
+    setReportDetails('');
+    setReportError('');
+  };
+
+  const handleReportSubmit = async (noteId) => {
+    if (!onReport || reportSubmitting) return;
+    if (reportReason === 'other' && !reportDetails.trim()) {
+      setReportError('Please add details for other reports.');
+      return;
+    }
+    setReportSubmitting(true);
+    setReportError('');
+    try {
+      await onReport({
+        noteId,
+        reason: reportReason,
+        details: reportDetails.trim() || null
+      });
+      markNoteReported(noteId);
+      setStatus('Report received. Thanks for helping keep this space safe.', 'success', 3000);
+      setReportingNoteId(null);
+      setReportDetails('');
+    } catch (submitError) {
+      setReportError(submitError?.message || 'Unable to submit report.');
+    } finally {
+      setReportSubmitting(false);
     }
   };
 
@@ -265,31 +366,112 @@ export function CollaborativeNotesPanel({
             No reflections yet. Be the first to leave a note.
           </p>
         )}
-        {sortedNotes.map((note) => (
-          <article
-            key={note.id}
-            role="listitem"
-            className="rounded-2xl border border-accent/20 bg-surface-muted/70 p-3"
-          >
-            <div className="flex items-center justify-between gap-2 text-xs text-secondary/90">
-              <span className="font-semibold truncate">{note.authorName || 'Anonymous'}</span>
-              <time
-                dateTime={note.isoCreatedAt}
-                className="text-secondary/70 shrink-0"
-              >
-                {note.formattedCreatedAt}
-              </time>
-            </div>
-            {note.cardPosition && (
-              <p className="mt-1 text-xs uppercase tracking-[0.12em] text-accent/70">
-                {note.cardPosition}
-              </p>
-            )}
-            <p className="mt-2 text-sm text-main/90 whitespace-pre-wrap break-words">
-              {note.body}
-            </p>
-          </article>
-        ))}
+        {sortedNotes.map((note) => {
+          const isReported = reportedNoteIds.has(note.id);
+          const isReporting = reportingNoteId === note.id;
+
+          return (
+            <article
+              key={note.id}
+              role="listitem"
+              className="rounded-2xl border border-accent/20 bg-surface-muted/70 p-3"
+            >
+              <div className="flex items-center justify-between gap-2 text-xs text-secondary/90">
+                <span className="font-semibold truncate">{note.authorName || 'Anonymous'}</span>
+                <div className="flex items-center gap-2 shrink-0">
+                  {isReported ? (
+                    <span className="text-2xs uppercase tracking-[0.14em] text-muted">Reported</span>
+                  ) : onReport ? (
+                    <button
+                      type="button"
+                      onClick={() => handleReportStart(note.id)}
+                      className="text-2xs text-muted hover:text-accent transition"
+                      aria-label="Report this note"
+                    >
+                      Report
+                    </button>
+                  ) : null}
+                  <time
+                    dateTime={note.isoCreatedAt}
+                    className="text-secondary/70"
+                  >
+                    {note.formattedCreatedAt}
+                  </time>
+                </div>
+              </div>
+              {note.cardPosition && (
+                <p className="mt-1 text-xs uppercase tracking-[0.12em] text-accent/70">
+                  {note.cardPosition}
+                </p>
+              )}
+              {isReported ? (
+                <p className="mt-2 text-xs text-muted">
+                  Report received. Thanks for helping keep this space safe.
+                </p>
+              ) : (
+                <p className="mt-2 text-sm text-main/90 whitespace-pre-wrap break-words">
+                  {note.body}
+                </p>
+              )}
+
+              {isReporting && !isReported && (
+                <div className="mt-3 rounded-xl border border-secondary/30 bg-surface/70 p-3">
+                  <div className="flex flex-col gap-2">
+                    <label className="text-xs text-muted" htmlFor={`report-reason-${note.id}`}>
+                      Report reason
+                    </label>
+                    <select
+                      id={`report-reason-${note.id}`}
+                      value={reportReason}
+                      onChange={(event) => setReportReason(event.target.value)}
+                      className="w-full min-h-touch rounded-lg border border-secondary/30 bg-surface-muted/70 px-3 py-2 text-xs text-main focus:outline-none focus-visible:ring-2 focus-visible:ring-secondary/50"
+                    >
+                      {REPORT_REASONS.map((option) => (
+                        <option key={option.value} value={option.value}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
+                    <label className="text-xs text-muted" htmlFor={`report-details-${note.id}`}>
+                      Details (optional)
+                    </label>
+                    <textarea
+                      id={`report-details-${note.id}`}
+                      value={reportDetails}
+                      onChange={(event) => setReportDetails(event.target.value)}
+                      rows={2}
+                      maxLength={600}
+                      placeholder="Share a little more context"
+                      className="w-full rounded-lg border border-secondary/30 bg-surface-muted/70 px-3 py-2 text-xs text-main placeholder:text-muted/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-secondary/50 resize-none"
+                    />
+                  </div>
+                  {reportError && (
+                    <p className="mt-2 text-xs text-error" role="alert">
+                      {reportError}
+                    </p>
+                  )}
+                  <div className="mt-3 flex flex-wrap items-center justify-end gap-2">
+                    <button
+                      type="button"
+                      onClick={handleReportCancel}
+                      className="min-h-touch rounded-full border border-secondary/40 px-3 py-1.5 text-xs text-muted hover:text-main hover:border-secondary/60 transition"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleReportSubmit(note.id)}
+                      disabled={reportSubmitting}
+                      className="min-h-touch rounded-full border border-accent/40 bg-accent/10 px-3 py-1.5 text-xs font-semibold text-accent transition hover:bg-accent/20 disabled:opacity-60 disabled:cursor-not-allowed"
+                    >
+                      {reportSubmitting ? 'Sending…' : 'Submit report'}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </article>
+          );
+        })}
       </div>
 
       <form onSubmit={handleSubmit} className="mt-5 space-y-3">
